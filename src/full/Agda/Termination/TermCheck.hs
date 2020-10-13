@@ -660,6 +660,9 @@ instance ExtractCalls a => ExtractCalls [a] where
 instance (ExtractCalls a, ExtractCalls b) => ExtractCalls (a,b) where
   extract (a, b) = CallGraph.union <$> extract a <*> extract b
 
+instance (ExtractCalls a, ExtractCalls b, ExtractCalls c) => ExtractCalls (a,b,c) where
+  extract (a, b, c) = extract (a, (b, c))
+
 -- | Sorts can contain arbitrary terms of type @Level@,
 --   so look for recursive calls also in sorts.
 --   Ideally, 'Sort' would not be its own datatype but just
@@ -675,10 +678,11 @@ instance ExtractCalls Sort where
     case s of
       Inf f n    -> return empty
       SizeUniv   -> return empty
+      LockUniv   -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
       SSet t     -> terUnguarded $ extract t
-      PiSort a s -> extract (a, s)
+      PiSort a s1 s2 -> extract (a, s1, s2)
       FunSort s1 s2 -> extract (s1, s2)
       UnivSort s -> extract s
       MetaS x es -> return empty

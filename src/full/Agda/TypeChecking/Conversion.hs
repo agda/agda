@@ -60,19 +60,14 @@ import Agda.Utils.WithDefault
 import Agda.Utils.Impossible
 
 type MonadConversion m =
-  ( MonadReduce m
-  , MonadAddContext m
+  ( PureTCM m
   , MonadConstraint m
   , MonadMetaSolver m
   , MonadError TCErr m
   , MonadWarning m
-  , MonadDebug m
   , MonadStatistics m
   , MonadFresh ProblemId m
   , MonadFresh Int m
-  , HasBuiltins m
-  , HasConstInfo m
-  , HasOptions m
   , MonadFail m
   )
 
@@ -304,11 +299,9 @@ compareTerm' cmp a m n =
                     -- Andreas 2011-03-23: (fixing issue 396)
                     -- if we are dealing with a singleton record,
                     -- we can succeed immediately
-                    isSing <- isSingletonRecordModuloRelevance r ps
-                    case isSing of
-                      Right True -> return ()
+                    ifM (isSingletonRecordModuloRelevance r ps) (return ()) $
                       -- do not eta-expand if comparing two neutrals
-                      _ -> compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+                      compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
                 _ -> do
                   (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
                   (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
@@ -1236,6 +1229,7 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
 
       -- @SizeUniv@ and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
+      (_       , LockUniv) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
       (_       , Prop (Max 0 [])) -> equalSort s1 s2
       (_       , Type (Max 0 []))
@@ -1246,6 +1240,10 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (SizeUniv, Prop{}  ) -> no
       (SizeUniv , Inf{}  ) -> no
       (SizeUniv, SSet{}  ) -> no
+      (LockUniv, Type{}  ) -> no
+      (LockUniv, Prop{}  ) -> no
+      (LockUniv , Inf{}  ) -> no
+      (LockUniv, SSet{}  ) -> no
 
       -- If the first sort is a small sort that rigidly depends on a
       -- variable and the second sort does not mention this variable,
@@ -1287,6 +1285,14 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
 
       (a, b) <- reduce (a, b)
       ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+
+      let notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
+          postpone = patternViolation (unblockOnAnyMetaIn (a, b))
+
+          wrap m = m `catchError` \case
+            TypeError{} -> notok
+            err         -> throwError err
+
       reportSDoc "tc.conv.level" 60 $
         "checkSyntacticEquality returns" <+> prettyTCM equal
       unless equal $ do
@@ -1306,18 +1312,18 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
       wrap $ case (levelMaxView aB, levelMaxView bB) of
 
         -- 0 ≤ any
-        (SingleClosed 0 :| [] , _) -> ok
+        (SingleClosed 0 :| [] , _) -> return ()
 
         -- any ≤ 0
         (as , SingleClosed 0 :| []) ->
           forM_ as $ \ a' -> equalLevel (unSingleLevel $ fmap ignoreBlocking a') (ClosedLevel 0)
 
         -- closed ≤ closed
-        (SingleClosed m :| [], SingleClosed n :| []) -> if m <= n then ok else notok
+        (SingleClosed m :| [], SingleClosed n :| []) -> unless (m <= n) notok
 
         -- closed ≤ b
         (SingleClosed m :| [] , _)
-          | m <= levelLowerBound b -> ok
+          | m <= levelLowerBound b -> return ()
 
         -- as ≤ neutral/closed
         (as, bs)
@@ -1388,14 +1394,6 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         _ | noMetas (a, b) -> notok
           | otherwise      -> postpone
       where
-        ok       = return ()
-        notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
-        postpone = patternViolation (unblockOnAnyMetaIn (a, b))
-
-        wrap m = m `catchError` \case
-            TypeError{} -> notok
-            err         -> throwError err
-
         neutralOrClosed (SingleClosed _)                   = True
         neutralOrClosed (SinglePlus (Plus _ NotBlocked{})) = True
         neutralOrClosed _                                  = False
@@ -1440,7 +1438,14 @@ equalLevel a b = do
 
   -- Jesper, 2014-02-02 remove terms that certainly do not contribute
   -- to the maximum
-  let (a',b') = removeSubsumed a b
+  let (a', b') = removeSubsumed a b
+
+  let notok    = unlessM typeInType notOk
+      notOk    = typeError $ UnequalLevel CmpEq a' b'
+      postpone = do
+        reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a' <+> "==") 0 (pretty b')
+        patternViolation (unblockOnAnyMetaIn (a', b'))
+
   reportSDoc "tc.conv.level" 50 $
     sep [ "equalLevel (w/o subsumed)"
         , vcat [ nest 2 $ sep [ prettyTCM a' <+> "=="
@@ -1477,7 +1482,7 @@ equalLevel a b = do
 
         -- closed == closed
         (SingleClosed m :| [], SingleClosed n :| [])
-          | m == n    -> ok
+          | m == n    -> return ()
           | otherwise -> notok
 
         -- closed == neutral
@@ -1536,25 +1541,12 @@ equalLevel a b = do
           lvl <- levelType
           equalAtom (AsTermsOf lvl) a b
 
-        ok       = return ()
-        notok    = unlessM typeInType notOk
-        notOk    = typeError $ UnequalLevel CmpEq a b
-        postpone = do
-          reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a <+> "==") 0 (pretty b)
-          patternViolation (unblockOnAnyMetaIn (a, b))
-
         -- perform assignment (MetaV x as) := b
         meta x as b = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
           reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, pretty b]
           lvl <- levelType
           assignE DirEq x as (levelTm b) (AsTermsOf lvl) (===) -- fallback: check equality as atoms
-
-        -- NB:: Defined but not used: wrap
-        -- Make sure to give a sensible error message
-        wrap m = m `catchError` \case
-            TypeError{} -> notok
-            err         -> throwError err
 
         isNeutral (SinglePlus (Plus _ NotBlocked{})) = True
         isNeutral _                                  = False
@@ -1622,6 +1614,7 @@ equalSort s1 s2 = do
             -- diagonal cases for rigid sorts
             (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
+            (LockUniv   , LockUniv   ) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
             (Inf f m    , Inf f' n   ) ->
               if f == f' && (m == n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
@@ -1634,8 +1627,8 @@ equalSort s1 s2 = do
               | typeInTypeEnabled      -> yes
 
             -- equating @PiSort a b@ to another sort
-            (s1 , PiSort a b) -> piSortEquals s1 a b
-            (PiSort a b , s2) -> piSortEquals s2 a b
+            (s1 , PiSort a b c) -> piSortEquals s1 a b c
+            (PiSort a b c , s2) -> piSortEquals s2 a b c
 
             -- equating @FunSort a b@ to another sort
             (s1 , FunSort a b) -> funSortEquals s1 a b
@@ -1716,29 +1709,31 @@ equalSort s1 s2 = do
           _          -> synEq s1 (UnivSort s2)
 
 
-      -- Equate a sort @s@ to @piSort a b@
-      -- Precondition: @s@ and @piSort a b@ are already reduced.
-      piSortEquals :: Sort -> Dom Type -> Abs Sort -> m ()
-      piSortEquals s a NoAbs{} = __IMPOSSIBLE__
-      piSortEquals s a bAbs@(Abs x b) = do
+      -- Equate a sort @s@ to @piSort a s1 s2@
+      -- Precondition: @s@ and @piSort a s1 s2@ are already reduced.
+      piSortEquals :: Sort -> Dom Term -> Sort -> Abs Sort -> m ()
+      piSortEquals s a s1 NoAbs{} = __IMPOSSIBLE__
+      piSortEquals s a s1 s2Abs@(Abs x s2) = do
+        let adom = El s1 <$> a
         reportSDoc "tc.conv.sort" 35 $ vcat
           [ "piSortEquals"
-          , "  s =" <+> prettyTCM s
-          , "  a =" <+> prettyTCM a
-          , "  b =" <+> addContext (x,a) (prettyTCM b)
+          , "  s  =" <+> prettyTCM s
+          , "  a  =" <+> prettyTCM adom
+          , "  s1 =" <+> prettyTCM s1
+          , "  s2 =" <+> addContext (x,adom) (prettyTCM s2)
           ]
         propEnabled <- isPropEnabled
-           -- If @b@ is dependent, then @piSort a b@ computes to
-           -- @Setω@. Hence, if @s@ is small, then @b@
+           -- If @s2@ is dependent, then @piSort a s1 s2@ computes to
+           -- @Setωi@. Hence, if @s@ is small, then @s2@
            -- cannot be dependent.
         if | Just (True,_) <- isSmallSort s -> do
-               -- We force @b@ to be non-dependent by unifying it with
+               -- We force @s2@ to be non-dependent by unifying it with
                -- a fresh meta that does not depend on @x : a@
-               b' <- newSortMeta
-               addContext (x,a) $ equalSort b (raise 1 b')
-               funSortEquals s (getSort a) b'
+               s2' <- newSortMeta
+               addContext (x , adom) $ equalSort s2 (raise 1 s2')
+               funSortEquals s s1 s2'
            -- Otherwise: postpone
-           | otherwise                  -> synEq (PiSort a bAbs) s
+           | otherwise                  -> synEq (PiSort a s1 s2Abs) s
 
       -- Equate a sort @s@ to @funSort s1 s2@
       -- Precondition: @s@ and @funSort s1 s2@ are already reduced

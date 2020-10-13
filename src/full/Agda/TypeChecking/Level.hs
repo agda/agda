@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Level where
 
@@ -36,7 +35,7 @@ data LevelKit = LevelKit
 levelType :: (HasBuiltins m) => m Type
 levelType = El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
 
-isLevelType :: (HasBuiltins m, MonadReduce m) => Type -> m Bool
+isLevelType :: PureTCM m => Type -> m Bool
 isLevelType a = reduce (unEl a) >>= \case
   Def f [] -> do
     Def lvl [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
@@ -121,16 +120,14 @@ maybePrimDef prim = tryMaybe $ do
     Def f [] <- prim
     return f
 
-levelView :: (HasBuiltins m, MonadReduce m, MonadDebug m)
-          => Term -> m Level
+levelView :: PureTCM m => Term -> m Level
 levelView a = do
   reportSLn "tc.level.view" 50 $ "{ levelView " ++ show a
   v <- levelView' a
   reportSLn "tc.level.view" 50 $ "  view: " ++ show v ++ "}"
   return v
 
-levelView' :: (HasBuiltins m, MonadReduce m, MonadDebug m)
-           => Term -> m Level
+levelView' :: PureTCM m => Term -> m Level
 levelView' a = do
   Def lzero [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
   Def lsuc  [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc

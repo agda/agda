@@ -30,7 +30,9 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
+import {-# SOURCE #-} Agda.TypeChecking.Lock
 
+import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -40,7 +42,6 @@ import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Impossible
 
 instance MonadConstraint TCM where
-  catchPatternErr           = catchPatternErrTCM
   addConstraint             = addConstraintTCM
   addAwakeConstraint        = addAwakeConstraint'
   solveConstraint           = solveConstraintTCM
@@ -49,17 +50,6 @@ instance MonadConstraint TCM where
   stealConstraints          = stealConstraintsTCM
   modifyAwakeConstraints    = modifyTC . mapAwakeConstraints
   modifySleepingConstraints = modifyTC . mapSleepingConstraints
-
-catchPatternErrTCM :: (Blocker -> TCM a) -> TCM a -> TCM a
-catchPatternErrTCM handle v =
-     catchError_ v $ \err ->
-     case err of
-          -- Not putting s (which should really be the what's already there) makes things go
-          -- a lot slower (+20% total time on standard library). How is that possible??
-          -- The problem is most likely that there are internal catchErrors which forgets the
-          -- state. catchError should preserve the state on pattern violations.
-         PatternErr u -> handle u
-         _            -> throwError err
 
 addConstraintTCM :: Blocker -> Constraint -> TCM ()
 addConstraintTCM unblock c = do
@@ -144,9 +134,9 @@ noConstraints problem = do
   (pid, x) <- newProblem problem
   cs <- getConstraintsForProblem pid
   unless (null cs) $ do
-    withFileAndLine $ \ file line -> do
-      w <- warning'_ (AgdaSourceErrorLocation file line) (UnsolvedConstraints cs)
-      typeError' (AgdaSourceErrorLocation file line) $ NonFatalErrors [ w ]
+    withCurrentCallStack $ \loc -> do
+      w <- warning'_ loc (UnsolvedConstraints cs)
+      typeError' loc $ NonFatalErrors [ w ]
   return x
 
 -- | Run a computation that should succeeds without constraining
@@ -271,7 +261,7 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
                                                   ifM (isFrozen m) "it's frozen" "meta assignments are turned off"]
         addConstraint alwaysUnblock $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m
-    reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
+    reportSDoc "tc.constr.unblock" 65 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
     case inst of
       BlockedConst t -> do
         reportSDoc "tc.constr.blocked" 15 $
@@ -301,6 +291,7 @@ solveConstraint_ (CheckFunDef d i q cs _err) = withoutCache $
   -- re #3498: checking a fundef would normally be cached, but here it's
   -- happening out of order so it would only corrupt the caching log.
   checkFunDef d i q cs
+solveConstraint_ (CheckLockedVars a b c d)   = checkLockedVars a b c d
 solveConstraint_ (HasBiggerSort a)      = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m

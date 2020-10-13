@@ -1,10 +1,16 @@
 ;;; eri.el --- Enhanced relative indentation (eri)
 
+;; SPDX-License-Identifier: MIT License
+;; URL: https://github.com/agda/agda
+;; Version: 1.0
+
 ;;; Commentary:
+
+;; Cycle between indentation points with enhanced relative indentation.
 
 ;;; Code:
 
-(require 'cl)
+(require 'cl-lib)
 
 (defun eri-current-line-length nil
   "Calculate length of current line."
@@ -28,7 +34,7 @@ Returns nil if the list is empty."
   "Return a pair of lists (XS1 . XS2).
 If XS is sorted, then XS = (append XS1 XS2), and all elements in
 XS1 are <= X, whereas all elements in XS2 are > X."
-  (let* ((pos (or (position-if (lambda (y) (> y x)) xs) (length xs)))
+  (let* ((pos (or (cl-position-if (lambda (y) (> y x)) xs) (length xs)))
          (xs1 (eri-take pos xs))
          (xs2 (nthcdr pos xs)))
     (cons xs1 xs2)))

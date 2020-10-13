@@ -1,6 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NondecreasingIndentation  #-}
-{-# LANGUAGE TypeFamilies              #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 
@@ -384,17 +383,15 @@ instance Occurs Term where
               isST <- isSingletonType t
               reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "(after singleton test)"
               case isST of
-                -- cannot decide, blocked by meta-var
-                Left b -> patternViolation' b 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
                 -- not a singleton type
-                Right Nothing ->
+                Nothing ->
                   -- #4480: Only hard fail if the variable is not in scope. Wrong modality/relevance
                   -- could potentially be salvaged by eta expansion.
                   ifM (($ i) <$> allowedVars) -- vv TODO: neverUnblock is not correct! What could trigger this eta expansion though?
                       (patternViolation' neverUnblock 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
                       (strongly $ abort neverUnblock $ MetaCannotDependOn m i)
                 -- is a singleton type with unique inhabitant sv
-                Right (Just sv) -> return $ sv `applyE` es
+                (Just sv) -> return $ sv `applyE` es
           Lam h f     -> Lam h <$> occurs f
           Level l     -> Level <$> occurs l
           Lit l       -> return v
@@ -531,17 +528,18 @@ instance Occurs Type where
 instance Occurs Sort where
   occurs s = do
     unfold s >>= \case
-      PiSort a s2 -> do
-        s1' <- flexibly $ occurs $ getSort a
-        a'  <- (a $>) . El s1' <$> do flexibly $ occurs $ unEl $ unDom a
-        s2' <- mapAbstraction a' (flexibly . underBinder . occurs) s2
-        return $ PiSort a' s2'
+      PiSort a s1 s2 -> do
+        s1' <- flexibly $ occurs s1
+        a'  <- (a $>) <$> do flexibly $ occurs $ unDom a
+        s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder . occurs) s2
+        return $ PiSort a' s1' s2'
       FunSort s1 s2 -> FunSort <$> flexibly (occurs s1) <*> flexibly (occurs s2)
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
       s@Inf{}    -> return s
       SSet a     -> SSet <$> occurs a
       s@SizeUniv -> return s
+      s@LockUniv -> return s
       UnivSort s -> UnivSort <$> do flexibly $ occurs s
       MetaS x es -> do
         MetaV x es <- occurs (MetaV x es)
@@ -554,13 +552,14 @@ instance Occurs Sort where
   metaOccurs m s = do
     s <- instantiate s
     case s of
-      PiSort a s -> metaOccurs m (a,s)
+      PiSort a s1 s2 -> metaOccurs m (a,s1,s2)
       FunSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
       Inf _ _    -> return ()
       SSet a     -> metaOccurs m a
       SizeUniv   -> return ()
+      LockUniv   -> return ()
       UnivSort s -> metaOccurs m s
       MetaS x es -> metaOccurs m $ MetaV x es
       DefS d es  -> metaOccurs m $ Def d es
@@ -595,6 +594,11 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
 
   metaOccurs m (x,y) = metaOccurs m x >> metaOccurs m y
 
+instance (Occurs a, Occurs b, Occurs c) => Occurs (a,b,c) where
+  occurs (x,y,z) = (,,) <$> occurs x <*> occurs y <*> occurs z
+
+  metaOccurs m (x,y,z) = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
+
 ---------------------------------------------------------------------------
 -- * Pruning: getting rid of flexible occurrences.
 
@@ -608,7 +612,7 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
 --   we cannot prune, because the offending variables could be removed by
 --   reduction for a suitable instantiation of the meta variable.
 prune
-  :: MonadMetaSolver m
+  :: (PureTCM m, MonadMetaSolver m)
   => MetaId         -- ^ Meta to prune.
   -> Args           -- ^ Arguments to meta variable.
   -> (Nat -> Bool)  -- ^ Test for allowed variable (de Bruijn index).
@@ -635,7 +639,7 @@ prune m' vs xs = do
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
 hasBadRigid
-  :: (MonadReduce m, HasConstInfo m, MonadAddContext m)
+  :: PureTCM m
   => (Nat -> Bool)      -- ^ Test for allowed variable (de Bruijn index).
   -> Term               -- ^ Argument of meta variable.
   -> ExceptT () m Bool  -- ^ Exception if argument is matchable.
@@ -700,7 +704,7 @@ isNeutral b f es = do
 --   Reduces the term successively to remove variables in dead subterms.
 --   This fixes issue 1386.
 rigidVarsNotContainedIn
-  :: (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, AnyRigid a)
+  :: (PureTCM m, AnyRigid a)
   => a
   -> (Nat -> Bool)   -- ^ Test for allowed variable (de Bruijn index).
   -> m Bool
@@ -726,7 +730,7 @@ rigidVarsNotContainedIn v is = do
 --   We need to successively reduce the expression to do this.
 
 class AnyRigid a where
-  anyRigid :: (MonadReduce tcm, MonadAddContext tcm)
+  anyRigid :: (PureTCM tcm)
            => (Nat -> tcm Bool) -> a -> tcm Bool
 
 instance AnyRigid Term where
@@ -767,7 +771,8 @@ instance AnyRigid Sort where
       Inf _ _    -> return False
       SSet l     -> anyRigid f l
       SizeUniv   -> return False
-      PiSort a s -> return False
+      LockUniv   -> return False
+      PiSort a s1 s2 -> return False
       FunSort s1 s2 -> return False
       UnivSort s -> anyRigid f s
       MetaS{}    -> return False
@@ -915,6 +920,7 @@ killedType args b = do
           (zs, b) <- go args ys (mkPi ((name, a) <$ arg) b)
           -- Shift back up to make it relative to Δ (x : A) again.
           return (up zs, b)
+
 reallyNotFreeIn :: (MonadReduce m) => IntSet -> Type -> m (IntSet, Type)
 reallyNotFreeIn xs a | IntSet.null xs = return (xs, a) -- Shortcut
 reallyNotFreeIn xs a = do
@@ -922,7 +928,7 @@ reallyNotFreeIn xs a = do
       anywhere = allVars fvs
       rigid    = IntSet.unions [stronglyRigidVars fvs, unguardedVars fvs]
       nonrigid = IntSet.difference anywhere rigid
-      hasNo    = IntSet.null . IntSet.intersection xs
+      hasNo    = IntSet.disjoint xs
   if hasNo nonrigid
     then
        -- No non-rigid occurrences. We can't do anything about the rigid

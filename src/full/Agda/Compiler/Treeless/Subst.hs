@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-}
 {-# OPTIONS_GHC -fno-warn-orphans       #-}
 
 module Agda.Compiler.Treeless.Subst where

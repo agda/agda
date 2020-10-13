@@ -50,7 +50,7 @@ gpi info name a b = do
       dom = defaultNamedArgDom info name a
   b <- addContext (name, dom) b
   let y = stringToArgName name
-  return $ El (piSort dom (Abs y (getSort b)))
+  return $ El (mkPiSort dom (Abs y b))
               (Pi dom (Abs y b))
 
 hPi, nPi :: (MonadAddContext m, MonadDebug m)

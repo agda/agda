@@ -47,7 +47,7 @@ prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sor
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
 
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pids unblock c) = prettyTCM c <?> parens (sep [blockedOn unblock, prPids (Set.toList pids)])
+  prettyTCM (PConstr pids unblock c) = prettyTCM c <?> parensNonEmpty (sep [blockedOn unblock, prPids (Set.toList pids)])
     where
       prPids []    = empty
       prPids [pid] = "belongs to problem" <+> prettyTCM pid
@@ -126,10 +126,11 @@ instance PrettyTCM Constraint where
           case mvJudgement m of
             HasType{ jMetaType = t } -> prettyTCM x <+> ":" <+> prettyTCM t
             IsSort{} -> prettyTCM x <+> "is a sort"
+        CheckLockedVars t ty lk lk_ty -> do
+          "Lock" <+> prettyTCM lk <+> "|-" <+> prettyTCMCtx TopCtx t <+> ":" <+> prettyTCM ty
 
       where
         prettyCmp
           :: (PrettyTCM a, PrettyTCM b, MonadPretty m)
           => m Doc -> a -> b -> m Doc
         prettyCmp cmp x y = prettyTCMCtx TopCtx x <?> (cmp <+> prettyTCMCtx TopCtx y)
-

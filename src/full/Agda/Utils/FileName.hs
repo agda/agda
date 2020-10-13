@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Operations on file names. -}
 module Agda.Utils.FileName

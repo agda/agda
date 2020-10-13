@@ -1,12 +1,9 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
 
 module Agda.TypeChecking.Monad.Base where
 
 import Prelude hiding (null)
-import GHC.Stack ( freezeCallStack, callStack, HasCallStack )
 
 import Control.Applicative hiding (empty)
 import qualified Control.Concurrent as C
@@ -92,6 +89,7 @@ import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Library
 
 import Agda.Utils.Benchmark (MonadBench(..))
+import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
@@ -297,6 +295,11 @@ data PersistentTCState = PersistentTCSt
     --   Should be @Nothing@ when checking imports.
   , stPersistBackends   :: [Backend]
     -- ^ Current backends with their options
+  , stPersistProjectConfigs :: !(Map FilePath ProjectConfig)
+    -- ^ Map from directories to paths of closest enclosing .agda-lib
+    --   files (or @Nothing@ if there are none).
+  , stPersistAgdaLibFiles   :: !(Map FilePath AgdaLibFile)
+    -- ^ Contents of .agda-lib files that have already been parsed.
   }
 
 data LoadedFileCache = LoadedFileCache
@@ -341,6 +344,8 @@ initPersistentState = PersistentTCSt
   , stAccumStatistics           = Map.empty
   , stPersistLoadedFileCache    = empty
   , stPersistBackends           = []
+  , stPersistProjectConfigs     = Map.empty
+  , stPersistAgdaLibFiles       = Map.empty
   }
 
 -- | Empty state of type checker.
@@ -524,6 +529,16 @@ stBackends :: Lens' [Backend] TCState
 stBackends f s =
   f (stPersistBackends (stPersistentState s)) <&>
   \x -> s {stPersistentState = (stPersistentState s) {stPersistBackends = x}}
+
+stProjectConfigs :: Lens' (Map FilePath ProjectConfig) TCState
+stProjectConfigs f s =
+  f (stPersistProjectConfigs (stPersistentState s)) <&>
+  \ x -> s {stPersistentState = (stPersistentState s) {stPersistProjectConfigs = x}}
+
+stAgdaLibFiles :: Lens' (Map FilePath AgdaLibFile) TCState
+stAgdaLibFiles f s =
+  f (stPersistAgdaLibFiles (stPersistentState s)) <&>
+  \ x -> s {stPersistentState = (stPersistentState s) {stPersistAgdaLibFiles = x}}
 
 stFreshNameId :: Lens' NameId TCState
 stFreshNameId f s =
@@ -1030,6 +1045,7 @@ data Constraint
   | CheckFunDef Delayed A.DefInfo QName [A.Clause] TCErr
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
+  | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
   deriving (Show)
 
 instance HasRange Constraint where
@@ -1060,6 +1076,7 @@ instance Free Constraint where
       CheckFunDef{}         -> mempty
       HasBiggerSort s       -> freeVars' s
       HasPTSRule a s        -> freeVars' (a , s)
+      CheckLockedVars a b c d -> freeVars' ((a,b),(c,d))
       UnquoteTactic t h g   -> freeVars' (t, (h, g))
       CheckMetaInst m       -> mempty
 
@@ -1074,6 +1091,7 @@ instance TermLike Constraint where
       UnquoteTactic t h g    -> foldTerm f (t, h, g)
       SortCmp _ s1 s2        -> foldTerm f (Sort s1, Sort s2)   -- Same as LevelCmp case
       UnBlock _              -> mempty
+      CheckLockedVars a b c d -> foldTerm f (a, b, c, d)
       FindInstance _ _       -> mempty
       CheckFunDef{}          -> mempty
       HasBiggerSort s        -> foldTerm f s
@@ -1248,7 +1266,7 @@ data CheckedTarget = CheckedTarget (Maybe ProblemId)
 
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
-  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type ([Maybe Range] -> Elims -> Type -> CheckedTarget -> TCM Term)
+  | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
   | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Args Type Int Term Type
   | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
@@ -1596,6 +1614,7 @@ data NLPSort
   | PProp NLPat
   | PInf IsFibrant Integer
   | PSizeUniv
+  | PLockUniv
   deriving (Data, Show)
 
 type RewriteRules = [RewriteRule]
@@ -2265,6 +2284,34 @@ allReductions = SmallSet.delete NonTerminatingReductions reallyAllReductions
 reallyAllReductions :: AllowedReductions
 reallyAllReductions = SmallSet.total
 
+data ReduceDefs
+  = OnlyReduceDefs (Set QName)
+  | DontReduceDefs (Set QName)
+  deriving (Data)
+
+reduceAllDefs :: ReduceDefs
+reduceAllDefs = DontReduceDefs empty
+
+locallyReduceDefs :: MonadTCEnv m => ReduceDefs -> m a -> m a
+locallyReduceDefs = locallyTC eReduceDefs . const
+
+locallyReduceAllDefs :: MonadTCEnv m => m a -> m a
+locallyReduceAllDefs = locallyReduceDefs reduceAllDefs
+
+shouldReduceDef :: (MonadTCEnv m) => QName -> m Bool
+shouldReduceDef f = asksTC envReduceDefs <&> \case
+  OnlyReduceDefs defs -> f `Set.member` defs
+  DontReduceDefs defs -> not $ f `Set.member` defs
+
+instance Semigroup ReduceDefs where
+  OnlyReduceDefs qs1 <> OnlyReduceDefs qs2 = OnlyReduceDefs $ Set.intersection qs1 qs2
+  OnlyReduceDefs qs1 <> DontReduceDefs qs2 = OnlyReduceDefs $ Set.difference   qs1 qs2
+  DontReduceDefs qs1 <> OnlyReduceDefs qs2 = OnlyReduceDefs $ Set.difference   qs2 qs1
+  DontReduceDefs qs1 <> DontReduceDefs qs2 = DontReduceDefs $ Set.union        qs1 qs2
+
+instance Monoid ReduceDefs where
+  mempty  = reduceAllDefs
+  mappend = (<>)
 
 -- | Primitives
 
@@ -2413,7 +2460,8 @@ data Call
   | CheckRecDef Range QName [A.LamBinding] [A.Constructor]
   | CheckConstructor QName Telescope Sort A.Constructor
   | CheckConstructorFitsIn QName Type Sort
-  | CheckFunDefCall Range QName [A.Clause]
+  | CheckFunDefCall Range QName [A.Clause] Bool
+    -- ^ Highlight (interactively) if and only if the boolean is 'True'.
   | CheckPragma Range A.Pragma
   | CheckPrimitive Range QName A.Expr
   | CheckIsEmpty Range Type
@@ -2487,7 +2535,7 @@ instance HasRange Call where
     getRange (CheckRecDef i _ _ _)           = getRange i
     getRange (CheckConstructor _ _ _ c)      = getRange c
     getRange (CheckConstructorFitsIn c _ _)  = getRange c
-    getRange (CheckFunDefCall i _ _)         = getRange i
+    getRange (CheckFunDefCall i _ _ _)       = getRange i
     getRange (CheckPragma r _)               = r
     getRange (CheckPrimitive i _ _)          = getRange i
     getRange CheckWithFunctionType{}         = noRange
@@ -2675,6 +2723,7 @@ data TCEnv =
                 -- ^ Did we encounter a simplification (proper match)
                 --   during the current reduction process?
           , envAllowedReductions :: AllowedReductions
+          , envReduceDefs :: ReduceDefs
           , envInjectivityDepth :: Int
                 -- ^ Injectivity can cause non-termination for unsolvable contraints
                 --   (#431, #3067). Keep a limit on the nesting depth of injectivity
@@ -2770,6 +2819,7 @@ initEnv = TCEnv { envContext             = []
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
+                , envReduceDefs             = reduceAllDefs
                 , envInjectivityDepth       = 0
                 , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False
@@ -2914,6 +2964,9 @@ eSimplification f e = f (envSimplification e) <&> \ x -> e { envSimplification =
 eAllowedReductions :: Lens' AllowedReductions TCEnv
 eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedReductions = x }
 
+eReduceDefs :: Lens' ReduceDefs TCEnv
+eReduceDefs f e = f (envReduceDefs e) <&> \ x -> e { envReduceDefs = x }
+
 eInjectivityDepth :: Lens' Int TCEnv
 eInjectivityDepth f e = f (envInjectivityDepth e) <&> \ x -> e { envInjectivityDepth = x }
 
@@ -3021,6 +3074,27 @@ data Candidate  = Candidate { candidateKind :: CandidateKind
 
 instance Free Candidate where
   freeVars' (Candidate _ t u _) = freeVars' (t, u)
+
+
+---------------------------------------------------------------------------
+-- ** Checking arguments
+---------------------------------------------------------------------------
+
+data ArgsCheckState a = ACState
+       { acRanges :: [Maybe Range]
+         -- ^ Ranges of checked arguments, where present.
+         -- e.g. inserted implicits have no correponding abstract syntax.
+       , acElims  :: Elims
+         -- ^ Checked and inserted arguments so far.
+       , acConstraints :: [Maybe (Abs Constraint)]
+         -- ^ Constraints for the head so far,
+         -- i.e. before applying the correponding elim.
+       , acType   :: Type
+         -- ^ Type for the rest of the application.
+       , acData   :: a
+       }
+  deriving (Show)
+
 
 ---------------------------------------------------------------------------
 -- * Type checking warnings (aka non-fatal errors)
@@ -3228,8 +3302,8 @@ warningName = \case
 
 data TCWarning
   = TCWarning
-    { tcWarningFileLine :: AgdaSourceErrorLocation
-        -- ^ File and line the error was raised at
+    { tcWarningLocation :: CallStack
+        -- ^ Location in the internal Agda source code location where the error raised
     , tcWarningRange    :: Range
         -- ^ Range where the warning was raised
     , tcWarning         :: Warning
@@ -3383,7 +3457,6 @@ data TypeError
             -- ^ The given relevance does not correspond to the expected relevane.
         | UninstantiatedDotPattern A.Expr
         | ForcedConstructorNotInstantiated A.Pattern
-        | IlltypedPattern A.Pattern Type
         | IllformedProjectionPattern A.Pattern
         | CannotEliminateWithPattern (NamedArg A.Pattern) Type
         | WrongNumberOfConstructorArguments QName Nat Nat
@@ -3554,8 +3627,8 @@ data LHSOrPatSyn = IsLHS | IsPatSyn deriving (Eq, Show)
 
 data TCErr
   = TypeError
-    { tcErrFileLine :: AgdaSourceErrorLocation
-       -- ^ File and line the error was raised at
+    { tcErrLocation :: CallStack
+       -- ^ Location in the internal Agda source code where the error was raised
     , tcErrState    :: TCState
         -- ^ The state in which the error was raised.
     , tcErrClosErr  :: Closure TypeError
@@ -3776,6 +3849,7 @@ instance MonadReduce m => MonadReduce (MaybeT m)
 instance MonadReduce m => MonadReduce (ReaderT r m)
 instance MonadReduce m => MonadReduce (StateT w m)
 instance (Monoid w, MonadReduce m) => MonadReduce (WriterT w m)
+instance MonadReduce m => MonadReduce (BlockT m)
 
 ---------------------------------------------------------------------------
 -- * Monad with read-only 'TCEnv'
@@ -3921,6 +3995,49 @@ stateTCLensM l f = do
   putTC $ set l x s
   return result
 
+
+---------------------------------------------------------------------------
+-- ** Monad with capability to block a computation
+---------------------------------------------------------------------------
+
+class Monad m => MonadBlock m where
+
+  -- | `patternViolation b` aborts the current computation
+  patternViolation :: Blocker -> m a
+
+  default patternViolation :: (MonadTrans t, MonadBlock n, m ~ t n) => Blocker -> m a
+  patternViolation = lift . patternViolation
+
+  -- | `catchPatternErr handle m` runs m, handling pattern violations
+  --    with `handle` (doesn't roll back the state)
+  catchPatternErr :: (Blocker -> m a) -> m a -> m a
+
+newtype BlockT m a = BlockT { unBlockT :: ExceptT Blocker m a }
+  deriving ( Functor, Applicative, Monad, MonadTrans, MonadIO, Fail.MonadFail
+           , ReadTCState, HasOptions
+           , MonadTCEnv, MonadTCState, MonadTCM
+           )
+
+instance Monad m => MonadBlock (BlockT m) where
+  patternViolation = BlockT . throwError
+  catchPatternErr h f = BlockT $ catchError (unBlockT f) (unBlockT . h)
+
+instance Monad m => MonadBlock (ExceptT TCErr m) where
+  patternViolation = throwError . PatternErr
+  catchPatternErr h f = catchError f $ \case
+    PatternErr b -> h b
+    err          -> throwError err
+
+runBlocked :: Monad m => BlockT m a -> m (Either Blocker a)
+runBlocked = runExceptT . unBlockT
+
+instance MonadBlock m => MonadBlock (MaybeT m) where
+  catchPatternErr h m = MaybeT $ catchPatternErr (runMaybeT . h) $ runMaybeT m
+
+instance MonadBlock m => MonadBlock (ReaderT e m) where
+  catchPatternErr h m = ReaderT $ \ e ->
+    let run = flip runReaderT e in catchPatternErr (run . h) (run m)
+
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
 ---------------------------------------------------------------------------
@@ -4014,6 +4131,19 @@ instance MonadIO m => MonadTCState (TCMT m) where
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
   locallyTCState l f = bracket_ (useTC l <* modifyTCLens l f) (setTCLens l)
+
+instance MonadBlock TCM where
+  patternViolation b = throwError (PatternErr b)
+  catchPatternErr handle v =
+       catchError_ v $ \err ->
+       case err of
+            -- Not putting s (which should really be the what's already there) makes things go
+            -- a lot slower (+20% total time on standard library). How is that possible??
+            -- The problem is most likely that there are internal catchErrors which forgets the
+            -- state. catchError should preserve the state on pattern violations.
+           PatternErr u -> handle u
+           _            -> throwError err
+
 
 instance MonadError TCErr TCM where
   throwError = liftIO . E.throwIO
@@ -4134,42 +4264,40 @@ instance Null (TCM Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
-patternViolation :: MonadError TCErr m => Blocker -> m a
-patternViolation b = throwError (PatternErr b)
-
 internalError :: (HasCallStack, MonadTCM tcm) => String -> tcm a
-internalError s = withFileAndLine $ \ file line ->
-  liftTCM $ typeError' (AgdaSourceErrorLocation file line) $ InternalError s
+internalError s = withCallerCallStack $ \ loc ->
+  liftTCM $ typeError' loc $ InternalError s
 
 -- | The constraints needed for 'typeError' and similar.
 type MonadTCError m = (MonadTCEnv m, ReadTCState m, MonadError TCErr m)
 
+-- | Utility function for 1-arg constructed type errors.
+-- Note that the @HasCallStack@ constraint is on the *resulting* function.
+locatedTypeError :: MonadTCError m => (a -> TypeError) -> (HasCallStack => a -> m b)
+locatedTypeError f e = withCallerCallStack (flip typeError' (f e))
+
 genericError :: (HasCallStack, MonadTCError m) => String -> m a
-genericError = withFileAndLine $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) . GenericError
+genericError = locatedTypeError GenericError
 
 {-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
 genericDocError :: (HasCallStack, MonadTCError m) => Doc -> m a
-genericDocError = withFileAndLine $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) . GenericDocError
+genericDocError = locatedTypeError GenericDocError
 
-{-# SPECIALIZE typeError' :: AgdaSourceErrorLocation -> TypeError -> TCM a #-}
-typeError' :: MonadTCError m => AgdaSourceErrorLocation -> TypeError -> m a
-typeError' fl err = throwError =<< typeError'_ fl err
+{-# SPECIALIZE typeError' :: CallStack -> TypeError -> TCM a #-}
+typeError' :: MonadTCError m => CallStack -> TypeError -> m a
+typeError' loc err = throwError =<< typeError'_ loc err
 
 {-# SPECIALIZE typeError :: HasCallStack => TypeError -> TCM a #-}
 typeError :: (HasCallStack, MonadTCError m) => TypeError -> m a
-typeError err = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  throwError =<< typeError'_ (AgdaSourceErrorLocation file line) err
+typeError err = withCallerCallStack $ \loc -> throwError =<< typeError'_ loc err
 
-{-# SPECIALIZE typeError'_ :: AgdaSourceErrorLocation -> TypeError -> TCM TCErr #-}
-typeError'_ :: (MonadTCEnv m, ReadTCState m) => AgdaSourceErrorLocation -> TypeError -> m TCErr
-typeError'_ fl err = TypeError fl <$> getTCState <*> buildClosure err
+{-# SPECIALIZE typeError'_ :: CallStack -> TypeError -> TCM TCErr #-}
+typeError'_ :: (MonadTCEnv m, ReadTCState m) => CallStack -> TypeError -> m TCErr
+typeError'_ loc err = TypeError loc <$> getTCState <*> buildClosure err
 
 {-# SPECIALIZE typeError_ :: HasCallStack => TypeError -> TCM TCErr #-}
 typeError_ :: (HasCallStack, MonadTCEnv m, ReadTCState m) => TypeError -> m TCErr
-typeError_ err = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError'_ (AgdaSourceErrorLocation file line) err
+typeError_ = withCallerCallStack . flip typeError'_
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
@@ -4297,6 +4425,7 @@ instance KillRange NLPSort where
   killRange (PProp l) = killRange1 PProp l
   killRange s@(PInf f n) = s
   killRange PSizeUniv = PSizeUniv
+  killRange PLockUniv = PLockUniv
 
 instance KillRange RewriteRule where
   killRange (RewriteRule q gamma f es rhs t) =

@@ -24,7 +24,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 
 import Agda.Utils.Empty
-import Agda.Utils.Functor (for, ($>))
+import Agda.Utils.Functor (for, ($>), (<&>))
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Singleton
@@ -91,10 +91,11 @@ instance Monoid (Match a) where
 -- upon failure, no further matching is performed.
 
 foldMatch
-  :: forall p v . IsProjP p => (p -> v -> ReduceM (Match Term, v))
-  -> [p] -> [v] -> ReduceM (Match Term, [v])
+  :: forall m p v . (IsProjP p, MonadMatch m)
+  => (p -> v -> m (Match Term, v))
+  -> [p] -> [v] -> m (Match Term, [v])
 foldMatch match = loop where
-  loop :: [p] -> [v] -> ReduceM (Match Term, [v])
+  loop :: [p] -> [v] -> m (Match Term, [v])
   loop ps0 vs0 = do
     case (ps0, vs0) of
       ([], []) -> return (empty, [])
@@ -128,6 +129,8 @@ mergeElim Proj{} _ = __IMPOSSIBLE__
 mergeElims :: [Elim] -> [Arg Term] -> [Elim]
 mergeElims = zipWith mergeElim
 
+type MonadMatch m = PureTCM m
+
 -- | @matchCopatterns ps es@ matches spine @es@ against copattern spine @ps@.
 --
 --   Returns 'Yes' and a substitution for the pattern variables
@@ -141,9 +144,10 @@ mergeElims = zipWith mergeElim
 --   In any case, also returns spine @es@ in reduced form
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
-matchCopatterns :: [NamedArg DeBruijnPattern]
+matchCopatterns :: MonadMatch m
+                => [NamedArg DeBruijnPattern]
                 -> [Elim]
-                -> ReduceM (Match Term, [Elim])
+                -> m (Match Term, [Elim])
 matchCopatterns ps vs = do
   traceSDoc "tc.match" 50
     (vcat [ "matchCopatterns"
@@ -155,12 +159,15 @@ matchCopatterns ps vs = do
   foldMatch (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
-matchCopattern :: DeBruijnPattern
+matchCopattern :: MonadMatch m
+               => DeBruijnPattern
                -> Elim
-               -> ReduceM (Match Term, Elim)
+               -> m (Match Term, Elim)
 matchCopattern pat@ProjP{} elim@(Proj _ q) = do
-  ProjP _ p <- normaliseProjP pat
-  q         <- getOriginalProjection q
+  p <- normaliseProjP pat <&> \case
+         ProjP _ p -> p
+         _         -> __IMPOSSIBLE__
+  q       <- getOriginalProjection q
   return $ if p == q then (Yes YesSimplification empty, elim)
                      else (No,                          elim)
 -- The following two cases are not impossible, see #2964
@@ -169,9 +176,10 @@ matchCopattern _       elim@Proj{}    = return (No , elim)
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 matchCopattern p       e@(IApply x y r) = mapSnd (mergeElim e) <$> matchPattern p (defaultArg r)
 
-matchPatterns :: [NamedArg DeBruijnPattern]
+matchPatterns :: MonadMatch m
+              => [NamedArg DeBruijnPattern]
               -> [Arg Term]
-              -> ReduceM (Match Term, [Arg Term])
+              -> m (Match Term, [Arg Term])
 matchPatterns ps vs = do
   reportSDoc "tc.match" 20 $
      vcat [ "matchPatterns"
@@ -190,9 +198,10 @@ matchPatterns ps vs = do
   foldMatch (matchPattern . namedArg) ps vs
 
 -- | Match a single pattern.
-matchPattern :: DeBruijnPattern
+matchPattern :: MonadMatch m
+             => DeBruijnPattern
              -> Arg Term
-             -> ReduceM (Match Term, Arg Term)
+             -> m (Match Term, Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
   (IApplyP _ _ _ x , arg ) -> return (Yes NoSimplification entry, arg)
@@ -201,7 +210,7 @@ matchPattern p u = case (p, u) of
     where entry = singleton (dbPatVarIndex x, arg)
   (DotP _ _ , arg@(Arg _ v)) -> return (Yes NoSimplification empty, arg)
   (LitP _ l , arg@(Arg _ v)) -> do
-    w <- reduceB' v
+    w <- reduceB v
     let arg' = arg $> ignoreBlocking w
     case w of
       NotBlocked _ (Lit l')
@@ -224,7 +233,7 @@ matchPattern p u = case (p, u) of
         mapSnd (Arg info . Con c (fromConPatternInfo cpi) . map Apply) <$> do
           matchPatterns ps $ for fs $ \ (Arg ai f) -> Arg ai $ v `applyE` [Proj ProjSystem f]
     where
-    isEtaRecordCon :: QName -> ReduceM (Maybe [Arg QName])
+    isEtaRecordCon :: HasConstInfo m => QName -> m (Maybe [Arg QName])
     isEtaRecordCon c = do
       (theDef <$> getConstInfo c) >>= \case
         Constructor{ conData = d } -> do
@@ -238,6 +247,8 @@ matchPattern p u = case (p, u) of
     fallback' f ps v
  where
     -- Default: not an eta record constructor.
+  fallback :: MonadMatch m
+           => ConHead -> [NamedArg DeBruijnPattern] -> Arg Term -> m (Match Term, Arg Term)
   fallback c ps v = do
     let f (Con c' ci' vs) | c == c' = Just (Con c' ci',vs)
         f _                         = Nothing
@@ -245,6 +256,7 @@ matchPattern p u = case (p, u) of
 
   -- Regardless of blocking, constructors and a properly applied @hcomp@
   -- can be matched on.
+  isMatchable' :: HasBuiltins m => m (Blocked Term -> Maybe Term)
   isMatchable' = do
     [mhcomp,mconid] <- mapM getName' [builtinHComp, builtinConId]
     return $ \ r ->
@@ -259,10 +271,15 @@ matchPattern p u = case (p, u) of
         _       -> Nothing
 
   -- DefP hcomp and ConP matching.
+  fallback' :: MonadMatch m
+            => (Term -> Maybe (Elims -> Term , Elims))
+            -> [NamedArg DeBruijnPattern]
+            -> Arg Term
+            -> m (Match Term, Arg Term)
   fallback' mtc ps (Arg info v) = do
         isMatchable <- isMatchable'
 
-        w <- reduceB' v
+        w <- reduceB v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
         -- 1) it does not hurt to do it all the time, and
@@ -281,7 +298,7 @@ matchPattern p u = case (p, u) of
         -- Jesper, 23-06-2016: Note that unfoldCorecursion may destroy
         -- constructor forms, so we only call constructorForm after.
         w <- traverse constructorForm =<< case w of
-               NotBlocked r u -> unfoldCorecursion u  -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
+               NotBlocked r u -> liftReduce $ unfoldCorecursion u  -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
                _ -> return w
         let v = ignoreBlocking w
             arg = Arg info v  -- the reduced argument
@@ -308,9 +325,10 @@ yesSimplification r              = r
 -- Matching patterns against patterns -------------------------------------
 
 -- | Match a single pattern.
-matchPatternP :: DeBruijnPattern
-             -> Arg DeBruijnPattern
-             -> ReduceM (Match DeBruijnPattern)
+matchPatternP :: MonadMatch m
+              => DeBruijnPattern
+              -> Arg DeBruijnPattern
+              -> m (Match DeBruijnPattern)
 matchPatternP p (Arg info (DotP _ v)) = do
   (m, arg) <- matchPattern p (Arg info v)
   return $ fmap (DotP defaultPatternInfo) m
@@ -336,8 +354,9 @@ matchPatternP p arg@(Arg info q) = do
                 toLitP _                = __IMPOSSIBLE__
         _      -> termMatch
 
-matchPatternsP :: [NamedArg DeBruijnPattern]
+matchPatternsP :: MonadMatch m
+               => [NamedArg DeBruijnPattern]
                -> [Arg DeBruijnPattern]
-               -> ReduceM (Match DeBruijnPattern)
+               -> m (Match DeBruijnPattern)
 matchPatternsP ps qs = do
   mconcat <$> zipWithM matchPatternP (map namedArg ps) qs

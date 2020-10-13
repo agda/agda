@@ -250,16 +250,14 @@ isRecord r = do
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
-isRecordType :: (MonadReduce m, HasConstInfo m, HasBuiltins m)
-             => Type -> m (Maybe (QName, Args, Defn))
+isRecordType :: PureTCM m => Type -> m (Maybe (QName, Args, Defn))
 isRecordType t = either (const Nothing) Just <$> tryRecordType t
 
 -- | Reduce a type and check whether it is a record type.
 --   Succeeds only if type is not blocked by a meta var.
 --   If yes, return its name, parameters, and definition.
 --   If no, return the reduced type (unless it is blocked).
-tryRecordType :: (MonadReduce m, HasConstInfo m, HasBuiltins m)
-              => Type -> m (Either (Blocked Type) (QName, Args, Defn))
+tryRecordType :: PureTCM m => Type -> m (Either (Blocked Type) (QName, Args, Defn))
 tryRecordType t = ifBlocked t (\ m a -> return $ Left $ Blocked m a) $ \ nb t -> do
   let no = return $ Left $ NotBlocked nb t
   case unEl t of
@@ -290,8 +288,7 @@ origProjection f = do
 --   Precondition: @t@ is reduced.
 --
 --   See also: 'Agda.TypeChecking.Datatypes.getConType'
-getDefType :: (HasConstInfo m, MonadReduce m, MonadDebug m, HasBuiltins m)
-           => QName -> Type -> m (Maybe Type)
+getDefType :: PureTCM m => QName -> Type -> m (Maybe Type)
 getDefType f t = do
   -- Andreas, Issue #1973: we need to take the original projection
   -- since the parameters from the reduced type t are correct for
@@ -355,8 +352,8 @@ getDefType f t = do
 --   Precondition: @t@ is reduced.
 --
 projectTyped
-  :: (HasConstInfo m, MonadReduce m, MonadDebug m, HasBuiltins m)
-  =>  Term        -- ^ Head (record value).
+  :: PureTCM m
+  => Term        -- ^ Head (record value).
   -> Type        -- ^ Its type.
   -> ProjOrigin
   -> QName       -- ^ Projection.
@@ -511,7 +508,7 @@ etaExpandBoundVar i = fmap (\ (delta, sigma, tau, _) -> (delta, sigma, tau)) <$>
 --
 --   Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
 
-expandRecordVar :: Int -> Telescope -> TCM (Maybe (Telescope, Substitution, Substitution, Telescope))
+expandRecordVar :: PureTCM m => Int -> Telescope -> m (Maybe (Telescope, Substitution, Substitution, Telescope))
 expandRecordVar i gamma0 = do
   -- Get the context with last variable added last in list.
   let gamma = telToList gamma0
@@ -632,7 +629,7 @@ curryAt t n = do
 
     where @tel@ is the record telescope instantiated at the parameters @pars@.
 -}
-etaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError TCErr m)
+etaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m)
                 => QName -> Args -> Term -> m (Telescope, Args)
 etaExpandRecord = etaExpandRecord' False
 
@@ -641,10 +638,10 @@ forceEtaExpandRecord :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError
                      => QName -> Args -> Term -> m (Telescope, Args)
 forceEtaExpandRecord = etaExpandRecord' True
 
-etaExpandRecord' :: (HasConstInfo m, MonadDebug m, ReadTCState m, MonadError TCErr m)
+etaExpandRecord' :: (HasConstInfo m, MonadDebug m, ReadTCState m)
                  => Bool -> QName -> Args -> Term -> m (Telescope, Args)
 etaExpandRecord' forceEta r pars u = do
-  def <- getRecordDef r
+  def <- fromMaybe __IMPOSSIBLE__ <$> isRecord r
   (tel, _, _, args) <- etaExpandRecord'_ forceEta r pars def u
   return (tel, args)
 
@@ -751,78 +748,74 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
 --
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
-isSingletonRecord :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                  => QName -> Args -> m (Either Blocker Bool)
-isSingletonRecord r ps = mapRight isJust <$> isSingletonRecord' False r ps
+isSingletonRecord :: (PureTCM m, MonadBlock m) => QName -> Args -> m Bool
+isSingletonRecord r ps = isJust <$> isSingletonRecord' False r ps
 
-isSingletonRecordModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                                 => QName -> Args -> m (Either Blocker Bool)
-isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' True r ps
+isSingletonRecordModuloRelevance :: (PureTCM m, MonadBlock m)
+                                 => QName -> Args -> m Bool
+isSingletonRecordModuloRelevance r ps = isJust <$> isSingletonRecord' True r ps
 
 -- | Return the unique (closed) inhabitant if exists.
 --   In case of counting irrelevance in, the returned inhabitant
 --   contains dummy terms.
-isSingletonRecord' :: forall m. (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                   => Bool -> QName -> Args -> m (Either Blocker (Maybe Term))
+isSingletonRecord' :: forall m. (PureTCM m, MonadBlock m)
+                   => Bool -> QName -> Args -> m (Maybe Term)
 isSingletonRecord' regardIrrelevance r ps = do
   reportSDoc "tc.meta.eta" 30 $ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
   isRecord r >>= \case
-    Nothing  -> return $ Right Nothing
+    Nothing  -> return Nothing
     Just def -> do
-      emap (mkCon (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
+      fmap (mkCon (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
   where
-  check :: Telescope -> m (Either Blocker (Maybe [Arg Term]))
+  check :: Telescope -> m (Maybe [Arg Term])
   check tel = do
     reportSDoc "tc.meta.eta" 30 $
       "isSingletonRecord' checking telescope " <+> prettyTCM tel
     case tel of
-      EmptyTel -> return $ Right $ Just []
+      EmptyTel -> return $ Just []
       ExtendTel dom tel -> ifM (return regardIrrelevance `and2M` isIrrelevantOrPropM dom)
         {-then-}
-          (underAbstraction dom tel $ fmap (emap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check)
+          (underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check)
         {-else-} $ do
           isSing <- isSingletonType' regardIrrelevance $ unDom dom
           case isSing of
-            Left mid       -> return $ Left mid
-            Right Nothing  -> return $ Right Nothing
-            Right (Just v) -> underAbstraction dom tel $ fmap (emap (Arg (domInfo dom) v :)) . check
+            Nothing  -> return Nothing
+            (Just v) -> underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) v :)) . check
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.
-isSingletonType :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                => Type -> m (Either Blocker (Maybe Term))
+isSingletonType :: (PureTCM m, MonadBlock m) => Type -> m (Maybe Term)
 isSingletonType = isSingletonType' False
 
 -- | Check whether a type has a unique inhabitant (irrelevant parts ignored).
 --   Can be blocked by a metavar.
-isSingletonTypeModuloRelevance :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                               => Type -> m (Either Blocker Bool)
-isSingletonTypeModuloRelevance t = mapRight isJust <$> isSingletonType' True t
+isSingletonTypeModuloRelevance :: (PureTCM m, MonadBlock m) => Type -> m Bool
+isSingletonTypeModuloRelevance t = isJust <$> isSingletonType' True t
 
-isSingletonType' :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, ReadTCState m)
-                 => Bool -> Type -> m (Either Blocker (Maybe Term))
+isSingletonType' :: (PureTCM m, MonadBlock m) => Bool -> Type -> m (Maybe Term)
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
-    ifBlocked t (\ m _ -> return $ Left m) $ \ _ t -> addContext tel $ do
+    t <- abortIfBlocked t
+    addContext tel $ do
       res <- isRecordType t
       case res of
         Just (r, ps, def) | YesEta <- recEtaEquality def -> do
-          emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
-        _ -> return $ Right Nothing
+          fmap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
+        _ -> return Nothing
 
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent
 --   to a variable. Returns just the de Bruijn-index of the variable if it is,
 --   or nothing otherwise.
-isEtaVar :: Term -> Type -> TCM (Maybe Int)
+isEtaVar :: forall m. PureTCM m => Term -> Type -> m (Maybe Int)
 isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
   where
     -- Checks whether the term u (of type a) is beta-eta-equivalent to
     -- `Var i es`, and returns i if it is. If the argument mi is `Just i'`,
     -- then i and i' are also required to be equal (else Nothing is returned).
-    isEtaVarG :: Term -> Type -> Maybe Int -> [Elim' Int] -> MaybeT TCM Int
+    isEtaVarG :: Term -> Type -> Maybe Int -> [Elim' Int] -> MaybeT m Int
     isEtaVarG u a mi es = do
-      (u, a) <- liftTCM $ reduce (u, a)
-      liftTCM $ reportSDoc "tc.lhs" 80 $ "isEtaVarG" <+> nest 2 (vcat
+      (u, a) <- reduce (u, a)
+      reportSDoc "tc.lhs" 80 $ "isEtaVarG" <+> nest 2 (vcat
         [ "u  = " <+> text (show u)
         , "a  = " <+> prettyTCM a
         , "mi = " <+> text (show mi)
@@ -831,12 +824,12 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
       case (u, unEl a) of
         (Var i' es', _) -> do
           guard $ mi == (i' <$ mi)
-          b <- liftTCM $ typeOfBV i'
+          b <- typeOfBV i'
           areEtaVarElims (var i') b es' es
           return i'
         (_, Def d pars) -> do
-          guard =<< do liftTCM $ isEtaRecord d
-          fs <- liftTCM $ map unDom . recFields . theDef <$> getConstInfo d
+          guard =<< do isEtaRecord d
+          fs <- map unDom . recFields . theDef <$> getConstInfo d
           is <- forM fs $ \f -> do
             let o = ProjSystem
             (_, _, fa) <- MaybeT $ projectTyped u a o f
@@ -856,13 +849,13 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
     -- `areEtaVarElims u a es es'` checks whether the given elims es (as applied
     -- to the term u of type a) are beta-eta-equal to either projections or
     -- variables with de Bruijn indices given by es'.
-    areEtaVarElims :: Term -> Type -> Elims -> [Elim' Int] -> MaybeT TCM ()
+    areEtaVarElims :: Term -> Type -> Elims -> [Elim' Int] -> MaybeT m ()
     areEtaVarElims u a []    []    = return ()
     areEtaVarElims u a []    (_:_) = mzero
     areEtaVarElims u a (_:_) []    = mzero
     areEtaVarElims u a (Proj o f : es) (Proj _ f' : es') = do
       guard $ f == f'
-      a       <- liftTCM $ reduce a
+      a       <- reduce a
       (_, _, fa) <- MaybeT $ projectTyped u a o f
       areEtaVarElims (u `applyE` [Proj o f]) fa es es'
     -- These two cases can occur only when we're looking at two different
@@ -881,10 +874,6 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
       _ <- isEtaVarG (unArg v) (unDom dom) (Just $ unArg i) []
       areEtaVarElims (u `apply` [fmap var i]) (cod `absApp` var (unArg i)) es es'
 
-
--- | Auxiliary function.
-emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
-emap = mapRight . fmap
 
 -- | Replace projection patterns by the original projections.
 --

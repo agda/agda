@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 module Agda.Auto.CaseSplit where
 

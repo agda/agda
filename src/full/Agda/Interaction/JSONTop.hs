@@ -52,8 +52,9 @@ instance ToJSON NameInScope where
 instance EncodeTCM Status where
 instance ToJSON Status where
   toJSON status = object
-    [ "showImplicitArguments" .= sShowImplicitArguments status
-    , "checked"               .= sChecked status
+    [ "showImplicitArguments"   .= sShowImplicitArguments status
+    , "showIrrelevantArguments" .= sShowIrrelevantArguments status
+    , "checked"                 .= sChecked status
     ]
 
 instance EncodeTCM CommandState where
@@ -218,6 +219,10 @@ encodeOC f encPrettyTCM = \case
   [ "name"           @= encodePretty name
   , "type"           #= encPrettyTCM a
   , "error"          #= encodePrettyTCM err
+  ]
+ CheckLock t lk -> kind "CheckLock"
+  [ "head"           #= f t
+  , "lock"           #= f lk
   ]
 
 encodeNamedPretty :: PrettyTCM a => (Name, a) -> TCM Value

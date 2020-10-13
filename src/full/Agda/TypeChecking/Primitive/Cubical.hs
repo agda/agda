@@ -486,7 +486,7 @@ mkGComp s = do
                 <@> forward la bA (pure iz) u0
 
 
-unglueTranspGlue :: (HasConstInfo m, MonadReduce m, HasBuiltins m) =>
+unglueTranspGlue :: PureTCM m =>
                   Arg Term
                   -> Arg Term
                   -> FamilyOrNot
@@ -619,15 +619,14 @@ unglueTranspGlue _ _ _ = __IMPOSSIBLE__
 
 data TermPosition = Head | Eliminated deriving (Eq,Show)
 
-headStop :: (HasBuiltins m, MonadReduce m) =>
-                  TermPosition -> m Term -> m Bool
+headStop :: PureTCM m => TermPosition -> m Term -> m Bool
 headStop tpos phi
   | Head <- tpos = do
       phi <- intervalView =<< (reduce =<< phi)
       return $ not $ isIOne phi
   | otherwise = return False
 
-compGlue :: (MonadReduce m, HasConstInfo m, HasBuiltins m) =>
+compGlue :: PureTCM m =>
                   TranspOrHComp
                   -> Arg Term
                   -> Maybe (Arg Term)
@@ -801,7 +800,7 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
           Eliminated -> a1'
 compGlue cmd phi u u0 _ _ = __IMPOSSIBLE__
 
-compHCompU :: (MonadReduce m, HasConstInfo m, HasBuiltins m) =>
+compHCompU :: PureTCM m =>
                     TranspOrHComp
                     -> Arg Term
                     -> Maybe (Arg Term)
@@ -1107,10 +1106,17 @@ primTransHComp cmd ts nelims = do
         let (x,f) = case ab of
               IsFam (a,_) -> (a, \ a -> runNames [] $ lam "i" (const (pure a)))
               IsNot (a,_) -> (a, id)
-        lx <- toLevel' x
-        caseMaybe lx (return Nothing) $ \ lx -> Just <$>
-          mapM (open . f) [Level lx, unEl . unDom $ x]
-      caseMaybe labA (return Nothing) $ \ [la,bA] -> Just <$> do
+        s <- reduce $ getSort x
+        case s of
+          Type lx -> do
+            [la,bA] <- mapM (open . f) [Level lx, unEl . unDom $ x]
+            pure $ Just $ \ iOrNot phi a0 -> pure tTrans <#> lam "j" (\ j -> la <@> iOrNot j)
+                                                         <@> lam "j" (\ j -> bA <@> iOrNot j)
+                                                         <@> phi
+                                                         <@> a0
+          LockUniv -> return $ Just $ \ _ _ a0 -> a0
+          _       -> return Nothing
+      caseMaybe labA (return Nothing) $ \ trA -> Just <$> do
       [phi, u0] <- mapM (open . unArg) [phi, u0]
       u <- traverse open (unArg <$> u)
 
@@ -1128,10 +1134,8 @@ primTransHComp cmd ts nelims = do
             let v i = do
                        let
                          iOrNot j = pure tIMax <@> i <@> (pure tINeg <@> j)
-                       pure tTrans <#> lam "j" (\ j -> la <@> iOrNot j)
-                                 <@> lam "j" (\ j -> bA <@> iOrNot j)
-                                 <@> (pure tIMax <@> phi <@> i)
-                                 <@> u1
+                       trA iOrNot (pure tIMax <@> phi <@> i)
+                                  u1
                 -- Γ , u1 : A[i1] , i : I
                 bB v = consS v (liftS 1 $ raiseS 1) `applySubst` (absBody b {- Γ , i : I , x : A[i] -})
                 tLam = Lam defaultArgInfo
@@ -1292,7 +1296,9 @@ primTransHComp cmd ts nelims = do
             (flags,t_alphas) <- fmap unzip . forM as $ \ (bs,ts) -> do
                  let u' = listS bs' `applySubst` u
                      bs' = (Map.toAscList $ Map.map boolToI bs)
-                 let weaken = foldr ((composeS . (\ j -> liftS j (raiseS 1))) . fst) idS bs'
+                     -- Γ₁, i : I, Γ₂, j : I, Γ₃  ⊢ weaken : Γ₁, Γ₂, Γ₃   for bs' = [(j,_),(i,_)]
+                     -- ordering of "j,i,.." matters.
+                 let weaken = foldr (\ j s -> s `composeS` raiseFromS j 1) idS (map fst bs')
                  t <- reduce2Lam u'
                  return $ (p $ ignoreBlocking t, listToMaybe [ (weaken `applySubst` (lamlam <$> t),bs) | null ts ])
             return $ (flags,t_alphas)
@@ -1749,32 +1755,35 @@ transpTel :: Abs Telescope -- Γ ⊢ i.Δ
 transpTel = transpTel' False
 
 
-transpTel' :: Bool -> Abs Telescope -- Γ ⊢ i.Δ
+transpTel' :: (PureTCM m, MonadError TCErr m) =>
+          Bool -> Abs Telescope -- Γ ⊢ i.Δ
           -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ
           -> Args          -- Γ ⊢ δ : Δ[0]
-          -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
+          -> ExceptT (Closure (Abs Type)) m Args      -- Γ ⊢ Δ[1]
 transpTel' flag delta phi args = transpSysTel' flag delta [] phi args
 
-type LM a = NamesT (ExceptT (Closure (Abs Type)) TCM) a
+type LM m a = NamesT (ExceptT (Closure (Abs Type)) m) a
 -- transporting with an extra system/partial element
 -- or composing when some of the system is known to be constant.
-transpSysTel' :: Bool -> Abs Telescope -- Γ ⊢ i.Δ
+transpSysTel' :: forall m. (PureTCM m, MonadError TCErr m) =>
+          Bool
+          -> Abs Telescope -- Γ ⊢ i.Δ
           -> [(Term,Abs [Term])] -- [(ψ,i.δ)] with  Γ,ψ ⊢ i.δ : [i : I]. Δ[i]  -- the proof of [ψ] is not in scope.
           -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ and all i.δ const on φ ∧ ψ
           -> Args          -- Γ ⊢ δ : Δ[0]
-          -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
+          -> ExceptT (Closure (Abs Type)) m Args      -- Γ ⊢ Δ[1]
 transpSysTel' flag delta us phi args = do
   let getTermLocal = getTerm "transpSys"
-  tTransp <- liftTCM primTrans
+  tTransp <- lift primTrans
   tComp <- getTermLocal builtinComp
   tPOr <- getTermLocal builtinPOr
-  iz <- liftTCM $ primIZero
-  imin <- liftTCM primIMin
-  imax <- liftTCM primIMax
-  ineg <- liftTCM primINeg
+  iz <- lift primIZero
+  imin <- lift primIMin
+  imax <- lift primIMax
+  ineg <- lift primINeg
   let
-    noTranspError t = lift . throwError =<< liftTCM (buildClosure t)
-    bapp :: (Applicative m, Subst a) => m (Abs a) -> m (SubstArg a) -> m a
+    noTranspError t = lift . throwError =<< buildClosure t
+    bapp :: forall m a. (Applicative m, Subst a) => m (Abs a) -> m (SubstArg a) -> m a
     bapp t u = lazyAbsApp <$> t <*> u
     doGTransp l t us phi a | null us = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
                            | otherwise = pure tComp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <#> face <@> uphi <@> a
@@ -1792,7 +1801,7 @@ transpSysTel' flag delta us phi args = do
                         <#> (ilam "o" $ \ _ -> ty) -- the type
                         <@> u <@> (combine l ty d xs)
 
-    gTransp :: Maybe (LM Term) -> LM (Abs Type) -> [(LM Term,LM (Abs Term))] -> LM Term -> LM Term -> LM Term
+    gTransp :: Maybe (LM m Term) -> LM m (Abs Type) -> [(LM m Term,LM m (Abs Term))] -> LM m Term -> LM m Term -> LM m Term
     gTransp (Just l) t u phi a
      | flag = do
       t' <- t
@@ -1808,7 +1817,7 @@ transpSysTel' flag delta us phi args = do
       -- Γ ⊢ i.Ξ
       xi <- (open =<<) $ do
         bind "i" $ \ i -> do
-          TelV xi _ <- (liftTCM . telView =<<) $ t `bapp` i
+          TelV xi _ <- (lift . telView =<<) $ t `bapp` i
           return xi
       argnames <- do
         teleArgNames . unAbs <$> xi
@@ -1851,7 +1860,7 @@ transpSysTel' flag delta us phi args = do
           Prop{}  -> noTranspSort
           _ -> noTranspError b'
     lam_i = Lam defaultArgInfo . Abs "i"
-    go :: Telescope -> [[(Term,Term)]] -> Term -> Args -> ExceptT (Closure (Abs Type)) TCM Args
+    go :: Telescope -> [[(Term,Term)]] -> Term -> Args -> ExceptT (Closure (Abs Type)) m Args
     go EmptyTel            [] _  []       = return []
     go (ExtendTel t delta) (u:us) phi (a:args) = do
       -- Γ,i ⊢ t
@@ -1893,15 +1902,17 @@ trFillTel :: Abs Telescope -- Γ ⊢ i.Δ
           -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[r]
 trFillTel = trFillTel' False
 
-trFillTel' :: Bool -> Abs Telescope -- Γ ⊢ i.Δ
+trFillTel' :: (PureTCM m, MonadError TCErr m) =>
+          Bool
+          -> Abs Telescope -- Γ ⊢ i.Δ
           -> Term
           -> Args          -- Γ ⊢ δ : Δ[0]
           -> Term          -- Γ ⊢ r : I
-          -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[r]
+          -> ExceptT (Closure (Abs Type)) m Args      -- Γ ⊢ Δ[r]
 trFillTel' flag delta phi args r = do
-  imin <- liftTCM primIMin
-  imax <- liftTCM primIMax
-  ineg <- liftTCM primINeg
+  imin <- lift primIMin
+  imax <- lift primIMax
+  ineg <- lift primINeg
   transpTel' flag (Abs "j" $ raise 1 delta `lazyAbsApp` (imin `apply` (map argN [var 0, raise 1 r])))
             (imax `apply` [argN $ ineg `apply` [argN r], argN phi])
             args
@@ -1919,16 +1930,17 @@ trFillTel' flag delta phi args r = do
 -- hFillTel' b delta sides base = undefined
 
 pathTelescope
-  :: Telescope -- Δ
+  :: forall m. (PureTCM m, MonadError TCErr m) =>
+  Telescope -- Δ
   -> [Arg Term] -- lhs : Δ
   -> [Arg Term] -- rhs : Δ
-  -> TCM Telescope
+  -> m Telescope
 pathTelescope tel lhs rhs = do
   pathp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPathP
   go pathp (raise 1 tel) lhs rhs
  where
   -- Γ,i ⊢ Δ, Γ ⊢ lhs : Δ[0], Γ ⊢ rhs : Δ[1]
-  go :: Term -> Telescope -> [Arg Term] -> [Arg Term] -> TCM Telescope
+  go :: Term -> Telescope -> [Arg Term] -> [Arg Term] -> m Telescope
   go pathp (ExtendTel a tel) (u : lhs) (v : rhs) = do
     let t = unDom a
     l <- subst 0 __DUMMY_TERM__ <$> getLevel t
@@ -1950,15 +1962,15 @@ pathTelescope tel lhs rhs = do
         lift $ go pathp (absBody tel') lhs rhs
   go _ EmptyTel [] [] = return EmptyTel
   go _ _ _ _ = __IMPOSSIBLE__
-
+  getLevel :: Type -> m Level
   getLevel t = do
     s <- reduce $ getSort t
     case s of
       Type l -> pure l
       s      -> do
          typeError . GenericDocError =<<
-                    (text "The sort of" <+> prettyTCM t <+> text "should be of the form \"Set l\"")
-
+                    (text "The sort of" <+> pretty t <+> text "should be of the form \"Set l\"")
+                    -- TODO do proper error
 
 combineSys :: HasBuiltins m => NamesT m Term -> NamesT m Term -> [(NamesT m Term, NamesT m Term)] -> NamesT m Term
 combineSys l ty xs = snd <$> combineSys' l ty xs

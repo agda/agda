@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP       #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -10,6 +11,7 @@ module Agda.Interaction.Options
     , HtmlHighlight(..)
     , WarningMode(..)
     , ConfluenceCheck(..)
+    , UnicodeOrAscii(..)
     , checkOpts
     , parsePragmaOptions
     , parsePluginOptions
@@ -136,7 +138,7 @@ data CommandLineOptions = Options
 data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
-  , optUseUnicode                :: Bool
+  , optUseUnicode                :: UnicodeOrAscii
   , optVerbose                   :: Verbosity
   , optProp                      :: Bool
   , optTwoLevel                  :: WithDefault 'False
@@ -273,7 +275,7 @@ defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
-  , optUseUnicode                = True
+  , optUseUnicode                = UnicodeOk
   , optVerbose                   = defaultVerbosity
   , optProp                      = False
   , optTwoLevel                  = Default
@@ -441,7 +443,7 @@ unsafePragmaOptions clo opts =
 restartOptions :: [(PragmaOptions -> RestartCodomain, String)]
 restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
-  , (B . not . optUseUnicode, "--no-unicode")
+  , (B . (/= UnicodeOk) . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
   , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
   , (B . optDisablePositivity, "--no-positivity-check")
@@ -606,7 +608,7 @@ showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
 asciiOnlyFlag :: Flag PragmaOptions
 asciiOnlyFlag o = do
   lift $ unsafeSetUnicodeOrAscii AsciiOnly
-  return $ o { optUseUnicode = False }
+  return $ o { optUseUnicode = AsciiOnly }
 
 ghciInteractionFlag :: Flag CommandLineOptions
 ghciInteractionFlag o = return $ o { optGHCiInteraction = True }

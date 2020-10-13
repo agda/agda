@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 module Agda.Syntax.Abstract.Pretty where
 

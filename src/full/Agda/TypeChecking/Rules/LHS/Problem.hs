@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Rules.LHS.Problem
        ( FlexibleVars , FlexibleVarKind(..) , FlexibleVar(..) , allFlexVars
@@ -28,8 +27,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.TypeChecking.Monad (TCM, IsForced(..), addContext, lookupSection, currentModule)
-import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Records
@@ -290,7 +288,9 @@ instance PrettyTCM LeftoverPatterns where
 -- | Classify remaining patterns after splitting is complete into pattern
 --   variables, as patterns, dot patterns, and absurd patterns.
 --   Precondition: there are no more constructor patterns.
-getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
+getLeftoverPatterns
+  :: forall m. PureTCM m
+  => [ProblemEq] -> m LeftoverPatterns
 getLeftoverPatterns eqs = do
   reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
   params <- Set.fromList . teleNames <$> (lookupSection =<< currentModule)
@@ -304,7 +304,7 @@ getLeftoverPatterns eqs = do
     absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a] []
     otherPattern p       = LeftoverPatterns empty [] [] [] [p]
 
-    getLeftoverPattern :: (A.Name -> Bool) -> ProblemEq -> TCM LeftoverPatterns
+    getLeftoverPattern :: (A.Name -> Bool) -> ProblemEq -> m LeftoverPatterns
     getLeftoverPattern isParamName (ProblemEq p v a) = case p of
       (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) >>= \case
         Just i  | isParamName x -> return $ moduleParameter x i

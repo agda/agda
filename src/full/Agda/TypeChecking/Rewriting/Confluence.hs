@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Checking local or global confluence of rewrite rules.
@@ -466,11 +465,7 @@ tryUnification lhs1 lhs2 f = (Just <$> f)
 
 
 type MonadParallelReduce m =
-  ( MonadReduce m
-  , MonadAddContext m
-  , MonadDebug m
-  , HasBuiltins m
-  , HasConstInfo m
+  ( PureTCM m
   , MonadFresh NameId m
   )
 
@@ -632,17 +627,15 @@ ohAddBV x a oh = oh { ohBoundVars = ExtendTel a $ Abs x $ ohBoundVars oh }
 --   decompositions @p = p'[(f ps)/x]@.
 class (TermSubst p, Free p) => AllHoles p where
   type PType p
-  allHoles :: (Alternative m , MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
-           => PType p -> p -> m (OneHole p)
+  allHoles :: (Alternative m, PureTCM m) => PType p -> p -> m (OneHole p)
 
 allHoles_
-  :: ( Alternative m , MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m, MonadDebug m
-     , AllHoles p , PType p ~ () )
+  :: ( Alternative m , PureTCM m , AllHoles p , PType p ~ () )
   => p -> m (OneHole p)
 allHoles_ = allHoles ()
 
 allHolesList
-  :: ( MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m , AllHoles p)
+  :: ( PureTCM m , AllHoles p)
   => PType p -> p -> m [OneHole p]
 allHolesList a = sequenceListT . allHoles a
 
@@ -794,6 +787,7 @@ instance AllHoles Sort where
     Inf f n      -> empty
     SSet l       -> fmap SSet <$> allHoles_ l
     SizeUniv     -> empty
+    LockUniv     -> empty
     PiSort{}     -> __IMPOSSIBLE__
     FunSort{}    -> __IMPOSSIBLE__
     UnivSort{}   -> __IMPOSSIBLE__
@@ -869,7 +863,8 @@ instance MetasToVars Sort where
     Inf f n    -> pure $ Inf f n
     SSet l     -> SSet     <$> metasToVars l
     SizeUniv   -> pure SizeUniv
-    PiSort s t -> PiSort   <$> metasToVars s <*> metasToVars t
+    LockUniv   -> pure LockUniv
+    PiSort s t u -> PiSort   <$> metasToVars s <*> metasToVars t <*> metasToVars u
     FunSort s t -> FunSort <$> metasToVars s <*> metasToVars t
     UnivSort s -> UnivSort <$> metasToVars s
     MetaS x es -> MetaS x  <$> metasToVars es

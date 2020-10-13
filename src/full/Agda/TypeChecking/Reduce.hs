@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies             #-}
 
 module Agda.TypeChecking.Reduce where
 
@@ -114,6 +113,7 @@ instance Instantiate t => Instantiate (Abs t)
 instance Instantiate t => Instantiate (Arg t)
 instance Instantiate t => Instantiate (Elim' t)
 instance Instantiate t => Instantiate (Tele t)
+instance Instantiate t => Instantiate (IPBoundary' t)
 
 instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
     instantiate' (x,y) = (,) <$> instantiate' x <*> instantiate' y
@@ -210,6 +210,8 @@ instance Instantiate Constraint where
   instantiate' c@CheckFunDef{}      = return c
   instantiate' (HasBiggerSort a)    = HasBiggerSort <$> instantiate' a
   instantiate' (HasPTSRule a b)     = uncurry HasPTSRule <$> instantiate' (a,b)
+  instantiate' (CheckLockedVars a b c d) =
+    CheckLockedVars <$> instantiate' a <*> instantiate' b <*> instantiate' c <*> instantiate' d
   instantiate' (UnquoteTactic t h g) = UnquoteTactic <$> instantiate' t <*> instantiate' h <*> instantiate' g
   instantiate' c@CheckMetaInst{}    = return c
 
@@ -283,10 +285,12 @@ ifBlocked t blocked unblocked = do
   t <- reduceB t
   case t of
     Blocked m t     -> blocked m t
-    NotBlocked nb t -> unblocked nb t
+    NotBlocked nb t -> case isMeta t of -- #4899: MetaS counts as NotBlocked at the moment
+      Just m    -> blocked (unblockOnMeta m) t
+      Nothing   -> unblocked nb t
 
 -- | Throw pattern violation if blocked or a meta.
-abortIfBlocked :: (MonadReduce m, MonadTCError m, IsMeta t, Reduce t) => t -> m t
+abortIfBlocked :: (MonadReduce m, MonadBlock m, IsMeta t, Reduce t) => t -> m t
 abortIfBlocked t = ifBlocked t (const . patternViolation) (const return)
 
 isBlocked
@@ -309,10 +313,9 @@ instance Reduce Sort where
     reduce' s = do
       s <- instantiate' s
       case s of
-        PiSort a s2 -> do
-          (s1' , s2') <- reduce' (getSort a , s2)
-          let a' = set lensSort s1' a
-          maybe (return $ PiSort a' s2') reduce' $ piSort' a' s2'
+        PiSort a s1 s2 -> do
+          (s1' , s2') <- reduce' (s1 , s2)
+          maybe (return $ PiSort a s1' s2') reduce' $ piSort' a s1' s2'
         FunSort s1 s2 -> do
           (s1' , s2') <- reduce (s1 , s2)
           maybe (return $ FunSort s1' s2') reduce' $ funSort' s1' s2'
@@ -324,6 +327,7 @@ instance Reduce Sort where
         Inf f n    -> return $ Inf f n
         SSet s'    -> SSet <$> reduce' s'
         SizeUniv   -> return SizeUniv
+        LockUniv   -> return LockUniv
         MetaS x es -> return s
         DefS d es  -> return s -- postulated sorts do not reduce
         DummyS{}   -> return s
@@ -522,7 +526,8 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
   info <- getConstInfo f
   rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   allowed <- asksTC envAllowedReductions
-  prp <- isPropM $ defType info
+  prp <- runBlocked $ isPropM $ defType info
+  defOk <- shouldReduceDef f
   let def = theDef info
       v   = v0 `applyE` es
       -- Non-terminating functions
@@ -533,11 +538,13 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         (defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed)
         || (defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
-        || prp || isIrrelevant (defArgInfo info)
+        || prp == Right True || isIrrelevant (defArgInfo info)
+        || not defOk
       copatterns = defCopatternLHS info
   case def of
-    Constructor{conSrcCon = c} ->
-      noReduction $ notBlocked $ Con (c `withRangeOf` f) ConOSystem [] `applyE` es
+    Constructor{conSrcCon = c} -> do
+      let hd = Con (c `withRangeOf` f) ConOSystem
+      rewrite (NotBlocked ReallyNotBlocked ()) hd rewr es
     Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
       pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
       if FunctionReductions `SmallSet.member` allowed
@@ -614,8 +621,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
             reportSDoc "tc.reduce" 100 $ "    raw   " <+> text (show v)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
-reduceDefCopy :: forall m. (MonadReduce m, HasConstInfo m, HasOptions m,
-                            ReadTCState m, MonadTCEnv m, MonadDebug m)
+reduceDefCopy :: forall m. PureTCM m
               => QName -> Elims -> m (Reduced () Term)
 reduceDefCopy f es = do
   info <- getConstInfo f
@@ -636,8 +642,7 @@ reduceDefCopy f es = do
             NoReduction{}        -> return $ NoReduction ()
 
 -- | Reduce simple (single clause) definitions.
-reduceHead :: (HasBuiltins m, HasConstInfo m, MonadReduce m, MonadDebug m)
-           => Term -> m (Blocked Term)
+reduceHead :: PureTCM m => Term -> m (Blocked Term)
 reduceHead v = do -- ignoreAbstractMode $ do
   -- Andreas, 2013-02-18 ignoreAbstractMode leads to information leakage
   -- see Issue 796
@@ -672,7 +677,7 @@ reduceHead v = do -- ignoreAbstractMode $ do
     _ -> return $ notBlocked v
 
 -- | Unfold a single inlined function.
-unfoldInlined :: (HasConstInfo m, MonadReduce m) => Term -> m Term
+unfoldInlined :: PureTCM m => Term -> m Term
 unfoldInlined v = do
   inTypes <- viewTC eWorkingOnTypes
   case v of
@@ -781,6 +786,8 @@ instance Reduce Constraint where
   reduce' (HasBiggerSort a)     = HasBiggerSort <$> reduce' a
   reduce' (HasPTSRule a b)      = uncurry HasPTSRule <$> reduce' (a,b)
   reduce' (UnquoteTactic t h g) = UnquoteTactic <$> reduce' t <*> reduce' h <*> reduce' g
+  reduce' (CheckLockedVars a b c d) =
+    CheckLockedVars <$> reduce' a <*> reduce' b <*> reduce' c <*> reduce' d
   reduce' c@CheckMetaInst{}     = return c
 
 instance Reduce CompareAs where
@@ -815,6 +822,8 @@ instance Reduce t => Reduce (IPBoundary' t) where
 
 -- | Only unfold definitions if this leads to simplification
 --   which means that a constructor/literal pattern is matched.
+--   We include reduction of IApply patterns, as `p i0` is akin to
+--   matcing on the `i0` constructor of interval.
 class Simplify t where
   simplify' :: t -> ReduceM t
 
@@ -849,8 +858,9 @@ instance Simplify Bool where
 instance Simplify Term where
   simplify' v = do
     v <- instantiate' v
+    let iapp es m = ignoreBlocking <$> reduceIApply' (\ t -> notBlocked <$> simplify' t) (notBlocked <$> m) es
     case v of
-      Def f vs   -> do
+      Def f vs   -> iapp vs $ do
         let keepGoing simp v = return (simp, notBlocked v)
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
         traceSDoc "tc.simplify'" 90 (
@@ -859,13 +869,13 @@ instance Simplify Term where
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs
-      MetaV x vs -> MetaV x  <$> simplify' vs
-      Con c ci vs-> Con c ci <$> simplify' vs
+      MetaV x vs -> iapp vs $ MetaV x  <$> simplify' vs
+      Con c ci vs-> iapp vs $ Con c ci <$> simplify' vs
       Sort s     -> Sort     <$> simplify' s
       Level l    -> levelTm  <$> simplify' l
       Pi a b     -> Pi       <$> simplify' a <*> simplify' b
       Lit l      -> return v
-      Var i vs   -> Var i    <$> simplify' vs
+      Var i vs   -> iapp vs $ Var i    <$> simplify' vs
       Lam h v    -> Lam h    <$> simplify' v
       DontCare v -> dontCare <$> simplify' v
       Dummy{}    -> return v
@@ -880,7 +890,7 @@ instance Simplify t => Simplify (Type' t) where
 instance Simplify Sort where
     simplify' s = do
       case s of
-        PiSort a s -> piSort <$> simplify' a <*> simplify' s
+        PiSort a s1 s2 -> piSort <$> simplify' a <*> simplify' s1 <*> simplify' s2
         FunSort s1 s2 -> funSort <$> simplify' s1 <*> simplify' s2
         UnivSort s -> univSort <$> simplify' s
         Type s     -> Type <$> simplify' s
@@ -888,6 +898,7 @@ instance Simplify Sort where
         Inf _ _    -> return s
         SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
+        LockUniv   -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
         DummyS{}   -> return s
@@ -936,6 +947,8 @@ instance Simplify Constraint where
   simplify' (HasBiggerSort a)     = HasBiggerSort <$> simplify' a
   simplify' (HasPTSRule a b)      = uncurry HasPTSRule <$> simplify' (a,b)
   simplify' (UnquoteTactic t h g) = UnquoteTactic <$> simplify' t <*> simplify' h <*> simplify' g
+  simplify' (CheckLockedVars a b c d) =
+    CheckLockedVars <$> simplify' a <*> simplify' b <*> simplify' c <*> simplify' d
   simplify' c@CheckMetaInst{}     = return c
 
 instance Simplify CompareAs where
@@ -1022,7 +1035,7 @@ instance Normalise Sort where
     normalise' s = do
       s <- reduce' s
       case s of
-        PiSort a s -> piSort <$> normalise' a <*> normalise' s
+        PiSort a s1 s2 -> piSort <$> normalise' a <*> normalise' s1 <*> normalise' s2
         FunSort s1 s2 -> funSort <$> normalise' s1 <*> normalise' s2
         UnivSort s -> univSort <$> normalise' s
         Prop s     -> Prop <$> normalise' s
@@ -1030,6 +1043,7 @@ instance Normalise Sort where
         Inf _ _    -> return s
         SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
+        LockUniv   -> return LockUniv
         MetaS x es -> return s
         DefS d es  -> return s
         DummyS{}   -> return s
@@ -1109,6 +1123,8 @@ instance Normalise Constraint where
   normalise' (HasBiggerSort a)     = HasBiggerSort <$> normalise' a
   normalise' (HasPTSRule a b)      = uncurry HasPTSRule <$> normalise' (a,b)
   normalise' (UnquoteTactic t h g) = UnquoteTactic <$> normalise' t <*> normalise' h <*> normalise' g
+  normalise' (CheckLockedVars a b c d) =
+    CheckLockedVars <$> normalise' a <*> normalise' b <*> normalise' c <*> normalise' d
   normalise' c@CheckMetaInst{}     = return c
 
 instance Normalise CompareAs where
@@ -1171,6 +1187,7 @@ instance InstantiateFull t => InstantiateFull (Elim' t)
 instance InstantiateFull t => InstantiateFull (Named name t)
 instance InstantiateFull t => InstantiateFull (Open t)
 instance InstantiateFull t => InstantiateFull (WithArity t)
+instance InstantiateFull t => InstantiateFull (IPBoundary' t)
 
 -- Tuples:
 
@@ -1225,11 +1242,12 @@ instance InstantiateFull Sort where
             Type n     -> Type <$> instantiateFull' n
             Prop n     -> Prop <$> instantiateFull' n
             SSet n     -> SSet <$> instantiateFull' n
-            PiSort a s -> piSort <$> instantiateFull' a <*> instantiateFull' s
+            PiSort a s1 s2 -> piSort <$> instantiateFull' a <*> instantiateFull' s1 <*> instantiateFull' s2
             FunSort s1 s2 -> funSort <$> instantiateFull' s1 <*> instantiateFull' s2
             UnivSort s -> univSort <$> instantiateFull' s
             Inf _ _    -> return s
             SizeUniv   -> return s
+            LockUniv   -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
             DummyS{}   -> return s
@@ -1320,6 +1338,8 @@ instance InstantiateFull Constraint where
     HasBiggerSort a     -> HasBiggerSort <$> instantiateFull' a
     HasPTSRule a b      -> uncurry HasPTSRule <$> instantiateFull' (a,b)
     UnquoteTactic t g h -> UnquoteTactic <$> instantiateFull' t <*> instantiateFull' g <*> instantiateFull' h
+    CheckLockedVars a b c d ->
+      CheckLockedVars <$> instantiateFull' a <*> instantiateFull' b <*> instantiateFull' c <*> instantiateFull' d
     c@CheckMetaInst{}   -> return c
 
 instance InstantiateFull CompareAs where
@@ -1361,6 +1381,7 @@ instance InstantiateFull NLPSort where
   instantiateFull' (PProp x) = PProp <$> instantiateFull' x
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
+  instantiateFull' PLockUniv = return PLockUniv
 
 instance InstantiateFull RewriteRule where
   instantiateFull' (RewriteRule q gamma f ps rhs t) =

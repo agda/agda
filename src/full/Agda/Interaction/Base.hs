@@ -245,6 +245,16 @@ data Interaction' range
   | ToggleImplicitArgs
 
     ------------------------------------------------------------------------
+    -- Irrelevant arguments
+
+    -- | Tells Agda whether or not to show irrelevant arguments.
+  | ShowIrrelevantArgs    Bool -- Show them?
+
+
+    -- | Toggle display of irrelevant arguments.
+  | ToggleIrrelevantArgs
+
+    ------------------------------------------------------------------------
     -- | Goal commands
     --
     -- If the range is 'noRange', then the string comes from the
@@ -450,6 +460,7 @@ data OutputConstraint a b
       | FindInstanceOF b a [(a,a,a)]
       | PTSInstance b b
       | PostponedCheckFunDef QName a TCErr
+      | CheckLock b b
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.

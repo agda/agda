@@ -59,7 +59,7 @@ getConstructorData c = do
 
 -- | Is the datatype of this constructor a Higher Inductive Type?
 --   Precondition: The argument must refer to a constructor of a datatype or record.
-consOfHIT :: QName -> TCM Bool
+consOfHIT :: HasConstInfo m => QName -> m Bool
 consOfHIT c = do
   d <- getConstructorData c
   def <- theDef <$> getConstInfo d
@@ -76,7 +76,7 @@ consOfHIT c = do
 --   @Nothing@ if @t@ is not a data/record type or does not have
 --   a constructor @c@.
 getConType
-  :: (MonadReduce m, MonadAddContext m, HasConstInfo m, MonadDebug m, HasBuiltins m)
+  :: PureTCM m
   => ConHead  -- ^ Constructor.
   -> Type     -- ^ Ending in data/record type.
   -> m (Maybe ((QName, Type, Args), Type))
@@ -121,7 +121,7 @@ getConType c t = do
 --
 --   Precondition: @t@ is reduced.
 getFullyAppliedConType
-  :: (HasConstInfo m, MonadReduce m, MonadDebug m, HasBuiltins m)
+  :: PureTCM m
   => ConHead  -- ^ Constructor.
   -> Type     -- ^ Reduced type of the fully applied constructor.
   -> m (Maybe ((QName, Type, Args), Type))

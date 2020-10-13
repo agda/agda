@@ -30,6 +30,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
   builtinSet, builtinProp, builtinSetOmega, builtinStrictSet, builtinSSetOmega,
+  builtinLockUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
   builtinAgdaSortUnsupported,
@@ -64,6 +65,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm, builtinAgdaTCMQuoteOmegaTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
+  builtinAgdaTCMOnlyReduceDefs, builtinAgdaTCMDontReduceDefs,
   builtinAgdaTCMNoConstraints,
   builtinAgdaTCMRunSpeculative,
   builtinAgdaTCMExec
@@ -154,6 +156,7 @@ builtinLevelSuc                          = "LEVELSUC"
 builtinSet                               = "TYPE"
 builtinProp                              = "PROP"
 builtinSetOmega                          = "SETOMEGA"
+builtinLockUniv                          = "primLockUniv"
 builtinSSetOmega                         = "STRICTSETOMEGA"
 builtinStrictSet                         = "STRICTSET"
 builtinFromNat                           = "FROMNAT"
@@ -254,6 +257,8 @@ builtinAgdaTCMQuoteOmegaTerm             = "AGDATCMQUOTEOMEGATERM"
 builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
+builtinAgdaTCMOnlyReduceDefs             = "AGDATCMONLYREDUCEDEFS"
+builtinAgdaTCMDontReduceDefs             = "AGDATCMDONTREDUCEDEFS"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 builtinAgdaTCMExec                       = "AGDATCMEXEC"

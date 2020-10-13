@@ -262,6 +262,7 @@ constraintMetas c = metas c
       HasBiggerSort{}          -> return mempty
       HasPTSRule{}             -> return mempty
       CheckMetaInst x          -> return mempty
+      CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)
 
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty

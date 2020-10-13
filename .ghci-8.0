@@ -54,6 +54,7 @@
 :set -XFlexibleContexts
 :set -XFlexibleInstances
 :set -XFunctionalDependencies
+:set -XGeneralizedNewtypeDeriving
 :set -XInstanceSigs
 :set -XLambdaCase
 :set -XMultiParamTypeClasses
@@ -66,4 +67,5 @@
 :set -XScopedTypeVariables
 :set -XStandaloneDeriving
 :set -XTupleSections
+:set -XTypeFamilies
 :set -XTypeSynonymInstances

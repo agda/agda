@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 -- | Syntax of size expressions and constraints.
 

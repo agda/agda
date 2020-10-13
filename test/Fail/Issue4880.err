@@ -1,0 +1,4 @@
+Issue4880.agda:7,9-14
+{A} cannot appear by itself. It needs to be the argument to a
+function expecting an implicit argument.
+when scope checking {A}

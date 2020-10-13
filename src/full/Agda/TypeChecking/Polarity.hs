@@ -1,9 +1,22 @@
+{-# LANGUAGE TypeFamilies #-} -- for type equality ~
 
-module Agda.TypeChecking.Polarity where
+-- | Computing the polarity (variance) of function arguments,
+--   for the sake of subtyping.
+
+module Agda.TypeChecking.Polarity
+  ( -- * Polarity computation
+    computePolarity
+    -- * Auxiliary functions
+  , composePol
+  , nextPolarity
+  , purgeNonvariant
+  , polFromOcc
+  ) where
 
 import Control.Monad.State
 
 import Data.Maybe
+import Data.Semigroup (Semigroup(..))
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -23,6 +36,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe ( whenNothingM )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -80,7 +94,9 @@ purgeNonvariant = map (\ p -> if p == Nonvariant then Covariant else p)
 
 
 -- | A quick transliterations of occurrences to polarities.
-polarityFromPositivity :: QName -> TCM ()
+polarityFromPositivity
+  :: (HasConstInfo m, MonadTCEnv m, MonadTCState m, MonadDebug m)
+  => QName -> m ()
 polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
 
   -- Get basic polarity from positivity analysis.
@@ -97,7 +113,11 @@ polarityFromPositivity x = inConcreteOrAbstractMode x $ \ def -> do
 ------------------------------------------------------------------------
 
 -- | Main function of this module.
-computePolarity :: [QName] -> TCM ()
+computePolarity
+  :: ( HasOptions m, HasConstInfo m, HasBuiltins m
+     , MonadTCEnv m, MonadTCState m, MonadReduce m, MonadAddContext m, MonadTCError m
+     , MonadDebug m, MonadPretty m )
+  => [QName] -> m ()
 computePolarity xs = do
 
  -- Andreas, 2017-04-26, issue #2554
@@ -185,7 +205,9 @@ usagePolarity def = case def of
 --   else if it is a data/record parameter but not a size argument. [See issue 1596]
 --
 --   Precondition: the "phantom" polarity list has the same length as the polarity list.
-dependentPolarity :: Type -> [Polarity] -> [Polarity] -> TCM [Polarity]
+dependentPolarity
+  :: (HasOptions m, HasBuiltins m, MonadReduce m, MonadAddContext m, MonadDebug m)
+  => Type -> [Polarity] -> [Polarity] -> m [Polarity]
 dependentPolarity t _      []          = return []  -- all remaining are 'Invariant'
 dependentPolarity t []     (_ : _)     = __IMPOSSIBLE__
 dependentPolarity t (q:qs) pols@(p:ps) = do
@@ -210,14 +232,15 @@ dependentPolarity t (q:qs) pols@(p:ps) = do
 
 -- | Check whether a variable is relevant in a type expression,
 --   ignoring domains of non-variant arguments.
-relevantInIgnoringNonvariant :: Nat -> Type -> [Polarity] -> TCM Bool
+relevantInIgnoringNonvariant :: MonadReduce m => Nat -> Type -> [Polarity] -> m Bool
 relevantInIgnoringNonvariant i t []     = return $ i `relevantInIgnoringSortAnn` t
-relevantInIgnoringNonvariant i t (p:ps) = do
-  t <- reduce $ unEl t
-  case t of
-    Pi a b -> if p /= Nonvariant && i `relevantInIgnoringSortAnn` a then return True
-              else relevantInIgnoringNonvariant (i + 1) (absBody b) ps
-    _ -> return $ i `relevantInIgnoringSortAnn` t
+relevantInIgnoringNonvariant i t (p:ps) =
+  ifNotPiType t
+    {-then-} (\ t -> return $ i `relevantInIgnoringSortAnn` t) $
+    {-else-} \ a b ->
+      if p /= Nonvariant && i `relevantInIgnoringSortAnn` a
+        then return True
+        else relevantInIgnoringNonvariant (i + 1) (absBody b) ps
 
 ------------------------------------------------------------------------
 -- * Sized types
@@ -226,7 +249,12 @@ relevantInIgnoringNonvariant i t (p:ps) = do
 -- | Hack for polarity of size indices.
 --   As a side effect, this sets the positivity of the size index.
 --   See test/succeed/PolaritySizeSucData.agda for a case where this is needed.
-sizePolarity :: QName -> [Polarity] -> TCM [Polarity]
+sizePolarity
+  :: forall m .
+     ( HasOptions m, HasConstInfo m, HasBuiltins m, ReadTCState m
+     , MonadTCEnv m, MonadTCState m, MonadReduce m, MonadAddContext m, MonadTCError m
+     , MonadDebug m, MonadPretty m )
+  => QName -> [Polarity] -> m [Polarity]
 sizePolarity d pol0 = do
   let exit = return pol0
   ifNotM sizedTypesOption exit $ {- else -} do
@@ -244,35 +272,44 @@ sizePolarity d pol0 = do
                 polIn = pol ++ [Invariant]
             setPolarity d $ polCo
             -- and seek confirm it by looking at the constructor types
-            let check c = do
+            let check :: QName -> m Bool
+                check c = do
                   t <- defType <$> getConstInfo c
                   addContext (telFromList parTel) $ do
                     let pars = map (defaultArg . var) $ downFrom np
                     TelV conTel target <- telView =<< (t `piApplyM` pars)
-                    case conTel of
-                      EmptyTel  -> return False  -- no size argument
-                      ExtendTel arg  tel ->
-                        ifM ((/= Just BoundedNo) <$> isSizeType (unDom arg)) (return False) $ do -- also no size argument
-                          -- First constructor argument has type Size
+                    loop target conTel
+                  where
+                  loop :: Type -> Telescope -> m Bool
+                  -- no suitable size argument
+                  loop _ EmptyTel = do
+                    reportSDoc "tc.polarity.size" 15 $
+                      "constructor" <+> prettyTCM c <+> "fails size polarity check"
+                    return False
+
+                  -- try argument @dom@
+                  loop target (ExtendTel dom tel) = do
+                    isSz <- isSizeType dom
+                    underAbstraction dom tel $ \ tel -> do
+                      let continue = loop target tel
+
+                      -- check that dom == Size
+                      if isSz /= Just BoundedNo then continue else do
+
+                        -- check that the size argument appears in the
+                        -- right spot in the target type
+                        let sizeArg = size tel
+                        isLin <- addContext tel $ checkSizeIndex d sizeArg target
+                        if not isLin then continue else do
 
                           -- check that only positive occurences in tel
-                          let isPos = underAbstraction arg tel $ \ tel -> do
-                                pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
-                                reportSDoc "tc.polarity.size" 25 $
-                                  text $ "to pass size polarity check, the following polarities need all to be covariant: " ++ prettyShow pols
-                                return $ all (`elem` [Nonvariant, Covariant]) pols
-
-                          -- check that the size argument appears in the
-                          -- right spot in the target type
-                          let sizeArg = size tel
-                              isLin = addContext conTel $ checkSizeIndex d sizeArg target
-
-                          ok <- isPos `and2M` isLin
-                          reportSDoc "tc.polarity.size" 15 $
-                            "constructor" <+> prettyTCM c <+>
-                            text (if ok then "passes" else "fails") <+>
-                            "size polarity check"
-                          return ok
+                          pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
+                          reportSDoc "tc.polarity.size" 25 $
+                            text $ "to pass size polarity check, the following polarities need all to be covariant: " ++ prettyShow pols
+                          if any (`notElem` [Nonvariant, Covariant]) pols then continue else do
+                            reportSDoc "tc.polarity.size" 15 $
+                              "constructor" <+> prettyTCM c <+> "passes size polarity check"
+                            return True
 
             ifNotM (andM $ map check cons)
                 (return polIn) -- no, does not conform to the rules of sized types
@@ -288,7 +325,9 @@ sizePolarity d pol0 = do
 --   has form @d ps (↑ⁿ i) idxs@ where @|ps| = np(d)@.
 --
 --   Precondition: @a@ is reduced and of form @d ps idxs0@.
-checkSizeIndex :: QName -> Nat -> Type -> TCM Bool
+checkSizeIndex
+  :: (HasConstInfo m, ReadTCState m, MonadDebug m, MonadPretty m, MonadTCError m)
+  => QName -> Nat -> Type -> m Bool
 checkSizeIndex d i a = do
   reportSDoc "tc.polarity.size" 15 $ withShowAllArguments $ vcat
     [ "checking that constructor target type " <+> prettyTCM a
@@ -302,74 +341,88 @@ checkSizeIndex d i a = do
       let (pars, Apply ix : ixs) = splitAt np es
       s <- deepSizeView $ unArg ix
       case s of
-        DSizeVar j _ | i == j
+        DSizeVar (ProjectedVar j []) _ | i == j
           -> return $ not $ freeIn i (pars ++ ixs)
         _ -> return False
     _ -> __IMPOSSIBLE__
 
--- | @polarities i a@ computes the list of polarities of de Bruijn index @i@
+-- | @polarity i a@ computes the least polarity of de Bruijn index @i@
 --   in syntactic entity @a@.
+polarity
+  :: (HasPolarity a, HasConstInfo m, MonadReduce m)
+  => Nat -> a -> m Polarity
+polarity i x = getLeastPolarity $ polarity' i Covariant x
+
+-- | A monoid for lazily computing the infimum of the polarities of a variable in some object.
+-- Allows short-cutting.
+
+newtype LeastPolarity m = LeastPolarity { getLeastPolarity :: m Polarity}
+
+instance Monad m => Singleton Polarity (LeastPolarity m) where
+  singleton = LeastPolarity . return
+
+instance Monad m => Semigroup (LeastPolarity m) where
+  LeastPolarity mp <> LeastPolarity mq = LeastPolarity $ do
+    mp >>= \case
+      Invariant  -> return Invariant  -- Shortcut for the absorbing element.
+      Nonvariant -> mq                -- The neutral element.
+      p          -> (p /\) <$> mq
+
+instance Monad m => Monoid (LeastPolarity m) where
+  mempty  = singleton Nonvariant
+  mappend = (<>)
+
+-- | Bind for 'LeastPolarity'.
+(>>==) :: Monad m => m a -> (a -> LeastPolarity m) -> LeastPolarity m
+m >>== k = LeastPolarity $ m >>= getLeastPolarity . k
+
+-- | @polarity' i p a@ computes the least polarity of de Bruijn index @i@
+--   in syntactic entity @a@, where root occurrences count as @p@.
+--
+--   Ignores occurrences in sorts.
 class HasPolarity a where
-  polarities :: Nat -> a -> TCM [Polarity]
+  polarity'
+    :: (HasConstInfo m, MonadReduce m)
+    => Nat -> Polarity -> a -> LeastPolarity m
 
--- | @polarity i a@ computes the polarity of de Bruijn index @i@
---   in syntactic entity @a@ by taking the infimum of all 'polarities'.
-polarity :: HasPolarity a => Nat -> a -> TCM Polarity
-polarity i x = do
-  ps <- polarities i x
-  case ps of
-    [] -> return Nonvariant
-    ps -> return $ foldr1 (/\) ps
+  default polarity'
+    :: (HasConstInfo m, MonadReduce m, HasPolarity b, Foldable t, t b ~ a)
+    => Nat -> Polarity -> a -> LeastPolarity m
+  polarity' i = foldMap . polarity' i
 
-instance HasPolarity a => HasPolarity (Arg a) where
-  polarities i = polarities i . unArg
+instance HasPolarity a => HasPolarity [a]
+instance HasPolarity a => HasPolarity (Arg a)
+instance HasPolarity a => HasPolarity (Dom a)
+instance HasPolarity a => HasPolarity (Elim' a)
+instance HasPolarity a => HasPolarity (Level' a)
+instance HasPolarity a => HasPolarity (PlusLevel' a)
 
-instance HasPolarity a => HasPolarity (Dom a) where
-  polarities i = polarities i . unDom
-
-instance HasPolarity a => HasPolarity (Abs a) where
-  polarities i (Abs   _ b) = polarities (i + 1) b
-  polarities i (NoAbs _ v) = polarities i v
-
-instance HasPolarity a => HasPolarity [a] where
-  polarities i xs = concat <$> mapM (polarities i) xs
+-- | Does not look into sort.
+instance HasPolarity a => HasPolarity (Type'' t a)
 
 instance (HasPolarity a, HasPolarity b) => HasPolarity (a, b) where
-  polarities i (x, y) = (++) <$> polarities i x <*> polarities i y
+  polarity' i p (x, y) = polarity' i p x <> polarity' i p y
 
-instance HasPolarity Type where
-  polarities i (El _ v) = polarities i v
-
-instance HasPolarity a => HasPolarity (Elim' a) where
-  polarities i Proj{}    = return []
-  polarities i (Apply a) = polarities i a
-  polarities i (IApply x y a) = polarities i (x,(y,a))
+instance HasPolarity a => HasPolarity (Abs a) where
+  polarity' i p (Abs   _ b) = polarity' (i + 1) p b
+  polarity' i p (NoAbs _ v) = polarity' i p v
 
 instance HasPolarity Term where
-  polarities i v = do
-   v <- instantiate v
-   case v of
-    -- Andreas, 2012-09-06: taking the polarities of the arguments
+  polarity' i p v = instantiate v >>== \case
+    -- Andreas, 2012-09-06: taking the polarity' of the arguments
     -- without taking the variance of the function into account seems wrong.
-    Var n ts  | n == i -> (Covariant :) . map (const Invariant) <$> polarities i ts
-              | otherwise -> map (const Invariant) <$> polarities i ts
-    Lam _ t    -> polarities i t
-    Lit _      -> return []
-    Level l    -> polarities i l
-    Def x ts   -> do
-      pols <- getPolarity x
-      let compose p ps = map (composePol p) ps
-      concat . zipWith compose (pols ++ repeat Invariant) <$> mapM (polarities i) ts
-    Con _ _ ts -> polarities i ts -- constructors can be seen as monotone in all args.
-    Pi a b     -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
-    Sort s     -> return [] -- polarities i s -- return []
-    MetaV _ ts -> map (const Invariant) <$> polarities i ts
-    DontCare t -> polarities i t -- return []
-    Dummy{}    -> return []
-
-instance HasPolarity Level where
-  polarities i (Max _ as) = polarities i as
-
-instance HasPolarity PlusLevel where
-  polarities i (Plus _ l) = polarities i l
-
+    Var n ts
+      | n == i    -> singleton p <> polarity' i Invariant ts
+      | otherwise -> polarity' i Invariant ts
+    Lam _ t       -> polarity' i p t
+    Lit _         -> mempty
+    Level l       -> polarity' i p l
+    Def x ts      -> getPolarity x >>== \ pols ->
+                       let ps = map (composePol p) pols ++ repeat Invariant
+                       in  mconcat $ zipWith (polarity' i) ps ts
+    Con _ _ ts    -> polarity' i p ts   -- Constructors can be seen as monotone in all args.
+    Pi a b        -> polarity' i (neg p) a <> polarity' i p b
+    Sort s        -> mempty -- polarity' i p s -- mempty
+    MetaV _ ts    -> polarity' i Invariant ts
+    DontCare t    -> polarity' i p t -- mempty
+    Dummy{}       -> mempty

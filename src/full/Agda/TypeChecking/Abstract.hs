@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
@@ -18,6 +17,7 @@ import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Sort
 
 import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
@@ -52,7 +52,7 @@ piAbstractTerm h v a b = do
 piAbstract :: WithHiding (Term, EqualityView) -> Type -> TCM Type
 piAbstract (WithHiding h (v, OtherType a))                              b = piAbstractTerm h v a b
 piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
-  s <- inferSort a
+  s <- sortOf a
   let prfTy = equalityUnview eqt
       vTy   = El s a
   b <- abstractType prfTy prf b
@@ -176,7 +176,8 @@ instance AbsTerm Sort where
     Inf f n    -> s
     SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
-    PiSort a s -> PiSort (absS a) (absS s)
+    LockUniv   -> LockUniv
+    PiSort a s1 s2 -> PiSort (absS a) (absS s1) (absS s2)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s
     MetaS x es -> MetaS x $ absS es
@@ -261,7 +262,7 @@ instance EqualSy Sort where
     (Inf f m   , Inf f' n    ) -> f == f' && m == n
     (SSet l    , SSet l'     ) -> equalSy l l'
     (SizeUniv  , SizeUniv    ) -> True
-    (PiSort a b, PiSort a' b') -> equalSy a a' && equalSy b b'
+    (PiSort a b c, PiSort a' b' c') -> equalSy a a' && equalSy b b' && equalSy c c'
     (FunSort a b, FunSort a' b') -> equalSy a a' && equalSy b b'
     (UnivSort a, UnivSort a' ) -> equalSy a a'
     (MetaS x es, MetaS x' es') -> x == x' && equalSy es es'
@@ -292,8 +293,8 @@ instance (Subst a, EqualSy a) => EqualSy (Abs a) where
 
 -- | Ignore origin and free variables.
 instance EqualSy ArgInfo where
-  equalSy (ArgInfo h m _o _fv) (ArgInfo h' m' _o' _fv') =
-    h == h' && m == m'
+  equalSy (ArgInfo h m _o _fv a) (ArgInfo h' m' _o' _fv' a') =
+    h == h' && m == m' && a == a'
 
 -- | Ignore the tactic.
 instance EqualSy a => EqualSy (Dom a) where
@@ -307,7 +308,7 @@ instance EqualSy a => EqualSy (Dom a) where
 -- | Ignores irrelevant arguments and modality.
 --   (And, of course, origin and free variables).
 instance EqualSy a => EqualSy (Arg a) where
-  equalSy (Arg (ArgInfo h m _o _fv) v) (Arg (ArgInfo h' m' _o' _fv') v') =
+  equalSy (Arg (ArgInfo h m _o _fv a) v) (Arg (ArgInfo h' m' _o' _fv' a') v') =
     h == h' && (isIrrelevant m || isIrrelevant m' || equalSy v v')
     -- Andreas, 2017-10-04, issue #2775,
     -- ignore irrelevant arguments during with-abstraction.

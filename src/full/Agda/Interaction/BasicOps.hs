@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -327,11 +326,11 @@ evalInMeta ii cmode e =
 -- | Modifier for interactive commands,
 --   specifying the amount of normalization in the output.
 --
-normalForm :: (Reduce t, Simplify t, Normalise t) => Rewrite -> t -> TCM t
+normalForm :: (Reduce t, Simplify t, Instantiate t, Normalise t) => Rewrite -> t -> TCM t
 normalForm = \case
-  AsIs         -> return
-  Instantiated -> return   -- reify does instantiation
-  HeadNormal   -> reduce
+  AsIs         -> instantiate   -- #4975: reify will also instantiate by for goal-type-and-context-and-check
+  Instantiated -> instantiate   --        we get a top-level fresh meta which has disappeared from state by the
+  HeadNormal   -> reduce        --        time we get to reification. Hence instantiate here.
   Simplified   -> simplify
   Normalised   -> normalise
 
@@ -381,6 +380,7 @@ outputFormId (OutputForm _ _ _ o) = out o
       FindInstanceOF _ _ _        -> __IMPOSSIBLE__
       PTSInstance i _            -> i
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
+      CheckLock i _              -> i
 
 instance Reify ProblemConstraint where
   type ReifiesTo ProblemConstraint = Closure (OutputForm Expr Expr)
@@ -460,6 +460,7 @@ instance Reify Constraint where
     reify (HasPTSRule a b) = do
       (a,(x,b)) <- reify (unDom a,b)
       return $ PTSInstance a b
+    reify (CheckLockedVars t _ lk _) = CheckLock <$> reify t <*> reify (unArg lk)
     reify (CheckMetaInst m) = do
       t <- jMetaType . mvJudgement <$> lookupMeta m
       OfType <$> reify (MetaV m []) <*> reify t
@@ -468,7 +469,7 @@ instance Reify Constraint where
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
   pretty (OutputForm r pids unblock c) =
     pretty c <?>
-      sep [ prange r, parens (sep [blockedOn unblock, prPids pids]) ]
+      sep [ prange r, parensNonEmpty (sep [blockedOn unblock, prPids pids]) ]
     where
       prPids []    = empty
       prPids [pid] = "belongs to problem" <+> pretty pid
@@ -512,6 +513,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
       PostponedCheckFunDef q a _err ->
         vcat [ "Check definition of" <+> pretty q <+> ":" <+> pretty a ]
              -- , nest 2 "stuck because" <?> pretty err ] -- We don't have Pretty for TCErr
+      CheckLock t lk       -> "Check lock" <+> pretty lk <+> "allows" <+> pretty t
     where
       bin a op b = sep [a, nest 2 $ op <+> b]
       pcmp cmp a b = bin (pretty a) (pretty cmp) (pretty b)
@@ -551,6 +553,7 @@ instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint a b) where
       FindInstanceOF <$> toConcrete s <*> toConcrete t
                      <*> mapM (\(q,tm,ty) -> (,,) <$> toConcrete q <*> toConcrete tm <*> toConcrete ty) cs
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
+    toConcrete (CheckLock a b) = CheckLock <$> toConcrete a <*> toConcrete b
     toConcrete (PostponedCheckFunDef q a err) = PostponedCheckFunDef q <$> toConcrete a <*> pure err
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
@@ -623,6 +626,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         HasPTSRule a b             -> Nothing
         UnquoteTactic{}            -> Nothing
         CheckMetaInst{}            -> Nothing
+        CheckLockedVars t _ _ _    -> isMeta t
 
     isMeta (MetaV m' es_m)
       | m == m' = Just es_m

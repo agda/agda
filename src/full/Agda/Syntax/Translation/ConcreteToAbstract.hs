@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.
@@ -18,7 +17,6 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     ) where
 
 import Prelude hiding ( null )
-import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Applicative hiding ( empty )
 import Control.Monad.Except
@@ -82,6 +80,7 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.CallStack ( HasCallStack )
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -106,23 +105,17 @@ import Agda.ImpossibleTest (impossibleTest)
     Exceptions
  --------------------------------------------------------------------------}
 
--- notAModuleExpr e = typeError $ NotAModuleExpr e
+notAnExpression :: (HasCallStack, MonadTCError m) => C.Expr -> m a
+notAnExpression = locatedTypeError NotAnExpression
 
-notAnExpression :: HasCallStack => C.Expr -> ScopeM A.Expr
-notAnExpression e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) $ NotAnExpression e
+nothingAppliedToHiddenArg :: (HasCallStack, MonadTCError m) => C.Expr -> m a
+nothingAppliedToHiddenArg = locatedTypeError NothingAppliedToHiddenArg
 
-nothingAppliedToHiddenArg :: HasCallStack => C.Expr -> ScopeM A.Expr
-nothingAppliedToHiddenArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToHiddenArg e
+nothingAppliedToInstanceArg :: (HasCallStack, MonadTCError m) => C.Expr -> m a
+nothingAppliedToInstanceArg = locatedTypeError NothingAppliedToInstanceArg
 
-nothingAppliedToInstanceArg :: HasCallStack => C.Expr -> ScopeM A.Expr
-nothingAppliedToInstanceArg e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) $ NothingAppliedToInstanceArg e
-
-notAValidLetBinding :: HasCallStack => NiceDeclaration -> ScopeM a
-notAValidLetBinding d = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  typeError' (AgdaSourceErrorLocation file line) $ NotAValidLetBinding d
+notAValidLetBinding :: (HasCallStack, MonadTCError m) => C.NiceDeclaration -> m a
+notAValidLetBinding = locatedTypeError NotAValidLetBinding
 
 {--------------------------------------------------------------------------
     Helpers
@@ -758,17 +751,31 @@ inferParenPreference :: C.Expr -> ParenPreference
 inferParenPreference C.Paren{} = PreferParen
 inferParenPreference _         = PreferParenless
 
--- | Parse a possibly dotted @C.Expr@ as @A.Expr@, interpreting dots as relevance.
-toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Relevance)
-toAbstractDot prec e = do
-    reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ render (pretty e)
+-- | Parse a possibly dotted and braced @C.Expr@ as @A.Expr@,
+--   interpreting dots as relevance and braces as hiding.
+--   Only accept a layer of dotting/bracing if the respective accumulator is @Nothing@.
+toAbstractDotHiding :: Maybe Relevance -> Maybe Hiding -> Precedence -> C.Expr -> ScopeM (A.Expr, Relevance, Hiding)
+toAbstractDotHiding mr mh prec e = do
+    reportSLn "scope.irrelevance" 100 $ "toAbstractDotHiding: " ++ render (pretty e)
     traceCall (ScopeCheckExpr e) $ case e of
 
-      C.RawApp _ es   -> toAbstractDot prec =<< parseApplication es
-      C.Paren _ e     -> toAbstractDot TopCtx e
-      C.Dot _ e       -> (,Irrelevant) <$> toAbstractCtx prec e
-      C.DoubleDot _ e -> (,NonStrict)  <$> toAbstractCtx prec e
-      e               -> (,Relevant)   <$> toAbstractCtx prec e
+      C.RawApp _ es     -> toAbstractDotHiding mr mh prec =<< parseApplication es
+      C.Paren _ e       -> toAbstractDotHiding mr mh TopCtx e
+
+      C.Dot _ e
+        | Nothing <- mr -> toAbstractDotHiding (Just Irrelevant) mh prec e
+
+      C.DoubleDot _ e
+        | Nothing <- mr -> toAbstractDotHiding (Just NonStrict) mh prec e
+
+      C.HiddenArg _ (Named Nothing e)
+        | Nothing <- mh -> toAbstractDotHiding mr (Just Hidden) TopCtx e
+
+      C.InstanceArg _ (Named Nothing e)
+        | Nothing <- mh -> toAbstractDotHiding mr (Just $ Instance NoOverlap) TopCtx e
+
+      e                 -> (, fromMaybe Relevant mr, fromMaybe NotHidden mh) <$>
+                             toAbstractCtx prec e
 
 -- | Translate concrete expression under at least one binder into nested
 --   lambda abstraction in abstract syntax.
@@ -860,8 +867,12 @@ instance ToAbstract C.Expr where
         i       = ExprRange r
         alit    = A.Lit i l
         mkApp q = A.App (defaultAppInfo r) (A.Def q) . defaultNamedArg
+
+        -- #4925: Require fromNat/fromNeg to be in scope *unqualified* for literal overloading to
+        -- apply.
         ensureInScope :: Maybe I.Term -> ScopeM (Maybe I.Term)
-        ensureInScope v@(Just (I.Def q _)) = ifM (isNameInScope q <$> getScope) (return v) (return Nothing)
+        ensureInScope v@(Just (I.Def q _)) =
+          ifM (isNameInScopeUnqualified q <$> getScope) (return v) (return Nothing)
         ensureInScope _ = return Nothing
 
   -- Meta variables
@@ -921,11 +932,21 @@ instance ToAbstract C.Expr where
 
   -- Relevant and irrelevant non-dependent function type
       C.Fun r (Arg info1 e1) e2 -> do
-        Arg info (e1', rel) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg' info1 e1
+        let arg = mkArg' info1 e1
+        let mr = case getRelevance arg of
+              Relevant  -> Nothing
+              r         -> Just r
+        let mh = case getHiding arg of
+              NotHidden -> Nothing
+              h         -> Just h
+        Arg info (e1', rel, hid) <- traverse (toAbstractDotHiding mr mh FunctionSpaceDomainCtx) arg
         let updRel = case rel of
               Relevant -> id
               rel      -> setRelevance rel
-        A.Fun (ExprRange r) (Arg (updRel info) e1') <$> toAbstractCtx TopCtx e2
+        let updHid = case hid of
+              NotHidden -> id
+              hid       -> setHiding hid
+        A.Fun (ExprRange r) (Arg (updRel $ updHid info) e1') <$> toAbstractCtx TopCtx e2
 
   -- Dependent function type
       e0@(C.Pi tel e) -> do
@@ -1360,10 +1381,10 @@ niceDecls warn ds ret = setCurrentRange ds $ computeFixitiesAndPolarities warn d
         tcerrs <- mapM warning_ $ NicifierIssue <$> errs
         setCurrentRange errs $ typeError $ NonFatalErrors tcerrs
     -- Otherwise we simply record the warnings
-    mapM_ (\ w -> warning' (dwFileLine w) $ NicifierIssue w) warns
+    mapM_ (\ w -> warning' (dwLocation w) $ NicifierIssue w) warns
   case result of
-    Left (DeclarationException fl e) -> do
-      reportSLn "error" 2 $ "Error raised at " ++ prettyShow fl
+    Left (DeclarationException loc e) -> do
+      reportSLn "error" 2 $ "Error raised at " ++ prettyShow loc
       throwError $ Exception (getRange e) $ pretty e
     Right ds -> ret ds
 

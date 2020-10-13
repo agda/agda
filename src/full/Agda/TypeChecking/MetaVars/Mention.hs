@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.MetaVars.Mention where
 
@@ -53,7 +54,8 @@ instance MentionsMeta Sort where
     Inf _ _    -> False
     SSet l     -> mentionsMetas xs l
     SizeUniv   -> False
-    PiSort a s -> mentionsMetas xs (a, s)
+    LockUniv   -> False
+    PiSort a s1 s2 -> mentionsMetas xs (a, s1, s2)
     FunSort s1 s2 -> mentionsMetas xs (s1, s2)
     UnivSort s -> mentionsMetas xs s
     MetaS m es -> HashSet.member m xs || mentionsMetas xs es
@@ -116,6 +118,7 @@ instance MentionsMeta Constraint where
     HasPTSRule a b      -> mm (a, b)
     UnquoteTactic tac hole goal -> False
     CheckMetaInst m     -> True   -- TODO
+    CheckLockedVars a b c d -> mm ((a, b), (c, d))
     where
       mm v = mentionsMetas xs v
 

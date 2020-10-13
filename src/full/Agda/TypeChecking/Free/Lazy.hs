@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 -- | Computing the free variables of a term lazily.
 --
@@ -546,8 +544,9 @@ instance Free Sort where
       Inf _ _    -> mempty
       SSet a     -> freeVars' a
       SizeUniv   -> mempty
-      PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
-                    underFlexRig WeaklyRigid (freeVars' (getSort a, s))
+      LockUniv   -> mempty
+      PiSort a s1 s2 -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
+                        underFlexRig WeaklyRigid (freeVars' (s1, s2))
       FunSort s1 s2 -> freeVars' s1 `mappend` freeVars' s2
       UnivSort s -> underFlexRig WeaklyRigid $ freeVars' s
       MetaS x es -> underFlexRig (Flexible $ singleton x) $ freeVars' es

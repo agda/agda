@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}  -- for IsList instance
 
 -- | Lists of length at least 2.
 --

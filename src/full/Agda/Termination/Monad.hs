@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 -- | The monad for the termination checker.
 --
@@ -194,6 +192,7 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , ReadTCState
            , MonadReduce
            , MonadAddContext
+           , PureTCM
            )
 
 -- This could be derived automatically, but the derived type family becomes `BenchPhase (ReaderT TerEnv TCM)` which

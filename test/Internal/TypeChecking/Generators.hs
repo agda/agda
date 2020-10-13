@@ -475,7 +475,8 @@ instance ShrinkC Sort where
     Prop{}     -> []
     Inf f _    -> []
     SizeUniv   -> []
-    PiSort s1 s2 -> __IMPOSSIBLE__
+    LockUniv   -> []
+    PiSort a s1 s2 -> __IMPOSSIBLE__
     FunSort s1 s2 -> __IMPOSSIBLE__
     UnivSort s -> __IMPOSSIBLE__
     MetaS x es -> __IMPOSSIBLE__

@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 -- | Extract used definitions from terms.
 
@@ -81,7 +80,8 @@ instance GetDefs Sort where
     Inf _ _   -> return ()
     SSet l    -> getDefs l
     SizeUniv  -> return ()
-    PiSort a s  -> getDefs a >> getDefs s
+    LockUniv  -> return ()
+    PiSort a s1 s2 -> getDefs a >> getDefs s1 >> getDefs s2
     FunSort s1 s2 -> getDefs s1 >> getDefs s2
     UnivSort s  -> getDefs s
     MetaS x es  -> getDefs x >> getDefs es

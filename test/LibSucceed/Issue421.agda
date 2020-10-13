@@ -9,7 +9,7 @@ open import Data.Nat using (ℕ;zero;suc)
 open import Data.Fin using (Fin;zero;suc)
 open import Data.Vec
 open import Data.Empty
-open import Data.Product
+open import Data.Product hiding (_<*>_)
 open import Data.Sum
 open import Data.Unit
 

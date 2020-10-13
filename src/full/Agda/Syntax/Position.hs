@@ -1,8 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
-{-# LANGUAGE TypeFamilies               #-}  -- for type equality ~
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}

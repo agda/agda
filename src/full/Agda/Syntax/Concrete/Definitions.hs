@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
 --
@@ -44,7 +43,6 @@ module Agda.Syntax.Concrete.Definitions
     ) where
 
 import Prelude hiding (null)
-import GHC.Stack ( HasCallStack, freezeCallStack, callStack )
 
 import Control.Monad.Except
 import Control.Monad.State
@@ -70,6 +68,7 @@ import Agda.Syntax.Concrete.Fixity
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.AffineHole
+import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (isSublistOf)
@@ -165,21 +164,21 @@ type NiceTypeSignature  = NiceDeclaration
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
     deriving (Data, Show)
 
--- | Exception with File and Line source
+-- | Exception with internal source code callstack
 data DeclarationException = DeclarationException
-  { deFileLine   :: AgdaSourceErrorLocation
-  , deExceptiion :: DeclarationException'
+  { deLocation  :: CallStack
+  , deException :: DeclarationException'
   }
 
 declarationException :: HasCallStack => DeclarationException' -> Nice a
-declarationException e = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  throwError (DeclarationException (AgdaSourceErrorLocation file line) e)
+declarationException e = withCallerCallStack $ throwError . flip DeclarationException e
 
 -- | The exception type.
 data DeclarationException'
   = MultipleEllipses Pattern
   | InvalidName Name
   | DuplicateDefinition Name
+  | DuplicateAnonDeclaration Range
   | MissingWithClauses Name LHS
   | WrongDefinition Name DataRecOrFun DataRecOrFun
   | DeclarationPanic String
@@ -195,16 +194,15 @@ data DeclarationException'
 
 
 data DeclarationWarning = DeclarationWarning
-  { dwFileLine :: AgdaSourceErrorLocation
+  { dwLocation :: CallStack
   , dwWarning  :: DeclarationWarning'
-  } deriving (Show, Data)
+  } deriving (Show)
 
-declarationWarning' :: AgdaSourceErrorLocation -> DeclarationWarning' -> Nice ()
-declarationWarning' fl w = niceWarning (DeclarationWarning fl w)
+declarationWarning' :: DeclarationWarning' -> CallStack -> Nice ()
+declarationWarning' w loc = niceWarning $ DeclarationWarning loc w
 
 declarationWarning :: HasCallStack => DeclarationWarning' -> Nice ()
-declarationWarning w = withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-  declarationWarning' (AgdaSourceErrorLocation file line) w
+declarationWarning = withCallerCallStack . declarationWarning'
 
 -- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning'
@@ -345,6 +343,7 @@ instance HasRange DeclarationException' where
   getRange (MultipleEllipses d)                 = getRange d
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
+  getRange (DuplicateAnonDeclaration r)         = r
   getRange (MissingWithClauses x lhs)           = getRange lhs
   getRange (WrongDefinition x k k')             = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
@@ -441,6 +440,8 @@ instance Pretty DeclarationException' where
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
+  pretty (DuplicateAnonDeclaration _) = fsep $
+    pwords "Duplicate declaration of _"
   pretty (MissingWithClauses x lhs) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 
@@ -746,7 +747,8 @@ addLoneSig r x k = do
     let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x' k) s
     case mr of
       Nothing -> return s'
-      Just{}  -> declarationException $ DuplicateDefinition x
+      Just{}  -> declarationException $
+        if not $ isNoName x then DuplicateDefinition x else DuplicateAnonDeclaration r
   return x'
 
 -- | Remove a lone signature from the state.
@@ -920,8 +922,10 @@ replaceSigs ps = if Map.null ps then id else \case
     -- @Axiom@ out of it.
     replaceable :: NiceDeclaration -> Maybe (Name, NiceDeclaration)
     replaceable = \case
-      FunSig r acc abst inst _ argi _ _ x e ->
-        Just (x, Axiom r acc abst inst argi x e)
+      FunSig r acc abst inst _ argi _ _ x' e ->
+        -- #4881: Don't use the unique NameId for NoName lookups.
+        let x = if isNoName x' then noName (nameRange x') else x' in
+        Just (x, Axiom r acc abst inst argi x' e)
       NiceRecSig r acc abst _ _ x pars t ->
         let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
         Just (x, Axiom r acc abst NotInstanceDef defaultArgInfo x e)
@@ -1018,8 +1022,8 @@ niceDeclarations fixs ds = do
     nice1 (d:ds) = do
       let justWarning :: HasCallStack => DeclarationWarning' -> Nice ([NiceDeclaration], [Declaration])
           justWarning w = do
-            withFileAndLine' (freezeCallStack callStack) $ \ file line ->
-              declarationWarning' (AgdaSourceErrorLocation file line) w
+            -- NOTE: This is the location of the invoker of justWarning, not here.
+            withCallerCallStack $ declarationWarning' w
             nice1 ds
 
       case d of
@@ -1027,7 +1031,10 @@ niceDeclarations fixs ds = do
         TypeSig info _tac x t -> do
           termCheck <- use terminationCheckPragma
           covCheck  <- use coverageCheckPragma
-          let r = getRange d
+          -- Andreas, 2020-09-28, issue #4950: take only range of identifier,
+          -- since parser expands type signatures with several identifiers
+          -- (like @x y z : A@) into several type signatures (with imprecise ranges).
+          let r = getRange x
           -- register x as lone type signature, to recognize clauses later
           x' <- addLoneSig r x $ FunName termCheck covCheck
           return ([FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef info termCheck covCheck x' t] , ds)

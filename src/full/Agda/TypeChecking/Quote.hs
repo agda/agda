@@ -128,8 +128,9 @@ quotingKit = do
       quoteRelevance NonStrict  = pure relevant
 
       -- TODO: quote Quanity
+      -- TODO: quote Annotation
       quoteArgInfo :: ArgInfo -> ReduceM Term
-      quoteArgInfo (ArgInfo h m _ _) =
+      quoteArgInfo (ArgInfo h m _ _ _) =
         arginfo !@ quoteHiding h @@ quoteRelevance (getRelevance m)
 
       quoteLit :: Literal -> ReduceM Term
@@ -153,6 +154,7 @@ quotingKit = do
       quoteSort Inf{}    = pure unsupportedSort
       quoteSort SSet{}   = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
+      quoteSort LockUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort FunSort{} = pure unsupportedSort
       quoteSort UnivSort{}   = pure unsupportedSort

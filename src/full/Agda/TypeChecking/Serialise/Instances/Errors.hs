@@ -8,7 +8,6 @@ import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
-import Agda.Syntax.Common (AgdaSourceErrorLocation(..))
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
@@ -18,10 +17,6 @@ import Agda.Termination.CutOff
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
-
-instance EmbPrj AgdaSourceErrorLocation where
-  icod_ (AgdaSourceErrorLocation a b) = icodeN' AgdaSourceErrorLocation a b
-  value = valueN AgdaSourceErrorLocation
 
 instance EmbPrj TCWarning where
   icod_ (TCWarning fp a b c d) = icodeN' TCWarning fp a b c d
@@ -257,6 +252,8 @@ instance EmbPrj PragmaOptions where
     [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb] ->
       valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb
     _ -> malformed
+
+instance EmbPrj UnicodeOrAscii
 
 instance EmbPrj ConfluenceCheck where
   icod_ LocalConfluenceCheck  = icodeN' LocalConfluenceCheck

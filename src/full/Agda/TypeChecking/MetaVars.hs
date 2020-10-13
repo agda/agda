@@ -10,6 +10,7 @@ import Control.Monad.Reader
 
 import Data.Function
 import qualified Data.IntMap as IntMap
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
@@ -25,6 +26,8 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position (getRange, killRange)
 
 import Agda.TypeChecking.Monad
+-- import Agda.TypeChecking.Monad.Builtin
+-- import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
@@ -32,6 +35,7 @@ import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Lock
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -574,12 +578,9 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
                       noConstraints $ assignTerm' m (telToArgs tel) u  -- should never produce any constraints
               if Records `elem` kinds then
                 expand
-               else if (SingletonRecords `elem` kinds) then do
-                 singleton <- isSingletonRecord r ps
-                 case singleton of
-                   Left x      -> waitFor x
-                   Right False -> dontExpand
-                   Right True  -> expand
+               else if (SingletonRecords `elem` kinds) then
+                catchPatternErr (\x -> waitFor x) $ do
+                 ifM (isSingletonRecord r ps) expand dontExpand
                 else dontExpand
             ) $ {- else -} ifM (andM [ return $ Levels `elem` kinds
                             , typeInType
@@ -675,22 +676,52 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- being solved, which can help with pruning (see #4615).
   -- Jesper, 2020-08-25: --no-sort-comparison is now the default
   -- behaviour.
-  let abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
-  t' <- piApplyM' abort t args
-  -- If the type @t@ is not a sort, we know that the type already
-  -- matches (since this is an invariant maintained by the conversion
-  -- checker) so we only need to do something when @t@ is a sort.
-  ifNotSort t' (return ()) $ \s -> do
-    cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
-      case mvJudgement mvar of
-        HasType{ jComparison = cmp } -> return cmp
-        IsSort{} -> __IMPOSSIBLE__
-    s' <- sortOf v
-    reportSDoc "tc.meta.assign" 40 $
-      "Instantiating sort" <+> prettyTCM s <+>
-      "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
-    traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
-      compareSort cmp s' s
+  --
+  -- Under most circumstances, the conversion checker guarantees that
+  -- the solution for the meta has the correct type, so there is no
+  -- need to check anything. However, there are two circumstances in
+  -- which we do need to check the type of the solution:
+  --
+  -- 1. When comparing two types they are not guaranteed to have the
+  --    same sort.
+  --
+  -- 2. When --cumulativity is enabled the same can happen when
+  --    comparing two terms at a sort type.
+
+  cumulativity <- optCumulativity <$> pragmaOptions
+
+  let checkSolutionSort cmp s v = do
+        s' <- sortOf v
+        reportSDoc "tc.meta.assign" 40 $
+          "Instantiating sort" <+> prettyTCM s <+>
+          "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
+        traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
+          compareSort cmp s' s
+
+  case (target , mvJudgement mvar) of
+    -- Case 1 (comparing term to meta as types)
+    (AsTypes{}   , HasType _ cmp0 t) -> do
+        let cmp   = if cumulativity then cmp0 else CmpEq
+            abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
+        t' <- piApplyM' abort t args
+        s <- shouldBeSort t'
+        checkSolutionSort cmp s v
+
+    -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
+    (AsTermsOf{} , HasType _ cmp t)
+      | cumulativity -> do
+          let abort = patternViolation $ unblockOnAnyMetaIn t
+          t' <- piApplyM' abort t args
+          TelV tel t'' <- telView t'
+          addContext tel $ ifNotSort t'' (return ()) $ \s -> do
+            let v' = raise (size tel) v `apply` teleArgs tel
+            checkSolutionSort cmp s v'
+
+    (AsTypes{}   , IsSort{}       ) -> return ()
+    (AsTermsOf{} , _              ) -> return ()
+    (AsSizes{}   , _              ) -> return ()  -- TODO: should we do something similar for sizes?
+
+
 
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
@@ -834,6 +865,8 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
         case res of
           -- all args are variables
           Right ids -> do
+            reportSDoc "tc.meta.assign" 60 $
+              "inverseSubst returns:" <+> sep (map pretty ids)
             reportSDoc "tc.meta.assign" 50 $
               "inverseSubst returns:" <+> sep (map prettyTCM ids)
             let boundVars = VarSet.fromList $ map fst ids
@@ -847,7 +880,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           Left NeutralArg  -> Just <$> attemptPruning x args fvs
           -- we have a projected variable which could not be eta-expanded away:
           -- same as neutral
-          Left ProjectedVar{} -> Just <$> attemptPruning x args fvs
+          Left ProjVar{}   -> Just <$> attemptPruning x args fvs
 
       case mids of  -- vv Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
         Nothing  -> patternViolation (unblockOnAnyMetaIn v)  -- TODO: more precise
@@ -863,6 +896,22 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               -- rid of the dependency on the non-linear variable. TODO: be more precise (all metas
               -- using non-linear variables need to be solved).
               Left ()   -> addOrUnblocker (unblockOnAnyMetaIn v) $ attemptPruning x args fvs
+
+          -- Check ids is time respecting.
+          () <- do
+            let idvars = map (mapSnd allFreeVars) ids
+            -- earlierThan α v := v "arrives" before α
+            let earlierThan l j = j > l
+            TelV tel' _ <- telViewUpToPath (length args) t
+            forM_ ids $ \(i,u) -> do
+              d <- lookupBV i
+              when (getLock (getArgInfo d) == IsLock) $ do
+                let us = IntSet.unions $ map snd $ filter (earlierThan i . fst) idvars
+                -- us Earlier than u
+                addContext tel' $ checkEarlierThan u us
+                  `catchError` \case
+                     TypeError{} -> patternViolation (unblockOnMeta x) -- If the earlier check hard-fails we need to
+                     err         -> throwError err                     -- solve this meta in some other way.
 
           let n = length args
           TelV tel' _ <- telViewUpToPath n t
@@ -1236,7 +1285,7 @@ expandProjectedVars args v ret = loop (args, v) where
         reportSDoc "tc.meta.assign.proj" 40 $
           "no projected var found in args: " <+> prettyTCM args
         done
-      Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) done loop
+      Left (ProjectedVar i _) -> etaExpandProjectedVar i (args, v) done loop
 
 -- | Eta-expand a de Bruijn index of record type in context and passed term(s).
 etaExpandProjectedVar :: (PrettyTCM a, TermSubst a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
@@ -1252,28 +1301,27 @@ etaExpandProjectedVar i v fail succeed = do
 
 -- | Check whether one of the meta args is a projected var.
 class NoProjectedVar a where
-  noProjectedVar :: a -> Either ProjVarExc ()
+  noProjectedVar :: a -> Either ProjectedVar ()
 
-data ProjVarExc = ProjVarExc Int [(ProjOrigin, QName)]
+  default noProjectedVar
+    :: (NoProjectedVar b, Foldable t, t b ~ a)
+    => a -> Either ProjectedVar ()
+  noProjectedVar = Fold.mapM_ noProjectedVar
+
+instance NoProjectedVar a => NoProjectedVar (Arg a)
+instance NoProjectedVar a => NoProjectedVar [a]
 
 instance NoProjectedVar Term where
   noProjectedVar = \case
       Var i es
         | qs@(_:_) <- takeWhileJust id $ map isProjElim es
-        -> Left $ ProjVarExc i qs
+        -> Left $ ProjectedVar i qs
       -- Andreas, 2015-09-12 Issue #1316:
       -- Also look in inductive record constructors
       Con (ConHead _ IsRecord{} Inductive _) _ es
         | Just vs <- allApplyElims es
         -> noProjectedVar vs
       _ -> return ()
-
-instance NoProjectedVar a => NoProjectedVar (Arg a) where
-  noProjectedVar = Fold.mapM_ noProjectedVar
-
-instance NoProjectedVar a => NoProjectedVar [a] where
-  noProjectedVar = Fold.mapM_ noProjectedVar
-
 
 -- | Normalize just far enough to be able to eta-contract maximally.
 class (TermLike a, TermSubst a, Reduce a) => ReduceAndEtaContract a where
@@ -1284,8 +1332,8 @@ class (TermLike a, TermSubst a, Reduce a) => ReduceAndEtaContract a where
     => a -> TCM a
   reduceAndEtaContract = Trav.mapM reduceAndEtaContract
 
-instance ReduceAndEtaContract a => ReduceAndEtaContract [a] where
-instance ReduceAndEtaContract a => ReduceAndEtaContract (Arg a) where
+instance ReduceAndEtaContract a => ReduceAndEtaContract [a]
+instance ReduceAndEtaContract a => ReduceAndEtaContract (Arg a)
 
 instance ReduceAndEtaContract Term where
   reduceAndEtaContract u = do
@@ -1367,7 +1415,7 @@ checkLinearity ids0 = do
     makeLinear []            = __IMPOSSIBLE__
     makeLinear grp@[_]       = return grp
     makeLinear (p@(i,t) : _) =
-      ifM ((Right True ==) <$> do lift . isSingletonTypeModuloRelevance =<< typeOfBV i)
+      ifM ((Right True ==) <$> do lift . runBlocked . isSingletonTypeModuloRelevance =<< typeOfBV i)
         (return [p])
         (throwError ())
 
@@ -1378,7 +1426,7 @@ type Res = [(Arg Nat, Term)]
 data InvertExcept
   = CantInvert                -- ^ Cannot recover.
   | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
-  | ProjectedVar Int [(ProjOrigin, QName)]  -- ^ Try to eta-expand var to remove projs.
+  | ProjVar ProjectedVar      -- ^ Try to eta-expand var to remove projs.
 
 -- | Check that arguments @args@ to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf and eta-reduced.
@@ -1414,7 +1462,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
         -- π i := x  try to eta-expand projection π away!
         Var i es | Just qs <- mapM isProjElim es ->
-          throwError $ ProjectedVar i qs
+          throwError $ ProjVar $ ProjectedVar i qs
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         -- Andreas, 2013-09-17 but only if constructor is fully applied
@@ -1439,6 +1487,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                          }
                        , argInfoOrigin   = min (getOrigin info) (getOrigin info')
                        , argInfoFreeVariables = unknownFreeVariables
+                       , argInfoAnnotation    = argInfoAnnotation info'
                        }
                     vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                 res <- loop $ zipWith aux vs fs

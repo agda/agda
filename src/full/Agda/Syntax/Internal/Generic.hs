@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE CPP          #-}
 
 -- | Tree traversal for internal syntax.
@@ -131,7 +130,8 @@ instance TermLike Sort where
     Inf _ _    -> pure s
     SSet l     -> SSet <$> traverseTermM f l
     SizeUniv   -> pure s
-    PiSort a b -> PiSort   <$> traverseTermM f a <*> traverseTermM f b
+    LockUniv   -> pure s
+    PiSort a b c -> PiSort   <$> traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
     FunSort a b -> FunSort   <$> traverseTermM f a <*> traverseTermM f b
     UnivSort a -> UnivSort <$> traverseTermM f a
     MetaS x es -> MetaS x  <$> traverseTermM f es
@@ -144,7 +144,8 @@ instance TermLike Sort where
     Inf _ _    -> mempty
     SSet l     -> foldTerm f l
     SizeUniv   -> mempty
-    PiSort a b -> foldTerm f a <> foldTerm f b
+    LockUniv   -> mempty
+    PiSort a b c -> foldTerm f a <> foldTerm f b <> foldTerm f c
     FunSort a b -> foldTerm f a <> foldTerm f b
     UnivSort a -> foldTerm f a
     MetaS _ es -> foldTerm f es

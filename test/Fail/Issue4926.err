@@ -1,0 +1,4 @@
+Issue4926.agda:23,16-22
+Set (lsuc a) is not less or equal than Set a
+when checking that the solution A of metavariable _A_30 has the
+expected type Set a

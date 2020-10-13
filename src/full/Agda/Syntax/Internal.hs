@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE PatternSynonyms            #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -11,7 +10,6 @@ module Agda.Syntax.Internal
     ) where
 
 import Prelude hiding (null)
-import GHC.Stack (HasCallStack, freezeCallStack, callStack)
 
 import Control.Monad.Identity
 import Control.DeepSeq
@@ -33,6 +31,14 @@ import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal.Blockers
 import Agda.Syntax.Internal.Elim
+
+import Agda.Utils.CallStack
+    ( CallStack
+    , HasCallStack
+    , prettyCallSite
+    , headCallSite
+    , withCallerCallStack
+    )
 
 import Agda.Utils.Empty
 
@@ -84,8 +90,8 @@ instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
 
 -- | Ignores 'Origin' and 'FreeVariables' and tactic.
 instance Eq a => Eq (Dom' t a) where
-  Dom (ArgInfo h1 m1 _ _) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _) b2 s2 _ x2 =
-    (h1, m1, b1, s1, x1) == (h2, m2, b2, s2, x2)
+  Dom (ArgInfo h1 m1 _ _ a1) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _ a2) b2 s2 _ x2 =
+    (h1, m1, a1, b1, s1, x1) == (h2, m2, a2, b2, s2, x2)
 
 instance LensNamed (Dom' t e) where
   type NameOf (Dom' t e) = NamedName
@@ -102,6 +108,7 @@ instance LensHiding        (Dom' t e) where
 instance LensModality      (Dom' t e) where
 instance LensOrigin        (Dom' t e) where
 instance LensFreeVariables (Dom' t e) where
+instance LensAnnotation    (Dom' t e) where
 
 -- Since we have LensModality, we get relevance and quantity by default
 
@@ -284,7 +291,8 @@ data Sort' t
   | Inf IsFibrant Integer      -- ^ @Setωᵢ@.
   | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
-  | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
+  | LockUniv    -- ^ @LockUniv@, a sort for locks.
+  | PiSort (Dom' t t) (Sort' t) (Abs (Sort' t)) -- ^ Sort of the pi type.
   | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
   | UnivSort (Sort' t) -- ^ Sort of another sort.
   | MetaS {-# UNPACK #-} !MetaId [Elim' t]
@@ -760,53 +768,55 @@ dontCare v =
     DontCare{} -> v
     _          -> DontCare v
 
--- | Aux: A dummy term to constitute a dummy term/level/sort/type.
-dummyTerm' :: String -> Int -> Term
-dummyTerm' file line = flip Dummy [] $ file ++ ":" ++ show line
+type DummyTermKind = String
 
--- | Aux: A dummy level to constitute a level/sort.
-dummyLevel' :: String -> Int -> Level
-dummyLevel' file line = atomicLevel $ dummyTerm' file line
+-- | Construct a string representing the call-site that created the dummy thing.
+dummyLocName :: CallStack -> String
+dummyLocName cs = maybe __IMPOSSIBLE__ prettyCallSite (headCallSite cs)
+
+-- | Aux: A dummy term to constitute a dummy term/level/sort/type.
+dummyTermWith :: DummyTermKind -> CallStack -> Term
+dummyTermWith kind cs = flip Dummy [] $ concat [kind, ": ", dummyLocName cs]
+
+-- | A dummy level to constitute a level/sort created at location.
+--   Note: use macro __DUMMY_LEVEL__ !
+dummyLevel :: CallStack -> Level
+dummyLevel = atomicLevel . dummyTermWith "dummyLevel"
 
 -- | A dummy term created at location.
 --   Note: use macro __DUMMY_TERM__ !
-dummyTerm :: String -> Int -> Term
-dummyTerm file = dummyTerm' ("dummyTerm: " ++ file)
+dummyTerm :: CallStack -> Term
+dummyTerm = dummyTermWith "dummyTerm"
 
 __DUMMY_TERM__ :: HasCallStack => Term
-__DUMMY_TERM__ = withFileAndLine' (freezeCallStack callStack) dummyTerm
-
--- | A dummy level created at location.
---   Note: use macro __DUMMY_LEVEL__ !
-dummyLevel :: String -> Int -> Level
-dummyLevel file = dummyLevel' ("dummyLevel: " ++ file)
+__DUMMY_TERM__ = withCallerCallStack dummyTerm
 
 __DUMMY_LEVEL__ :: HasCallStack => Level
-__DUMMY_LEVEL__ = withFileAndLine' (freezeCallStack callStack) dummyLevel
+__DUMMY_LEVEL__ = withCallerCallStack dummyLevel
 
 -- | A dummy sort created at location.
 --   Note: use macro __DUMMY_SORT__ !
-dummySort :: String -> Int -> Sort
-dummySort file line = DummyS $ file ++ ":" ++ show line
+dummySort :: CallStack -> Sort
+dummySort = DummyS . dummyLocName
 
 __DUMMY_SORT__ :: HasCallStack => Sort
-__DUMMY_SORT__ = withFileAndLine' (freezeCallStack callStack) dummySort
+__DUMMY_SORT__ = withCallerCallStack dummySort
 
 -- | A dummy type created at location.
 --   Note: use macro __DUMMY_TYPE__ !
-dummyType :: String -> Int -> Type
-dummyType file line = El (dummySort file line) $ dummyTerm' ("dummyType: " ++ file) line
+dummyType :: CallStack -> Type
+dummyType cs = El (dummySort cs) $ dummyTermWith "dummyType" cs
 
 __DUMMY_TYPE__ :: HasCallStack => Type
-__DUMMY_TYPE__ = withFileAndLine' (freezeCallStack callStack) dummyType
+__DUMMY_TYPE__ = withCallerCallStack dummyType
 
 -- | Context entries without a type have this dummy type.
 --   Note: use macro __DUMMY_DOM__ !
-dummyDom :: String -> Int -> Dom Type
-dummyDom file line = defaultDom $ dummyType file line
+dummyDom :: CallStack -> Dom Type
+dummyDom = defaultDom . dummyType
 
 __DUMMY_DOM__ :: HasCallStack => Dom Type
-__DUMMY_DOM__ = withFileAndLine' (freezeCallStack callStack) dummyDom
+__DUMMY_DOM__ = withCallerCallStack dummyDom
 
 -- | Constant level @n@
 pattern ClosedLevel :: Integer -> Level
@@ -852,11 +862,8 @@ isSort v = case v of
   Sort s -> Just s
   _      -> Nothing
 
-impossibleTerm :: String -> Int -> Term
-impossibleTerm file line = flip Dummy [] $ unlines
-  [ "An internal error has occurred. Please report this as a bug."
-  , "Location of the error: " ++ file ++ ":" ++ show line
-  ]
+impossibleTerm :: CallStack -> Term
+impossibleTerm = flip Dummy [] . show . Impossible
 
 ---------------------------------------------------------------------------
 -- * Telescopes.
@@ -1104,7 +1111,8 @@ instance TermSize Sort where
     Inf _ _   -> 1
     SSet l    -> 1 + tsize l
     SizeUniv  -> 1
-    PiSort a s -> 1 + tsize a + tsize s
+    LockUniv  -> 1
+    PiSort a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
     FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
@@ -1162,10 +1170,11 @@ instance KillRange Sort where
   killRange s = case s of
     Inf f n    -> Inf f n
     SizeUniv   -> SizeUniv
+    LockUniv   -> LockUniv
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
     SSet a     -> killRange1 SSet a
-    PiSort a s -> killRange2 PiSort a s
+    PiSort a s1 s2 -> killRange3 PiSort a s1 s2
     FunSort s1 s2 -> killRange2 FunSort s1 s2
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
@@ -1316,10 +1325,11 @@ instance Pretty Sort where
       Inf f n -> text $ addS f "Setω" ++ show n
       SSet l -> mparens (p > 9) $ "SSet" <+> prettyPrec 10 l
       SizeUniv -> "SizeUniv"
-      PiSort a b -> mparens (p > 9) $
-        "piSort" <+> pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a))
-                      <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
-                                      , nest 2 $ pretty (unAbs b) ])
+      LockUniv -> "LockUniv"
+      PiSort a s1 s2 -> mparens (p > 9) $
+        "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a))
+                      <+> parens (sep [ text ("λ " ++ absName s2 ++ " ->")
+                                      , nest 2 $ pretty (unAbs s2) ])
       FunSort a b -> mparens (p > 9) $
         "funSort" <+> prettyPrec 10 a <+> prettyPrec 10 b
       UnivSort s -> mparens (p > 9) $ "univSort" <+> prettyPrec 10 s
@@ -1388,7 +1398,8 @@ instance NFData Sort where
     Inf _ _  -> ()
     SSet l   -> rnf l
     SizeUniv -> ()
-    PiSort a b -> rnf (a, unAbs b)
+    LockUniv -> ()
+    PiSort a b c -> rnf (a, b, unAbs c)
     FunSort a b -> rnf (a, b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es

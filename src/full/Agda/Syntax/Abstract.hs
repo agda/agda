@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-}  -- for type equality ~
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
@@ -524,7 +522,7 @@ instance Eq Expr where
   ScopedExpr _ a1         == ScopedExpr _ a2         = a1 == a2
 
   Var a1                  == Var a2                  = a1 == a2
-  Def a1                  == Def a2                  = a1 == a2
+  Def' a1 s1              == Def' a2 s2              = (a1, s1) == (a2, s2)
   Proj _ a1               == Proj _ a2               = a1 == a2
   Con a1                  == Con a2                  = a1 == a2
   PatternSyn a1           == PatternSyn a2           = a1 == a2

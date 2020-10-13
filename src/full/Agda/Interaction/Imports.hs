@@ -26,7 +26,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
 import System.Directory (doesFileExist, getModificationTime, removeFile)
-import System.FilePath ((</>))
+import System.FilePath ((</>), takeDirectory)
 
 import Agda.Benchmarking
 
@@ -59,6 +59,7 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Precise  ( compress )
 import Agda.Interaction.Highlighting.Vim
+import Agda.Interaction.Library
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
@@ -85,6 +86,7 @@ data SourceInfo = SourceInfo
   , siFileType   :: FileType              -- ^ Source file type
   , siModule     :: C.Module              -- ^ The parsed module.
   , siModuleName :: C.TopLevelModuleName  -- ^ The top-level module name.
+  , siProjectLibs :: [AgdaLibFile]        -- ^ The .agda-lib file(s) of the project this file belongs to.
   }
 
 -- | Computes a 'SourceInfo' record for the given file.
@@ -95,12 +97,24 @@ sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
   moduleName            <- moduleName f parsedMod
+  let sourceDir = takeDirectory $ filePath f
+  useLibs <- optUseLibs <$> commandLineOptions
+  libs <- if | useLibs   -> libToTCM $ getAgdaLibFiles sourceDir
+             | otherwise -> return []
   return SourceInfo
     { siSource     = source
     , siFileType   = fileType
     , siModule     = parsedMod
     , siModuleName = moduleName
+    , siProjectLibs = libs
     }
+
+sourcePragmas :: SourceInfo -> TCM [OptionsPragma]
+sourcePragmas SourceInfo{..} = do
+  let defaultPragmas = map _libPragmas siProjectLibs
+  let cpragmas = C.modPragmas siModule
+  pragmas <- concreteOptionsToOptionPragmas cpragmas
+  return $ defaultPragmas ++ pragmas
 
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
@@ -392,12 +406,12 @@ getInterface' x isMain msi =
              (unless (includeStateChanges isMain) . (stPragmaOptions `setTCLens`)) $ do
      -- We remember but reset the pragma options locally
      -- For the main interface, we also remember the pragmas from the file
-     let mpragmas = fst . siModule <$> msi
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
-     currentOptions <- setCurrentRange mpragmas $ do
+     currentOptions <- setCurrentRange (C.modPragmas . siModule <$> msi) $ do
        when (includeStateChanges isMain) $ do
-         let pragmas = fromMaybe __IMPOSSIBLE__ mpragmas
-         mapM_ setOptionsFromPragma =<< concreteOptionsToOptionPragmas pragmas
+         let si = fromMaybe __IMPOSSIBLE__ msi
+         pragmas <- sourcePragmas si
+         mapM_ setOptionsFromPragma pragmas
        currentOptions <- useTC stPragmaOptions
        -- Now reset the options
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
@@ -865,12 +879,12 @@ createInterface file mname isMain msi =
       reportSLn "import.iface.create" 10 $
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
-    (source, fileType, (pragmas, top)) <- do
-      si <- case msi of
-        Nothing -> sourceInfo file
-        Just si -> return si
-      case si of
-        SourceInfo {..} -> return (siSource, siFileType, siModule)
+    si <- case msi of
+      Nothing -> sourceInfo file
+      Just si -> return si
+    let source   = siSource si
+        fileType = siFileType si
+        top      = C.modDecls $ siModule si
 
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
@@ -878,7 +892,7 @@ createInterface file mname isMain msi =
                          (srcFilePath file) (TL.unpack source)
     stTokens `setTCLens` fileTokenInfo
 
-    options <- concreteOptionsToOptionPragmas pragmas
+    options <- sourcePragmas si
     mapM_ setOptionsFromPragma options
 
     verboseS "import.iface.create" 15 $ do

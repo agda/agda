@@ -39,10 +39,12 @@ tested-with:        GHC == 8.0.2
                     GHC == 8.4.4
                     GHC == 8.6.5
                     GHC == 8.8.4
-                    GHC == 8.10.1
+                    GHC == 8.10.2
 
 extra-source-files: CHANGELOG.md
                     README.md
+                    doc/release-notes/2.6.1.1.md
+                    doc/release-notes/2.6.1.md
                     doc/release-notes/2.6.0.1.md
                     doc/release-notes/2.6.0.md
                     doc/release-notes/2.5.4.2.md
@@ -224,7 +226,6 @@ library
                 -- some cases.
                 , hashtables >= 1.2.0.2 && < 1.3
                 , haskeline >= 0.7.2.3 && < 0.9
-                , ieee754 >= 0.7.8 && < 0.9
                 -- monad-control-1.0.1.0 is the first to contain liftThrough
                 , monad-control >= 1.0.1.0 && < 1.1
                 -- mtl-2.1 contains a severe bug.
@@ -450,6 +451,7 @@ library
                     Agda.TypeChecking.Irrelevance
                     Agda.TypeChecking.Level
                     Agda.TypeChecking.LevelConstraints
+                    Agda.TypeChecking.Lock
                     Agda.TypeChecking.Level.Solve
                     Agda.TypeChecking.MetaVars
                     Agda.TypeChecking.MetaVars.Mention
@@ -468,6 +470,7 @@ library
                     Agda.TypeChecking.Monad.Mutual
                     Agda.TypeChecking.Monad.Open
                     Agda.TypeChecking.Monad.Options
+                    Agda.TypeChecking.Monad.Pure
                     Agda.TypeChecking.Monad.Signature
                     Agda.TypeChecking.Monad.SizedTypes
                     Agda.TypeChecking.Monad.State
@@ -545,6 +548,7 @@ library
                     Agda.Utils.Bag
                     Agda.Utils.Benchmark
                     Agda.Utils.BiMap
+                    Agda.Utils.CallStack
                     Agda.Utils.Cluster
                     Agda.Utils.Empty
                     Agda.Utils.Environment
@@ -609,6 +613,8 @@ library
                     Agda.VersionCommit
 
   other-modules:    Paths_Agda
+                    Agda.Utils.CallStack.Base
+                    Agda.Utils.CallStack.Pretty
 
   -- NOTE: If adding flags, also add to `.ghci-8.0`
   if impl(ghc <= 8.0.2)
@@ -719,6 +725,7 @@ library
                     , FlexibleContexts
                     , FlexibleInstances
                     , FunctionalDependencies
+                    , GeneralizedNewtypeDeriving
                     , InstanceSigs
                     , LambdaCase
                     , MultiParamTypeClasses
@@ -731,6 +738,7 @@ library
                     , ScopedTypeVariables
                     , StandaloneDeriving
                     , TupleSections
+                    , TypeFamilies
                     , TypeSynonymInstances
 
 executable agda
@@ -849,7 +857,8 @@ test-suite agda-tests
                 , array >= 0.5.1.1 && < 0.6
                 , base >= 4.9.0.0 && < 4.15
                 , bytestring >= 0.10.8.1 && < 0.11
-                , containers >= 0.5.7.1 && < 0.7
+                -- containers-0.5.11.0 is the first to contain IntSet.intersection
+                , containers >= 0.5.11.0 && < 0.7
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , filemanip >= 0.3.6.3 && < 0.4
@@ -909,6 +918,7 @@ test-suite agda-tests
                      , FlexibleContexts
                      , FlexibleInstances
                      , FunctionalDependencies
+                     , GeneralizedNewtypeDeriving
                      , InstanceSigs
                      , LambdaCase
                      , MultiParamTypeClasses
@@ -921,6 +931,7 @@ test-suite agda-tests
                      , ScopedTypeVariables
                      , StandaloneDeriving
                      , TupleSections
+                     , TypeFamilies
                      , TypeSynonymInstances
 
   -- NOTE: If adding or removing flags, also change `.ghci-8.0`

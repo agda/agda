@@ -128,8 +128,12 @@ compilerPass tag v name code = SinglePass (CompilerPass tag v name code)
 compilerPipeline :: Int -> QName -> Pipeline
 compilerPipeline v q =
   Sequential
-    [ compilerPass "simpl"   (35 + v) "simplification"      $ const simplifyTTerm
-    , compilerPass "builtin" (30 + v) "builtin translation" $ const translateBuiltins
+    -- Issue #4967: No simplification step before builtin translation! Simplification relies
+    --              on either all or no builtins being translated. Since we might have inlined
+    --              functions that have had the builtin translation applied, we need to apply it
+    --              first.
+    -- [ compilerPass "simpl"   (35 + v) "simplification"      $ const simplifyTTerm
+    [ compilerPass "builtin" (30 + v) "builtin translation" $ const translateBuiltins
     , FixedPoint 5 $ Sequential
       [ compilerPass "simpl"  (30 + v) "simplification"     $ const simplifyTTerm
       , compilerPass "erase"  (30 + v) "erasure"            $ eraseTerms q

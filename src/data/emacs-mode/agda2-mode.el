@@ -1,8 +1,26 @@
 ;;; agda2-mode.el --- Major mode for Agda
+;; SPDX-License-Identifier: MIT License
 
 ;;; Commentary:
 
+;; A major mode for editing Agda (the dependently typed programming
+;; language / interactive theorem prover).
 ;;
+;; Major features include:
+;;
+;; - syntax highlighting.
+;;
+;; - on the fly Agda interpretation.
+;;
+;; - goal-driven development
+;;
+;; - interactive case-splitting
+;;
+;; - proof search
+;;
+;; - input support (for utf8 characters)
+;;
+;; see https://agda.readthedocs.io/ for more information
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Dependency
@@ -14,7 +32,7 @@
   "The version of the Agda mode.
 Note that the same version of the Agda executable must be used.")
 
-(require 'cl)
+(require 'cl-lib)
 (require 'compile)
 (require 'pp)
 (require 'time-date)
@@ -211,6 +229,7 @@ constituents.")
     (agda2-abort                             "\C-c\C-x\C-a"       (global)       "Abort a command")
     (agda2-remove-annotations                "\C-c\C-x\C-d"       (global)       "Remove goals and highlighting (\"deactivate\")")
     (agda2-display-implicit-arguments        "\C-c\C-x\C-h"       (global)       "Toggle display of hidden arguments")
+    (agda2-display-irrelevant-arguments      "\C-c\C-x\C-i"       (global)       "Toggle display of irrelevant arguments")
     (agda2-show-constraints                  ,(kbd "C-c C-=")     (global)       "Show constraints")
     (agda2-solve-maybe-all                   ,(kbd "C-c C-s")     (local global) "Solve constraints")
     (agda2-show-goals                        ,(kbd "C-c C-?")     (global)       "Show goals")
@@ -258,7 +277,7 @@ menus.")
       (cons "Agda" (make-sparse-keymap "Agda")))
     (define-key map [down-mouse-3]  'agda2-popup-menu-3)
     (dolist (d (reverse agda2-command-table))
-      (destructuring-bind (f &optional keys kinds desc) d
+      (cl-destructuring-bind (f &optional keys kinds desc) d
         (if keys (define-key map keys f))
         (if (member 'global kinds)
             (define-key map
@@ -269,7 +288,7 @@ menus.")
 (defvar agda2-goal-map
   (let ((map (make-sparse-keymap "Agda goal")))
     (dolist (d (reverse agda2-command-table))
-      (destructuring-bind (f &optional keys kinds desc) d
+      (cl-destructuring-bind (f &optional keys kinds desc) d
         (if (member 'local kinds)
             (define-key map
               (vector (intern desc)) (cons desc f)))))
@@ -535,7 +554,7 @@ not executed and an error is raised. The same applies if DO-ABORT
 is non-nil and the Agda process is `busy'."
 
   ; Check that how-busy is well-formed.
-  (assert (or (equal how-busy 'busy)
+  (cl-assert (or (equal how-busy 'busy)
               (equal how-busy 'not-so-busy)))
 
   (when (and agda2-in-progress
@@ -753,7 +772,7 @@ range is given.
 
 If SAVE is 'save, then the buffer is saved just before the
 command is sent to Agda (if it is sent)."
-  (multiple-value-bind (o g) (agda2-goal-at (point))
+  (cl-multiple-value-bind (o g) (agda2-goal-at (point))
     (unless g (error "For this command, please place the cursor in a goal"))
     (let ((txt (buffer-substring-no-properties (+ (overlay-start o) 2)
                                                (- (overlay-end   o) 2)))
@@ -916,8 +935,8 @@ Assumes that <clause> = {!<variables>!} is on one line."
     (re-search-backward "{!")
     (while (and (not (equal (preceding-char) ?\;)) (>= bracketCount 0) (> (point) p1))
       (backward-char)
-      (if (equal (preceding-char) ?}) (incf bracketCount))
-      (if (equal (preceding-char) ?{) (decf bracketCount)))
+      (if (equal (preceding-char) ?}) (cl-incf bracketCount))
+      (if (equal (preceding-char) ?{) (cl-decf bracketCount)))
     (let* ((is-lambda-where (= (point) p1))
            (p (point)))
       (delete-region (point) pmax)
@@ -1605,14 +1624,14 @@ if NEW-TXT is `'paren').
 
 Removes the goal braces, but does not remove the goal overlay or
 text properties."
-  (multiple-value-bind (p q) (agda2-range-of-goal old-g)
+  (cl-multiple-value-bind (p q) (agda2-range-of-goal old-g)
     (save-excursion
       (cond ((stringp new-txt)
              (agda2-replace-goal old-g new-txt))
             ((equal new-txt 'paren)
              (goto-char (- q 2)) (insert ")")
              (goto-char (+ p 2)) (insert "(")))
-      (multiple-value-bind (p q) (agda2-range-of-goal old-g)
+      (cl-multiple-value-bind (p q) (agda2-range-of-goal old-g)
         (delete-region (- q 2) q)
         (delete-region p (+ p 2)))
         ;; Update highlighting
@@ -1712,7 +1731,7 @@ characters to the \\xNNNN notation used in Haskell strings."
 (defun agda2-replace-goal (g newtxt)
   "Replace the content of goal G with NEWTXT." (interactive)
   (save-excursion
-    (multiple-value-bind (p q) (agda2-range-of-goal g)
+    (cl-multiple-value-bind (p q) (agda2-range-of-goal g)
       (setq p (+ p 2) q (- q 2))
       (let ((indent (and (goto-char p) (current-column))))
         (delete-region p q) (insert newtxt)
@@ -1901,6 +1920,21 @@ the argument is a positive number, otherwise turn it off."
    (t (agda2-go nil t 'not-so-busy t "ShowImplicitArgs" "False"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Irrelevant arguments
+
+(defun agda2-display-irrelevant-arguments (&optional arg)
+  "Toggle display of irrelevant arguments.
+With prefix argument, turn on display of irrelevant arguments if
+the argument is a positive number, otherwise turn it off."
+  (interactive "P")
+  (cond
+   ((eq arg nil)
+      (agda2-go nil t 'not-so-busy t "ToggleIrrelevantArgs"))
+   ((and (numberp arg) (> arg 0))
+      (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "True"))
+   (t (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "False"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
 
 (defun agda2-popup-menu-3 (ev)
@@ -1916,7 +1950,7 @@ the argument is a positive number, otherwise turn it off."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Switching to a different version of Agda
 
-(defun get-agda-program-versions ()
+(defun agda2-get-agda-program-versions ()
   "Get \"version strings\" of executables starting with
 'agda-mode' in current path."
   (delete-dups
@@ -1924,9 +1958,9 @@ the argument is a positive number, otherwise turn it off."
              ;; strip 'agda-mode' prefix
              (replace-regexp-in-string "^agda-mode-?" ""
                                        (file-name-nondirectory path)))
-           (remove-if-not 'file-executable-p
+           (cl-remove-if-not 'file-executable-p
              ;; concatenate result
-             (reduce 'append
+             (cl-reduce 'append
                      ;; for each directory in exec-path, get list of
                      ;; files whose name starts with 'agda-mode'
                      (mapcar (lambda (path)
@@ -1945,11 +1979,11 @@ Agda version VERSION are called agda-VERSION and
 agda-mode-VERSION, and that they are located on the PATH. (If
 VERSION is empty, then agda and agda-mode are used instead.)"
   (interactive
-   (list (completing-read "Version: " (get-agda-program-versions))))
+   (list (completing-read "Version: " (agda2-get-agda-program-versions))))
 
   (let*
       ((agda-buffers
-        (mapcan (lambda (buf)
+        (cl-mapcan (lambda (buf)
                   (with-current-buffer buf
                     (when (equal major-mode 'agda2-mode)
                       (list buf))))

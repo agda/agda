@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -73,18 +71,6 @@ instance Pretty FileType where
     RstFileType  -> "ReStructedText"
     TexFileType  -> "LaTeX"
     OrgFileType  -> "org-mode"
-
----------------------------------------------------------------------------
--- * Agda Source location of errors
----------------------------------------------------------------------------
-
-data AgdaSourceErrorLocation = AgdaSourceErrorLocation
-  { slocFile :: String -- ^ File the error was raised in
-  , slocLine :: Int    -- ^ Line number in this file
-  } deriving (Show, Data)
-
-instance Pretty AgdaSourceErrorLocation where
-  pretty (AgdaSourceErrorLocation file line) = text $ file ++ ":" ++ show line
 
 ---------------------------------------------------------------------------
 -- * Eta-equality
@@ -1055,6 +1041,94 @@ nonStrictToIrr :: Relevance -> Relevance
 nonStrictToIrr NonStrict = Irrelevant
 nonStrictToIrr rel       = rel
 
+
+---------------------------------------------------------------------------
+-- * Annotations
+---------------------------------------------------------------------------
+
+-- | We have a tuple of annotations, which might not be fully orthogonal.
+data Annotation = Annotation
+  { annLock :: Lock
+    -- ^ Fitch-style dependent right adjoints.
+    --   See Modal Dependent Type Theory and Dependent Right Adjoints, arXiv:1804.05236.
+  } deriving (Data, Eq, Ord, Show, Generic)
+
+instance HasRange Annotation where
+  getRange _ = noRange
+
+instance KillRange Annotation where
+  killRange = id
+
+defaultAnnotation :: Annotation
+defaultAnnotation = Annotation defaultLock
+
+instance NFData Annotation where
+  rnf (Annotation l) = rnf l
+
+class LensAnnotation a where
+
+  getAnnotation :: a -> Annotation
+
+  setAnnotation :: Annotation -> a -> a
+
+  mapAnnotation :: (Annotation -> Annotation) -> a -> a
+  mapAnnotation f a = setAnnotation (f $ getAnnotation a) a
+
+  default getAnnotation :: LensArgInfo a => a -> Annotation
+  getAnnotation = argInfoAnnotation . getArgInfo
+
+  default setAnnotation :: LensArgInfo a => Annotation -> a -> a
+  setAnnotation a = mapArgInfo $ \ ai -> ai { argInfoAnnotation = a }
+
+instance LensAnnotation Annotation where
+  getAnnotation = id
+  setAnnotation = const
+  mapAnnotation = id
+
+instance LensAnnotation (Arg t) where
+  getAnnotation = getAnnotation . getArgInfo
+  setAnnotation = mapArgInfo . setAnnotation
+
+
+---------------------------------------------------------------------------
+-- * Locks
+---------------------------------------------------------------------------
+
+data Lock = IsNotLock
+          | IsLock -- ^ In the future there might be different kinds of them.
+                   --   For now we assume lock weakening.
+  deriving (Data, Show, Generic, Eq, Enum, Bounded, Ord)
+
+defaultLock :: Lock
+defaultLock = IsNotLock
+
+instance NFData Lock where
+  rnf IsNotLock = ()
+  rnf IsLock    = ()
+
+class LensLock a where
+
+  getLock :: a -> Lock
+
+  setLock :: Lock -> a -> a
+  setLock = mapLock . const
+
+  mapLock :: (Lock -> Lock) -> a -> a
+  mapLock f a = setLock (f $ getLock a) a
+
+instance LensLock Lock where
+  getLock = id
+  setLock = const
+  mapLock = id
+
+instance LensLock ArgInfo where
+  getLock = annLock . argInfoAnnotation
+  setLock l info = info { argInfoAnnotation = Annotation l }
+
+instance LensLock (Arg t) where
+  getLock = getLock . getArgInfo
+  setLock = mapArgInfo . setLock
+
 ---------------------------------------------------------------------------
 -- * Cohesion
 ---------------------------------------------------------------------------
@@ -1362,13 +1436,16 @@ data ArgInfo = ArgInfo
   , argInfoModality      :: Modality
   , argInfoOrigin        :: Origin
   , argInfoFreeVariables :: FreeVariables
+  , argInfoAnnotation    :: Annotation
+    -- ^ Sometimes we want a different kind of binder/pi-type, without it
+    --   supporting any of the @Modality@ interface.
   } deriving (Data, Eq, Ord, Show)
 
 instance HasRange ArgInfo where
-  getRange (ArgInfo h m o _fv) = getRange (h, m, o)
+  getRange (ArgInfo h m o _fv a) = getRange (h, m, o, a)
 
 instance KillRange ArgInfo where
-  killRange (ArgInfo h m o fv) = killRange4 ArgInfo h m o fv
+  killRange (ArgInfo h m o fv a) = killRange5 ArgInfo h m o fv a
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
@@ -1383,7 +1460,7 @@ instance LensArgInfo ArgInfo where
   mapArgInfo = id
 
 instance NFData ArgInfo where
-  rnf (ArgInfo a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (ArgInfo a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
 
 instance LensHiding ArgInfo where
   getHiding = argInfoHiding
@@ -1404,6 +1481,11 @@ instance LensFreeVariables ArgInfo where
   getFreeVariables = argInfoFreeVariables
   setFreeVariables o ai = ai { argInfoFreeVariables = o }
   mapFreeVariables f ai = ai { argInfoFreeVariables = f (argInfoFreeVariables ai) }
+
+instance LensAnnotation ArgInfo where
+  getAnnotation = argInfoAnnotation
+  setAnnotation m ai = ai { argInfoAnnotation = m }
+  mapAnnotation f ai = ai { argInfoAnnotation = f (argInfoAnnotation ai) }
 
 -- inherited instances
 
@@ -1428,6 +1510,7 @@ defaultArgInfo =  ArgInfo
   , argInfoModality      = defaultModality
   , argInfoOrigin        = UserWritten
   , argInfoFreeVariables = UnknownFVs
+  , argInfoAnnotation    = defaultAnnotation
   }
 
 -- Accessing through ArgInfo

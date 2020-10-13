@@ -1,7 +1,6 @@
 {-# LANGUAGE GADTs                #-}
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE PolyKinds            #-}
-{-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
 
 -- We need undecidable instances for the definition of @Foldr@,

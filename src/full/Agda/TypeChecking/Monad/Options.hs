@@ -1,8 +1,10 @@
 
 module Agda.TypeChecking.Monad.Options where
 
+import Control.Arrow ( (&&&) )
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Monad.Writer
 
 import Data.Maybe
@@ -19,6 +21,7 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
 import Agda.Utils.FileName
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.WithDefault
@@ -78,7 +81,14 @@ setCommandLineOptions' root opts = do
 
 libToTCM :: LibM a -> TCM a
 libToTCM m = do
-  (z, warns) <- liftIO $ runWriterT $ runExceptT m
+  cachedConfs <- useTC stProjectConfigs
+  cachedLibs  <- useTC stAgdaLibFiles
+
+  ((z, warns), (cachedConfs', cachedLibs')) <- liftIO $
+    (`runStateT` (cachedConfs, cachedLibs)) $ runWriterT $ runExceptT m
+
+  modifyTCLens stProjectConfigs $ const cachedConfs'
+  modifyTCLens stAgdaLibFiles   $ const cachedLibs'
 
   unless (null warns) $ warnings $ map LibraryWarning warns
   case z of
@@ -202,8 +212,12 @@ setIncludeDirs incs root = do
   when (oldIncs /= incs) $ do
     ho <- getInteractionOutputCallback
     tcWarnings <- useTC stTCWarnings -- restore already generated warnings
+    projectConfs <- useTC stProjectConfigs  -- restore cached project configs & .agda-lib
+    agdaLibFiles <- useTC stAgdaLibFiles    -- files, since they use absolute paths
     resetAllState
     setTCLens stTCWarnings tcWarnings
+    setTCLens stProjectConfigs projectConfs
+    setTCLens stAgdaLibFiles agdaLibFiles
     setInteractionOutputCallback ho
 
   Lens.putAbsoluteIncludePaths incs

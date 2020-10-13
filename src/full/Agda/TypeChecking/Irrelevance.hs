@@ -287,7 +287,9 @@ wakeIrrelevantVars
 --   (irrelevant) definitions.
 --
 class UsableRelevance a where
-  usableRel :: Relevance -> a -> TCM Bool
+  usableRel
+    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m)
+    => Relevance -> a -> m Bool
 
 instance UsableRelevance Term where
   usableRel rel u = case u of
@@ -324,7 +326,8 @@ instance UsableRelevance Sort where
     Inf f n -> return True
     SSet l -> usableRel rel l
     SizeUniv -> return True
-    PiSort a s -> usableRel rel (a,s)
+    LockUniv -> return True
+    PiSort a s1 s2 -> usableRel rel (a,s1,s2)
     FunSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
     MetaS x es -> usableRel rel es
@@ -342,6 +345,9 @@ instance UsableRelevance a => UsableRelevance [a] where
 
 instance (UsableRelevance a, UsableRelevance b) => UsableRelevance (a,b) where
   usableRel rel (a,b) = usableRel rel a `and2M` usableRel rel b
+
+instance (UsableRelevance a, UsableRelevance b, UsableRelevance c) => UsableRelevance (a,b,c) where
+  usableRel rel (a,b,c) = usableRel rel a `and2M` usableRel rel b `and2M` usableRel rel c
 
 instance UsableRelevance a => UsableRelevance (Elim' a) where
   usableRel rel (Apply a) = usableRel rel a
@@ -375,7 +381,9 @@ instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
 --   definitions.
 --
 class UsableModality a where
-  usableMod :: Modality -> a -> TCM Bool
+  usableMod
+    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m)
+    => Modality -> a -> m Bool
 
 instance UsableModality Term where
   usableMod mod u = case u of
@@ -463,27 +471,34 @@ instance (Subst a, UsableModality a) => UsableModality (Abs a) where
 
 -- | Is a type a proposition?  (Needs reduction.)
 
-isPropM :: (LensSort a, PrettyTCM a, MonadReduce m, MonadDebug m) => a -> m Bool
+isPropM
+  :: (LensSort a, PrettyTCM a, PureTCM m, MonadBlock m)
+  => a -> m Bool
 isPropM a = do
   traceSDoc "tc.prop" 80 ("Is " <+> prettyTCM a <+> "of sort" <+> prettyTCM (getSort a) <+> "in Prop?") $ do
-  reduce (getSort a) <&> \case
+  abortIfBlocked (getSort a) <&> \case
     Prop{} -> True
     _      -> False
 
-isIrrelevantOrPropM :: (LensRelevance a, LensSort a, PrettyTCM a, MonadReduce m, MonadDebug m) => a -> m Bool
+isIrrelevantOrPropM
+  :: (LensRelevance a, LensSort a, PrettyTCM a, PureTCM m, MonadBlock m)
+  => a -> m Bool
 isIrrelevantOrPropM x = return (isIrrelevant x) `or2M` isPropM x
 
 -- * Fibrant types
 
 -- | Is a type fibrant (i.e. Type, Prop)?
 
-isFibrant :: (LensSort a, MonadReduce m) => a -> m Bool
-isFibrant a = reduce (getSort a) <&> \case
+isFibrant
+  :: (LensSort a, PureTCM m, MonadBlock m)
+  => a -> m Bool
+isFibrant a = abortIfBlocked (getSort a) <&> \case
   Type{}     -> True
   Prop{}     -> True
   Inf f _    -> f == IsFibrant
   SSet{}     -> False
   SizeUniv{} -> False
+  LockUniv{} -> False
   PiSort{}   -> False
   FunSort{}  -> False
   UnivSort{} -> False

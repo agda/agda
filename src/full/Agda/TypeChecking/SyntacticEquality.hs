@@ -115,10 +115,11 @@ instance SynEq Sort where
     (s, s') <- lift $ instantiate' (s, s')
     case (s, s') of
       (Type l  , Type l'   ) -> Type <$$> synEq l l'
-      (PiSort a b, PiSort a' b') -> piSort <$$> synEq a a' <**> synEq' b b'
+      (PiSort a b c, PiSort a' b' c') -> piSort <$$> synEq a a' <**> synEq' b b' <**> synEq' c c'
       (FunSort a b, FunSort a' b') -> funSort <$$> synEq a a' <**> synEq' b b'
       (UnivSort a, UnivSort a') -> UnivSort <$$> synEq a a'
       (SizeUniv, SizeUniv  ) -> pure2 s
+      (LockUniv, LockUniv  ) -> pure2 s
       (Prop l  , Prop l'   ) -> Prop <$$> synEq l l'
       (Inf f m , Inf f' n) | f == f', m == n -> pure2 s
       (SSet l  , SSet l'   ) -> SSet <$$> synEq l l'
@@ -135,6 +136,9 @@ instance SynEq a => SynEq [a] where
   synEq as as'
     | length as == length as' = unzip <$> zipWithM synEq' as as'
     | otherwise               = inequal (as, as')
+
+instance (SynEq a, SynEq b) => SynEq (a,b) where
+  synEq (a,b) (a',b') = (,) <$$> synEq a a' <**> synEq b b'
 
 instance SynEq a => SynEq (Elim' a) where
   synEq e e' =
@@ -164,6 +168,6 @@ instance SynEq a => SynEq (Dom a) where
     | otherwise = inequal (d, d')
 
 instance SynEq ArgInfo where
-  synEq ai@(ArgInfo h r o _) ai'@(ArgInfo h' r' o' _)
-    | h == h', r == r' = pure2 ai
+  synEq ai@(ArgInfo h r o _ a) ai'@(ArgInfo h' r' o' _ a')
+    | h == h', r == r', a == a' = pure2 ai
     | otherwise        = inequal (ai, ai')

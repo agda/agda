@@ -347,8 +347,8 @@ code onlyCode fileType = mconcat . if onlyCode
   --   (issue #2756), as well as a heuristic name anchor for external references
   --   (issue #2604).
   annotate :: Int -> Aspects -> Html -> Html
-  annotate pos mi = applyWhen hereAnchor
-      (anchorage nameAttributes mempty <>) . anchorage posAttributes
+  annotate pos mi =
+    applyWhen hereAnchor (anchorage nameAttributes mempty <>) . anchorage posAttributes
     where
     -- | Warp an anchor (<A> tag) with the given attributes around some HTML.
     anchorage :: [Attribute] -> Html -> Html

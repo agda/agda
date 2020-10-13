@@ -29,12 +29,14 @@ module UnsolvedSizeConstraints where
       map-D (c xs) = c (map-D′ xs)
 
       map-D′ : ∀ {i} → Map (D′ i)
-      size  (map-D′     t) = size t
-      force (map-D′ {i} t) = map-D {i = i} (force t)  -- correct is  i = size t
+      size  (map-D′ {i} t) = foo where postulate foo : Size< i
+      force (map-D′ {i} t) = map-D {i = i} (force t)  -- correct is  i = foo
 
+  -- Produces an unsolved size constraint.
   -- Problem WAS: no highlighting for unsolved constraints.
+  -- Now: yellow highlighting in last rhs.
 
-  -- Now: yellow highlighting in last expression.
+-- Test also highlighting for unsolved level constraints:
 
 module UnsolvedLevelConstraints where
 

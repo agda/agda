@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 -- | Translates the Agda builtin nat datatype to arbitrary-precision integers.
 --
 -- Philipp, 20150921:

@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeFamilies        #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -827,7 +826,8 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     Inf f n    -> Inf f n
     SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
-    PiSort a s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s2)
+    LockUniv   -> LockUniv
+    PiSort a s1 s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
     UnivSort s -> coerce $ univSort $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
@@ -934,6 +934,7 @@ instance Subst NLPSort where
     PProp l   -> PProp $ applySubst rho l
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
+    PLockUniv -> PLockUniv
 
 instance Subst RewriteRule where
   type SubstArg RewriteRule = NLPat
@@ -983,6 +984,7 @@ instance Subst Constraint where
     CheckFunDef{}            -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
     HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
+    CheckLockedVars a b c d  -> CheckLockedVars (rf a) (rf b) (rf c) (rf d)
     UnquoteTactic t h g      -> UnquoteTactic (rf t) (rf h) (rf g)
     CheckMetaInst m          -> CheckMetaInst m
     where
@@ -1223,13 +1225,16 @@ domFromNamedArgName x = () <$ domFromNamedArg (fmap forceName x)
 
 -- ** Abstracting in terms and types
 
+mkPiSort :: Dom Type -> Abs Type -> Sort
+mkPiSort a b = piSort (unEl <$> a) (getSort $ unDom a) (getSort <$> b)
+
 -- | @mkPi dom t = telePi (telFromList [dom]) t@
 mkPi :: Dom (ArgName, Type) -> Type -> Type
 mkPi !dom b = el $ Pi a (mkAbs x b)
   where
     x = fst $ unDom dom
     a = snd <$> dom
-    el = El $ piSort a (Abs x (getSort b)) -- piSort checks x freeIn
+    el = El $ mkPiSort a (Abs x b)
 
 mkLam :: Arg ArgName -> Term -> Term
 mkLam a v = Lam (argInfo a) (Abs (unArg a) v)
@@ -1240,7 +1245,7 @@ telePi' reAbs = telePi where
   telePi (ExtendTel u tel) t = el $ Pi u $ reAbs b
     where
       b  = (`telePi` t) <$> tel
-      el = El $ piSort u (getSort <$> b)
+      el = El $ mkPiSort u b
 
 -- | Uses free variable analysis to introduce 'NoAbs' bindings.
 telePi :: Telescope -> Type -> Type
@@ -1260,7 +1265,7 @@ telePiVisible (ExtendTel u tel) t
     -- If u is not declared visible and b can be strengthened, skip quantification of u.
     | notVisible u, NoAbs x t' <- b' = t'
     -- Otherwise, include quantification over u.
-    | otherwise = El (piSort u $ getSort <$> b) $ Pi u b
+    | otherwise = El (mkPiSort u b) $ Pi u b
   where
     b  = tel <&> (`telePiVisible` t)
     b' = reAbs b
@@ -1474,6 +1479,7 @@ univSort' (Prop l) = Just $ Type $ levelSuc l
 univSort' (Inf f n) = Just $ Inf f $ 1 + n
 univSort' (SSet l) = Just $ SSet $ levelSuc l
 univSort' SizeUniv = Just $ Inf IsFibrant 0
+univSort' LockUniv = Just $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
 univSort' s        = Nothing
 
 univSort :: Sort -> Sort
@@ -1487,6 +1493,7 @@ isSmallSort :: Sort -> Maybe (Bool,IsFibrant)
 isSmallSort Type{}     = Just (True,IsFibrant)
 isSmallSort Prop{}     = Just (True,IsFibrant)
 isSmallSort SizeUniv   = Just (True,IsFibrant)
+isSmallSort LockUniv   = Just (True,IsFibrant)
 isSmallSort (Inf f _)  = Just (False,f)
 isSmallSort SSet{}     = Just (True,IsStrict)
 isSmallSort MetaS{}    = Nothing
@@ -1509,6 +1516,9 @@ funSort' a b = case (a, b) of
   (Inf af m      , b            ) | Just (True,bf) <- isSmallSort b -> Just $ Inf (fibrantLub af bf) m
   (a             , Inf bf n     ) | Just (True,af) <- isSmallSort a -> Just $ Inf (fibrantLub af bf) n
   (Type a        , Type b       ) -> Just $ Type $ levelLub a b
+  (LockUniv      , b            ) -> Just b
+  -- No functions into lock types
+  (a             , LockUniv     ) -> Nothing
   (SizeUniv      , b            ) -> Just b
   (a             , SizeUniv     ) | Just (True,_) <- isSmallSort a -> Just SizeUniv
   (Prop a        , Type b       ) -> Just $ Type $ levelLub a b
@@ -1524,16 +1534,16 @@ funSort a b = fromMaybe (FunSort a b) $ funSort' a b
 
 -- | Compute the sort of a pi type from the sorts of its domain
 --   and codomain.
-piSort' :: Dom Type -> Abs Sort -> Maybe Sort
-piSort' a      (NoAbs _ b) = funSort' (getSort a) b
-piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
-  Nothing -> Just $ funSort (getSort a) $ noabsApp __IMPOSSIBLE__ bAbs
-  Just o | Just (True, fa) <- isSmallSort (getSort a), Just (True, fb) <- isSmallSort b -> case o of
-    StronglyRigid -> Just $ Inf (fibrantLub fa fb) 0
-    Unguarded     -> Just $ Inf (fibrantLub fa fb) 0
-    WeaklyRigid   -> Just $ Inf (fibrantLub fa fb) 0
+piSort' :: Dom Term -> Sort -> Abs Sort -> Maybe Sort
+piSort' a s1       (NoAbs _ s2) = Just $ FunSort s1 s2
+piSort' a s1 s2Abs@(Abs   _ s2) = case flexRigOccurrenceIn 0 s2 of
+  Nothing -> Just $ FunSort s1 $ noabsApp __IMPOSSIBLE__ s2Abs
+  Just o | Just (True, f1) <- isSmallSort s1, Just (True, f2) <- isSmallSort s2 -> case o of
+    StronglyRigid -> Just $ Inf (fibrantLub f1 f2) 0
+    Unguarded     -> Just $ Inf (fibrantLub f1 f2) 0
+    WeaklyRigid   -> Just $ Inf (fibrantLub f1 f2) 0
     Flexible _    -> Nothing
-  Just o | Inf fa n <- getSort a , Just (True, fb) <- isSmallSort b -> Just $ Inf (fibrantLub fa fb) n
+  Just o | Inf f1 n <- s1 , Just (True, f2) <- isSmallSort s2 -> Just $ Inf (fibrantLub f1 f2) n
   Just _ -> Nothing
 
 -- Andreas, 2019-06-20
@@ -1565,11 +1575,10 @@ piSort' a bAbs@(Abs   _ b) = case flexRigOccurrenceIn 0 b of
 --     WeaklyRigid   -> Just Inf
 --     Flexible _    -> Nothing
 
-piSort :: Dom Type -> Abs Sort -> Sort
-piSort a b = case piSort' a b of
-  Just s -> s
-  Nothing | NoAbs _ b' <- b -> FunSort (getSort a) b'
-          | otherwise       -> PiSort a b
+piSort :: Dom Term -> Sort -> Abs Sort -> Sort
+piSort a s1 s2 = case piSort' a s1 s2 of
+  Just s  -> s
+  Nothing -> PiSort a s1 s2
 
 ---------------------------------------------------------------------------
 -- * Level stuff

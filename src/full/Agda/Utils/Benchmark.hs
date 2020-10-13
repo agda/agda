@@ -1,5 +1,4 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeFamilies              #-}
 
 -- | Tools for benchmarking and accumulating results.
 --   Nothing Agda-specific in here.
@@ -9,7 +8,9 @@ module Agda.Utils.Benchmark where
 import Prelude hiding (null)
 
 import qualified Control.Exception as E (evaluate)
+import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.Writer
 import Control.Monad.State
 
 
@@ -20,6 +21,7 @@ import Data.Maybe
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
+import Agda.Utils.ListT
 import Agda.Utils.Null
 import Agda.Utils.Monad hiding (finally)
 import qualified Agda.Utils.Maybe.Strict as Strict
@@ -148,6 +150,13 @@ instance MonadBench m => MonadBench (ReaderT r m) where
   finally m f = ReaderT $ \ r ->
     finally (m `runReaderT` r) (f `runReaderT` r)
 
+instance (MonadBench m, Monoid w) => MonadBench (WriterT w m) where
+  type BenchPhase (WriterT w m) = BenchPhase m
+  getBenchmark    = lift $ getBenchmark
+  putBenchmark    = lift . putBenchmark
+  modifyBenchmark = lift . modifyBenchmark
+  finally m f = WriterT $ finally (runWriterT m) (runWriterT f)
+
 instance MonadBench m => MonadBench (StateT r m) where
   type BenchPhase (StateT r m) = BenchPhase m
 
@@ -156,6 +165,22 @@ instance MonadBench m => MonadBench (StateT r m) where
   modifyBenchmark = lift . modifyBenchmark
   finally m f = StateT $ \s ->
     finally (m `runStateT` s) (f `runStateT` s)
+
+instance MonadBench m => MonadBench (ExceptT e m) where
+  type BenchPhase (ExceptT e m) = BenchPhase m
+
+  getBenchmark    = lift $ getBenchmark
+  putBenchmark    = lift . putBenchmark
+  modifyBenchmark = lift . modifyBenchmark
+  finally m f = ExceptT $ finally (runExceptT m) (runExceptT f)
+
+instance MonadBench m => MonadBench (ListT m) where
+  type BenchPhase (ListT m) = BenchPhase m
+
+  getBenchmark    = lift getBenchmark
+  putBenchmark    = lift . putBenchmark
+  modifyBenchmark = lift . modifyBenchmark
+  finally m f = ListT $ finally (runListT m) (runListT f)
 
 -- | Turn benchmarking on/off.
 

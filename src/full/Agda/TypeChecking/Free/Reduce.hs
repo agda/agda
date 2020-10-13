@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 -- | Free variable check that reduces the subject to make certain variables not
 --   free. Used when pruning metavariables in Agda.TypeChecking.MetaVars.Occurs.
@@ -72,7 +71,7 @@ reduceIfFreeVars :: (Reduce a, ForceNotFree a, MonadFreeRed m)
 reduceIfFreeVars k a = do
   xs <- varsToForceNotFree
   let fvs     = precomputedFreeVars a
-      notfree = IntSet.null $ IntSet.intersection xs fvs
+      notfree = IntSet.disjoint xs fvs
   if notfree
     then return a
     else k . precomputeFreeVars_ =<< reduce a
@@ -144,11 +143,12 @@ instance ForceNotFree Sort where
     Type l     -> Type     <$> forceNotFree' l
     Prop l     -> Prop     <$> forceNotFree' l
     SSet l     -> SSet     <$> forceNotFree' l
-    PiSort a b -> PiSort   <$> forceNotFree' a <*> forceNotFree' b
+    PiSort a b c -> PiSort <$> forceNotFree' a <*> forceNotFree' b <*> forceNotFree' c
     FunSort a b -> FunSort <$> forceNotFree' a <*> forceNotFree' b
     UnivSort s -> UnivSort <$> forceNotFree' s
     MetaS x es -> MetaS x  <$> forceNotFree' es
     DefS d es  -> DefS d   <$> forceNotFree' es
     Inf _ _    -> return s
     SizeUniv   -> return s
+    LockUniv   -> return s
     DummyS{}   -> return s

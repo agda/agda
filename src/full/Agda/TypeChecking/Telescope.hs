@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Telescope where
 
@@ -24,6 +23,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.CallStack ( withCallerCallStack )
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -66,7 +66,7 @@ unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
   where
     tel' = unflattenTel xs tel
     a'   = applySubst rho a
-    rho  = parallelS (replicate (size tel + 1) (withFileAndLine impossibleTerm))
+    rho  = parallelS (replicate (size tel + 1) (withCallerCallStack impossibleTerm))
 unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
@@ -153,8 +153,13 @@ permuteTel perm tel =
 -- | Recursively computes dependencies of a set of variables in a given
 --   telescope. Any dependencies outside of the telescope are ignored.
 varDependencies :: Telescope -> IntSet -> IntSet
-varDependencies tel = allDependencies IntSet.empty
+varDependencies tel = addLocks . allDependencies IntSet.empty
   where
+    addLocks s | IntSet.null s = s
+               | otherwise = IntSet.union s $ IntSet.fromList $ filter (>= m) locks
+      where
+        locks = catMaybes [ deBruijnView (unArg a) | (a :: Arg Term) <- teleArgs tel, getLock a == IsLock]
+        m = IntSet.findMin s
     n  = size tel
     ts = flattenTel tel
 
@@ -243,9 +248,12 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     checkDependencies soFar []     = True
     checkDependencies soFar (j:js) = ok && checkDependencies (IntSet.insert j soFar) js
       where
-        fv' = allFreeVars $ indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)
-        fv  = fv' `IntSet.intersection` IntSet.fromAscList [ 0 .. n-1 ]
-        ok  = fv `IntSet.isSubsetOf` soFar
+        t   = indexWithDefault __IMPOSSIBLE__ ts0 (n-1-j)  -- ts0[n-1-j]
+        -- Skip the construction of intermediate @IntSet@s in the check @ok@.
+        -- ok  = (allFreeVars t `IntSet.intersection` IntSet.fromAscList [ 0 .. n-1 ])
+        --       `IntSet.isSubsetOf` soFar
+        good i = All $ (i < n) `implies` (i `IntSet.member` soFar) where implies = (<=)
+        ok = getAll $ runFree good IgnoreNot t
 
     ok    = all (<n) is && checkDependencies IntSet.empty is
 
@@ -371,12 +379,12 @@ telViewUpTo' n p t = do
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
-telViewPath :: Type -> TCM TelView
+telViewPath :: PureTCM m => Type -> m TelView
 telViewPath = telViewUpToPath (-1)
 
 -- | @telViewUpToPath n t@ takes off $t$
 --   the first @n@ (or arbitrary many if @n < 0@) function domains or Path types.
-telViewUpToPath :: Int -> Type -> TCM TelView
+telViewUpToPath :: PureTCM m => Int -> Type -> m TelView
 telViewUpToPath 0 t = return $ TelV EmptyTel t
 telViewUpToPath n t = do
   vt <- pathViewAsPi $ t
@@ -396,7 +404,7 @@ type Boundary' a = [(Term,a)]
 -- by the Path types encountered. The boundary terms live in the
 -- telescope given by the @TelView@.
 -- Each point of the boundary has the type of the codomain of the Path type it got taken from, see @fullBoundary@.
-telViewUpToPathBoundary' :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m (TelView,Boundary)
+telViewUpToPathBoundary' :: PureTCM m => Int -> Type -> m (TelView,Boundary)
 telViewUpToPathBoundary' 0 t = return $ (TelV EmptyTel t,[])
 telViewUpToPathBoundary' n t = do
   vt <- pathViewAsPi' $ t
@@ -430,7 +438,7 @@ fullBoundary tel bs =
 --  Output: ΔΓ ⊢ b
 --          ΔΓ ⊢ i : I
 --          ΔΓ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : b
-telViewUpToPathBoundary :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m (TelView,Boundary)
+telViewUpToPathBoundary :: PureTCM m => Int -> Type -> m (TelView,Boundary)
 telViewUpToPathBoundary i a = do
    (telv@(TelV tel b), bs) <- telViewUpToPathBoundary' i a
    return $ (telv, fullBoundary tel bs)
@@ -442,10 +450,10 @@ telViewUpToPathBoundary i a = do
 --          Δ.Γ ⊢ i : I
 --          Δ.Γ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : T
 -- Useful to reconstruct IApplyP patterns after teleNamedArgs Γ.
-telViewUpToPathBoundaryP :: (MonadReduce m, HasBuiltins m) => Int -> Type -> m (TelView,Boundary)
+telViewUpToPathBoundaryP :: PureTCM m => Int -> Type -> m (TelView,Boundary)
 telViewUpToPathBoundaryP = telViewUpToPathBoundary'
 
-telViewPathBoundaryP :: (MonadReduce m, HasBuiltins m) => Type -> m (TelView,Boundary)
+telViewPathBoundaryP :: PureTCM m => Type -> m (TelView,Boundary)
 telViewPathBoundaryP = telViewUpToPathBoundaryP (-1)
 
 
@@ -470,13 +478,11 @@ teleElims tel boundary = recurse (teleArgs tel)
         _                                 -> Apply a
 
 pathViewAsPi
-  :: (MonadReduce m, HasBuiltins m)
-  =>Type -> m (Either (Dom Type, Abs Type) Type)
+  :: PureTCM m => Type -> m (Either (Dom Type, Abs Type) Type)
 pathViewAsPi t = either (Left . fst) Right <$> pathViewAsPi' t
 
 pathViewAsPi'
-  :: (MonadReduce m, HasBuiltins m)
-  => Type -> m (Either ((Dom Type, Abs Type), (Term,Term)) Type)
+  :: PureTCM m => Type -> m (Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi' t = do
   pathViewAsPi'whnf <*> reduce t
 
@@ -498,7 +504,7 @@ pathViewAsPi'whnf = do
 
 -- | returns Left (a,b) in case the type is @Pi a b@ or @PathP b _ _@
 --   assumes the type is in whnf.
-piOrPath :: Type -> TCM (Either (Dom Type, Abs Type) Type)
+piOrPath :: HasBuiltins m => Type -> m (Either (Dom Type, Abs Type) Type)
 piOrPath t = do
   t <- pathViewAsPi'whnf <*> pure t
   case t of
@@ -522,8 +528,7 @@ telView'Path :: Type -> TCM TelView
 telView'Path = telView'UpToPath (-1)
 
 isPath
-  :: (MonadReduce m, HasBuiltins m)
-  => Type -> m (Maybe (Dom Type, Abs Type))
+  :: PureTCM m => Type -> m (Maybe (Dom Type, Abs Type))
 isPath t = either Just (const Nothing) <$> pathViewAsPi t
 
 telePatterns :: DeBruijn a => Telescope -> Boundary -> [NamedArg (Pattern' a)]

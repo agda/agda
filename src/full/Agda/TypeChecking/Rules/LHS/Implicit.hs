@@ -3,6 +3,9 @@ module Agda.TypeChecking.Rules.LHS.Implicit where
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
+import Control.Monad.IO.Class
+
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Info
@@ -28,13 +31,15 @@ implicitP info = Arg (setOrigin Inserted info) $ unnamed $ A.WildP $ PatRange $ 
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
-insertImplicitPatterns :: ExpandHidden -> [NamedArg A.Pattern] ->
-                          Telescope -> TCM [NamedArg A.Pattern]
+insertImplicitPatterns
+  :: (PureTCM m, MonadError TCErr m, MonadFresh NameId m, MonadTrace m)
+  => ExpandHidden -> [NamedArg A.Pattern]
+  -> Telescope -> m [NamedArg A.Pattern]
 insertImplicitPatterns exh ps tel =
   insertImplicitPatternsT exh ps (telePi tel __DUMMY_TYPE__)
 
 -- | Insert trailing SizeLt patterns, if any.
-insertImplicitSizeLtPatterns :: Type -> TCM [NamedArg A.Pattern]
+insertImplicitSizeLtPatterns :: PureTCM m => Type -> m [NamedArg A.Pattern]
 insertImplicitSizeLtPatterns t = do
   -- Testing for SizeLt.  In case of blocked type, we return no.
   -- We assume that on the LHS, we know the type.  (TODO: Sufficient?)
@@ -52,8 +57,10 @@ insertImplicitSizeLtPatterns t = do
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
-insertImplicitPatternsT :: ExpandHidden -> [NamedArg A.Pattern] -> Type ->
-                           TCM [NamedArg A.Pattern]
+insertImplicitPatternsT
+  :: (PureTCM m, MonadError TCErr m, MonadFresh NameId m, MonadTrace m)
+  => ExpandHidden -> [NamedArg A.Pattern] -> Type
+  -> m [NamedArg A.Pattern]
 insertImplicitPatternsT DontExpandLast [] a = insertImplicitSizeLtPatterns a
 insertImplicitPatternsT exh            ps a = do
   TelV tel b <- telViewUpTo' (-1) (not . visible) a

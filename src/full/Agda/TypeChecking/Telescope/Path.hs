@@ -65,7 +65,7 @@ telePiPath reAbs lams tel t bs = do
                          ]
           Nothing    -> do
             b <- b
-            return $ El (piSort a (getSort <$> b)) (Pi a (reAbs b))
+            return $ El (mkPiSort a b) (Pi a (reAbs b))
       where
         b  = traverse (telePiPath xs) tel
     telePiPath _     EmptyTel = __IMPOSSIBLE__

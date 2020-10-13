@@ -146,12 +146,13 @@ instance EmbPrj I.Sort where
   icod_ (Prop  a  ) = icodeN 1 Prop a
   icod_ SizeUniv    = icodeN 2 SizeUniv
   icod_ (Inf f a)   = icodeN 3 Inf f a
-  icod_ (PiSort a b) = icodeN 4 PiSort a b
+  icod_ (PiSort a b c) = icodeN 4 PiSort a b c
   icod_ (FunSort a b) = icodeN 5 FunSort a b
   icod_ (UnivSort a) = icodeN 6 UnivSort a
   icod_ (MetaS a b)  = __IMPOSSIBLE__
   icod_ (DefS a b)   = icodeN 7 DefS a b
   icod_ (SSet  a  ) = icodeN 8 SSet a
+  icod_ LockUniv    = icodeN 9 LockUniv
   icod_ (DummyS s)   = do
     liftIO $ putStrLn $ "Dummy sort in serialization: " ++ s
     __IMPOSSIBLE__
@@ -161,11 +162,12 @@ instance EmbPrj I.Sort where
     valu [1, a]    = valuN Prop  a
     valu [2]       = valuN SizeUniv
     valu [3, f, a] = valuN Inf f a
-    valu [4, a, b] = valuN PiSort a b
+    valu [4, a, b, c] = valuN PiSort a b c
     valu [5, a, b] = valuN FunSort a b
     valu [6, a]    = valuN UnivSort a
     valu [7, a, b] = valuN DefS a b
     valu [8, a]    = valuN SSet a
+    valu [9]       = valuN LockUniv
     valu _         = malformed
 
 instance EmbPrj DisplayForm where
@@ -260,12 +262,14 @@ instance EmbPrj NLPSort where
   icod_ (PProp a)   = icodeN 1 PProp a
   icod_ (PInf f a)  = icodeN 2 PInf f a
   icod_ PSizeUniv   = icodeN 3 PSizeUniv
+  icod_ PLockUniv   = icodeN 4 PSizeUniv
 
   value = vcase valu where
     valu [0, a] = valuN PType a
     valu [1, a] = valuN PProp a
     valu [2, f, a] = valuN PInf f a
     valu [3]    = valuN PSizeUniv
+    valu [4]    = valuN PLockUniv
     valu _      = malformed
 
 instance EmbPrj RewriteRule where

@@ -342,7 +342,7 @@ Token
     Top level
  --------------------------------------------------------------------------}
 
-File :: { ([Pragma], [Declaration]) }
+File :: { Module }
 File : vopen TopLevel maybe_vclose { takeOptionsPragmas $2 }
 
 maybe_vclose :: { () }
@@ -1779,10 +1779,10 @@ happyError = parseError "Parse error"
  --------------------------------------------------------------------------}
 
 -- | Grab leading OPTIONS pragmas.
-takeOptionsPragmas :: [Declaration] -> ([Pragma], [Declaration])
-takeOptionsPragmas = spanJust $ \ d -> case d of
+takeOptionsPragmas :: [Declaration] -> Module
+takeOptionsPragmas = uncurry Mod . spanJust (\ d -> case d of
   Pragma p@OptionsPragma{} -> Just p
-  _                        -> Nothing
+  _                        -> Nothing)
 
 -- | Insert a top-level module if there is none.
 --   Also fix-up for the case the declarations in the top-level module

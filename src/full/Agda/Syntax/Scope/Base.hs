@@ -1175,6 +1175,12 @@ isNameInScope q scope =
   billToPure [ Scoping, InverseScopeLookup ] $
   Set.member q (scope ^. scopeInScope)
 
+isNameInScopeUnqualified :: A.QName -> ScopeInfo -> Bool
+isNameInScopeUnqualified q scope =
+  case inverseScopeLookupName' AmbiguousNothing q scope of
+    C.QName{} : _ -> True -- NOTE: inverseScopeLookupName' puts unqualified names first
+    _             -> False
+
 -- | Find the concrete names that map (uniquely) to a given abstract qualified name.
 --   Sort by number of modules in the qualified name, unqualified names first.
 inverseScopeLookupName :: A.QName -> ScopeInfo -> [C.QName]
