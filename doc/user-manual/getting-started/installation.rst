@@ -186,9 +186,6 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
 
   For more information and how to install a version that includes the
   standard library see https://nixos.org/manual/nixpkgs/unstable/#agda.
-  ..
-   ^ TODO: update link to stable when 20.09 is released, and possibly
-   remove the 'old way'.
 
 * The old way (deprecated): As Agda is a Haskell package available
   from hackage you can install it like any other haskell package. To
