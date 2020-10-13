@@ -10,4 +10,7 @@ import Agda.Compiler.MAlonzo.Compiler (ghcBackend)
 import Agda.Compiler.JS.Compiler (jsBackend)
 
 builtinBackends :: [Backend]
-builtinBackends = [ ghcBackend, jsBackend ]
+builtinBackends =
+  [ ghcBackend
+  , jsBackend
+  ]
