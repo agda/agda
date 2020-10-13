@@ -642,12 +642,11 @@ generateLaTeX i = do
   let outPath = modToFile moduleName
   inAbsPath <- fmap filePath (Find.srcFilePath <$> Find.findFile moduleName)
   liftIO $ do
-    latex <-
-      E.encodeUtf8
-        `fmap` toLaTeX (O.optCountClusters $ O.optPragmaOptions options)
-                       (mkAbsolute inAbsPath)
-                       (iSource i)
-                       hi
+    latex <- E.encodeUtf8 <$> toLaTeX
+                (O.optCountClusters $ O.optPragmaOptions options)
+                (mkAbsolute inAbsPath)
+                (iSource i)
+                hi
     createDirectoryIfMissing True $ dir </> takeDirectory outPath
     BS.writeFile (dir </> outPath) latex
 
