@@ -8,7 +8,8 @@ module Agda.Interaction.Highlighting.HTML
 
 import Prelude hiding ((!!), concatMap)
 import Control.Monad
-import Control.Monad.Trans ( MonadIO(..) )
+import Control.Monad.Trans ( MonadIO(..), lift )
+import Control.Monad.Trans.Reader ( ReaderT(runReaderT), ask )
 
 import Data.Function ( on )
 import Data.Foldable (toList, concatMap)
@@ -50,8 +51,11 @@ import Agda.Syntax.Common
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Monad
   ( MonadDebug
+  , commandLineOptions
+  , getVisitedModules
   , reportS
   , TCM
+  , VisitedModules
   )
 
 import Agda.Utils.Function
@@ -142,6 +146,27 @@ data HtmlInputSourceFile = HtmlInputSourceFile
 srcFileOfInterface :: C.TopLevelModuleName -> TCM.Interface -> HtmlInputSourceFile
 srcFileOfInterface m i = HtmlInputSourceFile m (TCM.iFileType i) (TCM.iSource i) (TCM.iHighlighting i)
 
+-- | Logging during HTML generation
+
+type HtmlLogMessage = String
+type HtmlLogAction m = HtmlLogMessage -> m ()
+
+class MonadLogHtml m where
+  logHtml :: HtmlLogAction m
+
+type LogHtmlT m = ReaderT (HtmlLogAction m) m
+
+instance Monad m => MonadLogHtml (LogHtmlT m) where
+  logHtml message = do
+    doLog <- ask
+    lift $ doLog message
+
+runLogHtmlWith :: Monad m => HtmlLogAction m -> LogHtmlT m a -> m a
+runLogHtmlWith = flip runReaderT
+
+runLogHtmlWithMonadDebug :: MonadDebug m => LogHtmlT m a -> m a
+runLogHtmlWithMonadDebug = runLogHtmlWith $ reportS "html" 1
+
 -- | Generates HTML files from all the sources which have been
 --   visited during the type checking phase.
 --
@@ -149,9 +174,10 @@ srcFileOfInterface m i = HtmlInputSourceFile m (TCM.iFileType i) (TCM.iSource i)
 --   completed successfully.
 generateHTML :: TCM ()
 generateHTML = do
-  opts <- htmlOptsFromCliOpts <$> TCM.commandLineOptions
-  modules <- TCM.getVisitedModules
-  generateHTMLWithPageGen opts modules (defaultPageGen opts)
+  opts <- htmlOptsFromCliOpts <$> commandLineOptions
+  modules <- getVisitedModules
+  runLogHtmlWithMonadDebug $
+    generateHTMLWithPageGen opts modules (defaultPageGen opts)
 
 renderSourceFile :: HtmlOptions -> HtmlInputSourceFile -> Text
 renderSourceFile opts = renderSourcePage
@@ -166,13 +192,9 @@ renderSourceFile opts = renderSourcePage
       onlyCode = highlightOnlyCode htmlHighlight fileType
       pageContents = code onlyCode fileType tokens
 
-type PageGen m = HtmlInputSourceFile -> m ()
-
-defaultPageGen :: (MonadIO m, MonadDebug m) => HtmlOptions -> PageGen m
+defaultPageGen :: (MonadIO m, MonadLogHtml m) => HtmlOptions -> HtmlInputSourceFile -> m ()
 defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _) = do
-  reportS "html" 1 $ "Generating HTML for " ++
-                    render (pretty moduleName) ++
-                    " (" ++ target ++ ")."
+  logHtml $ render $ "Generating HTML for"  <+> pretty moduleName <+> ((parens (pretty target)) <> ".")
   writeRenderedHtml html target
   where
     ext = highlightedFileExt (htmlOptHighlight opts) ft
@@ -185,15 +207,14 @@ defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _) = do
 --   module's top level module name, its source code, and its
 --   highlighting information.
 generateHTMLWithPageGen
-  :: (MonadIO m, MonadDebug m)
+  :: (MonadIO m, MonadLogHtml m)
   => HtmlOptions
-  -> TCM.VisitedModules
-  -> PageGen m
+  -> VisitedModules
+  -> (HtmlInputSourceFile -> m ())
   -> m ()
 generateHTMLWithPageGen opts visitedModules generatePage = do
-  reportS "html" 1
-    [ "" :: String
-    , "Warning: HTML is currently generated for ALL files which can be"
+  logHtml $ unlines
+    [ "Warning: HTML is currently generated for ALL files which can be"
     , "reached from the given module, including library files."
     ]
   prepareCommonDestinationAssets opts
