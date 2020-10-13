@@ -194,6 +194,49 @@ definitionCheck d = do
         ]
       abort neverUnblock $ MetaErasedSolution m $ Def d []
 
+metaCheck :: MetaId -> OccursM ()
+metaCheck m = do
+  cxt <- ask
+  let irr = isIrrelevant cxt
+      er  = hasQuantity0 cxt
+      m0  = occMeta $ feExtra cxt
+
+  -- Check for loop
+  --   don't fail hard on this, since we might still be on the top-level
+  --   after some killing (Issue 442)
+  --
+  -- Andreas, 2013-02-18  Issue 795 demonstrates that a recursive
+  -- occurrence of a meta could be solved by the identity.
+  --   ? (Q A) = Q (? A)
+  -- So, do not throw an error.
+  -- I guess the error was there from times when occurrence check
+  -- was done after the "lhs=linear variables" check, but now
+  -- occurrence check comes first.
+  -- WAS:
+  -- when (m == m') $ if ctx == Top then patternViolation else
+  --   abort ctx $ MetaOccursInItself m'
+  when (m == m0) $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++ prettyShow m
+
+  unless (irr && er) $ do
+    mi <- lookupMeta m
+    let mmod = getMetaModality mi
+    unless (irr || usableRelevance mmod) $ do
+      reportSDoc "tc.meta.occurs" 35 $ hsep
+        [ "occursCheck: meta variable"
+        , prettyTCM m
+        , "has relevance"
+        , prettyTCM (getRelevance mmod)
+        ]
+      patternViolation $ unblockOnMeta m
+    unless (er || usableQuantity mmod) $ do
+      reportSDoc "tc.meta.occurs" 35 $ hsep
+        [ "occursCheck: meta variable"
+        , prettyTCM m
+        , "has quantity"
+        , prettyTCM (getQuantity mmod)
+        ]
+      patternViolation $ unblockOnMeta m
+
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
 allowedVars :: OccursM (Nat -> Bool)
@@ -402,25 +445,12 @@ instance Occurs Term where
           Con c ci vs -> Con c ci <$> occurs vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occurs (a,b)
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs s
-          MetaV m' es -> addOrUnblocker (unblockOnMeta m') $ do
+          MetaV m' es -> do
+            metaCheck m'
+
+            addOrUnblocker (unblockOnMeta m') $ do
                          -- If getting stuck here, we need to trigger wakeup if this meta is
                          -- solved.
-              -- Check for loop
-              --   don't fail hard on this, since we might still be on the top-level
-              --   after some killing (Issue 442)
-              --
-              -- Andreas, 2013-02-18  Issue 795 demonstrates that a recursive
-              -- occurrence of a meta could be solved by the identity.
-              --   ? (Q A) = Q (? A)
-              -- So, do not throw an error.
-              -- I guess the error was there from times when occurrence check
-              -- was done after the "lhs=linear variables" check, but now
-              -- occurrence check comes first.
-              -- WAS:
-              -- when (m == m') $ if ctx == Top then patternViolation else
-              --   abort ctx $ MetaOccursInItself m'
-              when (m == m') $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++ prettyShow m
-
               -- The arguments of a meta are in a flexible position
               (MetaV m' <$> do flexibly $ occurs es) `catchError` \ err -> do
                 ctx <- ask
