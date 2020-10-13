@@ -267,6 +267,15 @@ After getting the development version from the Git `repository
   You can also add the ``CABAL_OPTS`` variable to ``mk/config.mk`` (see
   ``HACKING.md``) instead of passing it via the command line.
 
+  To install via ``stack`` instead of ``cabal``, copy one of the
+  ``stack-x.x.x.yaml`` files of your choice to a ``stack.yaml`` file before
+  running ``make``. For example:
+
+  .. code-block:: bash
+
+    cp stack-8.10.1.yaml stack.yaml
+    make install
+
 .. _installation-flags:
 
 Installation Flags
