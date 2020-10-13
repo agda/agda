@@ -196,7 +196,6 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
 
     nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
 
-   
 OS X
 ----
 
