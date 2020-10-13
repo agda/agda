@@ -176,33 +176,30 @@ Nix or NixOS
 Agda is part of the Nixpkgs collection that is used by
 https://nixos.org/nixos. There are two ways to install Agda from nix:
 
-* As Agda is a Haskell package available from hackage you can install
-  it like any other haskell package. To install Agda and agda-mode for
-  Emacs, type:
-
-  .. code-block:: bash
-
-    nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
-
-* If you are tracking ``nixos-unstable`` or ``nixpkgs-unstable`` (the
-  default on MacOS) or are using a version of NixOS newer than 20.03
-  then you should be able to install Agda via:
+* The new way: If you are tracking ``nixos-unstable`` or
+  ``nixpkgs-unstable`` (the default on MacOS) or are using NixOS
+  version 20.09 or above then you should be able to install Agda via:
 
   .. code-block:: bash
 
     nix-env -i agdaWithPackages
 
-  This version makes using and developing Agda libraries with nix
-  easier. See https://nixos.org/manual/nixpkgs/unstable/#agda for
-  details.
+  For more information and how to install a version that includes the
+  standard library see https://nixos.org/manual/nixpkgs/unstable/#agda.
+  ..
+   ^ TODO: update link to stable when 20.09 is released, and possibly
+   remove the 'old way'.
 
-Alternatively, if using existing Agda libraries (including the
-standard library) it may be more convenient to use a nix expression
-for ``nix-shell``.  A third-party `example repository
-<https://github.com/bbarker/LearningAgda>`_ is available to create a
-``nix-shell`` environment that loads ``agda-pkg`` as well as ``agda``
-and ``agda-mode`` for emacs.
+* The old way (deprecated): As Agda is a Haskell package available
+  from hackage you can install it like any other haskell package. To
+  install Agda. This version does not provide any support for working
+  with Agda libraries, you are on your own.
 
+  .. code-block:: bash
+
+    nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
+
+   
 OS X
 ----
 
