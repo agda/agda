@@ -254,15 +254,18 @@ After getting the development version from the Git `repository
   .. code-block:: bash
 
     cabal update
-    make install
+    make install CABAL_OPTS='-j1'
     agda-mode setup
+
+  You can omit ``CABAL_OPTS='-j1'`` in order to speed up installation of Agda's
+  dependencies, but ``cabal`` will output less build progress to stdout.
 
   Note that on a Mac, because ICU is installed in a non-standard location,
   you need to specify this location on the command line:
 
   .. code-block:: bash
 
-    make install CABAL_OPTS='--extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
+    make install CABAL_OPTS='-j1 --extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
 
   You can also add the ``CABAL_OPTS`` variable to ``mk/config.mk`` (see
   ``HACKING.md``) instead of passing it via the command line.
