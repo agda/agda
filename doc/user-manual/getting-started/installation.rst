@@ -188,13 +188,14 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
   standard library see https://nixos.org/manual/nixpkgs/unstable/#agda.
 
 * The old way (deprecated): As Agda is a Haskell package available
-  from hackage you can install it like any other haskell package. To
-  install Agda. This version does not provide any support for working
-  with Agda libraries, you are on your own.
-
+  from Hackage you can install it like any other Haskell package:
+  
   .. code-block:: bash
 
     nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
+
+  This approach does not provide any special support for working with
+  Agda libraries.
 
 OS X
 ----
