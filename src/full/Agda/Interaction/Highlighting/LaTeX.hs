@@ -614,6 +614,9 @@ generateLaTeX i = do
   sourceFile <- Find.srcFilePath <$> Find.findFile moduleName
   options <- TCM.commandLineOptions
   let latexDir = O.optLaTeXDir options
+  -- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or
+  -- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/
+  -- And it prevents us from doing a real "one-time" setup.
   let dir = if O.optGHCiInteraction options
       then filePath (projectRoot sourceFile moduleName) </> latexDir
       else latexDir
