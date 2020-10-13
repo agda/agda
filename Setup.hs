@@ -42,10 +42,11 @@ copyHook' :: PackageDescription -> LocalBuildInfo -> UserHooks -> CopyFlags -> I
 copyHook' pd lbi hooks flags = do
   -- Copy library and executable etc.
   copyHook simpleUserHooks pd lbi hooks flags
-  -- Generate .agdai files.
-  generateInterfaces pd lbi
-  -- Copy again, now including the .agdai files.
-  copyHook simpleUserHooks pd' lbi hooks flags
+  unless (skipInterfaces lbi) $ do
+    -- Generate .agdai files.
+    generateInterfaces pd lbi
+    -- Copy again, now including the .agdai files.
+    copyHook simpleUserHooks pd' lbi hooks flags
   where
   pd' = pd
     { dataFiles = concatMap expandAgdaExt $ dataFiles pd
@@ -73,16 +74,17 @@ expandAgdaExt fp | takeExtension fp == ".agda" = [ fp, toIFile fp ]
 toIFile :: FilePath -> FilePath
 toIFile file = replaceExtension file ".agdai"
 
+-- Andreas, 2019-10-21, issue #4151:
+-- skip the generation of interface files with program suffix "-quicker"
+skipInterfaces :: LocalBuildInfo -> Bool
+skipInterfaces lbi = fromPathTemplate (progSuffix lbi) == "-quicker"
+
 generateInterfaces :: PackageDescription -> LocalBuildInfo -> IO ()
 generateInterfaces pd lbi = do
 
   -- for debugging, these are examples how you can inspect the flags...
   -- print $ flagAssignment lbi
   -- print $ fromPathTemplate $ progSuffix lbi
-
-  -- Andreas, 2019-10-21, issue #4151:
-  -- skip the generation of interface files with program suffix "-quicker"
-  unless (fromPathTemplate (progSuffix lbi) == "-quicker") $ do
 
   -- then...
   let bdir = buildDir lbi
