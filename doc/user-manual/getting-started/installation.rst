@@ -255,7 +255,6 @@ After getting the development version from the Git `repository
 
     cabal update
     make install CABAL_OPTS='-j1'
-    agda-mode setup
 
   You can omit ``CABAL_OPTS='-j1'`` in order to speed up installation of Agda's
   dependencies, but ``cabal`` will output less build progress to stdout.
