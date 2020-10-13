@@ -4,13 +4,6 @@
 
 module Agda.Interaction.Highlighting.HTML
   ( generateHTML
-  -- Reused by PandocAgda
-  , defaultCSSFile
-  , generateHTMLWithPageGen
-  , renderPageToFile
-  , page
-  , tokenStream
-  , code
   ) where
 
 import Prelude hiding ((!!), concatMap)
@@ -48,16 +41,19 @@ import Text.Blaze.Html.Renderer.Text ( renderHtml )
 
 import Paths_Agda
 
-import Agda.Interaction.Options
+import Agda.Interaction.Options (CommandLineOptions(..), HtmlHighlight(..))
 import Agda.Interaction.Highlighting.Precise
 
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
 
-import Agda.TypeChecking.Monad (TCM, useTC)
 import qualified Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Monad
+  ( MonadDebug
+  , reportS
+  , TCM
+  )
 
-import Agda.Utils.FileName (filePath)
 import Agda.Utils.Function
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty
@@ -112,110 +108,130 @@ highlightedFileExt hh ft
       TexFileType  -> "tex"
       OrgFileType  -> "org"
 
+-- | Options for HTML generation
+
+data HtmlOptions = HtmlOptions
+  { htmlOptDir                  :: FilePath
+  , htmlOptHighlight            :: HtmlHighlight
+  , htmlOptHighlightOccurrences :: Bool
+  , htmlOptCssFile              :: Maybe FilePath
+  } deriving Eq
+
+htmlOptsFromCliOpts :: CommandLineOptions -> HtmlOptions
+htmlOptsFromCliOpts opts = HtmlOptions
+  { htmlOptDir = optHTMLDir opts
+  , htmlOptHighlight = optHTMLHighlight opts
+  , htmlOptHighlightOccurrences = optHighlightOccurrences opts
+  , htmlOptCssFile = optCSSFile opts
+  }
+
+-- | Internal type bundling the information related to a module source file
+
+data HtmlInputSourceFile = HtmlInputSourceFile
+  { _srcFileModuleName :: C.TopLevelModuleName
+  , _srcFileType :: FileType
+  -- ^ Source file type
+  , _srcFileText :: Text
+  -- ^ Source text
+  , _srcFileHighlightInfo :: CompressedFile
+  -- ^ Highlighting info
+  }
+
+-- | Bundle up the highlighting info for a source file
+
+srcFileOfInterface :: C.TopLevelModuleName -> TCM.Interface -> HtmlInputSourceFile
+srcFileOfInterface m i = HtmlInputSourceFile m (TCM.iFileType i) (TCM.iSource i) (TCM.iHighlighting i)
+
 -- | Generates HTML files from all the sources which have been
 --   visited during the type checking phase.
 --
 --   This function should only be called after type checking has
 --   completed successfully.
-
-type PageGen = FilePath    -- ^ Output directory
-  -> FileType              -- ^ Source file type
-  -> Bool                  -- ^ Highlight occurrences
-  -> Bool                  -- ^ Return value of `highlightOnlyCode`
-  -> String                -- ^ Output file extension (return
-                           --   value of `highlightedFileExt`)
-  -> C.TopLevelModuleName
-  -> Text
-  -> CompressedFile        -- ^ Highlighting information
-  -> TCM ()
-
 generateHTML :: TCM ()
-generateHTML = generateHTMLWithPageGen pageGen
+generateHTML = do
+  opts <- htmlOptsFromCliOpts <$> TCM.commandLineOptions
+  modules <- TCM.getVisitedModules
+  generateHTMLWithPageGen opts modules (defaultPageGen opts)
+
+renderSourceFile :: HtmlOptions -> HtmlInputSourceFile -> Text
+renderSourceFile opts = renderSourcePage
   where
-  pageGen :: PageGen
-  pageGen dir ft ho pc ext mod contents hinfo =
-    renderPageToFile (renderer ho pc ft) ext dir mod
+  cssFile = fromMaybe defaultCSSFile (htmlOptCssFile opts)
+  highlightOccur = htmlOptHighlightOccurrences opts
+  htmlHighlight = htmlOptHighlight opts
+  renderSourcePage (HtmlInputSourceFile moduleName fileType sourceCode hinfo) =
+    page cssFile highlightOccur onlyCode moduleName pageContents
     where
-    renderer :: Bool -> Bool
-             -> FileType -> FilePath -> FilePath
-             -> Text
-    renderer highlightOccur onlyCode fileType css _ =
-      page css highlightOccur onlyCode mod $
-      code onlyCode fileType $
-      tokenStream contents hinfo
+      tokens = tokenStream sourceCode hinfo
+      onlyCode = highlightOnlyCode htmlHighlight fileType
+      pageContents = code onlyCode fileType tokens
+
+type PageGen m = HtmlInputSourceFile -> m ()
+
+defaultPageGen :: (MonadIO m, MonadDebug m) => HtmlOptions -> PageGen m
+defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _) = do
+  reportS "html" 1 $ "Generating HTML for " ++
+                    render (pretty moduleName) ++
+                    " (" ++ target ++ ")."
+  writeRenderedHtml html target
+  where
+    ext = highlightedFileExt (htmlOptHighlight opts) ft
+    target = (htmlOptDir opts) </> modToFile moduleName ext
+    html = renderSourceFile opts srcFile
 
 -- | Prepare information for HTML page generation.
 --
 --   The page generator receives the output directory as well as the
 --   module's top level module name, its source code, and its
 --   highlighting information.
-
 generateHTMLWithPageGen
-  :: PageGen
-     -- ^ Page generator.
-  -> TCM ()
-generateHTMLWithPageGen generatePage = do
-      options <- TCM.commandLineOptions
+  :: (MonadIO m, MonadDebug m)
+  => HtmlOptions
+  -> TCM.VisitedModules
+  -> PageGen m
+  -> m ()
+generateHTMLWithPageGen opts visitedModules generatePage = do
+  reportS "html" 1
+    [ "" :: String
+    , "Warning: HTML is currently generated for ALL files which can be"
+    , "reached from the given module, including library files."
+    ]
+  prepareCommonDestinationAssets opts
+  forM_ (Map.toList visitedModules) $ \(n, mi) ->
+    generatePage $ srcFileOfInterface n (TCM.miInterface mi)
 
-      -- There is a default directory given by 'defaultHTMLDir'
-      let dir = optHTMLDir options
-      let htmlHighlight = optHTMLHighlight options
-      let highlightOccurrences = optHighlightOccurrences options
-      liftIO $ createDirectoryIfMissing True dir
+prepareCommonDestinationAssets :: MonadIO m => HtmlOptions -> m ()
+prepareCommonDestinationAssets options = liftIO $ do
+  -- There is a default directory given by 'defaultHTMLDir'
+  let htmlDir = htmlOptDir options
+  createDirectoryIfMissing True htmlDir
 
-      -- If the default CSS file should be used, then it is copied to
-      -- the output directory.
-      liftIO $ when (isNothing $ optCSSFile options) $ do
-        cssFile <- getDataFileName defaultCSSFile
-        copyFile cssFile (dir </> defaultCSSFile)
-      liftIO $ when highlightOccurrences $ do
-        highlightJsFile <- getDataFileName $
-          "JS" </> occurrenceHighlightJsFile
-        copyFile highlightJsFile (dir </> occurrenceHighlightJsFile)
+  -- If the default CSS file should be used, then it is copied to
+  -- the output directory.
+  let cssFile = htmlOptCssFile options
+  when (isNothing $ cssFile) $ do
+    defCssFile <- getDataFileName defaultCSSFile
+    copyFile defCssFile (htmlDir </> defaultCSSFile)
 
-      TCM.reportS "html" 1
-        [ "" :: String
-        , "Warning: HTML is currently generated for ALL files which can be"
-        , "reached from the given module, including library files."
-        ]
-
-      -- Pull source code and highlighting info from the state and
-      -- generate all the web pages.
-      mapM_ (\(n, mi) ->
-              let i  = TCM.miInterface mi
-                  ft = TCM.iFileType i in
-              generatePage dir ft
-                highlightOccurrences
-                (highlightOnlyCode htmlHighlight ft)
-                (highlightedFileExt htmlHighlight ft) n
-                (TCM.iSource i) (TCM.iHighlighting i)) .
-        Map.toList =<< TCM.getVisitedModules
+  let highlightOccurrences = htmlOptHighlightOccurrences options
+  when highlightOccurrences $ do
+    highlightJsFile <- getDataFileName $
+      "JS" </> occurrenceHighlightJsFile
+    copyFile highlightJsFile (htmlDir </> occurrenceHighlightJsFile)
 
 -- | Converts module names to the corresponding HTML file names.
 
 modToFile :: C.TopLevelModuleName -> String -> FilePath
-modToFile m ext =
-  Network.URI.Encode.encode $
-    render (pretty m) <.> ext
+modToFile m ext = Network.URI.Encode.encode $ render (pretty m) <.> ext
 
 -- | Generates a highlighted, hyperlinked version of the given module.
 
-renderPageToFile
-  :: (FilePath -> FilePath -> Text)  -- ^ Page renderer.
-  -> String                          -- ^ Output file extension.
-  -> FilePath                        -- ^ Directory in which to create
-                                     --   files.
-  -> C.TopLevelModuleName            -- ^ Module to be highlighted.
-  -> TCM ()
-renderPageToFile renderPage ext dir mod = do
-  f   <- fromMaybe __IMPOSSIBLE__ . Map.lookup mod <$> useTC TCM.stModuleToSource
-  css <- fromMaybe defaultCSSFile . optCSSFile <$> TCM.commandLineOptions
-  let target = dir </> modToFile mod ext
-  let html = renderPage css $ filePath f
-  TCM.reportSLn "html" 1 $ "Generating HTML for " ++
-                           render (pretty mod) ++
-                           " (" ++ target ++ ")."
-  liftIO $ UTF8.writeTextToFile target html
+writeRenderedHtml
+  :: MonadIO m
+  => Text       -- ^ Rendered page
+  -> FilePath   -- ^ Output path.
+  -> m ()
+writeRenderedHtml html target = liftIO $ UTF8.writeTextToFile target html
 
 
 -- | Attach multiple Attributes
