@@ -631,7 +631,8 @@ getTextWidthEstimator _countClusters =
 generateLaTeX :: Interface -> TCM ()
 generateLaTeX i = do
   latexOpts <- getLaTeXOptionsFromTCM i
-  generateLaTeX' latexOpts i
+  prepareCommonAssets (latexOptOutDir latexOpts)
+  generateLaTeXIO latexOpts i
 
 getLaTeXOptionsFromTCM :: Interface -> TCM LaTeXOptions
 getLaTeXOptionsFromTCM i = do
@@ -653,9 +654,9 @@ getLaTeXOptionsFromTCM i = do
     , latexOptCountClusters = countClusters
     }
 
-generateLaTeX' :: LaTeXOptions -> Interface -> TCM ()
-generateLaTeX' opts i = do
-  let dir = latexOptOutDir opts
+-- | Create the common base output directory and check for/install the style file.
+prepareCommonAssets :: (TCM.MonadDebug m, MonadIO m) => FilePath -> m ()
+prepareCommonAssets dir = do
   liftIO $ createDirectoryIfMissing True dir
   (code, _, _) <-
     liftIO $
@@ -676,21 +677,23 @@ generateLaTeX' opts i = do
       styFile <- getDataFileName defaultStyFile
       copyFile styFile (dir </> defaultStyFile)
 
+generateLaTeXIO :: MonadIO m => LaTeXOptions -> Interface -> m ()
+generateLaTeXIO opts i = do
   let textWidthEstimator = getTextWidthEstimator (latexOptCountClusters opts)
+  let baseDir = latexOptOutDir opts
   let sourceFile = latexOptSourceFile opts
-  let outPath = modToFile $ toTopLevelModuleName $ iModuleName i
+  let outPath = baseDir </> (latexOutRelativeFilePath $ toTopLevelModuleName $ iModuleName i)
   liftIO $ do
     latex <- E.encodeUtf8 <$> toLaTeX
                 (emptyEnv textWidthEstimator)
                 (mkAbsolute $ filePath sourceFile)
                 (iSource i)
                 (iHighlighting i)
-    createDirectoryIfMissing True $ dir </> takeDirectory outPath
-    BS.writeFile (dir </> outPath) latex
+    createDirectoryIfMissing True (takeDirectory outPath)
+    BS.writeFile outPath latex
 
- where
-  modToFile :: TopLevelModuleName -> FilePath
-  modToFile m = List.intercalate [pathSeparator] (List1.toList $ moduleNameParts m) <.> "tex"
+latexOutRelativeFilePath :: TopLevelModuleName -> FilePath
+latexOutRelativeFilePath m = List.intercalate [pathSeparator] (List1.toList $ moduleNameParts m) <.> "tex"
 
 groupByFst :: forall a b. Eq a => [(a,b)] -> [(a,[b])]
 groupByFst =
