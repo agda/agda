@@ -183,9 +183,9 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
 
     .. code-block:: bash
 
-    nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (agdaPackages: [ agdaPackages.standard-library ])"
-    agda-mode setup
-    echo "standard-library" > ~/.agda/defaults
+      nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (agdaPackages: [ agdaPackages.standard-library ])"
+      agda-mode setup
+      echo "standard-library" > ~/.agda/defaults
 
   The second command tries to setup the Agda emacs mode. See
   `Installation from Hackage`_ above for more details about this
@@ -199,8 +199,8 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
 
     .. code-block:: bash
 
-    nix-env -f "<nixpkgs>" -iA agda
-    agda-mode setup
+      nix-env -f "<nixpkgs>" -iA agda
+      agda-mode setup
 
 
   For more information the the Agda infrastructure in nix, and how to
