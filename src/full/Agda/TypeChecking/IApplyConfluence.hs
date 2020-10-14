@@ -212,12 +212,17 @@ unifyElimsMeta m es_m cl k = ifM (not . optCubical <$> pragmaOptions) (enterClos
                   mTel0 <- getContextTelescope
                   unless (size mTel0 == size es_m) $ reportSDoc "tc.iapply.ip.meta" 20 $ "funny number of elims" <+> text (show (size mTel0, size es_m))
                   unless (size mTel0 <= size es_m) $ __IMPOSSIBLE__ -- meta has at least enough arguments to fill its creation context.
+                  reportSDoc "tc.iapply.ip.meta" 20 $ "ty: " <+> prettyTCM ty
 
                   -- if we have more arguments we extend the telescope accordingly.
                   TelV mTel1 _ <- telViewUpToPath (size es_m) ty
                   addContext (mTel1 `apply` teleArgs mTel0) $ do
                   mTel <- getContextTelescope
+                  reportSDoc "tc.iapply.ip.meta" 20 $ "mTel: " <+> prettyTCM mTel
+
+                  es_m <- return $ take (size mTel) es_m
                   -- invariant: size mTel == size es_m
+
                   (c,cxt) <- enterClosure cl $ \ c -> (c,) <$> getContextTelescope
                   reportSDoc "tc.iapply.ip.meta" 20 $ prettyTCM cxt
 
