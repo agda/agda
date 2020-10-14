@@ -181,11 +181,11 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
   version 20.09 or above then you should be able to install Agda (and
   the standard library) via:
 
-    .. code-block:: bash
+  .. code-block:: bash
 
-      nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (p: [ p.standard-library ])"
-      agda-mode setup
-      echo "standard-library" > ~/.agda/defaults
+    nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (p: [ p.standard-library ])"
+    agda-mode setup
+    echo "standard-library" > ~/.agda/defaults
 
   The second command tries to set up the Agda emacs mode. Skip this if
   you don't want to set up the emacs mode. See `Installation from
@@ -198,10 +198,10 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
   If you don't want to install the standard library via nix then you
   can just run:
 
-    .. code-block:: bash
+  .. code-block:: bash
 
-      nix-env -f "<nixpkgs>" -iA agda
-      agda-mode setup
+    nix-env -f "<nixpkgs>" -iA agda
+    agda-mode setup
 
 
   For more information on the Agda infrastructure in nix, and how to
