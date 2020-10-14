@@ -215,7 +215,7 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
   .. code-block:: bash
 
     nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
-    agda-mode-setup
+    agda-mode setup
 
   This approach does not provide any additional support for working
   with Agda libraries. See :ref:`Library Management <package-system>`
