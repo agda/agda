@@ -177,12 +177,13 @@ Agda is part of the Nixpkgs collection that is used by
 https://nixos.org/nixos. There are two ways to install Agda from nix:
 
 * The new way: If you are tracking ``nixos-unstable`` or
-  ``nixpkgs-unstable`` (the default on MacOS) or are using NixOS
+  ``nixpkgs-unstable`` (the default on MacOS) or you are using NixOS
   version 20.09 or above then you should be able to install Agda via:
 
   .. code-block:: bash
 
-    nix-env -i agdaWithPackages
+    nix-env -f "<nixpkgs>" -iA agda
+    agda-mode setup
 
   For more information and how to install a version that includes the
   standard library see https://nixos.org/manual/nixpkgs/unstable/#agda.
@@ -193,6 +194,7 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
   .. code-block:: bash
 
     nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
+    agda-mode-setup
 
   This approach does not provide any special support for working with
   Agda libraries.
