@@ -178,21 +178,34 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
 
 * The new way: If you are tracking ``nixos-unstable`` or
   ``nixpkgs-unstable`` (the default on MacOS) or you are using NixOS
-  version 20.09 or above then you should be able to install Agda via:
+  version 20.09 or above then you should be able to install Agda (and
+  the standard library) via:
 
-  .. code-block:: bash
+    .. code-block:: bash
+
+    nix-env -f "<nixpkgs>" -iA agda
+    agda-mode setup
+    echo "standard-library" > ~/.agda/defaults
+
+  The second command tries to setup the Agda emacs mode. See
+  `Installation from Hackage`_ above for more details about this
+  step. The third line sets the ``standard-library`` as a default
+  library so it is always available to Agda. If you don't want to do
+  this you can omit this step and control library imports on a per
+  project basis using an ``.agda-lib`` file in each project root.
+
+  If you don't want to install the standard library via nix then you
+  can just run:
+
+    .. code-block:: bash
 
     nix-env -f "<nixpkgs>" -iA agda
     agda-mode setup
 
-  The last command tries to setup the agda emacs mode. See
-  `Installation from Hackage`_ above for more details about this
-  step. This does not install the standard library.
-
-  For more information the the agda infrastructure in nix, how to
-  install a version that includes the standard library, and how to
-  work with other libraries, see
-  https://nixos.org/manual/nixpkgs/unstable/#agda. Or see
+  
+  For more information the the Agda infrastructure in nix, and how to
+  manage and develop Agda libraries with nix, see
+  https://nixos.org/manual/nixpkgs/unstable/#agda. Or, see
   :ref:`Library Management <package-system>` for how to manage
   libraries manually.
 
