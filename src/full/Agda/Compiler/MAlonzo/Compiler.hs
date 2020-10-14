@@ -74,7 +74,7 @@ import Agda.Utils.Impossible
 ghcBackend :: Backend
 ghcBackend = Backend ghcBackend'
 
-ghcBackend' :: Backend' GHCFlags GHCCompileEnv GHCModuleEnv GHCModule (UsesFloat, [HS.Decl])
+ghcBackend' :: Backend' GHCFlags GHCCompileEnv GHCModuleEnv GHCModule GHCDefinition
 ghcBackend' = Backend'
   { backendName           = "GHC"
   , backendVersion        = Nothing
@@ -163,6 +163,11 @@ data GHCModule = GHCModule
   --   have a `main` function defined.
   }
 
+data GHCDefinition = GHCDefinition
+  { ghcDefUsesFloat  :: UsesFloat
+  , ghcDefDecls      :: [HS.Decl]
+  }
+
 --- Top-level compilation ---
 
 ghcPreCompile :: GHCFlags -> TCM GHCCompileEnv
@@ -213,14 +218,14 @@ ghcPostModule
   -> GHCModuleEnv
   -> IsMain        -- ^ Are we looking at the main module?
   -> ModuleName
-  -> [(UsesFloat, [HS.Decl])]   -- ^ Compiled module content.
+  -> [GHCDefinition]   -- ^ Compiled module content.
   -> TCM GHCModule
-ghcPostModule _cenv menv isMain _ defs0 = do
+ghcPostModule _cenv menv isMain _ ghcDefs = do
   builtinThings <- getsTC stBuiltinThings
   usedModules <- useTC stImportedModules
   defs <- HMap.elems <$> curDefs
 
-  let (usedFloat, decls) = (mconcat *** concat) $ unzip defs0
+  let (usedFloat, decls) = (mconcat *** concat) $ unzip $ (\(GHCDefinition usedFloat' decls') -> (usedFloat', decls')) <$> ghcDefs
 
   let imps = mazRTEFloatImport usedFloat ++ imports builtinThings usedModules defs
 
@@ -237,8 +242,10 @@ ghcPostModule _cenv menv isMain _ defs0 = do
 
   return . GHCModule menv $ hasMainFunction isMain i
 
-ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl])
-ghcCompileDef _cenv menv isMain def = definition menv isMain def
+ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
+ghcCompileDef _cenv menv isMain def = do
+  (usesFloat, decls) <- definition menv isMain def
+  return $ GHCDefinition usesFloat decls
 
 -- | We do not erase types that have a 'HsData' pragma.
 --   This is to ensure a stable interface to third-party code.
