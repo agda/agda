@@ -300,8 +300,8 @@ checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of
   CheckExpr cmp e t              -> checkExpr' cmp e t
   CheckArgs eh r args t0 t1 k    -> checkArguments eh r args t0 t1 k
-  CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt at ->
-    checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt at
+  CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt patm ->
+    checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt patm
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target
   DoQuoteTerm cmp et t           -> doQuoteTerm cmp et t
 

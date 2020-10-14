@@ -964,9 +964,9 @@ checkProjApp cmp e o ds args0 t = do
 -- | Checking the type of an overloaded projection application.
 --   See 'inferOrCheckProjAppToKnownPrincipalArg'.
 
-checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Type -> Int -> Term -> Type -> (Args, Type) -> TCM Term
-checkProjAppToKnownPrincipalArg cmp e o ds args0 t k v0 pt at = do
-  (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds args0 (Just (cmp, t)) k v0 pt (Just at)
+checkProjAppToKnownPrincipalArg  :: Comparison -> A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Type -> Int -> Term -> Type -> PrincipalArgTypeMetas -> TCM Term
+checkProjAppToKnownPrincipalArg cmp e o ds args0 t k v0 pt patm = do
+  (v, ti, targetCheck) <- inferOrCheckProjAppToKnownPrincipalArg e o ds args0 (Just (cmp, t)) k v0 pt (Just patm)
   coerce' cmp targetCheck v ti t
 
 -- | Inferring or Checking an overloaded projection application.
@@ -1048,19 +1048,43 @@ inferOrCheckProjApp e o ds args mt = do
 
 -- | Same arguments 'inferOrCheckProjApp' above but also gets the position,
 --   value and type of the principal argument.
-inferOrCheckProjAppToKnownPrincipalArg ::
-  A.Expr -> ProjOrigin -> List1 QName -> A.Args -> Maybe (Comparison, Type) ->
-  Int -> Term -> Type -> Maybe (Args, Type) -> TCM (Term, Type, CheckedTarget)
-inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mat = do
+inferOrCheckProjAppToKnownPrincipalArg
+  :: A.Expr
+     -- ^ The whole expression which constitutes the application.
+  -> ProjOrigin
+     -- ^ The origin of the projection involved in this projection application.
+  -> List1 QName
+     -- ^ The projection name (potentially ambiguous).
+  -> A.Args
+     -- ^ The arguments to the projection.
+  -> Maybe (Comparison, Type)
+     -- ^ The expected type of the expression (if 'Nothing', infer it).
+  -> Int
+     -- ^ The position of the principal argument.
+  -> Term
+     -- ^ The value of the principal argument.
+  -> Type
+     -- ^ The type of the principal argument.
+  -> Maybe PrincipalArgTypeMetas
+     -- ^ The metas previously created for the principal argument's type, when
+     --   picking up a postponed problem. 'Nothing', otherwise.
+  -> TCM (Term, Type, CheckedTarget)
+     -- ^ The type-checked expression and its type (if successful).
+inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
   let cmp = caseMaybe mt CmpEq fst
-      postpone b at = do
+      postpone b vargs ta = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta at) b
+        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta (PrincipalArgTypeMetas vargs ta)) b
         return (v, tc, NotCheckedTarget)
   -- ta should be a record type (after introducing the hidden args in v0)
-  (vargs, ta) <- caseMaybe mat (implicitArgs (-1) (not . visible) ta) return
+  (vargs, ta) <- caseMaybe mpatm
+    -- create fresh metas
+    (implicitArgs (-1) (not . visible) ta)
+    -- keep using the previously created metas, when picking up a postponed
+    -- problem - see #4924
+    (\ patm -> return (patmMetas patm, patmRemainder patm))
   let v = v0 `apply` vargs
-  ifBlocked ta (\ m _ -> postpone m (vargs, ta)) {-else-} $ \ _ ta -> do
+  ifBlocked ta (\ m _ -> postpone m vargs ta) {-else-} $ \ _ ta -> do
   caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (q, _pars0, _) -> do
 
       -- try to project it with all of the possible projections
