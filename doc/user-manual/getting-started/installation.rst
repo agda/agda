@@ -182,17 +182,17 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
   the standard library) via:
 
     .. code-block:: bash
-
-      nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (agdaPackages: [ agdaPackages.standard-library ])"
+      nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (p: [ p.standard-library ])"
       agda-mode setup
       echo "standard-library" > ~/.agda/defaults
 
-  The second command tries to setup the Agda emacs mode. See
-  `Installation from Hackage`_ above for more details about this
-  step. The third line sets the ``standard-library`` as a default
-  library so it is always available to Agda. If you don't want to do
-  this you can omit this step and control library imports on a per
-  project basis using an ``.agda-lib`` file in each project root.
+  The second command tries to set up the Agda emacs mode. Skip this if
+  you don't want to set up the emacs mode. See `Installation from
+  Hackage`_ above for more details about ``agda-mode setup``. The
+  third command sets the ``standard-library`` as a default library so
+  it is always available to Agda. If you don't want to do this you can
+  omit this step and control library imports on a per project basis
+  using an ``.agda-lib`` file in each project root.
 
   If you don't want to install the standard library via nix then you
   can just run:
@@ -203,7 +203,7 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
       agda-mode setup
 
 
-  For more information the the Agda infrastructure in nix, and how to
+  For more information on the Agda infrastructure in nix, and how to
   manage and develop Agda libraries with nix, see
   https://nixos.org/manual/nixpkgs/unstable/#agda. Or, see
   :ref:`Library Management <package-system>` for how to manage
@@ -222,6 +222,11 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
   for how to manage libraries manually. It also sufferes from this
   `open issue <https://github.com/agda/agda/issues/4613>`_ which the 'new
   way' does not.
+
+Nix is extremely flexible and we have only described how to install
+Agda globally using ``nix-env``. One can also declare which packages
+to install globally in a configuration file or pull in Agda and some
+relevant libraries for a particular project using ``nix-shell``.
 
 OS X
 ----
