@@ -1815,6 +1815,8 @@ data ExtLamInfo = ExtLamInfo
     --   module during type checking though, since if the lambda appears in a
     --   refined context the module picked by the scope checker has very much
     --   the wrong parameters.
+  , extLamAbsurd :: Bool
+    -- ^ Was this definition created from an absurd lambda @λ ()@?
   , extLamSys :: !(Strict.Maybe System)
   } deriving (Data, Show)
 
@@ -4439,7 +4441,7 @@ instance KillRange System where
   killRange (System tel sys) = System (killRange tel) (killRange sys)
 
 instance KillRange ExtLamInfo where
-  killRange (ExtLamInfo m sys) = killRange2 ExtLamInfo m sys
+  killRange (ExtLamInfo m b sys) = killRange3 ExtLamInfo m b sys
 
 instance KillRange FunctionFlag where
   killRange = id
