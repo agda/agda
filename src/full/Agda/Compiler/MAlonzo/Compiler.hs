@@ -74,7 +74,7 @@ import Agda.Utils.Impossible
 ghcBackend :: Backend
 ghcBackend = Backend ghcBackend'
 
-ghcBackend' :: Backend' GHCFlags GHCCompileEnv GHCModuleEnv IsMain (UsesFloat, [HS.Decl])
+ghcBackend' :: Backend' GHCFlags GHCCompileEnv GHCModuleEnv GHCModule (UsesFloat, [HS.Decl])
 ghcBackend' = Backend'
   { backendName           = "GHC"
   , backendVersion        = Nothing
@@ -156,6 +156,13 @@ data GHCModuleEnv = GHCModuleEnv
   --   to the @isMain@ argument provided in the backend interface.
   }
 
+data GHCModule = GHCModule
+  { ghcModEnv                :: GHCModuleEnv
+  , ghcModIsMainWithMainFunc :: IsMain
+  -- ^ If this is the main module (i.e. @IsMain@) and we actually
+  --   have a `main` function defined.
+  }
+
 --- Top-level compilation ---
 
 ghcPreCompile :: GHCFlags -> TCM GHCCompileEnv
@@ -171,7 +178,7 @@ ghcPreCompile flags = do
                 }
   return $ GHCCompileEnv ghcOpts
 
-ghcPostCompile :: GHCCompileEnv -> IsMain -> Map ModuleName IsMain -> TCM ()
+ghcPostCompile :: GHCCompileEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
 ghcPostCompile cenv isMain mods = copyRTEModules >> callGHC opts isMain mods
   where opts = ghcCompileEnvOpts cenv
 
@@ -182,7 +189,7 @@ ghcPreModule
   -> IsMain      -- ^ Are we looking at the main module?
   -> ModuleName
   -> FilePath    -- ^ Path to the @.agdai@ file.
-  -> TCM (Recompile GHCModuleEnv IsMain)
+  -> TCM (Recompile GHCModuleEnv GHCModule)
                  -- ^ Could we confirm the existence of a main function?
 ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
     `runReaderT` GHCModuleEnv cenv m isMain
@@ -191,7 +198,8 @@ ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
 
     noComp = do
       reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . prettyShow . A.mnameToConcrete =<< curMName
-      Skip . hasMainFunction isMain <$> curIF
+      menv <- ask
+      Skip . GHCModule menv . (hasMainFunction isMain) <$> curIF
 
     yesComp = do
       m   <- prettyShow . A.mnameToConcrete <$> curMName
@@ -206,8 +214,8 @@ ghcPostModule
   -> IsMain        -- ^ Are we looking at the main module?
   -> ModuleName
   -> [(UsesFloat, [HS.Decl])]   -- ^ Compiled module content.
-  -> TCM IsMain    -- ^ Could we confirm the existence of a main function?
-ghcPostModule _cenv _ isMain _ defs0 = do
+  -> TCM GHCModule
+ghcPostModule _cenv menv isMain _ defs0 = do
   builtinThings <- getsTC stBuiltinThings
   usedModules <- useTC stImportedModules
   defs <- HMap.elems <$> curDefs
@@ -227,7 +235,7 @@ ghcPostModule _cenv _ isMain _ defs0 = do
     imps
     (map fakeDecl (hsImps ++ code) ++ decls)
 
-  return $ hasMainFunction isMain i
+  return . GHCModule menv $ hasMainFunction isMain i
 
 ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl])
 ghcCompileDef _cenv menv isMain def = definition menv isMain def
@@ -927,7 +935,7 @@ curOutFileAndDir = outFileAndDir =<< curHsMod
 curOutFile :: (MonadGHCIO m, ReadTCState m) => m FilePath
 curOutFile = snd <$> curOutFileAndDir
 
-callGHC :: GHCOptions -> IsMain -> Map ModuleName IsMain -> TCM ()
+callGHC :: GHCOptions -> IsMain -> Map ModuleName GHCModule -> TCM ()
 callGHC opts modIsMain mods = do
   mdir    <- compileDir
   hsmod   <- prettyPrint <$> curHsMod
@@ -938,7 +946,7 @@ callGHC opts modIsMain mods = do
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 
-  let modIsReallyMain = fromMaybe __IMPOSSIBLE__ $ Map.lookup agdaMod mods
+  let GHCModule _menv modIsReallyMain = fromMaybe __IMPOSSIBLE__ $ Map.lookup agdaMod mods
       isMain = mappend modIsMain modIsReallyMain  -- both need to be IsMain
 
   -- Warn if no main function and not --no-main
