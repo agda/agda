@@ -479,7 +479,7 @@ instance Apply CompiledClauses where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply ExtLamInfo where
-  apply (ExtLamInfo m sys) args = ExtLamInfo m (apply sys args)
+  apply (ExtLamInfo m b sys) args = ExtLamInfo m b (apply sys args)
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply System where

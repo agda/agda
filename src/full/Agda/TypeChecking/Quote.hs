@@ -231,14 +231,14 @@ quotingKit = do
             let
               conOrProjPars = defParameters defn
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              qx Function{ funExtLam = Just (ExtLamInfo m _), funClauses = cs } = do
+              qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
                     n <- size <$> lookupSection m
                     let (pars, args) = splitAt n ts
                     extlam !@ list (map (quoteClause . (`apply` pars)) cs)
                            @@ list (map (quoteArg quoteTerm) args)
-              qx df@Function{ funCompiled = Just Fail, funClauses = [cl] } = do
+              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _) , funCompiled = Just Fail, funClauses = [cl] } = do
                     -- See also corresponding code in InternalToAbstract
                     let n = length (namedClausePats cl) - 1
                         pars = take n ts

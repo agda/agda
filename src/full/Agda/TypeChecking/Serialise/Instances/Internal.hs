@@ -293,7 +293,7 @@ instance EmbPrj System where
   value = valueN System
 
 instance EmbPrj ExtLamInfo where
-  icod_ (ExtLamInfo a b) = icodeN' ExtLamInfo a b
+  icod_ (ExtLamInfo a b c) = icodeN' ExtLamInfo a b c
 
   value = valueN ExtLamInfo
 

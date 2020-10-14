@@ -682,7 +682,7 @@ reifyTerm expandAnonDefs0 v0 = do
 
         extLam <- case def of
           Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
-          Function{ funExtLam = Just (ExtLamInfo m sys) } ->
+          Function{ funExtLam = Just (ExtLamInfo m b sys) } ->
             Just . (,Strict.toLazy sys) . size <$> lookupSection m
           _ -> return Nothing
         case extLam of
