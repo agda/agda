@@ -207,7 +207,7 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
   This approach does not provide any additional support for working
   with Agda libraries. See :ref:`Library Management <package-system>`
   for how to manage libraries manually. It also sufferes from this
-  `open issue<https://github.com/agda/agda/issues/4613>`_ which the 'new
+  `open issue <https://github.com/agda/agda/issues/4613>`_ which the 'new
   way' does not.
 
 OS X
