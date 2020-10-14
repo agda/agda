@@ -182,6 +182,7 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
   the standard library) via:
 
     .. code-block:: bash
+
       nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (p: [ p.standard-library ])"
       agda-mode setup
       echo "standard-library" > ~/.agda/defaults
