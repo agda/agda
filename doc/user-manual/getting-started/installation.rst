@@ -202,7 +202,7 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
     nix-env -f "<nixpkgs>" -iA agda
     agda-mode setup
 
-  
+
   For more information the the Agda infrastructure in nix, and how to
   manage and develop Agda libraries with nix, see
   https://nixos.org/manual/nixpkgs/unstable/#agda. Or, see
