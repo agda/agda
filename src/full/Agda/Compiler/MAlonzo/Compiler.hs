@@ -73,7 +73,7 @@ import Agda.Utils.Impossible
 ghcBackend :: Backend
 ghcBackend = Backend ghcBackend'
 
-ghcBackend' :: Backend' GHCOptions GHCOptions GHCModuleEnv IsMain (UsesFloat, [HS.Decl])
+ghcBackend' :: Backend' GHCOptions GHCCompileEnv GHCModuleEnv IsMain (UsesFloat, [HS.Decl])
 ghcBackend' = Backend'
   { backendName           = "GHC"
   , backendVersion        = Nothing
@@ -118,16 +118,23 @@ ghcCommandLineFlags =
     dontCallGHC o = pure o{ optGhcCallGhc = False }
     ghcFlag f   o = pure o{ optGhcFlags   = optGhcFlags o ++ [f] }
 
+--- Context types ---
+
+data GHCCompileEnv = GHCCompileEnv
+  { ghcCompileEnvOpts :: GHCOptions
+  }
+
 --- Top-level compilation ---
 
-ghcPreCompile :: GHCOptions -> TCM GHCOptions
+ghcPreCompile :: GHCOptions -> TCM GHCCompileEnv
 ghcPreCompile ghcOpts = do
   allowUnsolved <- optAllowUnsolved <$> pragmaOptions
   when allowUnsolved $ genericError $ "Unsolved meta variables are not allowed when compiling."
-  return ghcOpts
+  return $ GHCCompileEnv ghcOpts
 
-ghcPostCompile :: GHCOptions -> IsMain -> Map ModuleName IsMain -> TCM ()
-ghcPostCompile opts isMain mods = copyRTEModules >> callGHC opts isMain mods
+ghcPostCompile :: GHCCompileEnv -> IsMain -> Map ModuleName IsMain -> TCM ()
+ghcPostCompile cenv isMain mods = copyRTEModules >> callGHC opts isMain mods
+  where opts = ghcCompileEnvOpts cenv
 
 --- Module compilation ---
 
@@ -136,13 +143,13 @@ ghcPostCompile opts isMain mods = copyRTEModules >> callGHC opts isMain mods
 type GHCModuleEnv = ()
 
 ghcPreModule
-  :: GHCOptions
+  :: GHCCompileEnv
   -> IsMain      -- ^ Are we looking at the main module?
   -> ModuleName
   -> FilePath    -- ^ Path to the @.agdai@ file.
   -> TCM (Recompile GHCModuleEnv IsMain)
                  -- ^ Could we confirm the existence of a main function?
-ghcPreModule _ isMain m ifile = ifM uptodate noComp yesComp
+ghcPreModule _cenv isMain m ifile = ifM uptodate noComp yesComp
   where
     uptodate = liftIO =<< isNewerThan <$> curOutFile <*> pure ifile
 
@@ -158,13 +165,13 @@ ghcPreModule _ isMain m ifile = ifM uptodate noComp yesComp
       return (Recompile ())
 
 ghcPostModule
-  :: GHCOptions
+  :: GHCCompileEnv
   -> GHCModuleEnv
   -> IsMain        -- ^ Are we looking at the main module?
   -> ModuleName
   -> [(UsesFloat, [HS.Decl])]   -- ^ Compiled module content.
   -> TCM IsMain    -- ^ Could we confirm the existence of a main function?
-ghcPostModule _ _ isMain _ defs0 = do
+ghcPostModule _cenv _ isMain _ defs0 = do
   builtinThings <- getsTC stBuiltinThings
   usedModules <- useTC stImportedModules
   defs <- HMap.elems <$> curDefs
@@ -186,8 +193,8 @@ ghcPostModule _ _ isMain _ defs0 = do
 
   return $ hasMainFunction isMain i
 
-ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl])
-ghcCompileDef _ env isMain def = definition env isMain def
+ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl])
+ghcCompileDef _cenv menv isMain def = definition menv isMain def
 
 -- | We do not erase types that have a 'HsData' pragma.
 --   This is to ensure a stable interface to third-party code.
