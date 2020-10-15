@@ -10,6 +10,7 @@ module Agda.Interaction.Imports
   , crModuleInfo
   , crInterface
   , crWarnings
+  , crMode
 
   , SourceInfo(..)
   , scopeCheckImport
@@ -352,11 +353,12 @@ data CheckResult = CheckResult' { crModuleInfo :: ModuleInfo }
 
 -- | Flattened unidirectional pattern for 'CheckResult' for destructuring inside
 --   the 'ModuleInfo' field.
-pattern CheckResult :: Interface -> [TCWarning] -> CheckResult
-pattern CheckResult { crInterface, crWarnings } <- CheckResult'
+pattern CheckResult :: Interface -> [TCWarning] -> ModuleCheckMode -> CheckResult
+pattern CheckResult { crInterface, crWarnings, crMode } <- CheckResult'
     { crModuleInfo = ModuleInfo
         { miInterface = crInterface
         , miWarnings = crWarnings
+        , miMode = crMode
         }
     }
 

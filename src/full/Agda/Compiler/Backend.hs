@@ -46,7 +46,7 @@ import Agda.TypeChecking.Pretty as P
 
 import Agda.Interaction.Options
 import Agda.Interaction.FindFile
-import Agda.Interaction.Imports as CheckResult (CheckResult(CheckResult), crInterface, crWarnings)
+import Agda.Interaction.Imports as CheckResult (CheckResult(CheckResult), crInterface, crWarnings, crMode)
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.FileName

@@ -207,10 +207,10 @@ runAgdaWithOptions generateHTML interactor progName opts = do
 
           -- An interface is only generated if the mode is
           -- Imp.TypeCheck and there are no warnings.
-          result <- case (mode, crWarnings checkResult) of
-            (Imp.ScopeCheck, _)  -> return Nothing
-            (_, [])              -> return $ Just checkResult
-            (_, ws@(_:_))        ->
+          result <- case (crMode checkResult, crWarnings checkResult) of
+            (ModuleScopeChecked, _) -> return Nothing
+            (_, [])                 -> return $ Just checkResult
+            (_, ws@(_:_))           ->
               ifNotNullM (applyFlagsToTCWarnings ws) {-then-} (typeError . NonFatalErrors) {-else-} $ return Nothing
 
           let i = crInterface checkResult
