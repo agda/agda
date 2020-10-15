@@ -56,7 +56,7 @@ import Agda.TypeChecking.Monad
   , TCM
   )
 
-import Agda.Utils.FileName (filePath, AbsolutePath, mkAbsolute)
+import Agda.Utils.FileName (AbsolutePath, filePath, mkAbsolute)
 import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.Impossible
@@ -647,9 +647,13 @@ defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
 data LaTeXOptions = LaTeXOptions
-  { latexOptOutDir        :: FilePath
-  , latexOptSourceFile    :: AbsolutePath
-  , latexOptCountClusters :: Bool
+  { latexOptOutDir         :: FilePath
+  , latexOptSourceFileName :: Maybe AbsolutePath
+    -- ^ The parser uses a @Position@ which includes a source filename for
+    -- error reporting and such. We don't actually get the source filename
+    -- with an @Interface@, and it isn't necessary to look it up.
+    -- This is a "nice-to-have" parameter.
+  , latexOptCountClusters  :: Bool
     -- ^ Count extended grapheme clusters rather than code points when
     -- generating LaTeX.
   }
@@ -691,9 +695,9 @@ getLaTeXOptionsFromTCM i = do
         then filePath (projectRoot sourceFile moduleName) </> latexDir
         else latexDir
   return LaTeXOptions
-    { latexOptOutDir        = outDir
-    , latexOptSourceFile    = sourceFile
-    , latexOptCountClusters = countClusters
+    { latexOptOutDir         = outDir
+    , latexOptSourceFileName = Just sourceFile
+    , latexOptCountClusters  = countClusters
     }
 
 -- | Create the common base output directory and check for/install the style file.
@@ -718,11 +722,10 @@ generateLaTeXIO :: (MonadLogLaTeX m, MonadIO m) => LaTeXOptions -> Interface -> 
 generateLaTeXIO opts i = do
   let textWidthEstimator = getTextWidthEstimator (latexOptCountClusters opts)
   let baseDir = latexOptOutDir opts
-  let sourceFile = latexOptSourceFile opts
   let outPath = baseDir </> (latexOutRelativeFilePath $ toTopLevelModuleName $ iModuleName i)
   latex <- E.encodeUtf8 <$> toLaTeX
               (emptyEnv textWidthEstimator)
-              (mkAbsolute $ filePath sourceFile)
+              (latexOptSourceFileName opts)
               (iSource i)
               (iHighlighting i)
   liftIO $ do
@@ -745,7 +748,7 @@ groupByFst =
 toLaTeX
   :: MonadLogLaTeX m
   => Env
-  -> AbsolutePath
+  -> Maybe AbsolutePath
   -> L.Text
   -> HighlightingInfo
   -> m L.Text
@@ -802,7 +805,7 @@ toLaTeX env path source hi =
   . zipWith (\pos (role, char) -> (role, (IntMap.lookup pos infoMap, char)))
             [1..] . -- Add position in file to each character.
               -- Map each character to its role
-              atomizeLayers . literateTeX (startPos (Just path))
+              atomizeLayers . literateTeX (startPos path)
 
   $ L.unpack source
   where
