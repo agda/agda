@@ -223,13 +223,16 @@ ghcPreModule
   :: GHCCompileEnv
   -> IsMain      -- ^ Are we looking at the main module?
   -> ModuleName
-  -> FilePath    -- ^ Path to the @.agdai@ file.
+  -> Maybe FilePath    -- ^ Path to the @.agdai@ file.
   -> TCM (Recompile GHCModuleEnv GHCModule)
                  -- ^ Could we confirm the existence of a main function?
-ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
+ghcPreModule cenv isMain m mifile = ifM uptodate noComp yesComp
     `runReaderT` GHCModuleEnv cenv (HsModuleEnv m (isMain == IsMain))
   where
-    uptodate = liftIO =<< isNewerThan <$> curOutFile <*> pure ifile
+    uptodate = case mifile of
+      Nothing -> pure False
+      Just ifile -> liftIO =<< isNewerThan <$> curOutFile <*> pure ifile
+    ifileDesc = fromMaybe "(memory)" mifile
 
     noComp = do
       reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . prettyShow . A.mnameToConcrete =<< curMName
@@ -242,7 +245,7 @@ ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
     yesComp = do
       m   <- prettyShow . A.mnameToConcrete <$> curMName
       out <- curOutFile
-      reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
+      reportSLn "compile.ghc" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
       asks Recompile
 
 ghcPostModule
