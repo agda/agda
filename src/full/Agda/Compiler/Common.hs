@@ -80,14 +80,11 @@ curIF = do
   name <- curMName
   maybe __IMPOSSIBLE__ miInterface <$> getVisitedModule (toTopLevelModuleName name)
 
-curSig :: ReadTCState m => m Signature
-curSig = iSignature <$> curIF
-
 curMName :: ReadTCState m => m ModuleName
 curMName = fromMaybe __IMPOSSIBLE__ <$> useTC stCurrentModule
 
-curDefs :: TCM Definitions
-curDefs = fmap (HMap.filter (not . defNoCompilation)) $ (^. sigDefinitions) <$> curSig
+curDefs :: ReadTCState m => m Definitions
+curDefs = HMap.filter (not . defNoCompilation) . (^. sigDefinitions) . iSignature <$> curIF
 
 sortDefs :: Definitions -> [(QName, Definition)]
 sortDefs defs =
