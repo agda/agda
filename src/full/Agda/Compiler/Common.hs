@@ -77,21 +77,21 @@ setInterface i = do
 
 curIF :: ReadTCState m => m Interface
 curIF = do
-  mName <- useTC stCurrentModule
-  case mName of
-    Nothing   -> __IMPOSSIBLE__
-    Just name -> do
-      mm <- getVisitedModule (toTopLevelModuleName name)
-      case mm of
-        Nothing -> __IMPOSSIBLE__
-        Just mi -> return $ miInterface mi
+  name <- curMName
+  mm <- getVisitedModule (toTopLevelModuleName name)
+  case mm of
+    Nothing -> __IMPOSSIBLE__
+    Just mi -> return $ miInterface mi
 
-
-curSig :: TCM Signature
+curSig :: ReadTCState m => m Signature
 curSig = iSignature <$> curIF
 
-curMName :: TCM ModuleName
-curMName = sigMName <$> curSig
+curMName :: ReadTCState m => m ModuleName
+curMName = do
+  mName <- useTC stCurrentModule
+  case mName of
+    Nothing -> __IMPOSSIBLE__
+    Just name -> return name
 
 curDefs :: TCM Definitions
 curDefs = fmap (HMap.filter (not . defNoCompilation)) $ (^. sigDefinitions) <$> curSig
@@ -103,12 +103,6 @@ sortDefs defs =
   -- in an Int (see Issue 1900).
   List.sortBy (compare `on` fst) $
   HMap.toList defs
-
-sigMName :: Signature -> ModuleName
-sigMName sig = case Map.keys (sig ^. sigSections) of
-  []    -> __IMPOSSIBLE__
-  m : _ -> m
-
 
 compileDir :: HasOptions m => m FilePath
 compileDir = do
