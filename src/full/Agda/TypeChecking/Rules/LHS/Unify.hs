@@ -125,6 +125,7 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Writer (WriterT(..), MonadWriter(..))
+import Control.Monad.Except
 
 import Data.Semigroup hiding (Arg)
 import qualified Data.List as List
@@ -160,6 +161,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Benchmark
+import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -214,7 +216,7 @@ unifyIndices tel flex a us vs =
     unifyIndices' tel flex a us vs
 
 unifyIndices'
-  :: PureTCM m
+  :: (PureTCM m)
   => Telescope     -- ^ @gamma@
   -> FlexibleVars  -- ^ @flex@
   -> Type          -- ^ @a@
@@ -1215,7 +1217,10 @@ solutionStep retry s
   -- and thus, in quantity 0, that get into terms using the unifier, and there are checked to be
   -- non-erased, i.e., have quantity ω.
   -- Ulf, 2019-12-13. We still do it though.
-  usable <- addContext (varTel s) $ usableMod mod u
+  -- Andrea, 2020-10-15: It looks at meta instantiations now.
+  eusable <- addContext (varTel s) $ runExceptT $ usableMod mod u
+  caseEitherM (return eusable) (return . UnifyBlocked) $ \ usable -> do
+
   reportSDoc "tc.lhs.unify" 45 $ "Modality ok: " <+> prettyTCM usable
   unless usable $ reportSLn "tc.lhs.unify" 65 $ "Rejected solution: " ++ show u
 
