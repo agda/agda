@@ -43,7 +43,7 @@ import Agda.Utils.Impossible
 
 data ReplEnv = ReplEnv
     { replSetupAction     :: TCM ()
-    , replTypeCheckAction :: AbsolutePath -> TCM (Maybe CheckResult)
+    , replTypeCheckAction :: AbsolutePath -> TCM CheckResult
     }
 
 data ReplState = ReplState
@@ -58,7 +58,7 @@ newtype ReplM a = ReplM { unReplM :: ReaderT ReplEnv (StateT ReplState IM) a }
     , MonadReader ReplEnv, MonadState ReplState
     )
 
-runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM (Maybe CheckResult)) -> ReplM () -> TCM ()
+runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) -> ReplM () -> TCM ()
 runReplM initialFile setup checkInterface
     = runIM
     . flip evalStateT (ReplState initialFile)
@@ -104,7 +104,7 @@ interaction prompt cmds eval = loop
                     liftIO $ putStrLn s
                     loop
 
-runInteractionLoop :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM (Maybe CheckResult)) -> TCM ()
+runInteractionLoop :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) -> TCM ()
 runInteractionLoop initialFile setup check = runReplM initialFile setup check interactionLoop
 
 replSetup :: ReplM ()
@@ -113,9 +113,9 @@ replSetup = do
     liftIO $ putStr splashScreen
 
 checkCurrentFile :: ReplM (Maybe CheckResult)
-checkCurrentFile = caseMaybeM (gets currentFile) (return Nothing) checkFile
+checkCurrentFile = caseMaybeM (gets currentFile) (return Nothing) (fmap Just . checkFile)
 
-checkFile :: AbsolutePath -> ReplM (Maybe CheckResult)
+checkFile :: AbsolutePath -> ReplM CheckResult
 checkFile file = liftTCM . ($ file) =<< asks replTypeCheckAction
 
 -- | The interaction loop.
@@ -128,12 +128,6 @@ interactionLoop = do
     where
         reload :: ReplM () = do
             checked <- checkCurrentFile
-            -- Note that mi is Nothing if (1) there is no input file or
-            -- (2) the file type checked with unsolved metas and
-            -- --allow-unsolved-metas was used. In the latter case the
-            -- behaviour of agda -I may be surprising. If agda -I ever
-            -- becomes properly supported again, then this behaviour
-            -- should perhaps be fixed.
             liftTCM $ setScope $ maybe emptyScopeInfo iInsideScope (crInterface <$> checked)
           `catchError` \e -> do
             s <- prettyError e
