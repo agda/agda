@@ -94,7 +94,12 @@ GHC_OPTS = "+RTS $(GHC_RTS_OPTS) -RTS"
 CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 STACK_INSTALL_OPTS = --flag Agda:enable-cluster-counting --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 
-CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
+# Options for building Agda's dependencies.
+CABAL_INSTALL_DEP_OPTS = --only-dependencies --disable-library-profiling \
+                         $(CABAL_INSTALL_OPTS)
+# Options for building the Agda exectutable.
+# -j1 so that cabal will print built progress to stdout.
+CABAL_INSTALL_BIN_OPTS = -j1 --disable-library-profiling \
                          $(CABAL_INSTALL_OPTS)
 STACK_INSTALL_BIN_OPTS = --no-library-profiling \
                          $(STACK_INSTALL_OPTS)
@@ -126,6 +131,7 @@ else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "===================== Installing using Cabal with test suites ============"
+	time $(CABAL_INSTALL) $(CABAL_INSTALL_DEP_OPTS)
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
@@ -140,6 +146,7 @@ else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "============= Installing using Cabal with -O0 and test suites ============"
+	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_DEP_OPTS)
 	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
@@ -151,6 +158,7 @@ endif
 # 	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 # else
 # 	@echo "===================== Installing using Cabal ============================="
+# 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_DEP_OPTS)
 # 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 # endif
 
@@ -164,6 +172,7 @@ ifdef HAS_STACK
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
 else
 	@echo "===================== Installing using Cabal with -O0 ===================="
+	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_DEP_OPTS) --ghc-options=-O0 --program-suffix=-quicker
 	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
 endif
 
@@ -203,10 +212,16 @@ install-prof-bin : ensure-hash-is-correct
 install-debug : ensure-hash-is-correct
 	$(CABAL_INSTALL) --disable-library-profiling \
         -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
-        $(CABAL_INSTALL_OPTS)
+        $(CABAL_INSTALL_DEP_OPTS)
+	$(CABAL_INSTALL) --disable-library-profiling \
+        -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
+        $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : debug-install-quick ## Install Agda (compiled with -O0) with debug enabled via cabal.
 debug-install-quick :
+	$(QUICK_CABAL_INSTALL) --disable-library-profiling \
+        -fdebug --program-suffix=-debug-quick --builddir=$(BUILD_DIR)-debug-quick \
+        $(CABAL_INSTALL_DEP_OPTS) --ghc-options=-O0
 	$(QUICK_CABAL_INSTALL) --disable-library-profiling \
         -fdebug --program-suffix=-debug-quick --builddir=$(BUILD_DIR)-debug-quick \
         $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
