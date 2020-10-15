@@ -1072,19 +1072,19 @@ inferOrCheckProjAppToKnownPrincipalArg
      -- ^ The type-checked expression and its type (if successful).
 inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
   let cmp = caseMaybe mt CmpEq fst
-      postpone b vargs ta = do
+      postpone b patm = do
         tc <- caseMaybe mt newTypeMeta_ (return . snd)
-        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta (PrincipalArgTypeMetas vargs ta)) b
+        v <- postponeTypeCheckingProblem (CheckProjAppToKnownPrincipalArg cmp e o ds args tc k v0 ta patm) b
         return (v, tc, NotCheckedTarget)
   -- ta should be a record type (after introducing the hidden args in v0)
-  (vargs, ta) <- caseMaybe mpatm
-    -- create fresh metas
-    (implicitArgs (-1) (not . visible) ta)
+  PrincipalArgTypeMetas vargs ta <- case mpatm of
     -- keep using the previously created metas, when picking up a postponed
     -- problem - see #4924
-    (\ patm -> return (patmMetas patm, patmRemainder patm))
+    Just patm -> return patm
+    -- create fresh metas
+    Nothing -> uncurry PrincipalArgTypeMetas <$> implicitArgs (-1) (not . visible) ta
   let v = v0 `apply` vargs
-  ifBlocked ta (\ m _ -> postpone m vargs ta) {-else-} $ \ _ ta -> do
+  ifBlocked ta (\ m _ -> postpone m (PrincipalArgTypeMetas vargs ta)) {-else-} $ \ _ ta -> do
   caseMaybeM (isRecordType ta) (refuseProjNotRecordType ds) $ \ (q, _pars0, _) -> do
 
       -- try to project it with all of the possible projections
