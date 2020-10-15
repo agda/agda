@@ -204,6 +204,11 @@ updateProblemEqs eqs = do
         contype <- getFullyAppliedConType c =<< reduce (unDom a)
         caseMaybe contype (return [eq]) $ \((d,_,pars),b) -> do
         TelV ctel _ <- telViewPath b
+
+        -- Andrea 15/10/2020: propagate modality to constructor arguments
+        let updMod = composeModality (getModality a)
+        ctel <- return $ mapModality updMod <$> ctel
+
         let bs = instTel ctel (map unArg vs)
 
         p <- expandLitPattern p
