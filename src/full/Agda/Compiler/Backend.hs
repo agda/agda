@@ -9,6 +9,7 @@ module Agda.Compiler.Backend
   , toTreeless
   , module Agda.Syntax.Treeless
   , module Agda.TypeChecking.Monad
+  , module CheckResult
   , activeBackendMayEraseType
     -- For Agda.Main
   , backendInteraction
@@ -45,6 +46,7 @@ import Agda.TypeChecking.Pretty as P
 
 import Agda.Interaction.Options
 import Agda.Interaction.FindFile
+import Agda.Interaction.Imports as CheckResult (CheckResult(CheckResult), crInterface, crWarnings)
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.FileName
@@ -102,9 +104,9 @@ data Recompile menv mod = Recompile menv | Skip mod
 
 -- | Call the 'compilerMain' function of the given backend.
 
-callBackend :: String -> IsMain -> Interface -> TCM ()
-callBackend name iMain i = lookupBackend name >>= \case
-  Just (Backend b) -> compilerMain b iMain i
+callBackend :: String -> IsMain -> CheckResult -> TCM ()
+callBackend name iMain checkResult = lookupBackend name >>= \case
+  Just (Backend b) -> compilerMain b iMain checkResult
   Nothing -> do
     backends <- useTC stBackends
     genericError $
@@ -178,10 +180,10 @@ parseBackendOptions backends argv opts0 =
       opts <- checkOpts opts
       return (forgetAll forgetOpts backends, opts)
 
-backendInteraction :: AbsolutePath -> [Backend] -> TCM () -> (AbsolutePath -> TCM (Maybe Interface)) -> TCM ()
+backendInteraction :: AbsolutePath -> [Backend] -> TCM () -> (AbsolutePath -> TCM (Maybe CheckResult)) -> TCM ()
 backendInteraction mainFile backends setup check = do
   setup
-  mi <- check mainFile
+  mcheckResult <- check mainFile
 
   -- reset warnings
   stTCWarnings `setTCLens` []
@@ -189,17 +191,17 @@ backendInteraction mainFile backends setup check = do
   noMain <- optCompileNoMain <$> pragmaOptions
   let isMain | noMain    = NotMain
              | otherwise = IsMain
-  case mi of
+  case mcheckResult of
     Nothing -> genericError $ "You can only compile modules without unsolved metavariables."
-    Just i  -> sequence_ [ compilerMain backend isMain i | Backend backend <- backends ]
+    Just checkResult -> sequence_ [ compilerMain backend isMain checkResult | Backend backend <- backends ]
 
   -- print warnings that might have accumulated during compilation
   ws <- filter (not . isUnsolvedWarning . tcWarning) <$> getAllWarnings AllWarnings
   unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
 
-compilerMain :: Backend' opts env menv mod def -> IsMain -> Interface -> TCM ()
-compilerMain backend isMain0 i = inCompilerEnv i $ do
+compilerMain :: Backend' opts env menv mod def -> IsMain -> CheckResult -> TCM ()
+compilerMain backend isMain0 checkResult = inCompilerEnv checkResult $ do
   locallyTC eActiveBackendName (const $ Just $ backendName backend) $ do
     onlyScoping <- optOnlyScopeChecking <$> commandLineOptions
     when (not (scopeCheckingSuffices backend) && onlyScoping) $
@@ -207,6 +209,7 @@ compilerMain backend isMain0 i = inCompilerEnv i $ do
         "The --only-scope-checking flag cannot be combined with " ++
         backendName backend ++ "."
 
+    let i = crInterface checkResult
     -- Andreas, 2017-08-23, issue #2714
     -- If the backend is invoked from Emacs, we can only get the --no-main
     -- pragma option now, coming from the interface file.

@@ -502,15 +502,16 @@ interpret (Cmd_load m argv) =
   mode = Imp.TypeCheck TopLevelInteraction -- do not reset InteractionMode
 
 interpret (Cmd_compile backend file argv) =
-  cmd_load' file argv allowUnsolved mode $ \ (i, mw) -> do
-    mw' <- lift $ applyFlagsToTCWarnings mw
-    case mw' of
+  cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
+    mw <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
+    case mw of
       [] -> do
+        let i = crInterface checkResult
         lift $ case backend of
           LaTeX                    -> LaTeX.generateLaTeX i
           QuickLaTeX               -> LaTeX.generateLaTeX i
-          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
-          OtherBackend b           -> callBackend b IsMain  i
+          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
+          OtherBackend b           -> callBackend b IsMain checkResult
         display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
       w@(_:_) -> display_info $ Info_Error $ Info_CompilationError w
   where
@@ -876,7 +877,7 @@ cmd_load'
                --   Providing 'TypeCheck RegularInteraction' here
                --   will reset 'InteractionMode' accordingly.
                --   Otherwise, only if different file from last time.
-  -> ((Interface, [TCWarning]) -> CommandM a)
+  -> (CheckResult -> CommandM a)
                -- ^ Continuation after successful loading.
   -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do

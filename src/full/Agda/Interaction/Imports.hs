@@ -5,6 +5,12 @@
 -}
 module Agda.Interaction.Imports
   ( Mode(ScopeCheck, TypeCheck)
+
+  , CheckResult (CheckResult)
+  , crModuleInfo
+  , crInterface
+  , crWarnings
+
   , SourceInfo(..)
   , scopeCheckImport
   , sourceInfo
@@ -338,6 +344,22 @@ alreadyVisited x isMain currentOptions getModule =
     return mi
 
 
+-- | The result and associated parameters of a type-checked file,
+--   when invoked directly via interaction or a backend.
+--   Note that the constructor is not exported.
+
+data CheckResult = CheckResult' { crModuleInfo :: ModuleInfo }
+
+-- | Flattened unidirectional pattern for 'CheckResult' for destructuring inside
+--   the 'ModuleInfo' field.
+pattern CheckResult :: Interface -> [TCWarning] -> CheckResult
+pattern CheckResult { crInterface, crWarnings } <- CheckResult'
+    { crModuleInfo = ModuleInfo
+        { miInterface = crInterface
+        , miWarnings = crWarnings
+        }
+    }
+
 -- | Type checks the main file of the interaction.
 --   This could be the file loaded in the interacting editor (emacs),
 --   or the file passed on the command line.
@@ -357,7 +379,7 @@ typeCheckMain
      -- ^ Should the file be type-checked, or only scope-checked?
   -> SourceInfo
      -- ^ Information about the source code.
-  -> TCM (Interface, [TCWarning])
+  -> TCM CheckResult
 typeCheckMain mode si = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
@@ -390,7 +412,7 @@ typeCheckMain mode si = do
 
   stCurrentModule `setTCLens` Just (iModuleName (miInterface mi))
 
-  return (miInterface mi, miWarnings mi)
+  return $ CheckResult' mi
   where
   checkModuleName' m f =
     -- Andreas, 2016-07-11, issue 2092

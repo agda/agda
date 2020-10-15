@@ -97,7 +97,7 @@ type Interactor a
     -- This is separated so that errors can be reported in the appropriate format.
     = TCM ()
     -- Type-checking action
-    -> (AbsolutePath -> TCM (Maybe Interface))
+    -> (AbsolutePath -> TCM (Maybe CheckResult))
     -- Main transformed action.
     -> TCM a
 
@@ -192,7 +192,7 @@ runAgdaWithOptions generateHTML interactor progName opts = do
       opts <- addTrustedExecutables opts
       setCommandLineOptions opts
 
-    checkFile :: AbsolutePath -> TCM (Maybe Interface)
+    checkFile :: AbsolutePath -> TCM (Maybe CheckResult)
     checkFile inputFile = do
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).
@@ -203,16 +203,17 @@ runAgdaWithOptions generateHTML interactor progName opts = do
                      then Imp.ScopeCheck
                      else Imp.TypeCheck RegularInteraction
 
-          (i, mw) <- Imp.typeCheckMain mode =<< Imp.sourceInfo (SourceFile inputFile)
+          checkResult <- Imp.typeCheckMain mode =<< Imp.sourceInfo (SourceFile inputFile)
 
           -- An interface is only generated if the mode is
           -- Imp.TypeCheck and there are no warnings.
-          result <- case (mode, mw) of
+          result <- case (mode, crWarnings checkResult) of
             (Imp.ScopeCheck, _)  -> return Nothing
-            (_, [])              -> return $ Just i
+            (_, [])              -> return $ Just checkResult
             (_, ws@(_:_))        ->
               ifNotNullM (applyFlagsToTCWarnings ws) {-then-} (typeError . NonFatalErrors) {-else-} $ return Nothing
 
+          let i = crInterface checkResult
           reportSDoc "main" 50 $ pretty i
 
           whenM (optGenerateHTML <$> commandLineOptions) $

@@ -21,6 +21,7 @@ import Agda.Syntax.Internal as I
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
+import Agda.Interaction.Imports ( CheckResult, crInterface )
 
 import Agda.TypeChecking.Monad
 
@@ -109,8 +110,10 @@ repl subs = go where
 
 
 -- | Sets up the compilation environment.
-inCompilerEnv :: Interface -> TCM a -> TCM a
-inCompilerEnv mainI cont = do
+inCompilerEnv :: CheckResult -> TCM a -> TCM a
+inCompilerEnv checkResult cont = do
+  let mainI = crInterface checkResult
+
   -- Preserve the state (the compiler modifies the state).
   -- Andreas, 2014-03-23 But we might want to collect Benchmark info,
   -- so use localTCState.
