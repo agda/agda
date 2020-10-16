@@ -425,7 +425,7 @@ instance Apply Clause where
               where v' = raise (n - 1) v
             DotP{}  -> mkSub tm n ps vs
             ConP c _ ps' -> mkSub tm n (ps' ++ ps) (projections c v ++ vs)
-            DefP o q ps' -> mkSub tm n (ps' ++ ps) vs
+            DefP{}  -> __IMPOSSIBLE__
             LitP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
             IApplyP _ _ _ (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
@@ -448,9 +448,9 @@ instance Apply Clause where
             VarP _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
             DotP{}              -> newTel n tel ps vs
             ConP c _ ps'        -> newTel n tel (ps' ++ ps) (projections c v ++ vs)
-            DefP _ q ps'        -> newTel n tel (ps' ++ ps) vs
-            LitP{}              -> __IMPOSSIBLE__
-            ProjP{}             -> __IMPOSSIBLE__
+            DefP{}  -> __IMPOSSIBLE__
+            LitP{}  -> __IMPOSSIBLE__
+            ProjP{} -> __IMPOSSIBLE__
             IApplyP _ _ _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
         newTel _ tel _ _ = __IMPOSSIBLE__
 
