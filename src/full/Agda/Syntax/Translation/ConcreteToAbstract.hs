@@ -155,6 +155,7 @@ noDotorEqPattern err = dot
       A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
       A.WithP i p            -> A.WithP i <$> dot p
+      A.AnnP i a p           -> genericError err   -- TODO: should this be allowed?
 --UNUSED Liang-Ting Chen 2019-07-16
 ---- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
 --noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
@@ -1625,6 +1626,7 @@ instance ToAbstract LetDef where
             A.RecP _ fs          -> mapM_ (checkValidLetPattern . _exprFieldA) fs
             A.EqualP{}           -> no
             A.WithP{}            -> no
+            A.AnnP _ _ p         -> checkValidLetPattern p
           where
           yes = return ()
           no  = genericError "Not a valid let pattern"
@@ -2762,6 +2764,7 @@ applyAPattern p0 p ps1 = do
       A.RecP{}    -> failure
       A.EqualP{}  -> failure
       A.WithP{}   -> failure
+      A.AnnP{}    -> failure
   where
     failure = typeError $ InvalidPattern p0
 
