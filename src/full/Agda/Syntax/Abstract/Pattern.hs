@@ -63,6 +63,7 @@ instance MapNamedArgPattern NAP where
       AsP i x p0         -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
       -- WithP: like AsP
       WithP i p0         -> f $ updateNamedArg (WithP i) $ mapNamedArgPattern f $ setNamedArg p p0
+      AnnP i a p0        -> f $ updateNamedArg (AnnP i a) $ mapNamedArgPattern f $ setNamedArg p p0
 
 instance MapNamedArgPattern a => MapNamedArgPattern [a]                  where
 instance MapNamedArgPattern a => MapNamedArgPattern (FieldAssignment' a) where
@@ -148,6 +149,7 @@ instance APatternLike (Pattern' a) where
       AbsurdP _          -> mempty
       LitP _ _           -> mempty
       EqualP _ _         -> mempty
+      AnnP _ _ p         -> foldrAPattern f p
 
   traverseAPatternM pre post = pre >=> recurse >=> post
     where
@@ -167,6 +169,7 @@ instance APatternLike (Pattern' a) where
       A.RecP        i    ps -> A.RecP        i    <$> traverseAPatternM pre post ps
       A.PatternSynP i x  ps -> A.PatternSynP i x  <$> traverseAPatternM pre post ps
       A.WithP       i p     -> A.WithP       i    <$> traverseAPatternM pre post p
+      A.AnnP        i a  p  -> A.AnnP        i a  <$> traverseAPatternM pre post p
 
 instance APatternLike a => APatternLike (Arg a) where
   type ADotT (Arg a) = ADotT a
@@ -219,6 +222,7 @@ patternVars p = foldAPattern f p `appEndo` []
     A.EqualP      {} -> mempty
     A.PatternSynP {} -> mempty
     A.WithP _ _      -> mempty
+    A.AnnP        {} -> mempty
 
 -- | Check if a pattern contains a specific (sub)pattern.
 
@@ -273,6 +277,7 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   VarP x            -> fromMaybe p $ lookup (A.unBind x) s
   DotP i e          -> DotP i $ subE e
   EqualP i es       -> EqualP i $ map (subE *** subE) es
+  AnnP i a p        -> AnnP i (subE a) p
   -- No action on the other patterns (besides the recursion):
   ConP _ _ _        -> p
   RecP _ _          -> p

@@ -68,7 +68,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Telescope.Path
 import Agda.TypeChecking.Primitive hiding (Nat)
 
-import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Unify
@@ -129,6 +129,7 @@ instance IsFlexiblePattern A.Pattern where
         ifM (isNothing <$> isRecordConstructor c) (return OtherFlex) {-else-}
             (maybeFlexiblePattern qs)
       A.LitP{}  -> return OtherFlex
+      A.AnnP _ _ p -> maybeFlexiblePattern p
       _ -> mzero
 
 instance IsFlexiblePattern (I.Pattern' a) where
@@ -197,6 +198,10 @@ updateProblemEqs eqs = do
     update eq@(ProblemEq p@(A.AsP info x p') v a) =
       (ProblemEq (A.VarP x) v a :) <$> update (ProblemEq p' v a)
 
+    update eq@(ProblemEq p@(A.AnnP _ _ A.WildP{}) v a) = return [eq]
+    update eq@(ProblemEq p@(A.AnnP info ty p') v a) =
+      (ProblemEq (A.AnnP info ty (A.WildP patNoRange)) v a :) <$> update (ProblemEq p' v a)
+
     update eq@(ProblemEq p v a) = reduce v >>= constructorForm >>= \case
       Con c ci es -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -214,6 +219,7 @@ updateProblemEqs eqs = do
         p <- expandLitPattern p
         case p of
           A.AsP{} -> __IMPOSSIBLE__
+          A.AnnP{} -> __IMPOSSIBLE__
           A.ConP cpi ambC ps -> do
             (c',_) <- disambiguateConstructor ambC d pars
 
@@ -297,7 +303,7 @@ isSolvedProblem problem = null (problem ^. problemRestPats) &&
 --   (Includes the 'problemRest').
 problemAllVariables :: Problem a -> Bool
 problemAllVariables problem =
-    all (isSolved . snd . asView) $
+    all isSolved $
       map namedArg (problem ^. problemRestPats) ++ problemInPats problem
   where
     -- need further splitting:
@@ -309,10 +315,12 @@ problemAllVariables problem =
     isSolved A.WildP{}       = True
     isSolved A.DotP{}        = True
     isSolved A.AbsurdP{}     = True
+    -- recursive cases
+    isSolved (A.AsP _ _ p)   = isSolved p
+    isSolved (A.AnnP _ _ p)  = isSolved p
     -- impossible:
     isSolved A.ProjP{}       = __IMPOSSIBLE__
     isSolved A.DefP{}        = __IMPOSSIBLE__
-    isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
     isSolved A.PatternSynP{} = __IMPOSSIBLE__  -- expanded before
     isSolved A.EqualP{}      = False -- __IMPOSSIBLE__
     isSolved A.WithP{}       = __IMPOSSIBLE__
@@ -325,17 +333,18 @@ problemAllVariables problem =
 -- Precondition: The problem has to be solved.
 
 noShadowingOfConstructors :: ProblemEq -> TCM ()
-noShadowingOfConstructors (ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) =
-  case snd $ asView p of
+noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El _ a})) =
+  case p of
    A.WildP       {} -> return ()
    A.AbsurdP     {} -> return ()
    A.DotP        {} -> return ()
    A.EqualP      {} -> return ()
+   A.AsP _ _ p      -> noShadowingOfConstructors $ problem { problemInPat = p }
+   A.AnnP _ _ p     -> noShadowingOfConstructors $ problem { problemInPat = p }
    A.ConP        {} -> __IMPOSSIBLE__
    A.RecP        {} -> __IMPOSSIBLE__
    A.ProjP       {} -> __IMPOSSIBLE__
    A.DefP        {} -> __IMPOSSIBLE__
-   A.AsP         {} -> __IMPOSSIBLE__ -- removed by asView
    A.LitP        {} -> __IMPOSSIBLE__
    A.PatternSynP {} -> __IMPOSSIBLE__
    A.WithP       {} -> __IMPOSSIBLE__
@@ -414,6 +423,16 @@ checkDotPattern (Dot e v (Dom{domInfo = info, unDom = a})) =
 checkAbsurdPattern :: AbsurdPattern -> TCM ()
 checkAbsurdPattern (Absurd r a) = ensureEmptyType r a
 
+checkAnnotationPattern :: AnnotationPattern -> TCM ()
+checkAnnotationPattern (Ann t a) = do
+  reportSDoc "tc.lhs.ann" 15 $
+    sep [ "checking type annotation in pattern"
+        , nest 2 $ prettyA t
+        , nest 2 $ "=" <+> prettyTCM a
+        ]
+  b <- isType_ t
+  equalType a b
+
 -- | After splitting is complete, we transfer the origins
 --   We also transfer the locations of absurd patterns, since these haven't
 --   been introduced yet in the internal pattern.
@@ -449,26 +468,26 @@ transferOrigins ps qs = do
     transfer :: A.Pattern -> DeBruijnPattern -> TCM DeBruijnPattern
     transfer p q = case (asView p , q) of
 
-      ((asB , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , anns , A.ConP pi _ ps) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let cpi = ConPatternInfo (PatternInfo PatOCon asB) r ft mb l
         ConP c cpi <$> transfers ps qs
 
-      ((asB , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , anns , A.RecP pi fs) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let Def d _  = unEl $ unArg $ fromMaybe __IMPOSSIBLE__ mb
             axs = map (nameConcrete . qnameName . unArg) (conFields c) `withArgsFrom` qs
             cpi = ConPatternInfo (PatternInfo PatORec asB) r ft mb l
         ps <- insertMissingFieldsFail d (const $ A.WildP patNoRange) fs axs
         ConP c cpi <$> transfers ps qs
 
-      ((asB , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
+      ((asB , anns , p) , ConP c (ConPatternInfo i r ft mb l) qs) -> do
         let cpi = ConPatternInfo (PatternInfo (patOrig p) asB) r ft mb l
         return $ ConP c cpi qs
 
-      ((asB , p) , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) asB) x
+      ((asB , anns , p) , VarP _ x) -> return $ VarP (PatternInfo (patOrig p) asB) x
 
-      ((asB , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
+      ((asB , anns , p) , DotP _ u) -> return $ DotP (PatternInfo (patOrig p) asB) u
 
-      ((asB , p) , LitP _ l) -> return $ LitP (PatternInfo (patOrig p) asB) l
+      ((asB , anns , p) , LitP _ l) -> return $ LitP (PatternInfo (patOrig p) asB) l
 
       _ -> return q
 
@@ -486,6 +505,7 @@ transferOrigins ps qs = do
     patOrig A.DefP{}        = __IMPOSSIBLE__
     patOrig A.PatternSynP{} = __IMPOSSIBLE__
     patOrig A.WithP{}       = __IMPOSSIBLE__
+    patOrig A.AnnP{}        = __IMPOSSIBLE__
 
     matchingArgs :: NamedArg A.Pattern -> NamedArg DeBruijnPattern -> Bool
     matchingArgs p q
@@ -537,6 +557,9 @@ checkPatternLinearity eqs = do
               check (Map.insert x (u,unDom a) vars) eqs
         A.AsP _ x p ->
           check vars $ [ProblemEq (A.VarP x) u a, ProblemEq p u a] ++ eqs
+        A.AnnP _ _ A.WildP{} -> continue
+        A.AnnP r t p -> (ProblemEq (A.AnnP r t (A.WildP patNoRange)) u a:) <$>
+          check vars (ProblemEq p u a : eqs)
         A.WildP{}       -> continue
         A.DotP{}        -> continue
         A.AbsurdP{}     -> continue
@@ -725,7 +748,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         eqs <- addContext delta $ checkPatternLinearity eqs
 
-        leftovers@(LeftoverPatterns patVars asb0 dots absurds otherPats)
+        leftovers@(LeftoverPatterns patVars asb0 dots absurds annps otherPats)
           <- addContext delta $ getLeftoverPatterns eqs
 
         reportSDoc "tc.lhs.leftover" 30 $ vcat
@@ -781,6 +804,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
             -- Check dot patterns
             mapM_ checkDotPattern dots
             mapM_ checkAbsurdPattern absurds
+            mapM_ checkAnnotationPattern annps
 
           -- Issue2303: don't bind asb' for the continuation (return in lhsResult instead)
           ret lhsResult
@@ -806,7 +830,7 @@ splitStrategy :: [ProblemEq] -> [ProblemEq]
 splitStrategy = filter shouldSplit
   where
     shouldSplit :: ProblemEq -> Bool
-    shouldSplit (ProblemEq p v a) = case snd $ asView p of
+    shouldSplit problem@(ProblemEq p v a) = case p of
       A.LitP{}    -> True
       A.RecP{}    -> True
       A.ConP{}    -> True
@@ -817,9 +841,11 @@ splitStrategy = filter shouldSplit
       A.DotP{}    -> False
       A.AbsurdP{} -> False
 
+      A.AsP _ _ p  -> shouldSplit $ problem { problemInPat = p }
+      A.AnnP _ _ p -> shouldSplit $ problem { problemInPat = p }
+
       A.ProjP{}       -> __IMPOSSIBLE__
       A.DefP{}        -> __IMPOSSIBLE__
-      A.AsP{}         -> __IMPOSSIBLE__
       A.PatternSynP{} -> __IMPOSSIBLE__
       A.WithP{}       -> __IMPOSSIBLE__
 
@@ -895,21 +921,23 @@ checkLHS mf = updateModality checkLHS_ where
           (delta1, tel'@(ExtendTel dom adelta2)) = splitTelescopeAt pos tel -- TODO:: tel' defined but not used
 
       p <- liftTCM $ expandLitPattern p
-      case snd $ asView p of
-        (A.LitP _ l)      -> splitLit delta1 dom adelta2 l
-        p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing
-        p@(A.ConP _ c ps) -> splitCon delta1 dom adelta2 p $ Just c
-        p@(A.EqualP _ ts) -> splitPartial delta1 dom adelta2 ts
+      let splitOnPat p = case p of
+            (A.LitP _ l)      -> splitLit delta1 dom adelta2 l
+            p@A.RecP{}        -> splitCon delta1 dom adelta2 p Nothing
+            p@(A.ConP _ c ps) -> splitCon delta1 dom adelta2 p $ Just c
+            p@(A.EqualP _ ts) -> splitPartial delta1 dom adelta2 ts
+            A.AsP _ _ p       -> splitOnPat p
+            A.AnnP _ _ p      -> splitOnPat p
 
-        A.VarP{}        -> __IMPOSSIBLE__
-        A.WildP{}       -> __IMPOSSIBLE__
-        A.DotP{}        -> __IMPOSSIBLE__
-        A.AbsurdP{}     -> __IMPOSSIBLE__
-        A.ProjP{}       -> __IMPOSSIBLE__
-        A.DefP{}        -> __IMPOSSIBLE__
-        A.AsP{}         -> __IMPOSSIBLE__
-        A.PatternSynP{} -> __IMPOSSIBLE__
-        A.WithP{}       -> __IMPOSSIBLE__
+            A.VarP{}        -> __IMPOSSIBLE__
+            A.WildP{}       -> __IMPOSSIBLE__
+            A.DotP{}        -> __IMPOSSIBLE__
+            A.AbsurdP{}     -> __IMPOSSIBLE__
+            A.ProjP{}       -> __IMPOSSIBLE__
+            A.DefP{}        -> __IMPOSSIBLE__
+            A.PatternSynP{} -> __IMPOSSIBLE__
+            A.WithP{}       -> __IMPOSSIBLE__
+      splitOnPat p
 
 
     splitRest :: NamedArg A.Pattern -> ExceptT TCErr tcm (LHSState a)

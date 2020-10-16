@@ -336,6 +336,8 @@ noDataDefParams = DataDefParams Set.empty []
 --      been bound.
 --    * User pattern is an absurd pattern:
 --      emptiness of the type will be checked after splitting is complete.
+--    * User pattern is an annotated wildcard:
+--      type annotation will be checked after splitting is complete.
 data ProblemEq = ProblemEq
   { problemInPat :: Pattern
   , problemInst  :: I.Term
@@ -488,6 +490,7 @@ data Pattern' e
   | RecP PatInfo [FieldAssignment' (Pattern' e)]
   | EqualP PatInfo [(e, e)]
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
+  | AnnP PatInfo e (Pattern' e) -- ^ Pattern with type annotation
   deriving (Data, Show, Functor, Foldable, Traversable, Eq)
 
 type NAPs e   = [NamedArg (Pattern' e)]
@@ -671,6 +674,7 @@ instance HasRange (Pattern' e) where
     getRange (RecP i _)          = getRange i
     getRange (EqualP i _)        = getRange i
     getRange (WithP i _)         = getRange i
+    getRange (AnnP i _ _)        = getRange i
 
 instance HasRange SpineLHS where
     getRange (SpineLHS i _ _)  = getRange i
@@ -717,6 +721,7 @@ instance SetRange (Pattern' a) where
     setRange r (RecP i as)          = RecP (PatRange r) as
     setRange r (EqualP _ es)        = EqualP (PatRange r) es
     setRange r (WithP i p)          = WithP (setRange r i) p
+    setRange r (AnnP i a p)         = AnnP (setRange r i) a p
 
 instance KillRange a => KillRange (Binder' a) where
   killRange (Binder a b) = killRange2 Binder a b
@@ -810,6 +815,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (RecP i as)         = killRange2 RecP i as
   killRange (EqualP i es)       = killRange2 EqualP i es
   killRange (WithP i p)         = killRange2 WithP i p
+  killRange (AnnP i a p)        = killRange3 AnnP i a p
 
 instance KillRange SpineLHS where
   killRange (SpineLHS i a b)  = killRange3 SpineLHS i a b
@@ -950,6 +956,7 @@ patternToExpr = \case
   RecP _ as          -> Rec exprNoRange $ map (Left . fmap patternToExpr) as
   EqualP{}           -> __IMPOSSIBLE__  -- Andrea TODO: where is this used?
   WithP r p          -> __IMPOSSIBLE__
+  AnnP _ _ p         -> patternToExpr p
 
 type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn

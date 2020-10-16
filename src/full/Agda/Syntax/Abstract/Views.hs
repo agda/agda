@@ -73,10 +73,11 @@ lamView (Lam i b e) = cons b $ lamView e
 lamView (ScopedExpr _ e) = lamView e
 lamView e = LamView [] e
 
--- | Gather top-level 'AsP'atterns to expose underlying pattern.
-asView :: A.Pattern -> ([Name], A.Pattern)
-asView (A.AsP _ x p) = first (unBind x :) $ asView p
-asView p             = ([], p)
+-- | Gather top-level 'AsP'atterns and 'AnnP'atterns to expose underlying pattern.
+asView :: A.Pattern -> ([Name], [A.Expr], A.Pattern)
+asView (A.AsP _ x p)  = (\(asb, ann, p) -> (unBind x : asb, ann, p)) $ asView p
+asView (A.AnnP _ a p) = (\(asb, ann, p) -> (asb, a : ann, p))        $ asView p
+asView p              = ([], [], p)
 
 -- | Remove top 'ScopedExpr' wrappers.
 unScope :: Expr -> Expr
