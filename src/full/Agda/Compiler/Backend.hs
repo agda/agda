@@ -203,8 +203,9 @@ backendInteraction mainFile backends setup check = do
 compilerMain :: Backend' opts env menv mod def -> IsMain -> CheckResult -> TCM ()
 compilerMain backend isMain0 checkResult = inCompilerEnv checkResult $ do
   locallyTC eActiveBackendName (const $ Just $ backendName backend) $ do
-    onlyScoping <- optOnlyScopeChecking <$> commandLineOptions
-    when (not (scopeCheckingSuffices backend) && onlyScoping) $
+    -- BEWARE: Do not use @optOnlyScopeChecking@ here; it does not authoritatively describe the type-checking mode!
+    -- InteractionTop currently may invoke type-checking with scope checking regardless of that flag.
+    when (not (scopeCheckingSuffices backend) && crMode checkResult == ModuleScopeChecked) $
       genericError $
         "The --only-scope-checking flag cannot be combined with " ++
         backendName backend ++ "."
