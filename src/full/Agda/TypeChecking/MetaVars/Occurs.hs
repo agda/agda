@@ -197,8 +197,8 @@ definitionCheck d = do
 metaCheck :: MetaId -> OccursM ()
 metaCheck m = do
   cxt <- ask
-  let irr = isIrrelevant cxt
-      er  = hasQuantity0 cxt
+  let rel = getRelevance cxt
+      qnt = getQuantity cxt
       m0  = occMeta $ feExtra cxt
 
   -- Check for loop
@@ -217,25 +217,25 @@ metaCheck m = do
   --   abort ctx $ MetaOccursInItself m'
   when (m == m0) $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++ prettyShow m
 
-  unless (irr && er) $ do
-    mi <- lookupMeta m
-    let mmod = getMetaModality mi
-    unless (irr || usableRelevance mmod) $ do
-      reportSDoc "tc.meta.occurs" 35 $ hsep
-        [ "occursCheck: meta variable"
-        , prettyTCM m
-        , "has relevance"
-        , prettyTCM (getRelevance mmod)
-        ]
+  mv <- lookupMeta m
+  let mmod = getMetaModality mv
+      mmod' = setRelevance rel $ setQuantity qnt $ mmod
+  unless (mmod `moreUsableModality` mmod') $ do
+    reportSDoc "tc.meta.occurs" 35 $ hsep
+      [ "occursCheck: meta variable"
+      , prettyTCM m
+      , "has relevance"
+      , prettyTCM (getRelevance mmod)
+      , "and quantity"
+      , prettyTCM (getQuantity mmod)
+      ]
+    allowAssign <- asksTC envAssignMetas
+    if mvFrozen mv == Frozen || not allowAssign || isFlexible cxt then
       patternViolation $ unblockOnMeta m
-    unless (er || usableQuantity mmod) $ do
-      reportSDoc "tc.meta.occurs" 35 $ hsep
-        [ "occursCheck: meta variable"
-        , prettyTCM m
-        , "has quantity"
-        , prettyTCM (getQuantity mmod)
-        ]
-      patternViolation $ unblockOnMeta m
+    else liftTCM $ do
+      let info' = setModality mmod' $ mvInfo mv
+      m' <- newMeta Instantiable info' (mvPriority mv) (mvPermutation mv) (mvJudgement mv)
+      assignTerm m [] $ MetaV m' []
 
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
