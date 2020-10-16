@@ -11,6 +11,7 @@ module Agda.Interaction.Imports
   , crInterface
   , crWarnings
   , crMode
+  , crSourceInfo
 
   , SourceInfo(..)
   , scopeCheckImport
@@ -349,17 +350,21 @@ alreadyVisited x isMain currentOptions getModule =
 --   when invoked directly via interaction or a backend.
 --   Note that the constructor is not exported.
 
-data CheckResult = CheckResult' { crModuleInfo :: ModuleInfo }
+data CheckResult = CheckResult'
+  { crModuleInfo :: ModuleInfo
+  , crSourceInfo' :: SourceInfo
+  }
 
 -- | Flattened unidirectional pattern for 'CheckResult' for destructuring inside
 --   the 'ModuleInfo' field.
-pattern CheckResult :: Interface -> [TCWarning] -> ModuleCheckMode -> CheckResult
-pattern CheckResult { crInterface, crWarnings, crMode } <- CheckResult'
+pattern CheckResult :: Interface -> [TCWarning] -> ModuleCheckMode -> SourceInfo -> CheckResult
+pattern CheckResult { crInterface, crWarnings, crMode, crSourceInfo } <- CheckResult'
     { crModuleInfo = ModuleInfo
         { miInterface = crInterface
         , miWarnings = crWarnings
         , miMode = crMode
         }
+    , crSourceInfo' = crSourceInfo
     }
 
 -- | Type checks the main file of the interaction.
@@ -414,7 +419,7 @@ typeCheckMain mode si = do
 
   stCurrentModule `setTCLens` Just (iModuleName (miInterface mi))
 
-  return $ CheckResult' mi
+  return $ CheckResult' mi si
   where
   checkModuleName' m f =
     -- Andreas, 2016-07-11, issue 2092

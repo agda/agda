@@ -19,9 +19,9 @@ import Control.Monad.State
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 
-import Agda.Interaction.FindFile
+import Agda.Interaction.FindFile ( srcFilePath )
 import Agda.Interaction.Options
-import Agda.Interaction.Imports ( CheckResult, crInterface )
+import Agda.Interaction.Imports ( CheckResult, crInterface, crSourceInfo, SourceInfo(..) )
 
 import Agda.TypeChecking.Monad
 
@@ -113,6 +113,7 @@ repl subs = go where
 inCompilerEnv :: CheckResult -> TCM a -> TCM a
 inCompilerEnv checkResult cont = do
   let mainI = crInterface checkResult
+      checkedSourceInfo = crSourceInfo checkResult
 
   -- Preserve the state (the compiler modifies the state).
   -- Andreas, 2014-03-23 But we might want to collect Benchmark info,
@@ -125,13 +126,13 @@ inCompilerEnv checkResult cont = do
     -- the current pragma options persistent when we setCommandLineOptions
     -- below.
     opts <- getsTC $ stPersistentOptions . stPersistentState
-    compileDir <- case optCompileDir opts of
-      Just dir -> return dir
-      Nothing  -> do
-        -- The default output directory is the project root.
-        let tm = toTopLevelModuleName $ iModuleName mainI
-        f <- srcFilePath <$> findFile tm
-        return $ filePath $ C.projectRoot f tm
+    let compileDir = case optCompileDir opts of
+          Just dir -> dir
+          Nothing  ->
+            -- The default output directory is the project root.
+            let tm = toTopLevelModuleName $ iModuleName mainI
+                f  = srcFilePath $ siOrigin checkedSourceInfo
+            in filePath $ C.projectRoot f tm
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }
 
