@@ -204,6 +204,11 @@ updateProblemEqs eqs = do
         contype <- getFullyAppliedConType c =<< reduce (unDom a)
         caseMaybe contype (return [eq]) $ \((d,_,pars),b) -> do
         TelV ctel _ <- telViewPath b
+
+        -- Andrea 15/10/2020: propagate modality to constructor arguments
+        let updMod = composeModality (getModality a)
+        ctel <- return $ mapModality updMod <$> ctel
+
         let bs = instTel ctel (map unArg vs)
 
         p <- expandLitPattern p
@@ -569,12 +574,12 @@ computeLHSContext = go [] []
 -- | Bind as patterns
 bindAsPatterns :: [AsBinding] -> TCM a -> TCM a
 bindAsPatterns []                ret = ret
-bindAsPatterns (AsB x v a : asb) ret = do
+bindAsPatterns (AsB x v a m : asb) ret = do
   reportSDoc "tc.lhs.as" 10 $ "as pattern" <+> prettyTCM x <+>
     sep [ ":" <+> prettyTCM a
         , "=" <+> prettyTCM v
         ]
-  addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
+  addLetBinding (setModality m defaultArgInfo) x v a $ bindAsPatterns asb ret
 
 -- | Since with-abstraction can change the type of a variable, we have to
 --   recheck the stripped with patterns when checking a with function.

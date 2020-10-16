@@ -75,6 +75,8 @@ module Agda.TypeChecking.Irrelevance where
 
 import Control.Arrow (second)
 
+import Control.Monad.Except
+
 import qualified Data.Map as Map
 
 import Agda.Interaction.Options
@@ -89,6 +91,7 @@ import Agda.TypeChecking.Substitute.Class
 
 import Agda.Utils.Function
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 -- | data 'Relevance'
@@ -382,11 +385,12 @@ instance (Subst a, UsableRelevance a) => UsableRelevance (Abs a) where
 --
 class UsableModality a where
   usableMod
-    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m)
+    :: (ReadTCState m, HasConstInfo m, MonadTCEnv m, MonadAddContext m, MonadDebug m, MonadReduce m, MonadError Blocker m)
     => Modality -> a -> m Bool
 
 instance UsableModality Term where
-  usableMod mod u = case u of
+  usableMod mod u = do
+   case u of
     Var i vs -> do
       imod <- getModality <$> domOfBV i
       let ok = imod `moreUsableModality` mod
@@ -405,8 +409,13 @@ instance UsableModality Term where
       return ok `and2M` usableMod mod vs
     Con c _ vs -> usableMod mod vs
     Lit l    -> return True
-    Lam _ v  -> usableMod mod v
-    Pi a b   -> usableMod mod (a,b)
+    Lam info v  -> usableModAbs info mod v
+    -- Even if Pi contains Type, here we check it as a constructor for terms in the universe.
+    Pi a b   -> usableMod domMod (unEl $ unDom a) `and2M` usableModAbs (getArgInfo a) mod (unEl <$> b)
+      where
+        domMod = mapCohesion (composeCohesion (getCohesion a)) mod
+    -- Andrea 15/10/2020 not updating these cases yet, but they are quite suspicious,
+    -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s
     Level l  -> return True
     MetaV m vs -> do
@@ -416,9 +425,16 @@ instance UsableModality Term where
         "Metavariable" <+> prettyTCM (MetaV m []) <+>
         text ("has modality " ++ show mmod ++ ", which is a " ++
               (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
-      return ok `and2M` usableMod mod vs
+      (return ok `and2M` usableMod mod vs) `or2M` do
+        u <- instantiate u
+        caseMaybe (isMeta u) (usableMod mod u) $ \ m -> throwError (UnblockOnMeta m)
     DontCare v -> usableMod mod v
     Dummy{}  -> return True
+
+usableModAbs :: (Subst a, MonadAddContext m, UsableModality a,
+                       ReadTCState m, HasConstInfo m, MonadReduce m, MonadError Blocker m) =>
+                      ArgInfo -> Modality -> Abs a -> m Bool
+usableModAbs info mod abs = underAbstraction (setArgInfo info $ __DUMMY_DOM__) abs $ \ u -> usableMod mod u
 
 instance UsableRelevance a => UsableModality (Type' a) where
   usableMod mod (El _ t) = usableRel (getRelevance mod) t
@@ -463,8 +479,6 @@ instance UsableModality a => UsableModality (Arg a) where
 instance UsableModality a => UsableModality (Dom a) where
   usableMod mod Dom{unDom = u} = usableMod mod u
 
-instance (Subst a, UsableModality a) => UsableModality (Abs a) where
-  usableMod mod abs = underAbstraction_ abs $ \u -> usableMod mod u
 
 
 -- * Propositions
