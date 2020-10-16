@@ -239,10 +239,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- of the datatype in an empty context (c.f. getContextSize above).
         params <- getContextTelescope
 
-        -- Cannot compose indexed inductive types yet.
-        (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
-          then return (ConHead c IsData Inductive [], emptyCompKit, Nothing)
-          else do
+        (con, comp, projNames) <- do
             -- Name for projection of ith field of constructor c is just c-i
             names <- forM [0 .. size fields - 1] $ \ i ->
               freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i
@@ -261,7 +258,10 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
             let con = ConHead c IsData Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
 
             defineProjections d con params names fields dataT
-            comp <- inTopContext $ defineCompData d con params names fields dataT boundary
+            -- Cannot compose indexed inductive types yet.
+            comp <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
+                    then return emptyCompKit
+                    else inTopContext $ defineCompData d con params names fields dataT boundary
             return (con, comp, Just names)
 
         -- add parameters to constructor type and put into signature
