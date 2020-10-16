@@ -454,7 +454,15 @@ instance Apply Clause where
             IApplyP _ _ _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
         newTel _ tel _ _ = __IMPOSSIBLE__
 
-        projections c v = [ relToDontCare ai $ applyE v [Proj ProjSystem f] | Arg ai f <- conFields c ]
+        projections c v = [ relToDontCare ai $
+                            -- #4528: We might have bogus terms here when printing a clause that
+                            --        cannot be taken. To mitigate the problem we use a Def instead
+                            --        a Proj elim for data constructors, which at least stops conApp
+                            --        from crashing. See #4989 for not printing bogus terms at all.
+                            case conDataRecord c of
+                              IsData     -> Def f [Apply (Arg ai v)]
+                              IsRecord{} -> applyE v [Proj ProjSystem f]
+                          | Arg ai f <- conFields c ]
 
         -- subTel i v (Δ₁ (xᵢ : A) Δ₂) = Δ₁ Δ₂[xᵢ = v]
         subTel i v EmptyTel = __IMPOSSIBLE__
