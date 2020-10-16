@@ -364,7 +364,6 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
         modMod PiNotLam xp = (if xp then mapRelevance irrToNonStrict else id)
-                           . (setQuantity topQuantity)
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
