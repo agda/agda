@@ -1,0 +1,13 @@
+Issue4929.agda:60,1-66,6
+Termination checking failed for the following functions:
+  test
+Problematic calls:
+  λ { {tm (_ ∷ E′)} (↦E (there r)) → test (sntE ANY)
+    ; {tm (.(_ ∘ Issue4929._∷_-3 _ _ ∷ ε) ∷ E)} (↦E (π {i = .∞}))
+        → test (acc sntE)
+    }
+    (at Issue4929.agda:64,3-66,6)
+  test (sntE ANY)
+    (at Issue4929.agda:64,24-28)
+  test (acc sntE)
+    (at Issue4929.agda:65,26-30)
