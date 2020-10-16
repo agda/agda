@@ -84,6 +84,7 @@ import Agda.Utils.Impossible
 data SourceInfo = SourceInfo
   { siSource     :: TL.Text               -- ^ Source code.
   , siFileType   :: FileType              -- ^ Source file type
+  , siOrigin     :: SourceFile            -- ^ Source location at the time of its parsing
   , siModule     :: C.Module              -- ^ The parsed module.
   , siModuleName :: C.TopLevelModuleName  -- ^ The top-level module name.
   , siProjectLibs :: [AgdaLibFile]        -- ^ The .agda-lib file(s) of the project this file belongs to.
@@ -92,7 +93,7 @@ data SourceInfo = SourceInfo
 -- | Computes a 'SourceInfo' record for the given file.
 
 sourceInfo :: SourceFile -> TCM SourceInfo
-sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
+sourceInfo sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   source                <- runPM $ readFilePM f
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
@@ -104,6 +105,7 @@ sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   return SourceInfo
     { siSource     = source
     , siFileType   = fileType
+    , siOrigin     = sourceFile
     , siModule     = parsedMod
     , siModuleName = moduleName
     , siProjectLibs = libs
@@ -417,7 +419,7 @@ getInterface' x isMain msi =
        return currentOptions
 
      alreadyVisited x isMain currentOptions $ addImportCycleCheck x $ do
-      file <- findFile x  -- requires source to exist
+      file <- maybe (findFile x) (pure . siOrigin) msi -- may require source to exist
 
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
@@ -872,13 +874,14 @@ createInterface file mname isMain msi =
 
     si <- maybe (sourceInfo file) pure msi
     let source   = siSource si
+        srcPath  = srcFilePath $ siOrigin si
         fileType = siFileType si
         top      = C.modDecls $ siModule si
 
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfoFromSource
-                         (srcFilePath file) (TL.unpack source)
+                         srcPath (TL.unpack source)
     stTokens `setTCLens` fileTokenInfo
 
     let options = siPragmas si
@@ -895,7 +898,7 @@ createInterface file mname isMain msi =
     -- Scope checking.
     reportSLn "import.iface.create" 7 "Starting scope checking."
     topLevel <- Bench.billTo [Bench.Scoping] $
-      concreteToAbstract_ (TopLevel (srcFilePath file) mname top)
+      concreteToAbstract_ (TopLevel srcPath mname top)
     reportSLn "import.iface.create" 7 "Finished scope checking."
 
     let ds    = topLevelDecls topLevel
@@ -978,7 +981,7 @@ createInterface file mname isMain msi =
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
-        withScope_ scope $ generateVimFile $ filePath $ srcFilePath $ file
+        withScope_ scope $ generateVimFile $ filePath $ srcPath
     reportSLn "import.iface.create" 7 "Finished highlighting from type info."
 
     setScope scope
