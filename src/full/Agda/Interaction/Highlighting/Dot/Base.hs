@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs #-}
 -- | Generate an import dependency graph for a given module.
 
-module Agda.Interaction.Highlighting.Dot where
+module Agda.Interaction.Highlighting.Dot.Base where
 
 import Control.Monad.Reader
 import Control.Monad.State
