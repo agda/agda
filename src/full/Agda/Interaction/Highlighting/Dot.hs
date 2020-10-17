@@ -85,10 +85,11 @@ generateDot inter fp = do
     liftIO $ writeFile fp $ mkDot state
   where
     mkDot :: DotState -> String
-    mkDot st = unlines $
-        [ "digraph dependencies {"
-        ] ++ ["   " ++ repr ++ "[label=\"" ++ prettyShow (mnameToConcrete modulename) ++ "\"];"
-             | (modulename, repr) <- M.toList (dsModules st)]
-          ++ ["   " ++ r1 ++ " -> " ++ r2 ++ ";"
-             | (r1 , r2) <- S.toList (dsConnection st) ]
-          ++ ["}"]
+    mkDot st = unlines $ concat
+      [ [ "digraph dependencies {" ]
+      , [ concat ["   ", repr, "[label=\"", prettyShow (mnameToConcrete modulename), "\"];"]
+        | (modulename, repr) <- M.toList (dsModules st) ]
+      , [ concat ["   ", r1, " -> ", r2, ";"]
+        | (r1 , r2) <- S.toList (dsConnection st) ]
+      , ["}"]
+      ]
