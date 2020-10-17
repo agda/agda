@@ -12,13 +12,17 @@ import Data.Maybe
 import qualified Data.Set as S
 import Data.Set (Set)
 
+import qualified Data.Text.Lazy as L
+import qualified Data.Text.Lazy.Encoding as E
+import qualified Data.ByteString.Lazy as BS
+
 import Agda.Syntax.Abstract
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.Pretty
 
 -- | Internal module identifiers for construction of dependency graph.
-type ModuleId = String
+type ModuleId = L.Text
 
 data DotState = DotState
   { dsModules    :: Map ModuleName ModuleId
@@ -33,7 +37,7 @@ data DotState = DotState
 initialDotState :: DotState
 initialDotState = DotState
   { dsModules    = mempty
-  , dsNameSupply = map (('m':) . show) [0..]
+  , dsNameSupply = map (L.pack . ('m':) . show) [0..]
   , dsConnection = mempty
   }
 
@@ -82,14 +86,14 @@ generateDot :: Interface -> FilePath -> TCM ()
 generateDot inter fp = do
     (top, state) <- flip runStateT initialDotState $ do
         dottify inter
-    liftIO $ writeFile fp $ mkDot state
+    liftIO $ BS.writeFile fp $ E.encodeUtf8 $ mkDot state
   where
-    mkDot :: DotState -> String
-    mkDot st = unlines $ concat
+    mkDot :: DotState -> L.Text
+    mkDot st = L.unlines $ concat
       [ [ "digraph dependencies {" ]
-      , [ concat ["   ", repr, "[label=\"", prettyShow (mnameToConcrete modulename), "\"];"]
+      , [ L.concat ["   ", repr, "[label=\"", L.pack (prettyShow (mnameToConcrete modulename)), "\"];"]
         | (modulename, repr) <- M.toList (dsModules st) ]
-      , [ concat ["   ", r1, " -> ", r2, ";"]
+      , [ L.concat ["   ", r1, " -> ", r2, ";"]
         | (r1 , r2) <- S.toList (dsConnection st) ]
       , ["}"]
       ]
