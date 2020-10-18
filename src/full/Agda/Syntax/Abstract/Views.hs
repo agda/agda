@@ -99,8 +99,8 @@ deepUnscopeDecl :: A.Declaration -> [A.Declaration]
 deepUnscopeDecl (A.ScopedDecl _ ds)              = deepUnscopeDecls ds
 deepUnscopeDecl (A.Mutual i ds)                  = [A.Mutual i (deepUnscopeDecls ds)]
 deepUnscopeDecl (A.Section i m tel ds)           = [A.Section i m (deepUnscope tel) (deepUnscopeDecls ds)]
-deepUnscopeDecl (A.RecDef i x uc ind eta pat c bs e ds) =
-  [ A.RecDef i x uc ind eta pat c (deepUnscope bs) (deepUnscope e) (deepUnscopeDecls ds) ]
+deepUnscopeDecl (A.RecDef i x uc dir bs e ds) =
+  [ A.RecDef i x uc dir (deepUnscope bs) (deepUnscope e) (deepUnscopeDecls ds) ]
 deepUnscopeDecl d                                = [deepUnscope d]
 
 -- * Traversal
@@ -385,7 +385,7 @@ instance ExprLike Declaration where
       DataSig i d tel e         -> DataSig i d <$> rec tel <*> rec e
       DataDef i d uc bs cs      -> DataDef i d uc <$> rec bs <*> rec cs
       RecSig i r tel e          -> RecSig i r <$> rec tel <*> rec e
-      RecDef i r uc ind eta pat c bs e ds -> RecDef i r uc ind eta pat c <$> rec bs <*> rec e <*> rec ds
+      RecDef i r uc dir bs e ds -> RecDef i r uc dir <$> rec bs <*> rec e <*> rec ds
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
@@ -427,6 +427,11 @@ instance (DeclaredNames a, DeclaredNames b) => DeclaredNames (a,b) where
 instance DeclaredNames KName where
   declaredNames = singleton
 
+instance DeclaredNames RecordDirectives where
+  declaredNames (RecordDirectives i _ _ c) = kc where
+    kc = maybe mempty (singleton . WithKind k) c
+    k  = maybe ConName (conKindOfName . rangedThing) i
+
 instance DeclaredNames Declaration where
   declaredNames = \case
       Axiom _ di _ _ q _           -> singleton . (`WithKind` q) $
@@ -440,10 +445,7 @@ instance DeclaredNames Declaration where
       DataSig _ q _ _              -> singleton (WithKind DataName q)
       DataDef _ q _ _ decls        -> singleton (WithKind DataName q) <> foldMap con decls
       RecSig _ q _ _               -> singleton (WithKind RecName q)
-      RecDef _ q _ i _ _ c _ _ decls -> singleton (WithKind RecName q) <> kc <> declaredNames decls
-        where
-        kc = maybe mempty (singleton . WithKind k) c
-        k  = maybe ConName (conKindOfName . rangedThing) i
+      RecDef _ q _ dir _ _ decls   -> singleton (WithKind RecName q) <> declaredNames dir <> declaredNames decls
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom

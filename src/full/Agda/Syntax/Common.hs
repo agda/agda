@@ -73,6 +73,29 @@ instance Pretty FileType where
     OrgFileType  -> "org-mode"
 
 ---------------------------------------------------------------------------
+-- * Record Directives
+---------------------------------------------------------------------------
+
+data RecordDirectives' a = RecordDirectives
+  { recInductive   :: Maybe (Ranged Induction)
+  , recHasEta      :: Maybe HasEta0
+  , recPattern     :: Maybe Range
+  , recConstructor :: Maybe a
+  } deriving (Functor, Data, Show, Eq)
+
+emptyRecordDirectives :: RecordDirectives' a
+emptyRecordDirectives = RecordDirectives empty empty empty empty
+
+instance HasRange a => HasRange (RecordDirectives' a) where
+  getRange (RecordDirectives a b c d) = getRange (a,b,c,d)
+
+instance KillRange a => KillRange (RecordDirectives' a) where
+  killRange (RecordDirectives a b c d) = killRange4 RecordDirectives a b c d
+
+instance NFData a => NFData (RecordDirectives' a) where
+  rnf (RecordDirectives a b c d) = c `seq` rnf (a, b, d)
+
+---------------------------------------------------------------------------
 -- * Eta-equality
 ---------------------------------------------------------------------------
 

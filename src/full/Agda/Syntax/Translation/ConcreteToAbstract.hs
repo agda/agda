@@ -1411,14 +1411,14 @@ instance ToAbstract Declarations where
      -- to hide an illegal pragma in a block. Cf. Issue #3983
      noUnsafePragma :: C.Declaration -> TCM C.Declaration
      noUnsafePragma = \case
-       C.Pragma pr                         -> warnUnsafePragma pr
-       C.RecordDef r n ind eta pat con lams ds -> C.RecordDef r n ind eta pat con lams <$> mapM noUnsafePragma ds
-       C.Record r n ind eta pat con lams e ds  -> C.Record r n ind eta pat con lams e <$> mapM noUnsafePragma ds
-       C.Mutual r ds                       -> C.Mutual r <$> mapM noUnsafePragma ds
-       C.Abstract r ds                     -> C.Abstract r <$> mapM noUnsafePragma ds
-       C.Private r o ds                    -> C.Private r o <$> mapM noUnsafePragma ds
-       C.InstanceB r ds                    -> C.InstanceB r <$> mapM noUnsafePragma ds
-       C.Macro r ds                        -> C.Macro r <$> mapM noUnsafePragma ds
+       C.Pragma pr                 -> warnUnsafePragma pr
+       C.RecordDef r n dir lams ds -> C.RecordDef r n dir lams <$> mapM noUnsafePragma ds
+       C.Record r n dir lams e ds  -> C.Record r n dir lams e <$> mapM noUnsafePragma ds
+       C.Mutual r ds               -> C.Mutual r <$> mapM noUnsafePragma ds
+       C.Abstract r ds             -> C.Abstract r <$> mapM noUnsafePragma ds
+       C.Private r o ds            -> C.Private r o <$> mapM noUnsafePragma ds
+       C.InstanceB r ds            -> C.InstanceB r <$> mapM noUnsafePragma ds
+       C.Macro r ds                -> C.Macro r <$> mapM noUnsafePragma ds
        d -> pure d
 
      warnUnsafePragma :: C.Pragma -> TCM C.Declaration
@@ -1808,7 +1808,7 @@ instance ToAbstract NiceDeclaration where
         conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
-    C.NiceRecDef r o a _ uc x ind eta pat cm pars fields -> do
+    C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> do
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
 
       -- Andreas, 2020-04-19, issue #4560
@@ -1867,7 +1867,8 @@ instance ToAbstract NiceDeclaration where
         printScope "rec" 15 "record complete"
         f <- getConcreteFixity x
         let params = DataDefParams gvars pars
-        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc ind eta pat cm' params contel afields ]
+        let dir' = RecordDirectives ind eta pat cm'
+        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' uc dir' params contel afields ]
 
     NiceModule r p a x@(C.QName name) tel ds -> do
       reportSDoc "scope.decl" 70 $ vcat $

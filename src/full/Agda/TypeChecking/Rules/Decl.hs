@@ -155,8 +155,8 @@ checkDecl d = setCurrentRange d $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
-      A.RecDef i x uc ind eta pat c ps tel cs -> impossible $ check x i $ do
-                                    checkRecDef i x uc ind eta pat c ps tel cs
+      A.RecDef i x uc dir ps tel cs -> impossible $ check x i $ do
+                                    checkRecDef i x uc dir ps tel cs
                                     blockId <- mutualBlockOf x
 
                                     -- Andreas, 2016-10-01 testing whether
@@ -404,8 +404,7 @@ highlight_ hlmod d = do
       highlight (A.Section i x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
-    A.RecDef i x uc ind eta pat c ps tel cs ->
-      highlight (A.RecDef i x uc ind eta pat c A.noDataDefParams dummy cs)
+    A.RecDef i x uc dir ps tel cs -> highlight (A.RecDef i x uc dir A.noDataDefParams dummy cs)
       -- The telescope has already been highlighted.
       where
       -- Andreas, 2016-01-22, issue 1790
@@ -445,7 +444,8 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
 --   for the old coinduction.)
 checkCoinductiveRecords :: [A.Declaration] -> TCM ()
 checkCoinductiveRecords ds = forM_ ds $ \case
-  A.RecDef _ q _ (Just (Ranged r CoInductive)) _ _ _ _ _ _ -> setCurrentRange r $ do
+  A.RecDef _ q _ dir _ _ _
+    | Just (Ranged r CoInductive) <- recInductive dir -> setCurrentRange r $ do
     unlessM (isRecursiveRecord q) $ typeError $ GenericError $
       "Only recursive records can be coinductive"
   _ -> return ()
