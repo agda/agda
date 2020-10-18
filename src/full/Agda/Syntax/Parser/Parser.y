@@ -1686,7 +1686,7 @@ RecordDeclarations :: { (RecordDirectives, [Declaration]) }
 RecordDeclarations
     : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
     | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
-    | vopen Declarations1 close                       { (empty, List1.toList $2) }
+    | vopen Declarations1 close                       { (emptyRecordDirectives, List1.toList $2) }
 
 
 RecordDirectives :: { [RecordDirective] }

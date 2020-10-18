@@ -83,9 +83,8 @@ data RecordDirectives' a = RecordDirectives
   , recConstructor :: Maybe a
   } deriving (Functor, Data, Show, Eq)
 
-instance Null (RecordDirectives' a) where
-  empty = RecordDirectives empty empty empty empty
-  null (RecordDirectives a b c d) = null (a, b, c, d)
+emptyRecordDirectives :: RecordDirectives' a
+emptyRecordDirectives = RecordDirectives empty empty empty empty
 
 instance HasRange a => HasRange (RecordDirectives' a) where
   getRange (RecordDirectives a b c d) = getRange (a,b,c,d)

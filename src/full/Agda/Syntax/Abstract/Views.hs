@@ -427,6 +427,11 @@ instance (DeclaredNames a, DeclaredNames b) => DeclaredNames (a,b) where
 instance DeclaredNames KName where
   declaredNames = singleton
 
+instance DeclaredNames RecordDirectives where
+  declaredNames (RecordDirectives i _ _ c) = kc where
+    kc = maybe mempty (singleton . WithKind k) c
+    k  = maybe ConName (conKindOfName . rangedThing) i
+
 instance DeclaredNames Declaration where
   declaredNames = \case
       Axiom _ di _ _ q _           -> singleton . (`WithKind` q) $
@@ -440,10 +445,7 @@ instance DeclaredNames Declaration where
       DataSig _ q _ _              -> singleton (WithKind DataName q)
       DataDef _ q _ _ decls        -> singleton (WithKind DataName q) <> foldMap con decls
       RecSig _ q _ _               -> singleton (WithKind RecName q)
-      RecDef _ q _ dir _ _ decls   -> singleton (WithKind RecName q) <> kc <> declaredNames decls
-        where
-        kc = maybe mempty (singleton . WithKind k) (recConstructor dir)
-        k  = maybe ConName (conKindOfName . rangedThing) (recInductive dir)
+      RecDef _ q _ dir _ _ decls   -> singleton (WithKind RecName q) <> declaredNames dir <> declaredNames decls
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
