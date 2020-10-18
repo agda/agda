@@ -217,8 +217,8 @@ instance ExprLike Declaration where
      DataDef r n bs cs         -> DataDef r n (mapE bs)                $ mapE cs
      Data r n bs e cs          -> Data r n (mapE bs) (mapE e)          $ mapE cs
      RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e
-     RecordDef r n ind eta pat c tel ds -> RecordDef r n ind eta pat c (mapE tel) $ mapE ds
-     Record r n ind eta pat c tel e ds  -> Record r n ind eta pat c (mapE tel) (mapE e) $ mapE ds
+     RecordDef r n dir tel ds  -> RecordDef r n dir (mapE tel)         $ mapE ds
+     Record r n dir tel e ds   -> Record r n dir (mapE tel) (mapE e)   $ mapE ds
      e@Infix{}                 -> e
      e@Syntax{}                -> e
      e@PatternSyn{}            -> e

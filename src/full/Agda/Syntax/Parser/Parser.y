@@ -1205,10 +1205,10 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((ind, eta, pat, con), ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n ind eta pat con $3 $5 ds }
+         {% exprToName $2 >>= \ n -> let (dir, ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n dir $3 $5 ds }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> let ((ind, eta, pat, con), ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n ind eta pat con $3 ds }
+         {% exprToName $2 >>= \ n -> let (dir, ds) = $5 in return $ RecordDef (getRange ($1,$2,$3,$4,$5)) n dir $3 ds }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
@@ -1682,7 +1682,7 @@ ArgTypeSignatures0
     | {- empty -}                         { [] }
 
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { ((Maybe (Ranged Induction), Maybe HasEta0, Maybe Range, Maybe (Name, IsInstance)), [Declaration]) }
+RecordDeclarations :: { (RecordDirectives, [Declaration]) }
 RecordDeclarations
     : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
     | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
@@ -2084,14 +2084,9 @@ data RecordDirective
    deriving (Eq,Show)
 
 -- | Check for duplicate record directives.
-verifyRecordDirectives :: [RecordDirective] -> Parser
-  ( Maybe (Ranged Induction)
-  , Maybe HasEta0
-  , Maybe Range                -- Range of 'pattern' declaration, if any.
-  , Maybe (Name, IsInstance)
-  )
+verifyRecordDirectives :: [RecordDirective] -> Parser RecordDirectives
 verifyRecordDirectives ds
-  | null rs   = return (listToMaybe is, listToMaybe es, listToMaybe ps, listToMaybe cs)
+  | null rs   = return (RecordDirectives (listToMaybe is) (listToMaybe es) (listToMaybe ps) (listToMaybe cs))
       -- Here, all the lists is, es, cs, ps are at most singletons.
   | otherwise = parseErrorRange (head rs) $ unlines $ "Repeated record directives at:" : map prettyShow rs
   where
