@@ -439,7 +439,7 @@ instance Reify Constraint where
               t0 <- reify t0
               t1 <- reify t1
               return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
-            CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _ -> TypedAssign m' e <$> reify t
+            CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _ _ -> TypedAssign m' e <$> reify t
             DoQuoteTerm cmp v t -> do
               tm <- A.App defaultAppInfo_ (A.QuoteTerm exprNoRange) . defaultNamedArg <$> reify v
               OfType tm <$> reify t

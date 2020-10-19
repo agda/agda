@@ -1264,10 +1264,17 @@ data MetaInstantiation
 data CheckedTarget = CheckedTarget (Maybe ProblemId)
                    | NotCheckedTarget
 
+data PrincipalArgTypeMetas = PrincipalArgTypeMetas
+  { patmMetas     :: Args -- ^ metas created for hidden and instance arguments
+                          --   in the principal argument's type
+  , patmRemainder :: Type -- ^ principal argument's type, stripped of hidden and
+                          --   instance arguments
+  }
+
 data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
   | CheckArgs ExpandHidden Range [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
-  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Args Type Int Term Type
+  | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Args Type Int Term Type PrincipalArgTypeMetas
   | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
