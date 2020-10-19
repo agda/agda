@@ -825,12 +825,6 @@ pattern ClosedLevel n = Max n []
 atomicLevel :: t -> Level' t
 atomicLevel a = Max 0 [ Plus 0 a ]
 
-sort :: Sort -> Type
-sort s = El (UnivSort s) $ Sort s
-
-ssort :: Level -> Type
-ssort l = El (UnivSort (SSet l)) $ Sort (SSet l)
-
 varSort :: Int -> Sort
 varSort n = Type $ atomicLevel $ var n
 

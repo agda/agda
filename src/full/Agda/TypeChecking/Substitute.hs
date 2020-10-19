@@ -1493,6 +1493,12 @@ univSort' s        = Nothing
 univSort :: Sort -> Sort
 univSort s = fromMaybe (UnivSort s) $ univSort' s
 
+sort :: Sort -> Type
+sort s = El (univSort s) $ Sort s
+
+ssort :: Level -> Type
+ssort l = sort (SSet l)
+
 -- | Returns @Nothing@ for unknown (meta) sorts, and otherwise returns
 --   @Just (b,f)@ where @b@ indicates smallness and @f@ fibrancy.
 --   I.e., @b@ is @True@ for (relatively) small sorts like @Set l@ and
