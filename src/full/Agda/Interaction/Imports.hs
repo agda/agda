@@ -233,9 +233,8 @@ scopeCheckImport :: ModuleName -> TCM (ModuleName, Map ModuleName Scope)
 scopeCheckImport x = do
     reportSLn "import.scope" 5 $ "Scope checking " ++ prettyShow x
     verboseS "import.scope" 10 $ do
-      visited <- Map.keys <$> getVisitedModules
-      reportSLn "import.scope" 10 $
-        "  visited: " ++ List.intercalate ", " (map prettyShow visited)
+      visited <- prettyShow <$> getPrettyVisitedModules
+      reportSLn "import.scope" 10 $ "  visited: " ++ visited
     -- Since scopeCheckImport is called from the scope checker,
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getNonMainInterface (toTopLevelModuleName x) Nothing
@@ -890,9 +889,8 @@ createInterface mname file isMain msi = do
     reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ prettyShow mname ++ "."
     verboseS "import.iface.create" 10 $ do
-      visited <- Map.keys <$> getVisitedModules
-      reportSLn "import.iface.create" 10 $
-        "  visited: " ++ List.intercalate ", " (map prettyShow visited)
+      visited <- prettyShow <$> getPrettyVisitedModules
+      reportSLn "import.iface.create" 10 $ "  visited: " ++ visited
 
     si <- maybe (sourceInfo file) pure msi
 

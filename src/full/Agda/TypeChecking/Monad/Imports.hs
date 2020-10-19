@@ -8,6 +8,7 @@ module Agda.TypeChecking.Monad.Imports
   , getDecodedModules
   , getImportPath
   , getImports
+  , getPrettyVisitedModules
   , getVisitedModule
   , getVisitedModules
   , isImported
@@ -29,7 +30,9 @@ import qualified Data.Set as Set
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad.Base
+
 import Agda.Utils.List ( caseListM )
+import Agda.Utils.Pretty
 
 
 import Agda.Utils.Impossible
@@ -60,6 +63,11 @@ setVisitedModules ms = setTCLens stVisitedModules ms
 
 getVisitedModules :: ReadTCState m => m VisitedModules
 getVisitedModules = useTC stVisitedModules
+
+getPrettyVisitedModules :: ReadTCState m => m Doc
+getPrettyVisitedModules = do
+  visited <- Map.keys <$> getVisitedModules
+  return $ hcat $ punctuate ", " $ pretty <$> visited
 
 isVisited :: C.TopLevelModuleName -> TCM Bool
 isVisited x = Map.member x <$> useTC stVisitedModules
