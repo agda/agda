@@ -2,7 +2,7 @@
 
 module Succeed.Tests where
 
-import Data.List
+import qualified Data.List as List
 import Data.Maybe (isJust, fromMaybe)
 import Data.Monoid ((<>))
 import qualified Data.Text as T
@@ -27,12 +27,16 @@ testDir = "test" </> "Succeed"
 
 tests :: IO TestTree
 tests = do
-  inpFiles <- getAgdaFilesInDir Rec testDir
+  inpFiles <- reorder <$> getAgdaFilesInDir Rec testDir
 
   let extraOpts = [ "--ignore-interfaces" , "--vim" ]
   let tests' = map (mkSucceedTest extraOpts testDir) inpFiles
 
   return $ testGroup "Succeed" tests'
+  where
+  -- Andreas, 2020-10-19, work around issue #4940:
+  -- Put @ExecAgda@ last.
+  reorder = uncurry (++) . List.partition (("ExecAgda" /=) . dropAgdaExtension)
 
 data TestResult
   = TestSuccess
