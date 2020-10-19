@@ -215,6 +215,7 @@ recordConstructorType decls =
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
+        C.NiceLoneConstructor{} -> __IMPOSSIBLE__
         C.NiceMutual{}        -> failure
         -- TODO: some of these cases might be __IMPOSSIBLE__
         C.Axiom{}             -> failure
@@ -2053,6 +2054,8 @@ instance ToAbstract NiceDeclaration where
       return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
       where unVarName (VarName a _) = return a
             unVarName _ = typeError $ UnusedVariableInPatternSynonym
+
+    NiceLoneConstructor{} -> __IMPOSSIBLE__
 
     where
       -- checking postulate or type sig. without checking safe flag
