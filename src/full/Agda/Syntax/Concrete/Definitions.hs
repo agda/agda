@@ -1606,14 +1606,13 @@ niceDeclarations fixs ds = do
         addDataConstructors (Just n) ds = do
           (m, i) <- get
           case Map.lookup n m of
-            Nothing -> undefined -- constructor without data declaration
             Just (Left (i0, sig, cs)) -> do
               lift $ removeLoneSig n
               let (cs', i') = case cs of
                     Nothing        -> ((i, [ds])   , i+1)
                     Just (i1, ds1) -> ((i1, ds:ds1), i)
               put (Map.insert n (Left (i0, sig, Just cs')) m, i')
-            _ -> undefined -- fun clauses
+            _ -> __IMPOSSIBLE__ -- we have resolved the name `n` already and it comes from a DataSig!
         addDataConstructors Nothing [] = pure ()
         addDataConstructors Nothing (d : ds) = do
           -- get the candidate data types that are in this infix mutual block
@@ -1635,20 +1634,19 @@ niceDeclarations fixs ds = do
         addFunDef (FunDef _ ds _ _ _ _ n cs) = do
           (m, i) <- get
           case Map.lookup n m of
-            Nothing -> undefined -- fun clause without fun declaration
             Just (Right (i0, sig, cs0)) -> do
               let (cs', i') = case cs0 of
                     Nothing        -> ((i, [(ds, cs)]) , i+1)
                     Just (i1, cs1) -> ((i1, (ds, cs):cs1), i)
               put (Map.insert n (Right (i0, sig, Just cs')) m, i')
-            _ -> undefined -- fun clauses
+            _ -> __IMPOSSIBLE__ -- A FunDef always come after an existing FunSig!
         addFunDef _ = __IMPOSSIBLE__
 
         addFunClauses :: repD ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
                       => repF ~ (Int, NiceDeclaration, Maybe (Int, [([Declaration],[Clause])]))
                       => Range -> [NiceDeclaration]
                       -> StateT (Map Name (Either repD repF), Int) Nice [(Int, NiceDeclaration)]
-        addFunClauses r (nd@(NiceFunClause _ _ _ _ _ _ d) : ds) = do
+        addFunClauses r (nd@(NiceFunClause _ _ _ _ _ _ d@(FunClause lhs _ _ _)) : ds) = do
           -- get the candidate functions that are in this infix mutual block
           (m, i) <- get
           let sigs = map fst $ filter (isRight . snd) $ Map.toList m
@@ -1671,7 +1669,9 @@ niceDeclarations fixs ds = do
                   put (Map.insert n (Right (i0, sig, Just cs')) m, i')
                 _ -> __IMPOSSIBLE__
               groupByBlocks r rest
-            _ -> undefined -- conflict?
+            xf:xfs -> lift $ declarationException
+                           $ AmbiguousFunClauses lhs
+                           $ List1.reverse $ fmap (\ (a,_,_) -> a) $ xf :| xfs
         addFunClauses _ _ = __IMPOSSIBLE__
 
         groupByBlocks :: repD ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
@@ -1689,6 +1689,8 @@ niceDeclarations fixs ds = do
             FunSig{}                     -> oneOff $ [] <$ addFunType d
             FunDef _ _ _  _ _ _ n cs
                       | not (isNoName n) -> oneOff $ [] <$ addFunDef d
+            -- It's a bit different for fun clauses because we may need to grab a lot
+            -- of clauses to handle ellipses properly.
             NiceFunClause{}              -> addFunClauses r (d:ds)
             _ -> oneOff $ do
               (m, i) <- get
