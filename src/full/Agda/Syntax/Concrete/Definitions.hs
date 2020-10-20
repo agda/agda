@@ -1586,7 +1586,7 @@ niceDeclarations fixs ds = do
         addType :: Name -> (Int -> a) -> StateT (Map Name a, Int) Nice ()
         addType n c = do
           (m, i) <- get
-          whenJust (Map.lookup n m) $ undefined -- duplicate data/fun declaration
+          when (isJust $ Map.lookup n m) $ lift $ declarationException $ DuplicateDefinition n
           put (Map.insert n (c i) m, i+1)
 
         addFunType d@(FunSig _ _ _ _ _ _ _ _ n _) = addType n (\ i -> Right (i, d, Nothing))
