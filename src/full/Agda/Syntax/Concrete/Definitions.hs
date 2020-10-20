@@ -52,7 +52,7 @@ import Control.Monad.State
 
 import Data.Bifunctor
 import Data.Data (Data)
-import Data.Either (isLeft)
+import Data.Either (isLeft, isRight)
 import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -76,7 +76,7 @@ import Agda.Utils.AffineHole
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List (isSublistOf)
+import Agda.Utils.List (isSublistOf, spanJust)
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -1554,6 +1554,12 @@ niceDeclarations fixs ds = do
         -- not a notation, not first id: give up
         _ -> False -- trace ("couldBe not (case default)") $ False
 
+
+    -- for finding nice clauses for a type sig in mutual blocks
+    couldBeNiceFunClauseOf :: Maybe Fixity' -> Name -> NiceDeclaration -> Maybe Declaration
+    couldBeNiceFunClauseOf mf n (NiceFunClause _ _ _ _ _ _ d) = d <$ guard (couldBeFunClauseOf mf n d)
+    couldBeNiceFunClauseOf _ _ _ = Nothing
+
     -- for finding clauses for a type sig in mutual blocks
     couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
     couldBeFunClauseOf mFixity x (Pragma (CatchallPragma{})) = True
@@ -1569,11 +1575,15 @@ niceDeclarations fixs ds = do
       -> Nice NiceDeclaration -- ^ Returns a 'NiceMutual'.
     mkInfixMutual r ds' = do
       (other, (m, _)) <- runStateT (groupByBlocks r ds') (empty, 0)
-      let idecls = other ++ concatMap (\ (k, v) ->
-            either (\ (i, d@(NiceDataSig _ acc abs pc uc _ pars _), ds) ->
-                         (i,d) : fromMaybe [] ((\ (j, dss) -> [(j, NiceDataDef noRange UserWritten abs pc uc k (concatMap mkDomainFree pars) (concat (reverse dss)))]) <$> ds))
-                   (\ (i, d, ds) -> (i,d) : maybe [] (\ (j, ds) -> (j,) <$> reverse ds) ds)
-                              v) (Map.toList m)
+      let dat k (i, d@(NiceDataSig _ acc abs pc uc _ pars _), ds) =
+            let fpars = concatMap mkDomainFree pars
+                ddef  = NiceDataDef noRange UserWritten abs pc uc k fpars
+            in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (concat (reverse dss)))]) ds
+          dat _ _ = __IMPOSSIBLE__
+      let fun k (i, d@(FunSig r acc abs inst mac info tc cc n e), cs) =
+            (i,d) : maybe [] (\ (j, css) -> [(j,FunDef r [] abs inst tc cc n (concat (reverse css)))]) cs
+          fun _ _ = __IMPOSSIBLE__
+      let idecls = other ++ concatMap (\ (k, v) -> either (dat k) (fun k) v) (Map.toList m)
       let decls = map snd $ List.sortBy (compare `on` fst) idecls
       pure $ NiceMutual r NoTerminationCheck YesCoverageCheck YesPositivityCheck decls
 
@@ -1620,41 +1630,71 @@ niceDeclarations fixs ds = do
               -- and then repeat the process for the rest
               addDataConstructors Nothing ds1
 
-        addFunDef :: rep ~ (Int, NiceDeclaration, Maybe (Int, [NiceDeclaration]))
-                  => Maybe Name -> NiceDeclaration
+        addFunDef :: rep ~ (Int, NiceDeclaration, Maybe (Int, [[Clause]]))
+                  => NiceDeclaration
                   -> StateT (Map Name (Either a rep), Int) Nice ()
-        addFunDef (Just n) d = do
+        addFunDef (FunDef _ _ _ _ _ _ n cs) = do
           (m, i) <- get
           case Map.lookup n m of
             Nothing -> undefined -- fun clause without fun declaration
-            Just (Right (i0, sig, cs)) -> do
-              let (cs', i') = case cs of
-                    Nothing       -> ((i, [d])  , i+1)
-                    Just (i1, ds) -> ((i1, d:ds), i)
+            Just (Right (i0, sig, cs0)) -> do
+              let (cs', i') = case cs0 of
+                    Nothing        -> ((i, [cs]) , i+1)
+                    Just (i1, cs1) -> ((i1, cs:cs1), i)
               put (Map.insert n (Right (i0, sig, Just cs')) m, i')
             _ -> undefined -- fun clauses
-        addFunDef Nothing d = __IMPOSSIBLE__
+        addFunDef _ = __IMPOSSIBLE__
+
+        addFunClauses :: repD ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
+                      => repF ~ (Int, NiceDeclaration, Maybe (Int, [[Clause]]))
+                      => Range -> [NiceDeclaration]
+                      -> StateT (Map Name (Either repD repF), Int) Nice [(Int, NiceDeclaration)]
+        addFunClauses r (nd@(NiceFunClause _ _ _ _ _ _ d) : ds) = do
+          -- get the candidate functions that are in this infix mutual block
+          (m, i) <- get
+          let sigs = map fst $ filter (isRight . snd) $ Map.toList m
+          case [ (x, fits, rest)
+               | x <- sigs
+               , let (fits, rest) = spanJust (couldBeNiceFunClauseOf (Map.lookup x fixs) x) (nd : ds)
+               , not (null fits)
+               ] of
+            [] -> do
+              put (m, i+1)
+              ((i,nd) :) <$> groupByBlocks r ds
+            [(n, fits, rest)] -> do
+              ds <- lift $ expandEllipsis fits
+              cs <- lift $ mkClauses n ds False
+              case Map.lookup n m of
+                Just (Right (i0, sig, cs0)) -> do
+                  let (cs', i') = case cs0 of
+                        Nothing        -> ((i, [cs]), i+1)
+                        Just (i1, cs1) -> ((i1, cs:cs1), i)
+                  put (Map.insert n (Right (i0, sig, Just cs')) m, i')
+                _ -> __IMPOSSIBLE__
+              groupByBlocks r rest
+            _ -> undefined -- conflict?
+        addFunClauses _ _ = __IMPOSSIBLE__
 
         groupByBlocks :: repD ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
-                      => repF ~ (Int, NiceDeclaration, Maybe (Int, [NiceDeclaration]))
+                      => repF ~ (Int, NiceDeclaration, Maybe (Int, [[Clause]]))
                       => Range -> [NiceDeclaration]
                       -> StateT (Map Name (Either repD repF), Int) Nice [(Int, NiceDeclaration)]
         groupByBlocks r []       = pure []
         groupByBlocks r (d : ds) = do
-          ns <- case d of
-                  NiceRecSig{} -> undefined
-                  NiceRecDef{} -> undefined
-                  NiceDataSig{}                -> [] <$ addDataType d
-                  NiceDataDef _ _ _ _ _ n _ ds -> [] <$ addDataConstructors (Just n) ds
-                  NiceLoneConstructor r ds     -> [] <$ addDataConstructors Nothing ds
-                  FunSig{}                     -> [] <$ addFunType d
-                  FunDef _ _ _  _ _ _ n cs
-                            | not (isNoName n) -> [] <$ addFunDef (Just n) d
-                  _ -> do
-                    (m, i) <- get
-                    put (m, i+1)
-                    pure [(i,d)]
-          (ns ++) <$> groupByBlocks r ds
+          let oneOff act = act >>= \ ns -> (ns ++) <$> groupByBlocks r ds
+
+          case d of
+            NiceDataSig{}                -> oneOff $ [] <$ addDataType d
+            NiceDataDef _ _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just n) ds
+            NiceLoneConstructor r ds     -> oneOff $ [] <$ addDataConstructors Nothing ds
+            FunSig{}                     -> oneOff $ [] <$ addFunType d
+            FunDef _ _ _  _ _ _ n cs
+                      | not (isNoName n) -> oneOff $ [] <$ addFunDef d
+            NiceFunClause{}              -> addFunClauses r (d:ds)
+            _ -> oneOff $ do
+              (m, i) <- get
+              put (m, i+1)
+              pure [(i,d)]
 
     -- Extract the name of the return type (if any) of a potential constructor
     -- A `constructor' block should only contain NiceConstructors so we crash with
