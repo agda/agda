@@ -171,8 +171,9 @@ instance EmbPrj DeclarationWarning' where
     OpenPublicAbstract r              -> icodeN 26 OpenPublicAbstract r
     OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
     EmptyConstructor a                -> icodeN 28 EmptyConstructor a
-    InvalidConstructor a              -> icodeN 29 InvalidConstructor a
-    InvalidRecordDirective a          -> icodeN 30 InvalidRecordDirective a
+    InvalidRecordDirective a          -> icodeN 29 InvalidRecordDirective a
+    InvalidConstructor a              -> icodeN 30 InvalidConstructor a
+    InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -204,8 +205,9 @@ instance EmbPrj DeclarationWarning' where
     [26,r]   -> valuN OpenPublicAbstract r
     [27,r]   -> valuN OpenPublicPrivate r
     [28,r]   -> valuN EmptyConstructor r
-    [29,r]   -> valuN InvalidConstructor r
-    [30,r]   -> valuN InvalidRecordDirective r
+    [29,r]   -> valuN InvalidRecordDirective r
+    [30,r]   -> valuN InvalidConstructor r
+    [31,r]   -> valuN InvalidConstructorBlock r
     _ -> malformed
 
 instance EmbPrj LibWarning where

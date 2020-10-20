@@ -161,6 +161,7 @@ data WarningName
   | EmptyWhere_
   | InvalidCatchallPragma_
   | InvalidConstructor_
+  | InvalidConstructorBlock_
   | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
@@ -310,7 +311,8 @@ warningNameDescription = \case
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   EmptyWhere_                      -> "Empty `where' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
-  InvalidConstructor_              -> "No `constructor' blocks outside of `infix mutual' blocks."
+  InvalidConstructor_              -> "`constructor' blocks may only contain type signatures for constructors."
+  InvalidConstructorBlock_         -> "No `constructor' blocks outside of `infix mutual' blocks."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."

@@ -42,8 +42,6 @@ module Agda.Syntax.Concrete.Definitions
     , declarationWarningName
     ) where
 
-import Debug.Trace
-
 
 import Prelude hiding (null)
 
@@ -226,6 +224,8 @@ data DeclarationWarning'
       -- ^ A {-\# CATCHALL \#-} pragma
       --   that does not precede a function clause.
   | InvalidConstructor Range
+      -- ^ Invalid definition in a constructor block
+  | InvalidConstructorBlock Range
       -- ^ Invalid constructor block (not inside an infix mutual block)
   | InvalidCoverageCheckPragma Range
       -- ^ A {-\# NON_COVERING \#-} pragma that does not apply to any function.
@@ -283,6 +283,7 @@ declarationWarningName' = \case
   EmptyPrimitive{}                  -> EmptyPrimitive_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
   InvalidConstructor{}              -> InvalidConstructor_
+  InvalidConstructorBlock{}         -> InvalidConstructorBlock_
   InvalidNoPositivityCheckPragma{}  -> InvalidNoPositivityCheckPragma_
   InvalidNoUniverseCheckPragma{}    -> InvalidNoUniverseCheckPragma_
   InvalidRecordDirective{}          -> InvalidRecordDirective_
@@ -322,6 +323,7 @@ unsafeDeclarationWarning' = \case
   EmptyPrimitive{}                  -> False
   InvalidCatchallPragma{}           -> False
   InvalidConstructor{}              -> False
+  InvalidConstructorBlock{}         -> False
   InvalidNoPositivityCheckPragma{}  -> False
   InvalidNoUniverseCheckPragma{}    -> False
   InvalidRecordDirective{}          -> False
@@ -397,6 +399,7 @@ instance HasRange DeclarationWarning' where
   getRange (InvalidNoPositivityCheckPragma r)   = r
   getRange (InvalidCatchallPragma r)            = r
   getRange (InvalidConstructor r)               = r
+  getRange (InvalidConstructorBlock r)          = r
   getRange (InvalidNoUniverseCheckPragma r)     = r
   getRange (InvalidRecordDirective r)           = r
   getRange (PragmaNoTerminationCheck r)         = r
@@ -530,6 +533,8 @@ instance Pretty DeclarationWarning' where
   pretty (InvalidTerminationCheckPragma _) = fsep $
     pwords "Termination checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
   pretty InvalidConstructor{} = fsep $
+    pwords "`constructor' blocks may only contain type signatures for constructors."
+  pretty InvalidConstructorBlock{} = fsep $
     pwords "No `constructor' blocks outside of `infix mutual' blocks."
   pretty (InvalidCoverageCheckPragma _)    = fsep $
     pwords "Coverage checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
@@ -1705,22 +1710,12 @@ niceDeclarations fixs ds = do
     -- Things that were recognised as isolated funsigs in a `constructor' block are
     -- actually axioms (aka NiceConstructor). And the corresponding isolated lonesigs
     -- should be removed.
+    -- Things that are neither have no place in a `constructor' block and will be yeeted
     mkLoneConstructor :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
-    mkLoneConstructor r ds = fmap (NiceLoneConstructor r) $ forM ds $ \case
-      d@Axiom{} -> pure d
-      FunSig r a abst inst _ arg _ _ n e -> Axiom r a abst inst arg n e <$ removeLoneSig n
-      _ -> undefined
-
-    -- -- Group the constructors in a `constructor' block by name of the return type
-    -- -- (this is *before* parsing mixfix operators so we cannot handle these fancy
-    -- -- cases unfortunately).
-    -- mkLoneConstructor :: Range -> [NiceDeclaration] -> Nice [NiceDeclaration]
-    -- mkLoneConstructor r [] = pure []
-    -- mkLoneConstructor r (d : ds)
-    --   | Just n <- unqualify <$> isConstructor d =
-    --       let (d0, rest) = span (fromMaybe False . fmap ((n ==) . unqualify) . isConstructor) ds
-    --       in (NiceLoneConstructor r n (d : d0) :) <$> mkLoneConstructor r rest
-    --   | otherwise = undefined
+    mkLoneConstructor r ds = fmap (NiceLoneConstructor r . concat) $ forM ds $ \case
+      d@Axiom{} -> pure [d]
+      FunSig r a abst inst _ arg _ _ n e -> [Axiom r a abst inst arg n e] <$ removeLoneSig n
+      d -> [] <$ declarationWarning (InvalidConstructor $ getRange d)
 
     -- | Turn an old-style mutual block into a new style mutual block
     --   by pushing the definitions to the end.

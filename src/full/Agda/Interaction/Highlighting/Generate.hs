@@ -483,6 +483,7 @@ warningHighlighting' b w = case tcWarning w of
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
     InvalidConstructor{}             -> deadcodeHighlighting w
+    InvalidConstructorBlock{}        -> deadcodeHighlighting w
     InvalidRecordDirective{}         -> deadcodeHighlighting w
     OpenPublicAbstract{}             -> deadcodeHighlighting w
     OpenPublicPrivate{}              -> deadcodeHighlighting w
