@@ -1580,8 +1580,10 @@ niceDeclarations fixs ds = do
                 ddef  = NiceDataDef noRange UserWritten abs pc uc k fpars
             in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (concat (reverse dss)))]) ds
           dat _ _ = __IMPOSSIBLE__
-      let fun k (i, d@(FunSig r acc abs inst mac info tc cc n e), cs) =
-            (i,d) : maybe [] (\ (j, css) -> [(j,FunDef r [] abs inst tc cc n (concat (reverse css)))]) cs
+      let fun k (i, d@(FunSig r acc abs inst mac info tc cc n e), dcs) =
+            let fdef dcss = let (dss, css) = unzip dcss in
+                            FunDef r (concat dss) abs inst tc cc n (concat css)
+            in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (reverse dcss))]) dcs
           fun _ _ = __IMPOSSIBLE__
       let idecls = other ++ concatMap (\ (k, v) -> either (dat k) (fun k) v) (Map.toList m)
       let decls = map snd $ List.sortBy (compare `on` fst) idecls
@@ -1630,23 +1632,23 @@ niceDeclarations fixs ds = do
               -- and then repeat the process for the rest
               addDataConstructors Nothing ds1
 
-        addFunDef :: rep ~ (Int, NiceDeclaration, Maybe (Int, [[Clause]]))
+        addFunDef :: rep ~ (Int, NiceDeclaration, Maybe (Int, [([Declaration],[Clause])]))
                   => NiceDeclaration
                   -> StateT (Map Name (Either a rep), Int) Nice ()
-        addFunDef (FunDef _ _ _ _ _ _ n cs) = do
+        addFunDef (FunDef _ ds _ _ _ _ n cs) = do
           (m, i) <- get
           case Map.lookup n m of
             Nothing -> undefined -- fun clause without fun declaration
             Just (Right (i0, sig, cs0)) -> do
               let (cs', i') = case cs0 of
-                    Nothing        -> ((i, [cs]) , i+1)
-                    Just (i1, cs1) -> ((i1, cs:cs1), i)
+                    Nothing        -> ((i, [(ds, cs)]) , i+1)
+                    Just (i1, cs1) -> ((i1, (ds, cs):cs1), i)
               put (Map.insert n (Right (i0, sig, Just cs')) m, i')
             _ -> undefined -- fun clauses
         addFunDef _ = __IMPOSSIBLE__
 
         addFunClauses :: repD ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
-                      => repF ~ (Int, NiceDeclaration, Maybe (Int, [[Clause]]))
+                      => repF ~ (Int, NiceDeclaration, Maybe (Int, [([Declaration],[Clause])]))
                       => Range -> [NiceDeclaration]
                       -> StateT (Map Name (Either repD repF), Int) Nice [(Int, NiceDeclaration)]
         addFunClauses r (nd@(NiceFunClause _ _ _ _ _ _ d) : ds) = do
@@ -1667,8 +1669,8 @@ niceDeclarations fixs ds = do
               case Map.lookup n m of
                 Just (Right (i0, sig, cs0)) -> do
                   let (cs', i') = case cs0 of
-                        Nothing        -> ((i, [cs]), i+1)
-                        Just (i1, cs1) -> ((i1, cs:cs1), i)
+                        Nothing        -> ((i, [(fits,cs)]), i+1)
+                        Just (i1, cs1) -> ((i1, (fits,cs):cs1), i)
                   put (Map.insert n (Right (i0, sig, Just cs')) m, i')
                 _ -> __IMPOSSIBLE__
               groupByBlocks r rest
@@ -1676,13 +1678,13 @@ niceDeclarations fixs ds = do
         addFunClauses _ _ = __IMPOSSIBLE__
 
         groupByBlocks :: repD ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
-                      => repF ~ (Int, NiceDeclaration, Maybe (Int, [[Clause]]))
+                      => repF ~ (Int, NiceDeclaration, Maybe (Int, [([Declaration],[Clause])]))
                       => Range -> [NiceDeclaration]
                       -> StateT (Map Name (Either repD repF), Int) Nice [(Int, NiceDeclaration)]
         groupByBlocks r []       = pure []
         groupByBlocks r (d : ds) = do
+          -- for most branches we deal with the one declaration and move on
           let oneOff act = act >>= \ ns -> (ns ++) <$> groupByBlocks r ds
-
           case d of
             NiceDataSig{}                -> oneOff $ [] <$ addDataType d
             NiceDataDef _ _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just n) ds
