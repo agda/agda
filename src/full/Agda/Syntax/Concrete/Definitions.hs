@@ -1592,12 +1592,12 @@ niceDeclarations fixs ds = do
         addDataConstructors :: rep ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
                             => Maybe Name -> [NiceDeclaration]
                             -> StateT (Map Name (Either rep b), Int) Nice ()
-        addDataConstructors (Just n) ds0 = do
-          let (ns, ds) = unzip $ flip map ds0 $ \case { d@(Axiom _ _ _ _ _ n _) -> (n, d); _ -> __IMPOSSIBLE__ }
+        addDataConstructors (Just n) ds = do
           (m, i) <- get
           case Map.lookup n m of
             Nothing -> undefined -- constructor without data declaration
             Just (Left (i0, sig, cs)) -> do
+              lift $ removeLoneSig n
               let (cs', i') = case cs of
                     Nothing        -> ((i, [ds])   , i+1)
                     Just (i1, ds1) -> ((i1, ds:ds1), i)
