@@ -1577,16 +1577,21 @@ niceDeclarations fixs ds = do
 
       where
 
-        addDataType :: NiceDeclaration
-                    -> StateT (Map Name (Either (Int, NiceDeclaration, Maybe a) b), Int) Nice ()
-        addDataType d@(NiceDataSig _ _ _ _ _ n _ _) = do
+        addType :: Name -> (Int -> a) -> StateT (Map Name a, Int) Nice ()
+        addType n c = do
           (m, i) <- get
-          whenJust (Map.lookup n m) $ undefined -- duplicate data declaration
-          put (Map.insert n (Left (i, d, Nothing)) m, i+1)
+          whenJust (Map.lookup n m) $ undefined -- duplicate data/fun declaration
+          put (Map.insert n (c i) m, i+1)
+
+        addFunType d@(FunSig _ _ _ _ _ _ _ _ n _) = addType n (\ i -> Right (i, d, Nothing))
+        addFunType _ = __IMPOSSIBLE__
+
+        addDataType d@(NiceDataSig _ _ _ _ _ n _ _) = addType n (\ i -> Left (i, d, Nothing))
         addDataType _ = __IMPOSSIBLE__
 
-        addDataConstructors :: Maybe Name -> [NiceDeclaration]
-                           -> StateT (Map Name (Either (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]])) b), Int) Nice ()
+        addDataConstructors :: rep ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
+                            => Maybe Name -> [NiceDeclaration]
+                            -> StateT (Map Name (Either rep b), Int) Nice ()
         addDataConstructors (Just n) ds0 = do
           let (ns, ds) = unzip $ flip map ds0 $ \case { d@(Axiom _ _ _ _ _ n _) -> (n, d); _ -> __IMPOSSIBLE__ }
           (m, i) <- get
@@ -1613,8 +1618,9 @@ niceDeclarations fixs ds = do
               -- and then repeat the process for the rest
               addDataConstructors Nothing ds1
 
-        groupByBlocks :: Range -> [NiceDeclaration]
-                      -> StateT (Map Name (Either (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]])) b), Int) Nice [(Int, NiceDeclaration)]
+        groupByBlocks :: rep ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
+                      => Range -> [NiceDeclaration]
+                      -> StateT (Map Name (Either rep rep), Int) Nice [(Int, NiceDeclaration)]
         groupByBlocks r []       = pure []
         groupByBlocks r (d : ds) = do
           ns <- case d of
@@ -1623,7 +1629,7 @@ niceDeclarations fixs ds = do
                   NiceDataSig{}                -> [] <$ addDataType d
                   NiceDataDef _ _ _ _ _ n _ ds -> [] <$ addDataConstructors (Just n) ds
                   NiceLoneConstructor r ds     -> [] <$ addDataConstructors Nothing ds
-                  FunSig{} -> undefined
+                  FunSig{}                     -> [] <$ addFunType d
                   FunDef{} -> undefined
                   _ -> do
                     (m, i) <- get
