@@ -1199,7 +1199,7 @@ niceDeclarations fixs ds = do
             _  -> (,ds) <$> (singleton <$> (mkInfixMutual r =<< nice ds'))
 
         LoneConstructor r [] -> justWarning $ EmptyConstructor r
-        LoneConstructor r ds' -> (,ds) <$> (singleton . mkNiceLoneConstructor r <$> nice ds')
+        LoneConstructor r ds' -> ((,ds) . singleton) <$> (mkLoneConstructor r =<< nice ds')
 
         Abstract r []  -> justWarning $ EmptyAbstract r
         Abstract r ds' ->
@@ -1582,7 +1582,6 @@ niceDeclarations fixs ds = do
         addDataType d@(NiceDataSig _ _ _ _ _ n _ _) = do
           (m, i) <- get
           whenJust (Map.lookup n m) $ undefined -- duplicate data declaration
-          lift $ removeLoneSig n
           put (Map.insert n (Left (i, d, Nothing)) m, i+1)
         addDataType _ = __IMPOSSIBLE__
 
@@ -1593,12 +1592,11 @@ niceDeclarations fixs ds = do
           (m, i) <- get
           case Map.lookup n m of
             Nothing -> undefined -- constructor without data declaration
-            Just (Left (i0, sig, Nothing)) -> do
-              lift $ mapM_ removeLoneSig ns
-              put (Map.insert n (Left (i0, sig, Just (i, [ds]))) m, i+1)
-            Just (Left (i0, sig, Just (i1, ds1))) -> do
-              lift $ mapM_ removeLoneSig ns
-              put (Map.insert n (Left (i0, sig, Just (i1, (ds:ds1)))) m, i)
+            Just (Left (i0, sig, cs)) -> do
+              let (cs', i') = case cs of
+                    Nothing        -> ((i, [ds])   , i+1)
+                    Just (i1, ds1) -> ((i1, ds:ds1), i)
+              put (Map.insert n (Left (i0, sig, Just cs')) m, i')
             _ -> undefined -- fun clauses
         addDataConstructors Nothing [] = pure ()
         addDataConstructors Nothing (d : ds) = do
@@ -1606,7 +1604,7 @@ niceDeclarations fixs ds = do
           (m, i) <- get
           let sigs = map fst $ filter (isLeft . snd) $ Map.toList m
           -- check whether this constructor matches any of them
-          traceShow d $ case isConstructor sigs d of
+          case isConstructor sigs d of
             Nothing -> undefined
             Just n -> do
               -- if so grab the whole block that may work
@@ -1634,6 +1632,8 @@ niceDeclarations fixs ds = do
           (ns ++) <$> groupByBlocks r ds
 
     -- Extract the name of the return type (if any) of a potential constructor
+    -- A `constructor' block should only contain NiceConstructors so we crash with
+    -- an IMPOSSIBLE otherwise
     isConstructor :: [Name] -> NiceDeclaration -> Maybe Name
     isConstructor ns (Axiom _ _ _ _ _ _ e) | Just p <- isPattern =<< returnExpr e =
        case [ x | x <- ns
@@ -1641,15 +1641,15 @@ niceDeclarations fixs ds = do
                 ] of
          [x] -> Just x
          _ -> Nothing
-    isConstructor _ _ = Nothing
+    isConstructor _ _ = __IMPOSSIBLE__
 
-    -- FunSig Range Access IsAbstract IsInstance IsMacro ArgInfo TerminationCheck CoverageCheck Name Expr
-    --  Axiom Range Access IsAbstract IsInstance ArgInfo Name Expr
-
-    mkNiceLoneConstructor :: Range -> [NiceDeclaration] -> NiceDeclaration
-    mkNiceLoneConstructor r ds = NiceLoneConstructor r $ flip map ds $ \case
-      d@Axiom{} -> d
-      FunSig r a abst inst _ arg _ _ n e -> Axiom r a abst inst arg n e
+    -- Things that were recognised as isolated funsigs in a `constructor' block are
+    -- actually axioms (aka NiceConstructor). And the corresponding isolated lonesigs
+    -- should be removed.
+    mkLoneConstructor :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
+    mkLoneConstructor r ds = fmap (NiceLoneConstructor r) $ forM ds $ \case
+      d@Axiom{} -> pure d
+      FunSig r a abst inst _ arg _ _ n e -> Axiom r a abst inst arg n e <$ removeLoneSig n
       _ -> undefined
 
     -- -- Group the constructors in a `constructor' block by name of the return type
