@@ -1415,14 +1415,6 @@ niceDeclarations fixs ds = do
           -- If a type is given (mt /= Nothing), we have to delete the types in @tel@
           -- for the data definition, lest we duplicate them. And also drop modalities (#1886).
         ]
-      where
-        -- | Drop type annotations and lets from bindings.
-        dropTypeAndModality :: LamBinding -> [LamBinding]
-        dropTypeAndModality (DomainFull (TBind _ xs _)) =
-          map (DomainFree . setModality defaultModality) $ List1.toList xs
-        dropTypeAndModality (DomainFull TLet{}) = []
-        dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
-
     -- Translate axioms
     niceAxioms :: KindOfBlock -> [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]
     niceAxioms b ds = List.concat <$> mapM (niceAxiom b) ds
@@ -1576,7 +1568,7 @@ niceDeclarations fixs ds = do
     mkInfixMutual r ds' = do
       (other, (m, _)) <- runStateT (groupByBlocks r ds') (empty, 0)
       let dat k (i, d@(NiceDataSig _ acc abs pc uc _ pars _), ds) =
-            let fpars = concatMap mkDomainFree pars
+            let fpars = concatMap dropTypeAndModality pars
                 ddef  = NiceDataDef noRange UserWritten abs pc uc k fpars
             in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (concat (reverse dss)))]) ds
           dat _ _ = __IMPOSSIBLE__

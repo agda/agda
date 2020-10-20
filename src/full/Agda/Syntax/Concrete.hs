@@ -23,7 +23,7 @@ module Agda.Syntax.Concrete
   , mkBinder
   , LamBinding
   , LamBinding'(..)
-  , mkDomainFree
+  , dropTypeAndModality
   , TypedBinding
   , TypedBinding'(..)
   , RecordAssignment
@@ -234,11 +234,12 @@ data LamBinding' a
     -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
--- | Forget the type annotations in a LamBinding
-mkDomainFree :: LamBinding -> [LamBinding]
-mkDomainFree (DomainFull (TBind r bs _)) = DomainFree <$> List1.toList bs
-mkDomainFree l = [l]
-
+-- | Drop type annotations and lets from bindings.
+dropTypeAndModality :: LamBinding -> [LamBinding]
+dropTypeAndModality (DomainFull (TBind _ xs _)) =
+  map (DomainFree . setModality defaultModality) $ List1.toList xs
+dropTypeAndModality (DomainFull TLet{}) = []
+dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
 
 data BoundName = BName
   { boundName   :: Name
