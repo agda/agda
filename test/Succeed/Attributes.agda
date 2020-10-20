@@ -51,5 +51,7 @@ wrap A x = wrap' x
 -- In record fields.
 
 record Squash (@0 A : Set) : Set where
-  no-eta-equality; constructor squash; field
+  no-eta-equality
+  constructor squash
+  field
     @irrelevant squashed : A

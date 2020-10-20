@@ -1692,7 +1692,7 @@ ArgTypeSignatures0
 -- Record declarations, including an optional record constructor name.
 RecordDeclarations :: { (RecordDirectives, [Declaration]) }
 RecordDeclarations
-    : vopen Declarations1 close {% extractRecordDirectives (List1.toList $2) }
+    : Declarations0 {% extractRecordDirectives $1 }
 
 RecordEta :: { Declaration }
 RecordEta
