@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
 
 -- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
@@ -75,7 +74,6 @@ import Agda.Syntax.Common hiding (TerminationCheck())
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
 import Agda.Syntax.Notation
-import Agda.Syntax.Concrete.Definitions.Errors
 import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Concrete.Fixity
 

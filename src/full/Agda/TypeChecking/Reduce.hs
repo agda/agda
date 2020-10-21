@@ -858,7 +858,7 @@ instance Simplify Bool where
 instance Simplify Term where
   simplify' v = do
     v <- instantiate' v
-    let iapp es m = ignoreBlocking <$> reduceIApply' (\ t -> notBlocked <$> simplify' t) (notBlocked <$> m) es
+    let iapp es m = ignoreBlocking <$> reduceIApply' (fmap notBlocked . simplify') (notBlocked <$> m) es
     case v of
       Def f vs   -> iapp vs $ do
         let keepGoing simp v = return (simp, notBlocked v)
