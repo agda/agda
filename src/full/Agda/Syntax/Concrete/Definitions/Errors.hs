@@ -35,6 +35,8 @@ data DeclarationException'
   | WrongContentBlock KindOfBlock Range
   | AmbiguousFunClauses LHS (List1 Name)
       -- ^ In a mutual block, a clause could belong to any of the ≥2 type signatures ('Name').
+  | AmbiguousConstructor Range Name [Name]
+      -- ^ In an infix mutual block, a constructor could belong to any of the data signatures ('Name')
   | InvalidMeasureMutual Range
       -- ^ In a mutual block, all or none need a MEASURE pragma.
       --   Range is of mutual block.
@@ -201,6 +203,7 @@ instance HasRange DeclarationException' where
   getRange (MissingWithClauses x lhs)           = getRange lhs
   getRange (WrongDefinition x k k')             = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
+  getRange (AmbiguousConstructor r _ _)         = r
   getRange (DeclarationPanic _)                 = noRange
   getRange (WrongContentBlock _ r)              = r
   getRange (InvalidMeasureMutual r)             = r
@@ -266,6 +269,13 @@ instance Pretty DeclarationException' where
         pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
         pwords "it could belong to any of:"
     , vcat $ fmap (pretty . PrintRange) xs
+    ]
+  pretty (AmbiguousConstructor _ n ns) = sep
+    [ fsep (pwords "More than one matching data signature for constructor " ++ [pretty n])
+    , vcat (case ns of
+              [] -> [fsep $ pwords "Could not find a candidate."]
+              _  -> fsep (pwords "It could be any of:") : fmap (pretty . PrintRange) ns
+           )
     ]
   pretty (WrongContentBlock b _)      = fsep . pwords $
     case b of

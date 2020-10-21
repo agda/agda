@@ -860,13 +860,13 @@ niceDeclarations fixs ds = do
           let sigs = map fst $ filter (isLeft . snd) $ Map.toList m
           -- check whether this constructor matches any of them
           case isConstructor sigs d of
-            Nothing -> undefined
-            Just n -> do
+            Right n -> do
               -- if so grab the whole block that may work
-              let (ds0, ds1) = span (isJust . isConstructor [n]) ds
+              let (ds0, ds1) = span (isRight . isConstructor [n]) ds
               addDataConstructors (Just n) (d : ds0)
               -- and then repeat the process for the rest
               addDataConstructors Nothing ds1
+            Left (n, ns) -> lift $ declarationException $ AmbiguousConstructor (getRange d) n ns
 
         addFunDef :: rep ~ (Int, NiceDeclaration, Maybe (Int, [([Declaration],[Clause])]))
                   => NiceDeclaration
@@ -937,16 +937,18 @@ niceDeclarations fixs ds = do
               put (m, i+1)
               pure [(i,d)]
 
-    -- Extract the name of the return type (if any) of a potential constructor
+    -- Extract the name of the return type (if any) of a potential constructor.
+    -- In case of failure return the name of the constructor and the list of candidates
+    -- for the return type.
     -- A `constructor' block should only contain NiceConstructors so we crash with
     -- an IMPOSSIBLE otherwise
-    isConstructor :: [Name] -> NiceDeclaration -> Maybe Name
-    isConstructor ns (Axiom _ _ _ _ _ _ e) | Just p <- isPattern =<< returnExpr e =
+    isConstructor :: [Name] -> NiceDeclaration -> Either (Name, [Name]) Name
+    isConstructor ns (Axiom _ _ _ _ _ n e) | Just p <- isPattern =<< returnExpr e =
        case [ x | x <- ns
                 , couldBeCallOf (Map.lookup x fixs) x p
                 ] of
-         [x] -> Just x
-         _ -> Nothing
+         [x] -> Right x
+         xs  -> Left (n, xs)
     isConstructor _ _ = __IMPOSSIBLE__
 
     -- Things that were recognised as isolated funsigs in a `constructor' block are
