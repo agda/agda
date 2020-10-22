@@ -1,4 +1,4 @@
-module Fresh {A : Set} (_#_ : A → A → Set) where
+module Issue2858-Fresh {A : Set} (_#_ : A → A → Set) where
 
   infix mutual
 
