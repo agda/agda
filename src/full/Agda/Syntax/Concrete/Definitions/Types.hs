@@ -2,6 +2,7 @@ module Agda.Syntax.Concrete.Definitions.Types where
 
 import Data.Data
 import Data.Map (Map)
+import Data.Semigroup ( Semigroup(..) )
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())

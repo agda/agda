@@ -60,11 +60,11 @@ import Control.Monad.State
 import Data.Bifunctor
 import Data.Data (Data)
 import Data.Either (isLeft, isRight)
-import Data.Foldable (fold)
 import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
+import Data.Semigroup ( Semigroup(..) )
 import qualified Data.List as List
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
@@ -900,7 +900,7 @@ niceDeclarations fixs ds = do
                   let (cs', i') = case cs0 of
                         Nothing        -> ((i, [(fits,cs)]), i+1)
                         Just (i1, cs1) -> ((i1, (fits,cs):cs1), i)
-                  let checks' = fold checkss
+                  let checks' = Fold.fold checkss
                   put (Map.insert n (InfixFun (i0, sig) (Just cs')) m, checks' <> checks, i')
                 _ -> __IMPOSSIBLE__
               groupByBlocks r rest
