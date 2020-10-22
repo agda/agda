@@ -1,6 +1,7 @@
 module Agda.Syntax.Concrete.Definitions.Types where
 
 import Data.Data
+import Data.Map (Map)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
@@ -91,6 +92,22 @@ type NiceTypeSignature  = NiceDeclaration
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
     deriving (Data, Show)
 
+-- | In an `infix mutual' block we collect the data signatures, function signatures,
+--   as well as their associated constructors and function clauses respectively.
+--   Each signature is given a position in the block (from 0 onwards) and each set
+--   of constructor / clauses is given a *distinct* one. This allows for interleaved
+--   forward declarations similar to what one gets in a new-style mutual block.
+type InfixMutual = Map Name InfixDecl
+
+data InfixDecl
+  = InfixData
+    { infixDataSig  :: (Int, NiceDeclaration)           -- a data signature
+    , infixDataCons :: Maybe (Int, [[NiceConstructor]]) -- and associated constructors
+    }
+  | InfixFun
+    { infixFunSig     :: (Int, NiceDeclaration)                  -- a fun signature
+    , infixFunClauses :: Maybe (Int, [([Declaration],[Clause])]) -- and associated fun clauses
+    }
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock

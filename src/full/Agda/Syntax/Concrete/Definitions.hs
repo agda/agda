@@ -812,17 +812,16 @@ niceDeclarations fixs ds = do
       -> Nice NiceDeclaration -- ^ Returns a 'NiceMutual'.
     mkInfixMutual r ds' = do
       (other, (m, _)) <- runStateT (groupByBlocks r ds') (empty, 0)
-      let dat k (i, d@(NiceDataSig _ acc abs pc uc _ pars _), ds) =
+      let dec k (InfixData (i, d@(NiceDataSig _ acc abs pc uc _ pars _)) ds) =
             let fpars = concatMap dropTypeAndModality pars
                 ddef  = NiceDataDef noRange UserWritten abs pc uc k fpars
             in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (concat (reverse dss)))]) ds
-          dat _ _ = __IMPOSSIBLE__
-      let fun k (i, d@(FunSig r acc abs inst mac info tc cc n e), dcs) =
+          dec k (InfixFun (i, d@(FunSig r acc abs inst mac info tc cc n e)) dcs) =
             let fdef dcss = let (dss, css) = unzip dcss in
                             FunDef r (concat dss) abs inst tc cc n (concat css)
             in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (reverse dcss))]) dcs
-          fun _ _ = __IMPOSSIBLE__
-      let idecls = other ++ concatMap (\ (k, v) -> either (dat k) (fun k) v) (Map.toList m)
+          dec _ _ = __IMPOSSIBLE__
+      let idecls = other ++ concatMap (uncurry dec) (Map.toList m)
       let decls = map snd $ List.sortBy (compare `on` fst) idecls
       pure $ NiceMutual r NoTerminationCheck YesCoverageCheck YesPositivityCheck decls
 
@@ -834,30 +833,29 @@ niceDeclarations fixs ds = do
           when (isJust $ Map.lookup n m) $ lift $ declarationException $ DuplicateDefinition n
           put (Map.insert n (c i) m, i+1)
 
-        addFunType d@(FunSig _ _ _ _ _ _ _ _ n _) = addType n (\ i -> Right (i, d, Nothing))
+        addFunType d@(FunSig _ _ _ _ _ _ _ _ n _) = addType n (\ i -> InfixFun (i, d) Nothing)
         addFunType _ = __IMPOSSIBLE__
 
-        addDataType d@(NiceDataSig _ _ _ _ _ n _ _) = addType n (\ i -> Left (i, d, Nothing))
+        addDataType d@(NiceDataSig _ _ _ _ _ n _ _) = addType n (\ i -> InfixData (i, d) Nothing)
         addDataType _ = __IMPOSSIBLE__
 
-        addDataConstructors :: rep ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
-                            => Maybe Name -> [NiceDeclaration]
-                            -> StateT (Map Name (Either rep b), Int) Nice ()
+        addDataConstructors :: Maybe Name -> [NiceConstructor]
+                            -> StateT (InfixMutual, Int) Nice ()
         addDataConstructors (Just n) ds = do
           (m, i) <- get
           case Map.lookup n m of
-            Just (Left (i0, sig, cs)) -> do
+            Just (InfixData (i0, sig) cs) -> do
               lift $ removeLoneSig n
               let (cs', i') = case cs of
                     Nothing        -> ((i, [ds])   , i+1)
                     Just (i1, ds1) -> ((i1, ds:ds1), i)
-              put (Map.insert n (Left (i0, sig, Just cs')) m, i')
+              put (Map.insert n (InfixData (i0, sig) (Just cs')) m, i')
             _ -> __IMPOSSIBLE__ -- we have resolved the name `n` already and it comes from a DataSig!
         addDataConstructors Nothing [] = pure ()
         addDataConstructors Nothing (d : ds) = do
           -- get the candidate data types that are in this infix mutual block
           (m, i) <- get
-          let sigs = map fst $ filter (isLeft . snd) $ Map.toList m
+          let sigs = mapMaybe (\case { (n, InfixData{}) -> Just n; _ -> Nothing }) $ Map.toList m
           -- check whether this constructor matches any of them
           case isConstructor sigs d of
             Right n -> do
@@ -868,28 +866,24 @@ niceDeclarations fixs ds = do
               addDataConstructors Nothing ds1
             Left (n, ns) -> lift $ declarationException $ AmbiguousConstructor (getRange d) n ns
 
-        addFunDef :: rep ~ (Int, NiceDeclaration, Maybe (Int, [([Declaration],[Clause])]))
-                  => NiceDeclaration
-                  -> StateT (Map Name (Either a rep), Int) Nice ()
+        addFunDef :: NiceDeclaration -> StateT (InfixMutual, Int) Nice ()
         addFunDef (FunDef _ ds _ _ _ _ n cs) = do
           (m, i) <- get
           case Map.lookup n m of
-            Just (Right (i0, sig, cs0)) -> do
+            Just (InfixFun (i0, sig) cs0) -> do
               let (cs', i') = case cs0 of
                     Nothing        -> ((i, [(ds, cs)]) , i+1)
                     Just (i1, cs1) -> ((i1, (ds, cs):cs1), i)
-              put (Map.insert n (Right (i0, sig, Just cs')) m, i')
+              put (Map.insert n (InfixFun (i0, sig) (Just cs')) m, i')
             _ -> __IMPOSSIBLE__ -- A FunDef always come after an existing FunSig!
         addFunDef _ = __IMPOSSIBLE__
 
-        addFunClauses :: repD ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
-                      => repF ~ (Int, NiceDeclaration, Maybe (Int, [([Declaration],[Clause])]))
-                      => Range -> [NiceDeclaration]
-                      -> StateT (Map Name (Either repD repF), Int) Nice [(Int, NiceDeclaration)]
+        addFunClauses :: Range -> [NiceDeclaration]
+                      -> StateT (InfixMutual, Int) Nice [(Int, NiceDeclaration)]
         addFunClauses r (nd@(NiceFunClause _ _ _ _ _ _ d@(FunClause lhs _ _ _)) : ds) = do
           -- get the candidate functions that are in this infix mutual block
           (m, i) <- get
-          let sigs = map fst $ filter (isRight . snd) $ Map.toList m
+          let sigs = mapMaybe (\case { (n, InfixFun{}) -> Just n; _ -> Nothing }) $ Map.toList m
           case [ (x, fits, rest)
                | x <- sigs
                , let (fits, rest) = spanJust (couldBeNiceFunClauseOf (Map.lookup x fixs) x) (nd : ds)
@@ -902,11 +896,11 @@ niceDeclarations fixs ds = do
               ds <- lift $ expandEllipsis fits
               cs <- lift $ mkClauses n ds False
               case Map.lookup n m of
-                Just (Right (i0, sig, cs0)) -> do
+                Just (InfixFun (i0, sig) cs0) -> do
                   let (cs', i') = case cs0 of
                         Nothing        -> ((i, [(fits,cs)]), i+1)
                         Just (i1, cs1) -> ((i1, (fits,cs):cs1), i)
-                  put (Map.insert n (Right (i0, sig, Just cs')) m, i')
+                  put (Map.insert n (InfixFun (i0, sig) (Just cs')) m, i')
                 _ -> __IMPOSSIBLE__
               groupByBlocks r rest
             xf:xfs -> lift $ declarationException
@@ -914,10 +908,8 @@ niceDeclarations fixs ds = do
                            $ List1.reverse $ fmap (\ (a,_,_) -> a) $ xf :| xfs
         addFunClauses _ _ = __IMPOSSIBLE__
 
-        groupByBlocks :: repD ~ (Int, NiceDeclaration, Maybe (Int, [[NiceDeclaration]]))
-                      => repF ~ (Int, NiceDeclaration, Maybe (Int, [([Declaration],[Clause])]))
-                      => Range -> [NiceDeclaration]
-                      -> StateT (Map Name (Either repD repF), Int) Nice [(Int, NiceDeclaration)]
+        groupByBlocks :: Range -> [NiceDeclaration]
+                      -> StateT (InfixMutual, Int) Nice [(Int, NiceDeclaration)]
         groupByBlocks r []       = pure []
         groupByBlocks r (d : ds) = do
           -- for most branches we deal with the one declaration and move on
