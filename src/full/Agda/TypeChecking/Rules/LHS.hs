@@ -867,7 +867,8 @@ checkLHS mf = updateModality checkLHS_ where
         -- the modalities in the clause telescope also need updating.
 
  checkLHS_ st@(LHSState tel ip problem target psplit) = do
-
+  reportSDoc "lhs" 10 $ "tel is" <+> prettyTCM tel
+  reportSDoc "lhs" 10 $ "ip is" <+> pretty ip
   if isSolvedProblem problem then
     liftTCM $ (problem ^. problemCont) st
   else do

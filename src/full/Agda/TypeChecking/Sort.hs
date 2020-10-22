@@ -47,6 +47,7 @@ import Agda.TypeChecking.Monad.Signature (HasConstInfo(..), applyDef)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.ProjectionLike (elimView)
 import Agda.TypeChecking.Records (getDefType)
+import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -166,7 +167,7 @@ sortOf
   => Term -> m Sort
 sortOf t = do
   reportSDoc "tc.sort" 40 $ "sortOf" <+> prettyTCM t
-  sortOfT =<< elimView True t
+  sortOfT =<< elimView EvenLone t
 
   where
     sortOfT :: Term -> m Sort
