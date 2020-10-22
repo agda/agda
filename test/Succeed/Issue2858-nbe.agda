@@ -8,7 +8,7 @@ data Ty : Set where
 
 variable
   σ τ : Ty
-  Γ Δ : List Ty
+  Γ Δ Θ : List Ty
 
 Scoped : Set₁
 Scoped = Ty → List Ty → Set
@@ -17,23 +17,29 @@ data Var : Scoped where
   z : Var σ (σ ∷ Γ)
   s : Var σ Γ → Var σ (τ ∷ Γ)
 
-record _⊆_ (Γ Δ : List Ty) : Set where
+record Ren (Γ Δ : List Ty) : Set where
   field lookup : ∀ {σ} → Var σ Γ → Var σ Δ
-open _⊆_ public
+open Ren public
 
-bind : Γ ⊆ Δ → (σ ∷ Γ) ⊆ (σ ∷ Δ)
+bind : Ren Γ Δ → Ren (σ ∷ Γ) (σ ∷ Δ)
 lookup (bind ρ) z     = z
 lookup (bind ρ) (s v) = s (lookup ρ v)
 
-step : Γ ⊆ (σ ∷ Γ)
+refl : Ren Γ Γ
+lookup refl v = v
+
+step : Ren Γ (σ ∷ Γ)
 lookup step v = s v
+
+_∘_ : Ren Δ Θ → Ren Γ Δ → Ren Γ Θ
+lookup (ρ′ ∘ ρ) v = lookup ρ′ (lookup ρ v)
 
 infix mutual
 
   data Syn : Scoped
   data Chk : Scoped
-  th^Syn : Γ ⊆ Δ → Syn σ Γ → Syn σ Δ
-  th^Chk : Γ ⊆ Δ → Chk σ Γ → Chk σ Δ
+  th^Syn : Ren Γ Δ → Syn σ Γ → Syn σ Δ
+  th^Chk : Ren Γ Δ → Chk σ Γ → Chk σ Δ
 
   -- variable rule
   constructor
@@ -58,8 +64,11 @@ infix mutual
 
 Val : Scoped
 Val α       Γ = Syn α Γ
-Val (σ ↝ τ) Γ = ∀ {Δ} → Γ ⊆ Δ → Val σ Δ → Val τ Δ
+Val (σ ↝ τ) Γ = ∀ {Δ} → Ren Γ Δ → Val σ Δ → Val τ Δ
 
+th^Val : Ren Γ Δ → Val σ Γ → Val σ Δ
+th^Val {σ = α}     ρ t = th^Syn ρ t
+th^Val {σ = σ ↝ τ} ρ t = λ ρ′ → t (ρ′ ∘ ρ)
 
 infix mutual
 
@@ -73,3 +82,41 @@ infix mutual
   -- arrow case
   reify   (σ ↝ τ) t = lam (reify τ (t step (reflect σ (var z))))
   reflect (σ ↝ τ) t = λ ρ v → reflect τ (app (th^Syn ρ t) (reify σ v))
+
+record Env (Γ Δ : List Ty) : Set where
+  field lookup : ∀ {σ} → Var σ Γ → Val σ Δ
+open Env public
+
+th^Env : Ren Δ Θ → Env Γ Δ → Env Γ Θ
+lookup (th^Env ρ vs) v = th^Val ρ (lookup vs v)
+
+placeholders : Env Γ Γ
+lookup placeholders v = reflect _ (var v)
+
+extend : Env Γ Δ → Val σ Δ → Env (σ ∷ Γ) Δ
+lookup (extend ρ t) z     = t
+lookup (extend ρ t) (s v) = lookup ρ v
+
+infix mutual
+
+  eval^Syn : Env Γ Δ → Syn σ Γ → Val σ Δ
+  eval^Chk : Env Γ Δ → Chk σ Γ → Val σ Δ
+
+  -- variable
+  eval^Syn vs (var v) = lookup vs v
+
+  -- change of direction
+  eval^Syn vs (cut t) = eval^Chk vs t
+  eval^Chk vs (emb t) = eval^Syn vs t
+
+  -- function introduction & elimination
+  eval^Syn vs (app f t) = eval^Syn vs f refl (eval^Chk vs t)
+  eval^Chk vs (lam b)   = λ ρ v → eval^Chk (extend (th^Env ρ vs) v) b
+
+infix mutual
+
+  norm^Syn : Syn σ Γ → Chk σ Γ
+  norm^Chk : Chk σ Γ → Chk σ Γ
+
+  norm^Syn t = norm^Chk (emb t)
+  norm^Chk t = reify _ (eval^Chk placeholders t)

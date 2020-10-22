@@ -810,7 +810,10 @@ niceDeclarations fixs ds = do
             in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (reverse dcss))]) dcs
           dec _ _ = __IMPOSSIBLE__
       let idecls = other ++ concatMap (uncurry dec) (Map.toList m)
-      let decls = map snd $ List.sortBy (compare `on` fst) idecls
+      let decls0 = map snd $ List.sortBy (compare `on` fst) idecls
+      ps <- use loneSigs
+      checkLoneSigs ps
+      let decls = replaceSigs ps decls0
       -- process the checks
       tc <- combineTerminationChecks r (mutualTermination checks)
       let cc = combineCoverageChecks   (mutualCoverage checks)
