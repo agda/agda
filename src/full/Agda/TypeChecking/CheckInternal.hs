@@ -14,8 +14,10 @@ module Agda.TypeChecking.CheckInternal
   , checkSort
   , checkInternal
   , checkInternal'
+  , checkInternalType'
   , Action(..), defaultAction, eraseUnusedAction
   , infer
+  , inferSpine'
   , shouldBeSort
   ) where
 
@@ -30,7 +32,7 @@ import Agda.TypeChecking.Datatypes -- (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.ProjectionLike (elimView)
+import Agda.TypeChecking.ProjectionLike (elimView, ProjEliminator(..))
 import Agda.TypeChecking.Records (getDefType)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -71,7 +73,7 @@ checkType' t = do
     [ "checking internal type "
     , prettyTCM t
     ]
-  v <- elimView True $ unEl t -- bring projection-like funs in post-fix form
+  v <- elimView EvenLone $ unEl t -- bring projection-like funs in post-fix form
   case v of
     Pi a b -> do
       s1 <- checkType' $ unDom a
@@ -102,6 +104,10 @@ checkType' t = do
 checkTypeSpine :: (MonadCheckInternal m) => Type -> Term -> Elims -> m Sort
 checkTypeSpine a self es = shouldBeSort =<< do snd <$> inferSpine a self es
 
+checkInternalType' :: (MonadCheckInternal m) => Action m -> Type -> m Type
+checkInternalType' act El{_getSort=s, unEl=t} = do
+  tAfterAct <- checkInternal' act t CmpLeq (sort s)
+  return El{_getSort=s, unEl=tAfterAct}
 
 -- | 'checkInternal' traverses the whole 'Term', and we can use this
 --   traversal to modify the term.
@@ -114,14 +120,18 @@ data Action m = Action
     -- ^ Called for each @ArgInfo@.
     --   The first 'Relevance' is from the type,
     --   the second from the term.
+  , elimViewAction :: Term -> m Term
+    -- ^ Called for bringing projection-like funs in post-fix form
   }
 
 -- | The default action is to not change the 'Term' at all.
-defaultAction :: Monad m => Action m
+defaultAction :: PureTCM m => Action m
+--(MonadReduce m, MonadTCEnv m, HasConstInfo m) => Action m
 defaultAction = Action
   { preAction       = \ _ -> return
   , postAction      = \ _ -> return
   , relevanceAction = \ _ -> id
+  , elimViewAction  = elimView EvenLone
   }
 
 eraseUnusedAction :: Action TCM
@@ -150,9 +160,17 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
     [ "checking internal "
     , nest 2 $ sep [ prettyTCM v <+> ":"
                    , nest 2 $ prettyTCM t ] ]
+  reportSDoc "tc.check.internal" 30 $ sep
+    [ "checking internal with DB indices"
+    , nest 2 $ sep [ pretty v <+> ":"
+                   , nest 2 $ pretty t ] ]
+  ctx <- getContextTelescope
+  reportSDoc "tc.check.internal" 30 $ sep
+    [ "In context"
+    , nest 2 $ sep [ prettyTCM ctx ] ]
   -- Bring projection-like funs in post-fix form,
-  -- even lone ones (True).
-  v <- elimView True =<< preAction action t v
+  -- (even lone ones by default).
+  v <- elimViewAction action =<< preAction action t v
   postAction action t =<< case v of
     Var i es   -> do
       a <- typeOfBV i
@@ -342,10 +360,10 @@ inferSpine' action t self self' [] = return ((self, self'), t)
 inferSpine' action t self self' (e : es) = do
   reportSDoc "tc.infer.internal" 30 $ sep
     [ "inferSpine': "
-    , "type t = " <+> prettyTCM t
-    , "self  = " <+> prettyTCM self
-    , "self' = " <+> prettyTCM self'
-    , "eliminated by e = " <+> prettyTCM e
+    , "type t = " <+> pretty t
+    , "self  = " <+> pretty self
+    , "self' = " <+> pretty self'
+    , "eliminated by e = " <+> text (show e)
     ]
   case e of
     IApply x y r -> do

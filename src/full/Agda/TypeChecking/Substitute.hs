@@ -1125,7 +1125,7 @@ instance Subst DeBruijnPattern where
       useName (dbPatVarName x) $
       lookupS rho $ dbPatVarIndex x
     DotP i u     -> DotP i $ applyPatSubst rho u
-    ConP c ci ps -> ConP c ci $ applySubst rho ps
+    ConP c ci ps -> ConP c ci {conPType = applyPatSubst rho (conPType ci)} $ applySubst rho ps
     DefP i q ps  -> DefP i q $ applySubst rho ps
     LitP i x     -> p
     ProjP{}      -> p

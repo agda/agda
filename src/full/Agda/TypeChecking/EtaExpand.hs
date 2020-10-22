@@ -31,8 +31,5 @@ deepEtaExpand :: Term -> Type -> TCM Term
 deepEtaExpand v a = checkInternal' etaExpandAction v CmpLeq a
 
 etaExpandAction :: PureTCM m => Action m
-etaExpandAction = Action
-  { preAction       = etaExpandOnce
-  , postAction      = \ _ -> return
-  , relevanceAction = \ _ -> id
-  }
+etaExpandAction = defaultAction { preAction = etaExpandOnce  }
+
