@@ -471,13 +471,16 @@ underFlexRig :: (MonadReader r m, LensFlexRig a r, Semigroup a, LensFlexRig a o)
 underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
 
 -- | What happens to the variables occurring under a constructor?
-underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> m z -> m z
-underConstructor (ConHead _c _d i _fs) =
+underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> Elims -> m z -> m z
+underConstructor (ConHead _c _d i fs) es =
   case i of
     -- Coinductive (record) constructors admit infinite cycles:
     CoInductive -> underFlexRig WeaklyRigid
     -- Inductive constructors do not admit infinite cycles:
-    Inductive   -> underFlexRig StronglyRigid
+    Inductive   | size es == size fs -> underFlexRig StronglyRigid
+                | otherwise          -> underFlexRig WeaklyRigid
+    -- Jesper, 2020-10-22: Issue #4995: treat occurrences in non-fully
+    -- applied constructors as weakly rigid.
     -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
     -- the same as datatypes, so absense of infinite cycles can be proven in Agda, and thus
     -- the unifier is allowed to do it too. Test case: test/Succeed/Issue1271a.agda
@@ -511,13 +514,13 @@ instance Free Term where
     Var n ts     -> variable n `mappend` do underFlexRig WeaklyRigid $ freeVars' ts
     -- λ is not considered guarding, as
     -- we cannot prove that x ≡ λy.x is impossible.
-    Lam _ t      -> freeVars' t
+    Lam _ t      -> underFlexRig WeaklyRigid $ freeVars' t
     Lit _        -> mempty
     Def _ ts     -> underFlexRig WeaklyRigid $ freeVars' ts  -- because we are not in TCM
       -- we cannot query whether we are dealing with a data/record (strongly r.)
       -- or a definition by pattern matching (weakly rigid)
       -- thus, we approximate, losing that x = List x is unsolvable
-    Con c _ ts   -> underConstructor c $ freeVars' ts
+    Con c _ ts   -> underConstructor c ts $ freeVars' ts
     -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
     -- Even as we do not permit infinite type expressions,
     -- we cannot prove their absence (as Set is not inductive).
