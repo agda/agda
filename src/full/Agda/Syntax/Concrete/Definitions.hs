@@ -242,47 +242,32 @@ niceDeclarations fixs ds = do
         LoneDefs{}   -> (d :) <$> inferMutualBlocks ds  -- Andreas, 2017-10-09, issue #2576: report error in ConcreteToAbstract
         LoneSigDecl r k x  -> do
           _ <- addLoneSig r x k
-          let tcccpc = ([terminationCheck k], [coverageCheck k], [positivityCheck k])
-          ((tcs, ccs, pcs), (nds0, ds1)) <- untilAllDefined tcccpc ds
+          InferredMutual checks nds0 ds1 <- untilAllDefined (mutualChecks k) ds
           -- If we still have lone signatures without any accompanying definition,
           -- we postulate the definition and substitute the axiom for the lone signature
           ps <- use loneSigs
           checkLoneSigs ps
           let ds0 = replaceSigs ps (d : nds0) -- NB: don't forget the LoneSig the block started with!
           -- We then keep processing the rest of the block
-          tc <- combineTerminationChecks (getRange d) tcs
-          let cc = combineCoverageChecks ccs
-          let pc = combinePositivityChecks pcs
+          tc <- combineTerminationChecks (getRange d) (mutualTermination checks)
+          let cc = combineCoverageChecks              (mutualCoverage checks)
+          let pc = combinePositivityChecks            (mutualPositivity checks)
           (NiceMutual (getRange ds0) tc cc pc ds0 :) <$> inferMutualBlocks ds1
       where
-        untilAllDefined :: ([TerminationCheck], [CoverageCheck], [PositivityCheck])
-                        -> [NiceDeclaration]
-                        -> Nice (([TerminationCheck], [CoverageCheck], [PositivityCheck]) -- checks for this block
-                                , ([NiceDeclaration]                                      -- mutual block
-                                , [NiceDeclaration])                                      -- leftovers
-                                )
-        untilAllDefined tcccpc@(tc, cc, pc) ds = do
+        untilAllDefined :: MutualChecks -> [NiceDeclaration] -> Nice InferredMutual
+        untilAllDefined checks ds = do
           done <- noLoneSigs
-          if done then return (tcccpc, ([], ds)) else
+          if done then return (InferredMutual checks [] ds) else
             case ds of
-              []     -> return (tcccpc, ([], ds))
+              []     -> return (InferredMutual checks [] ds)
               d : ds -> case declKind d of
                 LoneSigDecl r k x -> do
-                  _ <- addLoneSig r x k
-                  let tcccpc' = (terminationCheck k : tc, coverageCheck k : cc, positivityCheck k : pc)
-                  cons d (untilAllDefined tcccpc' ds)
+                  void $ addLoneSig r x k
+                  extendInferredBlock  d <$> untilAllDefined (mutualChecks k <> checks) ds
                 LoneDefs k xs -> do
                   mapM_ removeLoneSig xs
-                  let tcccpc' = (terminationCheck k : tc, coverageCheck k : cc, positivityCheck k : pc)
-                  cons d (untilAllDefined tcccpc' ds)
-                OtherDecl   -> cons d (untilAllDefined tcccpc ds)
-          where
-            -- ASR (26 December 2015): Type annotated version of the @cons@ function.
-            -- cons d = fmap $
-            --            (id :: (([TerminationCheck], [PositivityCheck]) -> ([TerminationCheck], [PositivityCheck])))
-            --            *** (d :)
-            --            *** (id :: [NiceDeclaration] -> [NiceDeclaration])
-            cons d = fmap (second (first (d :)))
+                  extendInferredBlock  d <$> untilAllDefined (mutualChecks k <> checks) ds
+                OtherDecl -> extendInferredBlock d <$> untilAllDefined checks ds
 
     nice :: [Declaration] -> Nice [NiceDeclaration]
     nice [] = return []

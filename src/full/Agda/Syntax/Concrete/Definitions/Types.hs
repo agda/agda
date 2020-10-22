@@ -92,6 +92,37 @@ type NiceTypeSignature  = NiceDeclaration
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
     deriving (Data, Show)
 
+-- | When processing a mutual block we collect the various checks present in the block
+--   before combining them.
+
+data MutualChecks = MutualChecks
+  { mutualTermination :: [TerminationCheck]
+  , mutualCoverage    :: [CoverageCheck]
+  , mutualPositivity  :: [PositivityCheck]
+  }
+
+instance Semigroup MutualChecks where
+  MutualChecks a b c <> MutualChecks a' b' c'
+    = MutualChecks (a <> a') (b <> b') (c <> c')
+
+instance Monoid MutualChecks where
+  mempty = MutualChecks [] [] []
+  mappend = (<>)
+
+-- | In an inferred `mutual' block we keep accumulating nice declarations until all
+--   of the lone signatures have an attached definition. The type is therefore a bit
+--   span-like: we return an initial segment (the inferred mutual block) together
+--   with leftovers.
+
+data InferredMutual = InferredMutual
+  { inferredChecks    :: MutualChecks       -- checks for this block
+  , inferredBlock     :: [NiceDeclaration]  -- mutual block
+  , inferredLeftovers :: [NiceDeclaration]  -- leftovers
+  }
+
+extendInferredBlock :: NiceDeclaration -> InferredMutual -> InferredMutual
+extendInferredBlock d (InferredMutual cs ds left) = InferredMutual cs (d : ds) left
+
 -- | In an `infix mutual' block we collect the data signatures, function signatures,
 --   as well as their associated constructors and function clauses respectively.
 --   Each signature is given a position in the block (from 0 onwards) and each set
@@ -243,6 +274,9 @@ positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _) = pc
 positivityCheck (RecName pc _)  = pc
 positivityCheck (FunName _ _)   = YesPositivityCheck
+
+mutualChecks :: DataRecOrFun -> MutualChecks
+mutualChecks k = MutualChecks [terminationCheck k] [coverageCheck k] [positivityCheck k]
 
 universeCheck :: DataRecOrFun -> UniverseCheck
 universeCheck (DataName _ uc) = uc
