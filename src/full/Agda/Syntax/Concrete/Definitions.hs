@@ -939,12 +939,14 @@ niceDeclarations fixs ds = do
     -- A `constructor' block should only contain NiceConstructors so we crash with
     -- an IMPOSSIBLE otherwise
     isConstructor :: [Name] -> NiceDeclaration -> Either (Name, [Name]) Name
-    isConstructor ns (Axiom _ _ _ _ _ n e) | Just p <- isPattern =<< returnExpr e =
-       case [ x | x <- ns
-                , couldBeCallOf (Map.lookup x fixs) x p
-                ] of
-         [x] -> Right x
-         xs  -> Left (n, xs)
+    isConstructor ns (Axiom _ _ _ _ _ n e)
+       | Just p <- isPattern =<< returnExpr e =
+         case [ x | x <- ns
+                  , couldBeCallOf (Map.lookup x fixs) x p
+                  ] of
+           [x] -> Right x
+           xs  -> Left (n, xs)
+       | otherwise = Left (n, [])
     isConstructor _ _ = __IMPOSSIBLE__
 
     -- Things that were recognised as isolated funsigs in a `constructor' block are

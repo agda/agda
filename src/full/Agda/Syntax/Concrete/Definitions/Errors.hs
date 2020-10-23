@@ -271,9 +271,9 @@ instance Pretty DeclarationException' where
     , vcat $ fmap (pretty . PrintRange) xs
     ]
   pretty (AmbiguousConstructor _ n ns) = sep
-    [ fsep (pwords "More than one matching data signature for constructor " ++ [pretty n])
+    [ fsep (pwords "Could not find a matching data signature for constructor " ++ [pretty n])
     , vcat (case ns of
-              [] -> [fsep $ pwords "Could not find a candidate."]
+              [] -> [fsep $ pwords "There was no candidate."]
               _  -> fsep (pwords "It could be any of:") : fmap (pretty . PrintRange) ns
            )
     ]
