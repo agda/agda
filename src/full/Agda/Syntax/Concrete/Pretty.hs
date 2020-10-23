@@ -141,6 +141,13 @@ instance Pretty Cohesion where
   pretty Continuous = mempty
   pretty Squash  = "@⊤"
 
+instance Pretty Modality where
+  pretty mod = hsep
+    [ pretty (getRelevance mod)
+    , pretty (getQuantity mod)
+    , pretty (getCohesion mod)
+    ]
+
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
   pretty (SyntaxBindingLambda r bs e) = pretty (Lam r bs e)

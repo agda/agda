@@ -381,6 +381,7 @@ outputFormId (OutputForm _ _ _ o) = out o
       PTSInstance i _            -> i
       PostponedCheckFunDef{}     -> __IMPOSSIBLE__
       CheckLock i _              -> i
+      UsableAtMod _ i            -> i
 
 instance Reify ProblemConstraint where
   type ReifiesTo ProblemConstraint = Closure (OutputForm Expr Expr)
@@ -464,7 +465,7 @@ instance Reify Constraint where
     reify (CheckMetaInst m) = do
       t <- jMetaType . mvJudgement <$> lookupMeta m
       OfType <$> reify (MetaV m []) <*> reify t
-
+    reify (UsableAtModality mod t) = UsableAtMod mod <$> reify t
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
   pretty (OutputForm r pids unblock c) =
@@ -514,6 +515,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
         vcat [ "Check definition of" <+> pretty q <+> ":" <+> pretty a ]
              -- , nest 2 "stuck because" <?> pretty err ] -- We don't have Pretty for TCErr
       CheckLock t lk       -> "Check lock" <+> pretty lk <+> "allows" <+> pretty t
+      UsableAtMod mod t    -> "Is usable at" <+> pretty mod <+> pretty t
     where
       bin a op b = sep [a, nest 2 $ op <+> b]
       pcmp cmp a b = bin (pretty a) (pretty cmp) (pretty b)
@@ -555,6 +557,7 @@ instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint a b) where
     toConcrete (PTSInstance a b) = PTSInstance <$> toConcrete a <*> toConcrete b
     toConcrete (CheckLock a b) = CheckLock <$> toConcrete a <*> toConcrete b
     toConcrete (PostponedCheckFunDef q a err) = PostponedCheckFunDef q <$> toConcrete a <*> pure err
+    toConcrete (UsableAtMod a b) = UsableAtMod a <$> toConcrete b
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> ":" <+> pretty t
@@ -627,6 +630,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         UnquoteTactic{}            -> Nothing
         CheckMetaInst{}            -> Nothing
         CheckLockedVars t _ _ _    -> isMeta t
+        UsableAtModality _ t       -> isMeta t
 
     isMeta (MetaV m' es_m)
       | m == m' = Just es_m

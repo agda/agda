@@ -119,6 +119,7 @@ instance MentionsMeta Constraint where
     UnquoteTactic tac hole goal -> False
     CheckMetaInst m     -> True   -- TODO
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
+    UsableAtModality mod t -> mm t
     where
       mm v = mentionsMetas xs v
 

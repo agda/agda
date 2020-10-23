@@ -1046,6 +1046,7 @@ data Constraint
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
+  | UsableAtModality Modality Term   -- ^ is the term usable at the given modality?
   deriving (Show)
 
 instance HasRange Constraint where
@@ -1079,6 +1080,7 @@ instance Free Constraint where
       CheckLockedVars a b c d -> freeVars' ((a,b),(c,d))
       UnquoteTactic t h g   -> freeVars' (t, (h, g))
       CheckMetaInst m       -> mempty
+      UsableAtModality mod t -> freeVars' t
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1097,6 +1099,8 @@ instance TermLike Constraint where
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, Sort <$> s)
       CheckMetaInst m        -> mempty
+      UsableAtModality m t   -> foldTerm f t
+
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 instance AllMetas Constraint

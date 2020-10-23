@@ -261,6 +261,9 @@ class LensSort a where
   getSort  :: a -> Sort
   getSort a = a ^. lensSort
 
+instance LensSort Sort where
+  lensSort f s = f s <&> \ s' -> s'
+
 instance LensSort (Type' a) where
   lensSort f (El s a) = f s <&> \ s' -> El s' a
 

@@ -24,6 +24,7 @@ import Agda.TypeChecking.Sort
 import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Warnings
 
+import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
@@ -295,6 +296,7 @@ solveConstraint_ (CheckLockedVars a b c d)   = checkLockedVars a b c d
 solveConstraint_ (HasBiggerSort a)      = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
+solveConstraint_ (UsableAtModality mod t) = usableAtModality mod t
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of

@@ -214,6 +214,7 @@ instance Instantiate Constraint where
     CheckLockedVars <$> instantiate' a <*> instantiate' b <*> instantiate' c <*> instantiate' d
   instantiate' (UnquoteTactic t h g) = UnquoteTactic <$> instantiate' t <*> instantiate' h <*> instantiate' g
   instantiate' c@CheckMetaInst{}    = return c
+  instantiate' (UsableAtModality mod t) = UsableAtModality mod <$> instantiate' t
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
@@ -789,6 +790,7 @@ instance Reduce Constraint where
   reduce' (CheckLockedVars a b c d) =
     CheckLockedVars <$> reduce' a <*> reduce' b <*> reduce' c <*> reduce' d
   reduce' c@CheckMetaInst{}     = return c
+  reduce' (UsableAtModality mod t) = UsableAtModality mod <$> reduce' t
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
@@ -950,6 +952,7 @@ instance Simplify Constraint where
   simplify' (CheckLockedVars a b c d) =
     CheckLockedVars <$> simplify' a <*> simplify' b <*> simplify' c <*> simplify' d
   simplify' c@CheckMetaInst{}     = return c
+  simplify' (UsableAtModality mod t) = UsableAtModality mod <$> simplify' t
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
@@ -1126,6 +1129,7 @@ instance Normalise Constraint where
   normalise' (CheckLockedVars a b c d) =
     CheckLockedVars <$> normalise' a <*> normalise' b <*> normalise' c <*> normalise' d
   normalise' c@CheckMetaInst{}     = return c
+  normalise' (UsableAtModality mod t) = UsableAtModality mod <$> normalise' t
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
@@ -1341,6 +1345,7 @@ instance InstantiateFull Constraint where
     CheckLockedVars a b c d ->
       CheckLockedVars <$> instantiateFull' a <*> instantiateFull' b <*> instantiateFull' c <*> instantiateFull' d
     c@CheckMetaInst{}   -> return c
+    UsableAtModality mod t -> UsableAtModality mod <$> instantiateFull' t
 
 instance InstantiateFull CompareAs where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a

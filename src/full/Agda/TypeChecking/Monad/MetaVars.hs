@@ -263,6 +263,7 @@ constraintMetas c = metas c
       HasPTSRule{}             -> return mempty
       CheckMetaInst x          -> return mempty
       CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)
+      UsableAtModality _ t     -> return $ allMetas Set.singleton t
 
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
