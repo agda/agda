@@ -699,8 +699,8 @@ Example usage:
     defId id-name = do
       defineFun id-name
         [ clause
-          ( ("x" , arg (arg-info visible relevant) (var 0 []))
-          ∷ ("A" , arg (arg-info visible relevant) (agda-sort (lit 0)))
+          ( ("A" , arg (arg-info visible relevant) (agda-sort (lit 0)))
+          ∷ ("x" , arg (arg-info visible relevant) (var 0 []))
           ∷ [])
           ( arg (arg-info hidden relevant) (var 1)
           ∷ arg (arg-info visible relevant) (var 0)
