@@ -995,6 +995,7 @@ instance Subst Constraint where
     CheckLockedVars a b c d  -> CheckLockedVars (rf a) (rf b) (rf c) (rf d)
     UnquoteTactic t h g      -> UnquoteTactic (rf t) (rf h) (rf g)
     CheckMetaInst m          -> CheckMetaInst m
+    UsableAtModality mod m   -> UsableAtModality mod (rf m)
     where
       rf :: forall a. TermSubst a => a -> a
       rf x = applySubst rho x

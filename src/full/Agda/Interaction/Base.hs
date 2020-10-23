@@ -18,7 +18,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
   (HighlightingLevel, HighlightingMethod, TCM, Comparison, Polarity, TCErr)
 
 import           Agda.Syntax.Abstract         (QName)
-import           Agda.Syntax.Common           (InteractionId (..))
+import           Agda.Syntax.Common           (InteractionId (..), Modality)
 import           Agda.Syntax.Internal         (ProblemId, Blocker)
 import           Agda.Syntax.Position
 import           Agda.Syntax.Scope.Base       (ScopeInfo)
@@ -461,6 +461,7 @@ data OutputConstraint a b
       | PTSInstance b b
       | PostponedCheckFunDef QName a TCErr
       | CheckLock b b
+      | UsableAtMod Modality b
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.

@@ -224,6 +224,10 @@ encodeOC f encPrettyTCM = \case
   [ "head"           #= f t
   , "lock"           #= f lk
   ]
+ UsableAtMod mod t -> kind "UsableAtMod"
+  [ "mod"           @= encodePretty mod
+  , "term"          #= f t
+  ]
 
 encodeNamedPretty :: PrettyTCM a => (Name, a) -> TCM Value
 encodeNamedPretty (name, a) = obj

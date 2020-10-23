@@ -1092,6 +1092,9 @@ bindParameter npars ps x a b ret =
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
 --   The third argument is the type of the constructor.
 --
+--   When --without-K also check that the types of fields at quantity
+--   `plenty` are also available at quantity plenty themselves. See #4784.
+--
 --   As a side effect, return the arity of the constructor.
 
 fitsIn :: UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
@@ -1117,6 +1120,9 @@ fitsIn uc forceds t s = do
   case vt of
     Just (isPath, dom, b) -> do
       withoutK <- withoutKOption
+      when (withoutK && not isPath) $ do
+       whenM (isFibrant s) $ do
+        usableAtModality (setQuantity (getQuantity dom) defaultModality) (unEl $ unDom dom)
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do
         sa <- reduce $ getSort dom

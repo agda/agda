@@ -128,6 +128,7 @@ instance PrettyTCM Constraint where
             IsSort{} -> prettyTCM x <+> "is a sort"
         CheckLockedVars t ty lk lk_ty -> do
           "Lock" <+> prettyTCM lk <+> "|-" <+> prettyTCMCtx TopCtx t <+> ":" <+> prettyTCM ty
+        UsableAtModality mod t -> "Is usable at" <+> prettyTCM mod <+> ":" <+> prettyTCM t
 
       where
         prettyCmp
