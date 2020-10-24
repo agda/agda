@@ -33,6 +33,7 @@ import Data.HashSet (HashSet)
 import qualified Data.HashSet as Set
 import qualified Data.IntMap  as IntMap
 import qualified Data.List    as List
+import qualified Data.Map     as Map
 
 import Paths_Agda
 
@@ -44,7 +45,6 @@ import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
 import qualified Agda.Syntax.Parser.Literate as L
 import Agda.Syntax.Position (startPos)
 
-import qualified Agda.Interaction.FindFile as Find
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Interaction.Options as O
 
@@ -53,6 +53,8 @@ import Agda.TypeChecking.Monad
   , MonadDebug
   , reportS
   , commandLineOptions
+  , stModuleToSource
+  , useTC
   , TCM
   )
 
@@ -683,20 +685,21 @@ generateLaTeX i = do
 getLaTeXOptionsFromTCM :: Interface -> TCM LaTeXOptions
 getLaTeXOptionsFromTCM i = do
   let moduleName = toTopLevelModuleName $ iModuleName i
-  sourceFile <- Find.srcFilePath <$> Find.findFile moduleName
   options <- commandLineOptions
+  modFiles <- useTC stModuleToSource
   let
+    mSrcFileName = (mkAbsolute . filePath) <$> Map.lookup moduleName modFiles
     countClusters = (O.optCountClusters . O.optPragmaOptions) options
     latexDir = O.optLaTeXDir options
     -- FIXME: This reliance on emacs-mode to decide whether to interpret the output location as project-relative or
     -- cwd-relative is gross. Also it currently behaves differently for JSON mode :-/
     -- And it prevents us from doing a real "one-time" setup.
-    outDir = if O.optGHCiInteraction options
-        then filePath (projectRoot sourceFile moduleName) </> latexDir
-        else latexDir
+    outDir = case (mSrcFileName, O.optGHCiInteraction options) of
+      (Just sourceFile, True) -> filePath (projectRoot sourceFile moduleName) </> latexDir
+      _ -> latexDir
   return LaTeXOptions
     { latexOptOutDir         = outDir
-    , latexOptSourceFileName = Just sourceFile
+    , latexOptSourceFileName = mSrcFileName
     , latexOptCountClusters  = countClusters
     }
 
