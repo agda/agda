@@ -226,20 +226,23 @@ imports = (hsImps ++) <$> imps where
   uniq = List.map head . List.group . List.sort
 
 -- Should we import MAlonzo.RTE.Float
-data UsesFloat = YesFloat | NoFloat
-  deriving (Eq, Show)
+newtype UsesFloat = UsesFloat Bool deriving (Eq, Show)
+
+pattern YesFloat :: UsesFloat
+pattern YesFloat = UsesFloat True
+
+pattern NoFloat :: UsesFloat
+pattern NoFloat = UsesFloat False
 
 instance Semigroup UsesFloat where
-  NoFloat  <> i        = i
-  i        <> NoFloat  = i
-  YesFloat <> YesFloat = YesFloat
+  UsesFloat a <> UsesFloat b = UsesFloat (a || b)
 
 instance Monoid UsesFloat where
   mempty  = NoFloat
   mappend = (<>)
 
 mazRTEFloatImport :: UsesFloat -> [HS.ImportDecl]
-mazRTEFloatImport i = [ HS.ImportDecl mazRTEFloat True Nothing | i == YesFloat ]
+mazRTEFloatImport (UsesFloat b) = [ HS.ImportDecl mazRTEFloat True Nothing | b ]
 
 --------------------------------------------------
 -- Main compiling clauses
