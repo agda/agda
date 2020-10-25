@@ -1,6 +1,8 @@
 
 module Agda.Compiler.MAlonzo.Primitives where
 
+import Control.Arrow ( second )
+
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -108,50 +110,56 @@ treelessPrimName p =
     PIf     -> __IMPOSSIBLE__
 
 -- | Haskell modules to be imported for BUILT-INs
-importsForPrim :: TCM [HS.ModuleName]
-importsForPrim =
-  fmap (++ [HS.ModuleName "Data.Text"]) $
-  xForPrim $
-  List.map (\(s, ms) -> (s, return (List.map HS.ModuleName ms))) $
-  [ "CHAR"                       |-> ["Data.Char"]
-  , "primIsAlpha"                |-> ["Data.Char"]
-  , "primIsAscii"                |-> ["Data.Char"]
-  , "primIsDigit"                |-> ["Data.Char"]
-  , "primIsHexDigit"             |-> ["Data.Char"]
-  , "primIsLatin1"               |-> ["Data.Char"]
-  , "primIsLower"                |-> ["Data.Char"]
-  , "primIsPrint"                |-> ["Data.Char"]
-  , "primIsSpace"                |-> ["Data.Char"]
-  , "primToLower"                |-> ["Data.Char"]
-  , "primToUpper"                |-> ["Data.Char"]
-  , "primFloatInequality"        |-> ["MAlonzo.RTE.Float"]
-  , "primFloatEquality"          |-> ["MAlonzo.RTE.Float"]
-  , "primFloatLess"              |-> ["MAlonzo.RTE.Float"]
-  , "primFloatIsSafeInteger"     |-> ["MAlonzo.RTE.Float"]
-  , "primFloatToWord64"          |-> ["MAlonzo.RTE.Float"]
-  , "primFloatRound"             |-> ["MAlonzo.RTE.Float"]
-  , "primFloatFloor"             |-> ["MAlonzo.RTE.Float"]
-  , "primFloatCeiling"           |-> ["MAlonzo.RTE.Float"]
-  , "primFloatToRatio"           |-> ["MAlonzo.RTE.Float"]
-  , "primRatioToFloat"           |-> ["MAlonzo.RTE.Float"]
-  , "primFloatDecode"            |-> ["MAlonzo.RTE.Float"]
-  , "primFloatEncode"            |-> ["MAlonzo.RTE.Float"]
-  ]
-  where (|->) = (,)
+importsForPrim :: ReadTCState m => m [HS.ModuleName]
+importsForPrim = do
+  builtinThings <- getsTC stBuiltinThings
+  defs <- HMap.elems <$> curDefs
+  return $ importsForPrim' builtinThings defs
+
+importsForPrim' :: BuiltinThings PrimFun -> [Definition] -> [HS.ModuleName]
+importsForPrim' builtinThings defs = xForPrim table builtinThings defs ++ [HS.ModuleName "Data.Text"]
+  where
+  table = Map.fromList $ second (HS.ModuleName <$>) <$>
+    [ "CHAR"                       |-> ["Data.Char"]
+    , "primIsAlpha"                |-> ["Data.Char"]
+    , "primIsAscii"                |-> ["Data.Char"]
+    , "primIsDigit"                |-> ["Data.Char"]
+    , "primIsHexDigit"             |-> ["Data.Char"]
+    , "primIsLatin1"               |-> ["Data.Char"]
+    , "primIsLower"                |-> ["Data.Char"]
+    , "primIsPrint"                |-> ["Data.Char"]
+    , "primIsSpace"                |-> ["Data.Char"]
+    , "primToLower"                |-> ["Data.Char"]
+    , "primToUpper"                |-> ["Data.Char"]
+    , "primFloatInequality"        |-> ["MAlonzo.RTE.Float"]
+    , "primFloatEquality"          |-> ["MAlonzo.RTE.Float"]
+    , "primFloatLess"              |-> ["MAlonzo.RTE.Float"]
+    , "primFloatIsSafeInteger"     |-> ["MAlonzo.RTE.Float"]
+    , "primFloatToWord64"          |-> ["MAlonzo.RTE.Float"]
+    , "primFloatRound"             |-> ["MAlonzo.RTE.Float"]
+    , "primFloatFloor"             |-> ["MAlonzo.RTE.Float"]
+    , "primFloatCeiling"           |-> ["MAlonzo.RTE.Float"]
+    , "primFloatToRatio"           |-> ["MAlonzo.RTE.Float"]
+    , "primRatioToFloat"           |-> ["MAlonzo.RTE.Float"]
+    , "primFloatDecode"            |-> ["MAlonzo.RTE.Float"]
+    , "primFloatEncode"            |-> ["MAlonzo.RTE.Float"]
+    ]
+  (|->) = (,)
 
 --------------
 
-xForPrim :: [(String, TCM [a])] -> TCM [a]
-xForPrim table = do
-  qs <- Set.fromList . HMap.keys <$> curDefs
-  bs <- Map.toList <$> getsTC stBuiltinThings
-  let getName (Builtin (Def q _))    = q
+xForPrim :: Map.Map String [a] -> BuiltinThings PrimFun -> [Definition] -> [a]
+xForPrim table builtinThings defs =
+  let qs = Set.fromList $ defName <$> defs
+      bs = Map.toList builtinThings
+      getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _ _))  = conName q
       getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
       getName (Builtin _)            = __IMPOSSIBLE__
       getName (Prim (PrimFun q _ _)) = q
-  concat <$> sequence [ fromMaybe (return []) $ List.lookup s table
-                        | (s, def) <- bs, getName def `Set.member` qs ]
+  in
+  concat [ fromMaybe [] $ Map.lookup s table
+         | (s, def) <- bs, getName def `Set.member` qs ]
 
 
 -- | Definition bodies for primitive functions
