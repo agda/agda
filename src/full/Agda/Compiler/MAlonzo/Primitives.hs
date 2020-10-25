@@ -110,14 +110,8 @@ treelessPrimName p =
     PIf     -> __IMPOSSIBLE__
 
 -- | Haskell modules to be imported for BUILT-INs
-importsForPrim :: ReadTCState m => m [HS.ModuleName]
-importsForPrim = do
-  builtinThings <- getsTC stBuiltinThings
-  defs <- HMap.elems <$> curDefs
-  return $ importsForPrim' builtinThings defs
-
-importsForPrim' :: BuiltinThings PrimFun -> [Definition] -> [HS.ModuleName]
-importsForPrim' builtinThings defs = xForPrim table builtinThings defs ++ [HS.ModuleName "Data.Text"]
+importsForPrim :: BuiltinThings PrimFun -> [Definition] -> [HS.ModuleName]
+importsForPrim builtinThings defs = xForPrim table builtinThings defs ++ [HS.ModuleName "Data.Text"]
   where
   table = Map.fromList $ second (HS.ModuleName <$>) <$>
     [ "CHAR"                       |-> ["Data.Char"]

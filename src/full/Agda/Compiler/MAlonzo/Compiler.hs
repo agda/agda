@@ -8,6 +8,7 @@ import Control.Monad.Writer hiding ((<>))
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -197,8 +198,15 @@ ghcMayEraseType q = getHaskellPragma q <&> \case
 --   accumulating in it what are acutally used in Misc.xqual
 --------------------------------------------------
 
-imports :: TCM [HS.ImportDecl]
-imports = (hsImps ++) <$> imps where
+imports :: ReadTCState m => m [HS.ImportDecl]
+imports = do
+  builtinThings <- getsTC stBuiltinThings
+  usedModules <- useTC stImportedModules
+  defs <- HMap.elems <$> curDefs
+  return $ imports' builtinThings usedModules defs
+
+imports' :: BuiltinThings PrimFun -> Set ModuleName -> [Definition] -> [HS.ImportDecl]
+imports' builtinThings usedModules defs = hsImps ++ imps where
   hsImps :: [HS.ImportDecl]
   hsImps = [unqualRTE, decl mazRTE]
 
@@ -212,15 +220,14 @@ imports = (hsImps ++) <$> imps where
               T.PAdd64, T.PSub64, T.PMul64, T.PQuot64, T.PRem64, T.PLt64, T.PEq64,
               T.PITo64, T.P64ToI] -- Excludes T.PEqF, which is defined in MAlonzo.RTE.Float
 
-  imps :: TCM [HS.ImportDecl]
-  imps = List.map decl . uniq <$>
-           ((++) <$> importsForPrim <*> (List.map mazMod <$> mnames))
+  imps :: [HS.ImportDecl]
+  imps = map decl $ uniq $ importsForPrim builtinThings defs ++ map mazMod mnames
 
   decl :: HS.ModuleName -> HS.ImportDecl
   decl m = HS.ImportDecl m True Nothing
 
-  mnames :: TCM [ModuleName]
-  mnames = Set.elems <$> useTC stImportedModules
+  mnames :: [ModuleName]
+  mnames = Set.elems usedModules
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
   uniq = List.map head . List.group . List.sort
