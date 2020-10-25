@@ -1,6 +1,8 @@
 
 module Agda.Compiler.MAlonzo.Primitives where
 
+import Control.Monad.Except ( liftEither )
+
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -317,7 +319,7 @@ pconName :: String -> TCM String
 pconName s = toS =<< getBuiltin s where
   toS (Con q _ _) = prettyPrint <$> conhqn (conName q)
   toS (Lam _ t) = toS (unAbs t)
-  toS _ = mazerror $ "pconName" ++ s
+  toS _ = liftEither =<< ((either genericError return) <$> mazerror $ "pconName" ++ s)
 
 bltQual' :: String -> String -> TCM String
 bltQual' b s = prettyPrint <$> bltQual b s
