@@ -416,6 +416,8 @@ data Declaration
   | DataSig     Range Name [LamBinding] Expr -- ^ lone data signature in mutual block
   | Data        Range Name [LamBinding] Expr [TypeSignatureOrInstanceBlock]
   | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
+  | SimpleData  Range Name [LamBinding] Expr (List1 (Name, [NamedArg Expr]))
+       -- ^ data declarations of the form @data Nat : Set = Z | S Nat@
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
   | RecordDef   Range Name RecordDirectives [LamBinding] [Declaration]
   | Record      Range Name RecordDirectives [LamBinding] Expr [Declaration]
@@ -787,6 +789,7 @@ instance HasRange Declaration where
   getRange (DataSig r _ _ _)       = r
   getRange (Data r _ _ _ _)        = r
   getRange (DataDef r _ _ _)       = r
+  getRange (SimpleData r _ _ _ _)  = r
   getRange (RecordSig r _ _ _)     = r
   getRange (RecordDef r _ _ _ _)   = r
   getRange (Record r _ _ _ _ _)    = r
@@ -925,6 +928,7 @@ instance KillRange Declaration where
   killRange (DataSig _ n l e)       = killRange3 (DataSig noRange) n l e
   killRange (Data _ n l e c)        = killRange4 (Data noRange) n l e c
   killRange (DataDef _ n l c)       = killRange3 (DataDef noRange) n l c
+  killRange (SimpleData _ n l e c)  = killRange4 (SimpleData noRange) n l e c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
   killRange (RecordDef _ n dir k d) = killRange4 (RecordDef noRange) n dir k d
   killRange (Record _ n dir k e d)  = killRange5 (Record noRange) n dir k e d
@@ -1131,6 +1135,7 @@ instance NFData Declaration where
   rnf (DataSig _ a b c)       = rnf a `seq` rnf b `seq` rnf c
   rnf (Data _ a b c d)        = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataDef _ a b c)       = rnf a `seq` rnf b `seq` rnf c
+  rnf (SimpleData _ a b c d)  = rnf (a, b, c, d)
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
   rnf (RecordDef _ a b c d)   = rnf (a, b, c, d)
   rnf (Record _ a b c d e)    = rnf (a, b, c, d, e)

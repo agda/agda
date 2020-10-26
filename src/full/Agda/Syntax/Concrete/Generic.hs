@@ -216,6 +216,7 @@ instance ExprLike Declaration where
      DataSig r x bs e          -> DataSig r x (mapE bs)                $ mapE e
      DataDef r n bs cs         -> DataDef r n (mapE bs)                $ mapE cs
      Data r n bs e cs          -> Data r n (mapE bs) (mapE e)          $ mapE cs
+     SimpleData r n bs e cs    -> SimpleData r n (mapE bs) (mapE e)    $ mapE cs
      RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e
      RecordDef r n dir tel ds  -> RecordDef r n dir (mapE tel)         $ mapE ds
      Record r n dir tel e ds   -> Record r n dir (mapE tel) (mapE e)   $ mapE ds

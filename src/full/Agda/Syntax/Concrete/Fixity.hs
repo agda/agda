@@ -165,6 +165,7 @@ fixitiesAndPolarities' = foldMap $ \case
   DataSig     {}  -> mempty
   DataDef     {}  -> mempty
   Data        {}  -> mempty
+  SimpleData  {}  -> mempty
   RecordSig   {}  -> mempty
   RecordDef   {}  -> mempty
   Record      {}  -> mempty
@@ -210,31 +211,32 @@ declaredNames d = case d of
   Field _ fs           -> foldMap declaredNames fs
   FunClause (LHS p [] [] _) _ _ _
     | IdentP (QName x) <- removeParenP p
-                       -> declaresName x
-  FunClause{}          -> mempty
-  DataSig _ x _ _      -> declaresName x
-  DataDef _ _ _ cs     -> foldMap declaredNames cs
-  Data _ x _ _ cs      -> declaresName x <> foldMap declaredNames cs
-  RecordSig _ x _ _    -> declaresName x
-  RecordDef _ x d _ _  -> declaresNames $     foldMap (:[]) (fst <$> recConstructor d)
-  Record _ x d _ _ _   -> declaresNames $ x : foldMap (:[]) (fst <$> recConstructor d)
-  Infix _ _            -> mempty
-  Syntax _ _           -> mempty
-  PatternSyn _ x _ _   -> declaresName x
-  Mutual    _ ds       -> foldMap declaredNames ds
-  Abstract  _ ds       -> foldMap declaredNames ds
-  Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds
-  InstanceB _ ds       -> foldMap declaredNames ds
-  Macro     _ ds       -> foldMap declaredNames ds
-  Postulate _ ds       -> allPostulates $ foldMap declaredNames ds
-  Primitive _ ds       -> foldMap declaredNames ds
-  Generalize _ ds      -> foldMap declaredNames ds
-  Open{}               -> mempty
-  Import{}             -> mempty
-  ModuleMacro{}        -> mempty
-  Module{}             -> mempty
-  UnquoteDecl _ xs _   -> declaresNames xs
-  UnquoteDef{}         -> mempty
+                        -> declaresName x
+  FunClause{}           -> mempty
+  DataSig _ x _ _       -> declaresName x
+  DataDef _ _ _ cs      -> foldMap declaredNames cs
+  Data _ x _ _ cs       -> declaresName x <> foldMap declaredNames cs
+  SimpleData _ n _ _ cs -> declaresName n <> foldMap (declaresName . fst) cs
+  RecordSig _ x _ _     -> declaresName x
+  RecordDef _ x d _ _   -> declaresNames $     foldMap (:[]) (fst <$> recConstructor d)
+  Record _ x d _ _ _    -> declaresNames $ x : foldMap (:[]) (fst <$> recConstructor d)
+  Infix _ _             -> mempty
+  Syntax _ _            -> mempty
+  PatternSyn _ x _ _    -> declaresName x
+  Mutual    _ ds        -> foldMap declaredNames ds
+  Abstract  _ ds        -> foldMap declaredNames ds
+  Private _ _ ds        -> allPrivateNames $ foldMap declaredNames ds
+  InstanceB _ ds        -> foldMap declaredNames ds
+  Macro     _ ds        -> foldMap declaredNames ds
+  Postulate _ ds        -> allPostulates $ foldMap declaredNames ds
+  Primitive _ ds        -> foldMap declaredNames ds
+  Generalize _ ds       -> foldMap declaredNames ds
+  Open{}                -> mempty
+  Import{}              -> mempty
+  ModuleMacro{}         -> mempty
+  Module{}              -> mempty
+  UnquoteDecl _ xs _    -> declaresNames xs
+  UnquoteDef{}          -> mempty
   -- BUILTIN pragmas which do not require an accompanying definition declare
   -- the (unqualified) name they mention.
   Pragma (BuiltinPragma _ b (QName x))

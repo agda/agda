@@ -1121,6 +1121,11 @@ niceDeclarations fixs ds = do
           mt <- defaultTypeSig (DataName pc uc) x Nothing
           (,ds) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
 
+        SimpleData r x tel t cs -> do
+          let retType = rawApp (Ident (QName x) :| concatMap dropTypeAndModality tel)
+          let d = Data r x tel t $ List1.toList $ map
+          nice1 (d:ds)
+
         RecordSig r x tel t         -> do
           pc <- use positivityCheckPragma
           uc <- use universeCheckPragma

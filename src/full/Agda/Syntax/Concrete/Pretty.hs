@@ -430,6 +430,14 @@ instance Pretty Declaration where
                             ]
                     , nest 2 $ "where"
                     ] $$ nest 2 (vcat $ map pretty cs)
+
+            SimpleData _ x tel e (c :| cs) ->
+               sep [ hsep [ "data", pretty x, fcat (map pretty tel) ]
+                   , nest 2 $ hsep [ ":", pretty e ]
+                   , nest 2 $ vcat ( hsep [ "=", pretty c ]
+                                   : map (\ c -> hsep [ "|", pretty c ]) cs
+                                   )
+                   ]
             RecordSig _ x tel e ->
                 sep [ hsep  [ "record"
                             , pretty x

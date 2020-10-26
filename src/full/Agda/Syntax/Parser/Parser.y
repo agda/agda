@@ -59,6 +59,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Hash
 import Agda.Utils.List ( spanJust, chopWhen )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import Agda.Utils.List2 ( List2(..) )
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty hiding ((<>))
@@ -83,7 +84,7 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF{} }
 
-%expect 9
+%expect 8
 -- * shift/reduce for \ x y z -> foo = bar
 --   shifting means it'll parse as \ x y z -> (foo = bar) rather than
 --   (\ x y z -> foo) = bar
@@ -622,7 +623,7 @@ Expr
                                               $3 }
   | Attributes1 Application3 '->' Expr  {% applyAttrs1 $1 (defaultArg $ rawApp $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
-  | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
+--  | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
 
 -- Level 1: Application
@@ -691,8 +692,10 @@ Application3PossiblyEmpty
 -- Level 3: Atoms
 Expr3Curly :: { Expr }
 Expr3Curly
-    : '{' Expr '}'                      {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
-    | '{' '}'                           { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    : '{' Expr4 '}'               {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    | '{' '}'                     { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    | '{{' Expr4 DoubleCloseBrace {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    | '{{' DoubleCloseBrace       { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly :: { Expr }
 Expr3NoCurly
@@ -701,11 +704,9 @@ Expr3NoCurly
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
-    | '{{' Expr DoubleCloseBrace        {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $ List1.toList $2 }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
-    | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
     | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
     | '..' Expr3                        { DoubleDot (fuseRange $1 $2) $2 }
@@ -714,11 +715,18 @@ Expr3NoCurly
     | '...'                             { Ellipsis (getRange $1) }
     | ExprOrAttr                       { $1 }
 
+
+-- Level 4: Maybe named
+Expr4 :: { Expr }
+Expr4 : Expr1 '=' Expr { Equal (getRange ($1, $2, $3)) $1 $3 }
+      | Expr           { $1 }
+
 ExprOrAttr :: { Expr }
 ExprOrAttr
     : QId                               { Ident $1 }
     | literal                           { Lit (getRange $1) (rangedThing $1) }
-    | '(' Expr ')'                      { Paren (getRange ($1,$2,$3)) $2 }
+    | '(' Expr4 ')'                     { Paren (getRange ($1,$2,$3)) $2 }
+    -- ^ this is needed for cubical stuff
 
 Expr3 :: { Expr }
 Expr3
@@ -1187,7 +1195,10 @@ RHS : '=' Expr      { JustRHS (RHS $2) }
 Data :: { Declaration }
 Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
             Declarations0       { Data (getRange ($1,$2,$3,$4,$5,$6,$7)) $2 $3 $5 $7 }
-
+     | 'data' Id TypedUntypedBindings ':' Expr '='
+            WithExprs           {% T.traverse simpleConstructor $7 >>= \ cs ->
+                                   pure $ SimpleData (getRange ($1,$2,$3,$4,$5,$6,$7)) $2 $3 $5 cs
+                                }
   -- New cases when we already had a DataSig.  Then one can omit the sort.
      | 'data' Id TypedUntypedBindings 'where'
             Declarations0       { DataDef (getRange ($1,$2,$3,$4,$5)) $2 $3 $5 }
@@ -2010,6 +2021,12 @@ boundNamesOrAbsurd es
     isAbsurd (As _ _ e)                  = isAbsurd e
     isAbsurd (RawApp _ es)               = any isAbsurd es
     isAbsurd _                           = False
+
+-- | Take an (applied) simple constructor apart
+simpleConstructor :: Expr -> Parser (Name, [NamedArg Expr])
+simpleConstructor e = case appView e of
+  AppView (Ident (QName c)) args -> pure (c, args)
+  _ -> parseError' (rStart' $ getRange e) "Expected a simple constructor."
 
 -- | Match a pattern-matching "assignment" statement @p <- e@
 exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
