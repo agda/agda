@@ -178,9 +178,9 @@ getHaskellConstructor c = do
 
 -- | Get content of @FOREIGN GHC@ pragmas, sorted by 'KindOfForeignCode':
 --   file header pragmas, import statements, rest.
-foreignHaskell :: TCM ([String], [String], [String])
+foreignHaskell :: Interface -> ([String], [String], [String])
 foreignHaskell = partitionByKindOfForeignCode classifyForeign
-    . map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode <$> curIF
+    . map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode
   where getCode (ForeignCode _ code) = code
 
 -- | Classify @FOREIGN@ Haskell code.

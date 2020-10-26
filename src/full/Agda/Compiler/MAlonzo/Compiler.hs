@@ -174,15 +174,17 @@ ghcPostModule _ _ isMain _ defs0 = do
   let imps = mazRTEFloatImport usedFloat ++ imports builtinThings usedModules defs
 
   m <- curHsMod
+  i <- curIF
 
   -- Get content of FOREIGN pragmas.
-  (headerPragmas, hsImps, code) <- foreignHaskell
+  let (headerPragmas, hsImps, code) = foreignHaskell i
+
   writeModule $ HS.Module m
     (map HS.OtherPragma headerPragmas)
     imps
     (map fakeDecl (hsImps ++ code) ++ decls)
 
-  hasMainFunction isMain <$> curIF
+  return $ hasMainFunction isMain i
 
 ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl])
 ghcCompileDef _ env isMain def = definition env isMain def
