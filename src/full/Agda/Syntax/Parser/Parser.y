@@ -125,6 +125,7 @@ import Agda.Utils.Impossible
     'let'                     { TokKeyword KwLet $$ }
     'macro'                   { TokKeyword KwMacro $$ }
     'module'                  { TokKeyword KwModule $$ }
+    'interleaved'             { TokKeyword KwInterleaved $$ }
     'mutual'                  { TokKeyword KwMutual $$ }
     'no-eta-equality'         { TokKeyword KwNoEta $$ }
     'open'                    { TokKeyword KwOpen $$ }
@@ -250,6 +251,7 @@ Token
     | 'let'                     { TokKeyword KwLet $1 }
     | 'macro'                   { TokKeyword KwMacro $1 }
     | 'module'                  { TokKeyword KwModule $1 }
+    | 'interleaved'             { TokKeyword KwInterleaved $1 }
     | 'mutual'                  { TokKeyword KwMutual $1 }
     | 'no-eta-equality'         { TokKeyword KwNoEta $1 }
     | 'open'                    { TokKeyword KwOpen $1 }
@@ -1261,7 +1263,7 @@ Generalize : 'variable' ArgTypeSignaturesOrEmpty
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
 Mutual : 'mutual' Declarations0  { Mutual (fuseRange $1 $2) $2 }
-       | 'infix' 'mutual' Declarations0 { NewMutual (getRange ($1,$2,$3)) $3 }
+       | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (getRange ($1,$2,$3)) $3 }
 
 -- Abstract declarations.
 Abstract :: { Declaration }

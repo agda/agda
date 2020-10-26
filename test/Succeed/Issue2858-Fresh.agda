@@ -1,6 +1,6 @@
 module Issue2858-Fresh {A : Set} (_#_ : A → A → Set) where
 
-  infix mutual
+  interleaved mutual
 
     data Fresh : Set
     data IsFresh (a : A) : Fresh → Set

@@ -444,7 +444,7 @@ instance Pretty Declaration where
             PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
                                      <+> "=" <+> pretty p
             Mutual _ ds     -> namedBlock "mutual" ds
-            NewMutual _ ds  -> namedBlock "infix mutual" ds
+            InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
             LoneConstructor _ ds -> namedBlock "constructor" ds
             Abstract _ ds   -> namedBlock "abstract" ds
             Private _ _ ds  -> namedBlock "private" ds

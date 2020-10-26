@@ -447,7 +447,7 @@ data Declaration
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [Arg Name] Pattern
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
-  | NewMutual   Range [Declaration]
+  | InterleavedMutual Range [Declaration]
   | Abstract    Range [Declaration]
   | Private     Range Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
@@ -836,7 +836,7 @@ instance HasRange Declaration where
   getRange (Record r _ _ _ _ _)    = r
   getRange (RecordDirective r)     = getRange r
   getRange (Mutual r _)            = r
-  getRange (NewMutual r _)         = r
+  getRange (InterleavedMutual r _) = r
   getRange (LoneConstructor r _)   = r
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
@@ -986,7 +986,7 @@ instance KillRange Declaration where
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
-  killRange (NewMutual _ d)         = killRange1 (NewMutual noRange) d
+  killRange (InterleavedMutual _ d) = killRange1 (InterleavedMutual noRange) d
   killRange (LoneConstructor _ d)   = killRange1 (LoneConstructor noRange) d
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
   killRange (Private _ o d)         = killRange2 (Private noRange) o d
@@ -1201,7 +1201,7 @@ instance NFData Declaration where
   rnf (Syntax a b)            = rnf a `seq` rnf b
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
   rnf (Mutual _ a)            = rnf a
-  rnf (NewMutual _ a)         = rnf a
+  rnf (InterleavedMutual _ a) = rnf a
   rnf (LoneConstructor _ a)   = rnf a
   rnf (Abstract _ a)          = rnf a
   rnf (Private _ _ a)         = rnf a

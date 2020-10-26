@@ -36,7 +36,7 @@ data DeclarationException'
   | AmbiguousFunClauses LHS (List1 Name)
       -- ^ In a mutual block, a clause could belong to any of the ≥2 type signatures ('Name').
   | AmbiguousConstructor Range Name [Name]
-      -- ^ In an infix mutual block, a constructor could belong to any of the data signatures ('Name')
+      -- ^ In an interleaved mutual block, a constructor could belong to any of the data signatures ('Name')
   | InvalidMeasureMutual Range
       -- ^ In a mutual block, all or none need a MEASURE pragma.
       --   Range is of mutual block.
@@ -71,7 +71,7 @@ data DeclarationWarning'
   | InvalidConstructor Range
       -- ^ Invalid definition in a constructor block
   | InvalidConstructorBlock Range
-      -- ^ Invalid constructor block (not inside an infix mutual block)
+      -- ^ Invalid constructor block (not inside an interleaved mutual block)
   | InvalidCoverageCheckPragma Range
       -- ^ A {-\# NON_COVERING \#-} pragma that does not apply to any function.
   | InvalidNoPositivityCheckPragma Range
@@ -334,7 +334,7 @@ instance Pretty DeclarationWarning' where
   pretty InvalidConstructor{} = fsep $
     pwords "`constructor' blocks may only contain type signatures for constructors."
   pretty InvalidConstructorBlock{} = fsep $
-    pwords "No `constructor' blocks outside of `infix mutual' blocks."
+    pwords "No `constructor' blocks outside of `interleaved mutual' blocks."
   pretty (InvalidCoverageCheckPragma _)    = fsep $
     pwords "Coverage checking pragmas can only precede a function definition or a mutual block (that contains a function definition)."
   pretty (InvalidNoPositivityCheckPragma _) = fsep $

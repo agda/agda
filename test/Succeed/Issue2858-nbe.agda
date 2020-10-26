@@ -34,7 +34,7 @@ lookup step v = s v
 _∘_ : Ren Δ Θ → Ren Γ Δ → Ren Γ Θ
 lookup (ρ′ ∘ ρ) v = lookup ρ′ (lookup ρ v)
 
-infix mutual
+interleaved mutual
 
   data Syn : Scoped
   data Chk : Scoped
@@ -70,7 +70,7 @@ th^Val : Ren Γ Δ → Val σ Γ → Val σ Δ
 th^Val {σ = α}     ρ t = th^Syn ρ t
 th^Val {σ = σ ↝ τ} ρ t = λ ρ′ → t (ρ′ ∘ ρ)
 
-infix mutual
+interleaved mutual
 
   reify   : ∀ σ → Val σ Γ → Chk σ Γ
   reflect : ∀ σ → Syn σ Γ → Val σ Γ
@@ -97,7 +97,7 @@ extend : Env Γ Δ → Val σ Δ → Env (σ ∷ Γ) Δ
 lookup (extend ρ t) z     = t
 lookup (extend ρ t) (s v) = lookup ρ v
 
-infix mutual
+interleaved mutual
 
   eval^Syn : Env Γ Δ → Syn σ Γ → Val σ Δ
   eval^Chk : Env Γ Δ → Chk σ Γ → Val σ Δ
@@ -113,7 +113,7 @@ infix mutual
   eval^Syn vs (app f t) = eval^Syn vs f refl (eval^Chk vs t)
   eval^Chk vs (lam b)   = λ ρ v → eval^Chk (extend (th^Env ρ vs) v) b
 
-infix mutual
+interleaved mutual
 
   norm^Syn : Syn σ Γ → Chk σ Γ
   norm^Chk : Chk σ Γ → Chk σ Γ

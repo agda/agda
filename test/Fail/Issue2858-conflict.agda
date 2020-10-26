@@ -1,4 +1,4 @@
-infix mutual
+interleaved mutual
 
   data Foo : Set → Set
   data Foo_Bar : Set

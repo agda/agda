@@ -1,9 +1,9 @@
 -- making sure that the fun clauses are kept in declaration order
--- in an infix mutual block
+-- in an interleaved mutual block
 
 open import Agda.Builtin.Nat
 
-infix mutual
+interleaved mutual
 
   plus  : Nat → Nat → Nat
   minus : Nat → Nat → Nat

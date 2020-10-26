@@ -10,7 +10,8 @@ import Agda.Syntax.Position
 
 data Keyword
         = KwLet | KwIn | KwWhere | KwData | KwCoData | KwDo
-        | KwPostulate | KwMutual | KwAbstract | KwPrivate | KwInstance
+        | KwPostulate | KwAbstract | KwPrivate | KwInstance
+        | KwInterleaved | KwMutual
         | KwOverlap
         | KwOpen | KwImport | KwModule | KwPrimitive | KwMacro
         | KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite

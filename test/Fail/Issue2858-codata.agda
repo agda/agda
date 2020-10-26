@@ -1,4 +1,4 @@
-infix mutual
+interleaved mutual
 
   data CoNat : Set
   record ∞CoNat : Set

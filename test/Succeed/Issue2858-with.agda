@@ -1,6 +1,6 @@
 open import Agda.Builtin.Nat
 
-infix mutual
+interleaved mutual
 
   plus : Nat → Nat → Nat
   mult : Nat → Nat → Nat

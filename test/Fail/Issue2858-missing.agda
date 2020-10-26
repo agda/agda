@@ -1,4 +1,4 @@
-infix mutual
+interleaved mutual
 
   data Nat : Set
   record IsNat (n : Nat) : Set

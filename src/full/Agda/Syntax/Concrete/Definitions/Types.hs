@@ -12,6 +12,7 @@ import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Pretty
 
 import Agda.Utils.Pretty
+import Agda.Utils.Impossible
 
 {--------------------------------------------------------------------------
     Types
@@ -124,22 +125,42 @@ data InferredMutual = InferredMutual
 extendInferredBlock :: NiceDeclaration -> InferredMutual -> InferredMutual
 extendInferredBlock d (InferredMutual cs ds left) = InferredMutual cs (d : ds) left
 
--- | In an `infix mutual' block we collect the data signatures, function signatures,
+-- | In an `interleaved mutual' block we collect the data signatures, function signatures,
 --   as well as their associated constructors and function clauses respectively.
 --   Each signature is given a position in the block (from 0 onwards) and each set
 --   of constructor / clauses is given a *distinct* one. This allows for interleaved
 --   forward declarations similar to what one gets in a new-style mutual block.
-type InfixMutual = Map Name InfixDecl
+type InterleavedMutual = Map Name InterleavedDecl
 
-data InfixDecl
-  = InfixData
+data InterleavedDecl
+  = InterleavedData
     { infixDataSig  :: (Int, NiceDeclaration)           -- a data signature
     , infixDataCons :: Maybe (Int, [[NiceConstructor]]) -- and associated constructors
     }
-  | InfixFun
+  | InterleavedFun
     { infixFunSig     :: (Int, NiceDeclaration)                  -- a fun signature
     , infixFunClauses :: Maybe (Int, [([Declaration],[Clause])]) -- and associated fun clauses
     }
+
+isInterleavedFun :: InterleavedDecl -> Maybe ()
+isInterleavedFun InterleavedFun{} = Just ()
+isInterleavedFun _ = Nothing
+
+isInterleavedData :: InterleavedDecl -> Maybe ()
+isInterleavedData InterleavedData{} = Just ()
+isInterleavedData _ = Nothing
+
+interleavedDecl :: Name -> InterleavedDecl -> [(Int, NiceDeclaration)]
+interleavedDecl k = \case
+  InterleavedData (i, d@(NiceDataSig _ acc abs pc uc _ pars _)) ds ->
+    let fpars = concatMap dropTypeAndModality pars
+        ddef  = NiceDataDef noRange UserWritten abs pc uc k fpars
+    in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (concat (reverse dss)))]) ds
+  InterleavedFun (i, d@(FunSig r acc abs inst mac info tc cc n e)) dcs ->
+    let fdef dcss = let (dss, css) = unzip dcss in
+                    FunDef r (concat dss) abs inst tc cc n (concat css)
+    in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (reverse dcss))]) dcs
+  _ -> __IMPOSSIBLE__ -- someone messed up and broke the invariant
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
 data KindOfBlock

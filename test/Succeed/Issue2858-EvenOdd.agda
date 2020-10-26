@@ -2,7 +2,7 @@ data Nat : Set where
   zero : Nat
   suc : Nat → Nat
 
-infix mutual
+interleaved mutual
 
   data Even : Nat → Set
   data Odd  : Nat → Set

@@ -150,7 +150,7 @@ fixitiesAndPolarities' = foldMap $ \case
   Infix  f xs     -> returnFix $ Map.fromList $ for (List1.toList xs) $ \ x -> (x, Fixity' f noNotation $ getRange x)
   -- We look into these blocks:
   Mutual    _ ds' -> fixitiesAndPolarities' ds'
-  NewMutual _ ds' -> fixitiesAndPolarities' ds'
+  InterleavedMutual _ ds' -> fixitiesAndPolarities' ds'
   Abstract  _ ds' -> fixitiesAndPolarities' ds'
   Private _ _ ds' -> fixitiesAndPolarities' ds'
   InstanceB _ ds' -> fixitiesAndPolarities' ds'
@@ -226,7 +226,7 @@ declaredNames d = case d of
   Syntax _ _           -> mempty
   PatternSyn _ x _ _   -> declaresName x
   Mutual    _ ds       -> foldMap declaredNames ds
-  NewMutual    _ ds    -> foldMap declaredNames ds
+  InterleavedMutual    _ ds -> foldMap declaredNames ds
   LoneConstructor _ ds -> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
   Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds

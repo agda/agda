@@ -1,7 +1,7 @@
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Sigma
 
-infix mutual
+interleaved mutual
 
   data Rec : Set
   ⟦_⟧ : Rec → Set
