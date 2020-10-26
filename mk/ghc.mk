@@ -23,5 +23,8 @@ endif
 # We ask if GHC is available for removing a warning on Travis when
 # testing the documentation.
 ifneq ($(GHC),)
+# major.minor, e.g. 8.10
 GHC_VERSION := $(shell $(GHC) --numeric-version | cut -d. -f1-2)
+# major.minor.subminor, e.g. 8.10.2
+GHC_VER := $(shell $(GHC) --numeric-version | cut -d. -f1-3)
 endif
