@@ -108,6 +108,7 @@ generateInterfaces pd lbi = do
 
     putStrLn $ "... " ++ fullpath
     ok <- rawSystem' ddir agda [ "--no-libraries", "--local-interfaces"
+                               , "--ignore-all-interfaces"
                                , "-Werror"
                                , fullpath, "-v0"
                                ]
