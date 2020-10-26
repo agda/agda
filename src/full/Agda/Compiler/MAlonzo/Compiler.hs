@@ -60,7 +60,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow, Pretty)
+import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 
@@ -840,13 +840,15 @@ infodecl q ds =
 -- Writing out a haskell module
 --------------------------------------------------
 
-copyRTEModules :: TCM ()
-copyRTEModules = do
-  dataDir <- lift getDataDir
-  let srcDir = dataDir </> "MAlonzo" </> "src"
-  (lift . copyDirContent srcDir) =<< compileDir
+type MonadGHCIO m = (MonadIO m, HasOptions m)
 
-writeModule :: HS.Module -> TCM ()
+copyRTEModules :: MonadGHCIO m => m ()
+copyRTEModules = do
+  dataDir <- liftIO getDataDir
+  let srcDir = dataDir </> "MAlonzo" </> "src"
+  (liftIO . copyDirContent srcDir) =<< compileDir
+
+writeModule :: MonadGHCIO m => HS.Module -> m ()
 writeModule (HS.Module m ps imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
   out <- outFile m
@@ -864,8 +866,7 @@ writeModule (HS.Module m ps imp ds) = do
         , "OverloadedStrings"
         ]
 
-
-outFile' :: Pretty a => a -> TCM (FilePath, FilePath)
+outFile' :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
 outFile' m = do
   mdir <- compileDir
   let (fdir, fn) = splitFileName $ repldot pathSeparator $
@@ -877,10 +878,10 @@ outFile' m = do
   where
   repldot c = List.map $ \ c' -> if c' == '.' then c else c'
 
-outFile :: HS.ModuleName -> TCM FilePath
+outFile :: MonadGHCIO m => HS.ModuleName -> m FilePath
 outFile m = snd <$> outFile' m
 
-outFile_ :: TCM FilePath
+outFile_ :: (MonadGHCIO m, ReadTCState m) => m FilePath
 outFile_ = outFile =<< curHsMod
 
 callGHC :: GHCOptions -> IsMain -> Map ModuleName IsMain -> TCM ()

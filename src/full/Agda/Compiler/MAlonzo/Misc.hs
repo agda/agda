@@ -22,7 +22,7 @@ import Agda.Utils.Impossible
 -- Setting up Interface before compile
 --------------------------------------------------
 
-curHsMod :: TCM HS.ModuleName
+curHsMod :: ReadTCState m => m HS.ModuleName
 curHsMod = mazMod <$> curMName
 
 --------------------------------------------------
