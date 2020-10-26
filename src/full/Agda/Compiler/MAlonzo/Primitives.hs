@@ -155,7 +155,7 @@ xForPrim table = do
 
 
 -- | Definition bodies for primitive functions
-primBody :: String -> TCM HS.Exp
+primBody :: MonadTCError m => String -> m HS.Exp
 primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
              List.lookup s $
   [
@@ -307,7 +307,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   hLam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
   nLam x t = Lam (setHiding NotHidden defaultArgInfo) (Abs x t)
 
-noCheckCover :: QName -> TCM Bool
+noCheckCover :: (HasBuiltins m, MonadReduce m) => QName -> m Bool
 noCheckCover q = (||) <$> isBuiltin q builtinNat <*> isBuiltin q builtinInteger
 
 ----------------------

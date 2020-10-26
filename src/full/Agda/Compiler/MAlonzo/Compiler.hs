@@ -535,7 +535,7 @@ checkConstructorType q hs = do
                                 (HS.UnGuardedRhs $ fakeExp hs) emptyBinds]
          ]
 
-checkCover :: QName -> HaskellType -> Nat -> [QName] -> [HaskellCode] -> TCM [HS.Decl]
+checkCover :: HasConstInfo m => QName -> HaskellType -> Nat -> [QName] -> [HaskellCode] -> m [HS.Decl]
 checkCover q ty n cs hsCons = do
   let tvs = [ "a" ++ show i | i <- [1..n] ]
       makeClause c hsc = do

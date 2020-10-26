@@ -95,7 +95,7 @@ parsePragma (CompilerPragma r s) =
                                                     paren (sepBy (skipSpaces *> hsIdent) barP) <* skipSpaces
     defnP   = HsDefn   r <$ wordsP ["="]         <* whitespace <*  notTypeOrData <*> hsCode
 
-parseHaskellPragma :: CompilerPragma -> TCM HaskellPragma
+parseHaskellPragma :: (MonadTCError m, MonadTrace m) => CompilerPragma -> m HaskellPragma
 parseHaskellPragma p = setCurrentRange p $
   case parsePragma p of
     Left err -> genericError err
@@ -107,7 +107,7 @@ getHaskellPragma q = do
   def <- getConstInfo q
   setCurrentRange pragma $ pragma <$ sanityCheckPragma def pragma
 
-sanityCheckPragma :: Definition -> Maybe HaskellPragma -> TCM ()
+sanityCheckPragma :: (HasBuiltins m, MonadTCError m, MonadReduce m) => Definition -> Maybe HaskellPragma -> m ()
 sanityCheckPragma _ Nothing = return ()
 sanityCheckPragma def (Just HsDefn{}) =
   case theDef def of

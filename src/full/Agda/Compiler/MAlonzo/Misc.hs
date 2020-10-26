@@ -51,7 +51,7 @@ unqhname s q = ihname s (idnum $ nameId $ qnameName $ q)
    where idnum (NameId x _) = fromIntegral x
 
 -- the toplevel module containing the given one
-tlmodOf :: ModuleName -> TCM HS.ModuleName
+tlmodOf :: ReadTCState m => ModuleName -> m HS.ModuleName
 tlmodOf = fmap mazMod . topLevelModuleName
 
 
