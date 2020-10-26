@@ -1139,7 +1139,9 @@ checkIndexSorts :: Sort -> Telescope -> TCM ()
 checkIndexSorts s = \case
   EmptyTel -> return ()
   ExtendTel a tel' -> do
-    getSort a `leqSort` s
+    let sa = getSort a
+    -- Andreas, 2020-10-19, allow Size indices
+    unless (sa == SizeUniv) $ sa `leqSort` s
     underAbstraction a tel' $ checkIndexSorts (raise 1 s)
 
 -- | Return the parameters that share variables with the indices
