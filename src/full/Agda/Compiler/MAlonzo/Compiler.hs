@@ -612,19 +612,23 @@ initCCEnv = CCEnv
 lookupIndex :: Int -> CCContext -> HS.Name
 lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
 
-type CC = ReaderT CCEnv (WriterT UsesFloat TCM)
+-- | Constructor coverage monad transformer
+type CCT m = ReaderT CCEnv (WriterT UsesFloat m)
 
-liftCC :: TCM a -> CC a
+-- | Constructor coverage monad
+type CC = CCT TCM
+
+liftCC :: Monad m => m a -> CCT m a
 liftCC = lift . lift
 
-freshNames :: Int -> ([HS.Name] -> CC a) -> CC a
+freshNames :: Monad m => Int -> ([HS.Name] -> CCT m a) -> CCT m a
 freshNames n _ | n < 0 = __IMPOSSIBLE__
 freshNames n cont = do
   (xs, rest) <- splitAt n <$> view ccNameSupply
   local (over ccNameSupply (const rest)) $ cont xs
 
 -- | Introduce n variables into the context.
-intros :: Int -> ([HS.Name] -> CC a) -> CC a
+intros :: Monad m => Int -> ([HS.Name] -> CCT m a) -> CCT m a
 intros n cont = freshNames n $ \xs ->
   local (over ccContext (reverse xs ++)) $ cont xs
 
@@ -804,7 +808,7 @@ alt sc a = do
         body' <- term $ T.aBody a
         return $ HS.Alt pat (HS.UnGuardedRhs body') emptyBinds
 
-literal :: Literal -> CC HS.Exp
+literal :: forall m. Monad m => Literal -> CCT m HS.Exp
 literal l = case l of
   LitNat    _   -> return $ typed "Integer"
   LitWord64 _   -> return $ typed "MAlonzo.RTE.Word64"
@@ -818,7 +822,7 @@ literal l = case l of
 
     -- ASR (2016-09-14): See Issue #2169.
     -- Ulf, 2016-09-28: and #2218.
-    floatExp :: Double -> String -> CC HS.Exp
+    floatExp :: Double -> String -> CCT m HS.Exp
     floatExp x s
       | isPosInf  x = rte "positiveInfinity"
       | isNegInf  x = rte "negativeInfinity"
