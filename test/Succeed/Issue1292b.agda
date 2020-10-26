@@ -4,7 +4,7 @@
 
 -- {-# OPTIONS -v tc.size:20  #-}
 
-open import Common.Size
+open import Agda.Builtin.Size
 
 data Nat : {size : Size} -> Set where
   zero : {size : Size} -> Nat {↑ size}
@@ -22,3 +22,5 @@ div' zero    n = zero
 div' (suc m) n = suc (div' (sub m n) n)
 
 -- should termination check even --without-K
+
+-- -}
