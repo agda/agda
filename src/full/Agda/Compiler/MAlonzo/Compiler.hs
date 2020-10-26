@@ -74,13 +74,13 @@ import Agda.Utils.Impossible
 ghcBackend :: Backend
 ghcBackend = Backend ghcBackend'
 
-ghcBackend' :: Backend' GHCOptions GHCCompileEnv GHCModuleEnv IsMain (UsesFloat, [HS.Decl])
+ghcBackend' :: Backend' GHCFlags GHCCompileEnv GHCModuleEnv IsMain (UsesFloat, [HS.Decl])
 ghcBackend' = Backend'
   { backendName           = "GHC"
   , backendVersion        = Nothing
-  , options               = defaultGHCOptions
+  , options               = defaultGHCFlags
   , commandLineFlags      = ghcCommandLineFlags
-  , isEnabled             = optGhcCompile
+  , isEnabled             = flagGhcCompile
   , preCompile            = ghcPreCompile
   , postCompile           = ghcPostCompile
   , preModule             = ghcPreModule
@@ -90,25 +90,25 @@ ghcBackend' = Backend'
   , mayEraseType          = ghcMayEraseType
   }
 
---- Options ---
+--- Command-line flags ---
 
-data GHCOptions = GHCOptions
-  { optGhcCompile :: Bool
-  , optGhcCallGhc :: Bool
-  , optGhcBin     :: Maybe FilePath
+data GHCFlags = GHCFlags
+  { flagGhcCompile :: Bool
+  , flagGhcCallGhc :: Bool
+  , flagGhcBin     :: Maybe FilePath
     -- ^ Use the compiler at PATH instead of "ghc"
-  , optGhcFlags   :: [String]
+  , flagGhcFlags   :: [String]
   }
 
-defaultGHCOptions :: GHCOptions
-defaultGHCOptions = GHCOptions
-  { optGhcCompile = False
-  , optGhcCallGhc = True
-  , optGhcBin     = Nothing
-  , optGhcFlags   = []
+defaultGHCFlags :: GHCFlags
+defaultGHCFlags = GHCFlags
+  { flagGhcCompile = False
+  , flagGhcCallGhc = True
+  , flagGhcBin     = Nothing
+  , flagGhcFlags   = []
   }
 
-ghcCommandLineFlags :: [OptDescr (Flag GHCOptions)]
+ghcCommandLineFlags :: [OptDescr (Flag GHCFlags)]
 ghcCommandLineFlags =
     [ Option ['c']  ["compile", "ghc"] (NoArg enable)
                     "compile program using the GHC backend"
@@ -120,16 +120,25 @@ ghcCommandLineFlags =
                     "use the compiler available at PATH"
     ]
   where
-    enable      o = pure o{ optGhcCompile = True }
-    dontCallGHC o = pure o{ optGhcCallGhc = False }
-    ghcFlag f   o = pure o{ optGhcFlags   = optGhcFlags o ++ [f] }
+    enable      o = pure o{ flagGhcCompile = True }
+    dontCallGHC o = pure o{ flagGhcCallGhc = False }
+    ghcFlag f   o = pure o{ flagGhcFlags   = flagGhcFlags o ++ [f] }
 
-withCompilerFlag :: FilePath -> Flag GHCOptions
-withCompilerFlag fp o = case optGhcBin o of
- Nothing -> pure o { optGhcBin = Just fp }
+withCompilerFlag :: FilePath -> Flag GHCFlags
+withCompilerFlag fp o = case flagGhcBin o of
+ Nothing -> pure o { flagGhcBin = Just fp }
  Just{}  -> throwError "only one compiler path allowed"
 
 --- Context types ---
+
+-- | The options derived from @GHCFlags@ and other shared options.
+data GHCOptions = GHCOptions
+  { optGhcCallGhc    :: Bool
+  , optGhcBin        :: FilePath
+    -- ^ Use the compiler at PATH instead of "ghc"
+  , optGhcFlags      :: [String]
+  , optGhcCompileDir :: FilePath
+  }
 
 data GHCCompileEnv = GHCCompileEnv
   { ghcCompileEnvOpts :: GHCOptions
@@ -137,10 +146,17 @@ data GHCCompileEnv = GHCCompileEnv
 
 --- Top-level compilation ---
 
-ghcPreCompile :: GHCOptions -> TCM GHCCompileEnv
-ghcPreCompile ghcOpts = do
+ghcPreCompile :: GHCFlags -> TCM GHCCompileEnv
+ghcPreCompile flags = do
   allowUnsolved <- optAllowUnsolved <$> pragmaOptions
   when allowUnsolved $ genericError $ "Unsolved meta variables are not allowed when compiling."
+  outDir <- compileDir
+  let ghcOpts = GHCOptions
+                { optGhcCallGhc    = flagGhcCallGhc flags
+                , optGhcBin        = fromMaybe "ghc" (flagGhcBin flags)
+                , optGhcFlags      = flagGhcFlags flags
+                , optGhcCompileDir = outDir
+                }
   return $ GHCCompileEnv ghcOpts
 
 ghcPostCompile :: GHCCompileEnv -> IsMain -> Map ModuleName IsMain -> TCM ()
@@ -935,7 +951,7 @@ callGHC opts modIsMain mods = do
         ]
       args     = overridableArgs ++ ghcopts ++ otherArgs
 
-  let ghcBin = fromMaybe "ghc" (optGhcBin opts)
+  let ghcBin = optGhcBin opts
 
   -- Note: Some versions of GHC use stderr for progress reports. For
   -- those versions of GHC we don't print any progress information
