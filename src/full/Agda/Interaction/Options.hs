@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP       #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -10,6 +11,7 @@ module Agda.Interaction.Options
     , HtmlHighlight(..)
     , WarningMode(..)
     , ConfluenceCheck(..)
+    , UnicodeOrAscii(..)
     , checkOpts
     , parsePragmaOptions
     , parsePluginOptions
@@ -58,8 +60,8 @@ import Agda.Termination.CutOff  ( CutOff(..) )
 
 import Agda.Interaction.Library
 import Agda.Interaction.Options.Help
-import Agda.Interaction.Options.IORefs
 import Agda.Interaction.Options.Warnings
+import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Functor       ( (<&>) )
@@ -136,7 +138,7 @@ data CommandLineOptions = Options
 data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
-  , optUseUnicode                :: Bool
+  , optUseUnicode                :: UnicodeOrAscii
   , optVerbose                   :: Verbosity
   , optProp                      :: Bool
   , optTwoLevel                  :: WithDefault 'False
@@ -184,7 +186,6 @@ data PragmaOptions = PragmaOptions
   , optSafe                      :: Bool
   , optDoubleCheck               :: Bool
   , optSyntacticEquality         :: Bool  -- ^ Should conversion checker use syntactic equality shortcut?
-  , optCompareSorts              :: Bool  -- ^ Should conversion checker compare sorts of types?
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
   , optCaching                   :: Bool
@@ -275,7 +276,7 @@ defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
-  , optUseUnicode                = True
+  , optUseUnicode                = UnicodeOk
   , optVerbose                   = defaultVerbosity
   , optProp                      = False
   , optTwoLevel                  = Default
@@ -315,7 +316,6 @@ defaultPragmaOptions = PragmaOptions
   , optSafe                      = False
   , optDoubleCheck               = False
   , optSyntacticEquality         = True
-  , optCompareSorts              = True
   , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
   , optCaching                   = True
@@ -445,7 +445,7 @@ unsafePragmaOptions clo opts =
 restartOptions :: [(PragmaOptions -> RestartCodomain, String)]
 restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
-  , (B . not . optUseUnicode, "--no-unicode")
+  , (B . (/= UnicodeOk) . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
   , (B . optHeterogeneousUnification, "--heterogeneous-unification")
   , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
@@ -474,7 +474,6 @@ restartOptions =
   , (B . optSafe, "--safe")
   , (B . optDoubleCheck, "--double-check")
   , (B . not . optSyntacticEquality, "--no-syntactic-equality")
-  , (B . not . optCompareSorts, "--no-sort-comparison")
   , (B . not . optAutoInline, "--no-auto-inline")
   , (B . not . optFastReduce, "--no-fast-reduce")
   , (B . optCallByName, "--call-by-name")
@@ -553,7 +552,7 @@ noSyntacticEqualityFlag :: Flag PragmaOptions
 noSyntacticEqualityFlag o = return $ o { optSyntacticEquality = False }
 
 noSortComparisonFlag :: Flag PragmaOptions
-noSortComparisonFlag o = return $ o { optCompareSorts = False }
+noSortComparisonFlag o = return o
 
 sharingFlag :: Bool -> Flag CommandLineOptions
 sharingFlag _ _ = throwError $
@@ -611,8 +610,8 @@ showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
 
 asciiOnlyFlag :: Flag PragmaOptions
 asciiOnlyFlag o = do
-  lift $ writeIORef unicodeOrAscii AsciiOnly
-  return $ o { optUseUnicode = False }
+  lift $ unsafeSetUnicodeOrAscii AsciiOnly
+  return $ o { optUseUnicode = AsciiOnly }
 
 ghciInteractionFlag :: Flag CommandLineOptions
 ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
@@ -1111,8 +1110,6 @@ pragmaOptions =
                     "enable double-checking of all terms using the internal typechecker"
     , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)
                     "disable the syntactic equality shortcut in the conversion checker"
-    , Option []     ["no-sort-comparison"] (NoArg noSortComparisonFlag)
-                    "disable the comparison of sorts when checking conversion of types"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
                     ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
@@ -1157,6 +1154,8 @@ deadPragmaOptions =
                     "treat type constructors as inductive constructors when checking productivity"
     , Option []     ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
                     "the option has been removed"
+    , Option []     ["no-sort-comparison"] (NoArg noSortComparisonFlag)
+                    "disable the comparison of sorts when checking conversion of types"
     ]
 
 -- | Used for printing usage info.

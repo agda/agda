@@ -1,0 +1,4 @@
+Issue4784b.agda:15,3-6
+B x is not usable at the required modality
+when checking that the type (@0 x : A) → B x → D of the constructor
+con fits in the sort Set of the datatype.

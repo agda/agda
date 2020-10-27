@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
@@ -18,6 +17,7 @@ import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Sort
 
 import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
@@ -52,7 +52,7 @@ piAbstractTerm h v a b = do
 piAbstract :: WithHiding (Term, EqualityView) -> Type -> TCM Type
 piAbstract (WithHiding h (v, OtherType a))                              b = piAbstractTerm h v a b
 piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
-  s <- inferSort a
+  s <- sortOf a
   let prfTy = equalityUnview eqt
       vTy   = El s a
   b <- abstractType prfTy prf b
@@ -163,6 +163,7 @@ instance AbsTerm Term where
       DontCare mv -> DontCare $ absT mv
       Dummy s es   -> Dummy s $ absT es
       where
+        absT :: AbsTerm b => b -> b
         absT x = absTerm u x
 
 instance AbsTerm Type where
@@ -175,26 +176,22 @@ instance AbsTerm Sort where
     Inf f n    -> s
     SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
-    PiSort a s -> PiSort (absS a) (absS s)
+    LockUniv   -> LockUniv
+    PiSort a s1 s2 -> PiSort (absS a) (absS s1) (absS s2)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s
     MetaS x es -> MetaS x $ absS es
     DefS d es  -> DefS d $ absS es
     DummyS{}   -> s
-    where absS x = absTerm u x
+    where
+      absS :: AbsTerm b => b -> b
+      absS x = absTerm u x
 
 instance AbsTerm Level where
   absTerm u (Max n as) = Max n $ absTerm u as
 
 instance AbsTerm PlusLevel where
   absTerm u (Plus n l) = Plus n $ absTerm u l
-
-instance AbsTerm LevelAtom where
-  absTerm u l = case l of
-    MetaLevel m vs   -> UnreducedLevel $ absTerm u (MetaV m vs)
-    NeutralLevel r v -> NeutralLevel r $ absTerm u v
-    BlockedLevel _ v -> UnreducedLevel $ absTerm u v -- abstracting might remove the blockage
-    UnreducedLevel v -> UnreducedLevel $ absTerm u v
 
 instance AbsTerm a => AbsTerm (Elim' a) where
   absTerm = fmap . absTerm
@@ -211,7 +208,7 @@ instance AbsTerm a => AbsTerm [a] where
 instance AbsTerm a => AbsTerm (Maybe a) where
   absTerm = fmap . absTerm
 
-instance (Subst Term a, AbsTerm a) => AbsTerm (Abs a) where
+instance (TermSubst a, AbsTerm a) => AbsTerm (Abs a) where
   absTerm u (NoAbs x v) = NoAbs x $ absTerm u v
   absTerm u (Abs   x v) = Abs x $ swap01 $ absTerm (raise 1 u) v
 
@@ -219,7 +216,7 @@ instance (AbsTerm a, AbsTerm b) => AbsTerm (a, b) where
   absTerm u (x, y) = (absTerm u x, absTerm u y)
 
 -- | This swaps @var 0@ and @var 1@.
-swap01 :: (Subst Term a) => a -> a
+swap01 :: TermSubst a => a -> a
 swap01 = applySubst $ var 1 :# liftS 1 (raiseS 1)
 
 
@@ -258,9 +255,6 @@ instance EqualSy Level where
 instance EqualSy PlusLevel where
   equalSy (Plus n v) (Plus n' v') = n == n' && equalSy v v'
 
-instance EqualSy LevelAtom where
-  equalSy = equalSy `on` unLevelAtom
-
 instance EqualSy Sort where
   equalSy = curry $ \case
     (Type l    , Type l'     ) -> equalSy l l'
@@ -268,7 +262,7 @@ instance EqualSy Sort where
     (Inf f m   , Inf f' n    ) -> f == f' && m == n
     (SSet l    , SSet l'     ) -> equalSy l l'
     (SizeUniv  , SizeUniv    ) -> True
-    (PiSort a b, PiSort a' b') -> equalSy a a' && equalSy b b'
+    (PiSort a b c, PiSort a' b' c') -> equalSy a a' && equalSy b b' && equalSy c c'
     (FunSort a b, FunSort a' b') -> equalSy a a' && equalSy b b'
     (UnivSort a, UnivSort a' ) -> equalSy a a'
     (MetaS x es, MetaS x' es') -> x == x' && equalSy es es'
@@ -292,15 +286,15 @@ instance EqualSy a => EqualSy (Elim' a) where
     _ -> False
 
 -- | Ignores 'absName'.
-instance (Subst t a, EqualSy a) => EqualSy (Abs a) where
+instance (Subst a, EqualSy a) => EqualSy (Abs a) where
   equalSy = curry $ \case
     (NoAbs _x b, NoAbs _x' b') -> equalSy b b' -- no need to raise if both are NoAbs
     (a         , a'          ) -> equalSy (absBody a) (absBody a')
 
 -- | Ignore origin and free variables.
 instance EqualSy ArgInfo where
-  equalSy (ArgInfo h m _o _fv) (ArgInfo h' m' _o' _fv') =
-    h == h' && m == m'
+  equalSy (ArgInfo h m _o _fv a) (ArgInfo h' m' _o' _fv' a') =
+    h == h' && m == m' && a == a'
 
 -- | Ignore the tactic.
 instance EqualSy a => EqualSy (Dom a) where
@@ -314,7 +308,7 @@ instance EqualSy a => EqualSy (Dom a) where
 -- | Ignores irrelevant arguments and modality.
 --   (And, of course, origin and free variables).
 instance EqualSy a => EqualSy (Arg a) where
-  equalSy (Arg (ArgInfo h m _o _fv) v) (Arg (ArgInfo h' m' _o' _fv') v') =
+  equalSy (Arg (ArgInfo h m _o _fv a) v) (Arg (ArgInfo h' m' _o' _fv' a') v') =
     h == h' && (isIrrelevant m || isIrrelevant m' || equalSy v v')
     -- Andreas, 2017-10-04, issue #2775,
     -- ignore irrelevant arguments during with-abstraction.

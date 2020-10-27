@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 -- | Precompute free variables in a term (and store in 'ArgInfo').
 module Agda.TypeChecking.Free.Precompute
   ( PrecomputeFreeVars, precomputeFreeVars
@@ -80,7 +79,8 @@ instance PrecomputeFreeVars Sort where
       Inf _ _    -> pure s
       SSet a     -> SSet <$> precomputeFreeVars a
       SizeUniv   -> pure s
-      PiSort a s -> uncurry PiSort <$> precomputeFreeVars (a, s)
+      LockUniv   -> pure s
+      PiSort a s1 s2 -> PiSort <$> precomputeFreeVars a <*> precomputeFreeVars s1 <*> precomputeFreeVars s2
       FunSort s1 s2 -> uncurry FunSort <$> precomputeFreeVars (s1, s2)
       UnivSort s -> UnivSort <$> precomputeFreeVars s
       MetaS x es -> MetaS x <$> precomputeFreeVars es
@@ -92,14 +92,6 @@ instance PrecomputeFreeVars Level where
 
 instance PrecomputeFreeVars PlusLevel where
   precomputeFreeVars (Plus n l) = Plus n <$> precomputeFreeVars l
-
-instance PrecomputeFreeVars LevelAtom where
-  precomputeFreeVars l =
-    case l of
-      MetaLevel x es   -> MetaLevel x <$> precomputeFreeVars es
-      BlockedLevel x t -> BlockedLevel x <$> precomputeFreeVars t
-      NeutralLevel b t -> NeutralLevel b <$> precomputeFreeVars t
-      UnreducedLevel t -> UnreducedLevel <$> precomputeFreeVars t
 
 instance PrecomputeFreeVars Type where
   precomputeFreeVars (El s t) = uncurry El <$> precomputeFreeVars (s, t)

@@ -3,17 +3,23 @@
 
 module Agda.Interaction.Library.Base where
 
+import Control.Arrow ( first , second )
 import Control.Monad.Except
+import Control.Monad.State
 import Control.Monad.Writer
 
 import Data.Char ( isDigit )
 import Data.Data ( Data )
 import qualified Data.List as List
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Text ( Text )
+import System.Directory
 import System.FilePath
 
 import Agda.Interaction.Options.Warnings
 
+import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.Pretty
 
@@ -47,6 +53,16 @@ data ExecutablesFile = ExecutablesFile
 libNameForCurrentDir :: LibName
 libNameForCurrentDir = "."
 
+-- | A file can either belong to a project located at a given root
+--   containing one or more .agda-lib files, or be part of the default
+--   project.
+data ProjectConfig
+  = ProjectConfig
+    { configRoot         :: FilePath
+    , configAgdaLibFiles :: [FilePath]
+    }
+  | DefaultProjectConfig
+
 -- | Content of a @.agda-lib@ file.
 --
 data AgdaLibFile = AgdaLibFile
@@ -54,6 +70,7 @@ data AgdaLibFile = AgdaLibFile
   , _libFile     :: FilePath    -- ^ Path to this @.agda-lib@ file (not content of the file).
   , _libIncludes :: [FilePath]  -- ^ Roots where to look for the modules of the library.
   , _libDepends  :: [LibName]   -- ^ Dependencies.
+  , _libPragmas  :: [String]    -- ^ Default pragma options for all files in the library.
   }
   deriving (Show)
 
@@ -63,6 +80,7 @@ emptyLibFile = AgdaLibFile
   , _libFile     = ""
   , _libIncludes = []
   , _libDepends  = []
+  , _libPragmas  = []
   }
 
 -- | Lenses for AgdaLibFile
@@ -78,6 +96,9 @@ libIncludes f a = f (_libIncludes a) <&> \ x -> a { _libIncludes = x }
 
 libDepends :: Lens' [LibName] AgdaLibFile
 libDepends f a = f (_libDepends a) <&> \ x -> a { _libDepends = x }
+
+libPragmas :: Lens' [String] AgdaLibFile
+libPragmas f a = f (_libPragmas a) <&> \ x -> a { _libPragmas = x }
 
 
 ------------------------------------------------------------------------
@@ -125,12 +146,18 @@ data LibError'
       -- ^ Generic error.
   deriving (Show)
 
+-- | Cache locations of project configurations and parsed .agda-lib files
+type LibState =
+  ( Map FilePath ProjectConfig
+  , Map FilePath AgdaLibFile
+  )
+
 -- | Collects 'LibError's and 'LibWarning's.
 --
-type LibErrorIO = WriterT [Either LibError LibWarning] IO
+type LibErrorIO = WriterT [Either LibError LibWarning] (StateT LibState IO)
 
 -- | Throws 'Doc' exceptions, still collects 'LibWarning's.
-type LibM = ExceptT Doc (WriterT [LibWarning] IO)
+type LibM = ExceptT Doc (WriterT [LibWarning] (StateT LibState IO))
 
 warnings :: MonadWriter [Either LibError LibWarning] m => [LibWarning] -> m ()
 warnings = tell . map Right
@@ -147,6 +174,35 @@ raiseErrors' = tell . map (Left . (LibError Nothing))
 
 raiseErrors :: MonadWriter [Either LibError LibWarning] m => [LibError] -> m ()
 raiseErrors = tell . map Left
+
+getCachedProjectConfig
+  :: (MonadState LibState m, MonadIO m)
+  => FilePath -> m (Maybe ProjectConfig)
+getCachedProjectConfig path = do
+  path <- liftIO $ canonicalizePath path
+  cache <- gets fst
+  return $ Map.lookup path cache
+
+storeCachedProjectConfig
+  :: (MonadState LibState m, MonadIO m)
+  => FilePath -> ProjectConfig -> m ()
+storeCachedProjectConfig path conf = do
+  path <- liftIO $ canonicalizePath path
+  modify $ first $ Map.insert path conf
+
+getCachedAgdaLibFile
+  :: (MonadState LibState m, MonadIO m)
+  => FilePath -> m (Maybe AgdaLibFile)
+getCachedAgdaLibFile path = do
+  path <- liftIO $ canonicalizePath path
+  gets $ Map.lookup path . snd
+
+storeCachedAgdaLibFile
+  :: (MonadState LibState m, MonadIO m)
+  => FilePath -> AgdaLibFile -> m ()
+storeCachedAgdaLibFile path lib = do
+  path <- liftIO $ canonicalizePath path
+  modify $ second $ Map.insert path lib
 
 ------------------------------------------------------------------------
 -- * Prettyprinting errors and warnings

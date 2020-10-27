@@ -128,8 +128,9 @@ quotingKit = do
       quoteRelevance NonStrict  = pure relevant
 
       -- TODO: quote Quanity
+      -- TODO: quote Annotation
       quoteArgInfo :: ArgInfo -> ReduceM Term
-      quoteArgInfo (ArgInfo h m _ _) =
+      quoteArgInfo (ArgInfo h m _ _ _) =
         arginfo !@ quoteHiding h @@ quoteRelevance (getRelevance m)
 
       quoteLit :: Literal -> ReduceM Term
@@ -153,6 +154,7 @@ quotingKit = do
       quoteSort Inf{}    = pure unsupportedSort
       quoteSort SSet{}   = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
+      quoteSort LockUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort FunSort{} = pure unsupportedSort
       quoteSort UnivSort{}   = pure unsupportedSort
@@ -206,7 +208,7 @@ quotingKit = do
       quoteDom :: (a -> ReduceM Term) -> Dom a -> ReduceM Term
       quoteDom q Dom{domInfo = info, unDom = t} = arg !@ quoteArgInfo info @@ q t
 
-      quoteAbs :: Subst t a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
+      quoteAbs :: Subst a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
       quoteAbs q (Abs s t)   = abs !@! quoteString s @@ q t
       quoteAbs q (NoAbs s t) = abs !@! quoteString s @@ q (raise 1 t)
 
@@ -229,14 +231,14 @@ quotingKit = do
             let
               conOrProjPars = defParameters defn
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              qx Function{ funExtLam = Just (ExtLamInfo m _), funClauses = cs } = do
+              qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
                     n <- size <$> lookupSection m
                     let (pars, args) = splitAt n ts
                     extlam !@ list (map (quoteClause . (`apply` pars)) cs)
                            @@ list (map (quoteArg quoteTerm) args)
-              qx df@Function{ funCompiled = Just Fail, funClauses = [cl] } = do
+              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _) , funCompiled = Just Fail, funClauses = [cl] } = do
                     -- See also corresponding code in InternalToAbstract
                     let n = length (namedClausePats cl) - 1
                         pars = take n ts

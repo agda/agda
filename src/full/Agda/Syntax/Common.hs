@@ -1,9 +1,6 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
-{-# LANGUAGE UndecidableInstances       #-} -- for functional dependency: LensNamed name (Arg a)
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -76,16 +73,27 @@ instance Pretty FileType where
     OrgFileType  -> "org-mode"
 
 ---------------------------------------------------------------------------
--- * Agda Source location of errors
+-- * Record Directives
 ---------------------------------------------------------------------------
 
-data AgdaSourceErrorLocation = AgdaSourceErrorLocation
-  { slocFile :: String -- ^ File the error was raised in
-  , slocLine :: Int    -- ^ Line number in this file
-  } deriving (Show, Data)
+data RecordDirectives' a = RecordDirectives
+  { recInductive   :: Maybe (Ranged Induction)
+  , recHasEta      :: Maybe HasEta0
+  , recPattern     :: Maybe Range
+  , recConstructor :: Maybe a
+  } deriving (Functor, Data, Show, Eq)
 
-instance Pretty AgdaSourceErrorLocation where
-  pretty (AgdaSourceErrorLocation file line) = text $ file ++ ":" ++ show line
+emptyRecordDirectives :: RecordDirectives' a
+emptyRecordDirectives = RecordDirectives empty empty empty empty
+
+instance HasRange a => HasRange (RecordDirectives' a) where
+  getRange (RecordDirectives a b c d) = getRange (a,b,c,d)
+
+instance KillRange a => KillRange (RecordDirectives' a) where
+  killRange (RecordDirectives a b c d) = killRange4 RecordDirectives a b c d
+
+instance NFData a => NFData (RecordDirectives' a) where
+  rnf (RecordDirectives a b c d) = c `seq` rnf (a, b, d)
 
 ---------------------------------------------------------------------------
 -- * Eta-equality
@@ -365,9 +373,6 @@ data Modality = Modality
 
 defaultModality :: Modality
 defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
-
-instance Null Modality where
-  empty = defaultModality
 
 -- | Pointwise composition.
 instance Semigroup Modality where
@@ -1059,6 +1064,94 @@ nonStrictToIrr :: Relevance -> Relevance
 nonStrictToIrr NonStrict = Irrelevant
 nonStrictToIrr rel       = rel
 
+
+---------------------------------------------------------------------------
+-- * Annotations
+---------------------------------------------------------------------------
+
+-- | We have a tuple of annotations, which might not be fully orthogonal.
+data Annotation = Annotation
+  { annLock :: Lock
+    -- ^ Fitch-style dependent right adjoints.
+    --   See Modal Dependent Type Theory and Dependent Right Adjoints, arXiv:1804.05236.
+  } deriving (Data, Eq, Ord, Show, Generic)
+
+instance HasRange Annotation where
+  getRange _ = noRange
+
+instance KillRange Annotation where
+  killRange = id
+
+defaultAnnotation :: Annotation
+defaultAnnotation = Annotation defaultLock
+
+instance NFData Annotation where
+  rnf (Annotation l) = rnf l
+
+class LensAnnotation a where
+
+  getAnnotation :: a -> Annotation
+
+  setAnnotation :: Annotation -> a -> a
+
+  mapAnnotation :: (Annotation -> Annotation) -> a -> a
+  mapAnnotation f a = setAnnotation (f $ getAnnotation a) a
+
+  default getAnnotation :: LensArgInfo a => a -> Annotation
+  getAnnotation = argInfoAnnotation . getArgInfo
+
+  default setAnnotation :: LensArgInfo a => Annotation -> a -> a
+  setAnnotation a = mapArgInfo $ \ ai -> ai { argInfoAnnotation = a }
+
+instance LensAnnotation Annotation where
+  getAnnotation = id
+  setAnnotation = const
+  mapAnnotation = id
+
+instance LensAnnotation (Arg t) where
+  getAnnotation = getAnnotation . getArgInfo
+  setAnnotation = mapArgInfo . setAnnotation
+
+
+---------------------------------------------------------------------------
+-- * Locks
+---------------------------------------------------------------------------
+
+data Lock = IsNotLock
+          | IsLock -- ^ In the future there might be different kinds of them.
+                   --   For now we assume lock weakening.
+  deriving (Data, Show, Generic, Eq, Enum, Bounded, Ord)
+
+defaultLock :: Lock
+defaultLock = IsNotLock
+
+instance NFData Lock where
+  rnf IsNotLock = ()
+  rnf IsLock    = ()
+
+class LensLock a where
+
+  getLock :: a -> Lock
+
+  setLock :: Lock -> a -> a
+  setLock = mapLock . const
+
+  mapLock :: (Lock -> Lock) -> a -> a
+  mapLock f a = setLock (f $ getLock a) a
+
+instance LensLock Lock where
+  getLock = id
+  setLock = const
+  mapLock = id
+
+instance LensLock ArgInfo where
+  getLock = annLock . argInfoAnnotation
+  setLock l info = info { argInfoAnnotation = Annotation l }
+
+instance LensLock (Arg t) where
+  getLock = getLock . getArgInfo
+  setLock = mapArgInfo . setLock
+
 ---------------------------------------------------------------------------
 -- * Cohesion
 ---------------------------------------------------------------------------
@@ -1366,13 +1459,16 @@ data ArgInfo = ArgInfo
   , argInfoModality      :: Modality
   , argInfoOrigin        :: Origin
   , argInfoFreeVariables :: FreeVariables
+  , argInfoAnnotation    :: Annotation
+    -- ^ Sometimes we want a different kind of binder/pi-type, without it
+    --   supporting any of the @Modality@ interface.
   } deriving (Data, Eq, Ord, Show)
 
 instance HasRange ArgInfo where
-  getRange (ArgInfo h m o _fv) = getRange (h, m, o)
+  getRange (ArgInfo h m o _fv a) = getRange (h, m, o, a)
 
 instance KillRange ArgInfo where
-  killRange (ArgInfo h m o fv) = killRange4 ArgInfo h m o fv
+  killRange (ArgInfo h m o fv a) = killRange5 ArgInfo h m o fv a
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
@@ -1387,7 +1483,7 @@ instance LensArgInfo ArgInfo where
   mapArgInfo = id
 
 instance NFData ArgInfo where
-  rnf (ArgInfo a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (ArgInfo a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
 
 instance LensHiding ArgInfo where
   getHiding = argInfoHiding
@@ -1408,6 +1504,11 @@ instance LensFreeVariables ArgInfo where
   getFreeVariables = argInfoFreeVariables
   setFreeVariables o ai = ai { argInfoFreeVariables = o }
   mapFreeVariables f ai = ai { argInfoFreeVariables = f (argInfoFreeVariables ai) }
+
+instance LensAnnotation ArgInfo where
+  getAnnotation = argInfoAnnotation
+  setAnnotation m ai = ai { argInfoAnnotation = m }
+  mapAnnotation f ai = ai { argInfoAnnotation = f (argInfoAnnotation ai) }
 
 -- inherited instances
 
@@ -1432,6 +1533,7 @@ defaultArgInfo =  ArgInfo
   , argInfoModality      = defaultModality
   , argInfoOrigin        = UserWritten
   , argInfoFreeVariables = UnknownFVs
+  , argInfoAnnotation    = defaultAnnotation
   }
 
 -- Accessing through ArgInfo
@@ -1684,38 +1786,43 @@ userNamed :: Ranged ArgName -> a -> Named_ a
 userNamed = Named . Just . WithOrigin UserWritten
 
 -- | Accessor/editor for the 'nameOf' component.
-class LensNamed name a | a -> name where
-  lensNamed :: Lens' (Maybe name) a
+class LensNamed a where
+  -- | The type of the name
+  type NameOf a
+  lensNamed :: Lens' (Maybe (NameOf a)) a
 
   -- Lenses lift through decorations:
-  default lensNamed :: (Decoration f, LensNamed name b, f b ~ a) => Lens' (Maybe name) a
+  default lensNamed :: (Decoration f, LensNamed b, NameOf b ~ NameOf a, f b ~ a) => Lens' (Maybe (NameOf a)) a
   lensNamed = traverseF . lensNamed
 
-instance LensNamed name a => LensNamed name (Arg a) where
+instance LensNamed a => LensNamed (Arg a) where
+  type NameOf (Arg a) = NameOf a
 
-instance LensNamed name (Maybe name) where
+instance LensNamed (Maybe a) where
+  type NameOf (Maybe a) = a
   lensNamed = id
 
-instance LensNamed name (Named name a) where
+instance LensNamed (Named name a) where
+  type NameOf (Named name a) = name
+
   lensNamed f (Named mn a) = f mn <&> \ mn' -> Named mn' a
 
-getNameOf :: LensNamed name a => a -> Maybe name
+getNameOf :: LensNamed a => a -> Maybe (NameOf a)
 getNameOf a = a ^. lensNamed
 
-setNameOf :: LensNamed name a => Maybe name -> a -> a
+setNameOf :: LensNamed a => Maybe (NameOf a) -> a -> a
 setNameOf = set lensNamed
 
-mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
+mapNameOf :: LensNamed a => (Maybe (NameOf a) -> Maybe (NameOf a)) -> a -> a
 mapNameOf = over lensNamed
-
-bareNameOf :: LensNamed NamedName a => a -> Maybe ArgName
+bareNameOf :: (LensNamed a, NameOf a ~ NamedName) => a -> Maybe ArgName
 bareNameOf a = rangedThing . woThing <$> getNameOf a
 
-bareNameWithDefault :: LensNamed NamedName a => ArgName -> a -> ArgName
+bareNameWithDefault :: (LensNamed a, NameOf a ~ NamedName) => ArgName -> a -> ArgName
 bareNameWithDefault x a = maybe x (rangedThing . woThing) $ getNameOf a
 
 -- | Equality of argument names of things modulo 'Range' and 'Origin'.
-namedSame :: (LensNamed NamedName a, LensNamed NamedName b) => a -> b -> Bool
+namedSame :: (LensNamed a, LensNamed b, NameOf a ~ NamedName, NameOf b ~ NamedName) => a -> b -> Bool
 namedSame a b = case (getNameOf a, getNameOf b) of
   (Nothing, Nothing) -> True
   (Just x , Just y ) -> sameName x y
@@ -1732,8 +1839,8 @@ namedSame a b = case (getNameOf a, getNameOf b) of
 --   @@
 --
 fittingNamedArg
-  :: ( LensNamed NamedName arg, LensHiding arg
-     , LensNamed NamedName dom, LensHiding dom )
+  :: ( LensNamed arg, NameOf arg ~ NamedName, LensHiding arg
+     , LensNamed dom, NameOf dom ~ NamedName, LensHiding dom )
   => arg -> dom -> Maybe Bool
 fittingNamedArg arg dom
     | not $ sameHiding arg dom = no
@@ -2052,6 +2159,19 @@ instance NFData MetaId where
 instance Hashable MetaId
 
 newtype Constr a = Constr a
+
+-----------------------------------------------------------------------------
+-- * Problems
+-----------------------------------------------------------------------------
+
+-- | A "problem" consists of a set of constraints and the same constraint can be part of multiple
+--   problems.
+newtype ProblemId = ProblemId Nat
+  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
+
+-- This particular Show instance is ok because of the Num instance.
+instance Show   ProblemId where show   (ProblemId n) = show n
+instance Pretty ProblemId where pretty (ProblemId n) = pretty n
 
 ------------------------------------------------------------------------
 -- * Placeholders (used to parse sections)

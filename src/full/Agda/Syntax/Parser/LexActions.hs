@@ -20,6 +20,7 @@ module Agda.Syntax.Parser.LexActions
 
 import Data.Bifunctor
 import Data.Char
+import Data.List
 import Data.Maybe
 
 import Agda.Syntax.Common (pattern Ranged)
@@ -191,9 +192,20 @@ symbol s = withInterval_ (TokSymbol s)
 -- | Parse a number.
 
 number :: String -> Integer
-number str = read $ case str of
-  '0' : 'x' : num -> str
-  _               -> concat $ wordsBy ('_' ==) str
+number str = case str of
+    '0' : 'x' : num -> parseNumber 16 num
+    '0' : 'b' : num -> parseNumber 2  num
+    num             -> parseNumber 10 num
+    where
+        parseNumber :: Integer -> String -> Integer
+        parseNumber radix = foldl' (addDigit radix) 0
+
+        -- We rely on Agda.Syntax.Parser.Lexer to enforce that the digits are
+        -- in the correct range (so e.g. the digit 'E' cannot appear in a
+        -- binary number).
+        addDigit :: Integer -> Integer -> Char -> Integer
+        addDigit radix n '_' = n
+        addDigit radix n c   = n * radix + fromIntegral (digitToInt c)
 
 integer :: String -> Integer
 integer = \case

@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.Rules.Builtin
   ( bindBuiltin
@@ -124,13 +125,13 @@ coreBuiltins =
   , (builtinSub                              |-> builtinPostulateC (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    nPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                                    nPi' "φ" (cl tinterval) $ \ phi ->
-                                                                   el's a (cl primPartial <#> a <@> phi <@> bA) --> (ssort . unreducedLevel <$> a)
+                                                                   el's a (cl primPartial <#> a <@> phi <@> bA) --> (ssort . atomicLevel <$> a)
                                                                   ))
   , (builtinSubIn                            |-> builtinPostulateC (runNamesT [] $
                                                                    hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                                    hPi' "φ" (elSSet $ cl primInterval) $ \ phi ->
-                                                                   nPi' "x" (el' (Sort . tmSort <$> a) bA) $ \ x ->
+                                                                   nPi' "x" (el' a bA) $ \ x ->
                                                                    el's a $ cl primSub <#> a <@> bA <@> phi <@> lam "o" (\ _ -> x)))
   , (builtinIZero                            |-> BuiltinDataCons tinterval)
   , (builtinIOne                             |-> BuiltinDataCons tinterval)
@@ -369,6 +370,9 @@ coreBuiltins =
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
   , builtinAgdaTCMWithNormalisation          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMDebugPrint                 |-> builtinPostulate (tstring --> tnat --> tlist terrorpart --> tTCM_ primUnit)
+  , builtinAgdaTCMOnlyReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMDontReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+
   , builtinAgdaTCMNoConstraints              |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMRunSpeculative             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
                                                                    tTCM 1 (primSigma <#> varM 1 <#> primLevelZero <@> varM 0 <@> (Lam defaultArgInfo . Abs "_" <$> primBool)) --> tTCM 1 (varM 0))
@@ -726,7 +730,7 @@ bindBuiltinEquality x = do
           (a,b) <- reduce $ fromMaybe __IMPOSSIBLE__ $ last2 vs
           unless (deBruijnView a == Just 0) wrongRefl
           unless (deBruijnView b == Just 0) wrongRefl
-          bindBuiltinName builtinRefl (Con (ConHead c Inductive []) ConOSystem [])
+          bindBuiltinName builtinRefl (Con (ConHead c IsData Inductive []) ConOSystem [])
         _ -> __IMPOSSIBLE__
     _ -> genericError "Builtin EQUALITY must be a data type with a single constructor"
   where
@@ -936,7 +940,7 @@ bindBuiltinNoDef b q = inTopContext $ do
       t <- mt
       d <- return $! getPrimName $ unEl t
       let
-        ch = ConHead q Inductive []
+        ch = ConHead q IsData Inductive []
         def = Constructor
               { conPars   = 0   -- Andrea TODO: fix zeros
               , conArity  = 0

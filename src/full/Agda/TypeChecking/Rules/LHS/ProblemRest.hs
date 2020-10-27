@@ -2,6 +2,7 @@
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
 import Control.Monad
+import Control.Monad.Except
 
 import Data.Maybe
 
@@ -49,7 +50,9 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
         _ | visible dom && isNoName y -> dom{ unDom = (stringToArgName "x", a) }
           | otherwise                  -> dom
 
-useNamesFromProblemEqs :: [ProblemEq] -> Telescope -> TCM Telescope
+useNamesFromProblemEqs
+  :: forall m. PureTCM m
+  => [ProblemEq] -> Telescope -> m Telescope
 useNamesFromProblemEqs eqs tel = addContext tel $ do
   names <- fst . getUserVariableNames tel . patternVariables <$> getLeftoverPatterns eqs
   let argNames = map (fmap nameToArgName) names
@@ -100,7 +103,9 @@ initLHSState delta eqs ps a ret = do
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
-updateProblemRest :: LHSState a -> TCM (LHSState a)
+updateProblemRest
+  :: forall m a. (PureTCM m, MonadError TCErr m, MonadTrace m, MonadFresh NameId m)
+  => LHSState a -> m (LHSState a)
 updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
   ps <- addContext tel0 $ insertImplicitPatternsT ExpandLast ps $ unArg a
   reportSDoc "tc.lhs.imp" 20 $

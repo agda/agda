@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.Auto.CaseSplit where
 
@@ -206,16 +205,19 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
 
-class Replace o t u | t u -> o where
-  replace' :: Nat -> MExp o -> t -> Reader (Nat, Nat) u
+class Replace t u where
+  type ReplaceWith t u
+  replace' :: Nat -> MExp (ReplaceWith t u) -> t -> Reader (Nat, Nat) u
 
-replace :: Replace o t u => Nat -> Nat -> MExp o -> t -> u
+replace :: Replace t u => Nat -> Nat -> MExp (ReplaceWith t u) -> t -> u
 replace sv nnew e t = replace' 0 e t `runReader` (sv, nnew)
 
-instance Replace o t u => Replace o (Abs t) (Abs u) where
+instance Replace t u => Replace (Abs t) (Abs u) where
+  type ReplaceWith (Abs t) (Abs u) = ReplaceWith t u
   replace' n re (Abs mid b) = Abs mid <$> replace' (n + 1) re b
 
-instance Replace o (Exp o) (MExp o) where
+instance Replace (Exp o) (MExp o) where
+  type ReplaceWith (Exp o) (MExp o) = o
   replace' n re e = case e of
     App uid ok elr@(Var v) args -> do
       ih         <- NotM <$> replace' n re args
@@ -236,10 +238,12 @@ instance Replace o (Exp o) (MExp o) where
     Sort{} -> return $ NotM e
     AbsurdLambda{} -> return $ NotM e
 
-instance Replace o t u => Replace o (MM t (RefInfo o)) u where
+instance Replace t u => Replace (MM t (RefInfo o)) u where
+  type ReplaceWith (MM t (RefInfo o)) u = ReplaceWith t u
   replace' n re = replace' n re . rm __IMPOSSIBLE__
 
-instance Replace o (ArgList o) (ArgList o) where
+instance Replace (ArgList o) (ArgList o) where
+  type ReplaceWith (ArgList o) (ArgList o) = o
   replace' n re args = case args of
     ALNil           -> return ALNil
     ALCons hid a as ->
@@ -289,18 +293,21 @@ replacep sv nnew rp re = r
 
 type Assignments o = [(Nat, Exp o)]
 
-class Unify o t | t -> o where
-  unify'    :: t -> t -> StateT (Assignments o) Maybe ()
-  notequal' :: t -> t -> ReaderT (Nat, Nat) (StateT (Assignments o) IO) Bool
+class Unify t where
+  type UnifiesTo t
+  unify'    :: t -> t -> StateT (Assignments (UnifiesTo t)) Maybe ()
+  notequal' :: t -> t -> ReaderT (Nat, Nat) (StateT (Assignments (UnifiesTo t)) IO) Bool
 
-unify :: Unify o t => t -> t -> Maybe (Assignments o)
+unify :: Unify t => t -> t -> Maybe (Assignments (UnifiesTo t))
 unify t u = unify' t u `execStateT` []
 
-notequal :: Unify o t => Nat -> Nat -> t -> t -> IO Bool
+notequal :: Unify t => Nat -> Nat -> t -> t -> IO Bool
 notequal fstnew nbnew t1 t2 = notequal' t1 t2 `runReaderT` (fstnew, nbnew)
                                               `evalStateT` []
 
-instance Unify o t => Unify o (MM t (RefInfo o)) where
+instance (Unify t, o ~ UnifiesTo t) => Unify (MM t (RefInfo o)) where
+  type UnifiesTo (MM t (RefInfo o)) = o
+
   unify' = unify' `on` rm __IMPOSSIBLE__
 
   notequal' = notequal' `on` rm __IMPOSSIBLE__
@@ -312,12 +319,15 @@ unifyVar v e = do
     Nothing -> modify ((v, e) :)
     Just e' -> unify' e e'
 
-instance Unify o t => Unify o (Abs t) where
+instance Unify t => Unify (Abs t) where
+  type UnifiesTo (Abs t) = UnifiesTo t
   unify' (Abs _ b1) (Abs _ b2) = unify' b1 b2
 
   notequal' (Abs _ b1) (Abs _ b2) = notequal' b1 b2
 
-instance Unify o (Exp o) where
+instance Unify (Exp o) where
+  type UnifiesTo (Exp o) = o
+
   unify' e1 e2 = case (e1, e2) of
    (App _ _ elr1 args1, App _ _ elr2 args2) | elr1 == elr2 -> unify' args1 args2
    (Lam hid1 b1, Lam hid2 b2)               | hid1 == hid2 -> unify' b1 b2
@@ -361,7 +371,9 @@ instance Unify o (Exp o) where
 -}
       _ -> return False
 
-instance Unify o (ArgList o) where
+instance Unify (ArgList o) where
+  type UnifiesTo (ArgList o) = o
+
   unify' args1 args2 = case (args1, args2) of
    (ALNil, ALNil) -> pure ()
    (ALCons hid1 a1 as1, ALCons hid2 a2 as2) | hid1 == hid2 -> unify' a1 a2

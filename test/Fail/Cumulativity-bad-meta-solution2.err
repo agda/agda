@@ -1,0 +1,4 @@
+Cumulativity-bad-meta-solution2.agda:7,7-8
+Set₁ is not less or equal than Set
+when checking that the solution Set of metavariable _3 has the
+expected type Set

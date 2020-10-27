@@ -239,10 +239,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- of the datatype in an empty context (c.f. getContextSize above).
         params <- getContextTelescope
 
-        -- Cannot compose indexed inductive types yet.
-        (con, comp, projNames) <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
-          then return (ConHead c Inductive [], emptyCompKit, Nothing)
-          else do
+        (con, comp, projNames) <- do
             -- Name for projection of ith field of constructor c is just c-i
             names <- forM [0 .. size fields - 1] $ \ i ->
               freshAbstractQName'_ $ P.prettyShow (A.qnameName c) ++ "-" ++ show i
@@ -258,10 +255,13 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               , "names  =" <+> pretty names
               ]
 
-            let con = ConHead c Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
+            let con = ConHead c IsData Inductive $ zipWith (<$) names $ map argFromDom $ telToList fields
 
             defineProjections d con params names fields dataT
-            comp <- inTopContext $ defineCompData d con params names fields dataT boundary
+            -- Cannot compose indexed inductive types yet.
+            comp <- if nofIxs /= 0 || (Info.defAbstract i == AbstractDef)
+                    then return emptyCompKit
+                    else inTopContext $ defineCompData d con params names fields dataT boundary
             return (con, comp, Just names)
 
         -- add parameters to constructor type and put into signature
@@ -643,7 +643,8 @@ toLType ty = do
     Type l -> return $ Just $ LEl l (unEl ty)
     _      -> return $ Nothing
 
-instance Subst Term LType where
+instance Subst LType where
+  type SubstArg LType = Term
   applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
 
 -- | A @Type@ that either has sort @Type l@ or is a closed definition.
@@ -667,7 +668,8 @@ toCType ty = do
         _        -> return $ Nothing
     _      -> return $ Nothing
 
-instance Subst Term CType where
+instance Subst CType where
+  type SubstArg CType = Term
   applySubst rho (ClosedType s t) = ClosedType (applySubst rho s) t
   applySubst rho (LType t) = LType $ applySubst rho t
 
@@ -1090,6 +1092,9 @@ bindParameter npars ps x a b ret =
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
 --   The third argument is the type of the constructor.
 --
+--   When --without-K also check that the types of fields at quantity
+--   `plenty` are also available at quantity plenty themselves. See #4784.
+--
 --   As a side effect, return the arity of the constructor.
 
 fitsIn :: UniverseCheck -> [IsForced] -> Type -> Sort -> TCM Int
@@ -1115,6 +1120,9 @@ fitsIn uc forceds t s = do
   case vt of
     Just (isPath, dom, b) -> do
       withoutK <- withoutKOption
+      when (withoutK && not isPath) $ do
+       whenM (isFibrant s) $ do
+        usableAtModality (setQuantity (getQuantity dom) defaultModality) (unEl $ unDom dom)
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do
         sa <- reduce $ getSort dom

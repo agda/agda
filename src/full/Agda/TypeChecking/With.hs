@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.With where
 

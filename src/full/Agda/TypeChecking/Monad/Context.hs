@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}  -- for type equality ~
 
 module Agda.TypeChecking.Monad.Context where
 
@@ -223,6 +222,7 @@ instance MonadAddContext m => MonadAddContext (ExceptT e m)
 instance MonadAddContext m => MonadAddContext (ReaderT r m)
 instance MonadAddContext m => MonadAddContext (StateT r m)
 instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m)
+deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a
@@ -394,35 +394,35 @@ instance AddContext Telescope where
   contextSize = size
 
 -- | Go under an abstraction.  Do not extend context in case of 'NoAbs'.
-{-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction :: (Subst t a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
+{-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
+underAbstraction :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction = underAbstraction' id
 
-underAbstraction' :: (Subst t a, MonadAddContext m, AddContext (name, Dom Type)) =>
+underAbstraction' :: (Subst a, MonadAddContext m, AddContext (name, Dom Type)) =>
                      (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction' _ _ (NoAbs _ v) k = k v
 underAbstraction' wrap t a k = underAbstractionAbs' wrap t a k
 
 -- | Go under an abstraction, treating 'NoAbs' as 'Abs'.
-underAbstractionAbs :: (Subst t a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
+underAbstractionAbs :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs = underAbstractionAbs' id
 
 underAbstractionAbs'
-  :: (Subst t a, MonadAddContext m, AddContext (name, Dom Type))
+  :: (Subst a, MonadAddContext m, AddContext (name, Dom Type))
   => (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
 
 -- | Go under an abstract without worrying about the type to add to the context.
-{-# SPECIALIZE underAbstraction_ :: Subst t a => Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction_ :: (Subst t a, MonadAddContext m) => Abs a -> (a -> m b) -> m b
+{-# SPECIALIZE underAbstraction_ :: Subst a => Abs a -> (a -> TCM b) -> TCM b #-}
+underAbstraction_ :: (Subst a, MonadAddContext m) => Abs a -> (a -> m b) -> m b
 underAbstraction_ = underAbstraction __DUMMY_DOM__
 
 -- | Map a monadic function on the thing under the abstraction, adding
 --   the abstracted variable to the context.
 mapAbstraction
-  :: (Subst t a, Subst t' b, MonadAddContext m)
+  :: (Subst a, Subst b, MonadAddContext m)
   => Dom Type -> (a -> m b) -> Abs a -> m (Abs b)
 mapAbstraction dom f x = (x $>) <$> underAbstraction dom x f
 

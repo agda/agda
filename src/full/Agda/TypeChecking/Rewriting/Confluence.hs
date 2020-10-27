@@ -1,6 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE UndecidableInstances     #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Checking local or global confluence of rewrite rules.
@@ -64,6 +62,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Warning
+import Agda.TypeChecking.Pretty.Constraint
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Clause
@@ -466,11 +465,7 @@ tryUnification lhs1 lhs2 f = (Just <$> f)
 
 
 type MonadParallelReduce m =
-  ( MonadReduce m
-  , MonadAddContext m
-  , MonadDebug m
-  , HasBuiltins m
-  , HasConstInfo m
+  ( PureTCM m
   , MonadFresh NameId m
   )
 
@@ -564,7 +559,7 @@ instance ParallelReduce a => ParallelReduce (Elim' a) where
   parReduce e@Proj{}   = pure e
   parReduce IApply{}   = __IMPOSSIBLE__ -- not yet supported
 
-instance (Free a, Subst t a, ParallelReduce a) => ParallelReduce (Abs a) where
+instance (Free a, Subst a, ParallelReduce a) => ParallelReduce (Abs a) where
   parReduce = mapAbstraction __DUMMY_DOM__ parReduce
 
 
@@ -630,19 +625,17 @@ ohAddBV x a oh = oh { ohBoundVars = ExtendTel a $ Abs x $ ohBoundVars oh }
 
 -- ^ Given a @p : a@, @allHoles p@ lists all the possible
 --   decompositions @p = p'[(f ps)/x]@.
-class (Subst Term p , Free p) => AllHoles p where
+class (TermSubst p, Free p) => AllHoles p where
   type PType p
-  allHoles :: (Alternative m , MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
-           => PType p -> p -> m (OneHole p)
+  allHoles :: (Alternative m, PureTCM m) => PType p -> p -> m (OneHole p)
 
 allHoles_
-  :: ( Alternative m , MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m, MonadDebug m
-     , AllHoles p , PType p ~ () )
+  :: ( Alternative m , PureTCM m , AllHoles p , PType p ~ () )
   => p -> m (OneHole p)
 allHoles_ = allHoles ()
 
 allHolesList
-  :: ( MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m , AllHoles p)
+  :: ( PureTCM m , AllHoles p)
   => PType p -> p -> m [OneHole p]
 allHolesList a = sequenceListT . allHoles a
 
@@ -794,6 +787,7 @@ instance AllHoles Sort where
     Inf f n      -> empty
     SSet l       -> fmap SSet <$> allHoles_ l
     SizeUniv     -> empty
+    LockUniv     -> empty
     PiSort{}     -> __IMPOSSIBLE__
     FunSort{}    -> __IMPOSSIBLE__
     UnivSort{}   -> __IMPOSSIBLE__
@@ -816,17 +810,9 @@ instance AllHoles [PlusLevel] where
 
 instance AllHoles PlusLevel where
   type PType PlusLevel = ()
-  allHoles _ (Plus n l) = fmap (Plus n) <$> allHoles_ l
-
-instance AllHoles LevelAtom where
-  type PType LevelAtom = ()
-  allHoles _ l = do
+  allHoles _ (Plus n l) = do
     la <- levelType
-    case l of
-      MetaLevel{}      -> __IMPOSSIBLE__
-      BlockedLevel{}   -> __IMPOSSIBLE__
-      NeutralLevel b u -> fmap (NeutralLevel b) <$> allHoles la u
-      UnreducedLevel u -> fmap UnreducedLevel <$> allHoles la u
+    fmap (Plus n) <$> allHoles la l
 
 
 -- | Convert metavariables to normal variables. Warning: doesn't
@@ -877,7 +863,8 @@ instance MetasToVars Sort where
     Inf f n    -> pure $ Inf f n
     SSet l     -> SSet     <$> metasToVars l
     SizeUniv   -> pure SizeUniv
-    PiSort s t -> PiSort   <$> metasToVars s <*> metasToVars t
+    LockUniv   -> pure LockUniv
+    PiSort s t u -> PiSort   <$> metasToVars s <*> metasToVars t <*> metasToVars u
     FunSort s t -> FunSort <$> metasToVars s <*> metasToVars t
     UnivSort s -> UnivSort <$> metasToVars s
     MetaS x es -> MetaS x  <$> metasToVars es
@@ -889,13 +876,6 @@ instance MetasToVars Level where
 
 instance MetasToVars PlusLevel where
   metasToVars (Plus n x) = Plus n <$> metasToVars x
-
-instance MetasToVars LevelAtom where
-  metasToVars = \case
-    MetaLevel m es    -> NeutralLevel mempty <$> metasToVars (MetaV m es)
-    BlockedLevel _ u  -> UnreducedLevel      <$> metasToVars u
-    NeutralLevel nb u -> NeutralLevel nb     <$> metasToVars u
-    UnreducedLevel u  -> UnreducedLevel      <$> metasToVars u
 
 instance MetasToVars a => MetasToVars (Tele a) where
   metasToVars EmptyTel = pure EmptyTel

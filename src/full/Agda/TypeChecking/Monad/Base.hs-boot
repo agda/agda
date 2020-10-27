@@ -43,7 +43,6 @@ type ModuleToSource = Map TopLevelModuleName AbsolutePath
 type BackendName = String
 
 data Comparison
-newtype ProblemId = ProblemId Nat
 data Polarity
 newtype CheckpointId = CheckpointId Int
 

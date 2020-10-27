@@ -1,4 +1,10 @@
 {
+#if  __GLASGOW_HASKELL__ > 800
+{-# OPTIONS_GHC -Wno-error=deprecated-flags   #-}
+{-# OPTIONS_GHC -Wno-error=missing-signatures #-}
+{-# OPTIONS_GHC -Wno-error=tabs               #-}
+{-# OPTIONS_GHC -Wno-error=unused-imports     #-}
+#endif
 {-# OPTIONS_GHC -fno-warn-deprecated-flags   #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# OPTIONS_GHC -fno-warn-tabs               #-}
@@ -39,6 +45,7 @@ import Agda.Syntax.Literal
 
 $digit       = 0-9
 $hexdigit    = [ $digit a-f A-F ]
+$binarydigit = 0-1
 $alpha       = [ A-Z a-z _ ]
 $op          = [ \- \! \# \$ \% \& \* \+ \/ \< \= \> \^ \| \~ \? \` \[ \] \, \: ]
 $idstart     = [ $digit $alpha $op ]
@@ -47,11 +54,14 @@ $nonalpha    = $idchar # $alpha
 $white_notab = $white # \t
 $white_nonl  = $white_notab # \n
 
-@number       = $digit+ | "0x" $hexdigit+
-@prettynumber = $digit+ ([_] $digit+)* | "0x" $hexdigit+
+@prettynumber = $digit+ ([_] $digit+)*
+              | "0x" $hexdigit+ ([_] $hexdigit+)*
+              | "0b" $binarydigit+ ([_] $binarydigit+)*
 @integer      = [\-]? @prettynumber
-@exponent     = [eE] [\-\+]? @number
-@float        = @integer \. @number @exponent? | @number @exponent
+@decimal      = $digit+
+@exponent     = [eE] [\-\+]? @decimal
+@float        = [\-]? @decimal \. @decimal @exponent?
+              | [\-]? @decimal @exponent
 
 -- A name can't start with \x (to allow \x -> x).
 -- Bug in alex: [ _ op ]+ doesn't seem to work!

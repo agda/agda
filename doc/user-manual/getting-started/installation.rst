@@ -174,23 +174,61 @@ Nix or NixOS
 ------------
 
 Agda is part of the Nixpkgs collection that is used by
-https://nixos.org/nixos. To install Agda and agda-mode for Emacs,
-type:
+https://nixos.org/nixos. There are two ways to install Agda from nix:
 
-.. code-block:: bash
+* The new way: If you are tracking ``nixos-unstable`` or
+  ``nixpkgs-unstable`` (the default on MacOS) or you are using NixOS
+  version 20.09 or above then you should be able to install Agda (and
+  the standard library) via:
 
-  nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
+  .. code-block:: bash
 
-If you’re just interested in the library, you can also install the
-library without the executable. The Agda standard library is currently
-not installed automatically.
+    nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (p: [ p.standard-library ])"
+    agda-mode setup
+    echo "standard-library" > ~/.agda/defaults
 
-However, if using existing Agda libraries (including the standard library) it
-may be more convenient to use a nix expression for ``nix-shell``.  A third-party
-`example repository
-<https://github.com/bbarker/LearningAgda>`_
-is available to create a ``nix-shell`` environment that loads
-``agda-pkg`` as well as ``agda`` and ``agda-mode`` for emacs.
+  The second command tries to set up the Agda emacs mode. Skip this if
+  you don't want to set up the emacs mode. See `Installation from
+  Hackage`_ above for more details about ``agda-mode setup``. The
+  third command sets the ``standard-library`` as a default library so
+  it is always available to Agda. If you don't want to do this you can
+  omit this step and control library imports on a per project basis
+  using an ``.agda-lib`` file in each project root.
+
+  If you don't want to install the standard library via nix then you
+  can just run:
+
+  .. code-block:: bash
+
+    nix-env -f "<nixpkgs>" -iA agda
+    agda-mode setup
+
+
+  For more information on the Agda infrastructure in nix, and how to
+  manage and develop Agda libraries with nix, see
+  https://nixos.org/manual/nixpkgs/unstable/#agda. In particular, the
+  ``agda.withPackages`` function can install more libraries than just
+  the standard library. Alternatively, see :ref:`Library Management
+  <package-system>` for how to manage libraries manually.
+
+* The old way (deprecated): As Agda is a Haskell package available
+  from Hackage you can install it like any other Haskell package:
+
+  .. code-block:: bash
+
+    nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
+    agda-mode setup
+
+  This approach does not provide any additional support for working
+  with Agda libraries. See :ref:`Library Management <package-system>`
+  for how to manage libraries manually. It also suffers from this
+  `open issue <https://github.com/agda/agda/issues/4613>`_ which the 'new
+  way' does not.
+
+Nix is extremely flexible and we have only described how to install
+Agda globally using ``nix-env``. One can also declare which packages
+to install globally in a configuration file or pull in Agda and some
+relevant libraries for a particular project using ``nix-shell``.
 
 OS X
 ----

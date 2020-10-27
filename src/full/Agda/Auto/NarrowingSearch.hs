@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Auto.NarrowingSearch where
 
@@ -12,13 +11,18 @@ import Agda.Utils.Empty
 newtype Prio = Prio { getPrio :: Int }
  deriving (Eq, Ord, Num)
 
-class Trav a blk | a -> blk where
-  trav :: Monad m => (forall b . Trav b blk => MM b blk -> m ()) -> a -> m ()
+class Trav a where
+  type Block a
+  trav :: Monad m => (forall b. TravWith b (Block a) => MM b (Block b) -> m ()) -> a -> m ()
 
-instance Trav a blk => Trav (MM a blk) blk where
+-- | Trav instance 'a' with block type 'blk'
+type TravWith a blk = (Trav a, Block a ~ blk)
+
+instance TravWith a blk => Trav (MM a blk) where
+  type Block (MM a blk) = blk
   trav f me = f me
 
-data Term blk = forall a . Trav a blk => Term a
+data Term blk = forall a. TravWith a blk => Term a
 
 -- | Result of type-checking.
 data Prop blk
@@ -556,7 +560,10 @@ calc cont node = do
        storeprio node (NoPrio False) []
     PDoubleBlocked m1 m2 cont -> do
      flag <- lift $ newIORef False
-     let newobs = ((QPDoubleBlocked flag cont, node) :)
+
+     let newobs :: forall b. [(QPB b blk, Maybe (CTree blk))]
+                          -> [(QPB b blk, Maybe (CTree blk))]
+         newobs = ((QPDoubleBlocked flag cont, node) :)
      umodifyIORef (mobs m1) newobs
      umodifyIORef (mobs m2) newobs
      storeprio node (NoPrio False) []

@@ -126,7 +126,8 @@ isInternalAccount _                  = True
 benchmarks :: IORef Benchmark
 benchmarks = unsafePerformIO $ newIORef empty
 
-instance MonadBench Phase IO where
+instance MonadBench IO where
+  type BenchPhase IO = Phase
   getBenchmark = readIORef benchmarks
   putBenchmark = writeIORef benchmarks
   finally = E.finally

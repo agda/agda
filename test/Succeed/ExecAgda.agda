@@ -9,11 +9,7 @@ open import Agda.Builtin.Unit
 open import Agda.Builtin.Sigma
 open import Agda.Builtin.String
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
-
-postulate
-  execTC : String → List String → String → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
-
-{-# BUILTIN AGDATCMEXEC execTC #-}
+open import Agda.Builtin.Reflection.External
 
 macro
   test : Term → TC ⊤

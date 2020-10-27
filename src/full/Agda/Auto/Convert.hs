@@ -284,7 +284,6 @@ getEqs = forMaybeMM getAllConstraints $ \ eqc -> do
       ei <- etaContract i
       ee <- etaContract e
       return $ Just (tomyIneq ineq, ee, ei)
-    MB.Guarded (MB.UnBlock _) _pid -> return Nothing
     _ -> return Nothing
 
 copatternsNotImplemented :: MB.TCM a
@@ -430,11 +429,7 @@ fmExps :: I.MetaId -> I.Args -> Bool
 fmExps m as = any (fmExp m . Cm.unArg) as
 
 fmLevel :: I.MetaId -> I.PlusLevel -> Bool
-fmLevel m (I.Plus _ l) = case l of
-  I.MetaLevel m' _   -> m == m'
-  I.NeutralLevel _ v -> fmExp m v
-  I.BlockedLevel _ v -> fmExp m v
-  I.UnreducedLevel v -> fmExp m v
+fmLevel m (I.Plus _ l) = fmExp m l
 
 -- ---------------------------------------------
 
@@ -485,7 +480,7 @@ instance Conversion MOT (Exp O) I.Term where
         frommyExps n as v
 -}
           (ndrop, h) = case iscon of
-                         Just (n,fs) -> (n, \ q -> I.Con (I.ConHead q Cm.Inductive fs) Cm.ConOSystem)
+                         Just (n,fs) -> (n, \ q -> I.Con (I.ConHead q I.IsData Cm.Inductive fs) Cm.ConOSystem)
                          Nothing -> (0, \ f vs -> I.Def f vs)
       frommyExps ndrop as (h name [])
     Lam hid t -> I.Lam (icnvh hid) <$> convert t
@@ -641,7 +636,7 @@ frommyClause (ids, pats, mrhs) = do
         cdef <- lift $ readIORef c
         let (Just (ndrop,_), name) = cdorigin cdef
         ps' <- cnvps ndrop ps
-        let con = I.ConHead name Cm.Inductive [] -- TODO: restore record fields!
+        let con = I.ConHead name I.IsData Cm.Inductive [] -- TODO: restore DataOrRecord and record fields!
         return (I.ConP con I.noConPatternInfo ps')
        CSPatExp e -> do
         e' <- convert e {- renm e -} -- renaming before adding to clause below

@@ -1,8 +1,7 @@
 {-# LANGUAGE CPP                  #-}
-{-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances #-} -- Due to ICODE vararg typeclass
 
 module Agda.TypeChecking.Serialise.Base where
 

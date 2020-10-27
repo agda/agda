@@ -78,6 +78,7 @@
   -XFlexibleContexts,
   -XFlexibleInstances,
   -XFunctionalDependencies,
+  -XGeneralizedNewtypeDeriving,
   -XInstanceSigs,
   -XLambdaCase,
   -XMultiParamTypeClasses,
@@ -90,6 +91,7 @@
   -XScopedTypeVariables,
   -XStandaloneDeriving,
   -XTupleSections,
+  -XTypeFamilies,
   -XTypeSynonymInstances,
 ]
 

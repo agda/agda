@@ -66,16 +66,13 @@ checkRecDef
   :: A.DefInfo                 -- ^ Position and other info.
   -> QName                     -- ^ Record type identifier.
   -> UniverseCheck             -- ^ Check universes?
-  -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
-  -> Maybe HasEta0             -- ^ Optional: user specified @[no-]eta-equality@.
-  -> Maybe Range               -- ^ Optional: user specified @pattern@.
-  -> Maybe QName               -- ^ Optional: constructor name.
+  -> A.RecordDirectives        -- ^ (Co)Inductive, (No)Eta, (Co)Pattern, Constructor?
   -> A.DataDefParams           -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields =
+checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel fields =
   traceCall (CheckRecDef (getRange name) name ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ "checking record def" <+> prettyTCM name
@@ -172,7 +169,7 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
           -- We should turn it off until it is proven to be safe.
           haveEta      = maybe (Inferred $ NoEta patCopat) Specified eta
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
-          con = ConHead conName conInduction $ map argFromDom fs
+          con = ConHead conName (IsRecord patCopat) conInduction $ map argFromDom fs
 
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
@@ -448,7 +445,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                   -- body = u i1 itIsOne
                   DoHComp  -> (2,Var 1 [] `apply` [argN io, setRelevance Irrelevant $ argN one])
 
-              p = ConP (ConHead io_name Inductive [])
+              p = ConP (ConHead io_name IsData Inductive [])
                        (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
                                          , conPFallThrough = True })
                          []

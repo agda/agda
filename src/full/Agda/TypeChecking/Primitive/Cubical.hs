@@ -305,7 +305,7 @@ primSubOut' = do
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
           hPi' "φ" primIntervalType $ \ phi ->
           hPi' "u" (el's a $ cl primPartial <#> a <@> phi <@> bA) $ \ u ->
-          el's a (cl primSub <#> a <@> bA <@> phi <@> u) --> el' (Sort . tmSort <$> a) bA
+          el's a (cl primSub <#> a <@> bA <@> phi <@> u) --> el' a bA
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [a,bA,phi,u,x] -> do
@@ -442,7 +442,7 @@ mkGComp s = do
                 <@> forward la bA (pure iz) u0
 
 
-unglueTranspGlue :: (HasConstInfo m, MonadReduce m, HasBuiltins m) =>
+unglueTranspGlue :: PureTCM m =>
                   Arg Term
                   -> Arg Term
                   -> FamilyOrNot
@@ -575,15 +575,14 @@ unglueTranspGlue _ _ _ = __IMPOSSIBLE__
 
 data TermPosition = Head | Eliminated deriving (Eq,Show)
 
-headStop :: (HasBuiltins m, MonadReduce m) =>
-                  TermPosition -> m Term -> m Bool
+headStop :: PureTCM m => TermPosition -> m Term -> m Bool
 headStop tpos phi
   | Head <- tpos = do
       phi <- intervalView =<< (reduce =<< phi)
       return $ not $ isIOne phi
   | otherwise = return False
 
-compGlue :: (MonadReduce m, HasConstInfo m, HasBuiltins m) =>
+compGlue :: PureTCM m =>
                   TranspOrHComp
                   -> Arg Term
                   -> Maybe (Arg Term)
@@ -757,7 +756,7 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
           Eliminated -> a1'
 compGlue cmd phi u u0 _ _ = __IMPOSSIBLE__
 
-compHCompU :: (MonadReduce m, HasConstInfo m, HasBuiltins m) =>
+compHCompU :: PureTCM m =>
                     TranspOrHComp
                     -> Arg Term
                     -> Maybe (Arg Term)
@@ -1062,10 +1061,17 @@ primTransHComp cmd ts nelims = do
         let (x,f) = case ab of
               IsFam (a,_) -> (a, \ a -> runNames [] $ lam "i" (const (pure a)))
               IsNot (a,_) -> (a, id)
-        lx <- toLevel' x
-        caseMaybe lx (return Nothing) $ \ lx -> Just <$>
-          mapM (open . f) [Level lx, unEl . unDom $ x]
-      caseMaybe labA (return Nothing) $ \ [la,bA] -> Just <$> do
+        s <- reduce $ getSort x
+        case s of
+          Type lx -> do
+            [la,bA] <- mapM (open . f) [Level lx, unEl . unDom $ x]
+            pure $ Just $ \ iOrNot phi a0 -> pure tTrans <#> lam "j" (\ j -> la <@> iOrNot j)
+                                                         <@> lam "j" (\ j -> bA <@> iOrNot j)
+                                                         <@> phi
+                                                         <@> a0
+          LockUniv -> return $ Just $ \ _ _ a0 -> a0
+          _       -> return Nothing
+      caseMaybe labA (return Nothing) $ \ trA -> Just <$> do
       [phi, u0] <- mapM (open . unArg) [phi, u0]
       u <- traverse open (unArg <$> u)
 
@@ -1083,10 +1089,8 @@ primTransHComp cmd ts nelims = do
             let v i = do
                        let
                          iOrNot j = pure tIMax <@> i <@> (pure tINeg <@> j)
-                       pure tTrans <#> lam "j" (\ j -> la <@> iOrNot j)
-                                 <@> lam "j" (\ j -> bA <@> iOrNot j)
-                                 <@> (pure tIMax <@> phi <@> i)
-                                 <@> u1
+                       trA iOrNot (pure tIMax <@> phi <@> i)
+                                  u1
                 -- Γ , u1 : A[i1] , i : I
                 bB v = consS v (liftS 1 $ raiseS 1) `applySubst` (absBody b {- Γ , i : I , x : A[i] -})
                 tLam = Lam defaultArgInfo
@@ -1246,7 +1250,9 @@ primTransHComp cmd ts nelims = do
             (flags,t_alphas) <- fmap unzip . forM as $ \ (bs,ts) -> do
                  let u' = listS bs' `applySubst` u
                      bs' = (Map.toAscList $ Map.map boolToI bs)
-                 let weaken = foldr ((composeS . (\ j -> liftS j (raiseS 1))) . fst) idS bs'
+                     -- Γ₁, i : I, Γ₂, j : I, Γ₃  ⊢ weaken : Γ₁, Γ₂, Γ₃   for bs' = [(j,_),(i,_)]
+                     -- ordering of "j,i,.." matters.
+                 let weaken = foldr (\ j s -> s `composeS` raiseFromS j 1) idS (map fst bs')
                  t <- reduce2Lam u'
                  return $ (p $ ignoreBlocking t, listToMaybe [ (weaken `applySubst` (lamlam <$> t),bs) | null ts ])
             return $ (flags,t_alphas)
@@ -1683,7 +1689,7 @@ transpTel delta phi args = do
   ineg <- liftTCM primINeg
   let
     noTranspError t = lift . throwError =<< liftTCM (buildClosure t)
-    bapp :: (Applicative m, Subst t a) => m (Abs a) -> m t -> m a
+    bapp :: (Applicative m, Subst a) => m (Abs a) -> m (SubstArg a) -> m a
     bapp t u = lazyAbsApp <$> t <*> u
     gTransp (Just l) t phi a = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
     gTransp Nothing  t phi a = do

@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Operations on file names. -}
 module Agda.Utils.FileName
@@ -8,23 +7,25 @@ module Agda.Utils.FileName
   , filePath
   , mkAbsolute
   , absolute
-  , (===)
+  , canonicalizeAbsolutePath
+  , sameFile
   , doesFileExistCaseSensitive
   ) where
 
 import System.Directory
 import System.FilePath
 
+import Control.Applicative ( liftA2 )
 #ifdef mingw32_HOST_OS
-import Control.Exception (bracket)
-import System.Win32 (findFirstFile, findClose, getFindDataFileName)
+import Control.Exception   ( bracket )
+import System.Win32        ( findFirstFile, findClose, getFindDataFileName )
 #endif
 
-import Data.Text (Text)
-import qualified Data.Text as Text
+import Data.Data           ( Data )
 import Data.Function
-import Data.Hashable (Hashable)
-import Data.Data (Data)
+import Data.Hashable       ( Hashable )
+import Data.Text           ( Text )
+import qualified Data.Text as Text
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -36,12 +37,12 @@ import Agda.Utils.Impossible
 -- Note that the 'Eq' and 'Ord' instances do not check if different
 -- paths point to the same files or directories.
 
-newtype AbsolutePath = AbsolutePath { byteStringPath :: Text }
+newtype AbsolutePath = AbsolutePath { textPath :: Text }
   deriving (Show, Eq, Ord, Data, Hashable)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
-filePath = Text.unpack . byteStringPath
+filePath = Text.unpack . textPath
 
 instance Pretty AbsolutePath where
   pretty = text . filePath
@@ -54,9 +55,10 @@ mkAbsolute :: FilePath -> AbsolutePath
 mkAbsolute f
   | isAbsolute f =
       AbsolutePath $ Text.pack $ dropTrailingPathSeparator $ normalise f
+        -- normalize does not resolve symlinks
   | otherwise    = __IMPOSSIBLE__
 
--- UNUSED Linag-Ting Chen 2019-07-16
+-- UNUSED Liang-Ting Chen 2019-07-16
 ---- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
 --rootName :: AbsolutePath -> String
 --rootName = dropExtension . snd . splitFileName . filePath
@@ -72,18 +74,25 @@ absolute f = mkAbsolute <$> do
   -- non-existing files/directories.
   ex <- doesFileExist f `or2M` doesDirectoryExist f
   if ex then
-    canonicalizePath f
+    -- Andreas, 2020-08-11, issue #4828
+    -- Do not use @canonicalizePath@ here as it resolves symlinks,
+    -- which leads to wrong placement of the .agdai file.
+    makeAbsolute f
    else do
     cwd <- getCurrentDirectory
     return (cwd </> f)
 
+-- | Resolve symlinks etc.  Preserves 'sameFile'.
+
+canonicalizeAbsolutePath :: AbsolutePath -> IO AbsolutePath
+canonicalizeAbsolutePath (AbsolutePath f) =
+  AbsolutePath . Text.pack <$> canonicalizePath (Text.unpack f)
+
 -- | Tries to establish if the two file paths point to the same file
 -- (or directory).
 
-infix 4 ===
-
-(===) :: AbsolutePath -> AbsolutePath -> Bool
-(===) = equalFilePath `on` filePath
+sameFile :: AbsolutePath -> AbsolutePath -> IO Bool
+sameFile = liftA2 equalFilePath `on` (canonicalizePath . filePath)
 
 -- | Case-sensitive 'doesFileExist' for Windows.
 --

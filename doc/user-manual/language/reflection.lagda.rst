@@ -448,8 +448,13 @@ following primitive operations::
     -- is higher than the second argument. Note that Level 0 and 1 are printed
     -- to the info buffer instead. For instance, giving -v a.b.c:10 enables
     -- printing from debugPrint "a.b.c.d" 10 msg.
-
     debugPrint : String → Nat → List ErrorPart → TC ⊤
+
+    -- Only allow reduction of specific definitions while executing the TC computation
+    onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+
+    -- Don't allow reduction of specific definitions while executing the TC computation
+    dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
 
     -- Fail if the given computation gives rise to new, unsolved
     -- "blocking" constraints.
@@ -484,6 +489,8 @@ following primitive operations::
   {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
   {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
   {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
+  {-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
+  {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
   {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 

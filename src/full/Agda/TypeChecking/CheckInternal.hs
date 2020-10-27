@@ -16,7 +16,6 @@ module Agda.TypeChecking.CheckInternal
   , checkInternal'
   , Action(..), defaultAction, eraseUnusedAction
   , infer
-  , inferSort
   , shouldBeSort
   ) where
 
@@ -401,13 +400,14 @@ checkSort action s =
     Inf f n  -> return $ Inf f n
     SSet l   -> SSet <$> checkLevel action l
     SizeUniv -> return SizeUniv
-    PiSort dom s2 -> do
-      let El s1 a = unDom dom
+    LockUniv -> return LockUniv
+    PiSort dom s1 s2 -> do
+      let a = unDom dom
       s1' <- checkSort action s1
       a' <- checkInternal' action a CmpLeq $ sort s1'
-      let dom' = dom $> El s1' a'
-      s2' <- mapAbstraction dom' (checkSort action) s2
-      return $ PiSort dom' s2'
+      let dom' = dom $> a'
+      s2' <- mapAbstraction (El s1' <$> dom') (checkSort action) s2
+      return $ PiSort dom' s1' s2'
     FunSort s1 s2 -> do
       s1' <- checkSort action s1
       s2' <- checkSort action s2
@@ -441,57 +441,11 @@ checkLevel action (Max n ls) = Max n <$> mapM checkPlusLevel ls
 
     checkLevelAtom l = do
       lvl <- levelType
-      UnreducedLevel <$> case l of
-        MetaLevel x es   -> checkInternal' action (MetaV x es) CmpLeq lvl
-        BlockedLevel _ v -> checkInternal' action v CmpLeq lvl
-        NeutralLevel _ v -> checkInternal' action v CmpLeq lvl
-        UnreducedLevel v -> checkInternal' action v CmpLeq lvl
+      checkInternal' action l CmpLeq lvl
 
 -- | Universe subsumption and type equality (subtyping for sizes, resp.).
 cmptype :: (MonadCheckInternal m) => Comparison -> Type -> Type -> m ()
 cmptype cmp t1 t2 = do
-  ifIsSort t1 (\ s1 -> (compareSort cmp s1) =<< shouldBeSort t2) $ do
     -- Andreas, 2017-03-09, issue #2493
     -- Only check subtyping, do not solve any metas!
     dontAssignMetas $ compareType cmp t1 t2
-
--- | Compute the sort of a type.
-
-inferSort :: (MonadCheckInternal m) => Term -> m Sort
-inferSort t = case t of
-    Var i es   -> do
-      a <- typeOfBV i
-      (_, s) <- eliminate (Var i []) a es
-      shouldBeSort s
-    Def f es   -> do  -- f is not projection(-like)!
-      a <- defType <$> getConstInfo f
-      (_, s) <- eliminate (Def f []) a es
-      shouldBeSort s
-    MetaV x es -> do
-      a <- metaType x
-      (_, s) <- eliminate (MetaV x []) a es
-      shouldBeSort s
-    Pi a b     -> inferPiSort a (getSort <$> b)
-    Sort s     -> inferUnivSort s
-    Con{}      -> __IMPOSSIBLE__
-    Lit{}      -> __IMPOSSIBLE__
-    Lam{}      -> __IMPOSSIBLE__
-    Level{}    -> __IMPOSSIBLE__
-    DontCare{} -> __IMPOSSIBLE__
-    Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
-
--- | @eliminate t self es@ eliminates value @self@ of type @t@ by spine @es@
---   and returns the remaining value and its type.
-eliminate :: (MonadCheckInternal m) => Term -> Type -> Elims -> m (Term, Type)
-eliminate self t [] = return (self, t)
-eliminate self t (e : es) = case e of
-    Apply (Arg _ v) -> ifNotPiType t __IMPOSSIBLE__ {-else-} $ \ _ b ->
-      eliminate (self `applyE` [e]) (b `absApp` v) es
-    IApply _ _ v -> do
-      (_, b) <- shouldBePath t
-      eliminate (self `applyE` [e]) (b `absApp` v) es
-    -- case: projection or projection-like
-    Proj o f -> do
-      (Dom{domInfo = ai}, b) <- shouldBePi =<< shouldBeProjectible t f
-      u  <- applyDef o f $ Arg ai self
-      eliminate u (b `absApp` self) es

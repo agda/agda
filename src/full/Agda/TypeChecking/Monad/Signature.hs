@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies #-} -- for type equality ~
 
 module Agda.TypeChecking.Monad.Signature where
 
@@ -581,10 +580,14 @@ getDisplayForms q = do
 chaseDisplayForms :: QName -> TCM (Set QName)
 chaseDisplayForms q = go Set.empty [q]
   where
+    go :: Set QName        -- ^ Accumulator.
+       -> [QName]          -- ^ Work list.  TODO: make work set to avoid duplicate chasing?
+       -> TCM (Set QName)
     go used []       = pure used
     go used (q : qs) = do
       let rhs (Display _ _ e) = e   -- Only look at names in the right-hand side (#1870)
-      ds <- (`Set.difference` used) . Set.unions . map (namesIn . rhs . dget)
+      let notYetUsed x = if x `Set.member` used then Set.empty else Set.singleton x
+      ds <- namesIn' notYetUsed . map (rhs . dget)
             <$> (getDisplayForms q `catchError_` \ _ -> pure [])  -- might be a pattern synonym
       go (Set.union ds used) (Set.toList ds ++ qs)
 
@@ -691,8 +694,8 @@ class ( Functor m
 
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 
-defaultGetRewriteRulesFor :: (Monad m) => m TCState -> QName -> m RewriteRules
-defaultGetRewriteRulesFor getTCState q = do
+defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
+defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   st <- getTCState
   let sig = st^.stSignature
       imp = st^.stImports
@@ -705,7 +708,7 @@ getOriginalProjection :: HasConstInfo m => QName -> m QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 instance HasConstInfo (TCMT IO) where
-  getRewriteRulesFor = defaultGetRewriteRulesFor getTC
+  getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do
     st  <- getTC
     env <- askTC
@@ -755,6 +758,7 @@ instance HasConstInfo m => HasConstInfo (MaybeT m)
 instance HasConstInfo m => HasConstInfo (ReaderT r m)
 instance HasConstInfo m => HasConstInfo (StateT s m)
 instance (Monoid w, HasConstInfo m) => HasConstInfo (WriterT w m)
+instance HasConstInfo m => HasConstInfo (BlockT m)
 
 {-# INLINE getConInfo #-}
 getConInfo :: HasConstInfo m => ConHead -> m Definition
@@ -771,7 +775,7 @@ getPolarity' CmpEq  q = map (composePol Invariant) <$> getPolarity q -- return [
 getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
 -- | Set the polarity of a definition.
-setPolarity :: QName -> [Polarity] -> TCM ()
+setPolarity :: (MonadTCState m, MonadDebug m) => QName -> [Polarity] -> m ()
 setPolarity q pol = do
   reportSDoc "tc.polarity.set" 20 $
     "Setting polarity of" <+> pretty q <+> "to" <+> pretty pol <> "."
@@ -791,10 +795,10 @@ getArgOccurrence d i = do
 
 -- | Sets the 'defArgOccurrences' for the given identifier (which
 -- should already exist in the signature).
-setArgOccurrences :: QName -> [Occurrence] -> TCM ()
+setArgOccurrences :: MonadTCState m => QName -> [Occurrence] -> m ()
 setArgOccurrences d os = modifyArgOccurrences d $ const os
 
-modifyArgOccurrences :: QName -> ([Occurrence] -> [Occurrence]) -> TCM ()
+modifyArgOccurrences :: MonadTCState m => QName -> ([Occurrence] -> [Occurrence]) -> m ()
 modifyArgOccurrences d f =
   modifySignature $ updateDefinition d $ updateDefArgOccurrences f
 
@@ -888,8 +892,8 @@ getDefModule :: HasConstInfo m => QName -> m (Either SigError ModuleName)
 getDefModule f = mapRight modName <$> getConstInfo' f
   where
     modName def = case theDef def of
-      Function{ funExtLam = Just (ExtLamInfo m _) } -> m
-      _                                             -> qnameModule f
+      Function{ funExtLam = Just (ExtLamInfo m _ _) } -> m
+      _                                               -> qnameModule f
 
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   number of parameters shared with the current module and the number of

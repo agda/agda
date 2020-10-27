@@ -98,7 +98,7 @@ Mokou:
    <a id="1496" class="Keyword">import</a> <a id="1503" href="Agda.Builtin.List.html" class="Module">Agda.Builtin.List</a> <a id="1521" class="Symbol">as</a> <a id="1524" class="Module">List</a>
    <a id="1532" class="Keyword">open</a> <a id="1537" href="Agda.Builtin.List.html" class="Module">List</a>
    <a id="1545" class="Keyword">open</a> <a id="1550" class="Keyword">import</a> <a id="1557" href="Agda.Builtin.Nat.html" class="Module">Agda.Builtin.Nat</a>
-     <a id="1579" class="Keyword">renaming</a> <a id="1588" class="Symbol">(</a><a id="1589" href="Agda.Builtin.Nat.html#210" class="InductiveConstructor">zero</a> <a id="1594" class="Symbol">to</a> <a id="Builtin.Nat.Nat.zero"></a><a id="1597" href="RsTHighlightCode.html#1597" class="InductiveConstructor">O</a><a id="1598" class="Symbol">;</a> <a id="1600" href="Agda.Builtin.Nat.html#223" class="InductiveConstructor">suc</a> <a id="1604" class="Symbol">to</a> <a id="Builtin.Nat.Nat.suc"></a><a id="1607" href="RsTHighlightCode.html#1607" class="InductiveConstructor">S</a><a id="1608" class="Symbol">)</a>
+     <a id="1579" class="Keyword">renaming</a> <a id="1588" class="Symbol">(</a><a id="1589" href="Agda.Builtin.Nat.html#210" class="InductiveConstructor">zero</a> <a id="1594" class="Symbol">to</a> <a id="1597" class="InductiveConstructor">O</a><a id="1598" class="Symbol">;</a> <a id="1600" href="Agda.Builtin.Nat.html#223" class="InductiveConstructor">suc</a> <a id="1604" class="Symbol">to</a> <a id="1607" class="InductiveConstructor">S</a><a id="1608" class="Symbol">)</a>
 
 Marisa:
 

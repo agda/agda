@@ -14,7 +14,6 @@ echo "The executable files should be executable ..."
 
 chmod 777 ./bin/agda
 chmod 777 ./bin/agda-mode
-chmod 777 ./bin/size-solver
 
 echo "Copying executables ..."
 

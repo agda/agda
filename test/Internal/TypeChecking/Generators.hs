@@ -1,5 +1,5 @@
-{-# LANGUAGE TemplateHaskell        #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies    #-}
 
 module Internal.TypeChecking.Generators where
 
@@ -232,6 +232,7 @@ instance GenC Sort where
     (propF, return (mkProp 0)) :
     zip setFs (map (return . mkType) [0..])
     where
+      freq :: forall a. (Frequencies -> a) -> a
       freq f = f $ tcFrequencies conf
       setFs = freq (setFreqs . sortFreqs)
       propF = freq (propFreq . sortFreqs)
@@ -316,7 +317,7 @@ instance GenC Term where
       genDef args = Def <$> elements defs <*> args
 
       genCon :: Gen Args -> Gen Term
-      genCon args = Con <$> ((\ c -> ConHead c Inductive []) <$> elements cons) <*> pure ConOSystem <*> (map Apply `fmap` args)
+      genCon args = Con <$> ((\ c -> ConHead c IsData Inductive []) <$> elements cons) <*> pure ConOSystem <*> (map Apply `fmap` args)
 
       genLeaf :: Gen Term
       genLeaf = frequency
@@ -345,19 +346,23 @@ instance Arbitrary TermConfiguration where
 
 -- Shrinking --------------------------------------------------------------
 
-class ShrinkC a b | a -> b where
-  shrinkC  :: TermConfiguration -> a -> [b]
-  noShrink :: a -> b
+class ShrinkC a where
+  type ShrinksTo a
+  shrinkC  :: TermConfiguration -> a -> [ShrinksTo a]
+  noShrink :: a -> ShrinksTo a
 
-instance ShrinkC a b => ShrinkC (YesType a) b where
+instance ShrinkC a => ShrinkC (YesType a) where
+  type ShrinksTo (YesType a) = ShrinksTo a
   shrinkC conf (YesType x) = shrinkC (isTypeConf conf) x
   noShrink (YesType x) = noShrink x
 
-instance ShrinkC a b => ShrinkC (NoType a) b where
+instance ShrinkC a => ShrinkC (NoType a) where
+  type ShrinksTo (NoType a) = ShrinksTo a
   shrinkC conf (NoType x) = shrinkC (isntTypeConf conf) x
   noShrink (NoType x) = noShrink x
 
-instance ShrinkC a b => ShrinkC [a] [b] where
+instance ShrinkC a => ShrinkC [a] where
+  type ShrinksTo [a] = [ShrinksTo a]
   noShrink        = map noShrink
   shrinkC conf xs = noShrink (removeChunks xs) ++ shrinkOne xs
    where
@@ -385,25 +390,30 @@ instance ShrinkC a b => ShrinkC [a] [b] where
     shrinkOne (x:xs) = [ x' : noShrink xs | x'  <- shrinkC conf x ]
                     ++ [ noShrink x : xs' | xs' <- shrinkOne xs ]
 
-instance (ShrinkC a a', ShrinkC b b') => ShrinkC (a, b) (a', b') where
+instance (ShrinkC a, ShrinkC b) => ShrinkC (a, b) where
+  type ShrinksTo (a, b) = (ShrinksTo a, ShrinksTo b)
   noShrink (x, y) = (noShrink x, noShrink y)
   shrinkC conf (x, y) =
     [ (x', noShrink y) | x' <- shrinkC conf x ] ++
     [ (noShrink x, y') | y' <- shrinkC conf y ]
 
-instance ShrinkC VarName Nat where
+instance ShrinkC VarName where
+  type ShrinksTo VarName = Nat
   shrinkC conf (VarName x) = [ y | y <- tcFreeVariables conf, y < x ]
   noShrink = unVarName
 
-instance ShrinkC DefName QName where
+instance ShrinkC DefName where
+  type ShrinksTo DefName = QName
   shrinkC conf (DefName c) = takeWhile (/= c) $ tcDefinedNames conf
   noShrink = unDefName
 
-instance ShrinkC ConName ConHead where
-  shrinkC conf (ConName (ConHead{conName = c})) = map (\ c -> ConHead c Inductive []) $ takeWhile (/= c) $ tcConstructorNames conf
+instance ShrinkC ConName where
+  type ShrinksTo ConName = ConHead
+  shrinkC conf (ConName (ConHead{conName = c})) = map (\ c -> ConHead c IsData Inductive []) $ takeWhile (/= c) $ tcConstructorNames conf
   noShrink = unConName
 
-instance ShrinkC Literal Literal where
+instance ShrinkC Literal where
+  type ShrinksTo Literal = Literal
   shrinkC _ (LitNat 0) = []
   shrinkC conf l         = LitNat 0 : case l of
       LitNat    n -> LitNat    <$> shrink n
@@ -415,49 +425,58 @@ instance ShrinkC Literal Literal where
       LitMeta{}     -> []
   noShrink = id
 
-instance ShrinkC Char Char where
+instance ShrinkC Char where
+  type ShrinksTo Char = Char
   shrinkC _ 'a' = []
   shrinkC _ _   = ['a']
   noShrink = id
 
-instance ShrinkC Hiding Hiding where
+instance ShrinkC Hiding where
+  type ShrinksTo Hiding = Hiding
   shrinkC _ Hidden     = [NotHidden]
   shrinkC _ Instance{} = [NotHidden]
   shrinkC _ NotHidden  = []
   noShrink = id
 
-instance ShrinkC a b => ShrinkC (Abs a) (Abs b) where
+instance ShrinkC a => ShrinkC (Abs a) where
+  type ShrinksTo (Abs a) = Abs (ShrinksTo a)
   shrinkC conf (NoAbs s x) = NoAbs s <$> shrinkC conf x
   shrinkC conf (Abs   s x) = Abs s <$> shrinkC (extendConf conf) x
   noShrink = fmap noShrink
 
-instance ShrinkC a b => ShrinkC (Arg a) (Arg b) where
+instance ShrinkC a => ShrinkC (Arg a) where
+  type ShrinksTo (Arg a) = Arg (ShrinksTo a)
   shrinkC conf (Arg info x) = (\ (h,x) -> Arg (setHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
-instance ShrinkC a b => ShrinkC (Dom a) (Dom b) where
+instance ShrinkC a => ShrinkC (Dom a) where
+  type ShrinksTo (Dom a) = Dom (ShrinksTo a)
   shrinkC conf dom@Dom{domInfo = info,unDom = x} = (\ (h,x) -> x <$ dom{domInfo = (setHiding h info)}) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
-instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
+instance ShrinkC a => ShrinkC (Blocked a) where
+  type ShrinksTo (Blocked a) = Blocked (ShrinksTo a)
   shrinkC conf (Blocked m x)    = Blocked m <$> shrinkC conf x
   shrinkC conf (NotBlocked r x) = NotBlocked r <$> shrinkC conf x
   noShrink = fmap noShrink
 
-instance ShrinkC a b => ShrinkC (Elim' a) (Elim' b) where
+instance ShrinkC a => ShrinkC (Elim' a) where
+  type ShrinksTo (Elim' a) = Elim' (ShrinksTo a)
   shrinkC conf (Apply a) = Apply <$> shrinkC conf a
   shrinkC conf (IApply x y a) = IApply <$> shrinkC conf x <*> shrinkC conf y <*> shrinkC conf a
   shrinkC conf Proj{}    = []
   noShrink = fmap noShrink
 
-instance ShrinkC Sort Sort where
+instance ShrinkC Sort where
+  type ShrinksTo Sort = Sort
   shrinkC conf s = mkProp 0 : case s of
     Type n     -> [] -- No Level instance yet -- Type <$> shrinkC conf n
     SSet l     -> []
     Prop{}     -> []
     Inf f _    -> []
     SizeUniv   -> []
-    PiSort s1 s2 -> __IMPOSSIBLE__
+    LockUniv   -> []
+    PiSort a s1 s2 -> __IMPOSSIBLE__
     FunSort s1 s2 -> __IMPOSSIBLE__
     UnivSort s -> __IMPOSSIBLE__
     MetaS x es -> __IMPOSSIBLE__
@@ -465,17 +484,20 @@ instance ShrinkC Sort Sort where
     DummyS{} -> __IMPOSSIBLE__
   noShrink = id
 
-instance ShrinkC Telescope Telescope where
+instance ShrinkC Telescope where
+  type ShrinksTo Telescope = Telescope
   shrinkC conf EmptyTel          = []
   shrinkC conf (ExtendTel a tel) =
     killAbs tel : (uncurry ExtendTel <$> shrinkC conf (a, tel))
   noShrink = id
 
-instance ShrinkC Type Type where
+instance ShrinkC Type where
+  type ShrinksTo Type = Type
   shrinkC conf (El s t) = uncurry El <$> shrinkC conf (s, YesType t)
   noShrink = id
 
-instance ShrinkC Term Term where
+instance ShrinkC Term where
+  type ShrinksTo Term = Term
   shrinkC conf DontCare{}  = []
   shrinkC conf Dummy{}     = []
   shrinkC conf t           = filter validType $ case t of

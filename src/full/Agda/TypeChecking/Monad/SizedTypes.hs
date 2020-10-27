@@ -20,6 +20,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -183,22 +184,44 @@ sizeMax vs = case vs of
 data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 
 -- | Expects argument to be 'reduce'd.
-sizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+sizeView :: (HasBuiltins m, MonadTCEnv m, ReadTCState m)
          => Term -> m SizeView
 sizeView v = do
-  Def inf [] <- primSizeInf
-  Def suc [] <- primSizeSuc
+  Def inf [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeInf
+  Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
   case v of
     Def x []        | x == inf -> return SizeInf
     Def x [Apply u] | x == suc -> return $ SizeSuc (unArg u)
     _                          -> return $ OtherSize v
+
+-- | A de Bruijn index under some projections.
+
+data ProjectedVar = ProjectedVar
+  { pvIndex :: Int
+  , prProjs :: [(ProjOrigin, QName)]
+  }
+  deriving (Show)
+
+-- | Ignore 'ProjOrigin' in equality test.
+
+instance Eq ProjectedVar where
+  ProjectedVar i prjs == ProjectedVar i' prjs' =
+    i == i' && map snd prjs == map snd prjs'
+
+viewProjectedVar :: Term -> Maybe ProjectedVar
+viewProjectedVar = \case
+  Var i es -> ProjectedVar i <$> mapM isProjElim es
+  _ -> Nothing
+
+unviewProjectedVar :: ProjectedVar -> Term
+unviewProjectedVar (ProjectedVar i prjs) = Var i $ map (uncurry Proj) prjs
 
 type Offset = Nat
 
 -- | A deep view on sizes.
 data DeepSizeView
   = DSizeInf
-  | DSizeVar Nat Offset
+  | DSizeVar ProjectedVar Offset
   | DSizeMeta MetaId Elims Offset
   | DOtherSize Term
   deriving (Show)
@@ -206,7 +229,7 @@ data DeepSizeView
 instance Pretty DeepSizeView where
   pretty = \case
     DSizeInf        -> "∞"
-    DSizeVar n o     -> text ("@" ++ show n) <+> "+" <+> pretty o
+    DSizeVar pv o    -> pretty (unviewProjectedVar pv) <+> "+" <+> pretty o
     DSizeMeta x es o -> pretty (MetaV x es) <+> "+" <+> pretty o
     DOtherSize t     -> pretty t
 
@@ -268,7 +291,7 @@ unDeepSizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState 
                => DeepSizeView -> m Term
 unDeepSizeView v = case v of
   DSizeInf         -> primSizeInf
-  DSizeVar i     n -> sizeSuc n $ var i
+  DSizeVar pv    n -> sizeSuc n $ unviewProjectedVar pv
   DSizeMeta x us n -> sizeSuc n $ MetaV x us
   DOtherSize u     -> return u
 

@@ -9,19 +9,14 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings
 
 type MonadConversion m =
-  ( MonadReduce m
-  , MonadAddContext m
+  ( PureTCM m
   , MonadConstraint m
   , MonadMetaSolver m
   , MonadError TCErr m
   , MonadWarning m
-  , MonadDebug m
   , MonadStatistics m
   , MonadFresh ProblemId m
   , MonadFresh Int m
-  , HasBuiltins m
-  , HasConstInfo m
-  , HasOptions m
   , Fail.MonadFail m
   )
 

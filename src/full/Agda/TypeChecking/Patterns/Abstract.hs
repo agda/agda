@@ -1,9 +1,10 @@
-{-# LANGUAGE TypeFamilies #-}
 
 -- | Tools to manipulate patterns in abstract syntax
 --   in the TCM (type checking monad).
 
 module Agda.TypeChecking.Patterns.Abstract where
+
+import Control.Monad.Except
 
 import qualified Data.List as List
 import Data.Void
@@ -24,7 +25,9 @@ import Agda.Utils.Impossible
 
 -- | Expand literal integer pattern into suc/zero constructor patterns.
 --
-expandLitPattern :: A.Pattern -> TCM A.Pattern
+expandLitPattern
+  :: (MonadError TCErr m, MonadTCEnv m, ReadTCState m, HasBuiltins m)
+  => A.Pattern -> m A.Pattern
 expandLitPattern p = case asView p of
   (xs, A.LitP info (LitNat n))
     | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.

@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | The monad for the termination checker.
 --
@@ -39,6 +38,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Benchmark as B
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -180,7 +180,6 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , Monad
            , Fail.MonadFail
            , MonadError TCErr
-           , MonadBench Phase
            , MonadStatistics
            , HasOptions
            , HasBuiltins
@@ -193,7 +192,18 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , ReadTCState
            , MonadReduce
            , MonadAddContext
+           , PureTCM
            )
+
+-- This could be derived automatically, but the derived type family becomes `BenchPhase (ReaderT TerEnv TCM)` which
+-- is *fine* but triggers complaints that the "type family application is no smaller than the instance head, why not
+-- nuke everything with UndecidableInstances".
+instance MonadBench TerM where
+  type BenchPhase TerM = Phase
+  getBenchmark              = TerM $ B.getBenchmark
+  putBenchmark              = TerM . B.putBenchmark
+  modifyBenchmark           = TerM . B.modifyBenchmark
+  finally (TerM m) (TerM f) = TerM $ (B.finally m f)
 
 instance MonadTer TerM where
   terAsk     = TerM $ ask

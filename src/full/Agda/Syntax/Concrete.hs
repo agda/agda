@@ -35,6 +35,7 @@ module Agda.Syntax.Concrete
   , makePi
   , mkLam, mkLet, mkTLet
     -- * Declarations
+  , RecordDirectives
   , Declaration(..)
   , ModuleApplication(..)
   , TypeSignature
@@ -49,7 +50,7 @@ module Agda.Syntax.Concrete
   , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
   , DoStmt(..)
   , Pragma(..)
-  , Module
+  , Module(..)
   , ThingWithFixity(..)
   , HoleContent, HoleContent'(..)
   , topLevelModuleName
@@ -399,6 +400,8 @@ type FieldSignature = Declaration
 -- | Just type signatures or instance blocks.
 type TypeSignatureOrInstanceBlock = Declaration
 
+type RecordDirectives = RecordDirectives' (Name, IsInstance)
+
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
 -}
@@ -414,8 +417,8 @@ data Declaration
   | Data        Range Name [LamBinding] Expr [TypeSignatureOrInstanceBlock]
   | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | RecordDef   Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
-  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] Expr [Declaration]
+  | RecordDef   Range Name RecordDirectives [LamBinding] [Declaration]
+  | Record      Range Name RecordDirectives [LamBinding] Expr [Declaration]
     -- ^ The optional name is a name for the record constructor.
     --   The optional 'Range' is the range of the @pattern@ declaration.
   | Infix Fixity (List1 Name)
@@ -498,7 +501,10 @@ data Pragma
 
 -- | Modules: Top-level pragmas plus other top-level declarations.
 
-type Module = ([Pragma], [Declaration])
+data Module = Mod
+  { modPragmas :: [Pragma]
+  , modDecls   :: [Declaration]
+  }
 
 -- | Computes the top-level module name.
 --
@@ -508,8 +514,8 @@ type Module = ([Pragma], [Declaration])
 -- See 'spanAllowedBeforeModule'.
 
 topLevelModuleName :: Module -> TopLevelModuleName
-topLevelModuleName (_, []) = __IMPOSSIBLE__
-topLevelModuleName (_, ds) = case spanAllowedBeforeModule ds of
+topLevelModuleName (Mod _ []) = __IMPOSSIBLE__
+topLevelModuleName (Mod _ ds) = case spanAllowedBeforeModule ds of
   (_, Module _ n _ _ : _) -> toTopLevelModuleName n
   _ -> __IMPOSSIBLE__
 
@@ -597,21 +603,25 @@ observeHiding = \case
 
 isPattern :: Expr -> Maybe Pattern
 isPattern = \case
-  Ident x         -> return $ IdentP x
-  App _ e1 e2     -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
-  Paren r e       -> ParenP r <$> isPattern e
-  Underscore r _  -> return $ WildP r
-  Absurd r        -> return $ AbsurdP r
-  As r x e        -> pushUnderBracesP r (AsP r x) <$> isPattern e
-  Dot r e         -> return $ pushUnderBracesE r (DotP r) e
-  Lit r l         -> return $ LitP r l
-  HiddenArg r e   -> HiddenP r <$> mapM isPattern e
-  InstanceArg r e -> InstanceP r <$> mapM isPattern e
-  RawApp r es     -> RawAppP r <$> mapM isPattern es
-  Quote r         -> return $ QuoteP r
-  Equal r e1 e2   -> return $ EqualP r [(e1, e2)]
-  Ellipsis r      -> return $ EllipsisP r
-  Rec r es        -> do
+  Ident x            -> return $ IdentP x
+  App _ e1 e2        -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
+  Paren r e          -> ParenP r <$> isPattern e
+  Underscore r _     -> return $ WildP r
+  Absurd r           -> return $ AbsurdP r
+  As r x e           -> pushUnderBracesP r (AsP r x) <$> isPattern e
+  Dot r e            -> return $ pushUnderBracesE r (DotP r) e
+  -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
+  -- point numbers is not stable across architectures and with different
+  -- compiler flags.
+  Lit _ (LitFloat _) -> Nothing
+  Lit r l            -> return $ LitP r l
+  HiddenArg r e      -> HiddenP r <$> mapM isPattern e
+  InstanceArg r e    -> InstanceP r <$> mapM isPattern e
+  RawApp r es        -> RawAppP r <$> mapM isPattern es
+  Quote r            -> return $ QuoteP r
+  Equal r e1 e2      -> return $ EqualP r [(e1, e2)]
+  Ellipsis r         -> return $ EllipsisP r
+  Rec r es           -> do
     fs <- mapM maybeLeft es
     RecP r <$> mapM (mapM isPattern) fs
   -- WithApp has already lost the range information of the bars '|'
@@ -778,8 +788,8 @@ instance HasRange Declaration where
   getRange (Data r _ _ _ _)        = r
   getRange (DataDef r _ _ _)       = r
   getRange (RecordSig r _ _ _)     = r
-  getRange (RecordDef r _ _ _ _ _ _ _) = r
-  getRange (Record r _ _ _ _ _ _ _ _)  = r
+  getRange (RecordDef r _ _ _ _)   = r
+  getRange (Record r _ _ _ _ _)    = r
   getRange (Mutual r _)            = r
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
@@ -916,8 +926,8 @@ instance KillRange Declaration where
   killRange (Data _ n l e c)        = killRange4 (Data noRange) n l e c
   killRange (DataDef _ n l c)       = killRange3 (DataDef noRange) n l c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
-  killRange (RecordDef _ n mi mb mp mn k d) = killRange7 (RecordDef noRange) n mi mb mp mn k d
-  killRange (Record _ n mi mb mp mn k e d)  = killRange8 (Record noRange) n mi mb mp mn k e d
+  killRange (RecordDef _ n dir k d) = killRange4 (RecordDef noRange) n dir k d
+  killRange (Record _ n dir k e d)  = killRange5 (Record noRange) n dir k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
@@ -1122,8 +1132,8 @@ instance NFData Declaration where
   rnf (Data _ a b c d)        = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataDef _ a b c)       = rnf a `seq` rnf b `seq` rnf c
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
-  rnf (RecordDef _ a b c _ d e f) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
-  rnf (Record _ a b c _ d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
+  rnf (RecordDef _ a b c d)   = rnf (a, b, c, d)
+  rnf (Record _ a b c d e)    = rnf (a, b, c, d, e)
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c

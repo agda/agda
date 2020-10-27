@@ -1,9 +1,17 @@
 ;;; annotation.el --- Functions for annotating text with faces and help bubbles
 
+;; Version: 1.0
+
+;; SPDX-License-Identifier: MIT License
+;; URL: https://github.com/agda/agda
+;; Version: 1.0
+
+;;; Commentary:
+
 ;; Note that this library enumerates buffer positions starting from 1,
 ;; just like Emacs.
 
-(require 'cl)
+(require 'cl-lib)
 
 (defvar annotation-bindings nil
   "An association list mapping symbols to faces.")
@@ -97,14 +105,14 @@ the resulting list of faces.
 
 Precondition: START and END must be numbers, and START must be
 less than END."
-  (assert (condition-case nil (< start end) (error nil)))
+  (cl-assert (condition-case nil (< start end) (error nil)))
   (let ((pos start)
         mid)
     (while (< pos end)
       (setq mid (next-single-property-change pos 'annotation-faces
                                              nil end))
       (let* ((old-faces (get-text-property pos 'annotation-faces))
-             (all-faces (union old-faces faces)))
+             (all-faces (cl-union old-faces faces)))
         (mapc (lambda (prop) (put-text-property pos mid prop all-faces))
               '(annotation-faces face))
         (setq pos mid)))))
@@ -186,7 +194,7 @@ with)."
               (setq mid (next-single-property-change pos
                            'annotation-annotations nil end))
               (let* ((old-props (get-text-property pos 'annotation-annotations))
-                     (all-props (union old-props props)))
+                     (all-props (cl-union old-props props)))
                 (add-text-properties pos mid
                    `(annotation-annotated t annotation-annotations ,all-props))
                 (setq pos mid)))))))))
@@ -238,7 +246,7 @@ buffer."
                     (or (not token-based)
                         (member 'annotation-token-based props)))
            (remove-text-properties pos (or pos2 (point-max))
-              (mapcan (lambda (prop) (list prop nil))
+              (cl-mapcan (lambda (prop) (list prop nil))
                       (cons 'annotation-annotations props)))))
        (setq pos (unless (or (not pos2) (>= pos2 end)) pos2))))))
 
@@ -274,7 +282,7 @@ buffer."
     (when (listp cmds)
       (let ((pos (point-min)))
         (dolist (cmd cmds)
-          (destructuring-bind
+          (cl-destructuring-bind
               (start end anns &optional token-based info goto) cmd
             (let ((info (if (and (not info) (consp goto))
                             goto-help

@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.TypeChecking.Conversion.Pure where
 
@@ -31,22 +30,28 @@ data FreshThings = FreshThings
 
 newtype PureConversionT m a = PureConversionT
   { unPureConversionT :: ExceptT TCErr (StateT FreshThings m) a }
-  deriving (Functor, Applicative, Monad, MonadError TCErr, MonadState FreshThings)
+  deriving (Functor, Applicative, Monad, MonadError TCErr, MonadState FreshThings, PureTCM)
 
 pureEqualTerm
-  :: (MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+  :: (PureTCM m, MonadBlock m)
   => Type -> Term -> Term -> m Bool
 pureEqualTerm a u v =
   isRight <$> runPureConversion (equalTerm a u v)
 
+pureEqualType
+  :: (PureTCM m, MonadBlock m)
+  => Type -> Type -> m Bool
+pureEqualType a b =
+  isRight <$> runPureConversion (equalType a b)
+
 pureCompareAs
-  :: (MonadReduce m, MonadAddContext m, HasBuiltins m, HasConstInfo m)
+  :: (PureTCM m, MonadBlock m)
   => Comparison -> CompareAs -> Term -> Term -> m Bool
 pureCompareAs cmp a u v =
   isRight <$> runPureConversion (compareAs cmp a u v)
 
 runPureConversion
-  :: (ReadTCState m, MonadDebug m, HasOptions m, MonadTCEnv m, Show a)
+  :: (MonadBlock m, PureTCM m, Show a)
   => PureConversionT m a -> m (Either TCErr a)
 runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $ do
   i <- useR stFreshInt
@@ -56,6 +61,9 @@ runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
   result <- fst <$> runStateT (runExceptT m) frsh
   reportSLn "tc.conv.pure" 40 $ "runPureConversion result: " ++ show result
   return result
+
+instance MonadTrans PureConversionT where
+  lift = PureConversionT . lift . lift
 
 deriving instance MonadFail       m => MonadFail       (PureConversionT m)
 deriving instance HasBuiltins     m => HasBuiltins     (PureConversionT m)
@@ -77,34 +85,38 @@ instance Monad m => Null (PureConversionT m Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
-instance (MonadTCEnv m, ReadTCState m, HasOptions m, MonadDebug m)
-  => MonadConstraint (PureConversionT m) where
+-- | Pattern violations are NOT caught but instead thrown into the
+--   outside world. This gives us access to more precise blocking
+--   information when a pure conversion check is blocked.
+instance MonadBlock m => MonadBlock (PureConversionT m) where
+  patternViolation = PureConversionT . lift . lift . patternViolation
+  catchPatternErr handle m = PureConversionT $ ExceptT $ StateT $ \s -> do
+    let run f = runStateT (runExceptT $ unPureConversionT f) s
+    catchPatternErr (run . handle) $ run m
+
+instance (PureTCM m, MonadBlock m) => MonadConstraint (PureConversionT m) where
   addConstraint u _ = patternViolation u
   addAwakeConstraint u _ = patternViolation u
-  catchPatternErr handle m = m `catchError` \case
-    PatternErr u -> handle u
-    err          -> throwError err
-  solveConstraint c = patternViolation alwaysUnblock
+  solveConstraint c = patternViolation alwaysUnblock  -- TODO: does this happen?
   solveSomeAwakeConstraints _ _ = return ()
   wakeConstraints _ = return ()
   stealConstraints _ = return ()
-  modifyAwakeConstraints _ = patternViolation alwaysUnblock
-  modifySleepingConstraints _ = patternViolation alwaysUnblock
+  modifyAwakeConstraints _ = patternViolation alwaysUnblock  -- TODO: does this happen?
+  modifySleepingConstraints _ = patternViolation alwaysUnblock  -- TODO: does this happen?
 
-instance (MonadTCEnv m, MonadReduce m, MonadAddContext m, ReadTCState m, HasBuiltins m, HasConstInfo m, MonadDebug m)
-  => MonadMetaSolver (PureConversionT m) where
-  newMeta' _ _ _ _ _ _ = patternViolation alwaysUnblock
-  assignV _ _ _ _ _ = patternViolation alwaysUnblock
-  assignTerm' _ _ _ = patternViolation alwaysUnblock
+instance (PureTCM m, MonadBlock m) => MonadMetaSolver (PureConversionT m) where
+  newMeta' _ _ _ _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
+  assignV _ _ _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
+  assignTerm' _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
   etaExpandMeta _ _ = return ()
-  updateMetaVar _ _ = patternViolation alwaysUnblock
+  updateMetaVar _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
   speculateMetas fallback m = m >>= \case
     KeepMetas     -> return ()
     RollBackMetas -> fallback
 
-instance (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints (PureConversionT m) where
-  freshInteractionId = patternViolation alwaysUnblock
-  modifyInteractionPoints _ = patternViolation alwaysUnblock
+instance (PureTCM m, MonadBlock m) => MonadInteractionPoints (PureConversionT m) where
+  freshInteractionId = patternViolation alwaysUnblock  -- TODO: does this happen?
+  modifyInteractionPoints _ = patternViolation alwaysUnblock  -- TODO: does this happen?
 
 -- This is a bogus instance that promptly forgets all concrete names,
 -- but we don't really care
@@ -113,8 +125,7 @@ instance ReadTCState m => MonadStConcreteNames (PureConversionT m) where
     concNames <- useR stConcreteNames
     fst <$> runStateT m concNames
 
-instance (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m)
-  => MonadWarning (PureConversionT m) where
+instance (PureTCM m, MonadBlock m) => MonadWarning (PureConversionT m) where
   addWarning w = case classifyWarning (tcWarning w) of
     ErrorWarnings -> patternViolation neverUnblock
     AllWarnings   -> return ()

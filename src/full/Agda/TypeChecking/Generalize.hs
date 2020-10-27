@@ -234,6 +234,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
                   setMetaNameSuggestion m (parentName ++ "." ++ show i)
                   suggestNames (i + 1) ms
                 _  -> suggestNames i ms
+        unless (null metas) $
+          reportSDoc "tc.generalize" 40 $ hcat ["Inherited metas from ", prettyTCM x, ":"] <?> prettyList_ (map prettyTCM metas)
         Set.fromList metas <$ suggestNames 1 metas
       _ -> __IMPOSSIBLE__
 
@@ -289,7 +291,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     args <- getContextArgs
     fmap concat $ forM sortedMetas $ \ m -> do
       mv   <- lookupMeta m
-      let info = getArgInfo $ miGeneralizable $ mvInfo mv
+      let info = hideOrKeepInstance $ getArgInfo $ miGeneralizable $ mvInfo mv
           HasType{ jMetaType = t } = mvJudgement mv
           perm = mvPermutation mv
       t' <- piApplyM t $ permute (takeP (length args) perm) args
@@ -731,8 +733,10 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   genRecName   <- freshQName "GeneralizeTel"
   genRecCon    <- freshQName "mkGeneralizeTel" <&> \ con -> ConHead
                   { conName      = con
+                  , conDataRecord= IsRecord CopatternMatching
                   , conInductive = Inductive
-                  , conFields    = map argFromDom genRecFields }
+                  , conFields    = map argFromDom genRecFields
+                  }
   projIx <- succ . size <$> getContext
   inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
@@ -807,7 +811,7 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
           abstract cxtTel (El s $ Pi (defaultDom recTy) (Abs "r" $ unDom ty)) :
           mkFieldTypes flds (absApp ftel proj)
         where
-          s = PiSort (defaultDom recTy) (Abs "r" $ getSort ty)
+          s = mkPiSort (defaultDom recTy) (Abs "r" $ unDom ty)
           proj = Var 0 [Proj ProjSystem fld]
       mkFieldTypes _ _ = __IMPOSSIBLE__
   let fieldTypes = mkFieldTypes fields (raise 1 fieldTel)

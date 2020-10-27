@@ -33,8 +33,8 @@ diag false false refl = false
 diag true  y     refl = y
 
 diag' : ∀ x (@0 y : Bool) (@0 eq : x ≡ y) → Bool
-diag' false false refl = false
-diag' true  y     refl = y
+diag' false  false refl = false
+diag' x@true y     refl = x
 
 -- Also for literals.
 

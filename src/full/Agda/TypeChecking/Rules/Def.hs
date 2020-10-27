@@ -51,6 +51,7 @@ import Agda.TypeChecking.Rewriting.Confluence
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(..), hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.Sort
 
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
@@ -87,7 +88,7 @@ checkFunDef delayed i name cs = do
         let info = getArgInfo def
         case isAlias cs t of
           Just (e, mc, x) ->
-            traceCall (CheckFunDefCall (getRange i) name cs) $ do
+            traceCall (CheckFunDefCall (getRange i) name cs True) $ do
               -- Andreas, 2012-11-22: if the alias is in an abstract block
               -- it has been frozen.  We unfreeze it to enable type inference.
               -- See issue 729.
@@ -102,7 +103,7 @@ checkFunDef delayed i name cs = do
         reportSDoc "tc.def" 20 $ vcat $
           [ "checking function definition got stuck on: " <+> pretty blocker ]
         modifySignature $ updateDefinition name $ updateDefBlocked $ const $ Blocked blocker ()
-        addConstraint blocker $ CheckFunDef delayed i name cs
+        addConstraint blocker $ CheckFunDef delayed i name cs err
 
 checkMacroType :: Type -> TCM ()
 checkMacroType t = do
@@ -225,7 +226,7 @@ checkFunDefS :: Type             -- ^ the type we expect the function to have
              -> TCM ()
 checkFunDefS t ai delayed extlam with i name withSub cs = do
 
-    traceCall (CheckFunDefCall (getRange i) name cs) $ do
+    traceCall (CheckFunDefCall (getRange i) name cs True) $ do
         reportSDoc "tc.def.fun" 10 $
           sep [ "checking body of" <+> prettyTCM name
               , nest 2 $ ":" <+> prettyTCM t
@@ -747,7 +748,9 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
     -- one we complain, ignore it and return the same @(Nothing, NoWithFunction)@
     -- as the case dealing with @A.AbsurdRHS@.
     mv <- if absurdPat
-          then Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresNoRHS ps)
+          then do
+            ps <- instantiateFull ps
+            Nothing <$ setCurrentRange e (warning $ AbsurdPatternRequiresNoRHS ps)
           else Just <$> checkExpr e (unArg trhs)
     return (mv, NoWithFunction)
 
@@ -878,7 +881,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
       t' <- reduce =<< instantiateFull eqt
       (eqt,rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
         eqt@(EqualityType _s _eq _params (Arg _ dom) a b) -> do
-          s <- inferSort dom
+          s <- sortOf dom
           return (eqt, El s dom, unArg a, unArg b)
           -- Note: the sort _s of the equality need not be the sort of the type @dom@!
         OtherType{} -> typeError . GenericDocError =<< do

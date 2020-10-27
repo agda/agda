@@ -15,11 +15,12 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (listToMaybe)
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (HighlightingLevel, HighlightingMethod, TCM, ProblemId, Comparison, Polarity,
+  (HighlightingLevel, HighlightingMethod, TCM, TCErr, Comparison, Polarity,
    TwinT', Het, HetSide(..))
 
 import           Agda.Syntax.Abstract         (QName)
-import           Agda.Syntax.Common           (InteractionId (..))
+import           Agda.Syntax.Common           (InteractionId (..), Modality)
+import           Agda.Syntax.Internal         (ProblemId, Blocker)
 import           Agda.Syntax.Position
 import           Agda.Syntax.Scope.Base       (ScopeInfo)
 
@@ -245,6 +246,16 @@ data Interaction' range
   | ToggleImplicitArgs
 
     ------------------------------------------------------------------------
+    -- Irrelevant arguments
+
+    -- | Tells Agda whether or not to show irrelevant arguments.
+  | ShowIrrelevantArgs    Bool -- Show them?
+
+
+    -- | Toggle display of irrelevant arguments.
+  | ToggleIrrelevantArgs
+
+    ------------------------------------------------------------------------
     -- | Goal commands
     --
     -- If the range is 'noRange', then the string comes from the
@@ -434,7 +445,7 @@ data UseForce
   | WithoutForce  -- ^ Don't ignore any checks.
   deriving (Eq, Read, Show)
 
-data OutputForm a b = OutputForm Range [ProblemId] (OutputConstraint a b)
+data OutputForm a b = OutputForm Range [ProblemId] Blocker (OutputConstraint a b)
   deriving (Functor)
 
 data OutputConstraint a b
@@ -445,13 +456,14 @@ data OutputConstraint a b
                    | CmpLevels Comparison b b
                    | CmpTeles Comparison b b
       | JustSort b | CmpSorts Comparison b b
-      | Guard (OutputConstraint a b) ProblemId
       | Assign b a | TypedAssign b a a | PostponedCheckArgs b [a] a a
       | IsEmptyType a
       | SizeLtSat a
       | FindInstanceOF b a [(a,a,a)]
       | PTSInstance b b
-      | PostponedCheckFunDef QName a
+      | PostponedCheckFunDef QName a TCErr
+      | CheckLock b b
+      | UsableAtMod Modality b
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.

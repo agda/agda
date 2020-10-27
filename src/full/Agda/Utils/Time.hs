@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- To avoid warning on derived Integral instance for CPUTime.
 {-# OPTIONS_GHC -fno-warn-identities #-}

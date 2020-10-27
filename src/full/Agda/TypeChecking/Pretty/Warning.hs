@@ -19,8 +19,9 @@ import Agda.TypeChecking.Monad.State ( getScope )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
 
-import Agda.Syntax.Common ( AgdaSourceErrorLocation(..), ImportedName'(..), fromImportedName, partitionImportedNames )
+import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
@@ -39,35 +40,9 @@ import Agda.Utils.Pretty ( Pretty, prettyShow )
 import qualified Agda.Utils.Pretty as P
 
 instance PrettyTCM TCWarning where
-  prettyTCM w@(TCWarning fl _ _ _ _) = do
-    reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow fl
+  prettyTCM w@(TCWarning loc _ _ _ _) = do
+    reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
     pure $ tcWarningPrintedWarning w
-
-prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
-prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
-  where
-    r   = getRange c
-    f :: MonadPretty m => m Doc -> m Doc
-    f d = if null $ P.pretty r
-          then d
-          else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
-
-interestingConstraint :: ProblemConstraint -> Bool
-interestingConstraint pc = go $ clValue (theConstraint pc)
-  where
-    go UnBlock{}     = False
-    go (Guarded c _) = go c
-    go _             = True
-
-prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
-  where
-    isBlocked = not . null . blocking . clValue . theConstraint
-    cs' = filter interestingConstraint cs
-    interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs'
-    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
-    blocking (Guarded c pid) = pid : blocking c
-    blocking _               = []
 
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case
@@ -449,8 +424,8 @@ applyFlagsToTCWarnings' isMain ws = do
   -- This is a way to collect all of them and remove duplicates.
   let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
   let sfp = case fmap List.nub (foldMap pragmas ws) of
-              (TCWarning fl r w p b:_, sfp) ->
-                 [TCWarning fl r (SafeFlagPragma sfp) p b]
+              (TCWarning loc r w p b:_, sfp) ->
+                 [TCWarning loc r (SafeFlagPragma sfp) p b]
               _                        -> []
 
   warnSet <- do

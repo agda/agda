@@ -27,8 +27,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Abstract (ProblemEq(..))
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.TypeChecking.Monad (TCM, IsForced(..), addContext, lookupSection, currentModule)
-import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Records
@@ -213,7 +212,7 @@ problemCont f p = f (_problemCont p) <&> \x -> p {_problemCont = x}
 problemInPats :: Problem a -> [A.Pattern]
 problemInPats = map problemInPat . (^. problemEqs)
 
-data AsBinding = AsB Name Term Type
+data AsBinding = AsB Name Term Type Modality
 data DotPattern = Dot A.Expr Term (Dom Type)
 data AbsurdPattern = Absurd Range Type
 
@@ -289,7 +288,9 @@ instance PrettyTCM LeftoverPatterns where
 -- | Classify remaining patterns after splitting is complete into pattern
 --   variables, as patterns, dot patterns, and absurd patterns.
 --   Precondition: there are no more constructor patterns.
-getLeftoverPatterns :: [ProblemEq] -> TCM LeftoverPatterns
+getLeftoverPatterns
+  :: forall m. PureTCM m
+  => [ProblemEq] -> m LeftoverPatterns
 getLeftoverPatterns eqs = do
   reportSDoc "tc.lhs.top" 30 $ "classifying leftover patterns"
   params <- Set.fromList . teleNames <$> (lookupSection =<< currentModule)
@@ -298,12 +299,12 @@ getLeftoverPatterns eqs = do
   where
     patternVariable x i  = LeftoverPatterns (singleton (i,[(x,PVLocal)])) [] [] [] []
     moduleParameter x i  = LeftoverPatterns (singleton (i,[(x,PVParam)])) [] [] [] []
-    asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a)] [] [] []
+    asPattern x v a      = LeftoverPatterns empty [AsB x v (unDom a) (getModality a)] [] [] []
     dotPattern e v a     = LeftoverPatterns empty [] [Dot e v a] [] []
     absurdPattern info a = LeftoverPatterns empty [] [] [Absurd info a] []
     otherPattern p       = LeftoverPatterns empty [] [] [] [p]
 
-    getLeftoverPattern :: (A.Name -> Bool) -> ProblemEq -> TCM LeftoverPatterns
+    getLeftoverPattern :: (A.Name -> Bool) -> ProblemEq -> m LeftoverPatterns
     getLeftoverPattern isParamName (ProblemEq p v a) = case p of
       (A.VarP A.BindName{unBind = x}) -> isEtaVar v (unDom a) >>= \case
         Just i  | isParamName x -> return $ moduleParameter x i
@@ -335,22 +336,26 @@ getUserVariableNames tel names = runWriter $
       ((x:xs) , [])   -> tellAsBindings xs $> (Just x)
       (xs     , y:ys) -> tellAsBindings (xs ++ ys) $> (Just y)
       where
-        tellAsBindings = tell . map (\y -> AsB y (var i) (unDom a))
+        tellAsBindings = tell . map (\y -> AsB y (var i) (unDom a) (getModality a))
 
     partitionIsParam :: [(A.Name,PatVarPosition)] -> ([A.Name],[A.Name])
     partitionIsParam = (map fst *** map fst) . partition ((== PVParam) . snd)
 
 
-instance Subst Term (Problem a) where
+instance Subst (Problem a) where
+  type SubstArg (Problem a) = Term
   applySubst rho (Problem eqs rps cont) = Problem (applySubst rho eqs) rps cont
 
-instance Subst Term AsBinding where
-  applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
+instance Subst AsBinding where
+  type SubstArg AsBinding = Term
+  applySubst rho (AsB x v a m) = (\(v,a) -> AsB x v a m) $ applySubst rho (v, a)
 
-instance Subst Term DotPattern where
+instance Subst DotPattern where
+  type SubstArg DotPattern = Term
   applySubst rho (Dot e v a) = uncurry (Dot e) $ applySubst rho (v, a)
 
-instance Subst Term AbsurdPattern where
+instance Subst AbsurdPattern where
+  type SubstArg AbsurdPattern = Term
   applySubst rho (Absurd r a) = Absurd r $ applySubst rho a
 
 instance PrettyTCM ProblemEq where
@@ -361,7 +366,7 @@ instance PrettyTCM ProblemEq where
     ]
 
 instance PrettyTCM AsBinding where
-  prettyTCM (AsB x v a) =
+  prettyTCM (AsB x v a m) =
     sep [ prettyTCM x <> "@" <> parens (prettyTCM v)
         , nest 2 $ ":" <+> prettyTCM a
         ]
@@ -377,12 +382,12 @@ instance PrettyTCM AbsurdPattern where
   prettyTCM (Absurd r a) = "() :" <+> prettyTCM a
 
 instance PP.Pretty AsBinding where
-  pretty (AsB x v a) =
+  pretty (AsB x v a m) =
     PP.pretty x PP.<+> "=" PP.<+>
       PP.hang (PP.pretty v PP.<+> ":") 2 (PP.pretty a)
 
 instance InstantiateFull AsBinding where
-  instantiateFull' (AsB x v a) = AsB x <$> instantiateFull' v <*> instantiateFull' a
+  instantiateFull' (AsB x v a m) = AsB x <$> instantiateFull' v <*> instantiateFull' a <*> pure m
 
 instance PrettyTCM (LHSState a) where
   prettyTCM (LHSState tel outPat (Problem eqs rps _) target _) = vcat

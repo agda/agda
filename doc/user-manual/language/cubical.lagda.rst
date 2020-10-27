@@ -241,7 +241,7 @@ While path types are great for reasoning about equality they don't let
 us transport along paths between types or even compose paths, which in
 particular means that we cannot yet prove the induction principle for
 paths. In order to remedy this we also have a built-in (generalized)
-transport operation and homogeneous composition operations. The
+transport operation `transp` and homogeneous composition operations `hcomp`. The
 transport operation is generalized in the sense that it lets us
 specify where it is the identity function.
 
@@ -249,27 +249,31 @@ specify where it is the identity function.
 
   transp : ∀ {ℓ} (A : I → Set ℓ) (r : I) (a : A i0) → A i1
 
-There is an additional side condition to be satisfied for ``transp A r
-a`` to type-check, which is that ``A`` has to be *constant* on
-``r``. This means that ``A`` should be a constant function whenever
-the constraint ``r = i1`` is satisfied.  For example:
+There is an additional side condition to be satisfied for a usage of ``transp`` to type-check: ``A`` should be a constant function whenever the constraint ``r = i1`` is satisfied. By constant here we mean that ``A`` is definitionally equal to ``λ _ → A i0``, which in turn requires ``A i0`` and ``A i1`` to be definitionally equal as well.
 
-* If ``r`` is ``i0`` then ``A`` can be anything, since this side
-  condition is vacuously true.
-
-* If ``r`` is ``i1`` then ``A`` must be a constant function.
-
-* If ``r`` is some in-scope variable ``i`` then ``A`` only needs to be
-  a constant function when substituting ``i1`` for ``i``.
-
-When ``r`` is equal to ``i1`` the ``transp`` function will compute as
-the identity function.
+When ``r`` is ``i1``, ``transp A r`` will compute as the identity function.
 
 .. code-block:: agda
 
    transp A i1 a = a
 
-This requires ``A`` to be constant for it to be well-typed.
+This is only sound if in such a case ``A`` is a trivial path, as the side condition requires.
+
+It might seems strange that the side condition expects ``r`` and
+``A`` to interact, but both of them can depend on any of the
+interval variables in scope, so assuming a specific value for ``r``
+can affect what ``A`` looks like.
+
+Some examples of the side condition for different values of ``r``:
+
+* If ``r`` is some in-scope variable ``i``, on which ``A`` may depend as well, then ``A`` only needs to be
+  a constant function when substituting ``i1`` for ``i``.
+
+* If ``r`` is ``i0`` then there is no restrition on ``A``, since the side
+  condition is vacuously true.
+
+* If ``r`` is ``i1`` then ``A`` must be a constant function.
+
 
 We can use ``transp`` to define regular transport:
 

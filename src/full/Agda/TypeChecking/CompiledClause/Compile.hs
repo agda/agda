@@ -396,7 +396,7 @@ ensureNPatterns n ais0 cl@(Cl ps b)
   ps'  = for ais $ \ ai -> Arg ai $ varP "_"
   args = zipWith (\ i ai -> Arg ai $ var i) (downFrom m) ais
 
-substBody :: (Subst t a) => Int -> Int -> t -> a -> a
+substBody :: Subst a => Int -> Int -> SubstArg a -> a -> a
 substBody n m v = applySubst $ liftS n $ v :# raiseS m
 
 instance PrecomputeFreeVars a => PrecomputeFreeVars (CompiledClauses' a) where

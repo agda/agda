@@ -4,6 +4,7 @@
 -- The dependencies of strict-base-types are too heavy,
 -- especially since it depends on lens which we consciously ruled out.
 
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
 
@@ -52,12 +53,9 @@ toLazy :: Maybe a -> Lazy.Maybe a
 toLazy Nothing  = Lazy.Nothing
 toLazy (Just x) = Lazy.Just x
 
+#if !(MIN_VERSION_strict(0,4,0))
 deriving instance Data a => Data (Maybe a)
 deriving instance Generic  (Maybe a)
-
-instance Null (Maybe a) where
-  empty = Nothing
-  null = isNothing
 
 -- The monoid instance was fixed in strict-base-types 0.5.0. See
 -- Issue 1805.
@@ -67,17 +65,6 @@ instance Semigroup a => Semigroup (Maybe a) where
 instance Semigroup a => Monoid (Maybe a) where
   mempty  = Nothing
   mappend = (<>)
-
--- | Note that strict Maybe is an 'Applicative' only modulo strictness.
---   The laws only hold in the strict semantics.
---   Eg. @pure f <*> pure _|_ = _|_@, but according to the laws for
---   'Applicative' it should be @pure (f _|_)@.
---   We ignore this issue here, it applies also to 'Foldable' and 'Traversable'.
-
-instance Applicative Maybe where
-  pure              = Just
-  Just f <*> Just x = Just $ f x
-  _      <*> _      = Nothing
 
 instance Foldable Maybe where
     foldMap _ Nothing  = mempty
@@ -93,6 +80,22 @@ instance NFData a => NFData (Maybe a) where
 instance Binary a => Binary (Maybe a) where
   put = put . toLazy
   get = toStrict <$> get
+#endif
+
+-- | Note that strict Maybe is an 'Applicative' only modulo strictness.
+--   The laws only hold in the strict semantics.
+--   Eg. @pure f <*> pure _|_ = _|_@, but according to the laws for
+--   'Applicative' it should be @pure (f _|_)@.
+--   We ignore this issue here, it applies also to 'Foldable' and 'Traversable'.
+
+instance Applicative Maybe where
+  pure              = Just
+  Just f <*> Just x = Just $ f x
+  _      <*> _      = Nothing
+
+instance Null (Maybe a) where
+  empty = Nothing
+  null = isNothing
 
 -- | Analogous to 'Lazy.listToMaybe' in "Data.Maybe".
 listToMaybe :: [a] -> Maybe a

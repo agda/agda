@@ -1,3 +1,5 @@
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
+
 {- |
 
 "Injectivity", or more precisely, "constructor headedness", is a
@@ -68,6 +70,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -124,7 +127,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
 -- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
 --   an injective functions and to the right-hand side.
 headSymbol'
-  :: (MonadReduce m, MonadError TCErr m, MonadDebug m, HasBuiltins m)
+  :: (PureTCM m, MonadError TCErr m)
   => Term -> m (Maybe TermHead)
 headSymbol' v = do
   v <- traverse constructorForm =<< reduceB v
@@ -139,8 +142,8 @@ headSymbol' v = do
       Lit _      -> return Nothing
       Lam{}      -> return Nothing
       Level{}    -> return Nothing
-      MetaV{}    -> return Nothing
       DontCare{} -> return Nothing
+      MetaV{}    -> __IMPOSSIBLE__
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Does deBruijn variable i correspond to a top-level argument, and if so
@@ -188,7 +191,8 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
 
   -- We don't need to consider absurd clauses
   let computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
-        h <- ifM (isIrrelevantOrPropM tbody) (return UnknownHead) $
+        maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
+        h <- if maybeIrr then return UnknownHead else
           varToArg c =<< do
             lift $ fromMaybe UnknownHead <$> do
               addContext (clauseTel c) $
@@ -239,8 +243,8 @@ checkOverapplication es = updateHeads overapplied
         Function{}     -> False
         Datatype{}     -> True
         Record{}       -> True
-        Constructor{conSrcCon = ConHead{ conFields = fs }}
-                       -> null fs   -- Record constructors can be eliminated by projections
+        Constructor{conSrcCon = ConHead{ conDataRecord = d, conFields = fs }}
+                       -> d == IsData || null fs   -- Record constructors can be eliminated by projections
         Primitive{}    -> False
         PrimitiveSort{} -> __IMPOSSIBLE__
         GeneralizableVar{} -> __IMPOSSIBLE__
@@ -253,7 +257,7 @@ checkOverapplication es = updateHeads overapplied
 --   deBruijn variables. Checks that the instantiated heads are still rigid and
 --   distinct.
 instantiateVarHeads
-  :: forall m c. (MonadReduce m, MonadError TCErr m, MonadDebug m, HasBuiltins m)
+  :: forall m c. (PureTCM m, MonadError TCErr m)
   => QName -> Elims -> InversionMap c -> m (Maybe (InversionMap c))
 instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
   where
@@ -265,7 +269,7 @@ instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
 
 -- | Argument should be in weak head normal form.
 functionInverse
-  :: (MonadReduce m, MonadError TCErr m, HasBuiltins m, HasConstInfo m)
+  :: (PureTCM m, MonadError TCErr m)
   => Term -> m InvView
 functionInverse v = case v of
   Def f es -> do

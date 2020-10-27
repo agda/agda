@@ -1,13 +1,6 @@
 Release notes for Agda version 2.6.2
 ====================================
 
-Installation and infrastructure
--------------------------------
-
-* Added support for GHC 8.10.1
-  [Issue [#4242](https://github.com/agda/agda/issues/4242)] and GHC
-  8.8.3 [Issue [#4476](https://github.com/agda/agda/issues/4476)].
-
 Command-line interaction
 ------------------------
 
@@ -151,6 +144,85 @@ Language
   local confluence can be restored by using the
   `--local-confluence-check` flag.
 
+* Binary integer literals with prefix `0b` (for instance, `0b11001001`) are now
+  supported.
+
+* Overloaded literals now require the conversion function (fromNat, fromNeg, or
+  fromString) to be in scope *unqualified* to take effect.
+
+  Previously, it was enough for the function to be in scope at all, which meant
+  you couldn't import the corresponding builtin module without having overloaded
+  literals turned on.
+
+Builtins
+--------
+
+- Primitive operations for floating-point numbers changed. The equalities now
+  follow IEEE 754 equality, after unifying all NaNs. Primitive inequality was
+  added:
+  ```agda
+  primFloatEquality   : Float -> Float -> Bool -- from primFloatNumericEquality
+  primFloatLess       : Float -> Float -> Bool -- from primFloatNumericLess
+  primFloatInequality : Float -> Float -> Bool -- new
+  ```
+  The “numeric” relations are now deprecated.
+
+  There are several new predicates on floating-point numbers:
+  ```agda
+  primFloatIsInfinite     : Float -> Bool -- new
+  primFloatIsNaN          : Float -> Bool -- new
+  primFloatIsSafeInteger  : Float -> Bool -- new
+  ```
+  The primFloatIsSafeInteger function determines whether the value is a number
+  that is a safe integer, i.e., is within the range where the arithmetic
+  operations do not lose precision.
+
+  The operations for conversion to integers (primRound, primFloor, and
+  primCeiling) were renamed for consistency, and return a value of type `Maybe
+  Int`, returning `nothing` for NaN and the infinities:
+  ```agda
+  primFloatRound   : Float → Maybe Int -- from primRound
+  primFloatFloor   : Float → Maybe Int -- from primFloor
+  primFloatCeiling : Float → Maybe Int -- from primCeiling
+  ```
+
+  There are several new conversions:
+  ```agda
+  primIntToFloat    : Int -> Float               -- new
+  primFloatToRatio  : Float -> (Int × Nat)       -- new
+  primRatioToFloat  : Int -> Nat -> Float        -- new
+  primFloatDecode   : Float -> Maybe (Int × Int) -- new
+  primFloatEncode   : Int -> Int -> Maybe Float  -- new
+  ```
+  The `primFloatDecode` function decodes a floating-point number f to a mantissa
+  and exponent, such that `f = mantissa * 2 ^ exponent`, normalised such that
+  the mantissa is the smallest possible number. The `primFloatEncode` function
+  encodes a pair of a mantissa and exponent to a floating-point number.
+
+  There are several new operations:
+  ```agda
+  primFloatPow        : Float -> Float -> Float -- new
+  primFloatATan2      : Float -> Float -> Float -- from primATan2
+  primFloatSinh       : Float -> Float          -- new
+  primFloatCosh       : Float -> Float          -- new
+  primFloatTanh       : Float -> Float          -- new
+  primFloatASinh      : Float -> Float          -- new
+  primFloatACosh      : Float -> Float          -- new
+  primFloatATanh      : Float -> Float          -- new
+  ```
+  Furthermore, the following operations were renamed for consistency:
+  ```agda
+  primFloatExp        : Float -> Float          -- from primExp
+  primFloatSin        : Float -> Float          -- from primSin
+  primFloatLog        : Float -> Float          -- from primLog
+  primFloatCos        : Float -> Float          -- from primCos
+  primFloatTan        : Float -> Float          -- from primTan
+  primFloatASin       : Float -> Float          -- from primASin
+  primFloatACos       : Float -> Float          -- from primACos
+  primFloatATan       : Float -> Float          -- from primATan
+  ```
+
+  All of these operations are implemented on the JavaScript backend.
 
 Reflection
 ----------
@@ -222,6 +294,42 @@ Reflection
 
   The builtin is only available when `--allow-exec` is passed. (Note that `--allow-exec` is incompatible with ``--safe``.) To make an executable available to Agda, add the absolute path on a new line in `~/.agda/executables`.
 
+- Two new operations in the `TC` monad, `onlyReduceDefs` and
+  `dontReduceDefs`:
+  ```agda
+  onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+  dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+  ```
+  These functions allow picking a specific set of functions that
+  should (resp. should not) be reduced while executing the given `TC`
+  computation.
+
+  For example, the following macro unifies the current hole with the
+  term `3 - 3`:
+  ```agda
+  macro₁ : Term -> TC ⊤
+  macro₁ goal = do
+    u   ← quoteTC ((1 + 2) - 3)
+    u'  ← onlyReduceDefs (quote _+_ ∷ []) (normalise u)
+    unify u' goal
+  ```
+
+Library management
+------------------
+
+- `.agda-lib` files can now contain an extra field `flags:` with
+  default flags for the library. Flags can be any flags that are
+  accepted as part of an `{-# OPTIONS ... #-}` pragma. For example,
+  file `my-library.agda-lib` with
+
+  ```
+  flags: --without-K
+  ```
+
+  will apply the `--without-K` flag to all Agda files in the current
+  directory and (recursive) subdirectories that do not themselves
+  contain an `.agda-lib` file.
+
 
 Emacs mode
 ----------
@@ -236,6 +344,8 @@ Emacs mode
   ```
 
   `C-u C-u C-u C-c C-n downFrom 5` returns `4 ∷ downFrom 4`.
+
+* New keyboard shortcut `C-c C-x C-i` for toggling display of irrelevant arguments.
 
 
 JS backend

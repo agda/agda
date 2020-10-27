@@ -1,3 +1,5 @@
+{-# LANGUAGE ApplicativeDo #-}
+
 module Agda.TypeChecking.Primitive.Base where
 
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
@@ -30,16 +32,16 @@ infixr 4 -->
 infixr 4 .-->
 infixr 4 ..-->
 
-(-->), (.-->), (..-->) :: Monad tcm => tcm Type -> tcm Type -> tcm Type
+(-->), (.-->), (..-->) :: Applicative m => m Type -> m Type -> m Type
 a --> b = garr id a b
 a .--> b = garr (const $ Irrelevant) a b
 a ..--> b = garr (const $ NonStrict) a b
 
-garr :: Monad m => (Relevance -> Relevance) -> m Type -> m Type -> m Type
+garr :: Applicative m => (Relevance -> Relevance) -> m Type -> m Type -> m Type
 garr f a b = do
   a' <- a
   b' <- b
-  return $ El (funSort (getSort a') (getSort b')) $
+  pure $ El (funSort (getSort a') (getSort b')) $
     Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
 gpi :: (MonadAddContext m, MonadDebug m)
@@ -50,7 +52,7 @@ gpi info name a b = do
       dom = defaultNamedArgDom info name a
   b <- addContext (name, dom) b
   let y = stringToArgName name
-  return $ El (piSort dom (Abs y (getSort b)))
+  return $ El (mkPiSort dom (Abs y b))
               (Pi dom (Abs y b))
 
 hPi, nPi :: (MonadAddContext m, MonadDebug m)
@@ -73,11 +75,11 @@ pPi' n phi b = toFinitePi <$> nPi' n (elSSet $ cl isOne <@> phi) b
 
    isOne = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIsOne
 
-el' :: Monad m => m Term -> m Term -> m Type
+el' :: Applicative m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a
 
-el's :: Monad m => m Term -> m Term -> m Type
-el's l a = El <$> (SSet . unreducedLevel <$> l) <*> a
+el's :: Applicative m => m Term -> m Term -> m Type
+el's l a = El <$> (SSet . atomicLevel <$> l) <*> a
 
 elInf :: Functor m => m Term -> m Type
 elInf t = (El (Inf IsFibrant 0) <$> t)
@@ -88,32 +90,32 @@ elSSet t = (El (SSet $ ClosedLevel 0) <$> t)
 nolam :: Term -> Term
 nolam = Lam defaultArgInfo . NoAbs "_"
 
-varM :: Monad tcm => Int -> tcm Term
-varM = return . var
+varM :: Applicative m => Int -> m Term
+varM = pure . var
 
 infixl 9 <@>, <#>
 
-gApply :: Monad tcm => Hiding -> tcm Term -> tcm Term -> tcm Term
+gApply :: Applicative m => Hiding -> m Term -> m Term -> m Term
 gApply h a b = gApply' (setHiding h defaultArgInfo) a b
 
-gApply' :: Monad tcm => ArgInfo -> tcm Term -> tcm Term -> tcm Term
+gApply' :: Applicative m => ArgInfo -> m Term -> m Term -> m Term
 gApply' info a b = do
     x <- a
     y <- b
-    return $ x `apply` [Arg info y]
+    pure $ x `apply` [Arg info y]
 
-(<@>),(<#>),(<..>) :: Monad tcm => tcm Term -> tcm Term -> tcm Term
+(<@>),(<#>),(<..>) :: Applicative m => m Term -> m Term -> m Term
 (<@>) = gApply NotHidden
 (<#>) = gApply Hidden
 (<..>) = gApply' (setRelevance Irrelevant defaultArgInfo)
 
-(<@@>) :: Monad tcm => tcm Term -> (tcm Term,tcm Term,tcm Term) -> tcm Term
+(<@@>) :: Applicative m => m Term -> (m Term,m Term,m Term) -> m Term
 t <@@> (x,y,r) = do
   t <- t
   x <- x
   y <- y
   r <- r
-  return $ t `applyE` [IApply x y r]
+  pure $ t `applyE` [IApply x y r]
 
 list :: TCM Term -> TCM Term
 list t = primList <@> t
@@ -127,26 +129,26 @@ io t = primIO <@> t
 path :: TCM Term -> TCM Term
 path t = primPath <@> t
 
-el :: Functor tcm => tcm Term -> tcm Type
+el :: Functor m => m Term -> m Type
 el t = El (mkType 0) <$> t
 
-tset :: Monad tcm => tcm Type
-tset = return $ sort (mkType 0)
+tset :: Applicative m => m Type
+tset = pure $ sort (mkType 0)
 
 sSizeUniv :: Sort
 sSizeUniv = mkType 0
 -- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
 -- sSizeUniv = SizeUniv
 
-tSizeUniv :: Monad tcm => tcm Type
-tSizeUniv = tset
+tSizeUniv :: Applicative m => m Type
+-- tSizeUniv = tset
 -- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
 -- tSizeUniv = return $ El sSizeUniv $ Sort sSizeUniv
 -- Andreas, 2015-03-16 Since equality checking for types
 -- includes equality checking for sorts, we cannot put
 -- SizeUniv in Setω.  (SizeUniv : Setω) == (_0 : suc _0)
 -- will first instantiate _0 := Setω, which is wrong.
--- tSizeUniv = return $ El Inf $ Sort SizeUniv
+tSizeUniv = pure $ sort sSizeUniv
 
 -- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.
 argN :: e -> Arg e

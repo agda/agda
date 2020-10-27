@@ -1,6 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 -- | Computing the free variables of a term lazily.
 --
@@ -474,13 +471,16 @@ underFlexRig :: (MonadReader r m, LensFlexRig a r, Semigroup a, LensFlexRig a o)
 underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
 
 -- | What happens to the variables occurring under a constructor?
-underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> m z -> m z
-underConstructor (ConHead c i fs) =
-  case (i,fs) of
+underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> Elims -> m z -> m z
+underConstructor (ConHead _c _d i fs) es =
+  case i of
     -- Coinductive (record) constructors admit infinite cycles:
-    (CoInductive, _)   -> underFlexRig WeaklyRigid
+    CoInductive -> underFlexRig WeaklyRigid
     -- Inductive constructors do not admit infinite cycles:
-    (Inductive, _)    -> underFlexRig StronglyRigid
+    Inductive   | size es == size fs -> underFlexRig StronglyRigid
+                | otherwise          -> underFlexRig WeaklyRigid
+    -- Jesper, 2020-10-22: Issue #4995: treat occurrences in non-fully
+    -- applied constructors as weakly rigid.
     -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
     -- the same as datatypes, so absense of infinite cycles can be proven in Agda, and thus
     -- the unifier is allowed to do it too. Test case: test/Succeed/Issue1271a.agda
@@ -488,7 +488,6 @@ underConstructor (ConHead c i fs) =
     -- -- Inductive record constructors do not admit infinite cycles,
     -- -- but this cannot be proven inside Agda.
     -- -- Thus, unification should not prove it either.
-    -- (Inductive, (_:_)) -> id
 
 ---------------------------------------------------------------------------
 -- * Recursively collecting free variables.
@@ -517,13 +516,13 @@ instance Free Term where
     Var n ts     -> variable n `mappend` do underFlexRig WeaklyRigid $ freeVars' ts
     -- λ is not considered guarding, as
     -- we cannot prove that x ≡ λy.x is impossible.
-    Lam _ t      -> freeVars' t
+    Lam _ t      -> underFlexRig WeaklyRigid $ freeVars' t
     Lit _        -> mempty
     Def _ ts     -> underFlexRig WeaklyRigid $ freeVars' ts  -- because we are not in TCM
       -- we cannot query whether we are dealing with a data/record (strongly r.)
       -- or a definition by pattern matching (weakly rigid)
       -- thus, we approximate, losing that x = List x is unsolvable
-    Con c _ ts   -> underConstructor c $ freeVars' ts
+    Con c _ ts   -> underConstructor c ts $ freeVars' ts
     -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
     -- Even as we do not permit infinite type expressions,
     -- we cannot prove their absence (as Set is not inductive).
@@ -550,8 +549,9 @@ instance Free Sort where
       Inf _ _    -> mempty
       SSet a     -> freeVars' a
       SizeUniv   -> mempty
-      PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
-                    underFlexRig WeaklyRigid (freeVars' (getSort a, s))
+      LockUniv   -> mempty
+      PiSort a s1 s2 -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
+                        underFlexRig WeaklyRigid (freeVars' (s1, s2))
       FunSort s1 s2 -> freeVars' s1 `mappend` freeVars' s2
       UnivSort s -> underFlexRig WeaklyRigid $ freeVars' s
       MetaS x es -> underFlexRig (Flexible $ singleton x) $ freeVars' es
@@ -561,15 +561,8 @@ instance Free Sort where
 instance Free Level where
   freeVars' (Max _ as) = freeVars' as
 
-instance Free PlusLevel where
+instance Free t => Free (PlusLevel' t) where
   freeVars' (Plus _ l)    = freeVars' l
-
-instance Free LevelAtom where
-  freeVars' l = case l of
-    MetaLevel m vs   -> underFlexRig (Flexible $ singleton m) $ freeVars' vs
-    NeutralLevel _ v -> freeVars' v
-    BlockedLevel _ v -> freeVars' v
-    UnreducedLevel v -> freeVars' v
 
 instance Free t => Free [t]            where
 instance Free t => Free (Maybe t)      where

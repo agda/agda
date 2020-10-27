@@ -75,7 +75,7 @@ translateBuiltins t = do
 transform :: BuiltinKit -> TTerm -> TTerm
 transform BuiltinKit{..} = tr
   where
-    tr t = case t of
+    tr = \case
 
       TCon c | isZero c   -> tInt 0
              | isSuc c    -> TLam (tPlusK 1 (TVar 0))
@@ -134,7 +134,7 @@ transform BuiltinKit{..} = tr
                 b -> [posAlt  b]
               where
                 -- subst scrutinee for the pos argument
-                sub :: Subst TTerm a => a -> a
+                sub :: SubstWith TTerm a => a -> a
                 sub = applySubst (TVar e :# IdS)
 
                 posAlt b = TAGuard (tOp PGeq (TVar e) (tInt 0)) $ sub b
@@ -158,15 +158,15 @@ transform BuiltinKit{..} = tr
             TALit l b   -> [TALit l (tr b)]
             TAGuard g b -> [TAGuard (tr g) (tr b)]
 
-      TVar{}    -> t
-      TDef{}    -> t
-      TCon{}    -> t
-      TPrim{}   -> t
-      TLit{}    -> t
-      TUnit{}   -> t
-      TSort{}   -> t
-      TErased{} -> t
-      TError{}  -> t
+      t@TVar{}    -> t
+      t@TDef{}    -> t
+      t@TCon{}    -> t
+      t@TPrim{}   -> t
+      t@TLit{}    -> t
+      t@TUnit{}   -> t
+      t@TSort{}   -> t
+      t@TErased{} -> t
+      t@TError{}  -> t
 
       TCoerce a -> TCoerce (tr a)
 

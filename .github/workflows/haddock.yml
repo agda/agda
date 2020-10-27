@@ -24,14 +24,17 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: ["8.10.1"]
+        ghc-ver: ["8.10.2"]
         cabal-ver: ["3.2"]
 
     steps:
-    - uses: actions/checkout@v2.3.1
-    - uses: actions/setup-haskell@v1.1.1
+    - uses: actions/checkout@v2.3.2
       with:
-        ghc-version: '8.10.1'
+        submodules: recursive
+
+    - uses: actions/setup-haskell@v1.1.3
+      with:
+        ghc-version: '8.10.2'
         cabal-version: '3.2'
 
     - name: Resolve dependencies
@@ -39,7 +42,7 @@ jobs:
         cabal update
         cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v2.1.0
       name: Cache dependencies
       with:
         path: "~/.cabal"

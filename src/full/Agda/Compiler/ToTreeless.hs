@@ -127,8 +127,12 @@ compilerPass tag v name code = SinglePass (CompilerPass tag v name code)
 compilerPipeline :: Int -> QName -> Pipeline
 compilerPipeline v q =
   Sequential
-    [ compilerPass "simpl"   (35 + v) "simplification"      $ const simplifyTTerm
-    , compilerPass "builtin" (30 + v) "builtin translation" $ const translateBuiltins
+    -- Issue #4967: No simplification step before builtin translation! Simplification relies
+    --              on either all or no builtins being translated. Since we might have inlined
+    --              functions that have had the builtin translation applied, we need to apply it
+    --              first.
+    -- [ compilerPass "simpl"   (35 + v) "simplification"      $ const simplifyTTerm
+    [ compilerPass "builtin" (30 + v) "builtin translation" $ const translateBuiltins
     , FixedPoint 5 $ Sequential
       [ compilerPass "simpl"  (30 + v) "simplification"     $ const simplifyTTerm
       , compilerPass "erase"  (30 + v) "erasure"            $ eraseTerms q
@@ -372,7 +376,7 @@ mkRecord fs = lift $ do
   -- Get the name of the first field
   let p1 = fst $ headWithDefault __IMPOSSIBLE__ $ Map.toList fs
   -- Use the field name to get the record constructor and the field names.
-  I.ConHead c _ind xs <- conSrcCon . theDef <$> (getConstInfo =<< canonicalName . I.conName =<< recConFromProj p1)
+  I.ConHead c IsRecord{} _ind xs <- conSrcCon . theDef <$> (getConstInfo =<< canonicalName . I.conName =<< recConFromProj p1)
   reportSDoc "treeless.convert.mkRecord" 60 $ vcat
     [ text "record constructor fields: xs      = " <+> (text . show) xs
     , text "to be filled with content: keys fs = " <+> (text . show) (Map.keys fs)

@@ -10,6 +10,7 @@ import Control.Monad.Reader
 
 import Data.Function
 import qualified Data.IntMap as IntMap
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
@@ -25,6 +26,8 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Position (getRange, killRange)
 
 import Agda.TypeChecking.Monad
+-- import Agda.TypeChecking.Monad.Builtin
+-- import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
@@ -32,6 +35,7 @@ import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Lock
 import Agda.TypeChecking.Level (levelType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -191,8 +195,7 @@ newLevelMeta = do
   (x, v) <- newValueMeta RunMetaOccursCheck CmpEq =<< levelType
   return $ case v of
     Level l    -> l
-    MetaV x vs -> Max 0 [Plus 0 (MetaLevel x vs)]
-    _          -> Max 0 [Plus 0 (UnreducedLevel v)]
+    _          -> atomicLevel v
 
 -- | @newInstanceMeta s t cands@ creates a new instance metavariable
 --   of type the output type of @t@ with name suggestion @s@.
@@ -221,7 +224,7 @@ newInstanceMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ nest 2 $ pretty x <+> ":" <+> prettyTCM t
     ]
-  let c = FindInstance x neverUnblock Nothing
+  let c = FindInstance x Nothing
   -- If we're not already solving instance constraints we should add this
   -- to the awake constraints to make sure we don't forget about it. If we
   -- are solving constraints it will get woken up later (see #2690)
@@ -388,7 +391,7 @@ blockTermOnProblem t v pid =
                     (idP $ size tel)
                     (HasType () CmpLeq $ telePi_ tel t)
                     -- we don't instantiate blocked terms
-    inTopContext $ addConstraint neverUnblock (Guarded (UnBlock x) pid) -- Will be woken up when the problem is solved
+    inTopContext $ addConstraint (unblockOnProblem pid) (UnBlock x)
     reportSDoc "tc.meta.blocked" 20 $ vcat
       [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
         (prettyTCM $ abstract tel v)
@@ -422,21 +425,21 @@ blockTypeOnProblem
   => Type -> ProblemId -> m Type
 blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (sort s) a pid
 
--- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
+-- | @unblockedTester t@ returns a 'Blocker' for @t@.
 --
---   Auxiliary function to create a postponed type checking problem.
-unblockedTester :: Type -> TCM Bool
-unblockedTester t = ifBlocked t (\ m t -> return False) (\ _ t -> return True)
+--   Auxiliary function used when creating a postponed type checking problem.
+unblockedTester :: Type -> TCM Blocker
+unblockedTester t = ifBlocked t (\ b _ -> return b) (\ _ _ -> return alwaysUnblock)
 
 -- | Create a postponed type checking problem @e : t@ that waits for type @t@
 --   to unblock (become instantiated or its constraints resolved).
 postponeTypeCheckingProblem_ :: TypeCheckingProblem -> TCM Term
 postponeTypeCheckingProblem_ p = do
-  postponeTypeCheckingProblem p (unblock p)
+  postponeTypeCheckingProblem p =<< unblock p
   where
     unblock (CheckExpr _ _ t)         = unblockedTester t
     unblock (CheckArgs _ _ _ t _ _)   = unblockedTester t  -- The type of the head of the application.
-    unblock (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ _ _ t) = unblockedTester t -- The type of the principal argument
+    unblock (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ _ _ t _) = unblockedTester t -- The type of the principal argument
     unblock (CheckLambda _ _ _ t)     = unblockedTester t
     unblock (DoQuoteTerm _ _ _)       = __IMPOSSIBLE__     -- also quoteTerm problems
 
@@ -444,13 +447,16 @@ postponeTypeCheckingProblem_ p = do
 --   @unblock@.  A new meta is created in the current context that has as
 --   instantiation the postponed type checking problem.  An 'UnBlock' constraint
 --   is added for this meta, which links to this meta.
-postponeTypeCheckingProblem :: TypeCheckingProblem -> TCM Bool -> TCM Term
+postponeTypeCheckingProblem :: TypeCheckingProblem -> Blocker -> TCM Term
+postponeTypeCheckingProblem p unblock | unblock == alwaysUnblock = do
+  reportSDoc "impossible" 2 $ "Postponed without blocker:" <?> prettyTCM p
+  __IMPOSSIBLE__
 postponeTypeCheckingProblem p unblock = do
   i   <- createMetaInfo' DontRunMetaOccursCheck
   tel <- getContextTelescope
   cl  <- buildClosure p
   let t = problemType p
-  m   <- newMeta' (PostponedTypeCheckingProblem cl unblock)
+  m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   Instantiable i normalMetaPriority (idP (size tel))
          $ HasType () CmpLeq $ telePi_ tel t
   inTopContext $ reportSDoc "tc.meta.postponed" 20 $ vcat
@@ -471,14 +477,14 @@ postponeTypeCheckingProblem p unblock = do
   reportSDoc "tc.constr.add" 20 $ "adding constraint" <+> prettyTCM cmp
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
-  addConstraint alwaysUnblock (UnBlock m) -- TypeCheckingProblems have their own unblocking logic
+  addConstraint unblock (UnBlock m)
   return v
 
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
 problemType :: TypeCheckingProblem -> Type
 problemType (CheckExpr _ _ t         ) = t
 problemType (CheckArgs _ _ _ _ t _ )   = t  -- The target type of the application.
-problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ t _ _ _) = t -- The target type of the application
+problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ t _ _ _ _) = t -- The target type of the application
 problemType (CheckLambda _ _ _ t     ) = t
 problemType (DoQuoteTerm _ _ t)        = t
 
@@ -572,12 +578,9 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
                       noConstraints $ assignTerm' m (telToArgs tel) u  -- should never produce any constraints
               if Records `elem` kinds then
                 expand
-               else if (SingletonRecords `elem` kinds) then do
-                 singleton <- isSingletonRecord r ps
-                 case singleton of
-                   Left x      -> waitFor x
-                   Right False -> dontExpand
-                   Right True  -> expand
+               else if (SingletonRecords `elem` kinds) then
+                catchPatternErr (\x -> waitFor x) $ do
+                 ifM (isSingletonRecord r ps) expand dontExpand
                 else dontExpand
             ) $ {- else -} ifM (andM [ return $ Levels `elem` kinds
                             , typeInType
@@ -593,9 +596,10 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
 -- | Eta expand blocking metavariables of record type, and reduce the
 -- blocked thing.
 
-etaExpandBlocked :: (MonadReduce m, MonadMetaSolver m, Reduce t)
+etaExpandBlocked :: (MonadReduce m, MonadMetaSolver m, IsMeta t, Reduce t)
                  => Blocked t -> m (Blocked t)
 etaExpandBlocked t@NotBlocked{} = return t
+etaExpandBlocked t@(Blocked _ v) | Just{} <- isMeta v = return t
 etaExpandBlocked (Blocked b t)  = do
   reportSDoc "tc.meta.eta" 30 $ "Eta expanding blockers" <+> pretty b
   mapM_ (etaExpandMeta [Records]) $ Set.toList $ allBlockingMetas b
@@ -674,21 +678,54 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- Jesper, 2020-04-22: We do this before any of the other steps
   -- because comparing the sorts might lead to some metavariables
   -- being solved, which can help with pruning (see #4615).
-  let abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
-  whenM ((not . optCompareSorts <$> pragmaOptions) `or2M`
-         (optCumulativity <$> pragmaOptions)) $ piApplyM' abort t args >>= \case
-    El _ (Sort s) -> do
-      cmp <- ifM (not . optCumulativity <$> pragmaOptions) (return CmpEq) $
-        case mvJudgement mvar of
-          HasType{ jComparison = cmp } -> return cmp
-          IsSort{} -> __IMPOSSIBLE__
-      s' <- sortOf v
-      reportSDoc "tc.meta.assign" 40 $
-        "Instantiating sort" <+> prettyTCM s <+>
-        "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
-      traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
-        compareSort cmp s' s
-    _ -> return ()
+  -- Jesper, 2020-08-25: --no-sort-comparison is now the default
+  -- behaviour.
+  --
+  -- Under most circumstances, the conversion checker guarantees that
+  -- the solution for the meta has the correct type, so there is no
+  -- need to check anything. However, there are two circumstances in
+  -- which we do need to check the type of the solution:
+  --
+  -- 1. When comparing two types they are not guaranteed to have the
+  --    same sort.
+  --
+  -- 2. When --cumulativity is enabled the same can happen when
+  --    comparing two terms at a sort type.
+
+  cumulativity <- optCumulativity <$> pragmaOptions
+
+  let checkSolutionSort cmp s v = do
+        s' <- sortOf v
+        reportSDoc "tc.meta.assign" 40 $
+          "Instantiating sort" <+> prettyTCM s <+>
+          "to sort" <+> prettyTCM s' <+> "of solution" <+> prettyTCM v
+        traceCall (CheckMetaSolution (getRange mvar) x (sort s) v) $
+          compareSort cmp s' s
+
+  case (target , mvJudgement mvar) of
+    -- Case 1 (comparing term to meta as types)
+    (AsTypes{}   , HasType _ cmp0 t) -> do
+        let cmp   = if cumulativity then cmp0 else CmpEq
+            abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
+        t' <- piApplyM' abort t args
+        s <- shouldBeSort t'
+        checkSolutionSort cmp s v
+
+    -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
+    (AsTermsOf{} , HasType _ cmp t)
+      | cumulativity -> do
+          let abort = patternViolation $ unblockOnAnyMetaIn t
+          t' <- piApplyM' abort t args
+          TelV tel t'' <- telView t'
+          addContext tel $ ifNotSort t'' (return ()) $ \s -> do
+            let v' = raise (size tel) v `apply` teleArgs tel
+            checkSolutionSort cmp s v'
+
+    (AsTypes{}   , IsSort{}       ) -> return ()
+    (AsTermsOf{} , _              ) -> return ()
+    (AsSizes{}   , _              ) -> return ()  -- TODO: should we do something similar for sizes?
+
+
 
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
@@ -713,19 +750,16 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- @_Y args >= u@.
   subtypingForSizeLt dir x mvar t args v $ \ v -> do
 
-    -- Normalise and eta contract the arguments to the meta. These are
-    -- usually small, and simplifying might let us instantiate more metas.
-
-    -- MOVED TO expandProjectedVars:
-    -- args <- etaContract =<< normalise args
-
-    -- Also, try to expand away projected vars in meta args.
     reportSDoc "tc.meta.assign.proj" 45 $ do
       cxt <- getContextTelescope
       vcat
         [ "context before projection expansion"
         , nest 2 $ inTopContext $ prettyTCM cxt
         ]
+
+    -- Normalise and eta contract the arguments to the meta. These are
+    -- usually small, and simplifying might let us instantiate more metas.
+    -- Also, try to expand away projected vars in meta args.
 
     expandProjectedVars args (v, target) $ \ args (v, target) -> do
 
@@ -835,6 +869,8 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
         case res of
           -- all args are variables
           Right ids -> do
+            reportSDoc "tc.meta.assign" 60 $
+              "inverseSubst returns:" <+> sep (map pretty ids)
             reportSDoc "tc.meta.assign" 50 $
               "inverseSubst returns:" <+> sep (map prettyTCM ids)
             let boundVars = VarSet.fromList $ map fst ids
@@ -848,7 +884,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           Left NeutralArg  -> Just <$> attemptPruning x args fvs
           -- we have a projected variable which could not be eta-expanded away:
           -- same as neutral
-          Left ProjectedVar{} -> Just <$> attemptPruning x args fvs
+          Left ProjVar{}   -> Just <$> attemptPruning x args fvs
 
       case mids of  -- vv Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
         Nothing  -> patternViolation (unblockOnAnyMetaIn v)  -- TODO: more precise
@@ -864,6 +900,22 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
               -- rid of the dependency on the non-linear variable. TODO: be more precise (all metas
               -- using non-linear variables need to be solved).
               Left ()   -> addOrUnblocker (unblockOnAnyMetaIn v) $ attemptPruning x args fvs
+
+          -- Check ids is time respecting.
+          () <- do
+            let idvars = map (mapSnd allFreeVars) ids
+            -- earlierThan α v := v "arrives" before α
+            let earlierThan l j = j > l
+            TelV tel' _ <- telViewUpToPath (length args) t
+            forM_ ids $ \(i,u) -> do
+              d <- lookupBV i
+              when (getLock (getArgInfo d) == IsLock) $ do
+                let us = IntSet.unions $ map snd $ filter (earlierThan i . fst) idvars
+                -- us Earlier than u
+                addContext tel' $ checkEarlierThan u us
+                  `catchError` \case
+                     TypeError{} -> patternViolation (unblockOnMeta x) -- If the earlier check hard-fails we need to
+                     err         -> throwError err                     -- solve this meta in some other way.
 
           let n = length args
           TelV tel' _ <- telViewUpToPath n t
@@ -1007,9 +1059,9 @@ attemptInertRHSImprovement m args v = do
             Level{}    -> return ()
             Lit{}      -> notNeutral v
             DontCare{} -> notNeutral v
-            MetaV{}    -> notNeutral v
             Con{}      -> notNeutral v
             Lam{}      -> notNeutral v
+            MetaV{}    -> __IMPOSSIBLE__
 -- END UNUSED -}
 
 -- | @assignMeta m x t ids u@ solves @x ids = u@ for meta @x@ of type @t@,
@@ -1068,11 +1120,8 @@ assignMeta' m x t n ids v = do
     -- then we give up. (Issue 903)
     when (size tel' < n) $ do
       a <- abortIfBlocked a
-      case unEl a of
-        MetaV x _ -> patternViolation (unblockOnMeta x)
-        _         -> do
-          reportSDoc "impossible" 10 $ "not enough pis, but not blocked?" <?> pretty a
-          __IMPOSSIBLE__   -- If we get here it was _not_ blocked by a meta!
+      reportSDoc "impossible" 10 $ "not enough pis, but not blocked?" <?> pretty a
+      __IMPOSSIBLE__   -- If we get here it was _not_ blocked by a meta!
 
     -- Perform the assignment (and wake constraints).
 
@@ -1222,7 +1271,7 @@ expandProjectedVars
   :: ( Show a, PrettyTCM a, NoProjectedVar a
      -- , Normalise a, TermLike a, Subst Term a
      , ReduceAndEtaContract a
-     , PrettyTCM b, Subst Term b
+     , PrettyTCM b, TermSubst b
      )
   => a  -- ^ Meta variable arguments.
   -> b  -- ^ Right hand side.
@@ -1232,7 +1281,6 @@ expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do
     reportSDoc "tc.meta.assign.proj" 45 $ "meta args: " <+> prettyTCM args
     args <- callByName $ reduceAndEtaContract args
-    -- args <- etaContract =<< normalise args
     reportSDoc "tc.meta.assign.proj" 45 $ "norm args: " <+> prettyTCM args
     reportSDoc "tc.meta.assign.proj" 85 $ "norm args: " <+> text (show args)
     let done = ret args v
@@ -1241,10 +1289,10 @@ expandProjectedVars args v ret = loop (args, v) where
         reportSDoc "tc.meta.assign.proj" 40 $
           "no projected var found in args: " <+> prettyTCM args
         done
-      Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) done loop
+      Left (ProjectedVar i _) -> etaExpandProjectedVar i (args, v) done loop
 
 -- | Eta-expand a de Bruijn index of record type in context and passed term(s).
-etaExpandProjectedVar :: (PrettyTCM a, Subst Term a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
+etaExpandProjectedVar :: (PrettyTCM a, TermSubst a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
 etaExpandProjectedVar i v fail succeed = do
   reportSDoc "tc.meta.assign.proj" 40 $
     "trying to expand projected variable" <+> prettyTCM (var i)
@@ -1257,38 +1305,39 @@ etaExpandProjectedVar i v fail succeed = do
 
 -- | Check whether one of the meta args is a projected var.
 class NoProjectedVar a where
-  noProjectedVar :: a -> Either ProjVarExc ()
+  noProjectedVar :: a -> Either ProjectedVar ()
 
-data ProjVarExc = ProjVarExc Int [(ProjOrigin, QName)]
+  default noProjectedVar
+    :: (NoProjectedVar b, Foldable t, t b ~ a)
+    => a -> Either ProjectedVar ()
+  noProjectedVar = Fold.mapM_ noProjectedVar
+
+instance NoProjectedVar a => NoProjectedVar (Arg a)
+instance NoProjectedVar a => NoProjectedVar [a]
 
 instance NoProjectedVar Term where
-  noProjectedVar t =
-    case t of
+  noProjectedVar = \case
       Var i es
-        | qs@(_:_) <- takeWhileJust id $ map isProjElim es -> Left $ ProjVarExc i qs
+        | qs@(_:_) <- takeWhileJust id $ map isProjElim es
+        -> Left $ ProjectedVar i qs
       -- Andreas, 2015-09-12 Issue #1316:
       -- Also look in inductive record constructors
-      Con (ConHead _ Inductive (_:_)) _ es | Just vs <- allApplyElims es -> noProjectedVar vs
+      Con (ConHead _ IsRecord{} Inductive _) _ es
+        | Just vs <- allApplyElims es
+        -> noProjectedVar vs
       _ -> return ()
 
-instance NoProjectedVar a => NoProjectedVar (Arg a) where
-  noProjectedVar = Fold.mapM_ noProjectedVar
-
-instance NoProjectedVar a => NoProjectedVar [a] where
-  noProjectedVar = Fold.mapM_ noProjectedVar
-
-
 -- | Normalize just far enough to be able to eta-contract maximally.
-class (TermLike a, Subst Term a, Reduce a) => ReduceAndEtaContract a where
+class (TermLike a, TermSubst a, Reduce a) => ReduceAndEtaContract a where
   reduceAndEtaContract :: a -> TCM a
 
   default reduceAndEtaContract
-    :: (Traversable f, TermLike b, Subst Term b, Reduce b, ReduceAndEtaContract b, f b ~ a)
+    :: (Traversable f, TermLike b, Subst b, Reduce b, ReduceAndEtaContract b, f b ~ a)
     => a -> TCM a
   reduceAndEtaContract = Trav.mapM reduceAndEtaContract
 
-instance ReduceAndEtaContract a => ReduceAndEtaContract [a] where
-instance ReduceAndEtaContract a => ReduceAndEtaContract (Arg a) where
+instance ReduceAndEtaContract a => ReduceAndEtaContract [a]
+instance ReduceAndEtaContract a => ReduceAndEtaContract (Arg a)
 
 instance ReduceAndEtaContract Term where
   reduceAndEtaContract u = do
@@ -1370,7 +1419,7 @@ checkLinearity ids0 = do
     makeLinear []            = __IMPOSSIBLE__
     makeLinear grp@[_]       = return grp
     makeLinear (p@(i,t) : _) =
-      ifM ((Right True ==) <$> do lift . isSingletonTypeModuloRelevance =<< typeOfBV i)
+      ifM ((Right True ==) <$> do lift . runBlocked . isSingletonTypeModuloRelevance =<< typeOfBV i)
         (return [p])
         (throwError ())
 
@@ -1381,7 +1430,7 @@ type Res = [(Arg Nat, Term)]
 data InvertExcept
   = CantInvert                -- ^ Cannot recover.
   | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
-  | ProjectedVar Int [(ProjOrigin, QName)]  -- ^ Try to eta-expand var to remove projs.
+  | ProjVar ProjectedVar      -- ^ Try to eta-expand var to remove projs.
 
 -- | Check that arguments @args@ to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf and eta-reduced.
@@ -1417,7 +1466,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
         -- π i := x  try to eta-expand projection π away!
         Var i es | Just qs <- mapM isProjElim es ->
-          throwError $ ProjectedVar i qs
+          throwError $ ProjVar $ ProjectedVar i qs
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         -- Andreas, 2013-09-17 but only if constructor is fully applied
@@ -1442,6 +1491,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                          }
                        , argInfoOrigin   = min (getOrigin info) (getOrigin info')
                        , argInfoFreeVariables = unknownFreeVariables
+                       , argInfoAnnotation    = argInfoAnnotation info'
                        }
                     vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
                 res <- loop $ zipWith aux vs fs

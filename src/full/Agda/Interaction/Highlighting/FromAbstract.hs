@@ -2,8 +2,6 @@
 --
 -- Implements one big fold over abstract syntax.
 
-{-# LANGUAGE TypeFamilies #-}  -- for type equality
-
 -- {-# OPTIONS_GHC -fwarn-unused-imports #-}  -- Data.Semigroup is redundant in later GHC versions
 {-# OPTIONS_GHC -fwarn-unused-binds   #-}
 
@@ -186,6 +184,9 @@ instance (Hilite a, Hilite b) => Hilite (a, b) where
 -- | getModuleInfo         | ModuleInfo                  | asName, (range of as,to)
 -- | getQuantityAttr       | Common.Quantity             | Symbol (if range)
 
+instance Hilite A.RecordDirectives where
+  hilite (RecordDirectives _ _ _ c) = hilite c
+
 instance Hilite A.Declaration where
   hilite = \case
       A.Axiom _ax _di ai _occ x e            -> hl ai <> hl x <> hl e
@@ -201,7 +202,7 @@ instance Hilite A.Declaration where
       A.DataSig _di x tel e                  -> hl x <> hl tel <> hl e
       A.DataDef _di x _uc pars cs            -> hl x <> hl pars <> hl cs
       A.RecSig _di x tel e                   -> hl x <> hl tel <> hl e
-      A.RecDef _di x _uc _ind _eta _pat y bs e ds -> hl x <> hl y <> hl bs <> hl e <> hl ds
+      A.RecDef _di x _uc dir bs e ds         -> hl x <> hl dir <> hl bs <> hl e <> hl ds
       A.PatternSynDef x xs p                 -> hl x <> hl xs <> hl p
       A.UnquoteDecl _mi _di xs e             -> hl xs <> hl e
       A.UnquoteDef _di xs e                  -> hl xs <> hl e
@@ -375,7 +376,7 @@ instance Hilite a => Hilite (Arg a) where
   hilite (Arg ai e) = hilite ai <> hilite e
 
 instance Hilite ArgInfo where
-  hilite (ArgInfo _hiding modality _origin _fv) = hilite modality
+  hilite (ArgInfo _hiding modality _origin _fv _a) = hilite modality
 
 instance Hilite Modality where
   hilite (Modality _relevance quantity _cohesion) = hilite quantity
@@ -394,7 +395,8 @@ instance Hilite ModuleInfo where
     hiliteAsName :: C.Name -> Hiliter
     hiliteAsName n = hiliteCName [] n noRange Nothing $ nameAsp Module
 
-instance (Hilite m, Hilite n) => Hilite (ImportDirective' m n) where
+instance (Hilite m, Hilite n, Hilite (RenamingTo m), Hilite (RenamingTo n))
+       => Hilite (ImportDirective' m n) where
   hilite (ImportDirective _r using hiding renaming _ropen) =
     hilite using <> hilite hiding <> hilite renaming
 
@@ -403,13 +405,14 @@ instance (Hilite m, Hilite n) => Hilite (Using' m n) where
     UseEverything -> mempty
     Using using   -> hilite using
 
-instance (Hilite m, Hilite n) => Hilite (Renaming' m n) where
+instance (Hilite m, Hilite n, Hilite (RenamingTo m), Hilite (RenamingTo n))
+       => Hilite (Renaming' m n) where
   hilite (Renaming from to _fixity rangeKwTo)
     =  hilite from
     <> singleAspect Symbol rangeKwTo
          -- Currently, the "to" is already highlited by rAsTo above.
          -- TODO: remove the "to" ranges from rAsTo.
-    <> hilite to
+    <> hilite (RenamingTo to)
 
 instance (Hilite m, Hilite n) => Hilite (ImportedName' m n) where
   hilite = \case
@@ -450,6 +453,29 @@ instance Hilite A.ModuleName where
           Map.lookup f modMap
             == Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
         [] -> False
+
+  -- Andreas, 2020-09-29, issue #4952.
+-- The target of a @renaming@ clause needs to be highlighted in a special way.
+newtype RenamingTo a = RenamingTo a
+
+instance Hilite (RenamingTo A.QName) where
+  -- Andreas, 2020-09-29, issue #4952.
+  -- Do not include the bindingSite, because the HTML backed turns it into garbage.
+  hilite (RenamingTo q) = do
+    kind <- asks hleNameKinds <&> ($ q)
+    hiliteAName q False $ nameAsp' kind
+
+instance Hilite (RenamingTo A.ModuleName) where
+  -- Andreas, 2020-09-29, issue #4952.
+  -- Do not include the bindingSite, because the HTML backed turns it into garbage.
+  hilite (RenamingTo (A.MName ns)) = flip foldMap ns $ \ n ->
+    hiliteCName [] (A.nameConcrete n) noRange Nothing $ nameAsp Module
+
+instance (Hilite (RenamingTo m), Hilite (RenamingTo n))
+       => Hilite (RenamingTo (ImportedName' m n)) where
+  hilite (RenamingTo x) = case x of
+    ImportedModule m -> hilite (RenamingTo m)
+    ImportedName   n -> hilite (RenamingTo n)
 
 hiliteQName
   :: Maybe NameKind   -- ^ Is 'NameKind' already known from the context?

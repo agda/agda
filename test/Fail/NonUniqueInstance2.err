@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument (blocked on any())
+  Resolve instance argument
     _9 : (m₁ n₁ : Nat) ⦃ _ : suc m₁ < suc n₁ ⦄ → m₁ < n₁
   Candidates
     _ : m < n

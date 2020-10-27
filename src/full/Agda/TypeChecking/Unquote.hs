@@ -11,6 +11,8 @@ import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Word
@@ -32,6 +34,7 @@ import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -50,7 +53,6 @@ import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
-import Agda.Utils.String ( Str(Str), unStr )
 import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Utils.Impossible
@@ -180,7 +182,7 @@ instance Unquote ArgInfo where
       Con c _ es | Just [h,r] <- allApplyElims es ->
         choice
           [(c `isCon` primArgArgInfo,
-              ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected <*> pure unknownFreeVariables)]
+              ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected <*> pure unknownFreeVariables <*> pure defaultAnnotation)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "arg info" t
@@ -545,7 +547,10 @@ evalTCM v = do
       choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v)) ]
+             , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMOnlyReduceDefs, tcOnlyReduceDefs (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMDontReduceDefs, tcDontReduceDefs (unElim u) (unElim v))
+             ]
              failEval
     I.Def f [_, _, _, _, m, k] ->
       choice [ (f `isDef` primAgdaTCMBind, tcBind (unElim m) (unElim k)) ]
@@ -562,7 +567,7 @@ evalTCM v = do
       if norm then normalise v else instantiateFull v
 
     mkT l a = El s a
-      where s = Type $ Max 0 [Plus 0 $ UnreducedLevel l]
+      where s = Type $ atomicLevel l
 
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
@@ -573,6 +578,15 @@ evalTCM v = do
     tcWithNormalisation b m = do
       v <- unquote b
       liftU1 (locallyTC eUnquoteNormalise $ const v) (evalTCM m)
+
+    tcOnlyReduceDefs = tcDoReduceDefs OnlyReduceDefs
+    tcDontReduceDefs = tcDoReduceDefs DontReduceDefs
+
+    tcDoReduceDefs :: (Set QName -> ReduceDefs) -> Term -> Term -> UnquoteM Term
+    tcDoReduceDefs reduceDefs v m = do
+      qs <- unquote v
+      let defs = reduceDefs $ Set.fromList qs
+      liftU1 (locallyTC eReduceDefs (<> defs)) (evalTCM m)
 
     uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
     uqFun1 fun a = do
@@ -608,8 +622,8 @@ evalTCM v = do
 
     tcUnify :: R.Term -> R.Term -> TCM Term
     tcUnify u v = do
-      (u, a) <- inferExpr        =<< toAbstract_ u
-      v      <- flip checkExpr a =<< toAbstract_ v
+      (u, a) <- locallyReduceAllDefs $ inferExpr        =<< toAbstract_ u
+      v      <- locallyReduceAllDefs $ flip checkExpr a =<< toAbstract_ v
       equalTerm a u v
       primUnitUnit
 
@@ -645,7 +659,7 @@ evalTCM v = do
 
     tcCheckType :: R.Term -> R.Type -> TCM Term
     tcCheckType v a = do
-      a <- isType_ =<< toAbstract_ a
+      a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
       e <- toAbstract_ v
       v <- checkExpr e a
       quoteTerm =<< process v
@@ -660,12 +674,12 @@ evalTCM v = do
 
     tcNormalise :: R.Term -> TCM Term
     tcNormalise v = do
-      (v, _) <- inferExpr =<< toAbstract_ v
+      (v, _) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
       quoteTerm =<< normalise v
 
     tcReduce :: R.Term -> TCM Term
     tcReduce v = do
-      (v, _) <- inferExpr =<< toAbstract_ v
+      (v, _) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
       quoteTerm =<< reduce =<< instantiateFull v
 
     tcGetContext :: UnquoteM Term
@@ -676,13 +690,18 @@ evalTCM v = do
 
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt a m = do
-      a <- liftTCM $ traverse (isType_ <=< toAbstract_) a
-      liftU1 (addContext (domFromArg a :: Dom Type)) m
+      a <- locallyReduceAllDefs $ liftTCM $ traverse (isType_ <=< toAbstract_) a
+      liftU1 (addContext ("x" :: String, domFromArg a :: Dom Type)) m
 
     tcExtendContext :: Term -> Term -> UnquoteM Term
     tcExtendContext a m = do
       a <- unquote a
-      strengthen __UNREACHABLE__ <$> extendCxt a (evalTCM $ raise 1 m)
+      fmap (strengthen __IMPOSSIBLE__) $ extendCxt a $ do
+        v <- evalTCM $ raise 1 m
+        when (freeIn 0 v) $ liftTCM $ genericDocError =<<
+          hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
+            <?> prettyTCM v
+        return v
 
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do
@@ -725,7 +744,7 @@ evalTCM v = do
           [ "declare" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyR a
           ]
-        a <- isType_ =<< toAbstract_ a
+        a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
         addConstant x $ defaultDefn i x a emptyFunction
@@ -746,7 +765,7 @@ evalTCM v = do
           [ "declare Postulate" <+> prettyTCM x <+> ":"
           , nest 2 $ prettyR a
           ]
-        a <- isType_ =<< toAbstract_ a
+        a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
         addConstant x $ defaultDefn i x a Axiom
@@ -762,7 +781,7 @@ evalTCM v = do
       let accessDontCare = __IMPOSSIBLE__  -- or ConcreteDef, value not looked at
       ac <- asksTC (^. lensIsAbstract)     -- Issue #4012, respect AbstractMode
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' accessDontCare ac noRange
-      checkFunDef NotDelayed i x cs
+      locallyReduceAllDefs $ checkFunDef NotDelayed i x cs
       primUnitUnit
 
     tcRunSpeculative :: Term -> UnquoteM Term

@@ -1,7 +1,6 @@
 -- | Collect statistics.
 
 {-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE TypeFamilies      #-} -- for type equality
 
 module Agda.TypeChecking.Monad.Statistics
     ( MonadStatistics(..), tick, tickN, tickMax, getStatistics, modifyStatistics, printStatistics

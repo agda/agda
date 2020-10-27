@@ -25,6 +25,6 @@ pattern ExtendTel a b <- Het (I.ExtendTel (Het -> a) (Het   -> b))
 {-# COMPLETE EmptyTel, ExtendTel #-}
 #endif
 
-absBody :: (I.Subst I.Term a) => Het s (I.Abs a) -> Het s a
+absBody :: (I.Subst a) => Het s (I.Abs a) -> Het s a
 absBody x = fmap I.absBody x
 

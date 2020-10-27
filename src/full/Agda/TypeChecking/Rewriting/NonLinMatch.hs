@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE UndecidableInstances     #-}
 
 {- |  Non-linear matching of the lhs of a rewrite rule against a
       neutral term.
@@ -23,8 +22,11 @@ module Agda.TypeChecking.Rewriting.NonLinMatch where
 
 import Prelude hiding (null, sequence)
 
+import Control.Applicative (Alternative)
 import Control.Monad.Except
 import Control.Monad.State
+
+import qualified Control.Monad.Fail as Fail
 
 import Data.Maybe
 import Data.IntMap (IntMap)
@@ -63,8 +65,22 @@ import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
+
 -- | Monad for non-linear matching.
-type NLM = ExceptT Blocked_ (StateT NLMState ReduceM)
+newtype NLM a = NLM { unNLM :: ExceptT Blocked_ (StateT NLMState ReduceM) a }
+  deriving ( Functor, Applicative, Monad, Fail.MonadFail
+           , Alternative, MonadPlus
+           , MonadError Blocked_, MonadState NLMState
+           , HasBuiltins, HasConstInfo, HasOptions, ReadTCState
+           , MonadTCEnv, MonadReduce, MonadAddContext, MonadDebug
+           , PureTCM
+           )
+
+instance MonadBlock NLM where
+  patternViolation b = throwError $ Blocked b ()
+  catchPatternErr h f = catchError f $ \case
+    Blocked b _      -> h b
+    err@NotBlocked{} -> throwError err
 
 data NLMState = NLMState
   { _nlmSub   :: Sub
@@ -83,7 +99,7 @@ nlmEqs f s = f (_nlmEqs s) <&> \x -> s {_nlmEqs = x}
 
 runNLM :: (MonadReduce m) => NLM () -> m (Either Blocked_ NLMState)
 runNLM nlm = do
-  (ok,out) <- liftReduce $ runStateT (runExceptT nlm) empty
+  (ok,out) <- liftReduce $ runStateT (runExceptT $ unNLM nlm) empty
   case ok of
     Left block -> return $ Left block
     Right _    -> return $ Right out
@@ -197,6 +213,7 @@ instance Match () NLPSort Sort where
       (PInf fp np , Inf f n)
         | fp == f, np == n   -> yes
       (PSizeUniv , SizeUniv) -> yes
+      (PLockUniv , LockUniv) -> yes
 
       -- blocked cases
       (_ , UnivSort{}) -> matchingBlocked b
@@ -223,7 +240,7 @@ instance Match Type NLPat Term where
         prettyTerm = withShowAllArguments $ addContext k $ prettyTCM v
         prettyType = withShowAllArguments $ addContext k $ prettyTCM t
     etaRecord <- addContext k $ isEtaRecordType t
-    prop <- addContext k $ isPropM t
+    prop <- fromRight __IMPOSSIBLE__ <.> runBlocked . addContext k $ isPropM t
     let r = if prop then Irrelevant else r0
     traceSDoc "rewriting.match" 30 (sep
       [ "matching pattern " <+> prettyPat
@@ -385,7 +402,7 @@ makeSubstitution gamma sub =
                 Just (_         , v) -> Just v
                 Nothing              -> Nothing
 
-checkPostponedEquations :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, MonadDebug m)
+checkPostponedEquations :: PureTCM m
                         => Substitution -> PostponedEquations -> m (Maybe Blocked_)
 checkPostponedEquations sub eqs = forM' eqs $
   \ (PostponedEquation k a lhs rhs) -> do
@@ -396,7 +413,7 @@ checkPostponedEquations sub eqs = forM' eqs $
       addContext k $ equal a lhs' rhs
 
 -- main function
-nonLinMatch :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m, MonadDebug m, Match t a b)
+nonLinMatch :: (PureTCM m, Match t a b)
             => Telescope -> t -> a -> b -> m (Either Blocked_ Substitution)
 nonLinMatch gamma t p v = do
   let no msg b = traceSDoc "rewriting.match" 10 (sep
@@ -414,15 +431,12 @@ nonLinMatch gamma t p v = do
 -- | Typed βη-equality, also handles empty record types.
 --   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
 --   (where b contains information about possible metas blocking the comparison)
-equal :: (MonadReduce m, MonadAddContext m, HasConstInfo m, HasBuiltins m)
-      => Type -> Term -> Term -> m (Maybe Blocked_)
-equal a u v = pureEqualTerm a u v >>= \case
-  True -> return Nothing
-  False -> traceSDoc "rewriting.match" 10 (sep
+equal :: PureTCM m => Type -> Term -> Term -> m (Maybe Blocked_)
+equal a u v = runBlocked (pureEqualTerm a u v) >>= \case
+  Left b      -> return $ Just $ Blocked b ()
+  Right True  -> return Nothing
+  Right False -> traceSDoc "rewriting.match" 10 (sep
       [ "mismatch between " <+> prettyTCM u
       , " and " <+> prettyTCM v
       ]) $ do
-    return $ Just block
-
-  where
-    block = blockedOn (unblockOnAllMetasIn (u, v)) ()
+    return $ Just $ NotBlocked ReallyNotBlocked ()

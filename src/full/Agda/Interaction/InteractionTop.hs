@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -43,6 +44,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Parser
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Info (mkDefInfo)
@@ -260,14 +262,16 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         -- TODO: make a better predicate for this
         noError <- lift $ null <$> prettyError e
 
-        x <- lift $ optShowImplicit <$> useTC stPragmaOptions
+        showImpl <- lift $ optShowImplicit <$> useTC stPragmaOptions
+        showIrr <- lift $ optShowIrrelevant <$> useTC stPragmaOptions
         unless noError $ mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error $ Info_GenericError e ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info KeepHighlighting
                                     method modFile ] ++
             [ Resp_Status $ Status { sChecked = False
-                                   , sShowImplicitArguments = x
+                                   , sShowImplicitArguments = showImpl
+                                   , sShowIrrelevantArguments = showIrr
                                    } ]
 
 -- | Run an 'IOTCM' value, catch the exceptions, emit output
@@ -463,6 +467,8 @@ updateInteractionPointsAfter Cmd_tokenHighlighting{}             = False
 updateInteractionPointsAfter Cmd_highlight{}                     = True
 updateInteractionPointsAfter ShowImplicitArgs{}                  = False
 updateInteractionPointsAfter ToggleImplicitArgs{}                = False
+updateInteractionPointsAfter ShowIrrelevantArgs{}                = False
+updateInteractionPointsAfter ToggleIrrelevantArgs{}              = False
 updateInteractionPointsAfter Cmd_give{}                          = True
 updateInteractionPointsAfter Cmd_refine{}                        = True
 updateInteractionPointsAfter Cmd_intro{}                         = True
@@ -569,6 +575,19 @@ interpret ToggleImplicitArgs = do
   setCommandLineOpts $
     opts { optPragmaOptions =
              ps { optShowImplicit = not $ optShowImplicit ps } }
+
+interpret (ShowIrrelevantArgs showIrr) = do
+  opts <- lift commandLineOptions
+  setCommandLineOpts $
+    opts { optPragmaOptions =
+             (optPragmaOptions opts) { optShowIrrelevant = showIrr } }
+
+interpret ToggleIrrelevantArgs = do
+  opts <- lift commandLineOptions
+  let ps = optPragmaOptions opts
+  setCommandLineOpts $
+    opts { optPragmaOptions =
+             ps { optShowIrrelevant = not $ optShowIrrelevant ps } }
 
 interpret (Cmd_load_highlighting_info source) = do
   l <- asksTC envHighlightingLevel
@@ -803,14 +822,13 @@ interpret (Cmd_make_case ii rng s) = do
     -- very dirty hack, string manipulation by dropping the function name
     -- and replacing the last " = " with " -> ". It's important not to replace
     -- the equal sign in named implicit with an arrow!
-    extlam_dropName :: Bool -> CaseContext -> String -> String
+    extlam_dropName :: UnicodeOrAscii -> CaseContext -> String -> String
     extlam_dropName _ Nothing x = x
-    extlam_dropName unicode Just{}  x
+    extlam_dropName glyphMode Just{}  x
         = unwords $ reverse $ replEquals $ reverse $ drop 1 $ words x
       where
-        replEquals ("=" : ws)
-           | unicode   = "→" : ws
-           | otherwise = "->" : ws
+        arrow = render $ _arrow $ specialCharactersForGlyphs glyphMode
+        replEquals ("=" : ws) = arrow : ws
         replEquals (w   : ws) = w : replEquals ws
         replEquals []         = []
 
@@ -1136,6 +1154,7 @@ status :: CommandM Status
 status = do
   cf       <- gets theCurrentFile
   showImpl <- lift showImplicitArguments
+  showIrr  <- lift showIrrelevantArguments
 
   -- Check if the file was successfully type checked, and has not
   -- changed since. Note: This code does not check if any dependencies
@@ -1154,7 +1173,9 @@ status = do
         else
             return False
 
-  return $ Status { sShowImplicitArguments = showImpl, sChecked = checked }
+  return $ Status { sShowImplicitArguments   = showImpl,
+                    sShowIrrelevantArguments = showIrr,
+                    sChecked                 = checked }
 
 -- | Displays or updates status information.
 --
