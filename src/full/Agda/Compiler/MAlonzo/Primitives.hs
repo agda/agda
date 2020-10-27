@@ -2,6 +2,7 @@
 module Agda.Compiler.MAlonzo.Primitives where
 
 import Control.Arrow ( second )
+import Control.Monad.Trans.Maybe ( MaybeT(MaybeT, runMaybeT) )
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -29,10 +30,17 @@ import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Utils.Impossible
 
+newtype MainFunctionDef = MainFunctionDef Definition
+
+data CheckedMainFunctionDef = CheckedMainFunctionDef
+  { checkedMainDef :: MainFunctionDef
+  , checkedMainDecl :: HS.Decl
+  }
+
 -- Andreas, 2019-04-29, issue #3731: exclude certain kinds of names, like constructors.
 -- TODO: Also only consider top-level definition (not buried inside a module).
-isMainFunction :: Definition -> Bool
-isMainFunction d = case (theDef d) of
+asMainFunctionDef :: Definition -> Maybe MainFunctionDef
+asMainFunctionDef d = case (theDef d) of
     Axiom{}                             -> perhaps
     Function{ funProjection = Nothing } -> perhaps
     Function{ funProjection = Just{}  } -> no
@@ -45,8 +53,10 @@ isMainFunction d = case (theDef d) of
     Primitive{}                         -> no
     PrimitiveSort{}                     -> no
   where
-  perhaps = "main" == prettyShow (nameConcrete . qnameName . defName $ d)  -- ignores the qualification!?
-  no      = False
+  isNamedMain = "main" == prettyShow (nameConcrete . qnameName . defName $ d)  -- ignores the qualification!?
+  perhaps | isNamedMain = Just $ MainFunctionDef d
+          | otherwise   = no
+  no                    = Nothing
 
 -- | Check for "main" function, but only in the main module.
 hasMainFunction
@@ -55,21 +65,27 @@ hasMainFunction
   -> IsMain    -- ^ Did we find a "main" function?
 hasMainFunction NotMain _ = NotMain
 hasMainFunction IsMain i
-  | List.any isMainFunction defs = IsMain
+  | (not . null . mainFunctionDefs) i = IsMain
   | otherwise = NotMain
+
+mainFunctionDefs :: Interface -> [MainFunctionDef]
+mainFunctionDefs i = catMaybes $ asMainFunctionDef <$> defs
   where
     defs = HMap.elems $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: IsMain -> Definition -> TCM (Maybe HS.Decl)
+checkTypeOfMain :: IsMain -> Definition -> TCM (Maybe CheckedMainFunctionDef)
 checkTypeOfMain NotMain def = return Nothing
-checkTypeOfMain  IsMain def
-  | not (isMainFunction def) = return Nothing
-  | otherwise = do
+checkTypeOfMain  IsMain def = runMaybeT $ do
+  mainDef <- MaybeT . pure . asMainFunctionDef $ def
+  liftTCM $ checkTypeOfMain' mainDef
+
+checkTypeOfMain' :: MainFunctionDef -> TCM CheckedMainFunctionDef
+checkTypeOfMain' m@(MainFunctionDef def) = CheckedMainFunctionDef m <$> do
     Def io _ <- primIO
     ty <- reduce $ defType def
     case unEl ty of
-      Def d _ | d == io -> return $ Just mainAlias
+      Def d _ | d == io -> return mainAlias
       _                 -> do
         err <- fsep $
           pwords "The type of main should be" ++

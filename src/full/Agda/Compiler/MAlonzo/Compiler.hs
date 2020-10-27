@@ -362,8 +362,9 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   mmaybe <- getBuiltinName builtinMaybe
   minf   <- getBuiltinName builtinInf
   mflat  <- getBuiltinName builtinFlat
+  typeCheckedMainDef <- checkTypeOfMain isMain def
+  let mainDecl = maybeToList $ checkedMainDecl <$> typeCheckedMainDef
   let retDecls ds = return (mempty, ds)
-  mainDecl <- maybeToList <$> checkTypeOfMain isMain def
   second ((mainDecl ++) . infodecl q) <$>
     case d of
 
