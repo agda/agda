@@ -43,6 +43,7 @@ tested-with:        GHC == 8.0.2
 
 extra-source-files: CHANGELOG.md
                     README.md
+                    doc/release-notes/2.6.1.1.md
                     doc/release-notes/2.6.1.md
                     doc/release-notes/2.6.0.1.md
                     doc/release-notes/2.6.0.md
