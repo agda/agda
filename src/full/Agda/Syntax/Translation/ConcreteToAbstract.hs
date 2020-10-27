@@ -80,7 +80,7 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
 import qualified Agda.Utils.AssocList as AssocList
-import Agda.Utils.CallStack ( HasCallStack )
+import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -216,6 +216,7 @@ recordConstructorType decls =
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
+        C.NiceLoneConstructor{} -> failure
         C.NiceMutual{}        -> failure
         -- TODO: some of these cases might be __IMPOSSIBLE__
         C.Axiom{}             -> failure
@@ -2055,6 +2056,10 @@ instance ToAbstract NiceDeclaration where
       return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
       where unVarName (VarName a _) = return a
             unVarName _ = typeError $ UnusedVariableInPatternSynonym
+
+    d@NiceLoneConstructor{} -> withCurrentCallStack $ \ stk -> do
+      warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
+      pure []
 
     where
       -- checking postulate or type sig. without checking safe flag
