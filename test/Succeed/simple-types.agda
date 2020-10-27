@@ -11,16 +11,16 @@ plus (S m) n = S (plus m n)
 open import Agda.Primitive
 
 infixr 3 _,_
-data Pair {a} {b} (A : Set a) (B : Set b)
+data _×_ {a} {b} (A : Set a) (B : Set b)
   : Set (a ⊔ b)
   = _,_ A B
 
-swap : {A B : Set} → Pair A B → Pair B A
+swap : {A B : Set} → A × B → B × A
 swap (A , B) = B , A
 
 data FTree {a : Level} (A : Set a) : Set a
   = FLeaf A
-  | FNode (FTree (Pair A A))
+  | FNode (FTree (A × A))
 
 ftree : FTree Nat
 ftree = FNode (FNode (FLeaf ((0 , 1) , 2 , 3)))
