@@ -165,15 +165,23 @@ ghcPostModule
   -> [(UsesFloat, [HS.Decl])]   -- ^ Compiled module content.
   -> TCM IsMain    -- ^ Could we confirm the existence of a main function?
 ghcPostModule _ _ isMain _ defs0 = do
-  let (impFloat, defs) = (mconcat *** concat) $ unzip defs0
-  m      <- curHsMod
-  imps   <- (mazRTEFloatImport impFloat ++) <$> imports
+  builtinThings <- getsTC stBuiltinThings
+  usedModules <- useTC stImportedModules
+  defs <- HMap.elems <$> curDefs
+
+  let (usedFloat, decls) = (mconcat *** concat) $ unzip defs0
+
+  let imps = mazRTEFloatImport usedFloat ++ imports builtinThings usedModules defs
+
+  m <- curHsMod
+
   -- Get content of FOREIGN pragmas.
   (headerPragmas, hsImps, code) <- foreignHaskell
   writeModule $ HS.Module m
     (map HS.OtherPragma headerPragmas)
     imps
-    (map fakeDecl (hsImps ++ code) ++ defs)
+    (map fakeDecl (hsImps ++ code) ++ decls)
+
   hasMainFunction isMain <$> curIF
 
 ghcCompileDef :: GHCOptions -> GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl])
@@ -198,15 +206,8 @@ ghcMayEraseType q = getHaskellPragma q <&> \case
 --   accumulating in it what are acutally used in Misc.xqual
 --------------------------------------------------
 
-imports :: ReadTCState m => m [HS.ImportDecl]
-imports = do
-  builtinThings <- getsTC stBuiltinThings
-  usedModules <- useTC stImportedModules
-  defs <- HMap.elems <$> curDefs
-  return $ imports' builtinThings usedModules defs
-
-imports' :: BuiltinThings PrimFun -> Set ModuleName -> [Definition] -> [HS.ImportDecl]
-imports' builtinThings usedModules defs = hsImps ++ imps where
+imports :: BuiltinThings PrimFun -> Set ModuleName -> [Definition] -> [HS.ImportDecl]
+imports builtinThings usedModules defs = hsImps ++ imps where
   hsImps :: [HS.ImportDecl]
   hsImps = [unqualRTE, decl mazRTE]
 
