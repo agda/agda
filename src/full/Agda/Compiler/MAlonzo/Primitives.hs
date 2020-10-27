@@ -29,8 +29,8 @@ import Agda.Utils.Impossible
 
 -- Andreas, 2019-04-29, issue #3731: exclude certain kinds of names, like constructors.
 -- TODO: Also only consider top-level definition (not buried inside a module).
-isMainFunction :: QName -> Definition -> Bool
-isMainFunction q = theDef <&> \case
+isMainFunction :: Definition -> Bool
+isMainFunction d = case (theDef d) of
     Axiom{}                             -> perhaps
     Function{ funProjection = Nothing } -> perhaps
     Function{ funProjection = Just{}  } -> no
@@ -43,7 +43,7 @@ isMainFunction q = theDef <&> \case
     Primitive{}                         -> no
     PrimitiveSort{}                     -> no
   where
-  perhaps = "main" == prettyShow (nameConcrete $ qnameName q)  -- ignores the qualification!?
+  perhaps = "main" == prettyShow (nameConcrete . qnameName . defName $ d)  -- ignores the qualification!?
   no      = False
 
 -- | Check for "main" function, but only in the main module.
@@ -53,16 +53,16 @@ hasMainFunction
   -> IsMain    -- ^ Did we find a "main" function?
 hasMainFunction NotMain _ = NotMain
 hasMainFunction IsMain i
-  | List.any (uncurry isMainFunction) names = IsMain
+  | List.any isMainFunction defs = IsMain
   | otherwise = NotMain
   where
-    names = HMap.toList $ iSignature i ^. sigDefinitions
+    defs = HMap.elems $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: IsMain -> QName -> Definition -> TCM [HS.Decl]
-checkTypeOfMain NotMain q def = return []
-checkTypeOfMain  IsMain q def
-  | not (isMainFunction q def) = return []
+checkTypeOfMain :: IsMain -> Definition -> TCM [HS.Decl]
+checkTypeOfMain NotMain def = return []
+checkTypeOfMain  IsMain def
+  | not (isMainFunction def) = return []
   | otherwise = do
     Def io _ <- primIO
     ty <- reduce $ defType def
@@ -76,7 +76,7 @@ checkTypeOfMain  IsMain q def
   where
     mainAlias = HS.FunBind [HS.Match mainLHS [] mainRHS emptyBinds ]
     mainLHS   = HS.Ident "main"
-    mainRHS   = HS.UnGuardedRhs $ HS.App mazCoerce (HS.Var $ HS.UnQual $ unqhname "d" q)
+    mainRHS   = HS.UnGuardedRhs $ HS.App mazCoerce (HS.Var $ HS.UnQual $ unqhname "d" $ defName def)
 
 treelessPrimName :: TPrim -> String
 treelessPrimName p =

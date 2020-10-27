@@ -269,7 +269,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   minf   <- getBuiltinName builtinInf
   mflat  <- getBuiltinName builtinFlat
   let retDecls ds = return (mempty, ds)
-  main <- checkTypeOfMain isMain q def
+  main <- checkTypeOfMain isMain def
   second ((main ++) . infodecl q) <$>
     case d of
 
