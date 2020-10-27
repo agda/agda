@@ -125,10 +125,10 @@ jobs:
       matrix:
         # We can not use 8.10.2 because #4965.
         ghc-ver: [8.10.1]
-        icu-ver: [67.1-1]
+        icu-ver: [65.1-1]
 
     env:
-      ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.zst"
+      ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
 
     steps:
     - uses: actions/checkout@v2.3.2
