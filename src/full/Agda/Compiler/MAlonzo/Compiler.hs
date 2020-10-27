@@ -144,7 +144,7 @@ ghcPreModule
                  -- ^ Could we confirm the existence of a main function?
 ghcPreModule _ isMain m ifile = ifM uptodate noComp yesComp
   where
-    uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
+    uptodate = liftIO =<< isNewerThan <$> curOutFile <*> pure ifile
 
     noComp = do
       reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . prettyShow . A.mnameToConcrete =<< curMName
@@ -152,7 +152,7 @@ ghcPreModule _ isMain m ifile = ifM uptodate noComp yesComp
 
     yesComp = do
       m   <- prettyShow . A.mnameToConcrete <$> curMName
-      out <- outFile_
+      out <- curOutFile
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
       stImportedModules `setTCLens` Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
       return (Recompile ())
@@ -851,7 +851,7 @@ copyRTEModules = do
 writeModule :: MonadGHCIO m => HS.Module -> m ()
 writeModule (HS.Module m ps imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
-  out <- outFile m
+  out <- snd <$> outFileAndDir m
   liftIO $ UTF8.writeFile out $ (++ "\n") $ prettyPrint $
     HS.Module m (p : ps) imp ds
   where
@@ -866,8 +866,8 @@ writeModule (HS.Module m ps imp ds) = do
         , "OverloadedStrings"
         ]
 
-outFile' :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
-outFile' m = do
+outFileAndDir :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
+outFileAndDir m = do
   mdir <- compileDir
   let (fdir, fn) = splitFileName $ repldot pathSeparator $
                    prettyPrint m
@@ -878,11 +878,11 @@ outFile' m = do
   where
   repldot c = List.map $ \ c' -> if c' == '.' then c else c'
 
-outFile :: MonadGHCIO m => HS.ModuleName -> m FilePath
-outFile m = snd <$> outFile' m
+curOutFileAndDir :: (MonadGHCIO m, ReadTCState m) => m (FilePath, FilePath)
+curOutFileAndDir = outFileAndDir =<< curHsMod
 
-outFile_ :: (MonadGHCIO m, ReadTCState m) => m FilePath
-outFile_ = outFile =<< curHsMod
+curOutFile :: (MonadGHCIO m, ReadTCState m) => m FilePath
+curOutFile = snd <$> curOutFileAndDir
 
 callGHC :: GHCOptions -> IsMain -> Map ModuleName IsMain -> TCM ()
 callGHC opts modIsMain mods = do
@@ -892,7 +892,7 @@ callGHC opts modIsMain mods = do
   let outputName = case mnameToList agdaMod of
         [] -> __IMPOSSIBLE__
         ms -> last ms
-  (mdir, fp) <- outFile' =<< curHsMod
+  (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 
   let modIsReallyMain = fromMaybe __IMPOSSIBLE__ $ Map.lookup agdaMod mods
