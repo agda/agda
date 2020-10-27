@@ -39,7 +39,7 @@ import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Maybe
+import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM )
 import Agda.Utils.Monad ( ifM, when )
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
@@ -161,14 +161,19 @@ jsPostModule :: JSOptions -> JSModuleEnv -> IsMain -> ModuleName -> [Maybe Expor
 jsPostModule opts _ isMain _ defs = do
   m             <- jsMod <$> curMName
   is            <- map (jsMod . fst) . iImportedModules <$> curIF
-  let es = catMaybes defs
-      mod = Module m is (reorder es) main
+  let mod = Module m is (reorder es) callMain
   writeModule (optJSMinify opts) mod
   return mod
   where
-    main = case isMain of
-      IsMain  -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
-      NotMain -> Nothing
+  es       = catMaybes defs
+  main     = MemberId "main"
+  -- Andreas, 2020-10-27, only add invocation of "main" if such function is defined.
+  -- This allows loading of generated .js files into an interpreter
+  -- even if they do not define "main".
+  hasMain  = isMain == IsMain && any ((singleton main ==) . expName) es
+  callMain :: Maybe Exp
+  callMain = boolToMaybe hasMain $ Apply (Lookup Self main) [Lambda 1 emp]
+
 
 jsCompileDef :: JSOptions -> JSModuleEnv -> IsMain -> Definition -> TCM (Maybe Export)
 jsCompileDef opts kit _isMain def = definition (opts, kit) (defName def, def)
