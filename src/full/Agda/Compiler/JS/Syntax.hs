@@ -10,6 +10,9 @@ import Data.Text (Text)
 
 import Agda.Syntax.Common ( Nat )
 
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import qualified Agda.Utils.List1 as List1
+
 -- An untyped lambda calculus with records,
 -- and a special self-binder for recursive declarations
 
@@ -59,8 +62,10 @@ instance Ord Comment where compare _ _ = EQ
 -- The top-level compilation unit is a module, which names
 -- the GId of its exports, and a list of definitions
 
-data Export = Export { expName :: [MemberId], defn :: Exp }
+data Export = Export { expName :: JSQName, defn :: Exp }
   deriving Show
+
+type JSQName = List1 MemberId
 
 data Module = Module
   { modName :: GlobalId
@@ -76,9 +81,9 @@ data Module = Module
 -- Top-level uses of the form exports.l1....lN.
 
 class Uses a where
-  uses :: a -> Set [MemberId]
+  uses :: a -> Set JSQName
 
-  default uses :: (a ~ t b, Foldable t, Uses b) => a -> Set [MemberId]
+  default uses :: (a ~ t b, Foldable t, Uses b) => a -> Set JSQName
   uses = foldMap uses
 
 instance Uses a => Uses [a]
@@ -97,9 +102,11 @@ instance Uses Exp where
   uses (Object o)     = uses o
   uses (Array es)     = uses es
   uses (Apply e es)   = uses (e, es)
-  uses (Lookup e l)   = uses' e [l] where
+  uses (Lookup e l)   = uses' e (List1.singleton l)
+    where
+      uses' :: Exp -> JSQName -> Set JSQName
       uses' Self         ls = Set.singleton ls
-      uses' (Lookup e l) ls = uses' e (l : ls)
+      uses' (Lookup e l) ls = uses' e (l <| ls)
       uses' e            ls = uses e
   uses (If e f g)     = uses (e, f, g)
   uses (BinOp e op f) = uses (e, f)
