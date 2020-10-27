@@ -1760,5 +1760,5 @@ instance ToConcrete NamedMeta where
 -- Some instances related to heterogeneous types
 
 instance ToConcrete a => ToConcrete (TwinT' a) where
-    type ConOfAbs (TwinT' a) = TwinT' (ConOfAbs a) 
+    type ConOfAbs (TwinT' a) = TwinT' (ConOfAbs a)
     toConcrete = traverse toConcrete
