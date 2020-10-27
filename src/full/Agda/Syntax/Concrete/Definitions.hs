@@ -382,9 +382,19 @@ niceDeclarations fixs ds = do
           (,ds) <$> dataOrRec pc uc NiceDataDef NiceDataSig (niceAxioms DataBlock) r x ((tel,) <$> mt) (Just (tel, cs))
 
         SimpleData r x tel t cs -> do
-          let retType = rawApp (Ident (QName x) :| concatMap dropTypeAndModality tel)
-          let d = Data r x tel t $ List1.toList $ map
-          nice1 (d:ds)
+          -- Grab all of the named (!) parameters of the simple datatype
+          let dfrees = concatMap dropTypeAndModality tel
+          let params = fromMaybe __IMPOSSIBLE__ $ forM dfrees $ \ b -> do
+                narg <- isDomainFree b
+                let name = QName $ boundName $ binderName $ namedThing (unArg narg)
+                pure $ setNamedArg narg (Ident name)
+          -- Manufacture the (uniform) return type for all of the constructors
+          let retType = unAppView (AppView (Ident (QName x)) params)
+          let cons = for (List1.toList cs) $ \ (n, nargs) ->
+                let args = fmap namedThing <$> nargs
+                    ty   = foldr (\ a -> Fun (getRange a) a) retType args
+                in TypeSig defaultArgInfo Nothing n ty
+          nice1 (Data r x tel t cons : ds)
 
         RecordSig r x tel t         -> do
           pc <- use positivityCheckPragma
