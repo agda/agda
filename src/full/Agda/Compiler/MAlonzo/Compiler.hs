@@ -184,8 +184,15 @@ ghcPreCompile flags = do
   return $ GHCCompileEnv ghcOpts
 
 ghcPostCompile :: GHCCompileEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
-ghcPostCompile cenv isMain mods = copyRTEModules >> callGHC opts isMain mods
-  where opts = ghcCompileEnvOpts cenv
+ghcPostCompile _cenv _isMain mods = do
+  -- FIXME: @curMName@ and @curIF@ are evil TCM state, but there does not appear to be
+  --------- another way to retrieve the compilation root ("main" module or interaction focused).
+  rootModuleName <- curMName
+  rootModule <- ifJust (Map.lookup rootModuleName mods) pure
+                $ genericError $ "Module " <> prettyShow rootModuleName <> " was not compiled!"
+  flip runReaderT rootModule $ do
+    copyRTEModules
+    callGHC
 
 --- Module compilation ---
 
@@ -944,9 +951,9 @@ curOutFileAndDir = outFileAndDir =<< curHsMod
 curOutFile :: (MonadGHCIO m, ReadTCState m) => m FilePath
 curOutFile = snd <$> curOutFileAndDir
 
-callGHC :: GHCOptions -> IsMain -> Map ModuleName GHCModule -> TCM ()
-callGHC opts modIsMain mods = do
-  mdir    <- compileDir
+callGHC :: ReaderT GHCModule TCM ()
+callGHC = do
+  opts    <- asks (ghcCompileEnvOpts . ghcModCompileEnv . ghcModEnv)
   hsmod   <- prettyPrint <$> curHsMod
   agdaMod <- curMName
   let outputName = case mnameToList agdaMod of
@@ -955,8 +962,9 @@ callGHC opts modIsMain mods = do
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 
-  let GHCModule _menv modIsReallyMain = fromMaybe __IMPOSSIBLE__ $ Map.lookup agdaMod mods
-      isMain = mappend modIsMain modIsReallyMain  -- both need to be IsMain
+  modIsMain <- asks ((IsMain ==) . ghcModIsMain . ghcModEnv)
+  modHasMainFunc <- asks ((IsMain ==) . ghcModIsMainWithMainFunc)
+  let isMain = modIsMain && modHasMainFunc  -- both need to be IsMain
 
   -- Warn if no main function and not --no-main
   when (modIsMain /= isMain) $
@@ -965,11 +973,11 @@ callGHC opts modIsMain mods = do
 
   let overridableArgs =
         [ "-O"] ++
-        (if isMain == IsMain then ["-o", mdir </> prettyShow (nameConcrete outputName)] else []) ++
+        (if isMain then ["-o", mdir </> prettyShow (nameConcrete outputName)] else []) ++
         [ "-Werror"]
       otherArgs       =
         [ "-i" ++ mdir] ++
-        (if isMain == IsMain then ["-main-is", hsmod] else []) ++
+        (if isMain then ["-main-is", hsmod] else []) ++
         [ fp
         , "--make"
         , "-fwarn-incomplete-patterns"
@@ -983,4 +991,4 @@ callGHC opts modIsMain mods = do
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
   let doCall = optGhcCallGhc opts
-  callCompiler doCall ghcBin args
+  liftTCM $ callCompiler doCall ghcBin args
