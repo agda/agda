@@ -48,6 +48,11 @@ initLast :: List1 a -> ([a], a)
 initLast = List1.init &&& List1.last
   -- traverses twice, but does not create intermediate pairs
 
+-- | Build a list with one element.
+
+singleton :: a -> List1 a
+singleton = (:| [])
+
 -- | Append a list to a non-empty list.
 
 append :: List1 a -> [a] -> List1 a

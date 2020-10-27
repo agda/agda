@@ -34,14 +34,18 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
+
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( headWithDefault )
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad ( ifM, when )
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
+import Agda.Utils.Singleton ( singleton )
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -55,7 +59,9 @@ import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module), Comment(Comment),
-    modName, expName, uses )
+    modName, expName, uses
+  , JSQName
+  )
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
@@ -188,33 +194,40 @@ jsMember n
   | isNoName n = MemberId ("_" ++ show (nameId n))
   | otherwise  = MemberId $ prettyShow n
 
--- Rather annoyingly, the anonymous construtor of a record R in module M
--- is given the name M.recCon, but a named constructor C
--- is given the name M.R.C, sigh. This causes a lot of hoop-jumping
--- in the map from Agda names to JS names, which we patch by renaming
--- anonymous constructors to M.R.record.
-
-global' :: QName -> TCM (Exp,[MemberId])
+global' :: QName -> TCM (Exp, JSQName)
 global' q = do
   i <- iModuleName <$> curIF
   modNm <- topLevelModuleName (qnameModule q)
   let
+    -- Global module prefix
     qms = mnameToList $ qnameModule q
-    nm = map jsMember (drop (length $ mnameToList modNm) qms ++ [qnameName q])
+    -- File-local module prefix
+    localms = drop (length $ mnameToList modNm) qms
+    nm = fmap jsMember $ List1.snoc localms $ qnameName q
   if modNm == i
     then return (Self, nm)
     else return (Global (jsMod modNm), nm)
 
-global :: QName -> TCM (Exp,[MemberId])
+global :: QName -> TCM (Exp, JSQName)
 global q = do
   d <- getConstInfo q
   case d of
     Defn { theDef = Constructor { conData = p } } -> do
-      e <- getConstInfo p
-      case e of
+      getConstInfo p >>= \case
+        -- Andreas, 2020-10-27, comment quotes outdated fact.
+        -- anon. constructors are now M.R.constructor.
+        -- We could simplify/remove the workaround by switching "record"
+        -- to "constructor", but this changes the output of the JS compiler
+        -- maybe in ways that break user's developments
+        -- (if they link to Agda-generated JS).
+        -- -- Rather annoyingly, the anonymous constructor of a record R in module M
+        -- -- is given the name M.recCon, but a named constructor C
+        -- -- is given the name M.R.C, sigh. This causes a lot of hoop-jumping
+        -- -- in the map from Agda names to JS names, which we patch by renaming
+        -- -- anonymous constructors to M.R.record.
         Defn { theDef = Record { recNamedCon = False } } -> do
           (m,ls) <- global' p
-          return (m, ls ++ [MemberId "record"])
+          return (m, ls <> singleton (MemberId "record"))
         _ -> global' (defName d)
     _ -> global' (defName d)
 
@@ -233,7 +246,7 @@ reorder es = datas ++ funs ++ reorder' (Set.fromList $ map expName $ datas ++ fu
     (vs, funs)    = partition isTopLevelValue es
     (datas, vals) = partition isEmptyObject vs
 
-reorder' :: Set [MemberId] -> [Export] -> [Export]
+reorder' :: Set JSQName -> [Export] -> [Export]
 reorder' defs [] = []
 reorder' defs (e : es) =
   let us = uses e `difference` defs
@@ -253,7 +266,7 @@ isEmptyObject (Export _ e) = case e of
   Lambda{} -> True
   _        -> False
 
-insertAfter :: Set [MemberId] -> Export -> [Export] -> [Export]
+insertAfter :: Set JSQName -> Export -> [Export] -> [Export]
 insertAfter us e []                   = [e]
 insertAfter us e (f : fs) | null us   = e : f : fs
 insertAfter us e (f : fs) | otherwise =
@@ -304,7 +317,7 @@ defJSDef def =
   where
     dropEquals = dropWhile $ \ c -> isSpace c || c == '='
 
-definition' :: EnvWithOpts -> QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Export)
+definition' :: EnvWithOpts -> QName -> Definition -> Type -> JSQName -> TCM (Maybe Export)
 definition' kit q d t ls = do
   checkCompilerPragmas q
   case theDef d of
@@ -369,11 +382,12 @@ definition' kit q d t ls = do
       let nargs = np - length (filter id erased)
           args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
       d <- getConstInfo p
+      let l = List1.last ls
       case theDef d of
         Record { recFields = flds } -> ret $ curriedLambda nargs $
           if optJSOptimize (fst kit)
             then Lambda 1 $ Apply (Local (LocalId 0)) args
-            else Object $ fromList [ (last ls, Lambda 1 $ Apply (Lookup (Local (LocalId 0)) $ last ls) args) ]
+            else Object $ fromList [ (l, Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args) ]
         dt ->
           ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) index) args
           where
@@ -381,8 +395,8 @@ definition' kit q d t ls = do
                   , optJSOptimize (fst kit)
                   , cs <- defConstructors dt
                   = headWithDefault __IMPOSSIBLE__
-                      [MemberIndex i (mkComment $ last ls) | (i, x) <- zip [0..] cs, x == q]
-                  | otherwise = last ls
+                      [MemberIndex i (mkComment l) | (i, x) <- zip [0..] cs, x == q]
+                  | otherwise = l
             mkComment (MemberId s) = Comment s
             mkComment _ = mempty
 
@@ -525,7 +539,7 @@ eraseLocalVars (False: es) x = eraseLocalVars es x
 eraseLocalVars (True: es) x = eraseLocalVars es (TC.subst (length es) T.TErased x)
 
 visitorName :: QName -> TCM MemberId
-visitorName q = do (m,ls) <- global q; return (last ls)
+visitorName q = do (m,ls) <- global q; return (List1.last ls)
 
 flatName :: MemberId
 flatName = MemberId "flat"

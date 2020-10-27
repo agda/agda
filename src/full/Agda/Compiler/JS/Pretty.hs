@@ -10,8 +10,12 @@ import Data.Map ( Map, toAscList, empty, null )
 import qualified Data.Text as T
 
 import Agda.Syntax.Common ( Nat )
+
 import Agda.Utils.Hash
 import Agda.Utils.List ( indexWithDefault )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import qualified Agda.Utils.List1 as List1
+
 import Agda.Utils.Impossible
 
 import Agda.Compiler.JS.Syntax hiding (exports)
@@ -187,8 +191,11 @@ class Pretties a where
 instance Pretty a => Pretties [a] where
   pretties n = map (pretty n)
 
+instance Pretty a => Pretties (List1 a) where
+  pretties n = pretties n . List1.toList
+
 instance (Pretty a, Pretty b) => Pretties (Map a b) where
-  pretties n o = pretties n (toAscList o)
+  pretties n = pretties n . toAscList
 
 -- Pretty print identifiers
 
@@ -243,13 +250,18 @@ block n e = mparens (doNest e) $ pretty n e
 modname :: GlobalId -> Doc
 modname (GlobalId ms) = text $ "\"" ++ intercalate "." ms ++ "\""
 
-exports :: (Nat, Bool) -> Set [MemberId] -> [Export] -> Doc
+exports :: (Nat, Bool) -> Set JSQName -> [Export] -> Doc
 exports n lss [] = ""
-exports n lss (Export ls e : es) | member (init ls) lss =
-  "exports" <> hcat (map brackets (pretties n ls)) <> space <> "=" <> space <> indent (pretty n e) <> ";" $+$
-  exports n (insert ls lss) es
-exports n lss (Export ls e : es) | otherwise =
-  exports n lss (Export (init ls) (Object mempty) : Export ls e : es)
+exports n lss es0@(Export ls e : es)
+  -- If the parent of @ls@ is already defined (or no parent exists), @ls@ can be defined
+  | maybe True (`member` lss) parent =
+      "exports" <> hcat (map brackets (pretties n ls)) <> space <> "=" <> space <> indent (pretty n e) <> ";" $+$
+      exports n (insert ls lss) es
+  -- If the parent is not yet defined, first define it as empty object, and then continue with @ls@.
+  | otherwise =
+      exports n lss $ maybe es0 (\ ls' -> Export ls' (Object mempty) : es0) parent
+  where
+  parent = List1.nonEmpty $ List1.init ls
 
 instance Pretty [(GlobalId, Export)] where
   pretty n es
@@ -259,7 +271,7 @@ instance Pretty [(GlobalId, Export)] where
 instance Pretty Module where
   pretty n (Module m is es ex) =
     imports
-      $+$ exports n (singleton []) es
+      $+$ exports n Set.empty es
       $+$ maybe "" (pretty n) ex
     where
       js = toList (globals es <> Set.fromList is)
