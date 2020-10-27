@@ -193,7 +193,7 @@ agdaRunProgGoldenTest :: FilePath     -- ^ directory where to run the tests.
     -> TestOptions
     -> Maybe TestTree
 agdaRunProgGoldenTest dir comp extraArgs inp opts =
-      agdaRunProgGoldenTest1 dir comp extraArgs inp opts (\compDir out err -> do
+      agdaRunProgGoldenTest1 dir comp extraArgs inp opts $ \compDir out err -> do
         if executeProg opts then do
           -- read input file, if it exists
           inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
@@ -209,7 +209,6 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
               return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
         else
           return $ CompileSucceeded (ProgramResult ExitSuccess out err)
-        )
   where inpFile = dropAgdaExtension inp <.> ".inp"
 
 agdaRunProgGoldenTest1 :: FilePath     -- ^ directory where to run the tests.
