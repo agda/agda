@@ -144,6 +144,18 @@ data GHCCompileEnv = GHCCompileEnv
   { ghcCompileEnvOpts :: GHCOptions
   }
 
+-- | Module compilation environment, bundling the overall
+--   backend session options along with the module's basic
+--   readable properties.
+data GHCModuleEnv = GHCModuleEnv
+  { ghcModCompileEnv :: GHCCompileEnv
+  , ghcModName       :: ModuleName
+  , ghcModIsMain     :: IsMain
+  -- ^ Whether this is the root/focused module such that we *expect*
+  --   the module to have a `main` function defined. Corresponds
+  --   to the @isMain@ argument provided in the backend interface.
+  }
+
 --- Top-level compilation ---
 
 ghcPreCompile :: GHCFlags -> TCM GHCCompileEnv
@@ -165,10 +177,6 @@ ghcPostCompile cenv isMain mods = copyRTEModules >> callGHC opts isMain mods
 
 --- Module compilation ---
 
--- | This environment is no longer used for anything.
-
-type GHCModuleEnv = ()
-
 ghcPreModule
   :: GHCCompileEnv
   -> IsMain      -- ^ Are we looking at the main module?
@@ -176,7 +184,8 @@ ghcPreModule
   -> FilePath    -- ^ Path to the @.agdai@ file.
   -> TCM (Recompile GHCModuleEnv IsMain)
                  -- ^ Could we confirm the existence of a main function?
-ghcPreModule _cenv isMain m ifile = ifM uptodate noComp yesComp
+ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
+    `runReaderT` GHCModuleEnv cenv m isMain
   where
     uptodate = liftIO =<< isNewerThan <$> curOutFile <*> pure ifile
 
@@ -189,7 +198,7 @@ ghcPreModule _cenv isMain m ifile = ifM uptodate noComp yesComp
       out <- curOutFile
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
       stImportedModules `setTCLens` Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
-      return (Recompile ())
+      asks Recompile
 
 ghcPostModule
   :: GHCCompileEnv
