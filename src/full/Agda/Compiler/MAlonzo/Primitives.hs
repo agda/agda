@@ -29,8 +29,8 @@ import Agda.Utils.Impossible
 
 -- Andreas, 2019-04-29, issue #3731: exclude certain kinds of names, like constructors.
 -- TODO: Also only consider top-level definition (not buried inside a module).
-isMainFunction :: QName -> Defn -> Bool
-isMainFunction q = \case
+isMainFunction :: QName -> Definition -> Bool
+isMainFunction q = theDef <&> \case
     Axiom{}                             -> perhaps
     Function{ funProjection = Nothing } -> perhaps
     Function{ funProjection = Just{}  } -> no
@@ -53,7 +53,7 @@ hasMainFunction
   -> IsMain    -- ^ Did we find a "main" function?
 hasMainFunction NotMain _ = NotMain
 hasMainFunction IsMain i
-  | List.any (\ (x, def) -> isMainFunction x $ theDef def) names = IsMain
+  | List.any (uncurry isMainFunction) names = IsMain
   | otherwise = NotMain
   where
     names = HMap.toList $ iSignature i ^. sigDefinitions
@@ -62,7 +62,7 @@ hasMainFunction IsMain i
 checkTypeOfMain :: IsMain -> QName -> Definition -> TCM [HS.Decl]
 checkTypeOfMain NotMain q def = return []
 checkTypeOfMain  IsMain q def
-  | not (isMainFunction q $ theDef def) = return []
+  | not (isMainFunction q def) = return []
   | otherwise = do
     Def io _ <- primIO
     ty <- reduce $ defType def
