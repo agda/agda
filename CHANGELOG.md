@@ -154,6 +154,61 @@ Language
   you couldn't import the corresponding builtin module without having overloaded
   literals turned on.
 
+* Added `interleaved mutual` blocks where users can forward-declare function, record,
+  and data types and interleave their definitions. These blocks are elaborated to more
+  traditional mutual blocks by:
+
+    - leaving the signatures where they are
+    - grouping the clauses for a function together with the first of them
+    - grouping the constructors for a datatype together with the first of them
+
+  Example: two interleaved function definitions
+
+  ```agda
+
+  interleaved mutual
+
+    -- Declarations:
+    even : Nat → Bool
+    odd  : Nat → Bool
+
+    -- zero is even, not odd
+    even zero = true
+    odd  zero = false
+
+    -- suc case: switch evenness on the predecessor
+    even (suc n) = odd n
+    odd  (suc n) = even n
+  ```
+
+  Other example: the definition of universe of types closed under the natural numbers
+  and pairing:
+
+  ```agda
+
+  interleaved mutual
+
+    -- Declaration of a product record, a universe of codes, and a decoding function
+    record _×_ (A B : Set) : Set
+    data U : Set
+    El : U → Set
+
+    -- We have a code for the type of natural numbers in our universe
+    constructor `Nat : U
+    El `Nat = Nat
+
+    -- Btw we now how pair values in a record
+    record _×_ A B where
+      constructor _,_
+      inductive
+      field fst : A; snd : B
+
+    -- And we have a code for pairs in our universe
+    constructor _`×_ : (A B : U) → U
+    El (A `× B) = El A × El B
+  ```
+
+
 Builtins
 --------
 
