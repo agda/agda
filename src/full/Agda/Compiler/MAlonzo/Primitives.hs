@@ -59,15 +59,15 @@ hasMainFunction IsMain i
     defs = HMap.elems $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: IsMain -> Definition -> TCM [HS.Decl]
-checkTypeOfMain NotMain def = return []
+checkTypeOfMain :: IsMain -> Definition -> TCM (Maybe HS.Decl)
+checkTypeOfMain NotMain def = return Nothing
 checkTypeOfMain  IsMain def
-  | not (isMainFunction def) = return []
+  | not (isMainFunction def) = return Nothing
   | otherwise = do
     Def io _ <- primIO
     ty <- reduce $ defType def
     case unEl ty of
-      Def d _ | d == io -> return [mainAlias]
+      Def d _ | d == io -> return $ Just mainAlias
       _                 -> do
         err <- fsep $
           pwords "The type of main should be" ++
