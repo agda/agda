@@ -139,9 +139,19 @@ data GHCOptions = GHCOptions
   , optGhcCompileDir :: FilePath
   }
 
+-- | Monads that can read @GHCOptions@
+class Monad m => ReadGHCOpts m where
+  askGhcOpts :: m GHCOptions
+
+instance Monad m => ReadGHCOpts (ReaderT GHCOptions m) where
+  askGhcOpts = ask
+
 data GHCCompileEnv = GHCCompileEnv
   { ghcCompileEnvOpts :: GHCOptions
   }
+
+instance Monad m => ReadGHCOpts (ReaderT GHCCompileEnv m) where
+  askGhcOpts = withReaderT ghcCompileEnvOpts askGhcOpts
 
 -- | Module compilation environment, bundling the overall
 --   backend session options along with the module's basic
@@ -155,12 +165,18 @@ data GHCModuleEnv = GHCModuleEnv
   --   to the @isMain@ argument provided in the backend interface.
   }
 
+instance Monad m => ReadGHCOpts (ReaderT GHCModuleEnv m) where
+  askGhcOpts = withReaderT ghcModCompileEnv askGhcOpts
+
 data GHCModule = GHCModule
   { ghcModEnv                :: GHCModuleEnv
   , ghcModIsMainWithMainFunc :: IsMain
   -- ^ If this is the main module (i.e. @IsMain@) and we actually
   --   have a `main` function defined.
   }
+
+instance Monad m => ReadGHCOpts (ReaderT GHCModule m) where
+  askGhcOpts = withReaderT ghcModEnv askGhcOpts
 
 data GHCDefinition = GHCDefinition
   { ghcDefUsesFloat  :: UsesFloat
@@ -244,10 +260,11 @@ ghcPostModule _cenv menv isMain _ ghcDefs = do
   -- Get content of FOREIGN pragmas.
   let (headerPragmas, hsImps, code) = foreignHaskell i
 
-  writeModule $ HS.Module m
-    (map HS.OtherPragma headerPragmas)
-    imps
-    (map fakeDecl (hsImps ++ code) ++ decls)
+  flip runReaderT menv $ do
+    writeModule $ HS.Module m
+      (map HS.OtherPragma headerPragmas)
+      imps
+      (map fakeDecl (hsImps ++ code) ++ decls)
 
   return . GHCModule menv $ hasMainFunction isMain i
 
@@ -907,13 +924,14 @@ infodecl q ds =
 -- Writing out a haskell module
 --------------------------------------------------
 
-type MonadGHCIO m = (MonadIO m, HasOptions m)
+type MonadGHCIO m = (MonadIO m, ReadGHCOpts m)
 
 copyRTEModules :: MonadGHCIO m => m ()
 copyRTEModules = do
   dataDir <- liftIO getDataDir
   let srcDir = dataDir </> "MAlonzo" </> "src"
-  (liftIO . copyDirContent srcDir) =<< compileDir
+  dstDir <- optGhcCompileDir <$> askGhcOpts
+  liftIO $ copyDirContent srcDir dstDir
 
 writeModule :: MonadGHCIO m => HS.Module -> m ()
 writeModule (HS.Module m ps imp ds) = do
@@ -935,7 +953,7 @@ writeModule (HS.Module m ps imp ds) = do
 
 outFileAndDir :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
 outFileAndDir m = do
-  mdir <- compileDir
+  mdir <- optGhcCompileDir <$> askGhcOpts
   let (fdir, fn) = splitFileName $ repldot pathSeparator $
                    prettyPrint m
   let dir = mdir </> fdir
@@ -953,7 +971,7 @@ curOutFile = snd <$> curOutFileAndDir
 
 callGHC :: ReaderT GHCModule TCM ()
 callGHC = do
-  opts    <- asks (ghcCompileEnvOpts . ghcModCompileEnv . ghcModEnv)
+  opts    <- askGhcOpts
   hsmod   <- prettyPrint <$> curHsMod
   agdaMod <- curMName
   let outputName = case mnameToList agdaMod of
