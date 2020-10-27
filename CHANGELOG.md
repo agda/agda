@@ -197,7 +197,7 @@ Language
     constructor `Nat : U
     El `Nat = Nat
 
-    -- Btw we now how pair values in a record
+    -- Btw we know how to pair values in a record
     record _×_ A B where
       constructor _,_
       inductive

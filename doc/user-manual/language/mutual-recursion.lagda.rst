@@ -61,7 +61,7 @@ declaration from the introduction of constructors in one or many ``constructor``
     constructor `Nat : U
     El `Nat = Nat
 
-    -- Btw we now how pair values in a record
+    -- Btw we know how to pair values in a record
     record _×_ A B where
       constructor _,_
       inductive
@@ -75,6 +75,7 @@ declaration from the introduction of constructors in one or many ``constructor``
   ty-example : U
   ty-example = `Nat `× ((`Nat `× `Nat) `× `Nat)
 
+  -- and their values
   val-example : El ty-example
   val-example = 0 , ((1 , 2) , 3)
 
