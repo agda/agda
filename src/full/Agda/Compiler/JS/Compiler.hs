@@ -365,7 +365,9 @@ definition' kit q d t ls = do
                   $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
 
         reportSDoc "compile.js" 30 $ " compiled JS fun:" <+> (text . show) funBody'
-        return $ Just $ Export ls funBody'
+        return $
+          if funBody' == Null then Nothing
+          else Just $ Export ls funBody'
 
     Primitive{primName = p} | p `Set.member` primitives ->
       plainJS $ "agdaRTS." ++ p
