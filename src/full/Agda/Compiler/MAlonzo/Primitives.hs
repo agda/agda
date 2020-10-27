@@ -58,16 +58,6 @@ asMainFunctionDef d = case (theDef d) of
           | otherwise   = no
   no                    = Nothing
 
--- | Check for "main" function, but only in the main module.
-hasMainFunction
-  :: IsMain    -- ^ Are we looking at the main module?
-  -> Interface -- ^ The module.
-  -> IsMain    -- ^ Did we find a "main" function?
-hasMainFunction NotMain _ = NotMain
-hasMainFunction IsMain i
-  | (not . null . mainFunctionDefs) i = IsMain
-  | otherwise = NotMain
-
 mainFunctionDefs :: Interface -> [MainFunctionDef]
 mainFunctionDefs i = catMaybes $ asMainFunctionDef <$> defs
   where

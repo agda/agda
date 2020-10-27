@@ -170,9 +170,10 @@ instance Monad m => ReadGHCOpts (ReaderT GHCModuleEnv m) where
 
 data GHCModule = GHCModule
   { ghcModEnv                :: GHCModuleEnv
-  , ghcModIsMainWithMainFunc :: IsMain
-  -- ^ If this is the main module (i.e. @IsMain@) and we actually
-  --   have a `main` function defined.
+  , ghcModMainFuncs :: [MainFunctionDef]
+  -- ^ The `main` function definition(s), if both the module is
+  --   the @IsMain@ module (root/focused) and a suitable `main`
+  --   function was defined.
   }
 
 instance Monad m => ReadGHCOpts (ReaderT GHCModule m) where
@@ -182,6 +183,7 @@ data GHCDefinition = GHCDefinition
   { ghcDefUsesFloat  :: UsesFloat
   , ghcDefDecls      :: [HS.Decl]
   , ghcDefDefinition :: Definition
+  , ghcDefMainDef    :: Maybe MainFunctionDef
   }
 
 --- Top-level compilation ---
@@ -227,7 +229,10 @@ ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
     noComp = do
       reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . prettyShow . A.mnameToConcrete =<< curMName
       menv <- ask
-      Skip . GHCModule menv . (hasMainFunction isMain) <$> curIF
+      mainDefs <- if (isMain == IsMain)
+                    then (mainFunctionDefs <$> curIF)
+                    else (pure [])
+      return . Skip $ GHCModule menv mainDefs
 
     yesComp = do
       m   <- prettyShow . A.mnameToConcrete <$> curMName
@@ -243,13 +248,14 @@ ghcPostModule
   -> ModuleName
   -> [GHCDefinition]   -- ^ Compiled module content.
   -> TCM GHCModule
-ghcPostModule _cenv menv isMain _ ghcDefs = do
+ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
   builtinThings <- getsTC stBuiltinThings
   usedModules <- useTC stImportedModules
 
   -- Accumulate all of the definitions, declarations, etc.
-  let (usedFloat, decls, defs) = mconcat $
-        (\(GHCDefinition useFloat' decls' def') -> (useFloat', decls', [def']))
+  let (usedFloat, decls, defs, mainDefs) = mconcat $
+        (\(GHCDefinition useFloat' decls' def' md')
+         -> (useFloat', decls', [def'], maybeToList md'))
         <$> ghcDefs
 
   let imps = mazRTEFloatImport usedFloat ++ imports builtinThings usedModules defs
@@ -266,12 +272,12 @@ ghcPostModule _cenv menv isMain _ ghcDefs = do
       imps
       (map fakeDecl (hsImps ++ code) ++ decls)
 
-  return . GHCModule menv $ hasMainFunction isMain i
+  return $ GHCModule menv mainDefs
 
 ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
 ghcCompileDef _cenv menv isMain def = do
-  (usesFloat, decls) <- definition menv isMain def
-  return $ GHCDefinition usesFloat decls def
+  (usesFloat, decls, mainFuncDef) <- definition menv isMain def
+  return $ GHCDefinition usesFloat decls def (checkedMainDef <$> mainFuncDef)
 
 -- | We do not erase types that have a 'HsData' pragma.
 --   This is to ensure a stable interface to third-party code.
@@ -342,7 +348,7 @@ mazRTEFloatImport (UsesFloat b) = [ HS.ImportDecl mazRTEFloat True Nothing | b ]
 -- Main compiling clauses
 --------------------------------------------------
 
-definition :: GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl])
+definition :: GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl], Maybe CheckedMainFunctionDef)
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
@@ -350,7 +356,7 @@ definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition _env _isMain Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
     ("Not compiling" <+> prettyTCM q) <> "."
-  return mempty
+  return (mempty, mempty, Nothing)
 definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ ("Compiling" <+> prettyTCM q) <> ":"
@@ -365,7 +371,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   typeCheckedMainDef <- checkTypeOfMain isMain def
   let mainDecl = maybeToList $ checkedMainDecl <$> typeCheckedMainDef
   let retDecls ds = return (mempty, ds)
-  second ((mainDecl ++) . infodecl q) <$>
+  (uncurry (,,typeCheckedMainDef)) . second ((mainDecl ++) . infodecl q) <$>
     case d of
 
       _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $
@@ -982,7 +988,7 @@ callGHC = do
   let ghcopts = optGhcFlags opts
 
   modIsMain <- asks ((IsMain ==) . ghcModIsMain . ghcModEnv)
-  modHasMainFunc <- asks ((IsMain ==) . ghcModIsMainWithMainFunc)
+  modHasMainFunc <- asks (not . null . ghcModMainFuncs)
   let isMain = modIsMain && modHasMainFunc  -- both need to be IsMain
 
   -- Warn if no main function and not --no-main
