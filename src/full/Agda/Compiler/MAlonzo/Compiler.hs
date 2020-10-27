@@ -1,7 +1,7 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow (second)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
@@ -9,7 +9,6 @@ import Control.Monad.Writer hiding ((<>))
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -166,6 +165,7 @@ data GHCModule = GHCModule
 data GHCDefinition = GHCDefinition
   { ghcDefUsesFloat  :: UsesFloat
   , ghcDefDecls      :: [HS.Decl]
+  , ghcDefDefinition :: Definition
   }
 
 --- Top-level compilation ---
@@ -223,9 +223,11 @@ ghcPostModule
 ghcPostModule _cenv menv isMain _ ghcDefs = do
   builtinThings <- getsTC stBuiltinThings
   usedModules <- useTC stImportedModules
-  defs <- HMap.elems <$> curDefs
 
-  let (usedFloat, decls) = (mconcat *** concat) $ unzip $ (\(GHCDefinition usedFloat' decls') -> (usedFloat', decls')) <$> ghcDefs
+  -- Accumulate all of the definitions, declarations, etc.
+  let (usedFloat, decls, defs) = mconcat $
+        (\(GHCDefinition useFloat' decls' def') -> (useFloat', decls', [def']))
+        <$> ghcDefs
 
   let imps = mazRTEFloatImport usedFloat ++ imports builtinThings usedModules defs
 
@@ -245,7 +247,7 @@ ghcPostModule _cenv menv isMain _ ghcDefs = do
 ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
 ghcCompileDef _cenv menv isMain def = do
   (usesFloat, decls) <- definition menv isMain def
-  return $ GHCDefinition usesFloat decls
+  return $ GHCDefinition usesFloat decls def
 
 -- | We do not erase types that have a 'HsData' pragma.
 --   This is to ensure a stable interface to third-party code.
