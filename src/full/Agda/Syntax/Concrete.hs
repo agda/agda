@@ -229,7 +229,7 @@ mkBinder = Binder Nothing
 
 type LamBinding = LamBinding' TypedBinding
 data LamBinding' a
-  = DomainFree (NamedArg Binder) --
+  = DomainFree (NamedArg Binder)
     -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@ or @x\@p@ or @(p)@
   | DomainFull a
     -- ^ . @(xs : e)@ or @{xs : e}@
