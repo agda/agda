@@ -148,6 +148,7 @@ data WarningName
   | LibUnknownField_
   -- Nicifer Warnings
   | EmptyAbstract_
+  | EmptyConstructor_
   | EmptyField_
   | EmptyGeneralize_
   | EmptyInstance_
@@ -159,9 +160,12 @@ data WarningName
   | EmptyRewritePragma_
   | EmptyWhere_
   | InvalidCatchallPragma_
+  | InvalidConstructor_
+  | InvalidConstructorBlock_
   | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
+  | InvalidRecordDirective_
   | InvalidTerminationCheckPragma_
   | MissingDefinitions_
   | NotAllowedInMutual_
@@ -295,6 +299,7 @@ warningNameDescription = \case
   LibUnknownField_                 -> "Unknown field in library file."
   -- Nicifer Warnings
   EmptyAbstract_                   -> "Empty `abstract' blocks."
+  EmptyConstructor_                -> "Empty `constructor' blocks."
   EmptyField_                      -> "Empty `field` blocks."
   EmptyGeneralize_                 -> "Empty `variable' blocks."
   EmptyInstance_                   -> "Empty `instance' blocks."
@@ -306,9 +311,12 @@ warningNameDescription = \case
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   EmptyWhere_                      -> "Empty `where' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
+  InvalidConstructor_              -> "`constructor' blocks may only contain type signatures for constructors."
+  InvalidConstructorBlock_         -> "No `constructor' blocks outside of `interleaved mutual' blocks."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
+  InvalidRecordDirective_          -> "No record directive outside of record definition / below field declarations."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."

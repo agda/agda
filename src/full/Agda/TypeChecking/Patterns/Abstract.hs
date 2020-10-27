@@ -28,8 +28,8 @@ import Agda.Utils.Impossible
 expandLitPattern
   :: (MonadError TCErr m, MonadTCEnv m, ReadTCState m, HasBuiltins m)
   => A.Pattern -> m A.Pattern
-expandLitPattern p = case asView p of
-  (xs, A.LitP info (LitNat n))
+expandLitPattern p = case p of
+  A.LitP info (LitNat n)
     | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
     | n > 20    -> tooBig
     | otherwise -> do
@@ -39,8 +39,7 @@ expandLitPattern p = case asView p of
       let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
           suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
           cinfo = A.ConPatInfo ConOCon info ConPatEager
-          p'    = foldr ($) zero $ List.genericReplicate n suc
-      return $ foldr ((A.AsP info) . A.mkBindName) p' xs
+      return $ foldr ($) zero $ List.genericReplicate n suc
   _ -> return p
 
   where

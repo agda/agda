@@ -39,8 +39,6 @@ import Data.Maybe
 import Data.Semigroup ((<>), sconcat)
 import qualified Data.Traversable as T
 
-import Debug.Trace
-
 import Agda.Syntax.Position hiding (tests)
 import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Lexer
@@ -128,6 +126,7 @@ import Agda.Utils.Impossible
     'let'                     { TokKeyword KwLet $$ }
     'macro'                   { TokKeyword KwMacro $$ }
     'module'                  { TokKeyword KwModule $$ }
+    'interleaved'             { TokKeyword KwInterleaved $$ }
     'mutual'                  { TokKeyword KwMutual $$ }
     'no-eta-equality'         { TokKeyword KwNoEta $$ }
     'open'                    { TokKeyword KwOpen $$ }
@@ -253,6 +252,7 @@ Token
     | 'let'                     { TokKeyword KwLet $1 }
     | 'macro'                   { TokKeyword KwMacro $1 }
     | 'module'                  { TokKeyword KwModule $1 }
+    | 'interleaved'             { TokKeyword KwInterleaved $1 }
     | 'mutual'                  { TokKeyword KwMutual $1 }
     | 'no-eta-equality'         { TokKeyword KwNoEta $1 }
     | 'open'                    { TokKeyword KwOpen $1 }
@@ -1125,29 +1125,32 @@ ExprWhere : Expr WhereClause { ExprWhere $1 $2 }
 -- Top-level definitions.
 Declaration :: { List1 Declaration }
 Declaration
-    : Fields        { singleton $1 }
-    | FunClause     { $1 }            -- includes type signatures
-    | Data          { singleton $1 }
-    | DataSig       { singleton $1 }  -- lone data type signature in mutual block
-    | Record        { singleton $1 }
-    | RecordSig     { singleton $1 }  -- lone record signature in mutual block
-    | Infix         { singleton $1 }
-    | Generalize    { singleton $1 }
-    | Mutual        { singleton $1 }
-    | Abstract      { singleton $1 }
-    | Private       { singleton $1 }
-    | Instance      { singleton $1 }
-    | Macro         { singleton $1 }
-    | Postulate     { singleton $1 }
-    | Primitive     { singleton $1 }
-    | Open          { $1  }
-    | ModuleMacro   { singleton $1 }
-    | Module        { singleton $1 }
-    | Pragma        { singleton $1 }
-    | Syntax        { singleton $1 }
-    | PatternSyn    { singleton $1 }
-    | UnquoteDecl   { singleton $1 }
-
+    : Fields          { singleton $1 }
+    | FunClause       { $1 }            -- includes type signatures
+    | Data            { singleton $1 }
+    | DataSig         { singleton $1 }  -- lone data type signature in mutual block
+    | Record          { singleton $1 }
+    | RecordSig       { singleton $1 }  -- lone record signature in mutual block
+    | Infix           { singleton $1 }
+    | Generalize      { singleton $1 }
+    | Mutual          { singleton $1 }
+    | Abstract        { singleton $1 }
+    | Private         { singleton $1 }
+    | Instance        { singleton $1 }
+    | Macro           { singleton $1 }
+    | Postulate       { singleton $1 }
+    | Primitive       { singleton $1 }
+    | Open            { $1 }
+    | ModuleMacro     { singleton $1 }
+    | Module          { singleton $1 }
+    | Pragma          { singleton $1 }
+    | Syntax          { singleton $1 }
+    | PatternSyn      { singleton $1 }
+    | UnquoteDecl     { singleton $1 }
+    | Constructor     { singleton $1 }
+    | RecordInduction       { singleton $1 }
+    | RecordEta             { singleton $1 }
+    | RecordPatternMatching { singleton $1 }
 
 {--------------------------------------------------------------------------
     Individual declarations
@@ -1227,9 +1230,16 @@ RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
   {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
 
 -- Declaration of record constructor name.
-RecordConstructorName :: { (Name, IsInstance) }
-RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
+Constructor :: { Declaration }
+Constructor : 'constructor' Declarations0
+  {% case $2 of
+      -- this is fairly disgusting but hopefully allows us to use `constructor` for both
+      -- record constructors and constructor blocks in mutual blocks
+      { [FunClause (LHS p [] [] NoEllipsis) AbsurdRHS NoWhere _]
+          | Just n <- isSingleIdentifierP p -> pure (RecordDirective (Constructor n NotInstanceDef))
+      ;  _ -> pure $ LoneConstructor (getRange ($1,$2)) $2
+      }
+  }
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -1264,7 +1274,7 @@ Generalize : 'variable' ArgTypeSignaturesOrEmpty
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
 Mutual : 'mutual' Declarations0  { Mutual (fuseRange $1 $2) $2 }
-
+       | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (getRange ($1,$2,$3)) $3 }
 
 -- Abstract declarations.
 Abstract :: { Declaration }
@@ -1695,28 +1705,12 @@ ArgTypeSignatures0
 -- Record declarations, including an optional record constructor name.
 RecordDeclarations :: { (RecordDirectives, [Declaration]) }
 RecordDeclarations
-    : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
-    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
-    | vopen Declarations1 close                       { (emptyRecordDirectives, List1.toList $2) }
+    : Declarations0 {% extractRecordDirectives $1 }
 
-
-RecordDirectives :: { [RecordDirective] }
-RecordDirectives
-    : {- empty -}                           { [] }
-    | RecordDirectives semi RecordDirective { $3 : $1 }
-    | RecordDirective                       { [$1] }
-
-RecordDirective :: { RecordDirective }
-RecordDirective
-    : RecordConstructorName { Constructor $1 }
-    | RecordInduction       { Induction $1 }
-    | RecordEta             { Eta $1 }
-    | RecordPatternMatching { PatternOrCopattern $1 }
-
-RecordEta :: { Ranged HasEta0 }
+RecordEta :: { Declaration }
 RecordEta
-    : 'eta-equality'    { Ranged (getRange $1) YesEta }
-    | 'no-eta-equality' { Ranged (getRange $1) (NoEta ()) }
+    : 'eta-equality'    { RecordDirective (Eta (Ranged (getRange $1) YesEta)) }
+    | 'no-eta-equality' { RecordDirective (Eta (Ranged (getRange $1) (NoEta ()))) }
 
 -- Directive 'pattern' if a decision between matching on constructor/record pattern
 -- or copattern matching is needed.
@@ -1725,15 +1719,15 @@ RecordEta
 -- with the 'no-eta-equality' declaration.
 -- Nor with the 'constructor' declaration, since it applies also to
 -- the record pattern.
-RecordPatternMatching :: { Range }
+RecordPatternMatching :: { Declaration }
 RecordPatternMatching
-    : 'pattern'     { getRange $1 }
+    : 'pattern'     { RecordDirective (PatternOrCopattern (getRange $1)) }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
-RecordInduction :: { Ranged Induction }
+RecordInduction :: { Declaration }
 RecordInduction
-    : 'inductive'   { Ranged (getRange $1) Inductive   }
-    | 'coinductive' { Ranged (getRange $1) CoInductive }
+    : 'inductive'   { RecordDirective (Induction (Ranged (getRange $1) Inductive))   }
+    | 'coinductive' { RecordDirective (Induction (Ranged (getRange $1) CoInductive)) }
 
 -- Arbitrary declarations
 Declarations :: { List1 Declaration }
@@ -2090,15 +2084,12 @@ buildDoStmt e@(RawApp r _)    cs = do
 buildDoStmt e cs = defaultBuildDoStmt e cs
 
 
-data RecordDirective
-   = Induction (Ranged Induction)
-       -- ^ Range of keyword @[co]inductive@.
-   | Constructor (Name, IsInstance)
-   | Eta         (Ranged HasEta0)
-       -- ^ Range of @[no-]eta-equality@ keyword.
-   | PatternOrCopattern Range
-       -- ^ If declaration @pattern@ is present, give its range.
-   deriving (Eq,Show)
+-- | Extract record directives
+extractRecordDirectives :: [Declaration] -> Parser (RecordDirectives, [Declaration])
+extractRecordDirectives ds = do
+  let (dirs, rest) = spanJust isRecordDirective ds
+  dir <- verifyRecordDirectives dirs
+  pure (dir, rest)
 
 -- | Check for duplicate record directives.
 verifyRecordDirectives :: [RecordDirective] -> Parser RecordDirectives
@@ -2112,10 +2103,10 @@ verifyRecordDirectives ds
   errorFromList xs  = map getRange xs
   rs  = List.sort $ concat [ errorFromList is, errorFromList es', errorFromList cs, errorFromList ps ]
   es  = map rangedThing es'
-  is  = [ i | Induction i          <- ds ]
-  es' = [ e | Eta e                <- ds ]
-  cs  = [ c | Constructor c        <- ds ]
-  ps  = [ r | PatternOrCopattern r <- ds ]
+  is  = [ i      | Induction i          <- ds ]
+  es' = [ e      | Eta e                <- ds ]
+  cs  = [ (c, i) | Constructor c i      <- ds ]
+  ps  = [ r      | PatternOrCopattern r <- ds ]
 
 
 -- | Breaks up a string into substrings. Returns every maximal

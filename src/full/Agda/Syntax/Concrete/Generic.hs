@@ -220,10 +220,13 @@ instance ExprLike Declaration where
      RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e
      RecordDef r n dir tel ds  -> RecordDef r n dir (mapE tel)         $ mapE ds
      Record r n dir tel e ds   -> Record r n dir (mapE tel) (mapE e)   $ mapE ds
+     e@RecordDirective{}       -> e
      e@Infix{}                 -> e
      e@Syntax{}                -> e
      e@PatternSyn{}            -> e
      Mutual    r ds            -> Mutual    r                          $ mapE ds
+     InterleavedMutual r ds    -> InterleavedMutual r                  $ mapE ds
+     LoneConstructor r ds      -> LoneConstructor r                    $ mapE ds
      Abstract  r ds            -> Abstract  r                          $ mapE ds
      Private   r o ds          -> Private   r o                        $ mapE ds
      InstanceB r ds            -> InstanceB r                          $ mapE ds

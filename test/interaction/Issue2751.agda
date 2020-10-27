@@ -29,7 +29,7 @@ module UnsolvedSizeConstraints where
       map-D (c xs) = c (map-D′ xs)
 
       map-D′ : ∀ {i} → Map (D′ i)
-      size  (map-D′ {i} t) = foo where postulate foo : Size< i
+      size  (map-D′ {i} t) = foo where postulate foo : {!Size< i!}
       force (map-D′ {i} t) = map-D {i = i} (force t)  -- correct is  i = foo
 
   -- Produces an unsolved size constraint.

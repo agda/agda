@@ -1,0 +1,3 @@
+Issue2858-missing.agda:3,3-5,8
+The following names are declared but not accompanied by a
+definition: IsNat, Nat, isNat

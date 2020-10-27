@@ -172,6 +172,7 @@ tokens :-
 <0,code> infix          { keyword KwInfix }
 <0,code> infixl         { keyword KwInfixL }
 <0,code> infixr         { keyword KwInfixR }
+<0,code> interleaved    { keyword KwInterleaved }
 <0,code> mutual         { keyword KwMutual }
 <0,code> abstract       { keyword KwAbstract }
 <0,code> private        { keyword KwPrivate }

@@ -15,6 +15,7 @@ module Agda.Syntax.Concrete
   , rawApp, rawAppP
   , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
+  , returnExpr
     -- * Bindings
   , Binder'(..)
   , Binder
@@ -22,6 +23,7 @@ module Agda.Syntax.Concrete
   , mkBinder
   , LamBinding
   , LamBinding'(..)
+  , dropTypeAndModality
   , TypedBinding
   , TypedBinding'(..)
   , RecordAssignment
@@ -35,6 +37,8 @@ module Agda.Syntax.Concrete
   , makePi
   , mkLam, mkLet, mkTLet
     -- * Declarations
+  , RecordDirective(..)
+  , isRecordDirective
   , RecordDirectives
   , Declaration(..)
   , ModuleApplication(..)
@@ -81,6 +85,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Either ( maybeLeft )
 import Agda.Utils.Lens
 import Agda.Utils.List1  ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2  ( List2, pattern List2 )
 import Agda.Utils.Null
 import Agda.Utils.Singleton
@@ -228,6 +233,13 @@ data LamBinding' a
   | DomainFull a
     -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Data, Functor, Foldable, Traversable, Eq)
+
+-- | Drop type annotations and lets from bindings.
+dropTypeAndModality :: LamBinding -> [LamBinding]
+dropTypeAndModality (DomainFull (TBind _ xs _)) =
+  map (DomainFree . setModality defaultModality) $ List1.toList xs
+dropTypeAndModality (DomainFull TLet{}) = []
+dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
 
 data BoundName = BName
   { boundName   :: Name
@@ -400,6 +412,17 @@ type FieldSignature = Declaration
 -- | Just type signatures or instance blocks.
 type TypeSignatureOrInstanceBlock = Declaration
 
+-- | Isolated record directives parsed as Declarations
+data RecordDirective
+   = Induction (Ranged Induction)
+       -- ^ Range of keyword @[co]inductive@.
+   | Constructor Name IsInstance
+   | Eta         (Ranged HasEta0)
+       -- ^ Range of @[no-]eta-equality@ keyword.
+   | PatternOrCopattern Range
+       -- ^ If declaration @pattern@ is present, give its range.
+   deriving (Data,Eq,Show)
+
 type RecordDirectives = RecordDirectives' (Name, IsInstance)
 
 {-| The representation type of a declaration. The comments indicate
@@ -421,12 +444,12 @@ data Declaration
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
   | RecordDef   Range Name RecordDirectives [LamBinding] [Declaration]
   | Record      Range Name RecordDirectives [LamBinding] Expr [Declaration]
-    -- ^ The optional name is a name for the record constructor.
-    --   The optional 'Range' is the range of the @pattern@ declaration.
+  | RecordDirective RecordDirective -- ^ Should not survive beyond the parser
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [Arg Name] Pattern
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
+  | InterleavedMutual Range [Declaration]
   | Abstract    Range [Declaration]
   | Private     Range Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
@@ -436,6 +459,7 @@ data Declaration
     -- ^ The 'Range' here (exceptionally) only refers to the range of the
     --   @instance@ keyword.  The range of the whole block @InstanceB r ds@
     --   is @fuseRange r ds@.
+  | LoneConstructor Range [Declaration]
   | Macro       Range [Declaration]
   | Postulate   Range [TypeSignatureOrInstanceBlock]
   | Primitive   Range [TypeSignature]
@@ -447,6 +471,12 @@ data Declaration
   | UnquoteDef  Range [Name] Expr
   | Pragma      Pragma
   deriving (Data, Eq)
+
+-- | Extract a record directive
+isRecordDirective :: Declaration -> Maybe RecordDirective
+isRecordDirective (RecordDirective r) = Just r
+isRecordDirective (InstanceB r [RecordDirective (Constructor n p)]) = Just (Constructor n (InstanceDef r))
+isRecordDirective _ = Nothing
 
 data ModuleApplication
   = SectionApp Range Telescope Expr
@@ -599,6 +629,14 @@ observeHiding = \case
   HiddenArg _   (Named Nothing e) -> WithHiding Hidden e
   InstanceArg _ (Named Nothing e) -> WithHiding (Instance NoOverlap) e
   e                               -> WithHiding NotHidden e
+
+returnExpr :: Expr -> Maybe Expr
+returnExpr (Pi _ e)        = returnExpr e
+returnExpr (Fun _ _  e)    = returnExpr e
+returnExpr (Let _ _ e)     = returnExpr =<< e
+returnExpr (Paren _ e)     = returnExpr e
+returnExpr (Generalized e) = returnExpr e
+returnExpr e               = pure e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
@@ -781,6 +819,12 @@ instance HasRange a => HasRange (FieldAssignment' a) where
 instance HasRange ModuleAssignment where
   getRange (ModuleAssignment a b c) = fuseRange a b `fuseRange` c
 
+instance HasRange RecordDirective where
+  getRange (Induction a)          = getRange a
+  getRange (Eta a    )            = getRange a
+  getRange (Constructor a b)      = getRange (a, b)
+  getRange (PatternOrCopattern r) = r
+
 instance HasRange Declaration where
   getRange (TypeSig _ _ x t)       = fuseRange x t
   getRange (FieldSig _ _ x t)      = fuseRange x t
@@ -793,7 +837,10 @@ instance HasRange Declaration where
   getRange (RecordSig r _ _ _)     = r
   getRange (RecordDef r _ _ _ _)   = r
   getRange (Record r _ _ _ _ _)    = r
+  getRange (RecordDirective r)     = getRange r
   getRange (Mutual r _)            = r
+  getRange (InterleavedMutual r _) = r
+  getRange (LoneConstructor r _)   = r
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
@@ -919,6 +966,12 @@ instance KillRange Binder where
 instance KillRange BoundName where
   killRange (BName n f t) = killRange3 BName n f t
 
+instance KillRange RecordDirective where
+  killRange (Induction a)          = killRange1 Induction a
+  killRange (Eta a    )            = killRange1 Eta a
+  killRange (Constructor a b)      = killRange2 Constructor a b
+  killRange (PatternOrCopattern _) = PatternOrCopattern noRange
+
 instance KillRange Declaration where
   killRange (TypeSig i t n e)       = killRange3 (TypeSig i) t n e
   killRange (FieldSig i t n e)      = killRange4 FieldSig i t n e
@@ -931,11 +984,14 @@ instance KillRange Declaration where
   killRange (SimpleData _ n l e c)  = killRange4 (SimpleData noRange) n l e c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
   killRange (RecordDef _ n dir k d) = killRange4 (RecordDef noRange) n dir k d
+  killRange (RecordDirective a)     = killRange1 RecordDirective a
   killRange (Record _ n dir k e d)  = killRange5 (Record noRange) n dir k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
+  killRange (InterleavedMutual _ d) = killRange1 (InterleavedMutual noRange) d
+  killRange (LoneConstructor _ d)   = killRange1 (LoneConstructor noRange) d
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
   killRange (Private _ o d)         = killRange2 (Private noRange) o d
   killRange (InstanceB _ d)         = killRange1 (InstanceB noRange) d
@@ -1126,6 +1182,12 @@ instance NFData Pattern where
 
 -- | Ranges are not forced.
 
+instance NFData RecordDirective where
+  rnf (Induction a)          = rnf a
+  rnf (Eta a    )            = rnf a
+  rnf (Constructor a b)      = rnf (a, b)
+  rnf (PatternOrCopattern _) = ()
+
 instance NFData Declaration where
   rnf (TypeSig a b c d)       = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (FieldSig a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
@@ -1139,10 +1201,13 @@ instance NFData Declaration where
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
   rnf (RecordDef _ a b c d)   = rnf (a, b, c, d)
   rnf (Record _ a b c d e)    = rnf (a, b, c, d, e)
+  rnf (RecordDirective a)     = rnf a
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
   rnf (Mutual _ a)            = rnf a
+  rnf (InterleavedMutual _ a) = rnf a
+  rnf (LoneConstructor _ a)   = rnf a
   rnf (Abstract _ a)          = rnf a
   rnf (Private _ _ a)         = rnf a
   rnf (InstanceB _ a)         = rnf a

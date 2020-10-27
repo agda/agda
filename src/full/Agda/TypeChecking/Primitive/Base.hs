@@ -136,9 +136,9 @@ tset :: Applicative m => m Type
 tset = pure $ sort (mkType 0)
 
 sSizeUniv :: Sort
-sSizeUniv = mkType 0
+-- sSizeUniv = mkType 0
 -- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
--- sSizeUniv = SizeUniv
+sSizeUniv = SizeUniv
 
 tSizeUniv :: Applicative m => m Type
 -- tSizeUniv = tset

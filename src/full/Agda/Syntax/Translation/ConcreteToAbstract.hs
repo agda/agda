@@ -80,7 +80,7 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Options.Warnings
 
 import qualified Agda.Utils.AssocList as AssocList
-import Agda.Utils.CallStack ( HasCallStack )
+import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -155,6 +155,7 @@ noDotorEqPattern err = dot
       A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
       A.WithP i p            -> A.WithP i <$> dot p
+      A.AnnP i a p           -> genericError err   -- TODO: should this be allowed?
 --UNUSED Liang-Ting Chen 2019-07-16
 ---- | Make sure that there are no dot patterns (WAS: called on pattern synonyms).
 --noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
@@ -215,6 +216,7 @@ recordConstructorType decls =
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
+        C.NiceLoneConstructor{} -> failure
         C.NiceMutual{}        -> failure
         -- TODO: some of these cases might be __IMPOSSIBLE__
         C.Axiom{}             -> failure
@@ -1625,6 +1627,7 @@ instance ToAbstract LetDef where
             A.RecP _ fs          -> mapM_ (checkValidLetPattern . _exprFieldA) fs
             A.EqualP{}           -> no
             A.WithP{}            -> no
+            A.AnnP _ _ p         -> checkValidLetPattern p
           where
           yes = return ()
           no  = genericError "Not a valid let pattern"
@@ -2053,6 +2056,10 @@ instance ToAbstract NiceDeclaration where
       return [A.PatternSynDef y (map (fmap BindName) as) p]   -- only for highlighting, so use unexpanded version
       where unVarName (VarName a _) = return a
             unVarName _ = typeError $ UnusedVariableInPatternSynonym
+
+    d@NiceLoneConstructor{} -> withCurrentCallStack $ \ stk -> do
+      warning $ NicifierIssue (DeclarationWarning stk (InvalidConstructorBlock (getRange d)))
+      pure []
 
     where
       -- checking postulate or type sig. without checking safe flag
@@ -2762,6 +2769,7 @@ applyAPattern p0 p ps1 = do
       A.RecP{}    -> failure
       A.EqualP{}  -> failure
       A.WithP{}   -> failure
+      A.AnnP{}    -> failure
   where
     failure = typeError $ InvalidPattern p0
 

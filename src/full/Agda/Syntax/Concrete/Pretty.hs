@@ -452,12 +452,15 @@ instance Pretty Declaration where
               pRecord x dir tel (Just e) cs
             RecordDef _ x dir tel cs ->
               pRecord x dir tel Nothing cs
+            RecordDirective r -> __IMPOSSIBLE__
             Infix f xs  ->
                 pretty f <+> fsep (punctuate comma $ fmap pretty xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
             PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
                                      <+> "=" <+> pretty p
             Mutual _ ds     -> namedBlock "mutual" ds
+            InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
+            LoneConstructor _ ds -> namedBlock "constructor" ds
             Abstract _ ds   -> namedBlock "abstract" ds
             Private _ _ ds  -> namedBlock "private" ds
             InstanceB _ ds  -> namedBlock "instance" ds

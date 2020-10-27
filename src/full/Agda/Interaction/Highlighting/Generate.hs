@@ -466,6 +466,7 @@ warningHighlighting' b w = case tcWarning w of
     -- can get.
     NotAllowedInMutual{}             -> deadcodeHighlighting w
     EmptyAbstract{}                  -> deadcodeHighlighting w
+    EmptyConstructor{}               -> deadcodeHighlighting w
     EmptyInstance{}                  -> deadcodeHighlighting w
     EmptyMacro{}                     -> deadcodeHighlighting w
     EmptyMutual{}                    -> deadcodeHighlighting w
@@ -481,6 +482,9 @@ warningHighlighting' b w = case tcWarning w of
     InvalidNoUniverseCheckPragma{}   -> deadcodeHighlighting w
     InvalidTerminationCheckPragma{}  -> deadcodeHighlighting w
     InvalidCoverageCheckPragma{}     -> deadcodeHighlighting w
+    InvalidConstructor{}             -> deadcodeHighlighting w
+    InvalidConstructorBlock{}        -> deadcodeHighlighting w
+    InvalidRecordDirective{}         -> deadcodeHighlighting w
     OpenPublicAbstract{}             -> deadcodeHighlighting w
     OpenPublicPrivate{}              -> deadcodeHighlighting w
     W.ShadowingInTelescope nrs       -> foldMap
