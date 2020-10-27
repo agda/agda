@@ -369,6 +369,7 @@ coreBuiltins =
   , builtinAgdaTCMCommit                     |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
   , builtinAgdaTCMWithNormalisation          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMWithReconsParams           |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMDebugPrint                 |-> builtinPostulate (tstring --> tnat --> tlist terrorpart --> tTCM_ primUnit)
   , builtinAgdaTCMOnlyReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMDontReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))

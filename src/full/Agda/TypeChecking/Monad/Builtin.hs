@@ -217,10 +217,10 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMNormalise, primAgdaTCMReduce,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDefineFun,
-    primAgdaTCMGetType, primAgdaTCMGetDefinition,
+    primAgdaTCMGetType, primAgdaTCMGetDefinition, 
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
-    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
+    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint, primAgdaTCMWithReconsParams, 
     primAgdaTCMOnlyReduceDefs, primAgdaTCMDontReduceDefs,
     primAgdaTCMNoConstraints,
     primAgdaTCMRunSpeculative,
@@ -409,6 +409,7 @@ primAgdaTCMBlockOnMeta                = getBuiltin builtinAgdaTCMBlockOnMeta
 primAgdaTCMCommit                     = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
+primAgdaTCMWithReconsParams           = getBuiltin builtinAgdaTCMWithReconsParams
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMOnlyReduceDefs             = getBuiltin builtinAgdaTCMOnlyReduceDefs
 primAgdaTCMDontReduceDefs             = getBuiltin builtinAgdaTCMDontReduceDefs
