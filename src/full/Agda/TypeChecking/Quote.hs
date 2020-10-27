@@ -227,9 +227,10 @@ quotingKit = do
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
             defn <- getConstInfo x
+            r <- isReconstructed
             -- #2220: remember to restore dropped parameters
             let
-              conOrProjPars = defParameters defn
+              conOrProjPars = defParameters defn r
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
@@ -250,9 +251,10 @@ quotingKit = do
                      @@ list (drop n $ conOrProjPars ++ map (quoteArg quoteTerm) ts)
             qx (theDef defn)
           Con x ci es | Just ts <- allApplyElims es -> do
+            r <- isReconstructed
             cDef <- getConstInfo (conName x)
             n    <- getDefFreeVars (conName x)
-            let args = list $ drop n $ defParameters cDef ++ map (quoteArg quoteTerm) ts
+            let args = list $ drop n $ defParameters cDef r ++ map (quoteArg quoteTerm) ts
             con !@! quoteConName x @@ args
           Con x ci es -> pure unsupported
           Pi t u     -> pi !@  quoteDom quoteType t
@@ -265,8 +267,9 @@ quotingKit = do
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
-      defParameters :: Definition -> [ReduceM Term]
-      defParameters def = map par hiding
+      defParameters :: Definition -> Bool -> [ReduceM Term]
+      defParameters def True  = []
+      defParameters def False = map par hiding
         where
           np = case theDef def of
                  Constructor{ conPars = np }        -> np

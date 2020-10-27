@@ -2317,6 +2317,13 @@ instance Monoid ReduceDefs where
   mempty  = reduceAllDefs
   mappend = (<>)
 
+
+locallyReconstructed :: MonadTCEnv m => m a -> m a
+locallyReconstructed = locallyTC eReconstructed . const $ True
+
+isReconstructed :: (MonadTCEnv m) => m Bool
+isReconstructed = asksTC envReconstructed
+
 -- | Primitives
 
 data PrimitiveImpl = PrimImpl Type PrimFun
@@ -2728,6 +2735,7 @@ data TCEnv =
                 --   during the current reduction process?
           , envAllowedReductions :: AllowedReductions
           , envReduceDefs :: ReduceDefs
+          , envReconstructed :: Bool
           , envInjectivityDepth :: Int
                 -- ^ Injectivity can cause non-termination for unsolvable contraints
                 --   (#431, #3067). Keep a limit on the nesting depth of injectivity
@@ -2824,6 +2832,7 @@ initEnv = TCEnv { envContext             = []
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
                 , envReduceDefs             = reduceAllDefs
+                , envReconstructed          = False
                 , envInjectivityDepth       = 0
                 , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False
@@ -2970,6 +2979,9 @@ eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedRed
 
 eReduceDefs :: Lens' ReduceDefs TCEnv
 eReduceDefs f e = f (envReduceDefs e) <&> \ x -> e { envReduceDefs = x }
+
+eReconstructed :: Lens' Bool TCEnv
+eReconstructed f e = f (envReconstructed e) <&> \ x -> e { envReconstructed = x }
 
 eInjectivityDepth :: Lens' Int TCEnv
 eInjectivityDepth f e = f (envInjectivityDepth e) <&> \ x -> e { envInjectivityDepth = x }

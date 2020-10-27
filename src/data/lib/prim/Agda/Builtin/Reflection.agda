@@ -273,6 +273,10 @@ postulate
   -- their results: inferType, checkType, quoteTC, getType, and getContext
   withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
 
+  -- Makes the following primitives to reconstruct hidden arguments
+  -- getDefinition, normalise, reduce, inferType, checkType and getContext
+  withReconstructed : ∀ {a} {A : Set a} → TC A → TC A
+
   -- Prints the third argument if the corresponding verbosity level is turned
   -- on (with the -v flag to Agda).
   debugPrint : String → Nat → List ErrorPart → TC ⊤
@@ -321,5 +325,6 @@ postulate
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
 {-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
 {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
+{-# BUILTIN AGDATCMWITHRECONSPARAMS           withReconstructed          #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
