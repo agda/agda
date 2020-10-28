@@ -3,6 +3,7 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Identity ( IdentityT )
 
 import Agda.Syntax.Common (InteractionId)
 import Agda.TypeChecking.Monad.Base
@@ -21,6 +22,7 @@ class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
     => (InteractionPoints -> InteractionPoints) -> m ()
   modifyInteractionPoints = lift . modifyInteractionPoints
 
+instance MonadInteractionPoints m => MonadInteractionPoints (IdentityT m)
 instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m)
 instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
 
