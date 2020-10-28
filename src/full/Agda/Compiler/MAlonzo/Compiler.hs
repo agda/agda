@@ -47,7 +47,6 @@ import Agda.Syntax.Literal
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty hiding ((<>))
-import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
