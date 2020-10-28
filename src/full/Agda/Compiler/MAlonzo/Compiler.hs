@@ -186,6 +186,7 @@ data GHCDefinition = GHCDefinition
   , ghcDefDecls      :: [HS.Decl]
   , ghcDefDefinition :: Definition
   , ghcDefMainDef    :: Maybe MainFunctionDef
+  , ghcDefImports    :: Set ModuleName
   }
 
 --- Top-level compilation ---
@@ -240,7 +241,6 @@ ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
       m   <- prettyShow . A.mnameToConcrete <$> curMName
       out <- curOutFile
       reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
-      stImportedModules `setTCLens` Set.empty  -- we use stImportedModules to accumulate the required Haskell imports
       asks Recompile
 
 ghcPostModule
@@ -252,12 +252,11 @@ ghcPostModule
   -> TCM GHCModule
 ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
   builtinThings <- getsTC stBuiltinThings
-  usedModules <- useTC stImportedModules
 
-  -- Accumulate all of the definitions, declarations, etc.
-  let (usedFloat, decls, defs, mainDefs) = mconcat $
-        (\(GHCDefinition useFloat' decls' def' md')
-         -> (useFloat', decls', [def'], maybeToList md'))
+  -- Accumulate all of the modules, definitions, declarations, etc.
+  let (usedFloat, decls, defs, mainDefs, usedModules) = mconcat $
+        (\(GHCDefinition useFloat' decls' def' md' imps')
+         -> (useFloat', decls', [def'], maybeToList md', imps'))
         <$> ghcDefs
 
   let imps = mazRTEFloatImport usedFloat ++ imports builtinThings usedModules defs
@@ -279,8 +278,8 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
 
 ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
 ghcCompileDef _cenv menv _isMain def = do
-  (usesFloat, decls, mainFuncDef) <- definition def `runHsCompileT` ghcModHsModuleEnv menv
-  return $ GHCDefinition usesFloat decls def (checkedMainDef <$> mainFuncDef)
+  ((usesFloat, decls, mainFuncDef), (HsCompileState imps)) <- definition def `runHsCompileT` ghcModHsModuleEnv menv
+  return $ GHCDefinition usesFloat decls def (checkedMainDef <$> mainFuncDef) imps
 
 -- | We do not erase types that have a 'HsData' pragma.
 --   This is to ensure a stable interface to third-party code.
@@ -294,12 +293,6 @@ ghcMayEraseType q = getHaskellPragma q <&> \case
   _ -> True
 
 -- Compilation ------------------------------------------------------------
-
---------------------------------------------------
--- imported modules
---   I use stImportedModules in a non-standard way,
---   accumulating in it what are acutally used in Misc.xqual
---------------------------------------------------
 
 imports :: BuiltinThings PrimFun -> Set ModuleName -> [Definition] -> [HS.ImportDecl]
 imports builtinThings usedModules defs = hsImps ++ imps where

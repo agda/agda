@@ -1,17 +1,25 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.MAlonzo.Misc where
 
 import Control.Monad.Reader ( ask )
+import Control.Monad.State ( modify )
 import Control.Monad.Trans ( MonadTrans(lift) )
 import Control.Monad.Trans.Except ( ExceptT )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe ( MaybeT )
 import Control.Monad.Trans.Reader ( ReaderT(runReaderT) )
-import Control.Monad.Trans.State ( StateT )
+import Control.Monad.Trans.State ( StateT(runStateT) )
 
 import Data.Char
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
+
+#if !(MIN_VERSION_base(4,11,0))
+import Data.Semigroup
+#endif
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 
@@ -56,14 +64,21 @@ instance ReadHsModuleEnv m => ReadHsModuleEnv (IdentityT m)
 instance ReadHsModuleEnv m => ReadHsModuleEnv (MaybeT m)
 instance ReadHsModuleEnv m => ReadHsModuleEnv (StateT s m)
 
--- | Transformer adding read-only module info
-type HsCompileT = ReaderT HsModuleEnv
+newtype HsCompileState = HsCompileState
+  { mazAccumlatedImports :: Set ModuleName
+  } deriving (Eq, Semigroup, Monoid)
 
--- | The default compilation monad is the entire TCM (☹️) enriched with the module info
+-- | Transformer adding read-only module info and a writable set of imported modules
+type HsCompileT m = ReaderT HsModuleEnv (StateT HsCompileState m)
+
+-- | The default compilation monad is the entire TCM (☹️) enriched with our state and module info
 type HsCompileM = HsCompileT TCM
 
-runHsCompileT :: HsCompileT m a -> HsModuleEnv -> m a
-runHsCompileT = runReaderT
+runHsCompileT' :: HsCompileT m a -> HsModuleEnv -> HsCompileState -> m (a, HsCompileState)
+runHsCompileT' t e s = (flip runStateT s) . (flip runReaderT e) $ t
+
+runHsCompileT :: HsCompileT m a -> HsModuleEnv -> m (a, HsCompileState)
+runHsCompileT t e = runHsCompileT' t e mempty
 
 --------------------------------------------------
 -- utilities for haskell names
@@ -114,10 +129,14 @@ tlmodOf = fmap mazMod . topLevelModuleName
 -- qualify HS.Name n by the module of QName q, if necessary;
 -- accumulates the used module in stImportedModules at the same time.
 xqual :: QName -> HS.Name -> HsCompileM HS.QName
-xqual q n = do m1 <- topLevelModuleName (qnameModule q)
-               m2 <- curAgdaMod
-               if m1 == m2 then return (HS.UnQual n)
-                  else liftTCM $ addImport m1 >> return (HS.Qual (mazMod m1) n)
+xqual q n = do
+  m1 <- topLevelModuleName (qnameModule q)
+  m2 <- curAgdaMod
+  if m1 == m2
+    then return (HS.UnQual n)
+    else do
+      modify (HsCompileState . Set.insert m1 . mazAccumlatedImports)
+      return (HS.Qual (mazMod m1) n)
 
 xhqn :: String -> QName -> HsCompileM HS.QName
 xhqn s q = xqual q (unqhname s q)
