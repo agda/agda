@@ -1,7 +1,13 @@
 
 module Agda.Compiler.MAlonzo.Misc where
 
+import Control.Monad.Reader ( ask )
+import Control.Monad.Trans ( MonadTrans(lift) )
+import Control.Monad.Trans.Except ( ExceptT )
+import Control.Monad.Trans.Identity ( IdentityT )
+import Control.Monad.Trans.Maybe ( MaybeT )
 import Control.Monad.Trans.Reader ( ReaderT(runReaderT) )
+import Control.Monad.Trans.State ( StateT )
 
 import Data.Char
 import Data.Text (Text)
@@ -33,8 +39,22 @@ data HsModuleEnv = HsModuleEnv
   --   not necessarily whether the GHC module has a `main` function defined.
   }
 
-curHsMod :: ReadTCState m => m HS.ModuleName
-curHsMod = mazMod <$> curMName
+-- | Monads that can produce an @HsModuleEnv@
+class Monad m => ReadHsModuleEnv m where
+  askHsModuleEnv :: m HsModuleEnv
+
+  default askHsModuleEnv
+    :: (MonadTrans t, Monad n, m ~ (t n), ReadHsModuleEnv n)
+    => m HsModuleEnv
+  askHsModuleEnv = lift askHsModuleEnv
+
+instance Monad m => ReadHsModuleEnv (ReaderT HsModuleEnv m) where
+  askHsModuleEnv = ask
+
+instance ReadHsModuleEnv m => ReadHsModuleEnv (ExceptT e m)
+instance ReadHsModuleEnv m => ReadHsModuleEnv (IdentityT m)
+instance ReadHsModuleEnv m => ReadHsModuleEnv (MaybeT m)
+instance ReadHsModuleEnv m => ReadHsModuleEnv (StateT s m)
 
 -- | Transformer adding read-only module info
 type HsCompileT = ReaderT HsModuleEnv
@@ -48,6 +68,22 @@ runHsCompileT = runReaderT
 --------------------------------------------------
 -- utilities for haskell names
 --------------------------------------------------
+
+-- | Whether the current module is expected to have the `main` function.
+--   This corresponds to the @IsMain@ flag provided to the backend,
+--   not necessarily whether the GHC module actually has a `main` function defined.
+curIsMainModule :: ReadHsModuleEnv m => m Bool
+curIsMainModule = mazIsMainModule <$> askHsModuleEnv
+
+-- | This is the same value as @curMName@, but does not rely on the TCM's state.
+--   (@curMName@ and co. should be removed, but the current @Backend@ interface
+--   is not sufficient yet to allow that)
+curAgdaMod :: ReadHsModuleEnv m => m ModuleName
+curAgdaMod = mazModuleName <$> askHsModuleEnv
+
+-- | Get the Haskell module name of the currently-focused Agda module
+curHsMod :: ReadHsModuleEnv m => m HS.ModuleName
+curHsMod = mazMod <$> curAgdaMod
 
 -- The following naming scheme seems to be used:
 --
@@ -79,7 +115,7 @@ tlmodOf = fmap mazMod . topLevelModuleName
 -- accumulates the used module in stImportedModules at the same time.
 xqual :: QName -> HS.Name -> HsCompileM HS.QName
 xqual q n = do m1 <- topLevelModuleName (qnameModule q)
-               m2 <- curMName
+               m2 <- curAgdaMod
                if m1 == m2 then return (HS.UnQual n)
                   else liftTCM $ addImport m1 >> return (HS.Qual (mazMod m1) n)
 

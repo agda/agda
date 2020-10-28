@@ -164,6 +164,9 @@ data GHCModuleEnv = GHCModuleEnv
 instance Monad m => ReadGHCOpts (ReaderT GHCModuleEnv m) where
   askGhcOpts = withReaderT ghcModCompileEnv askGhcOpts
 
+instance Monad m => ReadHsModuleEnv (ReaderT GHCModuleEnv m) where
+  askHsModuleEnv = withReaderT ghcModHsModuleEnv askHsModuleEnv
+
 data GHCModule = GHCModule
   { ghcModEnv                :: GHCModuleEnv
   , ghcModMainFuncs :: [MainFunctionDef]
@@ -174,6 +177,9 @@ data GHCModule = GHCModule
 
 instance Monad m => ReadGHCOpts (ReaderT GHCModule m) where
   askGhcOpts = withReaderT ghcModEnv askGhcOpts
+
+instance Monad m => ReadHsModuleEnv (ReaderT GHCModule m) where
+  askHsModuleEnv = withReaderT ghcModEnv askHsModuleEnv
 
 data GHCDefinition = GHCDefinition
   { ghcDefUsesFloat  :: UsesFloat
@@ -225,9 +231,9 @@ ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
     noComp = do
       reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . prettyShow . A.mnameToConcrete =<< curMName
       menv <- ask
-      mainDefs <- if (isMain == IsMain)
-                    then (mainFunctionDefs <$> curIF)
-                    else (pure [])
+      mainDefs <- ifM curIsMainModule
+                         (mainFunctionDefs <$> curIF)
+                         (pure [])
       return . Skip $ GHCModule menv mainDefs
 
     yesComp = do
@@ -256,14 +262,15 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
 
   let imps = mazRTEFloatImport usedFloat ++ imports builtinThings usedModules defs
 
-  m <- curHsMod
   i <- curIF
 
   -- Get content of FOREIGN pragmas.
   let (headerPragmas, hsImps, code) = foreignHaskell i
 
   flip runReaderT menv $ do
-    writeModule $ HS.Module m
+    hsModuleName <- curHsMod
+    writeModule $ HS.Module
+      hsModuleName
       (map HS.OtherPragma headerPragmas)
       imps
       (map fakeDecl (hsImps ++ code) ++ decls)
@@ -271,8 +278,8 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
   return $ GHCModule menv mainDefs
 
 ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
-ghcCompileDef _cenv menv isMain def = do
-  (usesFloat, decls, mainFuncDef) <- definition menv isMain def `runHsCompileT` ghcModHsModuleEnv menv
+ghcCompileDef _cenv menv _isMain def = do
+  (usesFloat, decls, mainFuncDef) <- definition def `runHsCompileT` ghcModHsModuleEnv menv
   return $ GHCDefinition usesFloat decls def (checkedMainDef <$> mainFuncDef)
 
 -- | We do not erase types that have a 'HsData' pragma.
@@ -344,16 +351,16 @@ mazRTEFloatImport (UsesFloat b) = [ HS.ImportDecl mazRTEFloat True Nothing | b ]
 -- Main compiling clauses
 --------------------------------------------------
 
-definition :: GHCModuleEnv -> IsMain -> Definition -> HsCompileM (UsesFloat, [HS.Decl], Maybe CheckedMainFunctionDef)
+definition :: Definition -> HsCompileM (UsesFloat, [HS.Decl], Maybe CheckedMainFunctionDef)
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
-definition _env _isMain Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
+definition Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
   reportSDoc "compile.ghc.definition" 10 $
     ("Not compiling" <+> prettyTCM q) <> "."
   return (mempty, mempty, Nothing)
-definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
+definition def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ ("Compiling" <+> prettyTCM q) <> ":"
     , nest 2 $ text (prettyShow d)
@@ -364,7 +371,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   mmaybe <- getBuiltinName builtinMaybe
   minf   <- getBuiltinName builtinInf
   mflat  <- getBuiltinName builtinFlat
-  typeCheckedMainDef <- checkTypeOfMain isMain def
+  typeCheckedMainDef <- checkTypeOfMain def
   let mainDecl = maybeToList $ checkedMainDecl <$> typeCheckedMainDef
   let retDecls ds = return (mempty, ds)
   (uncurry (,,typeCheckedMainDef)) . second ((mainDecl ++) . infodecl q) <$>
@@ -970,24 +977,24 @@ outFileAndDir m = do
   where
   repldot c = List.map $ \ c' -> if c' == '.' then c else c'
 
-curOutFileAndDir :: (MonadGHCIO m, ReadTCState m) => m (FilePath, FilePath)
+curOutFileAndDir :: (MonadGHCIO m, ReadHsModuleEnv m) => m (FilePath, FilePath)
 curOutFileAndDir = outFileAndDir =<< curHsMod
 
-curOutFile :: (MonadGHCIO m, ReadTCState m) => m FilePath
+curOutFile :: (MonadGHCIO m, ReadHsModuleEnv m) => m FilePath
 curOutFile = snd <$> curOutFileAndDir
 
 callGHC :: ReaderT GHCModule TCM ()
 callGHC = do
   opts    <- askGhcOpts
   hsmod   <- prettyPrint <$> curHsMod
-  agdaMod <- curMName
+  agdaMod <- curAgdaMod
   let outputName = case mnameToList agdaMod of
         [] -> __IMPOSSIBLE__
         ms -> last ms
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 
-  modIsMain <- asks (mazIsMainModule . ghcModHsModuleEnv . ghcModEnv)
+  modIsMain <- curIsMainModule
   modHasMainFunc <- asks (not . null . ghcModMainFuncs)
   let isMain = modIsMain && modHasMainFunc  -- both need to be IsMain
 

@@ -64,10 +64,11 @@ mainFunctionDefs i = catMaybes $ asMainFunctionDef <$> defs
     defs = HMap.elems $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: IsMain -> Definition -> HsCompileM (Maybe CheckedMainFunctionDef)
-checkTypeOfMain NotMain def = return Nothing
-checkTypeOfMain  IsMain def = runMaybeT $ do
-  mainDef <- MaybeT . pure . asMainFunctionDef $ def
+checkTypeOfMain :: Definition -> HsCompileM (Maybe CheckedMainFunctionDef)
+checkTypeOfMain def = runMaybeT $ do
+  -- Only indicate main functions in the main module.
+  isMainModule <- curIsMainModule
+  mainDef <- MaybeT $ pure $ if isMainModule then asMainFunctionDef def else Nothing
   liftTCM $ checkTypeOfMain' mainDef
 
 checkTypeOfMain' :: MainFunctionDef -> TCM CheckedMainFunctionDef
