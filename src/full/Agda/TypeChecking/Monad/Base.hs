@@ -853,6 +853,9 @@ class Monad m => MonadStConcreteNames m where
 instance MonadStConcreteNames TCM where
   runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
 
+instance MonadStConcreteNames m => MonadStConcreteNames (IdentityT m) where
+  runStConcreteNames m = IdentityT $ runStConcreteNames $ StateT $ runIdentityT . runStateT m
+
 instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
   runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . flip (runReaderT . runStateT m)
 
