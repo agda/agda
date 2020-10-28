@@ -157,12 +157,8 @@ instance Monad m => ReadGHCOpts (ReaderT GHCCompileEnv m) where
 --   backend session options along with the module's basic
 --   readable properties.
 data GHCModuleEnv = GHCModuleEnv
-  { ghcModCompileEnv :: GHCCompileEnv
-  , ghcModName       :: ModuleName
-  , ghcModIsMain     :: IsMain
-  -- ^ Whether this is the root/focused module such that we *expect*
-  --   the module to have a `main` function defined. Corresponds
-  --   to the @isMain@ argument provided in the backend interface.
+  { ghcModCompileEnv  :: GHCCompileEnv
+  , ghcModHsModuleEnv :: HsModuleEnv
   }
 
 instance Monad m => ReadGHCOpts (ReaderT GHCModuleEnv m) where
@@ -222,7 +218,7 @@ ghcPreModule
   -> TCM (Recompile GHCModuleEnv GHCModule)
                  -- ^ Could we confirm the existence of a main function?
 ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
-    `runReaderT` GHCModuleEnv cenv m isMain
+    `runReaderT` GHCModuleEnv cenv (HsModuleEnv m (isMain == IsMain))
   where
     uptodate = liftIO =<< isNewerThan <$> curOutFile <*> pure ifile
 
@@ -991,7 +987,7 @@ callGHC = do
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 
-  modIsMain <- asks ((IsMain ==) . ghcModIsMain . ghcModEnv)
+  modIsMain <- asks (mazIsMainModule . ghcModHsModuleEnv . ghcModEnv)
   modHasMainFunc <- asks (not . null . ghcModMainFuncs)
   let isMain = modIsMain && modHasMainFunc  -- both need to be IsMain
 

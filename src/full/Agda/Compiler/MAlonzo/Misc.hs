@@ -22,6 +22,15 @@ import Agda.Utils.Impossible
 -- Setting up Interface before compile
 --------------------------------------------------
 
+data HsModuleEnv = HsModuleEnv
+  { mazModuleName :: ModuleName
+    -- ^ The name of the Agda module
+  , mazIsMainModule :: Bool
+  -- ^ Whether this is the compilation root and therefore should have the `main` function.
+  --   This corresponds to the @IsMain@ flag provided to the backend,
+  --   not necessarily whether the GHC module has a `main` function defined.
+  }
+
 curHsMod :: ReadTCState m => m HS.ModuleName
 curHsMod = mazMod <$> curMName
 
