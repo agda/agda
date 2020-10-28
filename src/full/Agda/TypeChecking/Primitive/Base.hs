@@ -181,7 +181,7 @@ lookupPrimitiveFunctionQ q = do
   PrimImpl t pf <- lookupPrimitiveFunction s
   return (s, PrimImpl t $ pf { primFunName = q })
 
-getBuiltinName :: String -> TCM (Maybe QName)
+getBuiltinName :: (HasBuiltins m, MonadReduce m) => String -> m (Maybe QName)
 getBuiltinName b = do
   caseMaybeM (getBuiltin' b) (return Nothing) (Just <.> getName)
   where
@@ -193,7 +193,7 @@ getBuiltinName b = do
       Lam _ b   -> getName $ unAbs b
       _ -> __IMPOSSIBLE__
 
-isBuiltin :: QName -> String -> TCM Bool
+isBuiltin :: (HasBuiltins m, MonadReduce m) => QName -> String -> m Bool
 isBuiltin q b = (Just q ==) <$> getBuiltinName b
 
 ------------------------------------------------------------------------
