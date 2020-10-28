@@ -815,7 +815,7 @@ setCompiledArgUse q use =
       fun{ funTreeless = for (funTreeless fun) $ \ c -> c { cArgUsage = use } }
     _ -> __IMPOSSIBLE__
 
-getCompiled :: QName -> TCM (Maybe Compiled)
+getCompiled :: HasConstInfo m => QName -> m (Maybe Compiled)
 getCompiled q = do
   (theDef <$> getConstInfo q) <&> \case
     Function{ funTreeless = t } -> t
@@ -823,7 +823,7 @@ getCompiled q = do
 
 -- | Returns a list of length 'conArity'.
 --   If no erasure analysis has been performed yet, this will be a list of 'False's.
-getErasedConArgs :: QName -> TCM [Bool]
+getErasedConArgs :: HasConstInfo m => QName -> m [Bool]
 getErasedConArgs q = do
   def <- getConstInfo q
   case theDef def of
@@ -838,10 +838,10 @@ setErasedConArgs q args = modifyGlobalDefinition q $ updateTheDef $ \case
       | otherwise               -> __IMPOSSIBLE__
     def -> def   -- no-op for non-constructors
 
-getTreeless :: QName -> TCM (Maybe TTerm)
+getTreeless :: HasConstInfo m => QName -> m (Maybe TTerm)
 getTreeless q = fmap cTreeless <$> getCompiled q
 
-getCompiledArgUse :: QName -> TCM [Bool]
+getCompiledArgUse :: HasConstInfo m => QName -> m [Bool]
 getCompiledArgUse q = maybe [] cArgUsage <$> getCompiled q
 
 -- | add data constructors to a datatype
