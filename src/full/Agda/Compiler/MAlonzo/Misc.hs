@@ -1,6 +1,8 @@
 
 module Agda.Compiler.MAlonzo.Misc where
 
+import Control.Monad.Trans.Reader ( ReaderT(runReaderT) )
+
 import Data.Char
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -34,6 +36,15 @@ data HsModuleEnv = HsModuleEnv
 curHsMod :: ReadTCState m => m HS.ModuleName
 curHsMod = mazMod <$> curMName
 
+-- | Transformer adding read-only module info
+type HsCompileT = ReaderT HsModuleEnv
+
+-- | The default compilation monad is the entire TCM (☹️) enriched with the module info
+type HsCompileM = HsCompileT TCM
+
+runHsCompileT :: HsCompileT m a -> HsModuleEnv -> m a
+runHsCompileT = runReaderT
+
 --------------------------------------------------
 -- utilities for haskell names
 --------------------------------------------------
@@ -66,24 +77,24 @@ tlmodOf = fmap mazMod . topLevelModuleName
 
 -- qualify HS.Name n by the module of QName q, if necessary;
 -- accumulates the used module in stImportedModules at the same time.
-xqual :: QName -> HS.Name -> TCM HS.QName
+xqual :: QName -> HS.Name -> HsCompileM HS.QName
 xqual q n = do m1 <- topLevelModuleName (qnameModule q)
                m2 <- curMName
                if m1 == m2 then return (HS.UnQual n)
-                  else addImport m1 >> return (HS.Qual (mazMod m1) n)
+                  else liftTCM $ addImport m1 >> return (HS.Qual (mazMod m1) n)
 
-xhqn :: String -> QName -> TCM HS.QName
+xhqn :: String -> QName -> HsCompileM HS.QName
 xhqn s q = xqual q (unqhname s q)
 
 hsName :: String -> HS.QName
 hsName s = HS.UnQual (HS.Ident s)
 
 -- always use the original name for a constructor even when it's redefined.
-conhqn :: QName -> TCM HS.QName
+conhqn :: QName -> HsCompileM HS.QName
 conhqn q = xhqn "C" =<< canonicalName q
 
 -- qualify name s by the module of builtin b
-bltQual :: String -> String -> TCM HS.QName
+bltQual :: String -> String -> HsCompileM HS.QName
 bltQual b s = do
   Def q _ <- getBuiltin b
   xqual q (HS.Ident s)

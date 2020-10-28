@@ -272,7 +272,7 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
 
 ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
 ghcCompileDef _cenv menv isMain def = do
-  (usesFloat, decls, mainFuncDef) <- definition menv isMain def
+  (usesFloat, decls, mainFuncDef) <- definition menv isMain def `runHsCompileT` ghcModHsModuleEnv menv
   return $ GHCDefinition usesFloat decls def (checkedMainDef <$> mainFuncDef)
 
 -- | We do not erase types that have a 'HsData' pragma.
@@ -344,7 +344,7 @@ mazRTEFloatImport (UsesFloat b) = [ HS.ImportDecl mazRTEFloat True Nothing | b ]
 -- Main compiling clauses
 --------------------------------------------------
 
-definition :: GHCModuleEnv -> IsMain -> Definition -> TCM (UsesFloat, [HS.Decl], Maybe CheckedMainFunctionDef)
+definition :: GHCModuleEnv -> IsMain -> Definition -> HsCompileM (UsesFloat, [HS.Decl], Maybe CheckedMainFunctionDef)
 -- ignore irrelevant definitions
 {- Andreas, 2012-10-02: Invariant no longer holds
 definition kit (Defn NonStrict _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
@@ -358,7 +358,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
     [ ("Compiling" <+> prettyTCM q) <> ":"
     , nest 2 $ text (prettyShow d)
     ]
-  pragma <- getHaskellPragma q
+  pragma <- liftTCM $ getHaskellPragma q
   mbool  <- getBuiltinName builtinBool
   mlist  <- getBuiltinName builtinList
   mmaybe <- getBuiltinName builtinMaybe
@@ -444,10 +444,10 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
       DataOrRecSig{} -> __IMPOSSIBLE__
 
       Axiom{} -> do
-        ar <- typeArity ty
+        ar <- liftTCM $ typeArity ty
         retDecls $ [ compiledTypeSynonym q ty ar | Just (HsType r ty) <- [pragma] ] ++
                    fb axiomErr
-      Primitive{ primName = s } -> (mempty,) . fb <$> primBody s
+      Primitive{ primName = s } -> (mempty,) . fb <$> (liftTCM . primBody) s
 
       PrimitiveSort{ primName = s } -> retDecls []
 
@@ -457,7 +457,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         | Just hsdata@(HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
-        computeErasedConstructorArgs q
+        liftTCM $ computeErasedConstructorArgs q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
         let result = concat $
@@ -469,7 +469,7 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         retDecls result
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
                 dataCons = cs } -> do
-        computeErasedConstructorArgs q
+        liftTCM $ computeErasedConstructorArgs q
         cds <- mapM (flip condecl Inductive) cs
         retDecls $ tvaldecl q Inductive (np + ni) cds cl
       Constructor{} -> retDecls []
@@ -482,19 +482,19 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
         in case pragma of
           Just (HsData r ty hsCons) -> setCurrentRange r $ do
             let cs = [conName con]
-            computeErasedConstructorArgs q
+            liftTCM $ computeErasedConstructorArgs q
             ccscov <- constructorCoverageCode q np cs ty hsCons
             cds <- mapM compiledcondecl cs
             retDecls $
               tvaldecl q inductionKind np [] (Just __IMPOSSIBLE__) ++
               [compiledTypeSynonym q ty np] ++ cds ++ ccscov
           _ -> do
-            computeErasedConstructorArgs q
+            liftTCM $ computeErasedConstructorArgs q
             cd <- condecl (conName con) inductionKind
             retDecls $ tvaldecl q inductionKind (I.arity ty) [cd] cl
       AbstractDefn{} -> __IMPOSSIBLE__
   where
-  function :: Maybe HaskellPragma -> TCM (UsesFloat, [HS.Decl]) -> TCM (UsesFloat, [HS.Decl])
+  function :: Maybe HaskellPragma -> HsCompileM (UsesFloat, [HS.Decl]) -> HsCompileM (UsesFloat, [HS.Decl])
   function mhe fun = do
     (imp, defs) <- fun
     let ccls = mkwhere defs
@@ -514,8 +514,8 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
           return (imp, [tsig,def] ++ ccls)
       _ -> return (imp, ccls)
 
-  functionViaTreeless :: QName -> TCM (UsesFloat, [HS.Decl])
-  functionViaTreeless q = caseMaybeM (toTreeless LazyEvaluation q) (pure mempty) $ \ treeless -> do
+  functionViaTreeless :: QName -> HsCompileM (UsesFloat, [HS.Decl])
+  functionViaTreeless q = caseMaybeM (liftTCM $ toTreeless LazyEvaluation q) (pure mempty) $ \ treeless -> do
 
     used <- getCompiledArgUse q
     let dostrip = any not used
@@ -573,12 +573,12 @@ definition env isMain def@Defn{defName = q, defType = ty, theDef = d} = do
   axiomErr :: HS.Exp
   axiomErr = rtmError $ Text.pack $ "postulate evaluated: " ++ prettyShow q
 
-constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> TCM [HS.Decl]
+constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> HsCompileM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
-  checkConstructorCount q cs hsCons
-  ifM (noCheckCover q) (return []) $ do
+  liftTCM $ checkConstructorCount q cs hsCons
+  ifM (liftTCM $ noCheckCover q) (return []) $ do
     ccs <- List.concat <$> zipWithM checkConstructorType cs hsCons
-    cov <- checkCover q hsTy np cs hsCons
+    cov <- liftTCM $ checkCover q hsTy np cs hsCons
     return $ ccs ++ cov
 
 -- | Environment for naming of local variables.
@@ -609,12 +609,12 @@ lookupIndex :: Int -> CCContext -> HS.Name
 lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
 
 -- | Constructor coverage monad transformer
-type CCT m = ReaderT CCEnv (WriterT UsesFloat m)
+type CCT m = ReaderT CCEnv (WriterT UsesFloat (HsCompileT m))
 
 -- | Constructor coverage monad
 type CC = CCT TCM
 
-liftCC :: Monad m => m a -> CCT m a
+liftCC :: Monad m => HsCompileT m a -> CCT m a
 liftCC = lift . lift
 
 freshNames :: Monad m => Int -> ([HS.Name] -> CCT m a) -> CCT m a
@@ -628,7 +628,7 @@ intros :: Monad m => Int -> ([HS.Name] -> CCT m a) -> CCT m a
 intros n cont = freshNames n $ \xs ->
   local (over ccContext (reverse xs ++)) $ cont xs
 
-checkConstructorType :: QName -> HaskellCode -> TCM [HS.Decl]
+checkConstructorType :: QName -> HaskellCode -> HsCompileM [HS.Decl]
 checkConstructorType q hs = do
   ty <- haskellType q
   return [ HS.TypeSig [unqhname "check" q] ty
@@ -652,12 +652,12 @@ checkCover q ty n cs hsCons = do
                                 (HS.UnGuardedRhs rhs) emptyBinds]
          ]
 
-closedTerm_ :: T.TTerm -> TCM HS.Exp
+closedTerm_ :: T.TTerm -> HsCompileM HS.Exp
 closedTerm_ t = fst <$> closedTerm t
 
-closedTerm :: T.TTerm -> TCM (HS.Exp, UsesFloat)
+closedTerm :: T.TTerm -> HsCompileM (HS.Exp, UsesFloat)
 closedTerm v = do
-  v <- addCoercions v
+  v <- liftTCM $ addCoercions v
   runWriterT (term v `runReaderT` initCCEnv)
 
 -- Translate case on bool to if
@@ -687,7 +687,7 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
     (T.TDef f, ts) -> do
       used <- liftCC $ getCompiledArgUse f
       -- #2248: no unused argument pruning for COMPILE'd functions
-      isCompiled <- liftCC $ isJust <$> getHaskellPragma f
+      isCompiled <- liftTCM $ isJust <$> getHaskellPragma f
       let given   = length ts
           needed  = length used
           missing = drop given used
@@ -875,7 +875,7 @@ litqnamepat x =
   where
     NameId n m = nameId $ qnameName x
 
-condecl :: QName -> Induction -> TCM HS.ConDecl
+condecl :: QName -> Induction -> HsCompileM HS.ConDecl
 condecl q _ind = do
   def <- getConstInfo q
   let Constructor{ conPars = np, conErased = erased } = theDef def
@@ -887,10 +887,10 @@ condecl q _ind = do
                    ]
   return $ HS.ConDecl (unqhname "C" q) argTypes
 
-compiledcondecl :: QName -> TCM HS.Decl
+compiledcondecl :: QName -> HsCompileM HS.Decl
 compiledcondecl q = do
-  ar <- erasedArity q
-  hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
+  ar <- liftTCM $ erasedArity q
+  hsCon <- liftTCM $ fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
   let patVars = map (HS.PVar . ihname "a") [0 .. ar - 1]
   return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname "C" q) patVars) (HS.PApp (hsName hsCon) patVars)
 

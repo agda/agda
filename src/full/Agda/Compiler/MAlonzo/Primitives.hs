@@ -64,7 +64,7 @@ mainFunctionDefs i = catMaybes $ asMainFunctionDef <$> defs
     defs = HMap.elems $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: IsMain -> Definition -> TCM (Maybe CheckedMainFunctionDef)
+checkTypeOfMain :: IsMain -> Definition -> HsCompileM (Maybe CheckedMainFunctionDef)
 checkTypeOfMain NotMain def = return Nothing
 checkTypeOfMain  IsMain def = runMaybeT $ do
   mainDef <- MaybeT . pure . asMainFunctionDef $ def
@@ -320,5 +320,5 @@ noCheckCover q = (||) <$> isBuiltin q builtinNat <*> isBuiltin q builtinInteger
 
 ----------------------
 
-bltQual' :: String -> String -> TCM String
+bltQual' :: String -> String -> HsCompileM String
 bltQual' b s = prettyPrint <$> bltQual b s
