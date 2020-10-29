@@ -49,13 +49,20 @@ data ReplState = ReplState
     { currentFile :: Maybe AbsolutePath
     }
 
-type ReplM = ReaderT ReplEnv (StateT ReplState IM)
+newtype ReplM a = ReplM { unReplM :: ReaderT ReplEnv (StateT ReplState IM) a }
+    deriving
+    ( Functor, Applicative, Monad, MonadIO
+    , HasOptions, MonadTCEnv, ReadTCState, MonadTCState, MonadTCM
+    , MonadError TCErr
+    , MonadReader ReplEnv, MonadState ReplState
+    )
 
 runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM (Maybe Interface)) -> ReplM () -> TCM ()
 runReplM initialFile setup checkInterface
     = runIM
     . flip evalStateT (ReplState initialFile)
     . flip runReaderT (ReplEnv setup checkInterface)
+    . unReplM
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a
 
@@ -75,7 +82,7 @@ interaction prompt cmds eval = loop
         go (ContinueIn env) = localTC (const env) loop
 
         loop =
-            do  ms <- lift $ lift $ readline prompt
+            do  ms <- ReplM $ lift $ lift $ readline prompt
                 case fmap words ms of
                     Nothing               -> return $ error "** EOF **"
                     Just []               -> loop
@@ -92,7 +99,7 @@ interaction prompt cmds eval = loop
                     Just _ ->
                         do  go =<< liftTCM (eval $ fromJust ms)
             `catchError` \e ->
-                do  s <- liftTCM $ prettyError e
+                do  s <- prettyError e
                     liftIO $ putStrLn s
                     loop
 
@@ -116,7 +123,7 @@ interactionLoop = do
     -- Run the setup action
     replSetup
     reload
-    interaction "Main> " commands (liftTCM . evalTerm)
+    interaction "Main> " commands evalTerm
     where
         reload :: ReplM () = do
             mi <- checkCurrentFile
@@ -133,7 +140,7 @@ interactionLoop = do
             liftIO $ putStrLn "Failed."
 
         commands =
-            [ "quit"        |>  \_ -> lift $ return $ Return ()
+            [ "quit"        |>  \_ -> return $ Return ()
             , "?"           |>  \_ -> continueAfter $ liftIO $ help commands
             , "reload"      |>  \_ -> do reload
                                          ContinueIn <$> askTC
@@ -252,7 +259,7 @@ refineMeta _ = liftIO $ putStrLn $ ": refine" ++ " metaid expr"
 
 
 retryConstraints :: TCM ()
-retryConstraints = liftTCM wakeupConstraints_
+retryConstraints = wakeupConstraints_
 
 
 evalIn :: [String] -> TCM ()
