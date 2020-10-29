@@ -3,7 +3,17 @@
 -- sources.
 
 module Agda.Interaction.Highlighting.HTML.Base
-  ( generateHTML
+  ( HtmlOptions(..)
+  , HtmlHighlight(..)
+  , HtmlInputSourceFile
+  , generateHTMLPages
+  , generateHTMLWithPageGen
+  , prepareCommonDestinationAssets
+  , srcFileOfInterface
+  , defaultPageGen
+  , MonadLogHtml(logHtml)
+  , LogHtmlT
+  , runLogHtmlWith
   ) where
 
 import Prelude hiding ((!!), concatMap)
@@ -15,7 +25,6 @@ import Data.Function ( on )
 import Data.Foldable (toList, concatMap)
 import Data.Maybe
 import qualified Data.IntMap as IntMap
-import qualified Data.Map    as Map
 import qualified Data.List   as List
 import Data.List.Split (splitWhen, chunksOf)
 import Data.Text.Lazy (Text)
@@ -42,20 +51,14 @@ import Text.Blaze.Html.Renderer.Text ( renderHtml )
 
 import Paths_Agda
 
-import Agda.Interaction.Options (CommandLineOptions(..), HtmlHighlight(..))
+import Agda.Interaction.Options (HtmlHighlight(..))
 import Agda.Interaction.Highlighting.Precise
 
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
 
 import qualified Agda.TypeChecking.Monad as TCM
-import Agda.TypeChecking.Monad
-  ( MonadDebug
-  , commandLineOptions
-  , getVisitedModules
-  , reportS
-  , TCM
-  , VisitedModules
+  ( Interface(..)
   )
 
 import Agda.Utils.Function
@@ -121,14 +124,6 @@ data HtmlOptions = HtmlOptions
   , htmlOptCssFile              :: Maybe FilePath
   } deriving Eq
 
-htmlOptsFromCliOpts :: CommandLineOptions -> HtmlOptions
-htmlOptsFromCliOpts opts = HtmlOptions
-  { htmlOptDir = optHTMLDir opts
-  , htmlOptHighlight = optHTMLHighlight opts
-  , htmlOptHighlightOccurrences = optHighlightOccurrences opts
-  , htmlOptCssFile = optCSSFile opts
-  }
-
 -- | Internal type bundling the information related to a module source file
 
 data HtmlInputSourceFile = HtmlInputSourceFile
@@ -163,22 +158,6 @@ instance Monad m => MonadLogHtml (LogHtmlT m) where
 
 runLogHtmlWith :: Monad m => HtmlLogAction m -> LogHtmlT m a -> m a
 runLogHtmlWith = flip runReaderT
-
-runLogHtmlWithMonadDebug :: MonadDebug m => LogHtmlT m a -> m a
-runLogHtmlWithMonadDebug = runLogHtmlWith $ reportS "html" 1
-
--- | Generates HTML files from all the sources which have been
---   visited during the type checking phase.
---
---   This function should only be called after type checking has
---   completed successfully.
-generateHTML :: TCM ()
-generateHTML = do
-  opts <- htmlOptsFromCliOpts <$> commandLineOptions
-  pages <- fmap (\(n, mi) -> srcFileOfInterface n (TCM.miInterface mi))
-        <$> (Map.toList <$> getVisitedModules)
-  runLogHtmlWithMonadDebug $ generateHTMLPages opts pages
-
 
 renderSourceFile :: HtmlOptions -> HtmlInputSourceFile -> Text
 renderSourceFile opts = renderSourcePage
