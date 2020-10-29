@@ -175,9 +175,10 @@ runLogHtmlWithMonadDebug = runLogHtmlWith $ reportS "html" 1
 generateHTML :: TCM ()
 generateHTML = do
   opts <- htmlOptsFromCliOpts <$> commandLineOptions
-  modules <- getVisitedModules
-  runLogHtmlWithMonadDebug $
-    generateHTMLWithPageGen opts modules (defaultPageGen opts)
+  pages <- fmap (\(n, mi) -> srcFileOfInterface n (TCM.miInterface mi))
+        <$> (Map.toList <$> getVisitedModules)
+  runLogHtmlWithMonadDebug $ generateHTMLPages opts pages
+
 
 renderSourceFile :: HtmlOptions -> HtmlInputSourceFile -> Text
 renderSourceFile opts = renderSourcePage
@@ -201,6 +202,13 @@ defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _) = do
     target = (htmlOptDir opts) </> modToFile moduleName ext
     html = renderSourceFile opts srcFile
 
+generateHTMLPages
+  :: (MonadIO m, MonadLogHtml m)
+  => HtmlOptions
+  -> [HtmlInputSourceFile]
+  -> m ()
+generateHTMLPages opts pages = generateHTMLWithPageGen opts pages (defaultPageGen opts)
+
 -- | Prepare information for HTML page generation.
 --
 --   The page generator receives the output directory as well as the
@@ -209,17 +217,16 @@ defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _) = do
 generateHTMLWithPageGen
   :: (MonadIO m, MonadLogHtml m)
   => HtmlOptions
-  -> VisitedModules
+  -> [HtmlInputSourceFile]
   -> (HtmlInputSourceFile -> m ())
   -> m ()
-generateHTMLWithPageGen opts visitedModules generatePage = do
+generateHTMLWithPageGen opts pages generatePage = do
   logHtml $ unlines
     [ "Warning: HTML is currently generated for ALL files which can be"
     , "reached from the given module, including library files."
     ]
   prepareCommonDestinationAssets opts
-  forM_ (Map.toList visitedModules) $ \(n, mi) ->
-    generatePage $ srcFileOfInterface n (TCM.miInterface mi)
+  forM_ pages generatePage
 
 prepareCommonDestinationAssets :: MonadIO m => HtmlOptions -> m ()
 prepareCommonDestinationAssets options = liftIO $ do
