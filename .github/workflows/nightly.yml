@@ -102,33 +102,25 @@ jobs:
       matrix:
         # We can not use 8.10.2 because #4965.
         ghc-ver: [8.10.1]
-        icu-ver: [65.1-1]
 
-    env:
-      ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
+    # NOTE: The flag Agda:enable-cluster-counting is not included below, due to issues installing
+    #       the ICU library with Stack's version of msys, as of about 2020-10-27. See:
+    #   - https://github.com/agda/agda/issues/5012
+    #   - https://github.com/commercialhaskell/stack/issues/5300
 
     steps:
     - uses: actions/checkout@v2.3.2
       with:
         submodules: recursive
 
-    - name: Download ICU ${{ matrix.icu-ver }}
-      run: |
-        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- wget -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
-
-    - name: Install text-icu ${{ matrix.icu-ver }}
-      run: |
-        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${env:ICU_FILE}
-        stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
-
     # See comment in .github/workflows/stack.yml
     - name: Build dependencies
       run: |
-        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting --only-dependencies
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --only-dependencies
 
     - name: Build agda
       run: |
-        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --flag Agda:enable-cluster-counting
+        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast
 
     - name: Pack artifacts
       shell: bash
