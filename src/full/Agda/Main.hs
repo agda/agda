@@ -4,7 +4,6 @@
 module Agda.Main where
 
 import Control.Monad.Except
-import Control.Monad.State
 
 import Data.Maybe
 
@@ -148,8 +147,8 @@ runAgdaWithOptions backends generateHTML interaction progName opts
           whenM (optGenerateHTML <$> commandLineOptions) $
             generateHTML
 
-          whenM (isJust . optDependencyGraph <$> commandLineOptions) $
-            Dot.generateDot $ i
+          forMM_ (optDependencyGraph <$> commandLineOptions) $
+            Dot.generateDot i
 
           whenM (optGenerateLaTeX <$> commandLineOptions) $
             LaTeX.generateLaTeX i
