@@ -14,7 +14,6 @@ import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.Monad
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -159,7 +158,7 @@ reconstructParameters' act a v = do
     applyWithoutReversing (Con h i es) ess = Con h i (es++ess)
     applyWithoutReversing (MetaV i es) ess = MetaV i (es++ess)
     applyWithoutReversing (Dummy s es) ess = Dummy s (es++ess)
-    applyWithoutReversing _            _   = __IMPOSSIBLE__ 
+    applyWithoutReversing _            _   = __IMPOSSIBLE__
 
     mapHide (El _ (Pi a b)) (p:tl) =
       case argInfoHiding (domInfo a) of
