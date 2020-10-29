@@ -78,20 +78,13 @@ setInterface i = do
 curIF :: ReadTCState m => m Interface
 curIF = do
   name <- curMName
-  mm <- getVisitedModule (toTopLevelModuleName name)
-  case mm of
-    Nothing -> __IMPOSSIBLE__
-    Just mi -> return $ miInterface mi
+  maybe __IMPOSSIBLE__ miInterface <$> getVisitedModule (toTopLevelModuleName name)
 
 curSig :: ReadTCState m => m Signature
 curSig = iSignature <$> curIF
 
 curMName :: ReadTCState m => m ModuleName
-curMName = do
-  mName <- useTC stCurrentModule
-  case mName of
-    Nothing -> __IMPOSSIBLE__
-    Just name -> return name
+curMName = fromMaybe __IMPOSSIBLE__ <$> useTC stCurrentModule
 
 curDefs :: TCM Definitions
 curDefs = fmap (HMap.filter (not . defNoCompilation)) $ (^. sigDefinitions) <$> curSig
