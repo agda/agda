@@ -91,8 +91,18 @@ GHC_OPTS = "+RTS $(GHC_RTS_OPTS) -RTS"
 # The following options are used in several invocations of cabal
 # install/configure below. They are always the last options given to
 # the command.
-CABAL_INSTALL_OPTS = -fenable-cluster-counting --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
-STACK_INSTALL_OPTS = --flag Agda:enable-cluster-counting --ghc-options $(GHC_OPTS) $(STACK_OPTS)
+CABAL_INSTALL_OPTS =
+STACK_INSTALL_OPTS =
+
+# Only enable cluster-counting by default for non-Windows, due to agda/agda#5012
+# The msys* and mingw* strings derived from: https://stackoverflow.com/a/18434831/141513
+ifeq ($(filter msys% mingw%,$(shell echo "$${OSTYPE:-unknown}")),)
+  CABAL_INSTALL_OPTS += -fenable-cluster-counting
+  STACK_INSTALL_OPTS += --flag Agda:enable-cluster-counting
+endif
+
+CABAL_INSTALL_OPTS += --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
+STACK_INSTALL_OPTS += --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 
 # Options for building Agda's dependencies.
 CABAL_INSTALL_DEP_OPTS = --only-dependencies \
