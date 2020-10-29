@@ -620,6 +620,8 @@ library
                     Agda.Interaction.Highlighting.Dot.Base
                     Agda.Interaction.Highlighting.LaTeX.Backend
                     Agda.Interaction.Highlighting.LaTeX.Base
+                    Agda.Interaction.Highlighting.HTML.Backend
+                    Agda.Interaction.Highlighting.HTML.Base
                     Agda.Utils.CallStack.Base
                     Agda.Utils.CallStack.Pretty
 
