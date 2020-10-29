@@ -1,7 +1,13 @@
 {-# LANGUAGE GADTs #-}
 -- | Generate an import dependency graph for a given module.
 
-module Agda.Interaction.Highlighting.Dot.Base where
+module Agda.Interaction.Highlighting.Dot.Base
+  ( dottify
+  , renderDotToFile
+  , renderDot
+  , DotGraph (..)
+  , Env(..)
+  ) where
 
 import Control.Monad.Reader
 import Control.Monad.State
@@ -15,12 +21,6 @@ import Data.Set (Set)
 import qualified Data.Text.Lazy as L
 import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.ByteString.Lazy as BS
-
-import Agda.Syntax.Abstract
-import Agda.TypeChecking.Monad
-
-import Agda.Utils.Functor
-import Agda.Utils.Pretty
 
 -- | Internal module identifiers for construction of dependency graph.
 type NodeId = L.Text
@@ -126,30 +126,3 @@ renderDot g = L.unlines $ concat
 
 renderDotToFile :: MonadIO m => DotGraph -> FilePath -> m ()
 renderDotToFile dot fp = liftIO $ BS.writeFile fp $ E.encodeUtf8 $ renderDot dot
-
--- * Module import graph generation
-
--- | Recursively build import graph, starting from given 'Interface'.
---   Modifies the state in 'DotM' and returns the 'NodeId' of the 'Interface'.
-
-dottifyModuleImports :: VisitedModules -> ModuleName -> DotGraph
-dottifyModuleImports visitedModules = dottify Env
-  { deConnections = maybe [] getConnectedNames . getInterfaceByName
-  , deLabel       = L.pack . prettyShow . mnameToConcrete
-  }
-  where
-  getInterfaceByName = miInterface <.> (flip M.lookup visitedModules . toTopLevelModuleName)
-  getConnectedNames = fst <.> iImportedModules
-
-getDot :: Interface -> TCM DotGraph
-getDot iface = do
-  visitedModules <- getVisitedModules
-  return (dottifyModuleImports visitedModules (iModuleName iface))
-
--- | Generate a .dot file for the import graph starting with the
---   given 'Interface' and write it to the file specified by the
---   command line option.
-generateDot :: Interface -> FilePath -> TCM ()
-generateDot iface fp = do
-  dot <- getDot iface
-  renderDotToFile dot fp
