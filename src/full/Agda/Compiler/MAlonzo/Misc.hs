@@ -1,8 +1,6 @@
 
 module Agda.Compiler.MAlonzo.Misc where
 
-import Control.Monad.Except ( MonadError, throwError )
-
 import Data.Char
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -146,9 +144,6 @@ mazMod' s = HS.ModuleName $ mazstr ++ "." ++ s
 
 mazMod :: ModuleName -> HS.ModuleName
 mazMod = mazMod' . prettyShow
-
-mazerror :: MonadError String m => String -> m a
-mazerror msg = throwError $ mazstr ++ ": " ++ msg
 
 mazCoerceName :: String
 mazCoerceName = "coe"
