@@ -1,5 +1,6 @@
-{-# LANGUAGE DoAndIfThenElse      #-}
 {-# LANGUAGE CPP                  #-}
+{-# LANGUAGE DoAndIfThenElse      #-}
+{-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE PatternGuards        #-}
 
 module Compiler.Tests where
@@ -238,7 +239,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
               defArgs = ["--ignore-interfaces" | notElem "--no-ignore-interfaces" (extraAgdaArgs cOpts)] ++
                         ["--no-libraries"] ++
                         ["--compile-dir", compDir, "-v0", "-vwarning:1"] ++ extraArgs' ++ cArgs ++ [inp]
-          args <- (++ defArgs) <$> argsForComp comp
+          let args = argsForComp comp ++ defArgs
           res@(ret, out, err) <- readAgdaProcessWithExitCode args T.empty
 
           absDir <- canonicalizePath dir
@@ -247,13 +248,14 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
             ExitFailure _ -> return $ CompileFailed $ toProgramResult res
           )
 
-        argsForComp :: Compiler -> IO [String]
-        argsForComp MAlonzo = return ["--compile"]
-        argsForComp (JS NonOptimized)      = return ["--js"]
-        argsForComp (JS Optimized)         = return ["--js", "--js-optimize"]
-        argsForComp (JS MinifiedOptimized) = return ["--js", "--js-optimize", "--js-minify"]
+        argsForComp :: Compiler -> [String]
+        argsForComp MAlonzo = [ "--compile" ]
+        argsForComp (JS o)  = [ "--js", "--js-verify" ] ++ case o of
+          NonOptimized      -> []
+          Optimized         -> [ "--js-optimize" ]
+          MinifiedOptimized -> [ "--js-optimize", "--js-minify" ]
 
-        removePaths ps r = case r of
+        removePaths ps = \case
           CompileFailed    r -> CompileFailed    (removePaths' r)
           CompileSucceeded r -> CompileSucceeded (removePaths' r)
           ExecutedProg     r -> ExecutedProg     (removePaths' r)

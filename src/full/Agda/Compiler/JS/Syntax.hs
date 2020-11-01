@@ -68,10 +68,10 @@ data Export = Export { expName :: JSQName, defn :: Exp }
 type JSQName = List1 MemberId
 
 data Module = Module
-  { modName :: GlobalId
-  , imports :: [GlobalId]
-  , exports :: [Export]
-  , postscript :: Maybe Exp
+  { modName  :: GlobalId
+  , imports  :: [GlobalId]
+  , exports  :: [Export]
+  , callMain :: Maybe Exp
   }
   deriving Show
 
