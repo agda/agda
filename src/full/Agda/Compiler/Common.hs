@@ -75,26 +75,16 @@ setInterface i = do
   stImportedModules `setTCLens` Set.fromList (map fst $ iImportedModules i)
   stCurrentModule   `setTCLens` Just (iModuleName i)
 
-curIF :: TCM Interface
+curIF :: ReadTCState m => m Interface
 curIF = do
-  mName <- useTC stCurrentModule
-  case mName of
-    Nothing   -> __IMPOSSIBLE__
-    Just name -> do
-      mm <- getVisitedModule (toTopLevelModuleName name)
-      case mm of
-        Nothing -> __IMPOSSIBLE__
-        Just mi -> return $ miInterface mi
+  name <- curMName
+  maybe __IMPOSSIBLE__ miInterface <$> getVisitedModule (toTopLevelModuleName name)
 
+curMName :: ReadTCState m => m ModuleName
+curMName = fromMaybe __IMPOSSIBLE__ <$> useTC stCurrentModule
 
-curSig :: TCM Signature
-curSig = iSignature <$> curIF
-
-curMName :: TCM ModuleName
-curMName = sigMName <$> curSig
-
-curDefs :: TCM Definitions
-curDefs = fmap (HMap.filter (not . defNoCompilation)) $ (^. sigDefinitions) <$> curSig
+curDefs :: ReadTCState m => m Definitions
+curDefs = HMap.filter (not . defNoCompilation) . (^. sigDefinitions) . iSignature <$> curIF
 
 sortDefs :: Definitions -> [(QName, Definition)]
 sortDefs defs =
@@ -104,13 +94,7 @@ sortDefs defs =
   List.sortBy (compare `on` fst) $
   HMap.toList defs
 
-sigMName :: Signature -> ModuleName
-sigMName sig = case Map.keys (sig ^. sigSections) of
-  []    -> __IMPOSSIBLE__
-  m : _ -> m
-
-
-compileDir :: TCM FilePath
+compileDir :: HasOptions m => m FilePath
 compileDir = do
   mdir <- optCompileDir <$> commandLineOptions
   maybe __IMPOSSIBLE__ return mdir
@@ -162,7 +146,7 @@ inCompilerEnv mainI cont = do
   stTCWarnings `setTCLens` newWarnings
   return a
 
-topLevelModuleName :: ModuleName -> TCM ModuleName
+topLevelModuleName :: ReadTCState m => ModuleName -> m ModuleName
 topLevelModuleName m = do
   -- get the names of the visited modules
   visited <- List.map (iModuleName . miInterface) . Map.elems <$>
