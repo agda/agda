@@ -1,18 +1,23 @@
+-- | Main module for JS backend.
+
 module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
 import Control.Monad.Trans
 
-import Data.Char ( isSpace )
-import Data.List ( intercalate, partition )
-import Data.Set ( Set, null, insert, difference, delete )
-import Data.Map ( fromList )
+import Data.Char     ( isSpace )
+import Data.Foldable ( forM_ )
+import Data.List     ( intercalate, partition )
+import Data.Set      ( Set )
+
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
-import System.Directory ( createDirectoryIfMissing )
-import System.FilePath ( splitFileName, (</>) )
+import System.Directory   ( createDirectoryIfMissing )
+import System.Environment ( setEnv )
+import System.FilePath    ( splitFileName, (</>) )
+import System.Process     ( callCommand )
 
 import Paths_Agda
 
@@ -39,8 +44,9 @@ import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM )
+import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, whenNothing )
 import Agda.Utils.Monad ( ifM, when )
+import Agda.Utils.Null  ( null )
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
@@ -58,7 +64,7 @@ import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module), Comment(Comment),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module, modName, callMain), Comment(Comment),
     modName, expName, uses
   , JSQName
   )
@@ -99,16 +105,20 @@ jsBackend' = Backend'
 --- Options ---
 
 data JSOptions = JSOptions
-  { optJSCompile :: Bool
+  { optJSCompile  :: Bool
   , optJSOptimize :: Bool
-  , optJSMinify :: Bool
+  , optJSMinify   :: Bool
+      -- ^ Remove spaces etc. See https://en.wikipedia.org/wiki/Minification_(programming).
+  , optJSVerify   :: Bool
+      -- ^ Run generated code through interpreter.
   }
 
 defaultJSOptions :: JSOptions
 defaultJSOptions = JSOptions
-  { optJSCompile = False
+  { optJSCompile  = False
   , optJSOptimize = False
-  , optJSMinify = False
+  , optJSMinify   = False
+  , optJSVerify   = False
   }
 
 jsCommandLineFlags :: [OptDescr (Flag JSOptions)]
@@ -117,19 +127,53 @@ jsCommandLineFlags =
     , Option [] ["js-optimize"] (NoArg enableOpt) "turn on optimizations during JS code generation"
     -- Minification is described at https://en.wikipedia.org/wiki/Minification_(programming)
     , Option [] ["js-minify"] (NoArg enableMin) "minify generated JS code"
+    , Option [] ["js-verify"] (NoArg enableVerify) "except for main module, run generated JS modules through `node` (needs to be in PATH)"
     ]
   where
-    enable o = pure o{ optJSCompile = True }
-    enableOpt o = pure o{ optJSOptimize = True }
-    enableMin o = pure o{ optJSMinify = True }
+    enable       o = pure o{ optJSCompile  = True }
+    enableOpt    o = pure o{ optJSOptimize = True }
+    enableMin    o = pure o{ optJSMinify   = True }
+    enableVerify o = pure o{ optJSVerify   = True }
 
 --- Top-level compilation ---
 
 jsPreCompile :: JSOptions -> TCM JSOptions
 jsPreCompile opts = return opts
 
+-- | After all modules have been compiled, copy RTE modules and verify compiled modules.
+
 jsPostCompile :: JSOptions -> IsMain -> Map.Map ModuleName Module -> TCM ()
-jsPostCompile _opts _ _ms = copyRTEModules
+jsPostCompile opts _ ms = do
+
+  -- Copy RTE modules.
+
+  compDir  <- compileDir
+  liftIO $ do
+    dataDir <- getDataDir
+    let srcDir = dataDir </> "JS"
+    copyDirContent srcDir compDir
+
+  -- Verify generated JS modules (except for main).
+
+  reportSLn "compile.js.verify" 10 $ "Considering to verify generated JS modules"
+  when (optJSVerify opts) $ do
+
+    reportSLn "compile.js.verify" 10 $ "Verifying generated JS modules"
+    liftIO $ setEnv "NODE_PATH" compDir
+
+    forM_ ms $ \ Module{ modName, callMain } -> do
+      jsFile <- outFile modName
+      reportSLn "compile.js.verify" 30 $ unwords [ "Considering JS module:" , jsFile ]
+
+      -- Since we do not run a JS program for real, we skip all modules that could
+      -- have a call to main.
+      -- Atm, modules whose compilation was skipped are also skipped during verification
+      -- (they appear here as main modules).
+      whenNothing callMain $ do
+        let cmd = unwords [ "node", "-", "<", jsFile ]
+        reportSLn "compile.js.verify" 20 $ unwords [ "calling:", cmd ]
+        liftIO $ callCommand cmd
+
 
 mergeModules :: Map.Map ModuleName Module -> [(GlobalId, Export)]
 mergeModules ms
@@ -149,7 +193,10 @@ jsPreModule _opts _ m ifile = ifM uptodate noComp yesComp
 
     noComp = do
       reportSLn "compile.js" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
-      return $ Skip __IMPOSSIBLE__
+      return $ Skip skippedModule
+
+    -- A skipped module acts as a fake main module, to be skipped by --js-verify as well.
+    skippedModule = Module (jsMod m) mempty mempty (Just __IMPOSSIBLE__)
 
     yesComp = do
       m   <- prettyShow <$> curMName
@@ -254,9 +301,9 @@ reorder es = datas ++ funs ++ reorder' (Set.fromList $ map expName $ datas ++ fu
 reorder' :: Set JSQName -> [Export] -> [Export]
 reorder' defs [] = []
 reorder' defs (e : es) =
-  let us = uses e `difference` defs
+  let us = uses e `Set.difference` defs
   in  if null us
-        then e : (reorder' (insert (expName e) defs) es)
+        then e : (reorder' (Set.insert (expName e) defs) es)
         else reorder' defs (insertAfter us e es)
 
 isTopLevelValue :: Export -> Bool
@@ -267,7 +314,7 @@ isTopLevelValue (Export _ e) = case e of
 
 isEmptyObject :: Export -> Bool
 isEmptyObject (Export _ e) = case e of
-  Object m -> Map.null m
+  Object m -> null m
   Lambda{} -> True
   _        -> False
 
@@ -275,25 +322,12 @@ insertAfter :: Set JSQName -> Export -> [Export] -> [Export]
 insertAfter us e []                   = [e]
 insertAfter us e (f : fs) | null us   = e : f : fs
 insertAfter us e (f : fs) | otherwise =
-  f : insertAfter (delete (expName f) us) e fs
+  f : insertAfter (Set.delete (expName f) us) e fs
 
 --------------------------------------------------
 -- Main compiling clauses
 --------------------------------------------------
 
-{- dead code
-curModule :: IsMain -> TCM Module
-curModule isMain = do
-  kit <- coinductionKit
-  m <- (jsMod <$> curMName)
-  is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
-  es <- catMaybes <$> (mapM (definition kit) =<< (sortDefs <$> curDefs))
-  return $ Module m is (reorder es) main
-  where
-    main = case isMain of
-      IsMain -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
-      NotMain -> Nothing
--}
 type EnvWithOpts = (JSOptions, JSModuleEnv)
 
 definition :: EnvWithOpts -> (QName,Definition) -> TCM (Maybe Export)
@@ -394,7 +428,7 @@ definition' kit q d t ls = do
         Record { recFields = flds } -> ret $ curriedLambda nargs $
           if optJSOptimize (fst kit)
             then Lambda 1 $ Apply (Local (LocalId 0)) args
-            else Object $ fromList [ (l, Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args) ]
+            else Object $ Map.fromList [ (l, Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args) ]
         dt ->
           ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) index) args
           where
@@ -616,12 +650,6 @@ outFile_ :: TCM FilePath
 outFile_ = do
   m <- curMName
   outFile (jsMod m)
-
-copyRTEModules :: TCM ()
-copyRTEModules = do
-  dataDir <- lift getDataDir
-  let srcDir = dataDir </> "JS"
-  (lift . copyDirContent srcDir) =<< compileDir
 
 -- | Primitives implemented in the JS Agda RTS.
 primitives :: Set String
