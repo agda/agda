@@ -67,7 +67,9 @@ htmlBackend' = Backend'
   , compileDef            = compileDefHtml
   , postModule            = postModuleHtml
   , postCompile           = postCompileHtml
-  , scopeCheckingSuffices = False
+  -- --only-scope-checking works, but with the caveat that cross-module links
+  -- will not have their definition site populated.
+  , scopeCheckingSuffices = True
   , mayEraseType          = const $ return False
   }
 
