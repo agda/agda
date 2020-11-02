@@ -1,6 +1,9 @@
 
 module Agda.Compiler.MAlonzo.Primitives where
 
+import Control.Arrow ( second )
+import Control.Monad.Trans.Maybe ( MaybeT(MaybeT, runMaybeT) )
+
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -27,10 +30,17 @@ import qualified Agda.Utils.Haskell.Syntax as HS
 
 import Agda.Utils.Impossible
 
+newtype MainFunctionDef = MainFunctionDef Definition
+
+data CheckedMainFunctionDef = CheckedMainFunctionDef
+  { checkedMainDef :: MainFunctionDef
+  , checkedMainDecl :: HS.Decl
+  }
+
 -- Andreas, 2019-04-29, issue #3731: exclude certain kinds of names, like constructors.
 -- TODO: Also only consider top-level definition (not buried inside a module).
-isMainFunction :: QName -> Defn -> Bool
-isMainFunction q = \case
+asMainFunctionDef :: Definition -> Maybe MainFunctionDef
+asMainFunctionDef d = case (theDef d) of
     Axiom{}                             -> perhaps
     Function{ funProjection = Nothing } -> perhaps
     Function{ funProjection = Just{}  } -> no
@@ -43,31 +53,30 @@ isMainFunction q = \case
     Primitive{}                         -> no
     PrimitiveSort{}                     -> no
   where
-  perhaps = "main" == prettyShow (nameConcrete $ qnameName q)  -- ignores the qualification!?
-  no      = False
+  isNamedMain = "main" == prettyShow (nameConcrete . qnameName . defName $ d)  -- ignores the qualification!?
+  perhaps | isNamedMain = Just $ MainFunctionDef d
+          | otherwise   = no
+  no                    = Nothing
 
--- | Check for "main" function, but only in the main module.
-hasMainFunction
-  :: IsMain    -- ^ Are we looking at the main module?
-  -> Interface -- ^ The module.
-  -> IsMain    -- ^ Did we find a "main" function?
-hasMainFunction NotMain _ = NotMain
-hasMainFunction IsMain i
-  | List.any (\ (x, def) -> isMainFunction x $ theDef def) names = IsMain
-  | otherwise = NotMain
+mainFunctionDefs :: Interface -> [MainFunctionDef]
+mainFunctionDefs i = catMaybes $ asMainFunctionDef <$> defs
   where
-    names = HMap.toList $ iSignature i ^. sigDefinitions
+    defs = HMap.elems $ iSignature i ^. sigDefinitions
 
 -- | Check that the main function has type IO a, for some a.
-checkTypeOfMain :: IsMain -> QName -> Definition -> TCM [HS.Decl]
-checkTypeOfMain NotMain q def = return []
-checkTypeOfMain  IsMain q def
-  | not (isMainFunction q $ theDef def) = return []
-  | otherwise = do
+checkTypeOfMain :: Definition -> HsCompileM (Maybe CheckedMainFunctionDef)
+checkTypeOfMain def = runMaybeT $ do
+  -- Only indicate main functions in the main module.
+  isMainModule <- curIsMainModule
+  mainDef <- MaybeT $ pure $ if isMainModule then asMainFunctionDef def else Nothing
+  liftTCM $ checkTypeOfMain' mainDef
+
+checkTypeOfMain' :: MainFunctionDef -> TCM CheckedMainFunctionDef
+checkTypeOfMain' m@(MainFunctionDef def) = CheckedMainFunctionDef m <$> do
     Def io _ <- primIO
     ty <- reduce $ defType def
     case unEl ty of
-      Def d _ | d == io -> return [mainAlias]
+      Def d _ | d == io -> return mainAlias
       _                 -> do
         err <- fsep $
           pwords "The type of main should be" ++
@@ -76,7 +85,7 @@ checkTypeOfMain  IsMain q def
   where
     mainAlias = HS.FunBind [HS.Match mainLHS [] mainRHS emptyBinds ]
     mainLHS   = HS.Ident "main"
-    mainRHS   = HS.UnGuardedRhs $ HS.App mazCoerce (HS.Var $ HS.UnQual $ unqhname "d" q)
+    mainRHS   = HS.UnGuardedRhs $ HS.App mazCoerce (HS.Var $ HS.UnQual $ unqhname "d" $ defName def)
 
 treelessPrimName :: TPrim -> String
 treelessPrimName p =
@@ -108,54 +117,54 @@ treelessPrimName p =
     PIf     -> __IMPOSSIBLE__
 
 -- | Haskell modules to be imported for BUILT-INs
-importsForPrim :: TCM [HS.ModuleName]
-importsForPrim =
-  fmap (++ [HS.ModuleName "Data.Text"]) $
-  xForPrim $
-  List.map (\(s, ms) -> (s, return (List.map HS.ModuleName ms))) $
-  [ "CHAR"                       |-> ["Data.Char"]
-  , "primIsAlpha"                |-> ["Data.Char"]
-  , "primIsAscii"                |-> ["Data.Char"]
-  , "primIsDigit"                |-> ["Data.Char"]
-  , "primIsHexDigit"             |-> ["Data.Char"]
-  , "primIsLatin1"               |-> ["Data.Char"]
-  , "primIsLower"                |-> ["Data.Char"]
-  , "primIsPrint"                |-> ["Data.Char"]
-  , "primIsSpace"                |-> ["Data.Char"]
-  , "primToLower"                |-> ["Data.Char"]
-  , "primToUpper"                |-> ["Data.Char"]
-  , "primFloatInequality"        |-> ["MAlonzo.RTE.Float"]
-  , "primFloatEquality"          |-> ["MAlonzo.RTE.Float"]
-  , "primFloatLess"              |-> ["MAlonzo.RTE.Float"]
-  , "primFloatIsSafeInteger"     |-> ["MAlonzo.RTE.Float"]
-  , "primFloatToWord64"          |-> ["MAlonzo.RTE.Float"]
-  , "primFloatRound"             |-> ["MAlonzo.RTE.Float"]
-  , "primFloatFloor"             |-> ["MAlonzo.RTE.Float"]
-  , "primFloatCeiling"           |-> ["MAlonzo.RTE.Float"]
-  , "primFloatToRatio"           |-> ["MAlonzo.RTE.Float"]
-  , "primRatioToFloat"           |-> ["MAlonzo.RTE.Float"]
-  , "primFloatDecode"            |-> ["MAlonzo.RTE.Float"]
-  , "primFloatEncode"            |-> ["MAlonzo.RTE.Float"]
-  ]
-  where (|->) = (,)
+importsForPrim :: BuiltinThings PrimFun -> [Definition] -> [HS.ModuleName]
+importsForPrim builtinThings defs = xForPrim table builtinThings defs ++ [HS.ModuleName "Data.Text"]
+  where
+  table = Map.fromList $ second (HS.ModuleName <$>) <$>
+    [ "CHAR"                       |-> ["Data.Char"]
+    , "primIsAlpha"                |-> ["Data.Char"]
+    , "primIsAscii"                |-> ["Data.Char"]
+    , "primIsDigit"                |-> ["Data.Char"]
+    , "primIsHexDigit"             |-> ["Data.Char"]
+    , "primIsLatin1"               |-> ["Data.Char"]
+    , "primIsLower"                |-> ["Data.Char"]
+    , "primIsPrint"                |-> ["Data.Char"]
+    , "primIsSpace"                |-> ["Data.Char"]
+    , "primToLower"                |-> ["Data.Char"]
+    , "primToUpper"                |-> ["Data.Char"]
+    , "primFloatInequality"        |-> ["MAlonzo.RTE.Float"]
+    , "primFloatEquality"          |-> ["MAlonzo.RTE.Float"]
+    , "primFloatLess"              |-> ["MAlonzo.RTE.Float"]
+    , "primFloatIsSafeInteger"     |-> ["MAlonzo.RTE.Float"]
+    , "primFloatToWord64"          |-> ["MAlonzo.RTE.Float"]
+    , "primFloatRound"             |-> ["MAlonzo.RTE.Float"]
+    , "primFloatFloor"             |-> ["MAlonzo.RTE.Float"]
+    , "primFloatCeiling"           |-> ["MAlonzo.RTE.Float"]
+    , "primFloatToRatio"           |-> ["MAlonzo.RTE.Float"]
+    , "primRatioToFloat"           |-> ["MAlonzo.RTE.Float"]
+    , "primFloatDecode"            |-> ["MAlonzo.RTE.Float"]
+    , "primFloatEncode"            |-> ["MAlonzo.RTE.Float"]
+    ]
+  (|->) = (,)
 
 --------------
 
-xForPrim :: [(String, TCM [a])] -> TCM [a]
-xForPrim table = do
-  qs <- Set.fromList . HMap.keys <$> curDefs
-  bs <- Map.toList <$> getsTC stBuiltinThings
-  let getName (Builtin (Def q _))    = q
+xForPrim :: Map.Map String [a] -> BuiltinThings PrimFun -> [Definition] -> [a]
+xForPrim table builtinThings defs =
+  let qs = Set.fromList $ defName <$> defs
+      bs = Map.toList builtinThings
+      getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _ _))  = conName q
       getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
       getName (Builtin _)            = __IMPOSSIBLE__
       getName (Prim (PrimFun q _ _)) = q
-  concat <$> sequence [ fromMaybe (return []) $ List.lookup s table
-                        | (s, def) <- bs, getName def `Set.member` qs ]
+  in
+  concat [ fromMaybe [] $ Map.lookup s table
+         | (s, def) <- bs, getName def `Set.member` qs ]
 
 
 -- | Definition bodies for primitive functions
-primBody :: String -> TCM HS.Exp
+primBody :: MonadTCError m => String -> m HS.Exp
 primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
              List.lookup s $
   [
@@ -307,17 +316,10 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   hLam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
   nLam x t = Lam (setHiding NotHidden defaultArgInfo) (Abs x t)
 
-noCheckCover :: QName -> TCM Bool
+noCheckCover :: (HasBuiltins m, MonadReduce m) => QName -> m Bool
 noCheckCover q = (||) <$> isBuiltin q builtinNat <*> isBuiltin q builtinInteger
 
 ----------------------
 
-
-pconName :: String -> TCM String
-pconName s = toS =<< getBuiltin s where
-  toS (Con q _ _) = prettyPrint <$> conhqn (conName q)
-  toS (Lam _ t) = toS (unAbs t)
-  toS _ = mazerror $ "pconName" ++ s
-
-bltQual' :: String -> String -> TCM String
+bltQual' :: String -> String -> HsCompileM String
 bltQual' b s = prettyPrint <$> bltQual b s
