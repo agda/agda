@@ -93,7 +93,7 @@ dotBackend' = Backend'
   , compileDef            = compileDefDot
   , postModule            = postModuleDot
   , postCompile           = postCompileDot
-  , scopeCheckingSuffices = False
+  , scopeCheckingSuffices = True
   , mayEraseType          = const $ return True
   }
 
