@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 
 module Agda.Syntax.Internal.Blockers where
 
@@ -65,6 +66,10 @@ data Blocker = UnblockOnAll (Set Blocker)
 
 alwaysUnblock :: Blocker
 alwaysUnblock = UnblockOnAll Set.empty
+
+pattern AlwaysUnblock :: Blocker
+pattern AlwaysUnblock <- ((== alwaysUnblock) -> True)
+  where AlwaysUnblock = alwaysUnblock
 
 neverUnblock :: Blocker
 neverUnblock = UnblockOnAny Set.empty

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 -- | Var field implementation of sets of (small) natural numbers.
 
@@ -16,7 +17,11 @@ import Data.IntSet as IntSet
 type VarSet = IntSet
 
 subtract :: Int -> VarSet -> VarSet
+#if MIN_VERSION_containers(0,6,3)
+subtract n = IntSet.mapMonotonic (Prelude.subtract n)
+#else
 subtract n = IntSet.map (Prelude.subtract n)
+#endif
 
 {-
 import Data.Bits

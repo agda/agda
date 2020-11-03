@@ -39,10 +39,8 @@ instance Pretty a => Pretty (TwinT' a) where
   pretty (SingleT a) = pretty a
   pretty (TwinT{twinPid,necessary,twinLHS=a,twinRHS=b}) =
     pretty a <> "‡"
-             <> "["
-             <> pretty twinPid
              <> (if necessary then "" else "*")
-             <> "]"
+             <> pretty twinPid
              <> pretty b
 
 -- instance (Sing het, Pretty a, Pretty b) => Pretty (If_ het a b) where

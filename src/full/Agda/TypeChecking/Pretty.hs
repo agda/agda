@@ -55,6 +55,8 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
 
@@ -293,9 +295,9 @@ instance PrettyTCM a => PrettyTCM (TwinT' a) where
   prettyTCM (SingleT a) = prettyTCM a
   prettyTCM TwinT{twinPid,necessary,twinLHS=a,twinRHS=b,twinCompat=c} =
     prettyTCM a <+> return "‡"
+                <+> return (if necessary then "" else "*")
                 <+> return "["
                 <+> pretty twinPid
-                <+> return (if necessary then "" else "*")
                 <+> return ","
                 <+> prettyTCM c
                 <+> return "]"
@@ -492,3 +494,6 @@ instance PrettyTCM Candidate where
   prettyTCM c = case candidateKind c of
     (GlobalCandidate q) -> prettyTCM q
     LocalCandidate      -> prettyTCM $ candidateTerm c
+
+instance PrettyTCM VarSet where
+  prettyTCM = prettyTCM . map (flip Var []) . VarSet.toList

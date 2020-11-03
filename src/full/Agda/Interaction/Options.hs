@@ -447,7 +447,7 @@ restartOptions =
   [ (C . optTerminationDepth, "--termination-depth")
   , (B . (/= UnicodeOk) . optUseUnicode, "--no-unicode")
   , (B . optAllowUnsolved, "--allow-unsolved-metas")
-  , (B . optHeterogeneousUnification, "--heterogeneous-unification")
+  , (B . optHeterogeneousUnification, "--no-heterogeneous-unification")
   , (B . optAllowIncompleteMatch, "--allow-incomplete-matches")
   , (B . optDisablePositivity, "--no-positivity-check")
   , (B . optTerminationCheck,  "--no-termination-check")
@@ -906,6 +906,9 @@ noImportSorts o = return $ o { optImportSorts = False }
 heterogeneousUnificationFlag :: Flag PragmaOptions
 heterogeneousUnificationFlag o = return $ o { optHeterogeneousUnification = True }
 
+noHeterogeneousUnificationFlag :: Flag PragmaOptions
+noHeterogeneousUnificationFlag o = return $ o { optHeterogeneousUnification = False }
+
 allowExec :: Flag PragmaOptions
 allowExec o = return $ o { optAllowExec = True }
 
@@ -1141,7 +1144,10 @@ pragmaOptions =
     , Option []     ["no-import-sorts"] (NoArg noImportSorts)
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
     , Option []     ["heterogeneous-unification"] (NoArg heterogeneousUnificationFlag)
-                    "use heterogeneous unification; hopefully slower but smaller chance of internal errors"
+
+                    "use heterogeneous unification; hopefully slower but smaller chance of internal errors (default)"
+    , Option []     ["no-heterogeneous-unification"] (NoArg noHeterogeneousUnificationFlag)
+                    "ignore heterogeneous unification information; faster but some chance of internal errors"
     , Option []     ["allow-exec"] (NoArg allowExec)
                     "allow system calls to trusted executables with primExec"
     ]
