@@ -8,7 +8,7 @@ module Agda.TypeChecking.Errors
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
-  , applyFlagsToTCWarnings'
+  , applyFlagsToTCWarningsPreserving
   , applyFlagsToTCWarnings
   , dropTopLevelModule
   , topLevelModuleDropper

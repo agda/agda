@@ -11,10 +11,5 @@ data MaybeWarnings' a = NoWarnings | SomeWarnings a
 type MaybeWarnings = MaybeWarnings' [TCWarning]
 instance Functor MaybeWarnings'
 
-data Mode
-data MainInterface = MainInterface Mode | NotMainInterface
-
-instance Eq MainInterface
-
 scopeCheckImport :: ModuleName -> TCM (ModuleName, Map ModuleName Scope)
 getAllWarnings :: WhichWarnings -> TCM [TCWarning]

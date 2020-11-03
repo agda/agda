@@ -4,8 +4,7 @@
     interface files.
 -}
 module Agda.Interaction.Imports
-  ( MainInterface(MainInterface, NotMainInterface)
-  , Mode(ScopeCheck, TypeCheck)
+  ( Mode(ScopeCheck, TypeCheck)
   , MaybeWarnings
   , MaybeWarnings'(NoWarnings, SomeWarnings)
   , SourceInfo(..)
@@ -76,6 +75,7 @@ import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Library
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
+import Agda.Interaction.Options.Warnings (WarningName, unsolvedWarnings)
 import Agda.Interaction.Response
   (RemoveTokenBasedHighlighting(KeepHighlighting))
 
@@ -1105,14 +1105,18 @@ getAllUnsolved = do
 -- | Collect all warnings that have accumulated in the state.
 
 getAllWarnings :: WhichWarnings -> TCM [TCWarning]
-getAllWarnings = getAllWarnings' NotMainInterface
+getAllWarnings = getAllWarningsPreserving Set.empty
 
 -- | Expert version of 'getAllWarnings'; if 'isMain' is a
 -- 'MainInterface', the warnings definitely include also unsolved
 -- warnings.
 
 getAllWarnings' :: MainInterface -> WhichWarnings -> TCM [TCWarning]
-getAllWarnings' isMain ww = do
+getAllWarnings' (MainInterface _) = getAllWarningsPreserving unsolvedWarnings
+getAllWarnings' NotMainInterface  = getAllWarningsPreserving Set.empty
+
+getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM [TCWarning]
+getAllWarningsPreserving keptWarnings ww = do
   unsolved            <- getAllUnsolved
   collectedTCWarnings <- useTC stTCWarnings
 
@@ -1120,8 +1124,8 @@ getAllWarnings' isMain ww = do
                     not (null unsolved && onlyShowIfUnsolved w)
 
   fmap (filter (showWarn . tcWarning))
-    $ applyFlagsToTCWarnings' isMain $ reverse
-    $ unsolved ++ collectedTCWarnings
+    $ applyFlagsToTCWarningsPreserving keptWarnings
+    $ reverse $ unsolved ++ collectedTCWarnings
 
 getMaybeWarnings' :: MainInterface -> WhichWarnings -> TCM MaybeWarnings
 getMaybeWarnings' isMain ww = do

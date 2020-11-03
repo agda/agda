@@ -6,7 +6,10 @@ import Prelude hiding ( null )
 import Data.Char ( toLower )
 import Data.Function
 import Data.Maybe
+
 import qualified Data.Set as Set
+import Data.Set (Set)
+
 import qualified Data.List as List
 import qualified Data.Text as T
 
@@ -28,7 +31,6 @@ import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract
 
-import {-# SOURCE #-} Agda.Interaction.Imports
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
@@ -417,9 +419,8 @@ tcWarningsToError ws = typeError $ case ws of
 -- | Depending which flags are set, one may happily ignore some
 -- warnings.
 
-applyFlagsToTCWarnings' :: MainInterface -> [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings' isMain ws = do
-
+applyFlagsToTCWarningsPreserving :: Set WarningName -> [TCWarning] -> TCM [TCWarning]
+applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
   -- For some reason some SafeFlagPragma seem to be created multiple times.
   -- This is a way to collect all of them and remove duplicates.
   let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
@@ -428,12 +429,8 @@ applyFlagsToTCWarnings' isMain ws = do
                  [TCWarning loc r (SafeFlagPragma sfp) p b]
               _                        -> []
 
-  warnSet <- do
-    opts <- pragmaOptions
-    let warnSet = optWarningMode opts ^. warningSet
-    pure $ if isMain /= NotMainInterface
-           then Set.union warnSet unsolvedWarnings
-           else warnSet
+  pragmaWarnings <- (^. warningSet) . optWarningMode <$> pragmaOptions
+  let warnSet = Set.union pragmaWarnings additionalKeptWarnings
 
   -- filter out the warnings the flags told us to ignore
   let cleanUp w = let wName = warningName w in
@@ -448,4 +445,4 @@ applyFlagsToTCWarnings' isMain ws = do
   return $ sfp ++ filter (cleanUp . tcWarning) ws
 
 applyFlagsToTCWarnings :: [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings = applyFlagsToTCWarnings' NotMainInterface
+applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty
