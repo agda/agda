@@ -52,6 +52,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.FileName (isNewerThan)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Float

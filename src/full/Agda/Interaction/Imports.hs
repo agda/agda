@@ -10,7 +10,6 @@ module Agda.Interaction.Imports
   , MaybeWarnings'(NoWarnings, SomeWarnings)
   , SourceInfo(..)
   , applyFlagsToMaybeWarnings
-  , isNewerThan
   , getAllWarnings
   , getAllWarningsOfTCErr
   , getMaybeWarnings
@@ -41,7 +40,7 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 
-import System.Directory (doesFileExist, getModificationTime, removeFile)
+import System.Directory (doesFileExist, removeFile)
 import System.FilePath ((</>), takeDirectory)
 
 import Agda.Benchmarking
@@ -1262,16 +1261,3 @@ getInterfaceFileHashes' fp = do
 
 moduleHash :: ModuleName -> TCM Hash
 moduleHash m = iFullHash <$> getInterface m
-
--- | True if the first file is newer than the second file. If a file doesn't
--- exist it is considered to be infinitely old.
-isNewerThan :: FilePath -> FilePath -> IO Bool
-isNewerThan new old = do
-    newExist <- doesFileExist new
-    oldExist <- doesFileExist old
-    if not (newExist && oldExist)
-        then return newExist
-        else do
-            newT <- getModificationTime new
-            oldT <- getModificationTime old
-            return $ newT >= oldT
