@@ -11,7 +11,7 @@ module Agda.Syntax.Concrete
   , OpApp(..), fromOrdinary
   , OpAppArgs, OpAppArgs', OpAppArgs0
   , module Agda.Syntax.Concrete.Name
-  , appView, AppView(..)
+  , AppView(..), appView, unAppView
   , rawApp, rawAppP
   , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
@@ -607,6 +607,15 @@ appView = \case
     arg (HiddenArg   _ e) = hide         $ defaultArg e
     arg (InstanceArg _ e) = makeInstance $ defaultArg e
     arg e                 = defaultArg (unnamed e)
+
+unAppView :: AppView -> Expr
+unAppView (AppView e nargs) = rawApp (e :| map unNamedArg nargs)
+
+  where
+    unNamedArg narg = ($ unArg narg) $ case getHiding narg of
+      Hidden     -> HiddenArg (getRange narg)
+      NotHidden  -> namedThing
+      Instance{} -> InstanceArg (getRange narg)
 
 isSingleIdentifierP :: Pattern -> Maybe Name
 isSingleIdentifierP = \case
