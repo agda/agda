@@ -81,7 +81,7 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF{} }
 
-%expect 9
+%expect 8
 -- * shift/reduce for \ x y z -> foo = bar
 --   shifting means it'll parse as \ x y z -> (foo = bar) rather than
 --   (\ x y z -> foo) = bar
@@ -622,7 +622,6 @@ Expr
                                               $3 }
   | Attributes1 Application3 '->' Expr  {% applyAttrs1 $1 (defaultArg $ rawApp $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
-  | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
 
 -- Level 1: Application
@@ -691,8 +690,10 @@ Application3PossiblyEmpty
 -- Level 3: Atoms
 Expr3Curly :: { Expr }
 Expr3Curly
-    : '{' Expr '}'                      {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
-    | '{' '}'                           { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    : '{' Expr4 '}'               {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    | '{' '}'                     { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    | '{{' Expr4 DoubleCloseBrace {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    | '{{' DoubleCloseBrace       { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly :: { Expr }
 Expr3NoCurly
@@ -701,11 +702,9 @@ Expr3NoCurly
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
-    | '{{' Expr DoubleCloseBrace        {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $ List1.toList $2 }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
-    | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
     | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
     | '..' Expr3                        { DoubleDot (fuseRange $1 $2) $2 }
@@ -714,16 +713,22 @@ Expr3NoCurly
     | '...'                             { Ellipsis (getRange $1) }
     | ExprOrAttr                       { $1 }
 
+-- Level 4: Maybe named, or cubical faces
+Expr4 :: { Expr }
+Expr4 : Expr1 '=' Expr { Equal (getRange ($1, $2, $3)) $1 $3 }
+      | Expr           { $1 }
+
 ExprOrAttr :: { Expr }
 ExprOrAttr
-    : QId                               { Ident $1 }
-    | literal                           { Lit (getRange $1) (rangedThing $1) }
-    | '(' Expr ')'                      { Paren (getRange ($1,$2,$3)) $2 }
+    : QId           { Ident $1 }
+    | literal       { Lit (getRange $1) (rangedThing $1) }
+    | '(' Expr4 ')' { Paren (getRange ($1,$2,$3)) $2 }
+    -- ^ this is needed for cubical stuff
 
 Expr3 :: { Expr }
 Expr3
-    : Expr3Curly                        { $1 }
-    | Expr3NoCurly                      { $1 }
+    : Expr3Curly   { $1 }
+    | Expr3NoCurly { $1 }
 
 RecordAssignments :: { RecordAssignments }
 RecordAssignments
