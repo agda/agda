@@ -316,14 +316,12 @@ alreadyVisited x isMain currentOptions getIface =
 --   complete interface is returned.
 
 typeCheckMain
-  :: SourceFile
-     -- ^ The path to the file.
-  -> Mode
+  :: Mode
      -- ^ Should the file be type-checked, or only scope-checked?
   -> SourceInfo
      -- ^ Information about the source code.
   -> TCM (Interface, MaybeWarnings)
-typeCheckMain f mode si = do
+typeCheckMain mode si = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
   reportSLn "import.main" 10 "Importing the primitive modules."
@@ -339,9 +337,8 @@ typeCheckMain f mode si = do
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $ withoutOptionsChecking $
       forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
-        let file = SourceFile $ mkAbsolute f
-        si <- sourceInfo file
-        checkModuleName' (siModuleName si) file
+        si <- sourceInfo (SourceFile $ mkAbsolute f)
+        checkModuleName' (siModuleName si) (siOrigin si)
         _ <- getInterface_ (siModuleName si) (Just si)
         -- record that the just visited module is primitive
         mapVisitedModule (siModuleName si) (\ m -> m { miPrimitive = True })
@@ -349,7 +346,7 @@ typeCheckMain f mode si = do
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
   -- Now do the type checking via getInterface'.
-  checkModuleName' (siModuleName si) f
+  checkModuleName' (siModuleName si) (siOrigin si)
   getInterface' (siModuleName si) (MainInterface mode) (Just si)
   where
   checkModuleName' m f =

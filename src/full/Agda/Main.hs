@@ -204,8 +204,7 @@ runAgdaWithOptions generateHTML interactor progName opts = do
                      then Imp.ScopeCheck
                      else Imp.TypeCheck RegularInteraction
 
-          let file = SourceFile inputFile
-          (i, mw) <- Imp.typeCheckMain file mode =<< Imp.sourceInfo file
+          (i, mw) <- Imp.typeCheckMain mode =<< Imp.sourceInfo (SourceFile inputFile)
 
           -- An interface is only generated if the mode is
           -- Imp.TypeCheck and there are no warnings.
