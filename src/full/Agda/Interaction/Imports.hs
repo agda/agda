@@ -16,7 +16,6 @@ module Agda.Interaction.Imports
 
 import Prelude hiding (null)
 
-import Control.Arrow
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
@@ -52,7 +51,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Translation.ConcreteToAbstract
 
 import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Warnings
+import Agda.TypeChecking.Warnings hiding (warnings)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules )
 import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
@@ -119,7 +118,7 @@ sourceInfo sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   source                <- runPM $ readFilePM f
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
-  moduleName            <- moduleName f parsedMod
+  parsedModName         <- moduleName f parsedMod
   let sourceDir = takeDirectory $ filePath f
   useLibs <- optUseLibs <$> commandLineOptions
   libs <- if | useLibs   -> libToTCM $ getAgdaLibFiles sourceDir
@@ -129,7 +128,7 @@ sourceInfo sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
     , siFileType   = fileType
     , siOrigin     = sourceFile
     , siModule     = parsedMod
-    , siModuleName = moduleName
+    , siModuleName = parsedModName
     , siProjectLibs = libs
     }
 
@@ -372,9 +371,9 @@ typeCheckMain mode si = do
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $
       forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
-        si <- sourceInfo (SourceFile $ mkAbsolute f)
-        checkModuleName' (siModuleName si) (siOrigin si)
-        void $ getNonMainInterface (siModuleName si) (Just si)
+        primSourceInfo <- sourceInfo (SourceFile $ mkAbsolute f)
+        checkModuleName' (siModuleName primSourceInfo) (siOrigin primSourceInfo)
+        void $ getNonMainInterface (siModuleName primSourceInfo) (Just primSourceInfo)
 
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
@@ -837,20 +836,16 @@ writeInterface file i = let fp = filePath file in do
     -- [Old: Andreas, 2016-02-02 this causes issue #1804, so don't do it:]
     -- Andreas, 2020-05-13, #1804, #4647: removed private declarations
     -- only when we actually write the interface.
-    i <- return $
-      i { iInsideScope  = withoutPrivates $ iInsideScope i
-        }
+    let filteredIface = i { iInsideScope  = withoutPrivates $ iInsideScope i }
     reportSLn "import.iface.write" 50 $
-      "Writing interface file with hash " ++ show (iFullHash i) ++ "."
-    i' <- encodeFile fp i
+      "Writing interface file with hash " ++ show (iFullHash filteredIface) ++ "."
+    encodedIface <- encodeFile fp filteredIface
     reportSLn "import.iface.write" 5 "Wrote interface file."
-    i <-
 #if __GLASGOW_HASKELL__ >= 804
-      Bench.billTo [Bench.Deserialization] (decode i')
+    fromMaybe __IMPOSSIBLE__ <$> (Bench.billTo [Bench.Deserialization] (decode encodedIface))
 #else
-      return (Just i)
+    return filteredIface
 #endif
-    maybe __IMPOSSIBLE__ return i
   `catchError` \e -> do
     reportSLn "" 1 $
       "Failed to write interface " ++ fp ++ "."
@@ -903,7 +898,6 @@ createInterface mname file isMain msi = do
 
     let srcPath = srcFilePath $ siOrigin si
 
-    modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfoFromSource
                          srcPath (TL.unpack $ siSource si)
@@ -1046,11 +1040,11 @@ createInterface mname file isMain msi = do
     reportS "tc.top" 101 $
       "Signature:" :
       [ unlines
-          [ prettyShow x
+          [ prettyShow q
           , "  type: " ++ show (defType def)
           , "  def:  " ++ show cc
           ]
-      | (x, def) <- HMap.toList $ iSignature i ^. sigDefinitions,
+      | (q, def) <- HMap.toList $ iSignature i ^. sigDefinitions,
         Function{ funCompiled = cc } <- [theDef def]
       ]
     reportSLn "import.iface.create" 7 "Finished serialization."
@@ -1058,7 +1052,7 @@ createInterface mname file isMain msi = do
     mallWarnings <- getAllWarnings' isMain ErrorWarnings
 
     reportSLn "import.iface.create" 7 "Considering writing to interface file."
-    i <- case (mallWarnings, isMain) of
+    finalIface <- constructIScope <$> case (mallWarnings, isMain) of
       (_:_, _) -> do
         -- Andreas, 2018-11-15, re issue #3393
         -- The following is not sufficient to fix #3393
@@ -1094,7 +1088,7 @@ createInterface mname file isMain msi = do
     lensAccumStatistics `modifyTCLens` Map.unionWith (+) localStatistics
     verboseS "profile" 1 $ reportSLn "import.iface" 5 "Accumulated statistics."
 
-    return $ first constructIScope (i, mallWarnings)
+    return (finalIface, mallWarnings)
 
 -- | Expert version of 'getAllWarnings'; if 'isMain' is a
 -- 'MainInterface', the warnings definitely include also unsolved
@@ -1146,9 +1140,9 @@ buildInterface si topLevel = do
     -- Ulf, 2016-04-12:
     -- Non-closed display forms are not applicable outside the module anyway,
     -- and should be dead-code eliminated (#1928).
-    display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
+    origDisplayForms <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
     -- TODO: Kill some ranges?
-    (display, sig) <- eliminateDeadCode display =<< getSignature
+    (display, sig) <- eliminateDeadCode origDisplayForms =<< getSignature
     userwarns      <- useTC stLocalUserWarnings
     importwarn     <- useTC stWarningOnImport
     syntaxInfo     <- useTC stSyntaxInfo
