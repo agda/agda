@@ -1919,7 +1919,7 @@ checkSortOfSplitVar dr a tel mtarget = do
           checkIsFibrant target
           forM_ (telToList tel) $ \ d -> do
             let ty = snd $ unDom d
-            checkIsFibrantOrInterval ty
+            checkIsCoFibrant ty
       | otherwise              -> do
           reportSDoc "tc.sort.check" 20 $ "no target"
           splitOnFibrantError Nothing
@@ -1943,7 +1943,9 @@ checkSortOfSplitVar dr a tel mtarget = do
       Right False -> splitOnPropError
       Right True  -> return ()
 
-    checkIsFibrantOrInterval t = runBlocked (isFibrant t) >>= \case
+    -- Cofibrant types are those that could be the domain of a fibrant
+    -- pi type. (Notion by C. Sattler).
+    checkIsCoFibrant t = runBlocked (isCoFibrantSort t) >>= \case
       Left b      -> splitOnFibrantError' t $ Just b
       Right False -> unlessM (isInterval t) $
                        splitOnFibrantError' t $ Nothing

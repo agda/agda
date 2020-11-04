@@ -95,3 +95,7 @@ _∙_ {x = x} p q i = primHComp (\ j → \ { (i = i0) → x; (i = i1) → q j}) 
 
 map-repeat : ∀ {A B : Set} → (a : A) → (f : A → B) → map f (repeat a) ≡ repeat (f a)
 map-repeat a f = fix \ prf▹ → ap (map f) (repeat-eq a) ∙ (map-eq f a _ ∙ ap (cons (f a)) (later-ext prf▹ ∙ later-ext \ α → \ i → pfix' (cons (f a)) α (primINeg i) ))
+
+
+tail : ∀ {A : Set} → gStream A → ▹ gStream A
+tail (cons x xs) = xs
