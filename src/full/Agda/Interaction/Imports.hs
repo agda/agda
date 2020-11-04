@@ -9,7 +9,6 @@ import Prelude hiding (null)
 
 import Control.Arrow
 import Control.Monad.Except
-import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
@@ -22,7 +21,6 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.HashMap.Strict as HMap
 import Data.Text (Text)
-import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
 import System.Directory (doesFileExist, getModificationTime, removeFile)
