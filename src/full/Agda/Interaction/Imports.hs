@@ -3,7 +3,25 @@
 {-| This module deals with finding imported modules and loading their
     interface files.
 -}
-module Agda.Interaction.Imports where
+module Agda.Interaction.Imports
+  ( MainInterface(MainInterface, NotMainInterface)
+  , Mode(ScopeCheck, TypeCheck)
+  , MaybeWarnings
+  , MaybeWarnings'(NoWarnings, SomeWarnings)
+  , SourceInfo(..)
+  , applyFlagsToMaybeWarnings
+  , isNewerThan
+  , getAllWarnings
+  , getAllWarningsOfTCErr
+  , getMaybeWarnings
+  , scopeCheckImport
+  , sourceInfo
+  , typeCheckMain
+
+  -- Currently only used by test/api/Issue1168.hs:
+  , readInterface'
+  , readInterface
+  ) where
 
 import Prelude hiding (null)
 
