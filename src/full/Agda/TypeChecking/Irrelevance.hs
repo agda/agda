@@ -527,3 +527,22 @@ isFibrant a = abortIfBlocked (getSort a) <&> \case
   MetaS{}    -> False
   DefS{}     -> False
   DummyS{}   -> False
+
+
+-- | Cofibrant types are those that could be the domain of a fibrant
+--   pi type. (Notion by C. Sattler).
+isCoFibrantSort :: (LensSort a, PureTCM m, MonadBlock m) => a -> m Bool
+isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
+  Type{}     -> True
+  Prop{}     -> True
+  Inf f _    -> f == IsFibrant
+  SSet{}     -> False
+  SizeUniv{} -> False
+  LockUniv{} -> True
+  PiSort{}   -> False
+  FunSort{}  -> False
+  UnivSort{} -> False
+  MetaS{}    -> False
+  DefS{}     -> False
+  DummyS{}   -> False
+
