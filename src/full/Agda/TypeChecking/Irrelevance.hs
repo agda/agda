@@ -546,4 +546,3 @@ isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
   DefS{}     -> False
   DummyS{}   -> False
 
-
