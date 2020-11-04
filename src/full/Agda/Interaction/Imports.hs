@@ -715,7 +715,8 @@ typeCheck x file isMain msi = do
       -- the persistent state may not be preserved if an error other
       -- than a type error or an IO exception is encountered in an
       -- imported module.
-      r <- withoutCache $
+      (r, newModToSource, newDecodedModules) <- (either throwError pure =<<) $
+           withoutCache $
            -- The cache should not be used for an imported module, and it
            -- should be restored after the module has been type-checked
            freshTCM $
@@ -736,31 +737,24 @@ typeCheck x file isMain msi = do
                addImportedThings isig ibuiltin ipatsyns display userwarn partialdefs []
 
                r  <- withMsgs $ createInterface file x isMain msi
-               mf <- useTC stModuleToSource
-               ds <- getDecodedModules
-               return (r, do
-                  stModuleToSource `setTCLens` mf
-                  setDecodedModules ds
-                  case r of
-                    (i, NoWarnings) -> storeDecodedModule i
-                    _               -> return ()
-                  )
+               mf' <- useTC stModuleToSource
+               ds' <- getDecodedModules
+               return (r, mf', ds')
 
+      stModuleToSource `setTCLens` newModToSource
+      setDecodedModules newDecodedModules
       case r of
-          Left err          -> throwError err
-          Right (r, update) -> do
-            update
-            case r of
-              (_, NoWarnings) ->
-                -- We skip the file which has just been type-checked to
-                -- be able to forget some of the local state from
-                -- checking the module.
-                -- Note that this doesn't actually read the interface
-                -- file, only the cached interface. (This comment is not
-                -- correct, see
-                -- test/Fail/customised/NestedProjectRoots.err.)
-                getStoredInterface x file isMain msi
-              _ -> return (False, r)
+        (i, NoWarnings) -> do
+          storeDecodedModule i
+          -- We skip the file which has just been type-checked to
+          -- be able to forget some of the local state from
+          -- checking the module.
+          -- Note that this doesn't actually read the interface
+          -- file, only the cached interface. (This comment is not
+          -- correct, see
+          -- test/Fail/customised/NestedProjectRoots.err.)
+          getStoredInterface x file isMain msi
+        _ -> return (False, r)
 
 -- | Formats and outputs the "Checking", "Finished" and "Loading " messages.
 
