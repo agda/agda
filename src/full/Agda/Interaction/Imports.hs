@@ -244,6 +244,12 @@ data MaybeWarnings' a = NoWarnings | SomeWarnings a
   deriving (Show, Functor)
 type MaybeWarnings = MaybeWarnings' [TCWarning]
 
+-- | Construct @MaybeWarnings@ from a list.
+-- @NoWarnings@ if empty, otherwise @SomeWarnings@.
+toMaybeWarnings :: [a] -> MaybeWarnings' [a]
+toMaybeWarnings []       = NoWarnings
+toMaybeWarnings ws@(_:_) = SomeWarnings ws
+
 instance Null a => Null (MaybeWarnings' a) where
   empty = NoWarnings
   null mws = case mws of
@@ -1099,13 +1105,9 @@ getAllWarnings' (MainInterface _) = getAllWarningsPreserving unsolvedWarnings
 getAllWarnings' NotMainInterface  = getAllWarningsPreserving Set.empty
 
 getMaybeWarnings' :: MainInterface -> WhichWarnings -> TCM MaybeWarnings
-getMaybeWarnings' isMain ww = do
-  allWarnings <- getAllWarnings' isMain ww
-  return $ if null allWarnings
-    -- Andreas, issue 964: not checking null interactionPoints
-    -- anymore; we want to serialize with open interaction points now!
-           then NoWarnings
-           else SomeWarnings allWarnings
+getMaybeWarnings' isMain ww = toMaybeWarnings <$> getAllWarnings' isMain ww
+-- Andreas, issue 964: not checking null interactionPoints
+-- anymore; we want to serialize with open interaction points now!
 
 -- | Reconstruct the 'iScope' (not serialized)
 --   from the 'iInsideScope' (serialized).
