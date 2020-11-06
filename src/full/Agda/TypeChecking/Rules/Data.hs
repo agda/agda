@@ -1122,7 +1122,10 @@ fitsIn uc forceds t s = do
       withoutK <- withoutKOption
       when (withoutK && not isPath) $ do
        whenM (isFibrant s) $ do
-        usableAtModality (setQuantity (getQuantity dom) defaultModality) (unEl $ unDom dom)
+        q <- asksTC getQuantity
+        usableAtModality
+          (setQuantity (getQuantity dom <> q) defaultModality)
+          (unEl $ unDom dom)
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do
         sa <- reduce $ getSort dom

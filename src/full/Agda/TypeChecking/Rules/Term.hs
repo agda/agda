@@ -113,7 +113,8 @@ isType_ e = traceCall (IsType_ e) $ do
   SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- setArgInfo info . defaultDom <$> isType_ t
+      a <- setArgInfo info . defaultDom <$>
+             applyQuantityToContext info (isType_ t)
       b <- isType_ b
       s <- inferFunSort (getSort a) (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -332,7 +333,12 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     let (c :| cs) = fmap getCohesion xps
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
-    t <- applyCohesionToContext c $ modEnv lamOrPi $ isType_ e
+    let (q :| qs) = fmap getQuantity xps
+    unless (all (q ==) qs) $ __IMPOSSIBLE__
+
+    t <- applyQuantityToContext q $
+         applyCohesionToContext c $
+         modEnv lamOrPi $ isType_ e
 
     -- Andrea TODO: also make sure that LockUniv implies IsLock
     when (any (\ x -> getLock x == IsLock) xs) $

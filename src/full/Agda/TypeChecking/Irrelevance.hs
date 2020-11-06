@@ -413,7 +413,8 @@ instance UsableModality Term where
     -- Even if Pi contains Type, here we check it as a constructor for terms in the universe.
     Pi a b   -> usableMod domMod (unEl $ unDom a) `and2M` usableModAbs (getArgInfo a) mod (unEl <$> b)
       where
-        domMod = mapCohesion (composeCohesion (getCohesion a)) mod
+        domMod = mapQuantity (<> getQuantity a) $
+                 mapCohesion (<> getCohesion a) mod
     -- Andrea 15/10/2020 not updating these cases yet, but they are quite suspicious,
     -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s
