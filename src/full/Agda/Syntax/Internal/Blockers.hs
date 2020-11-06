@@ -98,6 +98,9 @@ unblockOnAny us =
 unblockOnEither :: Blocker -> Blocker -> Blocker
 unblockOnEither a b = unblockOnAny $ Set.fromList [a, b]
 
+unblockOnBoth :: Blocker -> Blocker -> Blocker
+unblockOnBoth a b = unblockOnAll $ Set.fromList [a, b]
+
 unblockOnMeta :: MetaId -> Blocker
 unblockOnMeta = UnblockOnMeta
 

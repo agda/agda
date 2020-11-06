@@ -49,6 +49,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 -- import Agda.TypeChecking.CheckInternal
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.MetaVars.Occurs
+import Agda.TypeChecking.MetaVars.VarSetBlocked (VarSetBlocked, freeVarsBlocked, freeVarsInterpolant)
+import qualified Agda.TypeChecking.MetaVars.VarSetBlocked as VarSetBlocked
 
 import Agda.Utils.Function
 import Agda.Utils.Lens
@@ -924,20 +926,22 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           -- Check that both sides of the context (and the type)
           -- are heterogeneously equal
           heterogeneousUnificationEnabled >>= \enabled -> when enabled $ do
-            let fvArgs = allFreeVars args
-            let fvA    = allFreeVars target
-            reportSDoc "tc.conv.het" 30 $ sep
-              [ "checking heterogeneous context equality prior to meta instantiation"
-              , nest 2 $ "ctx: "  <+> (getContextHet >>= prettyTCM)
-              , nest 2 $ "args: " <+> prettyTCM args    <+> "(FV: " <+> prettyTCM fvArgs <+> ")"
-              , nest 2 $ "rhs: "  <+> prettyTCM v       <+> "(FV: " <+> prettyTCM fvs <+> ")"
-              , nest 2 $ "type: " <+> prettyTCM target  <+> "(FV: " <+> prettyTCM fvA <+> ")"
-              ]
-            -- TODO: Check that the twin type matches
-            return ()
+            let fvArgs = freeVarsBlocked args
+            fvV  <- freeVarsBlocked <$> instantiateFull v
             -- TODO: Use the intersection of both sides of the
             -- twin type here (instead of target)
-            checkContextHetEqual (fvArgs <> fvA) (fvs <> fvA) >>= \case
+            fvA  <- freeVarsBlocked <$> instantiateFull target
+            localTC (\ e -> e { envPrintMetasBare = False }) $
+              reportSDoc "tc.conv.het" 30 $ sep
+                [ "checking heterogeneous context equality prior to meta instantiation"
+                , nest 2 $ "ctx: "  <+> (getContextHet >>= prettyTCM)
+                , nest 2 $ "args: " <+> prettyTCM args    <+> "(FV: " <+> prettyTCM fvArgs <+> ")"
+                , nest 2 $ "rhs: "  <+> prettyTCM v       <+> "(FV: " <+> prettyTCM fvV <+> ")"
+                , nest 2 $ "type: " <+> prettyTCM target  <+> "(FV: " <+> prettyTCM fvA <+> ")"
+                ]
+            -- TODO: Check that both sides of the target match
+            return ()
+            checkContextHetEqual (VarSetBlocked.blockedOnBoth fvArgs fvA) (VarSetBlocked.blockedOnBoth fvV fvA) >>= \case
               AlwaysUnblock -> reportSDoc "tc.conv.het" 30 "success"
               u             -> do reportSDoc "tc.conv.het" 30 $ "blocked on" <+> prettyTCM u
                                   patternViolation (unblockOnAny (Set.fromList [unblockOnMeta x, u]))
@@ -985,8 +989,11 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
                                         -- TODO: could be more precise: only unblock on metas
                                         --       applied to offending variables
 
--- | Invariant and precondition: fvL ⊇ fvR
-checkContextHetEqual :: VarSet -> VarSet -> TCM Blocker
+-- TODO: Only instantiate-full if actually needed
+-- | Invariant and precondition: keys fvL ⊇ keys fvR
+checkContextHetEqual :: VarSetBlocked ->
+                        VarSetBlocked ->
+                        TCM Blocker
 checkContextHetEqual = go 40
   where
     go dbg fvL fvR = do
@@ -998,36 +1005,37 @@ checkContextHetEqual = go 40
         , nest 2 $ "fvR: " <+> prettyTCM fvR
         ]
       -- Check if the
-      if IntSet.null fvL || IntSet.null fvR then
+      if VarSetBlocked.null fvL || VarSetBlocked.null fvR then
         return AlwaysUnblock
       else
         case ctx of
           Empty  -> return AlwaysUnblock
-          _ :⊢ a' -> escapeContext __IMPOSSIBLE__ 1 $ do
-             let a = snd$ unDom a'
-             let fvA = allFreeVarsInterpolant a
-             case (VarSet.member 0 fvL, VarSet.member 0 fvR) of
-               (True, True)   -> checkTwinEqual a >>= \case
-                                   AlwaysUnblock ->
-                                      go 50 (fvA <> (VarSet.subtract 1$ VarSet.delete 0$ fvL))
-                                            (VarSet.subtract 1$ VarSet.delete 0$ fvR)
-                                   u -> return u
-               (True, False)  ->
-                                   let fvA = allFreeVars (twinAt @'LHS a) in
-                                   go 50 (fvA <> VarSet.subtract 1 (VarSet.delete 0 fvL))
-                                         (VarSet.subtract 1 fvR)
-               (False, False) ->   go 50 (VarSet.subtract 1 fvL)
-                                         (VarSet.subtract 1 fvR)
-               (False, True)  -> __IMPOSSIBLE__
-
-allFreeVarsInterpolant :: TwinT -> VarSet
-allFreeVarsInterpolant (SingleT a) = allFreeVars a
-allFreeVarsInterpolant (TwinT{twinLHS,twinRHS}) = allFreeVars twinLHS `VarSet.intersection` allFreeVars twinRHS
+          _ :⊢ a -> escapeContext __IMPOSSIBLE__ 1 $ do
+             let a' = (snd$ unDom a)
+             case (VarSetBlocked.lookup 0 fvL, VarSetBlocked.lookup 0 fvR) of
+               (Just bl, Just br)  -> checkTwinEqual a' >>= \case
+                                   AlwaysUnblock -> do
+                                      fvA <- freeVarsInterpolant <$> instantiateFull a'
+                                      go 50 (VarSetBlocked.blockedOnBoth
+                                                     (VarSetBlocked.map (unblockOnEither (unblockOnBoth bl br)) fvA)
+                                                     (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvL))
+                                              (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvR)
+                                   u -> return (unblockOnAny (Set.fromList [u,bl,br]))
+               (Just bl,  Nothing) -> do
+                                   fvA <- freeVarsBlocked <$> instantiateFull (twinAt @'LHS a')
+                                   go 50 (VarSetBlocked.blockedOnBoth
+                                               (VarSetBlocked.map (unblockOnEither bl) fvA)
+                                               (VarSetBlocked.subtract 1 (VarSetBlocked.delete 0 fvL)))
+                                         (VarSetBlocked.subtract 1 fvR)
+               (Nothing, Nothing) ->   go 50 (VarSetBlocked.subtract 1 fvL)
+                                         (VarSetBlocked.subtract 1 fvR)
+               (Nothing, Just{})  -> __IMPOSSIBLE__
 
 checkTwinEqual :: TwinT -> TCM Blocker
 checkTwinEqual SingleT{}      = return AlwaysUnblock
-checkTwinEqual TwinT{twinPid} = unblockOnAll . Set.fromList . map UnblockOnProblem <$>
-                                  filterM (fmap not . isProblemSolved) twinPid
+checkTwinEqual TwinT{twinPid} =
+  -- TODO: Check the necessary bit, add new constraint if needed
+  unblockOnAll . Set.fromList . map UnblockOnProblem <$> filterM (fmap not . isProblemSolved) twinPid
 
 {- UNUSED
 -- | When faced with @_X us == D vs@ for an inert D we can solve this by
