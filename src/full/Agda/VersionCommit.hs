@@ -7,9 +7,7 @@ import Development.GitRev
 import Agda.Version
 
 versionWithCommitInfo :: String
-versionWithCommitInfo = version ++ case commitInfo of
-                                     Nothing   -> ""
-                                     Just info -> "-" ++ info
+versionWithCommitInfo = version ++ maybe "" ("-" ++) commitInfo
 
 -- | Information about current git commit, generated at compile time
 commitInfo :: Maybe String
