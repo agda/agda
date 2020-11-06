@@ -62,7 +62,9 @@ import Agda.Interaction.Options.Warnings
 import Agda.Utils.Environment
 import Agda.Utils.FileName
 import Agda.Utils.Functor ( (<&>) )
+import Agda.Utils.Impossible
 import Agda.Utils.IO ( catchIO )
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1 )
 import qualified Agda.Utils.List1 as List1
@@ -219,15 +221,25 @@ getAgdaLibFiles' path = findProjectConfig' path >>= \case
 -- | Get dependencies and include paths for given project root:
 --
 --   Look for @.agda-lib@ files according to 'findAgdaLibFiles'.
---   If none are found, use default dependencies (according to @defaults@ file)
---   and current directory (project root).
+--   If none are found or if none of them include the current working
+--   directory, use default dependencies (according to @defaults@
+--   file) and current directory (project root).
 --
 getDefaultLibraries
   :: FilePath  -- ^ Project root.
   -> Bool      -- ^ Use @defaults@ if no @.agda-lib@ file exists for this project?
   -> LibM ([LibName], [FilePath])  -- ^ The returned @LibName@s are all non-empty strings.
 getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
-  libs <- getAgdaLibFiles' root
+
+  -- We are only interested in @.agda-lib@ files that actually
+  -- include the current working directory.
+  let includesCwd lib =
+        let libBase = takeDirectory $ lib ^. libFile
+            relativeRoot = fromMaybe __IMPOSSIBLE__ $ List.stripPrefix libBase root
+        in any (`List.isPrefixOf` relativeRoot) $ lib ^. libIncludes
+
+  libs <- filter includesCwd <$> getAgdaLibFiles' root
+
   if null libs
     then (,[]) <$> if optDefaultLibs then (libNameForCurrentDir :) <$> readDefaultsFile else return []
     else return $ libsAndPaths libs
