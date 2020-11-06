@@ -6,11 +6,17 @@
 
 .. _guarded-cubical:
 
-
 ********************
 Guarded Cubical
 ********************
 
+.. note::
+   This is a stub.
+
+Cubical Agda is extended with Nakano's later modality and guarded recursion based on Ticked Cubical Type Theory :ref:`[2] <cubical-refs>`.
+For its usage, see :ref:`[1] <cubical-refs>` or the `example <https://github.com/agda/agda/blob/master/test/Succeed/LaterPrims.agda>`_.
+
+.. _cubical-refs:
 
 References
 ==========
