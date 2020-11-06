@@ -68,6 +68,7 @@ import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.Monad         ( ifM )
+import Agda.Utils.Pretty        ( singPlural )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
@@ -103,8 +104,9 @@ data CommandLineOptions = Options
   -- ^ look for .agda-lib files
   , optTrustedExecutables             :: Map ExeName FilePath
   -- ^ Map names of trusted executables to absolute paths
-  , optShowVersion           :: Bool
-  , optShowHelp              :: Maybe Help
+  , optPrintAgdaDir          :: Bool
+  , optPrintVersion          :: Bool
+  , optPrintHelp             :: Maybe Help
   , optInteractive           :: Bool
       -- ^ Agda REPL (-I).
   , optGHCiInteraction       :: Bool
@@ -243,8 +245,9 @@ defaultOptions = Options
   , optDefaultLibs           = True
   , optUseLibs               = True
   , optTrustedExecutables    = Map.empty
-  , optShowVersion           = False
-  , optShowHelp              = Nothing
+  , optPrintAgdaDir          = False
+  , optPrintVersion          = False
+  , optPrintHelp             = Nothing
   , optInteractive           = False
   , optGHCiInteraction       = False
   , optJSONInteraction       = False
@@ -512,13 +515,16 @@ inputFlag f o =
         Nothing  -> return $ o { optInputFile = Just f }
         Just _   -> throwError "only one input file allowed"
 
+printAgdaDirFlag :: Flag CommandLineOptions
+printAgdaDirFlag o = return $ o { optPrintAgdaDir = True }
+
 versionFlag :: Flag CommandLineOptions
-versionFlag o = return $ o { optShowVersion = True }
+versionFlag o = return $ o { optPrintVersion = True }
 
 helpFlag :: Maybe String -> Flag CommandLineOptions
-helpFlag Nothing    o = return $ o { optShowHelp = Just GeneralHelp }
+helpFlag Nothing    o = return $ o { optPrintHelp = Just GeneralHelp }
 helpFlag (Just str) o = case string2HelpTopic str of
-  Just hpt -> return $ o { optShowHelp = Just (HelpFor hpt) }
+  Just hpt -> return $ o { optPrintHelp = Just (HelpFor hpt) }
   Nothing -> throwError $ "unknown help topic " ++ str ++ " (available: " ++
                            intercalate ", " (map fst allHelpTopics) ++ ")"
 
@@ -900,11 +906,19 @@ integerArgument flag s = maybe usage return $ readMaybe s
 
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
-    [ Option ['V']  ["version"] (NoArg versionFlag)       "show version number"
-    , Option ['?']  ["help"]    (OptArg helpFlag "TOPIC")
-                      ("show help for TOPIC (available: "
-                       ++ intercalate ", " (map fst allHelpTopics)
-                       ++ ")")
+    [ Option ['V']  ["version"] (NoArg versionFlag)
+                    ("print version number and exit")
+
+    , Option ['?']  ["help"]    (OptArg helpFlag "TOPIC") $ concat
+                    [ "print help and exit; available "
+                    , singPlural allHelpTopics "TOPIC" "TOPICs"
+                    , ": "
+                    , intercalate ", " $ map fst allHelpTopics
+                    ]
+
+    , Option []     ["print-agda-dir"] (NoArg printAgdaDirFlag)
+                    ("print $AGDA_DIR and exit")
+
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)

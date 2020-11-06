@@ -13,6 +13,8 @@ import Data.Maybe
 import System.Environment
 import System.Console.GetOpt
 
+import Paths_Agda            ( getDataDir )
+
 import Agda.Interaction.Base ( pattern RegularInteraction )
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
@@ -65,8 +67,9 @@ runAgda' backends = do
   case conf of
     Left err -> optionError err
     Right (bs, opts, mode) -> case mode of
-      MainModeShowHelp hp    -> printUsage bs hp
+      MainModePrintHelp hp   -> printUsage bs hp
       MainModePrintVersion   -> printVersion bs
+      MainModePrintAgdaDir   -> printAgdaDir
       MainModeRun interactor -> runTCMPrettyErrors $ do
         setTCLens stBackends bs
         runAgdaWithOptions generateHTML interactor progName opts
@@ -74,19 +77,21 @@ runAgda' backends = do
 -- | Main execution mode
 data MainMode
   = MainModeRun (Interactor ())
-  | MainModeShowHelp Help
+  | MainModePrintHelp Help
   | MainModePrintVersion
+  | MainModePrintAgdaDir
 
 -- | Determine the main execution mode to run, based on the configured backends and command line options.
 -- | This is pure.
 getMainMode :: MonadError String m => [Backend] -> Maybe AbsolutePath -> CommandLineOptions -> m MainMode
 getMainMode configuredBackends maybeInputFile opts
-  | Just hp <- optShowHelp opts = return $ MainModeShowHelp hp
-  | optShowVersion opts         = return $ MainModePrintVersion
-  | otherwise                   = do
+  | Just hp <- optPrintHelp opts = return $ MainModePrintHelp hp
+  | optPrintVersion opts         = return $ MainModePrintVersion
+  | optPrintAgdaDir opts         = return $ MainModePrintAgdaDir
+  | otherwise                    = do
       mi <- getInteractor configuredBackends maybeInputFile opts
       -- If there was no selection whatsoever (e.g. just invoked "agda"), we just show help and exit.
-      return $ maybe (MainModeShowHelp GeneralHelp) MainModeRun mi
+      return $ maybe (MainModePrintHelp GeneralHelp) MainModeRun mi
 
 type Interactor a
     -- Setup/initialization action.
@@ -250,6 +255,9 @@ printVersion backends = do
   mapM_ putStrLn
     [ "  - " ++ name ++ " backend version " ++ ver
     | Backend Backend'{ backendName = name, backendVersion = Just ver } <- backends ]
+
+printAgdaDir :: IO ()
+printAgdaDir = putStrLn =<< getDataDir
 
 -- | What to do for bad options.
 optionError :: String -> IO ()

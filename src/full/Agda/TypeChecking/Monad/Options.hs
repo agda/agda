@@ -105,7 +105,8 @@ setLibraryPaths root o =
 
 setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
 setLibraryIncludes o
-  | not (optUseLibs o) || optShowVersion o = pure o
+  | optPrintVersion o  = __IMPOSSIBLE__
+  | not (optUseLibs o) = pure o
   | otherwise = do
     let libs = optLibraries o
     installed <- libToTCM $ getInstalledLibraries (optOverrideLibrariesFile o)
@@ -118,17 +119,19 @@ addDefaultLibraries
   -> CommandLineOptions
   -> TCM CommandLineOptions
 addDefaultLibraries root o
-  | not (null $ optLibraries o) || not (optUseLibs o) || optShowVersion o = pure o
+  | optPrintVersion o = __IMPOSSIBLE__
+  | not (null $ optLibraries o) || not (optUseLibs o) = pure o
   | otherwise = do
   (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
   return o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs }
 
+-- This function is only called when an interactor exists
+-- (i.e. when Agda actually does something).
 addTrustedExecutables
   :: CommandLineOptions
   -> TCM CommandLineOptions
 addTrustedExecutables o
-  | optShowVersion o = do
-  return o
+  | optPrintAgdaDir o || optPrintVersion o = __IMPOSSIBLE__
   | otherwise = do
   trustedExes <- libToTCM $ getTrustedExecutables
   -- Wen, 2020-06-03
