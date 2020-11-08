@@ -113,7 +113,7 @@ preModuleDot
   => DotCompileEnv
   -> IsMain
   -> ModuleName
-  -> FilePath
+  -> Maybe FilePath
   -> m (Recompile DotModuleEnv DotModule)
 preModuleDot _cenv _main _moduleName _ifacePath = pure $ Recompile DotModuleEnv
 

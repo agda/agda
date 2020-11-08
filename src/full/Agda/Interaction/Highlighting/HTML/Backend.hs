@@ -157,7 +157,7 @@ preModuleHtml
   => HtmlCompileEnv
   -> IsMain
   -> ModuleName
-  -> FilePath
+  -> Maybe FilePath
   -> m (Recompile HtmlModuleEnv HtmlModule)
 preModuleHtml cenv _isMain modName _ifacePath = pure $ Recompile (HtmlModuleEnv cenv modName)
 
