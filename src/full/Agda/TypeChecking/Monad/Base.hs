@@ -865,14 +865,28 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
 -- ** Interface
 ---------------------------------------------------------------------------
 
+
+-- | Distinguishes between type-checked and scope-checked interfaces
+--   when stored in the map of `VisitedModules`.
+data ModuleCheckMode
+  = ModuleScopeChecked
+  | ModuleTypeChecked
+  | ModuleTypeCheckedRetainingPrivates
+  deriving (Eq, Ord, Bounded, Enum, Show)
+
+
 data ModuleInfo = ModuleInfo
   { miInterface  :: Interface
-  , miWarnings   :: Bool
-    -- ^ 'True' if warnings were encountered when the module was type
-    -- checked.
+  , miWarnings   :: [TCWarning]
+    -- ^ Warnings were encountered when the module was type checked.
+    --   These might include warnings not stored in the interface itself,
+    --   specifically unsolved interaction metas.
+    --   See "Agda.Interaction.Imports"
   , miPrimitive  :: Bool
     -- ^ 'True' if the module is a primitive module, which should always
     -- be importable.
+  , miMode       :: ModuleCheckMode
+    -- ^ The `ModuleCheckMode` used to create the `Interface`
   }
 
 -- Note that the use of 'C.TopLevelModuleName' here is a potential
@@ -880,7 +894,7 @@ data ModuleInfo = ModuleInfo
 -- identifiers.
 
 type VisitedModules = Map C.TopLevelModuleName ModuleInfo
-type DecodedModules = Map C.TopLevelModuleName Interface
+type DecodedModules = Map C.TopLevelModuleName ModuleInfo
 
 data ForeignCode = ForeignCode Range String
   deriving Show
@@ -2635,19 +2649,24 @@ data HighlightingMethod
 -- level is /at least/ @l@ or @b@ is 'True'.
 
 ifTopLevelAndHighlightingLevelIsOr ::
-  MonadTCM tcm => HighlightingLevel -> Bool -> tcm () -> tcm ()
+  MonadTCEnv tcm => HighlightingLevel -> Bool -> tcm () -> tcm ()
 ifTopLevelAndHighlightingLevelIsOr l b m = do
   e <- askTC
-  when (envModuleNestingLevel e == 0 &&
-        (envHighlightingLevel e >= l || b))
-       m
+  when (envHighlightingLevel e >= l || b) $
+    case (envImportPath e) of
+      -- No current module
+      [] -> pure ()
+      -- Top level ("main") module
+      (_:[]) -> m
+      -- Below the main module
+      (_:_:_) -> pure ()
 
 -- | @ifTopLevelAndHighlightingLevelIs l m@ runs @m@ when we're
 -- type-checking the top-level module and the highlighting level is
 -- /at least/ @l@.
 
 ifTopLevelAndHighlightingLevelIs ::
-  MonadTCM tcm => HighlightingLevel -> tcm () -> tcm ()
+  MonadTCEnv tcm => HighlightingLevel -> tcm () -> tcm ()
 ifTopLevelAndHighlightingLevelIs l =
   ifTopLevelAndHighlightingLevelIsOr l False
 
@@ -2664,7 +2683,16 @@ data TCEnv =
             -- type-checked.  'Nothing' if we do not have a file
             -- (like in interactive mode see @CommandLine@).
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
-          , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
+          , envImportPath          :: [C.TopLevelModuleName]
+            -- ^ The module stack with the entry being the top-level module as
+            --   Agda chases modules. It will be empty if there is no main
+            --   module, will have a single entry for the top level module, or
+            --   more when descending past the main module. This is used to
+            --   detect import cycles and in some cases highlighting behavior.
+            --   The level of a given module is not necessarily the same as the
+            --   length, in the module dependency graph, of the shortest path
+            --   from the top-level module; it depends on in which order Agda
+            --   chooses to chase dependencies.
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
           , envCoverageCheck       :: CoverageCheck        -- ^ are we inside the scope of a coverage pragma
@@ -2715,14 +2743,6 @@ data TCEnv =
                 -- ^ Set to 'None' when imported modules are
                 --   type-checked.
           , envHighlightingMethod :: HighlightingMethod
-          , envModuleNestingLevel :: !Int
-                -- ^ This number indicates how far away from the
-                --   top-level module Agda has come when chasing
-                --   modules. The level of a given module is not
-                --   necessarily the same as the length, in the module
-                --   dependency graph, of the shortest path from the
-                --   top-level module; it depends on in which order
-                --   Agda chooses to chase dependencies.
           , envExpandLast :: ExpandHidden
                 -- ^ When type-checking an alias f=e, we do not want
                 -- to insert hidden arguments in the end, because
@@ -2781,9 +2801,6 @@ data TCEnv =
                 -- ^ Should new metas generalized over.
           , envGeneralizedVars :: Map QName GeneralizedValue
                 -- ^ Values for used generalizable variables.
-          , envCheckOptionConsistency :: Bool
-                -- ^ Do we check that options in imported files are
-                --   consistent with each other?
           , envActiveBackendName :: Maybe BackendName
                 -- ^ Is some backend active at the moment, and if yes, which?
                 --   NB: we only store the 'BackendName' here, otherwise
@@ -2826,7 +2843,6 @@ initEnv = TCEnv { envContext             = []
                 , envCall                   = Nothing
                 , envHighlightingLevel      = None
                 , envHighlightingMethod     = Indirect
-                , envModuleNestingLevel     = -1
                 , envExpandLast             = ExpandLast
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
@@ -2847,7 +2863,6 @@ initEnv = TCEnv { envContext             = []
                 , envCheckpoints            = Map.singleton 0 IdS
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
-                , envCheckOptionConsistency = True
                 , envActiveBackendName      = Nothing
                 }
 
@@ -2961,9 +2976,6 @@ eHighlightingLevel f e = f (envHighlightingLevel e) <&> \ x -> e { envHighlighti
 
 eHighlightingMethod :: Lens' HighlightingMethod TCEnv
 eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighlightingMethod = x }
-
-eModuleNestingLevel :: Lens' Int TCEnv
-eModuleNestingLevel f e = f (envModuleNestingLevel e) <&> \ x -> e { envModuleNestingLevel = x }
 
 eExpandLast :: Lens' ExpandHidden TCEnv
 eExpandLast f e = f (envExpandLast e) <&> \ x -> e { envExpandLast = x }

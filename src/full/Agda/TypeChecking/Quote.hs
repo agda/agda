@@ -10,7 +10,6 @@ import qualified Data.Text as T
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern ( dbPatPerm' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -186,10 +185,7 @@ quotingKit = do
       quoteClause cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} =
         case body of
           Nothing -> absurdClause !@ quoteTelescope tel @@ quotePats ps
-          Just b  ->
-            let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm' False ps -- Dot patterns don't count (#2203)
-                v    = applySubst (renamingR perm) b
-            in normalClause !@ quoteTelescope tel @@ quotePats ps @@ quoteTerm v
+          Just b  -> normalClause !@ quoteTelescope tel @@ quotePats ps @@ quoteTerm b
 
       quoteTelescope :: Telescope -> ReduceM Term
       quoteTelescope tel = quoteList quoteTelEntry $ telToList tel

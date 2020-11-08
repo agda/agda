@@ -10,6 +10,7 @@ module Agda.Utils.FileName
   , canonicalizeAbsolutePath
   , sameFile
   , doesFileExistCaseSensitive
+  , isNewerThan
   ) where
 
 import System.Directory
@@ -110,3 +111,16 @@ doesFileExistCaseSensitive f = do
 #else
 doesFileExistCaseSensitive = doesFileExist
 #endif
+
+-- | True if the first file is newer than the second file. If a file doesn't
+-- exist it is considered to be infinitely old.
+isNewerThan :: FilePath -> FilePath -> IO Bool
+isNewerThan new old = do
+    newExist <- doesFileExist new
+    oldExist <- doesFileExist old
+    if not (newExist && oldExist)
+        then return newExist
+        else do
+            newT <- getModificationTime new
+            oldT <- getModificationTime old
+            return $ newT >= oldT

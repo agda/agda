@@ -45,6 +45,7 @@ import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
 import Agda.Syntax.Literal
 
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty hiding ((<>))
@@ -52,6 +53,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.FileName (isNewerThan)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Float
@@ -60,7 +62,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty (prettyShow, render)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 
@@ -221,13 +223,16 @@ ghcPreModule
   :: GHCCompileEnv
   -> IsMain      -- ^ Are we looking at the main module?
   -> ModuleName
-  -> FilePath    -- ^ Path to the @.agdai@ file.
+  -> Maybe FilePath    -- ^ Path to the @.agdai@ file.
   -> TCM (Recompile GHCModuleEnv GHCModule)
                  -- ^ Could we confirm the existence of a main function?
-ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
+ghcPreModule cenv isMain m mifile = ifM uptodate noComp yesComp
     `runReaderT` GHCModuleEnv cenv (HsModuleEnv m (isMain == IsMain))
   where
-    uptodate = liftIO =<< isNewerThan <$> curOutFile <*> pure ifile
+    uptodate = case mifile of
+      Nothing -> pure False
+      Just ifile -> liftIO =<< isNewerThan <$> curOutFile <*> pure ifile
+    ifileDesc = fromMaybe "(memory)" mifile
 
     noComp = do
       reportSLn "compile.ghc" 2 . (++ " : no compilation is needed.") . prettyShow . A.mnameToConcrete =<< curMName
@@ -240,7 +245,7 @@ ghcPreModule cenv isMain m ifile = ifM uptodate noComp yesComp
     yesComp = do
       m   <- prettyShow . A.mnameToConcrete <$> curMName
       out <- curOutFile
-      reportSLn "compile.ghc" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
+      reportSLn "compile.ghc" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
       asks Recompile
 
 ghcPostModule
@@ -453,11 +458,17 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       Function{} -> function pragma $ functionViaTreeless q
 
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
+      Datatype{ dataPathCons = _ : _ } -> do
+        s <- render <$> prettyTCM q
+        typeError $ NotImplemented $
+          "Higher inductive types (" ++ s ++ ")"
+
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl }
         | Just hsdata@(HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
         liftTCM $ computeErasedConstructorArgs q
+        cs <- liftTCM $ getNotErasedConstructors q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
         let result = concat $
@@ -467,9 +478,9 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               , ccscov
               ]
         retDecls result
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
-                dataCons = cs } -> do
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl } -> do
         liftTCM $ computeErasedConstructorArgs q
+        cs <- liftTCM $ getNotErasedConstructors q
         cds <- mapM (flip condecl Inductive) cs
         retDecls $ tvaldecl q Inductive (np + ni) cds cl
       Constructor{} -> retDecls []

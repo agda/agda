@@ -19,8 +19,9 @@ import Control.Monad.State
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 
-import Agda.Interaction.FindFile
+import Agda.Interaction.FindFile ( srcFilePath )
 import Agda.Interaction.Options
+import Agda.Interaction.Imports ( CheckResult, crInterface, crSourceInfo, SourceInfo(..) )
 
 import Agda.TypeChecking.Monad
 
@@ -44,28 +45,32 @@ instance Monoid IsMain where
   mempty = IsMain
   mappend = (<>)
 
-doCompile :: forall r. Monoid r => IsMain -> Interface -> (IsMain -> Interface -> TCM r) -> TCM r
-doCompile isMain i f = do
+doCompile :: Monoid r => (IsMain -> Interface -> TCM r) -> IsMain -> Interface -> TCM r
+doCompile f isMain i = do
   -- The Agda.Primitive module is implicitly assumed to be always imported,
   -- even though it not necesseraly occurs in iImportedModules.
   -- TODO: there should be a better way to get hold of Agda.Primitive?
   [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName)
     . map miInterface . Map.elems
       <$> getVisitedModules
-  flip evalStateT Set.empty $ mappend <$> comp NotMain agdaPrimInter <*> comp isMain i
-  where
-    comp :: IsMain -> Interface -> StateT (Set ModuleName) TCM r
-    comp isMain i = do
-      alreadyDone <- gets (Set.member (iModuleName i))
-      if alreadyDone then return mempty else do
-        imps <- lift $
-          map miInterface . catMaybes <$>
-            mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules i)
-        ri <- mconcat <$> mapM (comp NotMain) imps
-        lift $ setInterface i
-        r <- lift $ f isMain i
-        modify (Set.insert $ iModuleName i)
-        return $ mappend ri r
+  flip evalStateT Set.empty $ mappend <$> doCompile' f NotMain agdaPrimInter <*> doCompile' f isMain i
+
+-- This helper function is called for both `Agda.Primitive` and the module in question.
+-- It's also called for each imported module, recursively. (Avoiding duplicates).
+doCompile'
+  :: Monoid r
+  => (IsMain -> Interface -> TCM r) -> (IsMain -> Interface -> StateT (Set ModuleName) TCM r)
+doCompile' f isMain i = do
+  alreadyDone <- gets (Set.member (iModuleName i))
+  if alreadyDone then return mempty else do
+    imps <- lift $
+      map miInterface . catMaybes <$>
+        mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules i)
+    ri <- mconcat <$> mapM (doCompile' f NotMain) imps
+    lift $ setInterface i
+    r <- lift $ f isMain i
+    modify (Set.insert $ iModuleName i)
+    return $ mappend ri r
 
 setInterface :: Interface -> TCM ()
 setInterface i = do
@@ -109,8 +114,11 @@ repl subs = go where
 
 
 -- | Sets up the compilation environment.
-inCompilerEnv :: Interface -> TCM a -> TCM a
-inCompilerEnv mainI cont = do
+inCompilerEnv :: CheckResult -> TCM a -> TCM a
+inCompilerEnv checkResult cont = do
+  let mainI = crInterface checkResult
+      checkedSourceInfo = crSourceInfo checkResult
+
   -- Preserve the state (the compiler modifies the state).
   -- Andreas, 2014-03-23 But we might want to collect Benchmark info,
   -- so use localTCState.
@@ -122,13 +130,13 @@ inCompilerEnv mainI cont = do
     -- the current pragma options persistent when we setCommandLineOptions
     -- below.
     opts <- getsTC $ stPersistentOptions . stPersistentState
-    compileDir <- case optCompileDir opts of
-      Just dir -> return dir
-      Nothing  -> do
-        -- The default output directory is the project root.
-        let tm = toTopLevelModuleName $ iModuleName mainI
-        f <- srcFilePath <$> findFile tm
-        return $ filePath $ C.projectRoot f tm
+    let compileDir = case optCompileDir opts of
+          Just dir -> dir
+          Nothing  ->
+            -- The default output directory is the project root.
+            let tm = toTopLevelModuleName $ iModuleName mainI
+                f  = srcFilePath $ siOrigin checkedSourceInfo
+            in filePath $ C.projectRoot f tm
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }
 

@@ -502,17 +502,18 @@ interpret (Cmd_load m argv) =
   mode = Imp.TypeCheck TopLevelInteraction -- do not reset InteractionMode
 
 interpret (Cmd_compile backend file argv) =
-  cmd_load' file argv allowUnsolved mode $ \ (i, mw) -> do
-    mw' <- lift $ Imp.applyFlagsToMaybeWarnings mw
-    case mw' of
-      Imp.NoWarnings -> do
+  cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
+    mw <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
+    case mw of
+      [] -> do
+        let i = crInterface checkResult
         lift $ case backend of
           LaTeX                    -> LaTeX.generateLaTeX i
           QuickLaTeX               -> LaTeX.generateLaTeX i
-          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
-          OtherBackend b           -> callBackend b IsMain  i
+          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
+          OtherBackend b           -> callBackend b IsMain checkResult
         display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
-      Imp.SomeWarnings w -> display_info $ Info_Error $ Info_CompilationError w
+      w@(_:_) -> display_info $ Info_Error $ Info_CompilationError w
   where
   allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
   mode | QuickLaTeX <- backend = Imp.ScopeCheck
@@ -876,12 +877,11 @@ cmd_load'
                --   Providing 'TypeCheck RegularInteraction' here
                --   will reset 'InteractionMode' accordingly.
                --   Otherwise, only if different file from last time.
-  -> ((Interface, Imp.MaybeWarnings) -> CommandM a)
+  -> (CheckResult -> CommandM a)
                -- ^ Continuation after successful loading.
   -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do
     fp <- liftIO $ absolute file
-    let f = SourceFile fp
     ex <- liftIO $ doesFileExist $ filePath fp
     unless ex $ typeError $ GenericError $
       "The file " ++ file ++ " was not found."
@@ -903,7 +903,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     t <- liftIO $ getModificationTime file
 
     -- Parse the file.
-    si <- lift $ Imp.sourceInfo f
+    si <- lift $ Imp.sourceInfo (SourceFile fp)
 
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
@@ -931,8 +931,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- Remove any prior syntax highlighting.
     putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
 
-
-    ok <- lift $ Imp.typeCheckMain f mode si
+    ok <- lift $ Imp.typeCheckMain mode si
 
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the
@@ -1082,11 +1081,12 @@ give_gen force ii rng s0 giveRefine = do
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
-  localTC (\st -> st { envModuleNestingLevel = 0
+  localTC (\st -> st { envImportPath         = [dummyModule]
                      , envHighlightingLevel  = NonInteractive
                      , envHighlightingMethod = Direct }) $
     generateAndPrintSyntaxInfo decl Full True
   where
+    dummyModule = C.toTopLevelModuleName (C.QName noName_)
     dummy = mkName_ (NameId 0 0) ("dummy" :: String)
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
     decl  = A.Axiom OtherDefName info defaultArgInfo Nothing (qnameFromList $ singleton dummy) e
@@ -1169,7 +1169,7 @@ status = do
             mm <- lookupModuleFromSource f
             case mm of
               Nothing -> return False -- work-around for Issue1007
-              Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
+              Just m  -> maybe False (null . miWarnings) <$> getVisitedModule m
         else
             return False
 

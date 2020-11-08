@@ -96,43 +96,45 @@ jobs:
         name: agda-macOS-${{ github.sha }}
         path: upload
 
-  Windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        # We can not use 8.10.2 because #4965.
-        ghc-ver: [8.10.1]
-
-    # NOTE: The flag Agda:enable-cluster-counting is not included below, due to issues installing
-    #       the ICU library with Stack's version of msys, as of about 2020-10-27. See:
-    #   - https://github.com/agda/agda/issues/5012
-    #   - https://github.com/commercialhaskell/stack/issues/5300
-
-    steps:
-    - uses: actions/checkout@v2.3.2
-      with:
-        submodules: recursive
-
-    # See comment in .github/workflows/stack.yml
-    - name: Build dependencies
-      run: |
-        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --only-dependencies
-
-    - name: Build agda
-      run: |
-        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast
-
-    - name: Pack artifacts
-      shell: bash
-      run: |
-        mkdir -p upload/bin
-        cp -av ~/AppData/Local/Programs/stack/x86_64-windows/msys2-20180531/mingw64/bin/*.dll upload/bin
-        cp -av .stack-work/install/**/bin/agda.exe upload/bin
-        cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
-        cp -avr src/data upload
-        cp -av .github/*.bat upload
-
-    - uses: actions/upload-artifact@v2.0.1
-      with:
-        name: agda-windows-${{ github.sha }}
-        path: upload
+          # Fail to pack a Windows build due to #5040
+          #
+          #  Windows:
+          #    runs-on: windows-latest
+          #    strategy:
+          #      matrix:
+          #        # We can not use 8.10.2 because #4965.
+          #        ghc-ver: []
+          #
+          #    # NOTE: The flag Agda:enable-cluster-counting is not included below, due to issues installing
+          #    #       the ICU library with Stack's version of msys, as of about 2020-10-27. See:
+          #    #   - https://github.com/agda/agda/issues/5012
+          #    #   - https://github.com/commercialhaskell/stack/issues/5300
+          #
+          #    steps:
+          #    - uses: actions/checkout@v2.3.2
+          #      with:
+          #        submodules: recursive
+          #
+          #    # See comment in .github/workflows/stack.yml
+          #    - name: Build dependencies
+          #      run: |
+          #        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --only-dependencies
+          #
+          #    - name: Build agda
+          #      run: |
+          #        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast
+          #
+          #    - name: Pack artifacts
+          #      shell: bash
+          #      run: |
+          #        mkdir -p upload/bin
+          #        cp -av ~/AppData/Local/Programs/stack/x86_64-windows/msys2-20180531/mingw64/bin/*.dll upload/bin
+          #        cp -av .stack-work/install/**/bin/agda.exe upload/bin
+          #        cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
+          #        cp -avr src/data upload
+          #        cp -av .github/*.bat upload
+          #
+          #    - uses: actions/upload-artifact@v2.0.1
+          #      with:
+          #        name: agda-windows-${{ github.sha }}
+          #        path: upload

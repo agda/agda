@@ -14,6 +14,7 @@ import Control.Monad.Fail (MonadFail)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -37,6 +38,7 @@ import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor ((<.>))
+import Agda.Utils.List (nubOn)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -408,6 +410,18 @@ getInteractionPoints = Map.keys <$> useR stInteractionPoints
 getInteractionMetas :: ReadTCState m => m [MetaId]
 getInteractionMetas =
   mapMaybe ipMeta . filter (not . ipSolved) . Map.elems <$> useR stInteractionPoints
+
+getUniqueMetasRanges :: (MonadFail m, ReadTCState m) => [MetaId] -> m [Range]
+getUniqueMetasRanges = fmap (nubOn id) . mapM getMetaRange
+
+getUnsolvedMetas :: (MonadFail m, ReadTCState m) => m [Range]
+getUnsolvedMetas = do
+  openMetas            <- getOpenMetas
+  interactionMetas     <- getInteractionMetas
+  getUniqueMetasRanges (openMetas List.\\ interactionMetas)
+
+getUnsolvedInteractionMetas :: (MonadFail m, ReadTCState m) => m [Range]
+getUnsolvedInteractionMetas = getUniqueMetasRanges =<< getInteractionMetas
 
 -- | Get all metas that correspond to unsolved interaction ids.
 getInteractionIdsAndMetas :: ReadTCState m => m [(InteractionId,MetaId)]

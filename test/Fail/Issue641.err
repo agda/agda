@@ -3,8 +3,8 @@ Importing the primitive modules.
   Check for cycle
   Agda.Primitive is up-to-date.
   no stored version, reading agda-default-include-path/Agda/Primitive.agdai
-  imports: []
 Loading  Agda.Primitive (agda-default-include-path/Agda/Primitive.agdai).
+  imports: []
   New module. Let's check it out.
 Merging interface
   Now we've looked at Agda.Primitive
@@ -12,16 +12,16 @@ Merging interface
   Check for cycle
   Agda.Primitive.Cubical is up-to-date.
   no stored version, reading agda-default-include-path/Agda/Primitive/Cubical.agdai
+Loading  Agda.Primitive.Cubical (agda-default-include-path/Agda/Primitive/Cubical.agdai).
   imports: [(Agda.Primitive, 14631793092877554489)]
   Already visited Agda.Primitive
-Loading  Agda.Primitive.Cubical (agda-default-include-path/Agda/Primitive/Cubical.agdai).
   New module. Let's check it out.
 Merging interface
   Now we've looked at Agda.Primitive.Cubical
 Done importing the primitive modules.
   Getting interface for Issue641
   Check for cycle
-  Issue641 is not up-to-date.
+  Issue641 is not up-to-date because the interface has not been decoded and we're ignoring non-builtin interface files.
 Checking Issue641 (Issue641.agda).
 Creating interface for Issue641.
   visited: Agda.Primitive, Agda.Primitive.Cubical

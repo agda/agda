@@ -55,19 +55,9 @@ withEnv env = localTC $ \ env0 -> env
 getEnv :: TCM TCEnv
 getEnv = askTC
 
--- | Increases the module nesting level by one in the given
--- computation.
-withIncreasedModuleNestingLevel :: TCM a -> TCM a
-withIncreasedModuleNestingLevel =
-  localTC $ \ e -> e { envModuleNestingLevel =
-                       envModuleNestingLevel e + 1 }
-
 -- | Set highlighting level
 withHighlightingLevel :: HighlightingLevel -> TCM a -> TCM a
 withHighlightingLevel h = localTC $ \ e -> e { envHighlightingLevel = h }
-
-withoutOptionsChecking :: TCM a -> TCM a
-withoutOptionsChecking = localTC $ \ e -> e { envCheckOptionConsistency = False }
 
 -- | Restore setting for 'ExpandLast' to default.
 doExpandLast :: TCM a -> TCM a
