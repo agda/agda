@@ -126,7 +126,7 @@ jobs:
       shell: bash
       run: |
         mkdir -p upload/bin
-        cp -av ~/AppData/Local/Programs/stack/x86_64-windows/msys2-20180531/mingw64/bin/*.dll upload/bin
+        cp -av ~/AppData/Local/Programs/stack/x86_64-windows/msys2-20200903/mingw64/bin/*.dll upload/bin
         cp -av .stack-work/install/**/bin/agda.exe upload/bin
         cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
         cp -avr src/data upload
