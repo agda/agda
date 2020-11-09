@@ -25,7 +25,7 @@ data Maybe (X : Set) : Set where
   just : X → Maybe X
 
 data Fin : Nat → Set where
-  zero : Fin 0
+  zero : ∀ {n} → Fin (suc n)
   suc  : ∀ {n} → Fin n → Fin (suc n)
 
 record RVec {a} (X : Set a) (n : Nat) : Set a where
