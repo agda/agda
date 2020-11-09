@@ -372,6 +372,34 @@ Reflection
     u'  ← onlyReduceDefs (quote _+_ ∷ []) (normalise u)
     unify u' goal
   ```
+- New operation in the `TC` monad, `withReconstructed`:
+  ```agda
+  withReconstructed : ∀ {a} {A : Set a} → TC A → TC A
+  ```
+
+  This function ensures reconstruction of hidden parameters
+  after performing the `TC` computation.  For example, consider the
+  following type and function:
+  ```agda
+  record RVec {a} (X : Set a) (n : Nat) : Set a where
+    constructor vec
+    field sel : Fin n → X
+
+  test-rvec : Nat → RVec Nat 5
+  test-rvec x = vec λ _ → x
+  ```
+
+  In the reflected syntax the body of the `test-rvec` would be represented
+  as `con vec (unknown ∷ unknown ∷ unknown ∷ (lam _ x)`.  The use of
+  `withReconstructed` replaces `unknown`s with the actual values:
+  ```agda
+  macro₂ : Name → Term → TC ⊤
+  macro₂ n hole = do
+    (function (clause tel ps t ∷ [])) ←
+      withReconstructed (getDefinition n)
+      where _ → quoteTC "ERROR" >>= unify hole
+    quoteTC t >>= unify hole
+  ```
 
 Library management
 ------------------
