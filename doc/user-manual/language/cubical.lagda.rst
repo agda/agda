@@ -413,7 +413,7 @@ They satisfy the following equalities:
 
   outS (inS a) = a
 
-  inS {u = u} (outS {u = u} a) = a
+  inS {φ = φ} (outS {φ = φ} a) = a
 
   outS {φ = i1} {u} _ = u 1=1
 
