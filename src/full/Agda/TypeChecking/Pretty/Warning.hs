@@ -417,11 +417,18 @@ filterTCWarnings = \case
     _ -> True
 
 
--- | Turns all warnings into errors.
-tcWarningsToError :: [TCWarning] -> TCM a
-tcWarningsToError ws = typeError $ case ws of
-  [] -> SolvedButOpenHoles
-  _  -> NonFatalErrors ws
+-- | Turns warnings, if any, into errors.
+tcWarningsToError :: [TCWarning] -> TCM ()
+tcWarningsToError mws = case (unsolvedHoles, otherWarnings) of
+   ([], [])                   -> return ()
+   (_unsolvedHoles@(_:_), []) -> typeError SolvedButOpenHoles
+   (_, ws@(_:_))              -> typeError $ NonFatalErrors ws
+   where
+   -- filter out unsolved interaction points for imported module so
+   -- that we get the right error message (see test case Fail/Issue1296)
+   (unsolvedHoles, otherWarnings) = List.partition (isUnsolvedIM . tcWarning) mws
+   isUnsolvedIM UnsolvedInteractionMetas{} = True
+   isUnsolvedIM _                          = False
 
 
 -- | Depending which flags are set, one may happily ignore some

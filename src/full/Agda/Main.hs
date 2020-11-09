@@ -213,7 +213,7 @@ runAgdaWithOptions generateHTML interactor progName opts = do
             (Imp.ScopeCheck, _)  -> return Nothing
             (_, NoWarnings)      -> return $ Just i
             (_, SomeWarnings ws) ->
-              ifNotNullM (applyFlagsToTCWarnings ws) {-then-} tcWarningsToError {-else-} $ return Nothing
+              ifNotNullM (applyFlagsToTCWarnings ws) {-then-} (typeError . NonFatalErrors) {-else-} $ return Nothing
 
           reportSDoc "main" 50 $ pretty i
 
