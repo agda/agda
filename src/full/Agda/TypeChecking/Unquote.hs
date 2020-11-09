@@ -664,7 +664,7 @@ evalTCM v = do
       (_, a) <- inferExpr =<< toAbstract_ v
       if r then do
         a <- process a
-        a <- reconstructParametersInType a
+        a <- locallyReduceAllDefs $ reconstructParametersInType a
         reportSDoc "tc.reconstruct" 50 $ "Infer after reconstruct:"
           <+> pretty a
         locallyReconstructed (quoteType a)
@@ -679,7 +679,7 @@ evalTCM v = do
       v <- checkExpr e a
       if r then do
         v <- process v
-        v <- reconstructParameters' defaultAction a v
+        v <- locallyReduceAllDefs $ reconstructParameters' defaultAction a v
         locallyReconstructed (quoteTerm v)
       else
         quoteTerm =<< process v
@@ -698,7 +698,7 @@ evalTCM v = do
       (v, t) <- locallyReduceAllDefs $ inferExpr  =<< toAbstract_ v
       if r then do
         v <- normalise v
-        v <- reconstructParameters' defaultAction t v
+        v <- locallyReduceAllDefs $ reconstructParameters' defaultAction t v
         reportSDoc "tc.reconstruct" 50 $ "Normalise reconstruct:" <+> pretty v
         locallyReconstructed $ quoteTerm v
       else
@@ -710,7 +710,7 @@ evalTCM v = do
       (v, t) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
       if r then do
         v <- reduce =<< instantiateFull v
-        v <- reconstructParameters' defaultAction t v
+        v <- locallyReduceAllDefs $ reconstructParameters' defaultAction t v
         reportSDoc "tc.reconstruct" 50 $ "Reduce reconstruct:" <+> pretty v
         locallyReconstructed $ quoteTerm v
       else
@@ -731,7 +731,7 @@ evalTCM v = do
          recons :: [Dom Type] -> TCM [Dom Type]
          recons [] = return []
          recons (d@Dom {unDom=t} : ds) = do
-           t <- reconstructParametersInType t
+           t <- locallyReduceAllDefs $ reconstructParametersInType t
            let d' = d{unDom=t}
            ds' <- addContext d' $ recons ds
            return $ d' : ds'
@@ -803,7 +803,7 @@ evalTCM v = do
               addContext (clauseTel c) $ do
               b' <- checkInternal' defaultAction b CmpLeq (unArg t)
               t' <- checkInternalType' defaultAction (unArg t)
-              bb <- reconstructParameters' defaultAction t' b'
+              bb <- locallyReduceAllDefs $ reconstructParameters' defaultAction t' b'
               let c' = c{clauseBody=Just bb}
               reportSDoc "tc.reconstruct" 50
                 $ "getDefinition reconstructed clause:" <+> pretty c'
