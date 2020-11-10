@@ -200,7 +200,10 @@ endif
 # Thus, ignore exit code.
 
 .PHONY: type-check
-type-check: install-deps
+type-check: install-deps type-check-no-deps
+
+.PHONY: type-check-no-deps
+type-check-no-deps :
 	@echo "================= Type checking using Cabal with -fno-code ==============="
 	-time $(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
           --ghc-options=-fno-code \
