@@ -2,7 +2,6 @@
 
 module Agda.Syntax.Translation.ReflectedToAbstract where
 
-import Control.Arrow ( (***) )
 import Control.Monad.Except
 import Control.Monad.Reader
 
@@ -34,10 +33,10 @@ import Agda.Utils.Functor
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
-type Vars = [(Name,R.Type)]
+type Names = [Name]
 
 type MonadReflectedToAbstract m =
-  ( MonadReader Vars m
+  ( MonadReader Names m
   , MonadFresh NameId m
   , MonadError TCErr m
   , MonadTCEnv m
@@ -51,35 +50,26 @@ type MonadReflectedToAbstract m =
 --   NOTE: See @chooseName@ in @Agda.Syntax.Translation.AbstractToConcrete@ for similar logic.
 --   NOTE: See @freshConcreteName@ in @Agda.Syntax.Scope.Monad@ also for similar logic.
 withName :: MonadReflectedToAbstract m => String -> (Name -> m a) -> m a
-withName s = withVar s R.Unknown
-
-withVar :: MonadReflectedToAbstract m => String -> R.Type -> (Name -> m a) -> m a
-withVar s t f = do
+withName s f = do
   name <- freshName_ s
-  ctx  <- asks $ map $ nameConcrete . fst
+  ctx  <- asks $ map nameConcrete
   glyphMode <- optUseUnicode <$> M.pragmaOptions
   let freshNameMode = case glyphMode of
         UnicodeOk -> A.UnicodeSubscript
         AsciiOnly -> A.AsciiCounter
   let name' = head $ filter (notTaken ctx) $ iterate (nextName freshNameMode) name
-  local ((name,t):) $ f name'
+  local (name:) $ f name'
   where
     notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
 withNames :: MonadReflectedToAbstract m => [String] -> ([Name] -> m a) -> m a
-withNames ss = withVars $ zip ss $ repeat R.Unknown
-
-withVars :: MonadReflectedToAbstract m => [(String,R.Type)] -> ([Name] -> m a) -> m a
-withVars ss f = case ss of
+withNames ss f = case ss of
   []     -> f []
-  ((s,t):ss) -> withVar s t $ \n -> withVars ss $ \ns -> f (n:ns)
+  (s:ss) -> withName s $ \n -> withNames ss $ \ns -> f (n:ns)
 
--- | Returns the name and type of the variable with the given de Bruijn index.
-askVar :: MonadReflectedToAbstract m => Int -> m (Maybe (Name,R.Type))
-askVar i = reader (!!! i)
-
+-- | Returns the name of the variable with the given de Bruijn index.
 askName :: MonadReflectedToAbstract m => Int -> m (Maybe Name)
-askName i = fmap fst <$> askVar i
+askName i = reader (!!! i)
 
 class ToAbstract r where
   type AbsOfRef r
@@ -114,10 +104,7 @@ toAbstractWithoutImplicit ::
   , HasBuiltins m
   , HasConstInfo m
   ) => r -> m (AbsOfRef r)
-toAbstractWithoutImplicit x = do
-  xs <- getContextNames
-  let ctx = zip xs $ repeat R.Unknown
-  runReaderT (toAbstract x) ctx
+toAbstractWithoutImplicit x = runReaderT (toAbstract x) =<< getContextNames
 
 instance ToAbstract r => ToAbstract (Named name r) where
   type AbsOfRef (Named name r) = Named name (AbsOfRef r)
@@ -199,15 +186,11 @@ mkDef f =
 mkApp :: Expr -> Expr -> Expr
 mkApp e1 e2 = App (setOrigin Reflected defaultAppInfo_) e1 $ defaultNamedArg e2
 
-
-mkVar :: MonadReflectedToAbstract m => Int -> m (Name, R.Type)
-mkVar i = ifJustM (askVar i) return $ do
-  cxt   <- getContextTelescope
-  names <- asks $ drop (size cxt) . reverse . map fst
-  withShowAllArguments' False $ typeError $ DeBruijnIndexOutOfScope i cxt names
-
 mkVarName :: MonadReflectedToAbstract m => Int -> m Name
-mkVarName i = fst <$> mkVar i
+mkVarName i = ifJustM (askName i) return $ do
+  cxt   <- getContextTelescope
+  names <- asks $ drop (size cxt) . reverse
+  withShowAllArguments' False $ typeError $ DeBruijnIndexOutOfScope i cxt names
 
 instance ToAbstract Sort where
   type AbsOfRef Sort = Expr
@@ -225,15 +208,7 @@ instance ToAbstract R.Pattern where
       args <- toAbstract args
       return $ A.ConP (ConPatInfo ConOCon patNoRange ConPatEager) (unambiguous $ killRange c) args
     R.DotP t -> A.DotP patNoRange <$> toAbstract t
-    R.VarP i -> do
-      (x,t) <- mkVar i
-      let p = A.VarP $ mkBindName x
-      case t of
-        R.Unknown -> return p
-        _         -> do
-          -- go into the right context for translating the type
-          e <- local (drop $ i+1) $ toAbstract t
-          return $ A.AnnP patNoRange e p
+    R.VarP i -> A.VarP . mkBindName <$> mkVarName i
     R.LitP l  -> return $ A.LitP patNoRange l
     R.AbsurdP -> return $ A.AbsurdP patNoRange
     R.ProjP d -> return $ A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d
@@ -241,7 +216,8 @@ instance ToAbstract R.Pattern where
 instance ToAbstract (QNamed R.Clause) where
   type AbsOfRef (QNamed R.Clause) = A.Clause
 
-  toAbstract (QNamed name (R.Clause tel pats rhs)) = withVars (map (Text.unpack *** unArg) tel) $ \_ -> do
+  -- TODO: remember the types in the telescope
+  toAbstract (QNamed name (R.Clause tel pats rhs)) = withNames (map (Text.unpack . fst) tel) $ \_ -> do
     pats <- toAbstract pats
     rhs  <- toAbstract rhs
     let lhs = spineToLhs $ SpineLHS empty name pats
