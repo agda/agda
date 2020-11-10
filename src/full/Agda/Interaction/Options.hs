@@ -209,6 +209,9 @@ data PragmaOptions = PragmaOptions
      --   @open import Agda.Primitive using (Set; Prop)@?
   , optHeterogeneousUnification  :: Bool
   , optAllowExec                 :: Bool
+  , optShowIdentitySubstitutions :: Bool
+    -- ^ Show identity substitutions when pretty-printing terms
+    --   (i.e. always show all arguments of a metavariable)
   }
   deriving (Show, Eq)
 
@@ -329,6 +332,7 @@ defaultPragmaOptions = PragmaOptions
   , optImportSorts               = True
   , optHeterogeneousUnification  = True
   , optAllowExec                 = False
+  , optShowIdentitySubstitutions = False
   }
 
 -- | The default termination depth.
@@ -607,6 +611,9 @@ showImplicitFlag o = return $ o { optShowImplicit = True }
 
 showIrrelevantFlag :: Flag PragmaOptions
 showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
+
+showIdentitySubstitutionsFlag :: Flag PragmaOptions
+showIdentitySubstitutionsFlag o = return $ o { optShowIdentitySubstitutions = True }
 
 asciiOnlyFlag :: Flag PragmaOptions
 asciiOnlyFlag o = do
@@ -1000,6 +1007,8 @@ pragmaOptions =
                     "show implicit arguments when printing"
     , Option []     ["show-irrelevant"] (NoArg showIrrelevantFlag)
                     "show irrelevant arguments when printing"
+    , Option []     ["show-identity-substitutions"] (NoArg showIrrelevantFlag)
+                    "show all arguments of metavariables when printing terms"
     , Option []     ["no-unicode"] (NoArg asciiOnlyFlag)
                     "don't use unicode characters when printing terms"
     , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")

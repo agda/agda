@@ -46,6 +46,10 @@ Pragmas and options
 * New option `--allow-exec` enables the use of system calls during type checking
   using the `AGDATCMEXECTC` builtin.
 
+* New option `--show-identity-substitutions` shows all arguments of metavariables
+  when pretty-printing a term, even if they amount to just applying
+  all the variables in the context.
+
 Language
 --------
 

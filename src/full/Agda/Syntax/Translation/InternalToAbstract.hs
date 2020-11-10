@@ -560,6 +560,8 @@ reifyTerm expandAnonDefs0 v0 = do
                                     <*> getContextTelescope
                                     <*> viewTC (eCheckpoints . key local_chkpt)
             (,,) <$> viewTC (eCheckpoints . key chkpt) <*> pure tel <*> pure msub2
+
+          opt_show_ids <- showIdentitySubstitutions
           let
               addNames []    es = map (fmap unnamed) es
               addNames _     [] = []
@@ -590,7 +592,8 @@ reifyTerm expandAnonDefs0 v0 = do
                      doDrop _         [] = []
                  in doDrop dropArg $ named_es'
 
-              simpl_named_es' | Just sub_mtel2local <- msub1 = dropIdentitySubs IdS           sub_mtel2local
+              simpl_named_es' | opt_show_ids                 = named_es'
+                              | Just sub_mtel2local <- msub1 = dropIdentitySubs IdS           sub_mtel2local
                               | Just sub_local2mtel <- msub2 = dropIdentitySubs sub_local2mtel IdS
                               | otherwise                    = named_es'
 

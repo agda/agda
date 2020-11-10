@@ -257,6 +257,9 @@ showImplicitArguments = optShowImplicit <$> pragmaOptions
 showIrrelevantArguments :: HasOptions m => m Bool
 showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
 
+showIdentitySubstitutions :: HasOptions m => m Bool
+showIdentitySubstitutions = optShowIdentitySubstitutions <$> pragmaOptions
+
 -- | Switch on printing of implicit and irrelevant arguments.
 --   E.g. for reification in with-function generation.
 --
