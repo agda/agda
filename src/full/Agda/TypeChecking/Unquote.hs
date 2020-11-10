@@ -795,19 +795,31 @@ evalTCM v = do
 
       where
         reconsClause :: Clause -> TCM Clause
-        reconsClause c = case (clauseBody c) of
-          Nothing -> return c
-          Just b  -> case clauseType c of
-            Nothing -> return c
-            Just t  ->
-              addContext (clauseTel c) $ do
-              b' <- checkInternal' defaultAction b CmpLeq (unArg t)
-              t' <- checkInternalType' defaultAction (unArg t)
-              bb <- locallyReduceAllDefs $ reconstructParameters' defaultAction t' b'
-              let c' = c{clauseBody=Just bb}
-              reportSDoc "tc.reconstruct" 50
-                $ "getDefinition reconstructed clause:" <+> pretty c'
-              return c'
+        reconsClause c = do
+          tel' <- reconsTel $ clauseTel c
+          b' <- case (clauseType c, clauseBody c) of
+                (Just t', Just b) ->
+                  addContext (clauseTel c) $ do
+                     b' <- checkInternal' defaultAction b CmpLeq (unArg t')
+                     t' <- checkInternalType' defaultAction (unArg t')
+                     bb <- locallyReduceAllDefs
+                           $ reconstructParameters' defaultAction t' b'
+                     return $ Just bb
+                _ -> return $ clauseBody c
+          let c' = c{clauseBody=b', clauseTel=tel'}
+          reportSDoc "tc.reconstruct" 50
+                   $ "getDefinition reconstructed clause:" <+> pretty c'
+          return c'
+
+        reconsTel :: Telescope -> TCM Telescope
+        reconsTel EmptyTel = return EmptyTel
+        reconsTel (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
+        reconsTel (ExtendTel (d@Dom{unDom=t}) ds@Abs{unAbs=ts}) = do
+           t <- locallyReduceAllDefs $ reconstructParametersInType t
+           let d' = d{unDom=t}
+           ts' <- addContext d' $ reconsTel ts
+           return $ ExtendTel d' ds{unAbs=ts'}
+
 
     setDirty :: UnquoteM ()
     setDirty = modify (first $ const Dirty)
