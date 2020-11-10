@@ -51,10 +51,20 @@ freeVarsBlocked = fmap varOccToBlocker . theVarMap . (freeVars :: v -> VarMap)
       Unguarded      -> neverUnblock
       StronglyRigid  -> neverUnblock
 
-freeVarsInterpolant :: TwinT -> VarSetBlocked
-freeVarsInterpolant (SingleT a) = freeVarsBlocked a
-freeVarsInterpolant (TwinT{twinLHS,twinRHS}) =
-  IntMap.intersectionWith unblockOnEither (freeVarsBlocked twinLHS) (freeVarsBlocked twinRHS)
+class FreeVarsInterpolant a where
+  freeVarsInterpolant :: a -> VarSetBlocked
+
+instance FreeVarsInterpolant TwinT where
+  freeVarsInterpolant :: TwinT -> VarSetBlocked
+  freeVarsInterpolant (SingleT a) = freeVarsBlocked a
+  freeVarsInterpolant (TwinT{twinLHS,twinRHS}) =
+    IntMap.intersectionWith unblockOnEither (freeVarsBlocked twinLHS) (freeVarsBlocked twinRHS)
+
+instance FreeVarsInterpolant a => FreeVarsInterpolant (CompareAs' a) where
+  freeVarsInterpolant :: CompareAs' a -> VarSetBlocked
+  freeVarsInterpolant AsSizes = IntMap.empty
+  freeVarsInterpolant AsTypes = IntMap.empty
+  freeVarsInterpolant (AsTermsOf a) = freeVarsInterpolant a
 
 blockedOnBoth :: VarSetBlocked -> VarSetBlocked -> VarSetBlocked
 blockedOnBoth = IntMap.unionWith unblockOnBoth

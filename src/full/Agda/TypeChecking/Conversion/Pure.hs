@@ -106,7 +106,7 @@ instance (PureTCM m, MonadBlock m) => MonadConstraint (PureConversionT m) where
 
 instance (PureTCM m, MonadBlock m) => MonadMetaSolver (PureConversionT m) where
   newMeta' _ _ _ _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
-  assignV _ _ _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
+  assignV_ _ _ _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
   assignTerm' _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
   etaExpandMeta _ _ = return ()
   updateMetaVar _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?

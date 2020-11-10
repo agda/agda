@@ -92,6 +92,11 @@ class ( MonadConstraint m
   --   during equality checking (@compareAtom@) and leads to
   --   restoration of the original constraints.
   assignV :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> m ()
+  assignV dir mv args t target = assignV_ dir mv args t (asTwin target)
+
+  -- | Same as `assignV`, but checks that both eventual sides of the
+  --   type of the constraint (_ :: CompareAsHet) match
+  assignV_ :: CompareDirection -> MetaId -> Args -> Term -> CompareAsHet -> m ()
 
   -- | Directly instantiate the metavariable. Skip pattern check,
   -- occurs check and frozen check. Used for eta expanding frozen

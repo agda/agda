@@ -71,7 +71,7 @@ import Agda.Utils.Impossible
 
 instance MonadMetaSolver TCM where
   newMeta' = newMetaTCM'
-  assignV dir x args v t = assignWrapper dir x (map Apply args) v $ assign dir x args v t
+  assignV_ dir x args v t = assignWrapper dir x (map Apply args) v $ assign_ dir x args v t
   assignTerm' = assignTermTCM'
   etaExpandMeta = etaExpandMetaTCM
   updateMetaVar = updateMetaVarTCM
@@ -644,7 +644,10 @@ assignWrapper_ dir x es v doAssign = do
 --   Andreas Abel and Brigitte Pientka's TLCA 2011 paper.
 
 assign :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
-assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
+assign dir x args v target = assign_ dir x args v (asTwin target)
+
+assign_ :: CompareDirection -> MetaId -> Args -> Term -> CompareAsHet -> TCM ()
+assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
   mvar <- lookupMeta x  -- information associated with meta x
   let t = jMetaType $ mvJudgement mvar
@@ -927,24 +930,31 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           -- are heterogeneously equal
           heterogeneousUnificationEnabled >>= \enabled -> when enabled $ do
             let fvArgs = freeVarsBlocked args
-            fvV  <- freeVarsBlocked <$> instantiateFull v
+            let mV     = instantiateFull v
+            let mFvV   = freeVarsBlocked <$> mV
             -- TODO: Use the intersection of both sides of the
             -- twin type here (instead of target)
-            fvA  <- freeVarsBlocked <$> instantiateFull target
-            localTC (\ e -> e { envPrintMetasBare = False }) $
-              reportSDoc "tc.conv.het" 30 $ sep
-                [ "checking heterogeneous context equality prior to meta instantiation"
-                , nest 2 $ "ctx: "  <+> (getContextHet >>= prettyTCM)
-                , nest 2 $ "args: " <+> prettyTCM args    <+> "(FV: " <+> prettyTCM fvArgs <+> ")"
-                , nest 2 $ "rhs: "  <+> prettyTCM v       <+> "(FV: " <+> prettyTCM fvV <+> ")"
-                , nest 2 $ "type: " <+> prettyTCM target  <+> "(FV: " <+> prettyTCM fvA <+> ")"
-                ]
-            -- TODO: Check that both sides of the target match
-            return ()
-            checkContextHetEqual (VarSetBlocked.blockedOnBoth fvArgs fvA) (VarSetBlocked.blockedOnBoth fvV fvA) >>= \case
-              AlwaysUnblock -> reportSDoc "tc.conv.het" 30 "success"
-              u             -> do reportSDoc "tc.conv.het" 30 $ "blocked on" <+> prettyTCM u
-                                  patternViolation (unblockOnAny (Set.fromList [unblockOnMeta x, u]))
+            target' <- instantiateFull target
+            let fvTarget  :: VarSetBlocked
+                fvTarget  = freeVarsInterpolant target'
+            reportSDoc "tc.conv.het" 30 $ sep
+              [ "checking heterogeneous context equality prior to meta instantiation"
+              , nest 2 $ "ctx: "  <+> (getContextHet >>= prettyTCM)
+              , nest 2 $ "args: " <+>  prettyTCM args      <+> "(FV: " <+>  prettyTCM fvArgs <+> ")"
+              , nest 2 $ "rhs: "  <+> (prettyTCM =<< mV)   <+> "(FV: " <+> (prettyTCM =<< mFvV) <+> ")"
+              , nest 2 $ ("type"  <>   prettyTCM target)   <+> "(FV: " <+>  prettyTCM fvTarget <+> ")"
+              ]
+
+            let patternViolation_Het u = do reportSDoc "tc.conv.het" 30 $ "blocked on" <+> prettyTCM u
+                                            patternViolation (unblockOnAny (Set.fromList [unblockOnMeta x, u]))
+
+            checkCompareAsHetEqual target' >>= \case
+              AlwaysUnblock -> do
+                fvV <- mFvV
+                checkContextHetEqual (VarSetBlocked.blockedOnBoth fvArgs fvTarget) (VarSetBlocked.blockedOnBoth fvV fvTarget) >>= \case
+                  AlwaysUnblock -> reportSDoc "tc.conv.het" 30 "success"
+                  u             -> patternViolation_Het u
+              u -> patternViolation_Het u
 
           -- Check subtyping constraints on the context variables.
 
@@ -1036,6 +1046,11 @@ checkTwinEqual SingleT{}      = return AlwaysUnblock
 checkTwinEqual TwinT{twinPid} =
   -- TODO: Check the necessary bit, add new constraint if needed
   unblockOnAll . Set.fromList . map UnblockOnProblem <$> filterM (fmap not . isProblemSolved) twinPid
+
+checkCompareAsHetEqual :: CompareAsHet -> TCM Blocker
+checkCompareAsHetEqual (AsTermsOf a) = checkTwinEqual a
+checkCompareAsHetEqual AsSizes       = return AlwaysUnblock
+checkCompareAsHetEqual AsTypes       = return AlwaysUnblock
 
 {- UNUSED
 -- | When faced with @_X us == D vs@ for an inert D we can solve this by
