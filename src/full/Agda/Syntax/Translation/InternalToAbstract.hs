@@ -42,7 +42,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Info as Info
-import Agda.Syntax.Abstract as A hiding (Binder)
+import Agda.Syntax.Abstract as A hiding (Binder, clauseTel)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Abstract.Pretty
@@ -970,11 +970,11 @@ instance BlankVars A.ProblemEq where
   blank bound = id
 
 instance BlankVars A.Clause where
-  blank bound (A.Clause lhs strippedPats rhs wh ca)
+  blank bound (A.Clause tel lhs strippedPats rhs wh ca)
     | null wh =
-        A.Clause (blank bound' lhs)
-                 (blank bound' strippedPats)
-                 (blank bound' rhs) noWhereDecls ca
+        A.Clause tel (blank bound' lhs)
+                     (blank bound' strippedPats)
+                     (blank bound' rhs) noWhereDecls ca
     | otherwise = __IMPOSSIBLE__
     where bound' = varsBoundIn lhs `Set.union` bound
 
@@ -1290,7 +1290,7 @@ instance Reify NamedClause where
     rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e ->
       RHS <$> reify e <*> pure Nothing
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
-    let result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
+    let result = A.Clause Nothing (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where
@@ -1326,7 +1326,7 @@ instance Reify (QNamed System) where
       ps <- stripImplicits [] $ ps ++ [defaultNamedArg ep]
       let
         lhs = SpineLHS empty f ps
-        result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
+        result = A.Clause Nothing (spineToLhs lhs) [] rhs A.noWhereDecls False
       return result
 
 instance Reify Type where

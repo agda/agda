@@ -1069,7 +1069,7 @@ instance ToConcrete (Constr A.Constructor) where
 instance (ToConcrete a, ConOfAbs a ~ C.LHS) => ToConcrete (A.Clause' a) where
   type ConOfAbs (A.Clause' a) = [C.Declaration]
 
-  toConcrete (A.Clause lhs _ rhs wh catchall) =
+  toConcrete (A.Clause _ lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
           C.LHS p _ _ ell -> do
             bindToConcrete wh $ \ wh' -> do

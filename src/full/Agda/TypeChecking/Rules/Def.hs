@@ -128,14 +128,15 @@ isAlias cs t =
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) wh _]
+    trivialClause [A.Clause _ (A.LHS i (A.LHSHead f [])) _ (A.RHS e mc) wh _]
       | null wh     = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> ArgInfo -> Delayed -> A.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
 checkAlias t ai delayed i name e mc =
-  let clause = A.Clause { clauseLHS          = A.SpineLHS (LHSInfo (getRange i) NoEllipsis) name []
+  let clause = A.Clause { clauseTel          = Nothing
+                        , clauseLHS          = A.SpineLHS (LHSInfo (getRange i) NoEllipsis) name []
                         , clauseStrippedPats = []
                         , clauseRHS          = A.RHS e mc
                         , clauseWhereDecls   = A.noWhereDecls
@@ -440,8 +441,8 @@ useTerPragma def = return def
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
 insertPatterns pats = \case
   A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $
-    \ (A.Clause (A.LHS info core)                              spats rhs                       ds catchall) ->
-       A.Clause (A.LHS info (insertPatternsLHSCore pats core)) spats (insertPatterns pats rhs) ds catchall
+    \ (A.Clause Nothing (A.LHS info core)                              spats rhs                       ds catchall) ->
+       A.Clause Nothing (A.LHS info (insertPatternsLHSCore pats core)) spats (insertPatterns pats rhs) ds catchall
   A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (insertPatterns pats rhs) wh
   rhs@A.AbsurdRHS -> rhs
   rhs@A.RHS{}     -> rhs
@@ -596,7 +597,7 @@ instance Monoid ClausesPostChecks where
 
 -- | The LHS part of checkClause.
 checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
-checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
+checkClauseLHS t withSub c@(A.Clause _tel lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
     unlessNull (trailingWithPatterns aps) $ \ withPats -> do
       typeError $ UnexpectedWithPatterns $ map namedArg withPats
@@ -615,7 +616,7 @@ checkClause
   -> A.SpineClause -- ^ Clause.
   -> TCM (Clause,ClausesPostChecks)  -- ^ Type-checked clause
 
-checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
+checkClause t withSub c@(A.Clause cltel lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) = do
   cxtNames <- reverse . map (fst . unDom) <$> getContext
   checkClauseLHS t withSub c $ \ lhsResult@(LHSResult npars delta ps absurdPat trhs patSubst asb psplit) -> do
         -- Note that we might now be in irrelevant context,
@@ -643,8 +644,9 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
             updateRHS (A.RewriteRHS qes spats rhs wh) =
               A.RewriteRHS qes (applySubst patSubst spats) (updateRHS rhs) wh
 
-            updateClause (A.Clause f spats rhs wh ca) =
-              A.Clause f (applySubst patSubst spats) (updateRHS rhs) wh ca
+            updateClause (A.Clause Nothing f spats rhs wh ca) =
+              A.Clause Nothing f (applySubst patSubst spats) (updateRHS rhs) wh ca
+            updateClause (A.Clause Just{} _ _ _ _ _) = __IMPOSSIBLE__ -- no telescope for with-clauses
 
         (body, with) <- bindAsPatterns asb $ checkWhere wh $ checkRHS i x aps t' lhsResult rhs
 
@@ -831,7 +833,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
             | otherwise = (A.RewriteRHS rs strippedPats rhs' wh, A.noWhereDecls)
           -- Andreas, 2014-03-05 kill range of copied patterns
           -- since they really do not have a source location.
-          cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
+          cl = A.Clause Nothing (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
                  strippedPats rhs'' outerWhere False
 
       reportSDoc "tc.invert" 60 $ vcat
@@ -929,7 +931,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
             | otherwise = (A.RewriteRHS rs strippedPats rhs' wh, A.noWhereDecls)
           -- Andreas, 2014-03-05 kill range of copied patterns
           -- since they really do not have a source location.
-          cl = A.Clause (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
+          cl = A.Clause Nothing (A.LHS i $ insertPatternsLHSCore pats $ A.LHSHead x $ killRange aps)
                  strippedPats rhs'' outerWhere False
 
       reportSDoc "tc.rewrite" 60 $ vcat

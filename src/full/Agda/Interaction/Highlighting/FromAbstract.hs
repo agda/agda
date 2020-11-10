@@ -319,7 +319,7 @@ instance (Hilite p, Hilite e) => Hilite (RewriteEqn' x p e) where
     Invert _x pes -> hilite pes
 
 instance Hilite a => Hilite (A.Clause' a) where
-  hilite (A.Clause lhs strippedPats rhs wh _catchall) =
+  hilite (A.Clause _ lhs strippedPats rhs wh _catchall) =
     hilite lhs <> hilite strippedPats <> hilite rhs <> hilite wh
 
 instance Hilite A.ProblemEq where

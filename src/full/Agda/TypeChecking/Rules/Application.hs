@@ -1324,7 +1324,7 @@ checkSharpApplication e t c args = do
         core   = A.LHSProj { A.lhsDestructor = unambiguous flat
                            , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                            , A.lhsPats       = [] }
-        clause = A.Clause (A.LHS empty core) []
+        clause = A.Clause Nothing (A.LHS empty core) []
                           (A.RHS arg Nothing)
                           A.noWhereDecls False
 

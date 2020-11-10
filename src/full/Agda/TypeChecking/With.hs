@@ -198,7 +198,8 @@ buildWithFunction
 buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM buildWithClause cs
   where
     -- Nested with-functions will iterate this function once for each parent clause.
-    buildWithClause (A.Clause (A.SpineLHS i _ allPs) inheritedPats rhs wh catchall) = do
+    buildWithClause (A.Clause Just{} _ _ _ _ _) = __IMPOSSIBLE__  -- telescopes only when we come from reflection
+    buildWithClause (A.Clause Nothing (A.SpineLHS i _ allPs) inheritedPats rhs wh catchall) = do
       let (ps, wps)    = splitOffTrailingWithPatterns allPs
           (wps0, wps1) = splitAt n wps
           ps0          = map (updateNamedArg fromWithP) wps0
@@ -213,7 +214,8 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
                                        | A.ProblemEq p v t <- strippedPats ]
       rhs <- buildRHS strippedPats rhs
       let (ps1, ps2) = splitAt n1 ps'
-      let result = A.Clause (A.SpineLHS i aux $ ps1 ++ ps0 ++ ps2 ++ wps1)
+      let result = A.Clause Nothing
+                     (A.SpineLHS i aux $ ps1 ++ ps0 ++ ps2 ++ wps1)
                      (inheritedPats ++ strippedPats)
                      rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
@@ -236,8 +238,11 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
     -- need to update again once the with-clause patterns have been checked.
     -- This happens in Rules.Def.checkClause before calling checkRHS.
     permuteNamedDots :: A.SpineClause -> A.SpineClause
-    permuteNamedDots (A.Clause lhs strippedPats rhs wh catchall) =
-      A.Clause lhs (applySubst withSub strippedPats) rhs wh catchall
+    permuteNamedDots (A.Clause Nothing lhs strippedPats rhs wh catchall) =
+      A.Clause Nothing lhs (applySubst withSub strippedPats) rhs wh catchall
+    permuteNamedDots (A.Clause Just{} _ _ _ _ _) = __IMPOSSIBLE__
+      -- Telescope only comes from reflection which can't generate with clauses.
+
 
 
 -- The arguments of @stripWithClausePatterns@ are documented

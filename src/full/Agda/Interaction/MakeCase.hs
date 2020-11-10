@@ -474,11 +474,11 @@ makeAbstractClause f rhs ell cl = do
 
   lhs <- A.clauseLHS <$> makeAbsurdClause f ell cl
   reportSDoc "interaction.case" 60 $ "reified lhs: " <+> prettyA lhs
-  return $ A.Clause lhs [] rhs A.noWhereDecls False
+  return $ A.Clause Nothing lhs [] rhs A.noWhereDecls False
   -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
   --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   -- let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
-  -- return $ A.Clause lhs [] (A.RHS $ A.QuestionMark info ii) [] False
+  -- return $ A.Clause Nothing lhs [] (A.RHS $ A.QuestionMark info ii) [] False
 
 anyEllipsisVar :: QName -> A.SpineClause -> [Name] -> TCM Bool
 anyEllipsisVar f cl xs = do

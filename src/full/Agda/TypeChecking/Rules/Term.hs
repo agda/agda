@@ -1298,7 +1298,7 @@ checkExpr' cmp e t =
       A.QuestionMark{}        -> True
       _                       -> False
 
-    hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _))) _ _ _ _) = notVisible a
+    hiddenLHS (A.Clause _ (A.LHS _ (A.LHSHead _ (a : _))) _ _ _ _) = notVisible a
     hiddenLHS _ = False
 
     -- Things with are definitely introductions,

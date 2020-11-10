@@ -34,7 +34,7 @@ import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract as A hiding (clauseTel)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule)

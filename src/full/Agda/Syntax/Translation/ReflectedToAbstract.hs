@@ -216,16 +216,17 @@ instance ToAbstract R.Pattern where
 instance ToAbstract (QNamed R.Clause) where
   type AbsOfRef (QNamed R.Clause) = A.Clause
 
-  -- TODO: remember the types in the telescope
   toAbstract (QNamed name (R.Clause tel pats rhs)) = withNames (map (Text.unpack . fst) tel) $ \_ -> do
+    -- tel  <- toAbstract tel -- TODO
     pats <- toAbstract pats
     rhs  <- toAbstract rhs
     let lhs = spineToLhs $ SpineLHS empty name pats
-    return $ A.Clause lhs [] (RHS rhs Nothing) noWhereDecls False
+    return $ A.Clause Nothing lhs [] (RHS rhs Nothing) noWhereDecls False
   toAbstract (QNamed name (R.AbsurdClause tel pats)) = withNames (map (Text.unpack . fst) tel) $ \_ -> do
+    -- tel <- toAbstract tel
     pats <- toAbstract pats
     let lhs = spineToLhs $ SpineLHS empty name pats
-    return $ A.Clause lhs [] AbsurdRHS noWhereDecls False
+    return $ A.Clause Nothing lhs [] AbsurdRHS noWhereDecls False
 
 instance ToAbstract [QNamed R.Clause] where
   type AbsOfRef [QNamed R.Clause] = [A.Clause]

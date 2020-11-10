@@ -351,7 +351,9 @@ instance Eq ProblemEq where _ == _ = True
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause' lhs = Clause
-  { clauseLHS        :: lhs
+  { clauseTel        :: Maybe Telescope
+      -- ^ Clauses coming from reflection will have a telescope here.
+  , clauseLHS        :: lhs
   , clauseStrippedPats :: [ProblemEq]
       -- ^ Only in with-clauses where we inherit some already checked patterns from the parent.
       --   These live in the context of the parent clause left-hand side.
@@ -688,7 +690,7 @@ instance HasRange (LHSCore' e) where
     getRange (LHSWith h wps ps)     = h `fuseRange` wps `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
-    getRange (Clause lhs _ rhs ds catchall) = getRange (lhs, rhs, ds)
+    getRange (Clause _ lhs _ rhs ds catchall) = getRange (lhs, rhs, ds)
 
 instance HasRange RHS where
     getRange AbsurdRHS                 = noRange
@@ -829,7 +831,7 @@ instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSWith a b c) = killRange3 LHSWith a b c
 
 instance KillRange a => KillRange (Clause' a) where
-  killRange (Clause lhs spats rhs ds catchall) = killRange5 Clause lhs spats rhs ds catchall
+  killRange (Clause tel lhs spats rhs ds catchall) = killRange6 Clause tel lhs spats rhs ds catchall
 
 instance KillRange ProblemEq where
   killRange (ProblemEq p v a) = killRange3 ProblemEq p v a
