@@ -798,12 +798,10 @@ evalTCM v = do
         reconsClause c = do
           tel' <- reconsTel $ clauseTel c
           b' <- case (clauseType c, clauseBody c) of
-                (Just t', Just b) ->
+                (Just t, Just b) ->
                   addContext (clauseTel c) $ do
-                     b' <- checkInternal' defaultAction b CmpLeq (unArg t')
-                     t' <- checkInternalType' defaultAction (unArg t')
                      bb <- locallyReduceAllDefs
-                           $ reconstructParameters' defaultAction t' b'
+                           $ reconstructParameters' defaultAction (unArg t) b
                      return $ Just bb
                 _ -> return $ clauseBody c
           let c' = c{clauseBody=b', clauseTel=tel'}
