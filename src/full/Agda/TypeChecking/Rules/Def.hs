@@ -597,8 +597,18 @@ instance Monoid ClausesPostChecks where
 
 -- | The LHS part of checkClause.
 checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
-checkClauseLHS t withSub c@(A.Clause _tel lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
+checkClauseLHS t withSub c@(A.Clause mtel lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
+
+    -- If this clause comes from reflection it has a telescope that we also need to check. First
+    -- check that the telescope is well-formed. Then generate extra problem equations to ensure the
+    -- types of the pattern variables line up with the telescope.
+    telEquations <- caseMaybe mtel (return []) $ \ atel -> do
+      reportSDoc "tc.lhs.clausetel" 40 $ "Checking clause telescope" $$ prettyA atel
+      let telNames = reverse [ A.binderName $ namedArg b | A.TBind _ _ bs _ <- atel, b <- List1.toList bs ]
+      checkTelescope atel $ \ tel -> return
+        [ A.ProblemEq (A.VarP x) (Var i []) $ raise (i + 1) (snd <$> dom)
+        | (i, x, dom) <- zip3 [0..] telNames $ reverse $ telToList tel ]
     unlessNull (trailingWithPatterns aps) $ \ withPats -> do
       typeError $ UnexpectedWithPatterns $ map namedArg withPats
     traceCall (CheckClause t c) $ do
@@ -606,7 +616,7 @@ checkClauseLHS t withSub c@(A.Clause _tel lhs@(A.SpineLHS i x aps) strippedPats 
       unless (null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
         "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
       closed_t <- flip abstract t <$> getContextTelescope
-      checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats ret
+      checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats telEquations ret
 
 -- | Type check a function clause.
 

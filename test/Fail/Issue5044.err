@@ -1,0 +1,4 @@
+Issue5044.agda:20,1-54
+A != B
+when checking that all occurrences of pattern variable x have the
+same type
