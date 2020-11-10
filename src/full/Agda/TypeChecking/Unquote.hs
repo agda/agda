@@ -765,7 +765,16 @@ evalTCM v = do
       where err _ = genericError $ "Unbound name: " ++ prettyShow x
 
     tcGetType :: QName -> TCM Term
-    tcGetType x = quoteType . defType =<< constInfo x
+    tcGetType x = do
+      r  <- isReconstructed
+      ci <- constInfo x
+      let t = defType ci
+      if r then do
+        t <- locallyReduceAllDefs $ reconstructParametersInType t
+        quoteType t
+      else
+        quoteType t
+
 
     tcIsMacro :: QName -> TCM Term
     tcIsMacro x = do
