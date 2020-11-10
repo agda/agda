@@ -60,9 +60,23 @@ macro
     quoteTC t >>= unify hole
 
 
-test : z test-ar
+test₁ : z test-ar
       ≡ con (quote imap) (_ ∷ _ ∷ _ ∷ _ ∷
                           arg _ (lam _ (abs "iv"
                                         (con (quote Nat.suc) _)))
                           ∷ [])
-test = refl
+test₁ = refl
+
+
+-- Make sure that getType behaves correctly under withReconstructed.
+macro
+  q : Name → Term → TC ⊤
+  q n hole = do
+    t ← withReconstructed $
+        getType n
+    t ← withReconstructed $
+        normalise t
+    quoteTC t >>= unify hole
+
+test₂ : Term
+test₂ = q test-ar
