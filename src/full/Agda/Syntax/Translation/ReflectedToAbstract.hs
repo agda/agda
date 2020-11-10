@@ -216,17 +216,15 @@ instance ToAbstract R.Pattern where
 instance ToAbstract (QNamed R.Clause) where
   type AbsOfRef (QNamed R.Clause) = A.Clause
 
-  toAbstract (QNamed name (R.Clause tel pats rhs)) = withNames (map (Text.unpack . fst) tel) $ \_ -> do
-    -- tel  <- toAbstract tel -- TODO
+  toAbstract (QNamed name (R.Clause tel pats rhs)) = telToAbstract tel $ \ tel -> do
     pats <- toAbstract pats
     rhs  <- toAbstract rhs
     let lhs = spineToLhs $ SpineLHS empty name pats
-    return $ A.Clause Nothing lhs [] (RHS rhs Nothing) noWhereDecls False
-  toAbstract (QNamed name (R.AbsurdClause tel pats)) = withNames (map (Text.unpack . fst) tel) $ \_ -> do
-    -- tel <- toAbstract tel
+    return $ A.Clause (Just tel) lhs [] (RHS rhs Nothing) noWhereDecls False
+  toAbstract (QNamed name (R.AbsurdClause tel pats)) = telToAbstract tel $ \ tel -> do
     pats <- toAbstract pats
     let lhs = spineToLhs $ SpineLHS empty name pats
-    return $ A.Clause Nothing lhs [] AbsurdRHS noWhereDecls False
+    return $ A.Clause (Just tel) lhs [] AbsurdRHS noWhereDecls False
 
 instance ToAbstract [QNamed R.Clause] where
   type AbsOfRef [QNamed R.Clause] = [A.Clause]
@@ -235,3 +233,13 @@ instance ToAbstract [QNamed R.Clause] where
 instance ToAbstract (List1 (QNamed R.Clause)) where
   type AbsOfRef (List1 (QNamed R.Clause)) = List1 A.Clause
   toAbstract = traverse toAbstract
+
+-- withNames (map (Text.unpack . fst) tel) $ \_ -> do
+telToAbstract :: MonadReflectedToAbstract m => [(Text, Arg Type)] -> (A.Telescope -> m a) -> m a
+telToAbstract [] ret = ret []
+telToAbstract ((x, ty) : tel) ret = do
+  aty <- toAbstract (unArg ty)
+  withName (Text.unpack x) $ \ x -> do
+    let b    = unnamed (mkBinder_ x) <$ ty
+        bind = A.TBind noRange Nothing (b :| []) aty
+    telToAbstract tel $ \ atel -> ret (bind : atel)
