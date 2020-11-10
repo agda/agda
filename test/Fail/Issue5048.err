@@ -1,0 +1,3 @@
+Issue5048.agda:12,8-12
+quote Agda.Builtin.Nat.Nat != quote Name of type Name
+when checking that the expression refl has type M.a ≡ quote Name
