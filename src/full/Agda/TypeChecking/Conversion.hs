@@ -232,7 +232,7 @@ assignE_ :: (MonadConversion m)
          => CompareDirection -> MetaId -> Elims -> Het 'RHS Term -> CompareAsHet -> (Het 'LHS Term -> Het 'RHS Term -> m ()) -> m ()
 assignE_ dir x es v a comp = assignWrapper_ dir x es v $ do
   case allApplyElims es of
-    Just vs -> assignV dir x vs (twinAt @'RHS v) (twinAt @'Compat a)
+    Just vs -> assignV_ dir x vs (twinAt @'RHS v) a
     Nothing -> do
       reportSDoc "tc.conv.assign" 30 $ sep
         [ "assigning to projected meta "
