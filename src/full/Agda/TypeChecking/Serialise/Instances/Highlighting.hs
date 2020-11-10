@@ -53,6 +53,7 @@ instance EmbPrj HP.Aspect where
   icod_ HP.Pragma        = icodeN 6 ()
   icod_ HP.Background    = icodeN 7 ()
   icod_ HP.Markup        = icodeN 8 ()
+  icod_ HP.Hole          = icodeN 9 ()
 
   value = vcase valu where
     valu [0]        = valuN HP.Comment
@@ -65,6 +66,7 @@ instance EmbPrj HP.Aspect where
     valu [6]        = valuN HP.Pragma
     valu [7]        = valuN HP.Background
     valu [8]        = valuN HP.Markup
+    valu [9]        = valuN HP.Hole
     valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where
