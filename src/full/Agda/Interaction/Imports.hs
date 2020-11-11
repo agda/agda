@@ -239,7 +239,7 @@ scopeCheckImport x = do
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
     -- Since scopeCheckImport is called from the scope checker,
     -- we need to reimburse her account.
-    i <- Bench.billTo [] $ getInterface_ (toTopLevelModuleName x) Nothing
+    i <- Bench.billTo [] $ getNonMainInterface (toTopLevelModuleName x) Nothing
     addImport x
 
     -- If that interface was supposed to raise a warning on import, do so.
@@ -374,7 +374,7 @@ typeCheckMain mode si = do
       forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
         si <- sourceInfo (SourceFile $ mkAbsolute f)
         checkModuleName' (siModuleName si) (siOrigin si)
-        void $ getInterface_ (siModuleName si) (Just si)
+        void $ getNonMainInterface (siModuleName si) (Just si)
 
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
@@ -400,17 +400,17 @@ typeCheckMain mode si = do
 --
 --   Do not use this for the main file, use 'typeCheckMain' instead.
 
-getInterface_
+getNonMainInterface
   :: C.TopLevelModuleName
   -> Maybe SourceInfo
      -- ^ Optional information about the source code.
   -> TCM Interface
-getInterface_ x msi = do
+getNonMainInterface x msi = do
   (i, wt) <- getInterface x NotMainInterface msi
   tcWarningsToError wt
   return i
 
--- | A more precise variant of 'getInterface_'. If warnings are
+-- | A more precise variant of 'getNonMainInterface'. If warnings are
 -- encountered then they are returned instead of being turned into
 -- errors.
 
@@ -1198,4 +1198,4 @@ getInterfaceFileHashes fp = do
   return hs
 
 moduleHash :: ModuleName -> TCM Hash
-moduleHash m = iFullHash <$> getInterface_ (toTopLevelModuleName m) Nothing
+moduleHash m = iFullHash <$> getNonMainInterface (toTopLevelModuleName m) Nothing
