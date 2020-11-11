@@ -24,7 +24,7 @@ import qualified Data.Text as T
 
 import Agda.Interaction.Base
 import Agda.Interaction.Options
-import {-# SOURCE #-} Agda.Interaction.Imports (MaybeWarnings'(..), getMaybeWarnings)
+import {-# SOURCE #-} Agda.Interaction.Imports (getAllWarnings)
 import Agda.Interaction.Response (Goals, ResponseContextEntry(..))
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
@@ -719,10 +719,10 @@ showGoals (ims, hms) = do
 
 getWarningsAndNonFatalErrors :: TCM WarningsAndNonFatalErrors
 getWarningsAndNonFatalErrors = do
-  mws <- getMaybeWarnings AllWarnings
-  let notMetaWarnings = filter (not . isMetaTCWarning) <$> mws
+  mws <- getAllWarnings AllWarnings
+  let notMetaWarnings = filter (not . isMetaTCWarning) mws
   return $ case notMetaWarnings of
-    SomeWarnings ws@(_:_) -> classifyWarnings ws
+    ws@(_:_) -> classifyWarnings ws
     _ -> emptyWarningsAndNonFatalErrors
 
 -- | Collecting the context of the given meta-variable.

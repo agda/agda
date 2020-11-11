@@ -17,4 +17,4 @@ data MainInterface = MainInterface Mode | NotMainInterface
 instance Eq MainInterface
 
 scopeCheckImport :: ModuleName -> TCM (ModuleName, Map ModuleName Scope)
-getMaybeWarnings :: WhichWarnings -> TCM MaybeWarnings
+getAllWarnings :: WhichWarnings -> TCM [TCWarning]

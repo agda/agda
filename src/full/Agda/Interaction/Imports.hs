@@ -12,7 +12,6 @@ module Agda.Interaction.Imports
   , isNewerThan
   , getAllWarnings
   , getAllWarningsOfTCErr
-  , getMaybeWarnings
   , scopeCheckImport
   , sourceInfo
   , typeCheckMain
@@ -1133,9 +1132,6 @@ getAllWarnings' isMain ww = do
   fmap (filter (showWarn . tcWarning))
     $ applyFlagsToTCWarnings' isMain $ reverse
     $ unsolved ++ collectedTCWarnings
-
-getMaybeWarnings :: WhichWarnings -> TCM MaybeWarnings
-getMaybeWarnings = getMaybeWarnings' NotMainInterface
 
 getMaybeWarnings' :: MainInterface -> WhichWarnings -> TCM MaybeWarnings
 getMaybeWarnings' isMain ww = do
