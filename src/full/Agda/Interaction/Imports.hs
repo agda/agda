@@ -341,7 +341,7 @@ alreadyVisited x isMain currentOptions getIface =
 --   or the file passed on the command line.
 --
 --   First, the primitive modules are imported.
---   Then, @getInterface'@ is called to do the main work.
+--   Then, @getInterface@ is called to do the main work.
 --
 --   If the 'Mode' is 'ScopeCheck', then type-checking is not
 --   performed, only scope-checking. (This may include type-checking
@@ -378,9 +378,9 @@ typeCheckMain mode si = do
 
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
-  -- Now do the type checking via getInterface'.
+  -- Now do the type checking via getInterface.
   checkModuleName' (siModuleName si) (siOrigin si)
-  (i, ws) <- getInterface' (siModuleName si) (MainInterface mode) (Just si)
+  (i, ws) <- getInterface (siModuleName si) (MainInterface mode) (Just si)
 
   stCurrentModule `setTCLens` Just (iModuleName i)
 
@@ -406,21 +406,21 @@ getInterface_
      -- ^ Optional information about the source code.
   -> TCM Interface
 getInterface_ x msi = do
-  (i, wt) <- getInterface' x NotMainInterface msi
+  (i, wt) <- getInterface x NotMainInterface msi
   tcWarningsToError wt
   return i
 
--- | A more precise variant of 'getInterface'. If warnings are
+-- | A more precise variant of 'getInterface_'. If warnings are
 -- encountered then they are returned instead of being turned into
 -- errors.
 
-getInterface'
+getInterface
   :: C.TopLevelModuleName
   -> MainInterface
   -> Maybe SourceInfo
      -- ^ Optional information about the source code.
   -> TCM (Interface, [TCWarning])
-getInterface' x isMain msi =
+getInterface x isMain msi =
   withIncreasedModuleNestingLevel $
     -- Preserve the pragma options unless we are checking the main
     -- interface.
