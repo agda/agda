@@ -175,6 +175,14 @@ includeStateChanges :: MainInterface -> Bool
 includeStateChanges (MainInterface _) = True
 includeStateChanges NotMainInterface  = False
 
+-- | The kind of interface produced by 'createInterface'
+moduleCheckMode :: MainInterface -> ModuleCheckMode
+moduleCheckMode = \case
+    MainInterface (TypeCheck TopLevelInteraction) -> ModuleTypeCheckedRetainingPrivates
+    MainInterface (TypeCheck RegularInteraction)  -> ModuleTypeChecked
+    NotMainInterface                              -> ModuleTypeChecked
+    MainInterface ScopeCheck                      -> ModuleScopeChecked
+
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
@@ -257,8 +265,7 @@ scopeCheckImport x = do
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly. Otherwise the computation is
 -- used to find the interface and the computed interface is stored for
--- potential later use (unless the 'MainInterface' is @'MainInterface'
--- 'ScopeCheck'@).
+-- potential later use.
 
 alreadyVisited :: C.TopLevelModuleName ->
                   MainInterface ->
@@ -271,22 +278,25 @@ alreadyVisited x isMain currentOptions getModule =
     -- For top-level interaction commands, we may not able to reuse
     -- the existing interface, since it does not contain the private
     -- declarations.  Thus, we always recheck.
-    MainInterface (TypeCheck TopLevelInteraction) ->                     loadAndRecordVisited
-    MainInterface (TypeCheck RegularInteraction)  -> eitherUseExistingOr loadAndRecordVisited
-    NotMainInterface                              -> eitherUseExistingOr loadAndRecordVisited
-    MainInterface ScopeCheck                      -> eitherUseExistingOr load
+    MainInterface (TypeCheck TopLevelInteraction) ->              loadAndRecordVisited -- ModuleTypeCheckedRetainingPrivates
+    MainInterface (TypeCheck RegularInteraction)  -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
+    NotMainInterface                              -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
+    MainInterface ScopeCheck                      -> useExistingOrLoadAndRecordVisited ModuleScopeChecked
   where
-  eitherUseExistingOr :: TCM ModuleInfo -> TCM ModuleInfo
-  eitherUseExistingOr notYetVisited = fromMaybeM notYetVisited existingWithoutWarnings
+  useExistingOrLoadAndRecordVisited :: ModuleCheckMode -> TCM ModuleInfo
+  useExistingOrLoadAndRecordVisited mode = fromMaybeM loadAndRecordVisited (existingWithoutWarnings mode)
 
   -- Case: already visited.
   --
   -- A module with warnings should never be allowed to be
   -- imported from another module.
-  existingWithoutWarnings :: TCM (Maybe ModuleInfo)
-  existingWithoutWarnings = runMaybeT $ exceptToMaybeT $ do
+  existingWithoutWarnings :: ModuleCheckMode -> TCM (Maybe ModuleInfo)
+  existingWithoutWarnings mode = runMaybeT $ exceptToMaybeT $ do
     mi <- maybeToExceptT "interface has not been visited in this context" $ MaybeT $
       getVisitedModule x
+
+    when (miMode mi < mode) $
+      throwError "previously-visited interface was not sufficiently checked"
 
     unless (null $ miWarnings mi) $
       throwError "previously-visited interface had warnings"
@@ -308,12 +318,6 @@ alreadyVisited x isMain currentOptions getModule =
 
   loadAndRecordVisited :: TCM ModuleInfo
   loadAndRecordVisited = do
-    r <- load
-    visitModule r
-    return r
-
-  load :: TCM ModuleInfo
-  load = do
     reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
     mi <- processResultingModule =<< getModule
     reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
@@ -330,7 +334,9 @@ alreadyVisited x isMain currentOptions getModule =
       , "WarningOnImport: " ++ show (iImportWarning (miInterface mi))
       ]
 
+    visitModule mi
     return mi
+
 
 -- | Type checks the main file of the interaction.
 --   This could be the file loaded in the interacting editor (emacs),
@@ -460,6 +466,29 @@ getInterface x isMain msi =
 
       let i = miInterface mi
 
+      -- We are in the @alreadyVisited@ loading action.
+      -- @alreadyVisited@ runs this action iff:
+      --   - the module is NOT visited with a sufficient check mode (i.e. it was only scope-checked).
+      --   - or if we forced a re-check due to using "MainInterface (TypeCheck TopLevelInteraction)".
+      --
+      -- Note also that 'createInterface'/'createInterfaceIsolated/'getStoredInterface'
+      -- invoked above will never "visit" this module: if they did, that would be caught
+      -- by the import cycle check.
+      --
+      -- We will never re-visit a non-main interface in any given context:
+      -- each interface is unconditionally added to the visited list.
+      -- Currently, only the main interface supports scope-checking.
+      --
+      -- In the case of 'MainInterface (TypeCheck TopLevelInteraction)', we might
+      -- re-visit due to the special case in `alreadyVisited`.
+      --
+      -- This means re-visitation can *only* happen when forcibly re-checking the main
+      -- module. However, re-checking the main module means using 'createInterface',
+      -- which is always done in the current context, and so 'stateChangesIncluded'
+      -- also will also always be True in that case.
+      --
+      -- Thus, this check does not affect anything except for the log message, and
+      -- it can only happen when force-rechecking the main module.
       visited <- isVisited x
       reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
                                    else "  New module. Let's check it out."
@@ -618,6 +647,7 @@ getStoredInterface x file msi = do
                { miInterface = i
                , miWarnings = []
                , miPrimitive = isPrimitiveModule
+               , miMode = ModuleTypeChecked
                }
 
         lift $ chaseMsg "Loading " x $ Just ifp
@@ -1093,6 +1123,7 @@ createInterface mname file isMain msi = do
       { miInterface = finalIface
       , miWarnings = mallWarnings
       , miPrimitive = isPrimitiveModule
+      , miMode = moduleCheckMode isMain
       }
 
 -- | Expert version of 'getAllWarnings'; if 'isMain' is a

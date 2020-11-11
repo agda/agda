@@ -20,6 +20,7 @@ module Agda.TypeChecking.Monad.Imports
   , withImportPath
   ) where
 
+import Control.Arrow ( (***) )
 import Control.Monad.State
 
 
@@ -66,8 +67,14 @@ getVisitedModules = useTC stVisitedModules
 
 getPrettyVisitedModules :: ReadTCState m => m Doc
 getPrettyVisitedModules = do
-  visited <- Map.keys <$> getVisitedModules
-  return $ hcat $ punctuate ", " $ pretty <$> visited
+  visited <-  fmap (uncurry (<>) . (pretty *** (prettyCheckMode . miMode))) . Map.toList
+          <$> getVisitedModules
+  return $ hcat $ punctuate ", " visited
+  where
+  prettyCheckMode :: ModuleCheckMode -> Doc
+  prettyCheckMode ModuleTypeChecked                  = ""
+  prettyCheckMode ModuleTypeCheckedRetainingPrivates = " (+ privates)"
+  prettyCheckMode ModuleScopeChecked                 = " (scope only)"
 
 isVisited :: C.TopLevelModuleName -> TCM Bool
 isVisited x = Map.member x <$> useTC stVisitedModules

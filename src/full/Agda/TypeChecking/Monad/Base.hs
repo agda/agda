@@ -865,6 +865,16 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
 -- ** Interface
 ---------------------------------------------------------------------------
 
+
+-- | Distinguishes between type-checked and scope-checked interfaces
+--   when stored in the map of `VisitedModules`.
+data ModuleCheckMode
+  = ModuleScopeChecked
+  | ModuleTypeChecked
+  | ModuleTypeCheckedRetainingPrivates
+  deriving (Eq, Ord, Bounded, Enum, Show)
+
+
 data ModuleInfo = ModuleInfo
   { miInterface  :: Interface
   , miWarnings   :: [TCWarning]
@@ -875,6 +885,8 @@ data ModuleInfo = ModuleInfo
   , miPrimitive  :: Bool
     -- ^ 'True' if the module is a primitive module, which should always
     -- be importable.
+  , miMode       :: ModuleCheckMode
+    -- ^ The `ModuleCheckMode` used to create the `Interface`
   }
 
 -- Note that the use of 'C.TopLevelModuleName' here is a potential
