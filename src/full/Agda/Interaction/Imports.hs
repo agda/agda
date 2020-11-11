@@ -268,14 +268,9 @@ alreadyVisited x isMain currentOptions getIface =
           reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
           -- Check that imported options are compatible with current ones,
           -- but give primitive modules a pass
-          optsCompat <- if isPrim then return True else
-            ifM (asksTC envCheckOptionConsistency)
-            {-then-} (checkOptionsCompatible currentOptions (iOptionsUsed i)
-                                             (iModuleName i))
-            {-else-} (return True)
-          if optsCompat then return (i, []) else do
-            wt <- getAllWarnings' isMain ErrorWarnings
-            return (i, wt)
+          wt <- if isPrim then pure [] else
+                fromMaybe [] <$> getOptionsCompatibilityWarnings isMain currentOptions i
+          return (i, wt)
 
         -- Case: Not visited already.
         --
@@ -461,11 +456,7 @@ getInterface' x isMain msi =
       -- Check that imported module options are consistent with
       -- current options (issue #2487)
       -- compute updated warnings if needed
-      wt' <- ifM (not <$> asksTC envCheckOptionConsistency)
-                 {- then -} (return wt) {- else -} $ do
-        optComp <- checkOptionsCompatible currentOptions (iOptionsUsed i) (iModuleName i)
-        -- we might have aquired some more warnings when consistency checking
-        if optComp then return wt else getAllWarnings' isMain ErrorWarnings
+      wt' <- fromMaybe wt <$> getOptionsCompatibilityWarnings isMain currentOptions i
 
       unless (visited || stateChangesIncluded) $ do
         mergeInterface i
@@ -509,6 +500,21 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
 
     showOptions opts = P.prettyList (map (\ (o, n) -> (P.text n <> ": ") P.<+> P.pretty (o opts))
                                  (coinfectiveOptions ++ infectiveOptions))
+
+
+-- | Compare options and return collected warnings.
+-- | Returns `Nothing` if warning collection was skipped.
+
+getOptionsCompatibilityWarnings :: MainInterface -> PragmaOptions -> Interface -> TCM (Maybe [TCWarning])
+getOptionsCompatibilityWarnings isMain currentOptions i = runMaybeT $ exceptToMaybeT $ do
+  -- We're just dropping these reasons-for-skipping messages for now.
+  -- They weren't logged before, but they're nice for documenting the early returns.
+  whenM (lift $ not <$> asksTC envCheckOptionConsistency) $
+    throwError "Options consistency checking is disabled"
+  whenM (lift $ checkOptionsCompatible currentOptions (iOptionsUsed i) (iModuleName i)) $
+    throwError "No warnings to collect because options were compatible"
+  lift $ getAllWarnings' isMain ErrorWarnings
+
 
 -- | Check whether interface file exists and is in cache
 --   in the correct version (as testified by the interface file hash).
