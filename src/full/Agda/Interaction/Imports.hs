@@ -239,7 +239,7 @@ scopeCheckImport x = do
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
     -- Since scopeCheckImport is called from the scope checker,
     -- we need to reimburse her account.
-    i <- Bench.billTo [] $ getInterface x
+    i <- Bench.billTo [] $ getInterface_ (toTopLevelModuleName x) Nothing
     addImport x
 
     -- If that interface was supposed to raise a warning on import, do so.
@@ -399,11 +399,6 @@ typeCheckMain mode si = do
 --   An error is raised if a warning is encountered.
 --
 --   Do not use this for the main file, use 'typeCheckMain' instead.
-
-getInterface :: ModuleName -> TCM Interface
-getInterface m = getInterface_ (toTopLevelModuleName m) Nothing
-
--- | See 'getInterface'.
 
 getInterface_
   :: C.TopLevelModuleName
@@ -1203,4 +1198,4 @@ getInterfaceFileHashes fp = do
   return hs
 
 moduleHash :: ModuleName -> TCM Hash
-moduleHash m = iFullHash <$> getInterface m
+moduleHash m = iFullHash <$> getInterface_ (toTopLevelModuleName m) Nothing
