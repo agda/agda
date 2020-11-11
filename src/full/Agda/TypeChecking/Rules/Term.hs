@@ -113,8 +113,7 @@ isType_ e = traceCall (IsType_ e) $ do
   SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- setArgInfo info . defaultDom <$>
-             applyQuantityToContext info (isType_ t)
+      a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
       b <- isType_ b
       s <- inferFunSort (getSort a) (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -314,6 +313,35 @@ checkTelescope' lamOrPi (b : tel) ret =
     checkTelescope' lamOrPi tel  $ \tel2 ->
         ret $ abstract tel1 tel2
 
+-- | Check the domain of a function type.
+--   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
+checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
+checkDomain lamOrPi xs e = do
+    let (c :| cs) = fmap (getCohesion . getModality) xs
+    unless (all (c ==) cs) $ __IMPOSSIBLE__
+
+    let (q :| qs) = fmap (getQuantity . getModality) xs
+    unless (all (q ==) qs) $ __IMPOSSIBLE__
+
+    t <- applyQuantityToContext q $
+         applyCohesionToContext c $
+         modEnv lamOrPi $ isType_ e
+    -- Andrea TODO: also make sure that LockUniv implies IsLock
+    when (any (\ x -> getLock x == IsLock) xs) $
+        equalSort (getSort t) LockUniv
+
+    return t
+  where
+        -- if we are checking a typed lambda, we resurrect before we check the
+        -- types, but do not modify the new context entries
+        -- otherwise, if we are checking a pi, we do not resurrect, but
+        -- modify the new context entries
+        modEnv LamNotPi = workOnTypes
+        modEnv _        = id
+
+checkPiDomain :: (LensLock a, LensModality a) => List1 a -> A.Expr -> TCM Type
+checkPiDomain = checkDomain PiNotLam
+
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 --
@@ -330,19 +358,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-    let (c :| cs) = fmap getCohesion xps
-    unless (all (c ==) cs) $ __IMPOSSIBLE__
-
-    let (q :| qs) = fmap getQuantity xps
-    unless (all (q ==) qs) $ __IMPOSSIBLE__
-
-    t <- applyQuantityToContext q $
-         applyCohesionToContext c $
-         modEnv lamOrPi $ isType_ e
-
-    -- Andrea TODO: also make sure that LockUniv implies IsLock
-    when (any (\ x -> getLock x == IsLock) xs) $
-        equalSort (getSort t) LockUniv
+    t <- checkDomain lamOrPi xps e
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
@@ -1194,13 +1210,8 @@ checkExpr' cmp e t =
 
         A.Lit _ lit  -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr' cmp e t
-        A.Pi _ tel e -> do
-            (t0, t') <- checkPiTelescope (List1.toList tel) $ \ tel -> do
-                    t0  <- instantiateFull =<< isType_ e
-                    tel <- instantiateFull tel
-                    return (t0, telePi tel t0)
-            checkTelePiSort t'
-            --noFunctionsIntoSize t0 t'
+        e@A.Pi{} -> do
+            t' <- isType_ e
             let s = getSort t'
                 v = unEl t'
             coerce cmp v (sort s) t
@@ -1212,13 +1223,10 @@ checkExpr' cmp e t =
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        A.Fun _ (Arg info a) b -> do
-            a' <- isType_ a
-            let adom = defaultArgDom info a'
-            b' <- isType_ b
-            s  <- inferFunSort (getSort a') (getSort b')
-            let v = Pi adom (NoAbs underscore b')
-            --noFunctionsIntoSize b' $ El s v
+        e@A.Fun{} -> do
+            t' <- isType_ e
+            let s = getSort t'
+                v = unEl t'
             coerce cmp v (sort s) t
 
         A.Rec _ fs  -> checkRecordExpression cmp fs e t
