@@ -250,15 +250,6 @@ toMaybeWarnings :: [a] -> MaybeWarnings' [a]
 toMaybeWarnings []       = NoWarnings
 toMaybeWarnings ws@(_:_) = SomeWarnings ws
 
-instance Null a => Null (MaybeWarnings' a) where
-  empty = NoWarnings
-  null mws = case mws of
-    NoWarnings      -> True
-    SomeWarnings ws -> null ws
-
-hasWarnings :: MaybeWarnings -> Bool
-hasWarnings = not . null
-
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly. Otherwise the computation is
 -- used to find the interface and the computed interface is stored for
@@ -268,8 +259,8 @@ hasWarnings = not . null
 alreadyVisited :: C.TopLevelModuleName ->
                   MainInterface ->
                   PragmaOptions ->
-                  TCM (Interface, MaybeWarnings) ->
-                  TCM (Interface, MaybeWarnings)
+                  TCM (Interface, [TCWarning]) ->
+                  TCM (Interface, [TCWarning])
 alreadyVisited x isMain currentOptions getIface =
   case isMain of
 
@@ -294,8 +285,8 @@ alreadyVisited x isMain currentOptions getIface =
             {-then-} (checkOptionsCompatible currentOptions (iOptionsUsed i)
                                              (iModuleName i))
             {-else-} (return True)
-          if optsCompat then return (i , NoWarnings) else do
-            wt <- getMaybeWarnings' isMain ErrorWarnings
+          if optsCompat then return (i, []) else do
+            wt <- getAllWarnings' isMain ErrorWarnings
             return (i, wt)
 
         -- Case: Not visited already.
@@ -310,7 +301,7 @@ alreadyVisited x isMain currentOptions getIface =
           unless (isMain == MainInterface ScopeCheck) $
             visitModule ModuleInfo
               { miInterface  = i
-              , miWarnings   = hasWarnings wt
+              , miWarnings   = not . null $ wt
               , miPrimitive  = False -- will be updated later for primitive modules
               }
           return r
@@ -364,7 +355,8 @@ typeCheckMain f mode si = do
 
   -- Now do the type checking via getInterface'.
   checkModuleName' (siModuleName si) f
-  getInterface' (siModuleName si) (MainInterface mode) (Just si)
+  (i, ws) <- getInterface' (siModuleName si) (MainInterface mode) (Just si)
+  return (i, toMaybeWarnings ws)
   where
   checkModuleName' m f =
     -- Andreas, 2016-07-11, issue 2092
@@ -395,9 +387,7 @@ getInterface_
   -> TCM Interface
 getInterface_ x msi = do
   (i, wt) <- getInterface' x NotMainInterface msi
-  tcWarningsToError $ case wt of
-      NoWarnings -> []
-      SomeWarnings ws -> ws
+  tcWarningsToError wt
   return i
 
 -- | A more precise variant of 'getInterface'. If warnings are
@@ -409,7 +399,7 @@ getInterface'
   -> MainInterface
   -> Maybe SourceInfo
      -- ^ Optional information about the source code.
-  -> TCM (Interface, MaybeWarnings)
+  -> TCM (Interface, [TCWarning])
 getInterface' x isMain msi =
   withIncreasedModuleNestingLevel $
     -- Preserve the pragma options unless we are checking the main
@@ -488,7 +478,7 @@ getInterface' x isMain msi =
                  {- then -} (return wt) {- else -} $ do
         optComp <- checkOptionsCompatible currentOptions (iOptionsUsed i) (iModuleName i)
         -- we might have aquired some more warnings when consistency checking
-        if optComp then return wt else getMaybeWarnings' isMain ErrorWarnings
+        if optComp then return wt else getAllWarnings' isMain ErrorWarnings
 
       unless (visited || stateChangesIncluded) $ do
         mergeInterface i
@@ -502,7 +492,7 @@ getInterface' x isMain msi =
       -- if any warnings were encountered.
       case (isMain, wt') of
         (MainInterface ScopeCheck, _) -> return ()
-        (_, SomeWarnings w)           -> return ()
+        (_, _:_)                      -> return ()
         _                             -> storeDecodedModule i
 
       reportS "warning.import" 10
@@ -567,7 +557,7 @@ getStoredInterface
   -> MainInterface
   -> Maybe SourceInfo
      -- ^ Optional information about the source code.
-  -> TCM (Bool, (Interface, MaybeWarnings))
+  -> TCM (Bool, (Interface, [TCWarning]))
      -- ^ @Bool@ is: do we have to merge the interface?
 getStoredInterface x file isMain msi = do
   let fp = filePath $ srcFilePath file
@@ -644,7 +634,7 @@ getStoredInterface x file isMain msi = do
               let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
               unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
-            return (False, (i, NoWarnings))
+            return (False, (i, []))
 
 -- | Run the type checker on a file and create an interface.
 --
@@ -661,7 +651,7 @@ typeCheck
   -> MainInterface
   -> Maybe SourceInfo
      -- ^ Optional information about the source code.
-  -> TCM (Bool, (Interface, MaybeWarnings))
+  -> TCM (Bool, (Interface, [TCWarning]))
      -- ^ @Bool@ is: do we have to merge the interface?
 typeCheck x file isMain msi = do
   let fp = filePath $ srcFilePath file
@@ -732,8 +722,8 @@ typeCheck x file isMain msi = do
                   stModuleToSource `setTCLens` mf
                   setDecodedModules ds
                   case r of
-                    (i, NoWarnings) -> storeDecodedModule i
-                    _               -> return ()
+                    (i, []) -> storeDecodedModule i
+                    _       -> return ()
                   )
 
       case r of
@@ -741,7 +731,7 @@ typeCheck x file isMain msi = do
           Right (r, update) -> do
             update
             case r of
-              (_, NoWarnings) ->
+              (_, []) ->
                 -- We skip the file which has just been type-checked to
                 -- be able to forget some of the local state from
                 -- checking the module.
@@ -879,7 +869,7 @@ createInterface
   -> C.TopLevelModuleName  -- ^ The expected module name.
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe SourceInfo      -- ^ Optional information about the source code.
-  -> TCM (Interface, MaybeWarnings)
+  -> TCM (Interface, [TCWarning])
 createInterface file mname isMain msi =
   Bench.billTo [Bench.TopModule mname] $
   localTC (\e -> e { envCurrentPath = Just (srcFilePath file) }) $ do
@@ -1052,24 +1042,24 @@ createInterface file mname isMain msi =
       ]
     reportSLn "import.iface.create" 7 "Finished serialization."
 
-    mallWarnings <- getMaybeWarnings' isMain ErrorWarnings
+    mallWarnings <- getAllWarnings' isMain ErrorWarnings
 
     reportSLn "import.iface.create" 7 "Considering writing to interface file."
     i <- case (mallWarnings, isMain) of
-      (SomeWarnings allWarnings, _) -> do
+      (_:_, _) -> do
         -- Andreas, 2018-11-15, re issue #3393
         -- The following is not sufficient to fix #3393
         -- since the replacement of metas by postulates did not happen.
         -- -- | not (allowUnsolved && all (isUnsolvedWarning . tcWarning) allWarnings) -> do
         reportSLn "import.iface.create" 7 "We have warnings, skipping writing interface file."
         return i
-      (_, MainInterface ScopeCheck) -> do
+      ([], MainInterface ScopeCheck) -> do
         reportSLn "import.iface.create" 7 "We are just scope-checking, skipping writing interface file."
         return i
-      (_, MainInterface (TypeCheck TopLevelInteraction)) -> do
+      ([], MainInterface (TypeCheck TopLevelInteraction)) -> do
         reportSLn "import.iface.create" 7 "We are in top-level interaction mode and want to retain private declarations, skipping writing interface file."
         return i
-      _ -> Bench.billTo [Bench.Serialization] $ do
+      ([], _) -> Bench.billTo [Bench.Serialization] $ do
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.
@@ -1100,8 +1090,6 @@ getAllWarnings' :: (MonadFail m, ReadTCState m, MonadWarning m) => MainInterface
 getAllWarnings' (MainInterface _) = getAllWarningsPreserving unsolvedWarnings
 getAllWarnings' NotMainInterface  = getAllWarningsPreserving Set.empty
 
-getMaybeWarnings' :: MainInterface -> WhichWarnings -> TCM MaybeWarnings
-getMaybeWarnings' isMain ww = toMaybeWarnings <$> getAllWarnings' isMain ww
 -- Andreas, issue 964: not checking null interactionPoints
 -- anymore; we want to serialize with open interaction points now!
 
