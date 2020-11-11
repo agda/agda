@@ -870,9 +870,7 @@ createInterface file mname isMain msi =
       reportSLn "import.iface.create" 10 $
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
-    si <- case msi of
-      Nothing -> sourceInfo file
-      Just si -> return si
+    si <- maybe (sourceInfo file) pure msi
     let source   = siSource si
         fileType = siFileType si
         top      = C.modDecls $ siModule si
