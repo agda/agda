@@ -14,6 +14,7 @@ import Agda.Interaction.Base
   (CommandState(..), CurrentFile(..), ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..))
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.EmacsTop
+import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
@@ -25,6 +26,7 @@ import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..)
 import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
 
+import Agda.TypeChecking.Errors (prettyError)
 import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, NamedMeta(..))
 import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
@@ -266,8 +268,21 @@ instance EncodeTCM DisplayInfo where
   encodeTCM (Info_Time time) = kind "Time"
     [ "time"              @= time
     ]
-  encodeTCM (Info_Error msg) = kind "Error"
-    [ "message"           #= showInfoError msg
+  encodeTCM (Info_Error (Info_GenericError err)) = kind "Error"
+    [ "warnings"          #= (prettyTCWarnings =<< getAllWarningsOfTCErr err)
+    , "error"             #= prettyError err
+    ]
+  encodeTCM (Info_Error (Info_CompilationError warnings)) = kind "Error"
+    [ "warnings"          #= prettyTCWarnings warnings
+    , "error"             @= ("" :: String)
+    ]
+  encodeTCM (Info_Error err@(Info_HighlightingParseError _)) = kind "Error"
+    [ "warnings"          @= ("" :: String)
+    , "error"             #= showInfoError err
+    ]
+  encodeTCM (Info_Error err@(Info_HighlightingScopeCheckError _)) = kind "Error"
+    [ "warnings"          @= ("" :: String)
+    , "error"             #= showInfoError err
     ]
   encodeTCM Info_Intro_NotFound = kind "IntroNotFound" []
   encodeTCM (Info_Intro_ConstructorUnknown introductions) = kind "IntroConstructorUnknown"
