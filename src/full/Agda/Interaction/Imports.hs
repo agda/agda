@@ -581,7 +581,7 @@ getStoredInterface
   -> Maybe SourceInfo
      -- ^ Optional information about the source code.
   -> TCM (Bool, (Interface, MaybeWarnings))
-     -- ^ @Bool@ is: do we have to merge the interface?
+     -- ^ @Bool@ is: are the state changes from this interface already incorporated to the current state?
 getStoredInterface x file isMain msi = do
   let fp = filePath $ srcFilePath file
   -- If something goes wrong (interface outdated etc.)
@@ -675,7 +675,7 @@ typeCheck
   -> Maybe SourceInfo
      -- ^ Optional information about the source code.
   -> TCM (Bool, (Interface, MaybeWarnings))
-     -- ^ @Bool@ is: do we have to merge the interface?
+     -- ^ @Bool@ is: are the state changes from this interface already incorporated to the current state?
 typeCheck x file isMain msi = do
   let fp = filePath $ srcFilePath file
   unless (includeStateChanges isMain) cleanCachedLog
