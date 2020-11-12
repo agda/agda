@@ -9,8 +9,6 @@ module Agda.Interaction.Imports
   , MaybeWarnings'(NoWarnings, SomeWarnings)
   , SourceInfo(..)
   , isNewerThan
-  , getAllWarnings
-  , getAllWarningsOfTCErr
   , scopeCheckImport
   , sourceInfo
   , typeCheckMain
@@ -79,7 +77,7 @@ import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Library
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
-import Agda.Interaction.Options.Warnings (WarningName, unsolvedWarnings)
+import Agda.Interaction.Options.Warnings (unsolvedWarnings)
 import Agda.Interaction.Response
   (RemoveTokenBasedHighlighting(KeepHighlighting))
 
@@ -1092,25 +1090,6 @@ createInterface file mname isMain msi =
 
     return $ first constructIScope (i, mallWarnings)
 
-getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => m [TCWarning]
-getAllUnsolvedWarnings = do
-  unsolvedInteractions <- getUnsolvedInteractionMetas
-  unsolvedConstraints  <- getAllConstraints
-  unsolvedMetas        <- getUnsolvedMetas
-
-  let checkNonEmpty c rs = c rs <$ guard (not $ null rs)
-
-  mapM warning_ $ catMaybes
-                [ checkNonEmpty UnsolvedInteractionMetas unsolvedInteractions
-                , checkNonEmpty UnsolvedMetaVariables    unsolvedMetas
-                , checkNonEmpty UnsolvedConstraints      unsolvedConstraints ]
-
-
--- | Collect all warnings that have accumulated in the state.
-
-getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => WhichWarnings -> m [TCWarning]
-getAllWarnings = getAllWarningsPreserving Set.empty
-
 -- | Expert version of 'getAllWarnings'; if 'isMain' is a
 -- 'MainInterface', the warnings definitely include also unsolved
 -- warnings.
@@ -1118,18 +1097,6 @@ getAllWarnings = getAllWarningsPreserving Set.empty
 getAllWarnings' :: (MonadFail m, ReadTCState m, MonadWarning m) => MainInterface -> WhichWarnings -> m [TCWarning]
 getAllWarnings' (MainInterface _) = getAllWarningsPreserving unsolvedWarnings
 getAllWarnings' NotMainInterface  = getAllWarningsPreserving Set.empty
-
-getAllWarningsPreserving :: (MonadFail m, ReadTCState m, MonadWarning m) => Set WarningName -> WhichWarnings -> m [TCWarning]
-getAllWarningsPreserving keptWarnings ww = do
-  unsolved            <- getAllUnsolvedWarnings
-  collectedTCWarnings <- useTC stTCWarnings
-
-  let showWarn w = classifyWarning w <= ww &&
-                    not (null unsolved && onlyShowIfUnsolved w)
-
-  fmap (filter (showWarn . tcWarning))
-    $ applyFlagsToTCWarningsPreserving keptWarnings
-    $ reverse $ unsolved ++ collectedTCWarnings
 
 getMaybeWarnings' :: MainInterface -> WhichWarnings -> TCM MaybeWarnings
 getMaybeWarnings' isMain ww = do
@@ -1139,18 +1106,6 @@ getMaybeWarnings' isMain ww = do
     -- anymore; we want to serialize with open interaction points now!
            then NoWarnings
            else SomeWarnings allWarnings
-
-getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
-getAllWarningsOfTCErr err = case err of
-  TypeError _ tcst cls -> case clValue cls of
-    NonFatalErrors{} -> return []
-    _ -> localTCState $ do
-      putTC tcst
-      ws <- getAllWarnings AllWarnings
-      -- We filter out the unsolved(Metas/Constraints) to stay
-      -- true to the previous error messages.
-      return $ filter (not . isUnsolvedWarning . tcWarning) ws
-  _ -> return []
 
 -- | Reconstruct the 'iScope' (not serialized)
 --   from the 'iInsideScope' (serialized).

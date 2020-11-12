@@ -10,6 +10,10 @@ module Agda.TypeChecking.Errors
   , tcWarningsToError
   , applyFlagsToTCWarningsPreserving
   , applyFlagsToTCWarnings
+  , getAllUnsolvedWarnings
+  , getAllWarningsPreserving
+  , getAllWarnings
+  , getAllWarningsOfTCErr
   , dropTopLevelModule
   , topLevelModuleDropper
   , stringTCErr

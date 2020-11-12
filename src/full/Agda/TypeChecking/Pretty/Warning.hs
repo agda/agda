@@ -3,6 +3,11 @@ module Agda.TypeChecking.Pretty.Warning where
 
 import Prelude hiding ( null )
 
+import Control.Monad ( guard )
+
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
+import Control.Monad.Fail ( MonadFail )
+
 import Data.Char ( toLower )
 import Data.Function
 import Data.Maybe
@@ -19,10 +24,13 @@ import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State ( getScope )
+import Agda.TypeChecking.Monad ( localTCState )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
+import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
+import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 
 import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
@@ -446,3 +454,45 @@ applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
 
 applyFlagsToTCWarnings :: HasOptions m => [TCWarning] -> m [TCWarning]
 applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty
+
+getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => m [TCWarning]
+getAllUnsolvedWarnings = do
+  unsolvedInteractions <- getUnsolvedInteractionMetas
+  unsolvedConstraints  <- getAllConstraints
+  unsolvedMetas        <- getUnsolvedMetas
+
+  let checkNonEmpty c rs = c rs <$ guard (not $ null rs)
+
+  mapM warning_ $ catMaybes
+                [ checkNonEmpty UnsolvedInteractionMetas unsolvedInteractions
+                , checkNonEmpty UnsolvedMetaVariables    unsolvedMetas
+                , checkNonEmpty UnsolvedConstraints      unsolvedConstraints ]
+
+-- | Collect all warnings that have accumulated in the state.
+
+getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => WhichWarnings -> m [TCWarning]
+getAllWarnings = getAllWarningsPreserving Set.empty
+
+getAllWarningsPreserving :: (MonadFail m, ReadTCState m, MonadWarning m) => Set WarningName -> WhichWarnings -> m [TCWarning]
+getAllWarningsPreserving keptWarnings ww = do
+  unsolved            <- getAllUnsolvedWarnings
+  collectedTCWarnings <- useTC stTCWarnings
+
+  let showWarn w = classifyWarning w <= ww &&
+                    not (null unsolved && onlyShowIfUnsolved w)
+
+  fmap (filter (showWarn . tcWarning))
+    $ applyFlagsToTCWarningsPreserving keptWarnings
+    $ reverse $ unsolved ++ collectedTCWarnings
+
+getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
+getAllWarningsOfTCErr err = case err of
+  TypeError _ tcst cls -> case clValue cls of
+    NonFatalErrors{} -> return []
+    _ -> localTCState $ do
+      putTC tcst
+      ws <- getAllWarnings AllWarnings
+      -- We filter out the unsolved(Metas/Constraints) to stay
+      -- true to the previous error messages.
+      return $ filter (not . isUnsolvedWarning . tcWarning) ws
+  _ -> return []

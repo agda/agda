@@ -24,7 +24,6 @@ import qualified Data.Text as T
 
 import Agda.Interaction.Base
 import Agda.Interaction.Options
-import {-# SOURCE #-} Agda.Interaction.Imports (getAllWarnings)
 import Agda.Interaction.Response (Goals, ResponseContextEntry(..))
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
@@ -48,7 +47,7 @@ import Agda.Syntax.Parser
 import Agda.TheTypeChecker
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Errors ( stringTCErr )
+import Agda.TypeChecking.Errors ( getAllWarnings, stringTCErr )
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Mention

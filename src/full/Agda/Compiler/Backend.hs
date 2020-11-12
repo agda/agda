@@ -32,6 +32,7 @@ import qualified Data.Map as Map
 import System.Console.GetOpt
 
 import Agda.Syntax.Treeless
+import Agda.TypeChecking.Errors (getAllWarnings)
 -- Agda.TypeChecking.Monad.Base imports us, relying on the .hs-boot file to
 -- resolve the circular dependency. Fine. However, ghci loads the module after
 -- compilation, so it brings in all of the symbols. That causes .Base to see
@@ -44,7 +45,6 @@ import Agda.TypeChecking.Pretty as P
 
 import Agda.Interaction.Options
 import Agda.Interaction.FindFile
-import Agda.Interaction.Imports (getAllWarnings)
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.FileName

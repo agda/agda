@@ -227,7 +227,7 @@ runAgdaWithOptions generateHTML interactor progName opts = do
             LaTeX.generateLaTeX i
 
           -- Print accumulated warnings
-          unlessNullM (tcWarnings . classifyWarnings <$> Imp.getAllWarnings AllWarnings) $ \ ws -> do
+          unlessNullM (tcWarnings . classifyWarnings <$> getAllWarnings AllWarnings) $ \ ws -> do
             let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
             reportSDoc "warning" 1 $
               vcat $ punctuate "\n" $ banner : (prettyTCM <$> ws)
@@ -270,7 +270,7 @@ optionError err = do
 runTCMPrettyErrors :: TCM () -> IO ()
 runTCMPrettyErrors tcm = do
     r <- runTCMTop $ tcm `catchError` \err -> do
-      s2s <- prettyTCWarnings' =<< Imp.getAllWarningsOfTCErr err
+      s2s <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
       s1  <- prettyError err
       let ss = filter (not . null) $ s2s ++ [s1]
       unless (null s1) (liftIO $ putStr $ unlines ss)
