@@ -81,7 +81,6 @@ import Agda.Interaction.Response
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
@@ -1089,18 +1088,9 @@ createInterface file mname isMain msi =
 
     return $ first constructIScope (i, mallWarnings)
 
-getUniqueMetasRanges :: [MetaId] -> TCM [Range]
-getUniqueMetasRanges = fmap (nubOn id) . mapM getMetaRange
-
-getUnsolvedMetas :: TCM [Range]
-getUnsolvedMetas = do
-  openMetas            <- getOpenMetas
-  interactionMetas     <- getInteractionMetas
-  getUniqueMetasRanges (openMetas List.\\ interactionMetas)
-
 getAllUnsolved :: TCM [TCWarning]
 getAllUnsolved = do
-  unsolvedInteractions <- getUniqueMetasRanges =<< getInteractionMetas
+  unsolvedInteractions <- getUnsolvedInteractionMetas
   unsolvedConstraints  <- getAllConstraints
   unsolvedMetas        <- getUnsolvedMetas
 
