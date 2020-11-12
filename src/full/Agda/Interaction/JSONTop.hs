@@ -31,7 +31,7 @@ import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, NamedMeta(..)
 import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
-import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings)
+import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings')
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
 import Agda.Utils.Pretty (Pretty(..))
 import Agda.Utils.Time (CPUTime(..))
@@ -253,8 +253,8 @@ instance EncodeTCM Blocker where
 
 instance EncodeTCM DisplayInfo where
   encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
-    [ "warnings"          #= prettyTCWarnings (tcWarnings wes)
-    , "errors"            #= prettyTCWarnings (nonFatalErrors wes)
+    [ "warnings"          #= prettyTCWarnings' (tcWarnings wes)
+    , "errors"            #= prettyTCWarnings' (nonFatalErrors wes)
     ]
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
     [ "constraints"       #= forM constraints encodeTCM
@@ -262,26 +262,18 @@ instance EncodeTCM DisplayInfo where
   encodeTCM (Info_AllGoalsWarnings (vis, invis) wes) = kind "AllGoalsWarnings"
     [ "visibleGoals"      #= forM vis (encodeOC encodeTCM encodePrettyTCM)
     , "invisibleGoals"    #= forM invis (encodeOC encodeTCM encodePrettyTCM)
-    , "warnings"          #= prettyTCWarnings (tcWarnings wes)
-    , "errors"            #= prettyTCWarnings (nonFatalErrors wes)
+    , "warnings"          #= prettyTCWarnings' (tcWarnings wes)
+    , "errors"            #= prettyTCWarnings' (nonFatalErrors wes)
     ]
   encodeTCM (Info_Time time) = kind "Time"
     [ "time"              @= time
     ]
   encodeTCM (Info_Error (Info_GenericError err)) = kind "Error"
-    [ "warnings"          #= (prettyTCWarnings =<< getAllWarningsOfTCErr err)
+    [ "warnings"          #= (prettyTCWarnings' =<< getAllWarningsOfTCErr err)
     , "error"             #= prettyError err
     ]
-  encodeTCM (Info_Error (Info_CompilationError warnings)) = kind "Error"
-    [ "warnings"          #= prettyTCWarnings warnings
-    , "error"             @= ("" :: String)
-    ]
-  encodeTCM (Info_Error err@(Info_HighlightingParseError _)) = kind "Error"
-    [ "warnings"          @= ("" :: String)
-    , "error"             #= showInfoError err
-    ]
-  encodeTCM (Info_Error err@(Info_HighlightingScopeCheckError _)) = kind "Error"
-    [ "warnings"          @= ("" :: String)
+  encodeTCM (Info_Error err) = kind "Error"
+    [ "warnings"          @= ([] :: [String])
     , "error"             #= showInfoError err
     ]
   encodeTCM Info_Intro_NotFound = kind "IntroNotFound" []
