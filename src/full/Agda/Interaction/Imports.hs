@@ -9,7 +9,6 @@ module Agda.Interaction.Imports
   , MaybeWarnings
   , MaybeWarnings'(NoWarnings, SomeWarnings)
   , SourceInfo(..)
-  , applyFlagsToMaybeWarnings
   , isNewerThan
   , getAllWarnings
   , getAllWarningsOfTCErr
@@ -242,13 +241,8 @@ scopeCheckImport x = do
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
 
 data MaybeWarnings' a = NoWarnings | SomeWarnings a
-  deriving (Show, Functor, Foldable, Traversable)
+  deriving (Show, Functor)
 type MaybeWarnings = MaybeWarnings' [TCWarning]
-
-applyFlagsToMaybeWarnings :: MaybeWarnings -> TCM MaybeWarnings
-applyFlagsToMaybeWarnings mw = do
-  w' <- traverse applyFlagsToTCWarnings mw
-  return $ if null w' then NoWarnings else w'
 
 instance Null a => Null (MaybeWarnings' a) where
   empty = NoWarnings

@@ -503,16 +503,18 @@ interpret (Cmd_load m argv) =
 
 interpret (Cmd_compile backend file argv) =
   cmd_load' file argv allowUnsolved mode $ \ (i, mw) -> do
-    mw' <- lift $ Imp.applyFlagsToMaybeWarnings mw
+    mw' <- lift $ applyFlagsToTCWarnings $ case mw of
+      Imp.NoWarnings -> []
+      Imp.SomeWarnings ws -> ws
     case mw' of
-      Imp.NoWarnings -> do
+      [] -> do
         lift $ case backend of
           LaTeX                    -> LaTeX.generateLaTeX i
           QuickLaTeX               -> LaTeX.generateLaTeX i
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain  i
         display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
-      Imp.SomeWarnings w -> display_info $ Info_Error $ Info_CompilationError w
+      w@(_:_) -> display_info $ Info_Error $ Info_CompilationError w
   where
   allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
   mode | QuickLaTeX <- backend = Imp.ScopeCheck
