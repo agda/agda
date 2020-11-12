@@ -28,6 +28,10 @@ import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
 
+#if __GLASGOW_HASKELL__ < 808
+import Control.Monad.Fail (MonadFail)
+#endif
+
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Set (Set)
@@ -988,7 +992,7 @@ createInterface file mname isMain msi =
       warnings <- getAllWarnings AllWarnings
       unless (null warnings) $ reportSDoc "import.iface.create" 20 $
         "collected warnings: " <> prettyTCM warnings
-      unsolved <- getAllUnsolved
+      unsolved <- getAllUnsolvedWarnings
       unless (null unsolved) $ reportSDoc "import.iface.create" 20 $
         "collected unsolved: " <> prettyTCM unsolved
       let warningInfo = compress $ foldMap warningHighlighting $ unsolved ++ warnings
@@ -1088,8 +1092,8 @@ createInterface file mname isMain msi =
 
     return $ first constructIScope (i, mallWarnings)
 
-getAllUnsolved :: TCM [TCWarning]
-getAllUnsolved = do
+getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => m [TCWarning]
+getAllUnsolvedWarnings = do
   unsolvedInteractions <- getUnsolvedInteractionMetas
   unsolvedConstraints  <- getAllConstraints
   unsolvedMetas        <- getUnsolvedMetas
@@ -1104,20 +1108,20 @@ getAllUnsolved = do
 
 -- | Collect all warnings that have accumulated in the state.
 
-getAllWarnings :: WhichWarnings -> TCM [TCWarning]
+getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => WhichWarnings -> m [TCWarning]
 getAllWarnings = getAllWarningsPreserving Set.empty
 
 -- | Expert version of 'getAllWarnings'; if 'isMain' is a
 -- 'MainInterface', the warnings definitely include also unsolved
 -- warnings.
 
-getAllWarnings' :: MainInterface -> WhichWarnings -> TCM [TCWarning]
+getAllWarnings' :: (MonadFail m, ReadTCState m, MonadWarning m) => MainInterface -> WhichWarnings -> m [TCWarning]
 getAllWarnings' (MainInterface _) = getAllWarningsPreserving unsolvedWarnings
 getAllWarnings' NotMainInterface  = getAllWarningsPreserving Set.empty
 
-getAllWarningsPreserving :: Set WarningName -> WhichWarnings -> TCM [TCWarning]
+getAllWarningsPreserving :: (MonadFail m, ReadTCState m, MonadWarning m) => Set WarningName -> WhichWarnings -> m [TCWarning]
 getAllWarningsPreserving keptWarnings ww = do
-  unsolved            <- getAllUnsolved
+  unsolved            <- getAllUnsolvedWarnings
   collectedTCWarnings <- useTC stTCWarnings
 
   let showWarn w = classifyWarning w <= ww &&

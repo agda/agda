@@ -419,7 +419,7 @@ tcWarningsToError ws = typeError $ case ws of
 -- | Depending which flags are set, one may happily ignore some
 -- warnings.
 
-applyFlagsToTCWarningsPreserving :: Set WarningName -> [TCWarning] -> TCM [TCWarning]
+applyFlagsToTCWarningsPreserving :: HasOptions m => Set WarningName -> [TCWarning] -> m [TCWarning]
 applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
   -- For some reason some SafeFlagPragma seem to be created multiple times.
   -- This is a way to collect all of them and remove duplicates.
@@ -444,5 +444,5 @@ applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
 
-applyFlagsToTCWarnings :: [TCWarning] -> TCM [TCWarning]
+applyFlagsToTCWarnings :: HasOptions m => [TCWarning] -> m [TCWarning]
 applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty
