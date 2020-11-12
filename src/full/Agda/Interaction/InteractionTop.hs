@@ -503,9 +503,7 @@ interpret (Cmd_load m argv) =
 
 interpret (Cmd_compile backend file argv) =
   cmd_load' file argv allowUnsolved mode $ \ (i, mw) -> do
-    mw' <- lift $ applyFlagsToTCWarnings $ case mw of
-      Imp.NoWarnings -> []
-      Imp.SomeWarnings ws -> ws
+    mw' <- lift $ applyFlagsToTCWarnings mw
     case mw' of
       [] -> do
         lift $ case backend of
@@ -878,7 +876,7 @@ cmd_load'
                --   Providing 'TypeCheck RegularInteraction' here
                --   will reset 'InteractionMode' accordingly.
                --   Otherwise, only if different file from last time.
-  -> ((Interface, Imp.MaybeWarnings) -> CommandM a)
+  -> ((Interface, [TCWarning]) -> CommandM a)
                -- ^ Continuation after successful loading.
   -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do

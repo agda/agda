@@ -5,8 +5,6 @@
 -}
 module Agda.Interaction.Imports
   ( Mode(ScopeCheck, TypeCheck)
-  , MaybeWarnings
-  , MaybeWarnings'(NoWarnings, SomeWarnings)
   , SourceInfo(..)
   , isNewerThan
   , scopeCheckImport
@@ -240,16 +238,6 @@ scopeCheckImport x = do
     let s = iScope i
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
 
-data MaybeWarnings' a = NoWarnings | SomeWarnings a
-  deriving (Show, Functor)
-type MaybeWarnings = MaybeWarnings' [TCWarning]
-
--- | Construct @MaybeWarnings@ from a list.
--- @NoWarnings@ if empty, otherwise @SomeWarnings@.
-toMaybeWarnings :: [a] -> MaybeWarnings' [a]
-toMaybeWarnings []       = NoWarnings
-toMaybeWarnings ws@(_:_) = SomeWarnings ws
-
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly. Otherwise the computation is
 -- used to find the interface and the computed interface is stored for
@@ -327,7 +315,7 @@ typeCheckMain
      -- ^ Should the file be type-checked, or only scope-checked?
   -> SourceInfo
      -- ^ Information about the source code.
-  -> TCM (Interface, MaybeWarnings)
+  -> TCM (Interface, [TCWarning])
 typeCheckMain f mode si = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
@@ -355,8 +343,7 @@ typeCheckMain f mode si = do
 
   -- Now do the type checking via getInterface'.
   checkModuleName' (siModuleName si) f
-  (i, ws) <- getInterface' (siModuleName si) (MainInterface mode) (Just si)
-  return (i, toMaybeWarnings ws)
+  getInterface' (siModuleName si) (MainInterface mode) (Just si)
   where
   checkModuleName' m f =
     -- Andreas, 2016-07-11, issue 2092

@@ -22,7 +22,6 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
-import Agda.Interaction.Imports (MaybeWarnings'(..))
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
@@ -211,8 +210,8 @@ runAgdaWithOptions generateHTML interactor progName opts = do
           -- Imp.TypeCheck and there are no warnings.
           result <- case (mode, mw) of
             (Imp.ScopeCheck, _)  -> return Nothing
-            (_, NoWarnings)      -> return $ Just i
-            (_, SomeWarnings ws) ->
+            (_, [])              -> return $ Just i
+            (_, ws@(_:_))        ->
               ifNotNullM (applyFlagsToTCWarnings ws) {-then-} (typeError . NonFatalErrors) {-else-} $ return Nothing
 
           reportSDoc "main" 50 $ pretty i
