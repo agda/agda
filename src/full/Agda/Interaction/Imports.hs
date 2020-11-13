@@ -109,12 +109,12 @@ sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
     , siProjectLibs = libs
     }
 
-sourcePragmas :: SourceInfo -> TCM [OptionsPragma]
-sourcePragmas SourceInfo{..} = do
-  let defaultPragmas = map _libPragmas siProjectLibs
-  let cpragmas = C.modPragmas siModule
-  pragmas <- concreteOptionsToOptionPragmas cpragmas
-  return $ defaultPragmas ++ pragmas
+siPragmas :: SourceInfo -> [OptionsPragma]
+siPragmas si = defaultPragmas ++ pragmas
+  where
+  defaultPragmas = map _libPragmas (siProjectLibs si)
+  cpragmas = C.modPragmas (siModule si)
+  pragmas = [ opts | C.OptionsPragma _ opts <- cpragmas ]
 
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
@@ -410,8 +410,7 @@ getInterface' x isMain msi =
      currentOptions <- setCurrentRange (C.modPragmas . siModule <$> msi) $ do
        when (includeStateChanges isMain) $ do
          let si = fromMaybe __IMPOSSIBLE__ msi
-         pragmas <- sourcePragmas si
-         mapM_ setOptionsFromPragma pragmas
+         mapM_ setOptionsFromPragma (siPragmas si)
        currentOptions <- useTC stPragmaOptions
        -- Now reset the options
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
@@ -847,14 +846,6 @@ removePrivates scope = over scopeModules (fmap $ restrictLocalPrivate m) scope
   where
   m = scope ^. scopeCurrent
 
-concreteOptionsToOptionPragmas :: [C.Pragma] -> TCM [OptionsPragma]
-concreteOptionsToOptionPragmas p = do
-  pragmas <- concat <$> concreteToAbstract_ p
-  -- identity for top-level pragmas at the moment
-  let getOptions (A.OptionsPragma opts) = Just opts
-      getOptions _                      = Nothing
-  return $ mapMaybe getOptions pragmas
-
 -- | Tries to type check a module and write out its interface. The
 -- function only writes out an interface file if it does not encounter
 -- any warnings.
@@ -892,7 +883,7 @@ createInterface file mname isMain msi =
                          (srcFilePath file) (TL.unpack source)
     stTokens `setTCLens` fileTokenInfo
 
-    options <- sourcePragmas si
+    let options = siPragmas si
     mapM_ setOptionsFromPragma options
 
     verboseS "import.iface.create" 15 $ do
