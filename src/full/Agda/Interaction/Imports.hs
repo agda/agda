@@ -674,7 +674,6 @@ typeCheck
      -- ^ @Bool@ is: are the state changes from this interface already incorporated to the current state?
 typeCheck x file isMain msi = do
   let fp = filePath $ srcFilePath file
-  unless (includeStateChanges isMain) cleanCachedLog
   let checkMsg = case isMain of
                    MainInterface ScopeCheck -> "Reading "
                    _                        -> "Checking"
@@ -695,6 +694,8 @@ typeCheck x file isMain msi = do
       return (True, r)
 
     NotMainInterface -> do
+      cleanCachedLog
+
       ms          <- getImportPath
       nesting     <- asksTC envModuleNestingLevel
       range       <- asksTC envRange
