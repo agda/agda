@@ -346,7 +346,11 @@ typeCheckMain mode si = do
 
   -- Now do the type checking via getInterface'.
   checkModuleName' (siModuleName si) (siOrigin si)
-  getInterface' (siModuleName si) (MainInterface mode) (Just si)
+  (i, ws) <- getInterface' (siModuleName si) (MainInterface mode) (Just si)
+
+  stCurrentModule `setTCLens` Just (iModuleName i)
+
+  return (i, ws)
   where
   checkModuleName' m f =
     -- Andreas, 2016-07-11, issue 2092
@@ -445,8 +449,6 @@ getInterface' x isMain msi =
         Bench.billTo [Bench.Highlighting] $
           ifTopLevelAndHighlightingLevelIs NonInteractive $
             highlightFromInterface i file
-
-      stCurrentModule `setTCLens` Just (iModuleName i)
 
       -- Interfaces are not stored if we are only scope-checking, or
       -- if any warnings were encountered.
