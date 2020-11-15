@@ -837,7 +837,7 @@ writeInterface file i = let fp = filePath file in do
     -- Andreas, 2020-05-13, #1804, #4647: removed private declarations
     -- only when we actually write the interface.
     i <- return $
-      i { iInsideScope  = removePrivates $ iInsideScope i
+      i { iInsideScope  = withoutPrivates $ iInsideScope i
         }
     reportSLn "import.iface.write" 50 $
       "Writing interface file with hash " ++ show (iFullHash i) ++ "."
@@ -856,11 +856,6 @@ writeInterface file i = let fp = filePath file in do
     liftIO $
       whenM (doesFileExist fp) $ removeFile fp
     throwError e
-
-removePrivates :: ScopeInfo -> ScopeInfo
-removePrivates scope = over scopeModules (fmap $ restrictLocalPrivate m) scope
-  where
-  m = scope ^. scopeCurrent
 
 concreteOptionsToOptionPragmas :: [C.Pragma] -> TCM [OptionsPragma]
 concreteOptionsToOptionPragmas p = do
