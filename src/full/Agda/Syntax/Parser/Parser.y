@@ -2197,6 +2197,8 @@ patternSynArgs = mapM pSynArg
           abort $ prettyShow h ++ " arguments not allowed to pattern synonyms"
       | not (isRelevant x) =
           abort "Arguments to pattern synonyms must be relevant"
+      | Just p <- binderPattern (namedArg x) =
+          abort "Arguments to pattern synonyms cannot be patterns themselves"
       | otherwise = return $ fmap (boundName . binderName . namedThing) x
       where
       abort s = parseError $

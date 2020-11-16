@@ -1,0 +1,7 @@
+Issue5055.agda:10,19-19
+Issue5055.agda:10,19: Illegal pattern synonym argument  _ @ (s , v)
+(Arguments to pattern synonyms cannot be patterns themselves.)
+=<ERROR>
+ c s , v
+
+-- Should give some ...
