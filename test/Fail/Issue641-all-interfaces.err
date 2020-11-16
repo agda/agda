@@ -22,7 +22,7 @@ Considering writing to interface file.
 Actually calling writeInterface.
 Writing interface file agda-default-include-path/Agda/Primitive.agdai.
 Wrote interface file.
-Finished (or skipped) writing to interface file.
+Finished writing to interface file.
 Finished Agda.Primitive.
   using stored version of agda-default-include-path/Agda/Primitive.agdai
   imports: []
@@ -56,7 +56,7 @@ Considering writing to interface file.
 Actually calling writeInterface.
 Writing interface file agda-default-include-path/Agda/Primitive/Cubical.agdai.
 Wrote interface file.
-Finished (or skipped) writing to interface file.
+Finished writing to interface file.
 Finished Agda.Primitive.Cubical.
   using stored version of agda-default-include-path/Agda/Primitive/Cubical.agdai
   imports: [(Agda.Primitive, 14631793092877554489)]

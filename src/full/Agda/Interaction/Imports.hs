@@ -1082,8 +1082,9 @@ createInterface file mname isMain msi =
         -- The file was successfully type-checked (and no warnings were
         -- encountered), so the interface should be written out.
         ifile <- toIFile file
-        writeInterface ifile i
-    reportSLn "import.iface.create" 7 "Finished (or skipped) writing to interface file."
+        serializedIface <- writeInterface ifile i
+        reportSLn "import.iface.create" 7 "Finished writing to interface file."
+        return serializedIface
 
     -- -- Restore the open metas, as we might continue in interaction mode.
     -- Actually, we do not serialize the metas if checking the MainInterface
