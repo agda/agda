@@ -218,7 +218,7 @@ instance Replace t u => Replace (Abs t) (Abs u) where
 
 instance Replace (Exp o) (MExp o) where
   type ReplaceWith (Exp o) (MExp o) = o
-  replace' n re e = case e of
+  replace' n re = \case
     App uid ok elr@(Var v) args -> do
       ih         <- NotM <$> replace' n re args
       (sv, nnew) <- ask
@@ -235,8 +235,8 @@ instance Replace (Exp o) (MExp o) where
     Lam hid b -> NotM . Lam hid <$> replace' (n + 1) re b
     Pi uid hid possdep it b ->
       fmap NotM $ Pi uid hid possdep <$> replace' n re it <*> replace' n re b
-    Sort{} -> return $ NotM e
-    AbsurdLambda{} -> return $ NotM e
+    e@Sort{} -> return $ NotM e
+    e@AbsurdLambda{} -> return $ NotM e
 
 instance Replace t u => Replace (MM t (RefInfo o)) u where
   type ReplaceWith (MM t (RefInfo o)) u = ReplaceWith t u
@@ -406,14 +406,14 @@ instance Lift t => Lift (MM t r) where
   lift' n j = NotM . lift' n j . rm __IMPOSSIBLE__
 
 instance Lift (Exp o) where
-  lift' n j e = case e of
+  lift' n j = \case
     App uid ok elr args -> case elr of
       Var v | v >= j -> App uid ok (Var (v + n)) (lift' n j args)
       _ -> App uid ok elr (lift' n j args)
     Lam hid b -> Lam hid (lift' n j b)
     Pi uid hid possdep it b -> Pi uid hid possdep (lift' n j it) (lift' n j b)
-    Sort{} -> e
-    AbsurdLambda{} -> e
+    e@Sort{} -> e
+    e@AbsurdLambda{} -> e
 
 instance Lift (ArgList o) where
   lift' n j args = case args of
@@ -475,11 +475,11 @@ instance Renaming t => Renaming (HI t) where
   renameOffset j ren (HI hid t) = HI hid $ renameOffset j ren t
 
 instance Renaming (CSPatI o) where
-  renameOffset j ren e = case e of
+  renameOffset j ren = \case
     CSPatConApp c pats -> CSPatConApp c $ map (renameOffset j ren) pats
     CSPatVar i         -> CSPatVar $ j + ren i
     CSPatExp e         -> CSPatExp $ renameOffset j ren e
-    CSOmittedArg       -> e
+    e@CSOmittedArg     -> e
     _                  -> __IMPOSSIBLE__
 
 seqctx :: CSCtx o -> CSCtx o
@@ -507,7 +507,7 @@ instance LocalTerminationEnv a => LocalTerminationEnv (HI a) where
   sizeAndBoundVars (HI _ p) = sizeAndBoundVars p
 
 instance LocalTerminationEnv (CSPatI o) where
-  sizeAndBoundVars p = case p of
+  sizeAndBoundVars = \case
     CSPatConApp _ ps -> (1, []) <> sizeAndBoundVars ps
     CSPatVar n       -> (0, [n])
     CSPatExp e       -> sizeAndBoundVars e

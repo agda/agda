@@ -768,7 +768,7 @@ etaExpandEquationStrategy k s = do
   return $ EtaExpandEquation k d pars
   where
     shouldProject :: PureTCM m => Term -> m Bool
-    shouldProject u = case u of
+    shouldProject = \case
       Def f es   -> usesCopatterns f
       Con c _ _  -> isJust <$> isRecordConstructor (conName c)
 

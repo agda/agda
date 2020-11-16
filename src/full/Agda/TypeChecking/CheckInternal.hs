@@ -138,11 +138,11 @@ eraseUnusedAction :: Action TCM
 eraseUnusedAction = defaultAction { postAction = eraseUnused }
   where
     eraseUnused :: Type -> Term -> TCM Term
-    eraseUnused t v = case v of
+    eraseUnused t = \case
       Def f es -> do
         pols <- getPolarity f
         return $ Def f $ eraseIfNonvariant pols es
-      _        -> return v
+      v        -> return v
 
     eraseIfNonvariant :: [Polarity] -> Elims -> Elims
     eraseIfNonvariant []                  es             = es

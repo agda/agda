@@ -95,7 +95,7 @@ termDecl d = inTopContext $ termDecl' d
 --   (without necessarily ignoring @abstract@).
 
 termDecl' :: A.Declaration -> TCM Result
-termDecl' d = case d of
+termDecl' = \case
     A.Axiom {}            -> return mempty
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty

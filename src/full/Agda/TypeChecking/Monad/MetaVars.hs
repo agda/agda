@@ -242,12 +242,10 @@ isInstantiatedMeta' m = do
 --   second one we need to look up the meta listeners for the one in the
 --   UnBlock constraint.
 constraintMetas :: Constraint -> TCM (Set MetaId)
-constraintMetas c = metas c
-  where
+constraintMetas = \case
     -- We don't use allMetas here since some constraints should not stop us from generalizing. For
     -- instance CheckSizeLtSat (see #3694). We also have to check meta listeners to get metas of
     -- UnBlock constraints.
-    metas c = case c of
       ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
@@ -264,7 +262,7 @@ constraintMetas c = metas c
       CheckMetaInst x          -> return mempty
       CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)
       UsableAtModality _ t     -> return $ allMetas Set.singleton t
-
+  where
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
     listenerMetas (CheckConstraint _ c) = constraintMetas (clValue $ theConstraint c)

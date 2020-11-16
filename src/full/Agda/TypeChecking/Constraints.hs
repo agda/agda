@@ -299,7 +299,7 @@ solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
 solveConstraint_ (UsableAtModality mod t) = usableAtModality mod t
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
-checkTypeCheckingProblem p = case p of
+checkTypeCheckingProblem = \case
   CheckExpr cmp e t              -> checkExpr' cmp e t
   CheckArgs eh r args t0 t1 k    -> checkArguments eh r args t0 t1 k
   CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt patm ->

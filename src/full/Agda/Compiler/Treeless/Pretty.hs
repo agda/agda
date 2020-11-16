@@ -121,7 +121,7 @@ pTerm' :: Int -> TTerm -> P Doc
 pTerm' p = prec p . pTerm
 
 pTerm :: TTerm -> P Doc
-pTerm t = case t of
+pTerm = \case
   TVar x -> text <$> name x
   TApp (TPrim op) [a, b] | Just (c, l, r) <- isInfix op ->
     paren c $ sep <$> sequence [ pTerm' l a
@@ -143,12 +143,12 @@ pTerm t = case t of
     paren 9 $ (\a bs -> sep [a, nest 2 $ fsep bs])
               <$> pTerm' 9 f
               <*> mapM (pTerm' 10) es
-  TLam _ -> paren 0 $ withNames' n b $ \ xs -> bindNames xs $
+  t@TLam{} -> paren 0 $ withNames' n b $ \ xs -> bindNames xs $
     (\b -> sep [ text ("λ " ++ unwords xs ++ " →")
                , nest 2 b ]) <$> pTerm' 0 b
     where
       (n, b) = tLamView t
-  TLet{} -> paren 0 $ withNames (length es) $ \ xs ->
+  t@TLet{} -> paren 0 $ withNames (length es) $ \ xs ->
     (\ (binds, b) -> sep [ "let" <+> vcat [ sep [ text x <+> "="
                                                 , nest 2 e ] | (x, e) <- binds ]
                               <+> "in", b ])

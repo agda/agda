@@ -361,7 +361,7 @@ showComputed _ e = prettyATop e
 outputFormId :: OutputForm a b -> b
 outputFormId (OutputForm _ _ _ o) = out o
   where
-    out o = case o of
+    out = \case
       OfType i _                 -> i
       CmpInType _ _ i _          -> i
       CmpElim _ _ (i:_) _        -> i
@@ -389,7 +389,7 @@ instance Reify ProblemConstraint where
     OutputForm (getRange c) (Set.toList pids) unblock <$> reify c
 
 reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
-reifyElimToExpr e = case e of
+reifyElimToExpr = \case
     I.IApply _ _ v -> appl "iapply" <$> reify (defaultArg $ v) -- TODO Andrea: endpoints?
     I.Apply v -> appl "apply" <$> reify v
     I.Proj _o f -> appl "proj" <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
@@ -900,14 +900,14 @@ metaHelperType norm ii rng s = case words s of
 
     -- Strip the non-dependent abstractions from the first n abstractions.
     stripUnused n (El s v) = El s $ strip n v
-    strip 0 v = v
-    strip n v = case v of
+    strip 0 = id
+    strip n = \case
       I.Pi a b -> case stripUnused (n-1) <$> b of
         b | absName b == "w"   -> I.Pi a b
         NoAbs _ b              -> unEl b
         Abs s b | 0 `freeIn` b -> I.Pi (hide a) (Abs s b)
                 | otherwise    -> strengthen __IMPOSSIBLE__ (unEl b)
-      _ -> v  -- todo: handle if goal type is a Pi
+      v -> v  -- todo: handle if goal type is a Pi
 
     -- renameVars = onNames (stringToArgName <.> renameVar . argNameToString)
     renameVars = onNames renameVar
@@ -921,18 +921,18 @@ metaHelperType norm ii rng s = case words s of
     onNamesTel f I.EmptyTel = pure I.EmptyTel
     onNamesTel f (I.ExtendTel a b) = I.ExtendTel <$> traverse (onNames f) a <*> onNamesAbs f onNamesTel b
 
-    onNamesTm f v = case v of
+    onNamesTm f = \case
       I.Var x es   -> I.Var x <$> onNamesElims f es
       I.Def q es   -> I.Def q <$> onNamesElims f es
       I.Con c ci args -> I.Con c ci <$> onNamesArgs f args
       I.Lam i b    -> I.Lam i <$> onNamesAbs f onNamesTm b
       I.Pi a b     -> I.Pi <$> traverse (onNames f) a <*> onNamesAbs f onNames b
       I.DontCare v -> I.DontCare <$> onNamesTm f v
-      I.Lit{}      -> pure v
-      I.Sort{}     -> pure v
-      I.Level{}    -> pure v
-      I.MetaV{}    -> pure v
-      I.Dummy{}    -> pure v
+      v@I.Lit{}    -> pure v
+      v@I.Sort{}   -> pure v
+      v@I.Level{}  -> pure v
+      v@I.MetaV{}  -> pure v
+      v@I.Dummy{}  -> pure v
     onNamesElims f = traverse $ traverse $ onNamesTm f
     onNamesArgs f  = traverse $ traverse $ onNamesTm f
     onNamesAbs f   = onNamesAbs' f (stringToArgName <.> f . argNameToString)

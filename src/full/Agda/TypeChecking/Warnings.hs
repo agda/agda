@@ -162,7 +162,7 @@ isUnsolvedWarning :: Warning -> Bool
 isUnsolvedWarning w = warningName w `Set.member` unsolvedWarnings
 
 isMetaWarning :: Warning -> Bool
-isMetaWarning w = case w of
+isMetaWarning = \case
    UnsolvedInteractionMetas{} -> True
    UnsolvedMetaVariables{}    -> True
    _                          -> False

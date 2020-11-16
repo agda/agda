@@ -24,14 +24,14 @@ data WithDefault (b :: Bool) = Default | Value Bool
 -- is to toggle them one way or the other if they hadn't been already.
 
 setDefault :: Bool -> WithDefault b -> WithDefault b
-setDefault b t = case t of
+setDefault b = \case
   Default -> Value b
-  _ -> t
+  t -> t
 
 -- Provided that the default value is a known boolean (in practice we only use
 -- True or False), we can collapse a potentially uninitialised value to a boolean.
 
 collapseDefault :: KnownBool b => WithDefault b -> Bool
-collapseDefault w = case w of
-  Default -> boolVal w
+collapseDefault = \case
+  w@Default -> boolVal w
   Value b -> b

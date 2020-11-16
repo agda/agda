@@ -855,7 +855,7 @@ mkSSet :: Integer -> Sort
 mkSSet n = SSet $ ClosedLevel n
 
 isSort :: Term -> Maybe Sort
-isSort v = case v of
+isSort = \case
   Sort s -> Just s
   _      -> Nothing
 
@@ -940,9 +940,9 @@ instance SgTel (Dom Type) where
 
 -- | Removing a topmost 'DontCare' constructor.
 stripDontCare :: Term -> Term
-stripDontCare v = case v of
+stripDontCare = \case
   DontCare v -> v
-  _          -> v
+  v          -> v
 
 -- | Doesn't do any reduction.
 arity :: Type -> Nat
@@ -1088,7 +1088,7 @@ instance {-# OVERLAPPABLE #-} (Foldable t, TermSize a) => TermSize (t a) where
   tsize = foldMap tsize
 
 instance TermSize Term where
-  tsize v = case v of
+  tsize = \case
     Var _ vs    -> 1 + tsize vs
     Def _ vs    -> 1 + tsize vs
     Con _ _ vs    -> 1 + tsize vs
@@ -1102,7 +1102,7 @@ instance TermSize Term where
     Dummy{}     -> 1
 
 instance TermSize Sort where
-  tsize s = case s of
+  tsize = \case
     Type l    -> 1 + tsize l
     Prop l    -> 1 + tsize l
     Inf _ _   -> 1
@@ -1141,7 +1141,7 @@ instance KillRange ConHead where
   killRange (ConHead c d i fs) = killRange4 ConHead c d i fs
 
 instance KillRange Term where
-  killRange v = case v of
+  killRange = \case
     Var i vs    -> killRange1 (Var i) vs
     Def c vs    -> killRange2 Def c vs
     Con c ci vs -> killRange3 Con c ci vs
@@ -1152,7 +1152,7 @@ instance KillRange Term where
     Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
-    Dummy{}     -> v
+    v@Dummy{}   -> v
 
 instance KillRange Level where
   killRange (Max n as) = killRange1 (Max n) as
@@ -1164,7 +1164,7 @@ instance (KillRange a) => KillRange (Type' a) where
   killRange (El s v) = killRange2 El s v
 
 instance KillRange Sort where
-  killRange s = case s of
+  killRange = \case
     Inf f n    -> Inf f n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
@@ -1176,7 +1176,7 @@ instance KillRange Sort where
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
     DefS d es  -> killRange2 DefS d es
-    DummyS{}   -> s
+    s@DummyS{} -> s
 
 instance KillRange Substitution where
   killRange IdS                  = IdS
@@ -1372,7 +1372,7 @@ instance Pretty a => Pretty (Pattern' a) where
 -- Note: only strict in the shape of the terms.
 
 instance NFData Term where
-  rnf v = case v of
+  rnf = \case
     Var _ es   -> rnf es
     Lam _ b    -> rnf (unAbs b)
     Lit l      -> rnf l
@@ -1389,7 +1389,7 @@ instance NFData Type where
   rnf (El s v) = rnf (s, v)
 
 instance NFData Sort where
-  rnf s = case s of
+  rnf = \case
     Type l   -> rnf l
     Prop l   -> rnf l
     Inf _ _  -> ()

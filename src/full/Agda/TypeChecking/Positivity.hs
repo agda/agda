@@ -735,7 +735,7 @@ computeEdges muts q ob =
     -> Occurrence
     -> Where
     -> TCM (Maybe Node, Occurrence)
-  mkEdge' to !pol w = case w of
+  mkEdge' to !pol = \case
     VarArg         -> mixed
     MetaArg        -> mixed
     LeftOfArrow    -> negative
@@ -823,7 +823,7 @@ instance PrettyTCM (Seq OccursWhere) where
             Fold.foldrM (\w d -> return d $$ fsep (prettyW w)) empty ws
 
       prettyW :: MonadPretty m => Where -> [m Doc]
-      prettyW w = case w of
+      prettyW = \case
         LeftOfArrow  -> pwords "to the left of an arrow"
         DefArg q i   -> pwords "in the" ++ nth i ++ pwords "argument of" ++
                           [prettyTCM q]

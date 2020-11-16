@@ -61,7 +61,7 @@ instance PrettyTCM ProblemConstraint where
       blockedOn u = "blocked on" <+> (prettyTCM u <> comma)
 
 instance PrettyTCM Constraint where
-    prettyTCM c = case c of
+    prettyTCM = \case
         ValueCmp cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
         ValueCmpOnFace cmp p ty s t ->
             sep [ prettyTCM p <+> "|"

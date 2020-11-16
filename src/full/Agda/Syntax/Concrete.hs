@@ -752,7 +752,7 @@ instance LensRelevance TypedBinding where
 ------------------------------------------------------------------------
 
 instance HasRange e => HasRange (OpApp e) where
-  getRange e = case e of
+  getRange = \case
     Ordinary e -> getRange e
     SyntaxBindingLambda r _ _ -> r
 

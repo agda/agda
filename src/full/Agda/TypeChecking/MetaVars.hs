@@ -1092,10 +1092,10 @@ assignMeta' m x t n ids v = do
   -- ALT 1: O(m * size ids), serves as specification
   -- let ivs = [fromMaybe __IMPOSSIBLE__ $ lookup i ids | i <- [0..m-1]]
   -- ALT 2: O(m)
-  let assocToList i l = case l of
+  let assocToList i = \case
         _           | i >= m -> []
         ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
-        _                    -> Nothing : assocToList (i+1) l
+        l                    -> Nothing : assocToList (i+1) l
       ivs = assocToList 0 ids
       rho = prependS __IMPOSSIBLE__ ivs $ raiseS n
       v'  = applySubst rho v

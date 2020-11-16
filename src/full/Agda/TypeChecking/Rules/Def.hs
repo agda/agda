@@ -272,7 +272,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         canBeSystem <- do
           -- allow VarP and ConP i0/i1 fallThrough = yes, DotP
           let pss = map namedClausePats cs
-              allowed p = case p of
+              allowed = \case
                 VarP{} -> True
                 -- pattern inserted by splitPartial
                 ConP _ cpi [] | conPFallThrough cpi -> True

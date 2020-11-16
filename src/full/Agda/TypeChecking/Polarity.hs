@@ -70,7 +70,7 @@ composePol Covariant x     = x
 composePol Contravariant x = neg x
 
 polFromOcc :: Occurrence -> Polarity
-polFromOcc o = case o of
+polFromOcc = \case
   GuardPos  -> Covariant
   StrictPos -> Covariant
   JustPos   -> Covariant

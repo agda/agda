@@ -651,16 +651,16 @@ niceDeclarations fixs ds = do
     niceAxioms b ds = List.concat <$> mapM (niceAxiom b) ds
 
     niceAxiom :: KindOfBlock -> TypeSignatureOrInstanceBlock -> Nice [NiceDeclaration]
-    niceAxiom b d = case d of
-      TypeSig rel _tac x t -> do
+    niceAxiom b = \case
+      d@(TypeSig rel _tac x t) -> do
         return [ Axiom (getRange d) PublicAccess ConcreteDef NotInstanceDef rel x t ]
-      FieldSig i tac x argt | b == FieldBlock -> do
+      d@(FieldSig i tac x argt) | b == FieldBlock -> do
         return [ NiceField (getRange d) PublicAccess ConcreteDef i tac x argt ]
       InstanceB r decls -> do
         instanceBlock r =<< niceAxioms InstanceBlock decls
       Pragma p@(RewritePragma r _ _) -> do
         return [ NicePragma r p ]
-      _ -> declarationException $ WrongContentBlock b $ getRange d
+      d -> declarationException $ WrongContentBlock b $ getRange d
 
     toPrim :: NiceDeclaration -> NiceDeclaration
     toPrim (Axiom r p a i rel x t) = PrimitiveFunction r p a x (Arg rel t)

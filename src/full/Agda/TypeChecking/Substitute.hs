@@ -828,7 +828,7 @@ instance (Coercible a Term, Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst 
 
 instance (Coercible a Term, Subst a) => Subst (Sort' a) where
   type SubstArg (Sort' a) = SubstArg a
-  applySubst rho s = case s of
+  applySubst rho = \case
     Type n     -> Type $ sub n
     Prop n     -> Prop $ sub n
     Inf f n    -> Inf f n
@@ -840,7 +840,7 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     UnivSort s -> coerce $ univSort $ coerce $ sub s
     MetaS x es -> MetaS x $ sub es
     DefS d es  -> DefS d $ sub es
-    DummyS{}   -> s
+    s@DummyS{} -> s
     where
       sub :: forall b. (Subst b, SubstArg a ~ SubstArg b) => b -> b
       sub x = applySubst rho x
@@ -863,13 +863,13 @@ instance Subst ConPatternInfo where
 
 instance Subst Pattern where
   type SubstArg Pattern = Term
-  applySubst rho p = case p of
-    ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
-    DefP o q ps  -> DefP o q $ applySubst rho ps
-    DotP o t     -> DotP o $ applySubst rho t
-    VarP o s     -> p
-    LitP o l     -> p
-    ProjP{}      -> p
+  applySubst rho = \case
+    ConP c mt ps    -> ConP c (applySubst rho mt) $ applySubst rho ps
+    DefP o q ps     -> DefP o q $ applySubst rho ps
+    DotP o t        -> DotP o $ applySubst rho t
+    p@(VarP _o _x)  -> p
+    p@(LitP _o _l)  -> p
+    p@(ProjP _o _x) -> p
     IApplyP o t u x -> IApplyP o (applySubst rho t) (applySubst rho u) x
 
 instance Subst A.ProblemEq where
@@ -883,7 +883,7 @@ instance DeBruijn BraveTerm where
 
 instance DeBruijn NLPat where
   deBruijnVar i = PVar i []
-  deBruijnView p = case p of
+  deBruijnView = \case
     PVar i []   -> Just i
     PVar{}      -> Nothing
     PDef{}      -> Nothing
@@ -897,7 +897,7 @@ applyNLPatSubst :: TermSubst a => Substitution' NLPat -> a -> a
 applyNLPatSubst = applySubst . fmap nlPatToTerm
   where
     nlPatToTerm :: NLPat -> Term
-    nlPatToTerm p = case p of
+    nlPatToTerm = \case
       PVar i xs      -> Var i $ map (Apply . fmap var) xs
       PTerm u        -> u
       PDef f es      -> __IMPOSSIBLE__
@@ -911,14 +911,14 @@ applyNLSubstToDom rho dom = applySubst rho <$> dom{ domTactic = applyNLPatSubst 
 
 instance Subst NLPat where
   type SubstArg NLPat = NLPat
-  applySubst rho p = case p of
-    PVar i bvs -> lookupS rho i `applyBV` bvs
-    PDef f es -> PDef f $ applySubst rho es
-    PLam i u -> PLam i $ applySubst rho u
-    PPi a b -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
-    PSort s -> PSort $ applySubst rho s
+  applySubst rho = \case
+    PVar i bvs     -> lookupS rho i `applyBV` bvs
+    PDef f es      -> PDef f $ applySubst rho es
+    PLam i u       -> PLam i $ applySubst rho u
+    PPi a b        -> PPi (applyNLSubstToDom rho a) (applySubst rho b)
+    PSort s        -> PSort $ applySubst rho s
     PBoundVar i es -> PBoundVar i $ applySubst rho es
-    PTerm u -> PTerm $ applyNLPatSubst rho u
+    PTerm u        -> PTerm $ applyNLPatSubst rho u
 
     where
       applyBV :: NLPat -> [Arg Int] -> NLPat
@@ -979,7 +979,7 @@ instance Subst a => Subst (Tele a) where
 instance Subst Constraint where
   type SubstArg Constraint = Term
 
-  applySubst rho c = case c of
+  applySubst rho = \case
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
     ValueCmpOnFace cmp p t u v -> ValueCmpOnFace cmp (rf p) (rf t) (rf u) (rf v)
     ElimCmp ps fs a v e1 e2  -> ElimCmp ps fs (rf a) (rf v) (rf e1) (rf e2)
@@ -988,8 +988,8 @@ instance Subst Constraint where
     IsEmpty r a              -> IsEmpty r (rf a)
     CheckSizeLtSat t         -> CheckSizeLtSat (rf t)
     FindInstance m cands     -> FindInstance m (rf cands)
-    UnBlock{}                -> c
-    CheckFunDef{}            -> c
+    c@UnBlock{}              -> c
+    c@CheckFunDef{}          -> c
     HasBiggerSort s          -> HasBiggerSort (rf s)
     HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
     CheckLockedVars a b c d  -> CheckLockedVars (rf a) (rf b) (rf c) (rf d)
@@ -1008,10 +1008,10 @@ instance Subst CompareAs where
 
 instance Subst a => Subst (Elim' a) where
   type SubstArg (Elim' a) = SubstArg a
-  applySubst rho e = case e of
-    Apply v -> Apply $ applySubst rho v
+  applySubst rho = \case
+    Apply v      -> Apply $ applySubst rho v
     IApply x y r -> IApply (applySubst rho x) (applySubst rho y) (applySubst rho r)
-    Proj{}  -> e
+    e@Proj{}     -> e
 
 instance Subst a => Subst (Abs a) where
   type SubstArg (Abs a) = SubstArg a
@@ -1118,8 +1118,8 @@ usePatternInfo i p = case patternOrigin p of
 
 instance Subst DeBruijnPattern where
   type SubstArg DeBruijnPattern = DeBruijnPattern
-  applySubst IdS p = p
-  applySubst rho p = case p of
+  applySubst IdS = id
+  applySubst rho = \case
     VarP i x     ->
       usePatternInfo i $
       useName (dbPatVarName x) $
@@ -1127,12 +1127,13 @@ instance Subst DeBruijnPattern where
     DotP i u     -> DotP i $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci {conPType = applyPatSubst rho (conPType ci)} $ applySubst rho ps
     DefP i q ps  -> DefP i q $ applySubst rho ps
-    LitP i x     -> p
-    ProjP{}      -> p
-    IApplyP i t u x -> case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
-                        IApplyP _ _ _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
-                        VarP  _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
-                        _ -> __IMPOSSIBLE__
+    p@(LitP _ _) -> p
+    p@ProjP{}    -> p
+    IApplyP i t u x ->
+      case useName (dbPatVarName x) $ lookupS rho $ dbPatVarIndex x of
+        IApplyP _ _ _ y -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
+        VarP  _ y       -> IApplyP i (applyPatSubst rho t) (applyPatSubst rho u) y
+        _ -> __IMPOSSIBLE__
     where
       useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern
       useName n (VarP o x)

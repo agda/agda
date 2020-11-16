@@ -1582,7 +1582,7 @@ tryToRecoverOpAppP p = do
     appInfo = defaultAppInfo_
 
     view :: A.Pattern -> Maybe (Hd, [NamedArg (MaybeSection (AppInfo, A.Pattern))])
-    view p = case p of
+    view = \case
       ConP _        cs ps -> Just (HdCon (headAmbQ cs), (map . fmap . fmap) (NoSection . (appInfo,)) ps)
       DefP _        fs ps -> Just (HdDef (headAmbQ fs), (map . fmap . fmap) (NoSection . (appInfo,)) ps)
       PatternSynP _ ns ps -> Just (HdSyn (headAmbQ ns), (map . fmap . fmap) (NoSection . (appInfo,)) ps)

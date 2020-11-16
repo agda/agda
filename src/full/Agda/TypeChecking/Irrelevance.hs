@@ -295,7 +295,7 @@ class UsableRelevance a where
     => Relevance -> a -> m Bool
 
 instance UsableRelevance Term where
-  usableRel rel u = case u of
+  usableRel rel = \case
     Var i vs -> do
       irel <- getRelevance <$> domOfBV i
       let ok = irel `moreRelevant` rel
@@ -323,7 +323,7 @@ instance UsableRelevance a => UsableRelevance (Type' a) where
   usableRel rel (El _ t) = usableRel rel t
 
 instance UsableRelevance Sort where
-  usableRel rel s = case s of
+  usableRel rel = \case
     Type l -> usableRel rel l
     Prop l -> usableRel rel l
     Inf f n -> return True
@@ -546,4 +546,3 @@ isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
   MetaS{}    -> False
   DefS{}     -> False
   DummyS{}   -> False
-

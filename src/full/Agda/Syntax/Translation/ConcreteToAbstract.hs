@@ -141,7 +141,7 @@ noDotorEqPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
 noDotorEqPattern err = dot
   where
     dot :: A.Pattern' e -> ScopeM (A.Pattern' Void)
-    dot p = case p of
+    dot = \case
       A.VarP x               -> pure $ A.VarP x
       A.ConP i c args        -> A.ConP i c <$> (traverse $ traverse $ traverse dot) args
       A.ProjP i o d          -> pure $ A.ProjP i o d

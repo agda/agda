@@ -245,7 +245,7 @@ sizeViewComparable v w = case (v,w) of
   _ -> NotComparable
 
 sizeViewSuc_ :: QName -> DeepSizeView -> DeepSizeView
-sizeViewSuc_ suc v = case v of
+sizeViewSuc_ suc = \case
   DSizeInf         -> DSizeInf
   DSizeVar i n     -> DSizeVar i (n + 1)
   DSizeMeta x vs n -> DSizeMeta x vs (n + 1)
@@ -253,8 +253,8 @@ sizeViewSuc_ suc v = case v of
 
 -- | @sizeViewPred k v@ decrements @v@ by @k@ (must be possible!).
 sizeViewPred :: Nat -> DeepSizeView -> DeepSizeView
-sizeViewPred 0 v = v
-sizeViewPred k v = case v of
+sizeViewPred 0 = id
+sizeViewPred k = \case
   DSizeInf -> DSizeInf
   DSizeVar  i    n | n >= k -> DSizeVar  i    (n - k)
   DSizeMeta x vs n | n >= k -> DSizeMeta x vs (n - k)
@@ -262,7 +262,7 @@ sizeViewPred k v = case v of
 
 -- | @sizeViewOffset v@ returns the number of successors or Nothing when infty.
 sizeViewOffset :: DeepSizeView -> Maybe Offset
-sizeViewOffset v = case v of
+sizeViewOffset = \case
   DSizeInf         -> Nothing
   DSizeVar i n     -> Just n
   DSizeMeta x vs n -> Just n
@@ -285,7 +285,7 @@ unSizeView (OtherSize v) = return v
 
 unDeepSizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
                => DeepSizeView -> m Term
-unDeepSizeView v = case v of
+unDeepSizeView = \case
   DSizeInf         -> primSizeInf
   DSizeVar pv    n -> sizeSuc n $ unviewProjectedVar pv
   DSizeMeta x us n -> sizeSuc n $ MetaV x us

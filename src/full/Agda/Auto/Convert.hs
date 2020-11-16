@@ -468,7 +468,7 @@ instance Conversion MOT (Exp O) I.Type where
               -- 0 is arbitrary, sort not read by Agda when reifying
 
 instance Conversion MOT (Exp O) I.Term where
-  convert e = case e of
+  convert = \case
     App _ _ (Var v) as -> frommyExps 0 as (I.Var v [])
     App _ _ (Const c) as -> do
       cdef <- lift $ readIORef c

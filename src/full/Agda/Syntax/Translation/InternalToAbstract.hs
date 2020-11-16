@@ -208,7 +208,7 @@ instance Reify DisplayTerm where
   type ReifiesTo DisplayTerm = Expr
 
   reifyWhen = reifyWhenE
-  reify d = case d of
+  reify = \case
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
     DCon c ci vs -> recOrCon (conName c) ci =<< reify vs
@@ -832,7 +832,7 @@ instance Reify i => Reify (Arg i) where
 
 -- instance Reify Elim Expr where
 --   reifyWhen = reifyWhenE
---   reify e = case e of
+--   reify = \case
 --     I.IApply x y r -> appl "iapply" <$> reify (defaultArg r :: Arg Term)
 --     I.Apply v -> appl "apply" <$> reify v
 --     I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
@@ -913,21 +913,21 @@ stripImplicits params ps = do
 
           stripArg a = fmap (fmap stripPat) a
 
-          stripPat p = case p of
-            A.VarP _      -> p
-            A.ConP i c ps -> A.ConP i c $ stripArgs True ps
-            A.ProjP{}     -> p
-            A.DefP _ _ _  -> p
-            A.DotP _ e    -> p
-            A.WildP _     -> p
-            A.AbsurdP _   -> p
-            A.LitP _ _    -> p
-            A.AsP i x p   -> A.AsP i x $ stripPat p
-            A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
-            A.RecP i fs   -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
-            A.EqualP{}    -> p -- EqualP cannot be blanked.
-            A.WithP i p   -> A.WithP i $ stripPat p -- TODO #2822: right?
-            A.AnnP i a p  -> A.AnnP i a $ stripPat p
+          stripPat = \case
+            p@(A.VarP _)        -> p
+            A.ConP i c ps       -> A.ConP i c $ stripArgs True ps
+            p@A.ProjP{}         -> p
+            p@(A.DefP _ _ _)    -> p
+            p@(A.DotP _ _e)     -> p
+            p@(A.WildP _)       -> p
+            p@(A.AbsurdP _)     -> p
+            p@(A.LitP _ _)      -> p
+            A.AsP i x p         -> A.AsP i x $ stripPat p
+            A.PatternSynP _ _ _ -> __IMPOSSIBLE__
+            A.RecP i fs         -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
+            p@A.EqualP{}        -> p -- EqualP cannot be blanked.
+            A.WithP i p         -> A.WithP i $ stripPat p -- TODO #2822: right?
+            A.AnnP i a p        -> A.AnnP i a $ stripPat p
 
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True

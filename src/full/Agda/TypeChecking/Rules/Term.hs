@@ -478,7 +478,7 @@ checkLambda' cmp b xps typ body target = do
 
     xs = fmap (updateNamedArg (A.unBind . A.binderName)) xps
     numbinds = length xps
-    isUnderscore e = case e of { A.Underscore{} -> True; _ -> False }
+    isUnderscore = \case { A.Underscore{} -> True; _ -> False }
     possiblePath = numbinds == 1 && isUnderscore (unScope typ)
                    && isRelevant info && visible info
     info = getArgInfo $ List1.head xs
@@ -1299,7 +1299,7 @@ checkExpr' cmp e t =
       reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
       checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info $ A.mkBinder x) e) tReduced
 
-    hiddenLambdaOrHole h e = case e of
+    hiddenLambdaOrHole h = \case
       A.AbsurdLam _ h'        -> sameHiding h h'
       A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
       A.Lam _ bind _          -> sameHiding h bind

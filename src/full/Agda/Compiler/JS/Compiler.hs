@@ -450,7 +450,7 @@ compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
 compileTerm kit t = go t
   where
     go :: T.TTerm -> TCM Exp
-    go t = case t of
+    go = \case
       T.TVar x -> return $ Local $ LocalId x
       T.TDef q -> do
         d <- getConstInfo q
@@ -565,7 +565,7 @@ compilePrim p =
 
 
 compileAlt :: EnvWithOpts -> T.TAlt -> TCM ((QName, MemberId), Exp)
-compileAlt kit a = case a of
+compileAlt kit = \case
   T.TACon con ar body -> do
     erased <- getErasedConArgs con
     let nargs = ar - length (filter id erased)

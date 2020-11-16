@@ -85,7 +85,7 @@ instance LabelPatVars a b => LabelPatVars [a] [b] where
 instance LabelPatVars Pattern DeBruijnPattern where
   type PatVarLabel DeBruijnPattern = Int
 
-  labelPatVars p = case p of
+  labelPatVars = \case
     VarP o x        -> VarP o . DBPatVar x <$> next
     DotP o t        -> DotP o t <$ next
     ConP c mt ps    -> ConP c mt <$> labelPatVars ps

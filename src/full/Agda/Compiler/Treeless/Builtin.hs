@@ -111,7 +111,7 @@ transform BuiltinKit{..} = tr
 
       TCase e t d bs -> TCase e (inferCaseType t bs) (tr d) $ concatMap trAlt bs
         where
-          trAlt b = case b of
+          trAlt = \case
             TACon c 0 b | isZero c -> [TALit (LitNat 0) (tr b)]
             TACon c 1 b | isSuc c  ->
               case tr b of

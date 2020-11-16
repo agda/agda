@@ -28,7 +28,7 @@ computeUnused q t used = do
   if used == used' then return used'
                    else computeUnused q t used'
   where
-    go t = case t of
+    go = \case
       TVar x    -> pure $ Set.singleton x
       TPrim{}   -> pure Set.empty
       TDef{}    -> pure Set.empty

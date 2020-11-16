@@ -160,7 +160,7 @@ instance ToAbstract Literal where
 
 instance ToAbstract Term where
   type AbsOfRef Term = Expr
-  toAbstract t = case t of
+  toAbstract = \case
     R.Var i es -> do
       name <- mkVarName i
       toAbstract (A.Var name, es)

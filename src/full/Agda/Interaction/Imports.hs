@@ -795,13 +795,13 @@ readInterface' file = do
   -- Catch exceptions
   `catchError` handler
   where
-    handler e = case e of
+    handler = \case
       IOException _ _ e -> do
         reportSLn "" 0 $ "IO exception: " ++ show e
         return Nothing   -- Work-around for file locking bug.
                          -- TODO: What does this refer to? Please
                          -- document.
-      _ -> throwError e
+      e -> throwError e
 
 -- | Writes the given interface to the given file.
 --
