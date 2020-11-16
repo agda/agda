@@ -852,44 +852,44 @@ ModalTBindWithHiding : Attributes1 BIdsWithHiding ':' Expr  {% do
 LamBindings :: { List1 LamBinding }
 LamBindings
   : LamBinds '->' {%
-      case List1.reverse $1 of  -- TODO: use List1.last
-        Left _ :| _ -> parseError "Absurd lambda cannot have a body."
-        _ :| _      -> return $ List1.fromList [ b | Right b <- List1.toList $1 ]
+      case absurdBinding $1 of
+        Just{}  -> parseError "Absurd lambda cannot have a body."
+        Nothing -> return $ List1.fromList $ lamBindings $1
       }
 
 AbsurdLamBindings :: { Either ([LamBinding], Hiding) (List1 Expr) }
 AbsurdLamBindings
   : LamBindsAbsurd {%
     case $1 of
-      Left lb -> case List1.reverse lb of
-                   Right _ :| _ -> parseError "Missing body for lambda"
-                   Left h  :| _ -> return $ Left ([ b | Right b <- List1.init lb], h)
+      Left lb -> case absurdBinding lb of
+                   Nothing -> parseError "Missing body for lambda"
+                   Just h  -> return $ Left (lamBindings lb, h)
       Right es -> return $ Right es
     }
 
 -- absurd lambda is represented by @Left hiding@
-LamBinds :: { List1 (Either Hiding LamBinding) }
+LamBinds :: { LamBinds }
 LamBinds
-  : DomainFreeBinding LamBinds  { fmap Right $1 <> $2 }
-  | TypedBinding LamBinds       { Right (DomainFull $1) <| $2 }
-  | DomainFreeBinding           { fmap Right $1 }
-  | TypedBinding                { singleton $ Right $ DomainFull $1 }
-  | '(' ')'                     { singleton $ Left NotHidden }
-  | '{' '}'                     { singleton $ Left Hidden }
-  | '{{' DoubleCloseBrace       { singleton $ Left (Instance NoOverlap) }
+  : DomainFreeBinding LamBinds  { fmap (map DomainFree (List1.toList $1) ++) $2 }
+  | TypedBinding LamBinds       { fmap (DomainFull $1 :) $2 }
+  | DomainFreeBinding           { mkLamBinds $ map DomainFree $ List1.toList $1 }
+  | TypedBinding                { mkLamBinds [DomainFull $1] }
+  | '(' ')'                     { mkAbsurdBinding NotHidden }
+  | '{' '}'                     { mkAbsurdBinding Hidden }
+  | '{{' DoubleCloseBrace       { mkAbsurdBinding (Instance NoOverlap) }
 
 -- Like LamBinds, but could also parse an absurd LHS of an extended lambda @{ p1 ... () }@
-LamBindsAbsurd :: { Either (List1 (Either Hiding LamBinding)) (List1 Expr) }
+LamBindsAbsurd :: { Either LamBinds (List1 Expr) }
 LamBindsAbsurd
-  : DomainFreeBinding LamBinds  { Left $ fmap Right $1 <> $2 }
-  | TypedBinding LamBinds       { Left $ Right (DomainFull $1) <| $2 }
+  : DomainFreeBinding LamBinds  { Left $ fmap (map DomainFree (List1.toList $1) ++) $2 }
+  | TypedBinding LamBinds       { Left $ fmap (DomainFull $1 :) $2 }
   | DomainFreeBindingAbsurd     { case $1 of
-                                    Left lb -> Left $ fmap Right lb
+                                    Left lb -> Left $ mkLamBinds (map DomainFree $ List1.toList lb)
                                     Right es -> Right es }
-  | TypedBinding                { Left $ singleton $ Right $ DomainFull $1 }
-  | '(' ')'                     { Left $ singleton $ Left NotHidden }
-  | '{' '}'                     { Left $ singleton $ Left Hidden }
-  | '{{' DoubleCloseBrace       { Left $ singleton $ Left (Instance NoOverlap) }
+  | TypedBinding                { Left $ mkLamBinds [DomainFull $1] }
+  | '(' ')'                     { Left $ mkAbsurdBinding NotHidden }
+  | '{' '}'                     { Left $ mkAbsurdBinding Hidden }
+  | '{{' DoubleCloseBrace       { Left $ mkAbsurdBinding (Instance NoOverlap) }
 
 -- FNF, 2011-05-05: No where-clauses in extended lambdas for now.
 -- Andreas, 2020-03-28: And also not in sight either nine years later.
@@ -933,21 +933,26 @@ ForallBindings
 -- A non-empty sequence of possibly untyped bindings.
 TypedUntypedBindings1 :: { List1 LamBinding }
 TypedUntypedBindings1
-  : DomainFreeBinding TypedUntypedBindings1 { $1 <> $2 }
+  : DomainFreeBinding TypedUntypedBindings1 { fmap DomainFree $1 <> $2 }
   | TypedBinding TypedUntypedBindings1      { DomainFull $1 <| $2 }
-  | DomainFreeBinding                       { $1 }
+  | DomainFreeBinding                       { fmap DomainFree $1 }
   | TypedBinding                            { singleton $ DomainFull $1 }
 
 -- A possibly empty sequence of possibly untyped bindings.
 -- This is used as telescope in data and record decls.
 TypedUntypedBindings :: { [LamBinding] }
 TypedUntypedBindings
-  : DomainFreeBinding TypedUntypedBindings { List1.toList $1 ++ $2 }
+  : DomainFreeBinding TypedUntypedBindings { map DomainFree (List1.toList $1) ++ $2 }
   | TypedBinding TypedUntypedBindings      { DomainFull $1 : $2 }
   |                                        { [] }
 
+DomainFreeBindings :: { [NamedArg Binder] }
+DomainFreeBindings
+  : {- empty -}                          { [] }
+  | DomainFreeBinding DomainFreeBindings { List1.toList $1 ++ $2 }
+
 -- A domain free binding is either x or {x1 .. xn}
-DomainFreeBinding :: { List1 LamBinding }
+DomainFreeBinding :: { List1 (NamedArg Binder) }
 DomainFreeBinding
   : DomainFreeBindingAbsurd {% case $1 of
                              Left lbs -> return lbs
@@ -960,7 +965,7 @@ MaybeAsPattern
   | {- empty -} { Nothing }
 
 -- A domain free binding is either x or {x1 .. xn}
-DomainFreeBindingAbsurd :: { Either (List1 LamBinding) (List1 Expr)}
+DomainFreeBindingAbsurd :: { Either (List1 (NamedArg Binder)) (List1 Expr)}
 DomainFreeBindingAbsurd
     : BId      MaybeAsPattern { Left . singleton $ mkDomainFree_ id $2 $1 }
     | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance Irrelevant) $3 $2 }
@@ -969,20 +974,20 @@ DomainFreeBindingAbsurd
                                  pure . Left . singleton $ mkDomainFree_ id (Just p) $ simpleHole }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
-              first (fmap (DomainFree . setTacticAttr $2 . setArgInfo ai)) $3 }
+              first (fmap (setTacticAttr $2 . setArgInfo ai)) $3 }
     | '{' CommaBIdAndAbsurds '}'
-         { first (fmap (DomainFree . hide)) $2 }
+         { first (fmap hide) $2 }
     | '{' Attributes1 CommaBIdAndAbsurds '}'
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
-              first (fmap (DomainFree . hide . setTacticAttr $2 . setArgInfo ai)) $3 }
-    | '{{' CommaBIds DoubleCloseBrace { Left $ fmap (DomainFree . makeInstance) $2 }
+              first (fmap (hide . setTacticAttr $2 . setArgInfo ai)) $3 }
+    | '{{' CommaBIds DoubleCloseBrace { Left $ fmap makeInstance $2 }
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
-              Left $ fmap (DomainFree . makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
-    | '.' '{' CommaBIds '}' { Left $ fmap (DomainFree . hide . setRelevance Irrelevant) $3 }
-    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (DomainFree . makeInstance . setRelevance Irrelevant) $3 }
-    | '..' '{' CommaBIds '}' { Left $ fmap (DomainFree . hide . setRelevance NonStrict) $3 }
-    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (DomainFree . makeInstance . setRelevance NonStrict) $3 }
+              Left $ fmap (makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
+    | '.' '{' CommaBIds '}' { Left $ fmap (hide . setRelevance Irrelevant) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . setRelevance Irrelevant) $3 }
+    | '..' '{' CommaBIds '}' { Left $ fmap (hide . setRelevance NonStrict) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . setRelevance NonStrict) $3 }
 
 
 {--------------------------------------------------------------------------
@@ -1326,9 +1331,7 @@ PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
   }
 
 PatternSynArgs :: { [Arg Name] }
-PatternSynArgs
-  : {- empty -} { [] }
-  | LamBinds    {% patternSynArgs (List1.toList $1) }
+PatternSynArgs : DomainFreeBindings    {% patternSynArgs $1 }
 
 SimpleIds :: { [RString] }
 SimpleIds : SimpleId { [$1] }
@@ -1887,10 +1890,8 @@ mkQName ss = do
     xs <- mapM mkName ss
     return $ foldr Qual (QName $ last xs) (init xs)
 
--- | Create a DomainFree binding from a name
-
-mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> LamBinding
-mkDomainFree_ f p n = DomainFree $ f $ defaultNamedArg $ Binder p $ mkBoundName_ n
+mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> NamedArg Binder
+mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p $ mkBoundName_ n
 
 mkRString :: (Interval, String) -> RString
 mkRString (i, s) = Ranged (getRange i) s
@@ -1952,6 +1953,21 @@ isName :: String -> (Interval, String) -> Parser ()
 isName s (_,s')
     | s == s'   = return ()
     | otherwise = parseError $ "expected " ++ s ++ ", found " ++ s'
+
+-- Lambinds
+
+-- | Result of parsing @LamBinds@.
+data LamBinds' a = LamBinds
+  { lamBindings   :: a             -- ^ A number of domain-free or typed bindings or record patterns.
+  , absurdBinding :: Maybe Hiding  -- ^ Followed by possibly a final absurd pattern.
+  } deriving (Functor)
+type LamBinds = LamBinds' [LamBinding]
+
+mkAbsurdBinding :: Hiding -> LamBinds
+mkAbsurdBinding = LamBinds [] . Just
+
+mkLamBinds :: a -> LamBinds' a
+mkLamBinds bs = LamBinds bs Nothing
 
 -- | Build a forall pi (forall x y z -> ...)
 forallPi :: List1 LamBinding -> Expr -> Expr
@@ -2173,16 +2189,19 @@ maybeNamed e =
         -- Underscore{}    -> succeed $ "_"
         _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
 
-patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
+patternSynArgs :: [NamedArg Binder] -> Parser [Arg Name]
 patternSynArgs = mapM pSynArg
   where
-    pSynArg Left{}                  = parseError "Absurd patterns are not allowed in pattern synonyms"
-    pSynArg (Right DomainFull{})    = parseError "Unexpected type signature in pattern synonym argument"
-    pSynArg (Right (DomainFree x))
-      | let h = getHiding x, h `notElem` [Hidden, NotHidden]
-         = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
-      | not (isRelevant x) = parseError "Arguments to pattern synonyms must be relevant"
-      | otherwise          = return $ fmap (boundName . binderName . namedThing) x
+    pSynArg x
+      | let h = getHiding x, h `notElem` [Hidden, NotHidden] =
+          abort $ prettyShow h ++ " arguments not allowed to pattern synonyms"
+      | not (isRelevant x) =
+          abort "Arguments to pattern synonyms must be relevant"
+      | otherwise = return $ fmap (boundName . binderName . namedThing) x
+      where
+      abort s = parseError $
+        "Illegal pattern synonym argument  " ++ prettyShow x ++ "\n" ++
+        "(" ++ s ++ ".)"
 
 mkLamClause
   :: Bool   -- ^ Catch-all?
