@@ -446,7 +446,9 @@ getInterface' x isMain msi =
           guard (uptodate && maySkip)
           (False,) <$> (MaybeT $ getStoredInterface x file)
 
-        let recheck = typeCheck x file isMain msi
+        let recheck = case isMain of
+              MainInterface _ -> (True,) <$> createInterface x file isMain msi
+              NotMainInterface -> (False,) <$> createInterfaceIsolated x file msi
 
         maybe recheck pure stored
 
@@ -638,21 +640,6 @@ getStoredInterface x file = do
 --   But if it is not the main module we check,
 --   we do it in a fresh state, suitably initialize,
 --   in order to forget some state changes after successful type checking.
-
-typeCheck
-  :: C.TopLevelModuleName
-     -- ^ Module name of file we process.
-  -> SourceFile
-     -- ^ File we process.
-  -> MainInterface
-  -> Maybe SourceInfo
-     -- ^ Optional information about the source code.
-  -> TCM (Bool, (Interface, [TCWarning]))
-     -- ^ @Bool@ is: are the state changes from this interface already incorporated to the current state?
-typeCheck x file isMain msi = do
-  case isMain of
-    MainInterface _ -> (True,) <$> createInterface x file isMain msi
-    NotMainInterface -> (False,) <$> createInterfaceIsolated x file msi
 
 createInterfaceIsolated
   :: C.TopLevelModuleName
