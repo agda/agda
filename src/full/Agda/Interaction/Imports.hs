@@ -650,24 +650,9 @@ typeCheck
   -> TCM (Bool, (Interface, [TCWarning]))
      -- ^ @Bool@ is: are the state changes from this interface already incorporated to the current state?
 typeCheck x file isMain msi = do
-  let fp = filePath $ srcFilePath file
-  let checkMsg = case isMain of
-                   MainInterface ScopeCheck -> "Reading "
-                   _                        -> "Checking"
-      withMsgs = bracket_
-       (chaseMsg checkMsg x $ Just fp)
-       (const $ do ws <- getAllWarnings AllWarnings
-                   let classified = classifyWarnings ws
-                   let wa' = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (tcWarnings classified)
-                   unless (null wa') $
-                     reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
-                   when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
-
-  -- Do the type checking.
-
   case isMain of
     MainInterface _ -> do
-      r <- withMsgs $ createInterface x file isMain msi
+      r <- createInterface x file isMain msi
       return (True, r)
 
     NotMainInterface -> do
@@ -713,7 +698,7 @@ typeCheck x file isMain msi = do
                setVisitedModules vs
                addImportedThings isig ibuiltin ipatsyns display userwarn partialdefs []
 
-               r  <- withMsgs $ createInterface x file isMain msi
+               r  <- createInterface x file isMain msi
                mf' <- useTC stModuleToSource
                ds' <- getDecodedModules
                return (r, mf', ds')
@@ -848,9 +833,25 @@ createInterface
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe SourceInfo      -- ^ Optional information about the source code.
   -> TCM (Interface, [TCWarning])
-createInterface mname file isMain msi =
-  Bench.billTo [Bench.TopModule mname] $
-  localTC (\e -> e { envCurrentPath = Just (srcFilePath file) }) $ do
+createInterface mname file isMain msi = do
+  let x = mname
+  let fp = filePath $ srcFilePath file
+  let checkMsg = case isMain of
+                   MainInterface ScopeCheck -> "Reading "
+                   _                        -> "Checking"
+      withMsgs = bracket_
+       (chaseMsg checkMsg x $ Just fp)
+       (const $ do ws <- getAllWarnings AllWarnings
+                   let classified = classifyWarnings ws
+                   let wa' = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (tcWarnings classified)
+                   unless (null wa') $
+                     reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> wa'
+                   when (null (nonFatalErrors classified)) $ chaseMsg "Finished" x Nothing)
+
+  withMsgs $
+    Bench.billTo [Bench.TopModule mname] $
+    localTC (\e -> e { envCurrentPath = Just (srcFilePath file) }) $ do
+
     let onlyScope = isMain == MainInterface ScopeCheck
 
     reportSLn "import.iface.create" 5 $
