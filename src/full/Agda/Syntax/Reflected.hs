@@ -48,7 +48,7 @@ data Pattern = ConP QName [Arg Pattern]
              | DotP Term
              | VarP Int
              | LitP Literal
-             | AbsurdP
+             | AbsurdP Int
              | ProjP QName
   deriving (Show)
 

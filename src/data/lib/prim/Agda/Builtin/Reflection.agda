@@ -174,7 +174,7 @@ data Pattern where
   var    : (x : Nat)     → Pattern
   lit    : (l : Literal) → Pattern
   proj   : (f : Name)    → Pattern
-  absurd : Pattern
+  absurd : (x : Nat)     → Pattern  -- absurd patterns counts as variables
 
 data Clause where
   clause        : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) (t : Term) → Clause

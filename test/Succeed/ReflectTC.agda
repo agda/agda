@@ -43,7 +43,7 @@ newMeta! = newMeta unknown
 absurdLam : Term
 absurdLam = extLam (absurdClause
                       (("()" , arg (argInfo visible relevant) unknown) ∷ [])
-                      (arg (argInfo visible relevant) absurd ∷ [])
+                      (arg (argInfo visible relevant) (absurd 0) ∷ [])
                    ∷ []) []
 
 -- Simple assumption tactic --

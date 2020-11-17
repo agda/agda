@@ -122,7 +122,7 @@ data Pattern : Set where
   var    : (x : Nat)     → Pattern
   lit    : (l : Literal) → Pattern
   proj   : (f : Name)    → Pattern
-  absurd : Pattern
+  absurd : (x : Nat)     → Pattern
 
 data Clause where
   clause        : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) (t : Term) → Clause

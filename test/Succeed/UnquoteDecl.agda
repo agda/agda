@@ -36,6 +36,6 @@ prf = refl
 magicDef : FunDef
 magicDef =
   funDef (def (quote ⊥) [] `⇒ `Nat)
-         (absurdClause (("()" , vArg unknown) ∷ []) (vArg absurd ∷ []) ∷ [])
+         (absurdClause (("()" , vArg unknown) ∷ []) (vArg (absurd 0) ∷ []) ∷ [])
 
 unquoteDecl magic = define (vArg magic) magicDef

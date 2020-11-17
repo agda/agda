@@ -96,7 +96,7 @@ coreBuiltins =
   , (builtinAgdaPatDot                       |-> BuiltinDataCons (tterm --> tpat))
   , (builtinAgdaPatLit                       |-> BuiltinDataCons (tliteral --> tpat))
   , (builtinAgdaPatProj                      |-> BuiltinDataCons (tqname --> tpat))
-  , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons tpat)
+  , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons (tnat --> tpat))
   , (builtinLevel                            |-> builtinPostulate tset)
   , (builtinWord64                           |-> builtinPostulate tset)
   , (builtinInteger                          |-> BuiltinData tset [builtinIntegerPos, builtinIntegerNegSuc])
