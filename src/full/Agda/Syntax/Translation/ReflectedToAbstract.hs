@@ -215,7 +215,7 @@ mkVarName i = fst <$> mkVar i
 annotatePattern :: MonadReflectedToAbstract m => Int -> R.Type -> A.Pattern -> m A.Pattern
 annotatePattern _ R.Unknown p = return p
 annotatePattern i t p = local (drop $ i + 1) $ do
-  t <- toAbstract t  -- ^^ go into the right context for translating the type
+  t <- toAbstract t  -- go into the right context for translating the type
   return $ A.AnnP patNoRange t p
 
 instance ToAbstract Sort where
