@@ -442,9 +442,13 @@ getInterface' x isMain msi =
         -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
         let maySkip = isMain /= MainInterface (TypeCheck TopLevelInteraction)
 
-        if uptodate && maySkip
-          then getStoredInterface x file isMain msi
-          else typeCheck          x file isMain msi
+        stored <- runMaybeT $ do
+          guard (uptodate && maySkip)
+          (False,) <$> (MaybeT $ getStoredInterface x file)
+
+        let recheck = typeCheck x file isMain msi
+
+        maybe recheck pure stored
 
       -- Ensure that the given module name matches the one in the file.
       let topLevelName = toTopLevelModuleName $ iModuleName i
@@ -551,16 +555,12 @@ getStoredInterface
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
-  -> MainInterface
-  -> Maybe SourceInfo
-     -- ^ Optional information about the source code.
-  -> TCM (Bool, (Interface, [TCWarning]))
-     -- ^ @Bool@ is: are the state changes from this interface already incorporated to the current state?
-getStoredInterface x file isMain msi = do
+  -> TCM (Maybe (Interface, [TCWarning]))
+getStoredInterface x file = do
   let fp = filePath $ srcFilePath file
   -- If something goes wrong (interface outdated etc.)
   -- we revert to fresh type checking.
-  let fallback = typeCheck x file isMain msi
+  let fallback = return Nothing
 
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
@@ -630,7 +630,7 @@ getStoredInterface x file isMain msi = do
               let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
               unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
-            return (False, (i, []))
+            return $ Just (i, [])
 
 -- | Run the type checker on a file and create an interface.
 --
@@ -715,7 +715,13 @@ typeCheck x file isMain msi = do
           -- file, only the cached interface. (This comment is not
           -- correct, see
           -- test/Fail/customised/NestedProjectRoots.err.)
-          getStoredInterface x file isMain msi
+          stored <- fmap (False,) <$> getStoredInterface x file
+
+          -- NOTE: This attempts to type-check FOREVER if for some
+          -- reason it continually fails to get the stored interface.
+          let recheck = typeCheck x file isMain msi
+          maybe recheck pure stored
+
         _ -> return (False, r)
 
 -- | Formats and outputs the "Checking", "Finished" and "Loading " messages.
