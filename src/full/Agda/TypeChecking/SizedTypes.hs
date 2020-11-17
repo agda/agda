@@ -235,12 +235,12 @@ boundedSizeMetaHook _ _ _ = __IMPOSSIBLE__
 --   like @Size< i =< Size@.
 --
 --   If it does not succeed it reports failure of conversion check.
-trySizeUniv
+trySizeUniv_
   :: MonadConversion m
-  => Comparison -> CompareAs -> Term -> Term
+  => Comparison -> CompareAs_ -> H'LHS Term -> H'RHS Term
   -> QName -> Elims -> QName -> Elims -> m ()
-trySizeUniv cmp t m n x els1 y els2 = do
-  let failure = typeError $ UnequalTerms cmp m n t
+trySizeUniv_ cmp t m n x els1 y els2 = do
+  let failure = typeError $ UnequalTerms_ cmp m n t
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
   -- Get the SIZE built-ins.
   (size, sizelt) <- flip catchError (const failure) $ do

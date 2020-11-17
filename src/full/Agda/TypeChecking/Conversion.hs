@@ -32,7 +32,7 @@ import Agda.TypeChecking.Substitute
 import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Conversion.Pure (pureCompareAs)
+import Agda.TypeChecking.Conversion.Pure (pureCompareAs_)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
@@ -226,11 +226,16 @@ compareAs_ cmp a u v = do
 --   and run conversion check again.
 assignE :: (MonadConversion m)
          => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
-assignE dir x es v a κ = assignE_ dir x es (asTwin v) (asTwin a) (\u' v' -> κ (twinAt @'LHS u') (twinAt @'RHS v'))
+assignE dir x es v a κ = assignE_ dir x es (H'RHS v) (asTwin a) (\u' v' -> κ (twinAt @'LHS u') (twinAt @'RHS v'))
 
-assignE_ :: (MonadConversion m)
-         => CompareDirection -> MetaId -> Elims -> Het 'RHS Term -> CompareAsHet -> (Het 'LHS Term -> Het 'RHS Term -> m ()) -> m ()
-assignE_ dir x es v a comp = assignWrapper_ dir x es v $ do
+assignE_ :: forall s m. (MonadConversion m, LeftOrRightSide s)
+         => CompareDirection -> MetaId -> Elims -> Het s Term -> CompareAsHet -> (Het 'LHS Term -> Het 'RHS Term -> m ()) -> m ()
+assignE_ = assignE_' @s sing
+
+assignE_' :: forall s m. (MonadConversion m, LeftOrRightSide s)
+         => SingT s -> CompareDirection -> MetaId -> Elims -> Het s Term -> CompareAsHet -> (Het 'LHS Term -> Het 'RHS Term -> m ()) -> m ()
+assignE_' SLHS dir x es v a comp = flipContext $ assignE_' SRHS (flipHet dir) x es (flipHet v) (flipHet a) comp
+assignE_' SRHS dir x es v a comp = assignWrapper_ dir x es v $ do
   case allApplyElims es of
     Just vs -> assignV_ dir x vs (twinAt @'RHS v) a
     Nothing -> do
@@ -252,8 +257,10 @@ assignE_ dir x es v a comp = assignWrapper_ dir x es v $ do
           reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
           patternViolation (unblockOnAnyMetaIn (MetaV x es)) -- nothing happened, give up
 
-compareAsDir_ :: MonadConversion m => CompareDirection -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
-compareAsDir_ dir a b c = dirToCmp_ (\dir (a,HetP b c) -> compareAs'_ dir a b c) dir (a, HetP b c)
+compareAsDir_ :: (MonadConversion m, AreSides s₁ s₂)
+                  => CompareDirection -> CompareAsHet -> Het s₁ Term -> Het s₂ Term -> m ()
+-- compareAsDir_ :: MonadConversion m => CompareDirection -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAsDir_ = dirToCmp_ compareAs'_
 
 compareAsDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAsDir dir a = dirToCmp (`compareAs'` a) dir
@@ -265,8 +272,9 @@ compareAs'_ :: forall m. MonadConversion m => Comparison -> CompareAsHet -> Het 
 compareAs'_ cmp tt m n = case tt of
   AsTermsOf a -> compareTerm'_ cmp a m n
   AsSizes     -> compareSizes cmp (twinAt @'LHS m) (twinAt @'RHS n)
-  AsTypes     -> compareAtom cmp AsTypes (twinAt @'LHS m) (twinAt @'RHS n)
+  AsTypes     -> compareAtom_ cmp AsTypes m n
 
+-- TODO: Switch to proper implementation instead of downgrading
 compareTerm'_ :: forall m. MonadConversion m => Comparison -> TwinT -> Het 'LHS Term -> Het 'RHS Term -> m ()
 compareTerm'_ cmp t u v = compareTerm' cmp (twinAt @'Compat t) (twinAt @'Compat u) (twinAt @'Compat v)
 
@@ -406,6 +414,9 @@ compareTerm' cmp a m n =
 compareAtomDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 
+compareAtomDir_ :: MonadConversion m => CompareDirection -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAtomDir_ = dirToCmp_ compareAtom_
+
 -- | Compute the head type of an elimination. For projection-like functions
 --   this requires inferring the type of the principal argument.
 computeElimHeadType :: MonadConversion m => QName -> Elims -> Elims -> m Type
@@ -434,14 +445,14 @@ computeElimHeadType f es es' = do
 
 -- | Syntax directed equality on atomic values
 --
-compareAtom_ :: forall m. MonadConversion m => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
-compareAtom_ cmp t u v = compareAtom cmp (twinAt @'Compat t) (twinAt @'Compat u) (twinAt @'Compat v)
-
 compareAtom :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
-compareAtom cmp t m n =
+compareAtom cmp t u v = compareAtom_ cmp (asTwin t) (Het @'LHS u) (Het @'RHS v)
+
+compareAtom_ :: forall m. MonadConversion m => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAtom_ cmp t m n =
   verboseBracket "tc.conv.atom" 20 "compareAtom" $
   -- if a PatternErr is thrown, rebuild constraint!
-  (catchConstraint (ValueCmp cmp t m n) :: m () -> m ()) $ do
+  (catchConstraint (ValueCmpHet cmp t m n) :: m () -> m ()) $ do
     reportSLn "tc.conv.atom.size" 50 $ "compareAtom term size:  " ++ show (termSize m, termSize n)
     reportSDoc "tc.conv.atom" 50 $
       "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
@@ -459,24 +470,24 @@ compareAtom cmp t m n =
     -- constructorForm changes literal to constructors
     -- only needed if the other side is not a literal
     (mb'', nb'') <- case (ignoreBlocking mb', ignoreBlocking nb') of
-      (Lit _, Lit _) -> return (mb', nb')
-      _ -> (,) <$> traverse constructorForm mb'
-               <*> traverse constructorForm nb'
+      (H'LHS (Lit _), H'RHS (Lit _)) -> return (mb', nb')
+      _ -> (,) <$> traverse (onSide @'LHS constructorForm) mb'
+               <*> traverse (onSide @'RHS constructorForm) nb'
 
-    mb <- traverse unLevel mb''
-    nb <- traverse unLevel nb''
+    mb <- traverse (onSide @'LHS unLevel) mb''
+    nb <- traverse (onSide @'RHS unLevel) nb''
 
     cmpBlocked <- viewTC eCompareBlocked
 
     let m = ignoreBlocking mb
         n = ignoreBlocking nb
 
-        postpone u = addConstraint u $ ValueCmp cmp t m n
+        postpone u = addConstraint u $ ValueCmpHet cmp t m n
 
         -- Jesper, 2019-05-14, Issue #3776: If the type is blocked,
         -- the comparison could be solved by eta-expansion so we
         -- cannot fail hard
-        postponeIfBlockedAs :: CompareAs -> (Blocked CompareAs -> m ()) -> m ()
+        postponeIfBlockedAs :: CompareAsHet -> (Blocked CompareAsHet -> m ()) -> m ()
         postponeIfBlockedAs AsTypes       f = f $ NotBlocked ReallyNotBlocked AsTypes
         postponeIfBlockedAs AsSizes       f = f $ NotBlocked ReallyNotBlocked AsSizes
         postponeIfBlockedAs (AsTermsOf t) f = ifBlocked t
@@ -485,13 +496,15 @@ compareAtom cmp t m n =
               err         -> throwError err)
           (\nb t -> f $ NotBlocked nb $ AsTermsOf t)
 
-        checkDefinitionalEquality = unlessM (pureCompareAs CmpEq t m n) $
+        checkDefinitionalEquality = unlessM (pureCompareAs_ CmpEq t m n) $
                                       postpone (unblockOnAnyMetaIn (m, n))
 
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
-        assign dir x es v = assignE dir x es v t $ compareAtomDir dir t
+
+        assign :: forall s. LeftOrRightSide s => CompareDirection -> MetaId -> Elims -> Het s Term -> m ()
+        assign dir x es v = assignE_ dir x es v t $ compareAtomDir_ dir t
 
     reportSDoc "tc.conv.atom" 30 $
       "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
@@ -505,8 +518,8 @@ compareAtom cmp t m n =
     case (mb, nb) of
       -- equate two metas x and y.  if y is the younger meta,
       -- try first y := x and then x := y
-      _ | MetaV x xArgs <- ignoreBlocking mb,   -- Can be either Blocked or NotBlocked depending on
-          MetaV y yArgs <- ignoreBlocking nb -> -- envCompareBlocked check above.
+      _ | H'LHS (MetaV x xArgs) <- ignoreBlocking mb,   -- Can be either Blocked or NotBlocked depending on
+          H'RHS (MetaV y yArgs) <- ignoreBlocking nb -> -- envCompareBlocked check above.
         if | x == y, cmpBlocked -> do
               a <- metaType x
               compareElims [] [] a (MetaV x []) xArgs yArgs
@@ -535,18 +548,18 @@ compareAtom cmp t m n =
                           r1 = assign rid y yArgs m
                           -- Careful: the first attempt might prune the low
                           -- priority meta! (Issue #2978)
-                          l2 = ifM (isInstantiatedMeta x) (compareAsDir dir t m n) l1
-                          r2 = ifM (isInstantiatedMeta y) (compareAsDir rid t n m) r1
+                          l2 = ifM (isInstantiatedMeta x) (compareAsDir_ dir t m n) l1
+                          r2 = ifM (isInstantiatedMeta y) (compareAsDir_ rid t n m) r1
 
               -- Unblock on both unblockers of solve1 and solve2
               catchPatternErr (`addOrUnblocker` solve2) solve1
 
       -- one side a meta
-      _ | MetaV x es <- ignoreBlocking mb -> assign dir x es n
-      _ | MetaV x es <- ignoreBlocking nb -> assign rid x es m
+      _ | H'LHS (MetaV x es) <- ignoreBlocking mb -> assign dir x es n
+      _ | H'RHS (MetaV x es) <- ignoreBlocking nb -> assign rid x es m
       (Blocked{}, Blocked{})  -> checkDefinitionalEquality
-      (Blocked b _, _) -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term goes first
-      (_, Blocked b _) -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
+      (Blocked b _, _) -> useInjectivity_ (fromCmp cmp) b t m n   -- The blocked term goes first
+      (_, Blocked b _) -> useInjectivity_ (flipCmp $ fromCmp cmp) b t n m
       _ -> postponeIfBlockedAs t $ \bt -> do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.
@@ -557,7 +570,7 @@ compareAtom cmp t m n =
         -- Andreas, 2015-07-01, actually, don't put them into the spine.
         -- Polarity cannot be communicated properly if projection-like
         -- functions are post-fix.
-        case (m, n) of
+        case (unHet @'LHS m, unHet @'RHS n) of
           (Pi{}, Pi{}) -> equalFun m n
 
           (Sort s1, Sort s2) ->
@@ -578,7 +591,7 @@ compareAtom cmp t m n =
               unlessM (bothAbsurd f f') $ do
 
               -- 2. If the heads are unequal, the only chance is subtyping between SIZE and SIZELT.
-              if f /= f' then trySizeUniv cmp t m n f es f' es' else do
+              if f /= f' then trySizeUniv_ cmp t m n f es f' es' else do
 
               -- 3. If the heads are equal:
               -- 3a. If there are no arguments, we are done.
@@ -599,14 +612,14 @@ compareAtom cmp t m n =
               | x == y -> do
                   -- Get the type of the constructor instantiated to the datatype parameters.
                   a' <- case t of
-                    AsTermsOf a -> conType x a
+                    AsTermsOf a -> twinDirty <$> conType x `traverse` a
                     AsSizes   -> __IMPOSSIBLE__
                     AsTypes   -> __IMPOSSIBLE__
                   forcedArgs <- getForcedArgs $ conName x
                   -- Constructors are covariant in their arguments
                   -- (see test/succeed/CovariantConstructors).
-                  compareElims (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
-          _ -> typeError $ UnequalTerms cmp m n $ ignoreBlocking bt
+                  compareElims_ (repeat $ polFromCmp cmp) forcedArgs a' (pure$ Con x ci []) (H'LHS xArgs) (H'RHS yArgs)
+          _ -> typeError $ UnequalTerms_ cmp m n $ ignoreBlocking bt
     where
         -- returns True in case we handled the comparison already.
         compareEtaPrims :: MonadConversion m => QName -> Elims -> Elims -> m Bool
@@ -689,7 +702,7 @@ compareAtom cmp t m n =
                 patternViolation neverUnblock
           maybe impossible (return . snd) =<< getFullyAppliedConType c t
         equalFun t1 t2 = case (t1, t2) of
-          (Pi dom1 b1, Pi dom2 b2) -> do
+          (H'LHS (Pi dom1 b1), H'RHS (Pi dom2 b2)) -> do
             verboseBracket "tc.conv.fun" 15 "compare function types" $ do
               reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                 [ "t1 =" <+> prettyTCM t1
@@ -698,10 +711,10 @@ compareAtom cmp t m n =
               compareDom_ (flipCmp $ fromCmp cmp) dom1 dom2 b1 b2 errH errR errQ errC $
                 compareType cmp (absBody b1) (absBody b2)
             where
-            errH = typeError $ UnequalHiding t1 t2
-            errR = typeError $ UnequalRelevance cmp t1 t2
-            errQ = typeError $ UnequalQuantity  cmp t1 t2
-            errC = typeError $ UnequalCohesion cmp t1 t2
+            errH = typeError $ UnequalHiding_ t1 t2
+            errR = typeError $ UnequalRelevance_ cmp t1 t2
+            errQ = typeError $ UnequalQuantity_  cmp t1 t2
+            errC = typeError $ UnequalCohesion_ cmp t1 t2
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
@@ -731,8 +744,7 @@ compareDom_ cmp0
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
           dependent = (r /= Irrelevant) && dirToCmp (\_ _ b2 -> isBinderUsed b2) cmp b1 b2
-      pid <- newProblem_ $ dirToCmp_ (\x₁ (HetP x₂ x₃) -> compareType_ x₁ x₂ x₃)
-                             cmp0 (HetP (asTwin a1) (asTwin a2))
+      pid <- newProblem_ $ dirToCmp_ (\dir () -> compareType_ dir) cmp0 () (H'LHS a1) (H'RHS a2)
       -- Chose the smaller type and domain
       let (a0,dom0) = dirToCmp (\_ a1 _ -> a1) cmp (a1,dom1) (a2,dom2)
       (a0', dom0') <- if dependent
@@ -853,6 +865,10 @@ antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
       antiUnifyElims pid (b `lazyAbsApp` unArg w) (apply self [w]) es1 es2
     _ -> patternViolation neverUnblock
 antiUnifyElims _ _ _ _ _ = patternViolation neverUnblock -- trigger maybeGiveUp in antiUnify
+
+-- TODO: Switch to proper implementation instead of downgrading
+compareElims_ :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> TwinT' Type -> TwinT' Term -> H'LHS [Elim] -> H'RHS [Elim] -> m ()
+compareElims_ pols0 fors0 a v (H'LHS els01) (H'RHS els02) = compareElims pols0 fors0 (twinAt @'Compat a) (twinAt @'Compat v) els01 els02
 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.

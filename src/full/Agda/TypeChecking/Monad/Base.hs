@@ -1166,6 +1166,8 @@ type CompareAs = CompareAs' Type
 
 type CompareAsHet = CompareAs' TwinT
 
+type CompareAs_ = CompareAs' TwinT
+
 instance Free a => Free (CompareAs' a) where
   freeVars' (AsTermsOf a) = freeVars' a
   freeVars' AsSizes       = mempty
@@ -2711,6 +2713,24 @@ contextHetFromList = coerce . S.fromList
 -- * Describing parts of twin contexts
 
 data HetSide = LHS | RHS | Compat | Whole | Both
+
+type H'LHS = Het 'LHS
+type H'RHS = Het 'RHS
+
+pattern H'LHS :: a -> H'LHS a
+pattern H'LHS a = Het a
+
+pattern H'RHS :: a -> H'RHS a
+pattern H'RHS a = Het a
+
+#if __GLASGOW_HASKELL__ >= 802
+{-# COMPLETE H'LHS #-}
+{-# COMPLETE H'RHS #-}
+#endif
+
+onSide :: forall s a m b. (Applicative m) => (a -> m b) -> Het s a -> m (Het s b)
+onSide = traverse
+
 -- Dependent type boilerplate
 data instance SingT (a :: HetSide) where
   SLHS    :: SingT 'LHS
@@ -2742,12 +2762,23 @@ type family LeftOrRightSide_ (s :: HetSide) :: Bool where
   LeftOrRightSide_ 'Whole  = 'False
 type LeftOrRightSide s = (Sing s, LeftOrRightSide_ s ~ 'True)
 
+-- | Distinguishes which sides of a twin type corresponds to a single type
+type family AreSides_ (s₁ :: HetSide) (s₂ :: HetSide) :: Bool where
+  AreSides_ 'LHS 'RHS = 'True
+  AreSides_ 'RHS 'LHS = 'True
+  AreSides_ _    _    = 'False
+type AreSides s₁ s₂ = (LeftOrRightSide s₁, LeftOrRightSide s₂, AreSides_ s₁ s₂ ~ 'True)
+
 newtype Het (side :: HetSide) t = Het { unHet :: t }
   deriving (Foldable, Traversable, Pretty)
 
 -- | Switch heterogeneous context to a specific side
-switchSide :: forall s m a. (HetSideIsType s, MonadAddContext m) => m a -> m a
+switchSide :: forall s a m. (HetSideIsType s, MonadAddContext m) => m a -> m a
 switchSide = updateContext IdS (asTwin . twinAt @s)
+
+switchSide_ :: forall s b a m. (HetSideIsType s, MonadAddContext m, a ~ Het s b) => m a -> m a
+switchSide_ = switchSide @s @(Het s b)
+
 
 deriving instance (Typeable side, Data t) => Data (Het side t)
 deriving instance Show t => Show (Het side t)
@@ -3850,6 +3881,26 @@ data TypeError
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
           deriving Show
+
+pattern UnequalTerms_ :: Comparison -> H'LHS Term -> H'RHS Term -> CompareAsHet -> TypeError
+pattern UnequalTerms_ dir u v a <- UnequalTerms dir (Het -> u) (Het -> v) (asTwin -> a)
+  where UnequalTerms_ dir (Het u) (Het v) (twinAt @'Compat -> a) = UnequalTerms dir u v a
+
+pattern UnequalRelevance_ :: Comparison -> H'LHS Term -> H'RHS Term -> TypeError
+pattern UnequalRelevance_ dir u v <- UnequalRelevance dir (Het -> u) (Het -> v)
+  where UnequalRelevance_ dir (Het u) (Het v) = UnequalRelevance dir u v
+
+pattern UnequalQuantity_ :: Comparison -> H'LHS Term -> H'RHS Term -> TypeError
+pattern UnequalQuantity_ dir u v <- UnequalQuantity dir (Het -> u) (Het -> v)
+  where UnequalQuantity_ dir (Het u) (Het v) = UnequalQuantity dir u v
+
+pattern UnequalCohesion_ :: Comparison -> H'LHS Term -> H'RHS Term -> TypeError
+pattern UnequalCohesion_ dir u v <- UnequalCohesion dir (Het -> u) (Het -> v)
+  where UnequalCohesion_ dir (Het u) (Het v) = UnequalCohesion dir u v
+
+pattern UnequalHiding_ :: H'LHS Term -> H'RHS Term -> TypeError
+pattern UnequalHiding_ u v <- UnequalHiding (Het -> u) (Het -> v)
+  where UnequalHiding_ (Het u) (Het v) = UnequalHiding u v
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn deriving (Eq, Show)

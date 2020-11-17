@@ -22,6 +22,7 @@ type MonadConversion m =
 
 compareTerm  :: MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareAs    :: MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
+compareAs_   :: MonadConversion m => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
 compareTermOnFace :: MonadConversion m => Comparison -> Term -> Type -> Term -> Term -> m ()
 compareAtom  :: MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
 compareArgs  :: MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> Args -> Args -> m ()

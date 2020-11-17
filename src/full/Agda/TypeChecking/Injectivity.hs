@@ -60,6 +60,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
+import Agda.TypeChecking.Heterogeneous hiding (length)
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -70,6 +71,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Dependent
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -284,6 +286,15 @@ functionInverse v = case v of
 
 data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
+
+-- TODO: Switch to proper implementation instead of downgrading
+useInjectivity_ :: forall s₁ s₂ m. (MonadConversion m, AreSides s₁ s₂) =>
+                   CompareDirection -> Blocker -> CompareAsHet -> Het s₁ Term -> Het s₂ Term -> m ()
+useInjectivity_ dir bs a u v = go sing sing u v
+  where
+    go :: SingT s₁ -> SingT s₂ -> Het s₁ Term -> Het s₂ Term -> m ()
+    go SLHS SRHS (H'LHS u) (H'RHS v) = useInjectivity dir bs (twinAt @'Compat a) u v
+    go SRHS SLHS (H'RHS v) (H'LHS u) = flipContext $ useInjectivity dir bs (twinAt @'Compat$ flipHet a) v u
 
 -- | Precondition: The first term must be blocked on the given meta and the second must be neutral.
 useInjectivity :: MonadConversion m => CompareDirection -> Blocker -> CompareAs -> Term -> Term -> m ()

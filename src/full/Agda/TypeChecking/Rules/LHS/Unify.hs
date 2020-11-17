@@ -252,6 +252,7 @@ data Equality = Equal
 
 instance Reduce Equality where
   reduce' (Equal a u v) = Equal <$> reduce' a <*> reduce' u <*> reduce' v
+  reduceB' = defaultReduceB'notBlocked
 
 eqConstructorForm :: HasBuiltins m => Equality -> m Equality
 eqConstructorForm (Equal a u v) = Equal a <$> constructorForm u <*> constructorForm v
@@ -308,6 +309,7 @@ lensEqTel    f s = f (eqTel s) <&> \ x -> s { eqTel = x }
 -- dummy instance should prevent a proper 'Reduce' instance for 'UnifyState'.
 instance Reduce UnifyState where
   reduce' = __IMPOSSIBLE__
+  reduceB' = __IMPOSSIBLE__
 
 --UNUSED Liang-Ting Chen 2019-07-16
 --reduceEqTel :: UnifyState -> TCM UnifyState

@@ -36,6 +36,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -317,7 +318,9 @@ class Reduce t where
     reduceB' :: t -> ReduceM (Blocked t)
 
     reduce'  t = ignoreBlocking <$> reduceB' t
-    reduceB' t = notBlocked <$> reduce' t
+
+defaultReduceB'notBlocked :: (Reduce a) => a -> ReduceM (Blocked' t a)
+defaultReduceB'notBlocked t = notBlocked <$> reduce' t
 
 instance Reduce Type where
     reduce'  (El s t) = workOnTypes $ El s <$> reduce' t
@@ -346,10 +349,14 @@ instance Reduce Sort where
         DefS d es  -> return s -- postulated sorts do not reduce
         DummyS{}   -> return s
 
+    reduceB' = defaultReduceB'notBlocked
+
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
   reduce' (Proj o f)= pure $ Proj o f
   reduce' (IApply x y v) = IApply <$> reduce' x <*> reduce' y <*> reduce' v
+
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce Level where
   reduce'  (Max m as) = levelMax m <$> mapM reduce' as
@@ -361,10 +368,12 @@ instance Reduce PlusLevel where
 instance (Subst a, Reduce a) => Reduce (Abs a) where
   reduce' b@(Abs x _) = Abs x <$> underAbstraction_ b reduce'
   reduce' (NoAbs x v) = NoAbs x <$> reduce' v
+  reduceB' = defaultReduceB'notBlocked
 
 -- Lists are never blocked
 instance Reduce t => Reduce [t] where
-    reduce' = traverse reduce'
+  reduce' = traverse reduce'
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce t => Reduce (Arg t) where
     reduce' a = case getRelevance a of
@@ -773,13 +782,17 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM
                 | otherwise     -> rewrite (NotBlocked AbsurdMatch ()) (applyE v) rewr es
 
 instance Reduce a => Reduce (Closure a) where
-    reduce' cl = do
-        x <- enterClosure cl reduce'
-        return $ cl { clValue = x }
+  reduce' cl = do
+      x <- enterClosure cl reduce'
+      return $ cl { clValue = x }
+
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce Telescope where
   reduce' EmptyTel          = return EmptyTel
   reduce' (ExtendTel a tel) = ExtendTel <$> reduce' a <*> reduce' tel
+
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do
@@ -808,19 +821,28 @@ instance Reduce Constraint where
   reduce' c@CheckMetaInst{}     = return c
   reduce' (UsableAtModality mod t) = UsableAtModality mod <$> reduce' t
 
+  reduceB' = defaultReduceB'notBlocked
+
 instance (HetSideIsType side, Reduce a) => Reduce (Het side a) where
-  reduce' = traverse (switchSide @side . reduce')
+  reduce'  = traverse (switchSide @side . reduce')
+  reduceB' = fmap (fmap (Het @side)) . switchSide @side . reduceB' . unHet @side
 
 instance Reduce a => Reduce (CompareAs' a) where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
   reduce' AsSizes       = return AsSizes
   reduce' AsTypes       = return AsTypes
 
+  reduceB' (AsTermsOf a) = fmap AsTermsOf <$> reduceB' a
+  reduceB' AsSizes       = return $ notBlocked AsSizes
+  reduceB' AsTypes       = return $ notBlocked AsTypes
+
 instance Reduce e => Reduce (Map k e) where
-    reduce' = traverse reduce'
+  reduce' = traverse reduce'
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce Candidate where
   reduce' (Candidate q u t ov) = Candidate q <$> reduce' u <*> reduce' t <*> pure ov
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce EqualityView where
   reduce' (OtherType t)            = OtherType
@@ -832,6 +854,8 @@ instance Reduce EqualityView where
     <*> reduce' t
     <*> reduce' a
     <*> reduce' b
+
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce t => Reduce (IPBoundary' t) where
   reduce' = traverse reduce'
@@ -1546,8 +1570,20 @@ instance InstantiateFull EqualityView where
 instance Instantiate TwinT where
   instantiate' = traverse instantiate'
 
+-- TODO: Do not reduce/reduceB' twinCompat
+-- | Note: reduceB does not block on the compatibility element
 instance Reduce TwinT where
-  reduce' = traverse reduce'
+  reduce' (SingleT a) = SingleT <$> reduce' a
+  reduce'  TwinT{necessary,twinPid,twinLHS=a,twinCompat=b,twinRHS=c} =
+               reduce' (a,b,c) <&> \(a',b',c') ->
+                 TwinT{necessary,twinPid,twinLHS=a',twinCompat=b',twinRHS=c'}
+
+  reduceB' (SingleT a) = fmap SingleT <$> reduceB' a
+  reduceB'  TwinT{necessary,twinPid,twinLHS=a,twinCompat=b,twinRHS=c} = do
+               b' <- reduce b
+               reduceB' (a,c) <&> fmap (\(a',c') ->
+                 TwinT{necessary,twinPid,twinLHS=a',twinCompat=b',twinRHS=c'})
+
 
 instance Simplify TwinT where
   simplify' = traverse simplify'

@@ -194,16 +194,28 @@ data HetP a = HetP (Het 'LHS a) (Het 'RHS a)
 instance FlipHet (HetP a) where
   flipHet (HetP a b) = HetP (flipHet b) (flipHet a)
 
+instance FlipHet CompareDirection where
+  type FlippedHet CompareDirection = CompareDirection
+  flipHet = flipCmp
+
 -- errorInContextHet :: forall het. (Sing het) => If_ het ContextHet () -> TypeError -> TypeError
 -- errorInContextHet ctx = case sing :: SingT het of
 --  STrue  -> ErrorInContextHet (unIf ctx)
 --  SFalse -> case ctx of If () -> id
 
 {-# INLINE dirToCmp_ #-}
-dirToCmp_ :: (FlipHet a, FlippedHet a ~ a) => (Comparison -> a -> c) -> CompareDirection -> a -> c
-dirToCmp_ κ DirGeq a = κ CmpLeq (flipHet a)
-dirToCmp_ κ DirEq  a = κ CmpEq  a
-dirToCmp_ κ DirLeq a = κ CmpLeq a
+dirToCmp_ :: forall s₁ s₂ m t a c. (FlipHet t, FlippedHet t ~ t, MonadAddContext m, AreSides s₁ s₂) =>
+             (Comparison -> t -> Het 'LHS a -> Het 'RHS a -> m c) ->
+              CompareDirection -> t -> Het s₁ a -> Het s₂ a -> m c
+dirToCmp_ κ dir a u v = go sing sing dir
+  where
+    go :: SingT s₁ -> SingT s₂ -> CompareDirection -> m c
+    go SLHS SRHS DirGeq = flipContext$ κ CmpLeq (flipHet a) (flipHet v) (flipHet u)
+    go SLHS SRHS DirEq  = κ CmpEq  a u v
+    go SLHS SRHS DirLeq = κ CmpLeq a u v
+    go SRHS SLHS DirGeq = κ CmpLeq a v u
+    go SRHS SLHS DirEq  = flipContext$ κ CmpEq  (flipHet a) (flipHet u) (flipHet v)
+    go SRHS SLHS DirLeq = flipContext$ κ CmpLeq (flipHet a) (flipHet u) (flipHet v)
 
 drop :: Int -> ContextHet -> ContextHet
 drop n = ContextHet . S.drop n . unContextHet

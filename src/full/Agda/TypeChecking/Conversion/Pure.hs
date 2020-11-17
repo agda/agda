@@ -47,8 +47,13 @@ pureEqualType a b =
 pureCompareAs
   :: (PureTCM m, MonadBlock m)
   => Comparison -> CompareAs -> Term -> Term -> m Bool
-pureCompareAs cmp a u v =
-  isRight <$> runPureConversion (compareAs cmp a u v)
+pureCompareAs cmp a u v = pureCompareAs_ cmp (asTwin a) (Het @'LHS u) (Het @'RHS v)
+
+pureCompareAs_
+  :: (PureTCM m, MonadBlock m)
+  => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m Bool
+pureCompareAs_ cmp a u v =
+  isRight <$> runPureConversion (compareAs_ cmp a u v)
 
 runPureConversion
   :: (MonadBlock m, PureTCM m, Show a)

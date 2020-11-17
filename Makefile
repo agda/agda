@@ -347,6 +347,14 @@ common :
 		$(MAKE) -C test/Common )
 
 .PHONY : succeed ##
+custom :
+	@$(call decorate, "Suite of successful tests", \
+		echo $(AGDA_BIN) > test/Succeed/exec-tc/executables && \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_CUSTOM_ARGS) ; \
+		rm test/Succeed/exec-tc/executables )
+
+
+.PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
 		echo $(AGDA_BIN) > test/Succeed/exec-tc/executables && \
