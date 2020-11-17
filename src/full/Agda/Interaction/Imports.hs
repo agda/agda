@@ -651,11 +651,18 @@ typeCheck
      -- ^ @Bool@ is: are the state changes from this interface already incorporated to the current state?
 typeCheck x file isMain msi = do
   case isMain of
-    MainInterface _ -> do
-      r <- createInterface x file isMain msi
-      return (True, r)
+    MainInterface _ -> (True,) <$> createInterface x file isMain msi
+    NotMainInterface -> (False,) <$> createInterfaceIsolated x file msi
 
-    NotMainInterface -> do
+createInterfaceIsolated
+  :: C.TopLevelModuleName
+     -- ^ Module name of file we process.
+  -> SourceFile
+     -- ^ File we process.
+  -> Maybe SourceInfo
+     -- ^ Optional information about the source code.
+  -> TCM (Interface, [TCWarning])
+createInterfaceIsolated x file msi = do
       cleanCachedLog
 
       ms          <- getImportPath
@@ -698,7 +705,7 @@ typeCheck x file isMain msi = do
                setVisitedModules vs
                addImportedThings isig ibuiltin ipatsyns display userwarn partialdefs []
 
-               r  <- createInterface x file isMain msi
+               r  <- createInterface x file NotMainInterface msi
                mf' <- useTC stModuleToSource
                ds' <- getDecodedModules
                return (r, mf', ds')
@@ -715,14 +722,14 @@ typeCheck x file isMain msi = do
           -- file, only the cached interface. (This comment is not
           -- correct, see
           -- test/Fail/customised/NestedProjectRoots.err.)
-          stored <- fmap (False,) <$> getStoredInterface x file
+          stored <- getStoredInterface x file
 
           -- NOTE: This attempts to type-check FOREVER if for some
           -- reason it continually fails to get the stored interface.
-          let recheck = typeCheck x file isMain msi
+          let recheck = createInterfaceIsolated x file msi
           maybe recheck pure stored
 
-        _ -> return (False, r)
+        _ -> return r
 
 -- | Formats and outputs the "Checking", "Finished" and "Loading " messages.
 
