@@ -458,16 +458,13 @@ instance Unquote R.Pattern where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ [] ->
-        choice
-          [ (c `isCon` primAgdaPatAbsurd, return R.AbsurdP)
-          ] __IMPOSSIBLE__
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
-          [ (c `isCon` primAgdaPatVar,  R.VarP . fromInteger <$> unquoteN x)
-          , (c `isCon` primAgdaPatDot,  R.DotP  <$> unquoteN x)
-          , (c `isCon` primAgdaPatProj, R.ProjP <$> unquoteN x)
-          , (c `isCon` primAgdaPatLit,  R.LitP  <$> unquoteN x) ]
+          [ (c `isCon` primAgdaPatVar,    R.VarP    . fromInteger <$> unquoteN x)
+          , (c `isCon` primAgdaPatAbsurd, R.AbsurdP . fromInteger <$> unquoteN x)
+          , (c `isCon` primAgdaPatDot,    R.DotP  <$> unquoteN x)
+          , (c `isCon` primAgdaPatProj,   R.ProjP <$> unquoteN x)
+          , (c `isCon` primAgdaPatLit,    R.LitP  <$> unquoteN x) ]
           __IMPOSSIBLE__
       Con c _ es | Just [x, y] <- allApplyElims es ->
         choice

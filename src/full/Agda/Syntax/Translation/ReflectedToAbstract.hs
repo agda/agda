@@ -69,7 +69,7 @@ withVar s t f = do
 withNames :: MonadReflectedToAbstract m => [String] -> ([Name] -> m a) -> m a
 withNames ss = withVars $ zip ss $ repeat R.Unknown
 
-withVars :: MonadReflectedToAbstract m => [(String,R.Type)] -> ([Name] -> m a) -> m a
+withVars :: MonadReflectedToAbstract m => [(String, R.Type)] -> ([Name] -> m a) -> m a
 withVars ss f = case ss of
   []     -> f []
   ((s,t):ss) -> withVar s t $ \n -> withVars ss $ \ns -> f (n:ns)
@@ -209,6 +209,12 @@ mkVar i = ifJustM (askVar i) return $ do
 mkVarName :: MonadReflectedToAbstract m => Int -> m Name
 mkVarName i = fst <$> mkVar i
 
+annotatePattern :: MonadReflectedToAbstract m => Int -> R.Type -> A.Pattern -> m A.Pattern
+annotatePattern _ R.Unknown p = return p
+annotatePattern i t p = local (drop $ i + 1) $ do
+  t <- toAbstract t  -- ^^ go into the right context for translating the type
+  return $ A.AnnP patNoRange t p
+
 instance ToAbstract Sort where
   type AbsOfRef Sort = Expr
   toAbstract s = do
@@ -226,16 +232,12 @@ instance ToAbstract R.Pattern where
       return $ A.ConP (ConPatInfo ConOCon patNoRange ConPatEager) (unambiguous $ killRange c) args
     R.DotP t -> A.DotP patNoRange <$> toAbstract t
     R.VarP i -> do
-      (x,t) <- mkVar i
-      let p = A.VarP $ mkBindName x
-      case t of
-        R.Unknown -> return p
-        _         -> do
-          -- go into the right context for translating the type
-          e <- local (drop $ i+1) $ toAbstract t
-          return $ A.AnnP patNoRange e p
+      (x, t) <- mkVar i
+      annotatePattern i t $ A.VarP $ mkBindName x
     R.LitP l  -> return $ A.LitP patNoRange l
-    R.AbsurdP -> return $ A.AbsurdP patNoRange
+    R.AbsurdP i -> do
+      (_, t) <- mkVar i
+      annotatePattern i t $ A.AbsurdP patNoRange
     R.ProjP d -> return $ A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d
 
 instance ToAbstract (QNamed R.Clause) where
