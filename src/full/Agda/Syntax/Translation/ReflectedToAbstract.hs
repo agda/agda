@@ -7,6 +7,8 @@ import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 
@@ -30,6 +32,7 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
+import Agda.Utils.Pretty
 import Agda.Utils.Functor
 import Agda.Utils.Singleton
 import Agda.Utils.Size
@@ -244,11 +247,13 @@ instance ToAbstract (QNamed R.Clause) where
   type AbsOfRef (QNamed R.Clause) = A.Clause
 
   toAbstract (QNamed name (R.Clause tel pats rhs)) = withVars (map (Text.unpack *** unArg) tel) $ \_ -> do
+    checkClauseTelescopeBindings tel pats
     pats <- toAbstract pats
     rhs  <- toAbstract rhs
     let lhs = spineToLhs $ SpineLHS empty name pats
     return $ A.Clause lhs [] (RHS rhs Nothing) noWhereDecls False
-  toAbstract (QNamed name (R.AbsurdClause tel pats)) = withNames (map (Text.unpack . fst) tel) $ \_ -> do
+  toAbstract (QNamed name (R.AbsurdClause tel pats)) = withVars (map (Text.unpack *** unArg) tel) $ \_ -> do
+    checkClauseTelescopeBindings tel pats
     pats <- toAbstract pats
     let lhs = spineToLhs $ SpineLHS empty name pats
     return $ A.Clause lhs [] AbsurdRHS noWhereDecls False
@@ -260,3 +265,29 @@ instance ToAbstract [QNamed R.Clause] where
 instance ToAbstract (List1 (QNamed R.Clause)) where
   type AbsOfRef (List1 (QNamed R.Clause)) = List1 A.Clause
   toAbstract = traverse toAbstract
+
+-- | Check that all variables in the telescope are bound in the left-hand side. Since we check the
+--   telescope by attaching type annotations to the pattern variables there needs to be somewhere to
+--   put the annotation. Also, since the lhs is where the variables are actually bound, missing a
+--   binding for a variable that's used later in the telescope causes unbound variable panic
+--   (see #5044).
+checkClauseTelescopeBindings :: MonadReflectedToAbstract m => [(Text, Arg R.Type)] -> [Arg R.Pattern] -> m ()
+checkClauseTelescopeBindings tel pats =
+  case reverse [ x | ((x, _), i) <- zip (reverse tel) [0..], not $ Set.member i bs ] of
+    [] -> return ()
+    xs -> genericDocError $ ("Missing bindings for telescope variable" <> s) <?>
+                              (fsep (punctuate ", " $ map (text . Text.unpack) xs) <> ".") $$
+                             "All variables in the clause telescope must be bound in the left-hand side."
+      where s | length xs == 1 = empty
+              | otherwise      = "s"
+  where
+    bs = boundVars pats
+
+    boundVars = Set.unions . map (bound . unArg)
+    bound (R.VarP i)    = Set.singleton i
+    bound (R.ConP _ ps) = boundVars ps
+    bound R.DotP{}      = Set.empty
+    bound R.LitP{}      = Set.empty
+    bound (R.AbsurdP i) = Set.singleton i
+    bound R.ProjP{}     = Set.empty
+
