@@ -575,8 +575,6 @@ getStoredInterfaceE
      -- ^ File we process.
   -> ExceptT String TCM (Interface, [TCWarning])
 getStoredInterfaceE x file = do
-  let fp = filePath $ srcFilePath file
-
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
   -- read and decode it. Otherwise use the stored version.
@@ -601,6 +599,25 @@ getStoredInterfaceE x file = do
       (False,) <$> (lift $ readInterface ifile)
 
   i <- maybe (throwError "bad interface, re-type checking") pure mi
+
+  r <- validateLoadedInterface file i
+
+  unless cached $ do
+    lift $ chaseMsg "Loading " x $ Just ifp
+    -- print imported warnings
+    let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
+    unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+
+  return r
+
+
+validateLoadedInterface
+  :: SourceFile
+     -- ^ File we process.
+  -> Interface
+  -> ExceptT String TCM (Interface, [TCWarning])
+validateLoadedInterface file i = do
+  let fp = filePath $ srcFilePath file
 
   -- Check that it's the right version
   reportSLn "import.iface" 5 $ "  imports: " ++ prettyShow (iImportedModules i)
@@ -632,12 +649,6 @@ getStoredInterfaceE x file = do
   -- If any of the imports are newer we need to retype check
   unless (hs == map snd (iImportedModules i)) $
     throwError "hash of imported interface is incorrect"
-
-  unless cached $ do
-    lift $ chaseMsg "Loading " x $ Just ifp
-    -- print imported warnings
-    let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
-    unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
   return (i, [])
 
@@ -708,7 +719,6 @@ createInterfaceIsolated x file msi = do
       setDecodedModules newDecodedModules
       case r of
         (i, []) -> do
-          storeDecodedModule i
           -- We skip the file which has just been type-checked to
           -- be able to forget some of the local state from
           -- checking the module.
@@ -716,12 +726,15 @@ createInterfaceIsolated x file msi = do
           -- file, only the cached interface. (This comment is not
           -- correct, see
           -- test/Fail/customised/NestedProjectRoots.err.)
-          stored <- getStoredInterface x file
+          validated <- runExceptT $ validateLoadedInterface file i
 
           -- NOTE: This attempts to type-check FOREVER if for some
-          -- reason it continually fails to get the stored interface.
-          let recheck = createInterfaceIsolated x file msi
-          maybe recheck pure stored
+          -- reason it continually fails to validate interface.
+          let recheckOnError = \msg -> do
+                reportSLn "import.iface" 1 $ "Failed to validate just-loaded interface: " ++ msg
+                createInterfaceIsolated x file msi
+
+          either recheckOnError pure validated
 
         _ -> return r
 
