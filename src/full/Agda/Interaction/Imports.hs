@@ -1027,12 +1027,11 @@ createInterface file mname isMain msi =
     -- permanently freeze them now by turning them into postulates.
     -- This will enable serialization.
     -- savedMetaStore <- useTC stMetaStore
-    allowUnsolved <- optAllowUnsolved <$> pragmaOptions
     unless (includeStateChanges isMain) $
       -- Andreas, 2018-11-15, re issue #3393:
       -- We do not get here when checking the main module
       -- (then includeStateChanges is True).
-      when allowUnsolved $ do
+      whenM (optAllowUnsolved <$> pragmaOptions) $ do
         reportSLn "import.iface.create" 7 "Turning unsolved metas (if any) into postulates."
         withCurrentModule (scope ^. scopeCurrent) openMetasToPostulates
         -- Clear constraints as they might refer to what
