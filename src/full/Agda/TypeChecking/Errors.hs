@@ -217,6 +217,7 @@ errorString err = case err of
   SplitOnUnusableCohesion{}                -> "SplitOnUnusableCohesion"
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
+  SplitOnNonEtaRecord{}                    -> "SplitOnNonEtaRecord"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
@@ -517,6 +518,9 @@ instance PrettyTCM TypeError where
     SplitOnNonVariable v t -> fsep $
       pwords "Cannot pattern match because the (refined) argument " ++
       [ prettyTCM v ] ++ pwords " is not a variable."
+
+    SplitOnNonEtaRecord q -> fsep $
+      pwords "Pattern matching on no-eta record types is by default not allowed"
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"

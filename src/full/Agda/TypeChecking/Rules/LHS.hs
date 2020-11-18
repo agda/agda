@@ -1227,7 +1227,7 @@ checkLHS mf = updateModality checkLHS_ where
             IsData{}   -> False
             IsRecord{} -> True
 
-      checkMatchingAllowed dr  -- No splitting on coinductive constructors.
+      checkMatchingAllowed d dr  -- No splitting on coinductive constructors.
       addContext delta1 $ checkSortOfSplitVar dr a delta2 (Just target)
 
       -- Jesper, 2019-09-13: if the data type we split on is a strict
@@ -1428,13 +1428,15 @@ checkLHS mf = updateModality checkLHS_ where
 
 -- | Ensures that we are not performing pattern matching on coinductive constructors.
 
-checkMatchingAllowed :: (MonadTCError m) => DataOrRecord -> m ()
-checkMatchingAllowed = \case
+checkMatchingAllowed :: (MonadTCError m)
+  => QName         -- ^ The name of the data or record type the constructor belongs to.
+  -> DataOrRecord  -- ^ Information about data or (co)inductive (no-)eta-equality record.
+  -> m ()
+checkMatchingAllowed d = \case
   IsRecord ind eta
     | Just CoInductive <- ind -> typeError $
         GenericError "Pattern matching on coinductive types is not allowed"
-    | not $ patternMatchingAllowed eta -> typeError $
-        GenericError "Pattern matching on no-eta record types is by default not allowed"
+    | not $ patternMatchingAllowed eta -> typeError $ SplitOnNonEtaRecord d
     | otherwise -> return ()
   IsData -> return ()
 

@@ -3497,6 +3497,7 @@ data TypeError
         | SplitOnUnusableCohesion (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
+        | SplitOnNonEtaRecord QName
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
         | VariableIsIrrelevant Name
