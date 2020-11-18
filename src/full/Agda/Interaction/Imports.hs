@@ -26,6 +26,7 @@ import qualified Control.Exception as E
 import Control.Monad.Fail (MonadFail)
 #endif
 
+import Data.Either (lefts)
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Set (Set)
@@ -643,11 +644,18 @@ validateLoadedInterface file i ws = do
         ]
       throwError "options changed"
 
-  hs <- mapM (lift . moduleHash . fst) (iImportedModules i)
-
   -- If any of the imports are newer we need to retype check
-  unless (hs == map snd (iImportedModules i)) $
-    throwError "hash of imported interface is incorrect"
+  badHashMessages <- fmap lefts $ forM (iImportedModules i) $ \(impName, impHash) -> runExceptT $ do
+    reportSLn "import.iface" 30 $ concat ["Checking that module hash of import ", prettyShow impName, " matches ", prettyShow impHash ]
+    latestImpHash <- lift $ lift $ moduleHash impName
+    reportSLn "import.iface" 30 $ concat ["Done checking module hash of import ", prettyShow impName]
+    when (impHash /= latestImpHash) $
+      throwError $ concat
+        [ "module hash for imported module ", prettyShow impName, " is out of date"
+        , " (import cached=", prettyShow impHash, ", latest=", prettyShow latestImpHash, ")"
+        ]
+
+  unlessNull badHashMessages (throwError . unlines)
 
   return (i, ws)
 
