@@ -559,33 +559,44 @@ getStoredInterface
      -- ^ File we process.
   -> TCM (Maybe (Interface, [TCWarning]))
 getStoredInterface x file = do
+  -- If something goes wrong (interface outdated etc.)
+  -- we revert to fresh type checking.
+  runMaybeT $ exceptToMaybeT $ getStoredInterfaceE x file
+
+getStoredInterfaceE
+  :: C.TopLevelModuleName
+     -- ^ Module name of file we process.
+  -> SourceFile
+     -- ^ File we process.
+  -> ExceptT String TCM (Interface, [TCWarning])
+getStoredInterfaceE x file = do
   let fp = filePath $ srcFilePath file
   -- If something goes wrong (interface outdated etc.)
   -- we revert to fresh type checking.
-  let fallback = return Nothing
+  let fallback = throwError "re-checking"
 
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
   -- read and decode it. Otherwise use the stored version.
-  ifile <- toIFile file
+  ifile <- lift $ toIFile file
   let ifp = filePath ifile
   h <- liftIO $ fmap snd <$> getInterfaceFileHashes ifile
-  mm <- getDecodedModule x
+  mm <- lift $ getDecodedModule x
   (cached, mi) <- Bench.billTo [Bench.Deserialization] $ case mm of
     Just mi ->
       if Just (iFullHash mi) /= h
       then do
-        dropDecodedModule x
+        lift $ dropDecodedModule x
         reportSLn "import.iface" 50 $ "  cached hash = " ++ show (iFullHash mi)
         reportSLn "import.iface" 50 $ "  stored hash = " ++ show h
         reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifp
-        (False,) <$> readInterface ifile
+        (False,) <$> (lift $ readInterface ifile)
       else do
         reportSLn "import.iface" 5 $ "  using stored version of " ++ ifp
         return (True, Just mi)
     Nothing -> do
       reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifp
-      (False,) <$> readInterface ifile
+      (False,) <$> (lift $ readInterface ifile)
 
   -- Check that it's the right version
   case mi of
@@ -599,7 +610,7 @@ getStoredInterface x file = do
       -- we can check that they are compatible with those of the
       -- imported modules. Also, if the top-level file is skipped we
       -- want the pragmas to apply to interactive commands in the UI.
-      mapM_ setOptionsFromPragma (iPragmaOptions i)
+      lift $ mapM_ setOptionsFromPragma (iPragmaOptions i)
 
       -- Check that options that matter haven't changed compared to
       -- current options (issue #2487)
@@ -620,19 +631,19 @@ getStoredInterface x file = do
           return True
 
       if optionsChanged then fallback else do
-        hs <- mapM (moduleHash . fst) (iImportedModules i)
+        hs <- mapM (lift . moduleHash . fst) (iImportedModules i)
 
         -- If any of the imports are newer we need to retype check
         if hs /= map snd (iImportedModules i)
           then fallback
           else do
             unless cached $ do
-              chaseMsg "Loading " x $ Just ifp
+              lift $ chaseMsg "Loading " x $ Just ifp
               -- print imported warnings
               let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
               unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
-            return $ Just (i, [])
+            return (i, [])
 
 -- | Run the type checker on a file and create an interface.
 --
