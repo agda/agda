@@ -888,6 +888,7 @@ createInterface
 createInterface file mname isMain msi =
   Bench.billTo [Bench.TopModule mname] $
   localTC (\e -> e { envCurrentPath = Just (srcFilePath file) }) $ do
+    let onlyScope = isMain == MainInterface ScopeCheck
 
     reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ prettyShow mname ++ "."
@@ -935,7 +936,6 @@ createInterface file mname isMain msi =
       -- Generate and print approximate syntax highlighting info.
       ifTopLevelAndHighlightingLevelIs NonInteractive $
         printHighlightingInfo KeepHighlighting fileTokenInfo
-      let onlyScope = isMain == MainInterface ScopeCheck
       ifTopLevelAndHighlightingLevelIsOr NonInteractive onlyScope $
         mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial onlyScope) ds
     reportSLn "import.iface.create" 7 "Finished highlighting from scope."
@@ -959,11 +959,11 @@ createInterface file mname isMain msi =
         cleanCachedLog
     writeToCurrentLog $ Pragmas opts
 
-    case isMain of
-      MainInterface ScopeCheck -> do
+    if onlyScope
+      then do
         reportSLn "import.iface.create" 7 "Skipping type checking."
         cacheCurrentLog
-      _ -> do
+      else do
         reportSLn "import.iface.create" 7 "Starting type checking."
         Bench.billTo [Bench.Typing] $ mapM_ checkDeclCached ds `finally_` cacheCurrentLog
         reportSLn "import.iface.create" 7 "Finished type checking."
