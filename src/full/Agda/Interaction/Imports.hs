@@ -561,7 +561,12 @@ getStoredInterface
 getStoredInterface x file = do
   -- If something goes wrong (interface outdated etc.)
   -- we revert to fresh type checking.
-  runMaybeT $ exceptToMaybeT $ getStoredInterfaceE x file
+  mr <- runExceptT $ getStoredInterfaceE x file
+  case mr of
+    Right mi -> return $ Just mi
+    Left msg -> do
+      reportSLn "import.iface" 5 $ "  " ++ msg
+      return Nothing
 
 getStoredInterfaceE
   :: C.TopLevelModuleName
@@ -571,9 +576,6 @@ getStoredInterfaceE
   -> ExceptT String TCM (Interface, [TCWarning])
 getStoredInterfaceE x file = do
   let fp = filePath $ srcFilePath file
-  -- If something goes wrong (interface outdated etc.)
-  -- we revert to fresh type checking.
-  let fallback = throwError "re-checking"
 
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
@@ -598,52 +600,46 @@ getStoredInterfaceE x file = do
       reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifp
       (False,) <$> (lift $ readInterface ifile)
 
+  i <- maybe (throwError "bad interface, re-type checking") pure mi
+
   -- Check that it's the right version
-  case mi of
-    Nothing       -> do
-      reportSLn "import.iface" 5 "  bad interface, re-type checking"
-      fallback
-    Just i        -> do
-      reportSLn "import.iface" 5 $ "  imports: " ++ prettyShow (iImportedModules i)
+  reportSLn "import.iface" 5 $ "  imports: " ++ prettyShow (iImportedModules i)
 
-      -- We set the pragma options of the skipped file here, so that
-      -- we can check that they are compatible with those of the
-      -- imported modules. Also, if the top-level file is skipped we
-      -- want the pragmas to apply to interactive commands in the UI.
-      lift $ mapM_ setOptionsFromPragma (iPragmaOptions i)
+  -- We set the pragma options of the skipped file here, so that
+  -- we can check that they are compatible with those of the
+  -- imported modules. Also, if the top-level file is skipped we
+  -- want the pragmas to apply to interactive commands in the UI.
+  lift $ mapM_ setOptionsFromPragma (iPragmaOptions i)
 
-      -- Check that options that matter haven't changed compared to
-      -- current options (issue #2487)
-      optionsChanged <-ifM ((not <$> asksTC envCheckOptionConsistency) `or2M`
-                            Lens.isBuiltinModule fp)
-                       {-then-} (return False) {-else-} $ do
-        currentOptions <- useTC stPragmaOptions
-        let disagreements =
-              [ optName | (opt, optName) <- restartOptions,
-                          opt currentOptions /= opt (iOptionsUsed i) ]
-        if null disagreements then return False else do
-          reportSLn "import.iface.options" 4 $ concat
-            [ "  Changes in the following options in "
-            , prettyShow fp
-            , ", re-typechecking: "
-            , prettyShow disagreements
-            ]
-          return True
+  -- Check that options that matter haven't changed compared to
+  -- current options (issue #2487)
+  whenM ((asksTC envCheckOptionConsistency) `and2M` (lift $ not <$> Lens.isBuiltinModule fp)) $ do
+    currentOptions <- useTC stPragmaOptions
+    let disagreements =
+          [ optName | (opt, optName) <- restartOptions,
+                      opt currentOptions /= opt (iOptionsUsed i) ]
+    unless (null disagreements) $ do
+      reportSLn "import.iface.options" 4 $ concat
+        [ "  Changes in the following options in "
+        , prettyShow fp
+        , ", re-typechecking: "
+        , prettyShow disagreements
+        ]
+      throwError "options changed"
 
-      if optionsChanged then fallback else do
-        hs <- mapM (lift . moduleHash . fst) (iImportedModules i)
+  hs <- mapM (lift . moduleHash . fst) (iImportedModules i)
 
-        -- If any of the imports are newer we need to retype check
-        if hs /= map snd (iImportedModules i)
-          then fallback
-          else do
-            unless cached $ do
-              lift $ chaseMsg "Loading " x $ Just ifp
-              -- print imported warnings
-              let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
-              unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+  -- If any of the imports are newer we need to retype check
+  unless (hs == map snd (iImportedModules i)) $
+    throwError "hash of imported interface is incorrect"
 
-            return (i, [])
+  unless cached $ do
+    lift $ chaseMsg "Loading " x $ Just ifp
+    -- print imported warnings
+    let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
+    unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
+
+  return (i, [])
 
 -- | Run the type checker on a file and create an interface.
 --
