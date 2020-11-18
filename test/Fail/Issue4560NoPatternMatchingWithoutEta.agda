@@ -18,7 +18,11 @@ foo : R → A
 foo (con x y) = x
 
 -- Expected error here:
--- Pattern matching on no-eta record types is by default not allowed
+--
+-- Pattern matching on no-eta record type R
+-- (defined at ...)
+-- is not allowed
+-- (to activate, add declaration `pattern` to record definition)
 -- when checking that the pattern con x y has type R
 
 bar : R

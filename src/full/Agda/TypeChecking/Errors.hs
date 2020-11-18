@@ -519,8 +519,13 @@ instance PrettyTCM TypeError where
       pwords "Cannot pattern match because the (refined) argument " ++
       [ prettyTCM v ] ++ pwords " is not a variable."
 
-    SplitOnNonEtaRecord q -> fsep $
-      pwords "Pattern matching on no-eta record types is by default not allowed"
+    SplitOnNonEtaRecord q -> fsep $ concat
+      [ pwords "Pattern matching on no-eta record type"
+      , [ prettyTCM q, parens ("defined at" <+> prettyTCM r) ]
+      , pwords "is not allowed"
+      , [ parens "to activate, add declaration `pattern` to record definition" ]
+      ]
+      where r = nameBindingSite $ qnameName q
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
