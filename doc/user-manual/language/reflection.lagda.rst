@@ -246,7 +246,7 @@ de Bruijn indices to represent variables.
     var    : (x : Nat   )  → Pattern
     lit    : (l : Literal) → Pattern
     proj   : (f : Name)    → Pattern
-    absurd : Pattern
+    absurd : (x : Nat)     → Pattern  -- Absurd patterns have de Bruijn indices
 
   data Clause where
     clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause

@@ -310,10 +310,13 @@ Reflection
   clause, the types in the clause telescope are currently ignored (but
   this is subject to change in the future).
 
-  Two constructors of the `Pattern` datatype were also changed:
-  pattern variables now refer to a de Bruijn index (relative to the
-  clause telescope) rather than a string, and dot patterns now include
-  the actual dotted term.
+  Three constructors of the `Pattern` datatype were also changed:
+
+  * pattern variables now refer to a de Bruijn index (relative to the
+    clause telescope) rather than a string,
+  * absurd patterns take a de Bruijn index and are expected to be bound by the
+    clause telescope,
+  * dot patterns now include the actual dotted term.
 
   ```agda
   data Pattern where
@@ -322,7 +325,7 @@ Reflection
     var    : (x : Nat)     → Pattern   -- previously:   var : (x : String) → Pattern
     lit    : (l : Literal) → Pattern
     proj   : (f : Name)    → Pattern
-    absurd : Pattern
+    absurd : (x : Nat)     → Pattern
   ```
 
   It is likely that this change to the reflected syntax requires you
@@ -338,11 +341,11 @@ Reflection
     telescope for the types of the pattern variables. To get back the
     old behaviour of Agda, it is sufficient to set all the types of
     the pattern variables to `unknown`. So you can construct the
-    telescope by listing the names of all pattern variables together
-    with their `ArgInfo`. Meanwhile, the pattern variables should be
-    numbered in order to update them to the new representation. As for
-    the telescope types, the contents of a `dot` pattern can safely be
-    set to `unknown`.
+    telescope by listing the names of all pattern variables and absurd patterns
+    together with their `ArgInfo`. Meanwhile, the pattern variables should be
+    numbered in order to update them to the new representation. As for the
+    telescope types, the contents of a `dot` pattern can safely be set to
+    `unknown`.
 
 - New operation in `TC` monad, `execTC`, which calls an external executable
   ```agda
