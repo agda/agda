@@ -27,7 +27,6 @@ import qualified Control.Exception as E
 import Control.Monad.Fail (MonadFail)
 #endif
 
-import Data.Either (isRight)
 import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Set (Set)
@@ -412,13 +411,6 @@ getInterface' x isMain msi =
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
 
-      uptodate <- runExceptT $ Bench.billTo [Bench.Import] $ isStoredInterfaceUpToDate x file msi
-
-      reportSLn "import.iface" 5 $ concat
-        [ "  ", prettyShow x, " is "
-        , either ("not up-to-date because " ++) (const "up-to-date") uptodate
-        , "." ]
-
       (stateChangesIncluded, (i, wt)) <- do
         -- -- Andreas, 2014-10-20 AIM XX:
         -- -- Always retype-check the main file to get the iInsideScope
@@ -426,17 +418,21 @@ getInterface' x isMain msi =
         -- let maySkip = isMain == NotMainInterface
         -- Andreas, 2015-07-13: Serialize iInsideScope again.
         -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
-        let maySkip = isMain /= MainInterface (TypeCheck TopLevelInteraction)
+        stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
+          when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
+            throwError "we always re-check the main interface in top-level interaction"
 
-        stored <- runMaybeT $ do
-          guard (isRight uptodate && maySkip)
-          (False,) <$> (MaybeT $ getStoredInterface x file)
+          isStoredInterfaceUpToDate x file msi
+          reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is up-to-date."]
+          (False,) <$> getStoredInterface x file
 
-        let recheck = case isMain of
-              MainInterface _ -> (True,) <$> createInterface x file isMain msi
-              NotMainInterface -> (False,) <$> createInterfaceIsolated x file msi
+        let recheck = \reason -> do
+              reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
+              case isMain of
+                MainInterface _ -> (True,) <$> createInterface x file isMain msi
+                NotMainInterface -> (False,) <$> createInterfaceIsolated x file msi
 
-        maybe recheck pure stored
+        either recheck pure stored
 
       -- Ensure that the given module name matches the one in the file.
       let topLevelName = toTopLevelModuleName $ iModuleName i
@@ -580,24 +576,8 @@ getStoredInterface
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
-  -> TCM (Maybe (Interface, [TCWarning]))
-getStoredInterface x file = do
-  -- If something goes wrong (interface outdated etc.)
-  -- we revert to fresh type checking.
-  mr <- runExceptT $ getStoredInterfaceE x file
-  case mr of
-    Right mi -> return $ Just mi
-    Left msg -> do
-      reportSLn "import.iface" 5 $ "  " ++ msg
-      return Nothing
-
-getStoredInterfaceE
-  :: C.TopLevelModuleName
-     -- ^ Module name of file we process.
-  -> SourceFile
-     -- ^ File we process.
   -> ExceptT String TCM (Interface, [TCWarning])
-getStoredInterfaceE x file = do
+getStoredInterface x file = do
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
   -- read and decode it. Otherwise use the stored version.
