@@ -516,21 +516,29 @@ isCached
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
-  -> MaybeT TCM Interface
-
+  -> ExceptT String TCM Interface
 isCached x file = do
   -- Check that we have cached the module.
-  mi <- MaybeT $ getDecodedModule x
+  i <- maybeToExceptT "the interface has not been decoded" $ MaybeT $
+    getDecodedModule x
 
-  ifile <- MaybeT $ findInterfaceFile' file
+  ifile <- maybeToExceptT "the interface file could not be found" $ MaybeT $
+    findInterfaceFile' file
 
   -- Check that the interface file exists and return its hash.
-  h  <- MaybeT $ liftIO $ fmap snd <$> getInterfaceFileHashes' ifile
+  h <- maybeToExceptT "the interface file hash could not be read" $ MaybeT $ liftIO $
+    fmap snd <$> getInterfaceFileHashes' ifile
 
   -- Make sure the hashes match.
-  guard $ iFullHash mi == h
+  let cachedIfaceHash = iFullHash i
+  unless (cachedIfaceHash == h) $
+    throwError $ concat
+      [ "the cached interface hash (", show cachedIfaceHash, ")"
+      , " does not match interface file (", show h, ")"
+      ]
 
-  return mi
+
+  return i
 
 isStoredInterfaceUpToDate
   :: C.TopLevelModuleName
@@ -540,8 +548,7 @@ isStoredInterfaceUpToDate
   -> Maybe SourceInfo
   -> ExceptT String TCM ()
 isStoredInterfaceUpToDate x file msi = do
-  cachedE <- lift $ runExceptT $ maybeToExceptT "the interface has not been decoded" $
-    isCached x file
+  cachedE <- lift $ runExceptT $ isCached x file
 
   ifaceH <- case cachedE of
     -- If it's cached ignoreInterfaces has no effect;
