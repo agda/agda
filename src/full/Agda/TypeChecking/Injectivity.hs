@@ -60,7 +60,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
-import Agda.TypeChecking.Heterogeneous hiding (length)
+import Agda.TypeChecking.Heterogeneous hiding (length, (!!!))
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute

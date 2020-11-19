@@ -2681,6 +2681,12 @@ newtype ContextHet' a = ContextHet { unContextHet :: Seq a }
   deriving (Data, Show, Functor, Foldable)
 type ContextHet = ContextHet' (Dom (Name, TwinT))
 
+type Context_' a = ContextHet' a
+type Context_ = ContextHet
+
+instance Pretty a => Pretty (Context_' a) where
+  pretty = pretty . contextHetToList
+
 pattern Empty :: ContextHet
 pattern Empty                    = ContextHet S.Empty
 
@@ -2704,7 +2710,8 @@ pattern a :⊢: ctx <- ContextHet ((ContextHet -> ctx) S.:|> a)
 
 -- | > contextHetAsList (a :⊣ b :⊣ … :⊣ Empty)
 --     (a:b:…:[])
-contextHetToList :: ContextHet -> [Dom (Name, TwinT)]
+-- Also: contextHetToList :: ContextHet -> [Dom (Name, TwinT)]
+contextHetToList :: Context_' a -> [a]
 contextHetToList = toList
 
 contextHetFromList :: [Dom (Name, TwinT)] -> ContextHet

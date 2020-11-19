@@ -25,6 +25,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
 import Agda.Utils.Dependent
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import qualified Agda.Utils.List
 
 import Agda.Utils.Impossible
 
@@ -62,11 +63,10 @@ instance TwinAt s ()   where
 
 instance TwinAt s Term where twinAt = id
 instance TwinAt s Type where twinAt = id
-instance (TwinAt s a, TwinAt s b, Sing het, TwinAt_ s a ~ TwinAt_ s b) => TwinAt s (If_ het a b) where
-  type TwinAt_ s (If_ het a b) = TwinAt_ s a
-  twinAt = case sing :: SingT het of
-    STrue  -> twinAt @s . unIf
-    SFalse -> twinAt @s . unIf
+
+instance TwinAt s a => TwinAt s (Maybe a) where
+  type TwinAt_ s (Maybe a) = Maybe (TwinAt_ s a)
+  twinAt = fmap (twinAt @s)
 
 -- -- | Various specializations of @addCtx@.
 -- class AddContextHet b where
@@ -95,36 +95,6 @@ instance (TwinAt s a, TwinAt s b, Sing het, TwinAt_ s a ~ TwinAt_ s b) => TwinAt
 --              If_ het ContextHet () -> m a -> m a
 -- underHet_ = underHet' @s @m @a @het (sing :: SingT het) . unIf
 --
-
-type IfHet_ het side a = If  het (Het side a) a
-type IfHet het side a =  If_ het (Het side a) a
-newtype If_ het a b = If { unIf :: If het a b }
-pattern IfHet :: forall s het a. IfHet_ het s a -> IfHet het s a
-pattern IfHet a = If a
-
-{-# INLINE mkIfHet #-}
-mkIfHet :: forall s het a. (Sing het) => IfHet_ het s a -> IfHet het s a
-mkIfHet = If
-
-{-# INLINE mkIfHet_ #-}
-mkIfHet_ :: forall s het a. (Sing het) => Het s a -> IfHet het s a
-mkIfHet_ = mkHet_ . unHet
-
-{-# INLINE mkHet_ #-}
-mkHet_ :: forall s het a. (Sing het) => a -> IfHet het s a
-mkHet_ = case sing :: SingT het of
-  STrue -> If . Het
-  SFalse -> If . id
-
-{-# INLINE rHet_ #-}
-rHet_ :: forall s het het' a. (Sing het, Sing het') => IfHet het' s a -> IfHet het s a
-rHet_ = mkHet_ . unHet_
-
-{-# INLINE unHet_ #-}
-unHet_ :: forall s het a. (Sing het) => IfHet het s a -> a
-unHet_ = case sing :: SingT het of
-  STrue  -> unHet . unIf
-  SFalse -> id . unIf
 
 {-# INLINE commuteHet #-}
 commuteHet :: (Coercible (f a) (f (Het s a))) => Het s (f a) -> f (Het s a)
@@ -176,12 +146,6 @@ instance FlipHet a => FlipHet (CompareAs' a) where
    type FlippedHet (CompareAs' a) = CompareAs' (FlippedHet a)
    flipHet = fmap flipHet
 
-instance (Sing het, FlipHet a, FlipHet b) => FlipHet (If_ het a b) where
-  type FlippedHet (If_ het a b) = If_ het (FlippedHet a) (FlippedHet b)
-  flipHet = case sing :: SingT het of
-    STrue  -> If . flipHet . unIf
-    SFalse -> If . flipHet . unIf
-
 instance (FlipHet a, FlipHet b) => FlipHet (a, b) where
   type FlippedHet (a, b) = (FlippedHet a, FlippedHet b)
   flipHet (a,b) = (flipHet a, flipHet b)
@@ -225,6 +189,9 @@ length = S.length . unContextHet
 
 (⊣::) :: [Dom (Name, Type)] -> ContextHet -> ContextHet
 as ⊣:: ctx =  ContextHet ( fmap (fmap (fmap (SingleT . Het))) (S.fromList as) <> unContextHet  ctx)
+
+(!!!) :: ContextHet -> Int -> Maybe (Dom (Name, TwinT))
+ctx !!! n = contextHetToList ctx Agda.Utils.List.!!! n
 
 -- | Switch heterogeneous context to a specific side
 flipContext :: (MonadAddContext m) => m a -> m a

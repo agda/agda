@@ -454,7 +454,12 @@ getContext = asksTC (twinAt @'Compat . envContext)
 -- | Get the current context.
 {-# SPECIALIZE getContextHet :: TCM ContextHet #-}
 getContextHet :: MonadTCEnv m => m ContextHet
-getContextHet = asksTC envContext
+getContextHet = getContext_
+
+-- | Get the current context.
+{-# SPECIALIZE getContextHet :: TCM ContextHet #-}
+getContext_ :: MonadTCEnv m => m ContextHet
+getContext_ = asksTC envContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
@@ -486,26 +491,42 @@ getContextNames = map (fst . unDom) <$> getContext
 --
 {-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe (Dom (Name, Type))) #-}
 lookupBV' :: MonadTCEnv m => Nat -> m (Maybe (Dom (Name, Type)))
-lookupBV' n = do
-  ctx <- getContext
-  return $ raise (n + 1) <$> ctx !!! n
+lookupBV' = fmap (twinAt @'Compat) . lookupBV'_
+
+{-# SPECIALIZE lookupBV'_ :: Nat -> TCM (Maybe (Dom (Name, TwinT))) #-}
+lookupBV'_ :: MonadTCEnv m => Nat -> m (Maybe (Dom (Name, TwinT)))
+lookupBV'_ n = do
+  ctx <- getContext_
+  return $ raise (n + 1) <$> ctx H.!!! n
 
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
 lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
-lookupBV n = do
+lookupBV = fmap (twinAt @'Compat) . lookupBV_
+
+{-# SPECIALIZE lookupBV_ :: Nat -> TCM (Dom (Name, TwinT)) #-}
+lookupBV_ :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, TwinT))
+lookupBV_ n = do
   let failure = do
-        ctx <- getContext
+        ctx <- getContext_
         fail $ "de Bruijn index out of scope: " ++ show n ++
-               " in context " ++ prettyShow (map (fst . unDom) ctx)
-  maybeM failure return $ lookupBV' n
+               " in context " ++ prettyShow (fmap (fst . unDom) ctx)
+  maybeM failure return $ lookupBV'_ n
 
 {-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
 domOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
-domOfBV n = fmap snd <$> lookupBV n
+domOfBV = fmap (twinAt @'Compat) . domOfBV_
+
+{-# SPECIALIZE domOfBV_ :: Nat -> TCM (Dom TwinT) #-}
+domOfBV_ :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom TwinT)
+domOfBV_ n = fmap snd <$> lookupBV_ n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
 typeOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
-typeOfBV i = unDom <$> domOfBV i
+typeOfBV = fmap (twinAt @'Compat) . typeOfBV_
+
+{-# SPECIALIZE typeOfBV_ :: Nat -> TCM TwinT #-}
+typeOfBV_ :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m TwinT
+typeOfBV_ i = unDom <$> domOfBV_ i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
 nameOfBV' :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Maybe Name)
