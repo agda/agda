@@ -399,7 +399,7 @@ getInterface'
      -- ^ Optional information about the source code.
   -> TCM (Interface, MaybeWarnings)
 getInterface' x isMain msi =
-  withIncreasedModuleNestingLevel $
+  addImportCycleCheck x $
     -- Preserve the pragma options unless we are checking the main
     -- interface.
     bracket_ (useTC stPragmaOptions)
@@ -417,7 +417,7 @@ getInterface' x isMain msi =
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
        return currentOptions
 
-     alreadyVisited x isMain currentOptions $ addImportCycleCheck x $ do
+     alreadyVisited x isMain currentOptions $ do
       file <- findFile x  -- requires source to exist
 
       reportSLn "import.iface" 10 $ "  Check for cycle"
@@ -675,7 +675,6 @@ typeCheck x file isMain msi = do
 
     NotMainInterface -> do
       ms          <- getImportPath
-      nesting     <- asksTC envModuleNestingLevel
       range       <- asksTC envRange
       call        <- asksTC envCall
       mf          <- useTC stModuleToSource
@@ -698,12 +697,12 @@ typeCheck x file isMain msi = do
            -- should be restored after the module has been type-checked
            freshTCM $
              withImportPath ms $
-             localTC (\e -> e { envModuleNestingLevel = nesting
+             localTC (\e -> e
                               -- Andreas, 2014-08-18:
                               -- Preserve the range of import statement
                               -- for reporting termination errors in
                               -- imported modules:
-                            , envRange              = range
+                            { envRange              = range
                             , envCall               = call
                             }) $ do
                setDecodedModules ds
@@ -748,7 +747,7 @@ chaseMsg
   -> Maybe String         -- ^ Optionally: the file name.
   -> TCM ()
 chaseMsg kind x file = do
-  indentation <- (`replicate` ' ') <$> asksTC envModuleNestingLevel
+  indentation <- (`replicate` ' ') <$> asksTC (pred . length . envImportPath)
   let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
       vLvl | kind == "Checking" = 1
            | otherwise          = 2
@@ -896,7 +895,7 @@ createInterface file mname isMain msi =
     mapM_ setOptionsFromPragma options
 
     verboseS "import.iface.create" 15 $ do
-      nestingLevel      <- asksTC envModuleNestingLevel
+      nestingLevel      <- asksTC (pred . length . envImportPath)
       highlightingLevel <- asksTC envHighlightingLevel
       reportSLn "import.iface.create" 15 $ unlines
         [ "  nesting      level: " ++ show nestingLevel

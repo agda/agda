@@ -1082,11 +1082,12 @@ give_gen force ii rng s0 giveRefine = do
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
-  localTC (\st -> st { envModuleNestingLevel = 0
+  localTC (\st -> st { envImportPath         = [dummyModule]
                      , envHighlightingLevel  = NonInteractive
                      , envHighlightingMethod = Direct }) $
     generateAndPrintSyntaxInfo decl Full True
   where
+    dummyModule = C.toTopLevelModuleName (C.QName noName_)
     dummy = mkName_ (NameId 0 0) ("dummy" :: String)
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
     decl  = A.Axiom OtherDefName info defaultArgInfo Nothing (qnameFromList $ singleton dummy) e
