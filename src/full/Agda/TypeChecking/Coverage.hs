@@ -226,7 +226,8 @@ coverageCheck f t cs = do
                       , namedClausePats   = applySubst sub ps
                       , clauseBody        = Nothing
                       , clauseType        = Nothing
-                      , clauseCatchall    = False
+                      , clauseCatchall    = True       -- absurd clauses are safe as catch-all
+                      , clauseExact       = Just False
                       , clauseRecursive   = Just False
                       , clauseUnreachable = Just False
                       , clauseEllipsis    = NoEllipsis
@@ -251,9 +252,15 @@ coverageCheck f t cs = do
 
   -- Andreas, 2017-08-28, issue #2723:
   -- Mark clauses as reachable or unreachable in the signature.
-  let (is0, cs1) = unzip $ for (zip [0..] cs) $ \ (i, cl) ->
-        let unreachable = i `IntSet.notMember` used in
-        (boolToMaybe unreachable i, cl { clauseUnreachable = Just unreachable  })
+  -- Andreas, 2020-11-19, issue #5065
+  -- Remember whether clauses are exact or not.
+  let (is0, cs1) = unzip $ for (zip [0..] cs) $ \ (i, cl) -> let
+          unreachable = i `IntSet.notMember` used
+          exact       = i `IntSet.notMember` (IntSet.fromList noex)
+        in (boolToMaybe unreachable i, cl
+             { clauseUnreachable = Just unreachable
+             , clauseExact       = Just exact
+             })
   -- is = indices of unreachable clauses
   let is = catMaybes is0
   reportSDoc "tc.cover.top" 10 $ vcat
@@ -325,15 +332,18 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   reportSLn "tc.cover.cover" 80 $ "raw target =\n" ++ show target
   match cs ps >>= \case
     Yes (i,mps) -> do
-      exact <- allM (map snd mps) isTrivialPattern
-      let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
-      let noExactClause = if exact || clauseCatchall (indexWithDefault __IMPOSSIBLE__ cs i)
-                          then empty
-                          else singleton i
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
-      reportSDoc "tc.cover.cover" 20 $ text "with mps = " <+> do addContext tel $ pretty $ mps
+      reportSDoc "tc.cover.cover" 20 $ text "with mps = " <+> do addContext tel $ pretty mps
+      exact <- allM mps $ isTrivialPattern . snd
+      let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
       cl <- applyCl sc cl0 mps
-      return $ CoverResult (SplittingDone (size tel)) (singleton i) [] [cl] noExactClause
+      return $ CoverResult
+        { coverSplitTree      = SplittingDone (size tel)
+        , coverUsedClauses    = singleton i
+        , coverMissingClauses = []
+        , coverPatterns       = [cl]
+        , coverNoExactClauses = IntSet.fromList [ i | not $ exact || clauseCatchall cl0 ]
+        }
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
@@ -429,6 +439,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseBody      = (`applyE` patternsToElims extra) . (s `applyPatSubst`) <$> clauseBody cl
                     , clauseType      = ty
                     , clauseCatchall  = clauseCatchall cl
+                    , clauseExact     = clauseExact cl
                     , clauseRecursive = clauseRecursive cl
                     , clauseUnreachable = clauseUnreachable cl
                     , clauseEllipsis  = clauseEllipsis cl
@@ -475,7 +486,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
               psss  = map coverMissingClauses results
-              qsss  = map coverPatterns results
+              qsss  = map coverPatterns       results
               noex  = map coverNoExactClauses results
           -- Jesper, 2016-03-10  We need to remember which variables were
           -- eta-expanded by the unifier in order to generate a correct split
@@ -818,6 +829,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
                     , clauseBody      = Just $ rhs
                     , clauseType      = Just $ defaultArg t
                     , clauseCatchall  = False
+                    , clauseExact       = Just True
                     , clauseRecursive   = Nothing     -- TODO: can it be recursive?
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
                     , clauseEllipsis  = NoEllipsis
@@ -856,6 +868,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , clauseBody      = Just rhs
                   , clauseType      = Just (argFromDom t)
                   , clauseCatchall  = False
+                  , clauseExact       = Just True
                   , clauseRecursive   = Nothing     -- could be recursive
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
                   , clauseEllipsis  = NoEllipsis

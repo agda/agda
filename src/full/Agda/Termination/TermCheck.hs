@@ -18,6 +18,7 @@ module Agda.Termination.TermCheck
 
 import Prelude hiding ( null )
 
+import Control.Applicative (liftA2)
 import Control.Monad.Reader
 
 import Data.Foldable (toList)
@@ -879,9 +880,10 @@ tryReduceNonRecursiveClause g es continue fallback = do
 
   -- Then, collect its non-recursive clauses.
   cls <- liftTCM $ getNonRecursiveClauses g
-  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "non-recursive clauses"]
+  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "non-recursive exact clauses"]
   reportSDoc "term.reduce" 80 $ vcat $ map (prettyTCM . NamedClause g True) cls
-  reportSLn  "term.reduce" 80 . ("allowed reductions = " ++) . show =<< asksTC envAllowedReductions
+  reportSLn  "term.reduce" 80 . ("allowed reductions = " ++) . show . SmallSet.elems
+    =<< asksTC envAllowedReductions
 
   -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
   r <- liftTCM $ modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
@@ -897,8 +899,11 @@ tryReduceNonRecursiveClause g es continue fallback = do
       continue v
 
 getNonRecursiveClauses :: QName -> TCM [Clause]
-getNonRecursiveClauses q = filter nonrec . defClauses <$> getConstInfo q
-  where nonrec = maybe False not . clauseRecursive
+getNonRecursiveClauses q =
+  filter (liftA2 (&&) nonrec exact) . defClauses <$> getConstInfo q
+  where
+  nonrec = maybe False not . clauseRecursive
+  exact  = fromMaybe False . clauseExact
 
 -- | Extract recursive calls from a term.
 

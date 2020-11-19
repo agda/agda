@@ -1,0 +1,6 @@
+Issue5065.agda:9,1-12,16
+Termination checking failed for the following functions:
+  bad
+Problematic calls:
+  bad b
+    (at Issue5065.agda:10,12-15)

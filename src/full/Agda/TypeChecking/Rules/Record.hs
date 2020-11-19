@@ -473,6 +473,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
                          , clauseBody      = Just $ rhs
+                         , clauseExact       = Just True
                          , clauseRecursive   = Just False  -- definitely non-recursive!
                          , clauseUnreachable = Just False
                          , clauseEllipsis  = NoEllipsis
@@ -489,6 +490,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
                          , clauseBody      = Just body
+                         , clauseExact       = Just True
                          , clauseRecursive   = Nothing
                              -- Andreas 2020-02-06 TODO
                              -- Or: Just False;  is it known to be non-recursive?
@@ -658,6 +660,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseBody      = body
                             , clauseType      = Just $ Arg ai t'
                             , clauseCatchall  = False
+                            , clauseExact       = Just True
                             , clauseRecursive   = Just False
                             , clauseUnreachable = Just False
                             , clauseEllipsis  = NoEllipsis

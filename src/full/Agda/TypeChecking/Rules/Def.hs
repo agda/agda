@@ -177,6 +177,7 @@ checkAlias t ai delayed i name e mc =
                           , clauseBody      = Just $ bodyMod v
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
+                          , clauseExact     = Just True
                           , clauseRecursive = Nothing   -- we don't know yet
                           , clauseUnreachable = Just False
                           , clauseEllipsis = NoEllipsis
@@ -318,6 +319,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                        , clauseBody = Nothing
                        , clauseType = Just (defaultArg t)
                        , clauseCatchall = False
+                       , clauseExact     = Just True
                        , clauseRecursive = Just False
                        , clauseUnreachable = Just False
                        , clauseEllipsis = NoEllipsis
@@ -707,6 +709,9 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         -- treat them as catchalls.
         let catchall' = catchall || isNothing body
 
+        -- absurd clauses are not exact
+        let exact = if isNothing body then Just False else Nothing -- we don't know yet
+
         return $ (, CPC psplit)
           Clause { clauseLHSRange  = getRange i
                  , clauseFullRange = getRange c
@@ -715,6 +720,7 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
                  , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall'
+                 , clauseExact       = exact
                  , clauseRecursive   = Nothing -- we don't know yet
                  , clauseUnreachable = Nothing -- we don't know yet
                  , clauseEllipsis  = lhsEllipsis i

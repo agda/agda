@@ -203,6 +203,7 @@ recheckAbstractClause t sub cl = checkClauseLHS t sub cl $ \ lhs ->
                , clauseBody        = Nothing -- We don't need the body for make case
                , clauseType        = Just (lhsBodyType lhs)
                , clauseCatchall    = False
+               , clauseExact       = Nothing
                , clauseRecursive   = Nothing
                , clauseUnreachable = Nothing
                , clauseEllipsis    = lhsEllipsis $ A.spLhsInfo $ A.clauseLHS cl
@@ -462,7 +463,7 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
     -- Contract implicit record patterns before printing.
     -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
-    let c = Clause noRange noRange tel ps Nothing (argFromDom <$> t) False Nothing Nothing ell
+    let c = Clause noRange noRange tel ps Nothing (argFromDom <$> t) False Nothing Nothing Nothing ell
     let ps = namedClausePats c
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
