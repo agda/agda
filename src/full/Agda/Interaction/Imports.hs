@@ -530,7 +530,11 @@ getStoredInterface x file msi = do
 
     -- Make sure the hashes match.
     let cachedIfaceHash = iFullHash i
-    unless (cachedIfaceHash == h) $
+    unless (cachedIfaceHash == h) $ do
+      lift $ dropDecodedModule x
+      reportSLn "import.iface" 50 $ "  cached hash = " ++ show cachedIfaceHash
+      reportSLn "import.iface" 50 $ "  stored hash = " ++ show h
+      reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ (filePath $ intFilePath ifile)
       throwError $ concat
         [ "the cached interface hash (", show cachedIfaceHash, ")"
         , " does not match interface file (", show h, ")"
@@ -571,35 +575,24 @@ getStoredInterface x file msi = do
   -- read and decode it. Otherwise use the stored version.
   ifile <- lift $ toIFile file
   let ifp = filePath ifile
-  h <- liftIO $ fmap snd <$> getInterfaceFileHashes ifile
-  mm <- lift $ getDecodedModule x
-  (cached, mi) <- Bench.billTo [Bench.Deserialization] $ case mm of
-    Just mi ->
-      if Just (iFullHash mi) /= h
-      then do
-        lift $ dropDecodedModule x
-        reportSLn "import.iface" 50 $ "  cached hash = " ++ show (iFullHash mi)
-        reportSLn "import.iface" 50 $ "  stored hash = " ++ show h
-        reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifp
-        (False,) <$> (lift $ readInterface ifile)
-      else do
-        reportSLn "import.iface" 5 $ "  using stored version of " ++ ifp
-        return (True, Just mi)
-    Nothing -> do
+
+  Bench.billTo [Bench.Deserialization] $ case cachedE of
+    Right i -> do
+      reportSLn "import.iface" 5 $ "  using stored version of " ++ ifp
+      validateLoadedInterface file i []
+    Left _whyNotInCache -> do
       reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifp
-      (False,) <$> (lift $ readInterface ifile)
+      i <- maybeToExceptT "bad interface, re-type checking" $ MaybeT $
+        readInterface ifile
 
-  i <- maybe (throwError "bad interface, re-type checking") pure mi
+      r <- validateLoadedInterface file i []
 
-  r <- validateLoadedInterface file i []
+      lift $ chaseMsg "Loading " x $ Just ifp
+      -- print imported warnings
+      let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
+      unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
-  unless cached $ do
-    lift $ chaseMsg "Loading " x $ Just ifp
-    -- print imported warnings
-    let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
-    unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
-
-  return r
+      return r
 
 
 validateLoadedInterface
