@@ -580,9 +580,9 @@ compareAtom_ cmp t m n =
 
           (Lit l1, Lit l2) | l1 == l2 -> return ()
           (Var i es, Var i' es') | i == i' -> do
-              a <- typeOfBV i
+              a <- typeOfBV_ i
               -- Variables are invariant in their arguments
-              compareElims [] [] a (var i) es es'
+              compareElims_ [] [] a (pure$ var i) (H'LHS es) (H'RHS es')
 
           -- The case of definition application:
           (Def f es, Def f' es') -> do
