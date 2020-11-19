@@ -412,11 +412,12 @@ getInterface' x isMain msi =
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
 
-      uptodate <- fmap isRight $ runExceptT $ Bench.billTo [Bench.Import] $ isStoredInterfaceUpToDate x file msi
+      uptodate <- runExceptT $ Bench.billTo [Bench.Import] $ isStoredInterfaceUpToDate x file msi
 
-      reportSLn "import.iface" 5 $
-        "  " ++ prettyShow x ++ " is " ++
-        (if uptodate then "" else "not ") ++ "up-to-date."
+      reportSLn "import.iface" 5 $ concat
+        [ "  ", prettyShow x, " is "
+        , either ("not up-to-date because " ++) (const "up-to-date") uptodate
+        , "." ]
 
       (stateChangesIncluded, (i, wt)) <- do
         -- -- Andreas, 2014-10-20 AIM XX:
@@ -428,7 +429,7 @@ getInterface' x isMain msi =
         let maySkip = isMain /= MainInterface (TypeCheck TopLevelInteraction)
 
         stored <- runMaybeT $ do
-          guard (uptodate && maySkip)
+          guard (isRight uptodate && maySkip)
           (False,) <$> (MaybeT $ getStoredInterface x file)
 
         let recheck = case isMain of
