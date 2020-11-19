@@ -526,7 +526,7 @@ getStoredInterface x file msi = do
 
     -- Check that the interface file exists and return its hash.
     h <- maybeToExceptT "the interface file hash could not be read" $ MaybeT $ liftIO $
-      fmap snd <$> getInterfaceFileHashes' ifile
+      fmap snd <$> getInterfaceFileHashes ifile
 
     -- Make sure the hashes match.
     let cachedIfaceHash = iFullHash i
@@ -554,9 +554,11 @@ getStoredInterface x file msi = do
         unlessM (lift $ Lens.isBuiltinModule (filePath $ srcFilePath file)) $
             throwError "we're ignoring non-builtin interface files"
 
-      mifile <- lift $ toIFile file
+      ifile <- maybeToExceptT "the interface file could not be found" $ MaybeT $
+        findInterfaceFile' file
+
       maybeToExceptT "the interface file hash could not be read" $ MaybeT $ liftIO $
-        fmap fst <$> getInterfaceFileHashes mifile
+        fmap fst <$> getInterfaceFileHashes ifile
 
   sourceH <- case msi of
                Nothing -> liftIO $ hashTextFile (srcFilePath file)
@@ -1155,13 +1157,8 @@ buildInterface si topLevel = do
 -- | Returns (iSourceHash, iFullHash)
 --   We do not need to check that the file exist because we only
 --   accept @InterfaceFile@ as an input and not arbitrary @AbsolutePath@!
-getInterfaceFileHashes :: AbsolutePath -> IO (Maybe (Hash, Hash))
-getInterfaceFileHashes fp = runMaybeT $ do
-  mifile <- MaybeT $ mkInterfaceFile fp
-  MaybeT $ getInterfaceFileHashes' mifile
-
-getInterfaceFileHashes' :: InterfaceFile -> IO (Maybe (Hash, Hash))
-getInterfaceFileHashes' fp = do
+getInterfaceFileHashes :: InterfaceFile -> IO (Maybe (Hash, Hash))
+getInterfaceFileHashes fp = do
   let ifile = filePath $ intFilePath fp
   (s, close) <- readBinaryFile' ifile
   let hs = decodeHashes s
