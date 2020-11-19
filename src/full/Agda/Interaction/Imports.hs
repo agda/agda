@@ -508,38 +508,6 @@ getOptionsCompatibilityWarnings isMain currentOptions i = runMaybeT $ exceptToMa
   lift $ getAllWarnings' isMain ErrorWarnings
 
 
--- | Check whether interface file exists and is in cache
---   in the correct version (as testified by the interface file hash).
-
-isCached
-  :: C.TopLevelModuleName
-     -- ^ Module name of file we process.
-  -> SourceFile
-     -- ^ File we process.
-  -> ExceptT String TCM Interface
-isCached x file = do
-  -- Check that we have cached the module.
-  i <- maybeToExceptT "the interface has not been decoded" $ MaybeT $
-    getDecodedModule x
-
-  ifile <- maybeToExceptT "the interface file could not be found" $ MaybeT $
-    findInterfaceFile' file
-
-  -- Check that the interface file exists and return its hash.
-  h <- maybeToExceptT "the interface file hash could not be read" $ MaybeT $ liftIO $
-    fmap snd <$> getInterfaceFileHashes' ifile
-
-  -- Make sure the hashes match.
-  let cachedIfaceHash = iFullHash i
-  unless (cachedIfaceHash == h) $
-    throwError $ concat
-      [ "the cached interface hash (", show cachedIfaceHash, ")"
-      , " does not match interface file (", show h, ")"
-      ]
-
-
-  return i
-
 isStoredInterfaceUpToDate
   :: C.TopLevelModuleName
      -- ^ Module name of file we process.
@@ -548,7 +516,29 @@ isStoredInterfaceUpToDate
   -> Maybe SourceInfo
   -> ExceptT String TCM ()
 isStoredInterfaceUpToDate x file msi = do
-  cachedE <- lift $ runExceptT $ isCached x file
+  -- Check whether interface file exists and is in cache
+  --  in the correct version (as testified by the interface file hash).
+  cachedE <- lift $ runExceptT $ do
+    -- Check that we have cached the module.
+    i <- maybeToExceptT "the interface has not been decoded" $ MaybeT $
+      getDecodedModule x
+
+    ifile <- maybeToExceptT "the interface file could not be found" $ MaybeT $
+      findInterfaceFile' file
+
+    -- Check that the interface file exists and return its hash.
+    h <- maybeToExceptT "the interface file hash could not be read" $ MaybeT $ liftIO $
+      fmap snd <$> getInterfaceFileHashes' ifile
+
+    -- Make sure the hashes match.
+    let cachedIfaceHash = iFullHash i
+    unless (cachedIfaceHash == h) $
+      throwError $ concat
+        [ "the cached interface hash (", show cachedIfaceHash, ")"
+        , " does not match interface file (", show h, ")"
+        ]
+
+    return i
 
   ifaceH <- case cachedE of
     -- If it's cached ignoreInterfaces has no effect;
