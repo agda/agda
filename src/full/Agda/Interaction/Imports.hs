@@ -411,23 +411,7 @@ getInterface' x isMain msi =
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
 
-      uptodate <- Bench.billTo [Bench.Import] $ do
-        ignore <- (ignoreInterfaces `and2M`
-                    (not <$> Lens.isBuiltinModule (filePath $ srcFilePath file)))
-                  `or2M` ignoreAllInterfaces
-        cached <- runMaybeT $ isCached x file
-          -- If it's cached ignoreInterfaces has no effect;
-          -- to avoid typechecking a file more than once.
-        sourceH <- case msi of
-                     Nothing -> liftIO $ hashTextFile (srcFilePath file)
-                     Just si -> return $ hashText (siSource si)
-        ifaceH  <- case cached of
-            Nothing -> do
-              mifile <- toIFile file
-              liftIO $ fmap fst <$> getInterfaceFileHashes mifile
-            Just i  -> return $ Just $ iSourceHash i
-        let unchanged = Just sourceH == ifaceH
-        return $ unchanged && (not ignore || isJust cached)
+      uptodate <- Bench.billTo [Bench.Import] $ isStoredInterfaceUpToDate x file msi
 
       reportSLn "import.iface" 5 $
         "  " ++ prettyShow x ++ " is " ++
@@ -549,6 +533,31 @@ isCached x file = do
   guard $ iFullHash mi == h
 
   return mi
+
+isStoredInterfaceUpToDate
+  :: C.TopLevelModuleName
+     -- ^ Module name of file we process.
+  -> SourceFile
+     -- ^ File we process.
+  -> Maybe SourceInfo
+  -> TCM Bool
+isStoredInterfaceUpToDate x file msi = do
+  ignore <- (ignoreInterfaces `and2M`
+              (not <$> Lens.isBuiltinModule (filePath $ srcFilePath file)))
+            `or2M` ignoreAllInterfaces
+  cached <- runMaybeT $ isCached x file
+    -- If it's cached ignoreInterfaces has no effect;
+    -- to avoid typechecking a file more than once.
+  sourceH <- case msi of
+               Nothing -> liftIO $ hashTextFile (srcFilePath file)
+               Just si -> return $ hashText (siSource si)
+  ifaceH  <- case cached of
+      Nothing -> do
+        mifile <- toIFile file
+        liftIO $ fmap fst <$> getInterfaceFileHashes mifile
+      Just i  -> return $ Just $ iSourceHash i
+  let unchanged = Just sourceH == ifaceH
+  return $ unchanged && (not ignore || isJust cached)
 
 -- | Try to get the interface from interface file or cache.
 
