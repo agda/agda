@@ -421,10 +421,7 @@ getInterface' x isMain msi =
         stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
           when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
             throwError "we always re-check the main interface in top-level interaction"
-
-          isStoredInterfaceUpToDate x file msi
-          reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is up-to-date."]
-          (False,) <$> getStoredInterface x file
+          (False,) <$> getStoredInterface x file msi
 
         let recheck = \reason -> do
               reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
@@ -507,15 +504,16 @@ getOptionsCompatibilityWarnings isMain currentOptions i = runMaybeT $ exceptToMa
     throwError "No warnings to collect because options were compatible"
   lift $ getAllWarnings' isMain ErrorWarnings
 
+-- | Try to get the interface from interface file or cache.
 
-isStoredInterfaceUpToDate
+getStoredInterface
   :: C.TopLevelModuleName
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
   -> Maybe SourceInfo
-  -> ExceptT String TCM ()
-isStoredInterfaceUpToDate x file msi = do
+  -> ExceptT String TCM (Interface, [TCWarning])
+getStoredInterface x file msi = do
   -- Check whether interface file exists and is in cache
   --  in the correct version (as testified by the interface file hash).
   cachedE <- lift $ runExceptT $ do
@@ -566,15 +564,8 @@ isStoredInterfaceUpToDate x file msi = do
       , " does not match the source hash for the interface (", show ifaceH, ")"
       ]
 
--- | Try to get the interface from interface file or cache.
+  reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is up-to-date."]
 
-getStoredInterface
-  :: C.TopLevelModuleName
-     -- ^ Module name of file we process.
-  -> SourceFile
-     -- ^ File we process.
-  -> ExceptT String TCM (Interface, [TCWarning])
-getStoredInterface x file = do
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
   -- read and decode it. Otherwise use the stored version.
