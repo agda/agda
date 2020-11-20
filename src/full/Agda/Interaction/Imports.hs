@@ -262,43 +262,59 @@ alreadyVisited :: C.TopLevelModuleName ->
                   TCM (Interface, [TCWarning])
 alreadyVisited x isMain currentOptions getIface =
   case isMain of
-
     -- Andreas, 2020-05-13, issue 4647:
     -- For top-level interaction commands, we may not able to reuse
     -- the existing interface, since it does not contain the private
     -- declarations.  Thus, we always recheck.
-    MainInterface (TypeCheck TopLevelInteraction) -> fallback
-
-    _ -> getVisitedModule x >>= \case
-
-        -- Case: already visited.
-        --
-        -- A module with warnings should never be allowed to be
-        -- imported from another module.
-        Just (ModuleInfo i hasWarn isPrim) | not hasWarn -> do
-          reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
-          -- Check that imported options are compatible with current ones,
-          -- but give primitive modules a pass
-          wt <- if isPrim then pure [] else
-                fromMaybe [] <$> getOptionsCompatibilityWarnings isMain currentOptions i
-          return (i, wt)
-
-        -- Case: Not visited already.
-        --
-        _ -> fallback
-
+    MainInterface (TypeCheck TopLevelInteraction) ->                     loadAndRecordVisited
+    MainInterface (TypeCheck RegularInteraction)  -> eitherUseExistingOr loadAndRecordVisited
+    NotMainInterface                              -> eitherUseExistingOr loadAndRecordVisited
+    MainInterface ScopeCheck                      -> eitherUseExistingOr load
   where
-  fallback = do
-          reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
-          r@(i, wt) <- getIface
-          reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
-          unless (isMain == MainInterface ScopeCheck) $
-            visitModule ModuleInfo
-              { miInterface  = i
-              , miWarnings   = not . null $ wt
-              , miPrimitive  = False -- will be updated later for primitive modules
-              }
-          return r
+  eitherUseExistingOr :: TCM (Interface, [TCWarning]) -> TCM (Interface, [TCWarning])
+  eitherUseExistingOr notYetVisited = fromMaybeM notYetVisited existingWithoutWarnings
+
+  -- Case: already visited.
+  --
+  -- A module with warnings should never be allowed to be
+  -- imported from another module.
+  existingWithoutWarnings :: TCM (Maybe (Interface, [TCWarning]))
+  existingWithoutWarnings = runMaybeT $ exceptToMaybeT $ do
+    mi <- maybeToExceptT "interface has not been visited in this context" $ MaybeT $
+      getVisitedModule x
+
+    let ModuleInfo { miInterface = i, miPrimitive = isPrim, miWarnings = ws } = mi
+
+    when ws $
+      throwError "previously-visited interface had warnings"
+
+    reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
+    -- Check that imported options are compatible with current ones,
+    -- but give primitive modules a pass
+    wt <- if isPrim then pure [] else
+          fromMaybe [] <$> (lift $ getOptionsCompatibilityWarnings isMain currentOptions i)
+    return (i, wt)
+
+  loadAndRecordVisited :: TCM (Interface, [TCWarning])
+  loadAndRecordVisited = do
+    r <- load
+    recordVisited r
+    return r
+
+  load :: TCM (Interface, [TCWarning])
+  load = do
+    reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
+    r <- getIface
+    reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
+    return r
+
+  recordVisited :: (Interface, [TCWarning]) -> TCM ()
+  recordVisited (i, wt) =
+    visitModule ModuleInfo
+      { miInterface  = i
+      , miWarnings   = not . null $ wt
+      , miPrimitive  = False -- will be updated later for primitive modules
+      }
 
 -- | Type checks the main file of the interaction.
 --   This could be the file loaded in the interacting editor (emacs),
