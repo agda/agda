@@ -519,10 +519,10 @@ isCached
   -> MaybeT TCM Interface
 
 isCached x file = do
-  ifile <- MaybeT $ findInterfaceFile' file
-
   -- Check that we have cached the module.
   mi <- MaybeT $ getDecodedModule x
+
+  ifile <- MaybeT $ findInterfaceFile' file
 
   -- Check that the interface file exists and return its hash.
   h  <- MaybeT $ liftIO $ fmap snd <$> getInterfaceFileHashes' ifile
