@@ -641,8 +641,7 @@ getStoredInterface x file isMain msi = do
           return True
 
       if optionsChanged then fallback else do
-
-        hs <- map iFullHash <$> mapM (getInterface . fst) (iImportedModules i)
+        hs <- mapM (moduleHash . fst) (iImportedModules i)
 
         -- If any of the imports are newer we need to retype check
         if hs /= map snd (iImportedModules i)
