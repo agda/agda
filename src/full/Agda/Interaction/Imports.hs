@@ -11,7 +11,6 @@ module Agda.Interaction.Imports
   , typeCheckMain
 
   -- Currently only used by test/api/Issue1168.hs:
-  , readInterface'
   , readInterface
   ) where
 
@@ -575,8 +574,8 @@ getStoredInterface x file msi = do
   -- Examine the hash of the interface file. If it is different from the
   -- stored version (in stDecodedModules), or if there is no stored version,
   -- read and decode it. Otherwise use the stored version.
-  ifile <- lift $ toIFile file
-  let ifp = filePath ifile
+  ifileAbsPath <- lift $ toIFile file
+  let ifp = filePath ifileAbsPath
 
   Bench.billTo [Bench.Deserialization] $ case cachedE of
     Right i -> do
@@ -584,6 +583,11 @@ getStoredInterface x file msi = do
       validateLoadedInterface file i []
     Left _whyNotInCache -> do
       reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifp
+
+      ifile <- maybeToExceptT "the interface file could not be found" $ MaybeT $
+        findInterfaceFile' file
+        -- same as (mkInterfaceFile ifileAbsPath)
+
       i <- maybeToExceptT "bad interface, re-type checking" $ MaybeT $
         readInterface ifile
 
@@ -754,13 +758,8 @@ highlightFromInterface i file = do
 
 -- | Read interface file corresponding to a module.
 
-readInterface :: AbsolutePath -> TCM (Maybe Interface)
-readInterface file = runMaybeT $ do
-  ifile <- MaybeT $ liftIO $ mkInterfaceFile file
-  MaybeT $ readInterface' ifile
-
-readInterface' :: InterfaceFile -> TCM (Maybe Interface)
-readInterface' file = do
+readInterface :: InterfaceFile -> TCM (Maybe Interface)
+readInterface file = do
     let ifp = filePath $ intFilePath file
     -- Decode the interface file
     (s, close) <- liftIO $ readBinaryFile' ifp
