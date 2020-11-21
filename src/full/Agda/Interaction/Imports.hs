@@ -524,19 +524,20 @@ getStoredInterface x file msi = do
       findInterfaceFile' file
 
     -- Check that the interface file exists and return its hash.
-    h <- maybeToExceptT "the interface file hash could not be read" $ MaybeT $ liftIO $
-      fmap snd <$> getInterfaceFileHashes ifile
+    hashes <- maybeToExceptT "the interface file hash could not be read" $ MaybeT $ liftIO $
+      getInterfaceFileHashes ifile
 
     -- Make sure the hashes match.
     let cachedIfaceHash = iFullHash i
-    unless (cachedIfaceHash == h) $ do
+    let fileIfaceHash = snd hashes
+    unless (cachedIfaceHash == fileIfaceHash) $ do
       lift $ dropDecodedModule x
       reportSLn "import.iface" 50 $ "  cached hash = " ++ show cachedIfaceHash
-      reportSLn "import.iface" 50 $ "  stored hash = " ++ show h
+      reportSLn "import.iface" 50 $ "  stored hash = " ++ show fileIfaceHash
       reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ (filePath $ intFilePath ifile)
       throwError $ concat
         [ "the cached interface hash (", show cachedIfaceHash, ")"
-        , " does not match interface file (", show h, ")"
+        , " does not match interface file (", show fileIfaceHash, ")"
         ]
 
     return i
@@ -556,8 +557,10 @@ getStoredInterface x file msi = do
       ifile <- maybeToExceptT "the interface file could not be found" $ MaybeT $
         findInterfaceFile' file
 
-      maybeToExceptT "the interface file hash could not be read" $ MaybeT $ liftIO $
-        fmap fst <$> getInterfaceFileHashes ifile
+      hashes <- maybeToExceptT "the interface file hash could not be read" $ MaybeT $ liftIO $
+        getInterfaceFileHashes ifile
+
+      return $ fst hashes
 
   sourceH <- case msi of
                Nothing -> liftIO $ hashTextFile (srcFilePath file)
