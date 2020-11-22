@@ -870,19 +870,16 @@ createInterface file mname isMain msi =
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
     si <- maybe (sourceInfo file) pure msi
-    let source   = siSource si
-        srcPath  = srcFilePath $ siOrigin si
-        fileType = siFileType si
-        top      = C.modDecls $ siModule si
+
+    let srcPath = srcFilePath $ siOrigin si
 
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfoFromSource
-                         srcPath (TL.unpack source)
+                         srcPath (TL.unpack $ siSource si)
     stTokens `setTCLens` fileTokenInfo
 
-    let options = siPragmas si
-    mapM_ setOptionsFromPragma options
+    mapM_ setOptionsFromPragma (siPragmas si)
 
     verboseS "import.iface.create" 15 $ do
       nestingLevel      <- asksTC envModuleNestingLevel
@@ -894,8 +891,9 @@ createInterface file mname isMain msi =
 
     -- Scope checking.
     reportSLn "import.iface.create" 7 "Starting scope checking."
-    topLevel <- Bench.billTo [Bench.Scoping] $
-      concreteToAbstract_ (TopLevel srcPath mname top)
+    topLevel <- Bench.billTo [Bench.Scoping] $ do
+      let topDecls = C.modDecls $ siModule si
+      concreteToAbstract_ (TopLevel srcPath mname topDecls)
     reportSLn "import.iface.create" 7 "Finished scope checking."
 
     let ds    = topLevelDecls topLevel
@@ -1015,7 +1013,7 @@ createInterface file mname isMain msi =
     -- Serialization.
     reportSLn "import.iface.create" 7 "Starting serialization."
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $
-      buildInterface source fileType topLevel options
+      buildInterface si topLevel
 
     reportS "tc.top" 101 $
       "Signature:" :
@@ -1148,18 +1146,17 @@ constructIScope i = billToPure [ Deserialization ] $
 -- have been successfully type checked.
 
 buildInterface
-  :: TL.Text
-     -- ^ Source code.
-  -> FileType
-     -- ^ Agda file? Literate Agda file?
+  :: SourceInfo
+     -- ^ 'SourceInfo' for the current module.
   -> TopLevelInfo
-     -- ^ 'TopLevelInfo' for the current module.
-  -> [OptionsPragma]
-     -- ^ Options set in @OPTIONS@ pragmas.
+     -- ^ 'TopLevelInfo' scope information for the current module.
   -> TCM Interface
-buildInterface source fileType topLevel pragmas = do
+buildInterface si topLevel = do
     reportSLn "import.iface" 5 "Building interface..."
-    let m = topLevelModuleName topLevel
+    let mname = topLevelModuleName topLevel
+        source = siSource si
+        fileType = siFileType si
+        pragmas = siPragmas si
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
@@ -1198,7 +1195,7 @@ buildInterface source fileType topLevel pragmas = do
       , iSource          = source
       , iFileType        = fileType
       , iImportedModules = mhs
-      , iModuleName      = m
+      , iModuleName      = mname
       , iScope           = empty -- publicModules scope
       , iInsideScope     = topLevelScope topLevel
       , iSignature       = sig
