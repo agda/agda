@@ -22,7 +22,6 @@ import Agda.Interaction.Options
 import Agda.Interaction.Options.Help (Help (..))
 import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
-import Agda.Interaction.Imports (MaybeWarnings'(..))
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
@@ -211,9 +210,9 @@ runAgdaWithOptions generateHTML interactor progName opts = do
           -- Imp.TypeCheck and there are no warnings.
           result <- case (mode, mw) of
             (Imp.ScopeCheck, _)  -> return Nothing
-            (_, NoWarnings)      -> return $ Just i
-            (_, SomeWarnings ws) ->
-              ifNotNullM (applyFlagsToTCWarnings ws) {-then-} tcWarningsToError {-else-} $ return Nothing
+            (_, [])              -> return $ Just i
+            (_, ws@(_:_))        ->
+              ifNotNullM (applyFlagsToTCWarnings ws) {-then-} (typeError . NonFatalErrors) {-else-} $ return Nothing
 
           reportSDoc "main" 50 $ pretty i
 
@@ -227,7 +226,7 @@ runAgdaWithOptions generateHTML interactor progName opts = do
             LaTeX.generateLaTeX i
 
           -- Print accumulated warnings
-          unlessNullM (tcWarnings . classifyWarnings <$> Imp.getAllWarnings AllWarnings) $ \ ws -> do
+          unlessNullM (tcWarnings . classifyWarnings <$> getAllWarnings AllWarnings) $ \ ws -> do
             let banner = text $ "\n" ++ delimiter "All done; warnings encountered"
             reportSDoc "warning" 1 $
               vcat $ punctuate "\n" $ banner : (prettyTCM <$> ws)
@@ -270,7 +269,7 @@ optionError err = do
 runTCMPrettyErrors :: TCM () -> IO ()
 runTCMPrettyErrors tcm = do
     r <- runTCMTop $ tcm `catchError` \err -> do
-      s2s <- prettyTCWarnings' =<< Imp.getAllWarningsOfTCErr err
+      s2s <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
       s1  <- prettyError err
       let ss = filter (not . null) $ s2s ++ [s1]
       unless (null s1) (liftIO $ putStr $ unlines ss)
