@@ -667,7 +667,7 @@ typeCheck x file isMain msi = do
 
   case isMain of
     MainInterface _ -> do
-      r <- withMsgs $ createInterface file x isMain msi
+      r <- withMsgs $ createInterface x file isMain msi
       return (True, r)
 
     NotMainInterface -> do
@@ -713,7 +713,7 @@ typeCheck x file isMain msi = do
                setVisitedModules vs
                addImportedThings isig ibuiltin ipatsyns display userwarn partialdefs []
 
-               r  <- withMsgs $ createInterface file x isMain msi
+               r  <- withMsgs $ createInterface x file isMain msi
                mf' <- useTC stModuleToSource
                ds' <- getDecodedModules
                return (r, mf', ds')
@@ -843,12 +843,12 @@ writeInterface file i = let fp = filePath file in do
 -- information.
 
 createInterface
-  :: SourceFile            -- ^ The file to type check.
-  -> C.TopLevelModuleName  -- ^ The expected module name.
+  :: C.TopLevelModuleName  -- ^ The expected module name.
+  -> SourceFile            -- ^ The file to type check.
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe SourceInfo      -- ^ Optional information about the source code.
   -> TCM (Interface, [TCWarning])
-createInterface file mname isMain msi =
+createInterface mname file isMain msi =
   Bench.billTo [Bench.TopModule mname] $
   localTC (\e -> e { envCurrentPath = Just (srcFilePath file) }) $ do
     let onlyScope = isMain == MainInterface ScopeCheck
