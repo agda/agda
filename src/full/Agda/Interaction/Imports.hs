@@ -318,18 +318,16 @@ alreadyVisited x isMain currentOptions getModule =
     mi <- processResultingModule =<< getModule
     reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
 
-    let i = miInterface mi
-
     -- Interfaces are not stored if we are only scope-checking, or
     -- if any warnings were encountered.
     case (isMain, miWarnings mi) of
       (MainInterface ScopeCheck, _) -> return ()
       (_, _:_)                      -> return ()
-      _                             -> storeDecodedModule i
+      _                             -> storeDecodedModule mi
 
     reportS "warning.import" 10
       [ "module: " ++ show (C.moduleNameParts x)
-      , "WarningOnImport: " ++ show (iImportWarning i)
+      , "WarningOnImport: " ++ show (iImportWarning (miInterface mi))
       ]
 
     return mi
@@ -562,10 +560,11 @@ getStoredInterface x file msi = do
   case cachedE of
     -- If it's cached ignoreInterfaces has no effect;
     -- to avoid typechecking a file more than once.
-    Right i -> do
+    Right mi -> do
       (ifile, hashes) <- getIFileHashesET
 
       let ifp = filePath $ intFilePath ifile
+      let i = miInterface mi
 
       -- Make sure the hashes match.
       let cachedIfaceHash = iFullHash i

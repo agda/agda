@@ -882,7 +882,7 @@ data ModuleInfo = ModuleInfo
 -- identifiers.
 
 type VisitedModules = Map C.TopLevelModuleName ModuleInfo
-type DecodedModules = Map C.TopLevelModuleName Interface
+type DecodedModules = Map C.TopLevelModuleName ModuleInfo
 
 data ForeignCode = ForeignCode Range String
   deriving Show
