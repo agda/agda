@@ -17,7 +17,7 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors (prettyError)
+import Agda.TypeChecking.Errors (prettyError, getAllWarningsOfTCErr)
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
@@ -31,7 +31,6 @@ import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.InteractionTop (localStateCommandM)
-import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
