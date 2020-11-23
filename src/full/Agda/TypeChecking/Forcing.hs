@@ -148,7 +148,7 @@ instance ForcedVariables a => ForcedVariables (Arg a) where
 
 -- | Assumes that the term is in normal form.
 instance ForcedVariables Term where
-  forcedVariables t = case t of
+  forcedVariables = \case
     Var i [] -> [(mempty, i)]
     Con _ _ vs -> forcedVariables vs
     _ -> []

@@ -54,7 +54,7 @@ instance GetDefs Clause where
   getDefs = getDefs . clauseBody
 
 instance GetDefs Term where
-  getDefs v = case v of
+  getDefs = \case
     Def d vs   -> doDef d >> getDefs vs
     Con _ _ vs -> getDefs vs
     Lit l      -> return ()
@@ -74,7 +74,7 @@ instance GetDefs Type where
   getDefs (El s t) = getDefs s >> getDefs t
 
 instance GetDefs Sort where
-  getDefs s = case s of
+  getDefs = \case
     Type l    -> getDefs l
     Prop l    -> getDefs l
     Inf _ _   -> return ()

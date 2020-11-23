@@ -246,7 +246,7 @@ de Bruijn indices to represent variables.
     var    : (x : Nat   )  → Pattern
     lit    : (l : Literal) → Pattern
     proj   : (f : Name)    → Pattern
-    absurd : Pattern
+    absurd : (x : Nat)     → Pattern  -- Absurd patterns have de Bruijn indices
 
   data Clause where
     clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
@@ -455,6 +455,10 @@ following primitive operations::
 
     -- Don't allow reduction of specific definitions while executing the TC computation
     dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+
+    -- Makes the following primitives to reconstruct hidden parameters:
+    -- getDefinition, normalise, reduce, inferType, checkType and getContext
+    withReconstructed : ∀ {a} {A : Set a} → TC A → TC A
 
     -- Fail if the given computation gives rise to new, unsolved
     -- "blocking" constraints.

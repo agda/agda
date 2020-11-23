@@ -426,8 +426,8 @@ instance Trav (TrBr a o) where
 
 instance Trav (Exp o) where
   type Block (Exp o) = RefInfo o
-  trav f e = case e of
-    App _ _ _ args          -> trav f args
+  trav f = \case
+    App _ _ _ args         -> trav f args
     Lam _ (Abs _ b)        -> trav f b
     Pi _ _ _ it (Abs _ ot) -> trav f it >> trav f ot
     Sort _                 -> return ()

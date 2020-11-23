@@ -85,7 +85,7 @@ instance (TermLike a, TermLike b, TermLike c, TermLike d) => TermLike (a, b, c, 
 
 instance TermLike Term where
 
-  traverseTermM f t = case t of
+  traverseTermM f = \case
     Var i xs    -> f =<< Var i <$> traverseTermM f xs
     Def c xs    -> f =<< Def c <$> traverseTermM f xs
     Con c ci xs -> f =<< Con c ci <$> traverseTermM f xs
@@ -93,10 +93,10 @@ instance TermLike Term where
     Pi a b      -> f =<< uncurry Pi <$> traverseTermM f (a, b)
     MetaV m xs  -> f =<< MetaV m <$> traverseTermM f xs
     Level l     -> f =<< Level <$> traverseTermM f l
-    Lit _       -> f t
+    t@Lit{}     -> f t
     Sort s      -> f =<< Sort <$> traverseTermM f s
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
-    Dummy{}     -> f t
+    t@Dummy{}   -> f t
 
   foldTerm f t = f t `mappend` case t of
     Var i xs    -> foldTerm f xs
@@ -124,21 +124,21 @@ instance TermLike Type where
   foldTerm f (El s t) = foldTerm f t
 
 instance TermLike Sort where
-  traverseTermM f s = case s of
+  traverseTermM f = \case
     Type l     -> Type <$> traverseTermM f l
     Prop l     -> Prop <$> traverseTermM f l
-    Inf _ _    -> pure s
+    s@(Inf _ _)-> pure s
     SSet l     -> SSet <$> traverseTermM f l
-    SizeUniv   -> pure s
-    LockUniv   -> pure s
+    s@SizeUniv -> pure s
+    s@LockUniv -> pure s
     PiSort a b c -> PiSort   <$> traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
     FunSort a b -> FunSort   <$> traverseTermM f a <*> traverseTermM f b
     UnivSort a -> UnivSort <$> traverseTermM f a
     MetaS x es -> MetaS x  <$> traverseTermM f es
     DefS q es  -> DefS q   <$> traverseTermM f es
-    DummyS{}   -> pure s
+    s@DummyS{} -> pure s
 
-  foldTerm f s = case s of
+  foldTerm f = \case
     Type l     -> foldTerm f l
     Prop l     -> foldTerm f l
     Inf _ _    -> mempty
@@ -154,7 +154,7 @@ instance TermLike Sort where
 
 instance TermLike EqualityView where
 
-  traverseTermM f v = case v of
+  traverseTermM f = \case
     OtherType t -> OtherType
       <$> traverseTermM f t
     EqualityType s eq l t a b -> EqualityType s eq
@@ -163,7 +163,7 @@ instance TermLike EqualityView where
       <*> traverseTermM f a
       <*> traverseTermM f b
 
-  foldTerm f v = case v of
+  foldTerm f = \case
     OtherType t -> foldTerm f t
     EqualityType s eq l t a b -> foldTerm f (l ++ [t, a, b])
 

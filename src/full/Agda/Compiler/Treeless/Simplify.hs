@@ -420,7 +420,7 @@ simplify FunctionKit{..} = simpl
     tAppAlt (TALit l b) es   = TALit l   <$> tApp b es
     tAppAlt (TAGuard g b) es = TAGuard g <$> tApp b es
 
-    isAtomic v = case v of
+    isAtomic = \case
       TVar{}    -> True
       TCon{}    -> True
       TPrim{}   -> True

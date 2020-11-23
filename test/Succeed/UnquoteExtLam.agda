@@ -23,7 +23,7 @@ prDef =
 magicDef : FunDef
 magicDef =
   funDef (pi (hArg `Set) (abs "A" (`⊥ `→ var 1 [])))
-       ( clause [] [] (extLam ( absurdClause (("()" , vArg `⊥) ∷ []) (vArg absurd ∷ [])
+       ( clause [] [] (extLam ( absurdClause (("()" , vArg `⊥) ∷ []) (vArg (absurd 0) ∷ [])
                               ∷ []) [])
        ∷ [] )
 
@@ -35,7 +35,7 @@ checkMagic = magic
 unquoteDecl pr = define (vArg pr) prDef
 
 magic′ : {A : Set} → ⊥ → A
-magic′ = unquote (give (extLam (absurdClause (("()" , vArg `⊥) ∷ []) (vArg absurd ∷ []) ∷ []) []))
+magic′ = unquote (give (extLam (absurdClause (("()" , vArg `⊥) ∷ []) (vArg (absurd 0) ∷ []) ∷ []) []))
 
 module Pred (A : Set) where
   unquoteDecl pr′ = define (vArg pr′) prDef

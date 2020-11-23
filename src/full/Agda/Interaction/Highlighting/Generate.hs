@@ -217,10 +217,11 @@ tokenHighlighting = merge . map tokenToCFile
   merge = CompressedFile . concatMap ranges
 
   tokenToCFile :: T.Token -> CompressedFile
-  tokenToCFile (T.TokKeyword T.KwForall i)      = aToF Symbol (getRange i)
-  tokenToCFile (T.TokKeyword T.KwREWRITE _)     = mempty  -- #4361, REWRITE is not always a Keyword
-  tokenToCFile (T.TokKeyword _ i)               = aToF Keyword (getRange i)
-  tokenToCFile (T.TokSymbol  _ i)               = aToF Symbol (getRange i)
+  tokenToCFile (T.TokKeyword T.KwForall i)  = aToF Symbol (getRange i)
+  tokenToCFile (T.TokKeyword T.KwREWRITE _) = mempty  -- #4361, REWRITE is not always a Keyword
+  tokenToCFile (T.TokKeyword _ i)           = aToF Keyword (getRange i)
+  tokenToCFile (T.TokSymbol T.SymQuestionMark i) = aToF Hole (getRange i)
+  tokenToCFile (T.TokSymbol  _ i)                = aToF Symbol (getRange i)
   tokenToCFile (T.TokLiteral (Ranged r (L.LitNat    _))) = aToF Number r
   tokenToCFile (T.TokLiteral (Ranged r (L.LitWord64 _))) = aToF Number r
   tokenToCFile (T.TokLiteral (Ranged r (L.LitFloat  _))) = aToF Number r

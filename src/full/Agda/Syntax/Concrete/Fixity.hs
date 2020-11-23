@@ -207,7 +207,7 @@ declaresName x = declaresNames [x]
 -- | Compute the names defined in a declaration. We stay in the current scope,
 --   i.e., do not go into modules.
 declaredNames :: Declaration -> DeclaredNames
-declaredNames d = case d of
+declaredNames = \case
   TypeSig _ _ x _      -> declaresName x
   FieldSig _ _ x _     -> declaresName x
   Field _ fs           -> foldMap declaredNames fs

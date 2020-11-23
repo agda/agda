@@ -271,7 +271,7 @@ instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
 functionInverse
   :: (PureTCM m, MonadError TCErr m)
   => Term -> m InvView
-functionInverse v = case v of
+functionInverse = \case
   Def f es -> do
     inv <- defInverse <$> getConstInfo f
     case inv of

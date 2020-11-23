@@ -14,7 +14,6 @@ import Agda.Interaction.Base
   (CommandState(..), CurrentFile(..), ComputeMode(..), Rewrite(..), OutputForm(..), OutputConstraint(..))
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.EmacsTop
-import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 import Agda.Interaction.JSON
 import Agda.Interaction.Response as R
 import Agda.Interaction.Highlighting.JSON
@@ -26,6 +25,7 @@ import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..)
 import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
 
+import Agda.TypeChecking.Errors (getAllWarningsOfTCErr)
 import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..))
 import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)

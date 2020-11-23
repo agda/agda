@@ -45,11 +45,11 @@ unit,X=> n ∙ args =
 
 abs,X=>∙_ : List Nat → Term
 abs,X=>∙ is = pat-lam [ absurd-clause ( ("()" , vArg (def (quote Empty) [])) ∷  ("X" , vArg (agda-sort (lit 0))) ∷ [])
-                                      (vArg absurd ∷ vArg (var 0) ∷ []) ]
+                                      (vArg (absurd 1) ∷ vArg (var 0) ∷ []) ]
                       (mkArgs is)
 
 abs=>∙_ : List Nat → Term
-abs=>∙ is = pat-lam [ absurd-clause [ "()" , vArg (def (quote Empty) []) ] (vArg absurd ∷ []) ]
+abs=>∙ is = pat-lam [ absurd-clause [ "()" , vArg (def (quote Empty) []) ] (vArg (absurd 0) ∷ []) ]
                     (mkArgs is)
 
 _ : qU (λ { unit X → X }) ≡ unit,X=> 0 ∙ []

@@ -152,7 +152,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
     eraseRel r t | erasable r = pure TErased
                  | otherwise  = erase t
 
-    eraseAlt a = case a of
+    eraseAlt = \case
       TALit l b   -> TALit l   <$> erase b
       TACon c a b -> do
         rs <- map erasable . fst <$> getFunInfo c

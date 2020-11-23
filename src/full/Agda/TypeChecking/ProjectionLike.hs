@@ -143,6 +143,9 @@ reduceProjectionLike v = do
                             -- ordinary reduce, only different for Def's
     _                -> return v
 
+data ProjEliminator = EvenLone | ButLone | NoPostfix
+  deriving Eq
+
 -- | Turn prefix projection-like function application into postfix ones.
 --   This does just one layer, such that the top spine contains
 --   the projection-like functions as projections.
@@ -156,19 +159,22 @@ reduceProjectionLike v = do
 --   No precondition.
 --   Preserves constructorForm, since it really does only something
 --   on (applications of) projection-like functions.
-elimView :: PureTCM m => Bool -> Term -> m Term
-elimView loneProjToLambda v = do
+elimView :: PureTCM m => ProjEliminator -> Term -> m Term
+elimView pe v = do
   reportSDoc "tc.conv.elim" 30 $ "elimView of " <+> prettyTCM v
   v <- reduceProjectionLike v
   reportSDoc "tc.conv.elim" 40 $
     "elimView (projections reduced) of " <+> prettyTCM v
-  pv <- projView v
-  case pv of
-    NoProjection{}        -> return v
-    LoneProjectionLike f ai
-      | loneProjToLambda  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
-      | otherwise         -> return v
-    ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView loneProjToLambda (unArg a)
+  case pe of
+    NoPostfix -> return v
+    _         -> do
+      pv <- projView v
+      case pv of
+        NoProjection{}        -> return v
+        LoneProjectionLike f ai
+          | pe==EvenLone  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
+          | otherwise     -> return v
+        ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView pe (unArg a)
 
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?

@@ -288,7 +288,7 @@ reAbs (Abs x v)   = mkAbs x v
 --   are at the same context.
 --   Precondition: @a@ and @b@ are at the same context at call time.
 underAbs :: Subst a => (a -> b -> b) -> a -> Abs b -> Abs b
-underAbs cont a b = case b of
+underAbs cont a = \case
   Abs   x t -> Abs   x $ cont (raise 1 a) t
   NoAbs x t -> NoAbs x $ cont a t
 
@@ -297,8 +297,8 @@ underAbs cont a b = case b of
 --   and puts the 'Lam's back.  @a@ is raised correctly
 --   according to the number of abstractions.
 underLambdas :: TermSubst a => Int -> (a -> Term -> Term) -> a -> Term -> Term
-underLambdas n cont a = loop n a where
-  loop 0 a v = cont a v
-  loop n a v = case v of
+underLambdas n cont = loop n where
+  loop 0 a = cont a
+  loop n a = \case
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__

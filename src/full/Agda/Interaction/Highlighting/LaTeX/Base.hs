@@ -504,6 +504,7 @@ processCode toks' = do
     fromAspect a = let s = [show a] in case a of
       Comment           -> s
       Keyword           -> s
+      Hole              -> s
       String            -> s
       Number            -> s
       Symbol            -> s

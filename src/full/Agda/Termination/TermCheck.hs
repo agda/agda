@@ -18,6 +18,7 @@ module Agda.Termination.TermCheck
 
 import Prelude hiding ( null )
 
+import Control.Applicative (liftA2)
 import Control.Monad.Reader
 
 import Data.Foldable (toList)
@@ -64,12 +65,13 @@ import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.Size
 import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
+import Agda.Utils.Size
+import qualified Agda.Utils.SmallSet as SmallSet
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
@@ -95,7 +97,7 @@ termDecl d = inTopContext $ termDecl' d
 --   (without necessarily ignoring @abstract@).
 
 termDecl' :: A.Declaration -> TCM Result
-termDecl' d = case d of
+termDecl' = \case
     A.Axiom {}            -> return mempty
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
@@ -878,11 +880,14 @@ tryReduceNonRecursiveClause g es continue fallback = do
 
   -- Then, collect its non-recursive clauses.
   cls <- liftTCM $ getNonRecursiveClauses g
-  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "non-recursive clauses"]
+  reportSLn "term.reduce" 40 $ unwords [ "Function has", show (length cls), "non-recursive exact clauses"]
   reportSDoc "term.reduce" 80 $ vcat $ map (prettyTCM . NamedClause g True) cls
+  reportSLn  "term.reduce" 80 . ("allowed reductions = " ++) . show . SmallSet.elems
+    =<< asksTC envAllowedReductions
 
   -- Finally, try to reduce with the non-recursive clauses (and no rewrite rules).
-  r <- liftTCM $ runReduceM $ appDefE' v0 cls [] (map notReduced es)
+  r <- liftTCM $ modifyAllowedReductions (SmallSet.delete UnconfirmedReductions) $
+    runReduceM $ appDefE' v0 cls [] (map notReduced es)
   case r of
     NoReduction{}    -> fallback
     YesReduction _ v -> do
@@ -894,8 +899,11 @@ tryReduceNonRecursiveClause g es continue fallback = do
       continue v
 
 getNonRecursiveClauses :: QName -> TCM [Clause]
-getNonRecursiveClauses q = filter nonrec . defClauses <$> getConstInfo q
-  where nonrec = maybe False not . clauseRecursive
+getNonRecursiveClauses q =
+  filter (liftA2 (&&) nonrec exact) . defClauses <$> getConstInfo q
+  where
+  nonrec = maybe False not . clauseRecursive
+  exact  = fromMaybe False . clauseExact
 
 -- | Extract recursive calls from a term.
 

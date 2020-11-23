@@ -113,7 +113,7 @@ instance ForceNotFree Type where
   forceNotFree' (El s t) = El <$> forceNotFree' s <*> forceNotFree' t
 
 instance ForceNotFree Term where
-  forceNotFree' t = case t of
+  forceNotFree' = \case
     Var x es   -> do
       metas <- ask
       modify $ IntMap.adjust (const $ MaybeFree metas) x
@@ -127,8 +127,8 @@ instance ForceNotFree Term where
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
     DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
-    Lit{}      -> return t
-    Dummy{}    -> return t
+    t@Lit{}    -> return t
+    t@Dummy{}  -> return t
 
 instance ForceNotFree Level where
   forceNotFree' (Max m as) = Max m <$> forceNotFree' as
@@ -139,7 +139,7 @@ instance ForceNotFree PlusLevel where
 instance ForceNotFree Sort where
   -- Reduce for sorts already goes under all sort constructors, so we can get
   -- away without forceNotFreeR here.
-  forceNotFree' s = case s of
+  forceNotFree' = \case
     Type l     -> Type     <$> forceNotFree' l
     Prop l     -> Prop     <$> forceNotFree' l
     SSet l     -> SSet     <$> forceNotFree' l
@@ -148,7 +148,7 @@ instance ForceNotFree Sort where
     UnivSort s -> UnivSort <$> forceNotFree' s
     MetaS x es -> MetaS x  <$> forceNotFree' es
     DefS d es  -> DefS d   <$> forceNotFree' es
-    Inf _ _    -> return s
-    SizeUniv   -> return s
-    LockUniv   -> return s
-    DummyS{}   -> return s
+    s@(Inf _ _)-> return s
+    s@SizeUniv -> return s
+    s@LockUniv -> return s
+    s@DummyS{} -> return s

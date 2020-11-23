@@ -46,7 +46,7 @@ instance Pretty HS.ImportSpec where
   pretty (HS.IVar x) = pretty x
 
 instance Pretty HS.Decl where
-  pretty d = case d of
+  pretty = \case
     HS.TypeDecl f xs t ->
       sep [ "type" <+> pretty f <+> fsep (map pretty xs) <+> "="
           , nest 2 $ pretty t ]

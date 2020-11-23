@@ -194,7 +194,7 @@ type InteractionOutputCallback = Response -> TCM ()
 -- things to stdout (other things generate internal errors).
 
 defaultInteractionOutputCallback :: InteractionOutputCallback
-defaultInteractionOutputCallback r = case r of
+defaultInteractionOutputCallback = \case
   Resp_HighlightingInfo {}  -> __IMPOSSIBLE__
   Resp_Status {}            -> __IMPOSSIBLE__
   Resp_JumpToError {}       -> __IMPOSSIBLE__

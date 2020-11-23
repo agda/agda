@@ -8,8 +8,12 @@ module Agda.TypeChecking.Errors
   , prettyTCWarnings'
   , prettyTCWarnings
   , tcWarningsToError
-  , applyFlagsToTCWarnings'
+  , applyFlagsToTCWarningsPreserving
   , applyFlagsToTCWarnings
+  , getAllUnsolvedWarnings
+  , getAllWarningsPreserving
+  , getAllWarnings
+  , getAllWarningsOfTCErr
   , dropTopLevelModule
   , topLevelModuleDropper
   , stringTCErr
@@ -217,6 +221,7 @@ errorString err = case err of
   SplitOnUnusableCohesion{}                -> "SplitOnUnusableCohesion"
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
+  SplitOnNonEtaRecord{}                    -> "SplitOnNonEtaRecord"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
@@ -517,6 +522,14 @@ instance PrettyTCM TypeError where
     SplitOnNonVariable v t -> fsep $
       pwords "Cannot pattern match because the (refined) argument " ++
       [ prettyTCM v ] ++ pwords " is not a variable."
+
+    SplitOnNonEtaRecord q -> fsep $ concat
+      [ pwords "Pattern matching on no-eta record type"
+      , [ prettyTCM q, parens ("defined at" <+> prettyTCM r) ]
+      , pwords "is not allowed"
+      , [ parens "to activate, add declaration `pattern` to record definition" ]
+      ]
+      where r = nameBindingSite $ qnameName q
 
     DefinitionIsIrrelevant x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"

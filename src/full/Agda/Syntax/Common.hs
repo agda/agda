@@ -2703,21 +2703,21 @@ instance Ord GenPart where
   _              `compare` WildHole{}     = GT
 
 instance HasRange GenPart where
-  getRange p = case p of
+  getRange = \case
     IdPart x       -> getRange x
     BindHole r _   -> r
     WildHole i     -> getRange i
     NormalHole r _ -> r
 
 instance SetRange GenPart where
-  setRange r p = case p of
+  setRange r = \case
     IdPart x       -> IdPart x
     BindHole _ i   -> BindHole r i
     WildHole i     -> WildHole i
     NormalHole _ i -> NormalHole r i
 
 instance KillRange GenPart where
-  killRange p = case p of
+  killRange = \case
     IdPart x       -> IdPart $ killRange x
     BindHole _ i   -> BindHole noRange $ killRange i
     WildHole i     -> WildHole $ killRange i

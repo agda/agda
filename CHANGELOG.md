@@ -46,6 +46,10 @@ Pragmas and options
 * New option `--allow-exec` enables the use of system calls during type checking
   using the `AGDATCMEXECTC` builtin.
 
+* New option `--show-identity-substitutions` shows all arguments of metavariables
+  when pretty-printing a term, even if they amount to just applying
+  all the variables in the context.
+
 Language
 --------
 
@@ -306,10 +310,13 @@ Reflection
   clause, the types in the clause telescope are currently ignored (but
   this is subject to change in the future).
 
-  Two constructors of the `Pattern` datatype were also changed:
-  pattern variables now refer to a de Bruijn index (relative to the
-  clause telescope) rather than a string, and dot patterns now include
-  the actual dotted term.
+  Three constructors of the `Pattern` datatype were also changed:
+
+  * pattern variables now refer to a de Bruijn index (relative to the
+    clause telescope) rather than a string,
+  * absurd patterns take a de Bruijn index and are expected to be bound by the
+    clause telescope,
+  * dot patterns now include the actual dotted term.
 
   ```agda
   data Pattern where
@@ -318,7 +325,7 @@ Reflection
     var    : (x : Nat)     → Pattern   -- previously:   var : (x : String) → Pattern
     lit    : (l : Literal) → Pattern
     proj   : (f : Name)    → Pattern
-    absurd : Pattern
+    absurd : (x : Nat)     → Pattern
   ```
 
   It is likely that this change to the reflected syntax requires you
@@ -334,11 +341,11 @@ Reflection
     telescope for the types of the pattern variables. To get back the
     old behaviour of Agda, it is sufficient to set all the types of
     the pattern variables to `unknown`. So you can construct the
-    telescope by listing the names of all pattern variables together
-    with their `ArgInfo`. Meanwhile, the pattern variables should be
-    numbered in order to update them to the new representation. As for
-    the telescope types, the contents of a `dot` pattern can safely be
-    set to `unknown`.
+    telescope by listing the names of all pattern variables and absurd patterns
+    together with their `ArgInfo`. Meanwhile, the pattern variables should be
+    numbered in order to update them to the new representation. As for the
+    telescope types, the contents of a `dot` pattern can safely be set to
+    `unknown`.
 
 - New operation in `TC` monad, `execTC`, which calls an external executable
   ```agda
@@ -367,6 +374,34 @@ Reflection
     u   ← quoteTC ((1 + 2) - 3)
     u'  ← onlyReduceDefs (quote _+_ ∷ []) (normalise u)
     unify u' goal
+  ```
+- New operation in the `TC` monad, `withReconstructed`:
+  ```agda
+  withReconstructed : ∀ {a} {A : Set a} → TC A → TC A
+  ```
+
+  This function ensures reconstruction of hidden parameters
+  after performing the `TC` computation.  For example, consider the
+  following type and function:
+  ```agda
+  record RVec {a} (X : Set a) (n : Nat) : Set a where
+    constructor vec
+    field sel : Fin n → X
+
+  test-rvec : Nat → RVec Nat 5
+  test-rvec x = vec λ _ → x
+  ```
+
+  In the reflected syntax the body of the `test-rvec` would be represented
+  as `con vec (unknown ∷ unknown ∷ unknown ∷ (lam _ x)`.  The use of
+  `withReconstructed` replaces `unknown`s with the actual values:
+  ```agda
+  macro₂ : Name → Term → TC ⊤
+  macro₂ n hole = do
+    (function (clause tel ps t ∷ [])) ←
+      withReconstructed (getDefinition n)
+      where _ → quoteTC "ERROR" >>= unify hole
+    quoteTC t >>= unify hole
   ```
 
 Library management

@@ -64,7 +64,7 @@ deriving instance HasBuiltins m => HasBuiltins (BlockT m)
 litType
   :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
   => Literal -> m Type
-litType l = case l of
+litType = \case
   LitNat n    -> do
     _ <- primZero
     when (n > 0) $ void $ primSuc
@@ -220,7 +220,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
-    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
+    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint, primAgdaTCMWithReconsParams,
     primAgdaTCMOnlyReduceDefs, primAgdaTCMDontReduceDefs,
     primAgdaTCMNoConstraints,
     primAgdaTCMRunSpeculative,
@@ -409,6 +409,7 @@ primAgdaTCMBlockOnMeta                = getBuiltin builtinAgdaTCMBlockOnMeta
 primAgdaTCMCommit                     = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
+primAgdaTCMWithReconsParams           = getBuiltin builtinAgdaTCMWithReconsParams
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMOnlyReduceDefs             = getBuiltin builtinAgdaTCMOnlyReduceDefs
 primAgdaTCMDontReduceDefs             = getBuiltin builtinAgdaTCMDontReduceDefs

@@ -17,7 +17,7 @@ mentionsMeta :: MentionsMeta t => MetaId -> t -> Bool
 mentionsMeta = mentionsMetas . HashSet.singleton
 
 instance MentionsMeta Term where
-  mentionsMetas xs v = case v of
+  mentionsMetas xs = \case
     Var _ args   -> mm args
     Lam _ b      -> mm b
     Lit{}        -> False
@@ -48,7 +48,7 @@ instance MentionsMeta Type where
     mentionsMetas xs (El s t) = mentionsMetas xs (s, t)
 
 instance MentionsMeta Sort where
-  mentionsMetas xs s = case s of
+  mentionsMetas xs = \case
     Type l     -> mentionsMetas xs l
     Prop l     -> mentionsMetas xs l
     Inf _ _    -> False
@@ -101,7 +101,7 @@ instance MentionsMeta ProblemConstraint where
   mentionsMetas xs = mentionsMetas xs . theConstraint
 
 instance MentionsMeta Constraint where
-  mentionsMetas xs c = case c of
+  mentionsMetas xs = \case
     ValueCmp _ t u v    -> mm (t, u, v)
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
     ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))

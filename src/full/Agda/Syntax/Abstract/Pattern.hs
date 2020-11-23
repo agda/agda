@@ -153,15 +153,15 @@ instance APatternLike (Pattern' a) where
 
   traverseAPatternM pre post = pre >=> recurse >=> post
     where
-    recurse p = case p of
+    recurse = \case
       -- Non-recursive cases:
-      A.VarP{}             -> return p
-      A.WildP{}            -> return p
-      A.DotP{}             -> return p
-      A.LitP{}             -> return p
-      A.AbsurdP{}          -> return p
-      A.ProjP{}            -> return p
-      A.EqualP{}           -> return p
+      p@A.VarP{}            -> return p
+      p@A.WildP{}           -> return p
+      p@A.DotP{}            -> return p
+      p@A.LitP{}            -> return p
+      p@A.AbsurdP{}         -> return p
+      p@A.ProjP{}           -> return p
+      p@A.EqualP{}          -> return p
       -- Recursive cases:
       A.ConP        i ds ps -> A.ConP        i ds <$> traverseAPatternM pre post ps
       A.DefP        i q  ps -> A.DefP        i q  <$> traverseAPatternM pre post ps

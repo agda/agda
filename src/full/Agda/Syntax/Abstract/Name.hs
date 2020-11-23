@@ -214,8 +214,8 @@ showQNameId q = show ns ++ "@" ++ show m
 -- | Turn a qualified name into a concrete name. This should only be used as a
 --   fallback when looking up the right concrete name in the scope fails.
 qnameToConcrete :: QName -> C.QName
-qnameToConcrete (QName m x) =
-   foldr (C.Qual . nameConcrete) (C.QName $ nameConcrete x) (mnameToList m)
+qnameToConcrete (QName m x) =       -- Use the canonical name here (#5048)
+   foldr (C.Qual . nameConcrete) (C.QName $ nameCanonical x) (mnameToList m)
 
 mnameToConcrete :: ModuleName -> C.QName
 mnameToConcrete (MName []) = __IMPOSSIBLE__ -- C.QName C.noName_  -- should never happen?

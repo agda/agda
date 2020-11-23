@@ -270,7 +270,7 @@ instance Match Type NLPat Term where
           traceSDoc "rewriting.match" 30 (sep
             [ "blocking tag from reduction: " <+> text (show b') ]) $ do
           matchingBlocked (b `mappend` b')
-        maybeBlock w = case w of
+        maybeBlock = \case
           MetaV m es -> matchingBlocked $ blocked_ m
           _          -> no ""
     case p of

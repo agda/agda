@@ -14,6 +14,7 @@ import Control.Monad.Fail (MonadFail)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -37,6 +38,7 @@ import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor ((<.>))
+import Agda.Utils.List (nubOn)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -242,12 +244,10 @@ isInstantiatedMeta' m = do
 --   second one we need to look up the meta listeners for the one in the
 --   UnBlock constraint.
 constraintMetas :: Constraint -> TCM (Set MetaId)
-constraintMetas c = metas c
-  where
+constraintMetas = \case
     -- We don't use allMetas here since some constraints should not stop us from generalizing. For
     -- instance CheckSizeLtSat (see #3694). We also have to check meta listeners to get metas of
     -- UnBlock constraints.
-    metas c = case c of
       ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
@@ -264,7 +264,7 @@ constraintMetas c = metas c
       CheckMetaInst x          -> return mempty
       CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)
       UsableAtModality _ t     -> return $ allMetas Set.singleton t
-
+  where
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
     listenerMetas (CheckConstraint _ c) = constraintMetas (clValue $ theConstraint c)
@@ -410,6 +410,18 @@ getInteractionPoints = Map.keys <$> useR stInteractionPoints
 getInteractionMetas :: ReadTCState m => m [MetaId]
 getInteractionMetas =
   mapMaybe ipMeta . filter (not . ipSolved) . Map.elems <$> useR stInteractionPoints
+
+getUniqueMetasRanges :: (MonadFail m, ReadTCState m) => [MetaId] -> m [Range]
+getUniqueMetasRanges = fmap (nubOn id) . mapM getMetaRange
+
+getUnsolvedMetas :: (MonadFail m, ReadTCState m) => m [Range]
+getUnsolvedMetas = do
+  openMetas            <- getOpenMetas
+  interactionMetas     <- getInteractionMetas
+  getUniqueMetasRanges (openMetas List.\\ interactionMetas)
+
+getUnsolvedInteractionMetas :: (MonadFail m, ReadTCState m) => m [Range]
+getUnsolvedInteractionMetas = getUniqueMetasRanges =<< getInteractionMetas
 
 -- | Get all metas that correspond to unsolved interaction ids.
 getInteractionIdsAndMetas :: ReadTCState m => m [(InteractionId,MetaId)]

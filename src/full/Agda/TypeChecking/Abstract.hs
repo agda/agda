@@ -170,10 +170,10 @@ instance AbsTerm Type where
   absTerm u (El s v) = El (absTerm u s) (absTerm u v)
 
 instance AbsTerm Sort where
-  absTerm u s = case s of
+  absTerm u = \case
     Type n     -> Type $ absS n
     Prop n     -> Prop $ absS n
-    Inf f n    -> s
+    s@(Inf f n)-> s
     SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
@@ -182,7 +182,7 @@ instance AbsTerm Sort where
     UnivSort s -> UnivSort $ absS s
     MetaS x es -> MetaS x $ absS es
     DefS d es  -> DefS d $ absS es
-    DummyS{}   -> s
+    s@DummyS{} -> s
     where
       absS :: AbsTerm b => b -> b
       absS x = absTerm u x
