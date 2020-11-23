@@ -76,6 +76,10 @@ disabledTests =
     -- Issue #2640 (forcing translation for runtime erasure) is still open
   , disable "Compiler/.*/simple/Erasure-Issue2640"
     -----------------------------------------------------------------------------
+    -- The test case for #2918 stopped working when inlining of
+    -- recursive pattern-matching lambdas was disabled.
+  , disable "Compiler/MAlonzo/simple/Issue2918$"
+    -----------------------------------------------------------------------------
     -- The following test cases fail (at least at the time of writing)
     -- for the JS backend.
   , disable "Compiler/JS_.*/simple/Issue4169-2"
@@ -87,7 +91,7 @@ disabledTests =
   , disable "Compiler/JS_.*/simple/Issue2879-.*"
   , disable "Compiler/JS_.*/simple/Issue2909-.*"
   , disable "Compiler/JS_.*/simple/Issue2914"
-  , disable "Compiler/JS_.*/simple/Issue2918"
+  , disable "Compiler/JS_.*/simple/Issue2918$"
   , disable "Compiler/JS_.*/simple/Issue3732"
   , disable "Compiler/JS_.*/simple/VecReverseIrr"
   , disable "Compiler/JS_.*/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded

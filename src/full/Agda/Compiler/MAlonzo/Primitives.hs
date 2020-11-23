@@ -153,10 +153,7 @@ xForPrim :: Map.Map String [a] -> BuiltinThings PrimFun -> [Definition] -> [a]
 xForPrim table builtinThings defs =
   let qs = Set.fromList $ defName <$> defs
       bs = Map.toList builtinThings
-      getName (Builtin (Def q _))    = q
-      getName (Builtin (Con q _ _))  = conName q
-      getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
-      getName (Builtin _)            = __IMPOSSIBLE__
+      getName (Builtin t)            = getPrimName t
       getName (Prim (PrimFun q _ _)) = q
   in
   concat [ fromMaybe [] $ Map.lookup s table
@@ -307,11 +304,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
       "(<<0>> :: Integer -> Integer -> Bool)"
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
-  axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"]
-  unimplemented
-    | s `List.elem` axiom_prims =
-                   return $ rtmError $ T.pack $ "primitive with no body evaluated: " ++ s
-    | otherwise = typeError $ NotImplemented s
+  unimplemented = typeError $ NotImplemented s
 
   hLam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
   nLam x t = Lam (setHiding NotHidden defaultArgInfo) (Abs x t)

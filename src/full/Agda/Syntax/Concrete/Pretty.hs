@@ -444,7 +444,7 @@ instance Pretty Declaration where
               pRecord x dir tel (Just e) cs
             RecordDef _ x dir tel cs ->
               pRecord x dir tel Nothing cs
-            RecordDirective r -> __IMPOSSIBLE__
+            RecordDirective r -> pRecordDirective r
             Infix f xs  ->
                 pretty f <+> fsep (punctuate comma $ fmap pretty xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
@@ -496,6 +496,21 @@ instance Pretty Declaration where
                     , nest 2 $ vcat $ map pretty ds
                     ]
 
+pHasEta0 :: HasEta0 -> Doc
+pHasEta0 = \case
+  YesEta   -> "eta-equality"
+  NoEta () -> "no-eta-equality"
+
+pRecordDirective :: RecordDirective -> Doc
+pRecordDirective = \case
+  Induction ind -> pretty (rangedThing ind)
+  Constructor n inst -> hsep [ pInst, "constructor", pretty n ] where
+    pInst = case inst of
+      InstanceDef{} -> "instance"
+      NotInstanceDef{} -> empty
+  Eta eta -> pHasEta0 (rangedThing eta)
+  PatternOrCopattern{} -> "pattern"
+
 pRecord
   :: Name
   -> RecordDirectives
@@ -527,9 +542,7 @@ pRecord x (RecordDirectives ind eta pat con) tel me ds = vcat
         pType Nothing  =
                   "where"
         pInd = maybeToList $ pretty . rangedThing <$> ind
-        pEta = maybeToList $ eta <&> \case
-          YesEta   -> "eta-equality"
-          NoEta () -> "no-eta-equality"
+        pEta = maybeToList $ eta <&> pHasEta0
         pPat = maybeToList $ "pattern" <$ pat
         -- pEta = caseMaybe eta [] $ \case
         --   YesEta -> [ "eta-equality" ]

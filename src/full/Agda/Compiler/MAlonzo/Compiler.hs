@@ -45,6 +45,7 @@ import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
 import Agda.Syntax.Literal
 
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty hiding ((<>))
@@ -52,6 +53,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.FileName (isNewerThan)
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Float
@@ -60,7 +62,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty (prettyShow, render)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 
@@ -453,11 +455,17 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       Function{} -> function pragma $ functionViaTreeless q
 
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
+      Datatype{ dataPathCons = _ : _ } -> do
+        s <- render <$> prettyTCM q
+        typeError $ NotImplemented $
+          "Higher inductive types (" ++ s ++ ")"
+
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl }
         | Just hsdata@(HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
         liftTCM $ computeErasedConstructorArgs q
+        cs <- liftTCM $ getNotErasedConstructors q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
         cds <- mapM compiledcondecl cs
         let result = concat $
@@ -467,9 +475,9 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               , ccscov
               ]
         retDecls result
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl,
-                dataCons = cs } -> do
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl } -> do
         liftTCM $ computeErasedConstructorArgs q
+        cs <- liftTCM $ getNotErasedConstructors q
         cds <- mapM (flip condecl Inductive) cs
         retDecls $ tvaldecl q Inductive (np + ni) cds cl
       Constructor{} -> retDecls []

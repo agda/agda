@@ -1,5 +1,24 @@
 
-module Agda.TypeChecking.Monad.Imports where
+module Agda.TypeChecking.Monad.Imports
+  ( addImport
+  , addImportCycleCheck
+  , checkForImportCycle
+  , dropDecodedModule
+  , getDecodedModule
+  , getDecodedModules
+  , getImportPath
+  , getImports
+  , getPrettyVisitedModules
+  , getVisitedModule
+  , getVisitedModules
+  , isImported
+  , isVisited
+  , setDecodedModules
+  , setVisitedModules
+  , storeDecodedModule
+  , visitModule
+  , withImportPath
+  ) where
 
 import Control.Monad.State
 
@@ -11,7 +30,9 @@ import qualified Data.Set as Set
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad.Base
+
 import Agda.Utils.List ( caseListM )
+import Agda.Utils.Pretty
 
 
 import Agda.Utils.Impossible
@@ -43,6 +64,11 @@ setVisitedModules ms = setTCLens stVisitedModules ms
 getVisitedModules :: ReadTCState m => m VisitedModules
 getVisitedModules = useTC stVisitedModules
 
+getPrettyVisitedModules :: ReadTCState m => m Doc
+getPrettyVisitedModules = do
+  visited <- Map.keys <$> getVisitedModules
+  return $ hcat $ punctuate ", " $ pretty <$> visited
+
 isVisited :: C.TopLevelModuleName -> TCM Bool
 isVisited x = Map.member x <$> useTC stVisitedModules
 
@@ -50,11 +76,6 @@ getVisitedModule :: ReadTCState m
                  => C.TopLevelModuleName
                  -> m (Maybe ModuleInfo)
 getVisitedModule x = Map.lookup x <$> useTC stVisitedModules
-
-mapVisitedModule :: C.TopLevelModuleName
-                 -> (ModuleInfo -> ModuleInfo)
-                 -> TCM ()
-mapVisitedModule x f = modifyTCLens stVisitedModules (Map.adjust f x)
 
 getDecodedModules :: TCM DecodedModules
 getDecodedModules = stDecodedModules . stPersistentState <$> getTC

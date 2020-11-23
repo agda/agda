@@ -22,7 +22,6 @@ import System.Process     ( callCommand )
 import Paths_Agda
 
 import Agda.Interaction.Options
-import Agda.Interaction.Imports ( isNewerThan )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name ( isNoName )
@@ -40,6 +39,7 @@ import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.FileName ( isNewerThan )
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
@@ -47,7 +47,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, whenNothing )
 import Agda.Utils.Monad ( ifM, when )
 import Agda.Utils.Null  ( null )
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty (prettyShow, render)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
@@ -403,12 +403,21 @@ definition' kit q d t ls = do
           if funBody' == Null then Nothing
           else Just $ Export ls funBody'
 
-    Primitive{primName = p} | p `Set.member` primitives ->
-      plainJS $ "agdaRTS." ++ p
-    Primitive{} | Just e <- defJSDef d -> plainJS e
-    Primitive{} | otherwise -> ret Undefined
+    Primitive{primName = p}
+      | p `Set.member` cubicalPrimitives ->
+        typeError $ NotImplemented p
+      | p `Set.member` primitives ->
+        plainJS $ "agdaRTS." ++ p
+      | Just e <- defJSDef d ->
+        plainJS e
+      | otherwise ->
+        ret Undefined
     PrimitiveSort{} -> return Nothing
 
+    Datatype{ dataPathCons = _ : _ } -> do
+      s <- render <$> prettyTCM q
+      typeError $ NotImplemented $
+        "Higher inductive types (" ++ s ++ ")"
     Datatype{} -> do
         computeErasedConstructorArgs q
         ret emp
@@ -650,6 +659,31 @@ outFile_ :: TCM FilePath
 outFile_ = do
   m <- curMName
   outFile (jsMod m)
+
+-- | Cubical primitives that are (currently) not compiled.
+--
+-- TODO: Primitives that are neither part of this set nor of
+-- 'primitives', and for which 'defJSDef' does not return anything,
+-- are silently compiled to 'Undefined'. Thus, if a cubical primitive
+-- is by accident omitted from 'cubicalPrimitives', then programs that
+-- should be rejected are compiled to something which might not work
+-- as intended. A better approach might be to list exactly those
+-- primitives which should be compiled to 'Undefined'.
+
+cubicalPrimitives :: Set String
+cubicalPrimitives = Set.fromList
+  [ "primIMin"
+  , "primIMax"
+  , "primINeg"
+  , "primPartial"
+  , "primPartialP"
+  , "primPFrom1"
+  , "primPOr"
+  , "primComp"
+  , "primTransp"
+  , "primHComp"
+  , "primSubOut"
+  ]
 
 -- | Primitives implemented in the JS Agda RTS.
 primitives :: Set String
