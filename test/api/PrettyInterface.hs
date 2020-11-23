@@ -40,7 +40,7 @@ mainTCM :: TCM ()
 mainTCM = do
   setCommandLineOptions defaultOptions
   f <- liftIO $ SourceFile <$> absolute "PrettyInterface.agda"
-  (i, _mw) <- typeCheckMain f (TypeCheck RegularInteraction) =<< sourceInfo f
+  (i, _mw) <- typeCheckMain (TypeCheck RegularInteraction) =<< sourceInfo f
   compilerMain i
 
 compilerMain :: Interface -> TCM ()
