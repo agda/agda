@@ -437,6 +437,94 @@ Emacs mode
 
 * New keyboard shortcut `C-c C-x C-i` for toggling display of irrelevant arguments.
 
+JSON Interaction mode
+----------
+
+Changes have been made to the structure of error and warning messages. The
+changes are summarized below. See [#5052](https://github.com/agda/agda/issues/5052)
+for additional details.
+
+* The format of an error or warning was previously a bare string. Now, errors
+  and warnings are represented by an object with a `"message"` key.
+
+  This means that responses _previously_ structured like:
+
+  ```json
+  {"…": "…", "error": "Foo bar baz"}
+  ```
+
+  will now be structured:
+
+  ```json
+  {"…": "…", "error": {"message": "Foo bar baz"}}
+  ```
+
+  This applies directly to the `PostPonedCheckFunDef` response kind and `Error`
+  info kind of the `DisplayInfo` response kind.
+
+* The format of collections of errors or warnings, which previously were each
+  represented by a single newline-joined string, has been updated to represent
+  each warning or error individually in a list.
+
+  That means that responses _previously_ structured like:
+
+  ```json
+  { "…": "…"
+  , "errors": "Postulates overcooked\nAxioms too wiggly"
+  , "warnings": "Something wrong\nSomething else\nwrong"
+  }
+  ```
+
+  will now be structured:
+
+  ```json
+  { "…": "…"
+  , "errors":
+    [ { "message": "Postulates overcooked" }
+    , { "message": "Axioms too wiggly" }
+    ]
+  , "warnings":
+    [ { "message": "Something wrong" }
+    , { "message": "Something else\nwrong" }
+    ]
+  }
+  ```
+
+  This applies to `CompilationOk`, `AllGoalsWarning`, and `Error` info kinds of
+  the `DisplayInfo` response kind.
+
+* The `Error` info kind of the `DisplayInfo` response kind has additionally
+  been updated to distinguish warnings and errors.
+
+  An example of the _previous_ format of a `DispayInfo` response with an `Error` info kind was:
+  ```json
+  {
+    "kind": "DisplayInfo",
+    "info": {
+      "kind": "Error",
+      "message": "———— Error —————————————————————————————————————————————————\n/data/code/agda-test/Test.agda:2,1-9\nFailed to find source of module M in any of the following\nlocations:\n  /data/code/agda-test/M.agda\n  /data/code/agda-test/M.lagda\nwhen scope checking the declaration\n  import M\n\n———— Warning(s) ————————————————————————————————————————————\n/data/code/agda-test/Test.agda:3,1-10\nEmpty postulate block."
+    }
+  }
+  ```
+
+  The updated format is:
+  ```json
+  {
+    "kind": "DisplayInfo",
+    "info": {
+      "kind": "Error",
+      "error": {
+        "message": "/data/code/agda-test/Test.agda:2,1-9\nFailed to find source of module M in any of the following\nlocations:\n  /data/code/agda-test/M.agda\n  /data/code/agda-test/M.lagda\nwhen scope checking the declaration\n  import M"
+      },
+      "warnings": [
+        {
+          "message": "/data/code/agda-test/Test.agda:3,1-10\nEmpty postulate block."
+        }
+      ]
+    }
+  }
+  ```
+
 
 JS backend
 ----------
