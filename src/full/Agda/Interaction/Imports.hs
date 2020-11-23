@@ -97,6 +97,7 @@ import Agda.Utils.Impossible
 data SourceInfo = SourceInfo
   { siSource     :: TL.Text               -- ^ Source code.
   , siFileType   :: FileType              -- ^ Source file type
+  , siOrigin     :: SourceFile            -- ^ Source location at the time of its parsing
   , siModule     :: C.Module              -- ^ The parsed module.
   , siModuleName :: C.TopLevelModuleName  -- ^ The top-level module name.
   , siProjectLibs :: [AgdaLibFile]        -- ^ The .agda-lib file(s) of the project this file belongs to.
@@ -105,7 +106,7 @@ data SourceInfo = SourceInfo
 -- | Computes a 'SourceInfo' record for the given file.
 
 sourceInfo :: SourceFile -> TCM SourceInfo
-sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
+sourceInfo sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   source                <- runPM $ readFilePM f
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
@@ -117,17 +118,18 @@ sourceInfo (SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   return SourceInfo
     { siSource     = source
     , siFileType   = fileType
+    , siOrigin     = sourceFile
     , siModule     = parsedMod
     , siModuleName = moduleName
     , siProjectLibs = libs
     }
 
-sourcePragmas :: SourceInfo -> TCM [OptionsPragma]
-sourcePragmas SourceInfo{..} = do
-  let defaultPragmas = map _libPragmas siProjectLibs
-  let cpragmas = C.modPragmas siModule
-  pragmas <- concreteOptionsToOptionPragmas cpragmas
-  return $ defaultPragmas ++ pragmas
+siPragmas :: SourceInfo -> [OptionsPragma]
+siPragmas si = defaultPragmas ++ pragmas
+  where
+  defaultPragmas = map _libPragmas (siProjectLibs si)
+  cpragmas = C.modPragmas (siModule si)
+  pragmas = [ opts | C.OptionsPragma _ opts <- cpragmas ]
 
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
@@ -304,14 +306,12 @@ alreadyVisited x isMain currentOptions getIface =
 --   complete interface is returned.
 
 typeCheckMain
-  :: SourceFile
-     -- ^ The path to the file.
-  -> Mode
+  :: Mode
      -- ^ Should the file be type-checked, or only scope-checked?
   -> SourceInfo
      -- ^ Information about the source code.
   -> TCM (Interface, [TCWarning])
-typeCheckMain f mode si = do
+typeCheckMain mode si = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
   reportSLn "import.main" 10 "Importing the primitive modules."
@@ -327,9 +327,8 @@ typeCheckMain f mode si = do
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $ withoutOptionsChecking $
       forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
-        let file = SourceFile $ mkAbsolute f
-        si <- sourceInfo file
-        checkModuleName' (siModuleName si) file
+        si <- sourceInfo (SourceFile $ mkAbsolute f)
+        checkModuleName' (siModuleName si) (siOrigin si)
         _ <- getInterface_ (siModuleName si) (Just si)
         -- record that the just visited module is primitive
         mapVisitedModule (siModuleName si) (\ m -> m { miPrimitive = True })
@@ -337,7 +336,7 @@ typeCheckMain f mode si = do
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
   -- Now do the type checking via getInterface'.
-  checkModuleName' (siModuleName si) f
+  checkModuleName' (siModuleName si) (siOrigin si)
   getInterface' (siModuleName si) (MainInterface mode) (Just si)
   where
   checkModuleName' m f =
@@ -394,15 +393,14 @@ getInterface' x isMain msi =
      currentOptions <- setCurrentRange (C.modPragmas . siModule <$> msi) $ do
        when (includeStateChanges isMain) $ do
          let si = fromMaybe __IMPOSSIBLE__ msi
-         pragmas <- sourcePragmas si
-         mapM_ setOptionsFromPragma pragmas
+         mapM_ setOptionsFromPragma (siPragmas si)
        currentOptions <- useTC stPragmaOptions
        -- Now reset the options
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
        return currentOptions
 
      alreadyVisited x isMain currentOptions $ addImportCycleCheck x $ do
-      file <- findFile x  -- requires source to exist
+      file <- maybe (findFile x) (pure . siOrigin) msi -- may require source to exist
 
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
@@ -842,14 +840,6 @@ removePrivates scope = over scopeModules (fmap $ restrictLocalPrivate m) scope
   where
   m = scope ^. scopeCurrent
 
-concreteOptionsToOptionPragmas :: [C.Pragma] -> TCM [OptionsPragma]
-concreteOptionsToOptionPragmas p = do
-  pragmas <- concat <$> concreteToAbstract_ p
-  -- identity for top-level pragmas at the moment
-  let getOptions (A.OptionsPragma opts) = Just opts
-      getOptions _                      = Nothing
-  return $ mapMaybe getOptions pragmas
-
 -- | Tries to type check a module and write out its interface. The
 -- function only writes out an interface file if it does not encounter
 -- any warnings.
@@ -874,21 +864,17 @@ createInterface file mname isMain msi =
       reportSLn "import.iface.create" 10 $
         "  visited: " ++ List.intercalate ", " (map prettyShow visited)
 
-    si <- case msi of
-      Nothing -> sourceInfo file
-      Just si -> return si
-    let source   = siSource si
-        fileType = siFileType si
-        top      = C.modDecls $ siModule si
+    si <- maybe (sourceInfo file) pure msi
+
+    let srcPath = srcFilePath $ siOrigin si
 
     modFile       <- useTC stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfoFromSource
-                         (srcFilePath file) (TL.unpack source)
+                         srcPath (TL.unpack $ siSource si)
     stTokens `setTCLens` fileTokenInfo
 
-    options <- sourcePragmas si
-    mapM_ setOptionsFromPragma options
+    mapM_ setOptionsFromPragma (siPragmas si)
 
     verboseS "import.iface.create" 15 $ do
       nestingLevel      <- asksTC envModuleNestingLevel
@@ -900,8 +886,9 @@ createInterface file mname isMain msi =
 
     -- Scope checking.
     reportSLn "import.iface.create" 7 "Starting scope checking."
-    topLevel <- Bench.billTo [Bench.Scoping] $
-      concreteToAbstract_ (TopLevel (srcFilePath file) mname top)
+    topLevel <- Bench.billTo [Bench.Scoping] $ do
+      let topDecls = C.modDecls $ siModule si
+      concreteToAbstract_ (TopLevel srcPath mname topDecls)
     reportSLn "import.iface.create" 7 "Finished scope checking."
 
     let ds    = topLevelDecls topLevel
@@ -984,7 +971,7 @@ createInterface file mname isMain msi =
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
-        withScope_ scope $ generateVimFile $ filePath $ srcFilePath $ file
+        withScope_ scope $ generateVimFile $ filePath $ srcPath
     reportSLn "import.iface.create" 7 "Finished highlighting from type info."
 
     setScope scope
@@ -1021,7 +1008,7 @@ createInterface file mname isMain msi =
     -- Serialization.
     reportSLn "import.iface.create" 7 "Starting serialization."
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $
-      buildInterface source fileType topLevel options
+      buildInterface si topLevel
 
     reportS "tc.top" 101 $
       "Signature:" :
@@ -1097,18 +1084,17 @@ constructIScope i = billToPure [ Deserialization ] $
 -- have been successfully type checked.
 
 buildInterface
-  :: TL.Text
-     -- ^ Source code.
-  -> FileType
-     -- ^ Agda file? Literate Agda file?
+  :: SourceInfo
+     -- ^ 'SourceInfo' for the current module.
   -> TopLevelInfo
-     -- ^ 'TopLevelInfo' for the current module.
-  -> [OptionsPragma]
-     -- ^ Options set in @OPTIONS@ pragmas.
+     -- ^ 'TopLevelInfo' scope information for the current module.
   -> TCM Interface
-buildInterface source fileType topLevel pragmas = do
+buildInterface si topLevel = do
     reportSLn "import.iface" 5 "Building interface..."
-    let m = topLevelModuleName topLevel
+    let mname = topLevelModuleName topLevel
+        source = siSource si
+        fileType = siFileType si
+        pragmas = siPragmas si
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
@@ -1147,7 +1133,7 @@ buildInterface source fileType topLevel pragmas = do
       , iSource          = source
       , iFileType        = fileType
       , iImportedModules = mhs
-      , iModuleName      = m
+      , iModuleName      = mname
       , iScope           = empty -- publicModules scope
       , iInsideScope     = topLevelScope topLevel
       , iSignature       = sig

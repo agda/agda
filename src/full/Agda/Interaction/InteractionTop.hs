@@ -881,7 +881,6 @@ cmd_load'
   -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do
     fp <- liftIO $ absolute file
-    let f = SourceFile fp
     ex <- liftIO $ doesFileExist $ filePath fp
     unless ex $ typeError $ GenericError $
       "The file " ++ file ++ " was not found."
@@ -903,7 +902,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     t <- liftIO $ getModificationTime file
 
     -- Parse the file.
-    si <- lift $ Imp.sourceInfo f
+    si <- lift $ Imp.sourceInfo (SourceFile fp)
 
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
@@ -931,8 +930,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- Remove any prior syntax highlighting.
     putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
 
-
-    ok <- lift $ Imp.typeCheckMain f mode si
+    ok <- lift $ Imp.typeCheckMain mode si
 
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the
