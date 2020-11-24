@@ -600,7 +600,7 @@ getStoredInterfaceE x file = do
 
   i <- maybe (throwError "bad interface, re-type checking") pure mi
 
-  r <- validateLoadedInterface file i
+  r <- validateLoadedInterface file i []
 
   unless cached $ do
     lift $ chaseMsg "Loading " x $ Just ifp
@@ -615,8 +615,9 @@ validateLoadedInterface
   :: SourceFile
      -- ^ File we process.
   -> Interface
+  -> [TCWarning]
   -> ExceptT String TCM (Interface, [TCWarning])
-validateLoadedInterface file i = do
+validateLoadedInterface file i ws = do
   let fp = filePath $ srcFilePath file
 
   -- Check that it's the right version
@@ -650,7 +651,7 @@ validateLoadedInterface file i = do
   unless (hs == map snd (iImportedModules i)) $
     throwError "hash of imported interface is incorrect"
 
-  return (i, [])
+  return (i, ws)
 
 -- | Run the type checker on a file and create an interface.
 --
@@ -717,26 +718,25 @@ createInterfaceIsolated x file msi = do
 
       stModuleToSource `setTCLens` newModToSource
       setDecodedModules newDecodedModules
-      case r of
-        (i, []) -> do
-          -- We skip the file which has just been type-checked to
-          -- be able to forget some of the local state from
-          -- checking the module.
-          -- Note that this doesn't actually read the interface
-          -- file, only the cached interface. (This comment is not
-          -- correct, see
-          -- test/Fail/customised/NestedProjectRoots.err.)
-          validated <- runExceptT $ validateLoadedInterface file i
 
-          -- NOTE: This attempts to type-check FOREVER if for some
-          -- reason it continually fails to validate interface.
-          let recheckOnError = \msg -> do
-                reportSLn "import.iface" 1 $ "Failed to validate just-loaded interface: " ++ msg
-                createInterfaceIsolated x file msi
+      let (i, ws) = r
 
-          either recheckOnError pure validated
+      -- We skip the file which has just been type-checked to
+      -- be able to forget some of the local state from
+      -- checking the module.
+      -- Note that this doesn't actually read the interface
+      -- file, only the cached interface. (This comment is not
+      -- correct, see
+      -- test/Fail/customised/NestedProjectRoots.err.)
+      validated <- runExceptT $ validateLoadedInterface file i ws
 
-        _ -> return r
+      -- NOTE: This attempts to type-check FOREVER if for some
+      -- reason it continually fails to validate interface.
+      let recheckOnError = \msg -> do
+            reportSLn "import.iface" 1 $ "Failed to validate just-loaded interface: " ++ msg
+            createInterfaceIsolated x file msi
+
+      either recheckOnError pure validated
 
 -- | Formats and outputs the "Checking", "Finished" and "Loading " messages.
 
