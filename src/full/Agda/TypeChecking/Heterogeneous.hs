@@ -44,23 +44,6 @@ instance Pretty a => Pretty (TwinT' a) where
              <> pretty twinPid
              <> pretty b
 
--- instance (Sing het, Pretty a, Pretty b) => Pretty (If_ het a b) where
---  pretty (If a) = case sing :: SingT het of
---    STrue  -> pretty a
---    SFalse -> pretty a
-
--- instance AddContextHet (Name, Dom TwinT) where
---   {-# INLINABLE addContextHet #-}
---   addContextHet ctx p κ = κ$ ctx :|> p
---
---instance TwinAt s a => TwinAt s (CompareAs' a) where
---  type TwinAt_ s (CompareAs' a) = CompareAs' (TwinAt_ s a)
---  twinAt = fmap (twinAt @s)
-
-instance TwinAt s ()   where
-  type TwinAt_ s () = [(Name, Dom Type)]
-  twinAt = const []
-
 instance TwinAt s Term where twinAt = id
 instance TwinAt s Type where twinAt = id
 
@@ -68,50 +51,9 @@ instance TwinAt s a => TwinAt s (Maybe a) where
   type TwinAt_ s (Maybe a) = Maybe (TwinAt_ s a)
   twinAt = fmap (twinAt @s)
 
--- -- | Various specializations of @addCtx@.
--- class AddContextHet b where
---   addContextHet  :: (MonadTCEnv m, MonadAddContext m) =>
---     ContextHet -> b -> (ContextHet -> m a) -> m a
---
--- instance AddContextHet (String, Dom TwinT) where
---   {-# INLINABLE addContextHet #-}
---   addContextHet ctx (s, dom) κ = do
---     withFreshName noRange s $ \x ->
---       addContextHet ctx (setNotInScope x, dom) κ
---
--- -- | Run under a side of a twin context
--- {-# SPECIALIZE underHet :: ContextHet -> (a -> TCM b) -> Het 'LHS a -> TCM (Het 'LHS b) #-}
--- {-# SPECIALIZE underHet :: ContextHet -> (a -> TCM b) -> Het 'RHS a -> TCM (Het 'RHS b) #-}
--- {-# SPECIALIZE underHet :: ContextHet -> (a -> TCM b) -> Het 'Compat a -> TCM (Het 'Compat b) #-}
--- underHet :: forall s m a b. (MonadAddContext m, Sing s, HetSideIsType s ~ 'True) => ContextHet -> (a -> m b) -> Het s a -> m (Het s b)
--- underHet ctx f = traverse (addContext (twinAt @s ctx) . f)
---
--- underHet' :: forall s m a het. (MonadAddContext m, Sing s, HetSideIsType s ~ 'True) =>
---              SingT het -> If het ContextHet () -> m a -> m a
--- underHet' STrue  ctx = addContext (twinAt @s ctx)
--- underHet' SFalse ()  = id
---
--- underHet_ :: forall s m a het. (MonadAddContext m, Sing s, HetSideIsType s ~ 'True, Sing het) =>
---              If_ het ContextHet () -> m a -> m a
--- underHet_ = underHet' @s @m @a @het (sing :: SingT het) . unIf
---
-
 {-# INLINE commuteHet #-}
 commuteHet :: (Coercible (f a) (f (Het s a))) => Het s (f a) -> f (Het s a)
 commuteHet = coerce . unHet
-
--- {-# INLINE maybeInContextHet #-}
--- maybeInContextHet :: (HasOptions m) =>
---   SingT het -> If het ContextHet () ->
---     (forall het'. (Sing het', het' ~ Or het het', het' ~ Or het' het) =>
---        SingT het' -> If (Or het het') ContextHet () -> m a) -> m a
--- maybeInContextHet hetuni ctx κ = do
---   case hetuni of
---     STrue  -> κ STrue ctx
---     SFalse ->
---       heterogeneousUnification >>= \case
---         True  -> κ STrue Empty
---         False -> κ SFalse ()
 
 class FlipHet a where
   type FlippedHet a

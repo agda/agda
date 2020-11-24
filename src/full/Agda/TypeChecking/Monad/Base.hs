@@ -2700,11 +2700,16 @@ pattern γΓ :⊢ a <- ContextHet (a S.:<| (ContextHet -> γΓ))
 pattern (:⊢:) :: Dom (Name, TwinT) -> ContextHet -> ContextHet
 pattern a :⊢: ctx <- ContextHet ((ContextHet -> ctx) S.:|> a)
   where a :⊢: ctx =  ContextHet ( unContextHet  ctx  S.:|> a)
+
 #if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE Empty, (:⊢) #-}
 {-# COMPLETE Empty, (:⊣) #-}
 {-# COMPLETE Empty, (:⊢:) #-}
 #endif
+
+(⊣::), (⊢::) :: ContextHet' a -> ContextHet' a -> ContextHet' a
+δΔ ⊣:: γΓ = ContextHet$ unContextHet δΔ <> unContextHet γΓ
+γΓ ⊢:: δΔ = δΔ ⊣:: γΓ
 
 -- * Manipulating context as a list.
 
@@ -2817,6 +2822,13 @@ instance AsTwin ContextHet where
 instance AsTwin (Het side a) where
   type AsTwin_ (Het side a) = a
   asTwin = coerce
+instance AsTwin a => AsTwin (Dom a) where
+  type AsTwin_ (Dom a) = Dom (AsTwin_ a)
+  asTwin = fmap asTwin
+instance AsTwin a => AsTwin (Name, a) where
+  type AsTwin_ (Name, a) = (Name, AsTwin_ a)
+  asTwin = fmap asTwin
+instance AsTwin () where type AsTwin_ () = (); asTwin = id
 
 class TwinAt (s :: HetSide) a where
   type TwinAt_ s a
@@ -2856,6 +2868,10 @@ instance TwinAt 'Compat (Het 'LHS a) where
 instance TwinAt 'Compat (Het 'RHS a) where
   type TwinAt_ 'Compat (Het 'RHS a) = a
   twinAt = coerce
+
+instance TwinAt s () where
+  type TwinAt_ s () = ()
+  twinAt = id
 
 instance TwinAt s a => TwinAt s (CompareAs' a) where
   type TwinAt_ s (CompareAs' a) = CompareAs' (TwinAt_ s a)

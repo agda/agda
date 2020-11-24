@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 
 module Agda.TypeChecking.Monad.Constraints where
 
@@ -14,10 +15,13 @@ import Data.Semigroup ((<>))
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
+import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 
 import Agda.Utils.Lens
 import Agda.Utils.Monad
+
+import Agda.Utils.Impossible
 
 solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
 solvingProblem pid = solvingProblems (Set.singleton pid)
@@ -230,3 +234,61 @@ mapAwakeConstraints = over stAwakeConstraints
 
 mapSleepingConstraints :: (Constraints -> Constraints) -> TCState -> TCState
 mapSleepingConstraints = over stSleepingConstraints
+
+---------------------------------------------------------------------------
+-- * Twins
+---------------------------------------------------------------------------
+
+class IsTwinSolved a where
+  blockOnTwin :: (MonadTCEnv m, ReadTCState m) => a -> m Blocker
+  isTwinSolved :: (MonadTCEnv m, ReadTCState m) => a -> m Bool
+
+instance IsTwinSolved (TwinT' a) where
+  blockOnTwin SingleT{}      = return AlwaysUnblock
+  blockOnTwin TwinT{twinPid} =
+    unblockOnAll . Set.fromList . map UnblockOnProblem <$> filterM (fmap not . isProblemSolved) twinPid
+
+  isTwinSolved SingleT{}      = return True
+  isTwinSolved TwinT{twinPid} = allM twinPid isProblemSolved
+
+instance IsTwinSolved a => IsTwinSolved (Name, a) where
+  blockOnTwin = blockOnTwin . snd
+  isTwinSolved = isTwinSolved . snd
+
+instance IsTwinSolved a => IsTwinSolved (Dom a) where
+  blockOnTwin = blockOnTwin . unDom
+  isTwinSolved = isTwinSolved . unDom
+
+instance IsTwinSolved a => IsTwinSolved (CompareAs' a) where
+  blockOnTwin (AsTermsOf a) = blockOnTwin a
+  blockOnTwin AsTypes       = return AlwaysUnblock
+  blockOnTwin AsSizes       = return AlwaysUnblock
+
+  isTwinSolved (AsTermsOf a) = isTwinSolved a
+  isTwinSolved AsTypes       = return True
+  isTwinSolved AsSizes       = return True
+
+instance IsTwinSolved () where
+  blockOnTwin ()  = pure AlwaysUnblock
+  isTwinSolved () = pure True
+
+type SimplifyHet a = (AsTwin a, TwinAt 'Compat a, AsTwin_ a ~ TwinAt_ 'Compat a, IsTwinSolved a)
+type SimplifyHetM m = (MonadTCEnv m, ReadTCState m, MonadAddContext m)
+
+-- TODO: One could also check free variables and strengthen the
+-- context, but this is supposed to be a cheap operation
+simplifyHet :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) -> m c
+simplifyHet b κ = go Empty =<< getContext_
+  where
+    go acc Empty =
+      unsafeModifyContext {- IdS -} (const acc) $ isTwinSolved b >>= \case
+                  True  -> κ (asTwin$ twinAt @'Compat b)
+                  False -> κ b
+    go acc ctx@(a :⊢: γΓ)  =
+      isTwinSolved a >>= \case
+        True  -> go (acc :⊢ (asTwin$ twinAt @'Compat a)) γΓ
+        False -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
+
+  -- | Remove unnecessary twins from the context
+simplifyContextHet :: SimplifyHetM m => m a -> m a
+simplifyContextHet m = simplifyHet () (\() -> m)

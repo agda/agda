@@ -1041,11 +1041,10 @@ checkContextHetEqual = go 40
                                          (VarSetBlocked.subtract 1 fvR)
                (Nothing, Just{})  -> __IMPOSSIBLE__
 
+{-# INLINE checkTwinEqual #-}
+-- TODO: Check the necessary bit, add new constraint if needed
 checkTwinEqual :: TwinT -> TCM Blocker
-checkTwinEqual SingleT{}      = return AlwaysUnblock
-checkTwinEqual TwinT{twinPid} =
-  -- TODO: Check the necessary bit, add new constraint if needed
-  unblockOnAll . Set.fromList . map UnblockOnProblem <$> filterM (fmap not . isProblemSolved) twinPid
+checkTwinEqual = blockOnTwin
 
 checkCompareAsHetEqual :: CompareAsHet -> TCM Blocker
 checkCompareAsHetEqual (AsTermsOf a) = checkTwinEqual a

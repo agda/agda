@@ -560,7 +560,7 @@ compareAtom_ cmp t m n =
       (Blocked{}, Blocked{})  -> checkDefinitionalEquality
       (Blocked b _, _) -> useInjectivity_ (fromCmp cmp) b t m n   -- The blocked term goes first
       (_, Blocked b _) -> useInjectivity_ (flipCmp $ fromCmp cmp) b t n m
-      _ -> postponeIfBlockedAs t $ \bt -> do
+      _ -> simplifyHet t $ \t -> postponeIfBlockedAs t $ \bt -> do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.
         -- -- 'False' means: leave (Def f []) unchanged even for
