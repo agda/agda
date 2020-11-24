@@ -439,16 +439,16 @@ getInterface' x isMain msi =
       reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
                                    else "  New module. Let's check it out."
 
-      -- Check that imported module options are consistent with
-      -- current options (issue #2487)
-      -- compute updated warnings if needed
-      wt' <- fromMaybe wt <$> getOptionsCompatibilityWarnings isMain currentOptions i
-
       unless (visited || stateChangesIncluded) $ do
         mergeInterface i
         Bench.billTo [Bench.Highlighting] $
           ifTopLevelAndHighlightingLevelIs NonInteractive $
             highlightFromInterface i file
+
+      -- Check that imported module options are consistent with
+      -- current options (issue #2487)
+      -- compute updated warnings if needed
+      wt' <- fromMaybe wt <$> getOptionsCompatibilityWarnings isMain currentOptions i
 
       -- Interfaces are not stored if we are only scope-checking, or
       -- if any warnings were encountered.
