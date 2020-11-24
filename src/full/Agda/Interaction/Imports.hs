@@ -430,13 +430,6 @@ getInterface' x isMain msi =
 
         either recheck pure stored
 
-      -- Ensure that the given module name matches the one in the file.
-      let topLevelName = toTopLevelModuleName $ iModuleName i
-      unless (topLevelName == x) $
-        -- Andreas, 2014-03-27 This check is now done in the scope checker.
-        -- checkModuleName topLevelName file
-        typeError $ OverlappingProjects (srcFilePath file) topLevelName x
-
       visited <- isVisited x
       reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
                                    else "  New module. Let's check it out."
@@ -598,6 +591,13 @@ getStoredInterface x file msi = do
 
         i <- maybeToExceptT "bad interface, re-type checking" $ MaybeT $
           readInterface ifile
+
+        -- Ensure that the given module name matches the one in the file.
+        let topLevelName = toTopLevelModuleName $ iModuleName i
+        unless (topLevelName == x) $
+          -- Andreas, 2014-03-27 This check is now done in the scope checker.
+          -- checkModuleName topLevelName file
+          lift $ typeError $ OverlappingProjects (srcFilePath file) topLevelName x
 
         r <- validateLoadedInterface file i []
 
