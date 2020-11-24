@@ -444,7 +444,7 @@ getInterface x isMain msi =
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
 
-      (stateChangesIncluded, mi) <- do
+      do
         -- -- Andreas, 2014-10-20 AIM XX:
         -- -- Always retype-check the main file to get the iInsideScope
         -- -- which is no longer serialized.
@@ -454,17 +454,15 @@ getInterface x isMain msi =
         stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
           when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
             throwError "we always re-check the main interface in top-level interaction"
-          (False,) <$> getStoredInterface x file msi
+          getStoredInterface x file msi
 
         let recheck = \reason -> do
               reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
               case isMain of
-                MainInterface _ -> (True,) <$> createInterface x file isMain msi
-                NotMainInterface -> (False,) <$> createInterfaceIsolated x file msi
+                MainInterface _ -> createInterface x file isMain msi
+                NotMainInterface -> createInterfaceIsolated x file msi
 
         either recheck pure stored
-
-      return mi
 
 -- | Check if the options used for checking an imported module are
 --   compatible with the current options. Raises Non-fatal errors if
