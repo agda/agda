@@ -577,7 +577,7 @@ getStoredInterface x file msi = do
         checkSourceHashET (iSourceHash i)
 
         reportSLn "import.iface" 5 $ "  using stored version of " ++ (filePath $ intFilePath ifile)
-        validateLoadedModule file mi
+        loadDecodedModule file mi
 
     Left whyNotCached -> withExceptT (\e -> concat [whyNotCached, " and ", e]) $ do
       whenM ignoreAllInterfaces $
@@ -613,7 +613,7 @@ getStoredInterface x file msi = do
         let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
         unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
-        validateLoadedModule file $ ModuleInfo
+        loadDecodedModule file $ ModuleInfo
           { miInterface = i
           , miWarnings = []
           , miPrimitive = isPrimitiveModule
@@ -621,12 +621,12 @@ getStoredInterface x file msi = do
           }
 
 
-validateLoadedModule
+loadDecodedModule
   :: SourceFile
      -- ^ File we process.
   -> ModuleInfo
   -> ExceptT String TCM ModuleInfo
-validateLoadedModule file mi = do
+loadDecodedModule file mi = do
   let fp = filePath $ srcFilePath file
   let i = miInterface mi
 
@@ -748,7 +748,7 @@ createInterfaceIsolated x file msi = do
       -- file, only the cached interface. (This comment is not
       -- correct, see
       -- test/Fail/customised/NestedProjectRoots.err.)
-      validated <- runExceptT $ validateLoadedModule file mi
+      validated <- runExceptT $ loadDecodedModule file mi
 
       -- NOTE: This attempts to type-check FOREVER if for some
       -- reason it continually fails to validate interface.
