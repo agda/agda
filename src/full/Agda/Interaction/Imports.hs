@@ -464,15 +464,6 @@ getInterface x isMain msi =
 
         either recheck pure stored
 
-      let i = miInterface mi
-
-      unless stateChangesIncluded $ do
-        reportSLn "import.iface" 5 $ "  New module. Let's check it out."
-        mergeInterface i
-        Bench.billTo [Bench.Highlighting] $
-          ifTopLevelAndHighlightingLevelIs NonInteractive $
-            highlightFromInterface i file
-
       return mi
 
 -- | Check if the options used for checking an imported module are
@@ -617,19 +608,17 @@ getStoredInterface x file msi = do
 
         isPrimitiveModule <- lift $ Lens.isPrimitiveModule (filePath $ srcFilePath file)
 
-        r <- validateLoadedModule file $ ModuleInfo
-               { miInterface = i
-               , miWarnings = []
-               , miPrimitive = isPrimitiveModule
-               , miMode = ModuleTypeChecked
-               }
-
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
         let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
         unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
-        return r
+        validateLoadedModule file $ ModuleInfo
+          { miInterface = i
+          , miWarnings = []
+          , miPrimitive = isPrimitiveModule
+          , miMode = ModuleTypeChecked
+          }
 
 
 validateLoadedModule
@@ -678,6 +667,12 @@ validateLoadedModule file mi = do
         ]
 
   unlessNull badHashMessages (throwError . unlines)
+
+  reportSLn "import.iface" 5 "  New module. Let's check it out."
+  lift $ mergeInterface i
+  Bench.billTo [Bench.Highlighting] $
+    lift $ ifTopLevelAndHighlightingLevelIs NonInteractive $
+      highlightFromInterface i file
 
   return mi
 
