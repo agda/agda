@@ -290,9 +290,16 @@ alreadyVisited x isMain currentOptions getIface =
       throwError "previously-visited interface had warnings"
 
     reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
-    -- Check that imported options are compatible with current ones,
+
+    lift $ processResultingModule (i, [], isPrim)
+
+  processResultingModule :: (Interface, [TCWarning], Bool) -> TCM (Interface, [TCWarning], Bool)
+  processResultingModule (i, ws, isPrim) = do
+    -- Check that imported options are compatible with current ones (issue #2487),
     -- but give primitive modules a pass
-    wt <- fromMaybe [] <$> (lift $ getOptionsCompatibilityWarnings isMain isPrim currentOptions i)
+    -- compute updated warnings if needed
+    wt <- fromMaybe ws <$> (getOptionsCompatibilityWarnings isMain isPrim currentOptions i)
+
     return (i, wt, isPrim)
 
   loadAndRecordVisited :: TCM (Interface, [TCWarning], Bool)
@@ -304,9 +311,22 @@ alreadyVisited x isMain currentOptions getIface =
   load :: TCM (Interface, [TCWarning], Bool)
   load = do
     reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
-    r <- getIface
+    mi@(i, ws, _isPrim) <- processResultingModule =<< getIface
     reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
-    return r
+
+    -- Interfaces are not stored if we are only scope-checking, or
+    -- if any warnings were encountered.
+    case (isMain, ws) of
+      (MainInterface ScopeCheck, _) -> return ()
+      (_, _:_)                      -> return ()
+      _                             -> storeDecodedModule i
+
+    reportS "warning.import" 10
+      [ "module: " ++ show (C.moduleNameParts x)
+      , "WarningOnImport: " ++ show (iImportWarning i)
+      ]
+
+    return mi
 
   recordVisited :: (Interface, [TCWarning], Bool) -> TCM ()
   recordVisited (i, wt, isPrim) =
@@ -461,23 +481,7 @@ getInterface' x isMain msi =
           ifTopLevelAndHighlightingLevelIs NonInteractive $
             highlightFromInterface i file
 
-      -- Check that imported module options are consistent with
-      -- current options (issue #2487)
-      -- compute updated warnings if needed
-      wt' <- fromMaybe wt <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
-
-      -- Interfaces are not stored if we are only scope-checking, or
-      -- if any warnings were encountered.
-      case (isMain, wt') of
-        (MainInterface ScopeCheck, _) -> return ()
-        (_, _:_)                      -> return ()
-        _                             -> storeDecodedModule i
-
-      reportS "warning.import" 10
-        [ "module: " ++ show (C.moduleNameParts x)
-        , "WarningOnImport: " ++ show (iImportWarning i)
-        ]
-      return (i, wt', isPrim)
+      return (i, wt, isPrim)
 
 -- | Check if the options used for checking an imported module are
 --   compatible with the current options. Raises Non-fatal errors if
