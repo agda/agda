@@ -12,7 +12,6 @@ module Agda.TypeChecking.Monad.Imports
   , getVisitedModule
   , getVisitedModules
   , isImported
-  , isVisited
   , setDecodedModules
   , setVisitedModules
   , storeDecodedModule
@@ -75,9 +74,6 @@ getPrettyVisitedModules = do
   prettyCheckMode ModuleTypeChecked                  = ""
   prettyCheckMode ModuleTypeCheckedRetainingPrivates = " (+ privates)"
   prettyCheckMode ModuleScopeChecked                 = " (scope only)"
-
-isVisited :: C.TopLevelModuleName -> TCM Bool
-isVisited x = Map.member x <$> useTC stVisitedModules
 
 getVisitedModule :: ReadTCState m
                  => C.TopLevelModuleName

@@ -466,34 +466,8 @@ getInterface x isMain msi =
 
       let i = miInterface mi
 
-      -- We are in the @alreadyVisited@ loading action.
-      -- @alreadyVisited@ runs this action iff:
-      --   - the module is NOT visited with a sufficient check mode (i.e. it was only scope-checked).
-      --   - or if we forced a re-check due to using "MainInterface (TypeCheck TopLevelInteraction)".
-      --
-      -- Note also that 'createInterface'/'createInterfaceIsolated/'getStoredInterface'
-      -- invoked above will never "visit" this module: if they did, that would be caught
-      -- by the import cycle check.
-      --
-      -- We will never re-visit a non-main interface in any given context:
-      -- each interface is unconditionally added to the visited list.
-      -- Currently, only the main interface supports scope-checking.
-      --
-      -- In the case of 'MainInterface (TypeCheck TopLevelInteraction)', we might
-      -- re-visit due to the special case in `alreadyVisited`.
-      --
-      -- This means re-visitation can *only* happen when forcibly re-checking the main
-      -- module. However, re-checking the main module means using 'createInterface',
-      -- which is always done in the current context, and so 'stateChangesIncluded'
-      -- also will also always be True in that case.
-      --
-      -- Thus, this check does not affect anything except for the log message, and
-      -- it can only happen when force-rechecking the main module.
-      visited <- isVisited x
-      reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
-                                   else "  New module. Let's check it out."
-
-      unless (visited || stateChangesIncluded) $ do
+      unless stateChangesIncluded $ do
+        reportSLn "import.iface" 5 $ "  New module. Let's check it out."
         mergeInterface i
         Bench.billTo [Bench.Highlighting] $
           ifTopLevelAndHighlightingLevelIs NonInteractive $
