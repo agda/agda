@@ -444,25 +444,24 @@ getInterface x isMain msi =
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
 
-      do
-        -- -- Andreas, 2014-10-20 AIM XX:
-        -- -- Always retype-check the main file to get the iInsideScope
-        -- -- which is no longer serialized.
-        -- let maySkip = isMain == NotMainInterface
-        -- Andreas, 2015-07-13: Serialize iInsideScope again.
-        -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
-        stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
-          when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
-            throwError "we always re-check the main interface in top-level interaction"
-          getStoredInterface x file msi
+      -- -- Andreas, 2014-10-20 AIM XX:
+      -- -- Always retype-check the main file to get the iInsideScope
+      -- -- which is no longer serialized.
+      -- let maySkip = isMain == NotMainInterface
+      -- Andreas, 2015-07-13: Serialize iInsideScope again.
+      -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
+      stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
+        when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
+          throwError "we always re-check the main interface in top-level interaction"
+        getStoredInterface x file msi
 
-        let recheck = \reason -> do
-              reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
-              case isMain of
-                MainInterface _ -> createInterface x file isMain msi
-                NotMainInterface -> createInterfaceIsolated x file msi
+      let recheck = \reason -> do
+            reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
+            case isMain of
+              MainInterface _ -> createInterface x file isMain msi
+              NotMainInterface -> createInterfaceIsolated x file msi
 
-        either recheck pure stored
+      either recheck pure stored
 
 -- | Check if the options used for checking an imported module are
 --   compatible with the current options. Raises Non-fatal errors if
