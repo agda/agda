@@ -291,8 +291,7 @@ alreadyVisited x isMain currentOptions getIface =
     reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
     -- Check that imported options are compatible with current ones,
     -- but give primitive modules a pass
-    wt <- if isPrim then pure [] else
-          fromMaybe [] <$> (lift $ getOptionsCompatibilityWarnings isMain currentOptions i)
+    wt <- fromMaybe [] <$> (lift $ getOptionsCompatibilityWarnings isMain isPrim currentOptions i)
     return (i, wt)
 
   loadAndRecordVisited :: TCM (Interface, [TCWarning])
@@ -350,7 +349,7 @@ typeCheckMain mode si = do
     Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
 
     -- We don't want to generate highlighting information for Agda.Primitive.
-    withHighlightingLevel None $ withoutOptionsChecking $
+    withHighlightingLevel None $
       forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
         si <- sourceInfo (SourceFile $ mkAbsolute f)
         checkModuleName' (siModuleName si) (siOrigin si)
@@ -428,6 +427,8 @@ getInterface' x isMain msi =
      alreadyVisited x isMain currentOptions $ addImportCycleCheck x $ do
       file <- maybe (findFile x) (pure . siOrigin) msi -- may require source to exist
 
+      isPrim <- Lens.isPrimitiveModule (filePath (srcFilePath file))
+
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
 
@@ -464,7 +465,7 @@ getInterface' x isMain msi =
       -- Check that imported module options are consistent with
       -- current options (issue #2487)
       -- compute updated warnings if needed
-      wt' <- fromMaybe wt <$> getOptionsCompatibilityWarnings isMain currentOptions i
+      wt' <- fromMaybe wt <$> getOptionsCompatibilityWarnings isMain isPrim currentOptions i
 
       -- Interfaces are not stored if we are only scope-checking, or
       -- if any warnings were encountered.
@@ -505,12 +506,12 @@ checkOptionsCompatible current imported importedModule = flip execStateT True $ 
 -- | Compare options and return collected warnings.
 -- | Returns `Nothing` if warning collection was skipped.
 
-getOptionsCompatibilityWarnings :: MainInterface -> PragmaOptions -> Interface -> TCM (Maybe [TCWarning])
-getOptionsCompatibilityWarnings isMain currentOptions i = runMaybeT $ exceptToMaybeT $ do
+getOptionsCompatibilityWarnings :: MainInterface -> Bool -> PragmaOptions -> Interface -> TCM (Maybe [TCWarning])
+getOptionsCompatibilityWarnings isMain isPrim currentOptions i = runMaybeT $ exceptToMaybeT $ do
   -- We're just dropping these reasons-for-skipping messages for now.
   -- They weren't logged before, but they're nice for documenting the early returns.
-  whenM (lift $ not <$> asksTC envCheckOptionConsistency) $
-    throwError "Options consistency checking is disabled"
+  when isPrim $
+    throwError "Options consistency checking disabled for always-available primitive module"
   whenM (lift $ checkOptionsCompatible currentOptions (iOptionsUsed i) (iModuleName i)) $
     throwError "No warnings to collect because options were compatible"
   lift $ getAllWarnings' isMain ErrorWarnings
@@ -648,7 +649,7 @@ validateLoadedInterface file i ws = do
 
   -- Check that options that matter haven't changed compared to
   -- current options (issue #2487)
-  whenM ((asksTC envCheckOptionConsistency) `and2M` (lift $ not <$> Lens.isBuiltinModule fp)) $ do
+  unlessM (lift $ Lens.isBuiltinModule fp) $ do
     currentOptions <- useTC stPragmaOptions
     let disagreements =
           [ optName | (opt, optName) <- restartOptions,
