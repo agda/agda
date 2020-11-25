@@ -583,7 +583,7 @@ getStoredInterface x file msi = do
         checkSourceHashET (iSourceHash i)
 
         reportSLn "import.iface" 5 $ "  using stored version of " ++ (filePath $ intFilePath ifile)
-        validateLoadedInterface file i []
+        validateLoadedModule file mi
 
     Left whyNotCached -> withExceptT (\e -> concat [whyNotCached, " and ", e]) $ do
       whenM ignoreAllInterfaces $
@@ -612,7 +612,13 @@ getStoredInterface x file msi = do
           -- checkModuleName topLevelName file
           lift $ typeError $ OverlappingProjects (srcFilePath file) topLevelName x
 
-        r <- validateLoadedInterface file i []
+        isPrimitiveModule <- lift $ Lens.isPrimitiveModule (filePath $ srcFilePath file)
+
+        r <- validateLoadedModule file $ ModuleInfo
+               { miInterface = i
+               , miWarnings = []
+               , miPrimitive = isPrimitiveModule
+               }
 
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
@@ -622,14 +628,14 @@ getStoredInterface x file msi = do
         return r
 
 
-validateLoadedInterface
+validateLoadedModule
   :: SourceFile
      -- ^ File we process.
-  -> Interface
-  -> [TCWarning]
+  -> ModuleInfo
   -> ExceptT String TCM ModuleInfo
-validateLoadedInterface file i ws = do
+validateLoadedModule file mi = do
   let fp = filePath $ srcFilePath file
+  let i = miInterface mi
 
   -- Check that it's the right version
   reportSLn "import.iface" 5 $ "  imports: " ++ prettyShow (iImportedModules i)
@@ -669,13 +675,7 @@ validateLoadedInterface file i ws = do
 
   unlessNull badHashMessages (throwError . unlines)
 
-  isPrimitiveModule <- lift $ Lens.isPrimitiveModule fp
-
-  return ModuleInfo
-    { miInterface = i
-    , miWarnings = ws
-    , miPrimitive = isPrimitiveModule
-    }
+  return mi
 
 -- | Run the type checker on a file and create an interface.
 --
@@ -742,8 +742,6 @@ createInterfaceIsolated x file msi = do
       stModuleToSource `setTCLens` newModToSource
       setDecodedModules newDecodedModules
 
-      let ModuleInfo { miInterface = i, miWarnings = ws } = mi
-
       -- We skip the file which has just been type-checked to
       -- be able to forget some of the local state from
       -- checking the module.
@@ -751,7 +749,7 @@ createInterfaceIsolated x file msi = do
       -- file, only the cached interface. (This comment is not
       -- correct, see
       -- test/Fail/customised/NestedProjectRoots.err.)
-      validated <- runExceptT $ validateLoadedInterface file i ws
+      validated <- runExceptT $ validateLoadedModule file mi
 
       -- NOTE: This attempts to type-check FOREVER if for some
       -- reason it continually fails to validate interface.
