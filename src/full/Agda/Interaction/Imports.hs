@@ -597,8 +597,7 @@ getStoredInterface x file isMain msi = do
 
       -- Check that options that matter haven't changed compared to
       -- current options (issue #2487)
-      optionsChanged <-ifM ((not <$> asksTC envCheckOptionConsistency) `or2M`
-                            Lens.isBuiltinModule fp)
+      optionsChanged <-ifM (Lens.isBuiltinModule fp)
                        {-then-} (return False) {-else-} $ do
         currentOptions <- useTC stPragmaOptions
         let disagreements =
