@@ -12,7 +12,6 @@ module Agda.TypeChecking.Monad.Imports
   , getVisitedModules
   , isImported
   , isVisited
-  , mapVisitedModule
   , setDecodedModules
   , setVisitedModules
   , storeDecodedModule
@@ -69,11 +68,6 @@ getVisitedModule :: ReadTCState m
                  => C.TopLevelModuleName
                  -> m (Maybe ModuleInfo)
 getVisitedModule x = Map.lookup x <$> useTC stVisitedModules
-
-mapVisitedModule :: C.TopLevelModuleName
-                 -> (ModuleInfo -> ModuleInfo)
-                 -> TCM ()
-mapVisitedModule x f = modifyTCLens stVisitedModules (Map.adjust f x)
 
 getDecodedModules :: TCM DecodedModules
 getDecodedModules = stDecodedModules . stPersistentState <$> getTC

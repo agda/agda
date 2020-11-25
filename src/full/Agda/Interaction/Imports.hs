@@ -258,9 +258,10 @@ scopeCheckImport x = do
 alreadyVisited :: C.TopLevelModuleName ->
                   MainInterface ->
                   PragmaOptions ->
-                  TCM (Interface, [TCWarning]) ->
+                  TCM (Interface, [TCWarning], Bool) ->
                   TCM (Interface, [TCWarning])
 alreadyVisited x isMain currentOptions getIface =
+  fmap (\(i, wt, _isPrim) -> (i, wt)) $
   case isMain of
     -- Andreas, 2020-05-13, issue 4647:
     -- For top-level interaction commands, we may not able to reuse
@@ -271,14 +272,14 @@ alreadyVisited x isMain currentOptions getIface =
     NotMainInterface                              -> eitherUseExistingOr loadAndRecordVisited
     MainInterface ScopeCheck                      -> eitherUseExistingOr load
   where
-  eitherUseExistingOr :: TCM (Interface, [TCWarning]) -> TCM (Interface, [TCWarning])
+  eitherUseExistingOr :: TCM (Interface, [TCWarning], Bool) -> TCM (Interface, [TCWarning], Bool)
   eitherUseExistingOr notYetVisited = fromMaybeM notYetVisited existingWithoutWarnings
 
   -- Case: already visited.
   --
   -- A module with warnings should never be allowed to be
   -- imported from another module.
-  existingWithoutWarnings :: TCM (Maybe (Interface, [TCWarning]))
+  existingWithoutWarnings :: TCM (Maybe (Interface, [TCWarning], Bool))
   existingWithoutWarnings = runMaybeT $ exceptToMaybeT $ do
     mi <- maybeToExceptT "interface has not been visited in this context" $ MaybeT $
       getVisitedModule x
@@ -292,27 +293,27 @@ alreadyVisited x isMain currentOptions getIface =
     -- Check that imported options are compatible with current ones,
     -- but give primitive modules a pass
     wt <- fromMaybe [] <$> (lift $ getOptionsCompatibilityWarnings isMain isPrim currentOptions i)
-    return (i, wt)
+    return (i, wt, isPrim)
 
-  loadAndRecordVisited :: TCM (Interface, [TCWarning])
+  loadAndRecordVisited :: TCM (Interface, [TCWarning], Bool)
   loadAndRecordVisited = do
     r <- load
     recordVisited r
     return r
 
-  load :: TCM (Interface, [TCWarning])
+  load :: TCM (Interface, [TCWarning], Bool)
   load = do
     reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
     r <- getIface
     reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
     return r
 
-  recordVisited :: (Interface, [TCWarning]) -> TCM ()
-  recordVisited (i, wt) =
+  recordVisited :: (Interface, [TCWarning], Bool) -> TCM ()
+  recordVisited (i, wt, isPrim) =
     visitModule ModuleInfo
       { miInterface  = i
       , miWarnings   = not . null $ wt
-      , miPrimitive  = False -- will be updated later for primitive modules
+      , miPrimitive  = isPrim
       }
 
 -- | Type checks the main file of the interaction.
@@ -353,9 +354,7 @@ typeCheckMain mode si = do
       forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
         si <- sourceInfo (SourceFile $ mkAbsolute f)
         checkModuleName' (siModuleName si) (siOrigin si)
-        _ <- getInterface_ (siModuleName si) (Just si)
-        -- record that the just visited module is primitive
-        mapVisitedModule (siModuleName si) (\ m -> m { miPrimitive = True })
+        void $ getInterface_ (siModuleName si) (Just si)
 
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
@@ -478,7 +477,7 @@ getInterface' x isMain msi =
         [ "module: " ++ show (C.moduleNameParts x)
         , "WarningOnImport: " ++ show (iImportWarning i)
         ]
-      return (i, wt')
+      return (i, wt', isPrim)
 
 -- | Check if the options used for checking an imported module are
 --   compatible with the current options. Raises Non-fatal errors if
