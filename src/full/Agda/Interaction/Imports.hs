@@ -94,6 +94,16 @@ import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
 
+-- | Whether to ignore interfaces (@.agdai@) other than built-in modules
+
+ignoreInterfaces :: HasOptions m => m Bool
+ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
+
+-- | Whether to ignore all interface files (@.agdai@)
+
+ignoreAllInterfaces :: HasOptions m => m Bool
+ignoreAllInterfaces = optIgnoreAllInterfaces <$> commandLineOptions
+
 -- | Some information about the source code.
 
 data SourceInfo = SourceInfo

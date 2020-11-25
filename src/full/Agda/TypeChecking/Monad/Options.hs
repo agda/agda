@@ -262,12 +262,6 @@ withShowAllArguments' yes = withPragmaOptions $ \ opts ->
 withPragmaOptions :: ReadTCState m => (PragmaOptions -> PragmaOptions) -> m a -> m a
 withPragmaOptions = locallyTCState stPragmaOptions
 
-ignoreInterfaces :: HasOptions m => m Bool
-ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
-
-ignoreAllInterfaces :: HasOptions m => m Bool
-ignoreAllInterfaces = optIgnoreAllInterfaces <$> commandLineOptions
-
 positivityCheckEnabled :: HasOptions m => m Bool
 positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
 
