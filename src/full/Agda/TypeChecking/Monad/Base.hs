@@ -867,9 +867,11 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
 
 data ModuleInfo = ModuleInfo
   { miInterface  :: Interface
-  , miWarnings   :: Bool
-    -- ^ 'True' if warnings were encountered when the module was type
-    -- checked.
+  , miWarnings   :: [TCWarning]
+    -- ^ Warnings were encountered when the module was type checked.
+    --   These might include warnings not stored in the interface itself,
+    --   specifically unsolved interaction metas.
+    --   See "Agda.Interaction.Imports"
   , miPrimitive  :: Bool
     -- ^ 'True' if the module is a primitive module, which should always
     -- be importable.

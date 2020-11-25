@@ -1168,7 +1168,7 @@ status = do
             mm <- lookupModuleFromSource f
             case mm of
               Nothing -> return False -- work-around for Issue1007
-              Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
+              Just m  -> maybe False (null . miWarnings) <$> getVisitedModule m
         else
             return False
 

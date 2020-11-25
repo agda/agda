@@ -291,7 +291,7 @@ alreadyVisited x isMain currentOptions getIface =
 
     let ModuleInfo { miInterface = i, miPrimitive = isPrim, miWarnings = ws } = mi
 
-    when ws $
+    unless (null ws) $
       throwError "previously-visited interface had warnings"
 
     reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
@@ -337,7 +337,7 @@ alreadyVisited x isMain currentOptions getIface =
   recordVisited (i, wt, isPrim) =
     visitModule ModuleInfo
       { miInterface  = i
-      , miWarnings   = not . null $ wt
+      , miWarnings   = wt
       , miPrimitive  = isPrim
       }
 
