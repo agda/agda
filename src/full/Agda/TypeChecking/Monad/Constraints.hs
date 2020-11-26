@@ -202,7 +202,7 @@ addConstraintTo bucket unblock c = do
       HasBiggerSort{}  -> False
       HasPTSRule{}     -> False
       ValueCmp{}       -> True
-      ValueCmpHet{}    -> True
+      ValueCmp_{}      -> True
       ValueCmpOnFace{} -> True
       ElimCmp{}        -> True
       UnBlock{}        -> True

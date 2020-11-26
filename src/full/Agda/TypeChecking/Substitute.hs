@@ -985,7 +985,7 @@ instance Subst Constraint where
 
   applySubst rho c = case c of
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
-    ValueCmpHet cmp a u v    -> ValueCmpHet cmp (rf a) (rf u) (rf v)
+    ValueCmp_ cmp a u v      -> ValueCmp_ cmp (rf a) (rf u) (rf v)
     ValueCmpOnFace cmp p t u v -> ValueCmpOnFace cmp (rf p) (rf t) (rf u) (rf v)
     ElimCmp ps fs a v e1 e2  -> ElimCmp ps fs (rf a) (rf v) (rf e1) (rf e2)
     SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)

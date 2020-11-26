@@ -63,7 +63,7 @@ instance PrettyTCM ProblemConstraint where
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
         ValueCmp cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
-        ValueCmpHet cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
+        ValueCmp_ cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
         ValueCmpOnFace cmp p ty s t ->
             sep [ prettyTCM p <+> "|"
                 , prettyCmp (prettyTCM cmp) s t ]

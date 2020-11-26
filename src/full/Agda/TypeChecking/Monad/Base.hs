@@ -1031,7 +1031,7 @@ instance HasRange ProblemConstraint where
 
 data Constraint
   = ValueCmp Comparison CompareAs Term Term
-  | ValueCmpHet Comparison CompareAsHet (Het 'LHS Term) (Het 'RHS Term)
+  | ValueCmp_ Comparison CompareAs_ (Het 'LHS Term) (Het 'RHS Term)
   | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] [IsForced] Type Term [Elim] [Elim]
   | SortCmp Comparison Sort Sort
@@ -1076,7 +1076,7 @@ instance Free Constraint where
   freeVars' c =
     case c of
       ValueCmp _ t u v      -> freeVars' (t, (u, v))
-      ValueCmpHet _ t u v   -> freeVars' (t, (u, v))
+      ValueCmp_ _ t u v   -> freeVars' (t, (u, v))
       ValueCmpOnFace _ p t u v -> freeVars' (p, (t, (u, v)))
       ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
       SortCmp _ s s'        -> freeVars' (s, s')
@@ -1096,7 +1096,7 @@ instance Free Constraint where
 instance TermLike Constraint where
   foldTerm f = \case
       ValueCmp _ t u v       -> foldTerm f (t, u, v)
-      ValueCmpHet _ t u v    -> foldTerm f (t, u, v)
+      ValueCmp_ _ t u v    -> foldTerm f (t, u, v)
       ValueCmpOnFace _ p t u v -> foldTerm f (p, t, u, v)
       ElimCmp _ _ t u es es' -> foldTerm f (t, u, es, es')
       LevelCmp _ l l'        -> foldTerm f (Level l, Level l')  -- Note wrapping as term, to ensure f gets to act on l and l'
@@ -2815,7 +2815,7 @@ class AsTwin b where
 instance AsTwin b => AsTwin (CompareAs' b) where
   type AsTwin_ (CompareAs' b) = CompareAs' (AsTwin_ b)
   asTwin = fmap asTwin
-instance AsTwin TwinT where type AsTwin_ TwinT = Type; asTwin = SingleT . Het @'Both
+instance AsTwin (TwinT' a) where type AsTwin_ (TwinT' a) = a; asTwin = SingleT . Het @'Both
 instance AsTwin ContextHet where
   type AsTwin_ ContextHet = Context
   asTwin = ContextHet . S.fromList . (fmap (fmap (fmap asTwin)))

@@ -405,10 +405,10 @@ instance Reify Constraint where
     reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
     reify (ValueCmp cmp AsSizes u v) = CmpInType cmp <$> (reify =<< sizeType) <*> reify u <*> reify v
     reify (ValueCmp cmp AsTypes u v) = CmpTypes cmp <$> reify u <*> reify v
-    reify (ValueCmpHet cmp (AsTermsOf t) u v) = CmpInTypeHet cmp <$> reify t <*> reify u <*> reify v
-    reify (ValueCmpHet cmp AsSizes u v) = CmpInTypeHet cmp <$> (pure <$> (reify =<< sizeType))
+    reify (ValueCmp_ cmp (AsTermsOf t) u v) = CmpInTypeHet cmp <$> reify t <*> reify u <*> reify v
+    reify (ValueCmp_ cmp AsSizes u v) = CmpInTypeHet cmp <$> (asTwin <$> (reify =<< sizeType))
                                                            <*> reify u <*> reify v
-    reify (ValueCmpHet cmp AsTypes u v) = CmpTypes cmp <$> (unHet @'M.LHS <$> reify u)
+    reify (ValueCmp_ cmp AsTypes u v) = CmpTypes cmp <$> (unHet @'M.LHS <$> reify u)
                                                        <*> (unHet @'M.RHS <$> reify v)
     reify (ValueCmpOnFace cmp p t u v) = CmpInType cmp <$> (reify =<< ty) <*> reify (lam_o u) <*> reify (lam_o v)
       where
@@ -630,7 +630,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
     hasHeadMeta c =
       case c of
         ValueCmp _ _ u v           -> isMeta u `mplus` isMeta v
-        ValueCmpHet _ _ u v        -> isMeta (unHet @'M.LHS u) `mplus` isMeta (unHet @'M.RHS v)
+        ValueCmp_ _ _ u v          -> isMeta (unHet @'M.LHS u) `mplus` isMeta (unHet @'M.RHS v)
         ValueCmpOnFace cmp p t u v -> isMeta u `mplus` isMeta v
         -- TODO: extend to other comparisons?
         ElimCmp cmp fs t v as bs   -> Nothing

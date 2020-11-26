@@ -452,7 +452,7 @@ compareAtom_ :: forall m. MonadConversion m => Comparison -> CompareAsHet -> Het
 compareAtom_ cmp t m n =
   verboseBracket "tc.conv.atom" 20 "compareAtom" $
   -- if a PatternErr is thrown, rebuild constraint!
-  (catchConstraint (ValueCmpHet cmp t m n) :: m () -> m ()) $ do
+  (catchConstraint (ValueCmp_ cmp t m n) :: m () -> m ()) $ do
     reportSLn "tc.conv.atom.size" 50 $ "compareAtom term size:  " ++ show (termSize m, termSize n)
     reportSDoc "tc.conv.atom" 50 $
       "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
@@ -482,7 +482,7 @@ compareAtom_ cmp t m n =
     let m = ignoreBlocking mb
         n = ignoreBlocking nb
 
-        postpone u = addConstraint u $ ValueCmpHet cmp t m n
+        postpone u = addConstraint u $ ValueCmp_ cmp t m n
 
         -- Jesper, 2019-05-14, Issue #3776: If the type is blocked,
         -- the comparison could be solved by eta-expansion so we
@@ -582,7 +582,7 @@ compareAtom_ cmp t m n =
           (Var i es, Var i' es') | i == i' -> do
               a <- typeOfBV_ i
               -- Variables are invariant in their arguments
-              compareElims_ [] [] a (pure$ var i) (H'LHS es) (H'RHS es')
+              compareElims_ [] [] a (asTwin $ var i) (H'LHS es) (H'RHS es')
 
           -- The case of definition application:
           (Def f es, Def f' es') -> do
@@ -618,7 +618,7 @@ compareAtom_ cmp t m n =
                   forcedArgs <- getForcedArgs $ conName x
                   -- Constructors are covariant in their arguments
                   -- (see test/succeed/CovariantConstructors).
-                  compareElims_ (repeat $ polFromCmp cmp) forcedArgs a' (pure$ Con x ci []) (H'LHS xArgs) (H'RHS yArgs)
+                  compareElims_ (repeat $ polFromCmp cmp) forcedArgs a' (asTwin $ Con x ci []) (H'LHS xArgs) (H'RHS yArgs)
           _ -> typeError $ UnequalTerms_ cmp m n $ ignoreBlocking bt
     where
         -- returns True in case we handled the comparison already.

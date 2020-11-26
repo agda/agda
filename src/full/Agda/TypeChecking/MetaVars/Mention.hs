@@ -103,7 +103,7 @@ instance MentionsMeta ProblemConstraint where
 instance MentionsMeta Constraint where
   mentionsMetas xs c = case c of
     ValueCmp _ t u v    -> mm (t, u, v)
-    ValueCmpHet _ t u v -> mm (t, u, v)
+    ValueCmp_ _ t u v   -> mm (t, u, v)
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
     ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))
     LevelCmp _ u v      -> mm (u, v)

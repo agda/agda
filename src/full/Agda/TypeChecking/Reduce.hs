@@ -198,9 +198,9 @@ instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do
     (t,u,v) <- instantiate' (t,u,v)
     return $ ValueCmp cmp t u v
-  instantiate' (ValueCmpHet cmp t u v) = do
+  instantiate' (ValueCmp_ cmp t u v) = do
     (t,u,v) <- instantiate' (t,u,v)
-    return $ ValueCmpHet cmp t u v
+    return $ ValueCmp_ cmp t u v
   instantiate' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- instantiate' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
@@ -798,9 +798,9 @@ instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do
     (t,u,v) <- reduce' (t,u,v)
     return $ ValueCmp cmp t u v
-  reduce' (ValueCmpHet cmp t u v) = do
+  reduce' (ValueCmp_ cmp t u v) = do
     (t,u,v) <- reduce' (t,u,v)
-    return $ ValueCmpHet cmp t u v
+    return $ ValueCmp_ cmp t u v
   reduce' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- reduce' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
@@ -977,9 +977,9 @@ instance Simplify Constraint where
   simplify' (ValueCmp cmp t u v) = do
     (t,u,v) <- simplify' (t,u,v)
     return $ ValueCmp cmp t u v
-  simplify' (ValueCmpHet cmp t u v) = do
+  simplify' (ValueCmp_ cmp t u v) = do
     (t,u,v) <- simplify' (t,u,v)
-    return $ ValueCmpHet cmp t u v
+    return $ ValueCmp_ cmp t u v
   simplify' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- simplify' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
@@ -1160,9 +1160,9 @@ instance Normalise Constraint where
   normalise' (ValueCmp cmp t u v) = do
     (t,u,v) <- normalise' (t,u,v)
     return $ ValueCmp cmp t u v
-  normalise' (ValueCmpHet cmp t u v) = do
+  normalise' (ValueCmp_ cmp t u v) = do
     (t,u,v) <- normalise' (t,u,v)
-    return $ ValueCmpHet cmp t u v
+    return $ ValueCmp_ cmp t u v
   normalise' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- normalise' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
@@ -1382,9 +1382,9 @@ instance InstantiateFull Constraint where
     ValueCmp cmp t u v -> do
       (t,u,v) <- instantiateFull' (t,u,v)
       return $ ValueCmp cmp t u v
-    ValueCmpHet cmp t u v -> do
+    ValueCmp_ cmp t u v -> do
       (t,u,v) <- instantiateFull' (t,u,v)
-      return $ ValueCmpHet cmp t u v
+      return $ ValueCmp_ cmp t u v
     ValueCmpOnFace cmp p t u v -> do
       ((p,t),u,v) <- instantiateFull' ((p,t),u,v)
       return $ ValueCmpOnFace cmp p t u v
