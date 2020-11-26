@@ -204,7 +204,7 @@ class MonadTCEnv m => MonadAddContext m where
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret = do
   q <- viewTC eQuantity
-  let ce = (x,) . pure <$> (inverseApplyQuantity q a)
+  let ce = (x,) . asTwin <$> (inverseApplyQuantity q a)
   updateContext (raiseS 1) (:⊢ ce) ret
 
 -- | Default implementation of addCtx in terms of updateContext

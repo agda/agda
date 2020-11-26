@@ -2815,7 +2815,7 @@ class AsTwin b where
 instance AsTwin b => AsTwin (CompareAs' b) where
   type AsTwin_ (CompareAs' b) = CompareAs' (AsTwin_ b)
   asTwin = fmap asTwin
-instance AsTwin TwinT where type AsTwin_ TwinT = Type; asTwin = pure
+instance AsTwin TwinT where type AsTwin_ TwinT = Type; asTwin = SingleT . Het @'Both
 instance AsTwin ContextHet where
   type AsTwin_ ContextHet = Context
   asTwin = ContextHet . S.fromList . (fmap (fmap (fmap asTwin)))
@@ -2899,12 +2899,12 @@ data TwinT'' b a  =
 deriving instance (Data a, Data b) => Data (TwinT'' a b)
 deriving instance (Show a, Show b) => Show (TwinT'' a b)
 deriving instance Functor (TwinT'' b)
-instance Applicative TwinT' where
-  pure a = SingleT (Het @'Both a)
-  (SingleT f) <*> (SingleT a) = SingleT (f <*> a)
-  (TwinT pid nec a b c) <*> (TwinT pid' nec' a' b' c') = TwinT (pid ++ pid') (nec && nec') (a <*> a') (b <*> b') (c <*> c')
-  (TwinT pid nec a b c) <*> SingleT (Het x) = TwinT pid nec (($x) <$> a) (($x) <$> b) (($x) <$> c)
-  (SingleT (Het f)) <*> (TwinT pid nec a b c) = TwinT pid nec (f <$> a) (f <$> b) (f <$> c)
+-- instance Applicative TwinT' where
+--   pure a = SingleT (Het @'Both a)
+--   (SingleT f) <*> (SingleT a) = SingleT (f <*> a)
+--   (TwinT pid nec a b c) <*> (TwinT pid' nec' a' b' c') = TwinT (pid ++ pid') (nec && nec') (a <*> a') (b <*> b') (c <*> c')
+--   (TwinT pid nec a b c) <*> SingleT (Het x) = TwinT pid nec (($x) <$> a) (($x) <$> b) (($x) <$> c)
+--   (SingleT (Het f)) <*> (TwinT pid nec a b c) = TwinT pid nec (f <$> a) (f <$> b) (f <$> c)
 
 instance Free TwinT where
   freeVars' (SingleT a) = freeVars' a
