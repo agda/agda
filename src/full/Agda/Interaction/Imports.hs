@@ -404,7 +404,10 @@ getNonMainInterface
      -- ^ Optional information about the source code.
   -> TCM Interface
 getNonMainInterface x msi = do
-  (i, wt) <- getInterface x NotMainInterface msi
+  -- Preserve/restore the current pragma options, which will be mutated when loading
+  -- and checking the interface.
+  (i, wt) <- bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
+               getInterface x NotMainInterface msi
   tcWarningsToError wt
   return i
 
@@ -419,11 +422,7 @@ getInterface
      -- ^ Optional information about the source code.
   -> TCM (Interface, [TCWarning])
 getInterface x isMain msi =
-  addImportCycleCheck x $
-    -- Preserve the pragma options unless we are checking the main
-    -- interface.
-    bracket_ (useTC stPragmaOptions)
-             (unless (includeStateChanges isMain) . (stPragmaOptions `setTCLens`)) $ do
+  addImportCycleCheck x $ do
      -- We remember but reset the pragma options locally
      -- For the main interface, we also remember the pragmas from the file
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
