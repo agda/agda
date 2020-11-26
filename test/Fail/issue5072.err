@@ -1,0 +1,11 @@
+issue5072.agda:3,3-18
+Record directives can only be used inside record definitions and
+before field declarations.
+when scope checking the declaration
+  record Foo where
+    cppattern
+    no-eta-equality
+issue5072.agda:2,3-12
+The right-hand side can only be omitted if there is an absurd
+pattern, () or {}, in the left-hand side.
+when checking that the clause cppattern has type _1
