@@ -74,8 +74,13 @@ instance FlipHet (Het 'Both a) where
 
 instance FlipHet TwinT where
   flipHet a@SingleT{} = a
-  flipHet TwinT{twinLHS,twinRHS,twinPid,necessary,twinCompat} =
-    TwinT{twinLHS=flipHet twinRHS,twinRHS=flipHet twinLHS,twinCompat,necessary,twinPid}
+  flipHet TwinT{twinLHS,twinRHS,twinPid,direction,necessary,twinCompat} =
+    TwinT{twinLHS=flipHet twinRHS,
+          twinRHS=flipHet twinLHS,
+          direction=flipHet direction,
+          twinCompat,
+          necessary,
+          twinPid}
 
 instance FlipHet ContextHet where
   flipHet (ContextHet ctx) = ContextHet$ fmap (fmap (fmap flipHet)) ctx

@@ -1574,15 +1574,15 @@ instance Instantiate TwinT where
 -- | Note: reduceB does not block on the compatibility element
 instance Reduce TwinT where
   reduce' (SingleT a) = SingleT <$> reduce' a
-  reduce'  TwinT{necessary,twinPid,twinLHS=a,twinCompat=b,twinRHS=c} =
+  reduce'  TwinT{necessary,direction,twinPid,twinLHS=a,twinCompat=b,twinRHS=c} =
                reduce' (a,b,c) <&> \(a',b',c') ->
-                 TwinT{necessary,twinPid,twinLHS=a',twinCompat=b',twinRHS=c'}
+                 TwinT{necessary,direction,twinPid,twinLHS=a',twinCompat=b',twinRHS=c'}
 
   reduceB' (SingleT a) = fmap SingleT <$> reduceB' a
-  reduceB'  TwinT{necessary,twinPid,twinLHS=a,twinCompat=b,twinRHS=c} = do
+  reduceB'  TwinT{necessary,direction,twinPid,twinLHS=a,twinCompat=b,twinRHS=c} = do
                b' <- reduce b
                reduceB' (a,c) <&> fmap (\(a',c') ->
-                 TwinT{necessary,twinPid,twinLHS=a',twinCompat=b',twinRHS=c'})
+                 TwinT{necessary,direction,twinPid,twinLHS=a',twinCompat=b',twinRHS=c'})
 
 
 instance Simplify TwinT where

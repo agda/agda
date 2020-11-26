@@ -1458,6 +1458,6 @@ instance (HetSideIsType side, Reify a) => Reify (Het side a) where
 instance Reify a => Reify (TwinT' a) where
     type ReifiesTo (TwinT' a) = TwinT' (ReifiesTo a)
     reify (SingleT a) = SingleT <$> reify a
-    reify (TwinT{twinPid,necessary,twinLHS=a,twinRHS=b,twinCompat=c}) = do
+    reify (TwinT{twinPid,necessary,direction,twinLHS=a,twinRHS=b,twinCompat=c}) = do
       (a',b',c') <- reify (a,b,c)
-      return$ TwinT{twinPid,necessary,twinLHS=a',twinRHS=b',twinCompat=c'}
+      return$ TwinT{twinPid,necessary,direction,twinLHS=a',twinRHS=b',twinCompat=c'}

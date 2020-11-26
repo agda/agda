@@ -1126,7 +1126,7 @@ instance Pretty Comparison where
 
 -- | An extension of 'Comparison' to @>=@.
 data CompareDirection = DirEq | DirLeq | DirGeq
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data)
 
 instance Pretty CompareDirection where
   pretty = text . \case
@@ -2888,6 +2888,8 @@ data TwinT'' b a  =
                                            --   for LHS and RHS to be equal
           , necessary  :: b                -- ^ Whether solving twinPid is necessary,
                                            --   not only sufficient.
+          , direction  :: CompareDirection -- ^ Whether the putative associated constraint is
+                                           --   ≤, ≡ or ≥
           , twinLHS    :: Het 'LHS a       -- ^ Left hand side of the twin
           , twinRHS    :: Het 'RHS a       -- ^ Right hand side of the twin
           , twinCompat :: Het 'Compat a    -- ^ A term which can be used instead of the
@@ -2913,8 +2915,8 @@ instance Free TwinT where
 instance TermLike TwinT where
   traverseTermM f = \case
     SingleT a -> SingleT <$> traverseTermM f a
-    TwinT{twinPid,twinLHS=a,twinRHS=b,twinCompat=c} ->
-      (\a' b' c' -> TwinT{twinPid,necessary=False,twinLHS=a',twinRHS=b',twinCompat=c'}) <$>
+    TwinT{twinPid,direction,necessary,twinLHS=a,twinRHS=b,twinCompat=c} ->
+      (\a' b' c' -> TwinT{twinPid,direction,necessary,twinLHS=a',twinRHS=b',twinCompat=c'}) <$>
         traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
 
 -- | Mark necessary bit after the twin has gone under a none-injective computation

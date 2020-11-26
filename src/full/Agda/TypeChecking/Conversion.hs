@@ -757,6 +757,7 @@ compareDom_ cmp0
         True ->
           addContext (name, dom0'{unDom =
                               TwinT{necessary  = True,
+                                    direction  = cmp,
                                     twinPid    = [pid],
                                     twinLHS    = Het @'LHS a1,
                                     twinCompat = Het @'Compat a0',
