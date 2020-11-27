@@ -72,7 +72,7 @@ data Options = Options
   , cacheBuilds               :: Bool
   , logFile                   :: Maybe String
   , start                     :: BisectMode
-  , dryRun                    :: Maybe (Either FilePath Commit)
+  , dryRun                    :: Maybe DryRun
   , scriptOrArguments         :: Either (FilePath, [String]) [String]
   }
 
@@ -85,6 +85,12 @@ type Commit = String
 data BisectMode
   = ReplayMode  { modeLogFile :: FilePath }
   | GoodBadMode { modeBadCommit :: Commit, modeGoodCommit :: Commit }
+
+-- | Alternatives for @--dry-run@:
+
+data DryRun
+  = DryRunAgda   FilePath  -- ^ Path to agda command.
+  | DryRunCommit Commit    -- ^ Build agda from this commit.
 
 -- | Parses command-line options. Prints usage information and aborts
 -- this program if the options are malformed (or the help flag is
@@ -252,8 +258,8 @@ options =
 
   optionDryRunWithOrWithoutCommit =
     optional $
-      (Left  <$> optionDryRun) <|>
-      (Right <$> optionDryRunWithCommit)
+      (DryRunAgda   <$> optionDryRun) <|>
+      (DryRunCommit <$> optionDryRunWithCommit)
 
   optionDryRun =
       strOption $
@@ -438,11 +444,11 @@ main :: IO ()
 main = do
   opts <- options
   case dryRun opts of
-    Just (Left agda) -> do
+    Just (DryRunAgda agda) -> do
       runAgda agda opts
       return ()
 
-    Just (Right commit) -> do
+    Just (DryRunCommit commit) -> do
       setupSandbox
 
       let checkout c = callProcess "git" ["checkout", c]
