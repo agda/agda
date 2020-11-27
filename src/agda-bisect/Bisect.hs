@@ -71,10 +71,20 @@ data Options = Options
   , skipBranches              :: [String]
   , cacheBuilds               :: Bool
   , logFile                   :: Maybe String
-  , start                     :: Either FilePath (String, String)
-  , dryRun                    :: Maybe (Either FilePath String)
+  , start                     :: BisectMode
+  , dryRun                    :: Maybe (Either FilePath Commit)
   , scriptOrArguments         :: Either (FilePath, [String]) [String]
   }
+
+-- | Type alias for commit hashes.
+
+type Commit = String
+
+-- | Bisection mode.
+
+data BisectMode
+  = ReplayMode  { modeLogFile :: FilePath }
+  | GoodBadMode { modeBadCommit :: Commit, modeGoodCommit :: Commit }
 
 -- | Parses command-line options. Prints usage information and aborts
 -- this program if the options are malformed (or the help flag is
@@ -215,8 +225,8 @@ options =
         action "file"
 
   optionGoodBadReplay =
-      (curry Right <$> optionBad <*> optionGood) <|>
-      (Left <$> optionReplay)
+      (GoodBadMode <$> optionBad <*> optionGood) <|>
+      (ReplayMode <$> optionReplay)
 
   optionBad =
       strOption $
@@ -503,8 +513,8 @@ bisect opts =
   initialise :: IO ()
   initialise = do
     case start opts of
-      Left log          -> callProcess "git" ["bisect", "replay", log]
-      Right (bad, good) -> do
+      ReplayMode  log      -> callProcess "git" ["bisect", "replay", log]
+      GoodBadMode bad good -> do
         validRevision bad
         validRevision good
         callProcess "git" ["bisect", "start", bad, good]
