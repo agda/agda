@@ -18,6 +18,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
+import Agda.Syntax.Internal.Blockers
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
@@ -252,6 +253,9 @@ instance Instantiate EqualityView where
 
 class IsMeta a where
   isMeta :: a -> Maybe MetaId
+
+instance IsMeta a => IsMeta (Blocked' t a) where
+  isMeta = isMeta . ignoreBlocking
 
 instance IsMeta Term where
   isMeta (MetaV m _) = Just m

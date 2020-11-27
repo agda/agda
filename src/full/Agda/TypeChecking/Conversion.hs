@@ -12,7 +12,9 @@ import Control.Monad.Except
 import Control.Monad.Fail (MonadFail)
 
 import Data.Function
+import Data.Maybe (isJust)
 import Data.Semigroup ((<>))
+import qualified Data.Kind as K
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -137,6 +139,9 @@ convError err = ifM ((==) Irrelevant <$> asksTC getRelevance) (return ()) $ type
 --
 compareTerm :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareTerm cmp a u v = compareAs cmp (AsTermsOf a) u v
+
+compareTerm_ :: forall m. MonadConversion m => Comparison -> TwinT -> H'LHS Term -> H'RHS Term -> m ()
+compareTerm_ cmp a u v = compareAs_ cmp (AsTermsOf a) u v
 
 compareAs :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
 compareAs cmp a t u = compareAs_ cmp (asTwin a) (asTwin t) (asTwin u)
@@ -275,14 +280,14 @@ compareAs'_ cmp tt m n = case tt of
   AsTypes     -> compareAtom_ cmp AsTypes m n
 
 -- TODO: Switch to proper implementation instead of downgrading
-compareTerm'_ :: forall m. MonadConversion m => Comparison -> TwinT -> Het 'LHS Term -> Het 'RHS Term -> m ()
-compareTerm'_ cmp t u v = compareTerm' cmp (twinAt @'Compat t) (twinAt @'Compat u) (twinAt @'Compat v)
-
 compareTerm' :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
-compareTerm' cmp a m n =
-  verboseBracket "tc.conv.term" 20 "compareTerm" $ do
+compareTerm' cmp t u v = compareTerm'_ cmp (asTwin t) (H'LHS u) (H'RHS v)
+
+compareTerm'_ :: forall m. MonadConversion m => Comparison -> TwinT -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareTerm'_ cmp a m n =
+  verboseBracket "tc.conv.term" 20 "compareTerm" $ simplifyHet a $ \a -> do
   a' <- reduce a
-  (catchConstraint (ValueCmp cmp (AsTermsOf a') m n) :: m () -> m ()) $ do
+  (catchConstraint (ValueCmp_ cmp (AsTermsOf a') m n) :: m () -> m ()) $ do
     reportSDoc "tc.conv.term" 30 $ fsep
       [ "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, ":", prettyTCM a' ]
     propIrr  <- isPropEnabled
@@ -292,17 +297,17 @@ compareTerm' cmp a m n =
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
       [ "a'   =" <+> pretty a'
       , "mlvl =" <+> pretty mlvl
-      , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
+      , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl (twinAt @'Compat a')) == mlvl)
       ]
     case s of
-      Prop{} | propIrr -> compareIrrelevant a' m n
-      _    | isSize   -> compareSizes cmp m n
-      _               -> case unEl a' of
+      Prop{} | propIrr -> compareIrrelevant_ a' m n
+      _    | isSize   -> compareSizes_ cmp m n
+      _               -> case unEl $ twinAt @'Compat a' of
         a | Just a == mlvl -> do
-          a <- levelView m
-          b <- levelView n
-          equalLevel a b
-        a@Pi{}    -> equalFun s a m n
+          a <- levelView_ m
+          b <- levelView_ n
+          equalLevel_ a b
+        Pi dom cod   -> equalFun s dom cod m n
         Lam _ _   -> __IMPOSSIBLE__
         Def r es  -> do
           isrec <- isEtaRecord r
@@ -320,18 +325,17 @@ compareTerm' cmp a m n =
                   isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                     not <$> usesCopatterns q -- a def by copattern can reduce if projected
                   isNeutral _                   = return True
-                  isMeta b = case ignoreBlocking b of
-                               MetaV{} -> True
-                               _       -> False
+                  isMeta_ :: (IsMeta a) => a -> Bool
+                  isMeta_ = isJust . isMeta
 
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> "is eta record type"
-              m <- reduceB m
-              mNeutral <- isNeutral m
-              n <- reduceB n
-              nNeutral <- isNeutral n
+              m <- onSide @'LHS reduceB m
+              mNeutral <- onSide_ @'LHS isNeutral m
+              n <- onSide @'RHS reduceB n
+              nNeutral <- onSide_ @'RHS isNeutral n
               case (m, n) of
-                _ | isMeta m || isMeta n ->
-                    compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+                _ | isMeta_ m || isMeta_ n ->
+                    compareAtom_ cmp (AsTermsOf a') (ignoreBlocking <$> m) (ignoreBlocking <$> n)
 
                 _ | mNeutral && nNeutral -> do
                     -- Andreas 2011-03-23: (fixing issue 396)
@@ -339,43 +343,46 @@ compareTerm' cmp a m n =
                     -- we can succeed immediately
                     ifM (isSingletonRecordModuloRelevance r ps) (return ()) $
                       -- do not eta-expand if comparing two neutrals
-                      compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+                      compareAtom_ cmp (AsTermsOf a') (ignoreBlocking <$> m) (ignoreBlocking <$> n)
                 _ -> do
-                  (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
-                  (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
+                  H'LHS (tel, m') <- onSide @'LHS (etaExpandRecord r ps . ignoreBlocking) m
+                  H'RHS (_  , n') <- onSide @'RHS (etaExpandRecord r ps . ignoreBlocking) n
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel __DUMMY_TYPE__) (Con c ConOSystem []) m' n'
+                  compareArgs_ (repeat $ polFromCmp cmp) [] (asTwin$ telePi_ tel __DUMMY_TYPE__) (asTwin$ Con c ConOSystem []) (H'LHS m') (H'RHS n')
 
-            else (do pathview <- pathView a'
+            else (do pathview <- pathView_ a'
                      equalPath pathview a' m n)
-        _ -> compareAtom cmp (AsTermsOf a') m n
+        _ -> compareAtom_ cmp (AsTermsOf a') m n
   where
+    pathView_ = pathView . twinAt @'Compat
     -- equality at function type (accounts for eta)
-    equalFun :: (MonadConversion m) => Sort -> Term -> Term -> Term -> m ()
-    equalFun s a@(Pi dom b) m n | domFinite dom = do
+    equalFun :: (MonadConversion m) => Sort -> Dom Type -> Abs Type -> H'LHS Term -> H'RHS Term -> m ()
+    equalFun s dom b m n | domFinite dom = do
        mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
        case unEl $ unDom dom of
           Def q [Apply phi]
-              | Just q == mp -> compareTermOnFace cmp (unArg phi) (El s (Pi (dom {domFinite = False}) b)) m n
-          _                  -> equalFun s (Pi (dom{domFinite = False}) b) m n
-    equalFun _ (Pi dom@Dom{domInfo = info} b) m n | not $ domFinite dom = do
+              | Just q == mp -> compareTermOnFace_ cmp (unArg phi) (asTwin$ El s (Pi (dom {domFinite = False}) b)) m n
+          _                  -> equalFun s (dom{domFinite = False}) b m n
+    equalFun _ dom@Dom{domInfo = info} b m n | not $ domFinite dom = do
         let name = suggests [ Suggestion b , Suggestion m , Suggestion n ]
-        addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
+        addContext (name, dom) $ compareTerm_ cmp (asTwin$ absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
-    equalFun _ _ _ _ = __IMPOSSIBLE__
+    equalFun _ _ _ _ _ = __IMPOSSIBLE__
 
-    equalPath :: (MonadConversion m) => PathView -> Type -> Term -> Term -> m ()
-    equalPath (PathType s _ l a x y) _ m n = do
+    equalPath :: (MonadConversion m) => PathView -> TwinT -> H'LHS Term -> H'RHS Term -> m ()
+    equalPath (PathType s _ l a x y) _ (H'LHS m) (H'RHS n) = do
         let name = "i" :: String
         interval <- el primInterval
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
         addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ raise 1 (unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
 
-    cmpDef a'@(El s ty) m n = do
+    cmpDef :: TwinT -> H'LHS Term -> H'RHS Term -> m ()
+    cmpDef a'_ m_@(H'LHS m) n_@(H'RHS n) = do
+       let a'@(El s ty) = twinAt @'Compat a'_
        mI     <- getBuiltinName'   builtinInterval
        mIsOne <- getBuiltinName'   builtinIsOne
        mGlue  <- getPrimitiveName' builtinGlue
@@ -409,7 +416,7 @@ compareTerm' cmp a m n =
               let mkOut m = apply out $ map (setHiding Hidden) args ++ [argN m]
               compareTerm cmp ty (mkOut m) (mkOut n)
          Def q [] | Just q == mI -> compareInterval cmp a' m n
-         _ -> compareAtom cmp (AsTermsOf a') m n
+         _ -> compareAtom_ cmp (AsTermsOf a'_) m_ n_
 
 compareAtomDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
@@ -605,7 +612,7 @@ compareAtom_ cmp t m n =
                -- The polarity vector of projection-like functions
                -- does not include the parameters.
                pol <- getPolarity' cmp f
-               compareElims pol [] a (Def f []) es es'
+               compareElims_ pol [] (asTwin$ a) (asTwin$ Def f []) (H'LHS es) (H'RHS es')
 
           -- Due to eta-expansion, these constructors are fully applied.
           (Con x ci xArgs, Con y _ yArgs)
@@ -1094,8 +1101,11 @@ polFromCmp CmpEq  = Invariant
 -- | Type-directed equality on argument lists
 --
 compareArgs :: MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> Args -> Args -> m ()
-compareArgs pol for a v args1 args2 =
-  compareElims pol for a v (map Apply args1) (map Apply args2)
+compareArgs pol for a v args1 args2 = compareArgs_ pol for (asTwin a) (asTwin v) (H'LHS args1) (H'RHS args2)
+
+compareArgs_ :: MonadConversion m => [Polarity] -> [IsForced] -> TwinT -> TwinT' Term -> H'LHS Args -> H'RHS Args -> m ()
+compareArgs_ pol for a v args1 args2 =
+  compareElims_ pol for a v (fmap (map Apply) args1) (fmap (map Apply) args2)
 
 ---------------------------------------------------------------------------
 -- * Types
@@ -1477,6 +1487,10 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         isMetaLevel :: SingleLevel -> Bool
         isMetaLevel (SinglePlus (Plus _ MetaV{})) = True
         isMetaLevel _                             = False
+
+-- TODO [HET]
+equalLevel_ :: forall m. MonadConversion m => H'LHS Level -> H'RHS Level -> m ()
+equalLevel_ (H'LHS a) (H'RHS b) = equalLevel a b
 
 equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
@@ -2061,6 +2075,9 @@ leqConj (rs, rst) (qs, qst) = do
 equalTermOnFace :: MonadConversion m => Term -> Type -> Term -> Term -> m ()
 equalTermOnFace = compareTermOnFace CmpEq
 
+compareTermOnFace_ :: MonadConversion m => Comparison -> Term -> TwinT -> H'LHS Term -> H'RHS Term -> m ()
+compareTermOnFace_ cmp t ty (H'LHS m) (H'RHS n) = compareTermOnFace' compareTerm cmp t (twinAt @'Compat ty) m n
+
 compareTermOnFace :: MonadConversion m => Comparison -> Term -> Type -> Term -> Term -> m ()
 compareTermOnFace = compareTermOnFace' compareTerm
 
@@ -2097,3 +2114,27 @@ bothAbsurd f f'
          Function{ funClauses = [Clause{ clauseBody = Nothing }] }) -> return True
         _ -> return False
   | otherwise = return False
+
+---------------------------------------------------------------------------
+-- * Commuting heterogeneous
+---------------------------------------------------------------------------
+
+class Commute f g where
+  commute  :: f (g a) -> (g (f a))
+
+class CommuteM f g where
+  type CommuteMonad f g (m :: K.Type -> K.Type) :: K.Constraint
+  commuteM  :: (CommuteMonad f g m) => f (g a) -> m (g (f a))
+
+instance CommuteM TwinT' (Dom' t) where
+  type CommuteMonad TwinT' (Dom' t) m = (Applicative m)
+  commuteM (SingleT (H'Both a)) = pure$ fmap (SingleT . H'Both) a
+  commuteM TwinT{necessary,direction,twinPid,twinLHS,twinCompat=H'Compat tc0,twinRHS} =
+    -- TODO: Check that the domain information actually matches (?)
+    pure$ fmap (\tc1 -> TwinT{necessary,
+                              direction,
+                              twinPid,
+                              twinLHS=fmap unDom twinLHS,
+                              twinCompat=H'Compat tc1,
+                              twinRHS=fmap unDom twinRHS}) tc0
+

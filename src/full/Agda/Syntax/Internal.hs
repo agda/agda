@@ -256,22 +256,29 @@ type Type = Type' Term
 instance Decoration (Type'' t) where
   traverseF f (El s a) = El s <$> f a
 
-class LensSort a where
-  lensSort ::  Lens' Sort a
+class GetSort a where
   getSort  :: a -> Sort
+  default getSort :: LensSort a => a -> Sort
   getSort a = a ^. lensSort
 
+class GetSort a => LensSort a where
+  lensSort ::  Lens' Sort a
+
+instance GetSort Sort where
 instance LensSort Sort where
   lensSort f s = f s <&> \ s' -> s'
 
+instance GetSort (Type' a) where
 instance LensSort (Type' a) where
   lensSort f (El s a) = f s <&> \ s' -> El s' a
 
 -- General instance leads to overlapping instances.
 -- instance (Decoration f, LensSort a) => LensSort (f a) where
+instance LensSort a => GetSort (Dom a) where
 instance LensSort a => LensSort (Dom a) where
   lensSort = traverseF . lensSort
 
+instance LensSort a => GetSort (Arg a) where
 instance LensSort a => LensSort (Arg a) where
   lensSort = traverseF . lensSort
 

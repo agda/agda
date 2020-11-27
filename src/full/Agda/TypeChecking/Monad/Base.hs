@@ -74,11 +74,12 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
 
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Context (MonadAddContext(..))
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Context (MonadAddContext(..), unsafeModifyContext)
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
+import Agda.TypeChecking.Substitute.Class (Apply(..))
 
 -- Args, defined in Agda.Syntax.Treeless and exported from Agda.Compiler.Backend
 -- conflicts with Args, defined in Agda.Syntax.Internal and also imported here.
@@ -1096,7 +1097,7 @@ instance Free Constraint where
 instance TermLike Constraint where
   foldTerm f = \case
       ValueCmp _ t u v       -> foldTerm f (t, u, v)
-      ValueCmp_ _ t u v    -> foldTerm f (t, u, v)
+      ValueCmp_ _ t u v      -> foldTerm f (t, u, v)
       ValueCmpOnFace _ p t u v -> foldTerm f (p, t, u, v)
       ElimCmp _ _ t u es es' -> foldTerm f (t, u, es, es')
       LevelCmp _ l l'        -> foldTerm f (Level l, Level l')  -- Note wrapping as term, to ensure f gets to act on l and l'
@@ -2722,12 +2723,21 @@ contextHetToList = toList
 contextHetFromList :: [Dom (Name, TwinT)] -> ContextHet
 contextHetFromList = coerce . S.fromList
 
+-- * Switch heterogeneous context to a specific side
+switchSide :: forall s a m. (HetSideIsType s, MonadTCEnv m) => m a -> m a
+switchSide = unsafeModifyContext {- IdS -} (asTwin . twinAt @s)
+
+switchSide_ :: forall s b a m. (HetSideIsType s, MonadTCEnv m, a ~ Het s b) => m a -> m a
+switchSide_ = switchSide @s @(Het s b)
+
 -- * Describing parts of twin contexts
 
 data HetSide = LHS | RHS | Compat | Whole | Both
 
 type H'LHS = Het 'LHS
 type H'RHS = Het 'RHS
+type H'Compat = Het 'Compat
+type H'Both = Het 'Both
 
 pattern H'LHS :: a -> H'LHS a
 pattern H'LHS a = Het a
@@ -2735,13 +2745,24 @@ pattern H'LHS a = Het a
 pattern H'RHS :: a -> H'RHS a
 pattern H'RHS a = Het a
 
+pattern H'Compat :: a -> H'Compat a
+pattern H'Compat a = Het a
+
+pattern H'Both :: a -> H'Both a
+pattern H'Both a = Het a
+
 #if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE H'LHS #-}
 {-# COMPLETE H'RHS #-}
+{-# COMPLETE H'Compat #-}
+{-# COMPLETE H'Both #-}
 #endif
 
-onSide :: forall s a m b. (Applicative m) => (a -> m b) -> Het s a -> m (Het s b)
-onSide = traverse
+onSide :: forall s a m b. (MonadAddContext m, HetSideIsType s) => (a -> m b) -> Het s a -> m (Het s b)
+onSide κ = switchSide @s . traverse κ
+
+onSide_ :: forall s a m b. (MonadAddContext m, HetSideIsType s) => (a -> m b) -> Het s a -> m b
+onSide_ κ = fmap (unHet @s) . switchSide @s . traverse κ
 
 -- Dependent type boilerplate
 data instance SingT (a :: HetSide) where
@@ -2784,14 +2805,6 @@ type AreSides s₁ s₂ = (LeftOrRightSide s₁, LeftOrRightSide s₂, AreSides_
 newtype Het (side :: HetSide) t = Het { unHet :: t }
   deriving (Foldable, Traversable, Pretty)
 
--- | Switch heterogeneous context to a specific side
-switchSide :: forall s a m. (HetSideIsType s, MonadAddContext m) => m a -> m a
-switchSide = updateContext IdS (asTwin . twinAt @s)
-
-switchSide_ :: forall s b a m. (HetSideIsType s, MonadAddContext m, a ~ Het s b) => m a -> m a
-switchSide_ = switchSide @s @(Het s b)
-
-
 deriving instance (Typeable side, Data t) => Data (Het side t)
 deriving instance Show t => Show (Het side t)
 deriving instance Functor (Het side)
@@ -2800,6 +2813,7 @@ instance AllMetas a => AllMetas (Het side a) where allMetas f xs = foldMap (allM
 instance Applicative (Het s) where
   pure = Het
   Het f <*> Het a = Het (f a)
+
 instance Monad (Het s) where
   Het a >>= f = f a
 
@@ -2808,6 +2822,15 @@ instance (HetSideIsType side, Free a) => Free (Het side a) where
 
 instance TermLike a => TermLike (Het side a) where
   foldTerm f = foldTerm f . unHet
+
+instance Apply a => Apply (Het s a) where
+  apply t as = fmap (flip apply as) t
+  applyE t es = fmap (flip applyE es) t
+
+instance Suggest a => Suggest (Het s a) where
+  suggestName = suggestName . twinAt @s
+
+-- * Converting to and from twin types
 
 class AsTwin b where
   type AsTwin_ b
@@ -2841,7 +2864,7 @@ instance HetSideIsType s => TwinAt s (TwinT' a) where
   twinAt (SingleT a) = unHet @'Both a
   twinAt TwinT{twinLHS,twinRHS,twinCompat} = case (sing :: SingT s) of
     SLHS    -> unHet @s $ twinLHS
-    SBoth   -> unHet @'Compat $ twinCompat
+    SBoth   -> unHet @'LHS $ twinLHS
     SRHS    -> unHet @s $ twinRHS
     SCompat -> unHet @s $ twinCompat
 
@@ -2918,6 +2941,9 @@ instance TermLike TwinT where
     TwinT{twinPid,direction,necessary,twinLHS=a,twinRHS=b,twinCompat=c} ->
       (\a' b' c' -> TwinT{twinPid,direction,necessary,twinLHS=a',twinRHS=b',twinCompat=c'}) <$>
         traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
+
+instance GetSort a => GetSort (TwinT' a) where
+  getSort = getSort . twinAt @'Compat
 
 -- | Mark necessary bit after the twin has gone under a none-injective computation
 twinDirty :: TwinT' a -> TwinT' a

@@ -46,8 +46,8 @@ import Agda.Utils.Impossible
 
 -- | Modify a 'Context' in a computation.  Warning: does not update
 --   the checkpoints. Use @updateContext@ instead.
-{-# SPECIALIZE unsafeModifyContext :: (ContextHet -> ContextHet) -> TCM a -> TCM a #-}
-unsafeModifyContext :: MonadTCEnv tcm => (ContextHet -> ContextHet) -> tcm a -> tcm a
+{-# SPECIALIZE unsafeModifyContext :: (Context_ -> Context_) -> TCM a -> TCM a #-}
+unsafeModifyContext :: MonadTCEnv tcm => (Context_ -> Context_) -> tcm a -> tcm a
 unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 
 -- | Modify the 'Dom' part of context entries.

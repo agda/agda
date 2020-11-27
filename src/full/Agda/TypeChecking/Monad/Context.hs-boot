@@ -52,3 +52,5 @@ instance MonadAddContext m => MonadAddContext (ReaderT r m) where
 instance MonadAddContext m => MonadAddContext (StateT r m) where
 
 instance MonadAddContext TCM
+
+unsafeModifyContext :: MonadTCEnv tcm => (ContextHet -> ContextHet) -> tcm a -> tcm a
