@@ -88,126 +88,206 @@ options =
            footerDoc (Just msg))
   where
   opts = Options
-    <$> (not <$>
-         switch (
-            long "must-fail" <>
-            help "The command must fail (by default it must succeed)"))
-    <*> many
-          (strOption (long "must-output" <>
-                      help "The command must output STRING" <>
-                      metavar "STRING"))
-    <*> many
-          (strOption (long "must-not-output" <>
-                      help "The command must not output STRING" <>
-                      metavar "STRING"))
-    <*> switch
-          (long "no-internal-error" <>
-           help (unwords
+     <$> optionMustFail
+     <*> optionMustOutput
+     <*> optionMustNotOutput
+     <*> optionNoInternalError
+     <*> optionTimeOut
+     <*> optionNoExtraArguments
+     <*> optionCompiler
+     <*> optionNoDefaultCabalOptions
+     <*> optionCabalOptions
+     <*> optionSkipSkipped
+     <*> optionOnBranch
+     <*> optionNotOnBranch
+     <*> optionCache
+     <*> optionLog
+     <*> optionGoodBadReplay
+     <*> optionDryRunWithOrWithoutCommit
+     <*> optionAgdaArgumentsOrScript
+
+  optionMustFail =
+    not <$> do
+      switch $
+        long "must-fail" <>
+        help "The command must fail (by default it must succeed)"
+
+  optionMustOutput =
+    many $
+      strOption $
+        long "must-output" <>
+        help "The command must output STRING" <>
+        metavar "STRING"
+
+  optionMustNotOutput =
+    many $
+      strOption $
+        long "must-not-output" <>
+        help "The command must not output STRING" <>
+        metavar "STRING"
+
+  optionNoInternalError =
+      switch $
+        long "no-internal-error" <>
+        help (unwords
              [ "The command must not output"
              , show internalErrorString ++ ";"
              , "implies --must-fail"
-             ]))
-    <*> optional (
-           option
-             (do n <- auto
-                 if n < 0 || n > maxBound then
-                   readerError "Argument out of range"
-                  else
-                   return n)
-             (long "timeout" <>
-              metavar "N" <>
-              help ("The command must finish in less than " ++
-                    "(approximately) N seconds; implies " ++
-                    "--no-default-cabal-options")))
-    <*> (not <$>
-         switch (long "no-extra-arguments" <>
-                 help "Do not give any extra arguments to Agda"))
-    <*> optional
-          (strOption (long "compiler" <>
-                      help "Use COMPILER to compile Agda" <>
-                      metavar "COMPILER" <>
-                      action "command"))
-    <*> (not <$>
-         switch
-           (long "no-default-cabal-options" <>
-            help (unwords
-              [ "Do not (by default) give certain options to cabal"
-              , "v1-install"
-              ])))
-    <*> many
-          (strOption
-             (long "cabal-option" <>
-              help "Additional option given to cabal v1-install" <>
-              metavar "OPTION" <>
-              completer (commandCompleter "cabal"
-                           ["v1-install", "--list-options"])))
-    <*> ((\skip -> if skip then ciSkipStrings else []) <$>
-         switch (long "skip-skipped" <>
-                 help ("Skip commits with commit messages " ++
-                       "containing one of the following strings: " ++
-                       intercalate ", " (map show ciSkipStrings))))
-    <*> many (strOption (long "on-branch" <>
-                         help ("Skip commits that are not on BRANCH " ++
-                               "(if this option is repeated, then " ++
-                               "commits that are not on any of the " ++
-                               "given branches are skipped)") <>
-                         metavar "BRANCH" <>
-                         completer branchCompleter))
-    <*> many (strOption (long "not-on-branch" <>
-                         help "Skip commits that are on BRANCH" <>
-                         metavar "BRANCH" <>
-                         completer branchCompleter))
-    <*> switch (long "cache" <>
-                help "Cache builds")
-    <*> optional
-          (strOption (long "log" <>
-                      help "Store a git bisect log in FILE" <>
-                      metavar "FILE" <>
-                      action "file"))
-    <*> ((curry Right <$>
-          strOption (long "bad" <>
-                     metavar "BAD" <>
-                     help "Bad commit" <>
-                     completer commitCompleter) <*>
-          strOption (long "good" <>
-                     metavar "GOOD" <>
-                     help "Good commit" <>
-                     completer commitCompleter))
-           <|>
-         (Left <$>
-          strOption (long "replay" <>
-                     metavar "LOG" <>
-                     help ("Replay the git bisect log in LOG " ++
-                           "(which is assumed to be well-formed)") <>
-                     action "file")))
-    <*> optional
-          ((Left <$>
-            strOption (long "dry-run" <>
-                       metavar "AGDA" <>
-                       action "command" <>
-                       help ("Do not run git bisect, just run the " ++
-                             "test once using AGDA")))
-             <|>
-           (Right <$>
-            strOption (long "dry-run-with-commit" <>
-                       metavar "C" <>
-                       completer commitCompleter <>
-                       help ("Do not run git bisect, just run the " ++
-                             "test once using commit C"))))
-    <*> ((Right <$>
-          many (strArgument (metavar "ARGUMENTS..." <>
-                             help "The arguments supplied to Agda")))
-           <|>
-         (curry Left <$>
-          strOption (long "script" <>
-                     metavar "PROGRAM" <>
-                     help ("Do not invoke Agda directly, run " ++
-                           "PROGRAM instead") <>
-                     action "command") <*>
-          many
-            (strArgument (metavar "PROGRAM ARGUMENTS..." <>
-                          help ("Extra arguments for the " ++
-                                "--script program")))))
+             ])
+
+  optionTimeOut =
+    optional $
+      option natArg $
+        long "timeout" <>
+        metavar "N" <>
+        help (unwords
+             [ "The command must finish in less than"
+             , "(approximately) N seconds; implies"
+             , "--no-default-cabal-options"
+             ])
+
+  optionNoExtraArguments =
+    not <$> do
+      switch $
+        long "no-extra-arguments" <>
+        help "Do not give any extra arguments to Agda"
+
+  optionCompiler =
+    optional $
+      strOption $
+        long "compiler" <>
+        help "Use COMPILER to compile Agda" <>
+        metavar "COMPILER" <>
+        action "command"
+
+  optionNoDefaultCabalOptions =
+    not <$> do
+      switch $
+        long "no-default-cabal-options" <>
+        help "Do not (by default) give certain options to cabal v1-install"
+
+  optionCabalOptions =
+    many $
+      strOption $
+        long "cabal-option" <>
+        help "Additional option given to cabal v1-install" <>
+        metavar "OPTION" <>
+        completer (commandCompleter "cabal" ["v1-install", "--list-options"])
+
+  optionSkipSkipped =
+    (\ skip -> if skip then ciSkipStrings else []) <$> do
+      switch $
+        long "skip-skipped" <>
+        help ("Skip commits with commit messages " ++
+              "containing one of the following strings: " ++
+              intercalate ", " (map show ciSkipStrings))
+
+  optionOnBranch =
+    many $
+      strOption $
+        long "on-branch" <>
+        help ("Skip commits that are not on BRANCH " ++
+              "(if this option is repeated, then " ++
+              "commits that are not on any of the " ++
+              "given branches are skipped)") <>
+        metavar "BRANCH" <>
+        completer branchCompleter
+
+  optionNotOnBranch =
+    many $
+      strOption $
+        long "not-on-branch" <>
+        help "Skip commits that are on BRANCH" <>
+        metavar "BRANCH" <>
+        completer branchCompleter
+
+  optionCache =
+      switch $
+        long "cache" <>
+        help "Cache builds"
+
+  optionLog =
+    optional $
+      strOption $
+        long "log" <>
+        help "Store a git bisect log in FILE" <>
+        metavar "FILE" <>
+        action "file"
+
+  optionGoodBadReplay =
+      (curry Right <$> optionBad <*> optionGood) <|>
+      (Left <$> optionReplay)
+
+  optionBad =
+      strOption $
+        long "bad" <>
+        metavar "BAD" <>
+        help "Bad commit" <>
+        completer commitCompleter
+
+  optionGood =
+      strOption $
+        long "good" <>
+        metavar "GOOD" <>
+        help "Good commit" <>
+        completer commitCompleter
+
+  optionReplay =
+      strOption $
+        long "replay" <>
+        metavar "LOG" <>
+        help ("Replay the git bisect log in LOG " ++
+              "(which is assumed to be well-formed)") <>
+        action "file"
+
+  optionDryRunWithOrWithoutCommit =
+    optional $
+      (Left  <$> optionDryRun) <|>
+      (Right <$> optionDryRunWithCommit)
+
+  optionDryRun =
+      strOption $
+        long "dry-run" <>
+        metavar "AGDA" <>
+        action "command" <>
+        help ("Do not run git bisect, just run the " ++
+              "test once using AGDA")
+
+  optionDryRunWithCommit =
+      strOption $
+        long "dry-run-with-commit" <>
+        metavar "C" <>
+        completer commitCompleter <>
+        help "Do not run git bisect, just run the test once using commit C"
+
+  optionAgdaArgumentsOrScript =
+      (Right <$> optionAgdaArguments) <|>
+      (curry Left <$> optionScript <*> optionScriptArguments)
+
+  optionAgdaArguments =
+    many $
+      strArgument $
+        metavar "ARGUMENTS..." <>
+        help "The arguments supplied to Agda"
+
+  optionScript =
+      strOption $
+        long "script" <>
+        metavar "PROGRAM" <>
+        help "Do not invoke Agda directly, run PROGRAM instead" <>
+        action "command"
+
+  optionScriptArguments =
+    many $
+      strArgument $
+        metavar "PROGRAM ARGUMENTS..." <>
+        help "Extra arguments for the --script program"
+
+  natArg = do
+    n <- auto
+    if n < 0 || n > maxBound
+      then readerError "Argument out of range"
+      else return n
 
   -- | Substantiates implied options, e.g. those implied by
   -- 'noInternalError'. Note that this function is not idempotent.
