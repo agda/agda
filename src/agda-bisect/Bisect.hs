@@ -73,7 +73,7 @@ data Options = Options
   , logFile                   :: Maybe String
   , start                     :: BisectMode
   , dryRun                    :: Maybe DryRun
-  , scriptOrArguments         :: Either (FilePath, [String]) [String]
+  , scriptOrArguments         :: ScriptOrArguments
   }
 
 -- | Type alias for commit hashes.
@@ -91,6 +91,12 @@ data BisectMode
 data DryRun
   = DryRunAgda   FilePath  -- ^ Path to agda command.
   | DryRunCommit Commit    -- ^ Build agda from this commit.
+
+-- | Run mode.
+
+data ScriptOrArguments
+  = Script FilePath [String]  -- ^ Run this script with these arguments.
+  | AgdaArguments [String]    -- ^ Run agda with these arguments.
 
 -- | Parses command-line options. Prints usage information and aborts
 -- this program if the options are malformed (or the help flag is
@@ -277,8 +283,8 @@ options =
         help "Do not run git bisect, just run the test once using commit C"
 
   optionAgdaArgumentsOrScript =
-      (Right <$> optionAgdaArguments) <|>
-      (curry Left <$> optionScript <*> optionScriptArguments)
+      (AgdaArguments <$> optionAgdaArguments) <|>
+      (Script <$> optionScript <*> optionScriptArguments)
 
   optionAgdaArguments =
     many $
@@ -591,8 +597,8 @@ runAgda :: FilePath  -- ^ Agda.
 runAgda agda opts = do
   (prog, args) <-
     case scriptOrArguments opts of
-      Left (prog, args) -> return (prog, agda : args)
-      Right args        -> do
+      Script prog args   -> return (prog, agda : args)
+      AgdaArguments args -> do
         flags <- if extraArguments opts then do
                    help <- readProcess agda ["--help"] ""
                    return $ filter (`isInfixOf` help) defaultFlags
@@ -653,7 +659,7 @@ runAgda agda opts = do
                               &&
                            not (any occurs (mustNotOutput opts))
           result         = case (scriptOrArguments opts, code) of
-                             (Left _, ExitFailure 127) -> Skip
+                             (Script{}, ExitFailure 127) -> Skip
                              _                         ->
                                case (mustFinishWithin opts, testsOK) of
                                  (Just _,  False) -> Skip
