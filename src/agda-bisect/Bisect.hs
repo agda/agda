@@ -63,6 +63,7 @@ data Options = Options
       -- 'internalErrorString'.
   , mustFinishWithin          :: Maybe Int
   , extraArguments            :: Bool
+  , patchFile                 :: Maybe FilePath
   , compiler                  :: Maybe String
   , defaultCabalOptions       :: Bool
   , cabalOptions              :: [String]
@@ -116,6 +117,7 @@ options =
      <*> optionNoInternalError
      <*> optionTimeOut
      <*> optionNoExtraArguments
+     <*> optionPatchFile
      <*> optionCompiler
      <*> optionNoDefaultCabalOptions
      <*> optionCabalOptions
@@ -173,6 +175,14 @@ options =
       switch $
         long "no-extra-arguments" <>
         help "Do not give any extra arguments to Agda"
+
+  optionPatchFile =
+    optional $
+      strOption $
+        long "patch-file" <>
+        help "Apply patch FILE before Agda sources before compilation" <>
+        metavar "FILE" <>
+        action "file"
 
   optionCompiler =
     optional $
@@ -689,7 +699,7 @@ installAgda opts
       commit <- currentCommit
       agdas  <- forM (True : [False | not (timeout opts)])
                      (\timeout -> do
-                       agda <- cachedAgda commit timeout
+                       agda <- cachedAgda commit timeout (patchFile opts)
                        b    <- doesFileExist agda
                        return $ if b then Just agda else Nothing)
       case catMaybes agdas of
@@ -699,8 +709,15 @@ installAgda opts
           return (Just agda)
   | otherwise = install
   where
+  install :: IO (Maybe FilePath)
   install =
     uncurry bracket_ makeBuildEasier $ do
+
+      -- Patch Agda with given patch-file (if any)
+      forM_ (patchFile opts) $ \ file -> do
+        callCommand $ unwords [ "patch", "--batch", "-p0", "<", file ]
+      -- TODO: do we need to catch IO errors, e.g. to handle patch failures?
+
       ok <- cabalInstall opts "Agda.cabal"
       case ok of
         Nothing -> return ok
@@ -727,7 +744,7 @@ cabalInstall opts file = do
        , "--disable-library-profiling"
        , "--disable-documentation"
        ]
-     , [ "--program-suffix=" ++ programSuffix commit (timeout opts)
+     , [ "--program-suffix=" ++ programSuffix commit (timeout opts) (patchFile opts)
        | cacheBuilds opts
        ]
      , compilerFlag opts
@@ -736,7 +753,7 @@ cabalInstall opts file = do
      ]
   case (ok, cacheBuilds opts) of
     (True , False) -> Just <$> compiledAgda
-    (True , True ) -> Just <$> cachedAgda commit (timeout opts)
+    (True , True ) -> Just <$> cachedAgda commit (timeout opts) (patchFile opts)
     (False, _    ) -> return Nothing
 
 -- | Tries to copy data files to the correct location.
@@ -754,12 +771,17 @@ copyDataFiles opts = do
 -- | The suffix of the Agda binary.
 
 programSuffix
-  :: String  -- ^ The commit hash.
-  -> Bool    -- ^ Is the @--timeout@ option active?
+  :: Commit          -- ^ The commit hash.
+  -> Bool            -- ^ Is the @--timeout@ option active?
+  -> Maybe FilePath  -- ^ Patch file that has been applied to the Agda sources.
   -> String
-programSuffix commit timeout =
-  (if timeout then "-timeout" else "") ++
-  "-" ++ commit
+programSuffix commit timeout patchfile =
+  intercalate "-" $ concat
+    [ [ "" ]  -- to get a leading '-'
+    , maybeToList patchfile
+    , [ "timeout" | timeout ]
+    , [ commit ]
+    ]
 
 -- | Is the @--timeout@ option active?
 
@@ -769,11 +791,12 @@ timeout opts = isJust (mustFinishWithin opts)
 -- | An absolute path to the cached Agda binary (if any).
 
 cachedAgda
-  :: String
-  -> Bool
+  :: Commit          -- ^ The current commit hash.
+  -> Bool            -- ^ Is option @--timeout@ active?
+  -> Maybe FilePath  -- ^ Patch file that has been applied to the Agda sources.
   -> IO FilePath
-cachedAgda commit timeout =
-   (\agda -> agda ++ programSuffix commit timeout) <$> compiledAgda
+cachedAgda commit timeout patchfile =
+   (++ programSuffix commit timeout patchfile) <$> compiledAgda
 
 -- | Generates a @--with-compiler=…@ flag if the user has specified
 -- that a specific compiler should be used.
