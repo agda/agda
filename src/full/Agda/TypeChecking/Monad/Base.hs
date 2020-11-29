@@ -3379,7 +3379,7 @@ data TerminationError = TerminationError
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
-  | BlockedType         (Closure Type)  -- ^ Type could not be sufficiently reduced.
+  | BlockedType Blocker (Closure Type)  -- ^ Type could not be sufficiently reduced.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
   | ErasedDatatype Bool (Closure Type)  -- ^ Data type, but in erased position.
                                         --   If the boolean is 'True',
@@ -3390,7 +3390,8 @@ data SplitError
   -- UNUSED, but keep!
   -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
   | UnificationStuck
-    { cantSplitConName  :: QName        -- ^ Constructor.
+    { cantSplitBlocker  :: Maybe Blocker -- ^ Blocking metavariable (if any)
+    , cantSplitConName  :: QName        -- ^ Constructor.
     , cantSplitTel      :: Telescope    -- ^ Context for indices.
     , cantSplitConIdx   :: Args         -- ^ Inferred indices (from type of constructor).
     , cantSplitGivenIdx :: Args         -- ^ Expected indices (from checking pattern).
@@ -3478,7 +3479,7 @@ data TypeError
         | UninstantiatedDotPattern A.Expr
         | ForcedConstructorNotInstantiated A.Pattern
         | IllformedProjectionPattern A.Pattern
-        | CannotEliminateWithPattern (NamedArg A.Pattern) Type
+        | CannotEliminateWithPattern (Maybe Blocker) (NamedArg A.Pattern) Type
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
         | ShouldBeASort Type
