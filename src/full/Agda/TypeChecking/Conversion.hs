@@ -476,7 +476,8 @@ compareAtom cmp t m n =
           MetaV y yArgs <- ignoreBlocking nb -> -- envCompareBlocked check above.
         if | x == y, cmpBlocked -> do
               a <- metaType x
-              compareElims [] [] a (MetaV x []) xArgs yArgs
+              addOrUnblocker (unblockOnMeta x) $
+                compareElims [] [] a (MetaV x []) xArgs yArgs
            | x == y ->
             case intersectVars xArgs yArgs of
               -- all relevant arguments are variables

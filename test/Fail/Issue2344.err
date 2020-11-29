@@ -10,7 +10,7 @@ Failed to solve the following constraints:
         suc n ≟ _m_23 (A = A) (X = X)
       when checking that the pattern zero n has type
       Fin (_m_23 (A = A) (X = X))
-    (blocked on any(_18, _m_23))
+    (blocked on _m_23)
 Unsolved metas at the following locations:
   Issue2344.agda:25,31-32
   Issue2344.agda:25,46-47

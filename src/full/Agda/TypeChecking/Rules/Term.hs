@@ -852,33 +852,16 @@ catchIlltypedPatternBlockedOnMeta m handle = do
     -- Get the blocker responsible for the type error.
     -- If we do not find a blocker or the error should not be handled,
     -- we reraise the error.
-    blocker <- maybe reraise return =<< do
-      case err of
-        TypeError _ s cl -> localTCState $ do
-          putTC s
-          enterClosure cl $ \case
-            SortOfSplitVarError m _ -> return m
-
-            SplitError (UnificationStuck c tel us vs _) -> do
-              -- Andreas, 2018-11-23, re issue #3403
-              -- The following computation of meta-variables and picking
-              -- of the first one, seems a bit brittle.
-              -- I do not understand why there is a single @reduce@ here
-              -- (seems to archieve a bit along @normalize@, but how much??).
-              problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
-              -- over-approximating the set of metas actually blocking unification
-              return $ Just $ unblockOnAnyMetaIn problem
-
-            SplitError (BlockedType aClosure) ->
-              enterClosure aClosure $ \ a -> isBlocked a
-
-            -- Andrea: TODO look for blocking meta in tClosure and its Sort.
-            -- SplitError (CannotCreateMissingClause _ _ _ tClosure) ->
-
-            CannotEliminateWithPattern p a -> isBlocked a
-
-            _ -> return Nothing
-        _ -> return Nothing
+    blocker <- maybe reraise return $ case err of
+      TypeError _ s cl -> case clValue cl of
+        SortOfSplitVarError b _                       -> b
+        SplitError (UnificationStuck b c tel us vs _) -> b
+        SplitError (BlockedType b aClosure)           -> Just b
+        CannotEliminateWithPattern b p a              -> b
+        -- Andrea: TODO look for blocking meta in tClosure and its Sort.
+        -- SplitError (CannotCreateMissingClause _ _ _ tClosure) ->
+        _                                             -> Nothing
+      _ -> Nothing
 
     reportSDoc "tc.postpone" 20 $ vcat $
       [ "checking definition blocked on: " <+> prettyTCM blocker ]
