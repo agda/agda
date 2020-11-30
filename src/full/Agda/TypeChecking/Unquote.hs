@@ -695,6 +695,7 @@ evalTCM v = do
       (v, t) <- locallyReduceAllDefs $ inferExpr  =<< toAbstract_ v
       if r then do
         v <- normalise v
+        t <- normalise t
         v <- locallyReduceAllDefs $ reconstructParameters' defaultAction t v
         reportSDoc "tc.reconstruct" 50 $ "Normalise reconstruct:" <+> pretty v
         locallyReconstructed $ quoteTerm v
@@ -707,6 +708,7 @@ evalTCM v = do
       (v, t) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
       if r then do
         v <- reduce =<< instantiateFull v
+        t <- reduce =<< instantiateFull t
         v <- locallyReduceAllDefs $ reconstructParameters' defaultAction t v
         reportSDoc "tc.reconstruct" 50 $ "Reduce reconstruct:" <+> pretty v
         locallyReconstructed $ quoteTerm v
