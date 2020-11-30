@@ -436,11 +436,10 @@ getInterface x isMain msi =
   addImportCycleCheck x $ do
      -- We remember but reset the pragma options locally
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
-     currentOptions <- setCurrentRange (C.modPragmas . siModule <$> msi) $ do
-       currentOptions <- useTC stPragmaOptions
+     currentOptions <- useTC stPragmaOptions
+     setCurrentRange (C.modPragmas . siModule <$> msi) $
        -- Now reset the options
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
-       return currentOptions
 
      alreadyVisited x isMain currentOptions $ do
       file <- maybe (findFile x) (pure . siOrigin) msi -- may require source to exist
