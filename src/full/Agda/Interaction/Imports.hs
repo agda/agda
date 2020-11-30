@@ -385,6 +385,10 @@ typeCheckMain mode si = do
 
   -- Now do the type checking via getInterface.
   checkModuleName' (siModuleName si) (siOrigin si)
+
+  -- For the main interface, we also remember the pragmas from the file
+  setOptionsFromSourceInfoPragmas si
+
   (i, ws) <- getInterface (siModuleName si) (MainInterface mode) (Just si)
 
   stCurrentModule `setTCLens` Just (iModuleName i)
@@ -431,11 +435,8 @@ getInterface
 getInterface x isMain msi =
   addImportCycleCheck x $ do
      -- We remember but reset the pragma options locally
-     -- For the main interface, we also remember the pragmas from the file
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
      currentOptions <- setCurrentRange (C.modPragmas . siModule <$> msi) $ do
-       when (includeStateChanges isMain) $
-         setOptionsFromSourceInfoPragmas (fromMaybe __IMPOSSIBLE__ msi)
        currentOptions <- useTC stPragmaOptions
        -- Now reset the options
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
