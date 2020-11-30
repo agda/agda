@@ -121,6 +121,10 @@ errorWarnings = Set.fromList
   , CoInfectiveImport_
   , RewriteNonConfluent_
   , RewriteMaybeNonConfluent_
+  , RewriteAmbiguousRules_
+  , RewriteMissingRule_
+  , ExeNotFoundWarning_
+  , ExeNotExecutableWarning_
   ]
 
 allWarnings :: Set WarningName
@@ -144,6 +148,7 @@ data WarningName
   | LibUnknownField_
   -- Nicifer Warnings
   | EmptyAbstract_
+  | EmptyConstructor_
   | EmptyField_
   | EmptyGeneralize_
   | EmptyInstance_
@@ -155,9 +160,12 @@ data WarningName
   | EmptyRewritePragma_
   | EmptyWhere_
   | InvalidCatchallPragma_
+  | InvalidConstructor_
+  | InvalidConstructorBlock_
   | InvalidCoverageCheckPragma_
   | InvalidNoPositivityCheckPragma_
   | InvalidNoUniverseCheckPragma_
+  | InvalidRecordDirective_
   | InvalidTerminationCheckPragma_
   | MissingDefinitions_
   | NotAllowedInMutual_
@@ -181,8 +189,10 @@ data WarningName
   | CoverageIssue_
   | CoverageNoExactSplit_
   | DeprecationWarning_
+  | DuplicateUsing_
   | FixityInRenamingModule_
   | GenericNonFatalError_
+  | GenericUseless_
   | GenericWarning_
   | IllformedAsClause_
   | InstanceArgWithExplicitArg_
@@ -196,6 +206,8 @@ data WarningName
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
   | RewriteNonConfluent_
+  | RewriteAmbiguousRules_
+  | RewriteMissingRule_
   | SafeFlagEta_
   | SafeFlagInjective_
   | SafeFlagNoCoverageCheck_
@@ -212,6 +224,7 @@ data WarningName
   | UnsolvedConstraints_
   | UnsolvedInteractionMetas_
   | UnsolvedMetaVariables_
+  | UselessHiding_
   | UselessInline_
   | UselessPatternDeclarationForRecord_
   | UselessPublic_
@@ -224,6 +237,9 @@ data WarningName
   -- Record field warnings
   | DuplicateFieldsWarning_
   | TooManyFieldsWarning_
+  -- System call warnings
+  | ExeNotFoundWarning_
+  | ExeNotExecutableWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
@@ -283,6 +299,7 @@ warningNameDescription = \case
   LibUnknownField_                 -> "Unknown field in library file."
   -- Nicifer Warnings
   EmptyAbstract_                   -> "Empty `abstract' blocks."
+  EmptyConstructor_                -> "Empty `constructor' blocks."
   EmptyField_                      -> "Empty `field` blocks."
   EmptyGeneralize_                 -> "Empty `variable' blocks."
   EmptyInstance_                   -> "Empty `instance' blocks."
@@ -294,9 +311,12 @@ warningNameDescription = \case
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   EmptyWhere_                      -> "Empty `where' blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
+  InvalidConstructor_              -> "`constructor' blocks may only contain type signatures for constructors."
+  InvalidConstructorBlock_         -> "No `constructor' blocks outside of `interleaved mutual' blocks."
   InvalidCoverageCheckPragma_      -> "Coverage checking pragmas before non-function or `mutual' blocks."
   InvalidNoPositivityCheckPragma_  -> "No positivity checking pragmas before non-`data', `record' or `mutual' blocks."
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
+  InvalidRecordDirective_          -> "No record directive outside of record definition / below field declarations."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
@@ -310,6 +330,7 @@ warningNameDescription = \case
   UnknownNamesInFixityDecl_        -> "Names not declared in the same scope as their syntax or fixity declaration."
   UnknownNamesInPolarityPragmas_   -> "Names not declared in the same scope as their polarity pragmas."
   UselessAbstract_                 -> "`abstract' blocks where they have no effect."
+  UselessHiding_                   -> "Names in `hiding' directive that are anyway not imported."
   UselessInline_                   -> "`INLINE' pragmas where they have no effect."
   UselessInstance_                 -> "`instance' blocks where they have no effect."
   UselessPrivate_                  -> "`private' blocks where they have no effect."
@@ -324,6 +345,7 @@ warningNameDescription = \case
   CoverageNoExactSplit_            -> "Failed exact split checks."
   DeprecationWarning_              -> "Feature deprecation."
   GenericNonFatalError_            -> ""
+  GenericUseless_                  -> "Useless code."
   GenericWarning_                  -> ""
   IllformedAsClause_               -> "Illformed `as'-clauses in `import' statements."
   InstanceNoOutputTypeName_        -> "instance arguments whose type does not end in a named or variable type are never considered by instance search."
@@ -331,13 +353,16 @@ warningNameDescription = \case
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
   InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
   ModuleDoesntExport_              -> "Imported name is not actually exported."
+  DuplicateUsing_                  -> "Repeated names in using directive."
   FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
-  NotInScope_                      -> "Out of scope name"
+  NotInScope_                      -> "Out of scope name."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
-  RewriteMaybeNonConfluent_      -> "Failed confluence checks while computing overlap."
-  RewriteNonConfluent_           -> "Failed confluence checks while joining critical pairs."
+  RewriteMaybeNonConfluent_        -> "Failed local confluence check while computing overlap."
+  RewriteNonConfluent_             -> "Failed local confluence check while joining critical pairs."
+  RewriteAmbiguousRules_           -> "Failed global confluence check because of overlapping rules."
+  RewriteMissingRule_              -> "Failed global confluence check because of missing rule."
   SafeFlagEta_                     -> "`ETA' pragmas with the safe flag."
   SafeFlagInjective_               -> "`INJECTIVE' pragmas with the safe flag."
   SafeFlagNoCoverageCheck_         -> "`NON_COVERING` pragmas with the safe flag."
@@ -363,3 +388,6 @@ warningNameDescription = \case
   -- Record field warnings
   DuplicateFieldsWarning_          -> "Record expression with duplicate field names."
   TooManyFieldsWarning_            -> "Record expression with invalid field names."
+  -- System call warnings
+  ExeNotFoundWarning_              -> "Trusted executable cannot be found."
+  ExeNotExecutableWarning_         -> "Trusted executable does not have permission to execute."

@@ -1,9 +1,13 @@
 Issue3848.agda:19,13-17
-Confluence check failed: f (c f₁) reduces to both f₁ and f r
-which are not equal because f₁ != f r of type A
+Global confluence check failed: f (c f₁) can be rewritten to either
+f₁ or f r.
+Possible fix: add a rewrite rule with left-hand side f (c f₁) to
+resolve the ambiguity.
 when checking confluence of the rewrite rule Issue3848.R.f-clause1
 with rew₁
-Issue3848.agda:30,13-17
-Confluence check failed: g (f r) reduces to both a and g a
-which are not equal because a != g a of type A
-when checking confluence of the rewrite rule rew₂ with rew₃
+Issue3848.agda:30,1-21
+Global confluence check failed: g (f r) unfolds to g a which should
+further unfold to a but it does not.
+Possible fix: add a rule to rewrite g a to a, or change the order
+of the rules so more specialized rules come later.
+when checking the pragma REWRITE rew₃

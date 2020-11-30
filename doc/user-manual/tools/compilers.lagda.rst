@@ -14,6 +14,8 @@ Compilers
 
 See also :ref:`foreign-function-interface`.
 
+.. _compiler-backends:
+
 Backends
 --------
 

@@ -1,4 +1,0 @@
-Issue493.agda:7,1-28
-Hiding B has no effect
-when scope checking the declaration
-  open M using (A) hiding (B)

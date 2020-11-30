@@ -8,20 +8,18 @@ import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..))
+import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
-import Agda.Interaction.Library
-import Agda.Interaction.Library.Parse
+import Agda.Interaction.Library.Base
 import Agda.Termination.CutOff
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
 instance EmbPrj TCWarning where
-  icod_ (TCWarning a b c d) = icodeN' TCWarning a b c d
-
+  icod_ (TCWarning fp a b c d) = icodeN' TCWarning fp a b c d
   value = valueN TCWarning
 
 -- We don't need to serialise warnings that turn into errors
@@ -79,6 +77,11 @@ instance EmbPrj Warning where
     UselessPatternDeclarationForRecord a  -> icodeN 30 UselessPatternDeclarationForRecord a
     EmptyWhere                            -> icodeN 31 EmptyWhere
     AsPatternShadowsConstructorOrPatternSynonym a -> icodeN 32 AsPatternShadowsConstructorOrPatternSynonym a
+    DuplicateUsing a                      -> icodeN 33 DuplicateUsing a
+    UselessHiding a                       -> icodeN 34 UselessHiding a
+    GenericUseless a b                    -> icodeN 35 GenericUseless a b
+    RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
+    RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -114,6 +117,11 @@ instance EmbPrj Warning where
     [30, a]              -> valuN UselessPatternDeclarationForRecord a
     [31]                 -> valuN EmptyWhere
     [32, a]              -> valuN AsPatternShadowsConstructorOrPatternSynonym a
+    [33, a]              -> valuN DuplicateUsing a
+    [34, a]              -> valuN UselessHiding a
+    [35, a, b]           -> valuN GenericUseless a b
+    [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
+    [37, a, b, c]        -> valuN RewriteMissingRule a b c
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where
@@ -127,6 +135,12 @@ instance EmbPrj RecordFieldWarning where
     _ -> malformed
 
 instance EmbPrj DeclarationWarning where
+  icod_ (DeclarationWarning a b) = icodeN' DeclarationWarning a b
+  value = vcase $ \case
+    [a, b] -> valuN DeclarationWarning a b
+    _ -> malformed
+
+instance EmbPrj DeclarationWarning' where
   icod_ = \case
     UnknownNamesInFixityDecl a        -> icodeN 0 UnknownNamesInFixityDecl a
     UnknownNamesInPolarityPragmas a   -> icodeN 1 UnknownNamesInPolarityPragmas a
@@ -156,6 +170,10 @@ instance EmbPrj DeclarationWarning where
     InvalidCoverageCheckPragma r      -> icodeN 25 InvalidCoverageCheckPragma r
     OpenPublicAbstract r              -> icodeN 26 OpenPublicAbstract r
     OpenPublicPrivate r               -> icodeN 27 OpenPublicPrivate r
+    EmptyConstructor a                -> icodeN 28 EmptyConstructor a
+    InvalidRecordDirective a          -> icodeN 29 InvalidRecordDirective a
+    InvalidConstructor a              -> icodeN 30 InvalidConstructor a
+    InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -186,6 +204,10 @@ instance EmbPrj DeclarationWarning where
     [25,r]   -> valuN InvalidCoverageCheckPragma r
     [26,r]   -> valuN OpenPublicAbstract r
     [27,r]   -> valuN OpenPublicPrivate r
+    [28,r]   -> valuN EmptyConstructor r
+    [29,r]   -> valuN InvalidRecordDirective r
+    [30,r]   -> valuN InvalidConstructor r
+    [31,r]   -> valuN InvalidConstructorBlock r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -198,10 +220,22 @@ instance EmbPrj LibWarning where
 
 instance EmbPrj LibWarning' where
   icod_ = \case
-    UnknownField a -> icodeN 0 UnknownField a
+    UnknownField     a   -> icodeN 0 UnknownField a
+    ExeNotFound      a b -> icodeN 1 ExeNotFound a b
+    ExeNotExecutable a b -> icodeN 2 ExeNotExecutable a b
 
   value = vcase $ \case
-    [0, a]   -> valuN UnknownField a
+    [0, a]    -> valuN UnknownField a
+    [1, a, b] -> valuN ExeNotFound a b
+    [2, a, b] -> valuN ExeNotExecutable a b
+    _ -> malformed
+
+instance EmbPrj ExecutablesFile where
+  icod_ = \case
+    ExecutablesFile a b -> icodeN 0 ExecutablesFile a b
+
+  value = vcase $ \case
+    [0, a, b] -> valuN ExecutablesFile a b
     _ -> malformed
 
 instance EmbPrj LibPositionInfo where
@@ -209,7 +243,7 @@ instance EmbPrj LibPositionInfo where
     LibPositionInfo a b c -> icodeN 0 LibPositionInfo a b c
 
   value = vcase $ \case
-    [0, a, b, c]   -> valuN LibPositionInfo a b c
+    [0, a, b, c] -> valuN LibPositionInfo a b c
     _ -> malformed
 
 instance EmbPrj Doc where
@@ -219,13 +253,24 @@ instance EmbPrj Doc where
 
 instance EmbPrj PragmaOptions where
   icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz ->
-      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ->
+      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc
 
   value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz] ->
-      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc] ->
+      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc
     _ -> malformed
+
+instance EmbPrj UnicodeOrAscii
+
+instance EmbPrj ConfluenceCheck where
+  icod_ LocalConfluenceCheck  = icodeN' LocalConfluenceCheck
+  icod_ GlobalConfluenceCheck = icodeN 0 GlobalConfluenceCheck
+
+  value = vcase valu where
+    valu []  = valuN LocalConfluenceCheck
+    valu [0] = valuN GlobalConfluenceCheck
+    valu _   = malformed
 
 instance EmbPrj WarningMode where
   icod_ = \case

@@ -20,7 +20,7 @@ makeLoop : TC Term
 makeLoop =
   freshName "cheat" >>= λ cheat →
   declareDef (vArg cheat) `⊥ >>= λ _ →
-  defineFun cheat (clause [] (def cheat []) ∷ []) >>= λ _ →
+  defineFun cheat (clause [] [] (def cheat []) ∷ []) >>= λ _ →
   returnTC (def cheat [])
 
 macro

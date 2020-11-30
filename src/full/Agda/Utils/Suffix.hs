@@ -5,16 +5,8 @@ import Data.Char
 
 import Agda.Utils.Impossible
 
-import Data.IORef
-import qualified System.IO.Unsafe as UNSAFE
-import Agda.Interaction.Options.IORefs
-
 ------------------------------------------------------------------------
 -- Subscript digits
-
--- | Are we allowed to use unicode supscript characters?
-subscriptAllowed :: UnicodeOrAscii
-subscriptAllowed = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii)
 
 -- | Is the character one of the subscripts @'₀'@-@'₉'@?
 
@@ -45,8 +37,7 @@ fromSubscriptDigit d
 -- | Classification of identifier variants.
 
 data Suffix
-  = NoSuffix
-  | Prime     Int  -- ^ Identifier ends in @Int@ many primes.
+  = Prime     Int  -- ^ Identifier ends in @Int@ many primes.
   | Index     Int  -- ^ Identifier ends in number @Int@ (ordinary digits).
   | Subscript Int  -- ^ Identifier ends in number @Int@ (subscript digits).
 
@@ -54,28 +45,27 @@ data Suffix
 --   unless users do not want us to use any unicode.
 
 nextSuffix :: Suffix -> Suffix
-nextSuffix NoSuffix      = case subscriptAllowed of
-  UnicodeOk -> Subscript 1
-  AsciiOnly -> Index 1
 nextSuffix (Prime i)     = Prime $ i + 1
 nextSuffix (Index i)     = Index $ i + 1
 nextSuffix (Subscript i) = Subscript $ i + 1
 
 -- | Parse suffix.
 
-suffixView :: String -> (String, Suffix)
+suffixView :: String -> (String, Maybe Suffix)
 suffixView s
-    | (ps@(_:_), s') <- span (=='\'') rs         = (reverse s', Prime $ length ps)
-    | (ns@(_:_), s') <- span isDigit rs          = (reverse s', Index $ read $ reverse ns)
-    | (ns@(_:_), s') <- span isSubscriptDigit rs = (reverse s', Subscript $ read $
+    | (ps@(_:_), s') <- span (=='\'') rs         = (reverse s', Just $ Prime $ length ps)
+    | (ns@(_:_), s') <- span isDigit rs          = (reverse s', Just $ Index $ read $ reverse ns)
+    | (ns@(_:_), s') <- span isSubscriptDigit rs = (reverse s', Just $ Subscript $ read $
                                                       map fromSubscriptDigit $ reverse ns)
-    | otherwise                                  = (s, NoSuffix)
+    | otherwise                                  = (s, Nothing)
     where rs = reverse s
 
 -- | Print suffix.
 
+renderSuffix :: Suffix -> String
+renderSuffix (Prime n)     = replicate n '\''
+renderSuffix (Index i)     = show i
+renderSuffix (Subscript i) = map toSubscriptDigit (show i)
+
 addSuffix :: String -> Suffix -> String
-addSuffix s NoSuffix      = s
-addSuffix s (Prime n)     = s ++ replicate n '\''
-addSuffix s (Index i)     = s ++ show i
-addSuffix s (Subscript i) = s ++ map toSubscriptDigit (show i)
+addSuffix str suffix = str ++ renderSuffix suffix

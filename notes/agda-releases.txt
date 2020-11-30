@@ -140,6 +140,9 @@ When releasing the following procedure can be followed:
 * Move the CHANGELOG for $MAJORVERSION to a new entry in
   doc/release-notes/<version-written-with-dashes>.md.
 
+* Add doc/release-notes/<version-written-with-dashes>.md. to the
+  extra-source-files field in Agda.cabal.
+
 * Close in the bug tracker the milestone $MAJORVERSION.
 
 * Update Agda Manual on Readthedocs.org (see Issues #2844 and #3035)

@@ -1,6 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE MonoLocalBinds             #-}
 
 {-| Primitive functions, such as addition on builtin integers.
@@ -12,9 +9,13 @@ module Agda.TypeChecking.Primitive
        ) where
 
 import Data.Char
+import Data.Function (on)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Maybe
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Word
 
 import qualified Agda.Interaction.Options.Lenses as Lens
@@ -41,10 +42,9 @@ import Agda.TypeChecking.Warnings
 import Agda.Utils.Float
 import Agda.Utils.List
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 import Agda.Utils.Size
-import Agda.Utils.String ( Str(Str), unStr )
 
 import Agda.Utils.Impossible
 
@@ -64,21 +64,31 @@ instance TermLike Nat where
   traverseTermM _ = pure
   foldTerm _      = mempty
 
-instance Show Nat where
-  show = show . toInteger
+instance Pretty Nat where
+  pretty = pretty . toInteger
 
 newtype Lvl = Lvl { unLvl :: Integer }
   deriving (Eq, Ord)
 
-instance Show Lvl where
-  show = show . unLvl
+instance Pretty Lvl where
+  pretty = pretty . unLvl
 
 class PrimType a where
   primType :: a -> TCM Type
 
+  -- This used to be a catch-all instance `PrimType a => PrimTerm a` which required UndecidableInstances.
+  -- Now we declare the instances separately, but enforce the catch-all-ness with a superclass constraint on PrimTerm.
+  default primType :: PrimTerm a => a -> TCM Type
+  primType _ = el $ primTerm (undefined :: a)
+
+class PrimType a => PrimTerm a where
+  primTerm :: a -> TCM Term
+
+instance (PrimType a, PrimType b) => PrimType (a -> b)
 instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
   primTerm _ = unEl <$> (primType (undefined :: a) --> primType (undefined :: b))
 
+instance (PrimType a, PrimType b) => PrimType (a, b)
 instance (PrimType a, PrimType b) => PrimTerm (a, b) where
   primTerm _ = do
     sigKit <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
@@ -92,30 +102,51 @@ instance (PrimType a, PrimType b) => PrimTerm (a, b) where
              <@> pure (unEl a')
              <@> pure (nolam $ unEl b')
 
-instance PrimTerm a => PrimType a where
-  primType _ = el $ primTerm (undefined :: a)
-
-class    PrimTerm a       where primTerm :: a -> TCM Term
+instance PrimType Integer
 instance PrimTerm Integer where primTerm _ = primInteger
+
+instance PrimType Word64
 instance PrimTerm Word64  where primTerm _ = primWord64
+
+instance PrimType Bool
 instance PrimTerm Bool    where primTerm _ = primBool
+
+instance PrimType Char
 instance PrimTerm Char    where primTerm _ = primChar
+
+instance PrimType Double
 instance PrimTerm Double  where primTerm _ = primFloat
-instance PrimTerm Str     where primTerm _ = primString
+
+instance PrimType Text
+instance PrimTerm Text    where primTerm _ = primString
+
+instance PrimType Nat
 instance PrimTerm Nat     where primTerm _ = primNat
+
+instance PrimType Lvl
 instance PrimTerm Lvl     where primTerm _ = primLevel
+
+instance PrimType QName
 instance PrimTerm QName   where primTerm _ = primQName
+
+instance PrimType MetaId
 instance PrimTerm MetaId  where primTerm _ = primAgdaMeta
+
+instance PrimType Type
 instance PrimTerm Type    where primTerm _ = primAgdaTerm
 
+instance PrimType Fixity'
 instance PrimTerm Fixity' where primTerm _ = primFixity
 
+instance PrimTerm a => PrimType [a]
 instance PrimTerm a => PrimTerm [a] where
   primTerm _ = list (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimType (Maybe a)
 instance PrimTerm a => PrimTerm (Maybe a) where
   primTerm _ = tMaybe (primTerm (undefined :: a))
 
+instance PrimTerm a => PrimType (IO a)
 instance PrimTerm a => PrimTerm (IO a) where
   primTerm _ = io (primTerm (undefined :: a))
 
@@ -127,17 +158,17 @@ class ToTerm a where
 
   toTermR = (pure .) <$> toTerm
 
-instance ToTerm Nat     where toTerm = return $ Lit . LitNat noRange . toInteger
-instance ToTerm Word64  where toTerm = return $ Lit . LitWord64 noRange
+instance ToTerm Nat     where toTerm = return $ Lit . LitNat . toInteger
+instance ToTerm Word64  where toTerm = return $ Lit . LitWord64
 instance ToTerm Lvl     where toTerm = return $ Level . ClosedLevel . unLvl
-instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
-instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
-instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
-instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
+instance ToTerm Double  where toTerm = return $ Lit . LitFloat
+instance ToTerm Char    where toTerm = return $ Lit . LitChar
+instance ToTerm Text    where toTerm = return $ Lit . LitString
+instance ToTerm QName   where toTerm = return $ Lit . LitQName
 instance ToTerm MetaId  where
   toTerm = do
     file <- getCurrentPath
-    return $ Lit . LitMeta noRange file
+    return $ Lit . LitMeta file
 
 instance ToTerm Integer where
   toTerm = do
@@ -275,51 +306,51 @@ instance FromTerm Integer where
         _ -> return $ NoReduction (reduced b)
 
 instance FromTerm Nat where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitNat _ n -> Just $ fromInteger n
-    _          -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitNat n -> Just $ fromInteger n
+    _ -> Nothing
 
 instance FromTerm Word64 where
   fromTerm = fromLiteral $ \ case
-    LitWord64 _ n -> Just n
-    _             -> Nothing
+    LitWord64 n -> Just n
+    _ -> Nothing
 
 instance FromTerm Lvl where
-  fromTerm = fromReducedTerm $ \l -> case l of
+  fromTerm = fromReducedTerm $ \case
     Level (ClosedLevel n) -> Just $ Lvl n
-    _                     -> Nothing
+    _ -> Nothing
 
 instance FromTerm Double where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitFloat _ x -> Just x
-    _            -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitFloat x -> Just x
+    _ -> Nothing
 
 instance FromTerm Char where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitChar _ c -> Just c
-    _           -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitChar c -> Just c
+    _ -> Nothing
 
-instance FromTerm Str where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitString _ s -> Just $ Str s
-    _             -> Nothing
+instance FromTerm Text where
+  fromTerm = fromLiteral $ \case
+    LitString s -> Just s
+    _ -> Nothing
 
 instance FromTerm QName where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitQName _ x -> Just x
-    _             -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitQName x -> Just x
+    _ -> Nothing
 
 instance FromTerm MetaId where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitMeta _ _ x -> Just x
-    _             -> Nothing
+  fromTerm = fromLiteral $ \case
+    LitMeta _ x -> Just x
+    _ -> Nothing
 
 instance FromTerm Bool where
     fromTerm = do
         true  <- primTrue
         false <- primFalse
-        fromReducedTerm $ \t -> case t of
-            _   | t =?= true  -> Just True
+        fromReducedTerm $ \case
+            t   | t =?= true  -> Just True
                 | t =?= false -> Just False
                 | otherwise   -> Nothing
         where
@@ -390,7 +421,7 @@ fromReducedTerm f = return $ \t -> do
         Nothing -> return $ NoReduction (reduced b)
 
 fromLiteral :: (Literal -> Maybe a) -> TCM (FromTermFunction a)
-fromLiteral f = fromReducedTerm $ \t -> case t of
+fromLiteral f = fromReducedTerm $ \case
     Lit lit -> f lit
     _       -> Nothing
 
@@ -417,8 +448,7 @@ mkPrimInjective a b qn = do
   return $ PrimImpl ty $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
     let t  = headWithDefault __IMPOSSIBLE__ ts
     let eq = unArg $ fromMaybe __IMPOSSIBLE__ $ lastMaybe ts
-    eq' <- reduce' eq
-    case eq' of
+    reduce' eq >>= \case
       Con{} -> redReturn $ refl t
       _     -> return $ NoReduction $ map notReduced ts
 
@@ -438,10 +468,17 @@ primCharToNatInjective = do
 
 primStringToListInjective :: TCM PrimitiveImpl
 primStringToListInjective = do
-  string <- primType (undefined :: Str)
+  string <- primType (undefined :: Text)
   chars  <- primType (undefined :: String)
   toList <- primFunName <$> getPrimitive "primStringToList"
   mkPrimInjective string chars toList
+
+primStringFromListInjective :: TCM PrimitiveImpl
+primStringFromListInjective = do
+  chars  <- primType (undefined :: String)
+  string <- primType (undefined :: Text)
+  fromList <- primFunName <$> getPrimitive "primStringFromList"
+  mkPrimInjective chars string fromList
 
 primWord64ToNatInjective :: TCM PrimitiveImpl
 primWord64ToNatInjective =  do
@@ -570,8 +607,8 @@ genPrimForce b ret = do
                     Datatype{} -> True
                     Record{}   -> True
                     _          -> False
-                MetaV{}    -> return False
                 Var{}      -> return False
+                MetaV{}    -> __IMPOSSIBLE__
                 Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
         ifM (isWHNF u)
             (redReturn $ ret (unArg f) (ignoreBlocking u))
@@ -620,12 +657,24 @@ mkPrimLevelMax = do
     b' <- levelView' $ unArg b
     redReturn $ Level $ levelLub a' b'
 
-mkPrimSetOmega :: TCM PrimitiveImpl
-mkPrimSetOmega = do
-  let t = sort $ Inf 1
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf 0
+mkPrimSetOmega :: IsFibrant -> TCM PrimitiveImpl
+mkPrimSetOmega f = do
+  let t = sort $ Inf f 1
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort $ Inf f 0
 
-mkPrimFun1TCM :: (FromTerm a, ToTerm b, TermLike b) =>
+primLockUniv' :: TCM PrimitiveImpl
+primLockUniv' = do
+  let t = sort $ Type $ levelSuc $ Max 0 []
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Sort LockUniv
+
+-- mkPrimStrictSet :: TCM PrimitiveImpl
+-- mkPrimStrictSet = do
+--   t <- nPi "ℓ" (el primLevel) (pure $ sort $ SSet $ Max 0 [Plus 1 $ var 0])
+--   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ ~[a] -> do
+--     l <- levelView' $ unArg a
+--     redReturn $ Sort $ SSet l
+
+mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
@@ -635,10 +684,10 @@ mkPrimFun1TCM mt f = do
       case ts of
         [v] ->
           redBind (toA v) singleton $ \ x -> do
-            b <- f x
-            case firstMeta b of
-              Just m  -> return $ NoReduction [reduced (Blocked m v)]
-              Nothing -> redReturn =<< fromB b
+            b <- fromB =<< f x
+            case allMetas Set.singleton b of
+              ms | Set.null ms -> redReturn b
+                 | otherwise   -> return $ NoReduction [reduced (Blocked (unblockOnAllMetas ms) v)]
         _ -> __IMPOSSIBLE__
 
 -- Tying the knot
@@ -674,6 +723,31 @@ mkPrimFun2 f = do
               (\w' -> [ reduced $ notBlocked $ Arg (argInfo v) (fromA x)
                       , w']) $ \y ->
           redReturn $ fromC $ f x y
+        _ -> __IMPOSSIBLE__
+
+mkPrimFun3 :: ( PrimType a, FromTerm a, ToTerm a
+              , PrimType b, FromTerm b, ToTerm b
+              , PrimType c, FromTerm c
+              , PrimType d, ToTerm d ) =>
+              (a -> b -> c -> d) -> TCM PrimitiveImpl
+mkPrimFun3 f = do
+    (toA, fromA) <- (,) <$> fromTerm <*> toTerm
+    (toB, fromB) <- (,) <$> fromTerm <*> toTerm
+    toC          <- fromTerm
+    fromD        <- toTerm
+    t <- primType f
+    return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ts ->
+      let argFrom fromX a x =
+            reduced $ notBlocked $ Arg (argInfo a) (fromX x)
+      in case ts of
+        [a,b,c] ->
+          redBind (toA a)
+              (\a' -> [a', notReduced b, notReduced c]) $ \x ->
+          redBind (toB b)
+              (\b' -> [argFrom fromA a x, b', notReduced c]) $ \y ->
+          redBind (toC c)
+              (\c' -> [ argFrom fromA a x, argFrom fromB b y, c']) $ \z ->
+          redReturn $ fromD $ f x y z
         _ -> __IMPOSSIBLE__
 
 mkPrimFun4 :: ( PrimType a, FromTerm a, ToTerm a
@@ -745,7 +819,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   -- , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
   -- , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
   -- , "primNatToInteger"    |-> mkPrimFun1 (toInteger  :: Nat -> Integer)
-  [ "primShowInteger"     |-> mkPrimFun1 (Str . show :: Integer -> Str)
+  [ "primShowInteger"     |-> mkPrimFun1 (T.pack . prettyShow :: Integer -> Text)
 
   -- Natural number functions
   , "primNatPlus"         |-> mkPrimFun2 ((+)                     :: Op Nat)
@@ -759,7 +833,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
       in mkPrimFun4 aux
   , "primNatEquality"     |-> mkPrimFun2 ((==) :: Rel Nat)
   , "primNatLess"         |-> mkPrimFun2 ((<)  :: Rel Nat)
-  , "primShowNat"         |-> mkPrimFun1 (Str . show :: Nat -> Str)
+  , "primShowNat"         |-> mkPrimFun1 (T.pack . prettyShow :: Nat -> Text)
 
   -- Machine words
   , "primWord64ToNat"     |-> mkPrimFun1 (fromIntegral :: Word64 -> Nat)
@@ -772,38 +846,59 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primLevelMax"        |-> mkPrimLevelMax
 
   -- Sorts
-  , "primSetOmega"        |-> mkPrimSetOmega
+  , "primSetOmega"        |-> mkPrimSetOmega IsFibrant
+  , "primStrictSetOmega"  |-> mkPrimSetOmega IsStrict
 
   -- Floating point functions
-  , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral    :: Nat -> Double)
-  , "primFloatPlus"       |-> mkPrimFun2 ((+)             :: Op Double)
-  , "primFloatMinus"      |-> mkPrimFun2 ((-)             :: Op Double)
-  , "primFloatTimes"      |-> mkPrimFun2 ((*)             :: Op Double)
-  , "primFloatNegate"     |-> mkPrimFun1 (negate          :: Fun Double)
-  , "primFloatDiv"        |-> mkPrimFun2 ((/)             :: Op Double)
-  -- ASR (2016-09-29). We use bitwise equality for comparing Double
-  -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
-  -- a contradiction (see Issue #2169).
-  , "primFloatEquality"   |-> mkPrimFun2 (floatEq         :: Rel Double)
-  , "primFloatLess"       |-> mkPrimFun2 (floatLt         :: Rel Double)
-  , "primFloatNumericalEquality" |-> mkPrimFun2 ((==)     :: Rel Double)
-  , "primFloatNumericalLess"     |-> mkPrimFun2 ((<)      :: Rel Double)
-  , "primFloatSqrt"       |-> mkPrimFun1 (sqrt            :: Double -> Double)
-  , "primRound"           |-> mkPrimFun1 (round   . normaliseNaN :: Double -> Integer)
-  , "primFloor"           |-> mkPrimFun1 (floor   . normaliseNaN :: Double -> Integer)
-  , "primCeiling"         |-> mkPrimFun1 (ceiling . normaliseNaN :: Double -> Integer)
-  , "primExp"             |-> mkPrimFun1 (exp             :: Fun Double)
-  , "primLog"             |-> mkPrimFun1 (log             :: Fun Double)
-  , "primSin"             |-> mkPrimFun1 (sin             :: Fun Double)
-  , "primCos"             |-> mkPrimFun1 (cos             :: Fun Double)
-  , "primTan"             |-> mkPrimFun1 (tan             :: Fun Double)
-  , "primASin"            |-> mkPrimFun1 (asin            :: Fun Double)
-  , "primACos"            |-> mkPrimFun1 (acos            :: Fun Double)
-  , "primATan"            |-> mkPrimFun1 (atan            :: Fun Double)
-  , "primATan2"           |-> mkPrimFun2 (atan2           :: Op Double)
-  , "primShowFloat"       |-> mkPrimFun1 (Str . show      :: Double -> Str)
-  , "primFloatToWord64"   |-> mkPrimFun1 doubleToWord64
+  --
+  -- Wen, 2020-08-26: Primitives which convert from Float into other, more
+  -- well-behaved numeric types should check for unrepresentable values, e.g.,
+  -- NaN and the infinities, and return `nothing` if those are encountered, to
+  -- ensure that the returned numbers are sensible. That means `primFloatRound`,
+  -- `primFloatFloor`, `primFloatCeiling`, and `primFloatDecode`. The conversion
+  -- `primFloatRatio` represents NaN as (0,0), and the infinities as (±1,0).
+  --
+  , "primFloatEquality"          |-> mkPrimFun2 doubleEq
+  , "primFloatInequality"        |-> mkPrimFun2 doubleLe
+  , "primFloatLess"              |-> mkPrimFun2 doubleLt
+  , "primFloatIsInfinite"        |-> mkPrimFun1 (isInfinite :: Double -> Bool)
+  , "primFloatIsNaN"             |-> mkPrimFun1 (isNaN :: Double -> Bool)
+  , "primFloatIsNegativeZero"    |-> mkPrimFun1 (isNegativeZero :: Double -> Bool)
+  , "primFloatIsSafeInteger"     |-> mkPrimFun1 isSafeInteger
+  , "primFloatToWord64"          |-> mkPrimFun1 doubleToWord64
   , "primFloatToWord64Injective" |-> primFloatToWord64Injective
+  , "primNatToFloat"             |-> mkPrimFun1 (intToDouble :: Nat -> Double)
+  , "primIntToFloat"             |-> mkPrimFun1 (intToDouble :: Integer -> Double)
+  , "primFloatRound"             |-> mkPrimFun1 doubleRound
+  , "primFloatFloor"             |-> mkPrimFun1 doubleFloor
+  , "primFloatCeiling"           |-> mkPrimFun1 doubleCeiling
+  , "primFloatToRatio"           |-> mkPrimFun1 doubleToRatio
+  , "primRatioToFloat"           |-> mkPrimFun2 ratioToDouble
+  , "primFloatDecode"            |-> mkPrimFun1 doubleDecode
+  , "primFloatEncode"            |-> mkPrimFun2 doubleEncode
+  , "primShowFloat"              |-> mkPrimFun1 (T.pack . show :: Double -> Text)
+  , "primFloatPlus"              |-> mkPrimFun2 doublePlus
+  , "primFloatMinus"             |-> mkPrimFun2 doubleMinus
+  , "primFloatTimes"             |-> mkPrimFun2 doubleTimes
+  , "primFloatNegate"            |-> mkPrimFun1 doubleNegate
+  , "primFloatDiv"               |-> mkPrimFun2 doubleDiv
+  , "primFloatPow"               |-> mkPrimFun2 doublePow
+  , "primFloatSqrt"              |-> mkPrimFun1 doubleSqrt
+  , "primFloatExp"               |-> mkPrimFun1 doubleExp
+  , "primFloatLog"               |-> mkPrimFun1 doubleLog
+  , "primFloatSin"               |-> mkPrimFun1 doubleSin
+  , "primFloatCos"               |-> mkPrimFun1 doubleCos
+  , "primFloatTan"               |-> mkPrimFun1 doubleTan
+  , "primFloatASin"              |-> mkPrimFun1 doubleASin
+  , "primFloatACos"              |-> mkPrimFun1 doubleACos
+  , "primFloatATan"              |-> mkPrimFun1 doubleATan
+  , "primFloatATan2"             |-> mkPrimFun2 doubleATan2
+  , "primFloatSinh"              |-> mkPrimFun1 doubleSinh
+  , "primFloatCosh"              |-> mkPrimFun1 doubleCosh
+  , "primFloatTanh"              |-> mkPrimFun1 doubleTanh
+  , "primFloatASinh"             |-> mkPrimFun1 doubleASinh
+  , "primFloatACosh"             |-> mkPrimFun1 doubleCosh
+  , "primFloatATanh"             |-> mkPrimFun1 doubleTanh
 
   -- Character functions
   , "primCharEquality"       |-> mkPrimFun2 ((==) :: Rel Char)
@@ -820,16 +915,17 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primCharToNat"          |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
   , "primCharToNatInjective" |-> primCharToNatInjective
   , "primNatToChar"          |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
-  , "primShowChar"           |-> mkPrimFun1 (Str . prettyShow . LitChar noRange)
+  , "primShowChar"           |-> mkPrimFun1 (T.pack . prettyShow . LitChar)
 
   -- String functions
-  , "primStringToList"          |-> mkPrimFun1 unStr
-  , "primStringToListInjective" |-> primStringToListInjective
-  , "primStringFromList"        |-> mkPrimFun1 Str
-  , "primStringAppend"          |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
-  , "primStringEquality"        |-> mkPrimFun2 ((==) :: Rel Str)
-  , "primShowString"            |-> mkPrimFun1 (Str . prettyShow . LitString noRange . unStr)
-  , "primStringUncons"          |-> mkPrimFun1 (fmap (fmap Str) . uncons . unStr)
+  , "primStringToList"            |-> mkPrimFun1 T.unpack
+  , "primStringToListInjective"   |-> primStringToListInjective
+  , "primStringFromList"          |-> mkPrimFun1 T.pack
+  , "primStringFromListInjective" |-> primStringFromListInjective
+  , "primStringAppend"            |-> mkPrimFun2 (T.append :: Text -> Text -> Text)
+  , "primStringEquality"          |-> mkPrimFun2 ((==) :: Rel Text)
+  , "primShowString"              |-> mkPrimFun1 (T.pack . prettyShow . LitString)
+  , "primStringUncons"            |-> mkPrimFun1 T.uncons
 
   -- Other stuff
   , "primEraseEquality"   |-> primEraseEquality
@@ -838,14 +934,14 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primForceLemma"      |-> primForceLemma
   , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
   , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
-  , "primShowQName"       |-> mkPrimFun1 (Str . prettyShow :: QName -> Str)
+  , "primShowQName"       |-> mkPrimFun1 (T.pack . prettyShow :: QName -> Text)
   , "primQNameFixity"     |-> mkPrimFun1 (nameFixity . qnameName)
   , "primQNameToWord64s"  |-> mkPrimFun1 ((\ (NameId x y) -> (x, y)) . nameId . qnameName
                                           :: QName -> (Word64, Word64))
   , "primQNameToWord64sInjective" |-> primQNameToWord64sInjective
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
-  , "primShowMeta"        |-> mkPrimFun1 (Str . prettyShow :: MetaId -> Str)
+  , "primShowMeta"        |-> mkPrimFun1 (T.pack . prettyShow :: MetaId -> Text)
   , "primMetaToNat"       |-> mkPrimFun1 (fromIntegral . metaId :: MetaId -> Nat)
   , "primMetaToNatInjective" |-> primMetaToNatInjective
   , "primIMin"            |-> primIMin'
@@ -869,6 +965,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , builtinSubOut         |-> primSubOut'
   , builtin_glueU         |-> prim_glueU'
   , builtin_unglueU       |-> prim_unglueU'
+  , builtinLockUniv       |-> primLockUniv'
   ]
   where
     (|->) = (,)

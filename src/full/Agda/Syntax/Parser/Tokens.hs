@@ -5,12 +5,13 @@ module Agda.Syntax.Parser.Tokens
     , Symbol(..)
     ) where
 
-import Agda.Syntax.Literal (Literal)
+import Agda.Syntax.Literal (RLiteral)
 import Agda.Syntax.Position
 
 data Keyword
         = KwLet | KwIn | KwWhere | KwData | KwCoData | KwDo
-        | KwPostulate | KwMutual | KwAbstract | KwPrivate | KwInstance
+        | KwPostulate | KwAbstract | KwPrivate | KwInstance
+        | KwInterleaved | KwMutual
         | KwOverlap
         | KwOpen | KwImport | KwModule | KwPrimitive | KwMacro
         | KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
@@ -38,7 +39,10 @@ data Keyword
 
 layoutKeywords :: [Keyword]
 layoutKeywords =
-    [ KwLet, KwWhere, KwDo, KwPostulate, KwMutual, KwAbstract, KwPrivate, KwInstance, KwMacro, KwPrimitive, KwField, KwVariable ]
+    [ KwLet, KwWhere, KwDo, KwPostulate, KwMutual, KwAbstract
+    , KwPrivate, KwInstance, KwMacro, KwPrimitive, KwField
+    , KwVariable, KwConstructor
+    ]
 
 data Symbol
         = SymDot | SymSemi | SymVirtualSemi | SymBar
@@ -62,7 +66,7 @@ data Token
                         -- Non-empty namespace. The intervals for
                         -- "A.B.x" correspond to "A.", "B." and "x".
           -- Literals
-        | TokLiteral    Literal
+        | TokLiteral    RLiteral
           -- Special symbols
         | TokSymbol Symbol Interval
           -- Other tokens

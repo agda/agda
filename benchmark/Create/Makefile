@@ -1,4 +1,9 @@
 # Andreas, 2020-02-15
+#
+TOP=../../
+
+include $(TOP)/mk/paths.mk
+include $(TOP)/mk/ghc.mk
 
 .PHONY : default imp-%
 
@@ -7,22 +12,22 @@ default: imp-300
 # Benchmark nested imports with one data decl
 
 imp-% : import-%
-	time agda +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
+	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
 
 import-% :
-	runhaskell QuadraticImportOneData.hs $@ $*
+	$(RUNGHC) QuadraticImportOneData.hs $@ $*
 
 imp0-% : import0-%
-	time agda +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
+	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
 
 import0-% :
-	runhaskell QuadraticImportOneDataNoUsing.hs $@ $*
+	$(RUNGHC) QuadraticImportOneDataNoUsing.hs $@ $*
 
 hs-imp-% : hs-import-%
 	-rm $</*.hi $</*.o $</Main
-	time ghc +RTS -s -RTS -i$< $</Main.hs
+	time $(GHC) +RTS -s -RTS -i$< $</Main.hs
 
 hs-import-% :
-	runhaskell QuadraticImportOneDataHaskell.hs $@ $*
+	$(RUNGHC) QuadraticImportOneDataHaskell.hs $@ $*
 
 # EOF

@@ -7,6 +7,7 @@ open import Agda.Builtin.Reflection
 open import Agda.Builtin.List
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Equality
+open import Agda.Builtin.Sigma
 
 infixl 6 _>>=_
 _>>=_ = bindTC
@@ -46,12 +47,15 @@ pattern hArg x = rArg hidden  x
 pattern iArg x = rArg instance′ x
 pattern `? = hArg unknown
 
-pattern fun₀ b = function (clause [] b ∷ [])
-pattern fun₁ p b = function (clause (p ∷ []) b ∷ [])
-pattern fun₂ p q b = function (clause (p ∷ q ∷ []) b ∷ [])
+pattern fun₀ b = function (clause [] [] b ∷ [])
+pattern fun₁ tel p b = function (clause tel (p ∷ []) b ∷ [])
+pattern fun₂ tel p q b = function (clause tel (p ∷ q ∷ []) b ∷ [])
 
 -- foo {{r}} = Foo.foo {_} r
-foo-def : getDef foo ≡ fun₁ (iArg (var "r")) (def (quote Foo.foo) (`? ∷ vArg (var 0 []) ∷ []))
+foo-def : getDef foo ≡ fun₁
+            (("r" , iArg (def (quote Foo) (vArg (var 0 []) ∷ []))) ∷ [])
+            (iArg (var 0))
+            (def (quote Foo.foo) (`? ∷ vArg (var 0 []) ∷ []))
 foo-def = refl
 
 -- Andreas, 2018-03-12: Behavior before fix of #2963:
@@ -59,15 +63,18 @@ foo-def = refl
 -- foo₁-def : getDef foo₁ ≡ fun₁ (iArg (var "r")) (def (quote Foo.foo₁) (`? ∷ vArg (var 0 []) ∷ []))
 -- NOW:
 -- foo₁ {A} {{r}} = Foo.foo₁ {A} r
-foo₁-def : getDef foo₁ ≡ fun₂ (hArg (var "A")) (iArg (var "r")) (def (quote Foo.foo₁) (hArg (var 1 []) ∷ vArg (var 0 []) ∷ []))
+foo₁-def : getDef foo₁ ≡ fun₂
+             (("A" , hArg (agda-sort (lit 0))) ∷ ("r" , iArg (def (quote Foo) (vArg (var 0 []) ∷ []))) ∷ [])
+             (hArg (var 1)) (iArg (var 0))
+             (def (quote Foo.foo₁) (hArg (var 1 []) ∷ vArg (var 0 []) ∷ []))
 foo₁-def = refl
 
 -- bar = foo {_} FooA
 bar-def : getDef bar ≡ fun₀ (def (quote Foo.foo) (`? ∷ vArg (def (quote FooA) []) ∷ []))
 bar-def = refl
 
--- bar₁ = foo {_} FooA
-bar₁-def : getDef bar₁ ≡ fun₀ (def (quote Foo.foo) (`? ∷ vArg (def (quote FooA) []) ∷ []))
+-- bar₁ = Foo.foo₁ {A} FooA
+bar₁-def : getDef bar₁ ≡ fun₀ (def (quote Foo.foo₁) (hArg (def (quote A) [])  ∷ vArg (def (quote FooA) []) ∷ []))
 bar₁-def =  refl
 
 -- bar₂ = foo₂ {_} {FooA}

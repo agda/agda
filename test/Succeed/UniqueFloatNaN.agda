@@ -4,9 +4,9 @@ module UniqueFloatNaN where
 -- https://github.com/agda/agda/issues/3749
 
 open import Agda.Builtin.Float
-  renaming ( primRound to round
-           ; primFloor to floor
-           ; primCeiling to ceiling
+  renaming ( primFloatRound to round
+           ; primFloatFloor to floor
+           ; primFloatCeiling to ceiling
            ; primFloatNegate to -_
            ; primFloatDiv  to _/_)
 open import Agda.Builtin.Equality

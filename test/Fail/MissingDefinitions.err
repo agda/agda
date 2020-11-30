@@ -1,10 +1,10 @@
 MissingDefinitions.agda:27,3-30,50
 The following names are declared but not accompanied by a
 definition: T₂, U₂, V₂, W₂
-MissingDefinitions.agda:5,1-18,10
+MissingDefinitions.agda:5,1-18,4
 The following names are declared but not accompanied by a
 definition: Q, U, V, W, X
-MissingDefinitions.agda:22,3-23,24
+MissingDefinitions.agda:22,3-23,4
 The following names are declared but not accompanied by a
 definition: A, B
 when scope checking the declaration

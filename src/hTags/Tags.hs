@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeFamilies         #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+
 {-# LANGUAGE UndecidableInstances #-}
 
 module Tags where

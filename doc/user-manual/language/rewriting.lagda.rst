@@ -163,8 +163,26 @@ applied to terms that would otherwise be neutral.
 Confluence checking
 -------------------
 
-Agda can optionally check (local) confluence of rewrite rules by
-enabling the ``--confluence-check`` flag.
+Agda can optionally check confluence of rewrite rules by enabling the
+``--confluence-check`` flag. Concretely, it does so by enforcing two
+properties:
+
+  1. For any two left-hand sides of the rewrite rules that overlap
+     (either at the root position or at a subterm), the most general
+     unifier of the two left-hand sides is again a left-hand side of a
+     rewrite rule. For example, if there are two rules ``suc m + n =
+     suc (m + n)`` and ``m + suc n = suc (m + n)``, then there should
+     also be a rule ``suc m + suc n = suc (suc (m + n))``.
+
+  2. Each rewrite rule should satisfy the *triangle property*: For any
+     rewrite rule ``u = w`` and any single-step parallel unfolding ``u
+     => v``, we should have another single-step parallel unfolding ``v
+     => w``.
+
+There is also a flag ``--local-confluence-check`` that is less
+restrictive but only checks local confluence of rewrite rules. In case
+the rewrite rules are terminating (currently not checked), these two
+properties are equivalent.
 
 Advanced usage
 --------------

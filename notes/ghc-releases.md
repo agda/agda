@@ -17,9 +17,9 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   `make install-bin`
 
-* Test the fix-agda-whitespace program:
+* Test the fix-whitespace program:
 
-  `make build-fix-agda-whitespace`
+  `make fix-whitespace`
 
 * Run the test-suite:
 
@@ -59,6 +59,19 @@ Let's suppose the new version of GHC is X.Y.Z.
 
 * Update the `tested-with` field in std-lib/lib.agda.
 
+* STACKAGE
+
+  - Create `stack-X.Y.Z.yaml` using as resolver `ghc-X.Y.Z`.
+
+  - Test the build using `stack-X.Y.Z.yaml`.
+
+  - Add `stack-X.Y.Z.yaml` to the `extra-source-files` field in
+    Agda.cabal.
+
+* Travis: Add an instance for GHC X.Y.Z.
+
+* GitHub workflows: Add GHC X.Y.Z to all the workflows using GHC.
+
 * Update the CHANGELOG files (Agda and the standard library):
 
 
@@ -68,23 +81,6 @@ Let's suppose the new version of GHC is X.Y.Z.
 
    * Added support for GHC X.Y.Z.
    ```
-
-* Travis:
-
-  - Add an instance for GHC X.Y.Z.
-
-  - Update Haddock test for using GHC X.Y.Z.
-
-* STACKAGE:
-
-  - Create `stack-X.Y.Z.yaml` using as resolver `ghc-X.Y.Z`.
-
-  - Test the build using `stack-X.Y.Z.yaml`.
-
-  - Add `stack-X.Y.Z.yaml` to the `extra-source-files` field in
-    Agda.cabal.
-
-  - Add an instance using `stack-X.Y.Z.yaml` to Travis.
 
 * User manual: Update the tested versions of GHC in
   `/doc/user-manual/getting-started/prerequisites.rst`.

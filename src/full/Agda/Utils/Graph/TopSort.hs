@@ -1,4 +1,4 @@
-{-# language ViewPatterns #-}
+
 module Agda.Utils.Graph.TopSort
     ( topSort
     ) where

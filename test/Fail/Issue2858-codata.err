@@ -1,0 +1,3 @@
+Issue2858-codata.agda:14,5-8
+Could not find a matching data signature for constructor suc
+There was no candidate.

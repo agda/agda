@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 -- | Parser for @.agda-lib@ files.
 --
 --   Example file:
@@ -27,9 +26,7 @@ module Agda.Interaction.Library.Parse
   ( parseLibFile
   , splitCommas
   , trimLineComment
-  , LineNumber
   , runP
-  , LibWarning'(..)
   ) where
 
 import Control.Monad
@@ -54,11 +51,6 @@ type P = ExceptT String (Writer [LibWarning'])
 
 runP :: P a -> (Either String a, [LibWarning'])
 runP = runWriter . runExceptT
-
--- | Library Warnings.
-data LibWarning'
-  = UnknownField String
-  deriving (Show, Data)
 
 warningP :: LibWarning' -> P ()
 warningP = tell . pure
@@ -91,6 +83,7 @@ agdaLibFields =
   [ optionalField "name"    parseName                      libName
   , optionalField "include" (pure . concatMap parsePaths)  libIncludes
   , optionalField "depend"  (pure . concatMap splitCommas) libDepends
+  , optionalField "flags"   (pure . concatMap parseFlags)  libPragmas
   ]
   where
     parseName :: [String] -> P LibName
@@ -105,6 +98,9 @@ agdaLibFields =
       go acc ('\\' : '\\' :cs) = go (acc . ('\\':)) cs
       go acc (       ' '  :cs) = fixup acc ++ go id cs
       go acc (c           :cs) = go (acc . (c:)) cs
+
+    parseFlags :: String -> [String]
+    parseFlags = words
 
 -- | Parse @.agda-lib@ file.
 --
@@ -180,8 +176,6 @@ findField s fs = maybe err (return . Just) $ List.find ((s ==) . fName) fs
 parseGeneric :: String -> P GenericFile
 parseGeneric s =
   groupLines =<< concat <$> zipWithM parseLine [1..] (map stripComments $ lines s)
-
-type LineNumber = Int
 
 -- | Lines with line numbers.
 data GenericLine
@@ -260,8 +254,8 @@ splitCommas s = words $ map (\c -> if c == ',' then ' ' else c) s
 -- | ...and trailing, but not leading, whitespace.
 stripComments :: String -> String
 stripComments "" = ""
-stripComments ('-':'-':_) = ""
-stripComments (c : s)     = cons c (stripComments s)
+stripComments ('-':'-':c:_) | isSpace c = ""
+stripComments (c : s) = cons c (stripComments s)
   where
     cons c "" | isSpace c = ""
     cons c s = c : s

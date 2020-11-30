@@ -14,6 +14,7 @@ import Control.Monad.Fail (MonadFail)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -37,6 +38,7 @@ import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor ((<.>))
+import Agda.Utils.List (nubOn)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -177,7 +179,7 @@ getMetaContextArgs MetaVar{ mvPermutation = p } = do
   return $ permute (takeP (length args) p) args
 
 -- | Given a meta, return the type applied to the current context.
-getMetaTypeInContext :: (MonadFail m, MonadTCEnv m, ReadTCState m, MonadReduce m)
+getMetaTypeInContext :: (MonadFail m, MonadTCEnv m, ReadTCState m, MonadReduce m, HasBuiltins m)
                      => MetaId -> m Type
 getMetaTypeInContext m = do
   mv@MetaVar{ mvJudgement = j } <- lookupMeta m
@@ -216,10 +218,6 @@ instance IsInstantiatedMeta PlusLevel where
   isInstantiatedMeta (Plus n l) | n == 0 = isInstantiatedMeta l
   isInstantiatedMeta _ = __IMPOSSIBLE__
 
-instance IsInstantiatedMeta LevelAtom where
-  isInstantiatedMeta (MetaLevel x es) = isInstantiatedMeta x
-  isInstantiatedMeta _ = __IMPOSSIBLE__
-
 instance IsInstantiatedMeta a => IsInstantiatedMeta [a] where
   isInstantiatedMeta = andM . map isInstantiatedMeta
 
@@ -246,20 +244,15 @@ isInstantiatedMeta' m = do
 --   second one we need to look up the meta listeners for the one in the
 --   UnBlock constraint.
 constraintMetas :: Constraint -> TCM (Set MetaId)
-constraintMetas c = metas c
-  where
+constraintMetas = \case
     -- We don't use allMetas here since some constraints should not stop us from generalizing. For
     -- instance CheckSizeLtSat (see #3694). We also have to check meta listeners to get metas of
     -- UnBlock constraints.
-    metas c = case c of
       ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')
-      UnquoteTactic m t h g    -> return $ (maybe Set.empty Set.singleton m) `Set.union`
-                                           allMetas Set.singleton (t, h, g)
-      Guarded c _              -> metas c
-      TelCmp _ _ _ tel1 tel2   -> return $ allMetas Set.singleton (tel1, tel2)
+      UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)
       UnBlock x                -> Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
       FindInstance{}           -> return mempty  -- v Ignore these constraints
@@ -269,7 +262,9 @@ constraintMetas c = metas c
       HasBiggerSort{}          -> return mempty
       HasPTSRule{}             -> return mempty
       CheckMetaInst x          -> return mempty
-
+      CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)
+      UsableAtModality _ t     -> return $ allMetas Set.singleton t
+  where
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
     listenerMetas (CheckConstraint _ c) = constraintMetas (clValue $ theConstraint c)
@@ -415,6 +410,18 @@ getInteractionPoints = Map.keys <$> useR stInteractionPoints
 getInteractionMetas :: ReadTCState m => m [MetaId]
 getInteractionMetas =
   mapMaybe ipMeta . filter (not . ipSolved) . Map.elems <$> useR stInteractionPoints
+
+getUniqueMetasRanges :: (MonadFail m, ReadTCState m) => [MetaId] -> m [Range]
+getUniqueMetasRanges = fmap (nubOn id) . mapM getMetaRange
+
+getUnsolvedMetas :: (MonadFail m, ReadTCState m) => m [Range]
+getUnsolvedMetas = do
+  openMetas            <- getOpenMetas
+  interactionMetas     <- getInteractionMetas
+  getUniqueMetasRanges (openMetas List.\\ interactionMetas)
+
+getUnsolvedInteractionMetas :: (MonadFail m, ReadTCState m) => m [Range]
+getUnsolvedInteractionMetas = getUniqueMetasRanges =<< getInteractionMetas
 
 -- | Get all metas that correspond to unsolved interaction ids.
 getInteractionIdsAndMetas :: ReadTCState m => m [(InteractionId,MetaId)]
@@ -621,12 +628,6 @@ instance UnFreezeMeta Level where
 
 instance UnFreezeMeta PlusLevel where
   unfreezeMeta (Plus _ a)    = unfreezeMeta a
-
-instance UnFreezeMeta LevelAtom where
-  unfreezeMeta (MetaLevel x _)    = unfreezeMeta x
-  unfreezeMeta (BlockedLevel _ t) = unfreezeMeta t
-  unfreezeMeta (NeutralLevel _ t) = unfreezeMeta t
-  unfreezeMeta (UnreducedLevel t) = unfreezeMeta t
 
 instance UnFreezeMeta a => UnFreezeMeta [a] where
   unfreezeMeta = mapM_ unfreezeMeta

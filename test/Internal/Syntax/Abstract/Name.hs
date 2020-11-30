@@ -16,7 +16,7 @@ import Test.QuickCheck
 
 instance Arbitrary Name where
   arbitrary =
-    Name <$> arbitrary <*> arbitrary <*> arbitrary
+    Name <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
          <*> return noFixity'
          <*> return False
 

@@ -3,6 +3,7 @@ module Agda.TypeChecking.Constraints where
 
 import Control.Monad.Except (MonadError)
 
+import Agda.Syntax.Internal (ProblemId)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Constraints (MonadConstraint)
 import Agda.TypeChecking.Warnings (MonadWarning)

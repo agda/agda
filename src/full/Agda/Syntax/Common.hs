@@ -1,9 +1,6 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
-{-# LANGUAGE UndecidableInstances       #-} -- for functional dependency: LensNamed name (Arg a)
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -13,6 +10,7 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 import Control.Arrow ((&&&))
+import Control.Applicative ((<|>))
 
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
@@ -73,6 +71,29 @@ instance Pretty FileType where
     RstFileType  -> "ReStructedText"
     TexFileType  -> "LaTeX"
     OrgFileType  -> "org-mode"
+
+---------------------------------------------------------------------------
+-- * Record Directives
+---------------------------------------------------------------------------
+
+data RecordDirectives' a = RecordDirectives
+  { recInductive   :: Maybe (Ranged Induction)
+  , recHasEta      :: Maybe HasEta0
+  , recPattern     :: Maybe Range
+  , recConstructor :: Maybe a
+  } deriving (Functor, Data, Show, Eq)
+
+emptyRecordDirectives :: RecordDirectives' a
+emptyRecordDirectives = RecordDirectives empty empty empty empty
+
+instance HasRange a => HasRange (RecordDirectives' a) where
+  getRange (RecordDirectives a b c d) = getRange (a,b,c,d)
+
+instance KillRange a => KillRange (RecordDirectives' a) where
+  killRange (RecordDirectives a b c d) = killRange4 RecordDirectives a b c d
+
+instance NFData a => NFData (RecordDirectives' a) where
+  rnf (RecordDirectives a b c d) = c `seq` rnf (a, b, d)
 
 ---------------------------------------------------------------------------
 -- * Eta-equality
@@ -210,6 +231,9 @@ instance Monoid Overlappable where
 instance Monoid Hiding where
   mempty = NotHidden
   mappend = (<>)
+
+instance HasRange Hiding where
+  getRange _ = noRange
 
 instance KillRange Hiding where
   killRange = id
@@ -424,8 +448,11 @@ sameModality x y = case (getModality x , getModality y) of
 
 -- boilerplate instances
 
+instance HasRange Modality where
+  getRange (Modality r q c) = getRange (r, q, c)
+
 instance KillRange Modality where
-  killRange = id
+  killRange (Modality r q c) = killRange3 Modality r q c
 
 instance NFData Modality where
 
@@ -1037,6 +1064,94 @@ nonStrictToIrr :: Relevance -> Relevance
 nonStrictToIrr NonStrict = Irrelevant
 nonStrictToIrr rel       = rel
 
+
+---------------------------------------------------------------------------
+-- * Annotations
+---------------------------------------------------------------------------
+
+-- | We have a tuple of annotations, which might not be fully orthogonal.
+data Annotation = Annotation
+  { annLock :: Lock
+    -- ^ Fitch-style dependent right adjoints.
+    --   See Modal Dependent Type Theory and Dependent Right Adjoints, arXiv:1804.05236.
+  } deriving (Data, Eq, Ord, Show, Generic)
+
+instance HasRange Annotation where
+  getRange _ = noRange
+
+instance KillRange Annotation where
+  killRange = id
+
+defaultAnnotation :: Annotation
+defaultAnnotation = Annotation defaultLock
+
+instance NFData Annotation where
+  rnf (Annotation l) = rnf l
+
+class LensAnnotation a where
+
+  getAnnotation :: a -> Annotation
+
+  setAnnotation :: Annotation -> a -> a
+
+  mapAnnotation :: (Annotation -> Annotation) -> a -> a
+  mapAnnotation f a = setAnnotation (f $ getAnnotation a) a
+
+  default getAnnotation :: LensArgInfo a => a -> Annotation
+  getAnnotation = argInfoAnnotation . getArgInfo
+
+  default setAnnotation :: LensArgInfo a => Annotation -> a -> a
+  setAnnotation a = mapArgInfo $ \ ai -> ai { argInfoAnnotation = a }
+
+instance LensAnnotation Annotation where
+  getAnnotation = id
+  setAnnotation = const
+  mapAnnotation = id
+
+instance LensAnnotation (Arg t) where
+  getAnnotation = getAnnotation . getArgInfo
+  setAnnotation = mapArgInfo . setAnnotation
+
+
+---------------------------------------------------------------------------
+-- * Locks
+---------------------------------------------------------------------------
+
+data Lock = IsNotLock
+          | IsLock -- ^ In the future there might be different kinds of them.
+                   --   For now we assume lock weakening.
+  deriving (Data, Show, Generic, Eq, Enum, Bounded, Ord)
+
+defaultLock :: Lock
+defaultLock = IsNotLock
+
+instance NFData Lock where
+  rnf IsNotLock = ()
+  rnf IsLock    = ()
+
+class LensLock a where
+
+  getLock :: a -> Lock
+
+  setLock :: Lock -> a -> a
+  setLock = mapLock . const
+
+  mapLock :: (Lock -> Lock) -> a -> a
+  mapLock f a = setLock (f $ getLock a) a
+
+instance LensLock Lock where
+  getLock = id
+  setLock = const
+  mapLock = id
+
+instance LensLock ArgInfo where
+  getLock = annLock . argInfoAnnotation
+  setLock l info = info { argInfoAnnotation = Annotation l }
+
+instance LensLock (Arg t) where
+  getLock = getLock . getArgInfo
+  setLock = mapArgInfo . setLock
+
 ---------------------------------------------------------------------------
 -- * Cohesion
 ---------------------------------------------------------------------------
@@ -1204,6 +1319,9 @@ data Origin
   | Substitution -- ^ Named application produced to represent a substitution. E.g. "?0 (x = n)" instead of "?0 n"
   deriving (Data, Show, Eq, Ord)
 
+instance HasRange Origin where
+  getRange _ = noRange
+
 instance KillRange Origin where
   killRange = id
 
@@ -1283,6 +1401,9 @@ instance Monoid FreeVariables where
   mempty  = KnownFVs IntSet.empty
   mappend = (<>)
 
+instance KillRange FreeVariables where
+  killRange = id
+
 instance NFData FreeVariables where
   rnf UnknownFVs    = ()
   rnf (KnownFVs fv) = rnf fv
@@ -1338,10 +1459,16 @@ data ArgInfo = ArgInfo
   , argInfoModality      :: Modality
   , argInfoOrigin        :: Origin
   , argInfoFreeVariables :: FreeVariables
+  , argInfoAnnotation    :: Annotation
+    -- ^ Sometimes we want a different kind of binder/pi-type, without it
+    --   supporting any of the @Modality@ interface.
   } deriving (Data, Eq, Ord, Show)
 
+instance HasRange ArgInfo where
+  getRange (ArgInfo h m o _fv a) = getRange (h, m, o, a)
+
 instance KillRange ArgInfo where
-  killRange i = i -- There are no ranges in ArgInfo's
+  killRange (ArgInfo h m o fv a) = killRange5 ArgInfo h m o fv a
 
 class LensArgInfo a where
   getArgInfo :: a -> ArgInfo
@@ -1356,7 +1483,7 @@ instance LensArgInfo ArgInfo where
   mapArgInfo = id
 
 instance NFData ArgInfo where
-  rnf (ArgInfo a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (ArgInfo a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
 
 instance LensHiding ArgInfo where
   getHiding = argInfoHiding
@@ -1377,6 +1504,11 @@ instance LensFreeVariables ArgInfo where
   getFreeVariables = argInfoFreeVariables
   setFreeVariables o ai = ai { argInfoFreeVariables = o }
   mapFreeVariables f ai = ai { argInfoFreeVariables = f (argInfoFreeVariables ai) }
+
+instance LensAnnotation ArgInfo where
+  getAnnotation = argInfoAnnotation
+  setAnnotation m ai = ai { argInfoAnnotation = m }
+  mapAnnotation f ai = ai { argInfoAnnotation = f (argInfoAnnotation ai) }
 
 -- inherited instances
 
@@ -1401,6 +1533,7 @@ defaultArgInfo =  ArgInfo
   , argInfoModality      = defaultModality
   , argInfoOrigin        = UserWritten
   , argInfoFreeVariables = UnknownFVs
+  , argInfoAnnotation    = defaultAnnotation
   }
 
 -- Accessing through ArgInfo
@@ -1653,38 +1786,43 @@ userNamed :: Ranged ArgName -> a -> Named_ a
 userNamed = Named . Just . WithOrigin UserWritten
 
 -- | Accessor/editor for the 'nameOf' component.
-class LensNamed name a | a -> name where
-  lensNamed :: Lens' (Maybe name) a
+class LensNamed a where
+  -- | The type of the name
+  type NameOf a
+  lensNamed :: Lens' (Maybe (NameOf a)) a
 
   -- Lenses lift through decorations:
-  default lensNamed :: (Decoration f, LensNamed name b, f b ~ a) => Lens' (Maybe name) a
+  default lensNamed :: (Decoration f, LensNamed b, NameOf b ~ NameOf a, f b ~ a) => Lens' (Maybe (NameOf a)) a
   lensNamed = traverseF . lensNamed
 
-instance LensNamed name a => LensNamed name (Arg a) where
+instance LensNamed a => LensNamed (Arg a) where
+  type NameOf (Arg a) = NameOf a
 
-instance LensNamed name (Maybe name) where
+instance LensNamed (Maybe a) where
+  type NameOf (Maybe a) = a
   lensNamed = id
 
-instance LensNamed name (Named name a) where
+instance LensNamed (Named name a) where
+  type NameOf (Named name a) = name
+
   lensNamed f (Named mn a) = f mn <&> \ mn' -> Named mn' a
 
-getNameOf :: LensNamed name a => a -> Maybe name
+getNameOf :: LensNamed a => a -> Maybe (NameOf a)
 getNameOf a = a ^. lensNamed
 
-setNameOf :: LensNamed name a => Maybe name -> a -> a
+setNameOf :: LensNamed a => Maybe (NameOf a) -> a -> a
 setNameOf = set lensNamed
 
-mapNameOf :: LensNamed name a => (Maybe name -> Maybe name) -> a -> a
+mapNameOf :: LensNamed a => (Maybe (NameOf a) -> Maybe (NameOf a)) -> a -> a
 mapNameOf = over lensNamed
-
-bareNameOf :: LensNamed NamedName a => a -> Maybe ArgName
+bareNameOf :: (LensNamed a, NameOf a ~ NamedName) => a -> Maybe ArgName
 bareNameOf a = rangedThing . woThing <$> getNameOf a
 
-bareNameWithDefault :: LensNamed NamedName a => ArgName -> a -> ArgName
+bareNameWithDefault :: (LensNamed a, NameOf a ~ NamedName) => ArgName -> a -> ArgName
 bareNameWithDefault x a = maybe x (rangedThing . woThing) $ getNameOf a
 
 -- | Equality of argument names of things modulo 'Range' and 'Origin'.
-namedSame :: (LensNamed NamedName a, LensNamed NamedName b) => a -> b -> Bool
+namedSame :: (LensNamed a, LensNamed b, NameOf a ~ NamedName, NameOf b ~ NamedName) => a -> b -> Bool
 namedSame a b = case (getNameOf a, getNameOf b) of
   (Nothing, Nothing) -> True
   (Just x , Just y ) -> sameName x y
@@ -1701,8 +1839,8 @@ namedSame a b = case (getNameOf a, getNameOf b) of
 --   @@
 --
 fittingNamedArg
-  :: ( LensNamed NamedName arg, LensHiding arg
-     , LensNamed NamedName dom, LensHiding dom )
+  :: ( LensNamed arg, NameOf arg ~ NamedName, LensHiding arg
+     , LensNamed dom, NameOf dom ~ NamedName, LensHiding dom )
   => arg -> dom -> Maybe Bool
 fittingNamedArg arg dom
     | not $ sameHiding arg dom = no
@@ -1796,17 +1934,17 @@ data Ranged a = Ranged
 unranged :: a -> Ranged a
 unranged = Ranged noRange
 
+-- | Ignores range.
 instance Pretty a => Pretty (Ranged a) where
   pretty = pretty . rangedThing
 
--- instance Show a => Show (Ranged a) where
---   show = show . rangedThing
-
+-- | Ignores range.
 instance Eq a => Eq (Ranged a) where
-  Ranged _ x == Ranged _ y = x == y
+  (==) = (==) `on` rangedThing
 
+-- | Ignores range.
 instance Ord a => Ord (Ranged a) where
-  compare (Ranged _ x) (Ranged _ y) = compare x y
+  compare = compare `on` rangedThing
 
 instance HasRange (Ranged a) where
   getRange = rangeOf
@@ -2022,6 +2160,19 @@ instance Hashable MetaId
 
 newtype Constr a = Constr a
 
+-----------------------------------------------------------------------------
+-- * Problems
+-----------------------------------------------------------------------------
+
+-- | A "problem" consists of a set of constraints and the same constraint can be part of multiple
+--   problems.
+newtype ProblemId = ProblemId Nat
+  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
+
+-- This particular Show instance is ok because of the Num instance.
+instance Show   ProblemId where show   (ProblemId n) = show n
+instance Pretty ProblemId where pretty (ProblemId n) = pretty n
+
 ------------------------------------------------------------------------
 -- * Placeholders (used to parse sections)
 ------------------------------------------------------------------------
@@ -2212,11 +2363,14 @@ instance LensFixity' Fixity' where
 data ImportDirective' n m = ImportDirective
   { importDirRange :: Range
   , using          :: Using' n m
-  , hiding         :: [ImportedName' n m]
-  , impRenaming    :: [Renaming' n m]
+  , hiding         :: HidingDirective' n m
+  , impRenaming    :: RenamingDirective' n m
   , publicOpen     :: Maybe Range -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Data, Eq)
+
+type HidingDirective'   n m = [ImportedName' n m]
+type RenamingDirective' n m = [Renaming' n m]
 
 -- | @null@ for import directives holds when everything is imported unchanged
 --   (no names are hidden or renamed).
@@ -2225,6 +2379,19 @@ instance Null (ImportDirective' n m) where
     ImportDirective _ UseEverything [] [] _ -> True
     _ -> False
   empty = defaultImportDir
+
+instance (HasRange n, HasRange m) => Semigroup (ImportDirective' n m) where
+  i1 <> i2 = ImportDirective
+    { importDirRange = fuseRange i1 i2
+    , using          = using i1 <> using i2
+    , hiding         = hiding i1 ++ hiding i2
+    , impRenaming    = impRenaming i1 ++ impRenaming i2
+    , publicOpen     = publicOpen i1 <|> publicOpen i2
+    }
+
+instance (HasRange n, HasRange m) => Monoid (ImportDirective' n m) where
+  mempty  = empty
+  mappend = (<>)
 
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective' n m
@@ -2475,7 +2642,7 @@ instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p
 -- * Information on expanded ellipsis (@...@)
 -----------------------------------------------------------------------------
 
--- ^ When the ellipsis in a clause are expanded, we remember that we
+-- ^ When the ellipsis in a clause is expanded, we remember that we
 --   did so. We also store the number of with-arguments that are
 --   included in the expanded ellipsis.
 data ExpandedEllipsis
@@ -2536,21 +2703,21 @@ instance Ord GenPart where
   _              `compare` WildHole{}     = GT
 
 instance HasRange GenPart where
-  getRange p = case p of
+  getRange = \case
     IdPart x       -> getRange x
     BindHole r _   -> r
     WildHole i     -> getRange i
     NormalHole r _ -> r
 
 instance SetRange GenPart where
-  setRange r p = case p of
+  setRange r = \case
     IdPart x       -> IdPart x
     BindHole _ i   -> BindHole r i
     WildHole i     -> WildHole i
     NormalHole _ i -> NormalHole r i
 
 instance KillRange GenPart where
-  killRange p = case p of
+  killRange = \case
     IdPart x       -> IdPart $ killRange x
     BindHole _ i   -> BindHole noRange $ killRange i
     WildHole i     -> WildHole $ killRange i

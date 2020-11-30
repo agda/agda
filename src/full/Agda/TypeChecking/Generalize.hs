@@ -51,6 +51,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 
 
 -- | Generalize a telescope over a set of generalizable variables.
@@ -232,6 +233,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
                   setMetaNameSuggestion m (parentName ++ "." ++ show i)
                   suggestNames (i + 1) ms
                 _  -> suggestNames i ms
+        unless (null metas) $
+          reportSDoc "tc.generalize" 40 $ hcat ["Inherited metas from ", prettyTCM x, ":"] <?> prettyList_ (map prettyTCM metas)
         Set.fromList metas <$ suggestNames 1 metas
       _ -> __IMPOSSIBLE__
 
@@ -287,7 +290,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     args <- getContextArgs
     fmap concat $ forM sortedMetas $ \ m -> do
       mv   <- lookupMeta m
-      let info = getArgInfo $ miGeneralizable $ mvInfo mv
+      let info = hideOrKeepInstance $ getArgInfo $ miGeneralizable $ mvInfo mv
           HasType{ jMetaType = t } = mvJudgement mv
           perm = mvPermutation mv
       t' <- piApplyM t $ permute (takeP (length args) perm) args
@@ -613,8 +616,8 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     addNamedVariablesToScope cxt =
       forM_ cxt $ \ Dom{ unDom = (x, _) } -> do
         -- Recognize named variables by lack of '.' (TODO: hacky!)
-        reportSLn "tc.generalize.eta.scope" 40 $ "Adding (or not) " ++ show (nameConcrete x) ++ " to the scope"
-        when ('.' `notElem` show (nameConcrete x)) $ do
+        reportSLn "tc.generalize.eta.scope" 40 $ "Adding (or not) " ++ prettyShow (nameConcrete x) ++ " to the scope"
+        when ('.' `notElem` prettyShow (nameConcrete x)) $ do
           reportSLn "tc.generalize.eta.scope" 40 "  (added)"
           bindVariable LambdaBound (nameConcrete x) x
 
@@ -686,7 +689,7 @@ createGenValue x = setCurrentRange x $ do
   args <- newTelMeta argTel
   metaType <- piApplyM ty args
 
-  let name     = show (nameConcrete $ qnameName x)
+  let name     = prettyShow (nameConcrete $ qnameName x)
   (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name CmpLeq metaType
 
   -- Freeze the meta to prevent named generalizable metas to be instantiated.
@@ -729,8 +732,10 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   genRecName   <- freshQName "GeneralizeTel"
   genRecCon    <- freshQName "mkGeneralizeTel" <&> \ con -> ConHead
                   { conName      = con
+                  , conDataRecord= IsRecord CopatternMatching
                   , conInductive = Inductive
-                  , conFields    = map argFromDom genRecFields }
+                  , conFields    = map argFromDom genRecFields
+                  }
   projIx <- succ . size <$> getContext
   inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
@@ -785,9 +790,9 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recComp         = emptyCompKit
            }
   reportSDoc "tc.generalize" 20 $ vcat
-    [ text "created genRec" <+> prettyList_ (map (text . show . unDom) genRecFields) ]
+    [ text "created genRec" <+> prettyList_ (map (text . prettyShow . unDom) genRecFields) ]
   reportSDoc "tc.generalize" 80 $ vcat
-    [ text "created genRec" <+> text (show genRecFields) ]
+    [ text "created genRec" <+> text (prettyShow genRecFields) ]
   -- Solve the genRecMeta
   args <- getContextArgs
   let genRecTy = El genRecSort $ Def genRecName $ map Apply args
@@ -805,7 +810,7 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
           abstract cxtTel (El s $ Pi (defaultDom recTy) (Abs "r" $ unDom ty)) :
           mkFieldTypes flds (absApp ftel proj)
         where
-          s = PiSort (defaultDom recTy) (Abs "r" $ getSort ty)
+          s = mkPiSort (defaultDom recTy) (Abs "r" $ unDom ty)
           proj = Var 0 [Proj ProjSystem fld]
       mkFieldTypes _ _ = __IMPOSSIBLE__
   let fieldTypes = mkFieldTypes fields (raise 1 fieldTel)

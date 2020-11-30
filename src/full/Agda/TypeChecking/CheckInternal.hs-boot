@@ -12,25 +12,20 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings
 
 type MonadCheckInternal m =
-  ( MonadReduce m
-  , MonadAddContext m
+  ( PureTCM m
   , MonadConstraint m
   , MonadMetaSolver m
   , MonadError TCErr m
   , MonadWarning m
-  , MonadDebug m
   , MonadStatistics m
   , MonadFresh ProblemId m
   , MonadFresh Int m
-  , HasBuiltins m
-  , HasConstInfo m
-  , HasOptions m
   , Fail.MonadFail m
   )
 
 data Action (m :: Hs.Type -> Hs.Type)
 
-defaultAction :: Monad m => Action m
+defaultAction :: PureTCM m => Action m
 eraseUnusedAction :: Action TCM
 
 checkType :: (MonadCheckInternal m) => Type -> m ()

@@ -1,6 +1,8 @@
 ConfluenceNestedOverlap.agda:17,13-17
-Confluence check failed: f (g a) reduces to both c and f a
-which are not equal because c != b of type A
+Global confluence check failed: f (g a) can be rewritten to either
+c or f a.
+Possible fix: add a rewrite rule with left-hand side f (g a) to
+resolve the ambiguity.
 when checking confluence of the rewrite rule rew₂ with rew₃
 ConfluenceNestedOverlap.agda:26,9-13
 b != c of type A

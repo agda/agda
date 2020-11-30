@@ -21,17 +21,32 @@ module Test (A : Set) (i : I) (B : Set) where
   a : Partial j R
   a (j = i1) = p
 
-  refining : ∀ (x y : A) → x ≡ y → A → Partial j R
-  refining x y refl = \ { _ (j = i1) → p }
+  refining : ∀ (x y : A) → x ≡ y → A → A
+  refining x y refl = \ x -> x
+    where
+      prf : A → Partial j R
+      prf = \ { _ (j = i1) → p }
 
-  refining-dot : ∀ (x y : A) → x ≡ y → A → Partial j R
-  refining-dot x .x refl = \ { _ (j = i1) → p }
+  refining-dot : ∀ (x y : A) → x ≡ y → A → A
+  refining-dot x .x refl = \ x -> x
+    where
+      prf : A → Partial j R
+      prf = \ { _ (j = i1) → p }
 
-  refining-dot2 : ∀ (x y : A) → x ≡ y → A → Partial j R
-  refining-dot2 x .x refl z = \ { (i = i1) → p }
+  refining-dot2 : ∀ (x y : A) → x ≡ y → A → A
+  refining-dot2 x .x refl z = z
+    where
+      prf : Partial j R
+      prf = \ { (i = i1) → p }
 
-  refining-cxt : A ≡ X → Partial j R
-  refining-cxt refl = \ { (j = i1) → p }
+  refining-cxt : A ≡ X → A → A
+  refining-cxt refl = \ x -> x
+     where
+       prf : Partial j R
+       prf = \ { (j = i1) → p }
 
-  refining-cxt2 : B ≡ X → Partial j R
-  refining-cxt2 refl = \ { (j = i1) → p }
+  refining-cxt2 : B ≡ X → A → A
+  refining-cxt2 refl = \ x → x
+     where
+       prf : Partial j R
+       prf = \ { (j = i1) → p }

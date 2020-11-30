@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP  #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | More monoids.
 

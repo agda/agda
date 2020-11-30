@@ -1,4 +1,6 @@
-Issue3810a.agda:14,13-17
-Confluence check failed: f a reduces to both a and b
-which are not equal because a != b of type A
-when checking confluence of the rewrite rule rew₂ with rew₁
+Issue3810a.agda:14,1-21
+Global confluence check failed: f a unfolds to b which should
+further unfold to a but it does not.
+Possible fix: add a rule to rewrite b to a, or change the order of
+the rules so more specialized rules come later.
+when checking the pragma REWRITE rew₂

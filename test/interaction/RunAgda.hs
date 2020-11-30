@@ -80,7 +80,7 @@ readUntilPrompt' h = do
   if s == prompt then return [] else do
     line <- if nl then return s
                   else fmap (s ++) (hGetLine h)
-    liftM (line :) $ readUntilPrompt' h
+    fmap (line :) $ readUntilPrompt' h
 
 -- | Echoes lines read from the first handle on the second handle
 -- until a prompt is encountered. The prompt is not echoed.

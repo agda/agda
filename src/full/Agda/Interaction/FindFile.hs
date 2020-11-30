@@ -39,6 +39,7 @@ import Agda.Interaction.Options ( optLocalInterfaces )
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
+import Agda.TypeChecking.Monad.Options (libToTCM)
 import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Version ( version )
@@ -48,7 +49,8 @@ import Agda.Utils.FileName
 import Agda.Utils.List  ( stripSuffix, nubOn )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Monad ( ifM )
+import Agda.Utils.Monad ( ifM, unlessM )
+import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -75,12 +77,12 @@ mkInterfaceFile fp = do
 -- | Converts an Agda file name to the corresponding interface file
 --   name. Note that we do not guarantee that the file exists.
 
-toIFile :: (HasOptions m, MonadIO m) => SourceFile -> m AbsolutePath
+toIFile :: SourceFile -> TCM AbsolutePath
 toIFile (SourceFile src) = do
   let fp = filePath src
   mroot <- ifM (optLocalInterfaces <$> commandLineOptions)
                {- then -} (pure Nothing)
-               {- else -} (liftIO $ findProjectRoot $ takeDirectory fp)
+               {- else -} (libToTCM $ findProjectRoot (takeDirectory fp))
   pure $ replaceModuleExtension ".agdai" $ case mroot of
     Nothing   -> src
     Just root ->
@@ -172,9 +174,8 @@ findFile'' dirs m modFile =
 -- Raises 'Nothing' if the the interface file cannot be found.
 
 findInterfaceFile'
-  :: (HasOptions m, MonadIO m)
-  => SourceFile                 -- ^ Path to the source file
-  -> m (Maybe InterfaceFile)    -- ^ Maybe path to the interface file
+  :: SourceFile                 -- ^ Path to the source file
+  -> TCM (Maybe InterfaceFile)  -- ^ Maybe path to the interface file
 findInterfaceFile' fp = liftIO . mkInterfaceFile =<< toIFile fp
 
 -- | Finds the interface file corresponding to a given top-level
@@ -199,7 +200,7 @@ checkModuleName
   -> Maybe TopLevelModuleName
      -- ^ The expected name, coming from an import statement.
   -> TCM ()
-checkModuleName name (SourceFile file) mexpected =
+checkModuleName name (SourceFile file) mexpected = do
   findFile' name >>= \case
 
     Left (NotFound files)  -> typeError $
@@ -213,10 +214,20 @@ checkModuleName name (SourceFile file) mexpected =
     Right src -> do
       let file' = srcFilePath src
       file <- liftIO $ absolute (filePath file)
-      if file === file' then
-        return ()
-       else
+      unlessM (liftIO $ sameFile file file') $
         typeError $ ModuleDefinedInOtherFile name file file'
+
+  -- Andreas, 2020-09-28, issue #4671:  In any case, make sure
+  -- that we do not end up with a mismatch between expected
+  -- and actual module name.
+
+  forM_ mexpected $ \ expected ->
+    unless (name == expected) $
+      typeError $ OverlappingProjects file name expected
+      -- OverlappingProjects is the correct error for
+      -- test/Fail/customized/NestedProjectRoots
+      -- -- typeError $ ModuleNameUnexpected name expected
+
 
 -- | Computes the module name of the top-level module in the given
 -- file.
@@ -239,12 +250,12 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $
       m <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $ GenericError $
-             "The file name " ++ show file ++
+             "The file name " ++ prettyShow file ++
              " is invalid because it does not correspond to a valid module name."
       case m of
         Qual {} ->
           typeError $ GenericError $
-            "The file name " ++ show file ++ " is invalid because " ++
+            "The file name " ++ prettyShow file ++ " is invalid because " ++
             defaultName ++ " is not an unqualified module name."
         QName {} ->
           return $ TopLevelModuleName (getRange m) $ singleton defaultName

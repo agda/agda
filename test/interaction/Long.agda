@@ -24,10 +24,12 @@ eval throw   = ?
 data D : Nat → Set where
   d : D z
 
+D′ = D
+
 foo : D {!!}
 foo = {!!}
 
-bar : D z
+bar : D′ z
 bar = {!!}
 
 baz : Maybe {!!}

@@ -164,6 +164,7 @@ builtinModulesWithSafePostulates =
   , "Agda" </> "Builtin" </> "Nat.agda"
   , "Agda" </> "Builtin" </> "Reflection.agda"
   , "Agda" </> "Builtin" </> "Reflection" </> "Properties.agda"
+  , "Agda" </> "Builtin" </> "Reflection" </> "External.agda"
   , "Agda" </> "Builtin" </> "Sigma.agda"
   , "Agda" </> "Builtin" </> "Size.agda"
   , "Agda" </> "Builtin" </> "Strict.agda"

@@ -1,6 +1,12 @@
-Issue1611.agda:15,7-9
-I'm not sure if there should be a case for the constructor dt,
-because I get stuck when trying to solve the following unification
-problems (inferred index ≟ expected index):
-  true ≟ _9
-when checking that the pattern dt has type D _9
+Failed to solve the following constraints:
+  Check definition of Fails : {b : Bool} → D _9 → Set
+    stuck because
+      Issue1611.agda:15,7-9
+      I'm not sure if there should be a case for the constructor dt,
+      because I get stuck when trying to solve the following unification
+      problems (inferred index ≟ expected index):
+        true ≟ _9
+      when checking that the pattern dt has type D _9
+    (blocked on _9)
+Unsolved metas at the following locations:
+  Issue1611.agda:14,25-26

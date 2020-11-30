@@ -1,0 +1,3 @@
+Issue4775.agda:16,11-24
+Expected record pattern
+when checking the let binding y1 , isSuc y2 = .patternInTele0

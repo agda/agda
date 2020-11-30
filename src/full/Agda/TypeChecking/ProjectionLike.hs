@@ -133,7 +133,7 @@ projView v = do
 --   (Also reduces projections, but they should not be there,
 --   since Internal is in lambda- and projection-beta-normal form.)
 --
-reduceProjectionLike :: (MonadReduce m, MonadTCEnv m, HasConstInfo m) => Term -> m Term
+reduceProjectionLike :: PureTCM m => Term -> m Term
 reduceProjectionLike v = do
   -- Andreas, 2013-11-01 make sure we do not reduce a constructor
   -- because that could be folded back into a literal by reduce.
@@ -142,6 +142,9 @@ reduceProjectionLike v = do
     ProjectionView{} -> onlyReduceProjections $ reduce v
                             -- ordinary reduce, only different for Def's
     _                -> return v
+
+data ProjEliminator = EvenLone | ButLone | NoPostfix
+  deriving Eq
 
 -- | Turn prefix projection-like function application into postfix ones.
 --   This does just one layer, such that the top spine contains
@@ -156,21 +159,22 @@ reduceProjectionLike v = do
 --   No precondition.
 --   Preserves constructorForm, since it really does only something
 --   on (applications of) projection-like functions.
-elimView
-  :: (MonadReduce m, MonadTCEnv m, HasConstInfo m)
-  => Bool -> Term -> m Term
-elimView loneProjToLambda v = do
+elimView :: PureTCM m => ProjEliminator -> Term -> m Term
+elimView pe v = do
   reportSDoc "tc.conv.elim" 30 $ "elimView of " <+> prettyTCM v
   v <- reduceProjectionLike v
   reportSDoc "tc.conv.elim" 40 $
     "elimView (projections reduced) of " <+> prettyTCM v
-  pv <- projView v
-  case pv of
-    NoProjection{}        -> return v
-    LoneProjectionLike f ai
-      | loneProjToLambda  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
-      | otherwise         -> return v
-    ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView loneProjToLambda (unArg a)
+  case pe of
+    NoPostfix -> return v
+    _         -> do
+      pv <- projView v
+      case pv of
+        NoProjection{}        -> return v
+        LoneProjectionLike f ai
+          | pe==EvenLone  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
+          | otherwise     -> return v
+        ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView pe (unArg a)
 
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?
@@ -260,7 +264,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
                  funAbstr = ConcreteDef} -> do
       ps0 <- filterM validProj $ candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
-                                                else "  candidates: " ++ show ps0
+                                                else "  candidates: " ++ prettyShow ps0
       unless (null ps0) $ do
         -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
         -- Issue 700: problems with recursive funs. in term.checker and reduction

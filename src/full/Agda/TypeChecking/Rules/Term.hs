@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -11,6 +12,7 @@ import Data.Maybe
 import Data.Either (partitionEithers, lefts)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
@@ -111,11 +113,11 @@ isType_ e = traceCall (IsType_ e) $ do
   SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- setArgInfo info . defaultDom <$> isType_ t
+      a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
       b <- isType_ b
       s <- inferFunSort (getSort a) (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
-      noFunctionsIntoSize b t'
+      --noFunctionsIntoSize t'
       return t'
     A.Pi _ tel e -> do
       (t0, t') <- checkPiTelescope (List1.toList tel) $ \ tel -> do
@@ -123,12 +125,12 @@ isType_ e = traceCall (IsType_ e) $ do
         tel <- instantiateFull tel
         return (t0, telePi tel t0)
       checkTelePiSort t'
-      noFunctionsIntoSize t0 t'
+      --noFunctionsIntoSize t'
       return t'
 
     A.Generalized s e -> do
       (_, t') <- generalizeType s $ isType_ e
-      noFunctionsIntoSize t' t'
+      --noFunctionsIntoSize t'
       return t'
 
     -- Setᵢ
@@ -143,10 +145,24 @@ isType_ e = traceCall (IsType_ e) $ do
         NoSuffix -> return $ sort (mkProp 0)
         Suffix i -> return $ sort (mkProp i)
 
+    -- Setᵢ
+    A.Def' x suffix | x == nameOfSSet -> do
+      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+      case suffix of
+        NoSuffix -> return $ sort (mkSSet 0)
+        Suffix i -> return $ sort (mkSSet i)
+
     -- Setωᵢ
-    A.Def' x suffix | x == nameOfSetOmega -> case suffix of
-      NoSuffix -> return $ sort (Inf 0)
-      Suffix i -> return $ sort (Inf i)
+    A.Def' x suffix | x == nameOfSetOmega IsFibrant -> case suffix of
+      NoSuffix -> return $ sort (Inf IsFibrant 0)
+      Suffix i -> return $ sort (Inf IsFibrant i)
+
+    -- SSetωᵢ
+    A.Def' x suffix | x == nameOfSetOmega IsStrict -> do
+      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+      case suffix of
+        NoSuffix -> return $ sort (Inf IsStrict 0)
+        Suffix i -> return $ sort (Inf IsStrict i)
 
     -- Set ℓ
     A.App i s arg
@@ -170,6 +186,17 @@ isType_ e = traceCall (IsType_ e) $ do
         "Use --universe-polymorphism to enable level arguments to Prop"
       applyRelevanceToContext NonStrict $
         sort . Prop <$> checkLevel arg
+
+    -- SSet ℓ
+    A.App i s arg
+      | visible arg,
+        A.Def x <- unScope s,
+        x == nameOfSSet -> do
+      unlessM isTwoLevelEnabled $ typeError NeedOptionTwoLevel
+      unlessM hasUniversePolymorphism $ genericError
+        "Use --universe-polymorphism to enable level arguments to SSet"
+      applyRelevanceToContext NonStrict $
+        sort . SSet <$> checkLevel arg
 
     -- Issue #707: Check an existing interaction point
     A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
@@ -216,6 +243,9 @@ checkLevel arg = do
 --   we are in the context of @tBlame@ in order to print it correctly.
 --   Not being in context of @t@ should not matter, as we are only
 --   checking whether its sort reduces to 'SizeUniv'.
+--
+--   Currently UNUSED since SizeUniv is turned off (as of 2016).
+{-
 noFunctionsIntoSize :: Type -> Type -> TCM ()
 noFunctionsIntoSize t tBlame = do
   reportSDoc "tc.fun" 20 $ do
@@ -231,6 +261,7 @@ noFunctionsIntoSize t tBlame = do
     -- We have constructed a function type in SizeUniv
     -- which is illegal to prevent issue 1428.
     typeError $ FunctionTypeInSizeUniv $ unEl tBlame
+-}
 
 -- | Check that an expression is a type which is equal to a given type.
 isTypeEqualTo :: A.Expr -> Type -> TCM Type
@@ -282,6 +313,35 @@ checkTelescope' lamOrPi (b : tel) ret =
     checkTelescope' lamOrPi tel  $ \tel2 ->
         ret $ abstract tel1 tel2
 
+-- | Check the domain of a function type.
+--   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
+checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
+checkDomain lamOrPi xs e = do
+    let (c :| cs) = fmap (getCohesion . getModality) xs
+    unless (all (c ==) cs) $ __IMPOSSIBLE__
+
+    let (q :| qs) = fmap (getQuantity . getModality) xs
+    unless (all (q ==) qs) $ __IMPOSSIBLE__
+
+    t <- applyQuantityToContext q $
+         applyCohesionToContext c $
+         modEnv lamOrPi $ isType_ e
+    -- Andrea TODO: also make sure that LockUniv implies IsLock
+    when (any (\ x -> getLock x == IsLock) xs) $
+        equalSort (getSort t) LockUniv
+
+    return t
+  where
+        -- if we are checking a typed lambda, we resurrect before we check the
+        -- types, but do not modify the new context entries
+        -- otherwise, if we are checking a pi, we do not resurrect, but
+        -- modify the new context entries
+        modEnv LamNotPi = workOnTypes
+        modEnv _        = id
+
+checkPiDomain :: (LensLock a, LensModality a) => List1 a -> A.Expr -> TCM Type
+checkPiDomain = checkDomain PiNotLam
+
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 --
@@ -298,10 +358,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-    let (c :| cs) = fmap getCohesion xps
-    unless (all (c ==) cs) $ __IMPOSSIBLE__
-
-    t <- applyCohesionToContext c $ modEnv lamOrPi $ isType_ e
+    t <- checkDomain lamOrPi xps e
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
@@ -319,7 +376,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         xs' = fmap (modMod lamOrPi experimental) xs
     let tel = setTac tac $ namedBindsToTel1 xs t
 
-    addContext (xs', t) $ addTypedPatterns (List1.toList xps) (ret tel)
+    addContext (xs', t) $ addTypedPatterns xps (ret tel)
 
     where
         -- if we are checking a typed lambda, we resurrect before we check the
@@ -329,27 +386,21 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
         modMod PiNotLam xp = (if xp then mapRelevance irrToNonStrict else id)
-                           . (setQuantity topQuantity)
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret EmptyTel)
 
 -- | After a typed binding has been checked, add the patterns it binds
-addTypedPatterns :: [NamedArg A.Binder] -> TCM a -> TCM a
+addTypedPatterns :: List1 (NamedArg A.Binder) -> TCM a -> TCM a
 addTypedPatterns xps ret = do
-  let ps  = mapMaybe (A.extractPattern . namedArg) xps
-  let lbs = fmap letBinding ps
+  let ps  = List1.mapMaybe (A.extractPattern . namedArg) xps
+  let lbs = map letBinding ps
   checkLetBindings lbs ret
-
   where
-
     letBinding :: (A.Pattern, A.BindName) -> A.LetBinding
     letBinding (p, n) = A.LetPatBind (A.LetRange r) p (A.Var $ A.unBind n)
       where r = fuseRange p n
-
-addTypedPatterns1 :: List1 (NamedArg A.Binder) -> TCM a -> TCM a
-addTypedPatterns1 = addTypedPatterns . List1.toList
 
 -- | Check a tactic attribute. Should have type Term → TC ⊤.
 checkTacticAttribute :: LamOrPi -> A.Expr -> TCM Term
@@ -368,7 +419,7 @@ checkPath b@(A.TBind _ _ (x':|[]) typ) body ty = do
     let x    = updateNamedArg (A.unBind . A.binderName) x'
         info = getArgInfo x
     PathType s path level typ lhs rhs <- pathView ty
-    interval <- elInf primInterval
+    interval <- primIntervalType
     v <- addContext ([x], interval) $
            checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
     iZero <- primIZero
@@ -427,7 +478,7 @@ checkLambda' cmp b xps typ body target = do
 
     xs = fmap (updateNamedArg (A.unBind . A.binderName)) xps
     numbinds = length xps
-    isUnderscore e = case e of { A.Underscore{} -> True; _ -> False }
+    isUnderscore = \case { A.Underscore{} -> True; _ -> False }
     possiblePath = numbinds == 1 && isUnderscore (unScope typ)
                    && isRelevant info && visible info
     info = getArgInfo $ List1.head xs
@@ -441,7 +492,7 @@ checkLambda' cmp b xps typ body target = do
           then checkPath b body t
           else genericError "Option --cubical needed to build a path with a lambda abstraction"
 
-    postpone m tgt = postponeTypeCheckingProblem_ $
+    postpone blocker tgt = flip postponeTypeCheckingProblem blocker $
       CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) tgt
 
     dontUseTargetType = do
@@ -468,14 +519,14 @@ checkLambda' cmp b xps typ body target = do
             t1 <- addContext (xs, argsT) $ workOnTypes newTypeMeta_
             let e    = A.Lam A.exprNoRange (A.DomainFull b) body
                 tgt' = telePi tel t1
-            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') $ isInstantiatedMeta x
+            w <- postponeTypeCheckingProblem (CheckExpr cmp e tgt') x
             return (tgt' , w)
 
       -- Now check body : ?t₁
       -- DONT USE tel for addContext, as it loses NameIds.
       -- WRONG: v <- addContext tel $ checkExpr body t1
       (target0 , w) <- postponeOnBlockedPattern $
-         addContext (xs, argsT) $ addTypedPatterns1 xps $ do
+         addContext (xs, argsT) $ addTypedPatterns xps $ do
            t1 <- workOnTypes newTypeMeta_
            v  <- checkExpr' cmp body t1
            return (telePi tel t1 , teleLam tel v)
@@ -512,7 +563,7 @@ checkLambda' cmp b xps typ body target = do
         (pid, argT) <- newProblem $ isTypeEqualTo typ a
         -- Andreas, Issue 630: take name from function type if lambda name is "_"
         v <- lambdaAddContext (namedArg x) y (defaultArgDom info argT) $
-               addTypedPatterns1 xps $ checkExpr' cmp body btyp
+               addTypedPatterns xps $ checkExpr' cmp body btyp
         blockTermOnProblem target (Lam info $ Abs (namedArgName x) v) pid
 
     useTargetType _ _ = __IMPOSSIBLE__
@@ -520,8 +571,8 @@ checkLambda' cmp b xps typ body target = do
 -- | Check that modality info in lambda is compatible with modality
 --   coming from the function type.
 --   If lambda has no user-given modality, copy that of function type.
-lambdaModalityCheck :: LensModality dom => dom -> ArgInfo -> TCM ArgInfo
-lambdaModalityCheck dom = lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
+lambdaModalityCheck :: (LensAnnotation dom, LensModality dom) => dom -> ArgInfo -> TCM ArgInfo
+lambdaModalityCheck dom = lambdaAnnotationCheck (getAnnotation dom) <=< lambdaCohesionCheck m <=< lambdaQuantityCheck m <=< lambdaIrrelevanceCheck m
   where m = getModality dom
 
 -- | Check that irrelevance info in lambda is compatible with irrelevance
@@ -562,6 +613,18 @@ lambdaQuantityCheck dom info
         typeError WrongQuantityInLambda
       return info
 
+lambdaAnnotationCheck :: LensAnnotation dom => dom -> ArgInfo -> TCM ArgInfo
+lambdaAnnotationCheck dom info
+    -- Case: no specific user annotation: use annotation of function type
+  | getAnnotation info == defaultAnnotation = return $ setAnnotation (getAnnotation dom) info
+    -- Case: explicit user annotation is taken seriously
+  | otherwise = do
+      let aPi  = getAnnotation dom  -- annotation of function type
+      let aLam = getAnnotation info -- annotation of lambda
+      unless (aPi == aLam) $ do
+        typeError $ GenericError $ "Wrong annotation in lambda"
+      return info
+
 -- | Check that cohesion info in lambda is compatible with cohesion
 --   coming from the function type.
 --   If lambda has no user-given cohesion, copy that of function type.
@@ -579,6 +642,7 @@ lambdaCohesionCheck dom info
         typeError WrongCohesionInLambda
       return info
 
+-- Andreas, issue #630: take name from function type if lambda name is "_".
 lambdaAddContext :: Name -> ArgName -> Dom Type -> TCM a -> TCM a
 lambdaAddContext x y dom
   | isNoName x = addContext (y, dom)                 -- Note: String instance
@@ -625,7 +689,7 @@ checkPostponedLambda0 cmp (Arg info (x : xs, mt)) body target =
 insertHiddenLambdas
   :: Hiding                       -- ^ Expected hiding.
   -> Type                         -- ^ Expected to be a function type.
-  -> (MetaId -> Type -> TCM Term) -- ^ Continuation on blocked type.
+  -> (Blocker -> Type -> TCM Term) -- ^ Continuation on blocked type.
   -> (Type -> TCM Term)           -- ^ Continuation when expected hiding found.
                                   --   The continuation may assume that the @Type@
                                   --   is of the form @(El _ (Pi _ _))@.
@@ -660,13 +724,10 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
       -- See test/Succeed/Issue3176.agda for an absurd lambda
       -- created in types.
   t <- instantiateFull t
-  ifBlocked t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr cmp e t') $ \ _ t' -> do
+  ifBlocked t (\ blocker t' -> postponeTypeCheckingProblem (CheckExpr cmp e t') blocker) $ \ _ t' -> do
     case unEl t' of
       Pi dom@(Dom{domInfo = info', unDom = a}) b
         | not (sameHiding h info') -> typeError $ WrongHidingInLambda t'
-        | not (noMetas a) ->
-            postponeTypeCheckingProblem (CheckExpr cmp e t') $
-              noMetas <$> instantiateFull a
         | otherwise -> blockTerm t' $ do
           ensureEmptyType (getRange i) a
           -- Add helper function
@@ -692,7 +753,8 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
                     , namedClausePats = [Arg info' $ Named (Just $ WithOrigin Inserted $ unranged $ absName b) $ absurdP 0]
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
-                    , clauseCatchall  = False
+                    , clauseCatchall    = True      -- absurd clauses are safe as catch-alls
+                    , clauseExact       = Just False
                     , clauseRecursive   = Just False
                     , clauseUnreachable = Just True -- absurd clauses are unreachable
                     , clauseEllipsis  = NoEllipsis
@@ -702,6 +764,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
               , funSplitTree      = Just $ SplittingDone 0
               , funMutual         = Just []
               , funTerminates     = Just True
+              , funExtLam         = Just $ ExtLamInfo top True empty
               }
           -- Andreas 2012-01-30: since aux is lifted to toplevel
           -- it needs to be applied to the current telescope (issue 557)
@@ -748,7 +811,7 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
        addConstant qname =<< do
          useTerPragma $
            (defaultDefn info qname t emptyFunction) { defMutual = j }
-       checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod empty) Nothing di qname $
+       checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
          List1.toList cs
        whenNothingM (asksTC envMutualBlock) $
          -- Andrea 10-03-2018: Should other checks be performed here too? e.g. termination/positivity/..
@@ -763,7 +826,7 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
 --
 --   * If successful, that's it, we are done.
 --
---   * If @IlltypedPattern p a@, @NotADatatype a@ or @CannotEliminateWithPattern p a@
+--   * If @NotADatatype a@ or @CannotEliminateWithPattern p a@
 --     is thrown and type @a@ is blocked on some meta @x@,
 --     reset any changes to the state and pass (the error and) @x@ to the handler.
 --
@@ -775,7 +838,7 @@ checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) 
 --   Note that the returned meta might only exists in the state where the error was
 --   thrown, thus, be an invalid 'MetaId' in the current state.
 --
-catchIlltypedPatternBlockedOnMeta :: TCM a -> ((TCErr, MetaId) -> TCM a) -> TCM a
+catchIlltypedPatternBlockedOnMeta :: TCM a -> ((TCErr, Blocker) -> TCM a) -> TCM a
 catchIlltypedPatternBlockedOnMeta m handle = do
 
   -- Andreas, 2016-07-13, issue 2028.
@@ -786,15 +849,15 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
     let reraise = throwError err
 
-    -- Get the blocking meta responsible for the type error.
-    -- If we do not find such a meta or the error should not be handled,
+    -- Get the blocker responsible for the type error.
+    -- If we do not find a blocker or the error should not be handled,
     -- we reraise the error.
-    x <- maybe reraise return =<< do
+    blocker <- maybe reraise return =<< do
       case err of
-        TypeError s cl -> localTCState $ do
+        TypeError _ s cl -> localTCState $ do
           putTC s
           enterClosure cl $ \case
-            IlltypedPattern p a -> isBlocked a
+            SortOfSplitVarError m _ -> return m
 
             SplitError (UnificationStuck c tel us vs _) -> do
               -- Andreas, 2018-11-23, re issue #3403
@@ -804,7 +867,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
               -- (seems to archieve a bit along @normalize@, but how much??).
               problem <- reduce =<< instantiateFull (flattenTel tel, us, vs)
               -- over-approximating the set of metas actually blocking unification
-              return $ firstMeta problem
+              return $ Just $ unblockOnAnyMetaIn problem
 
             SplitError (BlockedType aClosure) ->
               enterClosure aClosure $ \ a -> isBlocked a
@@ -818,7 +881,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
         _ -> return Nothing
 
     reportSDoc "tc.postpone" 20 $ vcat $
-      [ "checking definition blocked on meta: " <+> prettyTCM x ]
+      [ "checking definition blocked on: " <+> prettyTCM blocker ]
 
     -- Note that we messed up the state a bit.  We might want to unroll these state changes.
     -- However, they are mostly harmless:
@@ -828,25 +891,28 @@ catchIlltypedPatternBlockedOnMeta m handle = do
     -- Thus, reset the state!
     putTC st
 
-    -- The meta might not be known in the reset state, as it could have been created
-    -- somewhere on the way to the type error.
-    lookupMeta' x >>= \case
-      -- Case: we do not know the meta, so we reraise.
-      Nothing -> reraise
+    -- There might be metas in the blocker not known in the reset state, as they could have been
+    -- created somewhere on the way to the type error.
+    blocker <- (`onBlockingMetasM` blocker) $ \ x ->
+                lookupMeta' x >>= \ case
+      -- Case: we do not know the meta, so cannot unblock.
+      Nothing -> return neverUnblock
       -- Case: we know the meta here.
+      -- Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
       -- Andreas, 2018-11-23: I do not understand why @InstV@ is necessarily impossible.
       -- The reasoning is probably that the state @st@ is more advanced that @s@
       -- in which @x@ was blocking, thus metas in @st@ should be more instantiated than
-      -- in @s@.  But issue #3403 presents a counterexample, so let's play save and reraise
-      -- Just m | InstV{} <- mvInstantiation m -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
-      Just m | InstV{} <- mvInstantiation m -> reraise
-      -- Case: the meta is frozen (and not an interaction meta).
-      -- Postponing doesn't make sense, so we reraise.
-      Just m | Frozen  <- mvFrozen m -> isInteractionMeta x >>= \case
-        Nothing -> reraise
-      -- Remaining cases: the meta is known and can still be instantiated.
-        Just{}  -> handle (err, x)
-      Just{} -> handle (err, x)
+      -- in @s@.  But issue #3403 presents a counterexample, so let's play save and reraise.
+      -- Ulf, 2020-08-13: But treat this case as not blocked and reraise on both always and never.
+      -- Ulf, 2020-08-13: Previously we returned neverUnblock for frozen metas here, but this is in
+      -- fact not very helpful. Yes there is no hope of solving the problem, but throwing a hard
+      -- error means we rob the user of the tools needed to figure out why the meta has not been
+      -- solved. Better to leave the constraint.
+      Just m | InstV{} <- mvInstantiation m -> return alwaysUnblock
+             | otherwise -> return $ unblockOnMeta x
+
+    -- If it's not blocked or we can't ever unblock reraise the error.
+    if blocker `elem` [neverUnblock, alwaysUnblock] then reraise else handle (err, blocker)
 
 ---------------------------------------------------------------------------
 -- * Records
@@ -1102,11 +1168,11 @@ checkExpr' cmp e t =
 
     e <- scopedExpr e
 
-    irrelevantIfProp <- isPropM t >>= \case
-      True  -> do
+    irrelevantIfProp <- (runBlocked $ isPropM t) >>= \case
+      Right True  -> do
         let mod = defaultModality { modRelevance = Irrelevant }
         return $ fmap dontCare . applyModalityToContext mod
-      False -> return id
+      _ -> return id
 
     irrelevantIfProp $ tryInsertHiddenLambda e tReduced $ case e of
 
@@ -1143,33 +1209,25 @@ checkExpr' cmp e t =
               checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind <$> namedArg x) e0) t
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
-        A.Lit lit    -> checkLiteral lit t
+        A.Lit _ lit  -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr' cmp e t
-        A.Pi _ tel e -> do
-            (t0, t') <- checkPiTelescope (List1.toList tel) $ \ tel -> do
-                    t0  <- instantiateFull =<< isType_ e
-                    tel <- instantiateFull tel
-                    return (t0, telePi tel t0)
-            checkTelePiSort t'
-            noFunctionsIntoSize t0 t'
+        e@A.Pi{} -> do
+            t' <- isType_ e
             let s = getSort t'
                 v = unEl t'
             coerce cmp v (sort s) t
 
         A.Generalized s e -> do
             (_, t') <- generalizeType s $ isType_ e
-            noFunctionsIntoSize t' t'
+            --noFunctionsIntoSize t' t'
             let s = getSort t'
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        A.Fun _ (Arg info a) b -> do
-            a' <- isType_ a
-            let adom = defaultArgDom info a'
-            b' <- isType_ b
-            s  <- inferFunSort (getSort a') (getSort b')
-            let v = Pi adom (NoAbs underscore b')
-            noFunctionsIntoSize b' $ El s v
+        e@A.Fun{} -> do
+            t' <- isType_ e
+            let s = getSort t'
+                v = unEl t'
             coerce cmp v (sort s) t
 
         A.Rec _ fs  -> checkRecordExpression cmp fs e t
@@ -1194,8 +1252,8 @@ checkExpr' cmp e t =
         -- being sure it will be retried when a meta is solved
         -- (which might be the blocking meta in which case we actually make progress).
         reportSDoc "tc.term" 50 $ vcat $
-          [ "checking pattern got stuck on meta: " <+> text (show x) ]
-        postponeTypeCheckingProblem (CheckExpr cmp e t) $ isInstantiatedMeta x
+          [ "checking pattern got stuck on meta: " <+> pretty x ]
+        postponeTypeCheckingProblem (CheckExpr cmp e t) x
 
   where
   -- | Call checkExpr with an hidden lambda inserted if appropriate,
@@ -1242,7 +1300,7 @@ checkExpr' cmp e t =
       reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
       checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info $ A.mkBinder x) e) tReduced
 
-    hiddenLambdaOrHole h e = case e of
+    hiddenLambdaOrHole h = \case
       A.AbsurdLam _ h'        -> sameHiding h h'
       A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
       A.Lam _ bind _          -> sameHiding h bind
@@ -1278,7 +1336,7 @@ doQuoteTerm cmp et t = do
       q  <- quoteTerm et'
       ty <- el primAgdaTerm
       coerce cmp q ty t
-    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ andM $ map isInstantiatedMeta metas
+    metas -> postponeTypeCheckingProblem (DoQuoteTerm cmp et t) $ unblockOnAllMetas $ Set.fromList metas
 
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
@@ -1295,18 +1353,15 @@ unquoteTactic tac hole goal = do
     , nest 2 $ "on" <+> prettyTCM hole <+> ":" <+> prettyTCM goal ]
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
-    Left (BlockedOnMeta oldState x) -> do
+    Left (BlockedOnMeta oldState blocker) -> do
       putTC oldState
-      mi <- lookupMeta' x
-      (r, meta) <- case mi of
-        Nothing -> do -- fresh meta: need to block on something else!
-          (noRange,) . firstMeta <$> instantiateFull goal
-            -- Remark:
-            -- Nothing:  Nothing to block on, leave it yellow. Alternative: fail.
-            -- Just x:   range?
-        Just mi -> return (getRange mi, Just x)
+      let stripFreshMeta x = maybe neverUnblock (const $ unblockOnMeta x) <$> lookupMeta' x
+      blocker' <- onBlockingMetasM stripFreshMeta blocker
+      r <- case Set.toList $ allBlockingMetas blocker' of
+            x : _ -> getRange <$> lookupMeta' x
+            []    -> return noRange
       setCurrentRange r $
-        addConstraint (UnquoteTactic meta tac hole goal)
+        addConstraint blocker' (UnquoteTactic tac hole goal)
     Left err -> typeError $ UnquoteFailed err
     Right _ -> return ()
 
@@ -1553,7 +1608,7 @@ inferExprForWith e = do
 -- * Let bindings
 ---------------------------------------------------------------------------
 
-checkLetBindings :: [A.LetBinding] -> TCM a -> TCM a
+checkLetBindings :: Foldable t => t A.LetBinding -> TCM a -> TCM a
 checkLetBindings = foldr ((.) . checkLetBinding) id
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a

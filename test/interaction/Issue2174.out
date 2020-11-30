@@ -7,7 +7,7 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-status-action "")
 (agda2-info-action "*Inferred Type*" "Set" nil)
-(agda2-highlight-add-annotations 'nil '(44 45 (symbol) t))
+(agda2-highlight-add-annotations 'nil '(44 45 (hole) t))
 (agda2-highlight-add-annotations 'nil '(42 43 (postulate) nil nil ("Issue2174.agda" . 13)))
 (agda2-give-action 0 'no-paren)
 (agda2-status-action "")

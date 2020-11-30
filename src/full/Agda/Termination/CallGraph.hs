@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE ImplicitParams             #-}
 

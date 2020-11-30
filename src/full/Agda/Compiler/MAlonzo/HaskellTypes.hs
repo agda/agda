@@ -60,7 +60,7 @@ data WhyNot = NoPragmaFor QName
             | BadMeta Term
             | BadDontCare Term
 
-type ToHs = ExceptT WhyNot TCM
+type ToHs = ExceptT WhyNot HsCompileM
 
 notAHaskellType :: Term -> WhyNot -> TCM a
 notAHaskellType top offender = typeError . GenericDocError =<< do
@@ -95,22 +95,23 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
            , text ("for a suitable Haskell " ++ hsThing ++ ".")
            ]
 
-runToHs :: Term -> ToHs a -> TCM a
-runToHs top m = either (notAHaskellType top) return =<< runExceptT m
+runToHs :: Term -> ToHs a -> HsCompileM a
+runToHs top m = either (liftTCM . notAHaskellType top) return =<< runExceptT m
 
 liftE1' :: (forall b. (a -> m b) -> m b) -> (a -> ExceptT e m b) -> ExceptT e m b
 liftE1' f k = ExceptT (f (runExceptT . k))
 
 -- Only used in hsTypeApproximation below, and in that case we catch the error.
-getHsType' :: QName -> TCM HS.Type
+getHsType' :: QName -> HsCompileM HS.Type
 getHsType' q = runToHs (Def q []) (getHsType q)
 
 getHsType :: QName -> ToHs HS.Type
 getHsType x = do
   d <- liftTCM $ getHaskellPragma x
   list <- liftTCM $ getBuiltinName builtinList
+  mayb <- liftTCM $ getBuiltinName builtinMaybe
   inf  <- liftTCM $ getBuiltinName builtinInf
-  let namedType = liftTCM $ do
+  let namedType = do
         -- For these builtin types, the type name (xhqn ...) refers to the
         -- generated, but unused, datatype and not the primitive type.
         nat  <- getBuiltinName builtinNat
@@ -118,9 +119,10 @@ getHsType x = do
         bool <- getBuiltinName builtinBool
         if  | Just x `elem` [nat, int] -> return $ hsCon "Integer"
             | Just x == bool           -> return $ hsCon "Bool"
-            | otherwise                -> hsCon . prettyShow <$> xhqn "T" x
+            | otherwise                -> lift $ hsCon . prettyShow <$> xhqn "T" x
   mapExceptT (setCurrentRange d) $ case d of
-    _ | Just x == list -> liftTCM $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
+    _ | Just x == list -> lift $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
+    _ | Just x == mayb -> lift $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for Maybe
     _ | Just x == inf  -> return $ hsQCon "MAlonzo.RTE" "Infinity"
     Just HsDefn{}      -> throwError $ WrongPragmaFor (getRange d) x
     Just HsType{}      -> namedType
@@ -137,7 +139,7 @@ getHsVar i = HS.Ident . encodeName <$> nameOfBV i
       | c `elem` okChars = [c]
       | otherwise        = "Z" ++ show (fromEnum c)
 
-haskellType' :: Type -> TCM HS.Type
+haskellType' :: Type -> HsCompileM HS.Type
 haskellType' t = runToHs (unEl t) (fromType t)
   where
     fromArgs = mapM (fromTerm . unArg)
@@ -171,7 +173,7 @@ haskellType' t = runToHs (unEl t) (fromType t)
         DontCare{} -> throwError (BadDontCare v)
         Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
-haskellType :: QName -> TCM HS.Type
+haskellType :: QName -> HsCompileM HS.Type
 haskellType q = do
   def <- getConstInfo q
   let (np, erased) =
@@ -217,9 +219,10 @@ checkConstructorCount d cs hsCons
 data PolyApprox = PolyApprox | NoPolyApprox
   deriving (Eq)
 
-hsTypeApproximation :: PolyApprox -> Int -> Type -> TCM HS.Type
+hsTypeApproximation :: PolyApprox -> Int -> Type -> HsCompileM HS.Type
 hsTypeApproximation poly fv t = do
   list <- getBuiltinName builtinList
+  mayb <- getBuiltinName builtinMaybe
   bool <- getBuiltinName builtinBool
   int  <- getBuiltinName builtinInteger
   nat  <- getBuiltinName builtinNat
@@ -237,6 +240,8 @@ hsTypeApproximation poly fv t = do
           Def q els
             | q `is` list, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
                         -> HS.TyApp (tyCon "[]") <$> go n (unArg t)
+            | q `is` mayb, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
+                        -> HS.TyApp (tyCon "Maybe") <$> go n (unArg t)
             | q `is` bool -> return $ tyCon "Bool"
             | q `is` int  -> return $ tyCon "Integer"
             | q `is` nat  -> return $ tyCon "Integer"
@@ -259,10 +264,10 @@ hsTypeApproximation poly fv t = do
 -- actually keep track of type applications in recursive functions, and
 -- generate parameterised datatypes. Otherwise we'll just coerce all type
 -- variables to `Any` at the first `unsafeCoerce`.
-hsTelApproximation :: Type -> TCM ([HS.Type], HS.Type)
+hsTelApproximation :: Type -> HsCompileM ([HS.Type], HS.Type)
 hsTelApproximation = hsTelApproximation' NoPolyApprox
 
-hsTelApproximation' :: PolyApprox -> Type -> TCM ([HS.Type], HS.Type)
+hsTelApproximation' :: PolyApprox -> Type -> HsCompileM ([HS.Type], HS.Type)
 hsTelApproximation' poly t = do
   TelV tel res <- telView t
   let args = map (snd . unDom) (telToList tel)

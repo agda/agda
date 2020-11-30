@@ -1,4 +1,5 @@
 ;;; agda2-highlight.el --- Syntax highlighting for Agda (version ≥ 2)
+;; SPDX-License-Identifier: MIT License
 
 ;;; Commentary:
 

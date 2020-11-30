@@ -8,6 +8,7 @@ module Agda.Syntax.Concrete.Fixity
   ) where
 
 import Prelude hiding (null)
+
 import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -23,6 +24,7 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Position
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
 
+import Agda.Utils.CallStack (HasCallStack)
 import Agda.Utils.Functor
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
@@ -35,10 +37,10 @@ type Polarities = Map Name [Occurrence]
 class Monad m => MonadFixityError m where
   throwMultipleFixityDecls            :: [(Name, [Fixity'])] -> m a
   throwMultiplePolarityPragmas        :: [Name] -> m a
-  warnUnknownNamesInFixityDecl        :: [Name] -> m ()
-  warnUnknownNamesInPolarityPragmas   :: [Name] -> m ()
-  warnUnknownFixityInMixfixDecl       :: [Name] -> m ()
-  warnPolarityPragmasButNotPostulates :: [Name] -> m ()
+  warnUnknownNamesInFixityDecl        :: HasCallStack => [Name] -> m ()
+  warnUnknownNamesInPolarityPragmas   :: HasCallStack => [Name] -> m ()
+  warnUnknownFixityInMixfixDecl       :: HasCallStack => [Name] -> m ()
+  warnPolarityPragmasButNotPostulates :: HasCallStack => [Name] -> m ()
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
@@ -148,6 +150,7 @@ fixitiesAndPolarities' = foldMap $ \case
   Infix  f xs     -> returnFix $ Map.fromList $ for (List1.toList xs) $ \ x -> (x, Fixity' f noNotation $ getRange x)
   -- We look into these blocks:
   Mutual    _ ds' -> fixitiesAndPolarities' ds'
+  InterleavedMutual _ ds' -> fixitiesAndPolarities' ds'
   Abstract  _ ds' -> fixitiesAndPolarities' ds'
   Private _ _ ds' -> fixitiesAndPolarities' ds'
   InstanceB _ ds' -> fixitiesAndPolarities' ds'
@@ -155,27 +158,29 @@ fixitiesAndPolarities' = foldMap $ \case
   -- All other declarations are ignored.
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
-  TypeSig     {}  -> mempty
-  FieldSig    {}  -> mempty
-  Generalize  {}  -> mempty
-  Field       {}  -> mempty
-  FunClause   {}  -> mempty
-  DataSig     {}  -> mempty
-  DataDef     {}  -> mempty
-  Data        {}  -> mempty
-  RecordSig   {}  -> mempty
-  RecordDef   {}  -> mempty
-  Record      {}  -> mempty
-  PatternSyn  {}  -> mempty
-  Postulate   {}  -> mempty
-  Primitive   {}  -> mempty
-  Open        {}  -> mempty
-  Import      {}  -> mempty
-  ModuleMacro {}  -> mempty
-  Module      {}  -> mempty
-  UnquoteDecl {}  -> mempty
-  UnquoteDef  {}  -> mempty
-  Pragma      {}  -> mempty
+  TypeSig         {}  -> mempty
+  FieldSig        {}  -> mempty
+  Generalize      {}  -> mempty
+  Field           {}  -> mempty
+  FunClause       {}  -> mempty
+  DataSig         {}  -> mempty
+  DataDef         {}  -> mempty
+  Data            {}  -> mempty
+  RecordSig       {}  -> mempty
+  RecordDef       {}  -> mempty
+  Record          {}  -> mempty
+  RecordDirective {}  -> mempty
+  LoneConstructor {}  -> mempty
+  PatternSyn      {}  -> mempty
+  Postulate       {}  -> mempty
+  Primitive       {}  -> mempty
+  Open            {}  -> mempty
+  Import          {}  -> mempty
+  ModuleMacro     {}  -> mempty
+  Module          {}  -> mempty
+  UnquoteDecl     {}  -> mempty
+  UnquoteDef      {}  -> mempty
+  Pragma          {}  -> mempty
 
 data DeclaredNames = DeclaredNames { _allNames, _postulates, _privateNames :: Set Name }
 
@@ -202,24 +207,27 @@ declaresName x = declaresNames [x]
 -- | Compute the names defined in a declaration. We stay in the current scope,
 --   i.e., do not go into modules.
 declaredNames :: Declaration -> DeclaredNames
-declaredNames d = case d of
+declaredNames = \case
   TypeSig _ _ x _      -> declaresName x
   FieldSig _ _ x _     -> declaresName x
   Field _ fs           -> foldMap declaredNames fs
   FunClause (LHS p [] [] _) _ _ _
-    | IdentP (QName x) <- removeSingletonRawAppP p
+    | IdentP (QName x) <- removeParenP p
                        -> declaresName x
   FunClause{}          -> mempty
   DataSig _ x _ _      -> declaresName x
   DataDef _ _ _ cs     -> foldMap declaredNames cs
   Data _ x _ _ cs      -> declaresName x <> foldMap declaredNames cs
   RecordSig _ x _ _    -> declaresName x
-  RecordDef _ x _ _ _ c _ _ -> declaresNames $     foldMap (:[]) (fst <$> c)
-  Record _ x _ _ _ c _ _ _  -> declaresNames $ x : foldMap (:[]) (fst <$> c)
+  RecordDef _ x d _ _  -> declaresNames $     foldMap (:[]) (fst <$> recConstructor d)
+  Record _ x d _ _ _   -> declaresNames $ x : foldMap (:[]) (fst <$> recConstructor d)
+  RecordDirective _    -> mempty
   Infix _ _            -> mempty
   Syntax _ _           -> mempty
   PatternSyn _ x _ _   -> declaresName x
   Mutual    _ ds       -> foldMap declaredNames ds
+  InterleavedMutual    _ ds -> foldMap declaredNames ds
+  LoneConstructor _ ds -> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
   Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds
   InstanceB _ ds       -> foldMap declaredNames ds

@@ -38,11 +38,13 @@ tested-with:        GHC == 8.0.2
                     GHC == 8.2.2
                     GHC == 8.4.4
                     GHC == 8.6.5
-                    GHC == 8.8.3
-                    GHC == 8.10.1
+                    GHC == 8.8.4
+                    GHC == 8.10.2
 
 extra-source-files: CHANGELOG.md
                     README.md
+                    doc/release-notes/2.6.1.1.md
+                    doc/release-notes/2.6.1.md
                     doc/release-notes/2.6.0.1.md
                     doc/release-notes/2.6.0.md
                     doc/release-notes/2.5.4.2.md
@@ -74,11 +76,10 @@ extra-source-files: CHANGELOG.md
                     doc/release-notes/2.2.0.md
 -- Liang-Ting (2019-11-26): See Issues #4216
 --                    doc/user-manual.pdf
+                    stack-8.10.2.yaml
                     stack-8.10.1.yaml
+                    stack-8.8.4.yaml
                     stack-8.8.3.yaml
--- ASR (2020-03-27). We need to keep the below file because there is a
--- problem with GHC 8.8.3, Windows and stack. See Issue #4543.
-                    stack-8.8.2.yaml
                     stack-8.6.5.yaml
                     stack-8.4.4.yaml
                     stack-8.2.2.yaml
@@ -114,6 +115,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Builtin/Maybe.agda
                     lib/prim/Agda/Builtin/Nat.agda
                     lib/prim/Agda/Builtin/Reflection.agda
+                    lib/prim/Agda/Builtin/Reflection/External.agda
                     lib/prim/Agda/Builtin/Reflection/Properties.agda
                     lib/prim/Agda/Builtin/Sigma.agda
                     lib/prim/Agda/Builtin/Size.agda
@@ -127,6 +129,7 @@ data-files:         Agda.css
                     lib/prim/Agda/Primitive.agda
                     lib/prim/Agda/Primitive/Cubical.agda
                     MAlonzo/src/MAlonzo/*.hs
+                    MAlonzo/src/MAlonzo/RTE/*.hs
                     postprocess-latex.pl
 
 source-repository head
@@ -192,7 +195,7 @@ library
   if os(windows) && impl(ghc == 8.6.3)
     buildable: False
 
-  build-depends:  aeson >= 1.1.2.0 && < 1.5
+  build-depends:  aeson >= 1.1.2.0 && < 1.6
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
                 , base >= 4.9.0.0 && < 4.15
@@ -201,6 +204,7 @@ library
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
                 , bytestring >= 0.10.8.1 && < 0.11
+                , case-insensitive >= 1.2.0.4 && < 1.3
                 , containers >= 0.5.7.1 && < 0.7
                 , data-hash >= 0.2.0.0 && < 0.3
                 , deepseq >= 1.4.2.0 && < 1.5
@@ -222,7 +226,6 @@ library
                 -- some cases.
                 , hashtables >= 1.2.0.2 && < 1.3
                 , haskeline >= 0.7.2.3 && < 0.9
-                , ieee754 >= 0.7.8 && < 0.9
                 -- monad-control-1.0.1.0 is the first to contain liftThrough
                 , monad-control >= 1.0.1.0 && < 1.1
                 -- mtl-2.1 contains a severe bug.
@@ -236,7 +239,7 @@ library
                 , regex-tdfa >= 1.3.1.0 && < 1.4
                 , split >= 0.2.0.0 && < 0.2.4
                 , stm >= 2.4.4 && < 2.6
-                , strict >= 0.3.2 && < 0.4
+                , strict >= 0.3.2 && < 0.5
                 , template-haskell >= 2.11.0.0 && < 2.17
                 , time >= 1.6.0.1 && < 1.10
                 , unordered-containers >= 0.2.5.0 && < 0.3
@@ -246,7 +249,7 @@ library
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
   -- for example, Issue #2983).
-  if impl(ghc >= 8.6.4) && impl(ghc < 8.10.2)
+  if impl(ghc >= 8.6.4) && impl(ghc < 8.11)
     build-depends: transformers == 0.5.6.2
 
   if impl(ghc >= 8.4) && impl(ghc < 8.6.4)
@@ -344,7 +347,6 @@ library
                     Agda.Interaction.Library.Parse
                     Agda.Interaction.Options
                     Agda.Interaction.Options.Help
-                    Agda.Interaction.Options.IORefs
                     Agda.Interaction.Options.Lenses
                     Agda.Interaction.Options.Warnings
                     Agda.Main
@@ -358,8 +360,12 @@ library
                     Agda.Syntax.Common
                     Agda.Syntax.Concrete.Attribute
                     Agda.Syntax.Concrete.Definitions
+                    Agda.Syntax.Concrete.Definitions.Errors
+                    Agda.Syntax.Concrete.Definitions.Monad
+                    Agda.Syntax.Concrete.Definitions.Types
                     Agda.Syntax.Concrete.Fixity
                     Agda.Syntax.Concrete.Generic
+                    Agda.Syntax.Concrete.Glyph
                     Agda.Syntax.Concrete.Name
                     Agda.Syntax.Concrete.Operators.Parser
                     Agda.Syntax.Concrete.Operators.Parser.Monad
@@ -372,7 +378,9 @@ library
                     Agda.Syntax.IdiomBrackets
                     Agda.Syntax.Info
                     Agda.Syntax.Internal
+                    Agda.Syntax.Internal.Blockers
                     Agda.Syntax.Internal.Defs
+                    Agda.Syntax.Internal.Elim
                     Agda.Syntax.Internal.Generic
                     Agda.Syntax.Internal.MetaVars
                     Agda.Syntax.Internal.Names
@@ -446,6 +454,7 @@ library
                     Agda.TypeChecking.Irrelevance
                     Agda.TypeChecking.Level
                     Agda.TypeChecking.LevelConstraints
+                    Agda.TypeChecking.Lock
                     Agda.TypeChecking.Level.Solve
                     Agda.TypeChecking.MetaVars
                     Agda.TypeChecking.MetaVars.Mention
@@ -464,6 +473,7 @@ library
                     Agda.TypeChecking.Monad.Mutual
                     Agda.TypeChecking.Monad.Open
                     Agda.TypeChecking.Monad.Options
+                    Agda.TypeChecking.Monad.Pure
                     Agda.TypeChecking.Monad.Signature
                     Agda.TypeChecking.Monad.SizedTypes
                     Agda.TypeChecking.Monad.State
@@ -479,6 +489,7 @@ library
                     Agda.TypeChecking.Positivity.Occurrence
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Pretty.Call
+                    Agda.TypeChecking.Pretty.Constraint
                     Agda.TypeChecking.Pretty.Warning
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.Primitive.Base
@@ -540,6 +551,7 @@ library
                     Agda.Utils.Bag
                     Agda.Utils.Benchmark
                     Agda.Utils.BiMap
+                    Agda.Utils.CallStack
                     Agda.Utils.Cluster
                     Agda.Utils.Empty
                     Agda.Utils.Environment
@@ -567,6 +579,7 @@ library
                     Agda.Utils.Lens.Examples
                     Agda.Utils.List
                     Agda.Utils.List1
+                    Agda.Utils.List2
                     Agda.Utils.ListT
                     Agda.Utils.Map
                     Agda.Utils.Maybe
@@ -582,6 +595,7 @@ library
                     Agda.Utils.POMonoid
                     Agda.Utils.Pretty
                     Agda.Utils.SemiRing
+                    Agda.Utils.Semigroup
                     Agda.Utils.Singleton
                     Agda.Utils.Size
                     Agda.Utils.SmallSet
@@ -602,63 +616,109 @@ library
                     Agda.VersionCommit
 
   other-modules:    Paths_Agda
+                    Agda.Interaction.Highlighting.Dot.Backend
+                    Agda.Interaction.Highlighting.Dot.Base
+                    Agda.Interaction.Highlighting.LaTeX.Backend
+                    Agda.Interaction.Highlighting.LaTeX.Base
+                    Agda.Interaction.Highlighting.HTML.Backend
+                    Agda.Interaction.Highlighting.HTML.Base
+                    Agda.Utils.CallStack.Base
+                    Agda.Utils.CallStack.Pretty
 
   -- NOTE: If adding flags, also add to `.ghci-8.0`
-  ghc-options: -fexpose-all-unfoldings
-               -fspecialise-aggressively
-               -- Initially, we disable all the warnings.
-               -w
-               -Werror
-               -- This option must be the first one after disabling the
-               -- warnings. See Issue #2094.
-               -Wunrecognised-warning-flags
-               -Wdeprecated-flags
-               -Wderiving-typeable
-               -Wdodgy-exports
-               -Wdodgy-foreign-imports
-               -Wdodgy-imports
-               -Wduplicate-exports
-               -Wempty-enumerations
-               -Widentities
-               -Wincomplete-patterns
-               -Winline-rule-shadowing
-               -Wmissing-fields
-               -Wmissing-methods
-               -Wmissing-pattern-synonym-signatures
-               -Wmissing-signatures
-               -Wnoncanonical-monad-instances
-               -Wnoncanonical-monoid-instances
-               -Woverflowed-literals
-               -Woverlapping-patterns
-               -Wsemigroup
-               -Wtabs
-               -Wtyped-holes
-               -Wunrecognised-pragmas
-               -Wunticked-promoted-constructors
-               -Wunused-do-bind
-               -Wunused-foralls
-               -Wwarnings-deprecations
-               -Wwrong-do-bind
+  if impl(ghc <= 8.0.2)
+    ghc-options: -fexpose-all-unfoldings
+                 -fspecialise-aggressively
+                 -fprint-potential-instances
+                 -- Initially, we disable all the warnings.
+                 -w
+                 -Werror
+                 -- This option must be the first one after disabling the
+                 -- warnings. See Issue #2094.
+                 -Wunrecognised-warning-flags
+                 -Wdeprecated-flags
+                 -Wderiving-typeable
+                 -Wdodgy-exports
+                 -Wdodgy-foreign-imports
+                 -Wdodgy-imports
+                 -Wduplicate-exports
+                 -Wempty-enumerations
+                 -Widentities
+                 -Wincomplete-patterns
+                 -Winline-rule-shadowing
+                 -Wmissing-fields
+                 -Wmissing-methods
+                 -Wmissing-pattern-synonym-signatures
+                 -Wmissing-signatures
+                 -Wnoncanonical-monad-instances
+                 -Wnoncanonical-monoid-instances
+                 -Woverflowed-literals
+                 -Woverlapping-patterns
+                 -Wsemigroup
+                 -Wtabs
+                 -Wtyped-holes
+                 -Wunrecognised-pragmas
+                 -Wunticked-promoted-constructors
+                 -Wunused-do-bind
+                 -Wunused-foralls
+                 -Wwarnings-deprecations
+                 -Wwrong-do-bind
+  else
+    ghc-options: -fexpose-all-unfoldings
+                 -fspecialise-aggressively
+                 -fprint-potential-instances
+                 -Werror=unrecognised-warning-flags
+                 -Werror=deprecated-flags
+                 -Werror=deriving-typeable
+                 -Werror=dodgy-exports
+                 -Werror=dodgy-foreign-imports
+                 -Werror=dodgy-imports
+                 -Werror=duplicate-exports
+                 -Werror=empty-enumerations
+                 -Werror=identities
+                 -Werror=incomplete-patterns
+                 -Werror=inline-rule-shadowing
+                 -Werror=missing-fields
+                 -Werror=missing-methods
+                 -Werror=missing-pattern-synonym-signatures
+                 -Werror=missing-signatures
+                 -Werror=noncanonical-monad-instances
+                 -Werror=noncanonical-monoid-instances
+                 -Werror=overflowed-literals
+                 -Werror=overlapping-patterns
+                 -Werror=semigroup
+                 -Werror=tabs
+                 -Werror=typed-holes
+                 -Werror=unrecognised-pragmas
+                 -Werror=unticked-promoted-constructors
+                 -Werror=unused-do-bind
+                 -Werror=unused-foralls
+                 -Werror=warnings-deprecations
+                 -Werror=wrong-do-bind
 
-  -- NOTE: If adding flags, also add to `.ghci-8.2`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
     ghc-options: -Wcpp-undef
                  -- ASR TODO (2017-07-23): `make haddock` fails when
                  -- this flag is on.
                  -- -Wmissing-home-modules
-                 -Wsimplifiable-class-constraints
-                 -Wunbanged-strict-patterns
+                 -Werror=simplifiable-class-constraints
+                 -Werror=unbanged-strict-patterns
 
-  -- NOTE: If adding flags, also add to `.ghci-8.6`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
-    ghc-options: -Winaccessible-code
-                 -Wstar-binder
-                 -Wstar-is-type
+    ghc-options: -Werror=inaccessible-code
+                 -Werror=star-binder
+                 -Werror=star-is-type
 
   ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
 
+  -- NOTE: If adding or removing default extensions, also change:
+  --         .ghci-8.0
+  --         .hlint.yaml
+  -- This should also use the same extensions as the `test-suite` target below.
   default-extensions: BangPatterns
                     , ConstraintKinds
                     --L-T Chen (2019-07-15):
@@ -666,6 +726,7 @@ library
                     -- slightly shorter, see PR #3920.
                     --, DataKinds
                     , DefaultSignatures
+                    , DeriveDataTypeable
                     , DeriveFoldable
                     , DeriveFunctor
                     , DeriveTraversable
@@ -673,6 +734,8 @@ library
                     , FlexibleContexts
                     , FlexibleInstances
                     , FunctionalDependencies
+                    , GeneralizedNewtypeDeriving
+                    , InstanceSigs
                     , LambdaCase
                     , MultiParamTypeClasses
                     , MultiWayIf
@@ -684,6 +747,7 @@ library
                     , ScopedTypeVariables
                     , StandaloneDeriving
                     , TupleSections
+                    , TypeFamilies
                     , TypeSynonymInstances
 
 executable agda
@@ -736,7 +800,8 @@ test-suite agda-tests
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test/
   main-is:          Main.hs
-  other-modules:      Compiler.Tests
+  other-modules:      Bugs.Tests
+                    , Compiler.Tests
                     , Fail.Tests
                     , Interactive.Tests
                     , Internal.Compiler.MAlonzo.Encode
@@ -759,7 +824,6 @@ test-suite agda-tests
                     , Internal.Termination.Termination
                     , Internal.Tests
                     , Internal.TypeChecking
-                    , Internal.TypeChecking.Substitute
                     , Internal.TypeChecking.Free
                     , Internal.TypeChecking.Free.Lazy
                     , Internal.TypeChecking.Generators
@@ -771,6 +835,7 @@ test-suite agda-tests
                     , Internal.TypeChecking.SizedTypes
                     , Internal.TypeChecking.SizedTypes.Syntax
                     , Internal.TypeChecking.SizedTypes.WarshallSolver
+                    , Internal.TypeChecking.Substitute
                     , Internal.Utils.AssocList
                     , Internal.Utils.Bag
                     , Internal.Utils.BiMap
@@ -782,8 +847,8 @@ test-suite agda-tests
                     , Internal.Utils.IntSet
                     , Internal.Utils.List
                     , Internal.Utils.ListT
-                    , Internal.Utils.Monoid
                     , Internal.Utils.Maybe.Strict
+                    , Internal.Utils.Monoid
                     , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
@@ -794,7 +859,6 @@ test-suite agda-tests
                     , LaTeXAndHTML.Tests
                     , LibSucceed.Tests
                     , Succeed.Tests
-                    , Bugs.Tests
                     , UserManual.Tests
                     , Utils
 
@@ -802,7 +866,8 @@ test-suite agda-tests
                 , array >= 0.5.1.1 && < 0.6
                 , base >= 4.9.0.0 && < 4.15
                 , bytestring >= 0.10.8.1 && < 0.11
-                , containers >= 0.5.7.1 && < 0.7
+                -- containers-0.5.11.0 is the first to contain IntSet.intersection
+                , containers >= 0.5.11.0 && < 0.7
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , filemanip >= 0.3.6.3 && < 0.4
@@ -843,10 +908,18 @@ test-suite agda-tests
 
   default-language:  Haskell2010
 
+  -- NOTE: If adding or removing default extensions, also change:
+  --         .ghci-8.0
+  --         .hlint.yaml
+  -- This should also use the same extensions as the `library` target above.
   default-extensions:  BangPatterns
                      , ConstraintKinds
-                     , DataKinds
+                     --L-T Chen (2019-07-15):
+                     -- Enabling DataKinds only locally makes the compile time
+                     -- slightly shorter, see PR #3920.
+                     --, DataKinds
                      , DefaultSignatures
+                     , DeriveDataTypeable
                      , DeriveFoldable
                      , DeriveFunctor
                      , DeriveTraversable
@@ -854,6 +927,8 @@ test-suite agda-tests
                      , FlexibleContexts
                      , FlexibleInstances
                      , FunctionalDependencies
+                     , GeneralizedNewtypeDeriving
+                     , InstanceSigs
                      , LambdaCase
                      , MultiParamTypeClasses
                      , MultiWayIf
@@ -865,56 +940,90 @@ test-suite agda-tests
                      , ScopedTypeVariables
                      , StandaloneDeriving
                      , TupleSections
+                     , TypeFamilies
                      , TypeSynonymInstances
 
-  -- NOTE: If adding flags, also add to `.ghci-8.0`
-  ghc-options: -fexpose-all-unfoldings
-               -fspecialise-aggressively
-               -threaded
-               -- Initially, we disable all the warnings.
-               -w
-               -Werror
-               -- This option must be the first one after disabling the
-               -- warnings. See Issue #2094.
-               -Wunrecognised-warning-flags
-               -Wdeprecated-flags
-               -Wderiving-typeable
-               -Wdodgy-exports
-               -Wdodgy-foreign-imports
-               -Wdodgy-imports
-               -Wduplicate-exports
-               -Wempty-enumerations
-               -Widentities
-               -Wincomplete-patterns
-               -Winline-rule-shadowing
-               -Wmissing-fields
-               -Wmissing-methods
-               -Wmissing-pattern-synonym-signatures
-               -Wmissing-signatures
-               -Wnoncanonical-monad-instances
-               -Wnoncanonical-monoid-instances
-               -Woverflowed-literals
-               -Woverlapping-patterns
-               -Wsemigroup
-               -Wtabs
-               -Wtyped-holes
-               -Wunrecognised-pragmas
-               -Wunticked-promoted-constructors
-               -Wunused-do-bind
-               -Wunused-foralls
-               -Wwarnings-deprecations
-               -Wwrong-do-bind
+  -- NOTE: If adding or removing flags, also change `.ghci-8.0`
+  if impl(ghc <= 8.0.2)
+    ghc-options: -fexpose-all-unfoldings
+                 -fspecialise-aggressively
+                 -threaded
+                 -- Initially, we disable all the warnings.
+                 -w
+                 -Werror
+                 -- This option must be the first one after disabling the
+                 -- warnings. See Issue #2094.
+                 -Wunrecognised-warning-flags
+                 -Wdeprecated-flags
+                 -Wderiving-typeable
+                 -Wdodgy-exports
+                 -Wdodgy-foreign-imports
+                 -Wdodgy-imports
+                 -Wduplicate-exports
+                 -Wempty-enumerations
+                 -Widentities
+                 -Wincomplete-patterns
+                 -Winline-rule-shadowing
+                 -Wmissing-fields
+                 -Wmissing-methods
+                 -Wmissing-pattern-synonym-signatures
+                 -Wmissing-signatures
+                 -Wnoncanonical-monad-instances
+                 -Wnoncanonical-monoid-instances
+                 -Woverflowed-literals
+                 -Woverlapping-patterns
+                 -Wsemigroup
+                 -Wtabs
+                 -Wtyped-holes
+                 -Wunrecognised-pragmas
+                 -Wunticked-promoted-constructors
+                 -Wunused-do-bind
+                 -Wunused-foralls
+                 -Wwarnings-deprecations
+                 -Wwrong-do-bind
+  else
+    ghc-options: -fexpose-all-unfoldings
+                 -fspecialise-aggressively
+                 -threaded
+                 -Werror=unrecognised-warning-flags
+                 -Werror=deprecated-flags
+                 -Werror=deriving-typeable
+                 -Werror=dodgy-exports
+                 -Werror=dodgy-foreign-imports
+                 -Werror=dodgy-imports
+                 -Werror=duplicate-exports
+                 -Werror=empty-enumerations
+                 -Werror=identities
+                 -Werror=incomplete-patterns
+                 -Werror=inline-rule-shadowing
+                 -Werror=missing-fields
+                 -Werror=missing-methods
+                 -Werror=missing-pattern-synonym-signatures
+                 -Werror=missing-signatures
+                 -Werror=noncanonical-monad-instances
+                 -Werror=noncanonical-monoid-instances
+                 -Werror=overflowed-literals
+                 -Werror=overlapping-patterns
+                 -Werror=semigroup
+                 -Werror=tabs
+                 -Werror=typed-holes
+                 -Werror=unrecognised-pragmas
+                 -Werror=unticked-promoted-constructors
+                 -Werror=unused-do-bind
+                 -Werror=unused-foralls
+                 -Werror=warnings-deprecations
+                 -Werror=wrong-do-bind
 
-  -- ASR (2017-04-11). TODO: Using -Wmissing-home-modules generates an
+  -- ASR (2017-04-11). TODO: Using -Werror=missing-home-modules generates an
   -- error.
-  -- NOTE: If adding flags, also add to `.ghci-8.2`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
-    ghc-options: -Wcpp-undef
-                 -Wsimplifiable-class-constraints
-                 -Wunbanged-strict-patterns
+    ghc-options: -Werror=cpp-undef
+                 -Werror=simplifiable-class-constraints
+                 -Werror=unbanged-strict-patterns
 
-  -- NOTE: If adding flags, also add to `.ghci-8.6`
+  -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
-    ghc-options: -Winaccessible-code
-                 -Wstar-binder
-                 -Wstar-is-type
+    ghc-options: -Werror=inaccessible-code
+                 -Werror=star-binder
+                 -Werror=star-is-type

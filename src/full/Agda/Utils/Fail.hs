@@ -1,5 +1,4 @@
 -- | A pure MonadFail.
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Agda.Utils.Fail where
 
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
@@ -13,4 +12,3 @@ instance MonadFail Fail where
 
 runFail_ :: Fail a -> a
 runFail_ = either error id . runFail
-

@@ -1,7 +1,7 @@
 
-CABAL_CMD=cabal
+CABAL=cabal
 
-CABAL_VERSION := $(shell $(CABAL_CMD) --numeric-version | cut -d. -f1-2)
+CABAL_VERSION := $(shell $(CABAL) --numeric-version | cut -d. -f1-2)
 
 # Amazing hack to do =< comparison (due to https://stackoverflow.com/questions/3437160).
 # Relies on there being no cabal 2.10.x or above.

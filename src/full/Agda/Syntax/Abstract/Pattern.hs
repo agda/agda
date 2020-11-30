@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeFamilies              #-}
-{-# LANGUAGE UndecidableInstances      #-}
 
 -- | Auxiliary functions to handle patterns in the abstract syntax.
 --
@@ -65,6 +63,7 @@ instance MapNamedArgPattern NAP where
       AsP i x p0         -> f $ updateNamedArg (AsP i x) $ mapNamedArgPattern f $ setNamedArg p p0
       -- WithP: like AsP
       WithP i p0         -> f $ updateNamedArg (WithP i) $ mapNamedArgPattern f $ setNamedArg p p0
+      AnnP i a p0        -> f $ updateNamedArg (AnnP i a) $ mapNamedArgPattern f $ setNamedArg p p0
 
 instance MapNamedArgPattern a => MapNamedArgPattern [a]                  where
 instance MapNamedArgPattern a => MapNamedArgPattern (FieldAssignment' a) where
@@ -75,63 +74,66 @@ instance (MapNamedArgPattern a, MapNamedArgPattern b) => MapNamedArgPattern (a,b
 
 -- | Generic pattern traversal.
 
-class APatternLike a p | p -> a where
+class APatternLike p where
+  type ADotT p
 
   -- | Fold pattern.
   foldrAPattern
     :: Monoid m
-    => (Pattern' a -> m -> m)
+    => (Pattern' (ADotT p) -> m -> m)
          -- ^ Combine a pattern and the value computed from its subpatterns.
     -> p -> m
 
   default foldrAPattern
-    :: (Monoid m, Foldable f, APatternLike a b, f b ~ p)
-    => (Pattern' a -> m -> m) -> p -> m
+    :: (Monoid m, Foldable f, APatternLike b, (ADotT p) ~ (ADotT b), f b ~ p)
+    => (Pattern' (ADotT p) -> m -> m) -> p -> m
   foldrAPattern = foldMap . foldrAPattern
 
   -- | Traverse pattern.
   traverseAPatternM
     :: Monad m
-    => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
-    -> (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
+    => (Pattern' (ADotT p) -> m (Pattern' (ADotT p)))  -- ^ @pre@: Modification before recursion.
+    -> (Pattern' (ADotT p) -> m (Pattern' (ADotT p)))  -- ^ @post@: Modification after recursion.
     -> p -> m p
 
   default traverseAPatternM
-    :: (Traversable f, APatternLike a q, f q ~ p, Monad m)
-    => (Pattern' a -> m (Pattern' a))
-    -> (Pattern' a -> m (Pattern' a))
+    :: (Traversable f, APatternLike q, (ADotT p) ~ (ADotT q), f q ~ p, Monad m)
+    => (Pattern' (ADotT p) -> m (Pattern' (ADotT p)))
+    -> (Pattern' (ADotT p) -> m (Pattern' (ADotT p)))
     -> p -> m p
   traverseAPatternM pre post = traverse $ traverseAPatternM pre post
 
 -- | Compute from each subpattern a value and collect them all in a monoid.
 
-foldAPattern :: (APatternLike a p, Monoid m) => (Pattern' a -> m) -> p -> m
+foldAPattern :: (APatternLike p, Monoid m) => (Pattern' (ADotT p) -> m) -> p -> m
 foldAPattern f = foldrAPattern $ \ p m -> f p `mappend` m
 
 -- | Traverse pattern(s) with a modification before the recursive descent.
 
 preTraverseAPatternM
-  :: (APatternLike a b, Monad m )
-  => (Pattern' a -> m (Pattern' a))  -- ^ @pre@: Modification before recursion.
-  -> b -> m b
+  :: (APatternLike p, Monad m )
+  => (Pattern' (ADotT p) -> m (Pattern' (ADotT p)))  -- ^ @pre@: Modification before recursion.
+  -> p -> m p
 preTraverseAPatternM pre p = traverseAPatternM pre return p
 
 -- | Traverse pattern(s) with a modification after the recursive descent.
 
 postTraverseAPatternM
-  :: (APatternLike a b, Monad m)
-  => (Pattern' a -> m (Pattern' a))  -- ^ @post@: Modification after recursion.
-  -> b -> m b
+  :: (APatternLike p, Monad m )
+  => (Pattern' (ADotT p) -> m (Pattern' (ADotT p)))  -- ^ @post@: Modification after recursion.
+  -> p -> m p
 postTraverseAPatternM post p = traverseAPatternM return post p
 
 -- | Map pattern(s) with a modification after the recursive descent.
 
-mapAPattern :: APatternLike a p => (Pattern' a -> Pattern' a) -> p -> p
+mapAPattern :: APatternLike p => (Pattern' (ADotT p) -> Pattern' (ADotT p)) -> p -> p
 mapAPattern f = runIdentity . postTraverseAPatternM (Identity . f)
 
 -- Interesting instance:
 
-instance APatternLike a (Pattern' a) where
+instance APatternLike (Pattern' a) where
+  type ADotT (Pattern' a) = a
+
   foldrAPattern f p = f p $
     case p of
       AsP _ _ p          -> foldrAPattern f p
@@ -145,20 +147,21 @@ instance APatternLike a (Pattern' a) where
       WildP _            -> mempty
       DotP _ _           -> mempty
       AbsurdP _          -> mempty
-      LitP _             -> mempty
+      LitP _ _           -> mempty
       EqualP _ _         -> mempty
+      AnnP _ _ p         -> foldrAPattern f p
 
   traverseAPatternM pre post = pre >=> recurse >=> post
     where
-    recurse p = case p of
+    recurse = \case
       -- Non-recursive cases:
-      A.VarP{}             -> return p
-      A.WildP{}            -> return p
-      A.DotP{}             -> return p
-      A.LitP{}             -> return p
-      A.AbsurdP{}          -> return p
-      A.ProjP{}            -> return p
-      A.EqualP{}           -> return p
+      p@A.VarP{}            -> return p
+      p@A.WildP{}           -> return p
+      p@A.DotP{}            -> return p
+      p@A.LitP{}            -> return p
+      p@A.AbsurdP{}         -> return p
+      p@A.ProjP{}           -> return p
+      p@A.EqualP{}          -> return p
       -- Recursive cases:
       A.ConP        i ds ps -> A.ConP        i ds <$> traverseAPatternM pre post ps
       A.DefP        i q  ps -> A.DefP        i q  <$> traverseAPatternM pre post ps
@@ -166,17 +169,26 @@ instance APatternLike a (Pattern' a) where
       A.RecP        i    ps -> A.RecP        i    <$> traverseAPatternM pre post ps
       A.PatternSynP i x  ps -> A.PatternSynP i x  <$> traverseAPatternM pre post ps
       A.WithP       i p     -> A.WithP       i    <$> traverseAPatternM pre post p
+      A.AnnP        i a  p  -> A.AnnP        i a  <$> traverseAPatternM pre post p
 
--- The following instances need UndecidableInstances
--- for the FunctionalDependency (since injectivity is not taken into account).
+instance APatternLike a => APatternLike (Arg a) where
+  type ADotT (Arg a) = ADotT a
 
-instance APatternLike a b => APatternLike a (Arg b)              where
-instance APatternLike a b => APatternLike a (Named n b)          where
-instance APatternLike a b => APatternLike a [b]                  where
-instance APatternLike a b => APatternLike a (Maybe b)            where
-instance APatternLike a b => APatternLike a (FieldAssignment' b) where
+instance APatternLike a => APatternLike (Named n a) where
+  type ADotT (Named n a) = ADotT a
 
-instance (APatternLike a b, APatternLike a c) => APatternLike a (b,c) where
+instance APatternLike a => APatternLike [a] where
+  type ADotT [a] = ADotT a
+
+instance APatternLike a => APatternLike (Maybe a) where
+  type ADotT (Maybe a) = ADotT a
+
+instance APatternLike a => APatternLike (FieldAssignment' a) where
+  type ADotT (FieldAssignment' a) = ADotT a
+
+instance (APatternLike a, APatternLike b, ADotT a ~ ADotT b) => APatternLike (a, b) where
+  type ADotT (a, b) = ADotT a
+
   foldrAPattern f (p, p') =
     foldrAPattern f p `mappend` foldrAPattern f p'
 
@@ -191,7 +203,7 @@ instance (APatternLike a b, APatternLike a c) => APatternLike a (b,c) where
 
 -- | Collect pattern variables in left-to-right textual order.
 
-patternVars :: forall a p. APatternLike a p => p -> [A.Name]
+patternVars :: APatternLike p => p -> [A.Name]
 patternVars p = foldAPattern f p `appEndo` []
   where
   -- We use difference lists @[A.Name] -> [A.Name]@ to avoid reconcatenation.
@@ -210,10 +222,11 @@ patternVars p = foldAPattern f p `appEndo` []
     A.EqualP      {} -> mempty
     A.PatternSynP {} -> mempty
     A.WithP _ _      -> mempty
+    A.AnnP        {} -> mempty
 
 -- | Check if a pattern contains a specific (sub)pattern.
 
-containsAPattern :: APatternLike a p => (Pattern' a -> Bool) -> p -> Bool
+containsAPattern :: APatternLike p => (Pattern' (ADotT p) -> Bool) -> p -> Bool
 containsAPattern f = getAny . foldAPattern (Any . f)
 
 -- | Check if a pattern contains an absurd pattern.
@@ -221,7 +234,7 @@ containsAPattern f = getAny . foldAPattern (Any . f)
 --
 --   Precondition: contains no pattern synonyms.
 
-containsAbsurdPattern :: APatternLike a p => p -> Bool
+containsAbsurdPattern :: APatternLike p => p -> Bool
 containsAbsurdPattern = containsAPattern $ \case
     A.PatternSynP{} -> __IMPOSSIBLE__
     A.AbsurdP{}     -> True
@@ -229,17 +242,14 @@ containsAbsurdPattern = containsAPattern $ \case
 
 -- | Check if a pattern contains an @-pattern.
 --
---   Precondition: contains no pattern synonyms.
-
-containsAsPattern :: APatternLike a p => p -> Bool
+containsAsPattern :: APatternLike p => p -> Bool
 containsAsPattern = containsAPattern $ \case
-    A.PatternSynP{} -> __IMPOSSIBLE__
     A.AsP{}         -> True
     _               -> False
 
 -- | Check if any user-written pattern variables occur more than once,
 --   and throw the given error if they do.
-checkPatternLinearity :: (Monad m, APatternLike a p)
+checkPatternLinearity :: (Monad m, APatternLike p)
                       => p -> ([C.Name] -> m ()) -> m ()
 checkPatternLinearity ps err =
   unlessNull (duplicates $ map nameConcrete $ patternVars ps) $ \ys -> err ys
@@ -267,13 +277,14 @@ substPattern' subE s = mapAPattern $ \ p -> case p of
   VarP x            -> fromMaybe p $ lookup (A.unBind x) s
   DotP i e          -> DotP i $ subE e
   EqualP i es       -> EqualP i $ map (subE *** subE) es
+  AnnP i a p        -> AnnP i (subE a) p
   -- No action on the other patterns (besides the recursion):
   ConP _ _ _        -> p
   RecP _ _          -> p
   ProjP _ _ _       -> p
   WildP _           -> p
   AbsurdP _         -> p
-  LitP _            -> p
+  LitP _ _          -> p
   DefP _ _ _        -> p
   AsP _ _ _         -> p -- Note: cannot substitute into as-variable
   PatternSynP _ _ _ -> p

@@ -63,6 +63,7 @@ data Options = Options
       -- 'internalErrorString'.
   , mustFinishWithin          :: Maybe Int
   , extraArguments            :: Bool
+  , patchFile                 :: Maybe FilePath
   , compiler                  :: Maybe String
   , defaultCabalOptions       :: Bool
   , cabalOptions              :: [String]
@@ -71,10 +72,32 @@ data Options = Options
   , skipBranches              :: [String]
   , cacheBuilds               :: Bool
   , logFile                   :: Maybe String
-  , start                     :: Either FilePath (String, String)
-  , dryRun                    :: Maybe (Either FilePath String)
-  , scriptOrArguments         :: Either (FilePath, [String]) [String]
+  , start                     :: BisectMode
+  , dryRun                    :: Maybe DryRun
+  , scriptOrArguments         :: ScriptOrArguments
   }
+
+-- | Type alias for commit hashes.
+
+type Commit = String
+
+-- | Bisection mode.
+
+data BisectMode
+  = ReplayMode  { modeLogFile :: FilePath }
+  | GoodBadMode { modeBadCommit :: Commit, modeGoodCommit :: Commit }
+
+-- | Alternatives for @--dry-run@:
+
+data DryRun
+  = DryRunAgda   FilePath  -- ^ Path to agda command.
+  | DryRunCommit Commit    -- ^ Build agda from this commit.
+
+-- | Run mode.
+
+data ScriptOrArguments
+  = Script FilePath [String]  -- ^ Run this script with these arguments.
+  | AgdaArguments [String]    -- ^ Run agda with these arguments.
 
 -- | Parses command-line options. Prints usage information and aborts
 -- this program if the options are malformed (or the help flag is
@@ -88,126 +111,215 @@ options =
            footerDoc (Just msg))
   where
   opts = Options
-    <$> (not <$>
-         switch (
-            long "must-fail" <>
-            help "The command must fail (by default it must succeed)"))
-    <*> many
-          (strOption (long "must-output" <>
-                      help "The command must output STRING" <>
-                      metavar "STRING"))
-    <*> many
-          (strOption (long "must-not-output" <>
-                      help "The command must not output STRING" <>
-                      metavar "STRING"))
-    <*> switch
-          (long "no-internal-error" <>
-           help (unwords
+     <$> optionMustFail
+     <*> optionMustOutput
+     <*> optionMustNotOutput
+     <*> optionNoInternalError
+     <*> optionTimeOut
+     <*> optionNoExtraArguments
+     <*> optionPatchFile
+     <*> optionCompiler
+     <*> optionNoDefaultCabalOptions
+     <*> optionCabalOptions
+     <*> optionSkipSkipped
+     <*> optionOnBranch
+     <*> optionNotOnBranch
+     <*> optionCache
+     <*> optionLog
+     <*> optionGoodBadReplay
+     <*> optionDryRunWithOrWithoutCommit
+     <*> optionAgdaArgumentsOrScript
+
+  optionMustFail =
+    not <$> do
+      switch $
+        long "must-fail" <>
+        help "The command must fail (by default it must succeed)"
+
+  optionMustOutput =
+    many $
+      strOption $
+        long "must-output" <>
+        help "The command must output STRING" <>
+        metavar "STRING"
+
+  optionMustNotOutput =
+    many $
+      strOption $
+        long "must-not-output" <>
+        help "The command must not output STRING" <>
+        metavar "STRING"
+
+  optionNoInternalError =
+      switch $
+        long "no-internal-error" <>
+        help (unwords
              [ "The command must not output"
              , show internalErrorString ++ ";"
              , "implies --must-fail"
-             ]))
-    <*> optional (
-           option
-             (do n <- auto
-                 if n < 0 || n > maxBound then
-                   readerError "Argument out of range"
-                  else
-                   return n)
-             (long "timeout" <>
-              metavar "N" <>
-              help ("The command must finish in less than " ++
-                    "(approximately) N seconds; implies " ++
-                    "--no-default-cabal-options")))
-    <*> (not <$>
-         switch (long "no-extra-arguments" <>
-                 help "Do not give any extra arguments to Agda"))
-    <*> optional
-          (strOption (long "compiler" <>
-                      help "Use COMPILER to compile Agda" <>
-                      metavar "COMPILER" <>
-                      action "command"))
-    <*> (not <$>
-         switch
-           (long "no-default-cabal-options" <>
-            help (unwords
-              [ "Do not (by default) give certain options to cabal"
-              , "v1-install"
-              ])))
-    <*> many
-          (strOption
-             (long "cabal-option" <>
-              help "Additional option given to cabal v1-install" <>
-              metavar "OPTION" <>
-              completer (commandCompleter "cabal"
-                           ["v1-install", "--list-options"])))
-    <*> ((\skip -> if skip then ciSkipStrings else []) <$>
-         switch (long "skip-skipped" <>
-                 help ("Skip commits with commit messages " ++
-                       "containing one of the following strings: " ++
-                       intercalate ", " (map show ciSkipStrings))))
-    <*> many (strOption (long "on-branch" <>
-                         help ("Skip commits that are not on BRANCH " ++
-                               "(if this option is repeated, then " ++
-                               "commits that are not on any of the " ++
-                               "given branches are skipped)") <>
-                         metavar "BRANCH" <>
-                         completer branchCompleter))
-    <*> many (strOption (long "not-on-branch" <>
-                         help "Skip commits that are on BRANCH" <>
-                         metavar "BRANCH" <>
-                         completer branchCompleter))
-    <*> switch (long "cache" <>
-                help "Cache builds")
-    <*> optional
-          (strOption (long "log" <>
-                      help "Store a git bisect log in FILE" <>
-                      metavar "FILE" <>
-                      action "file"))
-    <*> ((curry Right <$>
-          strOption (long "bad" <>
-                     metavar "BAD" <>
-                     help "Bad commit" <>
-                     completer commitCompleter) <*>
-          strOption (long "good" <>
-                     metavar "GOOD" <>
-                     help "Good commit" <>
-                     completer commitCompleter))
-           <|>
-         (Left <$>
-          strOption (long "replay" <>
-                     metavar "LOG" <>
-                     help ("Replay the git bisect log in LOG " ++
-                           "(which is assumed to be well-formed)") <>
-                     action "file")))
-    <*> optional
-          ((Left <$>
-            strOption (long "dry-run" <>
-                       metavar "AGDA" <>
-                       action "command" <>
-                       help ("Do not run git bisect, just run the " ++
-                             "test once using AGDA")))
-             <|>
-           (Right <$>
-            strOption (long "dry-run-with-commit" <>
-                       metavar "C" <>
-                       completer commitCompleter <>
-                       help ("Do not run git bisect, just run the " ++
-                             "test once using commit C"))))
-    <*> ((Right <$>
-          many (strArgument (metavar "ARGUMENTS..." <>
-                             help "The arguments supplied to Agda")))
-           <|>
-         (curry Left <$>
-          strOption (long "script" <>
-                     metavar "PROGRAM" <>
-                     help ("Do not invoke Agda directly, run " ++
-                           "PROGRAM instead") <>
-                     action "command") <*>
-          many
-            (strArgument (metavar "PROGRAM ARGUMENTS..." <>
-                          help ("Extra arguments for the " ++
-                                "--script program")))))
+             ])
+
+  optionTimeOut =
+    optional $
+      option natArg $
+        long "timeout" <>
+        metavar "N" <>
+        help (unwords
+             [ "The command must finish in less than"
+             , "(approximately) N seconds; implies"
+             , "--no-default-cabal-options"
+             ])
+
+  optionNoExtraArguments =
+    not <$> do
+      switch $
+        long "no-extra-arguments" <>
+        help "Do not give any extra arguments to Agda"
+
+  optionPatchFile =
+    optional $
+      strOption $
+        long "patch-file" <>
+        help "Apply patch FILE before Agda sources before compilation" <>
+        metavar "FILE" <>
+        action "file"
+
+  optionCompiler =
+    optional $
+      strOption $
+        long "compiler" <>
+        help "Use COMPILER to compile Agda" <>
+        metavar "COMPILER" <>
+        action "command"
+
+  optionNoDefaultCabalOptions =
+    not <$> do
+      switch $
+        long "no-default-cabal-options" <>
+        help "Do not (by default) give certain options to cabal v1-install"
+
+  optionCabalOptions =
+    many $
+      strOption $
+        long "cabal-option" <>
+        help "Additional option given to cabal v1-install" <>
+        metavar "OPTION" <>
+        completer (commandCompleter "cabal" ["v1-install", "--list-options"])
+
+  optionSkipSkipped =
+    (\ skip -> if skip then ciSkipStrings else []) <$> do
+      switch $
+        long "skip-skipped" <>
+        help ("Skip commits with commit messages " ++
+              "containing one of the following strings: " ++
+              intercalate ", " (map show ciSkipStrings))
+
+  optionOnBranch =
+    many $
+      strOption $
+        long "on-branch" <>
+        help ("Skip commits that are not on BRANCH " ++
+              "(if this option is repeated, then " ++
+              "commits that are not on any of the " ++
+              "given branches are skipped)") <>
+        metavar "BRANCH" <>
+        completer branchCompleter
+
+  optionNotOnBranch =
+    many $
+      strOption $
+        long "not-on-branch" <>
+        help "Skip commits that are on BRANCH" <>
+        metavar "BRANCH" <>
+        completer branchCompleter
+
+  optionCache =
+      switch $
+        long "cache" <>
+        help "Cache builds"
+
+  optionLog =
+    optional $
+      strOption $
+        long "log" <>
+        help "Store a git bisect log in FILE" <>
+        metavar "FILE" <>
+        action "file"
+
+  optionGoodBadReplay =
+      (GoodBadMode <$> optionBad <*> optionGood) <|>
+      (ReplayMode <$> optionReplay)
+
+  optionBad =
+      strOption $
+        long "bad" <>
+        metavar "BAD" <>
+        help "Bad commit" <>
+        completer commitCompleter
+
+  optionGood =
+      strOption $
+        long "good" <>
+        metavar "GOOD" <>
+        help "Good commit" <>
+        completer commitCompleter
+
+  optionReplay =
+      strOption $
+        long "replay" <>
+        metavar "LOG" <>
+        help ("Replay the git bisect log in LOG " ++
+              "(which is assumed to be well-formed)") <>
+        action "file"
+
+  optionDryRunWithOrWithoutCommit =
+    optional $
+      (DryRunAgda   <$> optionDryRun) <|>
+      (DryRunCommit <$> optionDryRunWithCommit)
+
+  optionDryRun =
+      strOption $
+        long "dry-run" <>
+        metavar "AGDA" <>
+        action "command" <>
+        help ("Do not run git bisect, just run the " ++
+              "test once using AGDA")
+
+  optionDryRunWithCommit =
+      strOption $
+        long "dry-run-with-commit" <>
+        metavar "C" <>
+        completer commitCompleter <>
+        help "Do not run git bisect, just run the test once using commit C"
+
+  optionAgdaArgumentsOrScript =
+      (AgdaArguments <$> optionAgdaArguments) <|>
+      (Script <$> optionScript <*> optionScriptArguments)
+
+  optionAgdaArguments =
+    many $
+      strArgument $
+        metavar "ARGUMENTS..." <>
+        help "The arguments supplied to Agda"
+
+  optionScript =
+      strOption $
+        long "script" <>
+        metavar "PROGRAM" <>
+        help "Do not invoke Agda directly, run PROGRAM instead" <>
+        action "command"
+
+  optionScriptArguments =
+    many $
+      strArgument $
+        metavar "PROGRAM ARGUMENTS..." <>
+        help "Extra arguments for the --script program"
+
+  natArg = do
+    n <- auto
+    if n < 0 || n > maxBound
+      then readerError "Argument out of range"
+      else return n
 
   -- | Substantiates implied options, e.g. those implied by
   -- 'noInternalError'. Note that this function is not idempotent.
@@ -348,11 +460,11 @@ main :: IO ()
 main = do
   opts <- options
   case dryRun opts of
-    Just (Left agda) -> do
+    Just (DryRunAgda agda) -> do
       runAgda agda opts
       return ()
 
-    Just (Right commit) -> do
+    Just (DryRunCommit commit) -> do
       setupSandbox
 
       let checkout c = callProcess "git" ["checkout", c]
@@ -423,8 +535,8 @@ bisect opts =
   initialise :: IO ()
   initialise = do
     case start opts of
-      Left log          -> callProcess "git" ["bisect", "replay", log]
-      Right (bad, good) -> do
+      ReplayMode  log      -> callProcess "git" ["bisect", "replay", log]
+      GoodBadMode bad good -> do
         validRevision bad
         validRevision good
         callProcess "git" ["bisect", "start", bad, good]
@@ -495,8 +607,8 @@ runAgda :: FilePath  -- ^ Agda.
 runAgda agda opts = do
   (prog, args) <-
     case scriptOrArguments opts of
-      Left (prog, args) -> return (prog, agda : args)
-      Right args        -> do
+      Script prog args   -> return (prog, agda : args)
+      AgdaArguments args -> do
         flags <- if extraArguments opts then do
                    help <- readProcess agda ["--help"] ""
                    return $ filter (`isInfixOf` help) defaultFlags
@@ -557,7 +669,7 @@ runAgda agda opts = do
                               &&
                            not (any occurs (mustNotOutput opts))
           result         = case (scriptOrArguments opts, code) of
-                             (Left _, ExitFailure 127) -> Skip
+                             (Script{}, ExitFailure 127) -> Skip
                              _                         ->
                                case (mustFinishWithin opts, testsOK) of
                                  (Just _,  False) -> Skip
@@ -587,7 +699,7 @@ installAgda opts
       commit <- currentCommit
       agdas  <- forM (True : [False | not (timeout opts)])
                      (\timeout -> do
-                       agda <- cachedAgda commit timeout
+                       agda <- cachedAgda commit timeout (patchFile opts)
                        b    <- doesFileExist agda
                        return $ if b then Just agda else Nothing)
       case catMaybes agdas of
@@ -597,8 +709,15 @@ installAgda opts
           return (Just agda)
   | otherwise = install
   where
+  install :: IO (Maybe FilePath)
   install =
     uncurry bracket_ makeBuildEasier $ do
+
+      -- Patch Agda with given patch-file (if any)
+      forM_ (patchFile opts) $ \ file -> do
+        callCommand $ unwords [ "patch", "--batch", "-p0", "<", file ]
+      -- TODO: do we need to catch IO errors, e.g. to handle patch failures?
+
       ok <- cabalInstall opts "Agda.cabal"
       case ok of
         Nothing -> return ok
@@ -625,7 +744,7 @@ cabalInstall opts file = do
        , "--disable-library-profiling"
        , "--disable-documentation"
        ]
-     , [ "--program-suffix=" ++ programSuffix commit (timeout opts)
+     , [ "--program-suffix=" ++ programSuffix commit (timeout opts) (patchFile opts)
        | cacheBuilds opts
        ]
      , compilerFlag opts
@@ -634,7 +753,7 @@ cabalInstall opts file = do
      ]
   case (ok, cacheBuilds opts) of
     (True , False) -> Just <$> compiledAgda
-    (True , True ) -> Just <$> cachedAgda commit (timeout opts)
+    (True , True ) -> Just <$> cachedAgda commit (timeout opts) (patchFile opts)
     (False, _    ) -> return Nothing
 
 -- | Tries to copy data files to the correct location.
@@ -652,12 +771,17 @@ copyDataFiles opts = do
 -- | The suffix of the Agda binary.
 
 programSuffix
-  :: String  -- ^ The commit hash.
-  -> Bool    -- ^ Is the @--timeout@ option active?
+  :: Commit          -- ^ The commit hash.
+  -> Bool            -- ^ Is the @--timeout@ option active?
+  -> Maybe FilePath  -- ^ Patch file that has been applied to the Agda sources.
   -> String
-programSuffix commit timeout =
-  (if timeout then "-timeout" else "") ++
-  "-" ++ commit
+programSuffix commit timeout patchfile =
+  intercalate "-" $ concat
+    [ [ "" ]  -- to get a leading '-'
+    , maybeToList patchfile
+    , [ "timeout" | timeout ]
+    , [ commit ]
+    ]
 
 -- | Is the @--timeout@ option active?
 
@@ -667,11 +791,12 @@ timeout opts = isJust (mustFinishWithin opts)
 -- | An absolute path to the cached Agda binary (if any).
 
 cachedAgda
-  :: String
-  -> Bool
+  :: Commit          -- ^ The current commit hash.
+  -> Bool            -- ^ Is option @--timeout@ active?
+  -> Maybe FilePath  -- ^ Patch file that has been applied to the Agda sources.
   -> IO FilePath
-cachedAgda commit timeout =
-   (\agda -> agda ++ programSuffix commit timeout) <$> compiledAgda
+cachedAgda commit timeout patchfile =
+   (++ programSuffix commit timeout patchfile) <$> compiledAgda
 
 -- | Generates a @--with-compiler=…@ flag if the user has specified
 -- that a specific compiler should be used.

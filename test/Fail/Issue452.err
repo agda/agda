@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  Is empty: D true tt
+  Is empty: D true tt (stuck)
       [ at Issue452.agda:24,5-7 ]
 Unsolved metas at the following locations:
   Issue452.agda:21,19-20

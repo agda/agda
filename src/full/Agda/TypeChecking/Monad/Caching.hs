@@ -34,11 +34,19 @@ import Agda.Utils.Impossible
 
 -- | To be called before any write or restore calls.
 {-# SPECIALIZE cachingStarts :: TCM () #-}
-cachingStarts :: (MonadTCState m, ReadTCState m) => m ()
+cachingStarts :: (MonadDebug m, MonadTCState m, ReadTCState m) => m ()
 cachingStarts = do
     NameId _ m <- useTC stFreshNameId
     stFreshNameId `setTCLens` NameId 1 m
     stAreWeCaching `setTCLens` True
+    validateCache m -- fixes issue #4835
+    where
+      validateCache m = (localCache readFromCachedLog) >>= \case
+        Just (_ , s) -> do
+          let NameId _ m' = stPostFreshNameId s
+          when (m' /= m) cleanCachedLog
+        _ -> do
+          return ()
 
 areWeCaching :: (ReadTCState m) => m Bool
 areWeCaching = useR stAreWeCaching

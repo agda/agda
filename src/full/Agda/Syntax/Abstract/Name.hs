@@ -5,6 +5,7 @@
 module Agda.Syntax.Abstract.Name
   ( module Agda.Syntax.Abstract.Name
   , IsNoName(..)
+  , FreshNameMode(..)
   ) where
 
 import Prelude hiding (length)
@@ -21,7 +22,7 @@ import Data.Void
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..))
+import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..), NameInScope(..), LensInScope(..), FreshNameMode(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Functor
@@ -39,7 +40,8 @@ import Agda.Utils.Impossible
 --   source location of the binding site is also recorded.
 data Name = Name
   { nameId           :: !NameId
-  , nameConcrete     :: C.Name
+  , nameConcrete     :: C.Name  -- ^ The concrete name used for this instance
+  , nameCanonical    :: C.Name  -- ^ The concrete name in the original definition (needed by primShowQName, see #4735)
   , nameBindingSite  :: Range
   , nameFixity       :: Fixity'
   , nameIsRecordName :: Bool
@@ -49,7 +51,7 @@ data Name = Name
 
 -- | Useful for debugging scoping problems
 uglyShowName :: Name -> String
-uglyShowName (Name i c _ _ _) = show (i,c)
+uglyShowName x = show (nameId x, nameConcrete x)
 
 -- | Qualified names are non-empty lists of names. Equality on qualified names
 --   are just equality on the last name, i.e. the module part is just
@@ -182,8 +184,10 @@ class MkName a where
   mkName_ = mkName noRange
 
 instance MkName String where
-  mkName r i s = Name i (C.Name noRange InScope (C.stringNameParts s)) r noFixity' False
+  mkName r i s = makeName i (C.Name noRange InScope (C.stringNameParts s)) r noFixity' False
 
+makeName :: NameId -> C.Name -> Range -> Fixity' -> Bool -> Name
+makeName i c r f rec = Name i c c r f rec
 
 qnameToList0 :: QName -> [Name]
 qnameToList0 = List1.toList . qnameToList
@@ -210,8 +214,8 @@ showQNameId q = show ns ++ "@" ++ show m
 -- | Turn a qualified name into a concrete name. This should only be used as a
 --   fallback when looking up the right concrete name in the scope fails.
 qnameToConcrete :: QName -> C.QName
-qnameToConcrete (QName m x) =
-   foldr (C.Qual . nameConcrete) (C.QName $ nameConcrete x) (mnameToList m)
+qnameToConcrete (QName m x) =       -- Use the canonical name here (#5048)
+   foldr (C.Qual . nameConcrete) (C.QName $ nameCanonical x) (mnameToList m)
 
 mnameToConcrete :: ModuleName -> C.QName
 mnameToConcrete (MName []) = __IMPOSSIBLE__ -- C.QName C.noName_  -- should never happen?
@@ -268,8 +272,8 @@ isInModule q m = mnameToList m `isPrefixOf` qnameToList0 q
 
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.
-nextName :: Name -> Name
-nextName x = x { nameConcrete = C.nextName (nameConcrete x) }
+nextName :: C.FreshNameMode -> Name -> Name
+nextName freshNameMode x = x { nameConcrete = C.nextName freshNameMode (nameConcrete x) }
 
 sameRoot :: Name -> Name -> Bool
 sameRoot = C.sameRoot `on` nameConcrete
@@ -363,30 +367,11 @@ instance LensInScope QName where
 -- | Use 'prettyShow' to print names to the user.
 ------------------------------------------------------------------------
 
--- deriving instance Show Name
--- deriving instance Show ModuleName
--- deriving instance Show QName
+deriving instance Show Name
+deriving instance Show ModuleName
+deriving instance Show QName
 deriving instance Show a => Show (QNamed a)
 deriving instance Show AmbiguousQName
-
--- | Only use this @show@ function in debugging!  To convert an
---   abstract 'Name' into a string use @prettyShow@.
-instance Show Name where
-  -- Andreas, 2014-10-02: Reverted to nice printing.
-  -- Reason: I do not have time just now to properly fix the
-  -- use of Show Name for pretty printing everywhere.
-  -- But I want to push the fix for Issue 836 now.
-  show = prettyShow
-
--- | Only use this @show@ function in debugging!  To convert an
---   abstract 'ModuleName' into a string use @prettyShow@.
-instance Show ModuleName where
-  show = prettyShow
-
--- | Only use this @show@ function in debugging!  To convert an
---   abstract 'QName' into a string use @prettyShow@.
-instance Show QName where
-  show = prettyShow
 
 nameToArgName :: Name -> ArgName
 nameToArgName = stringToArgName . prettyShow
@@ -405,7 +390,11 @@ instance Pretty ModuleName where
   pretty = hcat . punctuate "." . map pretty . mnameToList
 
 instance Pretty QName where
-  pretty = hcat . punctuate "." . map pretty . qnameToList0
+  pretty = hcat . punctuate "." . map pretty . qnameToList0 . useCanonical
+    where
+      -- #4735: When printing a fully qualified name (as done by primShowQName) we need to
+      -- use the origincal concrete name, not the possibly renamed concrete name in 'nameConcrete'.
+      useCanonical q = q { qnameName = (qnameName q) { nameConcrete = nameCanonical (qnameName q) } }
 
 instance Pretty AmbiguousQName where
   pretty (AmbQ qs) = hcat $ punctuate " | " $ map pretty $ List1.toList qs
@@ -455,8 +444,8 @@ instance SetRange ModuleName where
 -- ** KillRange
 
 instance KillRange Name where
-  killRange (Name a b c d e) =
-    (killRange4 Name a b c d e) { nameBindingSite = c }
+  killRange (Name a b c d e f) =
+    (killRange6 Name a b c d e f) { nameBindingSite = d }
     -- Andreas, 2017-07-25, issue #2649
     -- Preserve the nameBindingSite for error message.
     --
@@ -499,7 +488,7 @@ instance Sized ModuleName where
 -- | The range is not forced.
 
 instance NFData Name where
-  rnf (Name _ a _ b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (Name _ a b _ c d) = rnf (a, b, c, d)
 
 instance NFData QName where
   rnf (QName a b) = rnf a `seq` rnf b

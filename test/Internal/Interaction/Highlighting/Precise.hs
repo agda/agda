@@ -126,9 +126,10 @@ instance CoArbitrary Aspect where
   coarbitrary Pragma        = variant 7
   coarbitrary Background    = variant 8
   coarbitrary Markup        = variant 9
+  coarbitrary Hole          = variant 10
 
 instance Arbitrary NameKind where
-  arbitrary = oneof $ [liftM Constructor arbitrary] ++
+  arbitrary = oneof $ [fmap Constructor arbitrary] ++
                       map return [ Bound
                                  , Datatype
                                  , Field

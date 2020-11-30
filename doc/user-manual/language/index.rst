@@ -20,6 +20,7 @@ Language Reference
    function-definitions
    function-types
    generalization-of-declared-variables
+   guarded-cubical
    implicit-arguments
    instance-arguments
    irrelevance
@@ -41,6 +42,7 @@ Language Reference
    runtime-irrelevance
    safe-agda
    sized-types
+   sort-system
    syntactic-sugar
    syntax-declarations
    telescopes

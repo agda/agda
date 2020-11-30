@@ -1,7 +1,8 @@
 Issue3810b.agda:25,13-18
-Confluence check failed: f ((x : A) → A) (g ((x : A) → A))
-reduces to both b and f ((x : A) → A) (λ x → a)
-which are not equal because b != a of type A
+Global confluence check failed: f ((x : A) → A) (g ((x : A) → A))
+can be rewritten to either b or f ((x : A) → A) (λ x → a).
+Possible fix: add a rewrite rule with left-hand side
+f ((x : A) → A) (g ((x : A) → A)) to resolve the ambiguity.
 when checking confluence of the rewrite rule rewf₂ with rewg
 Issue3810b.agda:31,9-13
 a != b of type A

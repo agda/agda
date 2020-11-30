@@ -1,5 +1,7 @@
 -- This test case was reported by Andrea Vezzosi.
+
 {-# OPTIONS --no-guardedness #-}
+
 open import Agda.Builtin.Size
 
 data Σ (A : Set) (B : A → Set) : Set where
@@ -11,7 +13,7 @@ record T (i : Size) : Set where
   constructor con
   coinductive
   field
-    force : Σ (Size< i) \ { j → T j }
+    force : Σ (Size< i) λ{ j → T j }
 
 open T public
 
@@ -20,7 +22,7 @@ empty i x with force x
 ... | j , y = empty j y
 
 inh : T ∞
-inh = \ { .force → ∞ , inh } -- using oo < oo here
+inh = λ{ .force → ∞ , inh } -- using ∞ < ∞ here
 
 false : ⊥
 false = empty ∞ inh

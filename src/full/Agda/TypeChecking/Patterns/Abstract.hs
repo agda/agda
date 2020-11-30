@@ -1,9 +1,10 @@
-{-# LANGUAGE TypeFamilies #-}
 
 -- | Tools to manipulate patterns in abstract syntax
 --   in the TCM (type checking monad).
 
 module Agda.TypeChecking.Patterns.Abstract where
+
+import Control.Monad.Except
 
 import qualified Data.List as List
 import Data.Void
@@ -24,21 +25,22 @@ import Agda.Utils.Impossible
 
 -- | Expand literal integer pattern into suc/zero constructor patterns.
 --
-expandLitPattern :: A.Pattern -> TCM A.Pattern
-expandLitPattern p = case asView p of
-  (xs, A.LitP (LitNat r n))
+expandLitPattern
+  :: (MonadError TCErr m, MonadTCEnv m, ReadTCState m, HasBuiltins m)
+  => A.Pattern -> m A.Pattern
+expandLitPattern = \case
+  A.LitP info (LitNat n)
     | n < 0     -> negLit -- Andreas, issue #2365, negative literals not yet supported.
     | n > 20    -> tooBig
     | otherwise -> do
       Con z _ _ <- primZero
       Con s _ _ <- primSuc
+      let r     = getRange info
       let zero  = A.ConP cinfo (unambiguous $ setRange r $ conName z) []
           suc p = A.ConP cinfo (unambiguous $ setRange r $ conName s) [defaultNamedArg p]
-          info  = A.PatRange r
           cinfo = A.ConPatInfo ConOCon info ConPatEager
-          p'    = foldr ($) zero $ List.genericReplicate n suc
-      return $ foldr ((A.AsP info) . A.mkBindName) p' xs
-  _ -> return p
+      return $ foldr ($) zero $ List.genericReplicate n suc
+  p -> return p
 
   where
     tooBig = typeError $ GenericError $

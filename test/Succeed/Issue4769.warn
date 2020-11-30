@@ -1,0 +1,24 @@
+Issue4769.agda:11,46-52
+Face constraint patterns cannot be instance arguments
+when scope checking the left-hand side
+foo i j ((i = i0)) ⦃ agdaDoesNotSeeThisName = ((j = i1)) ⦄ in the
+definition of foo
+Issue4769.agda:11,20-42
+Ignoring name 'agdaDoesNotSeeThisName' given to face constraint pattern
+when scope checking the left-hand side
+foo i j ((i = i0)) ⦃ agdaDoesNotSeeThisName = ((j = i1)) ⦄ in the
+definition of foo
+
+———— All done; warnings encountered ————————————————————————
+
+Issue4769.agda:11,46-52
+Face constraint patterns cannot be instance arguments
+when scope checking the left-hand side
+foo i j ((i = i0)) ⦃ agdaDoesNotSeeThisName = ((j = i1)) ⦄ in the
+definition of foo
+
+Issue4769.agda:11,20-42
+Ignoring name 'agdaDoesNotSeeThisName' given to face constraint pattern
+when scope checking the left-hand side
+foo i j ((i = i0)) ⦃ agdaDoesNotSeeThisName = ((j = i1)) ⦄ in the
+definition of foo

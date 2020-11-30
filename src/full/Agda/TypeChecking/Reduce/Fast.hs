@@ -1,6 +1,4 @@
 {-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE TypeFamilies  #-}
 
 {-|
 
@@ -47,6 +45,8 @@ import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Semigroup ((<>))
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
@@ -66,6 +66,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Interaction.Options
 
+import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -120,9 +121,11 @@ compactDef bEnv def rewr = do
         _      -> False
   let irr = isPrp || isIrrelevant (defArgInfo def)
 
+  dontReduce <- not <$> shouldReduceDef (defName def)
+
   cdefn <-
     case theDef def of
-      _ | irr -> pure CAxiom
+      _ | irr || dontReduce -> pure CAxiom
       _ | Just (defName def) == bPrimForce bEnv   -> pure CForce
       _ | Just (defName def) == bPrimErase bEnv ->
           case telView' (defType def) of
@@ -147,7 +150,7 @@ compactDef bEnv def rewr = do
       PrimitiveSort{}                -> pure COther -- TODO
       Primitive{ primName = name, primCompiled = cc } ->
         case name of
-          -- "primShowInteger" -- integers are not literals
+          -- "primShowInteger"            -- integers are not literals
 
           -- Natural numbers
           "primNatPlus"                -> mkPrim 2 $ natOp (+)
@@ -159,39 +162,57 @@ compactDef bEnv def rewr = do
           "primNatEquality"            -> mkPrim 2 $ natRel (==)
 
           -- Word64
-          "primWord64ToNat"            -> mkPrim 1 $ \ [LitWord64 _ a] -> nat (fromIntegral a)
-          "primWord64FromNat"          -> mkPrim 1 $ \ [LitNat _ a]    -> word (fromIntegral a)
+          "primWord64ToNat"            -> mkPrim 1 $ \ [LitWord64 a] -> nat (fromIntegral a)
+          "primWord64FromNat"          -> mkPrim 1 $ \ [LitNat a]    -> word (fromIntegral a)
 
-          -- Levels are not literals
-          -- "primLevelZero"
-          -- "primLevelSuc"
-          -- "primLevelMax"
+          -- Levels
+          -- "primLevelZero"              -- levels are not literals
+          -- "primLevelSuc"               -- levels are not literals
+          -- "primLevelMax"               -- levels are not literals
 
           -- Floats
-          "primNatToFloat"             -> mkPrim 1 $ \ [LitNat _ a] -> float (fromIntegral a)
+          "primFloatInequality"        -> mkPrim 2 $ floatRel (<=)
+          "primFloatEquality"          -> mkPrim 2 $ floatRel (==)
+          "primFloatLess"              -> mkPrim 2 $ floatRel (<)
+          "primFloatIsInfinite"        -> mkPrim 1 $ floatPred isInfinite
+          "primFloatIsNaN"             -> mkPrim 1 $ floatPred isNaN
+          "primFloatIsDenormalized"    -> mkPrim 1 $ floatPred isDenormalized
+          "primFloatIsNegativeZero"    -> mkPrim 1 $ floatPred isNegativeZero
+          "primFloatIsSafeInteger"     -> mkPrim 1 $ floatPred isSafeInteger
+          "primFloatToWord64"          -> mkPrim 1 $ \ [LitFloat a] -> word (doubleToWord64 a)
+          -- "primFloatToWord64Injective" -- identities are not literals
+          "primNatToFloat"             -> mkPrim 1 $ \ [LitNat a] -> float (fromIntegral a)
+          -- "primIntToFloat"             -- integers are not literals
+          -- "primFloatRound"             -- integers and maybe are not literals
+          -- "primFloatFloor"             -- integers and maybe are not literals
+          -- "primFloatCeiling"           -- integers and maybe are not literals
+          -- "primFloatToRatio"           -- integers and sigma are not literals
+          -- "primRatioToFloat"           -- integers are not literals
+          -- "primFloatDecode"            -- integers and sigma are not literals
+          -- "primFloatEncode"            -- integers are not literals
           "primFloatPlus"              -> mkPrim 2 $ floatOp (+)
           "primFloatMinus"             -> mkPrim 2 $ floatOp (-)
           "primFloatTimes"             -> mkPrim 2 $ floatOp (*)
           "primFloatNegate"            -> mkPrim 1 $ floatFun negate
           "primFloatDiv"               -> mkPrim 2 $ floatOp (/)
-          "primFloatEquality"          -> mkPrim 2 $ floatRel floatEq
-          "primFloatLess"              -> mkPrim 2 $ floatRel floatLt
-          "primFloatNumericalEquality" -> mkPrim 2 $ floatRel (==)
-          "primFloatNumericalLess"     -> mkPrim 2 $ floatRel (<)
           "primFloatSqrt"              -> mkPrim 1 $ floatFun sqrt
-          -- "primRound"    -- Integers are not literals
-          -- "primFloor"
-          -- "primCeiling"
-          "primExp"                    -> mkPrim 1 $ floatFun exp
-          "primLog"                    -> mkPrim 1 $ floatFun log
-          "primSin"                    -> mkPrim 1 $ floatFun sin
-          "primCos"                    -> mkPrim 1 $ floatFun cos
-          "primTan"                    -> mkPrim 1 $ floatFun tan
-          "primASin"                   -> mkPrim 1 $ floatFun asin
-          "primACos"                   -> mkPrim 1 $ floatFun acos
-          "primATan"                   -> mkPrim 1 $ floatFun atan
-          "primATan2"                  -> mkPrim 2 $ floatOp atan2
-          "primShowFloat"              -> mkPrim 1 $ \ [LitFloat _ a] -> string (show a)
+          "primFloatExp"               -> mkPrim 1 $ floatFun exp
+          "primFloatLog"               -> mkPrim 1 $ floatFun log
+          "primFloatSin"               -> mkPrim 1 $ floatFun sin
+          "primFloatCos"               -> mkPrim 1 $ floatFun cos
+          "primFloatTan"               -> mkPrim 1 $ floatFun tan
+          "primFloatASin"              -> mkPrim 1 $ floatFun asin
+          "primFloatACos"              -> mkPrim 1 $ floatFun acos
+          "primFloatATan"              -> mkPrim 1 $ floatFun atan
+          "primFloatATan2"             -> mkPrim 2 $ floatOp atan2
+          "primFloatSinh"              -> mkPrim 1 $ floatFun sinh
+          "primFloatCosh"              -> mkPrim 1 $ floatFun cosh
+          "primFloatTanh"              -> mkPrim 1 $ floatFun tanh
+          "primFloatASinh"             -> mkPrim 1 $ floatFun asinh
+          "primFloatACosh"             -> mkPrim 1 $ floatFun acosh
+          "primFloatATanh"             -> mkPrim 1 $ floatFun atanh
+          "primFloatPow"               -> mkPrim 2 $ floatOp (**)
+          "primShowFloat"              -> mkPrim 1 $ \ [LitFloat a] -> string (show a)
 
           -- Characters
           "primCharEquality"           -> mkPrim 2 $ charRel (==)
@@ -205,27 +226,27 @@ compactDef bEnv def rewr = do
           "primIsHexDigit"             -> mkPrim 1 $ charPred isHexDigit
           "primToUpper"                -> mkPrim 1 $ charFun toUpper
           "primToLower"                -> mkPrim 1 $ charFun toLower
-          "primCharToNat"              -> mkPrim 1 $ \ [LitChar _ a] -> nat (fromIntegral (fromEnum a))
-          "primNatToChar"              -> mkPrim 1 $ \ [LitNat  _ a] -> char (toEnum $ fromIntegral $ a `mod` 0x110000)
+          "primCharToNat"              -> mkPrim 1 $ \ [LitChar a] -> nat (fromIntegral (fromEnum a))
+          "primNatToChar"              -> mkPrim 1 $ \ [LitNat a] -> char (toEnum $ fromIntegral $ a `mod` 0x110000)
           "primShowChar"               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- Strings
-          -- "primStringToList"     -- We don't have the list builtins (but could have, TODO)
-          -- "primStringFromList"   -- and they are not literals
-          "primStringAppend"           -> mkPrim 2 $ \ [LitString _ a, LitString _ b] -> string (b ++ a)
-          "primStringEquality"         -> mkPrim 2 $ \ [LitString _ a, LitString _ b] -> bool (b == a)
+          -- "primStringToList"           -- lists are not literals (TODO)
+          -- "primStringFromList"         -- lists are not literals (TODO)
+          "primStringAppend"           -> mkPrim 2 $ \ [LitString a, LitString b] -> text (b <> a)
+          "primStringEquality"         -> mkPrim 2 $ \ [LitString a, LitString b] -> bool (b == a)
           "primShowString"             -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- "primErase"
           -- "primForce"
           -- "primForceLemma"
-          "primQNameEquality"          -> mkPrim 2 $ \ [LitQName _ a, LitQName _ b] -> bool (b == a)
-          "primQNameLess"              -> mkPrim 2 $ \ [LitQName _ a, LitQName _ b] -> bool (b < a)
-          "primShowQName"              -> mkPrim 1 $ \ [LitQName _ a] -> string (show a)
-          -- "primQNameFixity"  -- We don't have fixity builtins (TODO)
-          "primMetaEquality"           -> mkPrim 2 $ \ [LitMeta _ _ a, LitMeta _ _ b] -> bool (b == a)
-          "primMetaLess"               -> mkPrim 2 $ \ [LitMeta _ _ a, LitMeta _ _ b] -> bool (b < a)
-          "primShowMeta"               -> mkPrim 1 $ \ [LitMeta _ _ a] -> string (show (pretty a))
+          "primQNameEquality"          -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b == a)
+          "primQNameLess"              -> mkPrim 2 $ \ [LitQName a, LitQName b] -> bool (b < a)
+          "primShowQName"              -> mkPrim 1 $ \ [LitQName a] -> string (prettyShow a)
+          -- "primQNameFixity"            -- fixities are not literals (TODO)
+          "primMetaEquality"           -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b == a)
+          "primMetaLess"               -> mkPrim 2 $ \ [LitMeta _ a, LitMeta _ b] -> bool (b < a)
+          "primShowMeta"               -> mkPrim 1 $ \ [LitMeta _ a] -> string (prettyShow a)
 
           _                            -> pure COther
         where
@@ -240,38 +261,42 @@ compactDef bEnv def rewr = do
           ~(Just false) = bFalse bEnv <&> \ c -> Con c ConOSystem []
 
           bool   a = if a then true else false
-          nat    a = Lit . LitNat    noRange $! a
-          word   a = Lit . LitWord64 noRange $! a
-          float  a = Lit . LitFloat  noRange $! a
-          string a = Lit . LitString noRange $! a
-          char   a = Lit . LitChar   noRange $! a
+          nat    a = Lit . LitNat    $! a
+          word   a = Lit . LitWord64 $! a
+          float  a = Lit . LitFloat  $! a
+          text   a = Lit . LitString $! a
+          string a = text (T.pack a)
+          char   a = Lit . LitChar   $! a
 
           -- Remember reverse order!
-          natOp f [LitNat _ a, LitNat _ b] = nat (f b a)
+          natOp f [LitNat a, LitNat b] = nat (f b a)
           natOp _ _ = __IMPOSSIBLE__
 
-          natOp4 f [LitNat _ a, LitNat _ b, LitNat _ c, LitNat _ d] = nat (f d c b a)
+          natOp4 f [LitNat a, LitNat b, LitNat c, LitNat d] = nat (f d c b a)
           natOp4 _ _ = __IMPOSSIBLE__
 
-          natRel f [LitNat _ a, LitNat _ b] = bool (f b a)
+          natRel f [LitNat a, LitNat b] = bool (f b a)
           natRel _ _ = __IMPOSSIBLE__
 
-          floatFun f [LitFloat _ a] = float (f a)
+          floatFun f [LitFloat a] = float (f a)
           floatFun _ _ = __IMPOSSIBLE__
 
-          floatOp f [LitFloat _ a, LitFloat _ b] = float (f b a)
+          floatOp f [LitFloat a, LitFloat b] = float (f b a)
           floatOp _ _ = __IMPOSSIBLE__
 
-          floatRel f [LitFloat _ a, LitFloat _ b] = bool (f b a)
+          floatPred f [LitFloat a] = bool (f a)
+          floatPred _ _ = __IMPOSSIBLE__
+
+          floatRel f [LitFloat a, LitFloat b] = bool (f b a)
           floatRel _ _ = __IMPOSSIBLE__
 
-          charFun f [LitChar _ a] = char (f a)
+          charFun f [LitChar a] = char (f a)
           charFun _ _ = __IMPOSSIBLE__
 
-          charPred f [LitChar _ a] = bool (f a)
+          charPred f [LitChar a] = bool (f a)
           charPred _ _ = __IMPOSSIBLE__
 
-          charRel f [LitChar _ a, LitChar _ b] = bool (f b a)
+          charRel f [LitChar a, LitChar b] = bool (f b a)
           charRel _ _ = __IMPOSSIBLE__
 
   return $
@@ -663,12 +688,6 @@ data ControlFrame s = CaseK QName ArgInfo (FastCase FastCompiledClauses) (Spine 
 compile :: Normalisation -> Term -> AM s
 compile nf t = Eval (Closure Unevaled t emptyEnv []) [NormaliseK | nf == NF]
 
--- | The abstract machine treats uninstantiated meta-variables as blocked, but the rest of Agda does
---   not.
-topMetaIsNotBlocked :: Blocked Term -> Blocked Term
-topMetaIsNotBlocked (Blocked _ t@MetaV{}) = notBlocked t
-topMetaIsNotBlocked b = b
-
 decodePointer :: Pointer s -> ST s Term
 decodePointer p = decodeClosure_ =<< derefPointer_ p
 
@@ -693,7 +712,7 @@ decodeClosure :: Closure s -> ST s (Blocked Term)
 decodeClosure (Closure isV t env spine) = do
     vs <- decodeEnv env
     es <- decodeSpine spine
-    return $ topMetaIsNotBlocked (applyE (applySubst (parS vs) t) es <$ b)
+    return $ applyE (applySubst (parS vs) t) es <$ b
   where
     parS = foldr (:#) IdS  -- parallelS is too strict
     b    = case isV of
@@ -762,12 +781,12 @@ buildEnv xs spine = go xs spine emptyEnv
         IApply x y r : sp -> go xs sp (r `extendEnv` env)
         _            -> __IMPOSSIBLE__
 
-unusedPointerString :: String
-unusedPointerString = show (withFileAndLine Impossible)
+unusedPointerString :: Text
+unusedPointerString = T.pack (show (withCurrentCallStack Impossible))
 
 unusedPointer :: Pointer s
 unusedPointer = Pure (Closure (Value $ notBlocked ())
-                     (Lit (LitString noRange unusedPointerString)) emptyEnv [])
+                     (Lit (LitString unusedPointerString)) emptyEnv [])
 
 -- * Running the abstract machine
 
@@ -873,7 +892,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
 
         -- Case: zero. Return value closure with literal 0.
         Con c i [] | isZero c ->
-          runAM (evalTrueValue (Lit (LitNat noRange 0)) emptyEnv spine ctrl)
+          runAM (evalTrueValue (Lit (LitNat 0)) emptyEnv spine ctrl)
 
         -- Case: suc. Suc is strict in its argument to make sure we return a literal whenever
         -- possible. Push a 'NatSucK' frame on the control stack and evaluate the argument.
@@ -989,8 +1008,8 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     -- Case: NatSucK m
 
     -- If literal add m to the literal,
-    runAM' (Eval cl@(Closure Value{} (Lit (LitNat r n)) _ _) (NatSucK m : ctrl)) =
-      runAM (evalTrueValue (Lit $! LitNat r $! m + n) emptyEnv [] ctrl)
+    runAM' (Eval cl@(Closure Value{} (Lit (LitNat n)) _ _) (NatSucK m : ctrl)) =
+      runAM (evalTrueValue (Lit $! LitNat $! m + n) emptyEnv [] ctrl)
 
     -- otherwise apply 'suc' m times.
     runAM' (Eval cl (NatSucK m : ctrl)) =
@@ -1043,7 +1062,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         spine' = spine0 <> [elim] <> spine1
         stuck  = Closure (Value blk) (Def pf []) emptyEnv spine'
 
-        isCanonical u = case u of
+        isCanonical = \case
           Lit{}      -> True
           Con{}      -> True
           Lam{}      -> True
@@ -1106,8 +1125,8 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
             runAM (evalValue blk (Con c ci []) emptyEnv (spine' <> spine) ctrl0)
           -- Case: natural number literals. Literal natural number patterns are translated to
           -- suc-matches, so there is no need to try matchLit.
-          Lit (LitNat _ 0) -> matchLitZero  $ matchCatchall $ failedMatch f stack ctrl
-          Lit (LitNat _ n) -> matchLitSuc n $ matchCatchall $ failedMatch f stack ctrl
+          Lit (LitNat 0) -> matchLitZero  $ matchCatchall $ failedMatch f stack ctrl
+          Lit (LitNat n) -> matchLitSuc n $ matchCatchall $ failedMatch f stack ctrl
 
           -- Case: literal
           Lit l -> matchLit l $ matchCatchall $ failedMatch f stack ctrl
@@ -1171,7 +1190,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         matchLitSuc n = fsucBranch bs `ifJust` \ cc ->
             runAM (Match f cc (spine0 <> [Apply $ defaultArg arg] <> spine1) catchallStack ctrl)
           where n'  = n - 1
-                arg = pureThunk $ trueValue (Lit $ LitNat noRange n') emptyEnv []
+                arg = pureThunk $ trueValue (Lit $ LitNat n') emptyEnv []
 
         -- Matching a literal 0. Simply calls matchCon with the zero constructor.
         matchLitZero = matchCon (fromMaybe __IMPOSSIBLE__ zero) ConOSystem 0
@@ -1262,7 +1281,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           case iview $ ignoreBlocking br of
             IZero -> evalPointerAM x es ctrl
             IOne  -> evalPointerAM y es ctrl
-            _     -> (<* blockedOrMeta br) <$> go es
+            _     -> (<* br) <$> go es
         go (e : es) = go es
 
     -- Normalise the spine and apply the closure to the result. The closure must be a value closure.
@@ -1306,7 +1325,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
       | otherwise = traceDoc ("R" <+> pretty s) $ do
         v0 <- decodeClosure_ (Closure Unevaled t env [])
         es <- decodeSpine spine
-        case runReduce (rewrite blk v0 rewr es) of
+        case runReduce (rewrite blk (applyE v0) rewr es) of
           NoReduction b    -> runAM (evalValue (() <$ b) (ignoreBlocking b) emptyEnv [] ctrl)
           YesReduction _ v -> runAM (evalClosure v emptyEnv [] ctrl)
       where rewr = case t of
@@ -1354,7 +1373,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
       | speculative          = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
       | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
       | otherwise            = runReduce $
-          traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ show f)
+          traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ prettyShow f)
                    __IMPOSSIBLE__
 
     -- Some helper functions to build machine states and closures.
@@ -1405,7 +1424,7 @@ instance Pretty (Pointer s) where
   prettyPrec p = prettyPrec p . unsafeDerefPointer
 
 instance Pretty (Closure s) where
-  prettyPrec _ (Closure Value{} (Lit (LitString _ unused)) _ _)
+  prettyPrec _ (Closure Value{} (Lit (LitString unused)) _ _)
     | unused == unusedPointerString = "_"
   prettyPrec p (Closure isV t env spine) =
     mparens (p > 9) $ fsep [ text tag

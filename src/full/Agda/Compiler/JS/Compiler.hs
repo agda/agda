@@ -1,17 +1,23 @@
+-- | Main module for JS backend.
+
 module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
 import Control.Monad.Trans
 
-import Data.Char ( isSpace )
-import Data.List ( intercalate, partition )
-import Data.Set ( Set, null, insert, difference, delete )
-import Data.Map ( fromList )
+import Data.Char     ( isSpace )
+import Data.Foldable ( forM_ )
+import Data.List     ( intercalate, partition )
+import Data.Set      ( Set )
+
 import qualified Data.Set as Set
 import qualified Data.Map as Map
+import qualified Data.Text as T
 
-import System.Directory ( createDirectoryIfMissing )
-import System.FilePath ( splitFileName, (</>) )
+import System.Directory   ( createDirectoryIfMissing )
+import System.Environment ( setEnv )
+import System.FilePath    ( splitFileName, (</>) )
+import System.Process     ( callCommand )
 
 import Paths_Agda
 
@@ -33,14 +39,19 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
+
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( headWithDefault )
-import Agda.Utils.Maybe
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, whenNothing )
 import Agda.Utils.Monad ( ifM, when )
+import Agda.Utils.Null  ( null )
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
+import Agda.Utils.Singleton ( singleton )
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -53,8 +64,10 @@ import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,Null,String,Char,Integer,Double,Lambda,Object,Array,Apply,Lookup,If,BinOp,PlainJS),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module), Comment(Comment),
-    modName, expName, uses )
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Export(Export), Module(Module, modName, callMain), Comment(Comment),
+    modName, expName, uses
+  , JSQName
+  )
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
@@ -92,16 +105,20 @@ jsBackend' = Backend'
 --- Options ---
 
 data JSOptions = JSOptions
-  { optJSCompile :: Bool
+  { optJSCompile  :: Bool
   , optJSOptimize :: Bool
-  , optJSMinify :: Bool
+  , optJSMinify   :: Bool
+      -- ^ Remove spaces etc. See https://en.wikipedia.org/wiki/Minification_(programming).
+  , optJSVerify   :: Bool
+      -- ^ Run generated code through interpreter.
   }
 
 defaultJSOptions :: JSOptions
 defaultJSOptions = JSOptions
-  { optJSCompile = False
+  { optJSCompile  = False
   , optJSOptimize = False
-  , optJSMinify = False
+  , optJSMinify   = False
+  , optJSVerify   = False
   }
 
 jsCommandLineFlags :: [OptDescr (Flag JSOptions)]
@@ -110,19 +127,53 @@ jsCommandLineFlags =
     , Option [] ["js-optimize"] (NoArg enableOpt) "turn on optimizations during JS code generation"
     -- Minification is described at https://en.wikipedia.org/wiki/Minification_(programming)
     , Option [] ["js-minify"] (NoArg enableMin) "minify generated JS code"
+    , Option [] ["js-verify"] (NoArg enableVerify) "except for main module, run generated JS modules through `node` (needs to be in PATH)"
     ]
   where
-    enable o = pure o{ optJSCompile = True }
-    enableOpt o = pure o{ optJSOptimize = True }
-    enableMin o = pure o{ optJSMinify = True }
+    enable       o = pure o{ optJSCompile  = True }
+    enableOpt    o = pure o{ optJSOptimize = True }
+    enableMin    o = pure o{ optJSMinify   = True }
+    enableVerify o = pure o{ optJSVerify   = True }
 
 --- Top-level compilation ---
 
 jsPreCompile :: JSOptions -> TCM JSOptions
 jsPreCompile opts = return opts
 
+-- | After all modules have been compiled, copy RTE modules and verify compiled modules.
+
 jsPostCompile :: JSOptions -> IsMain -> Map.Map ModuleName Module -> TCM ()
-jsPostCompile _opts _ _ms = copyRTEModules
+jsPostCompile opts _ ms = do
+
+  -- Copy RTE modules.
+
+  compDir  <- compileDir
+  liftIO $ do
+    dataDir <- getDataDir
+    let srcDir = dataDir </> "JS"
+    copyDirContent srcDir compDir
+
+  -- Verify generated JS modules (except for main).
+
+  reportSLn "compile.js.verify" 10 $ "Considering to verify generated JS modules"
+  when (optJSVerify opts) $ do
+
+    reportSLn "compile.js.verify" 10 $ "Verifying generated JS modules"
+    liftIO $ setEnv "NODE_PATH" compDir
+
+    forM_ ms $ \ Module{ modName, callMain } -> do
+      jsFile <- outFile modName
+      reportSLn "compile.js.verify" 30 $ unwords [ "Considering JS module:" , jsFile ]
+
+      -- Since we do not run a JS program for real, we skip all modules that could
+      -- have a call to main.
+      -- Atm, modules whose compilation was skipped are also skipped during verification
+      -- (they appear here as main modules).
+      whenNothing callMain $ do
+        let cmd = unwords [ "node", "-", "<", jsFile ]
+        reportSLn "compile.js.verify" 20 $ unwords [ "calling:", cmd ]
+        liftIO $ callCommand cmd
+
 
 mergeModules :: Map.Map ModuleName Module -> [(GlobalId, Export)]
 mergeModules ms
@@ -142,7 +193,10 @@ jsPreModule _opts _ m ifile = ifM uptodate noComp yesComp
 
     noComp = do
       reportSLn "compile.js" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
-      return $ Skip __IMPOSSIBLE__
+      return $ Skip skippedModule
+
+    -- A skipped module acts as a fake main module, to be skipped by --js-verify as well.
+    skippedModule = Module (jsMod m) mempty mempty (Just __IMPOSSIBLE__)
 
     yesComp = do
       m   <- prettyShow <$> curMName
@@ -154,14 +208,19 @@ jsPostModule :: JSOptions -> JSModuleEnv -> IsMain -> ModuleName -> [Maybe Expor
 jsPostModule opts _ isMain _ defs = do
   m             <- jsMod <$> curMName
   is            <- map (jsMod . fst) . iImportedModules <$> curIF
-  let es = catMaybes defs
-      mod = Module m is (reorder es) main
+  let mod = Module m is (reorder es) callMain
   writeModule (optJSMinify opts) mod
   return mod
   where
-    main = case isMain of
-      IsMain  -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
-      NotMain -> Nothing
+  es       = catMaybes defs
+  main     = MemberId "main"
+  -- Andreas, 2020-10-27, only add invocation of "main" if such function is defined.
+  -- This allows loading of generated .js files into an interpreter
+  -- even if they do not define "main".
+  hasMain  = isMain == IsMain && any ((singleton main ==) . expName) es
+  callMain :: Maybe Exp
+  callMain = boolToMaybe hasMain $ Apply (Lookup Self main) [Lambda 1 emp]
+
 
 jsCompileDef :: JSOptions -> JSModuleEnv -> IsMain -> Definition -> TCM (Maybe Export)
 jsCompileDef opts kit _isMain def = definition (opts, kit) (defName def, def)
@@ -187,33 +246,40 @@ jsMember n
   | isNoName n = MemberId ("_" ++ show (nameId n))
   | otherwise  = MemberId $ prettyShow n
 
--- Rather annoyingly, the anonymous construtor of a record R in module M
--- is given the name M.recCon, but a named constructor C
--- is given the name M.R.C, sigh. This causes a lot of hoop-jumping
--- in the map from Agda names to JS names, which we patch by renaming
--- anonymous constructors to M.R.record.
-
-global' :: QName -> TCM (Exp,[MemberId])
+global' :: QName -> TCM (Exp, JSQName)
 global' q = do
   i <- iModuleName <$> curIF
   modNm <- topLevelModuleName (qnameModule q)
   let
+    -- Global module prefix
     qms = mnameToList $ qnameModule q
-    nm = map jsMember (drop (length $ mnameToList modNm) qms ++ [qnameName q])
+    -- File-local module prefix
+    localms = drop (length $ mnameToList modNm) qms
+    nm = fmap jsMember $ List1.snoc localms $ qnameName q
   if modNm == i
     then return (Self, nm)
     else return (Global (jsMod modNm), nm)
 
-global :: QName -> TCM (Exp,[MemberId])
+global :: QName -> TCM (Exp, JSQName)
 global q = do
   d <- getConstInfo q
   case d of
     Defn { theDef = Constructor { conData = p } } -> do
-      e <- getConstInfo p
-      case e of
+      getConstInfo p >>= \case
+        -- Andreas, 2020-10-27, comment quotes outdated fact.
+        -- anon. constructors are now M.R.constructor.
+        -- We could simplify/remove the workaround by switching "record"
+        -- to "constructor", but this changes the output of the JS compiler
+        -- maybe in ways that break user's developments
+        -- (if they link to Agda-generated JS).
+        -- -- Rather annoyingly, the anonymous constructor of a record R in module M
+        -- -- is given the name M.recCon, but a named constructor C
+        -- -- is given the name M.R.C, sigh. This causes a lot of hoop-jumping
+        -- -- in the map from Agda names to JS names, which we patch by renaming
+        -- -- anonymous constructors to M.R.record.
         Defn { theDef = Record { recNamedCon = False } } -> do
           (m,ls) <- global' p
-          return (m, ls ++ [MemberId "record"])
+          return (m, ls <> singleton (MemberId "record"))
         _ -> global' (defName d)
     _ -> global' (defName d)
 
@@ -232,12 +298,12 @@ reorder es = datas ++ funs ++ reorder' (Set.fromList $ map expName $ datas ++ fu
     (vs, funs)    = partition isTopLevelValue es
     (datas, vals) = partition isEmptyObject vs
 
-reorder' :: Set [MemberId] -> [Export] -> [Export]
+reorder' :: Set JSQName -> [Export] -> [Export]
 reorder' defs [] = []
 reorder' defs (e : es) =
-  let us = uses e `difference` defs
+  let us = uses e `Set.difference` defs
   in  if null us
-        then e : (reorder' (insert (expName e) defs) es)
+        then e : (reorder' (Set.insert (expName e) defs) es)
         else reorder' defs (insertAfter us e es)
 
 isTopLevelValue :: Export -> Bool
@@ -248,33 +314,20 @@ isTopLevelValue (Export _ e) = case e of
 
 isEmptyObject :: Export -> Bool
 isEmptyObject (Export _ e) = case e of
-  Object m -> Map.null m
+  Object m -> null m
   Lambda{} -> True
   _        -> False
 
-insertAfter :: Set [MemberId] -> Export -> [Export] -> [Export]
+insertAfter :: Set JSQName -> Export -> [Export] -> [Export]
 insertAfter us e []                   = [e]
 insertAfter us e (f : fs) | null us   = e : f : fs
 insertAfter us e (f : fs) | otherwise =
-  f : insertAfter (delete (expName f) us) e fs
+  f : insertAfter (Set.delete (expName f) us) e fs
 
 --------------------------------------------------
 -- Main compiling clauses
 --------------------------------------------------
 
-{- dead code
-curModule :: IsMain -> TCM Module
-curModule isMain = do
-  kit <- coinductionKit
-  m <- (jsMod <$> curMName)
-  is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
-  es <- catMaybes <$> (mapM (definition kit) =<< (sortDefs <$> curDefs))
-  return $ Module m is (reorder es) main
-  where
-    main = case isMain of
-      IsMain -> Just $ Apply (Lookup Self $ MemberId "main") [Lambda 1 emp]
-      NotMain -> Nothing
--}
 type EnvWithOpts = (JSOptions, JSModuleEnv)
 
 definition :: EnvWithOpts -> (QName,Definition) -> TCM (Maybe Export)
@@ -303,7 +356,7 @@ defJSDef def =
   where
     dropEquals = dropWhile $ \ c -> isSpace c || c == '='
 
-definition' :: EnvWithOpts -> QName -> Definition -> Type -> [MemberId] -> TCM (Maybe Export)
+definition' :: EnvWithOpts -> QName -> Definition -> Type -> JSQName -> TCM (Maybe Export)
 definition' kit q d t ls = do
   checkCompilerPragmas q
   case theDef d of
@@ -346,7 +399,9 @@ definition' kit q d t ls = do
                   $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
 
         reportSDoc "compile.js" 30 $ " compiled JS fun:" <+> (text . show) funBody'
-        return $ Just $ Export ls funBody'
+        return $
+          if funBody' == Null then Nothing
+          else Just $ Export ls funBody'
 
     Primitive{primName = p} | p `Set.member` primitives ->
       plainJS $ "agdaRTS." ++ p
@@ -368,11 +423,12 @@ definition' kit q d t ls = do
       let nargs = np - length (filter id erased)
           args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
       d <- getConstInfo p
+      let l = List1.last ls
       case theDef d of
         Record { recFields = flds } -> ret $ curriedLambda nargs $
           if optJSOptimize (fst kit)
             then Lambda 1 $ Apply (Local (LocalId 0)) args
-            else Object $ fromList [ (last ls, Lambda 1 $ Apply (Lookup (Local (LocalId 0)) $ last ls) args) ]
+            else Object $ Map.fromList [ (l, Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args) ]
         dt ->
           ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) index) args
           where
@@ -380,8 +436,8 @@ definition' kit q d t ls = do
                   , optJSOptimize (fst kit)
                   , cs <- defConstructors dt
                   = headWithDefault __IMPOSSIBLE__
-                      [MemberIndex i (mkComment $ last ls) | (i, x) <- zip [0..] cs, x == q]
-                  | otherwise = last ls
+                      [MemberIndex i (mkComment l) | (i, x) <- zip [0..] cs, x == q]
+                  | otherwise = l
             mkComment (MemberId s) = Comment s
             mkComment _ = mempty
 
@@ -394,7 +450,7 @@ compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
 compileTerm kit t = go t
   where
     go :: T.TTerm -> TCM Exp
-    go t = case t of
+    go = \case
       T.TVar x -> return $ Local $ LocalId x
       T.TDef q -> do
         d <- getConstInfo q
@@ -509,7 +565,7 @@ compilePrim p =
 
 
 compileAlt :: EnvWithOpts -> T.TAlt -> TCM ((QName, MemberId), Exp)
-compileAlt kit a = case a of
+compileAlt kit = \case
   T.TACon con ar body -> do
     erased <- getErasedConArgs con
     let nargs = ar - length (filter id erased)
@@ -524,7 +580,7 @@ eraseLocalVars (False: es) x = eraseLocalVars es x
 eraseLocalVars (True: es) x = eraseLocalVars es (TC.subst (length es) T.TErased x)
 
 visitorName :: QName -> TCM MemberId
-visitorName q = do (m,ls) <- global q; return (last ls)
+visitorName q = do (m,ls) <- global q; return (List1.last ls)
 
 flatName :: MemberId
 flatName = MemberId "flat"
@@ -538,21 +594,21 @@ qname q = do
   return (foldl Lookup e ls)
 
 literal :: Literal -> Exp
-literal l = case l of
-  (LitNat    _ x) -> Integer x
-  (LitWord64 _ x) -> Integer (fromIntegral x)
-  (LitFloat  _ x) -> Double  x
-  (LitString _ x) -> String  x
-  (LitChar   _ x) -> Char    x
-  (LitQName  _ x) -> litqname x
-  LitMeta{}       -> __IMPOSSIBLE__
+literal = \case
+  (LitNat    x) -> Integer x
+  (LitWord64 x) -> Integer (fromIntegral x)
+  (LitFloat  x) -> Double  x
+  (LitString x) -> String  x
+  (LitChar   x) -> Char    x
+  (LitQName  x) -> litqname x
+  LitMeta{}     -> __IMPOSSIBLE__
 
 litqname :: QName -> Exp
 litqname q =
   Object $ Map.fromList
     [ (mem "id", Integer $ fromIntegral n)
     , (mem "moduleId", Integer $ fromIntegral m)
-    , (mem "name", String $ prettyShow q)
+    , (mem "name", String $ T.pack $ prettyShow q)
     , (mem "fixity", litfixity fx)]
   where
     mem = MemberId
@@ -595,40 +651,139 @@ outFile_ = do
   m <- curMName
   outFile (jsMod m)
 
-copyRTEModules :: TCM ()
-copyRTEModules = do
-  dataDir <- lift getDataDir
-  let srcDir = dataDir </> "JS"
-  (lift . copyDirContent srcDir) =<< compileDir
-
 -- | Primitives implemented in the JS Agda RTS.
 primitives :: Set String
 primitives = Set.fromList
-  [ "primExp"
-  , "primFloatDiv"
-  , "primFloatEquality"
-  , "primFloatLess"
-  , "primFloatNumericalEquality"
-  , "primFloatNumericalLess"
-  , "primFloatNegate"
-  , "primFloatMinus"
-  , "primFloatPlus"
-  , "primFloatSqrt"
-  , "primFloatTimes"
+  [  "primShowInteger"
+
+  -- Natural number functions
+  -- , "primNatPlus"                 -- missing
   , "primNatMinus"
-  , "primShowFloat"
-  , "primShowInteger"
-  , "primSin"
-  , "primCos"
-  , "primTan"
-  , "primASin"
-  , "primACos"
-  , "primATan"
-  , "primATan2"
-  , "primShowQName"
-  , "primQNameEquality"
-  , "primQNameLess"
-  , "primQNameFixity"
+  -- , "primNatTimes"                -- missing
+  -- , "primNatDivSucAux"            -- missing
+  -- , "primNatModSucAux"            -- missing
+  -- , "primNatEquality"             -- missing
+  -- , "primNatLess"                 -- missing
+  -- , "primShowNat"                 -- missing
+
+  -- Machine words
   , "primWord64ToNat"
   , "primWord64FromNat"
+  -- , "primWord64ToNatInjective"    -- missing
+
+  -- Level functions
+  -- , "primLevelZero"               -- missing
+  -- , "primLevelSuc"                -- missing
+  -- , "primLevelMax"                -- missing
+
+  -- Sorts
+  -- , "primSetOmega"                -- missing
+  -- , "primStrictSetOmega"          -- missing
+
+  -- Floating point functions
+  , "primFloatEquality"
+  , "primFloatInequality"
+  , "primFloatLess"
+  , "primFloatIsInfinite"
+  , "primFloatIsNaN"
+  , "primFloatIsNegativeZero"
+  , "primFloatIsSafeInteger"
+  , "primFloatToWord64"
+  -- , "primFloatToWord64Injective"  -- missing
+  , "primNatToFloat"
+  , "primIntToFloat"
+  -- , "primFloatRound"              -- in Agda.Builtin.Float
+  -- , "primFloatFloor"              -- in Agda.Builtin.Float
+  -- , "primFloatCeiling"            -- in Agda.Builtin.Float
+  -- , "primFloatToRatio"            -- in Agda.Builtin.Float
+  , "primRatioToFloat"
+  -- , "primFloatDecode"             -- in Agda.Builtin.Float
+  -- , "primFloatEncode"             -- in Agda.Builtin.Float
+  , "primShowFloat"
+  , "primFloatPlus"
+  , "primFloatMinus"
+  , "primFloatTimes"
+  , "primFloatNegate"
+  , "primFloatDiv"
+  , "primFloatSqrt"
+  , "primFloatExp"
+  , "primFloatLog"
+  , "primFloatSin"
+  , "primFloatCos"
+  , "primFloatTan"
+  , "primFloatASin"
+  , "primFloatACos"
+  , "primFloatATan"
+  , "primFloatATan2"
+  , "primFloatSinh"
+  , "primFloatCosh"
+  , "primFloatTanh"
+  , "primFloatASinh"
+  , "primFloatACosh"
+  , "primFloatATanh"
+  , "primFloatPow"
+
+  -- Character functions
+  -- , "primCharEquality"            -- missing
+  -- , "primIsLower"                 -- missing
+  -- , "primIsDigit"                 -- missing
+  -- , "primIsAlpha"                 -- missing
+  -- , "primIsSpace"                 -- missing
+  -- , "primIsAscii"                 -- missing
+  -- , "primIsLatin1"                -- missing
+  -- , "primIsPrint"                 -- missing
+  -- , "primIsHexDigit"              -- missing
+  -- , "primToUpper"                 -- missing
+  -- , "primToLower"                 -- missing
+  -- , "primCharToNat"               -- missing
+  -- , "primCharToNatInjective"      -- missing
+  -- , "primNatToChar"               -- missing
+  -- , "primShowChar"                -- in Agda.Builtin.String
+
+  -- String functions
+  -- , "primStringToList"            -- in Agda.Builtin.String
+  -- , "primStringToListInjective"   -- missing
+  -- , "primStringFromList"          -- in Agda.Builtin.String
+  -- , "primStringFromListInjective" -- missing
+  -- , "primStringAppend"            -- in Agda.Builtin.String
+  -- , "primStringEquality"          -- in Agda.Builtin.String
+  -- , "primShowString"              -- in Agda.Builtin.String
+  -- , "primStringUncons"            -- in Agda.Builtin.String
+
+  -- Other stuff
+  -- , "primEraseEquality"           -- missing
+  -- , "primForce"                   -- missing
+  -- , "primForceLemma"              -- missing
+  , "primQNameEquality"
+  , "primQNameLess"
+  , "primShowQName"
+  , "primQNameFixity"
+  -- , "primQNameToWord64s"          -- missing
+  -- , "primQNameToWord64sInjective" -- missing
+  -- , "primMetaEquality"            -- missing
+  -- , "primMetaLess"                -- missing
+  -- , "primShowMeta"                -- missing
+  -- , "primMetaToNat"               -- missing
+  -- , "primMetaToNatInjective"      -- missing
+  -- , "primIMin"                    -- missing
+  -- , "primIMax"                    -- missing
+  -- , "primINeg"                    -- missing
+  -- , "primPOr"                     -- missing
+  -- , "primComp"                    -- missing
+  -- , builtinTrans                  -- missing
+  -- , builtinHComp                  -- missing
+  -- , "primIdJ"                     -- missing
+  -- , "primPartial"                 -- missing
+  -- , "primPartialP"                -- missing
+  -- , builtinGlue                   -- missing
+  -- , builtin_glue                  -- missing
+  -- , builtin_unglue                -- missing
+  -- , builtinFaceForall             -- missing
+  -- , "primDepIMin"                 -- missing
+  -- , "primIdFace"                  -- missing
+  -- , "primIdPath"                  -- missing
+  -- , builtinIdElim                 -- missing
+  -- , builtinSubOut                 -- missing
+  -- , builtin_glueU                 -- missing
+  -- , builtin_unglueU               -- missing
   ]

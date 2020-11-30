@@ -7,6 +7,6 @@ when checking that the expression refl has type
 double (suc (suc (suc (suc (suc _n_19))))) ≡
 suc (double (suc (suc (suc (suc _n_18)))))
 Failed to solve the following constraints:
-  double _n_18 = suc (double _n_19) : Nat
+  double _n_18 = suc (double _n_19) : Nat (blocked on _n_18)
 Unsolved metas at the following locations:
   Issue431.agda:16,25-29

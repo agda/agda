@@ -6,7 +6,7 @@
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 ((last . 2) . (agda2-make-case-action '("test0 x | q = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2)))
-((last . 2) . (agda2-make-case-action '("test1 (zero _) | q = ?")))
+((last . 2) . (agda2-make-case-action '("test1 {suc _} (zero _) | q = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 ((last . 2) . (agda2-make-case-action '("test1 {suc n} (suc {n} i) | q = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2)))

@@ -9,7 +9,8 @@ postulate
   a : A
 
 record R : Set where
-  constructor con; pattern
+  constructor con
+  pattern
   no-eta-equality
   field
     X Y : A

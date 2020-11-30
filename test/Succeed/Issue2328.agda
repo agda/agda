@@ -1,6 +1,6 @@
 {- Examples by Twan van Laarhoven -}
 
-{-# OPTIONS --rewriting --confluence-check #-}
+{-# OPTIONS --rewriting --local-confluence-check #-}
 module _ where
 
 open import Agda.Builtin.Equality

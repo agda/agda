@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 
 module Agda.Utils.Tuple
   ( (-*-)
@@ -14,7 +14,7 @@ module Agda.Utils.Tuple
   , mapPairM
   , mapFstM
   , mapSndM
-  , List2(..)
+  , Pair(..)
   ) where
 
 import Control.Arrow  ((&&&))
@@ -74,9 +74,9 @@ mapFstM f ~(a,b) = (,b) <$> f a
 mapSndM :: (Applicative m) => (b -> m d) -> (a,b) -> m (a,d)
 mapSndM f ~(a,b) = (a,) <$> f b
 
-newtype List2 a = List2 { list2 :: (a,a) }
+data Pair a = Pair a a
   deriving (Eq, Functor, Foldable, Traversable)
 
-instance Applicative List2 where
-  pure a                            = List2 (a,a)
-  (List2 (f,f')) <*> (List2 (a,a')) = List2 (f a, f' a')
+instance Applicative Pair where
+  pure a                  = Pair a a
+  Pair f f' <*> Pair a a' = Pair (f a) (f' a')

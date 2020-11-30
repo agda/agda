@@ -90,17 +90,18 @@ hTags=../hTags/dist/build/hTags/hTags
 
 CABAL_MACROS=$(BUILD_DIR)/build/autogen/cabal_macros.h
 
-hTags_flags   = --cabal ../../Agda.cabal
+hTags_include = $(CABAL_MACROS)
+hTags_flags   = -i $(CABAL_MACROS) --cabal ../../Agda.cabal
 
 $(hTags) : $(wildcard ../hTags/*.hs)
 	$(MAKE) -C ../hTags
 
 # create tags for VIM
-tags : $(src_files) $(hTags)
+tags : $(src_files) $(hTags) $(hTags_include)
 	$(hTags) $(hTags_flags) -c $(src_files)
 
 # create tags for emacs
-TAGS : $(src_files) $(hTags)
+TAGS : $(src_files) $(hTags) $(hTags_include)
 	$(hTags) $(hTags_flags) -e $(src_files)
 
 # Andreas: create tags for everything exept Auto and Compilers
@@ -109,7 +110,7 @@ ignore = $(shell find ./Agda/Auto ./Agda/Compiler/JS ./Agda/Packaging -name '*.h
 hs_boot = $(shell find . -name '*.hs-boot')
 tag_files = $(filter-out $(hs_boot),$(filter-out $(ignore),$(src_files)))
 
-mytags :  $(tag_files) $(hTags)
+mytags :  $(tag_files) $(hTags) $(hTags_include)
 	$(hTags) $(hTags_flags) -e $(tag_files)
 
 debug :

@@ -139,3 +139,13 @@ f n = h λ where []       → 0
 
 -- Normalising f should yield
 -- λ n → h (λ { [] → 0 ; (x ∷ xs) → n })
+
+-- Andreas, 2020-06-24, issue #4775
+-- After fixing a bug in the unifier which assigned
+-- conPRecord = True to a data constructor like suc,
+-- the output has changed to:
+--
+-- λ n → h (λ { [] → 0 ; {suc n₁} (x ∷ xs) → n })
+--
+-- This should be investigated.  Similar effect for
+-- interaction/ExpandEllipsis

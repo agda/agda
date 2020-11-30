@@ -153,7 +153,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
     eraseRel r t | erasable r = pure TErased
                  | otherwise  = erase t
 
-    eraseAlt a = case a of
+    eraseAlt = \case
       TALit l b   -> TALit l   <$> erase b
       TACon c a b -> do
         rs <- map erasable . fst <$> getFunInfo c
@@ -179,11 +179,11 @@ pruneUnreachable x CTInt d bs = return $ pruneIntCase x d bs IntSet.empty
 pruneUnreachable _ _ d bs = pure (d, bs)
 
 -- These are the guards we generate for Int/Nat pattern matching
-pattern Below :: Range -> Int -> Integer -> TTerm
-pattern Below r x n = TApp (TPrim PLt)  [TVar x, TLit (LitNat r n)]
+pattern Below :: Int -> Integer -> TTerm
+pattern Below x n = TApp (TPrim PLt)  [TVar x, TLit (LitNat n)]
 
-pattern Above :: Range -> Int -> Integer -> TTerm
-pattern Above r x n = TApp (TPrim PGeq) [TVar x, TLit (LitNat r n)]
+pattern Above :: Int -> Integer -> TTerm
+pattern Above x n = TApp (TPrim PGeq) [TVar x, TLit (LitNat n)]
 
 -- | Strip unreachable clauses (replace by tUnreachable for the default).
 --   Fourth argument is the set of ints covered so far.
@@ -195,9 +195,9 @@ pruneIntCase x d bs cover = go bs cover
       | otherwise            = (d, [])
     go (b : bs) cover =
       case b of
-        TAGuard (Below _ y n) _ | x == y -> rec (IntSet.below n)
-        TAGuard (Above _ y n) _ | x == y -> rec (IntSet.above n)
-        TALit (LitNat _ n) _             -> rec (IntSet.singleton n)
+        TAGuard (Below y n) _ | x == y -> rec (IntSet.below n)
+        TAGuard (Above y n) _ | x == y -> rec (IntSet.above n)
+        TALit (LitNat n) _             -> rec (IntSet.singleton n)
         _                                -> second (b :) $ go bs cover
       where
         rec this = second addAlt $ go bs cover'
@@ -206,7 +206,7 @@ pruneIntCase x d bs cover = go bs cover
             cover' = this' <> cover
             addAlt = case IntSet.toFiniteList this' of
                        Just []  -> id                                     -- unreachable case
-                       Just [n] -> (TALit (LitNat noRange n) (aBody b) :) -- possibly refined case
+                       Just [n] -> (TALit (LitNat n) (aBody b) :) -- possibly refined case
                        _        -> (b :)                                  -- unchanged case
 
 data TypeInfo = Empty | Erasable | NotErasable

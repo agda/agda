@@ -1,0 +1,7 @@
+Issue4135Record.agda:16,6-8
+Ambiguous projection f.
+It could refer to any of
+  True.f (introduced at Issue4135Record.agda:12,13-17)
+  False.f (introduced at Issue4135Record.agda:13,13-18)
+when checking the clause left hand side
+test .f

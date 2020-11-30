@@ -1,4 +1,3 @@
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
@@ -25,7 +24,8 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Text.Lazy (Text)
+import qualified Data.Text      as T
+import qualified Data.Text.Lazy as TL
 import Data.Typeable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
@@ -53,14 +53,19 @@ import Agda.Utils.Trie (Trie(..))
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
+import Agda.Utils.CallStack
 
 instance {-# OVERLAPPING #-} EmbPrj String where
   icod_   = icodeString
   value i = (! i) `fmap` gets stringE
 
-instance EmbPrj Text where
-  icod_   = icodeX textD textC
-  value i = (! i) `fmap` gets textE
+instance EmbPrj TL.Text where
+  icod_   = icodeX lTextD lTextC
+  value i = (! i) `fmap` gets lTextE
+
+instance EmbPrj T.Text where
+  icod_   = icodeX sTextD sTextC
+  value i = (! i) `fmap` gets sTextE
 
 instance EmbPrj Integer where
   icod_   = icodeInteger
@@ -163,6 +168,10 @@ instance EmbPrj FileType where
 instance EmbPrj AbsolutePath where
   icod_ file = do
     d <- asks absPathD
+    -- Andreas, 2020-08-11, issue #4828
+    -- AbsolutePath is no longer canonical (can contain symlinks).
+    -- The dictonary contains canonical pathes, though.
+    file <- liftIO $ canonicalizeAbsolutePath file
     liftIO $ flip fromMaybeM (H.lookup d file) $ do
       -- The path @file@ should be cached in the dictionary @d@.
       -- This seems not to be the case, thus, crash here.
@@ -374,10 +383,10 @@ instance EmbPrj A.ModuleName where
   value n           = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d e) = icodeMemo nameD nameC a $
-    icodeN' (\ a b -> A.Name a b . underlyingRange) a b (SerialisedRange c) d e
+  icod_ (A.Name a b c d e f) = icodeMemo nameD nameC a $
+    icodeN' (\ a b c -> A.Name a b c . underlyingRange) a b c (SerialisedRange d) e f
 
-  value = valueN (\a b c -> A.Name a b (underlyingRange c))
+  value = valueN (\a b c d -> A.Name a b c (underlyingRange d))
 
 instance EmbPrj a => EmbPrj (C.FieldAssignment' a) where
   icod_ (C.FieldAssignment a b) = icodeN' C.FieldAssignment a b
@@ -395,7 +404,7 @@ instance EmbPrj a => EmbPrj (Ranged a) where
   value = valueN Ranged
 
 instance EmbPrj ArgInfo where
-  icod_ (ArgInfo h r o fv) = icodeN' ArgInfo h r o fv
+  icod_ (ArgInfo h r o fv ann) = icodeN' ArgInfo h r o fv ann
 
   value = valueN ArgInfo
 
@@ -536,6 +545,21 @@ instance EmbPrj Relevance where
   value 2 = return NonStrict
   value _ = malformed
 
+instance EmbPrj Annotation where
+  icod_ (Annotation l) = icodeN' Annotation l
+
+  value = vcase $ \case
+    [l] -> valuN Annotation l
+    _ -> malformed
+
+instance EmbPrj Lock where
+  icod_ IsNotLock = return 0
+  icod_ IsLock    = return 1
+
+  value 0 = return IsNotLock
+  value 1 = return IsLock
+  value _ = malformed
+
 instance EmbPrj Origin where
   icod_ UserWritten = return 0
   icod_ Inserted    = return 1
@@ -587,22 +611,22 @@ instance EmbPrj ProjOrigin where
   value _ = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
-  icod_ (LitNat    a b)   = icodeN' LitNat a b
-  icod_ (LitFloat  a b)   = icodeN 1 LitFloat a b
-  icod_ (LitString a b)   = icodeN 2 LitString a b
-  icod_ (LitChar   a b)   = icodeN 3 LitChar a b
-  icod_ (LitQName  a b)   = icodeN 5 LitQName a b
-  icod_ (LitMeta   a b c) = icodeN 6 LitMeta a b c
-  icod_ (LitWord64 a b)   = icodeN 7 LitWord64 a b
+  icod_ (LitNat    a)   = icodeN' LitNat a
+  icod_ (LitFloat  a)   = icodeN 1 LitFloat a
+  icod_ (LitString a)   = icodeN 2 LitString a
+  icod_ (LitChar   a)   = icodeN 3 LitChar a
+  icod_ (LitQName  a)   = icodeN 5 LitQName a
+  icod_ (LitMeta   a b) = icodeN 6 LitMeta a b
+  icod_ (LitWord64 a)   = icodeN 7 LitWord64 a
 
   value = vcase valu where
-    valu [a, b]       = valuN LitNat    a b
-    valu [1, a, b]    = valuN LitFloat  a b
-    valu [2, a, b]    = valuN LitString a b
-    valu [3, a, b]    = valuN LitChar   a b
-    valu [5, a, b]    = valuN LitQName  a b
-    valu [6, a, b, c] = valuN LitMeta   a b c
-    valu [7, a, b]    = valuN LitWord64 a b
+    valu [a]       = valuN LitNat    a
+    valu [1, a]    = valuN LitFloat  a
+    valu [2, a]    = valuN LitString a
+    valu [3, a]    = valuN LitChar   a
+    valu [5, a]    = valuN LitQName  a
+    valu [6, a, b] = valuN LitMeta   a b
+    valu [7, a]    = valuN LitWord64 a
     valu _            = malformed
 
 instance EmbPrj IsAbstract where
@@ -623,14 +647,22 @@ instance EmbPrj Delayed where
     valu []  = valuN NotDelayed
     valu _   = malformed
 
+instance EmbPrj SrcLoc where
+  icod_ (SrcLoc p m f sl sc el ec) = icodeN' SrcLoc p m f sl sc el ec
+  value = valueN SrcLoc
+
+instance EmbPrj CallStack where
+  icod_ = icode . getCallStack
+  value = fmap fromCallSiteList . value
+
 instance EmbPrj Impossible where
-  icod_ (Impossible a b)  = icodeN 0 Impossible a b
-  icod_ (Unreachable a b) = icodeN 1 Unreachable a b
+  icod_ (Impossible a)              = icodeN 0 Impossible a
+  icod_ (Unreachable a)             = icodeN 1 Unreachable a
   icod_ (ImpMissingDefinitions a b) = icodeN 2 ImpMissingDefinitions a b
 
   value = vcase valu where
-    valu [0, a, b] = valuN Impossible  a b
-    valu [1, a, b] = valuN Unreachable a b
+    valu [0, a]    = valuN Impossible  a
+    valu [1, a]    = valuN Unreachable a
     valu [2, a, b] = valuN ImpMissingDefinitions a b
     valu _         = malformed
 

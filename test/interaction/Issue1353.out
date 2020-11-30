@@ -3,7 +3,7 @@
 (agda2-highlight-clear)
 (agda2-verbose "Found interaction point ConcreteDef ?0 : (Pow I) ")
 (agda2-status-action "ShowImplicit")
-(agda2-info-action "*All Goals, Errors*" "?0 : Pow I _X_241 : I → Set [ at Issue1353.agda:89,60-65 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: X (input Ω {i} p a) =< _X_241 (input Ω {i} p a) _X_241 (input Ψ {i} p₁ a) =< X (input Ψ {i} p₁ a) " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Pow I _X_241 : I → Set [ at Issue1353.agda:89,60-65 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: X (input Ω {i} p a) =< _X_241 (input Ω {i} p a) (blocked on _X_241) _X_241 (input Ψ {i} p₁ a) =< X (input Ψ {i} p₁ a) (blocked on _X_241) " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "X")
 (agda2-status-action "ShowImplicit")

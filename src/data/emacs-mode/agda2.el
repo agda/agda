@@ -1,6 +1,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Agda mode code which should run before the first Agda file is
 ;; loaded
+;; SPDX-License-Identifier: MIT License
 
 (defvar agda2-directory (file-name-directory load-file-name)
   "Path to the directory that contains agda2.el(c).")

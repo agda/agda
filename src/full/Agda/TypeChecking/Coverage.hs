@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
@@ -31,7 +32,7 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal hiding (DataOrRecord(..))
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Translation.InternalToAbstract (NamedClause(..))
 
@@ -142,7 +143,7 @@ coverageCheck
   -> [Clause]  -- ^ Clauses of @f@.  These are the very clauses of @f@ in the signature.
   -> TCM SplitTree
 coverageCheck f t cs = do
-  reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++ show f
+  reportSLn "tc.cover.top" 30 $ "entering coverageCheck for " ++ prettyShow f
   reportSDoc "tc.cover.top" 75 $ "  of type (raw): " <+> (text . prettyShow) t
   reportSDoc "tc.cover.top" 45 $ "  of type: " <+> prettyTCM t
   TelV gamma a <- telViewUpTo (-1) t
@@ -225,7 +226,8 @@ coverageCheck f t cs = do
                       , namedClausePats   = applySubst sub ps
                       , clauseBody        = Nothing
                       , clauseType        = Nothing
-                      , clauseCatchall    = False
+                      , clauseCatchall    = True       -- absurd clauses are safe as catch-all
+                      , clauseExact       = Just False
                       , clauseRecursive   = Just False
                       , clauseUnreachable = Just False
                       , clauseEllipsis    = NoEllipsis
@@ -250,9 +252,15 @@ coverageCheck f t cs = do
 
   -- Andreas, 2017-08-28, issue #2723:
   -- Mark clauses as reachable or unreachable in the signature.
-  let (is0, cs1) = unzip $ for (zip [0..] cs) $ \ (i, cl) ->
-        let unreachable = i `IntSet.notMember` used in
-        (boolToMaybe unreachable i, cl { clauseUnreachable = Just unreachable  })
+  -- Andreas, 2020-11-19, issue #5065
+  -- Remember whether clauses are exact or not.
+  let (is0, cs1) = unzip $ for (zip [0..] cs) $ \ (i, cl) -> let
+          unreachable = i `IntSet.notMember` used
+          exact       = i `IntSet.notMember` (IntSet.fromList noex)
+        in (boolToMaybe unreachable i, cl
+             { clauseUnreachable = Just unreachable
+             , clauseExact       = Just exact
+             })
   -- is = indices of unreachable clauses
   let is = catMaybes is0
   reportSDoc "tc.cover.top" 10 $ vcat
@@ -324,15 +332,18 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   reportSLn "tc.cover.cover" 80 $ "raw target =\n" ++ show target
   match cs ps >>= \case
     Yes (i,mps) -> do
-      exact <- allM (map snd mps) isTrivialPattern
-      let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
-      let noExactClause = if exact || clauseCatchall (indexWithDefault __IMPOSSIBLE__ cs i)
-                          then empty
-                          else singleton i
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
-      reportSDoc "tc.cover.cover" 20 $ text "with mps = " <+> do addContext tel $ pretty $ mps
+      reportSDoc "tc.cover.cover" 20 $ text "with mps = " <+> do addContext tel $ pretty mps
+      exact <- allM mps $ isTrivialPattern . snd
+      let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
       cl <- applyCl sc cl0 mps
-      return $ CoverResult (SplittingDone (size tel)) (singleton i) [] [cl] noExactClause
+      return $ CoverResult
+        { coverSplitTree      = SplittingDone (size tel)
+        , coverUsedClauses    = singleton i
+        , coverMissingClauses = []
+        , coverPatterns       = [cl]
+        , coverNoExactClauses = IntSet.fromList [ i | not $ exact || clauseCatchall cl0 ]
+        }
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
@@ -428,6 +439,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseBody      = (`applyE` patternsToElims extra) . (s `applyPatSubst`) <$> clauseBody cl
                     , clauseType      = ty
                     , clauseCatchall  = clauseCatchall cl
+                    , clauseExact     = clauseExact cl
                     , clauseRecursive = clauseRecursive cl
                     , clauseUnreachable = clauseUnreachable cl
                     , clauseEllipsis  = clauseEllipsis cl
@@ -474,7 +486,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
               psss  = map coverMissingClauses results
-              qsss  = map coverPatterns results
+              qsss  = map coverPatterns       results
               noex  = map coverNoExactClauses results
           -- Jesper, 2016-03-10  We need to remember which variables were
           -- eta-expanded by the unifier in order to generate a correct split
@@ -817,6 +829,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
                     , clauseBody      = Just $ rhs
                     , clauseType      = Just $ defaultArg t
                     , clauseCatchall  = False
+                    , clauseExact       = Just True
                     , clauseRecursive   = Nothing     -- TODO: can it be recursive?
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
                     , clauseEllipsis  = NoEllipsis
@@ -855,6 +868,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , clauseBody      = Just rhs
                   , clauseType      = Just (argFromDom t)
                   , clauseCatchall  = False
+                  , clauseExact       = Just True
                   , clauseRecursive   = Nothing     -- could be recursive
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
                   , clauseEllipsis  = NoEllipsis
@@ -1033,16 +1047,7 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
       -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ
       let (rho1,rho2) = splitS (size gamma) $ toSplitPSubst rho0
 
-      -- Andreas, 2015-05-01  I guess it is fine to use no @conPType@
-      -- as the result of splitting is never used further down the pipeline.
-      -- After splitting, Agda reloads the file.
-      -- Andreas, 2017-09-03, issue #2729: remember that pattern was generated by case split.
-      let
-          -- cpi  = noConPatternInfo{ conPRecord = Just PatOSplit }
-          -- conp = ConP con cpi $ applySubst rho2 $
-          --          map (mapArgInfo hiddenInserted) $ tele2NamedArgs gamma0 gamma
-          -- -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
-          defp = DefP defaultPatternInfo hCompName . map (setOrigin Inserted) $
+      let defp = DefP defaultPatternInfo hCompName . map (setOrigin Inserted) $
                    map (fmap unnamed) [setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP defaultPatternInfo $ dlvl
                                       ,setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP defaultPatternInfo $ dterm]
                    ++ applySubst rho2 (teleNamedArgs gamma) -- rho0?
@@ -1144,19 +1149,29 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
          TelV dtel dt <- telView dtype
          return $ abstract (mapCohesion updCoh <$> dtel) dt
 
-  r <- unifyIndices
+  withKIfStrict <- addContext delta1 $ reduce (getSort dtype) >>= \case
+    SSet{} -> return $ locallyTC eSplitOnStrict $ const True
+    _      -> return id
+
+  r <- withKIfStrict $ unifyIndices
          delta1Gamma
          flex
          (raise (size gamma) dtype)
          conIxs
          givenIxs
 
+  let stuck errs = do
+        debugCantSplit
+        throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
+
+
   case r of
     NoUnify {} -> debugNoUnify $> Nothing
 
-    DontKnow errs -> do
-      debugCantSplit
-      throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
+    UnifyBlocked block -> stuck [] -- TODO: postpone and retry later
+
+    UnifyStuck errs -> stuck errs
+
     Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
 
@@ -1283,7 +1298,9 @@ splitClauseWithAbsurd c x =
 
 splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
 splitLast ind tel ps = split ind NoAllowPartialCover sc (BlockingVar 0 [] [] True False)
-  where sc = SClause tel (toSplitPatterns ps) empty empty Nothing
+  where sc = SClause tel (toSplitPatterns ps) empty empty target
+        -- TODO 2ltt: allows (Empty_fib -> Empty_strict) which is not conservative
+        target = (Just $ defaultDom $ El (Prop (Max 0 [])) $ Dummy "splitLastTarget" [])
 
 -- | @split ind splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
@@ -1431,8 +1448,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
   -- Andreas, 2018-10-27, issue #3324; use isPropM.
   -- Need to reduce sort to decide on Prop.
   -- Cannot split if domain is a Prop but target is relevant.
-  propArrowRel <- isPropM t `and2M`
-    maybe (return True) (not <.> isPropM) target
+  propArrowRel <- fromRight __IMPOSSIBLE__ <.> runBlocked $
+    isPropM t `and2M` maybe (return True) (not <.> isPropM) target
 
   mHCompName <- getPrimitiveName' builtinHComp
   withoutK   <- collapseDefault . optWithoutK <$> pragmaOptions
@@ -1498,7 +1515,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
                 ]
               throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
-      liftTCM $ checkSortOfSplitVar dr (unDom t) target
+      liftTCM $ checkSortOfSplitVar dr (unDom t) delta2 target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where

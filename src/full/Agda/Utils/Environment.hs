@@ -9,38 +9,48 @@ import System.Directory ( getHomeDirectory )
 
 expandEnvironmentVariables :: String -> IO String
 expandEnvironmentVariables s = do
-  env <- getEnvironment
+  env  <- getEnvironment
   home <- getHomeDirectory
   return $ expandVars home env s
 
-expandVars :: String -> [(String, String)] -> String -> String
+expandVars
+  :: String              -- ^ Home directory.
+  -> [(String, String)]  -- ^ Environment variable substitution map.
+  -> String              -- ^ Input.
+  -> String              -- ^ Output with variables and @~@ (home) substituted.
 expandVars home env s = concatMap repl $ tokens s
   where
-    repl Home = home ++ "/"
+    repl Home    = home ++ "/"
     repl (Var x) = fromMaybe "" $ lookup x env
     repl (Str s) = s
 
-data Token = Home | Var String | Str String
+-- | Tokenization for environment variable substitution.
+data Token
+  = Home        -- ^ @~@.
+  | Var String  -- ^ @$VARIABLE@ or @${VARIABLE}$.
+  | Str String  -- ^ Ordinary characters.
   deriving (Eq, Show)
 
+-- | Tokenize a string.
+--   The @~@ is recognized as @$HOME@ only at the beginning of the string.
 tokens :: String -> [Token]
-tokens s = case s of
-  '~' : '/' : s -> Home : tokens' s
+tokens = \case
+  '~'  : '/' : s -> Home : tokens' s
   '\\' : '~' : s -> cons '~' $ tokens' s
-  _ -> tokens' s
+  s -> tokens' s
   where
     tokens' :: String -> [Token]
-    tokens' s =
-      case s of
+    tokens' = \case
         '$' : '$' : s -> cons '$' $ tokens' s
         '$' : s@(c : _) | c == '_' || isAlpha c -> Var x : tokens' s'
-          where (x, s') = span (\ c -> c == '_' || isAlphaNum c) s
+          where
+          (x, s') = span (\ c -> c == '_' || isAlphaNum c) s
         '$' : '{' : s ->
           case break (== '}') s of
             (x, '}' : s) -> Var x : tokens' s
             _            -> [Str $ "${" ++ s] -- abort on unterminated '{'
         c : s -> cons c $ tokens' s
         ""    -> []
+    cons :: Char -> [Token] -> [Token]
     cons c (Str s : ts) = Str (c : s) : ts
     cons c ts           = Str [c] : ts
-

@@ -1,5 +1,5 @@
-{-# OPTIONS --rewriting        #-}
-{-# OPTIONS --confluence-check #-}
+{-# OPTIONS --rewriting              #-}
+{-# OPTIONS --local-confluence-check #-}
 
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Equality.Rewrite

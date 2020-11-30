@@ -9,19 +9,14 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings
 
 type MonadConversion m =
-  ( MonadReduce m
-  , MonadAddContext m
+  ( PureTCM m
   , MonadConstraint m
   , MonadMetaSolver m
   , MonadError TCErr m
   , MonadWarning m
-  , MonadDebug m
   , MonadStatistics m
   , MonadFresh ProblemId m
   , MonadFresh Int m
-  , HasBuiltins m
-  , HasConstInfo m
-  , HasOptions m
   , Fail.MonadFail m
   )
 
@@ -32,7 +27,6 @@ compareAtom  :: MonadConversion m => Comparison -> CompareAs -> Term -> Term -> 
 compareArgs  :: MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> Args -> Args -> m ()
 compareElims :: MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
 compareType  :: MonadConversion m => Comparison -> Type -> Type -> m ()
-compareTel   :: MonadConversion m => Type -> Type -> Comparison -> Telescope -> Telescope -> m ()
 compareSort  :: MonadConversion m => Comparison -> Sort -> Sort -> m ()
 compareLevel :: MonadConversion m => Comparison -> Level -> Level -> m ()
 equalTerm    :: MonadConversion m => Type -> Term -> Term -> m ()

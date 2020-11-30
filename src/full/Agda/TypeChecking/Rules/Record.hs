@@ -39,6 +39,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.POMonoid
+import Agda.Utils.Pretty (render)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
@@ -65,16 +66,13 @@ checkRecDef
   :: A.DefInfo                 -- ^ Position and other info.
   -> QName                     -- ^ Record type identifier.
   -> UniverseCheck             -- ^ Check universes?
-  -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
-  -> Maybe HasEta0             -- ^ Optional: user specified @[no-]eta-equality@.
-  -> Maybe Range               -- ^ Optional: user specified @pattern@.
-  -> Maybe QName               -- ^ Optional: constructor name.
+  -> A.RecordDirectives        -- ^ (Co)Inductive, (No)Eta, (Co)Pattern, Constructor?
   -> A.DataDefParams           -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields =
+checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars ps) contel fields =
   traceCall (CheckRecDef (getRange name) name ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ "checking record def" <+> prettyTCM name
@@ -136,12 +134,16 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
         -- NB: contype does not contain the parameter telescope
 
       -- Obtain name of constructor (if present).
-      (hasNamedCon, conName, conInfo) <- case con of
-        Just c  -> return (True, c, i)
+      (hasNamedCon, conName) <- case con of
+        Just c  -> return (True, c)
         Nothing -> do
           m <- killRange <$> currentModule
-          c <- qualify m <$> freshName_ ("recCon-NOT-PRINTED" :: String)
-          return (False, c, i)
+          -- Andreas, 2020-06-01, AIM XXXII
+          -- Using prettyTCM here jinxes the printer, see PR #4699.
+          -- r <- prettyTCM name
+          let r = P.pretty $ qnameName name
+          c <- qualify m <$> freshName_ (render r ++ ".constructor")
+          return (False, c)
 
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ "adding record type to signature"
@@ -167,7 +169,7 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
           -- We should turn it off until it is proven to be safe.
           haveEta      = maybe (Inferred $ NoEta patCopat) Specified eta
           -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
-          con = ConHead conName conInduction $ map argFromDom fs
+          con = ConHead conName (IsRecord patCopat) conInduction $ map argFromDom fs
 
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
@@ -226,7 +228,7 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
               , conArity  = size fs
               , conSrcCon = con
               , conData   = name
-              , conAbstr  = Info.defAbstract conInfo
+              , conAbstr  = Info.defAbstract i
               , conInd    = conInduction
               , conComp   = emptyCompKit  -- filled in later
               , conProj   = Nothing       -- filled in later
@@ -322,7 +324,7 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- getContextTelescope
           setModuleCheckpoint m
-          checkRecordProjections m name hasNamedCon con tel' (raise 1 ftel) fields
+          checkRecordProjections m name hasNamedCon con tel' ftel fields
 
 
       -- we define composition here so that the projections are already in the signature.
@@ -330,10 +332,10 @@ checkRecDef i name uc ind eta0 pat con (A.DataDefParams gpars ps) contel fields 
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- Jesper, 2019-06-07: Check confluence of projection clauses
-      whenM (optConfluenceCheck <$> pragmaOptions) $ forM_ fs $ \f -> do
+      whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> forM_ fs $ \f -> do
         cls <- defClauses <$> getConstInfo (unDom f)
         forM (zip cls [0..]) $ \(cl,i) ->
-          checkConfluenceOfClause (unDom f) i cl
+          checkConfluenceOfClause confChk (unDom f) i cl
 
       return ()
   where
@@ -428,7 +430,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
            io <- primIOne
            Just io_name <- getBuiltinName' builtinIOne
            one <- primItIsOne
-           tInterval <- elInf primInterval
+           tInterval <- primIntervalType
            let
               (ix,rhs) =
                 case cmd of
@@ -443,7 +445,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                   -- body = u i1 itIsOne
                   DoHComp  -> (2,Var 1 [] `apply` [argN io, setRelevance Irrelevant $ argN one])
 
-              p = ConP (ConHead io_name Inductive [])
+              p = ConP (ConHead io_name IsData Inductive [])
                        (noConPatternInfo { conPType = Just (Arg defaultArgInfo tInterval)
                                          , conPFallThrough = True })
                          []
@@ -471,6 +473,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
                          , clauseBody      = Just $ rhs
+                         , clauseExact       = Just True
                          , clauseRecursive   = Just False  -- definitely non-recursive!
                          , clauseUnreachable = Just False
                          , clauseEllipsis  = NoEllipsis
@@ -487,6 +490,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
                          , clauseBody      = Just body
+                         , clauseExact       = Just True
                          , clauseRecursive   = Nothing
                              -- Andreas 2020-02-06 TODO
                              -- Or: Just False;  is it known to be non-recursive?
@@ -525,18 +529,18 @@ checkRecordProjections ::
   ModuleName -> QName -> Bool -> ConHead -> Telescope -> Telescope ->
   [A.Declaration] -> TCM ()
 checkRecordProjections m r hasNamedCon con tel ftel fs = do
-    checkProjs EmptyTel ftel fs
+    checkProjs EmptyTel ftel [] fs
   where
 
-    checkProjs :: Telescope -> Telescope -> [A.Declaration] -> TCM ()
+    checkProjs :: Telescope -> Telescope -> [Term] -> [A.Declaration] -> TCM ()
 
-    checkProjs _ _ [] = return ()
+    checkProjs _ _ _ [] = return ()
 
-    checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
-      setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
+    checkProjs ftel1 ftel2 vs (A.ScopedDecl scope fs' : fs) =
+      setScope scope >> checkProjs ftel1 ftel2 vs (fs' ++ fs)
 
     -- Case: projection.
-    checkProjs ftel1 (ExtendTel (dom@Dom{domInfo = ai,unDom = t}) ftel2) (A.Field info x _ : fs) =
+    checkProjs ftel1 (ExtendTel (dom@Dom{domInfo = ai,unDom = t}) ftel2) vs (A.Field info x _ : fs) =
       traceCall (CheckProjection (getRange info) x t) $ do
       -- Andreas, 2012-06-07:
       -- Issue 387: It is wrong to just type check field types again
@@ -547,9 +551,10 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         , nest 2 $ vcat
           [ "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , "tel   =" <+> (inTopContext . prettyTCM $ tel)
-          , "ftel1 =" <+> prettyTCM ftel1
-          , "t     =" <+> prettyTCM t
-          , "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
+          , "ftel1 =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM ftel1)
+          , "t     =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM t)
+          , "ftel2 =" <+> escapeContext __IMPOSSIBLE__ 1 (addContext ftel1 $ underAbstraction_ ftel2 prettyTCM)
+          , "vs    =" <+> prettyList_ (map prettyTCM vs)
           , "abstr =" <+> (text . show) (Info.defAbstract info)
           , "quant =" <+> (text . show) (getQuantity ai)
           , "coh   =" <+> (text . show) (getCohesion ai)
@@ -579,22 +584,25 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
 
       {- what are the contexts?
 
-          Γ, tel            ⊢ t
-          Γ, tel, r         ⊢ vs
-          Γ, tel, r, ftel₁  ⊢ raiseFrom (size ftel₁) 1 t
+          Γ, tel, ftel₁     ⊢ t
+          Γ, tel, r         ⊢ reverse vs : ftel₁
+          Γ, tel, r, ftel₁  ⊢ t' = raiseFrom (size ftel₁) 1 t
+          Γ, tel, r         ⊢ t'' = applySubst (parallelS vs) t'
       -}
 
       -- The type of the projection function should be
       --  {tel} -> (r : R Δ) -> t
       -- where Δ = Γ, tel is the current context
-      let finalt   = telePi (replaceEmptyName "r" tel) t
+      let t'       = raiseFrom (size ftel1) 1 t
+          t''      = applySubst (parallelS vs) t'
+          finalt   = telePi (replaceEmptyName "r" tel) t''
           projname = qualify m $ qnameName x
           projcall o = Var 0 [Proj o projname]
           rel      = getRelevance ai
           -- the recursive call
           recurse  = checkProjs (abstract ftel1 $ ExtendTel dom
                                  $ Abs (nameToArgName $ qnameName projname) EmptyTel)
-                                (ftel2 `absApp` projcall ProjSystem) fs
+                                (absBody ftel2) (projcall ProjSystem : vs) fs
 
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ "finalt=" <+> do
         inTopContext $ prettyTCM finalt
@@ -650,8 +658,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseTel       = killRange cltel
                             , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
                             , clauseBody      = body
-                            , clauseType      = Just $ Arg ai t
+                            , clauseType      = Just $ Arg ai t'
                             , clauseCatchall  = False
+                            , clauseExact       = Just True
                             , clauseRecursive   = Just False
                             , clauseUnreachable = Just False
                             , clauseEllipsis  = NoEllipsis
@@ -717,6 +726,6 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         recurse
 
     -- Case: definition.
-    checkProjs ftel1 ftel2 (d : fs) = do
+    checkProjs ftel1 ftel2 vs (d : fs) = do
       checkDecl d
-      checkProjs ftel1 ftel2 fs
+      checkProjs ftel1 ftel2 vs fs

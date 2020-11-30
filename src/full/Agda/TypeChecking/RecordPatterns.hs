@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Code which replaces pattern matching on record constructors with
 -- uses of projection functions.
@@ -122,7 +121,7 @@ getEtaAndArity :: SplitTag -> TCM (Bool, Nat)
 getEtaAndArity (SplitCon c) =
   for (getConstructorInfo c) $ \case
     DataCon n        -> (False, n)
-    RecordCon eta fs -> (eta == YesEta, size fs)
+    RecordCon _ eta fs -> (eta == YesEta, size fs)
 getEtaAndArity (SplitLit l) = return (False, 0)
 getEtaAndArity SplitCatchall = return (False, 1)
 
@@ -168,18 +167,17 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
       litMap   <- traverse loop litMap
       (conMap, eta) <- do
         let noEtaCase = (, Nothing) <$> (traverse . traverse) loop conMap
-            yesEtaCase ch b = (Map.empty,) . Just . (ch,) <$> traverse loop b
+            yesEtaCase b ch = (Map.empty,) . Just . (ch,) <$> traverse loop b
         case Map.toList conMap of
               -- This is already an eta match. Still need to recurse though.
               -- This can happen (#2981) when we
               -- 'revisitRecordPatternTranslation' in Rules.Decl, due to
               -- inferred eta.
-          _ | Just (ch, b) <- eta -> yesEtaCase ch b
+          _ | Just (ch, b) <- eta -> yesEtaCase b ch
           [(c, b)] | not comatch -> -- possible eta-match
             getConstructorInfo c >>= \ case
-              RecordCon YesEta fs ->
-                let ch = ConHead c Inductive (map argFromDom fs) in
-                yesEtaCase ch b
+              RecordCon pm YesEta fs -> yesEtaCase b $
+                ConHead c (IsRecord pm) Inductive (map argFromDom fs)
               _ -> noEtaCase
           _ -> noEtaCase
       return $ Case i cs{ conBranches    = conMap
@@ -219,7 +217,7 @@ recordExpressionsToCopatterns = \case
       Constructor{ conArity = ar } <- theDef <$> getConstInfo (conName c)
       irrProj <- optIrrelevantProjections <$> pragmaOptions
       getConstructorInfo (conName c) >>= \ case
-        RecordCon YesEta fs
+        RecordCon CopatternMatching YesEta fs
           | ar <- length fs, ar > 0,                   -- only for eta-records with at least one field
             length vs == ar,                           -- where the constructor application is saturated
             irrProj || not (any isIrrelevant fs) -> do -- and irrelevant projections (if any) are allowed
@@ -324,11 +322,11 @@ recordExpressionsToCopatterns = \case
 --UNUSED Liang-Ting Chen 2019-07-16
 ---- | Bottom-up procedure to annotate split tree.
 --recordSplitTree :: SplitTree -> TCM RecordSplitTree
---recordSplitTree t = snd <$> loop t
+--recordSplitTree = snd <.> loop
 --  where
 --
 --    loop :: SplitTree -> TCM ([Bool], RecordSplitTree)
---    loop t = case t of
+--    loop = \case
 --      SplittingDone n -> return (replicate n True, SplittingDone n)
 --      SplitAt i ts    -> do
 --        (xs, ts) <- loops (unArg i) ts
@@ -349,7 +347,7 @@ recordExpressionsToCopatterns = \case
 
 -- | Bottom-up procedure to record-pattern-translate split tree.
 translateSplitTree :: SplitTree -> TCM SplitTree
-translateSplitTree t = snd <$> loop t
+translateSplitTree = snd <.> loop
   where
 
     -- @loop t = return (xs, t')@ returns the translated split tree @t'@
@@ -357,7 +355,7 @@ translateSplitTree t = snd <$> loop t
     --   True  = variable will never be split on in @t'@ (virgin variable)
     --   False = variable will be spilt on in @t'@
     loop :: SplitTree -> TCM ([Bool], SplitTree)
-    loop t = case t of
+    loop = \case
       SplittingDone n ->
         -- start with n virgin variables
         return (replicate n True, SplittingDone n)
@@ -408,7 +406,7 @@ class DropFrom a where
   dropFrom :: Int -> Int -> a -> a
 
 instance DropFrom (SplitTree' c) where
-  dropFrom i n t = case t of
+  dropFrom i n = \case
     SplittingDone m -> SplittingDone (m - n)
     SplitAt x@(Arg ai j) lz ts
       | j >= i + n -> SplitAt (Arg ai $ j - n) lz $ dropFrom i n ts

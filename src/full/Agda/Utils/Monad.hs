@@ -14,7 +14,9 @@ import Control.Monad.State
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
+import Data.Monoid
 
+import Agda.Utils.Applicative
 import Agda.Utils.Either
 import Agda.Utils.Null (ifNotNullM)
 
@@ -171,12 +173,17 @@ partitionM f xs =
 
 -- | Translates 'Maybe' to 'MonadPlus'.
 fromMaybeMP :: MonadPlus m => Maybe a -> m a
-fromMaybeMP = maybe mzero return
+fromMaybeMP = foldA
 
 -- | Generalises the 'catMaybes' function from lists to an arbitrary
 -- 'MonadPlus'.
 catMaybesMP :: MonadPlus m => m (Maybe a) -> m a
-catMaybesMP = (>>= fromMaybeMP)
+catMaybesMP = scatterMP
+
+-- | Branch over elements of a monadic 'Foldable' data structure.
+scatterMP :: (MonadPlus m, Foldable t) => m (t a) -> m a
+scatterMP = (>>= foldA)
+
 
 -- Error monad ------------------------------------------------------------
 

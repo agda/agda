@@ -2,8 +2,6 @@
 --
 --   For 'TermSize' see "Agda.Syntax.Internal".
 
-{-# LANGUAGE TypeFamilies #-}  -- for type equality ~
-
 module Agda.Utils.Size
   ( Sized(..)
   , SizedThing(..)

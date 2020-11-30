@@ -1,0 +1,2 @@
+:load test/Interactive/Load.agda
+:quit

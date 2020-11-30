@@ -1,3 +1,4 @@
+
 {-| Given
 
     1. the function clauses @cs@
@@ -99,13 +100,13 @@ type SplitInstantiation = [(Nat,SplitPattern)]
 --
 -- If successful, return the index of the covering clause.
 --
-match :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+match :: PureTCM m
       => [Clause]                           -- ^ Search for clause that covers the patterns.
       -> [NamedArg SplitPattern]            -- ^ Patterns of the current 'SplitClause'.
       -> m (Match (Nat, SplitInstantiation))
 match cs ps = foldr choice (return No) $ zipWith matchIt [0..] cs
   where
-    matchIt :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+    matchIt :: PureTCM m
             => Nat     -- ^ Clause number.
             -> Clause
             -> m (Match (Nat, SplitInstantiation))
@@ -157,25 +158,27 @@ toSplitPSubst = (fmap . fmap) toSplitVar
 fromSplitPSubst :: SplitPSubstitution -> PatternSubstitution
 fromSplitPSubst = (fmap . fmap) fromSplitVar
 
-applySplitPSubst :: (Subst Term a) => SplitPSubstitution -> a -> a
+applySplitPSubst :: TermSubst a => SplitPSubstitution -> a -> a
 applySplitPSubst = applyPatSubst . fromSplitPSubst
 
 -- TODO: merge this instance and the one for DeBruijnPattern in
 -- Substitute.hs into one for Subst (Pattern' a) (Pattern' a).
-instance Subst SplitPattern SplitPattern where
-  applySubst IdS p = p
-  applySubst rho p = case p of
-    VarP i x     ->
+instance Subst SplitPattern where
+  type SubstArg SplitPattern = SplitPattern
+
+  applySubst IdS = id
+  applySubst rho = \case
+    VarP i x        ->
       usePatternInfo i $
       useName (splitPatVarName x) $
       useExcludedLits (splitExcludedLits x) $
       lookupS rho $ splitPatVarIndex x
-    DotP i u     -> DotP i $ applySplitPSubst rho u
-    ConP c ci ps -> ConP c ci $ applySubst rho ps
-    DefP i q ps -> DefP i q $ applySubst rho ps
-    LitP{}       -> p
-    ProjP{}      -> p
-    IApplyP i l r x  ->
+    DotP i u        -> DotP i $ applySplitPSubst rho u
+    ConP c ci ps    -> ConP c ci $ applySubst rho ps
+    DefP i q ps     -> DefP i q $ applySubst rho ps
+    p@LitP{}        -> p
+    p@ProjP{}       -> p
+    IApplyP i l r x ->
       useEndPoints (applySplitPSubst rho l) (applySplitPSubst rho r) $
       usePatternInfo i $
       useName (splitPatVarName x) $
@@ -204,7 +207,7 @@ instance Subst SplitPattern SplitPattern where
 
 -- | A pattern that matches anything (modulo eta).
 isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
-isTrivialPattern p = case p of
+isTrivialPattern = \case
   VarP{}      -> return True
   DotP{}      -> return True
   ConP c i ps -> andM $ ((conPLazy i ||) <$> isEtaCon (conName c))
@@ -304,7 +307,7 @@ choice m m' = m >>= \case
 -- | @matchClause qs i c@ checks whether clause @c@
 --   covers a split clause with patterns @qs@.
 matchClause
-  :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+  :: PureTCM m
   => [NamedArg SplitPattern]
      -- ^ Split clause patterns @qs@.
   -> Clause
@@ -331,7 +334,7 @@ matchClause qs c = matchPats (namedClausePats c) qs
 --   in @mconcat []@ which is @Yes []@.
 
 matchPats
-  :: (MonadReduce m , HasConstInfo m , HasBuiltins m, DeBruijn a)
+  :: (PureTCM m, DeBruijn a)
   => [NamedArg (Pattern' a)]
      -- ^ Clause pattern vector @ps@ (to cover split clause pattern vector).
   -> [NamedArg SplitPattern]
@@ -394,7 +397,7 @@ combine m m' = m >>= \case
 --      a cover if @q@ was split on variable @x@.
 
 matchPat
-  :: (MonadReduce m , HasConstInfo m , HasBuiltins m, DeBruijn a)
+  :: (PureTCM m, DeBruijn a)
   => Pattern' a
      -- ^ Clause pattern @p@ (to cover split clause pattern).
   -> SplitPattern
@@ -464,7 +467,7 @@ unDotP (DotP o v) = reduce v >>= \case
   v     -> return $ dotP v
 unDotP p = return p
 
-isLitP :: (MonadReduce m, HasBuiltins m) => Pattern' a -> m (Maybe Literal)
+isLitP :: PureTCM m => Pattern' a -> m (Maybe Literal)
 isLitP (LitP _ l) = return $ Just l
 isLitP (DotP _ u) = reduce u >>= \case
   Lit l -> return $ Just l
@@ -472,7 +475,7 @@ isLitP (DotP _ u) = reduce u >>= \case
 isLitP (ConP c ci []) = do
   Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
   if c == zero
-    then return $ Just $ LitNat (getRange c) 0
+    then return $ Just $ LitNat 0
     else return Nothing
 isLitP (ConP c ci [a]) | visible a && isRelevant a = do
   Con suc _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
@@ -481,12 +484,12 @@ isLitP (ConP c ci [a]) | visible a && isRelevant a = do
     else return Nothing
   where
     inc :: Literal -> Literal
-    inc (LitNat r n) = LitNat (fuseRange c r) $ n + 1
+    inc (LitNat n) = LitNat $ n + 1
     inc _ = __IMPOSSIBLE__
 isLitP _ = return Nothing
 
 unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
-unLitP (LitP info l@(LitNat _ n)) | n >= 0 = do
+unLitP (LitP info l@(LitNat n)) | n >= 0 = do
   Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
                                   (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
                                   (Lit l)

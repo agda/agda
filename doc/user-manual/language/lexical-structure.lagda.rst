@@ -38,7 +38,7 @@ keywords
   :ref:`∀ <notational-conventions>` ``..`` ``...`` ``abstract``
   ``constructor`` ``data`` :ref:`do <do-notation>` ``eta-equality`` ``field``
   :ref:`forall <notational-conventions>` ``hiding`` ``import`` ``in``
-  ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance`` ``let``
+  ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance`` ``interleaved`` ``let``
   :ref:`macro <macros>` ``module`` ``mutual`` ``no-eta-equality``
   ``open`` :ref:`overlap <instance-fields>` ``pattern`` ``postulate``
   ``primitive`` ``private`` ``public`` :ref:`quote <reflection>`
@@ -49,10 +49,9 @@ keywords
   :ref:`variable <generalization-of-declared-variables>`
   ``where`` ``with``
 
-  The ``Set`` keyword can appear with a number suffix, optionally subscripted
-  (see :ref:`universe-levels`). For instance ``Set42`` and ``Set₄₂`` are both
-  keywords.
-
+  The ``Set`` keyword can appear with a natural number suffix, optionally
+  subscripted (see :ref:`sort-system`). For instance ``Set42`` and
+  ``Set₄₂`` are both keywords.
 
 .. _names:
 
@@ -97,13 +96,15 @@ strings. See :ref:`built-ins` for the corresponding types, and
 .. _lexical-structure-int-literals:
 
 Integers
-  Integer values in decimal or hexadecimal (prefixed by ``0x``) notation.
-  Non-negative numbers map by default to :ref:`built-in natural numbers
-  <built-in-nat>`, but can be overloaded. Negative numbers have no default
-  interpretation and can only be used through :ref:`overloading
+  Integer values in decimal, hexadecimal (prefixed by ``0x``), or binary
+  (prefixed by ``0b``) notation. The character `_` can be used to separate
+  groups of digits. Non-negative numbers map by default to :ref:`built-in
+  natural numbers <built-in-nat>`, but can be overloaded. Negative numbers have
+  no default interpretation and can only be used through :ref:`overloading
   <literal-overloading>`.
 
-  Examples: ``123``, ``0xF0F080``, ``-42``, ``-0xF``
+  Examples: ``123``, ``0xF0F080``, ``-42``, ``-0xF``, ``0b11001001``,
+  ``1_000_000_000``, ``0b01001000_01001001``.
 
 .. _lexical-structure-float-literals:
 

@@ -18,7 +18,6 @@ open import Common.IO
 postulate
   primTrace : {b : Set} → String → b → b
 {-# COMPILE GHC primTrace = \ _ -> Debug.Trace.trace #-}
-{-# COMPILE UHC primTrace = \ _ -> UHC.Agda.Builtins.primTrace #-}
 
 main : IO Unit
 main = (λ x → putStrLn x ,, putStrLn x ) (primTrace "Eval" "hoi")

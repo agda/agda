@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Auto.SearchControl where
@@ -412,25 +411,30 @@ prioTypecheck True = 0
 
 -- ---------------------------------
 
-instance Trav a blk => Trav [a] blk where
+instance Trav a => Trav [a] where
+  type Block [a] = Block a
   trav _ []     = return ()
   trav f (x:xs) = trav f x >> trav f xs
 
-instance Trav (MId, CExp o) (RefInfo o) where
+instance Trav (MId, CExp o) where
+  type Block (MId, CExp o) = RefInfo o
   trav f (_, ce) = trav f ce
 
-instance Trav (TrBr a o) (RefInfo o) where
+instance Trav (TrBr a o) where
+  type Block (TrBr a o) = RefInfo o
   trav f (TrBr es _) = trav f es
 
-instance Trav (Exp o) (RefInfo o) where
-  trav f e = case e of
-    App _ _ _ args          -> trav f args
+instance Trav (Exp o) where
+  type Block (Exp o) = RefInfo o
+  trav f = \case
+    App _ _ _ args         -> trav f args
     Lam _ (Abs _ b)        -> trav f b
     Pi _ _ _ it (Abs _ ot) -> trav f it >> trav f ot
     Sort _                 -> return ()
     AbsurdLambda{}         -> return ()
 
-instance Trav (ArgList o) (RefInfo o) where
+instance Trav (ArgList o) where
+  type Block (ArgList o) = RefInfo o
   trav _ ALNil               = return ()
   trav f (ALCons _ arg args) = trav f arg >> trav f args
   trav f (ALProj eas _ _ as) = trav f eas >> trav f as

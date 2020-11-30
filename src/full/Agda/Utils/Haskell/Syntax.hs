@@ -2,6 +2,8 @@
 
 module Agda.Utils.Haskell.Syntax where
 
+import Data.Text (Text)
+
 -- * Modules
 
 data Module = Module ModuleName [ModulePragma] [ImportDecl] [Decl]
@@ -81,6 +83,7 @@ data Exp = Var QName
          | Con QName
          | Lit Literal
          | InfixApp Exp QOp Exp
+         | Ann Exp Type
          | App Exp Exp
          | Lambda [Pat] Exp
          | Let Binds Exp
@@ -94,7 +97,7 @@ data Exp = Var QName
 data Alt = Alt Pat Rhs (Maybe Binds)
   deriving (Eq)
 
-data Literal = Int Integer | Frac Rational | Char Char | String String
+data Literal = Int Integer | Frac Rational | Char Char | String Text
   deriving (Eq)
 
 -- * Names

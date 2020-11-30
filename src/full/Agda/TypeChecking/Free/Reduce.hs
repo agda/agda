@@ -1,3 +1,4 @@
+
 -- | Free variable check that reduces the subject to make certain variables not
 --   free. Used when pruning metavariables in Agda.TypeChecking.MetaVars.Occurs.
 module Agda.TypeChecking.Free.Reduce
@@ -50,7 +51,7 @@ type MonadFreeRed m =
   , MonadReduce m
   )
 
-class (PrecomputeFreeVars a, Subst Term a) => ForceNotFree a where
+class (PrecomputeFreeVars a, Subst a) => ForceNotFree a where
   -- Reduce the argument if necessary, to make as many as possible of
   -- the variables in the state not free. Updates the state, marking
   -- the variables that couldn't be make not free as `MaybeFree`. By
@@ -70,7 +71,7 @@ reduceIfFreeVars :: (Reduce a, ForceNotFree a, MonadFreeRed m)
 reduceIfFreeVars k a = do
   xs <- varsToForceNotFree
   let fvs     = precomputedFreeVars a
-      notfree = IntSet.null $ IntSet.intersection xs fvs
+      notfree = IntSet.disjoint xs fvs
   if notfree
     then return a
     else k . precomputeFreeVars_ =<< reduce a
@@ -85,7 +86,7 @@ instance (Reduce a, ForceNotFree a) => ForceNotFree (Arg a) where
   -- traverse.
   forceNotFree' = reduceIfFreeVars (traverse forceNotFree')
 
-instance (Reduce a, ForceNotFree a) => ForceNotFree (Dom a) where
+instance (Reduce a, ForceNotFree a, TermSubst a) => ForceNotFree (Dom a) where
   forceNotFree' = traverse forceNotFreeR
 
 instance (Reduce a, ForceNotFree a) => ForceNotFree (Abs a) where
@@ -112,7 +113,7 @@ instance ForceNotFree Type where
   forceNotFree' (El s t) = El <$> forceNotFree' s <*> forceNotFree' t
 
 instance ForceNotFree Term where
-  forceNotFree' t = case t of
+  forceNotFree' = \case
     Var x es   -> do
       metas <- ask
       modify $ IntMap.adjust (const $ MaybeFree metas) x
@@ -126,8 +127,8 @@ instance ForceNotFree Term where
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
     DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
-    Lit{}      -> return t
-    Dummy{}    -> return t
+    t@Lit{}    -> return t
+    t@Dummy{}  -> return t
 
 instance ForceNotFree Level where
   forceNotFree' (Max m as) = Max m <$> forceNotFree' as
@@ -135,25 +136,19 @@ instance ForceNotFree Level where
 instance ForceNotFree PlusLevel where
   forceNotFree' (Plus k a) = Plus k <$> forceNotFree' a
 
-instance ForceNotFree LevelAtom where
-  forceNotFree' l = case l of
-    MetaLevel x es   -> local (insertMetaSet x) $
-                        MetaLevel x    <$> forceNotFree' es
-    BlockedLevel x t -> BlockedLevel x <$> forceNotFree' t
-    NeutralLevel b t -> NeutralLevel b <$> forceNotFree' t
-    UnreducedLevel t -> UnreducedLevel <$> forceNotFreeR t  -- Already reduce in the cases above
-
 instance ForceNotFree Sort where
   -- Reduce for sorts already goes under all sort constructors, so we can get
   -- away without forceNotFreeR here.
-  forceNotFree' s = case s of
+  forceNotFree' = \case
     Type l     -> Type     <$> forceNotFree' l
     Prop l     -> Prop     <$> forceNotFree' l
-    PiSort a b -> PiSort   <$> forceNotFree' a <*> forceNotFree' b
+    SSet l     -> SSet     <$> forceNotFree' l
+    PiSort a b c -> PiSort <$> forceNotFree' a <*> forceNotFree' b <*> forceNotFree' c
     FunSort a b -> FunSort <$> forceNotFree' a <*> forceNotFree' b
     UnivSort s -> UnivSort <$> forceNotFree' s
     MetaS x es -> MetaS x  <$> forceNotFree' es
     DefS d es  -> DefS d   <$> forceNotFree' es
-    Inf _      -> return s
-    SizeUniv   -> return s
-    DummyS{}   -> return s
+    s@(Inf _ _)-> return s
+    s@SizeUniv -> return s
+    s@LockUniv -> return s
+    s@DummyS{} -> return s

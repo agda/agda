@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE TypeOperators #-}
+
 
 -- | Interface for compiler backend writers.
 module Agda.Compiler.Backend
@@ -32,6 +32,7 @@ import qualified Data.Map as Map
 import System.Console.GetOpt
 
 import Agda.Syntax.Treeless
+import Agda.TypeChecking.Errors (getAllWarnings)
 -- Agda.TypeChecking.Monad.Base imports us, relying on the .hs-boot file to
 -- resolve the circular dependency. Fine. However, ghci loads the module after
 -- compilation, so it brings in all of the symbols. That causes .Base to see
@@ -44,7 +45,6 @@ import Agda.TypeChecking.Pretty as P
 
 import Agda.Interaction.Options
 import Agda.Interaction.FindFile
-import Agda.Interaction.Imports (getAllWarnings)
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.FileName
@@ -178,16 +178,10 @@ parseBackendOptions backends argv opts0 =
       opts <- checkOpts opts
       return (forgetAll forgetOpts backends, opts)
 
-backendInteraction :: [Backend] -> (TCM (Maybe Interface) -> TCM ()) -> TCM (Maybe Interface) -> TCM ()
-backendInteraction [] fallback check = fallback check
-backendInteraction backends _ check = do
-  opts   <- commandLineOptions
-  let backendNames = [ backendName b | Backend b <- backends ]
-      err flag = genericError $ "Cannot mix --" ++ flag ++ " and backends (" ++ List.intercalate ", " backendNames ++ ")"
-  when (optInteractive     opts) $ err "interactive"
-  when (optGHCiInteraction opts) $ err "interaction"
-  when (optJSONInteraction opts) $ err "interaction-json"
-  mi     <- check
+backendInteraction :: AbsolutePath -> [Backend] -> TCM () -> (AbsolutePath -> TCM (Maybe Interface)) -> TCM ()
+backendInteraction mainFile backends setup check = do
+  setup
+  mi <- check mainFile
 
   -- reset warnings
   stTCWarnings `setTCLens` []

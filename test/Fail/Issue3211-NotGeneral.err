@@ -1,5 +1,0 @@
-Issue3211-NotGeneral.agda:24,3-27
-lift-id≤  is not a legal rewrite rule, since the constructor parameters are not fully general:
-  Constructor:  lift
-  Parameters:  [Form]
-when checking the pragma REWRITE lift-id≤

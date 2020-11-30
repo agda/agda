@@ -2,8 +2,8 @@ AGDA_FAILURE
 
 ret > ExitFailure 42
 out > Failed to solve the following constraints:
-out >   Tsn (suc zero) =< _T_27 zero
-out >   _T_27 m =< Tsn (suc m)
+out >   Tsn (suc zero) =< _T_27 zero (blocked on _T_27)
+out >   _T_27 m =< Tsn (suc m) (blocked on _T_27)
 out > Unsolved metas at the following locations:
 out >   Issue325b.agda:24,12-13
 out >   Issue325b.agda:24,15-25

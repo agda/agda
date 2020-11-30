@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.
 --   Only the best elements are kept.

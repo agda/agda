@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 module Agda.Utils.Zipper where
 
@@ -50,4 +49,3 @@ instance (Zipper f, Zipper g, Element f ~ Carrier g) => Zipper (ComposeZipper f 
                   Nothing       -> go c2' z1'
                   Just (x, z2') -> Right (x, ComposeZip z1' z2')
               Left c1 -> Left c1
-

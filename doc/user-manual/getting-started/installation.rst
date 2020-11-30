@@ -174,23 +174,61 @@ Nix or NixOS
 ------------
 
 Agda is part of the Nixpkgs collection that is used by
-https://nixos.org/nixos. To install Agda and agda-mode for Emacs,
-type:
+https://nixos.org/nixos. There are two ways to install Agda from nix:
 
-.. code-block:: bash
+* The new way: If you are tracking ``nixos-unstable`` or
+  ``nixpkgs-unstable`` (the default on MacOS) or you are using NixOS
+  version 20.09 or above then you should be able to install Agda (and
+  the standard library) via:
 
-  nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
+  .. code-block:: bash
 
-If you’re just interested in the library, you can also install the
-library without the executable. The Agda standard library is currently
-not installed automatically.
+    nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (p: [ p.standard-library ])"
+    agda-mode setup
+    echo "standard-library" > ~/.agda/defaults
 
-However, if using existing Agda libraries (including the standard library) it
-may be more convenient to use a nix expression for ``nix-shell``.  A third-party
-`example repository
-<https://github.com/bbarker/LearningAgda>`_
-is available to create a ``nix-shell`` environment that loads
-``agda-pkg`` as well as ``agda`` and ``agda-mode`` for emacs.
+  The second command tries to set up the Agda emacs mode. Skip this if
+  you don't want to set up the emacs mode. See `Installation from
+  Hackage`_ above for more details about ``agda-mode setup``. The
+  third command sets the ``standard-library`` as a default library so
+  it is always available to Agda. If you don't want to do this you can
+  omit this step and control library imports on a per project basis
+  using an ``.agda-lib`` file in each project root.
+
+  If you don't want to install the standard library via nix then you
+  can just run:
+
+  .. code-block:: bash
+
+    nix-env -f "<nixpkgs>" -iA agda
+    agda-mode setup
+
+
+  For more information on the Agda infrastructure in nix, and how to
+  manage and develop Agda libraries with nix, see
+  https://nixos.org/manual/nixpkgs/unstable/#agda. In particular, the
+  ``agda.withPackages`` function can install more libraries than just
+  the standard library. Alternatively, see :ref:`Library Management
+  <package-system>` for how to manage libraries manually.
+
+* The old way (deprecated): As Agda is a Haskell package available
+  from Hackage you can install it like any other Haskell package:
+
+  .. code-block:: bash
+
+    nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
+    agda-mode setup
+
+  This approach does not provide any additional support for working
+  with Agda libraries. See :ref:`Library Management <package-system>`
+  for how to manage libraries manually. It also suffers from this
+  `open issue <https://github.com/agda/agda/issues/4613>`_ which the 'new
+  way' does not.
+
+Nix is extremely flexible and we have only described how to install
+Agda globally using ``nix-env``. One can also declare which packages
+to install globally in a configuration file or pull in Agda and some
+relevant libraries for a particular project using ``nix-shell``.
 
 OS X
 ----
@@ -244,30 +282,36 @@ To configure the way of editing agda files, follow the section
 Installation of the Development Version
 =======================================
 
-After getting the development version following the instructions in
-the `Agda wiki <https://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
+After getting the development version from the Git `repository
+<https://github.com/agda/agda>`_
 
 * Install the :ref:`prerequisites <prerequisites>`
 
-* In the top-level directory of the Agda source tree
+* In the top-level directory of the Agda source tree, run:
 
-  * Follow the :ref:`instructions <installation-from-hackage>` for
-    installing Agda from Hackage (except run ``cabal install``
-    instead of ``cabal install Agda``) or
+  .. code-block:: bash
 
-  * You can try to install Agda (including a compiled Emacs mode) by
-    running the following command:
+    cabal update
+    make install
 
-    .. code-block:: bash
+  Note that on a Mac, because ICU is installed in a non-standard location,
+  you need to specify this location on the command line:
 
-      make install
+  .. code-block:: bash
 
-    Note that on a Mac, because ICU is installed in a non-standard location,
-    you need to specify this location on the command line:
+    make install CABAL_OPTS='--extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
 
-    .. code-block:: bash
+  You can also add the ``CABAL_OPTS`` variable to ``mk/config.mk`` (see
+  ``HACKING.md``) instead of passing it via the command line.
 
-      make install-bin CABAL_OPTS='--extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
+  To install via ``stack`` instead of ``cabal``, copy one of the
+  ``stack-x.x.x.yaml`` files of your choice to a ``stack.yaml`` file before
+  running ``make``. For example:
+
+  .. code-block:: bash
+
+    cp stack-8.10.1.yaml stack.yaml
+    make install
 
 .. _installation-flags:
 
@@ -293,3 +337,28 @@ When installing Agda the following flags can be used:
      message. Default: off.
 
 .. _exec-path-from-shell: https://github.com/purcell/exec-path-from-shell
+
+.. _installing-multiple-versions-of-Agda:
+
+Installing multiple versions of Agda
+====================================
+
+Multiple versions of Agda can be installed concurrently by using the --program-suffix flag.
+For example:
+
+.. code-block:: bash
+
+  cabal install Agda-2.6.1 --program-suffix=-2.6.1
+
+will install version 2.6.1 under the name agda-2.6.1. You can then switch to this version
+of Agda in Emacs via
+
+.. code-block:: bash
+
+   C-c C-x C-s 2.6.1 RETURN
+
+Switching back to the standard version of Agda is then done by:
+
+.. code-block:: bash
+
+   C-c C-x C-s RETURN

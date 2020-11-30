@@ -55,6 +55,8 @@ instance HasBuiltins m => HasBuiltins (StateT s m) where
 instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
   getBuiltinThing b = lift $ getBuiltinThing b
 
+deriving instance HasBuiltins m => HasBuiltins (BlockT m)
+
 -- If Agda is changed so that the type of a literal can belong to an
 -- inductive family (with at least one index), then the implementation
 -- of split' in Agda.TypeChecking.Coverage should be changed.
@@ -62,17 +64,17 @@ instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
 litType
   :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
   => Literal -> m Type
-litType l = case l of
-  LitNat _ n    -> do
+litType = \case
+  LitNat n    -> do
     _ <- primZero
     when (n > 0) $ void $ primSuc
     el <$> primNat
-  LitWord64 _ _ -> el <$> primWord64
-  LitFloat _ _  -> el <$> primFloat
-  LitChar _ _   -> el <$> primChar
-  LitString _ _ -> el <$> primString
-  LitQName _ _  -> el <$> primQName
-  LitMeta _ _ _ -> el <$> primAgdaMeta
+  LitWord64 _ -> el <$> primWord64
+  LitFloat _  -> el <$> primFloat
+  LitChar _   -> el <$> primChar
+  LitString _ -> el <$> primString
+  LitQName _  -> el <$> primQName
+  LitMeta _ _ -> el <$> primAgdaMeta
   where
     el t = El (mkType 0) t
 
@@ -145,16 +147,18 @@ getTerm use name = flip fromMaybeM (getTerm' name) $
 
 
 -- | Rewrite a literal to constructor form if possible.
-constructorForm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-                => Term -> m Term
-constructorForm v = constructorForm' primZero primSuc v
+constructorForm :: HasBuiltins m => Term -> m Term
+constructorForm v = do
+  let pZero = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
+      pSuc  = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+  constructorForm' pZero pSuc v
 
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
 constructorForm' pZero pSuc v =
   case v of
-    Lit (LitNat r n)
+    Lit (LitNat n)
       | n == 0    -> pZero
-      | n > 0     -> (`apply1` Lit (LitNat r $ n - 1)) <$> pSuc
+      | n > 0     -> (`apply1` Lit (LitNat $ n - 1)) <$> pSuc
       | otherwise -> pure v
     _ -> pure v
 
@@ -186,7 +190,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primEquality, primRefl,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
-    primSet, primProp, primSetOmega,
+    primLockUniv,
+    primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
@@ -215,9 +220,11 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
-    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
+    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint, primAgdaTCMWithReconsParams,
+    primAgdaTCMOnlyReduceDefs, primAgdaTCMDontReduceDefs,
     primAgdaTCMNoConstraints,
-    primAgdaTCMRunSpeculative
+    primAgdaTCMRunSpeculative,
+    primAgdaTCMExec
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
 primInteger                           = getBuiltin builtinInteger
@@ -302,6 +309,9 @@ primLevelMax                          = getBuiltin builtinLevelMax
 primSet                               = getBuiltin builtinSet
 primProp                              = getBuiltin builtinProp
 primSetOmega                          = getBuiltin builtinSetOmega
+primLockUniv                          = getPrimitiveTerm builtinLockUniv
+primSSetOmega                         = getBuiltin builtinSSetOmega
+primStrictSet                         = getBuiltin builtinStrictSet
 primFromNat                           = getBuiltin builtinFromNat
 primFromNeg                           = getBuiltin builtinFromNeg
 primFromString                        = getBuiltin builtinFromString
@@ -399,9 +409,13 @@ primAgdaTCMBlockOnMeta                = getBuiltin builtinAgdaTCMBlockOnMeta
 primAgdaTCMCommit                     = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
+primAgdaTCMWithReconsParams           = getBuiltin builtinAgdaTCMWithReconsParams
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
+primAgdaTCMOnlyReduceDefs             = getBuiltin builtinAgdaTCMOnlyReduceDefs
+primAgdaTCMDontReduceDefs             = getBuiltin builtinAgdaTCMDontReduceDefs
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
+primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
 
 -- | The coinductive primitives.
 
@@ -432,7 +446,8 @@ coinductionKit = tryMaybe coinductionKit'
 data SortKit = SortKit
   { nameOfSet      :: QName
   , nameOfProp     :: QName
-  , nameOfSetOmega :: QName
+  , nameOfSSet     :: QName
+  , nameOfSetOmega :: IsFibrant -> QName
   }
 
 sortKit :: HasBuiltins m => m SortKit
@@ -440,10 +455,15 @@ sortKit = do
   Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
   Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
   Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  Def sset     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
+  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
-    , nameOfSetOmega = setomega
+    , nameOfSSet     = sset
+    , nameOfSetOmega = \case
+        IsFibrant -> setomega
+        IsStrict  -> ssetomega
     }
 
 

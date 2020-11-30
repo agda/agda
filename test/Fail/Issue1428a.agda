@@ -1,32 +1,41 @@
 -- Andreas, 2015-03-16
+-- Andreas, 2020-10-26 removed loop during injectivity check
 
-open import Common.Size
-open import Common.Prelude
+open import Agda.Builtin.Size
 
 -- Note: the assumption of pred is absurd,
 -- but still should not make Agda loop.
 
 module _ (pred : ∀ i → Size< i) where
 
-data D (i : Size) : Set where
-  wrap : (j : Size< i) → D i
+data ⊥ : Set where
 
-loop : ∀ i → D i → ⊥
-loop i (wrap j) = loop j (wrap (pred j))
--- Loops during injectivity check
+data SizeLt (i : Size) : Set where
+  wrap : (j : Size< i) → SizeLt i
 
-d : ∀ i → D i
+loop : (d : ∀ i → SizeLt i) → ∀ i → SizeLt i → ⊥
+loop d i (wrap j) = loop d j (d j)
+
+-- -- Loops during injectivity check:
+-- loop : ∀ i → SizeLt i → ⊥
+-- loop i (wrap j) = loop j (wrap (pred j))
+
+d : ∀ i → SizeLt i
 d i = wrap (pred i)
 
 absurd : ⊥
-absurd = FIXME loop ∞ (d ∞)
+absurd = loop d ∞ (d ∞)
+
+_ = FIXME
 
 -- Testcase temporarily mutilated, original error:
--- -Issue1428a.agda:9,20-31
+--
+-- -Issue1428a.agda:..
 -- -Functions may not return sizes, thus, function type
 -- -(i : Size) → Size< i is illegal
 -- -when checking that the expression ∀ i → Size< i is a type
--- +Issue1428a.agda:22,10-15
+--
+-- +Issue1428a.agda:...
 -- +Not in scope:
--- +  FIXME at Issue1428a.agda:22,10-15
+-- +  FIXME at Issue1428a.agda:...
 -- +when scope checking FIXME

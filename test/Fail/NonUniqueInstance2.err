@@ -4,5 +4,6 @@ Failed to solve the following constraints:
   Candidates
     _ : m < n
     <-suc : {m = m₁ : Nat} {n = n₁ : Nat} ⦃ _ : m₁ < n₁ ⦄ → m₁ < suc n₁
+    (stuck)
 Unsolved metas at the following locations:
   NonUniqueInstance2.agda:16,27-39

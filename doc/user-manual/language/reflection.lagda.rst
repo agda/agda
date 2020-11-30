@@ -194,29 +194,6 @@ Visibility and relevance characterise the behaviour of an argument::
   {-# BUILTIN ARG        Arg      #-}
   {-# BUILTIN ARGARG     arg      #-}
 
-Patterns
-~~~~~~~~
-
-Reflected patterns are bound to the ``AGDAPATTERN`` built-in using the
-following data type.
-
-::
-
-  data Pattern : Set where
-    con    : (c : Name) (ps : List (Arg Pattern)) → Pattern
-    dot    : Pattern
-    var    : (s : String)  → Pattern
-    lit    : (l : Literal) → Pattern
-    proj   : (f : Name)    → Pattern
-    absurd : Pattern
-
-  {-# BUILTIN AGDAPATTERN   Pattern #-}
-  {-# BUILTIN AGDAPATCON    con     #-}
-  {-# BUILTIN AGDAPATDOT    dot     #-}
-  {-# BUILTIN AGDAPATVAR    var     #-}
-  {-# BUILTIN AGDAPATLIT    lit     #-}
-  {-# BUILTIN AGDAPATPROJ   proj    #-}
-  {-# BUILTIN AGDAPATABSURD absurd  #-}
 
 Name abstraction
 ~~~~~~~~~~~~~~~~
@@ -232,16 +209,19 @@ Name abstraction
 Terms
 ~~~~~
 
-Terms, sorts and clauses are mutually recursive and mapped to the ``AGDATERM``,
-``AGDASORT`` and ``AGDACLAUSE`` built-ins respectively. Types are simply
-terms. Terms use de Bruijn indices to represent variables.
+Terms, sorts, patterns, and clauses are mutually recursive and mapped
+to the ``AGDATERM``, ``AGDASORT``, ``AGDAPATTERN`` and ``AGDACLAUSE``
+built-ins respectively. Types are simply terms. Terms and patterns use
+de Bruijn indices to represent variables.
 
 ::
 
   data Term : Set
   data Sort : Set
+  data Pattern : Set
   data Clause : Set
   Type = Term
+  Telescope = List (Σ String λ _ → Arg Type)
 
   data Term where
     var       : (x : Nat) (args : List (Arg Term)) → Term
@@ -260,12 +240,21 @@ terms. Terms use de Bruijn indices to represent variables.
     lit     : (n : Nat) → Sort  -- A Set of a given concrete level.
     unknown : Sort
 
-  data Clause where
-    clause        : (ps : List (Arg Pattern)) (t : Term) → Clause
-    absurd-clause : (ps : List (Arg Pattern)) → Clause
+  data Pattern where
+    con    : (c : Name) (ps : List (Arg Pattern)) → Pattern
+    dot    : (t : Term)    → Pattern
+    var    : (x : Nat   )  → Pattern
+    lit    : (l : Literal) → Pattern
+    proj   : (f : Name)    → Pattern
+    absurd : (x : Nat)     → Pattern  -- Absurd patterns have de Bruijn indices
 
-  {-# BUILTIN AGDASORT    Sort   #-}
+  data Clause where
+    clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
+    absurd-clause : (tel : Telescope) (ps : List (Arg Pattern)) → Clause
+
   {-# BUILTIN AGDATERM    Term   #-}
+  {-# BUILTIN AGDASORT    Sort   #-}
+  {-# BUILTIN AGDAPATTERN Pattern #-}
   {-# BUILTIN AGDACLAUSE  Clause #-}
 
   {-# BUILTIN AGDATERMVAR         var       #-}
@@ -282,6 +271,13 @@ terms. Terms use de Bruijn indices to represent variables.
   {-# BUILTIN AGDASORTSET         set     #-}
   {-# BUILTIN AGDASORTLIT         lit     #-}
   {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
+
+  {-# BUILTIN AGDAPATCON    con     #-}
+  {-# BUILTIN AGDAPATDOT    dot     #-}
+  {-# BUILTIN AGDAPATVAR    var     #-}
+  {-# BUILTIN AGDAPATLIT    lit     #-}
+  {-# BUILTIN AGDAPATPROJ   proj    #-}
+  {-# BUILTIN AGDAPATABSURD absurd  #-}
 
   {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
   {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
@@ -452,8 +448,17 @@ following primitive operations::
     -- is higher than the second argument. Note that Level 0 and 1 are printed
     -- to the info buffer instead. For instance, giving -v a.b.c:10 enables
     -- printing from debugPrint "a.b.c.d" 10 msg.
-
     debugPrint : String → Nat → List ErrorPart → TC ⊤
+
+    -- Only allow reduction of specific definitions while executing the TC computation
+    onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+
+    -- Don't allow reduction of specific definitions while executing the TC computation
+    dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+
+    -- Makes the following primitives to reconstruct hidden parameters:
+    -- getDefinition, normalise, reduce, inferType, checkType and getContext
+    withReconstructed : ∀ {a} {A : Set a} → TC A → TC A
 
     -- Fail if the given computation gives rise to new, unsolved
     -- "blocking" constraints.
@@ -488,6 +493,8 @@ following primitive operations::
   {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
   {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
   {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
+  {-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
+  {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
   {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 
@@ -696,8 +703,11 @@ Example usage:
     defId id-name = do
       defineFun id-name
         [ clause
-          ( arg (arg-info hidden relevant) (var "A")
-          ∷ arg (arg-info visible relevant) (var "x")
+          ( ("A" , arg (arg-info visible relevant) (agda-sort (lit 0)))
+          ∷ ("x" , arg (arg-info visible relevant) (var 0 []))
+          ∷ [])
+          ( arg (arg-info hidden relevant) (var 1)
+          ∷ arg (arg-info visible relevant) (var 0)
           ∷ [] )
           (var 0 [])
         ]
@@ -712,3 +722,36 @@ Example usage:
       defId id-name
 
     unquoteDecl id′ = mkId id′
+
+System Calls
+~~~~~~~~~~~~
+
+It is possible to run system calls as part of a metaprogram, using the ``execTC`` builtin. You can use this feature to implement type providers, or to call external solvers. For instance, the following example calls ``/bin/echo`` from Agda:
+
+.. code-block:: agda
+
+  postulate
+    execTC : (exe : String) (args : List String) (stdIn : String)
+           → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
+
+  {-# BUILTIN AGDATCMEXEC execTC #-}
+
+  macro
+    echo : List String → Term → TC ⊤
+    echo args hole = do
+      (exitCode , (stdOut , stdErr)) ← execTC "echo" args ""
+      unify hole (lit (string stdOut))
+
+  _ : echo ("hello" ∷ "world" ∷ []) ≡ "hello world\n"
+  _ = refl
+
+The ``execTC`` builtin takes three arguments: the basename of the executable (e.g., ``"echo"``), a list of arguments, and the contents of the standard input. It returns a triple, consisting of the exit code (as a natural number), the contents of the standard output, and the contents of the standard error.
+
+It would be ill-advised to allow Agda to make arbitrary system calls. Hence, the feature must be activated by passing the ``--allow-exec`` option, either on the command-line or using a pragma. (Note that ``--allow-exec`` is incompatible with ``--safe``.) Furthermore, Agda can only call executables which are listed in the list of trusted executables, ``~/.agda/executables``. For instance, to run the example above, you must add ``/bin/echo`` to this file:
+
+.. code-block:: text
+
+  # contents of ~/.agda/executables
+  /bin/echo
+
+The executable can then be called by passing its basename to ``execTC``, subtracting the ``.exe`` on Windows.

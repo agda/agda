@@ -111,9 +111,9 @@ The interval and path types
 ---------------------------
 
 The key idea of Cubical Type Theory is to add an interval type ``I :
-Setω`` (the reason this is in ``Setω`` is because it doesn't support
+SSet`` (the reason this is in ``SSet`` is because it doesn't support
 the ``transp`` and ``hcomp`` operations). A variable ``i : I``
-intuitively corresponds to a point the `real unit interval
+intuitively corresponds to a point in the `real unit interval
 <https://en.wikipedia.org/wiki/Unit_interval>`_. In an empty context,
 there are only two values of type ``I``: the two endpoints of the
 interval, ``i0`` and ``i1``.
@@ -241,7 +241,7 @@ While path types are great for reasoning about equality they don't let
 us transport along paths between types or even compose paths, which in
 particular means that we cannot yet prove the induction principle for
 paths. In order to remedy this we also have a built-in (generalized)
-transport operation and homogeneous composition operations. The
+transport operation `transp` and homogeneous composition operations `hcomp`. The
 transport operation is generalized in the sense that it lets us
 specify where it is the identity function.
 
@@ -249,27 +249,31 @@ specify where it is the identity function.
 
   transp : ∀ {ℓ} (A : I → Set ℓ) (r : I) (a : A i0) → A i1
 
-There is an additional side condition to be satisfied for ``transp A r
-a`` to type-check, which is that ``A`` has to be *constant* on
-``r``. This means that ``A`` should be a constant function whenever
-the constraint ``r = i1`` is satisfied.  For example:
+There is an additional side condition to be satisfied for a usage of ``transp`` to type-check: ``A`` should be a constant function whenever the constraint ``r = i1`` is satisfied. By constant here we mean that ``A`` is definitionally equal to ``λ _ → A i0``, which in turn requires ``A i0`` and ``A i1`` to be definitionally equal as well.
 
-* If ``r`` is ``i0`` then ``A`` can be anything, since this side
-  condition is vacuously true.
-
-* If ``r`` is ``i1`` then ``A`` must be a constant function.
-
-* If ``r`` is some in-scope variable ``i`` then ``A`` only needs to be
-  a constant function when substituting ``i1`` for ``i``.
-
-When ``r`` is equal to ``i1`` the ``transp`` function will compute as
-the identity function.
+When ``r`` is ``i1``, ``transp A r`` will compute as the identity function.
 
 .. code-block:: agda
 
    transp A i1 a = a
 
-This requires ``A`` to be constant for it to be well-typed.
+This is only sound if in such a case ``A`` is a trivial path, as the side condition requires.
+
+It might seems strange that the side condition expects ``r`` and
+``A`` to interact, but both of them can depend on any of the
+interval variables in scope, so assuming a specific value for ``r``
+can affect what ``A`` looks like.
+
+Some examples of the side condition for different values of ``r``:
+
+* If ``r`` is some in-scope variable ``i``, on which ``A`` may depend as well, then ``A`` only needs to be
+  a constant function when substituting ``i1`` for ``i``.
+
+* If ``r`` is ``i0`` then there is no restrition on ``A``, since the side
+  condition is vacuously true.
+
+* If ``r`` is ``i1`` then ``A`` must be a constant function.
+
 
 We can use ``transp`` to define regular transport:
 
@@ -342,9 +346,9 @@ when ``IsOne φ``.  There is also a dependent version of this called
 
 .. code-block:: agda
 
-  Partial : ∀ {ℓ} → I → Set ℓ → Setω
+  Partial : ∀ {ℓ} → I → Set ℓ → SSet ℓ
 
-  PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → Setω
+  PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → SSet ℓ
 
 There is a new form of pattern matching that can be used to introduce partial elements:
 
@@ -385,7 +389,7 @@ Cubical Agda also has cubical subtypes as in the CCHM type theory:
 
 ::
 
-  _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Setω
+  _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → SSet ℓ
   A [ φ ↦ u ] = Sub A φ u
 
 A term ``v : A [ φ ↦ u ]`` should be thought of as a term of type
@@ -409,7 +413,7 @@ They satisfy the following equalities:
 
   outS (inS a) = a
 
-  inS {u = u} (outS {u = u} a) = a
+  inS {φ = φ} (outS {φ = φ} a) = a
 
   outS {φ = i1} {u} _ = u 1=1
 
@@ -828,7 +832,7 @@ the following ``BUILTIN``, primitives and postulates:
 
 .. code-block:: agda
 
-  {-# BUILTIN INTERVAL I    #-} -- I : Setω
+  {-# BUILTIN INTERVAL I    #-} -- I : SSet
   {-# BUILTIN IZERO    i0   #-}
   {-# BUILTIN IONE     i1   #-}
 
@@ -840,7 +844,7 @@ the following ``BUILTIN``, primitives and postulates:
     primIMax : I → I → I   -- _∨_
     primINeg : I → I       -- ~_
 
-  {-# BUILTIN ISONE IsOne #-} -- IsOne : I → Setω
+  {-# BUILTIN ISONE IsOne #-} -- IsOne : I → SSet
 
   postulate
     itIsOne : IsOne i1     -- 1=1

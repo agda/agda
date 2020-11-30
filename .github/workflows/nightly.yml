@@ -1,4 +1,4 @@
-name: nightly build
+name: Nightly build
 
 on:
   push:
@@ -11,18 +11,21 @@ on:
 
 jobs:
   Ubuntu:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
 
     strategy:
       matrix:
-        ghc-ver: [8.8.3]
+        ghc-ver: [8.10.2]
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
       FLAGS: "--flag Agda:enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-haskell@v1.1
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
+
+    - uses: actions/setup-haskell@v1.1.3
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
@@ -42,7 +45,7 @@ jobs:
         cp -avr src/data upload
         cp -av .github/*.sh upload
 
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2.0.1
       with:
         name: agda-linux-${{ github.sha }}
         path: upload
@@ -52,14 +55,16 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.8.3]
+        ghc-ver: [8.10.2]
 
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
       FLAGS: "--flag Agda:enable-cluster-counting"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2.3.2
+      with:
+        submodules: recursive
 
     - name: Install stack
       run: |
@@ -86,60 +91,50 @@ jobs:
         cp -av src/data upload
         cp -av .github/*.sh upload
 
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2.0.1
       with:
         name: agda-macOS-${{ github.sha }}
         path: upload
 
-  Windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        ghc-ver: [8.8.2]
-        icu-ver: [58.2-3]
-
-    env:
-      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast"
-      FLAGS: "--flag Agda:enable-cluster-counting"
-      ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Install stack and wget
-      run: |
-        choco install haskell-stack --no-progress
-        choco install wget --no-progress
-
-    - name: Install text-icu ${{ matrix.icu-ver }}
-      shell: bash
-      run: |
-        wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
-        stack --compiler ghc-${{ matrix.ghc-ver }} exec -- pacman -U --noconfirm ${ICU_FILE}
-        stack build --compiler ghc-${{ matrix.ghc-ver }} text-icu
-
-    - name: Build dependencies
-      shell: bash
-      run: |
-        stack build ${ARGS} ${FLAGS} --only-dependencies
-
-    - name: Build agda
-      shell: bash
-      run: |
-        stack build ${ARGS} ${FLAGS}
-
-    - name: Pack artifacts
-      shell: bash
-      run: |
-        mkdir -p upload/bin
-        cp -av ~/AppData/Local/Programs/stack/x86_64-windows/msys2-20180531/mingw64/bin/*.dll upload/bin
-        cp -av .stack-work/install/**/bin/agda.exe upload/bin
-        cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
-        cp -av .stack-work/install/**/bin/size-solver.exe upload/bin
-        cp -avr src/data upload
-        cp -av .github/*.bat upload
-
-    - uses: actions/upload-artifact@v1
-      with:
-        name: agda-windows-${{ github.sha }}
-        path: upload
+          # Fail to pack a Windows build due to #5040
+          #
+          #  Windows:
+          #    runs-on: windows-latest
+          #    strategy:
+          #      matrix:
+          #        # We can not use 8.10.2 because #4965.
+          #        ghc-ver: []
+          #
+          #    # NOTE: The flag Agda:enable-cluster-counting is not included below, due to issues installing
+          #    #       the ICU library with Stack's version of msys, as of about 2020-10-27. See:
+          #    #   - https://github.com/agda/agda/issues/5012
+          #    #   - https://github.com/commercialhaskell/stack/issues/5300
+          #
+          #    steps:
+          #    - uses: actions/checkout@v2.3.2
+          #      with:
+          #        submodules: recursive
+          #
+          #    # See comment in .github/workflows/stack.yml
+          #    - name: Build dependencies
+          #      run: |
+          #        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --only-dependencies
+          #
+          #    - name: Build agda
+          #      run: |
+          #        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast
+          #
+          #    - name: Pack artifacts
+          #      shell: bash
+          #      run: |
+          #        mkdir -p upload/bin
+          #        cp -av ~/AppData/Local/Programs/stack/x86_64-windows/msys2-20180531/mingw64/bin/*.dll upload/bin
+          #        cp -av .stack-work/install/**/bin/agda.exe upload/bin
+          #        cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
+          #        cp -avr src/data upload
+          #        cp -av .github/*.bat upload
+          #
+          #    - uses: actions/upload-artifact@v2.0.1
+          #      with:
+          #        name: agda-windows-${{ github.sha }}
+          #        path: upload

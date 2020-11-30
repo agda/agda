@@ -267,9 +267,6 @@ nodeToSizeExpr n =
 instance Negative a => Negative (Edge' r f a) where
   negative = negative . label
 
--- instance Show a => Show (Edge' a) where
---   show (Edge u v l) = show u ++ " -(" ++ show l ++ ")-> " ++ show v
-
 instance (Ord r, Ord f, MeetSemiLattice a) => MeetSemiLattice (Edge' r f a) where
   e@(Edge u v l) `meet` e'@(Edge u' v' l')
     | u == u' && v == v' = Edge u v $ l `meet` l'
@@ -388,7 +385,7 @@ implies h g = all test (graphToList g)
 --             False
 
 nodeFromSizeExpr :: SizeExpr' rigid flex -> (Node rigid flex, Offset)
-nodeFromSizeExpr e = case e of
+nodeFromSizeExpr = \case
   Const   n -> (NodeZero   , n)
   Rigid i n -> (NodeRigid i, n)
   Flex  x n -> (NodeFlex x , n)

@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies #-}
 
 {- | Various utility functions dealing with the non-linear, higher-order
      patterns used for rewrite rules.
@@ -28,6 +27,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List
@@ -84,9 +84,11 @@ instance PatternFrom () Sort NLPSort where
     case s of
       Type l   -> PType <$> patternFrom r k () l
       Prop l   -> PProp <$> patternFrom r k () l
-      Inf n    -> return $ PInf n
+      Inf f n  -> return $ PInf f n
+      SSet l   -> __IMPOSSIBLE__
       SizeUniv -> return PSizeUniv
-      PiSort _ _ -> __IMPOSSIBLE__
+      LockUniv -> return PLockUniv
+      PiSort _ _ _ -> __IMPOSSIBLE__
       FunSort _ _ -> __IMPOSSIBLE__
       UnivSort _ -> __IMPOSSIBLE__
       MetaS{}  -> __IMPOSSIBLE__
@@ -108,7 +110,7 @@ instance PatternFrom Type Term NLPat where
   patternFrom r0 k t v = do
     t <- reduce t
     etaRecord <- isEtaRecordType t
-    prop <- isPropM t
+    prop <- fromRight __IMPOSSIBLE__ <.> runBlocked $ isPropM t
     let r = if prop then Irrelevant else r0
     v <- unLevel =<< reduce v
     reportSDoc "rewriting.build" 60 $ sep
@@ -178,13 +180,11 @@ instance PatternFrom Type Term NLPat where
 -- | Convert from a non-linear pattern to a term.
 
 class NLPatToTerm p a where
-  nlPatToTerm
-    :: (MonadReduce m, HasBuiltins m, HasConstInfo m, MonadDebug m)
-    => p -> m a
+  nlPatToTerm :: PureTCM m => p -> m a
 
   default nlPatToTerm ::
     ( NLPatToTerm p' a', Traversable f, p ~ f p', a ~ f a'
-    , MonadReduce m, HasBuiltins m, HasConstInfo m, MonadDebug m
+    , PureTCM m
     ) => p -> m a
   nlPatToTerm = traverse nlPatToTerm
 
@@ -218,8 +218,9 @@ instance NLPatToTerm NLPType Type where
 instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PType l) = Type <$> nlPatToTerm l
   nlPatToTerm (PProp l) = Prop <$> nlPatToTerm l
-  nlPatToTerm (PInf n)  = return $ Inf n
+  nlPatToTerm (PInf f n) = return $ Inf f n
   nlPatToTerm PSizeUniv = return SizeUniv
+  nlPatToTerm PLockUniv = return LockUniv
 
 -- | Gather the set of pattern variables of a non-linear pattern
 class NLPatVars a where
@@ -238,8 +239,9 @@ instance NLPatVars NLPSort where
   nlPatVarsUnder k = \case
     PType l   -> nlPatVarsUnder k l
     PProp l   -> nlPatVarsUnder k l
-    PInf n    -> empty
+    PInf f n  -> empty
     PSizeUniv -> empty
+    PLockUniv -> empty
 
 instance NLPatVars NLPat where
   nlPatVarsUnder k = \case
@@ -293,8 +295,9 @@ instance GetMatchables NLPSort where
   getMatchables = \case
     PType l   -> getMatchables l
     PProp l   -> getMatchables l
-    PInf n    -> empty
+    PInf f n  -> empty
     PSizeUniv -> empty
+    PLockUniv -> empty
 
 instance GetMatchables Term where
   getMatchables = getDefs' __IMPOSSIBLE__ singleton
@@ -325,5 +328,6 @@ instance Free NLPSort where
   freeVars' = \case
     PType l   -> freeVars' l
     PProp l   -> freeVars' l
-    PInf n    -> mempty
+    PInf f n  -> mempty
     PSizeUniv -> mempty
+    PLockUniv -> mempty

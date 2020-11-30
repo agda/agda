@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 -- | Generic traversal and reduce for concrete syntax,
@@ -15,6 +14,7 @@ import Agda.Syntax.Concrete
 
 import Agda.Utils.Either
 import Agda.Utils.List1 (List1)
+import Agda.Utils.List2 (List2)
 
 import Agda.Utils.Impossible
 
@@ -71,6 +71,7 @@ instance ExprLike Bool where
 
 instance ExprLike a => ExprLike [a]
 instance ExprLike a => ExprLike (List1 a)
+instance ExprLike a => ExprLike (List2 a)
 instance ExprLike a => ExprLike (Maybe a)
 
 instance ExprLike a => ExprLike (Arg a)
@@ -216,12 +217,15 @@ instance ExprLike Declaration where
      DataDef r n bs cs         -> DataDef r n (mapE bs)                $ mapE cs
      Data r n bs e cs          -> Data r n (mapE bs) (mapE e)          $ mapE cs
      RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e
-     RecordDef r n ind eta pat c tel ds -> RecordDef r n ind eta pat c (mapE tel) $ mapE ds
-     Record r n ind eta pat c tel e ds  -> Record r n ind eta pat c (mapE tel) (mapE e) $ mapE ds
+     RecordDef r n dir tel ds  -> RecordDef r n dir (mapE tel)         $ mapE ds
+     Record r n dir tel e ds   -> Record r n dir (mapE tel) (mapE e)   $ mapE ds
+     e@RecordDirective{}       -> e
      e@Infix{}                 -> e
      e@Syntax{}                -> e
      e@PatternSyn{}            -> e
      Mutual    r ds            -> Mutual    r                          $ mapE ds
+     InterleavedMutual r ds    -> InterleavedMutual r                  $ mapE ds
+     LoneConstructor r ds      -> LoneConstructor r                    $ mapE ds
      Abstract  r ds            -> Abstract  r                          $ mapE ds
      Private   r o ds          -> Private   r o                        $ mapE ds
      InstanceB r ds            -> InstanceB r                          $ mapE ds

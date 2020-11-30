@@ -1,5 +1,6 @@
-{-# LANGUAGE DoAndIfThenElse      #-}
 {-# LANGUAGE CPP                  #-}
+{-# LANGUAGE DoAndIfThenElse      #-}
+{-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE PatternGuards        #-}
 
 module Compiler.Tests where
@@ -127,7 +128,7 @@ simpleTests comp = do
   return $ testGroup "simple" $ catMaybes tests'
 
   where compArgs :: Compiler -> AgdaArgs
-        compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/"]
+        compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision"]
         compArgs JS{} = []
 
 -- The Compiler tests using the standard library are horribly
@@ -193,7 +194,7 @@ agdaRunProgGoldenTest :: FilePath     -- ^ directory where to run the tests.
     -> TestOptions
     -> Maybe TestTree
 agdaRunProgGoldenTest dir comp extraArgs inp opts =
-      agdaRunProgGoldenTest1 dir comp extraArgs inp opts (\compDir out err -> do
+      agdaRunProgGoldenTest1 dir comp extraArgs inp opts $ \compDir out err -> do
         if executeProg opts then do
           -- read input file, if it exists
           inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
@@ -209,7 +210,6 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
               return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
         else
           return $ CompileSucceeded (ProgramResult ExitSuccess out err)
-        )
   where inpFile = dropAgdaExtension inp <.> ".inp"
 
 agdaRunProgGoldenTest1 :: FilePath     -- ^ directory where to run the tests.
@@ -239,7 +239,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
               defArgs = ["--ignore-interfaces" | notElem "--no-ignore-interfaces" (extraAgdaArgs cOpts)] ++
                         ["--no-libraries"] ++
                         ["--compile-dir", compDir, "-v0", "-vwarning:1"] ++ extraArgs' ++ cArgs ++ [inp]
-          args <- (++ defArgs) <$> argsForComp comp
+          let args = argsForComp comp ++ defArgs
           res@(ret, out, err) <- readAgdaProcessWithExitCode args T.empty
 
           absDir <- canonicalizePath dir
@@ -248,13 +248,14 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
             ExitFailure _ -> return $ CompileFailed $ toProgramResult res
           )
 
-        argsForComp :: Compiler -> IO [String]
-        argsForComp MAlonzo = return ["--compile"]
-        argsForComp (JS NonOptimized)      = return ["--js"]
-        argsForComp (JS Optimized)         = return ["--js", "--js-optimize"]
-        argsForComp (JS MinifiedOptimized) = return ["--js", "--js-optimize", "--js-minify"]
+        argsForComp :: Compiler -> [String]
+        argsForComp MAlonzo = [ "--compile" ]
+        argsForComp (JS o)  = [ "--js", "--js-verify" ] ++ case o of
+          NonOptimized      -> []
+          Optimized         -> [ "--js-optimize" ]
+          MinifiedOptimized -> [ "--js-optimize", "--js-minify" ]
 
-        removePaths ps r = case r of
+        removePaths ps = \case
           CompileFailed    r -> CompileFailed    (removePaths' r)
           CompileSucceeded r -> CompileSucceeded (removePaths' r)
           ExecutedProg     r -> ExecutedProg     (removePaths' r)

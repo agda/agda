@@ -3,5 +3,6 @@ Failed to solve the following constraints:
   Candidates
     a₁ : A
     a₂ : A
+    (stuck)
 Unsolved metas at the following locations:
   InstanceArgumentsAmbiguous.agda:8,8-9

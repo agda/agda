@@ -15,10 +15,11 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (listToMaybe)
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (HighlightingLevel, HighlightingMethod, TCM, ProblemId, Comparison, Polarity)
+  (HighlightingLevel, HighlightingMethod, TCM, Comparison, Polarity, TCErr)
 
 import           Agda.Syntax.Abstract         (QName)
-import           Agda.Syntax.Common           (InteractionId (..))
+import           Agda.Syntax.Common           (InteractionId (..), Modality)
+import           Agda.Syntax.Internal         (ProblemId, Blocker)
 import           Agda.Syntax.Position
 import           Agda.Syntax.Scope.Base       (ScopeInfo)
 
@@ -163,7 +164,7 @@ data Interaction' range
 
     -- | Show unsolved metas. If there are no unsolved metas but unsolved constraints
     -- show those instead.
-  | Cmd_metas
+  | Cmd_metas Rewrite
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
@@ -242,6 +243,16 @@ data Interaction' range
 
     -- | Toggle display of implicit arguments.
   | ToggleImplicitArgs
+
+    ------------------------------------------------------------------------
+    -- Irrelevant arguments
+
+    -- | Tells Agda whether or not to show irrelevant arguments.
+  | ShowIrrelevantArgs    Bool -- Show them?
+
+
+    -- | Toggle display of irrelevant arguments.
+  | ToggleIrrelevantArgs
 
     ------------------------------------------------------------------------
     -- | Goal commands
@@ -421,10 +432,11 @@ instance Read CompilerBackend where
               _            -> OtherBackend t
     return (b, s)
 
+-- | Ordered ascendingly by degree of normalization.
 data Rewrite =  AsIs | Instantiated | HeadNormal | Simplified | Normalised
-    deriving (Show, Read)
+    deriving (Show, Read, Eq, Ord)
 
-data ComputeMode = DefaultCompute | IgnoreAbstract | UseShowInstance
+data ComputeMode = DefaultCompute | HeadCompute | IgnoreAbstract | UseShowInstance
   deriving (Show, Read, Eq)
 
 data UseForce
@@ -432,7 +444,7 @@ data UseForce
   | WithoutForce  -- ^ Don't ignore any checks.
   deriving (Eq, Read, Show)
 
-data OutputForm a b = OutputForm Range [ProblemId] (OutputConstraint a b)
+data OutputForm a b = OutputForm Range [ProblemId] Blocker (OutputConstraint a b)
   deriving (Functor)
 
 data OutputConstraint a b
@@ -442,13 +454,14 @@ data OutputConstraint a b
                    | CmpLevels Comparison b b
                    | CmpTeles Comparison b b
       | JustSort b | CmpSorts Comparison b b
-      | Guard (OutputConstraint a b) ProblemId
       | Assign b a | TypedAssign b a a | PostponedCheckArgs b [a] a a
       | IsEmptyType a
       | SizeLtSat a
       | FindInstanceOF b a [(a,a,a)]
       | PTSInstance b b
-      | PostponedCheckFunDef QName a
+      | PostponedCheckFunDef QName a TCErr
+      | CheckLock b b
+      | UsableAtMod Modality b
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.

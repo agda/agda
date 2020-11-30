@@ -9,10 +9,13 @@ module Agda.Syntax.Concrete
   ( -- * Expressions
     Expr(..)
   , OpApp(..), fromOrdinary
+  , OpAppArgs, OpAppArgs', OpAppArgs0
   , module Agda.Syntax.Concrete.Name
-  , appView, AppView(..)
-  , isSingleIdentifierP, removeSingletonRawAppP
+  , AppView(..), appView, unAppView
+  , rawApp, rawAppP
+  , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
+  , returnExpr
     -- * Bindings
   , Binder'(..)
   , Binder
@@ -20,6 +23,7 @@ module Agda.Syntax.Concrete
   , mkBinder
   , LamBinding
   , LamBinding'(..)
+  , dropTypeAndModality
   , TypedBinding
   , TypedBinding'(..)
   , RecordAssignment
@@ -31,13 +35,17 @@ module Agda.Syntax.Concrete
   , Telescope, Telescope1
   , lamBindingsToTelescope
   , makePi
+  , mkLam, mkLet, mkTLet
     -- * Declarations
+  , RecordDirective(..)
+  , isRecordDirective
+  , RecordDirectives
   , Declaration(..)
   , ModuleApplication(..)
   , TypeSignature
   , TypeSignatureOrInstanceBlock
   , ImportDirective, Using, ImportedName
-  , Renaming
+  , Renaming, RenamingDirective, HidingDirective
   , AsName'(..), AsName
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
@@ -46,7 +54,7 @@ module Agda.Syntax.Concrete
   , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
   , DoStmt(..)
   , Pragma(..)
-  , Module
+  , Module(..)
   , ThingWithFixity(..)
   , HoleContent, HoleContent'(..)
   , topLevelModuleName
@@ -62,6 +70,7 @@ import Data.List hiding (null)
 import Data.Set (Set)
 
 import Data.Data (Data)
+import Data.Text (Text)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -76,6 +85,8 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Either ( maybeLeft )
 import Agda.Utils.Lens
 import Agda.Utils.List1  ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.List2  ( List2, pattern List2 )
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 
@@ -126,20 +137,14 @@ exprFieldA f r = f (_exprFieldA r) <&> \x -> r { _exprFieldA = x }
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
   = Ident QName                                -- ^ ex: @x@
-  | Lit Literal                                -- ^ ex: @1@ or @\"foo\"@
+  | Lit Range Literal                          -- ^ ex: @1@ or @\"foo\"@
   | QuestionMark Range (Maybe Nat)             -- ^ ex: @?@ or @{! ... !}@
   | Underscore Range (Maybe String)            -- ^ ex: @_@ or @_A_5@
-  | RawApp Range (List1 Expr)                  -- ^ before parsing operators
+  | RawApp Range (List2 Expr)                  -- ^ before parsing operators
   | App Range Expr (NamedArg Expr)             -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
-  | OpApp Range QName (Set A.Name)
-          [NamedArg
-             (MaybePlaceholder (OpApp Expr))]  -- ^ ex: @e + e@
-                                               -- The 'QName' is
-                                               -- possibly ambiguous,
-                                               -- but it must
-                                               -- correspond to one of
-                                               -- the names in the
-                                               -- set.
+  | OpApp Range QName (Set A.Name) OpAppArgs   -- ^ ex: @e + e@
+                                               -- The 'QName' is possibly ambiguous,
+                                               -- but it must correspond to one of the names in the set.
   | WithApp Range Expr [Expr]                  -- ^ ex: @e | e1 | .. | en@
   | HiddenArg Range (Named_ Expr)              -- ^ ex: @{e}@ or @{x=e}@
   | InstanceArg Range (Named_ Expr)            -- ^ ex: @{{e}}@ or @{{x=e}}@
@@ -150,7 +155,7 @@ data Expr
   | Pi Telescope1 Expr                         -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
   | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
-  | Let Range [Declaration] (Maybe Expr)       -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
+  | Let Range (List1 Declaration) (Maybe Expr) -- ^ ex: @let Ds in e@, missing body when parsing do-notation let
   | Paren Range Expr                           -- ^ ex: @(e)@
   | IdiomBrackets Range [Expr]                 -- ^ ex: @(| e1 | e2 | .. | en |)@ or @(|)@
   | DoBlock Range (List1 DoStmt)               -- ^ ex: @do x <- m1; m2@
@@ -169,14 +174,18 @@ data Expr
   | Generalized Expr
   deriving (Data, Eq)
 
+type OpAppArgs = OpAppArgs' Expr
+type OpAppArgs' e = List1 (NamedArg (MaybePlaceholder (OpApp e)))
+type OpAppArgs0 e = [NamedArg (MaybePlaceholder (OpApp e))]
+
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
   = IdentP QName                           -- ^ @c@ or @x@
   | QuoteP Range                           -- ^ @quote@
   | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
-  | RawAppP Range (List1 Pattern)          -- ^ @p1..pn@ before parsing operators
+  | RawAppP Range (List2 Pattern)          -- ^ @p1..pn@ before parsing operators
   | OpAppP Range QName (Set A.Name)
-           [NamedArg Pattern]              -- ^ eg: @p => p'@ for operator @_=>_@
+           (List1 (NamedArg Pattern))      -- ^ eg: @p => p'@ for operator @_=>_@
                                            -- The 'QName' is possibly
                                            -- ambiguous, but it must
                                            -- correspond to one of
@@ -188,7 +197,7 @@ data Pattern
   | AbsurdP Range                          -- ^ @()@
   | AsP Range Name Pattern                 -- ^ @x\@p@ unused
   | DotP Range Expr                        -- ^ @.e@
-  | LitP Literal                           -- ^ @0@, @1@, etc.
+  | LitP Range Literal                     -- ^ @0@, @1@, etc.
   | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   | EqualP Range [(Expr,Expr)]             -- ^ @i = i1@ i.e. cubical face lattice generator
   | EllipsisP Range                        -- ^ @...@, only as left-most pattern.
@@ -198,7 +207,7 @@ data Pattern
 data DoStmt
   = DoBind Range Pattern Expr [LamClause]   -- ^ @p ← e where cs@
   | DoThen Expr
-  | DoLet Range [Declaration]
+  | DoLet Range (List1 Declaration)
   deriving (Data, Eq)
 
 -- | A Binder @x\@p@, the pattern is optional
@@ -225,6 +234,13 @@ data LamBinding' a
     -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
+-- | Drop type annotations and lets from bindings.
+dropTypeAndModality :: LamBinding -> [LamBinding]
+dropTypeAndModality (DomainFull (TBind _ xs _)) =
+  map (DomainFree . setModality defaultModality) $ List1.toList xs
+dropTypeAndModality (DomainFull TLet{}) = []
+dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
+
 data BoundName = BName
   { boundName   :: Name
   , bnameFixity :: Fixity'
@@ -247,7 +263,7 @@ type TypedBinding = TypedBinding' Expr
 data TypedBinding' e
   = TBind Range (List1 (NamedArg Binder)) e
     -- ^ Binding @(x1\@p1 ... xn\@pn : A)@.
-  | TLet  Range [Declaration]
+  | TLet  Range (List1 Declaration)
     -- ^ Let binding @(let Ds)@ or @(open M args)@.
   deriving (Data, Functor, Foldable, Traversable, Eq)
 
@@ -269,6 +285,24 @@ lamBindingsToTelescope r = fmap $ \case
 makePi :: Telescope -> Expr -> Expr
 makePi []     = id
 makePi (b:bs) = Pi (b :| bs)
+
+-- | Smart constructor for @Lam@: check for non-zero bindings.
+
+mkLam :: Range -> [LamBinding] -> Expr -> Expr
+mkLam r []     e = e
+mkLam r (x:xs) e = Lam r (x :| xs) e
+
+-- | Smart constructor for @Let@: check for non-zero let bindings.
+
+mkLet :: Range -> [Declaration] -> Expr -> Expr
+mkLet r []     e = e
+mkLet r (d:ds) e = Let r (d :| ds) (Just e)
+
+-- | Smart constructor for @TLet@: check for non-zero let bindings.
+
+mkTLet :: Range -> [Declaration] -> Maybe (TypedBinding' e)
+mkTLet r []     = Nothing
+mkTLet r (d:ds) = Just $ TLet r (d :| ds)
 
 {-| Left hand sides can be written in infix style. For example:
 
@@ -346,6 +380,8 @@ data ExprWhere = ExprWhere Expr WhereClause
 type ImportDirective = ImportDirective' Name Name
 type Using           = Using'           Name Name
 type Renaming        = Renaming'        Name Name
+type RenamingDirective = RenamingDirective' Name Name
+type HidingDirective   = HidingDirective'   Name Name  -- 'Hiding' is already taken
 
 -- | An imported name can be a module or a defined name.
 type ImportedName = ImportedName' Name Name
@@ -376,6 +412,19 @@ type FieldSignature = Declaration
 -- | Just type signatures or instance blocks.
 type TypeSignatureOrInstanceBlock = Declaration
 
+-- | Isolated record directives parsed as Declarations
+data RecordDirective
+   = Induction (Ranged Induction)
+       -- ^ Range of keyword @[co]inductive@.
+   | Constructor Name IsInstance
+   | Eta         (Ranged HasEta0)
+       -- ^ Range of @[no-]eta-equality@ keyword.
+   | PatternOrCopattern Range
+       -- ^ If declaration @pattern@ is present, give its range.
+   deriving (Data,Eq,Show)
+
+type RecordDirectives = RecordDirectives' (Name, IsInstance)
+
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
 -}
@@ -391,14 +440,14 @@ data Declaration
   | Data        Range Name [LamBinding] Expr [TypeSignatureOrInstanceBlock]
   | DataDef     Range Name [LamBinding] [TypeSignatureOrInstanceBlock]
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | RecordDef   Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] [Declaration]
-  | Record      Range Name (Maybe (Ranged Induction)) (Maybe HasEta0) (Maybe Range) (Maybe (Name, IsInstance)) [LamBinding] Expr [Declaration]
-    -- ^ The optional name is a name for the record constructor.
-    --   The optional 'Range' is the range of the @pattern@ declaration.
+  | RecordDef   Range Name RecordDirectives [LamBinding] [Declaration]
+  | Record      Range Name RecordDirectives [LamBinding] Expr [Declaration]
+  | RecordDirective RecordDirective -- ^ Should not survive beyond the parser
   | Infix Fixity (List1 Name)
   | Syntax      Name Notation -- ^ notation declaration for a name
   | PatternSyn  Range Name [Arg Name] Pattern
   | Mutual      Range [Declaration]  -- @Range@ of the whole @mutual@ block.
+  | InterleavedMutual Range [Declaration]
   | Abstract    Range [Declaration]
   | Private     Range Origin [Declaration]
     -- ^ In "Agda.Syntax.Concrete.Definitions" we generate private blocks
@@ -408,6 +457,7 @@ data Declaration
     -- ^ The 'Range' here (exceptionally) only refers to the range of the
     --   @instance@ keyword.  The range of the whole block @InstanceB r ds@
     --   is @fuseRange r ds@.
+  | LoneConstructor Range [Declaration]
   | Macro       Range [Declaration]
   | Postulate   Range [TypeSignatureOrInstanceBlock]
   | Primitive   Range [TypeSignature]
@@ -419,6 +469,12 @@ data Declaration
   | UnquoteDef  Range [Name] Expr
   | Pragma      Pragma
   deriving (Data, Eq)
+
+-- | Extract a record directive
+isRecordDirective :: Declaration -> Maybe RecordDirective
+isRecordDirective (RecordDirective r) = Just r
+isRecordDirective (InstanceB r [RecordDirective (Constructor n p)]) = Just (Constructor n (InstanceDef r))
+isRecordDirective _ = Nothing
 
 data ModuleApplication
   = SectionApp Range Telescope Expr
@@ -446,9 +502,9 @@ data Pragma
   | EtaPragma                 Range QName
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
-  | WarningOnUsage            Range QName String
+  | WarningOnUsage            Range QName Text
     -- ^ Applies to the named function
-  | WarningOnImport           Range String
+  | WarningOnImport           Range Text
     -- ^ Applies to the current module
   | InjectivePragma           Range QName
     -- ^ Mark a definition as injective for the pattern matching unifier.
@@ -475,7 +531,10 @@ data Pragma
 
 -- | Modules: Top-level pragmas plus other top-level declarations.
 
-type Module = ([Pragma], [Declaration])
+data Module = Mod
+  { modPragmas :: [Pragma]
+  , modDecls   :: [Declaration]
+  }
 
 -- | Computes the top-level module name.
 --
@@ -485,8 +544,8 @@ type Module = ([Pragma], [Declaration])
 -- See 'spanAllowedBeforeModule'.
 
 topLevelModuleName :: Module -> TopLevelModuleName
-topLevelModuleName (_, []) = __IMPOSSIBLE__
-topLevelModuleName (_, ds) = case spanAllowedBeforeModule ds of
+topLevelModuleName (Mod _ []) = __IMPOSSIBLE__
+topLevelModuleName (Mod _ ds) = case spanAllowedBeforeModule ds of
   (_, Module _ n _ _ : _) -> toTopLevelModuleName n
   _ -> __IMPOSSIBLE__
 
@@ -517,6 +576,18 @@ data HoleContent' qn p e
 
 type HoleContent = HoleContent' () Pattern Expr
 
+---------------------------------------------------------------------------
+-- * Smart constructors
+---------------------------------------------------------------------------
+
+rawApp :: List1 Expr -> Expr
+rawApp es@(e1 :| e2 : rest) = RawApp (getRange es) $ List2 e1 e2 rest
+rawApp (e :| []) = e
+
+rawAppP :: List1 Pattern -> Pattern
+rawAppP ps@(p1 :| p2 : rest) = RawAppP (getRange ps) $ List2 p1 p2 rest
+rawAppP (p :| []) = p
+
 {--------------------------------------------------------------------------
     Views
  --------------------------------------------------------------------------}
@@ -527,7 +598,8 @@ data AppView = AppView Expr [NamedArg Expr]
 appView :: Expr -> AppView
 appView = \case
     App r e1 e2      -> vApp (appView e1) e2
-    RawApp _ (e:|es) -> AppView e $ map arg es
+    RawApp _ (List2 e1 e2 es)
+                     -> AppView e1 $ map arg (e2:es)
     e                -> AppView e []
   where
     vApp (AppView e es) arg = AppView e (es ++ [arg])
@@ -536,47 +608,67 @@ appView = \case
     arg (InstanceArg _ e) = makeInstance $ defaultArg e
     arg e                 = defaultArg (unnamed e)
 
+unAppView :: AppView -> Expr
+unAppView (AppView e nargs) = rawApp (e :| map unNamedArg nargs)
+
+  where
+    unNamedArg narg = ($ unArg narg) $ case getHiding narg of
+      Hidden     -> HiddenArg (getRange narg)
+      NotHidden  -> namedThing
+      Instance{} -> InstanceArg (getRange narg)
+
 isSingleIdentifierP :: Pattern -> Maybe Name
-isSingleIdentifierP p = case removeSingletonRawAppP p of
+isSingleIdentifierP = \case
   IdentP (QName x) -> Just x
   WildP r          -> Just $ noName r
+  ParenP _ p       -> isSingleIdentifierP p
   _                -> Nothing
 
-removeSingletonRawAppP :: Pattern -> Pattern
-removeSingletonRawAppP = \case
-    RawAppP _ (p :| []) -> removeSingletonRawAppP p
-    ParenP _ p          -> removeSingletonRawAppP p
+removeParenP :: Pattern -> Pattern
+removeParenP = \case
+    ParenP _ p -> removeParenP p
     p -> p
 
 -- | Observe the hiding status of an expression
 
 observeHiding :: Expr -> WithHiding Expr
 observeHiding = \case
-  RawApp _ (e :| [])              -> observeHiding e
   HiddenArg _   (Named Nothing e) -> WithHiding Hidden e
   InstanceArg _ (Named Nothing e) -> WithHiding (Instance NoOverlap) e
   e                               -> WithHiding NotHidden e
+
+returnExpr :: Expr -> Maybe Expr
+returnExpr (Pi _ e)        = returnExpr e
+returnExpr (Fun _ _  e)    = returnExpr e
+returnExpr (Let _ _ e)     = returnExpr =<< e
+returnExpr (Paren _ e)     = returnExpr e
+returnExpr (Generalized e) = returnExpr e
+returnExpr e               = pure e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
 
 isPattern :: Expr -> Maybe Pattern
 isPattern = \case
-  Ident x         -> return $ IdentP x
-  App _ e1 e2     -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
-  Paren r e       -> ParenP r <$> isPattern e
-  Underscore r _  -> return $ WildP r
-  Absurd r        -> return $ AbsurdP r
-  As r x e        -> pushUnderBracesP r (AsP r x) <$> isPattern e
-  Dot r e         -> return $ pushUnderBracesE r (DotP r) e
-  Lit l           -> return $ LitP l
-  HiddenArg r e   -> HiddenP r <$> mapM isPattern e
-  InstanceArg r e -> InstanceP r <$> mapM isPattern e
-  RawApp r es     -> RawAppP r <$> mapM isPattern es
-  Quote r         -> return $ QuoteP r
-  Equal r e1 e2   -> return $ EqualP r [(e1, e2)]
-  Ellipsis r      -> return $ EllipsisP r
-  Rec r es        -> do
+  Ident x            -> return $ IdentP x
+  App _ e1 e2        -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
+  Paren r e          -> ParenP r <$> isPattern e
+  Underscore r _     -> return $ WildP r
+  Absurd r           -> return $ AbsurdP r
+  As r x e           -> pushUnderBracesP r (AsP r x) <$> isPattern e
+  Dot r e            -> return $ pushUnderBracesE r (DotP r) e
+  -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
+  -- point numbers is not stable across architectures and with different
+  -- compiler flags.
+  Lit _ (LitFloat _) -> Nothing
+  Lit r l            -> return $ LitP r l
+  HiddenArg r e      -> HiddenP r <$> mapM isPattern e
+  InstanceArg r e    -> InstanceP r <$> mapM isPattern e
+  RawApp r es        -> RawAppP r <$> mapM isPattern es
+  Quote r            -> return $ QuoteP r
+  Equal r e1 e2      -> return $ EqualP r [(e1, e2)]
+  Ellipsis r         -> return $ EllipsisP r
+  Rec r es           -> do
     fs <- mapM maybeLeft es
     RecP r <$> mapM (mapM isPattern) fs
   -- WithApp has already lost the range information of the bars '|'
@@ -607,7 +699,6 @@ isAbsurdP = \case
   AbsurdP r      -> pure (r, NotHidden)
   AsP _ _      p -> isAbsurdP p
   ParenP _     p -> isAbsurdP p
-  RawAppP _ (p :| []) -> isAbsurdP p
   HiddenP   _ np -> (Hidden <$)              <$> isAbsurdP (namedThing np)
   InstanceP _ np -> (Instance YesOverlap <$) <$> isAbsurdP (namedThing np)
   _ -> Nothing
@@ -615,9 +706,9 @@ isAbsurdP = \case
 isBinderP :: Pattern -> Maybe Binder
 isBinderP = \case
   IdentP qn  -> mkBinder_ <$> isUnqualified qn
-  WildP r    -> pure $ mkBinder_ (Name r InScope [Hole])
-  AsP r n p  -> pure $ Binder (Just p) (mkBoundName_ n)
-  ParenP r p -> pure $ Binder (Just p) (mkBoundName_ $ Name r InScope [Hole])
+  WildP r    -> pure $ mkBinder_ $ setRange r simpleHole
+  AsP r n p  -> pure $ Binder (Just p) $ mkBoundName_ n
+  ParenP r p -> pure $ Binder (Just p) $ mkBoundName_ $ setRange r simpleHole
   _ -> Nothing
 
 {--------------------------------------------------------------------------
@@ -661,14 +752,14 @@ instance LensRelevance TypedBinding where
 ------------------------------------------------------------------------
 
 instance HasRange e => HasRange (OpApp e) where
-  getRange e = case e of
+  getRange = \case
     Ordinary e -> getRange e
     SyntaxBindingLambda r _ _ -> r
 
 instance HasRange Expr where
   getRange = \case
       Ident x            -> getRange x
-      Lit x              -> getRange x
+      Lit r _            -> r
       QuestionMark r _   -> r
       Underscore r _     -> r
       App r _ _          -> r
@@ -735,6 +826,12 @@ instance HasRange a => HasRange (FieldAssignment' a) where
 instance HasRange ModuleAssignment where
   getRange (ModuleAssignment a b c) = fuseRange a b `fuseRange` c
 
+instance HasRange RecordDirective where
+  getRange (Induction a)          = getRange a
+  getRange (Eta a    )            = getRange a
+  getRange (Constructor a b)      = getRange (a, b)
+  getRange (PatternOrCopattern r) = r
+
 instance HasRange Declaration where
   getRange (TypeSig _ _ x t)       = fuseRange x t
   getRange (FieldSig _ _ x t)      = fuseRange x t
@@ -744,9 +841,12 @@ instance HasRange Declaration where
   getRange (Data r _ _ _ _)        = r
   getRange (DataDef r _ _ _)       = r
   getRange (RecordSig r _ _ _)     = r
-  getRange (RecordDef r _ _ _ _ _ _ _) = r
-  getRange (Record r _ _ _ _ _ _ _ _)  = r
+  getRange (RecordDef r _ _ _ _)   = r
+  getRange (Record r _ _ _ _ _)    = r
+  getRange (RecordDirective r)     = getRange r
   getRange (Mutual r _)            = r
+  getRange (InterleavedMutual r _) = r
+  getRange (LoneConstructor r _)   = r
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
@@ -818,7 +918,7 @@ instance HasRange Pattern where
   getRange (WildP r)          = r
   getRange (AsP r _ _)        = r
   getRange (AbsurdP r)        = r
-  getRange (LitP l)           = getRange l
+  getRange (LitP r _)         = r
   getRange (QuoteP r)         = r
   getRange (HiddenP r _)      = r
   getRange (InstanceP r _)    = r
@@ -840,7 +940,7 @@ instance SetRange Pattern where
   setRange r (WildP _)          = WildP r
   setRange r (AsP _ x p)        = AsP r (setRange r x) p
   setRange r (AbsurdP _)        = AbsurdP r
-  setRange r (LitP l)           = LitP (setRange r l)
+  setRange r (LitP _ l)         = LitP r l
   setRange r (QuoteP _)         = QuoteP r
   setRange r (HiddenP _ p)      = HiddenP r p
   setRange r (InstanceP _ p)    = InstanceP r p
@@ -872,6 +972,12 @@ instance KillRange Binder where
 instance KillRange BoundName where
   killRange (BName n f t) = killRange3 BName n f t
 
+instance KillRange RecordDirective where
+  killRange (Induction a)          = killRange1 Induction a
+  killRange (Eta a    )            = killRange1 Eta a
+  killRange (Constructor a b)      = killRange2 Constructor a b
+  killRange (PatternOrCopattern _) = PatternOrCopattern noRange
+
 instance KillRange Declaration where
   killRange (TypeSig i t n e)       = killRange3 (TypeSig i) t n e
   killRange (FieldSig i t n e)      = killRange4 FieldSig i t n e
@@ -882,12 +988,15 @@ instance KillRange Declaration where
   killRange (Data _ n l e c)        = killRange4 (Data noRange) n l e c
   killRange (DataDef _ n l c)       = killRange3 (DataDef noRange) n l c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
-  killRange (RecordDef _ n mi mb mp mn k d) = killRange7 (RecordDef noRange) n mi mb mp mn k d
-  killRange (Record _ n mi mb mp mn k e d)  = killRange8 (Record noRange) n mi mb mp mn k e d
+  killRange (RecordDef _ n dir k d) = killRange4 (RecordDef noRange) n dir k d
+  killRange (RecordDirective a)     = killRange1 RecordDirective a
+  killRange (Record _ n dir k e d)  = killRange5 (Record noRange) n dir k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
+  killRange (InterleavedMutual _ d) = killRange1 (InterleavedMutual noRange) d
+  killRange (LoneConstructor _ d)   = killRange1 (LoneConstructor noRange) d
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
   killRange (Private _ o d)         = killRange2 (Private noRange) o d
   killRange (InstanceB _ d)         = killRange1 (InstanceB noRange) d
@@ -904,7 +1013,7 @@ instance KillRange Declaration where
 
 instance KillRange Expr where
   killRange (Ident q)            = killRange1 Ident q
-  killRange (Lit l)              = killRange1 Lit l
+  killRange (Lit _ l)            = killRange1 (Lit noRange) l
   killRange (QuestionMark _ n)   = QuestionMark noRange n
   killRange (Underscore _ n)     = Underscore noRange n
   killRange (RawApp _ e)         = killRange1 (RawApp noRange) e
@@ -973,7 +1082,7 @@ instance KillRange Pattern where
   killRange (AbsurdP _)       = AbsurdP noRange
   killRange (AsP _ n p)       = killRange2 (AsP noRange) n p
   killRange (DotP _ e)        = killRange1 (DotP noRange) e
-  killRange (LitP l)          = killRange1 LitP l
+  killRange (LitP _ l)        = killRange1 (LitP noRange) l
   killRange (QuoteP _)        = QuoteP noRange
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
   killRange (EqualP _ es)     = killRange1 (EqualP noRange) es
@@ -1021,7 +1130,7 @@ instance KillRange WhereClause where
 
 instance NFData Expr where
   rnf (Ident a)          = rnf a
-  rnf (Lit a)            = rnf a
+  rnf (Lit _ a)          = rnf a
   rnf (QuestionMark _ a) = rnf a
   rnf (Underscore _ a)   = rnf a
   rnf (RawApp _ a)       = rnf a
@@ -1058,25 +1167,31 @@ instance NFData Expr where
 -- | Ranges are not forced.
 
 instance NFData Pattern where
-  rnf (IdentP a) = rnf a
-  rnf (QuoteP _) = ()
-  rnf (AppP a b) = rnf a `seq` rnf b
-  rnf (RawAppP _ a) = rnf a
+  rnf (IdentP a)       = rnf a
+  rnf (QuoteP _)       = ()
+  rnf (AppP a b)       = rnf a `seq` rnf b
+  rnf (RawAppP _ a)    = rnf a
   rnf (OpAppP _ a b c) = rnf a `seq` rnf b `seq` rnf c
-  rnf (HiddenP _ a) = rnf a
-  rnf (InstanceP _ a) = rnf a
-  rnf (ParenP _ a) = rnf a
-  rnf (WildP _) = ()
-  rnf (AbsurdP _) = ()
-  rnf (AsP _ a b) = rnf a `seq` rnf b
-  rnf (DotP _ a) = rnf a
-  rnf (LitP a) = rnf a
-  rnf (RecP _ a) = rnf a
-  rnf (EqualP _ es) = rnf es
-  rnf (EllipsisP _) = ()
-  rnf (WithP _ a) = rnf a
+  rnf (HiddenP _ a)    = rnf a
+  rnf (InstanceP _ a)  = rnf a
+  rnf (ParenP _ a)     = rnf a
+  rnf (WildP _)        = ()
+  rnf (AbsurdP _)      = ()
+  rnf (AsP _ a b)      = rnf a `seq` rnf b
+  rnf (DotP _ a)       = rnf a
+  rnf (LitP _ a)       = rnf a
+  rnf (RecP _ a)       = rnf a
+  rnf (EqualP _ es)    = rnf es
+  rnf (EllipsisP _)    = ()
+  rnf (WithP _ a)      = rnf a
 
 -- | Ranges are not forced.
+
+instance NFData RecordDirective where
+  rnf (Induction a)          = rnf a
+  rnf (Eta a    )            = rnf a
+  rnf (Constructor a b)      = rnf (a, b)
+  rnf (PatternOrCopattern _) = ()
 
 instance NFData Declaration where
   rnf (TypeSig a b c d)       = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
@@ -1088,12 +1203,15 @@ instance NFData Declaration where
   rnf (Data _ a b c d)        = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataDef _ a b c)       = rnf a `seq` rnf b `seq` rnf c
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
-  rnf (RecordDef _ a b c _ d e f) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
-  rnf (Record _ a b c _ d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
+  rnf (RecordDef _ a b c d)   = rnf (a, b, c, d)
+  rnf (Record _ a b c d e)    = rnf (a, b, c, d, e)
+  rnf (RecordDirective a)     = rnf a
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
   rnf (Mutual _ a)            = rnf a
+  rnf (InterleavedMutual _ a) = rnf a
+  rnf (LoneConstructor _ a)   = rnf a
   rnf (Abstract _ a)          = rnf a
   rnf (Private _ _ a)         = rnf a
   rnf (InstanceB _ a)         = rnf a

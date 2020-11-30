@@ -100,7 +100,7 @@ checkDeclCached d = do
     case e of
       (Just (Decl d',s)) | compareDecl d d' -> do
         restorePostScopeState s
-        reportSLn "cache.decl" 50 $ "range: " ++ show (getRange d)
+        reportSLn "cache.decl" 50 $ "range: " ++ prettyShow (getRange d)
         printSyntaxInfo (getRange d)
       _ -> do
         cleanCachedLog
@@ -155,8 +155,8 @@ checkDecl d = setCurrentRange d $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x uc ps cs   -> impossible $ check x i $ checkDataDef i x uc ps cs
-      A.RecDef i x uc ind eta pat c ps tel cs -> impossible $ check x i $ do
-                                    checkRecDef i x uc ind eta pat c ps tel cs
+      A.RecDef i x uc dir ps tel cs -> impossible $ check x i $ do
+                                    checkRecDef i x uc dir ps tel cs
                                     blockId <- mutualBlockOf x
 
                                     -- Andreas, 2016-10-01 testing whether
@@ -225,7 +225,8 @@ checkDecl d = setCurrentRange d $ do
 
     -- | Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
-          . ( MonadTCEnv m, MonadPretty m, MonadDebug m, MonadBench Phase m
+          . ( MonadTCEnv m, MonadPretty m, MonadDebug m
+            , MonadBench m, Bench.BenchPhase m ~ Phase
             , AnyIsAbstract i )
           => QName -> i -> m a -> m a
     check x i m = Bench.billTo [Bench.Definition x] $ do
@@ -403,8 +404,7 @@ highlight_ hlmod d = do
       highlight (A.Section i x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
     A.RecSig{}               -> highlight d
-    A.RecDef i x uc ind eta pat c ps tel cs ->
-      highlight (A.RecDef i x uc ind eta pat c A.noDataDefParams dummy cs)
+    A.RecDef i x uc dir ps tel cs -> highlight (A.RecDef i x uc dir A.noDataDefParams dummy cs)
       -- The telescope has already been highlighted.
       where
       -- Andreas, 2016-01-22, issue 1790
@@ -416,7 +416,7 @@ highlight_ hlmod d = do
       -- * fields become bound variables,
       -- * declarations become let-bound variables.
       -- We do not need that crap.
-      dummy = A.Lit $ LitString noRange $
+      dummy = A.Lit empty $ LitString $
         "do not highlight construct(ed/or) type"
 
 -- | Termination check a declaration.
@@ -444,7 +444,8 @@ checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
 --   for the old coinduction.)
 checkCoinductiveRecords :: [A.Declaration] -> TCM ()
 checkCoinductiveRecords ds = forM_ ds $ \case
-  A.RecDef _ q _ (Just (Ranged r CoInductive)) _ _ _ _ _ _ -> setCurrentRange r $ do
+  A.RecDef _ q _ dir _ _ _
+    | Just (Ranged r CoInductive) <- recInductive dir -> setCurrentRange r $ do
     unlessM (isRecursiveRecord q) $ typeError $ GenericError $
       "Only recursive records can be coinductive"
   _ -> return ()
@@ -670,8 +671,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
     solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
 -- | Type check a primitive function declaration.
-checkPrimitive :: A.DefInfo -> QName -> A.Expr -> TCM ()
-checkPrimitive i x e =
+checkPrimitive :: A.DefInfo -> QName -> Arg A.Expr -> TCM ()
+checkPrimitive i x (Arg info e) =
     traceCall (CheckPrimitive (getRange i) x e) $ do
     (name, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
     -- Certain "primitive" functions are BUILTIN rather than
@@ -688,14 +689,27 @@ checkPrimitive i x e =
           , "primLevelSuc"
           , "primLevelMax"
           , "primSetOmega"
+          , "primStrictSet"
+          , "primStrictSetOmega"
           ]
-    when (name `elem` builtinPrimitives) $ typeError $ NoSuchPrimitiveFunction name
+    when (name `elem` builtinPrimitives) $ do
+      reportSDoc "tc.prim" 20 $ text name <+> "is a BUILTIN, not a primitive!"
+      typeError $ NoSuchPrimitiveFunction name
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x
+    -- Checking the modality. Currently all primitives require default
+    -- modalities, and likely very few will have different modalities in the
+    -- future. Thus, rather than, the arguably nicer solution of adding a
+    -- modality to PrimImpl we simply check the few special primitives here.
+    let expectedInfo =
+          case name of
+            -- Currently no special primitives
+            _ -> defaultArgInfo
+    unless (info == expectedInfo) $ typeError $ WrongModalityForPrimitive name info expectedInfo
     bindPrimitive s pf
     addConstant x $
-      defaultDefn defaultArgInfo x t $
+      defaultDefn info x t $
         Primitive { primAbstr    = Info.defAbstract i
                   , primName     = s
                   , primClauses  = []

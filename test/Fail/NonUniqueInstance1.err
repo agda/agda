@@ -6,5 +6,6 @@ Failed to solve the following constraints:
   Candidates
     y : NonZero n
     x : NonZero n
+    (stuck)
 Unsolved metas at the following locations:
   NonUniqueInstance1.agda:16,10-17

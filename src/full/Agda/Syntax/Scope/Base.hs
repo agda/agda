@@ -38,7 +38,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.List1 (List1)
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe (filterMaybe)
 import Agda.Utils.Null
@@ -148,6 +148,12 @@ data BindingSource
   | PatternBound -- ^ @f ... =@
   | LetBound     -- ^ @let ... in@
   deriving (Data, Show, Eq)
+
+instance Pretty BindingSource where
+  pretty = \case
+    LambdaBound  -> "local"
+    PatternBound -> "pattern"
+    LetBound     -> "let-bound"
 
 -- | A local variable can be shadowed by an import.
 --   In case of reference to a shadowed variable, we want to report
@@ -514,7 +520,7 @@ data ResolvedName
 
 instance Pretty ResolvedName where
   pretty = \case
-    VarName x _          -> "variable"    <+> pretty x
+    VarName x b          -> pretty b <+> "variable" <+> pretty x
     DefinedName a x s    -> pretty a      <+> (pretty x <> pretty s)
     FieldName xs         -> "field"       <+> pretty xs
     ConstructorName _ xs -> "constructor" <+> pretty xs
@@ -1169,6 +1175,12 @@ isNameInScope q scope =
   billToPure [ Scoping, InverseScopeLookup ] $
   Set.member q (scope ^. scopeInScope)
 
+isNameInScopeUnqualified :: A.QName -> ScopeInfo -> Bool
+isNameInScopeUnqualified q scope =
+  case inverseScopeLookupName' AmbiguousNothing q scope of
+    C.QName{} : _ -> True -- NOTE: inverseScopeLookupName' puts unqualified names first
+    _             -> False
+
 -- | Find the concrete names that map (uniquely) to a given abstract qualified name.
 --   Sort by number of modules in the qualified name, unqualified names first.
 inverseScopeLookupName :: A.QName -> ScopeInfo -> [C.QName]
@@ -1249,7 +1261,7 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
     internalName (C.Qual m n) = intern m || internalName n
       where
       -- Recognize fresh names created Parser.y
-      intern (C.Name _ _ [ C.Id ('.' : '#' : _) ]) = True
+      intern (C.Name _ _ (C.Id ('.' : '#' : _) :| [])) = True
       intern _ = False
 
     findName :: Ord a => Map a [(A.ModuleName, C.Name)] -> a -> [C.QName]

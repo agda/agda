@@ -16,7 +16,6 @@ echo "The executable files should be executable ..."
 
 chmod a+x ./bin/agda
 chmod a+x ./bin/agda-mode
-chmod a+x ./bin/size-solver
 
 agda --version
 

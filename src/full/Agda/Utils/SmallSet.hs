@@ -13,7 +13,7 @@
 -- @
 
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 
 module Agda.Utils.SmallSet
   ( SmallSet()

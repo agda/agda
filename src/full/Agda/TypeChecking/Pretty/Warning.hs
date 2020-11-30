@@ -3,20 +3,34 @@ module Agda.TypeChecking.Pretty.Warning where
 
 import Prelude hiding ( null )
 
+import Control.Monad ( guard )
+
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
+import Control.Monad.Fail ( MonadFail )
+
 import Data.Char ( toLower )
 import Data.Function
 import Data.Maybe
+
 import qualified Data.Set as Set
+import Data.Set (Set)
+
 import qualified Data.List as List
+import qualified Data.Text as T
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State ( getScope )
+import Agda.TypeChecking.Monad ( localTCState )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
+import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
+import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 
 import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
@@ -25,49 +39,21 @@ import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract
 
-import {-# SOURCE #-} Agda.Interaction.Imports
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( Pretty, prettyShow )
 import qualified Agda.Utils.Pretty as P
 
 instance PrettyTCM TCWarning where
-  prettyTCM = return . tcWarningPrintedWarning
+  prettyTCM w@(TCWarning loc _ _ _ _) = do
+    reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
+    pure $ tcWarningPrintedWarning w
 
-instance PrettyTCM Warning where
-  prettyTCM = prettyWarning
-
-prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
-prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
-  where
-    r   = getRange c
-    f :: MonadPretty m => m Doc -> m Doc
-    f d = if null $ P.pretty r
-          then d
-          else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
-
-interestingConstraint :: ProblemConstraint -> Bool
-interestingConstraint pc = go $ clValue (theConstraint pc)
-  where
-    go UnBlock{}     = False
-    go (Guarded c _) = go c
-    go _             = True
-
-prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
-prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
-  where
-    isBlocked = not . null . blocking . clValue . theConstraint
-    cs' = filter interestingConstraint cs
-    interestingPids = Set.fromList $ concatMap (blocking . clValue . theConstraint) cs'
-    stripPids (PConstr pids c) = PConstr (Set.intersection pids interestingPids) c
-    blocking (Guarded c pid) = pid : blocking c
-    blocking _               = []
-
-{-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
 prettyWarning = \case
 
@@ -154,6 +140,11 @@ prettyWarning = \case
 
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
+    UselessHiding xs -> fsep $ concat
+      [ pwords "Ignoring names in `hiding' directive:"
+      , punctuate "," $ map pretty xs
+      ]
+
     UselessInline q -> fsep $
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
       pwords "to have a separate Haskell definition"
@@ -183,6 +174,8 @@ prettyWarning = \case
     GenericWarning d -> return d
 
     GenericNonFatalError d -> return d
+
+    GenericUseless _r d -> return d
 
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
@@ -229,7 +222,7 @@ prettyWarning = \case
 
     NicifierIssue w -> sayWhere (getRange w) $ pretty w
 
-    UserWarning str -> text str
+    UserWarning str -> text (T.unpack str)
 
     ModuleDoesntExport m names modules xs -> vcat
       [ fsep $ pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:"
@@ -242,6 +235,8 @@ prettyWarning = \case
       ms            = map ImportedModule ms0
       (ys0, ms0)    = partitionImportedNames xs
       suggestion zs = maybe empty parens . didYouMean (map C.QName zs) fromImportedName
+
+    DuplicateUsing xs -> fsep $ pwords "Duplicates in `using` directive:" ++ map pretty (List1.toList xs)
 
     FixityInRenamingModule _rs -> fsep $ pwords "Modules do not have fixity"
 
@@ -256,7 +251,7 @@ prettyWarning = \case
       [pretty o] ++ pwords "flag from a module which does."
 
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
-      [ "Confluence check failed:"
+      [ "Local confluence check failed:"
       , prettyTCM lhs , "reduces to both"
       , prettyTCM rhs1 , "and" , prettyTCM rhs2
       , "which are not equal because"
@@ -271,6 +266,31 @@ prettyWarning = \case
           ]
         ]
       , map (nest 2 . return) cs
+      ]
+
+    RewriteAmbiguousRules lhs rhs1 rhs2 -> vcat
+      [ ( fsep $ concat
+          [ pwords "Global confluence check failed:" , [prettyTCM lhs]
+          , pwords "can be rewritten to either" , [prettyTCM rhs1]
+          , pwords "or" , [prettyTCM rhs2 <> "."]
+          ])
+      , fsep $ concat
+        [ pwords "Possible fix: add a rewrite rule with left-hand side"
+        , [prettyTCM lhs] , pwords "to resolve the ambiguity."
+        ]
+      ]
+
+    RewriteMissingRule u v rhou -> vcat
+      [ fsep $ concat
+        [ pwords "Global confluence check failed:" , [prettyTCM u]
+        , pwords "unfolds to" , [prettyTCM v] , pwords "which should further unfold to"
+        , [prettyTCM rhou] , pwords "but it does not."
+        ]
+      , fsep $ concat
+        [ pwords "Possible fix: add a rule to rewrite"
+        , [ prettyTCM v , "to" , prettyTCM rhou <> "," ]
+        , pwords "or change the order of the rules so more specialized rules come later."
+        ]
       ]
 
     PragmaCompileErased bn qn -> fsep $ concat
@@ -397,33 +417,35 @@ filterTCWarnings = \case
     _ -> True
 
 
--- | Turns all warnings into errors.
-tcWarningsToError :: [TCWarning] -> TCM a
-tcWarningsToError ws = typeError $ case ws of
-  [] -> SolvedButOpenHoles
-  _  -> NonFatalErrors ws
+-- | Turns warnings, if any, into errors.
+tcWarningsToError :: [TCWarning] -> TCM ()
+tcWarningsToError mws = case (unsolvedHoles, otherWarnings) of
+   ([], [])                   -> return ()
+   (_unsolvedHoles@(_:_), []) -> typeError SolvedButOpenHoles
+   (_, ws@(_:_))              -> typeError $ NonFatalErrors ws
+   where
+   -- filter out unsolved interaction points for imported module so
+   -- that we get the right error message (see test case Fail/Issue1296)
+   (unsolvedHoles, otherWarnings) = List.partition (isUnsolvedIM . tcWarning) mws
+   isUnsolvedIM UnsolvedInteractionMetas{} = True
+   isUnsolvedIM _                          = False
 
 
 -- | Depending which flags are set, one may happily ignore some
 -- warnings.
 
-applyFlagsToTCWarnings' :: MainInterface -> [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings' isMain ws = do
-
+applyFlagsToTCWarningsPreserving :: HasOptions m => Set WarningName -> [TCWarning] -> m [TCWarning]
+applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
   -- For some reason some SafeFlagPragma seem to be created multiple times.
   -- This is a way to collect all of them and remove duplicates.
   let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
   let sfp = case fmap List.nub (foldMap pragmas ws) of
-              (TCWarning r w p b:_, sfp) ->
-                 [TCWarning r (SafeFlagPragma sfp) p b]
+              (TCWarning loc r w p b:_, sfp) ->
+                 [TCWarning loc r (SafeFlagPragma sfp) p b]
               _                        -> []
 
-  warnSet <- do
-    opts <- pragmaOptions
-    let warnSet = optWarningMode opts ^. warningSet
-    pure $ if isMain /= NotMainInterface
-           then Set.union warnSet unsolvedWarnings
-           else warnSet
+  pragmaWarnings <- (^. warningSet) . optWarningMode <$> pragmaOptions
+  let warnSet = Set.union pragmaWarnings additionalKeptWarnings
 
   -- filter out the warnings the flags told us to ignore
   let cleanUp w = let wName = warningName w in
@@ -437,5 +459,47 @@ applyFlagsToTCWarnings' isMain ws = do
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
 
-applyFlagsToTCWarnings :: [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings = applyFlagsToTCWarnings' NotMainInterface
+applyFlagsToTCWarnings :: HasOptions m => [TCWarning] -> m [TCWarning]
+applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty
+
+getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => m [TCWarning]
+getAllUnsolvedWarnings = do
+  unsolvedInteractions <- getUnsolvedInteractionMetas
+  unsolvedConstraints  <- getAllConstraints
+  unsolvedMetas        <- getUnsolvedMetas
+
+  let checkNonEmpty c rs = c rs <$ guard (not $ null rs)
+
+  mapM warning_ $ catMaybes
+                [ checkNonEmpty UnsolvedInteractionMetas unsolvedInteractions
+                , checkNonEmpty UnsolvedMetaVariables    unsolvedMetas
+                , checkNonEmpty UnsolvedConstraints      unsolvedConstraints ]
+
+-- | Collect all warnings that have accumulated in the state.
+
+getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => WhichWarnings -> m [TCWarning]
+getAllWarnings = getAllWarningsPreserving Set.empty
+
+getAllWarningsPreserving :: (MonadFail m, ReadTCState m, MonadWarning m) => Set WarningName -> WhichWarnings -> m [TCWarning]
+getAllWarningsPreserving keptWarnings ww = do
+  unsolved            <- getAllUnsolvedWarnings
+  collectedTCWarnings <- useTC stTCWarnings
+
+  let showWarn w = classifyWarning w <= ww &&
+                    not (null unsolved && onlyShowIfUnsolved w)
+
+  fmap (filter (showWarn . tcWarning))
+    $ applyFlagsToTCWarningsPreserving keptWarnings
+    $ reverse $ unsolved ++ collectedTCWarnings
+
+getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
+getAllWarningsOfTCErr err = case err of
+  TypeError _ tcst cls -> case clValue cls of
+    NonFatalErrors{} -> return []
+    _ -> localTCState $ do
+      putTC tcst
+      ws <- getAllWarnings AllWarnings
+      -- We filter out the unsolved(Metas/Constraints) to stay
+      -- true to the previous error messages.
+      return $ filter (not . isUnsolvedWarning . tcWarning) ws
+  _ -> return []

@@ -17,7 +17,7 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete as C
 
-import Agda.TypeChecking.Errors (prettyError)
+import Agda.TypeChecking.Errors (prettyError, getAllWarningsOfTCErr)
 import qualified Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Pretty.Warning (prettyTCWarnings, prettyTCWarnings')
@@ -31,7 +31,6 @@ import Agda.Interaction.EmacsCommand hiding (putResponse)
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.InteractionTop (localStateCommandM)
-import Agda.Interaction.Imports (getAllWarningsOfTCErr)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
@@ -48,7 +47,7 @@ import Agda.VersionCommit
 --   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
 mimicGHCi :: TCM () -> TCM ()
-mimicGHCi = repl (liftIO . mapM_ print <=< lispifyResponse) "Agda2> "
+mimicGHCi = repl (liftIO . mapM_ (putStrLn . prettyShow) <=< lispifyResponse) "Agda2> "
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
@@ -71,12 +70,13 @@ lispifyResponse (Resp_RunningInfo n s)
   | otherwise = return [ L [A "agda2-verbose", A (quote s)] ]
 lispifyResponse (Resp_Status s)
     = return [ L [ A "agda2-status-action"
-                 , A (quote $ List.intercalate "," $ catMaybes [checked, showImpl])
+                 , A (quote $ List.intercalate "," $ catMaybes [checked, showImpl, showIrr])
                  ]
              ]
   where
-    checked  = boolToMaybe (sChecked               s) "Checked"
-    showImpl = boolToMaybe (sShowImplicitArguments s) "ShowImplicit"
+    checked  = boolToMaybe (sChecked                 s) "Checked"
+    showImpl = boolToMaybe (sShowImplicitArguments   s) "ShowImplicit"
+    showIrr  = boolToMaybe (sShowIrrelevantArguments s) "ShowIrrelevant"
 
 lispifyResponse (Resp_JumpToError f p) = return
   [ lastTag 3 $
@@ -132,7 +132,9 @@ lispifyDisplayInfo info = case info of
     Info_NormalForm state cmode time expr -> do
       exprDoc <- evalStateT prettyExpr state
       let doc = maybe empty prettyTimed time $$ exprDoc
-      format (render doc) "*Normal Form*"
+          lbl | cmode == HeadCompute = "*Head Normal Form*"
+              | otherwise            = "*Normal Form*"
+      format (render doc) lbl
       where
         prettyExpr = localStateCommandM
             $ lift

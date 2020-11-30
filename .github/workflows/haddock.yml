@@ -14,19 +14,27 @@ on:
 
 jobs:
   build:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
 
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
 
     strategy:
       matrix:
-        ghc-ver: ["8.10.1"]
+        ghc-ver: ["8.10.2"]
         cabal-ver: ["3.2"]
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-haskell@v1.1
+    - uses: actions/checkout@v2.3.2
       with:
-        ghc-version: '8.10.1'
+        submodules: recursive
+
+    - uses: actions/setup-haskell@v1.1.3
+      with:
+        ghc-version: '8.10.2'
         cabal-version: '3.2'
 
     - name: Resolve dependencies
@@ -34,11 +42,11 @@ jobs:
         cabal update
         cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
 
-    - uses: actions/cache@v1
+    - uses: actions/cache@v2.1.0
       name: Cache dependencies
       with:
         path: "~/.cabal"
-        key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ runner.os }}-new-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
       run: |

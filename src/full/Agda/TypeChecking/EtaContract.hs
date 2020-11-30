@@ -29,8 +29,10 @@ binAppView t = case t of
   -- At least record constructors should be fully applied where possible!
   -- TODO: also for ordinary constructors (\ x -> suc x  vs.  suc)?
   Con c ci xs
-    | null (conFields c) -> appE (Con c ci) xs
-    | otherwise          -> noApp
+    | IsData <- conDataRecord c
+             -> appE (Con c ci) xs
+    | otherwise
+             -> noApp
   Lit _      -> noApp
   Level _    -> noApp   -- could be an application, but let's not eta contract levels
   Lam _ _    -> noApp
@@ -55,7 +57,7 @@ etaContract = traverseTermM etaOnce
 {-# SPECIALIZE etaOnce :: Term -> TCM Term #-}
 {-# SPECIALIZE etaOnce :: Term -> ReduceM Term #-}
 etaOnce :: (MonadTCEnv m, HasConstInfo m, HasOptions m) => Term -> m Term
-etaOnce v = case v of
+etaOnce = \case
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
   -- reportSDoc "tc.eta" 70 $ "eta-contracting" <+> prettyTCM v
@@ -64,8 +66,8 @@ etaOnce v = case v of
   -- Andreas, 2012-12-18:  Abstract definitions could contain
   -- abstract records whose constructors are not in scope.
   -- To be able to eta-contract them, we ignore abstract.
-  Con c ci es -> do
-    etaCon c ci es etaContractRecord
+  Con c ci es -> etaCon c ci es etaContractRecord
+
   v -> return v
 
 -- | If record constructor, call eta-contraction function.
@@ -77,7 +79,7 @@ etaCon :: (MonadTCEnv m, HasConstInfo m, HasOptions m)
               -- ^ Eta-contraction workhorse, gets also name of record type.
   -> m Term   -- ^ Returns @Con c ci args@ or its eta-contraction.
 etaCon c ci es cont = ignoreAbstractMode $ do
-  let fallback = return $ Con c ci $ es
+  let fallback = return $ Con c ci es
   -- reportSDoc "tc.eta" 20 $ "eta-contracting record" <+> prettyTCM t
   r <- getConstructorData $ conName c -- fails in ConcreteMode if c is abstract
   ifNotM (isEtaRecord r) fallback $ {-else-} do
@@ -115,9 +117,5 @@ etaLam i x b = do
     -- is in fact @Level@, e.g. @\(A : Set) → F lzero@ should not be
     -- eta-contracted to @F@.
     -- isVar0 True Level{}               = True
-    isVar0 tyty (Level (Max 0 [Plus 0 l])) = case l of
-      NeutralLevel _ v -> isVar0 tyty v
-      UnreducedLevel v -> isVar0 tyty v
-      BlockedLevel{}   -> False
-      MetaLevel{}      -> False
+    isVar0 tyty (Level (Max 0 [Plus 0 l])) = isVar0 tyty l
     isVar0 _ _ = False

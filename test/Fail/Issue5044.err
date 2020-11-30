@@ -1,0 +1,3 @@
+Issue5044.agda:27,1-60
+Missing bindings for telescope variable A.
+All variables in the clause telescope must be bound in the left-hand side.

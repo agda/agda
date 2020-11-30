@@ -1,0 +1,4 @@
+Issue4132.agda:4,5-5
+Issue4132.agda:4,5: in the name 1, the part 1 is not valid because it is a literal
+<EOF><ERROR>
+...
