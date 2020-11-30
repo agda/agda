@@ -61,7 +61,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty (prettyShow, render)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 
@@ -453,6 +453,11 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       PrimitiveSort{ primName = s } -> retDecls []
 
       Function{} -> function pragma $ functionViaTreeless q
+
+      Datatype{ dataPathCons = _ : _ } -> do
+        s <- render <$> prettyTCM q
+        typeError $ NotImplemented $
+          "Higher inductive types (" ++ s ++ ")"
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl }
         | Just hsdata@(HsData r ty hsCons) <- pragma -> setCurrentRange r $ do

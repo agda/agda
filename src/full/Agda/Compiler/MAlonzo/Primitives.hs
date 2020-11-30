@@ -304,13 +304,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
       "(<<0>> :: Integer -> Integer -> Bool)"
   rel op ty  = rel' "" op ty
   opty t = t ++ "->" ++ t ++ "->" ++ t
-  axiom_prims = ["primIMin","primIMax","primINeg","primPartial","primPartialP","primPFrom1","primPOr","primComp"
-                ,"primTransp","primHComp","primSubOut"]
-  -- TODO 4638 remove the || True and handle this differently instead.
-  unimplemented
-    | s `List.elem` axiom_prims || True =
-      return $ rtmError $ T.pack $ "primitive with no body evaluated: " ++ s
-    | otherwise = typeError $ NotImplemented s
+  unimplemented = typeError $ NotImplemented s
 
   hLam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
   nLam x t = Lam (setHiding NotHidden defaultArgInfo) (Abs x t)
