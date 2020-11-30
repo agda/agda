@@ -379,10 +379,7 @@ typeCheckMain f mode si = do
     -- Andreas, 2016-07-11, issue 2092
     -- The error range should be set to the file with the wrong module name
     -- not the importing one (which would be the default).
-    (if null r then id else traceCall (SetRange r)) $
-      checkModuleName m f Nothing
-    where
-    r = getRange m
+    setCurrentRange m $ checkModuleName m f Nothing
 
 -- | Tries to return the interface associated to the given (imported) module.
 --   The time stamp of the relevant interface file is also returned.
