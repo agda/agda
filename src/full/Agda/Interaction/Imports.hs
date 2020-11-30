@@ -139,6 +139,13 @@ siPragmas si = defaultPragmas ++ pragmas
   cpragmas = C.modPragmas (siModule si)
   pragmas = [ opts | C.OptionsPragma _ opts <- cpragmas ]
 
+-- | Set options from a 'SourceInfo' pragma, using the source
+--   ranges of the pragmas for error reporting.
+setOptionsFromSourceInfoPragmas :: SourceInfo -> TCM ()
+setOptionsFromSourceInfoPragmas si =
+  setCurrentRange (C.modPragmas . siModule $ si) $
+    mapM_ setOptionsFromPragma (siPragmas si)
+
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
 
@@ -427,9 +434,8 @@ getInterface x isMain msi =
      -- For the main interface, we also remember the pragmas from the file
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
      currentOptions <- setCurrentRange (C.modPragmas . siModule <$> msi) $ do
-       when (includeStateChanges isMain) $ do
-         let si = fromMaybe __IMPOSSIBLE__ msi
-         mapM_ setOptionsFromPragma (siPragmas si)
+       when (includeStateChanges isMain) $
+         setOptionsFromSourceInfoPragmas (fromMaybe __IMPOSSIBLE__ msi)
        currentOptions <- useTC stPragmaOptions
        -- Now reset the options
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
@@ -899,7 +905,7 @@ createInterface mname file isMain msi = do
                          srcPath (TL.unpack $ siSource si)
     stTokens `setTCLens` fileTokenInfo
 
-    mapM_ setOptionsFromPragma (siPragmas si)
+    setOptionsFromSourceInfoPragmas si
 
     verboseS "import.iface.create" 15 $ do
       nestingLevel      <- asksTC (pred . length . envImportPath)
