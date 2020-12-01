@@ -211,10 +211,11 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
         case getQuantity ai of
           Quantityω{} -> return ()
-          Quantity0{} -> typeError $ GenericError $ "Erased constructors are not supported"
+          Quantity0{} -> return ()
           Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
         -- check that the type of the constructor is well-formed
-        (t, isPathCons) <- checkConstructorType e d
+        (t, isPathCons) <- applyQuantityToContext ai $
+                           checkConstructorType e d
         -- compute which constructor arguments are forced (only point constructors)
         forcedArgs <- if isPathCons == PointCons
                       then computeForcingAnnotations c t
@@ -228,7 +229,9 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         let s' = case s of
               Prop l -> Type l
               _      -> s
-        arity <- traceCall (CheckConstructorFitsIn c t s') $ fitsIn uc forcedArgs t s'
+        arity <- traceCall (CheckConstructorFitsIn c t s') $
+                 applyQuantityToContext ai $
+                 fitsIn uc forcedArgs t s'
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t
@@ -268,7 +271,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         escapeContext __IMPOSSIBLE__ (size tel) $ do
 
           addConstant c $
-            defaultDefn defaultArgInfo c (telePi tel t) $ Constructor
+            defaultDefn ai c (telePi tel t) $ Constructor
               { conPars   = size tel
               , conArity  = arity
               , conSrcCon = con
