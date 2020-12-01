@@ -721,6 +721,7 @@ class Monad m => MonadFresh i m where
 instance MonadFresh i m => MonadFresh i (ReaderT r m)
 instance MonadFresh i m => MonadFresh i (StateT s m)
 instance MonadFresh i m => MonadFresh i (ListT m)
+instance MonadFresh i m => MonadFresh i (IdentityT m)
 
 instance HasFresh i => MonadFresh i TCM where
   fresh = do
