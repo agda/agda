@@ -281,7 +281,9 @@ createMetaInfo' b = do
   r        <- getCurrentRange
   cl       <- buildClosure r
   gen      <- viewTC eGeneralizeMetas
-  modality <- viewTC eModality
+  let onlyUserQ q | noUserQuantity q = setQuantity topQuantity q
+                  | otherwise        = q
+  modality <- onlyUserQ <$> viewTC eModality
   return MetaInfo
     { miClosRange       = cl
     , miMetaOccursCheck = b
