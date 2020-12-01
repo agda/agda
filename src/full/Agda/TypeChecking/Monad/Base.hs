@@ -2879,6 +2879,10 @@ instance TwinAt s a => TwinAt s (Dom a) where
   type TwinAt_ s (Dom a) = Dom (TwinAt_ s a)
   twinAt = fmap (twinAt @s)
 
+instance TwinAt s a => TwinAt s (Abs a) where
+  type TwinAt_ s (Abs a) = Abs (TwinAt_ s a)
+  twinAt = fmap (twinAt @s)
+
 instance (Sing s, HetSideIsType s) => TwinAt s ContextHet where
   type TwinAt_ s ContextHet = Context
   twinAt = fmap (twinAt @s) . toList . unContextHet

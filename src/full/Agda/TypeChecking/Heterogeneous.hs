@@ -44,9 +44,6 @@ instance Pretty a => Pretty (TwinT' a) where
              <> pretty twinPid
              <> pretty b
 
-instance TwinAt s Term where twinAt = id
-instance TwinAt s Type where twinAt = id
-
 instance TwinAt s a => TwinAt s (Maybe a) where
   type TwinAt_ s (Maybe a) = Maybe (TwinAt_ s a)
   twinAt = fmap (twinAt @s)

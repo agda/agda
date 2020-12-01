@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ViewPatterns #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -61,8 +62,10 @@ instance MonadAddContext ReduceM where
 
   addCtx = defaultAddCtx
 
+  -- Conversion can be called in the reduce monad
+  addCtx_ name dom@(unDom -> SingleT (H'Both a)) = addCtx name dom{unDom=a}
   -- One should not add twins in a reduce context
-  addCtx_ = __IMPOSSIBLE__
+  addCtx_ _        (unDom -> TwinT{})            = __IMPOSSIBLE__
 
   addLetBinding' = defaultAddLetBinding'
 

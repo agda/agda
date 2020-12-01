@@ -303,12 +303,15 @@ compareTerm'_ cmp a m n =
     case s of
       Prop{} | propIrr -> compareIrrelevant_ a' m n
       _    | isSize   -> compareSizes_ cmp m n
-      _               -> case unEl $ twinAt @'Compat a' of
+      _               -> -- typeView (fmap unEl a') >>= \case
+       --TPi dom cod -> equalFun s dom cod m n
+       --_ -> case unEl $ twinAt @'Compat a' of
+       case unEl $ twinAt @'Compat a' of
         a | Just a == mlvl -> do
           a <- levelView_ m
           b <- levelView_ n
           equalLevel_ a b
-        Pi dom cod   -> equalFun s dom cod m n
+        Pi dom cod   -> equalFun s (asTwin dom) (asTwin cod) m n
         Lam _ _   -> __IMPOSSIBLE__
         Def r es  -> do
           isrec <- isEtaRecord r
@@ -359,16 +362,20 @@ compareTerm'_ cmp a m n =
   where
     pathView_ = pathView . twinAt @'Compat
     -- equality at function type (accounts for eta)
-    equalFun :: (MonadConversion m) => Sort -> Dom Type -> Abs Type -> H'LHS Term -> H'RHS Term -> m ()
-    equalFun s dom b m n | domFinite dom = do
+    equalFun :: (MonadConversion m) => Sort -> Dom TwinT -> Abs TwinT -> H'LHS Term -> H'RHS Term -> m ()
+    equalFun s dom_ b_ m_ n_ | domFinite dom_ = do
        mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
+       let dom = twinAt @'Compat dom_
+       let b   = twinAt @'Compat b_
+       let m   = twinAt @'LHS m_
+       let n   = twinAt @'RHS n_
        case unEl $ unDom dom of
           Def q [Apply phi]
-              | Just q == mp -> compareTermOnFace_ cmp (unArg phi) (asTwin$ El s (Pi (dom {domFinite = False}) b)) m n
-          _                  -> equalFun s (dom{domFinite = False}) b m n
+              | Just q == mp -> compareTermOnFace cmp (unArg phi) (El s (Pi (dom {domFinite = False}) b)) m n
+          _                  -> equalFun s (dom_{domFinite = False}) b_ m_ n_
     equalFun _ dom@Dom{domInfo = info} b m n | not $ domFinite dom = do
         let name = suggests [ Suggestion b , Suggestion m , Suggestion n ]
-        addContext (name, dom) $ compareTerm_ cmp (asTwin$ absBody b) m' n'
+        addContext (name, dom) $ compareTerm_ cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
     equalFun _ _ _ _ _ = __IMPOSSIBLE__
@@ -2078,9 +2085,6 @@ leqConj (rs, rst) (qs, qst) = do
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: MonadConversion m => Term -> Type -> Term -> Term -> m ()
 equalTermOnFace = compareTermOnFace CmpEq
-
-compareTermOnFace_ :: MonadConversion m => Comparison -> Term -> TwinT -> H'LHS Term -> H'RHS Term -> m ()
-compareTermOnFace_ cmp t ty (H'LHS m) (H'RHS n) = compareTermOnFace' compareTerm cmp t (twinAt @'Compat ty) m n
 
 compareTermOnFace :: MonadConversion m => Comparison -> Term -> Type -> Term -> Term -> m ()
 compareTermOnFace = compareTermOnFace' compareTerm

@@ -223,6 +223,10 @@ setup-emacs-mode : install-bin
 	@echo
 	$(AGDA_MODE) setup
 
+.PHONY : trust-executable
+trust-executable:
+	(if [ -f $(AGDA_BIN) ]; then echo $(AGDA_BIN) > ~/.agda/executables; else echo "Not found"; false; fi)
+
 ## Clean ####################################################################
 clean_helper = if [ -d $(1) ]; then $(CABAL) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
 
@@ -352,7 +356,6 @@ custom :
 		echo $(AGDA_BIN) > test/Succeed/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_CUSTOM_ARGS) ; \
 		rm test/Succeed/exec-tc/executables )
-
 
 .PHONY : succeed ##
 succeed :
