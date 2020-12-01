@@ -278,14 +278,15 @@ createMetaInfo'
   :: (MonadTCEnv m, ReadTCState m)
   => RunMetaOccursCheck -> m MetaInfo
 createMetaInfo' b = do
-  r   <- getCurrentRange
-  cl  <- buildClosure r
-  gen <- viewTC eGeneralizeMetas
+  r        <- getCurrentRange
+  cl       <- buildClosure r
+  gen      <- viewTC eGeneralizeMetas
+  modality <- viewTC eModality
   return MetaInfo
     { miClosRange       = cl
     , miMetaOccursCheck = b
     , miNameSuggestion  = ""
-    , miGeneralizable   = hide $ defaultArg gen
+    , miGeneralizable   = hide $ setModality modality $ defaultArg gen
     }
 
 setValueMetaName :: MonadMetaSolver m => Term -> MetaNameSuggestion -> m ()
