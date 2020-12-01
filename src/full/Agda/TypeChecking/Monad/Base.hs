@@ -2852,6 +2852,9 @@ instance AsTwin a => AsTwin (Name, a) where
   type AsTwin_ (Name, a) = (Name, AsTwin_ a)
   asTwin = fmap asTwin
 instance AsTwin () where type AsTwin_ () = (); asTwin = id
+instance AsTwin a => AsTwin (Abs a) where
+  type AsTwin_ (Abs a) = Abs (AsTwin_ a)
+  asTwin = fmap asTwin
 
 class TwinAt (s :: HetSide) a where
   type TwinAt_ s a

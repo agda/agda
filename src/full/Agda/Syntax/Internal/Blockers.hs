@@ -107,6 +107,9 @@ unblockOnMeta = UnblockOnMeta
 unblockOnProblem :: ProblemId -> Blocker
 unblockOnProblem = UnblockOnProblem
 
+unblockOnAllProblems :: [ProblemId] -> Blocker
+unblockOnAllProblems = unblockOnAll . Set.fromList . map UnblockOnProblem
+
 unblockOnAllMetas :: Set MetaId -> Blocker
 unblockOnAllMetas = unblockOnAll . Set.mapMonotonic unblockOnMeta
 

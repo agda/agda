@@ -14,6 +14,7 @@ import Control.Monad.Fail (MonadFail)
 import Data.Function
 import Data.Maybe (isJust)
 import Data.Semigroup ((<>))
+import qualified Data.Coerce
 import qualified Data.Kind as K
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -724,6 +725,9 @@ compareAtom_ cmp t m n =
             errC = typeError $ UnequalCohesion_ cmp t1 t2
           _ -> __IMPOSSIBLE__
 
+selectSmaller :: CompareDirection -> a -> a -> a
+selectSmaller = dirToCmp (\_ a1 _ -> a1)
+
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
 compareDom_ :: (MonadConversion m , Free c)
   => CompareDirection -- ^ @cmp@ The comparison direction
@@ -753,7 +757,7 @@ compareDom_ cmp0
           dependent = (r /= Irrelevant) && dirToCmp (\_ _ b2 -> isBinderUsed b2) cmp b1 b2
       pid <- newProblem_ $ dirToCmp_ (\dir () -> compareType_ dir) cmp0 () (H'LHS a1) (H'RHS a2)
       -- Chose the smaller type and domain
-      let (a0,dom0) = dirToCmp (\_ a1 _ -> a1) cmp (a1,dom1) (a2,dom2)
+      let (a0,dom0) = selectSmaller cmp (a1,dom1) (a2,dom2)
       (a0', dom0') <- if dependent
              then (\ a -> (a, dom0 {unDom = a})) <$> blockTypeOnProblem a0 pid
              else return (a0, dom0)
@@ -2119,6 +2123,97 @@ bothAbsurd f f'
 -- * Commuting heterogeneous
 ---------------------------------------------------------------------------
 
+data TypeView_ =
+--    TLevel
+    TPi (Dom TwinT) (Abs TwinT)
+--  | TLam
+--  | TDef QName [Elim' (TwinT' Term)]
+  | TOther
+
+type TypeViewM m = (MonadMetaSolver m, MonadFresh Agda.Syntax.Common.Nat m)
+
+typeView :: forall m. TypeViewM m => TwinT' Term -> m (TypeView_)
+typeView (SingleT (H'Both (Pi dom cod))) = return$ TPi (asTwin dom) (asTwin cod)
+typeView (TwinT{necessary
+               ,direction
+               ,twinPid
+               ,twinLHS    = H'LHS (Pi (H'LHS -> doml) (H'LHS -> codl))
+               ,twinRHS    = H'RHS (Pi (H'RHS -> domr) (H'RHS -> codr))
+               ,twinCompat = tyc
+               })
+  = do
+      let (domc, codc) = case tyc of
+            H'Compat (Pi (H'Compat -> domc) (H'Compat -> codc)) ->
+              (Just domc, Just codc)
+            _            -> (Nothing, Nothing)
+
+      -- Pi is contravariant on the first type
+      dom_ <- mkTwinDom (flipCmp direction) twinPid doml domr domc
+      cod_ <- mkTwinAbs direction           twinPid codl codr codc
+
+      return $ TPi dom_ cod_
+  where
+    mkTwinT :: CompareDirection ->
+                [ProblemId] ->
+                Het 'LHS Type ->
+                Het 'RHS Type ->
+                Maybe (Het 'Compat Type) ->
+                m TwinT
+    mkTwinT direction twinPid tyl tyr (Just tyc) =
+      return TwinT{necessary=False
+                  ,direction
+                  ,twinPid
+                  ,twinLHS=tyl
+                  ,twinRHS=tyr
+                  ,twinCompat=tyc
+                  }
+    mkTwinT direction twinPid tyl tyr Nothing = do
+      let ty0 = selectSmaller direction (twinAt @'LHS tyl) (twinAt @'RHS tyr)
+      tyc <- blockTypeOnProblems ty0 twinPid
+      return TwinT{necessary=False
+                  ,direction
+                  ,twinPid
+                  ,twinLHS=tyl
+                  ,twinRHS=tyr
+                  ,twinCompat=H'Compat tyc
+                  }
+
+    mkTwinDom :: CompareDirection ->
+                [ProblemId] ->
+                Het 'LHS (Dom Type) ->
+                Het 'RHS (Dom Type) ->
+                Maybe (Het 'Compat (Dom Type)) ->
+                m (Dom TwinT)
+    mkTwinDom direction twinPid doml domr (Just domc) = do
+      ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) (Just$ unDom <$> domc)
+      return (twinAt @'Compat domc){unDom=ty_}
+    mkTwinDom direction twinPid doml domr Nothing = do
+      let dom0 = selectSmaller direction (twinAt @'LHS doml) (twinAt @'RHS domr)
+      ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) Nothing
+      return dom0{unDom=ty_}
+
+    mkTwinAbs :: CompareDirection ->
+                [ProblemId] ->
+                Het 'LHS (Abs Type) ->
+                Het 'RHS (Abs Type) ->
+                Maybe (Het 'Compat (Abs Type)) ->
+                m (Abs TwinT)
+    mkTwinAbs direction twinPid absl@(commute -> NoAbs _ tyl) absr@(commute -> NoAbs _ tyr) Nothing =
+      NoAbs (suggests [Suggestion absl, Suggestion absr]) <$> mkTwinT direction twinPid tyl tyr Nothing
+
+    mkTwinAbs direction twinPid absl@(commute -> NoAbs _ tyl)
+                                absr@(commute -> NoAbs _ tyr)
+                                (Just absc@(commute -> NoAbs _ tyc)) =
+      NoAbs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
+        mkTwinT direction twinPid tyl tyr (Just tyc)
+
+    mkTwinAbs direction twinPid absl absr absc =
+      Abs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
+        mkTwinT direction twinPid (absBody <$> absl) (absBody <$> absr) (fmap absBody <$> absc)
+
+typeView _ = return$ TOther
+
+
 class Commute f g where
   commute  :: f (g a) -> (g (f a))
 
@@ -2126,15 +2221,21 @@ class CommuteM f g where
   type CommuteMonad f g (m :: K.Type -> K.Type) :: K.Constraint
   commuteM  :: (CommuteMonad f g m) => f (g a) -> m (g (f a))
 
-instance CommuteM TwinT' (Dom' t) where
-  type CommuteMonad TwinT' (Dom' t) m = (Applicative m)
-  commuteM (SingleT (H'Both a)) = pure$ fmap (SingleT . H'Both) a
-  commuteM TwinT{necessary,direction,twinPid,twinLHS,twinCompat=H'Compat tc0,twinRHS} =
-    -- TODO: Check that the domain information actually matches (?)
-    pure$ fmap (\tc1 -> TwinT{necessary,
-                              direction,
-                              twinPid,
-                              twinLHS=fmap unDom twinLHS,
-                              twinCompat=H'Compat tc1,
-                              twinRHS=fmap unDom twinRHS}) tc0
+instance Commute (Het s) Abs where
+  commute :: Het s (Abs a) -> Abs (Het s a)
+  commute = Data.Coerce.coerce
+
+
+-- instance CommuteM TwinT' (Dom' t) where
+--   type CommuteMonad TwinT' (Dom' t) m = (Applicative m)
+--   commuteM (SingleT (H'Both a)) = pure$ fmap (SingleT . H'Both) a
+--   commuteM TwinT{necessary,direction,twinPid,twinLHS,twinCompat=H'Compat tc0,twinRHS} =
+--     -- TODO: Check that the domain information actually matches (?)
+--     pure$ fmap (\tc1 -> TwinT{necessary,
+--                               direction,
+--                               twinPid,
+--                               twinLHS=fmap unDom twinLHS,
+--                               twinCompat=H'Compat tc1,
+--                               twinRHS=fmap unDom twinRHS}) tc0
+--
 

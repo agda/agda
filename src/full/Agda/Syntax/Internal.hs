@@ -975,6 +975,9 @@ instance Suggest Term where
   suggestName (Lam _ v) = suggestName v
   suggestName _         = Nothing
 
+instance Suggest a => Suggest (Maybe a) where
+  suggestName = (>>= suggestName)
+
 -- Wrapping @forall a. (Suggest a) => a@ into a datatype because
 -- GHC doesn't support impredicative polymorphism
 data Suggestion = forall a. Suggest a => Suggestion a

@@ -381,9 +381,14 @@ blockTerm t blocker = do
 blockTermOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ProblemId -> m Term
-blockTermOnProblem t v pid =
+blockTermOnProblem t v pid = blockTermOnProblems t v [pid]
+
+blockTermOnProblems
+  :: (MonadMetaSolver m, MonadFresh Nat m)
+  => Type -> Term -> [ProblemId] -> m Term
+blockTermOnProblems t v pids =
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
-  ifM (isProblemSolved pid `or2M` isSizeProblem pid) (return v) $ do
+  ifM (allM pids isProblemSolved `or2M` allM pids isSizeProblem) (return v) $ do
     i   <- createMetaInfo
     es  <- map Apply <$> getContextArgs
     tel <- getContextTelescope
@@ -394,11 +399,11 @@ blockTermOnProblem t v pid =
                     (idP $ size tel)
                     (HasType () CmpLeq $ telePi_ tel t)
                     -- we don't instantiate blocked terms
-    inTopContext $ addConstraint (unblockOnProblem pid) (UnBlock x)
+    inTopContext $ addConstraint (unblockOnAllProblems pids) (UnBlock x)
     reportSDoc "tc.meta.blocked" 20 $ vcat
       [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
         (prettyTCM $ abstract tel v)
-      , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid)
+      , "     by" <+> (prettyTCM =<< fmap mconcat (mapM getConstraintsForProblem pids))
       ]
     inst <- isInstantiatedMeta x
     if inst
@@ -426,7 +431,12 @@ blockTermOnProblem t v pid =
 blockTypeOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ProblemId -> m Type
-blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (sort s) a pid
+blockTypeOnProblem t pid = blockTypeOnProblems t [pid]
+
+blockTypeOnProblems
+  :: (MonadMetaSolver m, MonadFresh Nat m)
+  => Type -> [ProblemId] -> m Type
+blockTypeOnProblems (El s a) pids = El s <$> blockTermOnProblems (sort s) a pids
 
 -- | @unblockedTester t@ returns a 'Blocker' for @t@.
 --

@@ -144,3 +144,23 @@ ctx !!! n = contextHetToList ctx Agda.Utils.List.!!! n
 flipContext :: (MonadAddContext m) => m a -> m a
 flipContext = updateContext IdS flipHet
 
+
+--  a `isBuiltin` builtinLevel >>= \case
+--   True  -> return TLevel
+--   False -> case a of
+--     Pi a b   -> return (Pi a b)
+--     Lam{}    -> return TLam
+--     Def q es -> return (TDef q (asTwin es))
+--     _        -> return TUnknown
+--
+-- typeView (TwinT{twinPid,necessary,direction,twinLHS,twinRHS}) = a `isBuiltin` builtinLevel >>= \case
+--   True  -> return TLevel
+--   False -> case (twinLHS,twinRHS) of
+--     (Pi a₁ b₁, Pi a₂ b₂)   -> do
+--
+--
+--       return (Pi (TwinTa b)
+--     Lam{}    -> return TLam
+--     Def q es -> return (TDef q (asTwin es))
+--     _        -> return TUnknown
+--
