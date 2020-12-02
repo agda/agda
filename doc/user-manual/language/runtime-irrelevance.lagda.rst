@@ -76,8 +76,11 @@ compiling without erasure:
         []     -> z
         x ∷ xs -> foldl (\ n -> f (1 + n)) (f 0 z x) xs
 
-It is also possible to mark top-level definitions as erased. This guarantees that they are only used in erased arguments
-and can be useful to ensure that code intended only for compile-time evaluation is not executed at run time. For instance,
+It is also possible to mark top-level definitions as erased. This
+guarantees that they are only used in erased arguments and can be
+useful to ensure that code intended only for compile-time evaluation
+is not executed at run time. (One can also use erased things in the
+bodies of erased definitions.) For instance,
 
 ::
 
