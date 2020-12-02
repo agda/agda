@@ -672,7 +672,6 @@ library
                  -Werror=duplicate-exports
                  -Werror=empty-enumerations
                  -Werror=identities
-                 -Werror=incomplete-patterns
                  -Werror=inline-rule-shadowing
                  -Werror=missing-fields
                  -Werror=missing-methods
@@ -707,6 +706,9 @@ library
     ghc-options: -Werror=inaccessible-code
                  -Werror=star-binder
                  -Werror=star-is-type
+
+  if impl(ghc >= 8.10)
+    ghc-options: -Werror=incomplete-patterns
 
   ghc-prof-options: -fprof-auto
 
