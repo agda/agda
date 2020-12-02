@@ -1463,7 +1463,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
     case s of
       SplitLit{}      -> return True
       SplitCatchall{} -> return True -- conservative
-      SplitCon q      -> usableQuantity <$> getQuantity <$> getConstInfo q
+      SplitCon q      -> usableQuantity . getQuantity <$> getConstInfo q
 
   case ns of
     []  -> do

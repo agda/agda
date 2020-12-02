@@ -167,7 +167,7 @@ pruneUnreachable :: Int -> CaseType -> TTerm -> [TAlt] -> E (TTerm, [TAlt])
 pruneUnreachable _ (CTData q) d bs' = do
   cs <- lift $ getNotErasedConstructors q
   let bs = flip filter bs' $ \case
-             a@TACon{} -> List.any (aCon a ==) cs
+             a@TACon{} -> (aCon a) `elem` cs
              TAGuard{} -> True
              TALit{}   -> True
   let complete =length cs == length [ b | b@TACon{} <- bs ]
