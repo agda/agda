@@ -230,9 +230,30 @@ metaCheck m = do
       , prettyTCM (getQuantity mmod)
       ]
     allowAssign <- asksTC envAssignMetas
-    if mvFrozen mv == Frozen || not allowAssign || isFlexible cxt then
+    -- Jesper, 2020-11-10: if we encounter a metavariable that is
+    -- unusable because of its modality (e.g. irrelevant or erased) we
+    -- try to *promote* the meta to the required modality, by creating
+    -- a new meta with that modality and solving the old one with
+    -- it. Don't do this if the meta occurs in a flexible or unguarded
+    -- position:
+    -- - If it is in a flexible position, it could disappear when
+    --   another meta is solved, so promotion is maybe not necessary.
+    -- - If it is in a top-level position, we can instead solve the
+    --   equation by instantiating the other way around, so promotion
+    --   is not necessary.
+    -- Also don't do this if it is a generalizable meta, since the
+    -- modality written by the user should be preserved.
+    if mvFrozen mv == Frozen ||
+       not (isOpenMeta $ mvInstantiation mv) ||
+       not allowAssign ||
+       isFlexible cxt ||
+       isUnguarded cxt ||
+       unArg (miGeneralizable $ mvInfo mv) == YesGeneralize
+    then do
+      reportSDoc "tc.meta.occurs" 20 $ "Meta occurs check found bad relevance, aborting!"
       patternViolation $ unblockOnMeta m
     else liftTCM $ do
+      reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
       let info' = setModality mmod' $ mvInfo mv
       m' <- newMeta Instantiable info' (mvPriority mv) (mvPermutation mv) (mvJudgement mv)
       reportSDoc "tc.meta.occurs.qnt" 20 $ hsep
@@ -240,6 +261,7 @@ metaCheck m = do
          , prettyTCM m
          ]
       assignTerm m [] $ MetaV m' []
+      reportSDoc "tc.meta.occurs" 35 $ "New name for" <+> prettyTCM m <+> "is" <+> prettyTCM m'
       return m'
 
 -- | Construct a test whether a de Bruijn index is allowed
