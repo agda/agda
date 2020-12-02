@@ -1,17 +1,19 @@
 ..
   ::
 
+  {-# OPTIONS --cubical #-}
+
   module language.runtime-irrelevance where
 
   open import Agda.Primitive
+  open import Agda.Builtin.Cubical.Path
   open import Agda.Builtin.Nat
-  open import Agda.Builtin.Equality
   open import Agda.Builtin.List
 
   private
     variable
       a b : Level
-      A : Set a
+      A B : Set a
 
 .. _runtime-irrelevance:
 
@@ -30,7 +32,7 @@ A function or constructor argument is declared erased using the ``@0`` or ``@era
 For example, the following definition of vectors guarantees that the length argument to ``_∷_`` is not
 present at runtime::
 
-  data Vec (A : Set a) : Nat → Set a where
+  data Vec (A : Set a) : @0 Nat → Set a where
     []  : Vec A 0
     _∷_ : ∀ {@0 n} → A → Vec A n → Vec A (suc n)
 
@@ -87,10 +89,31 @@ and can be useful to ensure that code intended only for compile-time evaluation 
   ::
   spec n = n
   impl n = n
-  proof n = refl
+  proof n = λ _ → n
 
 Erased record fields become erased arguments to the record constructor and the projection functions
 are treated as erased definitions.
+
+Constructors can also be marked as erased. Here is one example:
+
+::
+
+  Is-proposition : Set a → Set a
+  Is-proposition A = (x y : A) → x ≡ y
+
+  data ∥_∥ (A : Set a) : Set a where
+    ∣_∣        : A → ∥ A ∥
+    @0 trivial : Is-proposition ∥ A ∥
+
+  rec : @0 Is-proposition B → (A → B) → ∥ A ∥ → B
+  rec p f ∣ x ∣           = f x
+  rec p f (trivial x y i) = p (rec p f x) (rec p f y) i
+
+In the code above the constructor ``trivial`` is only available at
+compile-time, whereas ``∣_∣`` is also available at run-time. Clauses
+that match on erased constructors are omitted by (at least some)
+compiler backends, so one can use erased names in the bodies of such
+clauses.
 
 Rules
 =====
@@ -104,18 +127,23 @@ following restrictions apply:
 
 - Cannot use erased variables or definitions.
 - Cannot pattern match on erased arguments, unless there is at most
-  one valid case. If ``--without-K`` is enabled and there is one valid
-  case, then the datatype must also not be indexed.
+  one valid case (not counting erased constructors). If
+  ``--without-K`` is enabled and there is one valid case, then the
+  datatype must also not be indexed.
 
-Consider the function ``foo`` taking an erased vector argument::
+Consider the function ``foo`` taking an erased vector argument:
+
+.. code-block:: agda
 
   foo : (n : Nat) (@0 xs : Vec Nat n) → Nat
   foo zero    []       = 0
   foo (suc n) (x ∷ xs) = foo n xs
 
-This is okay, since after matching on the length, the matching on the vector does not provide any computational information, and
-any variables in the pattern (``x`` and ``xs`` in this case) are marked erased in turn.
-On the other hand, if we don't match on the length first, the type checker complains:
+This is okay (when the K rule is on), since after matching on the
+length, the matching on the vector does not provide any computational
+information, and any variables in the pattern (``x`` and ``xs`` in
+this case) are marked erased in turn. On the other hand, if we don't
+match on the length first, the type checker complains:
 
 .. code-block:: agda
 
@@ -127,8 +155,9 @@ On the other hand, if we don't match on the length first, the type checker compl
 The type checker enters compile-time mode when
 
 - checking a type, i.e. when moving to the right of a ``:``,
-- checking erased arguments to a constructor or function, or
-- checking the body of an erased definition
+- checking erased arguments to a constructor or function,
+- checking the body of an erased definition, or
+- checking the body of a clause that matches on an erased constructor.
 
 Note that the type checker does not enter compile-time mode based on the type a term is checked against. In particular
 checking a term against ``Set`` does not trigger compile-time mode.
