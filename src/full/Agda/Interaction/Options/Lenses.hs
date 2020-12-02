@@ -46,7 +46,7 @@ instance LensPragmaOptions TCState where
   setPragmaOptions = set stPragmaOptions
   lensPragmaOptions = stPragmaOptions
 
-modifyPragmaOptions :: (PragmaOptions -> PragmaOptions) -> TCM ()
+modifyPragmaOptions :: MonadTCState m => (PragmaOptions -> PragmaOptions) -> m ()
 modifyPragmaOptions = modifyTC . mapPragmaOptions
 
 ---------------------------------------------------------------------------
@@ -70,10 +70,10 @@ instance LensVerbosity TCState where
   getVerbosity = getVerbosity . getPragmaOptions
   mapVerbosity = mapPragmaOptions . mapVerbosity
 
-modifyVerbosity :: (Verbosity -> Verbosity) -> TCM ()
+modifyVerbosity :: MonadTCState m => (Verbosity -> Verbosity) -> m ()
 modifyVerbosity = modifyTC . mapVerbosity
 
-putVerbosity :: Verbosity -> TCM ()
+putVerbosity :: MonadTCState m => Verbosity -> m ()
 putVerbosity = modifyTC . setVerbosity
 
 ---------------------------------------------------------------------------
@@ -97,7 +97,7 @@ instance LensCommandLineOptions TCState where
   getCommandLineOptions = getCommandLineOptions . stPersistentState
   mapCommandLineOptions = updatePersistentState . mapCommandLineOptions
 
-modifyCommandLineOptions :: (CommandLineOptions -> CommandLineOptions) -> TCM ()
+modifyCommandLineOptions :: MonadTCState m => (CommandLineOptions -> CommandLineOptions) -> m ()
 modifyCommandLineOptions = modifyTC . mapCommandLineOptions
 
 ---------------------------------------------------------------------------
@@ -131,10 +131,10 @@ instance LensSafeMode TCState where
   getSafeMode = getSafeMode . getCommandLineOptions
   mapSafeMode = mapCommandLineOptions . mapSafeMode
 
-modifySafeMode :: (SafeMode -> SafeMode) -> TCM ()
+modifySafeMode :: MonadTCState m => (SafeMode -> SafeMode) -> m ()
 modifySafeMode = modifyTC . mapSafeMode
 
-putSafeMode :: SafeMode -> TCM ()
+putSafeMode :: MonadTCState m => SafeMode -> m ()
 putSafeMode = modifyTC . setSafeMode
 
 -- | These builtins may use postulates, and are still considered --safe
@@ -195,17 +195,17 @@ builtinModules :: Set FilePath
 builtinModules = builtinModulesWithSafePostulates `Set.union`
                  builtinModulesWithUnsafePostulates
 
-isPrimitiveModule :: FilePath -> TCM Bool
+isPrimitiveModule :: MonadIO m => FilePath -> m Bool
 isPrimitiveModule file = do
   libdirPrim <- liftIO getPrimitiveLibDir
   return (file `Set.member` Set.map (libdirPrim </>) primitiveModules)
 
-isBuiltinModule :: FilePath -> TCM Bool
+isBuiltinModule :: MonadIO m => FilePath -> m Bool
 isBuiltinModule file = do
   libdirPrim <- liftIO getPrimitiveLibDir
   return (file `Set.member` Set.map (libdirPrim </>) builtinModules)
 
-isBuiltinModuleWithSafePostulates :: FilePath -> TCM Bool
+isBuiltinModuleWithSafePostulates :: MonadIO m => FilePath -> m Bool
 isBuiltinModuleWithSafePostulates file = do
   libdirPrim <- liftIO getPrimitiveLibDir
   let safeBuiltins   = Set.map (libdirPrim </>) builtinModulesWithSafePostulates
@@ -248,16 +248,16 @@ instance LensIncludePaths TCState where
   getAbsoluteIncludePaths = getAbsoluteIncludePaths . getCommandLineOptions
   mapAbsoluteIncludePaths = mapCommandLineOptions . mapAbsoluteIncludePaths
 
-modifyIncludePaths :: ([FilePath] -> [FilePath]) -> TCM ()
+modifyIncludePaths :: MonadTCState m => ([FilePath] -> [FilePath]) -> m ()
 modifyIncludePaths = modifyTC . mapIncludePaths
 
-putIncludePaths :: [FilePath] -> TCM ()
+putIncludePaths :: MonadTCState m => [FilePath] -> m ()
 putIncludePaths = modifyTC . setIncludePaths
 
-modifyAbsoluteIncludePaths :: ([AbsolutePath] -> [AbsolutePath]) -> TCM ()
+modifyAbsoluteIncludePaths :: MonadTCState m => ([AbsolutePath] -> [AbsolutePath]) -> m ()
 modifyAbsoluteIncludePaths = modifyTC . mapAbsoluteIncludePaths
 
-putAbsoluteIncludePaths :: [AbsolutePath] -> TCM ()
+putAbsoluteIncludePaths :: MonadTCState m => [AbsolutePath] -> m ()
 putAbsoluteIncludePaths = modifyTC . setAbsoluteIncludePaths
 
 ---------------------------------------------------------------------------
@@ -290,8 +290,8 @@ instance LensPersistentVerbosity TCState where
   getPersistentVerbosity = getPersistentVerbosity . getCommandLineOptions
   mapPersistentVerbosity = mapCommandLineOptions . mapPersistentVerbosity
 
-modifyPersistentVerbosity :: (PersistentVerbosity -> PersistentVerbosity) -> TCM ()
+modifyPersistentVerbosity :: MonadTCState m => (PersistentVerbosity -> PersistentVerbosity) -> m ()
 modifyPersistentVerbosity = modifyTC . mapPersistentVerbosity
 
-putPersistentVerbosity :: PersistentVerbosity -> TCM ()
+putPersistentVerbosity :: MonadTCState m => PersistentVerbosity -> m ()
 putPersistentVerbosity = modifyTC . setPersistentVerbosity
