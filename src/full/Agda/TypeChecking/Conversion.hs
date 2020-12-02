@@ -303,10 +303,10 @@ compareTerm'_ cmp a m n =
     case s of
       Prop{} | propIrr -> compareIrrelevant_ a' m n
       _    | isSize   -> compareSizes_ cmp m n
-      _               -> -- typeView (fmap unEl a') >>= \case
-       --TPi dom cod -> equalFun s dom cod m n
-       --_ -> case unEl $ twinAt @'Compat a' of
-       case unEl $ twinAt @'Compat a' of
+      _               -> typeView (fmap unEl a') >>= \case
+       TPi dom cod -> equalFun s dom cod m n
+       _ -> case unEl $ twinAt @'Compat a' of
+       --case unEl $ twinAt @'Compat a' of
         a | Just a == mlvl -> do
           a <- levelView_ m
           b <- levelView_ n
