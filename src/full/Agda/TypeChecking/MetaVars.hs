@@ -403,7 +403,7 @@ blockTermOnProblems t v pids =
     reportSDoc "tc.meta.blocked" 20 $ vcat
       [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
         (prettyTCM $ abstract tel v)
-      , "     by" <+> (prettyTCM =<< fmap mconcat (mapM getConstraintsForProblem pids))
+      , "     by" <+> (prettyTCM . mconcat =<< mapM getConstraintsForProblem pids)
       ]
     inst <- isInstantiatedMeta x
     if inst
