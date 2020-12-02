@@ -305,13 +305,14 @@ compareTerm'_ cmp a m n =
       _    | isSize   -> compareSizes_ cmp m n
       _               -> typeView (fmap unEl a') >>= \case
        TPi dom cod -> equalFun s dom cod m n
+       TLam        -> __IMPOSSIBLE__
        _ -> case unEl $ twinAt @'Compat a' of
        --case unEl $ twinAt @'Compat a' of
         a | Just a == mlvl -> do
           a <- levelView_ m
           b <- levelView_ n
           equalLevel_ a b
-        Pi dom cod   -> equalFun s (asTwin dom) (asTwin cod) m n
+        Pi dom cod   -> __IMPOSSIBLE__ -- equalFun s (asTwin dom) (asTwin cod) m n
         Lam _ _   -> __IMPOSSIBLE__
         Def r es  -> do
           isrec <- isEtaRecord r
@@ -2130,7 +2131,7 @@ bothAbsurd f f'
 data TypeView_ =
 --    TLevel
     TPi (Dom TwinT) (Abs TwinT)
---  | TLam
+  | TLam
 --  | TDef QName [Elim' (TwinT' Term)]
   | TOther
 
@@ -2156,66 +2157,68 @@ typeView (TwinT{necessary
       cod_ <- mkTwinAbs direction           twinPid codl codr codc
 
       return $ TPi dom_ cod_
-  where
-    mkTwinT :: CompareDirection ->
-                [ProblemId] ->
-                Het 'LHS Type ->
-                Het 'RHS Type ->
-                Maybe (Het 'Compat Type) ->
-                m TwinT
-    mkTwinT direction twinPid tyl tyr (Just tyc) =
-      return TwinT{necessary=False
-                  ,direction
-                  ,twinPid
-                  ,twinLHS=tyl
-                  ,twinRHS=tyr
-                  ,twinCompat=tyc
-                  }
-    mkTwinT direction twinPid tyl tyr Nothing = do
-      let ty0 = selectSmaller direction (twinAt @'LHS tyl) (twinAt @'RHS tyr)
-      tyc <- blockTypeOnProblems ty0 twinPid
-      return TwinT{necessary=False
-                  ,direction
-                  ,twinPid
-                  ,twinLHS=tyl
-                  ,twinRHS=tyr
-                  ,twinCompat=H'Compat tyc
-                  }
-
-    mkTwinDom :: CompareDirection ->
-                [ProblemId] ->
-                Het 'LHS (Dom Type) ->
-                Het 'RHS (Dom Type) ->
-                Maybe (Het 'Compat (Dom Type)) ->
-                m (Dom TwinT)
-    mkTwinDom direction twinPid doml domr (Just domc) = do
-      ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) (Just$ unDom <$> domc)
-      return (twinAt @'Compat domc){unDom=ty_}
-    mkTwinDom direction twinPid doml domr Nothing = do
-      let dom0 = selectSmaller direction (twinAt @'LHS doml) (twinAt @'RHS domr)
-      ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) Nothing
-      return dom0{unDom=ty_}
-
-    mkTwinAbs :: CompareDirection ->
-                [ProblemId] ->
-                Het 'LHS (Abs Type) ->
-                Het 'RHS (Abs Type) ->
-                Maybe (Het 'Compat (Abs Type)) ->
-                m (Abs TwinT)
-    mkTwinAbs direction twinPid absl@(commute -> NoAbs _ tyl) absr@(commute -> NoAbs _ tyr) Nothing =
-      NoAbs (suggests [Suggestion absl, Suggestion absr]) <$> mkTwinT direction twinPid tyl tyr Nothing
-
-    mkTwinAbs direction twinPid absl@(commute -> NoAbs _ tyl)
-                                absr@(commute -> NoAbs _ tyr)
-                                (Just absc@(commute -> NoAbs _ tyc)) =
-      NoAbs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
-        mkTwinT direction twinPid tyl tyr (Just tyc)
-
-    mkTwinAbs direction twinPid absl absr absc =
-      Abs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
-        mkTwinT direction twinPid (absBody <$> absl) (absBody <$> absr) (fmap absBody <$> absc)
-
+typeView (SingleT (H'Both Lam{})) = return TLam
+typeView  TwinT{twinLHS=H'LHS Lam{},twinRHS=H'RHS Lam{}} = return TLam
 typeView _ = return$ TOther
+
+mkTwinT :: TypeViewM m => CompareDirection ->
+            [ProblemId] ->
+            Het 'LHS Type ->
+            Het 'RHS Type ->
+            Maybe (Het 'Compat Type) ->
+            m TwinT
+mkTwinT direction twinPid tyl tyr (Just tyc) =
+  return TwinT{necessary=False
+              ,direction
+              ,twinPid
+              ,twinLHS=tyl
+              ,twinRHS=tyr
+              ,twinCompat=tyc
+              }
+mkTwinT direction twinPid tyl tyr Nothing = do
+  let ty0 = selectSmaller direction (twinAt @'LHS tyl) (twinAt @'RHS tyr)
+  tyc <- blockTypeOnProblems ty0 twinPid
+  return TwinT{necessary=False
+              ,direction
+              ,twinPid
+              ,twinLHS=tyl
+              ,twinRHS=tyr
+              ,twinCompat=H'Compat tyc
+              }
+
+mkTwinDom :: TypeViewM m => CompareDirection ->
+            [ProblemId] ->
+            Het 'LHS (Dom Type) ->
+            Het 'RHS (Dom Type) ->
+            Maybe (Het 'Compat (Dom Type)) ->
+            m (Dom TwinT)
+mkTwinDom direction twinPid doml domr (Just domc) = do
+  ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) (Just$ unDom <$> domc)
+  return (twinAt @'Compat domc){unDom=ty_}
+mkTwinDom direction twinPid doml domr Nothing = do
+  let dom0 = selectSmaller direction (twinAt @'LHS doml) (twinAt @'RHS domr)
+  ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) Nothing
+  return dom0{unDom=ty_}
+
+mkTwinAbs :: TypeViewM m => CompareDirection ->
+            [ProblemId] ->
+            Het 'LHS (Abs Type) ->
+            Het 'RHS (Abs Type) ->
+            Maybe (Het 'Compat (Abs Type)) ->
+            m (Abs TwinT)
+mkTwinAbs direction twinPid absl@(commute -> NoAbs _ tyl) absr@(commute -> NoAbs _ tyr) Nothing =
+  NoAbs (suggests [Suggestion absl, Suggestion absr]) <$> mkTwinT direction twinPid tyl tyr Nothing
+
+mkTwinAbs direction twinPid absl@(commute -> NoAbs _ tyl)
+                            absr@(commute -> NoAbs _ tyr)
+                            (Just absc@(commute -> NoAbs _ tyc)) =
+  NoAbs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
+    mkTwinT direction twinPid tyl tyr (Just tyc)
+
+mkTwinAbs direction twinPid absl absr absc =
+  Abs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
+    mkTwinT direction twinPid (absBody <$> absl) (absBody <$> absr) (fmap absBody <$> absc)
+
 
 
 class Commute f g where
