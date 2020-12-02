@@ -157,10 +157,17 @@ match on the length first, the type checker complains:
 
 The type checker enters compile-time mode when
 
-- checking a type, i.e. when moving to the right of a ``:``,
 - checking erased arguments to a constructor or function,
-- checking the body of an erased definition, or
-- checking the body of a clause that matches on an erased constructor.
+- checking the body of an erased definition,
+- checking the body of a clause that matches on an erased constructor,
+- checking the domain of an erased Π type, or
+- checking a type, i.e. when moving to the right of a ``:``, with some
+  exceptions:
+
+  - Compile-time mode is not entered for the domains of non-erased Π
+    types.
+  - If the K rule is off then compile-time mode is not entered for
+    non-erased constructors or record fields.
 
 Note that the type checker does not enter compile-time mode based on the type a term is checked against. In particular
 checking a term against ``Set`` does not trigger compile-time mode.
