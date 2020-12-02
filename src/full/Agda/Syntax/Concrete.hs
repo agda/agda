@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.

@@ -5,7 +5,6 @@
 -- especially since it depends on lens which we consciously ruled out.
 
 {-# LANGUAGE CPP                #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
 
 

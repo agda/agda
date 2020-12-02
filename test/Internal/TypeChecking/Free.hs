@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE CPP                       #-}

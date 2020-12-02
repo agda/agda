@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
 
 module Agda.TypeChecking.Monad.Base where
 

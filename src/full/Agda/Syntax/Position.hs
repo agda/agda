@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 

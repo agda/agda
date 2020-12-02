@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-
 -- | Case trees.
 --
 --   After coverage checking, pattern matching is translated
