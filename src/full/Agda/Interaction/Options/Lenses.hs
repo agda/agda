@@ -15,6 +15,7 @@ import System.FilePath ((</>))
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
+import Agda.Interaction.Library (getPrimitiveLibDir)
 import Agda.Interaction.Options
 
 import Agda.Utils.Lens
@@ -194,14 +195,19 @@ builtinModules :: Set FilePath
 builtinModules = builtinModulesWithSafePostulates `Set.union`
                  builtinModulesWithUnsafePostulates
 
+isPrimitiveModule :: FilePath -> TCM Bool
+isPrimitiveModule file = do
+  libdirPrim <- liftIO getPrimitiveLibDir
+  return (file `Set.member` Set.map (libdirPrim </>) primitiveModules)
+
 isBuiltinModule :: FilePath -> TCM Bool
 isBuiltinModule file = do
-  libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
+  libdirPrim <- liftIO getPrimitiveLibDir
   return (file `Set.member` Set.map (libdirPrim </>) builtinModules)
 
 isBuiltinModuleWithSafePostulates :: FilePath -> TCM Bool
 isBuiltinModuleWithSafePostulates file = do
-  libdirPrim <- (</> "prim") <$> liftIO defaultLibDir
+  libdirPrim <- liftIO getPrimitiveLibDir
   let safeBuiltins   = Set.map (libdirPrim </>) builtinModulesWithSafePostulates
   return (file `Set.member` safeBuiltins)
 
