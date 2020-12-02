@@ -336,6 +336,11 @@ When installing Agda the following flags can be used:
      :option:`--count-clusters` flag triggers an error
      message. Default: off.
 
+.. option:: optimise-heavily
+
+     Optimise Agda heavily. (In this case it might make sense to limit
+     GHC's memory usage.) Default: off.
+
 .. _exec-path-from-shell: https://github.com/purcell/exec-path-from-shell
 
 .. _installing-multiple-versions-of-Agda:

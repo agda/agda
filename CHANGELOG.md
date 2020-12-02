@@ -1,6 +1,21 @@
 Release notes for Agda version 2.6.2
 ====================================
 
+Building Agda
+-------------
+
+* Some expensive optimisations are now off by default
+  (see [#4521](https://github.com/agda/agda/issues/4521)).
+
+  These optimisations can be turned on manually (Cabal:
+  `-foptimise-heavily`, Stack: `--flag Agda:optimise-heavily`). They
+  are turned on (by default) when Agda is installed using `make
+  install`.
+
+  If the optimisations are turned on it might make sense to limit
+  GHC's memory usage (using something like `--ghc-options="+RTS -M6G
+  -RTS"`).
+
 Command-line interaction
 ------------------------
 
