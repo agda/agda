@@ -194,7 +194,7 @@ definitionCheck d = do
         ]
       abort neverUnblock $ MetaErasedSolution m $ Def d []
 
-metaCheck :: MetaId -> OccursM ()
+metaCheck :: MetaId -> OccursM MetaId
 metaCheck m = do
   cxt <- ask
   let rel = getRelevance cxt
@@ -220,7 +220,7 @@ metaCheck m = do
   mv <- lookupMeta m
   let mmod = getMetaModality mv
       mmod' = setRelevance rel $ setQuantity qnt $ mmod
-  unless (mmod `moreUsableModality` mmod') $ do
+  if (mmod `moreUsableModality` mmod') then return m else do
     reportSDoc "tc.meta.occurs" 35 $ hsep
       [ "occursCheck: meta variable"
       , prettyTCM m
@@ -235,7 +235,12 @@ metaCheck m = do
     else liftTCM $ do
       let info' = setModality mmod' $ mvInfo mv
       m' <- newMeta Instantiable info' (mvPriority mv) (mvPermutation mv) (mvJudgement mv)
+      reportSDoc "tc.meta.occurs.qnt" 20 $ hsep
+         [ "occursCheck: new meta variable"
+         , prettyTCM m
+         ]
       assignTerm m [] $ MetaV m' []
+      return m'
 
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
@@ -446,7 +451,7 @@ instance Occurs Term where
           Pi a b      -> uncurry Pi <$> occurs (a,b)
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs s
           MetaV m' es -> do
-            metaCheck m'
+            m' <- metaCheck m'
 
             addOrUnblocker (unblockOnMeta m') $ do
                          -- If getting stuck here, we need to trigger wakeup if this meta is
