@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE DoAndIfThenElse      #-}
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE PatternGuards        #-}
