@@ -21,7 +21,6 @@
 :set -Wduplicate-exports
 :set -Wempty-enumerations
 :set -Widentities
-:set -Wincomplete-patterns
 :set -Winline-rule-shadowing
 :set -Wmissing-fields
 :set -Wmissing-methods

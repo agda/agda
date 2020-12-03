@@ -640,7 +640,6 @@ library
                  -Wduplicate-exports
                  -Wempty-enumerations
                  -Widentities
-                 -Wincomplete-patterns
                  -Winline-rule-shadowing
                  -Wmissing-fields
                  -Wmissing-methods

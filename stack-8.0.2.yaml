@@ -8,7 +8,6 @@ extra-deps:
 - ansi-wl-pprint-0.6.9
 - async-2.2.1
 - binary-0.8.5.1
-- containers-0.5.10.2
 - cpphs-1.20.9
 - containers-0.5.11.0
 - optparse-applicative-0.15.1.0
