@@ -1000,7 +1000,7 @@ pragmaOptions =
                     "show implicit arguments when printing"
     , Option []     ["show-irrelevant"] (NoArg showIrrelevantFlag)
                     "show irrelevant arguments when printing"
-    , Option []     ["show-identity-substitutions"] (NoArg showIrrelevantFlag)
+    , Option []     ["show-identity-substitutions"] (NoArg showIdentitySubstitutionsFlag)
                     "show all arguments of metavariables when printing terms"
     , Option []     ["no-unicode"] (NoArg asciiOnlyFlag)
                     "don't use unicode characters when printing terms"
