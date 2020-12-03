@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP       #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -368,6 +367,7 @@ checkOpts opts
   | otherwise = return opts
   where
   matches = length . filter ($ opts)
+  optionChanged :: Eq a => (CommandLineOptions -> a) -> Bool
   optionChanged opt = ((/=) `on` opt) opts defaultOptions
 
   atMostOne =
