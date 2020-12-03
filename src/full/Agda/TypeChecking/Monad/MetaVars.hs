@@ -6,6 +6,7 @@ import Prelude hiding (null)
 
 import Control.Monad.Except
 import Control.Monad.State
+import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Reader
 import Control.Monad.Writer
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
@@ -322,15 +323,20 @@ setMetaOccursCheck mi b = updateMetaVar mi $ \ mvar ->
 
 class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
   freshInteractionId :: m InteractionId
+  default freshInteractionId
+    :: (MonadTrans t, MonadInteractionPoints n, t n ~ m)
+    => m InteractionId
+  freshInteractionId = lift freshInteractionId
+
   modifyInteractionPoints :: (InteractionPoints -> InteractionPoints) -> m ()
-
-instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m) where
-  freshInteractionId = lift freshInteractionId
+  default modifyInteractionPoints
+    :: (MonadTrans t, MonadInteractionPoints n, t n ~ m)
+    => (InteractionPoints -> InteractionPoints) -> m ()
   modifyInteractionPoints = lift . modifyInteractionPoints
 
-instance MonadInteractionPoints m => MonadInteractionPoints (StateT r m) where
-  freshInteractionId = lift freshInteractionId
-  modifyInteractionPoints = lift . modifyInteractionPoints
+instance MonadInteractionPoints m => MonadInteractionPoints (IdentityT m)
+instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m)
+instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
 
 instance MonadInteractionPoints TCM where
   freshInteractionId = fresh
