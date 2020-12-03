@@ -1,7 +1,5 @@
 -- | Collect statistics.
 
-{-# LANGUAGE DefaultSignatures #-}
-
 module Agda.TypeChecking.Monad.Statistics
     ( MonadStatistics(..), tick, tickN, tickMax, getStatistics, modifyStatistics, printStatistics
     ) where

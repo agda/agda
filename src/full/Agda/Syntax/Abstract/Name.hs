@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
 
 {-| Abstract names carry unique identifiers and stuff.
 -}

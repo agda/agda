@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE NamedFieldPuns            #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
 module Main ( main ) where

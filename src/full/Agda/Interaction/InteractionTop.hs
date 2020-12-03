@@ -1,6 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
-
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -299,6 +297,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
+    inEmacs :: forall a. CommandM a -> CommandM a
     inEmacs = liftCommandMT $ withEnv $ initEnv
             { envHighlightingLevel  = highlighting
             , envHighlightingMethod = highlightingMethod

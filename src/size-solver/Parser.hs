@@ -5,7 +5,6 @@
 
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 
 
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}

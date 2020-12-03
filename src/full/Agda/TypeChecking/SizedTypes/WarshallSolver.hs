@@ -1,4 +1,3 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Agda.TypeChecking.SizedTypes.WarshallSolver where
 
