@@ -622,6 +622,7 @@ library
                     Agda.Interaction.Highlighting.HTML.Base
                     Agda.Interaction.Highlighting.LaTeX.Backend
                     Agda.Interaction.Highlighting.LaTeX.Base
+                    Agda.Interaction.Options.Base
                     Agda.Utils.CallStack.Base
                     Agda.Utils.CallStack.Pretty
 
