@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
 
 {-| An info object contains additional information about a piece of abstract
     syntax that isn't part of the actual syntax. For instance, it might contain

@@ -1,6 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-
-
 -- | Occurrences.
 
 module Agda.TypeChecking.Positivity.Occurrence

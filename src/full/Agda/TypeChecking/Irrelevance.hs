@@ -203,9 +203,9 @@ applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
 applyCohesionToContext :: (MonadTCEnv tcm, LensCohesion m) => m -> tcm a -> tcm a
 applyCohesionToContext thing =
   case getCohesion thing of
-    m | m == mempty -> id
-      | otherwise   -> applyCohesionToContextOnly   m
-                       -- Cohesion does not apply to the judgment.
+    m | m == unitCohesion -> id
+      | otherwise         -> applyCohesionToContextOnly   m
+                             -- Cohesion does not apply to the judgment.
 
 applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
 applyCohesionToContextOnly q = localTC
@@ -227,9 +227,9 @@ splittableCohesion a = do
 applyModalityToContext :: (MonadTCEnv tcm, LensModality m) => m -> tcm a -> tcm a
 applyModalityToContext thing =
   case getModality thing of
-    m | m == mempty -> id
-      | otherwise   -> applyModalityToContextOnly   m
-                     . applyModalityToJudgementOnly m
+    m | m == unitModality -> id
+      | otherwise         -> applyModalityToContextOnly   m
+                           . applyModalityToJudgementOnly m
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
@@ -413,8 +413,8 @@ instance UsableModality Term where
     -- Even if Pi contains Type, here we check it as a constructor for terms in the universe.
     Pi a b   -> usableMod domMod (unEl $ unDom a) `and2M` usableModAbs (getArgInfo a) mod (unEl <$> b)
       where
-        domMod = mapQuantity (<> getQuantity a) $
-                 mapCohesion (<> getCohesion a) mod
+        domMod = mapQuantity (composeQuantity $ getQuantity a) $
+                 mapCohesion (composeCohesion $ getCohesion a) mod
     -- Andrea 15/10/2020 not updating these cases yet, but they are quite suspicious,
     -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s

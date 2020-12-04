@@ -1175,7 +1175,7 @@ solutionStep retry s
         | IntMap.null vars = tel
         | otherwise        = telFromList $ zipWith upd (downFrom $ size tel) (telToList tel)
         where
-          upd i a | Just md' <- IntMap.lookup i vars = setModality (md <> md') a
+          upd i a | Just md' <- IntMap.lookup i vars = setModality (composeModality md md') a
                   | otherwise                        = a
   s <- return $ s { varTel = updModality (getModality fi) bound (varTel s) }
 
@@ -1324,7 +1324,7 @@ patternBindingForcedVars forced v = do
           | Just vs <- allApplyElims es -> do
             fs <- defForced <$> getConstInfo (conName c)
             let goArg Forced    v = return $ fmap (unnamed . dotP) v
-                goArg NotForced v = fmap unnamed <$> traverse (go $ md <> getModality v) v
+                goArg NotForced v = fmap unnamed <$> traverse (go $ composeModality md $ getModality v) v
             (ps, bound) <- listen $ zipWithM goArg (fs ++ repeat NotForced) vs
             if IntMap.null bound
               then return $ dotP v  -- bound nothing

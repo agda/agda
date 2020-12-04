@@ -623,6 +623,7 @@ library
                     Agda.Interaction.Highlighting.LaTeX.Backend
                     Agda.Interaction.Highlighting.LaTeX.Base
                     Agda.Interaction.Options.Base
+                    Agda.Interaction.Options.HasOptions
                     Agda.Utils.CallStack.Base
                     Agda.Utils.CallStack.Pretty
 

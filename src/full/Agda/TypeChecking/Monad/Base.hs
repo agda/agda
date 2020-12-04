@@ -1,7 +1,9 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
 
-module Agda.TypeChecking.Monad.Base where
+module Agda.TypeChecking.Monad.Base
+  ( module Agda.TypeChecking.Monad.Base
+  , HasOptions (..)
+  ) where
 
 import Prelude hiding (null)
 
@@ -2838,7 +2840,7 @@ initEnv = TCEnv { envContext             = []
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envModality               = mempty
+                , envModality               = unitModality
                 , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
                 , envRange                  = noRange
@@ -3696,18 +3698,6 @@ instance E.Exception TCErr
 -- * Accessing options
 -----------------------------------------------------------------------------
 
-class (Functor m, Applicative m, Monad m) => HasOptions m where
-  -- | Returns the pragma options which are currently in effect.
-  pragmaOptions      :: m PragmaOptions
-  -- | Returns the command line options which are currently in effect.
-  commandLineOptions :: m CommandLineOptions
-
-  default pragmaOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m PragmaOptions
-  pragmaOptions      = lift pragmaOptions
-
-  default commandLineOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m CommandLineOptions
-  commandLineOptions = lift commandLineOptions
-
 instance MonadIO m => HasOptions (TCMT m) where
   pragmaOptions = useTC stPragmaOptions
 
@@ -3718,15 +3708,6 @@ instance MonadIO m => HasOptions (TCMT m) where
 
 -- HasOptions lifts through monad transformers
 -- (see default signatures in the HasOptions class).
-
-instance HasOptions m => HasOptions (ChangeT m)
-instance HasOptions m => HasOptions (ExceptT e m)
-instance HasOptions m => HasOptions (IdentityT m)
-instance HasOptions m => HasOptions (ListT m)
-instance HasOptions m => HasOptions (MaybeT m)
-instance HasOptions m => HasOptions (ReaderT r m)
-instance HasOptions m => HasOptions (StateT s m)
-instance (HasOptions m, Monoid w) => HasOptions (WriterT w m)
 
 -- Ternary options are annoying to deal with so we provide auxiliary
 -- definitions using @collapseDefault@.
@@ -3739,18 +3720,6 @@ guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
 
 withoutKOption :: HasOptions m => m Bool
 withoutKOption = collapseDefault . optWithoutK <$> pragmaOptions
-
--- | Gets the include directories.
---
--- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
--- 'setCommandLineOptions' must have run).
-
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
-getIncludeDirs = do
-  incs <- optAbsoluteIncludePaths <$> commandLineOptions
-  case incs of
-    [] -> __IMPOSSIBLE__
-    _  -> return incs
 
 enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions

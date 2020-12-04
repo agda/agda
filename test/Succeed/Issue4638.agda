@@ -9,8 +9,8 @@ data D : Set where
   @0 compile-time : Bool → D
 
 f : @0 D → D
-f (run-time _)     = run-time true
 f (compile-time x) = compile-time x
+f (run-time _)     = run-time true
 
 g : D → D
 g (run-time x)     = run-time x

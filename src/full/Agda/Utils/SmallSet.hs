@@ -12,9 +12,6 @@
 --    import Agda.Utils.SmallSet (SmallSet)
 -- @
 
-{-# LANGUAGE DeriveDataTypeable #-}
-
-
 module Agda.Utils.SmallSet
   ( SmallSet()
   , Ix
