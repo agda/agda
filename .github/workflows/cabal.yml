@@ -12,33 +12,34 @@ on:
   pull_request:
     paths:
     - 'src/**'
-    - 'Agda.cabal'
     - 'cabal.project'
     - '.github/workflows/cabal.yml'
+    - 'Agda.cabal'
     - 'Setup.hs'
     - 'test/**.hs'
 
 jobs:
-  Ubuntu:
+  Unix-like:
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    runs-on: ubuntu-18.04
-
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        ghc-ver: ["8.10.2"]
-        cabal-ver: ["3.2"]
+        os: [ubuntu-18.04, macos-latest]
+        ghc-ver: [8.10.2]
+        cabal-ver: [3.2]
 
     steps:
-    - uses: actions/checkout@v2.3.2
+    - uses: actions/checkout@v2
       with:
         submodules: recursive
 
-    - uses: actions/setup-haskell@v1.1.3
+    - uses: actions/setup-haskell@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
@@ -48,56 +49,24 @@ jobs:
         cabal update
         cabal configure -O0
 
-    - uses: actions/cache@v2.1.0
+    - name: Add the path to icu4c to the cabal configuration
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        echo "extra-lib-dirs: /usr/local/opt/icu4c/lib"         >> ~/.cabal/config
+        echo "extra-include-dirs: /usr/local/opt/icu4c/include" >> ~/.cabal/config
+
+    - uses: actions/cache@v2
       name: Cache dependencies
       with:
-        path: "~/.cabal"
+        path: |
+          ~/.cabal
+          dist-newstyle
         # The file `plan.json` contains the build information.
         key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
-    - uses: actions/cache@v2.1.0
-      name: Cache dist-newstyle
-      with:
-        path: dist-newstyle/build
-        key: ${{ runner.os }}-dist-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
-
     - name: Install dependencies
       run: |
         cabal build --only-dependencies
-
-    - name: Build Agda
-      run: |
-        cabal build
-
-  macOS:
-    if: |
-      !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
-
-    runs-on: macos-latest
-
-    steps:
-    - uses: actions/checkout@v2.3.2
-      with:
-        submodules: recursive
-
-    - name: Install ghc and cabal-install
-      run: |
-        brew install ghc cabal-install
-        cabal update
-
-    - name: Add the path to icu4c to the cabal configuration
-      run: |
-        echo "extra-lib-dirs: /usr/local/opt/icu4c/lib">> ~/.cabal/config
-        echo "extra-include-dirs: /usr/local/opt/icu4c/include" >> ~/.cabal/config
-
-    - name: Install dependencies
-      run: |
-        cabal configure -O0
-        cabal build --only-dependencies
-
     - name: Build Agda
       run: |
         cabal build

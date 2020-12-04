@@ -4,137 +4,103 @@ on:
   push:
     paths:
     - '.github/workflows/nightly.yml'
-
   schedule:
     # Run every day at 0400.
     - cron: '0 04 * * *'
 
 jobs:
-  Ubuntu:
-    runs-on: ubuntu-18.04
+  nightly:
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
-        ghc-ver: [8.10.2]
+        os: [windows-latest, macos-latest, ubuntu-18.04]
+        ghc-ver: [8.8.4]
+
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
-      FLAGS: "--flag Agda:enable-cluster-counting"
+      FLAGS: ""
+      EXTRA_ARGS: "--ghc-options=-split-sections"
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
-    - uses: actions/checkout@v2.3.2
-      with:
-        submodules: recursive
+    - name: Add environment variables for the file name of nightly build
+      run: |
+        short_sha=`echo ${GITHUB_SHA} | cut -c1-7`
+        echo "nightly_dir=`echo Agda-nightly-${short_sha}-${{ runner.os }}`" >> $GITHUB_ENV
 
-    - uses: actions/setup-haskell@v1.1.3
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+
+    - uses: actions/setup-haskell@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
-    - name: Build dependencies
-      run: |
-        stack build ${ARGS} ${FLAGS} --only-dependencies
-
-    - name: Build Agda
-      run: |
-        stack build ${ARGS} ${FLAGS}
-
-    - name: Pack artifacts
-      run: |
-        mkdir -p upload/bin
-        cp -av .stack-work/dist/x86_64-linux/**/build/agda/agda upload/bin
-        cp -av .stack-work/dist/x86_64-linux/**/build/agda-mode/agda-mode upload/bin
-        cp -avr src/data upload
-        cp -av .github/*.sh upload
-
-    - uses: actions/upload-artifact@v2.0.1
+    - uses: actions/cache@v2
+      name: Cache dependencies (Unix-like)
+      if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
       with:
-        name: agda-linux-${{ github.sha }}
-        path: upload
+        path: "~/.stack"
+        # A unique cache is used for each stack.yaml.
+        key: ${{ runner.os }}-stack-split-sections-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
-  macOS:
-    runs-on: macos-latest
-
-    strategy:
-      matrix:
-        ghc-ver: [8.10.2]
-
-    env:
-      ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
-      FLAGS: "--flag Agda:enable-cluster-counting"
-
-    steps:
-    - uses: actions/checkout@v2.3.2
+    - uses: actions/cache@v2
+      name: Cache dependencies (Windows)
+      if: ${{ runner.os == 'Windows' }}
       with:
-        submodules: recursive
+        path: C:\Users\runneradmin\AppData\Roaming\stack
+        key: ${{ runner.os }}-stack-split-sections-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
-    - name: Install stack
-      run: |
-        brew install haskell-stack
-        stack update --stack-yaml stack-${{ matrix.ghc-ver }}.yaml --system-ghc
-
-    - name: Configure text-icu
-      run: |
-        printf "extra-lib-dirs:\n - /usr/local/opt/icu4c/lib\nextra-include-dirs:\n - /usr/local/opt/icu4c/include\n" > ~/.stack/config.yaml
+    - name: Update the package index of stack
+      run: stack update
 
     - name: Build dependencies
-      run: |
-        stack build ${ARGS} ${FLAGS} --only-dependencies
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${FLAGS} --only-dependencies
 
     - name: Build Agda
-      run: |
-        stack build ${ARGS} ${FLAGS}
-
-    - name: Pack artifacts
-      run: |
-        mkdir -p upload/bin
-        cp -av .stack-work/dist/x86_64-osx/**/build/agda/agda upload/bin
-        cp -av .stack-work/dist/x86_64-osx/**/build/agda-mode/agda-mode upload/bin
-        cp -av src/data upload
-        cp -av .github/*.sh upload
-
-    - uses: actions/upload-artifact@v2.0.1
+      uses: nick-invision/retry@v2
+      # Liang-Ting (2020-12-8):
+      # Due to a ghc bug on Windows, it is necessary to build Agda twice (or more) 
+      # See:
+      #   - https://github.com/agda/agda/issues/4543
+      #   - https://gitlab.haskell.org/ghc/ghc/-/issues/18634
       with:
-        name: agda-macOS-${{ github.sha }}
-        path: upload
+        max_attempts: 3
+        timeout_minutes: 50
+        retry_on: error
+        command: stack build ${{ env.ARGS }} ${{ env.EXTRA_ARGS }} ${{ env.FLAGS }}
 
-          # Fail to pack a Windows build due to #5040
-          #
-          #  Windows:
-          #    runs-on: windows-latest
-          #    strategy:
-          #      matrix:
-          #        # We can not use 8.10.2 because #4965.
-          #        ghc-ver: []
-          #
-          #    # NOTE: The flag Agda:enable-cluster-counting is not included below, due to issues installing
-          #    #       the ICU library with Stack's version of msys, as of about 2020-10-27. See:
-          #    #   - https://github.com/agda/agda/issues/5012
-          #    #   - https://github.com/commercialhaskell/stack/issues/5300
-          #
-          #    steps:
-          #    - uses: actions/checkout@v2.3.2
-          #      with:
-          #        submodules: recursive
-          #
-          #    # See comment in .github/workflows/stack.yml
-          #    - name: Build dependencies
-          #      run: |
-          #        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast --only-dependencies
-          #
-          #    - name: Build agda
-          #      run: |
-          #        stack build --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --fast
-          #
-          #    - name: Pack artifacts
-          #      shell: bash
-          #      run: |
-          #        mkdir -p upload/bin
-          #        cp -av ~/AppData/Local/Programs/stack/x86_64-windows/msys2-20180531/mingw64/bin/*.dll upload/bin
-          #        cp -av .stack-work/install/**/bin/agda.exe upload/bin
-          #        cp -av .stack-work/install/**/bin/agda-mode.exe upload/bin
-          #        cp -avr src/data upload
-          #        cp -av .github/*.bat upload
-          #
-          #    - uses: actions/upload-artifact@v2.0.1
-          #      with:
-          #        name: agda-windows-${{ github.sha }}
-          #        path: upload
+    - name: Pack artefacts
+      run: |
+        mkdir -p ${{ env.nightly_dir }}
+
+        if [[ "$OSTYPE" == "msys"* ]]
+        then
+          cp -a .github/*.bat ${{ env.nightly_dir }}
+        else
+          cp -a .github/*.sh ${{ env.nightly_dir }}
+        fi
+
+        cp -a src/data ${{ env.nightly_dir }}
+        cp -a $(stack path --local-install-root ${ARGS})/bin ${{ env.nightly_dir }}
+
+        # Msys2 does not ship strip by default
+        if [[ "$OSTYPE" == "msys"* ]]
+        then
+          C:\\msys64\\pacman -S --noconfirm mingw-w64-x86_64-binutils
+        fi
+
+        strip ${{ env.nightly_dir }}/bin/*
+
+        tar -cvf ${{ env.nightly_dir }}.tar ${{ env.nightly_dir }}
+    - uses: actions/upload-artifact@v2
+      with:
+        path: ${{ env.nightly_dir }}.tar
+        name: ${{ env.nightly_dir }}
+        if-no-files-found: error
+        retention-days: 7

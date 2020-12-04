@@ -23,7 +23,7 @@ jobs:
       matrix:
         python-version: [3.7]
     steps:
-    - uses: actions/checkout@v2.3.2
+    - uses: actions/checkout@v2
       with:
         submodules: recursive
 
@@ -49,7 +49,7 @@ jobs:
       run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
-    - uses: actions/upload-artifact@v2.0.1
+    - uses: actions/upload-artifact@v2
       with:
         name: user-manual-pdf
         path: doc/user-manual.pdf
