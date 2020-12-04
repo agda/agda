@@ -4,7 +4,10 @@
 --   "Agda.TypeChecking.Monad.Base" on the termination checker and
 --   everything it imports.
 
-module Agda.Termination.CutOff where
+module Agda.Termination.CutOff
+  ( CutOff(CutOff, DontCutOff)
+  , defaultCutOff
+  ) where
 
 -- | Cut off structural order comparison at some depth in termination checker?
 
@@ -17,4 +20,7 @@ instance Show CutOff where
   show (CutOff k) = show k
   show DontCutOff = "∞"
 
--- That's it!
+-- | The default termination depth.
+
+defaultCutOff :: CutOff
+defaultCutOff = CutOff 0 -- minimum value
