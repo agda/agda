@@ -567,7 +567,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       --
       -- Alternatively we could create a projection `.. |- π r :c A`
       -- but that would require support for a `t :c A` judgment.
-      if hasLeftAdjoint (getCohesion ai)
+      if hasLeftAdjoint (UnderComposition (getCohesion ai))
         then unless (getCohesion ai == Continuous)
                     -- Andrea TODO: properly update the context/type of the projection when we add Sharp
                     __IMPOSSIBLE__

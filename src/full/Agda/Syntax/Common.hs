@@ -9,7 +9,7 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 import Control.Arrow ((&&&))
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), liftA2)
 
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup hiding (Arg)
@@ -354,6 +354,20 @@ sameHiding x y =
 -- * Modalities
 ---------------------------------------------------------------------------
 
+-- | Type wrapper to indicate additive monoid/semigroup context.
+newtype UnderAddition t = UnderAddition t deriving (Show, Functor, Eq, Ord, PartialOrd)
+
+instance Applicative UnderAddition where
+  pure = UnderAddition
+  (<*>) (UnderAddition f) (UnderAddition a) = pure (f a)
+
+-- | Type wrapper to indicate composition or multiplicative monoid/semigroup context.
+newtype UnderComposition t = UnderComposition t deriving (Show, Functor, Eq, Ord, PartialOrd)
+
+instance Applicative UnderComposition where
+  pure = UnderComposition
+  (<*>) (UnderComposition f) (UnderComposition a) = pure (f a)
+
 -- | We have a tuple of modalities, which might not be fully orthogonal.
 --   For instance, irrelevant stuff is also run-time irrelevant.
 data Modality = Modality
@@ -370,27 +384,36 @@ data Modality = Modality
       --   Currently only the comonad is implemented.
   } deriving (Data, Eq, Ord, Show, Generic)
 
-defaultModality :: Modality
-defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
-
--- | Pointwise composition.
-instance Semigroup Modality where
-  Modality r q c <> Modality r' q' c' = Modality (r <> r') (q <> q') (c <> c')
-
--- | Pointwise unit.
-instance Monoid Modality where
-  mempty = Modality mempty mempty mempty
-  mappend = (<>)
-
 -- | Dominance ordering.
 instance PartialOrd Modality where
   comparable (Modality r q c) (Modality r' q' c') = comparable (r, (q, c)) (r', (q', c'))
 
-instance POSemigroup Modality where
-instance POMonoid Modality where
+-- | Pointwise composition.
+instance Semigroup (UnderComposition Modality) where
+  (<>) = liftA2 composeModality
 
-instance LeftClosedPOMonoid Modality where
-  inverseCompose = inverseComposeModality
+-- | Pointwise composition unit.
+instance Monoid (UnderComposition Modality) where
+  mempty  = pure unitModality
+  mappend = (<>)
+
+instance POSemigroup (UnderComposition Modality) where
+instance POMonoid (UnderComposition Modality) where
+
+instance LeftClosedPOMonoid (UnderComposition Modality) where
+  inverseCompose = liftA2 inverseComposeModality
+
+-- | Pointwise addition.
+instance Semigroup (UnderAddition Modality) where
+  (<>) = liftA2 addModality
+
+-- | Pointwise additive unit.
+instance Monoid (UnderAddition Modality) where
+  mempty  = pure zeroModality
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition Modality) where
+instance POMonoid (UnderAddition Modality) where
 
 -- | @m `moreUsableModality` m'@ means that an @m@ can be used
 --   where ever an @m'@ is required.
@@ -404,7 +427,10 @@ usableModality a = usableRelevance m && usableQuantity m
 
 -- | Multiplicative monoid (standard monoid).
 composeModality :: Modality -> Modality -> Modality
-composeModality = (<>)
+composeModality (Modality r q c) (Modality r' q' c') =
+    Modality (r `composeRelevance` r')
+             (q `composeQuantity` q')
+             (c `composeCohesion` c')
 
 -- | Compose with modality flag from the left.
 --   This function is e.g. used to update the modality information
@@ -432,12 +458,23 @@ inverseApplyModality m = mapModality (m `inverseComposeModality`)
 addModality :: Modality -> Modality -> Modality
 addModality (Modality r q c) (Modality r' q' c') = Modality (addRelevance r r') (addQuantity q q') (addCohesion c c')
 
+-- | Identity under addition
 zeroModality :: Modality
 zeroModality = Modality zeroRelevance zeroQuantity zeroCohesion
+
+-- | Identity under composition
+unitModality :: Modality
+unitModality = Modality unitRelevance unitQuantity unitCohesion
 
 -- | Absorptive element under addition.
 topModality :: Modality
 topModality = Modality topRelevance topQuantity topCohesion
+
+-- | The default Modality
+--   Beware that this is neither the additive unit nor the unit under
+--   composition, because the default quantity is ω.
+defaultModality :: Modality
+defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
 
 -- | Equality ignoring origin.
 
@@ -703,9 +740,6 @@ data Quantity
   deriving (Data, Show, Generic, Eq, Ord)
     -- @Ord@ instance in case @Quantity@ is used in keys for maps etc.
 
-defaultQuantity :: Quantity
-defaultQuantity = topQuantity
-
 -- | Equality ignoring origin.
 
 sameQuantity :: Quantity -> Quantity -> Bool
@@ -722,18 +756,30 @@ sameQuantity = curry $ \case
 --
 -- Right-biased for origin.
 --
-instance Semigroup Quantity where
-  Quantity1{} <> q = q           -- right-bias!
-  q <> Quantity1{} = q
-  _ <> Quantity0 o = Quantity0 o -- right-bias!
-  Quantity0 o <> _ = Quantity0 o
-  _omega <> qomega = qomega      -- right-bias!
+instance Semigroup (UnderComposition Quantity) where
+  (<>) = liftA2 composeQuantity
 
 -- | In the absense of finite quantities besides 0, ω is the unit.
 --   Otherwise, 1 is the unit.
-instance Monoid Quantity where
-  mempty  = Quantity1 mempty
+instance Monoid (UnderComposition Quantity) where
+  mempty  = pure unitQuantity
   mappend = (<>)
+
+instance POSemigroup (UnderComposition Quantity) where
+instance POMonoid (UnderComposition Quantity) where
+
+instance LeftClosedPOMonoid (UnderComposition Quantity) where
+  inverseCompose = liftA2 inverseComposeQuantity
+
+instance Semigroup (UnderAddition Quantity) where
+  (<>) = liftA2 addQuantity
+
+instance Monoid (UnderAddition Quantity) where
+  mempty  = pure zeroQuantity
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition Quantity) where
+instance POMonoid (UnderAddition Quantity) where
 
 -- | Note that the order is @ω ≤ 0,1@, more options is smaller.
 instance PartialOrd Quantity where
@@ -744,12 +790,6 @@ instance PartialOrd Quantity where
     (_, Quantityω{})  -> POGT
     -- others are uncomparable
     _ -> POAny
-
-instance POSemigroup Quantity where
-instance POMonoid Quantity where
-
-instance LeftClosedPOMonoid Quantity where
-  inverseCompose = inverseComposeQuantity
 
 -- | 'Quantity' forms an additive monoid with zero Quantity0.
 addQuantity :: Quantity -> Quantity -> Quantity
@@ -763,8 +803,19 @@ addQuantity = curry $ \case
   -- 1 + 1 = ω
   (Quantity1 _, Quantity1 _) -> topQuantity
 
+-- | Identity element under addition
 zeroQuantity :: Quantity
 zeroQuantity = Quantity0 mempty
+
+-- | Absorptive element!
+--   This differs from Relevance and Cohesion whose default
+--   is the multiplicative unit.
+defaultQuantity :: Quantity
+defaultQuantity = topQuantity
+
+-- | Identity element under composition
+unitQuantity :: Quantity
+unitQuantity = Quantity1 mempty
 
 -- | Absorptive element is ω.
 topQuantity :: Quantity
@@ -776,8 +827,20 @@ topQuantity = Quantityω mempty
 moreQuantity :: Quantity -> Quantity -> Bool
 moreQuantity m m' = related m POLE m'
 
+-- | Composition of quantities (multiplication).
+--
+-- 'Quantity0' is dominant.
+-- 'Quantity1' is neutral.
+--
+-- Right-biased for origin.
+--
 composeQuantity :: Quantity -> Quantity -> Quantity
-composeQuantity = (<>)
+composeQuantity = curry $ \case
+  (x@Quantity1{}, q            ) -> q -- right-bias!
+  (q            , x@Quantity1{}) -> q
+  (x            , q@Quantity0{}) -> q -- right-bias!
+  (q@Quantity0{}, x            ) -> q
+  (x            , q@Quantityω{}) -> q -- right-bias!
 
 -- | Compose with quantity flag from the left.
 --   This function is e.g. used to update the quantity information
@@ -901,9 +964,6 @@ data Relevance
 allRelevances :: [Relevance]
 allRelevances = [minBound..maxBound]
 
-defaultRelevance :: Relevance
-defaultRelevance = Relevant
-
 instance HasRange Relevance where
   getRange _ = noRange
 
@@ -979,10 +1039,7 @@ instance PartialOrd Relevance where
 
 -- | @usableRelevance rel == False@ iff we cannot use a variable of @rel@.
 usableRelevance :: LensRelevance a => a -> Bool
-usableRelevance a = case getRelevance a of
-  Irrelevant -> False
-  NonStrict  -> False
-  Relevant   -> True
+usableRelevance = isRelevant
 
 -- | 'Relevance' composition.
 --   'Irrelevant' is dominant, 'Relevant' is neutral.
@@ -1022,19 +1079,29 @@ inverseApplyRelevance :: LensRelevance a => Relevance -> a -> a
 inverseApplyRelevance rel = mapRelevance (rel `inverseComposeRelevance`)
 
 -- | 'Relevance' forms a semigroup under composition.
-instance Semigroup Relevance where
-  (<>) = composeRelevance
+instance Semigroup (UnderComposition Relevance) where
+  (<>) = liftA2 composeRelevance
 
--- | 'Relevant' is the unit.
-instance Monoid Relevance where
-  mempty  = Relevant
+-- | 'Relevant' is the unit under composition.
+instance Monoid (UnderComposition Relevance) where
+  mempty  = pure unitRelevance
   mappend = (<>)
 
-instance POSemigroup Relevance where
-instance POMonoid Relevance where
+instance POSemigroup (UnderComposition Relevance) where
+instance POMonoid (UnderComposition Relevance) where
 
-instance LeftClosedPOMonoid Relevance where
-  inverseCompose = inverseComposeRelevance
+instance LeftClosedPOMonoid (UnderComposition Relevance) where
+  inverseCompose = liftA2 inverseComposeRelevance
+
+instance Semigroup (UnderAddition Relevance) where
+  (<>) = liftA2 addRelevance
+
+instance Monoid (UnderAddition Relevance) where
+  mempty  = pure zeroRelevance
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition Relevance) where
+instance POMonoid (UnderAddition Relevance) where
 
 -- | Combine inferred 'Relevance'.
 --   The unit is 'Irrelevant'.
@@ -1045,9 +1112,17 @@ addRelevance = min
 zeroRelevance :: Relevance
 zeroRelevance = Irrelevant
 
+-- | Identity element under composition
+unitRelevance :: Relevance
+unitRelevance = Relevant
+
 -- | Absorptive element under addition.
 topRelevance :: Relevance
 topRelevance = Relevant
+
+-- | Default Relevance is the identity element under composition
+defaultRelevance :: Relevance
+defaultRelevance = unitRelevance
 
 -- | Irrelevant function arguments may appear non-strictly in the codomain type.
 irrToNonStrict :: Relevance -> Relevance
@@ -1168,9 +1243,6 @@ data Cohesion
 allCohesions :: [Cohesion]
 allCohesions = [minBound..maxBound]
 
-defaultCohesion :: Cohesion
-defaultCohesion = Continuous
-
 instance HasRange Cohesion where
   getRange _ = noRange
 
@@ -1278,19 +1350,31 @@ inverseApplyCohesion :: LensCohesion a => Cohesion -> a -> a
 inverseApplyCohesion rel = mapCohesion (rel `inverseComposeCohesion`)
 
 -- | 'Cohesion' forms a semigroup under composition.
-instance Semigroup Cohesion where
-  (<>) = composeCohesion
+instance Semigroup (UnderComposition Cohesion) where
+  (<>) = liftA2 composeCohesion
 
--- | 'Continous' is the unit.
-instance Monoid Cohesion where
-  mempty  = Continuous
+-- | 'Continous' is the multiplicative unit.
+instance Monoid (UnderComposition Cohesion) where
+  mempty  = pure unitCohesion
   mappend = (<>)
 
-instance POSemigroup Cohesion where
-instance POMonoid Cohesion where
+instance POSemigroup (UnderComposition Cohesion) where
+instance POMonoid (UnderComposition Cohesion) where
 
-instance LeftClosedPOMonoid Cohesion where
-  inverseCompose = inverseComposeCohesion
+instance LeftClosedPOMonoid (UnderComposition Cohesion) where
+  inverseCompose = liftA2 inverseComposeCohesion
+
+-- | 'Cohesion' forms a semigroup under addition.
+instance Semigroup (UnderAddition Cohesion) where
+  (<>) = liftA2 addCohesion
+
+-- | 'Squash' is the additive unit.
+instance Monoid (UnderAddition Cohesion) where
+  mempty  = pure zeroCohesion
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition Cohesion) where
+instance POMonoid (UnderAddition Cohesion) where
 
 -- | Combine inferred 'Cohesion'.
 --   The unit is 'Squash'.
@@ -1301,9 +1385,17 @@ addCohesion = min
 zeroCohesion :: Cohesion
 zeroCohesion = Squash
 
+-- | Identity under composition
+unitCohesion :: Cohesion
+unitCohesion = Continuous
+
 -- | Absorptive element under addition.
 topCohesion :: Cohesion
 topCohesion = Flat
+
+-- | Default Cohesion is the identity element under composition
+defaultCohesion :: Cohesion
+defaultCohesion = unitCohesion
 
 ---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)

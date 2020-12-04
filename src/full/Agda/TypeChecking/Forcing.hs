@@ -143,13 +143,13 @@ instance ForcedVariables a => ForcedVariables (Elim' a) where
   forcedVariables Proj{}    = []
 
 instance ForcedVariables a => ForcedVariables (Arg a) where
-  forcedVariables x = [ (m <> m', i) | (m', i) <- forcedVariables (unArg x) ]
+  forcedVariables x = [ (composeModality m m', i) | (m', i) <- forcedVariables (unArg x) ]
     where m = getModality x
 
 -- | Assumes that the term is in normal form.
 instance ForcedVariables Term where
   forcedVariables = \case
-    Var i [] -> [(mempty, i)]
+    Var i [] -> [(unitModality, i)]
     Con _ _ vs -> forcedVariables vs
     _ -> []
 

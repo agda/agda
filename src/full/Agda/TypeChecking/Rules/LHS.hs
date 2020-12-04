@@ -1418,7 +1418,7 @@ checkLHS mf = updateModality checkLHS_ where
                   -- either sets to Quantity0 or is the identity.
                   updResMod q =
                     case cq of
-                     Quantity0{} -> cq <> q
+                     Quantity0{} -> composeQuantity cq q
                                  -- zero-out, preserves origin
                      Quantity1{} -> __IMPOSSIBLE__
                      Quantityω{} -> q

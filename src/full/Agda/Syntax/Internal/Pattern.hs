@@ -334,7 +334,7 @@ instance PatternVarModalities a => PatternVarModalities (Named s a) where
 
 instance PatternVarModalities a => PatternVarModalities (Arg a) where
   type PatVar (Arg a) = PatVar a
-  patternVarModalities arg = map (second (m <>)) (patternVarModalities $ unArg arg)
+  patternVarModalities arg = map (second (composeModality m)) (patternVarModalities $ unArg arg)
     where m = getModality arg
 
 -- UNUSED:
