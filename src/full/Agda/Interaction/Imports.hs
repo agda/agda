@@ -391,9 +391,8 @@ typeCheckMain mode si = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
   reportSLn "import.main" 10 "Importing the primitive modules."
-  libdir <- liftIO defaultLibDir
-  let libdirPrim = libdir </> "prim"
-  reportSLn "import.main" 20 $ "Library dir = " ++ show libdir
+  libdirPrim <- liftIO getPrimitiveLibDir
+  reportSLn "import.main" 20 $ "Library primitive dir = " ++ show libdirPrim
   -- Turn off import-chasing messages.
   -- We have to modify the persistent verbosity setting, since
   -- getInterface resets the current verbosity settings to the persistent ones.

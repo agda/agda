@@ -907,7 +907,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- choice of whether or not to display implicit arguments.
     opts0 <- gets optionsOnReload
     backends <- useTC stBackends
-    z <- liftIO $ runOptM $ parseBackendOptions backends argv opts0
+    z <- runOptM $ parseBackendOptions backends argv opts0
     case z of
       Left err   -> lift $ typeError $ GenericError err
       Right (_, opts) -> do

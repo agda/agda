@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP       #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
@@ -28,18 +27,16 @@ module Agda.Interaction.Options
     , safeFlag
     , mapFlag
     , usage
-    , defaultLibDir
     -- Reused by PandocAgda
     , inputFlag
     , standardOptions, deadStandardOptions
     , getOptSimple
     ) where
 
-import Control.Monad            ( when, void  )
-import Control.Monad.Except
-import Control.Monad.Trans
+import Control.Monad ( when, void )
+import Control.Monad.Except ( Except, MonadError(throwError), runExcept )
 
-import Data.IORef
+import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 import Data.Maybe
 import Data.Map                 ( Map )
 import qualified Data.Map as Map
@@ -49,31 +46,31 @@ import qualified Data.Set as Set
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
-import System.Directory         ( doesFileExist, doesDirectoryExist )
-
 import Text.EditDistance
 import Text.Read                ( readMaybe )
 
-import Agda.Termination.CutOff  ( CutOff(..) )
+import Agda.Termination.CutOff  ( CutOff(..), defaultCutOff )
 
-import Agda.Interaction.Library
+import Agda.Interaction.Library ( ExeName, LibName )
 import Agda.Interaction.Options.Help
+  ( Help(HelpFor, GeneralHelp)
+  , string2HelpTopic
+  , allHelpTopics
+  , helpTopicUsage
+  )
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
 
-import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
+import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, wordsBy )
-import Agda.Utils.Monad         ( ifM )
 import Agda.Utils.Pretty        ( singPlural )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
 
 import Agda.Version
--- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
-import Paths_Agda ( getDataFileName )
 
 -- OptDescr is a Functor --------------------------------------------------
 
@@ -310,15 +307,10 @@ defaultPragmaOptions = PragmaOptions
   , optShowIdentitySubstitutions = False
   }
 
--- | The default termination depth.
+type OptM = Except String
 
-defaultCutOff :: CutOff
-defaultCutOff = CutOff 0 -- minimum value
-
-type OptM = ExceptT String IO
-
-runOptM :: OptM a -> IO (Either String a)
-runOptM = runExceptT
+runOptM :: Monad m => OptM opts -> m (Either String opts)
+runOptM = pure . runExcept
 
 {- | @f :: Flag opts@  is an action on the option record that results from
      parsing an option.  @f opts@ produces either an error message or an
@@ -550,8 +542,8 @@ showIdentitySubstitutionsFlag :: Flag PragmaOptions
 showIdentitySubstitutionsFlag o = return $ o { optShowIdentitySubstitutions = True }
 
 asciiOnlyFlag :: Flag PragmaOptions
-asciiOnlyFlag o = do
-  lift $ unsafeSetUnicodeOrAscii AsciiOnly
+asciiOnlyFlag o = return $ UNSAFE.unsafePerformIO $ do
+  unsafeSetUnicodeOrAscii AsciiOnly
   return $ o { optUseUnicode = AsciiOnly }
 
 ghciInteractionFlag :: Flag CommandLineOptions
@@ -765,12 +757,11 @@ libraryFlag :: String -> Flag CommandLineOptions
 libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
-overrideLibrariesFileFlag s o = do
-  ifM (liftIO $ doesFileExist s)
-    {-then-} (return $ o { optOverrideLibrariesFile = Just s
-                         , optUseLibs = True
-                         })
-    {-else-} (throwError $ "Libraries file not found: " ++ s)
+overrideLibrariesFileFlag s o =
+  return $ o
+    { optOverrideLibrariesFile = Just s
+    , optUseLibs = True
+    }
 
 noDefaultLibsFlag :: Flag CommandLineOptions
 noDefaultLibsFlag o = return $ o { optDefaultLibs = False }
@@ -887,7 +878,7 @@ pragmaOptions =
                     "show implicit arguments when printing"
     , Option []     ["show-irrelevant"] (NoArg showIrrelevantFlag)
                     "show irrelevant arguments when printing"
-    , Option []     ["show-identity-substitutions"] (NoArg showIrrelevantFlag)
+    , Option []     ["show-identity-substitutions"] (NoArg showIdentitySubstitutionsFlag)
                     "show all arguments of metavariables when printing terms"
     , Option []     ["no-unicode"] (NoArg asciiOnlyFlag)
                     "don't use unicode characters when printing terms"
@@ -1152,15 +1143,3 @@ stripRTS (arg : argv)
   | otherwise     = arg : stripRTS argv
   where
     is x arg = [x] == take 1 (words arg)
-
-------------------------------------------------------------------------
--- Some paths
-
--- | Returns the absolute default lib dir. This directory is used to
--- store the Primitive.agda file.
-defaultLibDir :: IO FilePath
-defaultLibDir = do
-  libdir <- fmap filePath (absolute =<< getDataFileName "lib")
-  ifM (doesDirectoryExist libdir)
-      (return libdir)
-      (error $ "The lib directory " ++ libdir ++ " does not exist")

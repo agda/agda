@@ -53,8 +53,8 @@ runAgda' :: [Backend] -> IO ()
 runAgda' backends = do
   progName <- getProgName
   argv     <- getArgs
-  conf     <- runOptM $ do
-    (bs, opts) <- parseBackendOptions backends argv defaultOptions
+  conf     <- runExceptT $ do
+    (bs, opts) <- ExceptT $ runOptM $ parseBackendOptions backends argv defaultOptions
     -- The absolute path of the input file, if provided
     inputFile <- liftIO $ mapM absolute $ optInputFile opts
     mode      <- getMainMode bs inputFile opts

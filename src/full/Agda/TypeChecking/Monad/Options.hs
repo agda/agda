@@ -36,7 +36,7 @@ setPragmaOptions opts = do
   clo <- commandLineOptions
   let unsafe = unsafePragmaOptions clo opts
   when (Lens.getSafeMode opts && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
-  ok <- liftIO $ runOptM $ checkOpts (clo { optPragmaOptions = opts })
+  ok <- runOptM $ checkOpts (clo { optPragmaOptions = opts })
   case ok of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
@@ -64,7 +64,7 @@ setCommandLineOptions'
   -> CommandLineOptions
   -> TCM ()
 setCommandLineOptions' root opts = do
-  z <- liftIO $ runOptM $ checkOpts opts
+  z <- runOptM $ checkOpts opts
   case z of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
@@ -143,7 +143,7 @@ addTrustedExecutables o
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
     opts <- commandLineOptions
-    z    <- liftIO $ runOptM (parsePragmaOptions ps opts)
+    z    <- runOptM (parsePragmaOptions ps opts)
     case z of
       Left err    -> typeError $ GenericError err
       Right opts' -> setPragmaOptions opts'
@@ -183,10 +183,9 @@ setIncludeDirs incs root = do
   incs <- return $  map (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
-  libdir <- liftIO $ defaultLibDir
       -- NB: This is an absolute file name, but
       -- Agda.Utils.FilePath wants to check absoluteness anyway.
-  let primdir = mkAbsolute $ libdir </> "prim"
+  primdir <- liftIO $ mkAbsolute <$> getPrimitiveLibDir
       -- We add the default dir at the end, since it is then
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...
