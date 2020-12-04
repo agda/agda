@@ -31,6 +31,7 @@ import Data.Int
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
+import qualified Data.Kind
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
@@ -2838,7 +2839,9 @@ class AsTwin b where
 instance AsTwin b => AsTwin (CompareAs' b) where
   type AsTwin_ (CompareAs' b) = CompareAs' (AsTwin_ b)
   asTwin = fmap asTwin
-instance AsTwin (TwinT' a) where type AsTwin_ (TwinT' a) = a; asTwin = SingleT . Het @'Both
+instance AsTwin (TwinT''' b f a) where
+  type AsTwin_ (TwinT''' b f a) = a
+  asTwin = SingleT . Het @'Both
 instance AsTwin ContextHet where
   type AsTwin_ ContextHet = Context
   asTwin = ContextHet . S.fromList . (fmap (fmap (fmap asTwin)))
@@ -2912,7 +2915,10 @@ instance Sized ContextHet where
 
 type TwinT = TwinT' Type
 type TwinT' = TwinT'' Bool
-data TwinT'' b a  =
+type TwinT'' b = TwinT''' b (Het 'Compat)
+type TwinT''_ b a  = TwinT''' b (Const ()) a
+type TwinT'_ a  = TwinT''' Bool (Const ()) a
+data TwinT''' b (f :: Data.Kind.Type -> Data.Kind.Type) a =
     SingleT { unSingleT :: Het 'Both a }
   | TwinT { twinPid    :: [ProblemId]      -- ^ Unification problem which is sufficient
                                            --   for LHS and RHS to be equal
@@ -2922,15 +2928,17 @@ data TwinT'' b a  =
                                            --   ≤, ≡ or ≥
           , twinLHS    :: Het 'LHS a       -- ^ Left hand side of the twin
           , twinRHS    :: Het 'RHS a       -- ^ Right hand side of the twin
-          , twinCompat :: Het 'Compat a    -- ^ A term which can be used instead of the
-                                      --   twin for backwards compatibility
-                                      --   purposes.
+          , twinCompat :: f a    -- ^ A term which can be used instead of the
+                                 --   twin for backwards compatibility
+                                 --   purposes.
           }
-   deriving (Foldable, Traversable)
+
+deriving instance (Functor f) => Functor (TwinT''' b f)
+deriving instance (Foldable f) => Foldable (TwinT''' b f)
+deriving instance (Traversable f) => Traversable (TwinT''' b f)
 
 deriving instance (Data a, Data b) => Data (TwinT'' a b)
 deriving instance (Show a, Show b) => Show (TwinT'' a b)
-deriving instance Functor (TwinT'' b)
 -- instance Applicative TwinT' where
 --   pure a = SingleT (Het @'Both a)
 --   (SingleT f) <*> (SingleT a) = SingleT (f <*> a)

@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies               #-} -- for type equality ~
+{-# LANGUAGE RoleAnnotations            #-}
 
 module Agda.TypeChecking.Monad.Base where
 
@@ -6,6 +7,7 @@ import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Trans          ( MonadTrans )
 import Control.Monad.Trans.Control  ( MonadTransControl )
 import Data.IORef (IORef)
+import qualified Data.Kind
 import Data.Map (Map)
 
 import Agda.Syntax.Common (Nat)
@@ -58,7 +60,9 @@ class Monad m => MonadTCEnv m where
     =>  (TCEnv -> TCEnv) -> m a -> m a
   localTC = liftThrough . localTC
 
-data TwinT'' b a
+type role TwinT''' representational representational nominal
+data TwinT''' b (f :: Data.Kind.Type -> Data.Kind.Type) a
+type TwinT'' b = TwinT''' b (Het 'Compat)
 type TwinT' = TwinT'' Bool
 type TwinT = TwinT' Type
 data ContextHet' a

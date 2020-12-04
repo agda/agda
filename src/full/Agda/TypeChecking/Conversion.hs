@@ -8,6 +8,7 @@ module Agda.TypeChecking.Conversion where
 import Control.Arrow (second)
 import Control.Monad
 import Control.Monad.Except
+import Control.Applicative
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
@@ -306,20 +307,9 @@ compareTerm'_ cmp a m n =
       _               -> typeView (fmap unEl a') >>= \case
        TPi dom cod -> equalFun s dom cod m n
        TLam        -> __IMPOSSIBLE__
-       _ -> case unEl $ twinAt @'Compat a' of
-       --case unEl $ twinAt @'Compat a' of
-        a | Just a == mlvl -> do
-          a <- levelView_ m
-          b <- levelView_ n
-          equalLevel_ a b
-        Pi dom cod   -> __IMPOSSIBLE__ -- equalFun s (asTwin dom) (asTwin cod) m n
-        Lam _ _   -> __IMPOSSIBLE__
-        Def r es  -> do
-          isrec <- isEtaRecord r
-          if isrec
-            then do
+       TDefRecord r ps -> do
               sig <- getSignature
-              let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+              let -- ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
               -- to change Agda's behavior
               --    isNeutral Blocked{}          = False
@@ -346,19 +336,28 @@ compareTerm'_ cmp a m n =
                     -- Andreas 2011-03-23: (fixing issue 396)
                     -- if we are dealing with a singleton record,
                     -- we can succeed immediately
-                    ifM (isSingletonRecordModuloRelevance r ps) (return ()) $
+                    ifM (isSingletonRecordModuloRelevance_ r ps) (return ()) $
                       -- do not eta-expand if comparing two neutrals
                       compareAtom_ cmp (AsTermsOf a') (ignoreBlocking <$> m) (ignoreBlocking <$> n)
                 _ -> do
-                  H'LHS (tel, m') <- onSide @'LHS (etaExpandRecord r ps . ignoreBlocking) m
-                  H'RHS (_  , n') <- onSide @'RHS (etaExpandRecord r ps . ignoreBlocking) n
+                  (ctype, m', n') <- etaExpandRecordTwin r ps (ignoreBlocking <$> m) (ignoreBlocking <$> n)
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs_ (repeat $ polFromCmp cmp) [] (asTwin$ telePi_ tel __DUMMY_TYPE__) (asTwin$ Con c ConOSystem []) (H'LHS m') (H'RHS n')
+                  compareArgs_ (repeat $ polFromCmp cmp) [] ctype (asTwin$ Con c ConOSystem []) m' n'
 
-            else (do pathview <- pathView_ a'
-                     equalPath pathview a' m n)
+
+       _ -> case unEl $ twinAt @'Compat a' of
+       --case unEl $ twinAt @'Compat a' of
+        a | Just a == mlvl -> do
+          a <- levelView_ m
+          b <- levelView_ n
+          equalLevel_ a b
+        Pi dom cod   -> __IMPOSSIBLE__ -- equalFun s (asTwin dom) (asTwin cod) m n
+        Lam _ _   -> __IMPOSSIBLE__
+        Def r es  -> do
+             pathview <- pathView_ a'
+             equalPath pathview a' m n
         _ -> compareAtom_ cmp (AsTermsOf a') m n
   where
     pathView_ = pathView . twinAt @'Compat
@@ -735,6 +734,9 @@ compareAtom_ cmp t m n =
 
 selectSmaller :: CompareDirection -> a -> a -> a
 selectSmaller = dirToCmp (\_ a1 _ -> a1)
+
+selectLarger :: CompareDirection -> a -> a -> a
+selectLarger = dirToCmp (\_ _ a2 -> a2)
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
 compareDom_ :: (MonadConversion m , Free c)
@@ -2131,6 +2133,7 @@ bothAbsurd f f'
 data TypeView_ =
 --    TLevel
     TPi (Dom TwinT) (Abs TwinT)
+  | TDefRecord QName (TwinT'_ Args)
   | TLam
 --  | TDef QName [Elim' (TwinT' Term)]
   | TOther
@@ -2159,6 +2162,29 @@ typeView (TwinT{necessary
       return $ TPi dom_ cod_
 typeView (SingleT (H'Both Lam{})) = return TLam
 typeView  TwinT{twinLHS=H'LHS Lam{},twinRHS=H'RHS Lam{}} = return TLam
+typeView (SingleT (H'Both (Def r es))) =
+  isEtaRecord r >>= \case
+    True  -> return $ TDefRecord r $ asTwin $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+    False -> return $ TOther
+typeView  TwinT{necessary,
+                twinPid,
+                direction,
+                twinLHS=H'LHS (Def r  (H'LHS -> esL)),
+                twinRHS=H'RHS (Def r' (H'RHS -> esR)),
+                twinCompat
+                } | r == r' =
+  isEtaRecord r >>= \case
+    True  -> do
+      let asL = fromMaybe __IMPOSSIBLE__ . allApplyElims <$> esL
+          asR = fromMaybe __IMPOSSIBLE__ . allApplyElims <$> esR
+      return $ TDefRecord r TwinT{necessary,
+                                  direction,
+                                  twinPid,
+                                  twinLHS=asL,
+                                  twinRHS=asR,
+                                  twinCompat=Const ()
+                                  }
+    False -> return$ TOther
 typeView _ = return$ TOther
 
 mkTwinT :: TypeViewM m => CompareDirection ->
@@ -2219,7 +2245,39 @@ mkTwinAbs direction twinPid absl absr absc =
   Abs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
     mkTwinT direction twinPid (absBody <$> absl) (absBody <$> absr) (fmap absBody <$> absc)
 
+-- ( <$> tel_)
+-- TODO[het] Might not need to return a twin type with compatibility
+etaExpandRecordTwin :: forall m a f. (MonadFresh Agda.Syntax.Common.Nat m,
+                                      MonadAddContext m,
+                                      MonadMetaSolver m,
+                                      HasConstInfo m,
+                                      MonadDebug m,
+                                      ReadTCState m)
+                => QName -> TwinT''' a f Args -> H'LHS Term -> H'RHS Term -> m (TwinT, H'LHS Args, H'RHS Args)
+etaExpandRecordTwin q (SingleT (H'Both as)) m n = do
+  (tel,m') <- commute <$> onSide @'LHS (etaExpandRecord q as) m
+  (_  ,n') <- commute <$> onSide @'RHS (etaExpandRecord q as) n
+  return (asTwin$ telePi_ tel __DUMMY_TYPE__, m', n')
+etaExpandRecordTwin q (TwinT{twinPid,direction,twinLHS,twinRHS}) m n = do
+  m₀ <- onSide @'LHS (uncurry (etaExpandRecord q)) ((,) <$> twinLHS <*> m)
+  n₀ <- onSide @'RHS (uncurry (etaExpandRecord q)) ((,) <$> twinRHS <*> n)
+  let m'  = snd <$> m₀
+      n'  = snd <$> n₀
+      tym = flip telePi_ __DUMMY_TYPE__ . fst <$> m₀
+      tyn = flip telePi_ __DUMMY_TYPE__ . fst <$> n₀
+  (,,) <$> mkTwinT direction twinPid tym tyn Nothing
+       <*> pure m'
+       <*> pure n'
 
+isSingletonRecordModuloRelevance_ :: (PureTCM m, MonadBlock m) => QName -> TwinT''' b f Args -> m Bool
+isSingletonRecordModuloRelevance_ q (SingleT ps) = onSide_ (isSingletonRecordModuloRelevance q) ps
+isSingletonRecordModuloRelevance_ q (TwinT{direction=DirEq,twinLHS,twinRHS}) =
+  or2M (onSide_ (isSingletonRecordModuloRelevance q) twinLHS)
+       (onSide_ (isSingletonRecordModuloRelevance q) twinRHS)
+isSingletonRecordModuloRelevance_ q (TwinT{direction=DirLeq,twinLHS,twinRHS}) =
+  onSide_ (isSingletonRecordModuloRelevance q) twinRHS
+isSingletonRecordModuloRelevance_ q (TwinT{direction=DirGeq,twinLHS,twinRHS}) =
+  onSide_ (isSingletonRecordModuloRelevance q) twinLHS
 
 class Commute f g where
   commute  :: f (g a) -> (g (f a))
@@ -2231,6 +2289,12 @@ class CommuteM f g where
 instance Commute (Het s) Abs where
   commute :: Het s (Abs a) -> Abs (Het s a)
   commute = Data.Coerce.coerce
+
+instance Commute (Het s) ((,) a) where
+  commute :: Het s (a,b) -> (a, Het s b)
+  commute = Data.Coerce.coerce
+
+
 
 
 -- instance CommuteM TwinT' (Dom' t) where
