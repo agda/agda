@@ -22,7 +22,6 @@ import System.Process     ( callCommand )
 import Paths_Agda
 
 import Agda.Interaction.Options
-import Agda.Interaction.Imports ( isNewerThan )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name ( isNoName )
@@ -40,6 +39,7 @@ import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.FileName ( isNewerThan )
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )

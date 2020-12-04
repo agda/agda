@@ -2790,9 +2790,6 @@ data TCEnv =
                 -- ^ Should new metas generalized over.
           , envGeneralizedVars :: Map QName GeneralizedValue
                 -- ^ Values for used generalizable variables.
-          , envCheckOptionConsistency :: Bool
-                -- ^ Do we check that options in imported files are
-                --   consistent with each other?
           , envActiveBackendName :: Maybe BackendName
                 -- ^ Is some backend active at the moment, and if yes, which?
                 --   NB: we only store the 'BackendName' here, otherwise
@@ -2855,7 +2852,6 @@ initEnv = TCEnv { envContext             = []
                 , envCheckpoints            = Map.singleton 0 IdS
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
-                , envCheckOptionConsistency = True
                 , envActiveBackendName      = Nothing
                 }
 

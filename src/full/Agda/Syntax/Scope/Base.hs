@@ -951,6 +951,12 @@ restrictLocalPrivate m =
     rName as = filterMaybe (not . null) $ filter (not . (`isInModule`        m) . anameName) as
     rMod  as = filterMaybe (not . null) $ filter (not . (`isLtChildModuleOf` m) . amodName)  as
 
+-- | Filter privates out of a `ScopeInfo`
+withoutPrivates :: ScopeInfo -> ScopeInfo
+withoutPrivates scope = over scopeModules (fmap $ restrictLocalPrivate m) scope
+  where
+  m = scope ^. scopeCurrent
+
 -- | Disallow using generalized variables from the scope
 disallowGeneralizedVars :: Scope -> Scope
 disallowGeneralizedVars = mapScope_ ((fmap . map) disallow) id id
