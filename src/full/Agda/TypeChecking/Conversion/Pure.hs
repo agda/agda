@@ -11,6 +11,7 @@ import Data.String
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad
@@ -106,8 +107,8 @@ instance (PureTCM m, MonadBlock m) => MonadConstraint (PureConversionT m) where
 
 instance (PureTCM m, MonadBlock m) => MonadMetaSolver (PureConversionT m) where
   newMeta' _ _ _ _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
-  assignV _ m _ _ _ = patternViolation alwaysUnblock
-  assignTerm' m _ _ = patternViolation alwaysUnblock
+  assignV _ m us v _ = patternViolation $ unblockOnAnyMetaIn (MetaV m (map Apply us), v)
+  assignTerm' m _ v = patternViolation $ unblockOnAnyMetaIn (MetaV m [], v)
   etaExpandMeta _ _ = return ()
   updateMetaVar _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
   speculateMetas fallback m = m >>= \case
