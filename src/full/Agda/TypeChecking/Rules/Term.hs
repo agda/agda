@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -114,7 +113,7 @@ isType_ e = traceCall (IsType_ e) $ do
   SortKit{..} <- sortKit
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- setArgInfo info . defaultDom <$> isType_ t
+      a <- setArgInfo info . defaultDom <$> checkPiDomain (info :| []) t
       b <- isType_ b
       s <- inferFunSort (getSort a) (getSort b)
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -314,6 +313,35 @@ checkTelescope' lamOrPi (b : tel) ret =
     checkTelescope' lamOrPi tel  $ \tel2 ->
         ret $ abstract tel1 tel2
 
+-- | Check the domain of a function type.
+--   Used in @checkTypedBindings@ and to typecheck @A.Fun@ cases.
+checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
+checkDomain lamOrPi xs e = do
+    let (c :| cs) = fmap (getCohesion . getModality) xs
+    unless (all (c ==) cs) $ __IMPOSSIBLE__
+
+    let (q :| qs) = fmap (getQuantity . getModality) xs
+    unless (all (q ==) qs) $ __IMPOSSIBLE__
+
+    t <- applyQuantityToContext q $
+         applyCohesionToContext c $
+         modEnv lamOrPi $ isType_ e
+    -- Andrea TODO: also make sure that LockUniv implies IsLock
+    when (any (\ x -> getLock x == IsLock) xs) $
+        equalSort (getSort t) LockUniv
+
+    return t
+  where
+        -- if we are checking a typed lambda, we resurrect before we check the
+        -- types, but do not modify the new context entries
+        -- otherwise, if we are checking a pi, we do not resurrect, but
+        -- modify the new context entries
+        modEnv LamNotPi = workOnTypes
+        modEnv _        = id
+
+checkPiDomain :: (LensLock a, LensModality a) => List1 a -> A.Expr -> TCM Type
+checkPiDomain = checkDomain PiNotLam
+
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 --
@@ -330,14 +358,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-    let (c :| cs) = fmap getCohesion xps
-    unless (all (c ==) cs) $ __IMPOSSIBLE__
-
-    t <- applyCohesionToContext c $ modEnv lamOrPi $ isType_ e
-
-    -- Andrea TODO: also make sure that LockUniv implies IsLock
-    when (any (\ x -> getLock x == IsLock) xs) $
-        equalSort (getSort t) LockUniv
+    t <- checkDomain lamOrPi xps e
 
     -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
     -- instance argument does not have the right shape
@@ -457,7 +478,7 @@ checkLambda' cmp b xps typ body target = do
 
     xs = fmap (updateNamedArg (A.unBind . A.binderName)) xps
     numbinds = length xps
-    isUnderscore e = case e of { A.Underscore{} -> True; _ -> False }
+    isUnderscore = \case { A.Underscore{} -> True; _ -> False }
     possiblePath = numbinds == 1 && isUnderscore (unScope typ)
                    && isRelevant info && visible info
     info = getArgInfo $ List1.head xs
@@ -732,7 +753,8 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
                     , namedClausePats = [Arg info' $ Named (Just $ WithOrigin Inserted $ unranged $ absName b) $ absurdP 0]
                     , clauseBody      = Nothing
                     , clauseType      = Just $ setModality mod $ defaultArg $ absBody b
-                    , clauseCatchall  = False
+                    , clauseCatchall    = True      -- absurd clauses are safe as catch-alls
+                    , clauseExact       = Just False
                     , clauseRecursive   = Just False
                     , clauseUnreachable = Just True -- absurd clauses are unreachable
                     , clauseEllipsis  = NoEllipsis
@@ -825,7 +847,8 @@ catchIlltypedPatternBlockedOnMeta m handle = do
 
   m `catchError` \ err -> do
 
-    let reraise = throwError err
+    let reraise :: MonadError TCErr m => m a
+        reraise = throwError err
 
     -- Get the blocker responsible for the type error.
     -- If we do not find a blocker or the error should not be handled,
@@ -1189,13 +1212,8 @@ checkExpr' cmp e t =
 
         A.Lit _ lit  -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr' cmp e t
-        A.Pi _ tel e -> do
-            (t0, t') <- checkPiTelescope (List1.toList tel) $ \ tel -> do
-                    t0  <- instantiateFull =<< isType_ e
-                    tel <- instantiateFull tel
-                    return (t0, telePi tel t0)
-            checkTelePiSort t'
-            --noFunctionsIntoSize t0 t'
+        e@A.Pi{} -> do
+            t' <- isType_ e
             let s = getSort t'
                 v = unEl t'
             coerce cmp v (sort s) t
@@ -1207,13 +1225,10 @@ checkExpr' cmp e t =
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        A.Fun _ (Arg info a) b -> do
-            a' <- isType_ a
-            let adom = defaultArgDom info a'
-            b' <- isType_ b
-            s  <- inferFunSort (getSort a') (getSort b')
-            let v = Pi adom (NoAbs underscore b')
-            --noFunctionsIntoSize b' $ El s v
+        e@A.Fun{} -> do
+            t' <- isType_ e
+            let s = getSort t'
+                v = unEl t'
             coerce cmp v (sort s) t
 
         A.Rec _ fs  -> checkRecordExpression cmp fs e t
@@ -1286,7 +1301,7 @@ checkExpr' cmp e t =
       reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
       checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info $ A.mkBinder x) e) tReduced
 
-    hiddenLambdaOrHole h e = case e of
+    hiddenLambdaOrHole h = \case
       A.AbsurdLam _ h'        -> sameHiding h h'
       A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
       A.Lam _ bind _          -> sameHiding h bind

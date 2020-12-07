@@ -55,8 +55,8 @@ instance DropArgs FunctionInverse where
 -- | Use for dropping initial lambdas in clause bodies.
 --   NOTE: does not reduce term, need lambdas to be present.
 instance DropArgs Term where
-  dropArgs 0 v = v
-  dropArgs n v = case v of
+  dropArgs 0 = id
+  dropArgs n = \case
     Lam h b -> dropArgs (n - 1) (absBody b)
     _       -> __IMPOSSIBLE__
 
@@ -76,4 +76,3 @@ instance DropArgs CompiledClauses where
 instance DropArgs SplitTree where
   dropArgs n (SplittingDone m) = SplittingDone (m - n)
   dropArgs n (SplitAt i lz ts) = SplitAt (subtract n <$> i) lz $ map (second $ dropArgs n) ts
-

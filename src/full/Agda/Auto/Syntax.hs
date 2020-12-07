@@ -268,7 +268,7 @@ class MetaliseOKH t where
   metaliseOKH :: t -> IO t
 
 instance MetaliseOKH t => MetaliseOKH (MM t a) where
-  metaliseOKH e = case e of
+  metaliseOKH = \case
     Meta m -> return $ Meta m
     NotM e -> NotM <$> metaliseOKH e
 
@@ -276,17 +276,17 @@ instance MetaliseOKH t => MetaliseOKH (Abs t) where
   metaliseOKH (Abs id b) = Abs id <$> metaliseOKH b
 
 instance MetaliseOKH (Exp o) where
-  metaliseOKH e = case e of
+  metaliseOKH = \case
     App uid okh elr args ->
       (\ m -> App uid m elr) <$> (Meta <$> initMeta) <*> metaliseOKH args
     Lam hid b -> Lam hid <$> metaliseOKH b
     Pi uid hid dep it ot ->
       Pi uid hid dep <$> metaliseOKH it <*> metaliseOKH ot
-    Sort{} -> return e
-    AbsurdLambda{} -> return e
+    e@Sort{} -> return e
+    e@AbsurdLambda{} -> return e
 
 instance MetaliseOKH (ArgList o) where
-  metaliseOKH e = case e of
+  metaliseOKH = \case
     ALNil -> return ALNil
     ALCons hid a as -> ALCons hid <$> metaliseOKH a <*> metaliseOKH as
     ALProj eas idx hid as ->
@@ -302,7 +302,7 @@ class ExpandMetas t where
   expandMetas :: t -> IO t
 
 instance ExpandMetas t => ExpandMetas (MM t a) where
-  expandMetas t = case t of
+  expandMetas = \case
     NotM e -> NotM <$> expandMetas e
     Meta m -> do
       mb <- readIORef (mbind m)
@@ -314,16 +314,16 @@ instance ExpandMetas t => ExpandMetas (Abs t) where
   expandMetas (Abs id b) = Abs id <$> expandMetas b
 
 instance ExpandMetas (Exp o) where
-  expandMetas t = case t of
+  expandMetas = \case
     App uid okh elr args -> App uid okh elr <$> expandMetas args
     Lam hid b -> Lam hid <$> expandMetas b
     Pi uid hid dep it ot ->
       Pi uid hid dep <$> expandMetas it <*> expandMetas ot
-    Sort{} -> return t
-    AbsurdLambda{} -> return t
+    t@Sort{} -> return t
+    t@AbsurdLambda{} -> return t
 
 instance ExpandMetas (ArgList o) where
-  expandMetas e = case e of
+  expandMetas = \case
     ALNil -> return ALNil
     ALCons hid a as -> ALCons hid <$> expandMetas a <*> expandMetas as
     ALProj eas idx hid as ->
@@ -369,7 +369,7 @@ instance Weakening (Clos a o) where
   weak' n (Clos as x) = Clos (Weak n : as) x
 
 instance Weakening (ICArgList o) where
-  weak' n e = case e of
+  weak' n = \case
     CALNil         -> CALNil
     CALConcat a as -> CALConcat (weak' n a) (weak' n as)
 
@@ -407,12 +407,12 @@ instance FreeVars t => FreeVars (Abs t) where
   freeVarsOffset n (Abs id e) = freeVarsOffset (n + 1) e
 
 instance FreeVars (Elr o) where
-  freeVarsOffset n e = case e of
+  freeVarsOffset n = \case
     Var v   -> Set.singleton (v - n)
     Const{} -> Set.empty
 
 instance FreeVars (Exp o) where
-  freeVarsOffset n e = case e of
+  freeVarsOffset n = \case
    App _ _ elr args -> freeVarsOffset n (elr, args)
    Lam _ b          -> freeVarsOffset n b
    Pi _ _ _ it ot   -> freeVarsOffset n (it, ot)
@@ -444,20 +444,20 @@ instance Renaming t => Renaming (Abs t) where
   renameOffset j ren (Abs id e) = Abs id $ renameOffset (j + 1) ren e
 
 instance Renaming (Elr o) where
-  renameOffset j ren e = case e of
+  renameOffset j ren = \case
     Var v | v >= j -> Var (ren (v - j) + j)
-    _              -> e
+    e              -> e
 
 instance Renaming (Exp o) where
-  renameOffset j ren e = case e of
+  renameOffset j ren = \case
     App uid ok elr args -> uncurry (App uid ok) $ renameOffset j ren (elr, args)
     Lam hid e -> Lam hid (renameOffset j ren e)
     Pi a b c it ot -> uncurry (Pi a b c) $ renameOffset j ren (it, ot)
-    Sort{}         -> e
-    AbsurdLambda{} -> e
+    e@Sort{}         -> e
+    e@AbsurdLambda{} -> e
 
 instance Renaming (ArgList o) where
-  renameOffset j ren e = case e of
+  renameOffset j ren = \case
     ALNil           -> ALNil
     ALCons hid a as -> uncurry (ALCons hid) $ renameOffset j ren (a, as)
     ALConPar as     -> ALConPar (renameOffset j ren as)

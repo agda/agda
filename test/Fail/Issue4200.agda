@@ -4,16 +4,19 @@ open import Agda.Builtin.Bool
 
 data D : Set where
   c₁ : D
-  @0 c₂ : D  -- Not allowed
-
-d : D
-d = c₂
+  @0 c₂ : D
 
 f : D → Bool
 f c₁ = true
 f c₂ = false
 
+@0 _ : D
+_ = c₂  -- OK.
+
+_ : D
+_ = c₂  -- Not allowed.
+
 -- Expected error:
 
--- Erased constructors are not supported
--- when checking the constructor c₂ in the declaration of D
+-- Identifier c₂ is declared erased, so it cannot be used here
+-- when checking that the expression c₂ has type D

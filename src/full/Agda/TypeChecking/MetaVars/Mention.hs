@@ -1,4 +1,3 @@
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.MetaVars.Mention where
 
@@ -17,7 +16,7 @@ mentionsMeta :: MentionsMeta t => MetaId -> t -> Bool
 mentionsMeta = mentionsMetas . HashSet.singleton
 
 instance MentionsMeta Term where
-  mentionsMetas xs v = case v of
+  mentionsMetas xs = \case
     Var _ args   -> mm args
     Lam _ b      -> mm b
     Lit{}        -> False
@@ -30,7 +29,8 @@ instance MentionsMeta Term where
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints
     MetaV y args -> HashSet.member y xs || mm args   -- TODO: we really only have to look one level deep at meta args
     where
-      mm v = mentionsMetas xs v
+      mm :: forall t. MentionsMeta t => t -> Bool
+      mm = mentionsMetas xs
 
 instance MentionsMeta Level where
   mentionsMetas xs (Max _ as) = mentionsMetas xs as
@@ -48,7 +48,7 @@ instance MentionsMeta Type where
     mentionsMetas xs (El s t) = mentionsMetas xs (s, t)
 
 instance MentionsMeta Sort where
-  mentionsMetas xs s = case s of
+  mentionsMetas xs = \case
     Type l     -> mentionsMetas xs l
     Prop l     -> mentionsMetas xs l
     Inf _ _    -> False
@@ -101,7 +101,7 @@ instance MentionsMeta ProblemConstraint where
   mentionsMetas xs = mentionsMetas xs . theConstraint
 
 instance MentionsMeta Constraint where
-  mentionsMetas xs c = case c of
+  mentionsMetas xs = \case
     ValueCmp _ t u v    -> mm (t, u, v)
     ValueCmp_ _ t u v   -> mm (t, u, v)
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
@@ -122,7 +122,8 @@ instance MentionsMeta Constraint where
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
     UsableAtModality mod t -> mm t
     where
-      mm v = mentionsMetas xs v
+      mm :: forall t. MentionsMeta t => t -> Bool
+      mm = mentionsMetas xs
 
 instance MentionsMeta a => MentionsMeta (CompareAs' a) where
   mentionsMetas xs = \case

@@ -5,6 +5,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
+import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
@@ -217,8 +218,9 @@ defaultAddCtx_ x a ret = do
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
 
-instance MonadAddContext m => MonadAddContext (MaybeT m)
 instance MonadAddContext m => MonadAddContext (ExceptT e m)
+instance MonadAddContext m => MonadAddContext (IdentityT m)
+instance MonadAddContext m => MonadAddContext (MaybeT m)
 instance MonadAddContext m => MonadAddContext (ReaderT r m)
 instance MonadAddContext m => MonadAddContext (StateT r m)
 instance (Monoid w, MonadAddContext m) => MonadAddContext (WriterT w m)

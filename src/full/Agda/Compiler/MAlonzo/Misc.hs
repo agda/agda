@@ -1,9 +1,25 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.Compiler.MAlonzo.Misc where
 
+import Control.Monad.Reader ( ask )
+import Control.Monad.State ( modify )
+import Control.Monad.Trans ( MonadTrans(lift) )
+import Control.Monad.Trans.Except ( ExceptT )
+import Control.Monad.Trans.Identity ( IdentityT )
+import Control.Monad.Trans.Maybe ( MaybeT )
+import Control.Monad.Trans.Reader ( ReaderT(runReaderT) )
+import Control.Monad.Trans.State ( StateT(runStateT) )
+
 import Data.Char
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
+
+#if !(MIN_VERSION_base(4,11,0))
+import Data.Semigroup
+#endif
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 
@@ -22,12 +38,67 @@ import Agda.Utils.Impossible
 -- Setting up Interface before compile
 --------------------------------------------------
 
-curHsMod :: TCM HS.ModuleName
-curHsMod = mazMod <$> curMName
+data HsModuleEnv = HsModuleEnv
+  { mazModuleName :: ModuleName
+    -- ^ The name of the Agda module
+  , mazIsMainModule :: Bool
+  -- ^ Whether this is the compilation root and therefore should have the `main` function.
+  --   This corresponds to the @IsMain@ flag provided to the backend,
+  --   not necessarily whether the GHC module has a `main` function defined.
+  }
+
+-- | Monads that can produce an @HsModuleEnv@
+class Monad m => ReadHsModuleEnv m where
+  askHsModuleEnv :: m HsModuleEnv
+
+  default askHsModuleEnv
+    :: (MonadTrans t, Monad n, m ~ (t n), ReadHsModuleEnv n)
+    => m HsModuleEnv
+  askHsModuleEnv = lift askHsModuleEnv
+
+instance Monad m => ReadHsModuleEnv (ReaderT HsModuleEnv m) where
+  askHsModuleEnv = ask
+
+instance ReadHsModuleEnv m => ReadHsModuleEnv (ExceptT e m)
+instance ReadHsModuleEnv m => ReadHsModuleEnv (IdentityT m)
+instance ReadHsModuleEnv m => ReadHsModuleEnv (MaybeT m)
+instance ReadHsModuleEnv m => ReadHsModuleEnv (StateT s m)
+
+newtype HsCompileState = HsCompileState
+  { mazAccumlatedImports :: Set ModuleName
+  } deriving (Eq, Semigroup, Monoid)
+
+-- | Transformer adding read-only module info and a writable set of imported modules
+type HsCompileT m = ReaderT HsModuleEnv (StateT HsCompileState m)
+
+-- | The default compilation monad is the entire TCM (☹️) enriched with our state and module info
+type HsCompileM = HsCompileT TCM
+
+runHsCompileT' :: HsCompileT m a -> HsModuleEnv -> HsCompileState -> m (a, HsCompileState)
+runHsCompileT' t e s = (flip runStateT s) . (flip runReaderT e) $ t
+
+runHsCompileT :: HsCompileT m a -> HsModuleEnv -> m (a, HsCompileState)
+runHsCompileT t e = runHsCompileT' t e mempty
 
 --------------------------------------------------
 -- utilities for haskell names
 --------------------------------------------------
+
+-- | Whether the current module is expected to have the `main` function.
+--   This corresponds to the @IsMain@ flag provided to the backend,
+--   not necessarily whether the GHC module actually has a `main` function defined.
+curIsMainModule :: ReadHsModuleEnv m => m Bool
+curIsMainModule = mazIsMainModule <$> askHsModuleEnv
+
+-- | This is the same value as @curMName@, but does not rely on the TCM's state.
+--   (@curMName@ and co. should be removed, but the current @Backend@ interface
+--   is not sufficient yet to allow that)
+curAgdaMod :: ReadHsModuleEnv m => m ModuleName
+curAgdaMod = mazModuleName <$> askHsModuleEnv
+
+-- | Get the Haskell module name of the currently-focused Agda module
+curHsMod :: ReadHsModuleEnv m => m HS.ModuleName
+curHsMod = mazMod <$> curAgdaMod
 
 -- The following naming scheme seems to be used:
 --
@@ -51,30 +122,34 @@ unqhname s q = ihname s (idnum $ nameId $ qnameName $ q)
    where idnum (NameId x _) = fromIntegral x
 
 -- the toplevel module containing the given one
-tlmodOf :: ModuleName -> TCM HS.ModuleName
+tlmodOf :: ReadTCState m => ModuleName -> m HS.ModuleName
 tlmodOf = fmap mazMod . topLevelModuleName
 
 
 -- qualify HS.Name n by the module of QName q, if necessary;
 -- accumulates the used module in stImportedModules at the same time.
-xqual :: QName -> HS.Name -> TCM HS.QName
-xqual q n = do m1 <- topLevelModuleName (qnameModule q)
-               m2 <- curMName
-               if m1 == m2 then return (HS.UnQual n)
-                  else addImport m1 >> return (HS.Qual (mazMod m1) n)
+xqual :: QName -> HS.Name -> HsCompileM HS.QName
+xqual q n = do
+  m1 <- topLevelModuleName (qnameModule q)
+  m2 <- curAgdaMod
+  if m1 == m2
+    then return (HS.UnQual n)
+    else do
+      modify (HsCompileState . Set.insert m1 . mazAccumlatedImports)
+      return (HS.Qual (mazMod m1) n)
 
-xhqn :: String -> QName -> TCM HS.QName
+xhqn :: String -> QName -> HsCompileM HS.QName
 xhqn s q = xqual q (unqhname s q)
 
 hsName :: String -> HS.QName
 hsName s = HS.UnQual (HS.Ident s)
 
 -- always use the original name for a constructor even when it's redefined.
-conhqn :: QName -> TCM HS.QName
+conhqn :: QName -> HsCompileM HS.QName
 conhqn q = xhqn "C" =<< canonicalName q
 
 -- qualify name s by the module of builtin b
-bltQual :: String -> String -> TCM HS.QName
+bltQual :: String -> String -> HsCompileM HS.QName
 bltQual b s = do
   Def q _ <- getBuiltin b
   xqual q (HS.Ident s)
@@ -144,9 +219,6 @@ mazMod' s = HS.ModuleName $ mazstr ++ "." ++ s
 
 mazMod :: ModuleName -> HS.ModuleName
 mazMod = mazMod' . prettyShow
-
-mazerror :: String -> a
-mazerror msg = error $ mazstr ++ ": " ++ msg
 
 mazCoerceName :: String
 mazCoerceName = "coe"

@@ -14,7 +14,7 @@ data SBool (b :: Bool) where
   SFalse :: SBool 'False
 
 eraseSBool :: SBool b -> Bool
-eraseSBool b = case b of
+eraseSBool = \case
   STrue  -> True
   SFalse -> False
 

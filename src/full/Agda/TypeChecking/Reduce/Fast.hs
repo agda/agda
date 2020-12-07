@@ -1062,7 +1062,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         spine' = spine0 <> [elim] <> spine1
         stuck  = Closure (Value blk) (Def pf []) emptyEnv spine'
 
-        isCanonical u = case u of
+        isCanonical = \case
           Lit{}      -> True
           Con{}      -> True
           Lam{}      -> True

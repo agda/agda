@@ -43,6 +43,8 @@ import Agda.TypeChecking.Quote
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.ReconstructParameters
+import Agda.TypeChecking.CheckInternal
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
@@ -456,16 +458,13 @@ instance Unquote R.Pattern where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ [] ->
-        choice
-          [ (c `isCon` primAgdaPatAbsurd, return R.AbsurdP)
-          ] __IMPOSSIBLE__
       Con c _ es | Just [x] <- allApplyElims es ->
         choice
-          [ (c `isCon` primAgdaPatVar,  R.VarP . fromInteger <$> unquoteN x)
-          , (c `isCon` primAgdaPatDot,  R.DotP  <$> unquoteN x)
-          , (c `isCon` primAgdaPatProj, R.ProjP <$> unquoteN x)
-          , (c `isCon` primAgdaPatLit,  R.LitP  <$> unquoteN x) ]
+          [ (c `isCon` primAgdaPatVar,    R.VarP    . fromInteger <$> unquoteN x)
+          , (c `isCon` primAgdaPatAbsurd, R.AbsurdP . fromInteger <$> unquoteN x)
+          , (c `isCon` primAgdaPatDot,    R.DotP  <$> unquoteN x)
+          , (c `isCon` primAgdaPatProj,   R.ProjP <$> unquoteN x)
+          , (c `isCon` primAgdaPatLit,    R.LitP  <$> unquoteN x) ]
           __IMPOSSIBLE__
       Con c _ es | Just [x, y] <- allApplyElims es ->
         choice
@@ -539,6 +538,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
              , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
              , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
+             , (f `isDef` primAgdaTCMWithReconsParams, tcWithReconsParams (unElim u))
              , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
              , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
              ]
@@ -581,6 +581,9 @@ evalTCM v = do
 
     tcOnlyReduceDefs = tcDoReduceDefs OnlyReduceDefs
     tcDontReduceDefs = tcDoReduceDefs DontReduceDefs
+
+    tcWithReconsParams :: Term -> UnquoteM Term
+    tcWithReconsParams m = liftU1 locallyReconstructed $ evalTCM m
 
     tcDoReduceDefs :: (Set QName -> ReduceDefs) -> Term -> Term -> UnquoteM Term
     tcDoReduceDefs reduceDefs v m = do
@@ -654,15 +657,29 @@ evalTCM v = do
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do
+      r <- isReconstructed
       (_, a) <- inferExpr =<< toAbstract_ v
-      quoteType =<< process a
+      if r then do
+        a <- process a
+        a <- locallyReduceAllDefs $ reconstructParametersInType a
+        reportSDoc "tc.reconstruct" 50 $ "Infer after reconstruct:"
+          <+> pretty a
+        locallyReconstructed (quoteType a)
+      else
+        quoteType =<< process a
 
     tcCheckType :: R.Term -> R.Type -> TCM Term
     tcCheckType v a = do
+      r <- isReconstructed
       a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
       e <- toAbstract_ v
       v <- checkExpr e a
-      quoteTerm =<< process v
+      if r then do
+        v <- process v
+        v <- locallyReduceAllDefs $ reconstructParameters' defaultAction a v
+        locallyReconstructed (quoteTerm v)
+      else
+        quoteTerm =<< process v
 
     tcQuoteTerm :: Term -> UnquoteM Term
     tcQuoteTerm v = liftTCM $ quoteTerm =<< process v
@@ -674,19 +691,49 @@ evalTCM v = do
 
     tcNormalise :: R.Term -> TCM Term
     tcNormalise v = do
-      (v, _) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
-      quoteTerm =<< normalise v
+      r <- isReconstructed
+      (v, t) <- locallyReduceAllDefs $ inferExpr  =<< toAbstract_ v
+      if r then do
+        v <- normalise v
+        t <- normalise t
+        v <- locallyReduceAllDefs $ reconstructParameters' defaultAction t v
+        reportSDoc "tc.reconstruct" 50 $ "Normalise reconstruct:" <+> pretty v
+        locallyReconstructed $ quoteTerm v
+      else
+       quoteTerm =<< normalise v
 
     tcReduce :: R.Term -> TCM Term
     tcReduce v = do
-      (v, _) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
-      quoteTerm =<< reduce =<< instantiateFull v
+      r <- isReconstructed
+      (v, t) <- locallyReduceAllDefs $ inferExpr =<< toAbstract_ v
+      if r then do
+        v <- reduce =<< instantiateFull v
+        t <- reduce =<< instantiateFull t
+        v <- locallyReduceAllDefs $ reconstructParameters' defaultAction t v
+        reportSDoc "tc.reconstruct" 50 $ "Reduce reconstruct:" <+> pretty v
+        locallyReconstructed $ quoteTerm v
+      else
+        quoteTerm =<< reduce =<< instantiateFull v
 
     tcGetContext :: UnquoteM Term
     tcGetContext = liftTCM $ do
+      r <- isReconstructed
       as <- map (fmap snd) <$> getContext
       as <- etaContract =<< process as
-      buildList <*> mapM quoteDom as
+      if r then do
+         as <- recons (reverse as)
+         let as' = reverse as
+         locallyReconstructed $ buildList <*> mapM quoteDom as'
+      else
+         buildList <*> mapM quoteDom as
+      where
+         recons :: [Dom Type] -> TCM [Dom Type]
+         recons [] = return []
+         recons (d@Dom {unDom=t} : ds) = do
+           t <- locallyReduceAllDefs $ reconstructParametersInType t
+           let d' = d{unDom=t}
+           ds' <- addContext d' $ recons ds
+           return $ d' : ds'
 
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt a m = do
@@ -717,7 +764,16 @@ evalTCM v = do
       where err _ = genericError $ "Unbound name: " ++ prettyShow x
 
     tcGetType :: QName -> TCM Term
-    tcGetType x = quoteType . defType =<< constInfo x
+    tcGetType x = do
+      r  <- isReconstructed
+      ci <- constInfo x
+      let t = defType ci
+      if r then do
+        t <- locallyReduceAllDefs $ reconstructParametersInType t
+        quoteType t
+      else
+        quoteType t
+
 
     tcIsMacro :: QName -> TCM Term
     tcIsMacro x = do
@@ -728,7 +784,48 @@ evalTCM v = do
       qBool . isMacro . theDef <$> constInfo x
 
     tcGetDefinition :: QName -> TCM Term
-    tcGetDefinition x = quoteDefn =<< constInfo x
+    tcGetDefinition x = do
+      r <- isReconstructed
+      if r then
+        tcGetDefinitionRecons x
+      else
+        quoteDefn =<< constInfo x
+
+    tcGetDefinitionRecons :: QName -> TCM Term
+    tcGetDefinitionRecons x = do
+      ci@(Defn {theDef=d}) <- constInfo x
+      case d of
+        f@(Function {funClauses=cs}) -> do
+          cs' <- mapM reconsClause cs
+          locallyReconstructed $ quoteDefn ci{theDef=f{funClauses=cs'}}
+
+        _ -> quoteDefn ci
+
+      where
+        reconsClause :: Clause -> TCM Clause
+        reconsClause c = do
+          tel' <- reconsTel $ clauseTel c
+          b' <- case (clauseType c, clauseBody c) of
+                (Just t, Just b) ->
+                  addContext (clauseTel c) $ do
+                     bb <- locallyReduceAllDefs
+                           $ reconstructParameters' defaultAction (unArg t) b
+                     return $ Just bb
+                _ -> return $ clauseBody c
+          let c' = c{clauseBody=b', clauseTel=tel'}
+          reportSDoc "tc.reconstruct" 50
+                   $ "getDefinition reconstructed clause:" <+> pretty c'
+          return c'
+
+        reconsTel :: Telescope -> TCM Telescope
+        reconsTel EmptyTel = return EmptyTel
+        reconsTel (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
+        reconsTel (ExtendTel (d@Dom{unDom=t}) ds@Abs{unAbs=ts}) = do
+           t <- locallyReduceAllDefs $ reconstructParametersInType t
+           let d' = d{unDom=t}
+           ts' <- addContext d' $ reconsTel ts
+           return $ ExtendTel d' ds{unAbs=ts'}
+
 
     setDirty :: UnquoteM ()
     setDirty = modify (first $ const Dirty)

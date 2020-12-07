@@ -268,11 +268,11 @@ topVarOcc = VarOcc StronglyRigid topModality
 -- | First argument is the outer occurrence (context) and second is the inner.
 --   This multiplicative operation is to modify an occurrence under a context.
 composeVarOcc :: Semigroup a => VarOcc' a -> VarOcc' a -> VarOcc' a
-composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (m <> m')
+composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (composeModality m m')
   -- We use the multipicative modality monoid (composition).
 
 oneVarOcc :: VarOcc' a
-oneVarOcc = VarOcc Unguarded mempty
+oneVarOcc = VarOcc Unguarded unitModality
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).
@@ -418,7 +418,7 @@ initFreeEnv :: Monoid c => b -> SingleVar c -> FreeEnv' a b c
 initFreeEnv e sing = FreeEnv
   { feExtra       = e
   , feFlexRig     = Unguarded
-  , feModality    = mempty            -- multiplicative monoid
+  , feModality    = unitModality      -- multiplicative monoid
   , feSingleton   = maybe mempty sing
   }
 
@@ -531,7 +531,7 @@ instance Free Term where
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
-    DontCare mt  -> underModality (Modality Irrelevant mempty mempty) $ freeVars' mt
+    DontCare mt  -> underModality (Modality Irrelevant unitQuantity unitCohesion) $ freeVars' mt
     Dummy{}      -> mempty
 
 instance Free t => Free (Type' t) where

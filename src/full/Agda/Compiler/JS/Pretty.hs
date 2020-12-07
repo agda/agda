@@ -10,8 +10,12 @@ import Data.Map ( Map, toAscList, empty, null )
 import qualified Data.Text as T
 
 import Agda.Syntax.Common ( Nat )
+
 import Agda.Utils.Hash
 import Agda.Utils.List ( indexWithDefault )
+import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
+import qualified Agda.Utils.List1 as List1
+
 import Agda.Utils.Impossible
 
 import Agda.Compiler.JS.Syntax hiding (exports)
@@ -100,12 +104,30 @@ instance Monoid Doc where
     mempty = Empty
     mappend = (<>)
 
-infixl 5 $+$
+infixr 5 $+$
+infixr 5 $++$
+infixr 6 <+>  -- fixity has to match the one of Semigroup.(<>)
 
 ($+$) :: Doc -> Doc -> Doc
 Empty $+$ d = d
 d $+$ Empty = d
 d $+$ d' = Above d d'
+
+-- | Separate by blank line.
+
+($++$) :: Doc -> Doc -> Doc
+Empty $++$ d = d
+d $++$ Empty = d
+d $++$ d' = d `Above` "" `Above` d'
+
+-- | Separate by space that will be removed by minify.
+--
+-- For non-removable space, use @d <> " " <> d'@.
+
+(<+>) :: Doc -> Doc -> Doc
+Empty <+> d = d
+d <+> Empty = d
+d <+> d' = d `Beside` Space `Beside` d'
 
 text :: String -> Doc
 text = Doc
@@ -136,6 +158,11 @@ hcat = foldr (<>) mempty
 
 vcat :: [Doc] -> Doc
 vcat = foldr ($+$) mempty
+
+-- | Concatenate vertically, separated by blank lines.
+
+vsep :: [Doc] -> Doc
+vsep = foldr ($++$) mempty
 
 punctuate :: Doc -> [Doc] -> Doc
 punctuate _ []     = mempty
@@ -176,8 +203,11 @@ class Pretty a where
 prettyShow :: Pretty a => Bool -> a -> String
 prettyShow minify = render minify . pretty (0, minify)
 
+instance Pretty a => Pretty (Maybe a) where
+  pretty n = maybe mempty (pretty n)
+
 instance (Pretty a, Pretty b) => Pretty (a,b) where
-  pretty n (x,y) = pretty n x <> ":" <> space <> pretty n y
+  pretty n (x,y) = pretty n x <> ":" <+> pretty n y
 
 -- Pretty-print collections
 
@@ -187,8 +217,11 @@ class Pretties a where
 instance Pretty a => Pretties [a] where
   pretties n = map (pretty n)
 
+instance Pretty a => Pretties (List1 a) where
+  pretties n = pretties n . List1.toList
+
 instance (Pretty a, Pretty b) => Pretties (Map a b) where
-  pretties n o = pretties n (toAscList o)
+  pretties n = pretties n . toAscList
 
 -- Pretty print identifiers
 
@@ -222,13 +255,13 @@ instance Pretty Exp where
   pretty n (Integer x)       = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
   pretty n (Double x)        = text $ show x
   pretty (n, min) (Lambda x e) =
-    mparens (x /= 1) (punctuate "," (pretties (n+x, min) (map LocalId [x-1, x-2 .. 0]))) <>
-    space <> "=>" <> space <> block (n+x, min) e
+    mparens (x /= 1) (punctuate "," (pretties (n+x, min) (map LocalId [x-1, x-2 .. 0])))
+    <+> "=>" <+> block (n+x, min) e
   pretty n (Object o)        = braces $ punctuate "," $ pretties n o
   pretty n (Array es)        = brackets $ punctuate "," [pretty n c <> pretty n e | (c, e) <- es]
   pretty n (Apply f es)      = pretty n f <> parens (punctuate "," $ pretties n es)
   pretty n (Lookup e l)      = pretty n e <> brackets (pretty n l)
-  pretty n (If e f g)        = parens $ pretty n e <> "?" <> space <> pretty n f <> ":" <> space <> pretty n g
+  pretty n (If e f g)        = parens $ pretty n e <> "?" <+> pretty n f <> ":" <+> pretty n g
   pretty n (PreOp op e)      = parens $ text op <> " " <> pretty n e
   pretty n (BinOp e op f)    = parens $ pretty n e <> " " <> text op <> " " <> pretty n f
   pretty n (Const c)         = text c
@@ -243,30 +276,38 @@ block n e = mparens (doNest e) $ pretty n e
 modname :: GlobalId -> Doc
 modname (GlobalId ms) = text $ "\"" ++ intercalate "." ms ++ "\""
 
-exports :: (Nat, Bool) -> Set [MemberId] -> [Export] -> Doc
-exports n lss [] = ""
-exports n lss (Export ls e : es) | member (init ls) lss =
-  "exports" <> hcat (map brackets (pretties n ls)) <> space <> "=" <> space <> indent (pretty n e) <> ";" $+$
-  exports n (insert ls lss) es
-exports n lss (Export ls e : es) | otherwise =
-  exports n lss (Export (init ls) (Object mempty) : Export ls e : es)
+exports :: (Nat, Bool) -> Set JSQName -> [Export] -> Doc
+exports n lss [] = Empty
+exports n lss es0@(Export ls e : es)
+  -- If the parent of @ls@ is already defined (or no parent exists), @ls@ can be defined
+  | maybe True (`member` lss) parent =
+      "exports" <> hcat (map brackets (pretties n ls)) <+> "=" <+> indent (pretty n e) <> ";" $+$
+      exports n (insert ls lss) es
+  -- If the parent is not yet defined, first define it as empty object, and then continue with @ls@.
+  | otherwise =
+      exports n lss $ maybe es0 (\ ls' -> Export ls' (Object mempty) : es0) parent
+  where
+  parent = List1.nonEmpty $ List1.init ls
 
 instance Pretty [(GlobalId, Export)] where
   pretty n es
-    = vcat [ pretty n g <> hcat (map brackets (pretties n ls)) <> space <> "=" <> space <> indent (pretty n e) <> ";"
+    = vcat [ pretty n g <> hcat (map brackets (pretties n ls)) <+> "=" <+> indent (pretty n e) <> ";"
            | (g, Export ls e) <- es ]
 
 instance Pretty Module where
-  pretty n (Module m is es ex) =
-    imports
-      $+$ exports n (singleton []) es
-      $+$ maybe "" (pretty n) ex
+  pretty n (Module m is es callMain) = vsep
+    [ importRTS
+    , imports
+    , exports n Set.empty es
+    , pretty n callMain
+    ]
+    $+$ "" -- Final newline
     where
-      js = toList (globals es <> Set.fromList is)
-      imports = vcat $
-            ["var agdaRTS" <> space <> "=" <> space <> "require(\"agda-rts\");"] ++
-            ["var " <> indent (pretty n e) <> space <> "=" <> space <> "require(" <> modname e <> ");"
-            | e <- js]
+      importRTS = "var agdaRTS" <+> "=" <+> "require(\"agda-rts\");"
+      imports   = vcat
+        [ "var " <> indent (pretty n e) <+> "=" <+> "require(" <> modname e <> ");"
+        | e <- toList (globals es <> Set.fromList is)
+        ]
 
 variableName :: String -> String
 variableName s = if isValidJSIdent s then "z_" ++ s else "h_" ++ show (hashString s)

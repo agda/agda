@@ -473,6 +473,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
                          , clauseBody      = Just $ rhs
+                         , clauseExact       = Just True
                          , clauseRecursive   = Just False  -- definitely non-recursive!
                          , clauseUnreachable = Just False
                          , clauseEllipsis  = NoEllipsis
@@ -489,6 +490,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                          , clauseLHSRange  = noRange
                          , clauseCatchall  = False
                          , clauseBody      = Just body
+                         , clauseExact       = Just True
                          , clauseRecursive   = Nothing
                              -- Andreas 2020-02-06 TODO
                              -- Or: Just False;  is it known to be non-recursive?
@@ -565,7 +567,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       --
       -- Alternatively we could create a projection `.. |- π r :c A`
       -- but that would require support for a `t :c A` judgment.
-      if hasLeftAdjoint (getCohesion ai)
+      if hasLeftAdjoint (UnderComposition (getCohesion ai))
         then unless (getCohesion ai == Continuous)
                     -- Andrea TODO: properly update the context/type of the projection when we add Sharp
                     __IMPOSSIBLE__
@@ -658,6 +660,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseBody      = body
                             , clauseType      = Just $ Arg ai t'
                             , clauseCatchall  = False
+                            , clauseExact       = Just True
                             , clauseRecursive   = Just False
                             , clauseUnreachable = Just False
                             , clauseEllipsis  = NoEllipsis

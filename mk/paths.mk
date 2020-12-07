@@ -23,7 +23,11 @@ COMPAT_SRC_DIR = $(SRC_DIR)/compat
 #
 # Thus it may be worthwhile to keep the present infrastructure with
 # different build directories for different versions of Agda.
-BUILD_DIR = $(TOP)/dist-$(VERSION)
+#
+# Andreas, 2020-10-26 further refinement:
+# I often switch GHC version, so indexing v1-style build directories
+# by GHC version x.y.z makes sense.
+BUILD_DIR = $(TOP)/dist-$(VERSION)-ghc-$(GHC_VER)
 
 OUT_DIR        = $(TOP)/out
 FULL_OUT_DIR   = $(OUT_DIR)/full

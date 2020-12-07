@@ -10,7 +10,6 @@ import qualified Data.Text as T
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern ( dbPatPerm' )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -172,8 +171,8 @@ quotingKit = do
       quotePats ps = list $ map (quoteArg quotePat . fmap namedThing) ps
 
       quotePat :: DeBruijnPattern -> ReduceM Term
-      quotePat p
-       | patternOrigin p == Just PatOAbsurd = pure absurdP
+      quotePat p@(VarP _ x)
+       | patternOrigin p == Just PatOAbsurd = absurdP !@! quoteNat (toInteger $ dbPatVarIndex x)
       quotePat (VarP o x)        = varP !@! quoteNat (toInteger $ dbPatVarIndex x)
       quotePat (DotP _ t)        = dotP !@ quoteTerm t
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
@@ -186,10 +185,7 @@ quotingKit = do
       quoteClause cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} =
         case body of
           Nothing -> absurdClause !@ quoteTelescope tel @@ quotePats ps
-          Just b  ->
-            let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm' False ps -- Dot patterns don't count (#2203)
-                v    = applySubst (renamingR perm) b
-            in normalClause !@ quoteTelescope tel @@ quotePats ps @@ quoteTerm v
+          Just b  -> normalClause !@ quoteTelescope tel @@ quotePats ps @@ quoteTerm b
 
       quoteTelescope :: Telescope -> ReduceM Term
       quoteTelescope tel = quoteList quoteTelEntry $ telToList tel
@@ -227,9 +223,10 @@ quotingKit = do
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
             defn <- getConstInfo x
+            r <- isReconstructed
             -- #2220: remember to restore dropped parameters
             let
-              conOrProjPars = defParameters defn
+              conOrProjPars = defParameters defn r
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
@@ -250,9 +247,10 @@ quotingKit = do
                      @@ list (drop n $ conOrProjPars ++ map (quoteArg quoteTerm) ts)
             qx (theDef defn)
           Con x ci es | Just ts <- allApplyElims es -> do
+            r <- isReconstructed
             cDef <- getConstInfo (conName x)
             n    <- getDefFreeVars (conName x)
-            let args = list $ drop n $ defParameters cDef ++ map (quoteArg quoteTerm) ts
+            let args = list $ drop n $ defParameters cDef r ++ map (quoteArg quoteTerm) ts
             con !@! quoteConName x @@ args
           Con x ci es -> pure unsupported
           Pi t u     -> pi !@  quoteDom quoteType t
@@ -265,8 +263,9 @@ quotingKit = do
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
-      defParameters :: Definition -> [ReduceM Term]
-      defParameters def = map par hiding
+      defParameters :: Definition -> Bool -> [ReduceM Term]
+      defParameters def True  = []
+      defParameters def False = map par hiding
         where
           np = case theDef def of
                  Constructor{ conPars = np }        -> np

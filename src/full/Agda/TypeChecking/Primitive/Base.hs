@@ -136,9 +136,9 @@ tset :: Applicative m => m Type
 tset = pure $ sort (mkType 0)
 
 sSizeUniv :: Sort
-sSizeUniv = mkType 0
+-- sSizeUniv = mkType 0
 -- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
--- sSizeUniv = SizeUniv
+sSizeUniv = SizeUniv
 
 tSizeUniv :: Applicative m => m Type
 -- tSizeUniv = tset
@@ -181,7 +181,7 @@ lookupPrimitiveFunctionQ q = do
   PrimImpl t pf <- lookupPrimitiveFunction s
   return (s, PrimImpl t $ pf { primFunName = q })
 
-getBuiltinName :: (MonadReduce m, HasBuiltins m) => String -> m (Maybe QName)
+getBuiltinName :: (HasBuiltins m, MonadReduce m) => String -> m (Maybe QName)
 getBuiltinName b = do
   caseMaybeM (getBuiltin' b) (return Nothing) (Just <.> getName)
   where

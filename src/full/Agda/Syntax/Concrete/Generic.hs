@@ -1,4 +1,3 @@
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 -- | Generic traversal and reduce for concrete syntax,
 --   in the style of "Agda.Syntax.Internal.Generic".
@@ -141,7 +140,9 @@ instance ExprLike Expr where
      Equal{}            -> f $ e0
      Ellipsis{}         -> f $ e0
      Generalized e      -> f $ Generalized            $ mapE e
-   where mapE e = mapExpr f e
+   where
+     mapE :: ExprLike e => e -> e
+     mapE = mapExpr f
 
   foldExpr     = __IMPOSSIBLE__
   traverseExpr = __IMPOSSIBLE__
@@ -160,7 +161,9 @@ instance ExprLike a => ExprLike (OpApp a) where
   mapExpr f = \case
      SyntaxBindingLambda r bs e -> SyntaxBindingLambda r (mapE bs) $ mapE e
      Ordinary                 e -> Ordinary                        $ mapE e
-   where mapE e = mapExpr f e
+   where
+     mapE :: ExprLike e => e -> e
+     mapE = mapExpr f
   foldExpr     = __IMPOSSIBLE__
   traverseExpr = __IMPOSSIBLE__
 
@@ -175,7 +178,9 @@ instance ExprLike LamBinding where
 instance ExprLike LHS where
   mapExpr f = \case
      LHS ps res wes ell -> LHS ps (mapE res) (mapE wes) ell
-   where mapE e = mapExpr f e
+   where
+     mapE :: ExprLike a => a -> a
+     mapE = mapExpr f
   foldExpr     = __IMPOSSIBLE__
   traverseExpr = __IMPOSSIBLE__
 
@@ -203,7 +208,9 @@ instance ExprLike ModuleApplication where
   mapExpr f = \case
      SectionApp r bs e -> SectionApp r (mapE bs) $ mapE e
      e@RecordModuleInstance{} -> e
-   where mapE e = mapExpr f e
+   where
+     mapE :: ExprLike e => e -> e
+     mapE = mapExpr f
   foldExpr     = __IMPOSSIBLE__
   traverseExpr = __IMPOSSIBLE__
 
@@ -219,10 +226,13 @@ instance ExprLike Declaration where
      RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e
      RecordDef r n dir tel ds  -> RecordDef r n dir (mapE tel)         $ mapE ds
      Record r n dir tel e ds   -> Record r n dir (mapE tel) (mapE e)   $ mapE ds
+     e@RecordDirective{}       -> e
      e@Infix{}                 -> e
      e@Syntax{}                -> e
      e@PatternSyn{}            -> e
      Mutual    r ds            -> Mutual    r                          $ mapE ds
+     InterleavedMutual r ds    -> InterleavedMutual r                  $ mapE ds
+     LoneConstructor r ds      -> LoneConstructor r                    $ mapE ds
      Abstract  r ds            -> Abstract  r                          $ mapE ds
      Private   r o ds          -> Private   r o                        $ mapE ds
      InstanceB r ds            -> InstanceB r                          $ mapE ds
@@ -237,7 +247,9 @@ instance ExprLike Declaration where
      UnquoteDecl r x e         -> UnquoteDecl r x (mapE e)
      UnquoteDef r x e          -> UnquoteDef r x (mapE e)
      e@Pragma{}                -> e
-   where mapE e = mapExpr f e
+   where
+     mapE :: ExprLike e => e -> e
+     mapE = mapExpr f
 
   foldExpr     = __IMPOSSIBLE__
   traverseExpr = __IMPOSSIBLE__

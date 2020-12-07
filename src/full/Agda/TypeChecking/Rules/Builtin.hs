@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.Rules.Builtin
   ( bindBuiltin
@@ -96,7 +95,7 @@ coreBuiltins =
   , (builtinAgdaPatDot                       |-> BuiltinDataCons (tterm --> tpat))
   , (builtinAgdaPatLit                       |-> BuiltinDataCons (tliteral --> tpat))
   , (builtinAgdaPatProj                      |-> BuiltinDataCons (tqname --> tpat))
-  , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons tpat)
+  , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons (tnat --> tpat))
   , (builtinLevel                            |-> builtinPostulate tset)
   , (builtinWord64                           |-> builtinPostulate tset)
   , (builtinInteger                          |-> BuiltinData tset [builtinIntegerPos, builtinIntegerNegSuc])
@@ -369,6 +368,7 @@ coreBuiltins =
   , builtinAgdaTCMCommit                     |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
   , builtinAgdaTCMWithNormalisation          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMWithReconsParams           |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMDebugPrint                 |-> builtinPostulate (tstring --> tnat --> tlist terrorpart --> tTCM_ primUnit)
   , builtinAgdaTCMOnlyReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMDontReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
@@ -605,6 +605,7 @@ bindPostulatedName builtin x m = do
     Axiom {} -> bindBuiltinName builtin =<< m q def
     _        -> err
   where
+  err :: forall m a. MonadTCError m => m a
   err = typeError $ GenericError $
           "The argument to BUILTIN " ++ builtin ++
           " must be a postulated name"
@@ -840,7 +841,9 @@ bindBuiltin b x = do
   unlessM ((0 ==) <$> getContextSize) $ do
     -- Andreas, 2017-11-01, issue #2824
     -- Only raise an error if the name for the builtin is defined in a parametrized module.
-    let failure = typeError $ BuiltinInParameterisedModule b
+    let
+      failure :: forall m a. MonadTCError m => m a
+      failure = typeError $ BuiltinInParameterisedModule b
     -- Get the non-empty list of AbstractName for x
     xs <- case x of
       VarName{}            -> failure

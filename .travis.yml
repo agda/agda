@@ -170,12 +170,15 @@ jobs:
         # This is surrounded by single quotes to avoid confusing the YAML parsing,
         # due to the string _beginning_ with a quote that we wish to be literal.
         - '"${MAKE_CMD[@]}" TAGS'
-        # Build & install size-solver
-        - stack build size-solver "${BUILD_ARGS[@]}"
-        - mkdir -p src/size-solver/dist/build/size-solver &&
-          cp $(stack path "${ARGS[@]}" --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
-        # Test size-solver
-        - '"${MAKE_CMD[@]}" -C src/size-solver/ test'
+        # # Andreas, 2020-11-06, issue #5037: deactivate size-solver
+        # # "stack build size-solver" recompiles Agda from scratch.
+        # # Too costly!
+        # # Build & install size-solver
+        # - stack build size-solver "${BUILD_ARGS[@]}"
+        # - mkdir -p src/size-solver/dist/build/size-solver &&
+        #   cp $(stack path "${ARGS[@]}" --local-install-root)/bin/size-solver src/size-solver/dist/build/size-solver/size-solver
+        # # Test size-solver
+        # - '"${MAKE_CMD[@]}" -C src/size-solver/ test'
         # Build agda-bisect
         - '"${MAKE_CMD[@]}" install-agda-bisect'
 

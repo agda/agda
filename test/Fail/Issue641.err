@@ -21,7 +21,7 @@ Merging interface
 Done importing the primitive modules.
   Getting interface for Issue641
   Check for cycle
-  Issue641 is not up-to-date.
+  Issue641 is not up-to-date because the interface has not been decoded and we're ignoring non-builtin interface files.
 Checking Issue641 (Issue641.agda).
 Creating interface for Issue641.
   visited: Agda.Primitive, Agda.Primitive.Cubical

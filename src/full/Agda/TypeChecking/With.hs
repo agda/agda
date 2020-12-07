@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.With where
 
@@ -546,6 +545,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           (e, t') <- piOrPathApplyM t v
           strip (self `applyE` e) t' ps qs
 
+        mismatch :: forall m a. (MonadAddContext m, MonadTCError m) => m a
         mismatch = addContext delta $ typeError $
           WithClausePatternMismatch (namedArg p0) q
         mismatchOrigin o o' = addContext delta . typeError . GenericDocError =<< fsep
@@ -733,7 +733,7 @@ patsToElims = map $ toElim . fmap namedThing
     toTerms = map $ fmap $ toTerm . namedThing
 
     toTerm :: DeBruijnPattern -> DisplayTerm
-    toTerm p = case p of
+    toTerm = \case
       IApplyP _ _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
       ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP i x -> case patOrigin i of

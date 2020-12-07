@@ -1,5 +1,5 @@
 {-# LANGUAGE DoAndIfThenElse      #-}
-{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE PatternGuards        #-}
 
 module Compiler.Tests where
@@ -75,6 +75,10 @@ disabledTests =
     -- Issue #2640 (forcing translation for runtime erasure) is still open
   , disable "Compiler/.*/simple/Erasure-Issue2640"
     -----------------------------------------------------------------------------
+    -- The test case for #2918 stopped working when inlining of
+    -- recursive pattern-matching lambdas was disabled.
+  , disable "Compiler/MAlonzo/simple/Issue2918$"
+    -----------------------------------------------------------------------------
     -- The following test cases fail (at least at the time of writing)
     -- for the JS backend.
   , disable "Compiler/JS_.*/simple/Issue4169-2"
@@ -86,7 +90,7 @@ disabledTests =
   , disable "Compiler/JS_.*/simple/Issue2879-.*"
   , disable "Compiler/JS_.*/simple/Issue2909-.*"
   , disable "Compiler/JS_.*/simple/Issue2914"
-  , disable "Compiler/JS_.*/simple/Issue2918"
+  , disable "Compiler/JS_.*/simple/Issue2918$"
   , disable "Compiler/JS_.*/simple/Issue3732"
   , disable "Compiler/JS_.*/simple/VecReverseIrr"
   , disable "Compiler/JS_.*/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
@@ -193,7 +197,7 @@ agdaRunProgGoldenTest :: FilePath     -- ^ directory where to run the tests.
     -> TestOptions
     -> Maybe TestTree
 agdaRunProgGoldenTest dir comp extraArgs inp opts =
-      agdaRunProgGoldenTest1 dir comp extraArgs inp opts (\compDir out err -> do
+      agdaRunProgGoldenTest1 dir comp extraArgs inp opts $ \compDir out err -> do
         if executeProg opts then do
           -- read input file, if it exists
           inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
@@ -209,7 +213,6 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
               return $ ExecutedProg $ ProgramResult ret (out <> out') (err <> err')
         else
           return $ CompileSucceeded (ProgramResult ExitSuccess out err)
-        )
   where inpFile = dropAgdaExtension inp <.> ".inp"
 
 agdaRunProgGoldenTest1 :: FilePath     -- ^ directory where to run the tests.
@@ -239,7 +242,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
               defArgs = ["--ignore-interfaces" | notElem "--no-ignore-interfaces" (extraAgdaArgs cOpts)] ++
                         ["--no-libraries"] ++
                         ["--compile-dir", compDir, "-v0", "-vwarning:1"] ++ extraArgs' ++ cArgs ++ [inp]
-          args <- (++ defArgs) <$> argsForComp comp
+          let args = argsForComp comp ++ defArgs
           res@(ret, out, err) <- readAgdaProcessWithExitCode args T.empty
 
           absDir <- canonicalizePath dir
@@ -248,13 +251,14 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
             ExitFailure _ -> return $ CompileFailed $ toProgramResult res
           )
 
-        argsForComp :: Compiler -> IO [String]
-        argsForComp MAlonzo = return ["--compile"]
-        argsForComp (JS NonOptimized)      = return ["--js"]
-        argsForComp (JS Optimized)         = return ["--js", "--js-optimize"]
-        argsForComp (JS MinifiedOptimized) = return ["--js", "--js-optimize", "--js-minify"]
+        argsForComp :: Compiler -> [String]
+        argsForComp MAlonzo = [ "--compile" ]
+        argsForComp (JS o)  = [ "--js", "--js-verify" ] ++ case o of
+          NonOptimized      -> []
+          Optimized         -> [ "--js-optimize" ]
+          MinifiedOptimized -> [ "--js-optimize", "--js-minify" ]
 
-        removePaths ps r = case r of
+        removePaths ps = \case
           CompileFailed    r -> CompileFailed    (removePaths' r)
           CompileSucceeded r -> CompileSucceeded (removePaths' r)
           ExecutedProg     r -> ExecutedProg     (removePaths' r)

@@ -322,11 +322,11 @@ recordExpressionsToCopatterns = \case
 --UNUSED Liang-Ting Chen 2019-07-16
 ---- | Bottom-up procedure to annotate split tree.
 --recordSplitTree :: SplitTree -> TCM RecordSplitTree
---recordSplitTree t = snd <$> loop t
+--recordSplitTree = snd <.> loop
 --  where
 --
 --    loop :: SplitTree -> TCM ([Bool], RecordSplitTree)
---    loop t = case t of
+--    loop = \case
 --      SplittingDone n -> return (replicate n True, SplittingDone n)
 --      SplitAt i ts    -> do
 --        (xs, ts) <- loops (unArg i) ts
@@ -347,7 +347,7 @@ recordExpressionsToCopatterns = \case
 
 -- | Bottom-up procedure to record-pattern-translate split tree.
 translateSplitTree :: SplitTree -> TCM SplitTree
-translateSplitTree t = snd <$> loop t
+translateSplitTree = snd <.> loop
   where
 
     -- @loop t = return (xs, t')@ returns the translated split tree @t'@
@@ -355,7 +355,7 @@ translateSplitTree t = snd <$> loop t
     --   True  = variable will never be split on in @t'@ (virgin variable)
     --   False = variable will be spilt on in @t'@
     loop :: SplitTree -> TCM ([Bool], SplitTree)
-    loop t = case t of
+    loop = \case
       SplittingDone n ->
         -- start with n virgin variables
         return (replicate n True, SplittingDone n)
@@ -406,7 +406,7 @@ class DropFrom a where
   dropFrom :: Int -> Int -> a -> a
 
 instance DropFrom (SplitTree' c) where
-  dropFrom i n t = case t of
+  dropFrom i n = \case
     SplittingDone m -> SplittingDone (m - n)
     SplitAt x@(Arg ai j) lz ts
       | j >= i + n -> SplitAt (Arg ai $ j - n) lz $ dropFrom i n ts

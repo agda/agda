@@ -166,19 +166,19 @@ applySplitPSubst = applyPatSubst . fromSplitPSubst
 instance Subst SplitPattern where
   type SubstArg SplitPattern = SplitPattern
 
-  applySubst IdS p = p
-  applySubst rho p = case p of
-    VarP i x     ->
+  applySubst IdS = id
+  applySubst rho = \case
+    VarP i x        ->
       usePatternInfo i $
       useName (splitPatVarName x) $
       useExcludedLits (splitExcludedLits x) $
       lookupS rho $ splitPatVarIndex x
-    DotP i u     -> DotP i $ applySplitPSubst rho u
-    ConP c ci ps -> ConP c ci $ applySubst rho ps
-    DefP i q ps -> DefP i q $ applySubst rho ps
-    LitP{}       -> p
-    ProjP{}      -> p
-    IApplyP i l r x  ->
+    DotP i u        -> DotP i $ applySplitPSubst rho u
+    ConP c ci ps    -> ConP c ci $ applySubst rho ps
+    DefP i q ps     -> DefP i q $ applySubst rho ps
+    p@LitP{}        -> p
+    p@ProjP{}       -> p
+    IApplyP i l r x ->
       useEndPoints (applySplitPSubst rho l) (applySplitPSubst rho r) $
       usePatternInfo i $
       useName (splitPatVarName x) $
@@ -207,7 +207,7 @@ instance Subst SplitPattern where
 
 -- | A pattern that matches anything (modulo eta).
 isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
-isTrivialPattern p = case p of
+isTrivialPattern = \case
   VarP{}      -> return True
   DotP{}      -> return True
   ConP c i ps -> andM $ ((conPLazy i ||) <$> isEtaCon (conName c))

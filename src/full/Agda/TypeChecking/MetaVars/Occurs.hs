@@ -1,4 +1,3 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NondecreasingIndentation  #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
@@ -373,7 +372,7 @@ instance Occurs Term where
           nest 2 $ text $ show v
         case v of
           Var i es   -> do
-            allowed <- getAll . ($ mempty) <$> variable i
+            allowed <- getAll . ($ unitModality) <$> variable i
             if allowed then Var i <$> weakly (occurs es) else do
               -- if the offending variable is of singleton type,
               -- eta-expand it away

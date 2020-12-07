@@ -211,10 +211,11 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
           NonStrict  -> typeError $ GenericError $ "Shape-irrelevant constructors are not supported"
         case getQuantity ai of
           Quantityω{} -> return ()
-          Quantity0{} -> typeError $ GenericError $ "Erased constructors are not supported"
+          Quantity0{} -> return ()
           Quantity1{} -> typeError $ GenericError $ "Quantity-restricted constructors are not supported"
         -- check that the type of the constructor is well-formed
-        (t, isPathCons) <- checkConstructorType e d
+        (t, isPathCons) <- applyQuantityToContext ai $
+                           checkConstructorType e d
         -- compute which constructor arguments are forced (only point constructors)
         forcedArgs <- if isPathCons == PointCons
                       then computeForcingAnnotations c t
@@ -228,7 +229,9 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         let s' = case s of
               Prop l -> Type l
               _      -> s
-        arity <- traceCall (CheckConstructorFitsIn c t s') $ fitsIn uc forcedArgs t s'
+        arity <- traceCall (CheckConstructorFitsIn c t s') $
+                 applyQuantityToContext ai $
+                 fitsIn uc forcedArgs t s'
         -- this may have instantiated some metas in s, so we reduce
         s <- reduce s
         debugAdd c t
@@ -268,7 +271,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         escapeContext __IMPOSSIBLE__ (size tel) $ do
 
           addConstant c $
-            defaultDefn defaultArgInfo c (telePi tel t) $ Constructor
+            defaultDefn ai c (telePi tel t) $ Constructor
               { conPars   = size tel
               , conArity  = arity
               , conSrcCon = con
@@ -528,6 +531,7 @@ defineCompData d con params names fsT t boundary = do
           , clauseLHSRange    = noRange
           , clauseCatchall    = False
           , clauseBody        = Just $ body
+          , clauseExact       = Just True
           , clauseRecursive   = Nothing
               -- Andreas 2020-02-06 TODO
               -- Or: Just False;  is it known to be non-recursive?
@@ -1122,7 +1126,10 @@ fitsIn uc forceds t s = do
       withoutK <- withoutKOption
       when (withoutK && not isPath) $ do
        whenM (isFibrant s) $ do
-        usableAtModality (setQuantity (getQuantity dom) defaultModality) (unEl $ unDom dom)
+        q <- asksTC getQuantity
+        usableAtModality
+          (setQuantity (composeQuantity (getQuantity dom) q) defaultModality)
+          (unEl $ unDom dom)
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do
         sa <- reduce $ getSort dom
@@ -1139,7 +1146,9 @@ checkIndexSorts :: Sort -> Telescope -> TCM ()
 checkIndexSorts s = \case
   EmptyTel -> return ()
   ExtendTel a tel' -> do
-    getSort a `leqSort` s
+    let sa = getSort a
+    -- Andreas, 2020-10-19, allow Size indices
+    unless (sa == SizeUniv) $ sa `leqSort` s
     underAbstraction a tel' $ checkIndexSorts (raise 1 s)
 
 -- | Return the parameters that share variables with the indices

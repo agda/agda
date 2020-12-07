@@ -9,6 +9,7 @@ import Control.Monad.Except ( ExceptT )
 import Control.Monad.Trans.Maybe ( MaybeT )
 import Control.Monad.Reader ( ReaderT )
 import Control.Monad.State ( StateT )
+import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Writer ( WriterT )
 
 import Agda.TypeChecking.Monad.Base
@@ -32,6 +33,7 @@ class
 instance PureTCM TCM where
 instance PureTCM m => PureTCM (BlockT m)
 instance PureTCM m => PureTCM (ExceptT e m)
+instance PureTCM m => PureTCM (IdentityT m)
 instance PureTCM m => PureTCM (ListT m)
 instance PureTCM m => PureTCM (MaybeT m)
 instance PureTCM m => PureTCM (ReaderT r m)

@@ -38,7 +38,7 @@ keywords
   :ref:`∀ <notational-conventions>` ``..`` ``...`` ``abstract``
   ``constructor`` ``data`` :ref:`do <do-notation>` ``eta-equality`` ``field``
   :ref:`forall <notational-conventions>` ``hiding`` ``import`` ``in``
-  ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance`` ``let``
+  ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance`` ``interleaved`` ``let``
   :ref:`macro <macros>` ``module`` ``mutual`` ``no-eta-equality``
   ``open`` :ref:`overlap <instance-fields>` ``pattern`` ``postulate``
   ``primitive`` ``private`` ``public`` :ref:`quote <reflection>`

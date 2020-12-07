@@ -179,13 +179,13 @@ instance Instantiate Blocker where
   instantiate' b@UnblockOnProblem{} = return b
 
 instance Instantiate Sort where
-  instantiate' s = case s of
+  instantiate' = \case
     MetaS x es -> instantiate' (MetaV x es) >>= \case
       Sort s'      -> return s'
       MetaV x' es' -> return $ MetaS x' es'
-      Def d es'     -> return $ DefS d es'
+      Def d es'    -> return $ DefS d es'
       _            -> __IMPOSSIBLE__
-    _ -> return s
+    s -> return s
 
 instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
     instantiate' (Dom i fin n tac x) = Dom i fin n <$> instantiate' tac <*> instantiate' x
@@ -907,7 +907,7 @@ instance Simplify Bool where
 instance Simplify Term where
   simplify' v = do
     v <- instantiate' v
-    let iapp es m = ignoreBlocking <$> reduceIApply' (\ t -> notBlocked <$> simplify' t) (notBlocked <$> m) es
+    let iapp es m = ignoreBlocking <$> reduceIApply' (fmap notBlocked . simplify') (notBlocked <$> m) es
     case v of
       Def f vs   -> iapp vs $ do
         let keepGoing simp v = return (simp, notBlocked v)
@@ -1111,18 +1111,18 @@ instance Normalise Term where
     normalise' v = ifM shouldTryFastReduce (fastNormalise v) (slowNormaliseArgs =<< reduce' v)
 
 slowNormaliseArgs :: Term -> ReduceM Term
-slowNormaliseArgs v = case v of
+slowNormaliseArgs = \case
   Var n vs    -> Var n      <$> normalise' vs
   Con c ci vs -> Con c ci   <$> normalise' vs
   Def f vs    -> Def f      <$> normalise' vs
   MetaV x vs  -> MetaV x    <$> normalise' vs
-  Lit _       -> return v
+  v@(Lit _)   -> return v
   Level l     -> levelTm    <$> normalise' l
   Lam h b     -> Lam h      <$> normalise' b
   Sort s      -> Sort       <$> normalise' s
   Pi a b      -> uncurry Pi <$> normalise' (a, b)
-  DontCare _  -> return v
-  Dummy{}     -> return v
+  v@DontCare{}-> return v
+  v@Dummy{}   -> return v
 
 -- Note: not the default instance for Elim' since we do something special for Arg.
 instance Normalise t => Normalise (Elim' t) where
@@ -1382,7 +1382,7 @@ instance InstantiateFull ProblemConstraint where
   instantiateFull' (PConstr p u c) = PConstr p u <$> instantiateFull' c
 
 instance InstantiateFull Constraint where
-  instantiateFull' c = case c of
+  instantiateFull' = \case
     ValueCmp cmp t u v -> do
       (t,u,v) <- instantiateFull' (t,u,v)
       return $ ValueCmp cmp t u v
@@ -1524,12 +1524,13 @@ instance InstantiateFull CompiledClauses where
   instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
 
 instance InstantiateFull Clause where
-    instantiateFull' (Clause rl rf tel ps b t catchall recursive unreachable ell) =
+    instantiateFull' (Clause rl rf tel ps b t catchall exact recursive unreachable ell) =
        Clause rl rf <$> instantiateFull' tel
        <*> instantiateFull' ps
        <*> instantiateFull' b
        <*> instantiateFull' t
        <*> return catchall
+       <*> return exact
        <*> return recursive
        <*> return unreachable
        <*> return ell

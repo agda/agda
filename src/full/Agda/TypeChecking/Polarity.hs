@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeFamilies #-} -- for type equality ~
-
 -- | Computing the polarity (variance) of function arguments,
 --   for the sake of subtyping.
 
@@ -70,7 +68,7 @@ composePol Covariant x     = x
 composePol Contravariant x = neg x
 
 polFromOcc :: Occurrence -> Polarity
-polFromOcc o = case o of
+polFromOcc = \case
   GuardPos  -> Covariant
   StrictPos -> Covariant
   JustPos   -> Covariant

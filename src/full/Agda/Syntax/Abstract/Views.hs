@@ -1,6 +1,3 @@
-{-# LANGUAGE GADTs                     #-}
-{-# LANGUAGE NoMonoLocalBinds          #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Agda.Syntax.Abstract.Views where
 
@@ -73,10 +70,11 @@ lamView (Lam i b e) = cons b $ lamView e
 lamView (ScopedExpr _ e) = lamView e
 lamView e = LamView [] e
 
--- | Gather top-level 'AsP'atterns to expose underlying pattern.
-asView :: A.Pattern -> ([Name], A.Pattern)
-asView (A.AsP _ x p) = first (unBind x :) $ asView p
-asView p             = ([], p)
+-- | Gather top-level 'AsP'atterns and 'AnnP'atterns to expose underlying pattern.
+asView :: A.Pattern -> ([Name], [A.Expr], A.Pattern)
+asView (A.AsP _ x p)  = (\(asb, ann, p) -> (unBind x : asb, ann, p)) $ asView p
+asView (A.AnnP _ a p) = (\(asb, ann, p) -> (asb, a : ann, p))        $ asView p
+asView p              = ([], [], p)
 
 -- | Remove top 'ScopedExpr' wrappers.
 unScope :: Expr -> Expr
@@ -106,27 +104,41 @@ deepUnscopeDecl d                                = [deepUnscope d]
 -- * Traversal
 ---------------------------------------------------------------------------
 
+-- Type aliases to abbreviate the quantified foralls which we use to avoid
+-- giving in to NoMonoLocalBinds.
+type RecurseExprFn m a = Applicative m => (Expr -> m Expr -> m Expr) -> a -> m a
+type RecurseExprRecFn m = forall a. ExprLike a => a -> m a
+
+type FoldExprFn m a = Monoid m => (Expr -> m) -> a -> m
+type FoldExprRecFn m = forall a. ExprLike a => a -> m
+
+type TraverseExprFn m a = (Applicative m, Monad m) => (Expr -> m Expr) -> a -> m a
+type TraverseExprRecFn m = forall a. ExprLike a => a -> m a
+
 -- | Apply an expression rewriting to every subexpression, inside-out.
 --   See "Agda.Syntax.Internal.Generic".
 class ExprLike a where
   -- | The first expression is pre-traversal, the second one post-traversal.
-  recurseExpr :: (Applicative m) => (Expr -> m Expr -> m Expr) -> a -> m a
+  recurseExpr :: RecurseExprFn m a
   default recurseExpr :: (Traversable f, ExprLike a', a ~ f a', Applicative m)
                       => (Expr -> m Expr -> m Expr) -> a -> m a
   recurseExpr = traverse . recurseExpr
 
-  foldExpr :: Monoid m => (Expr -> m) -> a -> m
+  foldExpr :: FoldExprFn m a
   foldExpr f = getConst . recurseExpr (\ pre post -> Const (f pre) <* post)
 
-  traverseExpr :: (Applicative m, Monad m) => (Expr -> m Expr) -> a -> m a
+  traverseExpr :: TraverseExprFn m a
   traverseExpr f = recurseExpr (\ pre post -> f =<< post)
 
   mapExpr :: (Expr -> Expr) -> (a -> a)
   mapExpr f = runIdentity . traverseExpr (Identity . f)
 
 instance ExprLike Expr where
+  recurseExpr :: forall m. RecurseExprFn m Expr
   recurseExpr f e0 = f e0 $ do
-    let recurse e = recurseExpr f e
+    let
+      recurse :: RecurseExprRecFn m
+      recurse e = recurseExpr f e
     case e0 of
       Var{}                   -> pure e0
       Def'{}                  -> pure e0
@@ -157,6 +169,7 @@ instance ExprLike Expr where
       Tactic ei e xs          -> Tactic ei <$> recurse e <*> recurse xs
       Macro{}                 -> pure e0
 
+  foldExpr :: forall m. FoldExprFn m Expr
   foldExpr f e =
     case e of
       Var{}                -> m
@@ -188,11 +201,15 @@ instance ExprLike Expr where
       Tactic _ e xs        -> m `mappend` fold e `mappend` fold xs
       DontCare e           -> m `mappend` fold e
    where
-     m    = f e
+     m = f e
+     fold :: FoldExprRecFn m
      fold = foldExpr f
 
+  traverseExpr :: forall m. TraverseExprFn m Expr
   traverseExpr f e = do
-    let trav e = traverseExpr f e
+    let
+      trav :: TraverseExprRecFn m
+      trav e = traverseExpr f e
     case e of
       Var{}                   -> f e
       Def'{}                  -> f e
@@ -287,8 +304,11 @@ instance ExprLike TypedBinding where
       TLet r ds      -> TLet r <$> traverseExpr f ds
 
 instance ExprLike LetBinding where
+  recurseExpr :: forall m. RecurseExprFn m LetBinding
   recurseExpr f e = do
-    let recurse e = recurseExpr f e
+    let
+      recurse :: RecurseExprRecFn m
+      recurse e = recurseExpr f e
     case e of
       LetBind li ai x e e'  -> LetBind li ai x <$> recurse e <*> recurse e'
       LetPatBind li p e     -> LetPatBind li <$> recurse p <*> recurse e
@@ -296,6 +316,7 @@ instance ExprLike LetBinding where
       LetOpen{}             -> pure e
       LetDeclaredVariable _ -> pure e
 
+  foldExpr :: forall m. FoldExprFn m LetBinding
   foldExpr f e =
     case e of
       LetBind _ _ _ e e'    -> fold e `mappend` fold e'
@@ -303,10 +324,15 @@ instance ExprLike LetBinding where
       LetApply{}            -> mempty
       LetOpen{}             -> mempty
       LetDeclaredVariable _ -> mempty
-    where fold e = foldExpr f e
+    where
+      fold :: FoldExprRecFn m
+      fold e = foldExpr f e
 
+  traverseExpr :: forall m. TraverseExprFn m LetBinding
   traverseExpr f e = do
-    let trav e = traverseExpr f e
+    let
+      trav :: TraverseExprRecFn m
+      trav e = traverseExpr f e
     case e of
       LetBind li ai x e e'  -> LetBind li ai x <$> trav e <*> trav e'
       LetPatBind li p e     -> LetPatBind li <$> trav p <*> trav e
@@ -317,17 +343,23 @@ instance ExprLike LetBinding where
 instance ExprLike a => ExprLike (Pattern' a) where
 
 instance ExprLike a => ExprLike (Clause' a) where
+  recurseExpr :: forall m. RecurseExprFn m (Clause' a)
   recurseExpr f (Clause lhs spats rhs ds ca) = Clause <$> rec lhs <*> pure spats <*> rec rhs <*> rec ds <*> pure ca
-    where rec = recurseExpr f
+    where
+      rec :: RecurseExprRecFn m
+      rec = recurseExpr f
 
 instance ExprLike RHS where
+  recurseExpr :: forall m. RecurseExprFn m RHS
   recurseExpr f rhs =
     case rhs of
       RHS e c                 -> RHS <$> rec e <*> pure c
       AbsurdRHS{}             -> pure rhs
       WithRHS x es cs         -> WithRHS x <$> rec es <*> rec cs
       RewriteRHS xes spats rhs ds -> RewriteRHS <$> rec xes <*> pure spats <*> rec rhs <*> rec ds
-    where rec e = recurseExpr f e
+    where
+      rec :: RecurseExprRecFn m
+      rec e = recurseExpr f e
 
 instance (ExprLike qn, ExprLike p, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
   recurseExpr f = \case
@@ -338,13 +370,17 @@ instance ExprLike WhereDeclarations where
   recurseExpr f (WhereDecls a b) = WhereDecls a <$> recurseExpr f b
 
 instance ExprLike ModuleApplication where
+  recurseExpr :: forall m. RecurseExprFn m ModuleApplication
   recurseExpr f a =
     case a of
       SectionApp tel m es -> SectionApp <$> rec tel <*> rec m <*> rec es
       RecordModuleInstance{} -> pure a
-    where rec e = recurseExpr f e
+    where
+      rec :: RecurseExprRecFn m
+      rec e = recurseExpr f e
 
 instance ExprLike Pragma where
+  recurseExpr :: forall m. RecurseExprFn m Pragma
   recurseExpr f p =
     case p of
       BuiltinPragma s x           -> pure p
@@ -357,7 +393,9 @@ instance ExprLike Pragma where
       InlinePragma{}              -> pure p
       EtaPragma{}                 -> pure p
       DisplayPragma f xs e        -> DisplayPragma f <$> rec xs <*> rec e
-    where rec e = recurseExpr f e
+    where
+      rec :: RecurseExprRecFn m
+      rec e = recurseExpr f e
 
 instance ExprLike LHS where
   recurseExpr f (LHS i p) = LHS i <$> recurseExpr f p
@@ -369,6 +407,7 @@ instance ExprLike SpineLHS where
   recurseExpr f (SpineLHS i x ps) = SpineLHS i x <$> recurseExpr f ps
 
 instance ExprLike Declaration where
+  recurseExpr :: forall m. RecurseExprFn m Declaration
   recurseExpr f d =
     case d of
       Axiom a d i mp x e        -> Axiom a d i mp x <$> rec e
@@ -390,7 +429,9 @@ instance ExprLike Declaration where
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds
-    where rec e = recurseExpr f e
+    where
+      rec :: RecurseExprRecFn m
+      rec e = recurseExpr f e
 
 
 -- * Getting all declared names

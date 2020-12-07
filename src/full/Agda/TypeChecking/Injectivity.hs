@@ -1,5 +1,3 @@
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
-
 {- |
 
 "Injectivity", or more precisely, "constructor headedness", is a
@@ -273,7 +271,7 @@ instantiateVarHeads f es m = runMaybeT $ updateHeads (const . instHead) m
 functionInverse
   :: (PureTCM m, MonadError TCErr m)
   => Term -> m InvView
-functionInverse v = case v of
+functionInverse = \case
   Def f es -> do
     inv <- defInverse <$> getConstInfo f
     case inv of
@@ -356,10 +354,12 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
     fallback     = addConstraint blocker $ app (ValueCmp cmp ty) blk neu
     success blk' = app (compareAs cmp ty) blk' neu
 
-    (cmp, app) = case dir of
+    cmpApp :: (Comparison, (a -> a -> b) -> a -> a -> b)
+    cmpApp = case dir of
       DirEq -> (CmpEq, id)
       DirLeq -> (CmpLeq, id)
       DirGeq -> (CmpLeq, flip)
+    (cmp, app) = cmpApp
 
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.

@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.SizedTypes where
 
@@ -240,7 +239,8 @@ trySizeUniv_
   => Comparison -> CompareAs_ -> H'LHS Term -> H'RHS Term
   -> QName -> Elims -> QName -> Elims -> m ()
 trySizeUniv_ cmp t m n x els1 y els2 = do
-  let failure = typeError $ UnequalTerms_ cmp m n t
+  let failure :: forall m a. MonadTCError m => m a
+      failure = typeError $ UnequalTerms_ cmp m n t
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
   -- Get the SIZE built-ins.
   (size, sizelt) <- flip catchError (const failure) $ do

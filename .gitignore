@@ -59,10 +59,11 @@ dist/
 doc/user-manual.pdf
 exec-test*
 hlint-report.html
+jAgda.*.js
 module-dependency-graph.dot
 module-dependency-graph.pdf
 pkg-build*
 stack.yaml
-stack.yaml.lock
+stack*.yaml.lock
 trash.txt
 \#*\#

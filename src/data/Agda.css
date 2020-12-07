@@ -9,6 +9,7 @@
 .Agda .PrimitiveType { color: #0000CD }
 .Agda .Pragma        { color: black   }
 .Agda .Operator      {}
+.Agda .Hole          { background: #B4EEB4 }
 
 /* NameKinds. */
 .Agda .Bound                  { color: black   }

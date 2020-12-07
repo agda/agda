@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs              #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
@@ -951,6 +950,12 @@ restrictLocalPrivate m =
   where
     rName as = filterMaybe (not . null) $ filter (not . (`isInModule`        m) . anameName) as
     rMod  as = filterMaybe (not . null) $ filter (not . (`isLtChildModuleOf` m) . amodName)  as
+
+-- | Filter privates out of a `ScopeInfo`
+withoutPrivates :: ScopeInfo -> ScopeInfo
+withoutPrivates scope = over scopeModules (fmap $ restrictLocalPrivate m) scope
+  where
+  m = scope ^. scopeCurrent
 
 -- | Disallow using generalized variables from the scope
 disallowGeneralizedVars :: Scope -> Scope

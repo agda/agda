@@ -20,16 +20,16 @@ instance DeBruijn TTerm where
 instance Subst TTerm where
   type SubstArg TTerm = TTerm
 
-  applySubst IdS t = t
-  applySubst rho t = case t of
-      TDef{}    -> t
-      TLit{}    -> t
-      TCon{}    -> t
-      TPrim{}   -> t
-      TUnit{}   -> t
-      TSort{}   -> t
-      TErased{} -> t
-      TError{}  -> t
+  applySubst IdS = id
+  applySubst rho = \case
+      t@TDef{}    -> t
+      t@TLit{}    -> t
+      t@TCon{}    -> t
+      t@TPrim{}   -> t
+      t@TUnit{}   -> t
+      t@TSort{}   -> t
+      t@TErased{} -> t
+      t@TError{}  -> t
       TVar i         -> lookupS rho i
       TApp f ts      -> tApp (applySubst rho f) (applySubst rho ts)
       TLam b         -> TLam (applySubst (liftS 1 rho) b)
@@ -110,7 +110,7 @@ instance HasFree a => HasFree (InSeq a) where
   freeVars (InSeq x) = inSeq <$> freeVars x
 
 instance HasFree TTerm where
-  freeVars t = case t of
+  freeVars = \case
     TDef{}    -> Map.empty
     TLit{}    -> Map.empty
     TCon{}    -> Map.empty
@@ -128,7 +128,7 @@ instance HasFree TTerm where
     TCoerce t      -> freeVars t
 
 instance HasFree TAlt where
-  freeVars a = case a of
+  freeVars = \case
     TACon _ i b -> freeVars (Binder i b)
     TALit _ b   -> freeVars b
     TAGuard g b -> freeVars (g, b)

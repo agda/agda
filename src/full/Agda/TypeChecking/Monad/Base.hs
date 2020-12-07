@@ -4,7 +4,10 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module Agda.TypeChecking.Monad.Base where
+module Agda.TypeChecking.Monad.Base
+  ( module Agda.TypeChecking.Monad.Base
+  , HasOptions (..)
+  ) where
 
 import Prelude hiding (null)
 
@@ -49,12 +52,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
 import Data.IORef
-
-import qualified System.Console.Haskeline as Haskeline
--- MonadException is replaced by MonadCatch in haskeline 0.8
-#if MIN_VERSION_haskeline(0,8,0)
-import qualified Control.Monad.Catch as Haskeline (catch)
-#endif
 
 import Agda.Benchmarking (Benchmark, Phase)
 
@@ -738,6 +735,7 @@ class Monad m => MonadFresh i m where
 instance MonadFresh i m => MonadFresh i (ReaderT r m)
 instance MonadFresh i m => MonadFresh i (StateT s m)
 instance MonadFresh i m => MonadFresh i (ListT m)
+instance MonadFresh i m => MonadFresh i (IdentityT m)
 
 instance HasFresh i => MonadFresh i TCM where
   fresh = do
@@ -869,6 +867,9 @@ class Monad m => MonadStConcreteNames m where
 
 instance MonadStConcreteNames TCM where
   runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
+
+instance MonadStConcreteNames m => MonadStConcreteNames (IdentityT m) where
+  runStConcreteNames m = IdentityT $ runStConcreteNames $ StateT $ runIdentityT . runStateT m
 
 instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
   runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . flip (runReaderT . runStateT m)
@@ -2346,6 +2347,13 @@ instance Monoid ReduceDefs where
   mempty  = reduceAllDefs
   mappend = (<>)
 
+
+locallyReconstructed :: MonadTCEnv m => m a -> m a
+locallyReconstructed = locallyTC eReconstructed . const $ True
+
+isReconstructed :: (MonadTCEnv m) => m Bool
+isReconstructed = asksTC envReconstructed
+
 -- | Primitives
 
 data PrimitiveImpl = PrimImpl Type PrimFun
@@ -2657,19 +2665,24 @@ data HighlightingMethod
 -- level is /at least/ @l@ or @b@ is 'True'.
 
 ifTopLevelAndHighlightingLevelIsOr ::
-  MonadTCM tcm => HighlightingLevel -> Bool -> tcm () -> tcm ()
+  MonadTCEnv tcm => HighlightingLevel -> Bool -> tcm () -> tcm ()
 ifTopLevelAndHighlightingLevelIsOr l b m = do
   e <- askTC
-  when (envModuleNestingLevel e == 0 &&
-        (envHighlightingLevel e >= l || b))
-       m
+  when (envHighlightingLevel e >= l || b) $
+    case (envImportPath e) of
+      -- No current module
+      [] -> pure ()
+      -- Top level ("main") module
+      (_:[]) -> m
+      -- Below the main module
+      (_:_:_) -> pure ()
 
 -- | @ifTopLevelAndHighlightingLevelIs l m@ runs @m@ when we're
 -- type-checking the top-level module and the highlighting level is
 -- /at least/ @l@.
 
 ifTopLevelAndHighlightingLevelIs ::
-  MonadTCM tcm => HighlightingLevel -> tcm () -> tcm ()
+  MonadTCEnv tcm => HighlightingLevel -> tcm () -> tcm ()
 ifTopLevelAndHighlightingLevelIs l =
   ifTopLevelAndHighlightingLevelIsOr l False
 
@@ -2981,7 +2994,16 @@ data TCEnv =
             -- type-checked.  'Nothing' if we do not have a file
             -- (like in interactive mode see @CommandLine@).
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
-          , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
+          , envImportPath          :: [C.TopLevelModuleName]
+            -- ^ The module stack with the entry being the top-level module as
+            --   Agda chases modules. It will be empty if there is no main
+            --   module, will have a single entry for the top level module, or
+            --   more when descending past the main module. This is used to
+            --   detect import cycles and in some cases highlighting behavior.
+            --   The level of a given module is not necessarily the same as the
+            --   length, in the module dependency graph, of the shortest path
+            --   from the top-level module; it depends on in which order Agda
+            --   chooses to chase dependencies.
           , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envTerminationCheck    :: TerminationCheck ()  -- ^ are we inside the scope of a termination pragma
           , envCoverageCheck       :: CoverageCheck        -- ^ are we inside the scope of a coverage pragma
@@ -3032,14 +3054,6 @@ data TCEnv =
                 -- ^ Set to 'None' when imported modules are
                 --   type-checked.
           , envHighlightingMethod :: HighlightingMethod
-          , envModuleNestingLevel :: !Int
-                -- ^ This number indicates how far away from the
-                --   top-level module Agda has come when chasing
-                --   modules. The level of a given module is not
-                --   necessarily the same as the length, in the module
-                --   dependency graph, of the shortest path from the
-                --   top-level module; it depends on in which order
-                --   Agda chooses to chase dependencies.
           , envExpandLast :: ExpandHidden
                 -- ^ When type-checking an alias f=e, we do not want
                 -- to insert hidden arguments in the end, because
@@ -3052,6 +3066,7 @@ data TCEnv =
                 --   during the current reduction process?
           , envAllowedReductions :: AllowedReductions
           , envReduceDefs :: ReduceDefs
+          , envReconstructed :: Bool
           , envInjectivityDepth :: Int
                 -- ^ Injectivity can cause non-termination for unsolvable contraints
                 --   (#431, #3067). Keep a limit on the nesting depth of injectivity
@@ -3097,9 +3112,6 @@ data TCEnv =
                 -- ^ Should new metas generalized over.
           , envGeneralizedVars :: Map QName GeneralizedValue
                 -- ^ Values for used generalizable variables.
-          , envCheckOptionConsistency :: Bool
-                -- ^ Do we check that options in imported files are
-                --   consistent with each other?
           , envActiveBackendName :: Maybe BackendName
                 -- ^ Is some backend active at the moment, and if yes, which?
                 --   NB: we only store the 'BackendName' here, otherwise
@@ -3133,7 +3145,7 @@ initEnv = TCEnv { envContext             = Empty
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envModality               = mempty
+                , envModality               = unitModality
                 , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
                 , envRange                  = noRange
@@ -3142,12 +3154,12 @@ initEnv = TCEnv { envContext             = Empty
                 , envCall                   = Nothing
                 , envHighlightingLevel      = None
                 , envHighlightingMethod     = Indirect
-                , envModuleNestingLevel     = -1
                 , envExpandLast             = ExpandLast
                 , envAppDef                 = Nothing
                 , envSimplification         = NoSimplification
                 , envAllowedReductions      = allReductions
                 , envReduceDefs             = reduceAllDefs
+                , envReconstructed          = False
                 , envInjectivityDepth       = 0
                 , envCompareBlocked         = False
                 , envPrintDomainFreePi      = False
@@ -3162,7 +3174,6 @@ initEnv = TCEnv { envContext             = Empty
                 , envCheckpoints            = Map.singleton 0 IdS
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
-                , envCheckOptionConsistency = True
                 , envActiveBackendName      = Nothing
                 }
 
@@ -3277,9 +3288,6 @@ eHighlightingLevel f e = f (envHighlightingLevel e) <&> \ x -> e { envHighlighti
 eHighlightingMethod :: Lens' HighlightingMethod TCEnv
 eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighlightingMethod = x }
 
-eModuleNestingLevel :: Lens' Int TCEnv
-eModuleNestingLevel f e = f (envModuleNestingLevel e) <&> \ x -> e { envModuleNestingLevel = x }
-
 eExpandLast :: Lens' ExpandHidden TCEnv
 eExpandLast f e = f (envExpandLast e) <&> \ x -> e { envExpandLast = x }
 
@@ -3294,6 +3302,9 @@ eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedRed
 
 eReduceDefs :: Lens' ReduceDefs TCEnv
 eReduceDefs f e = f (envReduceDefs e) <&> \ x -> e { envReduceDefs = x }
+
+eReconstructed :: Lens' Bool TCEnv
+eReconstructed f e = f (envReconstructed e) <&> \ x -> e { envReconstructed = x }
 
 eInjectivityDepth :: Lens' Int TCEnv
 eInjectivityDepth f e = f (envInjectivityDepth e) <&> \ x -> e { envInjectivityDepth = x }
@@ -3809,6 +3820,7 @@ data TypeError
         | SplitOnUnusableCohesion (Dom Type)
         -- UNUSED: -- | SplitOnErased (Dom Type)
         | SplitOnNonVariable Term Type
+        | SplitOnNonEtaRecord QName
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
         | VariableIsIrrelevant Name
@@ -4011,18 +4023,6 @@ instance E.Exception TCErr
 -- * Accessing options
 -----------------------------------------------------------------------------
 
-class (Functor m, Applicative m, Monad m) => HasOptions m where
-  -- | Returns the pragma options which are currently in effect.
-  pragmaOptions      :: m PragmaOptions
-  -- | Returns the command line options which are currently in effect.
-  commandLineOptions :: m CommandLineOptions
-
-  default pragmaOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m PragmaOptions
-  pragmaOptions      = lift pragmaOptions
-
-  default commandLineOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m CommandLineOptions
-  commandLineOptions = lift commandLineOptions
-
 instance MonadIO m => HasOptions (TCMT m) where
   pragmaOptions = useTC stPragmaOptions
 
@@ -4033,15 +4033,6 @@ instance MonadIO m => HasOptions (TCMT m) where
 
 -- HasOptions lifts through monad transformers
 -- (see default signatures in the HasOptions class).
-
-instance HasOptions m => HasOptions (ChangeT m)
-instance HasOptions m => HasOptions (ExceptT e m)
-instance HasOptions m => HasOptions (IdentityT m)
-instance HasOptions m => HasOptions (ListT m)
-instance HasOptions m => HasOptions (MaybeT m)
-instance HasOptions m => HasOptions (ReaderT r m)
-instance HasOptions m => HasOptions (StateT s m)
-instance (HasOptions m, Monoid w) => HasOptions (WriterT w m)
 
 -- Ternary options are annoying to deal with so we provide auxiliary
 -- definitions using @collapseDefault@.
@@ -4054,18 +4045,6 @@ guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
 
 withoutKOption :: HasOptions m => m Bool
 withoutKOption = collapseDefault . optWithoutK <$> pragmaOptions
-
--- | Gets the include directories.
---
--- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
--- 'setCommandLineOptions' must have run).
-
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
-getIncludeDirs = do
-  incs <- optAbsoluteIncludePaths <$> commandLineOptions
-  case incs of
-    [] -> __IMPOSSIBLE__
-    _  -> return incs
 
 enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions
@@ -4249,49 +4228,23 @@ class Monad m => MonadTCState m where
   putTC :: TCState -> m ()
   modifyTC :: (TCState -> TCState) -> m ()
 
-  {-# MINIMAL getTC, (putTC | modifyTC) #-}
-  putTC      = modifyTC . const
-  modifyTC f = putTC . f =<< getTC
+  default getTC :: (MonadTrans t, MonadTCState n, t n ~ m) => m TCState
+  getTC = lift getTC
 
-instance MonadTCState m => MonadTCState (MaybeT m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
+  default putTC :: (MonadTrans t, MonadTCState n, t n ~ m) => TCState -> m ()
+  putTC = lift . putTC
+
+  default modifyTC :: (MonadTrans t, MonadTCState n, t n ~ m) => (TCState -> TCState) -> m ()
   modifyTC = lift . modifyTC
 
-instance MonadTCState m => MonadTCState (ListT m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (ExceptT err m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (ReaderT r m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (StateT s m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (ChangeT m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (IdentityT m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
+instance MonadTCState m => MonadTCState (MaybeT m)
+instance MonadTCState m => MonadTCState (ListT m)
+instance MonadTCState m => MonadTCState (ExceptT err m)
+instance MonadTCState m => MonadTCState (ReaderT r m)
+instance MonadTCState m => MonadTCState (StateT s m)
+instance MonadTCState m => MonadTCState (ChangeT m)
+instance MonadTCState m => MonadTCState (IdentityT m)
+instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
 
 -- ** @TCState@ accessors (no lenses)
 
@@ -4475,6 +4428,7 @@ instance MonadIO m => MonadTCEnv (TCMT m) where
 instance MonadIO m => MonadTCState (TCMT m) where
   getTC   = TCM $ \ r _e -> liftIO (readIORef r)
   putTC s = TCM $ \ r _e -> liftIO (writeIORef r s)
+  modifyTC f = putTC . f =<< getTC
 
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
@@ -4545,18 +4499,6 @@ instance {-# OVERLAPPABLE #-} (MonadIO m, Semigroup a, Monoid a) => Monoid (TCMT
 instance {-# OVERLAPPABLE #-} (MonadIO m, Null a) => Null (TCMT m a) where
   empty = return empty
   null  = __IMPOSSIBLE__
-
--- | Interaction monad.
-
-type IM = TCMT (Haskeline.InputT IO)
-
-runIM :: IM a -> TCM a
-runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
-
-instance MonadError TCErr IM where
-  throwError     = liftIO . E.throwIO
-  catchError (TCM m) h = TCM $ \s env ->
-    m s env `Haskeline.catch` \e -> unTCM (h e) s env
 
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a

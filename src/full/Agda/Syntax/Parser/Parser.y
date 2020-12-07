@@ -39,8 +39,6 @@ import Data.Maybe
 import Data.Semigroup ((<>), sconcat)
 import qualified Data.Traversable as T
 
-import Debug.Trace
-
 import Agda.Syntax.Position hiding (tests)
 import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Lexer
@@ -83,7 +81,7 @@ import Agda.Utils.Impossible
 %monad { Parser }
 %lexer { lexer } { TokEOF{} }
 
-%expect 9
+%expect 8
 -- * shift/reduce for \ x y z -> foo = bar
 --   shifting means it'll parse as \ x y z -> (foo = bar) rather than
 --   (\ x y z -> foo) = bar
@@ -127,6 +125,7 @@ import Agda.Utils.Impossible
     'let'                     { TokKeyword KwLet $$ }
     'macro'                   { TokKeyword KwMacro $$ }
     'module'                  { TokKeyword KwModule $$ }
+    'interleaved'             { TokKeyword KwInterleaved $$ }
     'mutual'                  { TokKeyword KwMutual $$ }
     'no-eta-equality'         { TokKeyword KwNoEta $$ }
     'open'                    { TokKeyword KwOpen $$ }
@@ -252,6 +251,7 @@ Token
     | 'let'                     { TokKeyword KwLet $1 }
     | 'macro'                   { TokKeyword KwMacro $1 }
     | 'module'                  { TokKeyword KwModule $1 }
+    | 'interleaved'             { TokKeyword KwInterleaved $1 }
     | 'mutual'                  { TokKeyword KwMutual $1 }
     | 'no-eta-equality'         { TokKeyword KwNoEta $1 }
     | 'open'                    { TokKeyword KwOpen $1 }
@@ -622,7 +622,6 @@ Expr
                                               $3 }
   | Attributes1 Application3 '->' Expr  {% applyAttrs1 $1 (defaultArg $ rawApp $2) <&> \ dom ->
                                              Fun (getRange ($1,$2,$3,$4)) dom $4 }
-  | Expr1 '=' Expr                      { Equal (getRange ($1, $2, $3)) $1 $3 }
   | Expr1 %prec LOWEST                  { $1 }
 
 -- Level 1: Application
@@ -691,8 +690,10 @@ Application3PossiblyEmpty
 -- Level 3: Atoms
 Expr3Curly :: { Expr }
 Expr3Curly
-    : '{' Expr '}'                      {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
-    | '{' '}'                           { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    : '{' Expr4 '}'               {% HiddenArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    | '{' '}'                     { let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    | '{{' Expr4 DoubleCloseBrace {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
+    | '{{' DoubleCloseBrace       { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly :: { Expr }
 Expr3NoCurly
@@ -701,11 +702,9 @@ Expr3NoCurly
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
-    | '{{' Expr DoubleCloseBrace        {% InstanceArg (getRange ($1,$2,$3)) `fmap` maybeNamed $2 }
     | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $ List1.toList $2 }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
-    | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
     | '.' Expr3                         { Dot (fuseRange $1 $2) $2 }
     | '..' Expr3                        { DoubleDot (fuseRange $1 $2) $2 }
@@ -714,16 +713,22 @@ Expr3NoCurly
     | '...'                             { Ellipsis (getRange $1) }
     | ExprOrAttr                       { $1 }
 
+-- Level 4: Maybe named, or cubical faces
+Expr4 :: { Expr }
+Expr4 : Expr1 '=' Expr { Equal (getRange ($1, $2, $3)) $1 $3 }
+      | Expr           { $1 }
+
 ExprOrAttr :: { Expr }
 ExprOrAttr
-    : QId                               { Ident $1 }
-    | literal                           { Lit (getRange $1) (rangedThing $1) }
-    | '(' Expr ')'                      { Paren (getRange ($1,$2,$3)) $2 }
+    : QId           { Ident $1 }
+    | literal       { Lit (getRange $1) (rangedThing $1) }
+    | '(' Expr4 ')' { Paren (getRange ($1,$2,$3)) $2 }
+    -- ^ this is needed for cubical stuff
 
 Expr3 :: { Expr }
 Expr3
-    : Expr3Curly                        { $1 }
-    | Expr3NoCurly                      { $1 }
+    : Expr3Curly   { $1 }
+    | Expr3NoCurly { $1 }
 
 RecordAssignments :: { RecordAssignments }
 RecordAssignments
@@ -847,44 +852,44 @@ ModalTBindWithHiding : Attributes1 BIdsWithHiding ':' Expr  {% do
 LamBindings :: { List1 LamBinding }
 LamBindings
   : LamBinds '->' {%
-      case List1.reverse $1 of  -- TODO: use List1.last
-        Left _ :| _ -> parseError "Absurd lambda cannot have a body."
-        _ :| _      -> return $ List1.fromList [ b | Right b <- List1.toList $1 ]
+      case absurdBinding $1 of
+        Just{}  -> parseError "Absurd lambda cannot have a body."
+        Nothing -> return $ List1.fromList $ lamBindings $1
       }
 
 AbsurdLamBindings :: { Either ([LamBinding], Hiding) (List1 Expr) }
 AbsurdLamBindings
   : LamBindsAbsurd {%
     case $1 of
-      Left lb -> case List1.reverse lb of
-                   Right _ :| _ -> parseError "Missing body for lambda"
-                   Left h  :| _ -> return $ Left ([ b | Right b <- List1.init lb], h)
+      Left lb -> case absurdBinding lb of
+                   Nothing -> parseError "Missing body for lambda"
+                   Just h  -> return $ Left (lamBindings lb, h)
       Right es -> return $ Right es
     }
 
 -- absurd lambda is represented by @Left hiding@
-LamBinds :: { List1 (Either Hiding LamBinding) }
+LamBinds :: { LamBinds }
 LamBinds
-  : DomainFreeBinding LamBinds  { fmap Right $1 <> $2 }
-  | TypedBinding LamBinds       { Right (DomainFull $1) <| $2 }
-  | DomainFreeBinding           { fmap Right $1 }
-  | TypedBinding                { singleton $ Right $ DomainFull $1 }
-  | '(' ')'                     { singleton $ Left NotHidden }
-  | '{' '}'                     { singleton $ Left Hidden }
-  | '{{' DoubleCloseBrace       { singleton $ Left (Instance NoOverlap) }
+  : DomainFreeBinding LamBinds  { fmap (map DomainFree (List1.toList $1) ++) $2 }
+  | TypedBinding LamBinds       { fmap (DomainFull $1 :) $2 }
+  | DomainFreeBinding           { mkLamBinds $ map DomainFree $ List1.toList $1 }
+  | TypedBinding                { mkLamBinds [DomainFull $1] }
+  | '(' ')'                     { mkAbsurdBinding NotHidden }
+  | '{' '}'                     { mkAbsurdBinding Hidden }
+  | '{{' DoubleCloseBrace       { mkAbsurdBinding (Instance NoOverlap) }
 
 -- Like LamBinds, but could also parse an absurd LHS of an extended lambda @{ p1 ... () }@
-LamBindsAbsurd :: { Either (List1 (Either Hiding LamBinding)) (List1 Expr) }
+LamBindsAbsurd :: { Either LamBinds (List1 Expr) }
 LamBindsAbsurd
-  : DomainFreeBinding LamBinds  { Left $ fmap Right $1 <> $2 }
-  | TypedBinding LamBinds       { Left $ Right (DomainFull $1) <| $2 }
+  : DomainFreeBinding LamBinds  { Left $ fmap (map DomainFree (List1.toList $1) ++) $2 }
+  | TypedBinding LamBinds       { Left $ fmap (DomainFull $1 :) $2 }
   | DomainFreeBindingAbsurd     { case $1 of
-                                    Left lb -> Left $ fmap Right lb
+                                    Left lb -> Left $ mkLamBinds (map DomainFree $ List1.toList lb)
                                     Right es -> Right es }
-  | TypedBinding                { Left $ singleton $ Right $ DomainFull $1 }
-  | '(' ')'                     { Left $ singleton $ Left NotHidden }
-  | '{' '}'                     { Left $ singleton $ Left Hidden }
-  | '{{' DoubleCloseBrace       { Left $ singleton $ Left (Instance NoOverlap) }
+  | TypedBinding                { Left $ mkLamBinds [DomainFull $1] }
+  | '(' ')'                     { Left $ mkAbsurdBinding NotHidden }
+  | '{' '}'                     { Left $ mkAbsurdBinding Hidden }
+  | '{{' DoubleCloseBrace       { Left $ mkAbsurdBinding (Instance NoOverlap) }
 
 -- FNF, 2011-05-05: No where-clauses in extended lambdas for now.
 -- Andreas, 2020-03-28: And also not in sight either nine years later.
@@ -928,21 +933,26 @@ ForallBindings
 -- A non-empty sequence of possibly untyped bindings.
 TypedUntypedBindings1 :: { List1 LamBinding }
 TypedUntypedBindings1
-  : DomainFreeBinding TypedUntypedBindings1 { $1 <> $2 }
+  : DomainFreeBinding TypedUntypedBindings1 { fmap DomainFree $1 <> $2 }
   | TypedBinding TypedUntypedBindings1      { DomainFull $1 <| $2 }
-  | DomainFreeBinding                       { $1 }
+  | DomainFreeBinding                       { fmap DomainFree $1 }
   | TypedBinding                            { singleton $ DomainFull $1 }
 
 -- A possibly empty sequence of possibly untyped bindings.
 -- This is used as telescope in data and record decls.
 TypedUntypedBindings :: { [LamBinding] }
 TypedUntypedBindings
-  : DomainFreeBinding TypedUntypedBindings { List1.toList $1 ++ $2 }
+  : DomainFreeBinding TypedUntypedBindings { map DomainFree (List1.toList $1) ++ $2 }
   | TypedBinding TypedUntypedBindings      { DomainFull $1 : $2 }
   |                                        { [] }
 
+DomainFreeBindings :: { [NamedArg Binder] }
+DomainFreeBindings
+  : {- empty -}                          { [] }
+  | DomainFreeBinding DomainFreeBindings { List1.toList $1 ++ $2 }
+
 -- A domain free binding is either x or {x1 .. xn}
-DomainFreeBinding :: { List1 LamBinding }
+DomainFreeBinding :: { List1 (NamedArg Binder) }
 DomainFreeBinding
   : DomainFreeBindingAbsurd {% case $1 of
                              Left lbs -> return lbs
@@ -955,7 +965,7 @@ MaybeAsPattern
   | {- empty -} { Nothing }
 
 -- A domain free binding is either x or {x1 .. xn}
-DomainFreeBindingAbsurd :: { Either (List1 LamBinding) (List1 Expr)}
+DomainFreeBindingAbsurd :: { Either (List1 (NamedArg Binder)) (List1 Expr)}
 DomainFreeBindingAbsurd
     : BId      MaybeAsPattern { Left . singleton $ mkDomainFree_ id $2 $1 }
     | '.' BId  MaybeAsPattern { Left . singleton $ mkDomainFree_ (setRelevance Irrelevant) $3 $2 }
@@ -964,20 +974,20 @@ DomainFreeBindingAbsurd
                                  pure . Left . singleton $ mkDomainFree_ id (Just p) $ simpleHole }
     | '(' Attributes1 CommaBIdAndAbsurds ')'
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
-              first (fmap (DomainFree . setTacticAttr $2 . setArgInfo ai)) $3 }
+              first (fmap (setTacticAttr $2 . setArgInfo ai)) $3 }
     | '{' CommaBIdAndAbsurds '}'
-         { first (fmap (DomainFree . hide)) $2 }
+         { first (fmap hide) $2 }
     | '{' Attributes1 CommaBIdAndAbsurds '}'
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
-              first (fmap (DomainFree . hide . setTacticAttr $2 . setArgInfo ai)) $3 }
-    | '{{' CommaBIds DoubleCloseBrace { Left $ fmap (DomainFree . makeInstance) $2 }
+              first (fmap (hide . setTacticAttr $2 . setArgInfo ai)) $3 }
+    | '{{' CommaBIds DoubleCloseBrace { Left $ fmap makeInstance $2 }
     | '{{' Attributes1 CommaBIds DoubleCloseBrace
          {% applyAttrs1 $2 defaultArgInfo <&> \ ai ->
-              Left $ fmap (DomainFree . makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
-    | '.' '{' CommaBIds '}' { Left $ fmap (DomainFree . hide . setRelevance Irrelevant) $3 }
-    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (DomainFree . makeInstance . setRelevance Irrelevant) $3 }
-    | '..' '{' CommaBIds '}' { Left $ fmap (DomainFree . hide . setRelevance NonStrict) $3 }
-    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (DomainFree . makeInstance . setRelevance NonStrict) $3 }
+              Left $ fmap (makeInstance . setTacticAttr $2 . setArgInfo ai) $3 }
+    | '.' '{' CommaBIds '}' { Left $ fmap (hide . setRelevance Irrelevant) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . setRelevance Irrelevant) $3 }
+    | '..' '{' CommaBIds '}' { Left $ fmap (hide . setRelevance NonStrict) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ fmap (makeInstance . setRelevance NonStrict) $3 }
 
 
 {--------------------------------------------------------------------------
@@ -1117,29 +1127,32 @@ ExprWhere : Expr WhereClause { ExprWhere $1 $2 }
 -- Top-level definitions.
 Declaration :: { List1 Declaration }
 Declaration
-    : Fields        { singleton $1 }
-    | FunClause     { $1 }            -- includes type signatures
-    | Data          { singleton $1 }
-    | DataSig       { singleton $1 }  -- lone data type signature in mutual block
-    | Record        { singleton $1 }
-    | RecordSig     { singleton $1 }  -- lone record signature in mutual block
-    | Infix         { singleton $1 }
-    | Generalize    { singleton $1 }
-    | Mutual        { singleton $1 }
-    | Abstract      { singleton $1 }
-    | Private       { singleton $1 }
-    | Instance      { singleton $1 }
-    | Macro         { singleton $1 }
-    | Postulate     { singleton $1 }
-    | Primitive     { singleton $1 }
-    | Open          { $1  }
-    | ModuleMacro   { singleton $1 }
-    | Module        { singleton $1 }
-    | Pragma        { singleton $1 }
-    | Syntax        { singleton $1 }
-    | PatternSyn    { singleton $1 }
-    | UnquoteDecl   { singleton $1 }
-
+    : Fields          { singleton $1 }
+    | FunClause       { $1 }            -- includes type signatures
+    | Data            { singleton $1 }
+    | DataSig         { singleton $1 }  -- lone data type signature in mutual block
+    | Record          { singleton $1 }
+    | RecordSig       { singleton $1 }  -- lone record signature in mutual block
+    | Infix           { singleton $1 }
+    | Generalize      { singleton $1 }
+    | Mutual          { singleton $1 }
+    | Abstract        { singleton $1 }
+    | Private         { singleton $1 }
+    | Instance        { singleton $1 }
+    | Macro           { singleton $1 }
+    | Postulate       { singleton $1 }
+    | Primitive       { singleton $1 }
+    | Open            { $1 }
+    | ModuleMacro     { singleton $1 }
+    | Module          { singleton $1 }
+    | Pragma          { singleton $1 }
+    | Syntax          { singleton $1 }
+    | PatternSyn      { singleton $1 }
+    | UnquoteDecl     { singleton $1 }
+    | Constructor     { singleton $1 }
+    | RecordInduction       { singleton $1 }
+    | RecordEta             { singleton $1 }
+    | RecordPatternMatching { singleton $1 }
 
 {--------------------------------------------------------------------------
     Individual declarations
@@ -1216,9 +1229,16 @@ RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
   {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
 
 -- Declaration of record constructor name.
-RecordConstructorName :: { (Name, IsInstance) }
-RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
-                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
+Constructor :: { Declaration }
+Constructor : 'constructor' Declarations0
+  {% case $2 of
+      -- this is fairly disgusting but hopefully allows us to use `constructor` for both
+      -- record constructors and constructor blocks in mutual blocks
+      { [FunClause (LHS p [] [] NoEllipsis) AbsurdRHS NoWhere _]
+          | Just n <- isSingleIdentifierP p -> pure (RecordDirective (Constructor n NotInstanceDef))
+      ;  _ -> pure $ LoneConstructor (getRange ($1,$2)) $2
+      }
+  }
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -1253,7 +1273,7 @@ Generalize : 'variable' ArgTypeSignaturesOrEmpty
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
 Mutual : 'mutual' Declarations0  { Mutual (fuseRange $1 $2) $2 }
-
+       | 'interleaved' 'mutual' Declarations0 { InterleavedMutual (getRange ($1,$2,$3)) $3 }
 
 -- Abstract declarations.
 Abstract :: { Declaration }
@@ -1311,9 +1331,7 @@ PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
   }
 
 PatternSynArgs :: { [Arg Name] }
-PatternSynArgs
-  : {- empty -} { [] }
-  | LamBinds    {% patternSynArgs (List1.toList $1) }
+PatternSynArgs : DomainFreeBindings    {% patternSynArgs $1 }
 
 SimpleIds :: { [RString] }
 SimpleIds : SimpleId { [$1] }
@@ -1684,28 +1702,12 @@ ArgTypeSignatures0
 -- Record declarations, including an optional record constructor name.
 RecordDeclarations :: { (RecordDirectives, [Declaration]) }
 RecordDeclarations
-    : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
-    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
-    | vopen Declarations1 close                       { (emptyRecordDirectives, List1.toList $2) }
+    : Declarations0 {% extractRecordDirectives $1 }
 
-
-RecordDirectives :: { [RecordDirective] }
-RecordDirectives
-    : {- empty -}                           { [] }
-    | RecordDirectives semi RecordDirective { $3 : $1 }
-    | RecordDirective                       { [$1] }
-
-RecordDirective :: { RecordDirective }
-RecordDirective
-    : RecordConstructorName { Constructor $1 }
-    | RecordInduction       { Induction $1 }
-    | RecordEta             { Eta $1 }
-    | RecordPatternMatching { PatternOrCopattern $1 }
-
-RecordEta :: { Ranged HasEta0 }
+RecordEta :: { Declaration }
 RecordEta
-    : 'eta-equality'    { Ranged (getRange $1) YesEta }
-    | 'no-eta-equality' { Ranged (getRange $1) (NoEta ()) }
+    : 'eta-equality'    { RecordDirective (Eta (Ranged (getRange $1) YesEta)) }
+    | 'no-eta-equality' { RecordDirective (Eta (Ranged (getRange $1) (NoEta ()))) }
 
 -- Directive 'pattern' if a decision between matching on constructor/record pattern
 -- or copattern matching is needed.
@@ -1714,15 +1716,15 @@ RecordEta
 -- with the 'no-eta-equality' declaration.
 -- Nor with the 'constructor' declaration, since it applies also to
 -- the record pattern.
-RecordPatternMatching :: { Range }
+RecordPatternMatching :: { Declaration }
 RecordPatternMatching
-    : 'pattern'     { getRange $1 }
+    : 'pattern'     { RecordDirective (PatternOrCopattern (getRange $1)) }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
-RecordInduction :: { Ranged Induction }
+RecordInduction :: { Declaration }
 RecordInduction
-    : 'inductive'   { Ranged (getRange $1) Inductive   }
-    | 'coinductive' { Ranged (getRange $1) CoInductive }
+    : 'inductive'   { RecordDirective (Induction (Ranged (getRange $1) Inductive))   }
+    | 'coinductive' { RecordDirective (Induction (Ranged (getRange $1) CoInductive)) }
 
 -- Arbitrary declarations
 Declarations :: { List1 Declaration }
@@ -1888,10 +1890,8 @@ mkQName ss = do
     xs <- mapM mkName ss
     return $ foldr Qual (QName $ last xs) (init xs)
 
--- | Create a DomainFree binding from a name
-
-mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> LamBinding
-mkDomainFree_ f p n = DomainFree $ f $ defaultNamedArg $ Binder p $ mkBoundName_ n
+mkDomainFree_ :: (NamedArg Binder -> NamedArg Binder) -> Maybe Pattern -> Name -> NamedArg Binder
+mkDomainFree_ f p n = f $ defaultNamedArg $ Binder p $ mkBoundName_ n
 
 mkRString :: (Interval, String) -> RString
 mkRString (i, s) = Ranged (getRange i) s
@@ -1953,6 +1953,21 @@ isName :: String -> (Interval, String) -> Parser ()
 isName s (_,s')
     | s == s'   = return ()
     | otherwise = parseError $ "expected " ++ s ++ ", found " ++ s'
+
+-- Lambinds
+
+-- | Result of parsing @LamBinds@.
+data LamBinds' a = LamBinds
+  { lamBindings   :: a             -- ^ A number of domain-free or typed bindings or record patterns.
+  , absurdBinding :: Maybe Hiding  -- ^ Followed by possibly a final absurd pattern.
+  } deriving (Functor)
+type LamBinds = LamBinds' [LamBinding]
+
+mkAbsurdBinding :: Hiding -> LamBinds
+mkAbsurdBinding = LamBinds [] . Just
+
+mkLamBinds :: a -> LamBinds' a
+mkLamBinds bs = LamBinds bs Nothing
 
 -- | Build a forall pi (forall x y z -> ...)
 forallPi :: List1 LamBinding -> Expr -> Expr
@@ -2073,15 +2088,12 @@ buildDoStmt e@(RawApp r _)    cs = do
 buildDoStmt e cs = defaultBuildDoStmt e cs
 
 
-data RecordDirective
-   = Induction (Ranged Induction)
-       -- ^ Range of keyword @[co]inductive@.
-   | Constructor (Name, IsInstance)
-   | Eta         (Ranged HasEta0)
-       -- ^ Range of @[no-]eta-equality@ keyword.
-   | PatternOrCopattern Range
-       -- ^ If declaration @pattern@ is present, give its range.
-   deriving (Eq,Show)
+-- | Extract record directives
+extractRecordDirectives :: [Declaration] -> Parser (RecordDirectives, [Declaration])
+extractRecordDirectives ds = do
+  let (dirs, rest) = spanJust isRecordDirective ds
+  dir <- verifyRecordDirectives dirs
+  pure (dir, rest)
 
 -- | Check for duplicate record directives.
 verifyRecordDirectives :: [RecordDirective] -> Parser RecordDirectives
@@ -2095,10 +2107,10 @@ verifyRecordDirectives ds
   errorFromList xs  = map getRange xs
   rs  = List.sort $ concat [ errorFromList is, errorFromList es', errorFromList cs, errorFromList ps ]
   es  = map rangedThing es'
-  is  = [ i | Induction i          <- ds ]
-  es' = [ e | Eta e                <- ds ]
-  cs  = [ c | Constructor c        <- ds ]
-  ps  = [ r | PatternOrCopattern r <- ds ]
+  is  = [ i      | Induction i          <- ds ]
+  es' = [ e      | Eta e                <- ds ]
+  cs  = [ (c, i) | Constructor c i      <- ds ]
+  ps  = [ r      | PatternOrCopattern r <- ds ]
 
 
 -- | Breaks up a string into substrings. Returns every maximal
@@ -2177,16 +2189,21 @@ maybeNamed e =
         -- Underscore{}    -> succeed $ "_"
         _ -> parseErrorRange e $ "Not a valid named argument: " ++ prettyShow e
 
-patternSynArgs :: [Either Hiding LamBinding] -> Parser [Arg Name]
+patternSynArgs :: [NamedArg Binder] -> Parser [Arg Name]
 patternSynArgs = mapM pSynArg
   where
-    pSynArg Left{}                  = parseError "Absurd patterns are not allowed in pattern synonyms"
-    pSynArg (Right DomainFull{})    = parseError "Unexpected type signature in pattern synonym argument"
-    pSynArg (Right (DomainFree x))
-      | let h = getHiding x, h `notElem` [Hidden, NotHidden]
-         = parseError $ prettyShow h ++ " arguments not allowed to pattern synonyms"
-      | not (isRelevant x) = parseError "Arguments to pattern synonyms must be relevant"
-      | otherwise          = return $ fmap (boundName . binderName . namedThing) x
+    pSynArg x
+      | let h = getHiding x, h `notElem` [Hidden, NotHidden] =
+          abort $ prettyShow h ++ " arguments not allowed to pattern synonyms"
+      | not (isRelevant x) =
+          abort "Arguments to pattern synonyms must be relevant"
+      | Just p <- binderPattern (namedArg x) =
+          abort "Arguments to pattern synonyms cannot be patterns themselves"
+      | otherwise = return $ fmap (boundName . binderName . namedThing) x
+      where
+      abort s = parseError $
+        "Illegal pattern synonym argument  " ++ prettyShow x ++ "\n" ++
+        "(" ++ s ++ ".)"
 
 mkLamClause
   :: Bool   -- ^ Catch-all?

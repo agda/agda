@@ -101,7 +101,7 @@ import Agda.Utils.Monad
 
 -- | Prepare parts of a parameter telescope for abstraction in constructors
 --   and projections.
-hideAndRelParams :: Dom a -> Dom a
+hideAndRelParams :: (LensHiding a, LensRelevance a) => a -> a
 hideAndRelParams = hideOrKeepInstance . mapRelevance nonStrictToIrr
 
 -- * Operations on 'Context'.
@@ -203,9 +203,9 @@ applyQuantityToJudgementOnly = localTC . over eQuantity . composeQuantity
 applyCohesionToContext :: (MonadTCEnv tcm, LensCohesion m) => m -> tcm a -> tcm a
 applyCohesionToContext thing =
   case getCohesion thing of
-    m | m == mempty -> id
-      | otherwise   -> applyCohesionToContextOnly   m
-                       -- Cohesion does not apply to the judgment.
+    m | m == unitCohesion -> id
+      | otherwise         -> applyCohesionToContextOnly   m
+                             -- Cohesion does not apply to the judgment.
 
 applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
 applyCohesionToContextOnly q = localTC
@@ -227,9 +227,9 @@ splittableCohesion a = do
 applyModalityToContext :: (MonadTCEnv tcm, LensModality m) => m -> tcm a -> tcm a
 applyModalityToContext thing =
   case getModality thing of
-    m | m == mempty -> id
-      | otherwise   -> applyModalityToContextOnly   m
-                     . applyModalityToJudgementOnly m
+    m | m == unitModality -> id
+      | otherwise         -> applyModalityToContextOnly   m
+                           . applyModalityToJudgementOnly m
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
@@ -295,7 +295,7 @@ class UsableRelevance a where
     => Relevance -> a -> m Bool
 
 instance UsableRelevance Term where
-  usableRel rel u = case u of
+  usableRel rel = \case
     Var i vs -> do
       irel <- getRelevance <$> domOfBV i
       let ok = irel `moreRelevant` rel
@@ -323,7 +323,7 @@ instance UsableRelevance a => UsableRelevance (Type' a) where
   usableRel rel (El _ t) = usableRel rel t
 
 instance UsableRelevance Sort where
-  usableRel rel s = case s of
+  usableRel rel = \case
     Type l -> usableRel rel l
     Prop l -> usableRel rel l
     Inf f n -> return True
@@ -413,7 +413,8 @@ instance UsableModality Term where
     -- Even if Pi contains Type, here we check it as a constructor for terms in the universe.
     Pi a b   -> usableMod domMod (unEl $ unDom a) `and2M` usableModAbs (getArgInfo a) mod (unEl <$> b)
       where
-        domMod = mapCohesion (composeCohesion (getCohesion a)) mod
+        domMod = mapQuantity (composeQuantity $ getQuantity a) $
+                 mapCohesion (composeCohesion $ getCohesion a) mod
     -- Andrea 15/10/2020 not updating these cases yet, but they are quite suspicious,
     -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s
@@ -521,6 +522,24 @@ isFibrant a = abortIfBlocked (getSort a) <&> \case
   SSet{}     -> False
   SizeUniv{} -> False
   LockUniv{} -> False
+  PiSort{}   -> False
+  FunSort{}  -> False
+  UnivSort{} -> False
+  MetaS{}    -> False
+  DefS{}     -> False
+  DummyS{}   -> False
+
+
+-- | Cofibrant types are those that could be the domain of a fibrant
+--   pi type. (Notion by C. Sattler).
+isCoFibrantSort :: (LensSort a, PureTCM m, MonadBlock m) => a -> m Bool
+isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
+  Type{}     -> True
+  Prop{}     -> True
+  Inf f _    -> f == IsFibrant
+  SSet{}     -> False
+  SizeUniv{} -> False
+  LockUniv{} -> True
   PiSort{}   -> False
   FunSort{}  -> False
   UnivSort{} -> False

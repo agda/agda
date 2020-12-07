@@ -13,7 +13,7 @@ import Agda.Utils.Impossible
 convertGuards :: TTerm -> TTerm
 convertGuards = tr
   where
-    tr t = case t of
+    tr = \case
       TCase sc t def alts ->
         if null otherAlts
           then
@@ -32,15 +32,15 @@ convertGuards = tr
           trAlt (TAGuard{}) = __IMPOSSIBLE__
           trAlt a = a { aBody = tr (aBody a) }
 
-      TVar{}    -> t
-      TDef{}    -> t
-      TCon{}    -> t
-      TPrim{}   -> t
-      TLit{}    -> t
-      TUnit{}   -> t
-      TSort{}   -> t
-      TErased{} -> t
-      TError{}  -> t
+      t@TVar{}    -> t
+      t@TDef{}    -> t
+      t@TCon{}    -> t
+      t@TPrim{}   -> t
+      t@TLit{}    -> t
+      t@TUnit{}   -> t
+      t@TSort{}   -> t
+      t@TErased{} -> t
+      t@TError{}  -> t
 
       TCoerce a               -> TCoerce (tr a)
       TLam b                  -> TLam (tr b)

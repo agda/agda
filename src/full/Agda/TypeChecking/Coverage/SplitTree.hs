@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
 
 {-| Split tree for transforming pattern clauses into case trees.
 
@@ -88,7 +87,7 @@ instance Pretty a => Pretty (SplitTreeLabel a) where
 
 -- | Convert a split tree into a 'Data.Tree' (for printing).
 toTree :: SplitTree' a -> Tree (SplitTreeLabel a)
-toTree t = case t of
+toTree = \case
   SplittingDone n -> Node (SplitTreeLabel Nothing Nothing StrictSplit (Just n)) []
   SplitAt n lz ts    -> Node (SplitTreeLabel Nothing (Just n) lz Nothing) $ toTrees ts
 

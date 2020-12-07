@@ -1,4 +1,3 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Agda.TypeChecking.SizedTypes.WarshallSolver where
 
@@ -385,7 +384,7 @@ implies h g = all test (graphToList g)
 --             False
 
 nodeFromSizeExpr :: SizeExpr' rigid flex -> (Node rigid flex, Offset)
-nodeFromSizeExpr e = case e of
+nodeFromSizeExpr = \case
   Const   n -> (NodeZero   , n)
   Rigid i n -> (NodeRigid i, n)
   Flex  x n -> (NodeFlex x , n)

@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
@@ -226,7 +225,8 @@ coverageCheck f t cs = do
                       , namedClausePats   = applySubst sub ps
                       , clauseBody        = Nothing
                       , clauseType        = Nothing
-                      , clauseCatchall    = False
+                      , clauseCatchall    = True       -- absurd clauses are safe as catch-all
+                      , clauseExact       = Just False
                       , clauseRecursive   = Just False
                       , clauseUnreachable = Just False
                       , clauseEllipsis    = NoEllipsis
@@ -251,9 +251,15 @@ coverageCheck f t cs = do
 
   -- Andreas, 2017-08-28, issue #2723:
   -- Mark clauses as reachable or unreachable in the signature.
-  let (is0, cs1) = unzip $ for (zip [0..] cs) $ \ (i, cl) ->
-        let unreachable = i `IntSet.notMember` used in
-        (boolToMaybe unreachable i, cl { clauseUnreachable = Just unreachable  })
+  -- Andreas, 2020-11-19, issue #5065
+  -- Remember whether clauses are exact or not.
+  let (is0, cs1) = unzip $ for (zip [0..] cs) $ \ (i, cl) -> let
+          unreachable = i `IntSet.notMember` used
+          exact       = i `IntSet.notMember` (IntSet.fromList noex)
+        in (boolToMaybe unreachable i, cl
+             { clauseUnreachable = Just unreachable
+             , clauseExact       = Just exact
+             })
   -- is = indices of unreachable clauses
   let is = catMaybes is0
   reportSDoc "tc.cover.top" 10 $ vcat
@@ -325,15 +331,18 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
   reportSLn "tc.cover.cover" 80 $ "raw target =\n" ++ show target
   match cs ps >>= \case
     Yes (i,mps) -> do
-      exact <- allM (map snd mps) isTrivialPattern
-      let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
-      let noExactClause = if exact || clauseCatchall (indexWithDefault __IMPOSSIBLE__ cs i)
-                          then empty
-                          else singleton i
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
-      reportSDoc "tc.cover.cover" 20 $ text "with mps = " <+> do addContext tel $ pretty $ mps
+      reportSDoc "tc.cover.cover" 20 $ text "with mps = " <+> do addContext tel $ pretty mps
+      exact <- allM mps $ isTrivialPattern . snd
+      let cl0 = indexWithDefault __IMPOSSIBLE__ cs i
       cl <- applyCl sc cl0 mps
-      return $ CoverResult (SplittingDone (size tel)) (singleton i) [] [cl] noExactClause
+      return $ CoverResult
+        { coverSplitTree      = SplittingDone (size tel)
+        , coverUsedClauses    = singleton i
+        , coverMissingClauses = []
+        , coverPatterns       = [cl]
+        , coverNoExactClauses = IntSet.fromList [ i | not $ exact || clauseCatchall cl0 ]
+        }
 
     No        ->  do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
@@ -429,6 +438,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseBody      = (`applyE` patternsToElims extra) . (s `applyPatSubst`) <$> clauseBody cl
                     , clauseType      = ty
                     , clauseCatchall  = clauseCatchall cl
+                    , clauseExact     = clauseExact cl
                     , clauseRecursive = clauseRecursive cl
                     , clauseUnreachable = clauseUnreachable cl
                     , clauseEllipsis  = clauseEllipsis cl
@@ -475,7 +485,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           let trees = map coverSplitTree      results
               useds = map coverUsedClauses    results
               psss  = map coverMissingClauses results
-              qsss  = map coverPatterns results
+              qsss  = map coverPatterns       results
               noex  = map coverNoExactClauses results
           -- Jesper, 2016-03-10  We need to remember which variables were
           -- eta-expanded by the unifier in order to generate a correct split
@@ -613,6 +623,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
   io      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIOne
   iz      <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
   let
+    cannotCreate :: forall m a. (MonadTCEnv m, ReadTCState m, MonadError TCErr m) => Doc -> Closure (Abs Type) -> m a
     cannotCreate doc t = do
       typeError . SplitError $ CannotCreateMissingClause f (tel,fromSplitPatterns ps) doc t
   let old_ps = patternsToElims $ fromSplitPatterns $ scPats old_sc
@@ -818,6 +829,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' cps (Just t)) = se
                     , clauseBody      = Just $ rhs
                     , clauseType      = Just $ defaultArg t
                     , clauseCatchall  = False
+                    , clauseExact       = Just True
                     , clauseRecursive   = Nothing     -- TODO: can it be recursive?
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
                     , clauseEllipsis  = NoEllipsis
@@ -856,6 +868,7 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , clauseBody      = Just rhs
                   , clauseType      = Just (argFromDom t)
                   , clauseCatchall  = False
+                  , clauseExact       = Just True
                   , clauseRecursive   = Nothing     -- could be recursive
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
                   , clauseEllipsis  = NoEllipsis
@@ -919,8 +932,8 @@ isDatatype ind at = do
     _ -> throw NotADatatype
 
 -- | Update the target type of the split clause after a case split.
-fixTargetType :: SplitClause -> Dom Type -> TCM SplitClause
-fixTargetType sc@SClause{ scTel = sctel, scSubst = sigma } target = do
+fixTargetType :: SplitTag -> SplitClause -> Dom Type -> TCM SplitClause
+fixTargetType tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
     reportSDoc "tc.cover.target" 20 $ sep
       [ "split clause telescope: " <+> prettyTCM sctel
       ]
@@ -931,7 +944,20 @@ fixTargetType sc@SClause{ scTel = sctel, scSubst = sigma } target = do
       [ "target type before substitution:" <+> pretty target
       , "             after substitution:" <+> pretty (applySplitPSubst sigma target)
       ]
-    return $ sc { scTarget = Just $ applySplitPSubst sigma target }
+
+    -- We update the target quantity to 0 for erased constructors.
+    updQuant <- do
+      case tag of
+        SplitCon c -> do
+          q <- getQuantity <$> getConstInfo c
+          case q of
+            Quantity0{} -> return $ mapQuantity (composeQuantity q)
+            Quantity1{} -> return id
+            Quantityω{} -> return id
+        SplitLit{} -> return id
+        SplitCatchall{} -> return id
+
+    return $ sc { scTarget = Just $ updQuant $ applySplitPSubst sigma target }
 
 
 -- | Add more patterns to split clause if the target type is a function type.
@@ -1411,7 +1437,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
         else computeNeighborhoods
 
   ns <- case target of
-    Just a  -> forM ns $ \ (con, sc) -> lift $ (con,) <$> fixTargetType sc a
+    Just a  -> forM ns $ \ (con, sc) -> lift $ (con,) <$> fixTargetType con sc a
     Nothing -> return ns
 
   ns <- case inserttrailing of
@@ -1433,6 +1459,12 @@ split' checkEmpty ind allowPartialCover inserttrailing
   let erasedError causedByWithoutK =
         throwError . ErasedDatatype causedByWithoutK =<<
           do liftTCM $ inContextOfT $ buildClosure (unDom t)
+  runtime_splits <- flip filterM ns $ \ (s,_) -> do
+    case s of
+      SplitLit{}      -> return True
+      SplitCatchall{} -> return True -- conservative
+      SplitCon q      -> usableQuantity . getQuantity <$> getConstInfo q
+
   case ns of
     []  -> do
       let absurdp = VarP (PatternInfo PatOAbsurd []) $ SplitPatVar underscore 0 []
@@ -1452,13 +1484,13 @@ split' checkEmpty ind allowPartialCover inserttrailing
       throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
-    (_ : _ : _) | not erased && not (usableQuantity t) ->
+    _ | (_ : _ : _) <- runtime_splits, not erased && not (usableQuantity t) ->
       erasedError False
 
     -- If exactly one constructor matches and the K rule is turned
     -- off, then we only allow erasure for non-indexed data types
     -- (#4172).
-    [_] | not erased && not (usableQuantity t) &&
+    _ | [_] <- runtime_splits, not erased && not (usableQuantity t) &&
           withoutK && isIndexed ->
       erasedError True
 

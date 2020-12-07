@@ -1,0 +1,5 @@
+Issue2858-conflict.agda:7,5-11
+Could not find a matching data signature for constructor foobar
+It could be any of:
+Foo (at Issue2858-conflict.agda:3,8-11)
+Foo_Bar (at Issue2858-conflict.agda:4,8-15)

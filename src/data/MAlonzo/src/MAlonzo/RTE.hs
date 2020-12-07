@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP       #-}
 {-# LANGUAGE PolyKinds #-}
 
 module MAlonzo.RTE where

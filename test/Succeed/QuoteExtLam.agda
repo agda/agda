@@ -37,13 +37,13 @@ pattern `Wrap a = def (quote Wrap) (vArg a ∷ [])
 pattern `⊥ = def (quote ⊥) []
 
 pattern expected₄ = funDef
-  (absurdClause (("()" , vArg `⊥) ∷ []) (vArg (con (quote wrap) (vArg absurd ∷ [])) ∷ [])
+  (absurdClause (("()" , vArg `⊥) ∷ []) (vArg (con (quote wrap) (vArg (absurd 0) ∷ [])) ∷ [])
   ∷ [])
 
 check₄ : OK
 check₄ = checkDefinition (λ { expected₄ → true; _ → false }) magic₄
 
-expected = extLam (absurdClause (("()" , vArg `⊥) ∷ []) (arg (argInfo visible relevant) absurd ∷ []) ∷ []) []
+expected = extLam (absurdClause (("()" , vArg `⊥) ∷ []) (arg (argInfo visible relevant) (absurd 0) ∷ []) ∷ []) []
 
 macro
 
@@ -60,7 +60,7 @@ check₂ : quoteTermNormalised magic₂ ≡ expected
 check₂ = refl
 
 pattern expectedDef =
-  funDef (absurdClause (("()" , vArg `⊥) ∷ []) (vArg absurd ∷ []) ∷ [])
+  funDef (absurdClause (("()" , vArg `⊥) ∷ []) (vArg (absurd 0) ∷ []) ∷ [])
 
 check₃ : OK
 check₃ = checkDefinition (λ { expectedDef → true; _ → false }) magic₃

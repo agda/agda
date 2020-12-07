@@ -1,5 +1,4 @@
 ret > ExitFailure 71
-out > Error: Choose at most one: input file, --interactive, or --interaction-json.
-out >
+out > Error: Must not specify an input file (Interaction-and-input-file.agda) with --interaction
 out > Run 'agda --help' for help on command line options.
 out >

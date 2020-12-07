@@ -20,6 +20,7 @@ Language Reference
    function-definitions
    function-types
    generalization-of-declared-variables
+   guarded-cubical
    implicit-arguments
    instance-arguments
    irrelevance
