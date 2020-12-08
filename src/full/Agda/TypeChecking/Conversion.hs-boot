@@ -1,9 +1,11 @@
 
 module Agda.TypeChecking.Conversion where
 
+import Control.Applicative (Const)
 import Control.Monad.Except ( MonadError )
 import qualified Control.Monad.Fail as Fail
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Warnings
@@ -38,3 +40,14 @@ equalLevel   :: MonadConversion m => Level -> Level -> m ()
 leqType      :: MonadConversion m => Type -> Type -> m ()
 leqLevel     :: MonadConversion m => Level -> Level -> m ()
 leqSort      :: MonadConversion m => Sort -> Sort -> m ()
+
+data TypeView_ =
+    TPi (Dom TwinT) (Abs TwinT)
+  | TDefRecordEta QName Defn (TwinT'_ Args)
+  | TLam
+  | TOther
+
+type TypeViewM m = (MonadMetaSolver m, MonadFresh Agda.Syntax.Common.Nat m)
+
+typeView :: forall m. TypeViewM m => TwinT' Term -> m (TypeView_)
+mkTwinTele :: TypeViewM m => TwinT'_ Telescope -> m Telescope_

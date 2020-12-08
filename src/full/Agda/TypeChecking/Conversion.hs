@@ -307,7 +307,7 @@ compareTerm'_ cmp a m n =
       _               -> typeView (fmap unEl a') >>= \case
        TPi dom cod -> equalFun s dom cod m n
        TLam        -> __IMPOSSIBLE__
-       TDefRecord r ps -> do
+       TDefRecordEta r _ ps -> do
               sig <- getSignature
               let -- ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
@@ -2133,7 +2133,7 @@ bothAbsurd f f'
 data TypeView_ =
 --    TLevel
     TPi (Dom TwinT) (Abs TwinT)
-  | TDefRecord QName (TwinT'_ Args)
+  | TDefRecordEta QName Defn (TwinT'_ Args)
   | TLam
 --  | TDef QName [Elim' (TwinT' Term)]
   | TOther
@@ -2156,7 +2156,13 @@ typeView (TwinT{necessary
             _            -> (Nothing, Nothing)
 
       -- Pi is contravariant on the first type
-      dom_ <- mkTwinDom (flipCmp direction) twinPid doml domr domc
+      dom_ <- mkTwinDom TwinT{necessary=False
+                             ,direction=(flipCmp direction)
+                             ,twinPid
+                             ,twinLHS=doml
+                             ,twinRHS=domr
+                             ,twinCompat=Const domc
+                             }
       cod_ <- mkTwinAbs direction           twinPid codl codr codc
 
       return $ TPi dom_ cod_
@@ -2164,7 +2170,9 @@ typeView (SingleT (H'Both Lam{})) = return TLam
 typeView  TwinT{twinLHS=H'LHS Lam{},twinRHS=H'RHS Lam{}} = return TLam
 typeView (SingleT (H'Both (Def r es))) =
   isEtaRecord r >>= \case
-    True  -> return $ TDefRecord r $ asTwin $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+    True  -> (theDef <$> getConstInfo r) >>= \case
+        defn@Record{} -> return $ TDefRecordEta r defn $ asTwin $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        _ -> __IMPOSSIBLE__
     False -> return $ TOther
 typeView  TwinT{necessary,
                 twinPid,
@@ -2177,13 +2185,15 @@ typeView  TwinT{necessary,
     True  -> do
       let asL = fromMaybe __IMPOSSIBLE__ . allApplyElims <$> esL
           asR = fromMaybe __IMPOSSIBLE__ . allApplyElims <$> esR
-      return $ TDefRecord r TwinT{necessary,
-                                  direction,
-                                  twinPid,
-                                  twinLHS=asL,
-                                  twinRHS=asR,
-                                  twinCompat=Const ()
-                                  }
+      (theDef <$> getConstInfo r) >>= \case
+        defn@Record{} -> return $ TDefRecordEta r defn TwinT{necessary,
+                                                             direction,
+                                                             twinPid,
+                                                             twinLHS=asL,
+                                                             twinRHS=asR,
+                                                             twinCompat=Const ()
+                                                             }
+        _ -> __IMPOSSIBLE__
     False -> return$ TOther
 typeView _ = return$ TOther
 
@@ -2212,16 +2222,13 @@ mkTwinT direction twinPid tyl tyr Nothing = do
               ,twinCompat=H'Compat tyc
               }
 
-mkTwinDom :: TypeViewM m => CompareDirection ->
-            [ProblemId] ->
-            Het 'LHS (Dom Type) ->
-            Het 'RHS (Dom Type) ->
-            Maybe (Het 'Compat (Dom Type)) ->
-            m (Dom TwinT)
-mkTwinDom direction twinPid doml domr (Just domc) = do
+mkTwinDom :: TypeViewM m => TwinT''' Bool (Const (Maybe (Het 'Compat (Dom Type)))) (Dom Type)
+             -> m (Dom TwinT)
+mkTwinDom (SingleT (H'Both a)) = return$ asTwin a
+mkTwinDom TwinT{direction,twinPid,twinLHS=doml,twinRHS=domr,twinCompat=Const (Just domc)} = do
   ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) (Just$ unDom <$> domc)
   return (twinAt @'Compat domc){unDom=ty_}
-mkTwinDom direction twinPid doml domr Nothing = do
+mkTwinDom TwinT{direction,twinPid,twinLHS=doml,twinRHS=domr,twinCompat=Const Nothing} = do
   let dom0 = selectSmaller direction (twinAt @'LHS doml) (twinAt @'RHS domr)
   ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) Nothing
   return dom0{unDom=ty_}
@@ -2244,6 +2251,34 @@ mkTwinAbs direction twinPid absl@(commute -> NoAbs _ tyl)
 mkTwinAbs direction twinPid absl absr absc =
   Abs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
     mkTwinT direction twinPid (absBody <$> absl) (absBody <$> absr) (fmap absBody <$> absc)
+
+mkTwinArgNameDom :: TypeViewM m => TwinT'_ (Dom (ArgName, Type))
+                               -> m (Dom (ArgName, TwinT))
+mkTwinArgNameDom a = do
+  let name :: ArgName
+      name = fst $ unDom $ unHet$ twinLHS a
+  fmap (name,) <$> mkTwinDom (fmap (fmap snd) a){twinCompat=Const Nothing}
+
+mkTwinTele :: TypeViewM m => TwinT'_ Telescope
+                          -> m Telescope_
+mkTwinTele (SingleT (H'Both tel)) = return $ asTwin tel
+mkTwinTele a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
+  let lhs :: [H'LHS (Dom (ArgName, Type))]
+      lhs = commute$ telToList <$> twinLHS
+  let rhs :: [H'RHS (Dom (ArgName, Type))]
+      rhs = commute$ telToList <$> twinRHS
+  let n  = length lhs
+  let n' = length rhs
+  case n  == n' of
+    False -> __IMPOSSIBLE__
+    True  ->
+      telFromList' id <$>
+        (forM (zip lhs rhs) $ \(dom1, dom2) ->
+           mkTwinArgNameDom a{necessary=(necessary && n == 1),
+                              twinLHS=dom1,
+                              twinRHS=dom2,
+                              twinCompat=Const ()
+                              })
 
 -- ( <$> tel_)
 -- TODO[het] Might not need to return a twin type with compatibility
@@ -2288,6 +2323,10 @@ class CommuteM f g where
 
 instance Commute (Het s) Abs where
   commute :: Het s (Abs a) -> Abs (Het s a)
+  commute = Data.Coerce.coerce
+
+instance Commute (Het s) [] where
+  commute :: Het s [a] -> [Het s a]
   commute = Data.Coerce.coerce
 
 instance Commute (Het s) ((,) a) where

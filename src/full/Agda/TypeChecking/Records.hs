@@ -21,8 +21,10 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base (isNameInScope)
 
+import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
+import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only
@@ -497,8 +499,11 @@ Precondition: The current context is @Γ = Γ₁, x:R pars, Γ₂@ where
 Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
 -}
 etaExpandBoundVar :: Int -> TCM (Maybe (Telescope, Substitution, Substitution))
-etaExpandBoundVar i = fmap (\ (delta, sigma, tau, _) -> (delta, sigma, tau)) <$> do
-  expandRecordVar i =<< getContextTelescope
+etaExpandBoundVar i = fmap (\(δΔ, σ, τ) -> (twinAt @'Compat δΔ, σ, τ)) <$> etaExpandBoundVar_ i
+
+etaExpandBoundVar_ :: Int -> TCM (Maybe (Telescope_, Substitution, Substitution))
+etaExpandBoundVar_ i = fmap (\ (delta, sigma, tau, _) -> (delta, sigma, tau)) <$> do
+  expandRecordVar_ i =<< getContextTelescope_
 
 -- | @expandRecordVar i Γ = (Δ, σ, τ, Γ')@
 --
@@ -507,9 +512,11 @@ etaExpandBoundVar i = fmap (\ (delta, sigma, tau, _) -> (delta, sigma, tau)) <$>
 --     with constructor @c@ and fields @Γ'@.
 --
 --   Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
-
 expandRecordVar :: Int -> Telescope -> TCM (Maybe (Telescope, Substitution, Substitution, Telescope))
-expandRecordVar i gamma0 = do
+expandRecordVar i tel = fmap (\(δΔ, σ, τ, γΓ) -> (twinAt @'Compat δΔ, σ, τ, twinAt @'Compat γΓ)) <$> expandRecordVar_ i (asTwin tel)
+
+expandRecordVar_ :: Int -> Telescope_ -> TCM (Maybe (Telescope_, Substitution, Substitution, Telescope_))
+expandRecordVar_ i gamma0 = do
   -- Get the context with last variable added last in list.
   let gamma = telToList gamma0
   -- Convert the de Bruijn index i to a de Bruijn level
@@ -522,15 +529,14 @@ expandRecordVar i gamma0 = do
         reportSDoc "tc.meta.assign.proj" 25 $
           "failed to eta-expand variable " <+> pretty x <+>
           " since its type " <+> prettyTCM a <+>
-          " is not a record type"
+          " is not an eta-expandable record type"
         return Nothing
-  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> case recEtaEquality def of
-    NoEta{} -> return Nothing
-    YesEta  -> Just <$> do
+  typeView (unEl <$> a) >>= \case
+    TDefRecordEta r def pars  -> Just <$> do
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
       -- TODO: compose argInfo ai with tel.
-      let tel = recTel def `apply` pars
-          m   = size tel
+      tel <- mkTwinTele $ twinDirty $ (recTel def `apply`) <$> pars
+      let m   = size tel
           fs  = map argFromDom $ recFields def
       -- Construct the record pattern @Γ₁, Γ' ⊢ u := c ys@.
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
@@ -554,13 +560,14 @@ expandRecordVar i gamma0 = do
           -- Use "f(x)" as variable name for the projection f(x).
           s     = prettyShow x
           tel'  = mapAbsNames (\ f -> stringToArgName $ argNameToString f ++ "(" ++ s ++ ")") tel
-          delta = telFromList $ gamma1 ++ telToList tel' ++
-                    telToList (applySubst tau0 $ telFromList gamma2)
+          delta = telFromList_ $ gamma1 ++ telToList tel' ++
+                    telToList (applySubst tau0 $ telFromList_ gamma2)
                     -- Andreas, 2017-07-29, issue #2644
                     -- We cannot substitute directly into a ListTel like gamma2,
                     -- we have to convert it to a telescope first, otherwise we get garbage.
 
       return (delta, sigma, tau, tel)
+    _ -> failure
 
 -- | Precondition: variable list is ordered descendingly.  Can be empty.
 expandRecordVarsRecursively :: [Int] -> Telescope -> TCM (Telescope, Substitution, Substitution)

@@ -912,7 +912,11 @@ telFromList' f = List.foldr extTel EmptyTel
 
 -- | Convert a list telescope to a telescope.
 telFromList :: ListTel -> Telescope
-telFromList = telFromList' id
+telFromList = telFromList_
+
+-- | Convert a list telescope to a telescope.
+telFromList_ :: ListTel'' ArgName t -> Tele (Dom t)
+telFromList_ = telFromList' id
 
 -- | Convert a telescope to its list form.
 telToList :: Tele (Dom t) -> [Dom (ArgName,t)]

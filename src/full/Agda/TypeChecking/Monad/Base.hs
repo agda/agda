@@ -2875,6 +2875,9 @@ instance AsTwin () where type AsTwin_ () = (); asTwin = id
 instance AsTwin a => AsTwin (Abs a) where
   type AsTwin_ (Abs a) = Abs (AsTwin_ a)
   asTwin = fmap asTwin
+instance AsTwin a => AsTwin (Tele a) where
+  type AsTwin_ (Tele a) = Tele (AsTwin_ a)
+  asTwin = fmap asTwin
 
 class TwinAt (s :: HetSide) a where
   type TwinAt_ s a
@@ -2982,7 +2985,7 @@ instance GetSort a => GetSort (TwinT' a) where
   getSort = getSort . twinAt @'Compat
 
 -- | Mark necessary bit after the twin has gone under a none-injective computation
-twinDirty :: TwinT' a -> TwinT' a
+twinDirty :: TwinT''' Bool f a -> TwinT''' Bool f a
 twinDirty a@SingleT{} = a
 twinDirty a@TwinT{}   = a{necessary = False}
 
