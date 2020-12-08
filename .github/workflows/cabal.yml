@@ -122,7 +122,7 @@ jobs:
     - name: Build Agda
       uses: nick-invision/retry@v2
       # Liang-Ting (2020-12-8):
-      # Due to a ghc bug on Windows, it is necessary to build Agda twice (or more) 
+      # Due to a ghc bug on Windows, it is necessary to build Agda twice (or more)
       # See:
       #   - https://github.com/agda/agda/issues/4543
       #   - https://gitlab.haskell.org/ghc/ghc/-/issues/18634
