@@ -106,9 +106,11 @@ jobs:
         cabal update
 
     - name: Download and Install ICU ${{ matrix.icu-ver }}
+      shell: powershell
+      if: ${{ runner.os == 'Windows' }}
       run: |
-        C:\\msys64\\usr\\bin\\wget.exe -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
-        C:\\msys64\\usr\\bin\\pacman.exe -U --noconfirm ${ICU_FILE}
+        C:\msys64\usr\bin\wget.exe -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
+        C:\msys64\usr\bin\pacman.exe -U --noconfirm ${env:ICU_FILE}
 
     - name: Create cabal.config
       run: |

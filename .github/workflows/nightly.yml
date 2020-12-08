@@ -92,12 +92,13 @@ jobs:
         # Msys2 does not ship strip by default
         if [[ "$OSTYPE" == "msys"* ]]
         then
-          C:\\msys64\\usr\\bin\\pacman.exe -S --noconfirm mingw-w64-x86_64-binutils
+          stack ${ARGS} exec -- strip ${{ env.nightly_dir }}/bin/*
+        else
+          strip ${{ env.nightly_dir }}/bin/*
         fi
 
-        strip ${{ env.nightly_dir }}/bin/*
-
         tar -cvf ${{ env.nightly_dir }}.tar ${{ env.nightly_dir }}
+
     - uses: actions/upload-artifact@v2
       with:
         path: ${{ env.nightly_dir }}.tar
