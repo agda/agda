@@ -92,7 +92,7 @@ jobs:
         # Msys2 does not ship strip by default
         if [[ "$OSTYPE" == "msys"* ]]
         then
-          C:\\msys64\\pacman -S --noconfirm mingw-w64-x86_64-binutils
+          /msys64/usr/bin/pacman.exe -S --noconfirm mingw-w64-x86_64-binutils
         fi
 
         strip ${{ env.nightly_dir }}/bin/*
