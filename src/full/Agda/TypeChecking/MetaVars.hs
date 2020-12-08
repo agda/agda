@@ -1394,7 +1394,7 @@ etaExpandProjectedVar :: (PrettyTCM a, TermSubst a) => Int -> a -> TCM c -> (a -
 etaExpandProjectedVar i v fail succeed = do
   reportSDoc "tc.meta.assign.proj" 40 $
     "trying to expand projected variable" <+> prettyTCM (var i)
-  caseMaybeM (etaExpandBoundVar i) fail $ \ (delta, sigma, tau) -> do
+  caseMaybeM (etaExpandBoundVar_ i) fail $ \ (delta, sigma, tau) -> do
     reportSDoc "tc.meta.assign.proj" 25 $
       "eta-expanding var " <+> prettyTCM (var i) <+>
       " in terms " <+> prettyTCM v

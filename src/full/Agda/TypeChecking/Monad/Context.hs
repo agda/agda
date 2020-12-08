@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Monad.Context where
 
@@ -399,23 +400,29 @@ instance AddContext Telescope where
     loop (ExtendTel t tel) = underAbstraction' id t tel loop
   contextSize = size
 
+instance AddContext Telescope_ where
+  addContext tel ret = loop tel where
+    loop EmptyTel          = ret
+    loop (ExtendTel t tel) = underAbstraction' id t tel loop
+  contextSize = size
+
 -- | Go under an abstraction.  Do not extend context in case of 'NoAbs'.
 {-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction = underAbstraction' id
 
-underAbstraction' :: (Subst a, MonadAddContext m, AddContext (name, Dom Type)) =>
-                     (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
+underAbstraction' :: (Subst a, MonadAddContext m, AddContext (name, Dom t)) =>
+                     (String -> name) -> Dom t -> Abs a -> (a -> m b) -> m b
 underAbstraction' _ _ (NoAbs _ v) k = k v
 underAbstraction' wrap t a k = underAbstractionAbs' wrap t a k
 
 -- | Go under an abstraction, treating 'NoAbs' as 'Abs'.
-underAbstractionAbs :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
+underAbstractionAbs :: (Subst a, MonadAddContext m, AddContext (String, Dom t)) => Dom t -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs = underAbstractionAbs' id
 
 underAbstractionAbs'
-  :: (Subst a, MonadAddContext m, AddContext (name, Dom Type))
-  => (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
+  :: (Subst a, MonadAddContext m, AddContext (name, Dom t))
+  => (String -> name) -> Dom t -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
