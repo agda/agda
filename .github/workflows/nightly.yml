@@ -15,8 +15,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-18.04]
-        ghc-ver: [8.8.4]
+        os: [macos-latest, ubuntu-18.04]
+        ghc-ver: [8.10.2]
+        include:
+          - os: windows-latest
+            ghc-ver: 8.10.1
 
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
@@ -64,7 +67,7 @@ jobs:
 
     - name: Build Agda (Unix-like)
       if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${FLAGS}
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${FLAGS} 
 
     - name: Build Agda which may fail on the first try (Windows)
       uses: nick-invision/retry@v2
