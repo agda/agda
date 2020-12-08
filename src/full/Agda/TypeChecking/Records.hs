@@ -531,7 +531,7 @@ expandRecordVar_ i gamma0 = do
           " since its type " <+> prettyTCM a <+>
           " is not an eta-expandable record type"
         return Nothing
-  typeView (unEl <$> a) >>= \case
+  reduce a >>= typeView . fmap unEl >>= \case
     TDefRecordEta r def pars  -> Just <$> do
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
       -- TODO: compose argInfo ai with tel.
