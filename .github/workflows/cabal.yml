@@ -86,10 +86,6 @@ jobs:
         cabal-ver: ["3.2"]
         icu-ver: [65.1-1]
 
-    defaults:
-      run:
-        shell: bash
-
     env:
       FLAGS: "-f enable-cluster-counting"
       ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
@@ -106,20 +102,17 @@ jobs:
         cabal update
 
     - name: Download and Install ICU ${{ matrix.icu-ver }}
-      shell: powershell
       if: ${{ runner.os == 'Windows' }}
       run: |
         C:\msys64\usr\bin\wget.exe -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
         C:\msys64\usr\bin\pacman.exe -U --noconfirm ${env:ICU_FILE}
 
-    - name: Create cabal.config
-      run: |
         echo "extra-lib-dirs: C:\msys64\mingw64\lib" >> cabal.config
         echo "extra-include-dirs: C:\msys64\mingw64\include" >> cabal.config
 
     - name: Build dependencies
       run: |
-        cabal build ${FLAGS} --only-dependencies
+        cabal build ${env:FLAGS} --only-dependencies
 
     - name: Build Agda
       uses: nick-invision/retry@v2
