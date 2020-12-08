@@ -107,9 +107,9 @@ jobs:
 
     - name: Download and Install ICU ${{ matrix.icu-ver }}
       run: |
-        /msys64/usr/bin/wget.exe -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
-        /msys64/usr/bin/pacman.exe -U --noconfirm ${ICU_FILE}
-
+        C:\\msys64\\usr\\bin\\wget.exe -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
+        C:\\msys64\\usr\\bin\\pacman.exe -U --noconfirm ${ICU_FILE}
+        
     - name: Create cabal.config
       run: |
         echo "extra-lib-dirs: C:\msys64\mingw64\lib" >> cabal.config
