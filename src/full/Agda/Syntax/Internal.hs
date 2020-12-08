@@ -901,10 +901,11 @@ replaceEmptyName :: ArgName -> Tele a -> Tele a
 replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
 
 -- | Telescope as list.
-type ListTel' a = [Dom (a, Type)]
+type ListTel'' a t = [Dom (a, t)]
+type ListTel' a = ListTel'' a Type
 type ListTel = ListTel' ArgName
 
-telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
+telFromList' :: (a -> ArgName) -> ListTel'' a t -> Tele (Dom t)
 telFromList' f = List.foldr extTel EmptyTel
   where
     extTel dom@Dom{unDom = (x, a)} = ExtendTel (dom{unDom = a}) . Abs (f x)

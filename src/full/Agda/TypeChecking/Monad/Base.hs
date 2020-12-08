@@ -2744,6 +2744,10 @@ switchSide = unsafeModifyContext {- IdS -} (asTwin . twinAt @s)
 switchSide_ :: forall s b a m. (HetSideIsType s, MonadTCEnv m, a ~ Het s b) => m a -> m a
 switchSide_ = switchSide @s @(Het s b)
 
+-- * Heterogeneous telescope
+
+type Telescope_ = Tele (Dom TwinT)
+
 -- * Describing parts of twin contexts
 
 data HetSide = LHS | RHS | Compat | Whole | Both
@@ -2921,6 +2925,10 @@ instance TwinAt s () where
 
 instance TwinAt s a => TwinAt s (CompareAs' a) where
   type TwinAt_ s (CompareAs' a) = CompareAs' (TwinAt_ s a)
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (Tele a) where
+  type TwinAt_ s (Tele a) = Tele (TwinAt_ s a)
   twinAt = fmap (twinAt @s)
 
 instance Sized ContextHet where

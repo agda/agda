@@ -486,7 +486,12 @@ getContextTerms = map var . downFrom <$> getContextSize
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
 getContextTelescope :: (Applicative m, MonadTCEnv m) => m Telescope
-getContextTelescope = telFromList' nameToArgName . reverse <$> getContext
+getContextTelescope = twinAt @'Compat <$> getContextTelescope_
+
+-- | Get the current context as a 'Telescope'.
+{-# SPECIALIZE getContextTelescope_ :: TCM Telescope_ #-}
+getContextTelescope_ :: (Applicative m, MonadTCEnv m) => m Telescope_
+getContextTelescope_ = telFromList' nameToArgName . reverse . contextHetToList <$> getContext_
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}
