@@ -69,7 +69,7 @@ reduceWithBlocker a = ifBlocked a
 -- Reduce a term and call the continuation. If the continuation is
 -- blocked, the whole call is blocked either on what blocked the reduction
 -- or on what blocked the continuation (using `blockedOnEither`).
-withReduced 
+withReduced
   :: (Reduce a, IsMeta a, MonadReduce m, MonadBlock m)
   => a -> (a -> m b) -> m b
 withReduced a cont = ifBlocked a (\b a' -> addOrUnblocker b $ cont a') (\_ a' -> cont a')
