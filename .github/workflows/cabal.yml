@@ -102,7 +102,6 @@ jobs:
         cabal update
 
     - name: Download and Install ICU ${{ matrix.icu-ver }}
-      if: ${{ runner.os == 'Windows' }}
       run: |
         C:\msys64\usr\bin\wget.exe -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
         C:\msys64\usr\bin\pacman.exe -U --noconfirm ${env:ICU_FILE}
@@ -112,7 +111,7 @@ jobs:
 
     - name: Build dependencies
       run: |
-        cabal build ${env:FLAGS} --only-dependencies
+        cabal build ${FLAGS} --only-dependencies
 
     - name: Build Agda
       uses: nick-invision/retry@v2
