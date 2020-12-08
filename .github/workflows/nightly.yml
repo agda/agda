@@ -67,7 +67,7 @@ jobs:
 
     - name: Build Agda (Unix-like)
       if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${FLAGS} 
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${FLAGS}
 
     - name: Build Agda which may fail on the first try (Windows)
       uses: nick-invision/retry@v2
