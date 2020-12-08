@@ -62,18 +62,26 @@ jobs:
     - name: Build dependencies
       run: stack build ${ARGS} ${EXTRA_ARGS} ${FLAGS} --only-dependencies
 
-    - name: Build Agda
+    - name: Build Agda (Unix-like)
+      if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${FLAGS}
+
+    - name: Build Agda which may fail on the first try (Windows)
       uses: nick-invision/retry@v2
+      if: ${{ runner.os == 'Windows' }}
       # Liang-Ting (2020-12-8):
       # Due to a ghc bug on Windows, it is necessary to build Agda twice (or more)
       # See:
       #   - https://github.com/agda/agda/issues/4543
       #   - https://gitlab.haskell.org/ghc/ghc/-/issues/18634
+      #
+      # Liang-Ting (2020-12-8):
+      # It also fails to compile with the ghc option -split-sections on Windows
       with:
         max_attempts: 3
         timeout_minutes: 50
         retry_on: error
-        command: stack build ${{ env.ARGS }} ${{ env.EXTRA_ARGS }} ${{ env.FLAGS }}
+        command: stack build ${{ env.ARGS }} ${{ env.FLAGS }}
 
     - name: Pack artefacts
       run: |
