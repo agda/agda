@@ -289,6 +289,6 @@ simplifyHet b κ = go Empty =<< getContext_
         True  -> go (acc :⊢ (asTwin$ twinAt @'Compat a)) γΓ
         False -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
 
-  -- | Remove unnecessary twins from the context
+-- | Remove unnecessary twins from the context
 simplifyContextHet :: SimplifyHetM m => m a -> m a
 simplifyContextHet m = simplifyHet () (\() -> m)
