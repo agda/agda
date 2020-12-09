@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting --confluence-check #-}
+{-# OPTIONS --without-K --rewriting #-}
 
 module Issue1719.Pushouts where
 
