@@ -1037,6 +1037,7 @@ data Constraint
   | ValueCmp_ Comparison CompareAs_ (Het 'LHS Term) (Het 'RHS Term)
   | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] [IsForced] Type Term [Elim] [Elim]
+  | ElimCmp_ [Polarity] [IsForced] TwinT (TwinT' Term) (H'LHS [Elim]) (H'RHS [Elim])
   | SortCmp Comparison Sort Sort
   | LevelCmp Comparison Level Level
 --  | ShortCut MetaId Term Type
@@ -1082,6 +1083,7 @@ instance Free Constraint where
       ValueCmp_ _ t u v   -> freeVars' (t, (u, v))
       ValueCmpOnFace _ p t u v -> freeVars' (p, (t, (u, v)))
       ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
+      ElimCmp_ _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
       SortCmp _ s s'        -> freeVars' (s, s')
       LevelCmp _ l l'       -> freeVars' (l, l')
       UnBlock _             -> mempty
@@ -1102,6 +1104,7 @@ instance TermLike Constraint where
       ValueCmp_ _ t u v      -> foldTerm f (t, u, v)
       ValueCmpOnFace _ p t u v -> foldTerm f (p, t, u, v)
       ElimCmp _ _ t u es es' -> foldTerm f (t, u, es, es')
+      ElimCmp_ _ _ t u es es' -> foldTerm f (t, u, es, es')
       LevelCmp _ l l'        -> foldTerm f (Level l, Level l')  -- Note wrapping as term, to ensure f gets to act on l and l'
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u
@@ -1186,10 +1189,20 @@ instance TermLike a => TermLike (CompareAs' a) where
     AsSizes     -> return AsSizes
     AsTypes     -> return AsTypes
 
-instance AllMetas CompareAs
-instance AllMetas CompareAsHet
+instance AllMetas a => AllMetas (CompareAs' a) where
+  allMetas f (AsTermsOf a) = allMetas f a
+  allMetas _ AsSizes       = mempty
+  allMetas _ AsTypes       = mempty
 
-
+instance AllMetas a => AllMetas (TwinT' a) where
+  allMetas f (SingleT a) = allMetas f a
+  -- TODO[het]: <victor> 2020-10-12 Remove twinCompat from here, see if it makes a difference
+  allMetas f TwinT{twinLHS,twinCompat,twinRHS} =
+#if __GLASGOW_HASKELL__ >= 804
+    allMetas f twinLHS <> allMetas f twinRHS <> allMetas f twinCompat
+#else
+    allMetas f twinLHS `mappend` allMetas f twinRHS `mappend` allMetas f twinCompat
+#endif
 
 ---------------------------------------------------------------------------
 -- * Open things
@@ -2970,11 +2983,11 @@ deriving instance (Show a, Show b) => Show (TwinT'' a b)
 --   (TwinT pid nec a b c) <*> SingleT (Het x) = TwinT pid nec (($x) <$> a) (($x) <$> b) (($x) <$> c)
 --   (SingleT (Het f)) <*> (TwinT pid nec a b c) = TwinT pid nec (f <$> a) (f <$> b) (f <$> c)
 
-instance Free TwinT where
+instance Free a => Free (TwinT' a) where
   freeVars' (SingleT a) = freeVars' a
   freeVars' (TwinT{twinLHS,twinRHS,twinCompat}) = freeVars' twinLHS <> freeVars' twinRHS <> freeVars' twinCompat
 
-instance TermLike TwinT where
+instance TermLike a => TermLike (TwinT' a) where
   traverseTermM f = \case
     SingleT a -> SingleT <$> traverseTermM f a
     TwinT{twinPid,direction,necessary,twinLHS=a,twinRHS=b,twinCompat=c} ->

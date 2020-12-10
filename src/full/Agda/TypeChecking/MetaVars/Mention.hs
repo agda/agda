@@ -106,6 +106,7 @@ instance MentionsMeta Constraint where
     ValueCmp_ _ t u v   -> mm (t, u, v)
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
     ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))
+    ElimCmp_ _ _ t v as bs -> mm ((t, v), (as, bs))
     LevelCmp _ u v      -> mm (u, v)
     SortCmp _ a b       -> mm (a, b)
     UnBlock _           -> True   -- this might be a postponed typechecking
@@ -134,7 +135,7 @@ instance MentionsMeta a => MentionsMeta (CompareAs' a) where
 instance MentionsMeta a => MentionsMeta (Het side a) where
   mentionsMetas xs = mentionsMetas xs . unHet
 
-instance MentionsMeta TwinT where
+instance MentionsMeta a => MentionsMeta (TwinT' a) where
   mentionsMetas xs (SingleT a) = mentionsMetas xs a
   mentionsMetas xs (TwinT{twinLHS,twinRHS,twinCompat}) = mentionsMetas xs (twinLHS, twinRHS, twinCompat)
 

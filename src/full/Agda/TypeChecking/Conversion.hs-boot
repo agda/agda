@@ -29,6 +29,7 @@ compareTermOnFace :: MonadConversion m => Comparison -> Term -> Type -> Term -> 
 compareAtom  :: MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
 compareArgs  :: MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> Args -> Args -> m ()
 compareElims :: MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
+compareElims_ :: MonadConversion m => [Polarity] -> [IsForced] -> TwinT' Type -> TwinT' Term -> H'LHS [Elim] -> H'RHS [Elim] -> m ()
 compareType  :: MonadConversion m => Comparison -> Type -> Type -> m ()
 compareSort  :: MonadConversion m => Comparison -> Sort -> Sort -> m ()
 compareLevel :: MonadConversion m => Comparison -> Level -> Level -> m ()

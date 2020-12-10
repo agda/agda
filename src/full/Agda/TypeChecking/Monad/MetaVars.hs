@@ -259,6 +259,7 @@ constraintMetas = \case
       ValueCmp_ _ t u v        -> return $ allMetas Set.singleton (t, u, v)
       ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
       ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
+      ElimCmp_ _ _ t u es es'  -> return $ allMetas Set.singleton (t, u, es, es')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')
       UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)

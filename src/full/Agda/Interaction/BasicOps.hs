@@ -367,6 +367,8 @@ outputFormId (OutputForm _ _ _ o) = out o
       CmpInTypeHet _ _ i _       -> unHet @'M.LHS i
       CmpElim _ _ (i:_) _        -> i
       CmpElim _ _ [] _           -> __IMPOSSIBLE__
+      CmpElim_ _ _ (H'LHS (i:_)) _ -> i
+      CmpElim_ _ _ (H'LHS []) _    -> __IMPOSSIBLE__
       JustType i                 -> i
       CmpLevels _ i _            -> i
       CmpTypes _ i _             -> i
@@ -419,6 +421,9 @@ instance Reify Constraint where
     reify (ElimCmp cmp _ t v es1 es2) =
       CmpElim cmp <$> reify t <*> mapM reifyElimToExpr es1
                               <*> mapM reifyElimToExpr es2
+    reify (ElimCmp_ cmp _ t v es1 es2) =
+      CmpElim_ cmp <$> reify t <*> traverse (mapM reifyElimToExpr) es1
+                               <*> traverse (mapM reifyElimToExpr) es2
     reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
     reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
     reify (UnquoteTactic tac _ goal) = do
@@ -502,6 +507,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
       CmpInType cmp t e e' -> pcmp cmp e e' .: t
       CmpInTypeHet cmp t e e' -> pcmp cmp e e' .: t
       CmpElim cmp t e e'   -> pcmp cmp e e' .: t
+      CmpElim_ cmp t e e'  -> pcmp cmp e e' .: t
       CmpTypes  cmp t t'   -> pcmp cmp t t'
       CmpLevels cmp t t'   -> pcmp cmp t t'
       CmpTeles  cmp t t'   -> pcmp cmp t t'
@@ -547,6 +553,8 @@ instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint a b) where
                                                <*> toConcreteCtx TopCtx e'
     toConcrete (CmpElim cmp t e e') =
       CmpElim cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e <*> toConcreteCtx TopCtx e'
+    toConcrete (CmpElim_ cmp t e e') =
+      CmpElim_ cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e <*> toConcreteCtx TopCtx e'
     toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx TopCtx e
                                                   <*> toConcreteCtx TopCtx e'
     toConcrete (CmpLevels cmp e e') = CmpLevels cmp <$> toConcreteCtx TopCtx e
@@ -633,6 +641,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         ValueCmpOnFace cmp p t u v -> isMeta u `mplus` isMeta v
         -- TODO: extend to other comparisons?
         ElimCmp cmp fs t v as bs   -> Nothing
+        ElimCmp_ cmp fs t v as bs  -> Nothing
         LevelCmp cmp u v           -> Nothing
         SortCmp cmp a b            -> Nothing
         UnBlock{}                  -> Nothing

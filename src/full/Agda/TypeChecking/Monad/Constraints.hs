@@ -205,6 +205,7 @@ addConstraintTo bucket unblock c = do
       ValueCmp_{}      -> True
       ValueCmpOnFace{} -> True
       ElimCmp{}        -> True
+      ElimCmp_{}       -> True
       UnBlock{}        -> True
       IsEmpty{}        -> True
       CheckSizeLtSat{} -> True

@@ -990,6 +990,7 @@ instance Subst Constraint where
     ValueCmp_ cmp a u v      -> ValueCmp_ cmp (rf a) (rf u) (rf v)
     ValueCmpOnFace cmp p t u v -> ValueCmpOnFace cmp (rf p) (rf t) (rf u) (rf v)
     ElimCmp ps fs a v e1 e2  -> ElimCmp ps fs (rf a) (rf v) (rf e1) (rf e2)
+    ElimCmp_ ps fs a v e1 e2  -> ElimCmp_ ps fs (rf a) (rf v) (rf e1) (rf e2)
     SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     IsEmpty r a              -> IsEmpty r (rf a)

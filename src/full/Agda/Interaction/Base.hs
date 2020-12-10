@@ -452,6 +452,7 @@ data OutputConstraint a b
       = OfType b a | CmpInType Comparison a b b
                    | CmpInTypeHet Comparison (TwinT' a) (Het 'LHS b) (Het 'RHS b)
                    | CmpElim [Polarity] a [b] [b]
+                   | CmpElim_ [Polarity] (TwinT' a) (Het 'LHS [b]) (Het 'RHS [b])
       | JustType b | CmpTypes Comparison b b
                    | CmpLevels Comparison b b
                    | CmpTeles Comparison b b

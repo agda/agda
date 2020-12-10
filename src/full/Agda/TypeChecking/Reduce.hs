@@ -207,6 +207,8 @@ instance Instantiate Constraint where
     return $ ValueCmpOnFace cmp p t u v
   instantiate' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
+  instantiate' (ElimCmp_ cmp fs t v as bs) =
+    ElimCmp_ cmp fs <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
   instantiate' (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate' (u,v)
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
   instantiate' (UnBlock m)          = return $ UnBlock m
@@ -810,6 +812,8 @@ instance Reduce Constraint where
     return $ ValueCmpOnFace cmp p t u v
   reduce' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
+  reduce' (ElimCmp_ cmp fs t v as bs) =
+    ElimCmp_ cmp fs <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
   reduce' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> reduce' (u,v)
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
   reduce' (UnBlock m)           = return $ UnBlock m
@@ -989,6 +993,8 @@ instance Simplify Constraint where
     return $ ValueCmpOnFace cmp p t u v
   simplify' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
+  simplify' (ElimCmp_ cmp fs t v as bs) =
+    ElimCmp_ cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
   simplify' (UnBlock m)           = return $ UnBlock m
@@ -1172,6 +1178,8 @@ instance Normalise Constraint where
     return $ ValueCmpOnFace cmp p t u v
   normalise' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
+  normalise' (ElimCmp_ cmp fs t v as bs) =
+    ElimCmp_ cmp fs <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
   normalise' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> normalise' (u,v)
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
   normalise' (UnBlock m)           = return $ UnBlock m
@@ -1394,6 +1402,8 @@ instance InstantiateFull Constraint where
       return $ ValueCmpOnFace cmp p t u v
     ElimCmp cmp fs t v as bs ->
       ElimCmp cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
+    ElimCmp_ cmp fs t v as bs ->
+      ElimCmp_ cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
     LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull' (u,v)
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
     UnBlock m           -> return $ UnBlock m
@@ -1572,12 +1582,12 @@ instance InstantiateFull EqualityView where
     <*> instantiateFull' a
     <*> instantiateFull' b
 
-instance Instantiate TwinT where
+instance Instantiate a => Instantiate (TwinT' a) where
   instantiate' = traverse instantiate'
 
 -- TODO: Do not reduce/reduceB' twinCompat
 -- | Note: reduceB does not block on the compatibility element
-instance Reduce TwinT where
+instance Reduce a => Reduce (TwinT' a) where
   reduce' (SingleT a) = SingleT <$> reduce' a
   reduce'  TwinT{necessary,direction,twinPid,twinLHS=a,twinCompat=b,twinRHS=c} =
                reduce' (a,b,c) <&> \(a',b',c') ->
@@ -1590,12 +1600,12 @@ instance Reduce TwinT where
                  TwinT{necessary,direction,twinPid,twinLHS=a',twinCompat=b',twinRHS=c'})
 
 
-instance Simplify TwinT where
+instance Simplify a => Simplify (TwinT' a) where
   simplify' = traverse simplify'
 
-instance Normalise TwinT where
+instance Normalise a => Normalise (TwinT' a) where
   normalise' = traverse normalise'
 
-instance InstantiateFull TwinT where
+instance InstantiateFull a => InstantiateFull (TwinT' a) where
   instantiateFull' = traverse instantiateFull'
 

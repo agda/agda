@@ -252,6 +252,7 @@ solveConstraint_ (ValueCmp cmp a u v)       = compareAs cmp a u v
 solveConstraint_ (ValueCmp_ cmp a u v)      = compareAs cmp (twinAt @'Compat a) (twinAt @'Compat u) (twinAt @'Compat v)
 solveConstraint_ (ValueCmpOnFace cmp p a u v) = compareTermOnFace cmp p a u v
 solveConstraint_ (ElimCmp cmp fs a e u v)   = compareElims cmp fs a e u v
+solveConstraint_ (ElimCmp_ cmp fs a e u v)  = compareElims_ cmp fs a e u v
 solveConstraint_ (SortCmp cmp s1 s2)        = compareSort cmp s1 s2
 solveConstraint_ (LevelCmp cmp a b)         = compareLevel cmp a b
 solveConstraint_ (IsEmpty r t)              = ensureEmptyType r t

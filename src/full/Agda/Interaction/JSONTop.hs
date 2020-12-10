@@ -180,6 +180,11 @@ encodeOC f encPrettyTCM = \case
   , "type"           #= encPrettyTCM a
   , "constraintObjs" #= traverse (traverse f) [is, js]
   ]
+ CmpElim_ ps a is js -> kind "CmpElim"
+  [ "polarities"     @= map encodeShow ps
+  , "type"           #= encodeTwinT encPrettyTCM a
+  , "constraintObjs" #= traverse (traverse f) [unHet @'LHS is, unHet @'RHS js]
+  ]
  JustType a -> kind "JustType"
   [ "constraintObj"  #= f a
   ]
