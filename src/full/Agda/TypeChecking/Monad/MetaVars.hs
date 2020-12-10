@@ -32,8 +32,9 @@ import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Constraints (MonadConstraint)
-import Agda.TypeChecking.Monad.Debug (MonadDebug, reportSLn)
+import Agda.TypeChecking.Monad.Debug (MonadDebug, reportSLn, reportSDoc)
 import Agda.TypeChecking.Monad.Context
+import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Monad.Signature (HasConstInfo)
 import Agda.TypeChecking.Substitute
 import {-# SOURCE #-} Agda.TypeChecking.Telescope
@@ -493,8 +494,7 @@ newMetaTCM' inst frozen mi p perm j = do
                   , mvFrozen           = frozen
                   , mvTwin             = Nothing
                   }
-  -- printing not available (import cycle)
-  -- reportSDoc "tc.meta.new" 50 $ "new meta" <+> prettyTCM j'
+  reportSDoc "tc.meta.new" 50 $ "new meta" <+> prettyTCM j'
   insertMetaVar x mv
   return x
 
