@@ -353,19 +353,20 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
                 onlyReduceTypes (nonLinMatch delta (t , hd) ps es) >>= \case
                   Left _    -> return False
                   Right sub -> do
-                    let us = applySubst sub $ map var [0..(size delta-1)]
+                    let us = applySubst sub $ map var $ downFrom $ size delta
+                        as = map unDom $ applySubst sub $ flattenTel delta
                     reportSDoc "rewriting.confluence.global" 35 $
                       prettyTCM (hd es) <+> "is an instance of the LHS of rule" <+> prettyTCM q <+> "with instantiation" <+> prettyList_ (map prettyTCM us)
-                    let ok = allDistinctVars us
+                    ok <- allDistinctVars $ zip us as
                     when ok $ reportSDoc "rewriting.confluence.global" 30 $
                       "It is equal to the LHS of rewrite rule" <+> prettyTCM q
                     return ok
-              allDistinctVars :: [Term] -> Bool
-              allDistinctVars us = case traverse isVar us of
-                Just is -> fastDistinct is
-                Nothing -> False
-              isVar (Var i []) = Just i
-              isVar _          = Nothing -- TODO: use type-directed isEtaVar
+              allDistinctVars :: [(Term,Type)] -> TCM Bool
+              allDistinctVars us = do
+                mis <- traverse (uncurry isEtaVar) us
+                case sequence mis of
+                  Just is -> return $ fastDistinct is
+                  Nothing -> return False
 
           rews <- getClausesAndRewriteRulesFor f
           let sameRHS = onlyReduceTypes $ pureEqualTerm a rhs1 rhs2
