@@ -273,7 +273,7 @@ instance EmbPrj NLPSort where
     valu _      = malformed
 
 instance EmbPrj RewriteRule where
-  icod_ (RewriteRule a b c d e f) = icodeN' RewriteRule a b c d e f
+  icod_ (RewriteRule a b c d e f g) = icodeN' RewriteRule a b c d e f g
 
   value = valueN RewriteRule
 

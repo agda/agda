@@ -324,15 +324,12 @@ instance Match Type NLPat Term where
                   | conName c == f = ps
                   | otherwise      = map (Apply . fmap mkField) flds
             match r gamma k (ct, Con c ci) ps' (map Apply vs)
-          MetaV m es -> do
-            matchingBlocked $ blocked_ m
           v -> maybeBlock v
       PLam i p' -> case unEl t of
         Pi a b -> do
           let body = raise 1 v `apply` [Arg i (var 0)]
               k'   = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) (absBody p') body
-        MetaV m es -> matchingBlocked $ blocked_ m
         v -> maybeBlock v
       PPi pa pb -> case v of
         Pi a b -> do

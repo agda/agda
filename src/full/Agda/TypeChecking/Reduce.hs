@@ -1404,13 +1404,14 @@ instance InstantiateFull NLPSort where
   instantiateFull' PLockUniv = return PLockUniv
 
 instance InstantiateFull RewriteRule where
-  instantiateFull' (RewriteRule q gamma f ps rhs t) =
+  instantiateFull' (RewriteRule q gamma f ps rhs t c) =
     RewriteRule q
       <$> instantiateFull' gamma
       <*> pure f
       <*> instantiateFull' ps
       <*> instantiateFull' rhs
       <*> instantiateFull' t
+      <*> pure c
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)
