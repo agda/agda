@@ -5,9 +5,6 @@
 module Agda.Interaction.Highlighting.HTML.Base
   ( HtmlOptions(..)
   , HtmlHighlight(..)
-  , HtmlInputSourceFile
-  , generateHTMLPages
-  , generateHTMLWithPageGen
   , prepareCommonDestinationAssets
   , srcFileOfInterface
   , defaultPageGen
@@ -51,7 +48,6 @@ import Text.Blaze.Html.Renderer.Text ( renderHtml )
 
 import Paths_Agda
 
-import Agda.Interaction.Options (HtmlHighlight(..))
 import Agda.Interaction.Highlighting.Precise
 
 import qualified Agda.Syntax.Concrete as C
@@ -93,6 +89,9 @@ orgDelimiterEnd :: String
 orgDelimiterEnd = "</pre>\n#+END_EXPORT\n"
 
 -- | Determine how to highlight the file
+
+data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
+  deriving (Show, Eq)
 
 highlightOnlyCode :: HtmlHighlight -> FileType -> Bool
 highlightOnlyCode HighlightAll  _ = False
@@ -180,32 +179,6 @@ defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _) = do
     ext = highlightedFileExt (htmlOptHighlight opts) ft
     target = (htmlOptDir opts) </> modToFile moduleName ext
     html = renderSourceFile opts srcFile
-
-generateHTMLPages
-  :: (MonadIO m, MonadLogHtml m)
-  => HtmlOptions
-  -> [HtmlInputSourceFile]
-  -> m ()
-generateHTMLPages opts pages = generateHTMLWithPageGen opts pages (defaultPageGen opts)
-
--- | Prepare information for HTML page generation.
---
---   The page generator receives the output directory as well as the
---   module's top level module name, its source code, and its
---   highlighting information.
-generateHTMLWithPageGen
-  :: (MonadIO m, MonadLogHtml m)
-  => HtmlOptions
-  -> [HtmlInputSourceFile]
-  -> (HtmlInputSourceFile -> m ())
-  -> m ()
-generateHTMLWithPageGen opts pages generatePage = do
-  logHtml $ unlines
-    [ "Warning: HTML is currently generated for ALL files which can be"
-    , "reached from the given module, including library files."
-    ]
-  prepareCommonDestinationAssets opts
-  forM_ pages generatePage
 
 prepareCommonDestinationAssets :: MonadIO m => HtmlOptions -> m ()
 prepareCommonDestinationAssets options = liftIO $ do

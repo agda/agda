@@ -170,7 +170,9 @@ relocatable-interfaces : relocatable/originals/*.agda
 	@$(agda) -v2 -irelocatable/copies --no-libraries relocatable/copies/C.agda > relocatable/copies/output
 	@cat relocatable/copies/output
 				# ...and skips one of the modules (A).
-	@[ `grep "^ *Loading" relocatable/copies/output | wc -l` = 1 ]
+	@[ `grep "^ *Checking A" relocatable/copies/output | wc -l` = 0 ]
+	@[ `grep "^ *Checking B" relocatable/copies/output | wc -l` = 1 ]
+	@[ `grep "^ *Checking C" relocatable/copies/output | wc -l` = 1 ]
 	@rm -rf relocatable/copies
 
 .PHONY : uptodate

@@ -5,6 +5,14 @@
 -}
 module Agda.Interaction.Imports
   ( Mode(ScopeCheck, TypeCheck)
+
+  , CheckResult (CheckResult)
+  , crModuleInfo
+  , crInterface
+  , crWarnings
+  , crMode
+  , crSourceInfo
+
   , SourceInfo(..)
   , scopeCheckImport
   , sourceInfo
@@ -175,6 +183,14 @@ includeStateChanges :: MainInterface -> Bool
 includeStateChanges (MainInterface _) = True
 includeStateChanges NotMainInterface  = False
 
+-- | The kind of interface produced by 'createInterface'
+moduleCheckMode :: MainInterface -> ModuleCheckMode
+moduleCheckMode = \case
+    MainInterface (TypeCheck TopLevelInteraction) -> ModuleTypeCheckedRetainingPrivates
+    MainInterface (TypeCheck RegularInteraction)  -> ModuleTypeChecked
+    NotMainInterface                              -> ModuleTypeChecked
+    MainInterface ScopeCheck                      -> ModuleScopeChecked
+
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
@@ -257,89 +273,99 @@ scopeCheckImport x = do
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly. Otherwise the computation is
 -- used to find the interface and the computed interface is stored for
--- potential later use (unless the 'MainInterface' is @'MainInterface'
--- 'ScopeCheck'@).
+-- potential later use.
 
 alreadyVisited :: C.TopLevelModuleName ->
                   MainInterface ->
                   PragmaOptions ->
-                  TCM (Interface, [TCWarning], Bool) ->
-                  TCM (Interface, [TCWarning])
-alreadyVisited x isMain currentOptions getIface =
-  fmap (\(i, wt, _isPrim) -> (i, wt)) $
+                  TCM ModuleInfo ->
+                  TCM ModuleInfo
+alreadyVisited x isMain currentOptions getModule =
   case isMain of
     -- Andreas, 2020-05-13, issue 4647:
     -- For top-level interaction commands, we may not able to reuse
     -- the existing interface, since it does not contain the private
     -- declarations.  Thus, we always recheck.
-    MainInterface (TypeCheck TopLevelInteraction) ->                     loadAndRecordVisited
-    MainInterface (TypeCheck RegularInteraction)  -> eitherUseExistingOr loadAndRecordVisited
-    NotMainInterface                              -> eitherUseExistingOr loadAndRecordVisited
-    MainInterface ScopeCheck                      -> eitherUseExistingOr load
+    MainInterface (TypeCheck TopLevelInteraction) ->              loadAndRecordVisited -- ModuleTypeCheckedRetainingPrivates
+    MainInterface (TypeCheck RegularInteraction)  -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
+    NotMainInterface                              -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
+    MainInterface ScopeCheck                      -> useExistingOrLoadAndRecordVisited ModuleScopeChecked
   where
-  eitherUseExistingOr :: TCM (Interface, [TCWarning], Bool) -> TCM (Interface, [TCWarning], Bool)
-  eitherUseExistingOr notYetVisited = fromMaybeM notYetVisited existingWithoutWarnings
+  useExistingOrLoadAndRecordVisited :: ModuleCheckMode -> TCM ModuleInfo
+  useExistingOrLoadAndRecordVisited mode = fromMaybeM loadAndRecordVisited (existingWithoutWarnings mode)
 
   -- Case: already visited.
   --
   -- A module with warnings should never be allowed to be
   -- imported from another module.
-  existingWithoutWarnings :: TCM (Maybe (Interface, [TCWarning], Bool))
-  existingWithoutWarnings = runMaybeT $ exceptToMaybeT $ do
+  existingWithoutWarnings :: ModuleCheckMode -> TCM (Maybe ModuleInfo)
+  existingWithoutWarnings mode = runMaybeT $ exceptToMaybeT $ do
     mi <- maybeToExceptT "interface has not been visited in this context" $ MaybeT $
       getVisitedModule x
 
-    let ModuleInfo { miInterface = i, miPrimitive = isPrim, miWarnings = ws } = mi
+    when (miMode mi < mode) $
+      throwError "previously-visited interface was not sufficiently checked"
 
-    when ws $
+    unless (null $ miWarnings mi) $
       throwError "previously-visited interface had warnings"
 
     reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
 
-    lift $ processResultingModule (i, [], isPrim)
+    lift $ processResultingModule mi
 
-  processResultingModule :: (Interface, [TCWarning], Bool) -> TCM (Interface, [TCWarning], Bool)
-  processResultingModule (i, ws, isPrim) = do
+  processResultingModule :: ModuleInfo -> TCM ModuleInfo
+  processResultingModule mi = do
+    let ModuleInfo { miInterface = i, miPrimitive = isPrim, miWarnings = ws } = mi
+
     -- Check that imported options are compatible with current ones (issue #2487),
     -- but give primitive modules a pass
     -- compute updated warnings if needed
     wt <- fromMaybe ws <$> (getOptionsCompatibilityWarnings isMain isPrim currentOptions i)
 
-    return (i, wt, isPrim)
+    return mi { miWarnings = wt }
 
-  loadAndRecordVisited :: TCM (Interface, [TCWarning], Bool)
+  loadAndRecordVisited :: TCM ModuleInfo
   loadAndRecordVisited = do
-    r <- load
-    recordVisited r
-    return r
-
-  load :: TCM (Interface, [TCWarning], Bool)
-  load = do
     reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
-    mi@(i, ws, _isPrim) <- processResultingModule =<< getIface
+    mi <- processResultingModule =<< getModule
     reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
 
     -- Interfaces are not stored if we are only scope-checking, or
     -- if any warnings were encountered.
-    case (isMain, ws) of
+    case (isMain, miWarnings mi) of
       (MainInterface ScopeCheck, _) -> return ()
       (_, _:_)                      -> return ()
-      _                             -> storeDecodedModule i
+      _                             -> storeDecodedModule mi
 
     reportS "warning.import" 10
       [ "module: " ++ show (C.moduleNameParts x)
-      , "WarningOnImport: " ++ show (iImportWarning i)
+      , "WarningOnImport: " ++ show (iImportWarning (miInterface mi))
       ]
 
+    visitModule mi
     return mi
 
-  recordVisited :: (Interface, [TCWarning], Bool) -> TCM ()
-  recordVisited (i, wt, isPrim) =
-    visitModule ModuleInfo
-      { miInterface  = i
-      , miWarnings   = not . null $ wt
-      , miPrimitive  = isPrim
-      }
+
+-- | The result and associated parameters of a type-checked file,
+--   when invoked directly via interaction or a backend.
+--   Note that the constructor is not exported.
+
+data CheckResult = CheckResult'
+  { crModuleInfo :: ModuleInfo
+  , crSourceInfo' :: SourceInfo
+  }
+
+-- | Flattened unidirectional pattern for 'CheckResult' for destructuring inside
+--   the 'ModuleInfo' field.
+pattern CheckResult :: Interface -> [TCWarning] -> ModuleCheckMode -> SourceInfo -> CheckResult
+pattern CheckResult { crInterface, crWarnings, crMode, crSourceInfo } <- CheckResult'
+    { crModuleInfo = ModuleInfo
+        { miInterface = crInterface
+        , miWarnings = crWarnings
+        , miMode = crMode
+        }
+    , crSourceInfo' = crSourceInfo
+    }
 
 -- | Type checks the main file of the interaction.
 --   This could be the file loaded in the interacting editor (emacs),
@@ -360,7 +386,7 @@ typeCheckMain
      -- ^ Should the file be type-checked, or only scope-checked?
   -> SourceInfo
      -- ^ Information about the source code.
-  -> TCM (Interface, [TCWarning])
+  -> TCM CheckResult
 typeCheckMain mode si = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
@@ -388,11 +414,11 @@ typeCheckMain mode si = do
   -- For the main interface, we also remember the pragmas from the file
   setOptionsFromSourceInfoPragmas si
 
-  (i, ws) <- getInterface (siModuleName si) (MainInterface mode) (Just si)
+  mi <- getInterface (siModuleName si) (MainInterface mode) (Just si)
 
-  stCurrentModule `setTCLens` Just (iModuleName i)
+  stCurrentModule `setTCLens` Just (iModuleName (miInterface mi))
 
-  return (i, ws)
+  return $ CheckResult' mi si
   where
   checkModuleName' m f =
     -- Andreas, 2016-07-11, issue 2092
@@ -416,10 +442,10 @@ getNonMainInterface
 getNonMainInterface x msi = do
   -- Preserve/restore the current pragma options, which will be mutated when loading
   -- and checking the interface.
-  (i, wt) <- bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
-               getInterface x NotMainInterface msi
-  tcWarningsToError wt
-  return i
+  mi <- bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
+          getInterface x NotMainInterface msi
+  tcWarningsToError $ miWarnings mi
+  return (miInterface mi)
 
 -- | A more precise variant of 'getNonMainInterface'. If warnings are
 -- encountered then they are returned instead of being turned into
@@ -430,7 +456,7 @@ getInterface
   -> MainInterface
   -> Maybe SourceInfo
      -- ^ Optional information about the source code.
-  -> TCM (Interface, [TCWarning])
+  -> TCM ModuleInfo
 getInterface x isMain msi =
   addImportCycleCheck x $ do
      -- We remember but reset the pragma options locally
@@ -443,42 +469,27 @@ getInterface x isMain msi =
      alreadyVisited x isMain currentOptions $ do
       file <- maybe (findFile x) (pure . siOrigin) msi -- may require source to exist
 
-      isPrim <- Lens.isPrimitiveModule (filePath (srcFilePath file))
-
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
 
-      (stateChangesIncluded, (i, wt)) <- do
-        -- -- Andreas, 2014-10-20 AIM XX:
-        -- -- Always retype-check the main file to get the iInsideScope
-        -- -- which is no longer serialized.
-        -- let maySkip = isMain == NotMainInterface
-        -- Andreas, 2015-07-13: Serialize iInsideScope again.
-        -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
-        stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
-          when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
-            throwError "we always re-check the main interface in top-level interaction"
-          (False,) <$> getStoredInterface x file msi
+      -- -- Andreas, 2014-10-20 AIM XX:
+      -- -- Always retype-check the main file to get the iInsideScope
+      -- -- which is no longer serialized.
+      -- let maySkip = isMain == NotMainInterface
+      -- Andreas, 2015-07-13: Serialize iInsideScope again.
+      -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
+      stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
+        when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
+          throwError "we always re-check the main interface in top-level interaction"
+        getStoredInterface x file msi
 
-        let recheck = \reason -> do
-              reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
-              case isMain of
-                MainInterface _ -> (True,) <$> createInterface x file isMain msi
-                NotMainInterface -> (False,) <$> createInterfaceIsolated x file msi
+      let recheck = \reason -> do
+            reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
+            case isMain of
+              MainInterface _ -> createInterface x file isMain msi
+              NotMainInterface -> createInterfaceIsolated x file msi
 
-        either recheck pure stored
-
-      visited <- isVisited x
-      reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
-                                   else "  New module. Let's check it out."
-
-      unless (visited || stateChangesIncluded) $ do
-        mergeInterface i
-        Bench.billTo [Bench.Highlighting] $
-          ifTopLevelAndHighlightingLevelIs NonInteractive $
-            highlightFromInterface i file
-
-      return (i, wt, isPrim)
+      either recheck pure stored
 
 -- | Check if the options used for checking an imported module are
 --   compatible with the current options. Raises Non-fatal errors if
@@ -524,7 +535,7 @@ getStoredInterface
   -> SourceFile
      -- ^ File we process.
   -> Maybe SourceInfo
-  -> ExceptT String TCM (Interface, [TCWarning])
+  -> ExceptT String TCM ModuleInfo
 getStoredInterface x file msi = do
   -- Check whether interface file exists and is in cache
   --  in the correct version (as testified by the interface file hash).
@@ -568,10 +579,11 @@ getStoredInterface x file msi = do
   case cachedE of
     -- If it's cached ignoreInterfaces has no effect;
     -- to avoid typechecking a file more than once.
-    Right i -> do
+    Right mi -> do
       (ifile, hashes) <- getIFileHashesET
 
       let ifp = filePath $ intFilePath ifile
+      let i = miInterface mi
 
       -- Make sure the hashes match.
       let cachedIfaceHash = iFullHash i
@@ -590,7 +602,7 @@ getStoredInterface x file msi = do
         checkSourceHashET (iSourceHash i)
 
         reportSLn "import.iface" 5 $ "  using stored version of " ++ (filePath $ intFilePath ifile)
-        validateLoadedInterface file i []
+        loadDecodedModule file mi
 
     Left whyNotCached -> withExceptT (\e -> concat [whyNotCached, " and ", e]) $ do
       whenM ignoreAllInterfaces $
@@ -619,24 +631,29 @@ getStoredInterface x file msi = do
           -- checkModuleName topLevelName file
           lift $ typeError $ OverlappingProjects (srcFilePath file) topLevelName x
 
-        r <- validateLoadedInterface file i []
+        isPrimitiveModule <- lift $ Lens.isPrimitiveModule (filePath $ srcFilePath file)
 
         lift $ chaseMsg "Loading " x $ Just ifp
         -- print imported warnings
         let ws = filter ((Strict.Just (srcFilePath file) ==) . tcWarningOrigin) (iWarnings i)
         unless (null ws) $ reportSDoc "warning" 1 $ P.vcat $ P.prettyTCM <$> ws
 
-        return r
+        loadDecodedModule file $ ModuleInfo
+          { miInterface = i
+          , miWarnings = []
+          , miPrimitive = isPrimitiveModule
+          , miMode = ModuleTypeChecked
+          }
 
 
-validateLoadedInterface
+loadDecodedModule
   :: SourceFile
      -- ^ File we process.
-  -> Interface
-  -> [TCWarning]
-  -> ExceptT String TCM (Interface, [TCWarning])
-validateLoadedInterface file i ws = do
+  -> ModuleInfo
+  -> ExceptT String TCM ModuleInfo
+loadDecodedModule file mi = do
   let fp = filePath $ srcFilePath file
+  let i = miInterface mi
 
   -- Check that it's the right version
   reportSLn "import.iface" 5 $ "  imports: " ++ prettyShow (iImportedModules i)
@@ -676,7 +693,13 @@ validateLoadedInterface file i ws = do
 
   unlessNull badHashMessages (throwError . unlines)
 
-  return (i, ws)
+  reportSLn "import.iface" 5 "  New module. Let's check it out."
+  lift $ mergeInterface i
+  Bench.billTo [Bench.Highlighting] $
+    lift $ ifTopLevelAndHighlightingLevelIs NonInteractive $
+      highlightFromInterface i file
+
+  return mi
 
 -- | Run the type checker on a file and create an interface.
 --
@@ -692,7 +715,7 @@ createInterfaceIsolated
      -- ^ File we process.
   -> Maybe SourceInfo
      -- ^ Optional information about the source code.
-  -> TCM (Interface, [TCWarning])
+  -> TCM ModuleInfo
 createInterfaceIsolated x file msi = do
       cleanCachedLog
 
@@ -714,7 +737,7 @@ createInterfaceIsolated x file msi = do
       -- the persistent state may not be preserved if an error other
       -- than a type error or an IO exception is encountered in an
       -- imported module.
-      (r, newModToSource, newDecodedModules) <- (either throwError pure =<<) $
+      (mi, newModToSource, newDecodedModules) <- (either throwError pure =<<) $
            withoutCache $
            -- The cache should not be used for an imported module, and it
            -- should be restored after the module has been type-checked
@@ -743,8 +766,6 @@ createInterfaceIsolated x file msi = do
       stModuleToSource `setTCLens` newModToSource
       setDecodedModules newDecodedModules
 
-      let (i, ws) = r
-
       -- We skip the file which has just been type-checked to
       -- be able to forget some of the local state from
       -- checking the module.
@@ -752,7 +773,7 @@ createInterfaceIsolated x file msi = do
       -- file, only the cached interface. (This comment is not
       -- correct, see
       -- test/Fail/customised/NestedProjectRoots.err.)
-      validated <- runExceptT $ validateLoadedInterface file i ws
+      validated <- runExceptT $ loadDecodedModule file mi
 
       -- NOTE: This attempts to type-check FOREVER if for some
       -- reason it continually fails to validate interface.
@@ -761,6 +782,7 @@ createInterfaceIsolated x file msi = do
             createInterfaceIsolated x file msi
 
       either recheckOnError pure validated
+
 
 -- | Formats and outputs the "Checking", "Finished" and "Loading " messages.
 
@@ -867,7 +889,7 @@ createInterface
   -> SourceFile            -- ^ The file to type check.
   -> MainInterface         -- ^ Are we dealing with the main module?
   -> Maybe SourceInfo      -- ^ Optional information about the source code.
-  -> TCM (Interface, [TCWarning])
+  -> TCM ModuleInfo
 createInterface mname file isMain msi = do
   let x = mname
   let fp = filePath $ srcFilePath file
@@ -1089,7 +1111,14 @@ createInterface mname file isMain msi = do
     lensAccumStatistics `modifyTCLens` Map.unionWith (+) localStatistics
     verboseS "profile" 1 $ reportSLn "import.iface" 5 "Accumulated statistics."
 
-    return (finalIface, mallWarnings)
+    isPrimitiveModule <- Lens.isPrimitiveModule (filePath srcPath)
+
+    return ModuleInfo
+      { miInterface = finalIface
+      , miWarnings = mallWarnings
+      , miPrimitive = isPrimitiveModule
+      , miMode = moduleCheckMode isMain
+      }
 
 -- | Expert version of 'getAllWarnings'; if 'isMain' is a
 -- 'MainInterface', the warnings definitely include also unsolved

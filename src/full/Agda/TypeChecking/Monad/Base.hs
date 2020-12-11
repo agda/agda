@@ -871,14 +871,28 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
 -- ** Interface
 ---------------------------------------------------------------------------
 
+
+-- | Distinguishes between type-checked and scope-checked interfaces
+--   when stored in the map of `VisitedModules`.
+data ModuleCheckMode
+  = ModuleScopeChecked
+  | ModuleTypeChecked
+  | ModuleTypeCheckedRetainingPrivates
+  deriving (Eq, Ord, Bounded, Enum, Show)
+
+
 data ModuleInfo = ModuleInfo
   { miInterface  :: Interface
-  , miWarnings   :: Bool
-    -- ^ 'True' if warnings were encountered when the module was type
-    -- checked.
+  , miWarnings   :: [TCWarning]
+    -- ^ Warnings were encountered when the module was type checked.
+    --   These might include warnings not stored in the interface itself,
+    --   specifically unsolved interaction metas.
+    --   See "Agda.Interaction.Imports"
   , miPrimitive  :: Bool
     -- ^ 'True' if the module is a primitive module, which should always
     -- be importable.
+  , miMode       :: ModuleCheckMode
+    -- ^ The `ModuleCheckMode` used to create the `Interface`
   }
 
 -- Note that the use of 'C.TopLevelModuleName' here is a potential
@@ -886,7 +900,7 @@ data ModuleInfo = ModuleInfo
 -- identifiers.
 
 type VisitedModules = Map C.TopLevelModuleName ModuleInfo
-type DecodedModules = Map C.TopLevelModuleName Interface
+type DecodedModules = Map C.TopLevelModuleName ModuleInfo
 
 data ForeignCode = ForeignCode Range String
   deriving Show

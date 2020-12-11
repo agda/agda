@@ -1,6 +1,6 @@
 
 module Agda.Interaction.Highlighting.LaTeX.Backend
-  ( generateLaTeX
+  ( latexBackend
   ) where
 
 import Agda.Interaction.Highlighting.LaTeX.Base
@@ -12,29 +12,31 @@ import Agda.Interaction.Highlighting.LaTeX.Base
   , prepareCommonAssets
   )
 
+import Control.Monad.Trans (MonadIO)
+
 import qualified Data.Map as Map
+import Data.Map (Map)
+
 import qualified Data.Text as T
 
 import System.FilePath ( (</>) )
 
+import Agda.Compiler.Backend (Backend(..), Backend'(..), Definition, Recompile(..))
+import Agda.Compiler.Common (curIF, IsMain(IsMain, NotMain))
+
 import Agda.Interaction.Options
-  ( CommandLineOptions
-    ( optGenerateLaTeX
-    , optLaTeXDir
-    , optInputFile
-    , optPragmaOptions
-    , optGHCiInteraction
-    )
-  , PragmaOptions( optCountClusters )
+  ( ArgDescr(NoArg, ReqArg)
+  , CommandLineOptions ( optGHCiInteraction, optPragmaOptions )
+  , PragmaOptions ( optCountClusters )
+  , Flag
+  , OptDescr(..)
   )
 
-import Agda.Syntax.Abstract.Name (toTopLevelModuleName)
+import Agda.Syntax.Abstract.Name (ModuleName, toTopLevelModuleName)
 import Agda.Syntax.Concrete.Name (TopLevelModuleName, projectRoot)
 
 import Agda.TypeChecking.Monad
   ( HasOptions(commandLineOptions)
-  , Interface(iModuleName)
-  , TCM
   , MonadDebug
   , stModuleToSource
   , useTC
@@ -55,30 +57,59 @@ data LaTeXFlags = LaTeXFlags
     -- ^ Are we going to try to generate LaTeX at all?
   } deriving Eq
 
--- | Generates a LaTeX file for the given interface.
---
--- The underlying source file is assumed to match the interface, but
--- this is not checked. TODO: Fix this problem, perhaps by storing the
--- source code in the interface.
-generateLaTeX :: Interface -> TCM ()
-generateLaTeX i = do
-  let moduleName = toTopLevelModuleName $ iModuleName i
-  latexFlags <- laTeXFlagsFromCommandLineOpts <$> commandLineOptions
-  latexOpts <- resolveLaTeXOptions latexFlags moduleName
-  runLogLaTeXWithMonadDebug $ do
-    prepareCommonAssets (latexOptOutDir latexOpts)
-    generateLaTeXIO latexOpts i
+-- | The default output directory for LaTeX.
+
+defaultLaTeXDir :: FilePath
+defaultLaTeXDir = "latex"
+
+defaultLaTeXFlags :: LaTeXFlags
+defaultLaTeXFlags = LaTeXFlags
+  { latexFlagOutDir        = defaultLaTeXDir
+  , latexFlagSourceFile    = Nothing
+  , latexFlagGenerateLaTeX = False
+  }
+
+latexFlagsDescriptions :: [OptDescr (Flag LaTeXFlags)]
+latexFlagsDescriptions =
+  [ Option []     ["latex"] (NoArg latexFlag)
+                  "generate LaTeX with highlighted source code"
+  , Option []     ["latex-dir"] (ReqArg latexDirFlag "DIR")
+                  ("directory in which LaTeX files are placed (default: " ++
+                    defaultLaTeXDir ++ ")")
+  ]
+
+latexFlag :: Flag LaTeXFlags
+latexFlag o = return $ o { latexFlagGenerateLaTeX = True }
+
+latexDirFlag :: FilePath -> Flag LaTeXFlags
+latexDirFlag d o = return $ o { latexFlagOutDir = d }
+
+data LaTeXCompileEnv = LaTeXCompileEnv LaTeXFlags
+data LaTeXModuleEnv  = LaTeXModuleEnv LaTeXOptions
+data LaTeXModule     = LaTeXModule
+data LaTeXDef        = LaTeXDef
+
+latexBackend :: Backend
+latexBackend = Backend latexBackend'
+
+latexBackend' :: Backend' LaTeXFlags LaTeXCompileEnv LaTeXModuleEnv LaTeXModule LaTeXDef
+latexBackend' = Backend'
+  { backendName           = "LaTeX"
+  , backendVersion        = Nothing
+  , options               = defaultLaTeXFlags
+  , commandLineFlags      = latexFlagsDescriptions
+  , isEnabled             = latexFlagGenerateLaTeX
+  , preCompile            = preCompileLaTeX
+  , preModule             = preModuleLaTeX
+  , compileDef            = compileDefLaTeX
+  , postModule            = postModuleLaTeX
+  , postCompile           = postCompileLaTeX
+  , scopeCheckingSuffices = True
+  , mayEraseType          = const $ return False
+  }
 
 runLogLaTeXWithMonadDebug :: MonadDebug m => LogLaTeXT m a -> m a
 runLogLaTeXWithMonadDebug = runLogLaTeXTWith $ (reportS "compile.latex" 1) . T.unpack . logMsgToText
-
--- Extract the LaTeX-specific command line options from the global ones.
-laTeXFlagsFromCommandLineOpts :: CommandLineOptions -> LaTeXFlags
-laTeXFlagsFromCommandLineOpts opts = LaTeXFlags
-  { latexFlagOutDir        = optLaTeXDir opts
-  , latexFlagSourceFile    = optInputFile opts
-  , latexFlagGenerateLaTeX = optGenerateLaTeX opts
-  }
 
 -- Resolve the raw flags into usable LaTeX options.
 resolveLaTeXOptions :: (HasOptions m, ReadTCState m) => LaTeXFlags -> TopLevelModuleName -> m LaTeXOptions
@@ -100,3 +131,56 @@ resolveLaTeXOptions flags moduleName = do
     , latexOptSourceFileName = mSrcFileName
     , latexOptCountClusters  = countClusters
     }
+
+preCompileLaTeX
+  :: Applicative m
+  => LaTeXFlags
+  -> m LaTeXCompileEnv
+preCompileLaTeX flags = pure $ LaTeXCompileEnv flags
+
+preModuleLaTeX
+  :: (HasOptions m, ReadTCState m)
+  => LaTeXCompileEnv
+  -> IsMain
+  -> ModuleName
+  -> Maybe FilePath
+  -> m (Recompile LaTeXModuleEnv LaTeXModule)
+preModuleLaTeX (LaTeXCompileEnv flags) isMain moduleName _ifacePath = case isMain of
+  IsMain  -> Recompile . LaTeXModuleEnv <$> resolveLaTeXOptions flags (toTopLevelModuleName moduleName)
+  NotMain -> return $ Skip LaTeXModule
+
+compileDefLaTeX
+  :: Applicative m
+  => LaTeXCompileEnv
+  -> LaTeXModuleEnv
+  -> IsMain
+  -> Definition
+  -> m LaTeXDef
+compileDefLaTeX _cenv _menv _main _def = pure LaTeXDef
+
+postModuleLaTeX
+  :: (MonadDebug m, ReadTCState m, MonadIO m)
+  => LaTeXCompileEnv
+  -> LaTeXModuleEnv
+  -> IsMain
+  -> ModuleName
+  -> [LaTeXDef]
+  -> m LaTeXModule
+postModuleLaTeX _cenv (LaTeXModuleEnv latexOpts) _main _moduleName _defs = do
+  i <- curIF
+  runLogLaTeXWithMonadDebug $ do
+    -- FIXME: It would be better to do "prepareCommonAssets" in @preCompileLaTeX@, but because
+    -- the output directory depends on the module-relative project root (when in emacs-mode),
+    -- we can't do that until we see the module.
+    -- However, for now that is OK because we only generate LaTeX for the main module.
+    prepareCommonAssets (latexOptOutDir latexOpts)
+    generateLaTeXIO latexOpts i
+  return LaTeXModule
+
+postCompileLaTeX
+  :: Applicative m
+  => LaTeXCompileEnv
+  -> IsMain
+  -> Map ModuleName LaTeXModule
+  -> m ()
+postCompileLaTeX _cenv _main _modulesByName = pure ()

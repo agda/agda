@@ -63,7 +63,6 @@ import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton
 import Agda.Interaction.Imports  ( Mode(..) )
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
-import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 
 import Agda.Compiler.Backend
 
@@ -501,15 +500,15 @@ interpret (Cmd_load m argv) =
   mode = Imp.TypeCheck TopLevelInteraction -- do not reset InteractionMode
 
 interpret (Cmd_compile backend file argv) =
-  cmd_load' file argv allowUnsolved mode $ \ (i, mw) -> do
-    mw' <- lift $ applyFlagsToTCWarnings mw
-    case mw' of
+  cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
+    mw <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
+    case mw of
       [] -> do
         lift $ case backend of
-          LaTeX                    -> LaTeX.generateLaTeX i
-          QuickLaTeX               -> LaTeX.generateLaTeX i
-          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
-          OtherBackend b           -> callBackend b IsMain  i
+          LaTeX                    -> callBackend "LaTeX" IsMain checkResult
+          QuickLaTeX               -> callBackend "LaTeX" IsMain checkResult
+          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
+          OtherBackend b           -> callBackend b IsMain checkResult
         display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
       w@(_:_) -> display_info $ Info_Error $ Info_CompilationError w
   where
@@ -875,7 +874,7 @@ cmd_load'
                --   Providing 'TypeCheck RegularInteraction' here
                --   will reset 'InteractionMode' accordingly.
                --   Otherwise, only if different file from last time.
-  -> ((Interface, [TCWarning]) -> CommandM a)
+  -> (CheckResult -> CommandM a)
                -- ^ Continuation after successful loading.
   -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do
@@ -1167,7 +1166,7 @@ status = do
             mm <- lookupModuleFromSource f
             case mm of
               Nothing -> return False -- work-around for Issue1007
-              Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
+              Just m  -> maybe False (null . miWarnings) <$> getVisitedModule m
         else
             return False
 
