@@ -44,21 +44,6 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 
-    - uses: actions/cache@v2
-      name: Cache dependencies (Unix-like)
-      if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-split-sections-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
-
-    - uses: actions/cache@v2
-      name: Cache dependencies (Windows)
-      if: ${{ runner.os == 'Windows' }}
-      with:
-        path: C:\Users\runneradmin\AppData\Roaming\stack
-        key: ${{ runner.os }}-stack-split-sections-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
-
     - name: Update the package index of stack
       run: stack update
 
