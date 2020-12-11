@@ -400,7 +400,7 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
           ]
         return eq
 
-makeHead :: Definition -> Type -> TCM (Type , Elims -> Term)
+makeHead :: PureTCM m => Definition -> Type -> m (Type , Elims -> Term)
 makeHead def a = case theDef def of
   Constructor{ conSrcCon = ch } -> do
     ca <- snd . fromMaybe __IMPOSSIBLE__ <$> getFullyAppliedConType ch a
