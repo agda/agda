@@ -347,12 +347,13 @@ compareTerm'_ cmp a m n =
                   compareArgs_ (repeat $ polFromCmp cmp) [] ctype (asTwin$ Con c ConOSystem []) m' n'
 
 
-       _ -> case unEl $ twinAt @'Compat a' of
-       --case unEl $ twinAt @'Compat a' of
-        a | Just a == mlvl -> do
+       _ | a' `isEqualTo` mlvl -> do
           a <- levelView_ m
           b <- levelView_ n
           equalLevel_ a b
+       _ -> case unEl $ twinAt @'Compat a' of
+       --case unEl $ twinAt @'Compat a' of
+        a | Just a == mlvl -> __IMPOSSIBLE__
         Pi dom cod   -> __IMPOSSIBLE__ -- equalFun s (asTwin dom) (asTwin cod) m n
         Lam _ _   -> __IMPOSSIBLE__
         Def r es  -> do
@@ -2313,6 +2314,13 @@ isSingletonRecordModuloRelevance_ q (TwinT{direction=DirLeq,twinLHS,twinRHS}) =
   onSide_ (isSingletonRecordModuloRelevance q) twinRHS
 isSingletonRecordModuloRelevance_ q (TwinT{direction=DirGeq,twinLHS,twinRHS}) =
   onSide_ (isSingletonRecordModuloRelevance q) twinLHS
+
+-- | Used for comparing against built-in things
+isEqualTo :: TwinT -> Maybe Term -> Bool
+_ `isEqualTo` Nothing = False
+SingleT (H'Both t) `isEqualTo` Just a = unEl t == a
+TwinT{twinLHS=H'LHS lhs,twinRHS=H'RHS rhs} `isEqualTo` Just a =
+  unEl lhs == a && unEl rhs == a
 
 class Commute f g where
   commute  :: f (g a) -> (g (f a))
