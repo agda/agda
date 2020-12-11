@@ -32,9 +32,14 @@
 --    @v => w@.
 
 
-module Agda.TypeChecking.Rewriting.Confluence ( checkConfluenceOfRules , checkConfluenceOfClause ) where
+module Agda.TypeChecking.Rewriting.Confluence
+  ( checkConfluenceOfRules
+  , checkConfluenceOfClauses
+  , sortRulesOfSymbol
+  ) where
 
 import Control.Applicative
+import Control.Arrow ((***))
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -42,7 +47,9 @@ import Control.Monad.Reader
 import Data.Either
 import Data.Function ( on )
 import Data.Functor ( ($>) )
+import qualified Data.HashMap.Strict as HMap
 import Data.List ( elemIndex , tails )
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Agda.Interaction.Options ( ConfluenceCheck(..) )
@@ -76,33 +83,47 @@ import Agda.TypeChecking.Warnings
 import Agda.Utils.Applicative
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null (unlessNullM)
+import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
+-- ^ Check confluence of the clauses of the given function wrt rewrite rules of the
+-- constructors they match against
+checkConfluenceOfClauses :: ConfluenceCheck -> QName -> TCM ()
+checkConfluenceOfClauses confChk f = do
+  rews <- getClausesAsRewriteRules f
+  let matchables = map getMatchables rews
+  reportSDoc "rewriting.confluence" 30 $
+    "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map prettyTCM matchables)
+  modifySignature $ setMatchableSymbols f $ concat matchables
+  let hasRules g = not . null <$> getRewriteRulesFor g
+  forM_ (zip rews matchables) $ \(rew,ms) ->
+    unlessNullM (filterM hasRules ms) $ \_ -> do
+      checkConfluenceOfRules confChk [rew]
 
 -- ^ Check confluence of the given rewrite rules wrt all other rewrite
 --   rules (also amongst themselves).
 checkConfluenceOfRules :: ConfluenceCheck -> [RewriteRule] -> TCM ()
-checkConfluenceOfRules confChk rews = checkConfluenceOfRules' confChk False rews
+checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
 
--- ^ Check confluence of the given clause wrt rewrite rules of the
--- constructors it matches against
-checkConfluenceOfClause :: ConfluenceCheck -> QName -> Int -> Clause -> TCM ()
-checkConfluenceOfClause confChk f i cl = do
-  fi <- clauseQName f i
-  whenJust (clauseToRewriteRule f fi cl) $ \rew -> do
-    checkConfluenceOfRules' confChk True [rew]
-    let matchables = getMatchables rew
-    reportSDoc "rewriting.confluence" 30 $
-      "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map prettyTCM matchables)
-    modifySignature $ setMatchableSymbols f matchables
-
-checkConfluenceOfRules' :: ConfluenceCheck -> Bool -> [RewriteRule] -> TCM ()
-checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ do
+  -- Global confluence: we need to check the triangle property for each rewrite
+  -- rule of each head symbol as well as rules that match on them
+  when (confChk == GlobalConfluenceCheck) $ do
+    let getSymbols rew = let f = rewHead rew in
+         (Set.insert f) . defMatchable <$> getConstInfo f
+    allSymbols <- Set.toList . Set.unions <$> traverse getSymbols rews
+    forM_ allSymbols $ \f -> do
+      rewsf <- getAllRulesFor f
+      forM_ rewsf $ \rew -> do
+        reportSDoc "rewriting.confluence.triangle" 10 $
+          "(re)checking triangle property for rule" <+> prettyTCM (rewName rew)
+        checkTrianglePropertyForRule rew
 
   forM_ (tails rews) $ listCase (return ()) $ \rew rewsRest -> do
 
@@ -120,17 +141,12 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
   reportSDoc "rewriting.confluence" 30 $ addContext tel $
     "Head symbol" <+> prettyTCM (hdf []) <+> "of rewrite rule has type" <+> prettyTCM fa
 
-  -- Step 0 (global confluence check only): check triangle property
-  -- for LHS of each rewrite rule
-  when (confChk == GlobalConfluenceCheck && not isClause) $
-    checkTrianglePropertyForRule rew
-
   -- Step 1: check other rewrite rules that overlap at top position
-  forMM_ (getRulesFor f isClause) $ \ rew' -> do
-    when (confChk == GlobalConfluenceCheck && not (any (sameRuleName rew') rews)) $
-      checkTrianglePropertyForRule rew'
-    unless (any (sameRuleName rew') $ rew:rewsRest) $
+  forMM_ (getAllRulesFor f) $ \ rew' -> do
+    unless (any (sameRuleName rew') (rew:rewsRest) ||
+            (rewFromClause rew && rewFromClause rew')) $
       checkConfluenceTop hdf rew rew'
+  reportSDoc "rewriting.confluence" 30 $ "Finished step 1 of confluence check of rule" <+> prettyTCM (rewName rew)
 
   -- Step 2: check other rewrite rules that overlap with a subpattern
   -- of this rewrite rule
@@ -138,16 +154,20 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
   forMM_ (addContext tel $ allHolesList (fa, hdf) es) $ \ hole -> do
     let g   = ohHeadName hole
         hdg = ohHead hole
-    forMM_ (getRulesFor g isClause) $ \rew' ->
+    reportSDoc "rewriting.confluence" 40 $
+      "Found hole with head symbol" <+> prettyTCM g
+    rews' <- getAllRulesFor g
+    forM_ rews' $ \rew' -> do
       unless (any (sameRuleName rew') rewsRest) $
         checkConfluenceSub hdf hdg rew rew' hole
+  reportSDoc "rewriting.confluence" 30 $ "Finished step 2 of confluence check of rule" <+> prettyTCM (rewName rew)
 
   -- Step 3: check other rewrite rules that have a subpattern which
   -- overlaps with this rewrite rule
   forM_ (defMatchable def) $ \ g -> do
-    forMM_ (getClausesAndRewriteRulesFor g) $ \ rew' -> do
-      when (confChk == GlobalConfluenceCheck && not (any (sameRuleName rew') rews)) $
-        checkTrianglePropertyForRule rew'
+    reportSDoc "rewriting.confluence" 40 $
+      "Symbol" <+> prettyTCM g <+> "has rules that match on" <+> prettyTCM f
+    forMM_ (getAllRulesFor g) $ \ rew' -> do
       unless (any (sameRuleName rew') rewsRest) $ do
         es' <- nlPatToTerm (rewPats rew')
         let tel' = rewContext rew'
@@ -156,6 +176,7 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
         forMM_ (addContext tel' $ allHolesList (ga , hdg) es') $ \ hole -> do
           let f' = ohHeadName hole
           when (f == f') $ checkConfluenceSub hdg hdf rew' rew hole
+  reportSDoc "rewriting.confluence" 30 $ "Finished step 3 of confluence check of rule" <+> prettyTCM (rewName rew)
 
   where
 
@@ -225,9 +246,13 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
     -- Check confluence between two rules that overlap at a subpattern,
     -- e.g. @f ps[g qs] --> a@ and @g qs' --> b@.
     checkConfluenceSub :: (Elims -> Term) -> (Elims -> Term) -> RewriteRule -> RewriteRule -> OneHole Elims -> TCM ()
-    checkConfluenceSub hdf hdg rew1 rew2 hole0 =
-      traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $
-      localTCStateSavingWarnings $ do
+    checkConfluenceSub hdf hdg rew1 rew2 hole0 = do
+      reportSDoc "rewriting.confluence" 100 $ "foo 2" <+> prettyTCM (rewName rew1) <+> prettyTCM (rewName rew2)
+      traceCall (CheckConfluence (rewName rew1) (rewName rew2)) $ localTCStateSavingWarnings $ do
+
+        reportSDoc "rewriting.confluence" 20 $
+          "Checking confluence of rules" <+> prettyTCM (rewName rew1) <+>
+          "and" <+> prettyTCM (rewName rew2) <+> "at subpattern position"
 
         sub1 <- makeMetaSubst $ rewContext rew1
 
@@ -349,7 +374,7 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
           (f, t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
 
           let checkEqualLHS :: RewriteRule -> TCM Bool
-              checkEqualLHS (RewriteRule q delta _ ps _ _) = do
+              checkEqualLHS (RewriteRule q delta _ ps _ _ _) = do
                 onlyReduceTypes (nonLinMatch delta (t , hd) ps es) >>= \case
                   Left _    -> return False
                   Right sub -> do
@@ -368,13 +393,13 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
                   Just is -> return $ fastDistinct is
                   Nothing -> return False
 
-          rews <- getClausesAndRewriteRulesFor f
+          rews <- getAllRulesFor f
           let sameRHS = onlyReduceTypes $ pureEqualTerm a rhs1 rhs2
           unlessM (sameRHS `or2M` anyM rews checkEqualLHS) $ addContext gamma $
             warning $ RewriteAmbiguousRules (hd es) rhs1 rhs2
 
     checkTrianglePropertyForRule :: RewriteRule -> TCM ()
-    checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b) = addContext gamma $ do
+    checkTrianglePropertyForRule (RewriteRule q gamma f ps rhs b c) = addContext gamma $ do
       u  <- nlPatToTerm $ PDef f ps
       -- First element in the list is the "best reduct" @ρ(u)@
       (rhou,vs) <- fromMaybe __IMPOSSIBLE__ . uncons <$> allParallelReductions u
@@ -401,6 +426,39 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
           ]
         return eq
 
+
+sortRulesOfSymbol :: QName -> TCM ()
+sortRulesOfSymbol f = do
+    rules <- sortRules =<< getRewriteRulesFor f
+    modifySignature $ over sigRewriteRules $ HMap.insert f rules
+  where
+    sortRules :: PureTCM m => [RewriteRule] -> m [RewriteRule]
+    sortRules rs = do
+      ordPairs <- deleteLoops . Set.fromList . map (rewName *** rewName) <$>
+        filterM (uncurry $ flip moreGeneralLHS) [(r1,r2) | r1 <- rs, r2 <- rs]
+      let perm = fromMaybe __IMPOSSIBLE__ $
+                   topoSort (\r1 r2 -> (rewName r1,rewName r2) `Set.member` ordPairs) rs
+      reportSDoc "rewriting.confluence.sort" 50 $ "sorted rules: " <+>
+        prettyList_ (map (prettyTCM . rewName) $ permute perm rs)
+      return $ permute perm rs
+
+    moreGeneralLHS :: PureTCM m => RewriteRule -> RewriteRule -> m Bool
+    moreGeneralLHS r1 r2
+      | sameRuleName r1 r2       = return False
+      | rewHead r1 /= rewHead r2 = return False
+      | otherwise                = addContext (rewContext r2) $ do
+          def <- getConstInfo $ rewHead r1
+          (t, hd) <- makeHead def (rewType r2)
+          (vs :: Elims) <- nlPatToTerm $ rewPats r2
+          res <- isRight <$> onlyReduceTypes (nonLinMatch (rewContext r1) (t, hd) (rewPats r1) vs)
+          when res $ reportSDoc "rewriting.confluence.sort" 55 $
+            "the lhs of " <+> prettyTCM (rewName r1) <+>
+            "is more general than the lhs of" <+> prettyTCM (rewName r2)
+          return res
+
+    deleteLoops :: Ord a => Set (a,a) -> Set (a,a)
+    deleteLoops xs = Set.filter (\(x,y) -> not $ (y,x) `Set.member` xs) xs
+
 makeHead :: PureTCM m => Definition -> Type -> m (Type , Elims -> Term)
 makeHead def a = case theDef def of
   Constructor{ conSrcCon = ch } -> do
@@ -424,14 +482,9 @@ makeHead def a = case theDef def of
 sameRuleName :: RewriteRule -> RewriteRule -> Bool
 sameRuleName = (==) `on` rewName
 
-getClausesAndRewriteRulesFor :: (HasConstInfo m, MonadFresh NameId m) => QName -> m [RewriteRule]
-getClausesAndRewriteRulesFor f =
-  (++) <$> getClausesAsRewriteRules f <*> getRewriteRulesFor f
-
-getRulesFor :: (HasConstInfo m, MonadFresh NameId m) => QName -> Bool -> m [RewriteRule]
-getRulesFor f isClause
-  | isClause  = getRewriteRulesFor f
-  | otherwise = getClausesAndRewriteRulesFor f
+-- | Get both clauses and rewrite rules for the given symbol
+getAllRulesFor :: (HasConstInfo m, MonadFresh NameId m) => QName -> m [RewriteRule]
+getAllRulesFor f = (++) <$> getRewriteRulesFor f <*> getClausesAsRewriteRules f
 
 -- | Build a substitution that replaces all variables in the given
 --   telescope by fresh metavariables.
@@ -491,7 +544,7 @@ topLevelReductions hd es = do
   -- Get type of head symbol
   (f , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: head symbol" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
-  RewriteRule q gamma _ ps rhs b <- scatterMP (getClausesAndRewriteRulesFor f)
+  RewriteRule q gamma _ ps rhs b c <- scatterMP (getAllRulesFor f)
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: trying rule" <+> prettyTCM q
   -- Don't reduce if underapplied
   guard $ length es >= length ps

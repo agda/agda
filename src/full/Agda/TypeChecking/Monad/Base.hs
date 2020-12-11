@@ -1653,6 +1653,7 @@ data RewriteRule = RewriteRule
   , rewPats    :: PElims     -- ^ @Γ ⊢ f ps : t@.
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
+  , rewFromClause :: Bool    -- ^ Was this rewrite rule created from a clause in the definition of the function?
   }
     deriving (Data, Show)
 
@@ -4394,8 +4395,8 @@ instance KillRange NLPSort where
   killRange PLockUniv = PLockUniv
 
 instance KillRange RewriteRule where
-  killRange (RewriteRule q gamma f es rhs t) =
-    killRange6 RewriteRule q gamma f es rhs t
+  killRange (RewriteRule q gamma f es rhs t c) =
+    killRange6 RewriteRule q gamma f es rhs t c
 
 instance KillRange CompiledRepresentation where
   killRange = id

@@ -288,8 +288,7 @@ prettyWarning = \case
         ]
       , fsep $ concat
         [ pwords "Possible fix: add a rule to rewrite"
-        , [ prettyTCM v , "to" , prettyTCM rhou <> "," ]
-        , pwords "or change the order of the rules so more specialized rules come later."
+        , [ prettyTCM v , "to" , prettyTCM rhou ]
         ]
       ]
 

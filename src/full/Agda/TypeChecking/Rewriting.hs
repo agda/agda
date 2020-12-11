@@ -151,9 +151,14 @@ addRewriteRules qs = do
 
   -- Run confluence check for the new rules
   -- (should be done after adding all rules, see #3795)
-  whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk ->
+  whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
+    -- Global confluence checker requires rules to be sorted
+    -- according to the generality of their lhs
+    when (confChk == GlobalConfluenceCheck) $
+      forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
     checkConfluenceOfRules confChk rews
-
+    reportSDoc "rewriting" 10 $
+      "done checking confluence of rules" <+> prettyList_ (map (prettyTCM . rewName) rews)
 
 -- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule
 --   @
@@ -272,7 +277,7 @@ checkRewriteRule q = do
           "variables free in the rewrite rule: " <+> text (show freeVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
-        let rew = RewriteRule q gamma f ps rhs (unDom b)
+        let rew = RewriteRule q gamma f ps rhs (unDom b) False
 
         reportSDoc "rewriting" 10 $ vcat
           [ "checked rewrite rule" , prettyTCM rew ]
@@ -363,7 +368,9 @@ rewriteWith :: Type
             -> RewriteRule
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b) es = do
+rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b isClause) es
+ | isClause = return $ Left $ NotBlocked ReallyNotBlocked $ hd es
+ | otherwise = do
   traceSDoc "rewriting.rewrite" 50 (sep
     [ "{ attempting to rewrite term " <+> prettyTCM (hd es)
     , " having head " <+> prettyTCM (hd []) <+> " of type " <+> prettyTCM t
