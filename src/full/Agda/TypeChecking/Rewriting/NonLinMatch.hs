@@ -440,3 +440,21 @@ equal a u v = runBlocked (pureEqualTerm a u v) >>= \case
       , " and " <+> prettyTCM v
       ]) $ do
     return $ Just $ NotBlocked ReallyNotBlocked ()
+
+-- | Utility function for getting the name and type of a head term (i.e. a
+--   `Def` or `Con` with no arguments)
+getTypedHead :: PureTCM m => Term -> m (Maybe (QName, Type))
+getTypedHead = \case
+  Def f []   -> Just . (f,) . defType <$> getConstInfo f
+  Con (ConHead { conName = c }) _ [] -> do
+    -- Andreas, 2018-09-08, issue #3211:
+    -- discount module parameters for constructor heads
+    vs <- freeVarsToApply c
+    -- Jesper, 2020-06-17, issue #4755: add dummy arguments in
+    -- case we don't have enough parameters
+    npars <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters c
+    let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
+    t0 <- defType <$> getConstInfo c
+    t <- t0 `piApplyM` (vs ++ ws)
+    return $ Just (c , t)
+  _ -> return Nothing

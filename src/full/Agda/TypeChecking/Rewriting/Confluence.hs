@@ -346,14 +346,7 @@ checkConfluenceOfRules' confChk isClause rews = inTopContext $ inAbstractMode $ 
         -- of a rewrite rule (actual global confluence then follows
         -- from the triangle property which was checked before).
         GlobalConfluenceCheck -> do
-          (t, f) <- case hd [] of
-            Def f [] -> do
-              t <- defType <$> getConstInfo f
-              return (t, f)
-            Con (ConHead{ conName = c }) _ [] -> do
-              t <- typeOfConst c
-              return (t, c)
-            _ -> __IMPOSSIBLE__
+          (f, t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
 
           let checkEqualLHS :: RewriteRule -> TCM Bool
               checkEqualLHS (RewriteRule q delta _ ps _ _) = do
@@ -495,17 +488,7 @@ topLevelReductions :: (MonadParallelReduce m, MonadPlus m) => (Elims -> Term) ->
 topLevelReductions hd es = do
   reportSDoc "rewriting.parreduce" 30 $ "topLevelReductions" <+> prettyTCM (hd es)
   -- Get type of head symbol
-  (f , t) <- case hd [] of
-    Def f []   -> (f,) . defType <$> getConstInfo f
-    -- See @rewrite@ function in Rewriting.hs
-    Con (ConHead { conName = c }) _ [] -> do
-      vs <- freeVarsToApply c
-      npars <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters c
-      let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
-      t0 <- defType <$> getConstInfo c
-      t <- t0 `piApplyM` (vs ++ ws)
-      return (c , t)
-    _ -> __IMPOSSIBLE__
+  (f , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: head symbol" <+> prettyTCM (hd []) <+> ":" <+> prettyTCM t
   RewriteRule q gamma _ ps rhs b <- scatterMP (getClausesAndRewriteRulesFor f)
   reportSDoc "rewriting.parreduce" 60 $ "topLevelReductions: trying rule" <+> prettyTCM q
