@@ -3,8 +3,11 @@ module Agda.Utils.Permutation where
 
 import Prelude hiding (drop, null)
 
+import Control.Monad (filterM)
+
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Maybe
 import Data.Array
@@ -15,6 +18,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
 import Agda.Utils.Null
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
@@ -186,11 +190,15 @@ expandP i n (Perm m xs) = Perm (m + n - 1) $ concatMap expand xs
 -- | Stable topologic sort. The first argument decides whether its first
 --   argument is an immediate parent to its second argument.
 topoSort :: (a -> a -> Bool) -> [a] -> Maybe Permutation
-topoSort parent xs = Perm (size xs) <$> topo g
+topoSort parent xs = runIdentity $ topoSortM (\x y -> Identity $ parent x y) xs
+
+topoSortM :: Monad m => (a -> a -> m Bool) -> [a] -> m (Maybe Permutation)
+topoSortM parent xs = do
+  let nodes     = zip [0..] xs
+      parents x = map fst <$> filterM (\(_, y) -> parent y x) nodes
+  g <- mapM (mapSndM parents) nodes
+  return $ Perm (size xs) <$> topo g
   where
-    nodes     = zip [0..] xs
-    g         = [ (n, parents x) | (n, x) <- nodes ]
-    parents x = [ n | (n, y) <- nodes, parent y x ]
 
     topo :: Eq node => [(node, [node])] -> Maybe [node]
     topo [] = return []
