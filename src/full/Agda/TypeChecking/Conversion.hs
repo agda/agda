@@ -939,8 +939,7 @@ compareElims pols0 fors0 a v els01 els02 =
       case va of
         PathType s path l bA x y -> do
           b <- primIntervalType
-          compareWithPol pol (flip compareTerm b)
-                              r1 r2
+          compareWithPol pol compareTerm b r1 r2
           -- TODO: compare (x1,x2) and (y1,y2) ?
           let r = r1 -- TODO Andrea:  do blocking
           codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r)
@@ -996,7 +995,7 @@ compareElims pols0 fors0 a v els01 els02 =
                 compareIrrelevant b (unArg arg1) (unArg arg2)
               else do
                 reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
-                compareWithPol pol (flip compareTerm b)
+                compareWithPol pol compareTerm b
                   (unArg arg1) (unArg arg2)
           -- if comparison got stuck and function type is dependent, block arg
           solved <- isProblemSolved pid
@@ -1103,11 +1102,16 @@ compareIrrelevant_ t v0 w0 = do
         -- the value of irrelevant or unused meta does not matter
     try t v w fallback = fallback
 
-compareWithPol :: MonadConversion m => Polarity -> (Comparison -> a -> a -> m ()) -> a -> a -> m ()
-compareWithPol Invariant     cmp x y = cmp CmpEq x y
-compareWithPol Covariant     cmp x y = cmp CmpLeq x y
-compareWithPol Contravariant cmp x y = cmp CmpLeq y x
-compareWithPol Nonvariant    cmp x y = return ()
+compareWithPol :: MonadConversion m => Polarity -> (Comparison -> b -> a -> a -> m ()) -> b -> a -> a -> m ()
+compareWithPol pol cmp b x y = compareWithPol_ pol cmp' (H'Both b) (H'LHS x) (H'RHS y)
+  where cmp' = (\dir b x y -> cmp dir (twinAt @'Both b) (twinAt @'LHS x) (twinAt @'RHS y))
+
+compareWithPol_ :: forall m a b. (MonadConversion m, FlipHet b, FlippedHet b ~ b) => Polarity ->
+  (Comparison -> b -> H'LHS a -> H'RHS a -> m ()) -> b -> H'LHS a -> H'RHS a -> m ()
+compareWithPol_ Invariant     cmp b x y = cmp CmpEq b x y
+compareWithPol_ Covariant     cmp b x y = cmp CmpLeq b x y
+compareWithPol_ Contravariant cmp b x y = dirToCmp_ cmp DirGeq b x y
+compareWithPol_ Nonvariant    cmp b x y = return ()
 
 polFromCmp :: Comparison -> Polarity
 polFromCmp CmpLeq = Covariant
