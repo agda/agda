@@ -19,12 +19,22 @@ on:
     - 'test/**.hs'
 
 jobs:
-  stack:
+  auto-cancel:
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
+
+    runs-on: Ubuntu-latest # Required, but it can be anything here.
+
+    steps:
+    - uses: styfle/cancel-workflow-action@0.6.0
+      with:
+        access_token: ${{ github.token }}
+
+  stack:
+    needs: auto-cancel
 
     runs-on: ${{ matrix.os }}
     strategy:
@@ -39,7 +49,7 @@ jobs:
             ghc-ver: 8.10.1
 
     env:
-      ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
+      ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal"
       EXTRA_ARGS: "--fast"
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
@@ -55,32 +65,39 @@ jobs:
       with:
         submodules: recursive
 
-    - uses: actions/setup-haskell@v1
+    - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
+        enable-stack: true
 
     - uses: actions/cache@v2
       name: Cache dependencies (Unix-like)
+      id: cache-on-unix
       if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - uses: actions/cache@v2
       name: Cache dependencies (Windows)
+      id: cache-on-win64
       if: ${{ runner.os == 'Windows' }}
       with:
         path: C:\Users\runneradmin\AppData\Roaming\stack
-        key: ${{ runner.os }}-stack-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: Update stack package index
-      run: stack update
+      if: steps.cache-on-unix.outputs.cache-hit == 'false' || steps.cache-on-win64.outputs.cache-hit == 'false'
+      run: |
+        stack update --silent
+        echo "system-ghc: true" >> ~/.stack/config.yaml
 
     - name: Install the icu library (Ubuntu)
       if: ${{ runner.os == 'Linux' }}
       run: |
-        sudo apt-get update && sudo apt-get install libicu-dev
+        sudo apt-get update -qq
+        sudo apt-get install libicu-dev -qq
 
     - name: Install the icu librery (Windows)
       if: ${{ runner.os == 'Windows' }}
@@ -89,11 +106,11 @@ jobs:
         stack exec  ${ARGS} -- pacman -U --noconfirm ${ICU_FILE}
 
     - name: Add the icu path to stack configuration (macOS)
-      if: ${{ runner.os == 'macOS' }}
+      if: runner.os == 'macOS' && steps.cache.outputs.cache-hit == 'false'
       run: printf "extra-lib-dirs:\n - /usr/local/opt/icu4c/lib\nextra-include-dirs:\n - /usr/local/opt/icu4c/include\n" > ~/.stack/config.yaml
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies --silent
 
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
       run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
