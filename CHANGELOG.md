@@ -489,7 +489,7 @@ Emacs mode
 * New keyboard shortcut `C-c C-x C-i` for toggling display of irrelevant arguments.
 
 JSON Interaction mode
-----------
+---------------------
 
 Changes have been made to the structure of error and warning messages. The
 changes are summarized below. See [#5052](https://github.com/agda/agda/issues/5052)
@@ -757,3 +757,9 @@ JS backend
 - `--js-minify` flag has been added to the `agda` compiler.
 
   With `--js-minify`, `agda` discards comments and whitespace in the generated JS code.
+
+
+API
+---
+
+* The `SourceInfo` record has been renamed to `Source`, and the `sourceInfo` function to `parseSource`.

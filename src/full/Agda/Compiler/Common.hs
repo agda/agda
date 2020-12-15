@@ -21,7 +21,7 @@ import Agda.Syntax.Internal as I
 
 import Agda.Interaction.FindFile ( srcFilePath )
 import Agda.Interaction.Options
-import Agda.Interaction.Imports ( CheckResult, crInterface, crSourceInfo, SourceInfo(..) )
+import Agda.Interaction.Imports ( CheckResult, crInterface, crSource, Source(..) )
 
 import Agda.TypeChecking.Monad
 
@@ -117,7 +117,7 @@ repl subs = go where
 inCompilerEnv :: CheckResult -> TCM a -> TCM a
 inCompilerEnv checkResult cont = do
   let mainI = crInterface checkResult
-      checkedSourceInfo = crSourceInfo checkResult
+      checkedSource = crSource checkResult
 
   -- Preserve the state (the compiler modifies the state).
   -- Andreas, 2014-03-23 But we might want to collect Benchmark info,
@@ -135,7 +135,7 @@ inCompilerEnv checkResult cont = do
           Nothing  ->
             -- The default output directory is the project root.
             let tm = toTopLevelModuleName $ iModuleName mainI
-                f  = srcFilePath $ siOrigin checkedSourceInfo
+                f  = srcFilePath $ srcOrigin checkedSource
             in filePath $ C.projectRoot f tm
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }

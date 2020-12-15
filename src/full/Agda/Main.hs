@@ -199,7 +199,7 @@ runAgdaWithOptions interactor progName opts = do
                      then Imp.ScopeCheck
                      else Imp.TypeCheck RegularInteraction
 
-          result <- Imp.typeCheckMain mode =<< Imp.sourceInfo (SourceFile inputFile)
+          result <- Imp.typeCheckMain mode =<< Imp.parseSource (SourceFile inputFile)
 
           unless (crMode result == ModuleScopeChecked) $
             unlessNullM (applyFlagsToTCWarnings (crWarnings result)) $ \ ws ->
