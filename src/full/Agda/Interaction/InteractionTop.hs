@@ -599,14 +599,14 @@ interpret (Cmd_load_highlighting_info source) = do
       if ex
         then
            do
-              si <- Imp.sourceInfo absSource
-              let m = Imp.siModuleName si
+              src <- Imp.parseSource absSource
+              let m = Imp.srcModuleName src
               checkModuleName m absSource Nothing
               mmi <- getVisitedModule m
               case mmi of
                 Nothing -> return Nothing
                 Just mi ->
-                  if hashText (Imp.siSource si) == iSourceHash (miInterface mi)
+                  if hashText (Imp.srcText src) == iSourceHash (miInterface mi)
                     then do
                       modFile <- useTC stModuleToSource
                       method  <- viewTC eHighlightingMethod
@@ -900,7 +900,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     t <- liftIO $ getModificationTime file
 
     -- Parse the file.
-    si <- lift $ Imp.sourceInfo (SourceFile fp)
+    src <- lift $ Imp.parseSource (SourceFile fp)
 
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
@@ -912,7 +912,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
       Right (_, opts) -> do
         opts <- lift $ addTrustedExecutables opts
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-            root     = projectRoot fp $ Imp.siModuleName si
+            root     = projectRoot fp $ Imp.srcModuleName src
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
         displayStatus
 
@@ -928,7 +928,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- Remove any prior syntax highlighting.
     putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
 
-    ok <- lift $ Imp.typeCheckMain mode si
+    ok <- lift $ Imp.typeCheckMain mode src
 
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the

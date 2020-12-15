@@ -11,11 +11,11 @@ module Agda.Interaction.Imports
   , crInterface
   , crWarnings
   , crMode
-  , crSourceInfo
+  , crSource
 
-  , SourceInfo(..)
+  , Source(..)
   , scopeCheckImport
-  , sourceInfo
+  , parseSource
   , typeCheckMain
 
   -- Currently only used by test/api/Issue1168.hs:
@@ -108,21 +108,21 @@ ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 ignoreAllInterfaces :: HasOptions m => m Bool
 ignoreAllInterfaces = optIgnoreAllInterfaces <$> commandLineOptions
 
--- | Some information about the source code.
+-- | The decorated source code.
 
-data SourceInfo = SourceInfo
-  { siSource     :: TL.Text               -- ^ Source code.
-  , siFileType   :: FileType              -- ^ Source file type
-  , siOrigin     :: SourceFile            -- ^ Source location at the time of its parsing
-  , siModule     :: C.Module              -- ^ The parsed module.
-  , siModuleName :: C.TopLevelModuleName  -- ^ The top-level module name.
-  , siProjectLibs :: [AgdaLibFile]        -- ^ The .agda-lib file(s) of the project this file belongs to.
+data Source = Source
+  { srcText        :: TL.Text               -- ^ Source code.
+  , srcFileType    :: FileType              -- ^ Source file type
+  , srcOrigin      :: SourceFile            -- ^ Source location at the time of its parsing
+  , srcModule      :: C.Module              -- ^ The parsed module.
+  , srcModuleName  :: C.TopLevelModuleName  -- ^ The top-level module name.
+  , srcProjectLibs :: [AgdaLibFile]         -- ^ The .agda-lib file(s) of the project this file belongs to.
   }
 
--- | Computes a 'SourceInfo' record for the given file.
+-- | Parses a source file and prepares the 'Source' record.
 
-sourceInfo :: SourceFile -> TCM SourceInfo
-sourceInfo sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
+parseSource :: SourceFile -> TCM Source
+parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   source                <- runPM $ readFilePM f
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
@@ -131,28 +131,28 @@ sourceInfo sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   useLibs <- optUseLibs <$> commandLineOptions
   libs <- if | useLibs   -> libToTCM $ getAgdaLibFiles sourceDir
              | otherwise -> return []
-  return SourceInfo
-    { siSource     = source
-    , siFileType   = fileType
-    , siOrigin     = sourceFile
-    , siModule     = parsedMod
-    , siModuleName = parsedModName
-    , siProjectLibs = libs
+  return Source
+    { srcText        = source
+    , srcFileType    = fileType
+    , srcOrigin      = sourceFile
+    , srcModule      = parsedMod
+    , srcModuleName  = parsedModName
+    , srcProjectLibs = libs
     }
 
-siPragmas :: SourceInfo -> [OptionsPragma]
-siPragmas si = defaultPragmas ++ pragmas
+srcPragmas :: Source -> [OptionsPragma]
+srcPragmas src = defaultPragmas ++ pragmas
   where
-  defaultPragmas = map _libPragmas (siProjectLibs si)
-  cpragmas = C.modPragmas (siModule si)
+  defaultPragmas = map _libPragmas (srcProjectLibs src)
+  cpragmas = C.modPragmas (srcModule src)
   pragmas = [ opts | C.OptionsPragma _ opts <- cpragmas ]
 
--- | Set options from a 'SourceInfo' pragma, using the source
+-- | Set options from a 'Source' pragma, using the source
 --   ranges of the pragmas for error reporting.
-setOptionsFromSourceInfoPragmas :: SourceInfo -> TCM ()
-setOptionsFromSourceInfoPragmas si =
-  setCurrentRange (C.modPragmas . siModule $ si) $
-    mapM_ setOptionsFromPragma (siPragmas si)
+setOptionsFromSourcePragmas :: Source -> TCM ()
+setOptionsFromSourcePragmas src =
+  setCurrentRange (C.modPragmas . srcModule $ src) $
+    mapM_ setOptionsFromPragma (srcPragmas src)
 
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
@@ -352,19 +352,19 @@ alreadyVisited x isMain currentOptions getModule =
 
 data CheckResult = CheckResult'
   { crModuleInfo :: ModuleInfo
-  , crSourceInfo' :: SourceInfo
+  , crSource'    :: Source
   }
 
 -- | Flattened unidirectional pattern for 'CheckResult' for destructuring inside
 --   the 'ModuleInfo' field.
-pattern CheckResult :: Interface -> [TCWarning] -> ModuleCheckMode -> SourceInfo -> CheckResult
-pattern CheckResult { crInterface, crWarnings, crMode, crSourceInfo } <- CheckResult'
+pattern CheckResult :: Interface -> [TCWarning] -> ModuleCheckMode -> Source -> CheckResult
+pattern CheckResult { crInterface, crWarnings, crMode, crSource } <- CheckResult'
     { crModuleInfo = ModuleInfo
         { miInterface = crInterface
         , miWarnings = crWarnings
         , miMode = crMode
         }
-    , crSourceInfo' = crSourceInfo
+    , crSource' = crSource
     }
 
 -- | Type checks the main file of the interaction.
@@ -384,10 +384,10 @@ pattern CheckResult { crInterface, crWarnings, crMode, crSourceInfo } <- CheckRe
 typeCheckMain
   :: Mode
      -- ^ Should the file be type-checked, or only scope-checked?
-  -> SourceInfo
-     -- ^ Information about the source code.
+  -> Source
+     -- ^ The decorated source code.
   -> TCM CheckResult
-typeCheckMain mode si = do
+typeCheckMain mode src = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
   reportSLn "import.main" 10 "Importing the primitive modules."
@@ -402,23 +402,23 @@ typeCheckMain mode si = do
     -- We don't want to generate highlighting information for Agda.Primitive.
     withHighlightingLevel None $
       forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
-        primSourceInfo <- sourceInfo (SourceFile $ mkAbsolute f)
-        checkModuleName' (siModuleName primSourceInfo) (siOrigin primSourceInfo)
-        void $ getNonMainInterface (siModuleName primSourceInfo) (Just primSourceInfo)
+        primSource <- parseSource (SourceFile $ mkAbsolute f)
+        checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
+        void $ getNonMainInterface (srcModuleName primSource) (Just primSource)
 
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
   -- Now do the type checking via getInterface.
-  checkModuleName' (siModuleName si) (siOrigin si)
+  checkModuleName' (srcModuleName src) (srcOrigin src)
 
   -- For the main interface, we also remember the pragmas from the file
-  setOptionsFromSourceInfoPragmas si
+  setOptionsFromSourcePragmas src
 
-  mi <- getInterface (siModuleName si) (MainInterface mode) (Just si)
+  mi <- getInterface (srcModuleName src) (MainInterface mode) (Just src)
 
   stCurrentModule `setTCLens` Just (iModuleName (miInterface mi))
 
-  return $ CheckResult' mi si
+  return $ CheckResult' mi src
   where
   checkModuleName' m f =
     -- Andreas, 2016-07-11, issue 2092
@@ -436,14 +436,14 @@ typeCheckMain mode si = do
 
 getNonMainInterface
   :: C.TopLevelModuleName
-  -> Maybe SourceInfo
-     -- ^ Optional information about the source code.
+  -> Maybe Source
+     -- ^ Optional: the source code and some information about the source code.
   -> TCM Interface
-getNonMainInterface x msi = do
+getNonMainInterface x msrc = do
   -- Preserve/restore the current pragma options, which will be mutated when loading
   -- and checking the interface.
   mi <- bracket_ (useTC stPragmaOptions) (stPragmaOptions `setTCLens`) $
-          getInterface x NotMainInterface msi
+          getInterface x NotMainInterface msrc
   tcWarningsToError $ miWarnings mi
   return (miInterface mi)
 
@@ -454,20 +454,20 @@ getNonMainInterface x msi = do
 getInterface
   :: C.TopLevelModuleName
   -> MainInterface
-  -> Maybe SourceInfo
-     -- ^ Optional information about the source code.
+  -> Maybe Source
+     -- ^ Optional: the source code and some information about the source code.
   -> TCM ModuleInfo
-getInterface x isMain msi =
+getInterface x isMain msrc =
   addImportCycleCheck x $ do
      -- We remember but reset the pragma options locally
      -- Issue #3644 (Abel 2020-05-08): Set approximate range for errors in options
      currentOptions <- useTC stPragmaOptions
-     setCurrentRange (C.modPragmas . siModule <$> msi) $
+     setCurrentRange (C.modPragmas . srcModule <$> msrc) $
        -- Now reset the options
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
 
      alreadyVisited x isMain currentOptions $ do
-      file <- maybe (findFile x) (pure . siOrigin) msi -- may require source to exist
+      file <- maybe (findFile x) (pure . srcOrigin) msrc -- may require source to exist
 
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
@@ -481,13 +481,13 @@ getInterface x isMain msi =
       stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
         when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
           throwError "we always re-check the main interface in top-level interaction"
-        getStoredInterface x file msi
+        getStoredInterface x file msrc
 
       let recheck = \reason -> do
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
             case isMain of
-              MainInterface _ -> createInterface x file isMain msi
-              NotMainInterface -> createInterfaceIsolated x file msi
+              MainInterface _ -> createInterface x file isMain msrc
+              NotMainInterface -> createInterfaceIsolated x file msrc
 
       either recheck pure stored
 
@@ -534,9 +534,9 @@ getStoredInterface
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
-  -> Maybe SourceInfo
+  -> Maybe Source
   -> ExceptT String TCM ModuleInfo
-getStoredInterface x file msi = do
+getStoredInterface x file msrc = do
   -- Check whether interface file exists and is in cache
   --  in the correct version (as testified by the interface file hash).
   --
@@ -560,9 +560,9 @@ getStoredInterface x file msi = do
   -- This is a lazy action which may be skipped if the cached or on-disk interface
   -- is invalid, missing, or skipped for some other reason.
   let checkSourceHashET ifaceH = do
-        sourceH <- case msi of
+        sourceH <- case msrc of
                     Nothing -> liftIO $ hashTextFile (srcFilePath file)
-                    Just si -> return $ hashText (siSource si)
+                    Just src -> return $ hashText (srcText src)
 
         unless (sourceH == ifaceH) $
           throwError $ concat
@@ -713,10 +713,10 @@ createInterfaceIsolated
      -- ^ Module name of file we process.
   -> SourceFile
      -- ^ File we process.
-  -> Maybe SourceInfo
-     -- ^ Optional information about the source code.
+  -> Maybe Source
+     -- ^ Optional: the source code and some information about the source code.
   -> TCM ModuleInfo
-createInterfaceIsolated x file msi = do
+createInterfaceIsolated x file msrc = do
       cleanCachedLog
 
       ms          <- getImportPath
@@ -758,7 +758,7 @@ createInterfaceIsolated x file msi = do
                setVisitedModules vs
                addImportedThings isig ibuiltin ipatsyns display userwarn partialdefs []
 
-               r  <- createInterface x file NotMainInterface msi
+               r  <- createInterface x file NotMainInterface msrc
                mf' <- useTC stModuleToSource
                ds' <- getDecodedModules
                return (r, mf', ds')
@@ -779,7 +779,7 @@ createInterfaceIsolated x file msi = do
       -- reason it continually fails to validate interface.
       let recheckOnError = \msg -> do
             reportSLn "import.iface" 1 $ "Failed to validate just-loaded interface: " ++ msg
-            createInterfaceIsolated x file msi
+            createInterfaceIsolated x file msrc
 
       either recheckOnError pure validated
 
@@ -888,9 +888,9 @@ createInterface
   :: C.TopLevelModuleName  -- ^ The expected module name.
   -> SourceFile            -- ^ The file to type check.
   -> MainInterface         -- ^ Are we dealing with the main module?
-  -> Maybe SourceInfo      -- ^ Optional information about the source code.
+  -> Maybe Source      -- ^ Optional information about the source code.
   -> TCM ModuleInfo
-createInterface mname file isMain msi = do
+createInterface mname file isMain msrc = do
   let x = mname
   let fp = filePath $ srcFilePath file
   let checkMsg = case isMain of
@@ -917,16 +917,16 @@ createInterface mname file isMain msi = do
       visited <- prettyShow <$> getPrettyVisitedModules
       reportSLn "import.iface.create" 10 $ "  visited: " ++ visited
 
-    si <- maybe (sourceInfo file) pure msi
+    src <- maybe (parseSource file) pure msrc
 
-    let srcPath = srcFilePath $ siOrigin si
+    let srcPath = srcFilePath $ srcOrigin src
 
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfoFromSource
-                         srcPath (TL.unpack $ siSource si)
+                         srcPath (TL.unpack $ srcText src)
     stTokens `setTCLens` fileTokenInfo
 
-    setOptionsFromSourceInfoPragmas si
+    setOptionsFromSourcePragmas src
 
     verboseS "import.iface.create" 15 $ do
       nestingLevel      <- asksTC (pred . length . envImportPath)
@@ -939,7 +939,7 @@ createInterface mname file isMain msi = do
     -- Scope checking.
     reportSLn "import.iface.create" 7 "Starting scope checking."
     topLevel <- Bench.billTo [Bench.Scoping] $ do
-      let topDecls = C.modDecls $ siModule si
+      let topDecls = C.modDecls $ srcModule src
       concreteToAbstract_ (TopLevel srcPath mname topDecls)
     reportSLn "import.iface.create" 7 "Finished scope checking."
 
@@ -1058,7 +1058,7 @@ createInterface mname file isMain msi = do
     -- Serialization.
     reportSLn "import.iface.create" 7 "Starting serialization."
     i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $
-      buildInterface si topLevel
+      buildInterface src topLevel
 
     reportS "tc.top" 101 $
       "Signature:" :
@@ -1142,17 +1142,17 @@ constructIScope i = billToPure [ Deserialization ] $
 -- have been successfully type checked.
 
 buildInterface
-  :: SourceInfo
-     -- ^ 'SourceInfo' for the current module.
+  :: Source
+     -- ^ 'Source' for the current module.
   -> TopLevelInfo
      -- ^ 'TopLevelInfo' scope information for the current module.
   -> TCM Interface
-buildInterface si topLevel = do
+buildInterface src topLevel = do
     reportSLn "import.iface" 5 "Building interface..."
     let mname = topLevelModuleName topLevel
-        source = siSource si
-        fileType = siFileType si
-        pragmas = siPragmas si
+        source   = srcText src
+        fileType = srcFileType src
+        pragmas  = srcPragmas src
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
