@@ -1,3 +1,7 @@
+-- Andreas, 2020-12-16, also test #5103
+-- Allow compilation with unsolved metas
+
+{-# OPTIONS --allow-unsolved-metas #-}
 
 module _ where
 
@@ -22,7 +26,7 @@ foldl B f z (x ∷ xs) = foldl (λ n → B (suc n)) f (f z x) xs
 foldl B f z [] = z
 
 reverse : ∀ {A n} → Vec A n → Vec A n
-reverse = foldl (Vec _) (λ xs x → x ∷ xs) []
+reverse = foldl (Vec {!!}) (λ xs x → x ∷ xs) []  -- inessential unsolved meta here
 
 downFrom : ∀ n → Vec Nat n
 downFrom zero    = []
