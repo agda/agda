@@ -213,7 +213,7 @@ Language
   ```
 
 * Erased constructors (see
-  [#4522](https://github.com/agda/agda/issues/4638)).
+  [#4638](https://github.com/agda/agda/issues/4638)).
 
   Constructors can be marked as erased. Example:
 
@@ -759,7 +759,7 @@ JS backend
   With `--js-minify`, `agda` discards comments and whitespace in the generated JS code.
 
 
-API
----
+Agda as a library (API)
+-----------------------
 
 * The `SourceInfo` record has been renamed to `Source`, and the `sourceInfo` function to `parseSource`.
