@@ -576,6 +576,12 @@ for additional details.
   }
   ```
 
+Compiler backends
+-----------------
+
+- With option `--allow-unsolved-metas`, code with holes can be compiled.
+  If a hole is reached at runtime, the compiled program crashes.
+  See issue [#5103](https://github.com/agda/agda/issues/5103)
 
 JS backend
 ----------

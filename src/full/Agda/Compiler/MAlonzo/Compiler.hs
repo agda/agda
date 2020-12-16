@@ -195,8 +195,6 @@ data GHCDefinition = GHCDefinition
 
 ghcPreCompile :: GHCFlags -> TCM GHCCompileEnv
 ghcPreCompile flags = do
-  allowUnsolved <- optAllowUnsolved <$> pragmaOptions
-  when allowUnsolved $ genericError $ "Unsolved meta variables are not allowed when compiling."
   outDir <- compileDir
   let ghcOpts = GHCOptions
                 { optGhcCallGhc    = flagGhcCallGhc flags
@@ -764,6 +762,7 @@ noApplication = \case
   T.TErased   -> return $ hsVarUQ $ HS.Ident mazErasedName
   T.TError e  -> return $ case e of
     T.TUnreachable -> rtmUnreachableError
+    T.TMeta s      -> rtmHole s
 
 hsCoerce :: HS.Exp -> HS.Exp
 hsCoerce t = HS.App mazCoerce t

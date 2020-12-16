@@ -532,6 +532,7 @@ compileTerm kit t = go t
       T.TSort -> unit
       T.TErased -> unit
       T.TError T.TUnreachable -> return Undefined
+      T.TError T.TMeta{}      -> return Undefined
       T.TCoerce t -> go t
 
     getDef (T.TDef f) = Just (Left f)
