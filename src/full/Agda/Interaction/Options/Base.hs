@@ -321,26 +321,22 @@ type Flag opts = opts -> OptM opts
 -- | Checks that the given options are consistent.
 
 checkOpts :: Flag CommandLineOptions
-checkOpts opts
-  | or [ p opts && matches ps > 1 | (p, ps) <- exclusive ] =
-      throwError exclusiveMessage
-  | otherwise = return opts
-  where
-  matches = length . filter ($ opts)
-  atMostOne = map fst exclusive
-
-  exclusive =
-    [ ( optOnlyScopeChecking
-      , optGenerateVimFile :
-        atMostOne
-      )
-    ]
-
-  exclusiveMessage = unlines $
-    [ "The options --interactive, --interaction, --interaction-json and"
-    , "--only-scope-checking cannot be combined with each other."
-    , "Furthermore --only-scope-checking cannot be combined with --vim."
-    ]
+checkOpts opts = do
+  -- NOTE: This is a temporary hold-out until --vim can be converted into a backend or plugin,
+  -- whose options compatibility currently is checked in `Agda.Compiler.Backend`.
+  --
+  -- Additionally, note that some options checking is performed in `Agda.Main`
+  -- in which the top-level frontend and backend interactors are selected.
+  --
+  -- Those checks are not represented here, because:
+  --   - They are used solely for selecting the initial executon mode; they
+  --     don't need to be checked on a per-module etc basis.
+  --   - I hope/expect that the presence of those specific flags will be eventually
+  --     abstracted out (like the Backends' internal flags), so that they are invisible
+  --     to the rest of the type-checking system.
+  when (optGenerateVimFile opts && optOnlyScopeChecking opts) $
+    throwError $ "The --only-scope-checking flag cannot be combined with --vim."
+  return opts
 
 -- | Check for unsafe pragmas. Gives a list of used unsafe flags.
 

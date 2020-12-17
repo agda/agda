@@ -20,7 +20,7 @@ import Test.Tasty.Silver.Advanced
 
 import Utils
 
-import Agda.Utils.Functor ((<&>))
+import Agda.Utils.Functor ((<&>), for)
 
 testDir :: FilePath
 testDir = "test" </> "Fail"
@@ -36,6 +36,7 @@ tests = do
   where
   customizedTests =
     [ testGroup "customised" $
+        issue5101 :
         issue4671 :
         issue2649 :
         nestedProjectRoots :
@@ -105,6 +106,24 @@ issue4671 =
       let agdaArgs file = [ "-v0", "--no-libraries", "-i" ++ dir, dir </> file ]
       runAgdaWithOptions "Issue4671" (agdaArgs "Issue4671.agda") Nothing Nothing
         <&> printTestResult . expectFail
+
+-- The only customization here is that these do not have input .agda files,
+-- because the front-end interactors do not accept them.
+-- This runs the same as a normal test, but won't be auto-discovered because
+-- currently test discovery searches only for the .agda source.
+issue5101 :: TestTree
+issue5101 = testGroup "Issue5101" $
+  for suffixes $ \s -> do
+    let testName = "OnlyScopeChecking" ++ s
+    let goldenFile = dir </> testName <.> "err"
+    let flagsFile = dir </> testName <.> "flags"
+    let agdaArgs = ["-v0", "--no-libraries", "-i" ++ dir]
+    let doRun = runAgdaWithOptions testName agdaArgs (Just flagsFile) Nothing <&> printTestResult . expectFail
+    goldenTest1 testName (readTextFileMaybe goldenFile)
+      doRun resDiff resShow (writeTextFile goldenFile)
+  where
+  dir = testDir
+  suffixes = ["Repl", "Emacs", "JSON", "Vim"]
 
 issue2649 :: TestTree
 issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
