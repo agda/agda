@@ -236,11 +236,12 @@ OS X
 `Homebrew <https://brew.sh>`_ is a free and open-source software package
 management system that provides prebuilt packages for OS X. Once it is
 installed in your system, you are ready to install agda. Open the
-Terminal app and run the following command:
+Terminal app and run the following commands:
 
 .. code-block:: bash
 
   brew install agda
+  agda-mode setup
 
 This process should take less than a minute, and it installs Agda together with
 its Emacs mode and its standard library. For more information about the ``brew``
@@ -256,16 +257,15 @@ the ``~/.agda/defaults`` file. To do this, run the following commands:
 .. code-block:: bash
 
   mkdir -p ~/.agda
-  echo /usr/local/lib/agda/standard-library.agda-lib >>~/.agda/libraries
+  echo $(brew --prefix)/lib/agda/standard-library.agda-lib >>~/.agda/libraries
   echo standard-library >>~/.agda/defaults
 
 Please note that this configuration is not performed automatically. You can
 learn more about :ref:`using the standard library <use-std-lib>` or
 :ref:`using a library in general <use-lib>`.
 
-It is also possible to install with the command-line option keywords
-``--without-stdlib``, ``--without-ghc``, or from ``--HEAD``.  This requires
-building Agda from source.
+It is also possible to install with the command-line option keyword ``--HEAD``.
+This requires building Agda from source.
 
 To configure the way of editing agda files, follow the section
 :ref:`Emacs mode <emacs-mode>`.
