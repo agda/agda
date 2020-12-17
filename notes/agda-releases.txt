@@ -135,13 +135,17 @@ When releasing the following procedure can be followed:
 
     git push --follow-tags
 
-* Add a new header to CHANGELOG.
+* New CHANGELOG (see Issue #4705):
 
-* Move the CHANGELOG for $MAJORVERSION to a new entry in
-  doc/release-notes/<version-written-with-dashes>.md.
+  ** In a commit:
 
-* Add doc/release-notes/<version-written-with-dashes>.md. to the
-  extra-source-files field in Agda.cabal.
+     *** Move the CHANGELOG for $MAJORVERSION to a new entry in
+         doc/release-notes/<version-written-with-dashes>.md.
+
+     *** Add doc/release-notes/<version-written-with-dashes>.md. to
+         the extra-source-files field in Agda.cabal.
+
+  ** In a different commit: Create a new CHANGELOG file.
 
 * Close in the bug tracker the milestone $MAJORVERSION.
 
