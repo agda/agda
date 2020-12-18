@@ -63,7 +63,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Irrelevance ( workOnTypes )
+import Agda.TypeChecking.Irrelevance ( workOnTypes , isIrrelevantOrPropM )
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
@@ -379,16 +379,17 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
                   Left _    -> return False
                   Right sub -> do
                     let us = applySubst sub $ map var $ downFrom $ size delta
-                        as = map unDom $ applySubst sub $ flattenTel delta
+                        as = applySubst sub $ flattenTel delta
                     reportSDoc "rewriting.confluence.global" 35 $
                       prettyTCM (hd es) <+> "is an instance of the LHS of rule" <+> prettyTCM q <+> "with instantiation" <+> prettyList_ (map prettyTCM us)
                     ok <- allDistinctVars $ zip us as
                     when ok $ reportSDoc "rewriting.confluence.global" 30 $
                       "It is equal to the LHS of rewrite rule" <+> prettyTCM q
                     return ok
-              allDistinctVars :: [(Term,Type)] -> TCM Bool
+              allDistinctVars :: [(Term,Dom Type)] -> TCM Bool
               allDistinctVars us = do
-                mis <- traverse (uncurry isEtaVar) us
+                us' <- filterM (not <.> isIrrelevantOrPropM . snd) us
+                mis <- traverse (\(u,a) -> isEtaVar u (unDom a)) $ us'
                 case sequence mis of
                   Just is -> return $ fastDistinct is
                   Nothing -> return False
