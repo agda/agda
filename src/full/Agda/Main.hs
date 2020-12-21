@@ -128,11 +128,12 @@ getInteractor configuredBackends maybeInputFile opts =
     (Nothing,        [],             _:_) -> throwError $ concat ["No input file specified for ", enabledBackendNames]
     (_,              _:_,            _:_) -> throwError $ concat ["Cannot mix ", enabledFrontendNames, " with ", enabledBackendNames]
     (_,              _:_:_,           []) -> throwError $ concat ["Must not specify multiple ", enabledFrontendNames]
+    (_,              [fe],            []) | optOnlyScopeChecking opts -> errorFrontendScopeChecking fe
     (_,              [FrontEndRepl],  []) -> return $ Just $ replInteractor maybeInputFile
     (Nothing,        [FrontEndEmacs], []) -> return $ Just $ emacsModeInteractor
     (Nothing,        [FrontEndJson],  []) -> return $ Just $ jsonModeInteractor
-    (Just inputFile, [FrontEndEmacs], []) -> errorInteraction inputFile ""
-    (Just inputFile, [FrontEndJson],  []) -> errorInteraction inputFile "-json"
+    (Just inputFile, [FrontEndEmacs], []) -> errorFrontendFileDisallowed inputFile FrontEndEmacs
+    (Just inputFile, [FrontEndJson],  []) -> errorFrontendFileDisallowed inputFile FrontEndJson
   where
     -- NOTE: The notion of a backend being "enabled" *just* refers to this top-level interaction mode selection. The
     -- interaction/interactive front-ends may still invoke available backends even if they are not "enabled".
@@ -153,8 +154,10 @@ getInteractor configuredBackends maybeInputFile opts =
       FrontEndEmacs -> "interaction"
       FrontEndJson -> "interaction-json"
       FrontEndRepl -> "interactive"
-    errorInteraction inputFile suffix = throwError $
-      concat [ "Must not specify an input file (", filePath inputFile, ") with --interaction", suffix ]
+    errorFrontendScopeChecking fe = throwError $
+      concat ["The --only-scope-checking flag cannot be combined with ", frontendFlagName fe]
+    errorFrontendFileDisallowed inputFile fe = throwError $
+      concat ["Must not specify an input file (", filePath inputFile, ") with ", frontendFlagName fe]
 
 -- | Run Agda with parsed command line options
 runAgdaWithOptions
