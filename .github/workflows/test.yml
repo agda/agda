@@ -300,8 +300,10 @@ jobs:
     - name: "Testing the Emacs mode"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
 
-# # Andreas, 2020-11-06, issue #5037: deactivate size-solver
-# # "stack build size-solver" recompiles Agda from scratch.
-# # Too costly!
-#    - name: "Run tests for the size solver"
-#      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-size-solver
+ # Andreas, 2020-11-06, issue #5037: deactivate size-solver
+ # "stack build size-solver" recompiles Agda from scratch.
+ # Too costly!
+    - name: "Run tests for the size solver"
+      run: |
+        export PATH=${HOME}/.local/bin:${PATH}
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-size-solver
