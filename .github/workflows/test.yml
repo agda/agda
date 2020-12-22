@@ -51,6 +51,7 @@ jobs:
     strategy:
       matrix:
         ghc-ver: [8.10.2]
+        stack-ver: [2.5.1]
         os: [ubuntu-18.04]
 
     if: |
@@ -61,6 +62,7 @@ jobs:
 
     outputs:
       ghc-ver: ${{ matrix.ghc-ver }}
+      stack-ver: ${{ matrix.stack-ver }}
       os: ${{ matrix.os }}
 
     runs-on: ${{ matrix.os }}
@@ -76,6 +78,7 @@ jobs:
     - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
+        stack-version: ${{ matrix.stack-ver }}
         enable-stack: true
 
     - uses: actions/cache@v2
@@ -84,7 +87,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -141,6 +144,7 @@ jobs:
     - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
     - uses: actions/cache@v2
@@ -148,7 +152,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-${{ needs.build.outputs.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -202,6 +206,7 @@ jobs:
     - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
     - uses: actions/cache@v2
@@ -209,7 +214,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-${{ needs.build.outputs.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -251,6 +256,7 @@ jobs:
     - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
     - uses: actions/cache@v2
@@ -258,7 +264,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-${{ needs.build.outputs.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
 
     - uses: actions/download-artifact@v2
       with:
