@@ -15,6 +15,7 @@ on:
     - '.github/workflows/stack.yml'
     - '.github/workflows/user_manual.yml'
     - '.github/workflows/whitespace.yml'
+    - 'src/fix-whitespace/**'
     - '.travis'
     - 'benchmark/**'
     - 'doc/**'
@@ -83,7 +84,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -147,7 +148,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -208,7 +209,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -257,7 +258,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
 
     - uses: actions/download-artifact@v2
       with:
