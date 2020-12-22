@@ -79,6 +79,7 @@ jobs:
 
     - uses: actions/cache@v2
       name: Cache dependencies
+      id: cache
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
@@ -88,7 +89,7 @@ jobs:
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
 
     - name: "Update and configure stack"
-      if: steps.cache.outputs.cache-hit == 'false'
+      if: ${{ !steps.cache.outputs.cache-hit }}
       run: |
         stack update --silent
         echo "system-ghc: true" >> ~/.stack/config.yaml
@@ -98,6 +99,7 @@ jobs:
         cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
 
     - name: "Install dependencies for Agda and its test suites"
+      if: ${{ !steps.cache.outputs.cache-hit }}
       run: make STACK_OPTS=--silent install-deps
 
     - name: "Build Agda"
@@ -145,7 +147,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -206,7 +208,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -255,7 +257,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - uses: actions/download-artifact@v2
       with:
