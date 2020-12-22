@@ -82,7 +82,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}

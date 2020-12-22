@@ -77,7 +77,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - uses: actions/cache@v2
       name: Cache dependencies (Windows)
@@ -85,7 +85,7 @@ jobs:
       if: ${{ runner.os == 'Windows' }}
       with:
         path: C:\Users\runneradmin\AppData\Roaming\stack
-        key: ${{ runner.os }}-stack-without-ghc-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-without-ghc-${{ matrix.ghc-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
 
     - name: Update stack package index
       if: steps.cache-on-unix.outputs.cache-hit == 'false' || steps.cache-on-win64.outputs.cache-hit == 'false'
