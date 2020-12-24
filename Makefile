@@ -107,6 +107,9 @@ STACK_INSTALL_OPTS += --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 # Options for building Agda's dependencies.
 CABAL_INSTALL_DEP_OPTS = --only-dependencies \
                          $(CABAL_INSTALL_OPTS)
+STACK_INSTALL_DEP_OPTS = --only-dependencies \
+                         $(STACK_INSTALL_OPTS)
+
 # Options for building the Agda exectutable.
 # -j1 so that cabal will print built progress to stdout.
 CABAL_INSTALL_BIN_OPTS = -j1 --disable-library-profiling \
@@ -132,7 +135,10 @@ ensure-hash-is-correct:
 
 .PHONY: install-deps ## Install Agda dependencies.
 install-deps:
-ifndef HAS_STACK
+ifdef HAS_STACK
+	@echo "===================== Installing dependencies using Stack ================"
+	time $(STACK_INSTALL) $(STACK_INSTALL_DEP_OPTS)
+else
 	@echo "========================= Installing dependencies using Cabal ============"
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_DEP_OPTS)
 endif
@@ -498,7 +504,7 @@ testing-emacs-mode:
 .PHONY : install-size-solver ## Install the size solver.
 install-size-solver :
 	@$(call decorate, "Installing the size-solver program", \
-		$(MAKE) -C src/size-solver install-bin)
+		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(STACK_INSTALL_OPTS)' CABAL_INSTALL_OPTS='$(CABAL_INSTALL_OPTS)' install-bin)
 
 .PHONY : test-size-solver ##
 test-size-solver : install-size-solver

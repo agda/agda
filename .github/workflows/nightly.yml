@@ -15,11 +15,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-18.04]
+        os: [macos-latest]
         ghc-ver: [8.10.2]
         include:
           - os: windows-latest
-            ghc-ver: 8.10.1
+            ghc-ver: 8.10.2.2
 
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
@@ -33,7 +33,7 @@ jobs:
     steps:
     - name: Add environment variables for the file name of nightly build
       run: |
-        short_sha=`echo ${GITHUB_SHA} | cut -c1-7`
+        short_sha=${GITHUB_SHA::7}
         echo "nightly_dir=`echo Agda-nightly-${short_sha}-${{ runner.os }}`" >> $GITHUB_ENV
 
     - uses: actions/checkout@v2
@@ -45,10 +45,10 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
 
     - name: Update the package index of stack
-      run: stack update
+      run: stack update --silent
 
     - name: Build dependencies
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${FLAGS} --only-dependencies
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${FLAGS} --only-dependencies --silent
 
     - name: Build Agda (Unix-like)
       if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
@@ -100,4 +100,4 @@ jobs:
         path: ${{ env.nightly_dir }}.tar
         name: ${{ env.nightly_dir }}
         if-no-files-found: error
-        retention-days: 7
+        retention-days: 3
