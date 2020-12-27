@@ -962,15 +962,18 @@ metaHelperType norm ii rng s = case words s of
 contextOfMeta :: InteractionId -> Rewrite -> TCM [ResponseContextEntry]
 contextOfMeta ii norm = withInteractionId ii $ do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
-  withMetaInfo info $ do
-    -- List of local variables.
-    cxt <- getContext
-    let localVars = zipWith raise [1..] cxt
-    -- List of let-bindings.
-    letVars <- Map.toAscList <$> asksTC envLetBindings
-    -- Reify the types and filter out bindings without a name.
-    (++) <$> forMaybeM (reverse localVars) mkVar
-         <*> forMaybeM letVars mkLet
+  withMetaInfo info $ getCurrentContext norm
+  
+getCurrentContext :: Rewrite -> TCM [ResponseContextEntry]
+getCurrentContext norm = do
+  -- List of local variables.
+  cxt <- getContext
+  let localVars = zipWith raise [1..] cxt
+  -- List of let-bindings.
+  letVars <- Map.toAscList <$> asksTC envLetBindings
+  -- Reify the types and filter out bindings without a name.
+  (++) <$> forMaybeM (reverse localVars) mkVar
+       <*> forMaybeM letVars mkLet
 
   where
     mkVar :: Dom (Name, Type) -> TCM (Maybe ResponseContextEntry)
