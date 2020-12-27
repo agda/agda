@@ -126,8 +126,11 @@ lispifyDisplayInfo info = case info of
       format body ("*All" ++ title ++ "*")
     Info_Auto s -> format s "*Auto*"
     Info_Error err -> do
-      s <- showInfoError err
-      format s "*Error*"
+      (s, mctx) <- showInfoError err
+      lispErr <- format s "*Error*"
+      let lispCtx = caseMaybe mctx [] $ \ctx ->
+           [ displayInBuffer "agda2-context-action" False "*Error Context*" ctx ]
+      return $ lispErr ++ lispCtx
     Info_Time s -> format (render $ prettyTimed s) "*Time*"
     Info_NormalForm state cmode time expr -> do
       exprDoc <- evalStateT prettyExpr state
@@ -281,32 +284,39 @@ formatWarningsAndErrors g w e = (body, title)
              ]
 
 
--- | Serializing Info_Error
-showInfoError :: Info_Error -> TCM String
+-- | Serializing Info_Error, returning the pretty-printed error message and
+--   the pretty-printed context.
+showInfoError :: Info_Error -> TCM (String, Maybe String)
 showInfoError (Info_GenericError err) = do
   e <- prettyError err
   w <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
+  mctx <- case err of
+    TypeError _ _ cl -> enterClosure cl $ \_ -> do
+      ctx <- getCurrentContext AsIs
+      Just . render <$> prettyResponseContext False ctx
+    _                -> return Nothing
 
   let errorMsg  = if null w
                       then e
                       else delimiter "Error" ++ "\n" ++ e
   let warningMsg = List.intercalate "\n" $ delimiter "Warning(s)"
                                       : filter (not . null) w
-  return $ if null w
+  return $ (,mctx)
+         $ if null w
             then errorMsg
             else errorMsg ++ "\n\n" ++ warningMsg
 showInfoError (Info_CompilationError warnings) = do
   s <- prettyTCWarnings warnings
-  return $ unlines
+  return $ (,Nothing) $ unlines
             [ "You need to fix the following errors before you can compile"
             , "the module:"
             , ""
             , s
             ]
 showInfoError (Info_HighlightingParseError ii) =
-  return $ "Highlighting failed to parse expression in " ++ show ii
+  return $ (,Nothing) $ "Highlighting failed to parse expression in " ++ show ii
 showInfoError (Info_HighlightingScopeCheckError ii) =
-  return $ "Highlighting failed to scope check expression in " ++ show ii
+  return $ (,Nothing) $ "Highlighting failed to scope check expression in " ++ show ii
 
 explainWhyInScope :: FilePath
                   -> String

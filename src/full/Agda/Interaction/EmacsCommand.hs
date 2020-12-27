@@ -11,6 +11,7 @@ module Agda.Interaction.EmacsCommand
   , clearRunningInfo
   , clearWarning
   , displayRunningInfo
+  , displayInBuffer
   ) where
 
 import qualified Data.List as List

@@ -298,6 +298,9 @@ menus.")
 (defvar agda2-info-buffer nil
   "Agda information buffer.")
 
+(defvar agda2-context-buffer nil
+  "Agda context buffer.")
+
 (defvar agda2-process-buffer nil
   "Agda subprocess buffer.
 Set in `agda2-restart'.")
@@ -990,18 +993,30 @@ The buffer is returned.")
 
 (agda2-information-buffer agda2-info-buffer "info" "*Agda information*")
 
+(agda2-information-buffer agda2-context-buffer "context" "*Agda context*")
+
 (defun agda2-info-action (name text &optional append)
-  "Insert TEXT into the Agda info buffer and display it.
+  "Insert TEXT into the Agda info buffer and display it
+(see agda2-display-action and agda2-focus-buffer)"
+  (let ((buf (agda2-info-buffer)))
+    (agda2-display-action buf name text append)
+    (agda2-focus-buffer buf append)))
+
+(defun agda2-context-action (name text &optional append)
+  "Insert TEXT into the Agda context buffer (see agda2-display-action)"
+  (agda2-display-action (agda2-context-buffer) name text append))
+
+(defun agda2-display-action (buf name text &optional append)
+  "Insert TEXT into the given buffer.
 NAME is displayed in the buffer's mode line.
 
 If APPEND is non-nil, then TEXT is appended at the end of the
-buffer, and point placed after this text.
+buffer.
 
 If APPEND is nil, then any previous text is removed before TEXT
-is inserted, and point is placed before this text."
+is inserted."
   (interactive)
-  (let ((buf (agda2-info-buffer)))
-    (with-current-buffer buf
+  (with-current-buffer buf
       ;; In some cases the jump-to-position-mentioned-in-text
       ;; functionality (see compilation-error-regexp-alist above)
       ;; didn't work: Emacs jumped to the wrong position. However, it
@@ -1018,10 +1033,17 @@ is inserted, and point is placed before this text."
         (insert text))
       (put-text-property 0 (length name) 'face '(:weight bold) name)
       (setq mode-line-buffer-identification name)
-      (force-mode-line-update))
-    ;; If the current window displays the information buffer, then the
-    ;; window configuration is left untouched.
-    (unless (equal (window-buffer) buf)
+      (force-mode-line-update)))
+
+(defun agda2-focus-buffer (buf &optional append)
+  "Make sure the given buffer is visible and move the focus to it.
+
+If APPEND is non-nil, then point is placed after text.
+
+If APPEND is nil, then point is placed before text."
+  ;; If the current window displays the information buffer, then the
+  ;; window configuration is left untouched.
+  (unless (equal (window-buffer) buf)
       (let ((agda-window
               (and agda2-file-buffer
                    (car-safe
@@ -1057,16 +1079,16 @@ is inserted, and point is placed before this text."
                   (truncate
                     (* (frame-height)
                        agda2-information-window-max-height))))))))
-    ;; Move point in every window displaying the information buffer.
-    ;; Exception: If we are appending, don't move point in selected
-    ;; windows.
-    (dolist (window (get-buffer-window-list buf 'no-minibuffer t))
+  ;; Move point in every window displaying the information buffer.
+  ;; Exception: If we are appending, don't move point in selected
+  ;; windows.
+  (dolist (window (get-buffer-window-list buf 'no-minibuffer t))
       (unless (and append
                    (equal window (selected-window)))
         (with-selected-window window
           (if append
               (goto-char (point-max))
-            (goto-char (point-min))))))))
+            (goto-char (point-min)))))))
 
 (defun agda2-info-action-and-copy (name text &optional append)
   "Same as agda2-info-action but also puts TEXT in the kill ring."
@@ -2021,6 +2043,8 @@ VERSION is empty, then agda and agda-mode are used instead.)"
     ;; Kill some buffers related to Agda.
     (when (buffer-live-p agda2-info-buffer)
       (kill-buffer agda2-info-buffer))
+    (when (buffer-live-p agda2-context-buffer)
+      (kill-buffer agda2-context-buffer))
     (when (and agda2-debug-buffer-name
                (get-buffer agda2-debug-buffer-name))
       (kill-buffer agda2-debug-buffer-name))

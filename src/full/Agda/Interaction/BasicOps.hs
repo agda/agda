@@ -963,7 +963,7 @@ contextOfMeta :: InteractionId -> Rewrite -> TCM [ResponseContextEntry]
 contextOfMeta ii norm = withInteractionId ii $ do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   withMetaInfo info $ getCurrentContext norm
-  
+
 getCurrentContext :: Rewrite -> TCM [ResponseContextEntry]
 getCurrentContext norm = do
   -- List of local variables.
