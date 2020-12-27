@@ -11,10 +11,6 @@ compiler-check: match-exact
 # it is not available via stack.
 system-ghc: true
 
-extra-deps:
-# Built as needed (e.g. via the makefile), but not by default:
-- 'src/fix-whitespace'
-
 flags:
   transformers-compat:
     five-three: true

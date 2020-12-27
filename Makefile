@@ -514,12 +514,25 @@ test-size-solver : install-size-solver
 ##############################################################################
 ## Development
 
+## Setting the `stack.yaml` file ############################################
+
+# The variable `GHC_COMPILER` is to be defined as a command-line argument.
+# For example: `make set-default-stack-file GHC_COMPILER=8.10.2`
+set-default-stack-file : remove-default-stack-file
+	ln -s stack-$(GHC_COMPILER).yaml stack.yaml
+	cd $(FIXW_PATH) && ln -s stack-$(GHC_COMPILER).yaml stack.yaml
+
+remove-default-stack-file :
+	rm -f stack.yaml
+	cd $(FIXW_PATH) && rm -f stack.yaml
+
 ## Whitespace-related #######################################################
 # Agda can fail to compile on Windows if files which are CPP-processed
 # don't end with a newline character (because we use -Werror).
 
-FIXW_PATH = src/fix-whitespace
-FIXW_BIN  = $(FIXW_PATH)/dist/build/fix-whitespace/fix-whitespace
+FIXW_PATH  = src/fix-whitespace
+FIXW_BUILD = dist/build/fix-whitespace/
+FIXW_BIN   = $(FIXW_PATH)/$(FIXW_BUILD)/fix-whitespace
 
 .PHONY : fix-whitespace ## Fix the whitespace issue.
 fix-whitespace : $(FIXW_BIN)
@@ -533,11 +546,16 @@ check-whitespace : $(FIXW_BIN)
 install-fix-whitespace : $(FIXW_BIN)
 
 $(FIXW_BIN) :
-	git submodule update --init src/fix-whitespace
+	@git submodule update --init src/fix-whitespace
 ifdef HAS_STACK
-	$(STACK) build fix-whitespace
-	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
-	cp $(shell $(STACK) path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
+ifneq  ("$(wildcard $(FIXW_PATH)/stack.yaml)","")
+	cd $(FIXW_PATH) && \
+        mkdir -p $(FIXW_BUILD) && \
+        $(STACK) install --stack-yaml ./stack.yaml --local-bin-path $(FIXW_BUILD)
+else
+	@echo "Missing the $(FIXW_PATH)/stack.yaml" file
+	@echo "You can fix the issue by running 'make set-default-stack-file GHC_COMPILER=X.Y.Z'"
+endif
 else
 	cd $(FIXW_PATH) && $(CABAL) $(CABAL_INSTALL_CMD)
 endif

@@ -3,8 +3,6 @@ compiler: ghc-8.10.2
 compiler-check: match-exact
 
 extra-deps:
-# Built as needed (e.g. via the makefile), but not by default:
-- 'src/fix-whitespace'
 
 flags:
   transformers-compat:
