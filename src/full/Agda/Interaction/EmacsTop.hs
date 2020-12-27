@@ -176,7 +176,7 @@ lispifyDisplayInfo info = case info of
       doc <- explainWhyInScope s cwd v xs ms
       format (render doc) "*Scope Info*"
     Info_Context ii ctx -> do
-      doc <- localTCState (prettyResponseContext ii False ctx)
+      doc <- localTCState (withInteractionId ii $ prettyResponseContext False ctx)
       format (render doc) "*Context*"
     Info_Intro_NotFound -> format "No introduction forms found." "*Intro*"
     Info_Intro_ConstructorUnknown ss -> do
@@ -205,7 +205,7 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
       doc <- showComputed cmode expr
       format (render doc) "*Normal Form*"   -- show?
     Goal_GoalType norm aux ctx bndry constraints -> do
-      ctxDoc <- prettyResponseContext ii True ctx
+      ctxDoc <- withInteractionId ii $ prettyResponseContext True ctx
       goalDoc <- prettyTypeOfMeta norm ii
       auxDoc <- case aux of
             GoalOnly -> return empty
@@ -389,14 +389,13 @@ explainWhyInScope s _ v xs ms = TCP.vcat
       pWhy r w
 
 
--- | Pretty-prints the context of the given meta-variable.
+-- | Pretty-prints the given context.
 
 prettyResponseContext
-  :: InteractionId  -- ^ Context of this meta-variable.
-  -> Bool           -- ^ Print the elements in reverse order?
+  :: Bool           -- ^ Print the elements in reverse order?
   -> [ResponseContextEntry]
   -> TCM Doc
-prettyResponseContext ii rev ctx = withInteractionId ii $ do
+prettyResponseContext rev ctx = do
   mod   <- asksTC getModality
   align 10 . concat . applyWhen rev reverse <$> do
     forM ctx $ \ (ResponseContextEntry n x (Arg ai expr) letv nis) -> do
