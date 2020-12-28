@@ -1,4 +1,4 @@
-name: Cabal build
+name: Build (cabal)
 
 on:
   push:
@@ -62,6 +62,7 @@ jobs:
         submodules: recursive
 
     - uses: haskell/actions/setup@v1
+      id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
@@ -70,7 +71,6 @@ jobs:
       run: |
         cabal update
         cabal configure -O0
-
         #    - name: Add the path to icu4c to the cabal configuration
         #      if: ${{ runner.os == 'macOS' }}
         #      run: |
@@ -87,28 +87,18 @@ jobs:
         #        echo "extra-include-dirs: C:\msys64\mingw64\include" >> cabal.config
         #        type cabal.config
         #
-    - uses: actions/cache@v2
-      name: Cache dependencies (Unix-like)
-      id: cache-on-unix
-      if: ${{ runner.os == 'macOS' || runner.os == 'Linux' }}
-      with:
-        path: |
-          ~/.cabal
-        # The file `plan.json` contains the build information.
-        key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - uses: actions/cache@v2
-      name: Cache dependencies (Windows)
-      id: cache-on-win64
-      if: ${{ runner.os == 'Windows' }}
+      name: Cache dependencies
+      id: cache
       with:
         path: |
-          ${APPDATA}\cabal
+          ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
         key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
-      if: ${{ !steps.cache-on-unix.outputs.cache-hit && !steps.cache-on-win64.outputs.cache-hit }}
+      if: ${{ !steps.cache.outputs.cache-hit }}
       run: |
         cabal build --only-dependencies
 

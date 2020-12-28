@@ -1,4 +1,4 @@
-name: Stack build
+name: Build (stack)
 
 on:
   push:
