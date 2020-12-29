@@ -254,7 +254,13 @@ findInstance' m cands = ifM (isFrozen m) (do
       reportSDoc "tc.instance" 15 $ "findInstance 3: t =" <+> prettyTCM t
       reportSLn "tc.instance" 70 $ "findInstance 3: t: " ++ prettyShow t
 
-      mcands <- checkCandidates m t cands
+      mcands <-
+        nowConsideringInstance $
+        -- Temporarily remove other instance constraints to avoid
+        -- redundant solution attempts
+        holdConstraints (const isInstanceProblemConstraint) $
+        checkCandidates m t cands
+
       debugConstraints
       case mcands of
 
@@ -505,7 +511,6 @@ checkCandidates m t cands =
         where
           runCandidateCheck check =
             flip catchError handle $
-            nowConsideringInstance $
             ifNoConstraints check
               (\ r -> case r of
                   Yes           -> r <$ debugSuccess
@@ -548,13 +553,14 @@ shouldPostponeInstanceSearch =
 nowConsideringInstance :: (ReadTCState m) => m a -> m a
 nowConsideringInstance = locallyTCState stConsideringInstance $ const True
 
+isInstanceProblemConstraint :: ProblemConstraint -> Bool
+isInstanceProblemConstraint = isInstanceConstraint . clValue . theConstraint
+
 wakeupInstanceConstraints :: TCM ()
 wakeupInstanceConstraints =
   unlessM shouldPostponeInstanceSearch $ do
-    wakeConstraints (wakeUpWhen_ isInstance)
-    solveSomeAwakeConstraints isInstance False
-  where
-    isInstance = isInstanceConstraint . clValue . theConstraint
+    wakeConstraints (wakeUpWhen_ isInstanceProblemConstraint)
+    solveSomeAwakeConstraints isInstanceProblemConstraint False
 
 postponeInstanceConstraints :: TCM a -> TCM a
 postponeInstanceConstraints m =
