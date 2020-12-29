@@ -40,7 +40,7 @@ jobs:
       if: ${{ !steps.cache.outputs.cache-hit }}
       run: |
         git submodule update --init -- src/fix-whitespace/
-        stack install fix-whitespace --stack-yaml stack-${{ matrix.ghc-ver }}.yaml --system-ghc
+        cd src/fix-whitespace/ && cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml && stack install --system-ghc
         strip $HOME/.local/bin/fix-whitespace
 
     - name: Check the whitespace issue
