@@ -3,6 +3,9 @@ compiler: ghc-8.10.2
 compiler-check: match-exact
 
 extra-deps:
+  - QuickCheck-2.14.2
+  - random-1.2.0
+  - splitmix-0.1.0.3
 
 flags:
   transformers-compat:

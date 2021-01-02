@@ -11,6 +11,11 @@ compiler-check: match-exact
 # it is not available via stack.
 system-ghc: true
 
+extra-deps:
+  - QuickCheck-2.14.2
+  - random-1.2.0
+  - splitmix-0.1.0.3
+
 flags:
   transformers-compat:
     five-three: true
