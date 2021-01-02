@@ -157,7 +157,7 @@ flag enable-cluster-counting
     False, then the --count-clusters flag triggers an error message.)
 
 custom-setup
-  setup-depends:  base >= 4.9.0.0 && < 4.15
+  setup-depends:  base >= 4.9.0.0 && < 4.16
                 , Cabal >= 1.24.0.0 && < 3.3
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
@@ -196,7 +196,7 @@ library
   build-depends:  aeson >= 1.1.2.0 && < 1.6
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
-                , base >= 4.9.0.0 && < 4.15
+                , base >= 4.9.0.0 && < 4.16
                 , bifunctors >= 5.4 && < 6.1
                 , binary >= 0.8.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
@@ -780,7 +780,7 @@ executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:    base >= 4.9.0.0 && < 4.15
+  build-depends:    base >= 4.9.0.0 && < 4.16
                   , directory >= 1.2.6.2 && < 1.4
                   , filepath >= 1.4.1.0 && < 1.5
                   , process >= 1.4.2.0 && < 1.7
@@ -864,7 +864,7 @@ test-suite agda-tests
 
   build-depends:  Agda
                 , array >= 0.5.1.1 && < 0.6
-                , base >= 4.9.0.0 && < 4.15
+                , base >= 4.9.0.0 && < 4.16
                 , bytestring >= 0.10.8.1 && < 0.11
                 -- containers-0.5.11.0 is the first to contain IntSet.intersection
                 , containers >= 0.5.11.0 && < 0.7
