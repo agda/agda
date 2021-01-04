@@ -158,7 +158,7 @@ flag enable-cluster-counting
 
 custom-setup
   setup-depends:  base >= 4.9.0.0 && < 4.16
-                , Cabal >= 1.24.0.0 && < 3.3
+                , Cabal >= 1.24.0.0 && < 3.5
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , process >= 1.4.2.0 && < 1.7
@@ -238,7 +238,7 @@ library
                 , split >= 0.2.0.0 && < 0.2.4
                 , stm >= 2.4.4 && < 2.6
                 , strict >= 0.3.2 && < 0.5
-                , template-haskell >= 2.11.0.0 && < 2.17
+                , template-haskell >= 2.11.0.0 && < 2.18
                 , time >= 1.6.0.1 && < 1.10
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
