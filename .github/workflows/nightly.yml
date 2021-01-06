@@ -16,10 +16,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest]
-        ghc-ver: [8.10.2]
+        ghc-ver: [8.10.3]
         include:
           - os: windows-latest
-            ghc-ver: 8.10.2.2
+            ghc-ver: 8.10.3
 
     env:
       ARGS: "--stack-yaml stack-${{ matrix.ghc-ver }}.yaml --no-terminal --system-ghc"
@@ -40,7 +40,7 @@ jobs:
       with:
         submodules: 'recursive'
 
-    - uses: actions/setup-haskell@v1
+    - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
 

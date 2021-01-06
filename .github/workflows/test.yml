@@ -47,7 +47,7 @@ jobs:
   build:
     strategy:
       matrix:
-        ghc-ver: [8.10.2]
+        ghc-ver: [8.10.3]
         stack-ver: [2.5.1]
         os: [ubuntu-18.04]
 
