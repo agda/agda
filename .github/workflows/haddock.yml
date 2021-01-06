@@ -16,26 +16,25 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        os: [ubuntu-18.04]
+        ghc-ver: ["8.10.2"]
+        cabal-ver: ["3.2"]
+
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    strategy:
-      matrix:
-        os: ["ubuntu-18.04"]
-        ghc-ver: ["8.10.2"]
-        cabal-ver: ["3.2"]
-
     runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
-      with:
-        submodules: recursive
 
-    - uses: actions/setup-haskell@v1
+    - uses: haskell/actions/setup@v1
+      id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
@@ -47,16 +46,33 @@ jobs:
 
     - uses: actions/cache@v2
       name: Cache dependencies
+      id: cache
       with:
-        path: "~/.cabal"
-        key: ${{ runner.os }}-new-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+        # The file `plan.json` contains the build information.
+        key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
+      if: ${{ !steps.cache.outputs.cache-hit }}
       run: |
-        cabal install alex happy --overwrite-policy=always
         cabal build --dependencies-only --force-reinstalls
 
     # Testing Haddock [Issue 1773]
     - name: Build Haddock
       run: |
-        cabal haddock
+        cabal haddock --haddock-html-location='https://hackage.haskell.org/package/$pkg-$version/docs' --haddock-hyperlink-source --haddock-quickjump
+
+    - name: Prepare to upload built htmls
+      run: |
+        mkdir html
+        find dist-newstyle -path '*/doc/html/Agda' -type d -exec cp -R {} html/docs \;
+        ls -R html
+
+    - name: Deploy haddock
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/master'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: html
+
