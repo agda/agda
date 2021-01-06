@@ -11,7 +11,7 @@ import Data.Text (Text)
 import Agda.Syntax.Common ( Nat )
 
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
-import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Singleton
 
 -- An untyped lambda calculus with records,
 -- and a special self-binder for recursive declarations
@@ -102,7 +102,7 @@ instance Uses Exp where
   uses (Object o)     = uses o
   uses (Array es)     = uses es
   uses (Apply e es)   = uses (e, es)
-  uses (Lookup e l)   = uses' e (List1.singleton l)
+  uses (Lookup e l)   = uses' e (singleton l)
     where
       uses' :: Exp -> JSQName -> Set JSQName
       uses' Self         ls = Set.singleton ls
