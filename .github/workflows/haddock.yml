@@ -6,10 +6,12 @@ on:
   push:
     paths:
     - 'src/**.hs'
+    - 'Agda.cabal'
     - '.github/workflows/haddock.yml'
   pull_request:
     paths:
     - 'src/**.hs'
+    - 'Agda.cabal'
     - '.github/workflows/haddock.yml'
 
 jobs:
@@ -20,12 +22,13 @@ jobs:
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
 
-    runs-on: ubuntu-18.04
-
     strategy:
       matrix:
+        os: ["ubuntu-18.04"]
         ghc-ver: ["8.10.2"]
         cabal-ver: ["3.2"]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
@@ -34,8 +37,8 @@ jobs:
 
     - uses: actions/setup-haskell@v1
       with:
-        ghc-version: '8.10.2'
-        cabal-version: '3.2'
+        ghc-version: ${{ matrix.ghc-ver }}
+        cabal-version: ${{ matrix.cabal-ver }}
 
     - name: Resolve dependencies
       run: |
