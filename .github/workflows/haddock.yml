@@ -65,8 +65,7 @@ jobs:
 
     - name: Prepare to upload built htmls
       run: |
-        mkdir html
-        find dist-newstyle -path '*/doc/html/Agda' -type d -exec cp -R {} html/docs \;
+        find dist-newstyle -path '*/doc/html/Agda' -type d -exec cp -R {} html \;
         ls -R html
 
     - name: Deploy haddock
@@ -75,4 +74,5 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: html
+        destination_dir: docs
 
