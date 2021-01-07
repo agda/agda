@@ -22,13 +22,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
-        ghc-ver: [8.10.2]
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        ghc-ver: [8.10.3]
         cabal-ver: [3.2]
-        include:
-          - os: windows-latest
-            ghc-ver: 8.10.2.2
-            cabal-ver: 3.2
 
     env:
       ARGS: "--enable-library-stripping --disable-executable-profiling --disable-library-profiling"
