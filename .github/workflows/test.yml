@@ -11,7 +11,7 @@ on:
     - '.github/workflows/cabal.yml'
     - '.github/workflows/haddock.yml'
     - '.github/workflows/lint.yml'
-    - '.github/workflows/nightly.yml'
+    - '.github/workflows/deploy.yml'
     - '.github/workflows/stack.yml'
     - '.github/workflows/user_manual.yml'
     - '.github/workflows/whitespace.yml'
