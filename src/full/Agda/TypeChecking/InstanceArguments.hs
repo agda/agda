@@ -255,7 +255,6 @@ findInstance' m cands = ifM (isFrozen m) (do
       reportSLn "tc.instance" 70 $ "findInstance 3: t: " ++ prettyShow t
 
       mcands <-
-        nowConsideringInstance $
         -- Temporarily remove other instance constraints to avoid
         -- redundant solution attempts
         holdConstraints (const isInstanceProblemConstraint) $
@@ -511,6 +510,7 @@ checkCandidates m t cands =
         where
           runCandidateCheck check =
             flip catchError handle $
+            nowConsideringInstance $
             ifNoConstraints check
               (\ r -> case r of
                   Yes           -> r <$ debugSuccess
