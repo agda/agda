@@ -269,6 +269,14 @@ Language
   type must also be non-indexed.) When `f` is compiled the clause that
   matches on `compile-time` is omitted.
 
+* New (?) rule for modalities of generalised variables
+  (see [#5058](https://github.com/agda/agda/issues/5058)).
+
+  The new rule is that generalisable variables get the modality that
+  they are declared with, whereas other variables always get the
+  default modality. (It is unclear what the old rule was, perhaps
+  nothing was changed.)
+
 Builtins
 --------
 

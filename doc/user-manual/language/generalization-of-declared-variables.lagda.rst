@@ -353,3 +353,17 @@ generalizations interactively. For instance,
 In ``works`` you can give ``n`` in the hole, since a binding for ``n`` has been introduced
 by its occurrence in the argument vector. In ``fails`` on the other hand, there is no reference
 to ``n`` so neither hole can be filled interactively.
+
+Modalities
+~~~~~~~~~~
+
+One can give a modality when declaring a generalizable variable:
+
+::
+
+  variable
+    @0 o : Nat
+
+In the generalization process generalizable variables get the modality
+that they are declared with, whereas other variables always get the
+default modality.

@@ -12,5 +12,5 @@ variable
 postulate
   F : ∀ p → Q p q → Set
 
-Test : {x : A} ({q} p : P x) (q′ : Q p q) → Set
+Test : {@0 x : A} ({q} p : P x) (q′ : Q p q) → Set
 Test = F

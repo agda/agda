@@ -1,0 +1,5 @@
+Failed to solve the following constraints:
+  i = _i_40 : I
+  _i_40 = i : I (blocked on _i_40)
+Unsolved metas at the following locations:
+  Issue5058.agda:25,9-10
