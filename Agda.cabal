@@ -896,12 +896,6 @@ test-suite agda-tests
   else
     build-depends: text >= 1.2.3.1 && < 1.3
 
-  -- Liang-Ting chen (2020-01-06):
-  -- utf8-string 1.0.2 conflicts with ListLike
-  -- see https://github.com/ddssff/listlike/issues/12
-  if impl(ghc <= 8.10.3)
-    build-depends: utf8-string <= 1.0.1.1
-
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
   if impl(ghc == 8.6.1)
