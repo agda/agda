@@ -618,16 +618,16 @@ rightToLeftStrategy s =
 
 completeStrategyAt :: Int -> UnifyStrategy
 completeStrategyAt k s = msum $ map (\strat -> strat k s) $
-    [ skipIrrelevantStrategy
-    , basicUnifyStrategy
-    , literalStrategy
-    , dataStrategy
-    , etaExpandVarStrategy
-    , etaExpandEquationStrategy
-    , injectiveTypeConStrategy
-    , injectivePragmaStrategy
-    , simplifySizesStrategy
-    , checkEqualityStrategy
+    [ (\n -> skipIrrelevantStrategy n)
+    , (\n -> basicUnifyStrategy n)
+    , (\n -> literalStrategy n)
+    , (\n -> dataStrategy n)
+    , (\n -> etaExpandVarStrategy n)
+    , (\n -> etaExpandEquationStrategy n)
+    , (\n -> injectiveTypeConStrategy n)
+    , (\n -> injectivePragmaStrategy n)
+    , (\n -> simplifySizesStrategy n)
+    , (\n -> checkEqualityStrategy n)
     ]
 
 -- | @isHom n x@ returns x lowered by n if the variables 0..n-1 don't occur in x.

@@ -188,7 +188,7 @@ data Debug = MoveColumn | NonCode | Code | Spaces | Output | FileSystem
 -- | Run function for the @LaTeX@ monad.
 runLaTeX :: MonadLogLaTeX m =>
   LaTeX a -> Env -> State -> m (a, State, [Output])
-runLaTeX = runRWST
+runLaTeX l = runRWST l
 
 emptyState :: State
 emptyState = State
@@ -244,7 +244,7 @@ moveColumnForToken :: Token -> LaTeX ()
 moveColumnForToken t = do
   unless (isSpaces (text t)) $ do
     log MoveColumn $ text t
-    moveColumn =<< size (text t)
+    (\n -> moveColumn n) =<< size (text t)
 
 -- | Merges 'columns' into 'columnsPrev', resets 'column' and
 -- 'columns'
@@ -435,24 +435,24 @@ cmdArg x = "{" <+> x <+> "}"
 -- * Output generation from a stream of labelled tokens.
 
 processLayers :: [(LayerRole, Tokens)] -> LaTeX ()
-processLayers = mapM_ $ \(layerRole,toks) -> do
+processLayers lt = (mapM_ $ \(layerRole,toks) -> do
   case layerRole of
     L.Markup  -> processMarkup  toks
     L.Comment -> processComment toks
-    L.Code    -> processCode    toks
+    L.Code    -> processCode    toks) lt
 
 processMarkup, processComment, processCode :: Tokens -> LaTeX ()
 
 -- | Deals with markup, which is output verbatim.
-processMarkup = mapM_ $ \t -> do
-  moveColumnForToken t
-  output (Text (text t))
+processMarkup t = (mapM_ $ \t' -> do
+  moveColumnForToken t'
+  output (Text (text t'))) t
 
 -- | Deals with literate text, which is output verbatim
-processComment = mapM_ $ \t -> do
-  unless ("%" == T.take 1 (T.stripStart (text t))) $ do
-    moveColumnForToken t
-  output (Text (text t))
+processComment t = (mapM_ $ \t' -> do
+  unless ("%" == T.take 1 (T.stripStart (text t'))) $ do
+    moveColumnForToken t'
+  output (Text (text t'))) t
 
 -- | Deals with code blocks. Every token, except spaces, is pretty
 -- printed as a LaTeX command.
@@ -493,7 +493,7 @@ processCode toks' = do
     ptOpenWhenColumnZero col =
         when (col == 0) $ do
           registerColumnZero
-          output . Text . ptOpen =<< columnZero
+          (\o -> output o) . Text . ptOpen =<< columnZero
 
     -- Translation from OtherAspect to command strings. So far it happens
     -- to correspond to @show@ but it does not have to (cf. fromAspect)
@@ -575,7 +575,7 @@ spaces [] = return ()
 spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   col <- gets column
   when (col == 0) $
-    output . Text . ptOpen =<< columnZero
+    (\o -> output o) . Text . ptOpen =<< columnZero
   output $ Text $ ptClose <+> ptNL <+>
                   T.replicate (T.length s - 1) ptEmptyLine
   resetColumn

@@ -220,7 +220,7 @@ instance Applicative AbsToCon where
   f <*> m = AbsToCon $ unAbsToCon f <*> unAbsToCon m
 
 instance Monad AbsToCon where
-  m >>= f = AbsToCon $ unAbsToCon m >>= unAbsToCon . f
+  m >>= f = AbsToCon $ unAbsToCon m >>= (\m' -> unAbsToCon m') . f
 #if __GLASGOW_HASKELL__ < 808
   fail = Fail.fail
 #endif
@@ -241,7 +241,7 @@ instance ReadTCState AbsToCon where
   locallyTCState l f m = AbsToCon $ locallyTCState l f $ unAbsToCon m
 
 instance MonadStConcreteNames AbsToCon where
-  runStConcreteNames m = AbsToCon $ runStConcreteNames $ StateT $ unAbsToCon . runStateT m
+  runStConcreteNames m = AbsToCon $ runStConcreteNames $ StateT $ (\m' -> unAbsToCon m') . runStateT m
 
 instance HasBuiltins AbsToCon where
   getBuiltinThing x = AbsToCon $ getBuiltinThing x

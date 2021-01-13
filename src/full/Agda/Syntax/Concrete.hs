@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.
@@ -87,7 +88,10 @@ import Agda.Utils.List1  ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2  ( List2, pattern List2 )
 import Agda.Utils.Null
+
+#if !(MIN_VERSION_base(4,15,0))
 import Agda.Utils.Singleton
+#endif
 
 import Agda.Utils.Impossible
 
@@ -277,7 +281,7 @@ type Telescope  = [TypedBinding]
 lamBindingsToTelescope :: Range -> [LamBinding] -> Telescope
 lamBindingsToTelescope r = fmap $ \case
   DomainFull ty -> ty
-  DomainFree nm -> TBind r (singleton nm) $ Underscore r Nothing
+  DomainFree nm -> TBind r (List1.singleton nm) $ Underscore r Nothing
 
 -- | Smart constructor for @Pi@: check whether the @Telescope@ is empty
 

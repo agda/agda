@@ -9,7 +9,7 @@
 
 module Internal.Utils.IntSet ( tests ) where
 
-import Agda.Utils.IntSet.Infinite
+import Agda.Utils.IntSet.Infinite as Inf
 import Test.QuickCheck
 import Data.Semigroup hiding (All)
 import Data.List
@@ -23,14 +23,14 @@ instance Arbitrary IntSet where
     where
       g = oneof
             [ pure empty, below <$> choose (-20, 4), above <$> choose (-4, 20)
-            , (mconcat . map singleton) <$> listOf arbitrary ]
+            , (mconcat . map Inf.singleton) <$> listOf arbitrary ]
   shrink _ = []
 
 subsetOf :: IntSet -> IntSet -> Bool
 subsetOf r1 r2 = r1 <> r2 == r2
 
 prop_member :: Integer -> IntSet -> _
-prop_member x r = member x r === (singleton x `subsetOf` r)
+prop_member x r = member x r === (Inf.singleton x `subsetOf` r)
 
 prop_subtract_subset :: IntSet -> _
 prop_subtract_subset r1 r2 = subsetOf r1 r2 === (difference r1 r2 == empty)

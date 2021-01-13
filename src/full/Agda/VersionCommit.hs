@@ -1,4 +1,10 @@
+{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
+
+#if __GLASGOW_HASKELL__ >= 900
+-- ASR (2021-01-14): TODO. GHC 9.0.1-rc1 is generating this warning.
+{-# OPTIONS_GHC -Wno-overlapping-patterns #-}
+#endif
 
 module Agda.VersionCommit where
 
