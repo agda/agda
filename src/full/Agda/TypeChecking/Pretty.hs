@@ -219,6 +219,8 @@ instance PrettyTCM Permutation where prettyTCM = text . show
 instance PrettyTCM Polarity    where prettyTCM = text . show
 instance PrettyTCM IsForced    where prettyTCM = text . show
 
+instance HetSideIsType s => PrettyTCM (Arg (Het s Term)) where prettyTCM = prettyA <=< reify
+
 prettyR
   :: (R.ToAbstract r, PrettyTCM (R.AbsOfRef r), MonadPretty m, MonadError TCErr m)
   => r -> m Doc
@@ -294,20 +296,19 @@ instance PrettyTCM a => PrettyTCM (Het side a) where
 instance PrettyTCM a => PrettyTCM (TwinT' a) where
   prettyTCM (SingleT a) = prettyTCM a
   prettyTCM TwinT{twinPid,necessary,twinLHS=a,twinRHS=b,twinCompat=c} =
-    prettyTCM a <+> return "‡"
-                <+> return (if necessary then "" else "*")
-                <+> return "["
-                <+> pretty twinPid
-                <+> return ","
+    prettyTCM a <+> (return "‡"
+                    <> return (if necessary then "*" else "")
+                    <> pretty twinPid
+                    <> return "(=")
                 <+> prettyTCM c
-                <+> return "]"
+                <+> return "=)"
                 <+> prettyTCM b
 
 instance PrettyTCM ContextHet where
   prettyTCM = fmap P.fsep . go
     where
       go :: MonadPretty m => ContextHet -> m [P.Doc]
-      go Empty = pure []
+      go Empty = pure ["·"]
       go (a :⊢: γΓ) = (:) <$> prettyTCM a <*> addContext (twinAt @'Compat a) (go γΓ)
 
 instance PrettyTCM Blocker where

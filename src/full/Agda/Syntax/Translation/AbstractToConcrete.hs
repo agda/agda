@@ -637,6 +637,10 @@ instance ToConcrete a => ToConcrete (Named name a)  where
     toConcrete (Named n x) = Named n <$> toConcrete x
     bindToConcrete (Named n x) ret = bindToConcrete x $ ret . Named n
 
+instance ToConcrete a => ToConcrete (Het side a) where
+  type ConOfAbs (Het side a) = Het side (ConOfAbs a)
+  toConcrete = traverse toConcrete
+
 -- Names ------------------------------------------------------------------
 
 instance ToConcrete A.Name where

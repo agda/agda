@@ -584,10 +584,6 @@ instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint' a b) wher
   type ConOfAbs (OutputConstraint' a b) = OutputConstraint' (ConOfAbs a) (ConOfAbs b)
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
-instance ToConcrete a => ToConcrete (Het side a) where
-  type ConOfAbs (Het side a) = Het side (ConOfAbs a)
-  toConcrete = traverse toConcrete
-
 instance Reify a => Reify (IPBoundary' a) where
   type ReifiesTo (IPBoundary' a) = IPBoundary' (ReifiesTo a)
   reify = traverse reify
