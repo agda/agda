@@ -13,6 +13,7 @@ import Control.Applicative
 import Control.Monad.Fail (MonadFail)
 
 import Data.Function
+import Data.Functor.Compose (Compose(..))
 import Data.Maybe (isJust)
 import Data.Semigroup ((<>))
 import qualified Data.Coerce
@@ -890,32 +891,32 @@ antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
     _ -> patternViolation neverUnblock
 antiUnifyElims _ _ _ _ _ = patternViolation neverUnblock -- trigger maybeGiveUp in antiUnify
 
--- TODO: Switch to proper implementation instead of downgrading
+compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
 compareElims_ :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> TwinT' Type -> TwinT' Term -> H'LHS [Elim] -> H'RHS [Elim] -> m ()
-compareElims_ pols0 fors0 a v (H'LHS els01) (H'RHS els02) = compareElims pols0 fors0 (twinAt @'Compat a) (twinAt @'Compat v) els01 els02
+-- compareElims pols0 fors0 a v els01 els02 = compareElims_ pols0 fors0 (asTwin a) (asTwin v) (H'LHS els01) (H'RHS els02)
+compareElims pols0 fors0 a v els01 els02 = compareElims_ pols0 fors0 (asTwin a) (asTwin v) (H'LHS els01) (H'RHS els02)
 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
-compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
-compareElims pols0 fors0 a v els01 els02 =
+compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHet a_ $ \a_ ->
   verboseBracket "tc.conv.elim" 20 "compareElims" $
-  (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
-  let v1 = applyE v els01
-      v2 = applyE v els02
-      failure = typeError $ UnequalTerms CmpEq v1 v2 (AsTermsOf a)
+  (catchConstraint (ElimCmp_ pols0 fors0 a_ v_ els01 els02) :: m () -> m ()) $ do
+  let v1 = applyE <$> twinLHS v_ <*> els01
+      v2 = applyE <$> twinRHS v_ <*> els02
+      failure = typeError $ UnequalTerms_ CmpEq v1 v2 (AsTermsOf a_)
         -- Andreas, 2013-03-15 since one of the spines is empty, @a@
         -- is the correct type here.
   unless (null els01) $ do
     reportSDoc "tc.conv.elim" 25 $ "compareElims" $$ do
      nest 2 $ vcat
-      [ "a     =" <+> prettyTCM a
+      [ "a     =" <+> prettyTCM a_
       , "pols0 (truncated to 10) =" <+> hsep (map prettyTCM $ take 10 pols0)
       , "fors0 (truncated to 10) =" <+> hsep (map prettyTCM $ take 10 fors0)
-      , "v     =" <+> prettyTCM v
+      , "v     =" <+> prettyTCM v_
       , "els01 =" <+> prettyTCM els01
       , "els02 =" <+> prettyTCM els02
       ]
-  case (els01, els02) of
+  case (fmap commute $ commute els01, fmap commute $ commute els02) of
     ([]         , []         ) -> return ()
     ([]         , Proj{}:_   ) -> failure -- not impossible, see issue 821
     (Proj{}  : _, []         ) -> failure -- could be x.p =?= x for projection p
@@ -923,13 +924,23 @@ compareElims pols0 fors0 a v els01 els02 =
     (Apply{} : _, []         ) -> failure
     ([]         , IApply{} : _) -> failure
     (IApply{} : _, []         ) -> failure
-    (Apply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- NB: popped up in issue 889
-    (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- but should be impossible (but again in issue 1467)
+    (Apply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ -- <$ solveAwakeConstraints' True -- NB: popped up in issue 889
+    (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__ -- <$ solveAwakeConstraints' True -- but should be impossible (but again in issue 1467)
     (IApply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (Proj{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (IApply{} : _, Apply{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (Apply{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
-    (e@(IApply x1 y1 r1) : els1, IApply x2 y2 r2 : els2) -> do
+    (e_@(IApply x1_ y1_ r1_) : els1_, IApply x2_ y2_ r2_ : els2_) -> do
+      let x1 = unHet @'LHS x1_; y1 = unHet @'LHS y1_; r1 = unHet @'LHS r1_
+          x2 = unHet @'RHS x2_; y2 = unHet @'RHS y2_; r2 = unHet @'RHS r2_
+          a  = twinAt @'Compat a_
+          els1 :: [Elim]
+          els1 = twinAt @'LHS els1_
+          els2 :: [Elim]
+          els2 = twinAt @'RHS els2_
+          e  :: Elim
+          e  = twinAt @'LHS e_
+          v  = twinAt @'Compat v_
       reportSDoc "tc.conv.elim" 25 $ "compareElims IApply"
        -- Andrea: copying stuff from the Apply case..
       let (pol, pols) = nextPolarity pols0
@@ -952,7 +963,9 @@ compareElims pols0 fors0 a v els01 els02 =
 
         OType t -> patternViolation (unblockOnAnyMetaIn t) -- Can we get here? We know a is not blocked.
 
-    (Apply arg1 : els1, Apply arg2 : els2) ->
+    (Apply arg1 : (commute . fmap commute -> els1),
+     Apply arg2 : (commute . fmap commute -> els2)) ->
+      let a = a_; v = v_ in
       (verboseBracket "tc.conv.elim" 20 "compare Apply" :: m () -> m ()) $ do
       reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
         [ "a    =" <+> prettyTCM a
@@ -971,13 +984,13 @@ compareElims pols0 fors0 a v els01 els02 =
           (for, fors) = nextIsForced fors0
       a <- abortIfBlocked a
       reportSLn "tc.conv.elim" 40 $ "type is not blocked"
-      case unEl a of
-        (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
+      typeView (unEl <$> a) >>= \case
+        (TPi (Dom{domInfo = info, unDom = b}) codom) -> do
           reportSLn "tc.conv.elim" 40 $ "type is a function type"
           mlvl <- tryMaybe primLevel
           let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
               freeInCoDom _         = False
-              dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
+              dependent = (not $ b `isEqualTo` mlvl) && freeInCoDom codom
                 -- Level-polymorphism (x : Level) -> ... does not count as dependency here
                    -- NB: we could drop the free variable test and still be sound.
                    -- It is a trade-off between the administrative effort of
@@ -993,15 +1006,15 @@ compareElims pols0 fors0 a v els01 els02 =
                 reportSLn "tc.conv.elim" 40 $ "argument is forced"
               else if isIrrelevant info then do
                 reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
-                compareIrrelevant b (unArg arg1) (unArg arg2)
+                compareIrrelevant_ b (unArg arg1) (unArg arg2)
               else do
                 reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
-                compareWithPol pol compareTerm b
+                compareWithPol_ pol compareTerm_ b
                   (unArg arg1) (unArg arg2)
           -- if comparison got stuck and function type is dependent, block arg
           solved <- isProblemSolved pid
           reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
-          arg <- if dependent && not solved
+          argCompat <- if dependent && not solved
                  then applyModalityToContext info $ do
                   reportSDoc "tc.conv.elims" 50 $ vcat $
                     [ "Trying antiUnify:"
@@ -1009,16 +1022,28 @@ compareElims pols0 fors0 a v els01 els02 =
                     , nest 2 $ "arg1 =" <+> prettyTCM arg1
                     , nest 2 $ "arg2 =" <+> prettyTCM arg2
                     ]
-                  arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
+                  arg <- (arg1 $>) <$> antiUnify pid (twinAt @'Compat b) (twinAt @'LHS $ unArg arg1) (twinAt @'RHS $ unArg arg2)
                   reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
                   reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
                   return arg
-                 else return arg1
+                 else return (twinAt @'LHS arg1)
+          let arg = case dirFromPol pol of
+                     Nothing  -> SingleT (H'Both $ twinAt @'LHS arg1)
+                     Just dir -> TwinT{necessary   = True
+                                      ,direction   = dir
+                                      ,twinPid     = [pid]
+                                      ,twinLHS     = commute arg1
+                                      ,twinCompat  = asTwin argCompat
+                                      ,twinRHS     = commute arg2
+                                      }
+          simplifyHet ((b :∋ (arg,codom)) :∋ v) $ \((b :∋ (arg,codom)) :∋ v) -> do
+            let a_' = twinDirty $ lazyAbsApp <$> commute codom `apT` (unArg <$> arg)
+            let v_' = twinDirty $ apply      <$>         v_    `apT` ((:[]) <$> arg)
           -- continue, possibly with blocked instantiation
-          compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
+            compareElims_ pols fors a_' v_' els1 els2
           -- any left over constraints of arg are associated to the comparison
-          reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
-          stealConstraints pid
+            reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
+            stealConstraints pid
           {- Stealing solves this issue:
 
              Does not create enough blocked tc-problems,
@@ -1026,7 +1051,7 @@ compareElims pols0 fors0 a v els01 els02 =
              (There are remaining problems which do not show up as yellow.)
              Need to find a way to associate pid also to result of compareElims.
           -}
-        a -> do
+        _ -> do
           reportSDoc "impossible" 10 $
             "unexpected type when comparing apply eliminations " <+> prettyTCM a
           reportSDoc "impossible" 50 $ "raw type:" <+> pretty a
@@ -1037,18 +1062,19 @@ compareElims pols0 fors0 a v els01 els02 =
           -- __IMPOSSIBLE__
 
     -- case: f == f' are projections
-    (Proj o f : els1, Proj _ f' : els2)
+    (Proj o f : (commute . fmap commute -> els1), Proj _ f' : (commute . fmap commute -> els2))
       | f /= f'   -> typeError . GenericDocError =<< prettyTCM f <+> "/=" <+> prettyTCM f'
       | otherwise -> do
+        let a = a_; v = v_
         a   <- abortIfBlocked a
-        res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
+        res <- projectTyped_ v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
-          Just (_, u, t) -> do
+          Just (u, t) -> do
             -- Andreas, 2015-07-01:
             -- The arguments following the principal argument of a projection
             -- are invariant.  (At least as long as we have no explicit polarity
             -- annotations.)
-            compareElims [] [] t u els1 els2
+            compareElims_ [] [] t u els1 els2
           Nothing -> do
             reportSDoc "tc.conv.elims" 30 $ sep
               [ text $ "projection " ++ prettyShow f
@@ -1056,6 +1082,32 @@ compareElims pols0 fors0 a v els01 els02 =
               , text   "of unexpected type " <+> prettyTCM a
               ]
             patternViolation (unblockOnAnyMetaIn a)
+
+projectTyped_
+  :: (TypeViewM m, PureTCM m)
+  => TwinT' Term        -- ^ Head (record value).
+  -> TwinT' Type        -- ^ Its type.
+  -> ProjOrigin
+  -> QName       -- ^ Projection.
+  -> m (Maybe (TwinT' Term, TwinT' Type))
+projectTyped_ v a o f = do
+  (sequence $ projectTyped <$> v `apT` a `apT` asTwin o `apT` asTwin f) >>= \case
+    SingleT (H'Both a) -> return $ (\(_,t,ty) -> (asTwin t, asTwin ty)) <$> a
+    tt@TwinT{twinLHS,twinRHS,twinCompat} ->
+      case (twinLHS, twinRHS) of
+        (H'LHS (Just (_,H'LHS -> tL,H'LHS -> tyL)),
+         H'RHS (Just (_,H'RHS -> tR,H'RHS -> tyR))) -> do
+          ty <- mkTwinT tt{twinLHS=tyL
+                          ,twinRHS=tyR
+                          ,twinCompat=Compose $ commute $ fmap (fmap (\(_,_,ty) -> ty)) $ twinCompat
+                          }
+          t <- mkTwinTerm ty tt{twinLHS=tL
+                               ,twinRHS=tR
+                               ,twinCompat=Compose $ commute $ fmap (fmap (\(_,t,_) -> t)) $ twinCompat
+                               }
+          return $ Just (t, ty)
+        (H'LHS Nothing,_) -> return Nothing
+        (_,H'RHS Nothing) -> return Nothing
 
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
@@ -1109,10 +1161,19 @@ compareWithPol pol cmp b x y = compareWithPol_ pol cmp' (H'Both b) (H'LHS x) (H'
 
 compareWithPol_ :: forall m a b. (MonadConversion m, FlipHet b, FlippedHet b ~ b) => Polarity ->
   (Comparison -> b -> H'LHS a -> H'RHS a -> m ()) -> b -> H'LHS a -> H'RHS a -> m ()
-compareWithPol_ Invariant     cmp b x y = cmp CmpEq b x y
-compareWithPol_ Covariant     cmp b x y = cmp CmpLeq b x y
-compareWithPol_ Contravariant cmp b x y = dirToCmp_ cmp DirGeq b x y
-compareWithPol_ Nonvariant    cmp b x y = return ()
+compareWithPol_ pol cmp b x y = case dirFromPol pol of
+  Just dir -> dirToCmp_ cmp dir b x y
+  Nothing  -> return ()
+--compareWithPol_ Invariant     cmp b x y = cmp CmpEq b x y
+--compareWithPol_ Covariant     cmp b x y = cmp CmpLeq b x y
+--compareWithPol_ Contravariant cmp b x y = dirToCmp_ cmp DirGeq b x y
+--compareWithPol_ Nonvariant    cmp b x y = return ()
+
+dirFromPol :: Polarity -> Maybe CompareDirection
+dirFromPol Invariant     = Just DirEq
+dirFromPol Covariant     = Just DirLeq
+dirFromPol Contravariant = Just DirGeq
+dirFromPol Nonvariant    = Nothing
 
 polFromCmp :: Comparison -> Polarity
 polFromCmp CmpLeq = Covariant
@@ -2167,9 +2228,16 @@ typeView (TwinT{necessary
                              ,twinPid
                              ,twinLHS=doml
                              ,twinRHS=domr
-                             ,twinCompat=Const domc
+                             ,twinCompat=Compose domc
                              }
-      cod_ <- mkTwinAbs direction           twinPid codl codr codc
+
+      cod_ <- mkTwinAbs TwinT{necessary=False
+                             ,direction
+                             ,twinPid
+                             ,twinLHS=codl
+                             ,twinRHS=codr
+                             ,twinCompat=Compose codc
+                             }
 
       return $ TPi dom_ cod_
 typeView (SingleT (H'Both Lam{})) = return TLam
@@ -2203,67 +2271,71 @@ typeView  TwinT{necessary,
     False -> return$ TOther
 typeView _ = return$ TOther
 
-mkTwinT :: TypeViewM m => CompareDirection ->
-            [ProblemId] ->
-            Het 'LHS Type ->
-            Het 'RHS Type ->
-            Maybe (Het 'Compat Type) ->
-            m TwinT
-mkTwinT direction twinPid tyl tyr (Just tyc) =
-  return TwinT{necessary=False
-              ,direction
-              ,twinPid
-              ,twinLHS=tyl
-              ,twinRHS=tyr
-              ,twinCompat=tyc
-              }
-mkTwinT direction twinPid tyl tyr Nothing = do
+mkTwinTerm :: TypeViewM m =>
+           TwinT ->
+           TwinT''' Bool (Compose Maybe H'Compat) Term ->
+           m (TwinT' Term)
+mkTwinTerm _ (SingleT a) = return$ SingleT a
+mkTwinTerm _ tt@TwinT{twinCompat=(Compose (Just tc))} =
+  return tt{twinCompat=tc}
+mkTwinTerm ty tt@TwinT{twinPid,direction,twinLHS=tl,twinRHS=tr,twinCompat=(Compose Nothing)} = do
+  let t0 = selectSmaller direction (twinAt @'LHS tl) (twinAt @'RHS tr)
+  tc <- blockTermOnProblems (twinAt @'Compat ty) t0 twinPid
+  return tt{twinCompat=H'Compat tc}
+
+mkTwinT :: TypeViewM m =>
+           TwinT''' Bool (Compose Maybe H'Compat) Type ->
+           m TwinT
+mkTwinT (SingleT a) = return$ SingleT a
+mkTwinT tt@TwinT{twinCompat=(Compose (Just tyc))} =
+  return tt{twinCompat=tyc}
+mkTwinT tt@TwinT{direction,twinPid,twinLHS=tyl,twinRHS=tyr,twinCompat=(Compose Nothing)} = do
   let ty0 = selectSmaller direction (twinAt @'LHS tyl) (twinAt @'RHS tyr)
   tyc <- blockTypeOnProblems ty0 twinPid
-  return TwinT{necessary=False
-              ,direction
-              ,twinPid
-              ,twinLHS=tyl
-              ,twinRHS=tyr
-              ,twinCompat=H'Compat tyc
-              }
+  return tt{twinCompat=H'Compat tyc}
 
-mkTwinDom :: TypeViewM m => TwinT''' Bool (Const (Maybe (Het 'Compat (Dom Type)))) (Dom Type)
+mkTwinDom :: TypeViewM m => TwinT''' Bool (Compose Maybe H'Compat) (Dom Type)
              -> m (Dom TwinT)
-mkTwinDom (SingleT (H'Both a)) = return$ asTwin a
-mkTwinDom TwinT{direction,twinPid,twinLHS=doml,twinRHS=domr,twinCompat=Const (Just domc)} = do
-  ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) (Just$ unDom <$> domc)
+mkTwinDom (SingleT (H'Both a)) = return$ asTwin <$> a
+mkTwinDom tt@TwinT{twinCompat=Compose (Just domc)} = do
+  ty_ <- mkTwinT (unDom <$> tt)
   return (twinAt @'Compat domc){unDom=ty_}
-mkTwinDom TwinT{direction,twinPid,twinLHS=doml,twinRHS=domr,twinCompat=Const Nothing} = do
+mkTwinDom tt@TwinT{direction,twinPid,twinLHS=doml,twinRHS=domr,twinCompat=Compose Nothing} = do
   let dom0 = selectSmaller direction (twinAt @'LHS doml) (twinAt @'RHS domr)
-  ty_ <- mkTwinT direction twinPid (unDom <$> doml) (unDom <$> domr) Nothing
+  ty_ <- mkTwinT (unDom <$> tt)
   return dom0{unDom=ty_}
 
-mkTwinAbs :: TypeViewM m => CompareDirection ->
-            [ProblemId] ->
-            Het 'LHS (Abs Type) ->
-            Het 'RHS (Abs Type) ->
-            Maybe (Het 'Compat (Abs Type)) ->
+mkTwinAbs :: TypeViewM m => TwinT''' Bool (Compose Maybe H'Compat) (Abs Type) ->
             m (Abs TwinT)
-mkTwinAbs direction twinPid absl@(commute -> NoAbs _ tyl) absr@(commute -> NoAbs _ tyr) Nothing =
-  NoAbs (suggests [Suggestion absl, Suggestion absr]) <$> mkTwinT direction twinPid tyl tyr Nothing
+mkTwinAbs (SingleT (H'Both a)) = return $ asTwin <$> a
+mkTwinAbs tt@TwinT{twinLHS=absl@(commute -> NoAbs _ tyl),
+                   twinRHS=absr@(commute -> NoAbs _ tyr),
+                   twinCompat=Compose Nothing} =
+  NoAbs (suggests [Suggestion absl, Suggestion absr]) <$> mkTwinT tt{twinLHS=tyl
+                                                                    ,twinRHS=tyr
+                                                                    ,twinCompat=Compose Nothing
+                                                                    }
 
-mkTwinAbs direction twinPid absl@(commute -> NoAbs _ tyl)
-                            absr@(commute -> NoAbs _ tyr)
-                            (Just absc@(commute -> NoAbs _ tyc)) =
+mkTwinAbs tt@TwinT{twinLHS=absl@(commute -> NoAbs _ tyl)
+                  ,twinRHS=absr@(commute -> NoAbs _ tyr)
+                  ,twinCompat=Compose (Just absc@(commute -> NoAbs _ tyc))
+                  } =
   NoAbs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
-    mkTwinT direction twinPid tyl tyr (Just tyc)
+    mkTwinT tt{twinLHS=tyl,twinRHS=tyr,twinCompat=Compose (Just tyc)}
 
-mkTwinAbs direction twinPid absl absr absc =
+mkTwinAbs tt@TwinT{twinLHS=absl,twinRHS=absr,twinCompat=absc} =
   Abs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
-    mkTwinT direction twinPid (absBody <$> absl) (absBody <$> absr) (fmap absBody <$> absc)
+    mkTwinT tt{twinLHS=absBody <$> absl
+              ,twinRHS=absBody <$> absr
+              ,twinCompat=absBody <$> absc
+              }
 
 mkTwinArgNameDom :: TypeViewM m => TwinT'_ (Dom (ArgName, Type))
                                -> m (Dom (ArgName, TwinT))
 mkTwinArgNameDom a = do
   let name :: ArgName
       name = fst $ unDom $ unHet$ twinLHS a
-  fmap (name,) <$> mkTwinDom (fmap (fmap snd) a){twinCompat=Const Nothing}
+  fmap (name,) <$> mkTwinDom (fmap (fmap snd) a){twinCompat=Compose Nothing}
 
 mkTwinTele :: TypeViewM m => TwinT'_ Telescope
                           -> m Telescope_
@@ -2306,7 +2378,7 @@ etaExpandRecordTwin q (TwinT{twinPid,direction,twinLHS,twinRHS}) m n = do
       n'  = snd <$> n₀
       tym = flip telePi_ __DUMMY_TYPE__ . fst <$> m₀
       tyn = flip telePi_ __DUMMY_TYPE__ . fst <$> n₀
-  (,,) <$> mkTwinT direction twinPid tym tyn Nothing
+  (,,) <$> mkTwinT TwinT{necessary=False,direction,twinPid,twinLHS=tym,twinRHS=tyn,twinCompat=Compose Nothing}
        <*> pure m'
        <*> pure n'
 
@@ -2338,16 +2410,115 @@ instance Commute (Het s) Abs where
   commute :: Het s (Abs a) -> Abs (Het s a)
   commute = Data.Coerce.coerce
 
+instance Commute (Het s) Elim' where
+  commute :: Het s (Elim' a) -> Elim' (Het s a)
+  commute = Data.Coerce.coerce
+
+instance Commute Elim' (Het s) where
+  commute = Data.Coerce.coerce
+
 instance Commute (Het s) [] where
   commute :: Het s [a] -> [Het s a]
+  commute = Data.Coerce.coerce
+
+instance Commute [] (Het s) where
+  commute = Data.Coerce.coerce
+
+instance Commute (Het s) Maybe where
+  commute = Data.Coerce.coerce
+
+instance Commute Maybe (Het s) where
   commute = Data.Coerce.coerce
 
 instance Commute (Het s) ((,) a) where
   commute :: Het s (a,b) -> (a, Het s b)
   commute = Data.Coerce.coerce
 
+instance Commute (Het s) Arg where commute = Data.Coerce.coerce
+instance Commute Arg (Het s) where commute = Data.Coerce.coerce
+
+instance Functor f => Commute Abs (TwinT''' b f) where
+  commute (Abs name x)   = Abs name <$> x
+  commute (NoAbs name x) = NoAbs name <$> x
 
 
+---------------------------------------------------------------------
+-- Bola extra
+---------------------------------------------------------------------
+
+-- class SimplifyHet a where
+--   type Simplified a
+--   unsimplifyHet :: Simplified a -> a
+--   simplifyHet   :: MonadConversion m => a -> (Either a (Simplified a) -> m b) -> m b
+--
+-- simplifyHet' :: (MonadConversion m, SimplifyHet a) => a -> (a -> m b) -> m b
+-- simplifyHet' a κ = simplifyHet a $ \case
+--   Left  a' -> κ a'
+--   Right a' -> κ $ unsimplifyHet a'
+--
+-- instance SimplifyHet ContextHet where
+--   type Simplified ContextHet = ()
+--
+--   unsimplifyHet () = Empty
+--
+--   simplifyHet Empty κ = κ (Right ())
+--   simplifyHet (dt :⊢: ctx) κ =
+--     simplifyHet dt $ \case
+--       Right dt' -> addContext dt' $ simplifyHet ctx κ
+--       Left  dt' -> κ$ Left$ (dt' :⊢: ctx)
+
+--instance SimplifyHet TwinT where
+--  type Simplified TwinT = Type
+--
+--  unsimplifyHet = SingleT . Het @'Both
+--
+--  simplifyHet (SingleT a) κ = κ$ Right $ unHet @'Both a
+--  simplifyHet a@(TwinT{twinPid,twinCompat}) κ =
+--    allM twinPid isProblemSolved >>= \case
+--      True  -> κ$ Right $ unHet @'Compat twinCompat
+--      False -> κ$ Left  a
+--
+---- instance SimplifyHet a => SimplifyHet (WithHet a) where
+----   type Simplified (WithHet a) = Simplified a
+----
+----   unsimplifyHet = WithHet Empty . unsimplifyHet
+----
+----   simplifyHet (WithHet ctx a) κ = simplifyHet ctx $ \case
+----     Right () -> simplifyHet a $ \case
+----       Left  a' -> κ$ Left$ WithHet Empty a'
+----       Right a' -> κ$ Right$ a'
+----     Left ctx'  -> κ$ Left$ WithHet ctx' a
+--
+---- instance SimplifyHet a => SimplifyHet (Name, a) where
+--
+--instance SimplifyHet a => SimplifyHet (Dom a) where
+--  type Simplified (Dom a) = Dom (Simplified a)
+--
+--  unsimplifyHet = fmap unsimplifyHet
+--  simplifyHet a κ = simplifyHet (unDom a) $ \case
+--    Left  a' -> κ$ Left$  a{unDom=a'}
+--    Right a' -> κ$ Right$ a{unDom=a'}
+--
+-- instance SimplifyHet a => SimplifyHet (CompareAs' a) where
+--   type Simplified (CompareAs' a) = CompareAs' (Simplified a)
+--
+--   unsimplifyHet = fmap unsimplifyHet
+--   simplifyHet AsTypes κ     = κ (Right AsTypes)
+--   simplifyHet AsSizes κ     = κ (Right AsSizes)
+--   simplifyHet (AsTermsOf a) κ = simplifyHet a $ \case
+--     Right a' -> κ$ Right$ AsTermsOf a'
+--     Left  a' -> κ$ Left$  AsTermsOf a'
+
+-- instance SimplifyHet a => SimplifyHet (Het side a) where
+--   type Simplified (Het side a) = Simplified a
+--
+--   unsimplifyHet = Het . unsimplifyHet
+--
+--   simplifyHet (Het a) κ = simplifyHet a $ \case
+--     Right a' -> κ$ Right a'
+--     Left  a' -> κ$ Left$ Het a'
+--
+--
 
 -- instance CommuteM TwinT' (Dom' t) where
 --   type CommuteMonad TwinT' (Dom' t) m = (Applicative m)

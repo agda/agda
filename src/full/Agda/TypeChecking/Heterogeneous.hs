@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeOperators              #-}
 
 module Agda.TypeChecking.Heterogeneous where
 
@@ -43,10 +44,6 @@ instance Pretty a => Pretty (TwinT' a) where
              <> (if necessary then "" else "*")
              <> pretty twinPid
              <> pretty b
-
-instance TwinAt s a => TwinAt s (Maybe a) where
-  type TwinAt_ s (Maybe a) = Maybe (TwinAt_ s a)
-  twinAt = fmap (twinAt @s)
 
 {-# INLINE commuteHet #-}
 commuteHet :: (Coercible (f a) (f (Het s a))) => Het s (f a) -> f (Het s a)
@@ -141,6 +138,43 @@ ctx !!! n = contextHetToList ctx Agda.Utils.List.!!! n
 flipContext :: (MonadAddContext m) => m a -> m a
 flipContext = updateContext IdS flipHet
 
+apT :: Applicative f => TwinT''' Bool f (a -> b) -> TwinT''' Bool f a -> TwinT''' Bool  f b
+apT (SingleT f) (SingleT a) = SingleT (f <*> a)
+apT (SingleT (H'Both f))  TwinT{necessary,twinPid,twinLHS,twinCompat,twinRHS} =
+                    TwinT{necessary
+                         ,twinPid
+                         ,direction=DirEq
+                         ,twinLHS=f <$> twinLHS
+                         ,twinCompat=f <$> twinCompat
+                         ,twinRHS=f <$> twinRHS
+                         }
+apT TwinT{necessary,twinPid,twinLHS,twinCompat,twinRHS} (SingleT (H'Both b)) =
+                    TwinT{necessary
+                         ,twinPid
+                         ,direction=DirEq
+                         ,twinLHS=($ b) <$> twinLHS
+                         ,twinCompat=($ b) <$> twinCompat
+                         ,twinRHS=($ b) <$> twinRHS
+                         }
+
+apT TwinT{necessary=n₁,twinPid=p₁,twinLHS=l₁,twinCompat=c₁,twinRHS=r₁}
+      TwinT{necessary=n₂,twinPid=p₂,twinLHS=l₂,twinCompat=c₂,twinRHS=r₂} =
+                    TwinT{necessary=n₁ && n₂
+                         ,twinPid=p₁++p₂
+                         ,direction=DirEq
+                         ,twinLHS=    l₁ <*> l₂
+                         ,twinCompat= c₁ <*> c₂
+                         ,twinRHS=    r₁ <*> r₂
+                         }
+infixl 4 `apT`
+
+
+pairT :: Applicative f => TwinT''' Bool f a ->
+                          TwinT''' Bool f b ->
+                          TwinT''' Bool f (a,b)
+pairT a b = (,) <$> a `apT` b
+
+
 
 --  a `isBuiltin` builtinLevel >>= \case
 --   True  -> return TLevel
@@ -161,3 +195,14 @@ flipContext = updateContext IdS flipHet
 --     Def q es -> return (TDef q (asTwin es))
 --     _        -> return TUnknown
 --
+
+data a :∈ b = a :∈ b
+
+pattern (:∋) :: forall a b. b -> a -> a :∈ b
+pattern b :∋ a = a :∈ b
+{-# COMPLETE (:∋) #-}
+
+instance (AsTwin a, AsTwin b) => AsTwin (a :∈ b) where
+  type AsTwin_ (a :∈ b) = AsTwin_ a :∈ AsTwin_ b
+  asTwin (a :∈ b) = asTwin a :∈ asTwin b
+

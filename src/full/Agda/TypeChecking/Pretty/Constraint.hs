@@ -69,7 +69,7 @@ instance PrettyTCM Constraint where
                 , prettyCmp (prettyTCM cmp) s t ]
             <?> (":" <+> prettyTCMCtx TopCtx ty)
         ElimCmp cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
-        ElimCmp_ cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
+        ElimCmp_ cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t <+> "∋" <+> prettyTCMCtx TopCtx v)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
         UnBlock m   -> do

@@ -14,6 +14,7 @@ import Control.Monad.Identity
 import Control.DeepSeq
 
 import Data.Function
+import Data.Functor.Compose (Compose(..))
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ( Semigroup, (<>), Sum(..) )
@@ -987,6 +988,9 @@ instance Suggest Term where
 
 instance Suggest a => Suggest (Maybe a) where
   suggestName = (>>= suggestName)
+
+instance Suggest (f (g a)) => Suggest (Compose f g a) where
+  suggestName (Compose fga) = suggestName fga
 
 -- Wrapping @forall a. (Suggest a) => a@ into a datatype because
 -- GHC doesn't support impredicative polymorphism
