@@ -883,14 +883,28 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
 -- ** Interface
 ---------------------------------------------------------------------------
 
+
+-- | Distinguishes between type-checked and scope-checked interfaces
+--   when stored in the map of `VisitedModules`.
+data ModuleCheckMode
+  = ModuleScopeChecked
+  | ModuleTypeChecked
+  | ModuleTypeCheckedRetainingPrivates
+  deriving (Eq, Ord, Bounded, Enum, Show)
+
+
 data ModuleInfo = ModuleInfo
   { miInterface  :: Interface
-  , miWarnings   :: Bool
-    -- ^ 'True' if warnings were encountered when the module was type
-    -- checked.
+  , miWarnings   :: [TCWarning]
+    -- ^ Warnings were encountered when the module was type checked.
+    --   These might include warnings not stored in the interface itself,
+    --   specifically unsolved interaction metas.
+    --   See "Agda.Interaction.Imports"
   , miPrimitive  :: Bool
     -- ^ 'True' if the module is a primitive module, which should always
     -- be importable.
+  , miMode       :: ModuleCheckMode
+    -- ^ The `ModuleCheckMode` used to create the `Interface`
   }
 
 -- Note that the use of 'C.TopLevelModuleName' here is a potential
@@ -898,7 +912,7 @@ data ModuleInfo = ModuleInfo
 -- identifiers.
 
 type VisitedModules = Map C.TopLevelModuleName ModuleInfo
-type DecodedModules = Map C.TopLevelModuleName Interface
+type DecodedModules = Map C.TopLevelModuleName ModuleInfo
 
 data ForeignCode = ForeignCode Range String
   deriving Show
@@ -1676,6 +1690,7 @@ data RewriteRule = RewriteRule
   , rewPats    :: PElims     -- ^ @Γ ⊢ f ps : t@.
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
+  , rewFromClause :: Bool    -- ^ Was this rewrite rule created from a clause in the definition of the function?
   }
     deriving (Data, Show)
 
@@ -3722,7 +3737,7 @@ data TerminationError = TerminationError
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
-  | BlockedType         (Closure Type)  -- ^ Type could not be sufficiently reduced.
+  | BlockedType Blocker (Closure Type)  -- ^ Type could not be sufficiently reduced.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
   | ErasedDatatype Bool (Closure Type)  -- ^ Data type, but in erased position.
                                         --   If the boolean is 'True',
@@ -3733,7 +3748,8 @@ data SplitError
   -- UNUSED, but keep!
   -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
   | UnificationStuck
-    { cantSplitConName  :: QName        -- ^ Constructor.
+    { cantSplitBlocker  :: Maybe Blocker -- ^ Blocking metavariable (if any)
+    , cantSplitConName  :: QName        -- ^ Constructor.
     , cantSplitTel      :: Telescope    -- ^ Context for indices.
     , cantSplitConIdx   :: Args         -- ^ Inferred indices (from type of constructor).
     , cantSplitGivenIdx :: Args         -- ^ Expected indices (from checking pattern).
@@ -3821,7 +3837,7 @@ data TypeError
         | UninstantiatedDotPattern A.Expr
         | ForcedConstructorNotInstantiated A.Pattern
         | IllformedProjectionPattern A.Pattern
-        | CannotEliminateWithPattern (NamedArg A.Pattern) Type
+        | CannotEliminateWithPattern (Maybe Blocker) (NamedArg A.Pattern) Type
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
         | ShouldBeASort Type
@@ -4742,8 +4758,8 @@ instance KillRange NLPSort where
   killRange PLockUniv = PLockUniv
 
 instance KillRange RewriteRule where
-  killRange (RewriteRule q gamma f es rhs t) =
-    killRange6 RewriteRule q gamma f es rhs t
+  killRange (RewriteRule q gamma f es rhs t c) =
+    killRange6 RewriteRule q gamma f es rhs t c
 
 instance KillRange CompiledRepresentation where
   killRange = id

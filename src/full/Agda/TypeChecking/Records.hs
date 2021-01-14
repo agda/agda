@@ -823,10 +823,10 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
     isEtaVarG u a mi es = do
       (u, a) <- reduce (u, a)
       reportSDoc "tc.lhs" 80 $ "isEtaVarG" <+> nest 2 (vcat
-        [ "u  = " <+> text (show u)
+        [ "u  = " <+> prettyTCM u
         , "a  = " <+> prettyTCM a
         , "mi = " <+> text (show mi)
-        , "es = " <+> prettyList (map (text . show) es)
+        , "es = " <+> prettyList_ (map (prettyTCM . fmap var) es)
         ])
       case (u, unEl a) of
         (Var i' es', _) -> do

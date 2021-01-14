@@ -1,0 +1,4 @@
+ret > ExitFailure 71
+out > Error: The --only-scope-checking flag cannot be combined with --vim.
+out > Run 'agda --help' for help on command line options.
+out >

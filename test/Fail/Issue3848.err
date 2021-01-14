@@ -8,6 +8,5 @@ with rew₁
 Issue3848.agda:30,1-21
 Global confluence check failed: g (f r) unfolds to g a which should
 further unfold to a but it does not.
-Possible fix: add a rule to rewrite g a to a, or change the order
-of the rules so more specialized rules come later.
+Possible fix: add a rule to rewrite g a to a
 when checking the pragma REWRITE rew₃

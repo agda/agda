@@ -63,7 +63,6 @@ import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton
 import Agda.Interaction.Imports  ( Mode(..) )
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
-import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 
 import Agda.Compiler.Backend
 
@@ -501,15 +500,15 @@ interpret (Cmd_load m argv) =
   mode = Imp.TypeCheck TopLevelInteraction -- do not reset InteractionMode
 
 interpret (Cmd_compile backend file argv) =
-  cmd_load' file argv allowUnsolved mode $ \ (i, mw) -> do
-    mw' <- lift $ applyFlagsToTCWarnings mw
-    case mw' of
+  cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
+    mw <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
+    case mw of
       [] -> do
         lift $ case backend of
-          LaTeX                    -> LaTeX.generateLaTeX i
-          QuickLaTeX               -> LaTeX.generateLaTeX i
-          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
-          OtherBackend b           -> callBackend b IsMain  i
+          LaTeX                    -> callBackend "LaTeX" IsMain checkResult
+          QuickLaTeX               -> callBackend "LaTeX" IsMain checkResult
+          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
+          OtherBackend b           -> callBackend b IsMain checkResult
         display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
       w@(_:_) -> display_info $ Info_Error $ Info_CompilationError w
   where
@@ -600,14 +599,14 @@ interpret (Cmd_load_highlighting_info source) = do
       if ex
         then
            do
-              si <- Imp.sourceInfo absSource
-              let m = Imp.siModuleName si
+              src <- Imp.parseSource absSource
+              let m = Imp.srcModuleName src
               checkModuleName m absSource Nothing
               mmi <- getVisitedModule m
               case mmi of
                 Nothing -> return Nothing
                 Just mi ->
-                  if hashText (Imp.siSource si) == iSourceHash (miInterface mi)
+                  if hashText (Imp.srcText src) == iSourceHash (miInterface mi)
                     then do
                       modFile <- useTC stModuleToSource
                       method  <- viewTC eHighlightingMethod
@@ -875,7 +874,7 @@ cmd_load'
                --   Providing 'TypeCheck RegularInteraction' here
                --   will reset 'InteractionMode' accordingly.
                --   Otherwise, only if different file from last time.
-  -> ((Interface, [TCWarning]) -> CommandM a)
+  -> (CheckResult -> CommandM a)
                -- ^ Continuation after successful loading.
   -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do
@@ -901,7 +900,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     t <- liftIO $ getModificationTime file
 
     -- Parse the file.
-    si <- lift $ Imp.sourceInfo (SourceFile fp)
+    src <- lift $ Imp.parseSource (SourceFile fp)
 
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
@@ -913,7 +912,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
       Right (_, opts) -> do
         opts <- lift $ addTrustedExecutables opts
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-            root     = projectRoot fp $ Imp.siModuleName si
+            root     = projectRoot fp $ Imp.srcModuleName src
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
         displayStatus
 
@@ -929,7 +928,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- Remove any prior syntax highlighting.
     putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
 
-    ok <- lift $ Imp.typeCheckMain mode si
+    ok <- lift $ Imp.typeCheckMain mode src
 
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the
@@ -1167,7 +1166,7 @@ status = do
             mm <- lookupModuleFromSource f
             case mm of
               Nothing -> return False -- work-around for Issue1007
-              Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
+              Just m  -> maybe False (null . miWarnings) <$> getVisitedModule m
         else
             return False
 

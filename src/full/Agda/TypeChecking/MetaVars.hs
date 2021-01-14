@@ -278,10 +278,11 @@ newValueMetaCtx' frozen b cmp a tel perm vs = do
   i <- createMetaInfo' b
   let t     = telePi_ tel a
   x <- newMeta frozen i normalMetaPriority perm (HasType () cmp t)
+  modality <- viewTC eModality
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text $ "new meta (" ++ show (i ^. lensIsAbstract) ++ "):"
     , nest 2 $ prettyTCM vs <+> "|-"
-    , nest 2 $ pretty x <+> ":" <+> prettyTCM t
+    , nest 2 $ pretty x <+> ":" <+> pretty modality <+> prettyTCM t
     ]
   etaExpandMetaSafe x
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u

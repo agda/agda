@@ -1,0 +1,4 @@
+ret > ExitFailure 71
+out > Error: Must not specify multiple frontends (--interaction, --interaction-json)
+out > Run 'agda --help' for help on command line options.
+out >

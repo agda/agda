@@ -452,7 +452,7 @@ instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 
 instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma f ps rhs b) = fsep
+  prettyTCM (RewriteRule q gamma f ps rhs b c) = fsep
     [ prettyTCM q
     , prettyTCM gamma <+> " |- "
     , addContext gamma $ sep

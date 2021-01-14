@@ -12,7 +12,6 @@ module Agda.TypeChecking.Monad.Imports
   , getVisitedModule
   , getVisitedModules
   , isImported
-  , isVisited
   , setDecodedModules
   , setVisitedModules
   , storeDecodedModule
@@ -20,6 +19,7 @@ module Agda.TypeChecking.Monad.Imports
   , withImportPath
   ) where
 
+import Control.Arrow ( (***) )
 import Control.Monad.State
 
 
@@ -66,11 +66,14 @@ getVisitedModules = useTC stVisitedModules
 
 getPrettyVisitedModules :: ReadTCState m => m Doc
 getPrettyVisitedModules = do
-  visited <- Map.keys <$> getVisitedModules
-  return $ hcat $ punctuate ", " $ pretty <$> visited
-
-isVisited :: C.TopLevelModuleName -> TCM Bool
-isVisited x = Map.member x <$> useTC stVisitedModules
+  visited <-  fmap (uncurry (<>) . (pretty *** (prettyCheckMode . miMode))) . Map.toList
+          <$> getVisitedModules
+  return $ hcat $ punctuate ", " visited
+  where
+  prettyCheckMode :: ModuleCheckMode -> Doc
+  prettyCheckMode ModuleTypeChecked                  = ""
+  prettyCheckMode ModuleTypeCheckedRetainingPrivates = " (+ privates)"
+  prettyCheckMode ModuleScopeChecked                 = " (scope only)"
 
 getVisitedModule :: ReadTCState m
                  => C.TopLevelModuleName
@@ -84,14 +87,14 @@ setDecodedModules :: DecodedModules -> TCM ()
 setDecodedModules ms = modifyTC $ \s ->
   s { stPersistentState = (stPersistentState s) { stDecodedModules = ms } }
 
-getDecodedModule :: C.TopLevelModuleName -> TCM (Maybe Interface)
+getDecodedModule :: C.TopLevelModuleName -> TCM (Maybe ModuleInfo)
 getDecodedModule x = Map.lookup x . stDecodedModules . stPersistentState <$> getTC
 
-storeDecodedModule :: Interface -> TCM ()
-storeDecodedModule i = modifyTC $ \s ->
+storeDecodedModule :: ModuleInfo -> TCM ()
+storeDecodedModule mi = modifyTC $ \s ->
   s { stPersistentState =
         (stPersistentState s) { stDecodedModules =
-          Map.insert (toTopLevelModuleName $ iModuleName i) i $
+          Map.insert (toTopLevelModuleName $ iModuleName $ miInterface mi) mi $
             stDecodedModules (stPersistentState s)
         }
   }

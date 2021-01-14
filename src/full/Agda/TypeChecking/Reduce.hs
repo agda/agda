@@ -62,6 +62,21 @@ reduce = liftReduce . reduce'
 reduceB :: (Reduce a, MonadReduce m) => a -> m (Blocked a)
 reduceB = liftReduce . reduceB'
 
+-- Reduce a term and also produce a blocker signifying when
+-- this reduction should be retried.
+reduceWithBlocker :: (Reduce a, IsMeta a, MonadReduce m) => a -> m (Blocker, a)
+reduceWithBlocker a = ifBlocked a
+  (\b a' -> return (b, a'))
+  (\_ a' -> return (neverUnblock, a'))
+
+-- Reduce a term and call the continuation. If the continuation is
+-- blocked, the whole call is blocked either on what blocked the reduction
+-- or on what blocked the continuation (using `blockedOnEither`).
+withReduced
+  :: (Reduce a, IsMeta a, MonadReduce m, MonadBlock m)
+  => a -> (a -> m b) -> m b
+withReduced a cont = ifBlocked a (\b a' -> addOrUnblocker b $ cont a') (\_ a' -> cont a')
+
 normalise :: (Normalise a, MonadReduce m) => a -> m a
 normalise = liftReduce . normalise'
 
@@ -1464,13 +1479,14 @@ instance InstantiateFull NLPSort where
   instantiateFull' PLockUniv = return PLockUniv
 
 instance InstantiateFull RewriteRule where
-  instantiateFull' (RewriteRule q gamma f ps rhs t) =
+  instantiateFull' (RewriteRule q gamma f ps rhs t c) =
     RewriteRule q
       <$> instantiateFull' gamma
       <*> pure f
       <*> instantiateFull' ps
       <*> instantiateFull' rhs
       <*> instantiateFull' t
+      <*> pure c
 
 instance InstantiateFull DisplayForm where
   instantiateFull' (Display n ps v) = uncurry (Display n) <$> instantiateFull' (ps, v)

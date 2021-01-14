@@ -836,11 +836,13 @@ moreQuantity m m' = related m POLE m'
 --
 composeQuantity :: Quantity -> Quantity -> Quantity
 composeQuantity = curry $ \case
-  (x@Quantity1{}, q            ) -> q -- right-bias!
-  (q            , x@Quantity1{}) -> q
-  (x            , q@Quantity0{}) -> q -- right-bias!
-  (q@Quantity0{}, x            ) -> q
-  (x            , q@Quantityω{}) -> q -- right-bias!
+  (Quantity1 o, Quantity1 o') -> Quantity1 (o <> o')
+  (Quantity1{}, q           ) -> q
+  (q          , Quantity1{} ) -> q
+  (Quantity0 o, Quantity0 o') -> Quantity0 (o <> o')
+  (_          , Quantity0 o ) -> Quantity0 o
+  (Quantity0 o, _           ) -> Quantity0 o
+  (Quantityω o, Quantityω o') -> Quantityω (o <> o')
 
 -- | Compose with quantity flag from the left.
 --   This function is e.g. used to update the quantity information

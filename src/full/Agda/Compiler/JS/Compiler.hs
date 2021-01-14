@@ -44,7 +44,7 @@ import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, whenNothing )
+import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, fromMaybe, whenNothing )
 import Agda.Utils.Monad ( ifM, when )
 import Agda.Utils.Null  ( null )
 import Agda.Utils.Pretty (prettyShow, render)
@@ -186,10 +186,13 @@ mergeModules ms
 
 type JSModuleEnv = Maybe CoinductionKit
 
-jsPreModule :: JSOptions -> IsMain -> ModuleName -> FilePath -> TCM (Recompile JSModuleEnv Module)
-jsPreModule _opts _ m ifile = ifM uptodate noComp yesComp
+jsPreModule :: JSOptions -> IsMain -> ModuleName -> Maybe FilePath -> TCM (Recompile JSModuleEnv Module)
+jsPreModule _opts _ m mifile = ifM uptodate noComp yesComp
   where
-    uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
+    uptodate = case mifile of
+      Nothing -> pure False
+      Just ifile -> liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
+    ifileDesc = fromMaybe "(memory)" mifile
 
     noComp = do
       reportSLn "compile.js" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
@@ -201,7 +204,7 @@ jsPreModule _opts _ m ifile = ifM uptodate noComp yesComp
     yesComp = do
       m   <- prettyShow <$> curMName
       out <- outFile_
-      reportSLn "compile.js" 1 $ repl [m, ifile, out] "Compiling <<0>> in <<1>> to <<2>>"
+      reportSLn "compile.js" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
       Recompile <$> coinductionKit
 
 jsPostModule :: JSOptions -> JSModuleEnv -> IsMain -> ModuleName -> [Maybe Export] -> TCM Module
@@ -529,6 +532,7 @@ compileTerm kit t = go t
       T.TSort -> unit
       T.TErased -> unit
       T.TError T.TUnreachable -> return Undefined
+      T.TError T.TMeta{}      -> return Undefined
       T.TCoerce t -> go t
 
     getDef (T.TDef f) = Just (Left f)

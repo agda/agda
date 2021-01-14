@@ -6,6 +6,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 import Data.Maybe
+import qualified Data.Set as Set
 
 import Agda.Interaction.Options
 
@@ -331,11 +332,10 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       escapeContext __IMPOSSIBLE__ npars $ do
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
-      -- Jesper, 2019-06-07: Check confluence of projection clauses
-      whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> forM_ fs $ \f -> do
-        cls <- defClauses <$> getConstInfo (unDom f)
-        forM (zip cls [0..]) $ \(cl,i) ->
-          checkConfluenceOfClause confChk (unDom f) i cl
+      -- The confluence checker needs to know what symbols match against
+      -- the constructor.
+      modifySignature $ updateDefinition conName $ \def ->
+        def { defMatchable = Set.fromList $ map unDom fs }
 
       return ()
   where

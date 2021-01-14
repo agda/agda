@@ -24,9 +24,6 @@ import Agda.Interaction.EmacsTop (mimicGHCi)
 import Agda.Interaction.JSONTop (jsonREPL)
 import Agda.Interaction.FindFile ( SourceFile(SourceFile) )
 import qualified Agda.Interaction.Imports as Imp
-import qualified Agda.Interaction.Highlighting.Dot as Dot
-import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
-import Agda.Interaction.Highlighting.HTML
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -71,7 +68,7 @@ runAgda' backends = do
       MainModePrintAgdaDir   -> printAgdaDir
       MainModeRun interactor -> runTCMPrettyErrors $ do
         setTCLens stBackends bs
-        runAgdaWithOptions generateHTML interactor progName opts
+        runAgdaWithOptions interactor progName opts
 
 -- | Main execution mode
 data MainMode
@@ -97,7 +94,7 @@ type Interactor a
     -- This is separated so that errors can be reported in the appropriate format.
     = TCM ()
     -- Type-checking action
-    -> (AbsolutePath -> TCM (Maybe Interface))
+    -> (AbsolutePath -> TCM CheckResult)
     -- Main transformed action.
     -> TCM a
 
@@ -131,11 +128,12 @@ getInteractor configuredBackends maybeInputFile opts =
     (Nothing,        [],             _:_) -> throwError $ concat ["No input file specified for ", enabledBackendNames]
     (_,              _:_,            _:_) -> throwError $ concat ["Cannot mix ", enabledFrontendNames, " with ", enabledBackendNames]
     (_,              _:_:_,           []) -> throwError $ concat ["Must not specify multiple ", enabledFrontendNames]
+    (_,              [fe],            []) | optOnlyScopeChecking opts -> errorFrontendScopeChecking fe
     (_,              [FrontEndRepl],  []) -> return $ Just $ replInteractor maybeInputFile
     (Nothing,        [FrontEndEmacs], []) -> return $ Just $ emacsModeInteractor
     (Nothing,        [FrontEndJson],  []) -> return $ Just $ jsonModeInteractor
-    (Just inputFile, [FrontEndEmacs], []) -> errorInteraction inputFile ""
-    (Just inputFile, [FrontEndJson],  []) -> errorInteraction inputFile "-json"
+    (Just inputFile, [FrontEndEmacs], []) -> errorFrontendFileDisallowed inputFile FrontEndEmacs
+    (Just inputFile, [FrontEndJson],  []) -> errorFrontendFileDisallowed inputFile FrontEndJson
   where
     -- NOTE: The notion of a backend being "enabled" *just* refers to this top-level interaction mode selection. The
     -- interaction/interactive front-ends may still invoke available backends even if they are not "enabled".
@@ -156,17 +154,18 @@ getInteractor configuredBackends maybeInputFile opts =
       FrontEndEmacs -> "interaction"
       FrontEndJson -> "interaction-json"
       FrontEndRepl -> "interactive"
-    errorInteraction inputFile suffix = throwError $
-      concat [ "Must not specify an input file (", filePath inputFile, ") with --interaction", suffix ]
+    errorFrontendScopeChecking fe = throwError $
+      concat ["The --only-scope-checking flag cannot be combined with ", frontendFlagName fe]
+    errorFrontendFileDisallowed inputFile fe = throwError $
+      concat ["Must not specify an input file (", filePath inputFile, ") with ", frontendFlagName fe]
 
--- | Run Agda with parsed command line options and with a custom HTML generator
+-- | Run Agda with parsed command line options
 runAgdaWithOptions
-  :: TCM ()             -- ^ HTML generating action
-  -> Interactor a       -- ^ Backend interaction
+  :: Interactor a       -- ^ Backend interaction
   -> String             -- ^ program name
   -> CommandLineOptions -- ^ parsed command line options
   -> TCM a
-runAgdaWithOptions generateHTML interactor progName opts = do
+runAgdaWithOptions interactor progName opts = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
           UtilsBench.setBenchmarking UtilsBench.BenchmarkOn
@@ -192,7 +191,7 @@ runAgdaWithOptions generateHTML interactor progName opts = do
       opts <- addTrustedExecutables opts
       setCommandLineOptions opts
 
-    checkFile :: AbsolutePath -> TCM (Maybe Interface)
+    checkFile :: AbsolutePath -> TCM CheckResult
     checkFile inputFile = do
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).
@@ -203,26 +202,14 @@ runAgdaWithOptions generateHTML interactor progName opts = do
                      then Imp.ScopeCheck
                      else Imp.TypeCheck RegularInteraction
 
-          (i, mw) <- Imp.typeCheckMain mode =<< Imp.sourceInfo (SourceFile inputFile)
+          result <- Imp.typeCheckMain mode =<< Imp.parseSource (SourceFile inputFile)
 
-          -- An interface is only generated if the mode is
-          -- Imp.TypeCheck and there are no warnings.
-          result <- case (mode, mw) of
-            (Imp.ScopeCheck, _)  -> return Nothing
-            (_, [])              -> return $ Just i
-            (_, ws@(_:_))        ->
-              ifNotNullM (applyFlagsToTCWarnings ws) {-then-} (typeError . NonFatalErrors) {-else-} $ return Nothing
+          unless (crMode result == ModuleScopeChecked) $
+            unlessNullM (applyFlagsToTCWarnings (crWarnings result)) $ \ ws ->
+              typeError $ NonFatalErrors ws
 
+          let i = crInterface result
           reportSDoc "main" 50 $ pretty i
-
-          whenM (optGenerateHTML <$> commandLineOptions) $
-            generateHTML
-
-          forMM_ (optDependencyGraph <$> commandLineOptions) $
-            Dot.generateDot i
-
-          whenM (optGenerateLaTeX <$> commandLineOptions) $
-            LaTeX.generateLaTeX i
 
           -- Print accumulated warnings
           unlessNullM (tcWarnings . classifyWarnings <$> getAllWarnings AllWarnings) $ \ ws -> do

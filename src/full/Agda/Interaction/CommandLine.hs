@@ -14,6 +14,7 @@ import Text.Read (readMaybe)
 
 import Agda.Interaction.Base hiding (Command)
 import Agda.Interaction.BasicOps as BasicOps hiding (parseExpr)
+import Agda.Interaction.Imports ( CheckResult, crInterface )
 import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Abstract as A
@@ -42,7 +43,7 @@ import Agda.Utils.Impossible
 
 data ReplEnv = ReplEnv
     { replSetupAction     :: TCM ()
-    , replTypeCheckAction :: AbsolutePath -> TCM (Maybe Interface)
+    , replTypeCheckAction :: AbsolutePath -> TCM CheckResult
     }
 
 data ReplState = ReplState
@@ -57,7 +58,7 @@ newtype ReplM a = ReplM { unReplM :: ReaderT ReplEnv (StateT ReplState IM) a }
     , MonadReader ReplEnv, MonadState ReplState
     )
 
-runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM (Maybe Interface)) -> ReplM () -> TCM ()
+runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) -> ReplM () -> TCM ()
 runReplM initialFile setup checkInterface
     = runIM
     . flip evalStateT (ReplState initialFile)
@@ -103,7 +104,7 @@ interaction prompt cmds eval = loop
                     liftIO $ putStrLn s
                     loop
 
-runInteractionLoop :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM (Maybe Interface)) -> TCM ()
+runInteractionLoop :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) -> TCM ()
 runInteractionLoop initialFile setup check = runReplM initialFile setup check interactionLoop
 
 replSetup :: ReplM ()
@@ -111,10 +112,10 @@ replSetup = do
     liftTCM =<< asks replSetupAction
     liftIO $ putStr splashScreen
 
-checkCurrentFile :: ReplM (Maybe Interface)
-checkCurrentFile = caseMaybeM (gets currentFile) (return Nothing) checkFile
+checkCurrentFile :: ReplM (Maybe CheckResult)
+checkCurrentFile = caseMaybeM (gets currentFile) (return Nothing) (fmap Just . checkFile)
 
-checkFile :: AbsolutePath -> ReplM (Maybe Interface)
+checkFile :: AbsolutePath -> ReplM CheckResult
 checkFile file = liftTCM . ($ file) =<< asks replTypeCheckAction
 
 -- | The interaction loop.
@@ -126,14 +127,8 @@ interactionLoop = do
     interaction "Main> " commands evalTerm
     where
         reload :: ReplM () = do
-            mi <- checkCurrentFile
-            -- Note that mi is Nothing if (1) there is no input file or
-            -- (2) the file type checked with unsolved metas and
-            -- --allow-unsolved-metas was used. In the latter case the
-            -- behaviour of agda -I may be surprising. If agda -I ever
-            -- becomes properly supported again, then this behaviour
-            -- should perhaps be fixed.
-            liftTCM $ setScope $ maybe emptyScopeInfo iInsideScope mi
+            checked <- checkCurrentFile
+            liftTCM $ setScope $ maybe emptyScopeInfo iInsideScope (crInterface <$> checked)
           `catchError` \e -> do
             s <- prettyError e
             liftIO $ putStrLn s

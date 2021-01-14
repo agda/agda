@@ -36,13 +36,6 @@ k x                (run-time _)     = run-time true
 k (run-time x)     (compile-time y) = compile-time y
 k (compile-time x) (compile-time y) = compile-time x
 
--- The following test should fail (see #5079).
-
-l : @0 D → D
-l (run-time true)  = run-time true
-l (run-time false) = run-time false
-l (compile-time x) = compile-time x
-
 data E (@0 A : Set) : Set where
   c₁ c₂ : E A
   @0 c₃ : A → E A

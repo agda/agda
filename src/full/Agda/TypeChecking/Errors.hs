@@ -387,7 +387,7 @@ instance PrettyTCM TypeError where
     IllformedProjectionPattern p -> fsep $
       pwords "Ill-formed projection pattern " ++ [prettyA p]
 
-    CannotEliminateWithPattern p a -> do
+    CannotEliminateWithPattern b p a -> do
       let isProj = isJust (isProjP p)
       fsep $
         pwords "Cannot eliminate type" ++ prettyTCM a : if
@@ -1260,7 +1260,7 @@ instance PrettyTCM SplitError where
     NotADatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of non-datatype" ++ [prettyTCM t]
 
-    BlockedType t -> enterClosure t $ \ t -> fsep $
+    BlockedType b t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
 
     IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
@@ -1282,7 +1282,7 @@ instance PrettyTCM SplitError where
       pwords "because it has no constructor"
  -}
 
-    UnificationStuck c tel cIxs gIxs errs
+    UnificationStuck b c tel cIxs gIxs errs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
       | otherwise                  -> vcat . concat $
         [ [ fsep . concat $

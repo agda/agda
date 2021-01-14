@@ -427,7 +427,7 @@ substTerm term = normaliseStatic term >>= \ term ->
         C.mkTApp (C.TCon c') <$> substArgs args
     I.Pi _ _ -> return C.TUnit
     I.Sort _  -> return C.TSort
-    I.MetaV _ _ -> __IMPOSSIBLE__   -- we don't compiled if unsolved metas
+    I.MetaV x _ -> return $ C.TError $ C.TMeta $ prettyShow x
     I.DontCare _ -> return C.TErased
     I.Dummy{} -> __IMPOSSIBLE__
 

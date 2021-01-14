@@ -246,6 +246,7 @@ instance Apply RewriteRule where
        , rewPats    = applySubst sub (rewPats r)
        , rewRHS     = applyNLPatSubst sub (rewRHS r)
        , rewType    = applyNLPatSubst sub (rewType r)
+       , rewFromClause = rewFromClause r
        }
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -630,8 +631,8 @@ instance Abstract Definition where
 --   we do not need to change lhs, rhs, and t since they live in Γ.
 --   See 'Abstract Clause'.
 instance Abstract RewriteRule where
-  abstract tel (RewriteRule q gamma f ps rhs t) =
-    RewriteRule q (abstract tel gamma) f ps rhs t
+  abstract tel (RewriteRule q gamma f ps rhs t c) =
+    RewriteRule q (abstract tel gamma) f ps rhs t c
 
 instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
   abstract tel []  = []
@@ -948,11 +949,12 @@ instance Subst NLPSort where
 
 instance Subst RewriteRule where
   type SubstArg RewriteRule = NLPat
-  applySubst rho (RewriteRule q gamma f ps rhs t) =
+  applySubst rho (RewriteRule q gamma f ps rhs t c) =
     RewriteRule q (applyNLPatSubst rho gamma)
                 f (applySubst (liftS n rho) ps)
                   (applyNLPatSubst (liftS n rho) rhs)
                   (applyNLPatSubst (liftS n rho) t)
+                  c
     where n = size gamma
 
 instance Subst a => Subst (Blocked a) where

@@ -388,13 +388,6 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         covering <- funCovering . theDef <$> getConstInfo name
 
-        -- Jesper, 2019-05-30: if the constructors used in the
-        -- lhs of a clause have rewrite rules, we need to check
-        -- confluence here
-        whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> inTopContext $
-          forM_ (zip cs [0..]) $ \(c , clauseNo) ->
-            checkConfluenceOfClause confChk name clauseNo c
-
         -- Add the definition
         inTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
@@ -420,6 +413,12 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
           sep [ "added " <+> prettyTCM name <+> ":"
               , nest 2 $ prettyTCM . defType =<< getConstInfo name
               ]
+
+        -- Jesper, 2019-05-30: if the constructors used in the
+        -- lhs of a clause have rewrite rules, we need to check
+        -- confluence here
+        whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> inTopContext $
+          checkConfluenceOfClauses confChk name
 
 -- | Set 'funTerminates' according to termination info in 'TCEnv',
 --   which comes from a possible termination pragma.

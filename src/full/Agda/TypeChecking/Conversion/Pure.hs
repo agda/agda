@@ -11,13 +11,16 @@ import Data.String
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Reduce (isBlocked)
 import Agda.TypeChecking.Warnings
 
 import Agda.Utils.Either
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -36,13 +39,13 @@ pureEqualTerm
   :: (PureTCM m, MonadBlock m)
   => Type -> Term -> Term -> m Bool
 pureEqualTerm a u v =
-  isRight <$> runPureConversion (equalTerm a u v)
+  isJust <$> runPureConversion (equalTerm a u v)
 
 pureEqualType
   :: (PureTCM m, MonadBlock m)
   => Type -> Type -> m Bool
 pureEqualType a b =
-  isRight <$> runPureConversion (equalType a b)
+  isJust <$> runPureConversion (equalType a b)
 
 pureCompareAs
   :: (PureTCM m, MonadBlock m)
@@ -53,11 +56,11 @@ pureCompareAs_
   :: (PureTCM m, MonadBlock m)
   => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m Bool
 pureCompareAs_ cmp a u v =
-  isRight <$> runPureConversion (compareAs_ cmp a u v)
+  isJust <$> runPureConversion (compareAs_ cmp a u v)
 
 runPureConversion
   :: (MonadBlock m, PureTCM m, Show a)
-  => PureConversionT m a -> m (Either TCErr a)
+  => PureConversionT m a -> m (Maybe a)
 runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $ do
   i <- useR stFreshInt
   pid <- useR stFreshProblemId
@@ -65,7 +68,14 @@ runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
   let frsh = FreshThings i pid nid
   result <- fst <$> runStateT (runExceptT m) frsh
   reportSLn "tc.conv.pure" 40 $ "runPureConversion result: " ++ show result
-  return result
+  case result of
+    Left (PatternErr block)
+     | block == neverUnblock -> return Nothing
+     | otherwise             -> patternViolation block
+    Left TypeError{}   -> return Nothing
+    Left Exception{}   -> __IMPOSSIBLE__
+    Left IOException{} -> __IMPOSSIBLE__
+    Right x            -> return $ Just x
 
 instance MonadTrans PureConversionT where
   lift = PureConversionT . lift . lift
@@ -90,14 +100,12 @@ instance Monad m => Null (PureConversionT m Doc) where
   empty = return empty
   null = __IMPOSSIBLE__
 
--- | Pattern violations are NOT caught but instead thrown into the
---   outside world. This gives us access to more precise blocking
---   information when a pure conversion check is blocked.
-instance MonadBlock m => MonadBlock (PureConversionT m) where
-  patternViolation = PureConversionT . lift . lift . patternViolation
-  catchPatternErr handle m = PureConversionT $ ExceptT $ StateT $ \s -> do
-    let run f = runStateT (runExceptT $ unPureConversionT f) s
-    catchPatternErr (run . handle) $ run m
+instance Monad m => MonadBlock (PureConversionT m) where
+  patternViolation = throwError . PatternErr
+  catchPatternErr handle m = m `catchError` \case
+    PatternErr b -> handle b
+    err          -> throwError err
+
 
 instance (PureTCM m, MonadBlock m) => MonadConstraint (PureConversionT m) where
   addConstraint u _ = patternViolation u
@@ -111,8 +119,14 @@ instance (PureTCM m, MonadBlock m) => MonadConstraint (PureConversionT m) where
 
 instance (PureTCM m, MonadBlock m) => MonadMetaSolver (PureConversionT m) where
   newMeta' _ _ _ _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
-  assignV_ _ _ _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
-  assignTerm' _ _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
+  assignV_ _ m _ v _ = do
+    bv <- isBlocked v
+    let blocker = caseMaybe bv id unblockOnEither $ unblockOnMeta m
+    patternViolation blocker
+  assignTerm' m _ v = do
+    bv <- isBlocked v
+    let blocker = caseMaybe bv id unblockOnEither $ unblockOnMeta m
+    patternViolation blocker
   etaExpandMeta _ _ = return ()
   updateMetaVar _ _ = patternViolation alwaysUnblock  -- TODO: does this happen?
   speculateMetas fallback m = m >>= \case

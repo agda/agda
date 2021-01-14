@@ -1120,12 +1120,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         Just cixs = allApplyElims es
     return (gamma0, cixs, boundary)
 
+  let (_, Dom{domInfo = info} : _) = splitAt (size tel - hix - 1) (telToList tel)
+
   -- Andreas, 2012-02-25 preserve name suggestion for recursive arguments
   -- of constructor
 
   let preserve (x, t@(El _ (Def d' _))) | d == d' = (n, t)
       preserve (x, t) = (x, t)
-      gamma  = telFromList . map (fmap preserve) . telToList $ gamma0
+      gamma  = (fmap . mapModality) (composeModality (getModality info)) $ telFromList . map (fmap preserve) . telToList $ gamma0
       delta1Gamma = delta1 `abstract` gamma
 
   debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix
@@ -1144,7 +1146,6 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- TODO: should we propagate the modality in general?
   -- See also LHS checking.
   dtype <- do
-         let (_, Dom{domInfo = info} : _) = splitAt (size tel - hix - 1) (telToList tel)
          let updCoh = composeCohesion (getCohesion info)
          TelV dtel dt <- telView dtype
          return $ abstract (mapCohesion updCoh <$> dtel) dt
@@ -1160,17 +1161,17 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
          conIxs
          givenIxs
 
-  let stuck errs = do
+  let stuck b errs = do
         debugCantSplit
-        throwError $ UnificationStuck (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
+        throwError $ UnificationStuck b (conName con) (delta1 `abstract` gamma) conIxs givenIxs errs
 
 
   case r of
     NoUnify {} -> debugNoUnify $> Nothing
 
-    UnifyBlocked block -> stuck [] -- TODO: postpone and retry later
+    UnifyBlocked block -> stuck (Just block) []
 
-    UnifyStuck errs -> stuck errs
+    UnifyStuck errs -> stuck Nothing errs
 
     Unifies (delta1',rho0,_) -> do
       debugSubst "rho0" rho0
