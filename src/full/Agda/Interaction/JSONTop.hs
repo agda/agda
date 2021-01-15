@@ -21,7 +21,7 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
-import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..))
+import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), EffortLevel(..), NatExt(..))
 import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
 import Agda.TypeChecking.Monad.Base (TwinT'''(..),TwinT', HetSide(..), Het(..))
@@ -95,9 +95,15 @@ instance ToJSON Range where
 
 instance EncodeTCM ProblemId where
 instance EncodeTCM MetaId    where
+instance EncodeTCM NatExt    where
+
+instance ToJSON NatExt where
+  toJSON (NatExt n)   = toJSON n
+  toJSON  NatInfinity = String "NatInfinity"
 
 instance ToJSON ProblemId where toJSON (ProblemId i) = toJSON i
 instance ToJSON MetaId    where toJSON (MetaId    i) = toJSON i
+instance ToJSON EffortLevel where toJSON (EffortLevel i) = toJSON i
 
 instance EncodeTCM InteractionId where
   encodeTCM ii@(InteractionId i) = obj
@@ -268,7 +274,11 @@ instance EncodeTCM (OutputForm C.Expr C.Expr) where
     , "constraint" #= encodeOC (pure . encodeShow) (pure . encodeShow) oc
     ]
 
+instance EncodeTCM EffortLevel where
+  encodeTCM (EffortLevel x) = encodeTCM x
+
 instance EncodeTCM Blocker where
+  encodeTCM (UnblockOnEffort x)  = kind "UnblockOnEffort" [ "effort" @= x ]
   encodeTCM (UnblockOnMeta x)    = kind "UnblockOnMeta" [ "meta" @= x ]
   encodeTCM (UnblockOnProblem p) = kind "UnblockOnProblem" [ "id" @= p ]
   encodeTCM (UnblockOnAll us)    = kind "UnblockOnAll" [ "blockers" @= Set.toList us ]

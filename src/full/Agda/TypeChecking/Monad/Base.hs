@@ -3156,6 +3156,8 @@ data TCEnv =
                 --   NB: we only store the 'BackendName' here, otherwise
                 --   @instance Data TCEnv@ is not derivable.
                 --   The actual backend can be obtained from the name via 'stBackends'.
+          , envEffortLevel :: EffortLevel
+
           }
     deriving Data
 
@@ -3214,6 +3216,7 @@ initEnv = TCEnv { envContext             = Empty
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 , envActiveBackendName      = Nothing
+                , envEffortLevel            = minBound
                 }
 
 class LensTCEnv a where
@@ -3386,6 +3389,9 @@ eGeneralizedVars f e = f (envGeneralizedVars e) <&> \ x -> e { envGeneralizedVar
 
 eActiveBackendName :: Lens' (Maybe BackendName) TCEnv
 eActiveBackendName f e = f (envActiveBackendName e) <&> \ x -> e { envActiveBackendName = x }
+
+eEffortLevel :: Lens' EffortLevel TCEnv
+eEffortLevel f e = f (envEffortLevel e) <&> \ x -> e { envEffortLevel = x }
 
 ---------------------------------------------------------------------------
 -- ** Context

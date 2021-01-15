@@ -45,6 +45,19 @@ isProblemSolved pid =
 getConstraintsForProblem :: ReadTCState m => ProblemId -> m Constraints
 getConstraintsForProblem pid = List.filter (Set.member pid . constraintProblems) <$> getAllConstraints
 
+-- | Warning : These constraints need to be solved or put back somehow
+takeAsleepConstraints :: MonadConstraint m => (ProblemConstraint -> Bool) -> m Constraints
+takeAsleepConstraints f = do
+  (takeAsleep, keepAsleep) <- List.partition f <$> useTC stSleepingConstraints
+  modifySleepingConstraints $ const keepAsleep
+  return $ takeAsleep
+
+putBackAwakeConstraints :: MonadConstraint m => Constraints -> m ()
+putBackAwakeConstraints awake = modifyAwakeConstraints (++ awake)
+
+putBackAsleepConstraints :: MonadConstraint m => Constraints -> m ()
+putBackAsleepConstraints asleep = modifyAwakeConstraints (++ asleep)
+
 -- | Get the awake constraints
 getAwakeConstraints :: ReadTCState m => m Constraints
 getAwakeConstraints = useR stAwakeConstraints
@@ -156,7 +169,7 @@ class ( MonadTCEnv m
   --   True solve constraints even if already 'isSolvingConstraints'.
   solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> m ()
 
-  wakeConstraints :: (ProblemConstraint-> WakeUp) -> m ()
+  wakeConstraints :: (ProblemConstraint -> WakeUp) -> m ()
 
   stealConstraints :: ProblemId -> m ()
 

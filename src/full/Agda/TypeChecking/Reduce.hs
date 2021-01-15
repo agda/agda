@@ -192,6 +192,7 @@ instance Instantiate Blocker where
   instantiate' b@(UnblockOnMeta x) =
     ifM (isInstantiatedMeta x) (return alwaysUnblock) (return b)
   instantiate' b@UnblockOnProblem{} = return b
+  instantiate' b@UnblockOnEffort{}  = return b
 
 instance Instantiate Sort where
   instantiate' = \case

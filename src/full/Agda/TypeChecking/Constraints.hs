@@ -10,6 +10,7 @@ import Control.Monad.Except
 import qualified Data.List as List
 import qualified Data.Set as Set
 import Data.Either
+import Data.Function (on)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -35,6 +36,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Lock
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.Functor
+import Agda.Utils.Lens (over)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -133,12 +135,36 @@ noConstraints
   => m a -> m a
 noConstraints problem = do
   (pid, x) <- newProblem problem
+  solveUntilExhaustion pid
   cs <- getConstraintsForProblem pid
   unless (null cs) $ do
     withCurrentCallStack $ \loc -> do
       w <- warning'_ loc (UnsolvedConstraints cs)
       typeError' loc $ NonFatalErrors [ w ]
   return x
+
+solveUntilExhaustion :: (MonadConstraint m) => ProblemId -> m ()
+solveUntilExhaustion pid = do
+  pcs <- takeAsleepConstraints (Set.member pid . constraintProblems)
+  let giveup = putBackAsleepConstraints pcs
+  let pcs' = List.sortBy (compare `on` fst) $
+               map (\pc -> (unblocksOnEffort $ constraintUnblocker pc, pc)) $
+                pcs
+  case pcs' of
+    [] -> giveup
+    (EffortLevel (NatExt 0),_):_ -> giveup -- Avoid infinite loops, as there will
+                                           -- sometimes be asleep unblocked constraints
+                                           -- e.g. Issue1111
+    (EffortLevel NatInfinity,_):_ -> giveup -- Infinite effort not allowed
+    ((EffortLevel (NatExt n), PConstr p u c):pcs') -> do
+      reportSDoc "tc.conv.effort" 10  ("blocker" <+> prettyTCM u)
+      verboseBracket "tc.conv.effort" 10 ("Retrying with effort " <> show n) $ do
+        let pc' = PConstr p AlwaysUnblock (over (lensTCEnv . eEffortLevel) (strive n) c)
+        putBackAwakeConstraints [pc']
+        putBackAsleepConstraints (map snd pcs')
+        solveAwakeConstraints
+        solveUntilExhaustion pid
+
 
 -- | Run a computation that should succeeds without constraining
 --   the solution space, i.e., not add any information about meta-variables.

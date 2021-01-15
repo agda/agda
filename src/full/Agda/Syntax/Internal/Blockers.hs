@@ -56,12 +56,40 @@ instance Monoid (NotBlocked' t) where
   mempty  = ReallyNotBlocked
   mappend = (<>)
 
+data NatExt = NatExt Nat
+            | NatInfinity
+  deriving (Data, Show, Eq)
+
+instance Bounded NatExt where
+  minBound = NatExt 0
+  maxBound = NatInfinity
+
+instance Ord NatExt where
+  _        <= NatInfinity          = True
+  NatExt m <= NatExt n    | m <= n = True
+  _        <= _                    = False
+
+instance Pretty NatExt where
+  pretty (NatExt n)   = pretty n
+  pretty  NatInfinity = "∞"
+
+newtype EffortLevel = EffortLevel NatExt
+  deriving (Data, Show, Eq, Ord, Bounded)
+
+strive :: Nat -> EffortLevel -> EffortLevel
+strive _ e@(EffortLevel NatInfinity) = e
+strive n e@(EffortLevel (NatExt m))  = EffortLevel (NatExt (m + n))
+
 -- | What is causing the blocking? Or in other words which metas or problems need to be solved to
 --   unblock the blocked computation/constraint.
 data Blocker = UnblockOnAll (Set Blocker)
              | UnblockOnAny (Set Blocker)
              | UnblockOnMeta MetaId     -- ^ Unblock if meta is instantiated
              | UnblockOnProblem ProblemId
+             | UnblockOnEffort EffortLevel
+               -- ^ Unblock in exchange for increasing envEffortLevel by the given amount
+               --   Note that effort levels 0 and ∞ should not appear in an unblocker,
+               --   as they are, respectively, always and never unblocking.
   deriving (Data, Show, Eq, Ord)
 
 alwaysUnblock :: Blocker
@@ -107,6 +135,10 @@ unblockOnMeta = UnblockOnMeta
 unblockOnProblem :: ProblemId -> Blocker
 unblockOnProblem = UnblockOnProblem
 
+unblockOnEffort :: Nat -> Blocker
+unblockOnEffort 0 = AlwaysUnblock
+unblockOnEffort n = UnblockOnEffort (EffortLevel (NatExt n))
+
 unblockOnAllProblems :: [ProblemId] -> Blocker
 unblockOnAllProblems = unblockOnAll . Set.fromList . map UnblockOnProblem
 
@@ -120,19 +152,29 @@ onBlockingMetasM :: Monad m => (MetaId -> m Blocker) -> Blocker -> m Blocker
 onBlockingMetasM f (UnblockOnAll bs)    = unblockOnAll . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
 onBlockingMetasM f (UnblockOnAny bs)    = unblockOnAny . Set.fromList <$> mapM (onBlockingMetasM f) (Set.toList bs)
 onBlockingMetasM f (UnblockOnMeta x)    = f x
-onBlockingMetasM f b@UnblockOnProblem{} = pure b
+onBlockingMetasM _ b@UnblockOnProblem{} = pure b
+onBlockingMetasM _ b@UnblockOnEffort{}  = pure b
 
 allBlockingMetas :: Blocker -> Set MetaId
 allBlockingMetas (UnblockOnAll us)  = Set.unions $ map allBlockingMetas $ Set.toList us
 allBlockingMetas (UnblockOnAny us)  = Set.unions $ map allBlockingMetas $ Set.toList us
 allBlockingMetas (UnblockOnMeta x)  = Set.singleton x
 allBlockingMetas UnblockOnProblem{} = Set.empty
+allBlockingMetas UnblockOnEffort{}  = Set.empty
 
 allBlockingProblems :: Blocker -> Set ProblemId
 allBlockingProblems (UnblockOnAll us)    = Set.unions $ map allBlockingProblems $ Set.toList us
 allBlockingProblems (UnblockOnAny us)    = Set.unions $ map allBlockingProblems $ Set.toList us
 allBlockingProblems UnblockOnMeta{}      = Set.empty
 allBlockingProblems (UnblockOnProblem p) = Set.singleton p
+allBlockingProblems UnblockOnEffort{}    = Set.empty
+
+unblocksOnEffort :: Blocker -> EffortLevel
+unblocksOnEffort (UnblockOnEffort e) = e
+unblocksOnEffort UnblockOnMeta{}     = EffortLevel NatInfinity
+unblocksOnEffort UnblockOnProblem{}  = EffortLevel NatInfinity
+unblocksOnEffort (UnblockOnAll us)   = maximum $ (minBound:) $ map unblocksOnEffort $ Set.toList us
+unblocksOnEffort (UnblockOnAny us)   = minimum $ (maxBound:) $ map unblocksOnEffort $ Set.toList us
 
 -- Note: We pick the All rather than the Any as the semigroup instance.
 instance Semigroup Blocker where
@@ -142,11 +184,15 @@ instance Monoid Blocker where
   mempty = alwaysUnblock
   mappend = (<>)
 
+instance Pretty EffortLevel where
+  pretty (EffortLevel e) = "effort" <+> pretty e
+
 instance Pretty Blocker where
   pretty (UnblockOnAll us)      = "all" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
   pretty (UnblockOnAny us)      = "any" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)
   pretty (UnblockOnMeta m)      = pretty m
   pretty (UnblockOnProblem pid) = "problem" <+> pretty pid
+  pretty (UnblockOnEffort e)    = pretty e
 
 -- | Something where a meta variable may block reduction. Notably a top-level meta is considered
 --   blocking. This did not use to be the case (pre Aug 2020).
@@ -261,6 +307,7 @@ unblockMeta :: MetaId -> Blocker -> Blocker
 unblockMeta x u@(UnblockOnMeta y) | x == y    = alwaysUnblock
                                   | otherwise = u
 unblockMeta _ u@UnblockOnProblem{} = u
+unblockMeta _ u@UnblockOnEffort{} = u
 unblockMeta x (UnblockOnAll us)    = unblockOnAll $ Set.map (unblockMeta x) us
 unblockMeta x (UnblockOnAny us)    = unblockOnAny $ Set.map (unblockMeta x) us
 
@@ -268,6 +315,7 @@ unblockProblem :: ProblemId -> Blocker -> Blocker
 unblockProblem p u@(UnblockOnProblem q) | p == q    = alwaysUnblock
                                         | otherwise = u
 unblockProblem _ u@UnblockOnMeta{} = u
+unblockProblem _ u@UnblockOnEffort{} = u
 unblockProblem p (UnblockOnAll us) = unblockOnAll $ Set.map (unblockProblem p) us
 unblockProblem p (UnblockOnAny us) = unblockOnAny $ Set.map (unblockProblem p) us
 
