@@ -49,9 +49,9 @@ initLast = List1.init &&& List1.last
   -- traverses twice, but does not create intermediate pairs
 
 -- | Build a list with one element.
-
-singleton :: a -> List1 a
-singleton = (:| [])
+-- Use the module `Adga.Utils.Singleton` (see Issue #5122).
+-- singleton :: a -> List1 a
+-- singleton = (:| [])
 
 -- | Append a list to a non-empty list.
 

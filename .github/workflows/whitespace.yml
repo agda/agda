@@ -13,31 +13,36 @@ jobs:
 
     strategy:
       matrix:
-        ghc-ver: [8.10.2]
+        ghc-ver: [8.10.3]
+        stack-ver: [2.5.1]
 
     steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
+    - uses: actions/checkout@v2
+    - name: Check the commit SHA of submodule fix-whitespace
+      run: |
+        echo fw-sha=`git submodule status -- src/fix-whitespace | git submodule status -- src/fix-whitespace | cut -c 2- | cut -d " " -f 1`  >> $GITHUB_ENV
 
-      - uses: actions/setup-haskell@v1
-        with:
-          ghc-version: ${{ matrix.ghc-ver }}
+    - uses: actions/cache@v2
+      name: Cache the binary
+      id: cache
+      with:
+        path: "~/.local/bin"
+        key: fix-whitespace-${{ env.fw-sha }}
 
-      - uses: actions/cache@v2
-        name: Cache dependencies
-        with:
-          path: "~/.stack"
-          key: ${{ runner.os }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+    - uses: haskell/actions/setup@v1
+      if: ${{ !steps.cache.outputs.cache-hit }}
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+        stack-version: ${{ matrix.stack-ver }}
+        enable-stack: true
 
+    - name: Install fix-whitespace
+      if: ${{ !steps.cache.outputs.cache-hit }}
+      run: |
+        git submodule update --init -- src/fix-whitespace/
+        cd src/fix-whitespace/ && cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml && stack install --system-ghc
+        strip $HOME/.local/bin/fix-whitespace
 
-      - name: Install fix-whitespace
-        run: |
-          cabal update
-          git submodule update --init src/fix-whitespace
-          cd src/fix-whitespace/
-          stack --stack-yaml stack-${{ matrix.ghc-ver }}.yaml --system-ghc install
-          cd ../..
-      - name: Check the whitespace issue
-        run: |
-          $HOME/.local/bin/fix-whitespace --check
+    - name: Check the whitespace issue
+      run: |
+        $HOME/.local/bin/fix-whitespace --check

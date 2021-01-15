@@ -1,4 +1,4 @@
-name: Cabal build
+name: Build (cabal)
 
 on:
   push:
@@ -18,32 +18,44 @@ on:
     - 'Setup.hs'
     - 'test/**.hs'
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  Unix-like:
+  auto-cancel:
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
+    runs-on: Ubuntu-latest # Required, but it can be anything here.
+
+    steps:
+    - uses: styfle/cancel-workflow-action@0.6.0
+      with:
+        access_token: ${{ github.token }}
+
+  cabal:
+    needs: auto-cancel
 
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04, macos-latest]
-        ghc-ver: [8.10.2]
+        os: [windows-latest, macos-latest, ubuntu-18.04]
+        ghc-ver: [8.10.3]
         cabal-ver: [3.2]
-
-    defaults:
-      run:
-        shell: bash
-
+    env:
+      FLAGS: "-f enable-cluster-counting"
+      ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-67-1/icu4c-67_1-Win64-MSVC2017.zip'
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
 
-    - uses: actions/setup-haskell@v1
+    - uses: haskell/actions/setup@v1
+      id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
@@ -51,7 +63,13 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure -O0
+        cabal configure ${FLAGS} -O0
+
+    - name: Install the icu library (Ubuntu)
+      if: ${{ runner.os == 'Linux' }}
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install libicu-dev -qq
 
     - name: Add the path to icu4c to the cabal configuration
       if: ${{ runner.os == 'macOS' }}
@@ -59,76 +77,40 @@ jobs:
         echo "extra-lib-dirs: /usr/local/opt/icu4c/lib"         >> ~/.cabal/config
         echo "extra-include-dirs: /usr/local/opt/icu4c/include" >> ~/.cabal/config
 
+    - name: Download the icu4c library from unicode-org (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      env:
+        ICU_DIR: '/c/icu4c'
+        ICU_FILE: '/tmp/icu4c.zip'
+      run: |
+        curl -sSLo ${ICU_FILE} ${ICU_URL}
+        7z e ${ICU_FILE} -o${ICU_DIR}
+        mkdir -p ${ICU_DIR}/include/unicode
+        mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
+
+        echo "extra-lib-dirs: $(cygpath -w ${ICU_DIR})">> ${APPDATA}/cabal/config
+        echo "extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)" >> ${APPDATA}/cabal/config
+
     - uses: actions/cache@v2
       name: Cache dependencies
+      id: cache
       with:
         path: |
-          ~/.cabal
-          dist-newstyle
+          ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
         key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
+      if: ${{ !steps.cache.outputs.cache-hit }}
       run: |
         cabal build --only-dependencies
+
     - name: Build Agda
       run: |
         cabal build
 
-  Windows:
-    if: |
-      !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
-
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        # we can not use 8.10.2 because #4965.
-        ghc-ver: ["8.10.1"]
-        cabal-ver: ["3.2"]
-        icu-ver: [65.1-1]
-
-    env:
-      # FLAGS: "-f enable-cluster-counting"
-      FLAGS: ""
-      ICU_FILE: "mingw-w64-x86_64-icu-${{ matrix.icu-ver }}-any.pkg.tar.xz"
-
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-haskell@v1
-      with:
-        ghc-version: ${{ matrix.ghc-ver }}
-        cabal-version: ${{ matrix.cabal-ver }}
-
-          #    - name: Download and Install ICU ${{ matrix.icu-ver }}
-          #      run: |
-          #        C:\msys64\usr\bin\wget.exe -q http://repo.msys2.org/mingw/x86_64/${env:ICU_FILE}
-          #        C:\msys64\usr\bin\pacman.exe -U --noconfirm ${env:ICU_FILE}
-          #
-          #        echo "extra-lib-dirs: C:\msys64\mingw64\lib"         >> cabal.config
-          #        echo "extra-include-dirs: C:\msys64\mingw64\include" >> cabal.config
-          #        type cabal.config
-          #
-
-    - name: Configure the build plan
+    - name: Build Agda without enable-cluster-counting
       run: |
         cabal configure -O0
+        cabal build
 
-    - name: Build dependencies
-      run: |
-        cabal build ${FLAGS} --only-dependencies
-
-    - name: Build Agda
-      uses: nick-invision/retry@v2
-      # Liang-Ting (2020-12-8):
-      # Due to a ghc bug on Windows, it is necessary to build Agda twice (or more)
-      # See:
-      #   - https://github.com/agda/agda/issues/4543
-      #   - https://gitlab.haskell.org/ghc/ghc/-/issues/18634
-      with:
-        max_attempts: 3
-        timeout_minutes: 50
-        retry_on: error
-        command: cabal build ${{ env.FLAGS }}
