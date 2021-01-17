@@ -427,7 +427,7 @@ quicklatex-test :
 .PHONY : std-library-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
-		(cd std-lib && $(RUNGHC) GenerateEverything.hs && \
+		(cd std-lib && make Everything.agda && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
