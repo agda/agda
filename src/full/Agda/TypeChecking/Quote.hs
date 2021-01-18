@@ -23,6 +23,8 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
 import Agda.Utils.FileName
+import Agda.Utils.Functor
+import Agda.Utils.List
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 
@@ -47,7 +49,6 @@ quotedName = \case
 data QuotingKit = QuotingKit
   { quoteTermWithKit   :: Term       -> ReduceM Term
   , quoteTypeWithKit   :: Type       -> ReduceM Term
-  , quoteClauseWithKit :: Clause     -> ReduceM Term
   , quoteDomWithKit    :: Dom Type   -> ReduceM Term
   , quoteDefnWithKit   :: Definition -> ReduceM Term
   , quoteListWithKit   :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
@@ -181,11 +182,21 @@ quotingKit = do
       quotePat (IApplyP o t u x) = pure unsupported
       quotePat DefP{}            = pure unsupported
 
-      quoteClause :: Clause -> ReduceM Term
-      quoteClause cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} =
+      quoteClause :: Maybe Projection -> Clause -> ReduceM Term
+      quoteClause proj cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} =
         case body of
-          Nothing -> absurdClause !@ quoteTelescope tel @@ quotePats ps
-          Just b  -> normalClause !@ quoteTelescope tel @@ quotePats ps @@ quoteTerm b
+          Nothing -> absurdClause !@ quoteTelescope tel @@ quotePats ps'
+          Just b  -> normalClause !@ quoteTelescope tel @@ quotePats ps' @@ quoteTerm b
+        where
+          -- #5128: restore dropped parameters if projection-like
+          ps' =
+            case proj of
+              Nothing -> ps
+              Just p  -> pars ++ ps
+                where
+                  n    = projIndex p - 1
+                  pars = map toVar $ take n $ zip (downFrom $ size tel) (telToList tel)
+                  toVar (i, d) = argFromDom d <&> \ (x, _) -> unnamed $ I.varP (DBPatVar x i)
 
       quoteTelescope :: Telescope -> ReduceM Term
       quoteTelescope tel = quoteList quoteTelEntry $ telToList tel
@@ -233,13 +244,13 @@ quotingKit = do
                     unless (null conOrProjPars) __IMPOSSIBLE__
                     n <- size <$> lookupSection m
                     let (pars, args) = splitAt n ts
-                    extlam !@ list (map (quoteClause . (`apply` pars)) cs)
+                    extlam !@ list (map (quoteClause Nothing . (`apply` pars)) cs)
                            @@ list (map (quoteArg quoteTerm) args)
-              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _) , funCompiled = Just Fail, funClauses = [cl] } = do
+              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _), funCompiled = Just Fail, funClauses = [cl] } = do
                     -- See also corresponding code in InternalToAbstract
                     let n = length (namedClausePats cl) - 1
                         pars = take n ts
-                    extlam !@ list [quoteClause $ cl `apply` pars ]
+                    extlam !@ list [quoteClause Nothing $ cl `apply` pars ]
                            @@ list (drop n $ map (quoteArg quoteTerm) ts)
               qx _ = do
                 n <- getDefFreeVars x
@@ -278,8 +289,8 @@ quotingKit = do
       quoteDefn :: Definition -> ReduceM Term
       quoteDefn def =
         case theDef def of
-          Function{funClauses = cs} ->
-            agdaDefinitionFunDef !@ quoteList quoteClause cs
+          Function{funClauses = cs, funProjection = proj} ->
+            agdaDefinitionFunDef !@ quoteList (quoteClause proj) cs
           Datatype{dataPars = np, dataCons = cs} ->
             agdaDefinitionDataDef !@! quoteNat (fromIntegral np) @@ quoteList (pure . quoteName) cs
           Record{recConHead = c, recFields = fs} ->
@@ -291,13 +302,13 @@ quotingKit = do
           GeneralizableVar{} -> pure agdaDefinitionPostulate  -- TODO: reflect generalizable vars
           AbstractDefn{}-> pure agdaDefinitionPostulate
           Primitive{primClauses = cs} | not $ null cs ->
-            agdaDefinitionFunDef !@ quoteList quoteClause cs
+            agdaDefinitionFunDef !@ quoteList (quoteClause Nothing) cs
           Primitive{}   -> pure agdaDefinitionPrimitive
           PrimitiveSort{} -> pure agdaDefinitionPrimitive
           Constructor{conData = d} ->
             agdaDefinitionDataConstructor !@! quoteName d
 
-  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteList
+  return $ QuotingKit quoteTerm quoteType (quoteDom quoteType) quoteDefn quoteList
 
 quoteString :: String -> Term
 quoteString = Lit . LitString . T.pack
