@@ -20,6 +20,7 @@ on:
     - 'macros/**'
     - 'mk/**'
     - 'notes/**'
+    - '.mailmap'
     - '.ghci*'
     - '.gitignore'
     - '.hlint.yaml'
