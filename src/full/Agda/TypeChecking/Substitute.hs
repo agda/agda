@@ -680,15 +680,19 @@ instance Abstract Defn where
       -- Andreas, 2015-05-11 if projection was applied to Var 0
       -- then abstract over last element of tel (the others are params).
       if projIndex p > 0 then d' else
-        d' { funClauses  = abstract tel1 cs
+        d' { funClauses  = map (abstractClause tel1) cs
            , funCompiled = abstract tel1 cc
            , funCovering = abstract tel1 cov
            , funInv      = abstract tel1 inv
            , funExtLam   = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
            }
         where
-          d' = d { funProjection = Just $ abstract tel p }
+          d' = d { funProjection = Just $ abstract tel p
+                 , funClauses    = map (abstractClause EmptyTel) cs }
           tel1 = telFromList $ drop (size tel - 1) $ telToList tel
+          -- #5128: clause telescopes should be abstracted over the full telescope, regardless of
+          --        projection shenanigans.
+          abstractClause tel1 c = (abstract tel1 c) { clauseTel = abstract tel $ clauseTel c }
 
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars       = np + size tel

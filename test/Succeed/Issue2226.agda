@@ -52,9 +52,10 @@ pattern fun₁ tel p b = function (clause tel (p ∷ []) b ∷ [])
 pattern fun₂ tel p q b = function (clause tel (p ∷ q ∷ []) b ∷ [])
 
 -- foo {{r}} = Foo.foo {_} r
-foo-def : getDef foo ≡ fun₁
-            (("r" , iArg (def (quote Foo) (vArg (var 0 []) ∷ []))) ∷ [])
-            (iArg (var 0))
+foo-def : getDef foo ≡ fun₂
+            (("A" , hArg (agda-sort (lit 0))) ∷
+             ("r" , iArg (def (quote Foo) (vArg (var 0 []) ∷ []))) ∷ [])
+            (hArg (var 1)) (iArg (var 0))
             (def (quote Foo.foo) (`? ∷ vArg (var 0 []) ∷ []))
 foo-def = refl
 
