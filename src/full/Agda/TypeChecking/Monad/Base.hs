@@ -2103,7 +2103,7 @@ instance Pretty Defn where
       , "funMutual       =" <?> pshow funMutual
       , "funAbstr        =" <?> pshow funAbstr
       , "funDelayed      =" <?> pshow funDelayed
-      , "funProjection   =" <?> pshow funProjection
+      , "funProjection   =" <?> pretty funProjection
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
       , "funWith         =" <?> pretty funWith ] <?> "}"
@@ -2149,6 +2149,18 @@ instance Pretty Defn where
       , "primSort =" <?> pshow primSort
       ] <?> "}"
 
+instance Pretty Projection where
+  pretty Projection{..} =
+    "Projection {" <?> vcat
+      [ "projProper   =" <?> pretty projProper
+      , "projOrig     =" <?> pretty projOrig
+      , "projFromType =" <?> pretty projFromType
+      , "projIndex    =" <?> pshow projIndex
+      , "projLams     =" <?> pretty projLams
+      ]
+
+instance Pretty ProjLams where
+  pretty (ProjLams args) = pretty args
 
 -- | Is the record type recursive?
 recRecursive :: Defn -> Bool
