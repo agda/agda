@@ -99,7 +99,9 @@ instance MonadDebug TCM where
 
   verboseBracket k n s = applyWhenVerboseS k n $ \ m -> do
     openVerboseBracket k n s
-    m `finally` closeVerboseBracket k n
+    (m <* closeVerboseBracket k n) `catchError` \ e -> do
+      closeVerboseBracketException k n
+      throwError e
 
 instance MonadDebug m => MonadDebug (ExceptT e m) where
   displayDebugMessage k n s = lift $ displayDebugMessage k n s
@@ -249,6 +251,9 @@ openVerboseBracket k n s = displayDebugMessage k n $ "{ " ++ s ++ "\n"
 
 closeVerboseBracket :: MonadDebug m => VerboseKey -> VerboseLevel -> m ()
 closeVerboseBracket k n = displayDebugMessage k n "}\n"
+
+closeVerboseBracketException :: MonadDebug m => VerboseKey -> VerboseLevel -> m ()
+closeVerboseBracketException k n = displayDebugMessage k n "} (exception)\n"
 
 
 ------------------------------------------------------------------------
