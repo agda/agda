@@ -256,7 +256,11 @@ constraintMetas = \case
       UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)
       UnBlock x                -> Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
-      FindInstance{}           -> return mempty  -- v Ignore these constraints
+      FindInstance x _         ->
+        -- #5093: We should not generalize over metas bound by instance constraints.
+        -- We keep instance constraints even if the meta is solved, to check that it could indeed
+        -- be filled by instance search. If it's solved, look in the solution.
+        caseMaybeM (isInstantiatedMeta' x) (return $ Set.singleton x) $ return . allMetas Set.singleton
       IsEmpty{}                -> return mempty
       CheckFunDef{}            -> return mempty
       CheckSizeLtSat{}         -> return mempty
