@@ -1,4 +1,5 @@
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.Syntax.Internal.Blockers where
 
@@ -12,6 +13,8 @@ import Agda.Syntax.Internal.Elim
 
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Functor
+
+import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Blocked Terms
@@ -76,9 +79,19 @@ instance Pretty NatExt where
 newtype EffortLevel = EffortLevel NatExt
   deriving (Data, Show, Eq, Ord, Bounded)
 
-strive :: Nat -> EffortLevel -> EffortLevel
-strive _ e@(EffortLevel NatInfinity) = e
-strive n e@(EffortLevel (NatExt m))  = EffortLevel (NatExt (m + n))
+newtype EffortDelta = EffortDelta NatExt
+  deriving (Data, Show, Eq, Ord, Bounded)
+
+tryHarder :: EffortDelta -> EffortLevel -> EffortLevel
+tryHarder _                           e@(EffortLevel NatInfinity) = e
+tryHarder   (EffortDelta NatInfinity) _                           = EffortLevel NatInfinity
+tryHarder   (EffortDelta (NatExt n))    (EffortLevel (NatExt m))  = EffortLevel (NatExt (m + n))
+
+effortDeltaFromTo :: EffortLevel -> EffortLevel -> EffortDelta
+effortDeltaFromTo (EffortLevel (NatExt a)) (EffortLevel NatInfinity) = EffortDelta NatInfinity
+effortDeltaFromTo (EffortLevel (NatExt a)) (EffortLevel (NatExt b)) = EffortDelta (NatExt (b - a))
+effortDeltaFromTo e₁ e₂ | e₁ >= e₂ = EffortDelta (NatExt 0)
+effortDeltaFromTo _ _ = __IMPOSSIBLE__
 
 -- | What is causing the blocking? Or in other words which metas or problems need to be solved to
 --   unblock the blocked computation/constraint.
@@ -86,7 +99,7 @@ data Blocker = UnblockOnAll (Set Blocker)
              | UnblockOnAny (Set Blocker)
              | UnblockOnMeta MetaId     -- ^ Unblock if meta is instantiated
              | UnblockOnProblem ProblemId
-             | UnblockOnEffort EffortLevel
+             | UnblockOnEffort EffortDelta
                -- ^ Unblock in exchange for increasing envEffortLevel by the given amount
                --   Note that effort levels 0 and ∞ should not appear in an unblocker,
                --   as they are, respectively, always and never unblocking.
@@ -135,9 +148,10 @@ unblockOnMeta = UnblockOnMeta
 unblockOnProblem :: ProblemId -> Blocker
 unblockOnProblem = UnblockOnProblem
 
-unblockOnEffort :: Nat -> Blocker
-unblockOnEffort 0 = AlwaysUnblock
-unblockOnEffort n = UnblockOnEffort (EffortLevel (NatExt n))
+unblockOnEffort :: EffortDelta -> Blocker
+unblockOnEffort (EffortDelta (NatExt 0))   = alwaysUnblock
+unblockOnEffort (EffortDelta  NatInfinity) = neverUnblock
+unblockOnEffort  e                         = UnblockOnEffort e
 
 unblockOnAllProblems :: [ProblemId] -> Blocker
 unblockOnAllProblems = unblockOnAll . Set.fromList . map UnblockOnProblem
@@ -169,12 +183,19 @@ allBlockingProblems UnblockOnMeta{}      = Set.empty
 allBlockingProblems (UnblockOnProblem p) = Set.singleton p
 allBlockingProblems UnblockOnEffort{}    = Set.empty
 
-unblocksOnEffort :: Blocker -> EffortLevel
+unblocksOnEffort :: Blocker -> EffortDelta
 unblocksOnEffort (UnblockOnEffort e) = e
-unblocksOnEffort UnblockOnMeta{}     = EffortLevel NatInfinity
-unblocksOnEffort UnblockOnProblem{}  = EffortLevel NatInfinity
+unblocksOnEffort UnblockOnMeta{}     = EffortDelta NatInfinity
+unblocksOnEffort UnblockOnProblem{}  = EffortDelta NatInfinity
 unblocksOnEffort (UnblockOnAll us)   = maximum $ (minBound:) $ map unblocksOnEffort $ Set.toList us
 unblocksOnEffort (UnblockOnAny us)   = minimum $ (maxBound:) $ map unblocksOnEffort $ Set.toList us
+
+unblockerModuloEffort :: Blocker -> Blocker
+unblockerModuloEffort (UnblockOnAll bs)    = unblockOnAll . Set.fromList . map unblockerModuloEffort . Set.toList $ bs
+unblockerModuloEffort (UnblockOnAny bs)    = unblockOnAny . Set.fromList . map unblockerModuloEffort . Set.toList $ bs
+unblockerModuloEffort u@UnblockOnMeta{}    = u
+unblockerModuloEffort u@UnblockOnProblem{} = u
+unblockerModuloEffort UnblockOnEffort{}    = alwaysUnblock
 
 -- Note: We pick the All rather than the Any as the semigroup instance.
 instance Semigroup Blocker where
@@ -186,6 +207,9 @@ instance Monoid Blocker where
 
 instance Pretty EffortLevel where
   pretty (EffortLevel e) = "effort" <+> pretty e
+
+instance Pretty EffortDelta where
+  pretty (EffortDelta e) = "effort" <+> ("[+" <> pretty e <> "]")
 
 instance Pretty Blocker where
   pretty (UnblockOnAll us)      = "all" <> parens (fsep $ punctuate "," $ map pretty $ Set.toList us)

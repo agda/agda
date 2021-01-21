@@ -316,7 +316,7 @@ instance PrettyTCM Blocker where
   prettyTCM (UnblockOnAny us) = "any" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)
   prettyTCM (UnblockOnMeta m) = prettyTCM m
   prettyTCM (UnblockOnProblem p) = "problem" <+> pretty p
-  prettyTCM (UnblockOnEffort e)  = "effort" <+> pretty e
+  prettyTCM (UnblockOnEffort e)  = pretty e
 
 instance PrettyTCM a => PrettyTCM (CompareAs' a) where
   prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a

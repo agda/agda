@@ -139,36 +139,15 @@ noConstraints
   => m a -> m a
 noConstraints problem = do
   (pid, x) <- newProblem problem
-  solveUntilExhaustion pid
+  doWhileM wakeupConstraints_
+    (and2M (not . null <$> getConstraintsForProblem pid)
+           (tryOneConstraintHarder))
   cs <- getConstraintsForProblem pid
   unless (null cs) $ do
     withCurrentCallStack $ \loc -> do
       w <- warning'_ loc (UnsolvedConstraints cs)
       typeError' loc $ NonFatalErrors [ w ]
   return x
-
-solveUntilExhaustion :: (MonadConstraint m) => ProblemId -> m ()
-solveUntilExhaustion pid = do
-  pcs <- takeAsleepConstraints (Set.member pid . constraintProblems)
-  let giveup = putBackAsleepConstraints pcs
-  let pcs' = List.sortBy (compare `on` fst) $
-               map (\pc -> (unblocksOnEffort $ constraintUnblocker pc, pc)) $
-                pcs
-  case pcs' of
-    [] -> giveup
-    (EffortLevel (NatExt 0),_):_ -> giveup -- Avoid infinite loops, as there will
-                                           -- sometimes be asleep unblocked constraints
-                                           -- e.g. Issue1111
-    (EffortLevel NatInfinity,_):_ -> giveup -- Infinite effort not allowed
-    ((EffortLevel (NatExt n), PConstr p u c):pcs') -> do
-      reportSDoc "tc.conv.effort" 10  ("blocker" <+> prettyTCM u)
-      verboseBracket "tc.conv.effort" 10 ("Retrying with effort " <> show n) $ do
-        let pc' = PConstr p AlwaysUnblock (over (lensTCEnv . eEffortLevel) (strive n) c)
-        putBackAwakeConstraints [pc']
-        putBackAsleepConstraints (map snd pcs')
-        solveAwakeConstraints
-        solveUntilExhaustion pid
-
 
 -- | Run a computation that should succeeds without constraining
 --   the solution space, i.e., not add any information about meta-variables.
@@ -223,21 +202,21 @@ whenConstraints action handler =
 
 -- | Wake constraints matching the given predicate (and aren't instance
 --   constraints if 'shouldPostponeInstanceSearch').
-wakeConstraints' :: (ProblemConstraint -> WakeUp) -> TCM ()
+wakeConstraints' :: MonadConstraint m => (ProblemConstraint -> WakeUp) -> m ()
 wakeConstraints' p = do
   skipInstance <- shouldPostponeInstanceSearch
   let skip c = skipInstance && isInstanceConstraint (clValue $ theConstraint c)
   wakeConstraints $ wakeUpWhen (not . skip) p
 
 -- | Wake up the constraints depending on the given meta.
-wakeupConstraints :: MetaId -> TCM ()
+wakeupConstraints :: MonadConstraint m => MetaId -> m ()
 wakeupConstraints x = do
   wakeConstraints' (wakeIfBlockedOnMeta x . constraintUnblocker)
   solveAwakeConstraints
 
 -- | Wake up all constraints not blocked on a problem.
-wakeupConstraints_ :: TCM ()
-wakeupConstraints_ = do
+wakeupConstraints_ :: MonadConstraint m => m ()
+wakeupConstraints_ = flip doWhileM tryOneConstraintHarder $ do
   wakeConstraints' (wakeup . constraintUnblocker)
   solveAwakeConstraints
   where
@@ -265,9 +244,11 @@ solveSomeAwakeConstraintsTCM solveThis force = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ "Solving awake constraints."
                                              , text . show . length =<< getAwakeConstraints
                                              , "remaining." ]
-      whenJustM (takeAwakeConstraint' solveThis) $ \ c -> do
-        withConstraint solveConstraint c
-        solve
+      takeAwakeConstraint' solveThis >>= \case
+        Nothing -> return ()
+        Just c -> do
+          withConstraint solveConstraint c
+          solve
 
 solveConstraintTCM :: Constraint -> TCM ()
 solveConstraintTCM c = do
@@ -347,3 +328,35 @@ debugConstraints = verboseS "tc.constr" 50 $ do
     [ "Current constraints"
     , nest 2 $ vcat [ "awake " <+> vcat (map prettyTCM awake)
                     , "asleep" <+> vcat (map prettyTCM sleeping) ] ]
+
+-- | Attempt to increase effort level if it will lead to more constraints being
+--   unblocked
+-- tryConstraintsUntilExhaustion :: (MonadConstraint m) => (ProblemConstraint -> Bool) -> m ()
+-- tryConstraintsUntilExhaustion solveThis = do
+-- tryOneConstraintHarder solveThis >>= \case
+--   True -> do
+--     solveSomeAwakeConstraints' solveThis False
+--     tryConstraintsUntilExhaustion solveThis
+--   False -> return ()
+
+tryOneConstraintHarder :: (MonadConstraint m) => m Bool
+tryOneConstraintHarder = do
+  pcs <- takeAsleepConstraints (const True)
+  let giveup = do
+        putBackAsleepConstraints pcs
+        return False
+  let pcs' = List.sortBy (compare `on` fst) $
+               filter ((< EffortDelta NatInfinity) . fst) $
+                 filter ((> EffortDelta (NatExt 0)) . fst) $
+                   map (\pc -> (unblocksOnEffort $ constraintUnblocker pc, pc)) $
+                     pcs
+  case pcs' of
+    [] -> giveup  -- No more constraints to wake up
+    ((delta@(EffortDelta (NatExt n)), PConstr p u c):pcs') | n > 0 -> do
+      reportSDoc "tc.constr.effort" 10  ("blocker" <+> prettyTCM u)
+      verboseBracket "tc.constr.effort" 10 ("Retrying with " <> prettyShow delta) $ do
+        let pc' = PConstr p AlwaysUnblock (over (lensTCEnv . eEffortLevel) (tryHarder delta) c)
+        putBackAsleepConstraints (pc':map snd pcs')
+        return True
+    _ -> __IMPOSSIBLE__
+

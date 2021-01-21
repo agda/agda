@@ -48,6 +48,14 @@ ifM c m m' = c >>= \b -> if b then m else m'
 ifNotM :: Monad m => m Bool -> m a -> m a -> m a
 ifNotM c = flip $ ifM c
 
+-- | Monadic do … while
+doWhileM :: Monad m => m () -> m Bool -> m ()
+doWhileM a c = do a; whenM c (doWhileM a c)
+
+-- | Monadic do … while
+whileM :: Monad m => m Bool -> m () -> m ()
+whileM c a = whenM c (do a; whileM c a)
+
 -- | Lazy monadic conjunction.
 and2M :: Monad m => m Bool -> m Bool -> m Bool
 and2M ma mb = ifM ma mb (return False)

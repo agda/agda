@@ -359,3 +359,20 @@ simplifyHet b κ = go Empty =<< getContext_
 -- | Remove unnecessary twins from the context
 simplifyContextHet :: SimplifyHetM m => m a -> m a
 simplifyContextHet m = simplifyHet () (\() -> m)
+
+-------------------------------------------------------------------
+-- Constraint prioritization
+-------------------------------------------------------------------
+
+data Strive = Doable
+            | ExtraEffort EffortDelta
+strive :: (MonadTCEnv m) =>
+          EffortLevel ->
+          -- ^ Effort required for the following action
+          m Strive
+strive e = do
+  e' <- asksTC envEffortLevel
+  if e <= e' then
+    return Doable
+  else
+    return $ ExtraEffort $ effortDeltaFromTo e' e
