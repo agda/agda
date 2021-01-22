@@ -3032,6 +3032,14 @@ instance TermLike a => TermLike (TwinT' a) where
       (\a' b' c' -> TwinT{twinPid,direction,necessary,twinLHS=a',twinRHS=b',twinCompat=c'}) <$>
         traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
 
+instance Pretty a => Pretty (TwinT' a) where
+  pretty (SingleT a) = pretty a
+  pretty (TwinT{twinPid,necessary,twinLHS=a,twinRHS=b}) =
+    pretty a <> "‡"
+             <> (if necessary then "" else "*")
+             <> pretty twinPid
+             <> pretty b
+
 instance GetSort a => GetSort (TwinT' a) where
   getSort = getSort . twinAt @'Compat
 
@@ -4407,6 +4415,23 @@ instance MonadBlock m => MonadBlock (MaybeT m) where
 instance MonadBlock m => MonadBlock (ReaderT e m) where
   catchPatternErr h m = ReaderT $ \ e ->
     let run = flip runReaderT e in catchPatternErr (run . h) (run m)
+
+-------------------------------------------------------------------
+-- * Constraint prioritization
+-------------------------------------------------------------------
+
+data Strive = Doable
+            | ExtraEffort EffortDelta
+strive :: (MonadTCEnv m) =>
+          EffortLevel ->
+          -- ^ Effort required for the following action
+          m Strive
+strive e = do
+  e' <- asksTC envEffortLevel
+  if e <= e' then
+    return Doable
+  else
+    return $ ExtraEffort $ effortDeltaFromTo e' e
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer

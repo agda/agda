@@ -8,11 +8,15 @@ module Agda.TypeChecking.Heterogeneous where
 
 import Prelude hiding (drop, length)
 
+import Control.Monad (filterM)
 import Data.Coerce
 import Data.Data (Data, Typeable)
+import Data.Bifunctor (bimap)
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..), nameRoot, nameToRawName)
@@ -20,8 +24,15 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Position
 
+import Agda.TypeChecking.Conversion.Pure
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
+import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Substitute.Class (Subst)
+import Agda.TypeChecking.Monad.Pure (PureTCM)
+import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 
 import Agda.Utils.Dependent
 import Agda.Utils.Monad
@@ -36,14 +47,6 @@ import Agda.Utils.Impossible
 
 --data WithHet' c a = WithHet c a
 --type WithHet a = WithHet' ContextHet a
-
-instance Pretty a => Pretty (TwinT' a) where
-  pretty (SingleT a) = pretty a
-  pretty (TwinT{twinPid,necessary,twinLHS=a,twinRHS=b}) =
-    pretty a <> "‡"
-             <> (if necessary then "" else "*")
-             <> pretty twinPid
-             <> pretty b
 
 {-# INLINE commuteHet #-}
 commuteHet :: (Coercible (f a) (f (Het s a))) => Het s (f a) -> f (Het s a)
@@ -205,4 +208,151 @@ pattern b :∋ a = a :∈ b
 instance (AsTwin a, AsTwin b) => AsTwin (a :∈ b) where
   type AsTwin_ (a :∈ b) = AsTwin_ a :∈ AsTwin_ b
   asTwin (a :∈ b) = asTwin a :∈ asTwin b
+
+---------------------------------------------------------------------------
+-- * Twins
+---------------------------------------------------------------------------
+
+type SimplifyHetM m = (MonadTCEnv m, ReadTCState m, MonadAddContext m, MonadDebug m, MonadBlock m,
+                       PureTCM m, HasBuiltins m)
+
+class AsTwin a => IsTwinSolved a where
+  blockOnTwin ::  (SimplifyHetM m) => a -> m Blocker
+  isTwinSolved :: (SimplifyHetM m) => a -> m Bool
+  simplifyHet' :: (SimplifyHetM m) => a -> (Either a (AsTwin_ a) -> m b) -> m b
+
+  isTwinSolved a = blockOnTwin a >>= \case
+    AlwaysUnblock -> return True
+    _             -> return False
+
+  default simplifyHet' :: (SimplifyHetM m, TwinAt 'Compat a, AsTwin_ a ~ TwinAt_ 'Compat a) =>
+                          a -> (Either a (AsTwin_ a) -> m b) -> m b
+  simplifyHet' b κ = isTwinSolved b >>= \case
+    False -> κ (Left b)
+    True  -> κ (Right (twinAt @'Compat b))
+
+instance IsTwinSolved (TwinT' a) where
+  blockOnTwin SingleT{}      = return AlwaysUnblock
+  blockOnTwin TwinT{twinPid} = unblockOnAll . Set.fromList . map UnblockOnProblem <$> filterM (fmap not . isProblemSolved) twinPid
+
+  isTwinSolved SingleT{}      = return True
+  isTwinSolved TwinT{twinPid} = allM twinPid isProblemSolved
+
+instance IsTwinSolved a => IsTwinSolved (Dom a) where
+  blockOnTwin = blockOnTwin . unDom
+  isTwinSolved = isTwinSolved . unDom
+  simplifyHet' dom κ = simplifyHet' (unDom dom) $ \a ->
+    κ (bimap (\x -> dom{unDom=x}) (\x -> dom{unDom=x}) a)
+
+instance IsTwinSolved a => IsTwinSolved (CompareAs' a) where
+  blockOnTwin (AsTermsOf a) = blockOnTwin a
+  blockOnTwin AsTypes       = return AlwaysUnblock
+  blockOnTwin AsSizes       = return AlwaysUnblock
+
+  isTwinSolved (AsTermsOf a) = isTwinSolved a
+  isTwinSolved AsTypes       = return True
+  isTwinSolved AsSizes       = return True
+
+  simplifyHet' (AsTermsOf a) κ = simplifyHet' a $ \a -> κ (bimap AsTermsOf AsTermsOf a)
+  simplifyHet' AsTypes       κ = κ (Right AsTypes)
+  simplifyHet' AsSizes       κ = κ (Right AsSizes)
+
+instance IsTwinSolved Name where
+  blockOnTwin _  = pure AlwaysUnblock
+  isTwinSolved _ = pure True
+  simplifyHet' n κ = κ (Right n)
+
+instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a,b) where
+  blockOnTwin  (a,b) = unblockOnBoth <$> blockOnTwin a <*> blockOnTwin b
+  isTwinSolved (a,b) = andM [isTwinSolved b, isTwinSolved a]
+  simplifyHet' (a,b) κ =
+    simplifyHet' a $ \a ->
+      simplifyHet' b $ \b ->
+        case (a,b) of
+          (Right a, Right b) -> κ$ Right (a, b)
+          ( Left a, Right b) -> κ$ Left  (a, asTwin b)
+          (Right a,  Left b) -> κ$ Left  (asTwin a, b)
+          ( Left a,  Left b) -> κ$ Left  (a, b)
+
+instance IsTwinSolved () where
+  blockOnTwin ()  = pure AlwaysUnblock
+  isTwinSolved () = pure True
+  simplifyHet' () κ = κ (Right ())
+
+instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a :∈ b) where
+  blockOnTwin  (b :∋ a) = unblockOnBoth <$> blockOnTwin b <*> blockOnTwin a
+  isTwinSolved (b :∋ a) = andM [isTwinSolved b, isTwinSolved a]
+  simplifyHet' (b :∋ a) κ = simplifyHet' b $ \case
+    Right b -> simplifyHet' a $ \case
+      Right a -> κ (Right (a :∈ b))
+      Left  a -> κ (Left  (a :∈ asTwin b))
+    Left  b -> κ (Left (a :∈ b))
+
+instance (IsTwinSolved a, Subst a) => IsTwinSolved (Abs a) where
+  blockOnTwin = blockOnTwin . unAbs
+  isTwinSolved = isTwinSolved . unAbs
+  simplifyHet' abs κ =
+    κ =<< (underAbstraction_ abs $ \a ->
+      simplifyHet' a $ \a ->
+        return $ bimap (\x -> abs{unAbs=x}) (\x -> abs{unAbs=x}) a)
+
+newtype AttemptConversion a = AttemptConversion { attemptConversion :: a }
+
+instance AsTwin a => AsTwin (AttemptConversion a) where
+  type AsTwin_ (AttemptConversion a) = AsTwin_ a
+  asTwin = AttemptConversion . asTwin
+
+instance TwinAt s a => TwinAt s (AttemptConversion a) where
+  type TwinAt_ s (AttemptConversion a) = TwinAt_ s a
+  twinAt = twinAt @s . attemptConversion
+
+instance (AsTwin a, IsTwinSolved (AttemptConversion a)) => IsTwinSolved (AttemptConversion (Dom a)) where
+  blockOnTwin  = blockOnTwin  . fmap AttemptConversion . attemptConversion
+  isTwinSolved = isTwinSolved . fmap AttemptConversion . attemptConversion
+  simplifyHet' (AttemptConversion b) κ = simplifyHet' (fmap AttemptConversion b) $ \e -> κ $ bimap coerce id e
+
+instance IsTwinSolved (AttemptConversion Name) where
+  blockOnTwin  = blockOnTwin  . attemptConversion
+  isTwinSolved = isTwinSolved . attemptConversion
+  simplifyHet' (AttemptConversion b) κ = simplifyHet' b $ \e -> κ $ bimap AttemptConversion id e
+
+instance (AsTwin a, AsTwin b, IsTwinSolved (AttemptConversion a), IsTwinSolved (AttemptConversion b)) =>
+         IsTwinSolved (AttemptConversion (a,b)) where
+  blockOnTwin  = blockOnTwin  . bimap AttemptConversion AttemptConversion . attemptConversion
+  isTwinSolved = isTwinSolved . bimap AttemptConversion AttemptConversion . attemptConversion
+  simplifyHet' (AttemptConversion b) κ = simplifyHet' (bimap AttemptConversion AttemptConversion b) $ \e -> κ $ bimap coerce id e
+
+instance IsTwinSolved (AttemptConversion TwinT) where
+  blockOnTwin (AttemptConversion t) = do
+    blockOnTwin t >>= \case
+      AlwaysUnblock -> return AlwaysUnblock
+      bs -> strive (EffortLevel (NatExt 10)) >>= \case
+        Doable        -> case t of
+                           TwinT{direction,twinLHS,twinRHS} ->
+                             (`unblockOnEither` bs) <$>
+                               runPureConversion (compareTypeDir_ direction twinLHS twinRHS)
+                           _ -> __IMPOSSIBLE__
+        ExtraEffort e -> do
+          reportSLn "tc.conv.effort" 20 $ "Extra " <> prettyShow e <> " required; postponing"
+          return (unblockOnEither bs (unblockOnEffort e))
+
+type SimplifyHet a = (IsTwinSolved a)
+
+-- TODO: One could also check free variables and strengthen the
+-- context, but this is supposed to be a cheap operation
+simplifyHet :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) -> m c
+simplifyHet b κ = go Empty =<< getContext_
+  where
+    go acc Empty =
+      unsafeModifyContext {- IdS -} (const acc) $ simplifyHet' b $ \case
+                  Left  b -> κ b
+                  Right b -> κ (asTwin b)
+    go acc ctx@(a :⊢: γΓ)  =
+      simplifyHet' a $ \case
+        Right a' -> go (acc :⊢ (asTwin a')) γΓ
+        Left  _  -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
+
+-- | Remove unnecessary twins from the context
+simplifyContextHet :: SimplifyHetM m => m a -> m a
+simplifyContextHet m = simplifyHet () (\() -> m)
 

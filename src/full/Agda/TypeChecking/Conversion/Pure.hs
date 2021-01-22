@@ -39,13 +39,13 @@ pureEqualTerm
   :: (PureTCM m, MonadBlock m)
   => Type -> Term -> Term -> m Bool
 pureEqualTerm a u v =
-  isJust <$> runPureConversion (equalTerm a u v)
+  runPureConversion' (equalTerm a u v)
 
 pureEqualType
   :: (PureTCM m, MonadBlock m)
   => Type -> Type -> m Bool
 pureEqualType a b =
-  isJust <$> runPureConversion (equalType a b)
+  runPureConversion' (equalType a b)
 
 pureCompareAs
   :: (PureTCM m, MonadBlock m)
@@ -56,11 +56,20 @@ pureCompareAs_
   :: (PureTCM m, MonadBlock m)
   => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m Bool
 pureCompareAs_ cmp a u v =
-  isJust <$> runPureConversion (compareAs_ cmp a u v)
+  runPureConversion' (compareAs_ cmp a u v)
+
+runPureConversion'
+  :: (MonadBlock m, PureTCM m, Show a)
+  => PureConversionT m a -> m Bool
+runPureConversion' m = do
+  runPureConversion m >>= \case
+    AlwaysUnblock -> return True
+    NeverUnblock  -> return False
+    blocker       -> patternViolation blocker
 
 runPureConversion
   :: (MonadBlock m, PureTCM m, Show a)
-  => PureConversionT m a -> m (Maybe a)
+  => PureConversionT m a -> m Blocker
 runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $ do
   i <- useR stFreshInt
   pid <- useR stFreshProblemId
@@ -69,13 +78,11 @@ runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
   result <- fst <$> runStateT (runExceptT m) frsh
   reportSLn "tc.conv.pure" 40 $ "runPureConversion result: " ++ show result
   case result of
-    Left (PatternErr block)
-     | block == neverUnblock -> return Nothing
-     | otherwise             -> patternViolation block
-    Left TypeError{}   -> return Nothing
+    Left (PatternErr block)  -> return block
+    Left TypeError{}   -> return neverUnblock
     Left Exception{}   -> __IMPOSSIBLE__
     Left IOException{} -> __IMPOSSIBLE__
-    Right x            -> return $ Just x
+    Right x            -> return alwaysUnblock
 
 instance MonadTrans PureConversionT where
   lift = PureConversionT . lift . lift

@@ -277,8 +277,11 @@ assignE_' SRHS dir x es v a comp = assignWrapper_ dir x es v $ do
 
 compareAsDir_ :: (MonadConversion m, AreSides s₁ s₂)
                   => CompareDirection -> CompareAsHet -> Het s₁ Term -> Het s₂ Term -> m ()
--- compareAsDir_ :: MonadConversion m => CompareDirection -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
 compareAsDir_ = dirToCmp_ compareAs'_
+
+compareTypeDir_ :: (MonadConversion m, AreSides s₁ s₂)
+                  => CompareDirection -> Het s₁ Type -> Het s₂ Type -> m ()
+compareTypeDir_ dir = dirToCmp_ (\cmp () -> compareType_ cmp) dir ()
 
 compareAsDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAsDir dir a = dirToCmp (`compareAs'` a) dir
@@ -2440,6 +2443,7 @@ instance Commute Arg (Het s) where commute = Data.Coerce.coerce
 instance Functor f => Commute Abs (TwinT''' b f) where
   commute (Abs name x)   = Abs name <$> x
   commute (NoAbs name x) = NoAbs name <$> x
+
 
 
 ---------------------------------------------------------------------

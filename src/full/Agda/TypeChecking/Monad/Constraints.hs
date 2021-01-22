@@ -12,15 +12,12 @@ import qualified Data.List as List
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup ((<>))
-import Data.Bifunctor (bimap)
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
-import Agda.TypeChecking.Heterogeneous
-import Agda.TypeChecking.Substitute.Class (Subst)
 
 import Agda.Utils.Lens
 import Agda.Utils.Monad
@@ -257,122 +254,3 @@ mapAwakeConstraints = over stAwakeConstraints
 mapSleepingConstraints :: (Constraints -> Constraints) -> TCState -> TCState
 mapSleepingConstraints = over stSleepingConstraints
 
----------------------------------------------------------------------------
--- * Twins
----------------------------------------------------------------------------
-
-type SimplifyHetM m = (MonadTCEnv m, ReadTCState m, MonadAddContext m)
-
-class AsTwin a => IsTwinSolved a where
-  blockOnTwin ::  (SimplifyHetM m) => a -> m Blocker
-  isTwinSolved :: (SimplifyHetM m) => a -> m Bool
-  simplifyHet' :: (SimplifyHetM m) => a -> (Either a (AsTwin_ a) -> m b) -> m b
-
-  default simplifyHet' :: (SimplifyHetM m, TwinAt 'Compat a, AsTwin_ a ~ TwinAt_ 'Compat a) =>
-                          a -> (Either a (AsTwin_ a) -> m b) -> m b
-  simplifyHet' b κ = isTwinSolved b >>= \case
-    False -> κ (Left b)
-    True  -> κ (Right (twinAt @'Compat b))
-
-instance IsTwinSolved (TwinT' a) where
-  blockOnTwin SingleT{}      = return AlwaysUnblock
-  blockOnTwin TwinT{twinPid} =
-    unblockOnAll . Set.fromList . map UnblockOnProblem <$> filterM (fmap not . isProblemSolved) twinPid
-
-  isTwinSolved SingleT{}      = return True
-  isTwinSolved TwinT{twinPid} = allM twinPid isProblemSolved
-
-instance IsTwinSolved a => IsTwinSolved (Dom a) where
-  blockOnTwin = blockOnTwin . unDom
-  isTwinSolved = isTwinSolved . unDom
-  simplifyHet' dom κ = simplifyHet' (unDom dom) $ \a ->
-    κ (bimap (\x -> dom{unDom=x}) (\x -> dom{unDom=x}) a)
-
-instance IsTwinSolved a => IsTwinSolved (CompareAs' a) where
-  blockOnTwin (AsTermsOf a) = blockOnTwin a
-  blockOnTwin AsTypes       = return AlwaysUnblock
-  blockOnTwin AsSizes       = return AlwaysUnblock
-
-  isTwinSolved (AsTermsOf a) = isTwinSolved a
-  isTwinSolved AsTypes       = return True
-  isTwinSolved AsSizes       = return True
-
-  simplifyHet' (AsTermsOf a) κ = simplifyHet' a $ \a -> κ (bimap AsTermsOf AsTermsOf a)
-  simplifyHet' AsTypes       κ = κ (Right AsTypes)
-  simplifyHet' AsSizes       κ = κ (Right AsSizes)
-
-instance IsTwinSolved Name where
-  blockOnTwin _  = pure AlwaysUnblock
-  isTwinSolved _ = pure True
-  simplifyHet' n κ = κ (Right n)
-
-instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a,b) where
-  blockOnTwin  (a,b) = unblockOnBoth <$> blockOnTwin a <*> blockOnTwin b
-  isTwinSolved (a,b) = andM [isTwinSolved b, isTwinSolved a]
-  simplifyHet' (a,b) κ =
-    simplifyHet' a $ \a ->
-      simplifyHet' b $ \b ->
-        case (a,b) of
-          (Right a, Right b) -> κ$ Right (a, b)
-          ( Left a, Right b) -> κ$ Left  (a, asTwin b)
-          (Right a,  Left b) -> κ$ Left  (asTwin a, b)
-          ( Left a,  Left b) -> κ$ Left  (a, b)
-
-instance IsTwinSolved () where
-  blockOnTwin ()  = pure AlwaysUnblock
-  isTwinSolved () = pure True
-  simplifyHet' () κ = κ (Right ())
-
-instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a :∈ b) where
-  blockOnTwin  (b :∋ a) = unblockOnBoth <$> blockOnTwin b <*> blockOnTwin a
-  isTwinSolved (b :∋ a) = andM [isTwinSolved b, isTwinSolved a]
-  simplifyHet' (b :∋ a) κ = simplifyHet' b $ \case
-    Right b -> simplifyHet' a $ \case
-      Right a -> κ (Right (a :∈ b))
-      Left  a -> κ (Left  (a :∈ asTwin b))
-    Left  b -> κ (Left (a :∈ b))
-
-instance (IsTwinSolved a, Subst a) => IsTwinSolved (Abs a) where
-  blockOnTwin = blockOnTwin . unAbs
-  isTwinSolved = isTwinSolved . unAbs
-  simplifyHet' abs κ =
-    κ =<< (underAbstraction_ abs $ \a ->
-      simplifyHet' a $ \a ->
-        return $ bimap (\x -> abs{unAbs=x}) (\x -> abs{unAbs=x}) a)
-
-type SimplifyHet a = (IsTwinSolved a)
-
--- TODO: One could also check free variables and strengthen the
--- context, but this is supposed to be a cheap operation
-simplifyHet :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) -> m c
-simplifyHet b κ = go Empty =<< getContext_
-  where
-    go acc Empty =
-      unsafeModifyContext {- IdS -} (const acc) $ simplifyHet' b $ \case
-                  Left  b -> κ b
-                  Right b -> κ (asTwin b)
-    go acc ctx@(a :⊢: γΓ)  =
-      simplifyHet' a $ \case
-        Right a' -> go (acc :⊢ (asTwin a')) γΓ
-        Left  _  -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
-
--- | Remove unnecessary twins from the context
-simplifyContextHet :: SimplifyHetM m => m a -> m a
-simplifyContextHet m = simplifyHet () (\() -> m)
-
--------------------------------------------------------------------
--- Constraint prioritization
--------------------------------------------------------------------
-
-data Strive = Doable
-            | ExtraEffort EffortDelta
-strive :: (MonadTCEnv m) =>
-          EffortLevel ->
-          -- ^ Effort required for the following action
-          m Strive
-strive e = do
-  e' <- asksTC envEffortLevel
-  if e <= e' then
-    return Doable
-  else
-    return $ ExtraEffort $ effortDeltaFromTo e' e

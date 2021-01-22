@@ -45,6 +45,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Heterogeneous (blockOnTwin, AttemptConversion(..))
 
 -- import Agda.TypeChecking.CheckInternal
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
@@ -1055,7 +1056,7 @@ checkContextHetEqual = go 40
 {-# INLINE checkTwinEqual #-}
 -- TODO: Check the necessary bit, add new constraint if needed
 checkTwinEqual :: TwinT -> TCM Blocker
-checkTwinEqual = blockOnTwin
+checkTwinEqual = blockOnTwin . AttemptConversion
 
 checkCompareAsHetEqual :: CompareAsHet -> TCM Blocker
 checkCompareAsHetEqual (AsTermsOf a) = checkTwinEqual a

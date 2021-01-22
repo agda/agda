@@ -115,6 +115,10 @@ pattern AlwaysUnblock <- ((== alwaysUnblock) -> True)
 neverUnblock :: Blocker
 neverUnblock = UnblockOnAny Set.empty
 
+pattern NeverUnblock :: Blocker
+pattern NeverUnblock <- ((== neverUnblock) -> True)
+  where NeverUnblock = neverUnblock
+
 unblockOnAll :: Set Blocker -> Blocker
 unblockOnAll us =
   case allViewS us of

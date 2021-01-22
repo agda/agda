@@ -23,7 +23,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Free
-import qualified Agda.TypeChecking.Heterogeneous as H
+import {-# SOURCE #-} qualified Agda.TypeChecking.Heterogeneous as H
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
