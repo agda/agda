@@ -1788,9 +1788,11 @@ instance HasRange CompilerPragma where
 
 type BackendName    = String
 
-jsBackendName, ghcBackendName :: BackendName
+jsBackendName, goBackendName, ghcBackendName :: BackendName
 jsBackendName  = "JS"
+goBackendName = "GO"
 ghcBackendName = "GHC"
+
 
 type CompiledRepresentation = Map BackendName [CompilerPragma]
 

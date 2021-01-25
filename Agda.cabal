@@ -291,6 +291,10 @@ library
                     Agda.Compiler.JS.Syntax
                     Agda.Compiler.JS.Substitution
                     Agda.Compiler.JS.Pretty
+                    Agda.Compiler.GoLang.Compiler
+                    Agda.Compiler.GoLang.Syntax
+                    Agda.Compiler.GoLang.Substitution
+                    Agda.Compiler.GoLang.Pretty
                     Agda.Compiler.MAlonzo.Coerce
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode
