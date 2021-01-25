@@ -1023,6 +1023,9 @@ give_gen force ii rng s0 giveRefine = do
     -- parse string and "give", obtaining an abstract expression
     -- and newly created interaction points
     (time, (ae, ae0, iis)) <- maybeTimed $ lift $ do
+        -- Issue 3000: mark the current hole as solved before giving, to avoid confusing it with potential
+        -- new interaction points introduced by the give.
+        removeInteractionPoint ii
         mis  <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
         given <- B.parseExprIn ii rng s

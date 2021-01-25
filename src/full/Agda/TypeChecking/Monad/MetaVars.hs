@@ -389,6 +389,7 @@ registerInteractionPoint preciseRange r maybeId = do
       return ii
 
 -- | Find an interaction point by 'Range' by searching the whole map.
+--   Issue 3000: Don't consider solved interaction points.
 --
 --   O(n): linear in the number of registered interaction points.
 
@@ -398,7 +399,7 @@ findInteractionPoint_ r m = do
   listToMaybe $ mapMaybe sameRange $ Map.toList m
   where
     sameRange :: (InteractionId, InteractionPoint) -> Maybe InteractionId
-    sameRange (ii, InteractionPoint r' _ _ _) | r == r' = Just ii
+    sameRange (ii, InteractionPoint r' _ False _) | r == r' = Just ii
     sameRange _ = Nothing
 
 -- | Hook up meta variable to interaction point.

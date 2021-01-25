@@ -1,4 +1,3 @@
 top_command (cmd_load currentFile [])
-goal_command 0 cmd_give "T lzero ? "
-goal_command 1 cmd_give "? → ?"
-
+IOTCM currentFile None Indirect (Cmd_give WithoutForce 0 (intervalsToRange (Just (mkAbsolute currentFullPath)) [Interval (Pn () 338 15 9) (Pn () 347 15 18)]) "T lzero ?")
+IOTCM currentFile None Indirect (Cmd_give WithoutForce 1 (intervalsToRange (Just (mkAbsolute currentFullPath)) [Interval (Pn () 346 15 17) (Pn () 351 15 22)]) "? → ?")
