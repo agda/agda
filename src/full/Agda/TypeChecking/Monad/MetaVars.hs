@@ -244,14 +244,19 @@ isInstantiatedMeta' m = do
 --   fact that blocked terms are represented by two meta variables. To find the
 --   second one we need to look up the meta listeners for the one in the
 --   UnBlock constraint.
+--   This is used for the purpose of deciding if a metavariable is constrained or if it can be
+--   generalized over (see Agda.TypeChecking.Generalize).
 constraintMetas :: Constraint -> TCM (Set MetaId)
 constraintMetas = \case
     -- We don't use allMetas here since some constraints should not stop us from generalizing. For
     -- instance CheckSizeLtSat (see #3694). We also have to check meta listeners to get metas of
     -- UnBlock constraints.
-      ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
-      ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
-      ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
+    -- #5147: Don't count metas in the type of a constraint. For instance the constraint u = v : t
+    -- should not stop us from generalize metas in t, since we could never solve those metas based
+    -- on that constraint alone.
+      ValueCmp _ _ u v         -> return $ allMetas Set.singleton (u, v)
+      ValueCmpOnFace _ p _ u v -> return $ allMetas Set.singleton (p, u, v)
+      ElimCmp _ _ _ _ es es'   -> return $ allMetas Set.singleton (es, es')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')
       UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)
@@ -268,7 +273,7 @@ constraintMetas = \case
       HasPTSRule{}             -> return mempty
       CheckMetaInst x          -> return mempty
       CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)
-      UsableAtModality _ t     -> return $ allMetas Set.singleton t
+      UsableAtModality{}       -> return mempty
   where
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty

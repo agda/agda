@@ -157,9 +157,12 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Pair metas with their metaInfo
   mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntSet.toList allmetas
 
-  constrainedMetas <- Set.unions <.> mapM (constraintMetas . clValue . theConstraint) =<<
-                        ((++) <$> useTC stAwakeConstraints
-                              <*> useTC stSleepingConstraints)
+  cs <- (++) <$> useTC stAwakeConstraints
+             <*> useTC stSleepingConstraints
+
+  reportSDoc "tc.generalize" 50 $ "current constraints:" <?> vcat (map prettyTCM cs)
+
+  constrainedMetas <- Set.unions <$> mapM (constraintMetas . clValue . theConstraint) cs
 
   reportSDoc "tc.generalize" 30 $ nest 2 $
     "constrainedMetas     = " <+> prettyList_ (map prettyTCM $ Set.toList constrainedMetas)
