@@ -7,10 +7,11 @@ open import IO
 import IO.Primitive as Prim
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
+open import Level using (0ℓ)
 
 -- Check that trustMe works.
 
-testTrustMe : IO ⊤
+testTrustMe : IO {0ℓ} ⊤
 testTrustMe with "apa" ≟ "apa"
 ... | yes refl = putStrLn "Yes!"
 ... | no  _    = putStrLn "No."
