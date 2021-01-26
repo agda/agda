@@ -957,7 +957,7 @@ checkLHS mf = updateModality checkLHS_ where
         block <- isBlocked target
         softTypeError $ CannotEliminateWithPattern block p (unArg target)
 
-      (projName, comatchingAllowed, recName, projType) <- suspendErrors $ do
+      (projName, comatchingAllowed, recName, projType, ai) <- suspendErrors $ do
         -- Andreas, 2018-10-18, issue #3289: postfix projections do not have hiding
         -- information for their principal argument; we do not parse @{r}.p@ and the like.
         let h = if orig == ProjPostfix then Nothing else Just $ getHiding p
@@ -976,7 +976,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Compute the new state
       let projP    = applyWhen (orig == ProjPostfix) (setHiding NotHidden) $
-                       target' $> Named Nothing (ProjP orig projName)
+                       Arg ai $ Named Nothing (ProjP orig projName)
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
           problem' = over problemRestPats tail problem
@@ -1584,7 +1584,7 @@ disambiguateProjection
                     --   @Nothing@ if 'Postfix' projection.
   -> AmbiguousQName -- ^ Name of the projection to be disambiguated.
   -> Arg Type       -- ^ Record type we are projecting from.
-  -> TCM (QName, Bool, QName, Arg Type)
+  -> TCM (QName, Bool, QName, Arg Type, ArgInfo)
        -- ^ @Bool@ signifies whether copattern matching is allowed at
        --   the inferred record type.
 disambiguateProjection h ambD@(AmbQ ds) b = do
@@ -1621,14 +1621,14 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -- instead of throwing them to the user immediately.
       disambiguations <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
       case List1.partitionEithers disambiguations of
-        (_ , (d, (a, mst)) : disambs) | constraintsOk <= null disambs -> do
+        (_ , (d, (a, ai, mst)) : disambs) | constraintsOk <= null disambs -> do
           mapM_ putTC mst -- Activate state changes
           -- From here, we have the correctly disambiguated projection.
           -- For highlighting, we remember which name we disambiguated to.
           -- This is safe here (fingers crossed) as we won't decide on a
           -- different projection even if we backtrack and come here again.
           liftTCM $ storeDisambiguatedProjection d
-          return (d, comatching, r, a)
+          return (d, comatching, r, a, ai)
         other -> failure other
 
     notRecord = wrongProj $ List1.head ds
@@ -1656,7 +1656,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -> QName                -- ^ Name of record type we are eliminating.
       -> Args                 -- ^ Parameters of record type we are eliminating.
       -> QName                -- ^ Candidate projection.
-      -> ExceptT TCErr TCM (QName, (Arg Type, Maybe TCState))
+      -> ExceptT TCErr TCM (QName, (Arg Type, ArgInfo, Maybe TCState))
            -- ^ TCState contains possibly new constraints/meta solutions.
     tryProj constraintsOk fs r vs d0 = isProjection d0 >>= \case
       -- Not a projection
@@ -1684,8 +1684,9 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- If this was not an ambiguous projection, that's an error.
         argd <- maybe (wrongProj d) return $ List.find ((d ==) . unDom) fs
 
-        -- Issue4998: The ArgInfo of the projection's principal argument is not relevant for the
-        -- ArgInfo of the clause rhs.
+        -- Issue4998: This used to use the hiding from the principal argument, but this is not
+        -- relevant for the ArgInfo of the clause rhs. We return that separately so we can set the
+        -- correct hiding for the projection pattern in splitRest above.
         let ai = getArgInfo argd
 
         reportSDoc "tc.lhs.split" 20 $ vcat
@@ -1709,7 +1710,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           [ "we are being projected by dType = " <+> prettyTCM dType
           ]
         projType <- liftTCM $ dType `piApplyM` vs
-        return (d0 , (Arg ai projType , mst))
+        return (d0, (Arg ai projType, projArgInfo proj, mst))
 
 -- | Disambiguate a constructor based on the data type it is supposed to be
 --   constructing. Returns the unambiguous constructor name and its type.
