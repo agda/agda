@@ -1684,7 +1684,9 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- If this was not an ambiguous projection, that's an error.
         argd <- maybe (wrongProj d) return $ List.find ((d ==) . unDom) fs
 
-        let ai = setModality (getModality argd) $ projArgInfo proj
+        -- Issue4998: The ArgInfo of the projection's principal argument is not relevant for the
+        -- ArgInfo of the clause rhs.
+        let ai = getArgInfo argd
 
         reportSDoc "tc.lhs.split" 20 $ vcat
           [ text $ "original proj relevance  = " ++ show (getRelevance argd)
@@ -1693,7 +1695,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- Andreas, 2016-12-31, issue #2374:
         -- We can also disambiguate by hiding info.
         -- Andreas, 2018-10-18, issue #3289: postfix projections have no hiding info.
-        unless (caseMaybe h True $ sameHiding ai) $ wrongHiding d
+        unless (caseMaybe h True $ sameHiding $ projArgInfo proj) $ wrongHiding d
 
         -- Andreas, 2016-12-31, issue #1976: Check parameters.
         let chk = checkParameters qr r vs

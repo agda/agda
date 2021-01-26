@@ -249,9 +249,10 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       , "perm    =" <+> text (show perm)
       , "ps      =" <+> prettyTCMPatternList ps
       , "ell     =" <+> text (show ell)
+      , "type    =" <+> prettyTCM (clauseType clause)
       ]
     ]
-  reportSDoc "interaction.case" 60 $ vcat
+  reportSDoc "interaction.case" 100 $ vcat
     [ "splitting clause:"
     , nest 2 $ vcat
       [ "f       =" <+> (text . show) f
