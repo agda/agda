@@ -62,8 +62,13 @@ runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) ->
 runReplM initialFile setup checkInterface
     = runIM
     . flip evalStateT (ReplState initialFile)
-    . flip runReaderT (ReplEnv setup checkInterface)
+    . flip runReaderT replEnv
     . unReplM
+  where
+  replEnv = ReplEnv
+    { replSetupAction     = setup
+    , replTypeCheckAction = checkInterface
+    }
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a
 
@@ -113,7 +118,7 @@ replSetup = do
     liftIO $ putStr splashScreen
 
 checkCurrentFile :: ReplM (Maybe CheckResult)
-checkCurrentFile = caseMaybeM (gets currentFile) (return Nothing) (fmap Just . checkFile)
+checkCurrentFile = traverse checkFile =<< gets currentFile
 
 checkFile :: AbsolutePath -> ReplM CheckResult
 checkFile file = liftTCM . ($ file) =<< asks replTypeCheckAction
