@@ -14,6 +14,7 @@ module Agda.Syntax.Translation.ConcreteToAbstract
     , NewModuleName, OldModuleName
     , NewName, OldQName
     , PatName, APatName
+    , importPrimitives
     ) where
 
 import Prelude hiding ( null )
@@ -1341,21 +1342,20 @@ instance ToAbstract (TopLevel [C.Declaration]) where
         -- thus, this case is impossible:
         _ -> __IMPOSSIBLE__
 
-     where
-
-      importPrimitives :: ScopeM [A.Declaration]
-      importPrimitives = do
-          noImportSorts <- not . optImportSorts <$> pragmaOptions
-          -- Add implicit `open import Agda.Primitive using (Set; Prop)`
-          let agdaPrimitiveName   = Qual (C.simpleName "Agda") $ C.QName $ C.simpleName "Primitive"
-              agdaSetName         = C.simpleName "Set"
-              agdaPropName        = C.simpleName "Prop"
-              usingDirective      = Using [ImportedName agdaSetName, ImportedName agdaPropName]
-              directives          = ImportDirective noRange usingDirective [] [] Nothing
-              importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]
-          if noImportSorts
-            then return []
-            else toAbstract (Declarations importAgdaPrimitive)
+-- | Declaration @open import Agda.Primitive using (Set; Prop)@ when 'optImportSorts'.
+importPrimitives :: ScopeM [A.Declaration]
+importPrimitives = do
+    noImportSorts <- not . optImportSorts <$> pragmaOptions
+    -- Add implicit `open import Agda.Primitive using (Set; Prop)`
+    let agdaPrimitiveName   = Qual (C.simpleName "Agda") $ C.QName $ C.simpleName "Primitive"
+        agdaSetName         = C.simpleName "Set"
+        agdaPropName        = C.simpleName "Prop"
+        usingDirective      = Using [ImportedName agdaSetName, ImportedName agdaPropName]
+        directives          = ImportDirective noRange usingDirective [] [] Nothing
+        importAgdaPrimitive = [C.Import noRange agdaPrimitiveName Nothing C.DoOpen directives]
+    if noImportSorts
+      then return []
+      else toAbstract (Declarations importAgdaPrimitive)
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: DoWarn -> [C.Declaration] -> ([NiceDeclaration] -> ScopeM a) -> ScopeM a
