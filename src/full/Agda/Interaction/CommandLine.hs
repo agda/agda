@@ -134,6 +134,11 @@ interactionLoop = do
         reload :: ReplM () = do
             checked <- checkCurrentFile
             liftTCM $ setScope $ maybe emptyScopeInfo iInsideScope (crInterface <$> checked)
+            -- Andreas, 2021-01-27, issue #5132, make Set and Prop available from Agda.Primitive
+            -- if no module is loaded.
+            when (isNothing checked) $ do
+              -- @open import Agda.Primitive using (Set; Prop)@
+              void $ liftTCM importPrimitives
           `catchError` \e -> do
             s <- prettyError e
             liftIO $ putStrLn s
