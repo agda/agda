@@ -260,6 +260,7 @@ mapSleepingConstraints = over stSleepingConstraints
 class IsTwinSolved a where
   blockOnTwin :: (MonadTCEnv m, ReadTCState m) => a -> m Blocker
   isTwinSolved :: (MonadTCEnv m, ReadTCState m) => a -> m Bool
+  isTwinSingle :: a -> Bool
 
 instance IsTwinSolved (TwinT' a) where
   blockOnTwin SingleT{}      = return AlwaysUnblock
@@ -269,13 +270,18 @@ instance IsTwinSolved (TwinT' a) where
   isTwinSolved SingleT{}      = return True
   isTwinSolved TwinT{twinPid} = allM twinPid isProblemSolved
 
+  isTwinSingle SingleT{} = True
+  isTwinSingle TwinT{}   = False
+
 instance IsTwinSolved a => IsTwinSolved (Name, a) where
   blockOnTwin = blockOnTwin . snd
   isTwinSolved = isTwinSolved . snd
+  isTwinSingle = isTwinSingle . snd
 
 instance IsTwinSolved a => IsTwinSolved (Dom a) where
   blockOnTwin = blockOnTwin . unDom
   isTwinSolved = isTwinSolved . unDom
+  isTwinSingle = isTwinSingle . unDom
 
 instance IsTwinSolved a => IsTwinSolved (CompareAs' a) where
   blockOnTwin (AsTermsOf a) = blockOnTwin a
@@ -286,17 +292,22 @@ instance IsTwinSolved a => IsTwinSolved (CompareAs' a) where
   isTwinSolved AsTypes       = return True
   isTwinSolved AsSizes       = return True
 
+  isTwinSingle (AsTermsOf a) = isTwinSingle a
+  isTwinSingle AsTypes       = True
+  isTwinSingle AsSizes       = True
+
 instance IsTwinSolved () where
   blockOnTwin ()  = pure AlwaysUnblock
   isTwinSolved () = pure True
+  isTwinSingle () = True
 
 type SimplifyHet a = (AsTwin a, TwinAt 'Compat a, AsTwin_ a ~ TwinAt_ 'Compat a, IsTwinSolved a)
 type SimplifyHetM m = (MonadTCEnv m, ReadTCState m, MonadAddContext m)
 
 -- TODO: One could also check free variables and strengthen the
 -- context, but this is supposed to be a cheap operation
-simplifyHet :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) -> m c
--- simplifyHet b κ = go Empty =<< getContext_
+simplifyHetFull, simplifyHet :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) -> m c
+-- simplifyHetFull b κ = go Empty =<< getContext_
 --   where
 --     go acc Empty =
 --       unsafeModifyContext {- IdS -} (const acc) $ isTwinSolved b >>= \case
@@ -307,7 +318,7 @@ simplifyHet :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) 
 --         True  -> go (acc :⊢ (asTwin$ twinAt @'Compat a)) γΓ
 --         False -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
 --
-simplifyHet b κ = do
+simplifyHetFull b κ = do
   γΓ <- getContext_
   go γΓ $ \isHomo γΓ' ->
     unsafeModifyContext {- IdS -} (const γΓ') $
@@ -330,6 +341,28 @@ simplifyHet b κ = do
             False -> κ False (γΓ' :⊢ a)
           False -> κ False (γΓ' :⊢ a)
 
+simplifyHet b κ = do
+  case isTwinSingle b of
+    True  -> κ b
+    False -> isTwinSolved b >>= \case
+      False -> κ b
+      True  -> do
+        let b' = asTwin $ twinAt @'Compat b
+        γΓ <- getContext_
+        go γΓ $ \case
+          Nothing  -> κ b
+          Just γΓ' -> unsafeModifyContext {- IdS -} (const γΓ') $ κ b'
+  where
+    go Empty κ = κ (Just Empty)
+    go (γΓ :⊢ a) κ =
+      isTwinSolved a >>= \case
+        False -> κ Nothing
+        True  -> do
+          let a' = asTwin $ twinAt @'Compat a
+          go γΓ $ \case
+            Nothing  -> κ Nothing
+            Just γΓ' -> κ (Just (γΓ' :⊢ a'))
+
 -- | Remove unnecessary twins from the context
-simplifyContextHet :: SimplifyHetM m => m a -> m a
-simplifyContextHet m = simplifyHet () (\() -> m)
+-- simplifyContextHet :: SimplifyHetM m => m a -> m a
+-- simplifyContextHet m = simplifyHetFull () (\() -> m)
