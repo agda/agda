@@ -296,16 +296,39 @@ type SimplifyHetM m = (MonadTCEnv m, ReadTCState m, MonadAddContext m)
 -- TODO: One could also check free variables and strengthen the
 -- context, but this is supposed to be a cheap operation
 simplifyHet :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) -> m c
-simplifyHet b κ = go Empty =<< getContext_
-  where
-    go acc Empty =
-      unsafeModifyContext {- IdS -} (const acc) $ isTwinSolved b >>= \case
-                  True  -> κ (asTwin$ twinAt @'Compat b)
+-- simplifyHet b κ = go Empty =<< getContext_
+--   where
+--     go acc Empty =
+--       unsafeModifyContext {- IdS -} (const acc) $ isTwinSolved b >>= \case
+--                   True  -> κ (asTwin$ twinAt @'Compat b)
+--                   False -> κ b
+--     go acc ctx@(a :⊢: γΓ)  =
+--       isTwinSolved a >>= \case
+--         True  -> go (acc :⊢ (asTwin$ twinAt @'Compat a)) γΓ
+--         False -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
+--
+simplifyHet b κ = do
+  γΓ <- getContext_
+  go γΓ $ \isHomo γΓ' ->
+    unsafeModifyContext {- IdS -} (const γΓ') $
+      case isHomo of
+        True  -> isTwinSolved b >>= \case
+                  True  ->
+                    let b' = (asTwin$ twinAt @'Compat b) in
+                    κ b'
                   False -> κ b
-    go acc ctx@(a :⊢: γΓ)  =
-      isTwinSolved a >>= \case
-        True  -> go (acc :⊢ (asTwin$ twinAt @'Compat a)) γΓ
-        False -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
+        False -> κ b
+  where
+    go Empty κ = κ True Empty
+    go (γΓ :⊢ a) κ =
+      go γΓ $ \isHomo γΓ' ->
+        case isHomo of
+          True -> isTwinSolved a >>= \case
+            True  ->
+              let a' = asTwin (twinAt @'Compat a) in
+              κ True (γΓ' :⊢ a')
+            False -> κ False (γΓ' :⊢ a)
+          False -> κ False (γΓ' :⊢ a)
 
 -- | Remove unnecessary twins from the context
 simplifyContextHet :: SimplifyHetM m => m a -> m a

@@ -28,6 +28,7 @@ import Agda.Utils.Pretty
 import qualified Agda.Utils.List
 
 import Agda.Utils.Impossible
+import qualified Data.List as L
 
 ----------------------------------------------------------------------
 -- * Data structure for a twin type
@@ -126,13 +127,13 @@ dirToCmp_ κ dir a u v = go sing sing dir
     go SRHS SLHS DirLeq = flipContext$ κ CmpLeq (flipHet a) (flipHet u) (flipHet v)
 
 drop :: Int -> ContextHet -> ContextHet
-drop n = ContextHet . S.drop n . unContextHet
+drop n = ContextHet . L.drop n . unContextHet
 
 length :: ContextHet -> Int
-length = S.length . unContextHet
+length = L.length . unContextHet
 
 (⊣::) :: [Dom (Name, Type)] -> ContextHet -> ContextHet
-as ⊣:: ctx =  ContextHet ( fmap (fmap (fmap (SingleT . Het))) (S.fromList as) <> unContextHet  ctx)
+as ⊣:: ctx =  ContextHet ( fmap (fmap (fmap (SingleT . Het))) as <> unContextHet  ctx)
 
 (!!!) :: ContextHet -> Int -> Maybe (Dom (Name, TwinT))
 ctx !!! n = contextHetToList ctx Agda.Utils.List.!!! n
