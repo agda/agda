@@ -216,7 +216,7 @@ wakeupConstraints x = do
 
 -- | Wake up all constraints not blocked on a problem.
 wakeupConstraints_ :: MonadConstraint m => m ()
-wakeupConstraints_ = flip doWhileM tryOneConstraintHarder $ do
+wakeupConstraints_ = do
   wakeConstraints' (wakeup . constraintUnblocker)
   solveAwakeConstraints
   where
@@ -345,18 +345,18 @@ tryOneConstraintHarder = do
   let giveup = do
         putBackAsleepConstraints pcs
         return False
-  let pcs' = List.sortBy (compare `on` fst) $
-               filter ((< EffortDelta NatInfinity) . fst) $
-                 filter ((> EffortDelta (NatExt 0)) . fst) $
-                   map (\pc -> (unblocksOnEffort $ constraintUnblocker pc, pc)) $
-                     pcs
-  case pcs' of
-    [] -> giveup  -- No more constraints to wake up
-    ((delta@(EffortDelta (NatExt n)), PConstr p u c):pcs') | n > 0 -> do
+  let pcs' = map (\pc -> (unblocksOnEffort $ constraintUnblocker pc, pc)) pcs
+  -- Do not wake up constraints that require infinity effort (this means they are blocked
+  let (pcs'', pcs₀) = List.partition (((&&) <$> (< (EffortDelta NatInfinity)) <*>
+  -- Do not wake up constraints that require no extra effort (could produce infinite loop)
+                                                (> (EffortDelta (NatExt 0)))) . fst) pcs'
+  let pcs''' = List.sortBy (compare `on` fst) pcs''
+  case pcs''' of
+    ((delta@(EffortDelta (NatExt n)), PConstr p u c):pcs₁) | n > 0 -> do
       reportSDoc "tc.constr.effort" 10  ("blocker" <+> prettyTCM u)
       verboseBracket "tc.constr.effort" 10 ("Retrying with " <> prettyShow delta) $ do
         let pc' = PConstr p AlwaysUnblock (over (lensTCEnv . eEffortLevel) (tryHarder delta) c)
-        putBackAsleepConstraints (pc':map snd pcs')
+        putBackAsleepConstraints (pc':map snd pcs₁ ++ map snd pcs₀)
         return True
-    _ -> __IMPOSSIBLE__
+    _ -> giveup  -- No more constraints to wake up
 

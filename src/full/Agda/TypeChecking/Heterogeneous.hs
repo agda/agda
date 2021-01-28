@@ -352,7 +352,7 @@ instance IsTwinSolved (AttemptConversion TwinT) where
                                runPureConversion (compareTypeDir_ direction twinLHS twinRHS)
                            _ -> __IMPOSSIBLE__
         ExtraEffort e -> do
-          reportSLn "tc.conv.effort" 20 $ "Extra " <> prettyShow e <> " required; postponing"
+          reportSLn "tc.constr.effort" 20 $ "Extra " <> prettyShow e <> " required; postponing"
           return (unblockOnEither bs (unblockOnEffort e))
 
 type SimplifyHet a = (IsTwinSolved a)

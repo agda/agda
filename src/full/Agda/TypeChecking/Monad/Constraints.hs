@@ -57,7 +57,7 @@ putBackAwakeConstraints :: MonadConstraint m => Constraints -> m ()
 putBackAwakeConstraints awake = modifyAwakeConstraints (++ awake)
 
 putBackAsleepConstraints :: MonadConstraint m => Constraints -> m ()
-putBackAsleepConstraints asleep = modifyAwakeConstraints (++ asleep)
+putBackAsleepConstraints asleep = modifySleepingConstraints (++ asleep)
 
 -- | Get the awake constraints
 getAwakeConstraints :: ReadTCState m => m Constraints
