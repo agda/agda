@@ -41,6 +41,25 @@ Pragmas and options
 * New option `--auto-inline` turns on automatic compile-time inlining of simple
   functions. This was previously enabled by default.
 
+  The new default has repercussions on termination checking, for instance
+  (see [#4702](https://github.com/agda/agda/issues/4702)).
+  The following formulation of `plus` termination checks with `--auto-inline`
+  but not without:
+  ```agda
+  open import Agda.Builtin.Nat
+
+  case_of_ : {A B : Set} → A → (A → B) → B
+  case x of f = f x
+
+  plus : Nat → Nat → Nat
+  plus m n = case m of λ
+     { zero    → n
+     ; (suc m) → suc (plus m n)
+     }
+  ```
+  In this particular case, we can work around the limitation of the
+  termination checker with pragma `{-# INLINE case_of_ #-}`.
+
 * New option `--local-confluence-check` to restore the old behaviour
   of the `--confluence-check` flag (see below for the new behaviour).
 
