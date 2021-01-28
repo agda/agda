@@ -40,6 +40,7 @@ import Agda.Utils.Pretty
 import qualified Agda.Utils.List
 
 import Agda.Utils.Impossible
+import qualified Data.List as L
 
 ----------------------------------------------------------------------
 -- * Data structure for a twin type
@@ -126,13 +127,13 @@ dirToCmp_ κ dir a u v = go sing sing dir
     go SRHS SLHS DirLeq = flipContext$ κ CmpLeq (flipHet a) (flipHet u) (flipHet v)
 
 drop :: Int -> ContextHet -> ContextHet
-drop n = ContextHet . S.drop n . unContextHet
+drop n = ContextHet . L.drop n . unContextHet
 
 length :: ContextHet -> Int
-length = S.length . unContextHet
+length = L.length . unContextHet
 
 (⊣::) :: [Dom (Name, Type)] -> ContextHet -> ContextHet
-as ⊣:: ctx =  ContextHet ( fmap (fmap (fmap (SingleT . Het))) (S.fromList as) <> unContextHet  ctx)
+as ⊣:: ctx =  ContextHet ( fmap (fmap (fmap (SingleT . Het))) as <> unContextHet  ctx)
 
 (!!!) :: ContextHet -> Int -> Maybe (Dom (Name, TwinT))
 ctx !!! n = contextHetToList ctx Agda.Utils.List.!!! n
@@ -219,6 +220,7 @@ type SimplifyHetM m = (MonadTCEnv m, ReadTCState m, MonadAddContext m, MonadDebu
 class AsTwin a => IsTwinSolved a where
   blockOnTwin ::  (SimplifyHetM m) => a -> m Blocker
   isTwinSolved :: (SimplifyHetM m) => a -> m Bool
+  isTwinSingle :: a -> Bool
   simplifyHet' :: (SimplifyHetM m) => a -> (Either a (AsTwin_ a) -> m b) -> m b
 
   isTwinSolved a = blockOnTwin a >>= \case
@@ -238,9 +240,13 @@ instance IsTwinSolved (TwinT' a) where
   isTwinSolved SingleT{}      = return True
   isTwinSolved TwinT{twinPid} = allM twinPid isProblemSolved
 
+  isTwinSingle SingleT{} = True
+  isTwinSingle TwinT{}   = False
+
 instance IsTwinSolved a => IsTwinSolved (Dom a) where
   blockOnTwin = blockOnTwin . unDom
   isTwinSolved = isTwinSolved . unDom
+  isTwinSingle = isTwinSingle . unDom
   simplifyHet' dom κ = simplifyHet' (unDom dom) $ \a ->
     κ (bimap (\x -> dom{unDom=x}) (\x -> dom{unDom=x}) a)
 
@@ -257,10 +263,15 @@ instance IsTwinSolved a => IsTwinSolved (CompareAs' a) where
   simplifyHet' AsTypes       κ = κ (Right AsTypes)
   simplifyHet' AsSizes       κ = κ (Right AsSizes)
 
+  isTwinSingle (AsTermsOf a) = isTwinSingle a
+  isTwinSingle AsTypes       = True
+  isTwinSingle AsSizes       = True
+
 instance IsTwinSolved Name where
   blockOnTwin _  = pure AlwaysUnblock
   isTwinSolved _ = pure True
   simplifyHet' n κ = κ (Right n)
+  isTwinSingle _ = True
 
 instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a,b) where
   blockOnTwin  (a,b) = unblockOnBoth <$> blockOnTwin a <*> blockOnTwin b
@@ -273,15 +284,18 @@ instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a,b) where
           ( Left a, Right b) -> κ$ Left  (a, asTwin b)
           (Right a,  Left b) -> κ$ Left  (asTwin a, b)
           ( Left a,  Left b) -> κ$ Left  (a, b)
+  isTwinSingle (a,b) = isTwinSingle a && isTwinSingle b
 
 instance IsTwinSolved () where
   blockOnTwin ()  = pure AlwaysUnblock
   isTwinSolved () = pure True
   simplifyHet' () κ = κ (Right ())
+  isTwinSingle () = True
 
 instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a :∈ b) where
   blockOnTwin  (b :∋ a) = unblockOnBoth <$> blockOnTwin b <*> blockOnTwin a
   isTwinSolved (b :∋ a) = andM [isTwinSolved b, isTwinSolved a]
+  isTwinSingle (b :∋ a) = isTwinSingle b && isTwinSingle a
   simplifyHet' (b :∋ a) κ = simplifyHet' b $ \case
     Right b -> simplifyHet' a $ \case
       Right a -> κ (Right (a :∈ b))
@@ -291,6 +305,7 @@ instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a :∈ b) where
 instance (IsTwinSolved a, Subst a) => IsTwinSolved (Abs a) where
   blockOnTwin = blockOnTwin . unAbs
   isTwinSolved = isTwinSolved . unAbs
+  isTwinSingle = isTwinSingle . unAbs
   simplifyHet' abs κ =
     κ =<< (underAbstraction_ abs $ \a ->
       simplifyHet' a $ \a ->
@@ -310,19 +325,23 @@ instance (AsTwin a, IsTwinSolved (AttemptConversion a)) => IsTwinSolved (Attempt
   blockOnTwin  = blockOnTwin  . fmap AttemptConversion . attemptConversion
   isTwinSolved = isTwinSolved . fmap AttemptConversion . attemptConversion
   simplifyHet' (AttemptConversion b) κ = simplifyHet' (fmap AttemptConversion b) $ \e -> κ $ bimap coerce id e
+  isTwinSingle = isTwinSingle . fmap AttemptConversion . attemptConversion
 
 instance IsTwinSolved (AttemptConversion Name) where
   blockOnTwin  = blockOnTwin  . attemptConversion
   isTwinSolved = isTwinSolved . attemptConversion
   simplifyHet' (AttemptConversion b) κ = simplifyHet' b $ \e -> κ $ bimap AttemptConversion id e
+  isTwinSingle = isTwinSingle . attemptConversion
 
 instance (AsTwin a, AsTwin b, IsTwinSolved (AttemptConversion a), IsTwinSolved (AttemptConversion b)) =>
          IsTwinSolved (AttemptConversion (a,b)) where
   blockOnTwin  = blockOnTwin  . bimap AttemptConversion AttemptConversion . attemptConversion
   isTwinSolved = isTwinSolved . bimap AttemptConversion AttemptConversion . attemptConversion
   simplifyHet' (AttemptConversion b) κ = simplifyHet' (bimap AttemptConversion AttemptConversion b) $ \e -> κ $ bimap coerce id e
+  isTwinSingle = isTwinSingle . bimap AttemptConversion AttemptConversion . attemptConversion
 
 instance IsTwinSolved (AttemptConversion TwinT) where
+  isTwinSingle = isTwinSingle . attemptConversion
   blockOnTwin (AttemptConversion t) = do
     blockOnTwin t >>= \case
       AlwaysUnblock -> return AlwaysUnblock
@@ -340,19 +359,58 @@ type SimplifyHet a = (IsTwinSolved a)
 
 -- TODO: One could also check free variables and strengthen the
 -- context, but this is supposed to be a cheap operation
-simplifyHet :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) -> m c
-simplifyHet b κ = go Empty =<< getContext_
+simplifyHetFull, simplifyHet :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) -> m c
+-- simplifyHetFull b κ = go Empty =<< getContext_
+--   where
+--     go acc Empty =
+--       unsafeModifyContext {- IdS -} (const acc) $ isTwinSolved b >>= \case
+--                   True  -> κ (asTwin$ twinAt @'Compat b)
+--                   False -> κ b
+--     go acc ctx@(a :⊢: γΓ)  =
+--       isTwinSolved a >>= \case
+--         True  -> go (acc :⊢ (asTwin$ twinAt @'Compat a)) γΓ
+--         False -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
+--
+simplifyHetFull b κ = do
+  γΓ <- getContext_
+  go γΓ $ \isHomo γΓ' ->
+    unsafeModifyContext {- IdS -} (const γΓ') $
+      case isHomo of
+        True  -> simplifyHet' b $ \case
+                  Right b'  -> κ (asTwin b')
+                  Left  b   -> κ b
+        False -> κ b
   where
-    go acc Empty =
-      unsafeModifyContext {- IdS -} (const acc) $ simplifyHet' b $ \case
-                  Left  b -> κ b
-                  Right b -> κ (asTwin b)
-    go acc ctx@(a :⊢: γΓ)  =
+    go Empty κ = κ True Empty
+    go (γΓ :⊢ a) κ =
+      go γΓ $ \isHomo γΓ' ->
+        case isHomo of
+          True -> simplifyHet' a $ \case
+            Right a' -> κ True  (γΓ' :⊢ asTwin a')
+            Left  a  -> κ False (γΓ' :⊢ a)
+          False -> κ False (γΓ' :⊢ a)
+
+simplifyHet b κ = do
+  case isTwinSingle b of
+    True  -> κ b
+    False -> simplifyHet' b $ \case
+      Left  b -> κ b
+      Right b' -> do
+        γΓ <- getContext_
+        go γΓ $ \case
+          Nothing  -> κ b
+          Just γΓ' -> unsafeModifyContext {- IdS -} (const γΓ') $ κ (asTwin b')
+  where
+    go Empty κ = κ (Just Empty)
+    go (γΓ :⊢ a) κ =
       simplifyHet' a $ \case
-        Right a' -> go (acc :⊢ (asTwin a')) γΓ
-        Left  _  -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
+        Left{}    -> κ Nothing
+        Right a'  -> do
+          go γΓ $ \case
+            Nothing  -> κ Nothing
+            Just γΓ' -> κ (Just (γΓ' :⊢ asTwin a'))
 
 -- | Remove unnecessary twins from the context
-simplifyContextHet :: SimplifyHetM m => m a -> m a
-simplifyContextHet m = simplifyHet () (\() -> m)
+-- simplifyContextHet :: SimplifyHetM m => m a -> m a
+-- simplifyContextHet m = simplifyHet () (\() -> m)
 

@@ -2720,7 +2720,7 @@ ifTopLevelAndHighlightingLevelIs l =
 
 -- | The context is in right-to-left order; i.e. each variable is bound
 --   by all the preceding variables
-newtype ContextHet' a = ContextHet { unContextHet :: Seq a }
+newtype ContextHet' a = ContextHet { unContextHet :: [a] }
   deriving (Data, Show, Functor, Foldable)
 type ContextHet = ContextHet' (Dom (Name, TwinT))
 
@@ -2731,23 +2731,18 @@ instance Pretty a => Pretty (Context_' a) where
   pretty = pretty . contextHetToList
 
 pattern Empty :: ContextHet
-pattern Empty                    = ContextHet S.Empty
+pattern Empty = ContextHet []
 
 pattern (:⊣) :: Dom (Name, TwinT) -> ContextHet -> ContextHet
 pattern a :⊣ γΓ = γΓ :⊢ a
 
 pattern (:⊢) :: ContextHet -> Dom (Name, TwinT) -> ContextHet
-pattern γΓ :⊢ a <- ContextHet (a S.:<| (ContextHet -> γΓ))
-  where γΓ :⊢ a =  ContextHet (a S.:<|  unContextHet  γΓ)
-
-pattern (:⊢:) :: Dom (Name, TwinT) -> ContextHet -> ContextHet
-pattern a :⊢: ctx <- ContextHet ((ContextHet -> ctx) S.:|> a)
-  where a :⊢: ctx =  ContextHet ( unContextHet  ctx  S.:|> a)
+pattern γΓ :⊢ a <- ContextHet (a : (ContextHet -> γΓ))
+  where γΓ :⊢ a =  ContextHet (a :  unContextHet  γΓ)
 
 #if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE Empty, (:⊢) #-}
 {-# COMPLETE Empty, (:⊣) #-}
-{-# COMPLETE Empty, (:⊢:) #-}
 #endif
 
 (⊣::), (⊢::) :: ContextHet' a -> ContextHet' a -> ContextHet' a
@@ -2760,10 +2755,10 @@ pattern a :⊢: ctx <- ContextHet ((ContextHet -> ctx) S.:|> a)
 --     (a:b:…:[])
 -- Also: contextHetToList :: ContextHet -> [Dom (Name, TwinT)]
 contextHetToList :: Context_' a -> [a]
-contextHetToList = toList
+contextHetToList = unContextHet
 
 contextHetFromList :: [Dom (Name, TwinT)] -> ContextHet
-contextHetFromList = coerce . S.fromList
+contextHetFromList = ContextHet
 
 -- * Switch heterogeneous context to a specific side
 switchSide :: forall s a m. (HetSideIsType s, MonadTCEnv m) => m a -> m a
@@ -2893,7 +2888,7 @@ instance AsTwin (TwinT''' b f a) where
   asTwin = SingleT . Het @'Both
 instance AsTwin ContextHet where
   type AsTwin_ ContextHet = Context
-  asTwin = ContextHet . S.fromList . (fmap (fmap (fmap asTwin)))
+  asTwin = ContextHet . (fmap (fmap (fmap asTwin)))
 instance AsTwin (Het side a) where
   type AsTwin_ (Het side a) = a
   asTwin = coerce

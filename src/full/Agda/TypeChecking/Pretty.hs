@@ -305,11 +305,14 @@ instance PrettyTCM a => PrettyTCM (TwinT' a) where
                 <+> prettyTCM b
 
 instance PrettyTCM ContextHet where
-  prettyTCM = fmap P.fsep . go
+  prettyTCM c = fmap together $ go c (return [])
     where
-      go :: MonadPretty m => ContextHet -> m [P.Doc]
-      go Empty = pure ["·"]
-      go (a :⊢: γΓ) = (:) <$> prettyTCM a <*> addContext (twinAt @'Compat a) (go γΓ)
+      together [] = "·"
+      together xs = P.fsep xs
+
+      go :: MonadPretty m => ContextHet -> m [P.Doc] -> m [P.Doc]
+      go Empty     m = m
+      go (γΓ :⊢ a) m = go γΓ ((:) <$> prettyTCM a <*> addContext (twinAt @'Compat a) m)
 
 instance PrettyTCM Blocker where
   prettyTCM (UnblockOnAll us) = "all" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)
