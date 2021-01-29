@@ -2281,7 +2281,8 @@ mkTwinTerm :: TypeViewM m =>
 mkTwinTerm _ (SingleT a) = return$ SingleT a
 mkTwinTerm _ tt@TwinT{twinCompat=(Compose (Just tc))} =
   return tt{twinCompat=tc}
-mkTwinTerm ty tt@TwinT{twinPid,direction,twinLHS=tl,twinRHS=tr,twinCompat=(Compose Nothing)} = do
+mkTwinTerm ty tt@TwinT{twinPid=tp,direction,twinLHS=tl,twinRHS=tr,twinCompat=(Compose Nothing)} = do
+  twinPid <- filterM (fmap not . isProblemSolved) tp
   let t0 = selectSmaller direction (twinAt @'LHS tl) (twinAt @'RHS tr)
   tc <- blockTermOnProblems (twinAt @'Compat ty) t0 twinPid
   return tt{twinCompat=H'Compat tc}
@@ -2292,7 +2293,8 @@ mkTwinT :: TypeViewM m =>
 mkTwinT (SingleT a) = return$ SingleT a
 mkTwinT tt@TwinT{twinCompat=(Compose (Just tyc))} =
   return tt{twinCompat=tyc}
-mkTwinT tt@TwinT{direction,twinPid,twinLHS=tyl,twinRHS=tyr,twinCompat=(Compose Nothing)} = do
+mkTwinT tt@TwinT{direction,twinPid=tp,twinLHS=tyl,twinRHS=tyr,twinCompat=(Compose Nothing)} = do
+  twinPid <- filterM (fmap not . isProblemSolved) tp
   let ty0 = selectSmaller direction (twinAt @'LHS tyl) (twinAt @'RHS tyr)
   tyc <- blockTypeOnProblems ty0 twinPid
   return tt{twinCompat=H'Compat tyc}
