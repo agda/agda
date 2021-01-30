@@ -35,11 +35,19 @@ type LaTeXProg = String
 allLaTeXProgs :: [LaTeXProg]
 allLaTeXProgs = ["pdflatex", "xelatex", "lualatex"]
 
+testDirPrefix :: FilePath -> FilePath
+testDirPrefix x = "test" </> "LaTeXAndHTML" </> x
+
+-- Andreas, 2021-01-30
+-- See issue #5140 for the split into these two directories.
 testDirs :: [FilePath]
-testDirs = map (\ x -> "test" </> "LaTeXAndHTML" </> x)
+testDirs = map testDirPrefix
   [ "fail"
   , "succeed"
   ]
+
+userManualTestDir :: FilePath
+userManualTestDir = testDirPrefix "user-manual"
 
 disabledTests :: [RegexFilter]
 disabledTests = []
@@ -52,7 +60,9 @@ disabledTests = []
 --
 tests :: IO [TestTree]
 tests = do
-  allTests <- concat <$> mapM taggedListOfAllTests testDirs
+  agdaBin  <- getAgdaBin
+  suiteTests <- concat <$> mapM (taggedListOfAllTests agdaBin) testDirs
+  let allTests = suiteTests ++ userManualTests agdaBin
   let (html, latex, quicklatex) = (\ f -> partition3 (f . fst) allTests) $ \case
         HTML       -> One
         LaTeX      -> Two
@@ -64,10 +74,9 @@ tests = do
     , testGroup "QuickLaTeXOnly" $ map snd quicklatex
     ]
 
-taggedListOfAllTests :: FilePath -> IO [(Kind, TestTree)]
-taggedListOfAllTests testDir = do
+taggedListOfAllTests :: FilePath -> FilePath -> IO [(Kind, TestTree)]
+taggedListOfAllTests agdaBin testDir = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
-  agdaBin  <- getAgdaBin
   return $
     [ (k, mkLaTeXOrHTMLTest k False agdaBin testDir f)
     | f <- inpFiles
@@ -77,8 +86,13 @@ taggedListOfAllTests testDir = do
                          | any (`List.isSuffixOf` takeExtensions f)
                                [".lagda",".lagda.tex"]
                          ]
-    ] ++
-    [ (k, mkLaTeXOrHTMLTest k True agdaBin testDir f)
+    ]
+
+-- See issue #3372 for the origin of these tests.
+-- | These tests do not have a @.lagda[.tex]@ source.
+userManualTests :: FilePath -> [(Kind, TestTree)]
+userManualTests agdaBin =
+    [ (k, mkLaTeXOrHTMLTest k True agdaBin userManualTestDir f)
     | f <- examplesInUserManual
     , k <- [LaTeX, QuickLaTeX]
     ]
