@@ -8,6 +8,7 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Text.Encoding
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
 
 import qualified Network.URI.Encode
 import System.Directory
@@ -17,7 +18,7 @@ import System.IO.Temp
 import System.Process
 import qualified System.Process.Text as PT
 import qualified System.Process.ByteString as PB
-import qualified Data.Text as T
+import Text.Read (readMaybe)
 
 import Test.Tasty
 import Test.Tasty.Silver
@@ -224,9 +225,3 @@ printLaTeXResult dir r = case r of
   removeCWD
     | null dir  = id
     | otherwise = T.concat . T.splitOn (T.pack dir)
-
-readMaybe :: Read a => String -> Maybe a
-readMaybe s =
-  case reads s of
-    [(x, rest)] | all isSpace rest -> Just x
-    _                              -> Nothing
