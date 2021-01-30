@@ -35,8 +35,11 @@ type LaTeXProg = String
 allLaTeXProgs :: [LaTeXProg]
 allLaTeXProgs = ["pdflatex", "xelatex", "lualatex"]
 
-testDir :: FilePath
-testDir = "test" </> "LaTeXAndHTML" </> "succeed"
+testDirs :: [FilePath]
+testDirs = map (\ x -> "test" </> "LaTeXAndHTML" </> x)
+  [ "fail"
+  , "succeed"
+  ]
 
 disabledTests :: [RegexFilter]
 disabledTests = []
@@ -49,7 +52,7 @@ disabledTests = []
 --
 tests :: IO [TestTree]
 tests = do
-  allTests <- taggedListOfAllTests
+  allTests <- concat <$> mapM taggedListOfAllTests testDirs
   let (html, latex, quicklatex) = (\ f -> partition3 (f . fst) allTests) $ \case
         HTML       -> One
         LaTeX      -> Two
@@ -61,12 +64,12 @@ tests = do
     , testGroup "QuickLaTeXOnly" $ map snd quicklatex
     ]
 
-taggedListOfAllTests :: IO [(Kind, TestTree)]
-taggedListOfAllTests = do
+taggedListOfAllTests :: FilePath -> IO [(Kind, TestTree)]
+taggedListOfAllTests testDir = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
   agdaBin  <- getAgdaBin
   return $
-    [ (k, mkLaTeXOrHTMLTest k False agdaBin f)
+    [ (k, mkLaTeXOrHTMLTest k False agdaBin testDir f)
     | f <- inpFiles
     -- Note that the LaTeX backends are only tested on the @.lagda@
     -- and @.lagda.tex@ files.
@@ -75,7 +78,7 @@ taggedListOfAllTests = do
                                [".lagda",".lagda.tex"]
                          ]
     ] ++
-    [ (k, mkLaTeXOrHTMLTest k True agdaBin f)
+    [ (k, mkLaTeXOrHTMLTest k True agdaBin testDir f)
     | f <- examplesInUserManual
     , k <- [LaTeX, QuickLaTeX]
     ]
@@ -98,9 +101,10 @@ mkLaTeXOrHTMLTest
   -> Bool     -- ^ Should the file be copied to the temporary test
               --   directory before the test is run?
   -> FilePath -- ^ Agda binary.
+  -> FilePath -- ^ Test directory in which input file resides.
   -> FilePath -- ^ Input file.
   -> TestTree
-mkLaTeXOrHTMLTest k copy agdaBin inp =
+mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
   goldenVsAction
     testName
     goldenFile
