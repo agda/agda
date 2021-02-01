@@ -390,6 +390,9 @@ blockTermOnProblems
   => Type -> Term -> [ProblemId] -> m Term
 blockTermOnProblems t v pids =
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
+  -- TODO: Víctor, 2021-02-01
+  -- It may be the case that only some for the problems are blocked, we
+  -- should filter instead
   ifM (allM pids isProblemSolved `or2M` allM pids isSizeProblem) (return v) $ do
     i   <- createMetaInfo
     es  <- map Apply <$> getContextArgs

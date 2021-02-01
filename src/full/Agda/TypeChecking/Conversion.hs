@@ -2363,6 +2363,32 @@ mkTwinTele a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
                               twinCompat=Const ()
                               })
 
+mkTwinTelescope :: TypeViewM m => TwinT'_ Telescope
+                          -> m (TwinT' Telescope)
+mkTwinTelescope (SingleT (H'Both tel)) = return $ asTwin tel
+mkTwinTelescope a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
+  let lhs :: [H'LHS (Dom (ArgName, Type))]
+      lhs = commute$ telToList <$> twinLHS
+  let rhs :: [H'RHS (Dom (ArgName, Type))]
+      rhs = commute$ telToList <$> twinRHS
+  let n  = length lhs
+  let n' = length rhs
+  case n  == n' of
+    False -> __IMPOSSIBLE__
+    True  -> do
+      twinPid' <- filterM (fmap not . isProblemSolved) twinPid
+      telc <- telFromList' id <$>
+        (forM (zip lhs rhs) $ \(dom1, dom2) -> do
+            let dom0 :: Dom (ArgName, Type)
+                dom0 = selectSmaller direction (twinAt @'LHS dom1) (twinAt @'RHS dom2)
+            traverse (traverse (flip blockTypeOnProblems twinPid')) dom0)
+      return a{necessary=(necessary && n == 1)
+              ,twinPid=twinPid'
+              ,twinCompat= Het @'Compat $ telc
+              }
+
+
+
 -- ( <$> tel_)
 -- TODO[het] Might not need to return a twin type with compatibility
 etaExpandRecordTwin :: forall m a f. (MonadFresh Agda.Syntax.Common.Nat m,
@@ -2380,12 +2406,15 @@ etaExpandRecordTwin q (TwinT{twinPid,direction,twinLHS,twinRHS}) m n = do
   m₀ <- onSide @'LHS (uncurry (etaExpandRecord q)) ((,) <$> twinLHS <*> m)
   n₀ <- onSide @'RHS (uncurry (etaExpandRecord q)) ((,) <$> twinRHS <*> n)
   let m'  = snd <$> m₀
-      n'  = snd <$> n₀
-      tym = flip telePi_ __DUMMY_TYPE__ . fst <$> m₀
-      tyn = flip telePi_ __DUMMY_TYPE__ . fst <$> n₀
-  (,,) <$> mkTwinT TwinT{necessary=False,direction,twinPid,twinLHS=tym,twinRHS=tyn,twinCompat=Compose Nothing}
-       <*> pure m'
-       <*> pure n'
+  let n'  = snd <$> n₀
+  tel <- mkTwinTelescope TwinT{necessary=False
+                              ,direction
+                              ,twinPid
+                              ,twinLHS=fst <$> m₀
+                              ,twinRHS=fst <$> n₀
+                              ,twinCompat=Const ()
+                              }
+  return (flip telePi_ __DUMMY_TYPE__ <$> tel, m', n')
 
 isSingletonRecordModuloRelevance_ :: (PureTCM m, MonadBlock m) => QName -> TwinT''' b f Args -> m Bool
 isSingletonRecordModuloRelevance_ q (SingleT ps) = onSide_ (isSingletonRecordModuloRelevance q) ps
