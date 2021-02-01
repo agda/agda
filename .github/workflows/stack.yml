@@ -74,25 +74,7 @@ jobs:
         stack-version: ${{ matrix.stack-ver }}
         enable-stack: true
 
-    - uses: actions/cache@v2
-      name: Cache dependencies (Unix-like)
-      id: cache-on-unix
-      if: ${{ runner.os == 'Linux' }}
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
-
-    - uses: actions/cache@v2
-      name: Cache dependencies (Windows)
-      id: cache-on-win64
-      if: ${{ runner.os == 'Windows' }}
-      with:
-        path: ${{ env.STACK_ROOT }}
-        key: ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
-
     - name: Update and configure stack package index
-      if: ${{ !steps.cache-on-unix.outputs.cache-hit && !steps.cache-on-win64.outputs.cache-hit }}
       run: |
         stack update --silent
         if [[ "$OSTYPE" == "linux-gnu"* || "$OSTYPE" == "darwin"* ]]; then
@@ -100,6 +82,25 @@ jobs:
         else
           echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
         fi
+        stack build ${ARGS} --dry-run
+
+    - uses: actions/cache@v2
+      name: Cache dependencies (Unix-like)
+      id: cache-on-unix
+      if: ${{ runner.os == 'Linux' }}
+      with:
+        path: "~/.stack"
+        # A unique cache is used for each stack.yaml.
+        key: |
+          ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
+    - uses: actions/cache@v2
+      name: Cache dependencies (Windows)
+      id: cache-on-win64
+      if: ${{ runner.os == 'Windows' }}
+      with:
+        path: ${{ env.STACK_ROOT }}
+        key: |
+          ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
 
     - name: Install the icu library (Ubuntu)
       if: ${{ runner.os == 'Linux' }}

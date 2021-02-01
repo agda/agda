@@ -79,26 +79,27 @@ jobs:
         stack-version: ${{ matrix.stack-ver }}
         enable-stack: true
 
+    - name: "Update and configure stack"
+      run: |
+        stack update --silent
+        echo "system-ghc: true" >> ~/.stack/config.yaml
+
+    - name: "Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml"
+      continue-on-error: true
+      run: |
+        cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
+        make STACK_INSTALL_OPTS='--dry-run' install-bin
+
     - uses: actions/cache@v2
       name: Cache dependencies
       id: cache
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', matrix.ghc-ver)) }}
+        key: ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
-
-    - name: "Update and configure stack"
-      if: ${{ !steps.cache.outputs.cache-hit }}
-      run: |
-        stack update --silent
-        echo "system-ghc: true" >> ~/.stack/config.yaml
-
-    - name: "Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml"
-      run: |
-        cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
 
     - name: "Install dependencies for Agda and its test suites"
       if: ${{ !steps.cache.outputs.cache-hit }}
@@ -145,13 +146,6 @@ jobs:
         stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
-    - uses: actions/cache@v2
-      name: Cache dependencies
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-${{ needs.build.outputs.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
-
     - uses: actions/download-artifact@v2
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -160,6 +154,14 @@ jobs:
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+
+    - uses: actions/cache@v2
+      name: Cache dependencies
+      id: cache
+      with:
+        path: "~/.stack"
+        # A unique cache is used for each stack.yaml.
+        key: ${{ runner.os }}-stack-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Suite of tests for bugs"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
@@ -194,16 +196,6 @@ jobs:
         stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
-    - uses: actions/cache@v2
-      name: Cache dependencies
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-${{ needs.build.outputs.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
-
-    - name: "Install and configure the icu library"
-      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
-
     - uses: actions/download-artifact@v2
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -212,6 +204,17 @@ jobs:
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+
+    - uses: actions/cache@v2
+      name: Cache dependencies
+      id: cache
+      with:
+        path: "~/.stack"
+        # A unique cache is used for each stack.yaml.
+        key: ${{ runner.os }}-stack-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+
+    - name: "Install and configure the icu library"
+      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
 
     - name: "Standard library test"
       run: |
@@ -244,13 +247,6 @@ jobs:
         stack-version: ${{ needs.build.outputs.stack-ver }}
         enable-stack: true
 
-    - uses: actions/cache@v2
-      name: Cache dependencies
-      with:
-        path: "~/.stack"
-        # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-${{ needs.build.outputs.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml', needs.build.outputs.ghc-ver)) }}
-
     - uses: actions/download-artifact@v2
       with:
         name: agda-${{ runner.os }}-${{ github.sha }}
@@ -259,6 +255,14 @@ jobs:
       run: |
         tar --use-compress-program zstd -xvf dist.tzst
         tar --use-compress-program zstd -xvf stack-work.tzst
+
+    - uses: actions/cache@v2
+      name: Cache dependencies
+      id: cache
+      with:
+        path: "~/.stack"
+        # A unique cache is used for each stack.yaml.
+        key: ${{ runner.os }}-stack-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
