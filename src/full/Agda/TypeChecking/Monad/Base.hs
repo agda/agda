@@ -2928,6 +2928,10 @@ instance TwinAt s a => TwinAt s (Name, a) where
   type TwinAt_ s (Name, a) = (Name, TwinAt_ s a)
   twinAt = fmap (twinAt @s)
 
+instance TwinAt s a => TwinAt s (ArgName, a) where
+  type TwinAt_ s (ArgName, a) = (ArgName, TwinAt_ s a)
+  twinAt = fmap (twinAt @s)
+
 instance TwinAt s a => TwinAt s (Dom a) where
   type TwinAt_ s (Dom a) = Dom (TwinAt_ s a)
   twinAt = fmap (twinAt @s)

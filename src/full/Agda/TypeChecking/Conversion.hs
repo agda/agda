@@ -2355,6 +2355,7 @@ mkTwinTele a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
   case n  == n' of
     False -> __IMPOSSIBLE__
     True  ->
+      -- TODO: Fix here so that the twinArg gets created in the right context
       telFromList' id <$>
         (forM (zip lhs rhs) $ \(dom1, dom2) ->
            mkTwinArgNameDom a{necessary=(necessary && n == 1),
@@ -2378,16 +2379,16 @@ mkTwinTelescope a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
     True  -> do
       twinPid' <- filterM (fmap not . isProblemSolved) twinPid
       telc <- telFromList' id <$>
-        (forM (zip lhs rhs) $ \(dom1, dom2) -> do
-            let dom0 :: Dom (ArgName, Type)
-                dom0 = selectSmaller direction (twinAt @'LHS dom1) (twinAt @'RHS dom2)
-            traverse (traverse (flip blockTypeOnProblems twinPid')) dom0)
-      return a{necessary=(necessary && n == 1)
-              ,twinPid=twinPid'
-              ,twinCompat= Het @'Compat $ telc
-              }
-
-
+        (let go [] = return []
+             go ((dom1, dom2):tels) = do
+                    domc <- mkTwinArgNameDom a{necessary=(necessary && n == 1),
+                                               twinLHS=dom1,
+                                               twinRHS=dom2,
+                                               twinCompat=Const ()
+                                              }
+                    ((twinAt @'Compat <$> domc):) <$> addContext domc (go tels)
+         in go (zip lhs rhs))
+      return a{twinPid=twinPid',twinCompat=Het @'Compat telc}
 
 -- ( <$> tel_)
 -- TODO[het] Might not need to return a twin type with compatibility
@@ -2414,7 +2415,7 @@ etaExpandRecordTwin q (TwinT{twinPid,direction,twinLHS,twinRHS}) m n = do
                               ,twinRHS=fst <$> n₀
                               ,twinCompat=Const ()
                               }
-  return (flip telePi_ __DUMMY_TYPE__ <$> tel, m', n')
+  return (twinDirty$ flip telePi_ __DUMMY_TYPE__ <$> tel, m', n')
 
 isSingletonRecordModuloRelevance_ :: (PureTCM m, MonadBlock m) => QName -> TwinT''' b f Args -> m Bool
 isSingletonRecordModuloRelevance_ q (SingleT ps) = onSide_ (isSingletonRecordModuloRelevance q) ps

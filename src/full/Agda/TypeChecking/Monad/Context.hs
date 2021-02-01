@@ -319,6 +319,10 @@ instance AddContext (Dom (Name, TwinT)) where
   addContext = addContext . distributeF
   contextSize _ = 1
 
+instance AddContext (Dom (ArgName, TwinT)) where
+  addContext = addContext . distributeF
+  contextSize _ = 1
+
 instance AddContext (Dom (String, Type)) where
   addContext = addContext . distributeF
   contextSize _ = 1
