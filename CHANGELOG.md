@@ -615,6 +615,13 @@ Compiler backends
   If a hole is reached at runtime, the compiled program crashes.
   See issue [#5103](https://github.com/agda/agda/issues/5103)
 
+- Previously the GHC backend compiled at least one instance of Hinze's
+  memoisation technique from ["Memo functions,
+  polytypically!"](http://www.cs.ox.ac.uk/ralf.hinze/publications/index.html#P11)
+  to reasonably efficient code. That is no longer the case (at least
+  for that particular instance, see
+  [#5153](https://github.com/agda/agda/issues/5153)).
+
 JS backend
 ----------
 
