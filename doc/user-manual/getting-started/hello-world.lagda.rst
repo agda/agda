@@ -13,12 +13,10 @@ Below is a complete 'hello world' program in Agda (defined in a file ``hello-wor
 
   module hello-world where
 
-  open import Data.Unit.Polymorphic
   open import IO
   open import Level
 
-  main : IO {0ℓ} ⊤
-  main = run (putStrLn "Hello, World!")
+  main = run {0ℓ} (putStrLn "Hello, World!")
 
 To compile the Agda file, either open it in Emacs and press ``C-c C-x
 C-c`` or run ``agda --compile hello-world.agda`` from the command
