@@ -683,7 +683,13 @@ loadDecodedModule file mi = do
   -- If any of the imports are newer we need to retype check
   badHashMessages <- fmap lefts $ forM (iImportedModules i) $ \(impName, impHash) -> runExceptT $ do
     reportSLn "import.iface" 30 $ concat ["Checking that module hash of import ", prettyShow impName, " matches ", prettyShow impHash ]
-    latestImpHash <- lift $ lift $ moduleHash impName
+    latestImpHash <- either throwError return =<< do
+                      lift $ lift $ (Right <$> moduleHash impName) `catchError` \ _ ->
+                                    -- Issue5161: Don't hard-fail here because we don't have the
+                                    -- location of the import at this point. Discarding the
+                                    -- interface here will force the error later when we do.
+                                    return $ Left $ concat ["imported module ", prettyShow impName,
+                                                            " has warnings preventing it from being imported"]
     reportSLn "import.iface" 30 $ concat ["Done checking module hash of import ", prettyShow impName]
     when (impHash /= latestImpHash) $
       throwError $ concat
