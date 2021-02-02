@@ -639,8 +639,11 @@ assignWrapper_ dir x es v doAssign = do
     nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
   where dontAssign = do
+          reportSDoc "tc.meta.assign" 20 $ do
+            "term" <+> prettyTCM (Het @'LHS$ MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
           reportSLn "tc.meta.assign" 10 "don't assign metas"
-          patternViolation alwaysUnblock  -- retry again when we are allowed to instantiate metas
+          blocker <- (unblockOnMeta x `unblockOnEither`) <$> (maybe alwaysUnblock id <$> isBlocked v)
+          patternViolation blocker    -- retry again when either the meta or the term can be reduced
 
 -- | Miller pattern unification:
 --

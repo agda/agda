@@ -78,6 +78,10 @@ runPureConversion (PureConversionT m) = locallyTC eCompareBlocked (const True) $
   result <- fst <$> runStateT (runExceptT m) frsh
   reportSLn "tc.conv.pure" 40 $ "runPureConversion result: " ++ show result
   case result of
+    -- Víctor, 2021-02-02
+    -- Sometimes (arguably wrongly) `patternErr AlwaysUnblock`
+    -- will be returned in the event of an unsuccessful conversion
+    Left (PatternErr AlwaysUnblock)  -> return neverUnblock
     Left (PatternErr block)  -> return block
     Left TypeError{}   -> return neverUnblock
     Left Exception{}   -> __IMPOSSIBLE__
