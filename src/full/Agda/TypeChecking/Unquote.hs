@@ -169,9 +169,19 @@ pickName a =
   case a of
     R.Pi{}   -> "f"
     R.Sort{} -> "A"
-    R.Def d _ | c:_ <- prettyShow (qnameName d),
-              isAlpha c -> [toLower c]
+    R.Def d _
+      | c : cs  <- prettyShow (qnameName d),
+        Just lc <- reallyToLower c,
+        not (null cs) || isUpper c -> [lc]
     _        -> "_"
+  where
+    -- Heuristic (see #5048 for some discussion):
+    -- If first character can be `toLower`ed use that, unless the name has only one character and is
+    -- already lower case. (to avoid using the same name for the type and the bound variable).
+    reallyToLower c
+      | toUpper lc /= lc = Just lc
+      | otherwise        = Nothing
+      where lc = toLower c
 
 -- TODO: reflect Quantity, Cohesion
 instance Unquote Modality where
