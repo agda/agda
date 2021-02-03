@@ -435,7 +435,7 @@ instance Reify Constraint where
                   bs = mkTBind noRange (fmap mkN xs) domType
                   e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
-            CheckArgs _ _ args t0 t1 _ -> do
+            CheckArgs _ _ _ args t0 t1 _ -> do
               t0 <- reify t0
               t1 <- reify t1
               return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
