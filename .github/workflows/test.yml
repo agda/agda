@@ -85,10 +85,9 @@ jobs:
         echo "system-ghc: true" >> ~/.stack/config.yaml
 
     - name: "Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml"
-      continue-on-error: true
       run: |
         cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
-        make STACK_INSTALL_OPTS='--dry-run' install-bin
+        make STACK_INSTALL_OPTS='--dry-run' install-deps
 
     - uses: actions/cache@v2
       name: Cache dependencies
