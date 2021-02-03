@@ -1,0 +1,3 @@
+Issue5029.agda:1,1-45
+Warnings for non-fatal errors such as TerminationIssue cannot be
+turned off. See --help=warning.

@@ -779,8 +779,8 @@ verboseFlag s o =
 
 warningModeFlag :: String -> Flag PragmaOptions
 warningModeFlag s o = case warningModeUpdate s of
-  Just upd -> return $ o { optWarningMode = upd (optWarningMode o) }
-  Nothing  -> throwError $ "unknown warning flag " ++ s ++ ". See --help=warning."
+  Right upd -> return $ o { optWarningMode = upd (optWarningMode o) }
+  Left err  -> throwError $ prettyWarningModeError err ++ " See --help=warning."
 
 terminationDepthFlag :: String -> Flag PragmaOptions
 terminationDepthFlag s o =

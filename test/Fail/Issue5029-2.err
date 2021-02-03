@@ -1,0 +1,3 @@
+Issue5029-2.agda:1,1-51
+Warnings for non-fatal errors such as SafeFlagNoCoverageCheck
+cannot be turned off. See --help=warning.
