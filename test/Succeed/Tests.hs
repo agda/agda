@@ -120,6 +120,11 @@ printTestResult = \case
   TestWrongDotOutput t      -> "AGDA_WRONG_DOT_OUTPUT\n\n" <> t
 
 -- List of test cases that do not pass the --double-check yet
+-- NOTE
+--  Why are a lot of the sized types tests not working with --double-check? The reason can be found
+--  in Agda.TypeChecking.MetaVars.blockTermOnProblem, which does not block a term on unsolved size
+--  constraints (introduced by @andreasabel in 3be79cc7fd). This might be safe to do, but it will
+--  not be accepted by a double check.
 noDoubleCheckTests :: [String]
 noDoubleCheckTests =
   [ "Cumulativity"
@@ -161,6 +166,7 @@ noDoubleCheckTests =
   , "Issue2554-size-mutual"
   , "Issue2554-size-plus2"
   , "Issue2558"
+  , "Issue2752"
   , "Issue2917"
   , "Issue298"
   , "Issue298b"

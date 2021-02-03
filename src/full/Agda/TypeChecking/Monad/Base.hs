@@ -1281,6 +1281,7 @@ data MetaInstantiation
 --   it did, it returns a handle to any unsolved constraints.
 data CheckedTarget = CheckedTarget (Maybe ProblemId)
                    | NotCheckedTarget
+  deriving (Show)
 
 data PrincipalArgTypeMetas = PrincipalArgTypeMetas
   { patmMetas     :: Args -- ^ metas created for hidden and instance arguments
