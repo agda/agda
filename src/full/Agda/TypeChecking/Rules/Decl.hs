@@ -908,7 +908,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
       , nest 2 $ "eta  =" <+> escapeContext __IMPOSSIBLE__ (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
-    ts <- noConstraints (checkArguments_ DontExpandLast (getRange i) args tel') >>= \case
+    ts <- noConstraints (checkArguments_ CmpEq DontExpandLast (getRange i) args tel') >>= \case
       (ts', etaTel') | (size etaTel == size etaTel')
                      , Just ts <- allApplyElims ts' -> return ts
       _ -> __IMPOSSIBLE__

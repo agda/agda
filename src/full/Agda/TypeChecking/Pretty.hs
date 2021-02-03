@@ -298,7 +298,7 @@ instance PrettyTCM CompareAs where
 instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckExpr cmp e a) =
     sep [ prettyA e <+> ":?", prettyTCM a ]
-  prettyTCM (CheckArgs _ _ es t0 t1 _) =
+  prettyTCM (CheckArgs _ _ _ es t0 t1 _) =
     sep [ parens $ "_ :" <+> prettyTCM t0
         , nest 2 $ prettyList $ map prettyA es
         , nest 2 $ ":?" <+> prettyTCM t1 ]

@@ -301,7 +301,7 @@ solveConstraint_ (UsableAtModality mod t) = usableAtModality mod t
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem = \case
   CheckExpr cmp e t              -> checkExpr' cmp e t
-  CheckArgs eh r args t0 t1 k    -> checkArguments eh r args t0 t1 k
+  CheckArgs cmp eh r args t0 t1 k -> checkArguments cmp eh r args t0 t1 k
   CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt patm ->
     checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt patm
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target

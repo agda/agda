@@ -9,10 +9,10 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
 
-checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+checkArguments :: Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   (ArgsCheckState CheckedTarget -> TCM Term) -> TCM Term
 
-checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope ->
+checkArguments_ :: Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope ->
                    TCM (Elims, Telescope)
 
 checkApplication :: Comparison -> A.Expr -> A.Args -> A.Expr -> Type -> TCM Term

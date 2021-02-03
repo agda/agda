@@ -994,7 +994,7 @@ checkRecordExpression cmp mfs e t = do
       -- are still left out and inserted later by checkArguments_.
       es <- insertMissingFieldsWarn r meta fs cxs
 
-      args <- checkArguments_ ExpandLast re es (recTel def `apply` vs) >>= \case
+      args <- checkArguments_ cmp ExpandLast re es (recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
                               , Just args <- allApplyElims elims -> return args
         _ -> __IMPOSSIBLE__
