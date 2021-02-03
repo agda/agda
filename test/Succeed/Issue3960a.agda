@@ -46,5 +46,6 @@ module _ (r : ∀ ℓ → R ℓ) where
     [subst≡]≡[trans≡trans] {p = refl x} {q = q} {r = r} ≡
     easy
   [subst≡]≡[trans≡trans]-refl {q = q} {r = r} =
-    cong (λ f → f {q = q} {r = r})
-      (elim-refl (λ {x y} _ → {q : x ≡ x} {r : y ≡ y} → _) _)
+    cong {A = {q : _ ≡ _} {r : _ ≡ _} → _}
+         (λ f → f {q = q} {r = r})
+         (elim-refl _ _)

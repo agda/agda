@@ -650,37 +650,30 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
             (NotCheckedTarget, Just t1) | all visible args0 -> do
               let n = length args0
               TelV tel tgt <- telViewUpTo n t0'
-              let dep = any (< n) $ IntSet.toList $ freeVars tgt
-                  vis = all visible (telToList tel)
-                  isRigid t | PathType{} <- viewPath t = return False -- Path is not rigid!
-                  isRigid (El _ (Pi dom _)) = return $ visible dom
-                  isRigid (El _ (Def d _))  = theDef <$> getConstInfo d >>= return . \ case
-                    Axiom{}                   -> True
-                    DataOrRecSig{}            -> True
-                    AbstractDefn{}            -> True
-                    Function{funClauses = cs} -> null cs
-                    Datatype{}                -> True
-                    Record{}                  -> True
-                    Constructor{}             -> __IMPOSSIBLE__
-                    GeneralizableVar{}        -> __IMPOSSIBLE__
-                    Primitive{}               -> False
-                    PrimitiveSort{}           -> False
-                  isRigid _           = return False
-              rigid <- isRigid tgt
+              tgt' <- addContext tel $ reduce tgt
+              let dep     = any (< n) $ IntSet.toList $ freeVars tgt
+                  vis     = all visible (telToList tel)
+                  overapp = size tel < n
+                  badty t | PathType{} <- viewPath t = True
+                          | Pi a _ <- unEl t         = not $ visible a
+                          | otherwise                = False
               -- Andreas, 2019-03-28, issue #3248:
               -- If the target type is SIZELT, we need coerce, leqType is insufficient.
               -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
               isSizeLt <- reduce t1 >>= isSizeType <&> \case
                 Just (BoundedLt _) -> True
                 _ -> False
-              if | dep       -> return chk    -- must be non-dependent
-                 | not rigid -> return chk    -- with a rigid target
-                 | not vis   -> return chk    -- and only visible arguments
-                 | isSizeLt  -> return chk    -- Issue #3248, not Size<
-                 | otherwise -> do
+              if | dep        -> return chk    -- must be non-dependent
+                 | badty tgt' -> return chk    -- with a non-Path or implicit pi target
+                 | badty t1   -> return chk    -- incoming type must also be good
+                 | not vis    -> return chk    -- only visible arguments
+                 | overapp    -> return chk    -- and not overapplied
+                 | isSizeLt   -> return chk    -- Issue #3248, not Size<
+                 | otherwise  -> do
                   let tgt1 = applySubst (strengthenS __IMPOSSIBLE__ $ size tel) tgt
                   reportSDoc "tc.term.args.target" 30 $ vcat
                     [ "Checking target types first"
+                    , nest 2 $ "tel      =" <+> prettyTCM tel
                     , nest 2 $ "inferred =" <+> prettyTCM tgt1
                     , nest 2 $ "expected =" <+> prettyTCM t1 ]
                   traceCall (CheckTargetType (fuseRange r args0) tgt1 t1) $
