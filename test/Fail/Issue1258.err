@@ -1,6 +1,8 @@
 Failed to solve the following constraints:
-  Foo _15 = Bool : Set (blocked on _15)
   Bool =< Foo _15 (blocked on _15)
+  Foo _15 = Bool : Set (blocked on _15, belongs to problem 33)
+  Alpha = false : Foo _15 ‡[33](= Foo Alpha =) Bool
+    (blocked on any(_15, _17, problem 33))
 Unsolved metas at the following locations:
   Issue1258.agda:20,9-10
   Issue1258.agda:21,8-13
