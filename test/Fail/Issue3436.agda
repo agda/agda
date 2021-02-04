@@ -1,4 +1,4 @@
-{-# OPTIONS -WnoMissingDefinitions #-}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 postulate
   A : Set
@@ -7,7 +7,7 @@ postulate
 variable
   a : A
 
-data D : B a → Set
+D : B a → Set _
 
 -- Expected: Warning about missing definition
 -- Not expected: Complaint about generalizable variable
