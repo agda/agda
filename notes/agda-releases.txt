@@ -154,11 +154,13 @@ When releasing the following procedure can be followed:
   ** You need Admin permissions on the Agda readthedocs.org project
      (current admins: asr, andreasabel, phile314)
 
-  ** Go to readthedocs.org -> Agda Project -> Admin -> Versions
+  ** Go to readthedocs.org -> Agda Project -> Versions
 
-  ** Mark $MAJORVERSION as active
+     and mark $MAJORVERSION as active
 
-  ** Set the default documentation version to $MAJORVERSION
+  ** Go to readthedocs.org -> Agda Project -> Admin -> Advanced Settings
+
+     and set the default documentation version to $MAJORVERSION
 
   ** If a release candidate was released then remove the associated
      documentation.

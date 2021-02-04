@@ -12,6 +12,8 @@ module Agda.Interaction.Options.Warnings
        , incompleteMatchWarnings
        , errorWarnings
        , defaultWarningMode
+       , WarningModeError(..)
+       , prettyWarningModeError
        , warningModeUpdate
        , warningSets
        , WarningName (..)
@@ -22,7 +24,7 @@ module Agda.Interaction.Options.Warnings
 where
 
 import Control.Arrow ( (&&&) )
-import Control.Monad ( guard )
+import Control.Monad ( guard, when )
 
 import Text.Read ( readMaybe )
 import Data.Set (Set)
@@ -58,19 +60,37 @@ defaultWarningMode :: WarningMode
 defaultWarningMode = WarningMode ws False where
   ws = fst $ fromMaybe __IMPOSSIBLE__ $ lookup defaultWarningSet warningSets
 
+-- | Some warnings are errors and cannot be turned off.
+data WarningModeError = Unknown String | NoNoError String
+
+prettyWarningModeError :: WarningModeError -> String
+prettyWarningModeError = \case
+  Unknown str -> concat [ "Unknown warning flag: ", str, "." ]
+  NoNoError str -> concat [ "Warnings for non-fatal errors such as "
+                          , str
+                          ," cannot be turned off." ]
+
+-- | From user-given directives we compute WarningMode updates
+type WarningModeUpdate = WarningMode -> WarningMode
+
 -- | @warningModeUpdate str@ computes the action of @str@ over the current
 -- @WarningMode@: it may reset the set of warnings, add or remove a specific
 -- flag or demand that any warning be turned into an error
 
-warningModeUpdate :: String -> Maybe (WarningMode -> WarningMode)
+warningModeUpdate :: String -> Either WarningModeError WarningModeUpdate
 warningModeUpdate str = case str of
-  "error"   -> Just $ set warn2Error True
-  "noerror" -> Just $ set warn2Error False
+  "error"   -> pure $ set warn2Error True
+  "noerror" -> pure $ set warn2Error False
   _ | Just ws <- fst <$> lookup str warningSets
-            -> Just $ set warningSet ws
+            -> pure $ set warningSet ws
   _ -> case stripPrefix "no" str of
-    Just str' -> (over warningSet . Set.delete) <$> string2WarningName str'
-    Nothing   -> (over warningSet . Set.insert) <$> string2WarningName str
+    Nothing   -> do
+      wname <- maybe (Left (Unknown str)) Right (string2WarningName str)
+      pure (over warningSet $ Set.insert wname)
+    Just str' -> do
+      wname <- maybe (Left (Unknown str')) Right (string2WarningName str')
+      when (wname `elem` errorWarnings) (Left (NoNoError str'))
+      pure (over warningSet $ Set.delete wname)
 
 -- | Common sets of warnings
 
@@ -265,7 +285,7 @@ usageWarning = intercalate "\n"
     \ one of the following:"
   , ""
   , untable (fmap (fst &&& snd . snd) warningSets)
-  , "Individual warnings can be turned on and off by -W Name and\
+  , "Individual benign warnings can be turned on and off by -W Name and\
     \ -W noName, respectively, where Name comes from the following\
     \ list (warnings marked with 'd' are turned on by default, and 'b'\
     \ stands for \"benign warning\"):"
