@@ -358,12 +358,12 @@ compareTerm' cmp a m n =
        case ty of
          Def q es | Just q == mIsOne -> return ()
          Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
-              ty <- el' (pure $ unArg l) (pure $ unArg a)
+              aty <- el' (pure $ unArg l) (pure $ unArg a)
               unglue <- prim_unglue
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
-              reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
-              compareTermOnFace cmp (unArg phi) ty m n
-              compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+              reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
+              compareTermOnFace cmp (unArg phi) a' m n
+              compareTerm cmp aty (mkUnglue m) (mkUnglue n)
          Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
                   , Sort (Type lvl) <- unArg s
                   , Just unglueU <- mUnglueU, Just subIn <- mSubIn
@@ -1999,6 +1999,9 @@ compareTermOnFace = compareTermOnFace' compareTerm
 
 compareTermOnFace' :: MonadConversion m => (Comparison -> Type -> Term -> Term -> m ()) -> Comparison -> Term -> Type -> Term -> Term -> m ()
 compareTermOnFace' k cmp phi ty u v = do
+  reportSDoc "tc.conv.face" 40 $
+    text "compareTermOnFace:" <+> pretty phi <+> "|-" <+> pretty u <+> "==" <+> pretty v <+> ":" <+> pretty ty
+
   phi <- reduce phi
   _ <- forallFaceMaps phi postponed
          $ \ alpha -> k cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
