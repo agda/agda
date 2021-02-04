@@ -1,0 +1,7 @@
+AGDA_UNEXPECTED_FAIL
+
+ret > ExitFailure 42
+out > Issue3436.agda:10,1-2
+out > The following names are declared but not accompanied by a
+out > definition: D
+out >
