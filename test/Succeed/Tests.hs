@@ -13,6 +13,7 @@ import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
   (readFileMaybe, goldenTestIO1, GDiff (..), GShow (..))
+import Test.Tasty.Silver.Filter   ( RegexFilter(RFInclude) )
 
 import System.Directory
 import System.Exit
@@ -43,6 +44,13 @@ data TestResult
   | TestSuccessWithWarnings T.Text -- the cleaned stdout
   | TestUnexpectedFail ProgramResult
   | TestWrongDotOutput T.Text
+
+disabledTests :: [RegexFilter]
+disabledTests =
+  [-- disable "Succeed/Issue2054"
+  -- ,disable "Succeed/Issue4944"
+  ]
+  where disable = RFInclude
 
 mkSucceedTest
   :: AgdaArgs -- ^ Extra options to Agda.

@@ -55,6 +55,8 @@ tests = do
 disabledTests :: [RegexFilter]
 disabledTests = concat
   [ COMP.disabledTests
+  , SUCCEED.disabledTests
+  , FAIL.disabledTests
   , LIBSUCCEED.disabledTests
   , LATEXHTML.disabledTests
   ]
