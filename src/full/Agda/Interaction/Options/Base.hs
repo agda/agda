@@ -803,6 +803,9 @@ noImportSorts o = return $ o { optImportSorts = False }
 allowExec :: Flag PragmaOptions
 allowExec o = return $ o { optAllowExec = True }
 
+noHeterogeneousConversionFlag :: Flag PragmaOptions
+noHeterogeneousConversionFlag o = return $ o { optHeterogeneousUnification = False }
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
   where
@@ -1022,6 +1025,8 @@ pragmaOptions =
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
     , Option []     ["allow-exec"] (NoArg allowExec)
                     "allow system calls to trusted executables with primExec"
+    , Option []     ["no-heterogeneous-conversion"] (NoArg noHeterogeneousConversionFlag)
+                    "check for heterogeneous unification"
     ]
 
 -- | Pragma options of previous versions of Agda.
