@@ -2414,7 +2414,7 @@ etaExpandRecordTwin q (TwinT{twinPid,direction,twinLHS,twinRHS}) m n = do
   let m'  = snd <$> m₀
   let n'  = snd <$> n₀
   tel <- mkTwinTelescope TwinT{necessary=False
-                              ,direction
+                              ,direction=flipCmp direction
                               ,twinPid
                               ,twinLHS=fst <$> m₀
                               ,twinRHS=fst <$> n₀
