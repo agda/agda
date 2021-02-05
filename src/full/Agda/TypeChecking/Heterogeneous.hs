@@ -347,15 +347,22 @@ instance IsTwinSolved (AttemptConversion TwinT) where
   blockOnTwin (AttemptConversion t) = do
     blockOnTwin t >>= \case
       AlwaysUnblock -> return AlwaysUnblock
-      bs -> strive (EffortLevel (NatExt 10)) >>= \case
-        Doable        -> case t of
-                           TwinT{direction,twinLHS,twinRHS} ->
-                             (`unblockOnEither` bs) <$>
-                               runPureConversion (compareTypeDir_ direction twinLHS twinRHS)
-                           _ -> __IMPOSSIBLE__
+      bs -> striveWithEffort 10 (return . unblockOnEither bs) $
+              case t of
+                TwinT{direction,twinLHS,twinRHS} ->
+                  (`unblockOnEither` bs) <$>
+                  runPureConversion (compareTypeDir_ direction twinLHS twinRHS)
+                _ -> __IMPOSSIBLE__
+
+
+striveWithEffort :: (MonadDebug m, MonadTCEnv m) =>
+  Nat -> (Blocker -> m a) -> m a -> m a
+striveWithEffort n postpone doIt =
+  strive (EffortLevel (NatExt n)) >>= \case
+        Doable        -> doIt
         ExtraEffort e -> do
           reportSLn "tc.constr.effort" 20 $ "Extra " <> prettyShow e <> " required; postponing"
-          return (unblockOnEither bs (unblockOnEffort e))
+          postpone (unblockOnEffort e)
 
 type SimplifyHet a = (IsTwinSolved a)
 
