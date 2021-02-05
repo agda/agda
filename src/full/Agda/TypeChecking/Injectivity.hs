@@ -1,3 +1,5 @@
+{-# LANGUAGE ViewPatterns #-}
+
 {- |
 
 "Injectivity", or more precisely, "constructor headedness", is a
@@ -285,19 +287,24 @@ functionInverse = \case
 data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
 
+instance PrettyTCM InvView where
+  prettyTCM Inv{} = "invertible"
+  prettyTCM NoInv = "not invertible"
+
 -- TODO: Switch to proper implementation instead of downgrading
 useInjectivity_ :: forall s₁ s₂ m. (MonadConversion m, AreSides s₁ s₂) =>
                    CompareDirection -> Blocker -> CompareAsHet -> Het s₁ Term -> Het s₂ Term -> m ()
 useInjectivity_ dir bs a u v = go sing sing u v
   where
     go :: SingT s₁ -> SingT s₂ -> Het s₁ Term -> Het s₂ Term -> m ()
-    go SLHS SRHS (H'LHS u) (H'RHS v) = useInjectivity dir bs (twinAt @'Compat a) u v
-    go SRHS SLHS (H'RHS v) (H'LHS u) = flipContext $ useInjectivity dir bs (twinAt @'Compat$ flipHet a) v u
+    go SLHS SRHS u v = useInjectivity_' dir bs a u v
+    go SRHS SLHS v u = flipContext $ useInjectivity_' dir bs (flipHet a) (flipHet v) (flipHet u)
 
 -- | Precondition: The first term must be blocked on the given meta and the second must be neutral.
-useInjectivity :: MonadConversion m => CompareDirection -> Blocker -> CompareAs -> Term -> Term -> m ()
-useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
-  inv <- functionInverse blk
+useInjectivity_' :: MonadConversion m => CompareDirection -> Blocker -> CompareAs_ -> Het 'LHS Term -> Het 'RHS Term -> m ()
+useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
+  inv <- onSide_ @'LHS functionInverse blk
+  reportSDoc "tc.inj.use" 40 $ prettyTCM inv
   -- Injectivity might cause non-termination for unsatisfiable constraints
   -- (#431, #3067). Look at the number of active problems and the injectivity
   -- depth to detect this.
@@ -307,59 +314,58 @@ useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
   maxDepth  <- maxInversionDepth
   case inv of
     NoInv            -> fallback  -- not invertible
-    Inv f blkArgs hdMap
+    Inv f (H'LHS -> blkArgs) hdMap
       | depth > maxDepth -> warning (InversionDepthReached f) >> fallback
       | otherwise -> do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++
-        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, prettyTCM ty]
+        [ prettyTCM blk, prettyTCM dir, prettyTCM neu, prettyTCM ty]
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
       case neu of
         -- f us == f vs  <=>  us == vs
         -- Crucially, this relies on `f vs` being neutral and only works
         -- if `f` is not a possible head for `f us`.
-        Def f' neuArgs | f == f', not canReduceToSelf -> do
+        H'RHS (Def f' (H'RHS -> neuArgs)) | f == f', not canReduceToSelf -> do
           fTy <- defType <$> getConstInfo f
           reportSDoc "tc.inj.use" 20 $ vcat
             [ fsep (pwords "comparing application of injective function" ++ [prettyTCM f] ++
                   pwords "at")
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM blkArgs
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM neuArgs
+            , nest 2 $ fsep $ punctuate comma $ map prettyTCM $ commute blkArgs
+            , nest 2 $ fsep $ punctuate comma $ map prettyTCM $ commute neuArgs
             , nest 2 $ "and type" <+> prettyTCM fTy
             ]
-          fs  <- getForcedArgs f
-          pol <- getPolarity' cmp f
-          reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful spine comparison of", prettyTCM f]
-          app (compareElims pol fs fTy (Def f [])) blkArgs neuArgs
+          dirToCmp_ (\cmp () args₁ args₂ -> do
+            fs  <- getForcedArgs f
+            pol <- getPolarity' cmp f
+            reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful spine comparison of", prettyTCM f]
+            compareElims_ pol fs (asTwin $ fTy) (asTwin $ Def f []) args₁ args₂) dir () blkArgs neuArgs
 
         -- f us == c vs
         --    Find the clause unique clause `f ps` with head `c` and unify
         --    us == ps  with fresh metas for the pattern variables of ps.
         --    If there's no such clause we can safely throw an error.
-        _ -> headSymbol' neu >>= \ case
+        _ -> commute <$> (traverse headSymbol' neu) >>= \ case
           Nothing -> do
             reportSDoc "tc.inj.use" 20 $ fsep $
               pwords "no head symbol found for" ++ [prettyTCM neu] ++ pwords ", so not inverting"
             fallback
-          Just (ConsHead f') | f == f', canReduceToSelf -> do
+          Just (H'RHS (ConsHead f')) | f == f', canReduceToSelf -> do
             reportSDoc "tc.inj.use" 20 $ fsep $
               pwords "head symbol" ++ [prettyTCM f'] ++ pwords "can reduce to self, so not inverting"
             fallback
                                     -- We can't invert in this case, since we can't
                                     -- tell the difference between a solution that makes
                                     -- the blocked term neutral and one that makes progress.
-          Just hd -> invertFunction cmp blk inv hd fallback err success
-            where err = typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
+          Just hd ->
+              let err = dirToCmp_ (\cmp ty u v -> typeError $ UnequalTerms_ cmp u v ty) dir ty blk neu in
+              invertFunction cmp (unHet @'LHS blk) inv (unHet @'RHS hd) fallback err success
   where
-    fallback     = addConstraint blocker $ app (ValueCmp cmp ty) blk neu
-    success blk' = app (compareAs cmp ty) blk' neu
-
-    cmpApp :: (Comparison, (a -> a -> b) -> a -> a -> b)
-    cmpApp = case dir of
-      DirEq -> (CmpEq, id)
-      DirLeq -> (CmpLeq, id)
-      DirGeq -> (CmpLeq, flip)
-    (cmp, app) = cmpApp
+    fallback     = valueCmpDir_ (addConstraint blocker) dir ty blk neu
+    success blk' = compareAsDir_ dir ty (H'LHS blk') neu
+    cmp = case dir of
+      DirEq  -> CmpEq
+      DirLeq -> CmpLeq
+      DirGeq -> CmpLeq
 
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.

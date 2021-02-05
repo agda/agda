@@ -25,6 +25,7 @@ type MonadConversion m =
 compareTerm  :: MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareAs    :: MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
 compareAs_   :: MonadConversion m => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAsDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareTypeDir_ :: (MonadConversion m, AreSides s₁ s₂)
                 => CompareDirection -> Het s₁ Type -> Het s₂ Type -> m ()
 compareTermOnFace :: MonadConversion m => Comparison -> Term -> Type -> Term -> Term -> m ()
@@ -54,3 +55,11 @@ type TypeViewM m = (MonadMetaSolver m, MonadFresh Agda.Syntax.Common.Nat m)
 
 typeView :: forall m. TypeViewM m => TwinT' Term -> m (TypeView_)
 mkTwinTele :: TypeViewM m => TwinT'_ Telescope -> m Telescope_
+
+valueCmpDir_ :: (MonadConversion m, AreSides s₁ s₂) =>
+                  (Constraint -> m a) ->
+                    CompareDirection -> CompareAsHet -> Het s₁ Term -> Het s₂ Term ->
+                      m a
+
+compareAsDir_ :: (MonadConversion m, AreSides s₁ s₂)
+                  => CompareDirection -> CompareAsHet -> Het s₁ Term -> Het s₂ Term -> m ()

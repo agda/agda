@@ -12,6 +12,7 @@ import Control.Monad (filterM)
 import Data.Coerce
 import Data.Data (Data, Typeable)
 import Data.Bifunctor (bimap)
+import qualified Data.Kind as K
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
@@ -19,6 +20,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Common (Nat, Arg)
 import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..), nameRoot, nameToRawName)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Generic (TermLike(..))
@@ -413,4 +415,50 @@ simplifyHet b κ = do
 -- | Remove unnecessary twins from the context
 -- simplifyContextHet :: SimplifyHetM m => m a -> m a
 -- simplifyContextHet m = simplifyHet () (\() -> m)
+
+------------------------------------------------------------------
+-- Distributing instances
+------------------------------------------------------------------
+
+class Commute f g where
+  commute  :: f (g a) -> (g (f a))
+
+class CommuteM f g where
+  type CommuteMonad f g (m :: K.Type -> K.Type) :: K.Constraint
+  commuteM  :: (CommuteMonad f g m) => f (g a) -> m (g (f a))
+
+instance Commute (Het s) Abs where
+  commute :: Het s (Abs a) -> Abs (Het s a)
+  commute = Data.Coerce.coerce
+
+instance Commute (Het s) Elim' where
+  commute :: Het s (Elim' a) -> Elim' (Het s a)
+  commute = Data.Coerce.coerce
+
+instance Commute Elim' (Het s) where
+  commute = Data.Coerce.coerce
+
+instance Commute (Het s) [] where
+  commute :: Het s [a] -> [Het s a]
+  commute = Data.Coerce.coerce
+
+instance Commute [] (Het s) where
+  commute = Data.Coerce.coerce
+
+instance Commute (Het s) Maybe where
+  commute = Data.Coerce.coerce
+
+instance Commute Maybe (Het s) where
+  commute = Data.Coerce.coerce
+
+instance Commute (Het s) ((,) a) where
+  commute :: Het s (a,b) -> (a, Het s b)
+  commute = Data.Coerce.coerce
+
+instance Commute (Het s) Arg where commute = Data.Coerce.coerce
+instance Commute Arg (Het s) where commute = Data.Coerce.coerce
+
+instance Functor f => Commute Abs (TwinT''' b f) where
+  commute (Abs name x)   = Abs name <$> x
+  commute (NoAbs name x) = NoAbs name <$> x
 
