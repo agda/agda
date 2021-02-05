@@ -16,7 +16,6 @@ import Data.Function
 import Data.Maybe (isJust)
 import Data.Semigroup ((<>))
 import qualified Data.Coerce
-import qualified Data.Kind as K
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -278,6 +277,16 @@ compareAsDir_ :: (MonadConversion m, AreSides s₁ s₂)
                   => CompareDirection -> CompareAsHet -> Het s₁ Term -> Het s₂ Term -> m ()
 -- compareAsDir_ :: MonadConversion m => CompareDirection -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
 compareAsDir_ = dirToCmp_ compareAs'_
+
+valueCmpDir_ :: (MonadConversion m, AreSides s₁ s₂) =>
+                  (Constraint -> m a) ->
+                    CompareDirection -> CompareAsHet -> Het s₁ Term -> Het s₂ Term ->
+                      m a
+valueCmpDir_ κ = dirToCmp_ (\cmp ty u v -> κ (ValueCmp_ cmp ty u v))
+
+compareTypeDir_ :: (MonadConversion m, AreSides s₁ s₂)
+                  => CompareDirection -> Het s₁ Type -> Het s₂ Type -> m ()
+compareTypeDir_ dir = dirToCmp_ (\cmp () -> compareType_ cmp) dir ()
 
 compareAsDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAsDir dir a = dirToCmp (`compareAs'` a) dir
@@ -2326,28 +2335,6 @@ _ `isEqualTo` Nothing = False
 SingleT (H'Both t) `isEqualTo` Just a = unEl t == a
 TwinT{twinLHS=H'LHS lhs,twinRHS=H'RHS rhs} `isEqualTo` Just a =
   unEl lhs == a && unEl rhs == a
-
-class Commute f g where
-  commute  :: f (g a) -> (g (f a))
-
-class CommuteM f g where
-  type CommuteMonad f g (m :: K.Type -> K.Type) :: K.Constraint
-  commuteM  :: (CommuteMonad f g m) => f (g a) -> m (g (f a))
-
-instance Commute (Het s) Abs where
-  commute :: Het s (Abs a) -> Abs (Het s a)
-  commute = Data.Coerce.coerce
-
-instance Commute (Het s) [] where
-  commute :: Het s [a] -> [Het s a]
-  commute = Data.Coerce.coerce
-
-instance Commute (Het s) ((,) a) where
-  commute :: Het s (a,b) -> (a, Het s b)
-  commute = Data.Coerce.coerce
-
-
-
 
 -- instance CommuteM TwinT' (Dom' t) where
 --   type CommuteMonad TwinT' (Dom' t) m = (Applicative m)
