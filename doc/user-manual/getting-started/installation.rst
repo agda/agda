@@ -23,38 +23,23 @@ Agda can be installed using different flags (see :ref:`installation-flags`).
 Installation from Hackage
 =========================
 
-You can install the latest released version of Agda from `Hackage
-<https://hackage.haskell.org/package/Agda>`_. Install the
-:ref:`prerequisites <prerequisites>` and then run the following
-commands:
+After installing the :ref:`prerequisites <prerequisites>` you can
+install the latest released version of Agda from `Hackage
+<https://hackage.haskell.org/package/Agda>`_.
+
+Installing the ``agda`` and the ``agda-mode`` programs
+------------------------------------------------------
+
+Using ``cabal``
+^^^^^^^^^^^^^^^
+
+For installing the ``agda`` and the ``agda-mode`` programs using
+``cabal`` run the following commands:
 
 .. code-block:: bash
 
   cabal update
   cabal install Agda
-  agda-mode setup
-
-The last command tries to set up Emacs for use with Agda via the
-:ref:`Emacs mode <emacs-mode>`. As an alternative you can copy the
-following text to your *.emacs* file:
-
-.. code-block:: emacs
-
-  (load-file (let ((coding-system-for-read 'utf-8))
-                  (shell-command-to-string "agda-mode locate")))
-
-It is also possible (but not necessary) to compile the Emacs mode's
-files:
-
-.. code-block:: bash
-
-  agda-mode compile
-
-This can, in some cases, give a noticeable speedup.
-
-**Warning**: If you reinstall the Agda mode without recompiling the
-Emacs Lisp files, then Emacs may continue using the old, compiled
-files.
 
 If you use `Nix-style Local Builds
 <https://www.haskell.org/cabal/users-guide/nix-local-build-overview.html>`_,
@@ -100,6 +85,54 @@ You then have to set the ``GHC_ENVIRONMENT`` when you invoke Agda:
   Actually it is not necessary to register the Agda library,
   but doing so forces Cabal to install the same version of `ieee754
   <http://hackage.haskell.org/package/ieee754>`_ as used by Agda.
+
+Using ``stack``
+^^^^^^^^^^^^^^^
+
+For installing the ``agda`` and the ``agda-mode`` programs using
+``stack`` run the following commands:
+
+.. code-block:: bash
+
+  cabal get Agda-X.Y.Z
+  cd Agda-X.Y.Z
+  stack --stack-yaml stack-a.b.c.yaml install
+
+replacing `X.Y.Z` and `a.b.c` for the Agda version on Hackage and your
+GHC version, respectively.
+
+Running the ``agda-mode`` program
+---------------------------------
+
+After installing the ``agda-mode`` program using ``cabal`` or
+``stack`` run the following command:
+
+.. code-block:: bash
+
+  agda-mode setup
+
+The above command tries to set up Emacs for use with Agda via the
+:ref:`Emacs mode <emacs-mode>`. As an alternative you can copy the
+following text to your *.emacs* file:
+
+.. code-block:: emacs
+
+  (load-file (let ((coding-system-for-read 'utf-8))
+                  (shell-command-to-string "agda-mode locate")))
+
+It is also possible (but not necessary) to compile the Emacs mode's
+files:
+
+.. code-block:: bash
+
+  agda-mode compile
+
+This can, in some cases, give a noticeable speedup.
+
+**Warning**: If you reinstall the Agda mode without recompiling the
+Emacs Lisp files, then Emacs may continue using the old, compiled
+files.
+
 
 .. _prebuilt-packages:
 
