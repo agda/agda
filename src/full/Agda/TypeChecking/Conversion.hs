@@ -1299,6 +1299,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
       unless equal $ do
 
       cumulativity <- optCumulativity <$> pragmaOptions
+      areWeComputingOverlap <- viewTC eConflComputingOverlap
       reportSDoc "tc.conv.level" 40 $
         "compareLevelView" <+>
           sep [ prettyList_ $ fmap (pretty . unSingleLevel) $ levelMaxView a
@@ -1361,6 +1362,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         -- (where _l' is a new metavariable)
         (as , bs)
           | cumulativity
+          , not areWeComputingOverlap
           , Just (mb@(MetaV x es) , bs') <- singleMetaView $ (map . fmap) ignoreBlocking (List1.toList bs)
           , null bs' || noMetas (Level a , unSingleLevels bs') -> do
             mv <- lookupMeta x

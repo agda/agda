@@ -2825,6 +2825,9 @@ data TCEnv =
                 --   NB: we only store the 'BackendName' here, otherwise
                 --   @instance Data TCEnv@ is not derivable.
                 --   The actual backend can be obtained from the name via 'stBackends'.
+          , envConflComputingOverlap :: Bool
+                -- ^ Are we currently computing the overlap between
+                --   two rewrite rules for the purpose of confluence checking?
           }
     deriving Data
 
@@ -2883,6 +2886,7 @@ initEnv = TCEnv { envContext             = []
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
                 , envActiveBackendName      = Nothing
+                , envConflComputingOverlap  = False
                 }
 
 class LensTCEnv a where
@@ -3055,6 +3059,9 @@ eGeneralizedVars f e = f (envGeneralizedVars e) <&> \ x -> e { envGeneralizedVar
 
 eActiveBackendName :: Lens' (Maybe BackendName) TCEnv
 eActiveBackendName f e = f (envActiveBackendName e) <&> \ x -> e { envActiveBackendName = x }
+
+eConflComputingOverlap :: Lens' Bool TCEnv
+eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envConflComputingOverlap = x }
 
 ---------------------------------------------------------------------------
 -- ** Context
