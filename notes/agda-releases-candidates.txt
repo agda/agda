@@ -32,7 +32,8 @@ followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Update the year in the copyright of the user manual, if necessary.
+* Update the year in the copyright of the user manual, in
+  `/doc/user-manual/conf.py`, if necessary.
 
 * Get a clean Agda repository.
 
