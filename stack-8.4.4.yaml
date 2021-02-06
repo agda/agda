@@ -1,4 +1,6 @@
 resolver: lts-12.26
+compiler: ghc-8.4.4
+compiler-check: match-exact
 
 extra-deps:
 - regex-base-0.94.0.0
