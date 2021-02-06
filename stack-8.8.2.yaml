@@ -6,8 +6,3 @@ extra-deps:
 - geniplate-mirror-0.7.6
 - STMonadTrans-0.4.4
 - cpphs-1.20.9
-
-# Local packages, usually specified by relative directory name
-packages:
-- '.'
-- 'src/size-solver'
