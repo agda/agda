@@ -284,15 +284,16 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
     -- Raises an error if the given file is not the one currently
     -- loaded.
     cf <- gets theCurrentFile
-    when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $
-        lift $ typeError $ GenericError "Error: First load the file."
+    when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $ do
+        let mode = Imp.TypeCheck TopLevelInteraction
+        cmd_load' current [] True mode $ \_ -> return ()
 
     withCurrentFile $ interpret cmd
 
     cf' <- gets theCurrentFile
     when (updateInteractionPointsAfter cmd
             &&
-          Just currentAbs == (currentFilePath <$> cf')) $
+          Just currentAbs == (currentFilePath <$> cf')) $ do
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
