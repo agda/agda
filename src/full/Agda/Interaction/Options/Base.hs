@@ -734,7 +734,7 @@ inversionMaxDepthFlag s o = do
   return $ o { optInversionMaxDepth = d }
 
 interactiveFlag :: Flag CommandLineOptions
-interactiveFlag  o = return o
+interactiveFlag  o = return $ o { optInteractive = True }
 
 compileFlagNoMain :: Flag PragmaOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }
