@@ -69,6 +69,10 @@ Pragmas and options
   when pretty-printing a term, even if they amount to just applying
   all the variables in the context.
 
+* The option `--rewriting` is now considered infective: if a module has
+  `--rewriting` enabled, then all modules importing it must also have
+  `--rewriting` enabled.
+
 Language
 --------
 

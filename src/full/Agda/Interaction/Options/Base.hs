@@ -421,6 +421,7 @@ infectiveOptions =
   [ (optCubical, "--cubical")
   , (optProp, "--prop")
   , (collapseDefault . optTwoLevel, "--two-level")
+  , (optRewriting, "--rewriting")
   ]
 
 -- | A coinfective option is an option that if used in one module, must

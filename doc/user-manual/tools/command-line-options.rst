@@ -785,6 +785,7 @@ are infective:
 
 * :option:`--cubical`
 * ``--prop``
+* ``--rewriting``
 
 A *coinfective* option is an option that if used in one module, must
 be used in all modules that this module depends on. The following
