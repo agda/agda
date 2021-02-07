@@ -398,7 +398,7 @@ following primitive operations::
     -- Extend the current context with a variable of the given type.
     extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
 
-    -- Set the current context. Takes a context telescope entries in 
+    -- Set the current context. Takes a context telescope entries in
     -- reverse order, as given by `getContext`. Each type should be valid
     -- in the context formed by the remaining elements in the list.
     inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
