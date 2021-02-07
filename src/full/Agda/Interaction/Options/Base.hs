@@ -342,8 +342,7 @@ checkOpts opts = do
 
 unsafePragmaOptions :: CommandLineOptions -> PragmaOptions -> [String]
 unsafePragmaOptions clo opts =
-  [ "--allow-unsolved-metas"                     | optAllowUnsolved opts
-                                                 , not $ optInteractive clo          ] ++
+  [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
   [ "--allow-incomplete-matches"                 | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
@@ -735,11 +734,7 @@ inversionMaxDepthFlag s o = do
   return $ o { optInversionMaxDepth = d }
 
 interactiveFlag :: Flag CommandLineOptions
-interactiveFlag  o = do
-  prag <- allowUnsolvedFlag (optPragmaOptions o)
-  return $ o { optInteractive    = True
-             , optPragmaOptions = prag
-             }
+interactiveFlag  o = return o
 
 compileFlagNoMain :: Flag PragmaOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }
