@@ -398,9 +398,9 @@ following primitive operations::
     -- Extend the current context with a variable of the given type.
     extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
 
-    -- Set the current context. Takes a context telescope with the outer-most
-    -- entry first, in contrast to 'getContext'. Each type should be valid in the
-    -- context formed by the preceding elements in the list.
+    -- Set the current context. Takes a context telescope entries in 
+    -- reverse order, as given by `getContext`. Each type should be valid
+    -- in the context formed by the remaining elements in the list.
     inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
 
     -- Quote a value, returning the corresponding Term.
