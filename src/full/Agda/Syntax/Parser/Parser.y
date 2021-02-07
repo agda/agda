@@ -1087,7 +1087,7 @@ LHS :: { LHS }
 LHS : Expr1 WithRewriteExpressions
         {% exprToLHS $1      >>= \p ->
            buildWithBlock $2 >>= \ (rs, es) ->
-           return (p rs $ fmap observeHiding es)
+           return (p rs $ fmap observeModifiers es)
         }
 
 WithRewriteExpressions :: { [Either RewriteEqn (List1 Expr)] }
@@ -2149,7 +2149,7 @@ validHaskellModuleName = all ok . splitOnDots
  --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithHiding Expr] -> LHS)
+exprToLHS :: Expr -> Parser ([RewriteEqn] -> [Arg Expr] -> LHS)
 exprToLHS e = exprToPattern e <&> \ p rwr wth -> LHS p rwr wth NoEllipsis
 
 -- | Turn an expression into a pattern. Fails if the expression is not a

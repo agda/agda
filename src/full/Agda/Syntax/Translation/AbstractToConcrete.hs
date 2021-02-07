@@ -1024,7 +1024,7 @@ declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
 instance ToConcrete A.RHS where
-    type ConOfAbs A.RHS = (C.RHS, [C.RewriteEqn], [WithHiding C.Expr], [C.Declaration])
+    type ConOfAbs A.RHS = (C.RHS, [C.RewriteEqn], [Arg C.Expr], [C.Declaration])
 
     toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
     toConcrete (A.RHS e Nothing) = do

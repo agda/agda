@@ -1554,38 +1554,39 @@ isModuleFreeVar i = do
 -- | Infer the type of an expression, and if it is of the form
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
 --   arguments.  Otherwise, leave the type polymorphic.
-inferExprForWith :: A.Expr -> TCM (Term, Type)
-inferExprForWith e = do
-  reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
-  reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
-  traceCall (InferExpr e) $ do
-    -- With wants type and term fully instantiated!
-    (v, t) <- instantiateFull =<< inferExpr e
-    v0 <- reduce v
-    -- Andreas 2014-11-06, issue 1342.
-    -- Check that we do not `with` on a module parameter!
-    case v0 of
-      Var i [] -> whenM (isModuleFreeVar i) $ do
-        reportSDoc "tc.with.infer" 80 $ vcat
-          [ text $ "with expression is variable " ++ show i
-          , "current modules = " <+> do text . show =<< currentModule
-          , "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
-          , "context size = " <+> do text . show =<< getContextSize
-          , "current context = " <+> do prettyTCM =<< getContextTelescope
-          ]
-        typeError $ WithOnFreeVariable e v0
-      _        -> return ()
-    -- Possibly insert hidden arguments.
-    TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
-    case unEl t0 of
-      Def d vs -> do
-        res <- isDataOrRecordType d
-        case res of
-          Nothing -> return (v, t)
-          Just{}  -> do
-            (args, t1) <- implicitArgs (-1) notVisible t
-            return (v `apply` args, t1)
-      _ -> return (v, t)
+inferExprForWith :: Arg A.Expr -> TCM (Term, Type)
+inferExprForWith (Arg info e) =
+  applyRelevanceToContext (getRelevance info) $ do
+    reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
+    reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
+    traceCall (InferExpr e) $ do
+      -- With wants type and term fully instantiated!
+      (v, t) <- instantiateFull =<< inferExpr e
+      v0 <- reduce v
+      -- Andreas 2014-11-06, issue 1342.
+      -- Check that we do not `with` on a module parameter!
+      case v0 of
+        Var i [] -> whenM (isModuleFreeVar i) $ do
+          reportSDoc "tc.with.infer" 80 $ vcat
+            [ text $ "with expression is variable " ++ show i
+            , "current modules = " <+> do text . show =<< currentModule
+            , "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
+            , "context size = " <+> do text . show =<< getContextSize
+            , "current context = " <+> do prettyTCM =<< getContextTelescope
+            ]
+          typeError $ WithOnFreeVariable e v0
+        _        -> return ()
+      -- Possibly insert hidden arguments.
+      TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
+      case unEl t0 of
+        Def d vs -> do
+          res <- isDataOrRecordType d
+          case res of
+            Nothing -> return (v, t)
+            Just{}  -> do
+              (args, t1) <- implicitArgs (-1) notVisible t
+              return (v `apply` args, t1)
+        _ -> return (v, t)
 
 ---------------------------------------------------------------------------
 -- * Let bindings

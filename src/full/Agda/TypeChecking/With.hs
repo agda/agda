@@ -74,13 +74,13 @@ splitTelForWith
   -- Input:
   :: Telescope                         -- ^ __@Δ@__             context of types and with-arguments.
   -> Type                              -- ^ __@Δ ⊢ t@__         type of rhs.
-  -> [WithHiding (Term, EqualityView)] -- ^ __@Δ ⊢ vs : as@__   with arguments and their types.
+  -> [Arg (Term, EqualityView)]        -- ^ __@Δ ⊢ vs : as@__   with arguments and their types.
   -- Output:
   -> ( Telescope                         -- @Δ₁@             part of context needed for with arguments and their types.
      , Telescope                         -- @Δ₂@             part of context not needed for with arguments and their types.
      , Permutation                       -- @π@              permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
      , Type                              -- @Δ₁Δ₂ ⊢ t'@      type of rhs under @π@
-     , [WithHiding (Term, EqualityView)] -- @Δ₁ ⊢ vs' : as'@ with- and rewrite-arguments and types under @π@.
+     , [Arg (Term, EqualityView)]        -- @Δ₁ ⊢ vs' : as'@ with- and rewrite-arguments and types under @π@.
      )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@vtys'@__) where
 --
 --   [@Δ₁@]        part of context needed for with arguments and their types.
@@ -120,7 +120,7 @@ splitTelForWith delta t vtys = let
 
 withFunctionType
   :: Telescope                          -- ^ @Δ₁@                        context for types of with types.
-  -> [WithHiding (Term, EqualityView)]  -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
+  -> [Arg (Term, EqualityView)]         -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
   -> Telescope                          -- ^ @Δ₁ ⊢ Δ₂@                   context extension to type with-expressions.
   -> Type                               -- ^ @Δ₁,Δ₂ ⊢ b@                 type of rhs.
   -> [(Int,(Term,Term))]                -- ^ @Δ₁,Δ₂ ⊢ [(i,(u0,u1))] : b  boundary.
@@ -151,7 +151,7 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
   wd2b <- foldrM piAbstract d2b vtys
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
-  let nwithargs = countWithArgs (map (snd . whThing) vtys)
+  let nwithargs = countWithArgs (map (snd . unArg) vtys)
 
   TelV wtel _ <- telViewUpTo nwithargs wd2b
 
@@ -174,7 +174,7 @@ countWithArgs = sum . map countArgs
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
-withArguments :: [WithHiding (Term, EqualityView)] -> [WithHiding Term]
+withArguments :: [Arg (Term, EqualityView)] -> [Arg Term]
 withArguments vtys = flip concatMap vtys $ traverse $ \case
   (v, OtherType a) -> [v]
   (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]

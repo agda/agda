@@ -850,7 +850,7 @@ metaHelperType norm ii rng s = case words s of
       -- so we'd better rename any actual 'w's to avoid confusion.
       tel  <- runIdentity . onNamesTel unW <$> getContextTelescope
       let a = runIdentity . onNames unW $ a0
-      vtys <- mapM (\ a -> fmap (WithHiding (getHiding a) . fmap OtherType) $ inferExpr $ namedArg a) args
+      vtys <- mapM (\ a -> fmap (Arg (getArgInfo a) . fmap OtherType) $ inferExpr $ namedArg a) args
       -- Remember the arity of a
       TelV atel _ <- telView a
       let arity = size atel
@@ -859,8 +859,8 @@ metaHelperType norm ii rng s = case words s of
         reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vtys' delta2 a' []
       reportSDoc "interaction.helper" 10 $ TP.vcat $
         let extractOtherType = \case { OtherType a -> a; _ -> __IMPOSSIBLE__ } in
-        let (vs, as)   = unzipWith (fmap extractOtherType . whThing) vtys in
-        let (vs', as') = unzipWith (fmap extractOtherType . whThing) vtys' in
+        let (vs, as)   = unzipWith (fmap extractOtherType . unArg) vtys in
+        let (vs', as') = unzipWith (fmap extractOtherType . unArg) vtys' in
         [ "generating helper function"
         , TP.nest 2 $ "tel    = " TP.<+> inTopContext (prettyTCM tel)
         , TP.nest 2 $ "a      = " TP.<+> prettyTCM a

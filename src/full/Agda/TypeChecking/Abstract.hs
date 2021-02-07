@@ -30,9 +30,9 @@ abstractType a v (El s b) = El (absTerm v s) <$> abstractTerm a v (sort s) b
 
 -- | @piAbstractTerm NotHidden v a b[v] = (w : a) -> b[w]@
 --   @piAbstractTerm Hidden    v a b[v] = {w : a} -> b[w]@
-piAbstractTerm :: Hiding -> Term -> Type -> Type -> TCM Type
-piAbstractTerm h v a b = do
-  fun <- mkPi (setHiding h $ defaultDom ("w", a)) <$> abstractType a v b
+piAbstractTerm :: ArgInfo -> Term -> Type -> Type -> TCM Type
+piAbstractTerm info v a b = do
+  fun <- mkPi (setArgInfo info $ defaultDom ("w", a)) <$> abstractType a v b
   reportSDoc "tc.abstract" 50 $
     sep [ "piAbstract" <+> sep [ prettyTCM v <+> ":", nest 2 $ prettyTCM a ]
         , nest 2 $ "from" <+> prettyTCM b
@@ -49,9 +49,9 @@ piAbstractTerm h v a b = do
 --
 --   @piAbstract (prf, Eq a v v') b[v,prf] = (w : a) (w' : Eq a w v') -> b[w,w']@
 
-piAbstract :: WithHiding (Term, EqualityView) -> Type -> TCM Type
-piAbstract (WithHiding h (v, OtherType a))                              b = piAbstractTerm h v a b
-piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
+piAbstract :: Arg (Term, EqualityView) -> Type -> TCM Type
+piAbstract (Arg info (v, OtherType a))                              b = piAbstractTerm info v a b
+piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
   s <- sortOf a
   let prfTy = equalityUnview eqt
       vTy   = El s a
@@ -60,7 +60,7 @@ piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
          abstractType (raise 1 vTy) (unArg $ raise 1 v) b
   return . funType "lhs" vTy . funType "equality" eqTy' . swap01 $ b
   where
-    funType str a = mkPi $ setHiding h $ defaultDom (str, a)
+    funType str a = mkPi $ setArgInfo info $ defaultDom (str, a)
     -- Abstract the lhs (@a@) of the equality only.
     eqt1  = raise 1 eqt
     eqTy' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
