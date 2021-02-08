@@ -31,7 +31,7 @@ jobs:
       # Liang-Ting Chen (2021-01-01):
       # Cabal cannot compile statically with text-icu (required by the flag `enable-cluster-counting`),
       # see https://github.com/4e6/text-icu-static-example
-      LINUX_ARGS: "--ghc-options=-split-sections --enable-static --enable-executable-static"
+      LINUX_ARGS: "--enable-executable-static"
       # Liang-Ting Chen (2021-01-01):
       # The option `split-sections` is ignored on macOS, see https://gitlab.haskell.org/ghc/ghc/-/issues/11445 for details.
       MACOS_ARGS: "--flags=enable-cluster-counting"
