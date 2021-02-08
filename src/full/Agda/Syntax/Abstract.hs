@@ -968,6 +968,8 @@ lambdaLiftExpr ns e
       e
       ns
 
+-- NOTE: This is only used on expressions that come from right-hand sides of pattern synonyms, and
+-- thus does not have to handle all forms of expressions.
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
 
@@ -998,46 +1000,35 @@ instance SubstExpr ModuleName where
 
 instance SubstExpr Expr where
   substExpr s e = case e of
-    Var n                 -> fromMaybe e (lookup n s)
-    Def' _ _              -> e
-    Proj{}                -> e
-    Con _                 -> e
-    Lit _ _               -> e
-    QuestionMark{}        -> e
-    Underscore   _        -> e
-    Dot i e               -> Dot i (substExpr s e)
-    App  i e e'           -> App i (substExpr s e) (substExpr s e')
-    WithApp i e es        -> WithApp i (substExpr s e) (substExpr s es)
-    Lam  i lb e           -> Lam i lb (substExpr s e)
-    AbsurdLam i h         -> e
-    ExtendedLam i di n cs -> __IMPOSSIBLE__   -- Maybe later...
-    Pi   i t e            -> Pi i (substExpr s t) (substExpr s e)
-    Generalized ns e      -> Generalized ns (substExpr s e)
-    Fun  i ae e           -> Fun i (substExpr s ae) (substExpr s e)
-    Let  i ls e           -> Let i (substExpr s ls) (substExpr s e)
-    ETel t                -> e
-    Rec  i nes            -> Rec i (substExpr s nes)
-    RecUpdate i e nes     -> RecUpdate i (substExpr s e) (substExpr s nes)
-    -- XXX: Do we need to do more with ScopedExprs?
-    ScopedExpr si e       -> ScopedExpr si (substExpr s e)
-    Quote i               -> e
-    QuoteTerm i           -> e
-    Unquote i             -> e
-    Tactic i e xs         -> Tactic i (substExpr s e) (substExpr s xs)
-    DontCare e            -> DontCare (substExpr s e)
-    PatternSyn{}          -> e
-    Macro{}               -> e
-
-instance SubstExpr LetBinding where
-  substExpr s lb = case lb of
-    LetBind i r n e e' -> LetBind i r n (substExpr s e) (substExpr s e')
-    LetPatBind i p e   -> LetPatBind i p (substExpr s e) -- Andreas, 2012-06-04: what about the pattern p
-    _                  -> lb -- Nicolas, 2013-11-11: what about "LetApply" there is experessions in there
-
-instance SubstExpr TypedBinding where
-  substExpr s tb = case tb of
-    TBind r t ns e -> TBind r (substExpr s t) ns $ substExpr s e
-    TLet r lbs     -> TLet r $ substExpr s lbs
+    Var n           -> fromMaybe e (lookup n s)
+    Con _           -> e
+    Proj{}          -> e
+    Def' _ _        -> e
+    PatternSyn{}    -> e
+    Lit _ _         -> e
+    Underscore   _  -> e
+    App  i e e'     -> App i (substExpr s e) (substExpr s e')
+    Rec  i nes      -> Rec i (substExpr s nes)
+    ScopedExpr si e -> ScopedExpr si (substExpr s e)
+    -- The below cannot appear in pattern synonym right-hand sides
+    QuestionMark{}  -> __IMPOSSIBLE__
+    Dot{}           -> __IMPOSSIBLE__
+    WithApp{}       -> __IMPOSSIBLE__
+    Lam{}           -> __IMPOSSIBLE__
+    AbsurdLam{}     -> __IMPOSSIBLE__
+    ExtendedLam{}   -> __IMPOSSIBLE__
+    Pi{}            -> __IMPOSSIBLE__
+    Generalized{}   -> __IMPOSSIBLE__
+    Fun{}           -> __IMPOSSIBLE__
+    Let{}           -> __IMPOSSIBLE__
+    ETel{}          -> __IMPOSSIBLE__
+    RecUpdate{}     -> __IMPOSSIBLE__
+    Quote{}         -> __IMPOSSIBLE__
+    QuoteTerm{}     -> __IMPOSSIBLE__
+    Unquote{}       -> __IMPOSSIBLE__
+    Tactic{}        -> __IMPOSSIBLE__
+    DontCare{}      -> __IMPOSSIBLE__
+    Macro{}         -> __IMPOSSIBLE__
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs
