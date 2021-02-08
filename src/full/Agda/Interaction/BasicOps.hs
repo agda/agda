@@ -696,8 +696,7 @@ getGoals'
   -> TCM Goals
 getGoals' normVisible normHidden = do
   visibleMetas <- typesOfVisibleMetas normVisible
-  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
-  hiddenMetas <- (guard unsolvedNotOK >>) <$> typesOfHiddenMetas normHidden
+  hiddenMetas <- typesOfHiddenMetas normHidden
   return (visibleMetas, hiddenMetas)
 
 -- | Print open metas nicely.

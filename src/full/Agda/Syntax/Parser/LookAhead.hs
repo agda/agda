@@ -42,6 +42,8 @@ newtype ErrorFunction =
 
 -- | Throw an error message according to the supplied method.
 lookAheadError :: String -> LookAhead a
+-- ASR (2021-02-07). The eta-expansion @\e -> throwError e@ is
+-- required GHC >= 9.0.1 ((see Issue #4955).
 lookAheadError s = ($ s) =<< do LookAhead $ asks (\e -> throwError e)
 
 {--------------------------------------------------------------------------

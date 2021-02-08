@@ -1,5 +1,6 @@
 ..
   ::
+  {-# OPTIONS --rewriting #-}
   module language.function-definitions where
 
   open import language.built-ins
