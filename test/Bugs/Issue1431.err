@@ -1,0 +1,7 @@
+AGDA_FAILURE
+
+ret > ExitFailure 42
+out > Issue1431.agda:14,15-16
+out > ({x : A} → P x) != (P a) of type Set
+out > when checking that the expression t has type T (P a)
+out >
