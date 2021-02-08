@@ -1,6 +1,6 @@
 ..
   ::
-  -- {-# OPTIONS --allow-unsolved-metas #-}
+  {-# OPTIONS --rewriting #-}
   module language.abstract-definitions where
 
   open import language.built-ins

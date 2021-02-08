@@ -1,3 +1,4 @@
+{-# OPTIONS --rewriting #-}
 
 module AllStdLib where
 

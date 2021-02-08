@@ -1,5 +1,6 @@
 ..
   ::
+  {-# OPTIONS --rewriting #-}
   module language.let-and-where where
 
   open import language.built-ins
