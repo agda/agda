@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --allow-unsolved-metas #-}
+  {-# OPTIONS --allow-unsolved-metas --rewriting #-}
   module language.module-system where
 
   open import language.built-ins
