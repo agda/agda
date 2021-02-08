@@ -39,7 +39,7 @@ tested-with:        GHC == 8.0.2
                     GHC == 8.4.4
                     GHC == 8.6.5
                     GHC == 8.8.4
-                    GHC == 8.10.3
+                    GHC == 8.10.4
 
 extra-source-files: CHANGELOG.md
                     README.md
@@ -78,6 +78,9 @@ extra-source-files: CHANGELOG.md
                     doc/release-notes/2.2.0.md
 -- Liang-Ting (2019-11-26): See Issues #4216
 --                    doc/user-manual.pdf
+                    stack-8.10.4.yaml
+                    -- ASR (2021-02-08). I kept the below file because
+                    -- there is not a LTS for GHC 8.10.4.
                     stack-8.10.3.yaml
                     stack-8.8.4.yaml
                     stack-8.6.5.yaml
