@@ -82,9 +82,9 @@ declaration from the introduction of constructors in one or many ``constructor``
 
 These mutual blocks get desugared into the forward declaration blocks described below by:
 
-- leaving the signatures where they are
-- grouping the clauses for a function together with the first of them
-- grouping the constructors for a datatype together with the first of them
+- leaving the signatures where they are,
+- grouping the clauses for a function together with the first of them, and
+- grouping the constructors for a datatype together with the first of them.
 
 .. _mutual-recursion-forward-declaration:
 
@@ -110,7 +110,7 @@ For data types and records the following syntax is used to separate the declarat
   data Vec (A : Set) : Nat → Set  -- Note the absence of ‘where’.
 
   -- Definition.
-  data Vec A where  -- Note the absence of a type signature.
+  data Vec A where                -- Note the absence of a type signature.
     []   : Vec A zero
     _::_ : {n : Nat} → A → Vec A n → Vec A (suc n)
 
@@ -164,10 +164,6 @@ When making separated declarations/definitions private or abstract you should at
 Old-style ``mutual`` blocks
 ----------------------------
 
-.. note::
-   You are advised to avoid using this old syntax if possible, but the old syntax
-   is still supported.
-
 Mutual recursive functions can be written by placing the type signatures of all mutually
 recursive function before their definitions:
 
@@ -192,4 +188,22 @@ the *universe* example from above is expressed as follows::
     Interpretation nat      = Nat
     Interpretation (pi a b) = (x : Interpretation a) → Interpretation (b x)
 
-This alternative syntax desugars into the new syntax.
+This alternative syntax desugars into the new syntax by sorting the
+content of the mutual block into a *declaration* and a *definition*
+part and placing the declarations before the definitions.
+
+*Declarations* comprise:
+
+- Type signatures of functions, ``data`` and ``record`` declarations, ``unquoteDecl``.
+  (*Function* includes here ``postulate`` and ``primitive`` etc.)
+- Module statements, such as ``module`` aliases, ``import`` and ``open`` statements.
+- Pragmas that only need the name, but not the definition of the thing they affect (e.g. ``INJECTIVE``).
+
+*Definitions* comprise:
+
+- Function clauses, ``data`` constructors and ``record`` definitions, ``unquoteDef``.
+- ``pattern`` synonym definitions.
+- Pragmas that need the definition, e.g. ``INLINE``, ``ETA``, etc.
+- Pragmas that are not needed for type checking, like compiler pragmas.
+
+Module definitions with ``module ... where`` are not supported in old-style ``mutual`` blocks.
