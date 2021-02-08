@@ -1,3 +1,6 @@
 Sections-14.agda:5,7-12
 Set₁ != Set
-when checking that the expression ∙ Set has type Set
+when checking that the inferred type of an application
+  Set₁
+matches the expected type
+  Set

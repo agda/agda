@@ -1,4 +1,4 @@
-Issue1692.agda:30,24-29
-v₁ != v₂ of type (Value k₂)
-when checking that the expression t₂→t₁ has type
-_k_51 ∼ _v_52 ∈ node k₂ v₁ → _k_51 ∼ _v_52 ∈ node k₂ v₂
+Issue1692.agda:30,18-23
+v₂ != v₁ of type (Value k₂)
+when checking that the expression t₁→t₂ has type
+k ∼ v ∈ node k₂ v₁ → k ∼ v ∈ node k₂ v₁

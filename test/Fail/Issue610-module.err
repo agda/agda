@@ -1,4 +1,6 @@
-Issue610-module.agda:29,8-40
-ack (set _) !=< ⊥
-when checking that the expression subst (λ x → x) (cong ack hah) _
-has type ⊥
+Issue610-module.agda:29,25-37
+ack _y_18 != ⊥ of type Set
+when checking that the inferred type of an application
+  ack _x_17 ≡ ack _y_18
+matches the expected type
+  ack _x_17 ≡ ⊥

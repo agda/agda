@@ -1,3 +1,6 @@
 Issue933.agda:20,38-47
 RGraph.R /= RGraph.O
-when checking that the expression Γ.refl γo has type Γ.O
+when checking that the inferred type of an application
+  Γ.R
+matches the expected type
+  Γ.O

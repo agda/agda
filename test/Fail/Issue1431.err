@@ -1,0 +1,3 @@
+Issue1431.agda:18,13-14
+Nat != Bool
+when checking that the expression 0 has type Bool
