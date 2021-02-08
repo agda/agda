@@ -379,9 +379,12 @@ blockTerm t blocker = do
 blockTermOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ProblemId -> m Term
-blockTermOnProblem t v pid =
+blockTermOnProblem t v pid = do
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
-  ifM (isProblemSolved pid `or2M` isSizeProblem pid) (return v) $ do
+  solved <- isProblemSolved pid
+  ifM (return solved `or2M` isSizeProblem pid)
+      (v <$ reportSLn "tc.meta.blocked" 20 ("Not blocking because " ++ show pid ++ " is " ++
+                                            if solved then "solved" else "a size problem")) $ do
     i   <- createMetaInfo
     es  <- map Apply <$> getContextArgs
     tel <- getContextTelescope
