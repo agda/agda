@@ -823,7 +823,7 @@ follows. Given a with-abstraction
    \[\arraycolsep=1.4pt
    \begin{array}{lrllcll}
      \multicolumn{3}{l}{f : \Gamma \to B} \\
-     f ~ ps   & \mathbf{with} ~ & t_1 & | & \ldots & | ~ t_m \\
+     f ~ ps   & \mathtt{with} ~ & t_1 & | & \ldots & | ~ t_m \\
      f ~ ps_1 & | ~ & q_{11} & | & \ldots & | ~ q_{1m} &= v_1 \\
      \vdots \\
      f ~ ps_n & | ~ & q_{n1} & | & \ldots & | ~ q_{nm} &= v_n
