@@ -188,6 +188,8 @@ data Debug = MoveColumn | NonCode | Code | Spaces | Output | FileSystem
 -- | Run function for the @LaTeX@ monad.
 runLaTeX :: MonadLogLaTeX m =>
   LaTeX a -> Env -> State -> m (a, State, [Output])
+-- ASR (2021-02-07). The eta-expansion is required by GHC >= 9.0.1
+-- (see Issue #4955).
 runLaTeX l = runRWST l
 
 emptyState :: State
@@ -244,6 +246,8 @@ moveColumnForToken :: Token -> LaTeX ()
 moveColumnForToken t = do
   unless (isSpaces (text t)) $ do
     log MoveColumn $ text t
+    -- ASR (2021-02-07). The eta-expansion is required by GHC >= 9.0.1
+    -- (see Issue #4955).
     (\n -> moveColumn n) =<< size (text t)
 
 -- | Merges 'columns' into 'columnsPrev', resets 'column' and
@@ -435,6 +439,8 @@ cmdArg x = "{" <+> x <+> "}"
 -- * Output generation from a stream of labelled tokens.
 
 processLayers :: [(LayerRole, Tokens)] -> LaTeX ()
+-- ASR (2021-02-07). The eta-expansion on @lt@ is required by GHC >=
+-- 9.0.1 (see Issue #4955).
 processLayers lt = (mapM_ $ \(layerRole,toks) -> do
   case layerRole of
     L.Markup  -> processMarkup  toks
@@ -444,11 +450,15 @@ processLayers lt = (mapM_ $ \(layerRole,toks) -> do
 processMarkup, processComment, processCode :: Tokens -> LaTeX ()
 
 -- | Deals with markup, which is output verbatim.
+-- ASR (2021-02-07). The eta-expansion on @t@ is required by GHC >=
+-- 9.0.1 (see Issue #4955).
 processMarkup t = (mapM_ $ \t' -> do
   moveColumnForToken t'
   output (Text (text t'))) t
 
 -- | Deals with literate text, which is output verbatim
+-- ASR (2021-02-07). The eta-expansion with @t@ is required by GHC >=
+-- 9.0.1 (see Issue #4955).
 processComment t = (mapM_ $ \t' -> do
   unless ("%" == T.take 1 (T.stripStart (text t'))) $ do
     moveColumnForToken t'
@@ -493,7 +503,9 @@ processCode toks' = do
     ptOpenWhenColumnZero col =
         when (col == 0) $ do
           registerColumnZero
-          (\o -> output o) . Text . ptOpen =<< columnZero
+          -- ASR (2021-02-07). The eta-expansion @\o -> output o@ is
+          -- required by GHC >= 9.0.1 (see Issue #4955).
+          (\o -> output o). Text . ptOpen =<< columnZero
 
     -- Translation from OtherAspect to command strings. So far it happens
     -- to correspond to @show@ but it does not have to (cf. fromAspect)
@@ -575,6 +587,8 @@ spaces [] = return ()
 spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   col <- gets column
   when (col == 0) $
+    -- ASR (2021-02-07). The eta-expansion @\o -> output o@ is
+    -- required by GHC >= 9.0.1 (see Issue #4955).
     (\o -> output o) . Text . ptOpen =<< columnZero
   output $ Text $ ptClose <+> ptNL <+>
                   T.replicate (T.length s - 1) ptEmptyLine

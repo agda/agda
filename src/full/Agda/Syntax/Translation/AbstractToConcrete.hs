@@ -220,7 +220,9 @@ instance Applicative AbsToCon where
   f <*> m = AbsToCon $ unAbsToCon f <*> unAbsToCon m
 
 instance Monad AbsToCon where
-  m >>= f = AbsToCon $ unAbsToCon m >>= (\m' -> unAbsToCon m') . f
+  -- ASR (2021-02-07). The eta-expansion @\m' -> unAbsToCon m'@ is
+  -- required by GHC >= 9.0.1 (see Issue #4955).
+  m >>= f = AbsToCon $ unAbsToCon m >>= (\m' -> unAbsToCon m'). f
 #if __GLASGOW_HASKELL__ < 808
   fail = Fail.fail
 #endif
@@ -241,7 +243,10 @@ instance ReadTCState AbsToCon where
   locallyTCState l f m = AbsToCon $ locallyTCState l f $ unAbsToCon m
 
 instance MonadStConcreteNames AbsToCon where
-  runStConcreteNames m = AbsToCon $ runStConcreteNames $ StateT $ (\m' -> unAbsToCon m') . runStateT m
+  -- ASR (2021-02-07). The eta-expansion @\m' -> unAbsToCon m'@ is
+  -- required by GHC >= 9.0.1 (see Issue #4955).
+  runStConcreteNames m =
+    AbsToCon $ runStConcreteNames $ StateT $ (\m' -> unAbsToCon m') . runStateT m
 
 instance HasBuiltins AbsToCon where
   getBuiltinThing x = AbsToCon $ getBuiltinThing x
