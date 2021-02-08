@@ -70,7 +70,7 @@ title "Building Agda"
 if [[ $GHC_VER == "8.0.2" ]]; then
   make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v1 --ghc-option=-fno-specialise --ghc-option=-fno-expose-all-unfoldings" install-bin
 else
-  make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
+  make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v1 --force-reinstalls" install-bin
 fi
 
 travis_fold end "build.agda"
