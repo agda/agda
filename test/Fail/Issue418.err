@@ -1,5 +1,8 @@
 Failed to solve the following constraints:
+  Set = _7 : Set₁ (blocked on _7)
   Set = _3 : Set₁ (blocked on _3)
 Unsolved metas at the following locations:
   Issue418.agda:13,18-19
   Issue418.agda:14,14-18
+  Issue418.agda:25,26-27
+  Issue418.agda:26,22-26

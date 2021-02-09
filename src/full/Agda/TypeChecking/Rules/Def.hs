@@ -25,6 +25,7 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
+import Agda.Syntax.Internal.MetaVars (allMetasList)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Info
 
@@ -92,7 +93,10 @@ checkFunDef delayed i name cs = do
               -- Andreas, 2012-11-22: if the alias is in an abstract block
               -- it has been frozen.  We unfreeze it to enable type inference.
               -- See issue 729.
-              whenM (isFrozen x) $ unfreezeMeta x
+              -- Ulf, 2021-02-09: also unfreeze metas in the sort of this type
+              whenM (isFrozen x) $ do
+                xs <- allMetasList . jMetaType . mvJudgement <$> lookupMeta x
+                mapM_ unfreezeMeta (x : xs)
               checkAlias t info delayed i name e mc
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
