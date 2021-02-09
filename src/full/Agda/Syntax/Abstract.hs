@@ -387,7 +387,7 @@ data RHS
       --   'Nothing' for internally generated rhss.
     }
   | AbsurdRHS
-  | WithRHS QName [WithHiding Expr] [Clause]
+  | WithRHS QName [Arg Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
   | RewriteRHS
     { rewriteExprs      :: [RewriteEqn]

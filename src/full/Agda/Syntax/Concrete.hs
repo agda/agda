@@ -50,6 +50,8 @@ module Agda.Syntax.Concrete
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
   , observeHiding
+  , observeRelevance
+  , observeModifiers
   , LamClause(..)
   , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
   , DoStmt(..)
@@ -317,7 +319,7 @@ mkTLet r (d:ds) = Just $ TLet r (d :| ds)
 data LHS = LHS
   { lhsOriginalPattern :: Pattern               -- ^ e.g. @f ps | wps@
   , lhsRewriteEqn      :: [RewriteEqn]          -- ^ @(rewrite e | with p <- e)@ (many)
-  , lhsWithExpr        :: [WithHiding WithExpr] -- ^ @with e1 | {e2} | ...@ (many)
+  , lhsWithExpr        :: [Arg WithExpr]        -- ^ @with e1 | {e2} | ...@ (many)
   , lhsExpandedEllipsis :: ExpandedEllipsis     -- ^ Did we expand an ellipsis?
   } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   deriving (Data, Eq)
@@ -633,12 +635,24 @@ removeParenP = \case
     p -> p
 
 -- | Observe the hiding status of an expression
-
 observeHiding :: Expr -> WithHiding Expr
 observeHiding = \case
   HiddenArg _   (Named Nothing e) -> WithHiding Hidden e
   InstanceArg _ (Named Nothing e) -> WithHiding (Instance NoOverlap) e
   e                               -> WithHiding NotHidden e
+
+-- | Observe the relevance status of an expression
+observeRelevance :: Expr -> (Relevance, Expr)
+observeRelevance = \case
+  Dot _ e       -> (Irrelevant, e)
+  DoubleDot _ e -> (NonStrict, e)
+  e             -> (Relevant, e)
+
+-- | Observe various modifiers applied to an expression
+observeModifiers :: Expr -> Arg Expr
+observeModifiers e =
+  let (rel, WithHiding hid e') = fmap observeHiding (observeRelevance e) in
+  setRelevance rel $ setHiding hid $ defaultArg e'
 
 returnExpr :: Expr -> Maybe Expr
 returnExpr (Pi _ e)        = returnExpr e

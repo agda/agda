@@ -2516,7 +2516,7 @@ isTerminationPragma _                                       = False
 data RightHandSide = RightHandSide
   { _rhsRewriteEqn :: [RewriteEqn' () A.Pattern A.Expr]
       -- ^ @rewrite e | with p <- e@ (many)
-  , _rhsWithExpr   :: [WithHiding C.WithExpr]
+  , _rhsWithExpr   :: [Arg C.WithExpr]
       -- ^ @with e@ (many)
   , _rhsSubclauses :: [ScopeM C.Clause]
       -- ^ The subclauses spawned by a @with@.
@@ -2528,7 +2528,7 @@ data RightHandSide = RightHandSide
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [WithHiding A.Expr] [ScopeM C.Clause]
+  | WithRHS' [Arg A.Expr] [ScopeM C.Clause]
     -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
   | RewriteRHS' [RewriteEqn' () A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
