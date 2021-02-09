@@ -1016,9 +1016,11 @@ everythingInScopeQualified scope =
       | Set.member name seen = chase seen ss
       | otherwise = s : chase (Set.insert name seen) (imports ++ submods ++ ss)
       where
+        -- #4166: only include things that are actually in scope here
+        inscope x _ = isInScope x == InScope
         name    = scopeName s
         imports = map lookP $ Map.elems $ scopeImports s
-        submods = map (lookP . amodName) $ concat $ Map.elems $ allNamesInScope s
+        submods = map (lookP . amodName) $ concat $ Map.elems $ Map.filterWithKey inscope $ allNamesInScope s
 
 -- | Compute a flattened scope. Only include unqualified names or names
 -- qualified by modules in the first argument.
