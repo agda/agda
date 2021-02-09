@@ -83,3 +83,8 @@ Syntax declarations can have implicit arguments. For example:
   id x = x
 
   syntax id {A} x = x ∈ A
+
+Unlike :ref:`mixfix operators <mixfix-operators>` that can be used unapplied
+using the name including all the underscores, or partially applied by replacing
+only some of the underscores by arguments, syntax declarations must be fully
+applied.
