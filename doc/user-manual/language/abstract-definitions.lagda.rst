@@ -47,10 +47,6 @@ Synopsis
   details (e.g. expose reduction behavior by using propositional
   equality).
 
-* Inside ``private`` type signatures in ``abstract`` blocks, abstract
-  definitions do reduce. However, there are some problems with this. See `Issue
-  #418 <https://github.com/agda/agda/issues/418#issuecomment-245590857>`_.
-
 * The reach of the ``abstract`` keyword block extends recursively to
   the ``where``-blocks of a function and the declarations inside of a
   ``record`` declaration, but not inside modules declared in an
@@ -100,15 +96,20 @@ representation of integers as pairs.  As such, it is rejected by Agda:
 when checking its type signature, ``proj₁ x`` fails to type check
 since ``x`` is of abstract type ``ℤ``.  Remember that the abstract
 definition of ``ℤ`` does not unfold in type signatures, even when in
-an abstract block!  However, if we make ``shape-of-ℤ`` private,
-unfolding of abstract definitions like ``ℤ`` is enabled, and we
-succeed::
+an abstract block!  To work around this we have to define aliases for
+the projections functions::
 
   -- A property about the representation of zero integers:
 
     abstract
       private
-        shape-of-0ℤ : ∀ (x : ℤ) (is0ℤ : x ≡ℤ 0ℤ) → proj₁ x ≡ proj₂ x
+        posZ : ℤ → Nat
+        posZ = proj₁
+
+        negZ : ℤ → Nat
+        negZ = proj₂
+
+        shape-of-0ℤ : ∀ (x : ℤ) (is0ℤ : x ≡ℤ 0ℤ) → posZ x ≡ negZ x
         shape-of-0ℤ (p , n) refl rewrite +comm p 0 = refl
 
 By requiring ``shape-of-0ℤ`` to be private to type-check, leaking of
@@ -166,24 +167,3 @@ uncles::
         where
         x≡y : x ≡ 0
         x≡y = refl
-
-Type signatures in ``where`` blocks are private, so it is fine to make
-type abbreviations in ``where`` blocks of abstract definitions::
-
-  module WherePrivate where
-    abstract
-      x : Nat
-      x = proj₁ t
-        where
-        T = Nat × Nat
-        t : T
-        t = 0 , 1
-        p : proj₁ t ≡ 0
-        p = refl
-
-Note that if ``p`` was not private, application ``proj₁ t`` in its type
-would be ill-formed, due to the abstract definition of ``T``.
-
-Named ``where``-modules do not make their declarations private, thus
-this example will fail if you replace ``x``'s ``where`` by ``module M
-where``.
