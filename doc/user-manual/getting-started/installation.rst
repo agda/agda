@@ -310,6 +310,22 @@ To configure the way of editing agda files, follow the section
    package-install RET exec-path-from-shell RET`` and adding the line
    ``(exec-path-from-shell-initialize)`` to your ``.emacs`` file.
 
+Windows
+-------
+
+Depending on your system locale setting, ``cabal install Agda`` may fail with an error message
+
+.. code-block:: bash
+
+    hGetContents: invalid argument (invalid byte sequence)
+
+If this happens, you can try changing the `console code page <https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/chcp>`_
+to UTF-8 using the command
+
+.. code-block:: bash
+
+  CHCP 65001
+
 .. _installation-development-version:
 
 Installation of the Development Version
