@@ -66,9 +66,9 @@ data WarningModeError = Unknown String | NoNoError String
 prettyWarningModeError :: WarningModeError -> String
 prettyWarningModeError = \case
   Unknown str -> concat [ "Unknown warning flag: ", str, "." ]
-  NoNoError str -> concat [ "Warnings for non-fatal errors such as "
+  NoNoError str -> concat [ "You may only turn off benign warnings. The warning "
                           , str
-                          ," cannot be turned off." ]
+                          ," is a non-fatal error and thus cannot be ignored." ]
 
 -- | From user-given directives we compute WarningMode updates
 type WarningModeUpdate = WarningMode -> WarningMode
