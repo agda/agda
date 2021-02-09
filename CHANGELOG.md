@@ -301,6 +301,17 @@ Language
   default modality. (It is unclear what the old rule was, perhaps
   nothing was changed.)
 
+* Private abstract type signatures can no longer see through abstract (see
+  [#418]).
+
+  This means that abstract definitions no longer evaluate in *any* type
+  signatures in the same module. Previously they evaluated in type signatures
+  of definitions that were both private and abstract.
+
+  It also means that metavariables in type signatures have to be solved
+  locally, and cannot make use of information in the definition body, and that
+  constructors of abstract datatypes are not in scope in type signatures.
+
 Builtins
 --------
 
