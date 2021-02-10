@@ -101,7 +101,7 @@ ccToTreeless eval q cc = do
   reportSDoc "treeless.opt.converted" (30 + v) $ "-- converted" $$ pbody body
   body <- runPipeline eval q (compilerPipeline v q) body
   used <- usedArguments q body
-  when (any (ArgUnused ==) used) $
+  when (ArgUnused `elem` used) $
     reportSDoc "treeless.opt.unused" (30 + v) $
       "-- used args:" <+> hsep [ if u == ArgUsed then text [x] else "_" | (x, u) <- zip ['a'..] used ] $$
       pbody' "[stripped]" (stripUnusedArguments used body)

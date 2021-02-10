@@ -527,7 +527,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   functionViaTreeless q = caseMaybeM (liftTCM $ toTreeless LazyEvaluation q) (pure mempty) $ \ treeless -> do
 
     used <- fromMaybe [] <$> getCompiledArgUse q
-    let dostrip = any (== ArgUnused) used
+    let dostrip = ArgUnused `elem` used
 
     -- Compute the type approximation
     def <- getConstInfo q
@@ -700,8 +700,8 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
       let given   = length ts
           needed  = length used
           missing = drop given used
-      if not isCompiled && any (== ArgUnused) used
-        then if any (== ArgUnused) missing then term (etaExpand (needed - given) tm0) else do
+      if not isCompiled && ArgUnused `elem` used
+        then if ArgUnused `elem` missing then term (etaExpand (needed - given) tm0) else do
           f <- liftCC $ HS.Var <$> xhqn "du" f  -- use stripped function
           -- Andreas, 2019-11-07, issue #4169.
           -- Insert coercion unconditionally as erasure of arguments
