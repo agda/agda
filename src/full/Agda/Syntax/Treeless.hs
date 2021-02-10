@@ -22,7 +22,15 @@ import Agda.Syntax.Abstract.Name
 
 data Compiled = Compiled
   { cTreeless :: TTerm
-  , cArgUsage :: [Bool] }
+  , cArgUsage :: Maybe [ArgUsage]
+      -- ^ 'Nothing' if treeless usage analysis has not run yet.
+  }
+  deriving (Data, Show, Eq, Ord)
+
+-- | Usage status of function arguments in treeless code.
+data ArgUsage
+  = ArgUsed
+  | ArgUnused
   deriving (Data, Show, Eq, Ord)
 
 -- | The treeless compiler can behave differently depending on the target
@@ -234,3 +242,30 @@ instance Unreachable TTerm where
 
 instance KillRange Compiled where
   killRange c = c -- bogus, but not used anyway
+
+
+-- * Utilities for ArgUsage
+---------------------------------------------------------------------------
+
+-- | @filterUsed used args@ drops those @args@ which are labelled
+-- @ArgUnused@ in list @used@.
+--
+-- Specification:
+--
+-- @
+--   filterUsed used args = [ a | (a, ArgUsed) <- zip args $ used ++ repeat ArgUsed ]
+-- @
+--
+-- Examples:
+--
+-- @
+--   filterUsed []                 == id
+--   filterUsed (repeat ArgUsed)   == id
+--   filterUsed (repeat ArgUnused) == const []
+-- @
+filterUsed :: [ArgUsage] -> [a] -> [a]
+filterUsed = curry $ \case
+  ([], args) -> args
+  (_ , [])   -> []
+  (ArgUsed   : used, a : args) -> a : filterUsed used args
+  (ArgUnused : used, a : args) ->     filterUsed used args

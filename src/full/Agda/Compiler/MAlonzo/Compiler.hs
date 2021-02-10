@@ -526,8 +526,8 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   functionViaTreeless :: QName -> HsCompileM (UsesFloat, [HS.Decl])
   functionViaTreeless q = caseMaybeM (liftTCM $ toTreeless LazyEvaluation q) (pure mempty) $ \ treeless -> do
 
-    used <- getCompiledArgUse q
-    let dostrip = any not used
+    used <- fromMaybe [] <$> getCompiledArgUse q
+    let dostrip = any (== ArgUnused) used
 
     -- Compute the type approximation
     def <- getConstInfo q
@@ -536,7 +536,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                  Function{ funProjection = Just Projection{ projIndex = i } } | i > 0 -> i - 1
                  _ -> 0
         argTypes  = drop pars argTypes0
-        argTypesS = [ t | (t, True) <- zip argTypes (used ++ repeat True) ]
+        argTypesS = filterUsed used argTypes
 
     (e, useFloat) <- if dostrip then closedTerm (stripUnusedArguments used treeless)
                                 else closedTerm treeless
@@ -554,7 +554,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
     -- The definition of the non-stripped function
     (ps0, _) <- lamView <$> closedTerm_ (foldr ($) T.TErased $ replicate (length used) T.TLam)
-    let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), True) <- zip ps0 used ]
+    let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), ArgUsed) <- zip ps0 used ]
 
     return (useFloat,
             if dostrip
@@ -694,21 +694,20 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
     (T.TPrim T.PIf, [c, x, y]) -> coe <$> do HS.If <$> term c <*> term x <*> term y
 
     (T.TDef f, ts) -> do
-      used <- liftCC $ getCompiledArgUse f
+      used <- liftCC $ fromMaybe [] <$> getCompiledArgUse f
       -- #2248: no unused argument pruning for COMPILE'd functions
       isCompiled <- liftTCM $ isJust <$> getHaskellPragma f
       let given   = length ts
           needed  = length used
           missing = drop given used
-          notUsed = not
-      if not isCompiled && any not used
-        then if any notUsed missing then term (etaExpand (needed - given) tm0) else do
+      if not isCompiled && any (== ArgUnused) used
+        then if any (== ArgUnused) missing then term (etaExpand (needed - given) tm0) else do
           f <- liftCC $ HS.Var <$> xhqn "du" f  -- use stripped function
           -- Andreas, 2019-11-07, issue #4169.
           -- Insert coercion unconditionally as erasure of arguments
           -- that are matched upon might remove the unfolding of codomain types.
           -- (Hard to explain, see test/Compiler/simple/Issue4169.)
-          hsCoerce f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
+          hsCoerce f `apps` filterUsed used ts
         else do
           f <- liftCC $ HS.Var <$> xhqn "d" f  -- use original (non-stripped) function
           coe f `apps` ts

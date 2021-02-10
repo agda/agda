@@ -15,7 +15,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import qualified Agda.Syntax.Treeless as C
-import Agda.Syntax.Treeless (TTerm, EvaluationStrategy)
+import Agda.Syntax.Treeless (TTerm, EvaluationStrategy, ArgUsage(..))
 
 import Agda.TypeChecking.CompiledClause as CC
 import qualified Agda.TypeChecking.CompiledClause.Compile as CC
@@ -101,9 +101,9 @@ ccToTreeless eval q cc = do
   reportSDoc "treeless.opt.converted" (30 + v) $ "-- converted" $$ pbody body
   body <- runPipeline eval q (compilerPipeline v q) body
   used <- usedArguments q body
-  when (any not used) $
+  when (any (ArgUnused ==) used) $
     reportSDoc "treeless.opt.unused" (30 + v) $
-      "-- used args:" <+> hsep [ if u then text [x] else "_" | (x, u) <- zip ['a'..] used ] $$
+      "-- used args:" <+> hsep [ if u == ArgUsed then text [x] else "_" | (x, u) <- zip ['a'..] used ] $$
       pbody' "[stripped]" (stripUnusedArguments used body)
   reportSDoc "treeless.opt.final" (20 + v) $ pbody body
   setTreeless q body
@@ -496,10 +496,11 @@ maybeInlineDef q vs = do
       fun@Function{}
         | fun ^. funInline -> doinline eval
         | otherwise -> do
-        used <- lift $ getCompiledArgUse q
-        let substUsed False _   = pure C.TErased
-            substUsed True  arg = substArg arg
-        C.mkTApp (C.TDef q) <$> sequence [ substUsed u arg | (arg, u) <- zip vs $ used ++ repeat True ]
+        -- If ArgUsage hasn't been computed yet, we assume all arguments are used.
+        used <- lift $ fromMaybe [] <$> getCompiledArgUse q
+        let substUsed _   ArgUnused = pure C.TErased
+            substUsed arg ArgUsed   = substArg arg
+        C.mkTApp (C.TDef q) <$> zipWithM substUsed vs (used ++ repeat ArgUsed)
       _ -> C.mkTApp (C.TDef q) <$> substArgs vs
   where
     doinline eval = C.mkTApp <$> inline eval q <*> substArgs vs

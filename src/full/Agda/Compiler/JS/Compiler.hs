@@ -31,7 +31,8 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
   ( Name, Type
   , arity, nameFixity, unDom )
-import Agda.Syntax.Literal ( Literal(..) )
+import Agda.Syntax.Literal       ( Literal(..) )
+import Agda.Syntax.Treeless      ( ArgUsage(..), filterUsed )
 import qualified Agda.Syntax.Treeless as T
 
 import Agda.TypeChecking.Monad
@@ -41,7 +42,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.FileName ( isNewerThan )
 import Agda.Utils.Function ( iterate' )
-import Agda.Utils.List ( headWithDefault )
+import Agda.Utils.List ( downFrom, headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, fromMaybe, whenNothing )
@@ -381,7 +382,7 @@ definition' kit q d t ls = do
 
       reportSDoc "compile.js" 5 $ "compiling fun:" <+> prettyTCM q
       caseMaybeM (toTreeless T.EagerEvaluation q) (pure Nothing) $ \ treeless -> do
-        used <- getCompiledArgUse q
+        used <- fromMaybe [] <$> getCompiledArgUse q
         funBody <- eliminateCaseDefaults =<<
           eliminateLiteralPatterns
           (convertGuards treeless)
@@ -394,11 +395,11 @@ definition' kit q d t ls = do
                 lamView t = (t, 0)
 
             -- number of eta expanded args
-            etaN = length $ dropWhile id $ reverse $ drop given used
+            etaN = length $ dropWhile (== ArgUsed) $ reverse $ drop given used
 
         funBody' <- compileTerm kit
-                  $ iterate' (given + etaN - length (filter not used)) T.TLam
-                  $ eraseLocalVars (map not used)
+                  $ iterate' (given + etaN - length (filter (== ArgUnused) used)) T.TLam
+                  $ eraseLocalVars (map (== ArgUnused) used)
                   $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
 
         reportSDoc "compile.js" 30 $ " compiled JS fun:" <+> (text . show) funBody'
@@ -486,14 +487,17 @@ compileTerm kit t = go t
           [(flatName, PlainJS evalThunk)
           ,(MemberId "__flat_helper", Lambda 0 x)]
       T.TApp t' xs | Just f <- getDef t' -> do
-        used <- either getCompiledArgUse (\x -> fmap (map not) $ getErasedConArgs x) f
+        used <- case f of
+          Left  q -> fromMaybe [] <$> getCompiledArgUse q
+          Right c -> map (\ b -> if b then ArgUnused else ArgUsed) <$> getErasedConArgs c
+            -- Andreas, 2021-02-10 NB: could be @map (bool ArgUsed ArgUnused)@
+            -- but I find it unintuitive that 'bool' takes the 'False'-branch first.
         let given = length xs
 
             -- number of eta expanded args
-            etaN = length $ dropWhile id $ reverse $ drop given used
+            etaN = length $ dropWhile (== ArgUsed) $ reverse $ drop given used
 
-            xs' = xs ++ (T.TVar <$> [etaN-1, etaN-2 .. 0])
-            args = [ t | (t, True) <- zip xs' $ used ++ repeat True ]
+            args = filterUsed used $ xs ++ (T.TVar <$> downFrom etaN)
 
         curriedLambda etaN <$> (curriedApply <$> go (raise etaN t') <*> mapM go args)
 
