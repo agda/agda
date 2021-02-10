@@ -206,7 +206,9 @@ data a :∈ b = a :∈ b
 
 pattern (:∋) :: forall a b. b -> a -> a :∈ b
 pattern b :∋ a = a :∈ b
+#if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE (:∋) #-}
+#endif
 
 instance (AsTwin a, AsTwin b) => AsTwin (a :∈ b) where
   type AsTwin_ (a :∈ b) = AsTwin_ a :∈ AsTwin_ b

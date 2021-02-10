@@ -4422,9 +4422,9 @@ instance MonadBlock m => MonadBlock (ReaderT e m) where
 data Strive = Doable
             | ExtraEffort EffortDelta
 strive :: (MonadTCEnv m) =>
-          EffortLevel ->
+          EffortLevel
           -- ^ Effort required for the following action
-          m Strive
+          -> m Strive
 strive e = do
   e' <- asksTC envEffortLevel
   if e <= e' then
