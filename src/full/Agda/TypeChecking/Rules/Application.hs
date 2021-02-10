@@ -118,7 +118,7 @@ checkApplication cmp hd args e t =
     ]
   case unScope hd of
     -- Subcase: unambiguous projection
-    A.Proj _ p | Just _ <- getUnambiguous p -> checkHeadApplication cmp e t hd args
+    A.Proj o p | Just x <- getUnambiguous p -> checkUnambiguousProjectionApplication cmp e t x o hd args
 
     -- Subcase: ambiguous projection
     A.Proj o p -> checkProjApp cmp e o (unAmbQ p) args t
@@ -956,6 +956,18 @@ disambiguateConstructor cs0 t = do
 ---------------------------------------------------------------------------
 -- * Projections
 ---------------------------------------------------------------------------
+
+checkUnambiguousProjectionApplication :: Comparison -> A.Expr -> Type -> QName -> ProjOrigin -> A.Expr -> [NamedArg A.Expr] -> TCM Term
+checkUnambiguousProjectionApplication cmp e t x o hd args =
+  -- Andreas, 2021-02-19, issue #3289
+  -- If a postfix projection was moved to the head by appView,
+  -- we have to patch the first argument with the correct hiding info.
+  case (o, args) of
+    (ProjPostfix, arg : rest) -> do
+      pr <- fromMaybe __IMPOSSIBLE__ <$> isProjection x
+      let ai = projArgInfo pr
+      checkHeadApplication cmp e t hd (setArgInfo ai arg : rest)
+    _ -> checkHeadApplication cmp e t hd args
 
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
