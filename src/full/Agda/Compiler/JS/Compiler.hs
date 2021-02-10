@@ -7,7 +7,7 @@ import Control.Monad.Trans
 
 import Data.Char     ( isSpace )
 import Data.Foldable ( forM_ )
-import Data.List     ( intercalate, partition )
+import Data.List     ( dropWhileEnd, intercalate, partition )
 import Data.Set      ( Set )
 
 import qualified Data.Set as Set
@@ -387,6 +387,7 @@ definition' kit q d t ls = do
           eliminateLiteralPatterns
           (convertGuards treeless)
         reportSDoc "compile.js" 30 $ " compiled treeless fun:" <+> pretty funBody
+        reportSDoc "compile.js" 40 $ " argument usage:" <+> (text . show) used
 
         let (body, given) = lamView funBody
               where
@@ -395,12 +396,14 @@ definition' kit q d t ls = do
                 lamView t = (t, 0)
 
             -- number of eta expanded args
-            etaN = length $ dropWhile (== ArgUsed) $ reverse $ drop given used
+            etaN = length $ dropWhileEnd (== ArgUsed) $ drop given used
+
+            unusedN = length $ filter (== ArgUnused) used
 
         funBody' <- compileTerm kit
-                  $ iterate' (given + etaN - length (filter (== ArgUnused) used)) T.TLam
+                  $ iterate' (given + etaN - unusedN) T.TLam
                   $ eraseLocalVars (map (== ArgUnused) used)
-                  $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
+                  $ T.mkTApp (raise etaN body) (T.TVar <$> downFrom etaN)
 
         reportSDoc "compile.js" 30 $ " compiled JS fun:" <+> (text . show) funBody'
         return $
