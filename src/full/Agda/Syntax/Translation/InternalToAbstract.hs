@@ -1366,7 +1366,7 @@ instance Reify Sort where
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU
         I.LockUniv  -> do
-          I.Def lockU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLockUniv
+          lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv
           return $ A.Def lockU
         I.PiSort a s1 s2 -> do
           pis <- freshName_ ("piSort" :: String) -- TODO: hack
