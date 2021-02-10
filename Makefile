@@ -158,7 +158,10 @@ else
 endif
 
 .PHONY: fast-install-bin ## Install Agda -O0 and test suites via cabal (or stack if stack.yaml exists).
-fast-install-bin: install-deps
+fast-install-bin: install-deps fast-install-bin-no-deps
+
+.PHONY: fast-install-bin-no-deps
+ fast-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -171,22 +174,14 @@ else
 	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
-# Andreas, 2020-06-02, AIM XXXII, quick-install-bin seems obsolete since we have quicker-install-bin
-# .PHONY: quick-install-bin ## Install Agda via cabal (or stack if stack.yaml exists).
-# quick-install-bin: install-deps ensure-hash-is-correct
-# ifdef HAS_STACK
-# 	@echo "===================== Installing using Stack ============================="
-# 	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-# else
-# 	@echo "===================== Installing using Cabal ============================="
-# 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
-# endif
-
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
 
 .PHONY: quicker-install-bin ## Install Agda (compiled with -O0) via cabal (or stack if stack.yaml exists).
-quicker-install-bin: install-deps
+quicker-install-bin: install-deps quicker-install-bin-no-deps
+
+.PHONY: quicker-install-bin-no-deps
+quicker-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
