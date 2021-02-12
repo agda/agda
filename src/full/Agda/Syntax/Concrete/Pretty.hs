@@ -659,8 +659,8 @@ instance Pretty Pattern where
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .
-  Pretty a => QName -> List1 (NamedArg (MaybePlaceholder a)) -> [Doc]
-prettyOpApp q es = merge [] $ prOp ms xs $ List1.toList es
+  Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]
+prettyOpApp q es = merge [] $ prOp ms xs es
   where
     -- ms: the module part of the name.
     ms = List1.init (qnameParts q)

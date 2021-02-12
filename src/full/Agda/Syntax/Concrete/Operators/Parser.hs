@@ -107,7 +107,7 @@ instance IsExpr Pattern where
     unExprView = \case
         LocalV x       -> IdentP x
         AppV e1 e2     -> AppP e1 e2
-        OpAppV d ns es -> let ess :: List1 (NamedArg Pattern)
+        OpAppV d ns es -> let ess :: [NamedArg Pattern]
                               ess = (fmap . fmap . fmap)
                                       (\case
                                           Placeholder{}     -> __IMPOSSIBLE__
@@ -250,7 +250,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
                     withoutExternalHoles) $ \(range, hs) ->
 
   let (normal, binders) = partitionEithers hs
-      lastHole          = maximum $ mapMaybe holeTarget syn
+      lastHole          = maximum $ (-1) : mapMaybe holeTarget syn
 
       app :: ([(MaybePlaceholder e, NamedArg (Ranged Int))] ->
               [(MaybePlaceholder e, NamedArg (Ranged Int))]) -> e
@@ -265,7 +265,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
         else
           unExprView (OpAppV q' names args)
         where
-        args = List1.fromList $ map (findExprFor (f normal) binders) [0..lastHole]
+        args = map (findExprFor (f normal) binders) [0..lastHole]
         q'   = setRange range q
   in
 

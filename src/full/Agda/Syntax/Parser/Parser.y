@@ -1338,7 +1338,7 @@ SimpleIds : SimpleId { [$1] }
           | SimpleIds SimpleId {$1 ++ [$2]}
 
 HoleNames :: { [NamedArg HoleName] }
-HoleNames : HoleName { [$1] }
+HoleNames :                    { [] }
           | HoleNames HoleName {$1 ++ [$2]}
 
 HoleName :: { NamedArg HoleName }

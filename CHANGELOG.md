@@ -312,6 +312,15 @@ Language
   locally, and cannot make use of information in the definition body, and that
   constructors of abstract datatypes are not in scope in type signatures.
 
+* One can now declare syntax with two name parts without any hole in
+  between, and syntax without any holes.
+
+  Examples:
+  ```agda
+  syntax Σ A (λ x → B) = [ x ∶ A ] × B
+  syntax []            = [ ]
+  ```
+
 Builtins
 --------
 

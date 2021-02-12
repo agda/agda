@@ -9,7 +9,7 @@ module Agda.Syntax.Concrete
   ( -- * Expressions
     Expr(..)
   , OpApp(..), fromOrdinary
-  , OpAppArgs, OpAppArgs', OpAppArgs0
+  , OpAppArgs, OpAppArgs'
   , module Agda.Syntax.Concrete.Name
   , AppView(..), appView, unAppView
   , rawApp, rawAppP
@@ -180,8 +180,7 @@ data Expr
   deriving (Data, Eq)
 
 type OpAppArgs = OpAppArgs' Expr
-type OpAppArgs' e = List1 (NamedArg (MaybePlaceholder (OpApp e)))
-type OpAppArgs0 e = [NamedArg (MaybePlaceholder (OpApp e))]
+type OpAppArgs' e = [NamedArg (MaybePlaceholder (OpApp e))]
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
@@ -190,7 +189,7 @@ data Pattern
   | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
   | RawAppP Range (List2 Pattern)          -- ^ @p1..pn@ before parsing operators
   | OpAppP Range QName (Set A.Name)
-           (List1 (NamedArg Pattern))      -- ^ eg: @p => p'@ for operator @_=>_@
+           [NamedArg Pattern]              -- ^ eg: @p => p'@ for operator @_=>_@
                                            -- The 'QName' is possibly
                                            -- ambiguous, but it must
                                            -- correspond to one of

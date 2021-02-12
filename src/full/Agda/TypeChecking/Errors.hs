@@ -1045,11 +1045,18 @@ instance PrettyTCM TypeError where
                     (foldr (\x s -> C.nameToRawName x ++ "." ++ s)
                            ""
                            (List1.init (C.qnameParts (notaName nota))))
-                    (trim (notation nota))
+                    (spacesBetweenAdjacentIds $
+                     trim (notation nota))
 
         qualifyFirstIdPart _ []              = []
         qualifyFirstIdPart q (IdPart x : ps) = IdPart (fmap (q ++) x) : ps
         qualifyFirstIdPart q (p : ps)        = p : qualifyFirstIdPart q ps
+
+        spacesBetweenAdjacentIds (IdPart x : ps@(IdPart _ : _)) =
+          IdPart x : IdPart (unranged " ") : spacesBetweenAdjacentIds ps
+        spacesBetweenAdjacentIds (p : ps) =
+          p : spacesBetweenAdjacentIds ps
+        spacesBetweenAdjacentIds [] = []
 
         trim = case sectKind sect of
           InfixNotation   -> trimLeft . trimRight

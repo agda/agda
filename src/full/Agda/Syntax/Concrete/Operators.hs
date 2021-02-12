@@ -52,7 +52,7 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.Utils.Either
 import Agda.Utils.Pretty
 import Agda.Utils.List
-import Agda.Utils.List1 (List1, pattern (:|), (<|))
+import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
@@ -771,7 +771,9 @@ appView = loop []
   where
   loop acc = \case
     AppP p a         -> loop (namedArg a : acc) p
-    OpAppP _ op _ ps -> IdentP op <| fmap namedArg ps `List1.append` reverse acc
+    OpAppP _ op _ ps -> (IdentP op :| fmap namedArg ps)
+                          `List1.append`
+                        reverse acc
     ParenP _ p       -> loop acc p
     RawAppP _ _      -> __IMPOSSIBLE__
     HiddenP _ _      -> __IMPOSSIBLE__

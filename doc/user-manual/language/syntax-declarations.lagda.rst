@@ -32,9 +32,9 @@ identifiers. Example:
       field fst : A
             snd : B fst
 
-    syntax Σ A (λ x → B) = ∃ x ∈ A , B
+    syntax Σ A (λ x → B) = [ x ∈ A ] × B
 
-    witness : ∀ {A B} → ∃ x ∈ A , B → A
+    witness : ∀ {A B} → [ x ∈ A ] × B → A
     witness (x , _) = x
 
 The syntax declaration for ``Σ`` implies that ``x`` is in scope in
@@ -55,7 +55,7 @@ You can give fixity declarations along with syntax declarations:
 
 
     infix 5 Σ
-    syntax Σ A (λ x → B) = ∃ x ∈ A , B
+    syntax Σ A (λ x → B) = [ x ∈ A ] × B
 
 The fixity applies to the syntax, not the name; syntax declarations
 are also restricted to ordinary, non-operator names. The following

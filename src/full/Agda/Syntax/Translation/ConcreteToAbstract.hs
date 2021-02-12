@@ -2755,10 +2755,9 @@ resolvePatternIdentifier r x ns = do
 applyAPattern
   :: C.Pattern            -- ^ The application pattern in concrete syntax.
   -> A.Pattern' C.Expr    -- ^ Head of application.
-  -> NAPs1 C.Expr         -- ^ Arguments of application.
+  -> NAPs C.Expr          -- ^ Arguments of application.
   -> ScopeM (A.Pattern' C.Expr)
-applyAPattern p0 p ps1 = do
-  let ps = List1.toList ps1
+applyAPattern p0 p ps = do
   setRange (getRange p0) <$> do
     case p of
       A.ConP i x as        -> return $ A.ConP        i x (as ++ ps)
@@ -2897,7 +2896,7 @@ toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
 toAbstractOpApp :: C.QName -> Set A.Name -> OpAppArgs -> ScopeM A.Expr
 toAbstractOpApp op ns es = do
     -- Replace placeholders with bound variables.
-    (binders, es) <- replacePlaceholders $ List1.toList es
+    (binders, es) <- replacePlaceholders es
     -- Get the notation for the operator.
     nota <- getNotation op ns
     let parts = notation nota
@@ -2963,7 +2962,7 @@ toAbstractOpApp op ns es = do
     right _ _     _  = __IMPOSSIBLE__
 
     replacePlaceholders ::
-      OpAppArgs0 e ->
+      OpAppArgs' e ->
       ScopeM ([A.LamBinding], [NamedArg (Either A.Expr (OpApp e))])
     replacePlaceholders []       = return ([], [])
     replacePlaceholders (a : as) = case namedArg a of

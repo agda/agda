@@ -15,7 +15,7 @@ import Agda.Utils.AffineHole
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List
-import Agda.Utils.List1  ( List1, (<|) )
+import Agda.Utils.List1  ( List1, pattern (:|) )
 import Agda.Utils.List2  ( List2 )
 import Agda.Utils.Maybe
 import Agda.Utils.Singleton
@@ -375,7 +375,7 @@ splitEllipsis k (p:ps)
 patternAppView :: Pattern -> List1 (NamedArg Pattern)
 patternAppView = \case
     AppP p arg      -> patternAppView p `List1.append` [arg]
-    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) <| ps
+    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) :| ps
     ParenP _ p      -> patternAppView p
     RawAppP _ _     -> __IMPOSSIBLE__
     p               -> singleton $ defaultNamedArg p

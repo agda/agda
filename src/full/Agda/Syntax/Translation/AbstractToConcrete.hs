@@ -1521,7 +1521,9 @@ getHead _                = Nothing
 
 cOpApp :: Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
 cOpApp r x n es =
-  C.OpApp r x (Set.singleton n) $ fmap (defaultNamedArg . placeholder) eps
+  C.OpApp r x (Set.singleton n) $
+  fmap (defaultNamedArg . placeholder) $
+  List1.toList eps
   where
     x0 = C.unqualify x
     positions | isPrefix  x0 =              (const Middle <$> List1.drop 1 es) `List1.snoc` End
@@ -1581,8 +1583,9 @@ tryToRecoverOpAppP p = do
   return res
   where
     opApp r x n ps = C.OpAppP r x (Set.singleton n) $
-      fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
+      fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) $
       -- `view` does not generate any `Nothing`s
+      List1.toList ps
 
     appInfo = defaultAppInfo_
 
