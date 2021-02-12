@@ -1,15 +1,33 @@
 Agda dependencies license report
 ================================
 
-Using `cabal-plan`, you can generate a listing of the licenses of the Agda dependencies in this directory.
-See [Makefile](Makefile) for prerequisites (`cabal-plan`, `pandoc`).
+The [Makefile](Makefile) here helps you to generate a listing of the
+licenses of the Agda dependencies using `cabal-plan`.
 
-Instructions:
+Instructions
+------------
 
-- Run `cabal v2-configure` in the root folder (to generate `dist-newstyle/`).
-  This step can be skipped if you already have that folder,
-  e.g., if you have run `cabal v2-build` or similar before.
+1. If you are lacking one of the prerequisites `cabal-plan` or `pandoc`
+   (details see [Makefile](Makefile)),
+   run `make install` here.
 
-- Run `make` here.
+2. Run `make` here.
 
-- Result is in `index.html`.
+3. Result is in `index.html`.
+
+Note
+----
+
+If you do not have a cabal build plan for Agda yet, i.e., a file
+`dist-newstyle/cache/plan.json`, the `make` step will run `cabal v2-configure`
+in the root folder with flags to get the maximal dependencies, like
+```
+cabal v2-configure --enable-tests -fenable-cluster-counting
+```
+(details see [Makefile](Makefile)).
+
+However, there is no check that the build plan is up-to-date nor includes the maximal dependencies.
+You can force it by:
+```
+make -B configure
+```
