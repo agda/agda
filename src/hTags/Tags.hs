@@ -200,7 +200,7 @@ instance TagName name => HasTags (HsDecl name) where
 #endif
   tags d = case d of
 #if MIN_VERSION_ghc(8,10,1)
-    KindSigD{}    -> missingImp "KindSigD"
+    KindSigD _ d  -> tags d
 #endif
 #if MIN_VERSION_ghc(8,6,1)
     TyClD _ d     -> tags d
@@ -432,6 +432,13 @@ instance TagName name => HasTags (ForeignDecl name) where
     ForeignImport x _ _ _ -> tagsLN x
 #endif
     ForeignExport{}       -> []
+
+#if MIN_VERSION_ghc(8,10,1)
+instance (IdP pass ~ name, TagName name) => HasTags (StandaloneKindSig pass) where
+  tags d = case d of
+    StandaloneKindSig _ x _ -> tagsLN x
+    XStandaloneKindSig _    -> missingImp "XStandaloneKindSig"
+#endif
 
 missingImp :: String -> a
 missingImp x = error $ "Missing implementation: " ++ x
