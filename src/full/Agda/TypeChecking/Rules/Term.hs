@@ -1012,6 +1012,7 @@ checkRecordExpression cmp mfs e t = do
     guessRecordType t = do
       let fields = [ x | Left (FieldAssignment x _) <- mfs ]
       rs <- findPossibleRecords fields
+      reportSDoc "tc.term.rec" 30 $ "Possible records for" <+> prettyTCM t <+> "are" <?> pretty rs
       case rs of
           -- If there are no records with the right fields we might as well fail right away.
         [] -> case fields of
@@ -1020,8 +1021,12 @@ checkRecordExpression cmp mfs e t = do
           _   -> genericError $ "There is no known record with the fields " ++ unwords (map prettyShow fields)
           -- If there's only one record with the appropriate fields, go with that.
         [r] -> do
-          def <- getConstInfo r
+          -- #5198: Don't generate metas for parameters of the current module. In most cases they
+          -- get solved, but not always.
+          def <- instantiateDef =<< getConstInfo r
+          ps  <- freeVarsToApply r
           let rt = defType def
+          reportSDoc "tc.term.rec" 30 $ "Type of unique record" <+> prettyTCM rt
           vs  <- newArgsMeta rt
           target <- reduce $ piApply rt vs
           s  <- case unEl target of
@@ -1035,7 +1040,7 @@ checkRecordExpression cmp mfs e t = do
                       , text $ "  Raw                   =  " ++ show v
                       ]
                     __IMPOSSIBLE__
-          let inferred = El s $ Def r $ map Apply vs
+          let inferred = El s $ Def r $ map Apply (ps ++ vs)
           v <- checkExpr e inferred
           coerce cmp v inferred t
           -- Andreas 2012-04-21: OLD CODE, WRONG DIRECTION, I GUESS:
