@@ -27,7 +27,7 @@ jobs:
         cabal-ver: [3.2]
 
     env:
-      ARGS: "--enable-library-stripping --disable-executable-profiling --disable-library-profiling"
+      ARGS: "--disable-executable-profiling --disable-library-profiling"
       # Liang-Ting Chen (2021-01-01):
       # Cabal cannot compile statically with text-icu (required by the flag `enable-cluster-counting`),
       # see https://github.com/4e6/text-icu-static-example
@@ -35,7 +35,7 @@ jobs:
       # Liang-Ting Chen (2021-01-01):
       # The option `split-sections` is ignored on macOS, see https://gitlab.haskell.org/ghc/ghc/-/issues/11445 for details.
       MACOS_ARGS: "--flags=enable-cluster-counting"
-      WIN64_ARGS: "--ghc-options=-split-sections --flags=enable-cluster-counting"
+      WIN64_ARGS: "--enable-split-sections --flags=enable-cluster-counting"
     outputs:
       sha: ${{ steps.vars.outputs.sha }}
     runs-on: ${{ matrix.os }}
@@ -112,15 +112,15 @@ jobs:
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
 
-    - uses: actions/cache@v2
-      name: Cache dependencies
-      id: cache
-      with:
-        path: |
-          ${{ steps.setup-haskell.outputs.cabal-store }}
-        # A unique cache is used for each stack.yaml.
-        key: nightly-${{ runner.os }}-ghc-${{ matrix.ghc-ver }}-cabal-${{ hashFiles('**/plan.json') }}
-
+        #    - uses: actions/cache@v2
+        #      name: Cache dependencies
+        #      id: cache
+        #      with:
+        #        path: |
+        #          ${{ steps.setup-haskell.outputs.cabal-store }}
+        #        # A unique cache is used for each stack.yaml.
+        #        key: nightly-${{ runner.os }}-ghc-${{ matrix.ghc-ver }}-cabal-${{ hashFiles('**/plan.json') }}
+        #
     - name: Build dependencies
       if: ${{ !steps.cache.outputs.cache-hit }}
       run: cabal build exe:agda exe:agda-mode --only-dependencies -v0
