@@ -152,6 +152,7 @@ data PragmaOptions = PragmaOptions
   , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
+  , optGuarded                   :: Bool
   , optFirstOrder                :: Bool  -- ^ Should we speculatively unify function applications as if they were injective?
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
@@ -281,6 +282,7 @@ defaultPragmaOptions = PragmaOptions
   , optProjectionLike            = True
   , optRewriting                 = False
   , optCubical                   = False
+  , optGuarded                   = False
   , optFirstOrder                = False
   , optPostfixProjections        = False
   , optKeepPatternVariables      = False
@@ -390,6 +392,7 @@ restartOptions =
   , (B . not . optEta, "--no-eta-equality")
   , (B . optRewriting, "--rewriting")
   , (B . optCubical, "--cubical")
+  , (B . optGuarded, "--guarded")
   , (B . optOverlappingInstances, "--overlapping-instances")
   , (B . optQualifiedInstances, "--qualified-instances")
   , (B . not . optQualifiedInstances, "--no-qualified-instances")
@@ -418,6 +421,7 @@ data RestartCodomain = C CutOff | B Bool | I Int | W WarningMode
 infectiveOptions :: [(PragmaOptions -> Bool, String)]
 infectiveOptions =
   [ (optCubical, "--cubical")
+  , (optGuarded, "--guarded")
   , (optProp, "--prop")
   , (collapseDefault . optTwoLevel, "--two-level")
   , (optRewriting, "--rewriting")
@@ -702,6 +706,10 @@ cubicalFlag o = do
              , optTwoLevel = setDefault True $ optTwoLevel o
              }
 
+guardedFlag :: Flag PragmaOptions
+guardedFlag o = do
+  return $ o { optGuarded  = True }
+
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 
@@ -958,6 +966,8 @@ pragmaOptions =
                     "disable confluence checking of REWRITE rules (default)"
     , Option []     ["cubical"] (NoArg cubicalFlag)
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
+    , Option []     ["guarded"] (NoArg guardedFlag)
+                    "enable @lock/@tick attributes"
     , Option []     ["experimental-lossy-unification"] (NoArg firstOrderFlag)
                     "enable heuristically unifying `f es = f es'` by unifying `es = es'`, even when it could lose solutions."
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
