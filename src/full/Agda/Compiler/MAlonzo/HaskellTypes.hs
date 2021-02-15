@@ -54,6 +54,11 @@ hsApp d ds = foldl HS.TyApp d ds
 hsForall :: HS.Name -> HS.Type -> HS.Type
 hsForall x = HS.TyForall [HS.UnkindedVar x]
 
+-- Issue #5207: From ghc-9.0 we have to be careful with nested foralls.
+hsFun :: HS.Type -> HS.Type -> HS.Type
+hsFun a (HS.TyForall vs b) = HS.TyForall vs $ hsFun a b
+hsFun a b = HS.TyFun a b
+
 data WhyNot = NoPragmaFor QName
             | WrongPragmaFor Range QName
             | BadLambda Term
@@ -160,8 +165,8 @@ haskellType' t = runToHs (unEl t) (fromType t)
           then do
             hsA <- fromType (unDom a)
             liftE1' (underAbstraction a b) $ \ b ->
-              hsForall <$> getHsVar 0 <*> (HS.TyFun hsA <$> fromType b)
-          else HS.TyFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
+              hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType b)
+          else hsFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
         Con c ci es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           hsApp <$> getHsType (conName c) <*> fromArgs args
@@ -235,7 +240,7 @@ hsTypeApproximation poly fv t = do
         t <- unSpine <$> reduce t
         case t of
           Var i _ | poly == PolyApprox -> return $ tyVar n i
-          Pi a b -> HS.TyFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
+          Pi a b -> hsFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
             | q `is` list, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
