@@ -815,7 +815,7 @@ instance ToConcrete A.Expr where
                 return [p] -- __IMPOSSIBLE__
                   -- Andreas, this is actually not impossible,
                   -- my strictification exposed this sleeping bug
-          let decl2clause (C.FunClause (C.LHS p [] [] NoEllipsis) rhs C.NoWhere ca) = do
+          let decl2clause (C.FunClause (C.LHS p [] []) rhs C.NoWhere ca) = do
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 ps <- removeApp p
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
@@ -963,14 +963,14 @@ instance ToConcrete A.LetBinding where
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
                [ C.TypeSig info Nothing (C.boundName x) t
-               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [] NoEllipsis)
+               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [])
                              e C.NoWhere False
                ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] [] NoEllipsis) (C.RHS e) NoWhere False ]
+        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere False ]
     bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
@@ -1076,10 +1076,10 @@ instance (ToConcrete a, ConOfAbs a ~ C.LHS) => ToConcrete (A.Clause' a) where
 
   toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
-          C.LHS p _ _ ell -> do
+          C.LHS p _ _ -> do
             bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p eqs with ell) rhs' wh' catchall : wcs
+                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall : wcs
 
 instance ToConcrete A.ModuleApplication where
   type ConOfAbs A.ModuleApplication = C.ModuleApplication
@@ -1246,7 +1246,7 @@ instance ToConcrete A.LHS where
 
     bindToConcrete (A.LHS i lhscore) ret = do
       bindToConcreteCtx TopCtx lhscore $ \ lhs ->
-          ret $ C.LHS (reintroduceEllipsis (lhsEllipsis i) lhs) [] [] NoEllipsis
+          ret $ C.LHS (reintroduceEllipsis (lhsEllipsis i) lhs) [] []
 
 instance ToConcrete A.LHSCore where
   type ConOfAbs A.LHSCore = C.Pattern

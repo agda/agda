@@ -343,7 +343,7 @@ instance Pretty WhereClause where
          ]
 
 instance Pretty LHS where
-  pretty (LHS p eqs es ell) = sep
+  pretty (LHS p eqs es) = sep
     [ pretty p
     , nest 2 $ if null eqs then empty else fsep $ map pretty eqs
     , nest 2 $ prefixedThings "with" (map pretty es)
@@ -358,6 +358,7 @@ instance Pretty LHSCore where
       sep $ parens doc : map (parens . pretty) ps
     where
     doc = sep $ pretty h : map (("|" <+>) . pretty) wps
+  pretty (LHSEllipsis r p) = "..."
 
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> "=" <+> pretty e
@@ -655,7 +656,7 @@ instance Pretty Pattern where
             QuoteP _        -> "quote"
             RecP _ fs       -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
             EqualP _ es     -> sep $ [ parens (sep [pretty e1, "=", pretty e2]) | (e1,e2) <- es ]
-            EllipsisP _     -> "..."
+            EllipsisP _ mp  -> "..."
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .

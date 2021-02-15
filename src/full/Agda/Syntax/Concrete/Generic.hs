@@ -177,7 +177,7 @@ instance ExprLike LamBinding where
 
 instance ExprLike LHS where
   mapExpr f = \case
-     LHS ps res wes ell -> LHS ps (mapE res) (mapE wes) ell
+     LHS ps res wes -> LHS ps (mapE res) (mapE wes)
    where
      mapE :: ExprLike a => a -> a
      mapE = mapExpr f

@@ -213,7 +213,7 @@ recordConstructorType decls =
         C.NiceMutual _ _ _ _
           [ C.FunSig _ _ _ _ macro _ _ _ _ _
           , C.FunDef _ _ abstract _ _ _ _
-             [ C.Clause _ _ (C.LHS _p [] [] NoEllipsis) (C.RHS _) NoWhere [] ]
+             [ C.Clause _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] ]
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
@@ -828,7 +828,7 @@ scopeCheckExtendedLam r cs = do
   d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname . List1.toList <$> do
           forM cs $ \ (LamClause ps rhs ca) -> do
             let p   = C.rawAppP $ (killRange $ IdentP $ C.QName cname) :| ps
-            let lhs = C.LHS p [] [] NoEllipsis
+            let lhs = C.LHS p [] []
             return $ C.Clause cname ca lhs rhs NoWhere []
   scdef <- toAbstract d
 
@@ -1516,7 +1516,7 @@ instance ToAbstract LetDef where
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
-      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] [] NoEllipsis) rhs0 wh ca) -> do
+      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 wh ca) -> do
         noWhereInLetBinding wh
         rhs <- letBindingMustHaveRHS rhs0
         mp  <- setCurrentRange p0 $
@@ -1585,7 +1585,7 @@ instance ToAbstract LetDef where
 
       _   -> notAValidLetBinding d
     where
-        letToAbstract (C.Clause top _catchall (C.LHS p [] [] NoEllipsis) rhs0 wh []) = do
+        letToAbstract (C.Clause top _catchall (C.LHS p [] []) rhs0 wh []) = do
             noWhereInLetBinding wh
             rhs <- letBindingMustHaveRHS rhs0
             (x, args) <- do
@@ -1594,6 +1594,7 @@ instance ToAbstract LetDef where
                 C.LHSHead x args -> return (x, args)
                 C.LHSProj{} -> genericError $ "Copatterns not allowed in let bindings"
                 C.LHSWith{} -> genericError $ "`with` patterns not allowed in let bindings"
+                C.LHSEllipsis{} -> genericError "`...` not allowed in let bindings"
 
             e <- localToAbstract args $ \args -> do
                 bindVarsToBind
@@ -2392,7 +2393,7 @@ instance ToAbstract C.Pragma where
         PatternSynResName (d :| []) -> return . (True,) $ anameName d
         PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
-    lhs <- toAbstract $ LeftHandSide top lhs NoEllipsis
+    lhs <- toAbstract $ LeftHandSide top lhs
     ps  <- case lhs of
              A.LHS _ (A.LHSHead _ ps) -> return ps
              _ -> err
@@ -2436,13 +2437,13 @@ instance ToAbstract C.Pragma where
 instance ToAbstract C.Clause where
   type AbsOfCon C.Clause = A.Clause
 
-  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with ell) rhs wh wcs) = withLocalVars $ do
+  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
     modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars0 <- getLocalVars
-    lhs' <- toAbstract $ LeftHandSide (C.QName top) p ell
+    lhs' <- toAbstract $ LeftHandSide (C.QName top) p
     printLocals 10 "after lhs:"
     vars1 <- getLocalVars
     eqs <- mapM (toAbstractCtx TopCtx) eqs
@@ -2625,17 +2626,18 @@ instance ToAbstract C.RHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
     toAbstract (C.RHS e)   = RHS' <$> toAbstract e <*> pure e
 
-data LeftHandSide = LeftHandSide C.QName C.Pattern ExpandedEllipsis
+data LeftHandSide = LeftHandSide C.QName C.Pattern
 
 instance ToAbstract LeftHandSide where
     type AbsOfCon LeftHandSide = A.LHS
 
-    toAbstract (LeftHandSide top lhs ell) =
+    toAbstract (LeftHandSide top lhs) =
       traceCall (ScopeCheckLHS top lhs) $ do
         reportSLn "scope.lhs" 5 $ "original lhs: " ++ prettyShow lhs
         reportSLn "scope.lhs" 60 $ "patternQNames: " ++ prettyShow (patternQNames lhs)
         reportSLn "scope.lhs" 60 $ "original lhs (raw): " ++ show lhs
         lhscore <- parseLHS top lhs
+        let ell = hasExpandedEllipsis lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ prettyShow lhscore
         reportSLn "scope.lhs" 60 $ "parsed lhs (raw): " ++ show lhscore
         printLocals 10 "before lhs:"
@@ -2655,6 +2657,17 @@ instance ToAbstract LeftHandSide where
         reportSLn "scope.lhs" 60 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
+
+hasExpandedEllipsis :: C.LHSCore -> ExpandedEllipsis
+hasExpandedEllipsis core = case core of
+  C.LHSHead{}       -> NoEllipsis
+  C.LHSProj{}       -> hasExpandedEllipsis $ namedArg $ C.lhsFocus core -- can this ever be ExpandedEllipsis?
+  C.LHSWith{}       -> hasExpandedEllipsis $ C.lhsHead core
+  C.LHSEllipsis r p -> case p of
+    C.LHSWith _ wps _ -> ExpandedEllipsis r (length wps)
+    C.LHSHead{}       -> ExpandedEllipsis r 0
+    C.LHSProj{}       -> ExpandedEllipsis r 0
+    C.LHSEllipsis{}   -> __IMPOSSIBLE__
 
 -- | Merges adjacent EqualP patterns into one:
 -- type checking expects only one pattern for each domain in the telescope.
@@ -2700,6 +2713,9 @@ instance ToAbstract C.LHSCore where
         (toAbstract core)
         (toAbstract wps)
         (toAbstract ps)
+    toAbstract (C.LHSEllipsis _ p) = do
+      ap <- toAbstract p
+      return ap
 
 instance ToAbstract c => ToAbstract (WithHiding c) where
   type AbsOfCon (WithHiding c) = WithHiding (AbsOfCon c)
@@ -2838,11 +2854,12 @@ instance ToAbstract C.Pattern where
         ps <- toAbstract ps
         applyAPattern p0 p ps
 
+    toAbstract (EllipsisP _ mp) = maybe __IMPOSSIBLE__ toAbstract mp
+
     -- Removed when parsing
     toAbstract (HiddenP _ _)   = __IMPOSSIBLE__
     toAbstract (InstanceP _ _) = __IMPOSSIBLE__
     toAbstract (RawAppP _ _)   = __IMPOSSIBLE__
-    toAbstract (EllipsisP _)   = __IMPOSSIBLE__
 
     toAbstract p@(C.WildP r)    = return $ A.WildP (PatRange r)
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
