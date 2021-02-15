@@ -2713,8 +2713,12 @@ instance ToAbstract C.LHSCore where
         (toAbstract core)
         (toAbstract wps)
         (toAbstract ps)
+    -- In case of a part of the LHS which was expanded from an ellipsis,
+    -- we flush the @scopeVarsToBind@ in order to allow variables bound
+    -- in the ellipsis to be shadowed.
     toAbstract (C.LHSEllipsis _ p) = do
       ap <- toAbstract p
+      bindVarsToBind
       return ap
 
 instance ToAbstract c => ToAbstract (WithHiding c) where
