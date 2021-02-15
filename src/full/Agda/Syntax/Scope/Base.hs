@@ -105,7 +105,11 @@ updateScopeNameSpacesM f s = for (f $ scopeNameSpaces s) $ \ x ->
 data ScopeInfo = ScopeInfo
       { _scopeCurrent       :: A.ModuleName
       , _scopeModules       :: Map A.ModuleName Scope
-      , _scopeVarsToBind    :: LocalVars
+      , _scopeVarsToBind    :: LocalVars     -- ^ The variables that will be bound at the end
+                                             --   of the current block of variables (i.e. clause).
+                                             --   We collect them here instead of binding them
+                                             --   immediately so we can avoid shadowing between
+                                             --   variables in the same variable block.
       , _scopeLocals        :: LocalVars
       , _scopePrecedence    :: PrecedenceStack
       , _scopeInverseName   :: NameMap
