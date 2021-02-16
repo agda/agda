@@ -19,6 +19,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive.Base
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
@@ -226,7 +227,8 @@ quotingKit = do
       quoteArgs ts = list (map (quoteArg quoteTerm) ts)
 
       quoteTerm :: Term -> ReduceM Term
-      quoteTerm v =
+      quoteTerm v = do
+        v <- instantiate' v
         case unSpine v of
           Var n es   ->
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
