@@ -107,7 +107,7 @@ instance NamesIn Clause where
 instance NamesIn CompiledClauses where
   namesIn' sg (Case _ c) = namesIn' sg c
   namesIn' sg (Done _ v) = namesIn' sg v
-  namesIn' sg Fail       = mempty
+  namesIn' sg Fail{}     = mempty
 
 -- Andreas, 2017-07-27
 -- Why ignoring the litBranches?

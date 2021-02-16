@@ -71,7 +71,8 @@ instance DropArgs CompiledClauses where
               | otherwise     -> Case (i <&> \ j -> j - n) $ fmap (dropArgs n) br
     Done xs t | length xs < n -> __IMPOSSIBLE__
               | otherwise     -> Done (drop n xs) t
-    Fail                      -> Fail
+    Fail xs   | length xs < n -> __IMPOSSIBLE__
+              | otherwise     -> Fail (drop n xs)
 
 instance DropArgs SplitTree where
   dropArgs n (SplittingDone m) = SplittingDone (m - n)
