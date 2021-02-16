@@ -330,7 +330,7 @@ niceDeclarations fixs ds = do
               -- Subcase: The lhs is single identifier (potentially anonymous).
               -- Treat it as a function clause without a type signature.
               LHS p [] [] | Just x <- isSingleIdentifierP p -> do
-                d  <- mkFunDef defaultArgInfo termCheck covCheck x Nothing [d] -- fun def without type signature is relevant
+                d  <- mkFunDef (setOrigin Inserted defaultArgInfo) termCheck covCheck x Nothing [d] -- fun def without type signature is relevant
                 return (d , ds)
               -- Subcase: The lhs is a proper pattern.
               -- This could be a let-pattern binding. Pass it on.
