@@ -246,7 +246,7 @@ quotingKit = do
                     let (pars, args) = splitAt n ts
                     extlam !@ list (map (quoteClause Nothing . (`apply` pars)) cs)
                            @@ list (map (quoteArg quoteTerm) args)
-              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _), funCompiled = Just Fail, funClauses = [cl] } = do
+              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _), funCompiled = Just Fail{}, funClauses = [cl] } = do
                     -- See also corresponding code in InternalToAbstract
                     let n = length (namedClausePats cl) - 1
                         pars = take n ts

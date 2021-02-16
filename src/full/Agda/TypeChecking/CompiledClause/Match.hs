@@ -66,7 +66,7 @@ match' ((c, es, patch) : stack) = do
     case c of
 
       -- impossible case
-      Fail -> no (NotBlocked AbsurdMatch) es
+      Fail{} -> no (NotBlocked AbsurdMatch) es
 
       -- done matching
       Done xs t

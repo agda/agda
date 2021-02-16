@@ -228,7 +228,7 @@ casetreeTop eval cc = flip runReaderT (initCCEnv eval) $ do
 casetree :: CC.CompiledClauses -> CC C.TTerm
 casetree cc = do
   case cc of
-    CC.Fail -> return C.tUnreachable
+    CC.Fail xs -> withContextSize (length xs) $ return C.tUnreachable
     CC.Done xs v -> withContextSize (length xs) $ do
       -- Issue 2469: Body context size (`length xs`) may be smaller than current context size
       -- if some arguments are not used in the body.
@@ -291,7 +291,7 @@ commonArity cc =
       where cxt' = max (x + 1) cxt
     arities cxt (Case _ Branches{projPatterns = True}) = [cxt]
     arities cxt (Done xs _) = [max cxt (length xs)]
-    arities _   Fail        = []
+    arities cxt (Fail xs)   = [max cxt (length xs)]
 
 
     wArities cxt (WithArity k c) = map (\ x -> x - k + 1) $ arities (cxt - 1 + k) c

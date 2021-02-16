@@ -765,7 +765,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
                     , clauseEllipsis  = NoEllipsis
                     }
                   ]
-              , funCompiled       = Just Fail
+              , funCompiled       = Just $ Fail [Arg info' "()"]
               , funSplitTree      = Just $ SplittingDone 0
               , funMutual         = Just []
               , funTerminates     = Just True

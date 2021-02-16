@@ -1470,7 +1470,7 @@ instance InstantiateFull a => InstantiateFull (Case a) where
       <*> pure lz
 
 instance InstantiateFull CompiledClauses where
-  instantiateFull' Fail        = return Fail
+  instantiateFull' (Fail xs)   = return $ Fail xs
   instantiateFull' (Done m t)  = Done m <$> instantiateFull' t
   instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
 

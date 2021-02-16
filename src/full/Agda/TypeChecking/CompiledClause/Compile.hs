@@ -152,14 +152,14 @@ compileWithSplitTree t cs = case t of
     compiles _ _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
 
 compile :: Cls -> CompiledClauses
-compile [] = Fail
+compile [] = Fail []
 compile cs = case nextSplit cs of
   Just (isRecP, n) -> Case n $ compile <$> splitOn isRecP (unArg n) cs
   Nothing -> case clBody c of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
     Just t  -> Done (map (fmap name) $ clPats c) t
-    Nothing -> Fail
+    Nothing -> Fail (map (fmap name) $ clPats c)
   where
     -- If there are more than one clauses, take the first one.
     c = headWithDefault __IMPOSSIBLE__ cs

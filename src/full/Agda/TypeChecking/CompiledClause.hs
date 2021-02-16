@@ -68,8 +68,9 @@ data CompiledClauses' a
     --   and name suggestions for the free variables. This is needed to build
     --   lambdas on the right hand side for partial applications which can
     --   still reduce.
-  | Fail
-    -- ^ Absurd case.
+  | Fail [Arg ArgName]
+    -- ^ Absurd case. Add the free variables here as well so we can build correct
+    --   number of lambdas for strict backends. (#4280)
   deriving (Data, Functor, Traversable, Foldable, Show)
 
 type CompiledClauses = CompiledClauses' Term
@@ -174,7 +175,7 @@ prettyMap_ = map prettyAssign . Map.toList
 
 instance Pretty CompiledClauses where
   pretty (Done hs t) = ("done" <> pretty hs) <?> pretty t
-  pretty Fail        = "fail"
+  pretty Fail{}      = "fail"
   pretty (Case n bs) | projPatterns bs =
     sep [ "record"
         , nest 2 $ pretty bs
@@ -198,7 +199,7 @@ instance KillRange c => KillRange (Case c) where
 instance KillRange CompiledClauses where
   killRange (Case i br) = killRange2 Case i br
   killRange (Done xs v) = killRange2 Done xs v
-  killRange Fail        = Fail
+  killRange (Fail xs)   = killRange1 Fail xs
 
 -- * TermLike instances
 

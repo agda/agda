@@ -81,7 +81,6 @@ disabledTests =
     -----------------------------------------------------------------------------
     -- The following test cases fail (at least at the time of writing)
     -- for the JS backend.
-  , disable "Compiler/JS_.*/simple/Issue4169-2"
   , disable "Compiler/JS_Optimized/simple/ModuleReexport"
   , disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport"
     -----------------------------------------------------------------------------

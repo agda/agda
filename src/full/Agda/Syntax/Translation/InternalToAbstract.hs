@@ -653,7 +653,7 @@ reifyTerm expandAnonDefs0 v0 = do
 
       -- Check if we have an absurd lambda.
       case def of
-       Function{ funCompiled = Just Fail, funClauses = [cl] }
+       Function{ funCompiled = Just Fail{}, funClauses = [cl] }
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last $ namedClausePats cl
