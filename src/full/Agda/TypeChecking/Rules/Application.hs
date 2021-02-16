@@ -655,7 +655,7 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                   vis = all visible (telToList tel)
                   isRigid t | PathType{} <- viewPath t = return False -- Path is not rigid!
                   isRigid (El _ (Pi dom _)) = return $ visible dom
-                  isRigid (El _ (Def d _))  = theDef <$> getConstInfo d >>= return . \ case
+                  isRigid (El _ (Def d _))  = getConstInfo d <&> theDef <&> \ case
                     Axiom{}                   -> True
                     DataOrRecSig{}            -> True
                     AbstractDefn{}            -> True

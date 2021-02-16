@@ -136,7 +136,7 @@ composeP p1 (Perm n xs) = Perm n $ permute p1 xs
 --   @composeP p (invertP err p) == p@
 invertP :: Int -> Permutation -> Permutation
 invertP err p@(Perm n xs) = Perm (size xs) $ elems tmpArray
-  where tmpArray = accumArray (flip const) err (0, n-1) $ zip xs [0..]
+  where tmpArray = accumArray (const id) err (0, n-1) $ zip xs [0..]
 
 -- | Turn a possible non-surjective permutation into a surjective permutation.
 compactP :: Permutation -> Permutation
