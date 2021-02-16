@@ -183,7 +183,7 @@ resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
 
 -- | Treat illegally ambiguous names as UnknownNames.
 resolveName_ :: C.QName -> [A.Name] -> AbsToCon ResolvedName
-resolveName_ q cands = either (const UnknownName) id <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
+resolveName_ q cands = fromRight (const UnknownName) <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
 
 -- The Monad --------------------------------------------------------------
 
