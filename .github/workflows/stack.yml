@@ -48,7 +48,7 @@ jobs:
             ghc-ver: 8.10.4
             stack-ver: 2.5.1
           - os: windows-latest
-            ghc-ver: 8.10.3
+            ghc-ver: 8.10.4
             stack-ver: 2.5.1
 
     env:
