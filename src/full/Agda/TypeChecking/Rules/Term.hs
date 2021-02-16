@@ -1610,8 +1610,11 @@ checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 
 checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCall (CheckLetBinding b) $ do
+    -- #4131: Only DontExpandLast if no user written type signature
+    let check | getOrigin info == Inserted = checkDontExpandLast
+              | otherwise                  = checkExpr'
     t <- isType_ t
-    v <- applyModalityToContext info $ checkDontExpandLast CmpLeq e t
+    v <- applyModalityToContext info $ check CmpLeq e t
     addLetBinding info (A.unBind x) v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
