@@ -518,6 +518,10 @@ reifyTerm expandAnonDefs0 v0 = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
+      -- #4160: Hacky solution: if --show-implicit, treat all lambdas as user-written. This will
+      -- prevent them from being dropped by AbstractToConcrete (where we don't have easy access to
+      -- the --show-implicit flag.
+      info <- ifM showImplicitArguments (return $ setOrigin UserWritten info) (return info)
       return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBinder_ x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
