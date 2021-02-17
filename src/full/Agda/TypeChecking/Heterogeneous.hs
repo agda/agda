@@ -401,7 +401,7 @@ striveWithEffort n postpone doIt =
           reportSDoc "tc.constr.effort" 20 $ "Extra" <+> pretty e <+> "required; postponing"
           postpone (unblockOnEffort e)
 
-type SimplifyHet a = (IsTwinSolved a, Pretty a)
+type SimplifyHet a = (IsTwinSolved a, Pretty a, Pretty (AsTwin_ a))
 
 -- TODO: One could also check free variables and strengthen the
 -- context, but this is supposed to be a cheap operation
@@ -470,30 +470,19 @@ instance IsTwinSolved Context_ where
       Left  bs' -> Left  $ Entry bs' a
 
 simplifyHetFast b κ = do
-  verboseBracket "tc.conv.het" 70 "simplifyHet" $ do
-    reportSDoc "tc.conv.het" 80 $ "Simplifying" <+> pretty b
-    case isTwinSingle b of
-      True  -> κ b
-      False -> simplifyHet' b >>= \case
-        Left  b -> κ b
-        Right b' -> do
-          γΓ <- getContext_
-          simplifyHet' γΓ >>= \case
-            Left  _    -> κ b
-            -- We ignore it, although one could consider actually replacing the context
-            Right _γΓ' -> κ (asTwin b')
-  where
-    go Empty κ = κ (Just Empty)
-    go (γΓ :⊢ a) κ = do
-      reportSDoc "tc.conv.het" 80 $ "now simplifying" <+> pretty a
-      simplifyHet' a $ \case
-        Left{}    -> κ Nothing
-        Right a'  -> do
-          go γΓ $ \case
-            Nothing  -> κ Nothing
-            Just γΓ' -> κ (Just (γΓ' ⊢: asTwin a'))
-
-
+  reportSDoc "tc.conv.het" 80 $ "Simplifying (fast)" <+> pretty b
+  case isTwinSingle b of
+    True  -> κ b
+    False -> simplifyHet' b >>= \case
+      Left  b -> κ b
+      Right b' -> do
+        γΓ <- getContext_
+        simplifyHet' γΓ >>= \case
+          Left  _    -> κ b
+          -- We ignore it, although one could consider actually replacing the context
+          Right _γΓ' -> do
+            reportSDoc "tc.conv.het" 80 $ "success:" <+> pretty b'
+            κ (asTwin b')
 
 -- | Remove unnecessary twins from the context
 -- simplifyContextHet :: SimplifyHetM m => m a -> m a
