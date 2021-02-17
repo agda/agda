@@ -4,9 +4,9 @@
   module getting-started.a-taste-of-agda where
 
 .. _a-taste-of-agda:
-  
+
 ***************
-A taste of Agda
+A Taste of Agda
 ***************
 
 This section's objective is providing the first glimpse of Agda with some
@@ -30,7 +30,7 @@ the `agda mode for Atom <agda-mode_>`_ and VSCode via the
 
 .. _agda-pad: https://agdapad.quasicoherent.io/
 
-Programming with dependent types: Vectors
+Programming With Dependent Types: Vectors
 =========================================
 
 We will model the notion of vector (in the computer science sense, not in the
@@ -184,7 +184,7 @@ necessary to guarantee that all Agda programs terminate.
 
 This finishes our explanation of the ‘Hello world’ dependent type example.
 
-Agda as a proof assistant: associativity of addition
+Agda as a Proof Assistant: Associativity of Addition
 ====================================================
 
 We will see in this section how to state and prove with Agda the
@@ -402,7 +402,7 @@ Here is the final code of the ‘Hello world’ proof example:
 .. _plfa-induction: https://plfa.github.io/Induction/
 .. _plfa: https://plfa.github.io
 
-Building an executable Agda program
+Building an Executable Agda Program
 ===================================
 
 Agda is a dependently typed functional programming language. This entails the
