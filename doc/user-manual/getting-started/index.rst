@@ -12,4 +12,5 @@ Getting Started
    installation
    hello-world
    quick-guide
+   a-taste-of-agda
    tutorial-list
