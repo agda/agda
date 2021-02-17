@@ -40,7 +40,7 @@ import Agda.TypeChecking.Conversion.Pure (pureCompareAs_)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Heterogeneous hiding (length)
+import Agda.TypeChecking.Heterogeneous hiding (length, splitAt)
 import qualified Agda.TypeChecking.Heterogeneous.Patterns as H
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
@@ -2078,8 +2078,8 @@ forallFaceMaps t kb k = do
     -- the terms we get from toFaceMaps are closed.
     substContext :: MonadConversion m => Int -> Term -> ContextHet -> m (ContextHet , Substitution)
     substContext i t Empty = __IMPOSSIBLE__
-    substContext i t (xs :⊢ x) | i == 0 = return $ (xs , singletonS 0 t)
-    substContext i t (xs :⊢ x) | i > 0 = do
+    substContext i t (xs :⊢ _) | i == 0 = return $ (xs , singletonS 0 t)
+    substContext i t (Entry b (xs :∋ x)) | i > 0 = do
                                   reportSDoc "conv.forall" 20 $
                                     fsep ["substContext"
                                         , text (show (i-1))
@@ -2088,8 +2088,8 @@ forallFaceMaps t kb k = do
                                         ]
                                   (c,sigma) <- substContext (i-1) t xs
                                   let e = applySubst sigma x
-                                  return (c :⊢ e, liftS 1 sigma)
-    substContext i t (xs :⊢ x) = __IMPOSSIBLE__
+                                  return (Entry b (c :∋ e), liftS 1 sigma)
+    substContext i t (_ :⊢ _) = __IMPOSSIBLE__
 
 compareInterval :: MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareInterval cmp i t u = do

@@ -793,7 +793,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
 
         newCxt <- computeLHSContext vars delta
 
-        updateContext paramSub (const$ newCxt H.⊣:: Empty) $ do
+        updateContext paramSub (const$ newCxt ⊣!:: Empty) $ do
 
           reportSDoc "tc.lhs.top" 10 $ "bound pattern variables"
           reportSDoc "tc.lhs.top" 60 $ nest 2 $ "context = " <+> (pretty =<< getContextTelescope)
@@ -1077,7 +1077,7 @@ checkLHS mf = updateModality checkLHS_ where
 
       let cpSub = raiseS $ size newContext - lhsCxtSize
 
-      (gamma,sigma) <- liftTCM $ updateContext cpSub (const$ newContext H.⊣:: Empty) $ do
+      (gamma,sigma) <- liftTCM $ updateContext cpSub (const$ newContext ⊣!:: Empty) $ do
          ts <- forM ts $ \ (t,u) -> do
                  reportSDoc "tc.lhs.split.partial" 10 $ "currentCxt =" <+> (prettyTCM =<< getContext)
                  reportSDoc "tc.lhs.split.partial" 10 $ text "t, u (Expr) =" <+> prettyTCM (t,u)

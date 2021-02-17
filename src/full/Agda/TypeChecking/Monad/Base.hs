@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE TypeOperators              #-}
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
@@ -27,6 +28,8 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
 
 import Data.Array (Ix)
+import Data.Bifunctor
+import Data.Bifoldable
 import Data.Coerce (coerce)
 import Data.Function
 import Data.Foldable (toList)
@@ -2715,13 +2718,75 @@ ifTopLevelAndHighlightingLevelIs l =
   ifTopLevelAndHighlightingLevelIsOr l False
 
 ---------------------------------------------------------------------------
+-- * Directed tuples
+---------------------------------------------------------------------------
+
+data a :∈ b = a :∈ b
+  deriving (Data, Show)
+
+type b :∋ a = a :∈ b
+
+instance Bifunctor (:∈) where bimap f g (a :∈ b) = f a :∈ g b
+instance Bifoldable (:∈) where bifoldMap f g (a :∈ b) = bifoldMap f g (a,b)
+
+pattern (:∋) :: forall a b. b -> a -> a :∈ b
+pattern b :∋ a = a :∈ b
+#if __GLASGOW_HASKELL__ >= 802
+{-# COMPLETE (:∋) #-}
+#endif
+
+instance (AsTwin a, AsTwin b) => AsTwin (a :∈ b) where
+  type AsTwin_ (a :∈ b) = AsTwin_ a :∈ AsTwin_ b
+  asTwin (a :∈ b) = asTwin a :∈ asTwin b
+
+instance (Pretty a, Pretty b) => Pretty (a :∈ b) where
+  pretty (a :∈ b) = pretty a <+> "∈" <+> pretty b
+
+---------------------------------------------------------------------------
 -- * Heterogeneous contexts
 ---------------------------------------------------------------------------
 
 -- | The context is in right-to-left order; i.e. each variable is bound
 --   by all the preceding variables
-newtype ContextHet' a = ContextHet { unContextHet :: [a] }
-  deriving (Data, Show, Functor, Foldable)
+-- newtype ContextHet' a = ContextHet { unContextHet :: [a] }
+--  deriving (Data, Show, Functor, Foldable)
+data ContextHet' a = Empty
+                   | Entry Blocker {-# UNPACK #-} !(a :∈ (ContextHet' a))
+  deriving (Data, Show)
+
+instance Functor ContextHet' where
+  fmap _ Empty = Empty
+  fmap f (Entry b γ) = Entry b (bimap f (fmap f) γ)
+
+instance Foldable ContextHet' where
+  foldMap f Empty = mempty
+  foldMap f (Entry _ γ) = bifoldMap f (foldMap f) γ
+
+instance Semigroup (ContextHet' a) where
+  Empty <> x     = x
+  x     <> Empty = x
+  (Entry b_a_γΓ (a :∈ γΓ)) <> δΔ =
+    Entry (unblockOnBoth b_a_γΓ (getBlocker δΔ)) (a :∈ (γΓ <> δΔ))
+
+instance Monoid (ContextHet' a) where
+  mempty = Empty
+
+class IsBlocked a where getBlocker :: a -> Blocker
+
+instance IsBlocked Blocker where getBlocker = id
+instance IsBlocked (ContextHet' a) where
+  getBlocker Empty = AlwaysUnblock
+  getBlocker (Entry b _) = b
+instance (IsBlocked a, IsBlocked b) => IsBlocked (a,b) where
+  getBlocker (a,b) = unblockOnBoth (getBlocker a) (getBlocker b)
+instance IsBlocked Name where
+  getBlocker _ = AlwaysUnblock
+instance IsBlocked (TwinT''' a b c) where
+  getBlocker SingleT{} = AlwaysUnblock
+  getBlocker (TwinT{twinPid}) = unblockOnAll $ Set.fromList $ map unblockOnProblem twinPid
+instance IsBlocked a => IsBlocked (Dom a) where
+  getBlocker = getBlocker . unDom
+
 type ContextHet = ContextHet' (Dom (Name, TwinT))
 
 type Context_' a = ContextHet' a
@@ -2730,24 +2795,49 @@ type Context_ = ContextHet
 instance Pretty a => Pretty (Context_' a) where
   pretty = pretty . contextHetToList
 
-pattern Empty :: ContextHet
-pattern Empty = ContextHet []
+infixr 5 :⊣
+pattern (:⊣) :: a -> ContextHet' a -> ContextHet' a
+pattern a :⊣ γΓ <- γΓ :⊢ a
 
-pattern (:⊣) :: Dom (Name, TwinT) -> ContextHet -> ContextHet
-pattern a :⊣ γΓ = γΓ :⊢ a
+infixl 5 :⊢
+pattern (:⊢) :: ContextHet' a -> a -> ContextHet' a
+pattern γΓ :⊢ a <- Entry _ (a :∈ γΓ)
 
-pattern (:⊢) :: ContextHet -> Dom (Name, TwinT) -> ContextHet
-pattern γΓ :⊢ a <- ContextHet (a : (ContextHet -> γΓ))
-  where γΓ :⊢ a =  ContextHet (a :  unContextHet  γΓ)
+infixl 5 ⊢:
+(⊢:) :: (IsBlocked a) => ContextHet' a -> a -> ContextHet' a
+(⊢:) = flip (⊣:)
+
+infixl 5 ⊢!:
+(⊢!:) :: (AsTwin a, AsTwin_ a ~ b) => ContextHet' a -> b -> ContextHet' a
+(⊢!:) = flip (⊣!:)
+
+infixr 5 ⊣!:
+(⊣!:) :: (AsTwin a, AsTwin_ a ~ b) => b -> ContextHet' a -> ContextHet' a
+a ⊣!: γΓ = Entry (getBlocker γΓ) (asTwin a :∈ γΓ)
+
+infixr 5 ⊣:
+(⊣:) :: (IsBlocked a) => a -> ContextHet' a -> ContextHet' a
+a ⊣: γΓ = Entry (unblockOnBoth (getBlocker a) (getBlocker γΓ)) (a :∈ γΓ)
 
 #if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE Empty, (:⊢) #-}
 {-# COMPLETE Empty, (:⊣) #-}
 #endif
 
-(⊣::), (⊢::) :: ContextHet' a -> ContextHet' a -> ContextHet' a
-δΔ ⊣:: γΓ = ContextHet$ unContextHet δΔ <> unContextHet γΓ
-γΓ ⊢:: δΔ = δΔ ⊣:: γΓ
+-- (⊣::), (⊢::) :: ContextHet' a -> ContextHet' a -> ContextHet' a
+-- δΔ ⊣:: γΓ = δΔ <> γΓ
+-- γΓ ⊢:: δΔ = δΔ ⊣:: γΓ
+
+infixr 5 ⊣::
+(⊣::) :: IsBlocked a => [a] -> ContextHet' a -> ContextHet' a
+[]     ⊣:: γΓ = γΓ
+(b:bs) ⊣:: γΓ = Entry (unblockOnEither (getBlocker b) (getBlocker γΓ')) (b :∈ γΓ')
+  where γΓ' = bs ⊣:: γΓ
+
+(⊣!::) :: (AsTwin a, AsTwin_ a ~ b) => [b] -> ContextHet' a -> ContextHet' a
+[]     ⊣!:: γΓ = γΓ
+(b:bs) ⊣!:: γΓ = Entry (getBlocker γΓ) (asTwin b :∈ (bs ⊣!:: γΓ))
+
 
 -- * Manipulating context as a list.
 
@@ -2755,10 +2845,12 @@ pattern γΓ :⊢ a <- ContextHet (a : (ContextHet -> γΓ))
 --     (a:b:…:[])
 -- Also: contextHetToList :: ContextHet -> [Dom (Name, TwinT)]
 contextHetToList :: Context_' a -> [a]
-contextHetToList = unContextHet
+contextHetToList Empty = []
+contextHetToList (a :⊣ γΓ) = a:contextHetToList γΓ
 
-contextHetFromList :: [Dom (Name, TwinT)] -> ContextHet
-contextHetFromList = ContextHet
+contextHetFromList :: IsBlocked a => [a] -> Context_' a
+contextHetFromList []     = Empty
+contextHetFromList (a:as) = a ⊣: contextHetFromList as
 
 -- * Switch heterogeneous context to a specific side
 switchSide :: forall s a m. (HetSideIsType s, MonadTCEnv m) => m a -> m a
@@ -2888,7 +2980,7 @@ instance AsTwin (TwinT''' b f a) where
   asTwin = SingleT . Het @'Both
 instance AsTwin ContextHet where
   type AsTwin_ ContextHet = Context
-  asTwin = ContextHet . (fmap (fmap (fmap asTwin)))
+  asTwin = contextHetFromList . (fmap (fmap (fmap asTwin)))
 instance AsTwin (Het side a) where
   type AsTwin_ (Het side a) = a
   asTwin = coerce
@@ -2942,7 +3034,7 @@ instance TwinAt s a => TwinAt s (Abs a) where
 
 instance (Sing s, HetSideIsType s) => TwinAt s ContextHet where
   type TwinAt_ s ContextHet = Context
-  twinAt = fmap (twinAt @s) . toList . unContextHet
+  twinAt = fmap (twinAt @s) . contextHetToList
 
 instance TwinAt s (Het s a) where
   type TwinAt_ s (Het s a) = a
@@ -2985,7 +3077,8 @@ instance TwinAt s a => TwinAt s (Arg a) where
   twinAt = fmap (twinAt @s)
 
 instance Sized ContextHet where
-  size = length . unContextHet
+  size Empty = 0
+  size (_ :⊣ γΓ) = 1 + size γΓ
 
 type TwinT = TwinT' Type
 type TwinT' = TwinT'' Bool

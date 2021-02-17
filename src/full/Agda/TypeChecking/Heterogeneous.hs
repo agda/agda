@@ -6,7 +6,7 @@
 
 module Agda.TypeChecking.Heterogeneous where
 
-import Prelude hiding (drop, length)
+import Prelude hiding (drop, length, splitAt)
 
 import Control.Monad (filterM)
 import Data.Coerce
@@ -32,13 +32,15 @@ import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute.Class (Subst)
 import Agda.TypeChecking.Monad.Pure (PureTCM)
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 
 import Agda.Utils.Dependent
 import Agda.Utils.Monad
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty (Pretty)
+import qualified Agda.Utils.Pretty as P
 import qualified Agda.Utils.List
 
 import Agda.Utils.Impossible
@@ -83,7 +85,7 @@ instance FlipHet TwinT where
           twinPid}
 
 instance FlipHet ContextHet where
-  flipHet (ContextHet ctx) = ContextHet$ fmap (fmap (fmap flipHet)) ctx
+  flipHet ctx = fmap (fmap (fmap flipHet)) ctx
 
 instance FlipHet Term where flipHet = id
 instance FlipHet Type where flipHet = id
@@ -128,14 +130,21 @@ dirToCmp_ κ dir a u v = go sing sing dir
     go SRHS SLHS DirEq  = flipContext$ κ CmpEq  (flipHet a) (flipHet u) (flipHet v)
     go SRHS SLHS DirLeq = flipContext$ κ CmpLeq (flipHet a) (flipHet u) (flipHet v)
 
-drop :: Int -> ContextHet -> ContextHet
-drop n = ContextHet . L.drop n . unContextHet
+drop :: Int -> Context_ -> Context_
+drop n x         | n <= 0 = x
+drop _ Empty              = Empty
+drop n (_ :⊣ γΓ)          = drop (n-1) γΓ
 
-length :: ContextHet -> Int
-length = L.length . unContextHet
+length :: Context_ -> Int
+length Empty = 0
+length (_ :⊣ γΓ)  = 1 + length γΓ
 
-(⊣::) :: [Dom (Name, Type)] -> ContextHet -> ContextHet
-as ⊣:: ctx =  ContextHet ( fmap (fmap (fmap (SingleT . Het))) as <> unContextHet  ctx)
+splitAt :: Int -> Context_ -> [Dom (Name, TwinT)] :∈ Context_
+splitAt n γΓ | n <= 0 = [] :∈ γΓ
+splitAt _ Empty       = [] :∈ Empty
+splitAt n (a :⊣ γΓ)   = (a:as) :∈ γΓ'
+  where as :∈ γΓ' = splitAt (n-1) γΓ
+
 
 (!!!) :: ContextHet -> Int -> Maybe (Dom (Name, TwinT))
 ctx !!! n = contextHetToList ctx Agda.Utils.List.!!! n
@@ -201,18 +210,6 @@ pairT a b = (,) <$> a `apT` b
 --     Def q es -> return (TDef q (asTwin es))
 --     _        -> return TUnknown
 --
-
-data a :∈ b = a :∈ b
-
-pattern (:∋) :: forall a b. b -> a -> a :∈ b
-pattern b :∋ a = a :∈ b
-#if __GLASGOW_HASKELL__ >= 802
-{-# COMPLETE (:∋) #-}
-#endif
-
-instance (AsTwin a, AsTwin b) => AsTwin (a :∈ b) where
-  type AsTwin_ (a :∈ b) = AsTwin_ a :∈ AsTwin_ b
-  asTwin (a :∈ b) = asTwin a :∈ asTwin b
 
 ---------------------------------------------------------------------------
 -- * Twins
@@ -363,10 +360,10 @@ striveWithEffort n postpone doIt =
   strive (EffortLevel (NatExt n)) >>= \case
         Doable        -> doIt
         ExtraEffort e -> do
-          reportSLn "tc.constr.effort" 20 $ "Extra " <> prettyShow e <> " required; postponing"
+          reportSDoc "tc.constr.effort" 20 $ "Extra" <+> pretty e <+> "required; postponing"
           postpone (unblockOnEffort e)
 
-type SimplifyHet a = (IsTwinSolved a)
+type SimplifyHet a = (IsTwinSolved a, Pretty a)
 
 -- TODO: One could also check free variables and strengthen the
 -- context, but this is supposed to be a cheap operation
@@ -397,29 +394,32 @@ simplifyHetFull b κ = do
       go γΓ $ \isHomo γΓ' ->
         case isHomo of
           True -> simplifyHet' a $ \case
-            Right a' -> κ True  (γΓ' :⊢ asTwin a')
-            Left  a  -> κ False (γΓ' :⊢ a)
-          False -> κ False (γΓ' :⊢ a)
+            Right a' -> κ True  (γΓ' ⊢: asTwin a')
+            Left  a  -> κ False (γΓ' ⊢: a)
+          False -> κ False (γΓ' ⊢: a)
 
 simplifyHet b κ = do
-  case isTwinSingle b of
-    True  -> κ b
-    False -> simplifyHet' b $ \case
-      Left  b -> κ b
-      Right b' -> do
-        γΓ <- getContext_
-        go γΓ $ \case
-          Nothing  -> κ b
-          Just γΓ' -> unsafeModifyContext {- IdS -} (const γΓ') $ κ (asTwin b')
+  verboseBracket "tc.conv.het" 70 "simplifyHet" $ do
+    reportSDoc "tc.conv.het" 80 $ "Simplifying" <+> pretty b
+    case isTwinSingle b of
+      True  -> κ b
+      False -> simplifyHet' b $ \case
+        Left  b -> κ b
+        Right b' -> do
+          γΓ <- getContext_
+          go γΓ $ \case
+            Nothing  -> κ b
+            Just γΓ' -> unsafeModifyContext {- IdS -} (const γΓ') $ κ (asTwin b')
   where
     go Empty κ = κ (Just Empty)
-    go (γΓ :⊢ a) κ =
+    go (γΓ :⊢ a) κ = do
+      reportSDoc "tc.conv.het" 80 $ "now simplifying" <+> pretty a
       simplifyHet' a $ \case
         Left{}    -> κ Nothing
         Right a'  -> do
           go γΓ $ \case
             Nothing  -> κ Nothing
-            Just γΓ' -> κ (Just (γΓ' :⊢ asTwin a'))
+            Just γΓ' -> κ (Just (γΓ' ⊢: asTwin a'))
 
 -- | Remove unnecessary twins from the context
 -- simplifyContextHet :: SimplifyHetM m => m a -> m a

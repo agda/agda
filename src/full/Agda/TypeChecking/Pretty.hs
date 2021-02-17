@@ -215,6 +215,7 @@ instance PrettyTCM (NamedArg Term)    where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Dom Type)         where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Dom (Name, Type)) where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Dom (Name, TwinT)) where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Abs TwinT) where prettyTCM = prettyA <=< reify
 
 instance PrettyTCM Permutation where prettyTCM = text . show
 instance PrettyTCM Polarity    where prettyTCM = text . show

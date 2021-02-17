@@ -100,8 +100,8 @@ generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ wit
   letbinds' <- applySubst (liftS (size tel) sub) <$> instantiateFull letbinds
   let addLet (x, (v, dom)) = addLetBinding' x v dom
 
-  updateContext sub ((genTelCxt H.⊣::) . H.drop 1) $
-    updateContext (raiseS (size tel')) (newTelCxt H.⊣::) $
+  updateContext sub ((genTelCxt ⊣!::) . H.drop 1) $
+    updateContext (raiseS (size tel')) (newTelCxt ⊣!::) $
       foldr addLet (ret genTelVars $ abstract genTel tel') letbinds'
 
 
@@ -481,13 +481,13 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         -- When updating the context we also need to pick names for the variables. Get them from the
         -- current context and generate fresh ones for the generalized variables in Θ.
         (newCxt, rΘ) <- do
-          (rΔ, _ : rΓ) <- splitAt i <$> (contextHetToList <$> getContextHet)
+          (rΔ :∈  (_ :⊣ rΓ)) <- H.splitAt i <$> getContextHet
           let setName = traverse $ \ (s, ty) -> (,ty) <$> freshName_ s
           rΘ <- mapM setName $ reverse $ telToList _Θγ
           let rΔσ = zipWith (\ name dom -> first (const name) <$> dom)
                             (map (fst . unDom) rΔ)
                             (reverse $ telToList _Δσ)
-          return (rΔσ H.⊣:: (rΘ H.⊣:: contextHetFromList rΓ), rΘ)
+          return (rΔσ ⊣!:: (rΘ ⊣!:: rΓ), rΘ)
 
         -- Now we can enter the new context and create our meta variable.
         (y, u) <- updateContext ρ (const newCxt) $ localScope $ do

@@ -1300,6 +1300,10 @@ pDom i =
     Hidden     -> braces
     Instance{} -> braces . braces
 
+instance Pretty a => Pretty (Abs a) where
+  pretty b = sep [ (text . absName $ b) <+> "->"
+                 , nest 2 $ pretty (unAbs b) ]
+
 instance Pretty Clause where
   pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =
     sep [ pretty tel <+> "|-"

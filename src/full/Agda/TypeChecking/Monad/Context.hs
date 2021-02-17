@@ -54,7 +54,7 @@ unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 
 -- | Modify the 'Dom' part of context entries.
 modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tcm a
-modifyContextInfo f = unsafeModifyContext $ ContextHet . fmap f . unContextHet
+modifyContextInfo f = unsafeModifyContext $ fmap f
 
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
@@ -206,15 +206,15 @@ class MonadTCEnv m => MonadAddContext m where
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret = do
   q <- viewTC eQuantity
-  let ce = (x,) . asTwin <$> (inverseApplyQuantity q a)
-  updateContext (raiseS 1) (:⊢ ce) ret
+  let ce = (x,) <$> inverseApplyQuantity q a
+  updateContext (raiseS 1) (⊢!: ce) ret
 
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx_ :: MonadAddContext m => Name -> Dom TwinT -> m a -> m a
 defaultAddCtx_ x a ret = do
   q <- viewTC eQuantity
   let ce = (x,) <$> (inverseApplyQuantity q a)
-  updateContext (raiseS 1) (:⊢ ce) ret
+  updateContext (raiseS 1) (⊢: ce) ret
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
