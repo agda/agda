@@ -1270,9 +1270,6 @@ instance PrettyTCM SplitError where
     BlockedType b t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
 
-    IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
-      pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]
-
     ErasedDatatype causedByWithoutK t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot branch on erased argument of datatype" ++
       [prettyTCM t] ++
