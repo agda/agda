@@ -45,7 +45,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Heterogeneous (blockOnTwin, AttemptConversion(..))
+import Agda.TypeChecking.Heterogeneous (blockOnTwin, AttemptConversion(..), simplifyHet', isTwinSolved)
 
 -- import Agda.TypeChecking.CheckInternal
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
@@ -1024,21 +1024,24 @@ assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 checkContextHetEqual :: VarSetBlocked ->
                         VarSetBlocked ->
                         TCM Blocker
-checkContextHetEqual = go 40
-  where
-    go dbg fvL fvR = do
-      ctx <- getContextHet
-      reportSDoc "tc.conv.het" dbg $ sep
-        [ "checking heterogeneous context equality"
+checkContextHetEqual fvL fvR = do
+  ctx <- getContext_
+  reportSDoc "tc.conv.het" 40 $ do
+    sep [ "checking heterogeneous context equality"
         , nest 2 $ "ctx: " <+> prettyTCM ctx
         , nest 2 $ "fvL: " <+> prettyTCM fvL
         , nest 2 $ "fvR: " <+> prettyTCM fvR
         ]
+  isTwinSolved ctx >>= \case
+    True  -> return AlwaysUnblock
+    False -> go fvL fvR
+  where
+    go fvL fvR = do
       -- Check if the
       if VarSetBlocked.null fvL || VarSetBlocked.null fvR then
         return AlwaysUnblock
       else
-        case ctx of
+        getContextHet >>= \case
           Empty  -> return AlwaysUnblock
           _ :⊢ a -> escapeContext __IMPOSSIBLE__ 1 $ do
              let a' = (snd$ unDom a)
@@ -1046,18 +1049,18 @@ checkContextHetEqual = go 40
                (Just bl, Just br)  -> checkTwinEqual a' >>= \case
                                    AlwaysUnblock -> do
                                       fvA <- freeVarsInterpolant <$> instantiateFull a'
-                                      go 50 (VarSetBlocked.blockedOnBoth
+                                      go (VarSetBlocked.blockedOnBoth
                                                      (VarSetBlocked.map (unblockOnEither (unblockOnBoth bl br)) fvA)
                                                      (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvL))
                                               (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvR)
                                    u -> return (unblockOnAny (Set.fromList [u,bl,br]))
                (Just bl,  Nothing) -> do
                                    fvA <- freeVarsBlocked <$> instantiateFull (twinAt @'LHS a')
-                                   go 50 (VarSetBlocked.blockedOnBoth
+                                   go (VarSetBlocked.blockedOnBoth
                                                (VarSetBlocked.map (unblockOnEither bl) fvA)
                                                (VarSetBlocked.subtract 1 (VarSetBlocked.delete 0 fvL)))
                                          (VarSetBlocked.subtract 1 fvR)
-               (Nothing, Nothing) ->   go 50 (VarSetBlocked.subtract 1 fvL)
+               (Nothing, Nothing) ->   go (VarSetBlocked.subtract 1 fvL)
                                          (VarSetBlocked.subtract 1 fvR)
                (Nothing, Just{})  -> __IMPOSSIBLE__
 

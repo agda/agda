@@ -46,12 +46,14 @@ isProblemSolved pid =
         (not . any (ISet.member pid . constraintProblems) <$> getAllConstraints)
 
 areAllProblemsSolved :: (MonadTCEnv m, ReadTCState m) => ISet ProblemId -> m Bool
-areAllProblemsSolved pids =
+areAllProblemsSolved pids | ISet.null pids = return True
+                          | otherwise =
   and2M (      ISet.disjoint pids <$> asksTC envActiveProblems)
         (all  (ISet.disjoint pids . constraintProblems) <$> getAllConstraints)
 
 keepUnsolvedProblems :: (MonadTCEnv m, ReadTCState m) => ISet ProblemId -> m (ISet ProblemId)
-keepUnsolvedProblems pids = do
+keepUnsolvedProblems pids | ISet.null pids = return ISet.empty
+                          | otherwise = do
   active <- asksTC envActiveProblems
   constraints <- getAllConstraints
   -- We assume that pids is small, so this should be a small list
