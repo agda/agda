@@ -33,19 +33,19 @@ the `agda mode for Atom <agda-mode_>`_ and VSCode via the
 Programming With Dependent Types: Vectors
 =========================================
 
-We will model the notion of vector (in the computer science sense, not in the
-mathematical sense) with Agda. Roughly speaking, a vector is a list of objects
-with a determined length.
+We will model the notion of *vectors* (in the sense of computer
+science, not in the mathematical sense) in Agda. Roughly speaking, a
+vector is a list of objects with a determined length.
 
-.. hint:: Agda programs are structured in :ref:`modules <module-system>`. The
-  module in each file whose name matches the filename is referred to as the
-  *top-level* module .
+.. hint:: Agda programs are structured in :ref:`modules
+  <module-system>`. The module in each file whose name matches the
+  filename is referred to as the *top-level* module.
 
 .. code-block:: agda
 
   module hello-world-dep where
 
-  open import Agda.Builtin.Nat using (Nat ; zero ; suc)
+  open import Data.Nat using (Nat ; zero ; suc)
 
   data Vec (A : Set) : Nat → Set where
     []  : Vec A zero
@@ -53,29 +53,32 @@ with a determined length.
 
   infixr 5 _∷_
 
-This code has 6 declarations:
+Each Agda file consists of a list of *declarations*. This example has
+six of them:
 
-1. ``module hello-world-dep where`` is the top level module declaration
-   (aka module header).
-2. imports of the declarations of the datatype ``Nat`` and its constructors
-   ``zero`` and ``suc`` from the Agda Builtin Library.
-3. declaration of the datatype ``Vec``.
-4. declaration of the empty vector constructor ``[]``.
-5. declaration of the *cons* constructor ``_∷_``
-6. specification of the :ref:`precedence` for the *cons* operation
+1. a top-level module declaration ``module hello-world-dep where``
+   (also known as the *module header*),
+2. two import statements importing the datatype ``Nat`` and its
+   constructors ``zero`` and ``suc`` from the module
+   ``Data.Nat`` from the standard library,
+3. a declaration of the datatype ``Vec``,
+4. a declaration of the empty vector constructor ``[]``,
+5. a declaration of the *cons* constructor ``_∷_``,
+6. and finally an ``infixr`` declaration specifying the
+   :ref:`precedence` for the *cons* operation.
 
 .. note:: Paste or type the code above in a new file with extension ``.agda``.
   Load the file (in Emacs ``C-c C-l``). This also saves the file. You should
-  see ***All done*** if the agda source code was loaded correctly. Find more
-  information about errors in our
-  `issue tracker <https://github.com/agda/agda/issues>`_.
+  see ***All done*** if the Agda source code was loaded correctly.
 
 Infer the type of ``3 ∷ 2 ∷ 1 ∷ []``
 ------------------------------------
 
-As an exercise, you can let Agda infer the type of some vectors with ``C-c C-d``.
-Type a vector, for instance ``3 ∷ 2 ∷ 1 ∷ []``, press ``Return`` and Agda
-will infer its type and return ``Vec Nat 3`` as expected.
+You can let Agda infer the type of an expression using the 'Deduce
+type' command (``C-c C-d''). First press ``C-c C-d`` to open a prompt,
+enter a term, for instance ``3 ∷ 2 ∷ 1 ∷ []``, and press
+``Return``. Agda will infer its type and return ``Vec Nat 3`` as
+expected.
 
 .. note:: See :ref:`notation-for-key-combinations` for a full list of
   interactive commands (keybindings).
@@ -83,66 +86,72 @@ will infer its type and return ``Vec Nat 3`` as expected.
 The datatype ``Vec``
 --------------------
 
-Our goal is to define a type of vectors with components of type ``A`` and
-length ``n``. In Agda, we can freely choose all identifiers, we opted here
-for the standard ``Vec``, but any other valid identifier will work, like
-``Vector`` or ``V``.
+Let us start by looking at the first line of the definition of
+``Vec``::
 
-``Vec A n`` is the family of types that represent the collection
-of vector spaces. This family of types is indexed by the dimension, i.e. by
-objects of ``Nat`` (the set of natural numbers). The components of the vector
-can belong to an arbitrary element type that we represented with the identifier
-``A`` (again, ``A`` could have been ``X`` or any other valid identifier; ``n``
-could have been ``m`` and so on).
+  data Vec (A : Set) : Nat → Set where
 
-We refer to ``A`` as the *parameter* of the datatype ``Vec A n``. So far, we
-know that the index ``n`` is a natural number, but we also need to know what
-is ``A``. We will specify that A can be any element type of the sort ``Set``,
-but it could have been any other sort with a greater level of abstraction. We
-express the fact that ``A`` has type ``Set`` or ``A`` ranges over ``Set`` by
-means of the colon ``:``.
+This line declares a new datatype ``Vec`` (we opted here for the name
+``Vec``, but any other valid identifier will work, like ``Vector`` or
+``V``). The words ``data`` and ``where`` are keywords, while the part
+``Vec (A : Set) : Nat → Set`` determines the type of ``Vec``.
 
-We can infer that ``Vec A n`` will also range over ``Set`` (the lower upper
-bound of the types involved). We are now entitled to write the signature of
-our datatype: ``Vec (A : Set) : ℕ → Set``.
+``Vec`` is not a single type but rather a *family of types*. This
+family of types has one *parameter* ``A`` of type ``Set`` (which is
+itself the type of all small types such as ``Nat``, ``Bool``, ...) and
+one *index* of type ``Nat`` (the set of natural numbers). The
+parameter ``A`` represents the type of the elements of the vector
+(Note that the name ``A`` could have been ``X`` or any other valid
+identifier). Meanwhile, the index represents the length of the vector,
+i.e. the number of objects it contains.
 
-To declare the datatype, we place its signature between the keywords ``data``
-and ``where``.
+Together, this line tells us that, for any concrete type ``B : Set``
+and any natural number ``m : Nat``, this definition gives us a new
+type ``Vec B m`` which also belongs to ``Set``.
+
 
 The constructors ``[]`` and ``_∷_``
 -----------------------------------
 
-Constructors are declared in new lines and indented with a strictly positive
-number of spaces (being two spaces, sometimes one the usual convention).
+Constructors are declared in new lines and indented with a strictly
+positive number of spaces (in this case two).
 
-We chose for the first constructor the identifier ``[]``. It represents the
-empty vector, and its type is the vector space of length ``0``.
+We chose for the first constructor the identifier ``[]``. It
+represents the empty vector, and its type is ``Vec A 0``, i.e. it is a
+vector of length ``0``.
 
-The second constructor is a :ref:`mixfix operator <mixfix-operators>` named
-``_∷_`` (pronounced *cons*). For all numbers, it takes as input an element
-of ``A`` and a vector. As output, it produces a vector with a length
-increased by one.
+The second constructor is a :ref:`mixfix operator <mixfix-operators>`
+named ``_∷_`` (pronounced *cons*). For any number ``n : Nat``, it
+takes as input an element of ``A`` and a vector of length ``n``. As
+output, it produces a vector with length ``suc n``, the successor of
+``n``.
 
-The declaration with keyword ``ìnfixr`` does not belong to the datatype
-declaration; therefore it is not indented. It establishes the
-:ref:`precedence <precedence>` of the operator *cons*.
+The declaration with keyword ``ìnfixr`` does not belong to the
+datatype declaration itself; therefore it is not indented. It
+establishes the :ref:`precedence <precedence>` of the operator *cons*.
 
 The total function ``lookup``
 -----------------------------
 
-Now that ``Vec`` is defined, we can define the ``lookup`` function that
-given a vector object and a position, returns the object of the vector at
-the given position.
+Now that ``Vec`` is defined, we can define the ``lookup`` function
+that given a vector object and a position, returns the object of the
+vector at the given position. In contrast to the ``lookup`` function
+we could define in most (non-dependently typed) programming languages,
+this version of the function will be *total*: all calls to it are
+guaranteed to return a value in finite time, with no possibility for
+errors.
 
-I order to do so, we need to import the ``Fin`` datatype. ``Fin n`` is a type
-with ``n`` elements that models in this example the notion of position. Create
-a new ``.agda`` file and type or paste:
+In order to do so, we will use the ``Fin`` datatype from the standard
+library. ``Fin n`` is a type with ``n`` elements, which we will use to
+model the ``n`` possible positions in a vector of length ``n``.
+
+Now create a new ``.agda`` file and type or paste:
 
 .. code-block:: agda
 
   module hello-world-dep-lookup where
 
-  open import Agda.Builtin.Nat using (Nat)
+  open import Data.Nat using (Nat)
   open import Data.Vec using (Vec ; _∷_)
   open import Data.Fin using (Fin ; zero ; suc)
 
@@ -150,39 +159,42 @@ a new ``.agda`` file and type or paste:
     A : Set
     n : Nat
 
-  lookup : Vec A n -> Fin n -> A
+  lookup : Vec A n → Fin n → A
   lookup (a ∷ as) zero = a
   lookup (a ∷ as) (suc i) = lookup as i
 
-In the latter code, we declared ``A`` and ``n`` as
-:ref:`generalizable variables <generalization-of-declared-variables>` to
-avoid the declaratkion of implicit arguments. An equivalent Agda program would
-be:
 
-.. code-block:: agda
+The ``Vec`` type that we saw before is actually already in the module
+``Data.Vec`` of the standard library, so we import it instead of
+copying the previous definition.
 
-  module hello-world-dep-lookup where
+We have declared ``A`` and ``n`` as :ref:`generalizable variables
+<generalization-of-declared-variables>` to avoid the declaration of
+implicit arguments. This allows us to use ``A`` and ``n`` in the type
+of ``lookup`` without binding the names explicitly. More explicitly,
+the full type of ``lookup`` is::
 
-  open import Agda.Builtin.Nat using (Nat)
-  open import Data.Vec using (Vec ; _∷_)
-  open import Data.Fin using (Fin ; zero ; suc)
+  lookup : {A : Set} → {n : Nat} → Vec A n → Fin n → A
 
-  lookup : {A : Set} → {n : Nat} → Vec A n -> Fin n -> A
-  lookup (a ∷ as) zero = a
-  lookup (a ∷ as) (suc i) = lookup as i
+.. warning:: ``zero`` and ``suc`` are **not** the constructors of
+  ``Nat`` that we saw before. Agda allows overloading of constructor
+  names, and will disambiguate between them based on the expected type
+  where they are used.
 
-.. warning:: ``zero`` and ``suc`` are **not** the constructors of ``Nat``
-  that we saw before. Agda allows overloading of constructor identifiers.
-  You can always check the type of an identifier in scope with ``C-c C-d``.
+The ``lookup`` function defines two cases:
 
-The ``Vec`` type that we saw before is actually already in the standard
-library. We can bring it to scope by importin it from the ``Data.Vec`` module.
+- Either the vector is ``a ∷ as`` and the position is ``zero``, so we
+  return the first element ``a`` of the vector.
 
-The ``lookup`` function can also be defined in other programming languages, but
-it won't be a total function (defined the whole range of its domain). This is
-necessary to guarantee that all Agda programs terminate.
+- Or the vector is ``a ∷ as`` and the position is ``suc i``, so we
+  recursively look up the element at position ``i`` in the tail ``as``
+  of the vector.
 
-This finishes our explanation of the ‘Hello world’ dependent type example.
+Note that there are no cases for the empty vector `[]`. This is no
+mistake: Agda can determine from the type of ``lookup`` that it is
+impossible to look up an element in the empty vector, since there is
+no possible index of type ``Fin 0``. For more details, see the section
+on :ref:`coverage checking <coverage-checking>`.
 
 Agda as a Proof Assistant: Associativity of Addition
 ====================================================
