@@ -3033,9 +3033,9 @@ instance TwinAt s a => TwinAt s (Abs a) where
   type TwinAt_ s (Abs a) = Abs (TwinAt_ s a)
   twinAt = fmap (twinAt @s)
 
-instance (Sing s, HetSideIsType s) => TwinAt s ContextHet where
-  type TwinAt_ s ContextHet = Context
-  twinAt = fmap (twinAt @s) . contextHetToList
+instance TwinAt s a => TwinAt s (ContextHet' a) where
+  type TwinAt_ s (ContextHet' a) = [TwinAt_ s a]
+  twinAt = map (twinAt @s) . contextHetToList
 
 instance TwinAt s (Het s a) where
   type TwinAt_ s (Het s a) = a
