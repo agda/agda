@@ -244,7 +244,7 @@ termMutual' = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   r <- billToTerGraph $ Term.terminates calls1
-  r <-
+  r <- do
        -- Andrea: 22/04/2020.
        -- With cubical we will always have a clause where the dot
        -- patterns are instead replaced with a variable, so they
@@ -255,10 +255,15 @@ termMutual' = do
        -- could be turned into actual splits, because no-confusion
        -- would make the other cases impossible, so I do not disable
        -- this for --without-K entirely.
-       ifM (optCubical <$> pragmaOptions) (return r) {- else -} $
-       case r of
-         r@Right{} -> return r
-         Left{}    -> do
+       --
+       -- Jesper, 17/02/2021.
+       -- Disabling this check in favour of a more fine-grained
+       -- approach that still allows variables and record constructors
+       -- in dot patterns to be used for termination checking
+       -- ifM (optCubical <$> pragmaOptions) (return r) {- else -} $
+       -- case r of
+       --   r@Right{} -> return r
+       --   Left{}    -> do
            -- Try again, but include the dot patterns this time.
            calls2 <- terSetUseDotPatterns True $ collect
            reportCalls "" calls2
@@ -570,19 +575,25 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 --   termToPattern t = unnamed <$> termToPattern t
 
 instance TermToPattern Term DeBruijnPattern where
-  termToPattern t = liftTCM (reduce t >>= constructorForm) >>= \case
-    -- Constructors.
-    Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
-    Def s [Apply arg] -> do
-      suc <- terGetSizeSuc
-      if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
-       else return $ dotP t
-    DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
-    -- Leaves.
-    Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
-    Lit l       -> return $ litP l
-    Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
-    t           -> return $ dotP t
+  termToPattern t = do
+    cubical <- optCubical <$> pragmaOptions
+    let done = return $ dotP t
+    liftTCM (reduce t >>= constructorForm) >>= \case
+      -- Constructors.
+      Con c cpi args -> do
+        ok <- pure (not cubical) `or2M` isEtaCon (conName c)
+        if | ok        -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
+           | otherwise -> done
+      Def s [Apply arg] | not cubical -> do
+        suc <- terGetSizeSuc
+        if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
+         else return $ dotP t
+      DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
+      -- Leaves.
+      Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
+      Lit l       -> return $ litP l
+      Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
+      t           -> done
 
 
 -- | Masks all non-data/record type patterns if --without-K.
