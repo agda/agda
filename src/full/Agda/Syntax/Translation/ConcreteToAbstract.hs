@@ -1826,7 +1826,8 @@ instance ToAbstract NiceDeclaration where
   -- Record definitions (mucho interesting)
     C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> do
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
-
+      -- #3008: Termination pragmas are ignored in records
+      checkNoTerminationPragma InRecordDef fields
       -- Andreas, 2020-04-19, issue #4560
       -- 'pattern' declaration is incompatible with 'coinductive' or 'eta-equality'.
       whenJust pat $ \ r -> do
@@ -2497,8 +2498,7 @@ whereToAbstract1
 whereToAbstract1 r whname whds inner = do
   -- ASR (16 November 2015) Issue 1137: We ban termination
   -- pragmas inside `where` clause.
-  when (any isTerminationPragma whds) $
-    genericError "Termination pragmas are not allowed inside where clauses"
+  checkNoTerminationPragma InWhereBlock whds
 
   -- Create a fresh concrete name if there isn't (a proper) one.
   (m, acc) <- do
@@ -2521,10 +2521,35 @@ whereToAbstract1 r whname whds inner = do
       defaultImportDir { publicOpen = Just noRange }
   return (x, A.WhereDecls (am <$ whname) $ singleton d)
 
-isTerminationPragma :: C.Declaration -> Bool
-isTerminationPragma (C.Private _ _ ds) = any isTerminationPragma ds
-isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
-isTerminationPragma _                                       = False
+data TerminationOrPositivity = Termination | Positivity
+  deriving (Show)
+
+data WhereOrRecord = InWhereBlock | InRecordDef
+
+checkNoTerminationPragma :: Foldable f => WhereOrRecord -> f C.Declaration -> ScopeM ()
+checkNoTerminationPragma b ds =
+  mapM_ (\ (p, r) -> warning $ GenericUseless r $ P.vcat [ P.text $ show p ++ " pragmas are ignored in " ++ what b
+                                                         , P.text $ "(see " ++ issue b ++ ")" ])
+        (foldMap terminationPragmas ds)
+  where
+    what InWhereBlock = "where clauses"
+    what InRecordDef  = "record definitions"
+    github n = "https://github.com/agda/agda/issues/" ++ show n
+    issue InWhereBlock = github 3355
+    issue InRecordDef  = github 3008
+
+terminationPragmas :: C.Declaration -> [(TerminationOrPositivity, Range)]
+terminationPragmas (C.Private  _ _      ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Abstract _        ds) = concatMap terminationPragmas ds
+terminationPragmas (C.InstanceB _       ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Mutual _          ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Module _ _ _      ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Macro _           ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Record _ _ _ _ _  ds) = concatMap terminationPragmas ds
+terminationPragmas (C.RecordDef _ _ _ _ ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Pragma (TerminationCheckPragma r _)) = [(Termination, r)]
+terminationPragmas (C.Pragma (NoPositivityCheckPragma r))  = [(Positivity, r)]
+terminationPragmas _                                       = []
 
 data RightHandSide = RightHandSide
   { _rhsRewriteEqn :: [RewriteEqn' () A.Pattern A.Expr]

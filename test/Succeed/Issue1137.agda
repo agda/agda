@@ -1,4 +1,4 @@
--- We ban termination pragmas inside `where` clauses.
+-- We issue a warning for termination pragmas inside `where` clauses.
 
 module Issue1137 where
 
@@ -11,4 +11,4 @@ foo = bar
   where
   {-# TERMINATING #-}
   bar : A
-  bar = bar
+  bar = a
