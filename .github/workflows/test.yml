@@ -332,8 +332,7 @@ jobs:
     - name: "Testing the Emacs mode"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
 
-    # ASR (2021-02-08). Disabled. See Issue 5189.
-    # - name: "Run tests for the size solver"
-    #   run: |
-    #     export PATH=${HOME}/.local/bin:${PATH}
-    #     make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-size-solver
+    - name: "Run tests for the size solver"
+      run: |
+        export PATH=${HOME}/.local/bin:${PATH}
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-size-solver
