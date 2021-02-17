@@ -1446,12 +1446,6 @@ split' checkEmpty ind allowPartialCover inserttrailing
     DoInsertTrailing   -> lift $ forM ns $ \(con,sc) ->
       (con,) . snd <$> insertTrailingArgs sc
 
-  -- Andreas, 2018-10-27, issue #3324; use isPropM.
-  -- Need to reduce sort to decide on Prop.
-  -- Cannot split if domain is a Prop but target is relevant.
-  propArrowRel <- fromRight __IMPOSSIBLE__ <.> runBlocked $
-    isPropM t `and2M` maybe (return True) (not <.> isPropM) target
-
   mHCompName <- getPrimitiveName' builtinHComp
   withoutK   <- collapseDefault . optWithoutK <$> pragmaOptions
 
@@ -1478,11 +1472,6 @@ split' checkEmpty ind allowPartialCover inserttrailing
                , scCheckpoints        = __IMPOSSIBLE__ -- not used
                , scTarget             = Nothing
                }
-
-    -- Jesper, 2018-05-24: If the datatype is in Prop we can
-    -- only do empty splits, unless the target is in Prop too.
-    (_ : _) | IsData <- dr, propArrowRel ->
-      throwError . IrrelevantDatatype =<< do liftTCM $ inContextOfT $ buildClosure (unDom t)
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
     _ | (_ : _ : _) <- runtime_splits, not erased && not (usableQuantity t) ->
