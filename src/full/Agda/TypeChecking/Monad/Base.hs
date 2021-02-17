@@ -2753,7 +2753,7 @@ instance (Pretty a, Pretty b) => Pretty (a :∈ b) where
 -- newtype ContextHet' a = ContextHet { unContextHet :: [a] }
 --  deriving (Data, Show, Functor, Foldable)
 data ContextHet' a = Empty
-                   | Entry Blocker {-# UNPACK #-} !(a :∈ (ContextHet' a))
+                   | Entry (ISet ProblemId) {-# UNPACK #-} !(a :∈ (ContextHet' a))
   deriving (Data, Show)
 
 instance Functor ContextHet' where
@@ -2768,26 +2768,25 @@ instance Semigroup (ContextHet' a) where
   Empty <> x     = x
   x     <> Empty = x
   (Entry b_a_γΓ (a :∈ γΓ)) <> δΔ =
-    Entry (unblockOnBoth b_a_γΓ (getBlocker δΔ)) (a :∈ (γΓ <> δΔ))
+    Entry (b_a_γΓ <> getPids δΔ) (a :∈ (γΓ <> δΔ))
 
 instance Monoid (ContextHet' a) where
   mempty = Empty
 
-class IsBlocked a where getBlocker :: a -> Blocker
+class HasPids a where getPids :: a -> ISet ProblemId
 
-instance IsBlocked Blocker where getBlocker = id
-instance IsBlocked (ContextHet' a) where
-  getBlocker Empty = AlwaysUnblock
-  getBlocker (Entry b _) = b
-instance (IsBlocked a, IsBlocked b) => IsBlocked (a,b) where
-  getBlocker (a,b) = unblockOnBoth (getBlocker a) (getBlocker b)
-instance IsBlocked Name where
-  getBlocker _ = AlwaysUnblock
-instance IsBlocked (TwinT''' a b c) where
-  getBlocker SingleT{} = AlwaysUnblock
-  getBlocker (TwinT{twinPid}) = unblockOnAll $ Set.fromAscList $ map unblockOnProblem $ ISet.toList twinPid
-instance IsBlocked a => IsBlocked (Dom a) where
-  getBlocker = getBlocker . unDom
+instance HasPids (ContextHet' a) where
+  getPids Empty = ISet.empty
+  getPids (Entry b _) = b
+instance (HasPids b) => HasPids (Name,b) where
+  getPids (_,b) = getPids b
+instance HasPids Name where
+  getPids _ = ISet.empty
+instance HasPids (TwinT''' a b c) where
+  getPids SingleT{} = ISet.empty
+  getPids (TwinT{twinPid}) = twinPid
+instance HasPids a => HasPids (Dom a) where
+  getPids = getPids . unDom
 
 type ContextHet = ContextHet' (Dom (Name, TwinT))
 
@@ -2806,7 +2805,7 @@ pattern (:⊢) :: ContextHet' a -> a -> ContextHet' a
 pattern γΓ :⊢ a <- Entry _ (a :∈ γΓ)
 
 infixl 5 ⊢:
-(⊢:) :: (IsBlocked a) => ContextHet' a -> a -> ContextHet' a
+(⊢:) :: (HasPids a) => ContextHet' a -> a -> ContextHet' a
 (⊢:) = flip (⊣:)
 
 infixl 5 ⊢!:
@@ -2815,11 +2814,11 @@ infixl 5 ⊢!:
 
 infixr 5 ⊣!:
 (⊣!:) :: (AsTwin a, AsTwin_ a ~ b) => b -> ContextHet' a -> ContextHet' a
-a ⊣!: γΓ = Entry (getBlocker γΓ) (asTwin a :∈ γΓ)
+a ⊣!: γΓ = Entry (getPids γΓ) (asTwin a :∈ γΓ)
 
 infixr 5 ⊣:
-(⊣:) :: (IsBlocked a) => a -> ContextHet' a -> ContextHet' a
-a ⊣: γΓ = Entry (unblockOnBoth (getBlocker a) (getBlocker γΓ)) (a :∈ γΓ)
+(⊣:) :: (HasPids a) => a -> ContextHet' a -> ContextHet' a
+a ⊣: γΓ = Entry (getPids a <> getPids γΓ) (a :∈ γΓ)
 
 #if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE Empty, (:⊢) #-}
@@ -2831,14 +2830,14 @@ a ⊣: γΓ = Entry (unblockOnBoth (getBlocker a) (getBlocker γΓ)) (a :∈ γ�
 -- γΓ ⊢:: δΔ = δΔ ⊣:: γΓ
 
 infixr 5 ⊣::
-(⊣::) :: IsBlocked a => [a] -> ContextHet' a -> ContextHet' a
+(⊣::) :: HasPids a => [a] -> ContextHet' a -> ContextHet' a
 []     ⊣:: γΓ = γΓ
-(b:bs) ⊣:: γΓ = Entry (unblockOnEither (getBlocker b) (getBlocker γΓ')) (b :∈ γΓ')
+(b:bs) ⊣:: γΓ = Entry (getPids b <> getPids γΓ') (b :∈ γΓ')
   where γΓ' = bs ⊣:: γΓ
 
 (⊣!::) :: (AsTwin a, AsTwin_ a ~ b) => [b] -> ContextHet' a -> ContextHet' a
 []     ⊣!:: γΓ = γΓ
-(b:bs) ⊣!:: γΓ = Entry (getBlocker γΓ) (asTwin b :∈ (bs ⊣!:: γΓ))
+(b:bs) ⊣!:: γΓ = Entry (getPids γΓ) (asTwin b :∈ (bs ⊣!:: γΓ))
 
 
 -- * Manipulating context as a list.
@@ -2850,7 +2849,7 @@ contextHetToList :: Context_' a -> [a]
 contextHetToList Empty = []
 contextHetToList (a :⊣ γΓ) = a:contextHetToList γΓ
 
-contextHetFromList :: IsBlocked a => [a] -> Context_' a
+contextHetFromList :: HasPids a => [a] -> Context_' a
 contextHetFromList []     = Empty
 contextHetFromList (a:as) = a ⊣: contextHetFromList as
 
