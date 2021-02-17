@@ -38,6 +38,8 @@ import Agda.TypeChecking.Monad.Pure (PureTCM)
 import Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 
 import Agda.Utils.Dependent
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (Pretty)
 import qualified Agda.Utils.Pretty as P
@@ -175,7 +177,7 @@ apT TwinT{necessary,twinPid,twinLHS,twinCompat,twinRHS} (SingleT (H'Both b)) =
 apT TwinT{necessary=n₁,twinPid=p₁,twinLHS=l₁,twinCompat=c₁,twinRHS=r₁}
       TwinT{necessary=n₂,twinPid=p₂,twinLHS=l₂,twinCompat=c₂,twinRHS=r₂} =
                     TwinT{necessary=n₁ && n₂
-                         ,twinPid=p₁++p₂
+                         ,twinPid=p₁ `ISet.union` p₂
                          ,direction=DirEq
                          ,twinLHS=    l₁ <*> l₂
                          ,twinCompat= c₁ <*> c₂
@@ -236,10 +238,10 @@ class AsTwin a => IsTwinSolved a where
 
 instance IsTwinSolved (TwinT' a) where
   blockOnTwin SingleT{}      = return AlwaysUnblock
-  blockOnTwin TwinT{twinPid} = unblockOnAll . Set.fromList . map UnblockOnProblem <$> filterM (fmap not . isProblemSolved) twinPid
+  blockOnTwin TwinT{twinPid} = unblockOnAll . Set.fromList . map UnblockOnProblem <$> filterM (fmap not . isProblemSolved) (ISet.toList twinPid)
 
   isTwinSolved SingleT{}      = return True
-  isTwinSolved TwinT{twinPid} = allM twinPid isProblemSolved
+  isTwinSolved TwinT{twinPid} = areAllProblemsSolved twinPid
 
   isTwinSingle SingleT{} = True
   isTwinSingle TwinT{}   = False

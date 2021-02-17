@@ -19,6 +19,8 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Errors
 
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Impossible
@@ -41,13 +43,13 @@ interestingConstraint pc = go $ clValue (theConstraint pc)
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
 prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
   where
-    isBlocked = not . null . allBlockingProblems . constraintUnblocker
+    isBlocked = not . ISet.null . allBlockingProblems . constraintUnblocker
     cs' = filter interestingConstraint cs
-    interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
-    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
+    interestingPids = ISet.unions $ map (allBlockingProblems . constraintUnblocker) cs'
+    stripPids (PConstr pids unblock c) = PConstr (ISet.intersection pids interestingPids) unblock c
 
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pids unblock c) = prettyTCM c <?> parensNonEmpty (sep [blockedOn unblock, prPids (Set.toList pids)])
+  prettyTCM (PConstr pids unblock c) = prettyTCM c <?> parensNonEmpty (sep [blockedOn unblock, prPids (ISet.toList pids)])
     where
       prPids []    = empty
       prPids [pid] = "belongs to problem" <+> prettyTCM pid

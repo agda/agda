@@ -75,6 +75,8 @@ import Agda.TypeChecking.Warnings
 import Agda.Termination.TermCheck (termMutual)
 
 import Agda.Utils.Functor
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -389,7 +391,7 @@ outputFormId (OutputForm _ _ _ o) = out o
 instance Reify ProblemConstraint where
   type ReifiesTo ProblemConstraint = Closure (OutputForm Expr Expr)
   reify (PConstr pids unblock cl) = withClosure cl $ \ c ->
-    OutputForm (getRange c) (Set.toList pids) unblock <$> reify c
+    OutputForm (getRange c) (ISet.toList pids) unblock <$> reify c
 
 reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
 reifyElimToExpr = \case
@@ -605,7 +607,7 @@ instance Pretty c => Pretty (IPBoundary' c) where
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
   forM cs $ \ c -> do
-            cl <- reify (PConstr Set.empty alwaysUnblock c)
+            cl <- reify (PConstr ISet.empty alwaysUnblock c)
             enterClosure cl abstractToConcrete_
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
@@ -676,8 +678,8 @@ stripConstraintPids :: Constraints -> Constraints
 stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
   where
     isBlocked = not . null . allBlockingProblems . constraintUnblocker
-    interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs
-    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
+    interestingPids = ISet.unions $ map (allBlockingProblems . constraintUnblocker) cs
+    stripPids (PConstr pids unblock c) = PConstr (ISet.intersection pids interestingPids) unblock c
 
 getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
 getConstraints' g f = liftTCM $ do

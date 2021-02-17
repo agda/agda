@@ -13,6 +13,8 @@ import Agda.Syntax.Internal.Elim
 
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Functor
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 
 import Agda.Utils.Impossible
 
@@ -157,8 +159,8 @@ unblockOnEffort (EffortDelta (NatExt 0))   = alwaysUnblock
 unblockOnEffort (EffortDelta  NatInfinity) = neverUnblock
 unblockOnEffort  e                         = UnblockOnEffort e
 
-unblockOnAllProblems :: [ProblemId] -> Blocker
-unblockOnAllProblems = unblockOnAll . Set.fromList . map UnblockOnProblem
+unblockOnAllProblems :: ISet ProblemId -> Blocker
+unblockOnAllProblems = unblockOnAll . Set.fromList . map UnblockOnProblem . ISet.toList
 
 unblockOnAllMetas :: Set MetaId -> Blocker
 unblockOnAllMetas = unblockOnAll . Set.mapMonotonic unblockOnMeta
@@ -180,12 +182,12 @@ allBlockingMetas (UnblockOnMeta x)  = Set.singleton x
 allBlockingMetas UnblockOnProblem{} = Set.empty
 allBlockingMetas UnblockOnEffort{}  = Set.empty
 
-allBlockingProblems :: Blocker -> Set ProblemId
-allBlockingProblems (UnblockOnAll us)    = Set.unions $ map allBlockingProblems $ Set.toList us
-allBlockingProblems (UnblockOnAny us)    = Set.unions $ map allBlockingProblems $ Set.toList us
-allBlockingProblems UnblockOnMeta{}      = Set.empty
-allBlockingProblems (UnblockOnProblem p) = Set.singleton p
-allBlockingProblems UnblockOnEffort{}    = Set.empty
+allBlockingProblems :: Blocker -> ISet ProblemId
+allBlockingProblems (UnblockOnAll us)    = ISet.unions $ map allBlockingProblems $ Set.toList us
+allBlockingProblems (UnblockOnAny us)    = ISet.unions $ map allBlockingProblems $ Set.toList us
+allBlockingProblems UnblockOnMeta{}      = ISet.empty
+allBlockingProblems (UnblockOnProblem p) = ISet.singleton p
+allBlockingProblems UnblockOnEffort{}    = ISet.empty
 
 unblocksOnEffort :: Blocker -> EffortDelta
 unblocksOnEffort (UnblockOnEffort e) = e

@@ -36,6 +36,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Lock
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.Functor
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Lens (over)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -105,8 +107,8 @@ wakeConstraintsTCM wake = do
   c <- useR stSleepingConstraints
   let (wakeup, sleepin) = partitionEithers $ map checkWakeUp c
   reportSLn "tc.constr.wake" 50 $
-    "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
-    "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) sleepin)
+    "waking up         " ++ show (List.map (ISet.toList . constraintProblems) wakeup) ++ "\n" ++
+    "  still sleeping: " ++ show (List.map (ISet.toList . constraintProblems) sleepin)
   modifySleepingConstraints $ const sleepin
   modifyAwakeConstraints (++ wakeup)
   where
@@ -119,12 +121,12 @@ wakeConstraintsTCM wake = do
 stealConstraintsTCM :: ProblemId -> TCM ()
 stealConstraintsTCM pid = do
   current <- asksTC envActiveProblems
-  reportSLn "tc.constr.steal" 50 $ "problem " ++ show (Set.toList current) ++ " is stealing problem " ++ show pid ++ "'s constraints!"
+  reportSLn "tc.constr.steal" 50 $ "problem " ++ show (ISet.toList current) ++ " is stealing problem " ++ show pid ++ "'s constraints!"
   -- Add current to any constraint in pid.
-  let rename pc@(PConstr pids u c) | Set.member pid pids = PConstr (Set.union current pids) u c
-                                   | otherwise           = pc
+  let rename pc@(PConstr pids u c) | ISet.member pid pids = PConstr (ISet.union current pids) u c
+                                   | otherwise            = pc
   -- We should never steal from an active problem.
-  whenM (Set.member pid <$> asksTC envActiveProblems) __IMPOSSIBLE__
+  whenM (ISet.member pid <$> asksTC envActiveProblems) __IMPOSSIBLE__
   modifyAwakeConstraints    $ List.map rename
   modifySleepingConstraints $ List.map rename
 
@@ -144,6 +146,7 @@ noConstraints problem = do
            (tryOneConstraintHarder))
   cs <- getConstraintsForProblem pid
   unless (null cs) $ do
+    reportSLn "tc.constr.none" 50 $ "failed no constraints"
     withCurrentCallStack $ \loc -> do
       w <- warning'_ loc (UnsolvedConstraints cs)
       typeError' loc $ NonFatalErrors [ w ]
@@ -220,8 +223,8 @@ wakeupConstraints_ = do
   wakeConstraints' (wakeup . constraintUnblocker)
   solveAwakeConstraints
   where
-    wakeup u | Set.null $ allBlockingProblems u = WakeUp
-             | otherwise                        = DontWakeUp Nothing
+    wakeup u | ISet.null $ allBlockingProblems u = WakeUp
+             | otherwise                         = DontWakeUp Nothing
 
 solveAwakeConstraints :: (MonadConstraint m) => m ()
 solveAwakeConstraints = solveAwakeConstraints' False
@@ -238,7 +241,7 @@ solveSomeAwakeConstraintsTCM solveThis force = do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
      -- Ulf, 2016-12-06: Don't inherit problems here! Stored constraints
      -- already contain all their dependencies.
-     locallyTC eActiveProblems (const Set.empty) solve
+     locallyTC eActiveProblems (const ISet.empty) solve
   where
     solve = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ "Solving awake constraints."
@@ -255,7 +258,7 @@ solveConstraintTCM c = do
     verboseS "profile.constraints" 10 $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
       pids <- asksTC envActiveProblems
-      reportSDoc "tc.constr.solve.constr" 20 $ text (show $ Set.toList pids) <+> prettyTCM c
+      reportSDoc "tc.constr.solve.constr" 20 $ text (show pids) <+> prettyTCM c
       solveConstraint_ c
 
 solveConstraint_ :: Constraint -> TCM ()

@@ -33,6 +33,9 @@ import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
 import Agda.TypeChecking.Pretty.Warning (filterTCWarnings)
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
+
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Pretty (Pretty(..))
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Time (CPUTime(..))
@@ -254,7 +257,7 @@ encodeTwinT :: (b -> TCM Value)
 encodeTwinT f (SingleT a) = kind "Single" [ "type" #= f (unHet @'Both a) ]
 encodeTwinT f (TwinT{necessary,twinPid,twinLHS,twinRHS,twinCompat}) = kind "TwinT" [
    "necessary"  @= encodePretty necessary
-  ,"pid"        @= twinPid
+  ,"pid"        @= ISet.toList twinPid
   ,"lhs"        #= f (unHet @'LHS    twinLHS)
   ,"rhs"        #= f (unHet @'RHS    twinRHS)
   ,"compat"     #= f (unHet @'Compat twinCompat)

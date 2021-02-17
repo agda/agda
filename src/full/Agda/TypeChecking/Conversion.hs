@@ -57,6 +57,8 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Dependent
 import Agda.Utils.Functor
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
@@ -790,7 +792,7 @@ compareDom_ cmp0
           addContext (name, dom0'{unDom =
                               TwinT{necessary  = True,
                                     direction  = cmp,
-                                    twinPid    = [pid],
+                                    twinPid    = ISet.singleton pid,
                                     twinLHS    = Het @'LHS a1,
                                     twinCompat = Het @'Compat a0',
                                     twinRHS    = Het @'RHS a2
@@ -1039,7 +1041,7 @@ compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHet a_ $ \a_ ->
                      Nothing  -> SingleT (H'Both $ twinAt @'LHS arg1)
                      Just dir -> TwinT{necessary   = True
                                       ,direction   = dir
-                                      ,twinPid     = [pid]
+                                      ,twinPid     = ISet.singleton pid
                                       ,twinLHS     = commute arg1
                                       ,twinCompat  = asTwin argCompat
                                       ,twinRHS     = commute arg2
@@ -2287,7 +2289,7 @@ mkTwinTerm _ (SingleT a) = return$ SingleT a
 mkTwinTerm _ tt@TwinT{twinCompat=(Compose (Just tc))} =
   return tt{twinCompat=tc}
 mkTwinTerm ty tt@TwinT{twinPid=tp,direction,twinLHS=tl,twinRHS=tr,twinCompat=(Compose Nothing)} = do
-  twinPid <- filterM (fmap not . isProblemSolved) tp
+  twinPid <- keepUnsolvedProblems tp
   let t0 = selectSmaller direction (twinAt @'LHS tl) (twinAt @'RHS tr)
   tc <- blockTermOnProblems (twinAt @'Compat ty) t0 twinPid
   return tt{twinCompat=H'Compat tc}
@@ -2299,7 +2301,7 @@ mkTwinT (SingleT a) = return$ SingleT a
 mkTwinT tt@TwinT{twinCompat=(Compose (Just tyc))} =
   return tt{twinCompat=tyc}
 mkTwinT tt@TwinT{direction,twinPid=tp,twinLHS=tyl,twinRHS=tyr,twinCompat=(Compose Nothing)} = do
-  twinPid <- filterM (fmap not . isProblemSolved) tp
+  twinPid <- keepUnsolvedProblems tp
   let ty0 = selectSmaller direction (twinAt @'LHS tyl) (twinAt @'RHS tyr)
   tyc <- blockTypeOnProblems ty0 twinPid
   return tt{twinCompat=H'Compat tyc}
@@ -2382,7 +2384,7 @@ mkTwinTelescope a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
   case n  == n' of
     False -> __IMPOSSIBLE__
     True  -> do
-      twinPid' <- filterM (fmap not . isProblemSolved) twinPid
+      twinPid' <- keepUnsolvedProblems twinPid
       telc <- telFromList' id <$>
         (let go [] = return []
              go ((dom1, dom2):tels) = do

@@ -54,6 +54,8 @@ import Agda.TypeChecking.MetaVars.VarSetBlocked (VarSetBlocked, freeVarsBlocked,
 import qualified Agda.TypeChecking.MetaVars.VarSetBlocked as VarSetBlocked
 
 import Agda.Utils.Function
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -383,17 +385,17 @@ blockTerm t blocker = do
 blockTermOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ProblemId -> m Term
-blockTermOnProblem t v pid = blockTermOnProblems t v [pid]
+blockTermOnProblem t v pid = blockTermOnProblems t v (ISet.singleton pid)
 
 blockTermOnProblems
   :: (MonadMetaSolver m, MonadFresh Nat m)
-  => Type -> Term -> [ProblemId] -> m Term
+  => Type -> Term -> ISet ProblemId -> m Term
 blockTermOnProblems t v pids =
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
   -- TODO: Víctor, 2021-02-01
   -- It may be the case that only some for the problems are blocked, we
   -- should filter instead
-  ifM (allM pids isProblemSolved `or2M` allM pids isSizeProblem) (return v) $ do
+  ifM (areAllProblemsSolved pids `or2M` allM (ISet.toList pids) isSizeProblem) (return v) $ do
     i   <- createMetaInfo
     es  <- map Apply <$> getContextArgs
     tel <- getContextTelescope
@@ -408,7 +410,7 @@ blockTermOnProblems t v pids =
     reportSDoc "tc.meta.blocked" 20 $ vcat
       [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
         (prettyTCM $ abstract tel v)
-      , "     by" <+> (prettyTCM . mconcat =<< mapM getConstraintsForProblem pids)
+      , "     by" <+> (prettyTCM . mconcat =<< mapM getConstraintsForProblem (ISet.toList pids))
       ]
     inst <- isInstantiatedMeta x
     if inst
@@ -436,11 +438,11 @@ blockTermOnProblems t v pids =
 blockTypeOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ProblemId -> m Type
-blockTypeOnProblem t pid = blockTypeOnProblems t [pid]
+blockTypeOnProblem t pid = blockTypeOnProblems t (ISet.singleton pid)
 
 blockTypeOnProblems
   :: (MonadMetaSolver m, MonadFresh Nat m)
-  => Type -> [ProblemId] -> m Type
+  => Type -> ISet ProblemId -> m Type
 blockTypeOnProblems (El s a) pids = El s <$> blockTermOnProblems (sort s) a pids
 
 -- | @unblockedTester t@ returns a 'Blocker' for @t@.

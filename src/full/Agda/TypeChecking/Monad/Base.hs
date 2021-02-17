@@ -103,6 +103,8 @@ import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -1040,7 +1042,7 @@ buildClosure x = do
 type Constraints = [ProblemConstraint]
 
 data ProblemConstraint = PConstr
-  { constraintProblems  :: Set ProblemId
+  { constraintProblems  :: ISet ProblemId
   , constraintUnblocker :: Blocker
   , theConstraint       :: Closure Constraint
   }
@@ -2783,7 +2785,7 @@ instance IsBlocked Name where
   getBlocker _ = AlwaysUnblock
 instance IsBlocked (TwinT''' a b c) where
   getBlocker SingleT{} = AlwaysUnblock
-  getBlocker (TwinT{twinPid}) = unblockOnAll $ Set.fromList $ map unblockOnProblem twinPid
+  getBlocker (TwinT{twinPid}) = unblockOnAll $ Set.fromAscList $ map unblockOnProblem $ ISet.toList twinPid
 instance IsBlocked a => IsBlocked (Dom a) where
   getBlocker = getBlocker . unDom
 
@@ -3087,7 +3089,7 @@ type TwinT''_ b a  = TwinT''' b (Const ()) a
 type TwinT'_ a  = TwinT''' Bool (Const ()) a
 data TwinT''' b (f :: Data.Kind.Type -> Data.Kind.Type) a =
     SingleT { unSingleT :: Het 'Both a }
-  | TwinT { twinPid    :: [ProblemId]      -- ^ Unification problem which is sufficient
+  | TwinT { twinPid    :: ISet ProblemId   -- ^ Unification problems which are sufficient
                                            --   for LHS and RHS to be equal
           , necessary  :: b                -- ^ Whether solving twinPid is necessary,
                                            --   not only sufficient.
@@ -3179,7 +3181,7 @@ data TCEnv =
                 -- ^ Are we working on types? Turned on by 'workOnTypes'.
           , envAssignMetas         :: Bool
             -- ^ Are we allowed to assign metas?
-          , envActiveProblems      :: Set ProblemId
+          , envActiveProblems      :: ISet ProblemId
           , envAbstractMode        :: AbstractMode
                 -- ^ When checking the typesignature of a public definition
                 --   or the body of a non-abstract definition this is true.
@@ -3297,7 +3299,7 @@ initEnv = TCEnv { envContext             = Empty
                 , envMakeCase            = False
                 , envSolvingConstraints  = False
                 , envCheckingWhere       = False
-                , envActiveProblems      = Set.empty
+                , envActiveProblems      = ISet.empty
                 , envWorkingOnTypes      = False
                 , envAssignMetas         = True
                 , envAbstractMode        = ConcreteMode
@@ -3415,7 +3417,7 @@ eWorkingOnTypes f e = f (envWorkingOnTypes e) <&> \ x -> e { envWorkingOnTypes =
 eAssignMetas :: Lens' Bool TCEnv
 eAssignMetas f e = f (envAssignMetas e) <&> \ x -> e { envAssignMetas = x }
 
-eActiveProblems :: Lens' (Set ProblemId) TCEnv
+eActiveProblems :: Lens' (ISet ProblemId) TCEnv
 eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems = x }
 
 eAbstractMode :: Lens' AbstractMode TCEnv

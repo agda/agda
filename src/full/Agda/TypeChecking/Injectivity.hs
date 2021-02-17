@@ -74,6 +74,8 @@ import Agda.TypeChecking.Warnings
 import Agda.Utils.Dependent
 import Agda.Utils.Either
 import Agda.Utils.Functor
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -308,7 +310,7 @@ useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
   -- Injectivity might cause non-termination for unsatisfiable constraints
   -- (#431, #3067). Look at the number of active problems and the injectivity
   -- depth to detect this.
-  nProblems <- Set.size <$> viewTC eActiveProblems
+  nProblems <- ISet.size <$> viewTC eActiveProblems
   injDepth  <- viewTC eInjectivityDepth
   let depth = max nProblems injDepth
   maxDepth  <- maxInversionDepth
