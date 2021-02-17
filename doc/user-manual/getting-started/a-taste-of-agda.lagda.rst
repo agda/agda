@@ -3,6 +3,8 @@
   ::
   module getting-started.a-taste-of-agda where
 
+.. _a-taste-of-agda:
+  
 ***************
 A taste of Agda
 ***************
