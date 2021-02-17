@@ -225,7 +225,7 @@ class AsTwin a => IsTwinSolved a where
   blockOnTwin ::  (SimplifyHetM m) => a -> m Blocker
   isTwinSolved :: (SimplifyHetM m) => a -> m Bool
   isTwinSingle :: a -> Bool
-  simplifyHet' :: (SimplifyHetM m) => a -> (Either a (AsTwin_ a) -> m b) -> m b
+  simplifyHet' :: (SimplifyHetM m) => a -> m (Either a (AsTwin_ a))
 
 --  isTwinSolved a = blockOnTwin a >>= \case
 --    AlwaysUnblock -> return True
@@ -241,27 +241,27 @@ instance IsTwinSolved (ISet ProblemId) where
   blockOnTwin pids    = unblockOnAll . Set.fromList . map UnblockOnProblem . ISet.toList <$> keepUnsolvedProblems pids
   isTwinSolved        = areAllProblemsSolved
   isTwinSingle        = const False
-  simplifyHet' pids κ = (keepUnsolvedProblems pids <&> \case
+  simplifyHet' pids   = keepUnsolvedProblems pids <&> \case
     x | ISet.null x -> Right ()
-      | otherwise   -> Left x) >>= κ
+      | otherwise   -> Left x
 
 instance IsTwinSolved (TwinT' a) where
   blockOnTwin = blockOnTwin . getPids
   isTwinSolved = isTwinSolved . getPids
   isTwinSingle SingleT{} = True
   isTwinSingle TwinT{}   = False
-  simplifyHet' (SingleT b) κ = κ (Right (twinAt @'Both b))
-  simplifyHet' b@TwinT{twinPid} κ =
-    simplifyHet' twinPid $ \case
-      Right ()       -> κ $ Right$ twinAt @'Compat b
-      Left  twinPid' -> κ $ Left$  b{twinPid=twinPid'}
+  simplifyHet' (SingleT b) = pure (Right (twinAt @'Both b))
+  simplifyHet' b@TwinT{twinPid} =
+    simplifyHet' twinPid <&> \case
+      Right ()       -> Right$ twinAt @'Compat b
+      Left  twinPid' -> Left$  b{twinPid=twinPid'}
 
 instance IsTwinSolved a => IsTwinSolved (Dom a) where
   blockOnTwin = blockOnTwin . unDom
   isTwinSolved = isTwinSolved . unDom
   isTwinSingle = isTwinSingle . unDom
-  simplifyHet' dom κ = simplifyHet' (unDom dom) $ \a ->
-    κ (bimap (\x -> dom{unDom=x}) (\x -> dom{unDom=x}) a)
+  simplifyHet' dom = simplifyHet' (unDom dom) <&> \a ->
+    bimap (\x -> dom{unDom=x}) (\x -> dom{unDom=x}) a
 
 instance IsTwinSolved a => IsTwinSolved (CompareAs' a) where
   blockOnTwin (AsTermsOf a) = blockOnTwin a
@@ -272,9 +272,9 @@ instance IsTwinSolved a => IsTwinSolved (CompareAs' a) where
   isTwinSolved AsTypes       = return True
   isTwinSolved AsSizes       = return True
 
-  simplifyHet' (AsTermsOf a) κ = simplifyHet' a $ \a -> κ (bimap AsTermsOf AsTermsOf a)
-  simplifyHet' AsTypes       κ = κ (Right AsTypes)
-  simplifyHet' AsSizes       κ = κ (Right AsSizes)
+  simplifyHet' (AsTermsOf a) = simplifyHet' a <&> \a -> bimap AsTermsOf AsTermsOf a
+  simplifyHet' AsTypes       = pure (Right AsTypes)
+  simplifyHet' AsSizes       = pure (Right AsSizes)
 
   isTwinSingle (AsTermsOf a) = isTwinSingle a
   isTwinSingle AsTypes       = True
@@ -283,46 +283,46 @@ instance IsTwinSolved a => IsTwinSolved (CompareAs' a) where
 instance IsTwinSolved Name where
   blockOnTwin _  = pure AlwaysUnblock
   isTwinSolved _ = pure True
-  simplifyHet' n κ = κ (Right n)
+  simplifyHet' n = pure (Right n)
   isTwinSingle _ = True
 
 instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a,b) where
   blockOnTwin  (a,b) = unblockOnBoth <$> blockOnTwin a <*> blockOnTwin b
   isTwinSolved (a,b) = andM [isTwinSolved b, isTwinSolved a]
-  simplifyHet' (a,b) κ =
-    simplifyHet' a $ \a ->
-      simplifyHet' b $ \b ->
+  simplifyHet' (a,b) =
+    simplifyHet' a >>= \a ->
+      simplifyHet' b <&> \b ->
         case (a,b) of
-          (Right a, Right b) -> κ$ Right (a, b)
-          ( Left a, Right b) -> κ$ Left  (a, asTwin b)
-          (Right a,  Left b) -> κ$ Left  (asTwin a, b)
-          ( Left a,  Left b) -> κ$ Left  (a, b)
+          (Right a, Right b) -> Right (a, b)
+          ( Left a, Right b) -> Left  (a, asTwin b)
+          (Right a,  Left b) -> Left  (asTwin a, b)
+          ( Left a,  Left b) -> Left  (a, b)
   isTwinSingle (a,b) = isTwinSingle a && isTwinSingle b
 
 instance IsTwinSolved () where
   blockOnTwin ()  = pure AlwaysUnblock
   isTwinSolved () = pure True
-  simplifyHet' () κ = κ (Right ())
+  simplifyHet' () = pure (Right ())
   isTwinSingle () = True
 
 instance (IsTwinSolved a, IsTwinSolved b) => IsTwinSolved (a :∈ b) where
   blockOnTwin  (b :∋ a) = unblockOnBoth <$> blockOnTwin b <*> blockOnTwin a
   isTwinSolved (b :∋ a) = andM [isTwinSolved b, isTwinSolved a]
   isTwinSingle (b :∋ a) = isTwinSingle b && isTwinSingle a
-  simplifyHet' (b :∋ a) κ = simplifyHet' b $ \case
-    Right b -> simplifyHet' a $ \case
-      Right a -> κ (Right (a :∈ b))
-      Left  a -> κ (Left  (a :∈ asTwin b))
-    Left  b -> κ (Left (a :∈ b))
+  simplifyHet' (b :∋ a) = simplifyHet' b >>= \case
+    Right b -> simplifyHet' a <&> \case
+      Right a -> Right (a :∈ b)
+      Left  a -> Left  (a :∈ asTwin b)
+    Left  b -> pure$ Left (a :∈ b)
 
 instance (IsTwinSolved a, Subst a) => IsTwinSolved (Abs a) where
   blockOnTwin = blockOnTwin . unAbs
   isTwinSolved = isTwinSolved . unAbs
   isTwinSingle = isTwinSingle . unAbs
-  simplifyHet' abs κ =
-    κ =<< (underAbstraction_ abs $ \a ->
-      simplifyHet' a $ \a ->
-        return $ bimap (\x -> abs{unAbs=x}) (\x -> abs{unAbs=x}) a)
+  simplifyHet' abs =
+    underAbstraction_ abs $ \a ->
+      simplifyHet' a <&> \a ->
+        bimap (\x -> abs{unAbs=x}) (\x -> abs{unAbs=x}) a
 
 newtype AttemptConversion a = AttemptConversion { attemptConversion :: a }
 
@@ -341,20 +341,22 @@ instance TwinAt s a => TwinAt s (AttemptConversion a) where
 instance (AsTwin a, IsTwinSolved (AttemptConversion a)) => IsTwinSolved (AttemptConversion (Dom a)) where
   blockOnTwin  = blockOnTwin  . fmap AttemptConversion . attemptConversion
   isTwinSolved = isTwinSolved . fmap AttemptConversion . attemptConversion
-  simplifyHet' (AttemptConversion b) κ = simplifyHet' (fmap AttemptConversion b) $ \e -> κ $ bimap coerce id e
+  simplifyHet' (AttemptConversion b) = simplifyHet' (fmap AttemptConversion b) <&> \e ->
+    bimap coerce id e
   isTwinSingle = isTwinSingle . fmap AttemptConversion . attemptConversion
 
 instance IsTwinSolved (AttemptConversion Name) where
   blockOnTwin  = blockOnTwin  . attemptConversion
   isTwinSolved = isTwinSolved . attemptConversion
-  simplifyHet' (AttemptConversion b) κ = simplifyHet' b $ \e -> κ $ bimap AttemptConversion id e
+  simplifyHet' (AttemptConversion b) = simplifyHet' b <&> \e -> bimap AttemptConversion id e
   isTwinSingle = isTwinSingle . attemptConversion
 
 instance (AsTwin a, AsTwin b, IsTwinSolved (AttemptConversion a), IsTwinSolved (AttemptConversion b)) =>
          IsTwinSolved (AttemptConversion (a,b)) where
   blockOnTwin  = blockOnTwin  . bimap AttemptConversion AttemptConversion . attemptConversion
   isTwinSolved = isTwinSolved . bimap AttemptConversion AttemptConversion . attemptConversion
-  simplifyHet' (AttemptConversion b) κ = simplifyHet' (bimap AttemptConversion AttemptConversion b) $ \e -> κ $ bimap coerce id e
+  simplifyHet' (AttemptConversion b) = simplifyHet' (bimap AttemptConversion AttemptConversion b)
+    <&> \e -> bimap coerce id e
   isTwinSingle = isTwinSingle . bimap AttemptConversion AttemptConversion . attemptConversion
 
 instance IsTwinSolved (AttemptConversion TwinT) where
@@ -379,15 +381,15 @@ instance IsTwinSolved (AttemptConversion TwinT) where
                        runPureConversion' (compareTypeDir_ direction twinLHS twinRHS)
                    _ -> __IMPOSSIBLE__
 
-  simplifyHet' (AttemptConversion t) κ = do
-    simplifyHet' t $ \case
-      Right a  -> κ $ Right a
-      Left  t' -> striveWithEffort 10 (const (κ (Left (AttemptConversion t')))) $
+  simplifyHet' (AttemptConversion t) = do
+    simplifyHet' t >>= \case
+      Right a  -> pure $ Right a
+      Left  t' -> striveWithEffort 10 (const (pure (Left (AttemptConversion t')))) $
                     case t' of
                       TwinT{direction,twinLHS,twinRHS} ->
-                        runPureConversion' (compareTypeDir_ direction twinLHS twinRHS) >>= \case
-                          True  -> κ $ Right $ twinAt @'Compat t'
-                          False -> κ $ Left (AttemptConversion t')
+                        runPureConversion' (compareTypeDir_ direction twinLHS twinRHS) <&> \case
+                          True  -> Right $ twinAt @'Compat t'
+                          False -> Left (AttemptConversion t')
                       _ -> __IMPOSSIBLE__
 
 striveWithEffort :: (MonadDebug m, MonadTCEnv m) =>
@@ -420,7 +422,7 @@ simplifyHetFull b κ = do
   go γΓ $ \isHomo γΓ' ->
     unsafeModifyContext {- IdS -} (const γΓ') $
       case isHomo of
-        True  -> simplifyHet' b $ \case
+        True  -> simplifyHet' b >>= \case
                   Right b'  -> κ (asTwin b')
                   Left  b   -> κ b
         False -> κ b
@@ -429,7 +431,7 @@ simplifyHetFull b κ = do
     go (γΓ :⊢ a) κ =
       go γΓ $ \isHomo γΓ' ->
         case isHomo of
-          True -> simplifyHet' a $ \case
+          True -> simplifyHet' a >>= \case
             Right a' -> κ True  (γΓ' ⊢: asTwin a')
             Left  a  -> κ False (γΓ' ⊢: a)
           False -> κ False (γΓ' ⊢: a)
@@ -439,7 +441,7 @@ simplifyHet b κ = do
     reportSDoc "tc.conv.het" 80 $ "Simplifying" <+> pretty b
     case isTwinSingle b of
       True  -> κ b
-      False -> simplifyHet' b $ \case
+      False -> simplifyHet' b >>= \case
         Left  b -> κ b
         Right b' -> do
           γΓ <- getContext_
@@ -450,7 +452,7 @@ simplifyHet b κ = do
     go Empty κ = κ (Just Empty)
     go (γΓ :⊢ a) κ = do
       reportSDoc "tc.conv.het" 80 $ "now simplifying" <+> pretty a
-      simplifyHet' a $ \case
+      simplifyHet' a >>= \case
         Left{}    -> κ Nothing
         Right a'  -> do
           go γΓ $ \case
@@ -461,22 +463,22 @@ instance IsTwinSolved Context_ where
   blockOnTwin  = blockOnTwin . getPids
   isTwinSolved = isTwinSolved . getPids
   isTwinSingle = const False
-  simplifyHet' Empty         κ = κ (Right [])
-  simplifyHet' γΓ@(Entry bs a) κ =
-    simplifyHet' bs $ \case
-      Right ()  -> κ (Right $ twinAt @'Compat γΓ)
-      Left  bs' -> κ (Left  $ Entry bs' a)
+  simplifyHet' Empty           = pure (Right [])
+  simplifyHet' γΓ@(Entry bs a) =
+    simplifyHet' bs <&> \case
+      Right ()  -> Right $ twinAt @'Compat γΓ
+      Left  bs' -> Left  $ Entry bs' a
 
 simplifyHetFast b κ = do
   verboseBracket "tc.conv.het" 70 "simplifyHet" $ do
     reportSDoc "tc.conv.het" 80 $ "Simplifying" <+> pretty b
     case isTwinSingle b of
       True  -> κ b
-      False -> simplifyHet' b $ \case
+      False -> simplifyHet' b >>= \case
         Left  b -> κ b
         Right b' -> do
           γΓ <- getContext_
-          simplifyHet' γΓ $ \case
+          simplifyHet' γΓ >>= \case
             Left  _    -> κ b
             -- We ignore it, although one could consider actually replacing the context
             Right _γΓ' -> κ (asTwin b')
