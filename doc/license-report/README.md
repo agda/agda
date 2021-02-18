@@ -4,6 +4,14 @@ Agda dependencies license report
 The [Makefile](Makefile) here helps you to generate a listing of the
 licenses of the Agda dependencies using `cabal-plan`.
 
+It prints the declared licence of every Cabal package that the Agda
+binary depends on (as determined by the configuration in the Cabal
+build directory `dist-newstyle`).
+Note that the binary may depend on non-Cabal packages as well.
+
+The licence printed for the rts package is that of (some version of)
+the ghc package.
+
 Instructions
 ------------
 
