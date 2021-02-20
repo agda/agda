@@ -69,7 +69,7 @@ zero or more nested modules. Each module that each contain a list of
    constructors ``zero`` and ``suc`` from the module
    ``Data.Nat`` of the standard library,
 2. A *datatype definition* of the datatype ``Vec``, which has
-   two constructors: the empty vector constructor ``[]`` and 
+   two constructors: the empty vector constructor ``[]`` and
    the *cons* constructor ``_∷_``,
 3. And finally an ``infixr`` declaration specifying the
    :ref:`precedence <precedence>` for the *cons* operation.
@@ -78,7 +78,7 @@ zero or more nested modules. Each module that each contain a list of
   and ``∷`` in this example. To learn how to enter a unicode character, move the
   cursor over it and enter ``M-x describe-char`` or ``C-u C-x =``. This displays
   all information on the character, including how to input it with the Agda
-  input method. For example, to input ``ℕ`` you can type either ``\Bbb{N}`` 
+  input method. For example, to input ``ℕ`` you can type either ``\Bbb{N}``
   or ``\bN``.
 
 The datatype ``Vec``
@@ -291,7 +291,7 @@ variables, the symbol equal ``=`` and the question mark ``?``.
 
 When we reload the file, Agda no longer throws an error, but instead shows the
 message ***All Goals*** with a list of goals. We have entered the interactive
-proving mode. Agda turns our question mark into what is called a *hole* ``{ }0``. 
+proving mode. Agda turns our question mark into what is called a *hole* ``{ }0``.
 The number ``0`` inside labels the goal.
 
 To continue writing our proof, we now pick a variable and perform a case
@@ -339,7 +339,7 @@ and similarly replaced the right-hand side ``suc x + (y + z)`` by ``suc (x + (y
   normalize. For example, if we enter ``(suc x + y) + z`` we get back
   ``suc (x + y + z)`` as a result.
 
-.. note:: 
+.. note::
   You might wonder why Agda displays the term ``(x + y) + z`` as ``x +
   y + z`` (without parenthesis). This is done because of the infix statement
   ``infixl 6 _+_`` that was declared in the imported ``Agda.Builtin.Nat`` module.
@@ -366,7 +366,7 @@ is exactly what we need. We write ``cong suc`` in the hole and again press
 ``C-c C-r`` to refine the hole. This results in the new line
 
 .. code-block:: agda
-  
+
   +-assoc (suc x) y z = cong suc {  }2
 
 together with a new hole of type ``x + (y + z) ≡ x + y + z``.
@@ -379,7 +379,7 @@ When we define a recursive function like this, Agda performs :ref:`termination
 checking <termination-checking>` on it. This is important to ensure the
 recursion is well-founded, and hence will not result in an invalid (circular)
 proof. In this case, the first argument ``x`` is structurally smaller than the
-first argument ``suc x`` on the left-hand side of the clause, hence Agda 
+first argument ``suc x`` on the left-hand side of the clause, hence Agda
 allows us to make the recursive call. Because termination is an
 undecidable property, Agda will not accept all terminating functions, but only
 the ones that are mechanically proved to terminate.
@@ -421,7 +421,7 @@ Here is the final code of the ‘Hello world’ proof example:
   +-assoc zero y z = refl
   +-assoc (suc x) y z = cong suc (+-assoc x y z)
 
-.. note:: 
+.. note::
   You can learn more details about proving in the chapter
   `Proof by Induction <plfa-induction_>`_ of the online book
   `Programming Language Foundations in Agda <plfa_>`_.
@@ -495,7 +495,7 @@ systems, ``hello-world-prog.exe`` on Windows) from the command line:
   Hello, World!
 
 .. tip:: Any top-level module exporting a function ``main : IO a`` can be :ref:`compiled
-  <compiling-agda-programs>` to a standalone executable. 
+  <compiling-agda-programs>` to a standalone executable.
 
 .. _std-lib: https://github.com/agda/agda-stdlib
 
