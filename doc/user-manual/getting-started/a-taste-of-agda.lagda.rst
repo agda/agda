@@ -85,7 +85,9 @@ The datatype ``Vec``
 --------------------
 
 Let us start by looking at the first line of the definition of
-``Vec``::
+``Vec``:
+
+.. code-block:: agda
 
   data Vec (A : Set) : ℕ → Set where
 
@@ -163,7 +165,6 @@ Now create a new file called ``hello-world-dep-lookup.agda`` file and type or pa
   lookup (a ∷ as) zero = a
   lookup (a ∷ as) (suc i) = lookup as i
 
-
 The ``Vec`` type that we saw before is actually already in the module
 ``Data.Vec`` of the standard library, so we import it instead of
 copying the previous definition.
@@ -172,7 +173,9 @@ We have declared ``A`` and ``n`` as :ref:`generalizable variables
 <generalization-of-declared-variables>` to avoid the declaration of
 implicit arguments. This allows us to use ``A`` and ``n`` in the type
 of ``lookup`` without binding the names explicitly. More explicitly,
-the full type of ``lookup`` (which we can get by using ``C-c C-d``) is::
+the full type of ``lookup`` (which we can get by using ``C-c C-d``) is:
+
+.. code-block:: agda
 
   lookup : {A : Set} → {n : ℕ} → Vec A n → Fin n → A
 
@@ -318,7 +321,7 @@ term ``w``.
 
 .. code-block:: agda
 
-  +-assoc x y z = refl
+  +-assoc zero y z = refl
   +-assoc (suc x) y z = {  }1
 
 Now we have one hole left to resolve. By putting the cursor in it and pressing
@@ -388,7 +391,7 @@ The result of the definition we were looking for is:
 
 .. code-block:: agda
 
-  +-assoc x y z = refl
+  +-assoc zero y z = refl
   +-assoc (suc x) y z = cong suc (+-assoc x y z)
 
 When we reload the file, we see ***All Done***. This means that
@@ -401,23 +404,20 @@ When we reload the file, we see ***All Done***. This means that
   The scope of a variable declared in a signature is restricted to the
   signature itself.
 
-Here is the final code of the ‘Hello world’ proof example:
+Here is the final code of the ‘Hello world’ proof example, with all imports
+together at the top of the file:
 
 .. code-block:: agda
 
   module hello-world-proof where
 
-  open import Agda.Builtin.Nat using (ℕ ; _+_)
-  open import Agda.Builtin.Equality using (_≡_)
+  open import Data.Nat using (ℕ; zero; suc; _+_)
+  open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
 
   +-assoc-enun : Set
   +-assoc-enun = ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
 
-  open import Agda.Builtin.Nat using (zero ; suc)
-  open import Relation.Binary.PropositionalEquality using (cong)
-  open import Agda.Builtin.Equality using (refl)
-
-  +-assoc : ∀ (x y z : Nat) → x + (y + z) ≡ (x + y) + z
+  +-assoc : ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
   +-assoc zero y z = refl
   +-assoc (suc x) y z = cong suc (+-assoc x y z)
 
