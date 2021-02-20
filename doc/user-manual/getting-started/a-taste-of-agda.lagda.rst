@@ -534,5 +534,5 @@ Join the Agda Community!
 Get in touch and join the `Agda community <agda-community_>`_, or join the conversation on the
 `Agda Zulip <agda-zulip_>`_.
 
-.. _agda-community: https://github.com/agda
+.. _agda-community: https://wiki.portal.chalmers.se/agda/Main/Community
 .. _agda-zulip: https://agda.zulipchat.com
