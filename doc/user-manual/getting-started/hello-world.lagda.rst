@@ -52,29 +52,27 @@ in a file ``hello-world.agda``)
 
   module hello-world where
 
-  open import IO
+  open import Agda.Builtin.IO using (IO)
+  open import Agda.Builtin.Unit using (⊤)
+  open import Agda.Builtin.String using (String)
 
-  main = run (putStrLn "Hello, World!")
+  postulate putStrLn : String → IO ⊤
+  {-# FOREIGN GHC import qualified Data.Text as T #-}
+  {-# COMPILE GHC putStrLn = putStrLn . T.unpack #-}
+
+  main : IO ⊤
+  main = putStrLn "Hello world!"
+
+This code is self-contained and has several declarations:
+
+1. Imports of the ``ÌO``, ``⊤`` and ``String`` types from the Agda Builtin
+   library.
+2. A postulate of the function type ``putStrLn``.
+3. Two :ref:`pragmas <pragmas>` that tell Agda how to compile the function ``putStrLn``.
+4. A definition of the function ``main``.
 
 To compile the Agda file, either open it in Emacs and press ``C-c C-x
 C-c`` or run ``agda --compile hello-world.agda`` from the command
 line.
-
-A quick line-by-line explanation:
-
-* Agda programs are structured in :ref:`modules <module-system>`. The
-  first module in each file is the *top-level* module whose name
-  matches the filename. The contents of a module are declaration such
-  as :ref:`data types <data-types>` and :ref:`function definitions
-  <function-definitions>`.
-
-* Other modules can be imported using an ``import`` statement, for
-  example ``open import IO``. This imports the `IO` module from the
-  `standard library <std-lib_>`_ and brings its contents into scope.
-
-* A module exporting a function ``main : IO a`` can be :ref:`compiled
-  <compiling-agda-programs>` to a standalone executable.  For example:
-  ``main = run (putStrLn "Hello, World!")`` runs the ``IO`` command
-  ``putStrLn "Hello, World!"`` and then quits the program.
 
 .. _std-lib: https://github.com/agda/agda-stdlib
