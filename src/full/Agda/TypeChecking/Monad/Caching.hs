@@ -66,9 +66,11 @@ restorePostScopeState pss = do
   reportSLn "cache" 10 $ "restorePostScopeState"
   modifyTC $ \s ->
     let ipoints = s^.stInteractionPoints
+        ipoints' = stPostInteractionPoints pss `mergeIPMap` ipoints
         ws = s^.stTCWarnings
-        pss' = pss{stPostInteractionPoints = stPostInteractionPoints pss `mergeIPMap` ipoints
-                  ,stPostTCWarnings = stPostTCWarnings pss `mergeWarnings` ws
+        ws' = stPostTCWarnings pss `mergeWarnings` ws
+        pss' = pss{stPostInteractionPoints = (forceIPMap ipoints') `seq` ipoints'
+                  ,stPostTCWarnings = ws'
                   }
     in  s{stPostScopeState = pss'}
   where
@@ -78,6 +80,9 @@ restorePostScopeState pss = do
 
     mergeWarnings loading current = [ w | w <- current, not $ tcWarningCached w ]
                                  ++ [ w | w <- loading,       tcWarningCached w ]
+
+    forceIP !acc !ip = acc + 1
+    forceIPMap m = Map.foldl forceIP 0 m
 
 {-# SPECIALIZE modifyCache :: (Maybe LoadedFileCache -> Maybe LoadedFileCache) -> TCM () #-}
 modifyCache
