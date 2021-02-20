@@ -545,6 +545,10 @@ Emacs mode
 
 * New keyboard shortcut `C-c C-x C-i` for toggling display of irrelevant arguments.
 
+* One can no longer use commands like `M-;` (`comment-dwim`) to
+  uncomment block comments. In return one can use `M-;` to comment out
+  pragmas. (See [#3329](https://github.com/agda/agda/issues/3329).)
+
 JSON Interaction mode
 ---------------------
 
