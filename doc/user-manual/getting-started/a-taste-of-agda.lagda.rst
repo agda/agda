@@ -9,16 +9,16 @@
 A Taste of Agda
 ***************
 
-This section's objective is providing the first glimpse of Agda with some
-minimal examples. The first one is a demonstration of dependently typed
-programming, and the second shows how to write proofs in Agda. Finally, we
+The objective of this section is to provide a first glimpse of Agda with some
+small examples. The first one is a demonstration of dependently typed
+programming, and the second shows how to use Agda as a proof assistant. Finally, we
 build a complete program and compile it to an executable program with the GHC
 and Javascript backends.
 
 Before proceeding, make sure that you :ref:`installed Agda <installation>`
 and a compatible version of the `standard library
 <https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
-You also need an editor with *interactive* capabilities, currently
+You also need an editor with *interactive* capabilities; currently
 supported editors are Emacs via the :ref:`Emacs mode <emacs-mode>`, Atom via
 the `agda mode for Atom <atom_>`_ and VSCode via the
 `agda mode for VSCode <vs-code_>`_.
@@ -47,7 +47,7 @@ a list of objects with a determined length.
 
   module hello-world-dep where
 
-  open import Data.Nat using (ℕ ; zero ; suc)
+  open import Data.Nat using (ℕ; zero; suc)
 
   data Vec (A : Set) : ℕ → Set where
     []  : Vec A zero
@@ -55,31 +55,33 @@ a list of objects with a determined length.
 
   infixr 5 _∷_
 
-.. note:: Paste or type the code above in a new file with extension ``.agda``.
-  Load the file (in Emacs ``C-c C-l``). This also saves the file. You should
-  see ***All done*** if the Agda source code was loaded correctly.
+
+.. note:: Paste or type the code above in a new file with name
+  ``hello-world-dep.agda``. Load the file (in Emacs ``C-c C-l``). This also
+  saves the file. If the agda source code was loaded correctly, you should see
+  that the code is highlighted and see a message ***All done*** .
 
 Agda programs are structured into :ref:`modules <module-system>`. Each Agda
 file has one *top-level module* whose name must match the name of the file, and
-zero or more nested modules. Each module that each contain a list of
+zero or more nested modules. Each module contains a list of
 *declarations*. This example has a single top-level module called
 ``hello-world-dep``, which has three declarations:
 
-1. An *import* statement importing the datatype ``ℕ`` and its
+1. An ``open import`` statement that imports the datatype ``ℕ`` and its
    constructors ``zero`` and ``suc`` from the module
-   ``Data.Nat`` of the standard library,
-2. A *datatype definition* of the datatype ``Vec``, which has
+   ``Data.Nat`` of the standard library and brings them into scope,
+2. A ``data`` declaration defining the datatype ``Vec`` with
    two constructors: the empty vector constructor ``[]`` and
    the *cons* constructor ``_∷_``,
 3. And finally an ``infixr`` declaration specifying the
    :ref:`precedence <precedence>` for the *cons* operation.
 
-.. note:: Agda code often makes use of unicode symbols, such as ``ℕ``, ``→``,
+.. tip:: Agda code often makes use of unicode symbols, such as ``ℕ``, ``→``,
   and ``∷`` in this example. To learn how to enter a unicode character, move the
   cursor over it and enter ``M-x describe-char`` or ``C-u C-x =``. This displays
   all information on the character, including how to input it with the Agda
   input method. For example, to input ``ℕ`` you can type either ``\Bbb{N}``
-  or ``\bN``.
+  or ``\bN``. See :ref:`Unicode input <unicode-input>` for more details on entering unicode characters.
 
 The datatype ``Vec``
 --------------------
@@ -91,46 +93,49 @@ Let us start by looking at the first line of the definition of
 
   data Vec (A : Set) : ℕ → Set where
 
-This line declares a new datatype and names it ``Vec``. The words ``data`` and
+This line declares a new :ref:`datatype <data-types>` and names it ``Vec``. The words ``data`` and
 ``where`` are keywords, while the part ``Vec (A : Set) : ℕ → Set`` determines
 the type of ``Vec``.
 
 ``Vec`` is not a single type but rather a *family of types*. This family of
-types has one *parameter* ``A`` of type ``Set`` (which is the type of all small
-types such as ``ℕ``, ``Bool``, ...) and one *index* of type ``ℕ`` (the type of
-natural numbers). The parameter ``A`` represents the type of the elements of
+types has one :ref:`parameter <parametrized-datatypes>` ``A`` of type ``Set``
+(which is the :ref:`sort <sort-system>` of *small types*, such as ``ℕ``,
+``Bool``, ...) and one :ref:`index <indexed-datatypes>` of type ``ℕ`` (the type of
+natural numbers). The parameter ``A`` represents the type of the objects of
 the vector. Meanwhile, the index represents the length of the vector, i.e. the
 number of objects it contains.
 
 Together, this line tells us that, for any concrete type ``B : Set``
-and any natural number ``m : ℕ``, this definition gives us a new
+and any natural number ``m : ℕ``, we are declaring a new
 type ``Vec B m``, which also belongs to ``Set``.
 
 
 The constructors ``[]`` and ``_∷_``
 -----------------------------------
 
-Constructors are declared in new lines and indented with a strictly
-positive number of spaces (in this case two).
+Each constructors of a datatype is declared on a separate line and
+indented with a strictly positive number of spaces (in this case two).
 
-We chose for the first constructor the identifier ``[]``. It
+We chose the name ``[]`` for the first constructor. It
 represents the empty vector, and its type is ``Vec A 0``, i.e. it is a
 vector of length ``0``.
 
 The second constructor is a :ref:`mixfix operator <mixfix-operators>`
 named ``_∷_`` (pronounced *cons*). For any number ``n : ℕ``, it
-takes as input an element of ``A`` and a vector of length ``n``. As
+takes as input an object of ``A`` and a vector of length ``n``. As
 output, it produces a vector with length ``suc n``, the successor of
-``n``.
+``n``. The number ``n`` itself is an :ref:`implicit argument <implicit-arguments>`
+to the constructor ``_∷_``.
 
-The declaration with keyword ``ìnfixr`` does not belong to the
+The final declaration with keyword ``ìnfixr`` does not belong to the
 datatype declaration itself; therefore it is not indented. It
 establishes the :ref:`precedence <precedence>` of the operator ``_∷_``.
 
-.. note:: You can let Agda infer the type of an expression using the 'Deduce
+.. tip:: You can let Agda infer the type of an expression using the 'Deduce
   type' command (``C-c C-d``). First press ``C-c C-d`` to open a prompt, enter a
   term, for instance ``3 ∷ 2 ∷ 1 ∷ []``, and press return. Agda infers its
-  type and return the ``Vec ℕ 3`` as expected.
+  type and return the type ``Vec ℕ 3``, meaning that the given term is
+  a vector with 3 objects of type ``ℕ``.
 
 The total function ``lookup``
 -----------------------------
@@ -143,8 +148,9 @@ this version of the function is *total*: all calls to it are
 guaranteed to return a value in finite time, with no possibility for
 errors.
 
-To do so, we use the ``Fin`` datatype from the standard
-library. ``Fin n`` is a type with ``n`` elements, which we use to
+To define this function, we use the ``Fin`` datatype from the standard
+library. ``Fin n`` is a type with ``n`` objects: the numbers ``0`` to
+``n-1`` (in unary notation ``zero``, ``suc zero``, ...), which we use to
 model the ``n`` possible positions in a vector of length ``n``.
 
 Now create a new file called ``hello-world-dep-lookup.agda`` file and type or paste:
@@ -154,8 +160,8 @@ Now create a new file called ``hello-world-dep-lookup.agda`` file and type or pa
   module hello-world-dep-lookup where
 
   open import Data.Nat using (ℕ)
-  open import Data.Vec using (Vec ; _∷_)
-  open import Data.Fin using (Fin ; zero ; suc)
+  open import Data.Vec using (Vec; _∷_)
+  open import Data.Fin using (Fin; zero; suc)
 
   variable
     A : Set
@@ -177,7 +183,7 @@ the full type of ``lookup`` (which we can get by using ``C-c C-d``) is:
 
 .. code-block:: agda
 
-  lookup : {A : Set} → {n : ℕ} → Vec A n → Fin n → A
+  lookup : {A : Set} {n : ℕ} → Vec A n → Fin n → A
 
 .. warning:: ``zero`` and ``suc`` are **not** the constructors of ``ℕ`` that we
   saw before, but rather the constructors of ``Fin``. Agda allows overloading of
@@ -187,15 +193,15 @@ the full type of ``lookup`` (which we can get by using ``C-c C-d``) is:
 The definition of the ``lookup`` function specifies two cases:
 
 - Either the vector is ``a ∷ as`` and the position is ``zero``, so we
-  return the first element ``a`` of the vector.
+  return the first object ``a`` of the vector.
 
 - Or the vector is ``a ∷ as`` and the position is ``suc i``, so we
-  recursively look up the element at position ``i`` in the tail ``as``
+  recursively look up the object at position ``i`` in the tail ``as``
   of the vector.
 
 There are no cases for the empty vector ``[]``. This is no
 mistake: Agda can determine from the type of ``lookup`` that it is
-impossible to look up an element in the empty vector, since there is
+impossible to look up an object in the empty vector, since there is
 no possible index of type ``Fin 0``. For more details, see the section
 on :ref:`coverage checking <coverage-checking>`.
 
@@ -204,7 +210,7 @@ Agda as a Proof Assistant: Proving Associativity of Addition
 
 In this section we state and prove the associativity of addition on the natural
 numbers in Agda. In contrast to the previous section, we build the code line by
-line. If you are following this example in Emacs, you should reload your file
+line. To follow along with this example in Emacs, reload the file
 after adding each step by pressing ``C-c C-l``.
 
 Statement of associativity
@@ -222,7 +228,7 @@ Now we import the datatype ``ℕ`` and the addition operation
 
 .. code-block:: agda
 
-  open import Data.Nat using (ℕ ; _+_)
+  open import Data.Nat using (ℕ; _+_)
 
 Next, we import the *propositional equality type* ``_≡_`` from the module
 ``Relation.Binary.PropositionalEquality``.
@@ -234,18 +240,18 @@ Next, we import the *propositional equality type* ``_≡_`` from the module
 Under the `Curry-Howard correspondence
 <https://en.wikipedia.org/wiki/Curry%E2%80%93Howard_correspondence>`_, the type
 ``x ≡ y`` corresponds to the proposition stating that ``x`` and ``y`` are equal
-objects. By writing a function that returns an element of type ``x ≡ y``, we
+objects. By writing a function that returns an object of type ``x ≡ y``, we
 are *proving* that the two terms are equal.
 
 Now we can state associativity: given three (possibly different) natural
 numbers, adding the first to the addition of the second and the third
 computes to the same value as adding the addition of the first and the second
-to the third. We name this statement ``+-assoc-enun``.
+to the third. We name this statement ``+-assoc``.
 
 .. code-block:: agda
 
-  +-assoc-enun : Set
-  +-assoc-enun = ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
+  +-assoc : Set
+  +-assoc = ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
 
 This is not yet a proof, we have merely written down the statement (or
 *enunciation*) of associativity.
@@ -253,10 +259,10 @@ This is not yet a proof, we have merely written down the statement (or
 Proof of associativity
 ----------------------
 
-The statement ``+-assoc-enun`` is a member of ``Set``, i.e. it is a
-type. Now that we were able to state the property in a way that Agda
+The statement ``+-assoc`` is a member of ``Set``, i.e. it is a
+type. Now that we have stated the property in a way that Agda
 understands, our objective is to prove it. To do so, we have to
-construct a function of type ``+-assoc-enun``.
+construct a function of type ``+-assoc``.
 
 First, we need to import the constructors ``zero`` and ``suc`` of the
 already imported datatype ``ℕ`` and the constructor ``refl`` (short for
@@ -265,54 +271,81 @@ already imported datatype ``ℕ`` and the constructor ``refl`` (short for
 
 .. code-block:: agda
 
-  open import Data.Nat using (zero ; suc)
+  open import Data.Nat using (zero; suc)
   open import Relation.Binary.PropositionalEquality using (refl; cong)
 
-To prove ``+-assoc-enun`` we need to find an element of that
-type. Here, we name this element ``+-assoc``.
+To prove ``+-assoc`` we need to find an object of that
+type. Here, we name this object ``+-assoc-proof``.
 
 .. code-block:: agda
 
-  +-assoc : ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
+  +-assoc-proof : ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
 
-If we load now the file, Agda gives an error: ``The following names are
-declared but not accompanied by a definition: +-assoc``. Indeed, we have only
-declared the type of ``+-assoc`` but not yet given a definition. To build the
+If we load now the file, Agda gives an error: "The following names are
+declared but not accompanied by a definition: ``+-assoc-proof``". Indeed, we have only
+declared the type of ``+-assoc-proof`` but not yet given a definition. To build the
 definition, we need to know more about holes and case splitting.
 
 Holes and case splitting
 ------------------------
 
-Agda can help us to find the proof by using its interactive mode. To start, we
+We can let Agda help us to write the proof by using its interactive mode. To start, we
 first write a simple clause so the file can be loaded even if we still do
 not know the proof. The clause consists of the name of the property, the input
-variables, the symbol equal ``=`` and the question mark ``?``.
+variables, the equals symbol ``=`` and the question mark ``?``.
 
 .. code-block:: agda
 
-  +-assoc x y z = ?
+  +-assoc-proof x y z = ?
 
 When we reload the file, Agda no longer throws an error, but instead shows the
-message ***All Goals*** with a list of goals. We have entered the interactive
-proving mode. Agda turns our question mark into what is called a *hole* ``{ }0``.
-The number ``0`` inside labels the goal.
+message ***All Goals*** with a list of goals. We have now entered the interactive
+proving mode. Agda turns our question mark into what is called a *hole* ``{ }0``
+with a label ``0``. Each hole stands as a placeholder for a part of the program
+that is still incomplete and can be refined or resolved interactively.
+
+.. note::
+  You are not supposed to enter a hole such as ``{ }0`` manually,
+  Agda takes care of the numbering when you load the file. To insert a hole,
+  write either ``?`` or ``{! !}`` and load the file to make Agda assign
+  a unique number to it.
+
+To get detailed information about a
+specific hole, put the cursor in it and press ``C-c C-,``. This displays
+the type of the hole, as well as the types of all the variables in scope.
+In this example we get the information that the goal type is
+``x + (y + z) ≡ x + y + z``, and there are three variables ``x``, ``y``,
+and ``z`` in scope, all of type ``ℕ``.
+
+.. note::
+  You might wonder why Agda displays the term ``(x + y) + z`` as ``x +
+  y + z`` (without parenthesis). This is done because of the infix statement
+  ``infixl 6 _+_`` that was declared in the imported ``Agda.Builtin.Nat`` module.
+  This declaration means that the ``_+_`` operation is left-associative. More
+  information about :ref:`mixfix operator <mixfix-operators>` like the arithmetic
+  operations. You can also check :ref:`this associativity example
+  <associativity>`.
 
 To continue writing our proof, we now pick a variable and perform a case
 split on it. To do so, put the cursor inside the hole and press ``C-c C-c``.
-Agda prompts you for the name of the pattern variable to case on. Let's
-write ``x`` and press ``Return``. This replaces the previous clause with
+Agda asks for the name of the pattern variable to case on. Let's
+write ``x`` and press return. This replaces the previous clause with
 two new clauses, one where ``x`` has been replaced by ``zero`` and another
 where it has been replaced by ``suc x``:
 
 .. code-block:: agda
 
-  +-assoc zero y z = {  }0
-  +-assoc (suc x) y z = {  }1
+  +-assoc-proof zero y z = {  }0
+  +-assoc-proof (suc x) y z = {  }1
 
-Instead of one hole, we now have two. To get detailed information about a
-specific hole, put your cursor in it and press ``C-c C-,``. This displays
-the type of the hole, as well as the types of all the variables in scope.
+.. important::
+  The ``x`` in the type signature of ``+-assoc-proof`` is **not** the same as the
+  ``x`` pattern variable in the last clause where ``suc x`` is written. The
+  following would also work: ``+-assoc-proof (suc x₁) y z = { }1``.
+  The scope of a variable declared in a signature is restricted to the
+  signature itself.
 
+Instead of one hole, we now have two.
 The first hole has type ``y + z ≡ y + z``, which is easy to resolve. To do so,
 put the cursor inside the first hole labeled ``0`` and press ``C-c C-r``. This
 replaces the hole by the term ``refl``, which stands for `reflexivity` and
@@ -321,8 +354,8 @@ term ``w``.
 
 .. code-block:: agda
 
-  +-assoc zero y z = refl
-  +-assoc (suc x) y z = {  }1
+  +-assoc-proof zero y z = refl
+  +-assoc-proof (suc x) y z = {  }1
 
 Now we have one hole left to resolve. By putting the cursor in it and pressing
 ``C-c C-,`` again, we get the type of the hole: ``suc x + (y + z) ≡ suc x + y +
@@ -342,67 +375,54 @@ and similarly replaced the right-hand side ``suc x + (y + z)`` by ``suc (x + (y
   normalize. For example, if we enter ``(suc x + y) + z`` we get back
   ``suc (x + y + z)`` as a result.
 
-.. note::
-  You might wonder why Agda displays the term ``(x + y) + z`` as ``x +
-  y + z`` (without parenthesis). This is done because of the infix statement
-  ``infixl 6 _+_`` that was declared in the imported ``Agda.Builtin.Nat`` module.
-  This declaration means that the ``_+_`` operation is left-associative. More
-  information about :ref:`mixfix operator <mixfix-operators>` like the arithmetic
-  operations. You can also check :ref:`this associativity example
-  <associativity>`.
 
-Recursive call on ``+-assoc``
------------------------------
+Proof by induction
+------------------
 
 If we now look at the type of the remaining hole, we see that both the
 left-hand side and the right-hand side start with an application of the
 constructor ``suc``. In this kind of situation it suffices to prove that the
-two arguments to ``suc`` are equal. This principle is called congruence of
-equality, and it is expressed by the Agda function ``cong``.
+two arguments to ``suc`` are equal. This principle is called *congruence* of
+equality ``_≡_``, and it is expressed by the Agda function ``cong``.
 
 To use ``cong`` we need to apply it to a function or constructor, in this case
-``suc``. We can ask Agda to infer the type of ``cong suc`` by pressing ``C-c
-C-d`` and entering the term. We get back the type ``{x y : ℕ} → x ≡ y →
+``suc``. If we ask Agda to infer the type of ``cong suc`` by pressing ``C-c
+C-d`` and entering the term, we get back the type ``{x y : ℕ} → x ≡ y →
 suc x ≡ suc y``. In other words, ``cong suc`` takes as input a proof of an
-equivalence and produces an equivalence of ``suc`` applied to both sides, which
-is exactly what we need. We write ``cong suc`` in the hole and again press
+equality between ``x`` and ``y`` and produces a new proof of equality between
+``suc x`` and ``suc y``. We write ``cong suc`` in the hole and again press
 ``C-c C-r`` to refine the hole. This results in the new line
 
 .. code-block:: agda
 
-  +-assoc (suc x) y z = cong suc {  }2
+  +-assoc-proof (suc x) y z = cong suc {  }2
 
-together with a new hole of type ``x + (y + z) ≡ x + y + z``.
+where the new hole with number 2 is of type ``x + (y + z) ≡ x + y + z``.
 
-To finish the proof, we now make a recursive call ``+-assoc x y z``. Note
-that this has exactly the type we need. To complete the proof, we hence
-type it into the hole and solve it with ``C-c C-space``.
+To finish the proof, we now make a recursive call ``+-assoc-proof x y z``. Note
+that this has type ``x + (y + z) ≡ (x + y) + z``, which is exactly what we need.
+To complete the proof, we type ``+-assoc-proof x y z`` into the hole and solve it with ``C-c C-space``.
+This replaces the hole with the given term and completes the proof.
 
-When we define a recursive function like this, Agda performs :ref:`termination
-checking <termination-checking>` on it. This is important to ensure the
-recursion is well-founded, and hence will not result in an invalid (circular)
-proof. In this case, the first argument ``x`` is structurally smaller than the
-first argument ``suc x`` on the left-hand side of the clause, hence Agda
-allows us to make the recursive call. Because termination is an
-undecidable property, Agda will not accept all terminating functions, but only
-the ones that are mechanically proved to terminate.
+.. note::
+  When we define a recursive function like this, Agda performs :ref:`termination
+  checking <termination-checking>` on it. This is important to ensure the
+  recursion is well-founded, and hence will not result in an invalid (circular)
+  proof. In this case, the first argument ``x`` is structurally smaller than the
+  first argument ``suc x`` on the left-hand side of the clause, hence Agda
+  allows us to make the recursive call. Because termination is an
+  undecidable property, Agda will not accept all terminating functions, but only
+  the ones that are mechanically proved to terminate.
 
-The result of the definition we were looking for is:
+The final proof ``+-assoc-proof`` is defined as follows:
 
 .. code-block:: agda
 
-  +-assoc zero y z = refl
-  +-assoc (suc x) y z = cong suc (+-assoc x y z)
+  +-assoc-proof zero y z = refl
+  +-assoc-proof (suc x) y z = cong suc (+-assoc-proof x y z)
 
 When we reload the file, we see ***All Done***. This means that
-``+-assoc`` is indeed a proof of the statement ``+-assoc-enun``.
-
-.. important::
-  The ``x`` in the type signature of ``+-assoc`` is **not** the same as the
-  ``x`` pattern variable in the last clause where ``suc x`` is written. The
-  following would also work: ``+-assoc (suc x₁) y z = cong suc (+-assoc x₁ y z)``.
-  The scope of a variable declared in a signature is restricted to the
-  signature itself.
+``+-assoc-proof`` is indeed a proof of the statement ``+-assoc``.
 
 Here is the final code of the ‘Hello world’ proof example, with all imports
 together at the top of the file:
@@ -414,14 +434,14 @@ together at the top of the file:
   open import Data.Nat using (ℕ; zero; suc; _+_)
   open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
 
-  +-assoc-enun : Set
-  +-assoc-enun = ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
+  +-assoc : Set
+  +-assoc = ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
 
-  +-assoc : ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
-  +-assoc zero y z = refl
-  +-assoc (suc x) y z = cong suc (+-assoc x y z)
+  +-assoc-proof : ∀ (x y z : ℕ) → x + (y + z) ≡ (x + y) + z
+  +-assoc-proof zero y z = refl
+  +-assoc-proof (suc x) y z = cong suc (+-assoc-proof x y z)
 
-.. note::
+.. tip::
   You can learn more details about proving in the chapter
   `Proof by Induction <plfa-induction_>`_ of the online book
   `Programming Language Foundations in Agda <plfa_>`_.
@@ -466,17 +486,15 @@ A quick line-by-line explanation:
   example: ``main = run {0ℓ} (putStrLn "Hello, World!")`` runs the ``IO`` command
   ``putStrLn "Hello, World!"`` and then quits the program.
 
-.. note:: Paste or type the code above in a new file with name
-  ``hello-world-prog.agda``. Load the file (in Emacs ``C-c C-l``). This also
-  saves the file. If the agda source code was loaded correctly, you should see
-  that the code is highlighted and see a message ***All done*** .
+.. tip:: Any top-level module exporting a function ``main : IO a`` can be :ref:`compiled
+  <compiling-agda-programs>` to a standalone executable.
 
 Compilation with GHC Backend
 ----------------------------
 
-Once loaded, you can compile the program directly from Emacs or Atom by
-pressing ``C-c C-x C-c`` and entering ``GHC``. Alternatively, you can open a
-terminal session, navigate to your top-level folder and run:
+Once we have loaded the program in Emacs or Atom, we can compile it directly by
+pressing ``C-c C-x C-c`` and entering ``GHC``. Alternatively, we can open a
+terminal session, navigate to the top-level folder and run:
 
 .. code-block::
 
@@ -485,7 +503,7 @@ terminal session, navigate to your top-level folder and run:
 The ``--compile`` flag here creates via the :ref:`GHC backend <ghc-backend>`
 a binary file in the top-level folder that the computer can execute.
 
-Finally, you can then run the executable (``./hello-world-prog`` on Unix
+Finally, we can then run the executable (``./hello-world-prog`` on Unix
 systems, ``hello-world-prog.exe`` on Windows) from the command line:
 
 .. code-block::
@@ -493,9 +511,6 @@ systems, ``hello-world-prog.exe`` on Windows) from the command line:
   $ cd <your top-level folder>
   $ ./hello-world-prog
   Hello, World!
-
-.. tip:: Any top-level module exporting a function ``main : IO a`` can be :ref:`compiled
-  <compiling-agda-programs>` to a standalone executable.
 
 .. _std-lib: https://github.com/agda/agda-stdlib
 
@@ -506,14 +521,14 @@ The :ref:`JavaScript backend <javascript-backend>` translates the Agda
 source code of the ``hello-world-prog.agda`` file to JavaScript code.
 
 From Emacs or Atom, press ``C-c C-x C-c`` and enter ``JS`` to compile the
-module to JavaScript. Alternatively, open a terminal session, navigate to your
+module to JavaScript. Alternatively, open a terminal session, navigate to the
 top-level folder and run:
 
 .. code-block::
 
   agda --js hello-world-prog.agda
 
-This creates several ``.js`` files in your top-level folder. The file
+This creates several ``.js`` files in the top-level folder. The file
 corresponding to our source code has the name
 ``jAgda.hello-world-prog.js``.
 
