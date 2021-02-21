@@ -9,8 +9,8 @@ Agda programs are commonly edited using `Emacs
 If you use Atom, please refer to the `agda-mode on Atom
 <https://atom.io/packages/agda-mode>`_.
 
-:ref:`quick-guide-introduction`
-===============================
+:ref:`Quick Guide to Editing, Type Checking and Compiling Agda Code <quick-guide-introduction>`
+===============================================================================================
 
 Configuration
 =============
