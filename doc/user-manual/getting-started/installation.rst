@@ -25,15 +25,56 @@ Agda can be installed using different flags (see :ref:`installation-flags`).
 
 .. _agda-pad: https://agdapad.quasicoherent.io/
 
-Installation from Hackage
-=========================
+Installation from source
+========================
+
+.. _prerequisites:
+
+Prerequisites
+-------------
+
+You need recent versions of the following programs to compile Agda:
+
+* GHC:           https://www.haskell.org/ghc/
+
+  + Agda has been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5, 8.8.4
+    and 8.10.4.
+
+* cabal-install: https://www.haskell.org/cabal/
+* Alex:          https://www.haskell.org/alex/
+* Happy:         https://www.haskell.org/happy/
+* GNU Emacs:     http://www.gnu.org/software/emacs/
+
+You should also make sure that programs installed by *cabal-install*
+are on your shell's search path.
+
+Non-Windows users need to ensure that the development files for the C
+libraries *zlib* and *ncurses* are installed (see http://zlib.net
+and http://www.gnu.org/software/ncurses/). Your package manager may be
+able to install these files for you. For instance, on Debian or Ubuntu
+it should suffice to run
+
+.. code-block:: bash
+
+  apt-get install zlib1g-dev libncurses5-dev
+
+as root to get the correct files installed.
+
+Optionally one can also install the `ICU
+<http://site.icu-project.org>`_ library, which is used to implement
+the :option:`--count-clusters` flag. Under Debian or Ubuntu it may suffice
+to install *libicu-dev*. Once the ICU library is installed one can
+hopefully enable the :option:`--count-clusters` flag by giving the
+:option:`enable-cluster-counting` flag to *cabal install*.
+
+
+
+Installing the ``agda`` and the ``agda-mode`` programs
+------------------------------------------------------
 
 After installing the :ref:`prerequisites <prerequisites>` you can
 install the latest released version of Agda from `Hackage
 <https://hackage.haskell.org/package/Agda>`_.
-
-Installing the ``agda`` and the ``agda-mode`` programs
-------------------------------------------------------
 
 Using ``cabal``
 ^^^^^^^^^^^^^^^
@@ -88,6 +129,22 @@ You then have to set the ``GHC_ENVIRONMENT`` when you invoke Agda:
   Actually it is not necessary to register the Agda library,
   but doing so forces Cabal to install the same version of `ieee754
   <http://hackage.haskell.org/package/ieee754>`_ as used by Agda.
+
+.. Warning::
+  If you are installing Agda using Cabal on Windows, depending on your
+  system locale setting, ``cabal install Agda`` may fail with an error
+  message:
+
+  .. code-block:: bash
+
+      hGetContents: invalid argument (invalid byte sequence)
+
+  If this happens, you can try changing the `console code page <https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/chcp>`_
+  to UTF-8 using the command:
+
+  .. code-block:: bash
+
+    CHCP 65001
 
 Using ``stack``
 ^^^^^^^^^^^^^^^
@@ -227,7 +284,7 @@ https://nixos.org/nixos. There are two ways to install Agda from nix:
 
   The second command tries to set up the Agda emacs mode. Skip this if
   you don't want to set up the emacs mode. See `Installation from
-  Hackage`_ above for more details about ``agda-mode setup``. The
+  source`_ above for more details about ``agda-mode setup``. The
   third command sets the ``standard-library`` as a default library so
   it is always available to Agda. If you don't want to do this you can
   omit this step and control library imports on a per project basis
@@ -318,18 +375,9 @@ To configure the way of editing agda files, follow the section
 Windows
 -------
 
-Depending on your system locale setting, ``cabal install Agda`` may fail with an error message
-
-.. code-block:: bash
-
-    hGetContents: invalid argument (invalid byte sequence)
-
-If this happens, you can try changing the `console code page <https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/chcp>`_
-to UTF-8 using the command
-
-.. code-block:: bash
-
-  CHCP 65001
+A precompiled version of Agda 2.6.0.1 bundled with Emacs 26.1 with the
+necessary mathematical fonts, is available at
+http://www.cs.uiowa.edu/~astump/agda.
 
 .. _installation-development-version:
 
