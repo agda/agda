@@ -51,7 +51,12 @@ travis_fold start "build.dependencies"
 
 title "Building dependencies"
 # travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"`
-travis_retry make CABAL_OPTS='-v0 --only-dependencies' install-bin
+# Only install dependencies separately if GHC version > 8.2
+# See Pull Request #4770
+
+if [[ $GHC_VER != "8.0.2" && $GHC_VER != "8.2.2" ]]; then
+  travis_retry make CABAL_OPTS=-v0 install-deps
+fi
 
 travis_fold end "build.dependencies"
 ##############################################################################
@@ -65,7 +70,7 @@ title "Building Agda"
 if [[ $GHC_VER == "8.0.2" ]]; then
   make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v1 --ghc-option=-fno-specialise --ghc-option=-fno-expose-all-unfoldings" install-bin
 else
-  make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
+  make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v1 --force-reinstalls" install-bin
 fi
 
 travis_fold end "build.agda"

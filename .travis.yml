@@ -105,6 +105,13 @@ jobs:
     - <<: *complete-job
       env: GHC_VER=8.4.4 CABAL_VER=2.2
     - <<: *complete-job
-      env: GHC_VER=8.2.2 CABAL_VER=2.0
+      env: GHC_VER=8.2.2 CABAL_VER=2.2
     - <<: *complete-job
-      env: GHC_VER=8.0.2 CABAL_VER=1.24
+      env: GHC_VER=8.0.2 CABAL_VER=2.2
+    # Andreas, 2021-01-16: Problems with older cabal versions
+    # E.g. https://travis-ci.org/github/agda/agda/builds/754755486
+    # See #4770
+    # - <<: *complete-job
+    #   env: GHC_VER=8.2.2 CABAL_VER=2.0
+    # - <<: *complete-job
+    #   env: GHC_VER=8.0.2 CABAL_VER=1.24

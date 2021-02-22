@@ -144,7 +144,7 @@ else
 endif
 
 .PHONY: install-bin ## Install Agda and test suites via cabal (or stack if stack.yaml exists).
-install-bin: install-deps ensure-hash-is-correct
+install-bin: ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
