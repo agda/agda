@@ -1748,7 +1748,7 @@ instance LensRelevance Definition where
 
 data NumGeneralizableArgs
   = NoGeneralizableArgs
-  | SomeGeneralizableArgs Int
+  | SomeGeneralizableArgs !Int
     -- ^ When lambda-lifting new args are generalizable if
     --   'SomeGeneralizableArgs', also when the number is zero.
   deriving (Data, Show)

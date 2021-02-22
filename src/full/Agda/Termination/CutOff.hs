@@ -12,7 +12,7 @@ module Agda.Termination.CutOff
 -- | Cut off structural order comparison at some depth in termination checker?
 
 data CutOff
-  = CutOff Int -- ^ @c >= 0@ means: record decrease up to including @c+1@.
+  = CutOff !Int -- ^ @c >= 0@ means: record decrease up to including @c+1@.
   | DontCutOff
   deriving (Eq , Ord)
 

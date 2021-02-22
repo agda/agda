@@ -17,7 +17,7 @@ import Agda.Utils.TypeLits
 -- is True or False. So we bake it into the representation: the flag's type
 -- will mention its default value as a phantom parameter.
 
-data WithDefault (b :: Bool) = Default | Value Bool
+data WithDefault (b :: Bool) = Default | Value !Bool
   deriving (Eq, Show)
 
 -- The main mode of operation of these flags, apart from setting them explicitly,

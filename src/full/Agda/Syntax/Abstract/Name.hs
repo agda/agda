@@ -104,7 +104,7 @@ getUnambiguous _                = Nothing
 -- | A name suffix
 data Suffix
   = NoSuffix
-  | Suffix Integer
+  | Suffix !Integer
   deriving (Data, Show, Eq, Ord)
 
 -- | Check whether we are a projection pattern.

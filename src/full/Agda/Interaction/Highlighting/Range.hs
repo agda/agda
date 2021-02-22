@@ -30,7 +30,7 @@ import Agda.Utils.Null
 --
 -- Invariant: @'from' '<=' 'to'@.
 
-data Range = Range { from, to :: Int }
+data Range = Range { from, to :: !Int }
              deriving (Eq, Ord, Show)
 
 instance Null Range where
