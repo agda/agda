@@ -569,7 +569,7 @@ instance PrettyTCM TypeError where
           , case a of
                 AsTermsOf t | not (isTwinSingle t) -> pwords "of type" ++ [prettyTCM $ twinAt @'LHS t]
                             | otherwise            -> []
-                _ -> __IMPOSSIBLE__
+                _ -> []
           , [notCmp cmp, return d2]
           , case a of
                 AsTermsOf t -> pwords "of type" ++ [prettyTCM (twinAt @'RHS t)]
