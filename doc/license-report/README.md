@@ -9,8 +9,8 @@ binary depends on (as determined by the configuration in the Cabal
 build directory `dist-newstyle`).
 Note that the binary may depend on non-Cabal packages as well.
 
-The licence printed for the rts package is that of (some version of)
-the ghc package.
+The license for the `rts` package is that of (some version of)
+the `ghc` package.
 
 Instructions
 ------------
