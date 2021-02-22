@@ -83,6 +83,7 @@
   -XDeriveDataTypeable,
   -XDeriveFoldable,
   -XDeriveFunctor,
+  -XDeriveGeneric,
   -XDeriveTraversable,
   -XExistentialQuantification,
   -XFlexibleContexts,

@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE CPP #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}

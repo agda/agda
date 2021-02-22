@@ -47,6 +47,7 @@
 :set -XDeriveDataTypeable
 :set -XDeriveFoldable
 :set -XDeriveFunctor
+:set -XDeriveGeneric
 :set -XDeriveTraversable
 :set -XExistentialQuantification
 :set -XFlexibleContexts

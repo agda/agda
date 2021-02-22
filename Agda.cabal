@@ -737,6 +737,7 @@ library
                     , DeriveDataTypeable
                     , DeriveFoldable
                     , DeriveFunctor
+                    , DeriveGeneric
                     , DeriveTraversable
                     , ExistentialQuantification
                     , FlexibleContexts
@@ -930,6 +931,7 @@ test-suite agda-tests
                      , DeriveDataTypeable
                      , DeriveFoldable
                      , DeriveFunctor
+                     , DeriveGeneric
                      , DeriveTraversable
                      , ExistentialQuantification
                      , FlexibleContexts

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric              #-}
-
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
 
