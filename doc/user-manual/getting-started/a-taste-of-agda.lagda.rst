@@ -471,25 +471,23 @@ in a folder that we refer to as our top-level folder.
 
   module hello-world-prog where
 
-  open import Level
   open import IO
 
-  main = run {0ℓ} (putStrLn "Hello, World!")
+  main : Main
+  main = run (putStrLn "Hello, World!")
 
 A quick line-by-line explanation:
 
 * The first line declares the top-level module, named ``hello-world-prog``.
 
-* The second and third lines import the ``Level`` and ``IO`` modules from the
-  `standard library <std-lib_>`_ and bring their contents into scope.
+* The second line imports the ``IO`` module from the `standard library
+  <std-lib_>`_ and brings its contents into scope.
 
-* A module exporting a function ``main`` of the right type can be
-  :ref:`compiled <compiling-agda-programs>` to a standalone executable. For
-  example: ``main = run {0ℓ} (putStrLn "Hello, World!")`` runs the ``IO`` command
-  ``putStrLn "Hello, World!"`` and then quits the program.
-
-.. tip:: Any top-level module exporting a function ``main : IO a`` can be :ref:`compiled
-  <compiling-agda-programs>` to a standalone executable.
+* A module exporting a function ``main`` of type ``Main`` (defined in
+  the ``IO`` module of the standard library) can be :ref:`compiled
+  <compiling-agda-programs>` to a standalone executable. For example:
+  ``main = run (putStrLn "Hello, World!")`` runs the ``IO``
+  command ``putStrLn "Hello, World!"`` and then quits the program.
 
 Compilation with GHC Backend
 ----------------------------
