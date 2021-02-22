@@ -75,4 +75,13 @@ To compile the Agda file, either open it in Emacs and press ``C-c C-x
 C-c`` or run ``agda --compile hello-world.agda`` from the command
 line.
 
+.. note::
+
+   As you can see from this example, by default Agda includes only
+   minimal library support through the ``Builtin`` modules. The `Agda
+   Standard Library <std-lib_>`_ provides bindings for most commonly
+   used Haskell functions, including ``putStrLn``.  For a version of
+   this 'hello world' program that uses the standard library, see
+   :ref:`building-an-executable-agda-program`.
+
 .. _std-lib: https://github.com/agda/agda-stdlib

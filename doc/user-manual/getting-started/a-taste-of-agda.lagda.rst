@@ -449,6 +449,8 @@ together at the top of the file:
 .. _plfa-induction: https://plfa.github.io/Induction/
 .. _plfa: https://plfa.github.io
 
+.. _building-an-executable-agda-program:
+
 Building an Executable Agda Program
 ===================================
 
