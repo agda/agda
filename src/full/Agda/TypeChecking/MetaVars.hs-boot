@@ -16,7 +16,7 @@ assignTerm        :: MonadMetaSolver m => MetaId -> [Arg String] -> Term -> m ()
 etaExpandMetaSafe :: MonadMetaSolver m => MetaId -> m ()
 assign            :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
 newInstanceMeta   :: MonadMetaSolver m => String -> Type -> m (MetaId, Term)
-newValueMeta      :: MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
+newValueMeta      :: HasCallStack => MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
 newNamedValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> String -> Comparison -> Type -> m (MetaId, Term)
 newNamedValueMeta':: MonadMetaSolver m => RunMetaOccursCheck -> String -> Comparison -> Type -> m (MetaId, Term)
 newTelMeta        :: (HasCallStack, MonadMetaSolver m) => Telescope -> m Args

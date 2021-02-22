@@ -787,15 +787,12 @@ compareDom_ cmp0
       pid <- newProblem_ $ dirToCmp_ (\dir () -> compareType_ dir) cmp0 () (H'LHS a1) (H'RHS a2)
       -- Chose the smaller type and domain
       let (a0,dom0) = selectSmaller cmp (a1,dom1) (a2,dom2)
-      (a0', dom0') <- if dependent
-             then (\ a -> (a, dom0 {unDom = a})) <$> blockTypeOnProblem a0 pid
-             else return (a0, dom0)
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
       heterogeneousUnificationEnabled >>= \case
         True ->
-          addContext (name, dom0'{unDom =
+          addContext (name, dom0{unDom =
                               TwinT{necessary  = True,
                                     direction  = cmp,
                                     twinPid    = ISet.singleton pid,
@@ -803,7 +800,11 @@ compareDom_ cmp0
                                     twinCompat = Const (), -- Het @'Compat a0',
                                     twinRHS    = Het @'RHS a2
                                    }}) cont
-        False -> addContext (name, dom0') cont
+        False -> do
+          dom0' <- if dependent
+              then (\ a -> dom0 {unDom = a}) <$> blockTypeOnProblem a0 pid
+              else return dom0
+          addContext (name, dom0') cont
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.

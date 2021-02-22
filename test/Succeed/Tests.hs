@@ -49,6 +49,16 @@ disabledTests :: [RegexFilter]
 disabledTests =
   [-- disable "Succeed/Issue2054"
   -- ,disable "Succeed/Issue4944"
+  ] ++
+  unimplementedTests
+  where disable = RFInclude
+
+unimplementedTests :: [RegexFilter]
+unimplementedTests =
+  [ disable "Succeed/CubicalPrims"
+  , disable "Succeed/LaterPrims"
+  , disable "Succeed/Issue2845"
+  , disable "Succeed/Issue3695"
   ]
   where disable = RFInclude
 

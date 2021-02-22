@@ -255,7 +255,7 @@ newNamedValueMeta' b s cmp t = do
   return (x, v)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
-newValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
+newValueMeta :: HasCallStack => MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
 newValueMeta b cmp t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
@@ -378,19 +378,19 @@ newQuestionMark' new ii cmp t = do
 
 -- | Construct a blocked constant if there are constraints.
 blockTerm
-  :: (MonadMetaSolver m, MonadConstraint m, MonadFresh Nat m, MonadFresh ProblemId m)
+  :: HasCallStack => (MonadMetaSolver m, MonadConstraint m, MonadFresh Nat m, MonadFresh ProblemId m)
   => Type -> m Term -> m Term
 blockTerm t blocker = do
   (pid, v) <- newProblem blocker
   blockTermOnProblem t v pid
 
 blockTermOnProblem
-  :: (MonadMetaSolver m, MonadFresh Nat m)
+  :: HasCallStack => (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ProblemId -> m Term
 blockTermOnProblem t v pid = blockTermOnProblems t v (ISet.singleton pid)
 
 blockTermOnProblems
-  :: (MonadMetaSolver m, MonadFresh Nat m)
+  :: HasCallStack => (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ISet ProblemId -> m Term
 blockTermOnProblems t v pids =
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
@@ -438,12 +438,12 @@ blockTermOnProblems t v pids =
         return v
 
 blockTypeOnProblem
-  :: (MonadMetaSolver m, MonadFresh Nat m)
+  :: HasCallStack => (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ProblemId -> m Type
 blockTypeOnProblem t pid = blockTypeOnProblems t (ISet.singleton pid)
 
 blockTypeOnProblems
-  :: (MonadMetaSolver m, MonadFresh Nat m)
+  :: HasCallStack => (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ISet ProblemId -> m Type
 blockTypeOnProblems (El s a) pids = El s <$> blockTermOnProblems (sort s) a pids
 
@@ -919,7 +919,7 @@ assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
         Just ids -> do
           -- Check linearity
           ids <- do
-            res <- runExceptT $ checkLinearity {- (`VarSet.member` fvs) -} ids
+            res <- switchSide @'LHS $ runExceptT $ checkLinearity {- (`VarSet.member` fvs) -} ids
             case res of
               -- case: linear
               Right ids -> return ids
@@ -994,7 +994,8 @@ assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           when hasSubtyping $ forM_ ids $ \(i , u) -> do
             -- @u@ is a (projected) variable, so we can infer its type
             a  <- applySubst sigma <$> addContext tel' (infer u)
-            a' <- typeOfBV i
+            -- Víctor (2021-02-22) TODO: Implement subtyping
+            a' <- twinAt @'Compat <$> typeOfBV_ i
             checkSubtypeIsEqual a' a
               `catchError` \case
                 TypeError{} -> patternViolation (unblockOnMeta x) -- If the subtype check hard-fails we need to
@@ -1010,7 +1011,7 @@ assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -> Args    -- ^ Meta arguments (lhs)
       -> FVs     -- ^ Variables occuring on the rhs
       -> TCM a
-    attemptPruning x args fvs = do
+    attemptPruning x args fvs = switchSide @'LHS $ do
       -- non-linear lhs: we cannot solve, but prune
       killResult <- prune x args $ (`VarSet.member` fvs)
       let success = killResult `elem` [PrunedSomething,PrunedEverything]
