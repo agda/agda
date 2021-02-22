@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Pretty
     ( module Agda.TypeChecking.Pretty
@@ -7,7 +8,7 @@ module Agda.TypeChecking.Pretty
 
 import Prelude hiding ( null )
 
-import Control.Applicative  (liftA2)
+import Control.Applicative  (liftA2, Const(..))
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader (ReaderT)
@@ -292,19 +293,27 @@ instance PrettyTCM Modality where
     , prettyTCM (getRelevance mod)
     ]
 
-instance PrettyTCM a => PrettyTCM (Het side a) where
-  prettyTCM = prettyTCM . unHet
+instance (HetSideIsType side, PrettyTCM a) => PrettyTCM (Het side a) where
+  prettyTCM a = onSide_ prettyTCM a
+
+instance PrettyTCM a => PrettyTCM (Const a b) where
+  prettyTCM = prettyTCM . getConst
+
+instance PrettyTCM () where
+  prettyTCM () = "·"
 
 instance PrettyTCM a => PrettyTCM (TwinT' a) where
   prettyTCM (SingleT a) = prettyTCM a
-  prettyTCM TwinT{twinPid,necessary,twinLHS=a,twinRHS=b,twinCompat=c} =
-    prettyTCM a <+> (return "‡"
-                    <> return (if necessary then "*" else "")
-                    <> pretty twinPid
-                    <> return "(=")
-                <+> prettyTCM c
-                <+> return "=)"
-                <+> prettyTCM b
+  prettyTCM TwinT{twinPid,direction,necessary,twinLHS=H'LHS a,twinRHS=H'RHS b} =
+    dirToCmp (\cmp a' b' ->
+      prettyTCM a' <+> case cmp of
+                         CmpEq -> "alternatively"
+                         CmpLeq -> "a subtype of"
+                      <+> prettyTCM b'
+                      <+> (if necessary then
+                            "necessarily" <+> "pending"
+                           else "pending") <+> pretty twinPid)
+         direction a b
 
 instance PrettyTCM ContextHet where
   prettyTCM c = fmap together $ go c (return [])
@@ -314,7 +323,7 @@ instance PrettyTCM ContextHet where
 
       go :: MonadPretty m => ContextHet -> m [P.Doc] -> m [P.Doc]
       go Empty     m = m
-      go (γΓ :⊢ a) m = go γΓ ((:) <$> prettyTCM a <*> addContext (twinAt @'Compat a) m)
+      go (γΓ :⊢ a) m = go γΓ ((:) <$> prettyTCM a <*> addContext a m)
 
 instance PrettyTCM Blocker where
   prettyTCM (UnblockOnAll us) = "all" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)

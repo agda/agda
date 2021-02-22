@@ -1,12 +1,14 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Reduce where
 
 import Control.Monad.Reader
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), Const(..))
 
 import Data.Maybe
 import Data.Map (Map)
+import Data.Semigroup (First(..))
 import Data.Foldable
 import Data.Traversable
 import Data.HashMap.Strict (HashMap)
@@ -311,7 +313,7 @@ instance IsMeta a => IsMeta (Het side a) where
   isMeta = isMeta . twinAt @side
 
 instance IsMeta a => IsMeta (TwinT' a) where
-  isMeta = isMeta . twinAt @'Compat
+  isMeta = fmap getFirst . mconcat . map (fmap First . isMeta) . toList
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
@@ -1602,7 +1604,14 @@ instance InstantiateFull EqualityView where
 instance Instantiate a => Instantiate (TwinT' a) where
   instantiate' = traverse instantiate'
 
--- TODO: Do not reduce/reduceB' twinCompat
+instance Reduce () where
+  reduce' () = pure ()
+  reduceB' () = pure (notBlocked ())
+
+instance Reduce a => Reduce (Const a b) where
+  reduce' (Const a) = Const <$> reduce a
+  reduceB' (Const a) = fmap Const <$> reduceB' a
+
 -- | Note: reduceB does not block on the compatibility element
 instance Reduce a => Reduce (TwinT' a) where
   reduce' (SingleT a) = SingleT <$> reduce' a

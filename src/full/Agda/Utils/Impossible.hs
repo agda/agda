@@ -21,6 +21,9 @@ data Impossible
   = Impossible CallStack
     -- ^ We reached a program point which should be unreachable.
 
+  | Unimplemented CallStack
+    -- ^ We reached a program point which has not been implemented
+
   | Unreachable CallStack
     -- ^ @Impossible@ with a different error message.
     --   Used when we reach a program point which can in principle
@@ -34,6 +37,10 @@ data Impossible
 instance Show Impossible where
   show (Impossible loc) = unlines
     [ "An internal error has occurred. Please report this as a bug."
+    , "Location of the error: " ++ prettyCallStack loc
+    ]
+  show (Unimplemented loc) = unlines
+    [ "Unimplemented"
     , "Location of the error: " ++ prettyCallStack loc
     ]
   show (Unreachable loc) = unlines
@@ -82,6 +89,11 @@ instance CatchImpossible IO where
 
 __IMPOSSIBLE__ :: HasCallStack => a
 __IMPOSSIBLE__ = withCallerCallStack $ throwImpossible . Impossible
+
+-- | Throw an "Impossible" error reporting the *caller's* call site.
+
+__UNIMPLEMENTED__ :: HasCallStack => a
+__UNIMPLEMENTED__ = withCallerCallStack $ throwImpossible . Unimplemented
 
 -- | Throw an "Unreachable" error reporting the *caller's* call site.
 -- Note that this call to "withFileAndLine" will be filtered out

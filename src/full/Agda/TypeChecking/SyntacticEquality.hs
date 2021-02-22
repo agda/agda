@@ -50,7 +50,10 @@ checkSyntacticEquality_ :: (Instantiate a, SynEq a, MonadAddContext m, MonadRedu
                            Het 'LHS a -> Het 'RHS a -> m ((Het 'LHS a, Het 'RHS a), Bool)
 checkSyntacticEquality_ v v' = liftReduce $ do
   ifM (optSyntacticEquality <$> pragmaOptions)
-  {-then-} ((switchSide @'Compat$ synEq (twinAt @'LHS v) (twinAt @'RHS v') `runStateT` True) >>=
+  -- Víctor (2020-02-18)
+  -- We assume that the syntactic equality does not use the context; therefore,
+  -- it is safe to switch the context to "Both"
+  {-then-} ((switchSide @'Both$ synEq (twinAt @'LHS v) (twinAt @'RHS v') `runStateT` True) >>=
              (\((v,v'),r) -> return ((Het @'LHS v, Het @'RHS v'),r)))
   {-else-} ((,False) <$> instantiate (v,v'))
 

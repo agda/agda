@@ -253,7 +253,7 @@ instance IsTwinSolved (TwinT' a) where
   simplifyHet' (SingleT b) = pure (Right (twinAt @'Both b))
   simplifyHet' b@TwinT{twinPid} =
     simplifyHet' twinPid <&> \case
-      Right ()       -> Right$ twinAt @'Compat b
+      Right ()       -> Right$ twinAt @'Both b{twinPid=mempty}
       Left  twinPid' -> Left$  b{twinPid=twinPid'}
 
 instance IsTwinSolved a => IsTwinSolved (Dom a) where
@@ -335,6 +335,7 @@ instance AsTwin (ISet ProblemId) where
   asTwin () = ISet.empty
 
 instance TwinAt s a => TwinAt s (AttemptConversion a) where
+  type TwinAtC s (AttemptConversion a) = TwinAtC s a
   type TwinAt_ s (AttemptConversion a) = TwinAt_ s a
   twinAt = twinAt @s . attemptConversion
 
@@ -388,7 +389,7 @@ instance IsTwinSolved (AttemptConversion TwinT) where
                     case t' of
                       TwinT{direction,twinLHS,twinRHS} ->
                         runPureConversion' (compareTypeDir_ direction twinLHS twinRHS) <&> \case
-                          True  -> Right $ twinAt @'Compat t'
+                          True  -> Right $ twinAt @'Both t'{twinPid=mempty}
                           False -> Left (AttemptConversion t')
                       _ -> __IMPOSSIBLE__
 
@@ -466,7 +467,7 @@ instance IsTwinSolved Context_ where
   simplifyHet' Empty           = pure (Right [])
   simplifyHet' γΓ@(Entry bs a) =
     simplifyHet' bs <&> \case
-      Right ()  -> Right $ twinAt @'Compat γΓ
+      Right ()  -> Right $ twinAt @'Both (fmap (fmap (fmap (\t -> t{twinPid=mempty}))) γΓ)
       Left  bs' -> Left  $ Entry bs' a
 
 simplifyHetFast b κ = do

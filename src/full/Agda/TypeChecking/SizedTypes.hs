@@ -300,7 +300,7 @@ sizeMaxView v = do
 ------------------------------------------------------------------------
 
 compareSizes_ :: (MonadConversion m) => Comparison -> Het 'LHS Term -> Het 'RHS Term -> m ()
-compareSizes_ cmp u v = compareSizes cmp (twinAt @'Compat u) (twinAt @'Compat v)
+compareSizes_ cmp u v = compareSizes cmp (twinAt @'LHS u) (twinAt @'RHS v)
 
 -- | Compare two sizes.
 compareSizes :: (MonadConversion m) => Comparison -> Term -> Term -> m ()

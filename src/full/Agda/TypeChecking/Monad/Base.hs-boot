@@ -3,6 +3,7 @@
 
 module Agda.TypeChecking.Monad.Base where
 
+import Control.Applicative (Const(..))
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Trans          ( MonadTrans )
 import Control.Monad.Trans.Control  ( MonadTransControl )
@@ -62,12 +63,12 @@ class Monad m => MonadTCEnv m where
 
 type role TwinT''' representational representational nominal
 data TwinT''' b (f :: Data.Kind.Type -> Data.Kind.Type) a
-type TwinT'' b = TwinT''' b (Het 'Compat)
+type TwinT'' b = TwinT''' b (Const ())
 type TwinT' = TwinT'' Bool
 type TwinT = TwinT' Type
 data ContextHet' a
 type ContextHet = ContextHet' (Dom (Name, TwinT))
 
-data HetSide = LHS | RHS | Compat | Whole | Both
+data HetSide = LHS | RHS | Compat | Both
 newtype Het (side :: HetSide) t = Het { unHet :: t }
 instance Functor (Het side)

@@ -17,6 +17,8 @@ import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
 
+import GHC.Stack (HasCallStack)
+
 import Agda.Interaction.Options
 
 import Agda.Syntax.Abstract.Name as A
@@ -45,7 +47,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Heterogeneous (blockOnTwin, AttemptConversion(..), simplifyHet', isTwinSolved)
+import Agda.TypeChecking.Heterogeneous hiding (length)
 
 -- import Agda.TypeChecking.CheckInternal
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
@@ -74,7 +76,7 @@ import Agda.Utils.Impossible
 
 instance MonadMetaSolver TCM where
   newMeta' = newMetaTCM'
-  assignV_ dir x args v t = assignWrapper dir x (map Apply args) v $ assign_ dir x args v t
+  assignV_ dir x args v t = assignWrapper_ dir x (map Apply args) v $ assign_ dir x args v t
   assignTerm' = assignTermTCM'
   etaExpandMeta = etaExpandMetaTCM
   updateMetaVar = updateMetaVarTCM
@@ -293,7 +295,7 @@ newValueMetaCtx' frozen b cmp a tel perm vs = do
   boundedSizeMetaHook u tel a
   return (x, u)
 
-newTelMeta :: MonadMetaSolver m => Telescope -> m Args
+newTelMeta :: (HasCallStack, MonadMetaSolver m) => Telescope -> m Args
 newTelMeta tel = newArgsMeta (abstract tel $ __DUMMY_TYPE__)
 
 type Condition = Dom Type -> Abs Type -> Bool
@@ -301,10 +303,10 @@ type Condition = Dom Type -> Abs Type -> Bool
 trueCondition :: Condition
 trueCondition _ _ = True
 
-newArgsMeta :: MonadMetaSolver m => Type -> m Args
+newArgsMeta :: (HasCallStack, MonadMetaSolver m) => Type -> m Args
 newArgsMeta = newArgsMeta' trueCondition
 
-newArgsMeta' :: MonadMetaSolver m => Condition -> Type -> m Args
+newArgsMeta' :: (HasCallStack, MonadMetaSolver m) => Condition -> Type -> m Args
 newArgsMeta' condition t = do
   args <- getContextArgs
   tel  <- getContextTelescope
@@ -664,9 +666,9 @@ assignWrapper_ dir x es v doAssign = do
 --   Andreas Abel and Brigitte Pientka's TLCA 2011 paper.
 
 assign :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
-assign dir x args v target = assign_ dir x args v (asTwin target)
+assign dir x args v target = assign_ dir x args (asTwin v) (asTwin target)
 
-assign_ :: CompareDirection -> MetaId -> Args -> Term -> CompareAsHet -> TCM ()
+assign_ :: CompareDirection -> MetaId -> Args -> H'RHS Term -> CompareAs_ -> TCM ()
 assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
   mvar <- lookupMeta x  -- information associated with meta x
@@ -694,7 +696,7 @@ assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   reportSLn "tc.meta.assign" 75 $
     "MetaVars.assign: assigning meta  " ++ show x ++ "  with args  " ++ show args ++ "  to  " ++ show v
 
-  case (v, mvJudgement mvar) of
+  case (twinAt @'RHS v, mvJudgement mvar) of
       (Sort s, HasType{}) -> hasBiggerSort s
       _                   -> return ()
 
@@ -735,7 +737,7 @@ assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
             abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
         t' <- piApplyM' abort t args
         s <- shouldBeSort t'
-        checkSolutionSort cmp s v
+        onSide_ (checkSolutionSort cmp s) v
 
     -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
     (AsTermsOf{} , HasType _ cmp t)
@@ -745,7 +747,7 @@ assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           TelV tel t'' <- telView t'
           addContext tel $ ifNotSort t'' (return ()) $ \s -> do
             let v' = raise (size tel) v `apply` teleArgs tel
-            checkSolutionSort cmp s v'
+            onSide_ (checkSolutionSort cmp s) v'
 
     (AsTypes{}   , IsSort{}       ) -> return ()
     (AsTermsOf{} , _              ) -> return ()
@@ -790,7 +792,7 @@ assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     expandProjectedVars args (v, target) $ \ args (v, target) -> do
 
       reportSDoc "tc.meta.assign.proj" 45 $ do
-        cxt <- getContextTelescope
+        cxt <- getContext_
         vcat
           [ "context after projection expansion"
           , nest 2 $ inTopContext $ prettyTCM cxt
@@ -1000,7 +1002,7 @@ assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
           -- Solve.
           m <- getContextSize
-          assignMeta' m x t n ids v
+          assignMeta' m x t n ids (twinAt @'RHS v)
   where
     -- | Try to remove meta arguments from lhs that mention variables not occurring on rhs.
     attemptPruning
@@ -1343,8 +1345,8 @@ subtypingForSizeLt
   -> MetaVariable     -- ^ Its associated information @mvar <- lookupMeta x@.
   -> Type             -- ^ Its type @t = jMetaType $ mvJudgement mvar@
   -> Args             -- ^ Its arguments.
-  -> Term             -- ^ Its to-be-assigned value @v@, such that @x args `dir` v@.
-  -> (Term -> TCM ()) -- ^ Continuation taking its possibly assigned value.
+  -> H'RHS Term             -- ^ Its to-be-assigned value @v@, such that @x args `dir` v@.
+  -> (H'RHS Term -> TCM ()) -- ^ Continuation taking its possibly assigned value.
   -> TCM ()
 subtypingForSizeLt DirEq x mvar t args v cont = cont v
 subtypingForSizeLt dir   x mvar t args v cont = do
@@ -1355,7 +1357,7 @@ subtypingForSizeLt dir   x mvar t args v cont = do
     caseMaybe mSizeLt fallback $ \ qSizeLt -> do
       -- Check whether v is a SIZELT
       v <- reduce v
-      case v of
+      case twinAt @'RHS v of
         Def q [Apply (Arg ai u)] | q == qSizeLt -> do
           -- Clone the meta into a new size meta @y@.
           -- To this end, we swap the target of t for Size.
@@ -1371,10 +1373,16 @@ subtypingForSizeLt dir   x mvar t args v cont = do
           -- We continue with the new assignment problem, and install
           -- an exception handler, since we created a meta and a constraint,
           -- so we cannot fall back to the original handler.
-          let xArgs = MetaV x $ map Apply args
-              v'    = Def qSizeLt [Apply $ Arg ai yArgs]
-              c     = dirToCmp (`ValueCmp` (AsTermsOf sizeUniv)) dir xArgs v'
-          catchConstraint c $ cont v'
+          let xArgs = H'LHS $ MetaV x $ map Apply args
+              v'    = H'RHS $ Def qSizeLt [Apply $ Arg ai yArgs]
+          dirToCmp_ (\cmp t l r -> do
+                       let c = ValueCmp_ cmp t (snd <$> l) (snd <$> r)
+                       catchConstraint c $ case (l,r) of
+                         -- Recover the position of v so that cont' runs in the original context
+                         (_, v'@(H'RHS ('v',_))) -> cont (snd <$> v')
+                         (v'@(H'LHS ('v',_)), _) -> flipContext $ cont $ flipHet (snd <$> v')
+                         _                       -> __IMPOSSIBLE__)
+            dir (asTwin$ AsTermsOf sizeUniv) (('x',) <$> xArgs) (('v',) <$> v')
         _ -> fallback
 
 -- | Eta-expand bound variables like @z@ in @X (fst z)@.
@@ -1385,8 +1393,8 @@ expandProjectedVars
      , PrettyTCM b, TermSubst b
      )
   => a  -- ^ Meta variable arguments.
-  -> b  -- ^ Right hand side.
-  -> (a -> b -> TCM c)
+  -> (H'RHS b, CompareAs_)  -- ^ Right hand side.
+  -> (a -> (H'RHS b, CompareAs_) -> TCM c)
   -> TCM c
 expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do

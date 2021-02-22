@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation   #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-|
     Translating from internal syntax to abstract syntax. Enables nice
@@ -23,7 +24,7 @@ module Agda.Syntax.Translation.InternalToAbstract
 
 import Prelude hiding (null)
 
-import Control.Applicative (liftA2)
+import Control.Applicative (liftA2, Const(..))
 import Control.Arrow ((&&&))
 import Control.Monad.State
 
@@ -1457,6 +1458,14 @@ instance (Reify i1, Reify i2, Reify i3, Reify i4) => Reify (i1,i2,i3,i4) where
 instance (HetSideIsType side, Reify a) => Reify (Het side a) where
     type ReifiesTo (Het side a) = Het side (ReifiesTo a)
     reify (Het a) = fmap Het $ switchSide @side $ reify a
+
+instance Reify () where
+    type ReifiesTo () = ()
+    reify () = pure ()
+
+instance (Reify a) => Reify (Const a b) where
+    type ReifiesTo (Const a b) = Const (ReifiesTo a) (ReifiesTo b)
+    reify (Const a) = Const <$> reify a
 
 instance Reify a => Reify (TwinT' a) where
     type ReifiesTo (TwinT' a) = TwinT' (ReifiesTo a)

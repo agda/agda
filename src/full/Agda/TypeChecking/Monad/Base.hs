@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE RoleAnnotations            #-}
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE TypeOperators              #-}
 
@@ -1178,6 +1179,12 @@ dirToCmp cont DirEq  = cont CmpEq
 dirToCmp cont DirLeq = cont CmpLeq
 dirToCmp cont DirGeq = flip $ cont CmpLeq
 
+selectSmaller :: CompareDirection -> a -> a -> a
+selectSmaller = dirToCmp (\_ a1 _ -> a1)
+
+selectLarger :: CompareDirection -> a -> a -> a
+selectLarger = dirToCmp (\_ _ a2 -> a2)
+
 -- | We can either compare two terms at a given type, or compare two
 --   types without knowing (or caring about) their sorts.
 data CompareAs' a
@@ -1212,6 +1219,12 @@ instance AllMetas a => AllMetas (CompareAs' a) where
   allMetas f (AsTermsOf a) = allMetas f a
   allMetas _ AsSizes       = mempty
   allMetas _ AsTypes       = mempty
+
+instance AllMetas a => AllMetas (Const a b) where
+  allMetas f (Const a) = allMetas f a
+
+instance AllMetas () where
+  allMetas _ () = mempty
 
 instance AllMetas a => AllMetas (TwinT' a) where
   allMetas f (SingleT a) = allMetas f a
@@ -2788,7 +2801,8 @@ instance HasPids (TwinT''' a b c) where
 instance HasPids a => HasPids (Dom a) where
   getPids = getPids . unDom
 
-type ContextHet = ContextHet' (Dom (Name, TwinT))
+type ContextEntry_ = Dom (Name, TwinT)
+type ContextHet = ContextHet' ContextEntry_
 
 type Context_' a = ContextHet' a
 type Context_ = ContextHet
@@ -2857,8 +2871,12 @@ contextHetFromList (a:as) = a ⊣: contextHetFromList as
 switchSide :: forall s a m. (HetSideIsType s, MonadTCEnv m) => m a -> m a
 switchSide = unsafeModifyContext {- IdS -} (asTwin . twinAt @s)
 
-switchSide_ :: forall s b a m. (HetSideIsType s, MonadTCEnv m, a ~ Het s b) => m a -> m a
-switchSide_ = switchSide @s @(Het s b)
+{-# INLINE switchSide_ #-}
+switchSide_ :: forall s a m. (HetSideIsType s, MonadTCEnv m) =>
+  ((forall b n. MonadTCEnv n => n b -> n b) -> m a) -> m a
+switchSide_ κ = do
+  ctx <- asksTC envContext
+  unsafeModifyContext {- IdS -} (asTwin . twinAt @s) (κ (unsafeModifyContext {- IdS -} (const ctx)))
 
 -- * Heterogeneous telescope
 
@@ -2866,7 +2884,7 @@ type Telescope_ = Tele (Dom TwinT)
 
 -- * Describing parts of twin contexts
 
-data HetSide = LHS | RHS | Compat | Whole | Both
+data HetSide = LHS | RHS | Compat | Both
 
 type H'LHS = Het 'LHS
 type H'RHS = Het 'RHS
@@ -2903,13 +2921,11 @@ data instance SingT (a :: HetSide) where
   SLHS    :: SingT 'LHS
   SRHS    :: SingT 'RHS
   SCompat :: SingT 'Compat
-  SWhole  :: SingT 'Whole
   SBoth   :: SingT 'Both
 instance Sing 'LHS    where sing = SLHS
 instance Sing 'RHS    where sing = SRHS
 instance Sing 'Both   where sing = SBoth
 instance Sing 'Compat where sing = SCompat
-instance Sing 'Whole  where sing = SWhole
 
 -- | Distinguishes which sides of a twin type corresponds to a single type
 type family HetSideIsType_ (s :: HetSide) :: Bool where
@@ -2917,7 +2933,6 @@ type family HetSideIsType_ (s :: HetSide) :: Bool where
   HetSideIsType_ 'RHS    = 'True
   HetSideIsType_ 'Compat = 'True
   HetSideIsType_ 'Both   = 'True
-  HetSideIsType_ 'Whole  = 'False
 type HetSideIsType s = (Sing s, HetSideIsType_ s ~ 'True)
 
 -- | Distinguishes which sides of a twin type corresponds to a single type
@@ -2926,7 +2941,6 @@ type family LeftOrRightSide_ (s :: HetSide) :: Bool where
   LeftOrRightSide_ 'RHS    = 'True
   LeftOrRightSide_ 'Compat = 'False
   LeftOrRightSide_ 'Both   = 'False
-  LeftOrRightSide_ 'Whole  = 'False
 type LeftOrRightSide s = (Sing s, LeftOrRightSide_ s ~ 'True)
 
 -- | Distinguishes which sides of a twin type corresponds to a single type
@@ -3003,89 +3017,131 @@ instance AsTwin Name where
   asTwin = id
 
 class TwinAt (s :: HetSide) a where
+  type TwinAtC s a :: Data.Kind.Constraint
   type TwinAt_ s a
-  type TwinAt_ s a = a
-  twinAt :: a -> TwinAt_ s a
+  twinAt :: HasCallStack => a -> TwinAt_ s a
+
+type family TwinAtC_ (s :: HetSide) :: Data.Kind.Constraint where
+  TwinAtC_ 'LHS    = ()
+  TwinAtC_ 'RHS    = ()
+  TwinAtC_ 'Compat = HasCallStack
+  TwinAtC_ 'Both   = HasCallStack
 
 instance HetSideIsType s => TwinAt s (TwinT' a) where
+  type TwinAtC s (TwinT' a) = TwinAtC_ s
   type TwinAt_ s (TwinT' a) = a
   {-# INLINE twinAt #-}
   twinAt (SingleT a) = unHet @'Both a
-  twinAt TwinT{twinLHS,twinRHS,twinCompat} = case (sing :: SingT s) of
+  twinAt TwinT{direction,twinPid,twinLHS,twinRHS,twinCompat} = case (sing :: SingT s) of
     SLHS    -> unHet @s $ twinLHS
-    SBoth   -> unHet @'LHS $ twinLHS
     SRHS    -> unHet @s $ twinRHS
-    SCompat -> unHet @s $ twinCompat
+    SBoth   | ISet.null twinPid ->
+                selectSmaller direction (unHet @'LHS twinLHS) (unHet @'RHS twinRHS)
+            | otherwise -> __IMPOSSIBLE__
+    SCompat -> __UNIMPLEMENTED__
 
 instance TwinAt s a => TwinAt s (Name, a) where
+  type TwinAtC s (Name, a) = TwinAtC s a
   type TwinAt_ s (Name, a) = (Name, TwinAt_ s a)
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (ArgName, a) where
+  type TwinAtC s (ArgName, a) = TwinAtC s a
   type TwinAt_ s (ArgName, a) = (ArgName, TwinAt_ s a)
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Dom a) where
+  type TwinAtC s (Dom a) = TwinAtC s a
   type TwinAt_ s (Dom a) = Dom (TwinAt_ s a)
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Abs a) where
+  type TwinAtC s (Abs a) = TwinAtC s a
   type TwinAt_ s (Abs a) = Abs (TwinAt_ s a)
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (ContextHet' a) where
+  type TwinAtC s (ContextHet' a) = TwinAtC s a
   type TwinAt_ s (ContextHet' a) = [TwinAt_ s a]
+  {-# INLINE twinAt #-}
   twinAt = map (twinAt @s) . contextHetToList
 
 instance TwinAt s (Het s a) where
+  type TwinAtC s (Het s a) = ()
   type TwinAt_ s (Het s a) = a
+  {-# INLINE twinAt #-}
   twinAt = coerce
 
-instance TwinAt 'Compat (Het 'LHS a) where
-  type TwinAt_ 'Compat (Het 'LHS a) = a
-  twinAt = coerce
-
-instance TwinAt 'Compat (Het 'RHS a) where
-  type TwinAt_ 'Compat (Het 'RHS a) = a
-  twinAt = coerce
+-- instance TwinAt 'Compat (Het 'LHS a) where
+--   type TwinAt_ 'Compat (Het 'LHS a) = a
+--   twinAt = coerce
+--
+-- instance TwinAt 'Compat (Het 'RHS a) where
+--   type TwinAt_ 'Compat (Het 'RHS a) = a
+--   twinAt = coerce
 
 instance TwinAt s () where
+  type TwinAtC s () = ()
   type TwinAt_ s () = ()
+  {-# INLINE twinAt #-}
   twinAt = id
 
 instance TwinAt s a => TwinAt s (CompareAs' a) where
+  type TwinAtC s (CompareAs' a) = TwinAtC s a
   type TwinAt_ s (CompareAs' a) = CompareAs' (TwinAt_ s a)
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Tele a) where
+  type TwinAtC s (Tele a) = TwinAtC s a
   type TwinAt_ s (Tele a) = Tele (TwinAt_ s a)
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Maybe a) where
+  type TwinAtC s (Maybe a) = TwinAtC s a
   type TwinAt_ s (Maybe a) = Maybe (TwinAt_ s a)
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s [a] where
+  type TwinAtC s [a] = TwinAtC s a
   type TwinAt_ s [a] = [TwinAt_ s a]
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Elim' a) where
   type TwinAt_ s (Elim' a) = Elim' (TwinAt_ s a)
+  type TwinAtC s (Elim' a) = TwinAtC s a
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
+-- instance TwinAt s a => TwinAt s (Elim' a) where
+--   type TwinAt_ s (Elim' a) = Elim' (TwinAt_ s a)
+--   type TwinAt_ s (Elim' a) = Elim' (TwinAt_ s a)
+--   twinAt = fmap (twinAt @s)
+
 instance TwinAt s a => TwinAt s (Arg a) where
+  type TwinAtC s (Arg a) = TwinAtC s a
   type TwinAt_ s (Arg a) = Arg (TwinAt_ s a)
+  {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance Sized ContextHet where
   size Empty = 0
   size (_ :⊣ γΓ) = 1 + size γΓ
 
+type Type_ = TwinT
 type TwinT = TwinT' Type
 type TwinT' = TwinT'' Bool
-type TwinT'' b = TwinT''' b (Het 'Compat)
+type TwinT'' b = TwinT''' b (Const ())
 type TwinT''_ b a  = TwinT''' b (Const ()) a
 type TwinT'_ a  = TwinT''' Bool (Const ()) a
+type role TwinT''' representational representational nominal
 data TwinT''' b (f :: Data.Kind.Type -> Data.Kind.Type) a =
     SingleT { unSingleT :: Het 'Both a }
   | TwinT { twinPid    :: ISet ProblemId   -- ^ Unification problems which are sufficient
@@ -3094,6 +3150,8 @@ data TwinT''' b (f :: Data.Kind.Type -> Data.Kind.Type) a =
                                            --   not only sufficient.
           , direction  :: CompareDirection -- ^ Whether the putative associated constraint is
                                            --   ≤, ≡ or ≥
+                                           --   The twin simplifies to the smaller of the
+                                           --   two sides when the associated constraints are solved.
           , twinLHS    :: Het 'LHS a       -- ^ Left hand side of the twin
           , twinRHS    :: Het 'RHS a       -- ^ Right hand side of the twin
           , twinCompat :: f a    -- ^ A term which can be used instead of the
@@ -3114,9 +3172,23 @@ deriving instance (Show a, Show b) => Show (TwinT'' a b)
 --   (TwinT pid nec a b c) <*> SingleT (Het x) = TwinT pid nec (($x) <$> a) (($x) <$> b) (($x) <$> c)
 --   (SingleT (Het f)) <*> (TwinT pid nec a b c) = TwinT pid nec (f <$> a) (f <$> b) (f <$> c)
 
+instance Free a => Free (Const a b) where
+  freeVars' (Const a) = freeVars' a
+
+instance Free () where
+  freeVars' () = mempty
+
 instance Free a => Free (TwinT' a) where
   freeVars' (SingleT a) = freeVars' a
   freeVars' (TwinT{twinLHS,twinRHS,twinCompat}) = freeVars' twinLHS <> freeVars' twinRHS <> freeVars' twinCompat
+
+instance TermLike a => TermLike (Const a b) where
+  traverseTermM f (Const a) = Const <$> traverseTermM f a
+  foldTerm f (Const a) = foldTerm f a
+
+instance TermLike () where
+  traverseTermM _ () = return ()
+  foldTerm _ () = mempty
 
 instance TermLike a => TermLike (TwinT' a) where
   traverseTermM f = \case
@@ -3133,8 +3205,15 @@ instance Pretty a => Pretty (TwinT' a) where
              <> pretty twinPid
              <> pretty b
 
+instance GetSort a => GetSort (Het s a) where
+  getSort = getSort . unHet @s
+
 instance GetSort a => GetSort (TwinT' a) where
-  getSort = getSort . twinAt @'Compat
+  getSort (SingleT a) = getSort a
+  getSort t@TwinT{direction,..} = selectSmaller direction lhs rhs
+    where
+      lhs = getSort twinLHS
+      rhs = getSort twinRHS
 
 -- | Mark necessary bit after the twin has gone under a none-injective computation
 twinDirty :: TwinT''' Bool f a -> TwinT''' Bool f a
@@ -3145,8 +3224,8 @@ twinDirty a@TwinT{}   = a{necessary = False}
 -- * Type checking environment
 ---------------------------------------------------------------------------
 
-envContextCompat :: TCEnv -> Context
-envContextCompat = twinAt @'Compat . envContext
+-- envContextCompat :: TCEnv -> Context
+-- envContextCompat = twinAt @'Compat . envContext
 
 data TCEnv =
     TCEnv { envContext             :: ContextHet
@@ -3998,6 +4077,7 @@ data TypeError
         | VariableIsOfUnusableCohesion Name Cohesion
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
+        | UnequalTerms_ Comparison (H'LHS Term) (H'RHS Term) CompareAs_
         | UnequalTypes Comparison Type Type
 --      | UnequalTelescopes Comparison Telescope Telescope -- UNUSED
         | UnequalRelevance Comparison Term Term
@@ -4130,9 +4210,9 @@ data TypeError
         | TriedToCopyConstrainedPrim QName
           deriving Show
 
-pattern UnequalTerms_ :: Comparison -> H'LHS Term -> H'RHS Term -> CompareAsHet -> TypeError
-pattern UnequalTerms_ dir u v a <- UnequalTerms dir (Het -> u) (Het -> v) (asTwin -> a)
-  where UnequalTerms_ dir (Het u) (Het v) (twinAt @'Compat -> a) = UnequalTerms dir u v a
+-- pattern UnequalTerms_ :: Comparison -> H'LHS Term -> H'RHS Term -> CompareAsHet -> TypeError
+-- pattern UnequalTerms_ dir u v a <- UnequalTerms dir (Het -> u) (Het -> v) (asTwin -> a)
+--  where UnequalTerms_ dir (Het u) (Het v) (twinAt @'Compat -> a) = UnequalTerms dir u v a
 
 pattern UnequalRelevance_ :: Comparison -> H'LHS Term -> H'RHS Term -> TypeError
 pattern UnequalRelevance_ dir u v <- UnequalRelevance dir (Het -> u) (Het -> v)

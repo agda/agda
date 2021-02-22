@@ -74,6 +74,7 @@ catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
   catchMe :: Impossible -> Maybe Impossible
   catchMe = filterMaybe $ \case
     Impossible{}            -> True
+    Unimplemented{}         -> False
     Unreachable{}           -> False
     ImpMissingDefinitions{} -> False
 
@@ -208,7 +209,9 @@ reportSDoc k n d = verboseS k n $ do
 -- | Debug print the result of a computation.
 reportResult :: MonadDebug m => VerboseKey -> VerboseLevel -> (a -> TCM Doc) -> m a -> m a
 reportResult k n debug action = do
-  x <- action
+  reportSDoc k n $ "Result will be reported"
+  x <- verboseBracket k n "reportResult" $ action
+  reportSDoc k n $ "Reporting result"
   x <$ reportSDoc k n (debug x)
 
 unlessDebugPrinting :: MonadDebug m => m () -> m ()

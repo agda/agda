@@ -49,6 +49,7 @@ data TypeView_ =
     TPi (Dom TwinT) (Abs TwinT)
   | TDefRecordEta QName Defn (TwinT'_ Args)
   | TLam
+  | TLevel
   | TOther
 
 type TypeViewM m = (MonadMetaSolver m, MonadFresh Agda.Syntax.Common.Nat m)

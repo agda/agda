@@ -328,8 +328,8 @@ castConstraintToCurrentContext c = do
                   -- match by name (hazardous)
                   -- This is one of the seven deadly sins (not respecting alpha).
                   List.findIndex ((x ==) . fst . unDom) gamma
-            let delta = TCM.twinAt @'Compat $ envContext $ clEnv cl
-                cand  = map findInGamma delta
+            let delta = envContext $ clEnv cl
+                cand  = map findInGamma $ contextHetToList $ delta
             -- The domain of our substitution
             let coveredVars = VarSet.fromList $ catMaybes $ zipWith ($>) cand [0..]
             -- Check that all the free variables of the constraint are contained in
@@ -504,7 +504,7 @@ solveCluster flag ccs = do
     -- unless ok $ err "ill-scoped solution for size meta variable"
     u <- if ok then return u else primSizeInf
     t <- getMetaType x
-    reportSDoc "tc.size.solve" 20 $ unsafeModifyContext (const$ asTwin gamma) $ do
+    reportSDoc "tc.size.solve" 20 $ unsafeModifyContext (const (contextHetFromList gamma)) $ do
       let args = map (Apply . defaultArg . var) xs
       "solution " <+> prettyTCM (MetaV x args) <+> " := " <+> prettyTCM u
     reportSDoc "tc.size.solve" 60 $ vcat
@@ -569,20 +569,21 @@ solveCluster flag ccs = do
         forM_ cs0 $ withConstraint solveConstraint
 
 -- | Collect constraints from a typing context, looking for SIZELT hypotheses.
-getSizeHypotheses :: Context -> TCM [(Nat, SizeConstraint)]
-getSizeHypotheses gamma = unsafeModifyContext (const $ asTwin gamma) $ do
+getSizeHypotheses :: Context_ -> TCM [(Nat, SizeConstraint)]
+getSizeHypotheses gamma = unsafeModifyContext (const gamma) $ do
   (_, msizelt) <- getBuiltinSize
   caseMaybe msizelt (return []) $ \ sizelt -> do
     -- Traverse the context from newest to oldest de Bruijn Index
     catMaybes <$> do
-      forM (zip [0..] gamma) $ \ (i, ce) -> do
+      forM (zip [0..] (contextHetToList gamma)) $ \ (i, ce) -> do
         -- Get name and type of variable i.
         let (x, t) = unDom ce
             s      = prettyShow x
-        t <- reduce . raise (1 + i) . unEl $ t
-        case t of
-          Def d [Apply u] | d == sizelt -> do
-            caseMaybeM (sizeExpr $ unArg u) (return Nothing) $ \ a ->
+        reduce (raise (1 + i) $ fmap unEl t) >>= isSizeType >>= \case
+          Just (BoundedLt u) ->
+--        case t of
+--          Def d [Apply u] | d == sizelt -> do
+            caseMaybeM (sizeExpr u) (return Nothing) $ \ a ->
               return $ Just $ (i, Constraint (Rigid (NamedRigid s i) 0) Lt a)
           _ -> return Nothing
 
@@ -724,7 +725,7 @@ instance PrettyTCM (SizeConstraint) where
 
 -- | Size constraint with de Bruijn indices.
 data HypSizeConstraint = HypSizeConstraint
-  { sizeContext    :: Context
+  { sizeContext    :: [ContextEntry_]
   , sizeHypIds     :: [Nat] -- ^ DeBruijn indices
   , sizeHypotheses :: [SizeConstraint]  -- ^ Living in @Context@.
   , sizeConstraint :: SizeConstraint    -- ^ Living in @Context@.
@@ -736,7 +737,7 @@ instance Flexs HypSizeConstraint where
 
 instance PrettyTCM HypSizeConstraint where
   prettyTCM (HypSizeConstraint cxt _ hs c) =
-    unsafeModifyContext (const $ asTwin cxt) $ do
+    unsafeModifyContext (const (contextHetFromList cxt)) $ do
       let cxtNames = reverse $ map (fst . unDom) cxt
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
       prettyList (map prettyTCM cxtNames) <+> do
@@ -747,8 +748,8 @@ instance PrettyTCM HypSizeConstraint where
 -- | Turn a constraint over de Bruijn indices into a size constraint.
 computeSizeConstraint :: ProblemConstraint -> TCM (Maybe HypSizeConstraint)
 computeSizeConstraint c = do
-  let cxt = twinAt @'Compat $ envContext $ clEnv $ theConstraint c
-  unsafeModifyContext (const $ asTwin cxt) $ do
+  let cxt = envContext $ clEnv $ theConstraint c
+  unsafeModifyContext (const cxt) $ do
     case clValue $ theConstraint c of
       ValueCmp CmpLeq _ u v -> do
         reportSDoc "tc.size.solve" 50 $ sep $
@@ -758,7 +759,7 @@ computeSizeConstraint c = do
         ma <- sizeExpr u
         mb <- sizeExpr v
         (hids, hs) <- unzip <$> getSizeHypotheses cxt
-        let mk a b = HypSizeConstraint cxt hids hs $ Size.Constraint a Le b
+        let mk a b = HypSizeConstraint (contextHetToList cxt) hids hs $ Size.Constraint a Le b
         -- We only create a size constraint if both terms can be
         -- parsed to our format of size expressions.
         return $ mk <$> ma <*> mb

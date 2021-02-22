@@ -1,6 +1,7 @@
 
 module Agda.TypeChecking.MetaVars.Mention where
 
+import Control.Applicative (Const(..))
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
 import qualified Data.Set as Set
@@ -136,9 +137,16 @@ instance MentionsMeta a => MentionsMeta (CompareAs' a) where
 instance MentionsMeta a => MentionsMeta (Het side a) where
   mentionsMetas xs = mentionsMetas xs . unHet
 
+instance MentionsMeta a => MentionsMeta (Const a b) where
+  mentionsMetas xs = mentionsMetas xs . getConst
+
+instance MentionsMeta () where
+  mentionsMetas _ () = False
+
 instance MentionsMeta a => MentionsMeta (TwinT' a) where
   mentionsMetas xs (SingleT a) = mentionsMetas xs a
-  mentionsMetas xs (TwinT{twinLHS,twinRHS,twinCompat}) = mentionsMetas xs (twinLHS, twinRHS, twinCompat)
+  mentionsMetas xs (TwinT{twinLHS,twinRHS,twinCompat}) =
+    mentionsMetas xs (twinLHS, twinRHS, twinCompat)
 
 -- instance (Ord k, MentionsMeta e) => MentionsMeta (Map k e) where
 --   mentionsMeta = traverse mentionsMeta

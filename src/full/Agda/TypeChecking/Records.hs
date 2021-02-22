@@ -490,7 +490,10 @@ nonRecursiveRecord q = whenM etaEnabled $ do
 isRecursiveRecord :: QName -> TCM Bool
 isRecursiveRecord q = recRecursive . theDef . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
 
-{- | @etaExpandBoundVar i = (Δ, σ, τ)@
+-- etaExpandBoundVar :: Int -> TCM (Maybe (Telescope, Substitution, Substitution))
+-- etaExpandBoundVar i = fmap (\(δΔ, σ, τ) -> (twinAt @'Compat δΔ, σ, τ)) <$> etaExpandBoundVar_ i
+
+{- | @etaExpandBoundVar_ i = (Δ, σ, τ)@
 
 Precondition: The current context is @Γ = Γ₁, x:R pars, Γ₂@ where
   @|Γ₂| = i@ and @R@ is a eta-expandable record type
@@ -498,23 +501,20 @@ Precondition: The current context is @Γ = Γ₁, x:R pars, Γ₂@ where
 
 Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
 -}
-etaExpandBoundVar :: Int -> TCM (Maybe (Telescope, Substitution, Substitution))
-etaExpandBoundVar i = fmap (\(δΔ, σ, τ) -> (twinAt @'Compat δΔ, σ, τ)) <$> etaExpandBoundVar_ i
-
 etaExpandBoundVar_ :: Int -> TCM (Maybe (Telescope_, Substitution, Substitution))
 etaExpandBoundVar_ i = fmap (\ (delta, sigma, tau, _) -> (delta, sigma, tau)) <$> do
   expandRecordVar_ i =<< getContextTelescope_
 
--- | @expandRecordVar i Γ = (Δ, σ, τ, Γ')@
+-- expandRecordVar :: Int -> Telescope -> TCM (Maybe (Telescope, Substitution, Substitution, Telescope))
+-- expandRecordVar i tel = fmap (\(δΔ, σ, τ, γΓ) -> (twinAt @'Compat δΔ, σ, τ, twinAt @'Compat γΓ)) <$> expandRecordVar_ i (asTwin tel)
+
+-- | @expandRecordVar_ i Γ = (Δ, σ, τ, Γ')@
 --
 --   Precondition: @Γ = Γ₁, x:R pars, Γ₂@ where
 --     @|Γ₂| = i@ and @R@ is a eta-expandable record type
 --     with constructor @c@ and fields @Γ'@.
 --
 --   Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
-expandRecordVar :: Int -> Telescope -> TCM (Maybe (Telescope, Substitution, Substitution, Telescope))
-expandRecordVar i tel = fmap (\(δΔ, σ, τ, γΓ) -> (twinAt @'Compat δΔ, σ, τ, twinAt @'Compat γΓ)) <$> expandRecordVar_ i (asTwin tel)
-
 expandRecordVar_ :: Int -> Telescope_ -> TCM (Maybe (Telescope_, Substitution, Substitution, Telescope_))
 expandRecordVar_ i gamma0 = do
   -- Get the context with last variable added last in list.
@@ -569,18 +569,18 @@ expandRecordVar_ i gamma0 = do
       return (delta, sigma, tau, tel)
     _ -> failure
 
--- | Precondition: variable list is ordered descendingly.  Can be empty.
-expandRecordVarsRecursively :: [Int] -> Telescope -> TCM (Telescope, Substitution, Substitution)
-expandRecordVarsRecursively [] gamma = return (gamma, idS, idS)
-expandRecordVarsRecursively (i : is) gamma = do
-  caseMaybeM (expandRecordVar i gamma) (expandRecordVarsRecursively is gamma)
-  $ \ (gamma1, sigma1, tau1, tel) -> do
-    -- Γ ⊢ σ₁ : Γ₁  and  Γ₁ ⊢ τ₁ : Γ
-    let n = size tel
-        newis = take n $ downFrom $ i + n
-    (gamma2, sigma2, tau2) <- expandRecordVarsRecursively (newis ++ is) gamma1
-    -- Γ₁ ⊢ σ₂ : Γ₂  and  Γ₂ ⊢ τ₂ : Γ₁
-    return (gamma2, applySubst sigma1 sigma2, applySubst tau2 tau1)
+-- -- | Precondition: variable list is ordered descendingly.  Can be empty.
+-- expandRecordVarsRecursively :: [Int] -> Telescope -> TCM (Telescope_, Substitution, Substitution)
+-- expandRecordVarsRecursively [] gamma = return (gamma, idS, idS)
+-- expandRecordVarsRecursively (i : is) gamma = do
+--   caseMaybeM (expandRecordVar_ i gamma) (expandRecordVarsRecursively is gamma)
+--   $ \ (gamma1, sigma1, tau1, tel) -> do
+--     -- Γ ⊢ σ₁ : Γ₁  and  Γ₁ ⊢ τ₁ : Γ
+--     let n = size tel
+--         newis = take n $ downFrom $ i + n
+--     (gamma2, sigma2, tau2) <- expandRecordVarsRecursively (newis ++ is) gamma1
+--     -- Γ₁ ⊢ σ₂ : Γ₂  and  Γ₂ ⊢ τ₂ : Γ₁
+--     return (gamma2, applySubst sigma1 sigma2, applySubst tau2 tau1)
 
 -- | @curryAt v (Γ (y : R pars) -> B) n =
 --     ( \ v -> λ Γ ys → v Γ (c ys)            {- curry   -}

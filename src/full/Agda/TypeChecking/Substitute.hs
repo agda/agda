@@ -1193,6 +1193,7 @@ projDropParsApply (Projection prop d r _ lams) o rel args =
 -- ** Telescope view of a type
 
 type TelView = TelV Type
+type TelView_ = TelV Type_
 data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Show, Functor)
 

@@ -41,8 +41,9 @@ data BoundedSize
      deriving (Eq, Show)
 
 -- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
+type IsSizeTypeM m = (HasOptions m, HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
 class IsSizeType a where
-  isSizeType :: (HasOptions m, HasBuiltins m) => a -> m (Maybe BoundedSize)
+  isSizeType :: IsSizeTypeM m => a -> m (Maybe BoundedSize)
 
 instance IsSizeType a => IsSizeType (Dom a) where
   isSizeType = isSizeType . unDom
@@ -61,8 +62,15 @@ instance IsSizeType a => IsSizeType (CompareAs' a) where
   isSizeType AsSizes       = return $ Just BoundedNo
   isSizeType AsTypes       = return Nothing
 
-instance IsSizeType TwinT where
-  isSizeType = isSizeType . twinAt @'Compat
+instance IsSizeType a => IsSizeType (Het s a) where
+  isSizeType (Het a) = isSizeType a
+
+instance IsSizeType a => IsSizeType (TwinT' a) where
+  isSizeType (SingleT a) = isSizeType a
+  isSizeType TwinT{direction,twinLHS,twinRHS} =
+    (,) <$> isSizeType twinLHS <*> isSizeType twinRHS >>= \case
+      (Just x, Just y) -> Just <$> sizeMax_ x y
+      _                -> return Nothing
 
 isSizeTypeTest :: (HasOptions m, HasBuiltins m) => m (Term -> Maybe BoundedSize)
 isSizeTypeTest =
@@ -174,6 +182,11 @@ sizeMax vs = case vs of
     Def max [] <- primSizeMax
     return $ foldr1 (\ u v -> Def max $ map (Apply . defaultArg) [u,v]) vs
 
+sizeMax_ :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+         => BoundedSize -> BoundedSize -> m BoundedSize
+sizeMax_ BoundedNo      _            = pure BoundedNo
+sizeMax_ _              BoundedNo    = pure BoundedNo
+sizeMax_ (BoundedLt x) (BoundedLt y) = BoundedLt <$> sizeMax (x :| [y])
 
 ------------------------------------------------------------------------
 -- * Viewing and unviewing sizes

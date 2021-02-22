@@ -55,6 +55,8 @@ import Data.Maybe
 import Data.Traversable hiding (for)
 import Data.Semigroup ((<>))
 
+import GHC.Stack (HasCallStack)
+
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -360,10 +362,10 @@ useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
                                     -- the blocked term neutral and one that makes progress.
           Just hd ->
               let err = dirToCmp_ (\cmp ty u v -> typeError $ UnequalTerms_ cmp u v ty) dir ty blk neu in
-              invertFunction cmp (unHet @'LHS blk) inv (unHet @'RHS hd) fallback err success
+              invertFunction cmp blk inv hd fallback err success
   where
     fallback     = valueCmpDir_ (addConstraint blocker) dir ty blk neu
-    success blk' = compareAsDir_ dir ty (H'LHS blk') neu
+    success blk' = compareAsDir_ dir ty blk' neu
     cmp = case dir of
       DirEq  -> CmpEq
       DirLeq -> CmpLeq
@@ -372,8 +374,8 @@ useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.
 invertFunction
-  :: MonadConversion m
-  => Comparison -> Term -> InvView -> TermHead -> m () -> m () -> (Term -> m ()) -> m ()
+  :: forall s₁ s₂ m. (HasCallStack, HetSideIsType s₁, HetSideIsType s₂) => MonadConversion m
+  => Comparison -> Het s₁ Term -> InvView -> Het s₂ TermHead -> m () -> m () -> (Het s₁ Term -> m ()) -> m ()
 invertFunction _ _ NoInv _ fallback _ _ = fallback
 invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     fTy <- defType <$> getConstInfo f
@@ -382,10 +384,10 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
       , "for" <?> pretty hd
       , nest 2 $ "args =" <+> prettyList (map prettyTCM blkArgs)
       ]                         -- Clauses with unknown heads are also possible candidates
-    case fromMaybe [] $ Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
+    case fromMaybe [] $ Map.lookup (twinAt @s₂ hd) hdMap <> Map.lookup UnknownHead hdMap of
       [] -> err
       _:_:_ -> fallback
-      [cl@Clause{ clauseTel  = tel }] -> speculateMetas fallback $ do
+      [cl@Clause{ clauseTel  = tel }] -> speculateMetas fallback $ switchSide_ @s₁ $ \switchBack -> do
           let ps   = clausePats cl
               perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
           -- These are what dot patterns should be instantiated at
@@ -421,9 +423,9 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
           -- Check that we made progress.
           r <- liftReduce $ unfoldDefinitionStep False (Def f []) f blkArgs
           case r of
-            YesReduction _ blk' -> do
+            YesReduction _ blk' -> switchBack $ do
               reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful inversion of", prettyTCM f, "at", pretty hd]
-              KeepMetas <$ success blk'
+              KeepMetas <$ success (Het @s₁ blk')
             NoReduction{}       -> do
               reportSDoc "tc.inj.invert" 30 $ vcat
                 [ "aborting inversion;" <+> prettyTCM blk
@@ -431,30 +433,30 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
                 ]
               return RollBackMetas
   where
-    nextMeta :: (MonadState [Term] m, MonadFail m) => m Term
+    nextMeta :: forall m. (MonadState [Term] m, MonadFail m) => m Term
     nextMeta = do
       m : ms <- get
       put ms
       return m
 
-    dotP :: MonadReader Substitution m => Term -> m Term
+    dotP :: forall m. MonadReader Substitution m => Term -> m Term
     dotP v = do
       sub <- ask
       return $ applySubst sub v
 
     metaElim
-      :: (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m, MonadFail m)
+      :: forall m. (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m, MonadFail m)
       => Arg DeBruijnPattern -> m Elim
     metaElim (Arg _ (ProjP o p))  = Proj o <$> getOriginalProjection p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
     metaArgs
-      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      :: forall m. (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
       => [NamedArg DeBruijnPattern] -> m Args
     metaArgs args = mapM (traverse $ metaPat . namedThing) args
 
     metaPat
-      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      :: forall m. (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
       => DeBruijnPattern -> m Term
     metaPat (DotP _ v)       = dotP v
     metaPat (VarP _ _)       = nextMeta
@@ -469,7 +471,7 @@ forcePiUsingInjectivity t = reduceB t >>= \ case
     Blocked _ blkTy -> do
       let blk = unEl blkTy
       inv <- functionInverse blk
-      blkTy <$ invertFunction CmpEq blk inv PiHead fallback err success
+      blkTy <$ invertFunction CmpEq (H'Both blk) inv (H'Both PiHead) fallback err success
     NotBlocked _ t -> return t
   where
     fallback  = return ()

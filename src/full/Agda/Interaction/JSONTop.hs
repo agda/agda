@@ -24,7 +24,7 @@ import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
 import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), EffortDelta(..), NatExt(..))
 import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
-import Agda.TypeChecking.Monad.Base (TwinT'''(..),TwinT', HetSide(..), Het(..))
+import Agda.TypeChecking.Monad.Base (TwinT'''(..),TwinT', HetSide(..), Het(..), CompareDirection(..))
 
 import Agda.TypeChecking.Errors (getAllWarningsOfTCErr)
 import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..))
@@ -103,6 +103,11 @@ instance EncodeTCM NatExt    where
 instance ToJSON NatExt where
   toJSON (NatExt n)   = toJSON n
   toJSON  NatInfinity = String "NatInfinity"
+
+instance ToJSON CompareDirection where
+  toJSON DirEq = String "DirEq"
+  toJSON DirLeq = String "DirLeq"
+  toJSON DirGeq = String "DirGeq"
 
 instance ToJSON ProblemId where toJSON (ProblemId i) = toJSON i
 instance ToJSON MetaId    where toJSON (MetaId    i) = toJSON i
@@ -255,12 +260,12 @@ encodeTwinT :: (b -> TCM Value)
   -> TwinT' b
   -> TCM Value
 encodeTwinT f (SingleT a) = kind "Single" [ "type" #= f (unHet @'Both a) ]
-encodeTwinT f (TwinT{necessary,twinPid,twinLHS,twinRHS,twinCompat}) = kind "TwinT" [
+encodeTwinT f (TwinT{necessary,twinPid,twinLHS,twinRHS,direction}) = kind "TwinT" [
    "necessary"  @= encodePretty necessary
+  ,"direction"  @= toJSON direction
   ,"pid"        @= ISet.toList twinPid
   ,"lhs"        #= f (unHet @'LHS    twinLHS)
   ,"rhs"        #= f (unHet @'RHS    twinRHS)
-  ,"compat"     #= f (unHet @'Compat twinCompat)
   ]
 
 encodeNamedPretty :: PrettyTCM a => (Name, a) -> TCM Value

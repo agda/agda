@@ -598,6 +598,9 @@ instance (Occurs a, Occurs b, Occurs c) => Occurs (a,b,c) where
 
   metaOccurs m (x,y,z) = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
 
+instance (HetSideIsType s, Occurs a) => Occurs (Het s a) where
+  occurs = onSide occurs
+
 ---------------------------------------------------------------------------
 -- * Pruning: getting rid of flexible occurrences.
 
