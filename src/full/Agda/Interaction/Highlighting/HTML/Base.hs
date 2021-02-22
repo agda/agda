@@ -14,6 +14,8 @@ module Agda.Interaction.Highlighting.HTML.Base
   ) where
 
 import Prelude hiding ((!!), concatMap)
+
+import Control.DeepSeq
 import Control.Monad
 import Control.Monad.Trans ( MonadIO(..), lift )
 import Control.Monad.Trans.Reader ( ReaderT(runReaderT), ask )
@@ -26,6 +28,8 @@ import qualified Data.List   as List
 import Data.List.Split (splitWhen, chunksOf)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
+
+import GHC.Generics (Generic)
 
 import qualified Network.URI.Encode
 
@@ -91,7 +95,9 @@ orgDelimiterEnd = "</pre>\n#+END_EXPORT\n"
 -- | Determine how to highlight the file
 
 data HtmlHighlight = HighlightAll | HighlightCode | HighlightAuto
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
+
+instance NFData HtmlHighlight
 
 highlightOnlyCode :: HtmlHighlight -> FileType -> Bool
 highlightOnlyCode HighlightAll  _ = False

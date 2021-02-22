@@ -62,6 +62,7 @@ module Agda.Syntax.Position
 
 import Prelude hiding ( null )
 
+import Control.DeepSeq
 import Control.Monad.Writer (runWriter, tell)
 
 import qualified Data.Foldable as Fold
@@ -134,6 +135,12 @@ type SrcFile = Strict.Maybe AbsolutePath
 type Position            = Position' SrcFile
 type PositionWithoutFile = Position' ()
 
+instance NFData Position where
+  rnf = rwhnf
+
+instance NFData PositionWithoutFile where
+  rnf = rwhnf
+
 -- | An interval. The @iEnd@ position is not included in the interval.
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
@@ -142,6 +149,12 @@ data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
 
 type Interval            = Interval' SrcFile
 type IntervalWithoutFile = Interval' ()
+
+instance NFData Interval where
+  rnf = rwhnf
+
+instance NFData IntervalWithoutFile where
+  rnf = rwhnf
 
 intervalInvariant :: Ord a => Interval' a -> Bool
 intervalInvariant i =
@@ -186,6 +199,8 @@ data Range' a
     (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Range = Range' SrcFile
+
+instance NFData a => NFData (Range' a)
 
 instance Null (Range' a) where
   null NoRange = True

@@ -1,10 +1,14 @@
 
 module Agda.Syntax.Internal.Blockers where
 
+import Control.DeepSeq
+
 import Data.Data (Data)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal.Elim
@@ -35,7 +39,7 @@ data NotBlocked' t
   | ReallyNotBlocked
     -- ^ Reduction was not blocked, we reached a whnf
     --   which can be anything but a stuck @'Def'@.
-  deriving (Show, Data)
+  deriving (Show, Data, Generic)
 
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
@@ -55,13 +59,17 @@ instance Monoid (NotBlocked' t) where
   mempty  = ReallyNotBlocked
   mappend = (<>)
 
+instance NFData t => NFData (NotBlocked' t)
+
 -- | What is causing the blocking? Or in other words which metas or problems need to be solved to
 --   unblock the blocked computation/constraint.
 data Blocker = UnblockOnAll (Set Blocker)
              | UnblockOnAny (Set Blocker)
              | UnblockOnMeta MetaId     -- ^ Unblock if meta is instantiated
              | UnblockOnProblem ProblemId
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
+
+instance NFData Blocker
 
 alwaysUnblock :: Blocker
 alwaysUnblock = UnblockOnAll Set.empty
@@ -142,7 +150,7 @@ instance Pretty Blocker where
 data Blocked' t a
   = Blocked    { theBlocker      :: Blocker,       ignoreBlocking :: a }
   | NotBlocked { blockingStatus  :: NotBlocked' t, ignoreBlocking :: a }
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
 
 instance Decoration (Blocked' t) where
   traverseF f (Blocked b x)     = Blocked b <$> f x
@@ -162,6 +170,8 @@ instance Semigroup a => Semigroup (Blocked' t a) where
 instance (Semigroup a, Monoid a) => Monoid (Blocked' t a) where
   mempty = notBlocked mempty
   mappend = (<>)
+
+instance (NFData t, NFData a) => NFData (Blocked' t a)
 
 -- | When trying to reduce @f es@, on match failed on one
 --   elimination @e ∈ es@ that came with info @r :: NotBlocked@.
@@ -259,4 +269,3 @@ unblockProblem p u@(UnblockOnProblem q) | p == q    = alwaysUnblock
 unblockProblem _ u@UnblockOnMeta{} = u
 unblockProblem p (UnblockOnAll us) = unblockOnAll $ Set.map (unblockProblem p) us
 unblockProblem p (UnblockOnAny us) = unblockOnAny $ Set.map (unblockProblem p) us
-

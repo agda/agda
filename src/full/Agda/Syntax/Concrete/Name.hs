@@ -129,7 +129,7 @@ data TopLevelModuleName = TopLevelModuleName
   { moduleNameRange :: Range
   , moduleNameParts :: List1 String
   }
-  deriving (Show, Data)
+  deriving (Show, Data, Generic)
 
 instance Eq    TopLevelModuleName where (==)    = (==)    `on` moduleNameParts
 instance Ord   TopLevelModuleName where compare = compare `on` moduleNameParts
@@ -533,3 +533,5 @@ instance NFData NamePart where
 instance NFData QName where
   rnf (Qual a b) = rnf a `seq` rnf b
   rnf (QName a)  = rnf a
+
+instance NFData TopLevelModuleName

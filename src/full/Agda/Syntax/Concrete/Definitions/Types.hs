@@ -1,8 +1,12 @@
 module Agda.Syntax.Concrete.Definitions.Types where
 
+import Control.DeepSeq
+
 import Data.Data
 import Data.Map (Map)
 import Data.Semigroup ( Semigroup(..) )
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
@@ -74,7 +78,9 @@ data NiceDeclaration
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
   | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
+
+instance NFData NiceDeclaration
 
 type TerminationCheck = Common.TerminationCheck Measure
 
@@ -92,7 +98,9 @@ type NiceTypeSignature  = NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
-    deriving (Data, Show)
+    deriving (Data, Show, Generic)
+
+instance NFData Clause
 
 -- | When processing a mutual block we collect the various checks present in the block
 --   before combining them.

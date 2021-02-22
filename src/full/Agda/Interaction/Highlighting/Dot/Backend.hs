@@ -16,12 +16,16 @@ import Control.Monad.Except
   , MonadError(throwError)
   )
 
+import Control.DeepSeq
+
 import Data.Map ( Map )
 import Data.Set ( Set )
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
 import qualified Data.Text.Lazy as L
+
+import GHC.Generics (Generic)
 
 import Agda.Compiler.Backend (Backend(..), Backend'(..), Definition, Recompile(..))
 import Agda.Compiler.Common (curIF, IsMain)
@@ -47,7 +51,9 @@ import Agda.Utils.Pretty ( prettyShow )
 
 data DotFlags = DotFlags
   { dotFlagDestination :: Maybe FilePath
-  } deriving Eq
+  } deriving (Eq, Generic)
+
+instance NFData DotFlags
 
 defaultDotFlags :: DotFlags
 defaultDotFlags = DotFlags

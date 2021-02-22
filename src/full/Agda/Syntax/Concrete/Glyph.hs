@@ -11,8 +11,12 @@ module Agda.Syntax.Concrete.Glyph
   , SpecialCharacters(..)
   ) where
 
+import Control.DeepSeq
+
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
+
+import GHC.Generics (Generic)
 
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -21,7 +25,9 @@ import Agda.Utils.Pretty
 data UnicodeOrAscii
   = UnicodeOk
   | AsciiOnly
-  deriving (Show, Eq, Enum, Bounded)
+  deriving (Show, Eq, Enum, Bounded, Generic)
+
+instance NFData UnicodeOrAscii
 
 {-# NOINLINE unsafeUnicodeOrAsciiIORef #-}
 unsafeUnicodeOrAsciiIORef :: IORef UnicodeOrAscii

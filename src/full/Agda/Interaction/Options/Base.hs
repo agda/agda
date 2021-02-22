@@ -33,6 +33,7 @@ module Agda.Interaction.Options.Base
     , getOptSimple
     ) where
 
+import Control.DeepSeq
 import Control.Monad ( when, void )
 import Control.Monad.Except ( Except, MonadError(throwError), runExcept )
 
@@ -42,6 +43,8 @@ import Data.Map                 ( Map )
 import qualified Data.Map as Map
 import Data.List                ( intercalate )
 import qualified Data.Set as Set
+
+import GHC.Generics (Generic)
 
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
@@ -115,7 +118,9 @@ data CommandLineOptions = Options
     -- ^ Should the top-level module only be scope-checked, and not
     --   type-checked?
   }
-  deriving Show
+  deriving (Show, Generic)
+
+instance NFData CommandLineOptions
 
 -- | Options which can be set in a pragma.
 
@@ -197,12 +202,16 @@ data PragmaOptions = PragmaOptions
     -- ^ Show identity substitutions when pretty-printing terms
     --   (i.e. always show all arguments of a metavariable)
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
+
+instance NFData PragmaOptions
 
 data ConfluenceCheck
   = LocalConfluenceCheck
   | GlobalConfluenceCheck
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
+
+instance NFData ConfluenceCheck
 
 -- | The options from an @OPTIONS@ pragma.
 --

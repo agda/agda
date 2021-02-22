@@ -1,15 +1,22 @@
 -- | An empty type with some useful instances.
 module Agda.Utils.Empty where
 
+import Control.DeepSeq
 import Control.Exception (evaluate)
 
 import Data.Data (Data)
+
+import GHC.Generics (Generic)
 
 import Agda.Utils.Impossible
 
 
 data Empty
+  deriving Generic
+
 deriving instance Data Empty
+
+instance NFData Empty
 
 instance Eq Empty where
   _ == _ = True

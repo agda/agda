@@ -24,12 +24,15 @@ module Agda.Interaction.Options.Warnings
 where
 
 import Control.Arrow ( (&&&) )
+import Control.DeepSeq
 import Control.Monad ( guard, when )
 
 import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.List ( stripPrefix, intercalate )
+
+import GHC.Generics (Generic)
 
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -42,7 +45,9 @@ import Agda.Utils.Impossible
 data WarningMode = WarningMode
   { _warningSet :: Set WarningName
   , _warn2Error :: Bool
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
+
+instance NFData WarningMode
 
 warningSet :: Lens' (Set WarningName) WarningMode
 warningSet f o = (\ ws -> o { _warningSet = ws }) <$> f (_warningSet o)
@@ -260,7 +265,9 @@ data WarningName
   -- System call warnings
   | ExeNotFoundWarning_
   | ExeNotExecutableWarning_
-  deriving (Eq, Ord, Show, Read, Enum, Bounded)
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
+
+instance NFData WarningName
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
 -- minus the trailing underscore.

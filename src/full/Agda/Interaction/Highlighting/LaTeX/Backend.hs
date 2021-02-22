@@ -12,12 +12,15 @@ import Agda.Interaction.Highlighting.LaTeX.Base
   , prepareCommonAssets
   )
 
+import Control.DeepSeq
 import Control.Monad.Trans (MonadIO)
 
 import qualified Data.Map as Map
 import Data.Map (Map)
 
 import qualified Data.Text as T
+
+import GHC.Generics (Generic)
 
 import System.FilePath ( (</>) )
 
@@ -55,7 +58,9 @@ data LaTeXFlags = LaTeXFlags
   , latexFlagSourceFile    :: Maybe FilePath
   , latexFlagGenerateLaTeX :: Bool
     -- ^ Are we going to try to generate LaTeX at all?
-  } deriving Eq
+  } deriving (Eq, Generic)
+
+instance NFData LaTeXFlags
 
 -- | The default output directory for LaTeX.
 

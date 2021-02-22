@@ -8,6 +8,8 @@ module Agda.TypeChecking.CompiledClause where
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
+
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Semigroup hiding (Arg(..))
@@ -16,6 +18,8 @@ import Data.Semigroup hiding (Arg(..))
 
 
 import Data.Data (Data)
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -29,7 +33,7 @@ import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
 data WithArity c = WithArity { arity :: Int, content :: c }
-  deriving (Data, Functor, Foldable, Traversable, Show)
+  deriving (Data, Functor, Foldable, Traversable, Show, Generic)
 
 -- | Branches in a case tree.
 
@@ -53,7 +57,7 @@ data Case c = Branches
     -- ^ Lazy pattern match. Requires single (non-copattern) branch with no lit
     --   branches and no catch-all.
   }
-  deriving (Data, Functor, Foldable, Traversable, Show)
+  deriving (Data, Functor, Foldable, Traversable, Show, Generic)
 
 -- | Case tree with bodies.
 
@@ -71,7 +75,7 @@ data CompiledClauses' a
   | Fail [Arg ArgName]
     -- ^ Absurd case. Add the free variables here as well so we can build correct
     --   number of lambdas for strict backends. (#4280)
-  deriving (Data, Functor, Traversable, Foldable, Show)
+  deriving (Data, Functor, Traversable, Foldable, Show, Generic)
 
 type CompiledClauses = CompiledClauses' Term
 
@@ -214,3 +218,9 @@ instance TermLike a => TermLike (Case a) where
 instance TermLike a => TermLike (CompiledClauses' a) where
   traverseTermM = traverse . traverseTermM
   foldTerm      = foldMap . foldTerm
+
+-- NFData instances
+
+instance NFData c => NFData (WithArity c)
+instance NFData a => NFData (Case a)
+instance NFData a => NFData (CompiledClauses' a)

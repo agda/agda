@@ -3,6 +3,7 @@ module Agda.Utils.Permutation where
 
 import Prelude hiding (drop, null)
 
+import Control.DeepSeq
 import Control.Monad (filterM)
 
 import Data.IntMap (IntMap)
@@ -13,6 +14,8 @@ import Data.Maybe
 import Data.Array
 
 import Data.Data (Data)
+
+import GHC.Generics (Generic)
 
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
@@ -34,7 +37,7 @@ import Agda.Utils.Impossible
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
 --   @m@ is the 'size' of the permutation.
 data Permutation = Perm { permRange :: Int, permPicks :: [Int] }
-  deriving (Eq, Data)
+  deriving (Eq, Data, Generic)
 
 instance Show Permutation where
   show (Perm n xs) = showx [0..n - 1] ++ " -> " ++ showx xs
@@ -50,6 +53,8 @@ instance Sized Permutation where
 instance Null Permutation where
   empty = Perm 0 []
   null (Perm _ picks) = null picks
+
+instance NFData Permutation
 
 -- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
 --   More precisely, @permute indices list = sublist@, generates @sublist@

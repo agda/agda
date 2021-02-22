@@ -11,6 +11,8 @@
 
 module Agda.Utils.WithDefault where
 
+import Control.DeepSeq
+
 import Agda.Utils.TypeLits
 
 -- We don't want to have to remember for each flag whether its default value
@@ -19,6 +21,10 @@ import Agda.Utils.TypeLits
 
 data WithDefault (b :: Bool) = Default | Value !Bool
   deriving (Eq, Show)
+
+instance NFData (WithDefault b) where
+  rnf Default   = ()
+  rnf (Value _) = ()
 
 -- The main mode of operation of these flags, apart from setting them explicitly,
 -- is to toggle them one way or the other if they hadn't been already.

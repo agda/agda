@@ -74,6 +74,8 @@ import Data.Set (Set)
 import Data.Data (Data)
 import Data.Text (Text)
 
+import GHC.Generics (Generic)
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
@@ -493,7 +495,7 @@ data ModuleApplication
   deriving (Data, Eq)
 
 data OpenShortHand = DoOpen | DontOpen
-  deriving (Data, Eq, Show)
+  deriving (Data, Eq, Show, Generic)
 
 -- Pragmas ----------------------------------------------------------------
 
@@ -1247,6 +1249,8 @@ instance NFData Declaration where
   rnf (UnquoteDecl _ a b)     = rnf a `seq` rnf b
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
   rnf (Pragma a)              = rnf a
+
+instance NFData OpenShortHand
 
 -- | Ranges are not forced.
 

@@ -2,6 +2,7 @@
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Arrow (second)
+import Control.DeepSeq
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
@@ -16,6 +17,8 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.Semigroup ((<>))
+
+import GHC.Generics (Generic)
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 
@@ -100,6 +103,9 @@ data GHCFlags = GHCFlags
     -- ^ Use the compiler at PATH instead of "ghc"
   , flagGhcFlags   :: [String]
   }
+  deriving Generic
+
+instance NFData GHCFlags
 
 defaultGHCFlags :: GHCFlags
 defaultGHCFlags = GHCFlags

@@ -7,6 +7,7 @@ module Agda.Syntax.Scope.Base where
 import Prelude hiding ( null, length )
 
 import Control.Arrow (first, second, (&&&))
+import Control.DeepSeq
 import Control.Monad
 
 import Data.Either (partitionEithers)
@@ -21,6 +22,8 @@ import Data.Maybe
 import Data.Semigroup ( Semigroup(..) )
 
 import Data.Data (Data)
+
+import GHC.Generics (Generic)
 
 import Agda.Benchmarking
 
@@ -59,19 +62,19 @@ data Scope = Scope
       , scopeImports        :: Map C.QName A.ModuleName
       , scopeDatatypeModule :: Maybe DataOrRecordModule
       }
-  deriving (Data, Eq, Show)
+  deriving (Data, Eq, Show, Generic)
 
 data DataOrRecordModule
   = IsDataModule
   | IsRecordModule
-  deriving (Data, Show, Eq, Enum, Bounded)
+  deriving (Data, Show, Eq, Enum, Bounded, Generic)
 
 -- | See 'Agda.Syntax.Common.Access'.
 data NameSpaceId
   = PrivateNS        -- ^ Things not exported by this module.
   | PublicNS         -- ^ Things defined and exported by this module.
   | ImportedNS       -- ^ Things from open public, exported by this module.
-  deriving (Data, Eq, Bounded, Enum, Show)
+  deriving (Data, Eq, Bounded, Enum, Show, Generic)
 
 allNameSpaces :: [NameSpaceId]
 allNameSpaces = [minBound..maxBound]
@@ -118,7 +121,7 @@ data ScopeInfo = ScopeInfo
       , _scopeFixities      :: C.Fixities    -- ^ Maps concrete names C.Name to fixities
       , _scopePolarities    :: C.Polarities  -- ^ Maps concrete names C.Name to polarities
       }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 -- | For the sake of highlighting, the '_scopeInverseName' map also stores
 --   the 'KindOfName' of an @A.QName@.
@@ -126,7 +129,7 @@ data NameMapEntry = NameMapEntry
   { qnameKind     :: KindOfName     -- ^ The 'anameKind'.
   , qnameConcrete :: List1 C.QName  -- ^ Possible renderings of the abstract name.
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 -- | Invariant: the 'KindOfName' components should be equal
 --   whenever we have to concrete renderings of an abstract name.
@@ -150,7 +153,7 @@ data BindingSource
   = LambdaBound  -- ^ @λ@ (currently also used for @Π@ and module parameters)
   | PatternBound -- ^ @f ... =@
   | LetBound     -- ^ @let ... in@
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 instance Pretty BindingSource where
   pretty = \case
@@ -170,7 +173,7 @@ data LocalVar = LocalVar
      -- ^ If this list is not empty, the local variable is
      --   shadowed by one or more imports.
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 instance Eq LocalVar where
   (==) = (==) `on` localVar
@@ -305,7 +308,7 @@ data NameSpace = NameSpace
         -- ^ All abstract names targeted by a concrete name in scope.
         --   Computed by 'recomputeInScopeSets'.
       }
-  deriving (Data, Eq, Show)
+  deriving (Data, Eq, Show, Generic)
 
 type ThingsInScope a = Map C.Name [a]
 type NamesInScope    = ThingsInScope AbstractName
@@ -339,7 +342,7 @@ inNameSpace = case inScopeTag :: InScopeTag a of
 
 -- | Non-dependent tag for name or module.
 data NameOrModule = NameNotModule | ModuleNotName
-  deriving (Data, Eq, Ord, Show, Enum, Bounded)
+  deriving (Data, Eq, Ord, Show, Enum, Bounded, Generic)
 
 ------------------------------------------------------------------------
 -- * Decorated names
@@ -370,7 +373,7 @@ data KindOfName
   | PrimName                 -- ^ Name of a @primitive@.
   | OtherDefName             -- ^ A @DefName@, but either other kind or don't know which kind.
   -- End @DefName@.  Keep these together in sequence, for sake of @isDefName@!
-  deriving (Eq, Ord, Show, Data, Enum, Bounded)
+  deriving (Eq, Ord, Show, Data, Enum, Bounded, Generic)
 
 isDefName :: KindOfName -> Bool
 isDefName = (>= DataName)
@@ -445,7 +448,7 @@ data WhyInScope
     -- ^ Imported from another module.
   | Applied C.QName WhyInScope
     -- ^ Imported by a module application.
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 -- | A decoration of 'Agda.Syntax.Abstract.Name.QName'.
 data AbstractName = AbsName
@@ -459,11 +462,11 @@ data AbstractName = AbsName
     -- ^ Additional information needed during scope checking. Currently used
     --   for generalized data/record params.
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 data NameMetadata = NoMetadata
                   | GeneralizedVarsMetadata (Map A.QName A.Name)
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 -- | A decoration of abstract syntax module names.
 data AbstractModule = AbsModule
@@ -472,7 +475,7 @@ data AbstractModule = AbsModule
   , amodLineage :: WhyInScope
     -- ^ Explanation where this name came from.
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 instance Eq AbstractName where
   (==) = (==) `on` anameName
@@ -519,7 +522,7 @@ data ResolvedName
 
   | -- | Unbound name.
     UnknownName
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 instance Pretty ResolvedName where
   pretty = \case
@@ -1417,3 +1420,19 @@ instance HasRange AbstractName where
 
 instance SetRange AbstractName where
   setRange r x = x { anameName = setRange r $ anameName x }
+
+instance NFData Scope
+instance NFData DataOrRecordModule
+instance NFData NameSpaceId
+instance NFData ScopeInfo
+instance NFData KindOfName
+instance NFData NameMapEntry
+instance NFData BindingSource
+instance NFData LocalVar
+instance NFData NameSpace
+instance NFData NameOrModule
+instance NFData WhyInScope
+instance NFData AbstractName
+instance NFData NameMetadata
+instance NFData AbstractModule
+instance NFData ResolvedName

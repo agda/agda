@@ -26,7 +26,7 @@ import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List
+import qualified Agda.Utils.List as L
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
@@ -82,7 +82,7 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: List1 QName }
-  deriving (Eq, Ord, Data)
+  deriving (Eq, Ord, Data, NFData)
 
 -- | A singleton "ambiguous" name.
 unambiguous :: QName -> AmbiguousQName
@@ -106,6 +106,10 @@ data Suffix
   = NoSuffix
   | Suffix !Integer
   deriving (Data, Show, Eq, Ord)
+
+instance NFData Suffix where
+  rnf NoSuffix   = ()
+  rnf (Suffix _) = ()
 
 -- | Check whether we are a projection pattern.
 class IsProjP a where
@@ -172,7 +176,7 @@ noModuleName = mnameFromList []
 
 commonParentModule :: ModuleName -> ModuleName -> ModuleName
 commonParentModule m1 m2 =
-  mnameFromList $ commonPrefix (mnameToList m1) (mnameToList m2)
+  mnameFromList $ L.commonPrefix (mnameToList m1) (mnameToList m2)
 
 -- | Make a 'Name' from some kind of string.
 class MkName a where
@@ -256,7 +260,8 @@ isLeParentModuleOf = isPrefixOf `on` mnameToList
 
 -- | Is the first module a proper parent of the second?
 isLtParentModuleOf :: ModuleName -> ModuleName -> Bool
-isLtParentModuleOf x y = isJust $ (stripPrefixBy (==) `on` mnameToList) x y
+isLtParentModuleOf x y =
+  isJust $ (L.stripPrefixBy (==) `on` mnameToList) x y
 
 -- | Is the first module a weak child of the second?
 isLeChildModuleOf :: ModuleName -> ModuleName -> Bool

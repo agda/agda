@@ -16,6 +16,7 @@ import System.Directory
 import System.FilePath
 
 import Control.Applicative ( liftA2 )
+import Control.DeepSeq
 #ifdef mingw32_HOST_OS
 import Control.Exception   ( bracket )
 import System.Win32        ( findFirstFile, findClose, getFindDataFileName )
@@ -38,7 +39,7 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { textPath :: Text }
-  deriving (Show, Eq, Ord, Data, Hashable)
+  deriving (Show, Eq, Ord, Data, Hashable, NFData)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath

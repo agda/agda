@@ -15,6 +15,7 @@ module Agda.Syntax.Notation where
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
 import Control.Monad
 import Control.Monad.Except
 
@@ -22,6 +23,8 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import GHC.Generics (Generic)
 
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
@@ -91,7 +94,7 @@ data NotationKind
   | PostfixNotation -- ^ Ex: @bla_blub_@.
   | NonfixNotation  -- ^ Ex: @bla_blub@.
   | NoNotation
-   deriving (Eq, Show)
+   deriving (Eq, Show, Generic)
 
 -- | Classify a notation by presence of leading and/or trailing
 -- /normal/ holes.
@@ -219,7 +222,7 @@ data NewNotation = NewNotation
   , notaIsOperator :: Bool
     -- ^ True if the notation comes from an operator (rather than a
     -- syntax declaration).
-  } deriving Show
+  } deriving (Show, Generic)
 
 instance LensFixity NewNotation where
   lensFixity f nota = f (notaFixity nota) <&> \ fx -> nota { notaFixity = fx }
@@ -353,7 +356,7 @@ data NotationSection = NotationSection
   , sectIsSection :: Bool
     -- ^ 'False' for non-sectioned operators.
   }
-  deriving Show
+  deriving (Show, Generic)
 
 -- | Converts a notation to a (non-)section.
 
@@ -385,3 +388,9 @@ instance Pretty NotationSection where
         , pretty nota
         ]
     | otherwise = pretty nota
+
+-- NFData instances
+
+instance NFData NotationKind
+instance NFData NewNotation
+instance NFData NotationSection

@@ -9,6 +9,8 @@ module Agda.Termination.CutOff
   , defaultCutOff
   ) where
 
+import Control.DeepSeq
+
 -- | Cut off structural order comparison at some depth in termination checker?
 
 data CutOff
@@ -19,6 +21,10 @@ data CutOff
 instance Show CutOff where
   show (CutOff k) = show k
   show DontCutOff = "∞"
+
+instance NFData CutOff where
+  rnf (CutOff _) = ()
+  rnf DontCutOff = ()
 
 -- | The default termination depth.
 

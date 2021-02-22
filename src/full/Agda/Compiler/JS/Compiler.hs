@@ -3,6 +3,8 @@
 module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
+
+import Control.DeepSeq
 import Control.Monad.Trans
 
 import Data.Char     ( isSpace )
@@ -13,6 +15,8 @@ import Data.Set      ( Set )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.Text as T
+
+import GHC.Generics (Generic)
 
 import System.Directory   ( createDirectoryIfMissing )
 import System.Environment ( setEnv )
@@ -113,6 +117,9 @@ data JSOptions = JSOptions
   , optJSVerify   :: Bool
       -- ^ Run generated code through interpreter.
   }
+  deriving Generic
+
+instance NFData JSOptions
 
 defaultJSOptions :: JSOptions
 defaultJSOptions = JSOptions
