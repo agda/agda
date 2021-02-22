@@ -516,11 +516,11 @@ instance KillRange TopLevelModuleName where
 -- * NFData instances
 ------------------------------------------------------------------------
 
--- | Ranges are not forced.
-
 instance NFData NameInScope where
   rnf InScope    = ()
   rnf NotInScope = ()
+
+-- | Ranges are not forced.
 
 instance NFData Name where
   rnf (Name _ nis ns) = rnf nis `seq` rnf ns
