@@ -5,7 +5,7 @@ Failed to solve the following constraints:
     : D
     (blocked on _26)
   _24 D = D → D : Set (blocked on _24, belongs to problem 46)
-  foo _24 = foo _24 : _24 D ‡[46](= _24 D =) D → D
+  foo _24 = foo _24 : _24 D alternatively D → D pending [46]
     (blocked on any(_24, _26, problem 46))
 Unsolved metas at the following locations:
   Issue1467.agda:24,11-12

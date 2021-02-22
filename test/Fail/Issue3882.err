@@ -5,99 +5,59 @@ Failed to solve the following constraints:
     (blocked on any(_B_103, _x_128))
   _B_103 (ψ = ψ) (n = _x_128) (b = b) x
     = _B_103 (ψ = ψ) (n = n₀) (b = b) x
-    : Set ‡[268, 269](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _x_128))
   _B_103 (ψ = ψ) (n = _x_128)
   (b = (×id (λ x₁ → p x₁ .fst) (s , p s .snd))) x
     = _B_103 (ψ = ψ) (n = n₀)
       (b = (×id (λ x₁ → p x₁ .fst) (s , p s .snd))) x
-    : Set ‡[279, 280](= Set =) Set
-    (blocked on any(_B_103, _x_128))
-  _B_103 (ψ = ψ) (n = _x_128)
-  (b = (×id (λ x₁ → p x₁ .fst) (s , p s .snd))) x
-    = _B_103 (ψ = ψ) (n = n₀)
-      (b = (×id (λ x₁ → p x₁ .fst) (s , p s .snd))) x
-    : Set ‡[285, 286](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _x_128))
   _B_103 (ψ = ψ) (n = _x_128)
   (b = (×id (λ x₃ → p x₃ .fst) (x , w x))) x₂
     = _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₃ → p x₃ .fst) (x , w x)))
       x₂
-    : Set ‡[299, 300](= Set =) Set
-    (blocked on any(_B_103, _x_128))
-  _B_103 (ψ = ψ) (n = _x_128)
-  (b = (×id (λ x₃ → p x₃ .fst) (x , w x))) x₂
-    = _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₃ → p x₃ .fst) (x , w x)))
-      x₂
-    : Set ‡[305, 306](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _x_128))
   _B_103 (ψ = ψ) (n = _x_128)
   (b = (×id (λ x₃ → p x₃ .fst) (x , w' x))) x₂
     = _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₃ → p x₃ .fst) (x , w' x)))
       x₂
-    : Set ‡[313, 314](= Set =) Set
-    (blocked on any(_B_103, _x_128))
-  _B_103 (ψ = ψ) (n = _x_128)
-  (b = (×id (λ x₃ → p x₃ .fst) (x , w' x))) x₂
-    = _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₃ → p x₃ .fst) (x , w' x)))
-      x₂
-    : Set ‡[319, 320](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _x_128))
   _B_103 (ψ = ψ) (n = _x_128)
   (b = (×id (λ x₃ → p x₃ .fst) (x , wrap (x₁ x)))) x₂
     = _B_103 (ψ = ψ) (n = n₀)
       (b = (×id (λ x₃ → p x₃ .fst) (x , wrap (x₁ x)))) x₂
-    : Set ‡[332, 333](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _x_128))
   _B_103 (ψ = ψ) (n = _y_129) (b = x) x₁
     = _B_103 (ψ = ψ) (n = n₀) (b = x) x₁
-    : Set ‡[342, 343](= Set =) Set
-    (blocked on any(_B_103, _y_129))
-  _B_103 (ψ = ψ) (n = _y_129) (b = x) x₁
-    = _B_103 (ψ = ψ) (n = n₀) (b = x) x₁
-    : Set ‡[348, 349](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _y_129))
   _B_103 (ψ = ψ) (n = _y_129)
   (b = (×id (λ x₁ → p x₁ .fst) (s , p s .snd))) x
     = _B_103 (ψ = ψ) (n = n₀)
       (b = (×id (λ x₁ → p x₁ .fst) (s , p s .snd))) x
-    : Set ‡[359, 360](= Set =) Set
-    (blocked on any(_B_103, _y_129))
-  _B_103 (ψ = ψ) (n = _y_129)
-  (b = (×id (λ x₁ → p x₁ .fst) (s , p s .snd))) x
-    = _B_103 (ψ = ψ) (n = n₀)
-      (b = (×id (λ x₁ → p x₁ .fst) (s , p s .snd))) x
-    : Set ‡[365, 366](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _y_129))
   _B_103 (ψ = ψ) (n = _y_129)
   (b = (×id (λ x₃ → p x₃ .fst) (x , w x))) x₂
     = _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₃ → p x₃ .fst) (x , w x)))
       x₂
-    : Set ‡[379, 380](= Set =) Set
-    (blocked on any(_B_103, _y_129))
-  _B_103 (ψ = ψ) (n = _y_129)
-  (b = (×id (λ x₃ → p x₃ .fst) (x , w x))) x₂
-    = _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₃ → p x₃ .fst) (x , w x)))
-      x₂
-    : Set ‡[385, 386](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _y_129))
   _B_103 (ψ = ψ) (n = _y_129)
   (b = (×id (λ x₃ → p x₃ .fst) (x , w' x))) x₂
     = _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₃ → p x₃ .fst) (x , w' x)))
       x₂
-    : Set ‡[393, 394](= Set =) Set
-    (blocked on any(_B_103, _y_129))
-  _B_103 (ψ = ψ) (n = _y_129)
-  (b = (×id (λ x₃ → p x₃ .fst) (x , w' x))) x₂
-    = _B_103 (ψ = ψ) (n = n₀) (b = (×id (λ x₃ → p x₃ .fst) (x , w' x)))
-      x₂
-    : Set ‡[399, 400](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _y_129))
   _B_103 (ψ = ψ) (n = _y_129)
   (b = (×id (λ x₃ → p x₃ .fst) (x , wrap (x₁ x)))) x₂
     = _B_103 (ψ = ψ) (n = n₀)
       (b = (×id (λ x₃ → p x₃ .fst) (x , wrap (x₁ x)))) x₂
-    : Set ‡[412, 413](= Set =) Set
+    : Set alternatively Set pending []
     (blocked on any(_B_103, _y_129))
 Unsolved metas at the following locations:
   Issue3882.agda:72,72-75

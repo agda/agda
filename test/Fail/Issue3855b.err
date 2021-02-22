@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
   _x_8 = A : Set (blocked on _x_8)
-  _x_8 = A : Set ‡[12](= Set =) Set (blocked on _x_8)
+  _x_8 = A : Set alternatively Set pending [12] (blocked on _x_8)
 Unsolved metas at the following locations:
   Issue3855b.agda:13,34-35
   Issue3855b.agda:13,29-35
