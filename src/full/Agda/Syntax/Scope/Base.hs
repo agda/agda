@@ -114,7 +114,7 @@ data ScopeInfo = ScopeInfo
                                              --   immediately so we can avoid shadowing between
                                              --   variables in the same variable block.
       , _scopeLocals        :: LocalVars
-      , _scopePrecedence    :: PrecedenceStack
+      , _scopePrecedence    :: !PrecedenceStack
       , _scopeInverseName   :: NameMap
       , _scopeInverseModule :: ModuleMap
       , _scopeInScope       :: InScopeSet
