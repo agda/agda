@@ -65,8 +65,10 @@ FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(FAST_STACK_BUILD_DIR) 
 
 # ordinary install: optimizations and tests
 
-SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
-SLOW_STACK_INSTALL_OPTS = --test --no-run-tests
+SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests \
+                          -foptimise-heavily
+SLOW_STACK_INSTALL_OPTS = --test --no-run-tests \
+                          --flag Agda:optimise-heavily
 
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
                           $(SLOW_CABAL_INSTALL_OPTS)

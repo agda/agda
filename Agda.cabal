@@ -161,6 +161,11 @@ flag enable-cluster-counting
     Enable the --count-clusters flag. (If enable-cluster-counting is
     False, then the --count-clusters flag triggers an error message.)
 
+flag optimise-heavily
+  default: False
+  description:
+    Enable some expensive optimisations when compiling Agda.
+
 custom-setup
   setup-depends:  base >= 4.9.0.0 && < 4.16
                 , Cabal >= 1.24.0.0 && < 3.5
@@ -633,11 +638,13 @@ library
                     Agda.Utils.CallStack.Base
                     Agda.Utils.CallStack.Pretty
 
-  -- NOTE: If adding flags, also add to `.ghci-8.0`
-  if impl(ghc <= 8.0.2)
+  if flag(optimise-heavily)
     ghc-options: -fexpose-all-unfoldings
                  -fspecialise-aggressively
-                 -fprint-potential-instances
+
+  -- NOTE: If adding flags, also add to `.ghci-8.0`
+  if impl(ghc <= 8.0.2)
+    ghc-options: -fprint-potential-instances
                  -- Initially, we disable all the warnings.
                  -w
                  -Werror
@@ -672,9 +679,7 @@ library
                  -Wwarnings-deprecations
                  -Wwrong-do-bind
   else
-    ghc-options: -fexpose-all-unfoldings
-                 -fspecialise-aggressively
-                 -fprint-potential-instances
+    ghc-options: -fprint-potential-instances
                  -Werror=unrecognised-warning-flags
                  -Werror=deprecated-flags
                  -Werror=deriving-typeable
@@ -953,11 +958,13 @@ test-suite agda-tests
                      , TypeFamilies
                      , TypeSynonymInstances
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.0`
-  if impl(ghc <= 8.0.2)
+  if flag(optimise-heavily)
     ghc-options: -fexpose-all-unfoldings
                  -fspecialise-aggressively
-                 -threaded
+
+  -- NOTE: If adding or removing flags, also change `.ghci-8.0`
+  if impl(ghc <= 8.0.2)
+    ghc-options: -threaded
                  -- Initially, we disable all the warnings.
                  -w
                  -Werror
@@ -992,9 +999,7 @@ test-suite agda-tests
                  -Wwarnings-deprecations
                  -Wwrong-do-bind
   else
-    ghc-options: -fexpose-all-unfoldings
-                 -fspecialise-aggressively
-                 -threaded
+    ghc-options: -threaded
                  -Werror=unrecognised-warning-flags
                  -Werror=deprecated-flags
                  -Werror=deriving-typeable
