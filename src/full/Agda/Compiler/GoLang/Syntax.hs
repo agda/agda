@@ -27,9 +27,18 @@ data Exp =
   Global GlobalId |
   Undefined |
   Null |
-  GoInterface MemberId |
-  GoStruct MemberId [Exp] |
-  ConField LocalId String |
+  GoInterface MemberId | -- interface globalus name
+  GoStruct MemberId [Exp] | -- struktūros name ir [Exp] yra struktūros elementai
+  GoStructElement LocalId TypeId | -- struktūros elementas. name tiesiog integer + tipas
+  GoFunctionParameter LocalId TypeId | -- name ir to elemento tipas (galimai tinka tiesiog interface{}).
+  -- todo ar local id ir kažkokį custom/global
+  GoFunction MemberId Exp Exp Exp | -- funkcijos vardas, parametras, return type, vidinė funkcija/switch statement.
+  -- todo kaip išsiaiškint pilną return type (einam per visas vidines funkcijas?)
+  GoFunctionInner Exp Exp Exp | -- iš esmės tas pats, kaip GoFunction, tik neturi jokio name, prasideda su return.
+  GoSwitch LocalId [Exp] | -- elementas, pagal kurio type darom switch ir sąrašas Go cases, paskutinis go case yra default su panic ir kintamojo priskirimas '_ = parameter'
+  GoCase MemberId Exp | -- pattern mathing pagal struct name ir return Exp, kur Exp gali būt metodo kvietimas, kintamojo gražinimas ar struct sukūrimas
+  GoMethodCall MemberId [Exp] | --metodo name, kurį kviečiam ir parametrai. Parametrai gali būt method call, struct sukūrimas ar tiesiog parametras. Prettyfiinant kiekvienas Exp elementas eina į skliaustus.
+  GoCreateStruct MemberId [LocalId] | -- struktūros sukurimas, paduodam struktūros name ir jo fields. todo ar fields bus [LocalId] ar [MemberId]
   String Text |
   Char Char |
   Integer Integer |
@@ -42,6 +51,9 @@ data Exp =
 
 newtype LocalId = LocalId Nat
   deriving (Eq, Ord, Show)
+
+newtype TypeId = TypeId String
+  deriving (Eq, Ord, Show)  
 
 newtype GlobalId = GlobalId [String]
   deriving (Eq, Ord, Show)

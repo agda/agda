@@ -36,6 +36,7 @@ import Agda.Syntax.Literal ( Literal(..) )
 import qualified Agda.Syntax.Treeless as T
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
@@ -330,7 +331,7 @@ definition' kit q d t ls = do
         computeErasedConstructorArgs q
         return Nothing
 
-    c@Constructor{conData = p, conPars = nc} -> do
+    c@Constructor{conData = p, conPars = nc, conSrcCon = ch} -> do
       reportSDoc "compile.go" 30 $ " constructor :" <+> (text . show) c
       reportSDoc "compile.go" 30 $ " con2:" <+> (text . show) q
       let np = arity t - nc
@@ -338,8 +339,12 @@ definition' kit q d t ls = do
       erased <- getErasedConArgs q
       reportSDoc "compile.go" 30 $ " erased:" <+> (text . show) erased
       d <- getConstInfo p
-      reportSDoc "compile.go" 30 $ " type:" <+> (text . show) t
+      reportSDoc "compile.go" 30 $ " type:" <+> (text . show)  t
+      ct <- getConType ch t
+      reportSDoc "compile.go" 30 $ " con type:" <+> (text . show)  ct
       let l = List1.last ls
+      -- l galim naudot kaip struct name
+      -- struct l {_1 interface{}; _2 List; }
       reportSDoc "compile.go" 30 $ " l:" <+> (text . show) l
       reportSDoc "compile.go" 30 $ " ls:" <+> (text . show) ls
       case theDef d of
