@@ -59,4 +59,5 @@ disabledTests = concat
   , FAIL.disabledTests
   , LIBSUCCEED.disabledTests
   , LATEXHTML.disabledTests
+  , USERMANUAL.disabledTests
   ]
