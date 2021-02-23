@@ -6,17 +6,18 @@ import Control.Exception (evaluate)
 
 import Data.Data (Data)
 
-import GHC.Generics (Generic)
-
 import Agda.Utils.Impossible
 
 
 data Empty
-  deriving Generic
 
 deriving instance Data Empty
 
-instance NFData Empty
+-- | Values of type 'Empty' are not forced, because 'Empty' is used as
+-- a constructor argument in 'Agda.Syntax.Internal.Substitution''.
+
+instance NFData Empty where
+  rnf _ = ()
 
 instance Eq Empty where
   _ == _ = True
