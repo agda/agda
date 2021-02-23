@@ -22,9 +22,9 @@ clean=/usr/bin/env bash $(shell pwd)/clean.sh $(SED)
 AgdaFiles=$(shell ls -t *agda)
 OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
 Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
-Ignore=$(shell ls -t *.ignore)
+Ignore=$(patsubst %.ignore,%.ignored,$(shell ls -t *ignore))
 
-default : $(Tests) $(Ignore)
+default : $(Ignore) $(Tests)
 
 export TMPDIR=highlighting-tmp
 export BUILDDIR=_build/
@@ -116,15 +116,15 @@ $(OutFiles) : %.out : $$($$@.*agda) $$($$@.in $$@.hs $$@.sh)
 	@echo "=== End of output ==="
 	@rm -rf $(TMPDIR)
 
+$(Ignore) : %.ignored : %.ignore
+	@echo $(basename $(basename $@)) [IGNORED]
+
 # Comparing output
 ########################################################################
 
 # Andreas, 2020-06-09, issue #4736
 # If the output has changed, the test case is "interesting",
 # thus, we sort it up for the next run by touching the .agda file.
-
-$(Ignore) :
-	@echo Ignoring $*@
 
 $(Tests) : %.cmp : %.out
 	@-mkdir -p $(TMPDIR)
