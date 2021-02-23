@@ -2910,6 +2910,19 @@ pattern H'Both a = Het a
 {-# COMPLETE H'Both #-}
 #endif
 
+type OnLHS = Het 'LHS
+type OnRHS = Het 'RHS
+
+pattern OnLHS :: a -> OnLHS a
+pattern OnLHS a = Het a
+pattern OnRHS :: a -> OnRHS a
+pattern OnRHS a = Het a
+
+#if __GLASGOW_HASKELL__ >= 802
+{-# COMPLETE OnLHS #-}
+{-# COMPLETE OnRHS #-}
+#endif
+
 onSide :: forall s a m b. (MonadAddContext m, HetSideIsType s) => (a -> m b) -> Het s a -> m (Het s b)
 onSide κ = switchSide @s . traverse κ
 
@@ -4076,7 +4089,6 @@ data TypeError
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
         | UnequalLevel Comparison Level Level
-        | UnequalTerms Comparison Term Term CompareAs
         | UnequalTerms_ Comparison (H'LHS Term) (H'RHS Term) CompareAs_
         | UnequalTypes Comparison Type Type
 --      | UnequalTelescopes Comparison Telescope Telescope -- UNUSED
@@ -4210,9 +4222,8 @@ data TypeError
         | TriedToCopyConstrainedPrim QName
           deriving Show
 
--- pattern UnequalTerms_ :: Comparison -> H'LHS Term -> H'RHS Term -> CompareAsHet -> TypeError
--- pattern UnequalTerms_ dir u v a <- UnequalTerms dir (Het -> u) (Het -> v) (asTwin -> a)
---  where UnequalTerms_ dir (Het u) (Het v) (twinAt @'Compat -> a) = UnequalTerms dir u v a
+mkUnequalTerms :: Comparison -> Term -> Term -> CompareAs -> TypeError
+mkUnequalTerms cmp u v a = UnequalTerms_ cmp (OnLHS u) (OnRHS v) (asTwin a)
 
 pattern UnequalRelevance_ :: Comparison -> H'LHS Term -> H'RHS Term -> TypeError
 pattern UnequalRelevance_ dir u v <- UnequalRelevance dir (Het -> u) (Het -> v)

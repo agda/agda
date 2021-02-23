@@ -2126,7 +2126,7 @@ compareInterval cmp i t u = do
       y <- leqInterval iu it
       let final = isCanonical it && isCanonical iu
       if x && y then reportSDoc "tc.conv.interval" 15 $ "Ok! }" else
-        if final then typeError $ UnequalTerms cmp t u (AsTermsOf i)
+        if final then typeError $ mkUnequalTerms cmp t u (AsTermsOf i)
                  else do
                    reportSDoc "tc.conv.interval" 15 $ "Giving up! }"
                    patternViolation (unblockOnAnyMetaIn (t, u))

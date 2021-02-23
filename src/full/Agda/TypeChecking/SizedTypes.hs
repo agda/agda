@@ -369,7 +369,7 @@ compareSizeViews cmp s1' s2' = do
         u <- unDeepSizeView s1
         v <- unDeepSizeView s2
         cont u v
-      failure = withUnView $ \ u v -> typeError $ UnequalTerms cmp u v AsSizes
+      failure = withUnView $ \ u v -> typeError $ mkUnequalTerms cmp u v AsSizes
       continue cmp = withUnView $ compareAtom cmp AsSizes
   case (cmp, s1, s2) of
     (CmpLeq, _,            DSizeInf)   -> return ()
@@ -400,7 +400,7 @@ giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
 giveUp cmp size u v =
   ifM (asksTC envAssignMetas)
     {-then-} (addConstraint unblock $ ValueCmp CmpLeq AsSizes u v)
-    {-else-} (typeError $ UnequalTerms cmp u v AsSizes)
+    {-else-} (typeError $ mkUnequalTerms cmp u v AsSizes)
   where
     unblock = unblockOnAnyMetaIn [u, v]
 

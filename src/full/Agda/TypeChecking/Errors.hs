@@ -236,7 +236,6 @@ errorString err = case err of
   UnequalHiding{}                          -> "UnequalHiding"
   UnequalLevel{}                           -> "UnequalLevel"
   UnequalSorts{}                           -> "UnequalSorts"
-  UnequalTerms{}                           -> "UnequalTerms"
   UnequalTerms_{}                          -> "UnequalTerms"
   UnequalTypes{}                           -> "UnequalTypes"
 --  UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
@@ -553,7 +552,6 @@ instance PrettyTCM TypeError where
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]
 
-    UnequalTerms  cmp s t a -> prettyTCM (UnequalTerms_ cmp (H'LHS s) (H'RHS t) (asTwin a))
     UnequalTerms_ cmp s t a -> case (unHet @'LHS s, unHet @'RHS t) of
       (Sort s1      , Sort s2      )
         | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2

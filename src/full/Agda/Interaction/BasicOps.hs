@@ -253,7 +253,7 @@ refine force ii mr e = do
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
         try 0 err e = throwError . stringTCErr $ case err of
-           Just (TypeError _ _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
+           Just (TypeError _ _ cl) | UnequalTerms_ _ (OnLHS I.Pi{}) _ _ <- clValue cl ->
              "Cannot refine functions with 10 or more arguments"
            _ ->
              "Cannot refine"
