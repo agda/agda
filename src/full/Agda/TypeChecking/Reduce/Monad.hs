@@ -62,10 +62,11 @@ instance MonadAddContext ReduceM where
 
   addCtx = defaultAddCtx
 
-  -- Conversion can be called in the reduce monad
-  addCtx_ name dom@(unDom -> SingleT (H'Both a)) = addCtx name dom{unDom=a}
-  -- One should not add twins in a reduce context
-  addCtx_ _        (unDom -> TwinT{})            = __IMPOSSIBLE__
+  -- Conversion can be called in the reduce monad,
+  -- which may sometimes add variables to the context.
+  addCtx_ name dom@Dom{unDom = SingleT (H'Both a)} = addCtx name dom{unDom=a}
+  -- However, one should not need to add twins in a reduction context
+  addCtx_ _        Dom{unDom = TwinT{}}            = __IMPOSSIBLE__
 
   addLetBinding' = defaultAddLetBinding'
 

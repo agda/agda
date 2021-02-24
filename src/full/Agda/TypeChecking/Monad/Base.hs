@@ -2,7 +2,6 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE RoleAnnotations            #-}
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE TypeOperators              #-}
 
@@ -2743,7 +2742,7 @@ instance Bifoldable (:∈) where bifoldMap f g (a :∈ b) = bifoldMap f g (a,b)
 
 pattern (:∋) :: forall a b. b -> a -> a :∈ b
 pattern b :∋ a = a :∈ b
-#if __GLASGOW_HASKELL__ >= 802
+#if __GLASGOW_HASKELL__ >= 804
 {-# COMPLETE (:∋) #-}
 #endif
 
@@ -2782,6 +2781,7 @@ instance Semigroup (ContextHet' a) where
 
 instance Monoid (ContextHet' a) where
   mempty = Empty
+  mappend = (<>)
 
 class HasPids a where getPids :: a -> ISet ProblemId
 
@@ -2831,7 +2831,7 @@ infixr 5 ⊣:
 (⊣:) :: (HasPids a) => a -> ContextHet' a -> ContextHet' a
 a ⊣: γΓ = Entry (getPids a <> getPids γΓ) (a :∈ γΓ)
 
-#if __GLASGOW_HASKELL__ >= 802
+#if __GLASGOW_HASKELL__ >= 804
 {-# COMPLETE Empty, (:⊢) #-}
 {-# COMPLETE Empty, (:⊣) #-}
 #endif
@@ -2900,7 +2900,7 @@ pattern H'Compat a = Het a
 pattern H'Both :: a -> H'Both a
 pattern H'Both a = Het a
 
-#if __GLASGOW_HASKELL__ >= 802
+#if __GLASGOW_HASKELL__ >= 804
 {-# COMPLETE H'LHS #-}
 {-# COMPLETE H'RHS #-}
 {-# COMPLETE H'Compat #-}
@@ -2916,7 +2916,7 @@ pattern OnLHS a = Het a
 pattern OnRHS :: a -> OnRHS a
 pattern OnRHS a = Het a
 
-#if __GLASGOW_HASKELL__ >= 802
+#if __GLASGOW_HASKELL__ >= 804
 {-# COMPLETE OnLHS #-}
 {-# COMPLETE OnRHS #-}
 #endif
@@ -3128,7 +3128,6 @@ instance Sized ContextHet where
 type Type_ = TwinT
 type TwinT = TwinT' Type
 type TwinT' = TwinT'' Bool
-type role TwinT'' representational representational
 data TwinT'' b a =
     SingleT { unSingleT :: OnSide 'Both a }
   | TwinT { twinPid    :: ISet ProblemId   -- ^ Unification problems which are sufficient

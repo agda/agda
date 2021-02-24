@@ -458,9 +458,9 @@ instance IsTwinSolved Context_ where
   isTwinSolved = isTwinSolved . getPids
   isTwinSingle = const False
   simplifyHet' Empty           = pure (Right [])
-  simplifyHet' γΓ@(Entry bs a) =
+  simplifyHet' ctx@(Entry bs a) =
     simplifyHet' bs <&> \case
-      Right ()  -> Right $ twinAt @'Both (fmap (fmap (fmap (\t -> t{twinPid=mempty}))) γΓ)
+      Right ()  -> Right $ twinAt @'Both (fmap (fmap (fmap (\t -> t{twinPid=mempty}))) ctx)
       Left  bs' -> Left  $ Entry bs' a
 
 simplifyHetFast b κ = do

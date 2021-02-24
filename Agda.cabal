@@ -707,7 +707,10 @@ library
                  -- -Wmissing-home-modules
                  -Werror=simplifiable-class-constraints
                  -Werror=unbanged-strict-patterns
-                 -Wincomplete-patterns
+
+  -- NOTE: If adding or removing flags, also change `.ghci-8.4`
+  if impl(ghc >= 8.4)
+    ghc-options: -Wincomplete-patterns
 
   -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)

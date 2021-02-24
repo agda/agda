@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilies               #-} -- for type equality ~
 {-# LANGUAGE RoleAnnotations            #-}
+{-# LANGUAGE CPP                        #-}
 
 module Agda.TypeChecking.Monad.Base where
 
@@ -11,10 +12,11 @@ import Data.IORef (IORef)
 import qualified Data.Kind
 import Data.Map (Map)
 
-import Agda.Syntax.Common (Nat)
+import Agda.Syntax.Common (Nat, ProblemId)
 import Agda.Syntax.Internal (Dom, Name, Term, Type)
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
+import Agda.Utils.IntSet.Typed (ISet)
 
 data Warning
 
@@ -61,8 +63,18 @@ class Monad m => MonadTCEnv m where
     =>  (TCEnv -> TCEnv) -> m a -> m a
   localTC = liftThrough . localTC
 
-type role TwinT'' representational representational
-data TwinT'' b a
+#if __GLASGOW_HASKELL__ <= 802
+type role TwinT'' representational nominal
+#endif
+data TwinT'' b a =
+    SingleT { unSingleT :: Het 'Both a }
+  | TwinT { twinPid    :: ISet ProblemId
+          , necessary  :: b
+          , direction  :: CompareDirection
+          , twinLHS    :: Het 'LHS a
+          , twinRHS    :: Het 'RHS a
+          }
+
 type TwinT' = TwinT'' Bool
 type TwinT = TwinT' Type
 data ContextHet' a
@@ -71,3 +83,5 @@ type ContextHet = ContextHet' (Dom (Name, TwinT))
 data HetSide = LHS | RHS | Compat | Both
 newtype Het (side :: HetSide) t = Het { unHet :: t }
 instance Functor (Het side)
+
+data CompareDirection

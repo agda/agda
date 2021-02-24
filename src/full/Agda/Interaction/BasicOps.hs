@@ -1,5 +1,6 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ViewPatterns #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -253,8 +254,8 @@ refine force ii mr e = do
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
         try 0 err e = throwError . stringTCErr $ case err of
-           Just (TypeError _ _ cl) | UnequalTerms_ _ (OnLHS I.Pi{}) _ _ <- clValue cl ->
-             "Cannot refine functions with 10 or more arguments"
+           Just (TypeError _ _ (clValue -> UnequalTerms_ _ (OnLHS I.Pi{}) _ _)) ->
+                 "Cannot refine functions with 10 or more arguments"
            _ ->
              "Cannot refine"
         try n _ e = give force ii (Just r) e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e

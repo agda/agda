@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | A thin, zero-cost wrapper over IntSet with types for elements
 module Agda.Utils.IntSet.Typed where
 
@@ -10,6 +12,9 @@ import Agda.Utils.Null (Null)
 
 import GHC.Exts (IsList, Coercible, coerce)
 import qualified GHC.Exts as Exts
+#if __GLASGOW_HASKELL__ < 804
+import Data.Semigroup (Semigroup)
+#endif
 
 type IsInt a = Coercible a Int
 
@@ -48,9 +53,14 @@ disjoint = coerce IntSet.disjoint
 intersection :: IsInt a => ISet a -> ISet a -> ISet a
 intersection = coerce IntSet.intersection
 
+#if __GLASGOW_HASKELL__ >= 806
 unions :: forall a f.
   (IsInt a, Foldable f, Coercible (f IntSet) (f (ISet a))) => f (ISet a) -> ISet a
 unions = coerce @(f IntSet -> IntSet) IntSet.unions
+#else
+unions :: (IsInt a, Coercible [IntSet] [ISet a]) => [ISet a] -> ISet a
+unions = coerce @([IntSet] -> IntSet) IntSet.unions
+#endif
 
 size :: IsInt a => ISet a -> Int
 size = coerce IntSet.size

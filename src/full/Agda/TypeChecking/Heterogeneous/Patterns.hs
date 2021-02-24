@@ -12,7 +12,7 @@ import qualified Agda.TypeChecking.Substitute.Class as I
 pattern El :: Het side (I.Sort' t) -> Het side a -> Het side (I.Type'' t a)
 pattern El a b <- Het (I.El (Het -> a)   (Het   -> b))
   where El a b =  Het (I.El (unHet a) (unHet b))
-#if __GLASGOW_HASKELL__ >= 802
+#if __GLASGOW_HASKELL__ >= 804
 {-# COMPLETE El #-}
 #endif
 
@@ -21,7 +21,7 @@ pattern EmptyTel =  Het I.EmptyTel
 pattern ExtendTel :: Het side a -> Het side (I.Abs (I.Tele a)) -> Het side (I.Tele a)
 pattern ExtendTel a b <- Het (I.ExtendTel (Het -> a) (Het   -> b))
   where ExtendTel a b =  Het (I.ExtendTel (unHet a)  (unHet b))
-#if __GLASGOW_HASKELL__ >= 802
+#if __GLASGOW_HASKELL__ >= 804
 {-# COMPLETE EmptyTel, ExtendTel #-}
 #endif
 

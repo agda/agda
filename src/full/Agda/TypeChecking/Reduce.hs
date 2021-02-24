@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Reduce where
 
@@ -7,7 +8,11 @@ import Control.Applicative ((<|>))
 
 import Data.Maybe
 import Data.Map (Map)
+#if __GLASGOW_HASKELL__ >= 804
 import Data.Semigroup (First(..))
+#else
+import Data.Monoid (First(..))
+#endif
 import Data.Foldable
 import Data.Traversable
 import Data.HashMap.Strict (HashMap)
@@ -312,7 +317,11 @@ instance IsMeta a => IsMeta (Het side a) where
   isMeta = isMeta . twinAt @side
 
 instance IsMeta a => IsMeta (TwinT' a) where
+#if __GLASGOW_HASKELL__ >= 804
   isMeta = fmap getFirst . mconcat . map (fmap First . isMeta) . toList
+#else
+  isMeta = getFirst . mconcat . map (First . isMeta) . toList
+#endif
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
