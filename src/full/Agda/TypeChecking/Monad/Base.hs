@@ -3030,18 +3030,10 @@ instance AsTwin Name where
   asTwin = id
 
 class TwinAt (s :: HetSide) a where
-  type TwinAtC s a :: Data.Kind.Constraint
   type TwinAt_ s a
-  twinAt :: HasCallStack => a -> TwinAt_ s a
-
-type family TwinAtC_ (s :: HetSide) :: Data.Kind.Constraint where
-  TwinAtC_ 'LHS    = ()
-  TwinAtC_ 'RHS    = ()
-  TwinAtC_ 'Compat = HasCallStack
-  TwinAtC_ 'Both   = HasCallStack
+  twinAt :: a -> TwinAt_ s a
 
 instance HetSideIsType s => TwinAt s (TwinT' a) where
-  type TwinAtC s (TwinT' a) = TwinAtC_ s
   type TwinAt_ s (TwinT' a) = a
   {-# INLINE twinAt #-}
   twinAt (SingleT a) = unHet @'Both a
@@ -3054,37 +3046,31 @@ instance HetSideIsType s => TwinAt s (TwinT' a) where
     SCompat -> __UNIMPLEMENTED__
 
 instance TwinAt s a => TwinAt s (Name, a) where
-  type TwinAtC s (Name, a) = TwinAtC s a
   type TwinAt_ s (Name, a) = (Name, TwinAt_ s a)
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (ArgName, a) where
-  type TwinAtC s (ArgName, a) = TwinAtC s a
   type TwinAt_ s (ArgName, a) = (ArgName, TwinAt_ s a)
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Dom a) where
-  type TwinAtC s (Dom a) = TwinAtC s a
   type TwinAt_ s (Dom a) = Dom (TwinAt_ s a)
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Abs a) where
-  type TwinAtC s (Abs a) = TwinAtC s a
   type TwinAt_ s (Abs a) = Abs (TwinAt_ s a)
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (ContextHet' a) where
-  type TwinAtC s (ContextHet' a) = TwinAtC s a
   type TwinAt_ s (ContextHet' a) = [TwinAt_ s a]
   {-# INLINE twinAt #-}
   twinAt = map (twinAt @s) . contextHetToList
 
 instance TwinAt s (Het s a) where
-  type TwinAtC s (Het s a) = ()
   type TwinAt_ s (Het s a) = a
   {-# INLINE twinAt #-}
   twinAt = coerce
@@ -3098,38 +3084,32 @@ instance TwinAt s (Het s a) where
 --   twinAt = coerce
 
 instance TwinAt s () where
-  type TwinAtC s () = ()
   type TwinAt_ s () = ()
   {-# INLINE twinAt #-}
   twinAt = id
 
 instance TwinAt s a => TwinAt s (CompareAs' a) where
-  type TwinAtC s (CompareAs' a) = TwinAtC s a
   type TwinAt_ s (CompareAs' a) = CompareAs' (TwinAt_ s a)
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Tele a) where
-  type TwinAtC s (Tele a) = TwinAtC s a
   type TwinAt_ s (Tele a) = Tele (TwinAt_ s a)
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Maybe a) where
-  type TwinAtC s (Maybe a) = TwinAtC s a
   type TwinAt_ s (Maybe a) = Maybe (TwinAt_ s a)
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s [a] where
-  type TwinAtC s [a] = TwinAtC s a
   type TwinAt_ s [a] = [TwinAt_ s a]
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Elim' a) where
   type TwinAt_ s (Elim' a) = Elim' (TwinAt_ s a)
-  type TwinAtC s (Elim' a) = TwinAtC s a
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
@@ -3139,7 +3119,6 @@ instance TwinAt s a => TwinAt s (Elim' a) where
 --   twinAt = fmap (twinAt @s)
 
 instance TwinAt s a => TwinAt s (Arg a) where
-  type TwinAtC s (Arg a) = TwinAtC s a
   type TwinAt_ s (Arg a) = Arg (TwinAt_ s a)
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)

@@ -209,9 +209,7 @@ reportSDoc k n d = verboseS k n $ do
 -- | Debug print the result of a computation.
 reportResult :: MonadDebug m => VerboseKey -> VerboseLevel -> (a -> TCM Doc) -> m a -> m a
 reportResult k n debug action = do
-  reportSDoc k n $ "Result will be reported"
-  x <- verboseBracket k n "reportResult" $ action
-  reportSDoc k n $ "Reporting result"
+  x <- action
   x <$ reportSDoc k n (debug x)
 
 unlessDebugPrinting :: MonadDebug m => m () -> m ()

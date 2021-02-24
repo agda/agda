@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Reduce where
 

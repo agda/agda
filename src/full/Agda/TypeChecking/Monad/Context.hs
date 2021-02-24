@@ -15,8 +15,6 @@ import Control.Monad.Fail (MonadFail)
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import GHC.Stack (HasCallStack)
-
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name (NameInScope(..), LensInScope(..), nameRoot, nameToRawName)
@@ -467,7 +465,7 @@ addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM [Dom (Name, Type)] #-}
-getContext :: (HasCallStack, MonadTCEnv m) => m [Dom (Name, Type)]
+getContext :: (MonadTCEnv m) => m [Dom (Name, Type)]
 getContext = asksTC (twinAt @'Both . envContext)
 
 -- | Get the current context.
@@ -498,7 +496,7 @@ getContextTerms = map var . downFrom <$> getContextSize
 
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
-getContextTelescope :: (HasCallStack, Applicative m, MonadTCEnv m) => m Telescope
+getContextTelescope :: (Applicative m, MonadTCEnv m) => m Telescope
 getContextTelescope = twinAt @'Both <$> getContextTelescope_
 
 -- | Get the current context as a 'Telescope'.
@@ -513,8 +511,8 @@ getContextNames = map (fst . unDom) <$> getContext
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
-{-# SPECIALIZE lookupBV' :: HasCallStack => Nat -> TCM (Maybe (Dom (Name, Type))) #-}
-lookupBV' :: (HasCallStack, MonadTCEnv m) => Nat -> m (Maybe (Dom (Name, Type)))
+{-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe (Dom (Name, Type))) #-}
+lookupBV' :: MonadTCEnv m => Nat -> m (Maybe (Dom (Name, Type)))
 lookupBV' = fmap (twinAt @'Both) . lookupBV'_
 
 {-# SPECIALIZE lookupBV'_ :: Nat -> TCM (Maybe (Dom (Name, TwinT))) #-}
@@ -523,8 +521,8 @@ lookupBV'_ n = do
   ctx <- getContext_
   return $ raise (n + 1) <$> ctx H.!!! n
 
-{-# SPECIALIZE lookupBV :: HasCallStack => Nat -> TCM (Dom (Name, Type)) #-}
-lookupBV :: (HasCallStack, MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
+{-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
+lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
 lookupBV = fmap (twinAt @'Both) . lookupBV_
 
 {-# SPECIALIZE lookupBV_ :: Nat -> TCM (Dom (Name, TwinT)) #-}
@@ -536,16 +534,16 @@ lookupBV_ n = do
                " in context " ++ prettyShow (fmap (fst . unDom) ctx)
   maybeM failure return $ lookupBV'_ n
 
-{-# SPECIALIZE domOfBV :: HasCallStack => Nat -> TCM (Dom Type) #-}
-domOfBV :: (HasCallStack, Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
+{-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
+domOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
 domOfBV = fmap (twinAt @'Both) . domOfBV_
 
 {-# SPECIALIZE domOfBV_ :: Nat -> TCM (Dom TwinT) #-}
 domOfBV_ :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom TwinT)
 domOfBV_ n = fmap snd <$> lookupBV_ n
 
-{-# SPECIALIZE typeOfBV :: HasCallStack => Nat -> TCM Type #-}
-typeOfBV :: (HasCallStack, Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
+{-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
+typeOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
 typeOfBV = fmap (twinAt @'Both) . typeOfBV_
 
 {-# SPECIALIZE typeOfBV_ :: Nat -> TCM TwinT #-}
@@ -563,8 +561,8 @@ nameOfBV n = fst . unDom <$> lookupBV_ n
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
-{-# SPECIALIZE getVarInfo :: HasCallStack => Name -> TCM (Term, Dom Type) #-}
-getVarInfo :: (HasCallStack, MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
+{-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
+getVarInfo :: (MonadFail m, MonadTCEnv m) => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
         def <- asksTC envLetBindings

@@ -335,7 +335,6 @@ instance AsTwin (ISet ProblemId) where
   asTwin () = ISet.empty
 
 instance TwinAt s a => TwinAt s (AttemptConversion a) where
-  type TwinAtC s (AttemptConversion a) = TwinAtC s a
   type TwinAt_ s (AttemptConversion a) = TwinAt_ s a
   twinAt = twinAt @s . attemptConversion
 

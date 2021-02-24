@@ -17,8 +17,6 @@ import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
 
-import GHC.Stack (HasCallStack)
-
 import Agda.Interaction.Options
 
 import Agda.Syntax.Abstract.Name as A
@@ -255,7 +253,7 @@ newNamedValueMeta' b s cmp t = do
   return (x, v)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
-newValueMeta :: HasCallStack => MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
+newValueMeta :: MonadMetaSolver m => RunMetaOccursCheck -> Comparison -> Type -> m (MetaId, Term)
 newValueMeta b cmp t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
@@ -295,7 +293,7 @@ newValueMetaCtx' frozen b cmp a tel perm vs = do
   boundedSizeMetaHook u tel a
   return (x, u)
 
-newTelMeta :: (HasCallStack, MonadMetaSolver m) => Telescope -> m Args
+newTelMeta :: MonadMetaSolver m => Telescope -> m Args
 newTelMeta tel = newArgsMeta (abstract tel $ __DUMMY_TYPE__)
 
 type Condition = Dom Type -> Abs Type -> Bool
@@ -303,10 +301,10 @@ type Condition = Dom Type -> Abs Type -> Bool
 trueCondition :: Condition
 trueCondition _ _ = True
 
-newArgsMeta :: (HasCallStack, MonadMetaSolver m) => Type -> m Args
+newArgsMeta :: MonadMetaSolver m => Type -> m Args
 newArgsMeta = newArgsMeta' trueCondition
 
-newArgsMeta' :: (HasCallStack, MonadMetaSolver m) => Condition -> Type -> m Args
+newArgsMeta' :: MonadMetaSolver m => Condition -> Type -> m Args
 newArgsMeta' condition t = do
   args <- getContextArgs
   tel  <- getContextTelescope
@@ -378,19 +376,19 @@ newQuestionMark' new ii cmp t = do
 
 -- | Construct a blocked constant if there are constraints.
 blockTerm
-  :: HasCallStack => (MonadMetaSolver m, MonadConstraint m, MonadFresh Nat m, MonadFresh ProblemId m)
+  :: (MonadMetaSolver m, MonadConstraint m, MonadFresh Nat m, MonadFresh ProblemId m)
   => Type -> m Term -> m Term
 blockTerm t blocker = do
   (pid, v) <- newProblem blocker
   blockTermOnProblem t v pid
 
 blockTermOnProblem
-  :: HasCallStack => (MonadMetaSolver m, MonadFresh Nat m)
+  :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ProblemId -> m Term
 blockTermOnProblem t v pid = blockTermOnProblems t v (ISet.singleton pid)
 
 blockTermOnProblems
-  :: HasCallStack => (MonadMetaSolver m, MonadFresh Nat m)
+  :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ISet ProblemId -> m Term
 blockTermOnProblems t v pids =
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
@@ -438,12 +436,12 @@ blockTermOnProblems t v pids =
         return v
 
 blockTypeOnProblem
-  :: HasCallStack => (MonadMetaSolver m, MonadFresh Nat m)
+  :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ProblemId -> m Type
 blockTypeOnProblem t pid = blockTypeOnProblems t (ISet.singleton pid)
 
 blockTypeOnProblems
-  :: HasCallStack => (MonadMetaSolver m, MonadFresh Nat m)
+  :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ISet ProblemId -> m Type
 blockTypeOnProblems (El s a) pids = El s <$> blockTermOnProblems (sort s) a pids
 

@@ -165,7 +165,7 @@ compareAs_ :: forall m. MonadConversion m => Comparison -> CompareAsHet
           -> Het 'LHS Term -> Het 'RHS Term -> m ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
-compareAs_ cmp a u v = verboseBracket "tc.conv.term" 20 "compareAs_" $ do
+compareAs_ cmp a u v = do
   reportSDoc "tc.conv.term" 20 $ sep $
     [ "compareTerm"
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v

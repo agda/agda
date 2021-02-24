@@ -55,8 +55,6 @@ import Data.Maybe
 import Data.Traversable hiding (for)
 import Data.Semigroup ((<>))
 
-import GHC.Stack (HasCallStack)
-
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -374,7 +372,7 @@ useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.
 invertFunction
-  :: forall s₁ s₂ m. (HasCallStack, HetSideIsType s₁, HetSideIsType s₂) => MonadConversion m
+  :: forall s₁ s₂ m. (HetSideIsType s₁, HetSideIsType s₂) => MonadConversion m
   => Comparison -> Het s₁ Term -> InvView -> Het s₂ TermHead -> m () -> m () -> (Het s₁ Term -> m ()) -> m ()
 invertFunction _ _ NoInv _ fallback _ _ = fallback
 invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
