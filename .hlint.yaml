@@ -48,6 +48,7 @@
 - ignore: {name: "Use fromRight"}
 - ignore: {name: "Use first"}
 - ignore: {name: "Use fmap"}
+- ignore: {name: "Use foldr", within: [Agda.TypeChecking.Monad.Base.contextHetFromList]}
 - ignore: {name: "Use id"}
 - ignore: {name: "Use if"}
 - ignore: {name: "Use infix"}
