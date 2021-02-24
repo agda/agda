@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE TypeOperators              #-}
 
 module Agda.TypeChecking.Monad.Constraints where
 

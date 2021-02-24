@@ -2861,8 +2861,7 @@ contextHetToList Empty = []
 contextHetToList (a :⊣ γΓ) = a:contextHetToList γΓ
 
 contextHetFromList :: HasPids a => [a] -> Context_' a
-contextHetFromList []     = Empty
-contextHetFromList (a:as) = a ⊣: contextHetFromList as
+contextHetFromList = foldr (⊣:) Empty
 
 -- * Switch heterogeneous context to a specific side
 switchSide :: forall s a m. (HetSideIsType s, MonadTCEnv m) => m a -> m a
