@@ -933,7 +933,7 @@ compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
       , "els01 =" <+> prettyTCM els01
       , "els02 =" <+> prettyTCM els02
       ]
-  case (fmap commute $ commute els01, fmap commute $ commute els02) of
+  case (fmap distributeF $ distributeF els01, fmap distributeF $ distributeF els02) of
     ([]         , []         ) -> return ()
     ([]         , Proj{}:_   ) -> failure -- not impossible, see issue 821
     (Proj{}  : _, []         ) -> failure -- could be x.p =?= x for projection p
@@ -980,8 +980,8 @@ compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
 
         OType t -> patternViolation (unblockOnAnyMetaIn t) -- Can we get here? We know a is not blocked.
 
-    (Apply arg1 : (commute . fmap commute -> els1),
-     Apply arg2 : (commute . fmap commute -> els2)) ->
+    (Apply arg1 : (pullHet . fmap pullHet -> els1),
+     Apply arg2 : (pullHet . fmap pullHet -> els2)) ->
       let a = a_; v = v_ in
       (verboseBracket "tc.conv.elim" 20 "compare Apply" :: m () -> m ()) $ do
       reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
@@ -1049,12 +1049,12 @@ compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
                      Just dir -> TwinT{necessary   = True
                                       ,direction   = dir
                                       ,twinPid     = ISet.singleton pid
-                                      ,twinLHS     = commute arg1
-                                      ,twinRHS     = commute arg2
+                                      ,twinLHS     = pullHet arg1
+                                      ,twinRHS     = pullHet arg2
                                       }
           simplifyHetFast ((b :∋ (arg,codom)) :∋ v) $ \((b :∋ (arg,codom)) :∋ v) -> do
-            let a_' = twinDirty $ lazyAbsApp <$> commute codom `apT` (unArg <$> arg)
-            let v_' = twinDirty $ apply      <$>         v_    `apT` ((:[]) <$> arg)
+            let a_' = twinDirty $ lazyAbsApp <$> distributeF codom `apT` (unArg <$> arg)
+            let v_' = twinDirty $ apply      <$>             v_    `apT` ((:[]) <$> arg)
           -- continue, possibly with blocked instantiation
             compareElims_ pols fors a_' v_' els1 els2
           -- any left over constraints of arg are associated to the comparison
@@ -1078,7 +1078,7 @@ compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
           -- __IMPOSSIBLE__
 
     -- case: f == f' are projections
-    (Proj o f : (commute . fmap commute -> els1), Proj _ f' : (commute . fmap commute -> els2))
+    (Proj o f : (pullHet . fmap pullHet -> els1), Proj _ f' : (pullHet . fmap pullHet -> els2))
       | f /= f'   -> typeError . GenericDocError =<< prettyTCM f <+> "/=" <+> prettyTCM f'
       | otherwise -> do
         let a = a_; v = v_
@@ -2315,8 +2315,8 @@ mkTwinDom tt@TwinT{direction,twinPid,twinLHS=doml,twinRHS=domr} = do
 
 mkTwinAbs :: MkTwinM m => TwinT'' Bool (Abs Type) -> m (Abs TwinT)
 mkTwinAbs (SingleT (H'Both a)) = return $ asTwin <$> a
-mkTwinAbs tt@TwinT{twinLHS=absl@(commute -> NoAbs _ tyl),
-                   twinRHS=absr@(commute -> NoAbs _ tyr)} =
+mkTwinAbs tt@TwinT{twinLHS=absl@(distributeF -> NoAbs _ tyl),
+                   twinRHS=absr@(distributeF -> NoAbs _ tyr)} =
   NoAbs (suggests [Suggestion absl, Suggestion absr]) <$> mkTwinT tt{twinLHS=tyl
                                                                     ,twinRHS=tyr
                                                                     }
@@ -2337,15 +2337,17 @@ mkTwinTele :: MkTwinM m => TwinT' Telescope -> m Telescope_
 mkTwinTele (SingleT (H'Both tel)) = return $ asTwin tel
 mkTwinTele a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
   let lhs :: [H'LHS (Dom (ArgName, Type))]
-      lhs = commute$ telToList <$> twinLHS
+      lhs = distributeF $ telToList <$> twinLHS
   let rhs :: [H'RHS (Dom (ArgName, Type))]
-      rhs = commute$ telToList <$> twinRHS
+      rhs = distributeF $ telToList <$> twinRHS
   let n  = length lhs
   let n' = length rhs
   case n  == n' of
     False -> __IMPOSSIBLE__
     True  ->
       -- TODO: Fix here so that the twinArg gets created in the right context
+      -- (not really necessary as the operation does not depend meaningfully on
+      --  the context)
       telFromList' id <$>
         (forM (zip lhs rhs) $ \(dom1, dom2) ->
            mkTwinArgNameDom a{necessary=(necessary && n == 1),
@@ -2381,8 +2383,8 @@ etaExpandRecordTwin :: forall m a. (MkTwinM m,
                                     ReadTCState m)
                 => QName -> TwinT'' a Args -> H'LHS Term -> H'RHS Term -> m (TwinT, H'LHS Args, H'RHS Args)
 etaExpandRecordTwin q (SingleT (H'Both as)) m n = do
-  (tel,m') <- commute <$> onSide @'LHS (etaExpandRecord q as) m
-  (_  ,n') <- commute <$> onSide @'RHS (etaExpandRecord q as) n
+  (tel,m') <- distributeF <$> onSide @'LHS (etaExpandRecord q as) m
+  (_  ,n') <- distributeF <$> onSide @'RHS (etaExpandRecord q as) n
   return (asTwin$ telePi_ tel __DUMMY_TYPE__, m', n')
 etaExpandRecordTwin q (TwinT{twinPid,direction,twinLHS,twinRHS}) m n = do
   m₀ <- onSide @'LHS (uncurry (etaExpandRecord q)) ((,) <$> twinLHS <*> m)

@@ -332,8 +332,8 @@ useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
           reportSDoc "tc.inj.use" 20 $ vcat
             [ fsep (pwords "comparing application of injective function" ++ [prettyTCM f] ++
                   pwords "at")
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM $ commute blkArgs
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM $ commute neuArgs
+            , nest 2 $ fsep $ punctuate comma $ map prettyTCM $ distributeF blkArgs
+            , nest 2 $ fsep $ punctuate comma $ map prettyTCM $ distributeF neuArgs
             , nest 2 $ "and type" <+> prettyTCM fTy
             ]
           dirToCmp_ (\cmp () args₁ args₂ -> do
@@ -346,7 +346,7 @@ useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
         --    Find the clause unique clause `f ps` with head `c` and unify
         --    us == ps  with fresh metas for the pattern variables of ps.
         --    If there's no such clause we can safely throw an error.
-        _ -> commute <$> (traverse headSymbol' neu) >>= \ case
+        _ -> distributeF <$> (traverse headSymbol' neu) >>= \ case
           Nothing -> do
             reportSDoc "tc.inj.use" 20 $ fsep $
               pwords "no head symbol found for" ++ [prettyTCM neu] ++ pwords ", so not inverting"

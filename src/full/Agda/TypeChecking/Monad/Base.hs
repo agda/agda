@@ -30,7 +30,7 @@ import Control.Monad.Trans.Maybe
 import Data.Array (Ix)
 import Data.Bifunctor
 import Data.Bifoldable
-import Data.Coerce (coerce)
+import Data.Coerce (Coercible, coerce)
 import Data.Function
 import Data.Foldable (toList)
 import Data.Int
@@ -2967,11 +2967,17 @@ newtype Het (side :: HetSide) t = Het { unHet :: t }
 deriving instance (Typeable side, Data t) => Data (Het side t)
 deriving instance Show t => Show (Het side t)
 deriving instance Functor (Het side)
-instance AllMetas a => AllMetas (Het side a) where allMetas f xs = foldMap (allMetas f) xs
+
+deriving instance AllMetas a => AllMetas (Het side a)
+deriving instance Sized a => Sized (Het side a)
 
 instance Decoration (Het s) where
   traverseF f = fmap coerce . f . coerce
   distributeF = traverseF id
+
+-- | Converse of `distributeF` for `Het`
+pullHet :: Coercible (f (Het side a)) (f a) => f (Het side a) -> Het side (f a)
+pullHet = coerce
 
 instance Applicative (Het s) where
   pure = Het
