@@ -690,7 +690,7 @@ prepareCommonAssets dir = do
         ""
   when (code /= ExitSuccess) $ do
     logLaTeX $ LogMessage FileSystem
-      (T.concat $ T.pack <$> [defaultStyFile, " was not found. Copying a default version of ", defaultStyFile, "into ", dir])
+      (T.pack $ unwords [defaultStyFile, "was not found. Copying a default version of", defaultStyFile, "into", dir])
       []
     liftIO $ do
       styFile <- getDataFileName defaultStyFile
