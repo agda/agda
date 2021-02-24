@@ -61,9 +61,8 @@ class Monad m => MonadTCEnv m where
     =>  (TCEnv -> TCEnv) -> m a -> m a
   localTC = liftThrough . localTC
 
-type role TwinT''' representational representational nominal
-data TwinT''' b (f :: Data.Kind.Type -> Data.Kind.Type) a
-type TwinT'' b = TwinT''' b (Const ())
+type role TwinT'' representational representational
+data TwinT'' b a
 type TwinT' = TwinT'' Bool
 type TwinT = TwinT' Type
 data ContextHet' a

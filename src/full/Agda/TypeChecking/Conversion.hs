@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -797,7 +798,6 @@ compareDom_ cmp0
                                     direction  = cmp,
                                     twinPid    = ISet.singleton pid,
                                     twinLHS    = Het @'LHS a1,
-                                    twinCompat = Const (), -- Het @'Compat a0',
                                     twinRHS    = Het @'RHS a2
                                    }}) cont
         False -> do
@@ -1050,7 +1050,6 @@ compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
                                       ,direction   = dir
                                       ,twinPid     = ISet.singleton pid
                                       ,twinLHS     = commute arg1
-                                      ,twinCompat  = Const () -- asTwin argCompat
                                       ,twinRHS     = commute arg2
                                       }
           simplifyHetFast ((b :∋ (arg,codom)) :∋ v) $ \((b :∋ (arg,codom)) :∋ v) -> do
@@ -1110,20 +1109,16 @@ projectTyped_
 projectTyped_ v a o f = do
   (sequence $ projectTyped <$> v `apT` a `apT` asTwin o `apT` asTwin f) >>= \case
     SingleT (H'Both a) -> return $ (\(_,t,ty) -> (asTwin t, asTwin ty)) <$> a
-    tt@TwinT{twinLHS,twinRHS,twinCompat} ->
+    tt@TwinT{twinLHS,twinRHS} ->
       case (twinLHS, twinRHS) of
         (H'LHS (Just (_,H'LHS -> tL,H'LHS -> tyL)),
          H'RHS (Just (_,H'RHS -> tR,H'RHS -> tyR))) -> do
           ty <- mkTwinT tt{twinLHS=tyL
                           ,twinRHS=tyR
-                          ,twinCompat=Const ()
-                          -- ,twinCompat=Compose $ commute $ fmap (fmap (\(_,_,ty) -> ty)) $ twinCompat
                           }
-          t <- mkTwinTerm ty tt{twinLHS=tL
-                               ,twinRHS=tR
-                               ,twinCompat=Const ()
-                               -- ,twinCompat=Compose $ commute $ fmap (fmap (\(_,t,_) -> t)) $ twinCompat
-                               }
+          t <- mkTwinTerm (ty :∋ tt{twinLHS=tL
+                                   ,twinRHS=tR
+                                   })
           return $ Just (t, ty)
         (H'LHS Nothing,_) -> return Nothing
         (_,H'RHS Nothing) -> return Nothing
@@ -2213,19 +2208,20 @@ bothAbsurd f f'
   | otherwise = return False
 
 ---------------------------------------------------------------------------
--- * Commuting heterogeneous
+-- * Commuting heterogeneous types
 ---------------------------------------------------------------------------
 
 data TypeView_ =
 --    TLevel
     TPi (Dom TwinT) (Abs TwinT)
-  | TDefRecordEta QName Defn (TwinT'_ Args)
+  | TDefRecordEta QName Defn (TwinT' Args)
   | TLam
 --  | TDef QName [Elim' (TwinT' Term)]
   | TLevel
   | TOther
 
-type TypeViewM m = (MonadMetaSolver m, MonadFresh Agda.Syntax.Common.Nat m)
+type MkTwinM m = (MonadMetaSolver m)
+type TypeViewM m = (MkTwinM m)
 
 typeView :: forall m. TypeViewM m => TwinT' Term -> m (TypeView_)
 typeView = go
@@ -2237,7 +2233,6 @@ typeView = go
                ,twinPid
                ,twinLHS    = H'LHS (Pi (H'LHS -> doml) (H'LHS -> codl))
                ,twinRHS    = H'RHS (Pi (H'RHS -> domr) (H'RHS -> codr))
-               -- ,twinCompat = tyc
                }) = do
 --       let (domc, codc) = case tyc of
 --             H'Compat (Pi (H'Compat -> domc) (H'Compat -> codc)) ->
@@ -2250,7 +2245,6 @@ typeView = go
                              ,twinPid
                              ,twinLHS=doml
                              ,twinRHS=domr
-                             ,twinCompat=Const ()
                              }
 
       cod_ <- mkTwinAbs TwinT{necessary=False
@@ -2258,7 +2252,6 @@ typeView = go
                              ,twinPid
                              ,twinLHS=codl
                              ,twinRHS=codr
-                             ,twinCompat=Const ()
                              }
 
       return $ TPi dom_ cod_
@@ -2283,8 +2276,7 @@ typeView = go
                                                              direction,
                                                              twinPid,
                                                              twinLHS=asL,
-                                                             twinRHS=asR,
-                                                             twinCompat=Const ()
+                                                             twinRHS=asR
                                                              }
         _ -> __IMPOSSIBLE__
     False -> fallback ty
@@ -2298,89 +2290,50 @@ typeView = go
     else
       return TOther
 
-mkTwinTerm :: TypeViewM m =>
-           a ->
-           TwinT''' Bool f Term ->
-           m (TwinT' Term)
-mkTwinTerm _ (SingleT a) = return$ SingleT a
-mkTwinTerm _ tt@TwinT{necessary,twinPid,direction,twinLHS=tl,twinRHS=tr} = do
+mkTwinT' :: MkTwinM m => TwinT'' Bool a -> m (TwinT' a)
+mkTwinT' (SingleT a) = return $ SingleT a
+mkTwinT' tt@TwinT{necessary,twinPid,direction,twinLHS=tl,twinRHS=tr} = do
   tp <- keepUnsolvedProblems twinPid
-  return TwinT{necessary,direction,twinPid=tp,twinLHS=tl,twinRHS=tr,twinCompat=Const ()}
---  twinPid <- keepUnsolvedProblems tp
+  return TwinT{necessary,direction,twinPid=tp,twinLHS=tl,twinRHS=tr}
 
--- mkTwinTerm _ tt@TwinT{twinCompat=(Compose (Just tc))} =
---   return tt{twinCompat=tc}
--- mkTwinTerm ty tt@TwinT{twinPid=tp,direction,twinLHS=tl,twinRHS=tr,twinCompat=(Compose Nothing)} = do
---
---class TwinAtCompat a where
---  twinAtCompat :: TypeViewM m => TwinT''' Bool f a -> m (TwinAtCompat m)
---
---instance TwinAtCompat Term where
---
---twinTermAtCompat :: TwinT' Term -> Term
---twinTermAtCompat (SingleT a) = twinAt @'Both a
---twinTermAtCompat TwinT{twinPid=tp,direction,twinLHS=tl,twinRHS=tr,twinCompat=(Compose Nothing)}
---  twinPid <- keepUnsolvedProblems tp
---  let t0 = selectSmaller direction (twinAt @'LHS tl) (twinAt @'RHS tr)
---  tc <- blockTermOnProblems (twinAt @'Compat ty) t0 twinPid
---  return tt{twinCompat=H'Compat tc}
+mkTwinTerm :: MkTwinM m =>
+           Type_ :∋ TwinT'' Bool Term ->
+           m (TwinT' Term)
+mkTwinTerm (t :∈ _) = mkTwinT' t
 
-mkTwinT :: TypeViewM m =>
-           TwinT''' Bool f Type ->
+mkTwinT :: MkTwinM m =>
+           TwinT'' Bool Type ->
            m TwinT
-mkTwinT (SingleT a) = return$ SingleT a
---mkTwinT tt@TwinT{twinCompat=(Compose (Just tyc))} =
---  return tt{twinCompat=tyc}
-mkTwinT tt@TwinT{direction,twinPid=tp,twinLHS=tyl,twinRHS=tyr} = do
-  twinPid <- keepUnsolvedProblems tp
-  --let ty0 = selectSmaller direction (twinAt @'LHS tyl) (twinAt @'RHS tyr)
-  --tyc <- blockTypeOnProblems ty0 twinPid
-  return tt{twinPid,twinCompat=Const ()}
+mkTwinT = mkTwinT'
 
-mkTwinDom :: (Functor f, TypeViewM m) => TwinT''' Bool f (Dom Type)
-             -> m (Dom TwinT)
+mkTwinDom :: MkTwinM m => TwinT'' Bool (Dom Type) -> m (Dom TwinT)
 mkTwinDom (SingleT (H'Both a)) = return$ asTwin <$> a
--- mkTwinDom tt@TwinT{twinCompat=Compose (Just domc)} = do
---   ty_ <- mkTwinT (unDom <$> tt)
---   return (twinAt @'Compat domc){unDom=ty_}
 mkTwinDom tt@TwinT{direction,twinPid,twinLHS=doml,twinRHS=domr} = do
   let dom0 = selectSmaller direction (twinAt @'LHS doml) (twinAt @'RHS domr)
   ty_ <- mkTwinT (unDom <$> tt)
   return dom0{unDom=ty_}
 
-mkTwinAbs :: TypeViewM m => TwinT''' Bool f (Abs Type) ->
-            m (Abs TwinT)
+mkTwinAbs :: MkTwinM m => TwinT'' Bool (Abs Type) -> m (Abs TwinT)
 mkTwinAbs (SingleT (H'Both a)) = return $ asTwin <$> a
 mkTwinAbs tt@TwinT{twinLHS=absl@(commute -> NoAbs _ tyl),
                    twinRHS=absr@(commute -> NoAbs _ tyr)} =
   NoAbs (suggests [Suggestion absl, Suggestion absr]) <$> mkTwinT tt{twinLHS=tyl
                                                                     ,twinRHS=tyr
-                                                                    ,twinCompat=Const ()
                                                                     }
 
--- mkTwinAbs tt@TwinT{twinLHS=absl@(commute -> NoAbs _ tyl)
---                   ,twinRHS=absr@(commute -> NoAbs _ tyr)
---                   ,twinCompat=Compose (Just absc@(commute -> NoAbs _ tyc))
---                   } =
---   NoAbs (suggests [Suggestion absc, Suggestion absl, Suggestion absr]) <$>
---     mkTwinT tt{twinLHS=tyl,twinRHS=tyr,twinCompat=Compose (Just tyc)}
---
 mkTwinAbs tt@TwinT{twinLHS=absl,twinRHS=absr} =
   Abs (suggests [Suggestion absl, Suggestion absr]) <$>
     mkTwinT tt{twinLHS=absBody <$> absl
               ,twinRHS=absBody <$> absr
-              ,twinCompat=Const ()
               }
 
-mkTwinArgNameDom :: TypeViewM m => TwinT'_ (Dom (ArgName, Type))
-                               -> m (Dom (ArgName, TwinT))
+mkTwinArgNameDom :: MkTwinM m => TwinT' (Dom (ArgName, Type)) -> m (Dom (ArgName, TwinT))
 mkTwinArgNameDom a = do
   let name :: ArgName
       name = fst $ unDom $ unHet$ twinLHS a
   fmap (name,) <$> mkTwinDom (fmap (fmap snd) a)
 
-mkTwinTele :: TypeViewM m => TwinT'_ Telescope
-                          -> m Telescope_
+mkTwinTele :: MkTwinM m => TwinT' Telescope -> m Telescope_
 mkTwinTele (SingleT (H'Both tel)) = return $ asTwin tel
 mkTwinTele a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
   let lhs :: [H'LHS (Dom (ArgName, Type))]
@@ -2397,45 +2350,36 @@ mkTwinTele a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
         (forM (zip lhs rhs) $ \(dom1, dom2) ->
            mkTwinArgNameDom a{necessary=(necessary && n == 1),
                               twinLHS=dom1,
-                              twinRHS=dom2,
-                              twinCompat=Const ()
+                              twinRHS=dom2
                               })
 
-mkTwinTelescope :: TypeViewM m => TwinT'_ Telescope
-                          -> m (TwinT' Telescope)
-mkTwinTelescope (SingleT (H'Both tel)) = return $ asTwin tel
-mkTwinTelescope a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
-  let lhs :: [H'LHS (Dom (ArgName, Type))]
-      lhs = commute$ telToList <$> twinLHS
-  let rhs :: [H'RHS (Dom (ArgName, Type))]
-      rhs = commute$ telToList <$> twinRHS
-  let n  = length lhs
-  let n' = length rhs
-  case n  == n' of
-    False -> __IMPOSSIBLE__
-    True  -> do
-      twinPid' <- keepUnsolvedProblems twinPid
---    telc <- telFromList' id <$>
---      (let go [] = return []
---           go ((dom1, dom2):tels) = do
---                  domc <- mkTwinArgNameDom a{necessary=(necessary && n == 1),
---                                             twinLHS=dom1,
---                                             twinRHS=dom2,
---                                             twinCompat=Const ()
---                                            }
---                  ((twinAt @'Compat <$> domc):) <$> addContext domc (go tels)
---       in go (zip lhs rhs))
-      return a{twinPid=twinPid',twinCompat=Const ()}
+mkTwinTelescope :: MkTwinM m => TwinT' Telescope -> m (TwinT' Telescope)
+mkTwinTelescope = mkTwinT'
 
+-- mkTwinTelescope :: TypeViewM m => TwinT' Telescope
+--                           -> m (TwinT' Telescope)
+-- mkTwinTelescope (SingleT (H'Both tel)) = return $ asTwin tel
+-- mkTwinTelescope a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
+--   let lhs :: [H'LHS (Dom (ArgName, Type))]
+--       lhs = commute$ telToList <$> twinLHS
+--   let rhs :: [H'RHS (Dom (ArgName, Type))]
+--       rhs = commute$ telToList <$> twinRHS
+--   let n  = length lhs
+--   let n' = length rhs
+--   case n  == n' of
+--     False -> __IMPOSSIBLE__
+--     True  -> do
+--       twinPid' <-
+--       return a{twinPid=twinPid'}
+--
 -- ( <$> tel_)
 -- TODO[het] Might not need to return a twin type with compatibility
-etaExpandRecordTwin :: forall m a f. (MonadFresh Agda.Syntax.Common.Nat m,
-                                      MonadAddContext m,
-                                      MonadMetaSolver m,
-                                      HasConstInfo m,
-                                      MonadDebug m,
-                                      ReadTCState m)
-                => QName -> TwinT''' a f Args -> H'LHS Term -> H'RHS Term -> m (TwinT, H'LHS Args, H'RHS Args)
+etaExpandRecordTwin :: forall m a. (MkTwinM m,
+                                    MonadAddContext m,
+                                    HasConstInfo m,
+                                    MonadDebug m,
+                                    ReadTCState m)
+                => QName -> TwinT'' a Args -> H'LHS Term -> H'RHS Term -> m (TwinT, H'LHS Args, H'RHS Args)
 etaExpandRecordTwin q (SingleT (H'Both as)) m n = do
   (tel,m') <- commute <$> onSide @'LHS (etaExpandRecord q as) m
   (_  ,n') <- commute <$> onSide @'RHS (etaExpandRecord q as) n
@@ -2445,16 +2389,16 @@ etaExpandRecordTwin q (TwinT{twinPid,direction,twinLHS,twinRHS}) m n = do
   n₀ <- onSide @'RHS (uncurry (etaExpandRecord q)) ((,) <$> twinRHS <*> n)
   let m'  = snd <$> m₀
   let n'  = snd <$> n₀
+  tp <-  keepUnsolvedProblems twinPid
   tel <- mkTwinTelescope TwinT{necessary=False
                               ,direction=flipCmp direction
-                              ,twinPid
+                              ,twinPid=tp
                               ,twinLHS=fst <$> m₀
                               ,twinRHS=fst <$> n₀
-                              ,twinCompat=Const ()
                               }
   return (twinDirty$ flip telePi_ __DUMMY_TYPE__ <$> tel, m', n')
 
-isSingletonRecordModuloRelevance_ :: (PureTCM m, MonadBlock m) => QName -> TwinT''' b f Args -> m Bool
+isSingletonRecordModuloRelevance_ :: (PureTCM m, MonadBlock m) => QName -> TwinT'' b Args -> m Bool
 isSingletonRecordModuloRelevance_ q (SingleT ps) = onSide_ (isSingletonRecordModuloRelevance q) ps
 isSingletonRecordModuloRelevance_ q (TwinT{direction=DirEq,twinLHS,twinRHS}) =
   or2M (onSide_ (isSingletonRecordModuloRelevance q) twinLHS)

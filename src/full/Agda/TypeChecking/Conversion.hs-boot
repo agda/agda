@@ -47,15 +47,16 @@ leqSort      :: MonadConversion m => Sort -> Sort -> m ()
 
 data TypeView_ =
     TPi (Dom TwinT) (Abs TwinT)
-  | TDefRecordEta QName Defn (TwinT'_ Args)
+  | TDefRecordEta QName Defn (TwinT' Args)
   | TLam
   | TLevel
   | TOther
 
-type TypeViewM m = (MonadMetaSolver m, MonadFresh Agda.Syntax.Common.Nat m)
+type MkTwinM m = (MonadMetaSolver m)
+type TypeViewM m = (MkTwinM m)
 
-typeView :: forall m. TypeViewM m => TwinT' Term -> m (TypeView_)
-mkTwinTele :: TypeViewM m => TwinT'_ Telescope -> m Telescope_
+typeView :: TypeViewM m => TwinT' Term -> m (TypeView_)
+mkTwinTele :: MkTwinM m => TwinT' Telescope -> m Telescope_
 
 valueCmpDir_ :: (MonadConversion m, AreSides s₁ s₂) =>
                   (Constraint -> m a) ->

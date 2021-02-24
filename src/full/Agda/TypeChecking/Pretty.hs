@@ -296,9 +296,6 @@ instance PrettyTCM Modality where
 instance (HetSideIsType side, PrettyTCM a) => PrettyTCM (Het side a) where
   prettyTCM a = onSide_ prettyTCM a
 
-instance PrettyTCM a => PrettyTCM (Const a b) where
-  prettyTCM = prettyTCM . getConst
-
 instance PrettyTCM () where
   prettyTCM () = "·"
 

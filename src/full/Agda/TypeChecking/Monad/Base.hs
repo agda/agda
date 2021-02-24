@@ -1220,20 +1220,17 @@ instance AllMetas a => AllMetas (CompareAs' a) where
   allMetas _ AsSizes       = mempty
   allMetas _ AsTypes       = mempty
 
-instance AllMetas a => AllMetas (Const a b) where
-  allMetas f (Const a) = allMetas f a
-
 instance AllMetas () where
   allMetas _ () = mempty
 
 instance AllMetas a => AllMetas (TwinT' a) where
   allMetas f (SingleT a) = allMetas f a
   -- TODO[het]: <victor> 2020-10-12 Remove twinCompat from here, see if it makes a difference
-  allMetas f TwinT{twinLHS,twinCompat,twinRHS} =
+  allMetas f TwinT{twinLHS,twinRHS} =
 #if __GLASGOW_HASKELL__ >= 804
-    allMetas f twinLHS <> allMetas f twinRHS <> allMetas f twinCompat
+    allMetas f twinLHS <> allMetas f twinRHS
 #else
-    allMetas f twinLHS `mappend` allMetas f twinRHS `mappend` allMetas f twinCompat
+    allMetas f twinLHS `mappend` allMetas f twinRHS
 #endif
 
 ---------------------------------------------------------------------------
@@ -2795,7 +2792,7 @@ instance (HasPids b) => HasPids (Name,b) where
   getPids (_,b) = getPids b
 instance HasPids Name where
   getPids _ = ISet.empty
-instance HasPids (TwinT''' a b c) where
+instance HasPids (TwinT'' a c) where
   getPids SingleT{} = ISet.empty
   getPids (TwinT{twinPid}) = twinPid
 instance HasPids a => HasPids (Dom a) where
@@ -2910,8 +2907,9 @@ pattern H'Both a = Het a
 {-# COMPLETE H'Both #-}
 #endif
 
-type OnLHS = Het 'LHS
-type OnRHS = Het 'RHS
+type OnSide = Het
+type OnLHS = OnSide 'LHS
+type OnRHS = OnSide 'RHS
 
 pattern OnLHS :: a -> OnLHS a
 pattern OnLHS a = Het a
@@ -3003,8 +3001,8 @@ class AsTwin b where
 instance AsTwin b => AsTwin (CompareAs' b) where
   type AsTwin_ (CompareAs' b) = CompareAs' (AsTwin_ b)
   asTwin = fmap asTwin
-instance AsTwin (TwinT''' b f a) where
-  type AsTwin_ (TwinT''' b f a) = a
+instance AsTwin (TwinT'' b a) where
+  type AsTwin_ (TwinT'' b a) = a
   asTwin = SingleT . Het @'Both
 instance AsTwin ContextHet where
   type AsTwin_ ContextHet = Context
@@ -3037,7 +3035,7 @@ instance HetSideIsType s => TwinAt s (TwinT' a) where
   type TwinAt_ s (TwinT' a) = a
   {-# INLINE twinAt #-}
   twinAt (SingleT a) = unHet @'Both a
-  twinAt TwinT{direction,twinPid,twinLHS,twinRHS,twinCompat} = case (sing :: SingT s) of
+  twinAt TwinT{direction,twinPid,twinLHS,twinRHS} = case (sing :: SingT s) of
     SLHS    -> unHet @s $ twinLHS
     SRHS    -> unHet @s $ twinRHS
     SBoth   | ISet.null twinPid ->
@@ -3130,12 +3128,9 @@ instance Sized ContextHet where
 type Type_ = TwinT
 type TwinT = TwinT' Type
 type TwinT' = TwinT'' Bool
-type TwinT'' b = TwinT''' b (Const ())
-type TwinT''_ b a  = TwinT''' b (Const ()) a
-type TwinT'_ a  = TwinT''' Bool (Const ()) a
-type role TwinT''' representational representational nominal
-data TwinT''' b (f :: Data.Kind.Type -> Data.Kind.Type) a =
-    SingleT { unSingleT :: Het 'Both a }
+type role TwinT'' representational representational
+data TwinT'' b a =
+    SingleT { unSingleT :: OnSide 'Both a }
   | TwinT { twinPid    :: ISet ProblemId   -- ^ Unification problems which are sufficient
                                            --   for LHS and RHS to be equal
           , necessary  :: b                -- ^ Whether solving twinPid is necessary,
@@ -3144,16 +3139,15 @@ data TwinT''' b (f :: Data.Kind.Type -> Data.Kind.Type) a =
                                            --   ≤, ≡ or ≥
                                            --   The twin simplifies to the smaller of the
                                            --   two sides when the associated constraints are solved.
-          , twinLHS    :: Het 'LHS a       -- ^ Left hand side of the twin
-          , twinRHS    :: Het 'RHS a       -- ^ Right hand side of the twin
-          , twinCompat :: f a    -- ^ A term which can be used instead of the
-                                 --   twin for backwards compatibility
-                                 --   purposes.
+          , twinLHS    :: OnLHS a       -- ^ Left hand side of the twin
+          , twinRHS    :: OnRHS a       -- ^ Right hand side of the twin
           }
 
-deriving instance (Functor f) => Functor (TwinT''' b f)
-deriving instance (Foldable f) => Foldable (TwinT''' b f)
-deriving instance (Traversable f) => Traversable (TwinT''' b f)
+-- Víctor (2021-02-24): Using these instances is risky, as they
+-- sidestep the safeguards of
+deriving instance Functor (TwinT'' b)
+deriving instance Foldable (TwinT'' b)
+deriving instance Traversable (TwinT'' b)
 
 deriving instance (Data a, Data b) => Data (TwinT'' a b)
 deriving instance (Show a, Show b) => Show (TwinT'' a b)
@@ -3164,19 +3158,12 @@ deriving instance (Show a, Show b) => Show (TwinT'' a b)
 --   (TwinT pid nec a b c) <*> SingleT (Het x) = TwinT pid nec (($x) <$> a) (($x) <$> b) (($x) <$> c)
 --   (SingleT (Het f)) <*> (TwinT pid nec a b c) = TwinT pid nec (f <$> a) (f <$> b) (f <$> c)
 
-instance Free a => Free (Const a b) where
-  freeVars' (Const a) = freeVars' a
-
 instance Free () where
   freeVars' () = mempty
 
 instance Free a => Free (TwinT' a) where
   freeVars' (SingleT a) = freeVars' a
-  freeVars' (TwinT{twinLHS,twinRHS,twinCompat}) = freeVars' twinLHS <> freeVars' twinRHS <> freeVars' twinCompat
-
-instance TermLike a => TermLike (Const a b) where
-  traverseTermM f (Const a) = Const <$> traverseTermM f a
-  foldTerm f (Const a) = foldTerm f a
+  freeVars' (TwinT{twinLHS,twinRHS}) = freeVars' twinLHS <> freeVars' twinRHS
 
 instance TermLike () where
   traverseTermM _ () = return ()
@@ -3185,9 +3172,9 @@ instance TermLike () where
 instance TermLike a => TermLike (TwinT' a) where
   traverseTermM f = \case
     SingleT a -> SingleT <$> traverseTermM f a
-    TwinT{twinPid,direction,necessary,twinLHS=a,twinRHS=b,twinCompat=c} ->
-      (\a' b' c' -> TwinT{twinPid,direction,necessary,twinLHS=a',twinRHS=b',twinCompat=c'}) <$>
-        traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
+    TwinT{twinPid,direction,necessary,twinLHS=a,twinRHS=b} ->
+      (\a' b' -> TwinT{twinPid,direction,necessary,twinLHS=a',twinRHS=b'}) <$>
+        traverseTermM f a <*> traverseTermM f b
 
 instance Pretty a => Pretty (TwinT' a) where
   pretty (SingleT a) = pretty a
@@ -3207,8 +3194,8 @@ instance GetSort a => GetSort (TwinT' a) where
       lhs = getSort twinLHS
       rhs = getSort twinRHS
 
--- | Mark necessary bit after the twin has gone under a none-injective computation
-twinDirty :: TwinT''' Bool f a -> TwinT''' Bool f a
+-- | Unmark necessary bit after the twin has gone under a none-injective computation
+twinDirty :: TwinT'' Bool a -> TwinT'' Bool a
 twinDirty a@SingleT{} = a
 twinDirty a@TwinT{}   = a{necessary = False}
 

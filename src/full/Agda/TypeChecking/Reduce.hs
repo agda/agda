@@ -3,7 +3,7 @@
 module Agda.TypeChecking.Reduce where
 
 import Control.Monad.Reader
-import Control.Applicative ((<|>), Const(..))
+import Control.Applicative ((<|>))
 
 import Data.Maybe
 import Data.Map (Map)
@@ -1607,22 +1607,16 @@ instance Reduce () where
   reduce' () = pure ()
   reduceB' () = pure (notBlocked ())
 
-instance Reduce a => Reduce (Const a b) where
-  reduce' (Const a) = Const <$> reduce a
-  reduceB' (Const a) = fmap Const <$> reduceB' a
-
--- | Note: reduceB does not block on the compatibility element
 instance Reduce a => Reduce (TwinT' a) where
   reduce' (SingleT a) = SingleT <$> reduce' a
-  reduce'  TwinT{necessary,direction,twinPid,twinLHS=a,twinCompat=b,twinRHS=c} =
-               reduce' (a,b,c) <&> \(a',b',c') ->
-                 TwinT{necessary,direction,twinPid,twinLHS=a',twinCompat=b',twinRHS=c'}
+  reduce'  TwinT{necessary,direction,twinPid,twinLHS=a,twinRHS=c} =
+               reduce' (a,c) <&> \(a',c') ->
+                 TwinT{necessary,direction,twinPid,twinLHS=a',twinRHS=c'}
 
   reduceB' (SingleT a) = fmap SingleT <$> reduceB' a
-  reduceB'  TwinT{necessary,direction,twinPid,twinLHS=a,twinCompat=b,twinRHS=c} = do
-               b' <- reduce b
+  reduceB'  TwinT{necessary,direction,twinPid,twinLHS=a,twinRHS=c} = do
                reduceB' (a,c) <&> fmap (\(a',c') ->
-                 TwinT{necessary,direction,twinPid,twinLHS=a',twinCompat=b',twinRHS=c'})
+                 TwinT{necessary,direction,twinPid,twinLHS=a',twinRHS=c'})
 
 
 instance Simplify a => Simplify (TwinT' a) where

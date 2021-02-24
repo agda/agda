@@ -79,11 +79,10 @@ instance FlipHet (Het 'Both a) where
 
 instance FlipHet TwinT where
   flipHet a@SingleT{} = a
-  flipHet TwinT{twinLHS,twinRHS,twinPid,direction,necessary,twinCompat} =
+  flipHet TwinT{twinLHS,twinRHS,twinPid,direction,necessary} =
     TwinT{twinLHS=flipHet twinRHS,
           twinRHS=flipHet twinLHS,
           direction=flipHet direction,
-          twinCompat,
           necessary,
           twinPid}
 
@@ -156,40 +155,35 @@ ctx !!! n = contextHetToList ctx Agda.Utils.List.!!! n
 flipContext :: (MonadAddContext m) => m a -> m a
 flipContext = updateContext IdS flipHet
 
-apT :: Applicative f => TwinT''' Bool f (a -> b) -> TwinT''' Bool f a -> TwinT''' Bool  f b
+apT :: TwinT'' Bool (a -> b) -> TwinT'' Bool a -> TwinT'' Bool b
 apT (SingleT f) (SingleT a) = SingleT (f <*> a)
-apT (SingleT (H'Both f))  TwinT{necessary,twinPid,twinLHS,twinCompat,twinRHS} =
+apT (SingleT (H'Both f))  TwinT{necessary,twinPid,twinLHS,twinRHS} =
                     TwinT{necessary
                          ,twinPid
                          ,direction=DirEq
                          ,twinLHS=f <$> twinLHS
-                         ,twinCompat=f <$> twinCompat
                          ,twinRHS=f <$> twinRHS
                          }
-apT TwinT{necessary,twinPid,twinLHS,twinCompat,twinRHS} (SingleT (H'Both b)) =
+apT TwinT{necessary,twinPid,twinLHS,twinRHS} (SingleT (H'Both b)) =
                     TwinT{necessary
                          ,twinPid
                          ,direction=DirEq
                          ,twinLHS=($ b) <$> twinLHS
-                         ,twinCompat=($ b) <$> twinCompat
                          ,twinRHS=($ b) <$> twinRHS
                          }
 
-apT TwinT{necessary=n₁,twinPid=p₁,twinLHS=l₁,twinCompat=c₁,twinRHS=r₁}
-      TwinT{necessary=n₂,twinPid=p₂,twinLHS=l₂,twinCompat=c₂,twinRHS=r₂} =
+apT TwinT{necessary=n₁,twinPid=p₁,twinLHS=l₁,twinRHS=r₁}
+      TwinT{necessary=n₂,twinPid=p₂,twinLHS=l₂,twinRHS=r₂} =
                     TwinT{necessary=n₁ && n₂
                          ,twinPid=p₁ `ISet.union` p₂
                          ,direction=DirEq
                          ,twinLHS=    l₁ <*> l₂
-                         ,twinCompat= c₁ <*> c₂
                          ,twinRHS=    r₁ <*> r₂
                          }
 infixl 4 `apT`
 
 
-pairT :: Applicative f => TwinT''' Bool f a ->
-                          TwinT''' Bool f b ->
-                          TwinT''' Bool f (a,b)
+pairT :: TwinT'' Bool a -> TwinT'' Bool b -> TwinT'' Bool (a,b)
 pairT a b = (,) <$> a `apT` b
 
 
@@ -530,7 +524,7 @@ instance Commute (Het s) ((,) a) where
 instance Commute (Het s) Arg where commute = Data.Coerce.coerce
 instance Commute Arg (Het s) where commute = Data.Coerce.coerce
 
-instance Functor f => Commute Abs (TwinT''' b f) where
+instance Commute Abs (TwinT'' b) where
   commute (Abs name x)   = Abs name <$> x
   commute (NoAbs name x) = NoAbs name <$> x
 

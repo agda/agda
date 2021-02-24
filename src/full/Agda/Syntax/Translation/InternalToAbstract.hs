@@ -1456,19 +1456,19 @@ instance (Reify i1, Reify i2, Reify i3, Reify i4) => Reify (i1,i2,i3,i4) where
 
 instance (HetSideIsType side, Reify a) => Reify (Het side a) where
     type ReifiesTo (Het side a) = Het side (ReifiesTo a)
-    reify (Het a) = fmap Het $ switchSide @side $ reify a
+    reify = onSide reify
 
 instance Reify () where
     type ReifiesTo () = ()
     reify () = pure ()
 
-instance (Reify a) => Reify (Const a b) where
-    type ReifiesTo (Const a b) = Const (ReifiesTo a) (ReifiesTo b)
-    reify (Const a) = Const <$> reify a
-
 instance Reify a => Reify (TwinT' a) where
     type ReifiesTo (TwinT' a) = TwinT' (ReifiesTo a)
+    -- Víctor (2020-02-24):
+    -- We do not use traverse here because we need to switch the context
+    -- to the appropriate side.
+    -- (See the Reify instance for "Het")
     reify (SingleT a) = SingleT <$> reify a
-    reify (TwinT{twinPid,necessary,direction,twinLHS=a,twinRHS=b,twinCompat=c}) = do
-      (a',b',c') <- reify (a,b,c)
-      return$ TwinT{twinPid,necessary,direction,twinLHS=a',twinRHS=b',twinCompat=c'}
+    reify (TwinT{twinPid,necessary,direction,twinLHS=a,twinRHS=b}) = do
+      (a',b') <- reify (a,b)
+      return$ TwinT{twinPid,necessary,direction,twinLHS=a',twinRHS=b'}
