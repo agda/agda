@@ -287,7 +287,7 @@ instance Null MutualBlock where
 -- | A part of the state which is not reverted when an error is thrown
 -- or the state is reset.
 data PersistentTCState = PersistentTCSt
-  { stDecodedModules    :: DecodedModules
+  { stDecodedModules    :: !DecodedModules
   , stPersistentOptions :: CommandLineOptions
   , stInteractionOutputCallback  :: InteractionOutputCallback
     -- ^ Callback function to call when there is a response
