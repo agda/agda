@@ -823,91 +823,6 @@ compareCohesion :: Comparison -> Cohesion -> Cohesion -> Bool
 compareCohesion CmpEq  = sameCohesion
 compareCohesion CmpLeq = moreCohesion
 
--- | When comparing argument spines (in compareElims) where the first arguments
---   don't match, we keep going, substituting the anti-unification of the two
---   terms in the telescope. More precisely:
---
---  @@
---    (u = v : A)[pid]   w = antiUnify pid A u v   us = vs : Δ[w/x]
---    -------------------------------------------------------------
---                    u us = v vs : (x : A) Δ
---  @@
---
---   The simplest case of anti-unification is to return a fresh metavariable
---   (created by blockTermOnProblem), but if there's shared structure between
---   the two terms we can expose that.
---
---   This is really a crutch that lets us get away with things that otherwise
---   would require heterogenous conversion checking. See for instance issue
---   #2384.
-antiUnify :: MonadConversion m => ProblemId -> Type -> Term -> Term -> m Term
-antiUnify pid a u v = do
-  ((u, v), eq) <- SynEq.checkSyntacticEquality u v
-  if eq then return u else do
-  (u, v) <- reduce (u, v)
-  reportSDoc "tc.conv.antiUnify" 30 $ vcat
-    [ "antiUnify"
-    , "a =" <+> prettyTCM a
-    , "u =" <+> prettyTCM u
-    , "v =" <+> prettyTCM v
-    ]
-  case (u, v) of
-    (Pi ua ub, Pi va vb) -> do
-      wa0 <- antiUnifyType pid (unDom ua) (unDom va)
-      let wa = wa0 <$ ua
-      wb <- addContext wa $ antiUnifyType pid (absBody ub) (absBody vb)
-      return $ Pi wa (mkAbs (absName ub) wb)
-    (Lam i u, Lam _ v) ->
-      reduce (unEl a) >>= \case
-        Pi a b -> Lam i . (mkAbs (absName u)) <$> addContext a (antiUnify pid (absBody b) (absBody u) (absBody v))
-        _      -> fallback
-    (Var i us, Var j vs) | i == j -> maybeGiveUp $ do
-      a <- typeOfBV i
-      antiUnifyElims pid a (var i) us vs
-    -- Andreas, 2017-07-27:
-    -- It seems that nothing guarantees here that the constructors are fully
-    -- applied!?  Thus, @a@ could be a function type and we need the robust
-    -- @getConType@ here.
-    -- (Note that @patternViolation@ swallows exceptions coming from @getConType@
-    -- thus, we would not see clearly if we used @getFullyAppliedConType@ instead.)
-    (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
-      a <- maybe abort (return . snd) =<< getConType x a
-      antiUnifyElims pid a (Con x ci []) us vs
-    (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
-      a <- computeElimHeadType f us vs
-      antiUnifyElims pid a (Def f []) us vs
-    _ -> fallback
-  where
-    maybeGiveUp = catchPatternErr $ \ _ -> fallback
-    abort = patternViolation neverUnblock -- caught by maybeGiveUp
-    fallback = blockTermOnProblem a u pid
-
-antiUnifyArgs :: MonadConversion m => ProblemId -> Dom Type -> Arg Term -> Arg Term -> m (Arg Term)
-antiUnifyArgs pid dom u v
-  | getModality u /= getModality v = patternViolation neverUnblock
-  | otherwise = applyModalityToContext u $
-    ifM (isIrrelevantOrPropM dom)
-    {-then-} (return u)
-    {-else-} ((<$ u) <$> antiUnify pid (unDom dom) (unArg u) (unArg v))
-
-antiUnifyType :: MonadConversion m => ProblemId -> Type -> Type -> m Type
-antiUnifyType pid (El s a) (El _ b) = workOnTypes $ El s <$> antiUnify pid (sort s) a b
-
-antiUnifyElims :: MonadConversion m => ProblemId -> Type -> Term -> Elims -> Elims -> m Term
-antiUnifyElims pid a self [] [] = return self
-antiUnifyElims pid a self (Proj o f : es1) (Proj _ g : es2) | f == g = do
-  res <- projectTyped self a o f
-  case res of
-    Just (_, self, a) -> antiUnifyElims pid a self es1 es2
-    Nothing -> patternViolation neverUnblock -- can fail for projection like
-antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
-  reduce (unEl a) >>= \case
-    Pi a b -> do
-      w <- antiUnifyArgs pid a u v
-      antiUnifyElims pid (b `lazyAbsApp` unArg w) (apply self [w]) es1 es2
-    _ -> patternViolation neverUnblock
-antiUnifyElims _ _ _ _ _ = patternViolation neverUnblock -- trigger maybeGiveUp in antiUnify
-
 compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
 compareElims_ :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> TwinT' Type -> TwinT' Term -> H'LHS [Elim] -> H'RHS [Elim] -> m ()
 -- compareElims pols0 fors0 a v els01 els02 = compareElims_ pols0 fors0 (asTwin a) (asTwin v) (H'LHS els01) (H'RHS els02)
@@ -1031,19 +946,6 @@ compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
           -- if comparison got stuck and function type is dependent, block arg
           solved <- isProblemSolved pid
           reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
---           argCompat <- if dependent && not solved
---                  then applyModalityToContext info $ do
---                   reportSDoc "tc.conv.elims" 50 $ vcat $
---                     [ "Trying antiUnify:"
---                     , nest 2 $ "b    =" <+> prettyTCM b
---                     , nest 2 $ "arg1 =" <+> prettyTCM arg1
---                     , nest 2 $ "arg2 =" <+> prettyTCM arg2
---                     ]
---                   arg <- (arg1 $>) <$> antiUnify pid (twinAt @'Compat b) (twinAt @'LHS $ unArg arg1) (twinAt @'RHS $ unArg arg2)
---                   reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
---                   reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
---                   return arg
---                  else return (twinAt @'LHS arg1)
           let arg = case dirFromPol pol of
                      Nothing  -> SingleT (H'Both $ twinAt @'LHS arg1)
                      Just dir -> TwinT{necessary   = True
