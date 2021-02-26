@@ -640,9 +640,9 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- t <- addForcingAnnotations t
 
   let defn = defaultDefn info x t $
-        case kind of
-          FunName   -> emptyFunction
-          MacroName -> set funMacro True emptyFunction
+        case kind of   -- #4833: set abstract already here so it can be inherited by with functions
+          FunName   -> emptyFunction{ funAbstr = Info.defAbstract i }
+          MacroName -> set funMacro True emptyFunction{ funAbstr = Info.defAbstract i }
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
           AxiomName -> Axiom     -- Old comment: NB: used also for data and record type sigs
