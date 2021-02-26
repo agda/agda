@@ -24,17 +24,21 @@ endif
 # testing the documentation.
 ifneq ($(GHC),)
 
-# major.minor.subminor, e.g. 8.10.2
-GHC_VER := $(shell $(GHC) --numeric-version | cut -d. -f1-3)
+  # major.minor.subminor, e.g. 8.10.2
+  ifdef HAS_STACK
+    GHC_VER := $(shell stack query | awk 'match ($$0, /actual: ghc-([0-9]+\.[0-9]+\.[0-9]+)/, ver) { print (ver[1]); }')
+  else
+    GHC_VER := $(shell $(GHC) --numeric-version | cut -d. -f1-3)
+  endif
 
-# major.minor, e.g. 8.10
-#GHC_VERSION := $(shell echo $(GHC_VER) | cut -d. -f1-2)
-# ALT: `cut` can be done within `make`:
-# substitute dot by space, select words 1-2, substitute space by dot
-# Howeve, for the last substitution step, we need a hack to define
-# $(space) as leading spaces are ignored in the first argument to subst.
-# See https://www.gnu.org/software/make/manual/make.html#Text-Functions
-empty :=
-space := $(empty) $(empty)
-GHC_VERSION := $(subst $(space),.,$(wordlist 1,2,$(subst .,$(space),$(GHC_VER))))
+  # major.minor, e.g. 8.10
+  #GHC_VERSION := $(shell echo $(GHC_VER) | cut -d. -f1-2)
+  # ALT: `cut` can be done within `make`:
+  # substitute dot by space, select words 1-2, substitute space by dot
+  # Howeve, for the last substitution step, we need a hack to define
+  # $(space) as leading spaces are ignored in the first argument to subst.
+  # See https://www.gnu.org/software/make/manual/make.html#Text-Functions
+  empty :=
+  space := $(empty) $(empty)
+  GHC_VERSION := $(subst $(space),.,$(wordlist 1,2,$(subst .,$(space),$(GHC_VER))))
 endif
