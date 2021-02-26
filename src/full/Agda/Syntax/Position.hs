@@ -136,10 +136,10 @@ type Position            = Position' SrcFile
 type PositionWithoutFile = Position' ()
 
 instance NFData Position where
-  rnf = rwhnf
+  rnf = (`seq` ())
 
 instance NFData PositionWithoutFile where
-  rnf = rwhnf
+  rnf = (`seq` ())
 
 -- | An interval. The @iEnd@ position is not included in the interval.
 --
@@ -151,10 +151,10 @@ type Interval            = Interval' SrcFile
 type IntervalWithoutFile = Interval' ()
 
 instance NFData Interval where
-  rnf = rwhnf
+  rnf = (`seq` ())
 
 instance NFData IntervalWithoutFile where
-  rnf = rwhnf
+  rnf = (`seq` ())
 
 intervalInvariant :: Ord a => Interval' a -> Bool
 intervalInvariant i =
