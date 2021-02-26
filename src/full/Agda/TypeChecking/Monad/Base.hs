@@ -1203,6 +1203,10 @@ data Open a = OpenThing { openThingCheckpoint :: CheckpointId, openThing :: a }
 instance Decoration Open where
   traverseF f (OpenThing cp x) = OpenThing cp <$> f x
 
+instance Pretty a => Pretty (Open a) where
+  prettyPrec p (OpenThing cp x) = mparens (p > 9) $
+    "OpenThing" <+> pretty cp <?> prettyPrec 10 x
+
 ---------------------------------------------------------------------------
 -- * Judgements
 --
@@ -1624,6 +1628,10 @@ instance Pretty DisplayTerm where
       pApp :: Pretty el => Doc -> [el] -> Doc
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
+
+instance Pretty DisplayForm where
+  prettyPrec p (Display fv lhs rhs) = mparens (p > 9) $
+    "Display" <?> fsep [ pshow fv, prettyPrec 10 lhs, prettyPrec 10 rhs ]
 
 -- | By default, we have no display form.
 defaultDisplayForm :: QName -> [LocalDisplayForm]
@@ -2098,7 +2106,7 @@ instance Pretty Definition where
       , "defPolarity       =" <?> pshow defPolarity
       , "defArgOccurrences =" <?> pshow defArgOccurrences
       , "defGeneralizedParams =" <?> pshow defGeneralizedParams
-      , "defDisplay        =" <?> pshow defDisplay -- TODO: pretty DisplayForm
+      , "defDisplay        =" <?> pretty defDisplay
       , "defMutual         =" <?> pshow defMutual
       , "defCompiledRep    =" <?> pshow defCompiledRep
       , "defInstance       =" <?> pshow defInstance
@@ -2119,7 +2127,7 @@ instance Pretty Defn where
       , "funCompiled     =" <?> pretty funCompiled
       , "funSplitTree    =" <?> pretty funSplitTree
       , "funTreeless     =" <?> pshow funTreeless
-      , "funInv          =" <?> pshow funInv
+      , "funInv          =" <?> pretty funInv
       , "funMutual       =" <?> pshow funMutual
       , "funAbstr        =" <?> pshow funAbstr
       , "funDelayed      =" <?> pshow funDelayed
@@ -2178,6 +2186,12 @@ instance Pretty Projection where
       , "projIndex    =" <?> pshow projIndex
       , "projLams     =" <?> pretty projLams
       ]
+
+instance Pretty c => Pretty (FunctionInverse' c) where
+  pretty NotInjective = "NotInjective"
+  pretty (Inverse inv) = "Inverse" <?>
+    vcat [ pretty h <+> "->" <?> pretty cs
+         | (h, cs) <- Map.toList inv ]
 
 instance Pretty ProjLams where
   pretty (ProjLams args) = pretty args
