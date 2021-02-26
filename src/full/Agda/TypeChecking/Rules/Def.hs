@@ -27,7 +27,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Internal.MetaVars (allMetasList)
 import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Info
+import Agda.Syntax.Info hiding (defAbstract)
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -1124,11 +1124,13 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) n cs
   cs <- return $ map (A.spineToLhs) cs
 
+  -- #4833: inherit abstract mode from parent
+  abstr <- defAbstract <$> ignoreAbstractMode (getConstInfo f)
+
   -- Check the with function
+  let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
   checkFunDefS withFunType defaultArgInfo NotDelayed Nothing (Just f) info aux (Just withSub) cs
   return $ Just $ call_in_parent
-  where
-    info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess ConcreteDef (getRange cs)
 
 -- | Type check a where clause.
 checkWhere
