@@ -13,6 +13,7 @@ abstract
 
   C : Set₁
   C = F where
+    F : Set₁
     F = Set -- where clauses declare an anonymous open public module
             -- but we should not see any error here
 

@@ -24,3 +24,10 @@ abstract
 
   unfold-A-private : A ≡ _
   unfold-A-private = refl
+
+-- Also for aliases
+
+  B = Set
+
+  C : _
+  C = Set
