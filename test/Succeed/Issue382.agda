@@ -10,7 +10,9 @@ abstract
 
   id : A → A
   id x = y
-    where y = x
+    where
+      y : A
+      y = x
 
   lemma : ∀ x → id x ≡ x
   lemma x = refl

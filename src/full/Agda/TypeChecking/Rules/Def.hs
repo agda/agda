@@ -87,8 +87,9 @@ checkFunDef delayed i name cs = do
         def <- instantiateDef =<< getConstInfo name
         let t    = defType def
         let info = getArgInfo def
-        case isAlias cs t of
-          Just (e, mc, x) ->
+        case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
+                              -- of an abstract function must not be informed by its definition.
+          Just (e, mc, x) | Info.defAbstract i /= AbstractDef ->
             traceCall (CheckFunDefCall (getRange i) name cs True) $ do
               -- Andreas, 2012-11-22: if the alias is in an abstract block
               -- it has been frozen.  We unfreeze it to enable type inference.

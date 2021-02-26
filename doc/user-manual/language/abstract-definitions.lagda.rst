@@ -62,6 +62,7 @@ natural numbers::
 
     abstract
 
+      ℤ : Set
       ℤ = Nat × Nat
 
       0ℤ : ℤ
@@ -124,6 +125,7 @@ the abstract definitions of the parent module are transparent::
 
   module M1 where
     abstract
+      x : Nat
       x = 0
 
     module M2 where
@@ -143,7 +145,9 @@ The reach of the ``abstract`` keyword does not extend into modules::
   module Parent where
     abstract
       module Child where
+        y : Nat
         y = 0
+      x : Nat
       x = 0  -- to avoid "useless abstract" error
 
     y-is-0 : Child.y ≡ 0

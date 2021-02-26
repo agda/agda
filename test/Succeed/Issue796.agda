@@ -23,5 +23,6 @@ abstract
 
   postulate x : A'
 
+  zzz : U
   zzz = f _ x
   -- succeeds since [_] is constructor headed
