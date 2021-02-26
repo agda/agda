@@ -637,6 +637,7 @@ debug : ## Print debug information.
 	@echo "CABAL_INSTALL_CMD     = $(CABAL_INSTALL_CMD)"
 	@echo "CABAL_INSTALL_OPTS    = $(CABAL_INSTALL_OPTS)"
 	@echo "CABAL_OPTS            = $(CABAL_OPTS)"
+	@echo "GHC_VER               = $(GHC_VER)"
 	@echo "GHC_VERSION           = $(GHC_VERSION)"
 	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
 	@echo "STACK                 = $(STACK)"
