@@ -406,6 +406,20 @@ Builtins
 
   All of these operations are implemented on the JavaScript backend.
 
+- `primNatToChar` maps surrogate code points to the replacement character
+  `'U+FFFD` and surrogate code points are disallowed in character literals
+
+  [Surrogate code points](https://www.unicode.org/glossary/#surrogate_code_point)
+  are characters in the range `U+D800` to `U+DFFF` and are reserved for use by
+  UTF-16.
+
+  The reason for this change is that strings are represented (at type-checking
+  time and in the GHC backend) by Data.Text byte strings, which cannot
+  represent surrogate code points and replaces them by `U+FFFD`. By doing the
+  same for characters we can have `primStringFromList` be injective (witnessed
+  by `Agda.Builtin.String.Properties.primStringFromListInjective`).
+
+
 Reflection
 ----------
 

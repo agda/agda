@@ -1,0 +1,7 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > before surrogates PASSED
+out > surrogate range   PASSED
+out > after surrogates  PASSED
+out >
