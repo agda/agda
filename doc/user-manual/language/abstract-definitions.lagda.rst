@@ -47,6 +47,11 @@ Synopsis
   details (e.g. expose reduction behavior by using propositional
   equality).
 
+  Consequently information from checking the body of a definition cannot leak
+  into its type signature, effectively disabling type inference for abstract
+  definitions. This means that all abstract definitions need a complete type
+  signature.
+
 * The reach of the ``abstract`` keyword block extends recursively to
   the ``where``-blocks of a function and the declarations inside of a
   ``record`` declaration, but not inside modules declared in an
