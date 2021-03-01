@@ -31,7 +31,7 @@ import Agda.Syntax.Info hiding (defAbstract)
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Warnings ( warning )
+import Agda.TypeChecking.Warnings ( warning, genericWarning )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
@@ -89,16 +89,20 @@ checkFunDef delayed i name cs = do
         let info = getArgInfo def
         case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
                               -- of an abstract function must not be informed by its definition.
-          Just (e, mc, x) | Info.defAbstract i /= AbstractDef ->
-            traceCall (CheckFunDefCall (getRange i) name cs True) $ do
-              -- Andreas, 2012-11-22: if the alias is in an abstract block
-              -- it has been frozen.  We unfreeze it to enable type inference.
-              -- See issue 729.
-              -- Ulf, 2021-02-09: also unfreeze metas in the sort of this type
-              whenM (isFrozen x) $ do
-                xs <- allMetasList . jMetaType . mvJudgement <$> lookupMeta x
-                mapM_ unfreezeMeta (x : xs)
-              checkAlias t info delayed i name e mc
+          Just (e, mc, x)
+            | Info.defAbstract i /= AbstractDef ->
+              traceCall (CheckFunDefCall (getRange i) name cs True) $ do
+                -- Andreas, 2012-11-22: if the alias is in an abstract block
+                -- it has been frozen.  We unfreeze it to enable type inference.
+                -- See issue 729.
+                -- Ulf, 2021-02-09: also unfreeze metas in the sort of this type
+                whenM (isFrozen x) $ do
+                  xs <- allMetasList . jMetaType . mvJudgement <$> lookupMeta x
+                  mapM_ unfreezeMeta (x : xs)
+                checkAlias t info delayed i name e mc
+            | otherwise -> do -- Warn about abstract alias (will never work!)
+              setCurrentRange i $ genericWarning =<< "Cannot infer the type of abstract definition" <+> prettyTCM name
+              checkFunDef' t info delayed Nothing Nothing i name cs
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
         -- If it's a macro check that it ends in Term → TC ⊤

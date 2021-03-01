@@ -1,3 +1,7 @@
+Issue418.agda:30,3-10
+Cannot infer the type of abstract definition B
+Issue418.agda:33,3-10
+Cannot infer the type of abstract definition C
 Failed to solve the following constraints:
   Set₂ = _14 (blocked on _14)
   Set₁ =< _15 (blocked on _15)
