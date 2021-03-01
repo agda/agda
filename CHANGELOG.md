@@ -317,7 +317,7 @@ Language
   nothing was changed.)
 
 * Private abstract type signatures can no longer see through abstract (see
-  [#418]).
+  [#418](https://github.com/agda/agda/issues/418)).
 
   This means that abstract definitions no longer evaluate in *any* type
   signatures in the same module. Previously they evaluated in type signatures
@@ -326,6 +326,12 @@ Language
   It also means that metavariables in type signatures have to be solved
   locally, and cannot make use of information in the definition body, and that
   constructors of abstract datatypes are not in scope in type signatures.
+
+* Type inference is disabled for abstract definitions (see
+  [#418](https://github.com/agda/agda/issues/418)).
+
+  This means that abstract definitions (inluding functions defined in `where`
+  blocks of abstract definitions) need complete type signatures.
 
 * One can now declare syntax with two name parts without any hole in
   between, and syntax without any holes.
