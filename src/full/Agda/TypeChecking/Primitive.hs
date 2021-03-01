@@ -38,6 +38,7 @@ import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Char
 import Agda.Utils.Float
 import Agda.Utils.List
 import Agda.Utils.Monad
@@ -913,7 +914,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primToLower"            |-> mkPrimFun1 toLower
   , "primCharToNat"          |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
   , "primCharToNatInjective" |-> primCharToNatInjective
-  , "primNatToChar"          |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
+  , "primNatToChar"          |-> mkPrimFun1 (integerToChar . unNat)
   , "primShowChar"           |-> mkPrimFun1 (T.pack . prettyShow . LitChar)
 
   -- String functions

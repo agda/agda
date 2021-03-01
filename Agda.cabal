@@ -563,6 +563,7 @@ library
                     Agda.Utils.Benchmark
                     Agda.Utils.BiMap
                     Agda.Utils.CallStack
+                    Agda.Utils.Char
                     Agda.Utils.Cluster
                     Agda.Utils.Empty
                     Agda.Utils.Environment

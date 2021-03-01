@@ -82,6 +82,7 @@ import Agda.Interaction.Options.Warnings
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
+import Agda.Utils.Char
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -429,6 +430,13 @@ checkOpen r mam x dir = do
     text ( "scope checked NiceOpen " ++ prettyShow x
          ) : map (nest 2 . prettyA) adecls
   return (minfo, m, adir)
+
+-- | Check a literal, issuing an error warning for bad literals.
+checkLiteral :: Literal -> ScopeM ()
+checkLiteral (LitChar c)
+  | isSurrogateCodePoint c = genericNonFatalError $ P.text $ "Invalid character literal " ++ show c ++
+                                                             " (surrogate code points are not supported)"
+checkLiteral _ = return ()
 
 {--------------------------------------------------------------------------
     Translation
@@ -861,6 +869,7 @@ instance ToAbstract C.Expr where
 
   -- Literals
       C.Lit r l -> do
+        checkLiteral l
         case l of
           LitNat n -> do
             let builtin | n < 0     = Just <$> primFromNeg    -- negative literals are only allowed if FROMNEG is defined
@@ -2895,7 +2904,7 @@ instance ToAbstract C.Pattern where
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p
-    toAbstract (C.LitP r l)     = return $ A.LitP (PatRange r) l
+    toAbstract (C.LitP r l)     = setCurrentRange r $ A.LitP (PatRange r) l <$ checkLiteral l
 
     toAbstract p0@(C.AsP r x p) = do
         -- Andreas, 2018-06-30, issue #3147: as-variables can be non-linear a priori!
