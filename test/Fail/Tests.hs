@@ -61,7 +61,7 @@ mkFailTest agdaFile =
   updGolden  = writeTextFile goldenFile
 
   doRun = do
-    let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , agdaFile
+    let agdaArgs = ["-v0", "-vwarning:1", "-i" ++ testDir, "-itest/" , agdaFile
                    , "--ignore-interfaces", "--no-libraries"]
                    ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
     runAgdaWithOptions testName agdaArgs (Just flagFile) Nothing
