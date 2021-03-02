@@ -270,8 +270,8 @@ addDisplayForms x = do
             Just (Def y es) -> do
               let df = Display m es $ DTerm $ Def top $ map Apply args
               reportSDoc "tc.display.section" 20 $ vcat
-                [ "adding display form " <+> pretty y <+> " --> " <+> pretty top
-                , text (show df)
+                [ "adding display form" <+> pretty y <+> "-->" <+> pretty top
+                , nest 2 $ pretty df
                 ]
               addDisplayForm y df
               add args top y es
@@ -282,7 +282,7 @@ addDisplayForms x = do
                   df = Display 0 [] $ DTerm $ Con (h {conName = top }) ConOSystem []
               reportSDoc "tc.display.section" 20 $ vcat
                 [ "adding display form" <+> pretty y <+> "-->" <+> pretty top
-                , text (show df)
+                , nest 2 $ pretty df
                 ]
               addDisplayForm y df
         [] -> noDispForm x "no clauses"
