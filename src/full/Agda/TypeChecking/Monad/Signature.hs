@@ -321,7 +321,7 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
         rename x
           | x `Map.member` rd = pure mempty
           | otherwise =
-              Map.singleton x . pure . qnameFromList . singleton <$> freshName_ (show $ qnameName x)
+              Map.singleton x . pure . qnameFromList . singleton <$> freshName_ (prettyShow $ qnameName x)
 
         constructorData :: QName -> TCM (Maybe QName)
         constructorData x = do
