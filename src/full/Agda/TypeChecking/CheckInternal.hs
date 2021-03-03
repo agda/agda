@@ -312,9 +312,9 @@ checkModality :: (MonadCheckInternal m) => Action m -> Modality -> Modality -> m
 checkModality action mod mod' = do
   let (r,r') = (getRelevance mod, getRelevance mod')
       (q,q') = (getQuantity  mod, getQuantity  mod')
-  unless (mod == mod') $ typeError $ if
-    | r /= r'   -> RelevanceMismatch r r'
-    | q /= q'   -> QuantityMismatch  q q'
+  unless (sameModality mod mod') $ typeError $ if
+    | not (sameRelevance r r') -> RelevanceMismatch r r'
+    | not (sameQuantity q q')  -> QuantityMismatch  q q'
     | otherwise -> __IMPOSSIBLE__ -- add more cases when adding new modalities
   return $ modalityAction action mod' mod  -- Argument order for actions: @type@ @term@
 
