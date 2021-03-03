@@ -43,3 +43,5 @@ instance Pretty Go.LocalId where
 
 instance Pretty Go.TypeId where
   pretty (Go.TypeId m) = text m
+  pretty (Go.ConstructorType m n) = text m <+> text n <+> ";"
+  pretty (Go.EmptyType) = text ""

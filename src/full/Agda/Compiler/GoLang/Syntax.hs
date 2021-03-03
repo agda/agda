@@ -28,7 +28,7 @@ data Exp =
   Undefined |
   Null |
   GoInterface MemberId | -- interface globalus name
-  GoStruct MemberId [Exp] | -- struktūros name ir [Exp] yra struktūros elementai
+  GoStruct MemberId [TypeId] | -- struktūros name ir [Exp] yra struktūros elementai
   GoStructElement LocalId TypeId | -- struktūros elementas. name tiesiog integer + tipas
   GoFunctionParameter LocalId TypeId | -- name ir to elemento tipas (galimai tinka tiesiog interface{}).
   -- todo ar local id ir kažkokį custom/global
@@ -52,7 +52,10 @@ data Exp =
 newtype LocalId = LocalId Nat
   deriving (Eq, Ord, Show)
 
-newtype TypeId = TypeId String
+data TypeId = 
+  TypeId String
+  | ConstructorType String String
+  | EmptyType
   deriving (Eq, Ord, Show)  
 
 newtype GlobalId = GlobalId [String]

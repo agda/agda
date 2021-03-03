@@ -10,6 +10,7 @@ import Data.Char     ( isSpace )
 import Data.Foldable ( forM_ )
 import Data.List     ( intercalate, partition )
 import Data.Set      ( Set )
+import Data.Maybe (fromMaybe)
 
 import qualified Data.Set as Set
 import qualified Data.Map as Map
@@ -47,7 +48,7 @@ import Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( headWithDefault )
-import Agda.Utils.List1 ( List1, pattern (:|), zipWithM )
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, whenNothing )
 import Agda.Utils.Monad ( ifM, when )
@@ -69,7 +70,7 @@ import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.GoLang.Syntax
   ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface,GoStruct,GoStructElement),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment), TypeId(TypeId),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment), TypeId(TypeId, ConstructorType, EmptyType),
     modName
   , GoQName
   )
@@ -377,8 +378,6 @@ definition' kit q d t ls = do
       reportSDoc "compile.go" 40 $ " con2:" <+> (text . show) q
       let np = arity t - nc
       typear <- liftTCM $ typeArity t
-      goTypes <- goTelApproximation t
-      reportSDoc "compile.go" 30 $ " goTypes:" <+> (text . show) goTypes
       reportSDoc "compile.go" 30 $ " np:" <+> (text . show) np
       reportSDoc "compile.go" 30 $ " nc:" <+> (text . show) nc
       reportSDoc "compile.go" 30 $ " typear:" <+> (text . show) typear
@@ -421,10 +420,12 @@ definition' kit q d t ls = do
       reportSDoc "compile.go" 30 $ " l:" <+> (text . show) l
       reportSDoc "compile.go" 30 $ " ls:" <+> (text . show) ls
       reportSDoc "compile.go" 30 $ " l1:" <+> (text . show) l1
+      (goArg, goRes) <- goTelApproximation t
+      reportSDoc "compile.go" 20 $ " goTypes:" <+> (text . show) goArg
       case theDef d of
         dt -> do
           reportSDoc "compile.go" 30 $ "index:" <+> (text . show) index
-          return (Just $ GoStruct l index)
+          return (Just $ GoStruct l goArg)
           where
             index | Datatype{} <- dt
                   , cs <- defConstructors dt
@@ -455,21 +456,20 @@ outFile m = do
   liftIO $ createDirectoryIfMissing True dir
   return fp
 
-goTypeApproximation :: Int -> Type -> TCM String
+goTypeApproximation :: Int -> Type -> TCM TypeId
 goTypeApproximation fv t = do
-  reportSDoc "compile.go" 30 $ "\n tt2:" <+> (text . show) fv
-  reportSDoc "compile.go" 30 $ "\n ttttt:" <+> (text . show) t
-  reportSDoc "compile.go" 30 $ "\n tttt3:" <+> (text . show) (unEl t)
   let go n t = do
-        let t = unSpine t
-        case t of
-          Pi a b -> return "pi"
-          Def q els -> return "type"
-          Sort{} -> return ""
-          _ -> return "interface"
+        let tu = unSpine t
+        case tu of
+          Pi a b -> return $ TypeId "pi"
+          Def q els -> do
+            (MemberId name) <- liftTCM $ visitorName q
+            return $ ConstructorType ("_" ++ (show n)) name
+          Sort{} -> return EmptyType
+          _ -> return $ ConstructorType ("_" ++ (show n)) "interface{}"
   go fv (unEl t)
 
-goTelApproximation :: Type -> TCM ([String], String)
+goTelApproximation :: Type -> TCM ([TypeId], TypeId)
 goTelApproximation t = do
   TelV tel res <- telView t
   let args = map (snd . unDom) (telToList tel)
