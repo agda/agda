@@ -44,6 +44,9 @@
 # https://github.com/agda/agda/pull/5214/checks?check_run_id=1909201141
 - ignore: {name: "Use curry", within: Agda.TypeChecking.Reduce.reduceWithBlocker }
 - ignore: {name: "Use empty"}
+# Andreas, 2021-03-03
+# "Use fewer imports" is quite silly if one has imports under #if.
+- ignore: {name: "Use fewer imports"}
 - ignore:
     name: "Use fmap"
     within:

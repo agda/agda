@@ -3,19 +3,25 @@ name: Build (stack)
 on:
   push:
     paths:
-    - 'src/**'
-    - 'stack*.yaml'
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
+    - 'stack*.yaml'
+    - 'src/agda-mode/**'
+    - 'src/full/**'
+    - 'src/main/**'
+    - 'src/size-solver/**'
     - 'test/**.hs'
   pull_request:
     paths:
-    - 'src/**'
-    - 'stack*.yaml'
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
+    - 'stack*.yaml'
+    - 'src/agda-mode/**'
+    - 'src/full/**'
+    - 'src/main/**'
+    - 'src/size-solver/**'
     - 'test/**.hs'
 
 jobs:

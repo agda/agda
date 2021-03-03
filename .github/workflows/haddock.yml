@@ -5,12 +5,12 @@ name: Haddock
 on:
   push:
     paths:
-    - 'src/**.hs'
+    - 'src/full/**.hs'
     - 'Agda.cabal'
     - '.github/workflows/haddock.yml'
   pull_request:
     paths:
-    - 'src/**.hs'
+    - 'src/full/**.hs'
     - 'Agda.cabal'
     - '.github/workflows/haddock.yml'
 
@@ -75,4 +75,3 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: html
         destination_dir: docs
-
