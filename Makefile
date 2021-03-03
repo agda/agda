@@ -444,7 +444,11 @@ std-lib-test :
 														 +RTS -s))
 
 .PHONY : cubical-test ##
-cubical-test :
+cubical-test:
+	@$(call decorate, "Cubical library test", \
+		echo "IGNORED")
+
+cubical-test-ignored :
 	-rm -r cubical/_build
 	@$(call decorate, "Cubical library test", \
 		time $(MAKE) -C cubical \
