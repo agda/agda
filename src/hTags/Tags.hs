@@ -18,6 +18,15 @@ import GHC.Hs
 import HsSyn
 #endif
 
+#if MIN_VERSION_ghc(9,0,0)
+import GHC.Types.SrcLoc
+import GHC.Types.Name.Reader
+import GHC.Types.Name.Occurrence
+import qualified GHC.Types.Name as Name
+import GHC.Data.FastString
+import GHC.Data.Bag
+import qualified GHC.Types.Basic as BasicTypes
+#else
 import SrcLoc
 import RdrName
 import OccName
@@ -25,6 +34,8 @@ import qualified Name
 import FastString
 import Bag
 import qualified BasicTypes
+#endif
+
 
 data Pos = Pos { line, column :: Int }
            deriving (Eq, Ord)
@@ -105,7 +116,11 @@ instance Show Tag where
 
 srcLocTag :: SrcLoc -> Tag -> Tag
 srcLocTag UnhelpfulLoc{} t         = t
+#if MIN_VERSION_ghc(9,0,0)
+srcLocTag (RealSrcLoc l _) (NoLoc t) =
+#else
 srcLocTag (RealSrcLoc l) (NoLoc t) =
+#endif
   Tag t
       (unpackFS $ srcLocFile l)
       Pos { line   = srcLocLine l
@@ -174,6 +189,9 @@ tagsLN = tags . fmap Name
 tagsN :: TagName name => name -> [Tag]
 tagsN = tags . Name
 
+#if MIN_VERSION_ghc(9,0,0)
+instance HasTags HsModule where
+#else
 #if MIN_VERSION_ghc(8,4,0)
 instance ( IdP pass ~ name
          , TagName name
@@ -183,6 +201,7 @@ instance ( IdP pass ~ name
          ) => HasTags (HsModule pass) where
 #else
 instance TagName name => HasTags (HsModule name) where
+#endif
 #endif
   tags HsModule{ hsmodExports = export
                , hsmodDecls   = decls
@@ -353,14 +372,18 @@ instance TagName name => HasTags (Pat name) where
     SigPatOut p _              -> tags p
     PArrPat ps _               -> tags ps
 #endif
+#if MIN_VERSION_ghc(9,0,0)
+    ConPat   { pat_args = ps } -> tags ps
+#else
     ConPatIn _ ps              -> tags ps
     ConPatOut{ pat_args = ps } -> tags ps
+    CoPat{}                    -> []
+#endif
 #if MIN_VERSION_ghc(8,6,1)
     NPlusKPat _ x _ _ _ _      -> tagsLN x
 #else
     NPlusKPat x _ _ _ _ _      -> tagsLN x
 #endif
-    CoPat{}                    -> []
     NPat{}                     -> []
     LitPat{}                   -> []
     WildPat{}                  -> []
@@ -368,6 +391,11 @@ instance TagName name => HasTags (Pat name) where
     SplicePat{}                -> []
 #if MIN_VERSION_ghc(8,2,0)
     SumPat{}                   -> missingImp "SumPat"
+#endif
+
+#if MIN_VERSION_ghc(9,0,0)
+instance HasTags arg => HasTags (HsScaled pass arg) where
+  tags = tags . hsScaledThing
 #endif
 
 instance (HasTags arg, HasTags recc) => HasTags (HsConDetails arg recc) where
