@@ -169,10 +169,15 @@ nonConstraining = dontAssignMetas . noConstraints
 newProblem
   :: (MonadFresh ProblemId m, MonadConstraint m)
   => m a -> m (ProblemId, a)
-newProblem action = do
+newProblem = newProblemWithId . const
+
+newProblemWithId
+  :: (MonadFresh ProblemId m, MonadConstraint m)
+  => (ProblemId -> m a) -> m (ProblemId, a)
+newProblemWithId action = do
   pid <- fresh
   -- Don't get distracted by other constraints while working on the problem
-  x <- nowSolvingConstraints $ solvingProblem pid action
+  x <- nowSolvingConstraints $ solvingProblem pid (action pid)
   -- Now we can check any woken constraints
   solveAwakeConstraints
   return (pid, x)
