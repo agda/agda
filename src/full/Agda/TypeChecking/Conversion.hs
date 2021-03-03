@@ -467,6 +467,96 @@ compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 compareAtomDir_ :: MonadConversion m => CompareDirection -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
 compareAtomDir_ = dirToCmp_ compareAtom_
 
+compareDefElims_ :: MonadConversion m => [Polarity] -> QName -> H'LHS Elims -> H'RHS Elims -> m ()
+compareDefElims_ pol f es es' = do
+  def <- getConstInfo f
+  if projectionArgs (theDef def) <= 0 then do
+    let a = defType def
+    compareElims_ pol [] (asTwin a) (asTwin $ Def f []) es es'
+  else do
+    case (pol, distributeF es, distributeF es') of
+      (p:pol₀, (distributeF -> Apply (pullHet -> arg₁)) : (pullHet -> es₀),
+               (distributeF -> Apply (pullHet -> arg₂)) : (pullHet -> es'₀)) -> do
+        (f_arg :∈ a₀) <- compareAndInfer_ f p arg₁ arg₂
+        compareElims_ pol [] a₀ f_arg es₀ es'₀
+        -- a <- computeElimHeadType f (twinAt @'LHS es) (twinAt @'RHS es')
+        -- compareElims_ pol [] (asTwin a) (asTwin $ Def f []) es es'
+      _ -> __IMPOSSIBLE__
+
+    -- a <- __UNIMPLEMENTED__ -- computeElimHeadType f (twinAt @'LHS es) (twinAt @'RHS es')
+
+compareAndInfer_ :: forall m. MonadConversion m =>
+                    QName -> Polarity -> H'LHS (Arg Term) -> H'RHS (Arg Term) -> m (TwinT :∋ TwinT' Term)
+compareAndInfer_ f pol arg₁ arg₂ = do
+  (tyL, faTyL) <- inferUnblocked f arg₁
+  (tyR, faTyR) <- inferUnblocked f arg₂
+  (headPid :: ISet ProblemId) <- (<>) <$> headTypePids (unArg $ twinAt @'LHS arg₁)
+                  <*> headTypePids (unArg $ twinAt @'RHS arg₂)
+  case dirFromPol pol of
+    Nothing  -> do
+      -- TODO: Víctor 2021-03-02: Not really sure what to do here,
+      -- but we should not compare the terms, that's clear.
+      -- Does it even make sense that a projection-like function has an irrelevant first argument?
+      let faty = TwinT{necessary=False
+                     ,direction=DirEq
+                     ,twinPid=headPid
+                     ,twinLHS=faTyL
+                     ,twinRHS=faTyR
+                     }
+      return $ TwinT{necessary=True
+                    ,direction=DirEq
+                    ,twinPid=ISet.empty
+                    ,twinLHS=Def f . (:[]) . Apply <$> arg₁
+                    ,twinRHS=Def f . (:[]) . Apply <$> arg₂
+                    }  :∈  faty
+    Just dir -> do
+      (argsPid,()) <- newProblemWithId $ \argsPid ->
+        compareAsDir_ dir
+          (AsTermsOf $ TwinT{necessary=False
+                            ,direction=dir
+                            ,twinPid=headPid <> ISet.singleton argsPid
+                            ,twinLHS=tyL
+                            ,twinRHS=tyR
+                            }) (unArg <$> arg₁) (unArg <$> arg₂)
+
+      let faty =  TwinT{necessary=False
+                       ,direction=dir
+                       ,twinPid=headPid <> ISet.singleton argsPid
+                       ,twinLHS=faTyL
+                       ,twinRHS=faTyR
+                       }
+
+      return $ TwinT{necessary=True
+                    ,direction=dir
+                    ,twinPid=ISet.singleton argsPid
+                    ,twinLHS=Def f . (:[]) . Apply <$> arg₁
+                    ,twinRHS=Def f . (:[]) . Apply <$> arg₂
+                    }  :∈  faty
+  where
+    inferUnblocked :: HetSideIsType s => QName -> Het s (Arg Term) -> m (Het s Type, Het s Type)
+    inferUnblocked f arg = do
+       reportSDoc "tc.conv.infer" 30 $
+         "inferring type of internal arg: " <+> prettyTCM arg
+       targ <- onSide (infer . unArg) arg
+       targ <- abortIfBlocked targ
+       reportSDoc "tc.conv.infer" 30 $
+         "inferred type: " <+> prettyTCM targ
+       tf <- reduce =<< onSide (fmap (fromMaybe __IMPOSSIBLE__) . getDefType f) targ
+       tfa <- onSide (\case
+                  (unEl -> Pi _ b, arg) -> pure$ lazyAbsApp b (unArg arg)
+                  _                     -> __IMPOSSIBLE__) ((,) <$> tf <*> arg)
+       return (targ, tfa)
+
+    -- In the case of a variable, whether the type is equal
+    -- on both sides depends also
+    -- on the type of that variable in the context
+    headTypePids :: Term -> m (ISet ProblemId)
+    headTypePids (Var i _)  = getPids <$> typeOfBV_ i
+    headTypePids (Def f _)  = pure mempty
+    headTypePids (MetaV _ _) = pure mempty
+    headTypePids _ = __IMPOSSIBLE__
+
+
 -- | Compute the head type of an elimination. For projection-like functions
 --   this requires inferring the type of the principal argument.
 computeElimHeadType :: MonadConversion m => QName -> Elims -> Elims -> m Type
@@ -640,13 +730,11 @@ compareAtom_ cmp t m n =
 
               -- 3b. If some cubical magic kicks in, we are done.
               unlessM (compareEtaPrims f es es') $ do
-
               -- 3c. Oh no, we actually have to work and compare the eliminations!
-               a <- computeElimHeadType f es es'
                -- The polarity vector of projection-like functions
                -- does not include the parameters.
                pol <- getPolarity' cmp f
-               compareElims_ pol [] (asTwin$ a) (asTwin$ Def f []) (H'LHS es) (H'RHS es')
+               compareDefElims_ pol f (H'LHS es) (H'RHS es')
 
           -- Due to eta-expansion, these constructors are fully applied.
           (Con x ci xArgs, Con y _ yArgs)
