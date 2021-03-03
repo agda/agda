@@ -156,6 +156,7 @@ data ConstructorInfo
   = DataCon Nat
       -- ^ Arity.
   | RecordCon PatternOrCopattern HasEta [Dom QName]
+  deriving (Show)
       -- ^ List of field names.
 
 -- | Return the number of non-parameter arguments to a data constructor,

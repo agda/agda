@@ -4,6 +4,7 @@ module Agda.Compiler.Treeless.Erase
        ( eraseTerms
        , computeErasedConstructorArgs
        , isErasable
+       , typeWithoutParams
        ) where
 
 import Control.Arrow (first, second)

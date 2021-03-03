@@ -4,6 +4,7 @@ module Agda.Compiler.GoLang.Compiler where
 
 import Prelude hiding ( null, writeFile )
 import Control.Monad.Trans
+import Control.Monad (zipWithM)
 
 import Data.Char     ( isSpace )
 import Data.Foldable ( forM_ )
@@ -28,22 +29,25 @@ import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name ( isNoName )
 import Agda.Syntax.Abstract.Name
   ( ModuleName, QName,
-    mnameToList, qnameName, qnameModule, nameId )
+    mnameToList, qnameName, qnameModule, nameId, qnameToList0, uglyShowName )
 import Agda.Syntax.Internal
-  ( Name, Type
-  , arity, nameFixity, unDom )
 import Agda.Syntax.Literal ( Literal(..) )
+import Agda.Syntax.Internal.Names (namesIn)
 import qualified Agda.Syntax.Treeless as T
+import Agda.Compiler.Treeless.NormalizeNames
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Reduce ( instantiateFull )
+import Agda.TypeChecking.Quote
+import Agda.TypeChecking.Reduce ( instantiateFull, reduce )
 import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Function ( iterate' )
 import Agda.Utils.List ( headWithDefault )
-import Agda.Utils.List1 ( List1, pattern (:|) )
+import Agda.Utils.List1 ( List1, pattern (:|), zipWithM )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, whenNothing )
 import Agda.Utils.Monad ( ifM, when )
@@ -59,13 +63,13 @@ import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.EliminateDefaults
 import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
-import Agda.Compiler.Treeless.Erase ( computeErasedConstructorArgs )
+import Agda.Compiler.Treeless.Erase ( computeErasedConstructorArgs, typeWithoutParams )
 import Agda.Compiler.Treeless.Subst ()
 import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.GoLang.Syntax
-  ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment),
+  ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface,GoStruct,GoStructElement),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment), TypeId(TypeId),
     modName
   , GoQName
   )
@@ -189,8 +193,10 @@ goPreModule _opts _ m ifile = ifM uptodate noComp yesComp
     uptodate = liftIO =<< isNewerThan <$> outFile_ <*> pure ifile
 
     noComp = do
-      reportSLn "compile.go" 2 . (++ " : no compilation is needed.") . prettyShow =<< curMName
-      return $ Skip skippedModule
+      m   <- prettyShow <$> curMName
+      out <- outFile_
+      reportSLn "compile.go" 1 $ repl [m, ifile, out] "Compiling go <<0>> in <<1>> to <<2>>"
+      Recompile <$> coinductionKit
 
     -- A skipped module acts as a fake main module, to be skipped by --go-verify as well.
     skippedModule = Module (goMod m) mempty mempty
@@ -230,7 +236,7 @@ goMod :: ModuleName -> GlobalId
 goMod m = GlobalId (prefix : map prettyShow (mnameToList m))
 
 goFileName :: GlobalId -> String
-goFileName (GlobalId ms) = intercalate "." ms ++ ".js"
+goFileName (GlobalId ms) = intercalate "." ms ++ ".go"
 
 goMember :: Name -> MemberId
 goMember n
@@ -315,7 +321,40 @@ definition' kit q d t ls = do
 
     GeneralizableVar{} -> return Nothing
     PrimitiveSort{} -> return Nothing
-    Function{} -> return Nothing
+
+    Function{} | otherwise -> do
+
+      reportSDoc "function.go" 5 $ "compiling fun:" <+> prettyTCM q
+      caseMaybeM (toTreeless T.EagerEvaluation q) (pure Nothing) $ \ treeless -> do
+        used <- getCompiledArgUse q
+        funBody <- eliminateCaseDefaults =<<
+          eliminateLiteralPatterns
+          (convertGuards treeless)
+        def <- getConstInfo q  
+        relv <- relView t
+        let nameee = qnameToList0 q
+        reportSDoc "function.go" 30 $ "\n nameee:" <+> (text . show) nameee
+        reportSDoc "function.go" 45 $ "\n relv:" <+> (text . show) relv
+        reportSDoc "function.go" 50 $ "\n def:" <+> (text . show) def
+        (tel, tt) <- typeWithoutParams q
+        reportSDoc "function.go" 35 $ "\n compiled treeless fun1:" <+> (text . show) funBody
+        reportSDoc "function.go" 35 $ "\n compiled treeless tel:" <+> (text . show) tel
+        reportSDoc "function.go" 35 $ "\n compiled treeless fun2:" <+> pretty funBody
+        reportSDoc "function.go" 30 $ "\n used:" <+> (text . show) used
+        let (body, given) = lamView funBody
+              where
+                lamView :: T.TTerm -> (T.TTerm, Int)
+                lamView (T.TLam t) = (+1) <$> lamView t
+                lamView t = (t, 0)
+            etaN = length $ dropWhile id $ reverse $ drop given used
+        normalized <- normalizeNames funBody
+        reportSDoc "function.go" 30 $ "\n body:" <+> (text . show) body
+        let ty  = (defType def)
+        reportSDoc "function.go" 30 $ "\n ty:" <+> (text . show) ty
+        reportSDoc "function.go" 30 $ "\n given:" <+> (text . show) given
+        reportSDoc "function.go" 30 $ "\n etaN:" <+> (text . show) etaN
+        return Nothing
+
     Primitive{primName = p} -> return Nothing
     Datatype{ dataPathCons = _ : _ } -> do
       reportSDoc "compile.go" 30 $ " data tupe:" <+> (text . show) q
@@ -323,7 +362,9 @@ definition' kit q d t ls = do
       typeError $ NotImplemented $
         "Higher inductive types (" ++ s ++ ")"
     Datatype{} -> do
-      reportSDoc "compile.go" 30 $ " data tupe2:" <+> (text . show) d
+      reportSDoc "compile.go" 40 $ " data tupe2:" <+> (text . show) d
+      let nameee = uglyShowName (qnameName q)
+      reportSDoc "compile.go" 30 $ "\n nameee:" <+> (text . show) nameee
       computeErasedConstructorArgs q
       name <- liftTCM $ visitorName q
       return (Just $ GoInterface $ name)
@@ -331,34 +372,66 @@ definition' kit q d t ls = do
         computeErasedConstructorArgs q
         return Nothing
 
-    c@Constructor{conData = p, conPars = nc, conSrcCon = ch} -> do
-      reportSDoc "compile.go" 30 $ " constructor :" <+> (text . show) c
-      reportSDoc "compile.go" 30 $ " con2:" <+> (text . show) q
+    c@Constructor{conData = p, conPars = nc, conSrcCon = ch, conArity = cona} -> do
+      reportSDoc "compile.go" 40 $ " constructor :" <+> (text . show) c
+      reportSDoc "compile.go" 40 $ " con2:" <+> (text . show) q
       let np = arity t - nc
+      typear <- liftTCM $ typeArity t
+      goTypes <- goTelApproximation t
+      reportSDoc "compile.go" 30 $ " goTypes:" <+> (text . show) goTypes
       reportSDoc "compile.go" 30 $ " np:" <+> (text . show) np
+      reportSDoc "compile.go" 30 $ " nc:" <+> (text . show) nc
+      reportSDoc "compile.go" 30 $ " typear:" <+> (text . show) typear
       erased <- getErasedConArgs q
       reportSDoc "compile.go" 30 $ " erased:" <+> (text . show) erased
+      reportSDoc "compile.go" 30 $ " cona:" <+> (text . show) cona
+      TelV tel res <- telView t
+      TelV tel22 res22 <- telViewUpTo np t
+      reportSDoc "compile.go" 30 $ "\n tel22:" <+> (text . show) tel22
+      let nameee = uglyShowName (qnameName q)
+      let defPar = defGeneralizedParams d
+      let sugName = suggestName (qnameName q)
+      reportSDoc "compile.go" 30 $ "\n sugName:" <+> (text . show) sugName
+      reportSDoc "compile.go" 30 $ "\n defPar:" <+> (text . show) defPar
+      reportSDoc "compile.go" 30 $ "\n nameee:" <+> (text . show) nameee
+      reportSDoc "compile.go" 30 $ "\n res22:" <+> (text . show) res22
+      (teles, ignored) <- getOutputTypeName t
+      let t2 = teleNames teles
+      let t3 = teleArgNames teles
+      reportSDoc "compile.go" 35 $ "\n t2:" <+> (text . show) teles
+      reportSDoc "compile.go" 30 $ "\n t2:" <+> (text . show) t2
+      reportSDoc "compile.go" 30 $ "\n t3:" <+> (text . show) t3
+      let args = map (snd . unDom) (telToList tel)
+      let le = length args
+      reportSDoc "compile.go" 30 $ "\n tel:" <+> (text . show) tel
+      reportSDoc "compile.go" 30 $ "\n res:" <+> (text . show) res
+      reportSDoc "compile.go" 30 $ "\n args:" <+> (text . show) args
+      reportSDoc "compile.go" 30 $ "\n le:" <+> (text . show) le
       d <- getConstInfo p
-      reportSDoc "compile.go" 30 $ " type:" <+> (text . show)  t
-      ct <- getConType ch t
-      reportSDoc "compile.go" 30 $ " con type:" <+> (text . show)  ct
+      reportSDoc "compile.go" 40 $ " type:" <+> (text . show)  t
+      conInfo <- getConstructorInfo q
+      reportSDoc "compile.go" 30 $ "\n conInfo:" <+> (text . show) conInfo
+      name <- liftTCM $ visitorName q
+      reportSDoc "compile.go" 40 $ "\n name:" <+> (text . show)  name
+      defd <- getConstInfo q
       let l = List1.last ls
+      let l1 = List1.head ls
       -- l galim naudot kaip struct name
       -- struct l {_1 interface{}; _2 List; }
       reportSDoc "compile.go" 30 $ " l:" <+> (text . show) l
       reportSDoc "compile.go" 30 $ " ls:" <+> (text . show) ls
+      reportSDoc "compile.go" 30 $ " l1:" <+> (text . show) l1
       case theDef d of
         dt -> do
           reportSDoc "compile.go" 30 $ "index:" <+> (text . show) index
-          return Nothing
+          return (Just $ GoStruct l index)
           where
             index | Datatype{} <- dt
                   , cs <- defConstructors dt
-                  = headWithDefault __IMPOSSIBLE__
-                      [MemberIndex i (mkComment l) | (i, x) <- zip [0..] cs, x == q]
-                  | otherwise = l
-            mkComment (MemberId s) = Comment s      
-            mkComment _ = mempty
+                  = [GoStructElement (LocalId i) (mkComment l1) | (i, x) <- zip [0..] cs, x == q]
+                  | otherwise = []
+            mkComment (MemberId s) = TypeId s      
+            mkComment _ = TypeId "unknown"
       
     AbstractDefn{} -> __IMPOSSIBLE__
 --------------------------------------------------
@@ -381,6 +454,26 @@ outFile m = do
       fp  = dir </> fn
   liftIO $ createDirectoryIfMissing True dir
   return fp
+
+goTypeApproximation :: Int -> Type -> TCM String
+goTypeApproximation fv t = do
+  reportSDoc "compile.go" 30 $ "\n tt2:" <+> (text . show) fv
+  reportSDoc "compile.go" 30 $ "\n ttttt:" <+> (text . show) t
+  reportSDoc "compile.go" 30 $ "\n tttt3:" <+> (text . show) (unEl t)
+  let go n t = do
+        let t = unSpine t
+        case t of
+          Pi a b -> return "pi"
+          Def q els -> return "type"
+          Sort{} -> return ""
+          _ -> return "interface"
+  go fv (unEl t)
+
+goTelApproximation :: Type -> TCM ([String], String)
+goTelApproximation t = do
+  TelV tel res <- telView t
+  let args = map (snd . unDom) (telToList tel)
+  (,) <$> zipWithM (goTypeApproximation) [0..] args <*> goTypeApproximation (length args) res
 
 outFile_ :: TCM FilePath
 outFile_ = do

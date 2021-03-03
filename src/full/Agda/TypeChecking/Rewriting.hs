@@ -120,6 +120,7 @@ data RelView = RelView
   , relViewType' :: Dom Type   -- ^ @t'@.
   , relViewCore  :: Type       -- ^ @core@.
   }
+  deriving (Show)
 
 -- | Deconstructing a type into @Δ → t → t' → core@.
 --   Returns @Nothing@ if not enough argument types.

@@ -25,6 +25,8 @@ instance Pretty Go.Exp where
   prettyPrec pr e =
     case e of
       Go.GoInterface id -> "type" <+> pretty id <+> "interface{}"
+      Go.GoStruct id elems -> "type" <+> pretty id <+> "struct {" <+> (vcat $ map pretty elems) <+> "}"
+      Go.GoStructElement localId typeId -> "_" <+> pretty localId <+> pretty typeId <+> ";"
       _ -> fwords ""
       
 instance Pretty Go.MemberId where
@@ -34,3 +36,10 @@ instance Pretty Go.MemberId where
 
 instance Pretty Go.GlobalId where
   pretty (Go.GlobalId m) = fwords $ show $ intercalate "_" m
+
+
+instance Pretty Go.LocalId where
+  pretty (Go.LocalId n) = text $ show n
+
+instance Pretty Go.TypeId where
+  pretty (Go.TypeId m) = text m
