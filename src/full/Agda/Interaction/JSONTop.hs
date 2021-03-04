@@ -24,7 +24,7 @@ import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
 import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), EffortDelta(..), NatExt(..))
 import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..))
 import Agda.VersionCommit
-import Agda.TypeChecking.Monad.Base (TwinT''(..), TwinT', HetSide(..), Het(..), CompareDirection(..))
+import Agda.TypeChecking.Monad.Base (TwinT''(..), TwinT', ContextSide(..), Het(..), CompareDirection(..))
 
 import Agda.TypeChecking.Errors (getAllWarningsOfTCErr)
 import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..))

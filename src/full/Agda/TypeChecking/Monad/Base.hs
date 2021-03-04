@@ -2788,13 +2788,17 @@ class HasPids a where getPids :: a -> ISet ProblemId
 instance HasPids (ContextHet' a) where
   getPids Empty = ISet.empty
   getPids (Entry b _) = b
+
 instance (HasPids b) => HasPids (Name,b) where
   getPids (_,b) = getPids b
+
 instance HasPids Name where
   getPids _ = ISet.empty
+
 instance HasPids (TwinT'' a c) where
   getPids SingleT{} = ISet.empty
   getPids (TwinT{twinPid}) = twinPid
+
 instance HasPids a => HasPids (Dom a) where
   getPids = getPids . unDom
 
@@ -2865,11 +2869,11 @@ contextHetFromList []     = Empty
 contextHetFromList (a:as) = a ⊣: contextHetFromList as
 
 -- * Switch heterogeneous context to a specific side
-switchSide :: forall s a m. (HetSideIsType s, MonadTCEnv m) => m a -> m a
+switchSide :: forall s a m. (SideIsSingle s, MonadTCEnv m) => m a -> m a
 switchSide = unsafeModifyContext {- IdS -} (asTwin . twinAt @s)
 
 {-# INLINE switchSide_ #-}
-switchSide_ :: forall s a m. (HetSideIsType s, MonadTCEnv m) =>
+switchSide_ :: forall s a m. (SideIsSingle s, MonadTCEnv m) =>
   ((forall b n. MonadTCEnv n => n b -> n b) -> m a) -> m a
 switchSide_ κ = do
   ctx <- asksTC envContext
@@ -2879,14 +2883,36 @@ switchSide_ κ = do
 
 type Telescope_ = Tele (Dom TwinT)
 
--- * Describing parts of twin contexts
+-- | Describes on which side of the context a term resides
+data ContextSide = LHS       -- ^ Left side of the context
+                 | RHS       -- ^ Right side of the context
+                 | Both      -- ^ Resides on both sides of the context
+                 | Compat    -- ^ A (non-existent) side of the context
+                             --   in which both terms that reside on the
+                             --   left and on the right sides can be typed
+                 | Single    -- ^ Resides on a single-sided context
 
-data HetSide = LHS | RHS | Compat | Both
+-- Boilerplate in order to lift ContextSide to the type level
+data instance SingT (a :: ContextSide) where
+  SLHS     :: SingT 'LHS
+  SRHS     :: SingT 'RHS
+  SCompat  :: SingT 'Compat
+  SBoth    :: SingT 'Both
+  SSingle  :: SingT 'Single
 
-type H'LHS = Het 'LHS
-type H'RHS = Het 'RHS
-type H'Compat = Het 'Compat
-type H'Both = Het 'Both
+instance Sing 'LHS    where sing = SLHS
+instance Sing 'RHS    where sing = SRHS
+instance Sing 'Both   where sing = SBoth
+instance Sing 'Compat where sing = SCompat
+instance Sing 'Single where sing = SSingle
+
+type OnLHS    = OnSide 'LHS
+type OnRHS    = OnSide 'RHS
+type OnBoth   = OnSide 'Both
+type InSingle = OnSide 'Single
+
+type H'LHS = OnLHS
+type H'RHS = OnRHS
 
 pattern H'LHS :: a -> H'LHS a
 pattern H'LHS a = Het a
@@ -2894,74 +2920,73 @@ pattern H'LHS a = Het a
 pattern H'RHS :: a -> H'RHS a
 pattern H'RHS a = Het a
 
-pattern H'Compat :: a -> H'Compat a
-pattern H'Compat a = Het a
+-- pattern H'Compat :: a -> H'Compat a
+-- pattern H'Compat a = Het a
 
-pattern H'Both :: a -> H'Both a
-pattern H'Both a = Het a
-
-#if __GLASGOW_HASKELL__ >= 804
-{-# COMPLETE H'LHS #-}
-{-# COMPLETE H'RHS #-}
-{-# COMPLETE H'Compat #-}
-{-# COMPLETE H'Both #-}
-#endif
-
-type OnSide = Het
-type OnLHS = OnSide 'LHS
-type OnRHS = OnSide 'RHS
+pattern OnBoth :: a -> OnBoth a
+pattern OnBoth a = Het a
 
 pattern OnLHS :: a -> OnLHS a
 pattern OnLHS a = Het a
+
 pattern OnRHS :: a -> OnRHS a
 pattern OnRHS a = Het a
+
+pattern InSingle :: a -> InSingle a
+pattern InSingle a = Het a
 
 #if __GLASGOW_HASKELL__ >= 804
 {-# COMPLETE OnLHS #-}
 {-# COMPLETE OnRHS #-}
+{-# COMPLETE OnBoth #-}
+{-# COMPLETE InSingle #-}
 #endif
 
-onSide :: forall s a m b. (MonadAddContext m, HetSideIsType s) => (a -> m b) -> Het s a -> m (Het s b)
-onSide κ = switchSide @s . traverse κ
+onSide :: forall s a m b. (MonadAddContext m, Sing s) => (a -> m b) -> Het s a -> m (Het s b)
+onSide κ = case sing :: SingT s of
+  SLHS    -> switchSide @s . traverse κ
+  SRHS    -> switchSide @s . traverse κ
+  SSingle -> switchSide @s . traverse κ
+  SCompat -> switchSide @s . traverse κ
+  SBoth   -> traverse κ
 
-onSide_ :: forall s a m b. (MonadAddContext m, HetSideIsType s) => (a -> m b) -> Het s a -> m b
-onSide_ κ = fmap (unHet @s) . switchSide @s . traverse κ
+onSide_ :: forall s a m b. (MonadAddContext m, Sing s) => (a -> m b) -> Het s a -> m b
+onSide_ κ = fmap (unHet @s) . onSide κ
 
--- Dependent type boilerplate
-data instance SingT (a :: HetSide) where
-  SLHS    :: SingT 'LHS
-  SRHS    :: SingT 'RHS
-  SCompat :: SingT 'Compat
-  SBoth   :: SingT 'Both
-instance Sing 'LHS    where sing = SLHS
-instance Sing 'RHS    where sing = SRHS
-instance Sing 'Both   where sing = SBoth
-instance Sing 'Compat where sing = SCompat
+-- -- | Distinguishes which sides of a twin type corresponds to a single type
+-- type family HetSideIsType_ (s :: HetSide) :: Bool where
+--   HetSideIsType_ 'LHS    = 'True
+--   HetSideIsType_ 'RHS    = 'True
+--   HetSideIsType_ 'Compat = 'True
+--   HetSideIsType_ 'Both   = 'True
+-- type HetSideIsType s = (Sing s, HetSideIsType_ s ~ 'True)
+
+type family SideIsSingle_ (s :: ContextSide) :: Bool where
+  SideIsSingle_ 'LHS    = 'True
+  SideIsSingle_ 'RHS    = 'True
+  SideIsSingle_ 'Compat = 'True
+  SideIsSingle_ 'Both   = 'False
+  SideIsSingle_ 'Single = 'True
+type SideIsSingle s = (Sing s, SideIsSingle_ s ~ 'True)
 
 -- | Distinguishes which sides of a twin type corresponds to a single type
-type family HetSideIsType_ (s :: HetSide) :: Bool where
-  HetSideIsType_ 'LHS    = 'True
-  HetSideIsType_ 'RHS    = 'True
-  HetSideIsType_ 'Compat = 'True
-  HetSideIsType_ 'Both   = 'True
-type HetSideIsType s = (Sing s, HetSideIsType_ s ~ 'True)
-
--- | Distinguishes which sides of a twin type corresponds to a single type
-type family LeftOrRightSide_ (s :: HetSide) :: Bool where
+type family LeftOrRightSide_ (s :: ContextSide) :: Bool where
   LeftOrRightSide_ 'LHS    = 'True
   LeftOrRightSide_ 'RHS    = 'True
   LeftOrRightSide_ 'Compat = 'False
   LeftOrRightSide_ 'Both   = 'False
-type LeftOrRightSide s = (Sing s, LeftOrRightSide_ s ~ 'True)
+  LeftOrRightSide_ 'Single = 'False
+type LeftOrRightSide s = (SideIsSingle s, LeftOrRightSide_ s ~ 'True)
 
 -- | Distinguishes which sides of a twin type corresponds to a single type
-type family AreSides_ (s₁ :: HetSide) (s₂ :: HetSide) :: Bool where
+type family AreSides_ (s₁ :: ContextSide) (s₂ :: ContextSide) :: Bool where
   AreSides_ 'LHS 'RHS = 'True
   AreSides_ 'RHS 'LHS = 'True
   AreSides_ _    _    = 'False
 type AreSides s₁ s₂ = (LeftOrRightSide s₁, LeftOrRightSide s₂, AreSides_ s₁ s₂ ~ 'True)
 
-newtype Het (side :: HetSide) t = Het { unHet :: t }
+type OnSide = Het
+newtype Het (side :: ContextSide) t = Het { unHet :: t }
   deriving (Foldable, Traversable, Pretty)
 
 deriving instance (Typeable side, Data t) => Data (Het side t)
@@ -2975,6 +3000,8 @@ instance Decoration (Het s) where
   traverseF f = fmap coerce . f . coerce
   distributeF = traverseF id
 
+deriving instance (Free a) => Free (Het side a)
+
 -- | Converse of `distributeF` for `Het`
 pullHet :: Coercible (f (Het side a)) (f a) => f (Het side a) -> Het side (f a)
 pullHet = coerce
@@ -2986,66 +3013,71 @@ instance Applicative (Het s) where
 instance Monad (Het s) where
   Het a >>= f = f a
 
-instance (HetSideIsType side, Free a) => Free (Het side a) where
-  freeVars' (Het a) = freeVars' a
-
 instance TermLike a => TermLike (Het side a) where
   foldTerm f = foldTerm f . unHet
 
-instance Apply a => Apply (Het s a) where
-  apply t as = fmap (flip apply as) t
-  applyE t es = fmap (flip applyE es) t
-
-instance Suggest a => Suggest (Het s a) where
-  suggestName = suggestName . twinAt @s
+deriving instance Apply a => Apply (Het s a)
+deriving instance Suggest a => Suggest (Het s a)
 
 -- * Converting to and from twin types
 
 class AsTwin b where
   type AsTwin_ b
   asTwin :: AsTwin_ b -> b
+
 instance AsTwin b => AsTwin (CompareAs' b) where
   type AsTwin_ (CompareAs' b) = CompareAs' (AsTwin_ b)
   asTwin = fmap asTwin
+
 instance AsTwin (TwinT'' b a) where
   type AsTwin_ (TwinT'' b a) = a
   asTwin = SingleT . Het @'Both
+
 instance AsTwin ContextHet where
   type AsTwin_ ContextHet = Context
   asTwin = contextHetFromList . (fmap (fmap (fmap asTwin)))
+
 instance AsTwin (Het side a) where
   type AsTwin_ (Het side a) = a
   asTwin = coerce
+
 instance AsTwin a => AsTwin (Dom a) where
   type AsTwin_ (Dom a) = Dom (AsTwin_ a)
   asTwin = fmap asTwin
-instance AsTwin () where type AsTwin_ () = (); asTwin = id
+
+instance AsTwin () where
+  type AsTwin_ () = ()
+  asTwin = id
+
 instance AsTwin a => AsTwin (Abs a) where
   type AsTwin_ (Abs a) = Abs (AsTwin_ a)
   asTwin = fmap asTwin
+
 instance AsTwin a => AsTwin (Tele a) where
   type AsTwin_ (Tele a) = Tele (AsTwin_ a)
   asTwin = fmap asTwin
+
 instance (AsTwin a, AsTwin b) => AsTwin (a, b) where
   type AsTwin_ (a, b) = (AsTwin_ a, AsTwin_ b)
   asTwin (a, b) = (asTwin a, asTwin b)
+
 instance AsTwin Name where
   type AsTwin_ Name = Name
   asTwin = id
 
-class TwinAt (s :: HetSide) a where
+class TwinAt (s :: ContextSide) a where
   type TwinAt_ s a
   twinAt :: a -> TwinAt_ s a
 
-instance HetSideIsType s => TwinAt s (TwinT' a) where
+instance SideIsSingle s => TwinAt s (TwinT' a) where
   type TwinAt_ s (TwinT' a) = a
   {-# INLINE twinAt #-}
-  twinAt (SingleT a) = unHet @'Both a
+  twinAt (SingleT a) = twinAt @s a
   twinAt TwinT{direction,twinPid,twinLHS,twinRHS} = case (sing :: SingT s) of
-    SLHS    -> unHet @s $ twinLHS
-    SRHS    -> unHet @s $ twinRHS
-    SBoth   | ISet.null twinPid ->
-                selectSmaller direction (unHet @'LHS twinLHS) (unHet @'RHS twinRHS)
+    SLHS    -> twinAt @s twinLHS
+    SRHS    -> twinAt @s twinRHS
+    SSingle | ISet.null twinPid ->
+                selectSmaller direction (twinAt @'LHS twinLHS) (twinAt @'RHS twinRHS)
             | otherwise -> __IMPOSSIBLE__
     SCompat -> __UNIMPLEMENTED__
 
@@ -3074,8 +3106,13 @@ instance TwinAt s a => TwinAt s (ContextHet' a) where
   {-# INLINE twinAt #-}
   twinAt = map (twinAt @s) . contextHetToList
 
-instance TwinAt s (Het s a) where
+instance {-# INCOHERENT #-} TwinAt s (Het s a) where
   type TwinAt_ s (Het s a) = a
+  {-# INLINE twinAt #-}
+  twinAt = coerce
+
+instance {-# INCOHERENT #-} SideIsSingle s => TwinAt s (Het 'Both a) where
+  type TwinAt_ s (Het 'Both a) = a
   {-# INLINE twinAt #-}
   twinAt = coerce
 

@@ -63,7 +63,7 @@ instance MonadAddContext ReduceM where
 
   -- Conversion can be called in the reduce monad,
   -- which may sometimes add variables to the context.
-  addCtx_ name dom@Dom{unDom = SingleT (H'Both a)} = addCtx name dom{unDom=a}
+  addCtx_ name dom@Dom{unDom = SingleT (OnBoth a)} = addCtx name dom{unDom=a}
   -- However, one should not need to add twins in a reduction context
   addCtx_ _        Dom{unDom = TwinT{}}            = __IMPOSSIBLE__
 

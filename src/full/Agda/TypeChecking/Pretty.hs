@@ -58,6 +58,7 @@ import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.Dependent
 
 import Agda.Utils.Impossible
 
@@ -222,7 +223,7 @@ instance PrettyTCM Permutation where prettyTCM = text . show
 instance PrettyTCM Polarity    where prettyTCM = text . show
 instance PrettyTCM IsForced    where prettyTCM = text . show
 
-instance HetSideIsType s => PrettyTCM (Arg (Het s Term)) where prettyTCM = prettyA <=< reify
+instance Reify (Het s Term) => PrettyTCM (Arg (Het s Term)) where prettyTCM = prettyA <=< reify
 
 prettyR
   :: (R.ToAbstract r, PrettyTCM (R.AbsOfRef r), MonadPretty m, MonadError TCErr m)
@@ -293,7 +294,7 @@ instance PrettyTCM Modality where
     , prettyTCM (getRelevance mod)
     ]
 
-instance (HetSideIsType side, PrettyTCM a) => PrettyTCM (Het side a) where
+instance (Sing side, PrettyTCM a) => PrettyTCM (Het side a) where
   prettyTCM a = onSide_ prettyTCM a
 
 instance PrettyTCM () where
@@ -301,7 +302,7 @@ instance PrettyTCM () where
 
 instance PrettyTCM a => PrettyTCM (TwinT' a) where
   prettyTCM (SingleT a) = prettyTCM a
-  prettyTCM TwinT{twinPid,direction,necessary,twinLHS=H'LHS a,twinRHS=H'RHS b} =
+  prettyTCM TwinT{twinPid,direction,necessary,twinLHS=OnLHS a,twinRHS=OnRHS b} =
     dirToCmp (\cmp a' b' ->
       prettyTCM a' <+> case cmp of
                          CmpEq -> "alternatively"

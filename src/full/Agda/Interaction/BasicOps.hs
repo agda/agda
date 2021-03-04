@@ -367,11 +367,11 @@ outputFormId (OutputForm _ _ _ o) = out o
     out = \case
       OfType i _                 -> i
       CmpInType _ _ i _          -> i
-      CmpInTypeHet _ _ i _       -> unHet @'M.LHS i
+      CmpInTypeHet _ _ (OnLHS i) _ -> i
       CmpElim _ _ (i:_) _        -> i
       CmpElim _ _ [] _           -> __IMPOSSIBLE__
-      CmpElim_ _ _ (H'LHS (i:_)) _ -> i
-      CmpElim_ _ _ (H'LHS []) _    -> __IMPOSSIBLE__
+      CmpElim_ _ _ (OnLHS (i:_)) _ -> i
+      CmpElim_ _ _ (OnLHS []) _    -> __IMPOSSIBLE__
       JustType i                 -> i
       CmpLevels _ i _            -> i
       CmpTypes _ i _             -> i

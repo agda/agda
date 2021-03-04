@@ -412,7 +412,7 @@ compareTerm'_ cmp a m n =
     equalFun_ _ _ _ _ _ = __IMPOSSIBLE__
 
     equalPath :: (MonadConversion m) => PathView -> TwinT -> H'LHS Term -> H'RHS Term -> m ()
-    equalPath (PathType s _ l a x y) _ (H'LHS m) (H'RHS n) = do
+    equalPath (PathType s _ l a x y) _ (OnLHS m) (OnRHS n) = do
         let name = "i" :: String
         interval <- el primInterval
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
@@ -420,7 +420,7 @@ compareTerm'_ cmp a m n =
     equalPath OType{} a' m n = cmpDef a' m n
 
     cmpDef :: TwinT -> H'LHS Term -> H'RHS Term -> m ()
-    cmpDef a'_ m_@(H'LHS m) n_@(H'RHS n) = do
+    cmpDef a'_ m_@(OnLHS m) n_@(OnRHS n) = do
      cubical <- optCubical <$> pragmaOptions
      if cubical then do
        let a'@(El s ty) = twinAt @'Compat a'_
@@ -533,7 +533,7 @@ compareAndInfer_ f pol arg₁ arg₂ = do
                     ,twinRHS=Def f . (:[]) . Apply <$> arg₂
                     }  :∈  faty
   where
-    inferUnblocked :: HetSideIsType s => QName -> Het s (Arg Term) -> m (Het s Type, Het s Type)
+    inferUnblocked :: SideIsSingle s => QName -> Het s (Arg Term) -> m (Het s Type, Het s Type)
     inferUnblocked f arg = do
        reportSDoc "tc.conv.infer" 30 $
          "inferring type of internal arg: " <+> prettyTCM arg
@@ -1038,7 +1038,7 @@ compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
           solved <- isProblemSolved pid
           reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
           let arg = case dirFromPol pol of
-                     Nothing  -> SingleT (H'Both $ twinAt @'LHS arg1)
+                     Nothing  -> SingleT (OnBoth $ twinAt @'LHS arg1)
                      Just dir -> TwinT{necessary   = True
                                       ,direction   = dir
                                       ,twinPid     = ISet.singleton pid
@@ -1103,11 +1103,11 @@ projectTyped_ v a o f = do
   -- TODO Víctor (2021-03-03)
   -- Should we set the necessary bit to False here?
   (sequence $ projectTyped <$> v `apT` a `apT` asTwin o `apT` asTwin f) >>= \case
-    SingleT (H'Both a) -> return $ (\(_,t,ty) -> (asTwin t, asTwin ty)) <$> a
+    SingleT (OnBoth a) -> return $ (\(_,t,ty) -> (asTwin t, asTwin ty)) <$> a
     tt@TwinT{twinLHS,twinRHS} ->
       case (twinLHS, twinRHS) of
-        (H'LHS (Just (_,H'LHS -> tL,H'LHS -> tyL)),
-         H'RHS (Just (_,H'RHS -> tR,H'RHS -> tyR))) -> do
+        (OnLHS (Just (_,OnLHS -> tL,OnLHS -> tyL)),
+         OnRHS (Just (_,OnRHS -> tR,OnRHS -> tyR))) -> do
           ty <- mkTwinT tt{twinLHS=tyL
                           ,twinRHS=tyR
                           }
@@ -1115,8 +1115,8 @@ projectTyped_ v a o f = do
                                    ,twinRHS=tR
                                    })
           return $ Just (t, ty)
-        (H'LHS Nothing,_) -> return Nothing
-        (_,H'RHS Nothing) -> return Nothing
+        (OnLHS Nothing,_) -> return Nothing
+        (_,OnRHS Nothing) -> return Nothing
 
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
@@ -1165,8 +1165,8 @@ compareIrrelevant_ t v0 w0 = do
     try t v w fallback = fallback
 
 compareWithPol :: MonadConversion m => Polarity -> (Comparison -> b -> a -> a -> m ()) -> b -> a -> a -> m ()
-compareWithPol pol cmp b x y = compareWithPol_ pol cmp' (H'Both b) (H'LHS x) (H'RHS y)
-  where cmp' = (\dir b x y -> cmp dir (twinAt @'Both b) (twinAt @'LHS x) (twinAt @'RHS y))
+compareWithPol pol cmp b x y = compareWithPol_ pol cmp' (OnBoth b) (OnLHS x) (OnRHS y)
+  where cmp' = (\dir (OnBoth b) x y -> cmp dir b (twinAt @'LHS x) (twinAt @'RHS y))
 
 compareWithPol_ :: forall m a b. (MonadConversion m, FlipHet b, FlippedHet b ~ b) => Polarity ->
   (Comparison -> b -> H'LHS a -> H'RHS a -> m ()) -> b -> H'LHS a -> H'RHS a -> m ()
@@ -1579,8 +1579,8 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         isMetaLevel _                             = False
 
 -- TODO [HET]
-equalLevel_ :: forall m. MonadConversion m => H'LHS Level -> H'RHS Level -> m ()
-equalLevel_ (H'LHS a) (H'RHS b) = equalLevel a b
+equalLevel_ :: forall m. MonadConversion m => OnLHS Level -> OnRHS Level -> m ()
+equalLevel_ (OnLHS a) (OnRHS b) = equalLevel a b
 
 equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
@@ -2222,7 +2222,7 @@ typeView :: forall m. TypeViewM m => TwinT' Term -> m (TypeView_)
 typeView = go
   where
   go :: TwinT' Term -> m (TypeView_)
-  go (SingleT (H'Both (Pi dom cod))) = return$ TPi (asTwin dom) (asTwin cod)
+  go (SingleT (OnBoth (Pi dom cod))) = return$ TPi (asTwin dom) (asTwin cod)
   go (TwinT{necessary
                ,direction
                ,twinPid
@@ -2250,9 +2250,9 @@ typeView = go
                              }
 
       return $ TPi dom_ cod_
-  go (SingleT (H'Both Lam{})) = return TLam
+  go (SingleT (OnBoth Lam{})) = return TLam
   go  TwinT{twinLHS=H'LHS Lam{},twinRHS=H'RHS Lam{}} = return TLam
-  go ty@(SingleT (H'Both (Def r es))) = isEtaRecord r >>= \case
+  go ty@(SingleT (OnBoth (Def r es))) = isEtaRecord r >>= \case
     True  -> (theDef <$> getConstInfo r) >>= \case
         defn@Record{} -> return $ TDefRecordEta r defn $ asTwin $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         _ -> __IMPOSSIBLE__
@@ -2302,14 +2302,14 @@ mkTwinT :: MkTwinM m =>
 mkTwinT = mkTwinT'
 
 mkTwinDom :: MkTwinM m => TwinT'' Bool (Dom Type) -> m (Dom TwinT)
-mkTwinDom (SingleT (H'Both a)) = return$ asTwin <$> a
+mkTwinDom (SingleT (OnBoth a)) = return $ asTwin <$> a
 mkTwinDom tt@TwinT{direction,twinPid,twinLHS=doml,twinRHS=domr} = do
   let dom0 = selectSmaller direction (twinAt @'LHS doml) (twinAt @'RHS domr)
   ty_ <- mkTwinT (unDom <$> tt)
   return dom0{unDom=ty_}
 
 mkTwinAbs :: MkTwinM m => TwinT'' Bool (Abs Type) -> m (Abs TwinT)
-mkTwinAbs (SingleT (H'Both a)) = return $ asTwin <$> a
+mkTwinAbs (SingleT (OnBoth a)) = return $ asTwin <$> a
 mkTwinAbs tt@TwinT{twinLHS=absl@(distributeF -> NoAbs _ tyl),
                    twinRHS=absr@(distributeF -> NoAbs _ tyr)} =
   NoAbs (suggests [Suggestion absl, Suggestion absr]) <$> mkTwinT tt{twinLHS=tyl
@@ -2329,7 +2329,7 @@ mkTwinArgNameDom a = do
   fmap (name,) <$> mkTwinDom (fmap (fmap snd) a)
 
 mkTwinTele :: MkTwinM m => TwinT' Telescope -> m Telescope_
-mkTwinTele (SingleT (H'Both tel)) = return $ asTwin tel
+mkTwinTele (SingleT (OnBoth tel)) = return $ asTwin tel
 mkTwinTele a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
   let lhs :: [H'LHS (Dom (ArgName, Type))]
       lhs = distributeF $ telToList <$> twinLHS
@@ -2377,7 +2377,7 @@ etaExpandRecordTwin :: forall m a. (MkTwinM m,
                                     MonadDebug m,
                                     ReadTCState m)
                 => QName -> TwinT'' a Args -> H'LHS Term -> H'RHS Term -> m (TwinT, H'LHS Args, H'RHS Args)
-etaExpandRecordTwin q (SingleT (H'Both as)) m n = do
+etaExpandRecordTwin q (SingleT (OnBoth as)) m n = do
   (tel,m') <- distributeF <$> onSide @'LHS (etaExpandRecord q as) m
   (_  ,n') <- distributeF <$> onSide @'RHS (etaExpandRecord q as) n
   return (asTwin$ telePi_ tel __DUMMY_TYPE__, m', n')
@@ -2408,8 +2408,8 @@ isSingletonRecordModuloRelevance_ q (TwinT{direction=DirGeq,twinLHS,twinRHS}) =
 -- | Used for comparing against built-in things
 isEqualTo :: TwinT' Term -> Maybe Term -> Bool
 _ `isEqualTo` Nothing = False
-SingleT (H'Both t) `isEqualTo` Just a = t == a
-TwinT{twinLHS=H'LHS lhs,twinRHS=H'RHS rhs} `isEqualTo` Just a =
+SingleT (OnBoth t) `isEqualTo` Just a = t == a
+TwinT{twinLHS=OnLHS lhs,twinRHS=OnRHS rhs} `isEqualTo` Just a =
  lhs == a && rhs == a
 
 ---------------------------------------------------------------------

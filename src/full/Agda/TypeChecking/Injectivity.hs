@@ -372,7 +372,7 @@ useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.
 invertFunction
-  :: forall s₁ s₂ m. (HetSideIsType s₁, HetSideIsType s₂) => MonadConversion m
+  :: forall s₁ s₂ m. (SideIsSingle s₁, SideIsSingle s₂) => MonadConversion m
   => Comparison -> Het s₁ Term -> InvView -> Het s₂ TermHead -> m () -> m () -> (Het s₁ Term -> m ()) -> m ()
 invertFunction _ _ NoInv _ fallback _ _ = fallback
 invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
@@ -472,7 +472,7 @@ forcePiUsingInjectivity t = reduceB t >>= \ case
     Blocked _ blkTy -> do
       let blk = unEl blkTy
       inv <- functionInverse blk
-      blkTy <$ invertFunction CmpEq (H'Both blk) inv (H'Both PiHead) fallback err success
+      blkTy <$ invertFunction CmpEq (InSingle blk) inv (InSingle PiHead) fallback err success
     NotBlocked _ t -> return t
   where
     fallback  = return ()

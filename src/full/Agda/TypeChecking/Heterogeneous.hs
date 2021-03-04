@@ -158,14 +158,14 @@ flipContext = updateContext IdS flipHet
 -- TODO Víctor 2021-03-03: What should the direction be?
 apT :: TwinT'' Bool (a -> b) -> TwinT'' Bool a -> TwinT'' Bool b
 apT (SingleT f) (SingleT a) = SingleT (f <*> a)
-apT (SingleT (H'Both f))  TwinT{necessary,twinPid,twinLHS,twinRHS} =
+apT (SingleT (OnBoth f))  TwinT{necessary,twinPid,twinLHS,twinRHS} =
                     TwinT{necessary
                          ,twinPid
                          ,direction=DirEq
                          ,twinLHS=f <$> twinLHS
                          ,twinRHS=f <$> twinRHS
                          }
-apT TwinT{necessary,twinPid,twinLHS,twinRHS} (SingleT (H'Both b)) =
+apT TwinT{necessary,twinPid,twinLHS,twinRHS} (SingleT (OnBoth b)) =
                     TwinT{necessary
                          ,twinPid
                          ,direction=DirEq
@@ -246,10 +246,10 @@ instance IsTwinSolved (TwinT' a) where
   isTwinSolved = isTwinSolved . getPids
   isTwinSingle SingleT{} = True
   isTwinSingle TwinT{}   = False
-  simplifyHet' (SingleT b) = pure (Right (twinAt @'Both b))
+  simplifyHet' (SingleT b) = pure (Right (twinAt @'Single b))
   simplifyHet' b@TwinT{twinPid} =
     simplifyHet' twinPid <&> \case
-      Right ()       -> Right$ twinAt @'Both b{twinPid=mempty}
+      Right ()       -> Right$ twinAt @'Single b{twinPid=mempty}
       Left  twinPid' -> Left$  b{twinPid=twinPid'}
 
 instance IsTwinSolved a => IsTwinSolved (Dom a) where
@@ -384,7 +384,7 @@ instance IsTwinSolved (AttemptConversion TwinT) where
                     case t' of
                       TwinT{direction,twinLHS,twinRHS} ->
                         runPureConversion' (compareTypeDir_ direction twinLHS twinRHS) <&> \case
-                          True  -> Right $ twinAt @'Both t'{twinPid=mempty}
+                          True  -> Right $ twinAt @'Single t'{twinPid=mempty}
                           False -> Left (AttemptConversion t')
                       _ -> __IMPOSSIBLE__
 
@@ -462,7 +462,7 @@ instance IsTwinSolved Context_ where
   simplifyHet' Empty           = pure (Right [])
   simplifyHet' ctx@(Entry bs a) =
     simplifyHet' bs <&> \case
-      Right ()  -> Right $ twinAt @'Both (fmap (fmap (fmap (\t -> t{twinPid=mempty}))) ctx)
+      Right ()  -> Right $ twinAt @'Single (fmap (fmap (fmap (\t -> t{twinPid=mempty}))) ctx)
       Left  bs' -> Left  $ Entry bs' a
 
 simplifyHetFast b κ = do

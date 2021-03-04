@@ -18,7 +18,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad (ReduceM, MonadReduce(..), pragmaOptions, isInstantiatedMeta,
-                                Het(..),HetSide(..), switchSide, MonadAddContext(..),
+                                Het(..), ContextSide(..), switchSide, MonadAddContext(..),
                                 TwinAt(twinAt))
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -52,8 +52,8 @@ checkSyntacticEquality_ v v' = liftReduce $ do
   ifM (optSyntacticEquality <$> pragmaOptions)
   -- Víctor (2020-02-18)
   -- We assume that the syntactic equality does not use the context; therefore,
-  -- it is safe to switch the context to "Both"
-  {-then-} ((switchSide @'Both$ synEq (twinAt @'LHS v) (twinAt @'RHS v') `runStateT` True) >>=
+  -- it is safe to switch the context to a single-sided one
+  {-then-} ((switchSide @'Compat $ synEq (twinAt @'LHS v) (twinAt @'RHS v') `runStateT` True) >>=
              (\((v,v'),r) -> return ((Het @'LHS v, Het @'RHS v'),r)))
   {-else-} ((,False) <$> instantiate (v,v'))
 

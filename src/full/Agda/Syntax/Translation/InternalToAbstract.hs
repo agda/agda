@@ -1454,9 +1454,13 @@ instance (Reify i1, Reify i2, Reify i3, Reify i4) => Reify (i1,i2,i3,i4) where
     type ReifiesTo (i1, i2, i3, i4) = (ReifiesTo i1, ReifiesTo i2, ReifiesTo i3, ReifiesTo i4)
     reify (x,y,z,w) = (,,,) <$> reify x <*> reify y <*> reify z <*> reify w
 
-instance (HetSideIsType side, Reify a) => Reify (Het side a) where
+instance {-# OVERLAPPABLE #-} (LeftOrRightSide side, Reify a) => Reify (Het side a) where
     type ReifiesTo (Het side a) = Het side (ReifiesTo a)
     reify = onSide reify
+
+instance {-# OVERLAPS #-} (Reify a) => Reify (Het 'Both a) where
+    type ReifiesTo (Het 'Both a) = Het 'Both (ReifiesTo a)
+    reify (OnBoth a) = OnBoth <$> reify a
 
 instance Reify () where
     type ReifiesTo () = ()

@@ -80,8 +80,8 @@ type TwinT = TwinT' Type
 data ContextHet' a
 type ContextHet = ContextHet' (Dom (Name, TwinT))
 
-data HetSide = LHS | RHS | Compat | Both
-newtype Het (side :: HetSide) t = Het { unHet :: t }
+data ContextSide = LHS | RHS | Both | Compat | Single
+newtype Het (side :: ContextSide) t = Het { unHet :: t }
 instance Functor (Het side)
 
 data CompareDirection

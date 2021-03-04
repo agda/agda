@@ -127,7 +127,7 @@ levelView a = do
   reportSLn "tc.level.view" 50 $ "  view: " ++ show v ++ "}"
   return v
 
-levelView_ :: forall s m. (HetSideIsType s, PureTCM m) => Het s Term -> m (Het s Level)
+levelView_ :: forall s m. (LeftOrRightSide s, PureTCM m) => Het s Term -> m (Het s Level)
 levelView_ = switchSide @s . fmap (Het @s) . levelView . twinAt @s
 
 levelView' :: PureTCM m => Term -> m Level

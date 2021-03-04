@@ -45,6 +45,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
+import Agda.Utils.Dependent
 import Agda.Utils.Either
 import Agda.Utils.Lens
 import Agda.Utils.List (downFrom)
@@ -598,7 +599,7 @@ instance (Occurs a, Occurs b, Occurs c) => Occurs (a,b,c) where
 
   metaOccurs m (x,y,z) = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
 
-instance (HetSideIsType s, Occurs a) => Occurs (Het s a) where
+instance (Sing s, Occurs a) => Occurs (Het s a) where
   occurs = onSide occurs
 
 ---------------------------------------------------------------------------

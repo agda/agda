@@ -246,7 +246,7 @@ instance Instantiate Constraint where
   instantiate' c@CheckMetaInst{}    = return c
   instantiate' (UsableAtModality mod t) = UsableAtModality mod <$> instantiate' t
 
-instance (HetSideIsType side, Instantiate a) => Instantiate (Het side a) where
+instance (SideIsSingle side, Instantiate a) => Instantiate (Het side a) where
   instantiate' = traverse (switchSide @side . instantiate')
 
 instance Instantiate a => Instantiate (CompareAs' a) where
@@ -857,7 +857,7 @@ instance Reduce Constraint where
 
   reduceB' = defaultReduceB'notBlocked
 
-instance (HetSideIsType side, Reduce a) => Reduce (Het side a) where
+instance (SideIsSingle side, Reduce a) => Reduce (Het side a) where
   reduce'  = traverse (switchSide @side . reduce')
   reduceB' = fmap (fmap (Het @side)) . switchSide @side . reduceB' . unHet @side
 
@@ -1036,7 +1036,7 @@ instance Simplify Constraint where
   simplify' c@CheckMetaInst{}     = return c
   simplify' (UsableAtModality mod t) = UsableAtModality mod <$> simplify' t
 
-instance (HetSideIsType side, Simplify a) => Simplify (Het side a) where
+instance (SideIsSingle side, Simplify a) => Simplify (Het side a) where
   simplify' = traverse (switchSide @side . simplify')
 
 instance Simplify a => Simplify (CompareAs' a) where
@@ -1226,7 +1226,7 @@ instance Normalise a => Normalise (CompareAs' a) where
   normalise' AsSizes       = return AsSizes
   normalise' AsTypes       = return AsTypes
 
-instance (HetSideIsType side, Normalise a) => Normalise (Het side a) where
+instance (SideIsSingle side, Normalise a) => Normalise (Het side a) where
   normalise' = traverse (switchSide @side . normalise')
 
 instance Normalise ConPatternInfo where
@@ -1450,7 +1450,7 @@ instance InstantiateFull a => InstantiateFull (CompareAs' a) where
   instantiateFull' AsSizes       = return AsSizes
   instantiateFull' AsTypes       = return AsTypes
 
-instance (HetSideIsType side, InstantiateFull a) => InstantiateFull (Het side a) where
+instance (SideIsSingle side, InstantiateFull a) => InstantiateFull (Het side a) where
   instantiateFull' = traverse (switchSide @side . instantiateFull')
 
 instance InstantiateFull Signature where
@@ -1610,19 +1610,26 @@ instance InstantiateFull EqualityView where
     <*> instantiateFull' b
 
 instance Instantiate a => Instantiate (TwinT' a) where
-  instantiate' = traverse instantiate'
+  -- Víctor:
+  -- Instantiation can be done using traverse, because
+  -- it does not use the types in the context
+  instantiate' = {- switchSide @'Single . -} traverse instantiate'
 
 instance Reduce () where
   reduce' () = pure ()
   reduceB' () = pure (notBlocked ())
 
 instance Reduce a => Reduce (TwinT' a) where
-  reduce' (SingleT a) = SingleT <$> reduce' a
+  -- Víctor (2021-03-04)
+  -- In the single case, we leave the context as-is
+  -- We could potentially unfold it into two twins, but it is not clear
+  -- that this will help with reduction.
+  reduce' (SingleT (OnBoth a)) = asTwin <$> reduce' a
   reduce'  TwinT{necessary,direction,twinPid,twinLHS=a,twinRHS=c} =
                reduce' (a,c) <&> \(a',c') ->
                  TwinT{necessary,direction,twinPid,twinLHS=a',twinRHS=c'}
 
-  reduceB' (SingleT a) = fmap SingleT <$> reduceB' a
+  reduceB' (SingleT (OnBoth a)) = fmap asTwin <$> reduceB' a
   reduceB'  TwinT{necessary,direction,twinPid,twinLHS=a,twinRHS=c} = do
                reduceB' (a,c) <&> fmap (\(a',c') ->
                  TwinT{necessary,direction,twinPid,twinLHS=a',twinRHS=c'})
