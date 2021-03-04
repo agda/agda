@@ -9,6 +9,8 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Utils.Pretty (Pretty(..))
 import Agda.Utils.Null (Null)
+import Agda.Utils.Singleton (Singleton)
+import qualified Agda.Utils.Singleton as Singleton
 
 import GHC.Exts (IsList, Coercible, coerce)
 import qualified GHC.Exts as Exts
@@ -21,6 +23,9 @@ type IsInt a = Coercible a Int
 newtype ISet a = ISet { runISet :: IntSet }
   deriving (Data, Eq, Ord, Semigroup, Monoid, Null)
 
+instance IsInt a => Singleton a (ISet a) where
+  singleton = coerce IntSet.singleton
+
 instance IsInt a => IsList (ISet a) where
   type Item (ISet a) = a
   fromList = coerce IntSet.fromList
@@ -32,8 +37,14 @@ instance (Pretty a, IsInt a) => Pretty (ISet a) where pretty n = pretty (toList 
 empty :: IsInt a => ISet a
 empty = coerce IntSet.empty
 
+fromList :: IsInt a => [a] -> ISet a
+fromList = coerce IntSet.fromList
+
 toList :: IsInt a => ISet a -> [a]
 toList = coerce IntSet.toList
+
+toAscList :: IsInt a => ISet a -> [a]
+toAscList = coerce IntSet.toAscList
 
 union :: IsInt a => ISet a -> ISet a -> ISet a
 union = coerce IntSet.union
@@ -64,3 +75,9 @@ unions = coerce @([IntSet] -> IntSet) IntSet.unions
 
 size :: IsInt a => ISet a -> Int
 size = coerce IntSet.size
+
+insert :: IsInt a => a -> ISet a -> ISet a
+insert = coerce IntSet.insert
+
+foldr :: forall a b. IsInt a => (a -> b -> b) -> b -> ISet a -> b
+foldr f b a = coerce $ IntSet.foldr (coerce f) b (coerce a)

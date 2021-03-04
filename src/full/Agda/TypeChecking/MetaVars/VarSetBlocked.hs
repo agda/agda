@@ -17,7 +17,7 @@ import qualified Prelude
 
 import Agda.TypeChecking.Free
 import qualified Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Lazy (MetaSet(..), VarMap, theVarMap)
+import Agda.TypeChecking.Free.Lazy (MetaSet, VarMap, theVarMap)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 
@@ -25,6 +25,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Agda.Utils.Functor
+import qualified Agda.Utils.IntSet.Typed as ISet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -39,7 +40,7 @@ import qualified Data.IntSet as IntSet
 type VarSetBlocked = IntMap Blocker
 
 metaSetToSet :: MetaSet -> Set MetaId
-metaSetToSet = Set.fromAscList . fmap MetaId . IntSet.toAscList . theMetaSet
+metaSetToSet = Set.fromAscList . ISet.toAscList
 
 freeVarsBlocked :: forall v. Free v => v -> VarSetBlocked
 freeVarsBlocked = fmap varOccToBlocker . theVarMap . (freeVars :: v -> VarMap)

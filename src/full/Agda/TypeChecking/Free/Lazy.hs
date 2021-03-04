@@ -81,23 +81,21 @@ import Agda.Utils.Null
 import Agda.Utils.Semigroup
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 
 ---------------------------------------------------------------------------
 -- * Set of meta variables.
 
 -- | A set of meta variables.  Forms a monoid under union.
 
-newtype MetaSet = MetaSet { theMetaSet :: IntSet }
-  deriving (Eq, Show, Null, Semigroup, Monoid)
-
-instance Singleton MetaId MetaSet where
-  singleton = MetaSet . singleton . metaId
+type MetaSet = ISet MetaId
 
 insertMetaSet :: MetaId -> MetaSet -> MetaSet
-insertMetaSet (MetaId m) (MetaSet ms) = MetaSet $ IntSet.insert m ms
+insertMetaSet = ISet.insert
 
 foldrMetaSet :: (MetaId -> a -> a) -> a -> MetaSet -> a
-foldrMetaSet f e ms = IntSet.foldr (f . MetaId) e $ theMetaSet ms
+foldrMetaSet = ISet.foldr
 
 ---------------------------------------------------------------------------
 -- * Flexible and rigid occurrences (semigroup)

@@ -2,6 +2,8 @@
 module Internal.TypeChecking.Free.Lazy () where
 
 import Agda.TypeChecking.Free.Lazy
+import Agda.Utils.IntSet.Typed (IsInt, ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 
 import Internal.Syntax.Common ()
 
@@ -10,7 +12,9 @@ import Test.QuickCheck
 ------------------------------------------------------------------------------
 -- QuickCheck instances
 
-deriving instance Arbitrary MetaSet
+instance (ISet.IsInt a, Arbitrary a) => Arbitrary (ISet a) where
+  arbitrary = ISet.fromList <$> arbitrary
+  shrink = map ISet.fromList . shrink . ISet.toList
 
 -- | For testing, we generate only @Flexible mempty@, since non-empty
 --   'MetaSet's destroy distributivity laws, amongst others.
