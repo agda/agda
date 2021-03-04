@@ -2953,14 +2953,8 @@ onSide κ = case sing :: SingT s of
 onSide_ :: forall s a m b. (MonadAddContext m, Sing s) => (a -> m b) -> Het s a -> m b
 onSide_ κ = fmap (unHet @s) . onSide κ
 
--- -- | Distinguishes which sides of a twin type corresponds to a single type
--- type family HetSideIsType_ (s :: HetSide) :: Bool where
---   HetSideIsType_ 'LHS    = 'True
---   HetSideIsType_ 'RHS    = 'True
---   HetSideIsType_ 'Compat = 'True
---   HetSideIsType_ 'Both   = 'True
--- type HetSideIsType s = (Sing s, HetSideIsType_ s ~ 'True)
-
+-- | Distinguishes which sides of a context corresponds to a single type
+--   That is, all but the one that represents both sides of the context
 type family SideIsSingle_ (s :: ContextSide) :: Bool where
   SideIsSingle_ 'LHS    = 'True
   SideIsSingle_ 'RHS    = 'True
@@ -2969,7 +2963,7 @@ type family SideIsSingle_ (s :: ContextSide) :: Bool where
   SideIsSingle_ 'Single = 'True
 type SideIsSingle s = (Sing s, SideIsSingle_ s ~ 'True)
 
--- | Distinguishes which sides of a twin type corresponds to a single type
+-- | Characterizes the left and right sides of the context
 type family LeftOrRightSide_ (s :: ContextSide) :: Bool where
   LeftOrRightSide_ 'LHS    = 'True
   LeftOrRightSide_ 'RHS    = 'True
@@ -2978,16 +2972,17 @@ type family LeftOrRightSide_ (s :: ContextSide) :: Bool where
   LeftOrRightSide_ 'Single = 'False
 type LeftOrRightSide s = (SideIsSingle s, LeftOrRightSide_ s ~ 'True)
 
--- | Distinguishes which sides of a twin type corresponds to a single type
+-- | Distinguishes which pairs of sides represent opposite sides of
+--   the context
 type family AreSides_ (s₁ :: ContextSide) (s₂ :: ContextSide) :: Bool where
   AreSides_ 'LHS 'RHS = 'True
   AreSides_ 'RHS 'LHS = 'True
   AreSides_ _    _    = 'False
 type AreSides s₁ s₂ = (LeftOrRightSide s₁, LeftOrRightSide s₂, AreSides_ s₁ s₂ ~ 'True)
 
-type OnSide = Het
 newtype Het (side :: ContextSide) t = Het { unHet :: t }
   deriving (Foldable, Traversable, Pretty)
+type OnSide = Het
 
 deriving instance (Typeable side, Data t) => Data (Het side t)
 deriving instance Show t => Show (Het side t)
@@ -3003,8 +2998,13 @@ instance Decoration (Het s) where
 deriving instance (Free a) => Free (Het side a)
 
 -- | Converse of `distributeF` for `Het`
+#if __GLASGOW_HASKELL__ >= 804
 pullHet :: Coercible (f (Het side a)) (f a) => f (Het side a) -> Het side (f a)
 pullHet = coerce
+#else
+pullHet :: Functor f => f (Het side a) -> Het side (f a)
+pullHet = Het . fmap coerce
+#endif
 
 instance Applicative (Het s) where
   pure = Het
@@ -3116,14 +3116,6 @@ instance {-# INCOHERENT #-} SideIsSingle s => TwinAt s (Het 'Both a) where
   {-# INLINE twinAt #-}
   twinAt = coerce
 
--- instance TwinAt 'Compat (Het 'LHS a) where
---   type TwinAt_ 'Compat (Het 'LHS a) = a
---   twinAt = coerce
---
--- instance TwinAt 'Compat (Het 'RHS a) where
---   type TwinAt_ 'Compat (Het 'RHS a) = a
---   twinAt = coerce
-
 instance TwinAt s () where
   type TwinAt_ s () = ()
   {-# INLINE twinAt #-}
@@ -3154,11 +3146,6 @@ instance TwinAt s a => TwinAt s (Elim' a) where
   {-# INLINE twinAt #-}
   twinAt = fmap (twinAt @s)
 
--- instance TwinAt s a => TwinAt s (Elim' a) where
---   type TwinAt_ s (Elim' a) = Elim' (TwinAt_ s a)
---   type TwinAt_ s (Elim' a) = Elim' (TwinAt_ s a)
---   twinAt = fmap (twinAt @s)
-
 instance TwinAt s a => TwinAt s (Arg a) where
   type TwinAt_ s (Arg a) = Arg (TwinAt_ s a)
   {-# INLINE twinAt #-}
@@ -3186,19 +3173,13 @@ data TwinT'' b a =
           }
 
 -- Víctor (2021-02-24): Using these instances is risky, as they
--- sidestep the safeguards of
+-- sidestep the safeguards introduced by `OnLHS` and `OnRHS`
 deriving instance Functor (TwinT'' b)
 deriving instance Foldable (TwinT'' b)
 deriving instance Traversable (TwinT'' b)
 
 deriving instance (Data a, Data b) => Data (TwinT'' a b)
 deriving instance (Show a, Show b) => Show (TwinT'' a b)
--- instance Applicative TwinT' where
---   pure a = SingleT (Het @'Both a)
---   (SingleT f) <*> (SingleT a) = SingleT (f <*> a)
---   (TwinT pid nec a b c) <*> (TwinT pid' nec' a' b' c') = TwinT (pid ++ pid') (nec && nec') (a <*> a') (b <*> b') (c <*> c')
---   (TwinT pid nec a b c) <*> SingleT (Het x) = TwinT pid nec (($x) <$> a) (($x) <$> b) (($x) <$> c)
---   (SingleT (Het f)) <*> (TwinT pid nec a b c) = TwinT pid nec (f <$> a) (f <$> b) (f <$> c)
 
 instance Free () where
   freeVars' () = mempty

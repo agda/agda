@@ -42,7 +42,6 @@ import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Heterogeneous hiding (length, splitAt)
-import qualified Agda.TypeChecking.Heterogeneous.Patterns as H
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -612,8 +611,8 @@ compareAtom_ cmp t m n =
 
     -- constructorForm changes literal to constructors
     -- only needed if the other side is not a literal
-    (mb'', nb'') <- case (ignoreBlocking mb', ignoreBlocking nb') of
-      (H'LHS (Lit _), H'RHS (Lit _)) -> return (mb', nb')
+    (mb'', nb'') <- case (twinAt @'LHS $ ignoreBlocking mb', twinAt @'RHS $ ignoreBlocking nb') of
+      (Lit _, Lit _) -> return (mb', nb')
       _ -> (,) <$> traverse (onSide @'LHS constructorForm) mb'
                <*> traverse (onSide @'RHS constructorForm) nb'
 
@@ -830,8 +829,8 @@ compareAtom_ cmp t m n =
                 -- Thus, instead of crashing, just give up gracefully.
                 patternViolation neverUnblock
           maybe impossible (return . snd) =<< getFullyAppliedConType c t
-        equalFun t1 t2 = case (t1, t2) of
-          (H'LHS (Pi dom1 b1), H'RHS (Pi dom2 b2)) -> do
+        equalFun t1 t2 = case (twinAt @'LHS t1, twinAt @'RHS t2) of
+          (Pi dom1 b1, Pi dom2 b2) -> do
             verboseBracket "tc.conv.fun" 15 "compare function types" $ do
               reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                 [ "t1 =" <+> prettyTCM t1
@@ -1206,7 +1205,7 @@ compareType cmp t u = compareType_ cmp (asTwin t) (asTwin u)
 
 -- | Equality on Types
 compareType_ :: MonadConversion m => Comparison -> Het 'LHS Type -> Het 'RHS Type -> m ()
-compareType_ cmp ty1@(H.El s1 a1) ty2@(H.El s2 a2) =
+compareType_ cmp ty1@(distributeF -> El s1 a1) ty2@(distributeF -> El s2 a2) =
     workOnTypes $
     verboseBracket "tc.conv.type" 20 "compareType" $ do
         reportSDoc "tc.conv.type" 50 $ vcat
