@@ -155,6 +155,7 @@ ctx !!! n = contextHetToList ctx Agda.Utils.List.!!! n
 flipContext :: (MonadAddContext m) => m a -> m a
 flipContext = updateContext IdS flipHet
 
+-- TODO Víctor 2021-03-03: What should the direction be?
 apT :: TwinT'' Bool (a -> b) -> TwinT'' Bool a -> TwinT'' Bool b
 apT (SingleT f) (SingleT a) = SingleT (f <*> a)
 apT (SingleT (H'Both f))  TwinT{necessary,twinPid,twinLHS,twinRHS} =
@@ -215,6 +216,7 @@ pairT a b = (,) <$> a `apT` b
 type SimplifyHetM m = (MonadTCEnv m, ReadTCState m, MonadAddContext m, MonadDebug m, MonadBlock m,
                        PureTCM m, HasBuiltins m)
 
+-- TODO Víctor 2021-03-03: This is over-engineered
 class AsTwin a => IsTwinSolved a where
   blockOnTwin ::  (SimplifyHetM m) => a -> m Blocker
   isTwinSolved :: (SimplifyHetM m) => a -> m Bool

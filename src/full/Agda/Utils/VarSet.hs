@@ -14,6 +14,8 @@ module Agda.Utils.VarSet
 
 import Data.IntSet as IntSet
 
+-- TODO Víctor (2021-03-04)
+-- This should be implemented using `Agda.Utils.IntSet.Typed`
 type VarSet = IntSet
 
 subtract :: Int -> VarSet -> VarSet

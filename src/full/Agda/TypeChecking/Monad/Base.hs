@@ -3181,6 +3181,8 @@ instance TermLike a => TermLike (TwinT' a) where
       (\a' b' -> TwinT{twinPid,direction,necessary,twinLHS=a',twinRHS=b'}) <$>
         traverseTermM f a <*> traverseTermM f b
 
+-- TODO Víctor (2021-03-04)
+-- Make this generate fewer weird symbols
 instance Pretty a => Pretty (TwinT' a) where
   pretty (SingleT a) = pretty a
   pretty (TwinT{twinPid,necessary,twinLHS=a,twinRHS=b}) =

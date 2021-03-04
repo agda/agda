@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 
+-- TODO: Víctor 2021-03-03
+-- Where is this used?
+
 module Agda.TypeChecking.Heterogeneous.Patterns where
 
 import Agda.TypeChecking.Monad

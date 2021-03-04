@@ -385,6 +385,9 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     case fromMaybe [] $ Map.lookup (twinAt @s₂ hd) hdMap <> Map.lookup UnknownHead hdMap of
       [] -> err
       _:_:_ -> fallback
+      -- TODO Víctor (2021-03-03)
+      -- This switch-back trick is weird, it should be done using
+      -- a proper closure.
       [cl@Clause{ clauseTel  = tel }] -> speculateMetas fallback $ switchSide_ @s₁ $ \switchBack -> do
           let ps   = clausePats cl
               perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl

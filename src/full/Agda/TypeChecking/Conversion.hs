@@ -919,6 +919,9 @@ compareElims pols0 fors0 a v els01 els02 = compareElims_ pols0 fors0 (asTwin a) 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
 compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
+  -- TODO Víctor 2021-03-03:
+  -- Maybe we should postpone if `a_` is blocked (according to typeView)
+  -- in order to avoid the __IMPOSSIBLE__ cases
   verboseBracket "tc.conv.elim" 20 "compareElims" $
   (catchConstraint (ElimCmp_ pols0 fors0 a_ v_ els01 els02) :: m () -> m ()) $ do
   let v1 = applyE <$> twinLHS v_ <*> els01
@@ -1097,6 +1100,8 @@ projectTyped_
   -> QName       -- ^ Projection.
   -> m (Maybe (TwinT' Term, TwinT' Type))
 projectTyped_ v a o f = do
+  -- TODO Víctor (2021-03-03)
+  -- Should we set the necessary bit to False here?
   (sequence $ projectTyped <$> v `apT` a `apT` asTwin o `apT` asTwin f) >>= \case
     SingleT (H'Both a) -> return $ (\(_,t,ty) -> (asTwin t, asTwin ty)) <$> a
     tt@TwinT{twinLHS,twinRHS} ->

@@ -282,5 +282,7 @@ maxInstanceSearchDepth = optInstanceSearchDepth <$> pragmaOptions
 maxInversionDepth :: HasOptions m => m Int
 maxInversionDepth = optInversionMaxDepth <$> pragmaOptions
 
+-- TODO Víctor 2021-03-04
+-- There is not much point in keeping this option around
 heterogeneousUnificationEnabled :: HasOptions m => m Bool
 heterogeneousUnificationEnabled = optHeterogeneousUnification <$> pragmaOptions

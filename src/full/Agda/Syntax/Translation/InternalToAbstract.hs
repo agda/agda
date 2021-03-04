@@ -1464,10 +1464,15 @@ instance Reify () where
 
 instance Reify a => Reify (TwinT' a) where
     type ReifiesTo (TwinT' a) = TwinT' (ReifiesTo a)
-    -- Víctor (2020-02-24):
+    -- Víctor (2021-02-24):
     -- We do not use traverse here because we need to switch the context
     -- to the appropriate side.
     -- (See the Reify instance for "Het")
+    --
+    -- TODO Víctor (2021-03-03)
+    -- Is this sound? If "reify a" accesses a non-single-sided
+    -- context, and the variable accessed has twin type, it will lead to
+    -- an error.
     reify (SingleT a) = SingleT <$> reify a
     reify (TwinT{twinPid,necessary,direction,twinLHS=a,twinRHS=b}) = do
       (a',b') <- reify (a,b)
