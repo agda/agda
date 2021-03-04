@@ -34,7 +34,10 @@ jobs:
       LINUX_ARGS: "--enable-executable-static"
       # Liang-Ting Chen (2021-01-01):
       # The option `split-sections` is ignored on macOS, see https://gitlab.haskell.org/ghc/ghc/-/issues/11445 for details.
-      MACOS_ARGS: "--flags=enable-cluster-counting"
+      # Andreas, 2021-03-04, issue #5259.
+      # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
+      # MACOS_ARGS: "--flags=enable-cluster-counting"
+      MACOS_ARGS: ""
       WIN64_ARGS: "--enable-split-sections --flags=enable-cluster-counting"
     outputs:
       sha: ${{ steps.vars.outputs.sha }}
@@ -153,20 +156,22 @@ jobs:
           find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
           strip ${{ steps.vars.outputs.nightly }}/bin/*
           cp -a .github/*.sh ${{ steps.vars.outputs.nightly }}
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-          # Change the path to the dynamic library icu4c to the run-time search path:
-          #
-          # 1. the same directory of executable, i.e. @executable_path
-          # 2. @executable_path/../lib
-          # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
-          #
-            mkdir ${{ steps.vars.outputs.nightly }}/lib
-            cp /usr/local/opt/icu4c/lib/libicuuc.67.dylib /usr/local/opt/icu4c/lib/libicui18n.67.dylib /usr/local/opt/icu4c/lib/libicudata.67.dylib ${{ steps.vars.outputs.nightly }}/lib
-            install_name_tool -change /usr/local/opt/icu4c/lib/libicuuc.67.dylib @rpath/libicuuc.67.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
-            install_name_tool -change /usr/local/opt/icu4c/lib/libicui18n.67.dylib @rpath/libicui18n.67.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
-            install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath /usr/local/opt/icu4c/lib ${{ steps.vars.outputs.nightly }}/bin/agda
-            otool -L ${{ steps.vars.outputs.nightly }}/bin/agda
-          fi
+          # Andreas, 2021-03-04, issue #5259.
+          # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
+          # if [[ "$OSTYPE" == "darwin"* ]]; then
+          # # Change the path to the dynamic library icu4c to the run-time search path:
+          # #
+          # # 1. the same directory of executable, i.e. @executable_path
+          # # 2. @executable_path/../lib
+          # # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
+          # #
+          #   mkdir ${{ steps.vars.outputs.nightly }}/lib
+          #   cp /usr/local/opt/icu4c/lib/libicuuc.67.dylib /usr/local/opt/icu4c/lib/libicui18n.67.dylib /usr/local/opt/icu4c/lib/libicudata.67.dylib ${{ steps.vars.outputs.nightly }}/lib
+          #   install_name_tool -change /usr/local/opt/icu4c/lib/libicuuc.67.dylib @rpath/libicuuc.67.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
+          #   install_name_tool -change /usr/local/opt/icu4c/lib/libicui18n.67.dylib @rpath/libicui18n.67.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
+          #   install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath /usr/local/opt/icu4c/lib ${{ steps.vars.outputs.nightly }}/bin/agda
+          #   otool -L ${{ steps.vars.outputs.nightly }}/bin/agda
+          # fi
         fi
         file ${{ steps.vars.outputs.nightly }}/bin/agda
     - name: Compress the Agda executable

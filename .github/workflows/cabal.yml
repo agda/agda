@@ -103,11 +103,16 @@ jobs:
         key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      # Andreas, 2021-03-04, issue #5259.
+      # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
+      if: ${{ runner.os != 'macOS' && !steps.cache.outputs.cache-hit }}
       run: |
         cabal build --only-dependencies
 
     - name: Build Agda
+      # Andreas, 2021-03-04, issue #5259.
+      # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
+      if: ${{ runner.os != 'macOS' }}
       run: |
         cabal build
 
