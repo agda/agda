@@ -425,8 +425,8 @@ instance Reify Constraint where
       CmpElim cmp <$> reify t <*> mapM reifyElimToExpr es1
                               <*> mapM reifyElimToExpr es2
     reify (ElimCmp_ cmp _ t v es1 es2) =
-      CmpElim_ cmp <$> reify t <*> traverse (mapM reifyElimToExpr) es1
-                               <*> traverse (mapM reifyElimToExpr) es2
+      CmpElim_ cmp <$> reify t <*> onSide @'M.LHS (mapM reifyElimToExpr) es1
+                               <*> onSide @'M.RHS (mapM reifyElimToExpr) es2
     reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
     reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
     reify (UnquoteTactic tac _ goal) = do

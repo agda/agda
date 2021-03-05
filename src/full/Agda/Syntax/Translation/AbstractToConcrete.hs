@@ -69,6 +69,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.Interaction.Options
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.Dependent
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -637,9 +638,9 @@ instance ToConcrete a => ToConcrete (Named name a)  where
     toConcrete (Named n x) = Named n <$> toConcrete x
     bindToConcrete (Named n x) ret = bindToConcrete x $ ret . Named n
 
-instance ToConcrete a => ToConcrete (Het side a) where
+instance (Sing side, ToConcrete a) => ToConcrete (Het side a) where
   type ConOfAbs (Het side a) = Het side (ConOfAbs a)
-  toConcrete = traverse toConcrete
+  toConcrete = onSide toConcrete
 
 -- Names ------------------------------------------------------------------
 
@@ -1770,4 +1771,10 @@ instance ToConcrete NamedMeta where
 
 instance ToConcrete a => ToConcrete (TwinT' a) where
     type ConOfAbs (TwinT' a) = TwinT' (ConOfAbs a)
-    toConcrete = traverse toConcrete
+    -- Víctor (2021-03-05): TODO
+    -- Is this sound?
+    toConcrete (SingleT a) = SingleT <$> toConcrete a
+    toConcrete TwinT{twinLHS,twinRHS,..} = do
+      lhs <- toConcrete twinLHS
+      rhs <- toConcrete twinRHS
+      return $ TwinT{twinLHS=lhs,twinRHS=rhs,..}

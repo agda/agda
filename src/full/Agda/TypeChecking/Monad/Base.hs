@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes        #-}
+{-# LANGUAGE ApplicativeDo              #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GADTs                      #-}
@@ -2942,15 +2943,15 @@ pattern InSingle a = Het a
 {-# COMPLETE InSingle #-}
 #endif
 
-onSide :: forall s a m b. (MonadAddContext m, Sing s) => (a -> m b) -> Het s a -> m (Het s b)
+onSide :: forall s a m b. (MonadTCEnv m, Sing s) => (a -> m b) -> Het s a -> m (Het s b)
 onSide κ = case sing :: SingT s of
-  SLHS    -> switchSide @s . traverse κ
-  SRHS    -> switchSide @s . traverse κ
-  SSingle -> switchSide @s . traverse κ
-  SCompat -> switchSide @s . traverse κ
+  SLHS    -> switchSide @s . unsafeTraverseHet κ
+  SRHS    -> switchSide @s . unsafeTraverseHet κ
+  SSingle -> switchSide @s . unsafeTraverseHet κ
+  SCompat -> switchSide @s . unsafeTraverseHet κ
   SBoth   -> traverse κ
 
-onSide_ :: forall s a m b. (MonadAddContext m, Sing s) => (a -> m b) -> Het s a -> m b
+onSide_ :: forall s a m b. (MonadTCEnv m, Sing s) => (a -> m b) -> Het s a -> m b
 onSide_ κ = fmap (unHet @s) . onSide κ
 
 -- | Distinguishes which sides of a context corresponds to a single type
@@ -2981,8 +2982,10 @@ type family AreSides_ (s₁ :: ContextSide) (s₂ :: ContextSide) :: Bool where
 type AreSides s₁ s₂ = (LeftOrRightSide s₁, LeftOrRightSide s₂, AreSides_ s₁ s₂ ~ 'True)
 
 newtype Het (side :: ContextSide) t = Het { unHet :: t }
-  deriving (Foldable, Traversable, Pretty)
+  deriving (Foldable, Pretty)
 type OnSide = Het
+
+deriving instance Traversable (Het 'Both)
 
 deriving instance (Typeable side, Data t) => Data (Het side t)
 deriving instance Show t => Show (Het side t)
@@ -3015,6 +3018,7 @@ instance Monad (Het s) where
 
 instance TermLike a => TermLike (Het side a) where
   foldTerm f = foldTerm f . unHet
+  traverseTermM = __UNIMPLEMENTED__
 
 deriving instance Apply a => Apply (Het s a)
 deriving instance Suggest a => Suggest (Het s a)
@@ -3176,7 +3180,22 @@ data TwinT'' b a =
 -- sidestep the safeguards introduced by `OnLHS` and `OnRHS`
 deriving instance Functor (TwinT'' b)
 deriving instance Foldable (TwinT'' b)
-deriving instance Traversable (TwinT'' b)
+
+-- | This does not switch the context of the monad.
+--   Use `onSide` instead.
+unsafeTraverseHet :: Applicative m => (a -> m b) -> Het side a -> m (Het side b)
+unsafeTraverseHet f (Het a) = Het <$> f a
+
+-- | This does not switch the context of the monad.
+--   Use an appropriate method instead.
+unsafeTraverseTwinT :: Applicative m => (a -> m c) -> TwinT'' b a -> m (TwinT'' b c)
+unsafeTraverseTwinT f (SingleT a) = SingleT <$> unsafeTraverseHet f a
+unsafeTraverseTwinT f (TwinT{twinLHS,twinRHS,..}) = do
+  twinLHS <- unsafeTraverseHet f twinLHS
+  twinRHS <- unsafeTraverseHet f twinRHS
+  pure TwinT{twinLHS,twinRHS,..}
+
+-- deriving instance Traversable (TwinT'' b)
 
 deriving instance (Data a, Data b) => Data (TwinT'' a b)
 deriving instance (Show a, Show b) => Show (TwinT'' a b)

@@ -247,7 +247,7 @@ instance Instantiate Constraint where
   instantiate' (UsableAtModality mod t) = UsableAtModality mod <$> instantiate' t
 
 instance (SideIsSingle side, Instantiate a) => Instantiate (Het side a) where
-  instantiate' = traverse (switchSide @side . instantiate')
+  instantiate' = onSide @side instantiate'
 
 instance Instantiate a => Instantiate (CompareAs' a) where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
@@ -858,7 +858,7 @@ instance Reduce Constraint where
   reduceB' = defaultReduceB'notBlocked
 
 instance (SideIsSingle side, Reduce a) => Reduce (Het side a) where
-  reduce'  = traverse (switchSide @side . reduce')
+  reduce'  = onSide @side reduce'
   reduceB' = fmap (fmap (Het @side)) . switchSide @side . reduceB' . unHet @side
 
 instance Reduce a => Reduce (CompareAs' a) where
@@ -1037,7 +1037,7 @@ instance Simplify Constraint where
   simplify' (UsableAtModality mod t) = UsableAtModality mod <$> simplify' t
 
 instance (SideIsSingle side, Simplify a) => Simplify (Het side a) where
-  simplify' = traverse (switchSide @side . simplify')
+  simplify' = onSide @side simplify'
 
 instance Simplify a => Simplify (CompareAs' a) where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
@@ -1227,7 +1227,7 @@ instance Normalise a => Normalise (CompareAs' a) where
   normalise' AsTypes       = return AsTypes
 
 instance (SideIsSingle side, Normalise a) => Normalise (Het side a) where
-  normalise' = traverse (switchSide @side . normalise')
+  normalise' = onSide @side normalise'
 
 instance Normalise ConPatternInfo where
   normalise' i = normalise' (conPType i) <&> \ t -> i { conPType = t }
@@ -1451,7 +1451,7 @@ instance InstantiateFull a => InstantiateFull (CompareAs' a) where
   instantiateFull' AsTypes       = return AsTypes
 
 instance (SideIsSingle side, InstantiateFull a) => InstantiateFull (Het side a) where
-  instantiateFull' = traverse (switchSide @side . instantiateFull')
+  instantiateFull' = onSide @side instantiateFull'
 
 instance InstantiateFull Signature where
   instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
@@ -1610,10 +1610,10 @@ instance InstantiateFull EqualityView where
     <*> instantiateFull' b
 
 instance Instantiate a => Instantiate (TwinT' a) where
-  -- Víctor:
+  -- Víctor 2021-03-05:
   -- Instantiation can be done using traverse, because
   -- it does not use the types in the context
-  instantiate' = {- switchSide @'Single . -} traverse instantiate'
+  instantiate' = {- switchSide @'Single . -} unsafeTraverseTwinT instantiate'
 
 instance Reduce () where
   reduce' () = pure ()
@@ -1636,11 +1636,11 @@ instance Reduce a => Reduce (TwinT' a) where
 
 
 instance Simplify a => Simplify (TwinT' a) where
-  simplify' = traverse simplify'
+  simplify' = unsafeTraverseTwinT simplify'
 
 instance Normalise a => Normalise (TwinT' a) where
-  normalise' = traverse normalise'
+  normalise' = unsafeTraverseTwinT normalise'
 
 instance InstantiateFull a => InstantiateFull (TwinT' a) where
-  instantiateFull' = traverse instantiateFull'
+  instantiateFull' = unsafeTraverseTwinT instantiateFull'
 

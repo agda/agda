@@ -740,7 +740,7 @@ compareAtom_ cmp t m n =
               | x == y -> do
                   -- Get the type of the constructor instantiated to the datatype parameters.
                   a' <- case t of
-                    AsTermsOf a -> twinDirty <$> conType x `traverse` a
+                    AsTermsOf a -> twinDirty <$> conType x `unsafeTraverseTwinT` a
                     AsSizes   -> __IMPOSSIBLE__
                     AsTypes   -> __IMPOSSIBLE__
                   forcedArgs <- getForcedArgs $ conName x
@@ -1101,7 +1101,7 @@ projectTyped_
 projectTyped_ v a o f = do
   -- TODO Víctor (2021-03-03)
   -- Should we set the necessary bit to False here?
-  (sequence $ projectTyped <$> v `apT` a `apT` asTwin o `apT` asTwin f) >>= \case
+  (unsafeTraverseTwinT id $ projectTyped <$> v `apT` a `apT` asTwin o `apT` asTwin f) >>= \case
     SingleT (OnBoth a) -> return $ (\(_,t,ty) -> (asTwin t, asTwin ty)) <$> a
     tt@TwinT{twinLHS,twinRHS} ->
       case (twinLHS, twinRHS) of
@@ -2410,95 +2410,3 @@ _ `isEqualTo` Nothing = False
 SingleT (OnBoth t) `isEqualTo` Just a = t == a
 TwinT{twinLHS=OnLHS lhs,twinRHS=OnRHS rhs} `isEqualTo` Just a =
  lhs == a && rhs == a
-
----------------------------------------------------------------------
--- Bola extra
----------------------------------------------------------------------
-
--- class SimplifyHet a where
---   type Simplified a
---   unsimplifyHet :: Simplified a -> a
---   simplifyHet   :: MonadConversion m => a -> (Either a (Simplified a) -> m b) -> m b
---
--- simplifyHet' :: (MonadConversion m, SimplifyHet a) => a -> (a -> m b) -> m b
--- simplifyHet' a κ = simplifyHet a $ \case
---   Left  a' -> κ a'
---   Right a' -> κ $ unsimplifyHet a'
---
--- instance SimplifyHet ContextHet where
---   type Simplified ContextHet = ()
---
---   unsimplifyHet () = Empty
---
---   simplifyHet Empty κ = κ (Right ())
---   simplifyHet (dt :⊢: ctx) κ =
---     simplifyHet dt $ \case
---       Right dt' -> addContext dt' $ simplifyHet ctx κ
---       Left  dt' -> κ$ Left$ (dt' :⊢: ctx)
-
---instance SimplifyHet TwinT where
---  type Simplified TwinT = Type
---
---  unsimplifyHet = SingleT . Het @'Both
---
---  simplifyHet (SingleT a) κ = κ$ Right $ unHet @'Both a
---  simplifyHet a@(TwinT{twinPid,twinCompat}) κ =
---    allM twinPid isProblemSolved >>= \case
---      True  -> κ$ Right $ unHet @'Compat twinCompat
---      False -> κ$ Left  a
---
----- instance SimplifyHet a => SimplifyHet (WithHet a) where
-----   type Simplified (WithHet a) = Simplified a
-----
-----   unsimplifyHet = WithHet Empty . unsimplifyHet
-----
-----   simplifyHet (WithHet ctx a) κ = simplifyHet ctx $ \case
-----     Right () -> simplifyHet a $ \case
-----       Left  a' -> κ$ Left$ WithHet Empty a'
-----       Right a' -> κ$ Right$ a'
-----     Left ctx'  -> κ$ Left$ WithHet ctx' a
---
----- instance SimplifyHet a => SimplifyHet (Name, a) where
---
---instance SimplifyHet a => SimplifyHet (Dom a) where
---  type Simplified (Dom a) = Dom (Simplified a)
---
---  unsimplifyHet = fmap unsimplifyHet
---  simplifyHet a κ = simplifyHet (unDom a) $ \case
---    Left  a' -> κ$ Left$  a{unDom=a'}
---    Right a' -> κ$ Right$ a{unDom=a'}
---
--- instance SimplifyHet a => SimplifyHet (CompareAs' a) where
---   type Simplified (CompareAs' a) = CompareAs' (Simplified a)
---
---   unsimplifyHet = fmap unsimplifyHet
---   simplifyHet AsTypes κ     = κ (Right AsTypes)
---   simplifyHet AsSizes κ     = κ (Right AsSizes)
---   simplifyHet (AsTermsOf a) κ = simplifyHet a $ \case
---     Right a' -> κ$ Right$ AsTermsOf a'
---     Left  a' -> κ$ Left$  AsTermsOf a'
-
--- instance SimplifyHet a => SimplifyHet (Het side a) where
---   type Simplified (Het side a) = Simplified a
---
---   unsimplifyHet = Het . unsimplifyHet
---
---   simplifyHet (Het a) κ = simplifyHet a $ \case
---     Right a' -> κ$ Right a'
---     Left  a' -> κ$ Left$ Het a'
---
---
-
--- instance CommuteM TwinT' (Dom' t) where
---   type CommuteMonad TwinT' (Dom' t) m = (Applicative m)
---   commuteM (SingleT (H'Both a)) = pure$ fmap (SingleT . H'Both) a
---   commuteM TwinT{necessary,direction,twinPid,twinLHS,twinCompat=H'Compat tc0,twinRHS} =
---     -- TODO: Check that the domain information actually matches (?)
---     pure$ fmap (\tc1 -> TwinT{necessary,
---                               direction,
---                               twinPid,
---                               twinLHS=fmap unDom twinLHS,
---                               twinCompat=H'Compat tc1,
---                               twinRHS=fmap unDom twinRHS}) tc0
---
-

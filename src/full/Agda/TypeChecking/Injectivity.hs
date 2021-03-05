@@ -346,7 +346,7 @@ useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
         --    Find the clause unique clause `f ps` with head `c` and unify
         --    us == ps  with fresh metas for the pattern variables of ps.
         --    If there's no such clause we can safely throw an error.
-        _ -> distributeF <$> (traverse headSymbol' neu) >>= \ case
+        _ -> distributeF <$> (onSide headSymbol' neu) >>= \ case
           Nothing -> do
             reportSDoc "tc.inj.use" 20 $ fsep $
               pwords "no head symbol found for" ++ [prettyTCM neu] ++ pwords ", so not inverting"

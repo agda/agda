@@ -223,7 +223,8 @@ instance PrettyTCM Permutation where prettyTCM = text . show
 instance PrettyTCM Polarity    where prettyTCM = text . show
 instance PrettyTCM IsForced    where prettyTCM = text . show
 
-instance Reify (Het s Term) => PrettyTCM (Arg (Het s Term)) where prettyTCM = prettyA <=< reify
+instance (Sing s, Reify (Het s Term)) => PrettyTCM (Arg (Het s Term)) where
+  prettyTCM = prettyA <=< reify
 
 prettyR
   :: (R.ToAbstract r, PrettyTCM (R.AbsOfRef r), MonadPretty m, MonadError TCErr m)
