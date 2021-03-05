@@ -307,7 +307,7 @@ compareTerm' cmp t u v = compareTerm'_ cmp (asTwin t) (H'LHS u) (H'RHS v)
 
 compareTerm'_ :: forall m. MonadConversion m => Comparison -> TwinT -> Het 'LHS Term -> Het 'RHS Term -> m ()
 compareTerm'_ cmp a m n =
-  verboseBracket "tc.conv.term" 20 "compareTerm'" $ simplifyHetFast a $ \a -> do
+  verboseBracket "tc.conv.term" 20 "compareTerm'" $ simplifyTwin a $ \a -> do
   (ba, a') <- reduceWithBlocker a
   (catchConstraint (ValueCmp_ cmp (AsTermsOf a') m n) :: m () -> m ()) $ blockOnError ba $ do
     reportSDoc "tc.conv.term" 30 $ fsep
@@ -917,7 +917,7 @@ compareElims pols0 fors0 a v els01 els02 = compareElims_ pols0 fors0 (asTwin a) 
 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
-compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
+compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyTwin a_ $ \a_ ->
   -- TODO Víctor 2021-03-03:
   -- Maybe we should postpone if `a_` is blocked (according to typeView)
   -- in order to avoid the __IMPOSSIBLE__ cases
@@ -1044,7 +1044,7 @@ compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyHetFast a_ $ \a_ ->
                                       ,twinLHS     = pullHet arg1
                                       ,twinRHS     = pullHet arg2
                                       }
-          simplifyHetFast ((b :∋ (arg,codom)) :∋ v) $ \((b :∋ (arg,codom)) :∋ v) -> do
+          simplifyTwin ((b :∋ (arg,codom)) :∋ v) $ \((b :∋ (arg,codom)) :∋ v) -> do
             let a_' = twinDirty $ lazyAbsApp <$> distributeF codom `apT` (unArg <$> arg)
             let v_' = twinDirty $ apply      <$>             v_    `apT` ((:[]) <$> arg)
           -- continue, possibly with blocked instantiation

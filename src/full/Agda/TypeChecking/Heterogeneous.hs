@@ -397,64 +397,6 @@ striveWithEffort n postpone doIt =
           reportSDoc "tc.constr.effort" 20 $ "Extra" <+> pretty e <+> "required; postponing"
           postpone (unblockOnEffort e)
 
-type SimplifyHet a = (IsTwinSolved a, Pretty a, Pretty (AsTwin_ a))
-
--- TODO: One could also check free variables and strengthen the
--- context, but this is supposed to be a cheap operation
-simplifyHetFull, simplifyHet, simplifyHetFast :: forall a c m. (SimplifyHetM m, SimplifyHet a) => a -> (a -> m c) -> m c
--- simplifyHetFull b κ = go Empty =<< getContext_
---   where
---     go acc Empty =
---       unsafeModifyContext {- IdS -} (const acc) $ isTwinSolved b >>= \case
---                   True  -> κ (asTwin$ twinAt @'Compat b)
---                   False -> κ b
---     go acc ctx@(a :⊢: γΓ)  =
---       isTwinSolved a >>= \case
---         True  -> go (acc :⊢ (asTwin$ twinAt @'Compat a)) γΓ
---         False -> unsafeModifyContext {- IdS -} (const (acc ⊢:: ctx)) $ κ b
---
-simplifyHetFull b κ = do
-  γΓ <- getContext_
-  go γΓ $ \isHomo γΓ' ->
-    unsafeModifyContext {- IdS -} (const γΓ') $
-      case isHomo of
-        True  -> simplifyHet' b >>= \case
-                  Right b'  -> κ (asTwin b')
-                  Left  b   -> κ b
-        False -> κ b
-  where
-    go Empty κ = κ True Empty
-    go (γΓ :⊢ a) κ =
-      go γΓ $ \isHomo γΓ' ->
-        case isHomo of
-          True -> simplifyHet' a >>= \case
-            Right a' -> κ True  (γΓ' ⊢: asTwin a')
-            Left  a  -> κ False (γΓ' ⊢: a)
-          False -> κ False (γΓ' ⊢: a)
-
-simplifyHet b κ = do
-  verboseBracket "tc.conv.het" 70 "simplifyHet" $ do
-    reportSDoc "tc.conv.het" 80 $ "Simplifying" <+> pretty b
-    case isTwinSingle b of
-      True  -> κ b
-      False -> simplifyHet' b >>= \case
-        Left  b -> κ b
-        Right b' -> do
-          γΓ <- getContext_
-          go γΓ $ \case
-            Nothing  -> κ b
-            Just γΓ' -> unsafeModifyContext {- IdS -} (const γΓ') $ κ (asTwin b')
-  where
-    go Empty κ = κ (Just Empty)
-    go (γΓ :⊢ a) κ = do
-      reportSDoc "tc.conv.het" 80 $ "now simplifying" <+> pretty a
-      simplifyHet' a >>= \case
-        Left{}    -> κ Nothing
-        Right a'  -> do
-          go γΓ $ \case
-            Nothing  -> κ Nothing
-            Just γΓ' -> κ (Just (γΓ' ⊢: asTwin a'))
-
 instance IsTwinSolved Context_ where
   blockOnTwin  = blockOnTwin . getPids
   isTwinSolved = isTwinSolved . getPids
@@ -462,25 +404,40 @@ instance IsTwinSolved Context_ where
   simplifyHet' Empty           = pure (Right [])
   simplifyHet' ctx@(Entry bs a) =
     simplifyHet' bs <&> \case
-      Right ()  -> Right $ twinAt @'Single (fmap (fmap (fmap (\t -> t{twinPid=mempty}))) ctx)
+      Right ()  -> Right $ twinAt @'Single (fmap (fmap (fmap (\case
+                                                                 t@SingleT{} -> t
+                                                                 t           -> t{twinPid=mempty}))) ctx)
       Left  bs' -> Left  $ Entry bs' a
 
-simplifyHetFast b κ = do
-  reportSDoc "tc.conv.het" 80 $ "Simplifying (fast)" <+> pretty b
+type SimplifyTwin a = (IsTwinSolved a, Pretty a, Pretty (AsTwin_ a))
+type SimplifyTwinM m = (MonadBlock m, PureTCM m)
+
+-- | Simplifies a twin type provided that the associated problems are solved,
+--   and that the problems associated with the context are solved (in that case,
+--   it will also simplify the context)
+simplifyTwin :: (SimplifyTwin a, SimplifyTwinM m) => a -> (a -> m b) -> m b
+simplifyTwin b κ = do
+  reportSDoc "tc.conv.het" 80 $ "Simplifying" <+> pretty b
   case isTwinSingle b of
     True  -> κ b
     False -> simplifyHet' b >>= \case
       Left  b -> κ b
       Right b' -> do
-        γΓ <- getContext_
-        simplifyHet' γΓ >>= \case
-          Left  _    -> κ b
-          -- We ignore it, although one could consider actually replacing the context
-          Right _γΓ' -> do
+        γΓ_ <- getContext_
+        simplifyHet' γΓ_ >>= \case
+          -- Víctor (2021-03-05):
+          -- This removes those problem ids that are already solved
+          -- from the context
+          Left γΓ_ -> do
+            reportSDoc "tc.conv.het" 80 $ "context not homogeneous, can't simplify"
+            unsafeModifyContext (const γΓ_) $ κ b
+          Right γΓ -> do
             reportSDoc "tc.conv.het" 80 $ "success:" <+> pretty b'
-            κ (asTwin b')
+            -- Víctor (2021-03-05): The context is now single sided.
+            -- We replace it with its single-sided version.
+            unsafeModifyContext (const $ asTwin γΓ) $ κ (asTwin b')
 
 -- | Remove unnecessary twins from the context
--- simplifyContextHet :: SimplifyHetM m => m a -> m a
--- simplifyContextHet m = simplifyHet () (\() -> m)
+simplifyContext_ :: SimplifyTwinM m => m a -> m a
+simplifyContext_ m = simplifyTwin () (\() -> m)
 
