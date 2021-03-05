@@ -159,6 +159,20 @@ else
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
+## Developer install goal without -foptimize-aggressively nor dependencies
+## Alternative to 'install-bin'
+.PHONY: v1-install
+v1-install:  ensure-hash-is-correct
+ifdef HAS_STACK
+	@echo "===================== Installing using Stack with test suites ============"
+	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS) --test --no-run-tests
+	mkdir -p $(BUILD_DIR)/build/
+	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
+else
+	@echo "===================== Installing using Cabal with test suites ============"
+	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS) --builddir=$(BUILD_DIR) --enable-tests
+endif
+
 .PHONY: fast-install-bin ## Install Agda -O0 and test suites via cabal (or stack if stack.yaml exists).
 fast-install-bin: install-deps fast-install-bin-no-deps
 
