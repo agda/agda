@@ -3039,7 +3039,7 @@ instance AsTwin (TwinT'' b a) where
 
 instance AsTwin ContextHet where
   type AsTwin_ ContextHet = Context
-  asTwin = contextHetFromList . (fmap (fmap (fmap asTwin)))
+  asTwin = contextHetFromList . fmap asTwin
 
 instance AsTwin (Het side a) where
   type AsTwin_ (Het side a) = a
@@ -3072,6 +3072,31 @@ instance AsTwin Name where
 class TwinAt (s :: ContextSide) a where
   type TwinAt_ s a
   twinAt :: a -> TwinAt_ s a
+
+-- | Allows to mark twin types as solved at the same time as they are
+--   simplified
+newtype MarkAsSolved a = MarkAsSolved a
+
+instance TwinAt 'Single (MarkAsSolved (TwinT' a)) where
+  type TwinAt_ 'Single (MarkAsSolved (TwinT' a)) = a
+  {-# INLINE twinAt #-}
+  twinAt (MarkAsSolved t@SingleT{}) = twinAt @'Single t
+  twinAt (MarkAsSolved t@TwinT{})   = twinAt @'Single t{twinPid=mempty}
+
+instance TwinAt 'Single (MarkAsSolved a) => TwinAt 'Single (MarkAsSolved (Dom a)) where
+  type TwinAt_ 'Single (MarkAsSolved (Dom a)) = Dom (TwinAt_ 'Single (MarkAsSolved a))
+  {-# INLINE twinAt #-}
+  twinAt a = twinAt @'Single (coerce a :: Dom (MarkAsSolved a))
+
+instance TwinAt 'Single (MarkAsSolved a) => TwinAt 'Single (MarkAsSolved (ContextHet' a)) where
+  {-# INLINE twinAt #-}
+  type TwinAt_ 'Single (MarkAsSolved (ContextHet' a)) = [TwinAt_ 'Single (MarkAsSolved a)]
+  twinAt a = twinAt @'Single (coerce a :: ContextHet' (MarkAsSolved a))
+
+instance TwinAt 'Single (MarkAsSolved a) => TwinAt 'Single (MarkAsSolved (Name, a)) where
+  {-# INLINE twinAt #-}
+  type TwinAt_ 'Single (MarkAsSolved (Name, a)) = (Name, TwinAt_ 'Single (MarkAsSolved a))
+  twinAt a = twinAt @'Single (coerce a :: (Name, MarkAsSolved a))
 
 instance SideIsSingle s => TwinAt s (TwinT' a) where
   type TwinAt_ s (TwinT' a) = a

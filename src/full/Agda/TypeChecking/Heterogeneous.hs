@@ -404,9 +404,7 @@ instance IsTwinSolved Context_ where
   simplifyHet' Empty           = pure (Right [])
   simplifyHet' ctx@(Entry bs a) =
     simplifyHet' bs <&> \case
-      Right ()  -> Right $ twinAt @'Single (fmap (fmap (fmap (\case
-                                                                 t@SingleT{} -> t
-                                                                 t           -> t{twinPid=mempty}))) ctx)
+      Right ()  -> Right $ twinAt @'Single (MarkAsSolved ctx)
       Left  bs' -> Left  $ Entry bs' a
 
 type SimplifyTwin a = (IsTwinSolved a, Pretty a, Pretty (AsTwin_ a))
