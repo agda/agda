@@ -456,7 +456,9 @@ definition' kit q d t ls = do
     plainJS = return . Just . Export ls . PlainJS
 
 compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
-compileTerm kit t = go t
+compileTerm kit t = do
+  reportSDoc "compile.js" 30 $ " compile term:" <+> (text . show) t
+  go t
   where
     go :: T.TTerm -> TCM Exp
     go = \case

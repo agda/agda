@@ -69,8 +69,8 @@ import Agda.Compiler.Treeless.Subst ()
 import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.GoLang.Syntax
-  ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface,GoStruct,GoStructElement),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment), TypeId(TypeId, ConstructorType, EmptyType),
+  ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface,GoStruct,GoStructElement,Local,Lambda,GoFunction, GoSwitch),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment), TypeId(TypeId, ConstructorType, EmptyType, EmptyFunctionParameter, FunctionType, FunctionReturnElement), GoFunctionSignature(OuterSignature, InnerSignature),
     modName
   , GoQName
   )
@@ -307,6 +307,26 @@ defGoDef def =
   where
     dropEquals = dropWhile $ \ c -> isSpace c || c == '='
 
+ftype :: TypeId -> TypeId
+ftype (ConstructorType v t) = FunctionType v t
+ftype (FunctionType v t) = FunctionType v t
+ftype _ = EmptyType
+
+fReturnTypes :: [TypeId] -> [TypeId]
+fReturnTypes ((ConstructorType v t) : tail) = (FunctionReturnElement t) : (fReturnTypes tail)
+fReturnTypes (head : tail) = EmptyType : (fReturnTypes tail)
+fReturnTypes [] = []
+
+createSignature :: MemberId -> [TypeId] -> String -> TCM (Exp -> Exp) 
+createSignature fname [] resName = do
+  return $ GoFunction [(OuterSignature fname EmptyFunctionParameter [] (TypeId resName))]
+createSignature fname (firstArg : tail) resName = do
+  return $ GoFunction ((OuterSignature fname (ftype firstArg) (fReturnTypes tail) (TypeId resName)) : (createSignatureInner tail resName))
+
+createSignatureInner :: [TypeId] -> String -> [GoFunctionSignature]
+createSignatureInner (head : tail) retName = (InnerSignature (ftype head) (fReturnTypes tail) (TypeId retName)) : (createSignatureInner tail retName)
+createSignatureInner [] retName = []
+
 definition' :: EnvWithOpts -> QName -> Definition -> Type -> GoQName -> TCM (Maybe Exp)
 definition' kit q d t ls = do
   case theDef d of
@@ -324,23 +344,15 @@ definition' kit q d t ls = do
     PrimitiveSort{} -> return Nothing
 
     Function{} | otherwise -> do
-
       reportSDoc "function.go" 5 $ "compiling fun:" <+> prettyTCM q
+      fname <- liftTCM $ visitorName q
       caseMaybeM (toTreeless T.EagerEvaluation q) (pure Nothing) $ \ treeless -> do
         used <- getCompiledArgUse q
         funBody <- eliminateCaseDefaults =<<
           eliminateLiteralPatterns
           (convertGuards treeless)
-        def <- getConstInfo q  
-        relv <- relView t
-        let nameee = qnameToList0 q
-        reportSDoc "function.go" 30 $ "\n nameee:" <+> (text . show) nameee
-        reportSDoc "function.go" 45 $ "\n relv:" <+> (text . show) relv
-        reportSDoc "function.go" 50 $ "\n def:" <+> (text . show) def
-        (tel, tt) <- typeWithoutParams q
-        reportSDoc "function.go" 35 $ "\n compiled treeless fun1:" <+> (text . show) funBody
-        reportSDoc "function.go" 35 $ "\n compiled treeless tel:" <+> (text . show) tel
-        reportSDoc "function.go" 35 $ "\n compiled treeless fun2:" <+> pretty funBody
+        (goArg, (ConstructorType _ name)) <- goTelApproximation t
+        reportSDoc "function.go" 30 $ " compiled treeless fun:" <+> pretty funBody
         reportSDoc "function.go" 30 $ "\n used:" <+> (text . show) used
         let (body, given) = lamView funBody
               where
@@ -348,13 +360,15 @@ definition' kit q d t ls = do
                 lamView (T.TLam t) = (+1) <$> lamView t
                 lamView t = (t, 0)
             etaN = length $ dropWhile id $ reverse $ drop given used
-        normalized <- normalizeNames funBody
-        reportSDoc "function.go" 30 $ "\n body:" <+> (text . show) body
-        let ty  = (defType def)
-        reportSDoc "function.go" 30 $ "\n ty:" <+> (text . show) ty
+        funBody' <- compileTerm kit
+            $ eraseLocalVars (map not used)
+            $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
+        functionSignature <- createSignature fname goArg name
+        reportSDoc "function.go" 25 $ "\n body:" <+> (text . show) body 
+        reportSDoc "function.go" 25 $ "\n funBody':" <+> (text . show) funBody'   
         reportSDoc "function.go" 30 $ "\n given:" <+> (text . show) given
         reportSDoc "function.go" 30 $ "\n etaN:" <+> (text . show) etaN
-        return Nothing
+        return $ Just $ functionSignature funBody'
 
     Primitive{primName = p} -> return Nothing
     Datatype{ dataPathCons = _ : _ } -> do
@@ -374,72 +388,105 @@ definition' kit q d t ls = do
         return Nothing
 
     c@Constructor{conData = p, conPars = nc, conSrcCon = ch, conArity = cona} -> do
-      reportSDoc "compile.go" 40 $ " constructor :" <+> (text . show) c
-      reportSDoc "compile.go" 40 $ " con2:" <+> (text . show) q
       let np = arity t - nc
-      typear <- liftTCM $ typeArity t
-      reportSDoc "compile.go" 30 $ " np:" <+> (text . show) np
-      reportSDoc "compile.go" 30 $ " nc:" <+> (text . show) nc
-      reportSDoc "compile.go" 30 $ " typear:" <+> (text . show) typear
-      erased <- getErasedConArgs q
-      reportSDoc "compile.go" 30 $ " erased:" <+> (text . show) erased
-      reportSDoc "compile.go" 30 $ " cona:" <+> (text . show) cona
-      TelV tel res <- telView t
-      TelV tel22 res22 <- telViewUpTo np t
-      reportSDoc "compile.go" 30 $ "\n tel22:" <+> (text . show) tel22
-      let nameee = uglyShowName (qnameName q)
-      let defPar = defGeneralizedParams d
-      let sugName = suggestName (qnameName q)
-      reportSDoc "compile.go" 30 $ "\n sugName:" <+> (text . show) sugName
-      reportSDoc "compile.go" 30 $ "\n defPar:" <+> (text . show) defPar
-      reportSDoc "compile.go" 30 $ "\n nameee:" <+> (text . show) nameee
-      reportSDoc "compile.go" 30 $ "\n res22:" <+> (text . show) res22
-      (teles, ignored) <- getOutputTypeName t
-      let t2 = teleNames teles
-      let t3 = teleArgNames teles
-      reportSDoc "compile.go" 35 $ "\n t2:" <+> (text . show) teles
-      reportSDoc "compile.go" 30 $ "\n t2:" <+> (text . show) t2
-      reportSDoc "compile.go" 30 $ "\n t3:" <+> (text . show) t3
-      let args = map (snd . unDom) (telToList tel)
-      let le = length args
-      reportSDoc "compile.go" 30 $ "\n tel:" <+> (text . show) tel
-      reportSDoc "compile.go" 30 $ "\n res:" <+> (text . show) res
-      reportSDoc "compile.go" 30 $ "\n args:" <+> (text . show) args
-      reportSDoc "compile.go" 30 $ "\n le:" <+> (text . show) le
-      d <- getConstInfo p
-      reportSDoc "compile.go" 40 $ " type:" <+> (text . show)  t
-      conInfo <- getConstructorInfo q
-      reportSDoc "compile.go" 30 $ "\n conInfo:" <+> (text . show) conInfo
       name <- liftTCM $ visitorName q
-      reportSDoc "compile.go" 40 $ "\n name:" <+> (text . show)  name
-      defd <- getConstInfo q
       let l = List1.last ls
-      let l1 = List1.head ls
-      -- l galim naudot kaip struct name
-      -- struct l {_1 interface{}; _2 List; }
-      reportSDoc "compile.go" 30 $ " l:" <+> (text . show) l
-      reportSDoc "compile.go" 30 $ " ls:" <+> (text . show) ls
-      reportSDoc "compile.go" 30 $ " l1:" <+> (text . show) l1
       (goArg, goRes) <- goTelApproximation t
       reportSDoc "compile.go" 20 $ " goTypes:" <+> (text . show) goArg
       case theDef d of
-        dt -> do
-          reportSDoc "compile.go" 30 $ "index:" <+> (text . show) index
-          return (Just $ GoStruct l goArg)
-          where
-            index | Datatype{} <- dt
-                  , cs <- defConstructors dt
-                  = [GoStructElement (LocalId i) (mkComment l1) | (i, x) <- zip [0..] cs, x == q]
-                  | otherwise = []
-            mkComment (MemberId s) = TypeId s      
-            mkComment _ = TypeId "unknown"
-      
+        dt -> return (Just $ GoStruct l goArg)
     AbstractDefn{} -> __IMPOSSIBLE__
 --------------------------------------------------
 -- Writing out a Golang module
 --------------------------------------------------
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (List1.last ls)
+
+compileAlt :: EnvWithOpts -> T.TAlt -> TCM ((QName, MemberId), Exp)
+compileAlt kit = \case
+  T.TACon con ar body -> do
+    reportSDoc "function.go" 30 $ "\n TACon con:" <+> (text . show) con
+    reportSDoc "function.go" 30 $ "\n TACon ar:" <+> (text . show) ar
+    reportSDoc "function.go" 30 $ "\n TACon body:" <+> (text . show) body
+    erased <- getErasedConArgs con
+    let nargs = ar - length (filter id erased)
+    memId <- visitorName con
+    body <- Lambda nargs <$> compileTerm kit (eraseLocalVars erased body)
+    reportSDoc "function.go" 30 $ "\n TACon nargs:" <+> (text . show) nargs
+    reportSDoc "function.go" 30 $ "\n TACon memId:" <+> (text . show) memId
+    reportSDoc "function.go" 30 $ "\n TACon body2:" <+> (text . show) body
+    return ((con, memId), body)
+  _ -> __IMPOSSIBLE__
+
+compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
+compileTerm kit t = do
+  reportSDoc "function.go" 30 $ " compile term:" <+> (text . show) t
+  go t
+  where
+    go :: T.TTerm -> TCM Exp
+    go = \case
+      T.TVar x -> return $ Local $ LocalId x
+      T.TDef q -> do
+        d <- getConstInfo q
+        reportSDoc "function.go" 30 $ "\n TDef q:" <+> (text . show) q 
+        reportSDoc "function.go" 30 $ "\n TDef d:" <+> (text . show) d 
+        reportSDoc "function.go" 30 $ "\n TDef theDef d:" <+> (text . show) (theDef d)
+        case theDef d of
+          -- Datatypes and records are erased
+          Datatype {} -> return (String "*")
+          Record {} -> return (String "*")
+          _ -> return Undefined
+      T.TApp (T.TCon q) [x] | Just q == (nameOfSharp <$> snd kit) -> do
+        reportSDoc "function.go" 30 $ "\n sharp"
+        unit
+      T.TApp t' xs | Just f <- getDef t' -> do
+        reportSDoc "function.go" 30 $ "\n just f:" <+> (text . show) (getDef t')
+        reportSDoc "function.go" 30 $ "\n TApp xs:" <+> (text . show) xs
+        unit
+      T.TApp t xs -> do
+        reportSDoc "function.go" 30 $ "\n TApp xs:" <+> (text . show) xs
+        unit
+      T.TLam t -> do
+        reportSDoc "function.go" 30 $ "\n inside TLam:" <+> (text . show) t 
+        go t
+      T.TLet t e -> do
+        reportSDoc "function.go" 30 $ "\n TLet e:" <+> (text . show) e 
+        unit
+      T.TLit l -> unit
+      T.TCon q -> do
+        d <- getConstInfo q
+        reportSDoc "function.go" 30 $ "\n TCon d:" <+> (text . show) d
+        unit
+      T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
+        reportSDoc "function.go" 30 $ "\n TCase sc:" <+> (text . show) sc
+        reportSDoc "function.go" 30 $ "\n TCase ct:" <+> (text . show) ct
+        reportSDoc "function.go" 30 $ "\n TCase def:" <+> (text . show) def
+        reportSDoc "function.go" 30 $ "\n TCase alts:" <+> (text . show) alts
+        reportSDoc "function.go" 30 $ "\n TCase dt:" <+> (text . show) dt
+        alts' <- traverse (compileAlt kit) alts
+        reportSDoc "function.go" 30 $ "\n TApp alts':" <+> (text . show) alts'
+        return $ GoSwitch (LocalId sc) []
+      T.TCase _ _ _ _ -> __IMPOSSIBLE__
+      T.TPrim p -> do
+        reportSDoc "function.go" 30 $ "\n prim:" <+> (text . show) p 
+        unit
+      T.TUnit -> unit
+      T.TSort -> unit
+      T.TErased -> unit
+      T.TError T.TUnreachable -> return Undefined
+      T.TCoerce t -> go t
+
+    getDef (T.TDef f) = Just (Left f)
+    getDef (T.TCon c) = Just (Right c)
+    getDef (T.TCoerce x) = getDef x
+    getDef _ = Nothing
+
+    unit = return Null
+
+eraseLocalVars :: [Bool] -> T.TTerm -> T.TTerm
+eraseLocalVars [] x = x
+eraseLocalVars (False: es) x = eraseLocalVars es x
+eraseLocalVars (True: es) x = eraseLocalVars es (TC.subst (length es) T.TErased x)
 
 writeModule :: Module -> TCM ()
 writeModule m = do
@@ -473,7 +520,15 @@ goTelApproximation :: Type -> TCM ([TypeId], TypeId)
 goTelApproximation t = do
   TelV tel res <- telView t
   let args = map (snd . unDom) (telToList tel)
-  (,) <$> zipWithM (goTypeApproximation) [0..] args <*> goTypeApproximation (length args) res
+  let filteredArgs = filter isSortType args
+  (,) <$> zipWithM (goTypeApproximation) [0..] filteredArgs <*> goTypeApproximation (length args) res
+
+isSortType :: Type -> Bool
+isSortType t = do
+  let tu = unSpine (unEl t)
+  case tu of
+    Sort{} -> False
+    _ -> True
 
 outFile_ :: TCM FilePath
 outFile_ = do

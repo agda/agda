@@ -27,14 +27,12 @@ data Exp =
   Global GlobalId |
   Undefined |
   Null |
+  Lambda Nat Exp |
   GoInterface MemberId | -- interface globalus name
   GoStruct MemberId [TypeId] | -- struktūros name ir [Exp] yra struktūros elementai
   GoStructElement LocalId TypeId | -- struktūros elementas. name tiesiog integer + tipas
-  GoFunctionParameter LocalId TypeId | -- name ir to elemento tipas (galimai tinka tiesiog interface{}).
-  -- todo ar local id ir kažkokį custom/global
-  GoFunction MemberId Exp Exp Exp | -- funkcijos vardas, parametras, return type, vidinė funkcija/switch statement.
+  GoFunction [GoFunctionSignature] Exp | -- funkcijos vardas, parametras, return type, vidinė funkcija/switch statement.
   -- todo kaip išsiaiškint pilną return type (einam per visas vidines funkcijas?)
-  GoFunctionInner Exp Exp Exp | -- iš esmės tas pats, kaip GoFunction, tik neturi jokio name, prasideda su return.
   GoSwitch LocalId [Exp] | -- elementas, pagal kurio type darom switch ir sąrašas Go cases, paskutinis go case yra default su panic ir kintamojo priskirimas '_ = parameter'
   GoCase MemberId Exp | -- pattern mathing pagal struct name ir return Exp, kur Exp gali būt metodo kvietimas, kintamojo gražinimas ar struct sukūrimas
   GoMethodCall MemberId [Exp] | --metodo name, kurį kviečiam ir parametrai. Parametrai gali būt method call, struct sukūrimas ar tiesiog parametras. Prettyfiinant kiekvienas Exp elementas eina į skliaustus.
@@ -55,7 +53,18 @@ newtype LocalId = LocalId Nat
 data TypeId = 
   TypeId String
   | ConstructorType String String
+  | FunctionType String String
+  | FunctionReturnElement String
+  | EmptyFunctionParameter
   | EmptyType
+  deriving (Eq, Ord, Show)  
+
+
+data GoFunctionSignature = 
+  OuterSignature MemberId TypeId [TypeId] TypeId |
+  -- name, parameter, return parameters (func...), final return type.
+  InnerSignature TypeId [TypeId] TypeId
+-- parameter, return parameters (func...), final return type.
   deriving (Eq, Ord, Show)  
 
 newtype GlobalId = GlobalId [String]
