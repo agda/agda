@@ -44,6 +44,13 @@ Changes to type checker and other components defining the Agda language.
   As in a `with`, multiple bindings can be separated by a `|`, and variables to
   the left are in scope in bindings to the right.
 
+* The following options are now considered infective:
+  `--rewriting`, `--type-in-type`, `--omega-in-omega`,
+  `--injective-type-constructors`, `--experimental-irrelevance`,
+  `--cumulativity`, and `--allow-exec`. This means that if a module
+  has one of these flags enabled, then all modules importing it must
+  also have that flag enabled.
+
 Reflection
 ----------
 
