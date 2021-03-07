@@ -1188,6 +1188,12 @@ infectiveCoinfectiveOptions =
   , infectiveOption optCohesion               "--cohesion"
   , infectiveOption optErasure                "--erasure"
   , infectiveOption optErasedMatches          "--erased-matches"
+  , infectiveOption (not . optUniverseCheck)  "--type-in-type"
+  , infectiveOption optOmegaInOmega           "--omega-in-omega"
+  , infectiveOption optInjectiveTypeConstructors "--injective-type-constructors"
+  , infectiveOption optExperimentalIrrelevance "--experimental-irrelevance"
+  , infectiveOption optCumulativity           "--cumulativity"
+  , infectiveOption optAllowExec              "--allow-exec"
   ]
   where
   cubicalCompatible =
