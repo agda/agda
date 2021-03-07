@@ -1134,14 +1134,14 @@ scopeCheckNiceModule r p name tel checkDs
       -- But open statements in the module telescope should
       -- only affect the current module!
       scopeCheckNiceModule noRange p noName_ [] $ singleton <$>
-        scopeCheckNiceModule_
+        scopeCheckNiceModule_ PublicAccess  -- See #4350
 
   | otherwise = do
-        scopeCheckNiceModule_
+        scopeCheckNiceModule_ p
   where
     -- The actual workhorse:
-    scopeCheckNiceModule_ :: ScopeM A.Declaration
-    scopeCheckNiceModule_ = do
+    scopeCheckNiceModule_ :: Access -> ScopeM A.Declaration
+    scopeCheckNiceModule_ p = do
 
       -- Check whether we are dealing with an anonymous module.
       -- This corresponds to a Coq/LEGO section.

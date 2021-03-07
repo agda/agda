@@ -85,3 +85,15 @@ module Batch3 where
   e3 = λ (open Star) → ★
 
   -- "λ (open M es) → e" is an edge case which behaves like "let open M es in e"
+
+-- Andreas, 2021-03-07, issue #4350 raised 2020-01-03 by sattlerc
+
+module Issue4350 where
+  module Exporting where
+    private
+      module Internal (let open Star) where
+        U = ★
+    open Internal public
+
+  -- module Test = E.N  -- must not be in scope
+  test = Exporting.U  -- must be in scope
