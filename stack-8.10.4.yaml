@@ -1,10 +1,10 @@
-resolver: lts-17.4
+resolver: lts-17.5
 compiler: ghc-8.10.4
 compiler-check: match-exact
 
 extra-deps:
-  - tasty-1.4.0.3
-  - tasty-silver-3.2.1
+- tasty-1.4.0.3
+- tasty-silver-3.2.1
 
 # Local packages, usually specified by relative directory name
 packages:
