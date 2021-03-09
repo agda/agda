@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue5268 (tmp-issue-5268/sym/Issue5268.agda). " t)
+(agda2-status-action "")
+(agda2-info-action "*Error*" "An internal error has occurred. Please report this as a bug. Location of the error: __IMPOSSIBLE__, called at src/full/Agda/TypeChecking/Errors.hs:«line»:«col» «Agda-package»:Agda.TypeChecking.Errors " nil)
+(agda2-highlight-add-annotations 'nil)
+(agda2-status-action "")
