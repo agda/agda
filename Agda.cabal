@@ -246,10 +246,21 @@ library
                 , stm >= 2.4.4 && < 2.6
                 , strict >= 0.3.2 && < 0.5
                 , template-haskell >= 2.11.0.0 && < 2.18
+                , text >= 1.2.3.0 && < 1.3
                 , time >= 1.6.0.1 && < 1.12
+                , transformers == 0.5.*
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
                 , zlib == 0.6.*
+
+  -- Andreas, 2021-03-10:
+  -- All packages we depend upon should be mentioned in an unconditional
+  -- build-depends field, but additional restrictions on their
+  -- version for specific GHCs may be placed in conditionals.
+  --
+  -- The goal is to be able to make (e.g. when a new GHC comes out)
+  -- revisions on hackage, e.g. relaxing upper bounds.  This process
+  -- currently does not support revising conditionals.
 
   -- In hTags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
@@ -266,12 +277,12 @@ library
   if impl(ghc < 8.4)
     build-depends: transformers == 0.5.2.0
 
-  -- ASR (2018-10-16). Required for supporting GHC 8.4.1, 8.4.2 and
+  -- ASR (2018-10-16).
+  -- text-1.2.3.0 required for supporting GHC 8.4.1, 8.4.2 and
   -- 8.4.3. See Issue #3277.
-  if impl(ghc >= 8.4.1) && impl(ghc <= 8.4.3)
-    build-depends: text >= 1.2.3.0 && < 1.3
-  else
-    build-depends: text >= 1.2.3.1 && < 1.3
+  -- The other GHC versions can be restricted to >= 1.2.3.1.
+  if impl(ghc < 8.4.1) || impl(ghc > 8.4.3)
+    build-depends: text >= 1.2.3.1
 
   if impl(ghc >= 8.4)
     build-depends: ghc-compact == 0.1.*
@@ -898,15 +909,16 @@ test-suite agda-tests
                 -- NB: tasty-silver 3.2 requires tasty >= 1.4
                 , tasty-silver >= 3.1.13 && < 3.3
                 , temporary >= 1.2.0.3 && < 1.4
+                , text >= 1.2.3.0 && < 1.3
                 , unix-compat >= 0.4.3.1 && < 0.6
                 , uri-encode >= 1.5.0.4 && < 1.6
 
-  -- ASR (2018-10-16). Required for supporting GHC 8.4.1, 8.4.2 and
+  -- ASR (2018-10-16).
+  -- text-1.2.3.0 required for supporting GHC 8.4.1, 8.4.2 and
   -- 8.4.3. See Issue #3277.
-  if impl(ghc >= 8.4.1) && impl(ghc <= 8.4.3)
-    build-depends: text >= 1.2.3.0 && < 1.3
-  else
-    build-depends: text >= 1.2.3.1 && < 1.3
+  -- The other GHC versions can be restricted to >= 1.2.3.1.
+  if impl(ghc < 8.4.1) || impl(ghc > 8.4.3)
+    build-depends: text >= 1.2.3.1
 
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
