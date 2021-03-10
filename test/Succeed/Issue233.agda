@@ -6,5 +6,5 @@ postulate
   mkT : (F : Set → Set) → T F
 
 foo : T (λ A → A)
-foo with λ (B : Set) → B
+foo with (λ (B : Set) → B)
 ... | F = mkT F

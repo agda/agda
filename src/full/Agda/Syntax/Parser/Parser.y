@@ -636,10 +636,10 @@ Expr1
 
 WithExprs :: { List1 (Named Name Expr) }
 WithExprs
-  :  Id ':'     Application3 '|' WithExprs { named $1  (rawApp $3) <| $5 }
-  | {- empty -} Application3 '|' WithExprs { unnamed   (rawApp $1) <| $3 }
-  | Id ':'      Application                { singleton (named $1 (rawApp $3)) }
-  | {- empty -} Application                { singleton (unnamed  (rawApp $1)) }
+  : Application3 'in' Id     '|' WithExprs { named $3  (rawApp $1) <| $5 }
+  | Application3 {- empty -} '|' WithExprs { unnamed   (rawApp $1) <| $3 }
+  | Application3 'in' Id                   { singleton (named $3 (rawApp $1)) }
+  | Application3 {- empty -}               { singleton (unnamed  (rawApp $1)) }
 
 UnnamedWithExprs :: { List1 Expr }
 UnnamedWithExprs
