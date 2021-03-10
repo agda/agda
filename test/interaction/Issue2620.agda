@@ -9,5 +9,5 @@ data B {A : Set} : A → Set where
 data C {A : Set} : ∀ a → B {A} a → Set where
   c : (a : A) → C a (b a)
 
-id : ∀ x → C _ x → B 0
+id : ∀ {A} {a : A} x → C a x → B 0
 id x (c y) = {!!}

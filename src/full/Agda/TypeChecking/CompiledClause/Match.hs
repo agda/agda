@@ -7,12 +7,13 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.CompiledClause
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad hiding (constructorForm)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Maybe
+import Agda.Utils.Pretty (prettyShow)
 
 import Agda.Utils.Impossible
 
@@ -65,7 +66,7 @@ match' ((c, es, patch) : stack) = do
     case c of
 
       -- impossible case
-      Fail -> no (NotBlocked AbsurdMatch) es
+      Fail{} -> no (NotBlocked AbsurdMatch) es
 
       -- done matching
       Done xs t
@@ -151,7 +152,7 @@ match' ((c, es, patch) : stack) = do
             --    mo <- getBuiltinName' builtinIOne
             --    return $ Set.fromList $ catMaybes [mi,mo]
 
-            fallThrough <- return $ fromMaybe False (fallThrough bs) && isJust (catchAllBranch bs)
+            fallThrough <- return $ (Just True ==) (fallThrough bs) && isJust (catchAllBranch bs)
 
             let
               isCon b =
@@ -159,8 +160,7 @@ match' ((c, es, patch) : stack) = do
                  Apply a | c@Con{} <- unArg a -> Just c
                  _                            -> Nothing
             -- Now do the matching on the @n@ths argument:
-            id $
-             case eb of
+            case eb of
               -- In case of a literal, try also its constructor form
               NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
                 cv <- constructorForm v
@@ -184,7 +184,6 @@ match' ((c, es, patch) : stack) = do
               _ | fallThrough -> match' $ catchAllFrame $ stack
 
               Blocked x _            -> no (Blocked x) es'
-              NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
 
               -- Otherwise, we are stuck.  If we were stuck before,
               -- we keep the old reason, otherwise we give reason StuckOn here.
@@ -199,5 +198,5 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
     then return (NoReduction $ NotBlocked MissingClauses [])
     else do
       traceSLn "impossible" 10
-        ("Incomplete pattern matching when applying " ++ show f)
+        ("Incomplete pattern matching when applying " ++ prettyShow f)
         __IMPOSSIBLE__

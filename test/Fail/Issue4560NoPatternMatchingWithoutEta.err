@@ -1,0 +1,6 @@
+Issue4560NoPatternMatchingWithoutEta.agda:18,6-13
+Pattern matching on no-eta record type R
+(defined at Issue4560NoPatternMatchingWithoutEta.agda:11,8-9)
+is not allowed
+(to activate, add declaration 'pattern' to record definition)
+when checking that the pattern con x y has type R

@@ -10,7 +10,7 @@ my $commands   = qr"(InductiveConstructor|CoinductiveConstructor\
 
 while (<>) {
 
-  s|(\\Agda$commands){(.*?)}
+  s|(\\Agda$commands)\{(.*?)\}
 
    | my $cmd = $1;
      my $arg = $3;

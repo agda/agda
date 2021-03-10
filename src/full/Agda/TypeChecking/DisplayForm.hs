@@ -4,11 +4,11 @@
 
 module Agda.TypeChecking.DisplayForm where
 
-import Prelude hiding (all)
 import Control.Monad
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
-import Data.Foldable (all)
+
+import Data.Monoid (All(..))
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -17,7 +17,6 @@ import Agda.Syntax.Internal.Names
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (HasBuiltins(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Reduce (instantiate)
@@ -96,7 +95,7 @@ displayForm q es = do
     -- identifiers coming from the source term.
     wellScoped scope (Display _ _ d)
       | isWithDisplay d = True
-      | otherwise       = all (inScope scope) $ namesIn d
+      | otherwise       = getAll $ namesIn' (All . inScope scope) d  -- all names in d should be in scope
 
     inScope scope x = not $ null $ inverseScopeLookupName x scope
 
@@ -143,8 +142,11 @@ instance Match a => Match (Elim' a) where
   match p v =
     case (p, v) of
       (Proj _ f, Proj _ f') | f == f' -> return []
-      (Apply a, Apply a')         -> match a a'
-      _                           -> mzero
+      _ | Just a  <- isApplyElim p
+        , Just a' <- isApplyElim v    -> match a a'
+      -- we do not care to differentiate between Apply and IApply for
+      -- printing.
+      _                               -> mzero
 
 instance Match Term where
   match p v = lift (instantiate v) >>= \ v -> case (p, v) of

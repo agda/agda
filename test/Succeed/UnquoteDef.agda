@@ -3,6 +3,7 @@ module UnquoteDef where
 
 open import Common.Reflection
 open import Common.Prelude
+open import Agda.Builtin.Sigma
 
 module Target where
   mutual
@@ -28,14 +29,14 @@ pattern `Bool = def (quote Bool) []
 -- Simple non-mutual case
 `id : QName → FunDef
 `id f = funDef `idType
-        ( clause (vArg `zero            ∷ []) `zero
-        ∷ clause (vArg (`suc (var "n")) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
+        ( clause []                       (vArg `zero          ∷ []) `zero
+        ∷ clause (("n" , vArg `Nat) ∷ []) (vArg (`suc (var 0)) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
         ∷ [])
 
 `idDef : QName → List Clause
 `idDef f =
-   clause (vArg `zero            ∷ []) `zero
- ∷ clause (vArg (`suc (var "n")) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
+   clause []                       (vArg `zero          ∷ []) `zero
+ ∷ clause (("n" , vArg `Nat) ∷ []) (vArg (`suc (var 0)) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
  ∷ []
 
 -- Andreas, 2016-07-17
@@ -50,8 +51,8 @@ abstract
 -- Now for the mutal ones
 `evenOdd : Term → QName → List Clause
 `evenOdd base step =
-    clause (vArg `zero            ∷ []) base
-  ∷ clause (vArg (`suc (var "n")) ∷ []) (def step (vArg (var 0 []) ∷ []))
+    clause []                       (vArg `zero          ∷ []) base
+  ∷ clause (("n" , vArg `Nat) ∷ []) (vArg (`suc (var 0)) ∷ []) (def step (vArg (var 0 []) ∷ []))
   ∷ []
 
 _>>_ : TC ⊤ → TC ⊤ → TC ⊤

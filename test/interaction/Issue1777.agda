@@ -12,3 +12,6 @@ test record { f = x } with x
 
 -- Splitting on y should give
 -- test record { f = x } | c = ?
+
+-- Jesper, 2019-11-21, new output:
+-- ... | c = ?

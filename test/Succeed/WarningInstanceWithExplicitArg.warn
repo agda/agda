@@ -1,9 +1,27 @@
-WarningInstanceWithExplicitArg.agda:6,12-23
+WarningInstanceWithExplicitArg.agda:6,12-13
 Instance declarations with explicit arguments are never considered
 by instance search, so making _ into an instance has no effect.
+WarningInstanceWithExplicitArg.agda:22,3-11
+Instance declarations with explicit arguments are never considered
+by instance search, so making r into an instance has no effect.
+when checking the definition of R
+WarningInstanceWithExplicitArg.agda:27,12-13
+Instance declarations with explicit arguments are never considered
+by instance search, so making c into an instance has no effect.
+when checking the constructor c in the declaration of D
 
 ———— All done; warnings encountered ————————————————————————
 
-WarningInstanceWithExplicitArg.agda:6,12-23
+WarningInstanceWithExplicitArg.agda:6,12-13
 Instance declarations with explicit arguments are never considered
 by instance search, so making _ into an instance has no effect.
+
+WarningInstanceWithExplicitArg.agda:22,3-11
+Instance declarations with explicit arguments are never considered
+by instance search, so making r into an instance has no effect.
+when checking the definition of R
+
+WarningInstanceWithExplicitArg.agda:27,12-13
+Instance declarations with explicit arguments are never considered
+by instance search, so making c into an instance has no effect.
+when checking the constructor c in the declaration of D

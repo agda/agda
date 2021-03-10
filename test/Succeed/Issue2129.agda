@@ -5,6 +5,7 @@ open import Agda.Builtin.List
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Equality
+open import Agda.Builtin.Sigma
 
 data Wrap (A : Set) : Set where
   [_] : A → Wrap A
@@ -33,7 +34,10 @@ id-ok = refl
 -- Underscores should behave the same for clauses as for lambda and pi
 
 idClause : Clause
-idClause = clause (hArg (var "_") ∷ vArg (var "_") ∷ []) (var 0 [])
+idClause = clause
+             (("_" , vArg unknown) ∷ ("_" , hArg unknown) ∷ [])
+             (hArg (var 1) ∷ vArg (var 0) ∷ [])
+             (var 0 [])
 
 infixr 4 _>>=_
 _>>=_ = bindTC

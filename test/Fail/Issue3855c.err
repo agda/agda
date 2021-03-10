@@ -1,5 +1,6 @@
-Issue3855c.agda:13,36-37
-Cannot instantiate the metavariable _5 to solution b
-since it contains the variable b
-which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution
-when checking that the expression r has type RB ?0
+Failed to solve the following constraints:
+  b =< ?0 : Bool (blocked on _b_5)
+Unsolved metas at the following locations:
+  Issue3855c.agda:13,36-37
+Unsolved interaction metas at the following locations:
+  Issue3855c.agda:13,29-34

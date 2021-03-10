@@ -4,9 +4,12 @@
 
 module Agda.Benchmarking where
 
+import Control.DeepSeq
 import qualified Control.Exception as E
 
 import Data.IORef
+
+import GHC.Generics (Generic)
 
 import System.IO.Unsafe
 
@@ -60,6 +63,8 @@ data Phase
     -- ^ Subphase for 'Termination'.
   | ModuleName
     -- ^ Subphase for 'Import'.
+  | Compaction
+    -- ^ Subphase for 'Deserialization': compacting interfaces.
   | BuildInterface
     -- ^ Subphase for 'Serialization'.
   | Sort
@@ -92,12 +97,14 @@ data Phase
     -- ^ Pretty printing names.
   | TopModule TopLevelModuleName
   | Definition QName
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
 
 instance Pretty Phase where
   pretty (TopModule m)  = pretty m
   pretty (Definition q) = pretty q
   pretty a = text (show a)
+
+instance NFData Phase
 
 type Benchmark = B.Benchmark Phase
 type Account   = B.Account Phase
@@ -124,7 +131,8 @@ isInternalAccount _                  = True
 benchmarks :: IORef Benchmark
 benchmarks = unsafePerformIO $ newIORef empty
 
-instance MonadBench Phase IO where
+instance MonadBench IO where
+  type BenchPhase IO = Phase
   getBenchmark = readIORef benchmarks
   putBenchmark = writeIORef benchmarks
   finally = E.finally

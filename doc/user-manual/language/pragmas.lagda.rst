@@ -20,37 +20,47 @@ Index of pragmas
 
 * :ref:`BUILTIN <built-ins>`
 
-* :ref:`CATCHALL <case-trees>`
+* :ref:`CATCHALL <catchall-pragma>`
 
 * :ref:`COMPILE <foreign-function-interface>`
 
+* :ref:`DISPLAY <display-pragma>`
+
 * :ref:`FOREIGN <foreign-function-interface>`
 
-* :ref:`NO_POSITIVITY_CHECK <no_positivity_check_pragma>`
+* :ref:`INJECTIVE <injective-pragma>`
 
-* :ref:`NO_TERMINATION_CHECK <terminating_pragma>`
+* :ref:`INLINE <inline-pragma>`
 
-* :ref:`NON_TERMINATING <non_terminating_pragma>`
+* :ref:`NO_POSITIVITY_CHECK <no_positivity_check-pragma>`
 
-* :samp:`NON_COVERING`
+* :ref:`NO_TERMINATION_CHECK <terminating-pragma>`
 
-* :ref:`POLARITY <polarity_pragma>`
+* :ref:`NO_UNIVERSE_CHECK <no_universe_check-pragma>`
+
+* :ref:`NOINLINE <inline-pragma>`
+
+* :ref:`NON_COVERING <non_covering-pragma>`
+
+* :ref:`NON_TERMINATING <non_terminating-pragma>`
+
+* :ref:`OPTIONS <options-pragma>`
+
+* :ref:`POLARITY <polarity-pragma>`
+
+* :ref:`REWRITE<rewriting>`
 
 * :ref:`STATIC <built-ins>`
 
-* :ref:`TERMINATING <terminating_pragma>`
+* :ref:`TERMINATING <terminating-pragma>`
 
-* :ref:`INLINE <inline_pragma>`
+* :ref:`WARNING_ON_USAGE <warning-pragma>`
 
-* :ref:`NOINLINE <inline_pragma>`
-
-* :ref:`WARNING_ON_USAGE <warning_pragma>`
-
-* :ref:`WARNING_ON_IMPORT <warning_pragma>`
+* :ref:`WARNING_ON_IMPORT <warning-pragma>`
 
 See also :ref:`command-line-pragmas`.
 
-.. _display_pragma:
+.. _display-pragma:
 
 The ``DISPLAY`` pragma
 ______________________
@@ -87,7 +97,34 @@ Limitations
     insertion may not work properly if the type of `f` computes to an
     implicit function space after pattern matching.
 
-.. _inline_pragma:
+.. _injective-pragma:
+
+The ``INJECTIVE`` pragma
+________________________
+
+Injective pragmas can be used to mark a definition as injective for
+the pattern matching unifier. This can be used as a version of
+:option:`--injective-type-constructors` that only applies to specific
+datatypes.
+
+Example::
+
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.Nat
+
+  data Fin : Nat → Set where
+    zero : {n : Nat} → Fin (suc n)
+    suc  : {n : Nat} → Fin n → Fin (suc n)
+
+  {-# INJECTIVE Fin #-}
+
+  Fin-injective : {m n : Nat} → Fin m ≡ Fin n → m ≡ n
+  Fin-injective refl = refl
+
+Aside from datatypes, this pragma can also be used to mark other
+definitions as being injective (for example postulates).
+
+.. _inline-pragma:
 
 The ``INLINE`` and ``NOINLINE`` pragmas
 _______________________________________
@@ -118,17 +155,40 @@ Example::
 
   {-# INLINE _o_ #-} -- force inlining
 
+.. _non_covering-pragma:
 
-.. _warning_pragma:
+The ``NON_COVERING`` pragma
+___________________________
+
+.. versionadded:: 2.6.1
+
+The ``NON_COVERING`` pragma can be placed before a function (or a
+block of mutually defined functions) which the user knows to be
+partial. To be used as a version of
+:option:`--allow-incomplete-matches` that only applies to specific
+functions.
+
+.. _options-pragma:
+
+The ``OPTIONS`` pragma
+___________________________
+
+Some options can be given at the top of .agda files in the form
+
+``{-# OPTIONS --{opt₁} --{opt₂} ... #-}``
+
+The possible options are listed in :ref:`command-line-pragmas`.
+
+.. _warning-pragma:
 
 The ``WARNING_ON_`` pragmas
 ___________________________
 
 A library author can use a ``WARNING_ON_USAGE`` pragma to attach to a defined
-name a warning to be raised whenever this name is used.
+name a warning to be raised whenever this name is used (since Agda 2.5.4).
 
 Similarly they can use a ``WARNING_ON_IMPORT`` pragma to attach to a module
-a warning to be raised whenever this module is imported.
+a warning to be raised whenever this module is imported (since Agda 2.6.1).
 
 This would typically be used to declare a name or a module 'DEPRECATED' and
 advise the end-user to port their code before the feature is dropped.

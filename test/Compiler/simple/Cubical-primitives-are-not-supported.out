@@ -1,0 +1,5 @@
+COMPILE_FAILED
+
+ret > ExitFailure 42
+out > Not implemented: primIMin
+out >

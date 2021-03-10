@@ -13,14 +13,17 @@ module Agda.Syntax.Parser.LexActions
     , begin_, end_
     , lexError
       -- ** Specialized actions
-    , keyword, symbol, identifier, literal
+    , keyword, symbol, identifier, literal, literal', integer
       -- * Lex predicates
     , followedBy, eof, inState
     ) where
 
+import Data.Bifunctor
 import Data.Char
+import Data.List
 import Data.Maybe
 
+import Agda.Syntax.Common (pattern Ranged)
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.Monad
@@ -29,7 +32,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 
 import Agda.Utils.List
-import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
@@ -70,7 +72,7 @@ lexToken =
         case alexScanUser (lss, flags) inp (headWithDefault __IMPOSSIBLE__ lss) of
             AlexEOF                     -> returnEOF inp
             AlexSkip inp' len           -> skipTo inp'
-            AlexToken inp' len action   -> fmap postToken $ action inp inp' len
+            AlexToken inp' len action   -> postToken <$> action inp inp' len
             AlexError i                 -> parseError $ concat
               [ "Lexical error"
               , case listToMaybe $ lexInput i of
@@ -96,14 +98,6 @@ postToken (TokId (r, "\x2987")) = TokSymbol SymOpenIdiomBracket r
 postToken (TokId (r, "\x2988")) = TokSymbol SymCloseIdiomBracket r
 postToken (TokId (r, "\x2987\x2988")) = TokSymbol SymEmptyIdiomBracket r
 postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
-postToken (TokId (r, s))
-  | set == "Set" && all isSub n = TokSetN (r, readSubscript n)
-  where
-    (set, n)      = splitAt 3 s
-postToken (TokId (r, s))
-  | prop == "Prop" && all isSub n = TokPropN (r, readSubscript n)
-  where
-    (prop, n)     = splitAt 4 s
 postToken t = t
 
 {--------------------------------------------------------------------------
@@ -128,7 +122,7 @@ withInterval f = token $ \s -> do
 
 -- | Like 'withInterval', but applies a function to the string.
 withInterval' :: (String -> a) -> ((Interval, a) -> tok) -> LexAction tok
-withInterval' f t = withInterval (t . (id -*- f))
+withInterval' f t = withInterval (t . second f)
 
 -- | Return a token without looking at the lexed string.
 withInterval_ :: (Interval -> r) -> LexAction r
@@ -195,10 +189,36 @@ symbol :: Symbol -> LexAction Token
 symbol s = withInterval_ (TokSymbol s)
 
 
+-- | Parse a number.
+
+number :: String -> Integer
+number str = case str of
+    '0' : 'x' : num -> parseNumber 16 num
+    '0' : 'b' : num -> parseNumber 2  num
+    num             -> parseNumber 10 num
+    where
+        parseNumber :: Integer -> String -> Integer
+        parseNumber radix = foldl' (addDigit radix) 0
+
+        -- We rely on Agda.Syntax.Parser.Lexer to enforce that the digits are
+        -- in the correct range (so e.g. the digit 'E' cannot appear in a
+        -- binary number).
+        addDigit :: Integer -> Integer -> Char -> Integer
+        addDigit radix n '_' = n
+        addDigit radix n c   = n * radix + fromIntegral (digitToInt c)
+
+integer :: String -> Integer
+integer = \case
+  '-' : str -> - (number str)
+  str       -> number str
+
 -- | Parse a literal.
-literal :: Read a => (Range -> a -> Literal) -> LexAction Token
-literal lit =
-  withInterval' read (TokLiteral . uncurry lit . mapFst getRange)
+literal' :: (String -> a) -> (a -> Literal) -> LexAction Token
+literal' read lit = withInterval' read $ \ (r, a) ->
+  TokLiteral $ Ranged (getRange r) $ lit a
+
+literal :: Read a => (a -> Literal) -> LexAction Token
+literal = literal' read
 
 -- | Parse an identifier. Identifiers can be qualified (see 'Name').
 --   Example: @Foo.Bar.f@

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                 #-}
+{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
@@ -20,27 +21,70 @@ import System.Directory
 import System.Process
 import System.Console.GetOpt
 
-#if MIN_VERSION_ghc(8,6,1)
-import DynFlags ( IncludeSpecs(IncludeSpecs) )
-#endif
 import GHC
-import Parser as P
-
-#if MIN_VERSION_ghc(8,2,0)
-import Lexer hiding (options)
+  ( DynFlags
+  , HsModule
+  , Located
+  , RealSrcLoc
+  , includePaths
+  , getSession
+  , getSessionDynFlags
+  , setSessionDynFlags
+  , runGhc
+  )
+#if MIN_VERSION_ghc(8,4,0)
+import GHC (GhcPs)
 #else
-import Lexer
+import GHC (RdrName)
 #endif
 
-import DriverPipeline
-import FastString
-import DriverPhases
-import ErrUtils
-import StringBuffer
-import SrcLoc
-import Outputable
-import DynFlags (opt_P, sOpt_P, parseDynamicFilePragma)
-import GhcMonad (GhcT(..), Ghc(..))
+-- In ghc-9.0, hierarchical modules were introduced,
+-- so most modules got renamed.
+#if MIN_VERSION_ghc(9,0,0)
+
+import GHC.Data.FastString   ( mkFastString )
+import GHC.Data.StringBuffer ( hGetStringBuffer )
+import GHC.Driver.Monad      ( GhcT(..), Ghc(..) )
+import GHC.Driver.Phases     ( pattern Cpp, pattern HsSrcFile )
+import GHC.Driver.Pipeline   ( preprocess )
+import GHC.Driver.Session    ( pattern IncludeSpecs, opt_P, parseDynamicFilePragma, sOpt_P, toolSettings )
+import GHC.Parser            ( parseModule )
+import GHC.Parser.Lexer      ( P(..), ParseResult(..), PState, mkPState, getErrorMessages )
+import GHC.Settings          ( toolSettings_opt_P )
+import GHC.Types.SrcLoc      ( mkRealSrcLoc, noLoc, unLoc )
+
+-- THESE MODULES cannot be imported, it seems:
+-- import GHC.Driver.Errors ( printBagOfErrors )
+-- import GHC.Types.SourceError (throwErrors)
+-- import GHC.Parser.Errors.Ppr (pprError)
+-- import GHC.Utils.Error.ErrorMessages
+
+#else
+
+import DriverPhases   ( pattern Cpp, pattern HsSrcFile )
+import DriverPipeline ( preprocess )
+import DynFlags       ( opt_P, sOpt_P, settings, parseDynamicFilePragma )
+import FastString     ( mkFastString )
+import GhcMonad       ( GhcT(..), Ghc(..) )
+import Lexer          ( P(..), ParseResult(..), PState, mkPState )
+import Parser         ( parseModule )
+import SrcLoc         ( mkRealSrcLoc, noLoc, unLoc )
+import StringBuffer   ( hGetStringBuffer )
+
+#if MIN_VERSION_ghc(8,6,1)
+import DynFlags       ( pattern IncludeSpecs )
+#endif
+
+#if MIN_VERSION_ghc(8,10,1)
+import GHC            ( toolSettings )
+import ToolSettings   ( toolSettings_opt_P )
+import Lexer          ( getErrorMessages )
+import ErrUtils       ( printBagOfErrors )
+#else
+import ErrUtils       ( mkPlainErrMsg )
+#endif
+
+#endif
 
 import Language.Haskell.Extension as LHE
 import Distribution.PackageDescription.Configuration (flattenPackageDescription)
@@ -67,31 +111,53 @@ filePState dflags file = do
   return $
     mkPState dflags buf (fileLoc file)
 
-#if MIN_VERSION_ghc(8,4,0)
+
+#if MIN_VERSION_ghc(9,0,0)
+pMod :: P (Located HsModule)
+#elif MIN_VERSION_ghc(8,4,0)
 pMod :: P (Located (HsModule GhcPs))
 #else
 pMod :: P (Located (HsModule RdrName))
 #endif
-pMod = P.parseModule
+pMod = parseModule
 
 parse :: PState -> P a -> ParseResult a
-parse st p = Lexer.unP p st
+parse st p = unP p st
 
 goFile :: FilePath -> Ghc [Tag]
 goFile file = do
   liftIO $ hPutStrLn stderr $ "Processing " ++ file
   env <- getSession
+#if MIN_VERSION_ghc(8,8,1)
+  r <- liftIO $
+       preprocess env file Nothing (Just $ Cpp HsSrcFile)
+  let (dflags, srcFile) = case r of
+                            Left _  -> error $ "preprocessing " ++ file
+                            Right x -> x
+#else
   (dflags, srcFile) <- liftIO $
       preprocess env (file, Just $ Cpp HsSrcFile)
+#endif
   st <- liftIO $ filePState dflags srcFile
   case parse st pMod of
     POk _ m         -> return $ removeDuplicates $ tags $ unLoc m
-#if MIN_VERSION_ghc(8,4,0)
+#if MIN_VERSION_ghc(9,0,0)
+    PFailed pState -> liftIO $ do
+      -- Andreas, 2021-03-03, how can we print the errors with ghc-9.0?
+      -- @printBagOfErrors@ does not seem to be exported,
+      -- neither @pprError@...
+      -- throwErrors $ fmap pprError $ getErrorMessages pState dflags
+      hPutStrLn stderr "PARSE ERROR"
+#elif MIN_VERSION_ghc(8,10,1)
+    PFailed pState -> liftIO $ do
+      printBagOfErrors dflags $ getErrorMessages pState dflags
+#elif MIN_VERSION_ghc(8,4,0)
     PFailed _ loc err -> liftIO $ do
+      print (mkPlainErrMsg dflags loc err)
 #else
     PFailed loc err -> liftIO $ do
-#endif
       print (mkPlainErrMsg dflags loc err)
+#endif
       exitWith $ ExitFailure 1
 
 runCmd :: String -> IO String
@@ -110,8 +176,9 @@ extractLangSettings ::
   GenericPackageDescription
   -> ([Extension], Maybe LHE.Language)
 extractLangSettings gpd =
-  fromMaybe ([], Nothing) $
-    (defaultExtensions &&& defaultLanguage) . libBuildInfo <$> (library . configurePackageDescription) gpd
+  maybe ([], Nothing)
+  ((defaultExtensions &&& defaultLanguage) . libBuildInfo)
+  ((library . configurePackageDescription) gpd)
 
 extToOpt :: Extension -> String
 extToOpt (UnknownExtension e) = "-X" ++ e
@@ -149,10 +216,18 @@ main = do
               dynFlags <- getSessionDynFlags
               let dynFlags' =
                     dynFlags {
+#if MIN_VERSION_ghc(8,10,1)
+                    toolSettings = (toolSettings dynFlags) {
+                        toolSettings_opt_P = concatMap (\i -> [i, "-include"]) (optIncludes opts) ++
+                                             opt_P dynFlags
+                        }
+#else
                     settings = (settings dynFlags) {
                         sOpt_P = concatMap (\i -> [i, "-include"]) (optIncludes opts) ++
                                  opt_P dynFlags
                         }
+#endif
+
 #if MIN_VERSION_ghc(8,6,1)
                     , includePaths = case includePaths dynFlags of
                                        IncludeSpecs qs gs -> IncludeSpecs qs (optIncludePath opts ++ gs)

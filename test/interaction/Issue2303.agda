@@ -1,4 +1,4 @@
-
+-- @-patterns from parent clause leaking into with-clause #2303
 postulate A : Set
 
 data D : Set where

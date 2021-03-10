@@ -1,17 +1,23 @@
+Tested with `cabal-install 3.2.0.0`.
+
 When releasing the following procedure can be followed:
 
-* Verify that the Travis builds have no errors.
+* Verify that the Travis builds and GitHub workflows have no errors.
 
 * First, release a release candidate (see
   notes/agda-stable-releases-candidates).
 
 * Use the branch used for releasing the release candidate.
 
-* Finish the release notes in
-  doc/release-notes/<version-written-with-dashes>.md.
+* Finish the release notes in the CHANGELOG.
 
-  Copy the contents of the release notes to the top of the CHANGELOG
-  file.
+* Replace in the CHANGELOG
+
+  https://agda.readthedocs.io/en/latest
+
+  by
+
+  https://agda.readthedocs.io/en/vMAJORVERSION
 
 * Run the `closed-issues-for-milestone` program for adding the list of
   closed issues to the CHANGELOG.
@@ -38,7 +44,8 @@ When releasing the following procedure can be followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Update the year in the copyright of the user manual, if necessary.
+* Update the year in the copyright of the user manual, in
+  `/doc/user-manual/conf.py`, if necessary.
 
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
@@ -61,10 +68,10 @@ When releasing the following procedure can be followed:
 
 * Run the test-suite:
 
-    make install
+    make compile-emacs-mode
     make test
 
-  Note that "make install" invokes "agda-mode compile", which should
+  Note that "compile-emacs-mode" invokes "agda-mode compile", which should
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
@@ -72,6 +79,11 @@ When releasing the following procedure can be followed:
   `cabal --check`).
 
 * Remove the Cabal test-suite from Agda.cabal.
+
+* Added to the extra-source-files field in Agda.cabal the file (see
+  Issues #4216):
+
+    doc/user-manual.pdf
 
 * Update the user manual:
 
@@ -83,10 +95,9 @@ When releasing the following procedure can be followed:
     cabal check
     cabal sdist
 
-* Build documentation for uploading to Hackage. Adapted from
-  https://hackage.haskell.org/upload (2018-07-19):
+* Build documentation for uploading to Hackage.
 
-    cabal haddock --for-hackage
+    cabal haddock --haddock-for-hackage
 
 * Ensure that the package builds properly (with multiple versions of
   GHC if possible) in Linux, macOS and Windows.
@@ -95,21 +106,25 @@ When releasing the following procedure can be followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$MAJORVERSION.tar.gz
     cd Agda-$MAJORVERSION
-    cabal install
-
-  Do not forget to test the Emacs mode.
+    cabal install --program-suffix=-$MAJORVERSION
+    agda-$MAJOR_VERSION --version
+    agda-mode-$MAJOR_VERSION compile
 
 * Tag the relase (do not forget to record the changes above first):
 
     cd $BASE
     git tag -a v$MAJORVERSION -m "Agda $MAJORVERSION stable release"
 
-* Upload the tarball and the documentation to Hackage (tested with
-  cabal-install >= 2.0.0.0):
+* Upload the tarball and the documentation to Hackage:
 
     cd $BASE
-    cabal upload --publish dist/Agda-$MAJORVERSION.tar.gz
-    cabal upload --publish -d dist/Agda-$MAJORVERSION-docs.tar.gz
+    cabal upload --publish dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
+    cabal upload --publish -d dist-newstyle/Agda-$RC_VERSION-docs.tar.gz
+
+* Remove from the extra-source-files field in Agda.cabal the file (see
+  Issues #4216):
+
+    doc/user-manual.pdf
 
 * Restore the Cabal test-suite in Agda.cabal.
 
@@ -119,10 +134,17 @@ When releasing the following procedure can be followed:
 
     git push --follow-tags
 
-* Add a new header to CHANGELOG.
+* New CHANGELOG (see Issue #4705):
 
-* Add a new entry in
-  doc/release-notes/<version-written-with-dashes>.md.
+  ** In a commit:
+
+     *** Move the CHANGELOG for $MAJORVERSION to a new entry in
+         doc/release-notes/<version-written-with-dashes>.md.
+
+     *** Add doc/release-notes/<version-written-with-dashes>.md. to
+         the extra-source-files field in Agda.cabal.
+
+  ** In a different commit: Create a new CHANGELOG file.
 
 * Close in the bug tracker the milestone $MAJORVERSION.
 
@@ -131,11 +153,13 @@ When releasing the following procedure can be followed:
   ** You need Admin permissions on the Agda readthedocs.org project
      (current admins: asr, andreasabel, phile314)
 
-  ** Go to readthedocs.org -> Agda Project -> Admin -> Versions
+  ** Go to readthedocs.org -> Agda Project -> Versions
 
-  ** Mark $MAJORVERSION as active
+     and mark $MAJORVERSION as active
 
-  ** Set the default documentation version to $MAJORVERSION
+  ** Go to readthedocs.org -> Agda Project -> Admin -> Advanced Settings
+
+     and set the default documentation version to $MAJORVERSION
 
   ** If a release candidate was released then remove the associated
      documentation.

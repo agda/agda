@@ -23,14 +23,8 @@ Boxed-loop = Box Boxed-loop
 postulate
   boxed-loop : Boxed-loop
 
-test₁ : Boxed-loop
-test₁ = quoteGoal g in boxed-loop
-
 test₂ : Term
 test₂ = quoteTerm Loop
-
-test₃ : Loop → List (Arg Term)
-test₃ _ = quoteContext
 
 macro
 

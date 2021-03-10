@@ -14,7 +14,8 @@ import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.Env
 import Agda.Syntax.Internal.Names (namesIn)
-import Agda.Interaction.BasicOps (normalForm, Rewrite, parseName)
+import Agda.Interaction.Base (Rewrite)
+import Agda.Interaction.BasicOps (normalForm, parseName)
 
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Internal as I
@@ -65,7 +66,7 @@ findMentions norm rg nm = do
       && last str == '"' = Left $ filter (/= '"') str
       | otherwise        = Right str
 
-    anames (DefinedName _ an)     = [an]
+    anames (DefinedName _ an _)   = [an]
     anames (FieldName     ans)    = toList ans
-    anames (ConstructorName ans)  = toList ans
+    anames (ConstructorName _ ans)= toList ans
     anames _                      = []

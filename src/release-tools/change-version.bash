@@ -14,6 +14,7 @@ files+='mk/versions.mk '
 files+='src/data/emacs-mode/agda2-mode.el '
 files+='src/data/emacs-mode/agda2-mode-pkg.el '
 files+='src/size-solver/size-solver.cabal '
+files+='test/interaction/Debug.out '
 files+='test/interaction/Issue1244a.out '
 files+='test/interaction/Issue1244b.out '
 

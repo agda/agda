@@ -1,0 +1,46 @@
+\documentclass[draft]{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+Lemma~\ref{code:B} below shows that $\AgdaPrimitiveType{Set1}$ is inhabited.
+%
+A preliminary definition:
+%
+\begin{code}[number]
+  A : Set1
+  A = Set
+\end{code}
+%
+Lemma~\ref{code:B2}:
+%
+\begin{code}[number=code:B,number=code:B2]
+  B : Set1
+  B = A
+\end{code}
+
+\begin{code}[hide,number=code:Invisible]
+  Invisible : Set1
+  Invisible = Set
+\end{code}
+
+Numbers are not generated for inline code, like
+%
+\begin{code}[inline*,number=code:Inline1]
+  Inline1 = Set
+\end{code}
+%
+and
+%
+\begin{code}[inline,number=code:Inline2]
+  Inline2 = Set
+\end{code}.
+
+A wide piece of code:
+%
+\begin{code}[number]
+  Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa = Set
+\end{code}
+
+\end{document}

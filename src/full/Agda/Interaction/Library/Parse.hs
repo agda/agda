@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 -- | Parser for @.agda-lib@ files.
 --
 --   Example file:
@@ -27,12 +26,11 @@ module Agda.Interaction.Library.Parse
   ( parseLibFile
   , splitCommas
   , trimLineComment
-  , LineNumber
   , runP
-  , LibWarning'(..)
   ) where
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Writer
 import Data.Char
 import Data.Data
@@ -42,7 +40,6 @@ import System.FilePath
 import Agda.Interaction.Library.Base
 
 import Agda.Utils.Applicative
-import Agda.Utils.Except ( MonadError(throwError), ExceptT, runExceptT )
 import Agda.Utils.IO ( catchIO )
 import Agda.Utils.Lens
 import Agda.Utils.List   ( duplicates )
@@ -54,11 +51,6 @@ type P = ExceptT String (Writer [LibWarning'])
 
 runP :: P a -> (Either String a, [LibWarning'])
 runP = runWriter . runExceptT
-
--- | Library Warnings.
-data LibWarning'
-  = UnknownField String
-  deriving (Show, Data)
 
 warningP :: LibWarning' -> P ()
 warningP = tell . pure
@@ -91,6 +83,7 @@ agdaLibFields =
   [ optionalField "name"    parseName                      libName
   , optionalField "include" (pure . concatMap parsePaths)  libIncludes
   , optionalField "depend"  (pure . concatMap splitCommas) libDepends
+  , optionalField "flags"   (pure . concatMap parseFlags)  libPragmas
   ]
   where
     parseName :: [String] -> P LibName
@@ -105,6 +98,9 @@ agdaLibFields =
       go acc ('\\' : '\\' :cs) = go (acc . ('\\':)) cs
       go acc (       ' '  :cs) = fixup acc ++ go id cs
       go acc (c           :cs) = go (acc . (c:)) cs
+
+    parseFlags :: String -> [String]
+    parseFlags = words
 
 -- | Parse @.agda-lib@ file.
 --
@@ -161,8 +157,8 @@ checkFields fields fs = do
       -- Plural s for error message.
       s xs      = if length xs > 1 then "s" else ""
       list xs   = List.intercalate ", " [ "'" ++ f ++ "'" | f <- xs ]
-  when (not $ null missing) $ throwError $ "Missing field" ++ s missing ++ " " ++ list missing
-  when (not $ null dup)     $ throwError $ "Duplicate field" ++ s dup ++ " " ++ list dup
+  unless (null missing) $ throwError $ "Missing field" ++ s missing ++ " " ++ list missing
+  unless (null dup)     $ throwError $ "Duplicate field" ++ s dup ++ " " ++ list dup
 
 -- | Find 'Field' with given 'fName', throw error if unknown.
 findField :: String -> [Field] -> P (Maybe Field)
@@ -179,9 +175,7 @@ findField s fs = maybe err (return . Just) $ List.find ((s ==) . fName) fs
 -- @
 parseGeneric :: String -> P GenericFile
 parseGeneric s =
-  groupLines =<< concat <$> mapM (uncurry parseLine) (zip [1..] $ map stripComments $ lines s)
-
-type LineNumber = Int
+  groupLines =<< concat <$> zipWithM parseLine [1..] (map stripComments $ lines s)
 
 -- | Lines with line numbers.
 data GenericLine
@@ -231,7 +225,7 @@ parseLine l s@(c:_)
       -- Anything after the colon that is not whitespace is 'Content'.
       (h, ':' : r) ->
         case words h of
-          [h] -> pure $ [Header l h] ++ [Content l r' | let r' = ltrim r, not (null r')]
+          [h] -> pure $ Header l h : [Content l r' | let r' = ltrim r, not (null r')]
           []  -> throwError $ show l ++ ": Missing field name"
           hs  -> throwError $ show l ++ ": Bad field name " ++ show h
       _ -> throwError $ show l ++ ": Missing ':' for field " ++ show (ltrim s)
@@ -260,8 +254,8 @@ splitCommas s = words $ map (\c -> if c == ',' then ' ' else c) s
 -- | ...and trailing, but not leading, whitespace.
 stripComments :: String -> String
 stripComments "" = ""
-stripComments ('-':'-':_) = ""
-stripComments (c : s)     = cons c (stripComments s)
+stripComments ('-':'-':c:_) | isSpace c = ""
+stripComments (c : s) = cons c (stripComments s)
   where
     cons c "" | isSpace c = ""
     cons c s = c : s

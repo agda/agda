@@ -35,7 +35,8 @@ natural number:
 
   {-# BUILTIN FROMNAT fromNat #-}
 
-This causes natural number literals ``n`` to be desugared to ``fromNat n``.
+This causes natural number literals ``n`` to be desugared to ``fromNat n``,
+whenever ``fromNat`` is in scope *unqualified* (renamed or not).
 Note that the desugaring happens before :ref:`implicit argument
 <implicit-arguments>` are inserted so ``fromNat`` can have any number of
 implicit or :ref:`instance arguments <instance-arguments>`. This can be

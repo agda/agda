@@ -12,15 +12,13 @@ perm'  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
 fPerm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
     with arguments [f b]
              types [P b]
-with function call DebugWith.with-34 b f (f b) trash1 trash2 trash3
-           context (trash4 : Trash) (b₁ : A) (trash5 : Trash)
-                   (f₁ : (x : A) → P x) (trash6 : Trash)
+           context (trash1 : Trash) (b₁ : A) (trash2 : Trash)
+                   (f₁ : (x : A) → P x) (trash3 : Trash)
              delta (trash1 : Trash) (b : A) (trash2 : Trash)
                    (f : (x : A) → P x) (trash3 : Trash)
             delta1 (b : A) (f : (x : A) → P x)
             delta2 (trash1 : Trash) (trash2 : Trash)
                    (trash3 : Trash)
-              body DebugWith.with-34 b f (f b) trash1 trash2 trash3
 checkWithFunction
   delta1 = (b : A) (f : (x : A) → P x)
   delta2 = (trash1 : Trash) (trash2 : Trash) (trash3 : Trash)
@@ -33,6 +31,7 @@ checkWithFunction
   perm   = x0,x1,x2,x3,x4 -> x0,x1,x2,x3,x4
   fperm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
   withSub= Var 0 [] :# (Var 4 [] :# (Var 1 [] :# (Var 5 [] :# (Var 2 [] :# Wk 6 IdS))))
+with function call DebugWith.with-34 b f (f b) trash1 trash2 trash3
 created with display form
 Display 6 [$ @0, $ @0, $ @0, $ @0, $ @0, $ @0]
         test @2 @5 @1 @4 @0 | @3

@@ -1,3 +1,10 @@
-Issue2834.agda:5,12-16
-Cannot split on argument of non-datatype _2 (A = Bool)
-when checking that the pattern true has type _2 (A = Bool)
+Failed to solve the following constraints:
+  Check definition of test : (A : Set) → _2 (A = A) → A ≡ Bool → Bool
+    stuck because
+      Issue2834.agda:5,12-16
+      Cannot split on argument of unresolved type _2 (A = Bool)
+      when checking that the pattern true has type _2 (A = Bool)
+    (blocked on _2)
+Unsolved metas at the following locations:
+  Issue2834.agda:4,27-28
+  Issue2834.agda:4,35-36

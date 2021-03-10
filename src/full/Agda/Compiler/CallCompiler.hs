@@ -8,7 +8,6 @@ module Agda.Compiler.CallCompiler where
 import qualified Control.Exception as E
 import Control.Monad.Trans
 
-import Data.List ( intercalate )
 import System.Exit
 import System.IO
 import System.Process
@@ -41,7 +40,7 @@ callCompiler doCall cmd args =
       Nothing     -> return ()
       Just errors -> typeError (CompilationError errors)
   else
-    reportSLn "compile.cmd" 1 $ "NOT calling: " ++ intercalate " " (cmd : args)
+    reportSLn "compile.cmd" 1 $ "NOT calling: " ++ unwords (cmd : args)
 
 -- | Generalisation of @callCompiler@ where the raised exception is
 -- returned.
@@ -52,7 +51,7 @@ callCompiler'
      -- ^ Command-line arguments.
   -> TCM (Maybe String)
 callCompiler' cmd args = do
-  reportSLn "compile.cmd" 1 $ "Calling: " ++ intercalate " " (cmd : args)
+  reportSLn "compile.cmd" 1 $ "Calling: " ++ unwords (cmd : args)
   (_, out, err, p) <-
     liftIO $ createProcess
                (proc cmd args) { std_err = CreatePipe

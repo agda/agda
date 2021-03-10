@@ -1,44 +1,51 @@
-{-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE UndecidableInstances       #-}  -- because of shortcomings of FunctionalDependencies
+{-# LANGUAGE PatternSynonyms            #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
+    , module Agda.Syntax.Internal.Blockers
+    , module Agda.Syntax.Internal.Elim
     , module Agda.Syntax.Abstract.Name
-    , MetaId(..)
+    , MetaId(..), ProblemId(..)
     ) where
 
-import Prelude hiding (foldr, mapM, null)
-import GHC.Stack (HasCallStack, freezeCallStack, callStack)
+import Prelude hiding (null)
 
-import Control.Monad.Identity hiding (mapM)
+import Control.Monad.Identity
 import Control.DeepSeq
 
-import Data.Foldable ( Foldable, foldMap )
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Monoid ( Monoid, mempty, mappend )
 import Data.Semigroup ( Semigroup, (<>), Sum(..) )
+import qualified Data.Set as Set
+import Data.Set (Set)
 
 import Data.Traversable
 import Data.Data (Data)
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Internal.Blockers
+import Agda.Syntax.Internal.Elim
+
+import Agda.Utils.CallStack
+    ( CallStack
+    , HasCallStack
+    , prettyCallSite
+    , headCallSite
+    , withCallerCallStack
+    )
 
 import Agda.Utils.Empty
 
 import Agda.Utils.Functor
-import Agda.Utils.Geniplate
 import Agda.Utils.Lens
 import Agda.Utils.Null
-import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
@@ -84,10 +91,11 @@ instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
 
 -- | Ignores 'Origin' and 'FreeVariables' and tactic.
 instance Eq a => Eq (Dom' t a) where
-  Dom (ArgInfo h1 m1 _ _) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _) b2 s2 _ x2 =
-    (h1, m1, b1, s1, x1) == (h2, m2, b2, s2, x2)
+  Dom (ArgInfo h1 m1 _ _ a1) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _ a2) b2 s2 _ x2 =
+    (h1, m1, a1, b1, s1, x1) == (h2, m2, a2, b2, s2, x2)
 
-instance LensNamed NamedName (Dom' t e) where
+instance LensNamed (Dom' t e) where
+  type NameOf (Dom' t e) = NamedName
   lensNamed f dom = f (domName dom) <&> \ nm -> dom { domName = nm }
 
 instance LensArgInfo (Dom' t e) where
@@ -101,6 +109,7 @@ instance LensHiding        (Dom' t e) where
 instance LensModality      (Dom' t e) where
 instance LensOrigin        (Dom' t e) where
 instance LensFreeVariables (Dom' t e) where
+instance LensAnnotation    (Dom' t e) where
 
 -- Since we have LensModality, we get relevance and quantity by default
 
@@ -139,17 +148,22 @@ defaultNamedArgDom info s x = (defaultArgDom info x) { domName = Just $ WithOrig
 type Args       = [Arg Term]
 type NamedArgs  = [NamedArg Term]
 
+data DataOrRecord
+  = IsData
+  | IsRecord PatternOrCopattern
+  deriving (Data, Show, Eq, Generic)
+
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
 --   For instance, during substitution and application.
 data ConHead = ConHead
-  { conName      :: QName     -- ^ The name of the constructor.
-  , conInductive :: Induction -- ^ Record constructors can be coinductive.
-  , conFields    :: [Arg QName]   -- ^ The name of the record fields.
-      --   Empty list for data constructors.
+  { conName       :: QName         -- ^ The name of the constructor.
+  , conDataRecord :: DataOrRecord  -- ^ Data or record constructor?
+  , conInductive  :: Induction     -- ^ Record constructors can be coinductive.
+  , conFields     :: [Arg QName]   -- ^ The name of the record fields.
       --   'Arg' is stored since the info in the constructor args
       --   might not be accurate because of subtyping (issue #2170).
-  } deriving (Data, Show)
+  } deriving (Data, Show, Generic)
 
 instance Eq ConHead where
   (==) = (==) `on` conName
@@ -212,27 +226,8 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
 
 type ConInfo = ConOrigin
 
--- | Eliminations, subsuming applications and projections.
---
-data Elim' a
-  = Apply (Arg a)         -- ^ Application.
-  | Proj ProjOrigin QName -- ^ Projection.  'QName' is name of a record projection.
-  | IApply a a a -- ^ IApply x y r, x and y are the endpoints
-  deriving (Data, Show, Functor, Foldable, Traversable)
-
 type Elim = Elim' Term
 type Elims = [Elim]  -- ^ eliminations ordered left-to-right.
-
--- | This instance cheats on 'Proj', use with care.
---   'Proj's are always assumed to be 'UserWritten', since they have no 'ArgInfo'.
---   Same for IApply
-instance LensOrigin (Elim' a) where
-  getOrigin (Apply a)   = getOrigin a
-  getOrigin Proj{}      = UserWritten
-  getOrigin IApply{}    = UserWritten
-  mapOrigin f (Apply a) = Apply $ mapOrigin f a
-  mapOrigin f e@Proj{}  = e
-  mapOrigin f e@IApply{} = e
 
 -- | Binder.
 --
@@ -244,7 +239,7 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable, Generic)
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -267,6 +262,9 @@ class LensSort a where
   getSort  :: a -> Sort
   getSort a = a ^. lensSort
 
+instance LensSort Sort where
+  lensSort f s = f s <&> \ s' -> s'
+
 instance LensSort (Type' a) where
   lensSort f (El s a) = f s <&> \ s' -> El s' a
 
@@ -283,18 +281,24 @@ instance LensSort a => LensSort (Arg a) where
 --   and so on.
 data Tele a = EmptyTel
             | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
 
 type Telescope = Tele (Dom Type)
+
+data IsFibrant = IsFibrant | IsStrict
+  deriving (Data, Show, Eq, Ord, Generic)
 
 -- | Sorts.
 --
 data Sort' t
   = Type (Level' t)  -- ^ @Set ℓ@.
   | Prop (Level' t)  -- ^ @Prop ℓ@.
-  | Inf         -- ^ @Setω@.
+  | Inf IsFibrant Integer      -- ^ @Setωᵢ@.
+  | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
-  | PiSort (Dom' t (Type'' t t)) (Abs (Sort' t)) -- ^ Sort of the pi type.
+  | LockUniv    -- ^ @LockUniv@, a sort for locks.
+  | PiSort (Dom' t t) (Sort' t) (Abs (Sort' t)) -- ^ Sort of the pi type.
+  | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
   | UnivSort (Sort' t) -- ^ Sort of another sort.
   | MetaS {-# UNPACK #-} !MetaId [Elim' t]
   | DefS QName [Elim' t] -- ^ A postulated sort.
@@ -307,35 +311,18 @@ data Sort' t
 
 type Sort = Sort' Term
 
--- | A level is a maximum expression of 0..n 'PlusLevel' expressions
---   each of which is a number or an atom plus a number.
---
---   The empty maximum is the canonical representation for level 0.
-newtype Level' t = Max [PlusLevel' t]
-  deriving (Show, Data)
+-- | A level is a maximum expression of a closed level and 0..n
+--   'PlusLevel' expressions each of which is an atom plus a number.
+data Level' t = Max Integer [PlusLevel' t]
+  deriving (Show, Data, Functor, Foldable, Traversable)
 
 type Level = Level' Term
 
-data PlusLevel' t
-  = ClosedLevel Integer     -- ^ @n@, to represent @Setₙ@.
-  | Plus Integer (LevelAtom' t)  -- ^ @n + ℓ@.
-  deriving (Show, Data)
+data PlusLevel' t = Plus Integer t
+  deriving (Show, Data, Functor, Foldable, Traversable)
 
 type PlusLevel = PlusLevel' Term
-
--- | An atomic term of type @Level@.
-data LevelAtom' t
-  = MetaLevel MetaId [Elim' t]
-    -- ^ A meta variable targeting @Level@ under some eliminations.
-  | BlockedLevel MetaId t
-    -- ^ A term of type @Level@ whose reduction is blocked by a meta.
-  | NeutralLevel NotBlocked t
-    -- ^ A neutral term of type @Level@.
-  | UnreducedLevel t
-    -- ^ Introduced by 'instantiate', removed by 'reduce'.
-  deriving (Show, Data)
-
-type LevelAtom = LevelAtom' Term
+type LevelAtom = Term
 
 ---------------------------------------------------------------------------
 -- * Brave Terms
@@ -349,109 +336,11 @@ newtype BraveTerm = BraveTerm { unBrave :: Term } deriving (Data, Show)
 -- * Blocked Terms
 ---------------------------------------------------------------------------
 
--- | Even if we are not stuck on a meta during reduction
---   we can fail to reduce a definition by pattern matching
---   for another reason.
-data NotBlocked
-  = StuckOn Elim
-    -- ^ The 'Elim' is neutral and blocks a pattern match.
-  | Underapplied
-    -- ^ Not enough arguments were supplied to complete the matching.
-  | AbsurdMatch
-    -- ^ We matched an absurd clause, results in a neutral 'Def'.
-  | MissingClauses
-    -- ^ We ran out of clauses, all considered clauses
-    --   produced an actual mismatch.
-    --   This can happen when try to reduce a function application
-    --   but we are still missing some function clauses.
-    --   See "Agda.TypeChecking.Patterns.Match".
-  | ReallyNotBlocked
-    -- ^ Reduction was not blocked, we reached a whnf
-    --   which can be anything but a stuck @'Def'@.
-  deriving (Show, Data)
-
--- | 'ReallyNotBlocked' is the unit.
---   'MissingClauses' is dominant.
---   @'StuckOn'{}@ should be propagated, if tied, we take the left.
-instance Semigroup NotBlocked where
-  ReallyNotBlocked <> b = b
-  -- MissingClauses is dominant (absorptive)
-  b@MissingClauses <> _ = b
-  _ <> b@MissingClauses = b
-  -- StuckOn is second strongest
-  b@StuckOn{}      <> _ = b
-  _ <> b@StuckOn{}      = b
-  b <> _                = b
-
-instance Monoid NotBlocked where
-  -- ReallyNotBlocked is neutral
-  mempty  = ReallyNotBlocked
-  mappend = (<>)
-
--- | Something where a meta variable may block reduction.
-data Blocked t
-  = Blocked    { theBlockingMeta :: MetaId    , ignoreBlocking :: t }
-  | NotBlocked { blockingStatus  :: NotBlocked, ignoreBlocking :: t }
-  deriving (Show, Functor, Foldable, Traversable)
-  -- deriving (Eq, Ord, Functor, Foldable, Traversable)
-
--- | Blocking by a meta is dominant.
-instance Applicative Blocked where
-  pure = notBlocked
-  f <*> e = ((f $> ()) `mappend` (e $> ())) $> ignoreBlocking f (ignoreBlocking e)
-
--- -- | Blocking by a meta is dominant.
--- instance Applicative Blocked where
---   pure = notBlocked
---   Blocked x f     <*> e                = Blocked x $ f (ignoreBlocking e)
---   NotBlocked nb f <*> Blocked    x   e = Blocked x $ f e
---   NotBlocked nb f <*> NotBlocked nb' e = NotBlocked (nb `mappend` nb') $ f e
-
--- | @'Blocked' t@ without the @t@.
+type Blocked    = Blocked' Term
+type NotBlocked = NotBlocked' Term
+--
+-- | @'Blocked a@ without the @a@.
 type Blocked_ = Blocked ()
-
-instance Semigroup Blocked_ where
-  b@Blocked{}    <> _              = b
-  _              <> b@Blocked{}    = b
-  NotBlocked x _ <> NotBlocked y _ = NotBlocked (x <> y) ()
-
-instance Monoid Blocked_ where
-  mempty = notBlocked ()
-  mappend = (<>)
-
--- | When trying to reduce @f es@, on match failed on one
---   elimination @e ∈ es@ that came with info @r :: NotBlocked@.
---   @stuckOn e r@ produces the new @NotBlocked@ info.
---
---   'MissingClauses' must be propagated, as this is blockage
---   that can be lifted in the future (as more clauses are added).
---
---   @'StuckOn' e0@ is also propagated, since it provides more
---   precise information as @StuckOn e@ (as @e0@ is the original
---   reason why reduction got stuck and usually a subterm of @e@).
---   An information like @StuckOn (Apply (Arg info (Var i [])))@
---   (stuck on a variable) could be used by the lhs/coverage checker
---   to trigger a split on that (pattern) variable.
---
---   In the remaining cases for @r@, we are terminally stuck
---   due to @StuckOn e@.  Propagating @'AbsurdMatch'@ does not
---   seem useful.
---
---   'Underapplied' must not be propagated, as this would mean
---   that @f es@ is underapplied, which is not the case (it is stuck).
---   Note that 'Underapplied' can only arise when projection patterns were
---   missing to complete the original match (in @e@).
---   (Missing ordinary pattern would mean the @e@ is of function type,
---   but we cannot match against something of function type.)
-stuckOn :: Elim -> NotBlocked -> NotBlocked
-stuckOn e r =
-  case r of
-    MissingClauses   -> r
-    StuckOn{}        -> r
-    Underapplied     -> r'
-    AbsurdMatch      -> r'
-    ReallyNotBlocked -> r'
-  where r' = StuckOn e
 
 ---------------------------------------------------------------------------
 -- * Definitions
@@ -490,13 +379,28 @@ data Clause = Clause
       --   pattern on the lhs.
     , clauseCatchall  :: Bool
       -- ^ Clause has been labelled as CATCHALL.
+    , clauseExact       :: Maybe Bool
+      -- ^ Pattern matching of this clause is exact, no catch-all case.
+      --   Computed by the coverage checker.
+      --   @Nothing@ means coverage checker has not run yet (clause may be inexact).
+      --   @Just False@ means clause is not exact.
+      --   @Just True@ means clause is exact.
+    , clauseRecursive   :: Maybe Bool
+      -- ^ @clauseBody@ contains recursive calls; computed by termination checker.
+      --   @Nothing@ means that termination checker has not run yet,
+      --   or that @clauseBody@ contains meta-variables;
+      --   these could be filled with recursive calls later!
+      --   @Just False@ means definitely no recursive call.
+      --   @Just True@ means definitely a recursive call.
     , clauseUnreachable :: Maybe Bool
       -- ^ Clause has been labelled as unreachable by the coverage checker.
       --   @Nothing@ means coverage checker has not run yet (clause may be unreachable).
       --   @Just False@ means clause is not unreachable.
       --   @Just True@ means clause is unreachable.
+    , clauseEllipsis  :: ExpandedEllipsis
+      -- ^ Was this clause created by expansion of an ellipsis?
     }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
@@ -513,6 +417,14 @@ patVarNameToString = argNameToString
 nameToPatVarName :: Name -> PatVarName
 nameToPatVarName = nameToArgName
 
+data PatternInfo = PatternInfo
+  { patOrigin :: PatOrigin
+  , patAsNames :: [Name]
+  } deriving (Data, Show, Eq, Generic)
+
+defaultPatternInfo :: PatternInfo
+defaultPatternInfo = PatternInfo PatOSystem []
+
 -- | Origin of the pattern: what did the user write in this position?
 data PatOrigin
   = PatOSystem         -- ^ Pattern inserted by the system
@@ -524,7 +436,7 @@ data PatOrigin
   | PatORec            -- ^ User wrote a record pattern
   | PatOLit            -- ^ User wrote a literal pattern
   | PatOAbsurd         -- ^ User wrote an absurd pattern
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 -- | Patterns are variables, constructors, or wildcards.
 --   @QName@ is used in @ConP@ rather than @Name@ since
@@ -533,37 +445,40 @@ data PatOrigin
 --     the arguments we are matching with) use @QName@.
 --
 data Pattern' x
-  = VarP PatOrigin x
+  = VarP PatternInfo x
     -- ^ @x@
-  | DotP PatOrigin Term
+  | DotP PatternInfo Term
     -- ^ @.t@
   | ConP ConHead ConPatternInfo [NamedArg (Pattern' x)]
     -- ^ @c ps@
     --   The subpatterns do not contain any projection copatterns.
-  | LitP Literal
+  | LitP PatternInfo Literal
     -- ^ E.g. @5@, @"hello"@.
   | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
-  | IApplyP PatOrigin Term Term x
+  | IApplyP PatternInfo Term Term x
     -- ^ Path elimination pattern, like @VarP@ but keeps track of endpoints.
-  | DefP PatOrigin QName [NamedArg (Pattern' x)]
+  | DefP PatternInfo QName [NamedArg (Pattern' x)]
     -- ^ Used for HITs, the QName should be the one from primHComp.
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
 
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
 
 varP :: a -> Pattern' a
-varP = VarP PatOSystem
+varP = VarP defaultPatternInfo
 
 dotP :: Term -> Pattern' a
-dotP = DotP PatOSystem
+dotP = DotP defaultPatternInfo
+
+litP :: Literal -> Pattern' a
+litP = LitP defaultPatternInfo
 
 -- | Type used when numbering pattern variables.
 data DBPatVar = DBPatVar
   { dbPatVarName  :: PatVarName
   , dbPatVarIndex :: Int
-  } deriving (Data, Show, Eq)
+  } deriving (Data, Show, Eq, Generic)
 
 type DeBruijnPattern = Pattern' DBPatVar
 
@@ -576,19 +491,22 @@ namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP
 
 -- | Make an absurd pattern with the given de Bruijn index.
 absurdP :: Int -> DeBruijnPattern
-absurdP = VarP PatOAbsurd . DBPatVar absurdPatternName
+absurdP = VarP (PatternInfo PatOAbsurd []) . DBPatVar absurdPatternName
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
---   a record type (@Just@) or data type (@Nothing@).
---   In the former case, the @PatOrigin@ says whether the record pattern
---   orginates from the expansion of an implicit pattern.
+--   a record type (@True@) or data type (@False@).
+--   In the former case, the @PatOrigin@ of the @conPInfo@ says
+--   whether the record pattern orginates from the expansion of an
+--   implicit pattern.
 --   The @Type@ is the type of the whole record pattern.
 --   The scope used for the type is given by any outer scope
 --   plus the clause's telescope ('clauseTel').
 data ConPatternInfo = ConPatternInfo
-  { conPRecord :: Maybe PatOrigin
-    -- ^ @Nothing@ if data constructor.
-    --   @Just@ if record constructor.
+  { conPInfo   :: PatternInfo
+    -- ^ Information on the origin of the pattern.
+  , conPRecord :: Bool
+    -- ^ @False@ if data constructor.
+    --   @True@ if record constructor.
   , conPFallThrough :: Bool
     -- ^ Should the match block on non-canonical terms or can it
     --   proceed to the catch-all clause?
@@ -600,26 +518,28 @@ data ConPatternInfo = ConPatternInfo
     --   plugin (like Agsy).
     --   Needed e.g. for with-clause stripping.
   , conPLazy :: Bool
-    -- ^ Lazy patterns are generated by the forcing translation
-    --   ('Agda.TypeChecking.Forcing.forcingTranslation') and are dropped by
+    -- ^ Lazy patterns are generated by the forcing translation in the unifier
+    --   ('Agda.TypeChecking.Rules.LHS.Unify.unifyStep') and are dropped by
     --   the clause compiler (TODO: not yet)
     --   ('Agda.TypeChecking.CompiledClause.Compile.compileClauses') when the
     --   variables they bind are unused. The GHC backend compiles lazy matches
     --   to lazy patterns in Haskell (TODO: not yet).
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 noConPatternInfo :: ConPatternInfo
-noConPatternInfo = ConPatternInfo Nothing False Nothing False
+noConPatternInfo = ConPatternInfo defaultPatternInfo False False Nothing False
 
 -- | Build partial 'ConPatternInfo' from 'ConInfo'
 toConPatternInfo :: ConInfo -> ConPatternInfo
-toConPatternInfo ConORec = noConPatternInfo{ conPRecord = Just PatORec }
+toConPatternInfo ConORec = noConPatternInfo{ conPInfo = PatternInfo PatORec [] , conPRecord = True }
 toConPatternInfo _ = noConPatternInfo
 
 -- | Build 'ConInfo' from 'ConPatternInfo'.
 fromConPatternInfo :: ConPatternInfo -> ConInfo
-fromConPatternInfo = maybe ConOCon patToConO . conPRecord
+fromConPatternInfo i
+  | conPRecord i = patToConO $ patOrigin $ conPInfo i
+  | otherwise    = ConOCon
   where
     patToConO :: PatOrigin -> ConOrigin
     patToConO = \case
@@ -635,53 +555,72 @@ fromConPatternInfo = maybe ConOCon patToConO . conPRecord
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
-class PatternVars a b | b -> a where
-  patternVars :: b -> [Arg (Either a Term)]
+class PatternVars a where
+  type PatternVarOut a
+  patternVars :: a -> [Arg (Either (PatternVarOut a) Term)]
 
-instance PatternVars a (Arg (Pattern' a)) where
+instance PatternVars (Arg (Pattern' a)) where
+  type PatternVarOut (Arg (Pattern' a)) = a
+
   -- patternVars :: Arg (Pattern' a) -> [Arg (Either a Term)]
   patternVars (Arg i (VarP _ x)   ) = [Arg i $ Left x]
   patternVars (Arg i (DotP _ t)   ) = [Arg i $ Right t]
   patternVars (Arg _ (ConP _ _ ps)) = patternVars ps
   patternVars (Arg _ (DefP _ _ ps)) = patternVars ps
-  patternVars (Arg _ (LitP _)     ) = []
+  patternVars (Arg _ (LitP _ _)   ) = []
   patternVars (Arg _ ProjP{}      ) = []
   patternVars (Arg i (IApplyP _ _ _ x)) = [Arg i $ Left x]
 
 
-instance PatternVars a (NamedArg (Pattern' a)) where
+instance PatternVars (NamedArg (Pattern' a)) where
+  type PatternVarOut (NamedArg (Pattern' a)) = a
+
   patternVars = patternVars . fmap namedThing
 
-instance PatternVars a b => PatternVars a [b] where
+instance PatternVars a => PatternVars [a] where
+  type PatternVarOut [a] = PatternVarOut a
+
   patternVars = concatMap patternVars
 
+-- | Retrieve the PatternInfo from a pattern
+patternInfo :: Pattern' x -> Maybe PatternInfo
+patternInfo (VarP i _)        = Just i
+patternInfo (DotP i _)        = Just i
+patternInfo (LitP i _)        = Just i
+patternInfo (ConP _ ci _)     = Just $ conPInfo ci
+patternInfo ProjP{}           = Nothing
+patternInfo (IApplyP i _ _ _) = Just i
+patternInfo (DefP i _ _)      = Just i
 
 -- | Retrieve the origin of a pattern
 patternOrigin :: Pattern' x -> Maybe PatOrigin
-patternOrigin (VarP o _) = Just o
-patternOrigin (DotP o _) = Just o
-patternOrigin LitP{}     = Nothing
-patternOrigin (ConP _ ci _) = conPRecord ci
-patternOrigin ProjP{}    = Nothing
-patternOrigin (IApplyP o _ _ _) = Just o
-patternOrigin (DefP o _ _) = Just o
+patternOrigin = fmap patOrigin . patternInfo
 
 -- | Does the pattern perform a match that could fail?
-properlyMatching :: DeBruijnPattern -> Bool
-properlyMatching p
-  | patternOrigin p == Just PatOAbsurd = True
-properlyMatching VarP{} = False
-properlyMatching DotP{} = False
-properlyMatching LitP{} = True
-properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record cons
-  List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
-properlyMatching ProjP{} = True
-properlyMatching IApplyP{} = False
-properlyMatching DefP{}  = True
+properlyMatching :: Pattern' a -> Bool
+properlyMatching = properlyMatching' True True
+
+properlyMatching'
+  :: Bool       -- ^ Should absurd patterns count as proper match?
+  -> Bool       -- ^ Should projection patterns count as proper match?
+  -> Pattern' a -- ^ The pattern.
+  -> Bool
+properlyMatching' absP projP = \case
+  p | absP && patternOrigin p == Just PatOAbsurd -> True
+  ConP _ ci ps    -- record constructors do not count as proper matches themselves
+    | conPRecord ci -> List.any (properlyMatching . namedArg) ps
+    | otherwise     -> True
+  LitP{}    -> True
+  DefP{}    -> True
+  ProjP{}   -> projP
+  VarP{}    -> False
+  DotP{}    -> False
+  IApplyP{} -> False
 
 instance IsProjP (Pattern' a) where
-  isProjP (ProjP o d) = Just (o, unambiguous d)
-  isProjP _ = Nothing
+  isProjP = \case
+    ProjP o d -> Just (o, unambiguous d)
+    _ -> Nothing
 
 -----------------------------------------------------------------------------
 -- * Explicit substitutions
@@ -741,6 +680,7 @@ data Substitution' a
            , Foldable
            , Traversable
            , Data
+           , Generic
            )
 
 type Substitution = Substitution' Term
@@ -803,6 +743,10 @@ data IntervalView
       | OTerm Term
       deriving Show
 
+isIOne :: IntervalView -> Bool
+isIOne IOne = True
+isIOne _ = False
+
 ---------------------------------------------------------------------------
 -- * Absurd Lambda
 ---------------------------------------------------------------------------
@@ -838,92 +782,96 @@ dontCare v =
     DontCare{} -> v
     _          -> DontCare v
 
--- | Aux: A dummy term to constitute a dummy term/level/sort/type.
-dummyTerm' :: String -> Int -> Term
-dummyTerm' file line = flip Dummy [] $ file ++ ":" ++ show line
+type DummyTermKind = String
 
--- | Aux: A dummy level to constitute a level/sort.
-dummyLevel' :: String -> Int -> Level
-dummyLevel' file line = unreducedLevel $ dummyTerm' file line
+-- | Construct a string representing the call-site that created the dummy thing.
+dummyLocName :: CallStack -> String
+dummyLocName cs = maybe __IMPOSSIBLE__ prettyCallSite (headCallSite cs)
+
+-- | Aux: A dummy term to constitute a dummy term/level/sort/type.
+dummyTermWith :: DummyTermKind -> CallStack -> Term
+dummyTermWith kind cs = flip Dummy [] $ concat [kind, ": ", dummyLocName cs]
+
+-- | A dummy level to constitute a level/sort created at location.
+--   Note: use macro __DUMMY_LEVEL__ !
+dummyLevel :: CallStack -> Level
+dummyLevel = atomicLevel . dummyTermWith "dummyLevel"
 
 -- | A dummy term created at location.
 --   Note: use macro __DUMMY_TERM__ !
-dummyTerm :: String -> Int -> Term
-dummyTerm file = dummyTerm' ("dummyTerm: " ++ file)
+dummyTerm :: CallStack -> Term
+dummyTerm = dummyTermWith "dummyTerm"
 
 __DUMMY_TERM__ :: HasCallStack => Term
-__DUMMY_TERM__ = withFileAndLine' (freezeCallStack callStack) dummyTerm
-
--- | A dummy level created at location.
---   Note: use macro __DUMMY_LEVEL__ !
-dummyLevel :: String -> Int -> Level
-dummyLevel file = dummyLevel' ("dummyLevel: " ++ file)
+__DUMMY_TERM__ = withCallerCallStack dummyTerm
 
 __DUMMY_LEVEL__ :: HasCallStack => Level
-__DUMMY_LEVEL__ = withFileAndLine' (freezeCallStack callStack) dummyLevel
+__DUMMY_LEVEL__ = withCallerCallStack dummyLevel
 
 -- | A dummy sort created at location.
 --   Note: use macro __DUMMY_SORT__ !
-dummySort :: String -> Int -> Sort
-dummySort file line = DummyS $ file ++ ":" ++ show line
+dummySort :: CallStack -> Sort
+dummySort = DummyS . dummyLocName
 
 __DUMMY_SORT__ :: HasCallStack => Sort
-__DUMMY_SORT__ = withFileAndLine' (freezeCallStack callStack) dummySort
+__DUMMY_SORT__ = withCallerCallStack dummySort
 
 -- | A dummy type created at location.
 --   Note: use macro __DUMMY_TYPE__ !
-dummyType :: String -> Int -> Type
-dummyType file line = El (DummyS "") $ dummyTerm' ("dummyType: " ++ file) line
+dummyType :: CallStack -> Type
+dummyType cs = El (dummySort cs) $ dummyTermWith "dummyType" cs
 
 __DUMMY_TYPE__ :: HasCallStack => Type
-__DUMMY_TYPE__ = withFileAndLine' (freezeCallStack callStack) dummyType
+__DUMMY_TYPE__ = withCallerCallStack dummyType
 
 -- | Context entries without a type have this dummy type.
 --   Note: use macro __DUMMY_DOM__ !
-dummyDom :: String -> Int -> Dom Type
-dummyDom file line = defaultDom $ dummyType file line
+dummyDom :: CallStack -> Dom Type
+dummyDom = defaultDom . dummyType
 
 __DUMMY_DOM__ :: HasCallStack => Dom Type
-__DUMMY_DOM__ = withFileAndLine' (freezeCallStack callStack) dummyDom
+__DUMMY_DOM__ = withCallerCallStack dummyDom
 
-unreducedLevel :: Term -> Level
-unreducedLevel v = Max [ Plus 0 $ UnreducedLevel v ]
+-- | Constant level @n@
+pattern ClosedLevel :: Integer -> Level
+pattern ClosedLevel n = Max n []
 
--- | Top sort (Set\omega).
-topSort :: Type
-topSort = sort Inf
-
-sort :: Sort -> Type
-sort s = El (UnivSort s) $ Sort s
+atomicLevel :: t -> Level' t
+atomicLevel a = Max 0 [ Plus 0 a ]
 
 varSort :: Int -> Sort
-varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ var n]
+varSort n = Type $ atomicLevel $ var n
 
 tmSort :: Term -> Sort
-tmSort t = Type $ Max [Plus 0 $ UnreducedLevel t]
+tmSort t = Type $ atomicLevel t
+
+tmSSort :: Term -> Sort
+tmSSort t = SSet $ atomicLevel t
+
+-- | Given a constant @m@ and level @l@, compute @m + l@
+levelPlus :: Integer -> Level -> Level
+levelPlus m (Max n as) = Max (m + n) $ map pplus as
+  where pplus (Plus n l) = Plus (m + n) l
 
 levelSuc :: Level -> Level
-levelSuc (Max []) = Max [ClosedLevel 1]
-levelSuc (Max as) = Max $ map inc as
-  where inc (ClosedLevel n) = ClosedLevel (n + 1)
-        inc (Plus n l)      = Plus (n + 1) l
+levelSuc = levelPlus 1
 
 mkType :: Integer -> Sort
-mkType n = Type $ Max [ClosedLevel n | n > 0]
+mkType n = Type $ ClosedLevel n
 
 mkProp :: Integer -> Sort
-mkProp n = Prop $ Max [ClosedLevel n | n > 0]
+mkProp n = Prop $ ClosedLevel n
+
+mkSSet :: Integer -> Sort
+mkSSet n = SSet $ ClosedLevel n
 
 isSort :: Term -> Maybe Sort
-isSort v = case v of
+isSort = \case
   Sort s -> Just s
   _      -> Nothing
 
-impossibleTerm :: String -> Int -> Term
-impossibleTerm file line = flip Dummy [] $ unlines
-  [ "An internal error has occurred. Please report this as a bug."
-  , "Location of the error: " ++ file ++ ":" ++ show line
-  ]
+impossibleTerm :: CallStack -> Term
+impossibleTerm = flip Dummy [] . show . Impossible
 
 ---------------------------------------------------------------------------
 -- * Telescopes.
@@ -998,34 +946,14 @@ instance SgTel (Dom Type) where
   sgTel dom = sgTel (stringToArgName "_", dom)
 
 ---------------------------------------------------------------------------
--- * Handling blocked terms.
----------------------------------------------------------------------------
-
-blockingMeta :: Blocked t -> Maybe MetaId
-blockingMeta (Blocked m _) = Just m
-blockingMeta NotBlocked{}  = Nothing
-
-blocked :: MetaId -> a -> Blocked a
-blocked = Blocked
-
-notBlocked :: a -> Blocked a
-notBlocked = NotBlocked ReallyNotBlocked
-
-blocked_ :: MetaId -> Blocked_
-blocked_ x = blocked x ()
-
-notBlocked_ :: Blocked_
-notBlocked_ = notBlocked ()
-
----------------------------------------------------------------------------
 -- * Simple operations on terms and types.
 ---------------------------------------------------------------------------
 
 -- | Removing a topmost 'DontCare' constructor.
 stripDontCare :: Term -> Term
-stripDontCare v = case v of
+stripDontCare = \case
   DontCare v -> v
-  _          -> v
+  v          -> v
 
 -- | Doesn't do any reduction.
 arity :: Type -> Nat
@@ -1105,40 +1033,6 @@ hasElims v =
     DontCare{} -> Nothing
     Dummy{}    -> Nothing
 
--- | Drop 'Apply' constructor. (Safe)
-isApplyElim :: Elim' a -> Maybe (Arg a)
-isApplyElim (Apply u) = Just u
-isApplyElim Proj{}    = Nothing
-isApplyElim (IApply _ _ r) = Just (defaultArg r)
-
-isApplyElim' :: Empty -> Elim' a -> Arg a
-isApplyElim' e = fromMaybe (absurd e) . isApplyElim
-
--- | Drop 'Apply' constructors. (Safe)
-allApplyElims :: [Elim' a] -> Maybe [Arg a]
-allApplyElims = mapM isApplyElim
-
--- | Split at first non-'Apply'
-splitApplyElims :: [Elim' a] -> ([Arg a], [Elim' a])
-splitApplyElims (Apply u : es) = mapFst (u :) $ splitApplyElims es
-splitApplyElims es             = ([], es)
-
-class IsProjElim e where
-  isProjElim  :: e -> Maybe (ProjOrigin, QName)
-
-instance IsProjElim (Elim' a) where
-  isProjElim (Proj o d) = Just (o, d)
-  isProjElim Apply{}    = Nothing
-  isProjElim IApply{} = Nothing
-
--- | Discards @Proj f@ entries.
-argsFromElims :: Elims -> Args
-argsFromElims = mapMaybe isApplyElim
-
--- | Drop 'Proj' constructors. (Safe)
-allProjElims :: Elims -> Maybe [(ProjOrigin, QName)]
-allProjElims = mapM isProjElim
-
 ---------------------------------------------------------------------------
 -- * Null instances.
 ---------------------------------------------------------------------------
@@ -1151,8 +1045,8 @@ instance Null (Tele a) where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty empty False Nothing
-  null (Clause _ _ tel pats body _ _ _)
+  empty = Clause empty empty empty empty empty empty False Nothing Nothing Nothing empty
+  null (Clause _ _ tel pats body _ _ _ _ _ _)
     =  null tel
     && null pats
     && null body
@@ -1205,7 +1099,7 @@ instance {-# OVERLAPPABLE #-} (Foldable t, TermSize a) => TermSize (t a) where
   tsize = foldMap tsize
 
 instance TermSize Term where
-  tsize v = case v of
+  tsize = \case
     Var _ vs    -> 1 + tsize vs
     Def _ vs    -> 1 + tsize vs
     Con _ _ vs    -> 1 + tsize vs
@@ -1219,29 +1113,25 @@ instance TermSize Term where
     Dummy{}     -> 1
 
 instance TermSize Sort where
-  tsize s = case s of
+  tsize = \case
     Type l    -> 1 + tsize l
     Prop l    -> 1 + tsize l
-    Inf       -> 1
+    Inf _ _   -> 1
+    SSet l    -> 1 + tsize l
     SizeUniv  -> 1
-    PiSort a s -> 1 + tsize a + tsize s
+    LockUniv  -> 1
+    PiSort a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
+    FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
     MetaS _ es -> 1 + tsize es
     DefS _ es  -> 1 + tsize es
     DummyS{}   -> 1
 
 instance TermSize Level where
-  tsize (Max as) = 1 + tsize as
+  tsize (Max _ as) = 1 + tsize as
 
 instance TermSize PlusLevel where
-  tsize (ClosedLevel _) = 1
   tsize (Plus _ a)      = tsize a
-
-instance TermSize LevelAtom where
-  tsize (MetaLevel _   vs) = 1 + tsize vs
-  tsize (BlockedLevel _ v) = tsize v
-  tsize (NeutralLevel _ v) = tsize v
-  tsize (UnreducedLevel v) = tsize v
 
 instance TermSize a => TermSize (Substitution' a) where
   tsize IdS                = 1
@@ -1255,11 +1145,14 @@ instance TermSize a => TermSize (Substitution' a) where
 -- * KillRange instances.
 ---------------------------------------------------------------------------
 
+instance KillRange DataOrRecord where
+  killRange = id
+
 instance KillRange ConHead where
-  killRange (ConHead c i fs) = killRange3 ConHead c i fs
+  killRange (ConHead c d i fs) = killRange4 ConHead c d i fs
 
 instance KillRange Term where
-  killRange v = case v of
+  killRange = \case
     Var i vs    -> killRange1 (Var i) vs
     Def c vs    -> killRange2 Def c vs
     Con c ci vs -> killRange3 Con c ci vs
@@ -1270,35 +1163,31 @@ instance KillRange Term where
     Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
-    Dummy{}     -> v
+    v@Dummy{}   -> v
 
 instance KillRange Level where
-  killRange (Max as) = killRange1 Max as
+  killRange (Max n as) = killRange1 (Max n) as
 
 instance KillRange PlusLevel where
-  killRange l@ClosedLevel{} = l
   killRange (Plus n l) = killRange1 (Plus n) l
-
-instance KillRange LevelAtom where
-  killRange (MetaLevel n as)   = killRange1 (MetaLevel n) as
-  killRange (BlockedLevel m v) = killRange1 (BlockedLevel m) v
-  killRange (NeutralLevel r v) = killRange1 (NeutralLevel r) v
-  killRange (UnreducedLevel v) = killRange1 UnreducedLevel v
 
 instance (KillRange a) => KillRange (Type' a) where
   killRange (El s v) = killRange2 El s v
 
 instance KillRange Sort where
-  killRange s = case s of
-    Inf        -> Inf
+  killRange = \case
+    Inf f n    -> Inf f n
     SizeUniv   -> SizeUniv
+    LockUniv   -> LockUniv
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
-    PiSort a s -> killRange2 PiSort a s
+    SSet a     -> killRange1 SSet a
+    PiSort a s1 s2 -> killRange3 PiSort a s1 s2
+    FunSort s1 s2 -> killRange2 FunSort s1 s2
     UnivSort s -> killRange1 UnivSort s
     MetaS x es -> killRange1 (MetaS x) es
     DefS d es  -> killRange2 DefS d es
-    DummyS{}   -> s
+    s@DummyS{} -> s
 
 instance KillRange Substitution where
   killRange IdS                  = IdS
@@ -1311,8 +1200,11 @@ instance KillRange Substitution where
 instance KillRange PatOrigin where
   killRange = id
 
+instance KillRange PatternInfo where
+  killRange (PatternInfo o xs) = killRange2 PatternInfo o xs
+
 instance KillRange ConPatternInfo where
-  killRange (ConPatternInfo mr b mt lz) = killRange1 (ConPatternInfo mr b) mt lz
+  killRange (ConPatternInfo i mr b mt lz) = killRange1 (ConPatternInfo i mr b) mt lz
 
 instance KillRange DBPatVar where
   killRange (DBPatVar x i) = killRange2 DBPatVar x i
@@ -1323,14 +1215,14 @@ instance KillRange a => KillRange (Pattern' a) where
       VarP o x         -> killRange2 VarP o x
       DotP o v         -> killRange2 DotP o v
       ConP con info ps -> killRange3 ConP con info ps
-      LitP l           -> killRange1 LitP l
+      LitP o l         -> killRange2 LitP o l
       ProjP o q        -> killRange1 (ProjP o) q
       IApplyP o u t x  -> killRange3 (IApplyP o) u t x
       DefP o q ps      -> killRange2 (DefP o) q ps
 
 instance KillRange Clause where
-  killRange (Clause rl rf tel ps body t catchall unreachable) =
-    killRange8 Clause rl rf tel ps body t catchall unreachable
+  killRange (Clause rl rf tel ps body t catchall exact recursive unreachable ell) =
+    killRange10 Clause rl rf tel ps body t catchall exact recursive unreachable ell
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
@@ -1340,21 +1232,6 @@ instance KillRange a => KillRange (Blocked a) where
 
 instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
-
-instance KillRange a => KillRange (Elim' a) where
-  killRange = fmap killRange
-
----------------------------------------------------------------------------
--- * UniverseBi instances.
----------------------------------------------------------------------------
-
-instanceUniverseBiT' [] [t| (([Type], [Clause]), Pattern) |]
-instanceUniverseBiT' [] [t| (Args, Pattern)               |]
-instanceUniverseBiT' [] [t| (Elims, Pattern)              |] -- ?
-instanceUniverseBiT' [] [t| (([Type], [Clause]), Term)    |]
-instanceUniverseBiT' [] [t| (Args, Term)                  |]
-instanceUniverseBiT' [] [t| (Elims, Term)                 |] -- ?
-instanceUniverseBiT' [] [t| ([Term], Term)                |]
 
 -----------------------------------------------------------------------------
 -- * Simple pretty printing
@@ -1397,6 +1274,12 @@ instance Pretty Term where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
+instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
+  pretty dom = pTac <+> pDom dom (pretty $ unDom dom)
+    where
+      pTac | Just t <- domTactic dom = "@" <> parens ("tactic" <+> pretty t)
+           | otherwise               = empty
+
 pDom :: LensHiding a => a -> Doc -> Doc
 pDom i =
   case getHiding i of
@@ -1420,57 +1303,53 @@ instance Pretty a => Pretty (Tele (Dom a)) where
       telToList EmptyTel = []
       telToList (ExtendTel a tel) = (absName tel, a) : telToList (unAbs tel)
 
+prettyPrecLevelSucs :: Int -> Integer -> (Int -> Doc) -> Doc
+prettyPrecLevelSucs p 0 d = d p
+prettyPrecLevelSucs p n d = mparens (p > 9) $ "lsuc" <+> prettyPrecLevelSucs 10 (n - 1) d
+
 instance Pretty Level where
-  prettyPrec p (Max as) =
+  prettyPrec p (Max n as) =
     case as of
-      []  -> prettyPrec p (ClosedLevel 0 :: PlusLevel)
-      [a] -> prettyPrec p a
-      _   -> mparens (p > 9) $ List.foldr1 (\a b -> "lub" <+> a <+> b) $ map (prettyPrec 10) as
+      []  -> prettyN
+      [a] | n == 0 -> prettyPrec p a
+      _   -> mparens (p > 9) $ List.foldr1 (\a b -> "lub" <+> a <+> b) $
+        [ prettyN | n > 0 ] ++ map (prettyPrec 10) as
+    where
+      prettyN = prettyPrecLevelSucs p n (const "lzero")
 
 instance Pretty PlusLevel where
-  prettyPrec p l =
-    case l of
-      ClosedLevel n -> sucs p n $ const "lzero"
-      Plus n a      -> sucs p n $ \p -> prettyPrec p a
-    where
-      sucs p 0 d = d p
-      sucs p n d = mparens (p > 9) $ "lsuc" <+> sucs 10 (n - 1) d
-
-instance Pretty LevelAtom where
-  prettyPrec p a =
-    case a of
-      MetaLevel x els  -> prettyPrec p (MetaV x els)
-      BlockedLevel _ v -> prettyPrec p v
-      NeutralLevel _ v -> prettyPrec p v
-      UnreducedLevel v -> prettyPrec p v
+  prettyPrec p (Plus n a) = prettyPrecLevelSucs p n $ \p -> prettyPrec p a
 
 instance Pretty Sort where
   prettyPrec p s =
     case s of
-      Type (Max []) -> "Set"
-      Type (Max [ClosedLevel n]) -> text $ "Set" ++ show n
+      Type (ClosedLevel 0) -> "Set"
+      Type (ClosedLevel n) -> text $ "Set" ++ show n
       Type l -> mparens (p > 9) $ "Set" <+> prettyPrec 10 l
-      Prop (Max []) -> "Prop"
-      Prop (Max [ClosedLevel n]) -> text $ "Prop" ++ show n
+      Prop (ClosedLevel 0) -> "Prop"
+      Prop (ClosedLevel n) -> text $ "Prop" ++ show n
       Prop l -> mparens (p > 9) $ "Prop" <+> prettyPrec 10 l
-      Inf -> "Setω"
+      Inf f 0 -> text $ addS f "Setω"
+      Inf f n -> text $ addS f "Setω" ++ show n
+      SSet l -> mparens (p > 9) $ "SSet" <+> prettyPrec 10 l
       SizeUniv -> "SizeUniv"
-      PiSort a b -> mparens (p > 9) $
-        "piSort" <+> pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a))
-                      <+> parens (sep [ text ("λ " ++ absName b ++ " ->")
-                                      , nest 2 $ pretty (unAbs b) ])
+      LockUniv -> "LockUniv"
+      PiSort a s1 s2 -> mparens (p > 9) $
+        "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a))
+                      <+> parens (sep [ text ("λ " ++ absName s2 ++ " ->")
+                                      , nest 2 $ pretty (unAbs s2) ])
+      FunSort a b -> mparens (p > 9) $
+        "funSort" <+> prettyPrec 10 a <+> prettyPrec 10 b
       UnivSort s -> mparens (p > 9) $ "univSort" <+> prettyPrec 10 s
       MetaS x es -> prettyPrec p $ MetaV x es
       DefS d es  -> prettyPrec p $ Def d es
       DummyS s   -> parens $ text s
+   where
+     addS IsFibrant t = t
+     addS IsStrict  t = "S" ++ t
 
 instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
-
-instance Pretty tm => Pretty (Elim' tm) where
-  prettyPrec p (Apply v)    = prettyPrec p v
-  prettyPrec _ (Proj _o x)  = text ("." ++ prettyShow x)
-  prettyPrec p (IApply x y r) = prettyPrec p r
 
 instance Pretty DBPatVar where
   prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
@@ -1479,8 +1358,10 @@ instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP _o x)   = prettyPrec n x
   prettyPrec _ (DotP _o t)   = "." <> prettyPrec 10 t
   prettyPrec n (ConP c i nps)= mparens (n > 0 && not (null nps)) $
-    pretty (conName c) <+> fsep (map (prettyPrec 10) ps)
+    (lazy <> pretty (conName c)) <+> fsep (map (prettyPrec 10) ps)
     where ps = map (fmap namedThing) nps
+          lazy | conPLazy i = "~"
+               | otherwise  = empty
   prettyPrec n (DefP o q nps)= mparens (n > 0 && not (null nps)) $
     pretty q <+> fsep (map (prettyPrec 10) ps)
     where ps = map (fmap namedThing) nps
@@ -1490,9 +1371,11 @@ instance Pretty a => Pretty (Pattern' a) where
   --   where
   --     b = maybe False (== ConOSystem) $ conPRecord i
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> ":" <+> pretty t
-  prettyPrec _ (LitP l)      = pretty l
+  prettyPrec _ (LitP _ l)    = pretty l
   prettyPrec _ (ProjP _o q)  = text ("." ++ prettyShow q)
   prettyPrec n (IApplyP _o _ _ x) = prettyPrec n x
+--  prettyPrec n (IApplyP _o u0 u1 x) = text "@[" <> prettyPrec 0 u0 <> text ", " <> prettyPrec 0 u1 <> text "]" <> prettyPrec n x
+
 -----------------------------------------------------------------------------
 -- * NFData instances
 -----------------------------------------------------------------------------
@@ -1500,7 +1383,7 @@ instance Pretty a => Pretty (Pattern' a) where
 -- Note: only strict in the shape of the terms.
 
 instance NFData Term where
-  rnf v = case v of
+  rnf = \case
     Var _ es   -> rnf es
     Lam _ b    -> rnf (unAbs b)
     Lit l      -> rnf l
@@ -1517,34 +1400,38 @@ instance NFData Type where
   rnf (El s v) = rnf (s, v)
 
 instance NFData Sort where
-  rnf s = case s of
+  rnf = \case
     Type l   -> rnf l
     Prop l   -> rnf l
-    Inf      -> ()
+    Inf _ _  -> ()
+    SSet l   -> rnf l
     SizeUniv -> ()
-    PiSort a b -> rnf (a, unAbs b)
+    LockUniv -> ()
+    PiSort a b c -> rnf (a, b, unAbs c)
+    FunSort a b -> rnf (a, b)
     UnivSort a -> rnf a
     MetaS _ es -> rnf es
     DefS _ es  -> rnf es
     DummyS _   -> ()
 
 instance NFData Level where
-  rnf (Max as) = rnf as
+  rnf (Max n as) = rnf (n, as)
 
 instance NFData PlusLevel where
-  rnf (ClosedLevel n) = rnf n
   rnf (Plus n l) = rnf (n, l)
-
-instance NFData LevelAtom where
-  rnf (MetaLevel _ es)   = rnf es
-  rnf (BlockedLevel _ v) = rnf v
-  rnf (NeutralLevel _ v) = rnf v
-  rnf (UnreducedLevel v) = rnf v
-
-instance NFData a => NFData (Elim' a) where
-  rnf (Apply x) = rnf x
-  rnf Proj{}    = ()
-  rnf (IApply x y r) = rnf x `seq` rnf y `seq` rnf r
 
 instance NFData e => NFData (Dom e) where
   rnf (Dom a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
+
+instance NFData DataOrRecord
+instance NFData ConHead
+instance NFData a => NFData (Abs a)
+instance NFData a => NFData (Tele a)
+instance NFData IsFibrant
+instance NFData Clause
+instance NFData PatternInfo
+instance NFData PatOrigin
+instance NFData x => NFData (Pattern' x)
+instance NFData DBPatVar
+instance NFData ConPatternInfo
+instance NFData a => NFData (Substitution' a)

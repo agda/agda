@@ -2,6 +2,7 @@
 
 module Internal.Interaction.Options ( tests ) where
 
+import Agda.Interaction.Library (getPrimitiveLibDir)
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
 
@@ -33,7 +34,7 @@ prop_defaultPragmaOptionsSafe = ioProperty helper
         Left errs -> do
           putStrLn $ "Unexpected error: " ++ errs
           return False
-        Right opts -> let unsafe = unsafePragmaOptions opts in
+        Right opts -> let unsafe = unsafePragmaOptions defaultOptions opts in
           if null unsafe then return True else do
             putStrLn $ "Following pragmas are default but not safe: "
                                           ++ intercalate ", " unsafe
@@ -44,7 +45,7 @@ prop_allBuiltinsSafePostulatesOrNot = ioProperty helper
   where
     helper :: IO Bool
     helper = do
-      libdirPrim <- (</> "prim") <$> defaultLibDir
+      libdirPrim <- getPrimitiveLibDir
       allFiles <- getAgdaFilesInDir Rec libdirPrim
       let builtinFiles = Set.map (libdirPrim </>) builtinModules
       let diff = Set.difference (Set.fromList allFiles) builtinFiles

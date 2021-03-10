@@ -1,0 +1,5 @@
+Issue4435-2.agda:12,6-17
+Multiple definitions of Foo. Previous definition at
+Issue4435-2.agda:5,6-9
+when scope checking the declaration
+  data Foo a : Set

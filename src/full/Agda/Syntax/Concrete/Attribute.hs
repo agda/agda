@@ -16,6 +16,7 @@ import Agda.Syntax.Concrete (Expr(..))
 import Agda.Syntax.Concrete.Pretty () --instance only
 import Agda.Syntax.Position
 
+import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.Pretty (prettyShow)
 
 -- import Agda.Utils.Functor
@@ -27,6 +28,7 @@ data Attribute
   | QuantityAttribute  Quantity
   | TacticAttribute Expr
   | CohesionAttribute Cohesion
+  | LockAttribute      Lock
   deriving (Show)
 
 instance HasRange Attribute where
@@ -35,6 +37,7 @@ instance HasRange Attribute where
     QuantityAttribute q  -> getRange q
     CohesionAttribute c  -> getRange c
     TacticAttribute e    -> getRange e
+    LockAttribute l      -> NoRange
 
 instance SetRange Attribute where
   setRange r = \case
@@ -42,6 +45,7 @@ instance SetRange Attribute where
     QuantityAttribute q  -> QuantityAttribute  $ setRange r q
     CohesionAttribute c  -> CohesionAttribute  $ setRange r c
     TacticAttribute e    -> TacticAttribute e  -- -- $ setRange r e -- SetRange Expr not yet implemented
+    LockAttribute l      -> LockAttribute l
 
 instance KillRange Attribute where
   killRange = \case
@@ -49,10 +53,11 @@ instance KillRange Attribute where
     QuantityAttribute q  -> QuantityAttribute  $ killRange q
     CohesionAttribute c  -> CohesionAttribute  $ killRange c
     TacticAttribute e    -> TacticAttribute    $ killRange e
+    LockAttribute l      -> LockAttribute l
 
 -- | (Conjunctive constraint.)
 
-type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a)
+type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a, LensLock a)
 
 -- | Modifiers for 'Relevance'.
 
@@ -88,6 +93,15 @@ cohesionAttributeTable =
   , ("flat" , Flat)
   ]
 
+-- | Modifiers for 'Quantity'.
+
+lockAttributeTable :: [(String, Lock)]
+lockAttributeTable = concat
+  [ map (, IsNotLock) [ "notlock" ] -- default, shouldn't be used much
+  , map (, IsLock) [ "lock", "tick" ] -- 🔓
+  ]
+
+
 -- | Concrete syntax for all attributes.
 
 attributesMap :: Map String Attribute
@@ -95,6 +109,7 @@ attributesMap = Map.fromList $ concat
   [ map (second RelevanceAttribute) relevanceAttributeTable
   , map (second QuantityAttribute)  quantityAttributeTable
   , map (second CohesionAttribute)  cohesionAttributeTable
+  , map (second LockAttribute)      lockAttributeTable
   ]
 
 -- | Parsing a string into an attribute.
@@ -105,7 +120,7 @@ stringToAttribute = (`Map.lookup` attributesMap)
 -- | Parsing an expression into an attribute.
 
 exprToAttribute :: Expr -> Maybe Attribute
-exprToAttribute (Paren _ (RawApp _ [Tactic _ t []])) = Just $ TacticAttribute t
+exprToAttribute (Paren _ (Tactic _ t)) = Just $ TacticAttribute t
 exprToAttribute e = setRange (getRange e) $ stringToAttribute $ prettyShow e
 
 -- | Setting an attribute (in e.g. an 'Arg').  Overwrites previous value.
@@ -115,6 +130,7 @@ setAttribute = \case
   RelevanceAttribute r -> setRelevance r
   QuantityAttribute  q -> setQuantity  q
   CohesionAttribute  c -> setCohesion  c
+  LockAttribute      l -> setLock      l
   TacticAttribute t    -> id
 
 
@@ -150,6 +166,13 @@ setPristineCohesion c a
   | getCohesion a == defaultCohesion = Just $ setCohesion c a
   | otherwise = Nothing
 
+-- | Setting 'Lock' if unset.
+
+setPristineLock :: (LensLock a) => Lock -> a -> Maybe a
+setPristineLock q a
+  | getLock a == defaultLock = Just $ setLock q a
+  | otherwise = Nothing
+
 -- | Setting an unset attribute (to e.g. an 'Arg').
 
 setPristineAttribute :: (LensAttribute a) => Attribute -> a -> Maybe a
@@ -157,6 +180,7 @@ setPristineAttribute = \case
   RelevanceAttribute r -> setPristineRelevance r
   QuantityAttribute  q -> setPristineQuantity  q
   CohesionAttribute  c -> setPristineCohesion  c
+  LockAttribute      l -> setPristineLock      l
   TacticAttribute{}    -> Just
 
 -- | Setting a list of unset attributes.

@@ -3,12 +3,10 @@ module Agda.Compiler.Treeless.EliminateLiteralPatterns where
 
 import Data.Maybe
 
-import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 
 import Agda.Utils.Impossible
@@ -28,7 +26,7 @@ transform :: BuiltinKit -> TTerm -> TTerm
 transform kit = tr
   where
     tr :: TTerm -> TTerm
-    tr t = case t of
+    tr = \case
       TCase sc t def alts | caseType t `elem` [CTChar, CTString, CTQName, CTNat, CTInt, CTFloat] ->
         foldr litAlt (tr def) alts
         where
@@ -41,35 +39,36 @@ transform kit = tr
           litAlt _ _ = __IMPOSSIBLE__
       TCase sc t@CaseInfo{caseType = CTData dt} def alts -> TCase sc t (tr def) (map trAlt alts)
         where
-          trAlt a = case a of
+          trAlt = \case
             TAGuard g b -> TAGuard (tr g) (tr b)
             TACon q a b -> TACon q a (tr b)
             TALit l b   -> TALit l (tr b)
       TCase _ _ _ _ -> __IMPOSSIBLE__
 
-      TVar{}    -> t
-      TDef{}    -> t
-      TCon{}    -> t
-      TPrim{}   -> t
-      TLit{}    -> t
-      TUnit{}   -> t
-      TSort{}   -> t
-      TErased{} -> t
-      TError{}  -> t
+      t@TVar{}    -> t
+      t@TDef{}    -> t
+      t@TCon{}    -> t
+      t@TPrim{}   -> t
+      t@TLit{}    -> t
+      t@TUnit{}   -> t
+      t@TSort{}   -> t
+      t@TErased{} -> t
+      t@TError{}  -> t
 
       TCoerce a               -> TCoerce (tr a)
       TLam b                  -> TLam (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
 
+    -- TODO:: Defined but not used
     isCaseOn (CTData dt) xs = dt `elem` mapMaybe ($ kit) xs
     isCaseOn _ _ = False
 
     eqFromLit :: Literal -> TPrim
-    eqFromLit x = case x of
-      LitNat _ _     -> PEqI
-      LitFloat _ _   -> PEqF
-      LitString _ _  -> PEqS
-      LitChar _ _    -> PEqC
-      LitQName _ _   -> PEqQ
-      _              -> __IMPOSSIBLE__
+    eqFromLit = \case
+      LitNat _     -> PEqI
+      LitFloat _   -> PEqF
+      LitString _  -> PEqS
+      LitChar _    -> PEqC
+      LitQName _   -> PEqQ
+      _ -> __IMPOSSIBLE__

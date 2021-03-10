@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 -- | Lenses for 'TCState' and more.
 
 module Agda.TypeChecking.Monad.State where
@@ -8,20 +6,19 @@ module Agda.TypeChecking.Monad.State where
 import qualified Control.Exception as E
 
 import Control.Monad.State (void)
-import Control.Monad.Trans (liftIO)
+import Control.Monad.Trans (MonadIO, liftIO)
 
 import Data.Maybe
 
 import qualified Data.Map as Map
 
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
-import Data.Traversable (traverse)
 
 import Agda.Benchmarking
 
--- import {-# SOURCE #-} Agda.Interaction.Response
 import Agda.Interaction.Response
   (InteractionOutputCallback, Response)
 
@@ -36,14 +33,13 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Warnings
 
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug
+import Agda.TypeChecking.Monad.Debug (reportSDoc, reportSLn, verboseS)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.Monad (bracket_)
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 
@@ -228,10 +224,10 @@ printScope tag v s = verboseS ("scope." ++ tag) v $ do
 
 -- ** Lens for 'stSignature' and 'stImports'
 
-modifySignature :: (Signature -> Signature) -> TCM ()
+modifySignature :: MonadTCState m => (Signature -> Signature) -> m ()
 modifySignature f = stSignature `modifyTCLens` f
 
-modifyImportedSignature :: (Signature -> Signature) -> TCM ()
+modifyImportedSignature :: MonadTCState m => (Signature -> Signature) -> m ()
 modifyImportedSignature f = stImports `modifyTCLens` f
 
 getSignature :: ReadTCState m => m Signature
@@ -241,16 +237,16 @@ getSignature = useR stSignature
 --   definitions (during type checking) will not persist outside the current
 --   module. This function is currently used to update the compiled
 --   representation of a function during compilation.
-modifyGlobalDefinition :: QName -> (Definition -> Definition) -> TCM ()
+modifyGlobalDefinition :: MonadTCState m => QName -> (Definition -> Definition) -> m ()
 modifyGlobalDefinition q f = do
   modifySignature         $ updateDefinition q f
   modifyImportedSignature $ updateDefinition q f
 
-setSignature :: Signature -> TCM ()
+setSignature :: MonadTCState m => Signature -> m ()
 setSignature sig = modifySignature $ const sig
 
 -- | Run some computation in a different signature, restore original signature.
-withSignature :: Signature -> TCM a -> TCM a
+withSignature :: (ReadTCState m, MonadTCState m) => Signature -> m a -> m a
 withSignature sig m = do
   sig0 <- getSignature
   setSignature sig
@@ -261,8 +257,8 @@ withSignature sig m = do
 -- ** Modifiers for rewrite rules
 addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> Signature -> Signature
 addRewriteRulesFor f rews matchables =
-    (over sigRewriteRules $ HMap.insertWith mappend f rews)
-  . (updateDefinition f $ updateTheDef setNotInjective . setCopatternLHS)
+    over sigRewriteRules (HMap.insertWith mappend f rews)
+  . updateDefinition f (updateTheDef setNotInjective . setCopatternLHS)
   . (setMatchableSymbols f matchables)
     where
       setNotInjective def@Function{} = def { funInv = NotInjective }
@@ -275,7 +271,7 @@ addRewriteRulesFor f rews matchables =
 
 setMatchableSymbols :: QName -> [QName] -> Signature -> Signature
 setMatchableSymbols f matchables =
-  foldr (.) id $ map (\g -> updateDefinition g $ setMatchable) matchables
+  foldr ((.) . (\g -> updateDefinition g setMatchable)) id matchables
     where
       setMatchable def = def { defMatchable = Set.insert f $ defMatchable def }
 
@@ -323,6 +319,9 @@ updateCompiledClauses f _                              = __IMPOSSIBLE__
 updateDefCopatternLHS :: (Bool -> Bool) -> Definition -> Definition
 updateDefCopatternLHS f def@Defn{ defCopatternLHS = b } = def { defCopatternLHS = f b }
 
+updateDefBlocked :: (Blocked_ -> Blocked_) -> Definition -> Definition
+updateDefBlocked f def@Defn{ defBlocked = b } = def { defBlocked = f b }
+
 ---------------------------------------------------------------------------
 -- * Top level module
 ---------------------------------------------------------------------------
@@ -359,7 +358,7 @@ addForeignCode backend code = do
 -- * Interaction output callback
 ---------------------------------------------------------------------------
 
-getInteractionOutputCallback :: TCM InteractionOutputCallback
+getInteractionOutputCallback :: ReadTCState m => m InteractionOutputCallback
 getInteractionOutputCallback
   = getsTC $ stInteractionOutputCallback . stPersistentState
 
@@ -397,7 +396,7 @@ lookupPatternSyn (AmbQ xs) = do
   defs <- traverse lookupSinglePatternSyn xs
   case mergePatternSynDefs defs of
     Just def   -> return def
-    Nothing    -> typeError $ CannotResolveAmbiguousPatternSynonym (zipNe xs defs)
+    Nothing    -> typeError $ CannotResolveAmbiguousPatternSynonym (NonEmpty.zip xs defs)
 
 lookupSinglePatternSyn :: QName -> TCM PatternSynDefn
 lookupSinglePatternSyn x = do

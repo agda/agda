@@ -2,6 +2,13 @@
 source .travis/header.sh
 set -e
 
+subtitle "*** Updating Cabal tools ***"
+travis_retry cabal update
+subtitle "*** Installing Alex, Happy, and shelltestrunner ***"
+travis_retry cabal fetch alex happy shelltestrunner
+cabal install -v0 alex happy
+cabal install -v0 --ghc-option=-w shelltestrunner
+
 ##############################################################################
 # Build environment information
 
@@ -21,8 +28,6 @@ haddock --version
 subtitle "*** Emacs version ***"
 emacs --version | sed 2q
 
-subtitle "*** cabal update ***"
-travis_retry cabal update
 # The container environment reports a wrong number of cores. We use
 # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
 # commenting out `jobs: $ncpus` in the Cabal configuration file.
@@ -45,9 +50,8 @@ travis_fold end "ghc.info"
 travis_fold start "build.dependencies"
 
 title "Building dependencies"
-travis_retry cabal fetch \
-  `cabal install --dependencies-only --enable-tests --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"`
-make CABAL_OPTS='-v0 --only-dependencies' install-bin
+# travis_retry cabal fetch `cabal install --dependencies-only --enable-tests --dry-run | sed 1,2d | sed "s|(latest[^)]*)||g"`
+travis_retry make CABAL_OPTS='-v0 --only-dependencies' install-bin
 
 travis_fold end "build.dependencies"
 ##############################################################################
@@ -56,7 +60,13 @@ travis_fold end "build.dependencies"
 travis_fold start "build.agda"
 
 title "Building Agda"
-make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
+# We remove options `-fexpose-all-unfoldings` and
+# `-fspecialise-aggressively` on GHC 8.0.2. See Issue #4177.
+if [[ $GHC_VER == "8.0.2" ]]; then
+  make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v1 --ghc-option=-fno-specialise --ghc-option=-fno-expose-all-unfoldings" install-bin
+else
+  make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
+fi
 
 travis_fold end "build.agda"
 
@@ -65,9 +75,20 @@ travis_fold end "build.agda"
 
 travis_fold start "fetch.std-lib"
 
+title "Fetching the standard library"
 make up-to-date-std-lib
 
 travis_fold end "fetch.std-lib"
+
+##############################################################################
+# Getting the cubical library
+
+travis_fold start "fetch.cubical"
+
+title "Fetching the cubical library"
+make up-to-date-cubical
+
+travis_fold end "fetch.cubical"
 
 ###############################################################################
 ## Installing a recent version of Node (see Issue #2192)

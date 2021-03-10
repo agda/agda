@@ -33,6 +33,10 @@ main = runAgda [ "--no-libraries"
   loadAndEcho file
 
   -- Clean up.
+  --
+  -- Clean up can fail if there are various versions of the Agda
+  -- library available for GHC.
+
   writeUTF8File file "\n"
   removeFile $ concat [ "_build/", version, "/agda/", file, "i" ]
 

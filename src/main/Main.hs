@@ -5,8 +5,8 @@
 
 module Main (main) where
 
-import qualified Agda.Main ( main )
+import Agda.Main ( runAgda )
 import Prelude ( IO )
 
 main :: IO ()
-main = Agda.Main.main
+main = runAgda []

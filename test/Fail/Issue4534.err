@@ -1,0 +1,3 @@
+Issue4534.agda:7,12-19
+Cannot quote a variable X
+when checking that the expression quote X has type Name

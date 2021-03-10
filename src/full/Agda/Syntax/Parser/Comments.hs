@@ -47,6 +47,7 @@ nestedComment inp inp' _ =
          else
           lexToken
     where
+        err :: forall a. String -> LookAhead a
         err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{-'"
 
 -- | Lex a hole (@{! ... !}@). Holes can be nested.
@@ -60,6 +61,7 @@ hole inp inp' _ =
           TokSymbol SymQuestionMark $
           posToInterval (lexSrcFile inp) (lexPos inp) p
     where
+        err :: forall a. String -> LookAhead a
         err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{!'"
 
 -- | Skip a block of text enclosed by the given open and close strings. Assumes

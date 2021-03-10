@@ -1,0 +1,9 @@
+customised/Issue4671.agda:1,1-22
+Failed to find source of module Agda.PRIMITIVE in any of the
+following locations:
+  customised/Agda/PRIMITIVE.agda
+  customised/Agda/PRIMITIVE.lagda
+  agda-default-include-path/Agda/PRIMITIVE.agda
+  agda-default-include-path/Agda/PRIMITIVE.lagda
+when scope checking the declaration
+  import Agda.PRIMITIVE

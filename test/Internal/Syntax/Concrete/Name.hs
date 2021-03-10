@@ -2,9 +2,11 @@
 module Internal.Syntax.Concrete.Name () where
 
 import Agda.Syntax.Concrete.Name
+import Agda.Utils.Function ( applyWhen )
+import Agda.Utils.List1    ( (<|) )
+import qualified Agda.Utils.List1 as List1
 
-import Data.List
-
+import Internal.Helpers
 import Internal.Syntax.Common ()
 import Internal.Syntax.Position ()
 
@@ -15,7 +17,7 @@ import Test.QuickCheck
 ------------------------------------------------------------------------
 
 instance Arbitrary TopLevelModuleName where
-  arbitrary = TopLevelModuleName <$> arbitrary <*> listOf1 (listOf1 $ elements "AB")
+  arbitrary = TopLevelModuleName <$> arbitrary <*> list1Of (listOf1 $ elements "AB")
 
 instance CoArbitrary TopLevelModuleName where
   coarbitrary (TopLevelModuleName _ m) = coarbitrary m
@@ -27,13 +29,13 @@ instance Arbitrary Name where
     ]
     where
     parts = do
-      parts         <- listOf1 (elements ["x", "y", "z"])
+      parts         <- list1Of $ elements ["x", "y", "z"]
       startWithHole <- arbitrary
       endWithHole   <- arbitrary
       return $
-        (if startWithHole then (Hole :)    else id) $
-        (if endWithHole   then (++ [Hole]) else id) $
-        intersperse Hole (map Id parts)
+        applyWhen startWithHole (Hole <|) $
+        applyWhen endWithHole   (`List1.append` [Hole]) $
+        List1.intersperse Hole $ fmap Id parts
 
 instance CoArbitrary NamePart
 

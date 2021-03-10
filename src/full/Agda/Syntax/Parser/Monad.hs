@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Syntax.Parser.Monad
     ( -- * The parser monad
@@ -31,22 +29,21 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
-import Control.Exception (displayException)
-import Data.Int
-
-import Data.Data (Data)
-
+import Control.DeepSeq
+import Control.Exception ( displayException )
+import Control.Monad.Except
 import Control.Monad.State
+
+import Data.Int
+import Data.Data (Data)
 
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
 
-import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.List ( tailWithDefault )
 import qualified Agda.Utils.Maybe.Strict as Strict
-
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -128,6 +125,7 @@ data ParseError
     { errPath      :: !AbsolutePath
     , errIOError   :: IOError
     }
+  deriving Show
 
 -- | Warnings for parsing.
 data ParseWarning
@@ -136,7 +134,10 @@ data ParseWarning
     { warnRange    :: !(Range' SrcFile)
                       -- ^ The range of the bigger overlapping token
     }
-  deriving Data
+  deriving (Data, Show)
+
+instance NFData ParseWarning where
+  rnf (OverlappingTokensWarning _) = ()
 
 parseWarningName :: ParseWarning -> WarningName
 parseWarningName = \case
@@ -170,9 +171,6 @@ parseError msg = do
     Instances
  --------------------------------------------------------------------------}
 
-instance Show ParseError where
-  show = prettyShow
-
 instance Pretty ParseError where
   pretty ParseError{errPos,errSrcFile,errMsg,errPrevToken,errInput} = vcat
       [ (pretty (errPos { srcFile = errSrcFile }) <> colon) <+>
@@ -203,9 +201,6 @@ instance HasRange ParseError where
     where
     errPathRange = posToRange p p
       where p = startPos $ Just $ errPath err
-
-instance Show ParseWarning where
-  show = prettyShow
 
 instance Pretty ParseWarning where
   pretty OverlappingTokensWarning{warnRange} = vcat
@@ -286,7 +281,7 @@ getParseInterval = do
   return $ posToInterval (parseSrcFile s) (parseLastPos s) (parsePos s)
 
 getLexState :: Parser [LexState]
-getLexState = parseLexState <$> get
+getLexState = gets parseLexState
 
 -- UNUSED Liang-Ting Chen 2019-07-16
 --setLexState :: [LexState] -> Parser ()

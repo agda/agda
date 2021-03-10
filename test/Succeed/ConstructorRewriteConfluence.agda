@@ -1,4 +1,4 @@
-{-# OPTIONS --prop --rewriting --confluence-check #-}
+{-# OPTIONS --prop --rewriting --local-confluence-check #-}
 
 open import Agda.Primitive
 open import Agda.Builtin.Equality

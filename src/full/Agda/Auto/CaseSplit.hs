@@ -1,12 +1,11 @@
-{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.Auto.CaseSplit where
 
 import Data.IORef
 import Data.Tuple (swap)
-import Data.List (findIndex)
+import Data.List (elemIndex)
+-- Import of <> needed for 8.2.2, but redundant in 8.8.3
 import Data.Monoid ((<>), Sum(..))
-import Data.Foldable (foldMap)
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
 import Control.Monad.State as St hiding (lift)
@@ -80,8 +79,7 @@ caseSplitSearch ticks nsolwanted chints meqr depthinterval depth recdef ctx tt p
                       , rieEqReasoningConsts = meqr
                       }
       depreached <- topSearch ticks nsol hsol env initcon depth (depth + 1)
-      rsol <- readIORef sol
-      return rsol
+      readIORef sol
      ctx' = ff 1 ctx
      ff _ [] = []
      ff n (HI hid (id, t) : ctx) = HI hid (id, lift n t) : ff (n + 1) ctx
@@ -92,8 +90,7 @@ caseSplitSearch' :: forall o .
   Int -> Cost -> ConstRef o -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
 caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
   recdefd <- readIORef recdef
-  sols <- rc depth (cddeffreevars recdefd) ctx tt pats
-  return sols
+  rc depth (cddeffreevars recdefd) ctx tt pats
  where
   rc :: Cost -> Int -> CSCtx o -> MExp o -> [CSPat o] -> IO [Sol o]
   rc depth _ _ _ _ | depth < 0 = return []
@@ -164,9 +161,9 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
               thesub = replace scrut (length newvars) constrapp
               Id newvarprefix = fst $ (drophid ctx) !! scrut
               ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take scrut ctx) ++
-                     reverse (map (\(((hid, _), id, t), i) ->
+                     reverse (zipWith (\((hid, _), id, t) i ->
                        HI hid (Id (case id of {NoId -> newvarprefix{- ++ show i-}; Id id -> id}), t)
-                      ) (zip newvars [0..])) ++
+                      ) newvars [0..]) ++
                      map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (drop (scrut + 1) ctx)
               tt' = thesub tt
               pats' = map (replacep scrut (length newvars) pconstrapp constrapp) pats
@@ -182,13 +179,15 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
             do
              let (ctx2, tt2, pats2) = removevar ctx1 tt' pats' unif
                  --cost = if elem scrut mblkvar then costCaseSplit - (costCaseSplit - costCaseSplitFollow) `div` (length mblkvar) else costCaseSplit
-                 cost = if null mblkvar then
-                         if scrut < length ctx - nscrutavoid && nothid
-                         then costCaseSplitLow + costAddVarDepth
-                              * Cost (depthofvar scrut pats)
-                         else costCaseSplitVeryHigh
-                        else
-                         if scrut `elem` mblkvar then costCaseSplitLow else (if scrut < length ctx - nscrutavoid && nothid then costCaseSplitHigh else costCaseSplitVeryHigh)
+                 cost
+                   | null mblkvar && scrut < length ctx - nscrutavoid && nothid
+                                                                = costCaseSplitLow +
+                                                                  costAddVarDepth *
+                                                                  Cost (depthofvar scrut pats)
+                   | null mblkvar                               = costCaseSplitVeryHigh
+                   | scrut `elem` mblkvar                       = costCaseSplitLow
+                   | scrut < length ctx - nscrutavoid && nothid = costCaseSplitHigh
+                   | otherwise                                  = costCaseSplitVeryHigh
 
                  nothid = let HI hid _ = ctx !! scrut
                           in hid == NotHidden
@@ -199,24 +198,27 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
               [] -> return []
               _ -> do
                sols2 <- dobranches cons
-               return $ concat (map (\sol -> map (\sol2 -> sol ++ sol2) sols2) sols)
+               return $ concatMap (\sol -> map (\sol2 -> sol ++ sol2) sols2) sols
        _ -> return [] -- split failed "scrut type is not datatype"
      _ -> return [] -- split failed "scrut type is not datatype"
 
 infertypevar :: CSCtx o -> Nat -> MExp o
 infertypevar ctx v = snd $ (drophid ctx) !! v
 
-class Replace o t u | t u -> o where
-  replace' :: Nat -> MExp o -> t -> Reader (Nat, Nat) u
+class Replace t u where
+  type ReplaceWith t u
+  replace' :: Nat -> MExp (ReplaceWith t u) -> t -> Reader (Nat, Nat) u
 
-replace :: Replace o t u => Nat -> Nat -> MExp o -> t -> u
+replace :: Replace t u => Nat -> Nat -> MExp (ReplaceWith t u) -> t -> u
 replace sv nnew e t = replace' 0 e t `runReader` (sv, nnew)
 
-instance Replace o t u => Replace o (Abs t) (Abs u) where
+instance Replace t u => Replace (Abs t) (Abs u) where
+  type ReplaceWith (Abs t) (Abs u) = ReplaceWith t u
   replace' n re (Abs mid b) = Abs mid <$> replace' (n + 1) re b
 
-instance Replace o (Exp o) (MExp o) where
-  replace' n re e = case e of
+instance Replace (Exp o) (MExp o) where
+  type ReplaceWith (Exp o) (MExp o) = o
+  replace' n re = \case
     App uid ok elr@(Var v) args -> do
       ih         <- NotM <$> replace' n re args
       (sv, nnew) <- ask
@@ -233,13 +235,15 @@ instance Replace o (Exp o) (MExp o) where
     Lam hid b -> NotM . Lam hid <$> replace' (n + 1) re b
     Pi uid hid possdep it b ->
       fmap NotM $ Pi uid hid possdep <$> replace' n re it <*> replace' n re b
-    Sort{} -> return $ NotM e
-    AbsurdLambda{} -> return $ NotM e
+    e@Sort{} -> return $ NotM e
+    e@AbsurdLambda{} -> return $ NotM e
 
-instance Replace o t u => Replace o (MM t (RefInfo o)) u where
+instance Replace t u => Replace (MM t (RefInfo o)) u where
+  type ReplaceWith (MM t (RefInfo o)) u = ReplaceWith t u
   replace' n re = replace' n re . rm __IMPOSSIBLE__
 
-instance Replace o (ArgList o) (ArgList o) where
+instance Replace (ArgList o) (ArgList o) where
+  type ReplaceWith (ArgList o) (ArgList o) = o
   replace' n re args = case args of
     ALNil           -> return ALNil
     ALCons hid a as ->
@@ -273,13 +277,9 @@ replacep sv nnew rp re = r
  where
   r :: CSPat o -> CSPat o
   r (HI hid (CSPatConApp c ps)) = HI hid (CSPatConApp c (map r ps))
-  r (HI hid (CSPatVar v)) = if v == sv then
-                    HI hid rp
-                   else
-                    if v > sv then
-                     HI hid (CSPatVar (v + nnew - 1))
-                    else
-                     HI hid (CSPatVar v)
+  r (HI hid (CSPatVar v)) | v == sv   = HI hid rp
+                          | v > sv    = HI hid (CSPatVar (v + nnew - 1))
+                          | otherwise = HI hid (CSPatVar v)
   r (HI hid (CSPatExp e)) = HI hid (CSPatExp $ replace sv nnew re e)
 
   r p@(HI _ CSOmittedArg) = p
@@ -293,18 +293,21 @@ replacep sv nnew rp re = r
 
 type Assignments o = [(Nat, Exp o)]
 
-class Unify o t | t -> o where
-  unify'    :: t -> t -> StateT (Assignments o) Maybe ()
-  notequal' :: t -> t -> ReaderT (Nat, Nat) (StateT (Assignments o) IO) Bool
+class Unify t where
+  type UnifiesTo t
+  unify'    :: t -> t -> StateT (Assignments (UnifiesTo t)) Maybe ()
+  notequal' :: t -> t -> ReaderT (Nat, Nat) (StateT (Assignments (UnifiesTo t)) IO) Bool
 
-unify :: Unify o t => t -> t -> Maybe (Assignments o)
+unify :: Unify t => t -> t -> Maybe (Assignments (UnifiesTo t))
 unify t u = unify' t u `execStateT` []
 
-notequal :: Unify o t => Nat -> Nat -> t -> t -> IO Bool
+notequal :: Unify t => Nat -> Nat -> t -> t -> IO Bool
 notequal fstnew nbnew t1 t2 = notequal' t1 t2 `runReaderT` (fstnew, nbnew)
                                               `evalStateT` []
 
-instance Unify o t => Unify o (MM t (RefInfo o)) where
+instance (Unify t, o ~ UnifiesTo t) => Unify (MM t (RefInfo o)) where
+  type UnifiesTo (MM t (RefInfo o)) = o
+
   unify' = unify' `on` rm __IMPOSSIBLE__
 
   notequal' = notequal' `on` rm __IMPOSSIBLE__
@@ -316,12 +319,15 @@ unifyVar v e = do
     Nothing -> modify ((v, e) :)
     Just e' -> unify' e e'
 
-instance Unify o t => Unify o (Abs t) where
+instance Unify t => Unify (Abs t) where
+  type UnifiesTo (Abs t) = UnifiesTo t
   unify' (Abs _ b1) (Abs _ b2) = unify' b1 b2
 
   notequal' (Abs _ b1) (Abs _ b2) = notequal' b1 b2
 
-instance Unify o (Exp o) where
+instance Unify (Exp o) where
+  type UnifiesTo (Exp o) = o
+
   unify' e1 e2 = case (e1, e2) of
    (App _ _ elr1 args1, App _ _ elr2 args2) | elr1 == elr2 -> unify' args1 args2
    (Lam hid1 b1, Lam hid2 b2)               | hid1 == hid2 -> unify' b1 b2
@@ -365,7 +371,9 @@ instance Unify o (Exp o) where
 -}
       _ -> return False
 
-instance Unify o (ArgList o) where
+instance Unify (ArgList o) where
+  type UnifiesTo (ArgList o) = o
+
   unify' args1 args2 = case (args1, args2) of
    (ALNil, ALNil) -> pure ()
    (ALCons hid1 a1 as1, ALCons hid2 a2 as2) | hid1 == hid2 -> unify' a1 a2
@@ -398,14 +406,14 @@ instance Lift t => Lift (MM t r) where
   lift' n j = NotM . lift' n j . rm __IMPOSSIBLE__
 
 instance Lift (Exp o) where
-  lift' n j e = case e of
+  lift' n j = \case
     App uid ok elr args -> case elr of
       Var v | v >= j -> App uid ok (Var (v + n)) (lift' n j args)
       _ -> App uid ok elr (lift' n j args)
     Lam hid b -> Lam hid (lift' n j b)
     Pi uid hid possdep it b -> Pi uid hid possdep (lift' n j it) (lift' n j b)
-    Sort{} -> e
-    AbsurdLambda{} -> e
+    e@Sort{} -> e
+    e@AbsurdLambda{} -> e
 
 instance Lift (ArgList o) where
   lift' n j args = case args of
@@ -461,17 +469,17 @@ applyperm perm ctx tt pats =
  in (ctx3, tt', pats')
 
 ren :: [Nat] -> Nat -> Int
-ren n i = let Just j = findIndex (== i) n in j
+ren n i = let Just j = elemIndex i n in j
 
 instance Renaming t => Renaming (HI t) where
   renameOffset j ren (HI hid t) = HI hid $ renameOffset j ren t
 
 instance Renaming (CSPatI o) where
-  renameOffset j ren e = case e of
+  renameOffset j ren = \case
     CSPatConApp c pats -> CSPatConApp c $ map (renameOffset j ren) pats
     CSPatVar i         -> CSPatVar $ j + ren i
     CSPatExp e         -> CSPatExp $ renameOffset j ren e
-    CSOmittedArg       -> e
+    e@CSOmittedArg     -> e
     _                  -> __IMPOSSIBLE__
 
 seqctx :: CSCtx o -> CSCtx o
@@ -485,7 +493,7 @@ depthofvar :: Nat -> [CSPat o] -> Nat
 depthofvar v pats =
  let [depth] = concatMap (f 0) (drophid pats)
      f d (CSPatConApp _ pats) = concatMap (f (d + 1)) (drophid pats)
-     f d (CSPatVar v') = if v == v' then [d] else []
+     f d (CSPatVar v') = [d | v == v']
      f _ _ = []
  in depth
 
@@ -499,7 +507,7 @@ instance LocalTerminationEnv a => LocalTerminationEnv (HI a) where
   sizeAndBoundVars (HI _ p) = sizeAndBoundVars p
 
 instance LocalTerminationEnv (CSPatI o) where
-  sizeAndBoundVars p = case p of
+  sizeAndBoundVars = \case
     CSPatConApp _ ps -> (1, []) <> sizeAndBoundVars ps
     CSPatVar n       -> (0, [n])
     CSPatExp e       -> sizeAndBoundVars e

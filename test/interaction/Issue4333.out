@@ -1,0 +1,20 @@
+Checking Issue4333.M (Issue4333/M.agda).
+Checking Issue4333.N0 (Issue4333/N0.agda).
+Checking Issue4333.N1 (Issue4333/N1.agda).
+Checking Issue4333.N (Issue4333/N.agda).
+Issue4333/N.agda:6,1-25
+Global confluence check failed: Issue4333.M.a unfolds to
+Issue4333.M.a₁' which should further unfold to Issue4333.M.a₀' but
+it does not.
+Possible fix: add a rule to rewrite Issue4333.M.a₁' to
+Issue4333.M.a₀'
+when scope checking the declaration
+open import Issue4333.N1
+Issue4333/N.agda:6,1-25
+Global confluence check failed: Issue4333.M.a unfolds to
+Issue4333.M.a₁' which should further unfold to Issue4333.M.a₀' but
+it does not.
+Possible fix: add a rule to rewrite Issue4333.M.a₁' to
+Issue4333.M.a₀'
+when scope checking the declaration
+open import Issue4333.N1

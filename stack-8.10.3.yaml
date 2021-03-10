@@ -1,0 +1,12 @@
+resolver: lts-17.2
+compiler: ghc-8.10.3
+compiler-check: match-exact
+
+extra-deps:
+#   - process-extras-0.7.4
+  - tasty-silver-3.1.15
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/size-solver'

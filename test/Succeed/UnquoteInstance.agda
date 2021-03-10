@@ -35,12 +35,12 @@ private
 
 unquoteDecl EqNat = define (iArg EqNat)
   (funDef (def (quote Eq) (vArg (def (quote Nat) []) ∷ []))
-          (clause [] (con (quote eqDict) (vArg (def (quote eqNat) []) ∷ [])) ∷ []))
+          (clause [] [] (con (quote eqDict) (vArg (def (quote eqNat) []) ∷ [])) ∷ []))
 
 instance
   EqBool : Eq Bool
   unquoteDef EqBool =
-    defineFun EqBool (clause [] (con (quote eqDict) (vArg (def (quote eqBool) []) ∷ [])) ∷ [])
+    defineFun EqBool (clause [] [] (con (quote eqDict) (vArg (def (quote eqBool) []) ∷ [])) ∷ [])
 
 id : {A : Set} → A → A
 id x = x

@@ -1,0 +1,21 @@
+AGDA_FAILURE
+
+ret > ExitFailure 42
+out > Issue4251.agda:18,1-42,8
+out > CoconeDep is not strictly positive, because it occurs
+out > in the first clause
+out > in the definition of s, which occurs
+out >                       in the first argument of Square.b
+out >                       in the first argument of Cocone.x
+out >                       (in the first argument of Y'
+out >                        in the first argument of admit
+out >                        in the second argument of fung
+out >                        in the 4th clause
+out >                        in the definition of s), which occurs
+out >                                               in the first clause
+out >                                               in the definition of Cocone.x, which occurs
+out >                                                                            in an argument of a bound
+out >                                                                            variable
+out >                                                                            in the definition of
+out >                                                                            CoconeDep.
+out >

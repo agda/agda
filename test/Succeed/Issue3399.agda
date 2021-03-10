@@ -13,7 +13,7 @@ transpFill : ∀ {ℓ} {A' : Set ℓ} (φ : I)
                PathP (λ i → ouc (A i)) u0 (primTransp (λ i → ouc (A i)) φ u0)
 transpFill φ A u0 i = primTransp (\ j → ouc (A (i ∧ j))) (~ i ∨ φ) u0
 
-forward : (la : I → Level) (A : ∀ i → Set (la i)) (r : I) → A r → A i1
+forward : (la : Level) (A : ∀ i → Set la) (r : I) → A r → A i1
 forward la A r x = primTransp (\ i → A (i ∨ r)) r x
 
 -- gcomp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u, ~ phi -> forward A 0 u ] (forward A 0 u0)

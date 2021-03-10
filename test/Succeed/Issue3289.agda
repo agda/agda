@@ -1,4 +1,5 @@
 -- Andreas, 2018-10-18, issue #3289 reported by Ulf
+-- Andreas, 2021-02-10, fix rhs occurrence
 --
 -- For postfix projections, we have no hiding info
 -- for the eliminated record value.
@@ -14,8 +15,11 @@ record R : Set where
 
 open R {{...}}
 
-test : R
-test .p = 0
+lhs : R
+lhs .p = 0
+
+rhs : R → Nat
+rhs r = r .p
 
 -- Error WAS:  Wrong hiding used for projection  R.p
 

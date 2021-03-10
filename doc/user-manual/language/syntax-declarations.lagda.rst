@@ -27,38 +27,35 @@ identifiers. Example:
 
 ::
 
-    postulate
-      State  : Set → Set → Set
-      put    : ∀ {S} → S → State S ⊤
-      get    : ∀ {S} → State S S
-      return : ∀ {A S} → A → State S A
-      bind   : ∀ {A B S} → State S B → (B → State S A) → State S A
+    record Σ (A : Set) (B : A → Set) : Set where
+      constructor _,_
+      field fst : A
+            snd : B fst
 
-    syntax bind e₁ (λ x → e₂) = x ← e₁ , e₂
+    syntax Σ A (λ x → B) = [ x ∈ A ] × B
 
-    increment : State ℕ ⊤
-    increment = x ← get ,
-                put (suc x)
+    witness : ∀ {A B} → [ x ∈ A ] × B → A
+    witness (x , _) = x
 
-The syntax declaration for ``bind`` implies that ``x`` is in scope in
-``e₂``, but not in ``e₁``.
+The syntax declaration for ``Σ`` implies that ``x`` is in scope in
+``B``, but not in ``A``.
 
 You can give fixity declarations along with syntax declarations:
-
 
 ..
   ::
 
   module Second where
-    postulate
-      State  : Set → Set → Set
-      bind   : ∀ {A B S} → State S B → (B → State S A) → State S A
+    record Σ (A : Set) (B : A → Set) : Set where
+      constructor _,_
+      field fst : A
+            snd : B fst
 
 ::
 
 
-    infixr 40 bind
-    syntax bind e₁ (λ x → e₂) = x ← e₁ , e₂
+    infix 5 Σ
+    syntax Σ A (λ x → B) = [ x ∈ A ] × B
 
 The fixity applies to the syntax, not the name; syntax declarations
 are also restricted to ordinary, non-operator names. The following
@@ -83,3 +80,7 @@ Syntax declarations can have implicit arguments. For example:
   id x = x
 
   syntax id {A} x = x ∈ A
+
+Unlike :ref:`mixfix operators <mixfix-operators>` that can be used unapplied
+using the name including all the underscores, or partially applied by replacing
+only some of the underscores by arguments, syntax must be fully applied.

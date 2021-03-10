@@ -1,10 +1,10 @@
 module Agda.TypeChecking.Monad.Base where
 
-import Control.Applicative (Applicative)
 import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (IORef)
 import Data.Map (Map)
 
+import Agda.Syntax.Common (Nat)
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
 
@@ -36,3 +36,6 @@ type TCM = TCMT IO
 type ModuleToSource = Map TopLevelModuleName AbsolutePath
 
 type BackendName = String
+
+data Comparison
+data Polarity

@@ -176,7 +176,7 @@ Next up, well-typed terms::
     app : ∀ {A B} (s : Term Γ (A => B)) (t : Term Γ A) → Term Γ B
     lam : ∀ A {B} (t : Term (A ∷ Γ) B) → Term Γ (A => B)
 
-Given a well-typed term we can mechaincally erase all the type
+Given a well-typed term we can mechanically erase all the type
 information (except the annotation on the lambda) to get the
 corresponding raw term::
 

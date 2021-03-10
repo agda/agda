@@ -208,9 +208,6 @@ Limitations
 * Case split mode sometimes gives a unnecessarily complex RHS for some
   clause when the solution consists of several clauses.
 
-* The special constraints that apply to ``codata`` are not respected
-  by Agsy. Agsy treats ``codata`` just like ``data``.
-
 * Agsy has universe subtyping, so sometimes suggests solutions not
   accepted by Agda.
 

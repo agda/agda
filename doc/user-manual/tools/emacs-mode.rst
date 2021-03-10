@@ -4,8 +4,13 @@
 Emacs Mode
 **********
 
-:ref:`quick-guide-introduction`
-===============================
+Agda programs are commonly edited using `Emacs
+<http://www.gnu.org/software/emacs/>`_ which is explained in this section.
+If you use Atom, please refer to the `agda-mode on Atom
+<https://atom.io/packages/agda-mode>`_.
+
+:ref:`Quick Guide to Editing, Type Checking and Compiling Agda Code <quick-guide-introduction>`
+===============================================================================================
 
 Configuration
 =============
@@ -64,9 +69,9 @@ The following notation is used when describing key combinations:
 :kbd:`SPC`
      is the space bar.
 
-Commands working with types can be prefixed with ``C-u`` to compute
-type without further normalisation and with ``C-u C-u`` to compute
-normalised types.
+Commands working with terms or types can be prefixed with ``C-u`` to compute without further
+normalisation, with ``C-u C-u`` to compute normal forms, and ``C-u C-u C-u`` to compute
+weak-head normal forms.
 
 .. _emacs-global-commands:
 
@@ -94,6 +99,9 @@ Global commands
 :kbd:`C-c C-x C-h`
      Toggle display of **h**\ idden arguments
 
+:kbd:`C-c C-x C-i`
+     Toggle display of **i**\ rrelevant arguments
+
 :kbd:`C-c C-=`
      Show constraints
 
@@ -116,7 +124,7 @@ Global commands
      M\ **o**\ dule c\ **o**\ ntents
 
 :kbd:`C-c C-z`
-     Search through definitions in scope
+     :ref:`search-about`
 
 :kbd:`C-c C-n`
      Compute **n**\ ormal form
@@ -191,6 +199,9 @@ will either use the text inside the goal or ask the user for input.
 
 :kbd:`C-u C-u C-c C-n`
      Compute and print normal form of ``show <expression>``
+
+:kbd:`C-c C-w`
+     Why in scope, given a defined name returns how it was brought into scope and its definition
 
 Other commands
 ~~~~~~~~~~~~~~
@@ -303,8 +314,12 @@ corresponding TeX command:
   ``\nin`` will input ``∌``.
 - **Subscript** and **superscript**: you can input subscript or
   superscript forms by prepending the character with ``\_`` (subscript)
-  or ``\^`` (superscript). Note that not all characters have a
-  subscript or superscript counterpart in Unicode.
+  or ``\^`` (superscript). Eg. ``g\_1`` will input ``g₁``. Note that not
+  all characters have a subscript or superscript counterpart in Unicode.
+
+Note: to introduce multiple characters involving greek letters, subscripts
+or superscripts, you need to prepend ``\G``, ``\_`` or ``\^`` respectively
+before each character.
 
 Some characters which were used in this documentation or which are
 commonly used in the standard library (sorted by hexadecimal code):

@@ -1,5 +1,0 @@
-InvalidNamePartSet.agda:1,21-21
-InvalidNamePartSet.agda:1,21: in the name _Set_, the part Set is not valid because it is a keyword
-→<ERROR>
- Set
-...

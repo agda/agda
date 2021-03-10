@@ -35,13 +35,18 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.Pretty ( prettyShow )
 import Agda.Utils.List   ( initMaybe )
+import Agda.Utils.List1  ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Singleton
 
-desugarDoNotation :: Range -> [DoStmt] -> ScopeM Expr
+import Agda.Utils.Impossible
+
+desugarDoNotation :: Range -> List1 DoStmt -> ScopeM Expr
 desugarDoNotation r ss = do
-  let qBind = QName $ Name noRange InScope [Hole, Id ">>=", Hole]
-      qThen = QName $ Name noRange InScope [Hole, Id ">>", Hole]
+  let qBind = QName $ simpleBinaryOperator ">>="
+      qThen = QName $ simpleBinaryOperator ">>"
       isBind DoBind{} = True
       isBind _        = False
       isThen DoThen{} = True
@@ -51,72 +56,77 @@ desugarDoNotation r ss = do
   -- I think we should throw an error rather than silently switching to _>>=_.
   -- / Ulf
   mapM_ ensureInScope $ [qBind | any isBind ss] ++
-                        [qThen | any isThen $ fromMaybe ss $ initMaybe ss] -- ignore the last 'DoThen'
+                        [qThen | any isThen $ List1.init ss] -- ignore the last 'DoThen'
   desugarDo qBind qThen ss
 
-desugarDo :: QName -> QName -> [DoStmt] -> ScopeM Expr
+desugarDo :: QName -> QName -> List1 DoStmt -> ScopeM Expr
+desugarDo qBind qThen = \case
 
--- The parser doesn't generate empty 'do' blocks at the moment, but if that
--- changes throwing the error is the right thing to do.
-desugarDo qBind qThen [] = genericError "Empty 'do' block"
+  -- The last statement must be a DoThen.
+  DoThen e        :| [] -> return e
 
--- The last statement must be a DoThen
-desugarDo qBind qThen [s]
-  | DoThen e              <- s           = return e
-  | DoBind r p e []       <- s
-  , Just (r' , NotHidden) <- isAbsurdP p =
-      return $ appOp (setRange r qBind) e $ AbsurdLam r' NotHidden
-  | otherwise                            =
-      genericError "The last statement in a 'do' block must be an expression or an absurd match."
+  -- Or an absurd bind.
+  DoBind r p e [] :| [] | Just (r', NotHidden) <- isAbsurdP p ->
+    return $ appOp (setRange r qBind) e $ AbsurdLam r' NotHidden
 
--- `DoThen` and `DoLet` are easy
-desugarDo qBind qThen (DoThen e   : ss) = appOp qThen e   <$> desugarDo qBind qThen ss
-desugarDo qBind qThen (DoLet r ds : ss) = Let r ds . Just <$> desugarDo qBind qThen ss
+  -- Otherwise, sorry.
+  _ :| [] -> failure
 
--- `DoBind` requires more work since we want to generate plain lambdas when
--- possible.
-desugarDo qBind qThen (DoBind r p e [] : ss)
-  | Just x <- singleName p = do
-  -- In this case we have a single name in the bind pattern and no where clauses.
-  -- It could still be a pattern bind though (for instance, `refl ← pure eq`), so
-  -- to figure out which one to use we look up the name in the scope; if it's a
-  -- constructor or pattern synonym we desugar to a pattern lambda.
-  res <- resolveName (QName x)
-  let isMatch = case res of
-        ConstructorName{}   -> True
-        PatternSynResName{} -> True
-        _                   -> False
-  rest <- desugarDo qBind qThen ss
-  if isMatch then return $ matchingBind qBind r p e rest []
-             else return $ nonMatchingBind qBind r x e rest
-desugarDo qBind qThen (DoBind r p e cs : ss) = do
-  -- If there are where clauses we have to desugar to a pattern lambda.
-  rest <- desugarDo qBind qThen ss
-  return $ matchingBind qBind r p e rest cs
+  -- `DoThen` and `DoLet` are easy.
+  DoThen e   :| ss -> appOp qThen e   <$> desugarDo0 ss
+  DoLet r ds :| ss -> Let r ds . Just <$> desugarDo0 ss
+
+  -- `DoBind` requires more work since we want to generate plain lambdas when possible.
+  DoBind r p e [] :| ss | Just x <- singleName p -> do
+    -- In this case we have a single name in the bind pattern and no where clauses.
+    -- It could still be a pattern bind though (for instance, `refl ← pure eq`), so
+    -- to figure out which one to use we look up the name in the scope; if it's a
+    -- constructor or pattern synonym we desugar to a pattern lambda.
+    res <- resolveName (QName x)
+    let isMatch = case res of
+          ConstructorName{}   -> True
+          PatternSynResName{} -> True
+          _                   -> False
+    rest <- desugarDo0 ss
+    if isMatch then return $ matchingBind qBind r p e rest []
+               else return $ nonMatchingBind qBind r x e rest
+
+  -- If there are @where@ clauses we have to desugar to a pattern lambda.
+  DoBind r p e cs :| ss -> do
+    rest <- desugarDo0 ss
+    return $ matchingBind qBind r p e rest cs
+
+  where
+  desugarDo0 :: [DoStmt] -> ScopeM Expr
+  desugarDo0 ss = List1.ifNull ss failure $ desugarDo qBind qThen
+
+  failure = genericError
+    "The last statement in a 'do' block must be an expression or an absurd match."
 
 singleName :: Pattern -> Maybe Name
-singleName (IdentP (QName x)) = Just x
-singleName (RawAppP _ [p])    = singleName p
-singleName _                  = Nothing
+singleName = \case
+  IdentP (QName x) -> Just x
+  _ -> Nothing
 
 matchingBind :: QName -> Range -> Pattern -> Expr -> Expr -> [LamClause] -> Expr
 matchingBind qBind r p e body cs =
-  appOp (setRange r qBind) e          -- Set the range of the lambda to that of the
-    $ ExtendedLam (getRange cs)       -- where-clauses to make highlighting of overlapping
-    $ map addParens (mainClause : cs) -- patterns not highlight the rest of the do-block.
+  appOp (setRange r qBind) e             -- Set the range of the lambda to that of the
+    $ ExtendedLam (getRange cs)          -- where-clauses to make highlighting of overlapping
+    $ fmap addParens (mainClause :| cs)  -- patterns not highlight the rest of the do-block.
   where
-    mainClause = LamClause { lamLHS      = LHS p [] []
+    mainClause = LamClause { lamLHS      = [p]
                            , lamRHS      = RHS body
-                           , lamWhere    = NoWhere
                            , lamCatchAll = False }
 
-    -- Add parens to left-hand sides: there can only be one pattern in these clauses.
+    -- Add parens to left-hand sides.
     addParens c = c { lamLHS = addP (lamLHS c) }
-      where addP (LHS p rw we) = LHS (RawAppP noRange [ParenP noRange p]) rw we
+      where
+      addP []       = __IMPOSSIBLE__
+      addP (p : ps) = [ParenP noRange $ rawAppP $ p :| ps ]
 
 nonMatchingBind :: QName -> Range -> Name -> Expr -> Expr -> Expr
 nonMatchingBind qBind r x e body =
-    appOp (setRange r qBind) e $ Lam (getRange (x, body)) [bx] body
+    appOp (setRange r qBind) e $ Lam (getRange (x, body)) (singleton bx) body
   where bx = DomainFree $ defaultNamedArg $ mkBinder_ x
 
 appOp :: QName -> Expr -> Expr -> Expr

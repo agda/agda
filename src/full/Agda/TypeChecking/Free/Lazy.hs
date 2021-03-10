@@ -1,6 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE TypeFamilies               #-}
 
 -- | Computing the free variables of a term lazily.
 --
@@ -66,12 +63,10 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 
-import Data.Foldable (Foldable, foldMap)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 import Data.Semigroup ( Semigroup, (<>) )
 
 
@@ -83,6 +78,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Semigroup
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
@@ -272,11 +268,11 @@ topVarOcc = VarOcc StronglyRigid topModality
 -- | First argument is the outer occurrence (context) and second is the inner.
 --   This multiplicative operation is to modify an occurrence under a context.
 composeVarOcc :: Semigroup a => VarOcc' a -> VarOcc' a -> VarOcc' a
-composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (m <> m')
+composeVarOcc (VarOcc o m) (VarOcc o' m') = VarOcc (composeFlexRig o o') (composeModality m m')
   -- We use the multipicative modality monoid (composition).
 
 oneVarOcc :: VarOcc' a
-oneVarOcc = VarOcc Unguarded mempty
+oneVarOcc = VarOcc Unguarded unitModality
 
 ---------------------------------------------------------------------------
 -- * Storing variable occurrences (semimodule).
@@ -422,7 +418,7 @@ initFreeEnv :: Monoid c => b -> SingleVar c -> FreeEnv' a b c
 initFreeEnv e sing = FreeEnv
   { feExtra       = e
   , feFlexRig     = Unguarded
-  , feModality    = mempty            -- multiplicative monoid
+  , feModality    = unitModality      -- multiplicative monoid
   , feSingleton   = maybe mempty sing
   }
 
@@ -432,9 +428,6 @@ type FreeM a c = Reader (FreeEnv' a IgnoreSorts c) c
 -- | Run function for FreeM.
 runFreeM :: IsVarSet a c => SingleVar c -> IgnoreSorts -> FreeM a c -> c
 runFreeM single i m = runReader m $ initFreeEnv i single
-
-instance (Applicative m, Semigroup c) => Semigroup (FreeT a b m c) where
-  (<>) = liftA2 (<>)
 
 instance (Functor m, Applicative m, Monad m, Semigroup c, Monoid c) => Monoid (FreeT a b m c) where
   mempty  = pure mempty
@@ -478,17 +471,23 @@ underFlexRig :: (MonadReader r m, LensFlexRig a r, Semigroup a, LensFlexRig a o)
 underFlexRig = local . over lensFlexRig . composeFlexRig . view lensFlexRig
 
 -- | What happens to the variables occurring under a constructor?
-underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> m z -> m z
-underConstructor (ConHead c i fs) =
-  case (i,fs) of
+underConstructor :: (MonadReader r m, LensFlexRig a r, Semigroup a) => ConHead -> Elims -> m z -> m z
+underConstructor (ConHead _c _d i fs) es =
+  case i of
     -- Coinductive (record) constructors admit infinite cycles:
-    (CoInductive, _)   -> underFlexRig WeaklyRigid
-    -- Inductive data constructors do not admit infinite cycles:
-    (Inductive, [])    -> underFlexRig StronglyRigid
-    -- Inductive record constructors do not admit infinite cycles,
-    -- but this cannot be proven inside Agda.
-    -- Thus, unification should not prove it either.
-    (Inductive, (_:_)) -> id
+    CoInductive -> underFlexRig WeaklyRigid
+    -- Inductive constructors do not admit infinite cycles:
+    Inductive   | size es == size fs -> underFlexRig StronglyRigid
+                | otherwise          -> underFlexRig WeaklyRigid
+    -- Jesper, 2020-10-22: Issue #4995: treat occurrences in non-fully
+    -- applied constructors as weakly rigid.
+    -- Ulf, 2019-10-18: Now the termination checker treats inductive recursive records
+    -- the same as datatypes, so absense of infinite cycles can be proven in Agda, and thus
+    -- the unifier is allowed to do it too. Test case: test/Succeed/Issue1271a.agda
+    -- WAS:
+    -- -- Inductive record constructors do not admit infinite cycles,
+    -- -- but this cannot be proven inside Agda.
+    -- -- Thus, unification should not prove it either.
 
 ---------------------------------------------------------------------------
 -- * Recursively collecting free variables.
@@ -511,17 +510,17 @@ instance Free Term where
   -- {-# SPECIALIZE freeVars' :: Term -> FreeM Any #-}
   -- {-# SPECIALIZE freeVars' :: Term -> FreeM All #-}
   -- {-# SPECIALIZE freeVars' :: Term -> FreeM VarSet #-}
-  freeVars' t = case t of
+  freeVars' t = case unSpine t of -- #4484: unSpine to avoid projected variables being treated as StronglyRigid
     Var n ts     -> variable n `mappend` do underFlexRig WeaklyRigid $ freeVars' ts
     -- λ is not considered guarding, as
     -- we cannot prove that x ≡ λy.x is impossible.
-    Lam _ t      -> freeVars' t
+    Lam _ t      -> underFlexRig WeaklyRigid $ freeVars' t
     Lit _        -> mempty
     Def _ ts     -> underFlexRig WeaklyRigid $ freeVars' ts  -- because we are not in TCM
       -- we cannot query whether we are dealing with a data/record (strongly r.)
       -- or a definition by pattern matching (weakly rigid)
       -- thus, we approximate, losing that x = List x is unsolvable
-    Con c _ ts   -> underConstructor c $ freeVars' ts
+    Con c _ ts   -> underConstructor c ts $ freeVars' ts
     -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
     -- Even as we do not permit infinite type expressions,
     -- we cannot prove their absence (as Set is not inductive).
@@ -530,47 +529,42 @@ instance Free Term where
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
-    DontCare mt  -> underModality (Modality Irrelevant mempty mempty) $ freeVars' mt
+    DontCare mt  -> underModality (Modality Irrelevant unitQuantity unitCohesion) $ freeVars' mt
     Dummy{}      -> mempty
 
 instance Free t => Free (Type' t) where
   freeVars' (El s t) =
-    ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
+    ifM (asks ((IgnoreNot ==) . feIgnoreSorts))
       {- then -} (freeVars' (s, t))
       {- else -} (freeVars' t)
 
 instance Free Sort where
   freeVars' s =
-    ifM ((IgnoreAll ==) <$> asks feIgnoreSorts) mempty $ {- else -}
+    ifM (asks ((IgnoreAll ==) . feIgnoreSorts)) mempty $ {- else -}
     case s of
       Type a     -> freeVars' a
       Prop a     -> freeVars' a
-      Inf        -> mempty
+      Inf _ _    -> mempty
+      SSet a     -> freeVars' a
       SizeUniv   -> mempty
-      PiSort a s -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
-                    underFlexRig WeaklyRigid (freeVars' (getSort a, s))
+      LockUniv   -> mempty
+      PiSort a s1 s2 -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
+                        underFlexRig WeaklyRigid (freeVars' (s1, s2))
+      FunSort s1 s2 -> freeVars' s1 `mappend` freeVars' s2
       UnivSort s -> underFlexRig WeaklyRigid $ freeVars' s
       MetaS x es -> underFlexRig (Flexible $ singleton x) $ freeVars' es
       DefS _ es  -> underFlexRig WeaklyRigid $ freeVars' es
       DummyS{}   -> mempty
 
 instance Free Level where
-  freeVars' (Max as) = freeVars' as
+  freeVars' (Max _ as) = freeVars' as
 
-instance Free PlusLevel where
-  freeVars' ClosedLevel{} = mempty
+instance Free t => Free (PlusLevel' t) where
   freeVars' (Plus _ l)    = freeVars' l
 
-instance Free LevelAtom where
-  freeVars' l = case l of
-    MetaLevel m vs   -> underFlexRig (Flexible $ singleton m) $ freeVars' vs
-    NeutralLevel _ v -> freeVars' v
-    BlockedLevel _ v -> freeVars' v
-    UnreducedLevel v -> freeVars' v
-
-instance Free t => Free [t]
-instance Free t => Free (Maybe t)
-instance Free t => Free (WithHiding t)
+instance Free t => Free [t]            where
+instance Free t => Free (Maybe t)      where
+instance Free t => Free (WithHiding t) where
 instance Free t => Free (Named nm t)
 
 instance (Free t, Free u) => Free (t, u) where

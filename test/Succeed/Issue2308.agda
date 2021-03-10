@@ -13,7 +13,7 @@ data Unit : Set where
 mutual -- needed to trigger issue
 
   record R : Set where  -- needs to be in mutual block
-    constructor wrap
+    pattern; constructor wrap
     field f : Unit
 
   G : R → Set

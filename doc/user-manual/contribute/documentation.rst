@@ -27,9 +27,15 @@ Rendering documentation locally
       Note that the ``--user`` option puts the Sphinx binaries in
       ``$HOME/.local/bin``.
 
+    - ImageMagick with SVG and PNG support; check output of
+
+        .. code-block:: bash
+
+          convert -list format
+
     - LaTeX
 
-    - dvipng
+    - PyDvi
 
   To see the list of available targets, execute ``make help``
   in ``doc/user-manual``. E.g., call ``make html`` to build the
@@ -287,5 +293,4 @@ isolate the definitions from the rest of the file.
 
 
 
-.. _`reStructuredText format`: http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html
-
+.. _`reStructuredText format`: https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html

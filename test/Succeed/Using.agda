@@ -9,3 +9,14 @@ open Dummy
 
 open Dummy -- checking that newline + comment is allowed before "using"
   using (DummySet2)
+
+-- Andreas, 2020-06-06, issue #4704
+-- Allow repetions in `using` directives, but emit warning.
+open Dummy
+  using (DummySet1; DummySet1)
+  using (DummySet1)
+
+-- EXPECTED: dead code highlighting for 2nd and 3rd occurrence and warning:
+-- Duplicates in using directive: DummySet1 DummySet1
+-- when scope checking the declaration
+--   open Dummy using (DummySet1; DummySet1; DummySet1)

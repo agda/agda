@@ -4,14 +4,12 @@ import Control.Monad
 import Data.Maybe
 import Data.Char
 import qualified Data.List as List
-import Data.Traversable (traverse)
 import qualified Data.Map as Map
 import Text.ParserCombinators.ReadP
 
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
 
 import Agda.Utils.Pretty hiding (char)
@@ -97,7 +95,7 @@ parsePragma (CompilerPragma r s) =
                                                     paren (sepBy (skipSpaces *> hsIdent) barP) <* skipSpaces
     defnP   = HsDefn   r <$ wordsP ["="]         <* whitespace <*  notTypeOrData <*> hsCode
 
-parseHaskellPragma :: CompilerPragma -> TCM HaskellPragma
+parseHaskellPragma :: (MonadTCError m, MonadTrace m) => CompilerPragma -> m HaskellPragma
 parseHaskellPragma p = setCurrentRange p $
   case parsePragma p of
     Left err -> genericError err
@@ -109,7 +107,7 @@ getHaskellPragma q = do
   def <- getConstInfo q
   setCurrentRange pragma $ pragma <$ sanityCheckPragma def pragma
 
-sanityCheckPragma :: Definition -> Maybe HaskellPragma -> TCM ()
+sanityCheckPragma :: (HasBuiltins m, MonadTCError m, MonadReduce m) => Definition -> Maybe HaskellPragma -> m ()
 sanityCheckPragma _ Nothing = return ()
 sanityCheckPragma def (Just HsDefn{}) =
   case theDef def of
@@ -152,19 +150,23 @@ sanityCheckPragma def (Just HsExport{}) =
 --       occurrence!
 getHaskellConstructor :: QName -> TCM (Maybe HaskellCode)
 getHaskellConstructor c = do
-  c     <- canonicalName c
-  cDef  <- theDef <$> getConstInfo c
-  true  <- getBuiltinName builtinTrue
-  false <- getBuiltinName builtinFalse
-  nil   <- getBuiltinName builtinNil
-  cons  <- getBuiltinName builtinCons
-  sharp <- getBuiltinName builtinSharp
+  c       <- canonicalName c
+  cDef    <- theDef <$> getConstInfo c
+  true    <- getBuiltinName builtinTrue
+  false   <- getBuiltinName builtinFalse
+  nil     <- getBuiltinName builtinNil
+  cons    <- getBuiltinName builtinCons
+  nothing <- getBuiltinName builtinNothing
+  just    <- getBuiltinName builtinJust
+  sharp   <- getBuiltinName builtinSharp
   case cDef of
-    _ | Just c == true  -> return $ Just "True"
-      | Just c == false -> return $ Just "False"
-      | Just c == nil   -> return $ Just "[]"
-      | Just c == cons  -> return $ Just "(:)"
-      | Just c == sharp -> return $ Just "MAlonzo.RTE.Sharp"
+    _ | Just c == true    -> return $ Just "True"
+      | Just c == false   -> return $ Just "False"
+      | Just c == nil     -> return $ Just "[]"
+      | Just c == cons    -> return $ Just "(:)"
+      | Just c == nothing -> return $ Just "Nothing"
+      | Just c == just    -> return $ Just "Just"
+      | Just c == sharp   -> return $ Just "MAlonzo.RTE.Sharp"
     Constructor{conData = d} -> do
       mp <- getHaskellPragma d
       case mp of
@@ -176,9 +178,9 @@ getHaskellConstructor c = do
 
 -- | Get content of @FOREIGN GHC@ pragmas, sorted by 'KindOfForeignCode':
 --   file header pragmas, import statements, rest.
-foreignHaskell :: TCM ([String], [String], [String])
+foreignHaskell :: Interface -> ([String], [String], [String])
 foreignHaskell = partitionByKindOfForeignCode classifyForeign
-    . map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode <$> curIF
+    . map getCode . fromMaybe [] . Map.lookup ghcBackendName . iForeignCode
   where getCode (ForeignCode _ code) = code
 
 -- | Classify @FOREIGN@ Haskell code.
@@ -193,8 +195,8 @@ data KindOfForeignCode
 -- | Classify a @FOREIGN GHC@ declaration.
 classifyForeign :: String -> KindOfForeignCode
 classifyForeign s0 = case ltrim s0 of
-  s | List.isPrefixOf "import " s -> ForeignImport
-  s | List.isPrefixOf "{-#" s -> classifyPragma $ drop 3 s
+  s | "import " `List.isPrefixOf` s -> ForeignImport
+  s | "{-#" `List.isPrefixOf` s -> classifyPragma $ drop 3 s
   _ -> ForeignOther
 
 -- | Classify a Haskell pragma into whether it is a file header pragma or not.

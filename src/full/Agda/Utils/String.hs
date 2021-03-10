@@ -3,16 +3,11 @@ module Agda.Utils.String where
 import Control.Monad.Reader
 import Control.Monad.State
 
-
 import Data.Char
 import qualified Data.List as List
 import Data.String
 
-
-
-import Agda.Interaction.Options.IORefs ( UnicodeOrAscii(..) )
 import Agda.Utils.List
-import Agda.Utils.Suffix ( subscriptAllowed, toSubscriptDigit )
 
 -- | 'quote' adds double quotes around the string, replaces newline
 -- characters with @\n@, and escapes double quotes and backslashes
@@ -67,15 +62,6 @@ delimiter s = concat [ replicate 4 '\x2014'
                      , replicate (54 - length s) '\x2014'
                      ]
 
-
--- | Shows a non-negative integer using the characters ₀-₉ instead of
--- 0-9 unless the user explicitly asked us to not use any unicode characters.
-
-showIndex :: (Show i, Integral i) => i -> String
-showIndex = case subscriptAllowed of
-  UnicodeOk -> map toSubscriptDigit . show
-  AsciiOnly -> show
-
 -- | Adds a final newline if there is not already one.
 
 addFinalNewLine :: String -> String
@@ -87,12 +73,6 @@ addFinalNewLine s | last s == '\n' = s
 
 indent :: Integral i => i -> String -> String
 indent i = unlines . map (List.genericReplicate i ' ' ++) . lines
-
-newtype Str = Str { unStr :: String }
-  deriving Eq
-
-instance Show Str where
-  show = unStr
 
 -- | Show a number using comma to separate powers of 1,000.
 

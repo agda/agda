@@ -31,7 +31,7 @@ import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Text.PrettyPrint (Doc)
+import Text.PrettyPrint (Doc, isEmpty)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
@@ -53,6 +53,14 @@ instance Null () where
 instance (Null a, Null b) => Null (a,b) where
   empty      = (empty, empty)
   null (a,b) = null a && null b
+
+instance (Null a, Null b, Null c) => Null (a,b,c) where
+  empty        = (empty, empty, empty)
+  null (a,b,c) = null a && null b && null c
+
+instance (Null a, Null b, Null c, Null d) => Null (a,b,c,d) where
+  empty          = (empty, empty, empty, empty)
+  null (a,b,c,d) = null a && null b && null c && null d
 
 instance Null ByteString where
   empty = ByteString.empty
@@ -102,7 +110,7 @@ instance Null (Maybe a) where
 
 instance Null Doc where
   empty = mempty
-  null  = (== mempty)
+  null  = isEmpty
 
 instance (Null (m a), Monad m) => Null (ReaderT r m a) where
   empty = lift empty

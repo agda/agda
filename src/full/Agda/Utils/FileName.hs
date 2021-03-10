@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Operations on file names. -}
 module Agda.Utils.FileName
@@ -8,26 +6,29 @@ module Agda.Utils.FileName
   , filePath
   , mkAbsolute
   , absolute
-  , (===)
+  , canonicalizeAbsolutePath
+  , sameFile
   , doesFileExistCaseSensitive
-  , rootPath
+  , isNewerThan
   ) where
 
 import System.Directory
 import System.FilePath
 
+import Control.Applicative ( liftA2 )
+import Control.DeepSeq
 #ifdef mingw32_HOST_OS
-import Control.Exception (bracket)
-import System.Win32 (findFirstFile, findClose, getFindDataFileName)
-import Agda.Utils.Monad
+import Control.Exception   ( bracket )
+import System.Win32        ( findFirstFile, findClose, getFindDataFileName )
 #endif
 
-import Data.Text (Text)
-import qualified Data.Text as Text
+import Data.Data           ( Data )
 import Data.Function
-import Data.Hashable (Hashable)
-import Data.Data (Data)
+import Data.Hashable       ( Hashable )
+import Data.Text           ( Text )
+import qualified Data.Text as Text
 
+import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -37,19 +38,12 @@ import Agda.Utils.Impossible
 -- Note that the 'Eq' and 'Ord' instances do not check if different
 -- paths point to the same files or directories.
 
-newtype AbsolutePath = AbsolutePath { byteStringPath :: Text }
-  deriving (Eq, Ord, Data, Hashable)
+newtype AbsolutePath = AbsolutePath { textPath :: Text }
+  deriving (Show, Eq, Ord, Data, Hashable, NFData)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
-filePath = Text.unpack . byteStringPath
-
--- TODO: 'Show' should output Haskell-parseable representations.
--- The following instance is deprecated, and Pretty should be used
--- instead.  Later, simply derive Show for this type.
-
-instance Show AbsolutePath where
-  show = filePath
+filePath = Text.unpack . textPath
 
 instance Pretty AbsolutePath where
   pretty = text . filePath
@@ -62,16 +56,10 @@ mkAbsolute :: FilePath -> AbsolutePath
 mkAbsolute f
   | isAbsolute f =
       AbsolutePath $ Text.pack $ dropTrailingPathSeparator $ normalise f
+        -- normalize does not resolve symlinks
   | otherwise    = __IMPOSSIBLE__
 
-rootPath :: FilePath
-#ifdef mingw32_HOST_OS
-rootPath = joinDrive "C:" [pathSeparator]
-#else
-rootPath = [pathSeparator]
-#endif
-
--- UNUSED Linag-Ting Chen 2019-07-16
+-- UNUSED Liang-Ting Chen 2019-07-16
 ---- | maps @/bla/bla/bla/foo.bar.xxx@ to @foo.bar@.
 --rootName :: AbsolutePath -> String
 --rootName = dropExtension . snd . splitFileName . filePath
@@ -85,24 +73,27 @@ absolute :: FilePath -> IO AbsolutePath
 absolute f = mkAbsolute <$> do
   -- canonicalizePath sometimes truncates paths pointing to
   -- non-existing files/directories.
-  ex <- doesFileExist f .||. doesDirectoryExist f
+  ex <- doesFileExist f `or2M` doesDirectoryExist f
   if ex then
-    canonicalizePath f
+    -- Andreas, 2020-08-11, issue #4828
+    -- Do not use @canonicalizePath@ here as it resolves symlinks,
+    -- which leads to wrong placement of the .agdai file.
+    makeAbsolute f
    else do
     cwd <- getCurrentDirectory
     return (cwd </> f)
-  where
-  m1 .||. m2 = do
-    b1 <- m1
-    if b1 then return True else m2
+
+-- | Resolve symlinks etc.  Preserves 'sameFile'.
+
+canonicalizeAbsolutePath :: AbsolutePath -> IO AbsolutePath
+canonicalizeAbsolutePath (AbsolutePath f) =
+  AbsolutePath . Text.pack <$> canonicalizePath (Text.unpack f)
 
 -- | Tries to establish if the two file paths point to the same file
 -- (or directory).
 
-infix 4 ===
-
-(===) :: AbsolutePath -> AbsolutePath -> Bool
-(===) = equalFilePath `on` filePath
+sameFile :: AbsolutePath -> AbsolutePath -> IO Bool
+sameFile = liftA2 equalFilePath `on` (canonicalizePath . filePath)
 
 -- | Case-sensitive 'doesFileExist' for Windows.
 --
@@ -120,3 +111,16 @@ doesFileExistCaseSensitive f = do
 #else
 doesFileExistCaseSensitive = doesFileExist
 #endif
+
+-- | True if the first file is newer than the second file. If a file doesn't
+-- exist it is considered to be infinitely old.
+isNewerThan :: FilePath -> FilePath -> IO Bool
+isNewerThan new old = do
+    newExist <- doesFileExist new
+    oldExist <- doesFileExist old
+    if not (newExist && oldExist)
+        then return newExist
+        else do
+            newT <- getModificationTime new
+            oldT <- getModificationTime old
+            return $ newT >= oldT

@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| When lexing by hand (for instance string literals) we need to do some
     looking ahead. The 'LookAhead' monad keeps track of the position we are
@@ -43,7 +42,9 @@ newtype ErrorFunction =
 
 -- | Throw an error message according to the supplied method.
 lookAheadError :: String -> LookAhead a
-lookAheadError s = ($ s) =<< do LookAhead $ asks throwError
+-- ASR (2021-02-07). The eta-expansion @\e -> throwError e@ is
+-- required GHC >= 9.0.1 ((see Issue #4955).
+lookAheadError s = ($ s) =<< do LookAhead $ asks (\e -> throwError e)
 
 {--------------------------------------------------------------------------
     Operations

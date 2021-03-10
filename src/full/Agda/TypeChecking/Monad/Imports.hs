@@ -1,6 +1,25 @@
 
-module Agda.TypeChecking.Monad.Imports where
+module Agda.TypeChecking.Monad.Imports
+  ( addImport
+  , addImportCycleCheck
+  , checkForImportCycle
+  , dropDecodedModule
+  , getDecodedModule
+  , getDecodedModules
+  , getImportPath
+  , getImports
+  , getPrettyVisitedModules
+  , getVisitedModule
+  , getVisitedModules
+  , isImported
+  , setDecodedModules
+  , setVisitedModules
+  , storeDecodedModule
+  , visitModule
+  , withImportPath
+  ) where
 
+import Control.Arrow ( (***) )
 import Control.Monad.State
 
 
@@ -11,7 +30,9 @@ import qualified Data.Set as Set
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad.Base
+
 import Agda.Utils.List ( caseListM )
+import Agda.Utils.Pretty
 
 
 import Agda.Utils.Impossible
@@ -40,20 +61,24 @@ visitModule mi =
 setVisitedModules :: VisitedModules -> TCM ()
 setVisitedModules ms = setTCLens stVisitedModules ms
 
-getVisitedModules :: TCM VisitedModules
+getVisitedModules :: ReadTCState m => m VisitedModules
 getVisitedModules = useTC stVisitedModules
 
-isVisited :: C.TopLevelModuleName -> TCM Bool
-isVisited x = Map.member x <$> useTC stVisitedModules
+getPrettyVisitedModules :: ReadTCState m => m Doc
+getPrettyVisitedModules = do
+  visited <-  fmap (uncurry (<>) . (pretty *** (prettyCheckMode . miMode))) . Map.toList
+          <$> getVisitedModules
+  return $ hcat $ punctuate ", " visited
+  where
+  prettyCheckMode :: ModuleCheckMode -> Doc
+  prettyCheckMode ModuleTypeChecked                  = ""
+  prettyCheckMode ModuleTypeCheckedRetainingPrivates = " (+ privates)"
+  prettyCheckMode ModuleScopeChecked                 = " (scope only)"
 
-getVisitedModule :: C.TopLevelModuleName
-                 -> TCM (Maybe ModuleInfo)
+getVisitedModule :: ReadTCState m
+                 => C.TopLevelModuleName
+                 -> m (Maybe ModuleInfo)
 getVisitedModule x = Map.lookup x <$> useTC stVisitedModules
-
-mapVisitedModule :: C.TopLevelModuleName
-                 -> (ModuleInfo -> ModuleInfo)
-                 -> TCM ()
-mapVisitedModule x f = modifyTCLens stVisitedModules (Map.adjust f x)
 
 getDecodedModules :: TCM DecodedModules
 getDecodedModules = stDecodedModules . stPersistentState <$> getTC
@@ -62,15 +87,15 @@ setDecodedModules :: DecodedModules -> TCM ()
 setDecodedModules ms = modifyTC $ \s ->
   s { stPersistentState = (stPersistentState s) { stDecodedModules = ms } }
 
-getDecodedModule :: C.TopLevelModuleName -> TCM (Maybe Interface)
+getDecodedModule :: C.TopLevelModuleName -> TCM (Maybe ModuleInfo)
 getDecodedModule x = Map.lookup x . stDecodedModules . stPersistentState <$> getTC
 
-storeDecodedModule :: Interface -> TCM ()
-storeDecodedModule i = modifyTC $ \s ->
+storeDecodedModule :: ModuleInfo -> TCM ()
+storeDecodedModule mi = modifyTC $ \s ->
   s { stPersistentState =
         (stPersistentState s) { stDecodedModules =
-          Map.insert (toTopLevelModuleName $ iModuleName i) i $
-            (stDecodedModules $ stPersistentState s)
+          Map.insert (toTopLevelModuleName $ iModuleName $ miInterface mi) mi $
+            stDecodedModules (stPersistentState s)
         }
   }
 

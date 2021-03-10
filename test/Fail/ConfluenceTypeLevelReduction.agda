@@ -29,3 +29,9 @@ cong-f u x y refl = refl
 
 boom : true ≡ false
 boom = cong-f unit (a unit) (b unit) refl
+
+-- Jesper, 2020-01-21: With the fix of #4382, the definition of boom
+-- no longer typechecks even without --confluence-check. However, we
+-- can leave the test case as is: the expected behaviour is now that
+-- Agda reports *both* the confluence issue and the type error in the
+-- body of boom.

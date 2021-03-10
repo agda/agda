@@ -20,21 +20,158 @@ Agda can be installed using different flags (see :ref:`installation-flags`).
 
 .. _installation-from-hackage:
 
-Installation from Hackage
-=========================
+.. hint:: If you want a sneak peek of Agda without installing it, try the
+  `Agda Pad <agda-pad_>`_
 
-You can install the latest released version of Agda from `Hackage
-<https://hackage.haskell.org/package/Agda>`_. Install the
-:ref:`prerequisites <prerequisites>` and then run the following
-commands:
+.. _agda-pad: https://agdapad.quasicoherent.io/
+
+Installation from source
+========================
+
+.. _prerequisites:
+
+Prerequisites
+-------------
+
+You need recent versions of the following programs to compile Agda:
+
+* GHC:           https://www.haskell.org/ghc/
+
+  + Agda has been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5, 8.8.4
+    and 8.10.4.
+
+* cabal-install: https://www.haskell.org/cabal/
+* Alex:          https://www.haskell.org/alex/
+* Happy:         https://www.haskell.org/happy/
+* GNU Emacs:     http://www.gnu.org/software/emacs/
+
+You should also make sure that programs installed by *cabal-install*
+are on your shell's search path.
+
+Non-Windows users need to ensure that the development files for the C
+libraries *zlib* and *ncurses* are installed (see http://zlib.net
+and http://www.gnu.org/software/ncurses/). Your package manager may be
+able to install these files for you. For instance, on Debian or Ubuntu
+it should suffice to run
+
+.. code-block:: bash
+
+  apt-get install zlib1g-dev libncurses5-dev
+
+as root to get the correct files installed.
+
+Optionally one can also install the `ICU
+<http://site.icu-project.org>`_ library, which is used to implement
+the :option:`--count-clusters` flag. Under Debian or Ubuntu it may suffice
+to install *libicu-dev*. Once the ICU library is installed one can
+hopefully enable the :option:`--count-clusters` flag by giving the
+:option:`enable-cluster-counting` flag to *cabal install*.
+
+
+
+Installing the ``agda`` and the ``agda-mode`` programs
+------------------------------------------------------
+
+After installing the :ref:`prerequisites <prerequisites>` you can
+install the latest released version of Agda from `Hackage
+<https://hackage.haskell.org/package/Agda>`_.
+
+Using ``cabal``
+^^^^^^^^^^^^^^^
+
+For installing the ``agda`` and the ``agda-mode`` programs using
+``cabal`` run the following commands:
 
 .. code-block:: bash
 
   cabal update
   cabal install Agda
+
+If you use `Nix-style Local Builds
+<https://www.haskell.org/cabal/users-guide/nix-local-build-overview.html>`_,
+by using Cabal 3.0.0.0 or by running ``cabal v2-install``, you'll get the
+following error when compiling with the GHC backend::
+
+  Compilation error:
+
+  MAlonzo/RTE.hs:13:1: error:
+      Failed to load interface for ‘Numeric.IEEE’
+      Use -v to see a list of the files searched for.
+
+This is because packages are sandboxed in ``$HOME/.cabal/store``
+and you have to explicitly register required packaged in a `GHC environment
+<https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments>`_.
+This can be done by running the following command:
+
+.. code-block:: bash
+
+  cabal v2-install --lib Agda ieee754
+
+This will register `ieee754
+<http://hackage.haskell.org/package/ieee754>`_ in the GHC default environment.
+
+You may want to keep the default environment clean, e.g. to avoid conflicts with
+other installed packages. In this case you can a create separate Agda
+environment by running:
+
+.. code-block:: bash
+
+  cabal v2-install --package-env agda --lib Agda ieee754
+
+You then have to set the ``GHC_ENVIRONMENT`` when you invoke Agda:
+
+.. code-block:: bash
+
+    GHC_ENVIRONMENT=agda agda -c hello-world.agda
+
+.. NOTE::
+
+  Actually it is not necessary to register the Agda library,
+  but doing so forces Cabal to install the same version of `ieee754
+  <http://hackage.haskell.org/package/ieee754>`_ as used by Agda.
+
+.. Warning::
+  If you are installing Agda using Cabal on Windows, depending on your
+  system locale setting, ``cabal install Agda`` may fail with an error
+  message:
+
+  .. code-block:: bash
+
+      hGetContents: invalid argument (invalid byte sequence)
+
+  If this happens, you can try changing the `console code page <https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/chcp>`_
+  to UTF-8 using the command:
+
+  .. code-block:: bash
+
+    CHCP 65001
+
+Using ``stack``
+^^^^^^^^^^^^^^^
+
+For installing the ``agda`` and the ``agda-mode`` programs using
+``stack`` run the following commands:
+
+.. code-block:: bash
+
+  cabal get Agda-X.Y.Z
+  cd Agda-X.Y.Z
+  stack --stack-yaml stack-a.b.c.yaml install
+
+replacing `X.Y.Z` and `a.b.c` for the Agda version on Hackage and your
+GHC version, respectively.
+
+Running the ``agda-mode`` program
+---------------------------------
+
+After installing the ``agda-mode`` program using ``cabal`` or
+``stack`` run the following command:
+
+.. code-block:: bash
+
   agda-mode setup
 
-The last command tries to set up Emacs for use with Agda via the
+The above command tries to set up Emacs for use with Agda via the
 :ref:`Emacs mode <emacs-mode>`. As an alternative you can copy the
 following text to your *.emacs* file:
 
@@ -71,7 +208,7 @@ The following prebuilt packages are available:
 
 * `Agda standard library <https://www.archlinux.org/packages/community/x86_64/agda-stdlib/>`_
 
-However, due to significant packaging bugs [such as this](https://bugs.archlinux.org/task/61904?project=5&string=agda), you might want to use alternative installation methods.
+However, due to significant packaging bugs such as `this <https://bugs.archlinux.org/task/61904?project=5&string=agda>`_, you might want to use alternative installation methods.
 
 Debian / Ubuntu
 ---------------
@@ -128,87 +265,155 @@ Packages are available from `FreshPorts
 Agda and Agda standard library.
 
 
-NixOS
------
+Nix or NixOS
+------------
 
 Agda is part of the Nixpkgs collection that is used by
-https://nixos.org/nixos. To install Agda and agda-mode for Emacs,
-type:
+https://nixos.org/nixos. There are two ways to install Agda from nix:
 
-.. code-block:: bash
+* The new way: If you are tracking ``nixos-unstable`` or
+  ``nixpkgs-unstable`` (the default on MacOS) or you are using NixOS
+  version 20.09 or above then you should be able to install Agda (and
+  the standard library) via:
 
-  nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
+  .. code-block:: bash
 
-If you’re just interested in the library, you can also install the
-library without the executable. The Agda standard library is currently
-not installed automatically.
+    nix-env -f "<nixpkgs>" -iE "nixpkgs: (nixpkgs {}).agda.withPackages (p: [ p.standard-library ])"
+    agda-mode setup
+    echo "standard-library" > ~/.agda/defaults
+
+  The second command tries to set up the Agda emacs mode. Skip this if
+  you don't want to set up the emacs mode. See `Installation from
+  source`_ above for more details about ``agda-mode setup``. The
+  third command sets the ``standard-library`` as a default library so
+  it is always available to Agda. If you don't want to do this you can
+  omit this step and control library imports on a per project basis
+  using an ``.agda-lib`` file in each project root.
+
+  If you don't want to install the standard library via nix then you
+  can just run:
+
+  .. code-block:: bash
+
+    nix-env -f "<nixpkgs>" -iA agda
+    agda-mode setup
+
+
+  For more information on the Agda infrastructure in nix, and how to
+  manage and develop Agda libraries with nix, see
+  https://nixos.org/manual/nixpkgs/unstable/#agda. In particular, the
+  ``agda.withPackages`` function can install more libraries than just
+  the standard library. Alternatively, see :ref:`Library Management
+  <package-system>` for how to manage libraries manually.
+
+* The old way (deprecated): As Agda is a Haskell package available
+  from Hackage you can install it like any other Haskell package:
+
+  .. code-block:: bash
+
+    nix-env -f "<nixpkgs>" -iA haskellPackages.Agda
+    agda-mode setup
+
+  This approach does not provide any additional support for working
+  with Agda libraries. See :ref:`Library Management <package-system>`
+  for how to manage libraries manually. It also suffers from this
+  `open issue <https://github.com/agda/agda/issues/4613>`_ which the 'new
+  way' does not.
+
+Nix is extremely flexible and we have only described how to install
+Agda globally using ``nix-env``. One can also declare which packages
+to install globally in a configuration file or pull in Agda and some
+relevant libraries for a particular project using ``nix-shell``.
 
 OS X
 ----
 
-`Homebrew <https://brew.sh>`_ provides prebuilt packages for OS X.  To install:
+`Homebrew <https://brew.sh>`_ is a free and open-source software package
+management system that provides prebuilt packages for OS X. Once it is
+installed in your system, you are ready to install agda. Open the
+Terminal app and run the following commands:
 
 .. code-block:: bash
 
   brew install agda
+  agda-mode setup
 
-This should take less than a minute, and install Agda together with
-the Emacs mode and the standard library.
+This process should take less than a minute, and it installs Agda together with
+its Emacs mode and its standard library. For more information about the ``brew``
+command, please refer to the `Homebrew documentation <https://docs.brew.sh/>`_
+and `Homebrew FAQ <https://docs.brew.sh/FAQ>`_.
 
-By default, the standard library is installed in
+By default, the standard library is installed in the folder
 ``/usr/local/lib/agda/``.  To use the standard library, it is
-convenient to add ``/usr/local/lib/agda/standard-library.agda-lib`` to
-``~/.agda/libraries``, and specify ``standard-library`` in
-``~/.agda/defaults``.  Note this is not performed automatically.
+convenient to add the location of the agda-lib file ``/usr/local/lib/agda/standard-library.agda-lib``
+to the ``~/.agda/libraries`` file, and write the line ``standard-library`` in
+the ``~/.agda/defaults`` file. To do this, run the following commands:
 
-It is also possible to install ``--without-stdlib``,
-``--without-ghc``, or from ``--HEAD``.  Note this will require
-building Agda from source.
+.. code-block:: bash
 
-For more information, refer to the `Homebrew documentation
-<https://docs.brew.sh/>`_.
+  mkdir -p ~/.agda
+  echo $(brew --prefix)/lib/agda/standard-library.agda-lib >>~/.agda/libraries
+  echo standard-library >>~/.agda/defaults
+
+Please note that this configuration is not performed automatically. You can
+learn more about :ref:`using the standard library <use-std-lib>` or
+:ref:`using a library in general <use-lib>`.
+
+It is also possible to install with the command-line option keyword ``--HEAD``.
+This requires building Agda from source.
+
+To configure the way of editing agda files, follow the section
+:ref:`Emacs mode <emacs-mode>`.
 
 .. NOTE::
 
    If Emacs cannot find the ``agda-mode`` executable, it might help to
    install the exec-path-from-shell_ package by doing ``M-x
-   package-install RET exec-path-from-shell RET``, and adding
+   package-install RET exec-path-from-shell RET`` and adding the line
+   ``(exec-path-from-shell-initialize)`` to your ``.emacs`` file.
 
-   .. code-block:: elisp
+Windows
+-------
 
-     (exec-path-from-shell-initialize)
-
-   to your ``.emacs`` file.
+A precompiled version of Agda 2.6.0.1 bundled with Emacs 26.1 with the
+necessary mathematical fonts, is available at
+http://www.cs.uiowa.edu/~astump/agda.
 
 .. _installation-development-version:
 
 Installation of the Development Version
 =======================================
 
-After getting the development version following the instructions in
-the `Agda wiki <https://wiki.portal.chalmers.se/agda/pmwiki.php>`_:
+After getting the development version from the Git `repository
+<https://github.com/agda/agda>`_
 
 * Install the :ref:`prerequisites <prerequisites>`
 
-* In the top-level directory of the Agda source tree
+* In the top-level directory of the Agda source tree, run:
 
-  * Follow the :ref:`instructions <installation-from-hackage>` for
-    installing Agda from Hackage (except run ``cabal install``
-    instead of ``cabal install Agda``) or
+  .. code-block:: bash
 
-  * You can try to install Agda (including a compiled Emacs mode) by
-    running the following command:
+    cabal update
+    make install
 
-    .. code-block:: bash
+  Note that on a Mac, because ICU is installed in a non-standard location,
+  you need to specify this location on the command line:
 
-      make install
+  .. code-block:: bash
 
-    Note that on a Mac, because ICU is installed in a non-standard location,
-    you need to specify this location on the command line:
+    make install CABAL_OPTS='--extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
 
-    .. code-block:: bash
+  You can also add the ``CABAL_OPTS`` variable to ``mk/config.mk`` (see
+  ``HACKING.md``) instead of passing it via the command line.
 
-      make install-bin CABAL_OPTS='--extra-lib-dirs=/usr/local/opt/icu4c/lib --extra-include-dirs=/usr/local/opt/icu4c/include'
+  To install via ``stack`` instead of ``cabal``, copy one of the
+  ``stack-x.x.x.yaml`` files of your choice to a ``stack.yaml`` file before
+  running ``make``. For example:
+
+  .. code-block:: bash
+
+    cp stack-8.10.1.yaml stack.yaml
+    make install
 
 .. _installation-flags:
 
@@ -217,17 +422,50 @@ Installation Flags
 
 When installing Agda the following flags can be used:
 
-:samp:`cpphs`
-   Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead of
-   cpp. Default: off.
+.. option:: cpphs
 
-:samp:`debug`
-   Enable debugging features that may slow Agda down. Default: off.
+     Use `cpphs <https://hackage.haskell.org/package/cpphs>`_ instead
+     of cpp. Default: off.
 
-:samp:`flag enable-cluster-counting`
-   Enable the ``--count-clusters`` flag (see
-   :ref:`grapheme-clusters`). Note that if ``enable-cluster-counting``
-   is ``False``, then the ``--count-clusters`` flag triggers an error
-   message. Default: off.
+.. option:: debug
+
+     Enable debugging features that may slow Agda down. Default: off.
+
+.. option:: enable-cluster-counting
+
+     Enable the :option:`--count-clusters` flag. Note that if
+     ``enable-cluster-counting`` is ``False``, then the
+     :option:`--count-clusters` flag triggers an error
+     message. Default: off.
+
+.. option:: optimise-heavily
+
+     Optimise Agda heavily. (In this case it might make sense to limit
+     GHC's memory usage.) Default: off.
 
 .. _exec-path-from-shell: https://github.com/purcell/exec-path-from-shell
+
+.. _installing-multiple-versions-of-Agda:
+
+Installing multiple versions of Agda
+====================================
+
+Multiple versions of Agda can be installed concurrently by using the --program-suffix flag.
+For example:
+
+.. code-block:: bash
+
+  cabal install Agda-2.6.1 --program-suffix=-2.6.1
+
+will install version 2.6.1 under the name agda-2.6.1. You can then switch to this version
+of Agda in Emacs via
+
+.. code-block:: bash
+
+   C-c C-x C-s 2.6.1 RETURN
+
+Switching back to the standard version of Agda is then done by:
+
+.. code-block:: bash
+
+   C-c C-x C-s RETURN

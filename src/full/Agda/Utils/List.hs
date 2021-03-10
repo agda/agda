@@ -2,11 +2,11 @@
 
 module Agda.Utils.List where
 
-import Control.Arrow (first, second)
+import Control.Monad (filterM)
 
 import Data.Array (Array, array, listArray)
 import qualified Data.Array as Array
-import Data.Functor ((<$>))
+import Data.Bifunctor
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -15,6 +15,7 @@ import qualified Data.Set as Set
 
 import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
 
 ---------------------------------------------------------------------------
@@ -130,7 +131,7 @@ indexWithDefault a (_ : xs) n = indexWithDefault a xs (n - 1)
 --
 --   TODO: more efficient implementation!?
 findWithIndex :: (a -> Bool) -> [a] -> Maybe (a, Int)
-findWithIndex p as = listToMaybe $ filter (p . fst) $ zip as [0..]
+findWithIndex p as = List.find (p . fst) (zip as [0..])
 
 -- | A generalised variant of 'elemIndex'.
 -- O(n).
@@ -155,22 +156,25 @@ downFrom n | n <= 0     = []
 -- | Update the first element of a list, if it exists.
 --   O(1).
 updateHead :: (a -> a) -> [a] -> [a]
-updateHead f [] = []
+updateHead _ []       = []
 updateHead f (a : as) = f a : as
 
 -- | Update the last element of a list, if it exists.
 --   O(n).
 updateLast :: (a -> a) -> [a] -> [a]
-updateLast f [] = []
-updateLast f [a] = [f a]
-updateLast f (a : as@(_ : _)) = a : updateLast f as
+updateLast _ [] = []
+updateLast f (a : as) = loop a as
+  -- Using a helper function to minimize the pattern matching.
+  where
+  loop a []       = [f a]
+  loop a (b : bs) = a : loop b bs
 
 -- | Update nth element of a list, if it exists.
 --   @O(min index n)@.
 --
 --   Precondition: the index is >= 0.
 updateAt :: Int -> (a -> a) -> [a] -> [a]
-updateAt _ f [] = []
+updateAt _ _ [] = []
 updateAt 0 f (a : as) = f a : as
 updateAt n f (a : as) = a : updateAt (n-1) f as
 
@@ -401,11 +405,13 @@ chop n xs = ys : chop n zs
 --    > intercalate [x] (chopWhen (== x) xs) == xs
 chopWhen :: (a -> Bool) -> [a] -> [[a]]
 chopWhen p [] = []
-chopWhen p xs =
-  case break p xs of
+chopWhen p xs = loop xs
+  where
+  -- Local function to avoid unnecessary pattern matching.
+  loop xs = case break p xs of
     (w, [])     -> [w]
     (w, [_])    -> [w, []]
-    (w, _ : ys) -> w : chopWhen p ys
+    (w, _ : ys) -> w : loop ys  -- here we already know that ys /= []
 
 ---------------------------------------------------------------------------
 -- * List as sets
@@ -462,25 +468,66 @@ duplicates = mapMaybe dup . Bag.groups . Bag.fromList
 --
 --   @allDuplicates xs == sort $ xs \\ nub xs@.
 allDuplicates :: Ord a => [a] -> [a]
-allDuplicates = concat . map (drop 1 . reverse) . Bag.groups . Bag.fromList
+allDuplicates = concatMap (drop 1 . reverse) . Bag.groups . Bag.fromList
   -- The reverse is necessary to actually remove the *first* occurrence
   -- of each element.
 
--- | Efficient variant of 'nubBy' for finite lists.
+-- | Partition a list into first and later occurrences of elements
+--   (modulo some quotient given by a representation function).
+--
+--  Time: O(n log n).
+--
+--  Specification:
+--
+--  > nubAndDuplicatesOn f xs = (ys, xs List.\\ ys)
+--  >   where ys = nubOn f xs
+
+nubAndDuplicatesOn :: Ord b => (a -> b) -> [a] -> ([a], [a])
+nubAndDuplicatesOn f = loop Set.empty
+  where
+  loop s [] = ([], [])
+  loop s (a:as)
+    | b `Set.member` s = second (a:) $ loop s as
+    | otherwise        = first  (a:) $ loop (Set.insert b s) as
+    where b = f a
+
+-- | Efficient variant of 'nubBy' for lists, using a set to store already seen elements.
 -- O(n log n)
 --
 -- Specification:
 --
 -- > nubOn f xs == 'nubBy' ((==) `'on'` f) xs.
+
 nubOn :: Ord b => (a -> b) -> [a] -> [a]
-nubOn tag =
-  map snd
-  . List.sortBy (compare `on` fst)
-  . map (snd . head)
-  . List.groupBy ((==) `on` fst)
-  . List.sortBy (compare `on` fst)
-  . map (\p@(_, x) -> (tag x, p))
-  . zip [1..]
+nubOn f = loop Set.empty
+  where
+  loop s [] = []
+  loop s (a:as)
+    | b `Set.member` s = loop s as
+    | otherwise        = a : loop (Set.insert b s) as
+    where b = f a
+
+-- -- | Efficient variant of 'nubBy' for finite lists (using sorting).
+-- -- O(n log n)
+-- --
+-- -- Specification:
+-- --
+-- -- > nubOn2 f xs == 'nubBy' ((==) `'on'` f) xs.
+--
+-- nubOn2 :: Ord b => (a -> b) -> [a] -> [a]
+-- nubOn2 tag =
+--     -- Throw away numbering
+--   map snd
+--     -- Restore original order
+--   . List.sortBy (compare `on` fst)
+--     -- Retain first entry of each @tag@ group
+--   . map (snd . head)
+--   . List.groupBy ((==) `on` fst)
+--     -- Sort by tag (stable)
+--   . List.sortBy (compare `on` fst)
+--     -- Tag with @tag@ and sequential numbering
+--   . map (\p@(_, x) -> (tag x, p))
+--   . zip [1..]
 
 -- | Efficient variant of 'nubBy' for finite lists.
 -- O(n log n).
@@ -504,6 +551,13 @@ uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
 allEqual :: Eq a => [a] -> Bool
 allEqual []       = True
 allEqual (x : xs) = all (== x) xs
+
+-- | Non-efficient, monadic 'nub'.
+-- O(n²).
+nubM :: Monad m => (a -> a -> m Bool) -> [a] -> m [a]
+nubM eq = loop where
+  loop []     = return []
+  loop (a:as) = (a :) <$> do loop =<< filterM (not <.> eq a) as
 
 ---------------------------------------------------------------------------
 -- * Zipping
@@ -597,3 +651,13 @@ editDistance xs ys = editD 0 0
   xsA, ysA :: Array Int a
   xsA = listArray (0,n-1) xs
   ysA = listArray (0,m-1) ys
+
+
+mergeStrictlyOrderedBy :: (a -> a -> Bool) -> [a] -> [a] -> Maybe [a]
+mergeStrictlyOrderedBy (<) = loop where
+  loop [] ys = Just ys
+  loop xs [] = Just xs
+  loop (x:xs) (y:ys)
+    | x < y = (x:) <$> loop xs (y:ys)
+    | y < x = (y:) <$> loop (x:xs) ys
+    | otherwise = Nothing

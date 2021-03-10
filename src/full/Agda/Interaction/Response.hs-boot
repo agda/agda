@@ -28,6 +28,7 @@ data Response
     | Resp_ClearRunningInfo
     | Resp_ClearHighlighting TokenBased
     | Resp_DoneAborting
+    | Resp_DoneExiting
 
 data MakeCaseVariant
 data DisplayInfo

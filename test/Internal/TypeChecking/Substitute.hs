@@ -90,7 +90,8 @@ instance DeBruijn Tm where
   deBruijnView v = do VarT x <- pure v; pure x
   deBruijnVar x  = VarT x
 
-instance Subst Tm Tm where
+instance Subst Tm where
+  type SubstArg Tm = Tm
   applySubst rho v = case v of
     VarT x    -> lookupS rho x
     AnnT t v  -> AnnT t $ applySubst rho v

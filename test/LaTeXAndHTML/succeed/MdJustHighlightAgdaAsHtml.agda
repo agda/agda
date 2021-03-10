@@ -1,5 +1,6 @@
 -- A discussion from -- https://twitter.com/YuumuKonpaku/status/1052959340468953088
 -- Andreas, 2019-08-18, test also #1346 (infix declaration in renaming)
+-- Andreas, 2019-02-17, test alse #3432 (pattern synonyms in import directive)
 
 module MdJustHighlightAgdaAsHtml where
 
@@ -12,8 +13,12 @@ Type : (i : ULevel) -> Set (lsucc i)
 Type i = Set i
 
 data ⊥ : Type lzero where
-pattern O = zero
-pattern S n = (suc n)
+
+module PatternSyns where
+  pattern O' = zero
+  pattern S n = (suc n)
+open PatternSyns using (S) renaming (O' to O)
+
 variable i : ULevel
 
 ¬ : (A : Type i) → Type i

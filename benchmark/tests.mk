@@ -31,7 +31,8 @@ functor			 = $(call misc,Functor)
 latemeta		 = $(call misc,LateMetaVariableInstantiation)
 polyfunctor  = $(call misc,UniversePolymorphicFunctor)
 patternmatch = $(call misc,Coverage)
-miscTests		 = functor latemeta polyfunctor patternmatch
+instanceargs = $(call misc,InstanceArgs)
+miscTests		 = functor latemeta polyfunctor patternmatch instanceargs
 
 #proj
 proj = proj/$1.agda -iproj --ignore-interfaces

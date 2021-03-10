@@ -7,7 +7,10 @@ abstract
     suc'  : Nat → Nat
 
   -- abstract hides constructor nature of zero and suc.
+  zero : Nat
   zero = zero'
+
+  suc : Nat → Nat
   suc  = suc'
 
 data D : Nat → Set where

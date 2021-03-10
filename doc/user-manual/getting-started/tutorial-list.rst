@@ -44,11 +44,10 @@ Introduction to Agda
      (OPLSS 2013).
 - Tesla Ice Zhang.
    - `Some books about Formal Verification in Agda (in Chinese) <https://github.com/ice1000/Books>`__
-   - `A blog created with Literate Agda (in Chinese) <https://ice1000.org/lagda/>`__
 - Phil Wadler.
    - `Programming Languages Foundations in Agda <https://plfa.github.io/>`__
 - Aaron Stump.
-   - `Verified Functional Programming in Agda <https://dl.acm.org/citation.cfm?id=2841316>`__
+   - `Verified Functional Programming in Agda <https://dl.acm.org/doi/book/10.1145/2841316>`__
 - Diviánszky Péter.
    - `Agda Tutorial <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
 - Musa Al-hassy.
@@ -69,10 +68,9 @@ Courses using Agda
   , course at the University of Pennsylvania by Stephanie Weirich.
 - `Categorical Logic <https://www.cl.cam.ac.uk/teaching/0910/L20/>`__
   , course at the University of Cambridge by Samuel Staton.
-  - `More info and feedback <http://permalink.gmane.org/gmane.comp.lang.agda/1579>`__
 - `Dependently typed functional languages <http://www1.eafit.edu.co/asr/courses/dependently-typed-functional-languages/>`_
   , master level course at EAFIT University by Andrés Sicard-Ramírez.
-- `Introduction to Dependently Typed Programming using Agda <https://personal.cis.strath.ac.uk/conor.mcbride/pub/dtp/>`__
+- `Introduction to Dependently Typed Programming using Agda <https://github.com/mietek/agda-intro>`__
   , research level course at the University of Edinburgh by Conor McBride.
 - `Agda <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
   , introductory course for master students at ELTE Eötvös Collegium in Budapest by Péter Diviánszky and Ambrus Kaposi.
@@ -91,6 +89,7 @@ Courses using Agda
 - `Inductive and inductive-recursive definitions in Intuitionistic Type Theory <https://www.cs.uoregon.edu/research/summerschool/summer15/curriculum.html>`__
   , lectures by Peter Dybjer at the Oregon Programming Languages Summer School 2015.
 - `Introduction to Univalent Foundations of Mathematics with Agda <https://www.cs.bham.ac.uk/~mhe/HoTT-UF-in-Agda-Lecture-Notes/index.html>`__ , MGS 2019 Martín Hötzel Escardó
+- `Higher-Dimensional Type Theory <https://favonia.org/courses/hdtt2020/>`__ (CSCI 8980), courses on homotopy type theory and cubical type theory, Favonia, the University of Minnesota, Spring 2020
 
 Miscellaneous
 =============

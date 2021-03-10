@@ -2,22 +2,25 @@
 
 module Agda.TypeChecking.Conversion where
 
+import Control.Arrow (second)
 import Control.Monad
+import Control.Monad.Except
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
+import Data.Function
+import Data.Semigroup ((<>))
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
 
-import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Names
@@ -43,29 +46,28 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Functor
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
+import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
 type MonadConversion m =
-  ( MonadReduce m
-  , MonadAddContext m
+  ( PureTCM m
   , MonadConstraint m
   , MonadMetaSolver m
   , MonadError TCErr m
   , MonadWarning m
-  , MonadDebug m
   , MonadStatistics m
   , MonadFresh ProblemId m
   , MonadFresh Int m
-  , HasBuiltins m
-  , HasConstInfo m
-  , HasOptions m
   , MonadFail m
   )
 
@@ -104,6 +106,16 @@ intersectVars = zipWithM areVars where
     areVars (Apply (Arg _ (Var n []))) (Apply (Arg _ (Var m []))) = Just $ n /= m -- prune different vars
     areVars _ _                                   = Nothing
 
+-- | Run the given computation but turn any errors into blocked computations with the given blocker
+blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
+blockOnError blocker f
+  | blocker == neverUnblock = f
+  | otherwise               = f `catchError` \case
+    TypeError{}         -> throwError $ PatternErr blocker
+    PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
+    err@Exception{}     -> throwError err
+    err@IOException{}   -> throwError err
+
 equalTerm :: MonadConversion m => Type -> Term -> Term -> m ()
 equalTerm = compareTerm CmpEq
 
@@ -135,7 +147,7 @@ compareAs :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> T
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
 compareAs cmp a u v = do
-  reportSDoc "tc.conv.term" 10 $ sep $
+  reportSDoc "tc.conv.term" 20 $ sep $
     [ "compareTerm"
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ prettyTCM a
@@ -171,13 +183,20 @@ compareAs cmp a u v = do
           rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
       case (u, v) of
         (MetaV x us, MetaV y vs)
-          | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareAs' cmp a u v
+          | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` fallback
           | otherwise -> fallback
           where
             (solve1, solve2) | x > y     = (assign dir x us v, assign rid y vs u)
                              | otherwise = (assign rid y vs u, assign dir x us v)
         (MetaV x us, _) -> unlessSubtyping $ assign dir x us v `orelse` fallback
         (_, MetaV y vs) -> unlessSubtyping $ assign rid y vs u `orelse` fallback
+        (Def f es, Def f' es') | f == f' ->
+          ifNotM (optFirstOrder <$> pragmaOptions) fallback $ {- else -} unlessSubtyping $ do
+          def <- getConstInfo f
+          -- We do not shortcut projection-likes
+          if isJust $ isProjection_ (theDef def) then fallback else do
+          pol <- getPolarity' cmp f
+          compareElims pol [] (defType def) (Def f []) es es' `orelse` fallback
         _               -> fallback
   where
     assign :: CompareDirection -> MetaId -> Elims -> Term -> m ()
@@ -187,8 +206,8 @@ compareAs cmp a u v = do
         [ "attempting shortcut"
         , nest 2 $ prettyTCM (MetaV x es) <+> ":=" <+> prettyTCM v
         ]
-      ifM (isInstantiatedMeta x) patternViolation {-else-} $ do
-        assignE dir x es v $ compareAsDir dir a
+      whenM (isInstantiatedMeta x) (patternViolation alwaysUnblock) -- Already instantiated, retry right away
+      assignE dir x es v a $ compareAsDir dir a
       reportSDoc "tc.conv.term.shortcut" 50 $
         "shortcut successful" $$ nest 2 ("result:" <+> (pretty =<< instantiate (MetaV x es)))
     -- Should be ok with catchError_ but catchError is much safer since we don't
@@ -199,10 +218,10 @@ compareAs cmp a u v = do
 -- | Try to assign meta.  If meta is projected, try to eta-expand
 --   and run conversion check again.
 assignE :: (MonadConversion m)
-        => CompareDirection -> MetaId -> Elims -> Term -> (Term -> Term -> m ()) -> m ()
-assignE dir x es v comp = assignWrapper dir x es v $ do
+        => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
+assignE dir x es v a comp = assignWrapper dir x es v $ do
   case allApplyElims es of
-    Just vs -> assignV dir x vs v
+    Just vs -> assignV dir x vs v a
     Nothing -> do
       reportSDoc "tc.conv.assign" 30 $ sep
         [ "assigning to projected meta "
@@ -220,7 +239,7 @@ assignE dir x es v comp = assignWrapper dir x es v $ do
           comp w v
         Nothing ->  do
           reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
-          patternViolation  -- nothing happened, give up
+          patternViolation (unblockOnAnyMetaIn (MetaV x es)) -- nothing happened, give up
 
 compareAsDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAsDir dir a = dirToCmp (`compareAs'` a) dir
@@ -228,25 +247,26 @@ compareAsDir dir a = dirToCmp (`compareAs'` a) dir
 compareAs' :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
 compareAs' cmp tt m n = case tt of
   AsTermsOf a -> compareTerm' cmp a m n
+  AsSizes     -> compareSizes cmp m n
   AsTypes     -> compareAtom cmp AsTypes m n
 
 compareTerm' :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareTerm' cmp a m n =
   verboseBracket "tc.conv.term" 20 "compareTerm" $ do
-  a' <- reduce a
-  (catchConstraint (ValueCmp cmp (AsTermsOf a') m n) :: m () -> m ()) $ do
+  (ba, a') <- reduceWithBlocker a
+  (catchConstraint (ValueCmp cmp (AsTermsOf a') m n) :: m () -> m ()) $ blockOnError ba $ do
     reportSDoc "tc.conv.term" 30 $ fsep
       [ "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, ":", prettyTCM a' ]
     propIrr  <- isPropEnabled
     isSize   <- isJust <$> isSizeType a'
-    s        <- reduce $ getSort a'
+    (bs, s)  <- reduceWithBlocker $ getSort a'
     mlvl     <- getBuiltin' builtinLevel
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
       [ "a'   =" <+> pretty a'
       , "mlvl =" <+> pretty mlvl
       , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
       ]
-    case s of
+    blockOnError bs $ case s of
       Prop{} | propIrr -> compareIrrelevant a' m n
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
@@ -272,8 +292,9 @@ compareTerm' cmp a m n =
                   isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                     not <$> usesCopatterns q -- a def by copattern can reduce if projected
                   isNeutral _                   = return True
-                  isMeta (NotBlocked _ MetaV{}) = True
-                  isMeta _                      = False
+                  isMeta b = case ignoreBlocking b of
+                               MetaV{} -> True
+                               _       -> False
 
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> "is eta record type"
               m <- reduceB m
@@ -288,11 +309,9 @@ compareTerm' cmp a m n =
                     -- Andreas 2011-03-23: (fixing issue 396)
                     -- if we are dealing with a singleton record,
                     -- we can succeed immediately
-                    isSing <- isSingletonRecordModuloRelevance r ps
-                    case isSing of
-                      Right True -> return ()
+                    ifM (isSingletonRecordModuloRelevance r ps) (return ()) $
                       -- do not eta-expand if comparing two neutrals
-                      _ -> compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+                      compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
                 _ -> do
                   (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
                   (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
@@ -325,7 +344,7 @@ compareTerm' cmp a m n =
         let name = "i" :: String
         interval <- el primInterval
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
-        addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ (raise 1 $ unArg a) `apply` [argN $ var 0]) m' n'
+        addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ raise 1 (unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
 
     cmpDef a'@(El s ty) m n = do
@@ -334,21 +353,23 @@ compareTerm' cmp a m n =
        mGlue  <- getPrimitiveName' builtinGlue
        mHComp <- getPrimitiveName' builtinHComp
        mSub   <- getBuiltinName' builtinSub
+       mUnglueU <- getPrimitiveTerm' builtin_unglueU
+       mSubIn   <- getPrimitiveTerm' builtinSubIn
        case ty of
          Def q es | Just q == mIsOne -> return ()
          Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
-              ty <- el' (pure $ unArg l) (pure $ unArg a)
+              aty <- el' (pure $ unArg l) (pure $ unArg a)
               unglue <- prim_unglue
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
-              reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
-              compareTermOnFace cmp (unArg phi) ty m n
-              compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+              reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
+              compareTermOnFace cmp (unArg phi) a' m n
+              compareTerm cmp aty (mkUnglue m) (mkUnglue n)
          Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
-                  , Sort (Type lvl) <- unArg s -> do
+                  , Sort (Type lvl) <- unArg s
+                  , Just unglueU <- mUnglueU, Just subIn <- mSubIn
+                  -> do
               let l = Level lvl
               ty <- el' (pure $ l) (pure $ unArg u0)
-              unglueU <- prim_unglueU
-              subIn <- primSubIn
               let bA = subIn `apply` [sl,s,phi,u0]
               let mkUnglue m = apply unglueU $ [argH l] ++ map (setHiding Hidden) [phi,u]  ++ [argH bA,argN m]
               reportSDoc "conv.hcompU" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
@@ -361,25 +382,6 @@ compareTerm' cmp a m n =
               compareTerm cmp ty (mkOut m) (mkOut n)
          Def q [] | Just q == mI -> compareInterval cmp a' m n
          _ -> compareAtom cmp (AsTermsOf a') m n
-
--- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
---   @tel1 \`cmp\` tel2@ and complains that @t2 \`cmp\` t1@ failed if
---   not.
-compareTel :: MonadConversion m => Type -> Type ->
-  Comparison -> Telescope -> Telescope -> m ()
-compareTel t1 t2 cmp tel1 tel2 =
-  verboseBracket "tc.conv.tel" 20 "compareTel" $
-  catchConstraint (TelCmp t1 t2 cmp tel1 tel2) $ case (tel1, tel2) of
-    (EmptyTel, EmptyTel) -> return ()
-    (EmptyTel, _)        -> bad
-    (_, EmptyTel)        -> bad
-    (ExtendTel dom1{-@(Dom i1 a1)-} tel1, ExtendTel dom2{-@(Dom i2 a2)-} tel2) -> do
-      compareDom cmp dom1 dom2 tel1 tel2 bad bad $
-        compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
-  where
-    -- Andreas, 2011-05-10 better report message about types
-    bad = typeError $ UnequalTypes cmp t2 t1
-      -- switch t2 and t1 because of contravariance!
 
 compareAtomDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
@@ -407,7 +409,8 @@ computeElimHeadType f es es' = do
     -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
     -- a meta-variable, e.g. in interactive development.
     -- In this case, we postpone.
-    fromMaybeM patternViolation $ getDefType f =<< reduce targ
+    targ <- abortIfBlocked targ
+    fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
 
 -- | Syntax directed equality on atomic values
 --
@@ -416,6 +419,7 @@ compareAtom cmp t m n =
   verboseBracket "tc.conv.atom" 20 "compareAtom" $
   -- if a PatternErr is thrown, rebuild constraint!
   (catchConstraint (ValueCmp cmp t m n) :: m () -> m ()) $ do
+    reportSLn "tc.conv.atom.size" 50 $ "compareAtom term size:  " ++ show (termSize m, termSize n)
     reportSDoc "tc.conv.atom" 50 $
       "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
                              , prettyTCM n
@@ -423,10 +427,14 @@ compareAtom cmp t m n =
                              ]
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
-    (mb',nb') <- ifM (asksTC envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
+    (mb',nb') <- do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
       return (mb', nb')
+    let getBlocker (Blocked b _) = b
+        getBlocker NotBlocked{}  = neverUnblock
+        blocker = unblockOnEither (getBlocker mb') (getBlocker nb')
+    reportSLn "tc.conv.atom.size" 50 $ "term size after reduce: " ++ show (termSize $ ignoreBlocking mb', termSize $ ignoreBlocking nb')
 
     -- constructorForm changes literal to constructors
     -- only needed if the other side is not a literal
@@ -443,25 +451,14 @@ compareAtom cmp t m n =
     let m = ignoreBlocking mb
         n = ignoreBlocking nb
 
-        postpone = addConstraint $ ValueCmp cmp t m n
+        checkDefinitionalEquality = unlessM (pureCompareAs CmpEq t m n) notEqual
 
-        -- Jesper, 2019-05-14, Issue #3776: If the type is blocked,
-        -- the comparison could be solved by eta-expansion so we
-        -- cannot fail hard
-        postponeIfBlockedAs :: CompareAs -> (Blocked CompareAs -> m ()) -> m ()
-        postponeIfBlockedAs AsTypes       f = f $ NotBlocked ReallyNotBlocked AsTypes
-        postponeIfBlockedAs (AsTermsOf t) f = ifBlocked t
-          (\m t -> (f $ Blocked m $ AsTermsOf t) `catchError` \case
-              TypeError{} -> postpone
-              err         -> throwError err)
-          (\nb t -> f $ NotBlocked nb $ AsTermsOf t)
-
-        checkDefinitionalEquality = unlessM (pureCompareAs CmpEq t m n) postpone
+        notEqual = typeError $ UnequalTerms cmp m n t
 
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
-        assign dir x es v = assignE dir x es v $ compareAtomDir dir t
+        assign dir x es v = assignE dir x es v t $ compareAtomDir dir t
 
     reportSDoc "tc.conv.atom" 30 $
       "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
@@ -475,11 +472,13 @@ compareAtom cmp t m n =
     case (mb, nb) of
       -- equate two metas x and y.  if y is the younger meta,
       -- try first y := x and then x := y
-      (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
-          | x == y , cmpBlocked -> do
+      _ | MetaV x xArgs <- ignoreBlocking mb,   -- Can be either Blocked or NotBlocked depending on
+          MetaV y yArgs <- ignoreBlocking nb -> -- envCompareBlocked check above.
+        if | x == y, cmpBlocked -> do
               a <- metaType x
-              compareElims [] [] a (MetaV x []) xArgs yArgs
-          | x == y ->
+              blockOnError (unblockOnMeta x) $
+                compareElims [] [] a (MetaV x []) xArgs yArgs
+           | x == y -> blockOnError (unblockOnMeta x) $
             case intersectVars xArgs yArgs of
               -- all relevant arguments are variables
               Just kills -> do
@@ -488,12 +487,12 @@ compareAtom cmp t m n =
                 case killResult of
                   NothingToPrune   -> return ()
                   PrunedEverything -> return ()
-                  PrunedNothing    -> postpone
-                  PrunedSomething  -> postpone
+                  PrunedNothing    -> checkDefinitionalEquality
+                  PrunedSomething  -> checkDefinitionalEquality
               -- not all relevant arguments are variables
               Nothing -> checkDefinitionalEquality -- Check definitional equality on meta-variables
                               -- (same as for blocked terms)
-          | otherwise -> do
+           | otherwise -> do
               [p1, p2] <- mapM getMetaPriority [x,y]
               -- First try the one with the highest priority. If that doesn't
               -- work, try the low priority one.
@@ -507,15 +506,16 @@ compareAtom cmp t m n =
                           l2 = ifM (isInstantiatedMeta x) (compareAsDir dir t m n) l1
                           r2 = ifM (isInstantiatedMeta y) (compareAsDir rid t n m) r1
 
-              catchPatternErr solve2 solve1
+              -- Unblock on both unblockers of solve1 and solve2
+              catchPatternErr (`addOrUnblocker` solve2) solve1
 
-      -- one side a meta, the other an unblocked term
-      (NotBlocked _ (MetaV x es), _) -> assign dir x es n
-      (_, NotBlocked _ (MetaV x es)) -> assign rid x es m
-      (Blocked{}, Blocked{})  -> checkDefinitionalEquality
-      (Blocked{}, _)  -> useInjectivity (fromCmp cmp) t m n   -- The blocked term goes first
-      (_, Blocked{})  -> useInjectivity (flipCmp $ fromCmp cmp) t n m
-      _ -> postponeIfBlockedAs t $ \bt -> do
+      -- one side a meta
+      _ | MetaV x es <- ignoreBlocking mb -> assign dir x es n
+      _ | MetaV x es <- ignoreBlocking nb -> assign rid x es m
+      (Blocked{}, Blocked{}) | not cmpBlocked  -> checkDefinitionalEquality
+      (Blocked b _, _) | not cmpBlocked -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term  goes first
+      (_, Blocked b _) | not cmpBlocked -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
+      _ -> blockOnError blocker $ do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.
         -- -- 'False' means: leave (Def f []) unchanged even for
@@ -568,12 +568,13 @@ compareAtom cmp t m n =
                   -- Get the type of the constructor instantiated to the datatype parameters.
                   a' <- case t of
                     AsTermsOf a -> conType x a
+                    AsSizes   -> __IMPOSSIBLE__
                     AsTypes   -> __IMPOSSIBLE__
                   forcedArgs <- getForcedArgs $ conName x
                   -- Constructors are covariant in their arguments
                   -- (see test/succeed/CovariantConstructors).
                   compareElims (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
-          _ -> typeError $ UnequalTerms cmp m n $ ignoreBlocking bt
+          _ -> notEqual
     where
         -- returns True in case we handled the comparison already.
         compareEtaPrims :: MonadConversion m => QName -> Elims -> Elims -> m Bool
@@ -596,9 +597,9 @@ compareAtom cmp t m n =
               -- since b and b' should be neutral terms, but it's a
               -- precondition for the compareAtom call to make
               -- sense.
-              equalType (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA,phi,u])
-                        (El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA',phi',u'])
-              compareAtom cmp (AsTermsOf $ El Inf $ apply tSub $ [a] ++ map (setHiding NotHidden) [bA,phi,u])
+              equalType (El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
+                        (El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA',phi',u'])
+              compareAtom cmp (AsTermsOf $ El (tmSSort $ unArg a) $ apply tSub $ a : map (setHiding NotHidden) [bA,phi,u])
                               (unArg x) (unArg x')
               compareElims [] [] (El (tmSort (unArg a)) (unArg bA)) (Def q as) bs bs'
               return True
@@ -641,7 +642,8 @@ compareAtom cmp t m n =
               return True
             _  -> return False
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
-        conType c t = ifBlocked t (\ _ _ -> patternViolation) $ \ _ t -> do
+        conType c t = do
+          t <- abortIfBlocked t
           let impossible = do
                 reportSDoc "impossible" 10 $
                   "expected data/record type, found " <+> prettyTCM t
@@ -652,19 +654,22 @@ compareAtom cmp t m n =
                 -- In issue 921, this happens during the final attempt
                 -- to solve left-over constraints.
                 -- Thus, instead of crashing, just give up gracefully.
-                patternViolation
+                patternViolation neverUnblock
           maybe impossible (return . snd) =<< getFullyAppliedConType c t
         equalFun t1 t2 = case (t1, t2) of
           (Pi dom1 b1, Pi dom2 b2) -> do
             verboseBracket "tc.conv.fun" 15 "compare function types" $ do
               reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                 [ "t1 =" <+> prettyTCM t1
-                , "t2 =" <+> prettyTCM t2 ]
-              compareDom cmp dom2 dom1 b1 b2 errH errR $
+                , "t2 =" <+> prettyTCM t2
+                ]
+              compareDom cmp dom2 dom1 b1 b2 errH errR errQ errC $
                 compareType cmp (absBody b1) (absBody b2)
             where
             errH = typeError $ UnequalHiding t1 t2
             errR = typeError $ UnequalRelevance cmp t1 t2
+            errQ = typeError $ UnequalQuantity  cmp t1 t2
+            errC = typeError $ UnequalCohesion cmp t1 t2
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
@@ -676,16 +681,25 @@ compareDom :: (MonadConversion m , Free c)
   -> Abs c      -- ^ @b2@  The bigger codomain.
   -> m ()     -- ^ Continuation if mismatch in 'Hiding'.
   -> m ()     -- ^ Continuation if mismatch in 'Relevance'.
+  -> m ()     -- ^ Continuation if mismatch in 'Quantity'.
+  -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
   -> m ()     -- ^ Continuation if comparison is successful.
   -> m ()
-compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDom = a2}) b1 b2 errH errR cont
-  | not (sameHiding dom1 dom2) = errH
-  | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) = errR
-  | otherwise = do
+compareDom cmp0
+  dom1@(Dom{domInfo = i1, unDom = a1})
+  dom2@(Dom{domInfo = i2, unDom = a2})
+  b1 b2 errH errR errQ errC cont = do
+  hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
+  let cmp = if hasSubtyping then cmp0 else CmpEq
+  if | not $ sameHiding dom1 dom2 -> errH
+     | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) -> errR
+     | not $ compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) -> errQ
+     | not $ compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
           dependent = (r /= Irrelevant) && isBinderUsed b2
-      pid <- newProblem_ $ compareType cmp a1 a2
+      pid <- newProblem_ $ compareType cmp0 a1 a2
       dom <- if dependent
              then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid
              else return dom1
@@ -702,6 +716,14 @@ compareDom cmp dom1@(Dom{domInfo = i1, unDom = a1}) dom2@(Dom{domInfo = i2, unDo
 compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)
 compareRelevance CmpLeq = (<=)
+
+compareQuantity :: Comparison -> Quantity -> Quantity -> Bool
+compareQuantity CmpEq  = sameQuantity
+compareQuantity CmpLeq = moreQuantity
+
+compareCohesion :: Comparison -> Cohesion -> Cohesion -> Bool
+compareCohesion CmpEq  = sameCohesion
+compareCohesion CmpLeq = moreCohesion
 
 -- | When comparing argument spines (in compareElims) where the first arguments
 --   don't match, we keep going, substituting the anti-unification of the two
@@ -751,16 +773,24 @@ antiUnify pid a u v = do
     -- (Note that @patternViolation@ swallows exceptions coming from @getConType@
     -- thus, we would not see clearly if we used @getFullyAppliedConType@ instead.)
     (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
-      a <- maybe patternViolation (return . snd) =<< getConType x a
+      a <- maybe abort (return . snd) =<< getConType x a
       antiUnifyElims pid a (Con x ci []) us vs
     (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
       a <- computeElimHeadType f us vs
       antiUnifyElims pid a (Def f []) us vs
     _ -> fallback
   where
-    maybeGiveUp = catchPatternErr fallback
-
+    maybeGiveUp = catchPatternErr $ \ _ -> fallback
+    abort = patternViolation neverUnblock -- caught by maybeGiveUp
     fallback = blockTermOnProblem a u pid
+
+antiUnifyArgs :: MonadConversion m => ProblemId -> Dom Type -> Arg Term -> Arg Term -> m (Arg Term)
+antiUnifyArgs pid dom u v
+  | getModality u /= getModality v = patternViolation neverUnblock
+  | otherwise = applyModalityToContext u $
+    ifM (isIrrelevantOrPropM dom)
+    {-then-} (return u)
+    {-else-} ((<$ u) <$> antiUnify pid (unDom dom) (unArg u) (unArg v))
 
 antiUnifyType :: MonadConversion m => ProblemId -> Type -> Type -> m Type
 antiUnifyType pid (El s a) (El _ b) = workOnTypes $ El s <$> antiUnify pid (sort s) a b
@@ -771,19 +801,21 @@ antiUnifyElims pid a self (Proj o f : es1) (Proj _ g : es2) | f == g = do
   res <- projectTyped self a o f
   case res of
     Just (_, self, a) -> antiUnifyElims pid a self es1 es2
-    Nothing -> patternViolation -- can fail for projection like
+    Nothing -> patternViolation neverUnblock -- can fail for projection like
 antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
   reduce (unEl a) >>= \case
     Pi a b -> do
-      w <- antiUnify pid (unDom a) (unArg u) (unArg v)
-      antiUnifyElims pid (b `lazyAbsApp` w) (apply self [w <$ u]) es1 es2
-    _ -> patternViolation
-antiUnifyElims _ _ _ _ _ = patternViolation -- trigger maybeGiveUp in antiUnify
+      w <- antiUnifyArgs pid a u v
+      antiUnifyElims pid (b `lazyAbsApp` unArg w) (apply self [w]) es1 es2
+    _ -> patternViolation neverUnblock
+antiUnifyElims _ _ _ _ _ = patternViolation neverUnblock -- trigger maybeGiveUp in antiUnify
 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
 compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
-compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
+compareElims pols0 fors0 a v els01 els02 =
+  verboseBracket "tc.conv.elim" 20 "compareElims" $
+  (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
   let v1 = applyE v els01
       v2 = applyE v els02
       failure = typeError $ UnequalTerms CmpEq v1 v2 (AsTermsOf a)
@@ -817,25 +849,25 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
       reportSDoc "tc.conv.elim" 25 $ "compareElims IApply"
        -- Andrea: copying stuff from the Apply case..
       let (pol, pols) = nextPolarity pols0
-      ifBlocked a (\ m t -> patternViolation) $ \ _ a -> do
-          va <- pathView a
-          reportSDoc "tc.conv.elim.iapply" 60 $ "compareElims IApply" $$ do
-            nest 2 $ "va =" <+> text (show (isPathType va))
-          case va of
-            PathType s path l bA x y -> do
-              b <- elInf primInterval
-              compareWithPol pol (flip compareTerm b)
-                                  r1 r2
-              -- TODO: compare (x1,x2) and (y1,y2) ?
-              let r = r1 -- TODO Andrea:  do blocking
-              codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r)
-              compareElims pols [] codom -- Path non-dependent (codom `lazyAbsApp` unArg arg)
-                                (applyE v [e]) els1 els2
-            -- We allow for functions (i : I) -> ... to also be heads of a IApply,
-            -- because @etaContract@ can produce such terms
-            OType t@(El _ Pi{}) -> compareElims pols0 fors0 t v (Apply (defaultArg r1) : els1) (Apply (defaultArg r2) : els2)
+      a  <- abortIfBlocked a
+      va <- pathView a
+      reportSDoc "tc.conv.elim.iapply" 60 $ "compareElims IApply" $$ do
+        nest 2 $ "va =" <+> text (show (isPathType va))
+      case va of
+        PathType s path l bA x y -> do
+          b <- primIntervalType
+          compareWithPol pol (flip compareTerm b)
+                              r1 r2
+          -- TODO: compare (x1,x2) and (y1,y2) ?
+          let r = r1 -- TODO Andrea:  do blocking
+          codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r)
+          compareElims pols [] codom -- Path non-dependent (codom `lazyAbsApp` unArg arg)
+                            (applyE v [e]) els1 els2
+        -- We allow for functions (i : I) -> ... to also be heads of a IApply,
+        -- because @etaContract@ can produce such terms
+        OType t@(El _ Pi{}) -> compareElims pols0 fors0 t v (Apply (defaultArg r1) : els1) (Apply (defaultArg r2) : els2)
 
-            OType{} -> patternViolation
+        OType t -> patternViolation (unblockOnAnyMetaIn t) -- Can we get here? We know a is not blocked.
 
     (Apply arg1 : els1, Apply arg2 : els2) ->
       (verboseBracket "tc.conv.elim" 20 "compare Apply" :: m () -> m ()) $ do
@@ -854,77 +886,78 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
         ]
       let (pol, pols) = nextPolarity pols0
           (for, fors) = nextIsForced fors0
-      ifBlocked a (\ m t -> patternViolation) $ \ _ a -> do
-        reportSLn "tc.conv.elim" 90 $ "type is not blocked"
-        case unEl a of
-          (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
-            reportSLn "tc.conv.elim" 90 $ "type is a function type"
-            mlvl <- tryMaybe primLevel
-            let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
-                freeInCoDom _         = False
-                dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
-                  -- Level-polymorphism (x : Level) -> ... does not count as dependency here
-                     -- NB: we could drop the free variable test and still be sound.
-                     -- It is a trade-off between the administrative effort of
-                     -- creating a blocking and traversing a term for free variables.
-                     -- Apparently, it is believed that checking free vars is cheaper.
-                     -- Andreas, 2013-05-15
+      a <- abortIfBlocked a
+      reportSLn "tc.conv.elim" 40 $ "type is not blocked"
+      case unEl a of
+        (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
+          reportSLn "tc.conv.elim" 40 $ "type is a function type"
+          mlvl <- tryMaybe primLevel
+          let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
+              freeInCoDom _         = False
+              dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
+                -- Level-polymorphism (x : Level) -> ... does not count as dependency here
+                   -- NB: we could drop the free variable test and still be sound.
+                   -- It is a trade-off between the administrative effort of
+                   -- creating a blocking and traversing a term for free variables.
+                   -- Apparently, it is believed that checking free vars is cheaper.
+                   -- Andreas, 2013-05-15
 
 -- NEW, Andreas, 2013-05-15
 
-            -- compare arg1 and arg2
-            pid <- newProblem_ $ applyModalityToContext info $
-                if isForced for then
-                  reportSLn "tc.conv.elim" 90 $ "argument is forced"
-                else if isIrrelevant info then do
-                  reportSLn "tc.conv.elim" 90 $ "argument is irrelevant"
-                  compareIrrelevant b (unArg arg1) (unArg arg2)
-                else do
-                  reportSLn "tc.conv.elim" 90 $ "argument has polarity " ++ show pol
-                  compareWithPol pol (flip compareTerm b)
-                    (unArg arg1) (unArg arg2)
-            -- if comparison got stuck and function type is dependent, block arg
-            solved <- isProblemSolved pid
-            reportSLn "tc.conv.elim" 90 $ "solved = " ++ show solved
-            arg <- if dependent && not solved
-                   then do
-                    reportSDoc "tc.conv.elims" 30 $ vcat $
-                      [ "Trying antiUnify:"
-                      , nest 2 $ "b    =" <+> prettyTCM b
-                      , nest 2 $ "arg1 =" <+> prettyTCM arg1
-                      , nest 2 $ "arg2 =" <+> prettyTCM arg2
-                      ]
-                    arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
-                    reportSDoc "tc.conv.elims" 30 $ hang "Anti-unification:" 2 (prettyTCM arg)
-                    reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
-                    return arg
-                   else return arg1
-            -- continue, possibly with blocked instantiation
-            compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
-            -- any left over constraints of arg are associated to the comparison
-            reportSLn "tc.conv.elim" 90 $ "stealing constraints from problem " ++ show pid
-            stealConstraints pid
-            {- Stealing solves this issue:
+          -- compare arg1 and arg2
+          pid <- newProblem_ $ applyModalityToContext info $
+              if isForced for then
+                reportSLn "tc.conv.elim" 40 $ "argument is forced"
+              else if isIrrelevant info then do
+                reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
+                compareIrrelevant b (unArg arg1) (unArg arg2)
+              else do
+                reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
+                compareWithPol pol (flip compareTerm b)
+                  (unArg arg1) (unArg arg2)
+          -- if comparison got stuck and function type is dependent, block arg
+          solved <- isProblemSolved pid
+          reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
+          arg <- if dependent && not solved
+                 then applyModalityToContext info $ do
+                  reportSDoc "tc.conv.elims" 50 $ vcat $
+                    [ "Trying antiUnify:"
+                    , nest 2 $ "b    =" <+> prettyTCM b
+                    , nest 2 $ "arg1 =" <+> prettyTCM arg1
+                    , nest 2 $ "arg2 =" <+> prettyTCM arg2
+                    ]
+                  arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
+                  reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
+                  reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
+                  return arg
+                 else return arg1
+          -- continue, possibly with blocked instantiation
+          compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
+          -- any left over constraints of arg are associated to the comparison
+          reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
+          stealConstraints pid
+          {- Stealing solves this issue:
 
-               Does not create enough blocked tc-problems,
-               see test/fail/DontPrune.
-               (There are remaining problems which do not show up as yellow.)
-               Need to find a way to associate pid also to result of compareElims.
-            -}
-          a -> do
-            reportSDoc "impossible" 10 $
-              "unexpected type when comparing apply eliminations " <+> prettyTCM a
-            reportSDoc "impossible" 50 $ "raw type:" <+> pretty a
-            patternViolation
-            -- Andreas, 2013-10-22
-            -- in case of disabled reductions (due to failing termination check)
-            -- we might get stuck, so do not crash, but fail gently.
-            -- __IMPOSSIBLE__
+             Does not create enough blocked tc-problems,
+             see test/fail/DontPrune.
+             (There are remaining problems which do not show up as yellow.)
+             Need to find a way to associate pid also to result of compareElims.
+          -}
+        a -> do
+          reportSDoc "impossible" 10 $
+            "unexpected type when comparing apply eliminations " <+> prettyTCM a
+          reportSDoc "impossible" 50 $ "raw type:" <+> pretty a
+          patternViolation (unblockOnAnyMetaIn a)
+          -- Andreas, 2013-10-22
+          -- in case of disabled reductions (due to failing termination check)
+          -- we might get stuck, so do not crash, but fail gently.
+          -- __IMPOSSIBLE__
 
     -- case: f == f' are projections
     (Proj o f : els1, Proj _ f' : els2)
-      | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> "/=" <+> prettyTCM f'
-      | otherwise -> ifBlocked a (\ m t -> patternViolation) $ \ _ a -> do
+      | f /= f'   -> typeError . GenericDocError =<< prettyTCM f <+> "/=" <+> prettyTCM f'
+      | otherwise -> do
+        a   <- abortIfBlocked a
         res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
           Just (_, u, t) -> do
@@ -935,11 +968,11 @@ compareElims pols0 fors0 a v els01 els02 = (catchConstraint (ElimCmp pols0 fors0
             compareElims [] [] t u els1 els2
           Nothing -> do
             reportSDoc "tc.conv.elims" 30 $ sep
-              [ text $ "projection " ++ show f
+              [ text $ "projection " ++ prettyShow f
               , text   "applied to value " <+> prettyTCM v
               , text   "of unexpected type " <+> prettyTCM a
               ]
-            patternViolation
+            patternViolation (unblockOnAnyMetaIn a)
 
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
@@ -951,7 +984,9 @@ compareIrrelevant :: MonadConversion m => Type -> Term -> Term -> m ()
 compareIrrelevant t (DontCare v) w = compareIrrelevant t v w
 compareIrrelevant t v (DontCare w) = compareIrrelevant t v w
 -}
-compareIrrelevant t v w = do
+compareIrrelevant t v0 w0 = do
+  let v = stripDontCare v0
+      w = stripDontCare w0
   reportSDoc "tc.conv.irr" 20 $ vcat
     [ "compareIrrelevant"
     , nest 2 $ "v =" <+> prettyTCM v
@@ -978,7 +1013,7 @@ compareIrrelevant t v w = do
         -- Andreas, 2016-08-08, issue #2131:
         -- Mining for solutions for irrelevant metas is not definite.
         -- Thus, in case of error, leave meta unsolved.
-        else (assignE DirEq x es w $ compareIrrelevant t) `catchError` \ _ -> fallback
+        else assignE DirEq x es w (AsTermsOf t) (compareIrrelevant t) `catchError` \ _ -> fallback
         -- the value of irrelevant or unused meta does not matter
     try v w fallback = fallback
 
@@ -1006,16 +1041,13 @@ compareArgs pol for a v args1 args2 =
 compareType :: MonadConversion m => Comparison -> Type -> Type -> m ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
     workOnTypes $
-    verboseBracket "tc.conv.type" 20 "compareType" $
-    catchConstraint (TypeCmp cmp ty1 ty2) $ do
+    verboseBracket "tc.conv.type" 20 "compareType" $ do
         reportSDoc "tc.conv.type" 50 $ vcat
           [ "compareType" <+> sep [ prettyTCM ty1 <+> prettyTCM cmp
                                        , prettyTCM ty2 ]
           , hsep [ "   sorts:", prettyTCM s1, " and ", prettyTCM s2 ]
           ]
         compareAs cmp AsTypes a1 a2
-        unlessM (optCumulativity <$> pragmaOptions) $ compareSort CmpEq s1 s2
-        return ()
 
 leqType :: MonadConversion m => Type -> Type -> m ()
 leqType = compareType CmpLeq
@@ -1026,12 +1058,11 @@ leqType = compareType CmpLeq
 --   In principle, this function can host coercive subtyping, but
 --   currently it only tries to fix problems with hidden function types.
 --
---   Precondition: @a@ and @b@ are reduced.
 coerce :: (MonadConversion m, MonadTCM m) => Comparison -> Term -> Type -> Type -> m Term
 coerce cmp v t1 t2 = blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
     (a1,a2) <- reify (t1,t2)
-    let dbglvl = if isSet a1 && isSet a2 then 50 else 10
+    let dbglvl = 30
     reportSDoc "tc.conv.coerce" dbglvl $
       "coerce" <+> vcat
         [ "term      v  =" <+> prettyTCM v
@@ -1073,7 +1104,6 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
 --
 --   For now, we do a cheap heuristics.
 --
---   Precondition: types are reduced.
 coerceSize :: MonadConversion m => (Type -> Type -> m ()) -> Term -> Type -> Type -> m ()
 coerceSize leqType v t1 t2 = verboseBracket "tc.conv.size.coerce" 45 "coerceSize" $
   workOnTypes $ do
@@ -1084,11 +1114,11 @@ coerceSize leqType v t1 t2 = verboseBracket "tc.conv.size.coerce" 45 "coerceSize
         , "to type   t2 =" <+> pretty t2
         ]
     let fallback = leqType t1 t2
-        done = caseMaybeM (isSizeType t1) fallback $ \ _ -> return ()
+        done = caseMaybeM (isSizeType =<< reduce t1) fallback $ \ _ -> return ()
     -- Andreas, 2015-07-22, Issue 1615:
     -- If t1 is a meta and t2 a type like Size< v2, we need to make sure we do not miss
     -- the constraint v < v2!
-    caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
+    caseMaybeM (isSizeType =<< reduce t2) fallback $ \ b2 -> do
       -- Andreas, 2017-01-20, issue #2329:
       -- If v is not a size suitable for the solver, like a neutral term,
       -- we can only rely on the type.
@@ -1139,7 +1169,7 @@ compareSort CmpLeq = leqSort
 leqSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
   (s1,s2) <- reduce (s1,s2)
-  let postpone = addConstraint (SortCmp CmpLeq s1 s2)
+  let postpone = addConstraint (unblockOnAnyMetaIn (s1, s2)) (SortCmp CmpLeq s1 s2)
       no       = typeError $ NotLeqSort s1 s2
       yes      = return ()
       synEq    = ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
@@ -1152,6 +1182,8 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
                         , prettyTCM s2 ]
         ]
   propEnabled <- isPropEnabled
+  typeInTypeEnabled <- typeInType
+  omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
 
   let fvsRHS = (`IntSet.member` allFreeVars s2)
   badRigid <- s1 `rigidVarsNotContainedIn` fvsRHS
@@ -1167,36 +1199,64 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       -- Likewise for @Prop@
       (Prop a  , Prop b  ) -> leqLevel a b
 
+      -- Likewise for @SSet@
+      (SSet a  , SSet b  ) -> leqLevel a b
+
       -- @Prop l@ is below @Set l@
       (Prop a  , Type b  ) -> leqLevel a b
       (Type a  , Prop b  ) -> no
 
-      -- Setω is the top sort
-      (_       , Inf     ) -> yes
-      (Inf     , _       ) -> equalSort s1 s2
+      -- @Setωᵢ@ is above all small sorts (spelling out all cases
+      -- for the exhaustiveness checker)
+      (Inf f m , Inf f' n) ->
+        if leqFib f f' && (m <= n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
+      (Type{}  , Inf f _) -> yes
+      (Prop{}  , Inf f _) -> yes
+      (Inf f _, Type{}  ) -> if f == IsFibrant && typeInTypeEnabled then yes else no
+      (Inf f _, SSet{}  ) -> if f == IsStrict  && typeInTypeEnabled then yes else no
+      (Inf _ _, Prop{}  ) -> no
+
+      -- @Set l@ is below @SSet l@
+      (Type a  , SSet b  ) -> leqLevel a b
+      (SSet a  , Type b  ) -> no
+
+      -- @Prop l@ is below @SSet l@
+      (Prop a  , SSet b  ) -> leqLevel a b
+      (SSet a  , Prop b  ) -> no
+
+      -- @SSet@ is below @SSetω@
+      (SSet{}  , Inf IsStrict _) -> yes
+      (SSet{}  , Inf IsFibrant _) -> no
 
       -- @SizeUniv@ and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
+      (_       , LockUniv) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
-      (_       , Prop (Max [])) -> equalSort s1 s2
-      (_       , Type (Max []))
+      (_       , Prop (Max 0 [])) -> equalSort s1 s2
+      (_       , Type (Max 0 []))
         | not propEnabled  -> equalSort s1 s2
 
       -- SizeUniv is unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
+      (SizeUniv , Inf{}  ) -> no
+      (SizeUniv, SSet{}  ) -> no
+      (LockUniv, Type{}  ) -> no
+      (LockUniv, Prop{}  ) -> no
+      (LockUniv , Inf{}  ) -> no
+      (LockUniv, SSet{}  ) -> no
 
-      -- If the first sort rigidly depends on a variable and the second
-      -- sort does not mention this variable, the second sort must be Inf.
-      (_       , _       ) | badRigid -> equalSort s2 Inf
+      -- If the first sort is a small sort that rigidly depends on a
+      -- variable and the second sort does not mention this variable,
+      -- the second sort must be at least @Setω@.
+      (_       , _       ) | Just (True,f) <- isSmallSort s1 , badRigid -> leqSort (Inf f 0) s2
 
-      -- This shouldn't be necessary
-      (UnivSort Inf , UnivSort Inf) -> yes
-
-      -- PiSort, UnivSort and MetaS might reduce once we instantiate
+      -- PiSort, FunSort, UnivSort and MetaS might reduce once we instantiate
       -- more metas, so we postpone.
       (PiSort{}, _       ) -> synEq
       (_       , PiSort{}) -> synEq
+      (FunSort{}, _      ) -> synEq
+      (_      , FunSort{}) -> synEq
       (UnivSort{}, _     ) -> synEq
       (_     , UnivSort{}) -> synEq
       (MetaS{} , _       ) -> synEq
@@ -1207,6 +1267,9 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (_      , DefS{}) -> synEq
 
   where
+  leqFib IsFibrant _ = True
+  leqFib IsStrict IsStrict = True
+  leqFib _ _ = False
   impossibleSort s = do
     reportS "impossible" 10
       [ "leqSort: found dummy sort with description:"
@@ -1215,81 +1278,111 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
     __IMPOSSIBLE__
 
 leqLevel :: MonadConversion m => Level -> Level -> m ()
-leqLevel a b = do
-  reportSDoc "tc.conv.nat" 30 $
-    "compareLevel" <+>
-      sep [ prettyTCM a <+> "=<"
-          , prettyTCM b ]
-  -- Andreas, 2015-12-28 Issue 1757
-  -- We normalize both sides to make the syntactic equality check (==) stronger.
-  -- See case for `same term` below.
-  a <- normalise a
-  b <- normalise b
-  leqView a b
-  where
-    -- Andreas, 2016-09-28
-    -- If we have to postpone a constraint, then its simplified form!
-    leqView a@(Max as) b@(Max bs) = catchConstraint (LevelCmp CmpLeq a b) $ do
-      reportSDoc "tc.conv.nat" 30 $
-        "compareLevelView" <+>
-          sep [ pretty a <+> "=<"
-              , pretty b ]
-      wrap $ case (as, bs) of
+leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
+      reportSDoc "tc.conv.level" 30 $
+        "compareLevel" <+>
+          sep [ prettyTCM a <+> "=<"
+              , prettyTCM b ]
 
-        -- same term
-        _ | as == bs -> ok
+      (a, b) <- reduce (a, b)
+      ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+
+      let notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
+          postpone = patternViolation (unblockOnAnyMetaIn (a, b))
+
+          wrap m = m `catchError` \case
+            TypeError{} -> notok
+            err         -> throwError err
+
+      reportSDoc "tc.conv.level" 60 $
+        "checkSyntacticEquality returns" <+> prettyTCM equal
+      unless equal $ do
+
+      cumulativity <- optCumulativity <$> pragmaOptions
+      areWeComputingOverlap <- viewTC eConflComputingOverlap
+      reportSDoc "tc.conv.level" 40 $
+        "compareLevelView" <+>
+          sep [ prettyList_ $ fmap (pretty . unSingleLevel) $ levelMaxView a
+              , "=<"
+              , prettyList_ $ fmap (pretty . unSingleLevel) $ levelMaxView b
+              ]
+
+      -- Extra reduce on level atoms, but should be cheap since they are already reduced.
+      aB <- mapM reduceB a
+      bB <- mapM reduceB b
+
+      wrap $ case (levelMaxView aB, levelMaxView bB) of
 
         -- 0 ≤ any
-        ([], _) -> ok
+        (SingleClosed 0 :| [] , _) -> return ()
 
-        -- as ≤ 0
-        (as, [])              -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
-        (as, [ClosedLevel 0]) -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
-           -- Andreas, 2016-09-28, @[ClosedLevel 0]@ is possible if we come from case
-           -- "reduce constants" where we run @subtr@ on both sides.
-           -- See test/Succeed/LevelMetaLeqZero.agda.
+        -- any ≤ 0
+        (as , SingleClosed 0 :| []) ->
+          forM_ as $ \ a' -> equalLevel (unSingleLevel $ fmap ignoreBlocking a') (ClosedLevel 0)
 
-        -- as ≤ [b]
-        (as@(_:_:_), [b]) -> sequence_ [ leqView (Max [a]) (Max [b]) | a <- as ]
+        -- closed ≤ closed
+        (SingleClosed m :| [], SingleClosed n :| []) -> unless (m <= n) notok
+
+        -- closed ≤ b
+        (SingleClosed m :| [] , _)
+          | m <= levelLowerBound b -> return ()
+
+        -- as ≤ neutral/closed
+        (as, bs)
+          | all neutralOrClosed bs , levelLowerBound a > levelLowerBound b -> notok
+
+        -- ⊔ as ≤ single
+        (as@(_:|_:_), b :| []) ->
+          forM_ as $ \ a' -> leqLevel (unSingleLevel $ ignoreBlocking <$> a')
+                                      (unSingleLevel $ ignoreBlocking <$> b)
 
         -- reduce constants
-        (as, bs) | minN > 0 -> leqView (Max $ map (subtr minN) as) (Max $ map (subtr minN) bs)
-          where
-            ns = map constant as
-            ms = map constant bs
-            minN = minimum (ns ++ ms)
+        (as, bs)
+          | let minN = min (fst $ levelPlusView a) (fst $ levelPlusView b)
+                a'   = fromMaybe __IMPOSSIBLE__ $ subLevel minN a
+                b'   = fromMaybe __IMPOSSIBLE__ $ subLevel minN b
+          , minN > 0 -> leqLevel a' b'
 
         -- remove subsumed
         -- Andreas, 2014-04-07: This is ok if we do not go back to equalLevel
         (as, bs)
-          | not $ null subsumed -> leqView (Max $ as List.\\ subsumed) (Max bs)
+          | (subsumed@(_:_) , as') <- List1.partition (isSubsumed . fmap ignoreBlocking) as
+          -> leqLevel (unSingleLevels $ (fmap . fmap) ignoreBlocking as') b
           where
-            subsumed = [ a | a@(Plus m l) <- as, n <- findN l, m <= n ]
-            -- @findN a@ finds the unique(?) term @Plus n a@ in @bs@, if any.
-            -- Andreas, 2014-04-07 Why must there be a unique term?
-            findN a = case [ n | Plus n b <- bs, b == a ] of
-                        [n] -> [n]
-                        _   -> []
+            isSubsumed a = any (`subsumes` a) $ (fmap . fmap) ignoreBlocking bs
 
-        -- Andreas, 2012-10-02 raise error on unsolvable constraint
-        ([ClosedLevel n], [ClosedLevel m]) -> if n <= m then ok else notok
+            subsumes :: SingleLevel -> SingleLevel -> Bool
+            subsumes (SingleClosed m)        (SingleClosed n)        = m >= n
+            subsumes (SinglePlus (Plus m _)) (SingleClosed n)        = m >= n
+            subsumes (SinglePlus (Plus m a)) (SinglePlus (Plus n b)) = a == b && m >= n
+            subsumes _ _ = False
 
-        -- closed ≤ bs
-        ([ClosedLevel n], bs)
-          | n <= maximum (map constant bs) -> ok
+        -- as ≤ _l x₁ .. xₙ ⊔ bs
+        -- We can solve _l := λ x₁ .. xₙ -> as ⊔ (_l' x₁ .. xₙ)
+        -- (where _l' is a new metavariable)
+        (as , bs)
+          | cumulativity
+          , not areWeComputingOverlap
+          , Just (mb@(MetaV x es) , bs') <- singleMetaView $ (map . fmap) ignoreBlocking (List1.toList bs)
+          , null bs' || noMetas (Level a , unSingleLevels bs') -> do
+            mv <- lookupMeta x
+            -- Jesper, 2019-10-13: abort if this is an interaction
+            -- meta or a generalizable meta
+            abort <- (isJust <$> isInteractionMeta x) `or2M`
+                     ((== YesGeneralize) <$> isGeneralizableMeta x)
+            if | abort -> postpone
+               | otherwise -> do
+                  x' <- case mvJudgement mv of
+                    IsSort{} -> __IMPOSSIBLE__
+                    HasType _ cmp t -> do
+                      TelV tel t' <- telView t
+                      newMeta Instantiable (mvInfo mv) normalMetaPriority (idP $ size tel) $ HasType () cmp t
+                  reportSDoc "tc.conv.level" 20 $ fsep
+                    [ "attempting to solve" , prettyTCM (MetaV x es) , "to the maximum of"
+                    , prettyTCM (Level a) , "and the fresh meta" , prettyTCM (MetaV x' es)
+                    ]
+                  equalLevel (atomicLevel mb) $ levelLub a (atomicLevel $ MetaV x' es)
 
-        -- as ≤ neutral
-        (as, bs)
-          | neutralB && maxA > maxB -> notok
-          | neutralB && neutralA && all findN as -> ok
-          where
-            maxA = maximum $ map constant as
-            maxB = maximum $ map constant bs
-            neutralA = all neutral as
-            neutralB = all neutral bs
-            findN a = case [ n | b@(Plus n _) <- bs, unneutral b == unneutral a ] of
-                        [n] -> constant a <= n
-                        _   -> False
 
         -- Andreas, 2016-09-28: This simplification loses the solution lzero.
         -- Thus, it is invalid.
@@ -1301,220 +1394,196 @@ leqLevel a b = do
         --   -- subsumed terms from the lhs.
 
         -- anything else
-        _ | noMetas (Level a , Level b) -> notok
-          | otherwise                   -> postpone
+        _ | noMetas (a, b) -> notok
+          | otherwise      -> postpone
       where
-        ok       = return ()
-        notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
-        postpone = patternViolation
+        neutralOrClosed (SingleClosed _)                   = True
+        neutralOrClosed (SinglePlus (Plus _ NotBlocked{})) = True
+        neutralOrClosed _                                  = False
 
-        wrap m = catchError m $ \e ->
-          case e of
-            TypeError{} -> notok
-            _           -> throwError e
+        -- Is there exactly one @MetaV@ in the list of single levels?
+        singleMetaView :: [SingleLevel] -> Maybe (Term, [SingleLevel])
+        singleMetaView (SinglePlus (Plus 0 l@(MetaV m es)) : ls)
+          | all (not . isMetaLevel) ls = Just (l,ls)
+        singleMetaView (l : ls)
+          | not $ isMetaLevel l = second (l:) <$> singleMetaView ls
+        singleMetaView _ = Nothing
 
-        maybeok True = ok
-        maybeok False = postpone
+        isMetaLevel :: SingleLevel -> Bool
+        isMetaLevel (SinglePlus (Plus _ MetaV{})) = True
+        isMetaLevel _                             = False
 
-        neutral (Plus _ NeutralLevel{}) = True
-        neutral _                       = False
-
-        meta (Plus _ MetaLevel{}) = True
-        meta _                    = False
-
-        unneutral (Plus _ (NeutralLevel _ v)) = v
-        unneutral _ = __IMPOSSIBLE__
-
-        constant (ClosedLevel n) = n
-        constant (Plus n _)      = n
-
-        subtr m (ClosedLevel n) = ClosedLevel (n - m)
-        subtr m (Plus n l)      = Plus (n - m) l
-
---     choice []     = patternViolation
---     choice (m:ms) = noConstraints m `catchError` \_ -> choice ms
---       case e of
---         PatternErr{} -> choice ms
---         _            -> throwError e
-
-equalLevel :: MonadConversion m => Level -> Level -> m ()
+equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
-  -- Andreas, 2013-10-31 Use normalization to make syntactic equality stronger
-  (a, b) <- normalise (a, b)
-  equalLevel' a b
-
--- | Precondition: levels are 'normalise'd.
-equalLevel' :: forall m. MonadConversion m => Level -> Level -> m ()
-equalLevel' a b = do
   reportSDoc "tc.conv.level" 50 $ sep [ "equalLevel", nest 2 $ parens $ pretty a, nest 2 $ parens $ pretty b ]
-  catchConstraint (LevelCmp CmpEq a b) $
-    check a b
-  where
-    check :: Level -> Level -> m ()
-    check a@(Max as) b@(Max bs) = do
-      -- Jesper, 2014-02-02 remove terms that certainly do not contribute
-      -- to the maximum
-      as <- return $ [ a | a <- as, not $ a `isStrictlySubsumedBy` bs ]
-      bs <- return $ [ b | b <- bs, not $ b `isStrictlySubsumedBy` as ]
-      -- Andreas, 2013-10-31 remove common terms (that don't contain metas!)
-      -- THAT's actually UNSOUND when metas are instantiated, because
-      --     max a b == max a c  does not imply  b == c
-      -- as <- return $ Set.fromList $ closed0 as
-      -- bs <- return $ Set.fromList $ closed0 bs
-      -- let cs = Set.filter (not . hasMeta) $ Set.intersection as bs
-      -- as <- return $ Set.toList $ as Set.\\ cs
-      -- bs <- return $ Set.toList $ bs Set.\\ cs
-      as <- return $ List.sort $ closed0 as
-      bs <- return $ List.sort $ closed0 bs
-      reportSDoc "tc.conv.level" 40 $
-        sep [ "equalLevel"
-            , vcat [ nest 2 $ sep [ prettyTCM a <+> "=="
-                                  , prettyTCM b
-                                  ]
-                   , "reduced"
-                   , nest 2 $ sep [ prettyTCM (Max as) <+> "=="
-                                  , prettyTCM (Max bs)
-                                  ]
-                   ]
-            ]
-      reportSDoc "tc.conv.level" 50 $
-        sep [ text "equalLevel"
-            , vcat [ nest 2 $ sep [ pretty (Max as) <+> "=="
-                                  , pretty (Max bs)
-                                  ]
-                   ]
-            ]
-      case (as, bs) of
-        _ | as == bs -> ok
-          | any isBlocked (as ++ bs) -> do
-              lvl <- levelType
-              addConstraint $ ValueCmp CmpEq (AsTermsOf lvl) (Level a) (Level b)
+  -- Andreas, 2013-10-31 remove common terms (that don't contain metas!)
+  -- THAT's actually UNSOUND when metas are instantiated, because
+  --     max a b == max a c  does not imply  b == c
+  -- as <- return $ Set.fromList $ closed0 as
+  -- bs <- return $ Set.fromList $ closed0 bs
+  -- let cs = Set.filter (not . hasMeta) $ Set.intersection as bs
+  -- as <- return $ Set.toList $ as Set.\\ cs
+  -- bs <- return $ Set.toList $ bs Set.\\ cs
+
+  reportSDoc "tc.conv.level" 40 $
+    sep [ "equalLevel"
+        , vcat [ nest 2 $ sep [ prettyTCM a <+> "=="
+                              , prettyTCM b
+                              ]
+               ]
+        ]
+
+  (a, b) <- reduce (a, b)
+  ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+  reportSDoc "tc.conv.level" 60 $
+    "checkSyntacticEquality returns" <+> prettyTCM equal
+  unless equal $ do
+
+  -- Jesper, 2014-02-02 remove terms that certainly do not contribute
+  -- to the maximum
+  let (a', b') = removeSubsumed a b
+
+  let notok    = unlessM typeInType notOk
+      notOk    = typeError $ UnequalLevel CmpEq a' b'
+      postpone = do
+        reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a' <+> "==") 0 (pretty b')
+        patternViolation (unblockOnAnyMetaIn (a', b'))
+
+  reportSDoc "tc.conv.level" 50 $
+    sep [ "equalLevel (w/o subsumed)"
+        , vcat [ nest 2 $ sep [ prettyTCM a' <+> "=="
+                              , prettyTCM b'
+                              ]
+               ]
+        ]
+
+  let as  = levelMaxView a'
+      bs  = levelMaxView b'
+  reportSDoc "tc.conv.level" 50 $
+    sep [ text "equalLevel"
+        , vcat [ nest 2 $ sep [ prettyList_ $ fmap (pretty . unSingleLevel) as
+                              , "=="
+                              , prettyList_ $ fmap (pretty . unSingleLevel) bs
+                              ]
+               ]
+        ]
+
+  reportSDoc "tc.conv.level" 80 $
+    sep [ text "equalLevel"
+        , vcat [ nest 2 $ sep [ prettyList_ $ fmap (text . show . unSingleLevel) as
+                              , "=="
+                              , prettyList_ $ fmap (text . show . unSingleLevel) bs
+                              ]
+               ]
+        ]
+
+  -- Extra reduce on level atoms, but should be cheap since they are already reduced.
+  as <- (mapM . mapM) reduceB as
+  bs <- (mapM . mapM) reduceB bs
+
+  catchConstraint (LevelCmp CmpEq a b) $ case (as, bs) of
 
         -- closed == closed
-        ([ClosedLevel n], [ClosedLevel m])
-          | n == m    -> ok
+        (SingleClosed m :| [], SingleClosed n :| [])
+          | m == n    -> return ()
           | otherwise -> notok
 
         -- closed == neutral
-        ([ClosedLevel{}], _) | any isNeutral bs -> notok
-        (_, [ClosedLevel{}]) | any isNeutral as -> notok
+        (SingleClosed m :| [] , bs) | any isNeutral bs -> notok
+        (as , SingleClosed n :| []) | any isNeutral as -> notok
 
-        -- 0 == any
-        ([ClosedLevel 0], bs@(_:_:_)) -> sequence_ [ equalLevel' (Max []) (Max [b]) | b <- bs ]
-        (as@(_:_:_), [ClosedLevel 0]) -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
-        -- Andreas, 2014-04-07 Why should the following be ok?
-        --   X (suc a)  could be different from  X (suc (suc a))
-        -- -- Same meta
-        -- ([Plus n (MetaLevel x _)], [Plus m (MetaLevel y _)])
-        --   | n == m && x == y -> ok
+        -- closed == b
+        (SingleClosed m :| [] , _) | m < levelLowerBound b -> notok
+        (_ , SingleClosed n :| []) | n < levelLowerBound a -> notok
+
+        -- 0 == a ⊔ b
+        (SingleClosed 0 :| [] , bs@(_:|_:_)) ->
+          forM_ bs $ \ b' ->  equalLevel (ClosedLevel 0) (unSingleLevel $ ignoreBlocking <$> b')
+        (as@(_:|_:_) , SingleClosed 0 :| []) ->
+          forM_ as $ \ a' -> equalLevel (unSingleLevel $ ignoreBlocking <$> a') (ClosedLevel 0)
 
         -- meta == any
-        ([Plus n (MetaLevel x as)], _)
-          | any (isThisMeta x) bs -> postpone
-        (_, [Plus n (MetaLevel x bs)])
-          | any (isThisMeta x) as -> postpone
-        ([Plus n (MetaLevel x as')], [Plus m (MetaLevel y bs')])
-            -- lexicographic comparison intended!
-          | (n, y) < (m, x)            -> meta n x as' bs
-          | otherwise                  -> meta m y bs' as
-        ([Plus n (MetaLevel x as')],_) -> meta n x as' bs
-        (_,[Plus m (MetaLevel y bs')]) -> meta m y bs' as
+        (SinglePlus (Plus k a) :| [] , SinglePlus (Plus l b) :| [])
+          -- there is only a potential choice when k == l
+          | MetaV x as' <- ignoreBlocking a
+          , MetaV y bs' <- ignoreBlocking b
+          , k == l -> do
+              lvl <- levelType
+              equalAtom (AsTermsOf lvl) (MetaV x as') (MetaV y bs')
+        (SinglePlus (Plus k a) :| [] , _)
+          | MetaV x as' <- ignoreBlocking a
+          , Just b' <- subLevel k b -> meta x as' b'
+        (_ , SinglePlus (Plus l b) :| [])
+          | MetaV y bs' <- ignoreBlocking b
+          , Just a' <- subLevel l a -> meta y bs' a'
 
-        -- any other metas
-        -- Andreas, 2013-10-31: There could be metas in neutral levels (see Issue 930).
-        -- Should not we postpone there as well?  Yes!
-        _ | any hasMeta (as ++ bs) -> postpone
+        -- a' ⊔ b == b
+        _ | Just a' <- levelMaxDiff a b
+          , b /= ClosedLevel 0 -> leqLevel a' b
+
+        -- a == b' ⊔ a
+        _ | Just b' <- levelMaxDiff b a
+          , a /= ClosedLevel 0 -> leqLevel b' a
 
         -- neutral/closed == neutral/closed
-        _ | all isNeutralOrClosed (as ++ bs) -> do
-          reportSLn "tc.conv.level" 60 $ "equalLevel: all are neutral or closed"
-          if length as == length bs
-            then zipWithM_ (\a b -> [a] =!= [b]) as bs
-            else postpone
+        (as , bs)
+          | all isNeutralOrClosed (as <> bs)
+          -- Andreas, 2013-10-31: There could be metas in neutral levels (see Issue 930).
+          -- Should not we postpone there as well?  Yes!
+          , not (any hasMeta (as <> bs))
+          , length as == length bs -> do
+              reportSLn "tc.conv.level" 60 $ "equalLevel: all are neutral or closed"
+              List1.zipWithM_ ((===) `on` levelTm . unSingleLevel . fmap ignoreBlocking) as bs
 
         -- more cases?
-        _ -> postpone
+        _ | noMetas (Level a , Level b) -> notok
+          | otherwise                   -> postpone
 
       where
-        a === b   = unlessM typeInType $ do
-            lvl <- levelType
-            equalAtom (AsTermsOf lvl) a b
-        as =!= bs = levelTm (Max as) === levelTm (Max bs)
+        a === b = unlessM typeInType $ do
+          lvl <- levelType
+          equalAtom (AsTermsOf lvl) a b
 
-        ok       = return ()
-        notok    = unlessM typeInType notOk
-        notOk    = typeError $ UnequalSorts (Type a) (Type b)
-        postpone = do
-          reportSDoc "tc.conv.level" 30 $ hang "postponing:" 2 $ hang (pretty a <+> "==") 0 (pretty b)
-          patternViolation
-
-        closed0 [] = [ClosedLevel 0]
-        closed0 as = as
-
-        -- perform assignment (Plus n (MetaLevel x as)) := bs
-        meta n x as bs = do
+        -- perform assignment (MetaV x as) := b
+        meta x as b = do
           reportSLn "tc.meta.level" 30 $ "Assigning meta level"
-          reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, prettyList $ map pretty bs]
-          bs' <- mapM (subtr n) bs
-          assignE DirEq x as (levelTm (Max bs')) (===) -- fallback: check equality as atoms
+          reportSDoc "tc.meta.level" 50 $ "meta" <+> sep [prettyList $ map pretty as, pretty b]
+          lvl <- levelType
+          assignE DirEq x as (levelTm b) (AsTermsOf lvl) (===) -- fallback: check equality as atoms
 
-        -- Make sure to give a sensible error message
-        wrap m = m `catchError` \err ->
-          case err of
-            TypeError{} -> notok
-            _           -> throwError err
+        isNeutral (SinglePlus (Plus _ NotBlocked{})) = True
+        isNeutral _                                  = False
 
-        subtr n (ClosedLevel m)
-          | m >= n    = return $ ClosedLevel (m - n)
-          | otherwise = ifM typeInType (return $ ClosedLevel 0) $ notOk
-        subtr n (Plus m a)
-          | m >= n    = return $ Plus (m - n) a
-        subtr _ (Plus _ BlockedLevel{}) = postpone
-        subtr _ (Plus _ MetaLevel{})    = postpone
-        subtr _ (Plus _ NeutralLevel{}) = postpone
-        subtr _ (Plus _ UnreducedLevel{}) = __IMPOSSIBLE__
+        isNeutralOrClosed (SingleClosed _)                   = True
+        isNeutralOrClosed (SinglePlus (Plus _ NotBlocked{})) = True
+        isNeutralOrClosed _                                  = False
 
-        isNeutral (Plus _ NeutralLevel{}) = True
-        isNeutral _                       = False
+        hasMeta (SinglePlus (Plus _ Blocked{})) = True
+        hasMeta (SinglePlus (Plus _ a))         = isJust $ firstMeta $ ignoreBlocking a
+        hasMeta (SingleClosed _)                = False
 
-        isClosed ClosedLevel{} = True
-        isClosed _             = False
+        removeSubsumed a b =
+          let as = List1.toList $ levelMaxView a
+              bs = List1.toList $ levelMaxView b
+              a' = unSingleLevels $ filter (not . (`isStrictlySubsumedBy` bs)) as
+              b' = unSingleLevels $ filter (not . (`isStrictlySubsumedBy` as)) bs
+          in (a',b')
 
-        isNeutralOrClosed l = isClosed l || isNeutral l
+        x `isStrictlySubsumedBy` ys = any (`strictlySubsumes` x) ys
 
-        isBlocked (Plus _ BlockedLevel{}) = True
-        isBlocked _                       = False
-
-        hasMeta ClosedLevel{}               = False
-        hasMeta (Plus _ MetaLevel{})        = True
-        hasMeta (Plus _ (BlockedLevel _ v)) = isJust $ firstMeta v
-        hasMeta (Plus _ (NeutralLevel _ v)) = isJust $ firstMeta v
-        hasMeta (Plus _ (UnreducedLevel v)) = isJust $ firstMeta v
-
-        isThisMeta x (Plus _ (MetaLevel y _)) = x == y
-        isThisMeta _ _                      = False
-
-        constant (ClosedLevel n) = n
-        constant (Plus n _)      = n
-
-        (ClosedLevel m) `isStrictlySubsumedBy` [] = m == 0
-        (ClosedLevel m) `isStrictlySubsumedBy` ys = m < maximum (map constant ys)
-        (Plus m x)      `isStrictlySubsumedBy` ys = not $ null $
-          [ n | Plus n y <- ys, x == y, m < n ]
+        SingleClosed m        `strictlySubsumes` SingleClosed n        = m > n
+        SinglePlus (Plus m a) `strictlySubsumes` SingleClosed n        = m > n
+        SinglePlus (Plus m a) `strictlySubsumes` SinglePlus (Plus n b) = a == b && m > n
+        _                     `strictlySubsumes` _                     = False
 
 
 -- | Check that the first sort equal to the second.
-equalSort :: MonadConversion m => Sort -> Sort -> m ()
+equalSort :: forall m. MonadConversion m => Sort -> Sort -> m ()
 equalSort s1 s2 = do
     catchConstraint (SortCmp CmpEq s1 s2) $ do
         (s1,s2) <- reduce (s1,s2)
-        let postpone = addConstraint (SortCmp CmpEq s1 s2)
-            yes      = return ()
+        let yes      = return ()
             no       = typeError $ UnequalSorts s1 s2
-            synEq    = ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
-              ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
-              if | equal     -> yes
-                 | otherwise -> postpone
 
         reportSDoc "tc.conv.sort" 30 $ sep
           [ "equalSort"
@@ -1527,6 +1596,7 @@ equalSort s1 s2 = do
 
         propEnabled <- isPropEnabled
         typeInTypeEnabled <- typeInType
+        omegaInOmegaEnabled <- optOmegaInOmega <$> pragmaOptions
 
         case (s1, s2) of
 
@@ -1538,57 +1608,42 @@ equalSort s1 s2 = do
             -- In case both sides are meta sorts, instantiate the
             -- bigger (i.e. more recent) one.
             (MetaS x es , MetaS y es')
-              | x == y                 -> synEq
+              | x == y                 -> synEq s1 s2
               | x < y                  -> meta y es' s1
               | otherwise              -> meta x es s2
             (MetaS x es , _          ) -> meta x es s2
             (_          , MetaS x es ) -> meta x es s1
 
             -- diagonal cases for rigid sorts
-            (Type a     , Type b     ) -> equalLevel a b
+            (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
-            (Prop a     , Prop b     ) -> equalLevel a b
-            (Inf        , Inf        ) -> yes
+            (LockUniv   , LockUniv   ) -> yes
+            (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
+            (Inf f m    , Inf f' n   ) ->
+              if f == f' && (m == n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
+            (SSet a     , SSet b     ) -> equalLevel a b
 
-            -- if --type-in-type is enabled, Setω is equal to any Set ℓ (see #3439)
-            (Type{}     , Inf        )
+            -- if --type-in-type is enabled, Setωᵢ is equal to any Set ℓ (see #3439)
+            (Type{}     , Inf{}      )
               | typeInTypeEnabled      -> yes
-            (Inf        , Type{}     )
+            (Inf{}      , Type{}     )
               | typeInTypeEnabled      -> yes
 
-            -- if @PiSort a b == Set0@, then @b == Set0@
-            -- we use this fact to solve metas in @b@,
-            -- hopefully allowing the @PiSort@ to reduce.
-            (Type (Max []) , PiSort a b   )
-              | not propEnabled             -> piSortEqualsBottom set0 a b
-            (PiSort a b    , Type (Max []))
-              | not propEnabled             -> piSortEqualsBottom set0 a b
+            -- equating @PiSort a b@ to another sort
+            (s1 , PiSort a b c) -> piSortEquals s1 a b c
+            (PiSort a b c , s2) -> piSortEquals s2 a b c
 
-            (Prop (Max []) , PiSort a b   ) -> piSortEqualsBottom prop0 a b
-            (PiSort a b    , Prop (Max [])) -> piSortEqualsBottom prop0 a b
+            -- equating @FunSort a b@ to another sort
+            (s1 , FunSort a b) -> funSortEquals s1 a b
+            (FunSort a b , s2) -> funSortEquals s2 a b
 
-            -- @PiSort a b == SizeUniv@ iff @b == SizeUniv@
-            (SizeUniv   , PiSort a b ) ->
-              underAbstraction a b $ equalSort SizeUniv
-            (PiSort a b , SizeUniv   ) ->
-              underAbstraction a b $ equalSort SizeUniv
-
-            -- @Prop0@ and @SizeUniv@ don't contain any universes,
-            -- so they cannot be a UnivSort
-            (Prop (Max []) , UnivSort s )   -> no
-            (UnivSort s    , Prop (Max [])) -> no
-            (SizeUniv      , UnivSort s )   -> no
-            (UnivSort s    , SizeUniv   )   -> no
-
-            -- PiSort and UnivSort could compute later, so we postpone
-            (PiSort{}   , _          ) -> synEq
-            (_          , PiSort{}   ) -> synEq
-            (UnivSort{} , _          ) -> synEq
-            (_          , UnivSort{} ) -> synEq
+            -- equating @UnivSort s@ to another sort
+            (s1          , UnivSort s2) -> univSortEquals s1 s2
+            (UnivSort s1 , s2         ) -> univSortEquals s2 s1
 
             -- postulated sorts can only be equal if they have the same head
             (DefS d es  , DefS d' es')
-              | d == d'                -> synEq
+              | d == d'                -> synEq s1 s2
               | otherwise              -> no
 
             -- any other combinations of sorts are not equal
@@ -1596,29 +1651,183 @@ equalSort s1 s2 = do
 
     where
       -- perform assignment (MetaS x es) := s
+      meta :: MetaId -> [Elim' Term] -> Sort -> m ()
       meta x es s = do
         reportSLn "tc.meta.sort" 30 $ "Assigning meta sort"
         reportSDoc "tc.meta.sort" 50 $ "meta" <+> sep [pretty x, prettyList $ map pretty es, pretty s]
-        assignE DirEq x es (Sort s) __IMPOSSIBLE__
+        assignE DirEq x es (Sort s) AsTypes __IMPOSSIBLE__
 
-      set0 = Type $ Max []
-      prop0 = Prop $ Max []
+      -- fall back to syntactic equality check, postpone if it fails
+      synEq :: Sort -> Sort -> m ()
+      synEq s1 s2 = do
+        let postpone = addConstraint (unblockOnAnyMetaIn (s1, s2)) $ SortCmp CmpEq s1 s2
+        doSynEq <- optSyntacticEquality <$> pragmaOptions
+        if | doSynEq -> do
+               ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
+               if | equal     -> return ()
+                  | otherwise -> postpone
+           | otherwise -> postpone
 
-      -- equate @piSort a b@ to @s0@, which is assumed to be a (closed) bottom sort
+      -- Equate a sort @s1@ to @univSort s2@
+      -- Precondition: @s1@ and @univSort s2@ are already reduced.
+      univSortEquals :: Sort -> Sort -> m ()
+      univSortEquals s1 s2 = do
+        reportSDoc "tc.conv.sort" 35 $ vcat
+          [ "univSortEquals"
+          , "  s1 =" <+> prettyTCM s1
+          , "  s2 =" <+> prettyTCM s2
+          ]
+        let no = typeError $ UnequalSorts s1 (UnivSort s2)
+        case s1 of
+          -- @Set l1@ is the successor sort of either @Set l2@ or
+          -- @Prop l2@ where @l1 == lsuc l2@.
+          Type l1 -> do
+            propEnabled <- isPropEnabled
+               -- @s2@ is definitely not @Inf n@ or @SizeUniv@
+            if | Inf _ n  <- s2 -> no
+               | SizeUniv <- s2 -> no
+               -- If @Prop@ is not used, then @s2@ must be of the form
+               -- @Set l2@
+               | not propEnabled -> do
+                   l2 <- case subLevel 1 l1 of
+                     Just l2 -> return l2
+                     Nothing -> do
+                       l2 <- newLevelMeta
+                       equalLevel l1 (levelSuc l2)
+                       return l2
+                   equalSort (Type l2) s2
+               -- Otherwise we postpone
+               | otherwise -> synEq (Type l1) (UnivSort s2)
+          -- @Setωᵢ@ is a successor sort if n > 0, or if
+          -- --type-in-type or --omega-in-omega is enabled.
+          Inf f n | n > 0 -> equalSort (Inf f $ n - 1) s2
+          Inf f 0 -> do
+            infInInf <- (optOmegaInOmega <$> pragmaOptions) `or2M` typeInType
+            if | infInInf  -> equalSort (Inf f 0) s2
+               | otherwise -> no
+          -- @Prop l@ and @SizeUniv@ are not successor sorts
+          Prop{}     -> no
+          SizeUniv{} -> no
+          -- Anything else: postpone
+          _          -> synEq s1 (UnivSort s2)
+
+
+      -- Equate a sort @s@ to @piSort a s1 s2@
+      -- Precondition: @s@ and @piSort a s1 s2@ are already reduced.
+      piSortEquals :: Sort -> Dom Term -> Sort -> Abs Sort -> m ()
+      piSortEquals s a s1 NoAbs{} = __IMPOSSIBLE__
+      piSortEquals s a s1 s2Abs@(Abs x s2) = do
+        let adom = El s1 <$> a
+        reportSDoc "tc.conv.sort" 35 $ vcat
+          [ "piSortEquals"
+          , "  s  =" <+> prettyTCM s
+          , "  a  =" <+> prettyTCM adom
+          , "  s1 =" <+> prettyTCM s1
+          , "  s2 =" <+> addContext (x,adom) (prettyTCM s2)
+          ]
+        propEnabled <- isPropEnabled
+           -- If @s2@ is dependent, then @piSort a s1 s2@ computes to
+           -- @Setωi@. Hence, if @s@ is small, then @s2@
+           -- cannot be dependent.
+        if | Just (True,_) <- isSmallSort s -> do
+               -- We force @s2@ to be non-dependent by unifying it with
+               -- a fresh meta that does not depend on @x : a@
+               s2' <- newSortMeta
+               addContext (x , adom) $ equalSort s2 (raise 1 s2')
+               funSortEquals s s1 s2'
+           -- Otherwise: postpone
+           | otherwise                  -> synEq (PiSort a s1 s2Abs) s
+
+      -- Equate a sort @s@ to @funSort s1 s2@
+      -- Precondition: @s@ and @funSort s1 s2@ are already reduced
+      funSortEquals :: Sort -> Sort -> Sort -> m ()
+      funSortEquals s0 s1 s2 = do
+        reportSDoc "tc.conv.sort" 35 $ vcat
+          [ "funSortEquals"
+          , "  s0 =" <+> prettyTCM s0
+          , "  s1 =" <+> prettyTCM s1
+          , "  s2 =" <+> prettyTCM s2
+          ]
+        propEnabled <- isPropEnabled
+        sizedTypesEnabled <- sizedTypesOption
+        case s0 of
+          -- If @Setωᵢ == funSort s1 s2@, then either @s1@ or @s2@ must
+          -- be @Setωᵢ@.
+          Inf f n | Just (True,_) <- isSmallSort s1, Just (True,_) <- isSmallSort s2 -> do
+                    typeError $ UnequalSorts s0 (FunSort s1 s2)
+                  | Just (True, IsFibrant) <- isSmallSort s1 -> equalSort (Inf f n) s2
+                  | Just (True, IsFibrant) <- isSmallSort s2 -> equalSort (Inf f n) s1
+                  -- TODO 2ltt: handle IsStrict cases.
+                  | otherwise                   -> synEq s0 (FunSort s1 s2)
+          -- If @Set l == funSort s1 s2@, then @s2@ must be of the
+          -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@, or
+          -- @SizeUniv@.
+          Type l -> do
+            l2 <- forceType s2
+            -- We must have @l2 =< l@, this might help us to solve
+            -- more constraints (in particular when @l == 0@).
+            leqLevel l2 l
+            -- Jesper, 2019-12-27: SizeUniv is disabled at the moment.
+            if | {- sizedTypesEnabled || -} propEnabled -> case funSort' s1 (Type l2) of
+                   -- If the work we did makes the @funSort@ compute,
+                   -- continue working.
+                   Just s  -> equalSort (Type l) s
+                   -- Otherwise: postpone
+                   Nothing -> synEq (Type l) (FunSort s1 $ Type l2)
+               -- If both Prop and sized types are disabled, only the
+               -- case @s1 == Set l1@ remains.
+               | otherwise -> do
+                   l1 <- forceType s1
+                   equalLevel l (levelLub l1 l2)
+          -- If @Prop l == funSort s1 s2@, then @s2@ must be of the
+          -- form @Prop l2@, and @s1@ can be one of @Set l1@, Prop
+          -- l1@, or @SizeUniv@.
+          Prop l -> do
+            l2 <- forceProp s2
+            leqLevel l2 l
+            case funSort' s1 (Prop l2) of
+                   -- If the work we did makes the @funSort@ compute,
+                   -- continue working.
+                   Just s  -> equalSort (Prop l) s
+                   -- Otherwise: postpone
+                   Nothing -> synEq (Prop l) (FunSort s1 $ Prop l2)
+          -- We have @SizeUniv == funSort s1 s2@ iff @s2 == SizeUniv@
+          SizeUniv -> equalSort SizeUniv s2
+          -- Anything else: postpone
+          _        -> synEq s0 (FunSort s1 s2)
+
+      -- check if the given sort @s0@ is a (closed) bottom sort
       -- i.e. @piSort a b == s0@ implies @b == s0@.
-      piSortEqualsBottom s0 a b = do
-        underAbstraction a b $ equalSort s0
-        -- we may have instantiated some metas, so @a@ could reduce
-        a <- reduce a
-        case funSort' a s0 of
-          Just s  -> equalSort s s0
-          Nothing -> addConstraint $ SortCmp CmpEq (funSort a s0) s0
+      isBottomSort :: Bool -> Sort -> Bool
+      isBottomSort propEnabled (Prop (ClosedLevel 0)) = True
+      isBottomSort propEnabled (Type (ClosedLevel 0)) = not propEnabled
+      isBottomSort propEnabled _                      = False
+      -- (NB: Defined but not currently used)
+
+      forceType :: Sort -> m Level
+      forceType (Type l) = return l
+      forceType s = do
+        l <- newLevelMeta
+        equalSort s (Type l)
+        return l
+
+      forceProp :: Sort -> m Level
+      forceProp (Prop l) = return l
+      forceProp s = do
+        l <- newLevelMeta
+        equalSort s (Prop l)
+        return l
+
       impossibleSort s = do
         reportS "impossible" 10
           [ "equalSort: found dummy sort with description:"
           , s
           ]
         __IMPOSSIBLE__
+
+      catchInequalLevel m fail = m `catchError` \case
+        TypeError{} -> fail
+        err         -> throwError err
 
 
 -- -- This should probably represent face maps with a more precise type
@@ -1641,7 +1850,7 @@ equalSort s1 s2 = do
 --   xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
 --   return xs
 
-forallFaceMaps :: MonadConversion m => Term -> (Map.Map Int Bool -> MetaId -> Term -> m a) -> (Substitution -> m a) -> m [a]
+forallFaceMaps :: MonadConversion m => Term -> (Map.Map Int Bool -> Blocker -> Term -> m a) -> (Substitution -> m a) -> m [a]
 forallFaceMaps t kb k = do
   reportSDoc "conv.forall" 20 $
       fsep ["forallFaceMaps"
@@ -1654,7 +1863,7 @@ forallFaceMaps t kb k = do
     return (\b -> if b then io else iz)
   forM as $ \ (ms,ts) -> do
    ifBlockeds ts (kb ms) $ \ _ _ -> do
-    let xs = map (id -*- boolToI) $ Map.toAscList ms
+    let xs = map (second boolToI) $ Map.toAscList ms
     cxt <- getContext
     reportSDoc "conv.forall" 20 $
       fsep ["substContextN"
@@ -1725,13 +1934,13 @@ compareInterval cmp i t u = do
   it <- decomposeInterval' t
   iu <- decomposeInterval' u
   case () of
-    _ | blockedOrMeta tb || blockedOrMeta ub -> do
+    _ | isBlocked tb || isBlocked ub -> do
       -- in case of metas we wouldn't be able to make progress by how we deal with de morgan laws.
       -- (because the constraints generated by decomposition are sufficient but not necessary).
       -- but we could still prune/solve some metas by comparing the terms as atoms.
       -- also if blocked we won't find the terms conclusively unequal(?) so compareAtom
       -- won't report type errors when we should accept.
-      interval <- elInf $ primInterval
+      interval <- primIntervalType
       compareAtom CmpEq (AsTermsOf interval) t u
     _ | otherwise -> do
       x <- leqInterval it iu
@@ -1741,11 +1950,10 @@ compareInterval cmp i t u = do
         if final then typeError $ UnequalTerms cmp t u (AsTermsOf i)
                  else do
                    reportSDoc "tc.conv.interval" 15 $ "Giving up! }"
-                   patternViolation
+                   patternViolation (unblockOnAnyMetaIn (t, u))
  where
-   blockedOrMeta Blocked{} = True
-   blockedOrMeta (NotBlocked _ (MetaV{})) = True
-   blockedOrMeta _ = False
+   isBlocked Blocked{}    = True
+   isBlocked NotBlocked{} = False
 
 
 type Conj = (Map.Map Int (Set.Set Bool),[Term])
@@ -1766,24 +1974,23 @@ leqInterval r q =
 -- ' {r_i | i} ∪ {q_j | j} = {r_i | i} iff
 -- ' {q_j | j} ⊆ {r_i | i}
 leqConj :: MonadConversion m => Conj -> Conj -> m Bool
-leqConj (rs,rst) (qs,qst) = do
-  case toSet qs `Set.isSubsetOf` toSet rs of
-    False -> return False
-    True  -> do
-      interval <- elInf $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
-
+leqConj (rs, rst) (qs, qst) = do
+  if toSet qs `Set.isSubsetOf` toSet rs
+    then do
+      interval <-
+        elSSet $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
       -- we don't want to generate new constraints here because
-      -- 1) in some situations the same constraint would get generated twice.
-      -- 2) unless things are completely accepted we are going to
+      -- 1. in some situations the same constraint would get generated twice.
+      -- 2. unless things are completely accepted we are going to
       --    throw patternViolation in compareInterval.
       let eqT t u = tryConversion (compareAtom CmpEq (AsTermsOf interval) t u)
-
-      let listSubset ts us = and <$> forM ts (\ t ->
-                              or <$> forM us (\ u -> eqT t u)) -- TODO shortcut
+      let listSubset ts us =
+            and <$> forM ts (\t -> or <$> forM us (\u -> eqT t u)) -- TODO shortcut
       listSubset qst rst
+    else
+      return False
   where
-    toSet m = Set.fromList [ (i,b) | (i,bs) <- Map.toList m, b <- Set.toList bs]
-
+    toSet m = Set.fromList [(i, b) | (i, bs) <- Map.toList m, b <- Set.toList bs]
 
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: MonadConversion m => Term -> Type -> Term -> Term -> m ()
@@ -1794,12 +2001,15 @@ compareTermOnFace = compareTermOnFace' compareTerm
 
 compareTermOnFace' :: MonadConversion m => (Comparison -> Type -> Term -> Term -> m ()) -> Comparison -> Term -> Type -> Term -> Term -> m ()
 compareTermOnFace' k cmp phi ty u v = do
+  reportSDoc "tc.conv.face" 40 $
+    text "compareTermOnFace:" <+> pretty phi <+> "|-" <+> pretty u <+> "==" <+> pretty v <+> ":" <+> pretty ty
+
   phi <- reduce phi
   _ <- forallFaceMaps phi postponed
          $ \ alpha -> k cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
   return ()
  where
-  postponed ms i psi = do
+  postponed ms blocker psi = do
     phi <- runNamesT [] $ do
              imin <- cl $ getPrimitiveTerm "primIMin"
              ineg <- cl $ getPrimitiveTerm "primINeg"
@@ -1807,7 +2017,7 @@ compareTermOnFace' k cmp phi ty u v = do
              let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (if b then i else pure ineg <@> i) <@> r)
                           psi (Map.toList ms) -- TODO Andrea: make a view?
              phi
-    addConstraint (ValueCmpOnFace cmp phi ty u v)
+    addConstraint blocker (ValueCmpOnFace cmp phi ty u v)
 
 ---------------------------------------------------------------------------
 -- * Definitions

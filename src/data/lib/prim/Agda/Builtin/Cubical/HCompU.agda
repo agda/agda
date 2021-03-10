@@ -1,4 +1,6 @@
-{-# OPTIONS --cubical --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical --safe --no-sized-types --no-guardedness
+            --no-subtyping #-}
+
 module Agda.Builtin.Cubical.HCompU where
 
 open import Agda.Primitive
@@ -58,14 +60,20 @@ primitive
   prim^unglueU : {la : Level} {φ : I} {T : I → Partial φ (Set la)}
                    {A : Set la [ φ ↦ T i0 ]} →
                    hcomp T (outS A) → outS A
+  -- Needed for transp.
+  primFaceForall : (I → I) → I
 
-transpProof : ∀ {l} → (e : I → Set l) → (φ : I) → (a : Partial φ (e i0)) → (b : e i1 [ φ ↦ (\ o → transp e i0 (a o)) ] ) → fiber (transp e i0) (outS b)
-transpProof e φ a b = f , \ j → comp e (\ i → \ { (φ = i1) → transp (\ j → e (j ∧ i)) (~ i) (a 1=1)
+transpProof : ∀ {l} → (e : I → Set l) → (φ : I) → (a : Partial φ (e i0)) → (b : e i1 [ φ ↦ (\ o → transp (\ i → e i) i0 (a o)) ] ) → fiber (transp (\ i → e i) i0) (outS b)
+transpProof e φ a b = f , \ j → comp (\ i → e i) (\ i →
+                                               \ { (φ = i1) → transp (\ j → e (j ∧ i)) (~ i) (a 1=1)
                                                  ; (j = i0) → transp (\ j → e (j ∧ i)) (~ i) f
                                                  ; (j = i1) → g (~ i) })
                                         f
     where
-      g = fill (\ i → e (~ i)) (\ i → \ { (φ = i1) → transp (\ j → e (j ∧ ~ i)) i (a 1=1); (φ = i0) → transp (\ j → e (~ j ∨ ~ i)) (~ i) (outS b) }) (inS (outS b))
-      f = comp (\ i → e (~ i)) (\ i → \ { (φ = i1) → transp (\ j → e (j ∧ ~ i)) i (a 1=1); (φ = i0) → transp (\ j → e (~ j ∨ ~ i)) (~ i) (outS b) }) (outS b)
+      b' = outS {u = (\ o → transp (\ i → e i) i0 (a o))} b
+      g : (k : I) → e (~ k)
+      g k = fill (\ i → e (~ i)) (\ i → \ { (φ = i1) → transp (\ j → e (j ∧ ~ i)) i (a 1=1)
+                                          ; (φ = i0) → transp (\ j → e (~ j ∨ ~ i)) (~ i) b' }) (inS b') k
+      f = comp (\ i → e (~ i)) (\ i → \ { (φ = i1) → transp (\ j → e (j ∧ ~ i)) i (a 1=1); (φ = i0) → transp (\ j → e (~ j ∨ ~ i)) (~ i) b' }) b'
 
 {-# BUILTIN TRANSPPROOF transpProof #-}

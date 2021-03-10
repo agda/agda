@@ -1,0 +1,4 @@
+NoLetInRecordTele2.agda:5,8-43
+_ @ (p) is not allowed in a telescope here.
+when scope checking the declaration
+  record R {A : Set}{B : A → Set}_ @ (p) : Set

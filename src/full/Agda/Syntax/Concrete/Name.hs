@@ -1,7 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TypeFamilies #-} -- for type equality ~
-
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
 -}
@@ -20,11 +16,15 @@ import GHC.Generics (Generic)
 import System.FilePath
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List1 (List1, pattern (:|), (<|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
@@ -42,7 +42,7 @@ data Name
   = Name -- ^ A (mixfix) identifier.
     { nameRange     :: Range
     , nameInScope   :: NameInScope
-    , nameNameParts :: [NamePart]
+    , nameNameParts :: NameParts
     }
   | NoName -- ^ @_@.
     { nameRange     :: Range
@@ -50,18 +50,20 @@ data Name
     }
   deriving Data
 
+type NameParts = List1 NamePart
+
 -- | An open mixfix identifier is either prefix, infix, or suffix.
 --   That is to say: at least one of its extremities is a @Hole@
 
 isOpenMixfix :: Name -> Bool
-isOpenMixfix n = case n of
-  Name _ _ (x : xs@(_:_)) -> x == Hole || last xs == Hole
-  _                       -> False
+isOpenMixfix = \case
+  Name _ _ (x :| xs@(_:_)) -> x == Hole || last xs == Hole
+  _ -> False
 
 instance Underscore Name where
   underscore = NoName noRange __IMPOSSIBLE__
   isUnderscore NoName{} = True
-  isUnderscore (Name {nameNameParts = [Id x]}) = isUnderscore x
+  isUnderscore (Name {nameNameParts = Id x :| []}) = isUnderscore x
   isUnderscore _ = False
 
 -- | Mixfix identifiers are composed of words and holes,
@@ -125,35 +127,59 @@ instance Underscore QName where
 
 data TopLevelModuleName = TopLevelModuleName
   { moduleNameRange :: Range
-  , moduleNameParts :: [String]
+  , moduleNameParts :: List1 String
   }
-  deriving (Show, Data)
+  deriving (Show, Data, Generic)
 
 instance Eq    TopLevelModuleName where (==)    = (==)    `on` moduleNameParts
 instance Ord   TopLevelModuleName where compare = compare `on` moduleNameParts
 instance Sized TopLevelModuleName where size    = size     .   moduleNameParts
 
 ------------------------------------------------------------------------
+-- * Constructing simple 'Name's.
+------------------------------------------------------------------------
+
+-- | Create an ordinary 'InScope' name.
+simpleName :: RawName -> Name
+simpleName = Name noRange InScope . singleton . Id
+
+-- | Create a binary operator name in scope.
+simpleBinaryOperator :: RawName -> Name
+simpleBinaryOperator s = Name noRange InScope $ Hole :| Id s : Hole : []
+
+-- | Create an ordinary 'InScope' name containing a single 'Hole'.
+simpleHole :: Name
+simpleHole = Name noRange InScope $ singleton Hole
+
+------------------------------------------------------------------------
 -- * Operations on 'Name' and 'NamePart'
 ------------------------------------------------------------------------
+
+-- | Don't use on 'NoName{}'.
+lensNameParts :: Lens' NameParts Name
+lensNameParts f = \case
+  n@Name{} -> f (nameNameParts n) <&> \ ps -> n { nameNameParts = ps }
+  NoName{} -> __IMPOSSIBLE__
 
 nameToRawName :: Name -> RawName
 nameToRawName = prettyShow
 
-nameParts :: Name -> [NamePart]
+nameParts :: Name -> NameParts
 nameParts (Name _ _ ps)    = ps
-nameParts (NoName _ _)     = [Id "_"] -- To not return an empty list
+nameParts (NoName _ _)     = singleton $ Id "_" -- To not return an empty list
 
 nameStringParts :: Name -> [RawName]
-nameStringParts n = [ s | Id s <- nameParts n ]
+nameStringParts n = [ s | Id s <- List1.toList $ nameParts n ]
 
 -- | Parse a string to parts of a concrete name.
 --
 --   Note: @stringNameParts "_" == [Id "_"] == nameParts NoName{}@
 
-stringNameParts :: String -> [NamePart]
-stringNameParts "_" = [Id "_"]   -- NoName
-stringNameParts s = loop s where
+stringNameParts :: String -> NameParts
+stringNameParts ""  = singleton $ Id "_"  -- NoName
+stringNameParts "_" = singleton $ Id "_"  -- NoName
+stringNameParts s = List1.fromList $ loop s
+  where
   loop ""                              = []
   loop ('_':s)                         = Hole : loop s
   loop s | (x, s') <- break (== '_') s = Id (stringToRawName x) : loop s'
@@ -162,8 +188,8 @@ stringNameParts s = loop s where
 class NumHoles a where
   numHoles :: a -> Int
 
-instance NumHoles [NamePart] where
-  numHoles = length . filter (== Hole)
+instance NumHoles NameParts where
+  numHoles = length . List1.filter (== Hole)
 
 instance NumHoles Name where
   numHoles NoName{}         = 0
@@ -174,20 +200,21 @@ instance NumHoles QName where
   numHoles (Qual _ x) = numHoles x
 
 -- | Is the name an operator?
-
+--   Needs at least 2 'NamePart's.
 isOperator :: Name -> Bool
-isOperator (NoName {})     = False
-isOperator (Name _ _ ps)   = length ps > 1
+isOperator = \case
+  Name _ _ (_ :| _ : _) -> True
+  _ -> False
 
 isHole :: NamePart -> Bool
 isHole Hole = True
 isHole _    = False
 
 isPrefix, isPostfix, isInfix, isNonfix :: Name -> Bool
-isPrefix  x = not (isHole (head xs)) &&      isHole (last xs)  where xs = nameParts x
-isPostfix x =      isHole (head xs)  && not (isHole (last xs)) where xs = nameParts x
-isInfix   x =      isHole (head xs)  &&      isHole (last xs)  where xs = nameParts x
-isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = nameParts x
+isPrefix  x = not (isHole (List1.head xs)) &&      isHole (List1.last xs)  where xs = nameParts x
+isPostfix x =      isHole (List1.head xs)  && not (isHole (List1.last xs)) where xs = nameParts x
+isInfix   x =      isHole (List1.head xs)  &&      isHole (List1.last xs)  where xs = nameParts x
+isNonfix  x = not (isHole (List1.head xs)) && not (isHole (List1.last xs)) where xs = nameParts x
 
 
 ------------------------------------------------------------------------
@@ -218,7 +245,7 @@ instance LensInScope NameInScope where
 instance LensInScope Name where
   lensInScope f = \case
     n@Name{ nameInScope = nis } -> (\nis' -> n { nameInScope = nis' }) <$> f nis
-    n@NoName{} -> const n <$> f InScope
+    n@NoName{} -> n <$ f InScope
 
 instance LensInScope QName where
   lensInScope f = \case
@@ -229,42 +256,83 @@ instance LensInScope QName where
 -- * Generating fresh names
 ------------------------------------------------------------------------
 
-nextStr :: String -> String
-nextStr s = case suffixView s of
-  (s0, suf) -> addSuffix s0 (nextSuffix suf)
+-- | Method by which to generate fresh unshadowed names.
+data FreshNameMode
+  = UnicodeSubscript
+  -- ^ Append an integer Unicode subscript: x, x₁, x₂, …
+  | AsciiCounter
+  -- ^ Append an integer ASCII counter: x, x1, x2, …
+
+  -- Note that @Agda.Utils.Suffix@ supports an additional style, @Prime@, but
+  -- we currently only encounter it when extending an existing name of that
+  -- format, (x', x'', …), not for an initially-generated permutation. There's
+  -- no reason we couldn't, except that we currently choose between
+  -- subscript/counter styles based on the --no-unicode mode rather than any
+  -- finer-grained option.
+  --   | PrimeTickCount
+  --   ^ Append an ASCII prime/apostrophe: x, x', x'', …
+
+nextRawName :: FreshNameMode -> RawName -> RawName
+nextRawName freshNameMode s = addSuffix root (maybe initialSuffix nextSuffix suffix)
+  where
+  (root, suffix) = suffixView s
+  initialSuffix = case freshNameMode of
+    UnicodeSubscript -> Subscript 1
+    AsciiCounter -> Index 1
 
 -- | Get the next version of the concrete name. For instance,
 --   @nextName "x" = "x₁"@.  The name must not be a 'NoName'.
-nextName :: Name -> Name
-nextName NoName{} = __IMPOSSIBLE__
-nextName x@Name{ nameNameParts = ps } = x { nameInScope = NotInScope, nameNameParts = nextSuf ps }
+nextName :: FreshNameMode -> Name -> Name
+nextName freshNameMode x@Name{} = setNotInScope $ over (lensNameParts . lastIdPart) (nextRawName freshNameMode) x
+nextName             _ NoName{} = __IMPOSSIBLE__
+
+-- | Zoom on the last non-hole in a name.
+lastIdPart :: Lens' RawName NameParts
+lastIdPart f = loop
   where
-    nextSuf [Id s]       = [Id $ nextStr s]
-    nextSuf [Id s, Hole] = [Id $ nextStr s, Hole]
-    nextSuf (p : ps)     = p : nextSuf ps
-    nextSuf []           = __IMPOSSIBLE__
+  loop = \case
+    Id s :| []     -> f s <&> \ s -> Id s :| []
+    Id s :| [Hole] -> f s <&> \ s -> Id s :| [Hole]
+    p1 :| p2 : ps  -> (p1 <|) <$> loop (p2 :| ps)
+    Hole :| []     -> __IMPOSSIBLE__
 
 -- | Get the first version of the concrete name that does not satisfy
 --   the given predicate.
-firstNonTakenName :: (Name -> Bool) -> Name -> Name
-firstNonTakenName taken x =
+firstNonTakenName :: FreshNameMode -> (Name -> Bool) -> Name -> Name
+firstNonTakenName freshNameMode taken x =
   if taken x
-  then firstNonTakenName taken (nextName x)
+  then firstNonTakenName freshNameMode taken (nextName freshNameMode x)
   else x
 
+-- | Lens for accessing and modifying the suffix of a name.
+--   The suffix of a @NoName@ is always @Nothing@, and should not be
+--   changed.
+nameSuffix :: Lens' (Maybe Suffix) Name
+nameSuffix (f :: Maybe Suffix -> f (Maybe Suffix)) = \case
+
+  n@NoName{} -> f Nothing <&> \case
+    Nothing -> n
+    Just {} -> __IMPOSSIBLE__
+
+  n@Name{} -> lensNameParts (lastIdPart idSuf) n
+    where
+    idSuf s =
+      let (root, suffix) = suffixView s
+      in maybe root (addSuffix root) <$> (f suffix)
+
+-- | Split a name into a base name plus a suffix.
+nameSuffixView :: Name -> (Maybe Suffix, Name)
+nameSuffixView = nameSuffix (,Nothing)
+
+-- | Replaces the suffix of a name. Unless the suffix is @Nothing@,
+--   the name should not be @NoName@.
+setNameSuffix :: Maybe Suffix -> Name -> Name
+setNameSuffix = set nameSuffix
+
 -- | Get a raw version of the name with all suffixes removed. For
---   instance, @nameRoot "x₁₂₃" = "x"@. The name must not be a
---   'NoName'.
+--   instance, @nameRoot "x₁₂₃" = "x"@.
 nameRoot :: Name -> RawName
-nameRoot NoName{} = __IMPOSSIBLE__
-nameRoot x@Name{ nameNameParts = ps } =
-    nameToRawName $ x{ nameNameParts = root ps }
-  where
-    root [Id s] = [Id $ strRoot s]
-    root [Id s, Hole] = [Id $ strRoot s , Hole]
-    root (p : ps) = p : root ps
-    root [] = __IMPOSSIBLE__
-    strRoot = fst . suffixView
+nameRoot x = nameToRawName $ snd $ nameSuffixView x
 
 sameRoot :: Name -> Name -> Bool
 sameRoot = (==) `on` nameRoot
@@ -272,6 +340,11 @@ sameRoot = (==) `on` nameRoot
 ------------------------------------------------------------------------
 -- * Operations on qualified names
 ------------------------------------------------------------------------
+
+-- | Lens for the unqualified part of a QName
+lensQNameName :: Lens' Name QName
+lensQNameName f (QName n)  = QName <$> f n
+lensQNameName f (Qual m n) = Qual m <$> lensQNameName f n
 
 -- | @qualify A.B x == A.B.x@
 qualify :: QName -> Name -> QName
@@ -288,9 +361,9 @@ unqualify q = unqualify' q `withRangeOf` q
   unqualify' (Qual _ x) = unqualify' x
 
 -- | @qnameParts A.B.x = [A, B, x]@
-qnameParts :: QName -> [Name]
-qnameParts (Qual x q) = x : qnameParts q
-qnameParts (QName x)  = [x]
+qnameParts :: QName -> List1 Name
+qnameParts (Qual x q) = x <| qnameParts q
+qnameParts (QName x)  = singleton x
 
 -- | Is the name (un)qualified?
 
@@ -310,27 +383,15 @@ isUnqualified (QName n) = Just n
 -- name is assumed to represent a top-level module name.
 
 toTopLevelModuleName :: QName -> TopLevelModuleName
-toTopLevelModuleName q = TopLevelModuleName (getRange q) $ map prettyShow $ qnameParts q
-
--- UNUSED
--- -- | Turns a top level module into a qualified name with 'noRange'.
-
--- fromTopLevelModuleName :: TopLevelModuleName -> QName
--- fromTopLevelModuleName (TopLevelModuleName _ [])     = __IMPOSSIBLE__
--- fromTopLevelModuleName (TopLevelModuleName _ (x:xs)) = loop x xs
---   where
---   loop x []       = QName (mk x)
---   loop x (y : ys) = Qual  (mk x) $ loop y ys
---   mk :: String -> Name
---   mk x = Name noRange [Id x]
+toTopLevelModuleName q = TopLevelModuleName (getRange q) $
+  fmap nameToRawName $ qnameParts q
 
 -- | Turns a top-level module name into a file name with the given
 -- suffix.
 
 moduleNameToFileName :: TopLevelModuleName -> String -> FilePath
-moduleNameToFileName (TopLevelModuleName _ []) ext = __IMPOSSIBLE__
 moduleNameToFileName (TopLevelModuleName _ ms) ext =
-  joinPath (init ms) </> last ms <.> ext
+  joinPath (List1.init ms) </> List1.last ms <.> ext
 
 -- | Finds the current project's \"root\" directory, given a project
 -- file and the corresponding top-level module name.
@@ -343,9 +404,7 @@ moduleNameToFileName (TopLevelModuleName _ ms) ext =
 projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
 projectRoot file (TopLevelModuleName _ m) =
   mkAbsolute $
-  foldr (.) id (replicate (length m - 1) takeDirectory) $
-  takeDirectory $
-  filePath file
+    iterate takeDirectory (filePath file) !! length m
 
 ------------------------------------------------------------------------
 -- * No name stuff
@@ -372,11 +431,11 @@ instance IsNoName ByteString where
   isNoName = isUnderscore
 
 instance IsNoName Name where
-  isNoName (NoName _ _)      = True
-  isNoName (Name _ _ [Hole]) = True   -- TODO: Track down where these come from
-  isNoName (Name _ _ [])     = True
-  isNoName (Name _ _ [Id x]) = isNoName x
-  isNoName _                 = False
+  isNoName = \case
+    NoName{}              -> True
+    Name _ _ (Hole :| []) -> True
+    Name _ _ (Id x :| []) -> isNoName x
+    _ -> False
 
 instance IsNoName QName where
   isNoName (QName x) = isNoName x
@@ -391,29 +450,16 @@ instance IsNoName a => IsNoName (WithOrigin a) where
 -- * Showing names
 ------------------------------------------------------------------------
 
--- deriving instance Show Name
--- deriving instance Show NamePart
--- deriving instance Show QName
-
--- TODO: 'Show' should output Haskell-parseable representations.
--- The following instances are deprecated, and Pretty should be used
--- instead.  Later, simply derive Show for these types:
-
-instance Show Name where
-  show = prettyShow
-
-instance Show NamePart where
-  show = prettyShow
-
-instance Show QName where
-  show = prettyShow
+deriving instance Show Name
+deriving instance Show NamePart
+deriving instance Show QName
 
 ------------------------------------------------------------------------
 -- * Printing names
 ------------------------------------------------------------------------
 
 instance Pretty Name where
-  pretty (Name _ _ xs)    = hcat $ map pretty xs
+  pretty (Name _ _ xs)    = hcat $ fmap pretty xs
   pretty (NoName _ _)     = "_"
 
 instance Pretty NamePart where
@@ -427,15 +473,15 @@ instance Pretty QName where
   pretty (QName x)  = pretty x
 
 instance Pretty TopLevelModuleName where
-  pretty (TopLevelModuleName _ ms) = text $ List.intercalate "." ms
+  pretty (TopLevelModuleName _ ms) = text $ List.intercalate "." $ List1.toList ms
 
 ------------------------------------------------------------------------
 -- * Range instances
 ------------------------------------------------------------------------
 
 instance HasRange Name where
-    getRange (Name r _ ps)    = r
-    getRange (NoName r _)     = r
+    getRange (Name r _ _ps) = r
+    getRange (NoName r _)   = r
 
 instance HasRange QName where
     getRange (QName  x) = getRange x
@@ -470,11 +516,11 @@ instance KillRange TopLevelModuleName where
 -- * NFData instances
 ------------------------------------------------------------------------
 
--- | Ranges are not forced.
-
 instance NFData NameInScope where
   rnf InScope    = ()
   rnf NotInScope = ()
+
+-- | Ranges are not forced.
 
 instance NFData Name where
   rnf (Name _ nis ns) = rnf nis `seq` rnf ns
@@ -487,3 +533,5 @@ instance NFData NamePart where
 instance NFData QName where
   rnf (Qual a b) = rnf a `seq` rnf b
   rnf (QName a)  = rnf a
+
+instance NFData TopLevelModuleName

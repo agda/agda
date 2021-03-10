@@ -2,6 +2,7 @@
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
 import Control.Monad
+import Control.Monad.Except
 
 import Data.Maybe
 
@@ -41,13 +42,21 @@ useNamesFromPattern ps tel = telFromList (zipWith ren ps telList ++ telRemaining
         -- is significant for implicit insertion.
         A.VarP A.BindName{unBind = x}
           | not (isNoName x)
-          , visible dom || (getOrigin ai == UserWritten && nm == Nothing) ->
+          , visible dom || (getOrigin ai == UserWritten && isNothing nm) ->
           dom{ unDom = (nameToArgName x, a) }
         A.AbsurdP{} | visible dom -> dom{ unDom = (stringToArgName "()", a) }
         A.PatternSynP{} -> __IMPOSSIBLE__  -- ensure there are no syns left
         -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
         _ | visible dom && isNoName y -> dom{ unDom = (stringToArgName "x", a) }
           | otherwise                  -> dom
+
+useNamesFromProblemEqs
+  :: forall m. PureTCM m
+  => [ProblemEq] -> Telescope -> m Telescope
+useNamesFromProblemEqs eqs tel = addContext tel $ do
+  names <- fst . getUserVariableNames tel . patternVariables <$> getLeftoverPatterns eqs
+  let argNames = map (fmap nameToArgName) names
+  return $ renameTel argNames tel
 
 useOriginFrom :: (LensOrigin a, LensOrigin b) => [a] -> [b] -> [a]
 useOriginFrom = zipWith $ \x y -> setOrigin (getOrigin y) x
@@ -74,7 +83,9 @@ noProblemRest (Problem _ rp _) = null rp
 --   @
 --      lhsTel        = [A : Set, m : Maybe A]
 --      lhsOutPat     = ["A", "m"]
---      lhsProblem    = Problem ["_", "just a"] [] [] []
+--      lhsProblem    = Problem ["A" = _, "just a" = "a"]
+--                              ["_", "just a"]
+--                              ["just b"] []
 --      lhsTarget     = "Case m Bool (Maybe A -> Bool)"
 --   @
 initLHSState
@@ -92,7 +103,9 @@ initLHSState delta eqs ps a ret = do
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
-updateProblemRest :: LHSState a -> TCM (LHSState a)
+updateProblemRest
+  :: forall m a. (PureTCM m, MonadError TCErr m, MonadTrace m, MonadFresh NameId m)
+  => LHSState a -> m (LHSState a)
 updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
   ps <- addContext tel0 $ insertImplicitPatternsT ExpandLast ps $ unArg a
   reportSDoc "tc.lhs.imp" 20 $
@@ -101,7 +114,7 @@ updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
   let m = length $ takeWhile (isNothing . A.isProjP) ps
   (TelV gamma b, boundary) <- telViewUpToPathBoundaryP m $ unArg a
   forM_ (zip ps (telToList gamma)) $ \(p, a) ->
-    unless (sameHiding p a) $ typeError WrongHidingInLHS
+    unless (sameHiding p a) $ setCurrentRange p $ typeError WrongHidingInLHS
   let tel1      = useNamesFromPattern ps gamma
       n         = size tel1
       (ps1,ps2) = splitAt n ps

@@ -7,7 +7,6 @@ import Prelude hiding (null, map)
 
 import Text.Show.Functions () -- instance only
 
-import Data.Foldable (Foldable(foldMap))
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -52,7 +51,8 @@ size = getSum . foldMap (Sum . length) . bag
 -- | @(bag ! a)@ finds all elements equal to @a@.  O(log n).
 --   Total function, returns @[]@ if none are.
 (!) :: Ord a => Bag a -> a -> [a]
-Bag b ! a = Map.findWithDefault [] a b
+(!) (Bag b) a = Map.findWithDefault [] a b
+  -- Note: not defined infix because of BangPatterns.
 
 -- | O(log n).
 member :: Ord a => a -> Bag a -> Bool

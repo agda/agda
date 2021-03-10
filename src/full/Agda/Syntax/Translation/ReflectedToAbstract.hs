@@ -1,12 +1,17 @@
-{-# LANGUAGE UndecidableInstances #-}
-
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
 module Agda.Syntax.Translation.ReflectedToAbstract where
 
+import Control.Arrow ( (***) )
+import Control.Monad.Except
 import Control.Monad.Reader
 
-import Agda.Syntax.Fixity
+import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Text (Text)
+import qualified Data.Text as Text
+
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Info
@@ -16,83 +21,126 @@ import Agda.Syntax.Abstract.Pattern
 import Agda.Syntax.Reflected as R
 import Agda.Syntax.Internal (Dom,Dom'(..))
 
+import Agda.Interaction.Options (optUseUnicode, UnicodeOrAscii(..))
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
 
-import Agda.Utils.Except
+import Agda.Utils.Impossible
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null
+import Agda.Utils.Pretty
 import Agda.Utils.Functor
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
-type Names = [Name]
+type Vars = [(Name,R.Type)]
 
 type MonadReflectedToAbstract m =
-  ( MonadReader Names m
+  ( MonadReader Vars m
   , MonadFresh NameId m
   , MonadError TCErr m
   , MonadTCEnv m
   , ReadTCState m
   , HasOptions m
+  , HasBuiltins m
   , HasConstInfo m
   )
 
 -- | Adds a new unique name to the current context.
+--   NOTE: See @chooseName@ in @Agda.Syntax.Translation.AbstractToConcrete@ for similar logic.
+--   NOTE: See @freshConcreteName@ in @Agda.Syntax.Scope.Monad@ also for similar logic.
 withName :: MonadReflectedToAbstract m => String -> (Name -> m a) -> m a
-withName s f = do
+withName s = withVar s R.Unknown
+
+withVar :: MonadReflectedToAbstract m => String -> R.Type -> (Name -> m a) -> m a
+withVar s t f = do
   name <- freshName_ s
-  ctx  <- asks $ map nameConcrete
-  let name' = head $ filter (notTaken ctx) $ iterate nextName name
-  local (name:) $ f name'
+  ctx  <- asks $ map $ nameConcrete . fst
+  glyphMode <- optUseUnicode <$> M.pragmaOptions
+  let freshNameMode = case glyphMode of
+        UnicodeOk -> A.UnicodeSubscript
+        AsciiOnly -> A.AsciiCounter
+  let name' = head $ filter (notTaken ctx) $ iterate (nextName freshNameMode) name
+  local ((name,t):) $ f name'
   where
     notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
--- | Returns the name of the variable with the given de Bruijn index.
-askName :: MonadReflectedToAbstract m => Int -> m (Maybe Name)
-askName i = reader (!!! i)
+withNames :: MonadReflectedToAbstract m => [String] -> ([Name] -> m a) -> m a
+withNames ss = withVars $ zip ss $ repeat R.Unknown
 
-class ToAbstract r a | r -> a where
-  toAbstract :: MonadReflectedToAbstract m => r -> m a
+withVars :: MonadReflectedToAbstract m => [(String, R.Type)] -> ([Name] -> m a) -> m a
+withVars ss f = case ss of
+  []     -> f []
+  ((s,t):ss) -> withVar s t $ \n -> withVars ss $ \ns -> f (n:ns)
+
+-- | Returns the name and type of the variable with the given de Bruijn index.
+askVar :: MonadReflectedToAbstract m => Int -> m (Maybe (Name,R.Type))
+askVar i = reader (!!! i)
+
+askName :: MonadReflectedToAbstract m => Int -> m (Maybe Name)
+askName i = fmap fst <$> askVar i
+
+class ToAbstract r where
+  type AbsOfRef r
+  toAbstract :: MonadReflectedToAbstract m => r -> m (AbsOfRef r)
+
+  default toAbstract
+    :: (Traversable t, ToAbstract s, t s ~ r, t (AbsOfRef s) ~ (AbsOfRef r))
+    => MonadReflectedToAbstract m => r -> m (AbsOfRef r)
+  toAbstract = traverse toAbstract
 
 -- | Translate reflected syntax to abstract, using the names from the current typechecking context.
 toAbstract_ ::
-  (ToAbstract r a
+  (ToAbstract r
   , MonadFresh NameId m
   , MonadError TCErr m
   , MonadTCEnv m
   , ReadTCState m
   , HasOptions m
+  , HasBuiltins m
   , HasConstInfo m
-  ) => r -> m a
+  ) => r -> m (AbsOfRef r)
 toAbstract_ = withShowAllArguments . toAbstractWithoutImplicit
 
 -- | Drop implicit arguments unless --show-implicit is on.
 toAbstractWithoutImplicit ::
-  (ToAbstract r a
+  (ToAbstract r
   , MonadFresh NameId m
   , MonadError TCErr m
   , MonadTCEnv m
   , ReadTCState m
   , HasOptions m
+  , HasBuiltins m
   , HasConstInfo m
-  ) => r -> m a
-toAbstractWithoutImplicit x = runReaderT (toAbstract x) =<< getContextNames
+  ) => r -> m (AbsOfRef r)
+toAbstractWithoutImplicit x = do
+  xs <- getContextNames
+  let ctx = zip xs $ repeat R.Unknown
+  runReaderT (toAbstract x) ctx
 
-instance ToAbstract r a => ToAbstract (Named name r) (Named name a) where
-  toAbstract = traverse toAbstract
+instance ToAbstract r => ToAbstract (Named name r) where
+  type AbsOfRef (Named name r) = Named name (AbsOfRef r)
 
-instance ToAbstract r a => ToAbstract (Arg r) (NamedArg a) where
+instance ToAbstract r => ToAbstract (Arg r) where
+  type AbsOfRef (Arg r) = NamedArg (AbsOfRef r)
   toAbstract (Arg i x) = Arg i <$> toAbstract (unnamed x)
 
-instance ToAbstract [Arg Term] [NamedArg Expr] where
-  toAbstract = traverse toAbstract
+instance ToAbstract r => ToAbstract [Arg r] where
+  type AbsOfRef [Arg r] = [NamedArg (AbsOfRef r)]
 
-instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
+-- instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
+instance (ToAbstract r, AbsOfRef r ~ Expr) => ToAbstract (Dom r, Name) where
+  type AbsOfRef (Dom r, Name) = A.TypedBinding
   toAbstract (Dom{domInfo = i,unDom = x, domTactic = tac}, name) = do
     dom <- toAbstract x
-    return $ mkTBind noRange [unnamedArg i $ mkBinder_ name] dom
+    return $ mkTBind noRange (singleton $ unnamedArg i $ mkBinder_ name) dom
 
-instance ToAbstract (Expr, Elim) Expr where
+instance ToAbstract (Expr, Elim) where
+  type AbsOfRef (Expr, Elim) = Expr
   toAbstract (f, Apply arg) = do
     arg     <- toAbstract arg
     showImp <- showImplicitArguments
@@ -100,26 +148,25 @@ instance ToAbstract (Expr, Elim) Expr where
              then App (setOrigin Reflected defaultAppInfo_) f arg
              else f
 
-instance ToAbstract (Expr, Elims) Expr where
+instance ToAbstract (Expr, Elims) where
+  type AbsOfRef (Expr, Elims) = Expr
   toAbstract (f, elims) = foldM (curry toAbstract) f elims
 
-instance ToAbstract r a => ToAbstract (R.Abs r) (a, Name) where
+instance ToAbstract r => ToAbstract (R.Abs r) where
+  type AbsOfRef (R.Abs r) = (AbsOfRef r, Name)
   toAbstract (Abs s x) = withName s' $ \name -> (,) <$> toAbstract x <*> return name
     where s' = if (isNoName s) then "z" else s -- TODO: only do this when var is free
 
-instance ToAbstract Literal Expr where
-  toAbstract l = return (A.Lit l)
+instance ToAbstract Literal where
+  type AbsOfRef Literal = Expr
+  toAbstract l = return $ A.Lit empty l
 
-instance ToAbstract Term Expr where
-  toAbstract t = case t of
+instance ToAbstract Term where
+  type AbsOfRef Term = Expr
+  toAbstract = \case
     R.Var i es -> do
-      mname <- askName i
-      case mname of
-        Nothing -> do
-          cxt   <- getContextTelescope
-          names <- asks $ drop (size cxt) . reverse
-          withShowAllArguments' False $ typeError $ DeBruijnIndexOutOfScope i cxt names
-        Just name -> toAbstract (A.Var name, es)
+      name <- mkVarName i
+      toAbstract (A.Var name, es)
     R.Con c es -> toAbstract (A.Con (unambiguous $ killRange c), es)
     R.Def f es -> do
       af <- mkDef (killRange f)
@@ -134,12 +181,12 @@ instance ToAbstract Term Expr where
       let qname   = qualify m name
           cname   = nameConcrete name
           defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
-      cs <- toAbstract $ map (QNamed qname) cs
+      cs <- toAbstract $ fmap (QNamed qname) cs
       toAbstract (A.ExtendedLam exprNoRange defInfo qname cs, es)
     R.Pi a b   -> do
       (b, name) <- toAbstract b
       a         <- toAbstract (a, name)
-      return $ A.Pi exprNoRange [a] b
+      return $ A.Pi exprNoRange (singleton a) b
     R.Sort s   -> toAbstract s
     R.Lit l    -> toAbstract l
     R.Meta x es    -> toAbstract (A.Underscore info, es)
@@ -152,47 +199,95 @@ mkDef f =
       (return $ A.Macro f)
       (return $ A.Def f)
 
-mkSet :: Expr -> Expr
-mkSet e = App (setOrigin Reflected defaultAppInfo_) (A.Set exprNoRange 0) $ defaultNamedArg e
+mkApp :: Expr -> Expr -> Expr
+mkApp e1 e2 = App (setOrigin Reflected defaultAppInfo_) e1 $ defaultNamedArg e2
 
-instance ToAbstract Sort Expr where
-  toAbstract (SetS x) = mkSet <$> toAbstract x
-  toAbstract (LitS x) = return $ A.Set exprNoRange x
-  toAbstract UnknownS = return $ mkSet $ Underscore emptyMetaInfo
 
-instance ToAbstract R.Pattern (Names, A.Pattern) where
+mkVar :: MonadReflectedToAbstract m => Int -> m (Name, R.Type)
+mkVar i = ifJustM (askVar i) return $ do
+  cxt   <- getContextTelescope
+  names <- asks $ drop (size cxt) . reverse . map fst
+  withShowAllArguments' False $ typeError $ DeBruijnIndexOutOfScope i cxt names
+
+mkVarName :: MonadReflectedToAbstract m => Int -> m Name
+mkVarName i = fst <$> mkVar i
+
+annotatePattern :: MonadReflectedToAbstract m => Int -> R.Type -> A.Pattern -> m A.Pattern
+annotatePattern _ R.Unknown p = return p
+annotatePattern i t p = local (drop $ i + 1) $ do
+  t <- toAbstract t  -- go into the right context for translating the type
+  return $ A.AnnP patNoRange t p
+
+instance ToAbstract Sort where
+  type AbsOfRef Sort = Expr
+  toAbstract s = do
+    setName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
+    case s of
+      SetS x -> mkApp (A.Def setName) <$> toAbstract x
+      LitS x -> return $ A.Def' setName $ A.Suffix x
+      UnknownS -> return $ mkApp (A.Def setName) $ Underscore emptyMetaInfo
+
+instance ToAbstract R.Pattern where
+  type AbsOfRef R.Pattern = A.Pattern
   toAbstract pat = case pat of
     R.ConP c args -> do
-      (names, args) <- toAbstractPats args
-      return (names, A.ConP (ConPatInfo ConOCon patNoRange ConPatEager) (unambiguous $ killRange c) args)
-    R.DotP    -> return ([], A.WildP patNoRange)
-    R.VarP s | isNoName s -> withName "z" $ \ name -> return ([name], A.VarP $ mkBindName name)
-        -- Ulf, 2016-08-09: Also bind noNames (#2129). This to make the
-        -- behaviour consistent with lambda and pi.
-        -- return ([], A.WildP patNoRange)
-    R.VarP s  -> withName s $ \ name -> return ([name], A.VarP $ mkBindName name)
-    R.LitP l  -> return ([], A.LitP l)
-    R.AbsurdP -> return ([], A.AbsurdP patNoRange)
-    R.ProjP d -> return ([], A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d)
+      args <- toAbstract args
+      return $ A.ConP (ConPatInfo ConOCon patNoRange ConPatEager) (unambiguous $ killRange c) args
+    R.DotP t -> A.DotP patNoRange <$> toAbstract t
+    R.VarP i -> do
+      (x, t) <- mkVar i
+      annotatePattern i t $ A.VarP $ mkBindName x
+    R.LitP l  -> return $ A.LitP patNoRange l
+    R.AbsurdP i -> do
+      (_, t) <- mkVar i
+      annotatePattern i t $ A.AbsurdP patNoRange
+    R.ProjP d -> return $ A.ProjP patNoRange ProjSystem $ unambiguous $ killRange d
 
-toAbstractPats :: MonadReflectedToAbstract m => [Arg R.Pattern] -> m (Names, [NamedArg A.Pattern])
-toAbstractPats pats = case pats of
-    []   -> return ([], [])
-    p:ps -> do
-      (names,  p)  <- (distributeF . fmap distributeF) <$> toAbstract p
-      (namess, ps) <- local (names++) $ toAbstractPats ps
-      return (namess++names, p:ps)
+instance ToAbstract (QNamed R.Clause) where
+  type AbsOfRef (QNamed R.Clause) = A.Clause
 
-instance ToAbstract (QNamed R.Clause) A.Clause where
-  toAbstract (QNamed name (R.Clause pats rhs)) = do
-    (names, pats) <- toAbstractPats pats
-    rhs           <- local (names++) $ toAbstract rhs
-    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats
+  toAbstract (QNamed name (R.Clause tel pats rhs)) = withVars (map (Text.unpack *** unArg) tel) $ \_ -> do
+    checkClauseTelescopeBindings tel pats
+    pats <- toAbstract pats
+    rhs  <- toAbstract rhs
+    let lhs = spineToLhs $ SpineLHS empty name pats
     return $ A.Clause lhs [] (RHS rhs Nothing) noWhereDecls False
-  toAbstract (QNamed name (R.AbsurdClause pats)) = do
-    (_, pats) <- toAbstractPats pats
-    let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats
+  toAbstract (QNamed name (R.AbsurdClause tel pats)) = withVars (map (Text.unpack *** unArg) tel) $ \_ -> do
+    checkClauseTelescopeBindings tel pats
+    pats <- toAbstract pats
+    let lhs = spineToLhs $ SpineLHS empty name pats
     return $ A.Clause lhs [] AbsurdRHS noWhereDecls False
 
-instance ToAbstract [QNamed R.Clause] [A.Clause] where
+instance ToAbstract [QNamed R.Clause] where
+  type AbsOfRef [QNamed R.Clause] = [A.Clause]
   toAbstract = traverse toAbstract
+
+instance ToAbstract (List1 (QNamed R.Clause)) where
+  type AbsOfRef (List1 (QNamed R.Clause)) = List1 A.Clause
+  toAbstract = traverse toAbstract
+
+-- | Check that all variables in the telescope are bound in the left-hand side. Since we check the
+--   telescope by attaching type annotations to the pattern variables there needs to be somewhere to
+--   put the annotation. Also, since the lhs is where the variables are actually bound, missing a
+--   binding for a variable that's used later in the telescope causes unbound variable panic
+--   (see #5044).
+checkClauseTelescopeBindings :: MonadReflectedToAbstract m => [(Text, Arg R.Type)] -> [Arg R.Pattern] -> m ()
+checkClauseTelescopeBindings tel pats =
+  case reverse [ x | ((x, _), i) <- zip (reverse tel) [0..], not $ Set.member i bs ] of
+    [] -> return ()
+    xs -> genericDocError $ ("Missing bindings for telescope variable" <> s) <?>
+                              (fsep (punctuate ", " $ map (text . Text.unpack) xs) <> ".") $$
+                             "All variables in the clause telescope must be bound in the left-hand side."
+      where s | length xs == 1 = empty
+              | otherwise      = "s"
+  where
+    bs = boundVars pats
+
+    boundVars = Set.unions . map (bound . unArg)
+    bound (R.VarP i)    = Set.singleton i
+    bound (R.ConP _ ps) = boundVars ps
+    bound R.DotP{}      = Set.empty
+    bound R.LitP{}      = Set.empty
+    bound (R.AbsurdP i) = Set.singleton i
+    bound R.ProjP{}     = Set.empty
+

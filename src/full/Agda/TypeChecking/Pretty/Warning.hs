@@ -3,60 +3,59 @@ module Agda.TypeChecking.Pretty.Warning where
 
 import Prelude hiding ( null )
 
+import Control.Monad ( guard )
+
+-- Control.Monad.Fail import is redundant since GHC 8.8.1
+import Control.Monad.Fail ( MonadFail )
+
 import Data.Char ( toLower )
 import Data.Function
+import Data.Maybe
+
 import qualified Data.Set as Set
+import Data.Set (Set)
+
 import qualified Data.List as List
+import qualified Data.Text as T
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State ( getScope )
+import Agda.TypeChecking.Monad ( localTCState )
 import Agda.TypeChecking.Positivity () --instance only
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Pretty.Call
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Constraint (prettyInterestingConstraints, interestingConstraint)
+import Agda.TypeChecking.Warnings (MonadWarning, isUnsolvedWarning, onlyShowIfUnsolved, classifyWarning, WhichWarnings(..), warning_)
+import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 
+import Agda.Syntax.Common ( ImportedName'(..), fromImportedName, partitionImportedNames )
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Scope.Base ( concreteNamesInScope )
+import Agda.Syntax.Scope.Base ( concreteNamesInScope, NameOrModule(..) )
 import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract
 
-import {-# SOURCE #-} Agda.Interaction.Imports
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.Lens
 import Agda.Utils.List ( editDistance )
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
+import Agda.Utils.Pretty ( Pretty, prettyShow )
 import qualified Agda.Utils.Pretty as P
 
 instance PrettyTCM TCWarning where
-  prettyTCM = return . tcWarningPrintedWarning
+  prettyTCM w@(TCWarning loc _ _ _ _) = do
+    reportSLn "warning" 2 $ "Warning raised at " ++ prettyShow loc
+    pure $ tcWarningPrintedWarning w
 
-instance PrettyTCM Warning where
-  prettyTCM = prettyWarning
-
-prettyConstraint :: MonadPretty m => ProblemConstraint -> m Doc
-prettyConstraint c = f (locallyTCState stInstantiateBlocking (const True) $ prettyTCM c)
-  where
-    r   = getRange c
-    f :: MonadPretty m => m Doc -> m Doc
-    f d = if null $ P.pretty r
-          then d
-          else d $$ nest 4 ("[ at" <+> prettyTCM r <+> "]")
-
-interestingConstraint :: ProblemConstraint -> Bool
-interestingConstraint pc = go $ clValue (theConstraint pc)
-  where
-    go UnBlock{}     = False
-    go (Guarded c _) = go c
-    go _             = True
-
-{-# SPECIALIZE prettyWarning :: Warning -> TCM Doc #-}
 prettyWarning :: MonadPretty m => Warning -> m Doc
-prettyWarning wng = case wng of
+prettyWarning = \case
 
     UnsolvedMetaVariables ms  ->
       fsep ( pwords "Unsolved metas at the following locations:" )
@@ -66,21 +65,23 @@ prettyWarning wng = case wng of
       fsep ( pwords "Unsolved interaction metas at the following locations:" )
       $$ nest 2 (vcat $ map prettyTCM is)
 
-    UnsolvedConstraints cs -> ifNull (filter interestingConstraint cs)
-      {-then-} (fsep $ pwords "Unsolved constraints")  -- #4065: keep minimal warning text
-      {-else-} $ \ cs' -> vcat
-        [ fsep $ pwords "Failed to solve the following constraints:"
-        , nest 2 $ P.vcat . List.nub <$> mapM prettyConstraint cs'
-        ]
+    UnsolvedConstraints cs -> do
+      pcs <- prettyInterestingConstraints cs
+      if null pcs
+        then fsep $ pwords "Unsolved constraints"  -- #4065: keep minimal warning text
+        else vcat
+          [ fsep $ pwords "Failed to solve the following constraints:"
+          , nest 2 $ return $ P.vcat $ List.nub pcs
+          ]
 
     TerminationIssue because -> do
       dropTopLevel <- topLevelModuleDropper
       fwords "Termination checking failed for the following functions:"
-        $$ (nest 2 $ fsep $ punctuate comma $
+        $$ nest 2 (fsep $ punctuate comma $
              map (pretty . dropTopLevel) $
                concatMap termErrFunctions because)
         $$ fwords "Problematic calls:"
-        $$ (nest 2 $ fmap (P.vcat . List.nub) $
+        $$ nest 2 (fmap (P.vcat . List.nub) $
               mapM prettyTCM $ List.sortBy (compare `on` callInfoRange) $
               concatMap termErrCalls because)
 
@@ -98,9 +99,9 @@ prettyWarning wng = case wng of
           empty { clauseTel = tel, namedClausePats = ps }
 
     CoverageNoExactSplit f cs -> vcat $
-      [ fsep $ pwords "Exact splitting is enabled, but the following" ++ pwords (P.singPlural cs "clause" "clauses") ++
-               pwords "could not be preserved as definitional equalities in the translation to a case tree:"
-      ] ++
+      fsep (pwords "Exact splitting is enabled, but the following" ++ pwords (P.singPlural cs "clause" "clauses") ++
+            pwords "could not be preserved as definitional equalities in the translation to a case tree:"
+           ) :
       map (nest 2 . prettyTCM . NamedClause f True) cs
 
     NotStrictlyPositive d ocs -> fsep $
@@ -123,10 +124,26 @@ prettyWarning wng = case wng of
 
     EmptyRewritePragma -> fsep . pwords $ "Empty REWRITE pragma"
 
+    EmptyWhere         -> fsep . pwords $ "Empty `where' block (ignored)"
+
     IllformedAsClause s -> fsep . pwords $
       "`as' must be followed by an identifier" ++ s
 
+    ClashesViaRenaming nm xs -> fsep $ concat $
+      [ [ case nm of NameNotModule -> "Name"; ModuleNotName -> "Module" ]
+      , pwords "clashes introduced by `renaming':"
+      , map prettyTCM xs
+      ]
+
+    UselessPatternDeclarationForRecord s -> fwords $ unwords
+      [ "`pattern' attribute ignored for", s, "record" ]
+
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
+
+    UselessHiding xs -> fsep $ concat
+      [ pwords "Ignoring names in `hiding' directive:"
+      , punctuate "," $ map pretty xs
+      ]
 
     UselessInline q -> fsep $
       pwords "It is pointless for INLINE'd function" ++ [prettyTCM q] ++
@@ -158,6 +175,8 @@ prettyWarning wng = case wng of
 
     GenericNonFatalError d -> return d
 
+    GenericUseless _r d -> return d
+
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
 
@@ -186,6 +205,9 @@ prettyWarning wng = case wng of
     SafeFlagNoUniverseCheck -> fsep $
       pwords "Cannot use NO_UNIVERSE_CHECK pragma with safe flag."
 
+    SafeFlagEta -> fsep $
+      pwords "Cannot use ETA pragma with safe flag."
+
     SafeFlagInjective -> fsep $
       pwords "Cannot use INJECTIVE pragma with safe flag."
 
@@ -200,11 +222,21 @@ prettyWarning wng = case wng of
 
     NicifierIssue w -> sayWhere (getRange w) $ pretty w
 
-    UserWarning str -> text str
+    UserWarning str -> text (T.unpack str)
 
-    ModuleDoesntExport m xs -> fsep $
-      pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:" ++
-      punctuate comma (map pretty xs)
+    ModuleDoesntExport m names modules xs -> vcat
+      [ fsep $ pwords "The module" ++ [pretty m] ++ pwords "doesn't export the following:"
+      , prettyNotInScopeNames False (suggestion names)   ys
+      , prettyNotInScopeNames False (suggestion modules) ms
+      ]
+      where
+      ys, ms :: [C.ImportedName]
+      ys            = map ImportedName   ys0
+      ms            = map ImportedModule ms0
+      (ys0, ms0)    = partitionImportedNames xs
+      suggestion zs = maybe empty parens . didYouMean (map C.QName zs) fromImportedName
+
+    DuplicateUsing xs -> fsep $ pwords "Duplicates in `using` directive:" ++ map pretty (List1.toList xs)
 
     FixityInRenamingModule _rs -> fsep $ pwords "Modules do not have fixity"
 
@@ -219,53 +251,149 @@ prettyWarning wng = case wng of
       [pretty o] ++ pwords "flag from a module which does."
 
     RewriteNonConfluent lhs rhs1 rhs2 err -> fsep
-      [ "Confluence check failed:"
+      [ "Local confluence check failed:"
       , prettyTCM lhs , "reduces to both"
       , prettyTCM rhs1 , "and" , prettyTCM rhs2
       , "which are not equal because"
       , return err
       ]
 
-    RewriteMaybeNonConfluent lhs1 lhs2 cs -> do
-      vcat $
-        [ fsep
-           [ "Couldn't determine overlap between left-hand sides"
-           , prettyTCM lhs1 , "and" , prettyTCM lhs2
-           , "because of unsolved constraints:"
-           ]
-        ] ++ map (nest 2 . return) cs
+    RewriteMaybeNonConfluent lhs1 lhs2 cs -> vcat $ concat
+      [ [ fsep $ concat
+          [ pwords "Couldn't determine overlap between left-hand sides"
+          , [ prettyTCM lhs1 , text "and" , prettyTCM lhs2 ]
+          , pwords "because of unsolved constraints:"
+          ]
+        ]
+      , map (nest 2 . return) cs
+      ]
 
-    PragmaCompileErased bn qn -> fsep $
-      pwords "The backend" ++ [text bn] ++ pwords "erases" ++ [prettyTCM qn]
-      ++ pwords "so the COMPILE pragma will be ignored."
+    RewriteAmbiguousRules lhs rhs1 rhs2 -> vcat
+      [ ( fsep $ concat
+          [ pwords "Global confluence check failed:" , [prettyTCM lhs]
+          , pwords "can be rewritten to either" , [prettyTCM rhs1]
+          , pwords "or" , [prettyTCM rhs2 <> "."]
+          ])
+      , fsep $ concat
+        [ pwords "Possible fix: add a rewrite rule with left-hand side"
+        , [prettyTCM lhs] , pwords "to resolve the ambiguity."
+        ]
+      ]
 
-    NotInScopeW xs -> do
-      inscope <- Set.toList . concreteNamesInScope <$> getScope
-      fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map (name inscope) xs)
+    RewriteMissingRule u v rhou -> vcat
+      [ fsep $ concat
+        [ pwords "Global confluence check failed:" , [prettyTCM u]
+        , pwords "unfolds to" , [prettyTCM v] , pwords "which should further unfold to"
+        , [prettyTCM rhou] , pwords "but it does not."
+        ]
+      , fsep $ concat
+        [ pwords "Possible fix: add a rule to rewrite"
+        , [ prettyTCM v , "to" , prettyTCM rhou ]
+        ]
+      ]
+
+    PragmaCompileErased bn qn -> fsep $ concat
+      [ pwords "The backend"
+      , [ text bn
+        , "erases"
+        , prettyTCM qn
+        ]
+      , pwords "so the COMPILE pragma will be ignored."
+      ]
+
+    NotInScopeW xs -> vcat
+      [ fsep $ pwords "Not in scope:"
+      , do
+        inscope <- Set.toList . concreteNamesInScope <$> getScope
+        prettyNotInScopeNames True (suggestion inscope) xs
+      ]
       where
-      name inscope x =
-        fsep [ pretty x
-             , "at" <+> prettyTCM (getRange x)
-             , suggestion inscope x
-             ]
-      suggestion inscope x = nest 2 $ par $
-        [ "did you forget space around the ':'?"  | ':' `elem` s ] ++
-        [ "did you forget space around the '->'?" | List.isInfixOf "->" s ] ++
-        [ sep [ "did you mean"
-              , nest 2 $ vcat (punctuate " or"
-                       $ map (\ y -> text $ "'" ++ y ++ "'") ys)
-              <> "?" ]
-          | not $ null ys ]
+      suggestion inscope x = nest 2 $ par $ concat
+        [ [ "did you forget space around the ':'?"  | ':' `elem` s ]
+        , [ "did you forget space around the '->'?" | "->" `List.isInfixOf` s ]
+        , maybeToList $ didYouMean inscope C.unqualify x
+        ]
         where
-          s = P.prettyShow x
-          par []  = empty
-          par [d] = parens d
-          par ds  = parens $ vcat ds
+        par []  = empty
+        par [d] = parens d
+        par ds  = parens $ vcat ds
+        s = P.prettyShow x
 
-          strip x = map toLower $ filter (/= '_') $ P.prettyShow $ C.unqualify x
-          maxDist n = div n 3
-          close a b = editDistance a b <= maxDist (length a)
-          ys = map P.prettyShow $ filter (close (strip x) . strip) inscope
+    AsPatternShadowsConstructorOrPatternSynonym patsyn -> fsep $ concat
+      [ pwords "Name bound in @-pattern ignored because it shadows"
+      , if patsyn then pwords "pattern synonym" else [ "constructor" ]
+      ]
+
+    RecordFieldWarning w -> prettyRecordFieldWarning w
+
+prettyRecordFieldWarning :: MonadPretty m => RecordFieldWarning -> m Doc
+prettyRecordFieldWarning = \case
+  DuplicateFieldsWarning xrs    -> prettyDuplicateFields $ map fst xrs
+  TooManyFieldsWarning q ys xrs -> prettyTooManyFields q ys $ map fst xrs
+
+prettyDuplicateFields :: MonadPretty m => [C.Name] -> m Doc
+prettyDuplicateFields xs = fsep $ concat
+    [ pwords "Duplicate"
+    , fields xs
+    , punctuate comma (map pretty xs)
+    , pwords "in record"
+    ]
+  where
+  fields ys = P.singPlural ys [text "field"] [text "fields"]
+
+prettyTooManyFields :: MonadPretty m => QName -> [C.Name] -> [C.Name] -> m Doc
+prettyTooManyFields r missing xs = fsep $ concat
+    [ pwords "The record type"
+    , [prettyTCM r]
+    , pwords "does not have the"
+    , fields xs
+    , punctuate comma (map pretty xs)
+    , if null missing then [] else concat
+      [ pwords "but it would have the"
+      , fields missing
+      , punctuate comma (map pretty missing)
+      ]
+    ]
+  where
+  fields ys = P.singPlural ys [text "field"] [text "fields"]
+
+-- | Report a number of names that are not in scope.
+prettyNotInScopeNames
+  :: (MonadPretty m, Pretty a, HasRange a)
+  => Bool          -- ^ Print range?
+  -> (a -> m Doc)  -- ^ Correction suggestion generator.
+  -> [a]           -- ^ Names that are not in scope.
+  -> m Doc
+prettyNotInScopeNames printRange suggestion xs = nest 2 $ vcat $ map name xs
+  where
+  name x = fsep
+    [ pretty x
+    , if printRange then "at" <+> prettyTCM (getRange x) else empty
+    , suggestion x
+    ]
+
+-- | Suggest some corrections to a misspelled name.
+didYouMean
+  :: (MonadPretty m, Pretty a, Pretty b)
+  => [C.QName]     -- ^ Names in scope.
+  -> (a -> b)      -- ^ Canonization function for similarity search.
+  -> a             -- ^ A name which is not in scope.
+  -> Maybe (m Doc) -- ^ "did you mean" hint.
+didYouMean inscope canon x
+  | null ys   = Nothing
+  | otherwise = Just $ sep
+      [ "did you mean"
+      , nest 2 (vcat $ punctuate " or" $
+                 map (\ y -> text $ "'" ++ y ++ "'") ys)
+        <> "?"
+      ]
+  where
+  strip :: Pretty b => b -> String
+  strip        = map toLower . filter (/= '_') . prettyShow
+  -- dropModule x = fromMaybe x $ List.stripPrefix "module " x
+  maxDist n    = div n 3
+  close a b    = editDistance a b <= maxDist (length a)
+  ys           = map prettyShow $ filter (close (strip $ canon x) . strip . C.unqualify) inscope
 
 
 prettyTCWarnings :: [TCWarning] -> TCM String
@@ -284,37 +412,39 @@ filterTCWarnings = \case
   -- If there are several warnings, remove the unsolved-constraints warning
   -- in case there are no interesting constraints to list.
   ws  -> (`filter` ws) $ \ w -> case tcWarning w of
-    UnsolvedConstraints cs -> not $ null $ filter interestingConstraint cs
+    UnsolvedConstraints cs -> any interestingConstraint cs
     _ -> True
 
 
--- | Turns all warnings into errors.
-tcWarningsToError :: [TCWarning] -> TCM a
-tcWarningsToError ws = typeError $ case ws of
-  [] -> SolvedButOpenHoles
-  _  -> NonFatalErrors ws
+-- | Turns warnings, if any, into errors.
+tcWarningsToError :: [TCWarning] -> TCM ()
+tcWarningsToError mws = case (unsolvedHoles, otherWarnings) of
+   ([], [])                   -> return ()
+   (_unsolvedHoles@(_:_), []) -> typeError SolvedButOpenHoles
+   (_, ws@(_:_))              -> typeError $ NonFatalErrors ws
+   where
+   -- filter out unsolved interaction points for imported module so
+   -- that we get the right error message (see test case Fail/Issue1296)
+   (unsolvedHoles, otherWarnings) = List.partition (isUnsolvedIM . tcWarning) mws
+   isUnsolvedIM UnsolvedInteractionMetas{} = True
+   isUnsolvedIM _                          = False
 
 
 -- | Depending which flags are set, one may happily ignore some
 -- warnings.
 
-applyFlagsToTCWarnings' :: MainInterface -> [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings' isMain ws = do
-
+applyFlagsToTCWarningsPreserving :: HasOptions m => Set WarningName -> [TCWarning] -> m [TCWarning]
+applyFlagsToTCWarningsPreserving additionalKeptWarnings ws = do
   -- For some reason some SafeFlagPragma seem to be created multiple times.
   -- This is a way to collect all of them and remove duplicates.
   let pragmas w = case tcWarning w of { SafeFlagPragma ps -> ([w], ps); _ -> ([], []) }
   let sfp = case fmap List.nub (foldMap pragmas ws) of
-              (TCWarning r w p b:_, sfp) ->
-                 [TCWarning r (SafeFlagPragma sfp) p b]
+              (TCWarning loc r w p b:_, sfp) ->
+                 [TCWarning loc r (SafeFlagPragma sfp) p b]
               _                        -> []
 
-  warnSet <- do
-    opts <- pragmaOptions
-    let warnSet = optWarningMode opts ^. warningSet
-    pure $ if isMain /= NotMainInterface
-           then Set.union warnSet unsolvedWarnings
-           else warnSet
+  pragmaWarnings <- (^. warningSet) . optWarningMode <$> pragmaOptions
+  let warnSet = Set.union pragmaWarnings additionalKeptWarnings
 
   -- filter out the warnings the flags told us to ignore
   let cleanUp w = let wName = warningName w in
@@ -328,5 +458,47 @@ applyFlagsToTCWarnings' isMain ws = do
 
   return $ sfp ++ filter (cleanUp . tcWarning) ws
 
-applyFlagsToTCWarnings :: [TCWarning] -> TCM [TCWarning]
-applyFlagsToTCWarnings = applyFlagsToTCWarnings' NotMainInterface
+applyFlagsToTCWarnings :: HasOptions m => [TCWarning] -> m [TCWarning]
+applyFlagsToTCWarnings = applyFlagsToTCWarningsPreserving Set.empty
+
+getAllUnsolvedWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => m [TCWarning]
+getAllUnsolvedWarnings = do
+  unsolvedInteractions <- getUnsolvedInteractionMetas
+  unsolvedConstraints  <- getAllConstraints
+  unsolvedMetas        <- getUnsolvedMetas
+
+  let checkNonEmpty c rs = c rs <$ guard (not $ null rs)
+
+  mapM warning_ $ catMaybes
+                [ checkNonEmpty UnsolvedInteractionMetas unsolvedInteractions
+                , checkNonEmpty UnsolvedMetaVariables    unsolvedMetas
+                , checkNonEmpty UnsolvedConstraints      unsolvedConstraints ]
+
+-- | Collect all warnings that have accumulated in the state.
+
+getAllWarnings :: (MonadFail m, ReadTCState m, MonadWarning m) => WhichWarnings -> m [TCWarning]
+getAllWarnings = getAllWarningsPreserving Set.empty
+
+getAllWarningsPreserving :: (MonadFail m, ReadTCState m, MonadWarning m) => Set WarningName -> WhichWarnings -> m [TCWarning]
+getAllWarningsPreserving keptWarnings ww = do
+  unsolved            <- getAllUnsolvedWarnings
+  collectedTCWarnings <- useTC stTCWarnings
+
+  let showWarn w = classifyWarning w <= ww &&
+                    not (null unsolved && onlyShowIfUnsolved w)
+
+  fmap (filter (showWarn . tcWarning))
+    $ applyFlagsToTCWarningsPreserving keptWarnings
+    $ reverse $ unsolved ++ collectedTCWarnings
+
+getAllWarningsOfTCErr :: TCErr -> TCM [TCWarning]
+getAllWarningsOfTCErr err = case err of
+  TypeError _ tcst cls -> case clValue cls of
+    NonFatalErrors{} -> return []
+    _ -> localTCState $ do
+      putTC tcst
+      ws <- getAllWarnings AllWarnings
+      -- We filter out the unsolved(Metas/Constraints) to stay
+      -- true to the previous error messages.
+      return $ filter (not . isUnsolvedWarning . tcWarning) ws
+  _ -> return []

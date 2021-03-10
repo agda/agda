@@ -1,4 +1,3 @@
-DataRecordCoinductive.agda:36,1-24
+DataRecordCoinductive.agda:36,16-22
 Pattern matching on coinductive types is not allowed
-when checking the clause left hand side
-consume (cons (x ∷ xs))
+when checking that the pattern x ∷ xs has type Cons A

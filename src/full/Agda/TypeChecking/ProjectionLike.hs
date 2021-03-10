@@ -133,7 +133,7 @@ projView v = do
 --   (Also reduces projections, but they should not be there,
 --   since Internal is in lambda- and projection-beta-normal form.)
 --
-reduceProjectionLike :: (MonadReduce m, MonadTCEnv m, HasConstInfo m) => Term -> m Term
+reduceProjectionLike :: PureTCM m => Term -> m Term
 reduceProjectionLike v = do
   -- Andreas, 2013-11-01 make sure we do not reduce a constructor
   -- because that could be folded back into a literal by reduce.
@@ -142,6 +142,9 @@ reduceProjectionLike v = do
     ProjectionView{} -> onlyReduceProjections $ reduce v
                             -- ordinary reduce, only different for Def's
     _                -> return v
+
+data ProjEliminator = EvenLone | ButLone | NoPostfix
+  deriving Eq
 
 -- | Turn prefix projection-like function application into postfix ones.
 --   This does just one layer, such that the top spine contains
@@ -156,22 +159,22 @@ reduceProjectionLike v = do
 --   No precondition.
 --   Preserves constructorForm, since it really does only something
 --   on (applications of) projection-like functions.
-elimView
-  :: (MonadReduce m, MonadTCEnv m, HasConstInfo m)
-  => Bool -> Term -> m Term
-elimView loneProjToLambda v = do
+elimView :: PureTCM m => ProjEliminator -> Term -> m Term
+elimView pe v = do
   reportSDoc "tc.conv.elim" 30 $ "elimView of " <+> prettyTCM v
-  reportSLn  "tc.conv.elim" 50 $ "v = " ++ show v
   v <- reduceProjectionLike v
   reportSDoc "tc.conv.elim" 40 $
     "elimView (projections reduced) of " <+> prettyTCM v
-  pv <- projView v
-  case pv of
-    NoProjection{}        -> return v
-    LoneProjectionLike f ai
-      | loneProjToLambda  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
-      | otherwise         -> return v
-    ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView loneProjToLambda (unArg a)
+  case pe of
+    NoPostfix -> return v
+    _         -> do
+      pv <- projView v
+      case pv of
+        NoProjection{}        -> return v
+        LoneProjectionLike f ai
+          | pe==EvenLone  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
+          | otherwise     -> return v
+        ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView pe (unArg a)
 
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?
@@ -186,6 +189,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
     GeneralizableVar{} -> False
     Function{}    -> False
     Primitive{}   -> False
+    PrimitiveSort{} -> False
     Constructor{} -> __IMPOSSIBLE__
     AbstractDefn d -> eligible d
       -- Andreas, 2017-08-14, issue #2682:
@@ -215,7 +219,7 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 --
 --      d. @f@ cannot match deeply.
 --
---      e. @f@s body may not mention the paramters.
+--      e. @f@s body may not mention the parameters.
 --
 --      f. A rhs of @f@ cannot be a record expression, since this will be
 --         translated to copatterns by recordExpressionsToCopatterns.
@@ -256,11 +260,11 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     -- outside the abstract block.
     def@Function{funProjection = Nothing, funClauses = cls,
                  funSplitTree = st0, funCompiled = cc0, funInv = NotInjective,
-                 funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs (or those whose recursion status has not yet been determined)
+                 funMutual = Just [], -- Andreas, 2012-09-28: only consider non-mutual funs
                  funAbstr = ConcreteDef} -> do
       ps0 <- filterM validProj $ candidateArgs [] t
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
-                                                else "  candidates: " ++ show ps0
+                                                else "  candidates: " ++ prettyShow ps0
       unless (null ps0) $ do
         -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
         -- Issue 700: problems with recursive funs. in term.checker and reduction
@@ -272,16 +276,20 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
               , nest 2 $ "clauses =" <?> vcat (map pretty cls) ]
             Just (d, n) -> do
               -- Yes, we are projection-like!
-              reportSDoc "tc.proj.like" 10 $ sep
+              reportSDoc "tc.proj.like" 10 $ vcat
                 [ prettyTCM x <+> " : " <+> prettyTCM t
-                , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
+                , nest 2 $ sep
+                  [ "is projection like in argument",  prettyTCM n, "for type", prettyTCM (unArg d) ]
                 ]
               __CRASH_WHEN__ "tc.proj.like.crash" 1000
 
               let cls' = map (dropArgs n) cls
                   cc   = dropArgs n cc0
                   st   = dropArgs n st0
-              reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
+              reportSLn "tc.proj.like" 60 $ unlines
+                [ "  rewrote clauses to"
+                , "    " ++ show cc
+                ]
 
               -- Andreas, 2013-10-20 build parameter dropping function
               let pIndex = n + 1
@@ -323,6 +331,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     Constructor{}  -> reportSLn "tc.proj.like" 30 $ "  not a function, but Constructor"
     Datatype{}     -> reportSLn "tc.proj.like" 30 $ "  not a function, but Datatype"
     Primitive{}    -> reportSLn "tc.proj.like" 30 $ "  not a function, but Primitive"
+    PrimitiveSort{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but PrimitiveSort"
     Record{}       -> reportSLn "tc.proj.like" 30 $ "  not a function, but Record"
   where
     -- | If the user wrote a record expression as rhs,
@@ -351,11 +360,11 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     checkOccurs cls n = all (nonOccur n) cls
 
     nonOccur n cl =
-      and [ take n p == [0..n - 1]
-          , onlyMatch n ps  -- projection-like functions are only allowed to match on the eliminatee
-                            -- otherwise we may end up projecting from constructor applications, in
-                            -- which case we can't reconstruct the dropped parameters
-          , checkBody m n b ]
+        (take n p == [0..n - 1]) &&
+        onlyMatch n ps &&  -- projection-like functions are only allowed to match on the eliminatee
+                          -- otherwise we may end up projecting from constructor applications, in
+                          -- which case we can't reconstruct the dropped parameters
+        checkBody m n b
       where
         Perm _ p = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
         ps       = namedClausePats cl

@@ -1,3 +1,4 @@
+
 {-| Given
 
     1. the function clauses @cs@
@@ -28,14 +29,12 @@ import qualified Data.List as List
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Semigroup ( Semigroup, (<>))
 
-import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty ( PrettyTCM(..) )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
@@ -87,6 +86,8 @@ data BlockingVar = BlockingVar
   , blockingVarOverlap :: Bool
     -- ^ True if at least one clause has a variable pattern in this
     --   position.
+  , blockingVarLazy :: Bool
+    -- ^ True if at least one clause has a lazy pattern in this position.
   } deriving (Show)
 
 type BlockingVars = [BlockingVar]
@@ -99,13 +100,13 @@ type SplitInstantiation = [(Nat,SplitPattern)]
 --
 -- If successful, return the index of the covering clause.
 --
-match :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+match :: PureTCM m
       => [Clause]                           -- ^ Search for clause that covers the patterns.
       -> [NamedArg SplitPattern]            -- ^ Patterns of the current 'SplitClause'.
       -> m (Match (Nat, SplitInstantiation))
 match cs ps = foldr choice (return No) $ zipWith matchIt [0..] cs
   where
-    matchIt :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+    matchIt :: PureTCM m
             => Nat     -- ^ Clause number.
             -> Clause
             -> m (Match (Nat, SplitInstantiation))
@@ -123,9 +124,9 @@ data SplitPatVar = SplitPatVar
 
 instance Pretty SplitPatVar where
   prettyPrec _ x =
-    (text $ patVarNameToString (splitPatVarName x)) <>
-    (text $ "@" ++ show (splitPatVarIndex x)) <>
-    (ifNull (splitExcludedLits x) empty $ \lits ->
+    text (patVarNameToString (splitPatVarName x)) <>
+    text ("@" ++ show (splitPatVarIndex x)) <>
+    ifNull (splitExcludedLits x) empty (\lits ->
       "\\{" <> prettyList_ lits <> "}")
 
 instance PrettyTCM SplitPatVar where
@@ -149,10 +150,6 @@ toSplitPatterns = (fmap . fmap . fmap . fmap) toSplitVar
 fromSplitPatterns :: [NamedArg SplitPattern] -> [NamedArg DeBruijnPattern]
 fromSplitPatterns = (fmap . fmap . fmap . fmap) fromSplitVar
 
-instance DeBruijn SplitPattern where
-  debruijnNamedVar n i  = varP $ SplitPatVar n i []
-  deBruijnView _        = Nothing
-
 type SplitPSubstitution = Substitution' SplitPattern
 
 toSplitPSubst :: PatternSubstitution -> SplitPSubstitution
@@ -161,27 +158,29 @@ toSplitPSubst = (fmap . fmap) toSplitVar
 fromSplitPSubst :: SplitPSubstitution -> PatternSubstitution
 fromSplitPSubst = (fmap . fmap) fromSplitVar
 
-applySplitPSubst :: (Subst Term a) => SplitPSubstitution -> a -> a
+applySplitPSubst :: TermSubst a => SplitPSubstitution -> a -> a
 applySplitPSubst = applyPatSubst . fromSplitPSubst
 
 -- TODO: merge this instance and the one for DeBruijnPattern in
 -- Substitute.hs into one for Subst (Pattern' a) (Pattern' a).
-instance Subst SplitPattern SplitPattern where
-  applySubst IdS p = p
-  applySubst rho p = case p of
-    VarP o x     ->
-      usePatOrigin o $
+instance Subst SplitPattern where
+  type SubstArg SplitPattern = SplitPattern
+
+  applySubst IdS = id
+  applySubst rho = \case
+    VarP i x        ->
+      usePatternInfo i $
       useName (splitPatVarName x) $
       useExcludedLits (splitExcludedLits x) $
       lookupS rho $ splitPatVarIndex x
-    DotP o u     -> DotP o $ applySplitPSubst rho u
-    ConP c ci ps -> ConP c ci $ applySubst rho ps
-    DefP o q ps -> DefP o q $ applySubst rho ps
-    LitP x       -> p
-    ProjP{}      -> p
-    IApplyP o l r x  ->
+    DotP i u        -> DotP i $ applySplitPSubst rho u
+    ConP c ci ps    -> ConP c ci $ applySubst rho ps
+    DefP i q ps     -> DefP i q $ applySubst rho ps
+    p@LitP{}        -> p
+    p@ProjP{}       -> p
+    IApplyP i l r x ->
       useEndPoints (applySplitPSubst rho l) (applySplitPSubst rho r) $
-      usePatOrigin o $
+      usePatternInfo i $
       useName (splitPatVarName x) $
       useExcludedLits (splitExcludedLits x) $
       lookupS rho $ splitPatVarIndex x
@@ -208,10 +207,10 @@ instance Subst SplitPattern SplitPattern where
 
 -- | A pattern that matches anything (modulo eta).
 isTrivialPattern :: (HasConstInfo m) => Pattern' a -> m Bool
-isTrivialPattern p = case p of
+isTrivialPattern = \case
   VarP{}      -> return True
   DotP{}      -> return True
-  ConP c i ps -> andM $ (isEtaCon $ conName c)
+  ConP c i ps -> andM $ ((conPLazy i ||) <$> isEtaCon (conName c))
                       : (map (isTrivialPattern . namedArg) ps)
   DefP{}      -> return False
   LitP{}      -> return False
@@ -223,11 +222,12 @@ isTrivialPattern p = case p of
 type MatchResult = Match SplitInstantiation
 
 instance Pretty BlockingVar where
-  pretty (BlockingVar i cs ls o) = cat
+  pretty (BlockingVar i cs ls o l) = cat
     [ text ("variable " ++ show i)
     , if null cs then empty else " blocked on constructors" <+> pretty cs
     , if null ls then empty else " blocked on literals" <+> pretty ls
     , if o then " (overlapping)" else empty
+    , if l then " (lazy)" else empty
     ]
 
 yes :: Monad m => a -> m (Match a)
@@ -236,11 +236,11 @@ yes = return . Yes
 no :: Monad m => m (Match a)
 no = return No
 
-blockedOnConstructor :: Monad m => Nat -> ConHead -> m (Match a)
-blockedOnConstructor i c = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False]
+blockedOnConstructor :: Monad m => Nat -> ConHead -> ConPatternInfo -> m (Match a)
+blockedOnConstructor i c ci = return $ Block NotBlockedOnResult [BlockingVar i [c] [] False $ conPLazy ci]
 
 blockedOnLiteral :: Monad m => Nat -> Literal -> m (Match a)
-blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False]
+blockedOnLiteral i l = return $ Block NotBlockedOnResult [BlockingVar i [] [l] False False]
 
 blockedOnProjection :: Monad m => m (Match a)
 blockedOnProjection = return $ Block (BlockedOnProj False) []
@@ -266,9 +266,9 @@ overlapping = map setBlockingVarOverlap
 zipBlockingVars :: BlockingVars -> BlockingVars -> BlockingVars
 zipBlockingVars xs ys = map upd xs
   where
-    upd (BlockingVar x cons lits o) = case List.find ((x ==) . blockingVarNo) ys of
-      Just (BlockingVar _ cons' lits' o') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o')
-      Nothing -> BlockingVar x cons lits True
+    upd (BlockingVar x cons lits o l) = case List.find ((x ==) . blockingVarNo) ys of
+      Just (BlockingVar _ cons' lits' o' l') -> BlockingVar x (cons ++ cons') (lits ++ lits') (o || o') (l || l')
+      Nothing -> BlockingVar x cons lits True l
 
 setBlockedOnResultOverlap :: BlockedOnResult -> BlockedOnResult
 setBlockedOnResultOverlap b = case b of
@@ -307,7 +307,7 @@ choice m m' = m >>= \case
 -- | @matchClause qs i c@ checks whether clause @c@
 --   covers a split clause with patterns @qs@.
 matchClause
-  :: (MonadReduce m , HasConstInfo m , HasBuiltins m)
+  :: PureTCM m
   => [NamedArg SplitPattern]
      -- ^ Split clause patterns @qs@.
   -> Clause
@@ -334,7 +334,7 @@ matchClause qs c = matchPats (namedClausePats c) qs
 --   in @mconcat []@ which is @Yes []@.
 
 matchPats
-  :: (MonadReduce m , HasConstInfo m , HasBuiltins m, DeBruijn a)
+  :: (PureTCM m, DeBruijn a)
   => [NamedArg (Pattern' a)]
      -- ^ Clause pattern vector @ps@ (to cover split clause pattern vector).
   -> [NamedArg SplitPattern]
@@ -397,7 +397,7 @@ combine m m' = m >>= \case
 --      a cover if @q@ was split on variable @x@.
 
 matchPat
-  :: (MonadReduce m , HasConstInfo m , HasBuiltins m, DeBruijn a)
+  :: (PureTCM m, DeBruijn a)
   => Pattern' a
      -- ^ Clause pattern @p@ (to cover split clause pattern).
   -> SplitPattern
@@ -416,7 +416,7 @@ matchPat p q = case p of
   -- guaranteed to match if the rest of the pattern does, so some extra splitting
   -- on them doesn't change the reduction behaviour.
 
-  p@(LitP l) -> case q of
+  p@(LitP _ l) -> case q of
     VarP _ x -> if l `elem` splitExcludedLits x
                 then no
                 else blockedOnLiteral (splitPatVarIndex x) l
@@ -432,24 +432,24 @@ matchPat p q = case p of
 
   IApplyP _ _ _ x -> yes [(fromMaybe __IMPOSSIBLE__ (deBruijnView x),q)]
 
-  ConP c _ ps -> unDotP q >>= \case
-    VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c
+                           --    Issue #4179: If the inferred pattern is a literal
+                           -- v  we need to turn it into a constructor pattern.
+  ConP c ci ps -> unDotP q >>= unLitP >>= \case
+    VarP _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
     ConP c' i qs
       | c == c'   -> matchPats ps qs
       | otherwise -> no
     DotP o t  -> no
-    LitP l    -> isLitP p >>= \case
-      Just l' -> if l == l' then yes [] else no
-      Nothing -> no
     DefP{}   -> no
+    LitP{}    -> __IMPOSSIBLE__  -- excluded by typing and unLitP
     ProjP{}   -> __IMPOSSIBLE__  -- excluded by typing
-    IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c
+    IApplyP _ _ _ x -> blockedOnConstructor (splitPatVarIndex x) c ci
 
   DefP o c ps -> unDotP q >>= \case
     VarP _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
     ConP c' i qs -> no
     DotP o t  -> no
-    LitP _    -> no
+    LitP{}    -> no
     DefP o c' qs
       | c == c'   -> matchPats ps qs
       | otherwise -> no
@@ -457,31 +457,44 @@ matchPat p q = case p of
     IApplyP _ _ _ x -> __IMPOSSIBLE__ -- blockedOnConstructor (splitPatVarIndex x) c
 
 -- | Unfold one level of a dot pattern to a proper pattern if possible.
-unDotP :: (MonadReduce m, DeBruijn (Pattern' a)) => Pattern' a -> m (Pattern' a)
+unDotP :: (MonadReduce m, DeBruijn a) => Pattern' a -> m (Pattern' a)
 unDotP (DotP o v) = reduce v >>= \case
   Var i [] -> return $ deBruijnVar i
   Con c _ vs -> do
     let ps = map (fmap $ unnamed . DotP o) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims vs
     return $ ConP c noConPatternInfo ps
-  Lit l -> return $ LitP l
+  Lit l -> return $ LitP (PatternInfo PatODot []) l
   v     -> return $ dotP v
 unDotP p = return p
 
-isLitP :: (MonadReduce m, HasBuiltins m) => Pattern' a -> m (Maybe Literal)
-isLitP (LitP l) = return $ Just l
+isLitP :: PureTCM m => Pattern' a -> m (Maybe Literal)
+isLitP (LitP _ l) = return $ Just l
 isLitP (DotP _ u) = reduce u >>= \case
   Lit l -> return $ Just l
-  _     -> return $ Nothing
+  _ -> return $ Nothing
 isLitP (ConP c ci []) = do
   Con zero _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
-  if | c == zero -> return $ Just $ LitNat (getRange c) 0
-     | otherwise -> return Nothing
+  if c == zero
+    then return $ Just $ LitNat 0
+    else return Nothing
 isLitP (ConP c ci [a]) | visible a && isRelevant a = do
   Con suc _ [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
-  if | c == suc  -> fmap inc <$> isLitP (namedArg a)
-     | otherwise -> return Nothing
+  if c == suc
+    then fmap inc <$> isLitP (namedArg a)
+    else return Nothing
   where
     inc :: Literal -> Literal
-    inc (LitNat r n) = LitNat (fuseRange c r) $ n + 1
+    inc (LitNat n) = LitNat $ n + 1
     inc _ = __IMPOSSIBLE__
 isLitP _ = return Nothing
+
+unLitP :: HasBuiltins m => Pattern' a -> m (Pattern' a)
+unLitP (LitP info l@(LitNat n)) | n >= 0 = do
+  Con c ci es <- constructorForm' (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero)
+                                  (fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc)
+                                  (Lit l)
+  let toP (Apply (Arg i (Lit l))) = Arg i (LitP info l)
+      toP _ = __IMPOSSIBLE__
+      cpi   = noConPatternInfo { conPInfo = info }
+  return $ ConP c cpi $ map (fmap unnamed . toP) es
+unLitP p = return p

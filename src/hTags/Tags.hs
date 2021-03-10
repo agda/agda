@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeFamilies         #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+
 {-# LANGUAGE UndecidableInstances #-}
 
 module Tags where
@@ -12,7 +12,21 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+#if MIN_VERSION_ghc(8,10,1)
+import GHC.Hs
+#else
 import HsSyn
+#endif
+
+#if MIN_VERSION_ghc(9,0,0)
+import GHC.Types.SrcLoc
+import GHC.Types.Name.Reader
+import GHC.Types.Name.Occurrence
+import qualified GHC.Types.Name as Name
+import GHC.Data.FastString
+import GHC.Data.Bag
+import qualified GHC.Types.Basic as BasicTypes
+#else
 import SrcLoc
 import RdrName
 import OccName
@@ -20,6 +34,8 @@ import qualified Name
 import FastString
 import Bag
 import qualified BasicTypes
+#endif
+
 
 data Pos = Pos { line, column :: Int }
            deriving (Eq, Ord)
@@ -100,7 +116,11 @@ instance Show Tag where
 
 srcLocTag :: SrcLoc -> Tag -> Tag
 srcLocTag UnhelpfulLoc{} t         = t
+#if MIN_VERSION_ghc(9,0,0)
+srcLocTag (RealSrcLoc l _) (NoLoc t) =
+#else
 srcLocTag (RealSrcLoc l) (NoLoc t) =
+#endif
   Tag t
       (unpackFS $ srcLocFile l)
       Pos { line   = srcLocLine l
@@ -169,27 +189,44 @@ tagsLN = tags . fmap Name
 tagsN :: TagName name => name -> [Tag]
 tagsN = tags . Name
 
+#if MIN_VERSION_ghc(9,0,0)
+instance HasTags HsModule where
+#else
 #if MIN_VERSION_ghc(8,4,0)
-instance (IdP pass ~ name, TagName name) => HasTags (HsModule pass) where
+instance ( IdP pass ~ name
+         , TagName name
+#if MIN_VERSION_ghc(8,10,1)
+         , HasTags (XRec pass Pat)
+#endif
+         ) => HasTags (HsModule pass) where
 #else
 instance TagName name => HasTags (HsModule name) where
+#endif
 #endif
   tags HsModule{ hsmodExports = export
                , hsmodDecls   = decls
                } = tags decls -- TODO: filter exports
 
 #if MIN_VERSION_ghc(8,4,0)
-instance (IdP pass ~ name, TagName name) => HasTags (HsDecl pass) where
+instance ( IdP pass ~ name
+         , TagName name
+#if MIN_VERSION_ghc(8,10,1)
+         , HasTags (XRec pass Pat)
+#endif
+         ) => HasTags (HsDecl pass) where
 #else
 instance TagName name => HasTags (HsDecl name) where
 #endif
   tags d = case d of
+#if MIN_VERSION_ghc(8,10,1)
+    KindSigD _ d  -> tags d
+#endif
 #if MIN_VERSION_ghc(8,6,1)
     TyClD _ d     -> tags d
     ValD _ d      -> tags d
     SigD _ d      -> tags d
     ForD _ d      -> tags d
-    XHsDecl _     -> []
+    XHsDecl _     -> missingImp "XHsDecl"
 #else
     TyClD d       -> tags d
     ValD d        -> tags d
@@ -208,7 +245,6 @@ instance TagName name => HasTags (HsDecl name) where
 #if !MIN_VERSION_ghc(8,6,1)
     VectD{}       -> []
 #endif
-
 
 #if MIN_VERSION_ghc(8,4,0)
 instance (IdP pass ~ name, TagName name) => HasTags (FamilyDecl pass) where
@@ -270,7 +306,12 @@ instance HasTags (HsType name) where
   tags _ = []
 
 #if MIN_VERSION_ghc(8,4,0)
-instance (IdP pass ~ name, TagName name) => HasTags (HsBind pass) where
+instance ( IdP pass ~ name
+         , TagName name
+#if MIN_VERSION_ghc(8,10,1)
+         , HasTags (XRec pass Pat)
+#endif
+         ) => HasTags (HsBind pass) where
 #else
 instance TagName name => HasTags (HsBind name) where
 #endif
@@ -292,7 +333,12 @@ instance TagName name => HasTags (HsBind name) where
 
 
 #if MIN_VERSION_ghc(8,4,0)
-instance (IdP pass ~ name, TagName name) => HasTags (Pat pass) where
+instance ( IdP pass ~ name
+         , TagName name
+#if MIN_VERSION_ghc(8,10,1)
+         , HasTags (XRec pass Pat)
+#endif
+         ) => HasTags (Pat pass) where
 #else
 instance TagName name => HasTags (Pat name) where
 #endif
@@ -302,6 +348,11 @@ instance TagName name => HasTags (Pat name) where
 #else
     VarPat x                   -> tagsLN x
 #endif
+#if MIN_VERSION_ghc(8,8,1)
+    SigPat _ p _               -> tags p
+#elif MIN_VERSION_ghc(8,6,1)
+    SigPat _ p                 -> tags p
+#endif
 #if MIN_VERSION_ghc(8,6,1)
     LazyPat _ p                -> tags p
     AsPat _ x p                -> tags (fmap Name x, p)
@@ -309,7 +360,6 @@ instance TagName name => HasTags (Pat name) where
     BangPat _ p                -> tags p
     ListPat _ ps               -> tags ps
     TuplePat _ ps _            -> tags ps
-    SigPat _ p                 -> tags p
     XPat _                     -> missingImp "XPat"
 #else
     LazyPat p                  -> tags p
@@ -322,14 +372,18 @@ instance TagName name => HasTags (Pat name) where
     SigPatOut p _              -> tags p
     PArrPat ps _               -> tags ps
 #endif
+#if MIN_VERSION_ghc(9,0,0)
+    ConPat   { pat_args = ps } -> tags ps
+#else
     ConPatIn _ ps              -> tags ps
     ConPatOut{ pat_args = ps } -> tags ps
+    CoPat{}                    -> []
+#endif
 #if MIN_VERSION_ghc(8,6,1)
     NPlusKPat _ x _ _ _ _      -> tagsLN x
 #else
     NPlusKPat x _ _ _ _ _      -> tagsLN x
 #endif
-    CoPat{}                    -> []
     NPat{}                     -> []
     LitPat{}                   -> []
     WildPat{}                  -> []
@@ -337,6 +391,11 @@ instance TagName name => HasTags (Pat name) where
     SplicePat{}                -> []
 #if MIN_VERSION_ghc(8,2,0)
     SumPat{}                   -> missingImp "SumPat"
+#endif
+
+#if MIN_VERSION_ghc(9,0,0)
+instance HasTags arg => HasTags (HsScaled pass arg) where
+  tags = tags . hsScaledThing
 #endif
 
 instance (HasTags arg, HasTags recc) => HasTags (HsConDetails arg recc) where
@@ -401,6 +460,13 @@ instance TagName name => HasTags (ForeignDecl name) where
     ForeignImport x _ _ _ -> tagsLN x
 #endif
     ForeignExport{}       -> []
+
+#if MIN_VERSION_ghc(8,10,1)
+instance (IdP pass ~ name, TagName name) => HasTags (StandaloneKindSig pass) where
+  tags d = case d of
+    StandaloneKindSig _ x _ -> tagsLN x
+    XStandaloneKindSig _    -> missingImp "XStandaloneKindSig"
+#endif
 
 missingImp :: String -> a
 missingImp x = error $ "Missing implementation: " ++ x

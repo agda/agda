@@ -1,3 +1,9 @@
-RecordPattern3.agda:12,6-19
-Cannot split on argument of non-datatype _3
-when checking that the pattern record { f = a } has type _3
+Failed to solve the following constraints:
+  Check definition of test : _3 → A
+    stuck because
+      RecordPattern3.agda:12,6-19
+      Cannot split on argument of unresolved type _3
+      when checking that the pattern record { f = a } has type _3
+    (blocked on _3)
+Unsolved metas at the following locations:
+  RecordPattern3.agda:11,8-9

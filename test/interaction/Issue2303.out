@@ -5,7 +5,7 @@
 (agda2-info-action "*All Goals*" "?0 : D ?1 : D " nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-status-action "")
-(agda2-info-action "*Context*" "w : Set₁ y : A glurph : D" nil)
+(agda2-info-action "*Context*" "w : Set₁ y : A glurph : D glurph = c y" nil)
 (agda2-status-action "")
 (agda2-info-action "*Normal Form*" "c y" nil)
 (agda2-status-action "")

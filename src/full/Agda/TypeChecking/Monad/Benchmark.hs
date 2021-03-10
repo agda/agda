@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Monad.Benchmark
   ( module Agda.Benchmarking
   , B.MonadBench
+  , B.BenchPhase
   , B.getBenchmark
   , updateBenchmarkingStatus
   , B.billTo, B.billPureTo, B.billToCPS
@@ -63,7 +64,7 @@ benchmarking = liftTCM $ do
     _            -> B.BenchmarkOff
 
 -- | Prints the accumulated benchmark results. Does nothing if
--- profiling is not activated at level 7.
+-- profiling is not activated at level 2.
 print :: MonadTCM tcm => tcm ()
 print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   b <- B.getBenchmark
@@ -72,7 +73,12 @@ print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   -- thus, as Fredrik Forsberg suggest, I restore the original
   -- line for release 2.5.3 until a fix is found.
   -- reportSLn "" 0 $ prettyShow b
-  reportSLn benchmarkKey benchmarkLevel $ prettyShow b
+  -- Ulf, 2020-03-04: Using benchmarkLevel here means that it only prints if internal benchmarking
+  -- is turned on, effectively making module/definition benchmarking impossible (since internal
+  -- takes precedence). It needs to be > 1 to avoid triggering #2602 though. Also use
+  -- displayDebugMessage instead of reportSLn to avoid requiring -v profile:2 in addition to the
+  -- specific profile levels.
+  displayDebugMessage benchmarkKey 2 $ prettyShow b
 
 -- -- | Bill a computation to a specific account.
 -- {-# SPECIALIZE billTo :: Account -> TCM a -> TCM a #-}

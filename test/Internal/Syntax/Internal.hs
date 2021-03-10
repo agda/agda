@@ -23,7 +23,7 @@ instance Arbitrary (Blocked ()) where
   arbitrary = do
     m  <- arbitrary
     bs <- arbitrary
-    elements [ Blocked m (), NotBlocked bs () ]
+    elements [ blocked_ m, NotBlocked bs () ]
 
 ------------------------------------------------------------------------------
 -- Properties

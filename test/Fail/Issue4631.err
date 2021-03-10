@@ -1,0 +1,4 @@
+Issue4631.agda:10,12-13
+R0 != R1
+when checking that all occurrences of pattern variable x have the
+same type

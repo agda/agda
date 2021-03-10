@@ -4,8 +4,6 @@ module Agda.Utils.IO.TempFile
   ( writeToTempFile
   ) where
 
-import qualified Agda.Utils.IO.UTF8 as UTF8
-
 import qualified Control.Exception as E
 import qualified System.Directory as D
 import qualified System.IO as IO
@@ -15,5 +13,6 @@ writeToTempFile :: String -> IO FilePath
 writeToTempFile content = do
   dir      <- D.getTemporaryDirectory
   E.bracket (IO.openTempFile dir "agda2-mode") (IO.hClose . snd) $ \ (filepath, handle) -> do
-    UTF8.hPutStr handle content
+    IO.hSetEncoding handle IO.utf8
+    IO.hPutStr handle content
     return filepath

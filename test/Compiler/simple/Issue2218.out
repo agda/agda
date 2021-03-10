@@ -4,6 +4,6 @@ ret > ExitSuccess
 out >  Inf  -Inf   NaN  -NaN  |  x
 out >    x     -     -     -  |  Infinity
 out >    -     x     -     -  |  -Infinity
-out >    -     -     x     x  |  NaN
-out >    -     -     x     x  |  NaN
+out >    -     -     -     -  |  NaN
+out >    -     -     -     -  |  NaN
 out >

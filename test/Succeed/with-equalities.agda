@@ -16,7 +16,6 @@ double m = Σ Nat λ n → m ≡ n + n
 2*_ : Nat → Σ Nat double
 2*_ n with eq : m ← n + n = m , n , eq
 
-
 data ⊥ : Set where
 ⊥-elim : ⊥ → {A : Set} → A
 ⊥-elim ()

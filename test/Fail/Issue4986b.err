@@ -1,0 +1,11 @@
+Issue4986b.agda:12,9-13
+I'm not sure if there should be a case for the constructor refl,
+because I get stuck when trying to solve the following unification
+problems (inferred index ≟ expected index):
+  g ≟ λ (@0 x) (@0 y) → f y x
+Possible reason why unification failed:
+  Cannot solve variable g of type @0 A → @0 A → A with solution
+  λ (@0 x) (@0 y) → f y x because the solution cannot be used at
+  relevant, unrestricted modality
+when checking that the pattern refl has type
+g ≡ (λ (@0 x) (@0 y) → f y x)

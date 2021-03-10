@@ -1,0 +1,42 @@
+RecordUpdateSyntax.agda:60,5-36
+The record type R does not have the field invalidField but it would
+have the fields i, p, s
+when checking that the expression record old { invalidField = 1 }
+has type R
+RecordUpdateSyntax.agda:61,5-32
+Duplicate field s in record
+when checking that the expression record old { s = 1 ; s = 0 } has
+type R
+RecordUpdateSyntax.agda:62,5-50
+The record type R does not have the fields foo, bar but it would
+have the fields i, p
+when checking that the expression
+record old { foo = 1 ; bar = 0 ; s = 1 ; s = 0 } has type R
+RecordUpdateSyntax.agda:62,5-50
+Duplicate field s in record
+when checking that the expression
+record old { foo = 1 ; bar = 0 ; s = 1 ; s = 0 } has type R
+
+———— All done; warnings encountered ————————————————————————
+
+RecordUpdateSyntax.agda:60,5-36
+The record type R does not have the field invalidField but it would
+have the fields i, p, s
+when checking that the expression record old { invalidField = 1 }
+has type R
+
+RecordUpdateSyntax.agda:61,5-32
+Duplicate field s in record
+when checking that the expression record old { s = 1 ; s = 0 } has
+type R
+
+RecordUpdateSyntax.agda:62,5-50
+The record type R does not have the fields foo, bar but it would
+have the fields i, p
+when checking that the expression
+record old { foo = 1 ; bar = 0 ; s = 1 ; s = 0 } has type R
+
+RecordUpdateSyntax.agda:62,5-50
+Duplicate field s in record
+when checking that the expression
+record old { foo = 1 ; bar = 0 ; s = 1 ; s = 0 } has type R

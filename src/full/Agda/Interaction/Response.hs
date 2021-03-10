@@ -19,9 +19,8 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
-import {-# SOURCE #-} Agda.Interaction.BasicOps
-  (OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
-import Agda.Interaction.Base (CommandState)
+import Agda.Interaction.Base
+  (CommandState, OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..), Arg)
@@ -30,7 +29,7 @@ import Agda.Syntax.Concrete.Name (NameInScope)
 import Agda.Syntax.Scope.Base (AbstractModule, AbstractName, LocalVar)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning)
+  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning, IPBoundary')
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors)
 import Agda.Utils.Impossible
 import Agda.Utils.Time
@@ -67,6 +66,9 @@ data Response
     | Resp_DoneAborting
       -- ^ A command sent when an abort command has completed
       -- successfully.
+    | Resp_DoneExiting
+      -- ^ A command sent when an exit command is about to be
+      -- completed.
 
 -- | Should token-based highlighting be removed in conjunction with
 -- the application of new highlighting (in order to reduce the risk of
@@ -109,13 +111,13 @@ data DisplayInfo
 data GoalDisplayInfo
     = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
     | Goal_NormalForm ComputeMode A.Expr
-    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [OutputForm Expr Expr]
+    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [IPBoundary' Expr] [OutputForm Expr Expr]
     | Goal_CurrentGoal Rewrite
     | Goal_InferredType A.Expr
 
 -- | Goals & Warnings
-type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas
-             , [OutputConstraint A.Expr NamedMeta]     -- hidden metas
+type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas (goals)
+             , [OutputConstraint A.Expr NamedMeta]     -- hidden (unsolved) metas
              )
 
 -- | Errors that goes into Info_Error
@@ -141,6 +143,7 @@ data ResponseContextEntry = ResponseContextEntry
   { respOrigName :: Name        -- ^ The original concrete name.
   , respReifName :: Name        -- ^ The name reified from abstract syntax.
   , respType     :: Arg A.Expr  -- ^ The type.
+  , respLetValue :: Maybe A.Expr -- ^ The value (if it is a let-bound variable)
   , respInScope  :: NameInScope -- ^ Whether the 'respReifName' is in scope.
   }
 
@@ -150,6 +153,8 @@ data ResponseContextEntry = ResponseContextEntry
 data Status = Status
   { sShowImplicitArguments :: Bool
     -- ^ Are implicit arguments displayed?
+  , sShowIrrelevantArguments :: Bool
+    -- ^ Are irrelevant arguments displayed?
   , sChecked               :: Bool
     -- ^ Has the module been successfully type checked?
   }
@@ -189,7 +194,7 @@ type InteractionOutputCallback = Response -> TCM ()
 -- things to stdout (other things generate internal errors).
 
 defaultInteractionOutputCallback :: InteractionOutputCallback
-defaultInteractionOutputCallback r = case r of
+defaultInteractionOutputCallback = \case
   Resp_HighlightingInfo {}  -> __IMPOSSIBLE__
   Resp_Status {}            -> __IMPOSSIBLE__
   Resp_JumpToError {}       -> __IMPOSSIBLE__
@@ -204,3 +209,4 @@ defaultInteractionOutputCallback r = case r of
   Resp_ClearRunningInfo {}  -> __IMPOSSIBLE__
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__
   Resp_DoneAborting {}      -> __IMPOSSIBLE__
+  Resp_DoneExiting {}       -> __IMPOSSIBLE__

@@ -4,19 +4,16 @@ module Agda.TypeChecking.Monad.Debug
   , Verbosity, VerboseKey, VerboseLevel
   ) where
 
-import GHC.Stack (HasCallStack, freezeCallStack, callStack)
-
 import qualified Control.Exception as E
 import qualified Control.DeepSeq as DeepSeq (force)
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Identity
 import Control.Monad.Writer
 
 import Data.Maybe
-import Data.Monoid ( Monoid)
-
-
 
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
@@ -24,13 +21,14 @@ import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import {-# SOURCE #-} Agda.Interaction.Response (Response(..))
 
-import Agda.Utils.Except
+import Agda.Utils.CallStack ( HasCallStack, withCallerCallStack )
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.Update
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Impossible
@@ -101,7 +99,9 @@ instance MonadDebug TCM where
 
   verboseBracket k n s = applyWhenVerboseS k n $ \ m -> do
     openVerboseBracket k n s
-    m `finally` closeVerboseBracket k n
+    (m <* closeVerboseBracket k n) `catchError` \ e -> do
+      closeVerboseBracketException k n
+      throwError e
 
 instance MonadDebug m => MonadDebug (ExceptT e m) where
   displayDebugMessage k n s = lift $ displayDebugMessage k n s
@@ -151,6 +151,24 @@ instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
   nowDebugPrinting = mapWriterT nowDebugPrinting
   verboseBracket k n s = mapWriterT $ verboseBracket k n s
 
+instance MonadDebug m => MonadDebug (ChangeT m) where
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
+  formatDebugMessage k n d  = lift $ formatDebugMessage k n d
+  getVerbosity              = lift $ getVerbosity
+  isDebugPrinting           = lift $ isDebugPrinting
+  nowDebugPrinting          = mapChangeT $ nowDebugPrinting
+  verboseBracket k n s      = mapChangeT $ verboseBracket k n s
+
+instance MonadDebug m => MonadDebug (IdentityT m) where
+  displayDebugMessage k n s = lift $ displayDebugMessage k n s
+  formatDebugMessage k n d  = lift $ formatDebugMessage k n d
+  getVerbosity              = lift $ getVerbosity
+  isDebugPrinting           = lift $ isDebugPrinting
+  nowDebugPrinting          = mapIdentityT $ nowDebugPrinting
+  verboseBracket k n s      = mapIdentityT $ verboseBracket k n s
+
+deriving instance MonadDebug m => MonadDebug (BlockT m)
+
 -- | Debug print some lines if the verbosity level for the given
 --   'VerboseKey' is at least 'VerboseLevel'.
 --
@@ -181,13 +199,19 @@ __IMPOSSIBLE_VERBOSE__ :: (HasCallStack, MonadDebug m) => String -> m a
 __IMPOSSIBLE_VERBOSE__ s = do { reportSLn "impossible" 10 s ; throwImpossible err }
   where
     -- Create the "Impossible" error using *our* caller as the call site.
-    err = withFileAndLine' (freezeCallStack callStack) Impossible
+    err = withCallerCallStack Impossible
 
 -- | Conditionally render debug 'Doc' and print it.
 {-# SPECIALIZE reportSDoc :: VerboseKey -> VerboseLevel -> TCM Doc -> TCM () #-}
 reportSDoc :: MonadDebug m => VerboseKey -> VerboseLevel -> TCM Doc -> m ()
 reportSDoc k n d = verboseS k n $ do
   displayDebugMessage k n . (++ "\n") =<< formatDebugMessage k n (locallyTC eIsDebugPrinting (const True) d)
+
+-- | Debug print the result of a computation.
+reportResult :: MonadDebug m => VerboseKey -> VerboseLevel -> (a -> TCM Doc) -> m a -> m a
+reportResult k n debug action = do
+  x <- action
+  x <$ reportSDoc k n (debug x)
 
 unlessDebugPrinting :: MonadDebug m => m () -> m ()
 unlessDebugPrinting = unlessM isDebugPrinting
@@ -227,6 +251,9 @@ openVerboseBracket k n s = displayDebugMessage k n $ "{ " ++ s ++ "\n"
 
 closeVerboseBracket :: MonadDebug m => VerboseKey -> VerboseLevel -> m ()
 closeVerboseBracket k n = displayDebugMessage k n "}\n"
+
+closeVerboseBracketException :: MonadDebug m => VerboseKey -> VerboseLevel -> m ()
+closeVerboseBracketException k n = displayDebugMessage k n "} (exception)\n"
 
 
 ------------------------------------------------------------------------
@@ -271,7 +298,7 @@ __CRASH_WHEN__ :: (HasCallStack, MonadTCM m, MonadDebug m) => VerboseKey -> Verb
 __CRASH_WHEN__ k n = whenExactVerbosity k n (throwImpossible err)
   where
     -- Create the "Unreachable" error using *our* caller as the call site.
-    err = withFileAndLine' (freezeCallStack callStack) Unreachable
+    err = withCallerCallStack Unreachable
 
 -- | Run a computation if a certain verbosity level is activated.
 --

@@ -77,3 +77,85 @@ idPoly0 x = x
 
 idPolyE : {@erased A : Set} → A → A
 idPolyE x = x
+
+-- Issue #3989: Shadowed repeated variables in telescopes should by
+-- default /not/ be highlighted.
+
+Issue-3989 : (A A : Set) → Set
+Issue-3989 _ A = A
+
+-- Issue #4356.
+
+open import Agda.Builtin.Sigma
+
+Issue-4356₁ : Σ Set (λ _ → Set) → Σ Set (λ _ → Set)
+Issue-4356₁ = λ P@(A , B) → P
+
+Issue-4356₂ : Σ Set (λ _ → Set) → Set
+Issue-4356₂ = λ (A , B) → A
+
+Issue-4356₃ : Σ Set (λ _ → Set) → Σ Set (λ _ → Set)
+Issue-4356₃ P = let Q@(A , B) = P in Q
+
+Issue-4356₄ : Σ Set (λ _ → Set) → Set
+Issue-4356₄ P = let (A , B) = P in B
+
+Issue-4356₅ : Σ Set (λ _ → Set) → Σ Set (λ _ → Set)
+Issue-4356₅ P@(A , B) = P
+
+Issue-4356₆ : Σ Set (λ _ → Set) → Set
+Issue-4356₆ (A , B) = B
+
+-- Issue #4361: Highlighting builtins.
+
+data Nat : Set where
+  zero : Nat
+  suc  : Nat → Nat
+
+{-# BUILTIN NATURAL Nat #-}  -- NATURAL should be highlighted as keyword.
+
+module Issue3432 where
+
+  pattern con′ x y = con x y
+  pattern d′       = d
+
+open Issue3432 using (con′; d′)
+  -- These pattern synonyms should be highlighted
+  -- in inductive constructor color.
+
+module Issue4604 where
+
+  record RR : Set₁ where
+    field
+      A : Set
+
+  postulate
+    rr : RR
+
+  open RR rr
+
+  rr₁ : RR
+  rr₁ = record { A = A }  -- Second A should /not/ be highlighted as projection.
+
+  rr₂ : RR
+  rr₂ = record { A = RR.A rr }  -- All other As should have field/projection color.
+
+-- Highlighting of dot patterns.
+
+module Issue5233 where
+
+  data IsSet : Set₁ → Set where
+    isSet : IsSet Set
+
+  highlight-dot-Set : (A : Set₁) → IsSet A → Set
+  highlight-dot-Set .Set isSet = Nat
+                 -- ^^^^ should be highlighted
+
+  data Vec (A : Set) : Nat → Set where
+    nil  : Vec A zero
+    cons : (n : Nat) (x : A) (xs : Vec A n) → Vec A (suc n)
+
+  idVec : ∀ {A n} → Vec A n → Vec A n
+  idVec {n = .(zero)}  nil           = nil
+  idVec {n = .(suc k)} (cons k x xs) = cons _ x (idVec xs)
+           -- ^^^^^^^ should be highlighted

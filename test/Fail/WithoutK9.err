@@ -5,8 +5,8 @@ problems (inferred index ≟ expected index):
   E.refl ≟ E.refl
 Possible reasons why unification failed:
   Cannot apply injectivity to the equation E.refl = E.refl of type
-  _≡_ {A} y y because I cannot generalize over the indices [y].
+  _≡_ {A} x x because I cannot generalize over the indices [x].
   Cannot eliminate reflexive equation E.refl = E.refl of type
-  _≡_ {A} y y because K has been disabled.
+  _≡_ {A} x x because K has been disabled.
 when checking that the pattern refl has type
-_≡_ {_≡_ {A} y y} E.refl E.refl
+_≡_ {_≡_ {A} x x} E.refl E.refl

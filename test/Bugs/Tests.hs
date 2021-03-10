@@ -52,11 +52,11 @@ mkTest inp =
     let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/"
                    , inp, "--ignore-interfaces", "--no-libraries"
                    ]
-    (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile)
+    (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile) Nothing
     pure $ case ret of
       AgdaSuccess Nothing  -> TestSuccess
       AgdaSuccess (Just w) -> TestWarning $ "AGDA_WARNING\n\n" <> w
-      AgdaFailure          -> TestFailure $ "AGDA_FAILURE\n\n" <> printProgramResult res
+      AgdaFailure{}        -> TestFailure $ "AGDA_FAILURE\n\n" <> printProgramResult res
 
   resUpdate :: TestResult -> IO ()
   resUpdate = \case

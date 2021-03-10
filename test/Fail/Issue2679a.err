@@ -1,7 +1,14 @@
-Issue2679a.agda:23,10-20
-I'm not sure if there should be a case for the constructor conC,
-because I get stuck when trying to solve the following unification
-problems (inferred index ≟ expected index):
-  conB bl br ≟ _15 (a = a) (b = b)
-when checking that the pattern conC tl tr has type
-C a (_15 (a = a) (b = b))
+Failed to solve the following constraints:
+  Check definition of goo : (a : A) (b : B a) →
+                            C a (_15 (a = a) (b = b)) → Set
+    stuck because
+      Issue2679a.agda:23,10-20
+      I'm not sure if there should be a case for the constructor conC,
+      because I get stuck when trying to solve the following unification
+      problems (inferred index ≟ expected index):
+        conB bl br ≟ _15 (a = a) (b = b)
+      when checking that the pattern conC tl tr has type
+      C a (_15 (a = a) (b = b))
+    (blocked on _15)
+Unsolved metas at the following locations:
+  Issue2679a.agda:21,34-35

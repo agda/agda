@@ -14,3 +14,14 @@ module _ (A : Set) where
 
   test : X
   test = it
+
+-- Andreas, 2020-01-29, issue #4360:
+-- Such warnings should also be given for data and record constructors.
+
+record R (A : Set) : Set where
+  instance constructor r
+  field
+    a : A
+
+data D (A : Set) : Set where
+  instance c : A → D A

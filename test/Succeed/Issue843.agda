@@ -1,5 +1,10 @@
 -- {-# OPTIONS -v tc.term.let.pattern:20 #-}
+-- {-# OPTIONS -v tc.meta.assign:10 #-}
+-- {-# OPTIONS -v tc.meta.assign.proj:45 #-}
+-- {-# OPTIONS -v tc.meta.assign.catch:80 #-}
+
 -- Andreas, 2013-05-06 deep let-bound patterns were translated wrongly
+
 module Issue843 {A B C : Set} (a : A) (b : B) (c : C) where
 
 open import Common.Product

@@ -1,4 +1,12 @@
 Failed to solve the following constraints:
   Check definition of fixIx : (b : Bool) → D b → D b
+    stuck because
+      Issue707-data.agda:11,15-16
+      I'm not sure if there should be a case for the constructor c,
+      because I get stuck when trying to solve the following unification
+      problems (inferred index ≟ expected index):
+        ?0 ≟ true
+      when checking that the pattern c has type D true
+    (blocked on _9)
 Unsolved interaction metas at the following locations:
   Issue707-data.agda:8,13-14

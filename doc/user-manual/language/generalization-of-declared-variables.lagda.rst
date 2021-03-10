@@ -42,7 +42,7 @@ as an argument to ``_∷_``. The resulting declaration is
 
 .. code-block:: agda
 
-  data Vec {ℓ : Set} (A : Set ℓ) : Nat → Set ℓ where
+  data Vec {ℓ : Level} (A : Set ℓ) : Nat → Set ℓ where
     []  : Vec A 0
     _∷_ : {n : Nat} → A → Vec A n → Vec A (suc n)
 
@@ -180,7 +180,7 @@ metas are generalized over. For instance,
   head : Vec A (suc n) → A
   head (x ∷ _) = x
 
-  -- lemma : {n : Nat} {xs : Vec Nat (suc n)} → head xs ≡ 1 → (0 < sum xs) ≡ true
+  -- lemma : {xs.n.1 : Nat} {xs : Vec Nat (suc xs.n.1)} → head xs ≡ 1 → (0 < sum xs) ≡ true
   lemma : head xs ≡ 1 → (0 < sum xs) ≡ true
 
 ..
@@ -188,9 +188,10 @@ metas are generalized over. For instance,
   lemma {xs = x ∷ _} refl = refl
 
 In the type of ``lemma`` a metavariable is created for the length of ``xs``, which
-the application ``head xs`` refines to ``suc n``, for some new metavariable ``n``.
-Since there are no further constraints on ``n``, it's generalized over, creating the
-type given in the comment.
+the application ``head xs`` refines to ``suc _n``, for some new metavariable ``_n``.
+Since there are no further constraints on ``_n``, it's generalized over, creating the
+type given in the comment. See :ref:`Naming of nested variables
+<naming-of-nested-variables>` below for how the name ``xs.n.1`` is chosen.
 
 .. _note-free-metas:
 
@@ -206,6 +207,8 @@ type given in the comment.
       A : Set _
 
   is equivalent to ``A : Set ℓ`` up to naming of the nested variable (see below).
+
+.. _naming-of-nested-variables:
 
 Naming of nested variables
 --------------------------
@@ -225,6 +228,12 @@ parent can be another nested variable as in the ``refl′`` case above
 .. code-block:: agda
 
   refl′ : {x.A.ℓ : Level} {x.A : Set x.A.ℓ} {x : x.A} → x ≡ x
+
+If a nested generalizable variable is solved with a term containing
+further metas, these are generalized over as explained in the ``lemma`` example
+above. The names of the new variables are of the form ``parentName.i`` where
+``parentName`` is the name of the solved variable and ``i`` numbers the metas,
+starting from 1, in the order they appear in the solution.
 
 If a variable comes from a free unsolved metavariable in a ``variable`` block
 (see `this note <note-free-metas_>`_), its name is chosen as follows:
@@ -353,3 +362,17 @@ generalizations interactively. For instance,
 In ``works`` you can give ``n`` in the hole, since a binding for ``n`` has been introduced
 by its occurrence in the argument vector. In ``fails`` on the other hand, there is no reference
 to ``n`` so neither hole can be filled interactively.
+
+Modalities
+~~~~~~~~~~
+
+One can give a modality when declaring a generalizable variable:
+
+::
+
+  variable
+    @0 o : Nat
+
+In the generalization process generalizable variables get the modality
+that they are declared with, whereas other variables always get the
+default modality.

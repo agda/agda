@@ -2,7 +2,7 @@ Issue779with.agda:5,3-7,16
 This declaration is illegal in a record before the last field
 when scope checking the declaration
   record R where
-    Bla : Set₁
+    Bla : Set1
     Bla with Set
     ... | _ = Set
     field F : Set

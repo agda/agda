@@ -1,9 +1,10 @@
-{-# LANGUAGE UndecidableInstances #-}
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
 
 import Control.Monad
+import Control.Monad.Except
+
 import Data.Function
 import qualified Data.HashMap.Strict as HMap
 
@@ -18,12 +19,11 @@ import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
 import Agda.Utils.List ( splitExactlyAt, dropEnd )
-import Agda.Utils.Except
-
 import Agda.Utils.Impossible
 
 -- | @abstractType a v b[v] = b@ where @a : v@.
@@ -32,9 +32,9 @@ abstractType a v (El s b) = El (absTerm v s) <$> abstractTerm a v (sort s) b
 
 -- | @piAbstractTerm NotHidden v a b[v] = (w : a) -> b[w]@
 --   @piAbstractTerm Hidden    v a b[v] = {w : a} -> b[w]@
-piAbstractTerm :: Hiding -> Term -> Type -> Type -> TCM Type
-piAbstractTerm h v a b = do
-  fun <- mkPi (setHiding h $ defaultDom ("w", a)) <$> abstractType a v b
+piAbstractTerm :: ArgInfo -> Term -> Type -> Type -> TCM Type
+piAbstractTerm info v a b = do
+  fun <- mkPi (setArgInfo info $ defaultDom ("w", a)) <$> abstractType a v b
   reportSDoc "tc.abstract" 50 $
     sep [ "piAbstract" <+> sep [ prettyTCM v <+> ":", nest 2 $ prettyTCM a ]
         , nest 2 $ "from" <+> prettyTCM b
@@ -53,26 +53,34 @@ piAbstractTerm h v a b = do
 --   For @rewrite@, it does something special:
 --   @piAbstract (prf, Eq a v v') b[v,prf] = (w : a) (w' : Eq a w v') -> b[w,w']@
 
-piAbstract :: WithHiding (Term, EqualityView) -> Type -> TCM Type
-piAbstract (WithHiding h (v, OtherType a))   b = piAbstractTerm h v a b
-piAbstract (WithHiding h (v, IdiomType a)) b = do
+piAbstract :: Arg (Term, EqualityView) -> Type -> TCM Type
+piAbstract (Arg info (v, OtherType a)) b = piAbstractTerm info v a b
+piAbstract (Arg info (v, IdiomType a@(El sort@(Type l) ty))) b = do
   b  <- raise 1 <$> abstractType a v b
   eq <- addContext ("w" :: String, defaultDom a) $ do
     -- manufacture the type @w ≡ e@
     eqName <- primEqualityName
     eqTy <- defType <$> getConstInfo eqName
+    -- TOOD: make it work for different versions of equality
+    -- We used to do something like this:
     -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
-    TelV eqTel _ <- telView eqTy
-    tel  <- newTelMeta (telFromList $ dropEnd 2 $ telToList eqTel)
-    let eq = Def eqName (map Apply $ tel ++ map defaultArg [var 0, raise 1 v])
-    sort <- inferSort eq
+    -- TelV eqTel _ <- telView eqTy
+    -- tel  <- newTelMeta (telFromList $ dropEnd 2 $ telToList eqTel)
+    -- instead of the 2 first arguments below
+    -- but it fails with unsolved metas these days.
+    let eq = Def eqName $ map Apply
+                 [ setHiding Hidden (defaultArg $ Level (raise 1 l))
+                 , setHiding Hidden (defaultArg (raise 1 ty))
+                 , defaultArg (var 0)
+                 , defaultArg (raise 1 v)
+                 ]
     pure $ El sort eq
 
-  pure $ mkPi (setHiding h         $ defaultDom ("w", a))
-       $ mkPi (setHiding NotHidden $ defaultDom ("eq", eq))
-         b
-piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
-  s <- inferSort a
+  pure $ mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
+       $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
+       $ b
+piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
+  s <- sortOf a
   let prfTy = equalityUnview eqt
       vTy   = El s a
   b <- abstractType prfTy prf b
@@ -80,10 +88,13 @@ piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
          abstractType (raise 1 vTy) (unArg $ raise 1 v) b
   return . funType "lhs" vTy . funType "equality" eqTy' . swap01 $ b
   where
-    funType str a = mkPi $ setHiding h $ defaultDom (str, a)
+    funType str a = mkPi $ setArgInfo info $ defaultDom (str, a)
     -- Abstract the lhs (@a@) of the equality only.
     eqt1  = raise 1 eqt
     eqTy' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
+
+piAbstract _ _ = __IMPOSSIBLE__ -- not actually impossible
+
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.
 class IsPrefixOf a where
@@ -133,7 +144,7 @@ abstractTerm a u@Con{} b v = do
   let abstr b v = do
         m <- getContextSize
         let (a', u') = raise (m - n) (a, u)
-        case isPrefixOf u' v of
+        case u' `isPrefixOf` v of
           Nothing -> return v
           Just es -> do -- Check that the types match.
             s <- getTC
@@ -183,37 +194,35 @@ instance AbsTerm Term where
       DontCare mv -> DontCare $ absT mv
       Dummy s es   -> Dummy s $ absT es
       where
+        absT :: AbsTerm b => b -> b
         absT x = absTerm u x
 
 instance AbsTerm Type where
   absTerm u (El s v) = El (absTerm u s) (absTerm u v)
 
 instance AbsTerm Sort where
-  absTerm u s = case s of
+  absTerm u = \case
     Type n     -> Type $ absS n
     Prop n     -> Prop $ absS n
-    Inf        -> Inf
+    s@(Inf f n)-> s
+    SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
-    PiSort a s -> PiSort (absS a) (absS s)
+    LockUniv   -> LockUniv
+    PiSort a s1 s2 -> PiSort (absS a) (absS s1) (absS s2)
+    FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s
     MetaS x es -> MetaS x $ absS es
     DefS d es  -> DefS d $ absS es
-    DummyS{}   -> s
-    where absS x = absTerm u x
+    s@DummyS{} -> s
+    where
+      absS :: AbsTerm b => b -> b
+      absS x = absTerm u x
 
 instance AbsTerm Level where
-  absTerm u (Max as) = Max $ absTerm u as
+  absTerm u (Max n as) = Max n $ absTerm u as
 
 instance AbsTerm PlusLevel where
-  absTerm u l@ClosedLevel{} = l
   absTerm u (Plus n l) = Plus n $ absTerm u l
-
-instance AbsTerm LevelAtom where
-  absTerm u l = case l of
-    MetaLevel m vs   -> UnreducedLevel $ absTerm u (MetaV m vs)
-    NeutralLevel r v -> NeutralLevel r $ absTerm u v
-    BlockedLevel _ v -> UnreducedLevel $ absTerm u v -- abstracting might remove the blockage
-    UnreducedLevel v -> UnreducedLevel $ absTerm u v
 
 instance AbsTerm a => AbsTerm (Elim' a) where
   absTerm = fmap . absTerm
@@ -230,7 +239,7 @@ instance AbsTerm a => AbsTerm [a] where
 instance AbsTerm a => AbsTerm (Maybe a) where
   absTerm = fmap . absTerm
 
-instance (Subst Term a, AbsTerm a) => AbsTerm (Abs a) where
+instance (TermSubst a, AbsTerm a) => AbsTerm (Abs a) where
   absTerm u (NoAbs x v) = NoAbs x $ absTerm u v
   absTerm u (Abs   x v) = Abs x $ swap01 $ absTerm (raise 1 u) v
 
@@ -238,7 +247,7 @@ instance (AbsTerm a, AbsTerm b) => AbsTerm (a, b) where
   absTerm u (x, y) = (absTerm u x, absTerm u y)
 
 -- | This swaps @var 0@ and @var 1@.
-swap01 :: (Subst Term a) => a -> a
+swap01 :: TermSubst a => a -> a
 swap01 = applySubst $ var 1 :# liftS 1 (raiseS 1)
 
 
@@ -272,24 +281,20 @@ instance EqualSy Term where
     _ -> False
 
 instance EqualSy Level where
-  equalSy (Max vs) (Max vs') = equalSy vs vs'
+  equalSy (Max n vs) (Max n' vs') = n == n' && equalSy vs vs'
 
 instance EqualSy PlusLevel where
-  equalSy = curry $ \case
-    (ClosedLevel n, ClosedLevel n') -> n == n'
-    (Plus n v     , Plus n' v'    ) -> n == n' && equalSy v v'
-    _ -> False
-
-instance EqualSy LevelAtom where
-  equalSy = equalSy `on` unLevelAtom
+  equalSy (Plus n v) (Plus n' v') = n == n' && equalSy v v'
 
 instance EqualSy Sort where
   equalSy = curry $ \case
     (Type l    , Type l'     ) -> equalSy l l'
     (Prop l    , Prop l'     ) -> equalSy l l'
-    (Inf       , Inf         ) -> True
+    (Inf f m   , Inf f' n    ) -> f == f' && m == n
+    (SSet l    , SSet l'     ) -> equalSy l l'
     (SizeUniv  , SizeUniv    ) -> True
-    (PiSort a b, PiSort a' b') -> equalSy a a' && equalSy b b'
+    (PiSort a b c, PiSort a' b' c') -> equalSy a a' && equalSy b b' && equalSy c c'
+    (FunSort a b, FunSort a' b') -> equalSy a a' && equalSy b b'
     (UnivSort a, UnivSort a' ) -> equalSy a a'
     (MetaS x es, MetaS x' es') -> x == x' && equalSy es es'
     (DefS  d es, DefS  d' es') -> d == d' && equalSy es es'
@@ -304,24 +309,23 @@ instance EqualSy Type where
 instance EqualSy a => EqualSy (Elim' a) where
   equalSy = curry $ \case
     (Proj _ f, Proj _ f') -> f == f'
-    (Apply a , Apply a' ) -> equalSy a a'
-    (IApply u v r, IApply u' v' r') -> and
-      [ equalSy u u'
-      , equalSy v v'
-      , equalSy r r'
-      ]
+    (Apply a, Apply a') -> equalSy a a'
+    (IApply u v r, IApply u' v' r') ->
+           equalSy u u'
+        && equalSy v v'
+        && equalSy r r'
     _ -> False
 
 -- | Ignores 'absName'.
-instance (Subst t a, EqualSy a) => EqualSy (Abs a) where
+instance (Subst a, EqualSy a) => EqualSy (Abs a) where
   equalSy = curry $ \case
     (NoAbs _x b, NoAbs _x' b') -> equalSy b b' -- no need to raise if both are NoAbs
     (a         , a'          ) -> equalSy (absBody a) (absBody a')
 
 -- | Ignore origin and free variables.
 instance EqualSy ArgInfo where
-  equalSy (ArgInfo h m _o _fv) (ArgInfo h' m' _o' _fv') =
-    h == h' && m == m'
+  equalSy (ArgInfo h m _o _fv a) (ArgInfo h' m' _o' _fv' a') =
+    h == h' && m == m' && a == a'
 
 -- | Ignore the tactic.
 instance EqualSy a => EqualSy (Dom a) where
@@ -335,7 +339,7 @@ instance EqualSy a => EqualSy (Dom a) where
 -- | Ignores irrelevant arguments and modality.
 --   (And, of course, origin and free variables).
 instance EqualSy a => EqualSy (Arg a) where
-  equalSy (Arg (ArgInfo h m _o _fv) v) (Arg (ArgInfo h' m' _o' _fv') v') =
+  equalSy (Arg (ArgInfo h m _o _fv a) v) (Arg (ArgInfo h' m' _o' _fv' a') v') =
     h == h' && (isIrrelevant m || isIrrelevant m' || equalSy v v')
     -- Andreas, 2017-10-04, issue #2775,
     -- ignore irrelevant arguments during with-abstraction.

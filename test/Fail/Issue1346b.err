@@ -1,0 +1,3 @@
+Issue1346b.agda:21,10-11
+[ (d ! d) ! d ]D !=< [ e ! (e ! e) ]E
+when checking that the expression x has type [ e ! (e ! e) ]E

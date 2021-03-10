@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Agda.Syntax.Parser
     ( -- * Types
@@ -24,11 +23,11 @@ module Agda.Syntax.Parser
     , runPMIO
     ) where
 
-import Control.Arrow (second)
 import Control.Exception
-import Control.Monad (forM_)
+import Control.Monad.Except
 import Control.Monad.State
 
+import Data.Bifunctor
 import qualified Data.List as List
 import Data.Text.Lazy (Text)
 
@@ -42,11 +41,6 @@ import Agda.Syntax.Parser.Literate
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser.Tokens
 
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(throwError)
-  , runExceptT
-  )
 import Agda.Utils.FileName
 import Agda.Utils.IO.UTF8 (readTextFile)
 import qualified Agda.Utils.Maybe.Strict as Strict

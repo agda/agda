@@ -7,7 +7,9 @@ module Agda.Auto.Auto
 
 import Prelude hiding (null)
 
+import Control.Monad.Except
 import Control.Monad.State
+
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.IORef
@@ -28,6 +30,7 @@ import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcreteScope, abstractToConcrete_, runAbsToCon, toConcrete)
+import Agda.Interaction.Base
 import Agda.Interaction.BasicOps hiding (refine)
 import Agda.TypeChecking.Reduce (normalise)
 import Agda.Syntax.Common
@@ -46,7 +49,6 @@ import Agda.Auto.Typecheck
 
 import Agda.Auto.CaseSplit
 
-import Agda.Utils.Except ( runExceptT, MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
@@ -108,7 +110,7 @@ auto
   -> Range
   -> String
   -> tcm AutoResult
-auto ii rng argstr = liftTCM $ do
+auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
 
   -- Parse hints and other configuration.
   let autoOptions = parseArgs argstr
@@ -189,7 +191,8 @@ auto ii rng argstr = liftTCM $ do
                  nsol' <- readIORef nsol
                  if nsol' /= 0 && depreached then loop (d + costIncrease) else return depreached
 
-        let getsols sol = do
+        let getsols :: [I.Term] -> TCM [(MetaId, A.Expr)]
+            getsols sol = do
              exprs <- forM (zip (Map.keys tccons) sol) $ \ (mi, e) -> do
                mv   <- lookupMeta mi
                e    <- etaContract e
@@ -222,7 +225,7 @@ auto ii rng argstr = liftTCM $ do
                     sctx = (Id "h", closify htyp) : map (\x -> (NoId, closify x)) modargs
                     ntt = closify (NotM $ App Nothing (NotM OKVal) (Const ee) (NotM ALNil))
                 res <- exsearch (tcSearchSC False sctx ntt (Meta m)) Nothing defdfv
-                rsols <- liftM reverse $ liftIO $ readIORef sols
+                rsols <- fmap reverse $ liftIO $ readIORef sols
                 if null rsols then do
                   nsol' <- liftIO $ readIORef nsol
                   stopWithMsg $ insuffsols (pick + numsols - nsol')
@@ -234,7 +237,7 @@ auto ii rng argstr = liftTCM $ do
                       (mi,) <$> abstractToConcrete_ e
                   let ss = dropWhile (== ' ') . dropWhile (/= ' ') . prettyShow
                       disp [(_, cexpr)] = ss cexpr
-                      disp cexprs = concat $ map (\ (mi, cexpr) -> ss cexpr ++ " ") cexprs
+                      disp cexprs = concatMap (\ (mi, cexpr) -> ss cexpr ++ " ") cexprs
                   ticks <- liftIO $ readIORef ticks
                   stopWithMsg $ unlines $
                     ("Listing disproof(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1)) :
@@ -276,7 +279,7 @@ auto ii rng argstr = liftTCM $ do
           let timeoutString | isNothing res = " after timeout (" ++ show timeout ++ "ms)"
                             | otherwise     = ""
           if listmode then do
-            rsols <- liftM reverse $ liftIO $ readIORef sols
+            rsols <- fmap reverse $ liftIO $ readIORef sols
             if null rsols then do
               nsol' <- liftIO $ readIORef nsol
               stopWithMsg $ insuffsols (pick + numsols - nsol') ++ timeoutString
@@ -295,7 +298,7 @@ auto ii rng argstr = liftTCM $ do
                       ++ " := " ++ prettyShow cexpr ++ " "
               ticks <- liftIO $ readIORef ticks
               stopWithMsg $ "Listing solution(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ timeoutString ++
-                        "\n" ++ unlines (map (\(x, y) -> show y ++ "  " ++ disp x) $ zip cexprss [pick..])
+                        "\n" ++ unlines (zipWith (\x y -> show y ++ "  " ++ disp x) cexprss [pick..])
            else {- not listmode -}
             case res of
              Nothing -> do
@@ -319,7 +322,8 @@ auto ii rng argstr = liftTCM $ do
                   loop [] = return $ AutoResult (Solutions []) (Just "")
                   loop (term : terms') = do
                     -- On exception, try next solution
-                    flip catchError (const $ loop terms') $ do
+                    flip catchError (\ e -> do reportSDoc "auto" 40 $ "Solution failed:" TCM.<?> TCM.prettyTCM e
+                                               loop terms') $ do
                       exprs <- getsols term
                       reportSDoc "auto" 20 $ "Trying solution " TCM.<+> TCM.prettyTCM exprs
                       giveress <- forM exprs $ \ (mi, expr0) -> do
@@ -349,7 +353,7 @@ auto ii rng argstr = liftTCM $ do
                                          ) exprs
                       let msgs = catMaybes $ msg : map snd giveress
                           msg' = unlines msgs <$ guard (not $ null msgs)
-                      return $ AutoResult (Solutions $ catMaybes $ map fst giveress) msg'
+                      return $ AutoResult (Solutions $ mapMaybe fst giveress) msg'
 
      MCaseSplit -> do
       case thisdefinfo of
@@ -357,7 +361,7 @@ auto ii rng argstr = liftTCM $ do
         case Map.elems tccons of
          [(m, mytype, mylocalVars, _)] | null eqcons -> do
           (ids, pats) <- constructPats cmap mi clause
-          let ctx = map (\((hid, id), t) -> HI hid (id, t)) (zip ids mylocalVars)
+          let ctx = zipWith (\(hid, id) t -> HI hid (id, t)) ids mylocalVars
           ticks <- liftIO $ newIORef 0
           let [rectyp'] = mymrectyp
           defdfv <- getdfv mi def
@@ -375,12 +379,12 @@ auto ii rng argstr = liftTCM $ do
             case cls' of
              Left{} -> stopWithMsg "No solution found"
              Right cls' -> do
-              cls'' <- forM cls' $ \ (I.Clause _ _ tel ps body t catchall reachable) -> do
+              cls'' <- forM cls' $ \ (I.Clause _ _ tel ps body t catchall exact recursive reachable ell) -> do
                 withCurrentModule (AN.qnameModule def) $ do
                  -- Normalise the dot patterns
                  ps <- addContext tel $ normalise ps
                  body <- etaContract body
-                 liftM modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall reachable
+                 fmap modifyAbstractClause $ inTopContext $ reify $ AN.QNamed def $ I.Clause noRange noRange tel ps body t catchall exact recursive reachable ell
               moduleTel <- lookupSection (AN.qnameModule def)
               pcs <- withInteractionId ii $ inTopContext $ addContext moduleTel $ mapM prettyA cls''
               ticks <- liftIO $ readIORef ticks
@@ -403,12 +407,12 @@ auto ii rng argstr = liftTCM $ do
        normalise targettype
       let tctx = length $ envContext $ clEnv minfo
 
-      hits <- if elem "-a" hints then do
+      hits <- if "-a" `elem` hints then do
         st <- liftTCM $ join $ pureTCM $ \st _ -> return st
         let defs = st^.stSignature.sigDefinitions
             idefs = st^.stImports.sigDefinitions
             alldefs = HMap.keys defs ++ HMap.keys idefs
-        liftM catMaybes $ mapM (\n ->
+        catMaybes <$> mapM (\n ->
           case thisdefinfo of
            Just (def, _, _) | def == n -> return Nothing
            _ -> do
@@ -431,7 +435,7 @@ auto ii rng argstr = liftTCM $ do
             modnames = case thisdefinfo of
                         Just (def, _, _) -> filter (\(_, n) -> n /= def) qnames
                         Nothing -> qnames
-        liftM catMaybes $ mapM (\(cn, n) -> do
+        catMaybes <$> mapM (\(cn, n) -> do
           c <- getConstInfo n
           ctyp <- normalise $ defType c
           cdfv <- withMetaInfo minfo $ getDefFreeVars n
@@ -448,7 +452,7 @@ auto ii rng argstr = liftTCM $ do
             else
              let showhits = take 10 $ drop pick' sorthits
              in stopWithMsg $ "Listing candidate(s) " ++ show pick' ++ "-" ++ show (pick' + length showhits - 1) ++ " (found " ++ show (length sorthits) ++ " in total)\n" ++
-                           unlines (map (\(i, (cn, _)) -> show i ++ "  " ++ cn) (zip [pick'..pick' + length showhits - 1] showhits))
+                           unlines (zipWith (\i (cn, _) -> show i ++ "  " ++ cn) [pick'..pick' + length showhits - 1] showhits)
        else
         if pick >= length sorthits then
          stopWithMsg $ insuffcands $ length sorthits
@@ -489,10 +493,10 @@ getEqCombinators ii rng = do
 -- | Templates for error messages
 
 genericNotEnough :: String -> Int -> String
-genericNotEnough str n = List.intercalate " " $ case n of
-  0 -> [ "No"    , str, "found"]
-  1 -> [ "Only 1", str, "found" ]
-  _ -> [ "Only", show n, str ++ "s", "found" ]
+genericNotEnough str n = unwords $ case n of
+  0 -> ["No", str, "found"]
+  1 -> ["Only 1", str, "found"]
+  _ -> ["Only", show n, str ++ "s", "found"]
 
 insuffsols :: Int -> String
 insuffsols  = genericNotEnough "solution"

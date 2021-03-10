@@ -1,7 +1,7 @@
 # Makefile for documentation
 
 default :
-	make -C .. html
-	make -C ../../.. user-manual-test
+	$(MAKE) -C .. html
+	$(MAKE) -C ../../.. user-manual-test
 
 # EOF

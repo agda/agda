@@ -118,13 +118,13 @@ following (with the goal types shown in the holes)
 
       proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
       proof p []       = {! P [] !}
-      proof p (x ∷ xs) = {! P (filter p xs | p x) !}
+      proof p (x ∷ xs) = {! P (filter p (x ∷ xs) | p x) !}
 
 ..
   ::
     module ellipsis-proof where
 
-In the cons case we have to prove that ``P`` holds for ``filter p xs | p x``.
+In the cons case we have to prove that ``P`` holds for ``filter p (x ∷ xs) | p x``.
 This is the syntax for a stuck with-abstraction---\ ``filter`` cannot reduce
 since we don't know the value of ``p x``. This syntax is used for printing, but
 is not accepted as valid Agda code. Now if we with-abstract over ``p x``, but
@@ -133,7 +133,7 @@ don't pattern match on the result we get::
       proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
       proof p [] = p-nil
       proof p (x ∷ xs) with p x
-      ...                 | r   = {! P (filter p xs | r) !}
+      ...                 | r   = {! P (filter p (x ∷ xs) | r) !}
 
 ..
   ::
@@ -157,8 +157,8 @@ works just as well if we have an argument whose type contains ``filter p xs``.
       proof₂ : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs) → Q
       proof₂ p [] _ = q-nil
       proof₂ p (x ∷ xs) H with p x
-      ...                    | true  = {! H : P (filter p xs) !}
-      ...                    | false = {! H : P (x ∷ filter p xs) !}
+      ...                    | true  = {! H : P (x ∷ filter p xs) !}
+      ...                    | false = {! H : P (filter p xs) !}
 
 The generalisation is not limited to scrutinees in other with-abstractions. All
 occurrences of the term in the goal type and argument types will be
@@ -429,7 +429,7 @@ of a vector whose length is neither 0 nor 1:
     second : ∀ {n} {pr : NotNull (pred n)} → Vec A n → A
     second vs with (_ ∷ v ∷ _) ← vs = v
 
-Remember example of :ref:`simultaneous
+Remember the example of :ref:`simultaneous
 abstraction <simultaneous-abstraction>` from above. A simultaneous
 rewrite / pattern-matching ``with`` is to be understood as being nested.
 That is to say that the type refinements introduced by the first
@@ -669,12 +669,125 @@ Helper functions
 ++++++++++++++++
 
 Internally with-abstractions are translated to auxiliary functions
-(see :ref:`technical-details` below) and you can
-always\ [#with-inlining]_ write these functions manually. The downside
-is that the type signature for the helper function needs to be written
-out explicitly, but fortunately the :ref:`emacs-mode` has a command
-(``C-c C-h``) to generate it using the same algorithm that generates
-the type of a with-function.
+(see :ref:`technical-details` below) and you can always write these
+functions manually. The downside is that the type signature for the
+helper function needs to be written out explicitly, but fortunately
+the :ref:`emacs-mode` has a command (``C-c C-h``) to generate it using
+the same algorithm that generates the type of a with-function.
+
+Termination checking
+~~~~~~~~~~~~~~~~~~~~
+
+..
+  ::
+
+  module Termination where
+
+    postulate
+      some-stuff : Nat
+
+    module _ where
+
+The termination checker runs on the translated auxiliary functions, which
+means that some code that looks like it should pass termination checking
+does not. Specifically this happens in call chains like ``c₁ (c₂ x) ⟶ c₁ x``
+where the recursive call is under a with-abstraction. The reason is that
+the auxiliary function only gets passed ``x``, so the call chain is actually
+``c₁ (c₂ x) ⟶ x ⟶ c₁ x``, and the termination checker cannot see that this
+is terminating. For example::
+
+      data D : Set where
+        [_] : Nat → D
+
+..
+  ::
+
+    module M₁ where
+
+      {-# TERMINATING #-}
+
+::
+
+      fails : D → Nat
+      fails [ zero  ] = zero
+      fails [ suc n ] with some-stuff
+      ... | _ = fails [ n ]
+
+The easiest way to work around this problem is to perform a with-abstraction
+on the recursive call up front::
+
+      fixed : D → Nat
+      fixed [ zero  ] = zero
+      fixed [ suc n ] with fixed [ n ] | some-stuff
+      ... | rec | _ = rec
+
+..
+  ::
+
+    module M₂ where
+
+      {-# TERMINATING #-}
+
+If the function takes more arguments you might need to abstract over a
+partial application to just the structurally recursive argument. For instance,
+
+::
+
+      fails : Nat → D → Nat
+      fails _ [ zero  ] = zero
+      fails _ [ suc n ] with some-stuff
+      ... | m = fails m [ n ]
+
+      fixed : Nat → D → Nat
+      fixed _ [ zero  ] = zero
+      fixed _ [ suc n ] with (λ m → fixed m [ n ]) | some-stuff
+      ... | rec | m = rec m
+
+..
+  ::
+
+    postulate
+
+A possible complication is that later with-abstractions might change the
+type of the abstracted recursive call::
+
+        T      : D → Set
+        suc-T  : ∀ {n} → T [ n ] → T [ suc n ]
+        zero-T : T [ zero ]
+
+..
+  ::
+
+    module M₃ where
+
+      {-# TERMINATING #-}
+
+::
+
+      fails : (d : D) → T d
+      fails [ zero  ] = zero-T
+      fails [ suc n ] with some-stuff
+      ... | _ with [ n ]
+      ...   | z = suc-T (fails [ n ])
+
+Trying to abstract over the recursive call as before does not work in this case.
+
+.. code-block:: agda
+
+      still-fails : (d : D) → T d
+      still-fails [ zero ] = zero-T
+      still-fails [ suc n ] with still-fails [ n ] | some-stuff
+      ... | rec | _ with [ n ]
+      ...   | z = suc-T rec -- Type error because rec : T z
+
+To solve the problem you can add ``rec`` to the with-abstraction messing up
+its type. This will prevent it from having its type changed::
+
+      fixed : (d : D) → T d
+      fixed [ zero ] = zero-T
+      fixed [ suc n ] with fixed [ n ] | some-stuff
+      ... | rec | _ with rec | [ n ]
+      ...   | _ | z = suc-T rec
 
 Performance considerations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -883,11 +996,6 @@ immediate problem (``fst p != w``) and the full type of the with-function. To
 get a more informative error, pointing to the location in the type where the
 error is, you can copy and paste the with-function type from the error message
 and try to type check it separately.
-
-
-.. [#with-inlining] The termination checker has :ref:`special treatment for
-                    with-functions <termination-checking-with>`, so replacing a `with` by the
-                    equivalent helper function might fail termination.
 
 .. [McBride2004] C. McBride and J. McKinna. **The view from the left**. Journal of Functional Programming, 2004.
                  http://strictlypositive.org/vfl.pdf.

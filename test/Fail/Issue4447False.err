@@ -1,0 +1,5 @@
+Issue4447False.agda:18,6-21,11
+D is not strictly positive, because it occurs
+to the left of an arrow
+in the type of the constructor abs
+in the definition of D.

@@ -1,6 +1,0 @@
-TerminationInfiniteRecord.agda:11,1-12,34
-Termination checking failed for the following functions:
-  elimEmpty
-Problematic calls:
-  elimEmpty e
-    (at TerminationInfiniteRecord.agda:12,23-32)

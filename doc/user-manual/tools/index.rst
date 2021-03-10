@@ -15,4 +15,7 @@ Tools
    literate-programming
    generating-html
    generating-latex
+   interface-files
    package-system
+   performance
+   search-about

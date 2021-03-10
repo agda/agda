@@ -86,7 +86,7 @@ parseTime :: String -> Int
 parseTime [] = 0
 parseTime xs = read ds * modifier + parseTime r where
   (ds , modr) = span isDigit xs
-  (mod , r)   = span (not . isDigit) modr
+  (mod , r)   = break isDigit modr
 
   modifier = case mod of
     "ms" -> 1

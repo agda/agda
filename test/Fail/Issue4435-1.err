@@ -1,0 +1,12 @@
+Issue4435-1.agda:6,1-25
+The following names are declared but not accompanied by a
+definition: Foo
+Issue4435-1.agda:10,6-17
+Multiple definitions of Foo. Previous definition at
+Issue4435-1.agda:6,6-9
+Perhaps you meant to write 
+  'data Foo a where'
+at Issue4435-1.agda:10,6-17?
+In data definitions separate from data declaration, the ':' and type must be omitted.
+when scope checking the declaration
+  data Foo a : Set

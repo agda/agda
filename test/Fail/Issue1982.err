@@ -1,7 +1,14 @@
-Issue1982.agda:29,19-23
-I'm not sure if there should be a case for the constructor up,
-because I get stuck when trying to solve the following unification
-problems (inferred index ≟ expected index):
-  {suc (suc n)} ≟ {_n_99}
-  (! t) ∶ (t ∶ A) ≟ A₁
-when checking that the pattern up j has type True Γ A
+Failed to solve the following constraints:
+  Check definition of ren-true--fail : {Γ Γ′ : Cx} {A : Ty _n_99} →
+                                       Γ′ ⊇ Γ → True Γ A → True Γ′ A
+    stuck because
+      Issue1982.agda:29,19-23
+      I'm not sure if there should be a case for the constructor up,
+      because I get stuck when trying to solve the following unification
+      problems (inferred index ≟ expected index):
+        {suc (suc n)} ≟ {_n_99}
+        (! t) ∶ (t ∶ A) ≟ A₁
+      when checking that the pattern up j has type True Γ A
+    (blocked on _n_99)
+Unsolved metas at the following locations:
+  Issue1982.agda:28,40-46

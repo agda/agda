@@ -1,0 +1,13 @@
+Issue4869.agda:12,16-19
+The right-hand side must be omitted if there is an absurd pattern,
+() or {}, in the left-hand side.
+when checking that the clause foo (s≤s ()) = 123 has type
+2 ≤ 1 → Nat
+
+———— All done; warnings encountered ————————————————————————
+
+Issue4869.agda:12,16-19
+The right-hand side must be omitted if there is an absurd pattern,
+() or {}, in the left-hand side.
+when checking that the clause foo (s≤s ()) = 123 has type
+2 ≤ 1 → Nat

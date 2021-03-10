@@ -30,8 +30,11 @@ all : clean $(logDir) $(logFiles)
 
 # If an error is encountered, then the logs are not removed.
 without-creating-logs : all
-	@runghc Benchmark.hs $(TAG)
+	@$(RUNGHC) Benchmark.hs $(TAG)
 	rm -r $(logDir)
+
+summary :
+	@$(RUNGHC) Benchmark.hs
 
 $(logDir) :
 	@mkdir -p $@

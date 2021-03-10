@@ -14,6 +14,8 @@ Compilers
 
 See also :ref:`foreign-function-interface`.
 
+.. _compiler-backends:
+
 Backends
 --------
 
@@ -68,12 +70,9 @@ After compiling the example
 
 you can run the HelloWorld program which prints ``Hello, World!``.
 
-Required libraries for the :ref:`built-ins`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-- ``primFloatEquality`` requires the `ieee754
-  <http://hackage.haskell.org/package/ieee754>`_ library.
-
+.. warning:: Frequent error when compiling: ``Float`` requires the
+  `ieee754 <http://hackage.haskell.org/package/ieee754>`_ haskell library.
+  Usually ``cabal install ieee754`` in the command line does the trick.
 
 .. _javascript-backend:
 
@@ -90,7 +89,13 @@ The backend can be invoked from the command line using the flag
 
 .. code-block:: bash
 
-  agda --js [--compile-dir=<DIR>] <FILE>.agda
+  agda --js [--js-optimize] [--js-minify] [--compile-dir=<DIR>] <FILE>.agda
+
+The ``--js-optimize`` flag makes the generated JavaScript code
+typically faster and less readable.
+
+The ``--js-minify`` flag makes the generated JavaScript code
+smaller and less readable.
 
 
 Optimizations

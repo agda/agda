@@ -1,6 +1,0 @@
-Issue3136.agda:19,1-23,10
-Termination checking failed for the following functions:
-Problematic calls:
-  (λ { .C.a → x ; .C.b → λ { → any } }) .C.a
-  λ { A → any }
-    (at Issue3136.agda:22,10-23,10)

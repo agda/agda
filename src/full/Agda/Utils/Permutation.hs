@@ -1,25 +1,27 @@
-{-# LANGUAGE DeriveDataTypeable    #-}
 
 module Agda.Utils.Permutation where
 
 import Prelude hiding (drop, null)
 
+import Control.DeepSeq
+import Control.Monad (filterM)
+
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Maybe
 import Data.Array
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
-
 import Data.Data (Data)
 
-import Agda.Syntax.Position (KillRange(..))
+import GHC.Generics (Generic)
+
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
 import Agda.Utils.Null
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
 
@@ -35,7 +37,7 @@ import Agda.Utils.Impossible
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
 --   @m@ is the 'size' of the permutation.
 data Permutation = Perm { permRange :: Int, permPicks :: [Int] }
-  deriving (Eq, Data)
+  deriving (Eq, Data, Generic)
 
 instance Show Permutation where
   show (Perm n xs) = showx [0..n - 1] ++ " -> " ++ showx xs
@@ -52,8 +54,7 @@ instance Null Permutation where
   empty = Perm 0 []
   null (Perm _ picks) = null picks
 
-instance KillRange Permutation where
-  killRange = id
+instance NFData Permutation
 
 -- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
 --   More precisely, @permute indices list = sublist@, generates @sublist@
@@ -140,7 +141,7 @@ composeP p1 (Perm n xs) = Perm n $ permute p1 xs
 --   @composeP p (invertP err p) == p@
 invertP :: Int -> Permutation -> Permutation
 invertP err p@(Perm n xs) = Perm (size xs) $ elems tmpArray
-  where tmpArray = accumArray (flip const) err (0, n-1) $ zip xs [0..]
+  where tmpArray = accumArray (const id) err (0, n-1) $ zip xs [0..]
 
 -- | Turn a possible non-surjective permutation into a surjective permutation.
 compactP :: Permutation -> Permutation
@@ -194,11 +195,15 @@ expandP i n (Perm m xs) = Perm (m + n - 1) $ concatMap expand xs
 -- | Stable topologic sort. The first argument decides whether its first
 --   argument is an immediate parent to its second argument.
 topoSort :: (a -> a -> Bool) -> [a] -> Maybe Permutation
-topoSort parent xs = Perm (size xs) <$> topo g
+topoSort parent xs = runIdentity $ topoSortM (\x y -> Identity $ parent x y) xs
+
+topoSortM :: Monad m => (a -> a -> m Bool) -> [a] -> m (Maybe Permutation)
+topoSortM parent xs = do
+  let nodes     = zip [0..] xs
+      parents x = map fst <$> filterM (\(_, y) -> parent y x) nodes
+  g <- mapM (mapSndM parents) nodes
+  return $ Perm (size xs) <$> topo g
   where
-    nodes     = zip [0..] xs
-    g         = [ (n, parents x) | (n, x) <- nodes ]
-    parents x = [ n | (n, y) <- nodes, parent y x ]
 
     topo :: Eq node => [(node, [node])] -> Maybe [node]
     topo [] = return []
@@ -221,9 +226,6 @@ data Drop a = Drop
   , dropFrom :: a    -- ^ Where to drop from.
   }
   deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
-
-instance KillRange a => KillRange (Drop a) where
-  killRange = fmap killRange
 
 -- | Things that support delayed dropping.
 class DoDrop a where

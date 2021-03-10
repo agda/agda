@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE ImplicitParams             #-}
 
@@ -102,8 +101,8 @@ toList = Graph.edges . theCallGraph
 -- | Converts a list of calls with associated meta information to a
 --   call graph.
 
-fromList :: [Call cinfo] -> CallGraph cinfo
-fromList = CallGraph . Graph.fromEdgesWith CMSet.union
+fromListCG :: [Call cinfo] -> CallGraph cinfo
+fromListCG = CallGraph . Graph.fromEdgesWith CMSet.union
 
 -- | 'null' checks whether the call graph is completely disconnected.
 instance Null (CallGraph cinfo) where
@@ -124,6 +123,12 @@ instance Semigroup (CallGraph cinfo) where
 instance Monoid (CallGraph cinfo) where
   mempty  = empty
   mappend = (<>)
+
+instance Singleton (Call cinfo) (CallGraph cinfo) where
+  singleton = fromList . singleton
+
+instance Collection (Call cinfo) (CallGraph cinfo) where
+  fromList = fromListCG
 
 -- | Inserts a call into a call graph.
 

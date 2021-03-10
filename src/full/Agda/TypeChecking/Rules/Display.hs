@@ -1,6 +1,7 @@
 
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 
 import qualified Agda.Syntax.Abstract as A
@@ -13,8 +14,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Pretty (prettyShow)
+
 import Agda.Utils.Impossible
-import Agda.Utils.NonemptyList
 
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = do
@@ -23,7 +25,7 @@ checkDisplayPragma f ps e = do
             let lhs = map I.Apply args
             v <- exprToTerm e
             return $ Display n lhs (DTerm v)
-  reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ show f ++ "\n  " ++ show df
+  reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ prettyShow f ++ "\n  " ++ show df
   addDisplayForm f df
 
 --UNUSED Liang-Ting 2019-07-16
@@ -69,7 +71,7 @@ patternToTerm p ret =
   case p of
     A.VarP A.BindName{unBind = x}   -> bindVar x $ ret 1 (Var 0 [])
     A.ConP _ cs ps
-      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c Inductive []) ConOCon . map Apply) ps ret
+      | Just c <- getUnambiguous cs -> pappToTerm c (Con (ConHead c IsData Inductive []) ConOCon . map Apply) ps ret
       | otherwise                   -> ambigErr "constructor" cs
     A.ProjP _ _ ds
       | Just d <- getUnambiguous ds -> ret 0 (Def d [])
@@ -77,16 +79,14 @@ patternToTerm p ret =
     A.DefP _ fs ps
       | Just f <- getUnambiguous fs -> pappToTerm f (Def f . map Apply) ps ret
       | otherwise                   -> ambigErr "DefP" fs
-    A.LitP l                        -> ret 0 (Lit l)
+    A.LitP _ l                      -> ret 0 $ Lit l
     A.WildP _                       -> bindWild $ ret 1 (Var 0 [])
-    _                               -> do
-      doc <- prettyA p
-      typeError $ GenericError $ "Pattern not allowed in DISPLAY pragma:\n" ++ show doc
+    _ -> genericDocError =<< vcat [ "Pattern not allowed in DISPLAY pragma:", prettyA p ]
   where
     ambigErr thing (AmbQ xs) =
       genericDocError =<< do
         text ("Ambiguous " ++ thing ++ ":") <?>
-          fsep (punctuate comma (map pshow $ toList xs))
+          fsep (punctuate comma (fmap pretty xs))
 
 bindWild :: TCM a -> TCM a
 bindWild ret = do
@@ -101,8 +101,8 @@ exprToTerm e =
   case unScope e of
     A.Var x  -> fst <$> getVarInfo x
     A.Def f  -> pure $ Def f []
-    A.Con c  -> pure $ Con (ConHead (headAmbQ c) Inductive []) ConOCon [] -- Don't care too much about ambiguity here
-    A.Lit l  -> pure $ Lit l
+    A.Con c  -> pure $ Con (ConHead (headAmbQ c) IsData Inductive []) ConOCon [] -- Don't care too much about ambiguity here
+    A.Lit _ l  -> pure $ Lit l
     A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 
     A.Proj _ f -> pure $ Def (headAmbQ f) []   -- only for printing so we don't have to worry too much here

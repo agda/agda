@@ -5,8 +5,12 @@
 module Agda.TypeChecking.Implicit where
 
 import Control.Monad
+import Control.Monad.Except
+import Control.Monad.IO.Class
 
+import Agda.Syntax.Position (beginningOf, getRange)
 import Agda.Syntax.Common
+import Agda.Syntax.Abstract (Binder, mkBinder_)
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Irrelevance
@@ -16,17 +20,71 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
+
+-- Cut and paste from insertImplicitPatternsT:
+
+-- | Insert implicit binders in a list of binders, but not at the end.
+insertImplicitBindersT
+  :: (PureTCM m, MonadError TCErr m, MonadFresh NameId m, MonadTrace m)
+  => [NamedArg Binder]     -- ^ Should be non-empty, otherwise nothing happens.
+  -> Type                  -- ^ Function type eliminated by arguments given by binders.
+  -> m [NamedArg Binder] -- ^ Padded binders.
+insertImplicitBindersT = \case
+  []     -> \ _ -> return []
+  b : bs -> List1.toList <.> insertImplicitBindersT1 (b :| bs)
+
+-- | Insert implicit binders in a list of binders, but not at the end.
+insertImplicitBindersT1
+  :: (PureTCM m, MonadError TCErr m, MonadFresh NameId m, MonadTrace m)
+  => List1 (NamedArg Binder)        -- ^ Non-empty.
+  -> Type                           -- ^ Function type eliminated by arguments given by binders.
+  -> m (List1 (NamedArg Binder))  -- ^ Padded binders.
+insertImplicitBindersT1 bs@(b :| _) a = setCurrentRange b $ do
+  TelV tel ty0 <- telViewUpTo' (-1) (not . visible) a
+  reportSDoc "tc.term.lambda.imp" 20 $
+    vcat [ "insertImplicitBindersT"
+         , nest 2 $ "bs  = " <+> do
+             brackets $ fsep $ punctuate comma $ fmap prettyA bs
+         , nest 2 $ "tel = " <+> prettyTCM tel
+         , nest 2 $ "ty  = " <+> addContext tel (prettyTCM ty0)
+         ]
+  reportSDoc "tc.term.lambda.imp" 70 $
+    vcat [ "insertImplicitBindersT"
+         , nest 2 $ "bs  = " <+> (text . show . List1.toList) bs
+         , nest 2 $ "tel = " <+> (text . show) tel
+         , nest 2 $ "ty  = " <+> (text . show) ty0
+         ]
+  hs <- insImp b tel
+  -- Continue with implicit binders inserted before @b@.
+  let bs0@(b1 :| bs1) = List1.prepend hs bs
+  reduce a >>= piOrPath >>= \case
+    -- If @a@ is a function (or path) type, continue inserting after @b1@.
+    Left (_, ty) -> (b1 :|) <$> insertImplicitBindersT bs1 (absBody ty)
+    -- Otherwise, we are done.
+    Right{}      -> return bs0
+  where
+  insImp b EmptyTel = return []
+  insImp b tel = case insertImplicit b $ telToList tel of
+    BadImplicits   -> typeError WrongHidingInLHS
+    NoSuchName x   -> typeError WrongHidingInLHS
+    ImpInsert doms -> mapM implicitArg doms
+      where
+      implicitArg d = setOrigin Inserted . unnamedArg (domInfo d) . mkBinder_ <$> do
+        freshNoName $ beginningOf $ getRange b
 
 -- | @implicitArgs n expand t@ generates up to @n@ implicit argument
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
 --   and @expand@ holds on the hiding info of its domain.
 
 implicitArgs
-  :: (MonadReduce m, MonadMetaSolver m, MonadDebug m, MonadTCM m)
+  :: (PureTCM m, MonadMetaSolver m, MonadTCM m)
   => Int               -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type              -- ^ The (function) type @t@ we are eliminating.
@@ -39,7 +97,7 @@ implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
 --   and @expand@ holds on the hiding and name info of its domain.
 
 implicitNamedArgs
-  :: (MonadReduce m, MonadMetaSolver m, MonadDebug m, MonadTCM m)
+  :: (PureTCM m, MonadMetaSolver m, MonadTCM m)
   => Int                          -- ^ @n@, the maximum number of implicts to be inserted.
   -> (Hiding -> ArgName -> Bool)  -- ^ @expand@, the predicate to test whether we should keep inserting.
   -> Type                         -- ^ The (function) type @t@ we are eliminating.
@@ -70,14 +128,19 @@ implicitNamedArgs n expand t0 = do
 -- | Create a metavariable according to the 'Hiding' info.
 
 newMetaArg
-  :: MonadMetaSolver m
+  :: (PureTCM m, MonadMetaSolver m)
   => ArgInfo    -- ^ Kind/relevance of meta.
   -> ArgName    -- ^ Name suggestion for meta.
   -> Comparison -- ^ Check (@CmpLeq@) or infer (@CmpEq@) the type.
   -> Type       -- ^ Type of meta.
   -> m (MetaId, Term)  -- ^ The created meta as id and as term.
 newMetaArg info x cmp a = do
-  applyModalityToContext info $
+  prp <- runBlocked $ isPropM a
+  let irrelevantIfProp =
+        if prp == Right True
+        then applyRelevanceToContext Irrelevant
+        else id
+  applyModalityToContext info $ irrelevantIfProp $
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: MonadMetaSolver m => Hiding -> String -> Type -> m (MetaId, Term)

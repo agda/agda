@@ -5,8 +5,6 @@ module Agda.TypeChecking.Reduce.Monad
   ( constructorForm
   , enterClosure
   , getConstInfo
-  , isInstantiatedMeta
-  , lookupMeta
   , askR, applyWhenVerboseS
   ) where
 
@@ -14,25 +12,20 @@ import Prelude hiding (null)
 
 import Control.Monad.Reader
 
-import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import Data.Maybe
 
 import System.IO.Unsafe
 
-import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding
-  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta' )
-import Agda.TypeChecking.Monad.Builtin hiding ( constructorForm )
+  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta', constructorForm )
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pretty () --instance only
 
-import Agda.Utils.Impossible
 
 instance HasBuiltins ReduceM where
   getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useR stLocalBuiltins)
@@ -66,6 +59,8 @@ instance MonadAddContext ReduceM where
 
   addCtx = defaultAddCtx
 
+  addLetBinding' = defaultAddLetBinding'
+
   updateContext rho f ret = withFreshR $ \ chkpt ->
     localTC (\e -> e { envContext = f $ envContext e
                      , envCurrentCheckpoint = chkpt
@@ -73,19 +68,6 @@ instance MonadAddContext ReduceM where
                                           fmap (applySubst rho) (envCheckpoints e)
                      }) ret
         -- let-bindings keep track of own their context
-
-lookupMeta' :: MetaId -> ReduceM (Maybe MetaVariable)
-lookupMeta' (MetaId i) = IntMap.lookup i <$> useR stMetaStore
-
-lookupMeta :: MetaId -> ReduceM MetaVariable
-lookupMeta = fromMaybe __IMPOSSIBLE__ <.> lookupMeta'
-
-isInstantiatedMeta :: MetaId -> ReduceM Bool
-isInstantiatedMeta i = do
-  mv <- lookupMeta i
-  return $ case mvInstantiation mv of
-    InstV{} -> True
-    _       -> False
 
 instance MonadDebug ReduceM where
 
@@ -105,7 +87,9 @@ instance MonadDebug ReduceM where
     bracket_ (openVerboseBracket k n s) (const $ closeVerboseBracket k n)
 
 instance HasConstInfo ReduceM where
-  getRewriteRulesFor = defaultGetRewriteRulesFor getTCState
+  getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do
     ReduceEnv env st <- askR
     defaultGetConstInfo st env q
+
+instance PureTCM ReduceM where

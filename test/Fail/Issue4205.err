@@ -1,0 +1,6 @@
+Issue4205.agda:14,1-15,18
+With clause pattern f is not an instance of its parent pattern R.f
+when checking that the clause
+R.f test with Set₃
+f test | _ = Set
+has type R

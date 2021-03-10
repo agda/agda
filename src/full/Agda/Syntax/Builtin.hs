@@ -1,6 +1,8 @@
 -- | This module defines the names of all BUILTINs.
 module Agda.Syntax.Builtin where
 
+import Agda.Utils.List
+
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
   builtinNatLess, builtinInteger, builtinIntegerPos, builtinIntegerNegSuc,
@@ -9,6 +11,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinSigma,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
+  builtinMaybe, builtinNothing, builtinJust,
   builtinPath, builtinPathP, builtinInterval, builtinIZero, builtinIOne, builtinPartial, builtinPartialP,
   builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
@@ -26,7 +29,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinInf, builtinSharp, builtinFlat,
   builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
-  builtinSetOmega,
+  builtinSet, builtinProp, builtinSetOmega, builtinStrictSet, builtinSSetOmega,
+  builtinLockUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
   builtinAgdaSortUnsupported,
@@ -58,12 +62,13 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDeclarePostulate, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
-  builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
+  builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm, builtinAgdaTCMQuoteOmegaTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
-  builtinAgdaTCMWithNormalisation, builtinAgdaTCMDebugPrint,
+  builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconsParams, builtinAgdaTCMDebugPrint,
+  builtinAgdaTCMOnlyReduceDefs, builtinAgdaTCMDontReduceDefs,
   builtinAgdaTCMNoConstraints,
-  builtinAgdaTCMSolveConstraints, builtinAgdaTCMSolveConstraintsMentioning,
-  builtinAgdaTCMRunSpeculative
+  builtinAgdaTCMRunSpeculative,
+  builtinAgdaTCMExec
   :: String
 
 builtinNat                               = "NATURAL"
@@ -92,6 +97,9 @@ builtinFalse                             = "FALSE"
 builtinList                              = "LIST"
 builtinNil                               = "NIL"
 builtinCons                              = "CONS"
+builtinMaybe                             = "MAYBE"
+builtinNothing                           = "NOTHING"
+builtinJust                              = "JUST"
 builtinIO                                = "IO"
 builtinId                                = "ID"
 builtinConId                             = "CONID"
@@ -144,7 +152,12 @@ builtinLevelMax                          = "LEVELMAX"
 builtinLevel                             = "LEVEL"
 builtinLevelZero                         = "LEVELZERO"
 builtinLevelSuc                          = "LEVELSUC"
+builtinSet                               = "TYPE"
+builtinProp                              = "PROP"
 builtinSetOmega                          = "SETOMEGA"
+builtinLockUniv                          = "primLockUniv"
+builtinSSetOmega                         = "STRICTSETOMEGA"
+builtinStrictSet                         = "STRICTSET"
 builtinFromNat                           = "FROMNAT"
 builtinFromNeg                           = "FROMNEG"
 builtinFromString                        = "FROMSTRING"
@@ -239,13 +252,16 @@ builtinAgdaTCMBlockOnMeta                = "AGDATCMBLOCKONMETA"
 builtinAgdaTCMCommit                     = "AGDATCMCOMMIT"
 builtinAgdaTCMQuoteTerm                  = "AGDATCMQUOTETERM"
 builtinAgdaTCMUnquoteTerm                = "AGDATCMUNQUOTETERM"
+builtinAgdaTCMQuoteOmegaTerm             = "AGDATCMQUOTEOMEGATERM"
 builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
+builtinAgdaTCMWithReconsParams           = "AGDATCMWITHRECONSPARAMS"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
+builtinAgdaTCMOnlyReduceDefs             = "AGDATCMONLYREDUCEDEFS"
+builtinAgdaTCMDontReduceDefs             = "AGDATCMDONTREDUCEDEFS"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
-builtinAgdaTCMSolveConstraints           = "AGDATCMSOLVECONSTRAINTS"
-builtinAgdaTCMSolveConstraintsMentioning = "AGDATCMSOLVECONSTRAINTSMENTIONING"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
+builtinAgdaTCMExec                       = "AGDATCMEXEC"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
@@ -258,6 +274,9 @@ builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 --   The type of @Type@ would be @Type : Level → Setω@
 --   which is not valid Agda.
 
+isBuiltinNoDef :: String -> Bool
+isBuiltinNoDef = hasElem builtinsNoDef
+
 builtinsNoDef :: [String]
 builtinsNoDef =
   sizeBuiltins ++
@@ -269,7 +288,11 @@ builtinsNoDef =
   , builtinSub
   , builtinIZero
   , builtinIOne
+  , builtinSet
+  , builtinProp
   , builtinSetOmega
+  , builtinStrictSet
+  , builtinSSetOmega
   ]
 
 sizeBuiltins :: [String]

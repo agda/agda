@@ -11,17 +11,16 @@ import Control.Monad
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Position
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad as I
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty
@@ -65,7 +64,7 @@ runE m = evalStateT m (ESt Map.empty Map.empty)
 -- | Takes the name of the data/record type.
 computeErasedConstructorArgs :: QName -> TCM ()
 computeErasedConstructorArgs d = do
-  cs <- getConstructors d
+  cs <- getNotErasedConstructors d
   runE $ mapM_ getFunInfo cs
 
 eraseTerms :: QName -> EvaluationStrategy -> TTerm -> TCM TTerm
@@ -154,7 +153,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
     eraseRel r t | erasable r = pure TErased
                  | otherwise  = erase t
 
-    eraseAlt a = case a of
+    eraseAlt = \case
       TALit l b   -> TALit l   <$> erase b
       TACon c a b -> do
         rs <- map erasable . fst <$> getFunInfo c
@@ -165,8 +164,12 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
 -- | Doesn't have any type information (other than the name of the data type),
 --   so we can't do better than checking if all constructors are present.
 pruneUnreachable :: Int -> CaseType -> TTerm -> [TAlt] -> E (TTerm, [TAlt])
-pruneUnreachable _ (CTData q) d bs = do
-  cs <- lift $ getConstructors q
+pruneUnreachable _ (CTData q) d bs' = do
+  cs <- lift $ getNotErasedConstructors q
+  let bs = flip filter bs' $ \case
+             a@TACon{} -> (aCon a) `elem` cs
+             TAGuard{} -> True
+             TALit{}   -> True
   let complete =length cs == length [ b | b@TACon{} <- bs ]
   let d' | complete  = tUnreachable
          | otherwise = d
@@ -176,11 +179,11 @@ pruneUnreachable x CTInt d bs = return $ pruneIntCase x d bs IntSet.empty
 pruneUnreachable _ _ d bs = pure (d, bs)
 
 -- These are the guards we generate for Int/Nat pattern matching
-pattern Below :: Range -> Int -> Integer -> TTerm
-pattern Below r x n = TApp (TPrim PLt)  [TVar x, TLit (LitNat r n)]
+pattern Below :: Int -> Integer -> TTerm
+pattern Below x n = TApp (TPrim PLt)  [TVar x, TLit (LitNat n)]
 
-pattern Above :: Range -> Int -> Integer -> TTerm
-pattern Above r x n = TApp (TPrim PGeq) [TVar x, TLit (LitNat r n)]
+pattern Above :: Int -> Integer -> TTerm
+pattern Above x n = TApp (TPrim PGeq) [TVar x, TLit (LitNat n)]
 
 -- | Strip unreachable clauses (replace by tUnreachable for the default).
 --   Fourth argument is the set of ints covered so far.
@@ -192,9 +195,9 @@ pruneIntCase x d bs cover = go bs cover
       | otherwise            = (d, [])
     go (b : bs) cover =
       case b of
-        TAGuard (Below _ y n) _ | x == y -> rec (IntSet.below n)
-        TAGuard (Above _ y n) _ | x == y -> rec (IntSet.above n)
-        TALit (LitNat _ n) _             -> rec (IntSet.singleton n)
+        TAGuard (Below y n) _ | x == y -> rec (IntSet.below n)
+        TAGuard (Above y n) _ | x == y -> rec (IntSet.above n)
+        TALit (LitNat n) _             -> rec (IntSet.singleton n)
         _                                -> second (b :) $ go bs cover
       where
         rec this = second addAlt $ go bs cover'
@@ -203,7 +206,7 @@ pruneIntCase x d bs cover = go bs cover
             cover' = this' <> cover
             addAlt = case IntSet.toFiniteList this' of
                        Just []  -> id                                     -- unreachable case
-                       Just [n] -> (TALit (LitNat noRange n) (aBody b) :) -- possibly refined case
+                       Just [n] -> (TALit (LitNat n) (aBody b) :) -- possibly refined case
                        _        -> (b :)                                  -- unchanged case
 
 data TypeInfo = Empty | Erasable | NotErasable
@@ -233,7 +236,7 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
       (rs, t) <- do
         (tel, t) <- lift $ typeWithoutParams q
         is     <- mapM (getTypeInfo . snd . dget) tel
-        used   <- lift $ (++ repeat True) <$> getCompiledArgUse q
+        used   <- lift $ (++ repeat ArgUsed) . fromMaybe [] <$> getCompiledArgUse q
         forced <- lift $ (++ repeat NotForced) <$> getForcedArgs q
         return (zipWith3 (uncurry . mkR . getModality) tel (zip forced used) is, t)
       h <- if isAbsurdLambdaName q then pure Erasable else getTypeInfo t
@@ -242,10 +245,10 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
       return (rs, h)
 
     -- Treat empty, erasable, or unused arguments as Erasable
-    mkR :: Modality -> IsForced -> Bool -> TypeInfo -> TypeInfo
-    mkR m f b i
+    mkR :: Modality -> IsForced -> ArgUsage -> TypeInfo -> TypeInfo
+    mkR m f u i
       | not (usableModality m) = Erasable
-      | not b                  = Erasable
+      | ArgUnused <- u         = Erasable
       | Forced <- f            = Erasable
       | otherwise              = i
 
@@ -260,7 +263,7 @@ isErasable qn =
 
 telListView :: Type -> TCM (ListTel, Type)
 telListView t = do
-  TelV tel t <- telView t
+  TelV tel t <- telViewPath t
   return (telToList tel, t)
 
 typeWithoutParams :: QName -> TCM (ListTel, Type)
@@ -286,10 +289,10 @@ getTypeInfo t0 = do
     Sort{}    -> return Erasable
     _         -> return NotErasable
   is <- mapM (getTypeInfo . snd . dget) tel
-  let e | any (== Empty) is = Erasable
-        | null is           = et        -- TODO: guard should really be "all inhabited is"
-        | et == Empty       = Erasable
-        | otherwise         = et
+  let e | Empty `elem` is = Erasable
+        | null is         = et        -- TODO: guard should really be "all inhabited is"
+        | et == Empty     = Erasable
+        | otherwise       = et
   lift $ reportSDoc "treeless.opt.erase.type" 50 $ prettyTCM t0 <+> text ("is " ++ show e)
   return e
   where
@@ -299,10 +302,10 @@ getTypeInfo t0 = do
       msizes <- lift $ mapM getBuiltinName
                          [builtinSize, builtinSizeLt]
       def    <- lift $ getConstInfo q
-      mcs    <- return $ case I.theDef def of
-        I.Datatype{ dataCons = cs } -> Just cs
-        I.Record{ recConHead = c }  -> Just [conName c]
-        _                           -> Nothing
+      let mcs = case I.theDef def of
+                  I.Datatype{ dataCons = cs } -> Just cs
+                  I.Record{ recConHead = c }  -> Just [conName c]
+                  _                           -> Nothing
       case mcs of
         _ | Just q `elem` msizes -> return Erasable
         Just [c] -> do

@@ -2,10 +2,9 @@
 -- Consider using Data.Maybe.Strict instead
 -- Andreas Abel (2019-07-05)@GitHub:
 -- The dependencies of strict-base-types are too heavy,
--- especially since it depends on lens which consciously ruled out.
+-- especially since it depends on lens which we consciously ruled out.
 
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE CPP #-}
 
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -34,14 +33,10 @@ module Agda.Utils.Maybe.Strict
 import           Prelude             hiding (Maybe (..), maybe, null)
 import qualified Prelude             as Lazy
 
-import           Control.Applicative (pure, (<$>))
 import           Control.DeepSeq     (NFData (..))
 import           Data.Binary         (Binary (..))
 import           Data.Data           (Data (..))
-import           Data.Monoid         (Monoid, mempty, mappend)
 import           Data.Semigroup      (Semigroup, (<>))
-import           Data.Foldable       (Foldable (..))
-import           Data.Traversable    (Traversable (..))
 import           Data.Strict.Maybe   (Maybe (Nothing, Just), fromJust,
                                       fromMaybe, isJust, isNothing, maybe)
 import           GHC.Generics        (Generic (..))
@@ -56,19 +51,14 @@ toLazy :: Maybe a -> Lazy.Maybe a
 toLazy Nothing  = Lazy.Nothing
 toLazy (Just x) = Lazy.Just x
 
+#if !(MIN_VERSION_strict(0,4,0))
 deriving instance Data a => Data (Maybe a)
 deriving instance Generic  (Maybe a)
-
-instance Null (Maybe a) where
-  empty = Nothing
-  null = isNothing
 
 -- The monoid instance was fixed in strict-base-types 0.5.0. See
 -- Issue 1805.
 instance Semigroup a => Semigroup (Maybe a) where
-  Nothing <> m       = m
-  m       <> Nothing = m
-  Just x1 <> Just x2 = Just (x1 <> x2)
+  (<>) = unionMaybeWith (<>)
 
 instance Semigroup a => Monoid (Maybe a) where
   mempty  = Nothing
@@ -88,6 +78,22 @@ instance NFData a => NFData (Maybe a) where
 instance Binary a => Binary (Maybe a) where
   put = put . toLazy
   get = toStrict <$> get
+#endif
+
+-- | Note that strict Maybe is an 'Applicative' only modulo strictness.
+--   The laws only hold in the strict semantics.
+--   Eg. @pure f <*> pure _|_ = _|_@, but according to the laws for
+--   'Applicative' it should be @pure (f _|_)@.
+--   We ignore this issue here, it applies also to 'Foldable' and 'Traversable'.
+
+instance Applicative Maybe where
+  pure              = Just
+  Just f <*> Just x = Just $ f x
+  _      <*> _      = Nothing
+
+instance Null (Maybe a) where
+  empty = Nothing
+  null = isNothing
 
 -- | Analogous to 'Lazy.listToMaybe' in "Data.Maybe".
 listToMaybe :: [a] -> Maybe a

@@ -3,36 +3,36 @@
 
 {-| Pretty printer for the concrete syntax.
 -}
-module Agda.Syntax.Concrete.Pretty where
+module Agda.Syntax.Concrete.Pretty
+  ( module Agda.Syntax.Concrete.Pretty
+  , module Agda.Syntax.Concrete.Glyph
+  ) where
 
 import Prelude hiding ( null )
 
-import Data.IORef
 import Data.Maybe
+import qualified Data.Foldable  as Fold
+import qualified Data.Semigroup as Semigroup
 import qualified Data.Strict.Maybe as Strict
+import qualified Data.Text as T
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
-import Agda.Syntax.Fixity
-import Agda.Syntax.Notation
 import Agda.Syntax.Position
-
-import Agda.Interaction.Options.IORefs (UnicodeOrAscii(..), unicodeOrAscii)
+import Agda.Syntax.Concrete.Glyph
 
 import Agda.Utils.Float (toStringWithoutDotZero)
 import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.List1 ( List1, pattern (:|) )
+import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
-import Agda.Utils.String
 
 import Agda.Utils.Impossible
 
-import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
-
--- Andreas, 2017-10-02, TODO: restore Show to its original purpose
---
 deriving instance Show Expr
 deriving instance (Show a) => Show (OpApp a)
 deriving instance Show Declaration
@@ -53,80 +53,7 @@ deriving instance Show LamClause
 deriving instance Show WhereClause
 deriving instance Show ModuleApplication
 deriving instance Show DoStmt
-
--- instance Show Expr            where show = show . pretty
--- instance Show Declaration     where show = show . pretty
--- instance Show Pattern         where show = show . pretty
--- instance Show TypedBinding    where show = show . pretty
--- instance Show LamBinding      where show = show . pretty
--- instance (Pretty a, Pretty b) => Show (ImportDirective' a b)
---                               where show = show . pretty
--- instance Show Pragma          where show = show . pretty
--- instance Show RHS             where show = show . pretty
--- instance Show LHS where show = show . pretty
--- instance Show LHSCore where show = show . pretty
--- instance Show WhereClause where show = show . pretty
--- instance Show ModuleApplication where show = show . pretty
-
-
--- | Picking the appropriate set of special characters depending on
--- whether we are allowed to use unicode or have to limit ourselves
--- to ascii.
-
-data SpecialCharacters = SpecialCharacters
-  { _dbraces :: Doc -> Doc
-  , _lambda  :: Doc
-  , _arrow   :: Doc
-  , _forallQ :: Doc
-  , _leftIdiomBrkt  :: Doc
-  , _rightIdiomBrkt :: Doc
-  , _emptyIdiomBrkt :: Doc
-  }
-
-{-# NOINLINE specialCharacters #-}
-specialCharacters :: SpecialCharacters
-specialCharacters =
-  let opt = UNSAFE.unsafePerformIO (readIORef unicodeOrAscii) in
-  case opt of
-    UnicodeOk -> SpecialCharacters { _dbraces = (("\x2983 " <>) . (<> " \x2984"))
-                                   , _lambda  = "\x03bb"
-                                   , _arrow   = "\x2192"
-                                   , _forallQ = "\x2200"
-                                   , _leftIdiomBrkt  = "\x2987"
-                                   , _rightIdiomBrkt = "\x2988"
-                                   , _emptyIdiomBrkt = "\x2987\x2988"
-                                   }
-    AsciiOnly -> SpecialCharacters { _dbraces = braces . braces'
-                                   , _lambda  = "\\"
-                                   , _arrow   = "->"
-                                   , _forallQ = "forall"
-                                   , _leftIdiomBrkt  = "(|"
-                                   , _rightIdiomBrkt = "|)"
-                                   , _emptyIdiomBrkt = "(|)"
-                                   }
-
-braces' :: Doc -> Doc
-braces' d = ifNull (render d) (braces d) {-else-} $ \ s ->
-  braces (spaceIfDash (head s) <> d <> spaceIfDash (last s))
-  -- Add space to avoid starting a comment (Ulf, 2010-09-13, #269)
-  -- Andreas, 2018-07-21, #3161: Also avoid ending a comment
-  where
-  spaceIfDash '-' = " "
-  spaceIfDash _   = empty
-
--- double braces...
-dbraces :: Doc -> Doc
-dbraces = _dbraces specialCharacters
-
--- forall quantifier
-forallQ :: Doc
-forallQ = _forallQ specialCharacters
-
--- left, right, and empty idiom bracket
-leftIdiomBrkt, rightIdiomBrkt, emptyIdiomBrkt :: Doc
-leftIdiomBrkt  = _leftIdiomBrkt  specialCharacters
-rightIdiomBrkt = _rightIdiomBrkt specialCharacters
-emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
+deriving instance Show Module
 
 -- Lays out a list of documents [d₁, d₂, …] in the following way:
 -- @
@@ -137,14 +64,10 @@ emptyIdiomBrkt = _emptyIdiomBrkt specialCharacters
 -- @
 -- If the list is empty, then the notation @{}@ is used.
 
-bracesAndSemicolons :: [Doc] -> Doc
-bracesAndSemicolons []       = "{}"
-bracesAndSemicolons (d : ds) =
-  sep (["{" <+> d] ++ map (";" <+>) ds ++ ["}"])
-
-arrow, lambda :: Doc
-arrow  = _arrow specialCharacters
-lambda = _lambda specialCharacters
+bracesAndSemicolons :: Foldable t => t Doc -> Doc
+bracesAndSemicolons ts = case Fold.toList ts of
+  []       -> "{}"
+  (d : ds) -> sep (["{" <+> d] ++ map (";" <+>) ds ++ ["}"])
 
 -- | @prettyHiding info visible doc@ puts the correct braces
 --   around @doc@ according to info @info@ and returns
@@ -169,8 +92,11 @@ prettyCohesion a d =
   if render d == "_" then d else pretty (getCohesion a) <+> d
 
 prettyTactic :: BoundName -> Doc -> Doc
-prettyTactic BName{ bnameTactic = Nothing } d = d
-prettyTactic BName{ bnameTactic = Just t }  d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
+prettyTactic = prettyTactic' . bnameTactic
+
+prettyTactic' :: TacticAttribute -> Doc -> Doc
+prettyTactic' Nothing  d = d
+prettyTactic' (Just t) d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     pretty (a, b) = parens $ (pretty a <> comma) <+> pretty b
@@ -215,6 +141,13 @@ instance Pretty Cohesion where
   pretty Continuous = mempty
   pretty Squash  = "@⊤"
 
+instance Pretty Modality where
+  pretty mod = hsep
+    [ pretty (getRelevance mod)
+    , pretty (getQuantity mod)
+    , pretty (getCohesion mod)
+    ]
+
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
   pretty (SyntaxBindingLambda r bs e) = pretty (Lam r bs e)
@@ -227,10 +160,9 @@ instance Pretty Expr where
     pretty e =
         case e of
             Ident x          -> pretty x
-            Lit l            -> pretty l
+            Lit _ l          -> pretty l
             QuestionMark _ n -> "?" <> maybe empty (text . show) n
             Underscore _ n   -> maybe underscore text n
---          Underscore _ n   -> underscore <> maybe empty (text . show) n
             App _ _ _        ->
                 case appView e of
                     AppView e1 args     ->
@@ -238,7 +170,7 @@ instance Pretty Expr where
 --                      sep [ pretty e1
 --                          , nest 2 $ fsep $ map pretty args
 --                          ]
-            RawApp _ es    -> fsep $ map pretty es
+            RawApp _ es    -> fsep $ map pretty $ List2.toList es
             OpApp _ q _ es -> fsep $ prettyOpApp q es
 
             WithApp _ e es -> fsep $
@@ -246,27 +178,23 @@ instance Pretty Expr where
 
             HiddenArg _ e -> braces' $ pretty e
             InstanceArg _ e -> dbraces $ pretty e
-            Lam _ bs (AbsurdLam _ h) -> lambda <+> fsep (map pretty bs) <+> absurd h
+            Lam _ bs (AbsurdLam _ h) -> lambda <+> fsep (fmap pretty bs) <+> absurd h
             Lam _ bs e ->
-                sep [ lambda <+> fsep (map pretty bs) <+> arrow
+                sep [ lambda <+> fsep (fmap pretty bs) <+> arrow
                     , nest 2 $ pretty e
                     ]
             AbsurdLam _ h -> lambda <+> absurd h
-            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (map pretty pes)
+            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (fmap pretty pes)
             Fun _ e1 e2 ->
                 sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
                     , pretty e2
                     ]
             Pi tel e ->
-                sep [ pretty (Tel $ smashTel tel) <+> arrow
+                sep [ pretty (Tel $ smashTel $ List1.toList tel) <+> arrow
                     , pretty e
                     ]
-            Set _   -> "Set"
-            Prop _  -> "Prop"
-            SetN _ n    -> "Set" <> text (showIndex n)
-            PropN _ n   -> "Prop" <> text (showIndex n)
             Let _ ds me  ->
-                sep [ "let" <+> vcat (map pretty ds)
+                sep [ "let" <+> vcat (fmap pretty ds)
                     , maybe empty (\ e -> "in" <+> pretty e) me
                     ]
             Paren _ e -> parens $ pretty e
@@ -275,25 +203,20 @@ instance Pretty Expr where
                 []   -> emptyIdiomBrkt
                 [e]  -> leftIdiomBrkt <+> pretty e <+> rightIdiomBrkt
                 e:es -> leftIdiomBrkt <+> pretty e <+> fsep (map (("|" <+>) . pretty) es) <+> rightIdiomBrkt
-            DoBlock _ ss -> "do" <+> vcat (map pretty ss)
+            DoBlock _ ss -> "do" <+> vcat (fmap pretty ss)
             As _ x e  -> pretty x <> "@" <> pretty e
             Dot _ e   -> "." <> pretty e
+            DoubleDot _ e  -> ".." <> pretty e
             Absurd _  -> "()"
             Rec _ xs  -> sep ["record", bracesAndSemicolons (map pretty xs)]
             RecUpdate _ e xs ->
               sep ["record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
             ETel []  -> "()"
             ETel tel -> fsep $ map pretty tel
-            QuoteGoal _ x e -> sep ["quoteGoal" <+> pretty x <+> "in",
-                                    nest 2 $ pretty e]
-            QuoteContext _ -> "quoteContext"
             Quote _ -> "quote"
             QuoteTerm _ -> "quoteTerm"
-            Unquote _ -> "unquote"
-            Tactic _ t es ->
-              sep [ "tactic" <+> pretty t
-                  , fsep [ "|" <+> pretty e | e <- es ]
-                  ]
+            Unquote _  -> "unquote"
+            Tactic _ t -> "tactic" <+> pretty t
             -- Andreas, 2011-10-03 print irrelevant things as .(e)
             DontCare e -> "." <> parens (pretty e)
             Equal _ a b -> pretty a <+> "=" <+> pretty b
@@ -311,13 +234,13 @@ instance Pretty a => Pretty (FieldAssignment' a) where
   pretty (FieldAssignment x e) = sep [ pretty x <+> "=" , nest 2 $ pretty e ]
 
 instance Pretty ModuleAssignment where
-  pretty (ModuleAssignment m es i) = (fsep $ pretty m : map pretty es) <+> pretty i
+  pretty (ModuleAssignment m es i) = fsep (pretty m : map pretty es) <+> pretty i
 
 instance Pretty LamClause where
-  pretty (LamClause lhs rhs wh _) =
-    sep [ pretty lhs
+  pretty (LamClause ps rhs _) =
+    sep [ fsep (map pretty ps)
         , nest 2 $ pretty' rhs
-        ] $$ nest 2 (pretty wh)
+        ]
     where
       pretty' (RHS e)   = arrow <+> pretty e
       pretty' AbsurdRHS = empty
@@ -366,9 +289,9 @@ instance Pretty LamBinding where
     pretty (DomainFull b) = pretty b
 
 instance Pretty TypedBinding where
-    pretty (TLet _ ds) = parens $ "let" <+> vcat (map pretty ds)
+    pretty (TLet _ ds) = parens $ "let" <+> vcat (fmap pretty ds)
     pretty (TBind _ xs (Underscore _ Nothing)) =
-      fsep (map (pretty . NamedBinding True) xs)
+      fsep (fmap (pretty . NamedBinding True) xs)
     pretty (TBind _ xs e) = fsep
       [ prettyRelevance y
         $ prettyHiding y parens
@@ -377,7 +300,7 @@ instance Pretty TypedBinding where
         $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
-      | ys@(y : _) <- groupBinds xs ]
+      | ys@(y : _) <- groupBinds $ List1.toList xs ]
       where
         groupBinds [] = []
         groupBinds (x : xs)
@@ -399,7 +322,7 @@ instance Pretty Tel where
 smashTel :: Telescope -> Telescope
 smashTel (TBind r xs e  :
           TBind _ ys e' : tel)
-  | show e == show e' = smashTel (TBind r (xs ++ ys) e : tel)
+  | prettyShow e == prettyShow e' = smashTel (TBind r (xs Semigroup.<> ys) e : tel)
 smashTel (b : tel) = b : smashTel tel
 smashTel [] = []
 
@@ -410,10 +333,10 @@ instance Pretty RHS where
 
 instance Pretty WhereClause where
   pretty  NoWhere = empty
-  pretty (AnyWhere [Module _ x [] ds]) | isNoName (unqualify x)
+  pretty (AnyWhere _ [Module _ x [] ds]) | isNoName (unqualify x)
                        = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (AnyWhere ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (SomeWhere m a ds) =
+  pretty (AnyWhere _ ds) = vcat [ "where", nest 2 (vcat $ map pretty ds) ]
+  pretty (SomeWhere _ m a ds) =
     vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) ("private" :)
              [ "module", pretty m, "where" ]
          , nest 2 (vcat $ map pretty ds)
@@ -442,6 +365,7 @@ instance Pretty LHSCore where
       sep $ parens doc : map (parens . pretty) ps
     where
     doc = sep $ pretty h : map (("|" <+>) . pretty) wps
+  pretty (LHSEllipsis r p) = "..."
 
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> "=" <+> pretty e
@@ -454,26 +378,26 @@ instance Pretty DoStmt where
       prCs [] = empty
       prCs cs = "where" <?> vcat (map pretty cs)
   pretty (DoThen e) = pretty e
-  pretty (DoLet _ ds) = "let" <+> vcat (map pretty ds)
+  pretty (DoLet _ ds) = "let" <+> vcat (fmap pretty ds)
 
 instance Pretty Declaration where
     prettyList = vcat . map pretty
     pretty d =
         case d of
-            TypeSig i x e ->
-                sep [ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
+            TypeSig i tac x e ->
+                sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
                     , nest 2 $ pretty e
                     ]
 
-            FieldSig inst x (Arg i e) ->
+            FieldSig inst tac x (Arg i e) ->
                 mkInst inst $ mkOverlap i $
                 prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
-                pretty $ TypeSig (setRelevance Relevant i) x e
+                pretty $ TypeSig (setRelevance Relevant i) tac x e
 
                 where
 
-                  mkInst InstanceDef    d = sep [ "instance", nest 2 d ]
-                  mkInst NotInstanceDef d = d
+                  mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
+                  mkInst NotInstanceDef  d = d
 
                   mkOverlap i d | isOverlappable i = "overlap" <+> d
                                 | otherwise        = d
@@ -486,7 +410,7 @@ instance Pretty Declaration where
                 sep [ pretty lhs
                     , nest 2 $ pretty rhs
                     ] $$ nest 2 (pretty wh)
-            DataSig _ ind x tel e ->
+            DataSig _ x tel e ->
                 sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
@@ -496,7 +420,7 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Data _ ind x tel e cs ->
+            Data _ x tel e cs ->
                 sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
@@ -507,7 +431,7 @@ instance Pretty Declaration where
                             , "where"
                             ]
                     ] $$ nest 2 (vcat $ map pretty cs)
-            DataDef _ ind x tel cs ->
+            DataDef _ x tel cs ->
                 sep [ hsep  [ "data"
                             , pretty x
                             , fcat (map pretty tel)
@@ -524,16 +448,19 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Record _ x ind eta con tel e cs ->
-              pRecord x ind eta con tel (Just e) cs
-            RecordDef _ x ind eta con tel cs ->
-              pRecord x ind eta con tel Nothing cs
+            Record _ x dir tel e cs ->
+              pRecord x dir tel (Just e) cs
+            RecordDef _ x dir tel cs ->
+              pRecord x dir tel Nothing cs
+            RecordDirective r -> pRecordDirective r
             Infix f xs  ->
-                pretty f <+> (fsep $ punctuate comma $ map pretty xs)
+                pretty f <+> fsep (punctuate comma $ fmap pretty xs)
             Syntax n xs -> "syntax" <+> pretty n <+> "..."
             PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
                                      <+> "=" <+> pretty p
             Mutual _ ds     -> namedBlock "mutual" ds
+            InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
+            LoneConstructor _ ds -> namedBlock "constructor" ds
             Abstract _ ds   -> namedBlock "abstract" ds
             Private _ _ ds  -> namedBlock "private" ds
             InstanceB _ ds  -> namedBlock "instance" ds
@@ -577,17 +504,44 @@ instance Pretty Declaration where
                     , nest 2 $ vcat $ map pretty ds
                     ]
 
-pRecord :: Name -> Maybe (Ranged Induction) -> Maybe HasEta -> Maybe (Name, IsInstance) -> [LamBinding] -> Maybe Expr -> [Declaration] -> Doc
-pRecord x ind eta con tel me cs =
-  sep [ hsep  [ "record"
+pHasEta0 :: HasEta0 -> Doc
+pHasEta0 = \case
+  YesEta   -> "eta-equality"
+  NoEta () -> "no-eta-equality"
+
+pRecordDirective :: RecordDirective -> Doc
+pRecordDirective = \case
+  Induction ind -> pretty (rangedThing ind)
+  Constructor n inst -> hsep [ pInst, "constructor", pretty n ] where
+    pInst = case inst of
+      InstanceDef{} -> "instance"
+      NotInstanceDef{} -> empty
+  Eta eta -> pHasEta0 (rangedThing eta)
+  PatternOrCopattern{} -> "pattern"
+
+pRecord
+  :: Name
+  -> RecordDirectives
+  -> [LamBinding]
+  -> Maybe Expr
+  -> [Declaration]
+  -> Doc
+pRecord x (RecordDirectives ind eta pat con) tel me ds = vcat
+    [ sep
+      [ hsep  [ "record"
               , pretty x
               , fcat (map pretty tel)
               ]
       , nest 2 $ pType me
-      ] $$ nest 2 (vcat $ pInd ++
-                          pEta ++
-                          pCon ++
-                          map pretty cs)
+      ]
+    , nest 2 $ vcat $ concat
+      [ pInd
+      , pEta
+      , pPat
+      , pCon
+      , map pretty ds
+      ]
+    ]
   where pType (Just e) = hsep
                 [ ":"
                 , pretty e
@@ -595,10 +549,15 @@ pRecord x ind eta con tel me cs =
                 ]
         pType Nothing  =
                   "where"
-        pInd = maybeToList $ text . show . rangedThing <$> ind
-        pEta = maybeToList $ eta <&> \case
-          YesEta -> "eta-equality"
-          NoEta  -> "no-eta-equality"
+        pInd = maybeToList $ pretty . rangedThing <$> ind
+        pEta = maybeToList $ eta <&> pHasEta0
+        pPat = maybeToList $ "pattern" <$ pat
+        -- pEta = caseMaybe eta [] $ \case
+        --   YesEta -> [ "eta-equality" ]
+        --   NoEta  -> "no-eta-equality" : pPat
+        -- pPat = \case
+        --   PatternMatching   -> [ "pattern" ]
+        --   CopatternMatching -> []
         pCon = maybeToList $ (("constructor" <+>) . pretty) . fst <$> con
 
 instance Pretty OpenShortHand where
@@ -607,13 +566,13 @@ instance Pretty OpenShortHand where
 
 instance Pretty Pragma where
     pretty (OptionsPragma _ opts)  = fsep $ map text $ "OPTIONS" : opts
-    pretty (BuiltinPragma _ b x)   = hsep [ "BUILTIN", text b, pretty x ]
-    pretty (RewritePragma _ xs)    =
+    pretty (BuiltinPragma _ b x)   = hsep [ "BUILTIN", text (rangedThing b), pretty x ]
+    pretty (RewritePragma _ _ xs)    =
       hsep [ "REWRITE", hsep $ map pretty xs ]
     pretty (CompilePragma _ b x e) =
-      hsep [ "COMPILE", text b, pretty x, text e ]
+      hsep [ "COMPILE", text (rangedThing b), pretty x, text e ]
     pretty (ForeignPragma _ b s) =
-      vcat $ text ("FOREIGN " ++ b) : map text (lines s)
+      vcat $ text ("FOREIGN " ++ rangedThing b) : map text (lines s)
     pretty (StaticPragma _ i) =
       hsep $ ["STATIC", pretty i]
     pretty (InjectivePragma _ i) =
@@ -634,8 +593,8 @@ instance Pretty Pragma where
         Terminating            -> "TERMINATING"
         TerminationMeasure _ x -> hsep $ ["MEASURE", pretty x]
     pretty (NoCoverageCheckPragma _) = "NON_COVERING"
-    pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text str ]
-    pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text str ]
+    pretty (WarningOnUsage _ nm str) = hsep [ "WARNING_ON_USAGE", pretty nm, text (T.unpack str) ]
+    pretty (WarningOnImport _ str)   = hsep [ "WARNING_ON_IMPORT", text (T.unpack str) ]
     pretty (CatchallPragma _) = "CATCHALL"
     pretty (DisplayPragma _ lhs rhs) = "DISPLAY" <+> sep [ pretty lhs <+> "=", nest 2 $ pretty rhs ]
     pretty (NoPositivityCheckPragma _) = "NO_POSITIVITY_CHECK"
@@ -643,14 +602,21 @@ instance Pretty Pragma where
       hsep ("POLARITY" : pretty q : map pretty occs)
     pretty (NoUniverseCheckPragma _) = "NO_UNIVERSE_CHECK"
 
+instance Pretty Associativity where
+  pretty = \case
+    LeftAssoc  -> "infixl"
+    RightAssoc -> "infixr"
+    NonAssoc   -> "infix"
+
+instance Pretty FixityLevel where
+  pretty = \case
+    Unrelated  -> empty
+    Related d  -> text $ toStringWithoutDotZero d
+
 instance Pretty Fixity where
-    pretty (Fixity _ Unrelated   _)   = __IMPOSSIBLE__
-    pretty (Fixity _ (Related d) ass) = s <+> text (toStringWithoutDotZero d)
-      where
-      s = case ass of
-            LeftAssoc  -> "infixl"
-            RightAssoc -> "infixr"
-            NonAssoc   -> "infix"
+  pretty (Fixity _ level ass) = case level of
+    Unrelated  -> empty
+    Related{}  -> pretty ass <+> pretty level
 
 instance Pretty GenPart where
     pretty (IdPart x)   = text $ rangedThing x
@@ -661,9 +627,9 @@ instance Pretty GenPart where
     prettyList = hcat . map pretty
 
 instance Pretty Fixity' where
-    pretty (Fixity' fix nota _)
-      | nota == noNotation = pretty fix
-      | otherwise          = "syntax" <+> pretty nota
+    pretty (Fixity' fix nota _range)
+      | null nota = pretty fix
+      | otherwise = "syntax" <+> pretty nota
 
  -- Andreas 2010-09-21: do not print relevance in general, only in function types!
  -- Andreas 2010-09-24: and in record fields
@@ -684,8 +650,8 @@ instance Pretty Pattern where
     pretty = \case
             IdentP x        -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
-            RawAppP _ ps    -> fsep $ map pretty ps
-            OpAppP _ q _ ps -> fsep $ prettyOpApp q (fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps)
+            RawAppP _ ps    -> fsep $ map pretty $ List2.toList ps
+            OpAppP _ q _ ps -> fsep $ prettyOpApp q $ fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps
             HiddenP _ p     -> braces' $ pretty p
             InstanceP _ p   -> dbraces $ pretty p
             ParenP _ p      -> parens $ pretty p
@@ -693,11 +659,11 @@ instance Pretty Pattern where
             AsP _ x p       -> pretty x <> "@" <> pretty p
             DotP _ p        -> "." <> pretty p
             AbsurdP _       -> "()"
-            LitP l          -> pretty l
+            LitP _ l        -> pretty l
             QuoteP _        -> "quote"
             RecP _ fs       -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
             EqualP _ es     -> sep $ [ parens (sep [pretty e1, "=", pretty e2]) | (e1,e2) <- es ]
-            EllipsisP _     -> "..."
+            EllipsisP _ mp  -> "..."
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .
@@ -705,10 +671,10 @@ prettyOpApp :: forall a .
 prettyOpApp q es = merge [] $ prOp ms xs es
   where
     -- ms: the module part of the name.
-    ms = init (qnameParts q)
+    ms = List1.init (qnameParts q)
     -- xs: the concrete name (alternation of @Id@ and @Hole@)
     xs = case unqualify q of
-           Name _ _ xs    -> xs
+           Name _ _ xs    -> List1.toList xs
            NoName{}       -> __IMPOSSIBLE__
 
     prOp :: [Name] -> [NamePart] -> [NamedArg (MaybePlaceholder a)] -> [(Doc, Maybe PositionInName)]
@@ -718,7 +684,7 @@ prettyOpApp q es = merge [] $ prOp ms xs es
         NoPlaceholder{} -> (pretty e, Nothing) : prOp ms xs es
           -- Module qualifier needs to go on section holes (#3072)
     prOp _  (Hole : _)  []       = __IMPOSSIBLE__
-    prOp ms (Id x : xs) es       = ( qual ms $ pretty $ Name noRange InScope $ [Id x]
+    prOp ms (Id x : xs) es       = ( qual ms $ pretty $ simpleName x
                                    , Nothing
                                    ) : prOp [] xs es
       -- Qualify the name part with the module.

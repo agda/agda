@@ -138,7 +138,7 @@ instance (Ord i, HasZero o, NotWorse o) => NotWorse (Matrix i o) where
 
 -- | Raw increase which does not cut off.
 increase :: Int -> Order -> Order
-increase i o = case o of
+increase i = \case
   Unknown  -> Unknown
   Decr u k -> Decr u $ k - i   -- TODO: should we set u to False if k - i < 0 ?
   Mat m    -> Mat $ fmap (increase i) m
@@ -207,7 +207,7 @@ isDecr o = decreasing o
 
 instance Pretty Order where
   pretty (Decr u 0) = "="
-  pretty (Decr u k) = mparens (not u) $ text $ show (0 - k)
+  pretty (Decr u k) = mparens (not u) $ text $ show (negate k)
   pretty Unknown    = "?"
   pretty (Mat m)    = "Mat" <+> pretty m
 
@@ -253,7 +253,7 @@ collapseO o       = o
 
 -- | Can two matrices be multplied together?
 okM :: Matrix Int Order -> Matrix Int Order -> Bool
-okM m1 m2 = (rows $ size m2) == (cols $ size m1)
+okM m1 m2 = rows (size m2) == cols (size m1)
 
 -- | The supremum of a (possibly empty) list of 'Order's.
 --   More information (i.e., more decrease) is bigger.

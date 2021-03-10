@@ -5,4 +5,4 @@
 (agda2-info-action "*All Goals*" "?0 : zero + n ≡ n + zero ?1 : suc m + n ≡ n + suc m " nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 (agda2-status-action "")
-(agda2-info-action "*Goal type etc.*" "Goal: n ≡ n + zero ———————————————————————————————————————————————————————————— a : flip _≡_ (n + zero) n n : ℕ" nil)
+(agda2-info-action "*Goal type etc.*" "Goal: n ≡ n + zero ———————————————————————————————————————————————————————————— a : flip _≡_ (n + zero) n a = sym (n+0=n n) n : ℕ" nil)

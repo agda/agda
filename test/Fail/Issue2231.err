@@ -1,6 +1,6 @@
-Issue2231.agda:19,1-21,29
+Issue2231.agda:22,1-24,29
 Termination checking failed for the following functions:
   f
 Problematic calls:
   f n (c2 n (c2 n d))
-    (at Issue2231.agda:20,24-25)
+    (at Issue2231.agda:23,24-25)

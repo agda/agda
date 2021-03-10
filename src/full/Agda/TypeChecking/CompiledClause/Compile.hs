@@ -5,11 +5,10 @@ import Prelude hiding (null)
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Trans.Identity
 
 import Data.Maybe
 import qualified Data.Map as Map
-import Data.List (nubBy)
-import Data.Function
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -17,7 +16,6 @@ import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.SplitTree
-import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
@@ -29,6 +27,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.List
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
@@ -37,16 +36,12 @@ data RunRecordPatternTranslation = RunRecordPatternTranslation | DontRunRecordPa
 
 compileClauses' :: RunRecordPatternTranslation -> [Clause] -> Maybe SplitTree -> TCM CompiledClauses
 compileClauses' recpat cs mSplitTree = do
-  -- Apply forcing translation. This only shuffles the deBruijn variables
-  -- so doesn't affect the right hand side.
-  cs <- sequence [ forcingTranslation ps <&> \ qs -> c{ namedClausePats = qs }
-                 | c@Clause{ namedClausePats = ps } <- cs ]
 
   -- Throw away the unreachable clauses (#2723).
   let notUnreachable = (Just True /=) . clauseUnreachable
   cs <- map unBruijn <$> normaliseProjP (filter notUnreachable cs)
 
-  let translate | recpat == RunRecordPatternTranslation = translateCompiledClauses
+  let translate | recpat == RunRecordPatternTranslation = runIdentityT . translateCompiledClauses
                 | otherwise                             = return
 
   translate $ caseMaybe mSplitTree (compile cs) $ \splitTree ->
@@ -61,17 +56,19 @@ compileClauses' recpat cs mSplitTree = do
 --   Phases 1. and 2. are skipped if @Nothing@.
 compileClauses ::
   Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
-  -> [Clause] -> TCM (Maybe SplitTree, CompiledClauses)
+  -> [Clause]
+  -> TCM (Maybe SplitTree, Bool, CompiledClauses)
+     -- ^ The 'Bool' indicates whether we turned a record expression into a copattern match.
 compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
   -- Discard de Bruijn indices in patterns.
   case mt of
-    Nothing -> (Nothing,) . compile . map unBruijn <$> normaliseProjP cs
+    Nothing -> (Nothing,False,) . compile . map unBruijn <$> normaliseProjP cs
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
       reportSDoc "tc.cc.tree" 20 $ vcat
-        [ "split tree from coverage check "
+        [ "split tree of " <+> prettyTCM q <+> " from coverage check "
         , return $ P.pretty splitTree
         ]
 
@@ -83,21 +80,21 @@ compileClauses mt cs = do
       let cls = map unBruijn cs
 
       reportSDoc "tc.cc" 30 $ sep $ do
-        "clauses patterns  before compilation" : do
+        ("clauses patterns of " <+> prettyTCM q <+> " before compilation") : do
           map (prettyTCM . map unArg . clPats) cls
       reportSDoc "tc.cc" 50 $
-        "clauses before compilation" <?> pretty cs
+        "clauses of " <+> prettyTCM q <+> " before compilation" <?> pretty cs
       let cc = compileWithSplitTree splitTree cls
       reportSDoc "tc.cc" 20 $ sep
-        [ "compiled clauses (still containing record splits)"
+        [ "compiled clauses of " <+> prettyTCM q <+> " (still containing record splits)"
         , nest 2 $ return $ P.pretty cc
         ]
-      cc <- translateCompiledClauses cc
+      (cc, becameCopatternLHS) <- runChangeT $ translateCompiledClauses cc
       reportSDoc "tc.cc" 12 $ sep
-        [ "compiled clauses"
+        [ "compiled clauses of " <+> prettyTCM q
         , nest 2 $ return $ P.pretty cc
         ]
-      return (Just splitTree, fmap precomputeFreeVars_ cc)
+      return (Just splitTree, becameCopatternLHS, fmap precomputeFreeVars_ cc)
 
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
 --   used in clause compiler.
@@ -122,7 +119,7 @@ unBruijn c = Cl (applySubst sub $ (map . fmap) (fmap dbPatVarName . namedThing) 
 
 compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
 compileWithSplitTree t cs = case t of
-  SplitAt i ts -> Case i $ compiles ts $ splitOn (length ts == 1) (unArg i) cs
+  SplitAt i lz ts -> Case i $ compiles lz ts $ splitOn (length ts == 1) (unArg i) cs
         -- if there is just one case, we force expansion of catch-alls
         -- this is needed to generate a sound tree on which we can
         -- collapse record pattern splits
@@ -130,18 +127,20 @@ compileWithSplitTree t cs = case t of
     -- after end of split tree, continue with left-to-right strategy
 
   where
-    compiles :: SplitTrees -> Case Cls -> Case CompiledClauses
-    compiles ts br@Branches{ projPatterns = cop
-                           , conBranches = cons
-                           , etaBranch   = Nothing
-                           , litBranches = lits
-                           , fallThrough = fT
-                           , catchAllBranch = catchAll }
+    compiles :: LazySplit -> SplitTrees -> Case Cls -> Case CompiledClauses
+    compiles lz ts br@Branches{ projPatterns = cop
+                              , conBranches = cons
+                              , etaBranch   = Nothing
+                              , litBranches = lits
+                              , fallThrough = fT
+                              , catchAllBranch = catchAll
+                              , lazyMatch = lazy }
       = br{ conBranches    = updCons cons
           , etaBranch      = Nothing
           , litBranches    = updLits lits
           , fallThrough    = fT
           , catchAllBranch = updCatchall catchAll
+          , lazyMatch      = lazy || lz == LazySplit
           }
       where
         updCons = Map.mapWithKey $ \ c cl ->
@@ -150,17 +149,17 @@ compileWithSplitTree t cs = case t of
         updLits = Map.mapWithKey $ \ l cl ->
           caseMaybe (lookup (SplitLit l) ts) compile compileWithSplitTree cl
         updCatchall = fmap $ caseMaybe (lookup SplitCatchall ts) compile compileWithSplitTree
-    compiles _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
+    compiles _ _ Branches{etaBranch = Just{}} = __IMPOSSIBLE__  -- we haven't inserted eta matches yet
 
 compile :: Cls -> CompiledClauses
-compile [] = Fail
+compile [] = Fail []
 compile cs = case nextSplit cs of
-  Just (isRecP, n) -> Case n $ fmap compile $ splitOn isRecP (unArg n) cs
+  Just (isRecP, n) -> Case n $ compile <$> splitOn isRecP (unArg n) cs
   Nothing -> case clBody c of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
     Just t  -> Done (map (fmap name) $ clPats c) t
-    Nothing -> Fail
+    Nothing -> Fail (map (fmap name) $ clPats c)
   where
     -- If there are more than one clauses, take the first one.
     c = headWithDefault __IMPOSSIBLE__ cs
@@ -195,7 +194,7 @@ nextSplit (Cl ps _ : cs) = findSplit nonLazy ps <|> findSplit allAgree ps
 -- | Is is not a variable pattern?
 --   And if yes, is it a record pattern and/or a fallThrough one?
 properSplit :: Pattern' a -> Maybe Bool
-properSplit (ConP _ cpi _) = Just (Just PatORec == conPRecord cpi || conPFallThrough cpi)
+properSplit (ConP _ cpi _) = Just ((conPRecord cpi && patOrigin (conPInfo cpi) == PatORec) || conPFallThrough cpi)
 properSplit DefP{}    = Just False
 properSplit LitP{}    = Just False
 properSplit ProjP{}   = Just False
@@ -230,7 +229,7 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
                    Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = conPLazy i }
   DefP o q qs -> (conCase q False $ WithArity (length qs) $
                    Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b) { lazyMatch = False }
-  LitP l      -> litCase l $ Cl (ps0 ++ ps1) b
+  LitP _ l    -> litCase l $ Cl (ps0 ++ ps1) b
   VarP{}      -> fallback
   DotP{}      -> fallback
   where
@@ -333,14 +332,14 @@ expandCatchAlls single n cs =
     -- True if nth pattern exists and is variable.
     exCatchAllNth ps = any (isVar . unArg) $ take 1 $ drop n ps
 
-    classify (LitP l)     = Left l
+    classify (LitP _ l)   = Left l
     classify (ConP c _ _) = Right (Left c)
     classify (DefP _ q _) = Right (Right q)
     classify _            = __IMPOSSIBLE__
 
     -- All non-catch-all patterns following this one (at position n).
     -- These are the cases the wildcard needs to be expanded into.
-    expansions = nubBy ((==) `on` (classify . unArg . snd))
+    expansions = nubOn (classify . unArg . snd)
                . mapMaybe (notVarNth . clPats)
                $ cs
     notVarNth
@@ -364,7 +363,7 @@ expandCatchAlls single n cs =
             -- TODO Andrea: might need these to sometimes be IApply?
             conPArgs = map (fmap ($> varP "_")) qs'
             conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
-        LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
+        LitP i l -> Cl (ps0 ++ [q $> LitP i l] ++ ps1) (substBody n' 0 (Lit l) b)
         DefP o d qs' -> Cl (ps0 ++ [q $> DefP o d conPArgs] ++ ps1)
                             (substBody n' m (Def d (map Apply conArgs)) b)
           where
@@ -397,7 +396,7 @@ ensureNPatterns n ais0 cl@(Cl ps b)
   ps'  = for ais $ \ ai -> Arg ai $ varP "_"
   args = zipWith (\ i ai -> Arg ai $ var i) (downFrom m) ais
 
-substBody :: (Subst t a) => Int -> Int -> t -> a -> a
+substBody :: Subst a => Int -> Int -> SubstArg a -> a -> a
 substBody n m v = applySubst $ liftS n $ v :# raiseS m
 
 instance PrecomputeFreeVars a => PrecomputeFreeVars (CompiledClauses' a) where

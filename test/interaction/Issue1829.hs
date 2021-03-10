@@ -10,6 +10,7 @@ extraArgs   = [ "--no-libraries"
               , "--ignore-interfaces"
               , "+RTS"
               , "-M5M"
+              , "-A1M"
               , "-RTS"
               ]
 repetitions = 1000

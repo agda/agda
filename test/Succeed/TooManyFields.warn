@@ -1,0 +1,11 @@
+TooManyFields.agda:12,7-28
+The record type D does not have the field y
+when checking that the expression record { x = x ; y = x } has type
+D
+
+———— All done; warnings encountered ————————————————————————
+
+TooManyFields.agda:12,7-28
+The record type D does not have the field y
+when checking that the expression record { x = x ; y = x } has type
+D

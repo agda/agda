@@ -2,7 +2,7 @@
 
 module Internal.Interaction.Highlighting.Precise ( tests ) where
 
-import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Precise as P
 import Agda.Interaction.Highlighting.Range
 
 import Control.Monad
@@ -51,7 +51,7 @@ prop_compress f =
 -- Operations that work directly with compressed files
 
 prop_singleton :: Ranges -> Aspects -> Bool
-prop_singleton rs m = singleton rs m == decompress (singletonC rs m)
+prop_singleton rs m = P.singleton rs m == decompress (singletonC rs m)
 
 prop_several :: [Ranges] -> Aspects -> Bool
 prop_several rss m = several rss m == decompress (severalC rss m)
@@ -76,17 +76,30 @@ prop_smallestPos f = smallestPos (decompress f) == smallestPosC f
 ------------------------------------------------------------------------
 -- Algebraic properties
 
--- | 'Aspects' is a monoid.
-prop_monoid_Aspects :: Property3 Aspects
-prop_monoid_Aspects = isMonoid
+-- Andreas, 2020-04-13:  Deactived these (trivial) tests for monoidality.
+--
+-- NameKind is no longer associative.  Composition used to be just the left
+-- projection, but now Field dominates over Bound.
+--
+--   (Bound <> Macro) <> Field = Bound <> Field = Field
+--   Bound <> (Macro <> Field) = Bound <> Macro = Bound
+--
+-- Straightforward associativity for all triples is ignoring the fact
+-- that many such triples do not arise in practice.
+-- In fact, NameKind is rather a partial order where some analyses give
+-- more precise kinds than others.
+--
+-- -- | 'Aspects' is a monoid.
+-- prop_monoid_Aspects :: Property3 Aspects
+-- prop_monoid_Aspects = isMonoid
 
--- | 'File' is a monoid.
-prop_monoid_File :: Property3 File
-prop_monoid_File = isMonoid
+-- -- | 'File' is a monoid.
+-- prop_monoid_File :: Property3 File
+-- prop_monoid_File = isMonoid
 
--- | 'CompressedFile' is a monoid.
-prop_monoid_CompressedFile :: Property3 CompressedFile
-prop_monoid_CompressedFile = isMonoid
+-- -- | 'CompressedFile' is a monoid.
+-- prop_monoid_CompressedFile :: Property3 CompressedFile
+-- prop_monoid_CompressedFile = isMonoid
 
 ------------------------------------------------------------------------
 -- Generators
@@ -113,9 +126,10 @@ instance CoArbitrary Aspect where
   coarbitrary Pragma        = variant 7
   coarbitrary Background    = variant 8
   coarbitrary Markup        = variant 9
+  coarbitrary Hole          = variant 10
 
 instance Arbitrary NameKind where
-  arbitrary = oneof $ [liftM Constructor arbitrary] ++
+  arbitrary = oneof $ [fmap Constructor arbitrary] ++
                       map return [ Bound
                                  , Datatype
                                  , Field
@@ -153,7 +167,7 @@ instance Arbitrary Aspects where
   arbitrary = do
     aspect     <- arbitrary
     other      <- arbitrary
-    note       <- maybeGen string
+    note       <- string
     defSite    <- arbitrary
     tokenBased <- arbitrary
     return (Aspects { aspect         = aspect

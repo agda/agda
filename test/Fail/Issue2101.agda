@@ -22,47 +22,6 @@ module AbstractPrivate (A : Set) where
     postulate
       b : B
 
-    private -- this makes abstract defs transparent in type signatures
+    private -- this no longer (since #418) make abstract defs transparent in type signatures
       postulate
-        test : P (Wrap.unwrap b) -- should succeed
-
-
-abstract
-
-  unnamedWhere : (A : Set) → Set
-  unnamedWhere A = A
-    where  -- the following definitions are private!
-    B : Set
-    B = Wrap A
-
-    postulate
-      b : B
-      test : P (Wrap.unwrap b) -- should succeed
-
-  namedWherePrivate : (A : Set) → Set
-  namedWherePrivate A = A
-    module MP where
-    B : Set
-    B = Wrap A
-
-    private
-      postulate
-        b : B
-        test : P (Wrap.unwrap b) -- should succeed
-
-  namedWhere : (A : Set) → Set
-  namedWhere A = A
-    module M where  -- the definitions in this module are not private!
-    B : Set
-    B = Wrap A
-
-    postulate
-      b : B
-      test : P (Wrap.unwrap b) -- should fail!
-
-access = M.b  -- should be in scope
-
-outside : ∀ {A} → M.B A → A
-outside = Wrap.unwrap  -- should fail and does so
-
---
+        test : P (Wrap.unwrap b) -- should no longer succeed

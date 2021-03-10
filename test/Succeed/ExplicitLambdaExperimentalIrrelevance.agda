@@ -1,10 +1,12 @@
 {-# OPTIONS --experimental-irrelevance #-}
 -- {-# OPTIONS -v tc:10 #-}
+
 module ExplicitLambdaExperimentalIrrelevance where
 
 postulate
   A : Set
-  T : ..(x : A) -> Set  -- shape irrelevant type
+  T : ..A -> Set  -- shape irrelevant type
+      -- issue #4310: parse ..A -> B
 
 test : .(a : A) -> T a -> Set
 test a = λ (x : T a) -> A

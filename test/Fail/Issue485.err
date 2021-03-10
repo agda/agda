@@ -1,3 +1,4 @@
-Issue485.agda:6,14-15
+Issue485.agda:6,12-13
 Set₁ != Set
-when checking that the expression A has type Set
+when checking that the solution Set of metavariable _A_2 has the
+expected type Set

@@ -1,0 +1,3 @@
+Issue1346.agda:19,10-11
+A + (B * C) !=< A + B * C
+when checking that the expression x has type A + B * C

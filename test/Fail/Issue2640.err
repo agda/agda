@@ -1,5 +1,18 @@
-Issue2640.agda:20,20-23
-Cannot instantiate the metavariable _21 to solution n since it
-contains the variable n which is not in scope of the metavariable
-or irrelevant in the metavariable but relevant in the solution
-when checking that the expression c _ has type D n
+Failed to solve the following constraints:
+  tt = _b_38
+    : (λ { true → ⊤ ; false → ⊥ }) (test true (c (_b_21 (n = true))))
+    (blocked on any(_33, _35))
+  ⊥ =< (λ { true → ⊤ ; false → ⊥ })
+       (test false (c (_b_21 (n = false))))
+    (blocked on _23)
+  ⊤ =< (λ { true → ⊤ ; false → ⊥ })
+       (test true (c (_b_21 (n = true))))
+    (blocked on _23)
+  _b_21 = n : Bool (blocked on _b_21)
+Unsolved metas at the following locations:
+  Issue2640.agda:20,22-23
+  Issue2640.agda:20,20-23
+  Issue2640.agda:27,26-28
+  Issue2640.agda:27,41-42
+  Issue2640.agda:31,15-16
+  Issue2640.agda:31,17-21

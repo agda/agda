@@ -1,3 +1,9 @@
-Issue822.agda:23,5-10
-Cannot split on argument of non-datatype _5
-when checking that the pattern D.[ A ] has type _5
+Failed to solve the following constraints:
+  Check definition of Foo : _5 → Set
+    stuck because
+      Issue822.agda:23,5-10
+      Cannot split on argument of unresolved type _5
+      when checking that the pattern D.[ A ] has type _5
+    (blocked on _5)
+Unsolved metas at the following locations:
+  Issue822.agda:22,7-8

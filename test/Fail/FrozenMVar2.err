@@ -1,3 +1,13 @@
-FrozenMVar2.agda:34,9-11
-Cannot split on argument of non-datatype _A_28
-when checking that the pattern zℕ has type _A_28
+Failed to solve the following constraints:
+  Check definition of +-assoc : Associative _+_
+    stuck because
+      FrozenMVar2.agda:34,9-11
+      Cannot split on argument of unresolved type _A_28
+      when checking that the pattern zℕ has type _A_28
+    (blocked on _A_28)
+  lzero = _a_26 (blocked on _a_26)
+  ℕ =< _A_28 (blocked on _A_28)
+  _A_28 =< ℕ (blocked on _A_28)
+Unsolved metas at the following locations:
+  FrozenMVar2.agda:20,1-28
+  FrozenMVar2.agda:32,23-26

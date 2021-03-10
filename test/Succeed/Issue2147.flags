@@ -1,1 +1,1 @@
-+RTS -M10M -RTS
++RTS -M10M -A1M -RTS

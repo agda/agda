@@ -14,7 +14,9 @@
              ; itIsOne to 1=1 )
   open import Agda.Builtin.Cubical.Path
   open import Agda.Builtin.Cubical.Sub
-    renaming ( primSubOut to ouc )
+    renaming ( primSubOut to outS
+             ; inc        to inS
+             )
   open import Agda.Builtin.Cubical.Glue public
     using ( isEquiv
           ; equiv-proof
@@ -53,9 +55,9 @@ homogeneous composition and generalized transport. This is what makes
 the general schema for higher inductive types work, following the
 `CHM`_ paper.
 
-To use the cubical mode Agda needs to be run with the ``--cubical``
-command-line-option or with ``{-# OPTIONS --cubical #-}`` at the top
-of the file.
+To use the cubical mode Agda needs to be run with the
+:option:`--cubical` command-line-option or with ``{-#
+OPTIONS --cubical #-}`` at the top of the file.
 
 The cubical mode adds the following features to Agda:
 
@@ -73,8 +75,9 @@ the naming conventions of this library, for a detailed list of all of
 the built-in Cubical Agda files and primitives see
 :ref:`primitives-ref`. The main design choices of the core part of the
 library are explained in
-https://homotopytypetheory.org/2018/12/06/cubical-agda/ (lagda rendered
-version: https://ice1000.org/lagda/CubicalAgdaLiterate.html).
+https://homotopytypetheory.org/2018/12/06/cubical-agda/
+(lagda rendered version:
+https://ice1000.org/2018/12-06-CubicalAgda.html).
 
 The recommended way to get access to the Cubical primitives is to add
 the following to the top of a file (this assumes that the
@@ -108,9 +111,9 @@ The interval and path types
 ---------------------------
 
 The key idea of Cubical Type Theory is to add an interval type ``I :
-Setω`` (the reason this is in ``Setω`` is because it doesn't support
+SSet`` (the reason this is in ``SSet`` is because it doesn't support
 the ``transp`` and ``hcomp`` operations). A variable ``i : I``
-intuitively corresponds to a point the `real unit interval
+intuitively corresponds to a point in the `real unit interval
 <https://en.wikipedia.org/wiki/Unit_interval>`_. In an empty context,
 there are only two values of type ``I``: the two endpoints of the
 interval, ``i0`` and ``i1``.
@@ -238,7 +241,7 @@ While path types are great for reasoning about equality they don't let
 us transport along paths between types or even compose paths, which in
 particular means that we cannot yet prove the induction principle for
 paths. In order to remedy this we also have a built-in (generalized)
-transport operation and homogeneous composition operations. The
+transport operation `transp` and homogeneous composition operations `hcomp`. The
 transport operation is generalized in the sense that it lets us
 specify where it is the identity function.
 
@@ -246,19 +249,31 @@ specify where it is the identity function.
 
   transp : ∀ {ℓ} (A : I → Set ℓ) (r : I) (a : A i0) → A i1
 
-There is an additional side condition to be satisfied for ``transp A r
-a`` to type-check, which is that ``A`` has to be *constant* on
-``r``. This means that ``A`` should be a constant function whenever
-the constraint ``r = i1`` is satisfied.  This side condition is
-vacuously true when ``r`` is ``i0``, so there is nothing to check when
-writing ``transp A i0 a``. However when ``r`` is equal to ``i1`` the
-``transp`` function will compute as the identity function.
+There is an additional side condition to be satisfied for a usage of ``transp`` to type-check: ``A`` should be a constant function whenever the constraint ``r = i1`` is satisfied. By constant here we mean that ``A`` is definitionally equal to ``λ _ → A i0``, which in turn requires ``A i0`` and ``A i1`` to be definitionally equal as well.
+
+When ``r`` is ``i1``, ``transp A r`` will compute as the identity function.
 
 .. code-block:: agda
 
    transp A i1 a = a
 
-This requires ``A`` to be constant for it to be well-typed.
+This is only sound if in such a case ``A`` is a trivial path, as the side condition requires.
+
+It might seems strange that the side condition expects ``r`` and
+``A`` to interact, but both of them can depend on any of the
+interval variables in scope, so assuming a specific value for ``r``
+can affect what ``A`` looks like.
+
+Some examples of the side condition for different values of ``r``:
+
+* If ``r`` is some in-scope variable ``i``, on which ``A`` may depend as well, then ``A`` only needs to be
+  a constant function when substituting ``i1`` for ``i``.
+
+* If ``r`` is ``i0`` then there is no restrition on ``A``, since the side
+  condition is vacuously true.
+
+* If ``r`` is ``i1`` then ``A`` must be a constant function.
+
 
 We can use ``transp`` to define regular transport:
 
@@ -331,9 +346,9 @@ when ``IsOne φ``.  There is also a dependent version of this called
 
 .. code-block:: agda
 
-  Partial : ∀ {ℓ} → I → Set ℓ → Setω
+  Partial : ∀ {ℓ} → I → Set ℓ → SSet ℓ
 
-  PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → Setω
+  PartialP : ∀ {ℓ} → (φ : I) → Partial φ (Set ℓ) → SSet ℓ
 
 There is a new form of pattern matching that can be used to introduce partial elements:
 
@@ -363,7 +378,7 @@ cases doesn't have to match the interval formula exactly):
                         ; (i = i1) (j = i1) → true
                         ; (i = i0)          → false }
 
-Furthermore ``IsOne i0`` is actually absurd
+Furthermore ``IsOne i0`` is actually absurd.
 
 ::
 
@@ -374,7 +389,7 @@ Cubical Agda also has cubical subtypes as in the CCHM type theory:
 
 ::
 
-  _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → Setω
+  _[_↦_] : ∀ {ℓ} (A : Set ℓ) (φ : I) (u : Partial φ A) → SSet ℓ
   A [ φ ↦ u ] = Sub A φ u
 
 A term ``v : A [ φ ↦ u ]`` should be thought of as a term of type
@@ -384,16 +399,32 @@ satisfied. Any term ``u : A`` can be seen as an term of ``A [ φ ↦ u
 
 .. code-block:: agda
 
-  inc : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : A) → A [ φ ↦ (λ _ → u) ]
+  inS : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : A) → A [ φ ↦ (λ _ → u) ]
 
 One can also forget that a partial element agrees with ``u`` on ``φ``:
 
 .. code-block:: agda
 
-  ouc : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → A [ φ ↦ u ] → A
+  outS : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → A [ φ ↦ u ] → A
+
+They satisfy the following equalities:
+
+.. code-block:: agda
+
+  outS (inS a) = a
+
+  inS {φ = φ} (outS {φ = φ} a) = a
+
+  outS {φ = i1} {u} _ = u 1=1
+
+
+Note that given ``a : A [ φ ↦ u ]`` and ``α : IsOne φ``, it is not the case
+that ``outS a = u α``; however, underneath the pattern binding ``(φ = i1)``,
+one has ``outS a = u 1=1``.
 
 With all of this cubical infrastructure we can now describe the
 ``hcomp`` operations.
+
 
 
 Homogeneous composition
@@ -440,14 +471,14 @@ bottom-to-top. As we are constructing a path from ``x`` to ``z`` along
 bottom. The direction ``j`` that we are doing the composition in is
 abstracted in the first argument to ``hcomp``.
 
-Note that the partial element ```u``` does not have to specify
+Note that the partial element ``u`` does not have to specify
 all the sides of the open box, giving more sides simply gives you
-more control on the result of ```hcomp```.
-For example if we omit the ```(i = i0) → x``` side in the
-definition of ```compPath``` we still get a valid term of type
-```A```. However, that term would reduce to ```hcomp (\ j → \ { () }) x```
-when ```i = i0``` and so that definition would not build
-a path that starts from ```x```.
+more control on the result of ``hcomp``.
+For example if we omit the ``(i = i0) → x`` side in the
+definition of ``compPath`` we still get a valid term of type
+``A``. However, that term would reduce to ``hcomp (\ j → \ { () }) x``
+when ``i = i0`` and so that definition would not build
+a path that starts from ``x``.
 
 We can also define homogeneous filling of cubes as
 
@@ -457,8 +488,8 @@ We can also define homogeneous filling of cubes as
           (u : ∀ i → Partial φ A) (u0 : A [ φ ↦ u i0 ])
           (i : I) → A
   hfill {φ = φ} u u0 i = hcomp (λ j → λ { (φ = i1) → u (i ∧ j) 1=1
-                                        ; (i = i0) → ouc u0 })
-                               (ouc u0)
+                                        ; (i = i0) → outS u0 })
+                               (outS u0)
 
 When ``i`` is ``i0`` this is ``u0`` and when ``i`` is ``i1`` this is
 ``hcomp u u0``. This can hence be seen as giving us the interior of an
@@ -470,7 +501,7 @@ direct cubical proof that composing ``p`` with ``refl`` is ``p``.
   compPathRefl : ∀ {ℓ} {A : Set ℓ} {x y : A} (p : x ≡ y) → compPath p refl ≡ p
   compPathRefl {x = x} {y = y} p j i = hfill (λ _ → λ { (i = i0) → x
                                                       ; (i = i1) → y })
-                                             (inc (p i))
+                                             (inS (p i))
                                              (~ j)
 
 
@@ -539,6 +570,7 @@ These come with a constructor and eliminator:
   unglue : ∀ {ℓ ℓ'} {A : Set ℓ} (φ : I) {Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A)}
          → Glue A Te → A
 
+
 Using Glue types we can turn an equivalence of types into a path as
 follows:
 
@@ -566,6 +598,21 @@ what makes it possible to use the univalence axiom computationally in
 Cubical Agda: we can package up our equivalences as paths, do equality
 reasoning using these paths, and in the end transport along the paths
 in order to compute with the equivalences.
+
+We have the following equalities:
+
+.. code-block:: agda
+
+   Glue A {i1} Te = Te 1=1 .fst
+
+   unglue φ (glue t a) = a
+
+   glue (\ { (φ = i1) -> g}) (unglue φ g) = g
+
+   unglue i1 {Te} g = Te 1=1 .snd .fst g
+
+   glue {φ = i1} t a = t 1=1
+
 
 For more results about Glue types and univalence see
 https://github.com/agda/cubical/blob/master/Cubical/Core/Glue.agda and
@@ -686,7 +733,7 @@ exports all of the primitives for this type, including the notation
 The cubical identity type and the path type are equivalent, so all of
 the results for one can be transported to the other one (using
 univalence). Using this we have implemented an interface to HoTT/UF in
-https://github.com/agda/cubical/blob/master/Cubical/Core/HoTT-UF.agda
+https://github.com/agda/cubical/blob/master/Cubical/Foundations/HoTT-UF.agda
 which provides the user with the key primitives of Homotopy Type
 Theory and Univalent Foundations implemented using cubical primitives
 under the hood. This hence gives an axiom free version of HoTT/UF
@@ -785,7 +832,7 @@ the following ``BUILTIN``, primitives and postulates:
 
 .. code-block:: agda
 
-  {-# BUILTIN INTERVAL I    #-} -- I : Setω
+  {-# BUILTIN INTERVAL I    #-} -- I : SSet
   {-# BUILTIN IZERO    i0   #-}
   {-# BUILTIN IONE     i1   #-}
 
@@ -797,7 +844,7 @@ the following ``BUILTIN``, primitives and postulates:
     primIMax : I → I → I   -- _∨_
     primINeg : I → I       -- ~_
 
-  {-# BUILTIN ISONE IsOne #-} -- IsOne : I → Setω
+  {-# BUILTIN ISONE IsOne #-} -- IsOne : I → SSet
 
   postulate
     itIsOne : IsOne i1     -- 1=1
@@ -852,7 +899,7 @@ The Cubical subtypes are exported by ``Agda.Builtin.Cubical.Sub``:
   postulate
     inc : ∀ {ℓ} {A : Set ℓ} {φ} (x : A) → Sub A φ (λ _ → x)
 
-  {-# BUILTIN SUBIN inc #-}
+  {-# BUILTIN SUBIN inS #-}
 
   primitive
     primSubOut : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → Sub _ φ u → A
@@ -934,7 +981,6 @@ The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
     primIdElim : ∀ {a c} {A : Set a} {x : A}
                    (C : (y : A) → Id x y → Set c) →
                    ((φ : I) (y : A [ φ ↦ (λ _ → x) ])
-                    (w : (x ≡ ouc y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
-                    C (ouc y) (conid φ (ouc w))) →
+                    (w : (x ≡ outS y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
+                    C (outS y) (conid φ (outS w))) →
                    {y : A} (p : Id x y) → C y p
-

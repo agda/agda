@@ -1,5 +1,6 @@
 PatternSynonymNoParse.agda:3,1-18
 Could not parse the pattern synonym a b
+Problematic expression: (a b)
 Operators used in the grammar:
   None
 when scope checking the declaration

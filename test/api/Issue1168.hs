@@ -12,7 +12,7 @@ import System.Exit            ( exitSuccess )
 -- Agda library imports
 
 import Agda.Interaction.FindFile       ( SourceFile(..), findInterfaceFile' )
-import Agda.Interaction.Imports        ( readInterface' )
+import Agda.Interaction.Imports        ( readInterface )
 import Agda.Interaction.Options        ( defaultOptions )
 import Agda.TypeChecking.Monad.Base    ( Interface, runTCMTop, TCErr )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions )
@@ -28,7 +28,7 @@ main = do
     do setCommandLineOptions defaultOptions
        src   <- liftIO $ SourceFile <$> absolute "Issue1168.agda"
        ifile <- findInterfaceFile' src
-       readInterface' $ fromMaybe __IMPOSSIBLE__ ifile
+       readInterface $ fromMaybe __IMPOSSIBLE__ ifile
 
   case r of
     Right (Just _) -> exitSuccess
@@ -38,7 +38,10 @@ main = do
     -- a) there is an issue with the Agda interface files or
     --
     -- b) the Agda versions used for compiling Issue1168.hs and
-    -- type-checking Issue1168.agda are different.
+    --    type-checking Issue1168.agda are different,
+    --
+    -- c) there is a .agda/default file but there is not a
+    --    .agda/libraries-XYZ file.
     Right Nothing -> error "Nothing"
 
     -- Impossible.

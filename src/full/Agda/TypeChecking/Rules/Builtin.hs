@@ -9,8 +9,13 @@ module Agda.TypeChecking.Rules.Builtin
   , bindUntypedBuiltin
   ) where
 
+import Prelude hiding (null)
+
 import Control.Monad
+import Control.Monad.Except
+
 import Data.List (find, sortBy)
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Function (on)
 
 import qualified Agda.Syntax.Abstract as A
@@ -20,8 +25,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.SizedTypes ( builtinSizeHook )
 
 import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Conversion
@@ -30,6 +33,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Names
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Reduce
@@ -41,12 +45,10 @@ import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Null
 import Agda.Utils.Size
 
@@ -60,7 +62,7 @@ builtinPostulate :: TCM Type -> BuiltinDescriptor
 builtinPostulate = BuiltinPostulate Relevant
 
 builtinPostulateC :: TCM Type -> BuiltinDescriptor
-builtinPostulateC m = BuiltinPostulate Relevant $ requireCubical >> m
+builtinPostulateC m = BuiltinPostulate Relevant $ requireCubical "" >> m
 
 findBuiltinInfo :: String -> Maybe BuiltinInfo
 findBuiltinInfo b = find ((b ==) . builtinName) coreBuiltins
@@ -73,6 +75,7 @@ coreBuiltins =
   , (builtinArgInfo                          |-> BuiltinData tset [builtinArgArgInfo])
   , (builtinBool                             |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                              |-> BuiltinData tset [builtinZero, builtinSuc])
+  , (builtinMaybe                            |-> BuiltinData (tset --> tset) [builtinNothing, builtinJust])
   , (builtinSigma                            |-> BuiltinData (runNamesT [] $
                                                               hPi' "la" (el $ cl primLevel) $ \ a ->
                                                               hPi' "lb" (el $ cl primLevel) $ \ b ->
@@ -87,12 +90,12 @@ coreBuiltins =
                                                                    builtinAgdaLitQName, builtinAgdaLitMeta])
   , (builtinAgdaPattern                      |-> BuiltinData tset [builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot,
                                                                    builtinAgdaPatLit, builtinAgdaPatProj, builtinAgdaPatAbsurd])
-  , (builtinAgdaPatVar                       |-> BuiltinDataCons (tstring --> tpat))
+  , (builtinAgdaPatVar                       |-> BuiltinDataCons (tnat --> tpat))
   , (builtinAgdaPatCon                       |-> BuiltinDataCons (tqname --> tlist (targ tpat) --> tpat))
-  , (builtinAgdaPatDot                       |-> BuiltinDataCons tpat)
+  , (builtinAgdaPatDot                       |-> BuiltinDataCons (tterm --> tpat))
   , (builtinAgdaPatLit                       |-> BuiltinDataCons (tliteral --> tpat))
   , (builtinAgdaPatProj                      |-> BuiltinDataCons (tqname --> tpat))
-  , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons tpat)
+  , (builtinAgdaPatAbsurd                    |-> BuiltinDataCons (tnat --> tpat))
   , (builtinLevel                            |-> builtinPostulate tset)
   , (builtinWord64                           |-> builtinPostulate tset)
   , (builtinInteger                          |-> BuiltinData tset [builtinIntegerPos, builtinIntegerNegSuc])
@@ -105,46 +108,46 @@ coreBuiltins =
   , (builtinAgdaMeta                         |-> builtinPostulate tset)
   , (builtinIO                               |-> builtinPostulate (tset --> tset))
   , (builtinPath                             |-> BuiltinUnknown
-                                                             (Just $ requireCubical >>
-                                                             (hPi "a" (el primLevel) $
+                                                             (Just $ requireCubical "" >>
+                                                             hPi "a" (el primLevel) (
                                                               hPi "A" (return $ sort $ varSort 0) $
                                                               (El (varSort 1) <$> varM 0) -->
                                                               (El (varSort 1) <$> varM 0) -->
                                                               return (sort $ varSort 1)))
                                                              verifyPath)
   , (builtinPathP                            |-> builtinPostulateC (hPi "a" (el primLevel) $
-                                                              nPi "A" (tinterval --> (return $ sort $ varSort 0)) $
+                                                              nPi "A" (tinterval --> return (sort $ varSort 0)) $
                                                               (El (varSort 1) <$> varM 0 <@> primIZero) -->
                                                               (El (varSort 1) <$> varM 0 <@> primIOne) -->
                                                               return (sort $ varSort 1)))
-  , (builtinInterval                         |-> BuiltinData (requireCubical >> return (sort Inf)) [builtinIZero,builtinIOne])
+  , (builtinInterval                         |-> BuiltinData (requireCubical "" >> (return $ ssort $ ClosedLevel 0)) [builtinIZero,builtinIOne])
   , (builtinSub                              |-> builtinPostulateC (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    nPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-                                                                   nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-                                                                   elInf (cl primPartial <#> a <@> phi <@> bA) --> (return $ sort Inf)
+                                                                   nPi' "φ" (cl tinterval) $ \ phi ->
+                                                                   el's a (cl primPartial <#> a <@> phi <@> bA) --> (ssort . atomicLevel <$> a)
                                                                   ))
   , (builtinSubIn                            |-> builtinPostulateC (runNamesT [] $
                                                                    hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-                                                                   hPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-                                                                   nPi' "x" (el' (Sort . tmSort <$> a) bA) $ \ x ->
-                                                                   elInf $ cl primSub <#> a <@> bA <@> phi <@> (lam "o" $ \ _ -> x)))
-  , (builtinIZero                            |-> BuiltinDataCons (elInf primInterval))
-  , (builtinIOne                             |-> BuiltinDataCons (elInf primInterval))
+                                                                   hPi' "φ" (elSSet $ cl primInterval) $ \ phi ->
+                                                                   nPi' "x" (el' a bA) $ \ x ->
+                                                                   el's a $ cl primSub <#> a <@> bA <@> phi <@> lam "o" (\ _ -> x)))
+  , (builtinIZero                            |-> BuiltinDataCons tinterval)
+  , (builtinIOne                             |-> BuiltinDataCons tinterval)
   , (builtinPartial                          |-> BuiltinPrim "primPartial" (const $ return ()))
   , (builtinPartialP                         |-> BuiltinPrim "primPartialP" (const $ return ()))
-  , (builtinIsOne                            |-> builtinPostulateC (tinterval --> return (sort $ Inf)))
-  , (builtinItIsOne                          |-> builtinPostulateC (elInf $ primIsOne <@> primIOne))
+  , (builtinIsOne                            |-> builtinPostulateC (tinterval --> return (ssort $ ClosedLevel 0)))
+  , (builtinItIsOne                          |-> builtinPostulateC (elSSet $ primIsOne <@> primIOne))
   , (builtinIsOne1                           |-> builtinPostulateC (runNamesT [] $
                                                                    nPi' "i" (cl tinterval) $ \ i ->
                                                                    nPi' "j" (cl tinterval) $ \ j ->
-                                                                   nPi' "i1" (elInf $ cl primIsOne <@> i) $ \ i1 ->
-                                                                   (elInf $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
+                                                                   nPi' "i1" (elSSet $ cl primIsOne <@> i) $ \ i1 ->
+                                                                   (elSSet $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
   , (builtinIsOne2                           |-> builtinPostulateC (runNamesT [] $
                                                                    nPi' "i" (cl tinterval) $ \ i ->
                                                                    nPi' "j" (cl tinterval) $ \ j ->
-                                                                   nPi' "j1" (elInf $ cl primIsOne <@> j) $ \ j1 ->
-                                                                   (elInf $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
+                                                                   nPi' "j1" (elSSet $ cl primIsOne <@> j) $ \ j1 ->
+                                                                   (elSSet $ cl primIsOne <@> (cl primIMax <@> i <@> j))))
   , (builtinIsOneEmpty                       |-> builtinPostulateC (runNamesT [] $
                                                                    hPi' "l" (el $ cl primLevel) $ \ l ->
                                                                    hPi' "A" (pPi' "o" (cl primIZero) $ \ _ ->
@@ -164,7 +167,7 @@ coreBuiltins =
                                                            tinterval -->
                                                            (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0) -->
                                                            (El (varSort 3) <$> primId <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)))
-  , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
+  , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical "" >> runNamesT [] (
                                                                     hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                     hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                                     nPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -172,7 +175,7 @@ coreBuiltins =
                                                                     ((sort . tmSort) <$> (cl primLevelMax <@> a <@> b))
                                                                   ))
                                                                    (const $ const $ return ()))
-  , (builtinEquivFun                         |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
+  , (builtinEquivFun                         |-> BuiltinUnknown (Just $ requireCubical "" >> runNamesT [] (
                                                                  hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                  hPi' "l'" (el $ cl primLevel) $ \ b ->
                                                                  hPi' "A" (sort . tmSort <$> a) $ \bA ->
@@ -181,7 +184,7 @@ coreBuiltins =
                                                                  (el' a bA --> el' b bB)
                                                                ))
                                                                 (const $ const $ return ()))
-  , (builtinEquivProof                       |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
+  , (builtinEquivProof                       |-> BuiltinUnknown (Just $ requireCubical "" >> runNamesT [] (
                                                                hPi' "l" (el $ cl primLevel) $ \ la ->
                                                                hPi' "l'" (el $ cl primLevel) $ \ lb ->
                                                                nPi' "A" (sort . tmSort <$> la) $ \ bA ->
@@ -193,26 +196,26 @@ coreBuiltins =
                                                                     fiber = el' (cl primLevelMax <@> la <@> lb)
                                                                                 (cl primSigma <#> la <#> lb
                                                                                   <@> bA
-                                                                                  <@> (lam "a" $ \ a ->
+                                                                                  <@> lam "a" (\ a ->
                                                                                          cl primPath <#> lb <#> bB <@> (f <@> a) <@> b))
                                                                 nPi' "φ" (cl tinterval) $ \ phi ->
-                                                                  (pPi' "o" phi $ \ o -> fiber) --> fiber
+                                                                  pPi' "o" phi (\ o -> fiber) --> fiber
                                                              ))
                                                               (const $ const $ return ()))
-  , (builtinTranspProof                       |-> BuiltinUnknown (Just $ requireCubical >> runNamesT [] (
+  , (builtinTranspProof                       |-> BuiltinUnknown (Just $ requireCubical "" >> runNamesT [] (
                                                                hPi' "l" (el $ cl primLevel) $ \ la -> do
                                                                nPi' "e" (cl tinterval --> (sort . tmSort <$> la)) $ \ e -> do
                                                                let lb = la; bA = e <@> cl primIZero; bB = e <@> cl primIOne
                                                                nPi' "φ" (cl tinterval) $ \ phi -> do
                                                                nPi' "a" (pPi' "o" phi (\ _ -> el' la bA)) $ \ a -> do
-                                                               let f = cl primTrans <#> (lam "i" $ \ _ -> la) <@> e <@> cl primIZero
+                                                               let f = cl primTrans <#> lam "i" (\ _ -> la) <@> e <@> cl primIZero
                                                                    z = ilam "o" $ \ o -> f <@> (a <@> o)
-                                                               nPi' "b" (elInf (cl primSub <#> lb <@> bB <@> phi <@> z)) $ \ b' -> do
+                                                               nPi' "b" (el's lb (cl primSub <#> lb <@> bB <@> phi <@> z)) $ \ b' -> do
                                                                let b = cl primSubOut <#> lb <#> bB <#> phi <#> z <@> b'
                                                                    fiber = el' la
                                                                                (cl primSigma <#> la <#> lb
                                                                                   <@> bA
-                                                                                  <@> (lam "a" $ \ a ->
+                                                                                  <@> lam "a" (\ a ->
                                                                                          cl primPath <#> lb <#> bB <@> (f <@> a) <@> b))
                                                                fiber
                                                              ))
@@ -260,6 +263,8 @@ coreBuiltins =
   , (builtinRewrite                          |-> BuiltinUnknown Nothing verifyBuiltinRewrite)
   , (builtinNil                              |-> BuiltinDataCons (hPi "A" tset (el (list v0))))
   , (builtinCons                             |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
+  , (builtinNothing                          |-> BuiltinDataCons (hPi "A" tset (el (tMaybe v0))))
+  , (builtinJust                             |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (tMaybe v0))))
   , (builtinZero                             |-> BuiltinDataCons tnat)
   , (builtinSuc                              |-> BuiltinDataCons (tnat --> tnat))
   , (builtinTrue                             |-> BuiltinDataCons tbool)
@@ -310,10 +315,14 @@ coreBuiltins =
   , (builtinLevelZero                        |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc                         |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax                         |-> BuiltinPrim "primLevelMax" verifyMax)
-  , (builtinSetOmega                         |-> BuiltinPrim "primSetOmega" (const $ return ()))
+  , (builtinSet                              |-> BuiltinSort "primSet")
+  , (builtinProp                             |-> BuiltinSort "primProp")
+  , (builtinSetOmega                         |-> BuiltinSort "primSetOmega")
+  , (builtinSSetOmega                        |-> BuiltinSort "primStrictSetOmega")
+  , (builtinStrictSet                        |-> BuiltinSort "primStrictSet")
   , (builtinAgdaClause                       |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
-  , (builtinAgdaClauseClause                 |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
-  , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (tlist (targ tpat) --> tclause))
+  , (builtinAgdaClauseClause                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tterm --> tclause))
+  , (builtinAgdaClauseAbsurd                 |-> BuiltinDataCons (ttelescope --> tlist (targ tpat) --> tclause))
   , (builtinAgdaDefinition                   |-> BuiltinData tset [builtinAgdaDefinitionFunDef
                                                                   ,builtinAgdaDefinitionDataDef
                                                                   ,builtinAgdaDefinitionDataConstructor
@@ -354,33 +363,32 @@ coreBuiltins =
   , builtinAgdaTCMGetDefinition              |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
   , builtinAgdaTCMQuoteTerm                  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ elV 1 (varM 0) --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMUnquoteTerm                |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tterm --> tTCM 1 (varM 0))
+  , builtinAgdaTCMQuoteOmegaTerm             |-> builtinPostulate (hPi "A" tsetOmega $ (elInf $ varM 0) --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMBlockOnMeta                |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   , builtinAgdaTCMCommit                     |-> builtinPostulate (tTCM_ primUnit)
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
   , builtinAgdaTCMWithNormalisation          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMWithReconsParams           |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMDebugPrint                 |-> builtinPostulate (tstring --> tnat --> tlist terrorpart --> tTCM_ primUnit)
+  , builtinAgdaTCMOnlyReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMDontReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+
   , builtinAgdaTCMNoConstraints              |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
-  , builtinAgdaTCMSolveConstraints           |-> builtinPostulate (tTCM_ primUnit)
-  , builtinAgdaTCMSolveConstraintsMentioning |-> builtinPostulate (tlist tmeta --> tTCM_ primUnit)
-  , builtinAgdaTCMRunSpeculative          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
-                                                                tTCM 1 (primSigma <#> varM 1 <#> primLevelZero <@> varM 0 <@>
-                                                                          (Lam defaultArgInfo . Abs "_" <$> primBool)) -->
-                                                                tTCM 1 (varM 0))
+  , builtinAgdaTCMRunSpeculative             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
+                                                                   tTCM 1 (primSigma <#> varM 1 <#> primLevelZero <@> varM 0 <@> (Lam defaultArgInfo . Abs "_" <$> primBool)) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMExec                       |-> builtinPostulate (tstring --> tlist tstring --> tstring -->
+                                                                   tTCM_ (primSigma <#> primLevelZero <#> primLevelZero <@> primNat <@>
+                                                                          (Lam defaultArgInfo . Abs "_" <$> (primSigma <#> primLevelZero <#> primLevelZero <@> primString <@>
+                                                                           (Lam defaultArgInfo . Abs "_" <$> primString)))))
   ]
   where
         (|->) = BuiltinInfo
 
-        v0,v1,v2,v3 :: TCM Term
+        v0 :: TCM Term
         v0 = varM 0
-        v1 = varM 1
-        v2 = varM 2
-        v3 = varM 3
 
-        tv0,tv1 :: TCM Type
+        tv0 :: TCM Type
         tv0 = el v0
-        tv1 = el v1
-        tv2 = el v2
-        tv3 = el v3
 
         arg :: TCM Term -> TCM Term
         arg t = primArg <@> t
@@ -388,8 +396,15 @@ coreBuiltins =
         elV x a = El (varSort x) <$> a
 
         tsetL l    = return $ sort (varSort l)
+        tsetOmega  = return $ sort $ Inf IsFibrant 0
         tlevel     = el primLevel
         tlist x    = el $ list (fmap unEl x)
+        tmaybe x   = el $ tMaybe (fmap unEl x)
+        tpair lx ly x y = el $ primSigma
+                            <#> lx
+                            <#> ly
+                            <@> fmap unEl x
+                            <@> (Lam defaultArgInfo . NoAbs "_" <$> fmap unEl y)
         targ x     = el (arg (fmap unEl x))
         tabs x     = el (primAbs <@> fmap unEl x)
         targs      = el (list (arg primAgdaTerm))
@@ -418,9 +433,10 @@ coreBuiltins =
         tliteral   = el primAgdaLiteral
         tpat       = el primAgdaPattern
         tclause    = el primAgdaClause
+        ttelescope = tlist (tpair primLevelZero primLevelZero tstring (targ ttype))
         tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
         tTCM_ a    = el (primAgdaTCM <#> primLevelZero <@> a)
-        tinterval  = El Inf <$> primInterval
+        tinterval  = El (SSet $ ClosedLevel 0) <$> primInterval
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
@@ -540,27 +556,30 @@ coreBuiltins =
         verifyPath :: Term -> Type -> TCM ()
         verifyPath path t = do
           let hlam n t = glam (setHiding Hidden defaultArgInfo) n t
-          noConstraints $ equalTerm t path =<< (runNamesT [] $
-            hlam "l" $ \ l -> hlam "A" $ \ bA -> cl primPathP <#> l <@> (lam "i" $ \ _ -> bA))
+          noConstraints $ equalTerm t path =<< runNamesT [] (
+            hlam "l" $ \ l -> hlam "A" $ \ bA -> cl primPathP <#> l <@> lam "i" (\ _ -> bA))
 
 -- | Checks that builtin with name @b : String@ of type @t : Term@
 --   is a data type or inductive record with @n : Int@ constructors.
 --   Returns the name of the data/record type.
 inductiveCheck :: String -> Int -> Term -> TCM (QName, Definition)
 inductiveCheck b n t = do
-  t <- etaContract =<< normalise t
-  case t of
-    Def q _ -> do
+  caseMaybeM (headSymbol t) no $ \q -> do
       def <- getConstInfo q
       let yes = return (q, def)
       case theDef def of
-        Datatype { dataInduction = Inductive, dataCons = cs }
+        Datatype { dataCons = cs }
           | length cs == n -> yes
           | otherwise      -> no
         Record { recInduction = ind } | n == 1 && ind /= Just CoInductive -> yes
         _ -> no
-    _ -> no
   where
+  headSymbol :: Term -> TCM (Maybe QName)
+  headSymbol t = reduce t >>= \case
+    Def q _ -> return $ Just q
+    Lam _ b -> headSymbol $ lazyAbsApp b __DUMMY_TERM__
+    _       -> return Nothing
+
   no
     | n == 1 = typeError $ GenericError $ unwords
         [ "The builtin", b
@@ -586,11 +605,12 @@ bindPostulatedName builtin x m = do
     Axiom {} -> bindBuiltinName builtin =<< m q def
     _        -> err
   where
+  err :: forall m a. MonadTCError m => m a
   err = typeError $ GenericError $
           "The argument to BUILTIN " ++ builtin ++
           " must be a postulated name"
   getName = \case
-    DefinedName _ d -> return $ anameName d
+    DefinedName _ d NoSuffix -> return $ anameName d
     _ -> err
 
 addHaskellPragma :: QName -> String -> TCM ()
@@ -711,7 +731,7 @@ bindBuiltinEquality x = do
           (a,b) <- reduce $ fromMaybe __IMPOSSIBLE__ $ last2 vs
           unless (deBruijnView a == Just 0) wrongRefl
           unless (deBruijnView b == Just 0) wrongRefl
-          bindBuiltinName builtinRefl (Con (ConHead c Inductive []) ConOSystem [])
+          bindBuiltinName builtinRefl (Con (ConHead c IsData Inductive []) ConOSystem [])
         _ -> __IMPOSSIBLE__
     _ -> genericError "Builtin EQUALITY must be a data type with a single constructor"
   where
@@ -731,6 +751,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
            | s == builtinUnit     -> bindBuiltinUnit     v
            | s == builtinSigma    -> bindBuiltinSigma    v
            | s == builtinList     -> bindBuiltinData s   v
+           | s == builtinMaybe    -> bindBuiltinData s   v
            | otherwise            -> bindBuiltinName s   v
 
       BuiltinDataCons t -> do
@@ -746,7 +767,6 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           _       -> typeError $ BuiltinMustBeConstructor s e
 
         let v@(Con h _ []) = name v0
-            c = conName h
 
         bindBuiltinName s v
 
@@ -777,6 +797,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             bindBuiltinName s v
 
           _ -> typeError $ GenericError $ "Builtin " ++ s ++ " must be bound to a function"
+
+      BuiltinSort{} -> __IMPOSSIBLE__ -- always a "BuiltinNoDef"
 
       BuiltinPostulate rel t -> do
         t' <- t
@@ -819,13 +841,16 @@ bindBuiltin b x = do
   unlessM ((0 ==) <$> getContextSize) $ do
     -- Andreas, 2017-11-01, issue #2824
     -- Only raise an error if the name for the builtin is defined in a parametrized module.
-    let failure = typeError $ BuiltinInParameterisedModule b
+    let
+      failure :: forall m a. MonadTCError m => m a
+      failure = typeError $ BuiltinInParameterisedModule b
     -- Get the non-empty list of AbstractName for x
     xs <- case x of
       VarName{}            -> failure
-      DefinedName _ x      -> return $ x :! []
+      DefinedName _ x NoSuffix -> return $ x :| []
+      DefinedName _ x Suffix{} -> failure
       FieldName xs         -> return xs
-      ConstructorName xs   -> return xs
+      ConstructorName _ xs -> return xs
       PatternSynResName xs -> failure
       UnknownName          -> failure
     -- For ambiguous names, we check all of their definitions:
@@ -849,13 +874,25 @@ bindBuiltin b x = do
     now new b = warning $ OldBuiltin b new
 
 isUntypedBuiltin :: String -> Bool
-isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]
+isUntypedBuiltin = hasElem [ builtinFromNat, builtinFromNeg, builtinFromString ]
 
 bindUntypedBuiltin :: String -> ResolvedName -> TCM ()
 bindUntypedBuiltin b = \case
-  DefinedName _ x -> bindBuiltinName b (Def (anameName x) [])
-  FieldName (x :! []) -> bindBuiltinName b (Def (anameName x) [])
-  _ -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined unambiguous name"
+  DefinedName _ x NoSuffix -> bind x
+  DefinedName _ x Suffix{} -> wrong
+  FieldName (x :| [])  -> bind x
+  FieldName (x :| _)   -> amb x
+  VarName _x _bnd      -> wrong
+  UnknownName          -> wrong
+  ConstructorName _ xs -> err xs
+  PatternSynResName xs -> err xs
+  where
+  bind x = bindBuiltinName b (Def (anameName x) [])
+  wrong  = genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined name"
+  amb x  = genericDocError =<< do text "Name " <+> prettyTCM x <+> text " is ambiguous"
+  err (x :| xs1)
+    | null xs1  = wrong
+    | otherwise = amb x
 
 -- | Bind a builtin thing to a new name.
 --
@@ -906,7 +943,7 @@ bindBuiltinNoDef b q = inTopContext $ do
       t <- mt
       d <- return $! getPrimName $ unEl t
       let
-        ch = ConHead q Inductive []
+        ch = ConHead q IsData Inductive []
         def = Constructor
               { conPars   = 0   -- Andrea TODO: fix zeros
               , conArity  = 0
@@ -925,31 +962,43 @@ bindBuiltinNoDef b q = inTopContext $ do
 
     Just (BuiltinData mt cs) -> do
       t <- mt
-      addConstant q $ defaultDefn defaultArgInfo q t def
+      addConstant q $ defaultDefn defaultArgInfo q t (def t)
       bindBuiltinName b $ Def q []
       where
-        def = Datatype
+        def t = Datatype
               { dataPars       = 0
               , dataIxs        = 0
-              , dataInduction  = Inductive
               , dataClause     = Nothing
               , dataCons       = []     -- Constructors are added later
-              , dataSort       = Inf
+              , dataSort       = getSort t
               , dataAbstr      = ConcreteDef
               , dataMutual     = Nothing
               , dataPathCons   = []
               }
+
+    Just (BuiltinSort sortname) -> do
+      let s = case sortname of
+                "primSet"      -> mkType 0
+                "primProp"     -> mkProp 0
+                "primStrictSet" -> mkSSet 0
+                "primSetOmega" -> Inf IsFibrant 0
+                "primStrictSetOmega" -> Inf IsStrict 0
+                _              -> __IMPOSSIBLE__
+          def = PrimitiveSort sortname s
+      addConstant q $ defaultDefn defaultArgInfo q (sort $ univSort s) def
+      bindBuiltinName b $ Def q []
 
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b
 
 
 builtinKindOfName :: String -> Maybe KindOfName
-builtinKindOfName b = distinguish <$> find ((b ==) . builtinName) coreBuiltins
+builtinKindOfName = distinguish <.> findBuiltinInfo
   where
   distinguish d = case builtinDesc d of
     BuiltinDataCons{}  -> ConName
-    BuiltinData{}      -> DataName
+    BuiltinData{}      -> DataName       -- Andreas, 2020-04-13: Crude.  Could be @RecName@.
     BuiltinPrim{}      -> PrimName
     BuiltinPostulate{} -> AxiomName
+    BuiltinSort{}      -> PrimName
     BuiltinUnknown{}   -> OtherDefName

@@ -1,4 +1,5 @@
-{-# OPTIONS --no-sized-types --no-guardedness #-}
+{-# OPTIONS --no-sized-types --no-guardedness --no-subtyping #-}
+
 module Agda.Builtin.TrustMe where
 
 open import Agda.Builtin.Equality

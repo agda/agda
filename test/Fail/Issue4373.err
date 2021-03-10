@@ -1,0 +1,3 @@
+Issue4373.agda:10,8-14
+No instance of type A.T was found in scope.
+when checking that the expression search has type Set

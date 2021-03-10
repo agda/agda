@@ -1,0 +1,3 @@
+Issue4530.agda:12,8-11
+No instance of type IsTrue (3 < 2) was found in scope.
+when checking that the expression foo has type Nat

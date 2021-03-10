@@ -1,1 +1,1 @@
-+RTS -M50M -RTS
++RTS -M50M -A10M -RTS

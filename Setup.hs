@@ -1,4 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
+
+import Data.Maybe
 
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
@@ -15,26 +18,53 @@ import System.Process
 import System.Exit
 import System.IO.Error (isDoesNotExistError)
 
-import Control.Monad (when, forM_)
+import Control.Monad (when, forM_, unless)
 import Control.Exception (catch, throwIO)
 
 main :: IO ()
 main = defaultMainWithHooks userhooks
 
 userhooks :: UserHooks
-userhooks = simpleUserHooks { buildHook = buildHook'
-                            , copyHook  = copyHook'
-                            , instHook  = instHook'
-                            }
+userhooks = simpleUserHooks
+  { copyHook  = copyHook'
+  , instHook  = instHook'
+  }
 
 -- Install and copy hooks are default, but amended with .agdai files in data-files.
 instHook' :: PackageDescription -> LocalBuildInfo -> UserHooks -> InstallFlags -> IO ()
 instHook' pd lbi hooks flags = instHook simpleUserHooks pd' lbi hooks flags where
   pd' = pd { dataFiles = concatMap expandAgdaExt $ dataFiles pd }
 
+-- Andreas, 2020-04-25, issue #4569: defer 'generateInterface' until after
+-- the library has been copied to a destination where it can be found.
+-- @cabal build@ will likely no longer produce the .agdai files, but @cabal install@ does.
 copyHook' :: PackageDescription -> LocalBuildInfo -> UserHooks -> CopyFlags -> IO ()
-copyHook' pd lbi hooks flags = copyHook simpleUserHooks pd' lbi hooks flags where
-  pd' = pd { dataFiles = concatMap expandAgdaExt $ dataFiles pd }
+copyHook' pd lbi hooks flags = do
+  -- Copy library and executable etc.
+  copyHook simpleUserHooks pd lbi hooks flags
+  unless (skipInterfaces lbi) $ do
+    -- Generate .agdai files.
+    generateInterfaces pd lbi
+    -- Copy again, now including the .agdai files.
+    copyHook simpleUserHooks pd' lbi hooks flags
+  where
+  pd' = pd
+    { dataFiles = concatMap expandAgdaExt $ dataFiles pd
+      -- Andreas, 2020-04-25, issue #4569:
+      -- I tried clearing some fields to avoid copying again.
+      -- However, cabal does not like me messing with the PackageDescription.
+      -- Clearing @library@ or @executables@ leads to internal errors.
+      -- Thus, we just copy things again.  Not a terrible problem.
+    -- , library       = Nothing
+    -- , executables   = []
+    -- , subLibraries  = []
+    -- , foreignLibs   = []
+    -- , testSuites    = []
+    -- , benchmarks    = []
+    -- , extraSrcFiles = []
+    -- , extraTmpFiles = []
+    -- , extraDocFiles = []
+    }
 
 -- Used to add .agdai files to data-files
 expandAgdaExt :: FilePath -> [FilePath]
@@ -44,10 +74,17 @@ expandAgdaExt fp | takeExtension fp == ".agda" = [ fp, toIFile fp ]
 toIFile :: FilePath -> FilePath
 toIFile file = replaceExtension file ".agdai"
 
-buildHook' :: PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
-buildHook' pd lbi hooks flags = do
-  -- build first
-  buildHook simpleUserHooks pd lbi hooks flags
+-- Andreas, 2019-10-21, issue #4151:
+-- skip the generation of interface files with program suffix "-quicker"
+skipInterfaces :: LocalBuildInfo -> Bool
+skipInterfaces lbi = fromPathTemplate (progSuffix lbi) == "-quicker"
+
+generateInterfaces :: PackageDescription -> LocalBuildInfo -> IO ()
+generateInterfaces pd lbi = do
+
+  -- for debugging, these are examples how you can inspect the flags...
+  -- print $ flagAssignment lbi
+  -- print $ fromPathTemplate $ progSuffix lbi
 
   -- then...
   let bdir = buildDir lbi
@@ -71,6 +108,7 @@ buildHook' pd lbi hooks flags = do
 
     putStrLn $ "... " ++ fullpath
     ok <- rawSystem' ddir agda [ "--no-libraries", "--local-interfaces"
+                               , "--ignore-all-interfaces"
                                , "-Werror"
                                , fullpath, "-v0"
                                ]

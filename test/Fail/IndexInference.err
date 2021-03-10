@@ -1,7 +1,25 @@
-IndexInference.agda:20,6-23
-I'm not sure if there should be a case for the constructor _::_,
-because I get stuck when trying to solve the following unification
-problems (inferred index ≟ expected index):
-  suc n ≟ _12
-when checking that the pattern a :: b :: c :: [] has type
-Vec Nat _12
+Failed to solve the following constraints:
+  Check definition of bar : {A : Set} →
+                            SubVec A (suc (suc (suc zero))) _36 → A
+    stuck because
+      IndexInference.agda:45,6-13
+      I'm not sure if there should be a case for the constructor _::_,
+      because I get stuck when trying to solve the following unification
+      problems (inferred index ≟ expected index):
+        suc _ k ≟ _36
+      when checking that the pattern a :: [] has type
+      SubVec A (suc (suc (suc zero))) _36
+    (blocked on _36)
+  Check definition of foo : Vec Nat _12 → Nat
+    stuck because
+      IndexInference.agda:20,6-23
+      I'm not sure if there should be a case for the constructor _::_,
+      because I get stuck when trying to solve the following unification
+      problems (inferred index ≟ expected index):
+        suc n ≟ _12
+      when checking that the pattern a :: b :: c :: [] has type
+      Vec Nat _12
+    (blocked on _12)
+Unsolved metas at the following locations:
+  IndexInference.agda:19,15-16
+  IndexInference.agda:44,51-52

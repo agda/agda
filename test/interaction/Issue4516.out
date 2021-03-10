@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Error*" "Issue4516.agda:1,8-11 The name of the top level module does not match the file name. The module Set should be defined in one of the following files: Set.agda Set.lagda agda-default-include-path/Set.agda agda-default-include-path/Set.lagda" nil)
+((last . 3) . (agda2-maybe-goto '("Issue4516.agda" . 8)))
+(agda2-info-action "*Error*" "/non-existent-directory-used-for-Issue4516: openTempFile: does not exist (No such file or directory)" nil)
+(agda2-highlight-add-annotations 'nil)
+(agda2-status-action "")

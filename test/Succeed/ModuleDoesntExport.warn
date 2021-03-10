@@ -1,11 +1,17 @@
 ModuleDoesntExport.agda:6,8-45
-The module A doesn't export the following: B, module P, D
+The module A doesn't export the following:
+  B
+  D
+  module P
 when scope checking the declaration
   open A using (B; module P) renaming (D to C)
 
 ———— All done; warnings encountered ————————————————————————
 
 ModuleDoesntExport.agda:6,8-45
-The module A doesn't export the following: B, module P, D
+The module A doesn't export the following:
+  B
+  D
+  module P
 when scope checking the declaration
   open A using (B; module P) renaming (D to C)

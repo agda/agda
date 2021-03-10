@@ -6,11 +6,13 @@ open import Agda.Builtin.Bool
 postulate
   P : Set → Set
 
-record R : Set1 where
-  constructor con
-  field
-    A : Set
-    B : Set
+module Rec where
+  record R : Set1 where
+    constructor con
+    field
+      A : Set
+      B : Set
+open Rec
 
 data D : Set1 where
   con : Set → Set → D
@@ -24,7 +26,7 @@ snd (con A B) = B
 F : Bool → Set₁
 F = {!!}
 
-bar : let x : F true; x = R.con Bool in P (x .R.B)
+bar : let x : F true; x = Rec.con Bool in P (x .R.B)
 bar = {!!} -- P (con Bool .R.B)
 
 bar2 : let x : F true; x = D.con Bool in P (snd x)

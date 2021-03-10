@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.
 --   Only the best elements are kept.
@@ -14,7 +13,6 @@ module Agda.Utils.Favorites where
 
 import Prelude hiding ( null )
 
-import Data.Foldable (Foldable)
 #if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
 #endif

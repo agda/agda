@@ -2,7 +2,7 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?0 : Set ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: Check definition of aux : {X = X₁ : Set} {A = A₁ : Subset X₁} {x : X₁} → (A₁ ∪ U) x → U x " nil)
+(agda2-info-action "*All Goals, Errors*" "?0 : Set ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: Check definition of aux : {X = X₁ : Set} {A = A₁ : Subset X₁} {x : X₁} → (A₁ ∪ U) x → U x stuck because Issue2028-where.agda:27,14-16 Cannot split on argument of unresolved type U x when checking that the pattern tt has type U x (blocked on _9) " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "⊤")
 (agda2-status-action "")

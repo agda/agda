@@ -12,10 +12,10 @@ abstract
   f : D
   unquoteDef f = do
     qc ← quoteTC c  -- Previously, there was a complaint here about c.
-    defineFun f (clause [] qc ∷ [])
+    defineFun f (clause [] [] qc ∷ [])
 
   unquoteDecl g = do
     ty ← quoteTC D
     _  ← declareDef (arg (arg-info visible relevant) g) ty
     qc ← quoteTC c
-    defineFun g (clause [] qc ∷ [])
+    defineFun g (clause [] [] qc ∷ [])

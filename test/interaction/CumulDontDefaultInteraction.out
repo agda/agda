@@ -1,0 +1,6 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : Level ?1 : Set ?0 ?2 : F _a_6 _A_7 _8 _a_6 : Level [ at CumulDontDefaultInteraction.agda:15,11-12 ] _A_7 : Set _a_6 [ at CumulDontDefaultInteraction.agda:15,13-14 ] _8 : _A_7 [ at CumulDontDefaultInteraction.agda:15,15-16 ] " nil)
+((last . 1) . (agda2-goals-action '(0 1 2)))

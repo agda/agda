@@ -1,7 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NondecreasingIndentation  #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 
@@ -17,6 +14,7 @@
 module Agda.TypeChecking.MetaVars.Occurs where
 
 import Control.Monad
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Foldable (traverse_)
@@ -27,13 +25,14 @@ import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
-import Data.Traversable (traverse)
 
 import qualified Agda.Benchmarking as Bench
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 
+import Agda.TypeChecking.Constraints () -- instances
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
@@ -47,13 +46,6 @@ import Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Either
-
-import Agda.Utils.Except
-  ( ExceptT
-  , MonadError(catchError, throwError)
-  , runExceptT
-  )
-
 import Agda.Utils.Lens
 import Agda.Utils.List (downFrom)
 import Agda.Utils.Maybe
@@ -173,13 +165,42 @@ variableCheck xs mi q = All $
       -- be used in irrelevant position (rhs).
       getModality o `moreUsableModality` q
 
+-- | Occurs check fails if a defined name is not available
+--   since it was declared in irrelevant or erased context.
+definitionCheck :: QName -> OccursM ()
+definitionCheck d = do
+  cxt <- ask
+  let irr = isIrrelevant cxt
+      er  = hasQuantity0 cxt
+      m   = occMeta $ feExtra cxt
+  -- Anything goes if we are both irrelevant and erased.
+  -- Otherwise, have to check the modality of the defined name.
+  unless (irr && er) $ do
+    dmod <- modalityOfConst d
+    unless (irr || usableRelevance dmod) $ do
+      reportSDoc "tc.meta.occurs" 35 $ hsep
+        [ "occursCheck: definition"
+        , prettyTCM d
+        , "has relevance"
+        , prettyTCM (getRelevance dmod)
+        ]
+      abort neverUnblock $ MetaIrrelevantSolution m $ Def d []
+    unless (er || usableQuantity dmod) $ do
+      reportSDoc "tc.meta.occurs" 35 $ hsep
+        [ "occursCheck: definition"
+        , prettyTCM d
+        , "has quantity"
+        , prettyTCM (getQuantity dmod)
+        ]
+      abort neverUnblock $ MetaErasedSolution m $ Def d []
+
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
 allowedVars :: OccursM (Nat -> Bool)
 allowedVars = do
   -- @n@ is the number of binders we have stepped under.
   n  <- liftM2 (-) getContextSize (asks (occCxtSize . feExtra))
-  xs <- IntMap.keysSet . theVarMap <$> asks (occVars . feExtra)
+  xs <- asks ((IntMap.keysSet . theVarMap) . (occVars . feExtra))
   -- Bound variables are allowed, and those mentioned in occVars.
   return $ \ i -> i < n || (i - n) `IntSet.member` xs
 
@@ -196,9 +217,12 @@ defArgs m = asks (occUnfold . feExtra) >>= \case
   YesUnfold -> weakly m
 
 unfoldB :: (Instantiate t, Reduce t) => t -> OccursM (Blocked t)
-unfoldB v = asks (occUnfold . feExtra) >>= \case
-  NoUnfold  -> notBlocked <$> instantiate v
-  YesUnfold -> reduceB v
+unfoldB v = do
+  unfold <- asks $ occUnfold . feExtra
+  rel    <- asks feModality
+  case unfold of
+    YesUnfold | not (isIrrelevant rel) -> reduceB v
+    _                                  -> notBlocked <$> instantiate v
 
 unfold :: (Instantiate t, Reduce t) => t -> OccursM t
 unfold v = asks (occUnfold . feExtra) >>= \case
@@ -222,13 +246,13 @@ flexibly = local $ set lensFlexRig $ Flexible ()
 
 -- ** Error throwing during occurs check.
 
-patternViolation' :: MonadTCM m => Int -> String -> m a
-patternViolation' n err = liftTCM $ do
+patternViolation' :: MonadTCM m => Blocker -> Int -> String -> m a
+patternViolation' unblock n err = liftTCM $ do
   reportSLn "tc.meta.occurs" n err
-  patternViolation
+  patternViolation unblock
 
-abort :: TypeError -> OccursM a
-abort err = do
+abort :: Blocker -> TypeError -> OccursM a
+abort unblock err = do
   ctx <- ask
   lift $ do
     if | isIrrelevant ctx                    -> soft
@@ -236,7 +260,7 @@ abort err = do
        | otherwise -> soft
   where
   hard = typeError err -- here, throw an uncatchable error (unsolvable constraint)
-  soft = patternViolation' 70 (show err) -- throws a PatternErr, which leads to delayed constraint
+  soft = patternViolation' unblock 70 (show err) -- throws a PatternErr, which leads to delayed constraint
 
 ---------------------------------------------------------------------------
 -- * Implementation of the occurs check.
@@ -260,6 +284,7 @@ occursCheck
 occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupMeta m
   n  <- getContextSize
+  reportSLn "tc.meta.occurs" 35 $ "occursCheck " ++ show m ++ " " ++ show xs
   let initEnv unf = FreeEnv
         {  feExtra = OccursExtra
           { occUnfold  = unf
@@ -272,14 +297,23 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
         , feSingleton = variableCheck xs
         }
   initOccursCheck mv
-      -- TODO: Can we do this in a better way?
-  let redo m = m
-  -- First try without normalising the term
-  redo (occurs v `runReaderT` initEnv NoUnfold) `catchError` \ _ -> do
-    initOccursCheck mv
-    redo (occurs v `runReaderT` initEnv YesUnfold) `catchError` \ err -> case err of
-                            -- Produce nicer error messages
-      TypeError _ cl -> case clValue cl of
+  nicerErrorMessage $ do
+    -- First try without normalising the term
+    (occurs v `runReaderT` initEnv NoUnfold) `catchError` \err -> do
+      -- If first run is inconclusive, try again with normalization
+      -- (unless metavariable is irrelevant, in which case the
+      -- constraint will anyway be dropped)
+      case err of
+        PatternErr{} | not (isIrrelevant $ getMetaModality mv) -> do
+          initOccursCheck mv
+          occurs v `runReaderT` initEnv YesUnfold
+        _ -> throwError err
+
+  where
+    -- Produce nicer error messages
+    nicerErrorMessage :: TCM a -> TCM a
+    nicerErrorMessage f = f `catchError` \ err -> case err of
+      TypeError _ _ cl -> case clValue cl of
         MetaOccursInItself{} ->
           typeError . GenericDocError =<<
             fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")
@@ -298,38 +332,47 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
                    , prettyTCM v
                    , "since it contains the variable"
                    , enterClosure cl $ \_ -> prettyTCM (Var i [])
-                   , text $ "which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution"
+                   , "which is not in scope of the metavariable"
                    ]
             )
         MetaIrrelevantSolution _ _ ->
           typeError . GenericDocError =<<
             fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
                  , prettyTCM v
-                 , "since (part of) the solution was created in an irrelevant context."
+                 , "since (part of) the solution was created in an irrelevant context"
+                 ]
+        MetaErasedSolution _ _ ->
+          typeError . GenericDocError =<<
+            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+                 , prettyTCM v
+                 , "since (part of) the solution was created in an erased context"
                  ]
         _ -> throwError err
       _ -> throwError err
 
 instance Occurs Term where
   occurs v = do
-    m   <- asks (occMeta . feExtra)
     vb  <- unfoldB v
     -- occurs' ctx $ ignoreBlocking v  -- fails test/succeed/DontPruneBlocked
     let flexIfBlocked = case vb of
           -- Don't fail on blocked terms or metas
-          -- Blocked _ MetaV{} -> id  -- does not help with issue #856
-          Blocked{}    -> flexibly
+          Blocked _ MetaV{} -> id
+          Blocked b _ -> flexibly . addOrUnblocker b
+          -- Re #3594, do not fail hard when Underapplied:
+          -- the occurrence could be computed away after eta expansion.
+          NotBlocked{blockingStatus = Underapplied} -> flexibly
           NotBlocked{} -> id
-    v <- return $ ignoreBlocking vb
+    let v = ignoreBlocking vb
     flexIfBlocked $ do
         ctx <- ask
+        let m = occMeta . feExtra $ ctx
         reportSDoc "tc.meta.occurs" 45 $
           text ("occursCheck " ++ prettyShow m ++ " (" ++ show (feFlexRig ctx) ++ ") of ") <+> prettyTCM v
         reportSDoc "tc.meta.occurs" 70 $
           nest 2 $ text $ show v
         case v of
           Var i es   -> do
-            allowed <- getAll . ($ mempty) <$> variable i
+            allowed <- getAll . ($ unitModality) <$> variable i
             if allowed then Var i <$> weakly (occurs es) else do
               -- if the offending variable is of singleton type,
               -- eta-expand it away
@@ -339,32 +382,29 @@ instance Occurs Term where
               isST <- isSingletonType t
               reportSDoc "tc.meta.occurs" 35 $ nest 2 $ "(after singleton test)"
               case isST of
-                -- cannot decide, blocked by meta-var
-                Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
                 -- not a singleton type
-                Right Nothing -> -- abort Rigid turns this error into PatternErr
-                  strongly $ abort $ MetaCannotDependOn m i
+                Nothing ->
+                  -- #4480: Only hard fail if the variable is not in scope. Wrong modality/relevance
+                  -- could potentially be salvaged by eta expansion.
+                  ifM (($ i) <$> allowedVars) -- vv TODO: neverUnblock is not correct! What could trigger this eta expansion though?
+                      (patternViolation' neverUnblock 70 $ "Disallowed var " ++ show i ++ " due to modality/relevance")
+                      (strongly $ abort neverUnblock $ MetaCannotDependOn m i)
                 -- is a singleton type with unique inhabitant sv
-                Right (Just sv) -> return $ sv `applyE` es
+                (Just sv) -> return $ sv `applyE` es
           Lam h f     -> Lam h <$> occurs f
           Level l     -> Level <$> occurs l
           Lit l       -> return v
           Dummy{}     -> return v
-          DontCare v  -> if isIrrelevant ctx then
-                           dontCare <$> occurs v
-                         else
-                           strongly $ abort $ MetaIrrelevantSolution m v
+          DontCare v  -> dontCare <$> do underRelevance Irrelevant $ occurs v
           Def d es    -> do
-            unlessM (isIrrelevant <$> ask) $ do
-              drel <- liftTCM $ relOfConst d
-              unless (usableRelevance drel) $ do
-                reportSDoc "tc.meta.occurs" 35 $ text ("relevance of definition: " ++ show drel)
-                abort $ MetaIrrelevantSolution m $ Def d []
+            definitionCheck d
             Def d <$> occDef d es
           Con c ci vs -> Con c ci <$> occurs vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occurs (a,b)
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs s
-          MetaV m' es -> do
+          MetaV m' es -> addOrUnblocker (unblockOnMeta m') $ do
+                         -- If getting stuck here, we need to trigger wakeup if this meta is
+                         -- solved.
               -- Check for loop
               --   don't fail hard on this, since we might still be on the top-level
               --   after some killing (Issue 442)
@@ -379,7 +419,7 @@ instance Occurs Term where
               -- WAS:
               -- when (m == m') $ if ctx == Top then patternViolation else
               --   abort ctx $ MetaOccursInItself m'
-              when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ prettyShow m
+              when (m == m') $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++ prettyShow m
 
               -- The arguments of a meta are in a flexible position
               (MetaV m' <$> do flexibly $ occurs es) `catchError` \ err -> do
@@ -425,9 +465,9 @@ instance Occurs Term where
       Def d vs   -> metaOccurs m d >> metaOccurs m vs
       Con c _ vs -> metaOccurs m vs
       Pi a b     -> metaOccurs m (a,b)
-      Sort s     -> metaOccurs m s
-      MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ prettyShow m
-                  | otherwise -> metaOccurs m vs
+      Sort s     -> metaOccurs m s              -- vv m is already an unblocker
+      MetaV m' vs | m == m'   -> patternViolation' neverUnblock 50 $ "Found occurrence of " ++ prettyShow m
+                  | otherwise -> addOrUnblocker (unblockOnMeta m') $ metaOccurs m vs
 
 instance Occurs QName where
   occurs d = __IMPOSSIBLE__
@@ -456,6 +496,7 @@ instance Occurs Defn where
   metaOccurs m Record{ recConHead = c }     = metaOccursQName m $ conName c
   metaOccurs m Constructor{}                = return ()
   metaOccurs m Primitive{}                  = return ()
+  metaOccurs m PrimitiveSort{}              = __IMPOSSIBLE__
   metaOccurs m AbstractDefn{}               = __IMPOSSIBLE__
   metaOccurs m GeneralizableVar{}           = __IMPOSSIBLE__
 
@@ -465,34 +506,18 @@ instance Occurs Clause where
   metaOccurs m = metaOccurs m . clauseBody
 
 instance Occurs Level where
-  occurs (Max as) = Max <$> occurs as
+  occurs (Max n as) = Max n <$> occurs as
 
-  metaOccurs m (Max as) = metaOccurs m as
+  metaOccurs m (Max _ as) = addOrUnblocker (unblockOnAnyMetaIn as) $ metaOccurs m as
+                            -- TODO: Should only be blocking metas in as. But any meta that can
+                            --       let the Max make progress needs to be included. For instance,
+                            --       _1 ⊔ _2 = _1 should unblock on _2, even though _1 is the meta
+                            --       failing occurs check.
 
 instance Occurs PlusLevel where
-  occurs l@ClosedLevel{} = return l
   occurs (Plus n l) = Plus n <$> occurs l
-  metaOccurs m ClosedLevel{} = return ()
-  metaOccurs m (Plus n l)    = metaOccurs m l
 
-instance Occurs LevelAtom where
-  occurs l = do
-    unfold l >>= \case
-      MetaLevel m' args -> do
-        MetaV m' args <- occurs (MetaV m' args)
-        return $ MetaLevel m' args
-      NeutralLevel r v  -> NeutralLevel r  <$> occurs v
-      BlockedLevel m' v -> BlockedLevel m' <$> do flexibly $ occurs v
-      UnreducedLevel v  -> UnreducedLevel  <$> occurs v
-
-  metaOccurs m l = do
-    l <- instantiate l
-    case l of
-      MetaLevel m' args -> metaOccurs m $ MetaV m' args
-      NeutralLevel _ v  -> metaOccurs m v
-      BlockedLevel _ v  -> metaOccurs m v
-      UnreducedLevel v  -> metaOccurs m v
-
+  metaOccurs m (Plus n l) = metaOccurs m l
 
 instance Occurs Type where
   occurs (El s v) = uncurry El <$> occurs (s,v)
@@ -502,15 +527,18 @@ instance Occurs Type where
 instance Occurs Sort where
   occurs s = do
     unfold s >>= \case
-      PiSort a s2 -> do
-        s1' <- flexibly $ occurs $ getSort a
-        a'  <- (a $>) . El s1' <$> do flexibly $ occurs $ unEl $ unDom a
-        s2' <- mapAbstraction a' (flexibly . occurs) s2
-        return $ PiSort a' s2'
+      PiSort a s1 s2 -> do
+        s1' <- flexibly $ occurs s1
+        a'  <- (a $>) <$> do flexibly $ occurs $ unDom a
+        s2' <- mapAbstraction (El s1' <$> a') (flexibly . underBinder . occurs) s2
+        return $ PiSort a' s1' s2'
+      FunSort s1 s2 -> FunSort <$> flexibly (occurs s1) <*> flexibly (occurs s2)
       Type a     -> Type <$> occurs a
       Prop a     -> Prop <$> occurs a
-      s@Inf      -> return s
+      s@Inf{}    -> return s
+      SSet a     -> SSet <$> occurs a
       s@SizeUniv -> return s
+      s@LockUniv -> return s
       UnivSort s -> UnivSort <$> do flexibly $ occurs s
       MetaS x es -> do
         MetaV x es <- occurs (MetaV x es)
@@ -523,26 +551,21 @@ instance Occurs Sort where
   metaOccurs m s = do
     s <- instantiate s
     case s of
-      PiSort a s -> metaOccurs m (a,s)
+      PiSort a s1 s2 -> metaOccurs m (a,s1,s2)
+      FunSort s1 s2 -> metaOccurs m (s1,s2)
       Type a     -> metaOccurs m a
       Prop a     -> metaOccurs m a
-      Inf        -> return ()
+      Inf _ _    -> return ()
+      SSet a     -> metaOccurs m a
       SizeUniv   -> return ()
+      LockUniv   -> return ()
       UnivSort s -> metaOccurs m s
       MetaS x es -> metaOccurs m $ MetaV x es
       DefS d es  -> metaOccurs m $ Def d es
       DummyS{}   -> return ()
 
 instance Occurs a => Occurs (Elim' a) where
-  occurs e@(Proj _ f) = do
-    ctx <- ask
-    unless (isIrrelevant ctx) $ do
-      frel <- liftTCM $ relOfConst f
-      unless (usableRelevance frel) $ do
-        let m = occMeta $ feExtra ctx
-        reportSDoc "tc.meta.occurs" 35 $ text ("relevance of projection: " ++ show frel)
-        abort $ MetaIrrelevantSolution m $ Def f []
-    return e
+  occurs e@(Proj _ f)   = e <$ definitionCheck f
   occurs (Apply a)      = Apply  <$> occurs a
   occurs (IApply x y a) = IApply <$> occurs x <*> occurs y <*> occurs a
 
@@ -550,7 +573,7 @@ instance Occurs a => Occurs (Elim' a) where
   metaOccurs m (Apply a) = metaOccurs m a
   metaOccurs m (IApply x y a) = metaOccurs m (x,(y,a))
 
-instance (Occurs a, Subst t a) => Occurs (Abs a) where
+instance (Occurs a, Subst a) => Occurs (Abs a) where
   occurs b@(Abs s _) = Abs   s <$> do underAbstraction_ b $ underBinder . occurs
   occurs (NoAbs s x) = NoAbs s <$> occurs x
 
@@ -570,6 +593,11 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
 
   metaOccurs m (x,y) = metaOccurs m x >> metaOccurs m y
 
+instance (Occurs a, Occurs b, Occurs c) => Occurs (a,b,c) where
+  occurs (x,y,z) = (,,) <$> occurs x <*> occurs y <*> occurs z
+
+  metaOccurs m (x,y,z) = metaOccurs m x >> metaOccurs m y >> metaOccurs m z
+
 ---------------------------------------------------------------------------
 -- * Pruning: getting rid of flexible occurrences.
 
@@ -583,13 +611,13 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
 --   we cannot prune, because the offending variables could be removed by
 --   reduction for a suitable instantiation of the meta variable.
 prune
-  :: MonadMetaSolver m
+  :: (PureTCM m, MonadMetaSolver m)
   => MetaId         -- ^ Meta to prune.
   -> Args           -- ^ Arguments to meta variable.
   -> (Nat -> Bool)  -- ^ Test for allowed variable (de Bruijn index).
   -> m PruneResult
 prune m' vs xs = do
-  caseEitherM (runExceptT $ mapM (hasBadRigid xs) $ map unArg vs)
+  caseEitherM (runExceptT $ mapM ((hasBadRigid xs) . unArg) vs)
     (const $ return PrunedNothing) $ \ kills -> do
     reportSDoc "tc.meta.kill" 10 $ vcat
       [ "attempting kills"
@@ -610,7 +638,7 @@ prune m' vs xs = do
 --   we cannot prune at all as one of the meta args is matchable.
 --   (See issue 1147.)
 hasBadRigid
-  :: (MonadReduce m, HasConstInfo m, MonadAddContext m)
+  :: PureTCM m
   => (Nat -> Bool)      -- ^ Test for allowed variable (de Bruijn index).
   -> Term               -- ^ Argument of meta variable.
   -> ExceptT () m Bool  -- ^ Exception if argument is matchable.
@@ -675,7 +703,7 @@ isNeutral b f es = do
 --   Reduces the term successively to remove variables in dead subterms.
 --   This fixes issue 1386.
 rigidVarsNotContainedIn
-  :: (MonadReduce m, MonadAddContext m, MonadTCEnv m, MonadDebug m, AnyRigid a)
+  :: (PureTCM m, AnyRigid a)
   => a
   -> (Nat -> Bool)   -- ^ Test for allowed variable (de Bruijn index).
   -> m Bool
@@ -701,7 +729,7 @@ rigidVarsNotContainedIn v is = do
 --   We need to successively reduce the expression to do this.
 
 class AnyRigid a where
-  anyRigid :: (MonadReduce tcm, MonadAddContext tcm)
+  anyRigid :: (PureTCM tcm)
            => (Nat -> tcm Bool) -> a -> tcm Bool
 
 instance AnyRigid Term where
@@ -739,31 +767,24 @@ instance AnyRigid Sort where
     case s of
       Type l     -> anyRigid f l
       Prop l     -> anyRigid f l
-      Inf        -> return False
+      Inf _ _    -> return False
+      SSet l     -> anyRigid f l
       SizeUniv   -> return False
-      PiSort a s -> return False
+      LockUniv   -> return False
+      PiSort a s1 s2 -> return False
+      FunSort s1 s2 -> return False
       UnivSort s -> anyRigid f s
       MetaS{}    -> return False
       DefS{}     -> return False
       DummyS{}   -> return False
 
 instance AnyRigid Level where
-  anyRigid f (Max ls) = anyRigid f ls
+  anyRigid f (Max _ ls) = anyRigid f ls
 
 instance AnyRigid PlusLevel where
-  anyRigid f ClosedLevel{} = return False
   anyRigid f (Plus _ l)    = anyRigid f l
 
-instance AnyRigid LevelAtom where
-  anyRigid f l =
-    case l of
-      MetaLevel{} -> return False
-      NeutralLevel MissingClauses _ -> return False
-      NeutralLevel _              l -> anyRigid f l
-      BlockedLevel _              l -> anyRigid f l
-      UnreducedLevel              l -> anyRigid f l
-
-instance (Subst t a, AnyRigid a) => AnyRigid (Abs a) where
+instance (Subst a, AnyRigid a) => AnyRigid (Abs a) where
   anyRigid f b = underAbstraction_ b $ anyRigid f
 
 instance AnyRigid a => AnyRigid (Arg a) where
@@ -814,7 +835,7 @@ killArgs kills m = do
       dbg kills' a a'
       -- If there is any prunable argument, perform the pruning
       if not (any unArg kills') then return PrunedNothing else do
-        performKill kills' m a'
+        addContext tel $ performKill kills' m a'
         -- Only successful if all occurrences were killed
         -- Andreas, 2011-05-09 more precisely, check that at least
         -- the in 'kills' prescribed kills were carried out
@@ -831,7 +852,7 @@ killArgs kills m = do
         , nest 2 $ vcat
           [ "metavar =" <+> prettyTCM m
           , "kills   =" <+> text (show kills)
-          , "kills'  =" <+> text (show kills')
+          , "kills'  =" <+> prettyList (map prettyTCM kills')
           , "oldType =" <+> prettyTCM a
           , "newType =" <+> prettyTCM a'
           ]
@@ -900,23 +921,24 @@ killedType args b = do
           return (up zs, b)
 
 reallyNotFreeIn :: (MonadReduce m) => IntSet -> Type -> m (IntSet, Type)
-reallyNotFreeIn xs a | IntSet.null xs = return (xs, a)  -- Shortcut
+reallyNotFreeIn xs a | IntSet.null xs = return (xs, a) -- Shortcut
 reallyNotFreeIn xs a = do
   let fvs      = freeVars a
       anywhere = allVars fvs
       rigid    = IntSet.unions [stronglyRigidVars fvs, unguardedVars fvs]
       nonrigid = IntSet.difference anywhere rigid
-      hasNo    = IntSet.null . IntSet.intersection xs
-  if | hasNo nonrigid ->
-        -- No non-rigid occurrences. We can't do anything about the rigid
-        -- occurrences so drop those and leave `a` untouched.
-        return (IntSet.difference xs rigid, a)
-     | otherwise -> do
-        -- If there are non-rigid occurrences we need to reduce a to see if
-        -- we can get rid of them (#3177).
-        (fvs , a) <- forceNotFree (IntSet.difference xs rigid) a
-        let xs = IntMap.keysSet $ IntMap.filter (== NotFree) fvs
-        return (xs , a)
+      hasNo    = IntSet.disjoint xs
+  if hasNo nonrigid
+    then
+       -- No non-rigid occurrences. We can't do anything about the rigid
+       -- occurrences so drop those and leave `a` untouched.
+       return (IntSet.difference xs rigid, a)
+    else do
+      -- If there are non-rigid occurrences we need to reduce a to see if
+      -- we can get rid of them (#3177).
+      (fvs, a) <- forceNotFree (IntSet.difference xs rigid) a
+      let xs = IntMap.keysSet $ IntMap.filter (== NotFree) fvs
+      return (xs, a)
 
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
@@ -937,10 +959,14 @@ performKill kills m a = do
   -- (de Bruijn level order).
   let perm = Perm n
              [ i | (i, Arg _ False) <- zip [0..] kills ]
+      -- The permutation for the old meta might range over a prefix of the arguments
+      oldPerm = liftP (max 0 $ n - m) p
+        where p = mvPermutation mv
+              m = size p
       judg = case mvJudgement mv of
         HasType{ jComparison = cmp } -> HasType __IMPOSSIBLE__ cmp a
         IsSort{}  -> IsSort  __IMPOSSIBLE__ a
-  m' <- newMeta Instantiable (mvInfo mv) (mvPriority mv) perm judg
+  m' <- newMeta Instantiable (mvInfo mv) (mvPriority mv) (composeP perm oldPerm) judg
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary
   etaExpandMetaSafe m'
   let -- Arguments to new meta (de Bruijn indices)

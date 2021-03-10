@@ -1,0 +1,7 @@
+Failed to solve the following constraints:
+  a _ab_20 = a ab : A (blocked on _ab_20)
+Unsolved metas at the following locations:
+  Issue4118.agda:47,14-15
+  Issue4118.agda:47,12-15
+Unsolved interaction metas at the following locations:
+  Issue4118.agda:37,35-39

@@ -5,51 +5,61 @@
 
 module Agda.Syntax.Scope.Monad where
 
-import Prelude hiding (mapM, any, all, null)
+import Prelude hiding (null)
 
 import Control.Arrow ((***))
-import Control.Monad hiding (mapM, forM)
-import Control.Monad.Writer hiding (mapM, forM)
-import Control.Monad.State hiding (mapM, forM)
+import Control.Monad
+import Control.Monad.Except
+import Control.Monad.Writer hiding ((<>))
+import Control.Monad.State
 
 import Data.Either ( partitionEithers )
+import Data.Foldable (all, traverse_)
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Foldable (all)
 import Data.Traversable hiding (for)
+
+import Agda.Interaction.Options
+import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (ScopeCopyInfo(..))
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Fixity
-import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..)) -- TODO: move the relevant warnings out of there
+import Agda.Syntax.Concrete.Definitions ( DeclarationWarning(..) ,DeclarationWarning'(..) )
+  -- TODO: move the relevant warnings out of there
 import Agda.Syntax.Scope.Base as A
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin ( HasBuiltins , getBuiltinName' , builtinSet , builtinProp , builtinSetOmega, builtinSSetOmega )
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Positivity.Occurrence (Occurrence)
-import Agda.TypeChecking.Warnings ( warning )
+import Agda.TypeChecking.Warnings ( warning, warning' )
 
 import qualified Agda.Utils.AssocList as AssocList
-import Agda.Utils.Except
+import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|), nonEmpty)
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.NonemptyList as NonemptyList
 import Agda.Utils.Pretty
+import Agda.Utils.Singleton
+import Agda.Utils.Suffix as C
 
 import Agda.Utils.Impossible
 
@@ -68,11 +78,17 @@ printLocals v s = verboseS "scope.top" v $ do
   locals <- getLocalVars
   reportSLn "scope.top" v $ s ++ " " ++ prettyShow locals
 
+scopeWarning' :: CallStack -> DeclarationWarning' -> ScopeM ()
+scopeWarning' loc = warning' loc . NicifierIssue . DeclarationWarning loc
+
+scopeWarning :: HasCallStack => DeclarationWarning' -> ScopeM ()
+scopeWarning = withCallerCallStack scopeWarning'
+
 ---------------------------------------------------------------------------
 -- * General operations
 ---------------------------------------------------------------------------
 
-isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecord)
+isDatatypeModule :: ReadTCState m => A.ModuleName -> m (Maybe DataOrRecordModule)
 isDatatypeModule m = do
    scopeDatatypeModule . Map.findWithDefault __IMPOSSIBLE__ m <$> useScope scopeModules
 
@@ -111,8 +127,10 @@ getCurrentScope :: ScopeM Scope
 getCurrentScope = getNamedScope =<< getCurrentModule
 
 -- | Create a new module with an empty scope.
+--   If the module is not new (e.g. duplicate @import@),
+--   don't erase its contents.
 --   (@Just@ if it is a datatype or record module.)
-createModule :: Maybe DataOrRecord -> A.ModuleName -> ScopeM ()
+createModule :: Maybe DataOrRecordModule -> A.ModuleName -> ScopeM ()
 createModule b m = do
   reportSLn "scope.createModule" 10 $ "createModule " ++ prettyShow m
   s <- getCurrentScope
@@ -122,7 +140,10 @@ createModule b m = do
                       , scopeDatatypeModule = b }
   -- Andreas, 2015-07-02: internal error if module is not new.
   -- Ulf, 2016-02-15: It's not new if multiple imports (#1770).
-  modifyScopes $ Map.insertWith const m sm
+  -- Andreas, 2020-05-18, issue #3933:
+  -- If it is not new (but apparently did not clash),
+  -- we do not erase its contents for reasons of monotonicity.
+  modifyScopes $ Map.insertWith mergeScope m sm
 
 -- | Apply a function to the scope map.
 modifyScopes :: (Map A.ModuleName Scope -> Map A.ModuleName Scope) -> ScopeM ()
@@ -174,6 +195,17 @@ setLocalVars vars = modifyLocalVars $ const vars
 withLocalVars :: ScopeM a -> ScopeM a
 withLocalVars = bracket_ getLocalVars setLocalVars
 
+-- | Run a computation outside some number of local variables and add them back afterwards. This
+--   lets you bind variables in the middle of the context and is used when binding generalizable
+--   variables (#3735).
+outsideLocalVars :: Int -> ScopeM a -> ScopeM a
+outsideLocalVars n m = do
+  inner <- take n <$> getLocalVars
+  modifyLocalVars (drop n)
+  x <- m
+  modifyLocalVars (inner ++)
+  return x
+
 -- | Check that the newly added variable have unique names.
 
 withCheckNoShadowing :: ScopeM a -> ScopeM a
@@ -184,16 +216,19 @@ checkNoShadowing :: LocalVars  -- ^ Old local scope
                  -> LocalVars  -- ^ New local scope
                  -> ScopeM ()
 checkNoShadowing old new = do
-  -- LocalVars is currnently an AssocList so the difference between
-  -- two local scope is the left part of the new one.
-  let diff = dropEnd (length old) new
-  -- Filter out the underscores.
-  let newNames = filter (not . isNoName) $ AssocList.keys diff
-  -- Associate each name to its occurrences.
-  let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
-  -- Warn if we have two or more occurrences of the same name.
-  unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
-    warning $ NicifierIssue $ ShadowingInTelescope conflicts
+  opts <- pragmaOptions
+  when (ShadowingInTelescope_ `Set.member`
+          (optWarningMode opts ^. warningSet)) $ do
+    -- LocalVars is currnently an AssocList so the difference between
+    -- two local scope is the left part of the new one.
+    let diff = dropEnd (length old) new
+    -- Filter out the underscores.
+    let newNames = filter (not . isNoName) $ AssocList.keys diff
+    -- Associate each name to its occurrences.
+    let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
+    -- Warn if we have two or more occurrences of the same name.
+    unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
+      scopeWarning $ ShadowingInTelescope conflicts
   where
     pairWithRange :: C.Name -> (C.Name, [Range])
     pairWithRange n = (n, [getRange n])
@@ -232,6 +267,7 @@ freshAbstractName fx x = do
   return $ A.Name
     { nameId          = i
     , nameConcrete    = x
+    , nameCanonical   = x
     , nameBindingSite = getRange x
     , nameFixity      = fx
     , nameIsRecordName = False
@@ -254,11 +290,12 @@ freshAbstractQName' x = do
   freshAbstractQName fx x
 
 -- | Create a concrete name that is not yet in scope.
+-- | NOTE: See @chooseName@ in @Agda.Syntax.Translation.AbstractToConcrete@ for similar logic.
+-- | NOTE: See @withName@ in @Agda.Syntax.Translation.ReflectedToAbstract@ for similar logic.
 freshConcreteName :: Range -> Int -> String -> ScopeM C.Name
 freshConcreteName r i s = do
-  let cname = C.Name r C.NotInScope [Id $ stringToRawName $ s ++ show i]
-  rn <- resolveName $ C.QName cname
-  case rn of
+  let cname = C.Name r C.NotInScope $ singleton $ Id $ stringToRawName $ s ++ show i
+  resolveName (C.QName cname) >>= \case
     UnknownName -> return cname
     _           -> freshConcreteName r (i+1) s
 
@@ -283,7 +320,7 @@ resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
   Right x' -> return x'
 
 tryResolveName
-  :: (ReadTCState m, MonadError (NonemptyList A.QName) m)
+  :: (ReadTCState m, HasBuiltins m, MonadError (List1 A.QName) m)
   => KindsOfNames       -- ^ Restrict search to these kinds of names.
   -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
   -> C.QName            -- ^ Name to be resolved
@@ -298,26 +335,41 @@ tryResolveName kinds names x = do
       ifNull (filterNames id ys)
         {-then-} (return $ VarName y{ nameConcrete = unqualify x } b)
         {-else-} $ \ ys' ->
-          throwError $ A.qualify_ y :! map anameName ys'
+          throwError $ A.qualify_ y :| map anameName ys'
     -- Case: we do not have a local variable x.
     Nothing -> do
-      -- Consider only names of one of the given kinds
+      -- Consider only names that are in the given set of names and
+      -- are of one of the given kinds
       let filtKind = filter $ (`elemKindsOfNames` kinds) . anameKind . fst
-      -- Consider only names in the given set of names
-      caseListNe (filtKind $ filterNames fst $ scopeLookup' x scope) (return UnknownName) $ \ case
-        ds       | all ((ConName ==) . anameKind . fst) ds ->
-          return $ ConstructorName $ fmap (upd . fst) ds
+          possibleNames z = filtKind $ filterNames fst $ scopeLookup' z scope
+      -- If the name has a suffix, also consider the possibility that
+      -- the base name is in scope (e.g. the builtin sorts `Set` and `Prop`).
+      canHaveSuffix <- canHaveSuffixTest
+      let (xsuffix, xbase) = (C.lensQNameName . nameSuffix) (,Nothing) x
+          possibleBaseNames = filter (canHaveSuffix . anameName . fst) $ possibleNames xbase
+          suffixedNames = (,) <$> fromConcreteSuffix xsuffix <*> nonEmpty possibleBaseNames
+      case (nonEmpty $ possibleNames x) of
+        Just ds  | let ks = fmap (isConName . anameKind . fst) ds
+                 , all isJust ks
+                 , isNothing suffixedNames ->
+          return $ ConstructorName (Set.fromList $ List1.catMaybes ks) $ fmap (upd . fst) ds
 
-        ds       | all ((FldName ==) . anameKind . fst) ds ->
+        Just ds  | all ((FldName ==) . anameKind . fst) ds , isNothing suffixedNames ->
           return $ FieldName $ fmap (upd . fst) ds
 
-        ds       | all ((PatternSynName ==) . anameKind . fst) ds ->
+        Just ds  | all ((PatternSynName ==) . anameKind . fst) ds , isNothing suffixedNames ->
           return $ PatternSynResName $ fmap (upd . fst) ds
 
-        (d, a) :! [] ->
-          return $ DefinedName a $ upd d
+        Just ((d, a) :| []) | isNothing suffixedNames ->
+          return $ DefinedName a (upd d) A.NoSuffix
 
-        ds -> throwError $ fmap (anameName . fst) ds
+        Just ds -> throwError $ fmap (anameName . fst) $ caseMaybe suffixedNames id ((<>) . snd) ds
+
+        Nothing -> case suffixedNames of
+          Nothing -> return UnknownName
+          Just (suffix , (d, a) :| []) -> return $ DefinedName a (upd d) suffix
+          Just (suffix , sds) -> throwError $ fmap (anameName . fst) sds
+
   where
   -- @names@ intended semantics: a filter on names.
   -- @Nothing@: don't filter out anything.
@@ -331,13 +383,28 @@ tryResolveName kinds names x = do
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
   updateConcreteName d@(AbsName { anameName = A.QName qm qn }) x =
     d { anameName = A.QName (setRange (getRange x) qm) (qn { nameConcrete = x }) }
+  fromConcreteSuffix = \case
+    Nothing              -> Nothing
+    Just C.Prime{}       -> Nothing
+    Just (C.Index i)     -> Just $ A.Suffix $ toInteger i
+    Just (C.Subscript i) -> Just $ A.Suffix $ toInteger i
+
+-- | Test if a given abstract name can appear with a suffix. Currently
+--   only true for the names of builtin sorts @Set@ and @Prop@.
+canHaveSuffixTest :: HasBuiltins m => m (A.QName -> Bool)
+canHaveSuffixTest = do
+  builtinSet  <- getBuiltinName' builtinSet
+  builtinProp <- getBuiltinName' builtinProp
+  builtinSetOmega <- getBuiltinName' builtinSetOmega
+  builtinSSetOmega <- getBuiltinName' builtinSSetOmega
+  return $ \x -> Just x `elem` [builtinSet, builtinProp, builtinSetOmega, builtinSSetOmega]
 
 -- | Look up a module in the scope.
 resolveModule :: C.QName -> ScopeM AbstractModule
 resolveModule x = do
   ms <- scopeLookup x <$> getScope
-  caseListNe ms (typeError $ NoSuchModule x) $ \ case
-    AbsModule m why :! [] -> return $ AbsModule (m `withRangeOf` x) why
+  caseMaybe (nonEmpty ms) (typeError $ NoSuchModule x) $ \ case
+    AbsModule m why :| [] -> return $ AbsModule (m `withRangeOf` x) why
     ms                    -> typeError $ AmbiguousModule x (fmap amodName ms)
 
 -- | Get the fixity of a not yet bound name.
@@ -355,10 +422,10 @@ instance MonadFixityError ScopeM where
   throwMultiplePolarityPragmas xs     = case xs of
     x : _ -> setCurrentRange (getRange x) $ typeError $ MultiplePolarityPragmas xs
     []    -> __IMPOSSIBLE__
-  warnUnknownNamesInFixityDecl        = warning   . NicifierIssue . UnknownNamesInFixityDecl
-  warnUnknownNamesInPolarityPragmas   = warning   . NicifierIssue . UnknownNamesInPolarityPragmas
-  warnUnknownFixityInMixfixDecl       = warning   . NicifierIssue . UnknownFixityInMixfixDecl
-  warnPolarityPragmasButNotPostulates = warning   . NicifierIssue . PolarityPragmasButNotPostulates
+  warnUnknownNamesInFixityDecl        = scopeWarning . UnknownNamesInFixityDecl
+  warnUnknownNamesInPolarityPragmas   = scopeWarning . UnknownNamesInPolarityPragmas
+  warnUnknownFixityInMixfixDecl       = scopeWarning . UnknownFixityInMixfixDecl
+  warnPolarityPragmasButNotPostulates = scopeWarning . PolarityPragmasButNotPostulates
 
 -- | Collect the fixity/syntax declarations and polarity pragmas from the list
 --   of declarations and store them in the scope.
@@ -382,15 +449,15 @@ getNotation x ns = do
   r <- resolveName' allKindsOfNames (Just ns) x
   case r of
     VarName y _         -> return $ namesToNotation x y
-    DefinedName _ d     -> return $ notation d
+    DefinedName _ d _   -> return $ notation d
     FieldName ds        -> return $ oneNotation ds
-    ConstructorName ds  -> return $ oneNotation ds
+    ConstructorName _ ds-> return $ oneNotation ds
     PatternSynResName n -> return $ oneNotation n
     UnknownName         -> __IMPOSSIBLE__
   where
     notation = namesToNotation x . qnameName . anameName
     oneNotation ds =
-      case mergeNotations $ map notation $ toList ds of
+      case mergeNotations $ map notation $ List1.toList ds of
         [n] -> n
         _   -> __IMPOSSIBLE__
 
@@ -415,28 +482,34 @@ bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = bindName' acc kind NoMetadata x y
 
 bindName' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM ()
-bindName' acc kind meta x y = do
+bindName' acc kind meta x y = whenJustM (bindName'' acc kind meta x y) typeError
+
+-- | Bind a name. Returns the 'TypeError' if exists, but does not throw it.
+bindName'' :: Access -> KindOfName -> NameMetadata -> C.Name -> A.QName -> ScopeM (Maybe TypeError)
+bindName'' acc kind meta x y = do
   when (isNoName x) $ modifyScopes $ Map.map $ removeNameFromScope PrivateNS x
   r  <- resolveName (C.QName x)
-  y' <- case r of
-    -- Binding an anonymous declaration always succeeds.
-    -- In case it's not the first one, we simply remove the one that came before
-    _ | isNoName x      -> success
-    DefinedName _ d     -> clash $ anameName d
-    VarName z _         -> clash $ A.qualify (mnameFromList []) z
-    FieldName       ds  -> ambiguous FldName ds
-    ConstructorName ds  -> ambiguous ConName ds
-    PatternSynResName n -> ambiguous PatternSynName n
-    UnknownName         -> success
+  let y' :: Either TypeError AbstractName
+      y' = case r of
+        -- Binding an anonymous declaration always succeeds.
+        -- In case it's not the first one, we simply remove the one that came before
+        _ | isNoName x      -> success
+        DefinedName _ d _   -> clash $ anameName d
+        VarName z _         -> clash $ A.qualify_ z
+        FieldName       ds  -> ambiguous (== FldName) ds
+        ConstructorName i ds-> ambiguous (isJust . isConName) ds
+        PatternSynResName n -> ambiguous (== PatternSynName) n
+        UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
-  modifyCurrentScope $ addNameToScope ns x y'
+  traverse_ (modifyCurrentScope . addNameToScope ns x) y'
+  pure $ either Just (const Nothing) y'
   where
-    success = return $ AbsName y kind Defined meta
-    clash   = typeError . ClashingDefinition (C.QName x)
+    success = Right $ AbsName y kind Defined meta
+    clash n = Left $ ClashingDefinition (C.QName x) n Nothing
 
-    ambiguous k ds =
-      if kind == k && all ((== k) . anameKind) ds
-      then success else clash $ anameName (headNe ds)
+    ambiguous f ds =
+      if f kind && all (f . anameKind) ds
+      then success else clash $ anameName (List1.head ds)
 
 -- | Rebind a name. Use with care!
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an
@@ -471,7 +544,7 @@ type WSM = StateT ScopeMemo ScopeM
 
 data ScopeMemo = ScopeMemo
   { memoNames   :: A.Ren A.QName
-  , memoModules :: [(ModuleName, (ModuleName, Bool))]
+  , memoModules :: Map ModuleName (ModuleName, Bool)
     -- ^ Bool: did we copy recursively? We need to track this because we don't
     --   copy recursively when creating new modules for reexported functions
     --   (issue1985), but we might need to copy recursively later.
@@ -480,13 +553,13 @@ data ScopeMemo = ScopeMemo
 memoToScopeInfo :: ScopeMemo -> ScopeCopyInfo
 memoToScopeInfo (ScopeMemo names mods) =
   ScopeCopyInfo { renNames   = names
-                , renModules = [ (x, y) | (x, (y, _)) <- mods ] }
+                , renModules = Map.map (pure . fst) mods }
 
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
-copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy new0 s) (ScopeMemo [] [])
+copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> runStateT (copy new0 s) (ScopeMemo mempty mempty)
   where
     copy :: A.ModuleName -> Scope -> WSM Scope
     copy new s = do
@@ -519,12 +592,12 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
             _ -> lensAnameName f d
 
         -- Adding to memo structure.
-        addName x y     = modify $ \ i -> i { memoNames   = (x, y)        : memoNames   i }
-        addMod  x y rec = modify $ \ i -> i { memoModules = (x, (y, rec)) : filter ((/= x) . fst) (memoModules i) }
+        addName x y     = modify $ \ i -> i { memoNames   = Map.insertWith (<>) x (pure y) (memoNames i) }
+        addMod  x y rec = modify $ \ i -> i { memoModules = Map.insert x (y, rec) (memoModules i) }
 
         -- Querying the memo structure.
-        findName x = lookup x <$> gets memoNames
-        findMod  x = lookup x <$> gets memoModules
+        findName x = gets (Map.lookup x . memoNames) -- NB:: Defined but not used
+        findMod  x = gets (Map.lookup x . memoModules)
 
         refresh :: A.Name -> WSM A.Name
         refresh x = do
@@ -551,9 +624,9 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
           -- would break the invariant that all functions in a module share the
           -- module telescope. Instead we copy M1.M2.X to M.M2.X for a fresh
           -- module M2 that gets the right telescope.
-          m <- case x `isInModule` old of
-                 True  -> return new'
-                 False -> renMod' False (qnameModule x)
+          m <- if x `isInModule` old
+                 then return new'
+                 else renMod' False (qnameModule x)
                           -- Don't copy recursively here, we only know that the
                           -- current name x should be copied.
           -- Generate a fresh name for the target.
@@ -617,10 +690,11 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
 ---------------------------------------------------------------------------
 
 -- | Warn about useless fixity declarations in @renaming@ directives.
+--   Monadic for the sake of error reporting.
 checkNoFixityInRenamingModule :: [C.Renaming] -> ScopeM ()
 checkNoFixityInRenamingModule ren = do
-  whenJust (NonemptyList.fromList $ mapMaybe rangeOfUselessInfix ren) $ \ rs -> do
-    traceCall (SetRange $ getRange rs) $ do
+  whenJust (nonEmpty $ mapMaybe rangeOfUselessInfix ren) $ \ rs -> do
+    setCurrentRange rs $ do
       warning $ FixityInRenamingModule rs
   where
   rangeOfUselessInfix :: C.Renaming -> Maybe Range
@@ -628,26 +702,57 @@ checkNoFixityInRenamingModule ren = do
     Renaming ImportedModule{} _ mfx _ -> getRange <$> mfx
     _ -> Nothing
 
+-- Moved here carefully from Parser.y to preserve the archaeological artefact
+-- dating from Oct 2005 (5ba14b647b9bd175733f9563e744176425c39126).
+-- | Check that an import directive doesn't contain repeated names.
+verifyImportDirective :: [C.ImportedName] -> C.HidingDirective -> C.RenamingDirective -> ScopeM ()
+verifyImportDirective usn hdn ren =
+    case filter ((>1) . length)
+         $ List.group
+         $ List.sort xs
+    of
+        []  -> return ()
+        yss -> setCurrentRange yss $ genericError $
+                "Repeated name" ++ s ++ " in import directive: " ++
+                concat (List.intersperse ", " $ map (prettyShow . head) yss)
+            where
+                s = case yss of
+                        [_] -> ""
+                        _   -> "s"
+    where
+        xs = usn ++ hdn ++ map renFrom ren
+
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
+--
+--   Monadic for the sake of error reporting.
 applyImportDirectiveM
   :: C.QName                           -- ^ Name of the scope, only for error reporting.
   -> C.ImportDirective                 -- ^ Description of how scope is to be modified.
   -> Scope                             -- ^ Input scope.
   -> ScopeM (A.ImportDirective, Scope) -- ^ Scope-checked description, output scope.
-applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
+applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
 
-    -- Modules names do not come with fixities, thus, we should complain if the
-    -- user supplied fixity annotations to renaming-module clauses.
+    -- Module names do not come with fixities, thus, we should complain if the
+    -- user has supplied fixity annotations to @renaming module@ clauses.
     checkNoFixityInRenamingModule ren'
+
+    -- Andreas, 2020-06-06, issue #4707
+    -- Duplicates in @using@ directive are dropped with a warning.
+    usingList <- discardDuplicatesInUsing usn'
+
+    -- The following check was originally performed by the parser.
+    -- The Great Ulf Himself added the check back in the dawn of time
+    -- (5ba14b647b9bd175733f9563e744176425c39126)
+    -- when Agda 2 wasn't even believed to exist yet.
+    verifyImportDirective usingList hdn' ren'
 
     -- We start by checking that all of the names talked about in the import
     -- directive do exist.  If some do not then we remove them and raise a warning.
-    let usingList = fromUsing usn'
     let (missingExports, namesA) = checkExist $ usingList ++ hdn' ++ map renFrom ren'
     unless (null missingExports) $ setCurrentRange rng $ do
       reportSLn "scope.import.apply" 20 $ "non existing names: " ++ prettyShow missingExports
-      warning $ ModuleDoesntExport m missingExports
+      warning $ ModuleDoesntExport m (Map.keys namesInScope) (Map.keys modulesInScope) missingExports
 
     -- We can now define a cleaned-up version of the import directive.
     let notMissing = not . (missingExports `hasElem`)  -- #3997, efficient lookup in missingExports
@@ -666,13 +771,11 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
 
     -- Efficient test of whether a module import should be added to the import
     -- of a definition (like a data or record definition).
-    let extra x = and
-          [ inNames       $ ImportedName   x
-          , notMissing    $ ImportedModule x
-          , not . inNames $ ImportedModule x
-              -- The last test implies that @hiding (module M)@ prevents @module M@
-              -- from entering the @using@ list in @addExtraModule@.
-          ]
+    let extra x = inNames (ImportedName   x)
+               && notMissing (ImportedModule x)
+               && (not . inNames $ ImportedModule x)
+                  -- The last test implies that @hiding (module M)@ prevents @module M@
+                  -- from entering the @using@ list in @addExtraModule@.
 
     dir' <- sanityCheck (not . inNames) $ addExtraModules extra dir
 
@@ -682,7 +785,14 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
       typeError $ DuplicateImports m dup
 
     -- Apply the import directive.
-    let scope' = applyImportDirective dir' scope
+    let (scope', (nameClashes, moduleClashes)) = applyImportDirective_ dir' scope
+
+    -- Andreas, 2019-11-08, issue #4154, report clashes
+    -- introduced by the @renaming@.
+    unless (null nameClashes) $
+      warning $ ClashesViaRenaming NameNotModule $ Set.toList nameClashes
+    unless (null moduleClashes) $
+      warning $ ClashesViaRenaming ModuleNotName $ Set.toList moduleClashes
 
     -- Look up the defined names in the new scope.
     let namesInScope'   = (allNamesInScope scope' :: ThingsInScope AbstractName)
@@ -698,25 +808,38 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     return (adir, scope') -- TODO Issue 1714: adir
 
   where
-    -- | Names in the @using@ directive
-    fromUsing :: Using' a b -> [ImportedName' a b]
-    fromUsing = \case
-      Using  xs     -> xs
-      UseEverything -> []
+    -- Andreas, 2020-06-23, issue #4773, fixing regression in 2.5.1.
+    -- Import directive may not mention private things.
+    -- ```agda
+    --   module M where private X = Set
+    --   module N = M using (X)
+    -- ```
+    -- Further, modules (N) need not copy private things (X) from other
+    -- modules (M) ever, since they cannot legally referred to
+    -- (neither through qualification (N.X) nor open N).
+    -- Thus, we can unconditionally remove private definitions
+    -- before we apply the import directive.
+    scope = restrictPrivate scope0
 
-    -- If both @using@ and @hiding@ directive are present,
+    -- | Return names in the @using@ directive, discarding duplicates.
+    -- Monadic for the sake of throwing warnings.
+    discardDuplicatesInUsing :: C.Using -> ScopeM [C.ImportedName]
+    discardDuplicatesInUsing = \case
+      UseEverything -> return []
+      Using  xs     -> do
+        let (ys, dups) = nubAndDuplicatesOn id xs
+        List1.unlessNull dups $ warning . DuplicateUsing
+        return ys
+
+    -- | If both @using@ and @hiding@ directive are present,
     -- the hiding directive may only contain modules whose twins are mentioned.
+    -- Monadic for the sake of error reporting.
     sanityCheck notMentioned = \case
       dir@(ImportDirective{ using = Using{}, hiding = ys }) -> do
           let useless = \case
                 ImportedName{}   -> True
                 ImportedModule y -> notMentioned (ImportedName y)
-          unlessNull (filter useless ys) $ \ uselessHiding -> do
-            typeError $ GenericError $ unwords $
-              [ "Hiding"
-              , List.intercalate ", " $ map prettyShow uselessHiding
-              , "has no effect"
-              ]
+          unlessNull (filter useless ys) $ warning . UselessHiding
           -- We can empty @hiding@ now, since there is an explicit @using@ directive
           -- and @hiding@ served its purpose to prevent modules to enter the @Using@ list.
           return dir{ hiding = [] }
@@ -740,6 +863,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope = do
     -- | Names and modules (abstract) in scope before the import.
     namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
     modulesInScope = (allNamesInScope scope :: ThingsInScope AbstractModule)
+    concreteNamesInScope = (Map.keys namesInScope ++ Map.keys modulesInScope :: [C.Name])
 
     -- | AST versions of the concrete names passed as an argument.
     --   We get back a pair consisting of a list of missing exports first,
@@ -832,8 +956,7 @@ openModule kind mam cm dir = do
 
   -- Get the scope exported by module to be opened.
   (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) .
-                noGeneralizedVarsIfLetOpen kind .
-                removeOnlyQualified . restrictPrivate =<< getNamedScope m
+                noGeneralizedVarsIfLetOpen kind =<< getNamedScope m
   let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   modifyCurrentScope (`mergeScope` s)
@@ -847,7 +970,7 @@ openModule kind mam cm dir = do
   verboseS "scope.locals" 10 $ do
     locals <- mapMaybe (\ (c,x) -> c <$ notShadowedLocal x) <$> getLocalVars
     let newdefs = Map.keys $ nsNames ns
-        shadowed = List.intersect locals newdefs
+        shadowed = locals `List.intersect` newdefs
     reportSLn "scope.locals" 10 $ "opening module shadows the following locals vars: " ++ prettyShow shadowed
   -- Andreas, 2014-09-03, issue 1266: shadow local variables by imported defs.
   modifyLocalVars $ AssocList.mapWithKey $ \ c x ->
@@ -870,11 +993,11 @@ openModule kind mam cm dir = do
 
             -- No ambiguity if concrete identifier is only mapped to
             -- constructor names or only to projection names.
-            defClash (_, qs) = not $ all (== ConName) ks || all (==FldName) ks
+            defClash (_, qs) = not $ all (isJust . isConName) ks || all (==FldName) ks
               where ks = map anameKind qs
         -- We report the first clashing exported identifier.
         unlessNull (filter (\ x -> defClash x) defClashes) $
-          \ ((x, q:_) : _) -> typeError $ ClashingDefinition (C.QName x) $ anameName q
+          \ ((x, q:_) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
 
         unlessNull modClashes $ \ ((_, ms) : _) -> do
           caseMaybe (last2 ms) __IMPOSSIBLE__ $ \ (m0, m1) -> do

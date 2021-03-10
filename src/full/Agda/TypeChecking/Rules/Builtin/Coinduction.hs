@@ -14,7 +14,6 @@ import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
@@ -75,11 +74,12 @@ bindBuiltinSharp x =
                   { recPars           = 2
                   , recInduction      = Just CoInductive
                   , recClause         = Nothing
-                  , recConHead        = ConHead sharp CoInductive []  -- flat is added later
+                  , recConHead        = ConHead sharp (IsRecord CopatternMatching) CoInductive []  -- flat is added later
                   , recNamedCon       = True
                   , recFields         = []  -- flat is added later
                   , recTel            = fieldTel
-                  , recEtaEquality'   = Inferred NoEta
+                  , recEtaEquality'   = Inferred $ NoEta CopatternMatching
+                  , recPatternMatching= CopatternMatching
                   , recMutual         = Just []
                   , recAbstr          = ConcreteDef
                   , recComp           = emptyCompKit
@@ -89,7 +89,7 @@ bindBuiltinSharp x =
       sharpDefn { theDef = Constructor
                     { conPars   = 2
                     , conArity  = 1
-                    , conSrcCon = ConHead sharp CoInductive [] -- flat is added as field later
+                    , conSrcCon = ConHead sharp (IsRecord CopatternMatching) CoInductive [] -- flat is added as field later
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
@@ -115,7 +115,7 @@ bindBuiltinFlat x =
     Def sharp _ <- primSharp
     kit         <- requireLevels
     Def inf _   <- primInf
-    let sharpCon = ConHead sharp CoInductive [defaultArg flat]
+    let sharpCon = ConHead sharp (IsRecord CopatternMatching) CoInductive [defaultArg flat]
         level    = El (mkType 0) $ Def (typeName kit) []
         tel     :: Telescope
         tel      = ExtendTel (domH $ level)                  $ Abs "a" $
@@ -134,7 +134,10 @@ bindBuiltinFlat x =
           , clauseBody      = Just $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False
+          , clauseExact       = Just True
+          , clauseRecursive   = Just False
           , clauseUnreachable = Just False
+          , clauseEllipsis  = NoEllipsis
           }
         cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done [defaultArg "x"] $ var 0
         projection = Projection
@@ -161,7 +164,7 @@ bindBuiltinFlat x =
     modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
       def { conSrcCon = sharpCon }
     modifySignature $ updateDefinition inf $ updateTheDef $ \ def ->
-      def { recConHead = sharpCon, recFields = [defaultArg flat] }
+      def { recConHead = sharpCon, recFields = [defaultDom flat] }
     return flatE
 
 -- The coinductive primitives.

@@ -1,7 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE CPP                       #-}
 
+#if  __GLASGOW_HASKELL__ > 800
+{-# OPTIONS_GHC -Wno-error=missing-signatures #-}
+#endif
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 -- | Tests for free variable computations.
@@ -21,7 +23,6 @@ import Data.Monoid
 
 import Internal.Helpers
 import Internal.TypeChecking.Free.Lazy ()
-import Internal.TypeChecking.Generators hiding ( tests )
 
 ------------------------------------------------------------------------------
 -- * Semiring properties of 'FlexRig' with empty 'MetaSet'
@@ -302,7 +303,7 @@ prop_isSemimodule_withVarOcc1_counterexample =
   withVarOcc r (m <> m') /=           -- LHS: Flexible [1]
   withVarOcc r m <> withVarOcc r m'   -- RHS: Flexible [1,2]
   where
-    occ o  = VarOcc o mempty
+    occ o  = VarOcc o unitModality
     rig    = occ Unguarded
     flex n = occ $ Flexible $ singleton $ MetaId n
     r      :: VarOcc
@@ -316,7 +317,7 @@ prop_isSemimodule_withVarOcc2_counterexample =
   withVarOcc (r <> s) m /=
   withVarOcc r m <> withVarOcc s m
   where
-    occ o  = VarOcc o mempty
+    occ o  = VarOcc o unitModality
     flex n = occ $ Flexible $ singleton $ MetaId n
     r, s   :: VarOcc
     r      = flex 1
@@ -347,13 +348,13 @@ prop_isSemimodule_withVarOcc2_not_a_counterexample =
 -- Sample term, TODO: expand to unit test.
 
 ty :: Term
-ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
+ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max 0 []) $ var 5
   where
-    a  = El (Prop $ Max []) $
+    a  = El (Prop $ Max 0 []) $
            var 4
-    b  = El (Type $ Max []) $
-           Sort $ Type $ Max []
-    ab = El (Type $ Max [ClosedLevel 1]) $
+    b  = El (Type $ Max 0 []) $
+           Sort $ Type $ Max 0 []
+    ab = El (Type $ Max 1 []) $
            Pi (defaultDom a) (Abs "x" b)
 
 ------------------------------------------------------------------------

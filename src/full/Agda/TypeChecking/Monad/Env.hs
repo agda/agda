@@ -12,7 +12,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.FileName
-import Agda.Utils.Function
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -23,7 +23,7 @@ currentModule :: MonadTCEnv m => m ModuleName
 currentModule = asksTC envCurrentModule
 
 -- | Set the name of the current module.
-withCurrentModule :: ModuleName -> TCM a -> TCM a
+withCurrentModule :: (MonadTCEnv m) => ModuleName -> m a -> m a
 withCurrentModule m =
     localTC $ \ e -> e { envCurrentModule = m }
 
@@ -55,26 +55,22 @@ withEnv env = localTC $ \ env0 -> env
 getEnv :: TCM TCEnv
 getEnv = askTC
 
--- | Increases the module nesting level by one in the given
--- computation.
-withIncreasedModuleNestingLevel :: TCM a -> TCM a
-withIncreasedModuleNestingLevel =
-  localTC $ \ e -> e { envModuleNestingLevel =
-                       envModuleNestingLevel e + 1 }
-
 -- | Set highlighting level
 withHighlightingLevel :: HighlightingLevel -> TCM a -> TCM a
 withHighlightingLevel h = localTC $ \ e -> e { envHighlightingLevel = h }
 
-withoutOptionsChecking :: TCM a -> TCM a
-withoutOptionsChecking = localTC $ \ e -> e { envCheckOptionConsistency = False }
-
 -- | Restore setting for 'ExpandLast' to default.
 doExpandLast :: TCM a -> TCM a
-doExpandLast = localTC $ \ e -> e { envExpandLast = ExpandLast }
+doExpandLast = localTC $ \ e -> e { envExpandLast = setExpand (envExpandLast e) }
+  where
+    setExpand ReallyDontExpandLast = ReallyDontExpandLast
+    setExpand _                    = ExpandLast
 
 dontExpandLast :: TCM a -> TCM a
 dontExpandLast = localTC $ \ e -> e { envExpandLast = DontExpandLast }
+
+reallyDontExpandLast :: TCM a -> TCM a
+reallyDontExpandLast = localTC $ \ e -> e { envExpandLast = ReallyDontExpandLast }
 
 -- | If the reduced did a proper match (constructor or literal pattern),
 --   then record this as simplification step.
@@ -103,7 +99,7 @@ putAllowedReductions = modifyAllowedReductions . const
 
 -- | Reduce @Def f vs@ only if @f@ is a projection.
 onlyReduceProjections :: MonadTCEnv m => m a -> m a
-onlyReduceProjections = putAllowedReductions [ProjectionReductions]
+onlyReduceProjections = putAllowedReductions $ SmallSet.singleton ProjectionReductions
 
 -- | Allow all reductions except for non-terminating functions (default).
 allowAllReductions :: MonadTCEnv m => m a -> m a
@@ -111,17 +107,20 @@ allowAllReductions = putAllowedReductions allReductions
 
 -- | Allow all reductions including non-terminating functions.
 allowNonTerminatingReductions :: MonadTCEnv m => m a -> m a
-allowNonTerminatingReductions = putAllowedReductions $ [NonTerminatingReductions] ++ allReductions
+allowNonTerminatingReductions = putAllowedReductions reallyAllReductions
 
--- | Allow all reductions when reducing types
+-- | Allow all reductions when reducing types. Otherwise only allow
+--   inlined functions to be unfolded.
 onlyReduceTypes :: MonadTCEnv m => m a -> m a
-onlyReduceTypes = putAllowedReductions [TypeLevelReductions]
+onlyReduceTypes = putAllowedReductions $ SmallSet.fromList [TypeLevelReductions, InlineReductions]
 
 -- | Update allowed reductions when working on types
 typeLevelReductions :: MonadTCEnv m => m a -> m a
 typeLevelReductions = modifyAllowedReductions $ \reds -> if
-  | TypeLevelReductions `elem` reds ->
-      applyWhen (NonTerminatingReductions `elem` reds) (NonTerminatingReductions:) allReductions
+  | TypeLevelReductions `SmallSet.member` reds ->
+      if NonTerminatingReductions `SmallSet.member` reds
+       then reallyAllReductions
+       else allReductions
   | otherwise -> reds
 
 -- * Concerning 'envInsideDotPattern'

@@ -1,5 +1,7 @@
+;;; -*- lexical-binding: t; -*-
 ;;; agda-input.el --- The Agda input method
 
+;; SPDX-License-Identifier: MIT License
 ;;; Commentary:
 
 ;; A highly customisable input method which can inherit from other
@@ -19,7 +21,7 @@
 ;;; Code:
 
 (require 'quail)
-(require 'cl)
+(require 'cl-lib)
 ;; Quail is quite stateful, so be careful when editing this code.  Note
 ;; that with-temp-buffer is used below whenever buffer-local state is
 ;; modified.
@@ -50,17 +52,13 @@ removing all space and newline characters."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions used to tweak translation pairs
 
-;; lexical-let is used since Elisp lacks lexical scoping.
-
 (defun agda-input-compose (f g)
   "\x -> concatMap F (G x)"
-  (lexical-let ((f1 f) (g1 g))
-    (lambda (x) (agda-input-concat-map f1 (funcall g1 x)))))
+    (lambda (x) (agda-input-concat-map f (funcall g x))))
 
 (defun agda-input-or (f g)
   "\x -> F x ++ G x"
-  (lexical-let ((f1 f) (g1 g))
-    (lambda (x) (append (funcall f1 x) (funcall g1 x)))))
+    (lambda (x) (append (funcall f x) (funcall g x))))
 
 (defun agda-input-nonempty ()
   "Only keep pairs with a non-empty first component."
@@ -68,42 +66,36 @@ removing all space and newline characters."
 
 (defun agda-input-prepend (prefix)
   "Prepend PREFIX to all key sequences."
-  (lexical-let ((prefix1 prefix))
-    (lambda (x) `((,(concat prefix1 (car x)) . ,(cdr x))))))
+    (lambda (x) `((,(concat prefix (car x)) . ,(cdr x)))))
 
 (defun agda-input-prefix (prefix)
   "Only keep pairs whose key sequence starts with PREFIX."
-  (lexical-let ((prefix1 prefix))
     (lambda (x)
-      (if (equal (substring (car x) 0 (length prefix1)) prefix1)
-          (list x)))))
+      (if (equal (substring (car x) 0 (length prefix)) prefix)
+          (list x))))
 
 (defun agda-input-suffix (suffix)
   "Only keep pairs whose key sequence ends with SUFFIX."
-  (lexical-let ((suffix1 suffix))
     (lambda (x)
       (if (equal (substring (car x)
-                            (- (length (car x)) (length suffix1)))
-                 suffix1)
-          (list x)))))
+                            (- (length (car x)) (length suffix)))
+                 suffix)
+          (list x))))
 
 (defun agda-input-drop (ss)
   "Drop pairs matching one of the given key sequences.
 SS should be a list of strings."
-  (lexical-let ((ss1 ss))
-    (lambda (x) (unless (member (car x) ss1) (list x)))))
+    (lambda (x) (unless (member (car x) ss) (list x))))
 
 (defun agda-input-drop-beginning (n)
   "Drop N characters from the beginning of each key sequence."
-  (lexical-let ((n1 n))
-    (lambda (x) `((,(substring (car x) n1) . ,(cdr x))))))
+    (lambda (x) `((,(substring (car x) n) . ,(cdr x)))))
 
 (defun agda-input-drop-end (n)
   "Drop N characters from the end of each key sequence."
-  (lexical-let ((n1 n))
     (lambda (x)
-      `((,(substring (car x) 0 (- (length (car x)) n1)) .
-         ,(cdr x))))))
+      `((,(substring (car x) 0 (- (length (car x)) n)) .
+         ,(cdr x)))))
 
 (defun agda-input-drop-prefix (prefix)
   "Only keep pairs whose key sequence starts with PREFIX.
@@ -115,10 +107,9 @@ This prefix is dropped."
 (defun agda-input-drop-suffix (suffix)
   "Only keep pairs whose key sequence ends with SUFFIX.
 This suffix is dropped."
-  (lexical-let ((suffix1 suffix))
     (agda-input-compose
-     (agda-input-drop-end (length suffix1))
-     (agda-input-suffix suffix1))))
+     (agda-input-drop-end (length suffix))
+     (agda-input-suffix suffix)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Customization
@@ -362,7 +353,7 @@ order for the change to take effect."
   ("dr" . ,(agda-input-to-string-list "↘⇘                        ⇲                ➴➷➘                             "))
   ("dl" . ,(agda-input-to-string-list "↙⇙                                                                         "))
 
-  ("l-"  . ("←"))  ("<-"  . ("←"))  ("l="  . ("⇐"))
+  ("l-"  . ("←"))  ("<-"  . ("←"))  ("l="  . ("⇐"))  ("<="  . ("⇐"))
   ("r-"  . ("→"))  ("->"  . ("→"))  ("r="  . ("⇒"))  ("=>"  . ("⇒"))
   ("u-"  . ("↑"))                   ("u="  . ("⇑"))
   ("d-"  . ("↓"))                   ("d="  . ("⇓"))
@@ -708,6 +699,7 @@ order for the change to take effect."
   ("Mie" . ("𝑒"))
   ("Mif" . ("𝑓"))
   ("Mig" . ("𝑔"))
+  ("Mih" . ("ℎ"))
   ("Mii" . ("𝑖"))
   ("Mij" . ("𝑗"))
   ("Mik" . ("𝑘"))
@@ -884,10 +876,13 @@ order for the change to take effect."
   ("MCz" . ("𝔃"))
   ("MfA" . ("𝔄"))
   ("MfB" . ("𝔅"))
+  ("MfC" . ("ℭ"))
   ("MfD" . ("𝔇"))
   ("MfE" . ("𝔈"))
   ("MfF" . ("𝔉"))
   ("MfG" . ("𝔊"))
+  ("MfH" . ("ℌ"))
+  ("MfI" . ("ℑ"))
   ("MfJ" . ("𝔍"))
   ("MfK" . ("𝔎"))
   ("MfL" . ("𝔏"))
@@ -896,6 +891,7 @@ order for the change to take effect."
   ("MfO" . ("𝔒"))
   ("MfP" . ("𝔓"))
   ("MfQ" . ("𝔔"))
+  ("MfR" . ("ℜ"))
   ("MfS" . ("𝔖"))
   ("MfT" . ("𝔗"))
   ("MfU" . ("𝔘"))
@@ -903,6 +899,7 @@ order for the change to take effect."
   ("MfW" . ("𝔚"))
   ("MfX" . ("𝔛"))
   ("MfY" . ("𝔜"))
+  ("MfZ" . ("ℨ"))
   ("Mfa" . ("𝔞"))
   ("Mfb" . ("𝔟"))
   ("Mfc" . ("𝔠"))
@@ -931,9 +928,21 @@ order for the change to take effect."
   ("Mfz" . ("𝔷"))
 
   ;; (Sub / Super) scripts
+  ;;
+  ;; Unicode 12.1 omits several latin characters from sub/superscript.
+  ;; https://www.quora.com/Why-is-there-no-character-for-superscript-q-in-Unicode
+  ;;
+  ;; Perhaps they will be added in future versions, however there are no
+  ;; proposals for it currently in the pipeline:
+  ;; https://www.unicode.org/alloc/Pipeline.html
 
   ("_a" . ("ₐ"))
+  ;; ("_b" . ("b"))
+  ;; ("_c" . ("c"))
+  ;; ("_d" . ("d"))
   ("_e" . ("ₑ"))
+  ;; ("_f" . ("f"))
+  ;; ("_g" . ("g"))
   ("_h" . ("ₕ"))
   ("_i" . ("ᵢ"))
   ("_j" . ("ⱼ"))
@@ -943,11 +952,16 @@ order for the change to take effect."
   ("_n" . ("ₙ"))
   ("_o" . ("ₒ"))
   ("_p" . ("ₚ"))
+  ;; ("_q" . ("q"))
   ("_r" . ("ᵣ"))
   ("_s" . ("ₛ"))
   ("_t" . ("ₜ"))
   ("_u" . ("ᵤ"))
+  ("_v" . ("ᵥ"))
+  ;; ("_w" . ("w"))
   ("_x" . ("ₓ"))
+  ;; ("_y" . ("y"))
+  ;; ("_z" . ("z"))
 
   ("^a" . ("ᵃ"))
   ("^b" . ("ᵇ"))
@@ -965,6 +979,7 @@ order for the change to take effect."
   ("^n" . ("ⁿ"))
   ("^o" . ("ᵒ"))
   ("^p" . ("ᵖ"))
+  ;; ("^q" . ("q"))
   ("^r" . ("ʳ"))
   ("^s" . ("ˢ"))
   ("^t" . ("ᵗ"))
@@ -977,8 +992,10 @@ order for the change to take effect."
 
   ("^A" . ("ᴬ"))
   ("^B" . ("ᴮ"))
+  ;; ("^C" . ("C"))
   ("^D" . ("ᴰ"))
   ("^E" . ("ᴱ"))
+  ;; ("^F" . ("F"))
   ("^G" . ("ᴳ"))
   ("^H" . ("ᴴ"))
   ("^I" . ("ᴵ"))
@@ -989,11 +1006,16 @@ order for the change to take effect."
   ("^N" . ("ᴺ"))
   ("^O" . ("ᴼ"))
   ("^P" . ("ᴾ"))
+  ;; ("^Q" . ("Q"))
   ("^R" . ("ᴿ"))
+  ;; ("^S" . ("S"))
   ("^T" . ("ᵀ"))
   ("^U" . ("ᵁ"))
   ("^V" . ("ⱽ"))
   ("^W" . ("ᵂ"))
+  ;; ("^X" . ("X"))
+  ;; ("^Y" . ("Y"))
+  ;; ("^Z" . ("Z"))
 
   ;; Some ISO8859-1 characters.
 
@@ -1008,7 +1030,7 @@ order for the change to take effect."
 
   ;; Circled, parenthesised etc. numbers and letters.
 
-  ( "(0)" . ,(agda-input-to-string-list " ⓪"))
+  ( "(0)" . ,(agda-input-to-string-list " ⓪🄀⓿🄋🄌"))
   ( "(1)" . ,(agda-input-to-string-list "⑴①⒈❶➀➊"))
   ( "(2)" . ,(agda-input-to-string-list "⑵②⒉❷➁➋"))
   ( "(3)" . ,(agda-input-to-string-list "⑶③⒊❸➂➌"))
@@ -1019,43 +1041,43 @@ order for the change to take effect."
   ( "(8)" . ,(agda-input-to-string-list "⑻⑧⒏❽➇➑"))
   ( "(9)" . ,(agda-input-to-string-list "⑼⑨⒐❾➈➒"))
   ("(10)" . ,(agda-input-to-string-list "⑽⑩⒑❿➉➓"))
-  ("(11)" . ,(agda-input-to-string-list "⑾⑪⒒"))
-  ("(12)" . ,(agda-input-to-string-list "⑿⑫⒓"))
-  ("(13)" . ,(agda-input-to-string-list "⒀⑬⒔"))
-  ("(14)" . ,(agda-input-to-string-list "⒁⑭⒕"))
-  ("(15)" . ,(agda-input-to-string-list "⒂⑮⒖"))
-  ("(16)" . ,(agda-input-to-string-list "⒃⑯⒗"))
-  ("(17)" . ,(agda-input-to-string-list "⒄⑰⒘"))
-  ("(18)" . ,(agda-input-to-string-list "⒅⑱⒙"))
-  ("(19)" . ,(agda-input-to-string-list "⒆⑲⒚"))
-  ("(20)" . ,(agda-input-to-string-list "⒇⑳⒛"))
+  ("(11)" . ,(agda-input-to-string-list "⑾⑪⒒⓫"))
+  ("(12)" . ,(agda-input-to-string-list "⑿⑫⒓⓬"))
+  ("(13)" . ,(agda-input-to-string-list "⒀⑬⒔⓭"))
+  ("(14)" . ,(agda-input-to-string-list "⒁⑭⒕⓮"))
+  ("(15)" . ,(agda-input-to-string-list "⒂⑮⒖⓯"))
+  ("(16)" . ,(agda-input-to-string-list "⒃⑯⒗⓰"))
+  ("(17)" . ,(agda-input-to-string-list "⒄⑰⒘⓱"))
+  ("(18)" . ,(agda-input-to-string-list "⒅⑱⒙⓲"))
+  ("(19)" . ,(agda-input-to-string-list "⒆⑲⒚⓳"))
+  ("(20)" . ,(agda-input-to-string-list "⒇⑳⒛⓴"))
 
-  ("(a)"  . ,(agda-input-to-string-list "⒜Ⓐⓐ"))
-  ("(b)"  . ,(agda-input-to-string-list "⒝Ⓑⓑ"))
-  ("(c)"  . ,(agda-input-to-string-list "⒞Ⓒⓒ"))
-  ("(d)"  . ,(agda-input-to-string-list "⒟Ⓓⓓ"))
-  ("(e)"  . ,(agda-input-to-string-list "⒠Ⓔⓔ"))
-  ("(f)"  . ,(agda-input-to-string-list "⒡Ⓕⓕ"))
-  ("(g)"  . ,(agda-input-to-string-list "⒢Ⓖⓖ"))
-  ("(h)"  . ,(agda-input-to-string-list "⒣Ⓗⓗ"))
-  ("(i)"  . ,(agda-input-to-string-list "⒤Ⓘⓘ"))
-  ("(j)"  . ,(agda-input-to-string-list "⒥Ⓙⓙ"))
-  ("(k)"  . ,(agda-input-to-string-list "⒦Ⓚⓚ"))
-  ("(l)"  . ,(agda-input-to-string-list "⒧Ⓛⓛ"))
-  ("(m)"  . ,(agda-input-to-string-list "⒨Ⓜⓜ"))
-  ("(n)"  . ,(agda-input-to-string-list "⒩Ⓝⓝ"))
-  ("(o)"  . ,(agda-input-to-string-list "⒪Ⓞⓞ"))
-  ("(p)"  . ,(agda-input-to-string-list "⒫Ⓟⓟ"))
-  ("(q)"  . ,(agda-input-to-string-list "⒬Ⓠⓠ"))
-  ("(r)"  . ,(agda-input-to-string-list "⒭Ⓡⓡ"))
-  ("(s)"  . ,(agda-input-to-string-list "⒮Ⓢⓢ"))
-  ("(t)"  . ,(agda-input-to-string-list "⒯Ⓣⓣ"))
-  ("(u)"  . ,(agda-input-to-string-list "⒰Ⓤⓤ"))
-  ("(v)"  . ,(agda-input-to-string-list "⒱Ⓥⓥ"))
-  ("(w)"  . ,(agda-input-to-string-list "⒲Ⓦⓦ"))
-  ("(x)"  . ,(agda-input-to-string-list "⒳Ⓧⓧ"))
-  ("(y)"  . ,(agda-input-to-string-list "⒴Ⓨⓨ"))
-  ("(z)"  . ,(agda-input-to-string-list "⒵Ⓩⓩ"))
+  ("(a)"  . ,(agda-input-to-string-list "⒜Ⓐⓐ🅐🄰🅰"))
+  ("(b)"  . ,(agda-input-to-string-list "⒝Ⓑⓑ🅑🄱🅱"))
+  ("(c)"  . ,(agda-input-to-string-list "⒞Ⓒⓒ🅒🄲🅲"))
+  ("(d)"  . ,(agda-input-to-string-list "⒟Ⓓⓓ🅓🄳🅳"))
+  ("(e)"  . ,(agda-input-to-string-list "⒠Ⓔⓔ🅔🄴🅴"))
+  ("(f)"  . ,(agda-input-to-string-list "⒡Ⓕⓕ🅕🄵🅵"))
+  ("(g)"  . ,(agda-input-to-string-list "⒢Ⓖⓖ🅖🄶🅶"))
+  ("(h)"  . ,(agda-input-to-string-list "⒣Ⓗⓗ🅗🄷🅷"))
+  ("(i)"  . ,(agda-input-to-string-list "⒤Ⓘⓘ🅘🄸🅸"))
+  ("(j)"  . ,(agda-input-to-string-list "⒥Ⓙⓙ🅙🄹🅹"))
+  ("(k)"  . ,(agda-input-to-string-list "⒦Ⓚⓚ🅚🄺🅺"))
+  ("(l)"  . ,(agda-input-to-string-list "⒧Ⓛⓛ🅛🄻🅻"))
+  ("(m)"  . ,(agda-input-to-string-list "⒨Ⓜⓜ🅜🄼🅼"))
+  ("(n)"  . ,(agda-input-to-string-list "⒩Ⓝⓝ🅝🄽🅽"))
+  ("(o)"  . ,(agda-input-to-string-list "⒪Ⓞⓞ🅞🄾🅾"))
+  ("(p)"  . ,(agda-input-to-string-list "⒫Ⓟⓟ🅟🄿🅿"))
+  ("(q)"  . ,(agda-input-to-string-list "⒬Ⓠⓠ🅠🅀🆀"))
+  ("(r)"  . ,(agda-input-to-string-list "⒭Ⓡⓡ🅡🅁🆁"))
+  ("(s)"  . ,(agda-input-to-string-list "⒮Ⓢⓢ🅢🅂🆂"))
+  ("(t)"  . ,(agda-input-to-string-list "⒯Ⓣⓣ🅣🅃🆃"))
+  ("(u)"  . ,(agda-input-to-string-list "⒰Ⓤⓤ🅤🅄🆄"))
+  ("(v)"  . ,(agda-input-to-string-list "⒱Ⓥⓥ🅥🅅🆅"))
+  ("(w)"  . ,(agda-input-to-string-list "⒲Ⓦⓦ🅦🅆🆆"))
+  ("(x)"  . ,(agda-input-to-string-list "⒳Ⓧⓧ🅧🅇🆇"))
+  ("(y)"  . ,(agda-input-to-string-list "⒴Ⓨⓨ🅨🅈🆈"))
+  ("(z)"  . ,(agda-input-to-string-list "⒵Ⓩⓩ🅩🅉🆉"))
 
   ))
   "A list of translations specific to the Agda input method.

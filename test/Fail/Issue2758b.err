@@ -1,4 +1,4 @@
 Issue2758b.agda:15,15-18
-Cannot instantiate the metavariable _10 to solution b since (part
-of) the solution was created in an irrelevant context.
+Cannot instantiate the metavariable _10 to solution b
+since (part of) the solution was created in an irrelevant context
 when checking that the expression c _ has type Box Bool b

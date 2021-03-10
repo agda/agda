@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | The monad for the termination checker.
 --
@@ -14,17 +13,14 @@ import Control.Applicative hiding (empty)
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Except
 import Control.Monad.Reader
 
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
-import Data.Monoid ( Monoid(..) )
 import Data.Semigroup ( Semigroup(..) )
 import qualified Data.Set as Set
 
-import Agda.Interaction.Options
+import Agda.Interaction.Options (optTerminationDepth)
 
-import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -37,13 +33,12 @@ import Agda.Termination.RecCheck (anyDefs)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except ( MonadError )
+import Agda.Utils.Benchmark as B
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -185,7 +180,7 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , Monad
            , Fail.MonadFail
            , MonadError TCErr
-           , MonadBench Phase
+           , MonadStatistics
            , HasOptions
            , HasBuiltins
            , MonadDebug
@@ -197,7 +192,18 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , ReadTCState
            , MonadReduce
            , MonadAddContext
+           , PureTCM
            )
+
+-- This could be derived automatically, but the derived type family becomes `BenchPhase (ReaderT TerEnv TCM)` which
+-- is *fine* but triggers complaints that the "type family application is no smaller than the instance head, why not
+-- nuke everything with UndecidableInstances".
+instance MonadBench TerM where
+  type BenchPhase TerM = Phase
+  getBenchmark              = TerM $ B.getBenchmark
+  putBenchmark              = TerM . B.putBenchmark
+  modifyBenchmark           = TerM . B.modifyBenchmark
+  finally (TerM m) (TerM f) = TerM $ (B.finally m f)
 
 instance MonadTer TerM where
   terAsk     = TerM $ ask
@@ -368,9 +374,9 @@ withUsableVars pats m = do
 -- | Set 'terUseSizeLt' when going under constructor @c@.
 conUseSizeLt :: QName -> TerM a -> TerM a
 conUseSizeLt c m = do
-  caseMaybeM (liftTCM $ isRecordConstructor c)
+  ifM (liftTCM $ isEtaOrCoinductiveRecordConstructor c)  -- Non-eta inductive records are the same as datatypes
+    (terSetUseSizeLt False m)
     (terSetUseSizeLt True m)
-    (const $ terSetUseSizeLt False m)
 
 -- | Set 'terUseSizeLt' for arguments following projection @q@.
 --   We disregard j<i after a non-coinductive projection.
@@ -452,7 +458,7 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                   , addContext tel $ prettyTCM core
                   ]
                 when (null mut) __IMPOSSIBLE__
-                names <- anyDefs (mut `hasElem`) =<< normalise (map (snd . unDom) tel', core)
+                names <- anyDefs (mut `hasElem`) (map (snd . unDom) tel', core)
                 reportSDoc "term.guardedness" 40 $
                   "found" <+> if null names then "none" else sep (map prettyTCM $ Set.toList names)
                 return $ not $ null names
@@ -492,7 +498,7 @@ patternDepth = getMaxNat . foldrPattern depth where
 --   for structural descent.
 
 unusedVar :: DeBruijnPattern
-unusedVar = LitP (LitString noRange "term.unused.pat.var")
+unusedVar = litP (LitString "term.unused.pat.var")
 
 -- | Extract variables from 'DeBruijnPattern's that could witness a decrease
 --   via a SIZELT constraint.
@@ -578,7 +584,7 @@ instance PrettyTCM a => PrettyTCM (Masked a) where
 --   Performance-wise, I could not see a difference between Set and list.
 
 newtype CallPath = CallPath { callInfos :: [CallInfo] }
-  deriving (Show, Semigroup, Monoid, AllNames)
+  deriving (Show, Semigroup, Monoid)
 
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where

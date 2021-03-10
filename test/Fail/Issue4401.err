@@ -1,0 +1,5 @@
+Failed to solve the following constraints:
+  _4 (f = f) (x = x) = f x : Set (blocked on _4)
+Unsolved metas at the following locations:
+  Issue4401.agda:8,12-13
+  Issue4401.agda:11,14-18

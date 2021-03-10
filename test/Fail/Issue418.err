@@ -1,5 +1,20 @@
+Issue418.agda:30,3-10
+Cannot infer the type of abstract definition B
+Issue418.agda:33,3-10
+Cannot infer the type of abstract definition C
 Failed to solve the following constraints:
-  [7, 9] Set = _3 : Set₁
+  Set₂ = _14 (blocked on _14)
+  Set₁ =< _15 (blocked on _15)
+  Set = _7 : Set₁ (blocked on _7)
+  Set = _3 : Set₁ (blocked on _3)
+  Set₂ = _10 (blocked on _10)
+  Set₁ =< _11 (blocked on _11)
 Unsolved metas at the following locations:
   Issue418.agda:13,18-19
   Issue418.agda:14,14-18
+  Issue418.agda:25,26-27
+  Issue418.agda:26,22-26
+  Issue418.agda:30,3-4
+  Issue418.agda:30,7-10
+  Issue418.agda:32,7-8
+  Issue418.agda:33,7-10

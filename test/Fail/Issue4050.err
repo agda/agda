@@ -1,0 +1,3 @@
+Issue4050.agda:9,14-15
+No module M in scope
+when scope checking record { M }

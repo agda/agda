@@ -5,7 +5,11 @@
 
 module Agda.TypeChecking.Monad.SizedTypes where
 
+import Control.Monad.Except
+
 import qualified Data.Foldable as Fold
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
@@ -15,12 +19,11 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.NonemptyList
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 
@@ -55,6 +58,7 @@ instance IsSizeType Term where
 
 instance IsSizeType CompareAs where
   isSizeType (AsTermsOf a) = isSizeType a
+  isSizeType AsSizes       = return $ Just BoundedNo
   isSizeType AsTypes       = return Nothing
 
 isSizeTypeTest :: (HasOptions m, HasBuiltins m) => m (Term -> Maybe BoundedSize)
@@ -153,18 +157,16 @@ sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
   Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
-  return $ case iterate (sizeSuc_ suc) v !!! n of
-             Nothing -> __IMPOSSIBLE__
-             Just t  -> t
+  return $ fromMaybe __IMPOSSIBLE__ (iterate (sizeSuc_ suc) v !!! n)
 
 sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]
 
 -- | Transform list of terms into a term build from binary maximum.
 sizeMax :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-        => NonemptyList Term -> m Term
+        => NonEmpty Term -> m Term
 sizeMax vs = case vs of
-  v :! [] -> return v
+  v :| [] -> return v
   vs  -> do
     Def max [] <- primSizeMax
     return $ foldr1 (\ u v -> Def max $ map (Apply . defaultArg) [u,v]) vs
@@ -178,22 +180,44 @@ sizeMax vs = case vs of
 data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 
 -- | Expects argument to be 'reduce'd.
-sizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+sizeView :: (HasBuiltins m, MonadTCEnv m, ReadTCState m)
          => Term -> m SizeView
 sizeView v = do
-  Def inf [] <- primSizeInf
-  Def suc [] <- primSizeSuc
+  Def inf [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeInf
+  Def suc [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeSuc
   case v of
     Def x []        | x == inf -> return SizeInf
     Def x [Apply u] | x == suc -> return $ SizeSuc (unArg u)
     _                          -> return $ OtherSize v
+
+-- | A de Bruijn index under some projections.
+
+data ProjectedVar = ProjectedVar
+  { pvIndex :: Int
+  , prProjs :: [(ProjOrigin, QName)]
+  }
+  deriving (Show)
+
+-- | Ignore 'ProjOrigin' in equality test.
+
+instance Eq ProjectedVar where
+  ProjectedVar i prjs == ProjectedVar i' prjs' =
+    i == i' && map snd prjs == map snd prjs'
+
+viewProjectedVar :: Term -> Maybe ProjectedVar
+viewProjectedVar = \case
+  Var i es -> ProjectedVar i <$> mapM isProjElim es
+  _ -> Nothing
+
+unviewProjectedVar :: ProjectedVar -> Term
+unviewProjectedVar (ProjectedVar i prjs) = Var i $ map (uncurry Proj) prjs
 
 type Offset = Nat
 
 -- | A deep view on sizes.
 data DeepSizeView
   = DSizeInf
-  | DSizeVar Nat Offset
+  | DSizeVar ProjectedVar Offset
   | DSizeMeta MetaId Elims Offset
   | DOtherSize Term
   deriving (Show)
@@ -201,7 +225,7 @@ data DeepSizeView
 instance Pretty DeepSizeView where
   pretty = \case
     DSizeInf        -> "∞"
-    DSizeVar n o     -> text ("@" ++ show n) <+> "+" <+> pretty o
+    DSizeVar pv o    -> pretty (unviewProjectedVar pv) <+> "+" <+> pretty o
     DSizeMeta x es o -> pretty (MetaV x es) <+> "+" <+> pretty o
     DOtherSize t     -> pretty t
 
@@ -221,7 +245,7 @@ sizeViewComparable v w = case (v,w) of
   _ -> NotComparable
 
 sizeViewSuc_ :: QName -> DeepSizeView -> DeepSizeView
-sizeViewSuc_ suc v = case v of
+sizeViewSuc_ suc = \case
   DSizeInf         -> DSizeInf
   DSizeVar i n     -> DSizeVar i (n + 1)
   DSizeMeta x vs n -> DSizeMeta x vs (n + 1)
@@ -229,8 +253,8 @@ sizeViewSuc_ suc v = case v of
 
 -- | @sizeViewPred k v@ decrements @v@ by @k@ (must be possible!).
 sizeViewPred :: Nat -> DeepSizeView -> DeepSizeView
-sizeViewPred 0 v = v
-sizeViewPred k v = case v of
+sizeViewPred 0 = id
+sizeViewPred k = \case
   DSizeInf -> DSizeInf
   DSizeVar  i    n | n >= k -> DSizeVar  i    (n - k)
   DSizeMeta x vs n | n >= k -> DSizeMeta x vs (n - k)
@@ -238,7 +262,7 @@ sizeViewPred k v = case v of
 
 -- | @sizeViewOffset v@ returns the number of successors or Nothing when infty.
 sizeViewOffset :: DeepSizeView -> Maybe Offset
-sizeViewOffset v = case v of
+sizeViewOffset = \case
   DSizeInf         -> Nothing
   DSizeVar i n     -> Just n
   DSizeMeta x vs n -> Just n
@@ -261,9 +285,9 @@ unSizeView (OtherSize v) = return v
 
 unDeepSizeView :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
                => DeepSizeView -> m Term
-unDeepSizeView v = case v of
+unDeepSizeView = \case
   DSizeInf         -> primSizeInf
-  DSizeVar i     n -> sizeSuc n $ var i
+  DSizeVar pv    n -> sizeSuc n $ unviewProjectedVar pv
   DSizeMeta x us n -> sizeSuc n $ MetaV x us
   DOtherSize u     -> return u
 
@@ -271,32 +295,32 @@ unDeepSizeView v = case v of
 -- * View on sizes where maximum is pulled to the top
 ------------------------------------------------------------------------
 
-type SizeMaxView = NonemptyList DeepSizeView
+type SizeMaxView = NonEmpty DeepSizeView
 type SizeMaxView' = [DeepSizeView]
 
 maxViewMax :: SizeMaxView -> SizeMaxView -> SizeMaxView
 maxViewMax v w = case (v,w) of
-  (DSizeInf :! _, _) -> singleton DSizeInf
-  (_, DSizeInf :! _) -> singleton DSizeInf
+  (DSizeInf :| _, _) -> singleton DSizeInf
+  (_, DSizeInf :| _) -> singleton DSizeInf
   _                 -> Fold.foldr maxViewCons w v
 
 -- | @maxViewCons v ws = max v ws@.  It only adds @v@ to @ws@ if it is not
 --   subsumed by an element of @ws@.
 maxViewCons :: DeepSizeView -> SizeMaxView -> SizeMaxView
-maxViewCons _ (DSizeInf :! _) = singleton DSizeInf
+maxViewCons _ (DSizeInf :| _) = singleton DSizeInf
 maxViewCons DSizeInf _        = singleton DSizeInf
 maxViewCons v ws = case sizeViewComparableWithMax v ws of
-  NotComparable  -> consNe v ws
-  YesAbove _ ws' -> v :! ws'
+  NotComparable  -> NonEmpty.cons v ws
+  YesAbove _ ws' -> v :| ws'
   YesBelow{}     -> ws
 
 -- | @sizeViewComparableWithMax v ws@ tries to find @w@ in @ws@ that compares with @v@
 --   and singles this out.
 --   Precondition: @v /= DSizeInv@.
 sizeViewComparableWithMax :: DeepSizeView -> SizeMaxView -> SizeViewComparable SizeMaxView'
-sizeViewComparableWithMax v (w :! ws) =
+sizeViewComparableWithMax v (w :| ws) =
   case (ws, sizeViewComparable v w) of
-    (w':ws', NotComparable) -> fmap (w:) $ sizeViewComparableWithMax v (w' :! ws')
+    (w':ws', NotComparable) -> (w:) <$> sizeViewComparableWithMax v (w' :| ws')
     (ws    , r)             -> fmap (const ws) r
 
 

@@ -1,0 +1,10 @@
+Issue4147.agda:21,5-22
+Global confluence check failed: A unfolds to ⊥ which should further
+unfold to ⊤ but it does not.
+Possible fix: add a rule to rewrite ⊥ to ⊤
+when checking the pragma REWRITE q
+Issue4147.agda:21,5-22
+Global confluence check failed: A unfolds to ⊥ which should further
+unfold to ⊤ but it does not.
+Possible fix: add a rule to rewrite ⊥ to ⊤
+when checking the pragma REWRITE q

@@ -4,7 +4,6 @@
 # Makefile for successful tests depending on the standard library
 # Author: Andreas Abel, Ulf Norell
 # Created: 2012-02-24 (from test/succeed/Makefile)
-SHELL=bash
 
 TOP=../..
 

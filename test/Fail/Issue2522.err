@@ -1,0 +1,3 @@
+Issue2522.agda:15,44-45
+x₁ != ∞ of type Size
+when checking that the expression y has type D (λ _ → A ∞) ∞

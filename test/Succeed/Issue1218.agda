@@ -7,4 +7,4 @@ open import Common.Reflection
 unquoteDecl loop =
   define (vArg loop)
          (funDef (def (quote Nat) [])
-                 (clause [] (def loop []) ∷ []))
+                 (clause [] [] (def loop []) ∷ []))

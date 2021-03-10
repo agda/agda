@@ -2,5 +2,5 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-status-action "Checked")
-(agda2-info-action "*All Warnings*" "noinfixdecl.agda:25,11-14 The following mixfix names do not have an associated fixity declaration: _≤_, _⊔_, neg_ " nil)
+(agda2-info-action "*All Warnings*" "noinfixdecl.agda:9,3-25,14 The following mixfix names do not have an associated fixity declaration: _≤_, _⊔_, neg_ " nil)
 ((last . 1) . (agda2-goals-action '()))

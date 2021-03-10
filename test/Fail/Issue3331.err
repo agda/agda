@@ -1,4 +1,4 @@
-Issue3331.agda:5,38-38
-Issue3331.agda:5,38: Repeated name in import directive: true
-<EOF><ERROR>
-...
+Issue3331.agda:5,38-58
+Repeated name in import directive: true
+when scope checking the declaration
+  open import Agda.Builtin.Bool using (true) renaming (true to tt)

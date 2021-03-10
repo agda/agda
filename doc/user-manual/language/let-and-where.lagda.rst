@@ -1,5 +1,6 @@
 ..
   ::
+  {-# OPTIONS --rewriting #-}
   module language.let-and-where where
 
   open import language.built-ins
@@ -85,6 +86,8 @@ will be translated internally to as
   in  u
 
 This is not allowed if ``R`` is declared ``coinductive``.
+
+.. _where-blocks:
 
 where-blocks
 ============

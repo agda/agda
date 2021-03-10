@@ -8,5 +8,5 @@ import Issue708quote
 import RewritingEmptyPragma
 import Unreachable
 
--- this warning will be ignored
+-- also this warning should be displayed
 {-# REWRITE #-}

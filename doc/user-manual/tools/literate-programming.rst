@@ -152,7 +152,7 @@ Org_ files. Code blocks are surrounded by two lines including only
 
 
 .. _TeX: http://tug.org/
-.. _reStructuredText: http://docutils.sourceforge.net/rst.html
+.. _reStructuredText: http://docutils.sourceforge.io/rst.html
 .. _Markdown: https://daringfireball.net/projects/markdown/
 .. _Org: https://orgmode.org
 

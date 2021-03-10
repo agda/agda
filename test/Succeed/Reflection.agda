@@ -27,25 +27,12 @@ data Check {a}{A : Set a}(x : A) : Set where
 `Check : QName
 `Check = quote Check
 
-test₁ : Check ({A : Set} → A → A)
-test₁ = quoteGoal t in
-        t is pi (hArg set₀) (abs "A" (pi (vArg (var 0 [])) (abs "_" (var 1 []))))
-        of course
-
-test₂ : (X : Set) → Check (λ (x : X) → x)
-test₂ X = quoteGoal t in
-          t is lam visible (abs "x" (var 0 [])) of course
-
 infixr 5 _`∷_
 
 pattern _`∷_ x xs = con (quote _∷_) (hArg unknown ∷ hArg unknown ∷ vArg x ∷ vArg xs ∷ [])
 pattern `[]    = con (quote []) (hArg unknown ∷ hArg unknown ∷ [])
 pattern `true  = con (quote true) []
 pattern `false = con (quote false) []
-
-test₃ : Check (true ∷ false ∷ [])
-test₃ = quoteGoal t in
-        t is (`true `∷ `false `∷ `[]) of course
 
 `List : Term → Term
 `List A = def (quote List) (hArg (def (quote lzero) []) ∷ vArg A ∷ [])
@@ -58,15 +45,8 @@ test₃ = quoteGoal t in
 `Sort : Term
 `Sort = def (quote Sort) []
 
-test₄ : Check (List ℕ)
-test₄ = quoteGoal t in
-        t is `List `ℕ of course
-
 postulate
   a : ℕ
-
-test₁₄ : Check 1
-test₁₄ = quoteGoal t in t is lit (nat 1) of course
 
 record R : Set₁ where
   field

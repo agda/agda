@@ -1,0 +1,21 @@
+0a1,8
+> ###########################################
+> ## AUTOMATICALLY GENERATED, DO NOT EDIT! ##
+> ##                                       ##
+> ## See                                   ##
+> ## - /src/hTags/create-github-ci.sh      ##
+> ## - /src/hTags/patch-github-ci.txt      ##
+> ###########################################
+> 
+17,18c25,32
+<   - push
+<   - pull_request
+---
+>   push:
+>     paths:
+>       - '.github/workflows/hTags.yml'
+>       - 'src/hTags/*.hs'
+>   pull_request:
+>     paths:
+>       - '.github/workflows/hTags.yml'
+>       - 'src/hTags/*.hs'

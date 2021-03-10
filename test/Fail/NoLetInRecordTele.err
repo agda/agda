@@ -1,0 +1,4 @@
+NoLetInRecordTele.agda:5,8-44
+p @ (ab) is not allowed in a telescope here.
+when scope checking the declaration
+  record R {A : Set}{B : A → Set}p @ (ab) : Set

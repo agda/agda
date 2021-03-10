@@ -1,4 +1,4 @@
 Issue2480.agda:71,14-32
 a0 != a of type A
 when checking that the expression (to (from p) ∙ a) □ has type
-(ap (λ x _ → x) (ap (λ F → F a) p) ∙ a) ≡ (to (from p) ∙ a)
+(ap const (ap (λ F → F a) p) ∙ a) ≡ (to (from p) ∙ a)

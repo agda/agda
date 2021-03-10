@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Rewriting.Clause where
 
@@ -13,6 +12,7 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Monad
+import Agda.Utils.Pretty
 
 ------------------------------------------------------------------------
 -- * Converting clauses to rewrite rules
@@ -20,7 +20,7 @@ import Agda.Utils.Monad
 
 -- | Get all the clauses of a definition and convert them to rewrite
 --   rules.
-getClausesAsRewriteRules :: QName -> TCM [RewriteRule]
+getClausesAsRewriteRules :: (HasConstInfo m, MonadFresh NameId m) => QName -> m [RewriteRule]
 getClausesAsRewriteRules f = do
   cls <- defClauses <$> getConstInfo f
   forMaybeM (zip [1..] cls) $ \(i,cl) -> do
@@ -28,10 +28,10 @@ getClausesAsRewriteRules f = do
     return $ clauseToRewriteRule f clname cl
 
 -- | Generate a sensible name for the given clause
-clauseQName :: QName -> Int -> TCM QName
+clauseQName :: (HasConstInfo m, MonadFresh NameId m) => QName -> Int -> m QName
 clauseQName f i = QName (qnameModule f) <$> clauseName (qnameName f) i
   where
-    clauseName n i = freshName noRange (show n ++ "-clause" ++ show i)
+    clauseName n i = freshName noRange (prettyShow n ++ "-clause" ++ show i)
 
 -- | @clauseToRewriteRule f q cl@ converts the clause @cl@ of the
 --   function @f@ to a rewrite rule with name @q@. Returns @Nothing@
@@ -45,6 +45,7 @@ clauseToRewriteRule f q cl = clauseBody cl <&> \rhs -> RewriteRule
   , rewPats    = toNLPat $ namedClausePats cl
   , rewRHS     = rhs
   , rewType    = unArg $ fromMaybe __IMPOSSIBLE__  $ clauseType cl
+  , rewFromClause = True
   }
 
 class ToNLPat a b where
@@ -65,7 +66,7 @@ instance ToNLPat (Arg DeBruijnPattern) (Elim' NLPat) where
     VarP _ x        -> app $ PVar (dbPatVarIndex x) []
     DotP _ u        -> app $ PTerm u
     ConP c _ ps     -> app $ PDef (conName c) $ toNLPat ps
-    LitP l          -> app $ PTerm $ Lit l
+    LitP o l        -> app $ PTerm $ Lit l
     ProjP o f       -> Proj o f
     IApplyP _ u v x -> IApply (PTerm u) (PTerm v) $ PVar (dbPatVarIndex x) []
     DefP _ f ps     -> app $ PDef f $ toNLPat ps

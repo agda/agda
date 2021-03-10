@@ -6,8 +6,10 @@ module Agda.TypeChecking.Monad.Builtin
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Identity (IdentityT)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 
@@ -23,7 +25,6 @@ import Agda.TypeChecking.Monad.Base
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Except
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
@@ -37,44 +38,43 @@ class ( Functor m
       ) => HasBuiltins m where
   getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
 
-instance HasBuiltins m => HasBuiltins (MaybeT m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
+  default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => String -> m (Maybe (Builtin PrimFun))
+  getBuiltinThing = lift . getBuiltinThing
 
-instance HasBuiltins m => HasBuiltins (ExceptT e m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
+instance HasBuiltins m => HasBuiltins (ExceptT e m)
+instance HasBuiltins m => HasBuiltins (IdentityT m)
+instance HasBuiltins m => HasBuiltins (ListT m)
+instance HasBuiltins m => HasBuiltins (MaybeT m)
+instance HasBuiltins m => HasBuiltins (ReaderT e m)
+instance HasBuiltins m => HasBuiltins (StateT s m)
+instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m)
 
-instance HasBuiltins m => HasBuiltins (ListT m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance HasBuiltins m => HasBuiltins (ReaderT e m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance HasBuiltins m => HasBuiltins (StateT s m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-litType
-  :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-  => Literal -> m Type
-litType l = case l of
-  LitNat _ n    -> do
-    _ <- primZero
-    when (n > 0) $ void $ primSuc
-    el <$> primNat
-  LitWord64 _ _ -> el <$> primWord64
-  LitFloat _ _  -> el <$> primFloat
-  LitChar _ _   -> el <$> primChar
-  LitString _ _ -> el <$> primString
-  LitQName _ _  -> el <$> primQName
-  LitMeta _ _ _ -> el <$> primAgdaMeta
-  where
-    el t = El (mkType 0) t
+deriving instance HasBuiltins m => HasBuiltins (BlockT m)
 
 instance MonadIO m => HasBuiltins (TCMT m) where
   getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useTC stLocalBuiltins)
                       (Map.lookup b <$> useTC stImportedBuiltins)
+
+-- If Agda is changed so that the type of a literal can belong to an
+-- inductive family (with at least one index), then the implementation
+-- of split' in Agda.TypeChecking.Coverage should be changed.
+
+litType
+  :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+  => Literal -> m Type
+litType = \case
+  LitNat n    -> do
+    _ <- primZero
+    when (n > 0) $ void $ primSuc
+    el <$> primNat
+  LitWord64 _ -> el <$> primWord64
+  LitFloat _  -> el <$> primFloat
+  LitChar _   -> el <$> primChar
+  LitString _ -> el <$> primString
+  LitQName _  -> el <$> primQName
+  LitMeta _ _ -> el <$> primAgdaMeta
+  where
+    el t = El (mkType 0) t
 
 setBuiltinThings :: BuiltinThings PrimFun -> TCM ()
 setBuiltinThings b = stLocalBuiltins `setTCLens` b
@@ -120,7 +120,7 @@ getPrimitive x =
 
 getPrimitiveTerm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
                  => String -> m Term
-getPrimitiveTerm x = (`Def` []) <$> primFunName <$> getPrimitive x
+getPrimitiveTerm x = (`Def` []) . primFunName <$> getPrimitive x
 
 getPrimitiveTerm' :: HasBuiltins m => String -> m (Maybe Term)
 getPrimitiveTerm' x = fmap (`Def` []) <$> getPrimitiveName' x
@@ -137,20 +137,22 @@ getName' x = mplus <$> getBuiltinName' x <*> getPrimitiveName' x
 -- the error message.
 getTerm :: (HasBuiltins m) => String -> String -> m Term
 getTerm use name = flip fromMaybeM (getTerm' name) $
-  return $! (throwImpossible $ ImpMissingDefinitions [name] use)
+  return $! throwImpossible (ImpMissingDefinitions [name] use)
 
 
 -- | Rewrite a literal to constructor form if possible.
-constructorForm :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-                => Term -> m Term
-constructorForm v = constructorForm' primZero primSuc v
+constructorForm :: HasBuiltins m => Term -> m Term
+constructorForm v = do
+  let pZero = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinZero
+      pSuc  = fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSuc
+  constructorForm' pZero pSuc v
 
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
 constructorForm' pZero pSuc v =
   case v of
-    Lit (LitNat r n)
+    Lit (LitNat n)
       | n == 0    -> pZero
-      | n > 0     -> (`apply1` Lit (LitNat r $ n - 1)) <$> pSuc
+      | n > 0     -> (`apply1` Lit (LitNat $ n - 1)) <$> pSuc
       | otherwise -> pure v
     _ -> pure v
 
@@ -161,7 +163,7 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primSigma,
-    primList, primNil, primCons, primIO, primNat, primSuc, primZero,
+    primList, primNil, primCons, primIO, primNat, primSuc, primZero, primMaybe, primNothing, primJust,
     primPath, primPathP, primInterval, primIZero, primIOne, primPartial, primPartialP,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
@@ -182,7 +184,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primEquality, primRefl,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
-    primSetOmega,
+    primLockUniv,
+    primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
@@ -209,12 +212,13 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
-    primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
+    primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
-    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint,
+    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint, primAgdaTCMWithReconsParams,
+    primAgdaTCMOnlyReduceDefs, primAgdaTCMDontReduceDefs,
     primAgdaTCMNoConstraints,
-    primAgdaTCMSolveConstraints, primAgdaTCMSolveConstraintsMentioning,
-    primAgdaTCMRunSpeculative
+    primAgdaTCMRunSpeculative,
+    primAgdaTCMExec
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
 primInteger                           = getBuiltin builtinInteger
@@ -232,6 +236,9 @@ primFalse                             = getBuiltin builtinFalse
 primList                              = getBuiltin builtinList
 primNil                               = getBuiltin builtinNil
 primCons                              = getBuiltin builtinCons
+primMaybe                             = getBuiltin builtinMaybe
+primNothing                           = getBuiltin builtinNothing
+primJust                              = getBuiltin builtinJust
 primIO                                = getBuiltin builtinIO
 primId                                = getBuiltin builtinId
 primConId                             = getBuiltin builtinConId
@@ -293,7 +300,12 @@ primLevel                             = getBuiltin builtinLevel
 primLevelZero                         = getBuiltin builtinLevelZero
 primLevelSuc                          = getBuiltin builtinLevelSuc
 primLevelMax                          = getBuiltin builtinLevelMax
+primSet                               = getBuiltin builtinSet
+primProp                              = getBuiltin builtinProp
 primSetOmega                          = getBuiltin builtinSetOmega
+primLockUniv                          = getPrimitiveTerm builtinLockUniv
+primSSetOmega                         = getBuiltin builtinSSetOmega
+primStrictSet                         = getBuiltin builtinStrictSet
 primFromNat                           = getBuiltin builtinFromNat
 primFromNeg                           = getBuiltin builtinFromNeg
 primFromString                        = getBuiltin builtinFromString
@@ -385,16 +397,19 @@ primAgdaTCMDefineFun                  = getBuiltin builtinAgdaTCMDefineFun
 primAgdaTCMGetType                    = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition              = getBuiltin builtinAgdaTCMGetDefinition
 primAgdaTCMQuoteTerm                  = getBuiltin builtinAgdaTCMQuoteTerm
+primAgdaTCMQuoteOmegaTerm             = getBuiltin builtinAgdaTCMQuoteOmegaTerm
 primAgdaTCMUnquoteTerm                = getBuiltin builtinAgdaTCMUnquoteTerm
 primAgdaTCMBlockOnMeta                = getBuiltin builtinAgdaTCMBlockOnMeta
 primAgdaTCMCommit                     = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
+primAgdaTCMWithReconsParams           = getBuiltin builtinAgdaTCMWithReconsParams
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
+primAgdaTCMOnlyReduceDefs             = getBuiltin builtinAgdaTCMOnlyReduceDefs
+primAgdaTCMDontReduceDefs             = getBuiltin builtinAgdaTCMDontReduceDefs
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
-primAgdaTCMSolveConstraints           = getBuiltin builtinAgdaTCMSolveConstraints
-primAgdaTCMSolveConstraintsMentioning = getBuiltin builtinAgdaTCMSolveConstraintsMentioning
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
+primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
 
 -- | The coinductive primitives.
 
@@ -420,6 +435,31 @@ coinductionKit' = do
 coinductionKit :: TCM (Maybe CoinductionKit)
 coinductionKit = tryMaybe coinductionKit'
 
+-- | Sort primitives.
+
+data SortKit = SortKit
+  { nameOfSet      :: QName
+  , nameOfProp     :: QName
+  , nameOfSSet     :: QName
+  , nameOfSetOmega :: IsFibrant -> QName
+  }
+
+sortKit :: HasBuiltins m => m SortKit
+sortKit = do
+  Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
+  Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
+  Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  Def sset     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
+  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
+  return $ SortKit
+    { nameOfSet      = set
+    , nameOfProp     = prop
+    , nameOfSSet     = sset
+    , nameOfSetOmega = \case
+        IsFibrant -> setomega
+        IsStrict  -> ssetomega
+    }
+
 
 ------------------------------------------------------------------------
 -- * Path equality
@@ -433,7 +473,8 @@ getPrimName ty = do
   case lamV ty of
             (_, Def path _) -> path
             (_, Con nm _ _)   -> conName nm
-            (_, _)          -> __IMPOSSIBLE__
+            (_, Var 0 [Proj _ l]) -> l
+            (_, t)          -> __IMPOSSIBLE__
 
 getBuiltinName', getPrimitiveName' :: HasBuiltins m => String -> m (Maybe QName)
 getBuiltinName' n = fmap getPrimName <$> getBuiltin' n
@@ -475,9 +516,9 @@ intervalUnview' :: HasBuiltins m => m (IntervalView -> Term)
 intervalUnview' = do
   iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero -- should it be a type error instead?
   io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
-  imin <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMin"
-  imax <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMax"
-  ineg <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
+  imin <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMin"
+  imax <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMax"
+  ineg <- (`Def` []) . fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
   return $ \ v -> case v of
              IZero -> iz
              IOne  -> io

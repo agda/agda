@@ -9,7 +9,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Concrete.Definitions as D
 import qualified Agda.Syntax.Info as A
-import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete
@@ -57,12 +56,20 @@ instance PrettyTCM Call where
 
     CheckLHS lhs -> vcat $
       [ fsep $ pwords "when checking the clause left hand side"
-      , prettyA lhs
+      , prettyA $ lhs { A.spLhsInfo = (A.spLhsInfo lhs) { A.lhsEllipsis = NoEllipsis } }
       ]
 
     CheckPattern p tel t -> addContext tel $ fsep $
       pwords "when checking that the pattern"
       ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
+
+    CheckPatternLinearityType x -> fsep $
+      pwords "when checking that all occurrences of pattern variable"
+      ++ [pretty x] ++ pwords "have the same type"
+
+    CheckPatternLinearityValue x -> fsep $
+      pwords "when checking that all occurrences of pattern variable"
+      ++ [pretty x] ++ pwords "have the same value"
 
     CheckLetBinding b -> fsep $
       pwords "when checking the let binding" ++ [prettyA b]
@@ -122,7 +129,7 @@ instance PrettyTCM Call where
       pwords "fits in the sort" ++ [prettyTCM s] ++
       pwords "of the datatype."
 
-    CheckFunDefCall _ f _ ->
+    CheckFunDefCall _ f _ _ ->
       fsep $ pwords "when checking the definition of" ++ [prettyTCM f]
 
     CheckPragma _ p ->
@@ -180,7 +187,7 @@ instance PrettyTCM Call where
 
     CheckSectionApplication _ m1 modapp -> fsep $
       pwords "when checking the module application" ++
-      [prettyA $ A.Apply info m1 modapp initCopyInfo defaultImportDir]
+      [prettyA $ A.Apply info m1 modapp initCopyInfo empty]
       where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 

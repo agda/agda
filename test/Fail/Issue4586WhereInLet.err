@@ -1,0 +1,7 @@
+Issue4586WhereInLet.agda:6,15-28
+'where' clauses not allowed in let bindings
+when scope checking
+let x = Set
+      where
+        y = Set
+in Set

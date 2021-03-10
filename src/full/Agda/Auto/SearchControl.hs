@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Auto.SearchControl where
@@ -69,7 +68,7 @@ getinfo = foldl step initExpRefInfo where
   step eri RINotConstructor         = eri { eriIsEliminand = True }
   step eri (RIUsedVars nuids nused) = eri { eriUsedVars = Just (nuids, nused) }
   step eri (RIIotaStep semif)       = eri { eriIotaStep = Just iota' } where
-    iota' = semif || fromMaybe False (eriIotaStep eri)
+    iota' = semif || (Just True ==) (eriIotaStep eri)
   step eri RIPickSubsvar            = eri { eriPickSubsVar = True }
   step eri (RIEqRState s)           = eri { eriEqRState = Just s }
   step eri _ = __IMPOSSIBLE__
@@ -207,10 +206,10 @@ instance Refinable (Exp o) (RefInfo o) where
    ExpRefInfo { eriMain  = Just (RIMainInfo n tt iotastepdone)
               , eriUnifs = unis
               , eriInfTypeUnknown = inftypeunknown
-              , eriIsEliminand = iseliminand
+              , eriIsEliminand = iseliminand -- TODO:: Defined but not used
               , eriUsedVars = Just (uids, usedvars)
               , eriIotaStep = iotastep
-              , eriPickSubsVar = picksubsvar
+              , eriPickSubsVar = picksubsvar -- TODO:: Defined but not used
               , eriEqRState = meqrstate
               } = getinfo infos
 
@@ -230,9 +229,9 @@ instance Refinable (Exp o) (RefInfo o) where
 
      adjustCost i = if inftypeunknown then costInferredTypeUnkown else i
      varcost v | v < n - deffreevars = adjustCost $
-       if elem v (mapMaybe getVar usedvars)
+       if v `elem` (mapMaybe getVar usedvars)
        then costAppVarUsed else costAppVar
-     varcost v | otherwise = adjustCost costAppHint
+     varcost v | otherwise           = adjustCost costAppHint
      varapps  = map (\ v -> Move (varcost v) $ app n meta Nothing (Var v)) [0..n - 1]
      hintapps = map (\(c, hm) -> Move (cost c hm) (app n meta Nothing (Const c))) hints
        where
@@ -240,10 +239,10 @@ instance Refinable (Exp o) (RefInfo o) where
          cost c hm = adjustCost $ case (iotastep , hm) of
            (Just _  , _       ) -> costIotaStep
            (Nothing , HMNormal) ->
-             if elem c (mapMaybe getConst usedvars)
+             if c `elem` (mapMaybe getConst usedvars)
              then costAppHintUsed else costAppHint
            (Nothing , HMRecCall) ->
-             if elem c (mapMaybe getConst usedvars)
+             if c `elem` (mapMaybe getConst usedvars)
              then costAppRecCallUsed else costAppRecCall
      generics = varapps ++ hintapps
     in case rawValue tt of
@@ -252,8 +251,8 @@ instance Refinable (Exp o) (RefInfo o) where
       return [eq_end, eq_step]
 
      HNPi hid _ _ (Abs id _) -> return $
-         (Move (adjustCost (if iotastepdone then costLamUnfold else costLam)) $ newLam hid id)
-       : (Move costAbsurdLam $ return $ AbsurdLambda hid)
+         Move (adjustCost (if iotastepdone then costLamUnfold else costLam)) (newLam hid id)
+       : Move costAbsurdLam (return $ AbsurdLambda hid)
        : generics
 
      HNSort (Set l) -> return $
@@ -300,12 +299,11 @@ instance Refinable (Exp o) (RefInfo o) where
        in uni ++ generics
       HNApp (Const c) _ ->
        let (uid, isunique) = pickUid uids $ seenUIds hne
-       in (Move (costUnificationIf isunique) $ app n meta uid (Const c)) : generics
+       in Move (costUnificationIf isunique) (app n meta uid (Const c)) : generics
       HNLam{} -> generics
       HNPi hid possdep _ _ ->
        let (uid, isunique) = pickUid uids $ seenUIds hne
-       in (Move (costUnificationIf isunique)
-          $ newPi (fromMaybe meta uid) possdep hid) : generics
+       in Move (costUnificationIf isunique) (newPi (fromMaybe meta uid) possdep hid) : generics
       HNSort (Set l) -> map (Move costUnification . set) [0..l] ++ generics
       HNSort _ -> generics
    _ -> __IMPOSSIBLE__
@@ -413,25 +411,30 @@ prioTypecheck True = 0
 
 -- ---------------------------------
 
-instance Trav a blk => Trav [a] blk where
+instance Trav a => Trav [a] where
+  type Block [a] = Block a
   trav _ []     = return ()
   trav f (x:xs) = trav f x >> trav f xs
 
-instance Trav (MId, CExp o) (RefInfo o) where
+instance Trav (MId, CExp o) where
+  type Block (MId, CExp o) = RefInfo o
   trav f (_, ce) = trav f ce
 
-instance Trav (TrBr a o) (RefInfo o) where
+instance Trav (TrBr a o) where
+  type Block (TrBr a o) = RefInfo o
   trav f (TrBr es _) = trav f es
 
-instance Trav (Exp o) (RefInfo o) where
-  trav f e = case e of
-    App _ _ _ args          -> trav f args
+instance Trav (Exp o) where
+  type Block (Exp o) = RefInfo o
+  trav f = \case
+    App _ _ _ args         -> trav f args
     Lam _ (Abs _ b)        -> trav f b
     Pi _ _ _ it (Abs _ ot) -> trav f it >> trav f ot
     Sort _                 -> return ()
     AbsurdLambda{}         -> return ()
 
-instance Trav (ArgList o) (RefInfo o) where
+instance Trav (ArgList o) where
+  type Block (ArgList o) = RefInfo o
   trav _ ALNil               = return ()
   trav f (ALCons _ arg args) = trav f arg >> trav f args
   trav f (ALProj eas _ _ as) = trav f eas >> trav f as

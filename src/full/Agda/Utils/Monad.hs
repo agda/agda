@@ -8,23 +8,16 @@ module Agda.Utils.Monad
     where
 
 import Control.Applicative  (liftA2)
-import Control.Monad hiding (mapM, forM)
-
-import qualified Control.Monad.Fail as Fail
-
-import Control.Monad.Identity ( Identity )
+import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
+import Data.Monoid
 
+import Agda.Utils.Applicative
 import Agda.Utils.Either
-import Agda.Utils.Except
-  ( Error(strMsg)
-  , MonadError(catchError, throwError)
-  )
-
 import Agda.Utils.Null (ifNotNullM)
 
 import Agda.Utils.Impossible
@@ -144,9 +137,17 @@ forMM_ = flip mapMM_
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
+-- | A version of @'mapMaybeM'@ with a computation for the input list.
+mapMaybeMM :: Monad m => (a -> m (Maybe b)) -> m [a] -> m [b]
+mapMaybeMM f m = mapMaybeM f =<< m
+
 -- | The @for@ version of 'mapMaybeM'.
 forMaybeM :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
 forMaybeM = flip mapMaybeM
+
+-- | The @for@ version of 'mapMaybeMM'.
+forMaybeMM :: Monad m => m [a] -> (a -> m (Maybe b)) -> m [b]
+forMaybeMM = flip mapMaybeMM
 
 -- | A monadic version of @'dropWhile' :: (a -> Bool) -> [a] -> [a]@.
 dropWhileM :: Monad m => (a -> m Bool) -> [a] -> m [a]
@@ -161,22 +162,28 @@ dropWhileEndM p (x : xs) = ifNotNullM (dropWhileEndM p xs) (return . (x:)) $ {-e
   ifM (p x) (return []) (return [x])
 
 -- | A ``monadic'' version of @'partition' :: (a -> Bool) -> [a] -> ([a],[a])
-partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a],[a])
-partitionM f [] =
-  pure ([], [])
-partitionM f (x:xs) =
-  (\ b (l, r) -> if b then (x:l, r) else (l, x:r)) <$> f x <*> partitionM f xs
+partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a], [a])
+partitionM f xs =
+  foldr
+    (\x -> (<*>) ((\b (l, r) -> if b then (x : l, r) else (l, x : r)) <$> f x))
+    (pure ([], []))
+    xs
 
 -- MonadPlus -----------------------------------------------------------------
 
 -- | Translates 'Maybe' to 'MonadPlus'.
 fromMaybeMP :: MonadPlus m => Maybe a -> m a
-fromMaybeMP = maybe mzero return
+fromMaybeMP = foldA
 
 -- | Generalises the 'catMaybes' function from lists to an arbitrary
 -- 'MonadPlus'.
 catMaybesMP :: MonadPlus m => m (Maybe a) -> m a
-catMaybesMP = (>>= fromMaybeMP)
+catMaybesMP = scatterMP
+
+-- | Branch over elements of a monadic 'Foldable' data structure.
+scatterMP :: (MonadPlus m, Foldable t) => m (t a) -> m a
+scatterMP = (>>= foldA)
+
 
 -- Error monad ------------------------------------------------------------
 
@@ -201,6 +208,11 @@ tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
 tryCatch :: (MonadError e m, Functor m) => m () -> m (Maybe e)
 tryCatch m = (Nothing <$ m) `catchError` \ err -> return $ Just err
 
+-- | Like 'guard', but raise given error when condition fails.
+
+guardWithError :: MonadError e m => e -> Bool -> m ()
+guardWithError e b = if b then return () else throwError e
+
 -- State monad ------------------------------------------------------------
 
 -- | Bracket without failure.  Typically used to preserve state.
@@ -218,11 +230,3 @@ bracket_ acquire release compute = do
 -- | Restore state after computation.
 localState :: MonadState s m => m a -> m a
 localState = bracket_ get put
-
--- Read -------------------------------------------------------------------
-
-readM :: (Error e, MonadError e m, Read a) => String -> m a
-readM s = case reads s of
-            [(x,"")]    -> return x
-            _           ->
-              throwError $ strMsg $ "readM: parse error string " ++ s

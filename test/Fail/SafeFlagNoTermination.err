@@ -1,1 +1,2 @@
+SafeFlagNoTermination.agda:1,1-39
 Cannot set OPTIONS pragma --no-termination-check with safe flag.

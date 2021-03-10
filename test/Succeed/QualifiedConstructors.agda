@@ -16,7 +16,7 @@ record Suc : Set where
   constructor suc
   field n : Nat₁
 
-one₃ = Suc.suc zero₁
+-- one₃ = Suc.suc zero₁  -- removed feature, see #4189
 
 pred : Suc → Nat₁
 pred s = Suc.n s

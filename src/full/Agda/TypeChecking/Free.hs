@@ -1,5 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE UndecidableInstances       #-} -- Due to underdetermined var in IsVarSet multi-param typeclass
 
 -- | Computing the free variables of a term.
 --
@@ -47,6 +46,7 @@ module Agda.TypeChecking.Free
     , runFree, rigidVars, stronglyRigidVars, unguardedVars, allVars
     , allFreeVars
     , allRelevantVars, allRelevantVarsIgnoring
+    , freeVarsIgnore
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
     , FlexRig'(..), FlexRig
@@ -61,17 +61,11 @@ module Agda.TypeChecking.Free
 
 import Prelude hiding (null)
 
-
-
-
-import Data.Monoid ( Monoid, mempty, mappend)
 import Data.Semigroup ( Semigroup, (<>), Any(..), All(..) )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-
-
 
 import qualified Agda.Benchmarking as Bench
 

@@ -12,3 +12,6 @@ B = Set
 C : Set₁
 C = Set
   module M where
+
+-- Andreas, 2020-04-25, #4623
+-- These empty `where` blocks now generate warnings.

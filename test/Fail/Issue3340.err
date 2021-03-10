@@ -1,6 +1,6 @@
 Failed to solve the following constraints:
-  [31, 35] f x = _48 : _f.P_47 x
-  [22] _f.P_47 y =< _f.P_47 x 
+  f x = _47 : _f.P_46 x (blocked on _47)
+  _f.P_46 y =< _f.P_46 x (blocked on _f.P_46)
 Unsolved metas at the following locations:
   Issue3340.agda:12,22-25
   Issue3340.agda:12,16-17

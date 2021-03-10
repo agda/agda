@@ -1,9 +1,9 @@
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
+import Data.Monoid (All(..))
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable (traverse)
 import qualified Data.HashMap.Strict as HMap
 
 import qualified Agda.Syntax.Abstract as A
@@ -25,14 +25,14 @@ import Agda.Utils.Lens
 eliminateDeadCode :: DisplayForms -> Signature -> TCM (DisplayForms, Signature)
 eliminateDeadCode disp sig = Bench.billTo [Bench.DeadCode] $ do
   patsyn <- getPatternSyns
-  public <- Set.map anameName . publicNames <$> getScope
+  public <- Set.mapMonotonic anameName . publicNames <$> getScope
   defs <- traverse instantiateFull $ sig ^. sigDefinitions
   -- #2921: Eliminating definitions with attached COMPILE pragmas results in
   -- the pragmas not being checked. Simple solution: don't eliminate these.
   let hasCompilePragma = Set.fromList . HMap.keys . HMap.filter (not . Map.null . defCompiledRep) $ defs
   let r     = reachableFrom (Set.union public hasCompilePragma) patsyn defs
       dead  = Set.fromList (HMap.keys defs) `Set.difference` r
-      valid = Set.null . Set.intersection dead . namesIn
+      valid = getAll . namesIn' (All . (`Set.notMember` dead))  -- no used name is dead
       defs' = HMap.map ( \ d -> d { defDisplay = filter valid (defDisplay d) } )
             $ HMap.filterWithKey (\ x _ -> Set.member x r) defs
       disp' = HMap.filter (not . null) $ HMap.map (filter valid) disp
@@ -45,8 +45,7 @@ reachableFrom names psyns defs = follow names (Set.toList names)
     follow visited [] = visited
     follow visited (x : xs) = follow (Set.union visited new) (Set.toList new ++ xs)
       where
-        new = Set.filter (not . (`Set.member` visited)) $
-                case HMap.lookup x defs of
+        new = names `Set.difference` visited
+        names = case HMap.lookup x defs of
                   Nothing -> namesIn (PSyn <$> Map.lookup x psyns)
                   Just d  -> namesIn d
-

@@ -1,4 +1,8 @@
 Issue3057.agda:14,1-32
+Name clashes introduced by 'renaming': A
+when scope checking the declaration
+  open M public renaming (a to A)
+Issue3057.agda:14,1-32
 Multiple definitions of A. Previous definition at
 Issue3057.agda:11,5-6
 when scope checking the declaration

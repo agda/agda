@@ -1,0 +1,15 @@
+AGDA_FAILURE
+
+ret > ExitFailure 42
+out > Issue2636.agda:8,1-18,37
+out > D is not strictly positive, because it occurs
+out > to the left of an arrow
+out > in the first argument of F
+out > (in the first argument of id
+out >  in the first clause
+out >  in the definition of lemma), which occurs
+out >                             in the first clause
+out >                             in the definition of F, which occurs
+out >                                                   in the type of the constructor c
+out >                                                   in the definition of D.
+out >

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| An info object contains additional information about a piece of abstract
     syntax that isn't part of the actual syntax. For instance, it might contain
@@ -11,7 +9,12 @@ module Agda.Syntax.Info where
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
+
 import Data.Data (Data)
+import Data.Semigroup (Semigroup)
+
+import GHC.Generics (Generic)
 
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
@@ -20,7 +23,6 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
 import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
 
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Null
 
@@ -34,7 +36,7 @@ data MetaInfo = MetaInfo
   , metaNumber         :: Maybe MetaId
   , metaNameSuggestion :: String
   }
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 emptyMetaInfo :: MetaInfo
 emptyMetaInfo = MetaInfo
@@ -50,12 +52,14 @@ instance HasRange MetaInfo where
 instance KillRange MetaInfo where
   killRange m = m { metaRange = noRange }
 
+instance NFData MetaInfo
+
 {--------------------------------------------------------------------------
     General expression information
  --------------------------------------------------------------------------}
 
 newtype ExprInfo = ExprRange Range
-  deriving (Data, Show, Eq, Null)
+  deriving (Data, Show, Eq, Null, NFData)
 
 exprNoRange :: ExprInfo
 exprNoRange = ExprRange noRange
@@ -74,9 +78,9 @@ instance KillRange ExprInfo where
 data AppInfo = AppInfo
   { appRange  :: Range
   , appOrigin :: Origin
-  , appParens :: ParenPreference -- ^ Do we prefer a appbda argument with or without parens?
+  , appParens :: ParenPreference -- ^ Do we prefer a lambda argument with or without parens?
   }
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
 
 -- | Default is system inserted and prefer parens.
 defaultAppInfo :: Range -> AppInfo
@@ -96,6 +100,8 @@ instance LensOrigin AppInfo where
   getOrigin = appOrigin
   mapOrigin f i = i { appOrigin = f (appOrigin i) }
 
+instance NFData AppInfo
+
 {--------------------------------------------------------------------------
     Module information
  --------------------------------------------------------------------------}
@@ -111,7 +117,7 @@ data ModuleInfo = ModuleInfo
   , minfoDirective :: Maybe ImportDirective
     -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
   }
-  deriving (Data, Eq, Show)
+  deriving (Data, Eq, Show, Generic)
 
 instance HasRange ModuleInfo where
   getRange = minfoRange
@@ -122,12 +128,14 @@ instance SetRange ModuleInfo where
 instance KillRange ModuleInfo where
   killRange m = m { minfoRange = noRange }
 
+instance NFData ModuleInfo
+
 ---------------------------------------------------------------------------
 -- Let info
 ---------------------------------------------------------------------------
 
 newtype LetInfo = LetRange Range
-  deriving (Data, Show, Eq, Null)
+  deriving (Data, Show, Eq, Null, NFData)
 
 instance HasRange LetInfo where
   getRange (LetRange r)   = r
@@ -139,38 +147,41 @@ instance KillRange LetInfo where
     Definition information (declarations that actually define something)
  --------------------------------------------------------------------------}
 
-data DefInfo = DefInfo
+data DefInfo' t = DefInfo
   { defFixity   :: Fixity'
   , defAccess   :: Access
   , defAbstract :: IsAbstract
   , defInstance :: IsInstance
   , defMacro    :: IsMacro
   , defInfo     :: DeclInfo
+  , defTactic   :: Maybe t
   }
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
-mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
-mkDefInfo x f a ab r = DefInfo f a ab NotInstanceDef NotMacroDef (DeclInfo x r)
+mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo' t
+mkDefInfo x f a ab r = mkDefInfoInstance x f a ab NotInstanceDef NotMacroDef r
 
 -- | Same as @mkDefInfo@ but where we can also give the @IsInstance@
-mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> IsMacro -> Range -> DefInfo
-mkDefInfoInstance x f a ab i m r = DefInfo f a ab i m (DeclInfo x r)
+mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> IsMacro -> Range -> DefInfo' t
+mkDefInfoInstance x f a ab i m r = DefInfo f a ab i m (DeclInfo x r) Nothing
 
-instance HasRange DefInfo where
+instance HasRange (DefInfo' t) where
   getRange = getRange . defInfo
 
-instance SetRange DefInfo where
+instance SetRange (DefInfo' t) where
   setRange r i = i { defInfo = setRange r (defInfo i) }
 
-instance KillRange DefInfo where
-  killRange i = i { defInfo = killRange $ defInfo i }
+instance KillRange t => KillRange (DefInfo' t) where
+  killRange i = i { defInfo   = killRange $ defInfo i,
+                    defTactic = killRange $ defTactic i }
 
-instance LensIsAbstract DefInfo where
+instance LensIsAbstract (DefInfo' t) where
   lensIsAbstract f i = (f $! defAbstract i) <&> \ a -> i { defAbstract = a }
 
-instance AnyIsAbstract DefInfo where
+instance AnyIsAbstract (DefInfo' t) where
   anyIsAbstract = defAbstract
 
+instance NFData t => NFData (DefInfo' t)
 
 {--------------------------------------------------------------------------
     General declaration information
@@ -180,7 +191,7 @@ data DeclInfo = DeclInfo
   { declName  :: Name
   , declRange :: Range
   }
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 instance HasRange DeclInfo where
   getRange = declRange
@@ -190,6 +201,8 @@ instance SetRange DeclInfo where
 
 instance KillRange DeclInfo where
   killRange i = i { declRange = noRange }
+
+instance NFData DeclInfo
 
 {--------------------------------------------------------------------------
     Mutual block information
@@ -201,7 +214,7 @@ data MutualInfo = MutualInfo
   , mutualPositivityCheck  :: PositivityCheck
   , mutualRange            :: Range
   }
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 -- | Default value for 'MutualInfo'.
 instance Null MutualInfo where
@@ -213,18 +226,28 @@ instance HasRange MutualInfo where
 instance KillRange MutualInfo where
   killRange i = i { mutualRange = noRange }
 
+instance NFData MutualInfo
+
 {--------------------------------------------------------------------------
     Left hand side information
  --------------------------------------------------------------------------}
 
-newtype LHSInfo = LHSRange Range
-  deriving (Data, Show, Eq, Null)
+data LHSInfo = LHSInfo
+  { lhsRange    :: Range
+  , lhsEllipsis :: ExpandedEllipsis
+  } deriving (Data, Show, Eq, Generic)
 
 instance HasRange LHSInfo where
-  getRange (LHSRange r) = r
+  getRange (LHSInfo r _) = r
 
 instance KillRange LHSInfo where
-  killRange (LHSRange r) = LHSRange noRange
+  killRange (LHSInfo r ell) = LHSInfo noRange ell
+
+instance Null LHSInfo where
+  null i = null (lhsRange i) && null (lhsEllipsis i)
+  empty  = LHSInfo empty empty
+
+instance NFData LHSInfo
 
 {--------------------------------------------------------------------------
     Pattern information
@@ -233,7 +256,8 @@ instance KillRange LHSInfo where
 -- | For a general pattern we remember the source code position.
 newtype PatInfo
   = PatRange Range
-  deriving (Data, Eq, Null, Show, SetRange, HasRange, KillRange)
+  deriving (Data, Eq, Null, Semigroup, Monoid, Show, SetRange, HasRange,
+            KillRange, NFData)
 
 -- | Empty range for patterns.
 patNoRange :: PatInfo
@@ -241,21 +265,16 @@ patNoRange = PatRange noRange
 
 -- | Constructor pattern info.
 data ConPatInfo = ConPatInfo
-  { patOrigin   :: ConOrigin
+  { conPatOrigin   :: ConOrigin
     -- ^ Does this pattern come form the eta-expansion of an implicit pattern?
     ---  Or from a user written constructor or record pattern?
-  , patInfo     :: PatInfo
-  , patLazy     :: ConPatLazy
+  , conPatInfo     :: PatInfo
+  , conPatLazy     :: ConPatLazy
   }
-  deriving (Data, Eq)
-
-instance Show ConPatInfo where
-  show (ConPatInfo po i l) =
-    applyWhen (l  == ConPatLazy) ("lazy " ++) $
-    applyWhen (po == ConOSystem) ("implicit " ++) $ show i
+  deriving (Data, Eq, Show, Generic)
 
 instance HasRange ConPatInfo where
-  getRange = getRange . patInfo
+  getRange = getRange . conPatInfo
 
 instance KillRange ConPatInfo where
   killRange (ConPatInfo b i l) = ConPatInfo b (killRange i) l
@@ -263,8 +282,12 @@ instance KillRange ConPatInfo where
 instance SetRange ConPatInfo where
   setRange r (ConPatInfo b i l) = ConPatInfo b (PatRange r) l
 
+instance NFData ConPatInfo
+
 -- | Has the constructor pattern a dotted (forced) constructor?
 data ConPatLazy
   = ConPatLazy   -- ^ Dotted constructor.
   | ConPatEager  -- ^ Ordinary constructor.
-  deriving (Data, Eq, Ord, Show, Bounded, Enum)
+  deriving (Data, Eq, Ord, Show, Bounded, Enum, Generic)
+
+instance NFData ConPatLazy

@@ -61,7 +61,6 @@ import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Conversion
 import qualified Agda.TypeChecking.Positivity.Occurrence as Pos
@@ -81,6 +80,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
+import qualified Agda.Utils.SmallSet as SmallSet
 
 import Agda.Utils.Impossible
 
@@ -132,16 +132,44 @@ relView t = do
     let [a, b] = fmap snd <$> lastTwo
     return $ Just $ RelView tel delta a b core
 
--- | Add @q : Γ → rel us lhs rhs@ as rewrite rule
+-- | Check the given rewrite rules and add them to the signature.
+addRewriteRules :: [QName] -> TCM ()
+addRewriteRules qs = do
+
+  -- Check the rewrite rules
+  rews <- mapM checkRewriteRule qs
+
+  -- Add rewrite rules to the signature
+  forM_ rews $ \rew -> do
+    let f = rewHead rew
+        matchables = getMatchables rew
+    reportSDoc "rewriting" 10 $
+      "adding rule" <+> prettyTCM (rewName rew) <+>
+      "to the definition of" <+> prettyTCM f
+    reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
+    modifySignature $ addRewriteRulesFor f [rew] matchables
+
+  -- Run confluence check for the new rules
+  -- (should be done after adding all rules, see #3795)
+  whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
+    -- Global confluence checker requires rules to be sorted
+    -- according to the generality of their lhs
+    when (confChk == GlobalConfluenceCheck) $
+      forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
+    checkConfluenceOfRules confChk rews
+    reportSDoc "rewriting" 10 $
+      "done checking confluence of rules" <+> prettyList_ (map (prettyTCM . rewName) rews)
+
+-- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule
 --   @
 --       Γ ⊢ lhs ↦ rhs : B
 --   @
---   to the signature where @B = A[us/Δ]@.
+--   where @B = A[us/Δ]@.
 --   Remember that @rel : Δ → A → A → Set i@, so
 --   @rel us : (lhs rhs : A[us/Δ]) → Set i@.
---   Returns the head symbol @f@ of the lhs.
-addRewriteRule :: QName -> TCM ()
-addRewriteRule q = do
+--   Returns the checked rewrite rule to be added to the signature.
+checkRewriteRule :: QName -> TCM RewriteRule
+checkRewriteRule q = do
   requireOptionRewriting
   let failNoBuiltin = typeError $ GenericError $
         "Cannot add rewrite rule without prior BUILTIN REWRITE"
@@ -181,7 +209,7 @@ addRewriteRule q = do
   let failureFreeVars :: IntSet -> TCM a
       failureFreeVars xs = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
-  let failureIllegalRule :: TCM a
+  let failureIllegalRule :: TCM a -- TODO:: Defined but not used
       failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule" ]
 
@@ -194,6 +222,7 @@ addRewriteRule q = do
           n  = size vs
           (us, [lhs, rhs]) = splitAt (n - 2) vs
       unless (size delta == size us) __IMPOSSIBLE__
+      lhs <- instantiateFull lhs
       rhs <- instantiateFull rhs
       b   <- instantiateFull $ applySubst (parallelS $ reverse us) a
 
@@ -208,7 +237,7 @@ addRewriteRule q = do
       -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
       -- This is necessary to replace copies created by imports by their
       -- original definition.
-      lhs <- modifyAllowedReductions (const [InlineReductions]) $ normalise lhs
+      lhs <- modifyAllowedReductions (const $ SmallSet.singleton InlineReductions) $ reduce lhs
 
       -- Find head symbol f of the lhs, its type and its arguments.
       (f , hd , t , es) <- case lhs of
@@ -219,17 +248,15 @@ addRewriteRule q = do
         Con c ci vs -> do
           let hd = Con c ci
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
-          addContext gamma1 $ checkParametersAreGeneral c (size gamma1) pars
+          addContext gamma1 $ checkParametersAreGeneral c pars
           return (conName c , hd , t  , vs)
         _        -> failureNotDefOrCon
 
       ifNotAlreadyAdded f $ do
 
-      rew <- addContext gamma1 $ do
-        -- Normalize lhs args: we do not want to match redexes.
-        es <- normalise es
+      addContext gamma1 $ do
 
-        checkNoLhsReduction f es
+        checkNoLhsReduction f hd es
 
         unless (noMetas (es, rhs, b)) $ do
           reportSDoc "rewriting" 30 $ "metas in lhs: " <+> text (show $ allMetasList es)
@@ -250,51 +277,41 @@ addRewriteRule q = do
           "variables free in the rewrite rule: " <+> text (show freeVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
-        return $ RewriteRule q gamma f ps rhs (unDom b)
+        let rew = RewriteRule q gamma f ps rhs (unDom b) False
 
-      reportSDoc "rewriting" 10 $ vcat
-        [ "considering rewrite rule " , prettyTCM rew ]
-      reportSDoc "rewriting" 90 $ vcat
-        [ "considering rewrite rule" , text (show rew) ]
+        reportSDoc "rewriting" 10 $ vcat
+          [ "checked rewrite rule" , prettyTCM rew ]
+        reportSDoc "rewriting" 90 $ vcat
+          [ "checked rewrite rule" , text (show rew) ]
 
-      -- NO LONGER WORKS:
-      -- -- Check whether lhs can be rewritten with itself.
-      -- -- Otherwise, there are unbound variables in either gamma or rhs.
-      -- addContext gamma $
-      --   unlessM (isJust <$> runReduceM (rewriteWith (Just b) lhs rew)) $
-      --     failureFreeVars
-
-      -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
-      reportSDoc "rewriting" 10 $ "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
-      let matchables = getMatchables rew
-      reportSDoc "rewriting" 30 $ "matchable symbols: " <+> prettyTCM matchables
-      modifySignature $ addRewriteRulesFor f [rew] matchables
-
-      -- Run confluence check for the new rule
-      whenM (optConfluenceCheck <$> pragmaOptions) $
-        checkConfluenceOfRule rew
+        return rew
 
     _ -> failureWrongTarget
 
   where
-    checkNoLhsReduction :: QName -> Elims -> TCM ()
-    checkNoLhsReduction f es = do
-      let v = Def f es
+    checkNoLhsReduction :: QName -> (Elims -> Term)  -> Elims -> TCM ()
+    checkNoLhsReduction f hd es = do
+      -- Skip this check when global confluence check is enabled, as
+      -- redundant rewrite rules may be required to prove confluence.
+      unlessM ((== Just GlobalConfluenceCheck) . optConfluenceCheck <$> pragmaOptions) $ do
+      let v = hd es
       v' <- reduce v
-      let fail = do
+      let fail :: TCM a
+          fail = do
             reportSDoc "rewriting" 20 $ "v  = " <+> text (show v)
             reportSDoc "rewriting" 20 $ "v' = " <+> text (show v')
             typeError . GenericDocError =<< fsep
               [ prettyTCM q <+> " is not a legal rewrite rule, since the left-hand side "
               , prettyTCM v <+> " reduces to " <+> prettyTCM v' ]
-      case v' of
-        Def f' es' | f == f' -> do
-          a   <- computeElimHeadType f es es'
-          pol <- getPolarity' CmpEq f
-          ok  <- dontAssignMetas $ tryConversion $
-                   compareElims pol [] a (Def f []) es es'
-          unless ok fail
-        _ -> fail
+      es' <- case v' of
+        Def f' es'   | f == f'         -> return es'
+        Con c' _ es' | f == conName c' -> return es'
+        _                              -> fail
+      a   <- computeElimHeadType f es es'
+      pol <- getPolarity' CmpEq f
+      ok  <- dontAssignMetas $ tryConversion $
+               compareElims pol [] a (Def f []) es es'
+      unless ok fail
 
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of
@@ -308,14 +325,16 @@ addRewriteRule q = do
         , prettyTCM f , "is not a postulate, a function, or a constructor"
         ]
 
-    ifNotAlreadyAdded :: QName -> TCM () -> TCM ()
+    ifNotAlreadyAdded :: QName -> TCM RewriteRule -> TCM RewriteRule
     ifNotAlreadyAdded f cont = do
       rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
-      if any ((q ==) . rewName) rews then do
-        genericWarning =<< do
-          "Rewrite rule " <+> prettyTCM q <+> " has already been added"
-      else cont
+      case List.find ((q ==) . rewName) rews of
+        Just rew -> do
+          genericWarning =<< do
+            "Rewrite rule " <+> prettyTCM q <+> " has already been added"
+          return rew
+        Nothing -> cont
 
     usedArgs :: [Pos.Occurrence] -> IntSet
     usedArgs occs = IntSet.fromList $ map snd $ usedIxs
@@ -325,15 +344,15 @@ addRewriteRule q = do
         used Pos.Unused = False
         used _          = True
 
-    checkParametersAreGeneral :: ConHead -> Int -> Args -> TCM ()
-    checkParametersAreGeneral c k vs = do
+    checkParametersAreGeneral :: ConHead -> Args -> TCM ()
+    checkParametersAreGeneral c vs = do
         is <- loop vs
         unless (fastDistinct is) $ errorNotGeneral
       where
         loop []       = return []
         loop (v : vs) = case unArg v of
-          Var i [] | i < k -> (i :) <$> loop vs
-          _                -> errorNotGeneral
+          Var i [] -> (i :) <$> loop vs
+          _        -> errorNotGeneral
 
         errorNotGeneral :: TCM a
         errorNotGeneral = typeError . GenericDocError =<< vcat
@@ -345,60 +364,57 @@ addRewriteRule q = do
 -- | @rewriteWith t f es rew@ where @f : t@
 --   tries to rewrite @f es@ with @rew@, returning the reduct if successful.
 rewriteWith :: Type
-            -> Term
+            -> (Elims -> Term)
             -> RewriteRule
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith t v rew@(RewriteRule q gamma _ ps rhs b) es = do
+rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b isClause) es
+ | isClause = return $ Left $ NotBlocked ReallyNotBlocked $ hd es
+ | otherwise = do
   traceSDoc "rewriting.rewrite" 50 (sep
-    [ "{ attempting to rewrite term " <+> prettyTCM (v `applyE` es)
-    , " having head " <+> prettyTCM v <+> " of type " <+> prettyTCM t
+    [ "{ attempting to rewrite term " <+> prettyTCM (hd es)
+    , " having head " <+> prettyTCM (hd []) <+> " of type " <+> prettyTCM t
     , " with rule " <+> prettyTCM rew
     ]) $ do
   traceSDoc "rewriting.rewrite" 90 (sep
-    [ "raw: attempting to rewrite term " <+> (text . show) (v `applyE` es)
-    , " having head " <+> (text . show) v <+> " of type " <+> (text . show) t
+    [ "raw: attempting to rewrite term " <+> (text . show) (hd es)
+    , " having head " <+> (text . show) (hd []) <+> " of type " <+> (text . show) t
     , " with rule " <+> (text . show) rew
     ]) $ do
-  result <- nonLinMatch gamma (t,v) ps es
+  result <- nonLinMatch gamma (t,hd) ps es
   case result of
     Left block -> traceSDoc "rewriting.rewrite" 50 "}" $
-      return $ Left $ block $> v `applyE` es -- TODO: remember reductions
+      return $ Left $ block $> hd es -- TODO: remember reductions
     Right sub  -> do
       let v' = applySubst sub rhs
       traceSDoc "rewriting.rewrite" 50 (sep
-        [ "rewrote " <+> prettyTCM (v `applyE` es)
+        [ "rewrote " <+> prettyTCM (hd es)
         , " to " <+> prettyTCM v' <+> "}"
         ]) $ do
       return $ Right v'
 
 -- | @rewrite b v rules es@ tries to rewrite @v@ applied to @es@ with the
 --   rewrite rules @rules@. @b@ is the default blocking tag.
-rewrite :: Blocked_ -> Term -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-rewrite block v rules es = do
+rewrite :: Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
-    t <- case v of
-      Def f []   -> defType <$> getConstInfo f
-      Con c _ [] -> typeOfConst $ conName c
-        -- Andreas, 2018-09-08, issue #3211:
-        -- discount module parameters for constructor heads
-      _ -> __IMPOSSIBLE__
+    (_ , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
     loop block t rules =<< instantiateFull' es -- TODO: remove instantiateFull?
   else
-    return $ NoReduction (block $> v `applyE` es)
+    return $ NoReduction (block $> hd es)
   where
     loop :: Blocked_ -> Type -> RewriteRules -> Elims -> ReduceM (Reduced (Blocked Term) Term)
     loop block t [] es =
       traceSDoc "rewriting.rewrite" 20 (sep
-        [ "failed to rewrite " <+> prettyTCM (v `applyE` es)
+        [ "failed to rewrite " <+> prettyTCM (hd es)
         , "blocking tag" <+> text (show block)
         ]) $ do
-      return $ NoReduction $ block $> v `applyE` es
+      return $ NoReduction $ block $> hd es
     loop block t (rew:rews) es
      | let n = rewArity rew, length es >= n = do
           let (es1, es2) = List.genericSplitAt n es
-          result <- rewriteWith t v rew es1
+          result <- rewriteWith t hd rew es1
           case result of
             Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) t rews es
             Left (NotBlocked _ _) -> loop block t rews es
