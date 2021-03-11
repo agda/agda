@@ -6,7 +6,7 @@ import Prelude hiding ( null, writeFile )
 import Control.Monad.Trans
 import Control.Monad (zipWithM)
 
-import Data.Char     ( isSpace )
+import Data.Char     ( isSpace, chr, ord )
 import Data.Foldable ( forM_ )
 import Data.List     ( intercalate, partition )
 import Data.Set      ( Set )
@@ -69,7 +69,7 @@ import Agda.Compiler.Treeless.Subst ()
 import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.GoLang.Syntax
-  ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface,GoStruct,GoStructElement,Local,Lambda,GoFunction, GoSwitch, GoCase, GoCreateStruct, GoMethodCall),
+  ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface,GoStruct,GoStructElement,Local,Lambda,GoFunction, GoSwitch, GoCase, GoCreateStruct, GoMethodCall, GoVar),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment), TypeId(TypeId, ConstructorType, EmptyType, EmptyFunctionParameter, FunctionType, FunctionReturnElement), GoFunctionSignature(OuterSignature, InnerSignature),
     modName
   , GoQName
@@ -360,7 +360,7 @@ definition' kit q d t ls = do
                 lamView (T.TLam t) = (+1) <$> lamView t
                 lamView t = (t, 0)
             etaN = length $ dropWhile id $ reverse $ drop given used
-        funBody' <- compileTerm kit
+        funBody' <- compileTerm kit (given - 1)
             $ eraseLocalVars (map not used)
             $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
         functionSignature <- createSignature fname goArg name
@@ -402,31 +402,34 @@ definition' kit q d t ls = do
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (List1.last ls)
 
-compileAlt :: EnvWithOpts -> T.TAlt -> TCM Exp
-compileAlt kit = \case
+getVarName :: Nat -> String
+getVarName n = [chr ((ord 'a') + n)]
+
+compileAlt :: EnvWithOpts -> Nat -> T.TAlt -> TCM Exp
+compileAlt kit argCount = \case
   T.TACon con ar body -> do
     reportSDoc "function.go" 30 $ "\n TACon con:" <+> (text . show) con
     reportSDoc "function.go" 30 $ "\n TACon ar:" <+> (text . show) ar
     reportSDoc "function.go" 30 $ "\n TACon body:" <+> (text . show) body
     erased <- getErasedConArgs con
     let nargs = ar - length (filter id erased)
-    compiled <- compileTerm kit (eraseLocalVars erased body)
+    compiled <- compileTerm kit (nargs + argCount) (eraseLocalVars erased body)
     memId <- visitorName con
-    let cas = GoCase memId compiled
+    let cas = GoCase memId argCount nargs [compiled]
     reportSDoc "function.go" 30 $ "\n TACon nargs:" <+> (text . show) nargs
     reportSDoc "function.go" 30 $ "\n TACon memId:" <+> (text . show) memId
     reportSDoc "function.go" 30 $ "\n TACon body2:" <+> (text . show) body
     return cas
   _ -> __IMPOSSIBLE__
 
-compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
-compileTerm kit t = do
+compileTerm :: EnvWithOpts -> Nat -> T.TTerm -> TCM Exp
+compileTerm kit paramCount t = do
   reportSDoc "function.go" 30 $ " compile term:" <+> (text . show) t
   go t
   where
     go :: T.TTerm -> TCM Exp
     go = \case
-      T.TVar x -> return $ Local $ LocalId x
+      T.TVar x -> return $ GoVar $ paramCount - x
       T.TDef q -> do
         d <- getConstInfo q
         reportSDoc "function.go" 30 $ "\n TDef q:" <+> (text . show) q 
@@ -443,13 +446,13 @@ compileTerm kit t = do
       T.TApp (T.TCon q) x -> do
         reportSDoc "function.go" 30 $ "\n contructor"
         name <- liftTCM $ visitorName q
-        transformedArgs <- mapM (compileTerm kit) x
+        transformedArgs <- mapM go x
         reportSDoc "function.go" 30 $ "\n transformedArgs:" <+> (text . show) transformedArgs 
         return $ GoCreateStruct name transformedArgs
       T.TApp (T.TDef q) x -> do
         reportSDoc "function.go" 30 $ "function definition call"
         name <- liftTCM $ visitorName q
-        transformedArgs <- mapM (compileTerm kit) x
+        transformedArgs <- mapM go x
         reportSDoc "function.go" 30 $ "\n transformedArgs:" <+> (text . show) transformedArgs 
         return $ GoMethodCall name transformedArgs
       T.TApp t' xs | Just f <- getDef t' -> do
@@ -471,16 +474,18 @@ compileTerm kit t = do
       T.TCon q -> do
         d <- getConstInfo q
         reportSDoc "function.go" 30 $ "\n TCon d:" <+> (text . show) d
-        unit
+        name <- liftTCM $ visitorName q
+        return $ GoCreateStruct name []
       T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
         reportSDoc "function.go" 30 $ "\n TCase sc:" <+> (text . show) sc
+        reportSDoc "function.go" 30 $ "\n TApp cscs':" <+> (text . show) paramCount
         reportSDoc "function.go" 30 $ "\n TCase ct:" <+> (text . show) ct
         reportSDoc "function.go" 30 $ "\n TCase def:" <+> (text . show) def
         reportSDoc "function.go" 30 $ "\n TCase alts:" <+> (text . show) alts
         reportSDoc "function.go" 30 $ "\n TCase dt:" <+> (text . show) dt
-        cases <- mapM (compileAlt kit) alts
+        cases <- mapM (compileAlt kit paramCount) alts
         reportSDoc "function.go" 30 $ "\n TApp alts':" <+> (text . show) cases
-        return $ GoSwitch (LocalId sc) cases
+        return $ GoSwitch (GoVar (paramCount - sc)) cases
       T.TCase _ _ _ _ -> __IMPOSSIBLE__
       T.TPrim p -> do
         reportSDoc "function.go" 30 $ "\n prim:" <+> (text . show) p 
@@ -526,9 +531,9 @@ goTypeApproximation fv t = do
           Pi a b -> return $ TypeId "pi"
           Def q els -> do
             (MemberId name) <- liftTCM $ visitorName q
-            return $ ConstructorType ("_" ++ (show n)) name
+            return $ ConstructorType (getVarName n) name
           Sort{} -> return EmptyType
-          _ -> return $ ConstructorType ("_" ++ (show n)) "interface{}"
+          _ -> return $ ConstructorType (getVarName n) "interface{}"
   go fv (unEl t)
 
 goTelApproximation :: Type -> TCM ([TypeId], TypeId)
