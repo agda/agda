@@ -35,7 +35,7 @@ data Exp =
   GoFunction [GoFunctionSignature] Exp | -- funkcijos vardas, parametras, return type, vidinė funkcija/switch statement.
   -- todo kaip išsiaiškint pilną return type (einam per visas vidines funkcijas?)
   GoSwitch Exp [Exp] | -- elementas, pagal kurio type darom switch ir sąrašas Go cases, paskutinis go case yra default su panic ir kintamojo priskirimas '_ = parameter'
-  GoCase MemberId Nat Nat [Exp] | -- pattern mathing pagal struct name ir return Exp, kur Exp gali būt metodo kvietimas, kintamojo gražinimas ar struct sukūrimas
+  GoCase MemberId Nat Nat Nat [Exp] | -- pattern mathing pagal struct name ir return Exp, kur Exp gali būt metodo kvietimas, kintamojo gražinimas ar struct sukūrimas
   GoMethodCall MemberId [Exp] | --metodo name, kurį kviečiam ir parametrai. Parametrai gali būt method call, struct sukūrimas ar tiesiog parametras. Prettyfiinant kiekvienas Exp elementas eina į skliaustus.
   GoCreateStruct MemberId [Exp] | -- struktūros sukurimas, paduodam struktūros name ir jo fields. todo ar fields bus [LocalId] ar [MemberId]
   String Text |

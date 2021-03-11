@@ -405,8 +405,8 @@ visitorName q = do (m,ls) <- global q; return (List1.last ls)
 getVarName :: Nat -> String
 getVarName n = [chr ((ord 'a') + n)]
 
-compileAlt :: EnvWithOpts -> Nat -> T.TAlt -> TCM Exp
-compileAlt kit argCount = \case
+compileAlt :: EnvWithOpts -> Nat -> Nat -> T.TAlt -> TCM Exp
+compileAlt kit argCount switchVar = \case
   T.TACon con ar body -> do
     reportSDoc "function.go" 30 $ "\n TACon con:" <+> (text . show) con
     reportSDoc "function.go" 30 $ "\n TACon ar:" <+> (text . show) ar
@@ -415,7 +415,7 @@ compileAlt kit argCount = \case
     let nargs = ar - length (filter id erased)
     compiled <- compileTerm kit (nargs + argCount) (eraseLocalVars erased body)
     memId <- visitorName con
-    let cas = GoCase memId argCount nargs [compiled]
+    let cas = GoCase memId switchVar argCount nargs [compiled]
     reportSDoc "function.go" 30 $ "\n TACon nargs:" <+> (text . show) nargs
     reportSDoc "function.go" 30 $ "\n TACon memId:" <+> (text . show) memId
     reportSDoc "function.go" 30 $ "\n TACon body2:" <+> (text . show) body
@@ -483,7 +483,7 @@ compileTerm kit paramCount t = do
         reportSDoc "function.go" 30 $ "\n TCase def:" <+> (text . show) def
         reportSDoc "function.go" 30 $ "\n TCase alts:" <+> (text . show) alts
         reportSDoc "function.go" 30 $ "\n TCase dt:" <+> (text . show) dt
-        cases <- mapM (compileAlt kit paramCount) alts
+        cases <- mapM (compileAlt kit paramCount (paramCount - sc)) alts
         reportSDoc "function.go" 30 $ "\n TApp alts':" <+> (text . show) cases
         return $ GoSwitch (GoVar (paramCount - sc)) cases
       T.TCase _ _ _ _ -> __IMPOSSIBLE__

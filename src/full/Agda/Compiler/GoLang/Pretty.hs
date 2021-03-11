@@ -31,19 +31,19 @@ instance Pretty Go.Exp where
       Go.GoInterface id -> "type" <+> pretty id <+> "interface{}"
       Go.GoStruct id elems -> "type" <+> pretty id <+> "struct " <+> (T.braces (vcat $ map pretty elems))
       Go.GoStructElement localId typeId -> "_" <+> pretty localId <+> pretty typeId <+> T.semi
-      Go.String s -> "Str" <+> "ing"
-      Go.GoFunction signatures body -> (vcat $ map pretty signatures) <+> (pretty body) <+> (text $ concat $ replicate (length signatures) "}\n")
-      Go.GoSwitch v cases -> "switch type_" <> (pretty v) <> (text "  := ") <> (pretty v) <> (text ".(type) {\n") <> (vcat $ map pretty cases) <> "default:\n_ = type_"<> (pretty v) <> ";\n panic(\"Unreachable\");\n}"
-      Go.GoCase name paramsStart paramCount exps -> "case " <> (pretty name) <> spaceWrap (T.colon) <> (vcat $ map (createCaseParam paramsStart) (createCaseList paramCount)) <> (vcat $ map pretty (init exps)) <> "return " <> ( pretty (last exps)) <> T.semi
-      Go.GoCreateStruct name params -> (pretty name) <+> T.lbrace <+> (hcat $ map pretty params) <+> "}\n"
+      Go.GoFunction signatures (Go.GoSwitch a b) -> (vcat $ map pretty signatures) <+> (pretty (Go.GoSwitch a b)) <+> (text $ concat $ replicate (length signatures) "}\n")
+      Go.GoFunction signatures body -> (vcat $ map pretty signatures) <+> "return" <+> (pretty body) <+> (text $ concat $ replicate (length signatures) "}\n")
+      Go.GoSwitch v cases -> "switch type_" <> (pretty v) <> (text "  := ") <> (pretty v) <> (text ".(type) {\n") <> (vcat $ map pretty cases) <> "\ndefault:\n_ = type_"<> (pretty v) <> ";\n panic(\"Unreachable\");\n}"
+      Go.GoCase name switchVar paramsStart paramCount exps -> "\ncase " <> (pretty name) <> spaceWrap (T.colon) <> (hsep $ map (createCaseParam paramsStart switchVar) (createCaseList paramCount)) <> (vcat $ map pretty (init exps)) <> "return " <> ( pretty (last exps))
+      Go.GoCreateStruct name params -> (pretty name) <+> T.lbrace <+> (hcat $ map pretty params) <+> "}"
       Go.GoMethodCall name params -> (pretty name) <+> (hsep $ map T.parens $ map pretty params)
       _ -> text ""
 
 spaceWrap :: Doc -> Doc
 spaceWrap d = T.space <> d <> T.space
 
-createCaseParam :: Nat -> Nat -> Doc
-createCaseParam paramStart paramId = "\n" <> (getVarNamet (paramStart + paramId)) <> " := type_" <> (getVarNamet paramStart) <> "." <> (getVarNamet (paramId - 1)) <> ";\n _ = " <> (getVarNamet (paramStart + paramId))<> ";\n"
+createCaseParam :: Nat -> Nat -> Nat -> Doc
+createCaseParam paramStart switchVar paramId = "\n" <> (getVarNamet (paramStart + paramId)) <> " := type_" <> (getVarNamet switchVar) <> "." <> (getVarNamet (paramId - 1)) <> ";\n _ = " <> (getVarNamet (paramStart + paramId))<> T.semi
 
 instance Pretty Go.MemberId where
   pretty (Go.MemberId  s) = text s
