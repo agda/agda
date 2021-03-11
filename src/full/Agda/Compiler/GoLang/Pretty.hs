@@ -24,6 +24,7 @@ instance Pretty Go.Module where
 instance Pretty Go.Exp where
   prettyPrec pr e =
     case e of
+      Go.Const s -> text s
       Go.GoInterface id -> "type" <+> pretty id <+> "interface{}"
       Go.GoStruct id elems -> "type" <+> pretty id <+> "struct {" <+> (vcat $ map pretty elems) <+> "}"
       Go.GoStructElement localId typeId -> "_" <+> pretty localId <+> pretty typeId <+> ";"

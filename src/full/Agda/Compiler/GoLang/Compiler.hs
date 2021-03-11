@@ -69,7 +69,7 @@ import Agda.Compiler.Treeless.Subst ()
 import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.GoLang.Syntax
-  ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface,GoStruct,GoStructElement,Local,Lambda,GoFunction, GoSwitch),
+  ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface,GoStruct,GoStructElement,Local,Lambda,GoFunction, GoSwitch, GoCase, GoCreateStruct, GoMethodCall),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment), TypeId(TypeId, ConstructorType, EmptyType, EmptyFunctionParameter, FunctionType, FunctionReturnElement), GoFunctionSignature(OuterSignature, InnerSignature),
     modName
   , GoQName
@@ -402,7 +402,7 @@ definition' kit q d t ls = do
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (List1.last ls)
 
-compileAlt :: EnvWithOpts -> T.TAlt -> TCM ((QName, MemberId), Exp)
+compileAlt :: EnvWithOpts -> T.TAlt -> TCM Exp
 compileAlt kit = \case
   T.TACon con ar body -> do
     reportSDoc "function.go" 30 $ "\n TACon con:" <+> (text . show) con
@@ -410,12 +410,13 @@ compileAlt kit = \case
     reportSDoc "function.go" 30 $ "\n TACon body:" <+> (text . show) body
     erased <- getErasedConArgs con
     let nargs = ar - length (filter id erased)
+    compiled <- compileTerm kit (eraseLocalVars erased body)
     memId <- visitorName con
-    body <- Lambda nargs <$> compileTerm kit (eraseLocalVars erased body)
+    let cas = GoCase memId compiled
     reportSDoc "function.go" 30 $ "\n TACon nargs:" <+> (text . show) nargs
     reportSDoc "function.go" 30 $ "\n TACon memId:" <+> (text . show) memId
     reportSDoc "function.go" 30 $ "\n TACon body2:" <+> (text . show) body
-    return ((con, memId), body)
+    return cas
   _ -> __IMPOSSIBLE__
 
 compileTerm :: EnvWithOpts -> T.TTerm -> TCM Exp
@@ -439,7 +440,21 @@ compileTerm kit t = do
       T.TApp (T.TCon q) [x] | Just q == (nameOfSharp <$> snd kit) -> do
         reportSDoc "function.go" 30 $ "\n sharp"
         unit
+      T.TApp (T.TCon q) x -> do
+        reportSDoc "function.go" 30 $ "\n contructor"
+        name <- liftTCM $ visitorName q
+        transformedArgs <- mapM (compileTerm kit) x
+        reportSDoc "function.go" 30 $ "\n transformedArgs:" <+> (text . show) transformedArgs 
+        return $ GoCreateStruct name transformedArgs
+      T.TApp (T.TDef q) x -> do
+        reportSDoc "function.go" 30 $ "function definition call"
+        name <- liftTCM $ visitorName q
+        transformedArgs <- mapM (compileTerm kit) x
+        reportSDoc "function.go" 30 $ "\n transformedArgs:" <+> (text . show) transformedArgs 
+        return $ GoMethodCall name transformedArgs
       T.TApp t' xs | Just f <- getDef t' -> do
+        used <- either getCompiledArgUse (\x -> fmap (map not) $ getErasedConArgs x) f
+        reportSDoc "function.go" 30 $ "\n just f used:" <+> (text . show) used
         reportSDoc "function.go" 30 $ "\n just f:" <+> (text . show) (getDef t')
         reportSDoc "function.go" 30 $ "\n TApp xs:" <+> (text . show) xs
         unit
@@ -463,9 +478,9 @@ compileTerm kit t = do
         reportSDoc "function.go" 30 $ "\n TCase def:" <+> (text . show) def
         reportSDoc "function.go" 30 $ "\n TCase alts:" <+> (text . show) alts
         reportSDoc "function.go" 30 $ "\n TCase dt:" <+> (text . show) dt
-        alts' <- traverse (compileAlt kit) alts
-        reportSDoc "function.go" 30 $ "\n TApp alts':" <+> (text . show) alts'
-        return $ GoSwitch (LocalId sc) []
+        cases <- mapM (compileAlt kit) alts
+        reportSDoc "function.go" 30 $ "\n TApp alts':" <+> (text . show) cases
+        return $ GoSwitch (LocalId sc) cases
       T.TCase _ _ _ _ -> __IMPOSSIBLE__
       T.TPrim p -> do
         reportSDoc "function.go" 30 $ "\n prim:" <+> (text . show) p 
