@@ -58,6 +58,7 @@ data TypeId =
   | FunctionReturnElement String
   | EmptyFunctionParameter
   | EmptyType
+  | PiType TypeId TypeId
   deriving (Eq, Ord, Show)  
 
 

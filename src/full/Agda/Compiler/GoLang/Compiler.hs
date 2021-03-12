@@ -70,7 +70,7 @@ import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 
 import Agda.Compiler.GoLang.Syntax
   ( Exp(Self,Global,Undefined,Null,String,Char,Integer,GoInterface,GoStruct,GoStructElement,Local,Lambda,GoFunction, GoSwitch, GoCase, GoCreateStruct, GoMethodCall, GoVar),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment), TypeId(TypeId, ConstructorType, EmptyType, EmptyFunctionParameter, FunctionType, FunctionReturnElement), GoFunctionSignature(OuterSignature, InnerSignature),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId,MemberIndex), Module(Module, modName), Comment(Comment), TypeId(TypeId, ConstructorType, EmptyType, EmptyFunctionParameter, FunctionType, FunctionReturnElement, PiType), GoFunctionSignature(OuterSignature, InnerSignature),
     modName
   , GoQName
   )
@@ -310,6 +310,7 @@ defGoDef def =
 ftype :: TypeId -> TypeId
 ftype (ConstructorType v t) = FunctionType v t
 ftype (FunctionType v t) = FunctionType v t
+ftype (PiType a b) = PiType a b
 ftype _ = EmptyType
 
 fReturnTypes :: [TypeId] -> [TypeId]
@@ -326,6 +327,11 @@ createSignature fname (firstArg : tail) resName = do
 createSignatureInner :: [TypeId] -> String -> [GoFunctionSignature]
 createSignatureInner (head : tail) retName = (InnerSignature (ftype head) (fReturnTypes tail) (TypeId retName)) : (createSignatureInner tail retName)
 createSignatureInner [] retName = []
+
+countFalses :: [Bool] -> Nat
+countFalses [] = 0
+countFalses (False : xs) = 1 + countFalses xs
+countFalses (_ : xs) = countFalses xs
 
 definition' :: EnvWithOpts -> QName -> Definition -> Type -> GoQName -> TCM (Maybe Exp)
 definition' kit q d t ls = do
@@ -352,19 +358,25 @@ definition' kit q d t ls = do
           eliminateLiteralPatterns
           (convertGuards treeless)
         (goArg, (ConstructorType _ name)) <- goTelApproximation t
+        let count = countFalses used 
         reportSDoc "function.go" 30 $ " compiled treeless fun:" <+> pretty funBody
+        (TelV tel res) <- telView t
+        let args = map (snd . unDom) (telToList tel)
+        reportSDoc "function.go" 30 $ " goArg:" <+> (text . show) goArg
+        reportSDoc "function.go" 30 $ " args:" <+> (text . show) args
         reportSDoc "function.go" 30 $ "\n used:" <+> (text . show) used
+        reportSDoc "function.go" 30 $ "\n count:" <+> (text . show) count
         let (body, given) = lamView funBody
               where
                 lamView :: T.TTerm -> (T.TTerm, Int)
                 lamView (T.TLam t) = (+1) <$> lamView t
                 lamView t = (t, 0)
             etaN = length $ dropWhile id $ reverse $ drop given used
-        funBody' <- compileTerm kit (given - 1)
+        funBody' <- compileTerm kit (given - (1 + count))
             $ eraseLocalVars (map not used)
             $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
         functionSignature <- createSignature fname goArg name
-        reportSDoc "function.go" 25 $ "\n body:" <+> (text . show) body 
+        reportSDoc "function.go" 25 $ "\n functionSignature:" <+> (text . show) functionSignature 
         reportSDoc "function.go" 25 $ "\n funBody':" <+> (text . show) funBody'   
         reportSDoc "function.go" 30 $ "\n given:" <+> (text . show) given
         reportSDoc "function.go" 30 $ "\n etaN:" <+> (text . show) etaN
@@ -389,18 +401,26 @@ definition' kit q d t ls = do
 
     c@Constructor{conData = p, conPars = nc, conSrcCon = ch, conArity = cona} -> do
       let np = arity t - nc
+      erased <- getErasedConArgs q
+      let inverseErased = map not erased
+      reportSDoc "compile.go" 20 $ " erased:" <+> (text . show) inverseErased
       name <- liftTCM $ visitorName q
       let l = List1.last ls
       (goArg, goRes) <- goTelApproximation t
+      let filteredArgs = map2 inverseErased goArg
+      reportSDoc "compile.go" 20 $ " filteredArgs:" <+> (text . show) filteredArgs
       reportSDoc "compile.go" 20 $ " goTypes:" <+> (text . show) goArg
       case theDef d of
-        dt -> return (Just $ GoStruct l goArg)
+        dt -> return (Just $ GoStruct l filteredArgs)
     AbstractDefn{} -> __IMPOSSIBLE__
 --------------------------------------------------
 -- Writing out a Golang module
 --------------------------------------------------
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (List1.last ls)
+
+map2 :: [Bool] -> [a] -> [a]
+map2 bs as = map snd $ filter fst $ zip bs as
 
 getVarName :: Nat -> String
 getVarName n = [chr ((ord 'a') + n)]
@@ -412,6 +432,7 @@ compileAlt kit argCount switchVar = \case
     reportSDoc "function.go" 30 $ "\n TACon ar:" <+> (text . show) ar
     reportSDoc "function.go" 30 $ "\n TACon body:" <+> (text . show) body
     erased <- getErasedConArgs con
+    reportSDoc "function.go" 30 $ "\n TACon erased:" <+> (text . show) erased
     let nargs = ar - length (filter id erased)
     compiled <- compileTerm kit (nargs + argCount) (eraseLocalVars erased body)
     memId <- visitorName con
@@ -421,6 +442,11 @@ compileAlt kit argCount switchVar = \case
     reportSDoc "function.go" 30 $ "\n TACon body2:" <+> (text . show) body
     return cas
   _ -> __IMPOSSIBLE__
+
+filterErased :: T.TTerm -> Bool
+filterErased = \case
+  T.TErased -> False
+  _ -> True
 
 compileTerm :: EnvWithOpts -> Nat -> T.TTerm -> TCM Exp
 compileTerm kit paramCount t = do
@@ -446,15 +472,21 @@ compileTerm kit paramCount t = do
       T.TApp (T.TCon q) x -> do
         reportSDoc "function.go" 30 $ "\n contructor"
         name <- liftTCM $ visitorName q
-        transformedArgs <- mapM go x
+        transformedArgs <- mapM go (filter filterErased x)
         reportSDoc "function.go" 30 $ "\n transformedArgs:" <+> (text . show) transformedArgs 
         return $ GoCreateStruct name transformedArgs
       T.TApp (T.TDef q) x -> do
         reportSDoc "function.go" 30 $ "function definition call"
         name <- liftTCM $ visitorName q
-        transformedArgs <- mapM go x
+        
+        transformedArgs <- mapM go (filter filterErased x)
         reportSDoc "function.go" 30 $ "\n transformedArgs:" <+> (text . show) transformedArgs 
         return $ GoMethodCall name transformedArgs
+      T.TApp (T.TVar v1) x  -> do
+        reportSDoc "function.go" 30 $ "function var function"
+        transformedArgs <- mapM go (filter filterErased x)
+        reportSDoc "function.go" 30 $ "\n transformedArgs:" <+> (text . show) transformedArgs 
+        return $ GoMethodCall (MemberId (getVarName (paramCount - v1))) transformedArgs  
       T.TApp t' xs | Just f <- getDef t' -> do
         used <- either getCompiledArgUse (\x -> fmap (map not) $ getErasedConArgs x) f
         reportSDoc "function.go" 30 $ "\n just f used:" <+> (text . show) used
@@ -528,7 +560,14 @@ goTypeApproximation fv t = do
   let go n t = do
         let tu = unSpine t
         case tu of
-          Pi a b -> return $ TypeId "pi"
+          Pi a b -> do
+            reportSDoc "function.go" 10 $ "in pi: :" <+> (text . show) b
+            p1 <- go n (unEl $ unDom a)
+            p2 <- go (n + k) (unEl $ unAbs b)
+            reportSDoc "function.go" 10 $ "in p1: :" <+> (text . show) p1
+            reportSDoc "function.go" 10 $ "in p2: :" <+> (text . show) p2
+            return $ PiType p1 p2
+            where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els -> do
             (MemberId name) <- liftTCM $ visitorName q
             return $ ConstructorType (getVarName n) name
@@ -541,6 +580,7 @@ goTelApproximation t = do
   TelV tel res <- telView t
   let args = map (snd . unDom) (telToList tel)
   let filteredArgs = filter isSortType args
+  reportSDoc "compile.go" 20 $ " filteredArgs:" <+> (text . show) filteredArgs
   (,) <$> zipWithM (goTypeApproximation) [0..] filteredArgs <*> goTypeApproximation (length args) res
 
 isSortType :: Type -> Bool
