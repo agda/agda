@@ -2784,7 +2784,10 @@ instance Monoid (ContextHet' a) where
   mempty = Empty
   mappend = (<>)
 
-class HasPids a where getPids :: a -> ISet ProblemId
+class HasPids a where
+  getPids  :: a -> ISet ProblemId
+  isSingle :: a -> Bool
+  isSingle = ISet.null . getPids
 
 instance HasPids (ContextHet' a) where
   getPids Empty = ISet.empty
@@ -3031,42 +3034,52 @@ class AsTwin b where
 
 instance AsTwin b => AsTwin (CompareAs' b) where
   type AsTwin_ (CompareAs' b) = CompareAs' (AsTwin_ b)
+  {-# INLINE asTwin #-}
   asTwin = fmap asTwin
 
 instance AsTwin (TwinT'' b a) where
   type AsTwin_ (TwinT'' b a) = a
+  {-# INLINE asTwin #-}
   asTwin = SingleT . Het @'Both
 
 instance AsTwin ContextHet where
   type AsTwin_ ContextHet = Context
+  {-# INLINE asTwin #-}
   asTwin = contextHetFromList . fmap asTwin
 
 instance AsTwin (Het side a) where
   type AsTwin_ (Het side a) = a
+  {-# INLINE asTwin #-}
   asTwin = coerce
 
 instance AsTwin a => AsTwin (Dom a) where
   type AsTwin_ (Dom a) = Dom (AsTwin_ a)
+  {-# INLINE asTwin #-}
   asTwin = fmap asTwin
 
 instance AsTwin () where
   type AsTwin_ () = ()
+  {-# INLINE asTwin #-}
   asTwin = id
 
 instance AsTwin a => AsTwin (Abs a) where
   type AsTwin_ (Abs a) = Abs (AsTwin_ a)
+  {-# INLINE asTwin #-}
   asTwin = fmap asTwin
 
 instance AsTwin a => AsTwin (Tele a) where
   type AsTwin_ (Tele a) = Tele (AsTwin_ a)
+  {-# INLINE asTwin #-}
   asTwin = fmap asTwin
 
 instance (AsTwin a, AsTwin b) => AsTwin (a, b) where
   type AsTwin_ (a, b) = (AsTwin_ a, AsTwin_ b)
+  {-# INLINE asTwin #-}
   asTwin (a, b) = (asTwin a, asTwin b)
 
 instance AsTwin Name where
   type AsTwin_ Name = Name
+  {-# INLINE asTwin #-}
   asTwin = id
 
 class TwinAt (s :: ContextSide) a where
@@ -3208,11 +3221,13 @@ deriving instance Foldable (TwinT'' b)
 
 -- | This does not switch the context of the monad.
 --   Use `onSide` instead.
+{-# INLINE unsafeTraverseHet #-}
 unsafeTraverseHet :: Applicative m => (a -> m b) -> Het side a -> m (Het side b)
 unsafeTraverseHet f (Het a) = Het <$> f a
 
 -- | This does not switch the context of the monad.
 --   Use an appropriate method instead.
+{-# INLINE unsafeTraverseTwinT #-}
 unsafeTraverseTwinT :: Applicative m => (a -> m c) -> TwinT'' b a -> m (TwinT'' b c)
 unsafeTraverseTwinT f (SingleT a) = SingleT <$> unsafeTraverseHet f a
 unsafeTraverseTwinT f (TwinT{twinLHS,twinRHS,..}) = do

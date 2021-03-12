@@ -14,6 +14,7 @@ import Data.Semigroup (First(..))
 import Data.Monoid (First(..))
 #endif
 import Data.Foldable
+import Data.Functor.Compose (Compose(..))
 import Data.Traversable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.Set as Set
@@ -1620,20 +1621,12 @@ instance Reduce () where
   reduceB' () = pure (notBlocked ())
 
 instance Reduce a => Reduce (TwinT' a) where
-  -- Víctor (2021-03-04)
-  -- In the single case, we leave the context as-is
-  -- We could potentially unfold it into two twins, but it is not clear
-  -- that this will help with reduction.
-  reduce' (SingleT (OnBoth a)) = asTwin <$> reduce' a
-  reduce'  TwinT{necessary,direction,twinPid,twinLHS=a,twinRHS=c} =
-               reduce' (a,c) <&> \(a',c') ->
-                 TwinT{necessary,direction,twinPid,twinLHS=a',twinRHS=c'}
-
-  reduceB' (SingleT (OnBoth a)) = fmap asTwin <$> reduceB' a
-  reduceB'  TwinT{necessary,direction,twinPid,twinLHS=a,twinRHS=c} = do
-               reduceB' (a,c) <&> fmap (\(a',c') ->
-                 TwinT{necessary,direction,twinPid,twinLHS=a',twinRHS=c'})
-
+  reduce' = traverseTwinT reduce'
+  -- Víctor 2021-03-12:
+  -- unsafeTraverseTwinT id pulls the blocker out of the
+  -- TwinT (note that Blocked is an applicative functor
+  -- with conjunction on the blockers)
+  reduceB' = fmap (unsafeTraverseTwinT id) . traverseTwinT reduceB'
 
 instance Simplify a => Simplify (TwinT' a) where
   simplify' = unsafeTraverseTwinT simplify'

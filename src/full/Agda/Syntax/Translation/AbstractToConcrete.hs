@@ -1771,10 +1771,6 @@ instance ToConcrete NamedMeta where
 
 instance ToConcrete a => ToConcrete (TwinT' a) where
     type ConOfAbs (TwinT' a) = TwinT' (ConOfAbs a)
-    -- Víctor (2021-03-05): TODO
-    -- Is this sound?
-    toConcrete (SingleT a) = SingleT <$> toConcrete a
-    toConcrete TwinT{twinLHS,twinRHS,..} = do
-      lhs <- toConcrete twinLHS
-      rhs <- toConcrete twinRHS
-      return $ TwinT{twinLHS=lhs,twinRHS=rhs,..}
+    -- Victor (2021-03-12): TODO
+    -- Could we use unsafeTraverseTwinT here?
+    toConcrete = traverseTwinT toConcrete

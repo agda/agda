@@ -575,3 +575,20 @@ getVarInfo x =
                     Just vt -> getOpen vt
                     _       -> fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
                                 " (id: " ++ prettyShow (nameId x) ++ ")"
+
+-- | Traverse a TwinT safely, making sure the operations run in the right context
+{-# INLINE traverseTwinT #-}
+traverseTwinT ::  MonadTCEnv m => (a -> m c) -> TwinT' a -> m (TwinT' c)
+traverseTwinT f (SingleT (OnBoth a)) =
+  getContext_ <&> isSingle >>= \case
+    True   ->  asTwin <$> (switchSide @'Single $ f a)
+    False  ->  traverseTwinT f TwinT{necessary=True
+                                    ,direction=DirEq
+                                    ,twinPid=mempty
+                                    ,twinLHS=H'LHS a
+                                    ,twinRHS=H'RHS a
+                                    }
+traverseTwinT f (TwinT{twinLHS,twinRHS,..}) = do
+  twinLHS <- onSide @'LHS f twinLHS
+  twinRHS <- onSide @'RHS f twinRHS
+  pure TwinT{twinLHS,twinRHS,..}
