@@ -9,6 +9,7 @@ module Agda.TypeChecking.Conversion where
 import Control.Arrow (second)
 import Control.Monad
 import Control.Monad.Except
+import Control.Monad.Trans.Maybe
 import Control.Applicative
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
@@ -2214,15 +2215,24 @@ data TypeView_ =
   | TLevel
   | TOther
 
-type MkTwinM m = (MonadMetaSolver m)
-type TypeViewM m = (MkTwinM m)
+type MkTwinM m = (MonadTCEnv m, ReadTCState m)
+type TypeViewM m = (HasBuiltins m, HasConstInfo m, MkTwinM m)
 
 typeView :: forall m. TypeViewM m => TwinT' Term -> m (TypeView_)
-typeView = go
+typeView ty = foldr (\f m -> runMaybeT (f ty) >>= \case
+                        Just tv -> return tv
+                        Nothing -> m) (return TOther)
+                [goPi
+                ,goLam
+                ,goDefRecordEta
+                ,goLevel
+                ]
   where
-  go :: TwinT' Term -> m (TypeView_)
-  go (SingleT (OnBoth (Pi dom cod))) = return$ TPi (asTwin dom) (asTwin cod)
-  go (TwinT{necessary
+  fallback = MaybeT (return Nothing)
+
+  goPi :: TwinT' Term -> MaybeT m (TypeView_)
+  goPi (SingleT (OnBoth (Pi dom cod))) = return $ TPi (asTwin dom) (asTwin cod)
+  goPi (TwinT{necessary
                ,direction
                ,twinPid
                ,twinLHS    = H'LHS (Pi (H'LHS -> doml) (H'LHS -> codl))
@@ -2249,14 +2259,20 @@ typeView = go
                              }
 
       return $ TPi dom_ cod_
-  go (SingleT (OnBoth Lam{})) = return TLam
-  go  TwinT{twinLHS=H'LHS Lam{},twinRHS=H'RHS Lam{}} = return TLam
-  go ty@(SingleT (OnBoth (Def r es))) = isEtaRecord r >>= \case
+  goPi _ = fallback
+
+  goLam :: TwinT' Term -> MaybeT m (TypeView_)
+  goLam (SingleT (OnBoth Lam{})) = return TLam
+  goLam TwinT{twinLHS=H'LHS Lam{},twinRHS=H'RHS Lam{}} = return TLam
+  goLam _ = fallback
+
+  goDefRecordEta :: TwinT' Term -> MaybeT m (TypeView_)
+  goDefRecordEta ty@(SingleT (OnBoth (Def r es))) = isEtaRecord r >>= \case
     True  -> (theDef <$> getConstInfo r) >>= \case
         defn@Record{} -> return $ TDefRecordEta r defn $ asTwin $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         _ -> __IMPOSSIBLE__
-    False -> fallback ty
-  go  ty@TwinT{necessary,
+    False -> fallback
+  goDefRecordEta  ty@TwinT{necessary,
                 twinPid,
                 direction,
                 twinLHS=H'LHS (Def r  (H'LHS -> esL)),
@@ -2273,16 +2289,15 @@ typeView = go
                                                              twinRHS=asR
                                                              }
         _ -> __IMPOSSIBLE__
-    False -> fallback ty
-  go ty = fallback ty
+    False -> fallback
+  goDefRecordEta _ = fallback
 
-  fallback :: TwinT' Term -> m (TypeView_)
-  fallback ty = do
+  goLevel :: TwinT' Term -> MaybeT m (TypeView_)
+  goLevel ty = do
     mlvl <- getBuiltin' builtinLevel
     if ty `isEqualTo` mlvl then
       return TLevel
-    else
-      return TOther
+    else fallback
 
 mkTwinT' :: MkTwinM m => TwinT'' Bool a -> m (TwinT' a)
 mkTwinT' (SingleT a) = return $ SingleT a

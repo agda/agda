@@ -52,10 +52,10 @@ data TypeView_ =
   | TLevel
   | TOther
 
-type MkTwinM m = (MonadMetaSolver m)
-type TypeViewM m = (MkTwinM m)
+type MkTwinM m = (MonadTCEnv m, ReadTCState m)
+type TypeViewM m = (HasBuiltins m, HasConstInfo m, MkTwinM m)
 
-typeView :: TypeViewM m => TwinT' Term -> m (TypeView_)
+typeView :: forall m. TypeViewM m => TwinT' Term -> m (TypeView_)
 mkTwinTele :: MkTwinM m => TwinT' Telescope -> m Telescope_
 
 valueCmpDir_ :: (MonadConversion m, AreSides s₁ s₂) =>
