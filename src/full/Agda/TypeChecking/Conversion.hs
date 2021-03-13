@@ -786,7 +786,8 @@ antiUnify pid a u v = do
 
 antiUnifyArgs :: MonadConversion m => ProblemId -> Dom Type -> Arg Term -> Arg Term -> m (Arg Term)
 antiUnifyArgs pid dom u v
-  | getModality u /= getModality v = patternViolation neverUnblock
+  | not (sameModality (getModality u) (getModality v))
+              = patternViolation neverUnblock
   | otherwise = applyModalityToContext u $
     ifM (isIrrelevantOrPropM dom)
     {-then-} (return u)
