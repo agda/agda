@@ -38,6 +38,10 @@ data Exp =
   GoCase MemberId Nat Nat Nat [Exp] | -- pattern mathing pagal struct name ir return Exp, kur Exp gali būt metodo kvietimas, kintamojo gražinimas ar struct sukūrimas
   GoMethodCall MemberId [Exp] | --metodo name, kurį kviečiam ir parametrai. Parametrai gali būt method call, struct sukūrimas ar tiesiog parametras. Prettyfiinant kiekvienas Exp elementas eina į skliaustus.
   GoCreateStruct MemberId [Exp] | -- struktūros sukurimas, paduodam struktūros name ir jo fields. todo ar fields bus [LocalId] ar [MemberId]
+  GoIf Exp Exp Exp |
+  GoLet String Exp Exp |
+  BinOp Exp Exp Exp |
+  ReturnExpression Exp |
   String Text |
   Char Char |
   Integer Integer |

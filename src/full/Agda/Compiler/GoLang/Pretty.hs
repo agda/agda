@@ -32,11 +32,16 @@ instance Pretty Go.Exp where
       Go.GoStruct id elems -> "type" <+> pretty id <+> "struct " <+> (T.braces (vcat $ map pretty elems))
       Go.GoStructElement localId typeId -> "_" <+> pretty localId <+> pretty typeId <+> T.semi
       Go.GoFunction signatures (Go.GoSwitch a b) -> (vcat $ map pretty signatures) <+> (pretty (Go.GoSwitch a b)) <+> (text $ concat $ replicate (length signatures) "}\n")
-      Go.GoFunction signatures body -> (vcat $ map pretty signatures) <+> "return" <+> (pretty body) <+> (text $ concat $ replicate (length signatures) "}\n")
+      Go.GoFunction signatures body -> (vcat $ map pretty signatures) <+> (pretty body) <+> (text $ concat $ replicate (length signatures) "}\n")
       Go.GoSwitch v cases -> "switch type_" <> (pretty v) <> (text "  := ") <> (pretty v) <> (text ".(type) {\n") <> (vcat $ map pretty cases) <> "\ndefault:\n_ = type_"<> (pretty v) <> ";\n panic(\"Unreachable\");\n}"
-      Go.GoCase name switchVar paramsStart paramCount exps -> "\ncase " <> (pretty name) <> spaceWrap (T.colon) <> (hsep $ map (createCaseParam paramsStart switchVar) (createCaseList paramCount)) <> (vcat $ map pretty (init exps)) <> "return " <> ( pretty (last exps))
+      Go.GoCase name switchVar paramsStart paramCount exps -> "\ncase " <> (pretty name) <> spaceWrap (T.colon) <> (hsep $ map (createCaseParam paramsStart switchVar) (createCaseList paramCount)) <> (vcat $ map pretty exps)
       Go.GoCreateStruct name params -> (pretty name) <+> T.lbrace <+> (joinStructParams (map pretty params)) <+> "}"
       Go.GoMethodCall name params -> (pretty name) <> (hsep $ map T.parens $ map pretty params)
+      Go.GoIf a b c -> "if (" <+> (pretty a) <+> ") {\n" <+> (pretty b) <+> "\n} else {\n" <+> pretty c <+> "\n}\n"
+      Go.BinOp a b c -> (T.parens (pretty a)) <+> (pretty b) <+> (T.parens (pretty c))
+      Go.GoLet name val exp -> (text name) <+> ":=" <+> (pretty val) <+> "\n" <+> (pretty exp)
+      Go.Integer n -> text $ show n
+      Go.ReturnExpression exp -> "return" <+> (pretty exp)
       _ -> text ""
 
 spaceWrap :: Doc -> Doc
@@ -48,7 +53,7 @@ joinStructParams [x] = x <+> (joinStructParams [])
 joinStructParams (x:xs) = x <+> "," <+> (joinStructParams xs)
 
 createCaseParam :: Nat -> Nat -> Nat -> Doc
-createCaseParam paramStart switchVar paramId = "\n" <> (getVarNamet (paramStart + paramId)) <> " := type_" <> (getVarNamet switchVar) <> "." <> (getVarNamet (paramId - 1)) <> ";\n _ = " <> (getVarNamet (paramStart + paramId))<> T.semi
+createCaseParam paramStart switchVar paramId = "\n" <> (getVarNamet (paramStart + paramId)) <> " := type_" <> (getVarNamet switchVar) <> "." <> (getVarNamet (paramId - 1)) <> ";\n _ = " <> (getVarNamet (paramStart + paramId))<> ";\n"
 
 instance Pretty Go.MemberId where
   pretty (Go.MemberId  s) = text s
