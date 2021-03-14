@@ -818,7 +818,7 @@ defaultQuantity = topQuantity
 
 -- | Identity element under composition
 unitQuantity :: Quantity
-unitQuantity = Quantity1 mempty
+unitQuantity = Quantityω mempty
 
 -- | Absorptive element is ω.
 topQuantity :: Quantity
