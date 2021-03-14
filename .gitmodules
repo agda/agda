@@ -8,3 +8,6 @@
 [submodule "src/fix-whitespace"]
 	path = src/fix-whitespace
 	url = https://github.com/agda/fix-whitespace.git
+[submodule "src/hTags"]
+	path = src/hTags
+	url = git@github.com:agda/hTags.git
