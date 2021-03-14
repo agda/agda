@@ -74,11 +74,12 @@ absolute f = mkAbsolute <$> do
   -- canonicalizePath sometimes truncates paths pointing to
   -- non-existing files/directories.
   ex <- doesFileExist f `or2M` doesDirectoryExist f
-  if ex then
+  if ex then do
     -- Andreas, 2020-08-11, issue #4828
     -- Do not use @canonicalizePath@ here as it resolves symlinks,
     -- which leads to wrong placement of the .agdai file.
-    makeAbsolute f
+    dir <- canonicalizePath (takeDirectory f)
+    return (dir </> takeFileName f)
    else do
     cwd <- getCurrentDirectory
     return (cwd </> f)
