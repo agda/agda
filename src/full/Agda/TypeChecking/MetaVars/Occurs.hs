@@ -247,8 +247,7 @@ metaCheck m = do
        not (isOpenMeta $ mvInstantiation mv) ||
        not allowAssign ||
        isFlexible cxt ||
-       isUnguarded cxt ||
-       unArg (miGeneralizable $ mvInfo mv) == YesGeneralize
+       isUnguarded cxt
     then do
       reportSDoc "tc.meta.occurs" 20 $ "Meta occurs check found bad relevance, aborting!"
       patternViolation $ unblockOnMeta m
