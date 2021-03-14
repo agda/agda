@@ -1,0 +1,3 @@
+Issue5238.agda:15,3-22
+foo  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  x
+when checking the pragma REWRITE foo

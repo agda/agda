@@ -269,7 +269,10 @@ checkRewriteRule q = do
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
         -- check that FV(rhs) ⊆ nlPatVars(lhs)
-        let freeVars  = usedArgs (defArgOccurrences def) `IntSet.union` allFreeVars (ps,rhs)
+        let freeVars = case theDef def of
+              Function{} -> usedArgs def `IntSet.union` allFreeVars (ps,rhs)
+              Axiom{}    -> IntSet.fromList $ downFrom $ size gamma
+              _          -> __IMPOSSIBLE__
             boundVars = nlPatVars ps
         reportSDoc "rewriting" 70 $
           "variables bound by the pattern: " <+> text (show boundVars)
@@ -336,9 +339,10 @@ checkRewriteRule q = do
           return rew
         Nothing -> cont
 
-    usedArgs :: [Pos.Occurrence] -> IntSet
-    usedArgs occs = IntSet.fromList $ map snd $ usedIxs
+    usedArgs :: Definition -> IntSet
+    usedArgs def = IntSet.fromList $ map snd $ usedIxs
       where
+        occs = defArgOccurrences def
         allIxs = zip occs $ downFrom $ size occs
         usedIxs = filter (used . fst) allIxs
         used Pos.Unused = False
