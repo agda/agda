@@ -262,7 +262,7 @@ library
   -- revisions on hackage, e.g. relaxing upper bounds.  This process
   -- currently does not support revising conditionals.
 
-  -- In hTags the mtl library must be compiled with the version of
+  -- In hs-tags the mtl library must be compiled with the version of
   -- transformers shipped with GHC, so we use that version in Agda (see,
   -- for example, Issue #2983).
   if impl(ghc > 9.0.1)
