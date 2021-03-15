@@ -76,7 +76,7 @@ absolute f = mkAbsolute <$> do
   ex <- doesFileExist f `or2M` doesDirectoryExist f
   if ex then do
     -- Andreas, 2020-08-11, issue #4828
-    -- Do not use @canonicalizePath@ here as it resolves symlinks,
+    -- Do not use @canonicalizePath@ on the full path as it resolves symlinks,
     -- which leads to wrong placement of the .agdai file.
     dir <- canonicalizePath (takeDirectory f)
     return (dir </> takeFileName f)
