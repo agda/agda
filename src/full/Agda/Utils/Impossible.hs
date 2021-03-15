@@ -3,7 +3,10 @@
 ------------------------------------------------------------------------
 
 
-module Agda.Utils.Impossible where
+module Agda.Utils.Impossible (
+  module Agda.Utils.Impossible,
+  HasCallStack)
+where
 
 import Control.Exception (Exception(..), throw, catchJust)
 import Agda.Utils.CallStack.Base
