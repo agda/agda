@@ -79,7 +79,6 @@ parseVariables f tel ii rng ss = do
     -- is bigger than the number of pattern variables.
     let nPatVars = size tel
     let nlocals = n - nPatVars
-    unless (nlocals >= 0) __IMPOSSIBLE__  -- cannot be negative
 
     fv <- getDefFreeVars f
     reportSDoc "interaction.case" 20 $ do
@@ -95,6 +94,8 @@ parseVariables f tel ii rng ss = do
        , "context         =" <+> do inTopContext $ prettyTCM cxt
        , "checkpoints     =" <+> do (text . show) =<< asksTC envCheckpoints
        ]
+
+    unless (nlocals >= 0) __IMPOSSIBLE__  -- cannot be negative
 
     -- Resolve each string to a variable.
     forM ss $ \ s -> do
@@ -240,6 +241,26 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       tel  = clauseTel  clause
       ps   = namedClausePats clause
       ell  = clauseEllipsis clause
+  reportSDoc "interaction.case" 100 $ vcat
+    [ "splitting clause:"
+    , nest 2 $ vcat
+      [ "f       =" <+> (text . show) f
+      , "context =" <+> ((inTopContext . (text . show)) =<< getContextTelescope)
+      , "tel     =" <+> (text . show) tel
+      , "perm    =" <+> text (show perm)
+      , "ps      =" <+> (text . show) ps
+      ]
+    ]
+  reportSDoc "interaction.case" 60 $ vcat
+    [ "splitting clause:"
+    , nest 2 $ vcat
+      [ "f       =" <+> pretty f
+      , "context =" <+> ((inTopContext . pretty) =<< getContextTelescope)
+      , "tel     =" <+> pretty tel
+      , "perm    =" <+> (text . show) perm
+      , "ps      =" <+> pretty ps
+      ]
+    ]
   reportSDoc "interaction.case" 10 $ vcat
     [ "splitting clause:"
     , nest 2 $ vcat
@@ -250,16 +271,6 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       , "ps      =" <+> prettyTCMPatternList ps
       , "ell     =" <+> text (show ell)
       , "type    =" <+> prettyTCM (clauseType clause)
-      ]
-    ]
-  reportSDoc "interaction.case" 100 $ vcat
-    [ "splitting clause:"
-    , nest 2 $ vcat
-      [ "f       =" <+> (text . show) f
-      , "context =" <+> ((inTopContext . (text . show)) =<< getContextTelescope)
-      , "tel     =" <+> (text . show) tel
-      , "perm    =" <+> text (show perm)
-      , "ps      =" <+> (text . show) ps
       ]
     ]
 

@@ -51,7 +51,7 @@ instance Arbitrary QωOrigin where
 
 instance CoArbitrary Quantity
 instance Arbitrary Quantity where
-  arbitrary = elements [ Quantity0 mempty, Quantity1 mempty, Quantityω mempty ]
+  arbitrary = elements [ Quantity0 mempty, {-Quantity1 mempty,-} Quantityω mempty ]
   -- Andreas, 2019-07-04, TODO:
   -- The monoid laws hold only modulo origin information.
   -- Thus, we generate here only origin-free quantities.

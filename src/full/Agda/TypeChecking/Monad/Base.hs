@@ -1347,7 +1347,7 @@ data RunMetaOccursCheck
 -- | @MetaInfo@ is cloned from one meta to the next during pruning.
 data MetaInfo = MetaInfo
   { miClosRange       :: Closure Range -- TODO: Not so nice. But we want both to have the environment of the meta (Closure) and its range.
---  , miRelevance       :: Relevance          -- ^ Created in irrelevant position?
+  , miModality        :: Modality           -- ^ Instantiable with irrelevant/erased solution?
   , miMetaOccursCheck :: RunMetaOccursCheck -- ^ Run the extended occurs check that goes in definitions?
   , miNameSuggestion  :: MetaNameSuggestion
     -- ^ Used for printing.
@@ -1356,6 +1356,11 @@ data MetaInfo = MetaInfo
     -- ^ Should this meta be generalized if unsolved? If so, at what ArgInfo?
   }
   deriving Generic
+
+instance LensModality MetaInfo where
+  getModality = miModality
+  setModality mod mi = mi { miModality = mod }
+  mapModality f mi = mi { miModality = f $ miModality mi }
 
 -- | Name suggestion for meta variable.  Empty string means no suggestion.
 type MetaNameSuggestion = String
@@ -1385,6 +1390,11 @@ instance SetRange MetaInfo where
 instance SetRange MetaVariable where
   setRange r m = m { mvInfo = setRange r (mvInfo m) }
 
+instance LensModality MetaVariable where
+  getModality = getModality . mvInfo
+  setModality mod mv = mv { mvInfo = setModality mod $ mvInfo mv }
+  mapModality f mv = mv { mvInfo = mapModality f $ mvInfo mv }
+
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
 
@@ -1407,12 +1417,10 @@ getMetaSig :: MetaVariable -> Signature
 getMetaSig m = clSignature $ getMetaInfo m
 
 getMetaRelevance :: MetaVariable -> Relevance
-getMetaRelevance = getRelevance . getMetaEnv
+getMetaRelevance = getRelevance . getModality
 
 getMetaModality :: MetaVariable -> Modality
--- Andrea 23/02/2020: use getModality to enforce invariants of the
---                    envModality field.
-getMetaModality = getModality . getMetaEnv
+getMetaModality = getModality
 
 -- Lenses
 

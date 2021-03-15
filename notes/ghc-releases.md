@@ -31,7 +31,7 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   `make haddock`
 
-* Test the hTags program:
+* Test the hs-tags program:
 
   `make TAGS`
 

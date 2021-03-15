@@ -43,7 +43,7 @@ etaExpandClause clause = liftTCM $ do
     Clause rl rf ctel ps (Just body) (Just t) catchall exact recursive unreachable ell -> do
 
       -- Get the telescope to expand the clause with.
-      TelV tel0 t' <- telView $ unArg t
+      TelV tel0 t' <- addContext ctel $ telView $ unArg t
 
       -- If the rhs has lambdas, harvest the names of the bound variables.
       let xs   = peekLambdas body

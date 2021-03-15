@@ -292,12 +292,13 @@ createMetaInfo' b = do
   gen      <- viewTC eGeneralizeMetas
   let onlyUserQ q | noUserQuantity q = setQuantity topQuantity q
                   | otherwise        = q
-  modality <- onlyUserQ <$> viewTC eModality
+  modality <- viewTC eModality
   return MetaInfo
     { miClosRange       = cl
+    , miModality        = modality
     , miMetaOccursCheck = b
     , miNameSuggestion  = ""
-    , miGeneralizable   = hide $ setModality modality $ defaultArg gen
+    , miGeneralizable   = hide $ setModality (onlyUserQ modality) $ defaultArg gen
     }
 
 setValueMetaName :: MonadMetaSolver m => Term -> MetaNameSuggestion -> m ()

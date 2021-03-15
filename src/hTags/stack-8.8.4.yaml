@@ -1,3 +1,0 @@
-resolver: lts-16.26
-compiler: ghc-8.8.4
-compiler-check: match-exact

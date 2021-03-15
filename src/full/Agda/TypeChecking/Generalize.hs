@@ -157,6 +157,13 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Pair metas with their metaInfo
   mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntSet.toList allmetas
 
+  -- Issue 4727: filter out metavariables that were created before the
+  -- current checkpoint, since they are too old to be generalized.
+  -- TODO: make metasCreatedBy smarter so it doesn't see pruned
+  -- versions of old metas as new metas.
+  cp <- viewTC eCurrentCheckpoint
+  let isFreshMeta (x,mv) = enterClosure mv $ \ _ -> isJust <$> checkpointSubstitution' cp
+  mvs <- filterM isFreshMeta mvs
   cs <- (++) <$> useTC stAwakeConstraints
              <*> useTC stSleepingConstraints
 
