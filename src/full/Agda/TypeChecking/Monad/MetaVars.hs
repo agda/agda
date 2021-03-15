@@ -105,7 +105,7 @@ class ( MonadConstraint m
   -- | Directly instantiate the metavariable. Skip pattern check,
   -- occurs check and frozen check. Used for eta expanding frozen
   -- metas.
-  assignTerm' :: MonadMetaSolver m => MetaId -> [Arg ArgName] -> Term -> m ()
+  assignTerm' :: MetaId -> [Arg ArgName] -> Term -> m ()
 
   -- | Eta expand a metavariable, if it is of the specified kind.
   --   Don't do anything if the metavariable is a blocked term.
