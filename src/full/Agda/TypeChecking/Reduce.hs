@@ -810,7 +810,7 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM
                     -- TODO: let matchPatterns also return the reduced forms
                     -- of the original arguments!
                     -- Andreas, 2013-05-19 isn't this done now?
-                    let sigma = buildSubstitution __IMPOSSIBLE__ nvars vs
+                    let sigma = buildSubstitution nvars vs
                     return $ YesReduction simpl $ applySubst sigma w `applyE` es1
                 | otherwise     -> rewrite (NotBlocked AbsurdMatch ()) (applyE v) rewr es
 

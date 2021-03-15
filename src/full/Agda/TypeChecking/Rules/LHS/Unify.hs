@@ -982,8 +982,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
         (rhsMatch, _) <- Match.matchPatterns ps $ eqRHS s
         case (lhsMatch, rhsMatch) of
           (Match.Yes _ lhs', Match.Yes _ rhs') -> return
-            (reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') lhs',
-             reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') rhs')
+            (reverse $ Match.matchedArgs (size eqTel') lhs',
+             reverse $ Match.matchedArgs (size eqTel') rhs')
           _ -> __IMPOSSIBLE__
 
       return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
@@ -1017,8 +1017,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
         (rhsMatch, _) <- Match.matchPatterns ps $ eqRHS s
         case (lhsMatch, rhsMatch) of
           (Match.Yes _ lhs', Match.Yes _ rhs') -> return
-            (reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') lhs',
-             reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') rhs')
+            (reverse $ Match.matchedArgs (size eqTel') lhs',
+             reverse $ Match.matchedArgs (size eqTel') rhs')
           _ -> __IMPOSSIBLE__
 
       return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
