@@ -44,15 +44,15 @@ instance Null (Match a) where
   null (Yes simpl as) = null simpl && null as
   null _              = False
 
-matchedArgs :: Empty -> Int -> IntMap (Arg a) -> [Arg a]
-matchedArgs err n vs = map get [0..n-1]
+matchedArgs :: HasCallStack => Int -> IntMap (Arg a) -> [Arg a]
+matchedArgs n vs = map get [0..n-1]
   where
-    get k = fromMaybe (absurd err) $ IntMap.lookup k vs
+    get k = fromMaybe __IMPOSSIBLE__ $ IntMap.lookup k vs
 
 -- | Builds a proper substitution from an IntMap produced by match(Co)patterns
-buildSubstitution :: (DeBruijn a)
-                  => Empty -> Int -> IntMap (Arg a) -> Substitution' a
-buildSubstitution err n vs = parallelS $ map unArg $ matchedArgs err n vs
+buildSubstitution :: HasCallStack => (DeBruijn a)
+                  => Int -> IntMap (Arg a) -> Substitution' a
+buildSubstitution n vs = parallelS $ map unArg $ matchedArgs n vs
 
 
 instance Semigroup (Match a) where
