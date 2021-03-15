@@ -1194,18 +1194,21 @@ ArgTypeSigs
 -- FunClause also handle possibly dotted type signatures.
 FunClause :: { List1 Declaration }
 FunClause
-  : {- emptyb -} LHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 }
-  | Attributes1  LHS RHS WhereClause {% funClauseOrTypeSigs (List1.toList $1) $2 $3 $4 }
+  : {- emptyb -} LHS WHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 $4 }
+  | Attributes1  LHS WHS RHS WhereClause {% funClauseOrTypeSigs (List1.toList $1) $2 $3 $4 $5 }
 
-RHS :: { ([Either RewriteEqn (List1 (Named Name Expr))], RHSOrTypeSigs) }
+-- "With Hand Side", in between the Left & the Right hand ones
+WHS :: { [Either RewriteEqn (List1 (Named Name Expr))] }
+WHS
+  : {- empty -}                           { [] }
+  | 'with'    WithExprs        WithClause {% fmap (++ $3) (buildWithStmt $2) }
+  | 'rewrite' UnnamedWithExprs WithClause { Left (Rewrite $ fmap ((),) $2) : $3 }
+
+RHS :: { RHSOrTypeSigs }
 RHS
-  : {- empty -}                                    { ([], JustRHS AbsurdRHS) }
-  | '='       Expr                                 { ([], JustRHS (RHS $2)) }
-  | ':'       Expr                                 { ([], TypeSigsRHS $2) }
-  | 'with'    WithExprs        WithClause          {% fmap ((, JustRHS AbsurdRHS) . (++ $3)) (buildWithStmt $2) }
-  | 'with'    WithExprs        WithClause '=' Expr {% fmap ((, JustRHS (RHS $5))  . (++ $3)) (buildWithStmt $2) }
-  | 'rewrite' UnnamedWithExprs WithClause          { (Left (Rewrite $ fmap ((),) $2) : $3, JustRHS AbsurdRHS) }
-  | 'rewrite' UnnamedWithExprs WithClause '=' Expr { (Left (Rewrite $ fmap ((),) $2) : $3, JustRHS (RHS $5)) }
+  : {- empty -}    { JustRHS AbsurdRHS }
+  | '='       Expr { JustRHS (RHS $2) }
+  | ':'       Expr { TypeSigsRHS $2 }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
@@ -2252,9 +2255,10 @@ patternToNames = \case
       "Illegal name in type signature: " ++ prettyShow p
 
 funClauseOrTypeSigs :: [Attr] -> ([RewriteEqn] -> [WithExpr] -> LHS)
-                    -> ([Either RewriteEqn (List1 (Named Name Expr))], RHSOrTypeSigs)
+                    -> [Either RewriteEqn (List1 (Named Name Expr))]
+                    -> RHSOrTypeSigs
                     -> WhereClause -> Parser (List1 Declaration)
-funClauseOrTypeSigs attrs lhs' (with, mrhs) wh = do
+funClauseOrTypeSigs attrs lhs' with mrhs wh = do
   (rs , es) <- buildWithBlock with
   let lhs = lhs' rs (map (fmap observeModifiers) es)
   -- traceShowM lhs
