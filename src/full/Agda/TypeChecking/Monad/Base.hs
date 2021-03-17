@@ -2156,9 +2156,9 @@ instance Pretty Defn where
     "Record {" <?> vcat
       [ "recPars         =" <?> pshow recPars
       , "recClause       =" <?> pretty recClause
-      , "recConHead      =" <?> pshow recConHead
-      , "recNamedCon     =" <?> pshow recNamedCon
-      , "recFields       =" <?> pshow recFields
+      , "recConHead      =" <?> pretty recConHead
+      , "recNamedCon     =" <?> pretty recNamedCon
+      , "recFields       =" <?> pretty recFields
       , "recTel          =" <?> pretty recTel
       , "recMutual       =" <?> pshow recMutual
       , "recEtaEquality' =" <?> pshow recEtaEquality'

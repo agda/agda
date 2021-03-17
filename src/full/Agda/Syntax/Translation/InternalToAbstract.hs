@@ -456,7 +456,7 @@ reifyTerm expandAnonDefs0 v0 = do
       x <- fromMaybeM (freshName_ $ "@" ++ show n) $ nameOfBV' n
       elims (A.Var x) =<< reify es
     I.Def x es -> do
-      reportSLn "reify.def" 100 $ "reifying def " ++ prettyShow x
+      reportSDoc "reify.def" 80 $ return $ "reifying def" <+> pretty x
       (x, es) <- reifyPathPConstAsPath x es
       reifyDisplayForm x es $ reifyDef expandAnonDefs x es
     I.Con c ci vs -> do
@@ -761,9 +761,9 @@ reifyTerm expandAnonDefs0 v0 = do
             -- If it is not a projection(-like) function, we need no padding.
             _ -> return ([], map (fmap unnamed) $ drop n es)
 
-           reportS "reify.def" 70
-             [ "  pad = " ++ show pad
-             , "  nes = " ++ show nes
+           reportSDoc "reify.def" 100 $ return $ vcat
+             [ "  pad =" <+> pshow pad
+             , "  nes =" <+> pshow nes
              ]
            let hd0 | isProperProjection def = A.Proj ProjPrefix $ AmbQ $ singleton x
                    | otherwise = A.Def x
@@ -872,13 +872,13 @@ stripImplicits :: MonadReify m => A.Patterns -> A.Patterns -> m A.Patterns
 stripImplicits params ps = do
   -- if --show-implicit we don't need the names
   ifM showImplicitArguments (return $ map (fmap removeNameUnlessUserWritten) ps) $ do
-    reportS "reify.implicit" 30
+    reportSDoc "reify.implicit" 100 $ return $ vcat
       [ "stripping implicits"
-      , "  ps   = " ++ show ps
+      , nest 2 $ "ps   =" <+> pshow ps
       ]
     let ps' = blankDots $ strip ps
-    reportS "reify.implicit" 30
-      [ "  ps'  = " ++ show ps'
+    reportSDoc "reify.implicit" 100 $ return $ vcat
+      [ nest 2 $ "ps'  =" <+> pshow ps'
       ]
     return ps'
     where
@@ -1147,7 +1147,7 @@ reifyPatterns = mapM $ (stripNameFromExplicit . stripHidingFromPostfixProj) <.>
 
     reifyPat :: MonadReify m => I.DeBruijnPattern -> m A.Pattern
     reifyPat p = do
-     reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
+     reportSDoc "reify.pat" 80 $ return $ "reifying pattern" <+> pretty p
      keepVars <- optKeepPatternVariables <$> pragmaOptions
      case p of
       -- Possibly expanded literal pattern (see #4215)
@@ -1274,11 +1274,11 @@ instance Reify NamedClause where
   type ReifiesTo NamedClause = A.Clause
 
   reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
-    reportSLn "reify.clause" 60 $ unlines
+    reportSDoc "reify.clause" 60 $ return $ vcat
       [ "reifying NamedClause"
-      , "  f      = " ++ prettyShow f
-      , "  toDrop = " ++ show toDrop
-      , "  cl     = " ++ show cl
+      , "  f      =" <+> pretty f
+      , "  toDrop =" <+> pshow toDrop
+      , "  cl     =" <+> pretty cl
       ]
     let ell = clauseEllipsis cl
     ps  <- reifyPatterns $ namedClausePats cl
@@ -1293,12 +1293,12 @@ instance Reify NamedClause where
         Right m -> size <$> lookupSection m
       return $ splitParams nfv lhs
     lhs <- stripImps params lhs
-    reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
+    reportSDoc "reify.clause" 100 $ return $ "reifying NamedClause, lhs =" <?> pshow lhs
     rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e ->
       RHS <$> reify e <*> pure Nothing
-    reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
+    reportSDoc "reify.clause" 100 $ return $ "reifying NamedClause, rhs =" <?> pshow rhs
     let result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls (I.clauseCatchall cl)
-    reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
+    reportSDoc "reify.clause" 100 $ return $ "reified NamedClause, result =" <?> pshow result
     return result
     where
       splitParams n (SpineLHS i f ps) =
