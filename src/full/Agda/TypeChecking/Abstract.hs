@@ -55,30 +55,27 @@ piAbstractTerm info v a b = do
 
 piAbstract :: Arg (Term, EqualityView) -> Type -> TCM Type
 piAbstract (Arg info (v, OtherType a)) b = piAbstractTerm info v a b
-piAbstract (Arg info (v, IdiomType a@(El sort@(Type l) ty))) b = do
+piAbstract (Arg info (v, IdiomType a)) b = do
   b  <- raise 1 <$> abstractType a v b
   eq <- addContext ("w" :: String, defaultDom a) $ do
     -- manufacture the type @w ≡ e@
     eqName <- primEqualityName
     eqTy <- defType <$> getConstInfo eqName
-    -- TOOD: make it work for different versions of equality
-    -- We used to do something like this:
     -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
-    -- TelV eqTel _ <- telView eqTy
-    -- tel  <- newTelMeta (telFromList $ dropEnd 2 $ telToList eqTel)
-    -- instead of the 2 first arguments below
-    -- but it fails with unsolved metas these days.
+    TelV eqTel _ <- telView eqTy
+    tel  <- newTelMeta (telFromList $ dropEnd 2 $ telToList eqTel)
     let eq = Def eqName $ map Apply
-                 [ setHiding Hidden (defaultArg $ Level (raise 1 l))
-                 , setHiding Hidden (defaultArg (raise 1 ty))
-                 , defaultArg (var 0)
-                 , defaultArg (raise 1 v)
-                 ]
-    pure $ El sort eq
+                 $ map (setHiding Hidden) tel
+                 ++ [ defaultArg (var 0)
+                    , defaultArg (raise 1 v)
+                    ]
+    sort <- sortOf eq
+    pure (El sort eq)
 
-  pure $ mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
-       $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
-       $ b
+  let ty = mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
+         $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
+         $ b
+  ty <$ checkType ty
 piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
   s <- sortOf a
   let prfTy = equalityUnview eqt
@@ -92,8 +89,6 @@ piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
     -- Abstract the lhs (@a@) of the equality only.
     eqt1  = raise 1 eqt
     eqTy' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
-
-piAbstract _ _ = __IMPOSSIBLE__ -- not actually impossible
 
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.

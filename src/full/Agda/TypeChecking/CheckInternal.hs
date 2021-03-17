@@ -56,7 +56,9 @@ type MonadCheckInternal m = MonadConversion m
 
 -- | Entry point for e.g. checking WithFunctionType.
 checkType :: (MonadCheckInternal m) => Type -> m ()
-checkType t = void $ checkType' t
+checkType t = do
+  inferred <- checkType' t
+  equalSort (getSort t) inferred
 
 -- | Check a type and infer its sort.
 --
@@ -193,7 +195,7 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
           $ Con c ci $ take (length vs) vs2
     Lit l      -> do
       lt <- litType l
-      cmptype cmp lt t
+      compareType cmp lt t
       return $ Lit l
     Lam ai vb  -> do
       (a, b) <- maybe (shouldBePi t) return =<< isPath t
@@ -226,7 +228,7 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
     Level l    -> do
       l <- checkLevel action l
       lt <- levelType
-      cmptype cmp lt t
+      compareType cmp lt t
       return $ Level l
     DontCare v -> DontCare <$> checkInternal' action v cmp t
     Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
@@ -279,7 +281,7 @@ checkSpine action a self es cmp t = do
                    , nest 2 $ prettyTCM t ] ]
   ((v, v'), t') <- inferSpine' action a self self es
   t' <- reduce t'
-  v' <$ coerceSize (cmptype cmp) v t' t
+  v' <$ coerceSize (compareType cmp) v t' t
 --UNUSED Liang-Ting Chen 2019-07-16
 --checkArgs
 --  :: (MonadCheckInternal m)
