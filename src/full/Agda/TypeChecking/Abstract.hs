@@ -69,13 +69,13 @@ piAbstract (Arg info (v, IdiomType a)) b = do
                  ++ [ defaultArg (var 0)
                     , defaultArg (raise 1 v)
                     ]
-    sort <- sortOf eq
-    pure (El sort eq)
+    sort <- newSortMeta
+    let ty = El sort eq
+    ty <$ checkType ty
 
-  let ty = mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
-         $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
-         $ b
-  ty <$ checkType ty
+  pure $ mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
+       $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
+       $ b
 piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
   s <- sortOf a
   let prfTy = equalityUnview eqt
