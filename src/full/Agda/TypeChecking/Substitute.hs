@@ -970,7 +970,7 @@ instance Subst a => Subst (Blocked a) where
 instance Subst DisplayForm where
   type SubstArg DisplayForm = Term
   applySubst rho (Display n ps v) =
-    Display n (applySubst (liftS 1 rho) ps)
+    Display n (applySubst (liftS n rho) ps)
               (applySubst (liftS n rho) v)
 
 instance Subst DisplayTerm where
