@@ -1,6 +1,10 @@
 module Agda.Syntax.Concrete.Definitions.Errors where
 
+import Control.DeepSeq
+
 import Data.Data
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
@@ -50,7 +54,7 @@ data DeclarationException'
 data DeclarationWarning = DeclarationWarning
   { dwLocation :: CallStack
   , dwWarning  :: DeclarationWarning'
-  } deriving (Show)
+  } deriving (Show, Generic)
 
 -- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning'
@@ -108,7 +112,7 @@ data DeclarationWarning'
       -- ^ @instance@ block with nothing that can (newly) become an instance.
   | UselessPrivate Range
       -- ^ @private@ block with nothing that can (newly) be made private.
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 declarationWarningName :: DeclarationWarning -> WarningName
 declarationWarningName = declarationWarningName' . dwWarning
@@ -354,3 +358,6 @@ instance Pretty DeclarationWarning' where
   pretty (ShadowingInTelescope nrs) = fsep $
     pwords "Shadowing in telescope, repeated variable names:"
     ++ punctuate comma (map (pretty . fst) nrs)
+
+instance NFData DeclarationWarning
+instance NFData DeclarationWarning'

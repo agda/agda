@@ -65,8 +65,10 @@ FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(FAST_STACK_BUILD_DIR) 
 
 # ordinary install: optimizations and tests
 
-SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests
-SLOW_STACK_INSTALL_OPTS = --test --no-run-tests
+SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests \
+                          -foptimise-heavily
+SLOW_STACK_INSTALL_OPTS = --test --no-run-tests \
+                          --flag Agda:optimise-heavily
 
 CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
                           $(SLOW_CABAL_INSTALL_OPTS)
@@ -157,8 +159,25 @@ else
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
+## Developer install goal without -foptimize-aggressively nor dependencies
+## Alternative to 'install-bin'
+.PHONY: v1-install
+v1-install:  ensure-hash-is-correct
+ifdef HAS_STACK
+	@echo "===================== Installing using Stack with test suites ============"
+	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS) --test --no-run-tests
+	mkdir -p $(BUILD_DIR)/build/
+	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
+else
+	@echo "===================== Installing using Cabal with test suites ============"
+	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS) --builddir=$(BUILD_DIR) --enable-tests
+endif
+
 .PHONY: fast-install-bin ## Install Agda -O0 and test suites via cabal (or stack if stack.yaml exists).
-fast-install-bin: install-deps
+fast-install-bin: install-deps fast-install-bin-no-deps
+
+.PHONY: fast-install-bin-no-deps
+ fast-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
@@ -171,22 +190,14 @@ else
 	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
-# Andreas, 2020-06-02, AIM XXXII, quick-install-bin seems obsolete since we have quicker-install-bin
-# .PHONY: quick-install-bin ## Install Agda via cabal (or stack if stack.yaml exists).
-# quick-install-bin: install-deps ensure-hash-is-correct
-# ifdef HAS_STACK
-# 	@echo "===================== Installing using Stack ============================="
-# 	$(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-# else
-# 	@echo "===================== Installing using Cabal ============================="
-# 	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
-# endif
-
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
 
 .PHONY: quicker-install-bin ## Install Agda (compiled with -O0) via cabal (or stack if stack.yaml exists).
-quicker-install-bin: install-deps
+quicker-install-bin: install-deps quicker-install-bin-no-deps
+
+.PHONY: quicker-install-bin-no-deps
+quicker-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
@@ -427,7 +438,7 @@ quicklatex-test :
 .PHONY : std-library-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
-		(cd std-lib && make Everything.agda && \
+		(cd std-lib && cabal run GenerateEverything --allow-newer=base && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
@@ -640,6 +651,7 @@ debug : ## Print debug information.
 	@echo "CABAL_INSTALL_CMD     = $(CABAL_INSTALL_CMD)"
 	@echo "CABAL_INSTALL_OPTS    = $(CABAL_INSTALL_OPTS)"
 	@echo "CABAL_OPTS            = $(CABAL_OPTS)"
+	@echo "GHC_VER               = $(GHC_VER)"
 	@echo "GHC_VERSION           = $(GHC_VERSION)"
 	@echo "PARALLEL_TESTS        = $(PARALLEL_TESTS)"
 	@echo "STACK                 = $(STACK)"

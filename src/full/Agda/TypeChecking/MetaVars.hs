@@ -379,9 +379,12 @@ blockTerm t blocker = do
 blockTermOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ProblemId -> m Term
-blockTermOnProblem t v pid =
+blockTermOnProblem t v pid = do
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
-  ifM (isProblemSolved pid `or2M` isSizeProblem pid) (return v) $ do
+  solved <- isProblemSolved pid
+  ifM (return solved `or2M` isSizeProblem pid)
+      (v <$ reportSLn "tc.meta.blocked" 20 ("Not blocking because " ++ show pid ++ " is " ++
+                                            if solved then "solved" else "a size problem")) $ do
     i   <- createMetaInfo
     es  <- map Apply <$> getContextArgs
     tel <- getContextTelescope
@@ -439,7 +442,7 @@ postponeTypeCheckingProblem_ p = do
   postponeTypeCheckingProblem p =<< unblock p
   where
     unblock (CheckExpr _ _ t)         = unblockedTester t
-    unblock (CheckArgs _ _ _ t _ _)   = unblockedTester t  -- The type of the head of the application.
+    unblock (CheckArgs _ _ _ _ t _ _) = unblockedTester t  -- The type of the head of the application.
     unblock (CheckProjAppToKnownPrincipalArg _ _ _ _ _ _ _ _ t _) = unblockedTester t -- The type of the principal argument
     unblock (CheckLambda _ _ _ t)     = unblockedTester t
     unblock (DoQuoteTerm _ _ _)       = __IMPOSSIBLE__     -- also quoteTerm problems
@@ -484,7 +487,7 @@ postponeTypeCheckingProblem p unblock = do
 -- | Type of the term that is produced by solving the 'TypeCheckingProblem'.
 problemType :: TypeCheckingProblem -> Type
 problemType (CheckExpr _ _ t         ) = t
-problemType (CheckArgs _ _ _ _ t _ )   = t  -- The target type of the application.
+problemType (CheckArgs _ _ _ _ _ t _ ) = t  -- The target type of the application.
 problemType (CheckProjAppToKnownPrincipalArg _ _ _ _ _ t _ _ _ _) = t -- The target type of the application
 problemType (CheckLambda _ _ _ t     ) = t
 problemType (DoQuoteTerm _ _ t)        = t

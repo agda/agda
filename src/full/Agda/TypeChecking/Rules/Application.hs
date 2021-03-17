@@ -118,7 +118,7 @@ checkApplication cmp hd args e t =
     ]
   case unScope hd of
     -- Subcase: unambiguous projection
-    A.Proj _ p | Just _ <- getUnambiguous p -> checkHeadApplication cmp e t hd args
+    A.Proj o p | Just x <- getUnambiguous p -> checkUnambiguousProjectionApplication cmp e t x o hd args
 
     -- Subcase: ambiguous projection
     A.Proj o p -> checkProjApp cmp e o (unAmbQ p) args t
@@ -202,7 +202,7 @@ checkApplication cmp hd args e t =
           tel    <- metaTel args                    -- (x : X) (y : Y x)
           target <- addContext tel newTypeMeta_      -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
-          (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ ExpandLast (getRange args) args tel
+          (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ CmpLeq ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           equalType (applySubst rho target) t       -- Z a b == A
@@ -245,12 +245,12 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
     _ -> do
       (f, t0) <- inferHead hd
       let r = getRange hd
-      res <- runExceptT $ checkArgumentsE exh (getRange hd) args t0 Nothing
+      res <- runExceptT $ checkArgumentsE CmpEq exh (getRange hd) args t0 Nothing
       case res of
         Right st@(ACState{acType = t1}) -> fmap (,t1) $ unfoldInlined =<< checkHeadConstraints f st
         Left problem -> do
           t <- workOnTypes $ newTypeMeta_
-          v <- postponeArgs problem exh r args t $ \ st -> unfoldInlined =<< checkHeadConstraints f st
+          v <- postponeArgs problem CmpEq exh r args t $ \ st -> unfoldInlined =<< checkHeadConstraints f st
           return (v, t)
 
 -----------------------------------------------------------------------------
@@ -502,7 +502,7 @@ checkHeadApplication cmp e t hd args = do
   defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- asksTC envExpandLast
-    checkArguments expandLast (getRange hd) args t0 t $ \ st@(ACState rs vs _ t1 checkedTarget) -> do
+    checkArguments cmp expandLast (getRange hd) args t0 t $ \ st@(ACState rs vs _ t1 checkedTarget) -> do
       let check = do
            k <- mk
            as <- allApplyElims vs
@@ -551,12 +551,13 @@ coerce' cmp (CheckedTarget (Just pid)) v _        expected = blockTermOnProblem 
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
 
-checkArgumentsE :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Maybe Type ->
+checkArgumentsE :: Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Maybe Type ->
                    ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
 checkArgumentsE = checkArgumentsE' NotCheckedTarget
 
 checkArgumentsE'
   :: CheckedTarget     -- ^ Have we already checked the target?
+  -> Comparison        -- ^ Comparison to use if checking target type
   -> ExpandHidden      -- ^ Insert trailing hidden arguments?
   -> Range             -- ^ Range of the function.
   -> [NamedArg A.Expr] -- ^ Arguments.
@@ -565,10 +566,10 @@ checkArgumentsE'
   -> ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
-checkArgumentsE' chk exh _ [] t0 _ | isDontExpandLast exh = return $ ACState [] [] [] t0 chk
+checkArgumentsE' chk cmp exh _ [] t0 _ | isDontExpandLast exh = return $ ACState [] [] [] t0 chk
 
 -- Case: no arguments, but need to insert trailing hiddens.
-checkArgumentsE' chk _ExpandLast r [] t0 mt1 =
+checkArgumentsE' chk cmp _ExpandLast r [] t0 mt1 =
     traceCallE (CheckArguments r [] t0 mt1) $ lift $ do
       mt1' <- traverse (unEl <.> reduce) mt1
       (us, t) <- implicitArgs (-1) (expand mt1') t0
@@ -581,7 +582,7 @@ checkArgumentsE' chk _ExpandLast r [] t0 mt1 =
       expand _                 NotHidden  = False
 
 -- Case: argument given.
-checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
+checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
     traceCallE (CheckArguments r args0 t0 mt1) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ "checkArgumentsE"
@@ -654,7 +655,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                   vis = all visible (telToList tel)
                   isRigid t | PathType{} <- viewPath t = return False -- Path is not rigid!
                   isRigid (El _ (Pi dom _)) = return $ visible dom
-                  isRigid (El _ (Def d _))  = theDef <$> getConstInfo d >>= return . \ case
+                  isRigid (El _ (Def d _))  = getConstInfo d <&> theDef <&> \ case
                     Axiom{}                   -> True
                     DataOrRecSig{}            -> True
                     AbstractDefn{}            -> True
@@ -684,7 +685,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     , nest 2 $ "inferred =" <+> prettyTCM tgt1
                     , nest 2 $ "expected =" <+> prettyTCM t1 ]
                   traceCall (CheckTargetType (fuseRange r args0) tgt1 t1) $
-                    CheckedTarget <$> ifNoConstraints_ (leqType tgt1 t1)
+                    CheckedTarget <$> ifNoConstraints_ (compareType cmp tgt1 t1)
                                         (return Nothing) (return . Just)
 
             _ -> return chk
@@ -718,7 +719,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                 lift $ reportSDoc "tc.term.lock" 40 $ addContext (defaultDom $ t0') $ maybe (text "nothing") prettyTCM (absBody <$> c)
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (getRange e) (Apply $ Arg info' u) c $
-                  checkArgumentsE' chk' exh (fuseRange r e) args (absApp b u) mt1
+                  checkArgumentsE' chk' cmp exh (fuseRange r e) args (absApp b u) mt1
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
                   [ text $ "info      = " ++ show info
@@ -733,7 +734,7 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< primIntervalType
                 addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) Nothing $
-                  checkArgumentsE exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) mt1
+                  checkArgumentsE cmp exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) mt1
           _ -> shouldBePi
   where
     -- Andrea: Here one would add constraints too.
@@ -751,15 +752,16 @@ checkArgumentsE' chk exh r args0@(arg@(Arg info e) : args) t0 mt1 =
 --   Inserts hidden arguments as necessary.
 --   Returns the type-checked arguments and the remaining telescope.
 checkArguments_
-  :: ExpandHidden         -- ^ Eagerly insert trailing hidden arguments?
+  :: Comparison           -- ^ Comparison for target
+  -> ExpandHidden         -- ^ Eagerly insert trailing hidden arguments?
   -> Range                -- ^ Range of application.
   -> [NamedArg A.Expr]    -- ^ Arguments to check.
   -> Telescope            -- ^ Telescope to check arguments against.
   -> TCM (Elims, Telescope)
      -- ^ Checked arguments and remaining telescope if successful.
-checkArguments_ exh r args tel = postponeInstanceConstraints $ do
+checkArguments_ cmp exh r args tel = postponeInstanceConstraints $ do
     z <- runExceptT $
-      checkArgumentsE exh r args (telePi tel __DUMMY_TYPE__) Nothing
+      checkArgumentsE cmp exh r args (telePi tel __DUMMY_TYPE__) Nothing
     case z of
       Right (ACState _ args cs t _) | all isNothing cs -> do
         let TelV tel' _ = telView' t
@@ -768,27 +770,27 @@ checkArguments_ exh r args tel = postponeInstanceConstraints $ do
         typeError $ GenericError $ "Head constraints are not (yet) supported in this position."
       Left _ -> __IMPOSSIBLE__  -- type cannot be blocked as it is generated by telePi
 
--- | @checkArguments exph r args t0 t k@ tries @checkArgumentsE exph args t0 t@.
+-- | @checkArguments cmp exph r args t0 t k@ tries @checkArgumentsE exph args t0 t@.
 -- If it succeeds, it continues @k@ with the returned results.  If it fails,
 -- it registers a postponed typechecking problem and returns the resulting new
 -- meta variable.
 --
 -- Checks @e := ((_ : t0) args) : t@.
 checkArguments ::
-  ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+  Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
   (ArgsCheckState CheckedTarget -> TCM Term) -> TCM Term
-checkArguments exph r args t0 t k = postponeInstanceConstraints $ do
-  z <- runExceptT $ checkArgumentsE exph r args t0 (Just t)
+checkArguments cmp exph r args t0 t k = postponeInstanceConstraints $ do
+  z <- runExceptT $ checkArgumentsE cmp exph r args t0 (Just t)
   case z of
     Right st -> k st
       -- vs = evaluated args
       -- t1 = remaining type (needs to be subtype of t)
-    Left problem -> postponeArgs problem exph r args t k
+    Left problem -> postponeArgs problem cmp exph r args t k
       -- if unsuccessful, postpone checking until t0 unblocks
 
-postponeArgs :: (ArgsCheckState [NamedArg A.Expr]) -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
+postponeArgs :: (ArgsCheckState [NamedArg A.Expr]) -> Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> Type ->
                 (ArgsCheckState CheckedTarget -> TCM Term) -> TCM Term
-postponeArgs (ACState rs us cs t0 es) exph r args t k = do
+postponeArgs (ACState rs us cs t0 es) cmp exph r args t k = do
   reportSDoc "tc.term.expr.args" 80 $
     sep [ "postponed checking arguments"
         , nest 4 $ prettyList (map (prettyA . namedThing . unArg) args)
@@ -798,7 +800,7 @@ postponeArgs (ACState rs us cs t0 es) exph r args t k = do
         , nest 2 $ "checked" <+> prettyList (map prettyTCM us)
         , nest 2 $ "remaining" <+> sep [ prettyList (map (prettyA . namedThing . unArg) es)
                                             , nest 2 $ ":" <+> prettyTCM t0 ] ]
-  postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \ (ACState rs' vs cs' t pid) -> k $ ACState (rs ++ rs') (us ++ vs) (cs ++ cs') t pid)
+  postponeTypeCheckingProblem_ (CheckArgs cmp exph r es t0 t $ \ (ACState rs' vs cs' t pid) -> k $ ACState (rs ++ rs') (us ++ vs) (cs ++ cs') t pid)
 
 -----------------------------------------------------------------------------
 -- * Constructors
@@ -864,7 +866,7 @@ checkConstructorApplication cmp org t c args = do
                args' = dropArgs pnames args
            -- check the non-parameter arguments
            expandLast <- asksTC envExpandLast
-           checkArguments expandLast (getRange c) args' ctype' t $ \ st@(ACState _ _ _ t' targetCheck) -> do
+           checkArguments cmp expandLast (getRange c) args' ctype' t $ \ st@(ACState _ _ _ t' targetCheck) -> do
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "es     =" <+> prettyTCM es
                , text "t'     =" <+> prettyTCM t' ]
@@ -954,6 +956,18 @@ disambiguateConstructor cs0 t = do
 ---------------------------------------------------------------------------
 -- * Projections
 ---------------------------------------------------------------------------
+
+checkUnambiguousProjectionApplication :: Comparison -> A.Expr -> Type -> QName -> ProjOrigin -> A.Expr -> [NamedArg A.Expr] -> TCM Term
+checkUnambiguousProjectionApplication cmp e t x o hd args =
+  -- Andreas, 2021-02-19, issue #3289
+  -- If a postfix projection was moved to the head by appView,
+  -- we have to patch the first argument with the correct hiding info.
+  case (o, args) of
+    (ProjPostfix, arg : rest) -> do
+      pr <- fromMaybe __IMPOSSIBLE__ <$> isProjection x
+      let ai = projArgInfo pr
+      checkHeadApplication cmp e t hd (setArgInfo ai arg : rest)
+    _ -> checkHeadApplication cmp e t hd args
 
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
@@ -1173,7 +1187,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
           -- Check remaining arguments
           let r     = getRange e
               args' = drop (k + 1) args
-          z <- runExceptT $ checkArgumentsE ExpandLast r args' tb (snd <$> mt)
+          z <- runExceptT $ checkArgumentsE cmp ExpandLast r args' tb (snd <$> mt)
           case z of
             Right st@(ACState _ _ _ trest targetCheck) -> do
               v <- checkHeadConstraints (u `applyE`) st
@@ -1183,7 +1197,7 @@ inferOrCheckProjAppToKnownPrincipalArg e o ds args mt k v0 ta mpatm = do
               -- To create a postponed type checking problem,
               -- we do not use typeDontCare, but create a meta.
               tc <- caseMaybe mt newTypeMeta_ (return . snd)
-              v  <- postponeArgs problem ExpandLast r args' tc $ \ st@(ACState _ _ _ trest targetCheck) -> do
+              v  <- postponeArgs problem cmp ExpandLast r args' tc $ \ st@(ACState _ _ _ trest targetCheck) -> do
                       v <- checkHeadConstraints (u `applyE`) st
                       coerce' cmp targetCheck v trest tc
 

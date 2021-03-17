@@ -236,7 +236,7 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
       (rs, t) <- do
         (tel, t) <- lift $ typeWithoutParams q
         is     <- mapM (getTypeInfo . snd . dget) tel
-        used   <- lift $ (++ repeat True) <$> getCompiledArgUse q
+        used   <- lift $ (++ repeat ArgUsed) . fromMaybe [] <$> getCompiledArgUse q
         forced <- lift $ (++ repeat NotForced) <$> getForcedArgs q
         return (zipWith3 (uncurry . mkR . getModality) tel (zip forced used) is, t)
       h <- if isAbsurdLambdaName q then pure Erasable else getTypeInfo t
@@ -245,10 +245,10 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
       return (rs, h)
 
     -- Treat empty, erasable, or unused arguments as Erasable
-    mkR :: Modality -> IsForced -> Bool -> TypeInfo -> TypeInfo
-    mkR m f b i
+    mkR :: Modality -> IsForced -> ArgUsage -> TypeInfo -> TypeInfo
+    mkR m f u i
       | not (usableModality m) = Erasable
-      | not b                  = Erasable
+      | ArgUnused <- u         = Erasable
       | Forced <- f            = Erasable
       | otherwise              = i
 

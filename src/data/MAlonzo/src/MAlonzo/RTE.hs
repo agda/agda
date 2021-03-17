@@ -4,6 +4,7 @@ module MAlonzo.RTE where
 
 import Unsafe.Coerce
 import qualified GHC.Exts as GHC (Any)
+import Data.Char
 import qualified Data.Word
 
 type AgdaAny = GHC.Any
@@ -63,6 +64,13 @@ quotInt = quot
 
 remInt :: Integer -> Integer -> Integer
 remInt = rem
+
+-- #4999: Data.Text maps surrogate code points (\xD800 - \xDFFF) to the replacement character
+-- \xFFFD, so to keep strings isomorphic to list of characters we do the same for characters.
+natToChar :: Integer -> Char
+natToChar n | generalCategory c == Surrogate = '\xFFFD'
+            | otherwise                      = c
+  where c = toEnum $ fromIntegral $ mod n 0x110000
 
 -- Words --
 

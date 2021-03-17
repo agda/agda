@@ -475,7 +475,7 @@ instance Apply Clause where
 
 instance Apply CompiledClauses where
   apply cc args = case cc of
-    Fail     -> Fail
+    Fail hs -> Fail (drop len hs)
     Done hs t
       | length hs >= len ->
          let sub = parallelS $ map var [0..length hs - len - 1] ++ map unArg args
@@ -727,10 +727,12 @@ instance Abstract Clause where
       where m = size tel + size tel'
 
 instance Abstract CompiledClauses where
-  abstract tel Fail = Fail
-  abstract tel (Done xs t) = Done (map (argFromDom . fmap fst) (telToList tel) ++ xs) t
-  abstract tel (Case n bs) =
-    Case (n <&> \ i -> i + size tel) (abstract tel bs)
+  abstract tel cc = case cc of
+      Fail xs   -> Fail (hs ++ xs)
+      Done xs t -> Done (hs ++ xs) t
+      Case n bs -> Case (n <&> \ i -> i + size tel) (abstract tel bs)
+    where
+      hs = map (argFromDom . fmap fst) $ telToList tel
 
 instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a

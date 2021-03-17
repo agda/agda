@@ -148,7 +148,7 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
 
     loop :: CompiledClauses -> m (CompiledClauses)
     loop cc = case cc of
-      Fail      -> return cc
+      Fail{}    -> return cc
       Done{}    -> return cc
       Case i cs -> loops i cs
 
@@ -211,7 +211,7 @@ recordExpressionsToCopatterns
   -> m CompiledClauses
 recordExpressionsToCopatterns = \case
     Case i bs -> Case i <$> traverse recordExpressionsToCopatterns bs
-    cc@Fail   -> return cc
+    cc@Fail{} -> return cc
     cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       Constructor{ conArity = ar } <- theDef <$> getConstInfo (conName c)

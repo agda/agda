@@ -3,19 +3,25 @@ name: Build (stack)
 on:
   push:
     paths:
-    - 'src/**'
-    - 'stack*.yaml'
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
+    - 'stack*.yaml'
+    - 'src/agda-mode/**'
+    - 'src/full/**'
+    - 'src/main/**'
+    - 'src/size-solver/**'
     - 'test/**.hs'
   pull_request:
     paths:
-    - 'src/**'
-    - 'stack*.yaml'
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
+    - 'stack*.yaml'
+    - 'src/agda-mode/**'
+    - 'src/full/**'
+    - 'src/main/**'
+    - 'src/size-solver/**'
     - 'test/**.hs'
 
 jobs:
@@ -42,13 +48,13 @@ jobs:
       matrix:
         os: [ubuntu-18.04]
         stack-ver: [2.5.1]
-        ghc-ver: [8.10.3, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        ghc-ver: [8.10.4, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
         include:
           - os: macos-latest
-            ghc-ver: 8.10.3
+            ghc-ver: 8.10.4
             stack-ver: 2.5.1
           - os: windows-latest
-            ghc-ver: 8.10.3
+            ghc-ver: 8.10.4
             stack-ver: 2.5.1
 
     env:
@@ -108,7 +114,7 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install libicu-dev -qq
 
-    - name: Install the icu librery (Windows)
+    - name: Install the icu library (Windows)
       if: ${{ runner.os == 'Windows' }}
       run: |
         stack exec ${ARGS} -- wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
@@ -119,11 +125,12 @@ jobs:
       run: printf "extra-lib-dirs:\n - /usr/local/opt/icu4c/lib\nextra-include-dirs:\n - /usr/local/opt/icu4c/include\n" > ~/.stack/config.yaml
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
-      if: ${{ !steps.cache-on-unix.outputs.cache-hit && !steps.cache-on-win64.outputs.cache-hit }}
+      if: ${{ runner.os != 'macOS' && !steps.cache-on-unix.outputs.cache-hit && !steps.cache-on-win64.outputs.cache-hit }}
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies --silent
 
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
       run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
 
     - name: Build Agda with the non-default flags Agda.cabal.
+      if: ${{ runner.os != 'macOS' }}
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}

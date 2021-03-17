@@ -1045,11 +1045,18 @@ instance PrettyTCM TypeError where
                     (foldr (\x s -> C.nameToRawName x ++ "." ++ s)
                            ""
                            (List1.init (C.qnameParts (notaName nota))))
-                    (trim (notation nota))
+                    (spacesBetweenAdjacentIds $
+                     trim (notation nota))
 
         qualifyFirstIdPart _ []              = []
         qualifyFirstIdPart q (IdPart x : ps) = IdPart (fmap (q ++) x) : ps
         qualifyFirstIdPart q (p : ps)        = p : qualifyFirstIdPart q ps
+
+        spacesBetweenAdjacentIds (IdPart x : ps@(IdPart _ : _)) =
+          IdPart x : IdPart (unranged " ") : spacesBetweenAdjacentIds ps
+        spacesBetweenAdjacentIds (p : ps) =
+          p : spacesBetweenAdjacentIds ps
+        spacesBetweenAdjacentIds [] = []
 
         trim = case sectKind sect of
           InfixNotation   -> trimLeft . trimRight
@@ -1262,9 +1269,6 @@ instance PrettyTCM SplitError where
 
     BlockedType b t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
-
-    IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
-      pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]
 
     ErasedDatatype causedByWithoutK t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot branch on erased argument of datatype" ++

@@ -269,7 +269,7 @@ instance (Hilite a, IsProjP a) => Hilite (A.Pattern' a) where
       A.WildP _r             -> mempty
       A.AsP _r x p           -> hl x <> hl p
       A.DotP r e             -> case isProjP e of
-                                  Nothing       -> singleOtherAspect DottedPattern r
+                                  Nothing       -> singleOtherAspect DottedPattern r <> hl e
                                   Just (_o, qs) -> hiliteProjection qs
       A.AbsurdP _r           -> mempty
       A.LitP _r l            -> hl l

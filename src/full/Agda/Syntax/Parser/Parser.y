@@ -1087,7 +1087,7 @@ LHS :: { LHS }
 LHS : Expr1 WithRewriteExpressions
         {% exprToLHS $1      >>= \p ->
            buildWithBlock $2 >>= \ (rs, es) ->
-           return (p rs $ fmap observeHiding es)
+           return (p rs $ fmap observeModifiers es)
         }
 
 WithRewriteExpressions :: { [Either RewriteEqn (List1 Expr)] }
@@ -1234,7 +1234,7 @@ Constructor : 'constructor' Declarations0
   {% case $2 of
       -- this is fairly disgusting but hopefully allows us to use `constructor` for both
       -- record constructors and constructor blocks in mutual blocks
-      { [FunClause (LHS p [] [] NoEllipsis) AbsurdRHS NoWhere _]
+      { [FunClause (LHS p [] []) AbsurdRHS NoWhere _]
           | Just n <- isSingleIdentifierP p -> pure (RecordDirective (Constructor n NotInstanceDef))
       ;  _ -> pure $ LoneConstructor (getRange ($1,$2)) $2
       }
@@ -1338,7 +1338,7 @@ SimpleIds : SimpleId { [$1] }
           | SimpleIds SimpleId {$1 ++ [$2]}
 
 HoleNames :: { [NamedArg HoleName] }
-HoleNames : HoleName { [$1] }
+HoleNames :                    { [] }
           | HoleNames HoleName {$1 ++ [$2]}
 
 HoleName :: { NamedArg HoleName }
@@ -2149,8 +2149,8 @@ validHaskellModuleName = all ok . splitOnDots
  --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithHiding Expr] -> LHS)
-exprToLHS e = exprToPattern e <&> \ p rwr wth -> LHS p rwr wth NoEllipsis
+exprToLHS :: Expr -> Parser ([RewriteEqn] -> [Arg Expr] -> LHS)
+exprToLHS e = exprToPattern e <&> \ p rwr wth -> LHS p rwr wth
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
@@ -2243,11 +2243,11 @@ funClauseOrTypeSigs attrs lhs mrhs wh = do
       return $ singleton $ FunClause lhs rhs wh False
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
-        LHS p _ _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
-        LHS _ _ (_:_) _ -> parseError "Illegal: with in type signature"
-        LHS _ (_:_) _ _ -> parseError "Illegal: rewrite in type signature"
-        LHS p _ _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
-        LHS p [] [] _  -> forMM (patternToNames p) $ \ (info, x) -> do
+        LHS p _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
+        LHS _ _ (_:_) -> parseError "Illegal: with in type signature"
+        LHS _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
+        LHS p _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
+        LHS p [] [] -> forMM (patternToNames p) $ \ (info, x) -> do
           info <- applyAttrs attrs info
           return $ typeSig info (getTacticAttr attrs) x e
       _ -> parseError "A type signature cannot have a where clause"
@@ -2255,7 +2255,7 @@ funClauseOrTypeSigs attrs lhs mrhs wh = do
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
 parseDisplayPragma r pos s =
   case parsePosString pos defaultParseFlags [normal] funclauseParser s of
-    ParseOk s (FunClause (LHS lhs [] [] _) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
+    ParseOk s (FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 

@@ -75,6 +75,8 @@ and the types ``A₁``, ..., ``Aₙ`` must be function types ending in
 
   (y₁ : B₁) → ... → (yₘ : Bₘ) → D
 
+.. _parametrized-datatypes:
+
 Parametrized datatypes
 ======================
 
@@ -84,6 +86,8 @@ datatype but before the colon, for example::
   data List (A : Set) : Set where
     []  : List A
     _∷_ : A → List A → List A
+
+.. _indexed-datatypes:
 
 Indexed datatypes
 =================

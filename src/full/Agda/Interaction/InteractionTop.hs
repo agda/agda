@@ -245,16 +245,14 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     -- error. Because this function may switch the focus to another file
     -- the status information is also updated.
     handleErr method e = do
-        unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
         unsolved <- lift $ computeUnsolvedInfo
         err     <- lift $ errorHighlighting e
         modFile <- lift $ useTC stModuleToSource
         method  <- case method of
           Nothing -> lift $ viewTC eHighlightingMethod
           Just m  -> return m
-        let info = compress $ mconcat $
+        let info = compress $ err <> unsolved
                      -- Errors take precedence over unsolved things.
-                     err : if unsolvedNotOK then [unsolved] else []
 
         -- TODO: make a better predicate for this
         noError <- lift $ null <$> prettyError e
@@ -284,15 +282,16 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
     -- Raises an error if the given file is not the one currently
     -- loaded.
     cf <- gets theCurrentFile
-    when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $
-        lift $ typeError $ GenericError "Error: First load the file."
+    when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $ do
+        let mode = Imp.TypeCheck TopLevelInteraction
+        cmd_load' current [] True mode $ \_ -> return ()
 
     withCurrentFile $ interpret cmd
 
     cf' <- gets theCurrentFile
     when (updateInteractionPointsAfter cmd
             &&
-          Just currentAbs == (currentFilePath <$> cf')) $
+          Just currentAbs == (currentFilePath <$> cf')) $ do
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where

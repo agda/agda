@@ -7,6 +7,10 @@ module Agda.Interaction.Options.Help
        , allHelpTopics
        ) where
 
+import Control.DeepSeq
+
+import GHC.Generics (Generic)
+
 import Agda.Interaction.Options.Warnings
 
 -- | Interface to the @help@ function
@@ -15,7 +19,9 @@ data Help
   -- ^ General usage information
   | HelpFor HelpTopic
   -- ^ Specialised usage information about TOPIC
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance NFData Help
 
 -- | List of Help Topics
 -- NOTA BENE:
@@ -23,7 +29,9 @@ data Help
 
 data HelpTopic
   = Warning
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance NFData HelpTopic
 
 allHelpTopics :: [(String, HelpTopic)]
 allHelpTopics = [("warning", Warning)]

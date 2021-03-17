@@ -518,8 +518,7 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
 -- | Freeze metas created by given computation if in abstract mode.
 whenAbstractFreezeMetasAfter :: A.DefInfo -> TCM a -> TCM a
 whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
-  let pubAbs = defAccess == PublicAccess && defAbstract == AbstractDef
-  if not pubAbs then m else do
+  if defAbstract /= AbstractDef then m else do
     (a, ms) <- metasCreatedBy m
     reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
     wakeupConstraints_   -- solve emptiness and instance constraints
@@ -641,9 +640,9 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- t <- addForcingAnnotations t
 
   let defn = defaultDefn info x t $
-        case kind of
-          FunName   -> emptyFunction
-          MacroName -> set funMacro True emptyFunction
+        case kind of   -- #4833: set abstract already here so it can be inherited by with functions
+          FunName   -> emptyFunction{ funAbstr = Info.defAbstract i }
+          MacroName -> set funMacro True emptyFunction{ funAbstr = Info.defAbstract i }
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
           AxiomName -> Axiom     -- Old comment: NB: used also for data and record type sigs
@@ -792,8 +791,9 @@ checkTypeSignature' gtel (A.Axiom funSig i info mp x e) =
   Bench.billTo [Bench.Typing, Bench.TypeSig] $
     let abstr = case Info.defAccess i of
           PrivateAccess{}
-            | Info.defAbstract i == AbstractDef -> inAbstractMode
+            | Info.defAbstract i == AbstractDef -> inConcreteMode
               -- Issue #2321, only go to AbstractMode for abstract definitions
+              -- Issue #418, #3744, in fact don't go to AbstractMode at all
             | otherwise -> inConcreteMode
           PublicAccess  -> inConcreteMode
     in abstr $ checkAxiom' gtel funSig i info mp x e
@@ -908,7 +908,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
       , nest 2 $ "eta  =" <+> escapeContext __IMPOSSIBLE__ (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
-    ts <- noConstraints (checkArguments_ DontExpandLast (getRange i) args tel') >>= \case
+    ts <- noConstraints (checkArguments_ CmpEq DontExpandLast (getRange i) args tel') >>= \case
       (ts', etaTel') | (size etaTel == size etaTel')
                      , Just ts <- allApplyElims ts' -> return ts
       _ -> __IMPOSSIBLE__

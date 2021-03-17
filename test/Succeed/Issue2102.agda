@@ -7,17 +7,23 @@
 test : _
 test = Set  -- WAS: yellow
   where
-  abstract def = Set
+  abstract
+    def : Set₁
+    def = Set
 
 -- should succeed
 
 test1 = Set
   module M where
-  abstract def = Set
+  abstract
+    def : Set₁
+    def = Set
 
 -- Similar situation
 
 mutual
   test2 : _
-  abstract def = Set
+  abstract
+    def : Set₁
+    def = Set
   test2 = Set

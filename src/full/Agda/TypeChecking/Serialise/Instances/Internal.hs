@@ -435,12 +435,12 @@ instance EmbPrj a => EmbPrj (Case a) where
   value = valueN Branches
 
 instance EmbPrj CompiledClauses where
-  icod_ Fail       = icodeN' Fail
+  icod_ (Fail a)   = icodeN' Fail a
   icod_ (Done a b) = icodeN' Done a (P.killRange b)
   icod_ (Case a b) = icodeN 2 Case a b
 
   value = vcase valu where
-    valu []        = valuN Fail
+    valu [a]       = valuN Fail a
     valu [a, b]    = valuN Done a b
     valu [2, a, b] = valuN Case a b
     valu _         = malformed

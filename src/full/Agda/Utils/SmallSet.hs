@@ -38,6 +38,8 @@ module Agda.Utils.SmallSet
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
+
 import Data.Array.IArray (Ix, Array)
 import qualified Data.Array.IArray as Array
 import Data.Data (Data)
@@ -47,7 +49,7 @@ import Data.Data (Data)
 -- | Let @n@ be the size of type @a@.
 type SmallSetElement a = (Bounded a, Ix a)
 newtype SmallSet a = SmallSet { theSmallSet :: Array a Bool }
-  deriving (Eq, Ord, Show, Data)
+  deriving (Eq, Ord, Show, Data, NFData)
 
 -- * Query
 

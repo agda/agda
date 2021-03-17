@@ -4,8 +4,7 @@
 -- The dependencies of strict-base-types are too heavy,
 -- especially since it depends on lens which we consciously ruled out.
 
-{-# LANGUAGE CPP                #-}
-{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE CPP #-}
 
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}

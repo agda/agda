@@ -3,16 +3,20 @@
 module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
+
+import Control.DeepSeq
 import Control.Monad.Trans
 
 import Data.Char     ( isSpace )
 import Data.Foldable ( forM_ )
-import Data.List     ( intercalate, partition )
+import Data.List     ( dropWhileEnd, intercalate, partition )
 import Data.Set      ( Set )
 
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.Text as T
+
+import GHC.Generics (Generic)
 
 import System.Directory   ( createDirectoryIfMissing )
 import System.Environment ( setEnv )
@@ -31,7 +35,8 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
   ( Name, Type
   , arity, nameFixity, unDom )
-import Agda.Syntax.Literal ( Literal(..) )
+import Agda.Syntax.Literal       ( Literal(..) )
+import Agda.Syntax.Treeless      ( ArgUsage(..), filterUsed )
 import qualified Agda.Syntax.Treeless as T
 
 import Agda.TypeChecking.Monad
@@ -41,7 +46,7 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.FileName ( isNewerThan )
 import Agda.Utils.Function ( iterate' )
-import Agda.Utils.List ( headWithDefault )
+import Agda.Utils.List ( downFrom, headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, fromMaybe, whenNothing )
@@ -112,6 +117,9 @@ data JSOptions = JSOptions
   , optJSVerify   :: Bool
       -- ^ Run generated code through interpreter.
   }
+  deriving Generic
+
+instance NFData JSOptions
 
 defaultJSOptions :: JSOptions
 defaultJSOptions = JSOptions
@@ -381,11 +389,12 @@ definition' kit q d t ls = do
 
       reportSDoc "compile.js" 5 $ "compiling fun:" <+> prettyTCM q
       caseMaybeM (toTreeless T.EagerEvaluation q) (pure Nothing) $ \ treeless -> do
-        used <- getCompiledArgUse q
+        used <- fromMaybe [] <$> getCompiledArgUse q
         funBody <- eliminateCaseDefaults =<<
           eliminateLiteralPatterns
           (convertGuards treeless)
         reportSDoc "compile.js" 30 $ " compiled treeless fun:" <+> pretty funBody
+        reportSDoc "compile.js" 40 $ " argument usage:" <+> (text . show) used
 
         let (body, given) = lamView funBody
               where
@@ -394,12 +403,14 @@ definition' kit q d t ls = do
                 lamView t = (t, 0)
 
             -- number of eta expanded args
-            etaN = length $ dropWhile id $ reverse $ drop given used
+            etaN = length $ dropWhileEnd (== ArgUsed) $ drop given used
+
+            unusedN = length $ filter (== ArgUnused) used
 
         funBody' <- compileTerm kit
-                  $ iterate' (given + etaN - length (filter not used)) T.TLam
-                  $ eraseLocalVars (map not used)
-                  $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
+                  $ iterate' (given + etaN - unusedN) T.TLam
+                  $ eraseLocalVars (map (== ArgUnused) used)
+                  $ T.mkTApp (raise etaN body) (T.TVar <$> downFrom etaN)
 
         reportSDoc "compile.js" 30 $ " compiled JS fun:" <+> (text . show) funBody'
         return $
@@ -486,14 +497,17 @@ compileTerm kit t = go t
           [(flatName, PlainJS evalThunk)
           ,(MemberId "__flat_helper", Lambda 0 x)]
       T.TApp t' xs | Just f <- getDef t' -> do
-        used <- either getCompiledArgUse (\x -> fmap (map not) $ getErasedConArgs x) f
+        used <- case f of
+          Left  q -> fromMaybe [] <$> getCompiledArgUse q
+          Right c -> map (\ b -> if b then ArgUnused else ArgUsed) <$> getErasedConArgs c
+            -- Andreas, 2021-02-10 NB: could be @map (bool ArgUsed ArgUnused)@
+            -- but I find it unintuitive that 'bool' takes the 'False'-branch first.
         let given = length xs
 
             -- number of eta expanded args
-            etaN = length $ dropWhile id $ reverse $ drop given used
+            etaN = length $ dropWhile (== ArgUsed) $ reverse $ drop given used
 
-            xs' = xs ++ (T.TVar <$> [etaN-1, etaN-2 .. 0])
-            args = [ t | (t, True) <- zip xs' $ used ++ repeat True ]
+            args = filterUsed used $ xs ++ (T.TVar <$> downFrom etaN)
 
         curriedLambda etaN <$> (curriedApply <$> go (raise etaN t') <*> mapM go args)
 

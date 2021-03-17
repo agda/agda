@@ -10,6 +10,8 @@ module Agda.Syntax.Abstract
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
+
 import Data.Bifunctor
 import qualified Data.Foldable as Fold
 import Data.Function (on)
@@ -22,6 +24,8 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Void
 import Data.Data (Data)
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)--, HoleContent'(..))
 import qualified Agda.Syntax.Concrete as C
@@ -52,7 +56,7 @@ import Agda.Utils.Impossible
 -- e.g. in @{_ : A} -> ..@ vs. @{r : A} -> ..@.
 
 newtype BindName = BindName { unBind :: Name }
-  deriving (Show, Data, HasRange, KillRange, SetRange)
+  deriving (Show, Data, HasRange, KillRange, SetRange, NFData)
 
 mkBindName :: Name -> BindName
 mkBindName x = BindName x
@@ -109,7 +113,7 @@ data Expr
   | Tactic ExprInfo Expr [NamedArg Expr]
                                        -- ^ @tactic e x1 .. xn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 -- | Pattern synonym for regular Def
 pattern Def :: QName -> Expr
@@ -133,7 +137,7 @@ type Ren a = Map a (List1 a)
 data ScopeCopyInfo = ScopeCopyInfo
   { renModules :: Ren ModuleName
   , renNames   :: Ren QName }
-  deriving (Eq, Show, Data)
+  deriving (Eq, Show, Data, Generic)
 
 initCopyInfo :: ScopeCopyInfo
 initCopyInfo = ScopeCopyInfo
@@ -184,7 +188,7 @@ data Declaration
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 type DefInfo = DefInfo' Expr
 
@@ -197,7 +201,7 @@ data ModuleApplication
       -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
     | RecordModuleInstance ModuleName
       -- ^ @M {{...}}@
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 data Pragma
   = OptionsPragma [String]
@@ -217,7 +221,7 @@ data Pragma
   | InjectivePragma QName
   | InlinePragma Bool QName -- INLINE or NOINLINE
   | DisplayPragma QName [NamedArg Pattern] Expr
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 -- | Bindings that are valid in a @let@.
 data LetBinding
@@ -234,8 +238,7 @@ data LetBinding
     -- ^ Only used for highlighting. Refers to the first occurrence of
     -- @x@ in @let x : A; x = e@.
 --  | LetGeneralize DefInfo ArgInfo Expr
-  deriving (Data, Show, Eq)
-
+  deriving (Data, Show, Eq, Generic)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -248,7 +251,7 @@ type TacticAttr = Maybe Expr
 data Binder' a = Binder
   { binderPattern :: Maybe Pattern
   , binderName    :: a
-  } deriving (Data, Show, Eq, Functor, Foldable, Traversable)
+  } deriving (Data, Show, Eq, Functor, Foldable, Traversable, Generic)
 
 type Binder = Binder' BindName
 
@@ -267,7 +270,7 @@ data LamBinding
     -- ^ . @x@ or @{x}@ or @.x@ or @{x = y}@ or @x\@p@ or @(p)@
   | DomainFull TypedBinding
     -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 mkDomainFree :: NamedArg Binder -> LamBinding
 mkDomainFree = DomainFree Nothing
@@ -291,7 +294,7 @@ data TypedBinding
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range (List1 LetBinding)
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 mkTBind :: Range -> List1 (NamedArg Binder) -> Expr -> TypedBinding
 mkTBind r = TBind r Nothing
@@ -312,7 +315,7 @@ data GeneralizeTelescope = GeneralizeTel
     -- ^ Maps generalize variables to the corresponding bound variable (to be
     --   introduced by the generalisation).
   , generalizeTel     :: Telescope }
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 data DataDefParams = DataDefParams
   { dataDefGeneralizedParams :: Set Name
@@ -320,7 +323,7 @@ data DataDefParams = DataDefParams
     --   sig, so we keep these in a set on the side.
   , dataDefParams :: [LamBinding]
   }
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 noDataDefParams :: DataDefParams
 noDataDefParams = DataDefParams Set.empty []
@@ -342,7 +345,7 @@ data ProblemEq = ProblemEq
   { problemInPat :: Pattern
   , problemInst  :: I.Term
   , problemType  :: I.Dom I.Type
-  } deriving (Data, Show)
+  } deriving (Data, Show, Generic)
 
 -- These are not relevant for caching purposes
 instance Eq ProblemEq where _ == _ = True
@@ -358,7 +361,7 @@ data Clause' lhs = Clause
   , clauseRHS        :: RHS
   , clauseWhereDecls :: WhereDeclarations
   , clauseCatchall   :: Bool
-  } deriving (Data, Show, Functor, Foldable, Traversable, Eq)
+  } deriving (Data, Show, Functor, Foldable, Traversable, Eq, Generic)
 
 data WhereDeclarations = WhereDecls
   { whereModule :: Maybe ModuleName
@@ -366,7 +369,7 @@ data WhereDeclarations = WhereDecls
       --        so remember whether it was named here
   , whereDecls  :: Maybe Declaration
       -- ^ The declaration is a 'Section'.
-  } deriving (Data, Show, Eq)
+  } deriving (Data, Show, Eq, Generic)
 
 instance Null WhereDeclarations where
   empty = WhereDecls empty empty
@@ -387,7 +390,7 @@ data RHS
       --   'Nothing' for internally generated rhss.
     }
   | AbsurdRHS
-  | WithRHS QName [WithHiding Expr] [Clause]
+  | WithRHS QName [Arg Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
   | RewriteRHS
     { rewriteExprs      :: [RewriteEqn]
@@ -402,7 +405,7 @@ data RHS
       -- ^ The where clauses are attached to the @RewriteRHS@ by
       ---  the scope checker (instead of to the clause).
     }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 -- | Ignore 'rhsConcrete' when comparing 'RHS's.
 instance Eq RHS where
@@ -420,7 +423,7 @@ data SpineLHS = SpineLHS
   , spLhsDefName  :: QName               -- ^ Name of function we are defining.
   , spLhsPats     :: [NamedArg Pattern]  -- ^ Elimination by pattern, projections, with-patterns.
   }
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 -- | Ignore 'Range' when comparing 'LHS's.
 instance Eq LHS where
@@ -432,7 +435,7 @@ data LHS = LHS
   { lhsInfo     :: LHSInfo               -- ^ Range.
   , lhsCore     :: LHSCore               -- ^ Copatterns.
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 -- | The lhs in projection-application and with-pattern view.
 --   Parameterised over the type @e@ of dot patterns.
@@ -460,7 +463,7 @@ data LHSCore' e
              , lhsPats         :: [NamedArg (Pattern' e)]
                  -- ^ Further applied to patterns.
              }
-  deriving (Data, Show, Functor, Foldable, Traversable, Eq)
+  deriving (Data, Show, Functor, Foldable, Traversable, Eq, Generic)
 
 type LHSCore = LHSCore' Expr
 
@@ -491,7 +494,7 @@ data Pattern' e
   | EqualP PatInfo [(e, e)]
   | WithP PatInfo (Pattern' e)  -- ^ @| p@, for with-patterns.
   | AnnP PatInfo e (Pattern' e) -- ^ Pattern with type annotation
-  deriving (Data, Show, Functor, Foldable, Traversable, Eq)
+  deriving (Data, Show, Functor, Foldable, Traversable, Eq, Generic)
 
 type NAPs e   = [NamedArg (Pattern' e)]
 type NAPs1 e  = List1 (NamedArg (Pattern' e))
@@ -850,6 +853,26 @@ instance KillRange LetBinding where
   killRange (LetOpen    i x dir     ) = killRange3 LetOpen  i x dir
   killRange (LetDeclaredVariable x)  = killRange1 LetDeclaredVariable x
 
+instance NFData Expr
+instance NFData ScopeCopyInfo
+instance NFData Declaration
+instance NFData ModuleApplication
+instance NFData Pragma
+instance NFData LetBinding
+instance NFData a => NFData (Binder' a)
+instance NFData LamBinding
+instance NFData TypedBinding
+instance NFData GeneralizeTelescope
+instance NFData DataDefParams
+instance NFData ProblemEq
+instance NFData lhs => NFData (Clause' lhs)
+instance NFData WhereDeclarations
+instance NFData RHS
+instance NFData SpineLHS
+instance NFData LHS
+instance NFData e => NFData (LHSCore' e)
+instance NFData e => NFData (Pattern' e)
+
 ------------------------------------------------------------------------
 -- Queries
 ------------------------------------------------------------------------
@@ -968,6 +991,8 @@ lambdaLiftExpr ns e
       e
       ns
 
+-- NOTE: This is only used on expressions that come from right-hand sides of pattern synonyms, and
+-- thus does not have to handle all forms of expressions.
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
 
@@ -998,46 +1023,35 @@ instance SubstExpr ModuleName where
 
 instance SubstExpr Expr where
   substExpr s e = case e of
-    Var n                 -> fromMaybe e (lookup n s)
-    Def' _ _              -> e
-    Proj{}                -> e
-    Con _                 -> e
-    Lit _ _               -> e
-    QuestionMark{}        -> e
-    Underscore   _        -> e
-    Dot i e               -> Dot i (substExpr s e)
-    App  i e e'           -> App i (substExpr s e) (substExpr s e')
-    WithApp i e es        -> WithApp i (substExpr s e) (substExpr s es)
-    Lam  i lb e           -> Lam i lb (substExpr s e)
-    AbsurdLam i h         -> e
-    ExtendedLam i di n cs -> __IMPOSSIBLE__   -- Maybe later...
-    Pi   i t e            -> Pi i (substExpr s t) (substExpr s e)
-    Generalized ns e      -> Generalized ns (substExpr s e)
-    Fun  i ae e           -> Fun i (substExpr s ae) (substExpr s e)
-    Let  i ls e           -> Let i (substExpr s ls) (substExpr s e)
-    ETel t                -> e
-    Rec  i nes            -> Rec i (substExpr s nes)
-    RecUpdate i e nes     -> RecUpdate i (substExpr s e) (substExpr s nes)
-    -- XXX: Do we need to do more with ScopedExprs?
-    ScopedExpr si e       -> ScopedExpr si (substExpr s e)
-    Quote i               -> e
-    QuoteTerm i           -> e
-    Unquote i             -> e
-    Tactic i e xs         -> Tactic i (substExpr s e) (substExpr s xs)
-    DontCare e            -> DontCare (substExpr s e)
-    PatternSyn{}          -> e
-    Macro{}               -> e
-
-instance SubstExpr LetBinding where
-  substExpr s lb = case lb of
-    LetBind i r n e e' -> LetBind i r n (substExpr s e) (substExpr s e')
-    LetPatBind i p e   -> LetPatBind i p (substExpr s e) -- Andreas, 2012-06-04: what about the pattern p
-    _                  -> lb -- Nicolas, 2013-11-11: what about "LetApply" there is experessions in there
-
-instance SubstExpr TypedBinding where
-  substExpr s tb = case tb of
-    TBind r t ns e -> TBind r (substExpr s t) ns $ substExpr s e
-    TLet r lbs     -> TLet r $ substExpr s lbs
+    Var n           -> fromMaybe e (lookup n s)
+    Con _           -> e
+    Proj{}          -> e
+    Def' _ _        -> e
+    PatternSyn{}    -> e
+    Lit _ _         -> e
+    Underscore   _  -> e
+    App  i e e'     -> App i (substExpr s e) (substExpr s e')
+    Rec  i nes      -> Rec i (substExpr s nes)
+    ScopedExpr si e -> ScopedExpr si (substExpr s e)
+    -- The below cannot appear in pattern synonym right-hand sides
+    QuestionMark{}  -> __IMPOSSIBLE__
+    Dot{}           -> __IMPOSSIBLE__
+    WithApp{}       -> __IMPOSSIBLE__
+    Lam{}           -> __IMPOSSIBLE__
+    AbsurdLam{}     -> __IMPOSSIBLE__
+    ExtendedLam{}   -> __IMPOSSIBLE__
+    Pi{}            -> __IMPOSSIBLE__
+    Generalized{}   -> __IMPOSSIBLE__
+    Fun{}           -> __IMPOSSIBLE__
+    Let{}           -> __IMPOSSIBLE__
+    ETel{}          -> __IMPOSSIBLE__
+    RecUpdate{}     -> __IMPOSSIBLE__
+    Quote{}         -> __IMPOSSIBLE__
+    QuoteTerm{}     -> __IMPOSSIBLE__
+    Unquote{}       -> __IMPOSSIBLE__
+    Tactic{}        -> __IMPOSSIBLE__
+    DontCare{}      -> __IMPOSSIBLE__
+    Macro{}         -> __IMPOSSIBLE__
 
 -- TODO: more informative failure
 insertImplicitPatSynArgs

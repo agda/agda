@@ -15,6 +15,7 @@ module Agda.Syntax.Notation where
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
 import Control.Monad
 import Control.Monad.Except
 
@@ -22,6 +23,8 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import GHC.Generics (Generic)
 
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
@@ -91,7 +94,7 @@ data NotationKind
   | PostfixNotation -- ^ Ex: @bla_blub_@.
   | NonfixNotation  -- ^ Ex: @bla_blub@.
   | NoNotation
-   deriving (Eq, Show)
+   deriving (Eq, Show, Generic)
 
 -- | Classify a notation by presence of leading and/or trailing
 -- /normal/ holes.
@@ -123,11 +126,9 @@ mkNotation _ [] = throwError "empty notation is disallowed"
 mkNotation holes ids = do
   unless uniqueHoleNames     $ throwError "syntax must use unique argument names"
   let xs :: Notation = map mkPart ids
-  unless (isAlternating xs)  $ throwError $ concat
-     [ "syntax must alternate holes ("
+  unless (noAdjacentHoles xs)  $ throwError $ concat
+     [ "syntax must not contain adjacent holes ("
      , prettyHoles
-     , ") and non-holes ("
-     , prettyNonHoles xs
      , ")"
      ]
   unless (isExprLinear xs)   $ throwError "syntax must use holes exactly once"
@@ -144,16 +145,6 @@ mkNotation holes ids = do
 
       prettyHoles :: String
       prettyHoles = List.unwords $ map (rawNameToString . rangedThing) holeNames
-
-      nonHoleNames :: Notation -> [RString]
-      nonHoleNames xs = flip mapMaybe xs $ \case
-        WildHole{}   -> Just $ unranged "_"
-        IdPart x     -> Just x
-        BindHole{}   -> Nothing
-        NormalHole{} -> Nothing
-
-      prettyNonHoles :: Notation -> String
-      prettyNonHoles = List.unwords . map (rawNameToString . rangedThing) . nonHoleNames
 
       mkPart ident = maybe (IdPart ident) (`withRangeOf` ident) $ lookup ident holeMap
 
@@ -204,10 +195,11 @@ mkNotation holes ids = do
                           [ i | (i, h) <- numberedHoles,
                                 LambdaHole x _ <- [namedArg h], rangedThing x /= "_" ]
 
-      isAlternating :: [GenPart] -> Bool
-      isAlternating []       = __IMPOSSIBLE__
-      isAlternating [x]      = True
-      isAlternating (x:y:xs) = isAHole x /= isAHole y && isAlternating (y:xs)
+      noAdjacentHoles :: [GenPart] -> Bool
+      noAdjacentHoles []       = __IMPOSSIBLE__
+      noAdjacentHoles [x]      = True
+      noAdjacentHoles (x:y:xs) =
+        not (isAHole x && isAHole y) && noAdjacentHoles (y:xs)
 
       isSingleHole :: [GenPart] -> Bool
       isSingleHole = \case
@@ -230,7 +222,7 @@ data NewNotation = NewNotation
   , notaIsOperator :: Bool
     -- ^ True if the notation comes from an operator (rather than a
     -- syntax declaration).
-  } deriving Show
+  } deriving (Show, Generic)
 
 instance LensFixity NewNotation where
   lensFixity f nota = f (notaFixity nota) <&> \ fx -> nota { notaFixity = fx }
@@ -364,7 +356,7 @@ data NotationSection = NotationSection
   , sectIsSection :: Bool
     -- ^ 'False' for non-sectioned operators.
   }
-  deriving Show
+  deriving (Show, Generic)
 
 -- | Converts a notation to a (non-)section.
 
@@ -396,3 +388,9 @@ instance Pretty NotationSection where
         , pretty nota
         ]
     | otherwise = pretty nota
+
+-- NFData instances
+
+instance NFData NotationKind
+instance NFData NewNotation
+instance NFData NotationSection

@@ -1,10 +1,26 @@
 Release notes for Agda version 2.6.2
 ====================================
 
+Building Agda
+-------------
+
+* Some expensive optimisations are now off by default
+  (see [#4521](https://github.com/agda/agda/issues/4521)).
+
+  These optimisations can be turned on manually (Cabal:
+  `-foptimise-heavily`, Stack: `--flag Agda:optimise-heavily`). They
+  are turned on (by default) when Agda is installed using `make
+  install`.
+
+  If the optimisations are turned on it might make sense to limit
+  GHC's memory usage (using something like `--ghc-options="+RTS -M6G
+  -RTS"`).
+
 Installation and infrastructure
 -------------------------------
 
-* Added support for GHC 8.10.3.
+* Added support for GHC 8.10.4.
+
 
 Command-line interaction
 ------------------------
@@ -73,6 +89,10 @@ Pragmas and options
 * New option `--show-identity-substitutions` shows all arguments of metavariables
   when pretty-printing a term, even if they amount to just applying
   all the variables in the context.
+
+* The option `--rewriting` is now considered infective: if a module has
+  `--rewriting` enabled, then all modules importing it must also have
+  `--rewriting` enabled.
 
 Language
 --------
@@ -296,6 +316,32 @@ Language
   default modality. (It is unclear what the old rule was, perhaps
   nothing was changed.)
 
+* Private abstract type signatures can no longer see through abstract (see
+  [#418](https://github.com/agda/agda/issues/418)).
+
+  This means that abstract definitions no longer evaluate in *any* type
+  signatures in the same module. Previously they evaluated in type signatures
+  of definitions that were both private and abstract.
+
+  It also means that metavariables in type signatures have to be solved
+  locally, and cannot make use of information in the definition body, and that
+  constructors of abstract datatypes are not in scope in type signatures.
+
+* Type inference is disabled for abstract definitions (see
+  [#418](https://github.com/agda/agda/issues/418)).
+
+  This means that abstract definitions (inluding functions defined in `where`
+  blocks of abstract definitions) need complete type signatures.
+
+* One can now declare syntax with two name parts without any hole in
+  between, and syntax without any holes.
+
+  Examples:
+  ```agda
+  syntax Σ A (λ x → B) = [ x ∶ A ] × B
+  syntax []            = [ ]
+  ```
+
 Builtins
 --------
 
@@ -365,6 +411,20 @@ Builtins
   ```
 
   All of these operations are implemented on the JavaScript backend.
+
+- `primNatToChar` maps surrogate code points to the replacement character
+  `'U+FFFD` and surrogate code points are disallowed in character literals
+
+  [Surrogate code points](https://www.unicode.org/glossary/#surrogate_code_point)
+  are characters in the range `U+D800` to `U+DFFF` and are reserved for use by
+  UTF-16.
+
+  The reason for this change is that strings are represented (at type-checking
+  time and in the GHC backend) by Data.Text byte strings, which cannot
+  represent surrogate code points and replaces them by `U+FFFD`. By doing the
+  same for characters we can have `primStringFromList` be injective (witnessed
+  by `Agda.Builtin.String.Properties.primStringFromListInjective`).
+
 
 Reflection
 ----------
@@ -519,6 +579,10 @@ Emacs mode
   `C-u C-u C-u C-c C-n downFrom 5` returns `4 ∷ downFrom 4`.
 
 * New keyboard shortcut `C-c C-x C-i` for toggling display of irrelevant arguments.
+
+* One can no longer use commands like `M-;` (`comment-dwim`) to
+  uncomment block comments. In return one can use `M-;` to comment out
+  pragmas. (See [#3329](https://github.com/agda/agda/issues/3329).)
 
 JSON Interaction mode
 ---------------------

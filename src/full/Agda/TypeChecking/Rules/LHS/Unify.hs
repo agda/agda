@@ -618,11 +618,13 @@ rightToLeftStrategy s =
 
 completeStrategyAt :: Int -> UnifyStrategy
 completeStrategyAt k s = msum $ map (\strat -> strat k s) $
+-- ASR (2021-02-07). The below eta-expansions are required by GHC >=
+-- 9.0.1 (see Issue #4955).
     [ (\n -> skipIrrelevantStrategy n)
     , (\n -> basicUnifyStrategy n)
     , (\n -> literalStrategy n)
     , (\n -> dataStrategy n)
-    , (\n -> etaExpandVarStrategy n)
+    , (\n -> etaExpandVarStrategy  n)
     , (\n -> etaExpandEquationStrategy n)
     , (\n -> injectiveTypeConStrategy n)
     , (\n -> injectivePragmaStrategy n)

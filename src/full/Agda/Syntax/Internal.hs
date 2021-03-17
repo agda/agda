@@ -23,6 +23,8 @@ import Data.Set (Set)
 import Data.Traversable
 import Data.Data (Data)
 
+import GHC.Generics (Generic)
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
@@ -149,7 +151,7 @@ type NamedArgs  = [NamedArg Term]
 data DataOrRecord
   = IsData
   | IsRecord PatternOrCopattern
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
@@ -161,7 +163,7 @@ data ConHead = ConHead
   , conFields     :: [Arg QName]   -- ^ The name of the record fields.
       --   'Arg' is stored since the info in the constructor args
       --   might not be accurate because of subtyping (issue #2170).
-  } deriving (Data, Show)
+  } deriving (Data, Show, Generic)
 
 instance Eq ConHead where
   (==) = (==) `on` conName
@@ -237,7 +239,7 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable, Generic)
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -279,11 +281,12 @@ instance LensSort a => LensSort (Arg a) where
 --   and so on.
 data Tele a = EmptyTel
             | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
 
 type Telescope = Tele (Dom Type)
 
-data IsFibrant = IsFibrant | IsStrict deriving (Data,Show,Eq,Ord)
+data IsFibrant = IsFibrant | IsStrict
+  deriving (Data, Show, Eq, Ord, Generic)
 
 -- | Sorts.
 --
@@ -397,7 +400,7 @@ data Clause = Clause
     , clauseEllipsis  :: ExpandedEllipsis
       -- ^ Was this clause created by expansion of an ellipsis?
     }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
@@ -417,7 +420,7 @@ nameToPatVarName = nameToArgName
 data PatternInfo = PatternInfo
   { patOrigin :: PatOrigin
   , patAsNames :: [Name]
-  } deriving (Data, Show, Eq)
+  } deriving (Data, Show, Eq, Generic)
 
 defaultPatternInfo :: PatternInfo
 defaultPatternInfo = PatternInfo PatOSystem []
@@ -433,7 +436,7 @@ data PatOrigin
   | PatORec            -- ^ User wrote a record pattern
   | PatOLit            -- ^ User wrote a literal pattern
   | PatOAbsurd         -- ^ User wrote an absurd pattern
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 -- | Patterns are variables, constructors, or wildcards.
 --   @QName@ is used in @ConP@ rather than @Name@ since
@@ -457,7 +460,7 @@ data Pattern' x
     -- ^ Path elimination pattern, like @VarP@ but keeps track of endpoints.
   | DefP PatternInfo QName [NamedArg (Pattern' x)]
     -- ^ Used for HITs, the QName should be the one from primHComp.
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
 
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
@@ -475,7 +478,7 @@ litP = LitP defaultPatternInfo
 data DBPatVar = DBPatVar
   { dbPatVarName  :: PatVarName
   , dbPatVarIndex :: Int
-  } deriving (Data, Show, Eq)
+  } deriving (Data, Show, Eq, Generic)
 
 type DeBruijnPattern = Pattern' DBPatVar
 
@@ -522,7 +525,7 @@ data ConPatternInfo = ConPatternInfo
     --   variables they bind are unused. The GHC backend compiles lazy matches
     --   to lazy patterns in Haskell (TODO: not yet).
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 noConPatternInfo :: ConPatternInfo
 noConPatternInfo = ConPatternInfo defaultPatternInfo False False Nothing False
@@ -677,6 +680,7 @@ data Substitution' a
            , Foldable
            , Traversable
            , Data
+           , Generic
            )
 
 type Substitution = Substitution' Term
@@ -1416,3 +1420,16 @@ instance NFData PlusLevel where
 
 instance NFData e => NFData (Dom e) where
   rnf (Dom a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
+
+instance NFData DataOrRecord
+instance NFData ConHead
+instance NFData a => NFData (Abs a)
+instance NFData a => NFData (Tele a)
+instance NFData IsFibrant
+instance NFData Clause
+instance NFData PatternInfo
+instance NFData PatOrigin
+instance NFData x => NFData (Pattern' x)
+instance NFData DBPatVar
+instance NFData ConPatternInfo
+instance NFData a => NFData (Substitution' a)

@@ -1,6 +1,38 @@
 name: Build, Test, and Benchmark
 
 on:
+  pull_request:
+    branches:
+    - master
+    - issue*
+    - release*
+    paths-ignore:
+    - '.github/*'
+    - '.github/workflows/cabal.yml'
+    - '.github/workflows/haddock.yml'
+    - '.github/workflows/lint.yml'
+    - '.github/workflows/deploy.yml'
+    - '.github/workflows/stack.yml'
+    - '.github/workflows/user_manual.yml'
+    - '.github/workflows/whitespace.yml'
+    - 'src/fix-whitespace/**'
+    - 'src/hs-tags/**'
+    - '.travis'
+    - 'macros/**'
+    - 'notes/**'
+    - '.mailmap'
+    - '.ghci*'
+    - '.gitignore'
+    - '.hlint.yaml'
+    - '.travis.yml'
+    - 'CHANGELOG.md'
+    - 'HACKING.md'
+    - 'LICENSE'
+    - 'README.md'
+    - 'fix-whitespace.yaml'
+    - 'hie.yaml'
+    - 'stack-*.yaml'
+    - 'touchup.sh'
   push:
     branches:
     - master
@@ -16,9 +48,9 @@ on:
     - '.github/workflows/user_manual.yml'
     - '.github/workflows/whitespace.yml'
     - 'src/fix-whitespace/**'
+    - 'src/hs-tags/**'
     - '.travis'
     - 'macros/**'
-    - 'mk/**'
     - 'notes/**'
     - '.mailmap'
     - '.ghci*'
@@ -48,7 +80,7 @@ jobs:
   build:
     strategy:
       matrix:
-        ghc-ver: [8.10.3]
+        ghc-ver: [8.10.4]
         stack-ver: [2.5.1]
         os: [ubuntu-18.04]
 
@@ -85,10 +117,9 @@ jobs:
         echo "system-ghc: true" >> ~/.stack/config.yaml
 
     - name: "Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml"
-      continue-on-error: true
       run: |
         cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
-        make STACK_INSTALL_OPTS='--dry-run' install-bin
+        make STACK_INSTALL_OPTS='--dry-run' install-deps
 
     - uses: actions/cache@v2
       name: Cache dependencies

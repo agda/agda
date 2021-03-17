@@ -42,7 +42,7 @@ import Agda.Syntax.Concrete.Generic
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Concrete.Pattern
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Pattern ( patternVars, checkPatternLinearity, containsAsPattern )
+import Agda.Syntax.Abstract.Pattern as A ( patternVars, checkPatternLinearity, containsAsPattern, lhsCoreApp, lhsCoreWith )
 import Agda.Syntax.Abstract.Pretty
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -82,6 +82,7 @@ import Agda.Interaction.Options.Warnings
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.CallStack ( HasCallStack, withCurrentCallStack )
+import Agda.Utils.Char
 import Agda.Utils.Either
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -213,7 +214,7 @@ recordConstructorType decls =
         C.NiceMutual _ _ _ _
           [ C.FunSig _ _ _ _ macro _ _ _ _ _
           , C.FunDef _ _ abstract _ _ _ _
-             [ C.Clause _ _ (C.LHS _p [] [] NoEllipsis) (C.RHS _) NoWhere [] ]
+             [ C.Clause _ _ (C.LHS _p [] []) (C.RHS _) NoWhere [] ]
           ] | abstract /= AbstractDef && macro /= MacroDef -> do
           mkLet d
 
@@ -429,6 +430,13 @@ checkOpen r mam x dir = do
     text ( "scope checked NiceOpen " ++ prettyShow x
          ) : map (nest 2 . prettyA) adecls
   return (minfo, m, adir)
+
+-- | Check a literal, issuing an error warning for bad literals.
+checkLiteral :: Literal -> ScopeM ()
+checkLiteral (LitChar c)
+  | isSurrogateCodePoint c = genericNonFatalError $ P.text $ "Invalid character literal " ++ show c ++
+                                                             " (surrogate code points are not supported)"
+checkLiteral _ = return ()
 
 {--------------------------------------------------------------------------
     Translation
@@ -828,7 +836,7 @@ scopeCheckExtendedLam r cs = do
   d <- C.FunDef r [] a NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ cname . List1.toList <$> do
           forM cs $ \ (LamClause ps rhs ca) -> do
             let p   = C.rawAppP $ (killRange $ IdentP $ C.QName cname) :| ps
-            let lhs = C.LHS p [] [] NoEllipsis
+            let lhs = C.LHS p [] []
             return $ C.Clause cname ca lhs rhs NoWhere []
   scdef <- toAbstract d
 
@@ -838,6 +846,15 @@ scopeCheckExtendedLam r cs = do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $ A.ExtendedLam (ExprRange r) di qname' $ List1.fromList cs
     _ -> __IMPOSSIBLE__
+
+-- | Raise an error if argument is a C.Dot with Hiding info.
+
+rejectPostfixProjectionWithHiding :: NamedArg C.Expr -> ScopeM ()
+rejectPostfixProjectionWithHiding arg =
+  case namedArg arg of
+    C.Dot{} | notVisible arg -> setCurrentRange arg $ genericDocError $
+      "Illegal hiding in postfix projection " P.<+> P.pretty arg
+    _ -> return ()
 
 -- | Scope check an expression.
 
@@ -852,6 +869,7 @@ instance ToAbstract C.Expr where
 
   -- Literals
       C.Lit r l -> do
+        checkLiteral l
         case l of
           LitNat n -> do
             let builtin | n < 0     = Just <$> primFromNeg    -- negative literals are only allowed if FROMNEG is defined
@@ -906,6 +924,9 @@ instance ToAbstract C.Expr where
 
   -- Application
       C.App r e1 e2 -> do
+        -- Andreas, 2021-02-10, issue #3289: reject @e {.p}@ and @e ⦃ .p ⦄@.
+        rejectPostfixProjectionWithHiding e2
+
         let parenPref = inferParenPreference (namedArg e2)
             info = (defaultAppInfo r) { appOrigin = UserWritten, appParens = parenPref }
         e1 <- toAbstractCtx FunctionCtx e1
@@ -1113,14 +1134,14 @@ scopeCheckNiceModule r p name tel checkDs
       -- But open statements in the module telescope should
       -- only affect the current module!
       scopeCheckNiceModule noRange p noName_ [] $ singleton <$>
-        scopeCheckNiceModule_
+        scopeCheckNiceModule_ PublicAccess  -- See #4350
 
   | otherwise = do
-        scopeCheckNiceModule_
+        scopeCheckNiceModule_ p
   where
     -- The actual workhorse:
-    scopeCheckNiceModule_ :: ScopeM A.Declaration
-    scopeCheckNiceModule_ = do
+    scopeCheckNiceModule_ :: Access -> ScopeM A.Declaration
+    scopeCheckNiceModule_ p = do
 
       -- Check whether we are dealing with an anonymous module.
       -- This corresponds to a Coq/LEGO section.
@@ -1504,7 +1525,7 @@ instance ToAbstract LetDef where
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs
-      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] [] NoEllipsis) rhs0 wh ca) -> do
+      NiceFunClause r PublicAccess ConcreteDef tc cc catchall d@(C.FunClause lhs@(C.LHS p0 [] []) rhs0 wh ca) -> do
         noWhereInLetBinding wh
         rhs <- letBindingMustHaveRHS rhs0
         mp  <- setCurrentRange p0 $
@@ -1527,7 +1548,7 @@ instance ToAbstract LetDef where
             case definedName p0 of
               Nothing -> throwError err
               Just x  -> toAbstract $ LetDef $ NiceMutual r tc cc YesPositivityCheck
-                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo tc cc x (C.Underscore (getRange x) Nothing)
+                [ C.FunSig r PublicAccess ConcreteDef NotInstanceDef NotMacroDef (setOrigin Inserted defaultArgInfo) tc cc x (C.Underscore (getRange x) Nothing)
                 , C.FunDef r __IMPOSSIBLE__ ConcreteDef NotInstanceDef __IMPOSSIBLE__ __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
@@ -1573,7 +1594,7 @@ instance ToAbstract LetDef where
 
       _   -> notAValidLetBinding d
     where
-        letToAbstract (C.Clause top _catchall (C.LHS p [] [] NoEllipsis) rhs0 wh []) = do
+        letToAbstract (C.Clause top _catchall (C.LHS p [] []) rhs0 wh []) = do
             noWhereInLetBinding wh
             rhs <- letBindingMustHaveRHS rhs0
             (x, args) <- do
@@ -1582,6 +1603,7 @@ instance ToAbstract LetDef where
                 C.LHSHead x args -> return (x, args)
                 C.LHSProj{} -> genericError $ "Copatterns not allowed in let bindings"
                 C.LHSWith{} -> genericError $ "`with` patterns not allowed in let bindings"
+                C.LHSEllipsis{} -> genericError "`...` not allowed in let bindings"
 
             e <- localToAbstract args $ \args -> do
                 bindVarsToBind
@@ -1813,7 +1835,8 @@ instance ToAbstract NiceDeclaration where
   -- Record definitions (mucho interesting)
     C.NiceRecDef r o a _ uc x (RecordDirectives ind eta pat cm) pars fields -> do
       reportSLn "scope.rec.def" 20 ("checking " ++ show o ++ " RecDef for " ++ prettyShow x)
-
+      -- #3008: Termination pragmas are ignored in records
+      checkNoTerminationPragma InRecordDef fields
       -- Andreas, 2020-04-19, issue #4560
       -- 'pattern' declaration is incompatible with 'coinductive' or 'eta-equality'.
       whenJust pat $ \ r -> do
@@ -2380,7 +2403,7 @@ instance ToAbstract C.Pragma where
         PatternSynResName (d :| []) -> return . (True,) $ anameName d
         PatternSynResName ds        -> genericError $ "Ambiguous pattern synonym" ++ prettyShow top ++ ": " ++ prettyShow (fmap anameName ds)
 
-    lhs <- toAbstract $ LeftHandSide top lhs NoEllipsis
+    lhs <- toAbstract $ LeftHandSide top lhs
     ps  <- case lhs of
              A.LHS _ (A.LHSHead _ ps) -> return ps
              _ -> err
@@ -2424,13 +2447,13 @@ instance ToAbstract C.Pragma where
 instance ToAbstract C.Clause where
   type AbsOfCon C.Clause = A.Clause
 
-  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with ell) rhs wh wcs) = withLocalVars $ do
+  toAbstract (C.Clause top catchall lhs@(C.LHS p eqs with) rhs wh wcs) = withLocalVars $ do
     -- Jesper, 2018-12-10, #3095: pattern variables bound outside the
     -- module are locally treated as module parameters
     modifyScope_ $ updateScopeLocals $ map $ second patternToModuleBound
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars0 <- getLocalVars
-    lhs' <- toAbstract $ LeftHandSide (C.QName top) p ell
+    lhs' <- toAbstract $ LeftHandSide (C.QName top) p
     printLocals 10 "after lhs:"
     vars1 <- getLocalVars
     eqs <- mapM (toAbstractCtx TopCtx) eqs
@@ -2484,8 +2507,7 @@ whereToAbstract1
 whereToAbstract1 r whname whds inner = do
   -- ASR (16 November 2015) Issue 1137: We ban termination
   -- pragmas inside `where` clause.
-  when (any isTerminationPragma whds) $
-    genericError "Termination pragmas are not allowed inside where clauses"
+  checkNoTerminationPragma InWhereBlock whds
 
   -- Create a fresh concrete name if there isn't (a proper) one.
   (m, acc) <- do
@@ -2508,15 +2530,40 @@ whereToAbstract1 r whname whds inner = do
       defaultImportDir { publicOpen = Just noRange }
   return (x, A.WhereDecls (am <$ whname) $ singleton d)
 
-isTerminationPragma :: C.Declaration -> Bool
-isTerminationPragma (C.Private _ _ ds) = any isTerminationPragma ds
-isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
-isTerminationPragma _                                       = False
+data TerminationOrPositivity = Termination | Positivity
+  deriving (Show)
+
+data WhereOrRecord = InWhereBlock | InRecordDef
+
+checkNoTerminationPragma :: Foldable f => WhereOrRecord -> f C.Declaration -> ScopeM ()
+checkNoTerminationPragma b ds =
+  mapM_ (\ (p, r) -> warning $ GenericUseless r $ P.vcat [ P.text $ show p ++ " pragmas are ignored in " ++ what b
+                                                         , P.text $ "(see " ++ issue b ++ ")" ])
+        (foldMap terminationPragmas ds)
+  where
+    what InWhereBlock = "where clauses"
+    what InRecordDef  = "record definitions"
+    github n = "https://github.com/agda/agda/issues/" ++ show n
+    issue InWhereBlock = github 3355
+    issue InRecordDef  = github 3008
+
+terminationPragmas :: C.Declaration -> [(TerminationOrPositivity, Range)]
+terminationPragmas (C.Private  _ _      ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Abstract _        ds) = concatMap terminationPragmas ds
+terminationPragmas (C.InstanceB _       ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Mutual _          ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Module _ _ _      ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Macro _           ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Record _ _ _ _ _  ds) = concatMap terminationPragmas ds
+terminationPragmas (C.RecordDef _ _ _ _ ds) = concatMap terminationPragmas ds
+terminationPragmas (C.Pragma (TerminationCheckPragma r _)) = [(Termination, r)]
+terminationPragmas (C.Pragma (NoPositivityCheckPragma r))  = [(Positivity, r)]
+terminationPragmas _                                       = []
 
 data RightHandSide = RightHandSide
   { _rhsRewriteEqn :: [RewriteEqn' () A.Pattern A.Expr]
       -- ^ @rewrite e | with p <- e@ (many)
-  , _rhsWithExpr   :: [WithHiding C.WithExpr]
+  , _rhsWithExpr   :: [Arg C.WithExpr]
       -- ^ @with e@ (many)
   , _rhsSubclauses :: [ScopeM C.Clause]
       -- ^ The subclauses spawned by a @with@.
@@ -2528,7 +2575,7 @@ data RightHandSide = RightHandSide
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [WithHiding A.Expr] [ScopeM C.Clause]
+  | WithRHS' [Arg A.Expr] [ScopeM C.Clause]
     -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
   | RewriteRHS' [RewriteEqn' () A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
@@ -2613,17 +2660,18 @@ instance ToAbstract C.RHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
     toAbstract (C.RHS e)   = RHS' <$> toAbstract e <*> pure e
 
-data LeftHandSide = LeftHandSide C.QName C.Pattern ExpandedEllipsis
+data LeftHandSide = LeftHandSide C.QName C.Pattern
 
 instance ToAbstract LeftHandSide where
     type AbsOfCon LeftHandSide = A.LHS
 
-    toAbstract (LeftHandSide top lhs ell) =
+    toAbstract (LeftHandSide top lhs) =
       traceCall (ScopeCheckLHS top lhs) $ do
         reportSLn "scope.lhs" 5 $ "original lhs: " ++ prettyShow lhs
         reportSLn "scope.lhs" 60 $ "patternQNames: " ++ prettyShow (patternQNames lhs)
         reportSLn "scope.lhs" 60 $ "original lhs (raw): " ++ show lhs
         lhscore <- parseLHS top lhs
+        let ell = hasExpandedEllipsis lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ prettyShow lhscore
         reportSLn "scope.lhs" 60 $ "parsed lhs (raw): " ++ show lhscore
         printLocals 10 "before lhs:"
@@ -2643,6 +2691,17 @@ instance ToAbstract LeftHandSide where
         reportSLn "scope.lhs" 60 $ "parsed lhs dot patterns: " ++ show lhscore
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSInfo (getRange lhs) ell) lhscore
+
+hasExpandedEllipsis :: C.LHSCore -> ExpandedEllipsis
+hasExpandedEllipsis core = case core of
+  C.LHSHead{}       -> NoEllipsis
+  C.LHSProj{}       -> hasExpandedEllipsis $ namedArg $ C.lhsFocus core -- can this ever be ExpandedEllipsis?
+  C.LHSWith{}       -> hasExpandedEllipsis $ C.lhsHead core
+  C.LHSEllipsis r p -> case p of
+    C.LHSWith _ wps _ -> ExpandedEllipsis r (length wps)
+    C.LHSHead{}       -> ExpandedEllipsis r 0
+    C.LHSProj{}       -> ExpandedEllipsis r 0
+    C.LHSEllipsis{}   -> __IMPOSSIBLE__
 
 -- | Merges adjacent EqualP patterns into one:
 -- type checking expects only one pattern for each domain in the telescope.
@@ -2684,10 +2743,18 @@ instance ToAbstract C.LHSCore where
                   ++ prettyShow d ++ " isn't one"
         A.LHSProj (AmbQ ds) <$> toAbstract l <*> (mergeEqualPs =<< toAbstract ps2)
     toAbstract (C.LHSWith core wps ps) = do
-      liftA3 A.LHSWith
-        (toAbstract core)
-        (toAbstract wps)
+      liftA2 A.lhsCoreApp
+        (liftA2 A.lhsCoreWith
+          (toAbstract core)
+          (toAbstract wps))
         (toAbstract ps)
+    -- In case of a part of the LHS which was expanded from an ellipsis,
+    -- we flush the @scopeVarsToBind@ in order to allow variables bound
+    -- in the ellipsis to be shadowed.
+    toAbstract (C.LHSEllipsis _ p) = do
+      ap <- toAbstract p
+      bindVarsToBind
+      return ap
 
 instance ToAbstract c => ToAbstract (WithHiding c) where
   type AbsOfCon (WithHiding c) = WithHiding (AbsOfCon c)
@@ -2743,10 +2810,9 @@ resolvePatternIdentifier r x ns = do
 applyAPattern
   :: C.Pattern            -- ^ The application pattern in concrete syntax.
   -> A.Pattern' C.Expr    -- ^ Head of application.
-  -> NAPs1 C.Expr         -- ^ Arguments of application.
+  -> NAPs C.Expr          -- ^ Arguments of application.
   -> ScopeM (A.Pattern' C.Expr)
-applyAPattern p0 p ps1 = do
-  let ps = List1.toList ps1
+applyAPattern p0 p ps = do
   setRange (getRange p0) <$> do
     case p of
       A.ConP i x as        -> return $ A.ConP        i x (as ++ ps)
@@ -2827,17 +2893,18 @@ instance ToAbstract C.Pattern where
         ps <- toAbstract ps
         applyAPattern p0 p ps
 
+    toAbstract (EllipsisP _ mp) = maybe __IMPOSSIBLE__ toAbstract mp
+
     -- Removed when parsing
     toAbstract (HiddenP _ _)   = __IMPOSSIBLE__
     toAbstract (InstanceP _ _) = __IMPOSSIBLE__
     toAbstract (RawAppP _ _)   = __IMPOSSIBLE__
-    toAbstract (EllipsisP _)   = __IMPOSSIBLE__
 
     toAbstract p@(C.WildP r)    = return $ A.WildP (PatRange r)
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p
-    toAbstract (C.LitP r l)     = return $ A.LitP (PatRange r) l
+    toAbstract (C.LitP r l)     = setCurrentRange r $ A.LitP (PatRange r) l <$ checkLiteral l
 
     toAbstract p0@(C.AsP r x p) = do
         -- Andreas, 2018-06-30, issue #3147: as-variables can be non-linear a priori!
@@ -2885,7 +2952,7 @@ toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
 toAbstractOpApp :: C.QName -> Set A.Name -> OpAppArgs -> ScopeM A.Expr
 toAbstractOpApp op ns es = do
     -- Replace placeholders with bound variables.
-    (binders, es) <- replacePlaceholders $ List1.toList es
+    (binders, es) <- replacePlaceholders es
     -- Get the notation for the operator.
     nota <- getNotation op ns
     let parts = notation nota
@@ -2951,7 +3018,7 @@ toAbstractOpApp op ns es = do
     right _ _     _  = __IMPOSSIBLE__
 
     replacePlaceholders ::
-      OpAppArgs0 e ->
+      OpAppArgs' e ->
       ScopeM ([A.LamBinding], [NamedArg (Either A.Expr (OpApp e))])
     replacePlaceholders []       = return ([], [])
     replacePlaceholders (a : as) = case namedArg a of

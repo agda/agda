@@ -67,6 +67,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Interaction.Options
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
+import Agda.Utils.Char
 import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -227,7 +228,7 @@ compactDef bEnv def rewr = do
           "primToUpper"                -> mkPrim 1 $ charFun toUpper
           "primToLower"                -> mkPrim 1 $ charFun toLower
           "primCharToNat"              -> mkPrim 1 $ \ [LitChar a] -> nat (fromIntegral (fromEnum a))
-          "primNatToChar"              -> mkPrim 1 $ \ [LitNat a] -> char (toEnum $ fromIntegral $ a `mod` 0x110000)
+          "primNatToChar"              -> mkPrim 1 $ \ [LitNat a] -> char (integerToChar a)
           "primShowChar"               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- Strings
@@ -356,7 +357,7 @@ data FastCompiledClauses
 fastCompiledClauses :: BuiltinEnv -> CompiledClauses -> FastCompiledClauses
 fastCompiledClauses bEnv cc =
   case cc of
-    Fail              -> FFail
+    Fail{}            -> FFail
     Done xs b         -> FDone xs b
     Case (Arg _ n) Branches{ etaBranch = Just (c, cc), catchAllBranch = ca } ->
       FEta n (conFields c) (fastCompiledClauses bEnv $ content cc) (fastCompiledClauses bEnv <$> ca)

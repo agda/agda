@@ -1,5 +1,5 @@
-Failed to solve the following constraints:
-  _from_12 x = erased x : A (blocked on _from_12)
-Unsolved metas at the following locations:
-  Issue3855d.agda:28,15-16
-  Issue3855d.agda:29,21-25
+Issue3855d.agda:26,1-30,4
+Expected an erased argument, but found a unrestricted argument
+when checking that the clause
+works = record { to = [_] ; from = _ ; to∘from = λ _ → refl } has
+type {A : Set} → A ↠ Erased A

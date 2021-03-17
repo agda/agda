@@ -1,3 +1,4 @@
 Issue5029-2.agda:1,1-51
-Warnings for non-fatal errors such as SafeFlagNoCoverageCheck
-cannot be turned off. See --help=warning.
+You may only turn off benign warnings. The warning
+SafeFlagNoCoverageCheck is a non-fatal error and thus cannot be
+ignored. See --help=warning.

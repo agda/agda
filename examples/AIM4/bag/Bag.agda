@@ -63,7 +63,7 @@ abstract
                               {list x} {list y} {list z}
 
     eqDec : {a : Datoid} → (x y : BagType a)
-          → Either (BagEq a x y) _
+          → Either (BagEq a x y) (Not (BagEq a x y))
     eqDec {a} x y = decRel (Permutation (elemDatoid a)) (list x) (list y)
 
     BagEquiv : (a : Datoid) → DecidableEquiv (BagType a)
@@ -71,6 +71,15 @@ abstract
 
   Bag : Datoid → Datoid
   Bag a = datoid (BagType a) (BagEquiv a)
+
+  private
+    contents' : {a : Datoid} → El (Bag a) → List (El a)
+    contents' = contents
+
+    bt' : {a : Datoid} (pairs : List (Pair Pos.Pos (El a)))
+         → NoDuplicates a (map snd pairs)
+         → El (Bag a)
+    bt' = bt
 
 ----------------------------------------------------------------------
 -- Bag primitives
@@ -87,16 +96,19 @@ abstract
                         → Not (member a y (contents b')))
          → LookupResult a x b
 
+    consB : {a : Datoid} → Pos.Pos → (y : El a) (b' : El (Bag a)) → Not (member a y (contents' b')) → El (Bag a)
+    consB n y b' nyb' = bt (pair n y :: list b')
+                           (pair nyb' (invariant b'))
+
     lookup1 :  {a : Datoid}
             → (n : Pos.Pos)
             → (y : El a)
             → (b' : El (Bag a))
-            → (nyb' : Not (member a y (contents b')))
+            → (nyb' : Not (member a y (contents' b')))
             → (x : El a)
-            → Either (datoidRel a x y) _
+            → Either (datoidRel a x y) (Not (datoidRel a x y))
             → LookupResult a x b'
-            → LookupResult a x (bt (pair n y :: list b')
-                                    (pair nyb' (invariant b')))
+            → LookupResult a x (consB n y b' nyb')
     lookup1 n y b' nyb' x (left xy) _ =
       lr (Pos.toNat n) b'
          (contrapositive (memberPreservesEq xy (contents b')) nyb')
@@ -142,22 +154,20 @@ abstract
         :  {a : Datoid}
         → (x : El a)
         → (b : El (Bag a))
-        → (nxb : Not (member a x (contents b)))
+        → (nxb : Not (member a x (contents' b)))
         → datoidRel (Bag a)
                      (insert x b)
-                     (bt (pair Pos.one x :: list b) (pair nxb (invariant b)))
+                     (consB Pos.one x b nxb)
 
       insertLemma2
         :  {a : Datoid}
         → (n : Pos.Pos)
         → (x : El a)
         → (b : El (Bag a))
-        → (nxb : Not (member a x (contents b)))
+        → (nxb : Not (member a x (contents' b)))
         → datoidRel (Bag a)
-                     (insert x (bt (pair n x :: list b)
-                                   (pair nxb (invariant b))))
-                     (bt (pair (Pos.suc n) x :: list b)
-                         (pair nxb (invariant b)))
+                     (insert x (consB n x b nxb))
+                     (consB (Pos.suc n) x b nxb)
 
 ----------------------------------------------------------------------
 -- Bag traversals
@@ -196,8 +206,8 @@ abstract
       tT :  (predN : Maybe Pos.Pos)
          → Pos.Pred n predN
          → datoidRel (Bag a)
-                      (run (traverse (bt (pair n x :: b) (pair nxb ndb))))
-                      (bt (pair n x :: b) (pair nxb ndb))
+                      (run (traverse (bt' (pair n x :: b) (pair nxb ndb))))
+                      (bt' (pair n x :: b) (pair nxb ndb))
       tT Nothing  (Pos.ok eq) = {!!}
         -- subst' (\p → datoidRel (Bag a)
         --                 (run (traverse (bt (pair p x :: b) (pair nxb ndb))))

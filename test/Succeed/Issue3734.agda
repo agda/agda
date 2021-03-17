@@ -3,14 +3,22 @@
 
 -- {-# OPTIONS -v scope.warning.usage:50 #-}
 
+module Issue3734 where
+
+module N where
+  data Unused : Set where
+    a : Unused
+
 data A : Set where
   s : A → A
   a : A
 
+open N
+
 b : A
 b = a  -- (usage of a, but no warning yet installed)
 
-{-# WARNING_ON_USAGE a "Used a" #-}
+{-# WARNING_ON_USAGE a "Used constructor a" #-}
 
 _ : A
 _ = a  -- usage of a
@@ -26,7 +34,7 @@ _ = s b  -- (usage of a via b, need not show)
 
 pattern c = s a  -- usage of a
 
-{-# WARNING_ON_USAGE c "Used c" #-}
+{-# WARNING_ON_USAGE c "Used pattern synonym c" #-}
 
 _ : A
 _ = c  -- usage of c
@@ -53,6 +61,14 @@ d2 = cons  -- usage of D2.cons
 
 f2 : D2 → Set
 f2 cons = A  -- pattern usage of D2.cons
+
+pattern pcons = cons  -- ambiguous, shouldn't show
+
+d2′ : D2
+d2′ = pcons    -- should show indirect usage of D2.cons
+
+f2′ : D2 → Set
+f2′ pcons = A  -- should show indirect usage of D2.cons
 
 
 -- Ambiguous attachments of warnings shall apply to all disambiguations.

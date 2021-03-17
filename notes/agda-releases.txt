@@ -1,4 +1,4 @@
-Tested with `cabal-install 2.4.0.1`.
+Tested with `cabal-install 3.2.0.0`.
 
 When releasing the following procedure can be followed:
 
@@ -44,7 +44,8 @@ When releasing the following procedure can be followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Update the year in the copyright of the user manual, if necessary.
+* Update the year in the copyright of the user manual, in
+  `/doc/user-manual/conf.py`, if necessary.
 
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
@@ -94,10 +95,9 @@ When releasing the following procedure can be followed:
     cabal check
     cabal sdist
 
-* Build documentation for uploading to Hackage. Adapted from
-  https://hackage.haskell.org/upload (2018-07-19):
+* Build documentation for uploading to Hackage.
 
-    cabal haddock --for-hackage
+    cabal haddock --haddock-for-hackage
 
 * Ensure that the package builds properly (with multiple versions of
   GHC if possible) in Linux, macOS and Windows.
@@ -115,12 +115,11 @@ When releasing the following procedure can be followed:
     cd $BASE
     git tag -a v$MAJORVERSION -m "Agda $MAJORVERSION stable release"
 
-* Upload the tarball and the documentation to Hackage (tested with
-  cabal-install >= 2.0.0.0):
+* Upload the tarball and the documentation to Hackage:
 
     cd $BASE
-    cabal upload --publish dist/Agda-$MAJORVERSION.tar.gz
-    cabal upload --publish -d dist/Agda-$MAJORVERSION-docs.tar.gz
+    cabal upload --publish dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
+    cabal upload --publish -d dist-newstyle/Agda-$RC_VERSION-docs.tar.gz
 
 * Remove from the extra-source-files field in Agda.cabal the file (see
   Issues #4216):

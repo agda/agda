@@ -12,6 +12,7 @@ Language Reference
    coinduction
    copatterns
    core-language
+   coverage-checking
    cubical
    cumulativity
    data-types

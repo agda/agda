@@ -18,6 +18,8 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
@@ -92,9 +94,13 @@ instance PrettyTCM Constraint where
               --     ]
               --   __IMPOSSIBLE__
         FindInstance m mcands -> do
-            t <- getMetaType m
+            t <- getMetaTypeInContext m
+            TelV tel _ <- telViewUpTo' (-1) notVisible t
             sep [ "Resolve instance argument" <?> prettyCmp ":" m t
-                , cands
+                  -- #4071: Non-visible arguments to the meta are in scope of the candidates add
+                  --        those here to not get out of scope deBruijn indices when printing
+                  --        unsolved constraints.
+                , addContext tel cands
                 ]
           where
             cands =

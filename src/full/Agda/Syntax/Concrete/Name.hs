@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
 -}
@@ -131,7 +129,7 @@ data TopLevelModuleName = TopLevelModuleName
   { moduleNameRange :: Range
   , moduleNameParts :: List1 String
   }
-  deriving (Show, Data)
+  deriving (Show, Data, Generic)
 
 instance Eq    TopLevelModuleName where (==)    = (==)    `on` moduleNameParts
 instance Ord   TopLevelModuleName where compare = compare `on` moduleNameParts
@@ -518,11 +516,11 @@ instance KillRange TopLevelModuleName where
 -- * NFData instances
 ------------------------------------------------------------------------
 
--- | Ranges are not forced.
-
 instance NFData NameInScope where
   rnf InScope    = ()
   rnf NotInScope = ()
+
+-- | Ranges are not forced.
 
 instance NFData Name where
   rnf (Name _ nis ns) = rnf nis `seq` rnf ns
@@ -535,3 +533,5 @@ instance NFData NamePart where
 instance NFData QName where
   rnf (Qual a b) = rnf a `seq` rnf b
   rnf (QName a)  = rnf a
+
+instance NFData TopLevelModuleName

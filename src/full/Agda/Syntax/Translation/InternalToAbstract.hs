@@ -518,6 +518,10 @@ reifyTerm expandAnonDefs0 v0 = do
 --    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
+      -- #4160: Hacky solution: if --show-implicit, treat all lambdas as user-written. This will
+      -- prevent them from being dropped by AbstractToConcrete (where we don't have easy access to
+      -- the --show-implicit flag.
+      info <- ifM showImplicitArguments (return $ setOrigin UserWritten info) (return info)
       return $ A.Lam exprNoRange (mkDomainFree $ unnamedArg info $ mkBinder_ x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
@@ -653,7 +657,7 @@ reifyTerm expandAnonDefs0 v0 = do
 
       -- Check if we have an absurd lambda.
       case def of
-       Function{ funCompiled = Just Fail, funClauses = [cl] }
+       Function{ funCompiled = Just Fail{}, funClauses = [cl] }
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last $ namedClausePats cl
@@ -1366,7 +1370,7 @@ instance Reify Sort where
           I.Def sizeU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSizeUniv
           return $ A.Def sizeU
         I.LockUniv  -> do
-          I.Def lockU [] <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLockUniv
+          lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv
           return $ A.Def lockU
         I.PiSort a s1 s2 -> do
           pis <- freshName_ ("piSort" :: String) -- TODO: hack

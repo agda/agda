@@ -21,4 +21,4 @@ _[→]_ : (A B : NEX) → NEX
 -- _snd : ℕ → A .proj₁, which is then generalized over. The bug was that _snd
 -- turned into an explicit rather than implicit argument.
 [π₁] : ([Σ] A B [→] A) .proj₁
-[π₁] {A = A} {B = B} {snd = snd} x = x .proj₁
+[π₁] {A = A} {B = B} {snd} x = x .proj₁

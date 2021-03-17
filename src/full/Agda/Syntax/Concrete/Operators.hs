@@ -52,10 +52,11 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.Utils.Either
 import Agda.Utils.Pretty
 import Agda.Utils.List
-import Agda.Utils.List1 (List1, pattern (:|), (<|))
+import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
+import Agda.Utils.Maybe
 import Agda.Utils.Monad (guardWithError)
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
@@ -548,7 +549,8 @@ parsePat prs = \case
     p@IdentP{}       -> return p
     RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
     p@EqualP{}       -> return p -- Andrea: cargo culted from DotP
-    EllipsisP _      -> fail "bad ellipsis"
+    EllipsisP r mp   -> caseMaybe mp (fail "bad ellipsis") $ \p ->
+                          EllipsisP r . Just <$> parsePat prs p
     WithP r p        -> WithP r <$> parsePat prs p
 
 
@@ -633,6 +635,8 @@ parseLHS' lhsOrPatSyn top p = do
     let conf = PatternCheckConfig top (hasElem cons) (hasElem flds)
 
     let (errs, results) = partitionEithers $ map (validPattern conf) ps
+    reportS "scope.operators" 60 $ vcat $
+      [ "Possible parses for lhs:" ] ++ map (nest 2 . pretty . snd) results
     case results of
         -- Unique result.
         [(_,lhs)] -> do reportS "scope.operators" 50 $ "Parsed lhs:" <+> pretty lhs
@@ -697,6 +701,15 @@ classifyPattern conf p =
           lhs           = setNamedArg p2 lhs0
           (ps', _:ps'') = splitAt (length ps1) ps
       return $ ParseLHS f $ lhsCoreAddSpine (LHSProj x ps' lhs []) ps''
+
+    -- case @...@
+    Arg _ (Named _ (EllipsisP r (Just p))) :| ps -> do
+      classifyPattern conf p >>= \case  -- TODO: avoid re-parsing
+        ParsePattern{}    -> throwError Nothing
+        (ParseLHS f core) -> do
+          mapM_ (valid . namedArg) ps
+          let ellcore = LHSEllipsis r core
+          return $ ParseLHS f $ lhsCoreAddSpine ellcore ps
 
     -- case: ordinary pattern
     _ -> ParsePattern p <$ valid p
@@ -771,7 +784,9 @@ appView = loop []
   where
   loop acc = \case
     AppP p a         -> loop (namedArg a : acc) p
-    OpAppP _ op _ ps -> IdentP op <| fmap namedArg ps `List1.append` reverse acc
+    OpAppP _ op _ ps -> (IdentP op :| fmap namedArg ps)
+                          `List1.append`
+                        reverse acc
     ParenP _ p       -> loop acc p
     RawAppP _ _      -> __IMPOSSIBLE__
     HiddenP _ _      -> __IMPOSSIBLE__

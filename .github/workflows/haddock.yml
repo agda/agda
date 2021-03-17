@@ -5,12 +5,12 @@ name: Haddock
 on:
   push:
     paths:
-    - 'src/**.hs'
+    - 'src/full/**.hs'
     - 'Agda.cabal'
     - '.github/workflows/haddock.yml'
   pull_request:
     paths:
-    - 'src/**.hs'
+    - 'src/full/**.hs'
     - 'Agda.cabal'
     - '.github/workflows/haddock.yml'
 
@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04]
-        ghc-ver: ["8.10.3"]
+        ghc-ver: ["8.10.4"]
         cabal-ver: ["3.2"]
 
     if: |
@@ -74,5 +74,5 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: html
+        force_orphan:  true
         destination_dir: docs
-

@@ -57,6 +57,8 @@ module Test4 where
   abstract
     data N : Set where
       suc' : N → N
+
+    sucN : N → N
     sucN = suc'
 
   data D : N → Set where

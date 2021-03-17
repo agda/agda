@@ -20,6 +20,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Warnings (raiseWarningsOnUsage)
 
 import Agda.Utils.Impossible
 
@@ -75,6 +76,15 @@ expandPatternSynonyms' = postTraverseAPatternM $ \case
   A.PatternSynP i x as -> setCurrentRange i $ do
     (ns, p) <- killRange <$> lookupPatternSyn x
 
+    -- Andreas, 2020-02-11, issue #3734
+    -- If lookup of ambiguous pattern synonym was successful,
+    -- we are justified to complain if one of the definitions
+    -- involved in the resolution is tagged with a warning.
+    -- This is less than optimal, since we do not rule out
+    -- the invalid alternatives by typing, but we cannot do
+    -- better here.
+    mapM_ raiseWarningsOnUsage $ A.unAmbQ x
+
     -- Must expand arguments before instantiating otherwise pattern
     -- synonyms could get into dot patterns (which is __IMPOSSIBLE__).
     p <- expandPatternSynonyms' (vacuous p :: A.Pattern' e)
@@ -95,11 +105,11 @@ class ExpandPatternSynonyms a where
     :: (Traversable f, ExpandPatternSynonyms b, f b ~ a) => a -> TCM a
   expandPatternSynonyms = traverse expandPatternSynonyms
 
-instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Maybe a)            where
-instance ExpandPatternSynonyms a => ExpandPatternSynonyms [a]                  where
-instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Arg a)              where
-instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Named n a)          where
-instance ExpandPatternSynonyms a => ExpandPatternSynonyms (FieldAssignment' a) where
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Maybe a)
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms [a]
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Arg a)
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Named n a)
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms (FieldAssignment' a)
 
 instance ExpandPatternSynonyms (A.Pattern' e) where
   expandPatternSynonyms = expandPatternSynonyms'

@@ -58,21 +58,21 @@ initialDotState = DotState
   , dsGraph        = DotGraph mempty mempty
   }
 
-type DotM n a = Ord n => ReaderT (Env n) (State (DotState n)) a
+type DotM n a = ReaderT (Env n) (State (DotState n)) a
 
 runDotM :: Env n -> DotM n x -> DotGraph
-runDotM env@Env{} dotM = dsGraph $ execState (runReaderT dotM env) initialDotState
+runDotM env@Env{} = dsGraph . flip execState initialDotState . flip runReaderT env
 
 getLabel :: n -> DotM n L.Text
-getLabel name = (liftM2 deLabel ask . pure) name
+getLabel = liftM2 deLabel ask . pure
 
 getConnections :: n -> DotM n [n]
-getConnections name = (liftM2 deConnections ask . pure) name
+getConnections = liftM2 deConnections ask . pure
 
 -- | Translate an entity name into an internal 'NodeId'.
 --   Returns @True@ if the 'ModuleName' is new, i.e., has not been
 --   encountered before and is thus added to the map of processed modules.
-addEntity :: n -> DotM n (NodeId, Bool)
+addEntity :: Ord n => n -> DotM n (NodeId, Bool)
 addEntity name = do
     s@(DotState nodeIds nodeIdSupply graph) <- get
     case M.lookup name nodeIds of
@@ -97,10 +97,10 @@ addConnection m1 m2 = modify $ \s -> s
     }
   }
 
-dottify :: Env n -> n -> DotGraph
+dottify :: Ord n => Env n -> n -> DotGraph
 dottify env root = runDotM env (dottify' root)
 
-dottify' :: n -> DotM n NodeId
+dottify' :: Ord n => n -> DotM n NodeId
 dottify' entity = do
   (nodeId, continue) <- addEntity entity
   -- If we have not visited this interface yet,
@@ -108,8 +108,8 @@ dottify' entity = do
   -- add them as connections to the graph.
   when continue $ do
     connectedEntities <- getConnections entity
-    connectedNodeIds <- mapM (\dotM -> dottify' dotM) connectedEntities
-    mapM_ (\dotM -> addConnection nodeId dotM) connectedNodeIds
+    connectedNodeIds <- mapM dottify' connectedEntities
+    mapM_ (addConnection nodeId) connectedNodeIds
   return nodeId
 
 -- * Graph rendering

@@ -7,6 +7,8 @@ module Agda.Compiler.Backend
   )
   where
 
+import Control.DeepSeq
+
 -- Explicitly adding the Agda.Syntax.Treeless import to the .hs-boot file
 -- so that the `Args` symbol can be hidden by the `SOURCE` import in
 -- TypeChecking.Monad.Base.
@@ -24,6 +26,8 @@ import Agda.Syntax.Abstract.Name (QName)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (TCM, BackendName)
 
 data Backend
+
+instance NFData Backend
 
 activeBackendMayEraseType :: QName -> TCM Bool
 lookupBackend :: BackendName -> TCM (Maybe Backend)

@@ -13,6 +13,7 @@ module Agda.Utils.Time
   , fromMilliseconds
   ) where
 
+import Control.DeepSeq
 import Control.Monad.Trans
 import qualified System.CPUTime as CPU
 
@@ -34,7 +35,7 @@ getClockTime = Data.Time.getCurrentTime
 -- | CPU time in pico (10^-12) seconds.
 
 newtype CPUTime = CPUTime Integer
-  deriving (Eq, Show, Ord, Num, Real, Enum, Integral)
+  deriving (Eq, Show, Ord, Num, Real, Enum, Integral, NFData)
 
 fromMilliseconds :: Integer -> CPUTime
 fromMilliseconds n = CPUTime (n * 1000000000)

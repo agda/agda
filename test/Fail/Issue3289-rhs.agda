@@ -11,6 +11,11 @@ f₁ : R
 -- This is fine.
 x ⦃ f₁ ⦄ = 0
 
--- THIS WORKS BUT MAKES NO SENSE!!!
+-- WAS: THIS WORKS BUT MAKES NO SENSE!!!
 _ : Nat
 _ = f₁ {{ .x }}
+
+-- Should raise an error.
+
+-- Illegal hiding in postfix projection  ⦃ .x ⦄
+-- when scope checking f₁ ⦃ .x ⦄

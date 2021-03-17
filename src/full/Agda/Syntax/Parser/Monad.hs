@@ -29,6 +29,7 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
+import Control.DeepSeq
 import Control.Exception ( displayException )
 import Control.Monad.Except
 import Control.Monad.State
@@ -134,6 +135,9 @@ data ParseWarning
                       -- ^ The range of the bigger overlapping token
     }
   deriving (Data, Show)
+
+instance NFData ParseWarning where
+  rnf (OverlappingTokensWarning _) = ()
 
 parseWarningName :: ParseWarning -> WarningName
 parseWarningName = \case

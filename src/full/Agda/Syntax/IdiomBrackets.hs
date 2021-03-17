@@ -45,7 +45,7 @@ parseIdiomBrackets r e = do
 appViewM :: Expr -> ScopeM (List1 Expr)
 appViewM = \case
     e@App{}         -> let AppView e' es = appView e in (e' :|) <$> mapM onlyVisible es
-    OpApp _ op _ es -> (Ident op <|) <$> mapM (ordinary <=< noPlaceholder <=< onlyVisible) es
+    OpApp _ op _ es -> (Ident op :|) <$> mapM (ordinary <=< noPlaceholder <=< onlyVisible) es
     e               -> return $ singleton e
   where
     onlyVisible a

@@ -1,0 +1,16 @@
+Issue4999.agda:16,9-17
+Invalid character literal '/55296' (surrogate code points are not supported)
+when scope checking '/55296'
+Issue4999.agda:16,25-33
+Invalid character literal '/55297' (surrogate code points are not supported)
+when scope checking '/55297'
+Issue4999.agda:29,16-24
+Invalid character literal '/55466' (surrogate code points are not supported)
+when scope checking the left-hand side errorAlsoInLHS '/55466' in
+the definition of errorAlsoInLHS
+Issue4999.agda:23,1-8
+xD800 ≡ xD801 should be empty, but the following constructor
+patterns are valid:
+  refl
+when checking the clause left hand side
+nope ()

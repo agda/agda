@@ -183,7 +183,7 @@ resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
 
 -- | Treat illegally ambiguous names as UnknownNames.
 resolveName_ :: C.QName -> [A.Name] -> AbsToCon ResolvedName
-resolveName_ q cands = either (const UnknownName) id <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
+resolveName_ q cands = fromRight (const UnknownName) <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
 
 -- The Monad --------------------------------------------------------------
 
@@ -220,7 +220,9 @@ instance Applicative AbsToCon where
   f <*> m = AbsToCon $ unAbsToCon f <*> unAbsToCon m
 
 instance Monad AbsToCon where
-  m >>= f = AbsToCon $ unAbsToCon m >>= (\m' -> unAbsToCon m') . f
+  -- ASR (2021-02-07). The eta-expansion @\m' -> unAbsToCon m'@ is
+  -- required by GHC >= 9.0.1 (see Issue #4955).
+  m >>= f = AbsToCon $ unAbsToCon m >>= (\m' -> unAbsToCon m'). f
 #if __GLASGOW_HASKELL__ < 808
   fail = Fail.fail
 #endif
@@ -241,7 +243,10 @@ instance ReadTCState AbsToCon where
   locallyTCState l f m = AbsToCon $ locallyTCState l f $ unAbsToCon m
 
 instance MonadStConcreteNames AbsToCon where
-  runStConcreteNames m = AbsToCon $ runStConcreteNames $ StateT $ (\m' -> unAbsToCon m') . runStateT m
+  -- ASR (2021-02-07). The eta-expansion @\m' -> unAbsToCon m'@ is
+  -- required by GHC >= 9.0.1 (see Issue #4955).
+  runStConcreteNames m =
+    AbsToCon $ runStConcreteNames $ StateT $ (\m' -> unAbsToCon m') . runStateT m
 
 instance HasBuiltins AbsToCon where
   getBuiltinThing x = AbsToCon $ getBuiltinThing x
@@ -810,7 +815,7 @@ instance ToConcrete A.Expr where
                 return [p] -- __IMPOSSIBLE__
                   -- Andreas, this is actually not impossible,
                   -- my strictification exposed this sleeping bug
-          let decl2clause (C.FunClause (C.LHS p [] [] NoEllipsis) rhs C.NoWhere ca) = do
+          let decl2clause (C.FunClause (C.LHS p [] []) rhs C.NoWhere ca) = do
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 ps <- removeApp p
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
@@ -958,14 +963,14 @@ instance ToConcrete A.LetBinding where
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
                [ C.TypeSig info Nothing (C.boundName x) t
-               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [] NoEllipsis)
+               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [])
                              e C.NoWhere False
                ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] [] NoEllipsis) (C.RHS e) NoWhere False ]
+        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere False ]
     bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
@@ -1024,7 +1029,7 @@ declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
 instance ToConcrete A.RHS where
-    type ConOfAbs A.RHS = (C.RHS, [C.RewriteEqn], [WithHiding C.Expr], [C.Declaration])
+    type ConOfAbs A.RHS = (C.RHS, [C.RewriteEqn], [Arg C.Expr], [C.Declaration])
 
     toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
     toConcrete (A.RHS e Nothing) = do
@@ -1071,10 +1076,10 @@ instance (ToConcrete a, ConOfAbs a ~ C.LHS) => ToConcrete (A.Clause' a) where
 
   toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
-          C.LHS p _ _ ell -> do
+          C.LHS p _ _ -> do
             bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p eqs with ell) rhs' wh' catchall : wcs
+                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall : wcs
 
 instance ToConcrete A.ModuleApplication where
   type ConOfAbs A.ModuleApplication = C.ModuleApplication
@@ -1241,7 +1246,7 @@ instance ToConcrete A.LHS where
 
     bindToConcrete (A.LHS i lhscore) ret = do
       bindToConcreteCtx TopCtx lhscore $ \ lhs ->
-          ret $ C.LHS (reintroduceEllipsis (lhsEllipsis i) lhs) [] [] NoEllipsis
+          ret $ C.LHS (reintroduceEllipsis (lhsEllipsis i) lhs) [] []
 
 instance ToConcrete A.LHSCore where
   type ConOfAbs A.LHSCore = C.Pattern
@@ -1516,7 +1521,9 @@ getHead _                = Nothing
 
 cOpApp :: Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
 cOpApp r x n es =
-  C.OpApp r x (Set.singleton n) $ fmap (defaultNamedArg . placeholder) eps
+  C.OpApp r x (Set.singleton n) $
+  fmap (defaultNamedArg . placeholder) $
+  List1.toList eps
   where
     x0 = C.unqualify x
     positions | isPrefix  x0 =              (const Middle <$> List1.drop 1 es) `List1.snoc` End
@@ -1576,8 +1583,9 @@ tryToRecoverOpAppP p = do
   return res
   where
     opApp r x n ps = C.OpAppP r x (Set.singleton n) $
-      fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
+      fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) $
       -- `view` does not generate any `Nothing`s
+      List1.toList ps
 
     appInfo = defaultAppInfo_
 

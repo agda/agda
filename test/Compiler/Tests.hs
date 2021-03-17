@@ -81,9 +81,12 @@ disabledTests =
     -----------------------------------------------------------------------------
     -- The following test cases fail (at least at the time of writing)
     -- for the JS backend.
-  , disable "Compiler/JS_.*/simple/Issue4169-2"
   , disable "Compiler/JS_Optimized/simple/ModuleReexport"
   , disable "Compiler/JS_MinifiedOptimized/simple/ModuleReexport"
+    -----------------------------------------------------------------------------
+    -- The following test cases use primitives that are not implemented in the
+    -- JS backend.
+  , disable "Compiler/JS_.*/simple/Issue4999"   -- primNatToChar
     -----------------------------------------------------------------------------
     -- The following test cases are GHC backend specific and thus disabled on JS.
   , disable "Compiler/JS_.*/simple/Issue2821"

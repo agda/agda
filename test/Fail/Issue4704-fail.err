@@ -1,0 +1,4 @@
+Issue4704-fail.agda:25,8-10
+xs != xs ∷ʳ x of type List Nat
+when checking that all occurrences of pattern variable xs have the
+same value

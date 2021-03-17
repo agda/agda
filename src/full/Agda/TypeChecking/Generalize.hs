@@ -157,6 +157,13 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Pair metas with their metaInfo
   mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntSet.toList allmetas
 
+  -- Issue 4727: filter out metavariables that were created before the
+  -- current checkpoint, since they are too old to be generalized.
+  -- TODO: make metasCreatedBy smarter so it doesn't see pruned
+  -- versions of old metas as new metas.
+  cp <- viewTC eCurrentCheckpoint
+  let isFreshMeta (x,mv) = enterClosure mv $ \ _ -> isJust <$> checkpointSubstitution' cp
+  mvs <- filterM isFreshMeta mvs
   cs <- (++) <$> useTC stAwakeConstraints
              <*> useTC stSleepingConstraints
 
@@ -227,18 +234,19 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     case mvInstantiation mv of
       InstV _ v -> do
         parentName <- getMetaNameSuggestion x
-        metas <- filterM canGeneralize . allMetasList =<< instantiateFull v
+        metas <- filterM canGeneralize . Set.toList . allMetas Set.singleton =<< instantiateFull v
         let suggestNames i [] = return ()
-            suggestNames i (m : ms)  = do
-              name <- getMetaNameSuggestion m
-              case name of
-                "" -> do
-                  setMetaNameSuggestion m (parentName ++ "." ++ show i)
-                  suggestNames (i + 1) ms
-                _  -> suggestNames i ms
+            suggestNames i (m : ms) = do
+              -- #4291: Override existing meta name suggestion. If we solved the parent with a new
+              --        meta use the parent name for that, otherwise suffix with a number.
+              let suf | null ms && i == 1, MetaV{} <- v = ""
+                      | otherwise                       = "." ++ show i
+              setMetaNameSuggestion m (parentName ++ suf)
+              suggestNames (i + 1) ms
         unless (null metas) $
           reportSDoc "tc.generalize" 40 $ hcat ["Inherited metas from ", prettyTCM x, ":"] <?> prettyList_ (map prettyTCM metas)
-        Set.fromList metas <$ suggestNames 1 metas
+                                    -- Don't suggest names for explicitly named generalizable metas
+        Set.fromList metas <$ suggestNames 1 (filter (`Map.notMember` nameMap) metas)
       _ -> __IMPOSSIBLE__
 
   let (alsoGeneralize, reallyDontGeneralize) = partition (`Set.member` inherited) $ map fst nongeneralizableOpen

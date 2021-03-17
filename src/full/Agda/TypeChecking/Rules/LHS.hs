@@ -1937,37 +1937,41 @@ checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
-    sa@Type{} -> whenM isTwoLevelEnabled $ do
-     if
-      | IsRecord _ _ <- dr     -> return ()
-      | Just target <- mtarget -> do
-          reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
-          checkIsFibrant target
-          forM_ (telToList tel) $ \ d -> do
-            let ty = snd $ unDom d
-            checkIsCoFibrant ty
-      | otherwise              -> do
-          reportSDoc "tc.sort.check" 20 $ "no target"
-          splitOnFibrantError Nothing
-    Prop{}
-      | IsRecord _ _ <- dr     -> return ()
-      | Just target <- mtarget -> do
-        reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
-        checkIsProp target
-      | otherwise              -> do
-          reportSDoc "tc.sort.check" 20 $ "no target prop"
-          splitOnPropError
-    Inf{} -> return () -- see #4109
+    sa@Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
+    Prop{} -> checkPropSplit
+    Inf IsFibrant _ -> whenM isTwoLevelEnabled checkFibrantSplit
+    Inf IsStrict _ -> return ()
     SSet{} -> return ()
     sa      -> softTypeError =<< do
       liftTCM $ SortOfSplitVarError <$> isBlocked sa <*> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
 
   where
+    checkPropSplit
+      | IsRecord _ _ <- dr     = return ()
+      | Just target <- mtarget = do
+        reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
+        checkIsProp target
+      | otherwise              = do
+          reportSDoc "tc.sort.check" 20 $ "no target prop"
+          splitOnPropError
+
     checkIsProp t = runBlocked (isPropM t) >>= \case
       Left b      -> splitOnPropError -- TODO
       Right False -> splitOnPropError
       Right True  -> return ()
+
+    checkFibrantSplit
+      | IsRecord _ _ <- dr     = return ()
+      | Just target <- mtarget = do
+          reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
+          checkIsFibrant target
+          forM_ (telToList tel) $ \ d -> do
+            let ty = snd $ unDom d
+            checkIsCoFibrant ty
+      | otherwise              = do
+          reportSDoc "tc.sort.check" 20 $ "no target"
+          splitOnFibrantError Nothing
 
     -- Cofibrant types are those that could be the domain of a fibrant
     -- pi type. (Notion by C. Sattler).

@@ -3,6 +3,7 @@ module Agda.TypeChecking.Lock
   ( isTimeless
   , checkLockedVars
   , checkEarlierThan
+  , requireGuarded
   )
 where
 
@@ -14,6 +15,8 @@ import qualified Data.IntSet as ISet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+
+import Agda.Interaction.Options ( optGuarded )
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -29,6 +32,11 @@ import Agda.Utils.VarSet as Set
 
 import Agda.Utils.Impossible
 
+requireGuarded :: String -> TCM ()
+requireGuarded s = do
+  guarded <- optGuarded <$> pragmaOptions
+  unless guarded $
+    typeError $ GenericError $ "Missing option --guarded " ++ s
 
 
 checkLockedVars

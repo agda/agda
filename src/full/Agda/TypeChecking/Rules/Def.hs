@@ -25,12 +25,13 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
+import Agda.Syntax.Internal.MetaVars (allMetasList)
 import qualified Agda.Syntax.Info as Info
-import Agda.Syntax.Info
+import Agda.Syntax.Info hiding (defAbstract)
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import Agda.TypeChecking.Warnings ( warning )
+import Agda.TypeChecking.Warnings ( warning, genericWarning )
 
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
@@ -86,14 +87,22 @@ checkFunDef delayed i name cs = do
         def <- instantiateDef =<< getConstInfo name
         let t    = defType def
         let info = getArgInfo def
-        case isAlias cs t of
-          Just (e, mc, x) ->
-            traceCall (CheckFunDefCall (getRange i) name cs True) $ do
-              -- Andreas, 2012-11-22: if the alias is in an abstract block
-              -- it has been frozen.  We unfreeze it to enable type inference.
-              -- See issue 729.
-              whenM (isFrozen x) $ unfreezeMeta x
-              checkAlias t info delayed i name e mc
+        case isAlias cs t of  -- #418: Don't use checkAlias for abstract definitions, since the type
+                              -- of an abstract function must not be informed by its definition.
+          Just (e, mc, x)
+            | Info.defAbstract i /= AbstractDef ->
+              traceCall (CheckFunDefCall (getRange i) name cs True) $ do
+                -- Andreas, 2012-11-22: if the alias is in an abstract block
+                -- it has been frozen.  We unfreeze it to enable type inference.
+                -- See issue 729.
+                -- Ulf, 2021-02-09: also unfreeze metas in the sort of this type
+                whenM (isFrozen x) $ do
+                  xs <- allMetasList . jMetaType . mvJudgement <$> lookupMeta x
+                  mapM_ unfreezeMeta (x : xs)
+                checkAlias t info delayed i name e mc
+            | otherwise -> do -- Warn about abstract alias (will never work!)
+              setCurrentRange i $ genericWarning =<< "Cannot infer the type of abstract definition" <+> prettyTCM name
+              checkFunDef' t info delayed Nothing Nothing i name cs
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
         -- If it's a macro check that it ends in Term → TC ⊤
@@ -464,7 +473,7 @@ data WithFunctionProblem
     , wfParentTel  :: Telescope                         -- ^ Context of the parent patterns.
     , wfBeforeTel  :: Telescope                         -- ^ Types of arguments to the with function before the with expressions (needed vars).
     , wfAfterTel   :: Telescope                         -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
-    , wfExprs      :: [WithHiding (Term, EqualityView)] -- ^ With and rewrite expressions and their types.
+    , wfExprs      :: [Arg (Term, EqualityView)]        -- ^ With and rewrite expressions and their types.
     , wfRHSType    :: Type                              -- ^ Type of the right hand side.
     , wfParentPats :: [NamedArg DeBruijnPattern]        -- ^ Parent patterns.
     , wfParentParams :: Nat                             -- ^ Number of module parameters in parent patterns
@@ -769,7 +778,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
   -- With case: @f xs with a | b | c | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
   -- This is mostly a wrapper around @checkWithRHS@
   withRHS :: QName               -- ^ name of the with-function
-          -> [WithHiding A.Expr] -- ^ @[a, b, c, ...]@
+          -> [Arg A.Expr]        -- ^ @[a, b, c, ...]@
           -> [A.Clause]          -- ^ @[(ps1 = rhs1), (ps2 = rhs), ...]@
           -> TCM (Maybe Term, WithFunctionProblem)
   withRHS aux es cs = do
@@ -787,7 +796,9 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
           ]
 
     -- Infer the types of the with expressions
-    vtys <- mapM (traverse (fmap OtherType <.> inferExprForWith)) es
+    vtys <- forM es $ \ e -> do
+              ety <- inferExprForWith e
+              pure (fmap OtherType ety <$ e)
 
     -- Andreas, 2016-01-23, Issue #1796
     -- Run the size constraint solver to improve with-abstraction
@@ -823,7 +834,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
 
       let (pats, es) = unzip pes
       -- Infer the types of the with expressions
-      vtys <- mapM (WithHiding NotHidden <.> fmap OtherType <.> inferExprForWith) es
+      vtys <- mapM (defaultArg <.> fmap OtherType <.> inferExprForWith . defaultArg) es
 
       -- Andreas, 2016-04-14, see also Issue #1796
       -- Run the size constraint solver to improve with-abstraction
@@ -941,14 +952,14 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
         [ text "rewrite"
         , "  rhs' = " <> (text . show) rhs'
         ]
-      checkWithRHS x qname t lhsResult [WithHiding NotHidden (withExpr, withType)] [cl]
+      checkWithRHS x qname t lhsResult [defaultArg (withExpr, withType)] [cl]
 
 checkWithRHS
   :: QName                             -- ^ Name of function.
   -> QName                             -- ^ Name of the with-function.
   -> Type                              -- ^ Type of function.
   -> LHSResult                         -- ^ Result of type-checking patterns
-  -> [WithHiding (Term, EqualityView)] -- ^ Expressions and types of with-expressions.
+  -> [Arg (Term, EqualityView)]        -- ^ Expressions and types of with-expressions.
   -> [A.Clause]                        -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
@@ -965,7 +976,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
           ]
         reportSDoc "tc.with.top" 25 $ vcat $
           -- declared locally because we do not want to use the unzip'd thing!
-          let (vs, as) = unzipWith whThing vtys0 in
+          let (vs, as) = unzipWith unArg vtys0 in
           [ "vs     =" <+> prettyTCM vs
           , "as     =" <+> prettyTCM as
           , "perm   =" <+> text (show perm)
@@ -1000,8 +1011,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
             -- Then permute the rest and grab those needed to for the with arguments
             (us1, us2)  = splitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
-            mkWithArg = \ (WithHiding h e) -> e
-            argsS = parallelS $ reverse $ us0 ++ us1 ++ map mkWithArg withArgs ++ us2
+            argsS = parallelS $ reverse $ us0 ++ us1 ++ map unArg withArgs ++ us2
             v         = Nothing -- generated by checkWithFunction
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
@@ -1009,7 +1019,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
 
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $ vcat $
-          let (vs, as) = unzipWith whThing vtys in
+          let (vs, as) = unzipWith unArg vtys in
           [ "    with arguments" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
           , "             types" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
           , "           context" <+> (prettyTCM =<< getContextTelescope)
@@ -1027,14 +1037,14 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
-      withSub = let as = map (snd . whThing) vtys in
+      withSub = let as = map (snd . unArg) vtys in
                 liftS (size delta2) (wkS (countWithArgs as) idS)
                 `composeS` renaming __IMPOSSIBLE__ (reverseP perm')
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ "checkWithFunction"
     , nest 2 $ vcat $
-      let (vs, as) = unzipWith whThing vtys in
+      let (vs, as) = unzipWith unArg vtys in
       [ "delta1 =" <+> prettyTCM delta1
       , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
       , "t      =" <+> prettyTCM t
@@ -1119,11 +1129,13 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
   cs <- buildWithFunction cxtNames f aux t delta qs npars withSub finalPerm (size delta1) n cs
   cs <- return $ map (A.spineToLhs) cs
 
+  -- #4833: inherit abstract mode from parent
+  abstr <- defAbstract <$> ignoreAbstractMode (getConstInfo f)
+
   -- Check the with function
+  let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
   checkFunDefS withFunType defaultArgInfo NotDelayed Nothing (Just f) info aux (Just withSub) cs
   return $ Just $ call_in_parent
-  where
-    info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess ConcreteDef (getRange cs)
 
 -- | Type check a where clause.
 checkWhere

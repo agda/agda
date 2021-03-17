@@ -44,6 +44,7 @@ import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.Lock (requireGuarded)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Patterns.Abstract
@@ -326,7 +327,12 @@ checkDomain lamOrPi xs e = do
          applyCohesionToContext c $
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
-    when (any (\ x -> getLock x == IsLock) xs) $
+    when (any (\ x -> getLock x == IsLock) xs) $ do
+        requireGuarded "which is needed for @tick/@lock attributes."
+         -- Solves issue #5033
+        unlessM (isJust <$> getName' builtinLockUniv) $ do
+          genericDocError $ "Missing binding for primLockUniv primitive."
+
         equalSort (getSort t) LockUniv
 
     return t
@@ -759,7 +765,7 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
                     , clauseEllipsis  = NoEllipsis
                     }
                   ]
-              , funCompiled       = Just Fail
+              , funCompiled       = Just $ Fail [Arg info' "()"]
               , funSplitTree      = Just $ SplittingDone 0
               , funMutual         = Just []
               , funTerminates     = Just True
@@ -994,7 +1000,7 @@ checkRecordExpression cmp mfs e t = do
       -- are still left out and inserted later by checkArguments_.
       es <- insertMissingFieldsWarn r meta fs cxs
 
-      args <- checkArguments_ ExpandLast re es (recTel def `apply` vs) >>= \case
+      args <- checkArguments_ cmp ExpandLast re es (recTel def `apply` vs) >>= \case
         (elims, remainingTel) | null remainingTel
                               , Just args <- allApplyElims elims -> return args
         _ -> __IMPOSSIBLE__
@@ -1008,6 +1014,7 @@ checkRecordExpression cmp mfs e t = do
     guessRecordType t = do
       let fields = [ x | Left (FieldAssignment x _) <- mfs ]
       rs <- findPossibleRecords fields
+      reportSDoc "tc.term.rec" 30 $ "Possible records for" <+> prettyTCM t <+> "are" <?> pretty rs
       case rs of
           -- If there are no records with the right fields we might as well fail right away.
         [] -> case fields of
@@ -1016,8 +1023,12 @@ checkRecordExpression cmp mfs e t = do
           _   -> genericError $ "There is no known record with the fields " ++ unwords (map prettyShow fields)
           -- If there's only one record with the appropriate fields, go with that.
         [r] -> do
-          def <- getConstInfo r
+          -- #5198: Don't generate metas for parameters of the current module. In most cases they
+          -- get solved, but not always.
+          def <- instantiateDef =<< getConstInfo r
+          ps  <- freeVarsToApply r
           let rt = defType def
+          reportSDoc "tc.term.rec" 30 $ "Type of unique record" <+> prettyTCM rt
           vs  <- newArgsMeta rt
           target <- reduce $ piApply rt vs
           s  <- case unEl target of
@@ -1031,7 +1042,7 @@ checkRecordExpression cmp mfs e t = do
                       , text $ "  Raw                   =  " ++ show v
                       ]
                     __IMPOSSIBLE__
-          let inferred = El s $ Def r $ map Apply vs
+          let inferred = El s $ Def r $ map Apply (ps ++ vs)
           v <- checkExpr e inferred
           coerce cmp v inferred t
           -- Andreas 2012-04-21: OLD CODE, WRONG DIRECTION, I GUESS:
@@ -1554,38 +1565,39 @@ isModuleFreeVar i = do
 -- | Infer the type of an expression, and if it is of the form
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
 --   arguments.  Otherwise, leave the type polymorphic.
-inferExprForWith :: A.Expr -> TCM (Term, Type)
-inferExprForWith e = do
-  reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
-  reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
-  traceCall (InferExpr e) $ do
-    -- With wants type and term fully instantiated!
-    (v, t) <- instantiateFull =<< inferExpr e
-    v0 <- reduce v
-    -- Andreas 2014-11-06, issue 1342.
-    -- Check that we do not `with` on a module parameter!
-    case v0 of
-      Var i [] -> whenM (isModuleFreeVar i) $ do
-        reportSDoc "tc.with.infer" 80 $ vcat
-          [ text $ "with expression is variable " ++ show i
-          , "current modules = " <+> do text . show =<< currentModule
-          , "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
-          , "context size = " <+> do text . show =<< getContextSize
-          , "current context = " <+> do prettyTCM =<< getContextTelescope
-          ]
-        typeError $ WithOnFreeVariable e v0
-      _        -> return ()
-    -- Possibly insert hidden arguments.
-    TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
-    case unEl t0 of
-      Def d vs -> do
-        res <- isDataOrRecordType d
-        case res of
-          Nothing -> return (v, t)
-          Just{}  -> do
-            (args, t1) <- implicitArgs (-1) notVisible t
-            return (v `apply` args, t1)
-      _ -> return (v, t)
+inferExprForWith :: Arg A.Expr -> TCM (Term, Type)
+inferExprForWith (Arg info e) =
+  applyRelevanceToContext (getRelevance info) $ do
+    reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
+    reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
+    traceCall (InferExpr e) $ do
+      -- With wants type and term fully instantiated!
+      (v, t) <- instantiateFull =<< inferExpr e
+      v0 <- reduce v
+      -- Andreas 2014-11-06, issue 1342.
+      -- Check that we do not `with` on a module parameter!
+      case v0 of
+        Var i [] -> whenM (isModuleFreeVar i) $ do
+          reportSDoc "tc.with.infer" 80 $ vcat
+            [ text $ "with expression is variable " ++ show i
+            , "current modules = " <+> do text . show =<< currentModule
+            , "current module free vars = " <+> do text . show =<< getCurrentModuleFreeVars
+            , "context size = " <+> do text . show =<< getContextSize
+            , "current context = " <+> do prettyTCM =<< getContextTelescope
+            ]
+          typeError $ WithOnFreeVariable e v0
+        _        -> return ()
+      -- Possibly insert hidden arguments.
+      TelV tel t0 <- telViewUpTo' (-1) (not . visible) t
+      case unEl t0 of
+        Def d vs -> do
+          res <- isDataOrRecordType d
+          case res of
+            Nothing -> return (v, t)
+            Just{}  -> do
+              (args, t1) <- implicitArgs (-1) notVisible t
+              return (v `apply` args, t1)
+        _ -> return (v, t)
 
 ---------------------------------------------------------------------------
 -- * Let bindings
@@ -1598,8 +1610,11 @@ checkLetBinding :: A.LetBinding -> TCM a -> TCM a
 
 checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCall (CheckLetBinding b) $ do
+    -- #4131: Only DontExpandLast if no user written type signature
+    let check | getOrigin info == Inserted = checkDontExpandLast
+              | otherwise                  = checkExpr'
     t <- isType_ t
-    v <- applyModalityToContext info $ checkDontExpandLast CmpLeq e t
+    v <- applyModalityToContext info $ check CmpLeq e t
     addLetBinding info (A.unBind x) v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =

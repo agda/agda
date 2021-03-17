@@ -3,19 +3,21 @@ name: Build (cabal)
 on:
   push:
     paths:
-    - 'src/**'
-    - 'Agda.cabal'
-    - 'cabal.project'
     - '.github/workflows/cabal.yml'
+    - 'Agda.cabal'
     - 'Setup.hs'
+    - 'src/agda-mode/**'
+    - 'src/full/**'
+    - 'src/main/**'
     - 'test/**.hs'
   pull_request:
     paths:
-    - 'src/**'
-    - 'cabal.project'
     - '.github/workflows/cabal.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
+    - 'src/agda-mode/**'
+    - 'src/full/**'
+    - 'src/main/**'
     - 'test/**.hs'
 
 defaults:
@@ -44,7 +46,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-18.04]
-        ghc-ver: [8.10.3]
+        ghc-ver: [8.10.4]
         cabal-ver: [3.2]
     env:
       FLAGS: "-f enable-cluster-counting"
@@ -101,11 +103,16 @@ jobs:
         key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      # Andreas, 2021-03-04, issue #5259.
+      # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
+      if: ${{ runner.os != 'macOS' && !steps.cache.outputs.cache-hit }}
       run: |
         cabal build --only-dependencies
 
     - name: Build Agda
+      # Andreas, 2021-03-04, issue #5259.
+      # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
+      if: ${{ runner.os != 'macOS' }}
       run: |
         cabal build
 
@@ -113,4 +120,3 @@ jobs:
       run: |
         cabal configure -O0
         cabal build
-

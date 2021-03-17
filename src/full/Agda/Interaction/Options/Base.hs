@@ -33,6 +33,7 @@ module Agda.Interaction.Options.Base
     , getOptSimple
     ) where
 
+import Control.DeepSeq
 import Control.Monad ( when, void )
 import Control.Monad.Except ( Except, MonadError(throwError), runExcept )
 
@@ -42,6 +43,8 @@ import Data.Map                 ( Map )
 import qualified Data.Map as Map
 import Data.List                ( intercalate )
 import qualified Data.Set as Set
+
+import GHC.Generics (Generic)
 
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
@@ -115,7 +118,9 @@ data CommandLineOptions = Options
     -- ^ Should the top-level module only be scope-checked, and not
     --   type-checked?
   }
-  deriving Show
+  deriving (Show, Generic)
+
+instance NFData CommandLineOptions
 
 -- | Options which can be set in a pragma.
 
@@ -152,6 +157,7 @@ data PragmaOptions = PragmaOptions
   , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Bool
+  , optGuarded                   :: Bool
   , optFirstOrder                :: Bool  -- ^ Should we speculatively unify function applications as if they were injective?
   , optPostfixProjections        :: Bool
       -- ^ Should system generated projections 'ProjSystem' be printed
@@ -196,12 +202,16 @@ data PragmaOptions = PragmaOptions
     -- ^ Show identity substitutions when pretty-printing terms
     --   (i.e. always show all arguments of a metavariable)
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
+
+instance NFData PragmaOptions
 
 data ConfluenceCheck
   = LocalConfluenceCheck
   | GlobalConfluenceCheck
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
+
+instance NFData ConfluenceCheck
 
 -- | The options from an @OPTIONS@ pragma.
 --
@@ -281,6 +291,7 @@ defaultPragmaOptions = PragmaOptions
   , optProjectionLike            = True
   , optRewriting                 = False
   , optCubical                   = False
+  , optGuarded                   = False
   , optFirstOrder                = False
   , optPostfixProjections        = False
   , optKeepPatternVariables      = False
@@ -342,8 +353,7 @@ checkOpts opts = do
 
 unsafePragmaOptions :: CommandLineOptions -> PragmaOptions -> [String]
 unsafePragmaOptions clo opts =
-  [ "--allow-unsolved-metas"                     | optAllowUnsolved opts
-                                                 , not $ optInteractive clo          ] ++
+  [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
   [ "--allow-incomplete-matches"                 | optAllowIncompleteMatch opts      ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
@@ -391,6 +401,7 @@ restartOptions =
   , (B . not . optEta, "--no-eta-equality")
   , (B . optRewriting, "--rewriting")
   , (B . optCubical, "--cubical")
+  , (B . optGuarded, "--guarded")
   , (B . optOverlappingInstances, "--overlapping-instances")
   , (B . optQualifiedInstances, "--qualified-instances")
   , (B . not . optQualifiedInstances, "--no-qualified-instances")
@@ -419,8 +430,10 @@ data RestartCodomain = C CutOff | B Bool | I Int | W WarningMode
 infectiveOptions :: [(PragmaOptions -> Bool, String)]
 infectiveOptions =
   [ (optCubical, "--cubical")
+  , (optGuarded, "--guarded")
   , (optProp, "--prop")
   , (collapseDefault . optTwoLevel, "--two-level")
+  , (optRewriting, "--rewriting")
   ]
 
 -- | A coinfective option is an option that if used in one module, must
@@ -702,6 +715,10 @@ cubicalFlag o = do
              , optTwoLevel = setDefault True $ optTwoLevel o
              }
 
+guardedFlag :: Flag PragmaOptions
+guardedFlag o = do
+  return $ o { optGuarded  = True }
+
 postfixProjectionsFlag :: Flag PragmaOptions
 postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 
@@ -734,11 +751,7 @@ inversionMaxDepthFlag s o = do
   return $ o { optInversionMaxDepth = d }
 
 interactiveFlag :: Flag CommandLineOptions
-interactiveFlag  o = do
-  prag <- allowUnsolvedFlag (optPragmaOptions o)
-  return $ o { optInteractive    = True
-             , optPragmaOptions = prag
-             }
+interactiveFlag  o = return $ o { optInteractive = True }
 
 compileFlagNoMain :: Flag PragmaOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }
@@ -962,6 +975,8 @@ pragmaOptions =
                     "disable confluence checking of REWRITE rules (default)"
     , Option []     ["cubical"] (NoArg cubicalFlag)
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
+    , Option []     ["guarded"] (NoArg guardedFlag)
+                    "enable @lock/@tick attributes"
     , Option []     ["experimental-lossy-unification"] (NoArg firstOrderFlag)
                     "enable heuristically unifying `f es = f es'` by unifying `es = es'`, even when it could lose solutions."
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)

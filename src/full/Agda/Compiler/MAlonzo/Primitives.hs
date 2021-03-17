@@ -257,7 +257,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primToUpper"        |-> return "Data.Char.toUpper"
   , "primToLower"        |-> return "Data.Char.toLower"
   , "primCharToNat" |-> return "(fromIntegral . fromEnum :: Char -> Integer)"
-  , "primNatToChar" |-> return "(toEnum . fromIntegral :: Integer -> Char)"
+  , "primNatToChar" |-> return "MAlonzo.RTE.natToChar"
   , "primShowChar"  |-> return "(Data.Text.pack . show :: Char -> Data.Text.Text)"
   , "primCharToNatInjective" |-> return "erased"
 

@@ -28,7 +28,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names
 import Agda.Syntax.Position
-import Agda.Syntax.Treeless (Compiled(..), TTerm)
+import Agda.Syntax.Treeless (Compiled(..), TTerm, ArgUsage)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
@@ -806,14 +806,14 @@ modifyArgOccurrences d f =
 setTreeless :: QName -> TTerm -> TCM ()
 setTreeless q t =
   modifyGlobalDefinition q $ updateTheDef $ \case
-    fun@Function{} -> fun{ funTreeless = Just $ Compiled t [] }
+    fun@Function{} -> fun{ funTreeless = Just $ Compiled t Nothing }
     _ -> __IMPOSSIBLE__
 
-setCompiledArgUse :: QName -> [Bool] -> TCM ()
+setCompiledArgUse :: QName -> [ArgUsage] -> TCM ()
 setCompiledArgUse q use =
   modifyGlobalDefinition q $ updateTheDef $ \case
     fun@Function{} ->
-      fun{ funTreeless = for (funTreeless fun) $ \ c -> c { cArgUsage = use } }
+      fun{ funTreeless = funTreeless fun <&> \ c -> c { cArgUsage = Just use } }
     _ -> __IMPOSSIBLE__
 
 getCompiled :: HasConstInfo m => QName -> m (Maybe Compiled)
@@ -842,8 +842,8 @@ setErasedConArgs q args = modifyGlobalDefinition q $ updateTheDef $ \case
 getTreeless :: HasConstInfo m => QName -> m (Maybe TTerm)
 getTreeless q = fmap cTreeless <$> getCompiled q
 
-getCompiledArgUse :: HasConstInfo m => QName -> m [Bool]
-getCompiledArgUse q = maybe [] cArgUsage <$> getCompiled q
+getCompiledArgUse :: HasConstInfo m => QName -> m (Maybe [ArgUsage])
+getCompiledArgUse q = (cArgUsage =<<) <$> getCompiled q
 
 -- | add data constructors to a datatype
 addDataCons :: QName -> [QName] -> TCM ()

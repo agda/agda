@@ -24,12 +24,15 @@ module Agda.Interaction.Options.Warnings
 where
 
 import Control.Arrow ( (&&&) )
+import Control.DeepSeq
 import Control.Monad ( guard, when )
 
 import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.List ( stripPrefix, intercalate )
+
+import GHC.Generics (Generic)
 
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -42,7 +45,9 @@ import Agda.Utils.Impossible
 data WarningMode = WarningMode
   { _warningSet :: Set WarningName
   , _warn2Error :: Bool
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
+
+instance NFData WarningMode
 
 warningSet :: Lens' (Set WarningName) WarningMode
 warningSet f o = (\ ws -> o { _warningSet = ws }) <$> f (_warningSet o)
@@ -66,9 +71,9 @@ data WarningModeError = Unknown String | NoNoError String
 prettyWarningModeError :: WarningModeError -> String
 prettyWarningModeError = \case
   Unknown str -> concat [ "Unknown warning flag: ", str, "." ]
-  NoNoError str -> concat [ "Warnings for non-fatal errors such as "
+  NoNoError str -> concat [ "You may only turn off benign warnings. The warning "
                           , str
-                          ," cannot be turned off." ]
+                          ," is a non-fatal error and thus cannot be ignored." ]
 
 -- | From user-given directives we compute WarningMode updates
 type WarningModeUpdate = WarningMode -> WarningMode
@@ -260,7 +265,9 @@ data WarningName
   -- System call warnings
   | ExeNotFoundWarning_
   | ExeNotExecutableWarning_
-  deriving (Eq, Ord, Show, Read, Enum, Bounded)
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
+
+instance NFData WarningName
 
 -- | The flag corresponding to a warning is precisely the name of the constructor
 -- minus the trailing underscore.

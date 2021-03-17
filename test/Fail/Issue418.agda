@@ -19,3 +19,15 @@ abstract
 
 -- Andreas, 2011-05-30
 -- Meta-Variable should remain unsolved
+
+-- Also for private definitions
+
+  unfold-A-private : A ≡ _
+  unfold-A-private = refl
+
+-- Also for aliases
+
+  B = Set
+
+  C : _
+  C = Set

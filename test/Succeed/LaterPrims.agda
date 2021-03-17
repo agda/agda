@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical #-}
+{-# OPTIONS --cubical --guarded #-}
 module LaterPrims where
 
 open import Agda.Primitive

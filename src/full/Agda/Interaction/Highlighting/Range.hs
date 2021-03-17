@@ -18,6 +18,8 @@ module Agda.Interaction.Highlighting.Range
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
+
 import qualified Agda.Syntax.Position as P
 
 import Agda.Utils.List
@@ -30,12 +32,15 @@ import Agda.Utils.Null
 --
 -- Invariant: @'from' '<=' 'to'@.
 
-data Range = Range { from, to :: Int }
+data Range = Range { from, to :: !Int }
              deriving (Eq, Ord, Show)
 
 instance Null Range where
   empty  = Range 0 0
   null r = to r <= from r
+
+instance NFData Range where
+  rnf (Range _ _) = ()
 
 -- | The 'Range' invariant.
 
