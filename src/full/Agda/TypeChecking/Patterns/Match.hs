@@ -45,14 +45,19 @@ instance Null (Match a) where
   null _              = False
 
 matchedArgs :: Empty -> Int -> IntMap (Arg a) -> [Arg a]
-matchedArgs err n vs = map get [0..n-1]
+matchedArgs err n vs = map (fromMaybe (absurd err)) $ matchedArgs' n vs
+
+matchedArgs' :: Int -> IntMap (Arg a) -> [Maybe (Arg a)]
+matchedArgs' n vs = map get [0 .. n - 1]
   where
-    get k = fromMaybe (absurd err) $ IntMap.lookup k vs
+    get k = IntMap.lookup k vs
 
 -- | Builds a proper substitution from an IntMap produced by match(Co)patterns
 buildSubstitution :: (DeBruijn a)
                   => Empty -> Int -> IntMap (Arg a) -> Substitution' a
-buildSubstitution err n vs = parallelS $ map unArg $ matchedArgs err n vs
+buildSubstitution err n vs = foldr cons idS $ matchedArgs' n vs
+  where cons Nothing  = Strengthen err
+        cons (Just v) = consS (unArg v)
 
 
 instance Semigroup (Match a) where
