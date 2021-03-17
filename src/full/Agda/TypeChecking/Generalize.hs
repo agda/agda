@@ -357,15 +357,18 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     prepruneError :: MetaId -> String -> TCM a
     prepruneError x code = do
       r <- getMetaRange x
-      let msg = "Congratulations! You have found an easter egg (#" ++ code ++ "). " ++
-                "Be the first to submit a self-contained test case (max 50 lines of code) " ++
-                "producing this error message to https://github.com/agda/agda/issues/3672 " ++
-                "to receive a small prize."
-          cause = "The error is caused by complicated dependencies between unsolved " ++
-                  "metavariables and generalized variables. In particular, this meta:"
+      let msg = case code of
+            "RFCX" -> "Failed to generalize because some of the generalized variables depend on an " ++
+                      "unsolved meta created in a refined context (not a simple extension of the context where " ++
+                      "generalization happens)."
+            "FVTY" -> "Failed to generalize due to circular dependencies between the generalized " ++
+                      "variables and an unsolved meta."
+            "INST" -> "Failed to generalize because the generalized variables depend on an unsolved meta " ++
+                      "that could not be lifted outside the generalization."
+            _ -> __IMPOSSIBLE__
       genericDocError =<<
-        (fwords msg $+$
-         sep [fwords cause, nest 2 $ prettyTCM (MetaV x []) <+> "at" <+> pretty r]
+        (fwords (msg ++ " The problematic unsolved meta is") $$
+                 (nest 2 $ prettyTCM (MetaV x []) <+> "at" <+> pretty r)
         )
 
     -- If one of the fields depend on this meta, we have to make sure that this meta doesn't depend
