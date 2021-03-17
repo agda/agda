@@ -1562,29 +1562,22 @@ secTelescope f s =
 emptySignature :: Signature
 emptySignature = Sig Map.empty HMap.empty HMap.empty
 
--- | A @DisplayForm@ is in essence a rewrite rule
---   @
---      q ts --> dt
---   @
---   for a defined symbol (could be a constructor as well) @q@.
---   The right hand side is a 'DisplayTerm' which is used to
---   'reify' to a more readable 'Abstract.Syntax'.
+-- | A @DisplayForm@ is in essence a rewrite rule @q ts --> dt@ for a defined symbol (could be a
+--   constructor as well) @q@. The right hand side is a 'DisplayTerm' which is used to 'reify' to a
+--   more readable 'Abstract.Syntax'.
 --
---   The patterns @ts@ are just terms, but @var 0@ is interpreted
---   as a hole.  Each occurrence of @var 0@ is a new hole (pattern var).
---   For each *occurrence* of @var0@ the rhs @dt@ has a free variable.
---   These are instantiated when matching a display form against a
---   term @q vs@ succeeds.
+--   The patterns @ts@ are just terms, but the first @dfPatternVars@ variables are pattern variables
+--   that matches any term.
 data DisplayForm = Display
-  { dfFreeVars :: Nat
-    -- ^ Number @n@ of free variables in 'dfRHS'.
-  , dfPats     :: Elims
-    -- ^ Left hand side patterns, where @var 0@ stands for a pattern
-    --   variable.  There should be @n@ occurrences of @var0@ in
-    --   'dfPats'.
-    --   The 'ArgInfo' is ignored in these patterns.
-  , dfRHS      :: DisplayTerm
-    -- ^ Right hand side, with @n@ free variables.
+  { dfPatternVars :: Nat
+    -- ^ Number @n@ of pattern variables in 'dfPats'.
+  , dfPats :: Elims
+    -- ^ Left hand side patterns, the @n@ first free variables are pattern variables,
+    --   any variables above @n@ are fixed and only matches that particular variable. This
+    --   happens when you have display forms inside parameterised modules that match on the module
+    --   parameters. The 'ArgInfo' is ignored in these patterns.
+  , dfRHS :: DisplayTerm
+    -- ^ Right hand side.
   }
   deriving (Data, Show, Generic)
 

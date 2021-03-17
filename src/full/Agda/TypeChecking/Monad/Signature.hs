@@ -6,6 +6,7 @@ import Prelude hiding (null)
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Arrow (first, second)
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Reader
@@ -49,6 +50,7 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
+import {-# SOURCE #-} Agda.TypeChecking.Reduce
 
 import {-# SOURCE #-} Agda.Compiler.Treeless.Erase
 import {-# SOURCE #-} Agda.Compiler.Builtin
@@ -237,62 +239,90 @@ getSection m = do
 lookupSection :: (Functor m, ReadTCState m) => ModuleName -> m Telescope
 lookupSection m = maybe EmptyTel (^. secTelescope) <$> getSection m
 
--- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
+-- | Add display forms for a name @f@ copied by a module application. Essentially if @f@ can reduce to
+--
+-- @
+-- λ xs → A.B.C.f vs
+-- @
+--
+-- by unfolding module application copies (`defCopy`), then we add a display form
+--
+-- @
+-- A.B.C.f vs ==> f xs
+-- @
 addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
-  def  <- getConstInfo x
-  args <- drop (projectionArgs $ theDef def) <$> getContextArgs
-  add args x x $ map Apply $ raise 1 args -- make room for the single match variable of the display form
+  reportSDoc "tc.display.section" 20 $ "Computing display forms for" <+> pretty x
+  def <- theDef <$> getConstInfo x
+  let v = case def of
+             Constructor{conSrcCon = h} -> Con h{ conName = x } ConOSystem []
+             _                          -> Def x []
+
+  -- Compute all unfoldings of x by repeatedly calling reduceDefCopy
+  vs <- unfoldings x v
+  reportSDoc "tc.display.section" 20 $ nest 2 $ vcat
+    [ "unfoldings:" <?> vcat [ "-" <+> pretty v | v <- vs ] ]
+
+  -- Turn unfoldings into display forms
+  npars <- subtract (projectionArgs def) <$> getContextSize
+  let dfs = catMaybes $ map (displayForm npars v) vs
+  reportSDoc "tc.display.section" 20 $ nest 2 $ vcat
+    [ "displayForms:" <?> vcat [ "-" <+> (pretty y <+> "-->" <?> pretty df) | (y, df) <- dfs ] ]
+
+  -- and add them
+  mapM_ (uncurry addDisplayForm) dfs
   where
-    add args top x es0 = do
-      def <- getConstInfo x
-      let cs = defClauses def
-          isCopy = defCopy def
-      case cs of
-        [ cl ] -> do
-          if not isCopy
-            then noDispForm x "not a copy" else do
-          if not $ all (isVar . namedArg) $ namedClausePats cl
-            then noDispForm x "properly matching patterns" else do
-          -- We have
-          --    x ps = e
-          -- and we're trying to generate a display form
-          --    x es0 <-- e[es0/ps]
-          -- Of course x es0 might be an over- or underapplication, hence the
-          -- n/m arithmetic.
-          let n          = size $ namedClausePats cl
-              (es1, es2) = splitAt n es0
-              m          = n - size es1
-              vs1 = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
-              sub = parallelS $ reverse $ vs1 ++ replicate m (var 0)
-              body = applySubst sub (compiledClauseBody cl) `applyE` es2
-          case unSpine <$> body of
-            Just (Def y es) -> do
-              let df = Display m es $ DTerm $ Def top $ map Apply args
-              reportSDoc "tc.display.section" 20 $ vcat
-                [ "adding display form" <+> pretty y <+> "-->" <+> pretty top
-                , nest 2 $ pretty df
-                ]
-              addDisplayForm y df
-              add args top y es
-            Just v          -> noDispForm x $ "not a def body, but " <+> pretty v
-            Nothing         -> noDispForm x $ "bad body"
-        [] | Constructor{ conSrcCon = h } <- theDef def -> do
-              let y  = conName h
-                  df = Display 0 [] $ DTerm $ Con (h {conName = top }) ConOSystem []
-              reportSDoc "tc.display.section" 20 $ vcat
-                [ "adding display form" <+> pretty y <+> "-->" <+> pretty top
-                , nest 2 $ pretty df
-                ]
-              addDisplayForm y df
-        [] -> noDispForm x "no clauses"
-        (_:_:_) -> noDispForm x "many clauses"
 
-    noDispForm x reason = reportSDoc "tc.display.section" 30 $
-      "no display form from" <+> pretty x <+> "because" <+> reason
+    -- To get display forms for projections we need to unSpine here.
+    view :: Term -> ([Arg ArgName], Term)
+    view = second unSpine . lamView
 
-    isVar VarP{} = True
-    isVar _      = False
+    -- Given an unfolding `top = λ xs → y es` generate a display form
+    -- `y es ==> top xs`. The first `npars` variables in `xs` are module parameters
+    -- and should not be pattern variables, but matched literally.
+    displayForm :: Nat -> Term -> Term -> Maybe (QName, DisplayForm)
+    displayForm npars top v =
+      case view v of
+        (xs, Def y es)   -> (y,)         <$> mkDisplay xs es
+        (xs, Con h i es) -> (conName h,) <$> mkDisplay xs es
+        _ -> __IMPOSSIBLE__
+      where
+        mkDisplay xs es = Just (Display (n - npars) es $ DTerm $ top `apply` args)
+          where
+            n    = length xs
+            args = zipWith (\ x i -> var i <$ x) xs [n - 1, n - 2..0]
+
+    -- Unfold a single defCopy.
+    unfoldOnce :: Term -> TCM (Reduced () Term)
+    unfoldOnce v = case view v of
+      (xs, Def f es)   -> (fmap . fmap) (unlamView xs) (reduceDefCopyTCM f es)
+      (xs, Con c i es) -> (fmap . fmap) (unlamView xs) (reduceDefCopyTCM (conName c) es)
+      _                -> pure $ NoReduction ()
+
+    -- Compute all reduceDefCopy unfoldings of `x`. Stop when we hit a non-copy.
+    unfoldings :: QName -> Term -> TCM [Term]
+    unfoldings x v = unfoldOnce v >>= \ case
+      NoReduction{}     -> return []
+      YesReduction _ v' -> do
+        let headSymbol = case snd $ view v' of
+              Def y _   -> Just y
+              Con y _ _ -> Just (conName y)
+              _         -> Nothing
+        case headSymbol of
+          Nothing -> return []
+          Just y | x == y -> do
+            -- This should never happen, but if it does, getting an __IMPOSSIBLE__ is much better
+            -- than looping.
+            reportSDoc "impossible" 10 $ nest 2 $ vcat
+              [ "reduceDefCopy said YesReduction but the head symbol is the same!?"
+              , nest 2 $ "v  =" <+> pretty v
+              , nest 2 $ "v' =" <+> pretty v'
+              ]
+            __IMPOSSIBLE__
+          Just y -> do
+            ifM (defCopy <$> getConstInfo y)
+                ((v' :) <$> unfoldings y v')  -- another copy so keep going
+                (return [v'])                 -- not a copy, we stop
 
 -- | Module application (followed by module parameter abstraction).
 applySection

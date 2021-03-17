@@ -1021,7 +1021,7 @@ hasElims v =
     Con{}      -> Nothing
     Lit{}      -> Nothing
     -- Andreas, 2016-04-13, Issue 1932: We convert λ x → x .f  into f
-    Lam _ (Abs _ v)  -> case v of
+    Lam h (Abs _ v) | visible h -> case v of
       Var 0 [Proj _o f] -> Just (Def f, [])
       _ -> Nothing
     Lam{}      -> Nothing

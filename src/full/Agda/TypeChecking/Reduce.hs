@@ -638,6 +638,10 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
             reportSDoc "tc.reduce"  95 $ "    result" <+> prettyTCM v
             reportSDoc "tc.reduce" 100 $ "    raw   " <+> text (show v)
 
+-- | Specialized version to put in boot file.
+reduceDefCopyTCM :: QName -> Elims -> TCM (Reduced () Term)
+reduceDefCopyTCM = reduceDefCopy
+
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
 reduceDefCopy :: forall m. PureTCM m => QName -> Elims -> m (Reduced () Term)
 reduceDefCopy f es = do

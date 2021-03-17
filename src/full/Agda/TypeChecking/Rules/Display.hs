@@ -2,6 +2,7 @@
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
 import qualified Data.List.NonEmpty as NonEmpty
+import Control.Monad.State
 import Data.Maybe
 
 import qualified Agda.Syntax.Abstract as A
@@ -21,8 +22,10 @@ import Agda.Utils.Impossible
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = do
   df <- inTopContext $ do
-          pappToTerm f id ps $ \n args -> do
-            let lhs = map I.Apply args
+          pappToTerm f id ps $ \ n args -> do
+            -- pappToTerm puts Var 0 for every variable. We get to know how many there were (n) so
+            -- now we can renumber them with decreasing deBruijn indices.
+            let lhs = renumberElims (n - 1) $ map I.Apply args
             v <- exprToTerm e
             return $ Display n lhs (DTerm v)
   reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ prettyShow f ++ "\n  " ++ show df
@@ -33,6 +36,8 @@ checkDisplayPragma f ps e = do
 ---- checking so does the wrong thing if implicitness is computed. Binds variables.
 --displayLHS :: Telescope -> [NamedArg A.Pattern] -> (Int -> [Term] -> TCM a) -> TCM a
 --displayLHS tel ps ret = patternsToTerms tel ps $ \n vs -> ret n (map unArg vs)
+
+type ToTm = StateT Nat TCM
 
 patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Args -> TCM a) -> TCM a
 patternsToTerms _ [] ret = ret 0 []
@@ -64,7 +69,7 @@ pappToTerm x f ps ret = do
             | i > 0 -> i - 1
           _ -> 0
 
-  patternsToTerms (dropTel pars tel) ps $ \n vs -> ret n (f vs)
+  patternsToTerms (dropTel pars tel) ps $ \ n vs -> ret n (f vs)
 
 patternToTerm :: A.Pattern -> (Nat -> Term -> TCM a) -> TCM a
 patternToTerm p ret =
@@ -118,3 +123,19 @@ exprToTerm e =
     _                -> typeError $ GenericError $ "TODO: exprToTerm " ++ show e
   where
     notAllowed s = typeError $ GenericError $ "Not allowed in DISPLAY pragma right-hand side: " ++ s
+
+renumberElims :: Nat -> Elims -> Elims
+renumberElims n es = evalState (renumbers es) n
+  where
+    next :: State Nat Nat
+    next = do i <- get; i <$ put (i - 1)
+
+    renumbers :: Elims -> State Nat Elims
+    renumbers = (traverse . traverse) renumber
+
+    renumber :: Term -> State Nat Term
+    renumber (Var 0 [])   = var <$> next
+    renumber (Def f es)   = Def f <$> renumbers es
+    renumber (Con c h es) = Con c h <$> renumbers es
+    renumber (Lit l)      = pure $ Lit l
+    renumber _            = __IMPOSSIBLE__ -- We need only handle the result of patternToTerm here
