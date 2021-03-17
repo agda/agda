@@ -378,7 +378,7 @@ definition' kit q d t ls = do
         reportSDoc "function.go" 25 $ "\n funBody':" <+> (text . show) funBody'   
         reportSDoc "function.go" 30 $ "\n given:" <+> (text . show) given
         reportSDoc "function.go" 30 $ "\n etaN:" <+> (text . show) etaN
-        return $ Just $ functionSignature funBody'
+        return $ Just $ applyReturnType $ functionSignature funBody'
 
     Primitive{primName = p} -> return Nothing
     Datatype{ dataPathCons = _ : _ } -> do
@@ -468,14 +468,16 @@ compileTerm kit paramCount t = do
       T.TVar x -> return $ GoVar $ paramCount - x
       T.TDef q -> do
         d <- getConstInfo q
+        name <- liftTCM $ visitorName q
         reportSDoc "function.go" 30 $ "\n TDef q:" <+> (text . show) q 
         reportSDoc "function.go" 30 $ "\n TDef d:" <+> (text . show) d 
-        reportSDoc "function.go" 30 $ "\n TDef theDef d:" <+> (text . show) (theDef d)
+        reportSDoc "function.go" 30 $ "\n name:" <+> (text . show) name
         case theDef d of
           -- Datatypes and records are erased
           Datatype {} -> return (String "*")
           Record {} -> return (String "*")
-          _ -> return Undefined
+          --in case of qname, we call a function with no arguments
+          _ -> return $ GoMethodCall name []
       T.TApp (T.TCon q) [x] | Just q == (nameOfSharp <$> snd kit) -> do
         reportSDoc "function.go" 30 $ "\n sharp"
         unit
@@ -507,7 +509,7 @@ compileTerm kit paramCount t = do
         reportSDoc "function.go" 30 $ "\n primType:" <+> (text . show) primType
         reportSDoc "function.go" 30 $ "\n x:" <+> (text . show) x 
         reportSDoc "function.go" 30 $ "\n y:" <+> (text . show) y 
-        BinOp <$> (go x) <*> (go (T.TPrim primType)) <*> (go y)  
+        BinOp <$> (go (T.TPrim primType)) <*> (go x)  <*> (go y)  
       T.TApp t' xs | Just f <- getDef t' -> do
         used <- either getCompiledArgUse (\x -> fmap (map not) $ getErasedConArgs x) f
         reportSDoc "function.go" 30 $ "\n just f used:" <+> (text . show) used
@@ -596,8 +598,8 @@ goTypeApproximation fv t = do
             return $ PiType p1 p2
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
-            | q `is` int -> return $ ConstructorType (getVarName n) "int"
-            | q `is` nat -> return $ ConstructorType (getVarName n) "int"
+            | q `is` int -> return $ ConstructorType (getVarName n) "*big.Int"
+            | q `is` nat -> return $ ConstructorType (getVarName n) "*big.Int"
             | otherwise -> do
               (MemberId name) <- liftTCM $ visitorName q
               return $ ConstructorType (getVarName n) name
@@ -634,6 +636,37 @@ isSortType t = do
     Sort{} -> False
     _ -> True
 
+applyReturnType :: Exp -> Exp
+applyReturnType = \case
+  GoVar x -> ReturnExpression $ GoVar x
+  GoMethodCall x y -> ReturnExpression $ GoMethodCall x y
+  GoCreateStruct x y -> ReturnExpression $ GoCreateStruct x y
+  BinOp x y z -> ReturnExpression $ BinOp x y z
+  String x -> ReturnExpression $ String x
+  Integer x -> ReturnExpression $ Integer x
+  Const x -> ReturnExpression $ Const x
+  GoInterface x -> GoInterface x
+  GoStruct x y -> GoStruct x y
+  GoFunction x y -> GoFunction x $ applyReturnType y
+  GoSwitch x y -> GoSwitch x $ map applyReturnType y
+  GoCase memId a b c x -> do
+    if (isLastExpression (last x)) == True
+      then GoCase memId a b c $ (init x) ++ [(ReturnExpression (last x))]
+      else GoCase memId a b c $ (init x) ++ [(applyReturnType (last x))]
+  GoIf x y z -> GoIf x (applyReturnType y) (applyReturnType z)
+  GoLet x y z -> GoLet x y (applyReturnType z)
+  _ -> __IMPOSSIBLE__
+
+isLastExpression :: Exp -> Bool
+isLastExpression = \case
+  GoMethodCall x y -> True
+  GoCreateStruct x y -> True
+  GoVar x -> True
+  BinOp x y z -> True
+  String x -> True
+  Integer x -> True
+  Const x -> True
+  _ -> False
 outFile_ :: TCM FilePath
 outFile_ = do
   m <- curMName
@@ -652,32 +685,30 @@ literal = \case
 compilePrim :: T.TPrim -> Exp
 compilePrim p =
   case p of
-    T.PEqI -> Const "=="
-    T.PSub -> Const "-"
-    T.PMul -> Const "*"
-    T.PAdd -> Const "+"
-    T.PGeq -> Const ">="
-    T.PLt -> Const "<"
+    T.PEqI -> Const "intHelper.equals"
+    T.PSub -> Const "intHelper.minus"
+    T.PMul -> Const "intHelper.multiply"
+    T.PAdd -> Const "intHelper.add"
+    T.PGeq -> Const "intHelper.moreOrEquals"
+    T.PLt -> Const "intHelper.less"
     T.PEqC -> Const "=="
     T.PEqS -> Const "=="
-    T.PEq64 -> Const "=="
-    T.PLt64 -> Const "<"
-    -- T.PEqF -> binOp "agdaRTS.uprimFloatEquality"
-    -- T.PEqQ -> binOp "agdaRTS.uprimQNameEquality"
-    -- T.PRem -> binOp "agdaRTS.uprimIntegerRem"
-    -- T.PQuot -> binOp "agdaRTS.uprimIntegerQuot"
-    -- T.PAdd64 -> binOp "agdaRTS.uprimWord64Plus"
-    -- T.PSub64 -> binOp "agdaRTS.uprimWord64Minus"
-    -- T.PMul64 -> binOp "agdaRTS.uprimWord64Multiply"
-    -- T.PRem64 -> binOp "agdaRTS.uprimIntegerRem"     -- -|
-    -- T.PQuot64 -> binOp "agdaRTS.uprimIntegerQuot"   --  > These can use the integer functions
-    -- T.PEq64 -> binOp "agdaRTS.uprimIntegerEqual"    --  |
-    -- T.PLt64 -> binOp "agdaRTS.uprimIntegerLessThan" -- -|
-    -- T.PITo64 -> unOp "agdaRTS.primWord64FromNat"
-    -- T.P64ToI -> unOp "agdaRTS.primWord64ToNat"
-    -- T.PSeq -> binOp "agdaRTS.primSeq"
+    T.PEq64 -> Const "intHelper.equals"
+    T.PLt64 -> Const "intHelper.less"
+    T.PEqF -> Const "PEqF"
+    T.PEqQ -> Const "PEqQ"
+    T.PRem -> Const "PRem"
+    T.PQuot -> Const "PQuot"
+    T.PAdd64 -> Const "intHelper.add"
+    T.PSub64 -> Const "intHelper.minus"
+    T.PMul64 -> Const "intHelper.multiply"
+    T.PRem64 -> Const "PRem64" 
+    T.PQuot64 -> Const "PQuot64"
+    T.PITo64 -> Const "PITo64"
+    T.P64ToI -> Const "P64ToI"
+    T.PSeq -> Const "PSeq"
     T.PIf -> __IMPOSSIBLE__
-    _ -> __IMPOSSIBLE__
+
 
 -- | Cubical primitives that are (currently) not compiled.
 --

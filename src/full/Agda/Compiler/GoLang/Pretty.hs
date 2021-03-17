@@ -36,11 +36,12 @@ instance Pretty Go.Exp where
       Go.GoSwitch v cases -> "switch type_" <> (pretty v) <> (text "  := ") <> (pretty v) <> (text ".(type) {\n") <> (vcat $ map pretty cases) <> "\ndefault:\n_ = type_"<> (pretty v) <> ";\n panic(\"Unreachable\");\n}"
       Go.GoCase name switchVar paramsStart paramCount exps -> "\ncase " <> (pretty name) <> spaceWrap (T.colon) <> (hsep $ map (createCaseParam paramsStart switchVar) (createCaseList paramCount)) <> (vcat $ map pretty exps)
       Go.GoCreateStruct name params -> (pretty name) <+> T.lbrace <+> (joinStructParams (map pretty params)) <+> "}"
+      Go.GoMethodCall name [] -> (pretty name) <> "()"
       Go.GoMethodCall name params -> (pretty name) <> (hsep $ map T.parens $ map pretty params)
       Go.GoIf a b c -> "if (" <+> (pretty a) <+> ") {\n" <+> (pretty b) <+> "\n} else {\n" <+> pretty c <+> "\n}\n"
-      Go.BinOp a b c -> (T.parens (pretty a)) <+> (pretty b) <+> (T.parens (pretty c))
+      Go.BinOp a b c -> (pretty a) <> "(" <> (T.parens (pretty b)) <> "," <> (T.parens (pretty c)) <> ")"
       Go.GoLet name val exp -> (text name) <+> ":=" <+> (pretty val) <+> "\n" <+> (pretty exp)
-      Go.Integer n -> text $ show n
+      Go.Integer n -> (text "big.NewInt") <> (T.parens $ text $ show n)
       Go.ReturnExpression exp -> "return" <+> (pretty exp)
       _ -> text ""
 
