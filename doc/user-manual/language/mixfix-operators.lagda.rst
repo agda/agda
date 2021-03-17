@@ -177,3 +177,15 @@ complain if you try to use ambiguously:
 Fixity declarations may appear anywhere in a module that other
 declarations may appear. They then apply to the entire scope in which
 they appear (i.e. before and after, but not outside).
+
+Operators in telescopes
+=======================
+
+Agda does not yet support declaring the fixity of operators declared in
+telescopes, see `Issue #1235 <https://github.com/agda/agda/issues/1235>`.
+
+However, the following hack currently works:
+
+.. code-block:: agda
+
+  module _ {A : Set} (_+_ : A → A → A) (let infixl 5 _+_; _+_ = _+_) where
