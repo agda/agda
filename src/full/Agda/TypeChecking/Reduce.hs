@@ -6,6 +6,7 @@ import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Map (Map)
+import qualified Data.IntMap as IntMap
 import Data.Foldable
 import Data.Traversable
 import Data.HashMap.Strict (HashMap)
@@ -37,6 +38,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
@@ -637,25 +639,42 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
             reportSDoc "tc.reduce" 100 $ "    raw   " <+> text (show v)
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
-reduceDefCopy :: forall m. PureTCM m
-              => QName -> Elims -> m (Reduced () Term)
+reduceDefCopy :: forall m. PureTCM m => QName -> Elims -> m (Reduced () Term)
 reduceDefCopy f es = do
   info <- getConstInfo f
-  rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
-  if (defCopy info) then reduceDef_ info rewr f es else return $ NoReduction ()
+  case theDef info of
+    _ | not $ defCopy info     -> return $ NoReduction ()
+    Constructor{conSrcCon = c} -> return $ YesReduction YesSimplification (Con c ConOSystem es)
+    _                          -> reduceDef_ info f es
   where
-    reduceDef_ :: Definition -> RewriteRules -> QName -> Elims -> m (Reduced () Term)
-    reduceDef_ info rewr f es = do
-      let v0   = Def f []
-          cls  = (defClauses info)
-          mcc  = (defCompiled info)
-      if (defDelayed info == Delayed) || (defNonterminating info)
-       then return $ NoReduction ()
-       else do
-          ev <- liftReduce $ appDefE_ f v0 cls mcc rewr $ map notReduced es
-          case ev of
-            YesReduction simpl t -> return $ YesReduction simpl t
-            NoReduction{}        -> return $ NoReduction ()
+    reduceDef_ :: Definition -> QName -> Elims -> m (Reduced () Term)
+    reduceDef_ info f es = case defClauses info of
+      [cl] -> do  -- proper copies always have a single clause
+        let v0 = Def f [] -- TODO: could be Con
+            ps    = namedClausePats cl
+            nargs = length es
+            -- appDefE_ cannot handle underapplied functions, so we eta-expand here if that's the
+            -- case. We use this function to compute display forms from module applications and in
+            -- that case we don't always have saturated applications.
+            (lam, es') = (unlamView xs, newes)
+              where
+                etaArgs [] _ = []
+                etaArgs (p : ps) []
+                  | VarP _ x <- namedArg p = Arg (getArgInfo p) (dbPatVarName x) : etaArgs ps []
+                  | otherwise              = []
+                etaArgs (_ : ps) (_ : es) = etaArgs ps es
+                xs  = etaArgs ps es
+                n   = length xs
+                newes = raise n es ++ [ Apply $ var i <$ x | (i, x) <- zip (downFrom n) xs ]
+        if (defDelayed info == Delayed) || (defNonterminating info)
+         then return $ NoReduction ()
+         else do
+            ev <- liftReduce $ appDefE_ f v0 [cl] Nothing mempty $ map notReduced es'
+            case ev of
+              YesReduction simpl t -> return $ YesReduction simpl (lam t)
+              NoReduction{}        -> return $ NoReduction ()
+      []    -> return $ NoReduction ()  -- copies of generalizable variables have no clauses (and don't need unfolding)
+      _:_:_ -> __IMPOSSIBLE__
 
 -- | Reduce simple (single clause) definitions.
 reduceHead :: PureTCM m => Term -> m (Blocked Term)
