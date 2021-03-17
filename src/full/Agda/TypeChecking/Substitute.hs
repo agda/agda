@@ -17,7 +17,7 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
-import Control.Arrow (second)
+import Control.Arrow (first, second)
 import Control.Monad (guard)
 import Data.Coerce
 import Data.Function
@@ -1258,6 +1258,14 @@ mkPi !dom b = el $ Pi a (mkAbs x b)
 
 mkLam :: Arg ArgName -> Term -> Term
 mkLam a v = Lam (argInfo a) (Abs (unArg a) v)
+
+lamView :: Term -> ([Arg ArgName], Term)
+lamView (Lam h (Abs   x b)) = first (Arg h x :) $ lamView b
+lamView (Lam h (NoAbs x b)) = first (Arg h x :) $ lamView (raise 1 b)
+lamView t                   = ([], t)
+
+unlamView :: [Arg ArgName] -> Term -> Term
+unlamView xs b = foldr mkLam b xs
 
 telePi' :: (Abs Type -> Abs Type) -> Telescope -> Type -> Type
 telePi' reAbs = telePi where
