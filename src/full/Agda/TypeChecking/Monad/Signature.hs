@@ -290,7 +290,7 @@ addDisplayForms x = do
         mkDisplay xs es = Just (Display (n - npars) es $ DTerm $ top `apply` args)
           where
             n    = length xs
-            args = zipWith (\ x i -> var i <$ x) xs [n - 1, n - 2..0]
+            args = zipWith (\ x i -> var i <$ x) xs (downFrom n)
 
     -- Unfold a single defCopy.
     unfoldOnce :: Term -> TCM (Reduced () Term)

@@ -1573,7 +1573,7 @@ data DisplayForm = Display
     -- ^ Number @n@ of pattern variables in 'dfPats'.
   , dfPats :: Elims
     -- ^ Left hand side patterns, the @n@ first free variables are pattern variables,
-    --   any variables above @n@ are fixed and only matches that particular variable. This
+    --   any variables above @n@ are fixed and only match that particular variable. This
     --   happens when you have display forms inside parameterised modules that match on the module
     --   parameters. The 'ArgInfo' is ignored in these patterns.
   , dfRHS :: DisplayTerm
