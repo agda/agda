@@ -114,14 +114,14 @@ matchDisplayForm d@(Display n ps v) es
   | otherwise             = do
       let (es0, es1) = splitAt (length ps) es
       mm <- match (Window 0 n) ps es0
-      us <- sequence [ do Just u <- return $ Map.lookup i mm; return u | i <- [0..n - 1] ]
+      let us = map (\ i -> Map.findWithDefault __IMPOSSIBLE__ i mm) [0 .. n - 1]
       return (d, substWithOrigin (parallelS $ map woThing us) us v `applyE` es1)
 
 type MatchResult = Map Int (WithOrigin Term)
 
 unionMatch :: Monad m => MatchResult -> MatchResult -> MaybeT m MatchResult
 unionMatch m1 m2
-  | Set.null $ Set.intersection (Map.keysSet m1) (Map.keysSet m2) = return $ Map.union m1 m2
+  | Set.disjoint (Map.keysSet m1) (Map.keysSet m2) = return $ Map.union m1 m2
   | otherwise = mzero  -- Non-linear pattern, fail for now.
 
 unionsMatch :: Monad m => [MatchResult] -> MaybeT m MatchResult
