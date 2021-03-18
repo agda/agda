@@ -354,18 +354,22 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
 
     sub = unpackSub genRecCon $ map getArgInfo $ telToList genTel
 
-    prepruneError :: MetaId -> String -> TCM a
-    prepruneError x code = do
+    prepruneErrorRefinedContext = prepruneError $
+      "Failed to generalize because some of the generalized variables depend on an " ++
+      "unsolved meta created in a refined context (not a simple extension of the context where " ++
+      "generalization happens)."
+
+    prepruneErrorCyclicDependencies = prepruneError $
+      "Failed to generalize due to circular dependencies between the generalized " ++
+      "variables and an unsolved meta."
+
+    prepruneErrorFailedToInstantiate = prepruneError $
+      "Failed to generalize because the generalized variables depend on an unsolved meta " ++
+      "that could not be lifted outside the generalization."
+
+    prepruneError :: String -> MetaId -> TCM a
+    prepruneError msg x = do
       r <- getMetaRange x
-      let msg = case code of
-            "RFCX" -> "Failed to generalize because some of the generalized variables depend on an " ++
-                      "unsolved meta created in a refined context (not a simple extension of the context where " ++
-                      "generalization happens)."
-            "FVTY" -> "Failed to generalize due to circular dependencies between the generalized " ++
-                      "variables and an unsolved meta."
-            "INST" -> "Failed to generalize because the generalized variables depend on an unsolved meta " ++
-                      "that could not be lifted outside the generalization."
-            _ -> __IMPOSSIBLE__
       genericDocError =<<
         (fwords (msg ++ " The problematic unsolved meta is") $$
                  (nest 2 $ prettyTCM (MetaV x []) <+> "at" <+> pretty r)
@@ -384,7 +388,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         case δ of
           Wk n IdS -> return (n, _A)
           IdS      -> return (0, _A)
-          _        -> prepruneError x "RFCX"
+          _        -> prepruneErrorRefinedContext x
       if i == 0 then return x else do
         reportSDoc "tc.generalize.prune.pre" 40 $ vcat
           [ "prepruning"
@@ -398,7 +402,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
 
         -- We can only do this if A does not depend on Δ, so check this first.
         case IntSet.minView (allFreeVars _A) of
-          Just (j, _) | j < i -> prepruneError x "FVTY"
+          Just (j, _) | j < i -> prepruneErrorCyclicDependencies x
           _                   -> return ()
 
         -- If it doesn't we can strenghten it to the current context (this is done by
@@ -421,7 +425,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
           v <- case _A of
                  Nothing -> Sort . MetaS x . map Apply <$> getMetaContextArgs mv
                  Just{}  -> MetaV x . map Apply <$> getMetaContextArgs mv
-          noConstraints (doPrune x mv _A v uρ') `catchError` \ _ -> prepruneError x "INST"
+          noConstraints (doPrune x mv _A v uρ') `catchError` \ _ -> prepruneErrorFailedToInstantiate x
           setInteractionPoint x y
           return y
 
