@@ -45,7 +45,7 @@ import Agda.Interaction.Highlighting.Range (rToR, overlappings, Ranges)  -- Rang
 import Agda.Interaction.Highlighting.FromAbstract
 
 import qualified Agda.TypeChecking.Errors as TCM
-import Agda.TypeChecking.MetaVars (isBlockedTerm)
+import Agda.TypeChecking.MetaVars (isBlockedTerm, hasTwinMeta)
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad  as TCM
@@ -591,8 +591,10 @@ computeUnsolvedMetaWarnings = do
   -- We don't want to highlight blocked terms, since
   --   * there is always at least one proper meta responsible for the blocking
   --   * in many cases the blocked term covers the highlighting for this meta
+  --   * for the same reason we skip metas with a twin, since the twin will be blocked.
   let notBlocked m = not <$> isBlockedTerm m
-  ms <- filterM notBlocked =<< getOpenMetas
+  let notHasTwin m = not <$> hasTwinMeta m
+  ms <- filterM notHasTwin =<< filterM notBlocked =<< getOpenMetas
 
   let extend = map (rToR . P.continuousPerLine)
 

@@ -89,6 +89,11 @@ instance MonadMetaSolver TCM where
 findIdx :: Eq a => [a] -> a -> Maybe Int
 findIdx vs v = List.elemIndex v (reverse vs)
 
+hasTwinMeta :: MetaId -> TCM Bool
+hasTwinMeta x = do
+    m <- lookupMeta x
+    return $ isJust $ mvTwin m
+
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MetaId -> TCM Bool
 isBlockedTerm x = do
