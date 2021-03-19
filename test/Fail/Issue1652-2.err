@@ -1,0 +1,3 @@
+Issue1652-2.agda:16,3-25
+plus0p  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  A
+when checking the pragma REWRITE plus0p

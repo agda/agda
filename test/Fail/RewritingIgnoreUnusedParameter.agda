@@ -9,3 +9,4 @@ module _ (A : Set) where
 
 {-# BUILTIN REWRITE _≡_ #-}
 {-# REWRITE rew #-}
+{- Jesper, 2021-03-19: Since the fix of #5238 this example is no longer allowed -}

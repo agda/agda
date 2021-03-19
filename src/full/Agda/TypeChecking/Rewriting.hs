@@ -239,17 +239,17 @@ checkRewriteRule q = do
       -- original definition.
       lhs <- modifyAllowedReductions (const $ SmallSet.singleton InlineReductions) $ reduce lhs
 
-      -- Find head symbol f of the lhs, its type and its arguments.
-      (f , hd , t , es) <- case lhs of
+      -- Find head symbol f of the lhs, its type, its parameters (in case of a constructor), and its arguments.
+      (f , hd , t , pars , es) <- case lhs of
         Def f es -> do
           def <- getConstInfo f
           checkAxFunOrCon f def
-          return (f , Def f , defType def , es)
+          return (f , Def f , defType def , [] , es)
         Con c ci vs -> do
           let hd = Con c ci
           ~(Just ((_ , _ , pars) , t)) <- getFullyAppliedConType c $ unDom b
-          addContext gamma1 $ checkParametersAreGeneral c pars
-          return (conName c , hd , t  , vs)
+          pars <- addContext gamma1 $ checkParametersAreGeneral c pars
+          return (conName c , hd , t , pars , vs)
         _        -> failureNotDefOrCon
 
       ifNotAlreadyAdded f $ do
@@ -268,17 +268,32 @@ checkRewriteRule q = do
         reportSDoc "rewriting" 30 $
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
-        -- check that FV(rhs) ⊆ nlPatVars(lhs)
-        let freeVars = case theDef def of
-              Function{} -> usedArgs def `IntSet.union` allFreeVars (ps,rhs)
-              Axiom{}    -> IntSet.fromList $ downFrom $ size gamma
-              _          -> __IMPOSSIBLE__
-            boundVars = nlPatVars ps
+        -- We need to check two properties on the variables used in the rewrite rule
+        -- 1. For actually being able to apply the rewrite rule, we need
+        --    that all variables that occur in the rule (on the left or the right)
+        --    are bound in a pattern position on the left.
+        -- 2. To preserve soundness, we need that all the variables that are used
+        --    in the *proof* of the rewrite rule are bound in the lhs.
+        --    For rewrite rules on constructors, we consider parameters to be bound
+        --    even though they don't appear in the lhs, since they can be reconstructed.
+        --    For postulated or abstract rewrite rules, we consider all arguments
+        --    as 'used' (see #5238).
+        let boundVars = nlPatVars ps
+            freeVars  = allFreeVars (ps,rhs)
+            allVars   = IntSet.fromList $ downFrom $ size gamma
+            usedVars  = case theDef def of
+              Function{}     -> usedArgs def
+              Axiom{}        -> allVars
+              AbstractDefn{} -> allVars
+              _              -> __IMPOSSIBLE__
         reportSDoc "rewriting" 70 $
           "variables bound by the pattern: " <+> text (show boundVars)
         reportSDoc "rewriting" 70 $
           "variables free in the rewrite rule: " <+> text (show freeVars)
+        reportSDoc "rewriting" 70 $
+          "variables used by the rewrite rule: " <+> text (show usedVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
+        unlessNull (usedVars IntSet.\\ (boundVars `IntSet.union` IntSet.fromList pars)) failureFreeVars
 
         let rew = RewriteRule q gamma f ps rhs (unDom b) False
 
@@ -348,10 +363,11 @@ checkRewriteRule q = do
         used Pos.Unused = False
         used _          = True
 
-    checkParametersAreGeneral :: ConHead -> Args -> TCM ()
+    checkParametersAreGeneral :: ConHead -> Args -> TCM [Int]
     checkParametersAreGeneral c vs = do
         is <- loop vs
         unless (fastDistinct is) $ errorNotGeneral
+        return is
       where
         loop []       = return []
         loop (v : vs) = case unArg v of
