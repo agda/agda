@@ -176,7 +176,7 @@ instance EmbPrj DisplayForm where
   value = valueN Display
 
 instance EmbPrj a => EmbPrj (Open a) where
-  icod_ (OpenThing a b c) = icodeN' OpenThing a b c
+  icod_ (OpenThing a b c d) = icodeN' OpenThing a b c d
 
   value = valueN OpenThing
 

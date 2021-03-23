@@ -71,7 +71,10 @@ instance Arbitrary Cohesion where
   -- left division does not respect laws for Squash on the left.
 
 instance Arbitrary NameId where
-  arbitrary = elements [ NameId x y | x <- [0, 1], y <- [0, 1] ]
+  arbitrary = elements [ NameId x (ModuleNameHash y) | x <- [0, 1], y <- [0, 1] ]
+
+instance CoArbitrary ModuleNameHash where
+  coarbitrary (ModuleNameHash h) = coarbitrary h
 
 instance CoArbitrary NameId
 

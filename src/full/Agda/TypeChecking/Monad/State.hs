@@ -345,7 +345,7 @@ withTopLevelModule x m = do
   stFreshNameId `setTCLens` next
   return y
 
-currentModuleNameHash :: TCM ModuleNameHash
+currentModuleNameHash :: ReadTCState m => m ModuleNameHash
 currentModuleNameHash = do
   NameId _ h <- useTC stFreshNameId
   return h

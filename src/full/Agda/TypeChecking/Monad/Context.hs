@@ -402,7 +402,7 @@ getLetBindings = do
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding' :: Name -> Term -> Dom Type -> TCM a -> TCM a #-}
-defaultAddLetBinding' :: MonadTCEnv m => Name -> Term -> Dom Type -> m a -> m a
+defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m) => Name -> Term -> Dom Type -> m a -> m a
 defaultAddLetBinding' x v t ret = do
     vt <- makeOpen (v, t)
     flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }

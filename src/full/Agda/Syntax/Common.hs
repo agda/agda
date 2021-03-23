@@ -2252,6 +2252,9 @@ instance Enum NameId where
 instance NFData NameId where
   rnf (NameId _ _) = ()
 
+instance NFData ModuleNameHash where
+  rnf _ = ()
+
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
   hashWithSalt salt (NameId n (ModuleNameHash m)) = hashWithSalt salt (n, m)
