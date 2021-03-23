@@ -542,7 +542,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es = do
 unfoldDefinitionStep :: Bool -> Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
 unfoldDefinitionStep unfoldDelayed v0 f es =
   {-# SCC "reduceDef" #-} do
-  traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> prettyTCM v0) $ do
+  traceSDoc "tc.reduce" 90 ("unfoldDefinitionStep v0" <+> pretty v0) $ do
   info <- getConstInfo f
   rewr <- instantiateRewriteRules =<< getRewriteRulesFor f
   allowed <- asksTC envAllowedReductions
@@ -611,7 +611,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
 
     reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> ReduceM (Reduced (Blocked Term) Term)
     reduceNormalE v0 f es dontUnfold def mcc rewr = {-# SCC "reduceNormal" #-} do
-      traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> prettyTCM v0) $ do
+      traceSDoc "tc.reduce" 90 ("reduceNormalE v0 =" <+> pretty v0) $ do
       case (def,rewr) of
         _ | dontUnfold -> traceSLn "tc.reduce" 90 "reduceNormalE: don't unfold (non-terminating or delayed)" $
                           defaultResult -- non-terminating or delayed
@@ -630,15 +630,14 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         case ev of
           NoReduction v -> do
             reportSDoc "tc.reduce" 90 $ vcat
-              [ "*** tried to reduce " <+> prettyTCM f
-              , "    es =  " <+> sep (map (prettyTCM . ignoreReduced) es)
-              -- , "*** tried to reduce " <+> prettyTCM vfull
-              , "    stuck on" <+> prettyTCM (ignoreBlocking v)
+              [ "*** tried to reduce " <+> pretty f
+              , "    es =  " <+> sep (map (pretty . ignoreReduced) es)
+              -- , "*** tried to reduce " <+> pretty vfull
+              , "    stuck on" <+> pretty (ignoreBlocking v)
               ]
           YesReduction _simpl v -> do
-            reportSDoc "tc.reduce"  90 $ "*** reduced definition: " <+> prettyTCM f
-            reportSDoc "tc.reduce"  95 $ "    result" <+> prettyTCM v
-            reportSDoc "tc.reduce" 100 $ "    raw   " <+> text (show v)
+            reportSDoc "tc.reduce"  90 $ "*** reduced definition: " <+> pretty f
+            reportSDoc "tc.reduce"  95 $ "    result" <+> pretty v
 
 -- | Specialized version to put in boot file.
 reduceDefCopyTCM :: QName -> Elims -> TCM (Reduced () Term)
@@ -753,7 +752,7 @@ appDef v cc rewr args = appDefE v cc rewr $ map (fmap Apply) args
 
 appDefE :: Term -> CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE v cc rewr es = do
-  traceSDoc "tc.reduce" 90 ("appDefE v = " <+> prettyTCM v) $ do
+  traceSDoc "tc.reduce" 90 ("appDefE v = " <+> pretty v) $ do
   r <- matchCompiledE cc es
   case r of
     YesReduction simpl t -> return $ YesReduction simpl t
@@ -764,7 +763,7 @@ appDef' :: Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Redu
 appDef' v cls rewr args = appDefE' v cls rewr $ map (fmap Apply) args
 
 appDefE' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
-appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> prettyTCM v) $ do
+appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
   goCls cls $ map ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
@@ -909,7 +908,7 @@ instance Simplify Term where
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
         traceSDoc "tc.simplify'" 90 (
           text ("simplify': unfolding definition returns " ++ show simpl)
-            <+> prettyTCM (ignoreBlocking v)) $ do
+            <+> pretty (ignoreBlocking v)) $ do
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs
