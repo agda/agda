@@ -1196,15 +1196,19 @@ instance AllMetas CompareAs
 -- * Open things
 ---------------------------------------------------------------------------
 
--- | A thing tagged with the context it came from.
-data Open a = OpenThing { openThingCheckpoint :: CheckpointId, openThing :: a }
+-- | A thing tagged with the context it came from. Also keeps the substitution from previous
+--   checkpoints. This lets us handle the case when an open thing was created in a context that we
+--   have since exited.
+data Open a = OpenThing { openThingCheckpoint    :: CheckpointId
+                        , openThingCheckpointMap :: Map CheckpointId Substitution
+                        , openThing              :: a }
     deriving (Data, Show, Functor, Foldable, Traversable, Generic)
 
 instance Decoration Open where
-  traverseF f (OpenThing cp x) = OpenThing cp <$> f x
+  traverseF f (OpenThing cp env x) = OpenThing cp env <$> f x
 
 instance Pretty a => Pretty (Open a) where
-  prettyPrec p (OpenThing cp x) = mparens (p > 9) $
+  prettyPrec p (OpenThing cp _ x) = mparens (p > 9) $
     "OpenThing" <+> pretty cp <?> prettyPrec 10 x
 
 ---------------------------------------------------------------------------
