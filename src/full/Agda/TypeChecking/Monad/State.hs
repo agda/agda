@@ -333,7 +333,7 @@ updateDefBlocked f def@Defn{ defBlocked = b } = def { defBlocked = f b }
 -- implementation of 'setTopLevelModule' should be changed.
 
 setTopLevelModule :: C.QName -> TCM ()
-setTopLevelModule x = stFreshNameId `setTCLens` NameId 0 (hashString $ prettyShow x)
+setTopLevelModule x = stFreshNameId `setTCLens` NameId 0 (ModuleNameHash $ hashString $ prettyShow x)
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
@@ -344,6 +344,11 @@ withTopLevelModule x m = do
   y <- m
   stFreshNameId `setTCLens` next
   return y
+
+currentModuleNameHash :: TCM ModuleNameHash
+currentModuleNameHash = do
+  NameId _ h <- useTC stFreshNameId
+  return h
 
 ---------------------------------------------------------------------------
 -- * Foreign code

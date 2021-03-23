@@ -2216,9 +2216,15 @@ instance NFData IsMacro
 -- * NameId
 ---------------------------------------------------------------------------
 
+newtype ModuleNameHash = ModuleNameHash Word64
+  deriving (Eq, Ord, Show, Data)
+
+noModuleNameHash :: ModuleNameHash
+noModuleNameHash = ModuleNameHash 0
+
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
-data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !Word64
+data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
     deriving (Eq, Ord, Data, Generic, Show)
 
 instance KillRange NameId where
@@ -2238,7 +2244,7 @@ instance NFData NameId where
 
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
-  hashWithSalt salt (NameId n m) = hashWithSalt salt (n, m)
+  hashWithSalt salt (NameId n (ModuleNameHash m)) = hashWithSalt salt (n, m)
 
 ---------------------------------------------------------------------------
 -- * Meta variables

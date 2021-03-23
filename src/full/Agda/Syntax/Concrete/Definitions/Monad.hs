@@ -85,7 +85,7 @@ initNiceEnv = NiceEnv
   , _catchall = False
   , _covChk   = YesCoverageCheck
   , niceWarn  = []
-  , _nameId   = NameId 1 1   -- The module id is bogus.
+  , _nameId   = NameId 1 noModuleNameHash
   }
 
 lensNameId :: Lens' NameId NiceEnv
