@@ -278,6 +278,10 @@ instance HasRange Item where
   getRange (AnArg _) = noRange
   getRange (ADef qn)   = getRange qn
 
+instance Pretty Item where
+  prettyPrec p (AnArg i) = P.mparens (p > 9) $ "AnArg" P.<+> P.pretty i
+  prettyPrec p (ADef qn) = P.mparens (p > 9) $ "ADef"  P.<+> P.pretty qn
+
 type Occurrences = Map Item [OccursWhere]
 
 -- | Used to build 'Occurrences' and occurrence graphs.
@@ -630,7 +634,7 @@ buildOccurrenceGraph qs =
           $+$
         nest 2 (vcat $
            map (\(i, n) ->
-                   (text (show i) <> ":") <+> text (show n) <+>
+                   (pretty i <> ":") <+> text (show n) <+>
                    "occurrences") $
            List.sortBy (compare `on` snd) $
            Map.toList (flatten occs))

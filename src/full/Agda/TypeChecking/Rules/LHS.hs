@@ -783,7 +783,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
                ]
         reportSDoc "tc.lhs.top" 30 $
           nest 2 $ vcat
-                 [ "vars   = " <+> text (show vars)
+                 [ "vars   = " <+> pretty vars
                  ]
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "withSub  = " <+> pretty withSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "weakSub  = " <+> pretty weakSub
