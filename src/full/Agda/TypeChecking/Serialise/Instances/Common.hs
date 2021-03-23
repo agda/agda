@@ -44,7 +44,6 @@ import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.Empty (Empty)
 import qualified Agda.Utils.Empty as Empty
 import Agda.Utils.FileName
 import Agda.Utils.Maybe
@@ -670,11 +669,6 @@ instance EmbPrj Impossible where
     valu [1, a]    = valuN Unreachable a
     valu [2, a, b] = valuN ImpMissingDefinitions a b
     valu _         = malformed
-
-instance EmbPrj Empty where
-  icod_ a = icod_ =<< lift (Empty.toImpossible a)
-
-  value = fmap throwImpossible . value
 
 instance EmbPrj ExpandedEllipsis where
   icod_ NoEllipsis = icodeN' NoEllipsis

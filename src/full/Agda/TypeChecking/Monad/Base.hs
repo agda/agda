@@ -1004,7 +1004,7 @@ data Closure a = Closure
   , clModuleCheckpoints :: Map ModuleName CheckpointId
   , clValue            :: a
   }
-    deriving (Data, Functor, Foldable, Generic)
+    deriving (Functor, Foldable, Generic)
 
 instance Show a => Show (Closure a) where
   show cl = "Closure { clValue = " ++ show (clValue cl) ++ " }"
@@ -1204,7 +1204,7 @@ data Open a = OpenThing { openThingCheckpoint    :: CheckpointId
                         , openThingCheckpointMap :: Map CheckpointId Substitution
                         , openThingModule        :: ModuleNameHash
                         , openThing              :: a }
-    deriving (Data, Show, Functor, Foldable, Traversable, Generic)
+    deriving (Show, Functor, Foldable, Traversable, Generic)
 
 instance Decoration Open where
   traverseF f (OpenThing cp env m x) = OpenThing cp env m <$> f x
@@ -1516,7 +1516,7 @@ data IPClause = IPClause
   , ipcBoundary :: [Closure IPBoundary] -- ^ The boundary imposed by the LHS.
   }
   | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
-  deriving (Data, Generic)
+  deriving (Generic)
 
 instance Eq IPClause where
   IPNoClause           == IPNoClause             = True
@@ -1532,7 +1532,7 @@ data Signature = Sig
       , _sigDefinitions :: Definitions
       , _sigRewriteRules:: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
       }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 sigSections :: Lens' Sections Signature
 sigSections f s =
@@ -1771,7 +1771,7 @@ data Definition = Defn
     --   in the type.
   , theDef            :: Defn
   }
-    deriving (Data, Show, Generic)
+    deriving (Show, Generic)
 
 instance LensArgInfo Definition where
   getArgInfo = defArgInfo
@@ -2871,7 +2871,7 @@ data TCEnv =
                 -- ^ Are we currently computing the overlap between
                 --   two rewrite rules for the purpose of confluence checking?
           }
-    deriving (Data, Generic)
+    deriving (Generic)
 
 initEnv :: TCEnv
 initEnv = TCEnv { envContext             = []
@@ -3434,7 +3434,7 @@ data CallInfo = CallInfo
     -- ^ Range of the target function.
   , callInfoCall :: Closure Term
     -- ^ To be formatted representation of the call.
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
     -- no Eq, Ord instances: too expensive! (see issues 851, 852)
 
 -- | We only 'show' the name of the callee.
@@ -3449,7 +3449,7 @@ data TerminationError = TerminationError
     -- automatically generated functions.)
   , termErrCalls :: [CallInfo]
     -- ^ The problematic call sites.
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError

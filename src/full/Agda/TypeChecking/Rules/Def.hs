@@ -678,14 +678,14 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         reportSDoc "tc.lhs.top" 10 $ vcat
           [ "Clause before translation:"
           , nest 2 $ vcat
-            [ "delta =" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ prettyTCM delta
+            [ "delta =" <+> do escapeContext impossible (size delta) $ prettyTCM delta
             , "ps    =" <+> do P.fsep <$> prettyTCMPatterns ps
             , "body  =" <+> maybe "_|_" prettyTCM body
             , "type  =" <+> prettyTCM t
             ]
           ]
 
-        reportSDoc "tc.lhs.top" 60 $ escapeContext __IMPOSSIBLE__ (size delta) $ vcat
+        reportSDoc "tc.lhs.top" 60 $ escapeContext impossible (size delta) $ vcat
           [ "Clause before translation (raw):"
           , nest 2 $ vcat
             [ "ps    =" <+> text (show ps)
@@ -971,7 +971,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ escapeContext __IMPOSSIBLE__ (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ escapeContext impossible (size delta) $ vcat
           [ "delta  =" <+> prettyTCM delta
           ]
         reportSDoc "tc.with.top" 25 $ vcat $
@@ -991,7 +991,7 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
 
         -- Andreas, 2012-09-17: for printing delta,
         -- we should remove it from the context first
-        reportSDoc "tc.with.top" 25 $ escapeContext __IMPOSSIBLE__ (size delta) $ vcat
+        reportSDoc "tc.with.top" 25 $ escapeContext impossible (size delta) $ vcat
           [ "delta1 =" <+> prettyTCM delta1
           , "delta2 =" <+> addContext delta1 (prettyTCM delta2)
           ]
@@ -1020,12 +1020,12 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $ vcat $
           let (vs, as) = unzipWith unArg vtys in
-          [ "    with arguments" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
-          , "             types" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
+          [ "    with arguments" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
+          , "             types" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
           , "           context" <+> (prettyTCM =<< getContextTelescope)
-          , "             delta" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ prettyTCM delta
-          , "            delta1" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ prettyTCM delta1
-          , "            delta2" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyTCM delta2
+          , "             delta" <+> do escapeContext impossible (size delta) $ prettyTCM delta
+          , "            delta1" <+> do escapeContext impossible (size delta) $ prettyTCM delta1
+          , "            delta2" <+> do escapeContext impossible (size delta) $ addContext delta1 $ prettyTCM delta2
           ]
 
         return (v, WithFunction x aux t delta delta1 delta2 vtys t' ps npars perm' perm finalPerm cs argsS)
@@ -1039,7 +1039,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
       withSub :: Substitution
       withSub = let as = map (snd . unArg) vtys in
                 liftS (size delta2) (wkS (countWithArgs as) idS)
-                `composeS` renaming __IMPOSSIBLE__ (reverseP perm')
+                `composeS` renaming impossible (reverseP perm')
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ "checkWithFunction"
@@ -1069,7 +1069,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Generate the type of the with function
   (withFunType, n) <- do
-    let ps = renaming __IMPOSSIBLE__ (reverseP perm') `applySubst` qs
+    let ps = renaming impossible (reverseP perm') `applySubst` qs
     reportSDoc "tc.with.bndry" 40 $ addContext delta1 $ addContext delta2
                                   $ text "ps =" <+> pretty ps
     let vs = iApplyVars ps

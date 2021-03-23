@@ -80,7 +80,7 @@ reconstructParameters' act a v = do
           case (unEl a) of
             Def d es -> do
               Just n <- defParameters <$> getConstInfo d
-              let prePs = applySubst (strengthenS __IMPOSSIBLE__ under) . take n $ es
+              let prePs = applySubst (strengthenS impossible under) . take n $ es
               let hiddenPs = map (Apply . hideAndRelParams) $ fromMaybe __IMPOSSIBLE__ $
                                allApplyElims prePs
               reportSDoc "tc.reconstruct" 50 $ "The hiddenPs are" <+> pretty hiddenPs

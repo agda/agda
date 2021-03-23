@@ -54,7 +54,7 @@ matchedArgs' n vs = map get [0 .. n - 1]
 
 -- | Builds a proper substitution from an IntMap produced by match(Co)patterns
 buildSubstitution :: (DeBruijn a)
-                  => Empty -> Int -> IntMap (Arg a) -> Substitution' a
+                  => Impossible -> Int -> IntMap (Arg a) -> Substitution' a
 buildSubstitution err n vs = foldr cons idS $ matchedArgs' n vs
   where cons Nothing  = Strengthen err
         cons (Just v) = consS (unArg v)

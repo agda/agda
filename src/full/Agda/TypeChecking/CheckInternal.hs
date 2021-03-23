@@ -189,7 +189,7 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
       fullyApplyCon c vs t $ \ _d _dt _pars a vs' tel t -> do
         Con c ci vs2 <- checkSpine action a (Con c ci []) vs' cmp t
         -- Strip away the extra arguments
-        return $ applySubst (strengthenS __IMPOSSIBLE__ (size tel))
+        return $ applySubst (strengthenS impossible (size tel))
           $ Con c ci $ take (length vs) vs2
     Lit l      -> do
       lt <- litType l

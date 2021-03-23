@@ -106,7 +106,7 @@ etaLam i x b = do
              && sameHiding i info
              && sameModality i info
              && not (freeIn 0 u)
-           then return $ strengthen __IMPOSSIBLE__ u
+           then return $ strengthen impossible u
            else fallback
       _ -> fallback
   where

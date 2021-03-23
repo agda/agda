@@ -959,7 +959,7 @@ killedType args b = do
           -- telescope. Drop x from xs (and shift indices) and recurse with
           -- `strengthen x B`.
           let ys = down (IntSet.delete 0 xs)
-          (ys, b) <- go args ys $ strengthen __IMPOSSIBLE__ b
+          (ys, b) <- go args ys $ strengthen impossible b
           -- We need to return a set of killed variables relative to Δ (x : A), so
           -- shift ys and add x back in.
           return (IntSet.insert 0 $ up ys, b)

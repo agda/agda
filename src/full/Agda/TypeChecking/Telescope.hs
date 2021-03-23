@@ -147,7 +147,7 @@ splitTelescopeAt n tel
 permuteTel :: Permutation -> Telescope -> Telescope
 permuteTel perm tel =
   let names = permute perm $ teleNames tel
-      types = permute perm $ renameP __IMPOSSIBLE__ (flipP perm) $ flattenTel tel
+      types = permute perm $ renameP impossible (flipP perm) $ flattenTel tel
   in  unflattenTel names types
 
 -- | Recursively computes dependencies of a set of variables in a given
@@ -224,7 +224,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
 
     perm  = Perm n $ map (n-1-) $ VarSet.toDescList is ++ VarSet.toDescList isC
 
-    ts1   = renameP __IMPOSSIBLE__ (reverseP perm) (permute perm ts0)
+    ts1   = renameP impossible (reverseP perm) (permute perm ts0)
 
     tel'  = unflattenTel (permute perm names) ts1
 
@@ -261,7 +261,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
 
     perm  = Perm n $ map (n-1-) $ is ++ isC
 
-    ts1   = renameP __IMPOSSIBLE__ (reverseP perm) (permute perm ts0)
+    ts1   = renameP impossible (reverseP perm) (permute perm ts0)
 
     tel'  = unflattenTel (permute perm names) ts1
 
@@ -317,7 +317,7 @@ instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
     perm  = Perm n $ is    -- works on de Bruijn indices
     rho   = reverseP perm  -- works on de Bruijn levels
 
-    p1    = renameP __IMPOSSIBLE__ perm p -- Γ' ⊢ p1 : A'
+    p1    = renameP impossible perm p -- Γ' ⊢ p1 : A'
     us    = map (\i -> maybe p1 deBruijnVar (List.elemIndex i is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 

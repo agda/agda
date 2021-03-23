@@ -904,7 +904,7 @@ metaHelperType norm ii rng s = case words s of
         b | absName b == "w"   -> I.Pi a b
         NoAbs _ b              -> unEl b
         Abs s b | 0 `freeIn` b -> I.Pi (hide a) (Abs s b)
-                | otherwise    -> strengthen __IMPOSSIBLE__ (unEl b)
+                | otherwise    -> strengthen impossible (unEl b)
       v -> v  -- todo: handle if goal type is a Pi
 
     -- renameVars = onNames (stringToArgName <.> renameVar . argNameToString)

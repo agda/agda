@@ -753,7 +753,7 @@ evalTCM v = do
     tcExtendContext :: Term -> Term -> UnquoteM Term
     tcExtendContext a m = do
       a <- unquote a
-      fmap (strengthen __IMPOSSIBLE__) $ extendCxt a $ do
+      fmap (strengthen impossible) $ extendCxt a $ do
         v <- evalTCM $ raise 1 m
         when (freeIn 0 v) $ liftTCM $ genericDocError =<<
           hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]

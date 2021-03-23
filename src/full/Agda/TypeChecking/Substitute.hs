@@ -780,7 +780,7 @@ abstractArgs args x = abstract tel x
 ---------------------------------------------------------------------------
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming _ π) : Term Γ -> Term Δ@
-renaming :: forall a. DeBruijn a => Empty -> Permutation -> Substitution' a
+renaming :: forall a. DeBruijn a => Impossible -> Permutation -> Substitution' a
 renaming err p = prependS err gamma $ raiseS $ size p
   where
     gamma :: [Maybe a]
@@ -792,7 +792,7 @@ renamingR :: DeBruijn a => Permutation -> Substitution' a
 renamingR p@(Perm n _) = permute (reverseP p) (map deBruijnVar [0..]) ++# raiseS n
 
 -- | The permutation should permute the corresponding context. (right-to-left list)
-renameP :: Subst a => Empty -> Permutation -> a -> a
+renameP :: Subst a => Impossible -> Permutation -> a -> a
 renameP err p = applySubst (renaming err p)
 
 instance EndoSubst a => Subst (Substitution' a) where

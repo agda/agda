@@ -84,7 +84,7 @@ telePiPath_ tel t bndry = do
 
   telePiPath id argsLam tel t [(var i, u) | (i , u) <- bndry]
  where
-   argsLam args tm = strengthenS __IMPOSSIBLE__ 1 `applySubst`
+   argsLam args tm = strengthenS impossible 1 `applySubst`
      foldr (\ Arg{argInfo = ai, unArg = x} -> Lam ai . Abs x) tm args
 
 -- | arity of the type, including both Pi and Path.

@@ -138,4 +138,4 @@ tryStrengthen :: (HasFree a, Subst a) => Int -> a -> Maybe a
 tryStrengthen n t =
   case Map.minViewWithKey (freeVars t) of
     Just ((i, _), _) | i < n -> Nothing
-    _ -> Just $ applySubst (strengthenS __IMPOSSIBLE__ n) t
+    _ -> Just $ applySubst (strengthenS impossible n) t
