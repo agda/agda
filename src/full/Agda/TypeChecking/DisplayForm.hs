@@ -44,6 +44,17 @@ dtermToTerm dt = case dt of
 displayFormArities :: (HasConstInfo m, ReadTCState m) => QName -> m [Int]
 displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
 
+-- | Lift a local display form to an outer context. The substitution goes from the parent context to
+--   the context of the local display form (see Issue 958). Current only handles pure extensions of
+--   the parent context.
+liftLocalDisplayForm :: Substitution -> DisplayForm -> Maybe DisplayForm
+liftLocalDisplayForm IdS df = Just df
+liftLocalDisplayForm (Wk n IdS) (Display m lhs rhs) =
+  -- We lift a display form by turning matches on free variables into pattern variables, which can
+  -- be done by simply adding to the dfPatternVars field.
+  Just $ Display (n + m) lhs rhs
+liftLocalDisplayForm _ _ = Nothing
+
 type MonadDisplayForm m =
   ( MonadReduce m
   , ReadTCState m
@@ -65,16 +76,16 @@ displayForm q es = do
     return Nothing
   else do
     -- Display debug info about the @Open@s.
-    verboseS "tc.display.top" 100 $ unlessDebugPrinting $ do
+    unlessDebugPrinting $ reportSDoc "tc.display.top" 100 $ do
       cps <- viewTC eCheckpoints
       cxt <- getContextTelescope
-      reportSDoc "tc.display.top" 100 $ return $ vcat
+      return $ vcat
         [ "displayForm for" <+> pretty q
         , nest 2 $ "cxt =" <+> pretty cxt
         , nest 2 $ "cps =" <+> vcat (map pretty (Map.toList cps))
         , nest 2 $ "dfs =" <+> vcat (map pretty odfs) ]
     -- Use only the display forms that can be opened in the current context.
-    dfs   <- catMaybes <$> mapM tryGetOpen odfs
+    dfs   <- catMaybes <$> mapM (tryGetOpen liftLocalDisplayForm) odfs
     scope <- getScope
     -- Keep the display forms that match the application @q es@.
     ms <- do
