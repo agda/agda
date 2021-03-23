@@ -871,7 +871,7 @@ litqname x =
   where
     apps = foldl HS.App
     rteCon name = HS.Con $ HS.Qual mazRTE $ HS.Ident name
-    NameId n m = nameId $ qnameName x
+    NameId n (ModuleNameHash m) = nameId $ qnameName x
     fx = theFixity $ nameFixity $ qnameName x
 
     litAssoc NonAssoc   = rteCon "NonAssoc"
@@ -888,7 +888,7 @@ litqnamepat x =
           , HS.PLit (HS.Int $ fromIntegral m)
           , HS.PWildCard, HS.PWildCard ]
   where
-    NameId n m = nameId $ qnameName x
+    NameId n (ModuleNameHash m) = nameId $ qnameName x
 
 condecl :: QName -> Induction -> HsCompileM HS.ConDecl
 condecl q _ind = do

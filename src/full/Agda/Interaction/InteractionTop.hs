@@ -1086,7 +1086,7 @@ highlightExpr e =
     generateAndPrintSyntaxInfo decl Full True
   where
     dummyModule = C.toTopLevelModuleName (C.QName noName_)
-    dummy = mkName_ (NameId 0 0) ("dummy" :: String)
+    dummy = mkName_ (NameId 0 noModuleNameHash) ("dummy" :: String)
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
     decl  = A.Axiom OtherDefName info defaultArgInfo Nothing (qnameFromList $ singleton dummy) e
 

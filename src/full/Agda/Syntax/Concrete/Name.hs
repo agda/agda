@@ -415,7 +415,7 @@ noName_ :: Name
 noName_ = noName noRange
 
 noName :: Range -> Name
-noName r = NoName r (NameId 0 0)
+noName r = NoName r (NameId 0 noModuleNameHash)
 
 -- | Check whether a name is the empty name "_".
 class IsNoName a where

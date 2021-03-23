@@ -408,6 +408,11 @@ instance EmbPrj ArgInfo where
 
   value = valueN ArgInfo
 
+instance EmbPrj ModuleNameHash where
+  icod_ (ModuleNameHash a) = icodeN' ModuleNameHash a
+
+  value = valueN ModuleNameHash
+
 instance EmbPrj NameId where
   icod_ (NameId a b) = icodeN' NameId a b
 
