@@ -1693,7 +1693,7 @@ checkLetBinding (A.LetApply i x modapp copyInfo _adir) ret = do
   fv   <- getCurrentModuleFreeVars
   n    <- getContextSize
   let new = n - fv
-  reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show modapp ++ " with " ++ show new ++ " free variables"
+  reportSDoc "tc.term.let.apply" 10 $ "Applying" <+> pretty x <+> prettyA modapp <?> ("with" <+> pshow new <+> "free variables")
   reportSDoc "tc.term.let.apply" 20 $ vcat
     [ "context =" <+> (prettyTCM =<< getContextTelescope)
     , "module  =" <+> (prettyTCM =<< currentModule)

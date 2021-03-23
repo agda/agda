@@ -1040,7 +1040,7 @@ instantiateDef d = do
     m   <- currentModule
     reportSDoc "tc.sig.inst" 30 $
       "instDef in" <+> pretty m <> ":" <+> pretty (defName d) <+>
-      text (unwords $ map show $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
+      fsep (map pretty $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
   return $ d `apply` vs
 
 instantiateRewriteRule :: (Functor m, HasConstInfo m, HasOptions m,
