@@ -1,0 +1,3 @@
+Issue958b.agda:18,10-13
+IsFunctor !=< map fun
+when checking that the expression fun has type map fun
