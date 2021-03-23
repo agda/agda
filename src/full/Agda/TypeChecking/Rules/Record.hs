@@ -200,7 +200,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- we make sure we get the original names!
       let npars = size tel
           telh  = fmap hideAndRelParams tel
-      escapeContext __IMPOSSIBLE__ npars $ do
+      escapeContext impossible npars $ do
         addConstant name $
           defaultDefn defaultArgInfo name t $
             Record
@@ -306,7 +306,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
             ]
           ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
-          [ "field tel =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM ftel)
+          [ "field tel =" <+> escapeContext impossible 1 (prettyTCM ftel)
           ]
         addSection m
 
@@ -329,7 +329,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
 
       -- we define composition here so that the projections are already in the signature.
-      escapeContext __IMPOSSIBLE__ npars $ do
+      escapeContext impossible npars $ do
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- The confluence checker needs to know what symbols match against
@@ -551,9 +551,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         , nest 2 $ vcat
           [ "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , "tel   =" <+> (inTopContext . prettyTCM $ tel)
-          , "ftel1 =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM ftel1)
-          , "t     =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM t)
-          , "ftel2 =" <+> escapeContext __IMPOSSIBLE__ 1 (addContext ftel1 $ underAbstraction_ ftel2 prettyTCM)
+          , "ftel1 =" <+> escapeContext impossible 1 (prettyTCM ftel1)
+          , "t     =" <+> escapeContext impossible 1 (prettyTCM t)
+          , "ftel2 =" <+> escapeContext impossible 1 (addContext ftel1 $ underAbstraction_ ftel2 prettyTCM)
           , "vs    =" <+> prettyList_ (map prettyTCM vs)
           , "abstr =" <+> (text . show) (Info.defAbstract info)
           , "quant =" <+> (text . show) (getQuantity ai)
@@ -702,7 +702,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               , nest 2 $ text (show cc)
               ]
 
-        escapeContext __IMPOSSIBLE__ (size tel) $ do
+        escapeContext impossible (size tel) $ do
           addConstant projname $
             (defaultDefn ai projname (killRange finalt)
               emptyFunction

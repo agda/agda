@@ -28,7 +28,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
 
-import Agda.Utils.Empty
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -84,7 +83,7 @@ unsafeEscapeContext n = unsafeModifyContext $ drop n
 
 -- | Delete the last @n@ bindings from the context. Any occurrences of
 -- these variables are replaced with the given @err@.
-escapeContext :: MonadAddContext m => Empty -> Int -> m a -> m a
+escapeContext :: MonadAddContext m => Impossible -> Int -> m a -> m a
 escapeContext err n = updateContext (strengthenS err n) $ drop n
 
 -- * Manipulating checkpoints --

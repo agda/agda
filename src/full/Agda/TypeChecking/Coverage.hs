@@ -1510,8 +1510,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
 
   where
     inContextOfT, inContextOfDelta2 :: (MonadTCM tcm, MonadAddContext tcm, MonadDebug tcm) => tcm a -> tcm a
-    inContextOfT      = addContext tel . escapeContext __IMPOSSIBLE__ (x + 1)
-    inContextOfDelta2 = addContext tel . escapeContext __IMPOSSIBLE__ x
+    inContextOfT      = addContext tel . escapeContext impossible (x + 1)
+    inContextOfDelta2 = addContext tel . escapeContext impossible x
 
     -- Debug printing
     debugInit tel x ps cps = liftTCM $ inTopContext $ do
@@ -1616,7 +1616,7 @@ splitResultRecord f sc@(SClause tel ps _ _ target) = do
             dType <- defType <$> do getConstInfo $ unDom proj -- WRONG: typeOfConst $ unArg proj
             let -- Substitution for parameters and previous fields. Needs to be applied to potential
                 -- tactic in proj.
-                fieldSub = reverse (map unArg vs ++ prevFields) ++# EmptyS __IMPOSSIBLE__
+                fieldSub = reverse (map unArg vs ++ prevFields) ++# EmptyS impossible
                 proj'    = applySubst fieldSub proj
                 -- type of projection instantiated at self
                 target' = Just $ proj' $> dType `piApply` pargs      -- Always visible (#2287)

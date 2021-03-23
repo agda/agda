@@ -149,7 +149,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   , dataPathCons   = []     -- Path constructors are added later
                   }
 
-            escapeContext __IMPOSSIBLE__ npars $ do
+            escapeContext impossible npars $ do
               addConstant name $
                 defaultDefn defaultArgInfo name t dataDef
                 -- polarity and argOcc.s determined by the positivity checker
@@ -268,7 +268,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
             return (con, comp, Just names)
 
         -- add parameters to constructor type and put into signature
-        escapeContext __IMPOSSIBLE__ (size tel) $ do
+        escapeContext impossible (size tel) $ do
 
           addConstant c $
             defaultDefn ai c (telePi tel t) $ Constructor

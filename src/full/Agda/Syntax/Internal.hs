@@ -634,7 +634,7 @@ data Substitution' a
     -- ^ Identity substitution.
     --   @Γ ⊢ IdS : Γ@
 
-  | EmptyS Empty
+  | EmptyS Impossible
     -- ^ Empty substitution, lifts from the empty context. First argument is @__IMPOSSIBLE__@.
     --   Apply this to closed terms you want to use in a non-empty context.
     --   @Γ ⊢ EmptyS : ()@
@@ -647,7 +647,7 @@ data Substitution' a
     --     Γ ⊢ u :# ρ : Δ, A
     --   @
 
-  | Strengthen Empty (Substitution' a)
+  | Strengthen Impossible (Substitution' a)
     -- ^ Strengthening substitution.  First argument is @__IMPOSSIBLE__@.
     --   Apply this to a term which does not contain variable 0
     --   to lower all de Bruijn indices by one.
@@ -679,7 +679,6 @@ data Substitution' a
            , Functor
            , Foldable
            , Traversable
-           , Data
            , Generic
            )
 

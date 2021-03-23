@@ -98,11 +98,11 @@ getConType c t = do
   -- (applied to at least the parameters).
   -- Note: @t@ will have some unbound deBruijn indices if view outside of @tel@.
   reportSLn "tc.getConType" 35 $ "  target type: " ++ prettyShow t
-  applySubst (strengthenS __IMPOSSIBLE__ (size tel)) <$> do
+  applySubst (strengthenS impossible (size tel)) <$> do
     addContext tel $ getFullyAppliedConType c t
   -- Andreas, 2017-08-18, issue #2703:
   -- The original code
-  --    getFullyAppliedConType c $ applySubst (strengthenS __IMPOSSIBLE__ (size tel)) t
+  --    getFullyAppliedConType c $ applySubst (strengthenS impossible (size tel)) t
   -- crashes because substitution into @Def@s is slightly too strict
   -- (see @defApp@ and @canProject@).
   -- Strengthening the parameters after the call to @getFullyAppliedConType@

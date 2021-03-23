@@ -127,7 +127,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
 
     tLet e b
       | freeIn 0 b = TLet e b
-      | otherwise  = strengthen __IMPOSSIBLE__ b
+      | otherwise  = strengthen impossible b
 
     tApp f []                  = f
     tApp TErased _             = TErased

@@ -743,7 +743,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
             weakSub | isJust withSub' = wkS (max 0 $ numPats - arity_a) idS -- if numPats < arity, Θ is empty
                     | otherwise       = wkS (numPats - length cxt) idS
             withSub  = fromMaybe idS withSub'
-            patSub   = map (patternToTerm . namedArg) (reverse $ take numPats qs0) ++# (EmptyS __IMPOSSIBLE__)
+            patSub   = map (patternToTerm . namedArg) (reverse $ take numPats qs0) ++# EmptyS impossible
             paramSub = patSub `composeS` weakSub `composeS` withSub
 
         eqs <- addContext delta $ checkPatternLinearity eqs

@@ -423,7 +423,7 @@ reifyPathPConstAsPath x es@[I.Apply l, I.Apply t, I.Apply lhs, I.Apply rhs] = do
        let a = case unArg t of
                 I.Lam _ (NoAbs _ b)    -> Just b
                 I.Lam _ (Abs   _ b)
-                  | not $ 0 `freeIn` b -> Just (strengthen __IMPOSSIBLE__ b)
+                  | not $ 0 `freeIn` b -> Just (strengthen impossible b)
                 _                      -> Nothing
        case a of
          Just a -> return (path, [I.Apply l, I.Apply (setHiding Hidden $ defaultArg a), I.Apply lhs, I.Apply rhs])

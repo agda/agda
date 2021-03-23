@@ -57,7 +57,7 @@ uncase t = case t of
 
     tLet e b =
       case occursIn 0 b of
-        Occurs 0 _ _ -> strengthen __IMPOSSIBLE__ b
+        Occurs 0 _ _ -> strengthen impossible b
         _            -> TLet e b
 
     -- Primitive operations are already strict

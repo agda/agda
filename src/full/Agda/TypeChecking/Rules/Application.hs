@@ -679,7 +679,7 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                  | not vis   -> return chk    -- and only visible arguments
                  | isSizeLt  -> return chk    -- Issue #3248, not Size<
                  | otherwise -> do
-                  let tgt1 = applySubst (strengthenS __IMPOSSIBLE__ $ size tel) tgt
+                  let tgt1 = applySubst (strengthenS impossible $ size tel) tgt
                   reportSDoc "tc.term.args.target" 30 $ vcat
                     [ "Checking target types first"
                     , nest 2 $ "inferred =" <+> prettyTCM tgt1

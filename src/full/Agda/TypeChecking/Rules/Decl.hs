@@ -901,11 +901,11 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     reportSDoc "tc.mod.apply" 15 $ vcat
       [ "applying section" <+> prettyTCM m2
       , nest 2 $ "args =" <+> sep (map prettyA args)
-      , nest 2 $ "ptel =" <+> escapeContext __IMPOSSIBLE__ (size ptel) (prettyTCM ptel)
+      , nest 2 $ "ptel =" <+> escapeContext impossible (size ptel) (prettyTCM ptel)
       , nest 2 $ "tel  =" <+> prettyTCM tel
       , nest 2 $ "tel' =" <+> prettyTCM tel'
       , nest 2 $ "tel''=" <+> prettyTCM tel''
-      , nest 2 $ "eta  =" <+> escapeContext __IMPOSSIBLE__ (size ptel) (addContext tel'' $ prettyTCM etaTel)
+      , nest 2 $ "eta  =" <+> escapeContext impossible (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
     ts <- noConstraints (checkArguments_ CmpEq DontExpandLast (getRange i) args tel') >>= \case

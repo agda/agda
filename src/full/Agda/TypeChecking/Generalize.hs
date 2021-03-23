@@ -121,7 +121,7 @@ generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar 
 
   reportSDoc "tc.generalize" 40 $ vcat
     [ "generalized"
-    , nest 2 $ "t =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM t') ]
+    , nest 2 $ "t =" <+> escapeContext impossible 1 (prettyTCM t') ]
 
   return (genTelNames, t', userdata)
 
@@ -408,7 +408,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         -- If it doesn't we can strenghten it to the current context (this is done by
         -- newMetaFromOld).
         --   Γ (r : GenRec) ⊢ ρ : Γ (r : GenRec) Δ
-        let ρ  = strengthenS __IMPOSSIBLE__ i
+        let ρ  = strengthenS impossible i
             ρ' = raiseS i
 
         (y, u) <- newMetaFromOld mv ρ _A
@@ -476,7 +476,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
         -- σ is the unpacking substitution (which is polymorphic in Γ)
         let σ   = sub (size _Θ)
             --    Γ <- Γ (r : GenTel) Δ <- Γ₀ (r : GenTel) <- Γ₀
-            γ   = strengthenS __IMPOSSIBLE__ (i + 1) `composeS` δ `composeS` raiseS 1
+            γ   = strengthenS impossible (i + 1) `composeS` δ `composeS` raiseS 1
             _Θγ = applySubst γ _Θ
             _Δσ = applySubst σ _Δ
 

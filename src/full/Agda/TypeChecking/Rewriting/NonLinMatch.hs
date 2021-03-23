@@ -288,8 +288,8 @@ instance Match Type NLPat Term where
           Left b         -> block b
           Right Nothing  -> no ""
           Right (Just v) ->
-            let t' = telePi  tel $ renameP __IMPOSSIBLE__ perm t
-                v' = teleLam tel $ renameP __IMPOSSIBLE__ perm v
+            let t' = telePi  tel $ renameP impossible perm t
+                v' = teleLam tel $ renameP impossible perm v
             in tellSub r (i-n) t' v'
 
       PDef f ps -> traceSDoc "rewriting.match" 60 ("matching a PDef: " <+> prettyTCM f) $ do

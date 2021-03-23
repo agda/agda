@@ -1106,7 +1106,7 @@ assignMeta' m x t n ids v = do
         ((j,u) : l) | i == j -> Just u  : assocToList (i+1) l
         l                    -> Nothing : assocToList (i+1) l
       ivs = assocToList 0 ids
-      rho = prependS __IMPOSSIBLE__ ivs $ raiseS n
+      rho = prependS impossible ivs $ raiseS n
       v'  = applySubst rho v
 
   -- Metas are top-level so we do the assignment at top-level.
