@@ -342,6 +342,31 @@ Language
   syntax []            = [ ]
   ```
 
+* Internalised the **inspect idiom** that allows users to abstract over an
+  expression in a ``with`` clause while, at the same time, remembering
+  the origin of the abstracted pattern via an equation.
+
+  In the following example, abstracting over and then matching on the
+  result of ``p x`` allows the first call to ``filter p (x ∷ xs)`` to
+  reduce.
+
+  In case the element ``x`` is kept, the second call to ``filter`` on
+  the LHS then performs the same ``p x`` test. Because we have retained
+  the proof that ``p x ≡ true`` in ``eq``, we are able to rewrite by this
+  equality and get it to reduce too.
+
+  This leads to just enough computation that we can finish the proof with
+  an appeal to congruence and the induction hypothesis.
+
+  ```agda
+  filter-filter : ∀ p xs → filter p (filter p xs) ≡ filter p xs
+  filter-filter p []       = refl
+  filter-filter p (x ∷ xs) with p x in eq
+  ... | false = filter-filter p xs -- easy
+  ... | true -- second filter stuck on `p x`: rewrite by `eq`!
+    rewrite eq = cong (x ∷_) (filter-filter p xs)
+  ```
+
 Builtins
 --------
 
