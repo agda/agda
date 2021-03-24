@@ -496,7 +496,7 @@ Once we have loaded the program in Emacs or Atom, we can compile it directly by
 pressing ``C-c C-x C-c`` and entering ``GHC``. Alternatively, we can open a
 terminal session, navigate to the top-level folder and run:
 
-.. code-block::
+.. code-block:: shell
 
   agda --compile hello-world-prog.agda
 
@@ -506,7 +506,7 @@ a binary file in the top-level folder that the computer can execute.
 Finally, we can then run the executable (``./hello-world-prog`` on Unix
 systems, ``hello-world-prog.exe`` on Windows) from the command line:
 
-.. code-block::
+.. code-block:: shell
 
   $ cd <your top-level folder>
   $ ./hello-world-prog
@@ -524,7 +524,7 @@ From Emacs or Atom, press ``C-c C-x C-c`` and enter ``JS`` to compile the
 module to JavaScript. Alternatively, open a terminal session, navigate to the
 top-level folder and run:
 
-.. code-block::
+.. code-block:: shell
 
   agda --js hello-world-prog.agda
 
