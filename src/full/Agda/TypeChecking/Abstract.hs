@@ -58,7 +58,7 @@ piAbstract (Arg info (v, OtherType a)) b = piAbstractTerm info v a b
 piAbstract (Arg info (v, IdiomType a)) b = do
   b  <- raise 1 <$> abstractType a v b
   eq <- addContext ("w" :: String, defaultDom a) $ do
-    -- manufacture the type @w ≡ e@
+    -- manufacture the type @w ≡ v@
     eqName <- primEqualityName
     eqTy <- defType <$> getConstInfo eqName
     -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
@@ -66,8 +66,13 @@ piAbstract (Arg info (v, IdiomType a)) b = do
     tel  <- newTelMeta (telFromList $ dropEnd 2 $ telToList eqTel)
     let eq = Def eqName $ map Apply
                  $ map (setHiding Hidden) tel
-                 ++ [ defaultArg (var 0)
-                    , defaultArg (raise 1 v)
+                 -- we write `v ≡ w` because this equality is typically used to
+                 -- get `v` to unfold to whatever pattern was used to refine `w`
+                 -- in a with-clause.
+                 -- If we were to write `w ≡ v`, we would often need to take the
+                 -- symmetric of the proof we get to make use of `rewrite`.
+                 ++ [ defaultArg (raise 1 v)
+                    , defaultArg (var 0)
                     ]
     sort <- newSortMeta
     let ty = El sort eq
