@@ -1,0 +1,7 @@
+Issue5286.agda:7,3-6
+Could not parse the left-hand side .extendedlambda0 (f x)
+Problematic expression: (f x)
+Operators used in the grammar:
+  None
+when scope checking the left-hand side .extendedlambda0 (f x) in
+the definition of .extendedlambda0

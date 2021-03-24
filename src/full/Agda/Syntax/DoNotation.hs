@@ -121,8 +121,8 @@ matchingBind qBind r p e body cs =
     -- Add parens to left-hand sides.
     addParens c = c { lamLHS = addP (lamLHS c) }
       where
-      addP []       = __IMPOSSIBLE__
-      addP (p : ps) = [ParenP noRange $ rawAppP $ p :| ps ]
+      addP []           = __IMPOSSIBLE__
+      addP pps@(p : ps) = [ParenP (getRange pps) $ rawAppP $ p :| ps ]
 
 nonMatchingBind :: QName -> Range -> Name -> Expr -> Expr -> Expr
 nonMatchingBind qBind r x e body =
