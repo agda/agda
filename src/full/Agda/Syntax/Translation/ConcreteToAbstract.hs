@@ -2459,7 +2459,7 @@ instance ToAbstract C.Clause where
     eqs <- mapM (toAbstractCtx TopCtx) eqs
     vars2 <- getLocalVars
     let vars = dropEnd (length vars1) vars2 ++ vars0
-    let wcs' = map (setLocalVars vars $>) wcs
+    let wcs' = (vars, wcs)
 
     -- Handle rewrite equations first.
     if not (null eqs)
@@ -2561,13 +2561,12 @@ terminationPragmas (C.Pragma (NoPositivityCheckPragma r))  = [(Positivity, r)]
 terminationPragmas _                                       = []
 
 data RightHandSide = RightHandSide
-  { _rhsRewriteEqn :: [RewriteEqn' () A.Pattern A.Expr]
-      -- ^ @rewrite e | with p <- e@ (many)
-  , _rhsWithExpr   :: [Arg C.WithExpr]
-      -- ^ @with e@ (many)
-  , _rhsSubclauses :: [ScopeM C.Clause]
-      -- ^ The subclauses spawned by a @with@.
-      -- Monadic because we need to reset the local vars before checking these clauses.
+  { _rhsRewriteEqn :: [RewriteEqn' () A.BindName A.Pattern A.Expr]
+    -- ^ @rewrite e | with p <- e in eq@ (many)
+  , _rhsWithExpr   :: [C.WithExpr]
+    -- ^ @with e@ (many)
+  , _rhsSubclauses :: (LocalVars, [C.Clause])
+    -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
   , _rhs           :: C.RHS
   , _rhsWhere      :: WhereClause
       -- ^ @where@ module.
@@ -2575,10 +2574,10 @@ data RightHandSide = RightHandSide
 
 data AbstractRHS
   = AbsurdRHS'
-  | WithRHS' [Arg A.Expr] [ScopeM C.Clause]
+  | WithRHS' [A.WithExpr] [ScopeM C.Clause]
     -- ^ The with clauses haven't been translated yet
   | RHS' A.Expr C.Expr
-  | RewriteRHS' [RewriteEqn' () A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
+  | RewriteRHS' [RewriteEqn' () A.BindName A.Pattern A.Expr] AbstractRHS A.WhereDeclarations
 
 qualifyName_ :: A.Name -> ScopeM A.QName
 qualifyName_ x = do
@@ -2590,8 +2589,8 @@ withFunctionName s = do
   NameId i _ <- fresh
   qualifyName_ =<< freshName_ (s ++ show i)
 
-instance ToAbstract (RewriteEqn' () A.Pattern A.Expr) where
-  type AbsOfCon (RewriteEqn' () A.Pattern A.Expr) = A.RewriteEqn
+instance ToAbstract (RewriteEqn' () A.BindName A.Pattern A.Expr) where
+  type AbsOfCon (RewriteEqn' () A.BindName A.Pattern A.Expr) = A.RewriteEqn
   toAbstract = \case
     Rewrite es -> fmap Rewrite $ forM es $ \ (_, e) -> do
       qn <- withFunctionName "-rewrite"
@@ -2601,25 +2600,30 @@ instance ToAbstract (RewriteEqn' () A.Pattern A.Expr) where
       pure $ Invert qn pes
 
 instance ToAbstract C.RewriteEqn where
-  type AbsOfCon C.RewriteEqn = RewriteEqn' () A.Pattern A.Expr
-
+  type AbsOfCon C.RewriteEqn = RewriteEqn' () A.BindName A.Pattern A.Expr
   toAbstract = \case
     Rewrite es   -> Rewrite <$> mapM toAbstract es
-    Invert _ pes -> Invert () <$> do
-      let (ps, es) = List1.unzip pes
-      -- first check the expressions: the patterns may shadow some of the variables
-      -- mentioned in them!
+    Invert _ npes -> Invert () <$> do
+      -- Given a list of irrefutable with expressions of the form @p <- e in q@
+      let (nps, es) = List1.unzip
+                    $ fmap (\ (Named nm (p, e)) -> ((nm, p), e)) npes
+      -- we first check the expressions @e@: the patterns may shadow some of the
+      -- variables mentioned in them!
       es <- toAbstract es
-      -- then parse the patterns and go through the motions of converting them,
-      -- checking them for linearity, binding the variable introduced in them
-      -- and finally producing an abstract pattern.
-      ps <- forM ps $ \ p -> do
+      -- we then parse the pairs of patterns @p@ and names @q@ for the equality
+      -- constraints of the form @p ≡ e@.
+      nps <- forM nps $ \ (n, p) -> do
+        -- first the pattern
         p <- parsePattern p
         p <- toAbstract p
         checkPatternLinearity p (typeError . RepeatedVariablesInPattern)
         bindVarsToBind
-        toAbstract p
-      pure $ List1.zip ps es
+        p <- toAbstract p
+        -- and then the name
+        n <- toAbstract $ fmap (NewName WithBound . C.mkBoundName_) n
+        pure (n, p)
+      -- we finally reassemble the telescope
+      pure $ List1.zipWith (\ (n,p) e -> Named n (p, e)) nps es
 
 instance ToAbstract AbstractRHS where
   type AbsOfCon AbstractRHS = A.RHS
@@ -2640,19 +2644,26 @@ instance ToAbstract RightHandSide where
     (rhs, ds) <- whereToAbstract (getRange wh) wh $
                    toAbstract (RightHandSide [] es cs rhs NoWhere)
     return $ RewriteRHS' eqs rhs ds
-  toAbstract (RightHandSide [] [] (_ : _) _ _)                    = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _)             = typeError BothWithAndRHS
-  toAbstract (RightHandSide [] [] [] rhs         NoWhere)         = toAbstract rhs
-  toAbstract (RightHandSide [] es cs C.AbsurdRHS NoWhere)         = do
+  toAbstract (RightHandSide [] []    (_  , _:_) _          _)  = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_:_) _         (C.RHS _)   _)  = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide [] []    (_  , []) rhs         NoWhere) = toAbstract rhs
+  toAbstract (RightHandSide [] nes   (lv , cs) C.AbsurdRHS NoWhere) = do
+    let (ns , es) = unzipWith (\ (Named nm e) -> (NewName WithBound . C.mkBoundName_ <$> nm, e)) nes
     es <- toAbstractCtx TopCtx es
-    return $ WithRHS' es cs
+    lvars0 <- getLocalVars
+    ns <- toAbstract ns
+    lvars1 <- getLocalVars
+    let lv' = dropEnd (length lvars0) lvars1 ++ lv
+    let cs' = for cs $ \ c -> setLocalVars lv' $> c
+    let nes = zipWith Named ns es
+    return $ WithRHS' nes cs'
   -- TODO: some of these might be possible
   toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS  AnyWhere{}) = __IMPOSSIBLE__
   toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS SomeWhere{}) = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] []     [] C.AbsurdRHS  AnyWhere{}) = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] []     [] C.AbsurdRHS SomeWhere{}) = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] []     [] C.RHS{}      AnyWhere{}) = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] []     [] C.RHS{}     SomeWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []     (_, []) C.AbsurdRHS  AnyWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []     (_, []) C.AbsurdRHS SomeWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []     (_, []) C.RHS{}      AnyWhere{}) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] []     (_, []) C.RHS{}     SomeWhere{}) = __IMPOSSIBLE__
 
 instance ToAbstract C.RHS where
     type AbsOfCon C.RHS = AbstractRHS
@@ -2746,7 +2757,7 @@ instance ToAbstract C.LHSCore where
       liftA2 A.lhsCoreApp
         (liftA2 A.lhsCoreWith
           (toAbstract core)
-          (toAbstract wps))
+          (map defaultArg <$> toAbstract wps))
         (toAbstract ps)
     -- In case of a part of the LHS which was expanded from an ellipsis,
     -- we flush the @scopeVarsToBind@ in order to allow variables bound

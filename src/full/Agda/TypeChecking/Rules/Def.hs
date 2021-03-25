@@ -445,20 +445,52 @@ useTerPragma def@Defn{ defName = name, theDef = fun@Function{}} = do
   return $ def { theDef = fun { funTerminates = terminates }}
 useTerPragma def = return def
 
--- | Insert some with-patterns into the with-clauses LHS of the given RHS.
--- (Used for @rewrite@.)
-insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
-insertPatterns pats = \case
+-- | Modify all the LHSCore of the given RHS.
+-- (Used to insert patterns for @rewrite@ or the inspect idiom)
+mapLHSCores :: (A.LHSCore -> A.LHSCore) -> (A.RHS -> A.RHS)
+mapLHSCores f = \case
   A.WithRHS aux es cs -> A.WithRHS aux es $ for cs $
-    \ (A.Clause (A.LHS info core)                              spats rhs                       ds catchall) ->
-       A.Clause (A.LHS info (insertPatternsLHSCore pats core)) spats (insertPatterns pats rhs) ds catchall
-  A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (insertPatterns pats rhs) wh
+    \ (A.Clause (A.LHS info core)     spats rhs                 ds catchall) ->
+       A.Clause (A.LHS info (f core)) spats (mapLHSCores f rhs) ds catchall
+  A.RewriteRHS qes spats rhs wh -> A.RewriteRHS qes spats (mapLHSCores f rhs) wh
   rhs@A.AbsurdRHS -> rhs
   rhs@A.RHS{}     -> rhs
 
+-- | Insert some names into the with-clauses LHS of the given RHS.
+-- (Used for the inspect idiom)
+insertNames :: [Arg (Maybe A.BindName)] -> A.RHS -> A.RHS
+insertNames = mapLHSCores . insertInspects
+
+insertInspects :: [Arg (Maybe A.BindName)] -> A.LHSCore -> A.LHSCore
+insertInspects ps = \case
+  A.LHSWith core wps [] ->
+    let ps' = map (fmap $ fmap patOfName) ps in
+    A.LHSWith core (insertIn ps' wps) []
+  _ -> __IMPOSSIBLE__
+
+  where
+
+    patOfName :: A.BindName -> Arg A.Pattern
+    patOfName = defaultArg . A.VarP
+
+    insertIn :: [Arg (Maybe (Arg a))]
+             -> [Arg a] -> [Arg a]
+    insertIn []                 wps  = wps
+    insertIn (Arg info nm : ps) (w : wps) | visible info =
+      w : (maybe [] pure nm) ++ insertIn ps wps
+    insertIn (Arg info nm : ps) wps       | notVisible info =
+          (maybe [] pure nm) ++ insertIn ps wps
+    insertIn _ _ = __IMPOSSIBLE__
+
+
+-- | Insert some with-patterns into the with-clauses LHS of the given RHS.
+-- (Used for @rewrite@)
+insertPatterns :: [Arg A.Pattern] -> A.RHS -> A.RHS
+insertPatterns pats = mapLHSCores (insertPatternsLHSCore pats)
+
 -- | Insert with-patterns before the trailing with patterns.
 -- If there are none, append the with-patterns.
-insertPatternsLHSCore :: [A.Pattern] -> A.LHSCore -> A.LHSCore
+insertPatternsLHSCore :: [Arg A.Pattern] -> A.LHSCore -> A.LHSCore
 insertPatternsLHSCore pats = \case
   A.LHSWith core wps [] -> A.LHSWith core (pats ++ wps) []
   core                  -> A.LHSWith core pats []
@@ -734,8 +766,22 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
                  , clauseEllipsis  = lhsEllipsis i
                  }
 
--- | Type check the @with@ and @rewrite@ lhss and/or the rhs.
 
+
+-- | Generate the abstract pattern corresponding to Refl
+getReflPattern :: TCM A.Pattern
+getReflPattern = do
+  -- Get the name of builtin REFL.
+  Con reflCon _ [] <- primRefl
+
+  reflInfo <- fmap (setOrigin Inserted) <$> getReflArgInfo reflCon
+  let patInfo = ConPatInfo ConOCon patNoRange ConPatEager
+  -- The REFL constructor might have an argument
+  let reflArg = maybeToList $ fmap (\ ai -> Arg ai $ unnamed $ A.WildP patNoRange) reflInfo
+
+  pure $ A.ConP patInfo (unambiguous $ conName reflCon) reflArg
+
+-- | Type check the @with@ and @rewrite@ lhss and/or the rhs.
 checkRHS
   :: LHSInfo                 -- ^ Range of lhs.
   -> QName                   -- ^ Name of function.
@@ -774,18 +820,18 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
     unless absurdPat $ typeError $ NoRHSRequiresAbsurdPattern aps
     return (Nothing, NoWithFunction)
 
-
-  -- With case: @f xs with a | b | c | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
-  -- This is mostly a wrapper around @checkWithRHS@
-  withRHS :: QName               -- ^ name of the with-function
-          -> [Arg A.Expr]        -- ^ @[a, b, c, ...]@
-          -> [A.Clause]          -- ^ @[(ps1 = rhs1), (ps2 = rhs), ...]@
+  -- With case: @f xs with {a} in eqa | b in eqb | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
+  -- We need to modify the patterns `ps1, ps2, ...` in the user-provided clauses
+  -- to insert the {eqb} names so that the equality proofs are available on the various RHS.
+  withRHS :: QName        -- ^ name of the with-function
+          -> [A.WithExpr] -- ^ @[{a} in eqa, b in eqb, {{c}}, ...]@
+          -> [A.Clause]   -- ^ @[(ps1 = rhs1), (ps2 = rhs), ...]@
           -> TCM (Maybe Term, WithFunctionProblem)
   withRHS aux es cs = do
 
     reportSDoc "tc.with.top" 15 $ vcat
       [ "TC.Rules.Def.checkclause reached A.WithRHS"
-      , sep $ prettyA aux : map (parens . prettyA) es
+      , sep $ prettyA aux : map (parens . prettyA . namedThing) es
       ]
     reportSDoc "tc.with.top" 20 $ do
       nfv <- getCurrentModuleFreeVars
@@ -796,9 +842,18 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
           ]
 
     -- Infer the types of the with expressions
-    vtys <- forM es $ \ e -> do
-              ety <- inferExprForWith e
-              pure (fmap OtherType ety <$ e)
+
+    vtys <- forM es $ \ (Named nm we) -> do
+              (e, ty) <- inferExprForWith we
+              pure $ (<$ we) . (e,) $ case nm of
+                Nothing -> OtherType ty
+                Just{}  -> IdiomType ty
+
+    let names = map (\ (Named nm e) -> nm <$ e) es
+    cs <- forM cs $ \ c@(A.Clause (A.LHS i core) eqs rhs wh b) -> do
+      let rhs'  = insertNames    names rhs
+      let core' = insertInspects names core
+      pure $ A.Clause (A.LHS i core') eqs rhs' wh b
 
     -- Andreas, 2016-01-23, Issue #1796
     -- Run the size constraint solver to improve with-abstraction
@@ -829,12 +884,21 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
     where
 
     -- @invert@ clauses
-    invertEqnRHS :: QName -> [(A.Pattern,A.Expr)] -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
+    invertEqnRHS :: QName -> [Named A.BindName (A.Pattern,A.Expr)] -> [A.RewriteEqn] -> TCM (Maybe Term, WithFunctionProblem)
     invertEqnRHS qname pes rs = do
 
-      let (pats, es) = unzip pes
+      let (npats, es) = unzipWith (\ (Named nm (p , e)) -> (Named nm p, Named nm e)) pes
       -- Infer the types of the with expressions
-      vtys <- mapM (defaultArg <.> fmap OtherType <.> inferExprForWith . defaultArg) es
+      vtys <- forM es $ \ (Named nm we) -> do
+        (e, ty) <- inferExprForWith (defaultArg we)
+        pure $ defaultArg . (e,) $ case nm of
+          Nothing -> OtherType ty
+          Just{}  -> IdiomType ty
+
+      let pats = concatMap (map defaultArg) $
+            for npats $ \ (Named nm p) -> case nm of
+              Nothing -> [p]
+              Just n  -> [p, A.VarP n]
 
       -- Andreas, 2016-04-14, see also Issue #1796
       -- Run the size constraint solver to improve with-abstraction
@@ -902,31 +966,10 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
           -- Note: the sort _s of the equality need not be the sort of the type @dom@!
         OtherType{} -> typeError . GenericDocError =<< do
           "Cannot rewrite by equation of type" <+> prettyTCM t'
+        IdiomType{} -> typeError . GenericDocError =<< do
+          "Cannot rewrite by equation of type" <+> prettyTCM t'
 
-      -- Get the name of builtin REFL.
-
-      Con reflCon _ [] <- primRefl
-      reflInfo <- fmap (setOrigin Inserted) <$> getReflArgInfo reflCon
-
-      -- Andreas, 2017-01-11:
-      -- The test for refl is obsolete after fixes of #520 and #1740.
-      -- -- Andreas, 2014-05-17  Issue 1110:
-      -- -- Rewriting with @refl@ has no effect, but gives an
-      -- -- incomprehensible error message about the generated
-      -- -- with clause. Thus, we rather do simply nothing if
-      -- -- rewriting with @refl@ is attempted.
-      -- let isReflProof = do
-      --      v <- reduce proof
-      --      case v of
-      --        Con c _ [] | c == reflCon -> return True
-      --        _ -> return False
-      -- ifM isReflProof recurse $ {- else -} do
-
-      -- Process 'rewrite' clause like a suitable 'with' clause.
-
-      -- The REFL constructor might have an argument
-      let reflPat  = A.ConP (ConPatInfo ConOCon patNoRange ConPatEager) (unambiguous $ conName reflCon) $
-            maybeToList $ fmap (\ ai -> Arg ai $ unnamed $ A.WildP patNoRange) reflInfo
+      reflPat <- getReflPattern
 
       -- Andreas, 2015-12-25  Issue #1740:
       -- After the fix of #520, rewriting with a reflexive equation
@@ -934,10 +977,11 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
       let isReflexive = tryConversion $ dontAssignMetas $
            equalTerm rewriteType rewriteFrom rewriteTo
 
-      (pats, withExpr, withType) <- do
+      (pats', withExpr, withType) <- do
         ifM isReflexive
           {-then-} (return ([ reflPat ]                    , proof, OtherType t'))
           {-else-} (return ([ A.WildP patNoRange, reflPat ], proof, eqt))
+      let pats = defaultArg <$> pats'
 
       let rhs' = insertPatterns pats rhs
           (rhs'', outerWhere) -- the where clauses should go on the inner-most with
@@ -965,8 +1009,8 @@ checkWithRHS
                                 -- Note: as-bindings already bound (in checkClause)
 checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 cs =
   Bench.billTo [Bench.Typing, Bench.With] $ do
-        let withArgs = withArguments vtys0
-            perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
+        withArgs <- withArguments vtys0
+        let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         vtys0 <- normalise vtys0
 
         -- Andreas, 2012-09-17: for printing delta,
@@ -1017,7 +1061,6 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
         addConstant aux =<< do
           useTerPragma $ defaultDefn defaultArgInfo aux __DUMMY_TYPE__ emptyFunction
 
-        -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $ vcat $
           let (vs, as) = unzipWith unArg vtys in
           [ "    with arguments" <+> do escapeContext __IMPOSSIBLE__ (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)

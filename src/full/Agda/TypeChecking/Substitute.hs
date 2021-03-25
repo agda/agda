@@ -1085,6 +1085,8 @@ instance Subst EqualityView where
   type SubstArg EqualityView = Term
   applySubst rho (OtherType t) = OtherType
     (applySubst rho t)
+  applySubst rho (IdiomType t) = IdiomType
+    (applySubst rho t)
   applySubst rho (EqualityType s eq l t a b) = EqualityType
     (applySubst rho s)
     eq

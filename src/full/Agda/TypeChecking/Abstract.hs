@@ -11,17 +11,19 @@ import qualified Data.HashMap.Strict as HMap
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin ( equalityUnview, primEqualityName )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Sort
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
-import Agda.Utils.List (splitExactlyAt)
-
+import Agda.Utils.List ( splitExactlyAt, dropEnd )
 import Agda.Utils.Impossible
 
 -- | @abstractType a v b[v] = b@ where @a : v@.
@@ -45,12 +47,40 @@ piAbstractTerm info v a b = do
 
 -- | @piAbstract (v, a) b[v] = (w : a) -> b[w]@
 --
---   For @rewrite@, it does something special:
+--   For the inspect idiom, it does something special:
+--   @piAbstract (v, a) b[v] = (w : a) {w' : Eq a w v} -> b[w]
 --
+--   For @rewrite@, it does something special:
 --   @piAbstract (prf, Eq a v v') b[v,prf] = (w : a) (w' : Eq a w v') -> b[w,w']@
 
 piAbstract :: Arg (Term, EqualityView) -> Type -> TCM Type
-piAbstract (Arg info (v, OtherType a))                              b = piAbstractTerm info v a b
+piAbstract (Arg info (v, OtherType a)) b = piAbstractTerm info v a b
+piAbstract (Arg info (v, IdiomType a)) b = do
+  b  <- raise 1 <$> abstractType a v b
+  eq <- addContext ("w" :: String, defaultDom a) $ do
+    -- manufacture the type @w ≡ v@
+    eqName <- primEqualityName
+    eqTy <- defType <$> getConstInfo eqName
+    -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
+    TelV eqTel _ <- telView eqTy
+    tel  <- newTelMeta (telFromList $ dropEnd 2 $ telToList eqTel)
+    let eq = Def eqName $ map Apply
+                 $ map (setHiding Hidden) tel
+                 -- we write `v ≡ w` because this equality is typically used to
+                 -- get `v` to unfold to whatever pattern was used to refine `w`
+                 -- in a with-clause.
+                 -- If we were to write `w ≡ v`, we would often need to take the
+                 -- symmetric of the proof we get to make use of `rewrite`.
+                 ++ [ defaultArg (raise 1 v)
+                    , defaultArg (var 0)
+                    ]
+    sort <- newSortMeta
+    let ty = El sort eq
+    ty <$ checkType ty
+
+  pure $ mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
+       $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
+       $ b
 piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
   s <- sortOf a
   let prfTy = equalityUnview eqt
@@ -64,6 +94,7 @@ piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
     -- Abstract the lhs (@a@) of the equality only.
     eqt1  = raise 1 eqt
     eqTy' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
+
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.
 class IsPrefixOf a where

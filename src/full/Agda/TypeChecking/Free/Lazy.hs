@@ -565,6 +565,7 @@ instance Free t => Free (PlusLevel' t) where
 instance Free t => Free [t]            where
 instance Free t => Free (Maybe t)      where
 instance Free t => Free (WithHiding t) where
+instance Free t => Free (Named nm t)
 
 instance (Free t, Free u) => Free (t, u) where
   freeVars' (t, u) = freeVars' t `mappend` freeVars' u
@@ -595,5 +596,7 @@ instance Free Clause where
   freeVars' cl = underBinder' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
 
 instance Free EqualityView where
-  freeVars' (OtherType t) = freeVars' t
-  freeVars' (EqualityType s _eq l t a b) = freeVars' (s, l, [t, a, b])
+  freeVars' = \case
+    OtherType t -> freeVars' t
+    IdiomType t -> freeVars' t
+    EqualityType s _eq l t a b -> freeVars' (s, l, [t, a, b])

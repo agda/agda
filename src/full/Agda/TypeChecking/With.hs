@@ -26,6 +26,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive ( getRefl )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -170,14 +171,21 @@ countWithArgs :: [EqualityView] -> Nat
 countWithArgs = sum . map countArgs
   where
     countArgs OtherType{}    = 1
+    countArgs IdiomType{}    = 2
     countArgs EqualityType{} = 2
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
-withArguments :: [Arg (Term, EqualityView)] -> [Arg Term]
-withArguments vtys = flip concatMap vtys $ traverse $ \case
-  (v, OtherType a) -> [v]
-  (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]
+withArguments :: [Arg (Term, EqualityView)] ->
+                 TCM [Arg Term]
+withArguments vtys = do
+  tss <- forM vtys $ \ (Arg info ts) -> fmap (map (Arg info)) $ case ts of
+    (v, OtherType a) -> pure [v]
+    (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> pure [unArg v, prf]
+    (v, IdiomType t) -> do
+       mkRefl <- getRefl
+       pure [v, mkRefl (defaultArg v)]
+  pure (concat tss)
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
@@ -204,8 +212,10 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
             where
             fromWithP (A.WithP _ p) = p
             fromWithP _ = __IMPOSSIBLE__
-      reportSDoc "tc.with" 50 $ "inheritedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a
-                                                               | A.ProblemEq p v a <- inheritedPats ]
+      reportSDoc "tc.with" 50 $ "inheritedPats:" <+> vcat
+        [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a
+        | A.ProblemEq p v a <- inheritedPats
+        ]
       (strippedPats, ps') <- stripWithClausePatterns cxtNames f aux t delta qs npars perm ps
       reportSDoc "tc.with" 50 $ hang "strippedPats:" 2 $
                                   vcat [ prettyA p <+> "==" <+> prettyTCM v <+> (":" <+> prettyTCM t)

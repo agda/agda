@@ -1029,7 +1029,7 @@ declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
 instance ToConcrete A.RHS where
-    type ConOfAbs A.RHS = (C.RHS, [C.RewriteEqn], [Arg C.Expr], [C.Declaration])
+    type ConOfAbs A.RHS = (C.RHS, [C.RewriteEqn], [C.WithExpr], [C.Declaration])
 
     toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
     toConcrete (A.RHS e Nothing) = do
@@ -1037,7 +1037,10 @@ instance ToConcrete A.RHS where
       return (C.RHS e, [], [], [])
     toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [], [])
     toConcrete (A.WithRHS _ es cs) = do
-      es <- toConcrete es
+      es <- do es <- toConcrete es
+               forM es $ \ (Named n e) -> do
+                 n <- traverse toConcrete n
+                 pure $ Named (C.boundName <$> n) e
       cs <- noTakenNames $ concat <$> toConcrete cs
       return (C.AbsurdRHS, [], es, cs)
     toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
@@ -1047,12 +1050,19 @@ instance ToConcrete A.RHS where
       eqs <- toConcrete xeqs
       return (rhs, eqs, es, wh ++ whs)
 
-instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn p a) where
-  type ConOfAbs (RewriteEqn' qn p a) = (RewriteEqn' () (ConOfAbs p) (ConOfAbs a))
+instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn A.BindName p a) where
+  type ConOfAbs (RewriteEqn' qn A.BindName p a) = (RewriteEqn' () C.Name (ConOfAbs p) (ConOfAbs a))
 
   toConcrete = \case
     Rewrite es    -> Rewrite <$> mapM (toConcrete . (\ (_, e) -> ((),e))) es
-    Invert qn pes -> Invert () <$> mapM toConcrete pes
+    Invert qn pes -> fmap (Invert ()) $ forM pes $ \ (Named n pe) -> do
+      pe <- toConcrete pe
+      n  <- toConcrete n
+      pure $ Named n pe
+
+instance ToConcrete (Maybe A.BindName) where
+  type ConOfAbs (Maybe A.BindName) = Maybe C.Name
+  toConcrete = traverse (C.boundName <.> toConcrete)
 
 instance ToConcrete (Maybe A.QName) where
   type ConOfAbs (Maybe A.QName) = Maybe C.Name

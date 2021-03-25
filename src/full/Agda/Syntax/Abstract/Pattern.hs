@@ -368,8 +368,11 @@ lhsCoreToSpine = \case
   LHSHead f ps     -> QNamed f ps
   LHSProj d h ps   -> lhsCoreToSpine (namedArg h) <&> (++ (p : ps))
     where p = updateNamedArg (const $ ProjP empty ProjPrefix d) h
-  LHSWith h wps ps -> lhsCoreToSpine h <&> (++ map (defaultNamedArg . mkWithP) wps ++ ps)
-    where mkWithP p = WithP (PatRange $ getRange p) p
+  LHSWith h wps ps -> lhsCoreToSpine h <&> (++ map fromWithPat wps ++ ps)
+    where
+      fromWithPat :: Arg (Pattern' e) -> NamedArg (Pattern' e)
+      fromWithPat = fmap (unnamed . mkWithP)
+      mkWithP p   = WithP (PatRange $ getRange p) p
 
 spineToLhsCore :: IsProjP e => QNamed [NamedArg (Pattern' e)] -> LHSCore' e
 spineToLhsCore (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
@@ -379,14 +382,14 @@ lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreApp core ps = core { lhsPats = lhsPats core ++ ps }
 
 -- | Add with-patterns to the right.
-lhsCoreWith :: LHSCore' e -> [Pattern' e] -> LHSCore' e
+lhsCoreWith :: LHSCore' e -> [Arg (Pattern' e)] -> LHSCore' e
 lhsCoreWith (LHSWith core wps []) wps' = LHSWith core (wps ++ wps') []
 lhsCoreWith core                  wps' = LHSWith core wps' []
 
 lhsCoreAddChunk :: IsProjP e => LHSCore' e -> LHSPatternView e -> LHSCore' e
 lhsCoreAddChunk core = \case
   LHSAppP ps               -> lhsCoreApp core ps
-  LHSWithP wps             -> lhsCoreWith core wps
+  LHSWithP wps             -> lhsCoreWith core (defaultArg <$> wps)
   LHSProjP ProjPrefix d np -> LHSProj d (setNamedArg np core) []  -- Prefix projection pattern.
   LHSProjP _          _ np -> lhsCoreApp core [np]       -- Postfix projection pattern.
 
@@ -422,7 +425,11 @@ lhsCoreToPattern lc =
     LHSProj d lhscore aps -> DefP noInfo d $
       fmap (fmap lhsCoreToPattern) lhscore : aps
     LHSWith h wps aps     -> case lhsCoreToPattern h of
-      DefP r q ps         -> DefP r q $ ps ++ map (\ p -> defaultNamedArg $ WithP (PatRange $ getRange p) p) wps ++ aps
+      DefP r q ps         -> DefP r q $ ps ++ map fromWithPat wps ++ aps
+        where
+          fromWithPat :: Arg Pattern -> NamedArg Pattern
+          fromWithPat = fmap (unnamed . mkWithP)
+          mkWithP p   = WithP (PatRange $ getRange p) p
       _ -> __IMPOSSIBLE__
   where noInfo = empty -- TODO, preserve range!
 

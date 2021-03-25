@@ -153,6 +153,7 @@ data BindingSource
   = LambdaBound  -- ^ @λ@ (currently also used for @Π@ and module parameters)
   | PatternBound -- ^ @f ... =@
   | LetBound     -- ^ @let ... in@
+  | WithBound    -- ^ @| ... in q@
   deriving (Data, Show, Eq, Generic)
 
 instance Pretty BindingSource where
@@ -160,6 +161,7 @@ instance Pretty BindingSource where
     LambdaBound  -> "local"
     PatternBound -> "pattern"
     LetBound     -> "let-bound"
+    WithBound    -> "with-bound"
 
 -- | A local variable can be shadowed by an import.
 --   In case of reference to a shadowed variable, we want to report

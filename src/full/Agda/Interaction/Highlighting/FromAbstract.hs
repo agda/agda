@@ -313,7 +313,7 @@ instance Hilite A.RHS where
     where
     hl a = hilite a
 
-instance (Hilite p, Hilite e) => Hilite (RewriteEqn' x p e) where
+instance (HasRange n, Hilite p, Hilite e) => Hilite (RewriteEqn' x n p e) where
   hilite = \case
     Rewrite es    -> hilite $ fmap snd es
     Invert _x pes -> hilite pes

@@ -626,16 +626,25 @@ Expr
 
 -- Level 1: Application
 Expr1 :: { Expr }
-Expr1  : WithExprs {% case $1 of
-                      { e :| [] -> return e
-                      ; e :| es -> return $ WithApp (fuseRange e es) e es
-                      }
-                   }
+Expr1
+  : UnnamedWithExprs
+      {% case $1 of
+           { e :| [] -> return e
+           ; e :| es -> return $ WithApp (fuseRange e es) e es
+           }
+      }
 
-WithExprs :: { List1 Expr }
+WithExprs :: { List1 (Named Name Expr) }
 WithExprs
-  : Application3 '|' WithExprs { rawApp $1 <| $3 }
-  | Application                { singleton (rawApp $1) }
+  : Application3 'in' Id     '|' WithExprs { named $3  (rawApp $1) <| $5 }
+  | Application3 {- empty -} '|' WithExprs { unnamed   (rawApp $1) <| $3 }
+  | Application3 'in' Id                   { singleton (named $3 (rawApp $1)) }
+  | Application3 {- empty -}               { singleton (unnamed  (rawApp $1)) }
+
+UnnamedWithExprs :: { List1 Expr }
+UnnamedWithExprs
+  :  Application3 '|' UnnamedWithExprs { (rawApp $1) <| $3 }
+  | {- empty -} Application            { singleton (rawApp $1) }
 
 Application :: { List1 Expr }
 Application
@@ -702,7 +711,7 @@ Expr3NoCurly
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
-    | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $ List1.toList $2 }
+    | '(|' UnnamedWithExprs '|)'        { IdiomBrackets (getRange ($1,$2,$3)) (List1.toList $2) }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
@@ -1083,26 +1092,22 @@ CommaImportNames1
 
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
-LHS :: { LHS }
-LHS : Expr1 WithRewriteExpressions
-        {% exprToLHS $1      >>= \p ->
-           buildWithBlock $2 >>= \ (rs, es) ->
-           return (p rs $ fmap observeModifiers es)
-        }
+LHS :: { [RewriteEqn] -> [WithExpr] -> LHS }
+LHS : Expr1 {% exprToLHS $1 }
 
-WithRewriteExpressions :: { [Either RewriteEqn (List1 Expr)] }
-WithRewriteExpressions
-  : {- empty -} { [] }
-  | 'with' Expr1 WithRewriteExpressions
-    {% (++ $3) `fmap` buildWithStmt $2 }
-  | 'rewrite' Expr1 WithRewriteExpressions
-    { Left (Rewrite $ fmap ((),) (fromWithApp $2)) : $3 }
+WithClause :: { [Either RewriteEqn (List1 (Named Name Expr))] }
+WithClause
+  : 'with' WithExprs WithClause
+    {% fmap (++ $3) (buildWithStmt $2)  }
+  | 'rewrite' UnnamedWithExprs WithClause
+    { Left (Rewrite $ fmap ((),) $2) : $3 }
+  | {- empty -} { [] }
 
 -- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
 HoleContent
   : Expr                   {  HoleContentExpr    $1 }
-  | WithRewriteExpressions
+  | WithClause
     {% fmap HoleContentRewrite $ forM $1 $ \case
          Left r  -> pure r
          Right{} -> parseError "Cannot declare a 'with' abstraction from inside a hole."
@@ -1188,13 +1193,22 @@ ArgTypeSigs
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 -- FunClause also handle possibly dotted type signatures.
 FunClause :: { List1 Declaration }
-FunClause : LHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 }
-  | Attributes1 LHS RHS WhereClause {% funClauseOrTypeSigs (List1.toList $1) $2 $3 $4 }
+FunClause
+  : {- emptyb -} LHS WHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 $4 }
+  | Attributes1  LHS WHS RHS WhereClause {% funClauseOrTypeSigs (List1.toList $1) $2 $3 $4 $5 }
+
+-- "With Hand Side", in between the Left & the Right hand ones
+WHS :: { [Either RewriteEqn (List1 (Named Name Expr))] }
+WHS
+  : {- empty -}                           { [] }
+  | 'with'    WithExprs        WithClause {% fmap (++ $3) (buildWithStmt $2) }
+  | 'rewrite' UnnamedWithExprs WithClause { Left (Rewrite $ fmap ((),) $2) : $3 }
 
 RHS :: { RHSOrTypeSigs }
-RHS : '=' Expr      { JustRHS (RHS $2) }
-    | ':' Expr      { TypeSigsRHS $2 }
-    | {- empty -}   { JustRHS AbsurdRHS }
+RHS
+  : {- empty -}    { JustRHS AbsurdRHS }
+  | '='       Expr { JustRHS (RHS $2) }
+  | ':'       Expr { TypeSigsRHS $2 }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
@@ -2041,31 +2055,37 @@ exprToAssignment (RawApp r es)
 exprToAssignment _ = pure Nothing
 
 -- | Build a with-block
-buildWithBlock :: [Either RewriteEqn (List1 Expr)] -> Parser ([RewriteEqn], [Expr])
+buildWithBlock ::
+  [Either RewriteEqn (List1 (Named Name Expr))] ->
+  Parser ([RewriteEqn], [Named Name Expr])
 buildWithBlock rees = case groupByEither rees of
   (Left rs : rest) -> (List1.toList rs,) <$> finalWith rest
   rest             -> ([],) <$> finalWith rest
 
   where
 
-    finalWith :: [Either (List1 RewriteEqn) (List1 (List1 Expr))] -> Parser [Expr]
+    finalWith :: (HasRange a, HasRange b) =>
+                 [Either (List1 a) (List1 (List1 b))] -> Parser [b]
     finalWith []             = pure $ []
     finalWith [Right ees]    = pure $ List1.toList $ sconcat ees
     finalWith (Right{} : tl) = parseError' (rStart' $ getRange tl)
       "Cannot use rewrite / pattern-matching with after a with-abstraction."
 
 -- | Build a with-statement
-buildWithStmt :: Expr -> Parser [Either RewriteEqn (List1 Expr)]
-buildWithStmt e = do
-  es <- mapM buildSingleWithStmt $ fromWithApp e
-  let ees = groupByEither $ List1.toList es
-  pure $ map (first (Invert ())) ees
+buildWithStmt :: List1 (Named Name Expr) ->
+                 Parser [Either RewriteEqn (List1 (Named Name Expr))]
+buildWithStmt nes = do
+  ws <- mapM buildSingleWithStmt (List1.toList nes)
+  let rws = groupByEither ws
+  pure $ map (first (Invert ())) rws
 
-buildSingleWithStmt :: Expr -> Parser (Either (Pattern, Expr) Expr)
+buildSingleWithStmt ::
+  Named Name Expr ->
+  Parser (Either (Named Name (Pattern, Expr)) (Named Name Expr))
 buildSingleWithStmt e = do
-  mpatexpr <- exprToAssignment e
+  mpatexpr <- exprToAssignment (namedThing e)
   pure $ case mpatexpr of
-    Just (pat, _, expr) -> Left (pat, expr)
+    Just (pat, _, expr) -> Left ((pat, expr) <$ e)
     Nothing             -> Right e
 
 fromWithApp :: Expr -> List1 Expr
@@ -2149,8 +2169,8 @@ validHaskellModuleName = all ok . splitOnDots
  --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([RewriteEqn] -> [Arg Expr] -> LHS)
-exprToLHS e = exprToPattern e <&> \ p rwr wth -> LHS p rwr wth
+exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithExpr] -> LHS)
+exprToLHS e = LHS <$> exprToPattern e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
@@ -2234,8 +2254,13 @@ patternToNames = \case
     p                        -> parseError $
       "Illegal name in type signature: " ++ prettyShow p
 
-funClauseOrTypeSigs :: [Attr] -> LHS -> RHSOrTypeSigs -> WhereClause -> Parser (List1 Declaration)
-funClauseOrTypeSigs attrs lhs mrhs wh = do
+funClauseOrTypeSigs :: [Attr] -> ([RewriteEqn] -> [WithExpr] -> LHS)
+                    -> [Either RewriteEqn (List1 (Named Name Expr))]
+                    -> RHSOrTypeSigs
+                    -> WhereClause -> Parser (List1 Declaration)
+funClauseOrTypeSigs attrs lhs' with mrhs wh = do
+  (rs , es) <- buildWithBlock with
+  let lhs = lhs' rs (map (fmap observeModifiers) es)
   -- traceShowM lhs
   case mrhs of
     JustRHS rhs   -> do
