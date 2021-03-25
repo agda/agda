@@ -1,0 +1,41 @@
+Issue4958.agda:6,7-29
+Warning: primFloatNumericalLess was deprecated in Agda v2.6.2.
+Please use primFloatLess instead.
+when scope checking the declaration
+  open import Agda.Builtin.Float public
+                                 using (primFloatNumericalEquality)
+                                 renaming (primFloatNumericalLess to foo)
+Issue4958.agda:8,7-33
+Warning: primFloatNumericalEquality was deprecated in Agda v2.6.2.
+Please use primFloatEquality instead.
+when scope checking the declaration
+  open import Agda.Builtin.Float public
+                                 using (primFloatNumericalEquality)
+                                 renaming (primFloatNumericalLess to foo)
+Issue4958.agda:10,7-10
+Warning: primFloatNumericalLess was deprecated in Agda v2.6.2.
+Please use primFloatLess instead.
+when scope checking foo
+
+———— All done; warnings encountered ————————————————————————
+
+Issue4958.agda:6,7-29
+Warning: primFloatNumericalLess was deprecated in Agda v2.6.2.
+Please use primFloatLess instead.
+when scope checking the declaration
+  open import Agda.Builtin.Float public
+                                 using (primFloatNumericalEquality)
+                                 renaming (primFloatNumericalLess to foo)
+
+Issue4958.agda:8,7-33
+Warning: primFloatNumericalEquality was deprecated in Agda v2.6.2.
+Please use primFloatEquality instead.
+when scope checking the declaration
+  open import Agda.Builtin.Float public
+                                 using (primFloatNumericalEquality)
+                                 renaming (primFloatNumericalLess to foo)
+
+Issue4958.agda:10,7-10
+Warning: primFloatNumericalLess was deprecated in Agda v2.6.2.
+Please use primFloatLess instead.
+when scope checking foo

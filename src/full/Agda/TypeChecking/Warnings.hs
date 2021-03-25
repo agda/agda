@@ -35,6 +35,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty (MonadPretty, prettyTCM)
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import {-# SOURCE #-} Agda.TypeChecking.Pretty.Warning ( prettyWarning )
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Pure
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Trace ( MonadTrace, setCurrentRange )
 
 import Agda.Syntax.Abstract.Name ( QName )
 import Agda.Syntax.Common
@@ -147,8 +148,8 @@ warning = withCallerCallStack . flip warning'
 
 -- | Raise every 'WARNING_ON_USAGE' connected to a name.
 {-# SPECIALIZE raiseWarningsOnUsage :: QName -> TCM () #-}
-raiseWarningsOnUsage :: (MonadWarning m, ReadTCState m) => QName -> m ()
-raiseWarningsOnUsage d = do
+raiseWarningsOnUsage :: (MonadWarning m, MonadTrace m, ReadTCState m) => QName -> m ()
+raiseWarningsOnUsage d = setCurrentRange d $ do
   -- In case we find a defined name, we start by checking whether there's
   -- a warning attached to it
   reportSLn "scope.warning.usage" 50 $ "Checking usage of " ++ P.prettyShow d
