@@ -168,6 +168,7 @@ data Sort where
   lit     : (n : Nat) → Sort
   prop    : (t : Term) → Sort
   propLit : (n : Nat) → Sort
+  inf     : (n : Nat) → Sort
   unknown : Sort
 
 data Pattern where
@@ -202,6 +203,7 @@ data Clause where
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTPROP        prop    #-}
 {-# BUILTIN AGDASORTPROPLIT     propLit #-}
+{-# BUILTIN AGDASORTINF         inf     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
 {-# BUILTIN AGDAPATCON    con     #-}

@@ -406,6 +406,7 @@ instance Unquote R.Sort where
           , (c `isCon` primAgdaSortLit, R.LitS <$> unquoteN u)
           , (c `isCon` primAgdaSortProp, R.PropS <$> unquoteN u)
           , (c `isCon` primAgdaSortPropLit, R.PropLitS <$> unquoteN u)
+          , (c `isCon` primAgdaSortInf, R.InfS <$> unquoteN u)
           ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__

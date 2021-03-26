@@ -43,6 +43,7 @@ data Sort = SetS Term
           | LitS Integer
           | PropS Term
           | PropLitS Integer
+          | InfS Integer
           | UnknownS
   deriving (Show)
 
