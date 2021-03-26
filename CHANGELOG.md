@@ -572,6 +572,14 @@ Reflection
     quoteTC t >>= unify hole
   ```
 
+- Three new constructors in the `Sort` datatype, `prop : Level →
+  Sort`, `propLit : Nat → Sort`, and `inf : Nat → Sort`, representing
+  the sorts `Prop ℓ`, `Propᵢ`, and `Setωᵢ`.
+
+- Terms that belong to a type in `Prop` are no longer unquoted to
+  `unknown` but to a proper `Term`. (See
+  [#3553](https://github.com/agda/agda/issues/3553).)
+
 Library management
 ------------------
 
