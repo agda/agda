@@ -278,7 +278,7 @@ quotingKit = do
           Sort s     -> sort !@ quoteSort s
           MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
+          DontCare u -> quoteTerm u
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
       defParameters :: Definition -> Bool -> [ReduceM Term]
