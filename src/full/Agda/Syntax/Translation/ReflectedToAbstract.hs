@@ -223,11 +223,13 @@ instance ToAbstract Sort where
   toAbstract s = do
     setName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
     propName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinProp
+    infName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSetOmega
     case s of
       SetS x -> mkApp (A.Def setName) <$> toAbstract x
       LitS x -> return $ A.Def' setName $ A.Suffix x
       PropS x -> mkApp (A.Def propName) <$> toAbstract x
       PropLitS x -> return $ A.Def' propName $ A.Suffix x
+      InfS x -> return $ A.Def' infName $ A.Suffix x
       UnknownS -> return $ mkApp (A.Def setName) $ Underscore emptyMetaInfo
 
 instance ToAbstract R.Pattern where

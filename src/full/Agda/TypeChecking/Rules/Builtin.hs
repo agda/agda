@@ -223,7 +223,7 @@ coreBuiltins =
   , (builtinAgdaSort                         |-> BuiltinData tset
                                                    [ builtinAgdaSortSet, builtinAgdaSortLit
                                                    , builtinAgdaSortProp, builtinAgdaSortPropLit
-                                                   , builtinAgdaSortUnsupported])
+                                                   , builtinAgdaSortInf, builtinAgdaSortUnsupported])
   , (builtinAgdaTerm                         |-> BuiltinData tset
                                                    [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam
                                                    , builtinAgdaTermDef, builtinAgdaTermCon
@@ -309,6 +309,7 @@ coreBuiltins =
   , (builtinAgdaSortLit                      |-> BuiltinDataCons (tnat --> tsort))
   , (builtinAgdaSortProp                     |-> BuiltinDataCons (tterm --> tsort))
   , (builtinAgdaSortPropLit                  |-> BuiltinDataCons (tnat --> tsort))
+  , (builtinAgdaSortInf                      |-> BuiltinDataCons (tnat --> tsort))
   , (builtinAgdaSortUnsupported              |-> BuiltinDataCons tsort)
   , (builtinNatPlus                          |-> BuiltinPrim "primNatPlus" verifyPlus)
   , (builtinNatMinus                         |-> BuiltinPrim "primNatMinus" verifyMinus)

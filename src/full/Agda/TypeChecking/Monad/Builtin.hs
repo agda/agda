@@ -198,7 +198,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primPrecedence, primPrecRelated, primPrecUnrelated,
     primFixity, primFixityFixity,
     primAgdaLiteral, primAgdaLitNat, primAgdaLitWord64, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta,
-    primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortProp, primAgdaSortPropLit, primAgdaSortUnsupported,
+    primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortProp, primAgdaSortPropLit, primAgdaSortInf, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
     primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
@@ -337,6 +337,7 @@ primAgdaSortSet                       = getBuiltin builtinAgdaSortSet
 primAgdaSortLit                       = getBuiltin builtinAgdaSortLit
 primAgdaSortProp                      = getBuiltin builtinAgdaSortProp
 primAgdaSortPropLit                   = getBuiltin builtinAgdaSortPropLit
+primAgdaSortInf                       = getBuiltin builtinAgdaSortInf
 primAgdaSortUnsupported               = getBuiltin builtinAgdaSortUnsupported
 primAgdaTerm                          = getBuiltin builtinAgdaTerm
 primAgdaTermVar                       = getBuiltin builtinAgdaTermVar

@@ -96,6 +96,7 @@ quotingKit = do
   setLit          <- primAgdaSortLit
   prop            <- primAgdaSortProp
   propLit         <- primAgdaSortPropLit
+  inf             <- primAgdaSortInf
   unsupportedSort <- primAgdaSortUnsupported
   sucLevel        <- primLevelSuc
   lub             <- primLevelMax
@@ -154,7 +155,9 @@ quotingKit = do
       quoteSort :: Sort -> ReduceM Term
       quoteSort (Type t) = quoteSortLevelTerm setLit set t
       quoteSort (Prop t) = quoteSortLevelTerm propLit prop t
-      quoteSort Inf{}    = pure unsupportedSort
+      quoteSort (Inf f n) = case f of
+        IsFibrant -> inf !@! Lit (LitNat n)
+        IsStrict  -> pure unsupportedSort
       quoteSort SSet{}   = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
       quoteSort LockUniv = pure unsupportedSort

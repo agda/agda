@@ -33,7 +33,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinLockUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
-  builtinAgdaSortProp, builtinAgdaSortPropLit,
+  builtinAgdaSortProp, builtinAgdaSortPropLit, builtinAgdaSortInf,
   builtinAgdaSortUnsupported,
   builtinHiding, builtinHidden, builtinInstance, builtinVisible,
   builtinRelevance, builtinRelevant, builtinIrrelevant, builtinArg,
@@ -168,6 +168,7 @@ builtinAgdaSortSet                       = "AGDASORTSET"
 builtinAgdaSortLit                       = "AGDASORTLIT"
 builtinAgdaSortProp                      = "AGDASORTPROP"
 builtinAgdaSortPropLit                   = "AGDASORTPROPLIT"
+builtinAgdaSortInf                       = "AGDASORTINF"
 builtinAgdaSortUnsupported               = "AGDASORTUNSUPPORTED"
 builtinHiding                            = "HIDING"
 builtinHidden                            = "HIDDEN"
