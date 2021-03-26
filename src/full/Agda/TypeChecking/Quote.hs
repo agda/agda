@@ -94,6 +94,8 @@ quotingKit = do
   absurdP         <- primAgdaPatAbsurd
   set             <- primAgdaSortSet
   setLit          <- primAgdaSortLit
+  prop            <- primAgdaSortProp
+  propLit         <- primAgdaSortPropLit
   unsupportedSort <- primAgdaSortUnsupported
   sucLevel        <- primLevelSuc
   lub             <- primLevelMax
@@ -145,13 +147,13 @@ quotingKit = do
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
-      quoteSortLevelTerm :: Level -> ReduceM Term
-      quoteSortLevelTerm (ClosedLevel n) = setLit !@! Lit (LitNat n)
-      quoteSortLevelTerm l               = set !@ quoteTerm (unlevelWithKit lkit l)
+      quoteSortLevelTerm :: Term -> Term -> Level -> ReduceM Term
+      quoteSortLevelTerm fromLit fromLevel (ClosedLevel n) = fromLit !@! Lit (LitNat n)
+      quoteSortLevelTerm fromLit fromLevel l               = fromLevel !@ quoteTerm (unlevelWithKit lkit l)
 
       quoteSort :: Sort -> ReduceM Term
-      quoteSort (Type t) = quoteSortLevelTerm t
-      quoteSort Prop{}   = pure unsupportedSort
+      quoteSort (Type t) = quoteSortLevelTerm setLit set t
+      quoteSort (Prop t) = quoteSortLevelTerm propLit prop t
       quoteSort Inf{}    = pure unsupportedSort
       quoteSort SSet{}   = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort

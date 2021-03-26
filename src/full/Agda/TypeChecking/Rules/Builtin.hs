@@ -220,7 +220,10 @@ coreBuiltins =
                                                                fiber
                                                              ))
                                                               (const $ const $ return ()))
-  , (builtinAgdaSort                         |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
+  , (builtinAgdaSort                         |-> BuiltinData tset
+                                                   [ builtinAgdaSortSet, builtinAgdaSortLit
+                                                   , builtinAgdaSortProp, builtinAgdaSortPropLit
+                                                   , builtinAgdaSortUnsupported])
   , (builtinAgdaTerm                         |-> BuiltinData tset
                                                    [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam
                                                    , builtinAgdaTermDef, builtinAgdaTermCon
@@ -304,6 +307,8 @@ coreBuiltins =
      -- (hPi "i" tsize $ let a = el $ primSizeLt <@> v0 in (a --> a --> a)))
   , (builtinAgdaSortSet                      |-> BuiltinDataCons (tterm --> tsort))
   , (builtinAgdaSortLit                      |-> BuiltinDataCons (tnat --> tsort))
+  , (builtinAgdaSortProp                     |-> BuiltinDataCons (tterm --> tsort))
+  , (builtinAgdaSortPropLit                  |-> BuiltinDataCons (tnat --> tsort))
   , (builtinAgdaSortUnsupported              |-> BuiltinDataCons tsort)
   , (builtinNatPlus                          |-> BuiltinPrim "primNatPlus" verifyPlus)
   , (builtinNatMinus                         |-> BuiltinPrim "primNatMinus" verifyMinus)

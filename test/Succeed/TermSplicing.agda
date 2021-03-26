@@ -143,6 +143,8 @@ module ReflectLibrary where
   decodeSort (set (sort s)) = decodeSort s
   decodeSort (set _) = nothing
   decodeSort (lit n) = just (ℕ→Level n)
+  decodeSort (prop _) = nothing
+  decodeSort (propLit _) = nothing
   decodeSort unknown = nothing
 
   _`⊔`_ : Sort → Sort → Sort
