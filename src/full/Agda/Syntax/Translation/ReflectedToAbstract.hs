@@ -222,9 +222,12 @@ instance ToAbstract Sort where
   type AbsOfRef Sort = Expr
   toAbstract s = do
     setName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
+    propName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinProp
     case s of
       SetS x -> mkApp (A.Def setName) <$> toAbstract x
       LitS x -> return $ A.Def' setName $ A.Suffix x
+      PropS x -> mkApp (A.Def propName) <$> toAbstract x
+      PropLitS x -> return $ A.Def' propName $ A.Suffix x
       UnknownS -> return $ mkApp (A.Def setName) $ Underscore emptyMetaInfo
 
 instance ToAbstract R.Pattern where
@@ -290,4 +293,3 @@ checkClauseTelescopeBindings tel pats =
     bound R.LitP{}      = Set.empty
     bound (R.AbsurdP i) = Set.singleton i
     bound R.ProjP{}     = Set.empty
-

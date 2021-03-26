@@ -114,6 +114,8 @@ data Term where
 data Sort where
   set     : (t : Term) → Sort
   lit     : (n : Nat) → Sort
+  prop    : (t : Term) → Sort
+  propLit : (n : Nat) → Sort
   unknown : Sort
 
 data Pattern : Set where
@@ -146,6 +148,8 @@ data Clause where
 
 {-# BUILTIN AGDASORTSET         set     #-}
 {-# BUILTIN AGDASORTLIT         lit     #-}
+{-# BUILTIN AGDASORTPROP        prop    #-}
+{-# BUILTIN AGDASORTPROPLIT     propLit #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
 {-# BUILTIN AGDAPATCON    con     #-}

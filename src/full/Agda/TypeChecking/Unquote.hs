@@ -402,8 +402,11 @@ instance Unquote R.Sort where
           __IMPOSSIBLE__
       Con c _ es | Just [u] <- allApplyElims es ->
         choice
-          [(c `isCon` primAgdaSortSet, R.SetS <$> unquoteN u)
-          ,(c `isCon` primAgdaSortLit, R.LitS <$> unquoteN u)]
+          [ (c `isCon` primAgdaSortSet, R.SetS <$> unquoteN u)
+          , (c `isCon` primAgdaSortLit, R.LitS <$> unquoteN u)
+          , (c `isCon` primAgdaSortProp, R.PropS <$> unquoteN u)
+          , (c `isCon` primAgdaSortPropLit, R.PropLitS <$> unquoteN u)
+          ]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "sort" t

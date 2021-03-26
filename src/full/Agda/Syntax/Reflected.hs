@@ -41,6 +41,8 @@ type Type = Term
 
 data Sort = SetS Term
           | LitS Integer
+          | PropS Term
+          | PropLitS Integer
           | UnknownS
   deriving (Show)
 
