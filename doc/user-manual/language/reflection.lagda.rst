@@ -238,6 +238,9 @@ de Bruijn indices to represent variables.
   data Sort where
     set     : (t : Term) → Sort -- A Set of a given (possibly neutral) level.
     lit     : (n : Nat) → Sort  -- A Set of a given concrete level.
+    prop    : (t : Term) → Sort -- A Prop of a given (possibly neutral) level.
+    propLit : (n : Nat) → Sort  -- A Prop of a given concrete level.
+    inf     : (n : Nat) → Sort  -- Setωi of a given concrete level i.
     unknown : Sort
 
   data Pattern where
@@ -270,6 +273,9 @@ de Bruijn indices to represent variables.
 
   {-# BUILTIN AGDASORTSET         set     #-}
   {-# BUILTIN AGDASORTLIT         lit     #-}
+  {-# BUILTIN AGDASORTPROP        prop    #-}
+  {-# BUILTIN AGDASORTPROPLIT     propLit #-}
+  {-# BUILTIN AGDASORTINF         inf     #-}
   {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
   {-# BUILTIN AGDAPATCON    con     #-}
