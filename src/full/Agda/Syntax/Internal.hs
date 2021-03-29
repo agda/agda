@@ -537,9 +537,7 @@ toConPatternInfo _ = noConPatternInfo
 
 -- | Build 'ConInfo' from 'ConPatternInfo'.
 fromConPatternInfo :: ConPatternInfo -> ConInfo
-fromConPatternInfo i
-  | conPRecord i = patToConO $ patOrigin $ conPInfo i
-  | otherwise    = ConOCon
+fromConPatternInfo i = patToConO $ patOrigin $ conPInfo i
   where
     patToConO :: PatOrigin -> ConOrigin
     patToConO = \case
@@ -550,7 +548,7 @@ fromConPatternInfo i
       PatOWild   -> ConOSystem
       PatOCon    -> ConOCon
       PatORec    -> ConORec
-      PatOLit    -> __IMPOSSIBLE__
+      PatOLit    -> ConOCon
       PatOAbsurd -> ConOSystem
 
 -- | Extract pattern variables in left-to-right order.
