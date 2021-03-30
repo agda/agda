@@ -125,7 +125,12 @@ matchDisplayForm d@(Display n ps v) es
   | otherwise             = do
       let (es0, es1) = splitAt (length ps) es
       mm <- match (Window 0 n) ps es0
-      let us = map (\ i -> Map.findWithDefault __IMPOSSIBLE__ i mm) [0 .. n - 1]
+      us <- forM [0 .. n - 1] $ \ i -> do
+              -- #5294: Fail if we don't have bindings for all variables. This can
+              --        happen outside parameterised modules when some of the parameters
+              --        are not used in the lhs.
+              Just u <- return $ Map.lookup i mm
+              return u
       return (d, substWithOrigin (parallelS $ map woThing us) us v `applyE` es1)
 
 type MatchResult = Map Int (WithOrigin Term)
@@ -173,7 +178,7 @@ instance Match a => Match (Elim' a) where
       _                               -> mzero
 
 instance Match Term where
-  match w p v = lift (instantiate v) >>= \ v -> case (p, unSpine v) of
+  match w p v = lift (instantiate v) >>= \ v -> case (unSpine p, unSpine v) of
     (Var i [], v)    | Just j <- inWindow w i -> return $ Map.singleton j (WithOrigin Inserted v)
     (Var i (_:_), v) | Just{} <- inWindow w i -> mzero  -- Higher-order pattern, fail for now.
     (Var i ps, Var j vs) | i == j  -> match w ps vs
