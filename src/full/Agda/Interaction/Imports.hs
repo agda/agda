@@ -485,6 +485,7 @@ getInterface x isMain msrc =
 
       let recheck = \reason -> do
             reportSLn "import.iface" 5 $ concat ["  ", prettyShow x, " is not up-to-date because ", reason, "."]
+            setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
             case isMain of
               MainInterface _ -> createInterface x file isMain msrc
               NotMainInterface -> createInterfaceIsolated x file msrc

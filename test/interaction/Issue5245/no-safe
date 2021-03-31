@@ -1,0 +1,4 @@
+name: lib-a
+depend: lib-b
+include: .
+flags:
