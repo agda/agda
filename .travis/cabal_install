@@ -60,10 +60,9 @@ travis_fold end "build.dependencies"
 travis_fold start "build.agda"
 
 title "Building Agda"
-# We remove options `-fexpose-all-unfoldings` and
-# `-fspecialise-aggressively` on GHC 8.0.2. See Issue #4177.
-if [[ $GHC_VER == "8.0.2" ]]; then
-  make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v1 --ghc-option=-fno-specialise --ghc-option=-fno-expose-all-unfoldings" install-bin
+# We need to install without -foptimize-aggressively on GHC 9.0.1.
+if [[ $GHC_VER == "9.0.1" ]]; then
+  make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 v1-install
 else
   make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v1 install-bin
 fi
