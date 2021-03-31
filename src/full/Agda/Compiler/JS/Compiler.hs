@@ -368,7 +368,7 @@ defJSDef def =
     dropEquals = dropWhile $ \ c -> isSpace c || c == '='
 
 definition' :: EnvWithOpts -> QName -> Definition -> Type -> JSQName -> TCM (Maybe Export)
-definition' kit q d t ls = do
+definition' kit q d t ls = if not (usableModality d) then return Nothing else do
   checkCompilerPragmas q
   case theDef d of
     -- coinduction
