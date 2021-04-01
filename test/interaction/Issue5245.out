@@ -1,18 +1,6 @@
-(agda2-status-action "")
-(agda2-info-action "*Type-checking*" "" nil)
-(agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" "Checking LibA (Issue5245/LibA.agda). " t)
-(agda2-info-action "*Type-checking*" " Checking LibB (Issue5245/b/LibB.agda). " t)
-(agda2-info-action "*Type-checking*" " Checking LibC (Issue5245/c/LibC.agda). " t)
-(agda2-status-action "Checked")
-(agda2-info-action "*All Done*" "" nil)
-((last . 1) . (agda2-goals-action '()))
-(agda2-status-action "")
-(agda2-info-action "*Type-checking*" "" nil)
-(agda2-highlight-clear)
-(agda2-info-action "*Type-checking*" " Checking LibC (Issue5245/c/LibC.agda). " t)
-(agda2-info-action "*Type-checking*" " Checking LibB (Issue5245/b/LibB.agda). " t)
-(agda2-info-action "*Type-checking*" "Checking LibA (Issue5245/LibA.agda). " t)
-(agda2-status-action "Checked")
-(agda2-info-action "*All Done*" "" nil)
-((last . 1) . (agda2-goals-action '()))
+Checking LibA (Issue5245/LibA.agda).
+Checking LibB (Issue5245/b/LibB.agda).
+Checking LibC (Issue5245/c/LibC.agda).
+Checking LibC (Issue5245/c/LibC.agda).
+Checking LibB (Issue5245/b/LibB.agda).
+Checking LibA (Issue5245/LibA.agda).
