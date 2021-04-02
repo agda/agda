@@ -4,54 +4,72 @@
 A List of Tutorials
 *******************
 
-Introduction to Agda
-====================
+.. note::
+  Some of the materials linked on this page have been created for
+  older versions of Agda and might no longer apply directly to the
+  latest release.
 
-- Ulf Norell and James Chapman.
-   - `Dependently Typed Programming in Agda <http://www.cse.chalmers.se/~ulfn/papers/afp08/tutorial.pdf>`__.
-     This is aimed at functional programmers.
-- Ana Bove and Peter Dybjer.
-   - `Dependent Types at Work <http://www.cse.chalmers.se/~peterd/papers/DependentTypesAtWork.pdf>`__.
-     A gentle introduction including logic and proofs of programs.
-- Ana Bove, Peter Dybjer, and Ulf Norell.
-   - `A Brief Overview of Agda - A Functional Language with Dependent Types <https://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Documentation?action=download&upname=AgdaOverview2009.pdf>`__
-     (in TPHOLs 2009) with an example of reflection.
-     `Code <http://www.cse.chalmers.se/~ulfn/code/tphols09/>`__
-- Anton Setzer.
-   - `Lecture notes on Interactive Theorem Proving <http://www.cs.swan.ac.uk/~csetzer/lectures/intertheo/07/interactiveTheoremProvingForAgdaUsers.html>`__.
-     Swansea University. These lecture notes are based on Agda and contain an
-     introduction of Agda for students with a very basic background in logic
-     and functional programming.
-- Daniel Peebles.
-   - `Introduction to Agda <https://www.youtube.com/playlist?p=B7F836675DCE009C>`__.
-     Video of talk from the January 2011 Boston Haskell session at MIT.
-- Conor McBride.
-   - `Introduction to Dependently Typed Programming using Agda <https://www.youtube.com/playlist?list=PL44F162A8B8CB7C87>`__.
-     (videos of lectures).
-     `Associated source files, with exercises <https://personal.cis.strath.ac.uk/conor.mcbride/pub/dtp/>`__.
-- Andreas Abel.
-   - `Agda lecture notes <http://www2.tcs.ifi.lmu.de/~abel/projects.html>`__.
-     Lecture notes used in teaching functional programming: basic
-     introduction to Agda, Curry-Howard, equality, and verification
-     of optimizations like fusion.
-- Jan Malakhovski.
-   - `Brutal [Meta]Introduction to Dependent Types in Agda <https://oxij.org/note/BrutalDepTypes/>`__
-- Thorsten Altenkirch.
-   - `Computer Aided Formal Reasoning <http://www.cs.nott.ac.uk/~psztxa/g53cfr/>`__
-     \- online lecture notes
-- Daniel Licata.
-   - `Dependently Typed Programming in Agda <https://www.cs.uoregon.edu/research/summerschool/summer13/curriculum.html>`__
-     (OPLSS 2013).
-- Tesla Ice Zhang.
-   - `Some books about Formal Verification in Agda (in Chinese) <https://github.com/ice1000/Books>`__
-- Phil Wadler.
-   - `Programming Languages Foundations in Agda <https://plfa.github.io/>`__
-- Aaron Stump.
-   - `Verified Functional Programming in Agda <https://dl.acm.org/doi/book/10.1145/2841316>`__
-- Diviánszky Péter.
-   - `Agda Tutorial <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
-- Musa Al-hassy.
-   - `A slow-paced introduction to reflection in Agda <https://github.com/alhassy/gentle-intro-to-reflection>`__
+Books on Agda
+=============
+
+- Phil Wadler, Wen Kokke, and Jeremy G. Siek (2019). `Programming
+  Languages Foundations in Agda <https://plfa.github.io/>`__
+- Aaron Stump (2016). `Verified Functional Programming in Agda
+  <https://dl.acm.org/doi/book/10.1145/2841316>`__
+
+Tutorials and lecture notes
+===========================
+
+- Jesper Cockx (2021). `Programming and Proving in Agda
+  <https://github.com/jespercockx/agda-lecture-notes/blob/master/agda.pdf>`__.
+  An introduction to Agda for a general audience of functional
+  programmers. It starts from basic knowledge of Haskell and builds up
+  to using equational reasoning to formally prove correctness of
+  functional programs.
+- Musa Al-hassy (2019). `A slow-paced introduction to reflection in Agda <https://github.com/alhassy/gentle-intro-to-reflection>`__.
+- Jesper Cockx (2019). `Formalize all the things (in Agda) <https://jesper.sikanda.be/posts/formalize-all-the-things.html>`__.
+- Jan Malakhovski (2013). `Brutal [Meta]Introduction to Dependent
+  Types in Agda <https://oxij.org/note/BrutalDepTypes/>`__.
+- Diviánszky Péter (2012). `Agda Tutorial
+  <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__.
+- Ana Bove, Peter Dybjer, and Ulf Norell (2009). `A Brief Overview of
+  Agda - A Functional Language with Dependent Types
+  <https://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Documentation?action=download&upname=AgdaOverview2009.pdf>`__
+  (in TPHOLs 2009) with an example of reflection.  `Code
+  <http://www.cse.chalmers.se/~ulfn/code/tphols09/>`__.
+- Andreas Abel (2009). `An Introduction to Dependent Types and Agda
+  <http://www2.tcs.ifi.lmu.de/~abel/DepTypes.pdf>`__.  Lecture notes
+  used in teaching functional programming: basic introduction to Agda,
+  Curry-Howard, equality, and verification of optimizations like
+  fusion.
+- Ulf Norell and James Chapman (2008). `Dependently Typed Programming
+  in Agda
+  <http://www.cse.chalmers.se/~ulfn/papers/afp08/tutorial.pdf>`__.
+  This is aimed at functional programmers.
+- Ana Bove and Peter Dybjer (2008). `Dependent Types at Work
+  <http://www.cse.chalmers.se/~peterd/papers/DependentTypesAtWork.pdf>`__.
+  A gentle introduction including logic and proofs of programs.
+- Anton Setzer (2008). `Lecture notes on Interactive Theorem Proving
+  <http://www.cs.swan.ac.uk/~csetzer/lectures/intertheo/07/interactiveTheoremProvingForAgdaUsers.html>`__. Swansea
+  University. These lecture notes are based on Agda and contain an
+  introduction of Agda for students with a very basic background in
+  logic and functional programming.
+
+Videos on Agda
+==============
+
+- Conor McBride (2014). `Introduction to Dependently Typed Programming
+  using Agda
+  <https://www.youtube.com/playlist?list=PL44F162A8B8CB7C87>`__.
+  (videos of lectures). `Associated source files, with exercises
+  <https://personal.cis.strath.ac.uk/conor.mcbride/pub/dtp/>`__.
+- Daniel Licata (2013). `Dependently Typed Programming in Agda
+  <https://www.cs.uoregon.edu/research/summerschool/summer13/curriculum.html>`__
+  (at OPLSS 2013).
+- Daniel Peebles (2011). `Introduction to Agda
+  <https://www.youtube.com/playlist?p=B7F836675DCE009C>`__.  Video of
+  talk from the January 2011 Boston Haskell session at MIT.
+  
 
 Courses using Agda
 ==================
