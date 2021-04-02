@@ -472,12 +472,12 @@ warnings in your code. Specifically, the following colors are used:
 
 - A *wheat* (light yellow) background indicates an issue with coverage
   checking (see :ref:`coverage-checking`).
-  
+
 - A *peru* (brown) background indicates an issue with positivity checking (see
   :ref:`positivity-checking`).
 
 - An *orange* background indicates a type signature with a missing definition.
-  
+
 - A *light coral* (darker pink) background indicates a fatal warning
 
 - A *grey* background indicates unreachable or dead code, and for

@@ -69,7 +69,7 @@ Videos on Agda
 - Daniel Peebles (2011). `Introduction to Agda
   <https://www.youtube.com/playlist?p=B7F836675DCE009C>`__.  Video of
   talk from the January 2011 Boston Haskell session at MIT.
-  
+
 
 Courses using Agda
 ==================

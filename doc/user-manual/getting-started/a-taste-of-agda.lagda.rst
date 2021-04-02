@@ -104,7 +104,7 @@ done*** .
   agda2-highlight RET`` in Emacs (after loading an Agda file) and
   following the instructions.
 
-  
+
 Agda programs are structured into :ref:`modules <module-system>`. Each Agda
 file has one *top-level module* whose name must match the name of the file, and
 zero or more nested modules. Each module contains a list of
@@ -134,7 +134,7 @@ zero or more nested modules. Each module contains a list of
   ``\Bbb{N}`` or ``\bN``. See :ref:`Unicode input <unicode-input>` for
   more details on entering unicode characters.
 
-   
+
 The datatype ``Vec``
 --------------------
 
