@@ -108,6 +108,9 @@ Courses using Agda
   , lectures by Peter Dybjer at the Oregon Programming Languages Summer School 2015.
 - `Introduction to Univalent Foundations of Mathematics with Agda <https://www.cs.bham.ac.uk/~mhe/HoTT-UF-in-Agda-Lecture-Notes/index.html>`__ , MGS 2019 Martín Hötzel Escardó
 - `Higher-Dimensional Type Theory <https://favonia.org/courses/hdtt2020/>`__ (CSCI 8980), courses on homotopy type theory and cubical type theory, Favonia, the University of Minnesota, Spring 2020
+- `Correct-by-construction Programming in Agda
+  <https://github.com/jespercockx/ohrid19-agda>`__, a course at the
+  EUTYPES Summer School '19 in Ohrid.
 
 Miscellaneous
 =============
