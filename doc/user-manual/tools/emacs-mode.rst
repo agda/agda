@@ -5,12 +5,34 @@ Emacs Mode
 **********
 
 Agda programs are commonly edited using `Emacs
-<http://www.gnu.org/software/emacs/>`_ which is explained in this section.
-If you use Atom, please refer to the `agda-mode on Atom
-<https://atom.io/packages/agda-mode>`_.
+<http://www.gnu.org/software/emacs/>`_ which is explained in this
+section.  Other editors with interactive support for Agda include Atom
+(`agda-mode on Atom <https://atom.io/packages/agda-mode>`_), Visual
+Studio Code (`agda-mode on VS Code
+<https://github.com/banacorn/agda-mode-vscode>`_), and Vim (`agda-vim
+<https://github.com/derekelkins/agda-vim>`_).
 
-:ref:`Quick Guide to Editing, Type Checking and Compiling Agda Code <quick-guide-introduction>`
-===============================================================================================
+To edit a module in Emacs (assuming you have :ref:`installed
+<installation>` Agda and the Emacs mode properly), open a file ending
+in ``.agda`` and load it by pressing ``C-c C-l`` (other commands are
+listed under :ref:`notation-for-key-combinations` below). This will
+apply syntax highlighting to the code and display any errors in a
+separate buffer. Agda uses certain background colors to indicate
+specific issues with the code, see :ref:`highlight` below.
+
+
+Menus
+=====
+There are two main menus in the system:
+
+* A main menu called **Agda2** which is used for global commands.
+
+* A context sensitive menu which appears if you right-click in a hole.
+
+The menus contain more commands than the ones listed above. See
+:ref:`global <emacs-global-commands>` and :ref:`context sensitive
+<emacs-context-sensitive-commands>` commands.
+
 
 Configuration
 =============
@@ -43,6 +65,11 @@ the current frame in order to enable many Unicode symbols to be
 displayed. This only works if the right fonts are available, though.
 If you want to turn off this feature, then you should customise the
 ``agda2-fontset-name`` variable.
+
+The colors that are used to highlight Agda syntax and errors can be
+adjusted by typing ``M-x customize-group RET agda2-highlight RET`` in
+Emacs and following the instructions.
+
 
 Keybindings
 ===========
@@ -79,10 +106,14 @@ Global commands
 ~~~~~~~~~~~~~~~
 
 :kbd:`C-c C-l`
-      **L**\ oad file
+     **L**\ oad file. This type-checks the contents of the file, and
+     replaces each occurrence of a question mark ``?`` or a hole
+     marker ``{! !}`` by a freshly created hole.
 
 :kbd:`C-c C-x C-c`
-     **C**\ ompile file
+     **C**\ ompile file. This will compile an Agda program with a
+     ``main`` function using a given backend (the ``GHC`` backend is
+     used by default).
 
 :kbd:`C-c C-x C-q`
      **Q**\ uit, kill the Agda process
@@ -118,7 +149,9 @@ Global commands
      Move to previous goal (**b**\ ackwards)
 
 :kbd:`C-c C-d`
-     Infer (**d**\ educe) type
+     Infer (**d**\ educe) type. The system asks for a term and infers
+     its type.  When executed inside a hole, it will instead take the
+     contents of the hole as input (if any).
 
 :kbd:`C-c C-o`
      M\ **o**\ dule c\ **o**\ ntents
@@ -127,7 +160,9 @@ Global commands
      :ref:`search-about`
 
 :kbd:`C-c C-n`
-     Compute **n**\ ormal form
+     Compute **n**\ ormal form. The system asks for a term which is
+     then evaluated. When executed inside a hole, it will instead take
+     the contents of the hole as input (if any).
 
 :kbd:`C-u C-c C-n`
      Compute normal form, ignoring ``abstract``
@@ -153,8 +188,12 @@ will either use the text inside the goal or ask the user for input.
      Give (fill goal)
 
 :kbd:`C-c C-r`
-     **R**\ efine. Partial give: makes new holes for missing
-     arguments
+     **R**\ efine. Checks whether the return type of the expression
+     ``e`` in the hole matches the expected type. If so, the hole is
+     replaced by ``e { }1 ... { }n``, where a sufficient number of new
+     holes have been inserted. If the hole is empty, then the refine
+     command instead inserts a lambda or constructor (if there is a
+     unique type-correct choice).
 
 :kbd:`C-c C-m`
      Elaborate and Give (fill goal with normalized expression).
@@ -164,7 +203,18 @@ will either use the text inside the goal or ask the user for input.
      :ref:`auto`
 
 :kbd:`C-c C-c`
-     **C**\ ase split
+     **C**\ ase split. If the cursor is positioned in a hole which
+     denotes the right hand side of a definition, then this command
+     automatically performs pattern matching on variables of your
+     choice. When given several variables (separated by spaces) it
+     will case split on the first and then continue by case splitting
+     on the remaining variables in each newly created clause. When
+     given no variables, it will introduce a new variable if the
+     target type is a function type, or introduce a new copattern
+     match if the target type is a record type (see
+     :ref:`copatterns`). When given the special symbol ``.``, it will
+     expand the ellipsis ``...`` in the clause (see
+     :ref:`with-abstraction`).
 
 :kbd:`C-c C-h`
      Compute type of **h**\ elper function and add type
@@ -180,7 +230,9 @@ will either use the text inside the goal or ask the user for input.
      Infer (**d**\ educe) type
 
 :kbd:`C-c C-,`
-     Goal type and context
+     Goal type and context. Shows the goal type, i.e. the type
+     expected in the current hole, along with the types of locally
+     defined identifiers.
 
 :kbd:`C-c C-.`
      Goal type, context and inferred type

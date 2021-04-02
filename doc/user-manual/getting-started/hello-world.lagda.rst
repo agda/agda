@@ -73,7 +73,9 @@ This code is self-contained and has several declarations:
 
 To compile the Agda file, either open it in Emacs and press ``C-c C-x
 C-c`` or run ``agda --compile hello-world.agda`` from the command
-line.
+line. This will create a binary ``hello-world`` in the current
+directory that prints ``Hello world!``. To find out more about the
+``agda`` command, use ``agda --help``.
 
 .. note::
 

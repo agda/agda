@@ -10,6 +10,5 @@ Getting Started
    what-is-agda
    installation
    hello-world
-   quick-guide
    a-taste-of-agda
    tutorial-list

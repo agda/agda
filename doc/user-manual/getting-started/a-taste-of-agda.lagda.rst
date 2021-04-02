@@ -15,26 +15,50 @@ programming, and the second shows how to use Agda as a proof assistant. Finally,
 build a complete program and compile it to an executable program with the GHC
 and Javascript backends.
 
+Preliminaries
+=============
+
 Before proceeding, make sure that you :ref:`installed Agda <installation>`
 and a compatible version of the `standard library
 <https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
-You also need an editor with *interactive* capabilities; currently
-supported editors are Emacs via the :ref:`Emacs mode <emacs-mode>`, Atom via
-the `agda mode for Atom <atom_>`_ and VSCode via the
-`agda mode for VSCode <vs-code_>`_.
+
+Agda programs are typically developed *interactively*, which means
+that one can type check code which is not yet complete but contain
+"holes" which can be filled in later. Editors with support for
+interactive development of Agda programs include Emacs via the
+:ref:`Emacs mode <emacs-mode>`, Atom via the `agda mode for Atom
+<atom_>`_, Visual Studio Code via the `agda mode for VSCode
+<vs-code_>`_, and Vim via `agda-vim <agda-vim_>`_.
 
 .. _atom: https://atom.io/packages/agda-mode
 .. _vs-code: https://marketplace.visualstudio.com/items?itemName=banacorn.agda-mode
-
-.. note:: In this introduction we use several of Agda's interactive commands
-  to get information from the typechecker and manipulate the code.
-  See :ref:`notation-for-key-combinations` for a full list of
-  interactive commands (keybindings).
+.. _agda-vim: https://github.com/derekelkins/agda-vim
 
 .. hint:: If you want a sneak peek of Agda without installing it, try the
   `Agda Pad <agda-pad_>`_
 
 .. _agda-pad: https://agdapad.quasicoherent.io/
+
+.. note:: In this introduction we use several of Agda's interactive
+  commands to get information from the typechecker and manipulate code
+  with holes. Here is a list of the commands that will be used in this
+  tutorial:
+
+  * ``C-c C-l``: Load the file and type-check it.
+  * ``C-c C-d``: Deduce the type of a given expression.
+  * ``C-c C-n``: Normalise a given expression.
+  * ``C-c C-,``: Shows the type expected in the current hole, along
+    with the types of any local variables.
+  * ``C-c C-c``: Case split on a given variable.
+  * ``C-c C-SPC``: Replace the hole with a given expression, if it has
+    the correct type.
+  * ``C-c C-r``: Refine the hole by replacing it with a given
+    expression applied to an appropriate number of new holes.
+  * ``C-c C-x C-c`` (``C-x C-c`` in VS Code): Compile an Agda program.
+
+  See :ref:`notation-for-key-combinations` for a full list of
+  interactive commands (keybindings).
+
 
 Programming With Dependent Types: Vectors
 =========================================
@@ -55,12 +79,32 @@ a list of objects with a determined length.
 
   infixr 5 _∷_
 
+Paste or type the code above in a new file with name
+``hello-world-dep.agda``. Load the file (in Emacs ``C-c C-l``). This
+also saves the file. If the agda source code was loaded correctly, you
+should see that the code is highlighted and see a message ***All
+done*** .
 
-.. note:: Paste or type the code above in a new file with name
-  ``hello-world-dep.agda``. Load the file (in Emacs ``C-c C-l``). This also
-  saves the file. If the agda source code was loaded correctly, you should see
-  that the code is highlighted and see a message ***All done*** .
+.. note:: If a file does not type check Agda will complain. Often the
+  cursor will jump to the position of the error, and the error will
+  (by default) be underlined. Some errors are treated a bit
+  differently, though. If Agda cannot see that a definition is
+  terminating/productive it will highlight it in *light salmon*, and
+  if some meta-variable other than the goals cannot be solved the code
+  will be highlighted in *yellow* (the highlighting may not appear
+  until after you have reloaded the file). In case of the latter kinds
+  of errors you can still work with the file, but Agda will (by
+  default) refuse to import it into another module, and if your
+  functions are not terminating Agda may hang. See :ref:`highlight`
+  for a full list of the different background colors used by Agda.
 
+.. tip:: If you do not like the way Agda syntax or errors are
+  highlighted (if you are colour-blind, for instance), then you can
+  tweak the settings by typing ``M-x customize-group RET
+  agda2-highlight RET`` in Emacs (after loading an Agda file) and
+  following the instructions.
+
+  
 Agda programs are structured into :ref:`modules <module-system>`. Each Agda
 file has one *top-level module* whose name must match the name of the file, and
 zero or more nested modules. Each module contains a list of
@@ -76,13 +120,21 @@ zero or more nested modules. Each module contains a list of
 3. And finally an ``infixr`` declaration specifying the
    :ref:`precedence <precedence>` for the *cons* operation.
 
-.. tip:: Agda code often makes use of unicode symbols, such as ``ℕ``, ``→``,
-  and ``∷`` in this example. To learn how to enter a unicode character, move the
-  cursor over it and enter ``M-x describe-char`` or ``C-u C-x =``. This displays
-  all information on the character, including how to input it with the Agda
-  input method. For example, to input ``ℕ`` you can type either ``\Bbb{N}``
-  or ``\bN``. See :ref:`Unicode input <unicode-input>` for more details on entering unicode characters.
+.. tip::
+  Agda uses `Unicode <https://en.wikipedia.org/wiki/Unicode>`_
+  characters in source files (more specifically: the `UTF-8
+  <https://en.wikipedia.org/wiki/UTF-8>`_ character encoding), such as
+  ``ℕ``, ``→``, and ``∷`` in this example.
+  Many mathematical symbols can be typed using the corresponding
+  `LaTeX <https://en.wikipedia.org/wiki/LaTeX>`_ command names. To
+  learn how to enter a unicode character, move the cursor over it and
+  enter ``M-x describe-char`` or ``C-u C-x =``. This displays all
+  information on the character, including how to input it with the
+  Agda input method. For example, to input ``ℕ`` you can type either
+  ``\Bbb{N}`` or ``\bN``. See :ref:`Unicode input <unicode-input>` for
+  more details on entering unicode characters.
 
+   
 The datatype ``Vec``
 --------------------
 
@@ -136,6 +188,13 @@ establishes the :ref:`precedence <precedence>` of the operator ``_∷_``.
   term, for instance ``3 ∷ 2 ∷ 1 ∷ []``, and press return. Agda infers its
   type and return the type ``Vec ℕ 3``, meaning that the given term is
   a vector with 3 objects of type ``ℕ``.
+
+
+.. note:: Almost any character can be used in an identifier (like
+  ``α``, ``∧``, or ``♠``, for example). It is therefore
+  necessary to have spaces between most lexical units. For example
+  ``3∷2∷1∷[]`` is a valid identifier, so we need to write ``3 ∷ 2 ∷ 1
+  ∷ []`` instead to make Agda parse it successfully.
 
 The total function ``lookup``
 -----------------------------
@@ -484,10 +543,10 @@ A quick line-by-line explanation:
   <std-lib_>`_ and brings its contents into scope.
 
 * A module exporting a function ``main`` of type ``Main`` (defined in
-  the ``IO`` module of the standard library) can be :ref:`compiled
-  <compiling-agda-programs>` to a standalone executable. For example:
-  ``main = run (putStrLn "Hello, World!")`` runs the ``IO``
-  command ``putStrLn "Hello, World!"`` and then quits the program.
+  the ``IO`` module of the standard library) can be compiled to a
+  standalone executable. For example: ``main = run (putStrLn "Hello,
+  World!")`` runs the ``IO`` command ``putStrLn "Hello, World!"`` and
+  then quits the program.
 
 Compilation with GHC Backend
 ----------------------------
