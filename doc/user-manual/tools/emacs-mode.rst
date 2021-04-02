@@ -458,8 +458,33 @@ Hex code  Character  Short key-binding  TeX command
 
 .. _highlight:
 
-Highlight
-=========
+Background highlighting
+=======================
 
-Clauses which do not hold definitionally (see :ref:`case-trees`) are
-highlighted in white smoke.
+Agda uses various background colors to indicate specific errors or
+warnings in your code. Specifically, the following colors are used:
+
+- A *yellow* background indicates unsolved metavariables (see
+  :ref:`metavariables`) or unsolved constraints.
+
+- A *light salmon* (pink-orange) background indicates an issue with termination or
+  productivity checking (see :ref:`termination-checking`).
+
+- A *wheat* (light yellow) background indicates an issue with coverage
+  checking (see :ref:`coverage-checking`).
+  
+- A *peru* (brown) background indicates an issue with positivity checking (see
+  :ref:`positivity-checking`).
+
+- An *orange* background indicates a type signature with a missing definition.
+  
+- A *light coral* (darker pink) background indicates a fatal warning
+
+- A *grey* background indicates unreachable or dead code, and for
+  shadowed variable names in telescopes.
+
+- A *white smoke* (light grey) background indicates a clauses that
+  does not hold definitionally (see :ref:`case-trees`).
+
+- A *pink* background indicates an issue with confluence checking of
+  rewrite rules (see :ref:`confluence-check`).
