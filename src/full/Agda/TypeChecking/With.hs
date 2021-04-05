@@ -456,10 +456,13 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         DefP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of hcomp patterns" -- TODO this should actually be impossible
 
-        DotP o v  -> do
+        DotP i v  -> do
           (a, _) <- mustBePi t
           tell [ProblemEq (namedArg p) v a]
-          (makeImplicitP p :) <$> recurse v
+          case v of
+            Var x [] | PatOVar{} <- patOrigin i
+               -> (p :) <$> recurse (var x)
+            _  -> (makeWildP p :) <$> recurse v
 
         q'@(ConP c ci qs') -> do
          reportSDoc "tc.with.strip" 60 $
@@ -570,9 +573,9 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         prettyProjOrigin ProjPostfix = "a postfix projection"
         prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
 
-        -- | Make an ImplicitP, keeping arg. info.
-        makeImplicitP :: NamedArg A.Pattern -> NamedArg A.Pattern
-        makeImplicitP = updateNamedArg $ const $ A.WildP patNoRange
+        -- | Make a WildP, keeping arg. info.
+        makeWildP :: NamedArg A.Pattern -> NamedArg A.Pattern
+        makeWildP = updateNamedArg $ const $ A.WildP patNoRange
 
         -- case I.ConP / A.ConP
         stripConP
@@ -743,15 +746,28 @@ patsToElims = map $ toElim . fmap namedThing
     toTerms = map $ fmap $ toTerm . namedThing
 
     toTerm :: DeBruijnPattern -> DisplayTerm
-    toTerm = \case
+    toTerm p = case patOrigin $ fromMaybe __IMPOSSIBLE__ $ patternInfo p of
+      PatOSystem -> toDisplayPattern p
+      PatOSplit  -> toDisplayPattern p
+      PatOVar{}  -> toVarOrDot p
+      PatODot    -> DDot $ patternToTerm p
+      PatOWild   -> toVarOrDot p
+      PatOCon    -> toDisplayPattern p
+      PatORec    -> toDisplayPattern p
+      PatOLit    -> toDisplayPattern p
+      PatOAbsurd -> toDisplayPattern p -- see test/Succeed/Issue2849.agda
+
+    toDisplayPattern :: DeBruijnPattern -> DisplayTerm
+    toDisplayPattern = \case
       IApplyP _ _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
-      ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP i x -> case patOrigin i of
-        PatODot -> DDot  $ var $ dbPatVarIndex x
-        _       -> DTerm  $ var $ dbPatVarIndex x
-      DotP i t -> case patOrigin i of
-        PatOVar{} | Var i [] <- t -> DTerm t
-        _                         -> DDot   $ t
-      ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
-      LitP _ l    -> DTerm  $ Lit l
+      ProjP _ d  -> __IMPOSSIBLE__
+      VarP i x -> DTerm  $ var $ dbPatVarIndex x
+      DotP i t -> DDot   $ t
+      p@(ConP c cpi ps) -> DCon c (fromConPatternInfo cpi) $ toTerms ps
+      LitP i l -> DTerm  $ Lit l
       DefP _ q ps -> DDef q $ map Apply $ toTerms ps
+
+    toVarOrDot :: DeBruijnPattern -> DisplayTerm
+    toVarOrDot p = case patternToTerm p of
+      Var i [] -> DTerm $ var i
+      t        -> DDot t
