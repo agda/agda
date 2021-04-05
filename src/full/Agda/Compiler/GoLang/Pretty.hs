@@ -42,7 +42,7 @@ instance Pretty Go.Exp where
       Go.BinOp a b c -> (pretty a) <> "(" <> (T.parens (pretty b)) <> "," <> (T.parens (pretty c)) <> ")"
       Go.GoLet name val exp -> (text name) <+> ":=" <+> (pretty val) <+> "\n" <+> (pretty exp)
       Go.Integer n -> (text "big.NewInt") <> (T.parens $ text $ show n)
-      Go.ReturnExpression exp -> "return" <+> (pretty exp)
+      Go.ReturnExpression exp t -> "return " <> (pretty exp)
       _ -> text ""
 
 spaceWrap :: Doc -> Doc
@@ -78,7 +78,7 @@ instance Pretty Go.LocalId where
   pretty (Go.LocalId n) = text $ show n
 
 instance Pretty Go.TypeId where
-  pretty (Go.TypeId m) = text m
+  pretty (Go.TypeId m) = "interface{}"
   pretty (Go.ConstructorType m n) = text m <+> text n <+> T.semi
   pretty (Go.FunctionType m n) = "(" <+> text m <+> text n <+> ")"
   pretty (Go.FunctionReturnElement m) = " func(" <+> text m <+> ")"

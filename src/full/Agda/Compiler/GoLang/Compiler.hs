@@ -334,6 +334,14 @@ countFalses [] = 0
 countFalses (False : xs) = 1 + countFalses xs
 countFalses (_ : xs) = countFalses xs
 
+extractReturnType :: Exp -> TCM TypeId
+extractReturnType (GoFunction signatures _) = extractReturnType' $ head signatures
+extractReturnType _ = __IMPOSSIBLE__  
+
+extractReturnType' :: GoFunctionSignature -> TCM TypeId
+extractReturnType' (OuterSignature _ _ _ retType) = return retType
+extractReturnType' _ = __IMPOSSIBLE__  
+
 definition' :: EnvWithOpts -> QName -> Definition -> Type -> GoQName -> TCM (Maybe Exp)
 definition' kit q d t ls = do
   case theDef d of
@@ -374,12 +382,13 @@ definition' kit q d t ls = do
         funBody' <- compileTerm kit ((length goArg) - 1)
             $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
         functionSignature <- createSignature fname goArg name
+        let emptyFunction = functionSignature Null
+        returnType <- extractReturnType emptyFunction
         reportSDoc "function.go" 25 $ "\n functionSignature:" <+> (text . show) functionSignature 
         reportSDoc "function.go" 25 $ "\n funBody':" <+> (text . show) funBody'   
         reportSDoc "function.go" 30 $ "\n given:" <+> (text . show) given
         reportSDoc "function.go" 30 $ "\n etaN:" <+> (text . show) etaN
-        return $ Just $ applyReturnType $ functionSignature funBody'
-
+        return $ Just $ applyReturnType returnType (functionSignature funBody') 
     Primitive{primName = p} -> return Nothing
     Datatype{ dataPathCons = _ : _ } -> do
       reportSDoc "compile.go" 30 $ " data tupe:" <+> (text . show) q
@@ -598,6 +607,32 @@ goTypeApproximation fv t = do
             return $ PiType p1 p2
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
+            | q `is` int -> return $ ConstructorType (getVarName n) "interface{}"
+            | q `is` nat -> return $ ConstructorType (getVarName n) "interface{}"
+            | otherwise -> do
+              (MemberId name) <- liftTCM $ visitorName q
+              return $ ConstructorType (getVarName n) "interface{}"
+          Sort{} -> return EmptyType
+          _ -> return $ ConstructorType (getVarName n) "interface{}"
+  go fv (unEl t)
+
+goTypeApproximationRet :: Int -> Type -> TCM TypeId
+goTypeApproximationRet fv t = do
+  let go n t = do
+        int  <- getBuiltinName builtinInteger
+        nat  <- getBuiltinName builtinNat
+        let tu = unSpine t
+        let is q b = Just q == b
+        case tu of
+          Pi a b -> do
+            reportSDoc "function.go" 10 $ "in pi: :" <+> (text . show) b
+            p1 <- go n (unEl $ unDom a)
+            p2 <- go (n + k) (unEl $ unAbs b)
+            reportSDoc "function.go" 10 $ "in p1: :" <+> (text . show) p1
+            reportSDoc "function.go" 10 $ "in p2: :" <+> (text . show) p2
+            return $ PiType p1 p2
+            where k = case b of Abs{} -> 1; NoAbs{} -> 0
+          Def q els
             | q `is` int -> return $ ConstructorType (getVarName n) "*big.Int"
             | q `is` nat -> return $ ConstructorType (getVarName n) "*big.Int"
             | otherwise -> do
@@ -616,7 +651,7 @@ goTelApproximation t erased = do
   reportSDoc "compile.go" 20 $ " len:" <+> (text . show) (length args)
   let filteredArgs = map2 erased $ filter isSortType args
   reportSDoc "compile.go" 20 $ " filteredArgs:" <+> (text . show) filteredArgs
-  (,) <$> zipWithM (goTypeApproximation) [0..] filteredArgs <*> goTypeApproximation (length args) res
+  (,) <$> zipWithM (goTypeApproximation) [0..] filteredArgs <*> goTypeApproximationRet (length args) res
 
 goTelApproximationFunction :: Type -> [Bool] -> TCM ([TypeId], TypeId)
 goTelApproximationFunction t erased = do
@@ -627,7 +662,7 @@ goTelApproximationFunction t erased = do
   reportSDoc "compile.go" 20 $ " len:" <+> (text . show) (length args)
   let filteredArgs = filter isSortType $ map2 erased args 
   reportSDoc "compile.go" 20 $ " filteredArgs:" <+> (text . show) filteredArgs
-  (,) <$> zipWithM (goTypeApproximation) [0..] filteredArgs <*> goTypeApproximation (length args) res  
+  (,) <$> zipWithM (goTypeApproximation) [0..] filteredArgs <*> goTypeApproximationRet (length args) res  
 
 isSortType :: Type -> Bool
 isSortType t = do
@@ -636,26 +671,28 @@ isSortType t = do
     Sort{} -> False
     _ -> True
 
-applyReturnType :: Exp -> Exp
-applyReturnType = \case
-  GoVar x -> ReturnExpression $ GoVar x
-  GoMethodCall x y -> ReturnExpression $ GoMethodCall x y
-  GoCreateStruct x y -> ReturnExpression $ GoCreateStruct x y
-  BinOp x y z -> ReturnExpression $ BinOp x y z
-  String x -> ReturnExpression $ String x
-  Integer x -> ReturnExpression $ Integer x
-  Const x -> ReturnExpression $ Const x
-  GoInterface x -> GoInterface x
-  GoStruct x y -> GoStruct x y
-  GoFunction x y -> GoFunction x $ applyReturnType y
-  GoSwitch x y -> GoSwitch x $ map applyReturnType y
-  GoCase memId a b c x -> do
-    if (isLastExpression (last x)) == True
-      then GoCase memId a b c $ (init x) ++ [(ReturnExpression (last x))]
-      else GoCase memId a b c $ (init x) ++ [(applyReturnType (last x))]
-  GoIf x y z -> GoIf x (applyReturnType y) (applyReturnType z)
-  GoLet x y z -> GoLet x y (applyReturnType z)
-  _ -> __IMPOSSIBLE__
+applyReturnType :: TypeId -> Exp -> Exp
+applyReturnType retT exp = do
+  case exp of 
+    GoVar x -> ReturnExpression (GoVar x) retT
+    GoMethodCall x y -> ReturnExpression (GoMethodCall x y) retT
+    GoCreateStruct x y -> ReturnExpression (GoCreateStruct x y) retT
+    BinOp x y z -> ReturnExpression (BinOp x y z) retT
+    String x -> ReturnExpression (String x) retT
+    Integer x -> ReturnExpression (Integer x) retT
+    Const x -> ReturnExpression (Const x) retT
+    GoInterface x -> GoInterface x
+    GoStruct x y -> GoStruct x y
+    GoFunction x y -> GoFunction x $ (applyReturnType retT) y
+    GoSwitch x y -> GoSwitch x $ map (applyReturnType retT) y
+    GoCase memId a b c x -> do
+      if (isLastExpression (last x)) == True
+        then GoCase memId a b c $ (init x) ++ [(ReturnExpression (last x) retT)]
+        else GoCase memId a b c $ (init x) ++ [(applyReturnType retT (last x))]
+    GoIf x y z -> GoIf x (applyReturnType retT y) (applyReturnType retT z)
+    GoLet x y z -> GoLet x y (applyReturnType retT z)
+    _ -> __IMPOSSIBLE__
+
 
 isLastExpression :: Exp -> Bool
 isLastExpression = \case
@@ -685,23 +722,23 @@ literal = \case
 compilePrim :: T.TPrim -> Exp
 compilePrim p =
   case p of
-    T.PEqI -> Const "intHelper.equals"
-    T.PSub -> Const "intHelper.minus"
-    T.PMul -> Const "intHelper.multiply"
-    T.PAdd -> Const "intHelper.add"
-    T.PGeq -> Const "intHelper.moreOrEquals"
-    T.PLt -> Const "intHelper.less"
+    T.PEqI -> Const "helper.Equals"
+    T.PSub -> Const "helper.Minus"
+    T.PMul -> Const "helper.Multiply"
+    T.PAdd -> Const "helper.Add"
+    T.PGeq -> Const "helper.MoreOrEquals"
+    T.PLt -> Const "helper.Less"
     T.PEqC -> Const "=="
     T.PEqS -> Const "=="
-    T.PEq64 -> Const "intHelper.equals"
-    T.PLt64 -> Const "intHelper.less"
+    T.PEq64 -> Const "helper.Equals"
+    T.PLt64 -> Const "helper.Less"
     T.PEqF -> Const "PEqF"
     T.PEqQ -> Const "PEqQ"
     T.PRem -> Const "PRem"
     T.PQuot -> Const "PQuot"
-    T.PAdd64 -> Const "intHelper.add"
-    T.PSub64 -> Const "intHelper.minus"
-    T.PMul64 -> Const "intHelper.multiply"
+    T.PAdd64 -> Const "helper.Add"
+    T.PSub64 -> Const "helper.Minus"
+    T.PMul64 -> Const "helper.Multiply"
     T.PRem64 -> Const "PRem64" 
     T.PQuot64 -> Const "PQuot64"
     T.PITo64 -> Const "PITo64"

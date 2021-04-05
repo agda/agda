@@ -41,7 +41,7 @@ data Exp =
   GoIf Exp Exp Exp |
   GoLet String Exp Exp |
   BinOp Exp Exp Exp |
-  ReturnExpression Exp |
+  ReturnExpression Exp TypeId |
   String Text |
   Char Char |
   Integer Integer |
