@@ -468,7 +468,9 @@ instance Occurs Term where
           Def d es    -> do
             definitionCheck d
             Def d <$> occDef d es
-          Con c ci vs -> Con c ci <$> occurs vs  -- if strongly rigid, remain so
+          Con c ci vs -> do
+            definitionCheck (conName c)
+            Con c ci <$> occurs vs  -- if strongly rigid, remain so
           Pi a b      -> uncurry Pi <$> occurs (a,b)
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs s
           MetaV m' es -> do
