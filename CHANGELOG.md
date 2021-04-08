@@ -9,7 +9,11 @@ Installation and infrastructure
 * Some expensive optimisations are now off by default
   (see [#4521](https://github.com/agda/agda/issues/4521)).
 
-  These optimisations can be turned on manually (Cabal:
+  These optimisations can in some cases make Agda substantially
+  faster, but they can also make the compilation of the Agda program
+  take more time and space.
+
+  The optimisations can be turned on manually (Cabal:
   `-foptimise-heavily`, Stack: `--flag Agda:optimise-heavily`). They
   are turned on (by default) when Agda is installed using `make
   install`.
@@ -23,6 +27,9 @@ Pragmas and options
 
 * New option `--auto-inline` turns on automatic compile-time inlining of simple
   functions. This was previously enabled by default.
+
+  Note that the absence of automatic inlining can make typechecking
+  substantially slower.
 
   The new default has repercussions on termination checking, for instance
   (see [#4702](https://github.com/agda/agda/issues/4702)).
