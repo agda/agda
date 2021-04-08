@@ -359,9 +359,7 @@ unsafePragmaOptions clo opts =
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
   [ "--omega-in-omega"                           | optOmegaInOmega opts              ] ++
--- [ "--sized-types"                              | optSizedTypes opts                ] ++
-  [ "--sized-types and --guardedness"            | collapseDefault (optSizedTypes opts)
-                                                 , collapseDefault (optGuardedness opts) ] ++
+  [ "--sized-types"                              | collapseDefault (optSizedTypes opts) ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
@@ -471,10 +469,8 @@ helpFlag (Just str) o = case string2HelpTopic str of
 
 safeFlag :: Flag PragmaOptions
 safeFlag o = do
-  let guardedness = optGuardedness o
   let sizedTypes  = optSizedTypes o
   return $ o { optSafe        = True
-             , optGuardedness = setDefault False guardedness
              , optSizedTypes  = setDefault False sizedTypes
              }
 
@@ -998,7 +994,7 @@ pragmaOptions =
     , Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
-                    "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types and --no-guardedness "
+                    "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types"
     , Option []     ["double-check"] (NoArg (doubleCheckFlag True))
                     "enable double-checking of all terms using the internal typechecker"
     , Option []     ["no-double-check"] (NoArg (doubleCheckFlag False))

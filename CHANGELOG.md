@@ -88,6 +88,13 @@ Pragmas and options
 
 * New option `--no-double-check` (default), opposite of the existing `--double-check`.
 
+* Due to several known soundness issues with sized types (see
+  [#1201](https://github.com/agda/agda/issues/1201),
+  [#1946](https://github.com/agda/agda/issues/1946),
+  [#2820](https://github.com/agda/agda/issues/2820),
+  [#3026](https://github.com/agda/agda/issues/3026)), the
+  `--sized-types` flag can no longer be used while `--safe` is active.
+
 Command-line interaction
 ------------------------
 
