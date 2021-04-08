@@ -1499,6 +1499,8 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
 
       Datatype{dataPars = np} -> do
 
+        whenM (isInterval a) $ hardTypeError =<< notData
+
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         return (IsData, d, pars, ixs)
 

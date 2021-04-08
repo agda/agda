@@ -1,0 +1,3 @@
+Issue5237.agda:20,13-15
+Cannot split on argument of non-datatype I
+when checking that the pattern i1 has type I
