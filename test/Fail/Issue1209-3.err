@@ -1,3 +1,2 @@
 Issue1209-3.agda:3,1-51
-Cannot set OPTIONS pragma --sized-types and --guardedness
-with safe flag.
+Cannot set OPTIONS pragma --sized-types with safe flag.
