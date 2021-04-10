@@ -299,14 +299,14 @@ user-manual-linkcheck :
 	cp doc/user-manual/_build/latex/Agda.pdf doc/user-manual.pdf
 
 ##############################################################################
-## Making the source distribution
+## Create tag files
 
 .PHONY : tags ##
-tags :
+tags : have-bin-hs-tags
 	$(MAKE) -C $(FULL_SRC_DIR) tags
 
 .PHONY : TAGS ##
-TAGS :
+TAGS : have-bin-hs-tags
 	@$(call decorate, "TAGS", \
 		$(MAKE) -C $(FULL_SRC_DIR) TAGS)
 
@@ -542,39 +542,25 @@ remove-default-stack-file :
 	rm -f stack.yaml
 	cd $(FIXW_PATH) && rm -f stack.yaml
 
+## Installing binaries for developer services
+
+.PHONY : have-bin-%
+have-bin-% :
+	@($* --help > /dev/null) || $(CABAL) $(CABAL_INSTALL_CMD) $*
+
 ## Whitespace-related #######################################################
 # Agda can fail to compile on Windows if files which are CPP-processed
 # don't end with a newline character (because we use -Werror).
 
-FIXW_PATH  = src/fix-whitespace
-FIXW_BUILD = dist/build/fix-whitespace/
-FIXW_BIN   = $(FIXW_PATH)/$(FIXW_BUILD)/fix-whitespace
+FIXW_BIN   = fix-whitespace
 
 .PHONY : fix-whitespace ## Fix the whitespace issue.
-fix-whitespace : $(FIXW_BIN)
+fix-whitespace : have-bin-$(FIXW_BIN)
 	$(FIXW_BIN)
 
 .PHONY : check-whitespace ## Check the whitespace issue without fixing it.
-check-whitespace : $(FIXW_BIN)
+check-whitespace : have-bin-$(FIXW_BIN)
 	$(FIXW_BIN) --check
-
-.PHONY : install-fix-whitespace ## Build fix-whitespace.
-install-fix-whitespace : $(FIXW_BIN)
-
-$(FIXW_BIN) :
-	@git submodule update --init src/fix-whitespace
-ifdef HAS_STACK
-ifneq  ("$(wildcard $(FIXW_PATH)/stack.yaml)","")
-	cd $(FIXW_PATH) && \
-        mkdir -p $(FIXW_BUILD) && \
-        $(STACK) install --stack-yaml ./stack.yaml --local-bin-path $(FIXW_BUILD)
-else
-	@echo "Missing the $(FIXW_PATH)/stack.yaml" file
-	@echo "You can fix the issue by running 'make set-default-stack-file GHC_COMPILER=X.Y.Z'"
-endif
-else
-	cd $(FIXW_PATH) && $(CABAL) $(CABAL_INSTALL_CMD)
-endif
 
 ## agda-bisect standalone program ############################################
 .PHONY : install-agda-bisect ## Install agda-bisect.
