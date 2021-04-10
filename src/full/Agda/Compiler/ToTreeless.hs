@@ -326,7 +326,15 @@ withContextSize n cont = do
   diff <- asks (((n -) . length) . ccCxt)
   if diff >= 1 then createLambdas diff cont else do
     let diff' = -diff
-    cxt <- shift diff . drop diff' <$> asks ccCxt
+    cxt <- -- shift diff .
+       -- Andreas, 2021-04-10, issue #5288
+       -- The @shift diff@ is wrong, since we are returning to the original
+       -- context from @cont@, and then we would have to reverse
+       -- the effect of @shift diff@.
+       -- We need to make sure that the result of @cont@ make sense
+       -- in the **present** context, not the changed context
+       -- where it is constructed.
+       drop diff' <$> asks ccCxt
     local (\ e -> e { ccCxt = cxt }) $ do
       reportS "treeless.convert.lambdas" 40 $
         [ "-- withContextSize:"
