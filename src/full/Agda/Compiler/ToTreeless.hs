@@ -9,7 +9,8 @@ import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Map (Map)
-import qualified Data.Map as Map
+import qualified Data.Map  as Map
+import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -233,7 +234,15 @@ casetree cc = do
       -- Issue 2469: Body context size (`length xs`) may be smaller than current context size
       -- if some arguments are not used in the body.
       v <- lift (putAllowedReductions (SmallSet.fromList [ProjectionReductions, CopatternReductions]) $ normalise v)
-      substTerm v
+      cxt <- asks ccCxt
+      v' <- substTerm v
+      reportS "treeless.convert.casetree" 40 $
+        [ "-- casetree, calling substTerm:"
+        , "--   cxt =" <+> prettyPure cxt
+        , "--   v   =" <+> prettyPure v
+        , "--   v'  =" <+> prettyPure v'
+        ]
+      return v'
     CC.Case _ (CC.Branches True _ _ _ Just{} _ _) -> __IMPOSSIBLE__
       -- Andreas, 2016-06-03, issue #1986: Ulf: "no catch-all for copatterns!"
       -- lift $ do
@@ -248,21 +257,21 @@ casetree cc = do
         -- there are no branches, just return default
         updateCatchAll catchAll fromCatchAll
       else do
-        let go p =
-             case p of
-              ((c:cs), []) -> do
-                c' <- lift (canonicalName c)
-                defn <- theDef <$> lift (getConstInfo c')
-                case defn of
-                  Constructor{conData = dtNm} -> return $ C.CTData dtNm
-                  _                           -> go (cs , [])
-              ([], (LitChar _):_)  -> return C.CTChar
-              ([], (LitString _):_) -> return C.CTString
-              ([], (LitFloat _):_) -> return C.CTFloat
-              ([], (LitQName _):_) -> return C.CTQName
-              _ -> __IMPOSSIBLE__
+        -- Get the type of the scrutinee.
+        caseTy <-
+          case (Map.keys conBrs', Map.keys litBrs) of
+            (cs, []) -> lift $ go cs
+              where
+              go (c:cs) = canonicalName c >>= getConstInfo <&> theDef >>= \case
+                Constructor{conData} -> return $ C.CTData conData
+                _ -> go cs
+              go [] = __IMPOSSIBLE__
+            ([], LitChar   _ : _) -> return C.CTChar
+            ([], LitString _ : _) -> return C.CTString
+            ([], LitFloat  _ : _) -> return C.CTFloat
+            ([], LitQName  _ : _) -> return C.CTQName
+            _ -> __IMPOSSIBLE__
 
-        caseTy <- go (Map.keys conBrs', Map.keys litBrs)
         updateCatchAll catchAll $ do
           x <- asks (lookupLevel n . ccCxt)
           def <- fromCatchAll
@@ -300,7 +309,13 @@ updateCatchAll :: Maybe CC.CompiledClauses -> (CC C.TTerm -> CC C.TTerm)
 updateCatchAll Nothing cont = cont
 updateCatchAll (Just cc) cont = do
   def <- casetree cc
-  local (\e -> e { ccCatchAll = Just 0, ccCxt = shift 1 (ccCxt e) }) $ do
+  cxt <- asks ccCxt
+  reportS "treeless.convert.lambdas" 40 $
+    [ "-- updateCatchAll:"
+    , "--   cxt =" <+> prettyPure cxt
+    , "--   def =" <+> prettyPure def
+    ]
+  local (\ e -> e { ccCatchAll = Just 0, ccCxt = shift 1 cxt }) $ do
     C.mkLet def <$> cont
 
 -- | Shrinks or grows the context to the given size.
@@ -309,20 +324,33 @@ updateCatchAll (Just cc) cont = do
 withContextSize :: Int -> CC C.TTerm -> CC C.TTerm
 withContextSize n cont = do
   diff <- asks (((n -) . length) . ccCxt)
-
-  if diff <= 0
-  then do
+  if diff >= 1 then createLambdas diff cont else do
     let diff' = -diff
-    local (\e -> e { ccCxt = shift diff . drop diff' $ ccCxt e }) $
+    cxt <- shift diff . drop diff' <$> asks ccCxt
+    local (\ e -> e { ccCxt = cxt }) $ do
+      reportS "treeless.convert.lambdas" 40 $
+        [ "-- withContextSize:"
+        , "--   n   =" <+> prettyPure n
+        , "--   diff=" <+> prettyPure diff
+        , "--   cxt =" <+> prettyPure cxt
+        ]
       cont <&> (`C.mkTApp` map C.TVar (downFrom diff'))
-  else do
-    local (\e -> e { ccCxt = [0..(diff - 1)] ++ shift diff (ccCxt e)}) $ do
-      createLambdas diff <$> do
-        cont
-  where createLambdas :: Int -> C.TTerm -> C.TTerm
-        createLambdas 0 cont' = cont'
-        createLambdas i cont' | i > 0 = C.TLam (createLambdas (i - 1) cont')
-        createLambdas _ _ = __IMPOSSIBLE__
+
+-- | Prepend the given positive number of lambdas.
+-- Does not update the catchAll expression,
+-- the catchAll expression must be updated separately (or not be used).
+createLambdas :: Int -> CC C.TTerm -> CC C.TTerm
+createLambdas diff cont = do
+  unless (diff >= 1) __IMPOSSIBLE__
+  cxt <- ([0 .. diff-1] ++) . shift diff <$> asks ccCxt
+  local (\ e -> e { ccCxt = cxt }) $ do
+    reportS "treeless.convert.lambdas" 40 $
+      [ "-- createLambdas:"
+      , "--   diff =" <+> prettyPure diff
+      , "--   cxt  =" <+> prettyPure cxt
+      ]
+    -- Prepend diff lambdas
+    cont <&> \ t -> List.iterate C.TLam t !! diff
 
 -- | Adds lambdas until the context has at least the given size.
 -- Updates the catchAll expression to take the additional lambdas into account.
@@ -332,18 +360,23 @@ lambdasUpTo n cont = do
 
   if diff <= 0 then cont -- no new lambdas needed
   else do
-    catchAll <- asks ccCatchAll
-
-    withContextSize n $ do
-      case catchAll of
-        Just catchAll' -> do
+    createLambdas diff $ do
+      asks ccCatchAll >>= \case
+        Just catchAll -> do
+          cxt <- asks ccCxt
+          reportS "treeless.convert.lambdas" 40 $
+            [ "lambdasUpTo: n =" <+> (text . show) n
+            , "  diff         =" <+> (text . show) n
+            , "  catchAll     =" <+> prettyPure catchAll
+            , "  ccCxt        =" <+> prettyPure cxt
+            ]
           -- the catch all doesn't know about the additional lambdas, so just directly
           -- apply it again to the newly introduced lambda arguments.
           -- we also bind the catch all to a let, to avoid code duplication
           local (\e -> e { ccCatchAll = Just 0
-                         , ccCxt = shift 1 (ccCxt e)}) $ do
+                         , ccCxt = shift 1 cxt }) $ do
             let catchAllArgs = map C.TVar $ downFrom diff
-            C.mkLet (C.mkTApp (C.TVar $ catchAll' + diff) catchAllArgs)
+            C.mkLet (C.mkTApp (C.TVar $ catchAll + diff) catchAllArgs)
               <$> cont
         Nothing -> cont
 
