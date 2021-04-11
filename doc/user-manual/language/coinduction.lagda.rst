@@ -27,10 +27,10 @@ The corecursive definitions below are accepted if the option
 .. _copatterns-coinductive-records:
 
 Coinductive Records
-----------------------------------
+-------------------
 
 It is possible to define the type of infinite lists (or streams) of
-elements of some type ``A`` as follows,
+elements of some type ``A`` as follows:
 
 ::
 
@@ -40,11 +40,11 @@ elements of some type ``A`` as follows,
         hd : A
         tl : Stream A
 
-As opposed to inductive record types, we have to introduce the keyword
+As opposed to :ref:`inductive record types <recursive-records>`, we have to introduce the keyword
 ``coinductive`` before defining the fields that constitute the record.
 
-It is interesting to note that is not necessary to give an explicit
-constructor to the record type ``Stream A``.
+It is interesting to note that it is not necessary to give an explicit
+constructor to the record type ``Stream``.
 
 ..
   ::
@@ -59,20 +59,20 @@ constructor to the record type ``Stream A``.
         snd : B
 
 
-We can as well define bisimilarity (equivalence) of a pair of ``Stream A`` as a
-coinductive record.
+We can also define pointwise equality (a bisimulation and an equivalence) of a pair of ``Stream``\s as a
+coinductive record:
 
 ::
 
-    record _≈_ {A : Set} (xs : Stream A) (ys : Stream A) : Set where
+    record _≈_ {A} (xs : Stream A) (ys : Stream A) : Set where
       coinductive
       field
-        hd-≈ : hd xs ≡ hd ys
+        hd-≡ : hd xs ≡ hd ys
         tl-≈ : tl xs ≈ tl ys
 
 Using :ref:`copatterns <copatterns>` we can define a pair of functions
-on ``Stream`` such that one returns a ``Stream`` with the elements in
-the even positions and the other the elements in odd positions.
+on ``Stream``\s such that one returns the elements in
+the even positions and the other the elements in the odd positions:
 
 ..
   ::
@@ -82,29 +82,29 @@ the even positions and the other the elements in odd positions.
 ::
 
     even : ∀ {A} → Stream A → Stream A
-    hd (even x) = hd x
-    tl (even x) = even (tl (tl x))
+    hd (even xs) = hd xs
+    tl (even xs) = even (tl (tl xs))
 
     odd : ∀ {A} → Stream A → Stream A
-    odd x = even (tl x)
+    odd xs = even (tl xs)
 
     split : ∀ {A} → Stream A → Stream A × Stream A
     split xs = even xs , odd xs
 
-And merge a pair of ``Stream`` by interleaving their elements.
+as well as a function that merges a pair of ``Stream``\s by interleaving their elements:
 
 ::
 
     merge : ∀ {A} → Stream A × Stream A → Stream A
-    hd (merge (fst , snd)) = hd fst
-    tl (merge (fst , snd)) = merge (snd , tl fst)
+    hd (merge (xs , ys)) = hd xs
+    tl (merge (xs , ys)) = merge (ys , tl xs)
 
-Finally, we can prove that split is the left inverse of merge.
+Finally, we can prove that ``merge`` is a left inverse for ``split``:
 
 ::
 
     merge-split-id : ∀ {A} (xs : Stream A) → merge (split xs) ≈ xs
-    hd-≈ (merge-split-id _)  = refl
+    hd-≡ (merge-split-id _)  = refl
     tl-≈ (merge-split-id xs) = merge-split-id (tl xs)
 
 
