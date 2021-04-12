@@ -21,12 +21,17 @@ jobs:
     - uses: actions/checkout@v2
       name: Checkout agda sources
 
+    - name: Latest version of fix-whitespace on hackage
+      id:   fix-ws-hackage
+      run: |
+        echo ::set-output name=ver::$(cabal info fix-whitespace | grep "Available versions:" | awk '{ print $NF }')
+
     - uses: actions/cache@v2
       name: Cache the binary
       id: cache
       with:
         path: "~/.local/bin"
-        key: fix-whitespace-${{ env.fw-sha }}
+        key: fix-whitespace-${{ steps.fix-ws-hackage.outputs.ver }}
 
     - uses: haskell/actions/setup@v1
       if: ${{ !steps.cache.outputs.cache-hit }}
