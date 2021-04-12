@@ -101,7 +101,10 @@ checkFunDef delayed i name cs = do
                   mapM_ unfreezeMeta (x : xs)
                 checkAlias t info delayed i name e mc
             | otherwise -> do -- Warn about abstract alias (will never work!)
-              setCurrentRange i $ genericWarning =<< "Cannot infer the type of abstract definition" <+> prettyTCM name
+              setCurrentRange i $ genericWarning =<<
+                "Missing type signature for abstract definition" <+> (prettyTCM name <> ".") $$
+                fsep (pwords "Types of abstract definitions are never inferred since this would leak" ++
+                      pwords "information that should be abstract.")
               checkFunDef' t info delayed Nothing Nothing i name cs
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
