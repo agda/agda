@@ -5,9 +5,3 @@
 [submodule "cubical"]
 	path = cubical
 	url = https://github.com/agda/cubical
-[submodule "src/fix-whitespace"]
-	path = src/fix-whitespace
-	url = https://github.com/agda/fix-whitespace.git
-[submodule "src/hs-tags"]
-	path = src/hs-tags
-	url = https://github.com/agda/hs-tags.git
