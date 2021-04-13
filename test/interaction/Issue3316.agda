@@ -8,8 +8,9 @@ macro
   easy : Term → TC _
   easy t =
     bindTC (freshName "A") λ A →
-    bindTC (declarePostulate (arg (arg-info visible relevant) A)
-                             (agda-sort (lit 0))) λ _ →
+    bindTC (declarePostulate
+              (arg (arg-info visible (modality relevant quantity-ω)) A)
+              (agda-sort (lit 0))) λ _ →
     unify (def A []) t
 
 B : Set

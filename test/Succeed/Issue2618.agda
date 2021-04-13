@@ -26,7 +26,7 @@ macro
 case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B
 case x of f = f x
 
-pattern vArg x = arg (arg-info visible relevant) x
+pattern vArg x = arg (arg-info visible (modality relevant quantity-ω)) x
 pattern [_] x = x ∷ []
 
 map : {A B : Set} → (A → B) → List A → List B

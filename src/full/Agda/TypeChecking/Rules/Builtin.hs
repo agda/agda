@@ -246,6 +246,13 @@ coreBuiltins =
   , (builtinRelevance                        |-> BuiltinData tset [builtinRelevant, builtinIrrelevant])
   , (builtinRelevant                         |-> BuiltinDataCons trelevance)
   , (builtinIrrelevant                       |-> BuiltinDataCons trelevance)
+    -- Quantity
+  , (builtinQuantity                         |-> BuiltinData tset [builtinQuantity0, builtinQuantityω])
+  , (builtinQuantity0                        |-> BuiltinDataCons tquantity)
+  , (builtinQuantityω                        |-> BuiltinDataCons tquantity)
+    -- Modality
+  , (builtinModality                         |-> BuiltinData tset [builtinModalityConstructor])
+  , (builtinModalityConstructor              |-> BuiltinDataCons (trelevance --> tquantity --> tmodality))
     -- Associativity
   , builtinAssoc                             |-> BuiltinData tset [builtinAssocLeft, builtinAssocRight, builtinAssocNon]
   , builtinAssocLeft                         |-> BuiltinDataCons tassoc
@@ -274,7 +281,7 @@ coreBuiltins =
   , (builtinFalse                            |-> BuiltinDataCons tbool)
   , (builtinArgArg                           |-> BuiltinDataCons (hPi "A" tset (targinfo --> tv0 --> targ tv0)))
   , (builtinAbsAbs                           |-> BuiltinDataCons (hPi "A" tset (tstring  --> tv0 --> tabs tv0)))
-  , (builtinArgArgInfo                       |-> BuiltinDataCons (thiding --> trelevance --> targinfo))
+  , (builtinArgArgInfo                       |-> BuiltinDataCons (thiding --> tmodality --> targinfo))
   , (builtinAgdaTermVar                      |-> BuiltinDataCons (tnat --> targs --> tterm))
   , (builtinAgdaTermLam                      |-> BuiltinDataCons (thiding --> tabs tterm --> tterm))
   , (builtinAgdaTermExtLam                   |-> BuiltinDataCons (tlist tclause --> targs --> tterm))
@@ -428,6 +435,8 @@ coreBuiltins =
         tbool      = el primBool
         thiding    = el primHiding
         trelevance = el primRelevance
+        tquantity  = el primQuantity
+        tmodality  = el primModality
         tassoc     = el primAssoc
         tprec      = el primPrecedence
         tfixity    = el primFixity

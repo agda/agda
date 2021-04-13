@@ -17,7 +17,7 @@ data _∈_ {A : Set} (x : A) : List A → Set where
   zero : x ∈ x ∷ xs
   suc  : x ∈ xs → x ∈ y ∷ xs
 
-pattern vArg x = arg (arg-info visible relevant) x
+pattern vArg x = arg (arg-info visible (modality relevant quantity-ω)) x
 
 search : Nat → Term → Term → TC ⊤
 search zero i hole = typeError (strErr "Not found" ∷ [])

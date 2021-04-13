@@ -57,7 +57,9 @@ _ :
   `F ≡
   pat-lam
     (clause []
-      (arg (arg-info visible relevant) (con (quote tt) []) ∷ [])
+      (arg (arg-info visible (modality relevant quantity-ω))
+         (con (quote tt) []) ∷
+       [])
       (con (quote tt) []) ∷
      [])
     []

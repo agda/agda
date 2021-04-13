@@ -502,6 +502,28 @@ Reflection
   `nameErr` parts. They also do a better job of respecting line breaks in
   `strErr` parts.
 
+- The reflection machinery now supports quantities in `Arg`
+  (see [#5317](https://github.com/agda/agda/issues/5317)). The
+  `ArgInfo` type has changed, and there are new types `Modality` and
+  `Quantity`:
+  ```agda
+  data Quantity : Set where
+    quantity-0 quantity-ω : Quantity
+
+  {-# BUILTIN QUANTITY   Quantity   #-}
+  {-# BUILTIN QUANTITY-0 quantity-0 #-}
+  {-# BUILTIN QUANTITY-ω quantity-ω #-}
+
+  data Modality : Set where
+    modality : (r : Relevance) (q : Quantity) → Modality
+
+  {-# BUILTIN MODALITY             Modality #-}
+  {-# BUILTIN MODALITY-CONSTRUCTOR modality #-}
+
+  data ArgInfo : Set where
+    arg-info : (v : Visibility) (m : Modality) → ArgInfo
+  ```
+
 - The representation of reflected patterns and clauses has
   changed. Each clause now includes a telescope with the names and
   types of the pattern variables.

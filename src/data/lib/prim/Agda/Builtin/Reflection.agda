@@ -103,8 +103,23 @@ data Relevance : Set where
 {-# BUILTIN RELEVANT   relevant   #-}
 {-# BUILTIN IRRELEVANT irrelevant #-}
 
+-- Arguments also have a quantity.
+data Quantity : Set where
+  quantity-0 quantity-ω : Quantity
+
+{-# BUILTIN QUANTITY   Quantity   #-}
+{-# BUILTIN QUANTITY-0 quantity-0 #-}
+{-# BUILTIN QUANTITY-ω quantity-ω #-}
+
+-- Relevance and quantity are combined into a modality.
+data Modality : Set where
+  modality : (r : Relevance) (q : Quantity) → Modality
+
+{-# BUILTIN MODALITY             Modality #-}
+{-# BUILTIN MODALITY-CONSTRUCTOR modality #-}
+
 data ArgInfo : Set where
-  arg-info : (v : Visibility) (r : Relevance) → ArgInfo
+  arg-info : (v : Visibility) (m : Modality) → ArgInfo
 
 data Arg {a} (A : Set a) : Set a where
   arg : (i : ArgInfo) (x : A) → Arg A
