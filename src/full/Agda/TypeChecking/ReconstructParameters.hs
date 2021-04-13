@@ -82,8 +82,13 @@ reconstructParameters' act a v = do
             Def d es -> do
               Just n <- defParameters <$> getConstInfo d
               let prePs = applySubst (strengthenS impossible under) . take n $ es
-              let hiddenPs = map (Apply . hideAndRelParams) $ fromMaybe __IMPOSSIBLE__ $
-                               allApplyElims prePs
+              let hiddenPs = map (Apply .
+                                  -- The parameters are erased in the
+                                  -- type of a constructor.
+                                  applyQuantity zeroQuantity .
+                                  hideAndRelParams) $
+                             fromMaybe __IMPOSSIBLE__ $
+                             allApplyElims prePs
               reportSDoc "tc.reconstruct" 50 $ "The hiddenPs are" <+> pretty hiddenPs
               tyCon <- defType <$> getConstInfo (conName hh)
               reportSDoc "tc.reconstruct" 50 $ "Here we start infering spine"
@@ -142,8 +147,13 @@ reconstructParameters' act a v = do
           ~(Just (El _ (Pi _ b))) <- getDefType p ty'
           tyProj <- defType <$> getConstInfo p
           let reconstructWithoutPostFixing = reconstructAction { elimViewAction = elimView NoPostfix }
-          let hiddenPs = map Apply $ mapHide tyProj $ fromMaybe __IMPOSSIBLE__ $
-                               allApplyElims pars
+          let hiddenPs = map (Apply .
+                              -- The parameters are erased in the
+                              -- type of a projection.
+                              applyQuantity zeroQuantity) $
+                         mapHide tyProj $
+                         fromMaybe __IMPOSSIBLE__ $
+                         allApplyElims pars
           reportSDoc "tc.reconstruct" 50 $ "The params are" <+> pretty hiddenPs
           ((_,Def p psAfterAct),_) <- inferSpine' act tyProj (Def p []) (Def p []) hiddenPs
           ((_,projWithPars),_) <- inferSpine' reconstructWithoutPostFixing tyProj (Def p []) (Def p []) psAfterAct

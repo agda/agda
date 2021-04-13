@@ -41,22 +41,24 @@ bar₁ = foo₁
 bar₂ : A
 bar₂ = foo₂ {r = FooA}
 
-pattern rArg v x = arg (arg-info v (modality relevant quantity-ω)) x
-pattern vArg x = rArg visible x
-pattern hArg x = rArg hidden  x
-pattern iArg x = rArg instance′ x
-pattern `? = hArg unknown
+pattern rArg v q x = arg (arg-info v (modality relevant q)) x
+pattern vArg x = rArg visible quantity-ω x
+pattern hArg x = rArg hidden  quantity-ω x
+pattern iArg x = rArg instance′ quantity-ω x
+pattern `? q = rArg hidden q unknown
 
 pattern fun₀ b = function (clause [] [] b ∷ [])
 pattern fun₁ tel p b = function (clause tel (p ∷ []) b ∷ [])
 pattern fun₂ tel p q b = function (clause tel (p ∷ q ∷ []) b ∷ [])
 
 -- foo {{r}} = Foo.foo {_} r
-foo-def : getDef foo ≡ fun₂
-            (("A" , hArg (agda-sort (lit 0))) ∷
-             ("r" , iArg (def (quote Foo) (vArg (var 0 []) ∷ []))) ∷ [])
-            (hArg (var 1)) (iArg (var 0))
-            (def (quote Foo.foo) (`? ∷ vArg (var 0 []) ∷ []))
+foo-def :
+  getDef foo ≡
+  fun₂
+    (("A" , hArg (agda-sort (lit 0))) ∷
+     ("r" , iArg (def (quote Foo) (vArg (var 0 []) ∷ []))) ∷ [])
+    (hArg (var 1)) (iArg (var 0))
+    (def (quote Foo.foo) (`? quantity-0 ∷ vArg (var 0 []) ∷ []))
 foo-def = refl
 
 -- Andreas, 2018-03-12: Behavior before fix of #2963:
@@ -71,7 +73,10 @@ foo₁-def : getDef foo₁ ≡ fun₂
 foo₁-def = refl
 
 -- bar = foo {_} FooA
-bar-def : getDef bar ≡ fun₀ (def (quote Foo.foo) (`? ∷ vArg (def (quote FooA) []) ∷ []))
+bar-def :
+  getDef bar ≡
+  fun₀ (def (quote Foo.foo)
+            (`? quantity-0 ∷ vArg (def (quote FooA) []) ∷ []))
 bar-def = refl
 
 -- bar₁ = Foo.foo₁ {A} FooA
@@ -79,7 +84,10 @@ bar₁-def : getDef bar₁ ≡ fun₀ (def (quote Foo.foo₁) (hArg (def (quote 
 bar₁-def =  refl
 
 -- bar₂ = foo₂ {_} {FooA}
-bar₂-def : getDef bar₂ ≡ fun₀ (def (quote foo₂) (`? ∷ hArg (def (quote FooA) []) ∷ []))
+bar₂-def :
+  getDef bar₂ ≡
+  fun₀ (def (quote foo₂)
+            (`? quantity-ω ∷ hArg (def (quote FooA) []) ∷ []))
 bar₂-def =  refl
 
 --- Originally reported test case ---
