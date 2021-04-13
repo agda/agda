@@ -16,22 +16,22 @@ jobs:
         ghc-ver: [9.0.1]
         cabal-ver: [3.4.0.0]
         # stack-ver: [2.5.1]
+        fix-whitespace-ver: [0.0.5]
 
     steps:
     - uses: actions/checkout@v2
       name: Checkout agda sources
 
-    - name: Latest version of fix-whitespace on hackage
-      id:   fix-ws-hackage
+    - name: Create directory for binary
       run: |
-        echo ::set-output name=ver::$(cabal info fix-whitespace | grep "Available versions:" | awk '{ print $NF }')
+        mkdir -p $HOME/.local/bin
 
     - uses: actions/cache@v2
       name: Cache the binary
       id: cache
       with:
         path: "~/.local/bin"
-        key: fix-whitespace-${{ steps.fix-ws-hackage.outputs.ver }}
+        key: fix-whitespace-${{ matrix.fix-whitespace-ver }}
 
     - uses: haskell/actions/setup@v1
       if: ${{ !steps.cache.outputs.cache-hit }}
