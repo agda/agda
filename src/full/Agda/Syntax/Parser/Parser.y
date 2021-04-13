@@ -353,11 +353,6 @@ maybe_vclose : {- empty -} { () }
     Meta rules
  --------------------------------------------------------------------------}
 
--- The first token in a file decides the indentation of the top-level layout
--- block. Or not. It will if we allow the top-level module to be omitted.
--- topen :      {- empty -}     {% pushCurrentContext }
-
-
 {-  A layout block might have to be closed by a parse error. Example:
         let x = e in e'
     Here the 'let' starts a layout block which should end before the 'in'.  The
@@ -367,7 +362,7 @@ maybe_vclose : {- empty -} { () }
 -}
 close :: { () }
 close : vclose  { () }
-      | error   {% popContext }
+      | error   {% popBlock }
 
 
 -- You can use concrete semi colons in a layout block started with a virtual

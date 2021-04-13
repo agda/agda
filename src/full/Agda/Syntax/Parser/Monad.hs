@@ -6,7 +6,7 @@ module Agda.Syntax.Parser.Monad
     , ParseState(..)
     , ParseError(..), ParseWarning(..)
     , LexState
-    , LayoutContext(..)
+    , LayoutBlock(..)
     , ParseFlags (..)
       -- * Running the parser
     , initState
@@ -20,8 +20,7 @@ module Agda.Syntax.Parser.Monad
     , getParseFlags
     , getLexState, pushLexState, popLexState
       -- ** Layout
-    , topContext, popContext, pushContext
-    , pushCurrentContext
+    , topBlock, popBlock, pushBlock
       -- ** Errors
     , parseWarningName
     , parseError, parseErrorAt, parseError', parseErrorRange
@@ -35,7 +34,8 @@ import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Int
-import Data.Data (Data)
+import Data.Data  ( Data )
+import Data.Maybe ( listToMaybe )
 
 import Agda.Interaction.Options.Warnings
 
@@ -65,7 +65,7 @@ data ParseState = PState
     , parseInp      :: String                -- ^ the current input
     , parsePrevChar :: !Char                 -- ^ the character before the input
     , parsePrevToken:: String                -- ^ the previous token
-    , parseLayout   :: [LayoutContext]       -- ^ the stack of layout contexts
+    , parseLayout   :: LayoutContext         -- ^ the stack of layout blocks
     , parseLexState :: [LexState]            -- ^ the state of the lexer
                                              --   (states can be nested so we need a stack)
     , parseFlags    :: ParseFlags            -- ^ parametrization of the parser
@@ -78,11 +78,14 @@ data ParseState = PState
 -}
 type LexState = Int
 
+-- | The stack of layout blocks.
+type LayoutContext = [LayoutBlock]
+
 -- | We need to keep track of the context to do layout. The context
---   specifies the indentation (if any) of a layout block. See
+--   specifies the indentation columns of the open layout blocks. See
 --   "Agda.Syntax.Parser.Layout" for more informaton.
-data LayoutContext  = NoLayout        -- ^ no layout
-                    | Layout Int32    -- ^ layout at specified column
+data LayoutBlock
+  = Layout Int32    -- ^ layout at specified column
     deriving Show
 
 -- | Parser flags.
@@ -223,7 +226,7 @@ initStatePos pos flags inp st =
                 , parsePrevChar     = '\n'
                 , parsePrevToken    = ""
                 , parseLexState     = st
-                , parseLayout       = [NoLayout]
+                , parseLayout       = []
                 , parseFlags        = flags
                 }
   where
@@ -331,36 +334,24 @@ lexError msg =
     Layout
  --------------------------------------------------------------------------}
 
-getContext :: Parser [LayoutContext]
+getContext :: Parser LayoutContext
 getContext = gets parseLayout
 
-setContext :: [LayoutContext] -> Parser ()
+setContext :: LayoutContext -> Parser ()
 setContext ctx = modify $ \ s -> s { parseLayout = ctx }
 
--- | Return the current layout context.
-topContext :: Parser LayoutContext
-topContext =
-    do  ctx <- getContext
-        case ctx of
-            []  -> parseError "No layout context in scope"
-            l:_ -> return l
+-- | Return the current layout block.
+topBlock :: Parser (Maybe LayoutBlock)
+topBlock = listToMaybe <$> getContext
 
-popContext :: Parser ()
-popContext =
+popBlock :: Parser ()
+popBlock =
     do  ctx <- getContext
         case ctx of
             []      -> parseError "There is no layout block to close at this point."
             _:ctx   -> setContext ctx
 
-pushContext :: LayoutContext -> Parser ()
-pushContext l =
+pushBlock :: LayoutBlock -> Parser ()
+pushBlock l =
     do  ctx <- getContext
         setContext (l : ctx)
-
--- | Should only be used at the beginning of a file. When we start parsing
---   we should be in layout mode. Instead of forcing zero indentation we use
---   the indentation of the first token.
-pushCurrentContext :: Parser ()
-pushCurrentContext =
-    do  p <- getLastPos
-        pushContext (Layout (posCol p))

@@ -135,12 +135,11 @@ tokens :-
         () / { not' eof }       { offsideRule }
     }
 
--- After a layout keyword there is either an open brace (no layout) or the
+-- After a layout keyword the
 -- indentation of the first token decides the column of the layout block.
 <layout_>
     {   \n      ;
---      \{      { endWith openBrace }
-        ()      { endWith newLayoutContext }
+        ()      { endWith newLayoutBlock }
     }
 
 -- The only rule for the empty_layout state. Generates a close brace.
@@ -255,10 +254,7 @@ normal = 0
 
 
 {-| The layout state. Entered when we see a layout keyword ('withLayout') and
-    exited either when seeing an open brace ('openBrace') or at the next token
-    ('newLayoutContext').
-
-    Update: we don't use braces for layout anymore.
+    exited at the next token ('newLayoutBlock').
 -}
 layout :: LexState
 layout = layout_
@@ -274,7 +270,7 @@ pragma = pragma_
 fpragma :: LexState
 fpragma = fpragma_
 
-{-| We enter this state from 'newLayoutContext' when the token following a
+{-| We enter this state from 'newLayoutBlock' when the token following a
     layout keyword is to the left of (or at the same column as) the current
     layout context. Example:
 
@@ -285,7 +281,7 @@ fpragma = fpragma_
     same indentation as the @data@ definition. What we have to do is insert an
     empty layout block @{}@ after the @where@. The only thing that can happen
     in this state is that 'emptyLayout' is executed, generating the closing
-    brace. The open brace is generated when entering by 'newLayoutContext'.
+    brace. The open brace is generated when entering by 'newLayoutBlock'.
 -}
 empty_layout :: LexState
 empty_layout = empty_layout_
