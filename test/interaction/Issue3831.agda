@@ -6,7 +6,7 @@ open import Agda.Builtin.String
 open import Agda.Builtin.Reflection
   renaming (bindTC to _>>=_; returnTC to return)
 
-pattern vArg t = arg (arg-info visible relevant) t
+pattern vArg t = arg (arg-info visible (modality relevant quantity-ω)) t
 pattern var₀ x = var x []
 
 infixr 10 _++_

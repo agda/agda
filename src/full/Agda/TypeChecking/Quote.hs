@@ -63,6 +63,9 @@ quotingKit = do
   visible         <- primVisible
   relevant        <- primRelevant
   irrelevant      <- primIrrelevant
+  quantity0       <- primQuantity0
+  quantityω       <- primQuantityω
+  modality        <- primModalityConstructor
   nil             <- primNil
   cons            <- primCons
   abs             <- primAbsAbs
@@ -131,11 +134,21 @@ quotingKit = do
       quoteRelevance Irrelevant = pure irrelevant
       quoteRelevance NonStrict  = pure relevant
 
-      -- TODO: quote Quanity
+      quoteQuantity :: Quantity -> ReduceM Term
+      quoteQuantity (Quantity0 _) = pure quantity0
+      quoteQuantity (Quantity1 _) = __IMPOSSIBLE__
+      quoteQuantity (Quantityω _) = pure quantityω
+
       -- TODO: quote Annotation
+      quoteModality :: Modality -> ReduceM Term
+      quoteModality m =
+        modality !@ quoteRelevance (getRelevance m)
+                 @@ quoteQuantity  (getQuantity  m)
+
       quoteArgInfo :: ArgInfo -> ReduceM Term
       quoteArgInfo (ArgInfo h m _ _ _) =
-        arginfo !@ quoteHiding h @@ quoteRelevance (getRelevance m)
+        arginfo !@ quoteHiding h
+                @@ quoteModality m
 
       quoteLit :: Literal -> ReduceM Term
       quoteLit l@LitNat{}    = litNat    !@! Lit l
@@ -290,8 +303,9 @@ quotingKit = do
                  Function{ funProjection = Just p } -> projIndex p - 1
                  _                                  -> 0
           TelV tel _ = telView' (defType def)
-          hiding     = map (getHiding &&& getRelevance) $ take np $ telToList tel
-          par (h, r) = arg !@ (arginfo !@ quoteHiding h @@ quoteRelevance r) @@ pure unsupported
+          hiding     = take np $ telToList tel
+          par d      = arg !@ quoteArgInfo (domInfo d)
+                           @@ pure unsupported
 
       quoteDefn :: Definition -> ReduceM Term
       quoteDefn def =

@@ -15,12 +15,14 @@ five' = {!!}
 five'' : Nat
 five'' = {!!}
 
+vArg : {A : Set} → A → Arg A
+vArg = arg (arg-info visible (modality relevant quantity-ω))
+
 macro
   addUnknown : Term → TC ⊤
   addUnknown goal = unify goal
                           (def (quote _+_)
-                            (arg (arg-info visible relevant) unknown ∷
-                            arg (arg-info visible relevant) unknown ∷ []))
+                            (vArg unknown ∷ vArg unknown ∷ []))
 
 unknownPlus : Nat
 unknownPlus = {!!} + {!!}
@@ -47,4 +49,3 @@ hello' = {!!}
 
 hi : String
 hi = {!!}
-

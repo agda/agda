@@ -38,8 +38,9 @@ macro
     `v ← quoteTC v
     unify hole `v
 
-pattern vArg x = arg (arg-info visible relevant) x
-pattern hArg x = arg (arg-info hidden  relevant) x
+pattern default-modality = modality relevant quantity-ω
+pattern vArg x = arg (arg-info visible default-modality) x
+pattern hArg x = arg (arg-info hidden  default-modality) x
 pattern `fmap x y = def (quote M.Raw.fmap) (x ∷ y ∷ [])
 `Set = agda-sort (lit 0)
 `r   = def (quote r) []

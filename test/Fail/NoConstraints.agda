@@ -11,7 +11,8 @@ f : (b : Bool) → P b
 f true  = true
 f false = false
 
-pattern varg x = arg (arg-info visible relevant) x
+pattern varg x =
+  arg (arg-info visible (modality relevant quantity-ω)) x
 
 create-constraint : TC Set
 create-constraint =

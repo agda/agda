@@ -12,7 +12,7 @@ data ⊥ : Set where
 [ x ] = x ∷ []
 
 vArg : {A : Set} → A → Arg A
-vArg x = arg (arg-info visible relevant) x
+vArg x = arg (arg-info visible (modality relevant quantity-ω)) x
 
 macro
   getFunDef : Name → Term → TC ⊤

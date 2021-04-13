@@ -17,7 +17,7 @@ postulate
 foo : (x : A) → B x → B x
 foo x y = y
 
-pattern vArg x = arg (arg-info visible relevant) x
+pattern vArg x = arg (arg-info visible (modality relevant quantity-ω)) x
 
 test : quoteDef foo ≡
   function

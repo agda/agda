@@ -31,8 +31,9 @@ macro
     `rhs ← quoteTC rhs
     unify hole `rhs
 
-pattern vArg x = arg (arg-info visible relevant) x
-pattern hArg x = arg (arg-info hidden relevant) x
+pattern default-modality = modality relevant quantity-ω
+pattern vArg x = arg (arg-info visible default-modality) x
+pattern hArg x = arg (arg-info hidden  default-modality) x
 
 -- Should not be inlined
 check₁ : rhs f₁ ≡ def (quote id) (hArg (def (quote Nat) []) ∷ vArg (var 0 []) ∷ [])

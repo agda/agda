@@ -14,10 +14,10 @@ data Even  : ℕ → Set where
 
 pattern expected =
   def (quote ∃)
-      ( arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
-        arg (argInfo hidden relevant) (def (quote Common.Level.lzero) []) ∷
-        arg (argInfo hidden relevant) (def (quote ℕ) []) ∷
-        arg (argInfo visible relevant) (def (quote Even) []) ∷
+      ( hArg (def (quote Common.Level.lzero) []) ∷
+        hArg (def (quote Common.Level.lzero) []) ∷
+        hArg (def (quote ℕ) []) ∷
+        vArg (def (quote Even) []) ∷
         [] )
 
 isExpected : Term → Bool

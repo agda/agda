@@ -36,11 +36,14 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaSortProp, builtinAgdaSortPropLit, builtinAgdaSortInf,
   builtinAgdaSortUnsupported,
   builtinHiding, builtinHidden, builtinInstance, builtinVisible,
-  builtinRelevance, builtinRelevant, builtinIrrelevant, builtinArg,
+  builtinRelevance, builtinRelevant, builtinIrrelevant,
+  builtinQuantity, builtinQuantity0, builtinQuantityω,
+  builtinModality, builtinModalityConstructor,
   builtinAssoc, builtinAssocLeft, builtinAssocRight, builtinAssocNon,
   builtinPrecedence, builtinPrecRelated, builtinPrecUnrelated,
   builtinFixity, builtinFixityFixity,
-  builtinArgInfo, builtinArgArgInfo, builtinArgArg,
+  builtinArgInfo, builtinArgArgInfo,
+  builtinArg, builtinArgArg,
   builtinAbs, builtinAbsAbs, builtinAgdaTerm,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
@@ -177,6 +180,11 @@ builtinVisible                           = "VISIBLE"
 builtinRelevance                         = "RELEVANCE"
 builtinRelevant                          = "RELEVANT"
 builtinIrrelevant                        = "IRRELEVANT"
+builtinQuantity                          = "QUANTITY"
+builtinQuantity0                         = "QUANTITY-0"
+builtinQuantityω                         = "QUANTITY-ω"
+builtinModality                          = "MODALITY"
+builtinModalityConstructor               = "MODALITY-CONSTRUCTOR"
 builtinAssoc                             = "ASSOC"
 builtinAssocLeft                         = "ASSOCLEFT"
 builtinAssocRight                        = "ASSOCRIGHT"
