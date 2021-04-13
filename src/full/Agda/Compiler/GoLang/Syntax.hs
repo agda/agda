@@ -37,6 +37,7 @@ data Exp =
   GoSwitch Exp [Exp] | -- elementas, pagal kurio type darom switch ir sąrašas Go cases, paskutinis go case yra default su panic ir kintamojo priskirimas '_ = parameter'
   GoCase MemberId Nat Nat Nat [Exp] | -- pattern mathing pagal struct name ir return Exp, kur Exp gali būt metodo kvietimas, kintamojo gražinimas ar struct sukūrimas
   GoMethodCall MemberId [Exp] | --metodo name, kurį kviečiam ir parametrai. Parametrai gali būt method call, struct sukūrimas ar tiesiog parametras. Prettyfiinant kiekvienas Exp elementas eina į skliaustus.
+  GoMethodCallParam Exp TypeId |
   GoCreateStruct MemberId [Exp] | -- struktūros sukurimas, paduodam struktūros name ir jo fields. todo ar fields bus [LocalId] ar [MemberId]
   GoIf Exp Exp Exp |
   GoLet String Exp Exp |
@@ -58,6 +59,7 @@ newtype LocalId = LocalId Nat
 data TypeId = 
   TypeId String
   | ConstructorType String String
+  | GenericFunctionType String String
   | FunctionType String String
   | FunctionReturnElement String
   | EmptyFunctionParameter
@@ -67,7 +69,7 @@ data TypeId =
 
 
 data GoFunctionSignature = 
-  OuterSignature MemberId TypeId [TypeId] TypeId |
+  OuterSignature MemberId [String] TypeId [TypeId] TypeId |
   -- name, parameter, return parameters (func...), final return type.
   InnerSignature TypeId [TypeId] TypeId
 -- parameter, return parameters (func...), final return type.
@@ -81,6 +83,12 @@ data MemberId
     | MemberIndex Int Comment
   deriving (Eq, Ord, Show)
 
+data GoImports
+    = GoImportDeclarations [String]
+    | GoImportField
+    | GoImportUsage String
+  deriving (Eq, Ord, Show)
+
 newtype Comment = Comment String
   deriving (Show, Semigroup, Monoid)
 
@@ -92,7 +100,7 @@ type GoQName = List1 MemberId
 
 data Module = Module
   { modName  :: GlobalId
-  , imports  :: [GlobalId]
+  , imports  :: [GoImports]
   , exports  :: [Exp]
   }
   deriving Show
