@@ -334,6 +334,47 @@ withContextSize n cont = do
        -- We need to make sure that the result of @cont@ make sense
        -- in the **present** context, not the changed context
        -- where it is constructed.
+       --
+       -- Ulf, 2021-04-12, https://github.com/agda/agda/pull/5311/files#r611452551
+       --
+       -- This looks correct, but I can't quite follow the explanation. Here's my understanding:
+       --
+       -- We are building a `TTerm` case tree from `CompiledClauses`. In order
+       -- to be able to match we bind all variables we'll need in a top-level
+       -- lambda `λ a b c d → ..` (say). As we compute the `TTerm` we keep a
+       -- context (list) of `TTerm` deBruijn indices for each `CompiledClause`
+       -- variable. This is a renaming from the *source* context of the
+       -- `CompiledClause` to the *target* context of the `TTerm`.
+       --
+       -- After some pattern matching we might have
+       -- ```
+       -- λ a b c d →
+       --   case c of
+       --     e :: f → {cxt = [d, f, e, b, a]}
+       -- ```
+       -- Now, what's causing the problems here is that `CompiledClauses` can be
+       -- underapplied, so you might have matched on a variable only to find
+       -- that in the catch-all the variable you matched on is bound in a lambda
+       -- in the right-hand side! Extending the example, we might have
+       -- `CompiledClauses` looking like this:
+       -- ```
+       -- case 2 of
+       --   _::_ → done[d, f, e, b, a] ...
+       --   _    → done[b, a] (λ c d → ...)
+       -- ```
+       -- When we get to the catch-all, the context will be `[d, c, b, a]` but
+       -- the right-hand side is only expecting `a` and `b` to be bound. What we
+       -- need to do is compile the right-hand side and then apply it to the
+       -- variables `c` and `d` that we already bound. This is what
+       -- `withContextSize` does.
+       --
+       -- Crucially (and this is where the bug was), we are not changing the
+       -- target context, only the source context (we want a `TTerm` that makes
+       -- sense at this point). This means that the correct move is to drop the
+       -- entries for the additional source variables, but not change what
+       -- target variables the remaining source variables map to. Hence, `drop`
+       -- but no `shift`.
+       --
        drop diff' <$> asks ccCxt
     local (\ e -> e { ccCxt = cxt }) $ do
       reportS "treeless.convert.lambdas" 40 $

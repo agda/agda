@@ -18,6 +18,7 @@ postulate
   printNat : Nat → IO ⊤
 
 {-# COMPILE GHC printNat = print #-}
+{-# COMPILE JS  printNat = function (x) { return function(cb) { process.stdout.write(x + "\n"); cb(0); }; } #-}
 
 test : Nat
 test = f 123 1
