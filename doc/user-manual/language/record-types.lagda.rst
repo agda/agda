@@ -48,8 +48,19 @@ projection functions
 
 .. code-block:: agda
 
-  Pair.fst : {A B : Set} → Pair A B → A
-  Pair.snd : {A B : Set} → Pair A B → B
+  Pair.fst : {@0 A B : Set} → Pair A B → A
+  Pair.snd : {@0 A B : Set} → Pair A B → B
+
+..
+  ::
+   test-fst : {@0 A B : Set} → Pair A B → A
+   test-fst {A = A} {B = B} p = Pair.fst {A = A} {B = B} p
+
+   test-snd : {@0 A B : Set} → Pair A B → B
+   test-snd {A = A} {B = B} p = Pair.snd {A = A} {B = B} p
+
+Note that the parameters ``A`` and ``B`` are implicit, :ref:`erased
+<runtime-irrelevance>` arguments to the projection functions.
 
 Elements of record types can be defined using a record expression
 
@@ -340,6 +351,12 @@ In the example, the record module ``Pair`` has the shape
   module Pair {A B : Set} (p : Pair A B) where
     fst : A
     snd : B
+
+.. note::
+  This is not quite right: The projection functions take the
+  parameters as :ref:`erased <runtime-irrelevance>` arguments.
+  However, the parameters are not erased in the module telescope if
+  they were not erased to start with.
 
 It's possible to add arbitrary definitions to the record module, by defining them
 inside the record declaration

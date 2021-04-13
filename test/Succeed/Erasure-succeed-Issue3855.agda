@@ -65,7 +65,7 @@ module ErasedEquality where
 module ParametersAreErased where
 
   test : (@0 A : Set) → A ≡ A
-  test A = refl {x = _}           -- TODO: A instead of _
+  test A = refl {x = A}
 
 module Records where
 
@@ -75,8 +75,8 @@ module Records where
     Par : Set
     Par = A    -- record module parameters are NOT erased, so, this should be accepted
 
-  proj : (A : Set) → R A → A  -- TODO: @0 A instead of A
-  proj A r = R.el {A = _} r
+  proj : (@0 A : Set) → R A → A
+  proj A r = R.el {A = A} r
 
   MyPar : (A : Set) → R A → Set
   MyPar A = R.Par {A = A}
