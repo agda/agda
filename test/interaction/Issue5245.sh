@@ -2,7 +2,7 @@
 
 AGDA=${1}
 
-cd Issue5245
+cd Issue5245 > /dev/null
 
 cp safe lib-a.agda-lib
 cp b/safe b/lib-b.agda-lib
