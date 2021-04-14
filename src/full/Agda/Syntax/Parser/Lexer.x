@@ -119,18 +119,23 @@ tokens :-
 
 -- Dashes followed by a name symbol should be parsed as a name.
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
-   "--" .* / { keepComments .&&. (followedBy '\n' .||. eof) }
-             { withInterval TokComment }
+    "--" .* / { keepComments .&&. (followedBy '\n' .||. eof) }
+              { confirmLayoutAtNewLine `andThen` withInterval TokComment }
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
-  "--" .* / { followedBy '\n' .||. eof } ;
+    "--" .* / { followedBy '\n' .||. eof }
+              { confirmLayoutAtNewLine `andThen` skip }
+
+-- Note: we need to confirm tentative layout columns whenever we meet
+-- a newline character ('\n').
+-- The exception is the newline after a layout keyword.
 
 -- We need to check the offside rule for the first token on each line.  We
 -- should not check the offside rule for the end of file token or an
 -- '\end{code}'
-<0,code,imp_dir_> \n    { begin bol_ }
+<0,code,imp_dir_> \n    { begin bol_ }  -- Note that @begin@ revisits '\n' in the new state!
 <bol_>
     {
-        \n                  ;
+        \n                      { confirmLayoutAtNewLine `andThen` skip }
 --      ^ \\ "end{code}"    { end }
         () / { not' eof }       { offsideRule }
     }
@@ -138,7 +143,7 @@ tokens :-
 -- After a layout keyword the
 -- indentation of the first token decides the column of the layout block.
 <layout_>
-    {   \n      ;
+    {   \n      { confirmedLayoutComing `andThen` skip}
         ()      { endWith newLayoutBlock }
     }
 

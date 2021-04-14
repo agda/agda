@@ -23,7 +23,10 @@ module Agda.Syntax.Parser.Layout
     , offsideRule
     , newLayoutBlock
     , emptyLayout
+    , confirmLayoutAtNewLine, confirmedLayoutComing
     ) where
+
+import Debug.Trace
 
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
@@ -34,7 +37,11 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor ((<&>))
 
-{-| Executed for the first token in each line (see 'Agda.Syntax.Parser.Lexer.bol').
+import Agda.Utils.Impossible
+
+{-| Executed for the first token in each line (see 'Agda.Syntax.Parser.Lexer.bol'),
+    except when the last token was a layout keyword.
+
     Checks the position of the token relative to the current layout context.
     If the token is
 
@@ -84,9 +91,9 @@ emptyLayout inp _ _ =
     'Agda.Syntax.Parser.Lexer.layout' state. There are
     two possibilities:
 
-    - The current token is to the right of the current layout column.
+    - The current token is to the right of the confirmed layout column.
 
-    - The current token is to the left of or in the same column as the current
+    - The current token is to the left of or in the same column as the confirmed
       layout column.
 
     In the first case everything is fine and we enter a new layout block at
@@ -101,25 +108,62 @@ emptyLayout inp _ _ =
     second one.
 -}
 newLayoutBlock :: LexAction Token
-newLayoutBlock inp _ _ =
-    do  let offset = posCol p
-        ctx <- topBlock
-        case ctx of
-            Just (Layout prevOffs) | prevOffs >= offset ->
-                do  pushLexState empty_layout
-                    return (TokSymbol SymOpenVirtualBrace i)
-            _ ->
-                do  pushBlock (Layout offset)
-                    return (TokSymbol SymOpenVirtualBrace i)
-    where
-        p = lexPos inp
-        i = posToInterval (lexSrcFile inp) p p
+newLayoutBlock inp _ _ = do
+    status   <- popPendingLayout
+    prevOffs <- confirmedLayoutColumn <$> getContext
+    if prevOffs >= offset
+        then pushLexState empty_layout
+        else pushBlock $ Layout status offset
+    return $ TokSymbol SymOpenVirtualBrace i
+  where
+    p = lexPos inp
+    i = posToInterval (lexSrcFile inp) p p
+    offset = posCol p
 
+    -- | Remove the pending layout block which was introduced by a layout keyword.
+    --   Must exist.
+    popPendingLayout :: Parser LayoutStatus
+    popPendingLayout = getContext >>= \case
+        Layout status c : rest | c == noColumn -> status <$ setContext rest
+        _ -> __IMPOSSIBLE__
+
+    -- | The confirmed layout column, or 0 if there is none.
+    confirmedLayoutColumn :: LayoutContext -> Column
+    confirmedLayoutColumn = \case
+       Layout Confirmed c : _   -> c
+       Layout Tentative _ : cxt -> confirmedLayoutColumn cxt
+       [] -> 0
 
 -- | Compute the relative position of a location to the
 --   current layout context.
 getOffside :: Position' a -> Parser Ordering
 getOffside loc =
-    topBlock <&> \case
-        Just (Layout n) -> compare (posCol loc) n
-        Nothing         -> GT
+    getContext <&> \case
+        Layout _ n : _
+          | n == noColumn   -> __IMPOSSIBLE__
+          | otherwise       -> compare (posCol loc) n
+        _                   -> GT
+
+
+-- | Mark the pending layout block (must exist) as 'Confirmed'.
+confirmedLayoutComing :: Parser ()
+confirmedLayoutComing = modifyContext $ \case
+    Layout _ c : cxt | c == noColumn -> Layout Confirmed c : cxt
+    cxt -> Layout Confirmed noColumn : cxt -- WHY IS THIS POSSIBLE? -- traceShow cxt __IMPOSSIBLE__
+
+-- | Encountering a newline outside of a @layout_@ state we confirm top
+--   tentative layout columns.
+confirmLayoutAtNewLine :: Parser ()
+confirmLayoutAtNewLine = modifyContext $ confirmTentativeBlocks Nothing
+  where
+    -- | Confirm all top 'Tentative' layout columns.
+    -- If a column is given, only those below the given column.
+    --
+    -- The code ensures that the newly created 'Definitive' columns
+    -- are strictly decreasing.
+    --
+    confirmTentativeBlocks :: Maybe Column -> LayoutContext -> LayoutContext
+    confirmTentativeBlocks mcol = \case
+        Layout Tentative col : cxt | maybe True (col <) mcol
+                -> Layout Confirmed col : confirmTentativeBlocks (Just col) cxt
+        cxt  -> cxt

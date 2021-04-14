@@ -6,7 +6,8 @@ module Agda.Syntax.Parser.Monad
     , ParseState(..)
     , ParseError(..), ParseWarning(..)
     , LexState
-    , LayoutBlock(..)
+    , LayoutBlock(..), LayoutContext, LayoutStatus(..)
+    , Column
     , ParseFlags (..)
       -- * Running the parser
     , initState
@@ -21,6 +22,9 @@ module Agda.Syntax.Parser.Monad
     , getLexState, pushLexState, popLexState
       -- ** Layout
     , topBlock, popBlock, pushBlock
+    , getContext, setContext, modifyContext
+    , pushPendingBlock
+    , noColumn
       -- ** Errors
     , parseWarningName
     , parseError, parseErrorAt, parseError', parseErrorRange
@@ -79,14 +83,41 @@ data ParseState = PState
 type LexState = Int
 
 -- | The stack of layout blocks.
+--
+--   When we encounter a layout keyword, we push a 'Tentative' block
+--   with 'noColumn'.  This is replaced by aproper column once we
+--   reach the next token.
 type LayoutContext = [LayoutBlock]
 
 -- | We need to keep track of the context to do layout. The context
 --   specifies the indentation columns of the open layout blocks. See
 --   "Agda.Syntax.Parser.Layout" for more informaton.
 data LayoutBlock
-  = Layout Int32    -- ^ layout at specified column
+  = Layout LayoutStatus Column    -- ^ layout at specified column
     deriving Show
+
+-- | A (layout) column.
+type Column = Int32
+
+-- | An invalid column value for a still unknown layout column.
+noColumn :: Column
+noColumn = maxBound
+
+-- | Status of a layout column (see #1145).
+--   A layout column is 'Tentative' until we encounter a new line.
+--   This allows stacking of layout keywords.
+--
+--   Inside a @LayoutContext@ the sequence of 'Confirmed' columns
+--   needs to be strictly increasing.
+--   'Tentative columns between 'Confirmed' columns need to be
+--   strictly increasing as well.
+data LayoutStatus
+  = Tentative  -- ^ The token defining the layout column was on the same line
+               --   as the layout keyword and we have not seen a new line yet.
+  | Confirmed  -- ^ We have seen a new line since the layout keyword
+               --   and the layout column has not been superseded by
+               --   a smaller column.
+    deriving (Eq, Show)
 
 -- | Parser flags.
 data ParseFlags = ParseFlags
@@ -226,7 +257,7 @@ initStatePos pos flags inp st =
                 , parsePrevChar     = '\n'
                 , parsePrevToken    = ""
                 , parseLexState     = st
-                , parseLayout       = []
+                , parseLayout       = [Layout Tentative noColumn]  -- WHY NOT [] ??
                 , parseFlags        = flags
                 }
   where
@@ -338,7 +369,10 @@ getContext :: Parser LayoutContext
 getContext = gets parseLayout
 
 setContext :: LayoutContext -> Parser ()
-setContext ctx = modify $ \ s -> s { parseLayout = ctx }
+setContext = modifyContext . const
+
+modifyContext :: (LayoutContext -> LayoutContext) -> Parser ()
+modifyContext f = modify $ \ s -> s { parseLayout = f (parseLayout s) }
 
 -- | Return the current layout block.
 topBlock :: Parser (Maybe LayoutBlock)
@@ -352,6 +386,9 @@ popBlock =
             _:ctx   -> setContext ctx
 
 pushBlock :: LayoutBlock -> Parser ()
-pushBlock l =
-    do  ctx <- getContext
-        setContext (l : ctx)
+pushBlock l = modifyContext (l :)
+
+-- | When we see a layout keyword, we push a 'Tentative' block
+--   awaiting the layout column.
+pushPendingBlock :: Parser ()
+pushPendingBlock = pushBlock $ Layout Tentative noColumn
