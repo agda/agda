@@ -256,9 +256,13 @@ instance HasOptions AbsToCon where
   commandLineOptions = AbsToCon commandLineOptions
 
 instance MonadDebug AbsToCon where
-  displayDebugMessage k n s = AbsToCon $ displayDebugMessage k n s
-  formatDebugMessage k n s = AbsToCon $ formatDebugMessage k n s
-  verboseBracket k n s m = AbsToCon $ verboseBracket k n s $ unAbsToCon m
+  formatDebugMessage k n s      = AbsToCon $ formatDebugMessage k n s
+  traceDebugMessage  k n s cont = AbsToCon $ traceDebugMessage  k n s $ unAbsToCon cont  -- can't eta-reduce!
+  verboseBracket     k n s cont = AbsToCon $ verboseBracket     k n s $ unAbsToCon cont  -- because of GHC-9.0
+
+  getVerbosity     = defaultGetVerbosity
+  isDebugPrinting  = defaultIsDebugPrinting
+  nowDebugPrinting = defaultNowDebugPrinting
 
 runAbsToCon :: MonadAbsToCon m => AbsToCon c -> m c
 runAbsToCon m = do

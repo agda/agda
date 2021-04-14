@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                        #-}
+{-# LANGUAGE UndecidableInstances       #-}  -- GeneralizedNewtypeDeriving MonadTransControl
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
@@ -4051,7 +4052,8 @@ class Monad m => MonadBlock m where
   catchPatternErr :: (Blocker -> m a) -> m a -> m a
 
 newtype BlockT m a = BlockT { unBlockT :: ExceptT Blocker m a }
-  deriving ( Functor, Applicative, Monad, MonadTrans, MonadIO, Fail.MonadFail
+  deriving ( Functor, Applicative, Monad, MonadTrans, MonadTransControl
+           , MonadIO, Fail.MonadFail
            , ReadTCState, HasOptions
            , MonadTCEnv, MonadTCState, MonadTCM
            )
