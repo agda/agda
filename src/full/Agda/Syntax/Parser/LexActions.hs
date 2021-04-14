@@ -9,6 +9,7 @@ module Agda.Syntax.Parser.LexActions
     , token
     , withInterval, withInterval', withInterval_
     , withLayout
+    , andThen, skip
     , begin, end, beginWith, endWith
     , begin_, end_
     , lexError
@@ -132,49 +133,44 @@ withInterval_ f = withInterval (f . fst)
 -- | Executed for layout keywords. Enters the 'Agda.Syntax.Parser.Lexer.layout'
 --   state and performs the given action.
 withLayout :: LexAction r -> LexAction r
-withLayout a i1 i2 n =
-    do  pushLexState layout
-        a i1 i2 n
+withLayout a = pushLexState layout `andThen` a
 
+-- | Prepend some parser manipulation to an action.
+andThen :: Parser () -> LexAction r -> LexAction r
+andThen cmd a inp inp' n = do cmd; a inp inp' n
+
+-- | Visit the current lexeme again.
+revisit :: LexAction Token
+revisit _ _ _ = lexToken
+
+-- | Throw away the current lexeme.
+skip :: LexAction Token
+skip _ inp' _ = skipTo inp'
 
 -- | Enter a new state without consuming any input.
 begin :: LexState -> LexAction Token
-begin code _ _ _ =
-    do  pushLexState code
-        lexToken
+begin code = beginWith code revisit
 
+-- | Exit the current state without consuming any input.
+end :: LexAction Token
+end = endWith revisit
 
 -- | Enter a new state throwing away the current lexeme.
 begin_ :: LexState -> LexAction Token
-begin_ code _ inp' _ =
-    do  pushLexState code
-        skipTo inp'
+begin_ code = beginWith code skip
 
 -- | Exit the current state throwing away the current lexeme.
 end_ :: LexAction Token
-end_ _ inp' _ =
-    do  popLexState
-        skipTo inp'
-
+end_ = endWith skip
 
 -- | Enter a new state and perform the given action.
 beginWith :: LexState -> LexAction a -> LexAction a
-beginWith code a inp inp' n =
-    do  pushLexState code
-        a inp inp' n
+beginWith code a = pushLexState code `andThen` a
 
 -- | Exit the current state and perform the given action.
 endWith :: LexAction a -> LexAction a
-endWith a inp inp' n =
-    do  popLexState
-        a inp inp' n
+endWith a = popLexState `andThen` a
 
-
--- | Exit the current state without consuming any input
-end :: LexAction Token
-end _ _ _ =
-    do  popLexState
-        lexToken
 
 -- | Parse a 'Keyword' token, triggers layout for 'layoutKeywords'.
 keyword :: Keyword -> LexAction Token
