@@ -23,10 +23,12 @@ module Agda.Syntax.Parser.Layout
     , offsideRule
     , newLayoutBlock
     , emptyLayout
-    , confirmLayoutAtNewLine, confirmedLayoutComing
+    , confirmLayout
+    -- , confirmLayoutAtNewLine, confirmedLayoutComing
     ) where
 
 import Debug.Trace
+import Control.Monad (when)
 
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
@@ -113,7 +115,10 @@ newLayoutBlock inp _ _ = do
     prevOffs <- confirmedLayoutColumn <$> getContext
     if prevOffs >= offset
         then pushLexState empty_layout
-        else pushBlock $ Layout status offset
+        else do
+            when (status == Confirmed) $
+              modifyContext $ confirmTentativeBlocks $ Just offset
+            pushBlock $ Layout status offset
     return $ TokSymbol SymOpenVirtualBrace i
   where
     p = lexPos inp
@@ -125,7 +130,7 @@ newLayoutBlock inp _ _ = do
     popPendingLayout :: Parser LayoutStatus
     popPendingLayout = getContext >>= \case
         Layout status c : rest | c == noColumn -> status <$ setContext rest
-        _ -> __IMPOSSIBLE__
+        _ -> return Confirmed -- WHY NOT __IMPOSSIBLE__
 
     -- | The confirmed layout column, or 0 if there is none.
     confirmedLayoutColumn :: LayoutContext -> Column
@@ -145,6 +150,11 @@ getOffside loc =
         _                   -> GT
 
 
+confirmLayout :: Parser ()
+confirmLayout = getLexState >>= \ case
+  s : _ | s == layout -> confirmedLayoutComing
+  _                   -> confirmLayoutAtNewLine
+
 -- | Mark the pending layout block (must exist) as 'Confirmed'.
 confirmedLayoutComing :: Parser ()
 confirmedLayoutComing = modifyContext $ \case
@@ -155,15 +165,15 @@ confirmedLayoutComing = modifyContext $ \case
 --   tentative layout columns.
 confirmLayoutAtNewLine :: Parser ()
 confirmLayoutAtNewLine = modifyContext $ confirmTentativeBlocks Nothing
-  where
-    -- | Confirm all top 'Tentative' layout columns.
-    -- If a column is given, only those below the given column.
-    --
-    -- The code ensures that the newly created 'Definitive' columns
-    -- are strictly decreasing.
-    --
-    confirmTentativeBlocks :: Maybe Column -> LayoutContext -> LayoutContext
-    confirmTentativeBlocks mcol = \case
-        Layout Tentative col : cxt | maybe True (col <) mcol
-                -> Layout Confirmed col : confirmTentativeBlocks (Just col) cxt
-        cxt  -> cxt
+
+-- | Confirm all top 'Tentative' layout columns.
+-- If a column is given, only those below the given column.
+--
+-- The code ensures that the newly created 'Definitive' columns
+-- are strictly decreasing.
+--
+confirmTentativeBlocks :: Maybe Column -> LayoutContext -> LayoutContext
+confirmTentativeBlocks mcol = \case
+    Layout Tentative col : cxt | maybe True (col <) mcol
+            -> Layout Confirmed col : confirmTentativeBlocks (Just col) cxt
+    cxt  -> cxt

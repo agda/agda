@@ -257,7 +257,7 @@ initStatePos pos flags inp st =
                 , parsePrevChar     = '\n'
                 , parsePrevToken    = ""
                 , parseLexState     = st
-                , parseLayout       = [Layout Tentative noColumn]  -- WHY NOT [] ??
+                , parseLayout       = [ Layout Confirmed 0 ] -- 1 fails -- [Layout Tentative noColumn]  -- WHY NOT [] ??
                 , parseFlags        = flags
                 }
   where

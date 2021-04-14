@@ -8,5 +8,6 @@ offsideRule      :: LexAction Token
 newLayoutBlock   :: LexAction Token
 emptyLayout      :: LexAction Token
 
-confirmLayoutAtNewLine :: Parser ()
-confirmedLayoutComing  :: Parser ()
+confirmLayout    :: Parser ()
+-- confirmLayoutAtNewLine :: Parser ()
+-- confirmedLayoutComing  :: Parser ()
