@@ -28,7 +28,8 @@ module Agda.Syntax.Parser.Layout
     ) where
 
 import Debug.Trace
-import Control.Monad (when)
+import Control.Monad        ( when )
+import Control.Monad.State  ( gets, modify )
 
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Alex
@@ -125,12 +126,12 @@ newLayoutBlock inp _ _ = do
     i = posToInterval (lexSrcFile inp) p p
     offset = posCol p
 
-    -- | Remove the pending layout block which was introduced by a layout keyword.
-    --   Must exist.
+    -- | Get and reset the status of the coming layout block.
     popPendingLayout :: Parser LayoutStatus
-    popPendingLayout = getContext >>= \case
-        Layout status c : rest | c == noColumn -> status <$ setContext rest
-        _ -> return Confirmed -- WHY NOT __IMPOSSIBLE__
+    popPendingLayout = do
+        status <- gets parseLayStatus
+        resetLayoutStatus
+        return status
 
     -- | The confirmed layout column, or 0 if there is none.
     confirmedLayoutColumn :: LayoutContext -> Column
@@ -144,27 +145,24 @@ newLayoutBlock inp _ _ = do
 getOffside :: Position' a -> Parser Ordering
 getOffside loc =
     getContext <&> \case
-        Layout _ n : _
-          | n == noColumn   -> __IMPOSSIBLE__
-          | otherwise       -> compare (posCol loc) n
-        _                   -> GT
+        Layout _ n : _ -> compare (posCol loc) n
+        _              -> GT
 
 
 confirmLayout :: Parser ()
 confirmLayout = getLexState >>= \ case
   s : _ | s == layout -> confirmedLayoutComing
   _                   -> confirmLayoutAtNewLine
+  where
 
--- | Mark the pending layout block (must exist) as 'Confirmed'.
-confirmedLayoutComing :: Parser ()
-confirmedLayoutComing = modifyContext $ \case
-    Layout _ c : cxt | c == noColumn -> Layout Confirmed c : cxt
-    cxt -> Layout Confirmed noColumn : cxt -- WHY IS THIS POSSIBLE? -- traceShow cxt __IMPOSSIBLE__
+  -- | Mark the pending layout block as 'Confirmed'.
+  confirmedLayoutComing :: Parser ()
+  confirmedLayoutComing = modify $ \ s -> s { parseLayStatus = Confirmed }
 
--- | Encountering a newline outside of a @layout_@ state we confirm top
---   tentative layout columns.
-confirmLayoutAtNewLine :: Parser ()
-confirmLayoutAtNewLine = modifyContext $ confirmTentativeBlocks Nothing
+  -- | Encountering a newline outside of a @layout_@ state we confirm top
+  --   tentative layout columns.
+  confirmLayoutAtNewLine :: Parser ()
+  confirmLayoutAtNewLine = modifyContext $ confirmTentativeBlocks Nothing
 
 -- | Confirm all top 'Tentative' layout columns.
 -- If a column is given, only those below the given column.

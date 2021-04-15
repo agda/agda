@@ -133,7 +133,8 @@ withInterval_ f = withInterval (f . fst)
 -- | Executed for layout keywords. Enters the 'Agda.Syntax.Parser.Lexer.layout'
 --   state and performs the given action.
 withLayout :: LexAction r -> LexAction r
-withLayout a = pushLexState layout `andThen` pushPendingBlock `andThen` a
+withLayout a = pushLexState layout -- `andThen` resetLayoutStatus  -- Shouldn't be needed
+  `andThen` a
 
 infixr 1 `andThen`
 

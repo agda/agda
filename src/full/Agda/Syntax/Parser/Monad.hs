@@ -23,8 +23,7 @@ module Agda.Syntax.Parser.Monad
       -- ** Layout
     , topBlock, popBlock, pushBlock
     , getContext, setContext, modifyContext
-    , pushPendingBlock
-    , noColumn
+    , resetLayoutStatus
       -- ** Errors
     , parseWarningName
     , parseError, parseErrorAt, parseError', parseErrorRange
@@ -70,6 +69,7 @@ data ParseState = PState
     , parsePrevChar :: !Char                 -- ^ the character before the input
     , parsePrevToken:: String                -- ^ the previous token
     , parseLayout   :: LayoutContext         -- ^ the stack of layout blocks
+    , parseLayStatus:: LayoutStatus          -- ^ the status of the coming layout block
     , parseLexState :: [LexState]            -- ^ the state of the lexer
                                              --   (states can be nested so we need a stack)
     , parseFlags    :: ParseFlags            -- ^ parametrization of the parser
@@ -98,10 +98,6 @@ data LayoutBlock
 
 -- | A (layout) column.
 type Column = Int32
-
--- | An invalid column value for a still unknown layout column.
-noColumn :: Column
-noColumn = maxBound
 
 -- | Status of a layout column (see #1145).
 --   A layout column is 'Tentative' until we encounter a new line.
@@ -257,7 +253,8 @@ initStatePos pos flags inp st =
                 , parsePrevChar     = '\n'
                 , parsePrevToken    = ""
                 , parseLexState     = st
-                , parseLayout       = [ Layout Confirmed 0 ] -- 1 fails -- [Layout Tentative noColumn]  -- WHY NOT [] ??
+                , parseLayout       = [ Layout Tentative 1 ] -- [ Layout Confirmed 0 ] -- 1 fails -- WHY NOT [] ??
+                , parseLayStatus    = Tentative
                 , parseFlags        = flags
                 }
   where
@@ -388,7 +385,6 @@ popBlock =
 pushBlock :: LayoutBlock -> Parser ()
 pushBlock l = modifyContext (l :)
 
--- | When we see a layout keyword, we push a 'Tentative' block
---   awaiting the layout column.
-pushPendingBlock :: Parser ()
-pushPendingBlock = pushBlock $ Layout Tentative noColumn
+-- | When we see a layout keyword, by default we expect a 'Tentative' block.
+resetLayoutStatus :: Parser ()
+resetLayoutStatus = modify $ \ s -> s { parseLayStatus = Tentative }
