@@ -253,8 +253,8 @@ initStatePos pos flags inp st =
                 , parsePrevChar     = '\n'
                 , parsePrevToken    = ""
                 , parseLexState     = st
-                , parseLayout       = [ Layout Tentative 1 ] -- [ Layout Confirmed 0 ] -- 1 fails -- WHY NOT [] ??
-                , parseLayStatus    = Tentative
+                , parseLayout       = []        -- the first block will be from the top-level layout
+                , parseLayStatus    = Confirmed -- for the to-be-determined column of the top-level layout
                 , parseFlags        = flags
                 }
   where
