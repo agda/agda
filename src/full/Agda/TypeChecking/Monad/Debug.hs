@@ -148,7 +148,7 @@ instance MonadDebug TCM where
 
 -- MonadTrans default instances
 
-instance MonadDebug m => MonadDebug (BlockT m)
+deriving instance MonadDebug m => MonadDebug (BlockT m)  -- ghc <= 8.0, GeneralizedNewtypeDeriving
 instance MonadDebug m => MonadDebug (ChangeT m)
 instance MonadDebug m => MonadDebug (ExceptT e m)
 instance MonadDebug m => MonadDebug (MaybeT m)
