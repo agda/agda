@@ -311,6 +311,25 @@ Language
   type must also be non-indexed.) When `f` is compiled the clause that
   matches on `compile-time` is omitted.
 
+* Erased pattern-matching lambdas (see
+  [#4525](https://github.com/agda/agda/issues/4525)).
+
+  Regular pattern-matching lambdas are treated as non-erased
+  function definitions. One can make a pattern-matching lambda erased
+  by writing `@0` or `@erased` after the lambda:
+  ```agda
+  @0 _ : @0 Set → Set
+  _ = λ @0 { A → A }
+
+  @0 _ : @0 Set → Set
+  _ = λ @erased where
+    A → A
+  ```
+
+  The reflection machinery currently does not support erased
+  pattern-matching lambdas (they are quoted as regular
+  pattern-matching lambdas).
+
 * New (?) rule for modalities of generalised variables
   (see [#5058](https://github.com/agda/agda/issues/5058)).
 

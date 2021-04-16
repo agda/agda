@@ -663,19 +663,12 @@ LetBody : 'in' Expr   { Just $2 }
 
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam
-    : '\\' '{' LamClauses '}'                  { ExtendedLam (getRange ($1,$2,$3,$4)) (List1.reverse $3) }
-    | '\\' 'where' vopen LamWhereClauses close { ExtendedLam (getRange ($1, $2, $4))  (List1.reverse $4) }
-    | '\\' AbsurdLamBindings
-             {% case $2 of
-                  Left (bs, h) -> List1.ifNull bs
-                    {-then-} (return $ AbsurdLam r h)
-                    {-else-} $ \ bs -> return $ Lam r bs (AbsurdLam r h)
-                    where r = fuseRange $1 bs
-                  Right es -> do
-                    -- It is of the form @\ { p1 ... () }@.
-                    cl <- mkAbsurdLamClause False es
-                    return $ ExtendedLam (fuseRange $1 es) $ singleton cl
-             }
+    : '\\'             '{' LamClauses '}'                  {% extLam (getRange ($1, $2, $4))     []                $3 }
+    | '\\' Attributes1 '{' LamClauses '}'                  {% extLam (getRange ($1, $3, $5))     (List1.toList $2) $4 }
+    | '\\'             'where' vopen LamWhereClauses close {% extLam (getRange ($1, $2, $3, $5)) []                $4 }
+    | '\\' Attributes1 'where' vopen LamWhereClauses close {% extLam (getRange ($1, $3, $4, $6)) (List1.toList $2) $5 }
+    | '\\'             AbsurdLamBindings                   {% extOrAbsLam (getRange $1) []                $2 }
+    | '\\' Attributes1 AbsurdLamBindings                   {% extOrAbsLam (getRange $1) (List1.toList $2) $3 }
 
 Application3 :: { List1 Expr }
 Application3
@@ -1987,6 +1980,74 @@ addType :: LamBinding -> TypedBinding
 addType (DomainFull b) = b
 addType (DomainFree x) = TBind r (singleton x) $ Underscore r Nothing
   where r = getRange x
+
+-- | Returns the value of the first erasure attribute, if any, or else
+-- the default value of type 'Erased'.
+--
+-- Raises warnings for all attributes except for erasure attributes,
+-- and for multiple erasure attributes.
+
+onlyErased
+  :: [Attr]  -- ^ The attributes, in reverse order.
+  -> Parser Erased
+onlyErased as = do
+  es <- catMaybes <$> mapM onlyErased' (reverse as)
+  case es of
+    []     -> return defaultErased
+    [e]    -> return e
+    e : es -> do
+      parseWarning $ MultipleAttributes (getRange es) (Just "erasure")
+      return e
+  where
+  onlyErased' a = case theAttr a of
+    RelevanceAttribute{} -> unsup "Relevance"
+    CohesionAttribute{}  -> unsup "Cohesion"
+    LockAttribute{}      -> unsup "Lock"
+    TacticAttribute{}    -> unsup "Tactic"
+    QuantityAttribute q  -> case q of
+      Quantity1{} -> unsup "Linearity"
+      Quantity0 o -> return $ Just (Erased    o)
+      Quantityω o -> return $ Just (NotErased o)
+    where
+    unsup s = do
+      parseWarning $ UnsupportedAttribute (attrRange a) (Just s)
+      return Nothing
+
+-- | Constructs extended lambdas.
+
+extLam
+  :: Range            -- ^ The range of the lambda symbol and @where@ or
+                      --   the braces.
+  -> [Attr]           -- ^ The attributes in reverse order.
+  -> List1 LamClause  -- ^ The clauses in reverse order.
+  -> Parser Expr
+extLam symbolRange attrs cs = do
+  e <- onlyErased attrs
+  let cs' = List1.reverse cs
+  return $ ExtendedLam (getRange (symbolRange, e, cs')) e cs'
+
+-- | Constructs extended or absurd lambdas.
+
+extOrAbsLam
+  :: Range   -- ^ The range of the lambda symbol.
+  -> [Attr]  -- ^ The attributes, in reverse order.
+  -> Either ([LamBinding], Hiding) (List1 Expr)
+  -> Parser Expr
+extOrAbsLam lambdaRange attrs cs = case cs of
+  Right es -> do
+    -- It is of the form @\ { p1 ... () }@.
+    e  <- onlyErased attrs
+    cl <- mkAbsurdLamClause False es
+    return $ ExtendedLam (getRange (lambdaRange, e, es)) e $ singleton cl
+  Left (bs, h) -> do
+    mapM_ (\a -> parseWarning $
+                   UnsupportedAttribute (attrRange a) Nothing)
+          (reverse attrs)
+    List1.ifNull bs
+      {-then-} (return $ AbsurdLam r h)
+      {-else-} $ \ bs -> return $ Lam r bs (AbsurdLam r h)
+    where
+    r = fuseRange lambdaRange bs
 
 -- | Interpret an expression as a list of names and (not parsed yet) as-patterns
 

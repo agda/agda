@@ -695,7 +695,8 @@ reifyTerm expandAnonDefs0 v0 = do
         case extLam of
           Just (pars, sys) | df, x `notElem` alreadyPrinting ->
             locallyTC ePrintingPatternLambdas (x :) $
-            reifyExtLam x pars sys (defClauses defn) es
+            reifyExtLam x (defArgInfo defn) pars sys
+              (defClauses defn) es
 
         -- Otherwise (ordinary function call):
           _ -> do
@@ -789,8 +790,11 @@ reifyTerm expandAnonDefs0 v0 = do
     -- patterns, we fall back to printing the internal function created for the
     -- extended lambda, instead trying to construct the nice syntax.
 
-    reifyExtLam :: MonadReify m => QName -> Int -> Maybe System -> [I.Clause] -> I.Elims -> m Expr
-    reifyExtLam x npars msys cls es = do
+    reifyExtLam
+      :: MonadReify m
+      => QName -> ArgInfo -> Int -> Maybe System -> [I.Clause]
+      -> I.Elims -> m Expr
+    reifyExtLam x i npars msys cls es = do
       reportSLn "reify.def" 10 $ "reifying extended lambda " ++ prettyShow x
       reportSLn "reify.def" 50 $ render $ nest 2 $ vcat
         [ "npars =" <+> pretty npars
@@ -807,9 +811,16 @@ reifyTerm expandAnonDefs0 v0 = do
       cls <- caseMaybe msys
                (mapM (reify . NamedClause x False . (`apply` pars)) cls)
                (reify . QNamed x . (`apply` pars))
-      let cx    = nameConcrete $ qnameName x
-          dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      elims (A.ExtendedLam exprNoRange dInfo x $ List1.fromList cls) =<< reify rest
+      let cx     = nameConcrete $ qnameName x
+          dInfo  = mkDefInfo cx noFixity' PublicAccess ConcreteDef
+                     (getRange x)
+          erased = case getQuantity i of
+            Quantity0 o -> Erased o
+            Quantityω o -> NotErased o
+            Quantity1 o -> __IMPOSSIBLE__
+      elims (A.ExtendedLam exprNoRange dInfo erased x $
+             List1.fromList cls)
+        =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
@@ -1012,37 +1023,37 @@ instance BlankVars A.Pattern where
 
 instance BlankVars A.Expr where
   blank bound e = case e of
-    A.ScopedExpr i e       -> A.ScopedExpr i $ blank bound e
-    A.Var x                -> if x `Set.member` bound then e
-                              else A.Underscore emptyMetaInfo  -- Here is the action!
-    A.Def' _ _             -> e
-    A.Proj{}               -> e
-    A.Con _                -> e
-    A.Lit _ _              -> e
-    A.QuestionMark{}       -> e
-    A.Underscore _         -> e
-    A.Dot i e              -> A.Dot i $ blank bound e
-    A.App i e1 e2          -> uncurry (A.App i) $ blank bound (e1, e2)
-    A.WithApp i e es       -> uncurry (A.WithApp i) $ blank bound (e, es)
-    A.Lam i b e            -> let bound' = varsBoundIn b `Set.union` bound
-                              in  A.Lam i (blank bound b) (blank bound' e)
-    A.AbsurdLam _ _        -> e
-    A.ExtendedLam i d f cs -> A.ExtendedLam i d f $ blank bound cs
-    A.Pi i tel e           -> let bound' = varsBoundIn tel `Set.union` bound
-                              in  uncurry (A.Pi i) $ blank bound' (tel, e)
-    A.Generalized {}       -> __IMPOSSIBLE__
-    A.Fun i a b            -> uncurry (A.Fun i) $ blank bound (a, b)
-    A.Let _ _ _            -> __IMPOSSIBLE__
-    A.Rec i es             -> A.Rec i $ blank bound es
-    A.RecUpdate i e es     -> uncurry (A.RecUpdate i) $ blank bound (e, es)
-    A.ETel _               -> __IMPOSSIBLE__
-    A.Quote {}             -> __IMPOSSIBLE__
-    A.QuoteTerm {}         -> __IMPOSSIBLE__
-    A.Unquote {}           -> __IMPOSSIBLE__
-    A.Tactic {}            -> __IMPOSSIBLE__
-    A.DontCare v           -> A.DontCare $ blank bound v
-    A.PatternSyn {}        -> e
-    A.Macro {}             -> e
+    A.ScopedExpr i e         -> A.ScopedExpr i $ blank bound e
+    A.Var x                  -> if x `Set.member` bound then e
+                                else A.Underscore emptyMetaInfo  -- Here is the action!
+    A.Def' _ _               -> e
+    A.Proj{}                 -> e
+    A.Con _                  -> e
+    A.Lit _ _                -> e
+    A.QuestionMark{}         -> e
+    A.Underscore _           -> e
+    A.Dot i e                -> A.Dot i $ blank bound e
+    A.App i e1 e2            -> uncurry (A.App i) $ blank bound (e1, e2)
+    A.WithApp i e es         -> uncurry (A.WithApp i) $ blank bound (e, es)
+    A.Lam i b e              -> let bound' = varsBoundIn b `Set.union` bound
+                                in  A.Lam i (blank bound b) (blank bound' e)
+    A.AbsurdLam _ _          -> e
+    A.ExtendedLam i d e f cs -> A.ExtendedLam i d e f $ blank bound cs
+    A.Pi i tel e             -> let bound' = varsBoundIn tel `Set.union` bound
+                                in  uncurry (A.Pi i) $ blank bound' (tel, e)
+    A.Generalized {}         -> __IMPOSSIBLE__
+    A.Fun i a b              -> uncurry (A.Fun i) $ blank bound (a, b)
+    A.Let _ _ _              -> __IMPOSSIBLE__
+    A.Rec i es               -> A.Rec i $ blank bound es
+    A.RecUpdate i e es       -> uncurry (A.RecUpdate i) $ blank bound (e, es)
+    A.ETel _                 -> __IMPOSSIBLE__
+    A.Quote {}               -> __IMPOSSIBLE__
+    A.QuoteTerm {}           -> __IMPOSSIBLE__
+    A.Unquote {}             -> __IMPOSSIBLE__
+    A.Tactic {}              -> __IMPOSSIBLE__
+    A.DontCare v             -> A.DontCare $ blank bound v
+    A.PatternSyn {}          -> e
+    A.Macro {}               -> e
 
 instance BlankVars A.ModuleName where
   blank bound = id

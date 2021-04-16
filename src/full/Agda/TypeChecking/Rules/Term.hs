@@ -776,15 +776,19 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
           Def aux . map Apply . teleArgs <$> getContextTelescope
       _ -> typeError $ ShouldBePi t'
 
--- | @checkExtendedLambda i di qname cs e t@ check pattern matching lambda.
--- Precondition: @e = ExtendedLam i di qname cs@
-checkExtendedLambda :: Comparison -> A.ExprInfo -> A.DefInfo -> QName -> List1 A.Clause ->
-                       A.Expr -> Type -> TCM Term
-checkExtendedLambda cmp i di qname cs e t = localTC (set eQuantity topQuantity) $ do
-      -- Andreas, 2019-10-01: check extended lambdas in non-erased mode.
-      -- Otherwise, they are not usable in meta-solutions in the term world.
-      -- See test/Succeed/Issue{3581}.agda for an extended lambda
-      -- created in a type.
+-- | @checkExtendedLambda i di erased qname cs e t@ check pattern matching lambda.
+-- Precondition: @e = ExtendedLam i di erased qname cs@
+checkExtendedLambda ::
+  Comparison -> A.ExprInfo -> A.DefInfo -> Erased -> QName ->
+  List1 A.Clause -> A.Expr -> Type -> TCM Term
+checkExtendedLambda cmp i di erased qname cs e t = do
+  mod <- asksTC getModality
+  if isErased erased && not (hasQuantity0 mod) then
+    genericError $ unwords
+      [ "Erased pattern-matching lambdas may only be used in erased"
+      , "contexts"
+      ]
+   else localTC (set eQuantity $ asQuantity erased) $ do
    -- Andreas, 2016-06-16 issue #2045
    -- Try to get rid of unsolved size metas before we
    -- fix the type of the extended lambda auxiliary function
@@ -1194,7 +1198,8 @@ checkExpr' cmp e t =
 
         A.AbsurdLam i h -> checkAbsurdLambda cmp i h e t
 
-        A.ExtendedLam i di qname cs -> checkExtendedLambda cmp i di qname cs e t
+        A.ExtendedLam i di erased qname cs ->
+          checkExtendedLambda cmp i di erased qname cs e t
 
         A.Lam i (A.DomainFull b) e -> checkLambda cmp b e t
 
@@ -1295,11 +1300,11 @@ checkExpr' cmp e t =
       checkExpr' cmp (A.Lam (A.ExprRange re) (domainFree info $ A.mkBinder x) e) tReduced
 
     hiddenLambdaOrHole h = \case
-      A.AbsurdLam _ h'        -> sameHiding h h'
-      A.ExtendedLam _ _ _ cls -> any hiddenLHS cls
-      A.Lam _ bind _          -> sameHiding h bind
-      A.QuestionMark{}        -> True
-      _                       -> False
+      A.AbsurdLam _ h'          -> sameHiding h h'
+      A.ExtendedLam _ _ _ _ cls -> any hiddenLHS cls
+      A.Lam _ bind _            -> sameHiding h bind
+      A.QuestionMark{}          -> True
+      _                         -> False
 
     hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _))) _ _ _ _) = notVisible a
     hiddenLHS _ = False

@@ -169,6 +169,8 @@ data WarningName
   =
   -- Parser Warnings
     OverlappingTokensWarning_
+  | UnsupportedAttribute_
+  | MultipleAttributes_
   -- Library Warnings
   | LibUnknownField_
   -- Nicifer Warnings
@@ -322,6 +324,8 @@ warningNameDescription :: WarningName -> String
 warningNameDescription = \case
   -- Parser Warnings
   OverlappingTokensWarning_        -> "Multi-line comments spanning one or more literate text blocks."
+  UnsupportedAttribute_            -> "Unsupported attributes."
+  MultipleAttributes_              -> "Multiple attributes."
   -- Library Warnings
   LibUnknownField_                 -> "Unknown field in library file."
   -- Nicifer Warnings

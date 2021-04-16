@@ -227,35 +227,35 @@ instance Hilite A.Pragma where
 
 instance Hilite A.Expr where
   hilite = \case
-      A.Var x                    -> hl $ A.BindName x        -- bound variable like binder
-      A.Def' q _                 -> hiliteQName Nothing q
-      A.Proj _o qs               -> hiliteAmbiguousQName Nothing qs  -- Issue #4604: not: hiliteProjection qs
-                                      -- Names from @open R r@ should not be highlighted as projections
-      A.Con qs                   -> hiliteAmbiguousQName Nothing qs  -- TODO? Con aspect
-      A.PatternSyn qs            -> hilitePatternSynonym qs
-      A.Macro q                  -> hiliteQName (Just Macro) q
-      A.Lit _r l                 -> hl l
-      A.QuestionMark _mi _ii     -> mempty
-      A.Underscore _mi           -> mempty
-      A.Dot _r e                 -> hl e                   -- TODO? Projection?
-      A.App _r e es              -> hl e <> hl es
-      A.WithApp _r e es          -> hl e <> hl es
-      A.Lam _r bs e              -> hl bs <> hl e
-      A.AbsurdLam _r _h          -> mempty
-      A.ExtendedLam _r _di _q cs -> hl cs -- No hilighting of generated extended lambda name!
-      A.Pi _r tel b              -> hl tel <> hl b
-      A.Generalized _qs e        -> hl e
-      A.Fun _r a b               -> hl a <> hl b
-      A.Let _r bs e              -> hl bs <> hl e
-      A.ETel _tel                -> mempty  -- Printing only construct
-      A.Rec _r ass               -> hl ass
-      A.RecUpdate _r e ass       -> hl e <> hl ass
-      A.ScopedExpr _ e           -> hl e
-      A.Quote _r                 -> mempty
-      A.QuoteTerm _r             -> mempty
-      A.Unquote _r               -> mempty
-      A.Tactic _r e es           -> hl e <> hl es
-      A.DontCare e               -> hl e
+      A.Var x                       -> hl $ A.BindName x        -- bound variable like binder
+      A.Def' q _                    -> hiliteQName Nothing q
+      A.Proj _o qs                  -> hiliteAmbiguousQName Nothing qs  -- Issue #4604: not: hiliteProjection qs
+                                         -- Names from @open R r@ should not be highlighted as projections
+      A.Con qs                      -> hiliteAmbiguousQName Nothing qs  -- TODO? Con aspect
+      A.PatternSyn qs               -> hilitePatternSynonym qs
+      A.Macro q                     -> hiliteQName (Just Macro) q
+      A.Lit _r l                    -> hl l
+      A.QuestionMark _mi _ii        -> mempty
+      A.Underscore _mi              -> mempty
+      A.Dot _r e                    -> hl e                   -- TODO? Projection?
+      A.App _r e es                 -> hl e <> hl es
+      A.WithApp _r e es             -> hl e <> hl es
+      A.Lam _r bs e                 -> hl bs <> hl e
+      A.AbsurdLam _r _h             -> mempty
+      A.ExtendedLam _r _di _e _q cs -> hl cs -- No hilighting of generated extended lambda name!
+      A.Pi _r tel b                 -> hl tel <> hl b
+      A.Generalized _qs e           -> hl e
+      A.Fun _r a b                  -> hl a <> hl b
+      A.Let _r bs e                 -> hl bs <> hl e
+      A.ETel _tel                   -> mempty  -- Printing only construct
+      A.Rec _r ass                  -> hl ass
+      A.RecUpdate _r e ass          -> hl e <> hl ass
+      A.ScopedExpr _ e              -> hl e
+      A.Quote _r                    -> mempty
+      A.QuoteTerm _r                -> mempty
+      A.Unquote _r                  -> mempty
+      A.Tactic _r e es              -> hl e <> hl es
+      A.DontCare e                  -> hl e
     where
     hl a = hilite a
 

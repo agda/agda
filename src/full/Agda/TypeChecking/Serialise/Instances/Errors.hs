@@ -129,9 +129,13 @@ instance EmbPrj Warning where
 instance EmbPrj ParseWarning where
   icod_ = \case
     OverlappingTokensWarning a -> icodeN 0 OverlappingTokensWarning a
+    UnsupportedAttribute a b   -> icodeN 1 UnsupportedAttribute a b
+    MultipleAttributes a b     -> icodeN 2 MultipleAttributes a b
 
   value = vcase $ \case
-    [0, a] -> valuN OverlappingTokensWarning a
+    [0, a]    -> valuN OverlappingTokensWarning a
+    [1, a, b] -> valuN UnsupportedAttribute a b
+    [2, a, b] -> valuN MultipleAttributes a b
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where

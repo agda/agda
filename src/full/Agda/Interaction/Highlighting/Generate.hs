@@ -466,6 +466,8 @@ warningHighlighting' b w = case tcWarning w of
                              -> deadcodeHighlighting w
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
   ParseWarning w             -> case w of
+    Pa.UnsupportedAttribute{}     -> deadcodeHighlighting w
+    Pa.MultipleAttributes{}       -> deadcodeHighlighting w
     Pa.OverlappingTokensWarning{} -> mempty
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of

@@ -796,7 +796,7 @@ instance ToConcrete A.Expr where
                   (bs@(A.DomainFull _ : _), e) -> (b:bs, e)
                   _                            -> ([b], e)
           lamView e = ([], e)
-    toConcrete (A.ExtendedLam i di qname cs) =
+    toConcrete (A.ExtendedLam i di erased qname cs) =
         bracket lamBrackets $ do
           decls <- concat <$> toConcrete cs
           let namedPat np = case getHiding np of
@@ -825,7 +825,8 @@ instance ToConcrete A.Expr where
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
                 return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
-          C.ExtendedLam (getRange i) . List1.fromList <$> mapM decl2clause decls
+          C.ExtendedLam (getRange i) erased . List1.fromList <$>
+            mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 
     toConcrete (A.Pi _ tel1 e0) = do

@@ -138,14 +138,22 @@ data ParseWarning
     { warnRange    :: !(Range' SrcFile)
                       -- ^ The range of the bigger overlapping token
     }
+  | UnsupportedAttribute Range !(Maybe String)
+    -- ^ Unsupported attribute.
+  | MultipleAttributes Range !(Maybe String)
+    -- ^ Multiple attributes.
   deriving (Data, Show)
 
 instance NFData ParseWarning where
   rnf (OverlappingTokensWarning _) = ()
+  rnf (UnsupportedAttribute _ s)   = rnf s
+  rnf (MultipleAttributes _ s)     = rnf s
 
 parseWarningName :: ParseWarning -> WarningName
 parseWarningName = \case
   OverlappingTokensWarning{} -> OverlappingTokensWarning_
+  UnsupportedAttribute{}     -> UnsupportedAttribute_
+  MultipleAttributes{}       -> MultipleAttributes_
 
 -- | The result of parsing something.
 data ParseResult a
@@ -217,8 +225,23 @@ instance Pretty ParseWarning where
       [ (pretty warnRange <> colon) <+>
         "Multi-line comment spans one or more literate text blocks."
       ]
+  pretty (UnsupportedAttribute r s) = vcat
+    [ (pretty r <> colon) <+>
+      (case s of
+         Nothing -> "Attributes"
+         Just s  -> text s <+> "attributes") <+>
+      "are not supported here."
+    ]
+  pretty (MultipleAttributes r s) = vcat
+    [ (pretty r <> colon) <+>
+      "Multiple" <+>
+      maybe id (\s -> (text s <+>)) s "attributes (ignored)."
+    ]
+
 instance HasRange ParseWarning where
   getRange OverlappingTokensWarning{warnRange} = warnRange
+  getRange (UnsupportedAttribute r _)          = r
+  getRange (MultipleAttributes r _)            = r
 
 {--------------------------------------------------------------------------
     Running the parser
