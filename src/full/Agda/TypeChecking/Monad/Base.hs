@@ -157,9 +157,10 @@ instance Show TCState where
   show _ = "TCSt{}"
 
 data PreScopeState = PreScopeState
-  { stPreTokens             :: !CompressedFile -- from lexer
-    -- ^ Highlighting info for tokens (but not those tokens for
-    -- which highlighting exists in 'stSyntaxInfo').
+  { stPreTokens             :: !CompressedFile
+    -- ^ Highlighting info for tokens and Happy parser warnings (but
+    -- not for those tokens/warnings for which highlighting exists in
+    -- 'stPostSyntaxInfo').
   , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
     --   Those most not be serialized!
@@ -2707,8 +2708,9 @@ data HighlightingMethod
     deriving (Eq, Show, Read, Data, Generic)
 
 -- | @ifTopLevelAndHighlightingLevelIs l b m@ runs @m@ when we're
--- type-checking the top-level module and either the highlighting
--- level is /at least/ @l@ or @b@ is 'True'.
+-- type-checking the top-level module (or before we've started doing
+-- this) and either the highlighting level is /at least/ @l@ or @b@ is
+-- 'True'.
 
 ifTopLevelAndHighlightingLevelIsOr ::
   MonadTCEnv tcm => HighlightingLevel -> Bool -> tcm () -> tcm ()
@@ -2716,16 +2718,14 @@ ifTopLevelAndHighlightingLevelIsOr l b m = do
   e <- askTC
   when (envHighlightingLevel e >= l || b) $
     case (envImportPath e) of
-      -- No current module
-      [] -> pure ()
-      -- Top level ("main") module
-      (_:[]) -> m
-      -- Below the main module
+      -- Below the main module.
       (_:_:_) -> pure ()
+      -- In or before the top-level module.
+      _ -> m
 
 -- | @ifTopLevelAndHighlightingLevelIs l m@ runs @m@ when we're
--- type-checking the top-level module and the highlighting level is
--- /at least/ @l@.
+-- type-checking the top-level module (or before we've started doing
+-- this) and the highlighting level is /at least/ @l@.
 
 ifTopLevelAndHighlightingLevelIs ::
   MonadTCEnv tcm => HighlightingLevel -> tcm () -> tcm ()

@@ -93,7 +93,11 @@ data Level
 highlightWarning :: TCWarning -> TCM ()
 highlightWarning tcwarn = do
   let h = compress $ warningHighlighting' False tcwarn
-  modifyTCLens stSyntaxInfo (h <>)
+  -- Highlighting for warnings coming from the Happy parser is placed
+  -- together with token highlighting.
+  case tcWarning tcwarn of
+    ParseWarning{} -> modifyTCLens stTokens     (h <>)
+    _              -> modifyTCLens stSyntaxInfo (h <>)
   ifTopLevelAndHighlightingLevelIs NonInteractive $
     printHighlightingInfo KeepHighlighting h
 
@@ -103,10 +107,11 @@ highlightWarning tcwarn = do
 -- highlighting info (in case of a conflict new info takes precedence
 -- over old info).
 --
--- The procedure makes use of some of the token highlighting info in
--- 'stTokens' (that corresponding to the interval covered by the
--- declaration). If the boolean is 'True', then this token
--- highlighting info is additionally removed from 'stTokens'.
+-- The procedure makes use of some of the highlighting info
+-- corresponding to 'stTokens' (that corresponding to the interval
+-- covered by the declaration). If the boolean is 'True', then this
+-- highlighting info is additionally removed from the data structure
+-- that 'stTokens' refers to.
 
 generateAndPrintSyntaxInfo
   :: A.Declaration
@@ -150,7 +155,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
           P.rangeFile <$> viewTC eRange
       ]
 
-    -- Highlighting from the lexer:
+    -- Highlighting from the lexer and Happy parser:
     let (from, to) = case P.rangeToInterval (getRange decl) of
           Nothing -> __IMPOSSIBLE__
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
@@ -427,7 +432,6 @@ warningHighlighting' b w = case tcWarning w of
   InstanceWithExplicitArg{}  -> deadcodeHighlighting w
   InstanceNoOutputTypeName{} -> mempty
   InstanceArgWithExplicitArg{} -> mempty
-  ParseWarning{}             -> mempty
   InversionDepthReached{}    -> mempty
   GenericWarning{}           -> mempty
   GenericUseless r _         -> deadcodeHighlighting r
@@ -461,6 +465,8 @@ warningHighlighting' b w = case tcWarning w of
   AsPatternShadowsConstructorOrPatternSynonym{}
                              -> deadcodeHighlighting w
   RecordFieldWarning w       -> recordFieldWarningHighlighting w
+  ParseWarning w             -> case w of
+    Pa.OverlappingTokensWarning{} -> mempty
   NicifierIssue (DeclarationWarning _ w) -> case w of
     -- we intentionally override the binding of `w` here so that our pattern of
     -- using `getRange w` still yields the most precise range information we

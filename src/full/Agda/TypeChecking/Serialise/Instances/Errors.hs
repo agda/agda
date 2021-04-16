@@ -9,6 +9,7 @@ import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
+import Agda.Syntax.Parser.Monad
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
@@ -49,7 +50,6 @@ instance EmbPrj Warning where
     SafeFlagNoCoverageCheck               -> __IMPOSSIBLE__
     SafeFlagInjective                     -> __IMPOSSIBLE__
     SafeFlagEta                           -> __IMPOSSIBLE__
-    ParseWarning a                        -> __IMPOSSIBLE__
     DeprecationWarning a b c              -> icodeN 6 DeprecationWarning a b c
     NicifierIssue a                       -> icodeN 7 NicifierIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
@@ -82,6 +82,7 @@ instance EmbPrj Warning where
     GenericUseless a b                    -> icodeN 35 GenericUseless a b
     RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
+    ParseWarning a                        -> icodeN 38 ParseWarning a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -122,6 +123,15 @@ instance EmbPrj Warning where
     [35, a, b]           -> valuN GenericUseless a b
     [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
+    [38, a]              -> valuN ParseWarning a
+    _ -> malformed
+
+instance EmbPrj ParseWarning where
+  icod_ = \case
+    OverlappingTokensWarning a -> icodeN 0 OverlappingTokensWarning a
+
+  value = vcase $ \case
+    [0, a] -> valuN OverlappingTokensWarning a
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where

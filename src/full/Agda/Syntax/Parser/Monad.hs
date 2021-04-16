@@ -22,7 +22,7 @@ module Agda.Syntax.Parser.Monad
       -- ** Layout
     , topBlock, popBlock, pushBlock
       -- ** Errors
-    , parseWarningName
+    , parseWarning, parseWarningName
     , parseError, parseErrorAt, parseError', parseErrorRange
     , lexError
     )
@@ -69,6 +69,7 @@ data ParseState = PState
     , parseLexState :: [LexState]            -- ^ the state of the lexer
                                              --   (states can be nested so we need a stack)
     , parseFlags    :: ParseFlags            -- ^ parametrization of the parser
+    , parseWarnings :: ![ParseWarning]       -- ^ In reverse order.
     }
     deriving Show
 
@@ -170,6 +171,12 @@ parseError msg = do
     , errMsg       = msg
     }
 
+-- | Records a warning.
+
+parseWarning :: ParseWarning -> Parser ()
+parseWarning w =
+  modify' $ \s -> s { parseWarnings = w : parseWarnings s }
+
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
@@ -228,6 +235,7 @@ initStatePos pos flags inp st =
                 , parseLexState     = st
                 , parseLayout       = []
                 , parseFlags        = flags
+                , parseWarnings     = []
                 }
   where
   pos' = pos { srcFile = () }

@@ -52,8 +52,8 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 -- | A monad for handling parse errors and warnings.
 
 newtype PM a = PM { unPM :: ExceptT ParseError (StateT [ParseWarning] IO) a }
-  deriving ( Functor, Applicative, Monad
-           , MonadError ParseError, MonadIO
+  deriving ( Functor, Applicative, Monad, MonadIO
+           , MonadError ParseError, MonadState [ParseWarning]
            )
 
 -- | Run a 'PM' computation, returning a list of warnings in first-to-last order
@@ -70,8 +70,10 @@ warning w = PM (modify (w:))
 -- | Embed a 'ParseResult' as 'PM' computation.
 
 wrap :: ParseResult a -> PM a
-wrap (ParseOk _ x)      = return x
 wrap (ParseFailed err)  = throwError err
+wrap (ParseOk s x)      = do
+  modify' (parseWarnings s ++)
+  return x
 
 wrapM :: IO (ParseResult a) -> PM a
 wrapM m = liftIO m >>= wrap

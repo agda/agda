@@ -898,8 +898,29 @@ cmd_load' file argv unsolvedOK mode cmd = do
 
     t <- liftIO $ getModificationTime file
 
+    -- Update the status. Because the "current file" is not set the
+    -- status is not "Checked".
+    displayStatus
+
+    -- Reset the state, preserving options and decoded modules. Note
+    -- that if the include directories have changed, then the decoded
+    -- modules are reset by TCM.setCommandLineOptions' below.
+    lift resetState
+
+    -- Clear the info buffer to make room for information about which
+    -- module is currently being type-checked.
+    putResponse Resp_ClearRunningInfo
+
+    -- Remove any prior syntax highlighting.
+    putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
+
     -- Parse the file.
+    --
+    -- Note that options are set below.
     src <- lift $ Imp.parseSource (SourceFile fp)
+
+    -- Store the warnings.
+    warnings <- useTC stTCWarnings
 
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
@@ -913,19 +934,9 @@ cmd_load' file argv unsolvedOK mode cmd = do
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
             root     = projectRoot fp $ Imp.srcModuleName src
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
-        displayStatus
 
-    -- Reset the state, preserving options and decoded modules. Note
-    -- that if the include directories have changed, then the decoded
-    -- modules are reset when cmd_load' is run by ioTCM.
-    lift resetState
-
-    -- Clear the info buffer to make room for information about which
-    -- module is currently being type-checked.
-    putResponse Resp_ClearRunningInfo
-
-    -- Remove any prior syntax highlighting.
-    putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
+    -- Restore the warnings that were saved above.
+    modifyTCLens stTCWarnings (++ warnings)
 
     ok <- lift $ Imp.typeCheckMain mode src
 
@@ -1080,12 +1091,11 @@ give_gen force ii rng s0 giveRefine = do
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
-  localTC (\st -> st { envImportPath         = [dummyModule]
+  localTC (\st -> st { envImportPath         = []
                      , envHighlightingLevel  = NonInteractive
                      , envHighlightingMethod = Direct }) $
     generateAndPrintSyntaxInfo decl Full True
   where
-    dummyModule = C.toTopLevelModuleName (C.QName noName_)
     dummy = mkName_ (NameId 0 noModuleNameHash) ("dummy" :: String)
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
     decl  = A.Axiom OtherDefName info defaultArgInfo Nothing (qnameFromList $ singleton dummy) e

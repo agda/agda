@@ -931,7 +931,7 @@ createInterface mname file isMain msrc = do
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfoFromSource
                          srcPath (TL.unpack $ srcText src)
-    stTokens `setTCLens` fileTokenInfo
+    stTokens `modifyTCLens` (fileTokenInfo <>)
 
     setOptionsFromSourcePragmas src
 
