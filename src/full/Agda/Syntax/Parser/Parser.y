@@ -1389,7 +1389,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
          -- TODO: Don't use (insecure) hashes in this way.
     ; fresh  = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique
     ; fresh' = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1)
-    ; impStm asR = Import r m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
+    ; impStm asR = Import noRange m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
         Private r Inserted
           [ ModuleMacro r m'
