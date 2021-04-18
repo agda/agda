@@ -84,6 +84,41 @@ With this definition, we have, for example:
     Nat x Set : Set₁
     Set × Set : Set₁
 
+Intrinsic level properties
+--------------------------
+
+.. _intrinsic-level-properties:
+
+Levels and their associated operations have some properties
+which are internally and automatically solved by the compiler.
+This means that we can replace some expressions with others,
+without worrying about the expressions
+for their corresponding levels matching exactly.
+
+For example, we can write::
+
+    _ : {F : (l : Level) → Set l} {l1 l2 : Level} → F (l1 ⊔ l2) → F (l2 ⊔ l1)
+    _ = λ x → x
+
+and Agda does the conversion from ``F (l1 ⊔ l2)`` to ``F (l2 ⊔ l1)`` automatically.
+
+Here is a list of the level properties:
+
+* Idempotence: ``a ⊔ a`` is the same as ``a``.
+
+* Associativity: ``(a ⊔ b) ⊔ c`` is the same as ``a ⊔ (b ⊔ c)``.
+
+* Commutativity: ``a ⊔ b`` is the same as ``b ⊔ a``.
+
+* Distributivity of ``lsuc`` over ``⊔``: ``lsuc (a ⊔ b)`` is the same as ``lsuc a ⊔ lsuc b``.
+
+* Neutrality of ``lzero``: ``a ⊔ lzero`` is the same as ``a``.
+
+* Subsumption: ``a ⊔ lsuc a`` is the same as ``lsuc a``.
+  Notably, this also holds for arbitrarily many ``lsuc`` usages:
+  ``a ⊔ lsuc (lsuc a)`` is also the same as ``lsuc (lsuc a)``.
+
+
 ``forall`` notation
 -------------------
 
