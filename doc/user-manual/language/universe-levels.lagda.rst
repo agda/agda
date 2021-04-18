@@ -118,7 +118,7 @@ without having to do any additional work.
 
 
 Here's a list of these properties
-* idempotence - `a ⊔ a` is the same as `a ⊔ a`
+* idempotence - `a ⊔ a` is the same as `a`
 * associativity - `(a ⊔ b) ⊔ c` is the same as `a ⊔ (b ⊔ c)`
 * commutativity - `a ⊔ b` is the same as `b ⊔ a`
 * neutrality of `lzero` - `a ⊔ lzero` is the same as `a`
