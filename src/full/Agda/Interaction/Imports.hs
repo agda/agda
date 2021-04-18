@@ -139,12 +139,17 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
     , srcProjectLibs = libs
     }
 
-srcPragmas :: Source -> [OptionsPragma]
-srcPragmas src = defaultPragmas ++ pragmas
+srcDefaultPragmas :: Source -> [OptionsPragma]
+srcDefaultPragmas src = map _libPragmas (srcProjectLibs src)
+
+srcFilePragmas :: Source -> [OptionsPragma]
+srcFilePragmas src = pragmas
   where
-  defaultPragmas = map _libPragmas (srcProjectLibs src)
   cpragmas = C.modPragmas (srcModule src)
   pragmas = [ opts | C.OptionsPragma _ opts <- cpragmas ]
+
+srcPragmas :: Source -> [OptionsPragma]
+srcPragmas src = srcDefaultPragmas src ++ srcFilePragmas src
 
 -- | Set options from a 'Source' pragma, using the source
 --   ranges of the pragmas for error reporting.
@@ -1158,7 +1163,8 @@ buildInterface src topLevel = do
     let mname = topLevelModuleName topLevel
         source   = srcText src
         fileType = srcFileType src
-        pragmas  = srcPragmas src
+        defPragmas = srcDefaultPragmas src
+        filePragmas  = srcFilePragmas src
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
@@ -1207,7 +1213,8 @@ buildInterface src topLevel = do
       , iBuiltin         = builtin'
       , iForeignCode     = foreignCode
       , iHighlighting    = syntaxInfo
-      , iPragmaOptions   = pragmas
+      , iDefaultPragmaOptions = defPragmas
+      , iFilePragmaOptions    = filePragmas
       , iOptionsUsed     = optionsUsed
       , iPatternSyns     = patsyns
       , iWarnings        = warnings
