@@ -952,7 +952,9 @@ data Interface = Interface
   , iBuiltin         :: BuiltinThings (String, QName)
   , iForeignCode     :: Map BackendName [ForeignCode]
   , iHighlighting    :: HighlightingInfo
-  , iPragmaOptions   :: [OptionsPragma]
+  , iDefaultPragmaOptions :: [OptionsPragma]
+    -- ^ Pragma options set in library files.
+  , iFilePragmaOptions    :: [OptionsPragma]
     -- ^ Pragma options set in the file.
   , iOptionsUsed     :: PragmaOptions
     -- ^ Options/features used when checking the file (can be different
@@ -966,7 +968,8 @@ data Interface = Interface
 instance Pretty Interface where
   pretty (Interface
             sourceH source fileT importedM moduleN scope insideS signature
-            display userwarn importwarn builtin foreignCode highlighting pragmaO
+            display userwarn importwarn builtin foreignCode highlighting
+            libPragmaO filePragmaO
             oUsed patternS warnings partialdefs) =
 
     hang "Interface" 2 $ vcat
@@ -984,7 +987,8 @@ instance Pretty Interface where
       , "builtin:"             <+> (pretty . show) builtin
       , "Foreign code:"        <+> (pretty . show) foreignCode
       , "highlighting:"        <+> (pretty . show) highlighting
-      , "pragma options:"      <+> (pretty . show) pragmaO
+      , "library pragma options:" <+> (pretty . show) libPragmaO
+      , "file pragma options:" <+> (pretty . show) filePragmaO
       , "options used:"        <+> (pretty . show) oUsed
       , "pattern syns:"        <+> (pretty . show) patternS
       , "warnings:"            <+> (pretty . show) warnings
