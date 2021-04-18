@@ -667,7 +667,10 @@ loadDecodedModule file mi = do
   -- we can check that they are compatible with those of the
   -- imported modules. Also, if the top-level file is skipped we
   -- want the pragmas to apply to interactive commands in the UI.
-  lift $ mapM_ setOptionsFromPragma (iPragmaOptions i)
+  -- Jesper, 2021-04-18: Check for changed options in library files!
+  -- (see #5250)
+  libOptions <- lift $ getLibraryOptions $ takeDirectory fp
+  lift $ mapM_ setOptionsFromPragma (libOptions ++ iFilePragmaOptions i)
 
   -- Check that options that matter haven't changed compared to
   -- current options (issue #2487)
