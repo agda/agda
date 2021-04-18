@@ -129,8 +129,7 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   parsedModName         <- moduleName f parsedMod
   let sourceDir = takeDirectory $ filePath f
   useLibs <- optUseLibs <$> commandLineOptions
-  libs <- if | useLibs   -> libToTCM $ getAgdaLibFiles sourceDir
-             | otherwise -> return []
+  libs <- getAgdaLibFiles sourceDir
   return Source
     { srcText        = source
     , srcFileType    = fileType

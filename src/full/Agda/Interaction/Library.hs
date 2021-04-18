@@ -22,12 +22,13 @@ module Agda.Interaction.Library
   , getInstalledLibraries
   , getTrustedExecutables
   , libraryIncludePaths
-  , getAgdaLibFiles
+  , getAgdaLibFiles'
   , getPrimitiveLibDir
   , LibName
   , AgdaLibFile(..)
   , ExeName
   , LibM
+  , mkLibM
   , LibWarning(..)
   , LibPositionInfo(..)
   , libraryWarningName
@@ -220,10 +221,8 @@ findProjectRoot root = findProjectConfig root <&> \case
   ProjectConfig p _    -> Just p
   DefaultProjectConfig -> Nothing
 
--- | Get the contents of @.agda-lib@ files in the given project root.
-getAgdaLibFiles :: FilePath -> LibM [AgdaLibFile]
-getAgdaLibFiles root = mkLibM [] $ getAgdaLibFiles' root
 
+-- | Get the contents of @.agda-lib@ files in the given project root.
 getAgdaLibFiles' :: FilePath -> LibErrorIO [AgdaLibFile]
 getAgdaLibFiles' path = findProjectConfig' path >>= \case
   DefaultProjectConfig    -> return []
