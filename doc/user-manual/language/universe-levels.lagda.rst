@@ -119,10 +119,17 @@ without having to do any additional work.
 
 Here's a list of these properties
 * idempotence - `a ⊔ a` is the same as `a`
+
 * associativity - `(a ⊔ b) ⊔ c` is the same as `a ⊔ (b ⊔ c)`
+
 * commutativity - `a ⊔ b` is the same as `b ⊔ a`
+
 * neutrality of `lzero` - `a ⊔ lzero` is the same as `a`
-* subsumption - `a ⊔ lsuc a` is the same as `lsuc a`
+
+* subsumption - `a ⊔ lsuc a` is the same as `lsuc a`.
+  Notably, this also holds for arbitrarily many `lsuc` usages -
+  `a ⊔ lsuc (lsuc a)` is also the same as `lsuc (lsuc a)`
+
 * distributivity of `lsuc` over `⊔` - `lsuc (x ⊔ y)` is the same as `lsuc x ⊔ lsuc y`
 
 ``forall`` notation
