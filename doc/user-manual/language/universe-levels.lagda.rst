@@ -95,8 +95,8 @@ This means that we can replace some expressions with others,
 without worrying about the expressions
 for their corresponding levels matching exactly.
 
-For example, for some `F : (l : Level) -> Set l`, `l1 l2 : Level`,
-`G : {l : Level} -> Set l -> Set l -> Set l`
+For example, for some `F : (l : Level) → Set l`, `l1 l2 : Level`,
+`G : {l : Level} → Set l → Set l → Set l`
 if we have
 
 .. code-block:: agda
