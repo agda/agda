@@ -95,20 +95,25 @@ This means that we can replace some expressions with others,
 without worrying about the expressions
 for their corresponding levels matching exactly.
 
-For example, for some `F : (l : Level) → Set l`, `l1 l2 : Level`,
-`G : {l : Level} → Set l → Set l → Set l`
-if we have
+For example, for some
+
+.. code-block:: agda
+  module levelPropertiesExample where
+    postulate
+      F : (l : Level) → Set l
+      -- note how G and f force both arguments to have the same level
+      G : {l : Level} → Set l → Set l → Set
+      f : {l : Level} -> (x y : F l) -> G x y
+      l1 l2 : Level
+      x : F (l1 ⊔ l2)
+      y : F (l2 ⊔ l1)
+
+we can write
 
 .. code-block:: agda
 
-    x : F (l1 ⊔ l2)
-    y : F (l2 ⊔ l1)
-
-we can use
-
-.. code-block:: agda
-
-    G x y
+    _ : G x y
+    _ = f x y
 
 without having to do any additional work.
 
