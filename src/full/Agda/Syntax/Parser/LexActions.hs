@@ -73,7 +73,7 @@ lexToken =
         case alexScanUser (lss, flags) inp (headWithDefault __IMPOSSIBLE__ lss) of
             AlexEOF                     -> returnEOF inp
             AlexSkip inp' len           -> skipTo inp'
-            AlexToken inp' len action   -> postToken <$> action inp inp' len
+            AlexToken inp' len action   -> postToken <$> runLexAction action inp inp' len
             AlexError i                 -> parseError $ concat
               [ "Lexical error"
               , case listToMaybe $ lexInput i of
@@ -107,13 +107,12 @@ postToken t = t
 
 -- | The most general way of parsing a token.
 token :: (String -> Parser tok) -> LexAction tok
-token action inp inp' len =
+token action = LexAction $ \ inp inp' len ->
     do  setLexInput inp'
+        let t = take len $ lexInput inp
         setPrevToken t
         setLastPos $ lexPos inp
         action t
-    where
-        t = take len $ lexInput inp
 
 -- | Parse a token from an 'Interval' and the lexed string.
 withInterval :: ((Interval, String) -> tok) -> LexAction tok
@@ -140,15 +139,17 @@ infixr 1 `andThen`
 
 -- | Prepend some parser manipulation to an action.
 andThen :: Parser () -> LexAction r -> LexAction r
-andThen cmd a inp inp' n = do cmd; a inp inp' n
+andThen cmd a = LexAction $ \ inp inp' n -> do
+  cmd
+  runLexAction a inp inp' n
 
 -- | Visit the current lexeme again.
 revisit :: LexAction Token
-revisit _ _ _ = lexToken
+revisit = LexAction $ \ _ _ _ -> lexToken
 
 -- | Throw away the current lexeme.
 skip :: LexAction Token
-skip _ inp' _ = skipTo inp'
+skip = LexAction $ \ _ inp' _ -> skipTo inp'
 
 -- | Enter a new state without consuming any input.
 begin :: LexState -> LexAction Token

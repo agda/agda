@@ -8,7 +8,7 @@ module Agda.Syntax.Parser.Alex
     , alexInputPrevChar
     , alexGetChar, alexGetByte
       -- * Lex actions
-    , LexAction, LexPredicate
+    , LexAction(..), LexPredicate
     , (.&&.), (.||.), not'
     , PreviousInput, CurrentInput, TokenLength
       -- * Monad operations
@@ -119,7 +119,23 @@ type TokenLength    = Int
 
 -- | In the lexer, regular expressions are associated with lex actions who's
 --   task it is to construct the tokens.
-type LexAction r    = PreviousInput -> CurrentInput -> TokenLength -> Parser r
+newtype LexAction r
+  = LexAction { runLexAction :: PreviousInput -> CurrentInput -> TokenLength -> Parser r }
+  deriving (Functor)
+
+instance Applicative LexAction where
+  pure r    = LexAction $ \ _ _ _ -> pure r
+  mf <*> mr = LexAction $ \ a b c -> runLexAction mf a b c <*> runLexAction mr a b c
+
+instance Monad LexAction where
+  return = pure
+  m >>= k  = LexAction $ \ a b c -> do
+    r <- runLexAction m a b c
+    runLexAction (k r) a b c
+
+instance MonadState ParseState LexAction where
+  get   = LexAction $ \ _ _ _ -> get
+  put s = LexAction $ \ _ _ _ -> put s
 
 -- | Sometimes regular expressions aren't enough. Alex provides a way to do
 --   arbitrary computations to see if the input matches. This is done with a

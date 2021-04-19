@@ -140,18 +140,16 @@ import Agda.Utils.Impossible
 
 -}
 offsideRule :: LexAction Token
-offsideRule inp _ _ =
-    do  offs <- getOffside p
-        case offs of
-            LT  -> do   popBlock
-                        return (TokSymbol SymCloseVirtualBrace i)
-            EQ  -> do   popLexState
-                        return (TokSymbol SymVirtualSemi i)
-            GT  -> do   popLexState
-                        lexToken
-    where
-        p = lexPos inp
+offsideRule = LexAction $ \ inp _ _ -> do
+    let p = lexPos inp
         i = posToInterval (lexSrcFile inp) p p
+    getOffside p >>= \case
+        LT  -> do   popBlock
+                    return (TokSymbol SymCloseVirtualBrace i)
+        EQ  -> do   popLexState
+                    return (TokSymbol SymVirtualSemi i)
+        GT  -> do   popLexState
+                    lexToken
 
 
 {-| This action is only executed from the 'Agda.Syntax.Parser.Lexer.empty_layout'
@@ -160,13 +158,12 @@ offsideRule inp _ _ =
     by 'newLayoutBlock').
 -}
 emptyLayout :: LexAction Token
-emptyLayout inp _ _ =
-    do  popLexState
-        pushLexState bol
-        return (TokSymbol SymCloseVirtualBrace i)
-    where
-        p = lexPos inp
+emptyLayout = LexAction $ \ inp _ _ -> do
+    let p = lexPos inp
         i = posToInterval (lexSrcFile inp) p p
+    popLexState
+    pushLexState bol
+    return (TokSymbol SymCloseVirtualBrace i)
 
 
 {-| Start a new layout block. This is how to get out of the
@@ -190,7 +187,10 @@ emptyLayout inp _ _ =
     second one.
 -}
 newLayoutBlock :: LexAction Token
-newLayoutBlock inp _ _ = do
+newLayoutBlock = LexAction $ \ inp _ _ -> do
+    let p = lexPos inp
+        i = posToInterval (lexSrcFile inp) p p
+        offset = posCol p
     status   <- popPendingLayout
     prevOffs <- confirmedLayoutColumn <$> getContext
     if prevOffs >= offset
@@ -201,9 +201,6 @@ newLayoutBlock inp _ _ = do
             pushBlock $ Layout status offset
     return $ TokSymbol SymOpenVirtualBrace i
   where
-    p = lexPos inp
-    i = posToInterval (lexSrcFile inp) p p
-    offset = posCol p
 
     -- | Get and reset the status of the coming layout block.
     popPendingLayout :: Parser LayoutStatus

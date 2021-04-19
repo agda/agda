@@ -32,8 +32,10 @@ keepCommentsM = fmap parseKeepComments getParseFlags
 --   In the end the comment is discarded and 'lexToken' is called to lex a real
 --   token.
 nestedComment :: LexAction Token
-nestedComment inp inp' _ =
+nestedComment = LexAction $ \ inp inp' _ ->
     do  setLexInput inp'
+        let err :: forall a. String -> LookAhead a
+            err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{-'"
         runLookAhead err $ skipBlock "{-" "-}"
         keep <- keepCommentsM
         if keep then do
@@ -46,23 +48,20 @@ nestedComment inp inp' _ =
           return $ TokComment (i, s)
          else
           lexToken
-    where
-        err :: forall a. String -> LookAhead a
-        err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{-'"
+
 
 -- | Lex a hole (@{! ... !}@). Holes can be nested.
 --   Returns @'TokSymbol' 'SymQuestionMark'@.
 hole :: LexAction Token
-hole inp inp' _ =
+hole = LexAction $ \ inp inp' _ ->
     do  setLexInput inp'
+        let err :: forall a. String -> LookAhead a
+            err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{!'"
         runLookAhead err $ skipBlock "{!" "!}"
         p <- lexPos <$> getLexInput
         return $
           TokSymbol SymQuestionMark $
           posToInterval (lexSrcFile inp) (lexPos inp) p
-    where
-        err :: forall a. String -> LookAhead a
-        err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{!'"
 
 -- | Skip a block of text enclosed by the given open and close strings. Assumes
 --   the first open string has been consumed. Open-close pairs may be nested.
