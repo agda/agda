@@ -117,7 +117,7 @@ we can use
 without having to do any additional work.
 
 
-Here's a list of these properties
+Here is a list of these properties
 * idempotence - `a ⊔ a` is the same as `a`
 
 * associativity - `(a ⊔ b) ⊔ c` is the same as `a ⊔ (b ⊔ c)`
