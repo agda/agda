@@ -1143,9 +1143,6 @@ Declaration
     | PatternSyn      { singleton $1 }
     | UnquoteDecl     { singleton $1 }
     | Constructor     { singleton $1 }
-    | RecordInduction       { singleton $1 }
-    | RecordEta             { singleton $1 }
-    | RecordPatternMatching { singleton $1 }
 
 {--------------------------------------------------------------------------
     Individual declarations
@@ -1230,17 +1227,15 @@ RecordSig :: { Declaration }
 RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
   {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
 
--- Declaration of record constructor name.
 Constructor :: { Declaration }
 Constructor : 'constructor' Declarations0
-  {% case $2 of
-      -- this is fairly disgusting but hopefully allows us to use `constructor` for both
-      -- record constructors and constructor blocks in mutual blocks
-      { [FunClause (LHS p [] []) AbsurdRHS NoWhere _]
-          | Just n <- isSingleIdentifierP p -> pure (RecordDirective (Constructor n NotInstanceDef))
-      ;  _ -> pure $ LoneConstructor (getRange ($1,$2)) $2
-      }
-  }
+  { LoneConstructor (getRange ($1,$2)) $2 }
+
+-- Declaration of record constructor name.
+RecordConstructorName :: { (Name, IsInstance) }
+RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
+
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -1704,12 +1699,28 @@ ArgTypeSignatures0
 -- Record declarations, including an optional record constructor name.
 RecordDeclarations :: { (RecordDirectives, [Declaration]) }
 RecordDeclarations
-    : Declarations0 {% extractRecordDirectives $1 }
+    : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
+    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
+    | vopen Declarations1 close                       { (emptyRecordDirectives, List1.toList $2) }
 
-RecordEta :: { Declaration }
+
+RecordDirectives :: { [RecordDirective] }
+RecordDirectives
+    : {- empty -}                           { [] }
+    | RecordDirectives semi RecordDirective { $3 : $1 }
+    | RecordDirective                       { [$1] }
+
+RecordDirective :: { RecordDirective }
+RecordDirective
+    : RecordConstructorName { uncurry Constructor $1 }
+    | RecordInduction       { Induction $1 }
+    | RecordEta             { Eta $1 }
+    | RecordPatternMatching { PatternOrCopattern $1 }
+
+RecordEta :: { Ranged HasEta0 }
 RecordEta
-    : 'eta-equality'    { RecordDirective (Eta (Ranged (getRange $1) YesEta)) }
-    | 'no-eta-equality' { RecordDirective (Eta (Ranged (getRange $1) (NoEta ()))) }
+    : 'eta-equality'    { Ranged (getRange $1) YesEta }
+    | 'no-eta-equality' { Ranged (getRange $1) (NoEta ()) }
 
 -- Directive 'pattern' if a decision between matching on constructor/record pattern
 -- or copattern matching is needed.
@@ -1718,15 +1729,15 @@ RecordEta
 -- with the 'no-eta-equality' declaration.
 -- Nor with the 'constructor' declaration, since it applies also to
 -- the record pattern.
-RecordPatternMatching :: { Declaration }
+RecordPatternMatching :: { Range }
 RecordPatternMatching
-    : 'pattern'     { RecordDirective (PatternOrCopattern (getRange $1)) }
+    : 'pattern'     { getRange $1 }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
-RecordInduction :: { Declaration }
+RecordInduction :: { Ranged Induction }
 RecordInduction
-    : 'inductive'   { RecordDirective (Induction (Ranged (getRange $1) Inductive))   }
-    | 'coinductive' { RecordDirective (Induction (Ranged (getRange $1) CoInductive)) }
+    : 'inductive'   { Ranged (getRange $1) Inductive   }
+    | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 -- Arbitrary declarations
 Declarations :: { List1 Declaration }
