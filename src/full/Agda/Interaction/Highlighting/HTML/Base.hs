@@ -52,7 +52,7 @@ import Text.Blaze.Html.Renderer.Text ( renderHtml )
 
 import Paths_Agda
 
-import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Precise hiding (toList)
 
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
@@ -137,7 +137,7 @@ data HtmlInputSourceFile = HtmlInputSourceFile
   -- ^ Source file type
   , _srcFileText :: Text
   -- ^ Source text
-  , _srcFileHighlightInfo :: CompressedFile
+  , _srcFileHighlightInfo :: HighlightingInfo
   -- ^ Highlighting info
   }
 
@@ -270,8 +270,8 @@ type TokenInfo =
 -- | Constructs token stream ready to print.
 
 tokenStream
-     :: Text           -- ^ The contents of the module.
-     -> CompressedFile -- ^ Highlighting information.
+     :: Text             -- ^ The contents of the module.
+     -> HighlightingInfo -- ^ Highlighting information.
      -> [TokenInfo]
 tokenStream contents info =
   map (\cs -> case cs of
@@ -281,7 +281,7 @@ tokenStream contents info =
   List.groupBy ((==) `on` fst) $
   zipWith (\pos c -> (IntMap.lookup pos infoMap, (pos, c))) [1..] (T.unpack contents)
   where
-  infoMap = toMap (decompress info)
+  infoMap = toMap info
 
 -- | Constructs the HTML displaying the code.
 

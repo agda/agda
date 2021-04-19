@@ -59,7 +59,7 @@ jsonifyHighlightingInfo info remove method modFile =
       [ "remove" .= case remove of
           RemoveHighlighting -> True
           KeepHighlighting -> False
-      , "payload" .= map (showAspects modFile) (ranges info)
+      , "payload" .= map (showAspects modFile) (toList info)
       ]
 
     direct :: IO Value

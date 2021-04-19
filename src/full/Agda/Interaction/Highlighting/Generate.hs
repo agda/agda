@@ -41,7 +41,8 @@ import qualified Data.Text.Lazy as Text
 import Agda.Interaction.Response
   ( RemoveTokenBasedHighlighting( KeepHighlighting ) )
 import Agda.Interaction.Highlighting.Precise as H
-import Agda.Interaction.Highlighting.Range (rToR, overlappings, Ranges)  -- Range is ambiguous
+import Agda.Interaction.Highlighting.Range
+  (rToR, rangeToRange, overlappings, Ranges)
 import Agda.Interaction.Highlighting.FromAbstract
 
 import qualified Agda.TypeChecking.Errors as TCM
@@ -92,7 +93,7 @@ data Level
 --   constraints, as that gets handled in bulk after typechecking.
 highlightWarning :: TCWarning -> TCM ()
 highlightWarning tcwarn = do
-  let h = compress $ warningHighlighting' False tcwarn
+  let h = convert $ warningHighlighting' False tcwarn
   -- Highlighting for warnings coming from the Happy parser is placed
   -- together with token highlighting.
   case tcWarning tcwarn of
@@ -156,25 +157,21 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
       ]
 
     -- Highlighting from the lexer and Happy parser:
-    let (from, to) = case P.rangeToInterval (getRange decl) of
-          Nothing -> __IMPOSSIBLE__
-          Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
-                     , fromIntegral $ P.posPos $ P.iEnd i)
-    (prevTokens, (curTokens, postTokens)) <-
-      second (splitAtC to) . splitAtC from <$> useTC stTokens
+    (curTokens, otherTokens) <-
+      insideAndOutside (rangeToRange (getRange decl)) <$> useTC stTokens
 
     -- @constructorInfo@ needs
     -- to be placed before @nameInfo@ since, when typechecking is done,
     -- constructors are included in both lists. Finally the token
     -- information is placed last since token highlighting is more
     -- crude than the others.
-    let syntaxInfo = compress (constructorInfo <> nameInfo)
+    let syntaxInfo = convert (constructorInfo <> nameInfo)
                        <>
                      curTokens
 
     when updateState $ do
       stSyntaxInfo `modifyTCLens` mappend syntaxInfo
-      stTokens     `setTCLens` (prevTokens `mappend` postTokens)
+      stTokens     `setTCLens`    otherTokens
 
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printHighlightingInfo KeepHighlighting syntaxInfo
@@ -182,7 +179,7 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
 
-generateTokenInfo :: AbsolutePath -> TCM CompressedFile
+generateTokenInfo :: AbsolutePath -> TCM HighlightingInfo
 generateTokenInfo file =
   generateTokenInfoFromSource file . Text.unpack =<<
     runPM (Pa.readFilePM file)
@@ -196,7 +193,7 @@ generateTokenInfoFromSource
   -> String
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
-  -> TCM CompressedFile
+  -> TCM HighlightingInfo
 generateTokenInfoFromSource file input =
   runPM $ tokenHighlighting . fst <$> Pa.parseFile Pa.tokensParser file input
 
@@ -204,7 +201,7 @@ generateTokenInfoFromSource file input =
 -- tokens in the given string, which is assumed to correspond to the
 -- given range.
 
-generateTokenInfoFromString :: Range -> String -> TCM CompressedFile
+generateTokenInfoFromString :: Range -> String -> TCM HighlightingInfo
 generateTokenInfoFromString r _ | r == noRange = return mempty
 generateTokenInfoFromString r s = do
   runPM $ tokenHighlighting <$> Pa.parsePosString Pa.tokensParser p s
@@ -212,37 +209,33 @@ generateTokenInfoFromString r s = do
     Just p = P.rStart r
 
 -- | Compute syntax highlighting for the given tokens.
-tokenHighlighting :: [T.Token] -> CompressedFile
-tokenHighlighting = merge . map tokenToCFile
+tokenHighlighting :: [T.Token] -> HighlightingInfo
+tokenHighlighting = convert . mconcat . map tokenToHI
   where
   -- Converts an aspect and a range to a file.
-  aToF a r = singletonC (rToR r) (mempty { aspect = Just a })
+  aToF a r = H.singleton (rToR r) (mempty { aspect = Just a })
 
-  -- Merges /sorted, non-overlapping/ compressed files.
-  merge = CompressedFile . concatMap ranges
-
-  tokenToCFile :: T.Token -> CompressedFile
-  tokenToCFile (T.TokKeyword T.KwForall i)  = aToF Symbol (getRange i)
-  tokenToCFile (T.TokKeyword T.KwREWRITE _) = mempty  -- #4361, REWRITE is not always a Keyword
-  tokenToCFile (T.TokKeyword _ i)           = aToF Keyword (getRange i)
-  tokenToCFile (T.TokSymbol T.SymQuestionMark i) = aToF Hole (getRange i)
-  tokenToCFile (T.TokSymbol  _ i)                = aToF Symbol (getRange i)
-  tokenToCFile (T.TokLiteral (Ranged r (L.LitNat    _))) = aToF Number r
-  tokenToCFile (T.TokLiteral (Ranged r (L.LitWord64 _))) = aToF Number r
-  tokenToCFile (T.TokLiteral (Ranged r (L.LitFloat  _))) = aToF Number r
-  tokenToCFile (T.TokLiteral (Ranged r (L.LitString _))) = aToF String r
-  tokenToCFile (T.TokLiteral (Ranged r (L.LitChar   _))) = aToF String r
-  tokenToCFile (T.TokLiteral (Ranged r (L.LitQName  _))) = aToF String r
-  tokenToCFile (T.TokLiteral (Ranged r (L.LitMeta _ _))) = aToF String r
-  tokenToCFile (T.TokComment (i, _))            = aToF Comment (getRange i)
-  tokenToCFile (T.TokTeX (i, _))                = aToF Background (getRange i)
-  tokenToCFile (T.TokMarkup (i, _))             = aToF Markup (getRange i)
-  tokenToCFile (T.TokId {})                     = mempty
-  tokenToCFile (T.TokQId {})                    = mempty
-  tokenToCFile (T.TokString (i,s))              = aToF Pragma (getRange i)
-  tokenToCFile (T.TokDummy {})                  = mempty
-  tokenToCFile (T.TokEOF {})                    = mempty
-
+  tokenToHI :: T.Token -> HighlightingInfoBuilder
+  tokenToHI (T.TokKeyword T.KwForall i)  = aToF Symbol (getRange i)
+  tokenToHI (T.TokKeyword T.KwREWRITE _) = mempty  -- #4361, REWRITE is not always a Keyword
+  tokenToHI (T.TokKeyword _ i)           = aToF Keyword (getRange i)
+  tokenToHI (T.TokSymbol T.SymQuestionMark i) = aToF Hole (getRange i)
+  tokenToHI (T.TokSymbol  _ i)                = aToF Symbol (getRange i)
+  tokenToHI (T.TokLiteral (Ranged r (L.LitNat    _))) = aToF Number r
+  tokenToHI (T.TokLiteral (Ranged r (L.LitWord64 _))) = aToF Number r
+  tokenToHI (T.TokLiteral (Ranged r (L.LitFloat  _))) = aToF Number r
+  tokenToHI (T.TokLiteral (Ranged r (L.LitString _))) = aToF String r
+  tokenToHI (T.TokLiteral (Ranged r (L.LitChar   _))) = aToF String r
+  tokenToHI (T.TokLiteral (Ranged r (L.LitQName  _))) = aToF String r
+  tokenToHI (T.TokLiteral (Ranged r (L.LitMeta _ _))) = aToF String r
+  tokenToHI (T.TokComment (i, _))            = aToF Comment (getRange i)
+  tokenToHI (T.TokTeX (i, _))                = aToF Background (getRange i)
+  tokenToHI (T.TokMarkup (i, _))             = aToF Markup (getRange i)
+  tokenToHI (T.TokId {})                     = mempty
+  tokenToHI (T.TokQId {})                    = mempty
+  tokenToHI (T.TokString (i,s))              = aToF Pragma (getRange i)
+  tokenToHI (T.TokDummy {})                  = mempty
+  tokenToHI (T.TokEOF {})                    = mempty
 
 -- | Builds a 'NameKinds' function.
 
@@ -331,12 +324,12 @@ generateConstructorInfo
   -> AbsolutePath    -- ^ The module to highlight.
   -> NameKinds
   -> A.Declaration
-  -> TCM File
+  -> TCM HighlightingInfoBuilder
 generateConstructorInfo modMap file kinds decl = do
 
   -- Get boundaries of current declaration.
   -- @noRange@ should be impossible, but in case of @noRange@
-  -- it makes sense to return the empty File.
+  -- it makes sense to return mempty.
   ifNull (P.rangeIntervals $ getRange decl)
          (return mempty) $ \is -> do
     let start = fromIntegral $ P.posPos $ P.iStart $ head is
@@ -355,24 +348,25 @@ printSyntaxInfo :: Range -> TCM ()
 printSyntaxInfo r = do
   syntaxInfo <- useTC stSyntaxInfo
   ifTopLevelAndHighlightingLevelIs NonInteractive $
-      printHighlightingInfo KeepHighlighting (selectC r syntaxInfo)
+    printHighlightingInfo KeepHighlighting
+      (restrictTo (rangeToRange r) syntaxInfo)
 
 -- | Prints syntax highlighting info for an error.
 
 printErrorInfo :: TCErr -> TCM ()
 printErrorInfo e =
-  printHighlightingInfo KeepHighlighting . compress =<<
+  printHighlightingInfo KeepHighlighting . convert =<<
     errorHighlighting e
 
 -- | Generate highlighting for error.
 
-errorHighlighting :: TCErr -> TCM File
+errorHighlighting :: TCErr -> TCM HighlightingInfoBuilder
 errorHighlighting e = errorHighlighting' (getRange e) <$> TCM.prettyError e
 
 errorHighlighting'
   :: Range     -- ^ Error range.
   -> String    -- ^ Error message for tooltip.
-  -> File
+  -> HighlightingInfoBuilder
 errorHighlighting' r s = mconcat
   [ -- Erase previous highlighting.
     H.singleton (rToR $ P.continuousPerLine r) mempty
@@ -385,7 +379,7 @@ errorHighlighting' r s = mconcat
 
 -- | Highlighting for warnings that are considered fatal.
 
-errorWarningHighlighting :: HasRange a => a -> File
+errorWarningHighlighting :: HasRange a => a -> HighlightingInfoBuilder
 errorWarningHighlighting w =
   H.singleton (rToR $ P.continuousPerLine $ getRange w) $
     parserBased { otherAspects = Set.singleton ErrorWarning }
@@ -395,11 +389,11 @@ errorWarningHighlighting w =
 
 -- | Generate syntax highlighting for warnings.
 
-warningHighlighting :: TCWarning -> File
+warningHighlighting :: TCWarning -> HighlightingInfoBuilder
 warningHighlighting = warningHighlighting' True
 
 warningHighlighting' :: Bool -- ^ should we generate highlighting for unsolved metas and constrains?
-                     -> TCWarning -> File
+                     -> TCWarning -> HighlightingInfoBuilder
 warningHighlighting' b w = case tcWarning w of
   TerminationIssue terrs     -> terminationErrorHighlighting terrs
   NotStrictlyPositive d ocs  -> positivityErrorHighlighting d ocs
@@ -509,12 +503,13 @@ warningHighlighting' b w = case tcWarning w of
     UnknownNamesInFixityDecl{}        -> mempty
     UnknownNamesInPolarityPragmas{}   -> mempty
 
-recordFieldWarningHighlighting :: RecordFieldWarning -> File
+recordFieldWarningHighlighting ::
+  RecordFieldWarning -> HighlightingInfoBuilder
 recordFieldWarningHighlighting = \case
   DuplicateFieldsWarning xrs      -> dead xrs
   TooManyFieldsWarning _q _ys xrs -> dead xrs
   where
-  dead :: [(C.Name, Range)] -> File
+  dead :: [(C.Name, Range)] -> HighlightingInfoBuilder
   dead = mconcat . map deadcodeHighlighting
   -- Andreas, 2020-03-27 #3684: This variant seems to only highlight @x@:
   -- dead = mconcat . map f
@@ -522,7 +517,8 @@ recordFieldWarningHighlighting = \case
 
 -- | Generate syntax highlighting for termination errors.
 
-terminationErrorHighlighting :: [TerminationError] -> File
+terminationErrorHighlighting ::
+  [TerminationError] -> HighlightingInfoBuilder
 terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
   where
     m            = parserBased { otherAspects = Set.singleton TerminationProblem }
@@ -535,22 +531,23 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
 -- | Generate syntax highlighting for not-strictly-positive inductive
 -- definitions.
 
-positivityErrorHighlighting :: I.QName -> Seq OccursWhere -> File
+positivityErrorHighlighting ::
+  I.QName -> Seq OccursWhere -> HighlightingInfoBuilder
 positivityErrorHighlighting q os =
   several (rToR <$> getRange q : rs) m
   where
     rs = map (\(OccursWhere r _ _) -> r) (Fold.toList os)
     m  = parserBased { otherAspects = Set.singleton PositivityProblem }
 
-deadcodeHighlighting :: HasRange a => a -> File
+deadcodeHighlighting :: HasRange a => a -> HighlightingInfoBuilder
 deadcodeHighlighting a = H.singleton (rToR $ P.continuous $ getRange a) m
   where m = parserBased { otherAspects = Set.singleton Deadcode }
 
-coverageErrorHighlighting :: Range -> File
+coverageErrorHighlighting :: Range -> HighlightingInfoBuilder
 coverageErrorHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CoverageProblem }
 
-shadowingTelHighlighting :: [Range] -> File
+shadowingTelHighlighting :: [Range] -> HighlightingInfoBuilder
 shadowingTelHighlighting =
   -- we do not want to highlight the one variable in scope so we take
   -- the @init@ segment of the ranges in question
@@ -559,15 +556,17 @@ shadowingTelHighlighting =
   m = parserBased { otherAspects =
                       Set.singleton H.ShadowingInTelescope }
 
-catchallHighlighting :: Range -> File
+catchallHighlighting :: Range -> HighlightingInfoBuilder
 catchallHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CatchallClause }
 
-confluenceErrorHighlighting :: HasRange a => a -> File
+confluenceErrorHighlighting ::
+  HasRange a => a -> HighlightingInfoBuilder
 confluenceErrorHighlighting a = H.singleton (rToR $ P.continuousPerLine $ getRange a) m
   where m = parserBased { otherAspects = Set.singleton ConfluenceProblem }
 
-missingDefinitionHighlighting :: HasRange a => a -> File
+missingDefinitionHighlighting ::
+  HasRange a => a -> HighlightingInfoBuilder
 missingDefinitionHighlighting a = H.singleton (rToR $ P.continuousPerLine $ getRange a) m
   where m = parserBased { otherAspects = Set.singleton MissingDefinition }
 
@@ -578,11 +577,9 @@ printUnsolvedInfo :: TCM ()
 printUnsolvedInfo = do
   info <- computeUnsolvedInfo
 
-  printHighlightingInfo KeepHighlighting
-    (compress $ info)
+  printHighlightingInfo KeepHighlighting (convert info)
 
-
-computeUnsolvedInfo :: TCM File
+computeUnsolvedInfo :: TCM HighlightingInfoBuilder
 computeUnsolvedInfo = do
   (rs, metaInfo) <- computeUnsolvedMetaWarnings
   constraintInfo <- computeUnsolvedConstraints rs
@@ -592,7 +589,7 @@ computeUnsolvedInfo = do
 -- | Generates syntax highlighting information for unsolved meta
 -- variables.
 --   Also returns ranges of unsolved or interaction metas.
-computeUnsolvedMetaWarnings :: TCM ([Ranges],File)
+computeUnsolvedMetaWarnings :: TCM ([Ranges], HighlightingInfoBuilder)
 computeUnsolvedMetaWarnings = do
   is <- getInteractionMetas
 
@@ -611,10 +608,10 @@ computeUnsolvedMetaWarnings = do
   rs' <- extend <$> mapM getMetaRange is
   return $ (rs ++ rs', metasHighlighting' rs)
 
-metasHighlighting :: [Range] -> File
+metasHighlighting :: [Range] -> HighlightingInfoBuilder
 metasHighlighting rs = metasHighlighting' (map (rToR . P.continuousPerLine) rs)
 
-metasHighlighting' :: [Ranges] -> File
+metasHighlighting' :: [Ranges] -> HighlightingInfoBuilder
 metasHighlighting' rs = several rs
                      $ parserBased { otherAspects = Set.singleton UnsolvedMeta }
 
@@ -622,10 +619,11 @@ metasHighlighting' rs = several rs
 --   (ideally: that are not connected to a meta variable).
 
 computeUnsolvedConstraints :: [Ranges] -- ^ does not add ranges that would overlap with these.
-                           -> TCM File
+                           -> TCM HighlightingInfoBuilder
 computeUnsolvedConstraints ms = constraintsHighlighting ms <$> getAllConstraints
 
-constraintsHighlighting :: [Ranges] -> Constraints -> File
+constraintsHighlighting ::
+  [Ranges] -> Constraints -> HighlightingInfoBuilder
 constraintsHighlighting ms cs =
   several (filter noOverlap $ map (rToR . P.continuousPerLine) rs)
           (parserBased { otherAspects = Set.singleton UnsolvedConstraint })

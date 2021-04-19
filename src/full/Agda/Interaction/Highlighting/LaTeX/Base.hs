@@ -50,7 +50,7 @@ import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
 import qualified Agda.Syntax.Parser.Literate as L
 import Agda.Syntax.Position (startPos)
 
-import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Precise hiding (toList)
 
 import Agda.TypeChecking.Monad (Interface(..))
 
@@ -789,7 +789,7 @@ toLaTeX env path source hi =
 
   $ L.unpack source
   where
-  infoMap = toMap (decompress hi)
+  infoMap = toMap hi
 
   -- | This function preserves laziness of the list
   withLast :: (a -> a) -> [a] -> [a]

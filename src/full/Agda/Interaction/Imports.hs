@@ -76,7 +76,7 @@ import Agda.Interaction.Base     ( InteractionMode(..) )
 import Agda.Interaction.BasicOps ( getGoals, showGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
-import Agda.Interaction.Highlighting.Precise  ( compress )
+import Agda.Interaction.Highlighting.Precise  ( convert )
 import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Library
 import Agda.Interaction.Options
@@ -1030,7 +1030,8 @@ createInterface mname file isMain msrc = do
       unsolved <- getAllUnsolvedWarnings
       unless (null unsolved) $ reportSDoc "import.iface.create" 20 $
         "collected unsolved: " <> prettyTCM unsolved
-      let warningInfo = compress $ foldMap warningHighlighting $ unsolved ++ warnings
+      let warningInfo =
+            convert $ foldMap warningHighlighting $ unsolved ++ warnings
 
       stSyntaxInfo `modifyTCLens` \inf -> (inf `mappend` toks) `mappend` warningInfo
 

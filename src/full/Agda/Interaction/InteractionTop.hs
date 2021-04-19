@@ -251,7 +251,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         method  <- case method of
           Nothing -> lift $ viewTC eHighlightingMethod
           Just m  -> return m
-        let info = compress $ err <> unsolved
+        let info = convert $ err <> unsolved
                      -- Errors take precedence over unsolved things.
 
         -- TODO: make a better predicate for this

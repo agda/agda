@@ -24,6 +24,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Strict.Tuple (Pair(..))
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
 import Data.Typeable
@@ -112,6 +113,11 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
   icod_ (a, b) = icodeN' (,) a b
 
   value = valueN (,)
+
+instance (EmbPrj a, EmbPrj b) => EmbPrj (Pair a b) where
+  icod_ (a :!: b) = icodeN' (:!:) a b
+
+  value = valueN (:!:)
 
 instance (EmbPrj a, EmbPrj b, EmbPrj c) => EmbPrj (a, b, c) where
   icod_ (a, b, c) = icodeN' (,,) a b c
