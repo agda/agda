@@ -569,6 +569,7 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     '~'  -> "\\textasciitilde{}"
     '^'  -> "\\textasciicircum{}"
     '\\' -> "\\textbackslash{}"
+    ' '  -> "\\ "
     _    -> [ char ]
 #if __GLASGOW_HASKELL__ < 810
 escape _                         = __IMPOSSIBLE__
