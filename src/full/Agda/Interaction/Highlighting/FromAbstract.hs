@@ -50,12 +50,17 @@ import           Agda.Utils.Singleton
 
 -- Entry point:
 -- | Create highlighting info for some piece of syntax.
-runHighlighter :: Hilite a => SourceToModule -> AbsolutePath -> NameKinds -> a -> File
-runHighlighter modMap fileName kinds x = runReader (hilite x) $ HiliteEnv
-  { hleNameKinds = kinds
-  , hleModMap    = modMap
-  , hleFileName  = fileName
-  }
+runHighlighter ::
+  Hilite a =>
+  SourceToModule -> AbsolutePath -> NameKinds -> a ->
+  HighlightingInfoBuilder
+runHighlighter modMap fileName kinds x =
+  runReader (hilite x) $
+  HiliteEnv
+    { hleNameKinds = kinds
+    , hleModMap    = modMap
+    , hleFileName  = fileName
+    }
 
 -- | Environment of the highlighter.
 data HiliteEnv = HiliteEnv
@@ -74,7 +79,8 @@ type NameKinds = A.QName -> Maybe NameKind
 type HiliteM = Reader HiliteEnv
 
 -- | Highlighter.
-type Hiliter = HiliteM File
+
+type Hiliter = HiliteM HighlightingInfoBuilder
 
 instance Monoid Hiliter where
   mempty  = pure mempty
@@ -559,15 +565,15 @@ hiliteCName xs x fr mR asp = do
   -- We don't care if we get any funny ranges.
   if all (== Strict.Just fileName) fileNames then pure $
     frFile modMap <>
-    several (map rToR rs)
-            (aspects { definitionSite = mFilePos modMap })
+    H.singleton (rToR rs)
+                (aspects { definitionSite = mFilePos modMap })
    else
     mempty
   where
   aspects       = asp $ C.isOperator x
   fileNames     = mapMaybe (fmap P.srcFile . P.rStart . getRange) (x : xs)
   frFile modMap = H.singleton (rToR fr) (aspects { definitionSite = notHere <$> mFilePos modMap })
-  rs            = map getRange (x : xs)
+  rs            = getRange (x : xs)
 
   -- The fixity declaration should not get a symbolic anchor.
   notHere d = d { defSiteHere = False }

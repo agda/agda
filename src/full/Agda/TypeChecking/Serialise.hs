@@ -72,7 +72,7 @@ import Agda.Utils.IORef
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20210416 * 10 + 1
+currentInterfaceVersion = 20210422 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 

@@ -12,7 +12,7 @@ module Agda.Interaction.Highlighting.Range
   , rangeToPositions
   , rangesToPositions
   , rToR
-  , rangeToEndPoints
+  , rangeToRange
   , minus
   ) where
 
@@ -50,7 +50,7 @@ rangeInvariant r = from r <= to r
 -- | Zero or more consecutive and separated ranges.
 
 newtype Ranges = Ranges [Range]
-  deriving (Eq, Show)
+  deriving (Eq, Show, NFData)
 
 -- | The 'Ranges' invariant.
 
@@ -77,7 +77,6 @@ overlappings :: Ranges -> Ranges -> Bool
 overlappings (Ranges r1s) (Ranges r2s) =
   isNothing $ mergeStrictlyOrderedBy isLeftOf r1s r2s
 
-
 ------------------------------------------------------------------------
 -- Conversion
 
@@ -101,12 +100,15 @@ rToR r = Ranges (map iToR (P.rangeIntervals r))
                    }) =
     Range { from = fromIntegral pos1, to = fromIntegral pos2 }
 
-rangeToEndPoints :: P.Range -> Maybe (Int,Int)
-rangeToEndPoints r =
+-- | Converts a 'P.Range', seen as a continuous range, to a 'Range'.
+
+rangeToRange :: P.Range -> Range
+rangeToRange r =
   case P.rangeToInterval r of
-          Nothing -> Nothing
-          Just i  -> Just ( fromIntegral $ P.posPos $ P.iStart i
-                          , fromIntegral $ P.posPos $ P.iEnd i)
+    Nothing -> Range { from = 0, to = 0 }
+    Just i  -> Range { from = fromIntegral $ P.posPos $ P.iStart i
+                     , to   = fromIntegral $ P.posPos $ P.iEnd i
+                     }
 
 ------------------------------------------------------------------------
 -- Operations

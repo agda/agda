@@ -32,6 +32,9 @@ instance CoArbitrary Range where
 instance Arbitrary Ranges where
   arbitrary = rToR <$> arbitrary
 
+instance CoArbitrary Ranges where
+  coarbitrary (Ranges rs) = coarbitrary rs
+
 ------------------------------------------------------------------------
 -- Range and ranges
 

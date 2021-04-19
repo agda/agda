@@ -85,7 +85,7 @@ import Agda.Interaction.Options.Warnings
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback)
 import Agda.Interaction.Highlighting.Precise
-  (CompressedFile, HighlightingInfo, NameKind)
+  (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
 
 import Agda.Utils.Benchmark (MonadBench(..))
@@ -157,7 +157,7 @@ instance Show TCState where
   show _ = "TCSt{}"
 
 data PreScopeState = PreScopeState
-  { stPreTokens             :: !CompressedFile
+  { stPreTokens             :: !HighlightingInfo
     -- ^ Highlighting info for tokens and Happy parser warnings (but
     -- not for those tokens/warnings for which highlighting exists in
     -- 'stPostSyntaxInfo').
@@ -211,7 +211,7 @@ type DisambiguatedNames = IntMap DisambiguatedName
 type ConcreteNames = Map Name [C.Name]
 
 data PostScopeState = PostScopeState
-  { stPostSyntaxInfo          :: !CompressedFile
+  { stPostSyntaxInfo          :: !HighlightingInfo
     -- ^ Highlighting info.
   , stPostDisambiguatedNames  :: !DisambiguatedNames
     -- ^ Disambiguation carried out by the type checker.
@@ -426,7 +426,7 @@ initState = TCSt
 -- * st-prefixed lenses
 ------------------------------------------------------------------------
 
-stTokens :: Lens' CompressedFile TCState
+stTokens :: Lens' HighlightingInfo TCState
 stTokens f s =
   f (stPreTokens (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreTokens = x}}
@@ -553,7 +553,7 @@ stFreshNameId f s =
   f (stPostFreshNameId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshNameId = x}}
 
-stSyntaxInfo :: Lens' CompressedFile TCState
+stSyntaxInfo :: Lens' HighlightingInfo TCState
 stSyntaxInfo f s =
   f (stPostSyntaxInfo (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSyntaxInfo = x}}

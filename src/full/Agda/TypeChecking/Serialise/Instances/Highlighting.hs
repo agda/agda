@@ -4,6 +4,7 @@ module Agda.TypeChecking.Serialise.Instances.Highlighting where
 
 import qualified Agda.Interaction.Highlighting.Range   as HR
 import qualified Agda.Interaction.Highlighting.Precise as HP
+import qualified Agda.Utils.RangeMap                   as RM
 
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common () --instance only
@@ -114,10 +115,15 @@ instance EmbPrj HP.DefinitionSite where
 
   value = valueN HP.DefinitionSite
 
-instance EmbPrj HP.CompressedFile where
-  icod_ (HP.CompressedFile f) = icodeN' HP.CompressedFile f
+instance EmbPrj a => EmbPrj (RM.PairInt a) where
+  icod_ (RM.PairInt a) = icodeN' RM.PairInt a
 
-  value = valueN HP.CompressedFile
+  value = valueN RM.PairInt
+
+instance EmbPrj a => EmbPrj (RM.RangeMap a) where
+  icod_ (RM.RangeMap f) = icodeN' RM.RangeMap f
+
+  value = valueN RM.RangeMap
 
 instance EmbPrj HP.TokenBased where
   icod_ HP.TokenBased        = icodeN 0 ()
