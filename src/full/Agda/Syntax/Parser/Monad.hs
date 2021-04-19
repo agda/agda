@@ -43,7 +43,7 @@ import Data.Maybe ( listToMaybe )
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
-import Agda.Syntax.Parser.Tokens ( Keyword( KwWhere ) )
+import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 
 import Agda.Utils.FileName
 import Agda.Utils.List ( tailWithDefault )
@@ -288,7 +288,9 @@ initStatePos pos flags inp st =
                 , parseLexState     = st
                 , parseLayout       = []        -- the first block will be from the top-level layout
                 , parseLayStatus    = Confirmed -- for the to-be-determined column of the top-level layout
-                , parseLayKw        = KwWhere   -- layout keyword for the top-level layout
+                , parseLayKw        = KwMutual  -- Layout keyword for the top-level layout.
+                                                -- Does not mean that the top-level block is a mutual block.
+                                                -- Just for better errors on stray @constructor@ decls.
                 , parseFlags        = flags
                 , parseWarnings     = []
                 }

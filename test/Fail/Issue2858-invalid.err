@@ -1,6 +1,0 @@
-Issue2858-invalid.agda:4,3-3
-Issue2858-invalid.agda:4,3: Parse error
-zero<ERROR>
- : Nat
-  suc : Nat → Nat
-...

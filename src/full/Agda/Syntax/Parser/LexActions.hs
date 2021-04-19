@@ -205,7 +205,7 @@ keyword k =
       Layout KwMutual _ _ : _ -> True
       Layout KwWhere  _ _ : _ -> False
       _ : bs                  -> inMutualAndNotInWhereBlock bs
-      []                      -> False
+      []                      -> True  -- For better errors on stray @constructor@ decls.
 
 
 -- | Parse a 'Symbol' token.
