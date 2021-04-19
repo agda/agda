@@ -192,13 +192,14 @@ newLayoutBlock = LexAction $ \ inp _ _ -> do
         i = posToInterval (lexSrcFile inp) p p
         offset = posCol p
     status   <- popPendingLayout
+    kw       <- gets parseLayKw
     prevOffs <- confirmedLayoutColumn <$> getContext
     if prevOffs >= offset
         then pushLexState empty_layout
         else do
             when (status == Confirmed) $
               modifyContext $ confirmTentativeBlocks $ Just offset
-            pushBlock $ Layout status offset
+            pushBlock $ Layout kw status offset
     return $ TokSymbol SymOpenVirtualBrace i
   where
 
@@ -212,8 +213,8 @@ newLayoutBlock = LexAction $ \ inp _ _ -> do
     -- | The confirmed layout column, or 0 if there is none.
     confirmedLayoutColumn :: LayoutContext -> Column
     confirmedLayoutColumn = \case
-       Layout Confirmed c : _   -> c
-       Layout Tentative _ : cxt -> confirmedLayoutColumn cxt
+       Layout _ Confirmed c : _   -> c
+       Layout _ Tentative _ : cxt -> confirmedLayoutColumn cxt
        [] -> 0 -- should only happen when looking at the first token (top-level layout)
 
 -- | Compute the relative position of a location to the
@@ -221,8 +222,8 @@ newLayoutBlock = LexAction $ \ inp _ _ -> do
 getOffside :: Position' a -> Parser Ordering
 getOffside loc =
     getContext <&> \case
-        Layout _ n : _ -> compare (posCol loc) n
-        _              -> GT
+        Layout _ _ n : _ -> compare (posCol loc) n
+        _                -> GT
 
 -- | At a new line, we confirm either existing tentative layout
 --   columns, or, if the last token was a layout keyword, the expected
@@ -250,6 +251,6 @@ confirmLayout = getLexState >>= \ case
 --
 confirmTentativeBlocks :: Maybe Column -> LayoutContext -> LayoutContext
 confirmTentativeBlocks mcol = \case
-    Layout Tentative col : cxt | maybe True (col <) mcol
-            -> Layout Confirmed col : confirmTentativeBlocks (Just col) cxt
+    Layout kw Tentative col : cxt | maybe True (col <) mcol
+            -> Layout kw Confirmed col : confirmTentativeBlocks (Just col) cxt
     cxt  -> cxt

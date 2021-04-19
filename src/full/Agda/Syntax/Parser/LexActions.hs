@@ -19,6 +19,8 @@ module Agda.Syntax.Parser.LexActions
     , followedBy, eof, inState
     ) where
 
+import Control.Monad.State (modify)
+
 import Data.Bifunctor
 import Data.Char
 import Data.List
@@ -131,9 +133,10 @@ withInterval_ f = withInterval (f . fst)
 
 -- | Executed for layout keywords. Enters the 'Agda.Syntax.Parser.Lexer.layout'
 --   state and performs the given action.
-withLayout :: LexAction r -> LexAction r
-withLayout a = pushLexState layout -- `andThen` resetLayoutStatus  -- Shouldn't be needed
-  `andThen` a
+withLayout :: Keyword -> LexAction r -> LexAction r
+withLayout kw a = pushLexState layout `andThen` setLayoutKw `andThen` a
+  where
+  setLayoutKw = modify $ \ st -> st { parseLayKw = kw }
 
 infixr 1 `andThen`
 
@@ -178,10 +181,31 @@ endWith a = popLexState `andThen` a
 
 -- | Parse a 'Keyword' token, triggers layout for 'layoutKeywords'.
 keyword :: Keyword -> LexAction Token
-keyword k = layout $ withInterval_ (TokKeyword k)
+keyword k =
+    case k of
+
+        -- Unconditional layout keyword.
+        _ | k `elem` layoutKeywords ->
+            withLayout k cont
+
+        -- @constructor@ is not a layout keyword in @record ... where@ blocks,
+        -- only in @interleaved mutual@ blocks.
+        KwConstructor -> do
+            cxt <- getContext
+            if inMutualAndNotInWhereBlock cxt
+              then withLayout k cont
+              else cont
+
+        _ -> cont
     where
-        layout | k `elem` layoutKeywords  = withLayout
-               | otherwise              = id
+    cont = withInterval_ (TokKeyword k)
+
+    -- Most recent block decides ...
+    inMutualAndNotInWhereBlock = \case
+      Layout KwMutual _ _ : _ -> True
+      Layout KwWhere  _ _ : _ -> False
+      _ : bs                  -> inMutualAndNotInWhereBlock bs
+      []                      -> False
 
 
 -- | Parse a 'Symbol' token.
