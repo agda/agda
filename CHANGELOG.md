@@ -722,6 +722,13 @@ Compiler backends
   for that particular instance, see
   [#5153](https://github.com/agda/agda/issues/5153)).
 
+LaTeX backend
+-------------
+
+- The spacing in comments is now preserved when generating
+  LaTex files from literate Agda.  See [#5320](https://github.com/agda/agda/pull/5320)
+  for more details.
+
 JS backend
 ----------
 
