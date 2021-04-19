@@ -39,9 +39,19 @@ data Keyword
 
 layoutKeywords :: [Keyword]
 layoutKeywords =
-    [ KwLet, KwWhere, KwDo, KwPostulate, KwMutual, KwAbstract
-    , KwPrivate, KwInstance, KwMacro, KwPrimitive, KwField
-    , KwVariable, KwConstructor
+    [ KwAbstract
+    , KwConstructor
+    , KwDo
+    , KwField
+    , KwInstance
+    , KwLet
+    , KwMacro
+    , KwMutual
+    , KwPostulate
+    , KwPrimitive
+    , KwPrivate
+    , KwVariable
+    , KwWhere
     ]
 
 data Symbol
