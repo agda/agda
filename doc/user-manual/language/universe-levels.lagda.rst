@@ -102,11 +102,7 @@ if we have
 .. code-block:: agda
 
     x : F (l1 ⊔ l2)
-
-.. code-block:: agda
-
     y : F (l2 ⊔ l1)
-
 
 we can use
 
