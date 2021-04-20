@@ -21,32 +21,28 @@ data Name =
   Symbol String
   deriving (Show, Eq)
 
-data Exp =
-  Self |
-  Local LocalId |
-  Global GlobalId |
-  GoVar Nat |
-  Undefined |
-  Null |
-  Lambda Nat Exp |
-  GoInterface MemberId | -- interface globalus name
-  GoStruct MemberId [TypeId] | -- struktūros name ir [Exp] yra struktūros elementai
-  GoStructElement LocalId TypeId | -- struktūros elementas. name tiesiog integer + tipas
-  GoFunction [GoFunctionSignature] Exp | -- funkcijos vardas, parametras, return type, vidinė funkcija/switch statement.
-  -- todo kaip išsiaiškint pilną return type (einam per visas vidines funkcijas?)
-  GoSwitch Exp [Exp] | -- elementas, pagal kurio type darom switch ir sąrašas Go cases, paskutinis go case yra default su panic ir kintamojo priskirimas '_ = parameter'
-  GoCase MemberId Nat Nat Nat [Exp] | -- pattern mathing pagal struct name ir return Exp, kur Exp gali būt metodo kvietimas, kintamojo gražinimas ar struct sukūrimas
-  GoMethodCall MemberId [Exp] | --metodo name, kurį kviečiam ir parametrai. Parametrai gali būt method call, struct sukūrimas ar tiesiog parametras. Prettyfiinant kiekvienas Exp elementas eina į skliaustus.
-  GoMethodCallParam Exp TypeId |
-  GoCreateStruct MemberId [Exp] | -- struktūros sukurimas, paduodam struktūros name ir jo fields. todo ar fields bus [LocalId] ar [MemberId]
-  GoIf Exp Exp Exp |
-  GoLet String Exp Exp |
-  BinOp Exp Exp Exp |
-  ReturnExpression Exp TypeId |
-  String Text |
-  Char Char |
-  Integer Integer |
-  Const String
+data GoTerm = Self 
+         | Local LocalId 
+         | Global GlobalId 
+         | GoVar Nat 
+         | GoSwitch GoTerm [GoTerm] 
+         | GoCase MemberId Nat Nat Nat [GoTerm] 
+         | GoMethodCall MemberId [GoTerm] 
+         | GoMethodCallParam GoTerm TypeId 
+         | GoCreateStruct MemberId [GoTerm] 
+         | GoIf GoTerm GoTerm GoTerm 
+         | GoLet String GoTerm GoTerm 
+         | PrimOp GoTerm GoTerm GoTerm 
+         | ReturnExpression GoTerm TypeId 
+         | Integer Integer 
+         | Const String
+         | UndefinedTerm
+         | Null
+  deriving (Show, Eq)
+
+data GoDef = GoStruct MemberId [TypeId] 
+           | GoFunction [GoFunctionSignature] GoTerm 
+           | GoInterface MemberId 
   deriving (Show, Eq)
 
 -- Local identifiers are named by De Bruijn indices.
@@ -101,6 +97,6 @@ type GoQName = List1 MemberId
 data Module = Module
   { modName  :: GlobalId
   , imports  :: [GoImports]
-  , exports  :: [Exp]
+  , exports  :: [GoDef]
   }
   deriving Show

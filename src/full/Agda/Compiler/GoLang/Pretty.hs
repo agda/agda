@@ -23,16 +23,11 @@ instance Pretty Go.Module where
          , vcat $ map pretty imps
          , ""]
 
-instance Pretty Go.Exp where
+instance Pretty Go.GoTerm where
   prettyPrec pr e =
     case e of
       Go.Const s -> text s
       Go.GoVar i -> getVarNamet i
-      Go.GoInterface id -> "type" <+> pretty id <+> " = interface{}"
-      Go.GoStruct id elems -> "type" <+> pretty id <+> "struct " <+> (T.braces (vcat $ map pretty elems))
-      Go.GoStructElement localId typeId -> "_" <+> pretty localId <+> pretty typeId <+> T.semi
-      Go.GoFunction signatures (Go.GoSwitch a b) -> (vcat $ map pretty signatures) <+> (pretty (Go.GoSwitch a b)) <+> (text $ concat $ replicate (length signatures) "}\n")
-      Go.GoFunction signatures body -> (vcat $ map pretty signatures) <+> (pretty body) <+> (text $ concat $ replicate (length signatures) "}\n")
       Go.GoSwitch v cases -> "switch type_" <> (pretty v) <> (text "  := ") <> (pretty v) <> (text ".(type) {\n") <> (vcat $ map pretty cases) <> "\ndefault:\n_ = type_"<> (pretty v) <> ";\n panic(\"Unreachable\");\n}"
       Go.GoCase name switchVar paramsStart paramCount exps -> "\ncase " <> (pretty name) <> spaceWrap (T.colon) <> (hsep $ map (createCaseParam paramsStart switchVar) (createCaseList paramCount)) <> (vcat $ map pretty exps)
       Go.GoCreateStruct name params -> (pretty name) <+> T.lbrace <+> (joinStructParams (map pretty params)) <+> "}"
@@ -41,11 +36,19 @@ instance Pretty Go.Exp where
       Go.GoMethodCallParam exp Go.EmptyType -> T.parens (pretty exp)
       Go.GoMethodCallParam exp typeId -> "(" <> (pretty exp) <> ".(" <> pretty typeId <> "))"
       Go.GoIf a b c -> "if (" <+> (pretty a) <+> ") {\n" <+> (pretty b) <+> "\n} else {\n" <+> pretty c <+> "\n}\n"
-      Go.BinOp a b c -> (pretty a) <> "(" <> (T.parens (pretty b)) <> "," <> (T.parens (pretty c)) <> ")"
+      Go.PrimOp a b c -> (pretty a) <> "(" <> (T.parens (pretty b)) <> "," <> (T.parens (pretty c)) <> ")"
       Go.GoLet name val exp -> (text name) <+> ":=" <+> (pretty val) <+> "\n" <+> (pretty exp)
       Go.Integer n -> (text "big.NewInt") <> (T.parens $ text $ show n)
       Go.ReturnExpression exp t -> "return helper.Id(" <> (pretty exp) <> ").(" <> pretty t <> ")"
       _ -> text ""
+
+instance Pretty Go.GoDef where
+  prettyPrec pr e =
+    case e of
+      Go.GoInterface id -> "type" <+> pretty id <+> " = interface{}"
+      Go.GoStruct id elems -> "type" <+> pretty id <+> "struct " <+> (T.braces (vcat $ map pretty elems))
+      Go.GoFunction signatures (Go.GoSwitch a b) -> (vcat $ map pretty signatures) <+> (pretty (Go.GoSwitch a b)) <+> (text $ concat $ replicate (length signatures) "}\n")
+      Go.GoFunction signatures body -> (vcat $ map pretty signatures) <+> (pretty body) <+> (text $ concat $ replicate (length signatures) "}\n")
 
 spaceWrap :: Doc -> Doc
 spaceWrap d = T.space <> d <> T.space
