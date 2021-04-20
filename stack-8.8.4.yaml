@@ -6,6 +6,8 @@ extra-deps:
   - QuickCheck-2.14.2
   - random-1.2.0
   - splitmix-0.1.0.3
+  - git: https://github.com/RikvanToor/text-icu.git
+    commit: 5451d335a6fd27ab3be99b1d2328bd89a8ce4a20
 
 # Local packages, usually specified by relative directory name
 packages:

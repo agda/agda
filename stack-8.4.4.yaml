@@ -10,8 +10,9 @@ extra-deps:
   - regex-tdfa-1.3.1.0
   - splitmix-0.1.0.3
   - tasty-silver-3.1.13
-  - text-icu-0.7.0.1
   - uuid-types-1.0.3
+  - git: https://github.com/RikvanToor/text-icu.git
+    commit: 5451d335a6fd27ab3be99b1d2328bd89a8ce4a20
 
 # Local packages, usually specified by relative directory name
 packages:
