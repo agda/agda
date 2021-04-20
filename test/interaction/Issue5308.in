@@ -1,0 +1,5 @@
+top_command    (cmd_load currentFile [])
+
+-- Should compute to "resize f g b"
+goal_command 0 (cmd_compute DefaultCompute) "resize f g b"
+

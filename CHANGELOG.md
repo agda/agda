@@ -620,6 +620,8 @@ Reflection
   `unknown` but to a proper `Term`. (See
   [#3553](https://github.com/agda/agda/issues/3553).)
 
+- Terms quoted by the reflection machinery are no longer eta-contracted.
+
 Library management
 ------------------
 

@@ -23,6 +23,7 @@ binAppView :: Term -> BinAppView
 binAppView t = case t of
   Var i xs   -> appE (Var i) xs
   Def c xs   -> appE (Def c) xs
+  MetaV m xs -> appE (MetaV m) xs
   -- Andreas, 2013-09-17: do not eta-contract when body is (record) constructor
   -- like in \ x -> s , x!  (See interaction/DoNotEtaContractFunIntoRecord)
   -- (Cf. also issue 889 (fixed differently).)
@@ -38,7 +39,6 @@ binAppView t = case t of
   Lam _ _    -> noApp
   Pi _ _     -> noApp
   Sort _     -> noApp
-  MetaV _ _  -> noApp
   DontCare _ -> noApp
   Dummy{}    -> __IMPOSSIBLE__
   where
@@ -69,6 +69,10 @@ etaOnce = \case
   Con c ci es -> etaCon c ci es etaContractRecord
 
   v -> return v
+
+-- For the boot file.
+etaContractTCM :: Term -> TCM Term
+etaContractTCM = etaContract
 
 -- | If record constructor, call eta-contraction function.
 etaCon :: (MonadTCEnv m, HasConstInfo m, HasOptions m)

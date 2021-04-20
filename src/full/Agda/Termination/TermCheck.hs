@@ -47,6 +47,7 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.Termination.RecCheck
 
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Functions
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -777,7 +778,8 @@ function g es0 = do
              -- Maybe we thought an eta redex could come from a meta instantiation.
              -- However, eta-contraction is already performed by instantiateFull.
              -- See test/Succeed/Issue2732-termination.agda.
-             traverse reduceCon <=< instantiateFull
+             -- 2021-04-20, Ulf: Since #5308 we are no longer eta contracting in instantiateFull.
+             etaContract <=< traverse reduceCon <=< instantiateFull
 
            -- 2017-05-16, issue #2403: Argument normalization is too expensive,
            -- even if we only expand non-recursive functions.

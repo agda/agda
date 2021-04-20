@@ -648,6 +648,9 @@ assignWrapper dir x es v doAssign = do
 assign :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
 assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
+  -- Eta-contract arguments first. We rely on this in inverseSubst below.
+  args <- (mapM . traverse) etaContract args
+
   mvar <- lookupMeta x  -- information associated with meta x
   let t = jMetaType $ mvJudgement mvar
 

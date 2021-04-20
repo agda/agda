@@ -22,6 +22,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Builtin
 import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad.Base
+import {-# SOURCE #-} Agda.TypeChecking.EtaContract
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
 
@@ -81,6 +82,7 @@ setBuiltinThings b = stLocalBuiltins `setTCLens` b
 
 bindBuiltinName :: String -> Term -> TCM ()
 bindBuiltinName b x = do
+  x <- etaContractTCM x
   builtin <- getBuiltinThing b
   case builtin of
     Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x

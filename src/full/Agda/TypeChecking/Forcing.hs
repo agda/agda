@@ -71,6 +71,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -94,7 +95,7 @@ computeForcingAnnotations c t =
     -- Andreas, 2015-03-28  Issue 1469: Normalization too costly.
     -- Instantiation also fixes Issue 1454.
     -- Note that normalization of s0 below does not help.
-    t <- instantiateFull t
+    t <- etaContract =<< instantiateFull t
     -- Ulf, 2018-01-28 (#2919): We do need to reduce the target type enough to
     -- get to the actual data type.
     -- Also #2947: The type might reduce to a pi type.
