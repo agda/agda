@@ -775,6 +775,7 @@ antiUnify pid a u v = do
     (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
       a <- maybe abort (return . snd) =<< getConType x a
       antiUnifyElims pid a (Con x ci []) us vs
+    (Def f [], Def g []) | f == g -> return (Def f [])
     (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
       a <- computeElimHeadType f us vs
       antiUnifyElims pid a (Def f []) us vs
