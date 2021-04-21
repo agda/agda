@@ -2,6 +2,10 @@ name: Build (cabal)
 
 on:
   push:
+    branches:
+    - master
+    - issue*
+    - release*
     paths:
     - '.github/workflows/cabal.yml'
     - 'Agda.cabal'

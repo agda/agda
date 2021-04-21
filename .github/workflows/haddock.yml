@@ -4,6 +4,10 @@ name: Haddock
 # not, this test is faster using `BUILD=CABAL` [Issue #2188].
 on:
   push:
+    branches:
+    - master
+    - issue*
+    - release*
     paths:
     - 'src/full/**.hs'
     - 'Agda.cabal'
