@@ -80,6 +80,10 @@ jobs:
         stack-version: ${{ matrix.stack-ver }}
         enable-stack: true
 
+    - name: Patch text-icu
+      run: |
+        make text-icu
+
     - name: Update and configure stack package index
       run: |
         stack update --silent

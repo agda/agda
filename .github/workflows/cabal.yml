@@ -62,6 +62,10 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
 
+    - name: Patch text-icu
+      run: |
+        make text-icu
+
     - name: Configure the build plan
       run: |
         cabal update

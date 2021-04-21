@@ -1,7 +1,6 @@
 name: Deploy
 
 on:
-  workflow_dispatch:
   workflow_run:
     workflows: ["Build, Test, and Benchmark"]
     branches: [master]
@@ -87,6 +86,10 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
+
+    - name: Patch text-icu
+      run: |
+        make text-icu
 
     - name: Add the path to icu4c to the cabal configuration (macOS)
       if: ${{ runner.os == 'macOS' }}
