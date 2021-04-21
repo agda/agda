@@ -2,10 +2,6 @@ name: Build, Test, and Benchmark
 
 on:
   pull_request:
-    branches:
-    - master
-    - issue*
-    - release*
     paths-ignore:
     - '.github/*'
     - '.github/workflows/cabal.yml'

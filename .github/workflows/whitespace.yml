@@ -1,5 +1,11 @@
 name: Whitespace
-on: [push, pull_request]
+on:
+  push:
+    branches:
+    - master
+    - issue*
+    - release*
+  pull_request:
 
 jobs:
   check:
