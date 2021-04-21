@@ -1,0 +1,33 @@
+diff -ruN text-icu/cbits/text_icu.c text-icu-patched/cbits/text_icu.c
+--- text-icu/cbits/text_icu.c	2021-04-21 14:53:01.000000000 +0800
++++ text-icu-patched/cbits/text_icu.c	2021-04-21 14:53:23.000000000 +0800
+@@ -305,7 +305,7 @@
+ 
+ int32_t __hs_u_strCompareIter(UCharIterator *iter1, UCharIterator *iter2)
+ {
+-    return u_strCompareIter(iter1, iter2, TRUE);
++    return u_strCompareIter(iter1, iter2, true);
+ }
+ 
+ UBlockCode __hs_ublock_getCode(UChar32 c)
+diff -ruN text-icu/include/hs_text_icu.h text-icu-patched/include/hs_text_icu.h
+--- text-icu/include/hs_text_icu.h	2021-04-21 14:53:01.000000000 +0800
++++ text-icu-patched/include/hs_text_icu.h	2021-04-21 14:53:42.000000000 +0800
+@@ -15,6 +15,7 @@
+ #include "unicode/ustring.h"
+ 
+ #include <stdint.h>
++#include <stdbool.h>
+ 
+ /* ubrk.h */
+ 
+diff -ruN text-icu/text-icu.cabal text-icu-patched/text-icu.cabal
+--- text-icu/text-icu.cabal	2021-04-21 14:53:01.000000000 +0800
++++ text-icu-patched/text-icu.cabal	2021-04-21 14:54:15.000000000 +0800
+@@ -1,5 +1,5 @@
+ name:           text-icu
+-version:        0.55.1.0
++version:        0.7.1.0
+ synopsis:       Bindings to the ICU library
+ homepage:       https://github.com/bos/text-icu
+ bug-reports:    https://github.com/bos/text-icu/issues
