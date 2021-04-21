@@ -67,14 +67,13 @@ module Agda.Syntax.Concrete
 import Prelude hiding (null)
 
 import Control.DeepSeq
-import Data.Traversable (forM)
-import Data.List hiding (null)
-import Data.Set (Set)
 
-import Data.Data (Data)
-import Data.Text (Text)
+import Data.Data        ( Data )
+import Data.Set         ( Set  )
+import Data.Text        ( Text )
+import Data.Traversable ( forM )
 
-import GHC.Generics (Generic)
+import GHC.Generics     ( Generic )
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -92,10 +91,6 @@ import Agda.Utils.List1  ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2  ( List2, pattern List2 )
 import Agda.Utils.Null
-
-#if !(MIN_VERSION_base(4,15,0))
-import Agda.Utils.Singleton
-#endif
 
 import Agda.Utils.Impossible
 
