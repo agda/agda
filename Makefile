@@ -527,7 +527,7 @@ testing-emacs-mode:
 .PHONY : install-size-solver ## Install the size solver.
 install-size-solver :
 	@$(call decorate, "Installing the size-solver program", \
-		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(STACK_INSTALL_OPTS)' CABAL_INSTALL_OPTS='$(CABAL_INSTALL_OPTS)' install-bin)
+		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(SLOW_STACK_INSTALL_OPTS) $(STACK_INSTALL_OPTS)' CABAL_INSTALL_OPTS='$(SLOW_CABAL_INSTALL_OPTS) $(CABAL_INSTALL_OPTS)' install-bin)
 
 .PHONY : test-size-solver ##
 test-size-solver : install-size-solver

@@ -1,1 +1,1 @@
-packages: . text-icu
+packages: . std-lib text-icu
