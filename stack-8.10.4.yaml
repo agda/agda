@@ -5,8 +5,7 @@ compiler-check: match-exact
 extra-deps:
 - tasty-1.4.0.3
 - tasty-silver-3.2.1
-- git: https://github.com/RikvanToor/text-icu.git
-  commit: 5451d335a6fd27ab3be99b1d2328bd89a8ce4a20
+- 'text-icu'
 
 # Local packages, usually specified by relative directory name
 packages:

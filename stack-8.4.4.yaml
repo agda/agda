@@ -11,8 +11,7 @@ extra-deps:
   - splitmix-0.1.0.3
   - tasty-silver-3.1.13
   - uuid-types-1.0.3
-  - git: https://github.com/RikvanToor/text-icu.git
-    commit: 5451d335a6fd27ab3be99b1d2328bd89a8ce4a20
+  - 'text-icu'
 
 # Local packages, usually specified by relative directory name
 packages:

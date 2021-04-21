@@ -21,8 +21,7 @@ extra-deps:
   - text-1.2.3.1
   - uuid-types-1.0.3
   - wcwidth-0.0.2
-  - git: https://github.com/RikvanToor/text-icu.git
-    commit: 5451d335a6fd27ab3be99b1d2328bd89a8ce4a20
+  - 'text-icu'
 
 # Local packages, usually specified by relative directory name
 packages:
