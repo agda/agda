@@ -3,11 +3,17 @@ module Agda.Utils.Applicative
        , (?$>)
        , foldA
        , foldMapA
+       , forA
        )
        where
 
 import Control.Applicative
 import Data.Monoid ( Alt(..) )
+import Data.Traversable ( for )
+
+-- | Better name for 'for'.
+forA :: (Traversable t, Applicative f) => t a -> (a -> f b) -> f (t b)
+forA = for
 
 -- | Guard: return the action @f@ only if the boolean is @True@
 (?*>) :: Alternative f => Bool -> f a -> f a
