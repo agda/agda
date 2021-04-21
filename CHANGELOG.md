@@ -766,6 +766,24 @@ LaTeX backend
   LaTex files from literate Agda.  See [#5320](https://github.com/agda/agda/pull/5320)
   for more details.
 
+HTML backend
+------------
+
+- The named `id` attributes for local modules inside local modules are
+  now different (see [#5335](https://github.com/agda/agda/pull/5320)).
+
+  For instance, consider the following Agda file:
+  ```agda
+  module Top-level where
+
+    module Inner where
+
+      module Inside-inner where
+  ```
+  Previously one could link to the module `Inside-inner` using a URL
+  that ended with `#Inside-inner`. Now one can use
+  `#Inner.Inside-inner` instead.
+
 JS backend
 ----------
 
