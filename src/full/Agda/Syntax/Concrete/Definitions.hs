@@ -947,7 +947,7 @@ niceDeclarations fixs ds = do
     isConstructor :: [Name] -> NiceDeclaration -> Either (Name, [Name]) Name
     isConstructor ns (Axiom _ _ _ _ _ n e)
        -- extract the return type & see it as an LHS-style pattern
-       | Just p <- isPattern =<< returnExpr e =
+       | Just p <- exprToPatternWithHoles <$> returnExpr e =
          case [ x | x <- ns
                   , couldBeCallOf (Map.lookup x fixs) x p
                   ] of
