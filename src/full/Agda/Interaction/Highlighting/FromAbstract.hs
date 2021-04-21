@@ -445,7 +445,7 @@ instance Hilite A.AmbiguousQName where
 instance Hilite A.ModuleName where
   hilite m@(A.MName xs) = do
     modMap <- asks hleModMap
-    foldMap (hiliteModule . (isTopLevelModule modMap,)) xs
+    hiliteModule (isTopLevelModule modMap, m)
     where
     isTopLevelModule modMap =
       case mapMaybe
@@ -525,11 +525,19 @@ hiliteField xs x bindingR = hiliteCName xs x noRange bindingR $ nameAsp Field
 -- For top level modules, we set the binding site to the beginning of the file
 -- so that clicking on an imported module will jump to the beginning of the file
 -- which defines this module.
-hiliteModule :: (Bool, A.Name) -> Hiliter
-hiliteModule (isTopLevelModule, n) =
-  hiliteCName [] (A.nameConcrete n) noRange mR $ nameAsp Module
+hiliteModule :: (Bool, A.ModuleName) -> Hiliter
+hiliteModule (isTopLevelModule, A.MName []) = mempty
+hiliteModule (isTopLevelModule, A.MName ns) =
+  hiliteCName
+    (map A.nameConcrete (init ns))
+    (A.nameConcrete (last ns))
+    noRange
+    mR
+    (nameAsp Module)
   where
-  mR = Just $ applyWhen isTopLevelModule P.beginningOfFile $ A.nameBindingSite n
+  mR = Just $
+       applyWhen isTopLevelModule P.beginningOfFile $
+       A.nameBindingSite (last ns)
 
 -- This was Highlighting.Generate.nameToFile:
 -- | Converts names to suitable 'File's.
