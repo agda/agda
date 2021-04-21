@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ApplicativeDo #-}  -- see exprToPattern
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.
@@ -15,6 +16,7 @@ module Agda.Syntax.Concrete
   , rawApp, rawAppP
   , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
+  , exprToPatternWithHoles
   , returnExpr
     -- * Bindings
   , Binder'(..)
@@ -69,9 +71,10 @@ import Prelude hiding (null)
 import Control.DeepSeq
 
 import Data.Data        ( Data )
+import Data.Functor.Identity
 import Data.Set         ( Set  )
 import Data.Text        ( Text )
-import Data.Traversable ( forM )
+-- import Data.Traversable ( forM )
 
 import GHC.Generics     ( Generic )
 
@@ -85,11 +88,12 @@ import qualified Agda.Syntax.Abstract.Name as A
 
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Utils.Either ( maybeLeft )
+import Agda.Utils.Applicative ( forA )
+import Agda.Utils.Either      ( maybeLeft )
 import Agda.Utils.Lens
-import Agda.Utils.List1  ( List1, pattern (:|) )
+import Agda.Utils.List1       ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.List2  ( List2, pattern List2 )
+import Agda.Utils.List2       ( List2, pattern List2 )
 import Agda.Utils.Null
 
 import Agda.Utils.Impossible
@@ -670,50 +674,64 @@ returnExpr e               = pure e
 --   valid pattern.
 
 isPattern :: Expr -> Maybe Pattern
-isPattern = \case
-  Ident x            -> return $ IdentP x
-  App _ e1 e2        -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
-  Paren r e          -> ParenP r <$> isPattern e
-  Underscore r _     -> return $ WildP r
-  Absurd r           -> return $ AbsurdP r
-  As r x e           -> pushUnderBracesP r (AsP r x) <$> isPattern e
-  Dot r e            -> return $ pushUnderBracesE r (DotP r) e
-  -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
-  -- point numbers is not stable across architectures and with different
-  -- compiler flags.
-  Lit _ (LitFloat _) -> Nothing
-  Lit r l            -> return $ LitP r l
-  HiddenArg r e      -> HiddenP r <$> mapM isPattern e
-  InstanceArg r e    -> InstanceP r <$> mapM isPattern e
-  RawApp r es        -> RawAppP r <$> mapM isPattern es
-  Quote r            -> return $ QuoteP r
-  Equal r e1 e2      -> return $ EqualP r [(e1, e2)]
-  Ellipsis r         -> return $ EllipsisP r Nothing
-  Rec r es           -> do
-    fs <- mapM maybeLeft es
-    RecP r <$> mapM (mapM isPattern) fs
-  -- WithApp has already lost the range information of the bars '|'
-  WithApp r e es  -> do
-    p  <- isPattern e
-    ps <- forM es $ \ e -> do
-      p <- isPattern e
-      pure $ defaultNamedArg $ WithP (getRange e) p   -- TODO #2822: Range!
-    return $ foldl AppP p ps
-  _ -> Nothing
+isPattern = exprToPattern (const Nothing)
 
+-- | Turn an expression into a pattern, turning non-pattern subexpressions into 'WildP'.
+
+exprToPatternWithHoles :: Expr -> Pattern
+exprToPatternWithHoles = runIdentity . exprToPattern (Identity . WildP . getRange)
+
+-- | Generic expression to pattern conversion.
+
+exprToPattern :: Applicative m
+  => (Expr -> m Pattern)  -- ^ Default result for non-pattern things.
+  -> Expr                 -- ^ The expression to translate.
+  -> m Pattern            -- ^ The translated pattern (maybe).
+exprToPattern fallback = loop
   where
+  loop = \case
+    Ident       x        -> pure $ IdentP x
+    App         _ e1 e2  -> AppP <$> loop e1 <*> traverse (traverse loop) e2
+    Paren       r e      -> ParenP r <$> loop e
+    Underscore  r _      -> pure $ WildP r
+    Absurd      r        -> pure $ AbsurdP r
+    As          r x e    -> pushUnderBracesP r (AsP r x) <$> loop e
+    Dot         r e      -> pure $ pushUnderBracesE r (DotP r) e
+    -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
+    -- point numbers is not stable across architectures and with different
+    -- compiler flags.
+    e@(Lit _ LitFloat{}) -> fallback e
+    Lit         r l      -> pure $ LitP r l
+    HiddenArg   r e      -> HiddenP   r <$> traverse loop e
+    InstanceArg r e      -> InstanceP r <$> traverse loop e
+    RawApp      r es     -> RawAppP   r <$> traverse loop es
+    Quote       r        -> pure $ QuoteP r
+    Equal       r e1 e2  -> pure $ EqualP r [(e1, e2)]
+    Ellipsis    r        -> pure $ EllipsisP r Nothing
+    e@(Rec r es)
+        -- We cannot translate record expressions with module parts.
+      | Just fs <- mapM maybeLeft es -> RecP r <$> traverse (traverse loop) fs
+      | otherwise -> fallback e
+    -- WithApp has already lost the range information of the bars '|'
+    WithApp     r e es   -> do -- ApplicativeDo
+      p  <- loop e
+      ps <- forA es $ \ e -> do -- ApplicativeDo
+        p <- loop e
+        pure $ defaultNamedArg $ WithP (getRange e) p   -- TODO #2822: Range!
+      pure $ foldl AppP p ps
+    e -> fallback e
 
-    pushUnderBracesP :: Range -> (Pattern -> Pattern) -> (Pattern -> Pattern)
-    pushUnderBracesP r f = \case
-      HiddenP _ p   -> HiddenP r (fmap f p)
-      InstanceP _ p -> InstanceP r (fmap f p)
-      p             -> f p
+  pushUnderBracesP :: Range -> (Pattern -> Pattern) -> (Pattern -> Pattern)
+  pushUnderBracesP r f = \case
+    HiddenP   _ p   -> HiddenP   r $ fmap f p
+    InstanceP _ p   -> InstanceP r $ fmap f p
+    p               -> f p
 
-    pushUnderBracesE :: Range -> (Expr -> Pattern) -> (Expr -> Pattern)
-    pushUnderBracesE r f = \case
-      HiddenArg _ p   -> HiddenP r (fmap f p)
-      InstanceArg _ p -> InstanceP r (fmap f p)
-      p               -> f p
+  pushUnderBracesE :: Range -> (Expr -> Pattern) -> (Expr -> Pattern)
+  pushUnderBracesE r f = \case
+    HiddenArg   _ p -> HiddenP   r $ fmap f p
+    InstanceArg _ p -> InstanceP r $ fmap f p
+    p               -> f p
 
 isAbsurdP :: Pattern -> Maybe (Range, Hiding)
 isAbsurdP = \case
