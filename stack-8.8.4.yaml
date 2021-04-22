@@ -6,6 +6,7 @@ extra-deps:
   - QuickCheck-2.14.2
   - random-1.2.0
   - splitmix-0.1.0.3
+  - 'text-icu'
 
 # Local packages, usually specified by relative directory name
 packages:

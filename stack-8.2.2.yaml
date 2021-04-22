@@ -15,9 +15,9 @@ extra-deps:
   - tasty-1.1.0.4
   - tasty-silver-3.1.13
   - text-1.2.3.1
-  - text-icu-0.7.0.1
   - uuid-types-1.0.3
   - wcwidth-0.0.2
+  - 'text-icu'
 
 # Local packages, usually specified by relative directory name
 packages:

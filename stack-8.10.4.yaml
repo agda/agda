@@ -5,6 +5,7 @@ compiler-check: match-exact
 extra-deps:
 - tasty-1.4.0.3
 - tasty-silver-3.2.1
+- 'text-icu'
 
 # Local packages, usually specified by relative directory name
 packages:

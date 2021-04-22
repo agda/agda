@@ -135,8 +135,13 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 ensure-hash-is-correct:
 	touch src/full/Agda/VersionCommit.hs
 
+.PHONY : text-icu ## Fetch and patch text-icu for icu4c 68+
+text-icu:
+	git submodule update --init text-icu
+	if ! patch --dry-run -Rfsp0 < patches/text-icu-C99-true.patch; then patch -p0 < patches/text-icu-C99-true.patch ; fi
+
 .PHONY: install-deps ## Install Agda dependencies.
-install-deps:
+install-deps: text-icu
 ifdef HAS_STACK
 	@echo "===================== Installing dependencies using Stack ================"
 	time $(STACK_INSTALL) $(STACK_INSTALL_DEP_OPTS)
@@ -159,8 +164,8 @@ else
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 endif
 
-## Developer install goal without -foptimize-aggressively nor dependencies
-## Alternative to 'install-bin'
+# Developer install goal without -foptimize-aggressively nor dependencies
+# Alternative to 'install-bin'
 .PHONY: v1-install
 v1-install:  ensure-hash-is-correct
 ifdef HAS_STACK
@@ -309,6 +314,8 @@ tags : have-bin-hs-tags
 TAGS : have-bin-hs-tags
 	@$(call decorate, "TAGS", \
 		$(MAKE) -C $(FULL_SRC_DIR) TAGS)
+
+
 
 ##############################################################################
 ## Standard library
@@ -520,7 +527,7 @@ testing-emacs-mode:
 .PHONY : install-size-solver ## Install the size solver.
 install-size-solver :
 	@$(call decorate, "Installing the size-solver program", \
-		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(STACK_INSTALL_OPTS)' CABAL_INSTALL_OPTS='$(CABAL_INSTALL_OPTS)' install-bin)
+		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(SLOW_STACK_INSTALL_OPTS) $(STACK_INSTALL_OPTS)' CABAL_INSTALL_OPTS='$(SLOW_CABAL_INSTALL_OPTS) $(CABAL_INSTALL_OPTS)' install-bin)
 
 .PHONY : test-size-solver ##
 test-size-solver : install-size-solver
@@ -542,7 +549,7 @@ remove-default-stack-file :
 	rm -f stack.yaml
 	cd $(FIXW_PATH) && rm -f stack.yaml
 
-## Installing binaries for developer services
+# Installing binaries for developer services
 
 .PHONY : have-bin-%
 have-bin-% :
