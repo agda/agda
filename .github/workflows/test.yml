@@ -103,7 +103,7 @@ jobs:
 
     - name: Patch text-icu
       run: |
-        make text-icu
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" text-icu
 
     - uses: haskell/actions/setup@v1
       with:
@@ -138,6 +138,11 @@ jobs:
 
     - name: "Build Agda"
       run: make BUILD_DIR="${BUILD_DIR}" install-bin
+
+    - name: "Run tests for the size solver"
+      run: |
+        export PATH=${HOME}/.local/bin:${PATH}
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-size-solver
 
     - name: "Pack artifacts"
       # This step should go to Makefile.
@@ -332,8 +337,3 @@ jobs:
     - name: "Testing the Emacs mode"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
 
-    - name: "Run tests for the size solver"
-      run: |
-        export PATH=${HOME}/.local/bin:${PATH}
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" text-icu
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-size-solver
