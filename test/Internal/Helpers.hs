@@ -250,6 +250,14 @@ two gen = liftM2 (,) gen gen
 three :: Gen a -> Gen (a, a, a)
 three gen = liftM3 (,,) gen gen gen
 
+-- | \"Resizes\" a generator.
+
+smaller
+  :: Int  -- ^ This number must not be 0.
+  -> Gen a
+  -> Gen a
+smaller k g = sized $ \ n -> resize (1 + div n k) g
+
 ------------------------------------------------------------------------
 -- Instances
 

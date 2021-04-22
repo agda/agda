@@ -220,9 +220,6 @@ instance CoArbitrary DefinitionSite where
     coarbitrary c .
     coarbitrary d
 
-smaller :: Int -> Gen a -> Gen a
-smaller k g = sized $ \ n -> resize (div n k) g
-
 instance Arbitrary File where
   arbitrary = smaller 5 $ fmap (File . IntMap.fromList) $ listOf arbitrary
   shrink    = map (File . IntMap.fromList) . shrink . IntMap.toList . toMap
