@@ -56,15 +56,15 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Patch text-icu
+      run: |
+        make text-icu
+
     - uses: haskell/actions/setup@v1
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
-
-    - name: Patch text-icu
-      run: |
-        make text-icu
 
     - name: Configure the build plan
       run: |

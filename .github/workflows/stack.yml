@@ -74,15 +74,15 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Patch text-icu
+      run: |
+        make text-icu
+
     - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: ${{ matrix.stack-ver }}
         enable-stack: true
-
-    - name: Patch text-icu
-      run: |
-        make text-icu
 
     - name: Update and configure stack package index
       run: |
