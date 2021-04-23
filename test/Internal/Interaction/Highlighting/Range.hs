@@ -19,6 +19,13 @@ instance Arbitrary Range where
     [from, to] <- fmap sort $ vectorOf 2 positive
     return $ Range { from = from, to = to }
 
+  shrink (Range { from = from, to = to })
+    | from == to           = []
+    | otherwise            =
+      [ Range { from = from, to = to - 1 }
+      , Range { from = from + 1, to = to }
+      ]
+
 instance CoArbitrary Range where
   coarbitrary (Range f t) = coarbitrary f . coarbitrary t
 
@@ -28,8 +35,11 @@ instance Arbitrary Ranges where
 ------------------------------------------------------------------------
 -- Range and ranges
 
-prop_rangeInvariant :: Range -> Bool
-prop_rangeInvariant = rangeInvariant
+prop_rangeInvariant1 :: Range -> Bool
+prop_rangeInvariant1 = rangeInvariant
+
+prop_rangeInvariant2 :: Range -> Bool
+prop_rangeInvariant2 = all rangeInvariant . shrink
 
 prop_rangesInvariant1 :: Ranges -> Bool
 prop_rangesInvariant1 = rangesInvariant
