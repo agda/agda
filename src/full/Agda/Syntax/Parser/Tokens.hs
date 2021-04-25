@@ -37,10 +37,14 @@ data Keyword
         | KwNO_UNIVERSE_CHECK
     deriving (Eq, Show)
 
+-- | Unconditional layout keywords.
+--
+-- Some keywords introduce layout only in certain circumstances,
+-- these are not included here.
+--
 layoutKeywords :: [Keyword]
 layoutKeywords =
     [ KwAbstract
-    , KwConstructor
     , KwDo
     , KwField
     , KwInstance

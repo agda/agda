@@ -43,6 +43,7 @@ import Data.Maybe ( listToMaybe )
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
+import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 
 import Agda.Utils.FileName
 import Agda.Utils.List ( tailWithDefault )
@@ -70,6 +71,7 @@ data ParseState = PState
     , parsePrevToken:: String                -- ^ the previous token
     , parseLayout   :: LayoutContext         -- ^ the stack of layout blocks
     , parseLayStatus:: LayoutStatus          -- ^ the status of the coming layout block
+    , parseLayKw    :: Keyword               -- ^ the keyword for the coming layout block
     , parseLexState :: [LexState]            -- ^ the state of the lexer
                                              --   (states can be nested so we need a stack)
     , parseFlags    :: ParseFlags            -- ^ parametrization of the parser
@@ -94,7 +96,8 @@ type LayoutContext = [LayoutBlock]
 --   specifies the indentation columns of the open layout blocks. See
 --   "Agda.Syntax.Parser.Layout" for more informaton.
 data LayoutBlock
-  = Layout LayoutStatus Column    -- ^ layout at specified column
+  = Layout Keyword LayoutStatus Column
+      -- ^ Layout at specified 'Column', introduced by 'Keyword'.
     deriving Show
 
 -- | A (layout) column.
@@ -285,6 +288,9 @@ initStatePos pos flags inp st =
                 , parseLexState     = st
                 , parseLayout       = []        -- the first block will be from the top-level layout
                 , parseLayStatus    = Confirmed -- for the to-be-determined column of the top-level layout
+                , parseLayKw        = KwMutual  -- Layout keyword for the top-level layout.
+                                                -- Does not mean that the top-level block is a mutual block.
+                                                -- Just for better errors on stray @constructor@ decls.
                 , parseFlags        = flags
                 , parseWarnings     = []
                 }
@@ -393,7 +399,7 @@ lexError msg =
     Layout
  --------------------------------------------------------------------------}
 
-getContext :: Parser LayoutContext
+getContext :: MonadState ParseState m => m LayoutContext
 getContext = gets parseLayout
 
 setContext :: LayoutContext -> Parser ()

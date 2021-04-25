@@ -12,7 +12,7 @@ token :: (String -> Parser tok) -> LexAction tok
 
 withInterval  :: ((Interval, String) -> tok) -> LexAction tok
 withInterval' :: (String -> a) -> ((Interval, a) -> tok) -> LexAction tok
-withLayout :: LexAction r -> LexAction r
+withLayout :: Keyword -> LexAction r -> LexAction r
 
 andThen   :: Parser () -> LexAction r -> LexAction r
 skip      :: LexAction Token
