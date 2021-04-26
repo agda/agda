@@ -1306,7 +1306,7 @@ instance InstantiateFull t => InstantiateFull (Type' t) where
       El <$> instantiateFull' s <*> instantiateFull' t
 
 instance InstantiateFull Term where
-    instantiateFull' = instantiate' >=> recurse >=> etaOnce
+    instantiateFull' = instantiate' >=> recurse -- >=> etaOnce
       -- Andreas, 2010-11-12 DONT ETA!? eta-reduction breaks subject reduction
       -- but removing etaOnce now breaks everything
       where

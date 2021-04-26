@@ -20,7 +20,7 @@ import Agda.Syntax.Treeless (TTerm, EvaluationStrategy, ArgUsage(..))
 
 import Agda.TypeChecking.CompiledClause as CC
 import qualified Agda.TypeChecking.CompiledClause.Compile as CC
-import Agda.TypeChecking.EtaContract (binAppView, BinAppView(..))
+import Agda.TypeChecking.EtaContract (binAppView, BinAppView(..), etaContract)
 import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records (getRecordConstructor)
@@ -233,7 +233,7 @@ casetree cc = do
     CC.Done xs v -> withContextSize (length xs) $ do
       -- Issue 2469: Body context size (`length xs`) may be smaller than current context size
       -- if some arguments are not used in the body.
-      v <- lift (putAllowedReductions (SmallSet.fromList [ProjectionReductions, CopatternReductions]) $ normalise v)
+      v <- lift (putAllowedReductions (SmallSet.fromList [ProjectionReductions, CopatternReductions]) $ etaContract =<< normalise v)
       cxt <- asks ccCxt
       v' <- substTerm v
       reportS "treeless.convert.casetree" 40 $

@@ -1,2 +1,2 @@
-flags:
+flags: -Wall
 include: .

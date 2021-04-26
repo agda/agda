@@ -21,6 +21,7 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..),rigidVarsNotContainedIn)
 import Agda.TypeChecking.Names
@@ -987,8 +988,8 @@ compareIrrelevant t (DontCare v) w = compareIrrelevant t v w
 compareIrrelevant t v (DontCare w) = compareIrrelevant t v w
 -}
 compareIrrelevant t v0 w0 = do
-  let v = stripDontCare v0
-      w = stripDontCare w0
+  v <- etaContract $ stripDontCare v0
+  w <- etaContract $ stripDontCare w0
   reportSDoc "tc.conv.irr" 20 $ vcat
     [ "compareIrrelevant"
     , nest 2 $ "v =" <+> prettyTCM v

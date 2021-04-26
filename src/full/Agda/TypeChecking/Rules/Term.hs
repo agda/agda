@@ -1329,7 +1329,7 @@ checkExpr' cmp e t =
 
 doQuoteTerm :: Comparison -> Term -> Type -> TCM Term
 doQuoteTerm cmp et t = do
-  et'       <- etaContract =<< instantiateFull et
+  et'       <- instantiateFull et
   case allMetasList et' of
     []  -> do
       q  <- quoteTerm et'
