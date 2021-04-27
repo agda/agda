@@ -1038,7 +1038,12 @@ checkContextHetEqual fvL fvR = do
     False -> go fvL fvR
   where
     go fvL fvR = do
-      -- Check if the
+      reportSDoc "tc.conv.het" 50 $ do
+        sep [ nest 2 $ "fvL: " <+> pretty fvL
+            , nest 2 $ "fvR: " <+> pretty fvR
+            ]
+      -- Check if the variable sets are empty, in which
+      -- case the problem is trivial.
       if VarSetBlocked.null fvL || VarSetBlocked.null fvR then
         return AlwaysUnblock
       else
@@ -1048,21 +1053,23 @@ checkContextHetEqual fvL fvR = do
              let a' = (snd$ unDom a)
              case (VarSetBlocked.lookup 0 fvL, VarSetBlocked.lookup 0 fvR) of
                (Just bl, Just br)  -> checkTwinEqual a' >>= \case
-                                   AlwaysUnblock -> do
-                                      fvA <- freeVarsInterpolant <$> instantiateFull a'
-                                      go (VarSetBlocked.blockedOnBoth
-                                                     (VarSetBlocked.map (unblockOnEither (unblockOnBoth bl br)) fvA)
-                                                     (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvL))
-                                              (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvR)
-                                   u -> return (unblockOnAny (Set.fromList [u,bl,br]))
+                   AlwaysUnblock -> do
+                      fvA  <- freeVarsInterpolant <$> instantiateFull a'
+                      let fvAL = VarSetBlocked.map (unblockOnEither bl) fvA
+                      let fvAR = VarSetBlocked.map (unblockOnEither br) fvA
+                      go (VarSetBlocked.blockedOnBoth fvAL
+                             (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvL))
+                         (VarSetBlocked.blockedOnBoth fvAR
+                             (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvR))
+                   u -> return (unblockOnAny (Set.fromList [u,bl,br]))
                (Just bl,  Nothing) -> do
-                                   fvA <- freeVarsBlocked <$> instantiateFull (twinAt @'LHS a')
-                                   go (VarSetBlocked.blockedOnBoth
-                                               (VarSetBlocked.map (unblockOnEither bl) fvA)
-                                               (VarSetBlocked.subtract 1 (VarSetBlocked.delete 0 fvL)))
-                                         (VarSetBlocked.subtract 1 fvR)
-               (Nothing, Nothing) ->   go (VarSetBlocked.subtract 1 fvL)
-                                         (VarSetBlocked.subtract 1 fvR)
+                   fvA <- freeVarsBlocked <$> instantiateFull (twinAt @'LHS a')
+                   go (VarSetBlocked.blockedOnBoth
+                               (VarSetBlocked.map (unblockOnEither bl) fvA)
+                               (VarSetBlocked.subtract 1 (VarSetBlocked.delete 0 fvL)))
+                         (VarSetBlocked.subtract 1 fvR)
+               (Nothing, Nothing) -> go (VarSetBlocked.subtract 1 fvL)
+                                        (VarSetBlocked.subtract 1 fvR)
                (Nothing, Just{})  -> __IMPOSSIBLE__
 
 {-# INLINE checkTwinEqual #-}

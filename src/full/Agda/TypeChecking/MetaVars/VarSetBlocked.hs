@@ -74,7 +74,7 @@ blockedOnEither :: VarSetBlocked -> VarSetBlocked -> VarSetBlocked
 blockedOnEither = IntMap.unionWith unblockOnEither
 
 subtract :: Int -> VarSetBlocked -> VarSetBlocked
-subtract = IntMap.mapKeysMonotonic . flip Prelude.subtract
+subtract i = IntMap.mapKeysMonotonic (\x -> x - i)
 
 instance PrettyTCM VarSetBlocked where
   prettyTCM = prettyTCM . map (\(v,bs) -> (Var v [],bs)) . IntMap.toList
