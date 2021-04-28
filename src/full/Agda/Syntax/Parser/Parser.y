@@ -1228,8 +1228,11 @@ RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
   {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
 
 Constructor :: { Declaration }
-Constructor : 'constructor' Declarations0
-  { LoneConstructor (getRange ($1,$2)) $2 }
+Constructor
+  : 'constructor' Declarations0
+      { LoneConstructor (getRange ($1,$2)) Nothing $2 }
+  | 'data' Id 'constructor' Declarations0
+      { LoneConstructor (getRange ($1,$2,$3,$4)) (Just $2) $4 }
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { (Name, IsInstance) }

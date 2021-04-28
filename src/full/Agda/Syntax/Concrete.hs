@@ -470,7 +470,7 @@ data Declaration
     -- ^ The 'Range' here (exceptionally) only refers to the range of the
     --   @instance@ keyword.  The range of the whole block @InstanceB r ds@
     --   is @fuseRange r ds@.
-  | LoneConstructor Range [Declaration]
+  | LoneConstructor Range (Maybe Name) [Declaration]
   | Macro       Range [Declaration]
   | Postulate   Range [TypeSignatureOrInstanceBlock]
   | Primitive   Range [TypeSignature]
@@ -885,7 +885,7 @@ instance HasRange Declaration where
   getRange (RecordDirective r)     = getRange r
   getRange (Mutual r _)            = r
   getRange (InterleavedMutual r _) = r
-  getRange (LoneConstructor r _)   = r
+  getRange (LoneConstructor r _ _) = r
   getRange (Abstract r _)          = r
   getRange (Generalize r _)        = r
   getRange (Open r _ _)            = r
@@ -1036,7 +1036,7 @@ instance KillRange Declaration where
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
   killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
   killRange (InterleavedMutual _ d) = killRange1 (InterleavedMutual noRange) d
-  killRange (LoneConstructor _ d)   = killRange1 (LoneConstructor noRange) d
+  killRange (LoneConstructor _ n d) = killRange2 (LoneConstructor noRange) n d
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
   killRange (Private _ o d)         = killRange2 (Private noRange) o d
   killRange (InstanceB _ d)         = killRange1 (InstanceB noRange) d
@@ -1251,7 +1251,7 @@ instance NFData Declaration where
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
   rnf (Mutual _ a)            = rnf a
   rnf (InterleavedMutual _ a) = rnf a
-  rnf (LoneConstructor _ a)   = rnf a
+  rnf (LoneConstructor _ a b) = rnf a `seq` rnf b
   rnf (Abstract _ a)          = rnf a
   rnf (Private _ _ a)         = rnf a
   rnf (InstanceB _ a)         = rnf a

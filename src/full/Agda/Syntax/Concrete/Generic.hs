@@ -232,7 +232,7 @@ instance ExprLike Declaration where
      e@PatternSyn{}            -> e
      Mutual    r ds            -> Mutual    r                          $ mapE ds
      InterleavedMutual r ds    -> InterleavedMutual r                  $ mapE ds
-     LoneConstructor r ds      -> LoneConstructor r                    $ mapE ds
+     LoneConstructor r mx ds   -> LoneConstructor r mx                 $ mapE ds
      Abstract  r ds            -> Abstract  r                          $ mapE ds
      Private   r o ds          -> Private   r o                        $ mapE ds
      InstanceB r ds            -> InstanceB r                          $ mapE ds

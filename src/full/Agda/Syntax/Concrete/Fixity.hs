@@ -227,7 +227,7 @@ declaredNames = \case
   PatternSyn _ x _ _   -> declaresName x
   Mutual    _ ds       -> foldMap declaredNames ds
   InterleavedMutual    _ ds -> foldMap declaredNames ds
-  LoneConstructor _ ds -> foldMap declaredNames ds
+  LoneConstructor _ mn ds -> maybe mempty declaresName mn <> foldMap declaredNames ds
   Abstract  _ ds       -> foldMap declaredNames ds
   Private _ _ ds       -> allPrivateNames $ foldMap declaredNames ds
   InstanceB _ ds       -> foldMap declaredNames ds

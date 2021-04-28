@@ -465,7 +465,8 @@ instance Pretty Declaration where
                                      <+> "=" <+> pretty p
             Mutual _ ds     -> namedBlock "mutual" ds
             InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
-            LoneConstructor _ ds -> namedBlock "constructor" ds
+            LoneConstructor _ mn ds -> caseMaybe mn doc $ \ n -> "data" <+> pretty n <+> doc
+              where doc = namedBlock "constructor" ds
             Abstract _ ds   -> namedBlock "abstract" ds
             Private _ _ ds  -> namedBlock "private" ds
             InstanceB _ ds  -> namedBlock "instance" ds

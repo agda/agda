@@ -15,6 +15,7 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Pretty
 
+import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
@@ -71,7 +72,7 @@ data NiceDeclaration
       --   Andreas, 2017-01-01: Because of issue #2372, we add 'IsInstance' here.
       --   An alias should know that it is an instance.
   | NiceDataDef Range Origin IsAbstract PositivityCheck UniverseCheck Name [LamBinding] [NiceConstructor]
-  | NiceLoneConstructor Range [NiceConstructor]
+  | NiceLoneConstructor Range (Maybe Name) [NiceConstructor]
   | NiceRecDef Range Origin IsAbstract PositivityCheck UniverseCheck Name RecordDirectives [LamBinding] [Declaration]
       -- ^ @(Maybe Range)@ gives range of the 'pattern' declaration.
   | NicePatternSyn Range Access Name [Arg Name] Pattern
@@ -194,7 +195,7 @@ instance HasRange NiceDeclaration where
   getRange (FunSig r _ _ _ _ _ _ _ _ _)    = r
   getRange (FunDef r _ _ _ _ _ _ _)        = r
   getRange (NiceDataDef r _ _ _ _ _ _ _)   = r
-  getRange (NiceLoneConstructor r _)       = r
+  getRange (NiceLoneConstructor r _ _)     = r
   getRange (NiceRecDef r _ _ _ _ _ _ _ _)  = r
   getRange (NiceRecSig r _ _ _ _ _ _ _)    = r
   getRange (NiceDataSig r _ _ _ _ _ _ _)   = r
@@ -221,7 +222,8 @@ instance Pretty NiceDeclaration where
     FunSig _ _ _ _ _ _ _ _ x _     -> pretty x <+> colon <+> text "_"
     FunDef _ _ _ _ _ _ x _         -> pretty x <+> text "= _"
     NiceDataDef _ _ _ _ _ x _ _    -> text "data" <+> pretty x <+> text "where"
-    NiceLoneConstructor _ ds       -> text "constructor"
+    NiceLoneConstructor _ mx _     -> caseMaybe mx doc $ \ x -> text "data" <+> pretty x <+> doc
+      where doc = text "constructor"
     NiceRecDef _ _ _ _ _ x  _ _ _  -> text "record" <+> pretty x <+> text "where"
     NicePatternSyn _ _ x _ _       -> text "pattern" <+> pretty x
     NiceGeneralize _ _ _ _ x _     -> text "variable" <+> pretty x

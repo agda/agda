@@ -429,9 +429,9 @@ niceDeclarations fixs ds = do
             [] -> justWarning $ EmptyMutual r
             _  -> (,ds) <$> (singleton <$> (mkInterleavedMutual r =<< nice ds'))
 
-        LoneConstructor r [] -> justWarning $ EmptyConstructor r
-        LoneConstructor r ds' ->
-          ((,ds) . singleton . NiceLoneConstructor r) <$> niceAxioms ConstructorBlock ds'
+        LoneConstructor r _ [] -> justWarning $ EmptyConstructor r
+        LoneConstructor r mx ds' ->
+          ((,ds) . singleton . NiceLoneConstructor r mx) <$> niceAxioms ConstructorBlock ds'
 
 
         Abstract r []  -> justWarning $ EmptyAbstract r
@@ -927,7 +927,7 @@ niceDeclarations fixs ds = do
           case d of
             NiceDataSig{}                -> oneOff $ [] <$ addDataType d
             NiceDataDef _ _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just n) ds
-            NiceLoneConstructor r ds     -> oneOff $ [] <$ addDataConstructors Nothing ds
+            NiceLoneConstructor r mn ds  -> oneOff $ [] <$ addDataConstructors mn ds
             FunSig{}                     -> oneOff $ [] <$ addFunType d
             FunDef _ _ _  _ _ _ n cs
                       | not (isNoName n) -> oneOff $ [] <$ addFunDef d
@@ -1204,7 +1204,7 @@ niceDeclarations fixs ds = do
         FunSig r p a i m rel tc cc x e -> (\ i -> FunSig r p a i m rel tc cc x e) <$> setInstance r0 i
         NiceUnquoteDecl r p a i tc cc x e -> (\ i -> NiceUnquoteDecl r p a i tc cc x e) <$> setInstance r0 i
         NiceMutual r tc cc pc ds       -> NiceMutual r tc cc pc <$> mapM (mkInstance r0) ds
-        NiceLoneConstructor r ds       -> NiceLoneConstructor r <$> mapM (mkInstance r0) ds
+        NiceLoneConstructor r mx ds    -> NiceLoneConstructor r mx <$> mapM (mkInstance r0) ds
         d@NiceFunClause{}              -> return d
         FunDef r ds a i tc cc x cs     -> (\ i -> FunDef r ds a i tc cc x cs) <$> setInstance r0 i
         d@NiceField{}                  -> return d  -- Field instance are handled by the parser
@@ -1265,7 +1265,7 @@ instance MakeAbstract IsAbstract where
 instance MakeAbstract NiceDeclaration where
   mkAbstract = \case
       NiceMutual r termCheck cc pc ds  -> NiceMutual r termCheck cc pc <$> mkAbstract ds
-      NiceLoneConstructor r ds         -> NiceLoneConstructor r <$> mkAbstract ds
+      NiceLoneConstructor r mx ds      -> NiceLoneConstructor r mx <$> mkAbstract ds
       FunDef r ds a i tc cc x cs       -> (\ a -> FunDef r ds a i tc cc x) <$> mkAbstract a <*> mkAbstract cs
       NiceDataDef r o a pc uc x ps cs  -> (\ a -> NiceDataDef r o a pc uc x ps) <$> mkAbstract a <*> mkAbstract cs
       NiceRecDef r o a pc uc x dir ps cs -> (\ a -> NiceRecDef r o a pc uc x dir ps cs) <$> mkAbstract a
@@ -1336,7 +1336,7 @@ instance MakePrivate NiceDeclaration where
       NiceField r p a i tac x e                -> (\ p -> NiceField r p a i tac x e)            <$> mkPrivate o p
       PrimitiveFunction r p a x e              -> (\ p -> PrimitiveFunction r p a x e)          <$> mkPrivate o p
       NiceMutual r tc cc pc ds                 -> (\ ds-> NiceMutual r tc cc pc ds)             <$> mkPrivate o ds
-      NiceLoneConstructor r ds                 -> NiceLoneConstructor r                         <$> mkPrivate o ds
+      NiceLoneConstructor r mx ds              -> NiceLoneConstructor r mx                      <$> mkPrivate o ds
       NiceModule r p a x tel ds                -> (\ p -> NiceModule r p a x tel ds)            <$> mkPrivate o p
       NiceModuleMacro r p x ma op is           -> (\ p -> NiceModuleMacro r p x ma op is)       <$> mkPrivate o p
       FunSig r p a i m rel tc cc x e           -> (\ p -> FunSig r p a i m rel tc cc x e)       <$> mkPrivate o p
@@ -1385,7 +1385,7 @@ notSoNiceDeclarations = \case
     NiceField _ _ _ i tac x argt   -> [FieldSig i tac x argt]
     PrimitiveFunction r _ _ x e    -> [Primitive r [TypeSig (argInfo e) Nothing x (unArg e)]]
     NiceMutual r _ _ _ ds          -> [Mutual r $ concatMap notSoNiceDeclarations ds]
-    NiceLoneConstructor r ds       -> [LoneConstructor r $ concatMap notSoNiceDeclarations ds]
+    NiceLoneConstructor r mx ds    -> [LoneConstructor r mx $ concatMap notSoNiceDeclarations ds]
     NiceModule r _ _ x tel ds      -> [Module r x tel ds]
     NiceModuleMacro r _ x ma o dir -> [ModuleMacro r x ma o dir]
     NiceOpen r x dir               -> [Open r x dir]
