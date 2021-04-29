@@ -1,1 +1,2 @@
 +RTS -M100M -A10M -RTS
+--no-double-check

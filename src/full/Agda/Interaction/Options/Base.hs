@@ -484,8 +484,8 @@ flatSplitFlag o = return $ o { optFlatSplit = True }
 noFlatSplitFlag :: Flag PragmaOptions
 noFlatSplitFlag o = return $ o { optFlatSplit = False }
 
-doubleCheckFlag :: Flag PragmaOptions
-doubleCheckFlag o = return $ o { optDoubleCheck = True }
+doubleCheckFlag :: Bool -> Flag PragmaOptions
+doubleCheckFlag b o = return $ o { optDoubleCheck = b }
 
 noSyntacticEqualityFlag :: Flag PragmaOptions
 noSyntacticEqualityFlag o = return $ o { optSyntacticEquality = False }
@@ -999,8 +999,10 @@ pragmaOptions =
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types and --no-guardedness "
-    , Option []     ["double-check"] (NoArg doubleCheckFlag)
+    , Option []     ["double-check"] (NoArg (doubleCheckFlag True))
                     "enable double-checking of all terms using the internal typechecker"
+    , Option []     ["no-double-check"] (NoArg (doubleCheckFlag False))
+                    "disable double-checking of terms (default)"
     , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)
                     "disable the syntactic equality shortcut in the conversion checker"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")

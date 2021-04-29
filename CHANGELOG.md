@@ -86,6 +86,8 @@ Pragmas and options
   `--rewriting` enabled, then all modules importing it must also have
   `--rewriting` enabled.
 
+* New option `--no-double-check` (default), opposite of the existing `--double-check`.
+
 Command-line interaction
 ------------------------
 
