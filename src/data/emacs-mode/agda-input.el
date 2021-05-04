@@ -549,8 +549,8 @@ order for the change to take effect."
 
   ;; Parentheses.
 
-  ("(" . ,(agda-input-to-string-list "([{⁅⁽₍〈⎴⟅⟦⟨⟪⦃〈《「『【〔〖〚︵︷︹︻︽︿﹁﹃﹙﹛﹝（［｛｢"))
-  (")" . ,(agda-input-to-string-list ")]}⁆⁾₎〉⎵⟆⟧⟩⟫⦄〉》」』】〕〗〛︶︸︺︼︾﹀﹂﹄﹚﹜﹞）］｝｣"))
+  ("(" . ,(agda-input-to-string-list "([{⁅⁽₍〈⎴⟅⟦⟨⟪⦃〈《「『【〔〖〚︵︷︹︻︽︿﹁﹃﹙﹛﹝（［｛｢❪❬❰❲❴⟮⦅⦗⧼⸨❮⦇⦉"))
+  (")" . ,(agda-input-to-string-list ")]}⁆⁾₎〉⎵⟆⟧⟩⟫⦄〉》」』】〕〗〛︶︸︺︼︾﹀﹂﹄﹚﹜﹞）］｝｣❫❭❱❳❵⟯⦆⦘⧽⸩❯⦈⦊"))
 
   ("[[" . ("⟦"))
   ("]]" . ("⟧"))
@@ -566,6 +566,9 @@ order for the change to take effect."
 
   ("lbag" . ("⟅"))
   ("rbag" . ("⟆"))
+
+  ("<|" . ("⦉"))  ;; Angle bar brackets
+  ("|>" . ("⦊"))
 
   ("(|" . ("⦇"))  ;; Idiom brackets
   ("|)" . ("⦈"))
