@@ -539,7 +539,7 @@ checkGeneralize s i info x e = do
 
     -- Check the signature and collect the created metas.
     (telNames, tGen) <-
-      generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralize) $
+      generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralizeMeta) $
         workOnTypes $ isType_ e
     let n = length telNames
 

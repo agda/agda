@@ -1246,7 +1246,12 @@ instance Pretty a => Pretty (Judgement a) where
 -- ** Generalizable variables
 -----------------------------------------------------------------------------
 
-data DoGeneralize = YesGeneralize | NoGeneralize
+data DoGeneralize
+  = YesGeneralizeVar  -- ^ Generalize because it is a generalizable variable.
+  | YesGeneralizeMeta -- ^ Generalize because it is a metavariable and
+                      --   we're currently checking the type of a generalizable variable
+                      --   (this should get the default modality).
+  | NoGeneralize      -- ^ Don't generalize.
   deriving (Eq, Ord, Show, Data, Generic)
 
 -- | The value of a generalizable variable. This is created to be a

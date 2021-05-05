@@ -180,7 +180,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
       -- want the nice error from checking the constraint after generalization.
       -- See #3276.
       isGeneralizable (x, mv) = Map.member x nameMap ||
-                                not (isConstrained x) && YesGeneralize == unArg (miGeneralizable (mvInfo mv))
+                                not (isConstrained x) && NoGeneralize /= unArg (miGeneralizable (mvInfo mv))
       isSort = isSortMeta_ . snd
       isOpen = isOpenMeta . mvInstantiation . snd
 
@@ -302,9 +302,6 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     fmap concat $ forM sortedMetas $ \ m -> do
       mv   <- lookupMeta m
       let info =
-            (if m `elem` alsoGeneralize
-             then setModality defaultModality
-             else id) $
             hideOrKeepInstance $
             getArgInfo $ miGeneralizable $ mvInfo mv
           HasType{ jMetaType = t } = mvJudgement mv
@@ -686,7 +683,7 @@ buildGeneralizeTel con xs = go 0 xs
 -- | Create metas for all used generalizable variables and their dependencies.
 createGenValues :: Set QName -> TCM (Map MetaId QName, Map QName GeneralizedValue)
 createGenValues s = do
-  genvals <- locallyTC eGeneralizeMetas (const YesGeneralize) $
+  genvals <- locallyTC eGeneralizeMetas (const YesGeneralizeVar) $
                forM (sortBy (compare `on` getRange) $ Set.toList s) createGenValue
   let metaMap = Map.fromList [ (m, x) | (x, m, _) <- genvals ]
       nameMap = Map.fromList [ (x, v) | (x, _, v) <- genvals ]
@@ -729,7 +726,7 @@ createGenValue x = setCurrentRange x $ do
 
   -- Update the ArgInfos for the named meta. The argument metas are
   -- created with the correct ArgInfo.
-  setMetaArgInfo m $ hideExplicit (defArgInfo def)
+  setMetaGeneralizableArgInfo m $ hideExplicit (defArgInfo def)
 
   reportSDoc "tc.generalize" 50 $ vcat
     [ "created metas for generalized variable" <+> prettyTCM x

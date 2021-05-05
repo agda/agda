@@ -327,11 +327,13 @@ instance EmbPrj NumGeneralizableArgs where
     valu _   = malformed
 
 instance EmbPrj DoGeneralize where
-  icod_ YesGeneralize = return 0
-  icod_ NoGeneralize  = return 1
+  icod_ YesGeneralizeVar  = return 0
+  icod_ YesGeneralizeMeta = return 1
+  icod_ NoGeneralize      = return 2
 
-  value 0 = return YesGeneralize
-  value 1 = return NoGeneralize
+  value 0 = return YesGeneralizeVar
+  value 1 = return YesGeneralizeMeta
+  value 2 = return NoGeneralize
   value _ = malformed
 
 instance EmbPrj Occurrence where
