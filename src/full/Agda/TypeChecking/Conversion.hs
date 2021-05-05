@@ -1371,7 +1371,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
             -- Jesper, 2019-10-13: abort if this is an interaction
             -- meta or a generalizable meta
             abort <- (isJust <$> isInteractionMeta x) `or2M`
-                     ((== YesGeneralize) <$> isGeneralizableMeta x)
+                     ((== YesGeneralizeVar) <$> isGeneralizableMeta x)
             if | abort -> postpone
                | otherwise -> do
                   x' <- case mvJudgement mv of

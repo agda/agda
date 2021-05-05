@@ -290,15 +290,15 @@ createMetaInfo' b = do
   r        <- getCurrentRange
   cl       <- buildClosure r
   gen      <- viewTC eGeneralizeMetas
-  let onlyUserQ q | noUserQuantity q = setQuantity topQuantity q
-                  | otherwise        = q
   modality <- viewTC eModality
   return MetaInfo
     { miClosRange       = cl
     , miModality        = modality
     , miMetaOccursCheck = b
     , miNameSuggestion  = ""
-    , miGeneralizable   = hide $ setModality (onlyUserQ modality) $ defaultArg gen
+    , miGeneralizable   = defaultArg gen
+                          -- The ArgInfo is set to the right value in
+                          -- the newArgsMetaCtx' function.
     }
 
 setValueMetaName :: MonadMetaSolver m => Term -> MetaNameSuggestion -> m ()
@@ -320,8 +320,9 @@ setMetaNameSuggestion mi s = unless (null s || isUnderscore s) $ do
   updateMetaVar mi $ \ mvar ->
     mvar { mvInfo = (mvInfo mvar) { miNameSuggestion = s }}
 
-setMetaArgInfo :: MonadMetaSolver m => MetaId -> ArgInfo -> m ()
-setMetaArgInfo m i = updateMetaVar m $ \ mv ->
+-- | Change the ArgInfo that will be used when generalizing over this meta.
+setMetaGeneralizableArgInfo :: MonadMetaSolver m => MetaId -> ArgInfo -> m ()
+setMetaGeneralizableArgInfo m i = updateMetaVar m $ \ mv ->
   mv { mvInfo = (mvInfo mv)
         { miGeneralizable = setArgInfo i (miGeneralizable (mvInfo mv)) } }
 
