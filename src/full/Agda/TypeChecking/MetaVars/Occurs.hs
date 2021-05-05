@@ -245,11 +245,11 @@ metaCheck m = do
           reportSDoc "tc.meta.occurs" 20 $ "Meta occurs check found bad relevance"
           reportSDoc "tc.meta.occurs" 20 $ "aborting because" <+> reason
           patternViolation $ unblockOnMeta m
-    when (mvFrozen mv == Frozen)                 $ fail "meta is frozen"
-    when (not (isOpenMeta $ mvInstantiation mv)) $ fail "meta is already solved"
-    when (not allowAssign)                       $ fail "assigning metas is not allowed here"
-    when (isFlexible cxt)                        $ fail "occurrence is flexible"
-    when (isUnguarded cxt)                       $ fail "occurrence is unguarded"
+    when (mvFrozen mv == Frozen)             $ fail "meta is frozen"
+    unless (isOpenMeta $ mvInstantiation mv) $ fail "meta is already solved"
+    unless allowAssign                       $ fail "assigning metas is not allowed here"
+    when (isFlexible cxt)                    $ fail "occurrence is flexible"
+    when (isUnguarded cxt)                   $ fail "occurrence is unguarded"
 
     reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
     let info' = setModality mmod' $ mvInfo mv
