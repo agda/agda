@@ -241,27 +241,26 @@ metaCheck m = do
     -- - If it is in a top-level position, we can instead solve the
     --   equation by instantiating the other way around, so promotion
     --   is not necessary.
-    -- Also don't do this if it is a generalizable meta, since the
-    -- modality written by the user should be preserved.
-    if mvFrozen mv == Frozen ||
-       not (isOpenMeta $ mvInstantiation mv) ||
-       not allowAssign ||
-       isFlexible cxt ||
-       isUnguarded cxt
-    then do
-      reportSDoc "tc.meta.occurs" 20 $ "Meta occurs check found bad relevance, aborting!"
-      patternViolation $ unblockOnMeta m
-    else liftTCM $ do
-      reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
-      let info' = setModality mmod' $ mvInfo mv
-      m' <- newMeta Instantiable info' (mvPriority mv) (mvPermutation mv) (mvJudgement mv)
-      reportSDoc "tc.meta.occurs.qnt" 20 $ hsep
-         [ "occursCheck: new meta variable"
-         , prettyTCM m
-         ]
-      assignTerm m [] $ MetaV m' []
-      reportSDoc "tc.meta.occurs" 35 $ "New name for" <+> prettyTCM m <+> "is" <+> prettyTCM m'
-      return m'
+    let fail reason = do
+          reportSDoc "tc.meta.occurs" 20 $ "Meta occurs check found bad relevance"
+          reportSDoc "tc.meta.occurs" 20 $ "aborting because" <+> reason
+          patternViolation $ unblockOnMeta m
+    when (mvFrozen mv == Frozen)                 $ fail "meta is frozen"
+    when (not (isOpenMeta $ mvInstantiation mv)) $ fail "meta is already solved"
+    when (not allowAssign)                       $ fail "assigning metas is not allowed here"
+    when (isFlexible cxt)                        $ fail "occurrence is flexible"
+    when (isUnguarded cxt)                       $ fail "occurrence is unguarded"
+
+    reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
+    let info' = setModality mmod' $ mvInfo mv
+    m' <- liftTCM $ newMeta Instantiable info' (mvPriority mv) (mvPermutation mv) (mvJudgement mv)
+    reportSDoc "tc.meta.occurs.qnt" 20 $ hsep
+       [ "occursCheck: new meta variable"
+       , prettyTCM m'
+       ]
+    liftTCM $ assignTerm m [] $ MetaV m' []
+    reportSDoc "tc.meta.occurs" 35 $ "New name for" <+> prettyTCM m <+> "is" <+> prettyTCM m'
+    return m'
 
 -- | Construct a test whether a de Bruijn index is allowed
 --   or needs to be pruned.
