@@ -48,7 +48,7 @@ The clauses for different functions can be interleaved e.g. for pedagogical purp
 
 You can mix arbitrary declarations, such as modules and postulates, with mutually recursive
 definitions. For data types and records the following syntax is used to separate the
-declaration from the introduction of constructors in one or many ``constructor`` blocks::
+declaration from the introduction of constructors in one or many ``data ... where`` blocks::
 
   interleaved mutual
 
@@ -58,7 +58,7 @@ declaration from the introduction of constructors in one or many ``constructor``
     El : U → Set
 
     -- We have a code for the type of natural numbers in our universe
-    constructor `Nat : U
+    data U where `Nat : U
     El `Nat = Nat
 
     -- Btw we know how to pair values in a record
@@ -67,7 +67,8 @@ declaration from the introduction of constructors in one or many ``constructor``
       field fst : A; snd : B
 
     -- And we have a code for pairs in our universe
-    constructor _`×_ : (A B : U) → U
+    data _ where
+      _`×_ : (A B : U) → U
     El (A `× B) = El A × El B
 
   -- we can now build types of nested pairs of natural numbers
@@ -78,17 +79,8 @@ declaration from the introduction of constructors in one or many ``constructor``
   val-example : El ty-example
   val-example = 0 , ((1 , 2) , 3)
 
-Constructor blocks can also be introduced by ``data ... where``, in this case, e.g.:
-
-.. code-block:: agda
-
-    data U where `Nat : U
-
-The ``data ... where`` syntax can be preferable over ``constructor``
-when there are many data types defined mutually and one wants to make
-clear to which data type new constructors are added.  On the other
-hand, one can add constructors to *different* data types in a
-``constructor`` block.
+You can mix constructors for different data types in a ``data _ where`` block
+(underscore instead of name).
 
 The ``interleaved mutual`` blocks get desugared into the
 :ref:`mutual-recursion-forward-declaration` blocks described below by:

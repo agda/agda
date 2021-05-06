@@ -188,24 +188,28 @@ keyword k =
         _ | k `elem` layoutKeywords ->
             withLayout k cont
 
-        -- @constructor@ is not a layout keyword in @record ... where@ blocks,
-        -- only in @interleaved mutual@ blocks.
-        KwConstructor -> do
-            cxt <- getContext
-            if inMutualAndNotInWhereBlock cxt
-              then withLayout k cont
-              else cont
+        -- Andreas, 2021-05-06, issue #5356:
+        -- @constructor@ is not a layout keyword after all, replaced by @data _ where@.
+        -- -- @constructor@ is not a layout keyword in @record ... where@ blocks,
+        -- -- only in @interleaved mutual@ blocks.
+        -- KwConstructor -> do
+        --     cxt <- getContext
+        --     if inMutualAndNotInWhereBlock cxt
+        --       then withLayout k cont
+        --       else cont
 
         _ -> cont
     where
     cont = withInterval_ (TokKeyword k)
 
-    -- Most recent block decides ...
-    inMutualAndNotInWhereBlock = \case
-      Layout KwMutual _ _ : _ -> True
-      Layout KwWhere  _ _ : _ -> False
-      _ : bs                  -> inMutualAndNotInWhereBlock bs
-      []                      -> True  -- For better errors on stray @constructor@ decls.
+    -- Andreas, 2021-05-06, issue #5356:
+    -- @constructor@ is not a layout keyword after all, replaced by @data _ where@.
+    -- -- Most recent block decides ...
+    -- inMutualAndNotInWhereBlock = \case
+    --   Layout KwMutual _ _ : _ -> True
+    --   Layout KwWhere  _ _ : _ -> False
+    --   _ : bs                  -> inMutualAndNotInWhereBlock bs
+    --   []                      -> True  -- For better errors on stray @constructor@ decls.
 
 
 -- | Parse a 'Symbol' token.

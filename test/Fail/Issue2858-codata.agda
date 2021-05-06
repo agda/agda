@@ -3,12 +3,12 @@ interleaved mutual
   data CoNat : Set
   record ∞CoNat : Set
 
-  constructor
+  data _ where
     zero : CoNat
 
   record ∞CoNat where
     coinductive
     field force : CoNat
 
-  constructor
+  data _ where
     suc : ∞CoNat → ?
