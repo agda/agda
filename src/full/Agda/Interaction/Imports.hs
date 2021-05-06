@@ -4,7 +4,7 @@
     interface files.
 -}
 module Agda.Interaction.Imports
-  ( Mode(ScopeCheck, TypeCheck)
+  ( Mode, Mode', pattern ScopeCheck, pattern TypeCheck
 
   , CheckResult (CheckResult)
   , crModuleInfo
@@ -161,12 +161,14 @@ setOptionsFromSourcePragmas src =
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
 
-data Mode
+data Mode' a
   = ScopeCheck
-  | TypeCheck InteractionMode
+  | TypeCheck a
+  deriving (Eq, Show, Functor, Foldable)
+
+type Mode = Mode' InteractionMode
       -- ^ Depending on the 'InteractionMode' private declaration may be retained
       --   in the interface.
-  deriving (Eq, Show)
 
 -- | Are we loading the interface for the user-loaded file
 --   or for an import?
@@ -1096,6 +1098,13 @@ createInterface mname file isMain msrc = do
         reportSLn "import.iface.create" 7 "We are just scope-checking, skipping writing interface file."
         return i
       ([], MainInterface (TypeCheck TopLevelInteraction)) -> do
+        -- -- suggested by unclebetty at https://github.com/agda/agda/issues/4959#issuecomment-706179266
+        -- reportSLn "import.iface.create" 7 $ unlines
+        --   [ "We are in top-level interaction mode and want to retain private declarations."
+        --   , "We write the interface file but retain the private declarations."
+        --   ]
+        -- ifile <- toIFile file
+        -- _serializedIface <- writeInterface ifile i
         reportSLn "import.iface.create" 7 "We are in top-level interaction mode and want to retain private declarations, skipping writing interface file."
         return i
       ([], _) -> Bench.billTo [Bench.Serialization] $ do
