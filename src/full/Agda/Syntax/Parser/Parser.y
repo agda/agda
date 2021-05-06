@@ -2109,13 +2109,18 @@ boundNamesOrAbsurd es
 
 -- | Match a pattern-matching "assignment" statement @p <- e@
 exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
-exprToAssignment (RawApp r es)
+exprToAssignment e@(RawApp r es)
   | (es1, arr : es2) <- List2.break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] -> Just <$> ((,,) <$> exprToPattern (rawApp $ List1.fromList es1)
-                           <*> pure (getRange arr)
-                           <*> pure (rawApp $ List1.fromList es2))
+      [] ->
+        -- Andreas, 2021-05-06, issue #5365
+        -- Handle pathological cases like @do ←@ and @do x ←@.
+        case (es1, es2) of
+          (e1:rest1, e2:rest2) -> do
+            p <- exprToPattern $ rawApp $ e1 :| rest1
+            pure $ Just (p, getRange arr, rawApp (e2 :| rest2))
+          _ -> parseError' (rStart' $ getRange e) $ "Incomplete binding " ++ prettyShow e
   where
     isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False
