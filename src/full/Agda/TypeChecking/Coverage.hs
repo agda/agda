@@ -963,8 +963,10 @@ fixTargetType tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
 -- | Add more patterns to split clause if the target type is a function type.
 --   Returns the domains of the function type (if any).
 insertTrailingArgs :: SplitClause -> TCM (Telescope, SplitClause)
-insertTrailingArgs sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints = cps, scTarget = target } =
-  caseMaybe target (return (empty,sc)) $ \ a -> do
+insertTrailingArgs sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints = cps, scTarget = target } = do
+  let fallback = return (empty, sc)
+  caseMaybe target fallback $ \ a -> do
+    if isJust (domTactic a) then fallback else do
     (TelV tel b) <- telViewUpTo (-1) $ unDom a
     reportSDoc "tc.cover.target" 15 $ sep
       [ "target type telescope: " <+> do
