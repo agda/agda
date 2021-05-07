@@ -16,9 +16,9 @@ interleaved mutual
 
   data Nat : Set
   data Fin : Nat → Set
-  constructor
+  data _ where
     zero : Nat
-  constructor
+  data _ where
     zero : Fin {!!}  -- should work
 
 -- Error was:

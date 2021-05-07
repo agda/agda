@@ -8,24 +8,24 @@ module Works where
   interleaved mutual
     data Nat : Set
     data Fin : Nat → Set
-    constructor
+    data _ where
       zero : Nat
-    constructor
+    data _ where
       suc  : Nat → Nat
       zero : ∀ {n} → Fin (suc n)
-    constructor
+    data _ where
       suc : ∀ {n} (i : Fin n) → Fin (suc n)
 
 interleaved mutual
   data Nat : Set
   data Fin : Nat → Set
-  constructor
+  data _ where
     zero : Nat
     suc  : Nat → Nat
     zero : ∀ {n} → Fin (suc n)
     suc  : ∀ {n} (i : Fin n) → Fin (suc n)
 
--- `constructor` block should be accepted despite duplicate constructor names.
+-- `data _ where` block should be accepted despite duplicate constructor names.
 
 wkFin : ∀{n} → Fin n → Fin (suc n)
 wkFin zero    = zero
