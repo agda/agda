@@ -144,7 +144,7 @@ jobs:
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       # TODO: Move this part to Makefile
       env:
-        ICU_VER: '68'
+        ICU_VER: '69'
         ICU_DIR: '/usr/local/opt/icu4c/lib'
       run: |
         mkdir -p ${{ steps.vars.outputs.nightly }}/bin
