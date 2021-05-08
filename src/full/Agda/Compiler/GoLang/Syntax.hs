@@ -25,10 +25,8 @@ data GoTerm = Self
          | Local LocalId 
          | Global GlobalId 
          | GoVar Nat 
-         | GoSwitch GoTerm [GoTerm] 
-         | GoCase MemberId Nat Nat Nat [GoTerm] 
-         | GoMethodCall MemberId [GoTerm] 
-         | GoMethodCallParam GoTerm TypeId 
+         | GoSwitch GoTerm [GoCase] 
+         | GoMethodCall MemberId [GoMethodCallParam] 
          | GoCreateStruct MemberId [GoTerm] 
          | GoIf GoTerm GoTerm GoTerm 
          | GoLet String GoTerm GoTerm 
@@ -37,7 +35,14 @@ data GoTerm = Self
          | Integer Integer 
          | Const String
          | UndefinedTerm
+         | GoErased
          | Null
+  deriving (Show, Eq)
+
+data GoCase = GoCase MemberId Nat Nat Nat [GoTerm]
+  deriving (Show, Eq)
+
+data GoMethodCallParam = GoMethodCallParam GoTerm TypeId
   deriving (Show, Eq)
 
 data GoDef = GoStruct MemberId [TypeId] 
