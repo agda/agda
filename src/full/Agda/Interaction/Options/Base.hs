@@ -990,7 +990,7 @@ pragmaOptions =
     , Option []     ["qualified-instances"] (NoArg qualifiedInstancesFlag)
                     "use instances with qualified names (default)"
     , Option []     ["no-qualified-instances"] (NoArg noQualifiedInstancesFlag)
-                    "don't use instances with qualified names (default)"
+                    "don't use instances with qualified names"
     , Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
