@@ -6,19 +6,21 @@ on:
     branches: [master]
     types:
       - completed
+  workflow_dispatch:
 
 defaults:
   run:
     shell: bash
 jobs:
   auto-cancel:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: Ubuntu-latest
     steps:
     - uses: styfle/cancel-workflow-action@0.6.0
       with:
         access_token: ${{ github.token }}
   build:
+    if: ${{ always() }}
     needs: auto-cancel
     strategy:
       fail-fast: false
@@ -198,7 +200,7 @@ jobs:
         if-no-files-found: error
         retention-days: 3
   deploy: # release a nightly build if triggered on master }}
-    if: ${{ github.ref == 'refs/heads/master' }}
+    if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run' }}
     needs: build
     runs-on: ubuntu-latest
     steps:
