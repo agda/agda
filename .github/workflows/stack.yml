@@ -107,6 +107,7 @@ jobs:
         # A unique cache is used for each stack.yaml.
         key: |
           ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
+
     - uses: actions/cache@v2
       name: Cache dependencies (Windows)
       id: cache-on-win64
@@ -131,6 +132,11 @@ jobs:
     - name: Add the icu path to stack configuration (macOS)
       if: ${{ runner.os == 'macOS' && !steps.cache.outputs.cache-hit }}
       run: printf "extra-lib-dirs:\n - /usr/local/opt/icu4c/lib\nextra-include-dirs:\n - /usr/local/opt/icu4c/include\n" > ~/.stack/config.yaml
+
+    - name: Install the numa library (Ubuntu, GHC 8.4.4)
+      if: ${{ runner.os == 'Linux' && matrix.ghc-ver == '8.4.4' }}
+      run: |
+        sudo apt-get install libnuma-dev -qq
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       if: ${{ !steps.cache-on-unix.outputs.cache-hit && !steps.cache-on-win64.outputs.cache-hit }}
