@@ -101,10 +101,6 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Patch text-icu
-      run: |
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" text-icu
-
     - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ matrix.ghc-ver }}

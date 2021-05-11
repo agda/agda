@@ -60,10 +60,6 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Patch text-icu
-      run: |
-        make text-icu
-
     - uses: haskell/actions/setup@v1
       id: setup-haskell
       with:
@@ -80,12 +76,6 @@ jobs:
       run: |
         sudo apt-get update -qq
         sudo apt-get install libicu-dev -qq
-
-    - name: Add the path to icu4c to the cabal configuration
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        echo "extra-lib-dirs: /usr/local/opt/icu4c/lib"         >> ~/.cabal/config
-        echo "extra-include-dirs: /usr/local/opt/icu4c/include" >> ~/.cabal/config
 
     - name: Download the icu4c library from unicode-org (Windows)
       if: ${{ runner.os == 'Windows' }}

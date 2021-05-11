@@ -37,10 +37,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Patch text-icu
-      run: |
-        make text-icu
-
     - uses: haskell/actions/setup@v1
       id: setup-haskell
       with:

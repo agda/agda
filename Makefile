@@ -135,13 +135,8 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 ensure-hash-is-correct:
 	touch src/full/Agda/VersionCommit.hs
 
-.PHONY : text-icu ## Fetch and patch text-icu for icu4c 68+
-text-icu:
-	git submodule update --init text-icu
-	if ! patch --dry-run -Rfsp0 < patches/text-icu-C99-true.patch; then patch -p0 < patches/text-icu-C99-true.patch ; fi
-
 .PHONY: install-deps ## Install Agda dependencies.
-install-deps: text-icu
+install-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing dependencies using Stack ================"
 	time $(STACK_INSTALL) $(STACK_INSTALL_DEP_OPTS)

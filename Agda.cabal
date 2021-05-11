@@ -186,7 +186,7 @@ library
 
   if flag(enable-cluster-counting)
     cpp-options:    -DCOUNT_CLUSTERS
-    build-depends:  text-icu >= 0.7.1.0
+    build-depends:  text-icu >= 0.7.0.1
 
   if os(windows)
     build-depends:  Win32 >= 2.3.1.1 && < 2.7

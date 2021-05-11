@@ -89,16 +89,6 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
 
-    - name: Patch text-icu
-      run: |
-        make text-icu
-
-    - name: Add the path to icu4c to the cabal configuration (macOS)
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        echo "extra-lib-dirs: /usr/local/opt/icu4c/lib">> ~/.cabal/config
-        echo "extra-include-dirs: /usr/local/opt/icu4c/include" >> ~/.cabal/config
-
     - name: Install the icu4c library (Windows)
       if: ${{ runner.os == 'Windows' }}
       env:
