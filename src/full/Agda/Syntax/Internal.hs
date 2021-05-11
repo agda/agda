@@ -1271,6 +1271,10 @@ instance Pretty Term where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
+instance Pretty t => Pretty (Abs t) where
+  pretty (Abs   x t) = "Abs"   <+> (text x <> ".") <+> pretty t
+  pretty (NoAbs x t) = "NoAbs" <+> (text x <> ".") <+> pretty t
+
 instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
   pretty dom = pTac <+> pDom dom (pretty $ unDom dom)
     where
