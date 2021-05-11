@@ -67,7 +67,7 @@ jobs:
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
       # The following is used by Windows only
-      ICU_FILE: "mingw-w64-x86_64-icu-67.1-1-any.pkg.tar.zst"
+      ICU_FILE: "mingw-w64-x86_64-icu-68.2-3-any.pkg.tar.zst"
 
     defaults:
       run:
