@@ -531,13 +531,14 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             -- in same way as it was obtained when the data types was checked.
             TelV tel t <- putAllowedReductions allReductions $
               telViewPath . defType =<< getConstInfo c
+            let (tel0,tel1) = splitTelescopeAt np tel
             -- Do not collect occurrences in the data parameters.
             -- Normalization needed e.g. for test/succeed/Bush.agda.
             -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
-            tel' <- normalise $ telFromList $ drop np $ telToList tel
+            tel1' <- addContext tel0 $ normalise $ tel1
             let vars = map (Just . AnArg) . downFrom
             -- Occurrences in the types of the constructor arguments.
-            mappend (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel') $ do
+            mappend (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel1') $ do
               -- Occurrences in the indices of the data type the constructor targets.
               -- Andreas, 2020-02-15, issue #4447:
               -- WAS: @t@ is not necessarily a data type, but it could be something
@@ -567,9 +568,9 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
 
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
-      let tel' = telFromList $ drop np $ telToList tel
+      let (tel0,tel1) = splitTelescopeAt np tel
           vars = map (Just . AnArg) $ downFrom np
-      getOccurrences vars =<< normalise tel' -- Andreas, 2017-01-01, issue #1899, treat like data types
+      getOccurrences vars =<< addContext tel0 (normalise tel1) -- Andreas, 2017-01-01, issue #1899, treat like data types
 
     -- Arguments to other kinds of definitions are hard-wired.
     Constructor{}      -> mempty
