@@ -67,7 +67,7 @@ jobs:
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
       # The following is used by Windows only
-      ICU_FILE: "mingw-w64-x86_64-icu-67.1-1-any.pkg.tar.zst"
+      ICU_FILE: "mingw-w64-x86_64-icu-68.2-3-any.pkg.tar.zst"
 
     defaults:
       run:
@@ -77,10 +77,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-
-    - name: Patch text-icu
-      run: |
-        make text-icu
 
     - uses: haskell/actions/setup@v1
       with:
@@ -128,10 +124,6 @@ jobs:
       run: |
         stack exec ${ARGS} -- wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
         stack exec ${ARGS} -- pacman -U --noconfirm ${ICU_FILE}
-
-    - name: Add the icu path to stack configuration (macOS)
-      if: ${{ runner.os == 'macOS' && !steps.cache.outputs.cache-hit }}
-      run: printf "extra-lib-dirs:\n - /usr/local/opt/icu4c/lib\nextra-include-dirs:\n - /usr/local/opt/icu4c/include\n" > ~/.stack/config.yaml
 
     - name: Install the numa library (Ubuntu, GHC 8.4.4)
       if: ${{ runner.os == 'Linux' && matrix.ghc-ver == '8.4.4' }}

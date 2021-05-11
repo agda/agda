@@ -54,15 +54,11 @@ jobs:
         cabal-ver: [3.4]
     env:
       FLAGS: "-f enable-cluster-counting"
-      ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-67-1/icu4c-67_1-Win64-MSVC2017.zip'
+      ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
-
-    - name: Patch text-icu
-      run: |
-        make text-icu
 
     - uses: haskell/actions/setup@v1
       id: setup-haskell
@@ -80,12 +76,6 @@ jobs:
       run: |
         sudo apt-get update -qq
         sudo apt-get install libicu-dev -qq
-
-    - name: Add the path to icu4c to the cabal configuration
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        echo "extra-lib-dirs: /usr/local/opt/icu4c/lib"         >> ~/.cabal/config
-        echo "extra-include-dirs: /usr/local/opt/icu4c/include" >> ~/.cabal/config
 
     - name: Download the icu4c library from unicode-org (Windows)
       if: ${{ runner.os == 'Windows' }}
