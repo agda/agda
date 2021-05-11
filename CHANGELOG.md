@@ -416,6 +416,15 @@ Language
     rewrite eq = cong (x ∷_) (filter-filter p xs)
   ```
 
+* As a consequence of the above extensions to `with`, lambdas and lets now need
+  parentheses when appearing in a `with`. For instance,
+
+  ```agda
+  with-on-fun : Nat → Nat
+  with-on-fun n with (λ m → m + n)  -- parentheses required!
+  ... | f = f n
+  ```
+
 Builtins
 --------
 
