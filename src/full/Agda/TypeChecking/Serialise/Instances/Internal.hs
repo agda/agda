@@ -362,7 +362,7 @@ instance EmbPrj EtaEquality where
     valu _     = malformed
 
 instance EmbPrj Defn where
-  icod_ Axiom                                           = icodeN 0 Axiom
+  icod_ (Axiom       a)                                 = icodeN 0 Axiom a
   icod_ (Function    a b s t (_:_) c d e f g h i j k)   = __IMPOSSIBLE__
   icod_ (Function    a b s t []    c d e f g h i j k)   =
     icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k
@@ -376,7 +376,7 @@ instance EmbPrj Defn where
   icod_ DataOrRecSig{}                                  = __IMPOSSIBLE__
 
   value = vcase valu where
-    valu [0]                                        = valuN Axiom
+    valu [0, a]                                     = valuN Axiom a
     valu [1, a, b, s, c, d, e, f, g, h, i, j, k]    = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k
     valu [2, a, b, c, d, e, f, g, h]                = valuN Datatype a b c d e f g h
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l]    = valuN Record  a b c d e f g h i j k l

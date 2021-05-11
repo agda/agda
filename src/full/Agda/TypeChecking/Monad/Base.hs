@@ -1979,7 +1979,17 @@ data CompKit = CompKit
 emptyCompKit :: CompKit
 emptyCompKit = CompKit Nothing Nothing
 
+defaultAxiom :: Defn
+defaultAxiom = Axiom False
+
+constTranspAxiom :: Defn
+constTranspAxiom = Axiom True
+
 data Defn = Axiom -- ^ Postulate
+            { axiomConstTransp :: Bool
+              -- ^ Can transp for this postulate be constant?
+              --   Set to @True@ for bultins like String.
+            }
           | DataOrRecSig
             { datarecPars :: Int }
             -- ^ Data or record type signature that doesn't yet have a definition
@@ -2135,7 +2145,7 @@ instance Pretty Definition where
       , "theDef            =" <?> pretty theDef ] <+> "}"
 
 instance Pretty Defn where
-  pretty Axiom = "Axiom"
+  pretty Axiom{} = "Axiom"
   pretty (DataOrRecSig n)   = "DataOrRecSig" <+> pretty n
   pretty GeneralizableVar{} = "GeneralizableVar"
   pretty (AbstractDefn def) = "AbstractDefn" <?> parens (pretty def)
@@ -4491,7 +4501,7 @@ instance KillRange CompKit where
 instance KillRange Defn where
   killRange def =
     case def of
-      Axiom -> Axiom
+      Axiom a -> Axiom a
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!

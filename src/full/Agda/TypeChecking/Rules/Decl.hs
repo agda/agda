@@ -645,7 +645,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
           MacroName -> set funMacro True emptyFunction{ funAbstr = Info.defAbstract i }
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
-          AxiomName -> Axiom     -- Old comment: NB: used also for data and record type sigs
+          AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
 
   addConstant x =<< do

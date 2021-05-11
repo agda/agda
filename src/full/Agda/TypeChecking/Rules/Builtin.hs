@@ -827,11 +827,11 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
               Axiom {} -> do
                 builtinSizeHook s q t'
                 -- And compilation pragmas for base types
-                when (s == builtinLevel)  $ addHaskellPragma q "= type ()"
-                when (s == builtinChar)   $ addHaskellPragma q "= type Char"
-                when (s == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
-                when (s == builtinFloat)  $ addHaskellPragma q "= type Double"
-                when (s == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
+                when (s == builtinLevel)  $ setConstTranspAxiom q >> addHaskellPragma q "= type ()"
+                when (s == builtinChar)   $ setConstTranspAxiom q >> addHaskellPragma q "= type Char"
+                when (s == builtinString) $ setConstTranspAxiom q >> addHaskellPragma q "= type Data.Text.Text"
+                when (s == builtinFloat)  $ setConstTranspAxiom q >> addHaskellPragma q "= type Double"
+                when (s == builtinWord64) $ setConstTranspAxiom q >> addHaskellPragma q "= type MAlonzo.RTE.Word64"
                 when (s == builtinPathP)  $ builtinPathPHook q
                 bindBuiltinName s v
               _        -> err
@@ -843,6 +843,10 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           (,t) <$> checkExpr e t
         f v t
         bindBuiltinName s v
+
+setConstTranspAxiom :: QName -> TCM ()
+setConstTranspAxiom q =
+  modifySignature $ updateDefinition q $ updateTheDef (const $ constTranspAxiom)
 
 builtinPathPHook :: QName -> TCM ()
 builtinPathPHook q =
@@ -938,7 +942,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                 , funMutual    = Just []
                 , funTerminates = Just True
                 }
-            | otherwise = Axiom
+            | otherwise = defaultAxiom
 
     Just (BuiltinPrim name axioms) -> do
       PrimImpl t pf <- lookupPrimitiveFunction name

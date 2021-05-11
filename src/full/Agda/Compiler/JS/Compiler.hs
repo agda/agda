@@ -379,8 +379,8 @@ definition' kit q d t ls = if not (usableModality d) then return Nothing else do
 
     DataOrRecSig{} -> __IMPOSSIBLE__
 
-    Axiom | Just e <- defJSDef d -> plainJS e
-    Axiom | otherwise -> ret Undefined
+    Axiom{} | Just e <- defJSDef d -> plainJS e
+    Axiom{} | otherwise -> ret Undefined
 
     GeneralizableVar{} -> return Nothing
 

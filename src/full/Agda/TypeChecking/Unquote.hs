@@ -146,7 +146,7 @@ choice ((mb, mx) : mxs) dflt = ifM mb mx $ choice mxs dflt
 
 ensureDef :: QName -> UnquoteM QName
 ensureDef x = do
-  i <- either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
+  i <- either (const defaultAxiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
   case i of
     Constructor{} -> do
       def <- liftTCM $ prettyTCM =<< primAgdaTermDef
@@ -156,7 +156,7 @@ ensureDef x = do
 
 ensureCon :: QName -> UnquoteM QName
 ensureCon x = do
-  i <- either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
+  i <- either (const defaultAxiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
   case i of
     Constructor{} -> return x
     _ -> do
@@ -906,7 +906,7 @@ evalTCM v = do
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
-        addConstant x $ defaultDefn i x a Axiom
+        addConstant x $ defaultDefn i x a defaultAxiom
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 
