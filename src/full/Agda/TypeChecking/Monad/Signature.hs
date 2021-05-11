@@ -1071,7 +1071,7 @@ makeAbstract d =
                , theDef = def
                }
   where
-    makeAbs Axiom         = Just Axiom
+    makeAbs d@Axiom{}            = Just d
     makeAbs d@DataOrRecSig{}     = Just d
     makeAbs d@GeneralizableVar{} = Just d
     makeAbs d@Datatype {} = Just $ AbstractDefn d
