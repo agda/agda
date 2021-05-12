@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
@@ -233,9 +234,10 @@ instance EmbPrj a => EmbPrj (NonEmpty a) where
   icod_ = icod_ . NonEmpty.toList
   value = maybe malformed return . nonEmpty <=< value
 
-instance (Ord a, Ord b, EmbPrj a, EmbPrj b) => EmbPrj (BiMap a b) where
-  icod_ m = icode (BiMap.toList m)
-  value m = BiMap.fromList <$> value m
+instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
+         EmbPrj (BiMap k v) where
+  icod_ m = icode (BiMap.toDistinctAscendingLists m)
+  value m = BiMap.fromDistinctAscendingLists <$> value m
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
   icod_ m = icode (Map.toList m)
