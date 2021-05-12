@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module DivMod where
 
 open import IO

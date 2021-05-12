@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module HelloWorld where
 
 open import IO
