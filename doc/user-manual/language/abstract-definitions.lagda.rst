@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --rewriting #-}
+  {-# OPTIONS --rewriting --sized-types #-}
   module language.abstract-definitions where
 
   open import language.built-ins

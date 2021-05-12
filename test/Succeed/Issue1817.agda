@@ -1,5 +1,7 @@
 -- Andreas, 2017-01-20, issue #1817 is fixed
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 open import Agda.Builtin.Nat renaming (Nat to ℕ)
 

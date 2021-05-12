@@ -2,7 +2,7 @@
 -- Size solver got stuck on projected variables which are left over
 -- in some size constraints by the generalization feature.
 
--- {-# OPTIONS --sized-types #-}
+{-# OPTIONS --sized-types #-}
 -- {-# OPTIONS --show-implicit #-}
 -- {-# OPTIONS -v tc.conv.size:60 -v tc.size:30 -v tc.meta.assign:10 #-}
 

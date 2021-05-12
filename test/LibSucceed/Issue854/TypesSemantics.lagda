@@ -5,6 +5,8 @@
 
 \AgdaHide{
 \begin{code}
+{-# OPTIONS --sized-types #-}
+
 module Issue854.TypesSemantics where
 
 import Level

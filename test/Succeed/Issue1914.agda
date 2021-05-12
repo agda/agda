@@ -1,6 +1,8 @@
 {-# OPTIONS -v tc.size:100 #-}
 -- {-# OPTIONS -v tc.meta:100 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size using (Size; Size<_)
 
 postulate

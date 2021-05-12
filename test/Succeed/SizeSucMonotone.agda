@@ -3,6 +3,7 @@
 -- Andreas, 2015-03-16 SizeUniv is still imperfect, so we need type-in-type
 -- here to work around the conflation of sLub and the PTS rule.
 {-# OPTIONS --type-in-type #-}
+{-# OPTIONS --sized-types #-}
 
 module SizeSucMonotone where
 
@@ -18,4 +19,3 @@ T false i = (Size< (↑ i) → Bool) → Bool
 
 test : {x : Bool}{i : Size}{j : Size< i} → T x j → T x i
 test h = h
-

@@ -4,6 +4,8 @@
 -- {-# OPTIONS -v tc.size.solve:100 #-}
 -- {-# OPTIONS -v tc.with.abstract:40 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 open import Common.Equality
 

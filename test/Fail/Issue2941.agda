@@ -1,4 +1,6 @@
 
+{-# OPTIONS --sized-types #-}
+
 record ⊤ : Set where constructor tt
 data ⊥ : Set where
 

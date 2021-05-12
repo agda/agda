@@ -3,6 +3,8 @@
 
 -- {-# OPTIONS -vtc:20 -vterm:20 #-}
 
+{-# OPTIONS --sized-types #-}
+
 {-# BUILTIN SIZEUNIV SizeU #-}
 {-# BUILTIN SIZE     Size   #-}
 {-# BUILTIN SIZELT   Size<_ #-}

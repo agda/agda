@@ -2,6 +2,7 @@
 -- More liberal type signatures for constructors of sized types.
 
 -- {-# OPTIONS -v tc.polarity:20 #-}
+{-# OPTIONS --sized-types #-}
 
 open import Agda.Builtin.Size
 

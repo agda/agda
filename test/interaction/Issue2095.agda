@@ -3,6 +3,8 @@
 -- {-# OPTIONS -v tc.size:20  #-}
 -- {-# OPTIONS -v tc.meta.assign:30 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data Cx (U : Set) : Set where

@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas --sized-types #-}
 open import Agda.Builtin.Size
 
 mutual

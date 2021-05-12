@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --sized-types #-}
 ------------------------------------------------------------------------
 -- From the Agda standard library
 --

@@ -1,6 +1,6 @@
 -- Andreas, 2015-07-22  Fixed bug in test for empty type of sizes
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --copatterns --sized-types #-}
 
 open import Common.Size
 

@@ -1,6 +1,8 @@
 -- Andreas, 2017-04-26
 -- Allow more flexible size assignment.
 
+{-# OPTIONS --sized-types #-}
+
 module _ where
 
 open import Agda.Builtin.Size

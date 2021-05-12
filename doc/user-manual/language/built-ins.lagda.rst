@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --rewriting #-}
+  {-# OPTIONS --rewriting --sized-types #-}
   module language.built-ins where
 
   open import Agda.Builtin.Equality public

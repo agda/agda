@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --rewriting #-}
+  {-# OPTIONS --rewriting --sized-types #-}
   module language.let-and-where where
 
   open import language.built-ins

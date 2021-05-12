@@ -1,5 +1,7 @@
 -- {-# OPTIONS -v tc.size.solve:100 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data Cx (U : Set) : Set where

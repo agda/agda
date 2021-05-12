@@ -1,3 +1,5 @@
+{-# OPTIONS --sized-types #-}
+
 module Rose where
 
 open import Common.Size
@@ -24,4 +26,3 @@ mapRose {A} {B} f .{↑ size} (rose {size} a l) =
 mapRose : {A B : Set} -> (A -> B) ->
           {size : Size} -> Rose A {size} -> Rose B {size}
 mapRose f (rose a l) = rose (f a) (map (mapRose f) l)
-

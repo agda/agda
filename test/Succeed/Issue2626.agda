@@ -6,7 +6,7 @@
 
 -- {-# OPTIONS -v tc:45 #-}
 
-{-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas --sized-types #-}
 
 module Issue2626 where
 
