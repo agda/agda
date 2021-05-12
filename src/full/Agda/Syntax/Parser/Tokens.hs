@@ -84,7 +84,8 @@ data Token
           -- Special symbols
         | TokSymbol Symbol Interval
           -- Other tokens
-        | TokString (Interval, String)  -- arbitrary string, used in pragmas
+        | TokString (Interval, String)
+            -- ^ Arbitrary string (not enclosed in double quotes), used in pragmas.
         | TokTeX (Interval, String)
         | TokMarkup (Interval, String)
         | TokComment (Interval, String)

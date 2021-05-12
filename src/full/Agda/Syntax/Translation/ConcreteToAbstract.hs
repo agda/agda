@@ -101,7 +101,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
-import Agda.ImpossibleTest (impossibleTest)
+import Agda.ImpossibleTest (impossibleTest, impossibleTestReduceM)
 
 {--------------------------------------------------------------------------
     Exceptions
@@ -2273,7 +2273,10 @@ errorNotConstrDecl d = typeError . GenericDocError $
 instance ToAbstract C.Pragma where
   type AbsOfCon C.Pragma = [A.Pragma]
 
-  toAbstract (C.ImpossiblePragma _) = impossibleTest
+  toAbstract (C.ImpossiblePragma _ strs) =
+    case strs of
+      "ReduceM" : _ -> impossibleTestReduceM strs
+      _ -> impossibleTest strs
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
   toAbstract (C.RewritePragma _ _ []) = [] <$ warning EmptyRewritePragma
   toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . concat <$> do
