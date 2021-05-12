@@ -3842,9 +3842,30 @@ fmapReduce :: (a -> b) -> ReduceM a -> ReduceM b
 fmapReduce f (ReduceM m) = ReduceM $ \ e -> f $! m e
 {-# INLINE fmapReduce #-}
 
+-- Andreas, 2021-05-12, issue #5379:
+-- It seems more stable to force to evaluate @mf <*> ma@
+-- from left to right, for the sake of printing
+-- debug messages in order.
 apReduce :: ReduceM (a -> b) -> ReduceM a -> ReduceM b
-apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e -> f e $! x e
+apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
+  let g = f e
+      a = x e
+  in  g `seq` a `seq` g a
 {-# INLINE apReduce #-}
+
+-- Andreas, 2021-05-12, issue #5379
+-- Since the MonadDebug instance of ReduceM is implemented via
+-- unsafePerformIO, we need to force results that later
+-- computations do not depend on, otherwise we lose debug messages.
+thenReduce :: ReduceM a -> ReduceM b -> ReduceM b
+thenReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e -> x e `seq` y e
+{-# INLINE thenReduce #-}
+
+beforeReduce :: ReduceM a -> ReduceM b -> ReduceM a
+beforeReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e ->
+  let a = x e
+  in  a `seq` y e `seq` a
+{-# INLINE beforeReduce #-}
 
 bindReduce :: ReduceM a -> (a -> ReduceM b) -> ReduceM b
 bindReduce (ReduceM m) f = ReduceM $ \ e -> unReduceM (f $! m e) e
@@ -3856,6 +3877,8 @@ instance Functor ReduceM where
 instance Applicative ReduceM where
   pure x = ReduceM (const x)
   (<*>) = apReduce
+  (*>)  = thenReduce
+  (<*)  = beforeReduce
 
 instance Monad ReduceM where
   return = pure
