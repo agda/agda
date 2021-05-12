@@ -1,5 +1,7 @@
 -- Andreas, 2015-05-28
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 fix : ∀ {C : Size → Set} → (∀ i → (∀ (j : Size< i) → C j) → C i) → ∀ i → C i

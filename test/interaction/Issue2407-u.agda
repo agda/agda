@@ -5,6 +5,8 @@
 -- If underscores are not preserved (issue #819),
 -- the case split fails due to size constraints.
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 data D (i : Size) : (j : Size< ↑ i) → Set where

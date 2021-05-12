@@ -3,6 +3,8 @@
 -- of the equation (and not just a subtype of it). See Issue 2407.
 
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Size
 

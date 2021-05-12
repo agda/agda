@@ -8,6 +8,8 @@ compatibility layer between containers and signatures.
 
 \AgdaHide{
 \begin{code}
+{-# OPTIONS --sized-types #-}
+
 module Issue854.RunCompat where
 
 open import Level

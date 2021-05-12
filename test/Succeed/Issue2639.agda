@@ -6,6 +6,8 @@
 
 -- {-# OPTIONS -v tc.size.solve:40 #-}
 
+{-# OPTIONS --sized-types #-}
+
 module Issue2639 (A : Set) where
 
 open import Agda.Builtin.Nat

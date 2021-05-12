@@ -7,6 +7,8 @@ effects. This was done in my first year report for containers.
 
 \AgdaHide{
 \begin{code}
+{-# OPTIONS --sized-types #-}
+
 module Issue854.Run where
 
 open import Level using (lower)

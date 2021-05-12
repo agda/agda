@@ -1,6 +1,8 @@
 -- Andreas, 2017-10-06, issue #2751
 -- Highlighting for unsolved constraints
 
+{-# OPTIONS --sized-types #-}
+
 module _ where
 
 open import Agda.Builtin.Size

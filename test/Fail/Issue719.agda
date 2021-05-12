@@ -1,6 +1,8 @@
 -- Andreas, 2012-10-19 issue #719 blame correct module
 -- Andreas, 2017-07-28 point to correct binding site ("as A")
 
+{-# OPTIONS --sized-types #-}
+
 module Issue719 where
 
   import Common.Size as A

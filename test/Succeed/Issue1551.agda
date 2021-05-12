@@ -1,6 +1,6 @@
 -- Andreas, 2015-06-11
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --copatterns --sized-types #-}
 
 open import Common.Size
 

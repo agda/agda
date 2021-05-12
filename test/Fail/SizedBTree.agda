@@ -1,5 +1,5 @@
 {-# OPTIONS --show-implicit #-}
--- {-# OPTIONS --sized-types #-}         -- no longer necessary
+{-# OPTIONS --sized-types #-}
 -- {-# OPTIONS --termination-depth=2 #-} -- no longer necessary
 -- {-# OPTIONS -v term:10 #-}
 

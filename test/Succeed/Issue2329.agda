@@ -8,6 +8,8 @@
 -- {-# OPTIONS -v tc.size:20 #-}
 -- {-# OPTIONS -v tc.size.solve:50 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 record R (i : Size) : Set where

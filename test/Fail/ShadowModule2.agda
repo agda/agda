@@ -1,4 +1,6 @@
 -- {-# OPTIONS -v scope.clash:20 #-}
+{-# OPTIONS --sized-types #-}
+
 -- Andreas, 2012-10-19 test case for Issue 719
 module ShadowModule2 where
 

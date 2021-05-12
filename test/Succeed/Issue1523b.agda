@@ -1,6 +1,8 @@
 -- {-# OPTIONS --copatterns #-}
 -- {-# OPTIONS -v tc.lhs:20 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 record Stream (i : Size) (A : Set) : Set where

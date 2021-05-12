@@ -7,6 +7,8 @@
 -- -- {-# OPTIONS -v tc.check.internal:100 #-}
 -- -- {-# OPTIONS -v interaction.give:100 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size using (Size; Size<_)
 
 data _×_ (A B : Set) : Set where

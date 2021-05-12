@@ -1,8 +1,8 @@
-Issue2985.agda:20,1-21,44
+Issue2985.agda:22,1-23,44
 Termination checking failed for the following functions:
   u
 Problematic calls:
   λ { .Unit.force j → u j }
-    (at Issue2985.agda:21,18-43)
+    (at Issue2985.agda:23,18-43)
   u j
-    (at Issue2985.agda:21,38-39)
+    (at Issue2985.agda:23,38-39)

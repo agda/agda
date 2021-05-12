@@ -2,6 +2,7 @@
 -- Sizes should be irrelevant in terms, while they are relevant in types!
 
 {-# OPTIONS --experimental-irrelevance #-}
+{-# OPTIONS --sized-types #-}
 
 open import Common.Size
 open import Common.Equality
@@ -24,4 +25,3 @@ module IrrelevantSizes where
   plus0 : .(i : Size) (x : Nat i) → add ∞ x (zero ∞) ≡ x
   plus0 i (zero j) = refl                       -- Goal: zero ∞ = zero j
   plus0 i (suc j x) = cong (suc ∞) (plus0 j x)  -- Goal: suc ∞ (add j x (zero ∞)) ≡ suc j x
-

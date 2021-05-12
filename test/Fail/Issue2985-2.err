@@ -1,8 +1,8 @@
-Issue2985-2.agda:25,1-27,43
+Issue2985-2.agda:27,1-29,43
 Termination checking failed for the following functions:
   u
 Problematic calls:
   λ { .force → u cons }
-    (at Issue2985-2.agda:27,21-42)
+    (at Issue2985-2.agda:29,21-42)
   u cons
-    (at Issue2985-2.agda:27,34-35)
+    (at Issue2985-2.agda:29,34-35)

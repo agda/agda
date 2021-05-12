@@ -14,6 +14,8 @@
 -- {-# OPTIONS -v tc.size.solve:30 #-}
 -- {-# OPTIONS -v tc.meta.assign:10 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 -- Worked without sized types since instance search succeeds

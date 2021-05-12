@@ -6,6 +6,8 @@
 
 -- {-# OPTIONS -v tc.lhs.unify:65 -v tc.irr:50 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data ⊥ : Set where

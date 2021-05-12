@@ -1,6 +1,8 @@
 -- Andreas, 2015-03-16
 -- Andreas, 2020-10-26 removed loop during injectivity check
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 -- Note: the assumption of pred is absurd,

@@ -1,4 +1,4 @@
--- {-# OPTIONS --sized-types #-} -- no longer necessary
+{-# OPTIONS --sized-types #-}
 -- {-# OPTIONS --termination-depth=2 #-} -- not necessary!
 -- {-# OPTIONS -v tc.size.solve:60 --show-implicit #-}
 -- {-# OPTIONS -v term:5 #-}
@@ -48,4 +48,3 @@ module NeedsTerminationDepthTwo where
   merge {i} {i'} (cons j x xs) (cons j' y ys) with x <= y
   ... | true  = cons _ x (merge xs (cons _ y ys))
   ... | false = cons _ y (merge (cons _ x xs) ys)
-

@@ -2,6 +2,8 @@
 
 -- Agda should not insert hidden lambdas of possibly empty size types
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data Nat i : Set where

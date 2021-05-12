@@ -1,4 +1,4 @@
-Issue1615.agda:11,33-35
+Issue1615.agda:13,33-35
 Cannot solve size constraints
 [i, j, n, k, m] k < i, j < i |- k ≤ _12
 [i, j, n, k, m] k < i, j < i |- j ≤ _12

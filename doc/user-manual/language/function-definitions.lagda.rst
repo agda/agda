@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --rewriting #-}
+  {-# OPTIONS --rewriting --sized-types #-}
   module language.function-definitions where
 
   open import language.built-ins

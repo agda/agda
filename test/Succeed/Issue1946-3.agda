@@ -1,6 +1,8 @@
 -- A minor variant of code reported by Andreas Abel. The code below
 -- should be rejected.
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data ⊥ : Set where
