@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --guardedness #-}
 
 module AllStdLib where
 

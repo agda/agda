@@ -5,6 +5,8 @@
 -- checker. However, the split tree is necessary to direct the clause
 -- compiler.
 
+{-# OPTIONS --guardedness #-}
+
 data Unit : Set where
  true : Unit
 

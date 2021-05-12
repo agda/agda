@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 -- Written by P. Hausmann
 module Vec where
 

@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module TrustMe where
 
 open import Data.String

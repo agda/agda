@@ -1,6 +1,8 @@
 -- Source: https://raw.githubusercontent.com/gallais/potpourri/master/agda/poc/dimensions/dimensions.agda
 -- Author: Original by gallais, modified for test suite by P. Hausmann
 
+{-# OPTIONS --guardedness #-}
+
 module dimensions where
 
 open import Data.Nat     as ℕ using (ℕ)
