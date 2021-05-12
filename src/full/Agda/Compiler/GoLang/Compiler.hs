@@ -387,11 +387,7 @@ definition' kit q d t ls = do
                 args = map (snd . unDom) (telToList tel)
                 (given, body) = T.tLamView funBody  
                 etaN = length $ dropWhile id $ reverse $ drop given used
-            reportSDoc "function.go" 30 $ " genericTypesUsed:" <+> (text . show) genericTypesUsed
             reportSDoc "function.go" 30 $ " compiled treeless fun:" <+> pretty funBody    
-            reportSDoc "function.go" 30 $ " etn:" <+> (text . show) etaN
-            reportSDoc "function.go" 30 $ " given:" <+> (text . show) given
-            reportSDoc "function.go" 30 $ " count:" <+> (text . show) count
             funBody' <- compileTerm kit (given - (count + 1)) goArg body
             functionSignature <- createSignature fname goArg name genericTypesUsed
             let emptyFunction = functionSignature Null
@@ -419,8 +415,6 @@ definition' kit q d t ls = do
     c@Constructor{conData = p, conPars = nc, conSrcCon = ch, conArity = cona} -> do
       (ff, gg) <- global q
       (ff2, gg2) <- global' q
-      reportSDoc "compile.go" 5 $ "compiling gg2:" <+> (text . show) gg2
-      reportSDoc "compile.go" 5 $ "compiling gg:" <+> (text . show) gg
       let np = arity t - nc
       erased <- getErasedConArgs q
       let inverseErased = map not erased
@@ -560,90 +554,6 @@ literal' _ = UndefinedTerm
 getTypelessMethodCallParams' :: [GoTerm] -> [GoMethodCallParam]
 getTypelessMethodCallParams' [] = []
 getTypelessMethodCallParams' (x : xs) = (GoMethodCallParam x EmptyType) : (getTypelessMethodCallParams' xs)
-
-compilePrim' :: T.TPrim -> GoTerm
-compilePrim' v0
-  = let v1 =  UndefinedTerm in
-    case  v0 of
-      T.PAdd -> Const ("helper.Add")
-      T.PSub -> Const ("helper.Minus")
-      T.PMul -> Const ("helper.Multiply")
-      T.PGeq -> Const ("helper.MoreOrEquals")
-      T.PLt -> Const ("helper.Less")
-      T.PEqI ->  Const ("helper.Equals")
-      T.PAdd64 -> Const "helper.Add"
-      _ ->  v1
-
-go' :: Nat -> T.TTerm -> TCM GoTerm
-go' v0 v1
-  = let v2 = return Null in
-    case  v1 of
-      T.TVar v3 -> return $ GoVar ((-) v0 v3)
-      T.TPrim v3 -> do 
-        reportSDoc "compile.go" 5 $ "compiling v3:" <+> (text . show) v3
-        reportSDoc "compile.go" 5 $ "compiling v3:" <+> (text . show) (compilePrim' ( v3))
-        return $ compilePrim' ( v3)
-      T.TDef v3 -> do 
-          name <- liftTCM $ fullName v3
-          return $ GoMethodCall ( name) []
-      T.TCon v3 -> do 
-          name <- liftTCM $ fullName v3
-          return $ GoCreateStruct ( name) []
-      T.TLam v3 -> go' ( v0) ( v3)
-      T.TApp v3 v4
-        -> case  v3 of
-             T.TPrim v5
-               -> let v6
-                        = case  v4 of
-                            (:) v6 v7
-                              -> case  v7 of
-                                   (:) v8 v9
-                                     -> case  v9 of
-                                          []
-                                            -> PrimOp  <$>  ( go' ( v0) ( v3))
-                                                 <*> ( go' ( v0) ( v6))
-                                                 <*> ( go' ( v0) ( v8))
-                                          _ -> v2
-                                   _ -> v2
-                            _ ->  v2 in
-                  case  v5 of
-                    T.PIf
-                      -> case  v4 of
-                           (:) v7 v8
-                             -> case  v8 of
-                                  (:) v9 v10
-                                    -> case  v10 of
-                                         (:) v11 v12
-                                           -> case  v12 of
-                                                []
-                                                  -> GoIf <$> ( go' ( v0) ( v7))
-                                                       <*> ( go' ( v0) ( v9))
-                                                       <*> ( go' ( v0) ( v11))
-                                                _ -> v6
-                                         _ -> v6
-                                  _ -> v6
-                           _ -> v2
-                    _ -> v6
-             T.TDef v5 -> do
-                name <- liftTCM $ fullName v5
-                transformedArgs <- mapM ( go' v0) v4
-                return $ GoMethodCall name (getTypelessMethodCallParams' transformedArgs)
-             T.TCon v5 -> do
-              name <- liftTCM $ fullName v5 
-              transformedArgs <- mapM ( go' v0) v4
-              return $ GoCreateStruct ( name) (transformedArgs)
-             _ -> v2
-      T.TLet v3 v4
-        ->  GoLet <$>  (return (getVarName ( 1 + v0)))
-             <*> ( go' ( v0) ( v3))
-             <*> ( compileTerm' (1 + v0) ( v4))
-      T.TLit v3 -> return $ literal' ( v3)
-      T.TErased -> return  GoErased
-      T.TError T.TUnreachable -> return UndefinedTerm
-      _ -> v2
-
-compileTerm' :: Nat -> T.TTerm -> TCM GoTerm
-compileTerm' v0 v1 =  go' ( v0) ( v1)
 
 writeModule :: Module -> TCM ()
 writeModule m = do
@@ -801,6 +711,7 @@ applyReturnType' retT exp = do
     Const x -> ReturnExpression (Const x) retT
     GoSwitch x y -> GoSwitch x $ map (applyReturnTypeCase retT) y
     GoIf x y z -> GoIf x (applyReturnType' retT y) (applyReturnType' retT z)
+    GoLet x (GoLet x1 y1 z1) z -> GoLet x (GoLet x1 y1 (applyReturnType' retT z1)) (applyReturnType' retT z)
     GoLet x y z -> GoLet x y (applyReturnType' retT z)
     n -> n
 
@@ -851,7 +762,7 @@ compilePrim p =
     T.PLt64 -> Const "helper.Less"
     T.PEqF -> Const "PEqF"
     T.PEqQ -> Const "PEqQ"
-    T.PRem -> Const "PRem"
+    T.PRem -> Const "helper.Mod"
     T.PQuot -> Const "PQuot"
     T.PAdd64 -> Const "helper.Add"
     T.PSub64 -> Const "helper.Minus"

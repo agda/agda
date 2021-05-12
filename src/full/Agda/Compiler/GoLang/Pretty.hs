@@ -34,6 +34,7 @@ instance Pretty Go.GoTerm where
       Go.GoMethodCall name params -> (pretty name) <> (hsep $ map pretty params)
       Go.GoIf a b c -> "if (" <+> (pretty a) <+> ") {\n" <+> (pretty b) <+> "\n} else {\n" <+> pretty c <+> "\n}\n"
       Go.PrimOp a b c -> (pretty a) <> "(" <> (T.parens (pretty b)) <> "," <> (T.parens (pretty c)) <> ")"
+      Go.GoLet name (Go.GoLet name1 val1 exp1) exp -> (text name1) <+> ":=" <+> (pretty val1) <+> "\n" <+> (pretty exp1) <+> "\n" <+> (pretty exp)
       Go.GoLet name val exp -> (text name) <+> ":=" <+> (pretty val) <+> "\n" <+> (pretty exp)
       Go.Integer n -> (text "big.NewInt") <> (T.parens $ text $ show n)
       Go.ReturnExpression exp t -> "return helper.Id(" <> (pretty exp) <> ").(" <> pretty t <> ")"
@@ -50,7 +51,7 @@ instance Pretty Go.GoMethodCallParam where
     case e of
       Go.GoMethodCallParam Go.GoErased Go.EmptyType -> empty
       Go.GoMethodCallParam exp Go.EmptyType -> T.parens (pretty exp)
-      Go.GoMethodCallParam exp typeId -> "(" <> (pretty exp) <> ".(" <> pretty typeId <> "))"
+      Go.GoMethodCallParam exp typeId -> "(" <> (pretty exp) <> ".(" <> pretty typeId <> ") )"
 
 instance Pretty Go.GoDef where
   prettyPrec pr e =
@@ -118,6 +119,6 @@ instance Pretty Go.TypeId where
   pretty _ = (text "utype")
 
 instance Pretty Go.GoFunctionSignature where
-  pretty (Go.OuterSignature name [] param returnElems returnType) = "func " <> (pretty name) <> (pretty param) <> (vcat $ map pretty returnElems) <> T.space <> (pretty returnType) <> " {\n"
+  pretty (Go.OuterSignature name [] param returnElems returnType) = "func " <> (pretty name) <> (pretty param) <> (hsep $ map pretty returnElems) <> T.space <> (pretty returnType) <> " {\n"
   pretty (Go.OuterSignature name genTypes param returnElems returnType) = "func " <> (pretty name) <> T.brackets (text ((intercalate ", " genTypes) ++ " any")) <> (pretty param) <> (vcat $ map pretty returnElems) <> T.space <> (pretty returnType) <> " {\n"
   pretty (Go.InnerSignature param returnElems returnType) = "return func" <> (pretty param) <> (vcat $ map pretty returnElems) <> T.space <> (pretty returnType) <> " {\n"
