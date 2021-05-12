@@ -142,8 +142,8 @@ data PragmaOptions = PragmaOptions
   , optOmegaInOmega              :: Bool
   , optSubtyping                 :: WithDefault 'False
   , optCumulativity              :: Bool
-  , optSizedTypes                :: WithDefault 'True
-  , optGuardedness               :: WithDefault 'True
+  , optSizedTypes                :: WithDefault 'False
+  , optGuardedness               :: WithDefault 'False
   , optInjectiveTypeConstructors :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
@@ -381,8 +381,8 @@ restartOptions =
   , (B . optOmegaInOmega, "--omega-in-omega")
   , (B . collapseDefault . optSubtyping, "--subtyping")
   , (B . optCumulativity, "--cumulativity")
-  , (B . not . collapseDefault . optSizedTypes, "--no-sized-types")
-  , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
+  , (B . collapseDefault . optSizedTypes, "--no-sized-types")
+  , (B . collapseDefault . optGuardedness, "--no-guardedness")
   , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
   , (B . optProp, "--prop")
   , (B . collapseDefault . optTwoLevel, "--two-level")
@@ -427,6 +427,8 @@ infectiveOptions =
   , (optProp, "--prop")
   , (collapseDefault . optTwoLevel, "--two-level")
   , (optRewriting, "--rewriting")
+  , (collapseDefault . optSizedTypes, "--sized-types")
+  , (collapseDefault . optGuardedness, "--guardedness")
   ]
 
 -- | A coinfective option is an option that if used in one module, must
@@ -437,8 +439,6 @@ coinfectiveOptions =
   [ (optSafe, "--safe")
   , (collapseDefault . optWithoutK, "--without-K")
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
-  , (not . collapseDefault . optSizedTypes, "--no-sized-types")
-  , (not . collapseDefault . optGuardedness, "--no-guardedness")
   , (not . collapseDefault . optSubtyping, "--no-subtyping")
   , (not . optCumulativity, "--no-cumulativity")
   ]
