@@ -510,8 +510,9 @@ data Pragma
   | StaticPragma              Range QName
   | InlinePragma              Range Bool QName  -- ^ INLINE or NOINLINE
 
-  | ImpossiblePragma          Range
+  | ImpossiblePragma          Range [String]
     -- ^ Throws an internal error in the scope checker.
+    --   The 'String's are words to be displayed with the error.
   | EtaPragma                 Range QName
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
@@ -934,7 +935,7 @@ instance HasRange Pragma where
   getRange (StaticPragma r _)                = r
   getRange (InjectivePragma r _)             = r
   getRange (InlinePragma r _ _)              = r
-  getRange (ImpossiblePragma r)              = r
+  getRange (ImpossiblePragma r _)            = r
   getRange (EtaPragma r _)                   = r
   getRange (TerminationCheckPragma r _)      = r
   getRange (NoCoverageCheckPragma r)         = r
@@ -1138,7 +1139,7 @@ instance KillRange Pragma where
   killRange (InlinePragma _ b q)              = killRange1 (InlinePragma noRange b) q
   killRange (CompilePragma _ b q s)           = killRange1 (\ q -> CompilePragma noRange b q s) q
   killRange (ForeignPragma _ b s)             = ForeignPragma noRange b s
-  killRange (ImpossiblePragma _)              = ImpossiblePragma noRange
+  killRange (ImpossiblePragma _ strs)         = ImpossiblePragma noRange strs
   killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
   killRange (NoCoverageCheckPragma _)         = NoCoverageCheckPragma noRange
   killRange (WarningOnUsage _ nm str)         = WarningOnUsage noRange (killRange nm) str
@@ -1279,7 +1280,7 @@ instance NFData Pragma where
   rnf (StaticPragma _ a)                = rnf a
   rnf (InjectivePragma _ a)             = rnf a
   rnf (InlinePragma _ _ a)              = rnf a
-  rnf (ImpossiblePragma _)              = ()
+  rnf (ImpossiblePragma _ a)            = rnf a
   rnf (EtaPragma _ a)                   = rnf a
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (NoCoverageCheckPragma _)         = ()

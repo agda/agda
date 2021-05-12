@@ -1603,8 +1603,8 @@ CatchallPragma
 
 ImpossiblePragma :: { Pragma }
 ImpossiblePragma
-  : '{-#' 'IMPOSSIBLE' '#-}'
-    { ImpossiblePragma (getRange ($1,$2,$3)) }
+  : '{-#' 'IMPOSSIBLE' PragmaStrings '#-}'
+    { ImpossiblePragma (getRange ($1,$2,$4)) $3 }
 
 NoPositivityCheckPragma :: { Pragma }
 NoPositivityCheckPragma

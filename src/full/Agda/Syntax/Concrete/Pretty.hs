@@ -586,8 +586,8 @@ instance Pretty Pragma where
       hsep $ ["INLINE", pretty i]
     pretty (InlinePragma _ False i) =
       hsep $ ["NOINLINE", pretty i]
-    pretty (ImpossiblePragma _) =
-      hsep $ ["IMPOSSIBLE"]
+    pretty (ImpossiblePragma _ strs) =
+      hsep $ ["IMPOSSIBLE"] ++ map text strs
     pretty (EtaPragma _ x) =
       hsep $ ["ETA", pretty x]
     pretty (TerminationCheckPragma _ tc) =

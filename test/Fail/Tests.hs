@@ -30,8 +30,11 @@ tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
   return $ testGroup "Fail" $ concat $
     -- A list written with ':' to quickly switch lines
-    customizedTests :
     map mkFailTest inpFiles :
+    -- The some of the customized tests fail with agda-quicker
+    -- (because they refer to the name of the Agda executable),
+    -- so put them last.
+    customizedTests :
     []
   where
   customizedTests =
