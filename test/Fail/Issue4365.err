@@ -1,0 +1,4 @@
+Issue4365.agda:13,11-12
+a != primTransp (λ i → A) i0 a of type A
+when checking that the expression λ _ → a has type
+primTransp (λ i → A) i0 a ≡ a
