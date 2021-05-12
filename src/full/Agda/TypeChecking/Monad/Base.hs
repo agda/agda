@@ -89,6 +89,8 @@ import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Library
 
 import Agda.Utils.Benchmark (MonadBench(..))
+import Agda.Utils.BiMap (BiMap, HasTag(..))
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -386,7 +388,7 @@ initPostScopeState = PostScopeState
   { stPostSyntaxInfo           = mempty
   , stPostDisambiguatedNames   = IntMap.empty
   , stPostMetaStore            = IntMap.empty
-  , stPostInteractionPoints    = Map.empty
+  , stPostInteractionPoints    = empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
@@ -1490,12 +1492,15 @@ data InteractionPoint = InteractionPoint
 
 instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 
+instance HasTag InteractionPoint where
+  type Tag InteractionPoint = MetaId
+  tag = ipMeta
+
 -- | Data structure managing the interaction points.
 --
 --   We never remove interaction points from this map, only set their
 --   'ipSolved' to @True@.  (Issue #2368)
-type InteractionPoints = Map InteractionId InteractionPoint
-
+type InteractionPoints = BiMap InteractionId InteractionPoint
 
 -- | Flag to indicate whether the meta is overapplied in the
 --   constraint.  A meta is overapplied if it has more arguments than
@@ -4615,6 +4620,7 @@ instance NFData TypeCheckingProblem
 instance NFData RunMetaOccursCheck
 instance NFData MetaInfo
 instance NFData InteractionPoint
+instance NFData InteractionPoints
 instance NFData Overapplied
 instance NFData t => NFData (IPBoundary' t)
 instance NFData IPClause

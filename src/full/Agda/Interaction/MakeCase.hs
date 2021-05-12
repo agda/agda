@@ -8,7 +8,6 @@ import Control.Monad
 
 import Data.Either
 import Data.Function
-import qualified Data.Map as Map
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
@@ -40,6 +39,7 @@ import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
 import Agda.Interaction.Options
 import Agda.Interaction.BasicOps
 
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -458,7 +458,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   -- In this case, we refuse to split, as this might lose the refinements.
   checkClauseIsClean :: IPClause -> TCM ()
   checkClauseIsClean ipCl = do
-    sips <- filter ipSolved . Map.elems <$> useTC stInteractionPoints
+    sips <- filter ipSolved . BiMap.elems <$> useTC stInteractionPoints
     when (List.any ((== ipCl) . ipClause) sips) $
       typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
 
