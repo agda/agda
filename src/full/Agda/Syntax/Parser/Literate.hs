@@ -25,10 +25,12 @@ import Prelude hiding (getLine)
 import Control.Monad ((<=<))
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
-import Agda.Syntax.Common
-import Agda.Syntax.Position
 import Text.Regex.TDFA
 
+import Agda.Syntax.Common
+import Agda.Syntax.Position
+
+import Agda.Utils.List
 import Agda.Utils.Impossible
 
 -- | Role of a character in the file.
@@ -262,7 +264,7 @@ literateRsT pos s = mkLayers pos$ rst s
       []                         -> not_code
       [[_, before, "::", after]] ->
         -- Code starts
-        if null before || isBlank (last before) then
+        if maybe True isBlank $ lastMaybe before then
           (Markup, line) : code rest
         else
           (Comment, before ++ ":") : (Markup, ":" ++ after) : code rest

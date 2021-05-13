@@ -57,6 +57,7 @@ import Agda.Syntax.Scope.Base                   ( KindOfName(..) )
 import Agda.Interaction.Highlighting.Range
 
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.RangeMap (RangeMap, IsBasicRangeMap(..))
@@ -323,13 +324,13 @@ instance IsBasicRangeMap Aspects PositionMap where
       IntMap.fromDistinctAscList [ (p, m) | p <- rangesToPositions rs ]
     }
 
-  toList = map join . groupBy' p . IntMap.toAscList . positionMap
+  toList = map join . List1.groupBy' p . IntMap.toAscList . positionMap
     where
     p (pos1, m1) (pos2, m2) = pos2 == pos1 + 1 && m1 == m2
-    join pms = ( Range { from = head ps, to = last ps + 1 }
-               , head ms
+    join pms = ( Range { from = List1.head ps, to = List1.last ps + 1 }
+               , List1.head ms
                )
-      where (ps, ms) = unzip pms
+      where (ps, ms) = List1.unzip pms
 
   toMap = positionMap
 

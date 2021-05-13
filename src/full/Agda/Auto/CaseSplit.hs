@@ -22,6 +22,7 @@ import Agda.Auto.Typecheck
 
 import Agda.Utils.Impossible
 import Agda.Utils.Monad (or2M)
+import Agda.Utils.List (last1)
 
 abspatvarname :: String
 abspatvarname = "\0absurdPattern"
@@ -645,7 +646,7 @@ getblks tt = do
    _ -> return []
  where
   f blks = case blks of
-             (_:_) -> case rawValue (last blks) of
+             (b : bs) -> case rawValue (last1 b bs) of
               HNApp (Var v) _ -> Just v
               _ -> Nothing
              _ -> Nothing

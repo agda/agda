@@ -5,13 +5,16 @@ module Agda.TypeChecking.EtaContract where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
+
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce.Monad () --instance only
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import {-# SOURCE #-} Agda.TypeChecking.Datatypes
+
 import Agda.Utils.Monad
+import Agda.Utils.List (initLast)
 
 import Agda.Utils.Impossible
 
@@ -43,10 +46,8 @@ binAppView t = case t of
   Dummy{}    -> __IMPOSSIBLE__
   where
     noApp = NoApp t
-    appE f [] = noApp
-    appE f xs
-      | Apply v <- last xs = App (f $ init xs) v
-      | otherwise          = noApp
+    appE f es0 | Just (es, Apply v) <- initLast es0 = App (f es) v
+    appE _ _ = noApp
 
 -- | Contracts all eta-redexes it sees without reducing.
 {-# SPECIALIZE etaContract :: TermLike a => a -> TCM a #-}

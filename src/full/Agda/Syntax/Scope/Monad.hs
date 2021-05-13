@@ -668,7 +668,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
                --   return $ A.mnameFromList $ newL ++ suffix
                -- Ulf, 2016-02-22: #1726
                -- We still need to copy modules from 'open public'. Same as in renName.
-               y <- refresh (last $ A.mnameToList x)
+               y <- refresh $ lastWithDefault __IMPOSSIBLE__ $ A.mnameToList x
                return $ A.mnameFromList $ newM ++ [y]
             -- Andreas, Jesper, 2015-07-02: Issue 1597
             -- Don't copy a module over itself, it will just be emptied of its contents.

@@ -998,7 +998,7 @@ callGHC = do
   agdaMod <- curAgdaMod
   let outputName = case mnameToList agdaMod of
         [] -> __IMPOSSIBLE__
-        ms -> last ms
+        m:ms -> last1 m ms
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 

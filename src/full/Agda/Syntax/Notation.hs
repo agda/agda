@@ -100,8 +100,8 @@ data NotationKind
 -- /normal/ holes.
 notationKind :: Notation -> NotationKind
 notationKind []  = NoNotation
-notationKind syn =
-  case (isNormalHole $ head syn, isNormalHole $ last syn) of
+notationKind (h:syn) =
+  case (isNormalHole h, isNormalHole $ last1 h syn) of
     (True , True ) -> InfixNotation
     (True , False) -> PostfixNotation
     (False, True ) -> PrefixNotation

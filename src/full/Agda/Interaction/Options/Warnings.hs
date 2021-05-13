@@ -35,6 +35,7 @@ import Data.List ( stripPrefix, intercalate )
 import GHC.Generics (Generic)
 
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 
 import Agda.Utils.Impossible
@@ -279,7 +280,7 @@ string2WarningName :: String -> Maybe WarningName
 string2WarningName = readMaybe . (++ "_")
 
 warningName2String :: WarningName -> String
-warningName2String = init . show
+warningName2String = initWithDefault __IMPOSSIBLE__ . show
 
 -- | @warningUsage@ generated using @warningNameDescription@
 

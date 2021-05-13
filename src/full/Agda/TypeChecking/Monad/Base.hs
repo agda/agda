@@ -1938,9 +1938,9 @@ projDropPars (Projection Just{} d _ _ lams) o =
       let core = Lam i $ Abs y $ Var 0 [Proj o d] in
       List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) core pars
 -- Projection-like functions:
-projDropPars (Projection Nothing _ _ _ lams) o | null lams = __IMPOSSIBLE__
 projDropPars (Projection Nothing d _ _ lams) o =
-  List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def d []) $ init $ getProjLams lams
+  List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def d []) $
+    initWithDefault __IMPOSSIBLE__ $ getProjLams lams
 
 -- | The info of the principal (record) argument.
 projArgInfo :: Projection -> ArgInfo

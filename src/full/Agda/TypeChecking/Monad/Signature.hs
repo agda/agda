@@ -776,7 +776,9 @@ defaultGetConstInfo st env q = do
             _             -> q
 
           dropLastModule q@QName{ qnameModule = m } =
-            q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
+            q{ qnameModule = mnameFromList $
+                 initWithDefault __IMPOSSIBLE__ $ mnameToList m
+             }
 
 -- HasConstInfo lifts through monad transformers
 -- (see default signatures in HasConstInfo class).

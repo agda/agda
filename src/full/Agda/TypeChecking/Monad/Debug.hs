@@ -273,7 +273,7 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
                  | otherwise = do
     t <- getVerbosity
     let ks = parseVerboseKey k
-        m  = last $ 0 : Trie.lookupPath ks t
+        m  = lastWithDefault 0 $ Trie.lookupPath ks t
     return (n <= m)
 
 -- | Check whether a certain verbosity level is activated (exact match).

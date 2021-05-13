@@ -61,6 +61,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
+import Agda.Utils.List   ( initLast )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -1065,9 +1066,7 @@ instance PrettyTCM TypeError where
           NonfixNotation  -> id
           NoNotation      -> __IMPOSSIBLE__
 
-        (names, name) = case Set.toList $ notaNames nota of
-          [] -> __IMPOSSIBLE__
-          ns -> (init ns, last ns)
+        (names, name) = fromMaybe __IMPOSSIBLE__ $ initLast $ Set.toList $ notaNames nota
 
         strut = Boxes.emptyBox (length names) 0
 

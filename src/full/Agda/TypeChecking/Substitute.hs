@@ -296,7 +296,7 @@ instance Apply ProjLams where
 
 instance Apply Defn where
   apply d [] = d
-  apply d args = case d of
+  apply d args@(arg1:args1) = case d of
     Axiom{} -> d
     DataOrRecSig n -> DataOrRecSig (n - length args)
     GeneralizableVar{} -> d
@@ -329,23 +329,10 @@ instance Apply Defn where
                 , funExtLam         = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
                 }
               where
-                larg  = last args -- the record value
+                larg  = last1 arg1 args1 -- the record value
                 args' = [larg]
                 isVar0 = case unArg larg of Var 0 [] -> True; _ -> False
-{-
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Just p@Projection{ projIndex = n } }
-        -- case: only applying parameters
-      | size args < n -> d { funProjection = Just $ p `apply` args }
-        -- case: apply also to record value
-      | otherwise     ->
-        d { funClauses        = apply cs args'
-          , funCompiled       = apply cc args'
-          , funInv            = apply inv args'
-          , funProjection     = Just $ p { projIndex = 0 } -- Nothing ?
-          }
-      where args' = [last args]  -- the record value
--}
+
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np - size args
         , dataClause     = apply cl args

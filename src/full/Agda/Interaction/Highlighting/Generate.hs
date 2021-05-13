@@ -70,6 +70,7 @@ import Agda.Syntax.Scope.Base     ( WithKind(..) )
 import Agda.Syntax.Abstract.Views ( KName, declaredNames )
 
 import Agda.Utils.FileName
+import Agda.Utils.List            ( caseList, initWithDefault, last1 )
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
@@ -330,10 +331,10 @@ generateConstructorInfo modMap file kinds decl = do
   -- Get boundaries of current declaration.
   -- @noRange@ should be impossible, but in case of @noRange@
   -- it makes sense to return mempty.
-  ifNull (P.rangeIntervals $ getRange decl)
-         (return mempty) $ \is -> do
-    let start = fromIntegral $ P.posPos $ P.iStart $ head is
-        end   = fromIntegral $ P.posPos $ P.iEnd   $ last is
+  caseList (P.rangeIntervals $ getRange decl)
+           (return mempty) $ \ i is -> do
+    let start = fromIntegral $ P.posPos $ P.iStart i
+        end   = fromIntegral $ P.posPos $ P.iEnd $ last1 i is
 
     -- Get all disambiguated names that fall within the range of decl.
     m0 <- useTC stDisambiguatedNames
@@ -551,7 +552,7 @@ shadowingTelHighlighting :: [Range] -> HighlightingInfoBuilder
 shadowingTelHighlighting =
   -- we do not want to highlight the one variable in scope so we take
   -- the @init@ segment of the ranges in question
-  foldMap (\r -> H.singleton (rToR $ P.continuous r) m) . init
+  foldMap (\r -> H.singleton (rToR $ P.continuous r) m) . initWithDefault __IMPOSSIBLE__
   where
   m = parserBased { otherAspects =
                       Set.singleton H.ShadowingInTelescope }

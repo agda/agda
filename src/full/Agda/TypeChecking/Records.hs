@@ -725,8 +725,9 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
           -- if @a@ is the record field name applied to a single argument
           -- then it passes the check
           (_, Just (_, [])) -> Nothing  -- not a projection
-          (_, Just (h, es)) | Proj _o f <- last es, unDom ax == f
-                            -> Just $ Just $ h $ init es
+          (_, Just (h, e0:es0))
+            | (es, Proj _o f) <- initLast1 e0 es0
+            , unDom ax == f -> Just $ Just $ h es
           _                 -> Nothing
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied

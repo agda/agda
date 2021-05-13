@@ -67,7 +67,7 @@ import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) 
 import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
-import Agda.Utils.List          ( groupOn, wordsBy )
+import Agda.Utils.List          ( groupOn, initLast1, wordsBy )
 import Agda.Utils.Pretty        ( singPlural )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
@@ -779,11 +779,13 @@ verboseFlag s o =
     do  (k,n) <- parseVerbose s
         return $ o { optVerbose = Trie.insert k n $ optVerbose o }
   where
+    parseVerbose :: String -> OptM ([VerboseKey], VerboseLevel)
     parseVerbose s = case wordsBy (`elem` (":." :: String)) s of
       []  -> usage
-      ss  -> do
-        n <- maybe usage return $ readMaybe (last ss)
-        return (init ss, n)
+      s0:ss0 -> do
+        let (ss, s) = initLast1 s0 ss0
+        n <- maybe usage return $ readMaybe s
+        return (ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
 warningModeFlag :: String -> Flag PragmaOptions
