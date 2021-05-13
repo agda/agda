@@ -41,6 +41,7 @@ import Agda.TypeChecking.Monad
 import           Agda.Utils.FileName
 import           Agda.Utils.Function
 import           Agda.Utils.Functor
+import           Agda.Utils.List                     ( initLast1 )
 import           Agda.Utils.List1                    ( List1 )
 import qualified Agda.Utils.List1          as List1
 import           Agda.Utils.Maybe
@@ -533,17 +534,18 @@ hiliteField xs x bindingR = hiliteCName xs x noRange bindingR $ nameAsp Field
 -- which defines this module.
 hiliteModule :: (Bool, A.ModuleName) -> Hiliter
 hiliteModule (isTopLevelModule, A.MName []) = mempty
-hiliteModule (isTopLevelModule, A.MName ns) =
+hiliteModule (isTopLevelModule, A.MName (n:ns)) =
   hiliteCName
-    (map A.nameConcrete (init ns))
-    (A.nameConcrete (last ns))
+    (map A.nameConcrete ms)
+    (A.nameConcrete m)
     noRange
     mR
     (nameAsp Module)
   where
+  (ms, m) = initLast1 n ns
   mR = Just $
        applyWhen isTopLevelModule P.beginningOfFile $
-       A.nameBindingSite (last ns)
+       A.nameBindingSite m
 
 -- This was Highlighting.Generate.nameToFile:
 -- | Converts names to suitable 'File's.

@@ -29,6 +29,7 @@ import Data.Semigroup
 import Data.Strict.Tuple (Pair(..))
 
 import Agda.Interaction.Highlighting.Range
+import Agda.Utils.List
 import Agda.Utils.Null
 
 ------------------------------------------------------------------------
@@ -119,12 +120,12 @@ newtype RangeMap a = RangeMap
 -- The ranges must not be empty, and they must not overlap.
 
 rangeMapInvariant :: RangeMap a -> Bool
-rangeMapInvariant f =
-  all rangeInvariant rs &&
-  all (not . null) rs &&
-  case rs of
-    [] -> True
-    rs -> and (zipWith (<=) (map to $ init rs) (map from $ tail rs))
+rangeMapInvariant f = and
+  [ all rangeInvariant rs
+  , all (not . null) rs
+  , caseList rs True $ \ r rs' ->
+      and $ zipWith (<=) (map to $ init1 r rs') (map from rs')
+  ]
   where
   rs = map fst $ toList f
 

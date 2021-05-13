@@ -31,8 +31,9 @@ import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty () --instance only
 
 import qualified Agda.Utils.Haskell.Syntax as HS
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.List
 import Agda.Utils.Null
+import Agda.Utils.Pretty (prettyShow)
 
 import Agda.Utils.Impossible
 
@@ -243,9 +244,9 @@ hsTypeApproximation poly fv t = do
           Pi a b -> hsFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
-            | q `is` list, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
+            | q `is` list, Apply t <- last1 (Proj ProjSystem __IMPOSSIBLE__) els
                         -> HS.TyApp (tyCon "[]") <$> go n (unArg t)
-            | q `is` mayb, Apply t <- last (Proj ProjSystem __IMPOSSIBLE__ : els)
+            | q `is` mayb, Apply t <- last1 (Proj ProjSystem __IMPOSSIBLE__) els
                         -> HS.TyApp (tyCon "Maybe") <$> go n (unArg t)
             | q `is` bool -> return $ tyCon "Bool"
             | q `is` int  -> return $ tyCon "Integer"

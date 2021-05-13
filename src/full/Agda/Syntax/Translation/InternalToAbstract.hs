@@ -658,15 +658,16 @@ reifyTerm expandAnonDefs0 v0 = do
       -- Check if we have an absurd lambda.
       case def of
        Function{ funCompiled = Just Fail{}, funClauses = [cl] }
-                | isAbsurdLambdaName x -> do
+          | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
-                  let h = getHiding $ last $ namedClausePats cl
-                      n = length (namedClausePats cl) - 1  -- drop all args before the absurd one
+                  let (ps, p) = fromMaybe __IMPOSSIBLE__ $ initLast $ namedClausePats cl
+                  let h = getHiding p
+                      n = length ps  -- drop all args before the absurd one
                       absLam = A.AbsurdLam exprNoRange h
                   if | n > length es -> do -- We don't have all arguments before the absurd one!
                         let name (I.VarP _ x) = patVarNameToString $ dbPatVarName x
                             name _            = __IMPOSSIBLE__  -- only variables before absurd pattern
-                            vars = map (getArgInfo &&& name . namedArg) $ drop (length es) $ init $ namedClausePats cl
+                            vars = map (getArgInfo &&& name . namedArg) $ drop (length es) ps
                             lam (i, s) = do
                               x <- freshName_ s
                               return $ A.Lam exprNoRange (A.mkDomainFree $ unnamedArg i $ A.mkBinder_ x)

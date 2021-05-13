@@ -72,6 +72,22 @@ prepend as bs = foldr (<|) bs as
 snoc :: [a] -> a -> List1 a
 snoc as a = prepend as $ a :| []
 
+-- | More precise type for 'Agda.Utils.List.groupBy''.
+--
+-- A variant of 'List.groupBy' which applies the predicate to consecutive
+-- pairs.
+-- O(n).
+groupBy' :: forall a. (a -> a -> Bool) -> [a] -> [List1 a]
+groupBy' _ []           = []
+groupBy' p xxs@(x : xs) = grp x $ List.zipWith (\ x y -> (p x y, y)) xxs xs
+  where
+  grp :: a -> [(Bool,a)] -> [List1 a]
+  grp x ys
+    | let (xs, rest) = List.span fst ys
+    = (x :| List.map snd xs) : case rest of
+      []                 -> []
+      ((_false, z) : zs) -> grp z zs
+
 -- | Concatenate one or more non-empty lists.
 
 concat :: [List1 a] -> [a]

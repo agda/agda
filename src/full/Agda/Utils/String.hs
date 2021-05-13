@@ -66,8 +66,9 @@ delimiter s = concat [ replicate 4 '\x2014'
 
 addFinalNewLine :: String -> String
 addFinalNewLine "" = "\n"
-addFinalNewLine s | last s == '\n' = s
-                  | otherwise      = s ++ "\n"
+addFinalNewLine s@(c:cs)
+  | last1 c cs == '\n' = s
+  | otherwise          = s ++ "\n"
 
 -- | Indents every line the given number of steps.
 

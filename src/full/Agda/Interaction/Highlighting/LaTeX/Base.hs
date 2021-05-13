@@ -55,6 +55,7 @@ import Agda.Interaction.Highlighting.Precise hiding (toList)
 import Agda.TypeChecking.Monad (Interface(..))
 
 import Agda.Utils.FileName (AbsolutePath)
+import Agda.Utils.List     (last1)
 import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.Impossible
@@ -261,10 +262,10 @@ resetColumn = modify $ \s ->
     }
   where
   -- Remove shadowed columns from old.
-  mergeCols []  old = old
-  mergeCols new old = new ++ filter ((< leastNew) . columnColumn) old
+  mergeCols []         old = old
+  mergeCols new@(n:ns) old = new ++ filter ((< leastNew) . columnColumn) old
     where
-    leastNew = columnColumn (last new)
+    leastNew = columnColumn (last1 n ns)
 
 moveColumn :: Int -> LaTeX ()
 moveColumn i = modify $ \s -> s { column = i + column s }
