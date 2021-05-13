@@ -102,7 +102,7 @@ jobs:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
         key: |
-          ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
+          ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
 
     - uses: actions/cache@v2
       name: Cache dependencies (Windows)
@@ -111,7 +111,7 @@ jobs:
       with:
         path: ${{ env.STACK_ROOT }}
         key: |
-          ${{ runner.os }}-stack-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
+          ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
 
     - name: Install the icu library (Ubuntu)
       if: ${{ runner.os == 'Linux' }}

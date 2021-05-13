@@ -92,7 +92,7 @@ jobs:
     - name: Install the icu4c library (Windows)
       if: ${{ runner.os == 'Windows' }}
       env:
-        ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-67-1/icu4c-67_1-Win64-MSVC2017.zip'
+        ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
         ICU_DIR: '/c/icu4c'
         ICU_FILE: 'icu4c.zip'
       run: |
