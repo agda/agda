@@ -3896,10 +3896,16 @@ instance ReadTCState ReduceM where
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a
-runReduceM m = do
-  e <- askTC
-  s <- getTC
-  return $! unReduceM m (ReduceEnv e s)
+runReduceM m = TCM $ \ r e -> do
+  s <- readIORef r
+  E.evaluate $ unReduceM m $ ReduceEnv e s
+  -- Andreas, 2021-05-13, issue #5379
+  -- This was the following, which is apparently not strict enough
+  -- to force all unsafePerformIOs...
+  -- runReduceM m = do
+  --   e <- askTC
+  --   s <- getTC
+  --   return $! unReduceM m (ReduceEnv e s)
 
 runReduceF :: (a -> ReduceM b) -> TCM (a -> b)
 runReduceF f = do
