@@ -452,9 +452,9 @@ getInteractionIdsAndMetas =
 
 -- | Does the meta variable correspond to an interaction point?
 --
---   Time: @O(n)@ where @n@ is the number of interaction metas.
+--   Time: @O(log n)@ where @n@ is the number of interaction metas.
 isInteractionMeta :: ReadTCState m => MetaId -> m (Maybe InteractionId)
-isInteractionMeta x = lookup x . map swap <$> getInteractionIdsAndMetas
+isInteractionMeta x = BiMap.invLookup x <$> useR stInteractionPoints
 
 -- | Get the information associated to an interaction point.
 {-# SPECIALIZE lookupInteractionPoint :: InteractionId -> TCM InteractionPoint #-}
