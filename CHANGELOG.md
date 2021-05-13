@@ -25,6 +25,11 @@ Installation and infrastructure
 Pragmas and options
 -------------------
 
+* New option `--guarded` turns on the Guarded Cubical extension of Agda.
+
+  See [Guarded Cubical](https://agda.readthedocs.io/en/v2.6.2/language/guaded-cubical.html)
+  in the documentation for more.
+
 * New option `--auto-inline` turns on automatic compile-time inlining of simple
   functions. This was previously enabled by default.
 
