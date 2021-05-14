@@ -87,11 +87,22 @@ extra-deps:
 - old-locale-1.0.0.7
 - git: https://github.com/agda/text-icu.git
   commit: 1925609610459faa93c151c53dc76cc66e3d627c
+
 # extra deps for cpphs flag
 - cpphs-1.20.9.1
 - polyparse-1.13
+
 # extra deps for Windows
 - mintty-0.1.2
+
+# extra deps for size-solver
+- Diff-0.4.0
+- HUnit-1.6.2.0
+- cmdargs-0.10.21
+- pretty-show-1.10
+- safe-0.3.19
+- test-framework-0.8.2.0
+- test-framework-hunit-0.3.0.2
 
 
 flags:
