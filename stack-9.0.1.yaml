@@ -90,6 +90,8 @@ extra-deps:
 # extra deps for cpphs flag
 - cpphs-1.20.9.1
 - polyparse-1.13
+# extra deps for Windows
+- mintty-0.1.2
 
 
 flags:
