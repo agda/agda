@@ -132,7 +132,7 @@ jobs:
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       if: ${{ !steps.cache-on-unix.outputs.cache-hit && !steps.cache-on-win64.outputs.cache-hit }}
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies --silent
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
 
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
       run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
