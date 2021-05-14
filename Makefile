@@ -78,15 +78,17 @@ STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
 # Depending on your machine and ghc version you might want to tweak the amount of memory
 # given to ghc to compile Agda. To do this set GHC_RTS_OPTS in mk/config.mk (gitignored).
 ifeq ($(GHC_RTS_OPTS),)
+#
 ifeq ("$(shell $(GHC) --info | grep 'target word size' | cut -d\" -f4)","4")
 GHC_RTS_OPTS := -M2.3G
-else
-ifeq ($(GHC_VERSION),8.10)
+else ifeq ($(GHC_VERSION),9.0)
+GHC_RTS_OPTS := -M6G
+else ifeq ($(GHC_VERSION),8.10)
 GHC_RTS_OPTS := -M6G
 else
 GHC_RTS_OPTS := -M4G
 endif
-endif
+#
 endif
 GHC_OPTS = "+RTS $(GHC_RTS_OPTS) -RTS"
 
