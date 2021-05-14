@@ -24,6 +24,8 @@ import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
 
+import Control.Parallel             ( pseq )
+
 import Data.Array (Ix)
 import Data.Function
 import Data.Int
@@ -3850,7 +3852,7 @@ apReduce :: ReduceM (a -> b) -> ReduceM a -> ReduceM b
 apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
   let g = f e
       a = x e
-  in  g `seq` a `seq` g a
+  in  g `pseq` a `pseq` g a
 {-# INLINE apReduce #-}
 
 -- Andreas, 2021-05-12, issue #5379
@@ -3858,13 +3860,31 @@ apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
 -- unsafePerformIO, we need to force results that later
 -- computations do not depend on, otherwise we lose debug messages.
 thenReduce :: ReduceM a -> ReduceM b -> ReduceM b
-thenReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e -> x e `seq` y e
+thenReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e -> x e `pseq` y e
 {-# INLINE thenReduce #-}
 
+-- Andreas, 2021-05-14:
+-- `seq` does not force evaluation order, the optimizier is allowed to replace
+-- @
+--    a `seq` b`
+-- @
+-- by:
+-- @
+--    b `seq` a `seq` b
+-- @
+-- see https://hackage.haskell.org/package/parallel/docs/Control-Parallel.html
+--
+-- In contrast, `pseq` is only strict in its first argument, so such a permutation
+-- is forbidden.
+-- If we want to ensure that debug messages are printed before exceptions are
+-- propagated, we need to use `pseq`, as in:
+-- @
+--    unsafePerformIO (putStrLn "Black hawk is going down...") `pseq` throw HitByRPG
+-- @
 beforeReduce :: ReduceM a -> ReduceM b -> ReduceM a
 beforeReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e ->
   let a = x e
-  in  a `seq` y e `seq` a
+  in  a `pseq` y e `pseq` a
 {-# INLINE beforeReduce #-}
 
 bindReduce :: ReduceM a -> (a -> ReduceM b) -> ReduceM b
