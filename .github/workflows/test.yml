@@ -76,8 +76,8 @@ jobs:
   build:
     strategy:
       matrix:
-        ghc-ver: [8.10.4]
-        stack-ver: [2.5.1]
+        ghc-ver: [9.0.1]
+        stack-ver: [2.7.1]
         os: [ubuntu-18.04]
 
     if: |
@@ -332,4 +332,3 @@ jobs:
 
     - name: "Testing the Emacs mode"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
-
