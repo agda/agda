@@ -548,7 +548,8 @@ checkGeneralize s i info x e = do
       , nest 2 $ prettyTCM tGen
       ]
 
-    addConstant x $ (defaultDefn info x tGen GeneralizableVar)
+    lang <- getLanguage
+    addConstant x $ (defaultDefn info x tGen lang GeneralizableVar)
                     { defArgGeneralizable = SomeGeneralizableArgs n }
 
 
@@ -639,7 +640,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
 
-  let defn = defaultDefn info x t $
+  lang <- getLanguage
+  let defn = defaultDefn info x t lang $
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
           FunName   -> emptyFunction{ funAbstr = Info.defAbstract i }
           MacroName -> set funMacro True emptyFunction{ funAbstr = Info.defAbstract i }
@@ -707,8 +709,7 @@ checkPrimitive i x (Arg info e) =
             _ -> defaultArgInfo
     unless (info == expectedInfo) $ typeError $ WrongModalityForPrimitive name info expectedInfo
     bindPrimitive s pf
-    addConstant x $
-      defaultDefn info x t $
+    addConstant' x info x t $
         Primitive { primAbstr    = Info.defAbstract i
                   , primName     = s
                   , primClauses  = []

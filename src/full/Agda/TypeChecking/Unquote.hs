@@ -885,7 +885,7 @@ evalTCM v = do
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
-        addConstant x $ defaultDefn i x a emptyFunction
+        addConstant' x i x a emptyFunction
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 
@@ -906,7 +906,7 @@ evalTCM v = do
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
-        addConstant x $ defaultDefn i x a defaultAxiom
+        addConstant' x i x a defaultAxiom
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 

@@ -745,8 +745,9 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
             [ ("Adding absurd function" <+> prettyTCM mod) <> prettyTCM aux
             , nest 2 $ "of type" <+> prettyTCM t'
             ]
+          lang <- getLanguage
           addConstant aux $
-            (\ d -> (defaultDefn (setModality mod info') aux t' d)
+            (\ d -> (defaultDefn (setModality mod info') aux t' lang d)
                     { defPolarity       = [Nonvariant]
                     , defArgOccurrences = [Unused] })
             $ emptyFunction
@@ -818,8 +819,10 @@ checkExtendedLambda cmp i di erased qname cs e t = do
        -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
        -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
        addConstant qname =<< do
+         lang <- getLanguage
          useTerPragma $
-           (defaultDefn info qname t emptyFunction) { defMutual = j }
+           (defaultDefn info qname t lang emptyFunction)
+             { defMutual = j }
        checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
          List1.toList cs
        whenNothingM (asksTC envMutualBlock) $

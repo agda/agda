@@ -12,6 +12,7 @@ import Data.Maybe
 import System.Directory
 import System.FilePath
 
+import Agda.Syntax.Common
 import Agda.TypeChecking.Monad.Debug (reportSDoc)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
@@ -290,3 +291,13 @@ maxInstanceSearchDepth = optInstanceSearchDepth <$> pragmaOptions
 
 maxInversionDepth :: HasOptions m => m Int
 maxInversionDepth = optInversionMaxDepth <$> pragmaOptions
+
+-- | Returns the 'Language' currently in effect.
+
+getLanguage :: HasOptions m => m Language
+getLanguage = do
+  opts <- pragmaOptions
+  return $
+    if not (collapseDefault (optWithoutK opts)) then WithK
+    else if optCubical opts then Cubical
+    else WithoutK

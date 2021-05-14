@@ -75,6 +75,25 @@ instance Pretty FileType where
 instance NFData FileType
 
 ---------------------------------------------------------------------------
+-- * Agda variants
+---------------------------------------------------------------------------
+
+-- | Agda variants.
+--
+-- Only some variants are tracked.
+
+data Language
+  = WithoutK
+  | WithK
+  | Cubical
+    deriving (Eq, Show, Generic)
+
+instance KillRange Language where
+  killRange = id
+
+instance NFData Language
+
+---------------------------------------------------------------------------
 -- * Record Directives
 ---------------------------------------------------------------------------
 

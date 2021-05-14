@@ -1794,6 +1794,8 @@ data Definition = Defn
     -- ^ What blocking tag to use when we cannot reduce this def?
     --   Used when checking a function definition is blocked on a meta
     --   in the type.
+  , defLanguage       :: !Language
+    -- ^ The language used for the definition.
   , theDef            :: Defn
   }
     deriving (Show, Generic)
@@ -1817,8 +1819,9 @@ theDefLens :: Lens' Defn Definition
 theDefLens f d = f (theDef d) <&> \ df -> d { theDef = df }
 
 -- | Create a definition with sensible defaults.
-defaultDefn :: ArgInfo -> QName -> Type -> Defn -> Definition
-defaultDefn info x t def = Defn
+defaultDefn ::
+  ArgInfo -> QName -> Type -> Language -> Defn -> Definition
+defaultDefn info x t lang def = Defn
   { defArgInfo        = info
   , defName           = x
   , defType           = t
@@ -1836,6 +1839,7 @@ defaultDefn info x t def = Defn
   , defInjective      = False
   , defCopatternLHS   = False
   , defBlocked        = NotBlocked ReallyNotBlocked ()
+  , defLanguage       = lang
   , theDef            = def
   }
 
@@ -4513,8 +4517,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk def) =
-    killRange18 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk def
+  killRange (Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def) =
+    killRange19 Defn ai name t pols occs gens gpars displ mut compiled inst copy ma nc inj copat blk lang def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NumGeneralizableArgs where

@@ -38,6 +38,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
+import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.DropArgs
@@ -94,6 +95,15 @@ addConstant q d = do
   where
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old
                       , defInstance = defInstance new `mplus` defInstance old }
+
+-- | A combination of 'addConstant' and 'defaultDefn'. The 'Language'
+-- does not need to be supplied.
+
+addConstant' ::
+  QName -> ArgInfo -> QName -> Type -> Defn -> TCM ()
+addConstant' q info x t def = do
+  lang <- getLanguage
+  addConstant q $ defaultDefn info x t lang def
 
 -- | Set termination info of a defined function symbol.
 setTerminates :: QName -> Bool -> TCM ()
@@ -450,7 +460,11 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
             inst = defInstance d
             -- the name is set by the addConstant function
             nd :: QName -> TCM Definition
-            nd y = for def $ \ df -> Defn
+            nd y = do
+              -- The arguments may use some feature of the current
+              -- language, so the definition gets this language.
+              lang <- getLanguage
+              for def $ \ df -> Defn
                     { defArgInfo        = defArgInfo d
                     , defName           = y
                     , defType           = t
@@ -468,6 +482,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defInjective      = False
                     , defCopatternLHS   = isCopatternLHS [cl]
                     , defBlocked        = defBlocked d
+                    , defLanguage       = lang
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }

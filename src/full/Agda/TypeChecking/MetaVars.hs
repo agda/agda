@@ -1576,7 +1576,7 @@ openMetasToPostulates = do
         ]
 
       -- Add the new postulate to the signature.
-      addConstant q $ defaultDefn defaultArgInfo q t defaultAxiom
+      addConstant' q defaultArgInfo q t defaultAxiom
 
       -- Solve the meta.
       let inst = InstV [] $ Def q []

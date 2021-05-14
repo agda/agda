@@ -173,6 +173,17 @@ instance EmbPrj FileType where
     [3] -> valuN OrgFileType
     _   -> malformed
 
+instance EmbPrj Language where
+  icod_ WithoutK = icodeN'  WithoutK
+  icod_ WithK    = icodeN 0 WithK
+  icod_ Cubical  = icodeN 1 Cubical
+
+  value = vcase $ \case
+    []  -> valuN WithoutK
+    [0] -> valuN WithK
+    [1] -> valuN Cubical
+    _   -> malformed
+
 instance EmbPrj AbsolutePath where
   icod_ file = do
     d <- asks absPathD

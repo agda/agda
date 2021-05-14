@@ -1360,8 +1360,9 @@ checkSharpApplication e t c args = do
     -- TODO: is this sufficient?
     addConstant c' =<< do
       let ai = setModality mod defaultArgInfo
+      lang <- getLanguage
       useTerPragma $
-        (defaultDefn ai c' forcedType emptyFunction)
+        (defaultDefn ai c' forcedType lang emptyFunction)
         { defMutual = i }
 
     checkFunDef NotDelayed info c' [clause]

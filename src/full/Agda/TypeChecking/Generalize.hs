@@ -765,7 +765,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
   inTopContext $ forM_ (zip sortedMetas genRecFields) $ \ (meta, fld) -> do
     fieldTy <- getMetaType meta
     let field = unDom fld
-    addConstant field $ defaultDefn (getArgInfo fld) field fieldTy $
+    addConstant' field (getArgInfo fld) field fieldTy $
       let proj = Projection { projProper   = Just genRecName
                             , projOrig     = field
                             , projFromType = defaultArg genRecName
@@ -786,7 +786,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                , funWith         = Nothing
                , funCovering     = []
                }
-  addConstant (conName genRecCon) $ defaultDefn defaultArgInfo (conName genRecCon) __DUMMY_TYPE__ $ -- Filled in later
+  addConstant' (conName genRecCon) defaultArgInfo (conName genRecCon) __DUMMY_TYPE__ $ -- Filled in later
     Constructor { conPars   = 0
                 , conArity  = length genRecFields
                 , conSrcCon = genRecCon
@@ -800,7 +800,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
                 }
   let dummyTel 0 = EmptyTel
       dummyTel n = ExtendTel (defaultDom __DUMMY_TYPE__) $ Abs "_" $ dummyTel (n - 1)
-  addConstant genRecName $ defaultDefn defaultArgInfo genRecName (sort genRecSort) $
+  addConstant' genRecName defaultArgInfo genRecName (sort genRecSort) $
     Record { recPars         = 0
            , recClause       = Nothing
            , recConHead      = genRecCon

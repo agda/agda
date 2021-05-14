@@ -136,7 +136,7 @@ abstractTerm a u@Con{} b v = do
         , nest 2 $ sep [ (text . show) v <+> ":", nest 2 $ (text . show) b ] ]
 
   hole <- qualify <$> currentModule <*> freshName_ ("hole" :: String)
-  noMutualBlock $ addConstant hole $ defaultDefn defaultArgInfo hole a defaultAxiom
+  noMutualBlock $ addConstant' hole defaultArgInfo hole a defaultAxiom
 
   args <- map Apply <$> getContextArgs
   let n = length args

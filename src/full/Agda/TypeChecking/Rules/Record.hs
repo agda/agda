@@ -210,8 +210,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       let npars = size tel
           telh  = fmap hideAndRelParams tel
       escapeContext impossible npars $ do
-        addConstant name $
-          defaultDefn defaultArgInfo name t $
+        addConstant' name defaultArgInfo name t $
             Record
               { recPars           = npars
               , recClause         = Nothing
@@ -231,8 +230,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               }
 
         -- Add record constructor to signature
-        addConstant conName $
-          defaultDefn defaultArgInfo conName (telh `abstract` contype) $
+        addConstant' conName defaultArgInfo conName
+            (telh `abstract` contype) $
             Constructor
               { conPars   = npars
               , conArity  = size fs
@@ -716,8 +715,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               ]
 
         escapeContext impossible (size tel) $ do
+          lang <- getLanguage
           addConstant projname $
-            (defaultDefn ai projname (killRange finalt)
+            (defaultDefn ai projname (killRange finalt) lang
               emptyFunction
                 { funClauses        = [clause]
                 , funCompiled       = Just cc

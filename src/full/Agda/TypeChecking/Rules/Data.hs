@@ -150,8 +150,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   }
 
             escapeContext impossible npars $ do
-              addConstant name $
-                defaultDefn defaultArgInfo name t dataDef
+              addConstant' name defaultArgInfo name t dataDef
                 -- polarity and argOcc.s determined by the positivity checker
 
             -- Check the types of the constructors
@@ -166,8 +165,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
-        addConstant name $
-          defaultDefn defaultArgInfo name t $
+        addConstant' name defaultArgInfo name t $
             dataDef{ dataCons = cons }
 
 
@@ -270,8 +268,7 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- add parameters to constructor type and put into signature
         escapeContext impossible (size tel) $ do
 
-          addConstant c $
-            defaultDefn ai c (telePi tel t) $ Constructor
+          addConstant' c ai c (telePi tel t) $ Constructor
               { conPars   = size tel
               , conArity  = arity
               , conSrcCon = con
@@ -611,8 +608,9 @@ defineProjections dataName con params names fsT t = do
                 , funMutual     = Just []
                 , funTerminates = Just True
                 }
+      lang <- getLanguage
       inTopContext $ addConstant projName $
-        (defaultDefn defaultArgInfo projName (unDom projType) fun)
+        (defaultDefn defaultArgInfo projName (unDom projType) lang fun)
           { defNoCompilation  = True
           , defArgOccurrences = [StrictPos]
           }
@@ -739,9 +737,11 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   reportSDoc "trans.rec" 20 $ prettyTCM theType
   reportSDoc "trans.rec" 60 $ text $ "sort = " ++ show (getSort rect')
 
-  noMutualBlock $ addConstant theName $ (defaultDefn defaultArgInfo theName theType
-    (emptyFunction { funTerminates = Just True }))
-    { defNoCompilation = True }
+  lang <- getLanguage
+  noMutualBlock $ addConstant theName $
+    (defaultDefn defaultArgInfo theName theType lang
+       (emptyFunction { funTerminates = Just True }))
+      { defNoCompilation = True }
   -- ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (u0 : R (δ i0))
   -- Γ ⊢     rtype = R (δ i1)
   TelV gamma rtype <- telView theType
@@ -905,9 +905,11 @@ defineHCompForFields applyProj name params fsT fns rect = do
   reportSDoc "hcomp.rec" 20 $ prettyTCM theType
   reportSDoc "hcomp.rec" 60 $ text $ "sort = " ++ show (lTypeLevel rect)
 
-  noMutualBlock $ addConstant theName $ (defaultDefn defaultArgInfo theName theType
-    (emptyFunction { funTerminates = Just True }))
-    { defNoCompilation = True }
+  lang <- getLanguage
+  noMutualBlock $ addConstant theName $
+    (defaultDefn defaultArgInfo theName theType lang
+       (emptyFunction { funTerminates = Just True }))
+      { defNoCompilation = True }
   --   ⊢ Γ = gamma = (δ : Δ) (φ : I) (_ : (i : I) -> Partial φ (R δ)) (_ : R δ)
   -- Γ ⊢     rtype = R δ
   TelV gamma rtype <- telView theType

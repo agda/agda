@@ -927,7 +927,7 @@ bindBuiltinNoDef b q = inTopContext $ do
     Just (BuiltinPostulate rel mt) -> do
       -- We start by adding the corresponding postulate
       t <- mt
-      addConstant q $ defaultDefn (setRelevance rel defaultArgInfo) q t def
+      addConstant' q (setRelevance rel defaultArgInfo) q t def
       -- And we then *modify* the definition based on our needs:
       -- We add polarity information for SIZE-related definitions
       builtinSizeHook b q t
@@ -954,7 +954,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                           , primInv      = NotInjective
                           , primCompiled = Just (CC.Done [] $ Def q [])
                           }
-      addConstant q $ defaultDefn defaultArgInfo q t def
+      addConstant' q defaultArgInfo q t def
       axioms v
       bindBuiltinName b v
 
@@ -975,13 +975,13 @@ bindBuiltinNoDef b q = inTopContext $ do
               , conForced = []
               , conErased = Nothing
               }
-      addConstant q $ defaultDefn defaultArgInfo q t def
+      addConstant' q defaultArgInfo q t def
       addDataCons d [q]
       bindBuiltinName b $ Con ch ConOSystem []
 
     Just (BuiltinData mt cs) -> do
       t <- mt
-      addConstant q $ defaultDefn defaultArgInfo q t (def t)
+      addConstant' q defaultArgInfo q t (def t)
       bindBuiltinName b $ Def q []
       where
         def t = Datatype
@@ -1004,7 +1004,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                 "primStrictSetOmega" -> Inf IsStrict 0
                 _              -> __IMPOSSIBLE__
           def = PrimitiveSort sortname s
-      addConstant q $ defaultDefn defaultArgInfo q (sort $ univSort s) def
+      addConstant' q defaultArgInfo q (sort $ univSort s) def
       bindBuiltinName b $ Def q []
 
     Just{}  -> __IMPOSSIBLE__
