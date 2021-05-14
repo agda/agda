@@ -27,7 +27,8 @@ extra-deps:
 - zlib-0.6.2.3
 - STMonadTrans-0.4.5
 - assoc-1.0.2
-- attoparsec-0.14.1
+# - attoparsec-0.14.1 # no matching version for this in resolver
+- attoparsec-0.13.2.5
 - base-compat-0.11.2
 - base-compat-batteries-0.11.2
 - base-orphans-0.8.4
@@ -85,6 +86,9 @@ extra-deps:
 - old-locale-1.0.0.7
 - git: https://github.com/agda/text-icu.git
   commit: 1925609610459faa93c151c53dc76cc66e3d627c
+# extra deps for cpphs flag
+- cpphs-1.20.9.1
+- polyparse-1.13
 
 
 flags:
