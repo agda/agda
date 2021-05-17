@@ -432,6 +432,12 @@ infectiveOptions =
   , (optProp, "--prop")
   , (collapseDefault . optTwoLevel, "--two-level")
   , (optRewriting, "--rewriting")
+  , (not . optUniverseCheck, "--type-in-type")
+  , (optOmegaInOmega, "--omega-in-omega")
+  , (optInjectiveTypeConstructors, "--injective-type-constructors")
+  , (optExperimentalIrrelevance, "--experimental-irrelevance")
+  , (optCumulativity, "--cumulativity")
+  , (optAllowExec, "--allow-exec")
   ]
 
 -- | A coinfective option is an option that if used in one module, must
