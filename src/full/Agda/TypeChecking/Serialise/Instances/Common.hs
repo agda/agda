@@ -48,6 +48,8 @@ import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
 import qualified Agda.Utils.Empty as Empty
 import Agda.Utils.FileName
+import Agda.Utils.List2 (List2(List2))
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
@@ -233,6 +235,10 @@ instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
 instance EmbPrj a => EmbPrj (NonEmpty a) where
   icod_ = icod_ . NonEmpty.toList
   value = maybe malformed return . nonEmpty <=< value
+
+instance EmbPrj a => EmbPrj (List2 a) where
+  icod_ = icod_ . List2.toList
+  value = maybe malformed return . List2.fromListMaybe <=< value
 
 instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
          EmbPrj (BiMap k v) where

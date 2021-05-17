@@ -71,6 +71,8 @@ import Agda.Syntax.Abstract.Views ( KName, declaredNames )
 
 import Agda.Utils.FileName
 import Agda.Utils.List            ( caseList, initWithDefault, last1 )
+import Agda.Utils.List2           ( List2 )
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
@@ -548,11 +550,11 @@ coverageErrorHighlighting :: Range -> HighlightingInfoBuilder
 coverageErrorHighlighting r = H.singleton (rToR $ P.continuousPerLine r) m
   where m = parserBased { otherAspects = Set.singleton CoverageProblem }
 
-shadowingTelHighlighting :: [Range] -> HighlightingInfoBuilder
+shadowingTelHighlighting :: List2 Range -> HighlightingInfoBuilder
 shadowingTelHighlighting =
   -- we do not want to highlight the one variable in scope so we take
   -- the @init@ segment of the ranges in question
-  foldMap (\r -> H.singleton (rToR $ P.continuous r) m) . initWithDefault __IMPOSSIBLE__
+  foldMap (\r -> H.singleton (rToR $ P.continuous r) m) . List2.init
   where
   m = parserBased { otherAspects =
                       Set.singleton H.ShadowingInTelescope }
