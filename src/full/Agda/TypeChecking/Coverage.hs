@@ -932,8 +932,10 @@ isDatatype ind at = do
     _ -> throw NotADatatype
 
 -- | Update the target type of the split clause after a case split.
-fixTargetType :: SplitTag -> SplitClause -> Dom Type -> TCM SplitClause
-fixTargetType tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
+fixTargetType
+  :: Quantity  -- ^ The quantity of the thing that is split.
+  -> SplitTag -> SplitClause -> Dom Type -> TCM SplitClause
+fixTargetType q tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
     reportSDoc "tc.cover.target" 20 $ sep
       [ "split clause telescope: " <+> prettyTCM sctel
       ]
@@ -945,9 +947,14 @@ fixTargetType tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
       , "             after substitution:" <+> pretty (applySplitPSubst sigma target)
       ]
 
-    -- We update the target quantity to 0 for erased constructors.
+    -- We update the target quantity to 0 for erased constructors, but
+    -- not if the match is made in an erased position.
     updQuant <- do
-      case tag of
+      let erased = case q of
+            Quantity0{} -> True
+            Quantity1{} -> __IMPOSSIBLE__
+            Quantityω{} -> False
+      if erased then return id else case tag of
         SplitCon c -> do
           q <- getQuantity <$> getConstInfo c
           case q of
@@ -1440,7 +1447,8 @@ split' checkEmpty ind allowPartialCover inserttrailing
         else computeNeighborhoods
 
   ns <- case target of
-    Just a  -> forM ns $ \ (con, sc) -> lift $ (con,) <$> fixTargetType con sc a
+    Just a  -> forM ns $ \ (con, sc) -> lift $ (con,) <$>
+                 fixTargetType (getQuantity t) con sc a
     Nothing -> return ns
 
   ns <- case inserttrailing of
@@ -1456,11 +1464,6 @@ split' checkEmpty ind allowPartialCover inserttrailing
   let erasedError causedByWithoutK =
         throwError . ErasedDatatype causedByWithoutK =<<
           do liftTCM $ inContextOfT $ buildClosure (unDom t)
-  runtime_splits <- flip filterM ns $ \ (s,_) -> do
-    case s of
-      SplitLit{}      -> return True
-      SplitCatchall{} -> return True -- conservative
-      SplitCon q      -> usableQuantity . getQuantity <$> getConstInfo q
 
   case ns of
     []  -> do
@@ -1476,13 +1479,13 @@ split' checkEmpty ind allowPartialCover inserttrailing
                }
 
     -- Andreas, 2018-10-17: If more than one constructor matches, we cannot erase.
-    _ | (_ : _ : _) <- runtime_splits, not erased && not (usableQuantity t) ->
+    _ : _ : _ | not erased && not (usableQuantity t) ->
       erasedError False
 
     -- If exactly one constructor matches and the K rule is turned
     -- off, then we only allow erasure for non-indexed data types
     -- (#4172).
-    _ | [_] <- runtime_splits, not erased && not (usableQuantity t) &&
+    [_] | not erased && not (usableQuantity t) &&
           withoutK && isIndexed ->
       erasedError True
 

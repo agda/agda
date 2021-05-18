@@ -1412,13 +1412,20 @@ checkLHS mf = updateModality checkLHS_ where
           let eqs' = applyPatSubst rho $ problem ^. problemEqs
               problem' = set problemEqs eqs' problem
 
-          -- Propagate quantity to result type
+          -- The result type's quantity is set to 0 for erased
+          -- constructors, but not if the match is made in an erased
+          -- position.
           cq <- getQuantity <$> getConstInfo (conName c)
           let target'' = mapQuantity updResMod target'
                 where
+                  erased = case getQuantity info of
+                    Quantity0{} -> True
+                    Quantity1{} -> __IMPOSSIBLE__
+                    Quantityω{} -> False
                   -- either sets to Quantity0 or is the identity.
                   updResMod q =
                     case cq of
+                     _ | erased  -> q
                      Quantity0{} -> composeQuantity cq q
                                  -- zero-out, preserves origin
                      Quantity1{} -> __IMPOSSIBLE__

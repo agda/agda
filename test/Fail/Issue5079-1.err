@@ -1,3 +1,0 @@
-Issue5079-1.agda:12,1-13,19
-Cannot branch on erased argument of datatype Bool
-when checking the definition of l

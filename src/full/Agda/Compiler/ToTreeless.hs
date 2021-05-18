@@ -250,7 +250,7 @@ casetree cc = do
       --     "Not yet implemented: compilation of copattern matching with catch-all clause"
     CC.Case (Arg _ n) (CC.Branches True conBrs _ _ Nothing _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
-    CC.Case (Arg _ n) (CC.Branches False conBrs etaBr litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do
+    CC.Case (Arg i n) (CC.Branches False conBrs etaBr litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do
                     -- We can treat eta-matches as regular matches here.
       let conBrs' = Map.union conBrs $ Map.fromList $ map (first conName) $ maybeToList etaBr
       if Map.null conBrs' && Map.null litBrs then do
@@ -263,7 +263,8 @@ casetree cc = do
             (cs, []) -> lift $ go cs
               where
               go (c:cs) = canonicalName c >>= getConstInfo <&> theDef >>= \case
-                Constructor{conData} -> return $ C.CTData conData
+                Constructor{conData} ->
+                  return $ C.CTData (getQuantity i) conData
                 _ -> go cs
               go [] = __IMPOSSIBLE__
             ([], LitChar   _ : _) -> return C.CTChar

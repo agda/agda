@@ -8,10 +8,6 @@ data D : Set where
   run-time        : Bool → D
   @0 compile-time : Bool → D
 
-f : @0 D → D
-f (compile-time x) = compile-time x
-f (run-time _)     = run-time true
-
 g : D → D
 g (run-time x)     = run-time x
 g (compile-time x) = compile-time x
@@ -25,16 +21,6 @@ i : @0 D → D → D
 i _                (run-time y)     = run-time y
 i (run-time x)     (compile-time y) = compile-time x
 i (compile-time x) (compile-time y) = compile-time y
-
-j : @0 D → D → D
-j (run-time _)     y                = run-time true
-j (compile-time x) (run-time y)     = compile-time x
-j (compile-time x) (compile-time y) = compile-time y
-
-k : D → @0 D → D
-k x                (run-time _)     = run-time true
-k (run-time x)     (compile-time y) = compile-time y
-k (compile-time x) (compile-time y) = compile-time x
 
 data E (@0 A : Set) : Set where
   c₁ c₂ : E A
