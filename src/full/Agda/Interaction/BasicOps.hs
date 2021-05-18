@@ -418,13 +418,6 @@ instance Reify Constraint where
             CheckExpr cmp e a -> do
                 a  <- reify a
                 return $ TypedAssign m' e a
-            CheckLambda cmp (Arg ai (xs, mt)) body target -> do
-              domType <- maybe (return underscore) reify mt
-              target  <- reify target
-              let mkN (WithHiding h x) = setHiding h $ defaultNamedArg $ A.mkBinder_ x
-                  bs = mkTBind noRange (fmap mkN xs) domType
-                  e  = A.Lam Info.exprNoRange (DomainFull bs) body
-              return $ TypedAssign m' e target
             CheckArgs _ _ _ args t0 t1 _ -> do
               t0 <- reify t0
               t1 <- reify t1

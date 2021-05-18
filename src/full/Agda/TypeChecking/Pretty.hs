@@ -303,19 +303,6 @@ instance PrettyTCM TypeCheckingProblem where
         , nest 2 $ prettyList $ map prettyA es
         , nest 2 $ ":?" <+> prettyTCM t1 ]
   prettyTCM (CheckProjAppToKnownPrincipalArg cmp e _ _ _ t _ _ _ _) = prettyTCM (CheckExpr cmp e t)
-  prettyTCM (CheckLambda cmp (Arg ai (xs, mt)) e t) =
-    sep [ pure CP.lambda <+>
-          (CP.prettyRelevance ai .
-           CP.prettyHiding ai (if isNothing mt && length xs == 1 then id
-                               else P.parens) <$> do
-            fsep $
-              map prettyTCM (List1.toList xs) ++
-              caseMaybe mt [] (\ a -> [":", prettyTCM a])) <+>
-          pure CP.arrow <+>
-          prettyTCM e <+>
-          ":?"
-        , prettyTCM t
-        ]
   prettyTCM (DoQuoteTerm _ v _) = do
     e <- reify v
     prettyTCM (A.App A.defaultAppInfo_ (A.QuoteTerm A.exprNoRange) (defaultNamedArg e))

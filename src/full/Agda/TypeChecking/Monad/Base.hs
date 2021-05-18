@@ -1334,14 +1334,6 @@ data TypeCheckingProblem
   = CheckExpr Comparison A.Expr Type
   | CheckArgs Comparison ExpandHidden Range [NamedArg A.Expr] Type Type (ArgsCheckState CheckedTarget -> TCM Term)
   | CheckProjAppToKnownPrincipalArg Comparison A.Expr ProjOrigin (List1 QName) A.Args Type Int Term Type PrincipalArgTypeMetas
-  | CheckLambda Comparison (Arg (List1 (WithHiding Name), Maybe Type)) A.Expr Type
-    -- ^ @(λ (xs : t₀) → e) : t@
-    --   This is not an instance of 'CheckExpr' as the domain type
-    --   has already been checked.
-    --   For example, when checking
-    --     @(λ (x y : Fin _) → e) : (x : Fin n) → ?@
-    --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
-    --   is a 'Type' rather than an 'A.Expr'.
   | DoQuoteTerm Comparison Term Type -- ^ Quote the given term and check type against `Term`
   deriving Generic
 

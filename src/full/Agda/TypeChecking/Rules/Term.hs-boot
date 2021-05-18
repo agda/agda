@@ -13,7 +13,5 @@ checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr' :: Comparison -> A.Expr -> Type -> TCM Term
 inferExpr :: A.Expr -> TCM (Term, Type)
 
-checkPostponedLambda :: Comparison -> Arg (List1 (WithHiding Name), Maybe Type) -> A.Expr -> Type -> TCM Term
-
 doQuoteTerm :: Comparison -> Term -> Type -> TCM Term
 unquoteTactic :: Term -> Term -> Type -> TCM ()
