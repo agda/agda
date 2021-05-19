@@ -25,11 +25,6 @@ Installation and infrastructure
 Pragmas and options
 -------------------
 
-* New option `--guarded` turns on the Guarded Cubical extension of Agda.
-
-  See [Guarded Cubical](https://agda.readthedocs.io/en/v2.6.2/language/guaded-cubical.html)
-  in the documentation for more.
-
 * New option `--auto-inline` turns on automatic compile-time inlining of simple
   functions. This was previously enabled by default.
 
@@ -99,6 +94,11 @@ Pragmas and options
   [#2820](https://github.com/agda/agda/issues/2820),
   [#3026](https://github.com/agda/agda/issues/3026)), the
   `--sized-types` flag can no longer be used while `--safe` is active.
+
+* New option `--guarded` turns on the Guarded Cubical extension of Agda.
+
+  See [Guarded Cubical](https://agda.readthedocs.io/en/v2.6.2/language/guarded-cubical.html)
+  in the documentation for more.
 
 Command-line interaction
 ------------------------
