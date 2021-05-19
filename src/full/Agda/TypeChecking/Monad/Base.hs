@@ -893,7 +893,6 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
 data ModuleCheckMode
   = ModuleScopeChecked
   | ModuleTypeChecked
-  | ModuleTypeCheckedRetainingPrivates
   deriving (Eq, Ord, Bounded, Enum, Show, Generic)
 
 

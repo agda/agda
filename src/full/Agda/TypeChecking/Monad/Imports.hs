@@ -72,7 +72,6 @@ getPrettyVisitedModules = do
   where
   prettyCheckMode :: ModuleCheckMode -> Doc
   prettyCheckMode ModuleTypeChecked                  = ""
-  prettyCheckMode ModuleTypeCheckedRetainingPrivates = " (+ privates)"
   prettyCheckMode ModuleScopeChecked                 = " (scope only)"
 
 getVisitedModule :: ReadTCState m

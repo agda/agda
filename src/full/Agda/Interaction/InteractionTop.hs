@@ -60,7 +60,7 @@ import Agda.Interaction.Response hiding (Function, ExtendedLambda)
 import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton)
-import Agda.Interaction.Imports  ( Mode, Mode', pattern ScopeCheck, pattern TypeCheck )
+import Agda.Interaction.Imports  ( Mode, pattern ScopeCheck, pattern TypeCheck )
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
 
@@ -76,7 +76,7 @@ import Agda.Utils.Lens
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding (Mode)
 import Agda.Utils.Singleton
 import Agda.Utils.String
 import Agda.Utils.Time
@@ -283,7 +283,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
     -- loaded.
     cf <- gets theCurrentFile
     when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $ do
-        let mode = TypeCheck Nothing
+        let mode = TypeCheck
         cmd_load' current [] True mode $ \_ -> return ()
 
     withCurrentFile $ interpret cmd
@@ -496,7 +496,7 @@ interpret :: Interaction -> CommandM ()
 interpret (Cmd_load m argv) =
   cmd_load' m argv True mode $ \_ -> interpret $ Cmd_metas AsIs
   where
-  mode = TypeCheck Nothing -- do not reset InteractionMode
+  mode = TypeCheck
 
 interpret (Cmd_compile backend file argv) =
   cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
@@ -513,7 +513,7 @@ interpret (Cmd_compile backend file argv) =
   where
   allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
   mode | QuickLaTeX <- backend = ScopeCheck
-       | otherwise             = TypeCheck $ Just RegularInteraction  -- reset InteractionMode
+       | otherwise             = TypeCheck
 
 interpret Cmd_constraints =
     display_info . Info_Constraints =<< lift B.getConstraints
@@ -869,35 +869,15 @@ cmd_load'
   :: FilePath  -- ^ File to load into interaction.
   -> [String]  -- ^ Arguments to Agda for loading this file
   -> Bool      -- ^ Allow unsolved meta-variables?
-  -> Mode' (Maybe InteractionMode)
-               -- ^ Full type-checking, or only scope-checking?
-               --   Providing 'TypeCheck (Just mode)' here
-               --   will reset 'InteractionMode' accordingly.
-               --   Otherwise, reset to 'RegularInteraction'
-               --   only if different file from last time.
+  -> Mode      -- ^ Full type-checking, or only scope-checking?
   -> (CheckResult -> CommandM a)
                -- ^ Continuation after successful loading.
   -> CommandM a
-cmd_load' file argv unsolvedOK modeChange cmd = do
+cmd_load' file argv unsolvedOK mode cmd = do
     fp <- liftIO $ absolute file
     ex <- liftIO $ doesFileExist $ filePath fp
     unless ex $ typeError $ GenericError $
       "The file " ++ file ++ " was not found."
-
-    -- When switching to a new file, or @modeChange@ indicates such a reset,
-    -- fall back to RegularInteraction.
-    mode <- do
-      let typeCheckMode m = TypeCheck m <$ setInteractionMode m
-      case modeChange of
-        ScopeCheck               -> pure ScopeCheck
-        TypeCheck (Just newmode) -> typeCheckMode newmode
-        TypeCheck Nothing        -> do
-          -- If the file has not changed, keep the existing mode, otherwise
-          -- use 'RegularInteraction' mode.
-          gets theCurrentFile >>= \case
-            Just CurrentFile{ currentFilePath = fp' } | fp == fp'
-              -> TypeCheck <$> gets interactionMode
-            _ -> typeCheckMode RegularInteraction
 
     -- Forget the previous "current file" and interaction points.
     modify $ \ st -> st { theInteractionPoints = []
@@ -960,47 +940,14 @@ cmd_load' file argv unsolvedOK modeChange cmd = do
 
     cmd ok
 
-  where
-  -- Update import mode to RegularInteraction.
-  regularMode = \case
-    TypeCheck _ -> TypeCheck RegularInteraction
-    ScopeCheck  -> ScopeCheck
-
 -- | Set 'envCurrentPath' to 'theCurrentFile', if any.
 withCurrentFile :: CommandM a -> CommandM a
 withCurrentFile m = do
   mfile <- gets $ fmap currentFilePath . theCurrentFile
   localTC (\ e -> e { envCurrentPath = mfile }) m
 
--- | Top-level commands switch to 'TopLevelInteraction' mode if necessary.
 atTopLevel :: CommandM a -> CommandM a
-atTopLevel cmd = do
-  -- Don't switch if --top-level-interaction-no-private.
-  ifM (optTopLevelInteractionNoPrivate <$> pragmaOptions) continue $ {-else-} do
-  gets interactionMode >>= \case
-    TopLevelInteraction -> continue  -- Already in the correct mode.
-    RegularInteraction  -> continue `handleNotInScope` do
-      -- Have to switch mode.
-      CurrentFile file argv _stamp <- gets $ fromMaybe __IMPOSSIBLE__ . theCurrentFile
-      let allowUnsolved = True
-          mode          = TypeCheck $ Just TopLevelInteraction
-      cmd_load' (filePath file) argv allowUnsolved mode $ \ _ -> continue
-  where
-  continue      = liftCommandMT B.atTopLevel cmd
-
-setInteractionMode :: InteractionMode -> CommandM ()
-setInteractionMode mode = modify $ \ st -> st { interactionMode = mode }
-
--- | Handle a 'NotInScope' error, reraise other errors.
-handleNotInScope :: CommandM a -> CommandM a -> CommandM a
-handleNotInScope cmd handler = do
-  cmd `catchError` \case
-    TypeError _ _ (Closure _sig _env _scope _checkpoints (TCM.NotInScope _xs)) -> do
-      reportSLn "interaction.top" 60 $ "Handling `Not in scope` error"
-      handler
-    err -> do
-      reportSLn "interaction.top" 60 $ show err
-      throwError err
+atTopLevel cmd = liftCommandMT B.atTopLevel cmd
 
 ---------------------------------------------------------------------------
 -- Giving, refining.
