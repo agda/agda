@@ -50,7 +50,7 @@ import Agda.Utils.List ( downFrom, headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, fromMaybe, whenNothing )
-import Agda.Utils.Monad ( ifM, when )
+import Agda.Utils.Monad ( ifM, when, whenM )
 import Agda.Utils.Null  ( null )
 import Agda.Utils.Pretty (prettyShow, render)
 import qualified Agda.Utils.Pretty as P
@@ -146,7 +146,12 @@ jsCommandLineFlags =
 --- Top-level compilation ---
 
 jsPreCompile :: JSOptions -> TCM JSOptions
-jsPreCompile opts = return opts
+jsPreCompile opts = do
+  whenM (optCubical <$> pragmaOptions) $
+    typeError $ GenericError
+      "Compilation of code that uses --cubical is not supported."
+
+  return opts
 
 -- | After all modules have been compiled, copy RTE modules and verify compiled modules.
 

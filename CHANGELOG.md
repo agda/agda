@@ -839,6 +839,9 @@ Compiler backends -----------------
   for that particular instance, see
   [#5153](https://github.com/agda/agda/issues/5153)).
 
+- Both the GHC and JS backends now refuse to compile Cubical Agda
+  code.
+
 LaTeX backend
 -------------
 

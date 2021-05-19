@@ -147,6 +147,12 @@ inCompilerEnv checkResult cont = do
     when (["--no-main"] `elem` iFilePragmaOptions mainI) $
       stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
 
+    -- Perhaps all pragma options from the top-level module should be
+    -- made available to the compiler in a suitable way. Here is
+    -- another hack:
+    when (any ("--cubical" `elem`) (iFilePragmaOptions mainI)) $
+      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = True }
+
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode cont
   -- keep generated warnings
