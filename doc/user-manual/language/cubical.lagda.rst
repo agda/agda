@@ -57,7 +57,10 @@ the general schema for higher inductive types work, following the
 
 To use the cubical mode Agda needs to be run with the
 :option:`--cubical` command-line-option or with ``{-#
-OPTIONS --cubical #-}`` at the top of the file.
+OPTIONS --cubical #-}`` at the top of the file. There is also a
+variant of the cubical mode, activated using
+:option:`--erased-cubical`, which is described
+:ref:`below<erased-cubical>`.
 
 The cubical mode adds the following features to Agda:
 
@@ -796,6 +799,39 @@ more involved as the only way to reason about them is using ``J``.
 Furthermore, the path types satisfy many useful definitional
 equalities that the identity types don't.
 
+.. _erased-cubical:
+
+Cubical Agda with erased glue and erased higher constructors
+------------------------------------------------------------
+
+The option :option:`--erased-cubical` enables a variant of Cubical
+Agda in which glue (and the other builtins defined in
+``Agda.Builtin.Cubical.Glue``) must only be used in
+:ref:`erased<runtime-irrelevance>` settings, and higher constructors
+must be erased.
+
+Regular Cubical Agda code can import code that uses
+:option:`--erased-cubical`. Regular Cubical Agda code can also be
+imported from code that uses :option:`--erased-cubical`, but names
+defined using Cubical Agda are treated as if they had been marked as
+erased, with some exceptions related to pattern matching:
+
+- Matching on a non-erased imported constructor does not, on its own,
+  make Agda treat the right-hand side as erased.
+
+- Non-erased imported constructors count as non-erased for the
+  purposes of the run-time mode
+  :ref:`rule<run-time-irrelevance-rules>` that one "cannot pattern
+  match on erased arguments, unless there is at most one valid case
+  (not counting erased constructors)".
+
+The reason for these exceptions is that it should be possible to
+import the code from modules that use :option:`--cubical`, in which
+the non-erased constructors are not treated as erased.
+
+Note that names that are re-exported from a Cubical Agda module using
+``open import M args public`` are seen as defined using Cubical Agda.
+
 References
 ----------
 
@@ -983,3 +1019,4 @@ The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
                     (w : (x ≡ outS y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
                     C (outS y) (conid φ (outS w))) →
                    {y : A} (p : Id x y) → C y p
+

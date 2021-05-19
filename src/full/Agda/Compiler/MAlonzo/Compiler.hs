@@ -201,9 +201,14 @@ data GHCDefinition = GHCDefinition
 
 ghcPreCompile :: GHCFlags -> TCM GHCCompileEnv
 ghcPreCompile flags = do
-  whenM (optCubical <$> pragmaOptions) $
-    typeError $ GenericError
-      "Compilation of code that uses --cubical is not supported."
+  cubical <- optCubical <$> pragmaOptions
+  let notSupported s =
+        typeError $ GenericError $
+          "Compilation of code that uses " ++ s ++ " is not supported."
+  case cubical of
+    Nothing      -> return ()
+    Just CErased -> notSupported "--erased-cubical"
+    Just CFull   -> notSupported "--cubical"
 
   outDir <- compileDir
   let ghcOpts = GHCOptions

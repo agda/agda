@@ -1415,8 +1415,9 @@ checkLHS mf = updateModality checkLHS_ where
 
           -- The result type's quantity is set to 0 for erased
           -- constructors, but not if the match is made in an erased
-          -- position.
-          cq <- getQuantity <$> getConstInfo (conName c)
+          -- position, or if the original constructor definition is
+          -- not erased.
+          cq <- getQuantity <$> getOriginalConstInfo (conName c)
           let target'' = mapQuantity updResMod target'
                 where
                   erased = case getQuantity info of

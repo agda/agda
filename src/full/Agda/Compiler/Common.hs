@@ -16,6 +16,7 @@ import Data.Semigroup
 import Control.Monad
 import Control.Monad.State
 
+import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 
@@ -148,10 +149,12 @@ inCompilerEnv checkResult cont = do
       stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
 
     -- Perhaps all pragma options from the top-level module should be
-    -- made available to the compiler in a suitable way. Here is
-    -- another hack:
+    -- made available to the compiler in a suitable way. Here are more
+    -- hacks:
     when (any ("--cubical" `elem`) (iFilePragmaOptions mainI)) $
-      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = True }
+      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CFull }
+    when (any ("--erased-cubical" `elem`) (iFilePragmaOptions mainI)) $
+      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CErased }
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode cont

@@ -78,6 +78,13 @@ instance NFData FileType
 -- * Agda variants
 ---------------------------------------------------------------------------
 
+-- | Variants of Cubical Agda.
+
+data Cubical = CErased | CFull
+    deriving (Eq, Show, Generic)
+
+instance NFData Cubical
+
 -- | Agda variants.
 --
 -- Only some variants are tracked.
@@ -85,7 +92,7 @@ instance NFData FileType
 data Language
   = WithoutK
   | WithK
-  | Cubical
+  | Cubical Cubical
     deriving (Eq, Show, Generic)
 
 instance KillRange Language where

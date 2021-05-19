@@ -1,5 +1,6 @@
 -- Andreas, 2019-03-27
--- Do not run checkIApplyConfluence unless --cubical
+-- Do not run checkIApplyConfluence unless --cubical or
+-- --erased-cubical is active.
 
 -- The following verbosity options triggers a crash
 -- in case checkIApplyConfluence_ runs.

@@ -162,7 +162,7 @@ giveExpr force mii mi e = do
         unless (force == WithForce) $ redoChecks mii
         wakeupConstraints mi
         solveSizeConstraints DontDefaultToInfty
-        cubical <- optCubical <$> pragmaOptions
+        cubical <- isJust . optCubical <$> pragmaOptions
         -- don't double check with cubical, because it gets in the way too often.
         unless (cubical || force == WithForce) $ do
           -- Double check.
@@ -1031,7 +1031,7 @@ introTactic pmLambda ii = do
         TelV tel' t <- telViewUpTo' (-1) notVisible t
         -- if we cannot introduce a constructor, we try a lambda
         let fallback = do
-              cubical <- optCubical <$> pragmaOptions
+              cubical <- isJust . optCubical <$> pragmaOptions
               TelV tel _ <- (if cubical then telViewPath else telView) t
               reportSDoc "interaction.intro" 20 $ TP.sep
                 [ "introTactic/fallback"

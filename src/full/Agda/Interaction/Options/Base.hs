@@ -63,6 +63,7 @@ import Agda.Interaction.Options.Help
   )
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
+import Agda.Syntax.Common (Cubical(..))
 
 import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
@@ -156,7 +157,7 @@ data PragmaOptions = PragmaOptions
   , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
   , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
-  , optCubical                   :: Bool
+  , optCubical                   :: Maybe Cubical
   , optGuarded                   :: Bool
   , optFirstOrder                :: Bool  -- ^ Should we speculatively unify function applications as if they were injective?
   , optPostfixProjections        :: Bool
@@ -286,7 +287,7 @@ defaultPragmaOptions = PragmaOptions
   , optForcing                   = True
   , optProjectionLike            = True
   , optRewriting                 = False
-  , optCubical                   = False
+  , optCubical                   = Nothing
   , optGuarded                   = False
   , optFirstOrder                = False
   , optPostfixProjections        = False
@@ -359,7 +360,9 @@ unsafePragmaOptions clo opts =
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
-  [ "--cubical and --with-K"                     | optCubical opts
+  [ "--cubical and --with-K"                     | optCubical opts == Just CFull
+                                                 , not (collapseDefault $ optWithoutK opts) ] ++
+  [ "--erased-cubical and --with-K"              | optCubical opts == Just CErased
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
   [ "--cumulativity"                             | optCumulativity opts              ] ++
   [ "--allow-exec"                               | optAllowExec opts                 ] ++
@@ -393,7 +396,8 @@ restartOptions =
   , (B . optExactSplit, "--exact-split")
   , (B . not . optEta, "--no-eta-equality")
   , (B . optRewriting, "--rewriting")
-  , (B . optCubical, "--cubical")
+  , (B . (== Just CFull) . optCubical, "--cubical")
+  , (B . (== Just CErased) . optCubical, "--erased-cubical")
   , (B . optGuarded, "--guarded")
   , (B . optOverlappingInstances, "--overlapping-instances")
   , (B . optQualifiedInstances, "--qualified-instances")
@@ -419,10 +423,14 @@ data RestartCodomain = C CutOff | B Bool | I Int | W WarningMode
 
 -- | An infective option is an option that if used in one module, must
 --   be used in all modules that depend on this module.
+--
+-- Note that @--cubical@ and @--erased-cubical@ are \"jointly
+-- infective\": if one of them is used in one module, then one or the
+-- other must be used in all modules that depend on this module.
 
 infectiveOptions :: [(PragmaOptions -> Bool, String)]
 infectiveOptions =
-  [ (optCubical, "--cubical")
+  [ (isJust . optCubical, "--cubical/--erased-cubical")
   , (optGuarded, "--guarded")
   , (optProp, "--prop")
   , (collapseDefault . optTwoLevel, "--two-level")
@@ -698,10 +706,12 @@ rewritingFlag o = return $ o { optRewriting = True }
 firstOrderFlag :: Flag PragmaOptions
 firstOrderFlag o = return $ o { optFirstOrder = True }
 
-cubicalFlag :: Flag PragmaOptions
-cubicalFlag o = do
+cubicalFlag
+  :: Cubical  -- ^ Which variant of Cubical Agda?
+  -> Flag PragmaOptions
+cubicalFlag variant o = do
   let withoutK = optWithoutK o
-  return $ o { optCubical  = True
+  return $ o { optCubical  = Just variant
              , optWithoutK = setDefault True withoutK
              , optTwoLevel = setDefault True $ optTwoLevel o
              }
@@ -963,8 +973,10 @@ pragmaOptions =
                     "enable global confluence checking of REWRITE rules (more restrictive than --local-confluence-check)"
     , Option []     ["no-confluence-check"] (NoArg noConfluenceCheckFlag)
                     "disable confluence checking of REWRITE rules (default)"
-    , Option []     ["cubical"] (NoArg cubicalFlag)
+    , Option []     ["cubical"] (NoArg $ cubicalFlag CFull)
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
+    , Option []     ["erased-cubical"] (NoArg $ cubicalFlag CErased)
+                    "enable cubical features (some only in erased settings), implies --without-K"
     , Option []     ["guarded"] (NoArg guardedFlag)
                     "enable @lock/@tick attributes"
     , Option []     ["experimental-lossy-unification"] (NoArg firstOrderFlag)

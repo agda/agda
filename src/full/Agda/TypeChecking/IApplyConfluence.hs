@@ -37,10 +37,12 @@ import Agda.Utils.Functor
 
 
 checkIApplyConfluence_ :: QName -> TCM ()
-checkIApplyConfluence_ f = whenM (optCubical <$> pragmaOptions) $ do
-  -- Andreas, 2019-03-27, iapply confluence should only be checked when --cubical.
-  -- See test/Succeed/CheckIApplyConfluence.agda.
-  -- We cannot reach the following crash point unless --cubical.
+checkIApplyConfluence_ f = whenM (isJust . optCubical <$> pragmaOptions) $ do
+  -- Andreas, 2019-03-27, iapply confluence should only be checked
+  -- when --cubical or --erased-cubical is active. See
+  -- test/Succeed/CheckIApplyConfluence.agda.
+  -- We cannot reach the following crash point unless
+  -- --cubical/--erased-cubical is active.
   __CRASH_WHEN__ "tc.cover.iapply.confluence.crash" 666
   reportSDoc "tc.cover.iapply" 10 $ text "Checking IApply confluence of" <+> pretty f
   inConcreteOrAbstractMode f $ \ d -> do
@@ -206,7 +208,7 @@ unifyElims vs ts k = do
 -- | Like @unifyElims@ but @Γ@ is from the the meta's @MetaInfo@ and
 -- the context extension @Δ@ is taken from the @Closure@.
 unifyElimsMeta :: MetaId -> Args -> Closure Constraint -> ([(Term,Term)] -> Constraint -> TCM a) -> TCM a
-unifyElimsMeta m es_m cl k = ifM (not . optCubical <$> pragmaOptions) (enterClosure cl $ k []) $ do
+unifyElimsMeta m es_m cl k = ifM (isNothing . optCubical <$> pragmaOptions) (enterClosure cl $ k []) $ do
                   mv <- lookupMeta m
                   enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
                   ty <- metaType m

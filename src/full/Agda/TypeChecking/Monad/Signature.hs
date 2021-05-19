@@ -23,6 +23,8 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
 import Data.Semigroup ((<>))
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, ScopeCopyInfo(..))
 import Agda.Syntax.Common
@@ -462,7 +464,7 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
             nd :: QName -> TCM Definition
             nd y = do
               -- The arguments may use some feature of the current
-              -- language, so the definition gets this language.
+              -- language.
               lang <- getLanguage
               for def $ \ df -> Defn
                     { defArgInfo        = defArgInfo d
@@ -482,7 +484,14 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defInjective      = False
                     , defCopatternLHS   = isCopatternLHS [cl]
                     , defBlocked        = defBlocked d
-                    , defLanguage       = lang
+                    , defLanguage       =
+                      case defLanguage d of
+                        -- Note that Cubical Agda code can be imported
+                        -- when --erased-cubical is used.
+                        l@(Cubical CFull) -> l
+                        Cubical CErased   -> lang
+                        WithoutK          -> lang
+                        WithK             -> lang
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
@@ -740,6 +749,24 @@ class ( Functor m
 
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 
+-- | The computation 'getConstInfo' sometimes tweaks the returned
+-- 'Definition', depending on the current 'Language' and the
+-- 'Language' of the 'Definition'. This variant of 'getConstInfo' does
+-- not perform any tweaks.
+
+getOriginalConstInfo ::
+  (ReadTCState m, HasConstInfo m) => QName -> m Definition
+getOriginalConstInfo q = do
+  def  <- getConstInfo q
+  lang <- getLanguage
+  case (lang, defLanguage def) of
+    (Cubical CErased, Cubical CFull) ->
+      locallyTCState
+        stPragmaOptions
+        (\opts -> opts { optCubical = Just CFull })
+        (getConstInfo q)
+    _ -> return def
+
 defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
 defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   st <- getTCState
@@ -772,7 +799,7 @@ defaultGetConstInfo st env q = do
         idefs = st^.(stImports . sigDefinitions)
     case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
-        [d] -> mkAbs env d
+        [d] -> mkAbs env =<< fixQuantity d
         ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
@@ -794,6 +821,16 @@ defaultGetConstInfo st env q = do
             q{ qnameModule = mnameFromList $
                  initWithDefault __IMPOSSIBLE__ $ mnameToList m
              }
+
+      -- Names defined when --cubical is active are (to a large
+      -- degree) treated as erased when --erased-cubical is used.
+      fixQuantity d = do
+        current <- getLanguage
+        return $
+          if defLanguage d == Cubical CFull &&
+             current == Cubical CErased
+          then setQuantity zeroQuantity d
+          else d
 
 -- HasConstInfo lifts through monad transformers
 -- (see default signatures in HasConstInfo class).

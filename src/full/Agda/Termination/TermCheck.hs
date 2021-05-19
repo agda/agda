@@ -255,7 +255,7 @@ termMutual' = do
        -- could be turned into actual splits, because no-confusion
        -- would make the other cases impossible, so I do not disable
        -- this for --without-K entirely.
-       ifM (optCubical <$> pragmaOptions) (return r) {- else -} $
+       ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $
        case r of
          r@Right{} -> return r
          Left{}    -> do

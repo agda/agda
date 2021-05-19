@@ -298,6 +298,7 @@ getLanguage :: HasOptions m => m Language
 getLanguage = do
   opts <- pragmaOptions
   return $
-    if not (collapseDefault (optWithoutK opts)) then WithK
-    else if optCubical opts then Cubical
-    else WithoutK
+    if not (collapseDefault (optWithoutK opts)) then WithK else
+    case optCubical opts of
+      Just variant -> Cubical variant
+      Nothing      -> WithoutK

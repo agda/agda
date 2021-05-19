@@ -202,7 +202,7 @@ coverageCheck f t cs = do
   -- Storing the covering clauses so that checkIApplyConfluence_ can
   -- find them later.
   -- Andreas, 2019-03-27, only needed when --cubical
-  whenM (optCubical <$> pragmaOptions) $ do
+  whenM (isJust . optCubical <$> pragmaOptions) $ do
     modifySignature $ updateDefinition f $ updateTheDef $ updateCovering $ const qss
 
 
@@ -948,7 +948,8 @@ fixTargetType q tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
       ]
 
     -- We update the target quantity to 0 for erased constructors, but
-    -- not if the match is made in an erased position.
+    -- not if the match is made in an erased position, or if the
+    -- original constructor definition is not erased.
     updQuant <- do
       let erased = case q of
             Quantity0{} -> True
@@ -956,7 +957,7 @@ fixTargetType q tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
             Quantityω{} -> False
       if erased then return id else case tag of
         SplitCon c -> do
-          q <- getQuantity <$> getConstInfo c
+          q <- getQuantity <$> getOriginalConstInfo c
           case q of
             Quantity0{} -> return $ mapQuantity (composeQuantity q)
             Quantity1{} -> return id

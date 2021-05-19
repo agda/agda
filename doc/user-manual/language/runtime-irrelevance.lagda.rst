@@ -116,7 +116,13 @@ In the code above the constructor ``trivial`` is only available at
 compile-time, whereas ``∣_∣`` is also available at run-time. Clauses
 that match on erased constructors in non-erased positions are omitted
 by (at least some) compiler backends, so one can use erased names in
-the bodies of such clauses.
+the bodies of such clauses. (There is an
+:ref:`exception<erased-cubical>` for constructors that were not
+declared as erased, but that are treated as erased because they were
+defined using Cubical Agda, and are used in a module that uses the
+option :option:`--erased-cubical`.)
+
+.. _run-time-irrelevance-rules:
 
 Rules
 =====

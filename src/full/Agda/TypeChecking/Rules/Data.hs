@@ -214,6 +214,16 @@ checkConstructor d uc tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         -- check that the type of the constructor is well-formed
         (t, isPathCons) <- applyQuantityToContext ai $
                            checkConstructorType e d
+
+        lang <- getLanguage
+        when (lang == Cubical CErased &&
+              isPathCons == PathCons &&
+              not (hasQuantity0 ai)) $
+          typeError $ GenericError $ unwords
+            [ "When --erased-cubical is used higher constructors must"
+            , "be erased"
+            ]
+
         -- compute which constructor arguments are forced (only point constructors)
         forcedArgs <- if isPathCons == PointCons
                       then computeForcingAnnotations c t

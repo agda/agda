@@ -50,7 +50,7 @@ import Agda.Utils.List ( downFrom, headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, fromMaybe, whenNothing )
-import Agda.Utils.Monad ( ifM, when, whenM )
+import Agda.Utils.Monad ( ifM, when )
 import Agda.Utils.Null  ( null )
 import Agda.Utils.Pretty (prettyShow, render)
 import qualified Agda.Utils.Pretty as P
@@ -147,9 +147,14 @@ jsCommandLineFlags =
 
 jsPreCompile :: JSOptions -> TCM JSOptions
 jsPreCompile opts = do
-  whenM (optCubical <$> pragmaOptions) $
-    typeError $ GenericError
-      "Compilation of code that uses --cubical is not supported."
+  cubical <- optCubical <$> pragmaOptions
+  let notSupported s =
+        typeError $ GenericError $
+          "Compilation of code that uses " ++ s ++ " is not supported."
+  case cubical of
+    Nothing      -> return ()
+    Just CErased -> notSupported "--erased-cubical"
+    Just CFull   -> notSupported "--cubical"
 
   return opts
 

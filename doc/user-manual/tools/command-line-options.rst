@@ -227,6 +227,11 @@ Experimental features
      Enable cubical features. Turns on :option:`--without-K` (see
      :ref:`cubical`).
 
+.. option:: --erased-cubical
+
+     Enable a :ref:`variant<erased-cubical>` of Cubical Agda, and turn
+     on :option:`--without-K`.
+
 .. option:: --experimental-irrelevance
 
      Enable potentially unsound irrelevance features (irrelevant

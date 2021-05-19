@@ -491,11 +491,14 @@ checkLambda' cmp b xps typ body target = do
     trySeeingIfPath = do
       cubical <- optCubical <$> pragmaOptions
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xps
-      let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
+      let postpone' = if isJust cubical then postpone else \ _ _ -> dontUseTargetType
       ifBlocked target postpone' $ \ _ t -> do
-        ifPath t dontUseTargetType $ if cubical
+        ifPath t dontUseTargetType $ if isJust cubical
           then checkPath b body t
-          else genericError "Option --cubical needed to build a path with a lambda abstraction"
+          else genericError $ unwords
+                 [ "Option --cubical/--erased-cubical needed to build"
+                 , "a path with a lambda abstraction"
+                 ]
 
     postpone blocker tgt = flip postponeTypeCheckingProblem blocker $
       CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) tgt

@@ -74,6 +74,20 @@ Pragmas and options
   In this particular case, we can work around the limitation of the
   termination checker with pragma `{-# INLINE case_of_ #-}`.
 
+* The new option `--erased-cubical` turns on a variant of Cubical Agda
+  (see [#4701](https://github.com/agda/agda/issues/4701)).
+
+  When this variant of Cubical Agda is used glue (and some related
+  builtins) may only be used in erased settings, and higher
+  constructors must be erased (see below). One can import regular
+  Cubical Agda code from this variant of Cubical Agda, but names
+  defined using Cubical Agda are (mostly) treated as if they had been
+  marked as erased. See the [reference
+  manual](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue-and-erased-higher-constructors)
+  for more details.
+
+  This feature is experimental.
+
 * New options `--qualified-instances` (default) and
   `--no-qualified-instances`. When `--no-qualified-instances` is
   enabled, Agda will only consider candidates for instance search that
