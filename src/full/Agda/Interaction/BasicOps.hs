@@ -1275,8 +1275,6 @@ whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])
 whyInScope s = do
   x     <- parseName noRange s
   scope <- getScope
-  ifNull ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
+  return ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
          , scopeLookup x scope
          , scopeLookup x scope )
-    {-then-} (notInScopeError x)  -- Andreas, 2020-05-15, issue #4647 throw error to trigger TopLevelInteraction
-    {-else-} return

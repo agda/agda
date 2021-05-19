@@ -4,7 +4,7 @@
     interface files.
 -}
 module Agda.Interaction.Imports
-  ( Mode, Mode', pattern ScopeCheck, pattern TypeCheck
+  ( Mode, pattern ScopeCheck, pattern TypeCheck
 
   , CheckResult (CheckResult)
   , crModuleInfo
@@ -72,7 +72,6 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
 
-import Agda.Interaction.Base     ( InteractionMode(..) )
 import Agda.Interaction.BasicOps ( getGoals, showGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
@@ -161,14 +160,10 @@ setOptionsFromSourcePragmas src =
 -- | Is the aim to type-check the top-level module, or only to
 -- scope-check it?
 
-data Mode' a
+data Mode
   = ScopeCheck
-  | TypeCheck a
-  deriving (Eq, Show, Functor, Foldable)
-
-type Mode = Mode' InteractionMode
-      -- ^ Depending on the 'InteractionMode' private declaration may be retained
-      --   in the interface.
+  | TypeCheck
+  deriving (Eq, Show)
 
 -- | Are we loading the interface for the user-loaded file
 --   or for an import?
@@ -192,8 +187,7 @@ includeStateChanges NotMainInterface  = False
 -- | The kind of interface produced by 'createInterface'
 moduleCheckMode :: MainInterface -> ModuleCheckMode
 moduleCheckMode = \case
-    MainInterface (TypeCheck TopLevelInteraction) -> ModuleTypeCheckedRetainingPrivates
-    MainInterface (TypeCheck RegularInteraction)  -> ModuleTypeChecked
+    MainInterface TypeCheck                       -> ModuleTypeChecked
     NotMainInterface                              -> ModuleTypeChecked
     MainInterface ScopeCheck                      -> ModuleScopeChecked
 
@@ -288,12 +282,7 @@ alreadyVisited :: C.TopLevelModuleName ->
                   TCM ModuleInfo
 alreadyVisited x isMain currentOptions getModule =
   case isMain of
-    -- Andreas, 2020-05-13, issue 4647:
-    -- For top-level interaction commands, we may not able to reuse
-    -- the existing interface, since it does not contain the private
-    -- declarations.  Thus, we always recheck.
-    MainInterface (TypeCheck TopLevelInteraction) ->              loadAndRecordVisited -- ModuleTypeCheckedRetainingPrivates
-    MainInterface (TypeCheck RegularInteraction)  -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
+    MainInterface TypeCheck                       -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
     NotMainInterface                              -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
     MainInterface ScopeCheck                      -> useExistingOrLoadAndRecordVisited ModuleScopeChecked
   where
@@ -485,8 +474,6 @@ getInterface x isMain msrc =
       -- Andreas, 2015-07-13: Serialize iInsideScope again.
       -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
       stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
-        when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
-          throwError "we always re-check the main interface in top-level interaction"
         getStoredInterface x file msrc
 
       let recheck = \reason -> do
@@ -1096,16 +1083,6 @@ createInterface mname file isMain msrc = do
         return i
       ([], MainInterface ScopeCheck) -> do
         reportSLn "import.iface.create" 7 "We are just scope-checking, skipping writing interface file."
-        return i
-      ([], MainInterface (TypeCheck TopLevelInteraction)) -> do
-        -- -- suggested by unclebetty at https://github.com/agda/agda/issues/4959#issuecomment-706179266
-        -- reportSLn "import.iface.create" 7 $ unlines
-        --   [ "We are in top-level interaction mode and want to retain private declarations."
-        --   , "We write the interface file but retain the private declarations."
-        --   ]
-        -- ifile <- toIFile file
-        -- _serializedIface <- writeInterface ifile i
-        reportSLn "import.iface.create" 7 "We are in top-level interaction mode and want to retain private declarations, skipping writing interface file."
         return i
       ([], _) -> Bench.billTo [Bench.Serialization] $ do
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."

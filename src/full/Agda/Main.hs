@@ -15,7 +15,6 @@ import System.Console.GetOpt
 
 import Paths_Agda            ( getDataDir )
 
-import Agda.Interaction.Base ( pattern RegularInteraction )
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
@@ -200,7 +199,7 @@ runAgdaWithOptions interactor progName opts = do
         -- resetState
           let mode = if optOnlyScopeChecking opts
                      then Imp.ScopeCheck
-                     else Imp.TypeCheck RegularInteraction
+                     else Imp.TypeCheck
 
           result <- Imp.typeCheckMain mode =<< Imp.parseSource (SourceFile inputFile)
 
