@@ -7,7 +7,7 @@ import Prelude hiding (null)
 import Control.Monad
 
 import Data.Either
-import qualified Data.Map as Map
+import Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
@@ -34,10 +34,12 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Def (checkClauseLHS)
 import Agda.TypeChecking.Rules.LHS (LHSResult(..))
+import Agda.TypeChecking.Rules.LHS.Problem (AsBinding(..))
 
 import Agda.Interaction.Options
 import Agda.Interaction.BasicOps
 
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.List
@@ -56,13 +58,20 @@ type CaseContext = Maybe ExtLamInfo
 
 parseVariables
   :: QName           -- ^ The function name.
-  -> Telescope       -- ^ The telescope of the clause we are splitting.
+  -> Context         -- ^ The context of the RHS of the clause we are splitting.
+  -> [AsBinding]     -- ^ The as-bindings of the clause we are splitting
   -> InteractionId   -- ^ The hole of this function we are working on.
   -> Range           -- ^ The range of this hole.
   -> [String]        -- ^ The words the user entered in this hole (variable names).
   -> TCM [(Int,NameInScope)] -- ^ The computed de Bruijn indices of the variables to split on,
                              --   with information about whether each variable is in scope.
-parseVariables f tel ii rng ss = do
+parseVariables f cxt asb ii rng ss = do
+
+  -- We parse the variables in two steps:
+  -- (1) Convert the strings given by the user to abstract names,
+  --     using the scope information from the interaction meta.
+  -- (2) Convert the abstract names to de Bruijn indices,
+  --     using the context of the clause.
 
   -- Get into the context of the meta.
   mId <- lookupInteractionId ii
@@ -70,105 +79,122 @@ parseVariables f tel ii rng ss = do
   mi  <- getMetaInfo <$> lookupMeta mId
   enterClosure mi $ \ r -> do
 
-    -- Get printed representation of variables in context.
-    n  <- getContextSize
-    xs <- forM (downFrom n) $ \ i -> do
-      (,i) . P.render <$> prettyTCM (var i)
+  reportSDoc "interaction.case" 20 $ do
+    m   <- currentModule
+    tel <- lookupSection m
+    vcat
+     [ "parseVariables:"
+     , "current module  =" <+> prettyTCM m
+     , "current section =" <+> inTopContext (prettyTCM tel)
+     , "clause context  =" <+> prettyTCM (PrettyContext cxt)
+     ]
 
-    -- We might be under some lambdas, in which case the context
-    -- is bigger than the number of pattern variables.
-    let nPatVars = size tel
-    let nlocals = n - nPatVars
+  -- Get printed representation of variables in context.  These are
+  -- used for recognizing when the user wants to make a hidden
+  -- variable (which is not in scope) visible.
+  n  <- getContextSize
+  xs <- forM (downFrom n) $ \ i ->
+    (,) <$> (P.render <$> prettyTCM (var i)) <*> nameOfBV i
 
-    fv <- getDefFreeVars f
-    reportSDoc "interaction.case" 20 $ do
-      m   <- currentModule
-      tel <- lookupSection m
-      cxt <- getContextTelescope
-      vcat
-       [ "parseVariables:"
-       , "current module  =" <+> prettyTCM m
-       , "current section =" <+> inTopContext (prettyTCM tel)
-       , text $ "function's fvs  = " ++ show fv
-       , text $ "number of locals= " ++ show nlocals
-       , "context         =" <+> do inTopContext $ prettyTCM cxt
-       , "checkpoints     =" <+> do (text . show) =<< asksTC envCheckpoints
-       ]
+  -- Step 1: From strings to abstract names
+  abstractNames :: [(A.Name, Maybe BindingSource)] <- forM ss $ \s -> do
 
-    unless (nlocals >= 0) __IMPOSSIBLE__  -- cannot be negative
+    let cname = C.QName $ C.Name r C.InScope $ C.stringNameParts s
+    -- Note: the range in the concrete name is only approximate.
+    -- Jesper, 2018-12-19: Don't consider generalizable names since
+    -- they can be shadowed by hidden variables.
+    resolveName' (exceptKindsOfNames [GeneralizeName]) Nothing cname >>= \case
 
-    -- Resolve each string to a variable.
-    forM ss $ \ s -> do
-      let failNotVar      = typeError $ GenericError $ "Not a variable: " ++ s
-          failUnbound     = typeError $ GenericError $ "Unbound variable " ++ s
-          failAmbiguous   = typeError $ GenericError $ "Ambiguous variable " ++ s
-          failLocal       = typeError $ GenericError $
-            "Cannot split on local variable " ++ s
-          failModuleBound = typeError $ GenericError $
-            "Cannot split on module parameter " ++ s
-          failLetBound v  = typeError . GenericError $
-            "Cannot split on let-bound variable " ++ s
-          failInstantiatedVar v = typeError . GenericDocError =<< sep
-              [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
-              , prettyTCM v
-              ]
-          failCaseLet     = typeError $ GenericError $
-            "Cannot split on variable " ++ s ++
-            ", because let-declarations may not be defined by pattern-matching"
+      -- Fail if s is a name, but not of a variable.
+      DefinedName{}       -> failNotVar s
+      FieldName{}         -> failNotVar s
+      ConstructorName{}   -> failNotVar s
+      PatternSynResName{} -> failNotVar s
 
-      let cname = C.QName $ C.Name r C.InScope $ C.stringNameParts s
-      -- Note: the range in the concrete name is only approximate.
-      -- Jesper, 2018-12-19: Don't consider generalizable names since
-      -- they can be shadowed by hidden variables.
-      resolveName' (exceptKindsOfNames [GeneralizeName]) Nothing cname >>= \case
+      -- If s is a variable name, return it together with binding information.
+      VarName x b -> return (x, Just b)
 
-        -- Fail if s is a name, but not of a variable.
-        DefinedName{}       -> failNotVar
-        FieldName{}         -> failNotVar
-        ConstructorName{}   -> failNotVar
-        PatternSynResName{} -> failNotVar
+      -- If s is not a name, compare it to the printed variable representation.
+      UnknownName -> case (lookup s xs) of
+        Nothing -> failUnbound s
+        Just x  -> return (x, Nothing)
 
-        -- If s is a variable name in scope, get its de Bruijn index
-        -- via the type checker.
-        VarName x b -> do
-          (v, _) <- getVarInfo x
-          case (v , b) of
-            -- Slightly dangerous: the pattern variable `x` may be
-            -- refined to the module parameter `var i`. But in this
-            -- case the instantiation could as well be the other way
-            -- around, so the new clauses will still make sense.
-            (Var i [] , PatternBound) -> do
-              reportSLn "interaction.case" 30 $ "resolved variable " ++ prettyShow x ++ " = " ++ show i
-              when (i < nlocals) failCaseLet
-              return (i - nlocals , C.InScope)
-            (Var i [] , LambdaBound)
-              | i < nlocals -> failLocal
-              | otherwise   -> failModuleBound
-            (Var i [] , LetBound) -> failLetBound v
-            (_        , _       ) -> failInstantiatedVar v
+  -- Step 2: Resolve each abstract name to a de Bruijn index.
 
-        -- If s is not a name, compare it to the printed variable representation.
-        -- This fallback is to enable splitting on hidden variables.
-        UnknownName -> do
-          let xs' = filter ((s ==) . fst) xs
-          when (null xs') $ failUnbound
-          reportSLn "interaction.case" 20 $ "matching names corresponding to indices " ++ prettyShow xs'
-          -- Andreas, 2018-05-28, issue #3095
-          -- We want to act on an ambiguous name if it corresponds to only one local index.
-          let xs'' = mapMaybe (\ (_,i) -> if i < nlocals then Nothing else Just $ i - nlocals) xs'
-          when (null xs'') $ typeError $ GenericError $
-            "Cannot make hidden lambda-bound variable " ++ s ++ " visible"
-          -- Filter out variable bound by parent function or module.
-          params <- moduleParamsToApply $ qnameModule f
-          let isParam i = any ((== var i) . unArg) params
-              xs'''     = filter (not . isParam) xs''
-          when (null xs''') $ typeError $ GenericError $
-            "Cannot make hidden module parameter " ++ s ++ " visible"
-          case xs''' of
-            []  -> failModuleBound
-            [i] -> return (i , C.NotInScope)
-            -- Issue 1325: Variable names in context can be ambiguous.
-            _   -> failAmbiguous
+  -- First, get context names of the clause.
+  let clauseCxtNames = map (fst . unDom) cxt
+
+  -- Valid names to split on are pattern variables of the clause,
+  -- plus as-bindings that refer to a variable.
+  let clauseVars = zip clauseCxtNames (map var [0..]) ++
+                   map (\(AsB name v _ _) -> (name,v)) asb
+
+  -- We cannot split on module parameters or make them visible
+  params <- moduleParamsToApply $ qnameModule f
+  let isParam i = any ((== var i) . unArg) params
+
+  forM (zip ss abstractNames) $ \(s, (name, bound)) -> case bound of
+    -- Case 1: variable has a binding site. Check if it also exists in
+    -- the clause context so we can split on it.
+    Just bindingSource -> case (lookup name clauseVars, bindingSource) of
+      -- Case 1a: it is also known in the clause telescope and is
+      -- actually a variable. If a pattern variable (`PatternBound`)
+      -- has been refined to a module parameter we do allow splitting
+      -- on it, since the instantiation could as well have been the
+      -- other way around (see #2183).
+      (Just (Var i []), PatternBound) -> return (i, C.InScope)
+      -- Case 1b: the variable has been refined.
+      (Just v         , PatternBound) -> failInstantiatedVar s v
+      -- Case 1c: the variable is bound locally (e.g. a record let)
+      (Nothing        , PatternBound) -> failCaseLet s
+      -- Case 1d: module parameter
+      (Just (Var i []), LambdaBound ) -> failModuleBound s
+      -- Case 1e: locally lambda-bound variable
+      (_              , LambdaBound ) -> failLocal s
+      -- Case 1f: let-bound variable
+      (_              , LetBound    ) -> failLetBound s
+      -- Case 1g: with-bound variable (not used?)
+      (_              , WithBound   ) -> __IMPOSSIBLE__
+    -- Case 2: variable has no binding site, so we check if it can be
+    -- made visible.
+    Nothing -> case List.find (((==) `on` nameConcrete) name . fst) clauseVars of
+      -- Case 2a: there is a variable with that concrete name in the
+      -- clause context. If it is not a parameter, we can make it
+      -- visible.
+      Just (x, Var i []) | isParam i -> failHiddenModuleBound s
+                         | otherwise -> return (i, C.NotInScope)
+      -- Case 2b: there is a variable with that concrete name, but it
+      -- has been refined.
+      Just (x, v) -> failInstantiatedVar s v
+      -- Case 2c: there is no variable with that name. Since it was in
+      -- scope for the interaction meta, the only possibility is that
+      -- it is a hidden lambda-bound variable.
+      Nothing -> failHiddenLocal s
+
+  where
+
+  failNotVar s      = typeError $ GenericError $ "Not a variable: " ++ s
+  failUnbound s     = typeError $ GenericError $ "Unbound variable " ++ s
+  failAmbiguous s   = typeError $ GenericError $ "Ambiguous variable " ++ s
+  failLocal s       = typeError $ GenericError $
+    "Cannot split on local variable " ++ s
+  failHiddenLocal s = typeError $ GenericError $
+    "Cannot make hidden lambda-bound variable " ++ s ++ " visible"
+  failModuleBound s = typeError $ GenericError $
+    "Cannot split on module parameter " ++ s
+  failHiddenModuleBound s = typeError $ GenericError $
+    "Cannot make hidden module parameter " ++ s ++ " visible"
+  failLetBound s = typeError . GenericError $
+    "Cannot split on let-bound variable " ++ s
+  failInstantiatedVar s v = typeError . GenericDocError =<< sep
+      [ text $ "Cannot split on variable " ++ s ++ ", because it is bound to"
+      , prettyTCM v
+      ]
+  failCaseLet s     = typeError $ GenericError $
+    "Cannot split on variable " ++ s ++
+    ", because let-declarations may not be defined by pattern-matching"
+
+
 
 -- | Lookup the clause for an interaction point in the signature.
 --   Returns the CaseContext, the previous clauses, the clause itself,
@@ -195,20 +221,24 @@ getClauseZipperForIP f clauseNo = do
         ]
       __IMPOSSIBLE__
 
-recheckAbstractClause :: Type -> Maybe Substitution -> A.SpineClause -> TCM Clause
-recheckAbstractClause t sub cl = checkClauseLHS t sub cl $ \ lhs ->
-  return Clause{ clauseLHSRange    = getRange cl
-               , clauseFullRange   = getRange cl
-               , clauseTel         = lhsVarTele lhs
-               , namedClausePats   = lhsPatterns lhs
-               , clauseBody        = Nothing -- We don't need the body for make case
-               , clauseType        = Just (lhsBodyType lhs)
-               , clauseCatchall    = False
-               , clauseExact       = Nothing
-               , clauseRecursive   = Nothing
-               , clauseUnreachable = Nothing
-               , clauseEllipsis    = lhsEllipsis $ A.spLhsInfo $ A.clauseLHS cl
-               }
+recheckAbstractClause :: Type -> Maybe Substitution -> A.SpineClause -> TCM (Clause, Context, [AsBinding])
+recheckAbstractClause t sub acl = checkClauseLHS t sub acl $ \ lhs -> do
+  let cl = Clause{ clauseLHSRange    = getRange acl
+                 , clauseFullRange   = getRange acl
+                 , clauseTel         = lhsVarTele lhs
+                 , namedClausePats   = lhsPatterns lhs
+                 , clauseBody        = Nothing -- We don't need the body for make case
+                 , clauseType        = Just (lhsBodyType lhs)
+                 , clauseCatchall    = False
+                 , clauseExact       = Nothing
+                 , clauseRecursive   = Nothing
+                 , clauseUnreachable = Nothing
+                 , clauseEllipsis    = lhsEllipsis $ A.spLhsInfo $ A.clauseLHS acl
+                 }
+  cxt <- getContext
+  let asb = lhsAsBindings lhs
+  return (cl, cxt, asb)
+
 
 -- | Entry point for case splitting tactic.
 
@@ -229,8 +259,9 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   -- Instead of using the actual internal clause, we retype check the abstract clause (with
   -- eMakeCase = True). This disables the forcing translation in the unifier, which allows us to
   -- split on forced variables.
-  clause <- enterClosure clClos $ \ _ -> locallyTC eMakeCase (const True) $
-              recheckAbstractClause clTy clWithSub absCl
+  (clause, clauseCxt, clauseAsBindings) <-
+    enterClosure clClos $ \ _ -> locallyTC eMakeCase (const True) $
+      recheckAbstractClause clTy clWithSub absCl
 
   let (prevClauses, follClauses) = killRange (prevClauses0, follClauses0)
     -- Andreas, 2019-08-08, issue #3966
@@ -268,9 +299,9 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       , "context =" <+> ((inTopContext . prettyTCM) =<< getContextTelescope)
       , "tel     =" <+> (inTopContext . prettyTCM) tel
       , "perm    =" <+> text (show perm)
-      , "ps      =" <+> prettyTCMPatternList ps
+      , "ps      =" <+> addContext tel (prettyTCMPatternList ps)
       , "ell     =" <+> text (show ell)
-      , "type    =" <+> prettyTCM (clauseType clause)
+      , "type    =" <+> addContext tel (prettyTCM $ clauseType clause)
       ]
     ]
 
@@ -339,7 +370,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
       else mapM (makeAbstractClause f rhs ell) scs
   else do
     -- split on variables
-    xs <- parseVariables f tel hole rng vars
+    xs <- parseVariables f clauseCxt clauseAsBindings hole rng vars
     reportSLn "interaction.case" 30 $ "parsedVariables: " ++ show (zip xs vars)
     -- Variables that are not in scope yet are brought into scope (@toShow@)
     -- The other variables are split on (@toSplit@).
@@ -351,7 +382,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
 
     -- If any of the split variables is hidden by the ellipsis, we
     -- should force the expansion of the ellipsis.
-    splitNames <- mapM nameOfBV toSplit
+    let splitNames = map (\i -> fst $ unDom $ clauseCxt !! i) toSplit
     shouldExpandEllipsis <- return (not $ null toShow) `or2M` anyEllipsisVar f absCl splitNames
     let ell' | shouldExpandEllipsis = NoEllipsis
              | otherwise            = ell
@@ -427,7 +458,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   -- In this case, we refuse to split, as this might lose the refinements.
   checkClauseIsClean :: IPClause -> TCM ()
   checkClauseIsClean ipCl = do
-    sips <- filter ipSolved . Map.elems <$> useTC stInteractionPoints
+    sips <- filter ipSolved . BiMap.elems <$> useTC stInteractionPoints
     when (List.any ((== ipCl) . ipClause) sips) $
       typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
 

@@ -86,6 +86,10 @@ instance MonadDebug ReduceM where
   verboseBracket k n s = applyWhenVerboseS k n $
     bracket_ (openVerboseBracket k n s) (const $ closeVerboseBracket k n)
 
+  getVerbosity     = defaultGetVerbosity
+  isDebugPrinting  = defaultIsDebugPrinting
+  nowDebugPrinting = defaultNowDebugPrinting
+
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do

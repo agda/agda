@@ -101,7 +101,7 @@ import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
-import Agda.ImpossibleTest (impossibleTest)
+import Agda.ImpossibleTest (impossibleTest, impossibleTestReduceM)
 
 {--------------------------------------------------------------------------
     Exceptions
@@ -812,8 +812,9 @@ toAbstractLam r bs e ctx = do
     mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
 -- | Scope check extended lambda expression.
-scopeCheckExtendedLam :: Range -> List1 C.LamClause -> ScopeM A.Expr
-scopeCheckExtendedLam r cs = do
+scopeCheckExtendedLam ::
+  Range -> Erased -> List1 C.LamClause -> ScopeM A.Expr
+scopeCheckExtendedLam r erased cs = do
   whenM isInsideDotPattern $
     genericError "Extended lambdas are not allowed in dot patterns"
 
@@ -844,7 +845,9 @@ scopeCheckExtendedLam r cs = do
   case scdef of
     A.ScopedDecl si [A.FunDef di qname' NotDelayed cs] -> do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
-      return $ A.ExtendedLam (ExprRange r) di qname' $ List1.fromList cs
+      return $
+        A.ExtendedLam (ExprRange r) di erased qname' $
+        List1.fromList cs
     _ -> __IMPOSSIBLE__
 
 -- | Raise an error if argument is a C.Dot with Hiding info.
@@ -952,7 +955,7 @@ instance ToAbstract C.Expr where
       C.Lam r bs e -> toAbstractLam r bs e TopCtx
 
   -- Extended Lambda
-      C.ExtendedLam r cs -> scopeCheckExtendedLam r cs
+      C.ExtendedLam r e cs -> scopeCheckExtendedLam r e cs
 
   -- Relevant and irrelevant non-dependent function type
       C.Fun r (Arg info1 e1) e2 -> do
@@ -2270,7 +2273,10 @@ errorNotConstrDecl d = typeError . GenericDocError $
 instance ToAbstract C.Pragma where
   type AbsOfCon C.Pragma = [A.Pragma]
 
-  toAbstract (C.ImpossiblePragma _) = impossibleTest
+  toAbstract (C.ImpossiblePragma _ strs) =
+    case strs of
+      "ReduceM" : _ -> impossibleTestReduceM strs
+      _ -> impossibleTest strs
   toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
   toAbstract (C.RewritePragma _ _ []) = [] <$ warning EmptyRewritePragma
   toAbstract (C.RewritePragma _ r xs) = singleton . A.RewritePragma r . concat <$> do

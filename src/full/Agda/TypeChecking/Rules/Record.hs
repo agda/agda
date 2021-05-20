@@ -551,15 +551,30 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         , nest 2 $ vcat
           [ "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , "tel   =" <+> (inTopContext . prettyTCM $ tel)
-          , "ftel1 =" <+> escapeContext impossible 1 (prettyTCM ftel1)
+          ]
+        ]
+      -- Andreas, 2021-05-11, issue #5378
+      -- The impossible is sometimes possible, so splitting out this part...
+      reportSDoc "tc.rec.proj" 5 $ nest 2 $ vcat
+          [ "ftel1 =" <+> escapeContext impossible 1 (prettyTCM ftel1)
           , "t     =" <+> escapeContext impossible 1 (prettyTCM t)
-          , "ftel2 =" <+> escapeContext impossible 1 (addContext ftel1 $ underAbstraction_ ftel2 prettyTCM)
-          , "vs    =" <+> prettyList_ (map prettyTCM vs)
+          , "ftel2 =" <+> escapeContext impossible 1 (addContext ftel1 $ underAbstraction dom ftel2 prettyTCM)
+          ]
+      reportSDoc "tc.rec.proj" 55 $ nest 2 $ vcat
+          [ "ftel1 (raw) =" <+> pretty ftel1
+          , "t     (raw) =" <+> pretty t
+          , "ftel2 (raw) =" <+> pretty ftel2
+          , "ftel2 (in wrong context) =" <+> (addContext ftel1 $ underAbstraction dom ftel2 prettyTCM)
+          ]
+      reportSDoc "tc.rec.proj" 85 $ nest 2 $ vcat
+          [ "ftel2 (very raw) =" <+> (text . show) ftel2
+          ]
+      reportSDoc "tc.rec.proj" 5 $ nest 2 $ vcat
+          [ "vs    =" <+> prettyList_ (map prettyTCM vs)
           , "abstr =" <+> (text . show) (Info.defAbstract info)
           , "quant =" <+> (text . show) (getQuantity ai)
           , "coh   =" <+> (text . show) (getCohesion ai)
           ]
-        ]
 
       -- Cohesion check:
       -- For a field `@c π : A` we would create a projection `π : .., (@(c^-1) r : R as) -> A`

@@ -181,10 +181,28 @@ Arguments can be relevant or irrelevant::
   {-# BUILTIN RELEVANT   relevant   #-}
   {-# BUILTIN IRRELEVANT irrelevant #-}
 
-Visibility and relevance characterise the behaviour of an argument::
+Arguments also have a quantity::
+
+  data Quantity : Set where
+    quantity-0 quantity-ω : Quantity
+
+  {-# BUILTIN QUANTITY   Quantity   #-}
+  {-# BUILTIN QUANTITY-0 quantity-0 #-}
+  {-# BUILTIN QUANTITY-ω quantity-ω #-}
+
+Relevance and quantity are combined into a modality::
+
+  data Modality : Set where
+    modality : (r : Relevance) (q : Quantity) → Modality
+
+  {-# BUILTIN MODALITY             Modality #-}
+  {-# BUILTIN MODALITY-CONSTRUCTOR modality #-}
+
+The visibility and the modality characterise the behaviour of an
+argument::
 
   data ArgInfo : Set where
-    arg-info : (v : Visibility) (r : Relevance) → ArgInfo
+    arg-info : (v : Visibility) (m : Modality) → ArgInfo
 
   data Arg (A : Set) : Set where
     arg : (i : ArgInfo) (x : A) → Arg A
@@ -584,7 +602,9 @@ overhead. For instance, suppose you have a solver::
 ..
   ::
   postulate God : (A : Set) → A
-  magic t = def (quote God) (arg (arg-info visible relevant) t ∷ [])
+  magic t =
+    def (quote God)
+        (arg (arg-info visible (modality relevant quantity-ω)) t ∷ [])
 
 that takes a reflected goal and outputs a proof (when successful). You can then
 define the following macro::
@@ -704,16 +724,19 @@ Example usage:
 
 ::
 
+    arg′ : {A : Set} → Visibility → A → Arg A
+    arg′ v = arg (arg-info v (modality relevant quantity-ω))
+
     -- Defining: id-name {A} x = x
     defId : (id-name : Name) → TC ⊤
     defId id-name = do
       defineFun id-name
         [ clause
-          ( ("A" , arg (arg-info visible relevant) (agda-sort (lit 0)))
-          ∷ ("x" , arg (arg-info visible relevant) (var 0 []))
+          ( ("A" , arg′ visible (agda-sort (lit 0)))
+          ∷ ("x" , arg′ visible (var 0 []))
           ∷ [])
-          ( arg (arg-info hidden relevant) (var 1)
-          ∷ arg (arg-info visible relevant) (var 0)
+          ( arg′ hidden (var 1)
+          ∷ arg′ visible (var 0)
           ∷ [] )
           (var 0 [])
         ]
@@ -724,7 +747,7 @@ Example usage:
     mkId : (id-name : Name) → TC ⊤
     mkId id-name = do
       ty ← quoteTC ({A : Set} (x : A) → A)
-      declareDef (arg (arg-info visible relevant) id-name) ty
+      declareDef (arg′ visible id-name) ty
       defId id-name
 
     unquoteDecl id′ = mkId id′

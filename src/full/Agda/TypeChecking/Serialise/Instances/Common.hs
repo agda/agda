@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
@@ -24,6 +25,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Strict.Tuple (Pair(..))
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
 import Data.Typeable
@@ -46,6 +48,8 @@ import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
 import qualified Agda.Utils.Empty as Empty
 import Agda.Utils.FileName
+import Agda.Utils.List2 (List2(List2))
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
@@ -112,6 +116,11 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
   icod_ (a, b) = icodeN' (,) a b
 
   value = valueN (,)
+
+instance (EmbPrj a, EmbPrj b) => EmbPrj (Pair a b) where
+  icod_ (a :!: b) = icodeN' (:!:) a b
+
+  value = valueN (:!:)
 
 instance (EmbPrj a, EmbPrj b, EmbPrj c) => EmbPrj (a, b, c) where
   icod_ (a, b, c) = icodeN' (,,) a b c
@@ -227,9 +236,14 @@ instance EmbPrj a => EmbPrj (NonEmpty a) where
   icod_ = icod_ . NonEmpty.toList
   value = maybe malformed return . nonEmpty <=< value
 
-instance (Ord a, Ord b, EmbPrj a, EmbPrj b) => EmbPrj (BiMap a b) where
-  icod_ m = icode (BiMap.toList m)
-  value m = BiMap.fromList <$> value m
+instance EmbPrj a => EmbPrj (List2 a) where
+  icod_ = icod_ . List2.toList
+  value = maybe malformed return . List2.fromListMaybe <=< value
+
+instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
+         EmbPrj (BiMap k v) where
+  icod_ m = icode (BiMap.toDistinctAscendingLists m)
+  value m = BiMap.fromDistinctAscendingLists <$> value m
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
   icod_ m = icode (Map.toList m)

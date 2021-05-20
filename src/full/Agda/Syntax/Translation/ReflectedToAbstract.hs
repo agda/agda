@@ -182,7 +182,8 @@ instance ToAbstract Term where
           cname   = nameConcrete name
           defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
       cs <- toAbstract $ fmap (QNamed qname) cs
-      toAbstract (A.ExtendedLam exprNoRange defInfo qname cs, es)
+      toAbstract
+        (A.ExtendedLam exprNoRange defInfo defaultErased qname cs, es)
     R.Pi a b   -> do
       (b, name) <- toAbstract b
       a         <- toAbstract (a, name)

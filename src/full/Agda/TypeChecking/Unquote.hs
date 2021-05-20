@@ -146,7 +146,7 @@ choice ((mb, mx) : mxs) dflt = ifM mb mx $ choice mxs dflt
 
 ensureDef :: QName -> UnquoteM QName
 ensureDef x = do
-  i <- either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
+  i <- either (const defaultAxiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
   case i of
     Constructor{} -> do
       def <- liftTCM $ prettyTCM =<< primAgdaTermDef
@@ -156,7 +156,7 @@ ensureDef x = do
 
 ensureCon :: QName -> UnquoteM QName
 ensureCon x = do
-  i <- either (const Axiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
+  i <- either (const defaultAxiom) theDef <$> getConstInfo' x  -- for recursive unquoteDecl
   case i of
     Constructor{} -> return x
     _ -> do
@@ -183,18 +183,33 @@ pickName a =
       | otherwise        = Nothing
       where lc = toLower c
 
--- TODO: reflect Quantity, Cohesion
+-- TODO: reflect Cohesion
 instance Unquote Modality where
-  unquote t = (\ r -> Modality r defaultQuantity defaultCohesion) <$> unquote t
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case t of
+      Con c _ es | Just [r,q] <- allApplyElims es ->
+        choice
+          [(c `isCon` primModalityConstructor,
+              Modality <$> unquoteN r
+                       <*> unquoteN q
+                       <*> pure defaultCohesion)]
+          __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
+      _ -> throwError $ NonCanonical "modality" t
 
 instance Unquote ArgInfo where
   unquote t = do
     t <- reduceQuotedTerm t
     case t of
-      Con c _ es | Just [h,r] <- allApplyElims es ->
+      Con c _ es | Just [h,m] <- allApplyElims es ->
         choice
           [(c `isCon` primArgArgInfo,
-              ArgInfo <$> unquoteN h <*> unquoteN r <*> pure Reflected <*> pure unknownFreeVariables <*> pure defaultAnnotation)]
+              ArgInfo <$> unquoteN h
+                      <*> unquoteN m
+                      <*> pure Reflected
+                      <*> pure unknownFreeVariables
+                      <*> pure defaultAnnotation)]
           __IMPOSSIBLE__
       Con c _ _ -> __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "arg info" t
@@ -353,6 +368,18 @@ instance Unquote Relevance where
           __IMPOSSIBLE__
       Con c _ vs -> __IMPOSSIBLE__
       _        -> throwError $ NonCanonical "relevance" t
+
+instance Unquote Quantity where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case t of
+      Con c _ [] ->
+        choice
+          [(c `isCon` primQuantityω, return $ Quantityω QωInferred)
+          ,(c `isCon` primQuantity0, return $ Quantity0 Q0Inferred)]
+          __IMPOSSIBLE__
+      Con c _ vs -> __IMPOSSIBLE__
+      _        -> throwError $ NonCanonical "quantity" t
 
 instance Unquote QName where
   unquote t = do
@@ -879,7 +906,7 @@ evalTCM v = do
         a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
         alreadyDefined <- isRight <$> getConstInfo' x
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
-        addConstant x $ defaultDefn i x a Axiom
+        addConstant x $ defaultDefn i x a defaultAxiom
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 

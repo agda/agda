@@ -88,8 +88,8 @@ For installing the ``agda`` and the ``agda-mode`` programs using
   cabal install Agda
 
 If you use `Nix-style Local Builds
-<https://www.haskell.org/cabal/users-guide/nix-local-build-overview.html>`_,
-by using Cabal 3.0.0.0 or by running ``cabal v2-install``, you'll get the
+<https://cabal.readthedocs.io/en/3.4/nix-local-build-overview.html>`_,
+by using Cabal ≥ 3.0 or by running ``cabal v2-install``, you'll get the
 following error when compiling with the GHC backend::
 
   Compilation error:

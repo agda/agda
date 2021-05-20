@@ -5,8 +5,9 @@ open import Agda.Builtin.Reflection
 open import Agda.Builtin.Sigma
 open import Agda.Builtin.Equality
 
-pattern vArg x = arg (arg-info visible relevant) x
-pattern hArg x = arg (arg-info hidden  relevant) x
+pattern default-modality = modality relevant quantity-ω
+pattern vArg x = arg (arg-info visible default-modality) x
+pattern hArg x = arg (arg-info hidden  default-modality) x
 
 idClause-ok : Clause
 idClause-ok = clause

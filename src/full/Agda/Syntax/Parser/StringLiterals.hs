@@ -58,7 +58,7 @@ litError msg =
 --   character argument is the delimiter (@\"@ for strings and @\'@ for
 --   characters).
 stringToken :: Char -> (Interval -> String -> Parser tok) -> LexAction tok
-stringToken del mkTok inp inp' n =
+stringToken del mkTok = LexAction $ \ inp inp' n ->
     do  setLastPos (backupPos $ lexPos inp')
         setLexInput inp'
         -- TODO: Should setPrevToken be run here? Compare with

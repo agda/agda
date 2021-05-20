@@ -18,6 +18,7 @@ import qualified System.IO.Unsafe as UNSAFE (unsafePerformIO)
 
 import GHC.Generics (Generic)
 
+import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
@@ -88,8 +89,8 @@ specialCharacters :: SpecialCharacters
 specialCharacters = specialCharactersForGlyphs unsafeUnicodeOrAscii
 
 braces' :: Doc -> Doc
-braces' d = ifNull (render d) (braces d) {-else-} $ \ s ->
-  braces (spaceIfDash (head s) <> d <> spaceIfDash (last s))
+braces' d = caseList (render d) (braces d) {-else-} $ \ c cs ->
+  braces (spaceIfDash c <> d <> spaceIfDash (last1 c cs))
   -- Add space to avoid starting a comment (Ulf, 2010-09-13, #269)
   -- Andreas, 2018-07-21, #3161: Also avoid ending a comment
   where

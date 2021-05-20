@@ -159,3 +159,30 @@ module Issue5233 where
   idVec {n = .(zero)}  nil           = nil
   idVec {n = .(suc k)} (cons k x xs) = cons _ x (idVec xs)
            -- ^^^^^^^ should be highlighted
+
+-- Highlighting of erased pattern-matching lambdas and warnings coming
+-- from the Happy parser.
+
+module Issue4525 where
+
+  @0 _ : Set → Set
+  _ = λ @0 { A → A }
+
+  @0 _ : Set → Set
+  _ =
+    λ @0
+      @ω
+      @erased
+      @plenty
+      @(tactic (λ _ → Set))
+      @irr
+      @irrelevant
+      @shirr
+      @shape-irrelevant
+      @relevant
+      @♭
+      @flat
+      @notlock
+      @lock
+      @tick where
+      A → A

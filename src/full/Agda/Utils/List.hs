@@ -72,6 +72,19 @@ lastMaybe :: [a] -> Maybe a
 lastMaybe [] = Nothing
 lastMaybe xs = Just $ last xs
 
+-- | Last element (safe).  Returns a default list on empty lists.
+--   O(n).
+lastWithDefault :: a -> [a] -> a
+lastWithDefault = last1
+
+-- | Last element of non-empty list (safe).
+--   O(n).
+--   @last1 a as = last (a : as)@
+last1 :: a -> [a] -> a
+last1 a = \case
+  [] -> a
+  b:bs -> last1 b bs
+
 -- | Last two elements (safe).
 --   O(n).
 last2 :: [a] -> Maybe (a, a)
@@ -97,14 +110,36 @@ mcons ma as = maybe as (:as) ma
 --   O(n).
 initLast :: [a] -> Maybe ([a],a)
 initLast []     = Nothing
-initLast (a:as) = Just $ loop a as where
-  loop a []      = ([], a)
-  loop a (b : bs) = mapFst (a:) $ loop b bs
+initLast (a:as) = Just $ initLast1 a as
+
+-- | 'init' and 'last' of non-empty list, safe.
+--   O(n).
+--   @initLast1 a as = (init (a:as), last (a:as)@
+initLast1 :: a -> [a] -> ([a], a)
+initLast1 a = \case
+  []   -> ([], a)
+  b:bs -> first (a:) $ initLast1 b bs
+
+-- | 'init' of non-empty list, safe.
+--   O(n).
+--   @init1 a as = init (a:as)@
+init1 :: a -> [a] -> [a]
+init1 a = \case
+  []   -> []
+  b:bs -> a : init1 b bs
 
 -- | @init@, safe.
 --   O(n).
 initMaybe :: [a] -> Maybe [a]
-initMaybe = fmap fst . initLast
+initMaybe = \case
+  []   -> Nothing
+  a:as -> Just $ init1 a as
+
+-- | @init@, safe.
+--   O(n).
+initWithDefault :: [a] -> [a] -> [a]
+initWithDefault as []     = as
+initWithDefault _  (a:as) = init1 a as
 
 ---------------------------------------------------------------------------
 -- * Lookup and indexing
@@ -365,6 +400,7 @@ groupOn f = List.groupBy ((==) `on` f) . List.sortBy (compare `on` f)
 -- | A variant of 'List.groupBy' which applies the predicate to consecutive
 -- pairs.
 -- O(n).
+-- DEPRECATED in favor of 'Agda.Utils.List1.groupBy''.
 groupBy' :: (a -> a -> Bool) -> [a] -> [[a]]
 groupBy' _ []           = []
 groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs

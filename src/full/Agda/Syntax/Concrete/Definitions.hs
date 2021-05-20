@@ -430,7 +430,9 @@ niceDeclarations fixs ds = do
             _  -> (,ds) <$> (singleton <$> (mkInterleavedMutual r =<< nice ds'))
 
         LoneConstructor r [] -> justWarning $ EmptyConstructor r
-        LoneConstructor r ds' -> ((,ds) . singleton) <$> (mkLoneConstructor r =<< nice ds')
+        LoneConstructor r ds' ->
+          ((,ds) . singleton . NiceLoneConstructor r) <$> niceAxioms ConstructorBlock ds'
+
 
         Abstract r []  -> justWarning $ EmptyAbstract r
         Abstract r ds' ->
@@ -947,7 +949,7 @@ niceDeclarations fixs ds = do
     isConstructor :: [Name] -> NiceDeclaration -> Either (Name, [Name]) Name
     isConstructor ns (Axiom _ _ _ _ _ n e)
        -- extract the return type & see it as an LHS-style pattern
-       | Just p <- isPattern =<< returnExpr e =
+       | Just p <- exprToPatternWithHoles <$> returnExpr e =
          case [ x | x <- ns
                   , couldBeCallOf (Map.lookup x fixs) x p
                   ] of
@@ -956,16 +958,6 @@ niceDeclarations fixs ds = do
        -- which may fail (e.g. if the "return type" is a hole
        | otherwise = Left (n, [])
     isConstructor _ _ = __IMPOSSIBLE__
-
-    -- Things that were recognised as isolated funsigs in a `constructor' block are
-    -- actually axioms (aka NiceConstructor). And the corresponding isolated lonesigs
-    -- should be removed.
-    -- Things that are neither have no place in a `constructor' block and will be yeeted
-    mkLoneConstructor :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
-    mkLoneConstructor r ds = fmap (NiceLoneConstructor r . concat) $ forM ds $ \case
-      d@Axiom{} -> pure [d]
-      FunSig r a abst inst _ arg _ _ n e -> [Axiom r a abst inst arg n e] <$ removeLoneSig n
-      d -> [] <$ declarationWarning (InvalidConstructor $ getRange d)
 
     -- | Turn an old-style mutual block into a new style mutual block
     --   by pushing the definitions to the end.

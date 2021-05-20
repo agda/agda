@@ -8,7 +8,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.List ( dropEnd )
+import Agda.Utils.List ( dropEnd, initWithDefault )
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Impossible
@@ -54,7 +54,7 @@ sanityCheckSubst gamma rho delta = go gamma rho delta
                                                                         , text $ "< " ++ show n ]
           sanityCheckSubst (dropLastN n gamma) rho (dropLastN n delta)
 
-    dropLast = telFromList . init . telToList
+    dropLast = telFromList . initWithDefault __IMPOSSIBLE__ . telToList
     dropLastN n = telFromList . dropEnd n . telToList
 
     err reason = do

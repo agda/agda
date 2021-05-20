@@ -4,7 +4,7 @@
     interface files.
 -}
 module Agda.Interaction.Imports
-  ( Mode(ScopeCheck, TypeCheck)
+  ( Mode, pattern ScopeCheck, pattern TypeCheck
 
   , CheckResult (CheckResult)
   , crModuleInfo
@@ -72,11 +72,10 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
 
-import Agda.Interaction.Base     ( InteractionMode(..) )
 import Agda.Interaction.BasicOps ( getGoals, showGoals )
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
-import Agda.Interaction.Highlighting.Precise  ( compress )
+import Agda.Interaction.Highlighting.Precise  ( convert )
 import Agda.Interaction.Highlighting.Vim
 import Agda.Interaction.Library
 import Agda.Interaction.Options
@@ -129,8 +128,7 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   parsedModName         <- moduleName f parsedMod
   let sourceDir = takeDirectory $ filePath f
   useLibs <- optUseLibs <$> commandLineOptions
-  libs <- if | useLibs   -> libToTCM $ getAgdaLibFiles sourceDir
-             | otherwise -> return []
+  libs <- getAgdaLibFiles sourceDir
   return Source
     { srcText        = source
     , srcFileType    = fileType
@@ -140,12 +138,17 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
     , srcProjectLibs = libs
     }
 
-srcPragmas :: Source -> [OptionsPragma]
-srcPragmas src = defaultPragmas ++ pragmas
+srcDefaultPragmas :: Source -> [OptionsPragma]
+srcDefaultPragmas src = map _libPragmas (srcProjectLibs src)
+
+srcFilePragmas :: Source -> [OptionsPragma]
+srcFilePragmas src = pragmas
   where
-  defaultPragmas = map _libPragmas (srcProjectLibs src)
   cpragmas = C.modPragmas (srcModule src)
   pragmas = [ opts | C.OptionsPragma _ opts <- cpragmas ]
+
+srcPragmas :: Source -> [OptionsPragma]
+srcPragmas src = srcDefaultPragmas src ++ srcFilePragmas src
 
 -- | Set options from a 'Source' pragma, using the source
 --   ranges of the pragmas for error reporting.
@@ -159,9 +162,7 @@ setOptionsFromSourcePragmas src =
 
 data Mode
   = ScopeCheck
-  | TypeCheck InteractionMode
-      -- ^ Depending on the 'InteractionMode' private declaration may be retained
-      --   in the interface.
+  | TypeCheck
   deriving (Eq, Show)
 
 -- | Are we loading the interface for the user-loaded file
@@ -186,8 +187,7 @@ includeStateChanges NotMainInterface  = False
 -- | The kind of interface produced by 'createInterface'
 moduleCheckMode :: MainInterface -> ModuleCheckMode
 moduleCheckMode = \case
-    MainInterface (TypeCheck TopLevelInteraction) -> ModuleTypeCheckedRetainingPrivates
-    MainInterface (TypeCheck RegularInteraction)  -> ModuleTypeChecked
+    MainInterface TypeCheck                       -> ModuleTypeChecked
     NotMainInterface                              -> ModuleTypeChecked
     MainInterface ScopeCheck                      -> ModuleScopeChecked
 
@@ -282,12 +282,7 @@ alreadyVisited :: C.TopLevelModuleName ->
                   TCM ModuleInfo
 alreadyVisited x isMain currentOptions getModule =
   case isMain of
-    -- Andreas, 2020-05-13, issue 4647:
-    -- For top-level interaction commands, we may not able to reuse
-    -- the existing interface, since it does not contain the private
-    -- declarations.  Thus, we always recheck.
-    MainInterface (TypeCheck TopLevelInteraction) ->              loadAndRecordVisited -- ModuleTypeCheckedRetainingPrivates
-    MainInterface (TypeCheck RegularInteraction)  -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
+    MainInterface TypeCheck                       -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
     NotMainInterface                              -> useExistingOrLoadAndRecordVisited ModuleTypeChecked
     MainInterface ScopeCheck                      -> useExistingOrLoadAndRecordVisited ModuleScopeChecked
   where
@@ -479,8 +474,6 @@ getInterface x isMain msrc =
       -- Andreas, 2015-07-13: Serialize iInsideScope again.
       -- Andreas, 2020-05-13 issue #4647: don't skip if reload because of top-level command
       stored <- runExceptT $ Bench.billTo [Bench.Import] $ do
-        when (isMain == MainInterface (TypeCheck TopLevelInteraction)) $
-          throwError "we always re-check the main interface in top-level interaction"
         getStoredInterface x file msrc
 
       let recheck = \reason -> do
@@ -663,7 +656,10 @@ loadDecodedModule file mi = do
   -- we can check that they are compatible with those of the
   -- imported modules. Also, if the top-level file is skipped we
   -- want the pragmas to apply to interactive commands in the UI.
-  lift $ mapM_ setOptionsFromPragma (iPragmaOptions i)
+  -- Jesper, 2021-04-18: Check for changed options in library files!
+  -- (see #5250)
+  libOptions <- lift $ getLibraryOptions $ takeDirectory fp
+  lift $ mapM_ setOptionsFromPragma (libOptions ++ iFilePragmaOptions i)
 
   -- Check that options that matter haven't changed compared to
   -- current options (issue #2487)
@@ -684,13 +680,7 @@ loadDecodedModule file mi = do
   -- If any of the imports are newer we need to retype check
   badHashMessages <- fmap lefts $ forM (iImportedModules i) $ \(impName, impHash) -> runExceptT $ do
     reportSLn "import.iface" 30 $ concat ["Checking that module hash of import ", prettyShow impName, " matches ", prettyShow impHash ]
-    latestImpHash <- either throwError return =<< do
-                      lift $ lift $ (Right <$> moduleHash impName) `catchError` \ _ ->
-                                    -- Issue5161: Don't hard-fail here because we don't have the
-                                    -- location of the import at this point. Discarding the
-                                    -- interface here will force the error later when we do.
-                                    return $ Left $ concat ["imported module ", prettyShow impName,
-                                                            " has warnings preventing it from being imported"]
+    latestImpHash <- lift $ lift $ setCurrentRange impName $ moduleHash impName
     reportSLn "import.iface" 30 $ concat ["Done checking module hash of import ", prettyShow impName]
     when (impHash /= latestImpHash) $
       throwError $ concat
@@ -931,7 +921,7 @@ createInterface mname file isMain msrc = do
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
                        generateTokenInfoFromSource
                          srcPath (TL.unpack $ srcText src)
-    stTokens `setTCLens` fileTokenInfo
+    stTokens `modifyTCLens` (fileTokenInfo <>)
 
     setOptionsFromSourcePragmas src
 
@@ -1023,7 +1013,8 @@ createInterface mname file isMain msrc = do
       unsolved <- getAllUnsolvedWarnings
       unless (null unsolved) $ reportSDoc "import.iface.create" 20 $
         "collected unsolved: " <> prettyTCM unsolved
-      let warningInfo = compress $ foldMap warningHighlighting $ unsolved ++ warnings
+      let warningInfo =
+            convert $ foldMap warningHighlighting $ unsolved ++ warnings
 
       stSyntaxInfo `modifyTCLens` \inf -> (inf `mappend` toks) `mappend` warningInfo
 
@@ -1093,9 +1084,6 @@ createInterface mname file isMain msrc = do
       ([], MainInterface ScopeCheck) -> do
         reportSLn "import.iface.create" 7 "We are just scope-checking, skipping writing interface file."
         return i
-      ([], MainInterface (TypeCheck TopLevelInteraction)) -> do
-        reportSLn "import.iface.create" 7 "We are in top-level interaction mode and want to retain private declarations, skipping writing interface file."
-        return i
       ([], _) -> Bench.billTo [Bench.Serialization] $ do
         reportSLn "import.iface.create" 7 "Actually calling writeInterface."
         -- The file was successfully type-checked (and no warnings were
@@ -1159,7 +1147,8 @@ buildInterface src topLevel = do
     let mname = topLevelModuleName topLevel
         source   = srcText src
         fileType = srcFileType src
-        pragmas  = srcPragmas src
+        defPragmas = srcDefaultPragmas src
+        filePragmas  = srcFilePragmas src
     -- Andreas, 2014-05-03: killRange did not result in significant reduction
     -- of .agdai file size, and lost a few seconds performance on library-test.
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
@@ -1208,7 +1197,8 @@ buildInterface src topLevel = do
       , iBuiltin         = builtin'
       , iForeignCode     = foreignCode
       , iHighlighting    = syntaxInfo
-      , iPragmaOptions   = pragmas
+      , iDefaultPragmaOptions = defPragmas
+      , iFilePragmaOptions    = filePragmas
       , iOptionsUsed     = optionsUsed
       , iPatternSyns     = patsyns
       , iWarnings        = warnings

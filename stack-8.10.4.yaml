@@ -1,10 +1,12 @@
-resolver: lts-17.5
+resolver: lts-17.6
 compiler: ghc-8.10.4
 compiler-check: match-exact
 
 extra-deps:
 - tasty-1.4.0.3
 - tasty-silver-3.2.1
+- git: https://github.com/agda/text-icu.git
+  commit: 1925609610459faa93c151c53dc76cc66e3d627c
 
 # Local packages, usually specified by relative directory name
 packages:

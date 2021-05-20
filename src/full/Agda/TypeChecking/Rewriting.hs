@@ -325,11 +325,12 @@ checkRewriteRule q = do
         Def f' es'   | f == f'         -> return es'
         Con c' _ es' | f == conName c' -> return es'
         _                              -> fail
-      a   <- computeElimHeadType f es es'
-      pol <- getPolarity' CmpEq f
-      ok  <- dontAssignMetas $ tryConversion $
-               compareElims pol [] a (Def f []) es es'
-      unless ok fail
+      unless (null es && null es') $ do
+        a   <- computeElimHeadType f es es'
+        pol <- getPolarity' CmpEq f
+        ok  <- dontAssignMetas $ tryConversion $
+                 compareElims pol [] a (Def f []) es es'
+        unless ok fail
 
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of

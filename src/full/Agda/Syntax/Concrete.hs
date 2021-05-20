@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ApplicativeDo #-}  -- see exprToPattern
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.
@@ -15,6 +16,7 @@ module Agda.Syntax.Concrete
   , rawApp, rawAppP
   , isSingleIdentifierP, removeParenP
   , isPattern, isAbsurdP, isBinderP
+  , exprToPatternWithHoles
   , returnExpr
     -- * Bindings
   , Binder'(..)
@@ -67,14 +69,14 @@ module Agda.Syntax.Concrete
 import Prelude hiding (null)
 
 import Control.DeepSeq
-import Data.Traversable (forM)
-import Data.List hiding (null)
-import Data.Set (Set)
 
-import Data.Data (Data)
-import Data.Text (Text)
+import Data.Data        ( Data )
+import Data.Functor.Identity
+import Data.Set         ( Set  )
+import Data.Text        ( Text )
+-- import Data.Traversable ( forM )
 
-import GHC.Generics (Generic)
+import GHC.Generics     ( Generic )
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -86,16 +88,13 @@ import qualified Agda.Syntax.Abstract.Name as A
 
 import Agda.TypeChecking.Positivity.Occurrence
 
-import Agda.Utils.Either ( maybeLeft )
+import Agda.Utils.Applicative ( forA )
+import Agda.Utils.Either      ( maybeLeft )
 import Agda.Utils.Lens
-import Agda.Utils.List1  ( List1, pattern (:|) )
+import Agda.Utils.List1       ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
-import Agda.Utils.List2  ( List2, pattern List2 )
+import Agda.Utils.List2       ( List2, pattern List2 )
 import Agda.Utils.Null
-
-#if !(MIN_VERSION_base(4,15,0))
-import Agda.Utils.Singleton
-#endif
 
 import Agda.Utils.Impossible
 
@@ -157,7 +156,8 @@ data Expr
   | InstanceArg Range (Named_ Expr)            -- ^ ex: @{{e}}@ or @{{x=e}}@
   | Lam Range (List1 LamBinding) Expr          -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
   | AbsurdLam Range Hiding                     -- ^ ex: @\\ ()@
-  | ExtendedLam Range (List1 LamClause)        -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
+  | ExtendedLam Range Erased
+      (List1 LamClause)                        -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
   | Fun Range (Arg Expr) Expr                  -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
   | Pi Telescope1 Expr                         -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
   | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
@@ -510,8 +510,9 @@ data Pragma
   | StaticPragma              Range QName
   | InlinePragma              Range Bool QName  -- ^ INLINE or NOINLINE
 
-  | ImpossiblePragma          Range
+  | ImpossiblePragma          Range [String]
     -- ^ Throws an internal error in the scope checker.
+    --   The 'String's are words to be displayed with the error.
   | EtaPragma                 Range QName
     -- ^ For coinductive records, use pragma instead of regular
     --   @eta-equality@ definition (as it is might make Agda loop).
@@ -674,50 +675,64 @@ returnExpr e               = pure e
 --   valid pattern.
 
 isPattern :: Expr -> Maybe Pattern
-isPattern = \case
-  Ident x            -> return $ IdentP x
-  App _ e1 e2        -> AppP <$> isPattern e1 <*> mapM (mapM isPattern) e2
-  Paren r e          -> ParenP r <$> isPattern e
-  Underscore r _     -> return $ WildP r
-  Absurd r           -> return $ AbsurdP r
-  As r x e           -> pushUnderBracesP r (AsP r x) <$> isPattern e
-  Dot r e            -> return $ pushUnderBracesE r (DotP r) e
-  -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
-  -- point numbers is not stable across architectures and with different
-  -- compiler flags.
-  Lit _ (LitFloat _) -> Nothing
-  Lit r l            -> return $ LitP r l
-  HiddenArg r e      -> HiddenP r <$> mapM isPattern e
-  InstanceArg r e    -> InstanceP r <$> mapM isPattern e
-  RawApp r es        -> RawAppP r <$> mapM isPattern es
-  Quote r            -> return $ QuoteP r
-  Equal r e1 e2      -> return $ EqualP r [(e1, e2)]
-  Ellipsis r         -> return $ EllipsisP r Nothing
-  Rec r es           -> do
-    fs <- mapM maybeLeft es
-    RecP r <$> mapM (mapM isPattern) fs
-  -- WithApp has already lost the range information of the bars '|'
-  WithApp r e es  -> do
-    p  <- isPattern e
-    ps <- forM es $ \ e -> do
-      p <- isPattern e
-      pure $ defaultNamedArg $ WithP (getRange e) p   -- TODO #2822: Range!
-    return $ foldl AppP p ps
-  _ -> Nothing
+isPattern = exprToPattern (const Nothing)
 
+-- | Turn an expression into a pattern, turning non-pattern subexpressions into 'WildP'.
+
+exprToPatternWithHoles :: Expr -> Pattern
+exprToPatternWithHoles = runIdentity . exprToPattern (Identity . WildP . getRange)
+
+-- | Generic expression to pattern conversion.
+
+exprToPattern :: Applicative m
+  => (Expr -> m Pattern)  -- ^ Default result for non-pattern things.
+  -> Expr                 -- ^ The expression to translate.
+  -> m Pattern            -- ^ The translated pattern (maybe).
+exprToPattern fallback = loop
   where
+  loop = \case
+    Ident       x        -> pure $ IdentP x
+    App         _ e1 e2  -> AppP <$> loop e1 <*> traverse (traverse loop) e2
+    Paren       r e      -> ParenP r <$> loop e
+    Underscore  r _      -> pure $ WildP r
+    Absurd      r        -> pure $ AbsurdP r
+    As          r x e    -> pushUnderBracesP r (AsP r x) <$> loop e
+    Dot         r e      -> pure $ pushUnderBracesE r (DotP r) e
+    -- Wen, 2020-08-27: We disallow Float patterns, since equality for floating
+    -- point numbers is not stable across architectures and with different
+    -- compiler flags.
+    e@(Lit _ LitFloat{}) -> fallback e
+    Lit         r l      -> pure $ LitP r l
+    HiddenArg   r e      -> HiddenP   r <$> traverse loop e
+    InstanceArg r e      -> InstanceP r <$> traverse loop e
+    RawApp      r es     -> RawAppP   r <$> traverse loop es
+    Quote       r        -> pure $ QuoteP r
+    Equal       r e1 e2  -> pure $ EqualP r [(e1, e2)]
+    Ellipsis    r        -> pure $ EllipsisP r Nothing
+    e@(Rec r es)
+        -- We cannot translate record expressions with module parts.
+      | Just fs <- mapM maybeLeft es -> RecP r <$> traverse (traverse loop) fs
+      | otherwise -> fallback e
+    -- WithApp has already lost the range information of the bars '|'
+    WithApp     r e es   -> do -- ApplicativeDo
+      p  <- loop e
+      ps <- forA es $ \ e -> do -- ApplicativeDo
+        p <- loop e
+        pure $ defaultNamedArg $ WithP (getRange e) p   -- TODO #2822: Range!
+      pure $ foldl AppP p ps
+    e -> fallback e
 
-    pushUnderBracesP :: Range -> (Pattern -> Pattern) -> (Pattern -> Pattern)
-    pushUnderBracesP r f = \case
-      HiddenP _ p   -> HiddenP r (fmap f p)
-      InstanceP _ p -> InstanceP r (fmap f p)
-      p             -> f p
+  pushUnderBracesP :: Range -> (Pattern -> Pattern) -> (Pattern -> Pattern)
+  pushUnderBracesP r f = \case
+    HiddenP   _ p   -> HiddenP   r $ fmap f p
+    InstanceP _ p   -> InstanceP r $ fmap f p
+    p               -> f p
 
-    pushUnderBracesE :: Range -> (Expr -> Pattern) -> (Expr -> Pattern)
-    pushUnderBracesE r f = \case
-      HiddenArg _ p   -> HiddenP r (fmap f p)
-      InstanceArg _ p -> InstanceP r (fmap f p)
-      p               -> f p
+  pushUnderBracesE :: Range -> (Expr -> Pattern) -> (Expr -> Pattern)
+  pushUnderBracesE r f = \case
+    HiddenArg   _ p -> HiddenP   r $ fmap f p
+    InstanceArg _ p -> InstanceP r $ fmap f p
+    p               -> f p
 
 isAbsurdP :: Pattern -> Maybe (Range, Hiding)
 isAbsurdP = \case
@@ -793,7 +808,7 @@ instance HasRange Expr where
       WithApp r _ _      -> r
       Lam r _ _          -> r
       AbsurdLam r _      -> r
-      ExtendedLam r _    -> r
+      ExtendedLam r _ _  -> r
       Fun r _ _          -> r
       Pi b e             -> fuseRange b e
       Let r _ _          -> r
@@ -920,7 +935,7 @@ instance HasRange Pragma where
   getRange (StaticPragma r _)                = r
   getRange (InjectivePragma r _)             = r
   getRange (InlinePragma r _ _)              = r
-  getRange (ImpossiblePragma r)              = r
+  getRange (ImpossiblePragma r _)            = r
   getRange (EtaPragma r _)                   = r
   getRange (TerminationCheckPragma r _)      = r
   getRange (NoCoverageCheckPragma r)         = r
@@ -1038,40 +1053,40 @@ instance KillRange Declaration where
   killRange (Pragma p)              = killRange1 Pragma p
 
 instance KillRange Expr where
-  killRange (Ident q)            = killRange1 Ident q
-  killRange (Lit _ l)            = killRange1 (Lit noRange) l
-  killRange (QuestionMark _ n)   = QuestionMark noRange n
-  killRange (Underscore _ n)     = Underscore noRange n
-  killRange (RawApp _ e)         = killRange1 (RawApp noRange) e
-  killRange (App _ e a)          = killRange2 (App noRange) e a
-  killRange (OpApp _ n ns o)     = killRange3 (OpApp noRange) n ns o
-  killRange (WithApp _ e es)     = killRange2 (WithApp noRange) e es
-  killRange (HiddenArg _ n)      = killRange1 (HiddenArg noRange) n
-  killRange (InstanceArg _ n)    = killRange1 (InstanceArg noRange) n
-  killRange (Lam _ l e)          = killRange2 (Lam noRange) l e
-  killRange (AbsurdLam _ h)      = killRange1 (AbsurdLam noRange) h
-  killRange (ExtendedLam _ lrw)  = killRange1 (ExtendedLam noRange) lrw
-  killRange (Fun _ e1 e2)        = killRange2 (Fun noRange) e1 e2
-  killRange (Pi t e)             = killRange2 Pi t e
-  killRange (Rec _ ne)           = killRange1 (Rec noRange) ne
-  killRange (RecUpdate _ e ne)   = killRange2 (RecUpdate noRange) e ne
-  killRange (Let _ d e)          = killRange2 (Let noRange) d e
-  killRange (Paren _ e)          = killRange1 (Paren noRange) e
-  killRange (IdiomBrackets _ es) = killRange1 (IdiomBrackets noRange) es
-  killRange (DoBlock _ ss)       = killRange1 (DoBlock noRange) ss
-  killRange (Absurd _)           = Absurd noRange
-  killRange (As _ n e)           = killRange2 (As noRange) n e
-  killRange (Dot _ e)            = killRange1 (Dot noRange) e
-  killRange (DoubleDot _ e)      = killRange1 (DoubleDot noRange) e
-  killRange (ETel t)             = killRange1 ETel t
-  killRange (Quote _)            = Quote noRange
-  killRange (QuoteTerm _)        = QuoteTerm noRange
-  killRange (Unquote _)          = Unquote noRange
-  killRange (Tactic _ t)         = killRange1 (Tactic noRange) t
-  killRange (DontCare e)         = killRange1 DontCare e
-  killRange (Equal _ x y)        = Equal noRange x y
-  killRange (Ellipsis _)         = Ellipsis noRange
-  killRange (Generalized e)      = killRange1 Generalized e
+  killRange (Ident q)             = killRange1 Ident q
+  killRange (Lit _ l)             = killRange1 (Lit noRange) l
+  killRange (QuestionMark _ n)    = QuestionMark noRange n
+  killRange (Underscore _ n)      = Underscore noRange n
+  killRange (RawApp _ e)          = killRange1 (RawApp noRange) e
+  killRange (App _ e a)           = killRange2 (App noRange) e a
+  killRange (OpApp _ n ns o)      = killRange3 (OpApp noRange) n ns o
+  killRange (WithApp _ e es)      = killRange2 (WithApp noRange) e es
+  killRange (HiddenArg _ n)       = killRange1 (HiddenArg noRange) n
+  killRange (InstanceArg _ n)     = killRange1 (InstanceArg noRange) n
+  killRange (Lam _ l e)           = killRange2 (Lam noRange) l e
+  killRange (AbsurdLam _ h)       = killRange1 (AbsurdLam noRange) h
+  killRange (ExtendedLam _ e lrw) = killRange2 (ExtendedLam noRange) e lrw
+  killRange (Fun _ e1 e2)         = killRange2 (Fun noRange) e1 e2
+  killRange (Pi t e)              = killRange2 Pi t e
+  killRange (Rec _ ne)            = killRange1 (Rec noRange) ne
+  killRange (RecUpdate _ e ne)    = killRange2 (RecUpdate noRange) e ne
+  killRange (Let _ d e)           = killRange2 (Let noRange) d e
+  killRange (Paren _ e)           = killRange1 (Paren noRange) e
+  killRange (IdiomBrackets _ es)  = killRange1 (IdiomBrackets noRange) es
+  killRange (DoBlock _ ss)        = killRange1 (DoBlock noRange) ss
+  killRange (Absurd _)            = Absurd noRange
+  killRange (As _ n e)            = killRange2 (As noRange) n e
+  killRange (Dot _ e)             = killRange1 (Dot noRange) e
+  killRange (DoubleDot _ e)       = killRange1 (DoubleDot noRange) e
+  killRange (ETel t)              = killRange1 ETel t
+  killRange (Quote _)             = Quote noRange
+  killRange (QuoteTerm _)         = QuoteTerm noRange
+  killRange (Unquote _)           = Unquote noRange
+  killRange (Tactic _ t)          = killRange1 (Tactic noRange) t
+  killRange (DontCare e)          = killRange1 DontCare e
+  killRange (Equal _ x y)         = Equal noRange x y
+  killRange (Ellipsis _)          = Ellipsis noRange
+  killRange (Generalized e)       = killRange1 Generalized e
 
 instance KillRange LamBinding where
   killRange (DomainFree b) = killRange1 DomainFree b
@@ -1124,7 +1139,7 @@ instance KillRange Pragma where
   killRange (InlinePragma _ b q)              = killRange1 (InlinePragma noRange b) q
   killRange (CompilePragma _ b q s)           = killRange1 (\ q -> CompilePragma noRange b q s) q
   killRange (ForeignPragma _ b s)             = ForeignPragma noRange b s
-  killRange (ImpossiblePragma _)              = ImpossiblePragma noRange
+  killRange (ImpossiblePragma _ strs)         = ImpossiblePragma noRange strs
   killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
   killRange (NoCoverageCheckPragma _)         = NoCoverageCheckPragma noRange
   killRange (WarningOnUsage _ nm str)         = WarningOnUsage noRange (killRange nm) str
@@ -1155,40 +1170,40 @@ instance KillRange WhereClause where
 -- | Ranges are not forced.
 
 instance NFData Expr where
-  rnf (Ident a)          = rnf a
-  rnf (Lit _ a)          = rnf a
-  rnf (QuestionMark _ a) = rnf a
-  rnf (Underscore _ a)   = rnf a
-  rnf (RawApp _ a)       = rnf a
-  rnf (App _ a b)        = rnf a `seq` rnf b
-  rnf (OpApp _ a b c)    = rnf a `seq` rnf b `seq` rnf c
-  rnf (WithApp _ a b)    = rnf a `seq` rnf b
-  rnf (HiddenArg _ a)    = rnf a
-  rnf (InstanceArg _ a)  = rnf a
-  rnf (Lam _ a b)        = rnf a `seq` rnf b
-  rnf (AbsurdLam _ a)    = rnf a
-  rnf (ExtendedLam _ a)  = rnf a
-  rnf (Fun _ a b)        = rnf a `seq` rnf b
-  rnf (Pi a b)           = rnf a `seq` rnf b
-  rnf (Rec _ a)          = rnf a
-  rnf (RecUpdate _ a b)  = rnf a `seq` rnf b
-  rnf (Let _ a b)        = rnf a `seq` rnf b
-  rnf (Paren _ a)        = rnf a
-  rnf (IdiomBrackets _ a)= rnf a
-  rnf (DoBlock _ a)      = rnf a
-  rnf (Absurd _)         = ()
-  rnf (As _ a b)         = rnf a `seq` rnf b
-  rnf (Dot _ a)          = rnf a
-  rnf (DoubleDot _ a)    = rnf a
-  rnf (ETel a)           = rnf a
-  rnf (Quote _)          = ()
-  rnf (QuoteTerm _)      = ()
-  rnf (Tactic _ a)       = rnf a
-  rnf (Unquote _)        = ()
-  rnf (DontCare a)       = rnf a
-  rnf (Equal _ a b)      = rnf a `seq` rnf b
-  rnf (Ellipsis _)       = ()
-  rnf (Generalized e)    = rnf e
+  rnf (Ident a)           = rnf a
+  rnf (Lit _ a)           = rnf a
+  rnf (QuestionMark _ a)  = rnf a
+  rnf (Underscore _ a)    = rnf a
+  rnf (RawApp _ a)        = rnf a
+  rnf (App _ a b)         = rnf a `seq` rnf b
+  rnf (OpApp _ a b c)     = rnf a `seq` rnf b `seq` rnf c
+  rnf (WithApp _ a b)     = rnf a `seq` rnf b
+  rnf (HiddenArg _ a)     = rnf a
+  rnf (InstanceArg _ a)   = rnf a
+  rnf (Lam _ a b)         = rnf a `seq` rnf b
+  rnf (AbsurdLam _ a)     = rnf a
+  rnf (ExtendedLam _ a b) = rnf a `seq` rnf b
+  rnf (Fun _ a b)         = rnf a `seq` rnf b
+  rnf (Pi a b)            = rnf a `seq` rnf b
+  rnf (Rec _ a)           = rnf a
+  rnf (RecUpdate _ a b)   = rnf a `seq` rnf b
+  rnf (Let _ a b)         = rnf a `seq` rnf b
+  rnf (Paren _ a)         = rnf a
+  rnf (IdiomBrackets _ a) = rnf a
+  rnf (DoBlock _ a)       = rnf a
+  rnf (Absurd _)          = ()
+  rnf (As _ a b)          = rnf a `seq` rnf b
+  rnf (Dot _ a)           = rnf a
+  rnf (DoubleDot _ a)     = rnf a
+  rnf (ETel a)            = rnf a
+  rnf (Quote _)           = ()
+  rnf (QuoteTerm _)       = ()
+  rnf (Tactic _ a)        = rnf a
+  rnf (Unquote _)         = ()
+  rnf (DontCare a)        = rnf a
+  rnf (Equal _ a b)       = rnf a `seq` rnf b
+  rnf (Ellipsis _)        = ()
+  rnf (Generalized e)     = rnf e
 
 -- | Ranges are not forced.
 
@@ -1265,7 +1280,7 @@ instance NFData Pragma where
   rnf (StaticPragma _ a)                = rnf a
   rnf (InjectivePragma _ a)             = rnf a
   rnf (InlinePragma _ _ a)              = rnf a
-  rnf (ImpossiblePragma _)              = ()
+  rnf (ImpossiblePragma _ a)            = rnf a
   rnf (EtaPragma _ a)                   = rnf a
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (NoCoverageCheckPragma _)         = ()

@@ -41,7 +41,7 @@ bar₁ = foo₁
 bar₂ : A
 bar₂ = foo₂ {r = FooA}
 
-pattern rArg v x = arg (arg-info v relevant) x
+pattern rArg v x = arg (arg-info v (modality relevant quantity-ω)) x
 pattern vArg x = rArg visible x
 pattern hArg x = rArg hidden  x
 pattern iArg x = rArg instance′ x

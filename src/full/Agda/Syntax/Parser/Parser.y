@@ -663,19 +663,12 @@ LetBody : 'in' Expr   { Just $2 }
 
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam
-    : '\\' '{' LamClauses '}'                  { ExtendedLam (getRange ($1,$2,$3,$4)) (List1.reverse $3) }
-    | '\\' 'where' vopen LamWhereClauses close { ExtendedLam (getRange ($1, $2, $4))  (List1.reverse $4) }
-    | '\\' AbsurdLamBindings
-             {% case $2 of
-                  Left (bs, h) -> List1.ifNull bs
-                    {-then-} (return $ AbsurdLam r h)
-                    {-else-} $ \ bs -> return $ Lam r bs (AbsurdLam r h)
-                    where r = fuseRange $1 bs
-                  Right es -> do
-                    -- It is of the form @\ { p1 ... () }@.
-                    cl <- mkAbsurdLamClause False es
-                    return $ ExtendedLam (fuseRange $1 es) $ singleton cl
-             }
+    : '\\'             '{' LamClauses '}'                  {% extLam (getRange ($1, $2, $4))     []                $3 }
+    | '\\' Attributes1 '{' LamClauses '}'                  {% extLam (getRange ($1, $3, $5))     (List1.toList $2) $4 }
+    | '\\'             'where' vopen LamWhereClauses close {% extLam (getRange ($1, $2, $3, $5)) []                $4 }
+    | '\\' Attributes1 'where' vopen LamWhereClauses close {% extLam (getRange ($1, $3, $4, $6)) (List1.toList $2) $5 }
+    | '\\'             AbsurdLamBindings                   {% extOrAbsLam (getRange $1) []                $2 }
+    | '\\' Attributes1 AbsurdLamBindings                   {% extOrAbsLam (getRange $1) (List1.toList $2) $3 }
 
 Application3 :: { List1 Expr }
 Application3
@@ -1150,9 +1143,6 @@ Declaration
     | PatternSyn      { singleton $1 }
     | UnquoteDecl     { singleton $1 }
     | Constructor     { singleton $1 }
-    | RecordInduction       { singleton $1 }
-    | RecordEta             { singleton $1 }
-    | RecordPatternMatching { singleton $1 }
 
 {--------------------------------------------------------------------------
     Individual declarations
@@ -1237,17 +1227,15 @@ RecordSig :: { Declaration }
 RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
   {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
 
--- Declaration of record constructor name.
 Constructor :: { Declaration }
-Constructor : 'constructor' Declarations0
-  {% case $2 of
-      -- this is fairly disgusting but hopefully allows us to use `constructor` for both
-      -- record constructors and constructor blocks in mutual blocks
-      { [FunClause (LHS p [] []) AbsurdRHS NoWhere _]
-          | Just n <- isSingleIdentifierP p -> pure (RecordDirective (Constructor n NotInstanceDef))
-      ;  _ -> pure $ LoneConstructor (getRange ($1,$2)) $2
-      }
-  }
+Constructor : 'data' '_' 'where' Declarations0
+  { LoneConstructor (getRange ($1,$4)) $4 }
+
+-- Declaration of record constructor name.
+RecordConstructorName :: { (Name, IsInstance) }
+RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
+
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -1396,7 +1384,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
          -- TODO: Don't use (insecure) hashes in this way.
     ; fresh  = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique
     ; fresh' = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1)
-    ; impStm asR = Import r m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
+    ; impStm asR = Import noRange m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
         Private r Inserted
           [ ModuleMacro r m'
@@ -1615,8 +1603,8 @@ CatchallPragma
 
 ImpossiblePragma :: { Pragma }
 ImpossiblePragma
-  : '{-#' 'IMPOSSIBLE' '#-}'
-    { ImpossiblePragma (getRange ($1,$2,$3)) }
+  : '{-#' 'IMPOSSIBLE' PragmaStrings '#-}'
+    { ImpossiblePragma (getRange ($1,$2,$4)) $3 }
 
 NoPositivityCheckPragma :: { Pragma }
 NoPositivityCheckPragma
@@ -1711,12 +1699,28 @@ ArgTypeSignatures0
 -- Record declarations, including an optional record constructor name.
 RecordDeclarations :: { (RecordDirectives, [Declaration]) }
 RecordDeclarations
-    : Declarations0 {% extractRecordDirectives $1 }
+    : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
+    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
+    | vopen Declarations1 close                       { (emptyRecordDirectives, List1.toList $2) }
 
-RecordEta :: { Declaration }
+
+RecordDirectives :: { [RecordDirective] }
+RecordDirectives
+    : {- empty -}                           { [] }
+    | RecordDirectives semi RecordDirective { $3 : $1 }
+    | RecordDirective                       { [$1] }
+
+RecordDirective :: { RecordDirective }
+RecordDirective
+    : RecordConstructorName { uncurry Constructor $1 }
+    | RecordInduction       { Induction $1 }
+    | RecordEta             { Eta $1 }
+    | RecordPatternMatching { PatternOrCopattern $1 }
+
+RecordEta :: { Ranged HasEta0 }
 RecordEta
-    : 'eta-equality'    { RecordDirective (Eta (Ranged (getRange $1) YesEta)) }
-    | 'no-eta-equality' { RecordDirective (Eta (Ranged (getRange $1) (NoEta ()))) }
+    : 'eta-equality'    { Ranged (getRange $1) YesEta }
+    | 'no-eta-equality' { Ranged (getRange $1) (NoEta ()) }
 
 -- Directive 'pattern' if a decision between matching on constructor/record pattern
 -- or copattern matching is needed.
@@ -1725,15 +1729,15 @@ RecordEta
 -- with the 'no-eta-equality' declaration.
 -- Nor with the 'constructor' declaration, since it applies also to
 -- the record pattern.
-RecordPatternMatching :: { Declaration }
+RecordPatternMatching :: { Range }
 RecordPatternMatching
-    : 'pattern'     { RecordDirective (PatternOrCopattern (getRange $1)) }
+    : 'pattern'     { getRange $1 }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
-RecordInduction :: { Declaration }
+RecordInduction :: { Ranged Induction }
 RecordInduction
-    : 'inductive'   { RecordDirective (Induction (Ranged (getRange $1) Inductive))   }
-    | 'coinductive' { RecordDirective (Induction (Ranged (getRange $1) CoInductive)) }
+    : 'inductive'   { Ranged (getRange $1) Inductive   }
+    | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 -- Arbitrary declarations
 Declarations :: { List1 Declaration }
@@ -1988,6 +1992,74 @@ addType (DomainFull b) = b
 addType (DomainFree x) = TBind r (singleton x) $ Underscore r Nothing
   where r = getRange x
 
+-- | Returns the value of the first erasure attribute, if any, or else
+-- the default value of type 'Erased'.
+--
+-- Raises warnings for all attributes except for erasure attributes,
+-- and for multiple erasure attributes.
+
+onlyErased
+  :: [Attr]  -- ^ The attributes, in reverse order.
+  -> Parser Erased
+onlyErased as = do
+  es <- catMaybes <$> mapM onlyErased' (reverse as)
+  case es of
+    []     -> return defaultErased
+    [e]    -> return e
+    e : es -> do
+      parseWarning $ MultipleAttributes (getRange es) (Just "erasure")
+      return e
+  where
+  onlyErased' a = case theAttr a of
+    RelevanceAttribute{} -> unsup "Relevance"
+    CohesionAttribute{}  -> unsup "Cohesion"
+    LockAttribute{}      -> unsup "Lock"
+    TacticAttribute{}    -> unsup "Tactic"
+    QuantityAttribute q  -> case q of
+      Quantity1{} -> unsup "Linearity"
+      Quantity0 o -> return $ Just (Erased    o)
+      Quantityω o -> return $ Just (NotErased o)
+    where
+    unsup s = do
+      parseWarning $ UnsupportedAttribute (attrRange a) (Just s)
+      return Nothing
+
+-- | Constructs extended lambdas.
+
+extLam
+  :: Range            -- ^ The range of the lambda symbol and @where@ or
+                      --   the braces.
+  -> [Attr]           -- ^ The attributes in reverse order.
+  -> List1 LamClause  -- ^ The clauses in reverse order.
+  -> Parser Expr
+extLam symbolRange attrs cs = do
+  e <- onlyErased attrs
+  let cs' = List1.reverse cs
+  return $ ExtendedLam (getRange (symbolRange, e, cs')) e cs'
+
+-- | Constructs extended or absurd lambdas.
+
+extOrAbsLam
+  :: Range   -- ^ The range of the lambda symbol.
+  -> [Attr]  -- ^ The attributes, in reverse order.
+  -> Either ([LamBinding], Hiding) (List1 Expr)
+  -> Parser Expr
+extOrAbsLam lambdaRange attrs cs = case cs of
+  Right es -> do
+    -- It is of the form @\ { p1 ... () }@.
+    e  <- onlyErased attrs
+    cl <- mkAbsurdLamClause False es
+    return $ ExtendedLam (getRange (lambdaRange, e, es)) e $ singleton cl
+  Left (bs, h) -> do
+    mapM_ (\a -> parseWarning $
+                   UnsupportedAttribute (attrRange a) Nothing)
+          (reverse attrs)
+    List1.ifNull bs
+      {-then-} (return $ AbsurdLam r h)
+      {-else-} $ \ bs -> return $ Lam r bs (AbsurdLam r h)
+    where
+    r = fuseRange lambdaRange bs
+
 -- | Interpret an expression as a list of names and (not parsed yet) as-patterns
 
 exprAsTele :: Expr -> List1 Expr
@@ -2037,13 +2109,18 @@ boundNamesOrAbsurd es
 
 -- | Match a pattern-matching "assignment" statement @p <- e@
 exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
-exprToAssignment (RawApp r es)
+exprToAssignment e@(RawApp r es)
   | (es1, arr : es2) <- List2.break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] -> Just <$> ((,,) <$> exprToPattern (rawApp $ List1.fromList es1)
-                           <*> pure (getRange arr)
-                           <*> pure (rawApp $ List1.fromList es2))
+      [] ->
+        -- Andreas, 2021-05-06, issue #5365
+        -- Handle pathological cases like @do ←@ and @do x ←@.
+        case (es1, es2) of
+          (e1:rest1, e2:rest2) -> do
+            p <- exprToPattern $ rawApp $ e1 :| rest1
+            pure $ Just (p, getRange arr, rawApp (e2 :| rest2))
+          _ -> parseError' (rStart' $ getRange e) $ "Incomplete binding " ++ prettyShow e
   where
     isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) = arr `elem` ["<-", "←"]
     isLeftArrow _ = False

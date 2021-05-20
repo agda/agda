@@ -379,8 +379,8 @@ definition' kit q d t ls = if not (usableModality d) then return Nothing else do
 
     DataOrRecSig{} -> __IMPOSSIBLE__
 
-    Axiom | Just e <- defJSDef d -> plainJS e
-    Axiom | otherwise -> ret Undefined
+    Axiom{} | Just e <- defJSDef d -> plainJS e
+    Axiom{} | otherwise -> ret Undefined
 
     GeneralizableVar{} -> return Nothing
 
@@ -520,7 +520,7 @@ compileTerm kit t = go t
       T.TCon q -> do
         d <- getConstInfo q
         qname q
-      T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
+      T.TCase sc ct def alts | T.CTData _ dt <- T.caseType ct -> do
         dt <- getConstInfo dt
         alts' <- traverse (compileAlt kit) alts
         let cs  = defConstructors $ theDef dt

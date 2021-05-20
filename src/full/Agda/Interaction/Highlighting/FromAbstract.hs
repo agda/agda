@@ -41,6 +41,7 @@ import Agda.TypeChecking.Monad
 import           Agda.Utils.FileName
 import           Agda.Utils.Function
 import           Agda.Utils.Functor
+import           Agda.Utils.List                     ( initLast1 )
 import           Agda.Utils.List1                    ( List1 )
 import qualified Agda.Utils.List1          as List1
 import           Agda.Utils.Maybe
@@ -50,12 +51,17 @@ import           Agda.Utils.Singleton
 
 -- Entry point:
 -- | Create highlighting info for some piece of syntax.
-runHighlighter :: Hilite a => SourceToModule -> AbsolutePath -> NameKinds -> a -> File
-runHighlighter modMap fileName kinds x = runReader (hilite x) $ HiliteEnv
-  { hleNameKinds = kinds
-  , hleModMap    = modMap
-  , hleFileName  = fileName
-  }
+runHighlighter ::
+  Hilite a =>
+  SourceToModule -> AbsolutePath -> NameKinds -> a ->
+  HighlightingInfoBuilder
+runHighlighter modMap fileName kinds x =
+  runReader (hilite x) $
+  HiliteEnv
+    { hleNameKinds = kinds
+    , hleModMap    = modMap
+    , hleFileName  = fileName
+    }
 
 -- | Environment of the highlighter.
 data HiliteEnv = HiliteEnv
@@ -74,7 +80,8 @@ type NameKinds = A.QName -> Maybe NameKind
 type HiliteM = Reader HiliteEnv
 
 -- | Highlighter.
-type Hiliter = HiliteM File
+
+type Hiliter = HiliteM HighlightingInfoBuilder
 
 instance Monoid Hiliter where
   mempty  = pure mempty
@@ -227,35 +234,35 @@ instance Hilite A.Pragma where
 
 instance Hilite A.Expr where
   hilite = \case
-      A.Var x                    -> hl $ A.BindName x        -- bound variable like binder
-      A.Def' q _                 -> hiliteQName Nothing q
-      A.Proj _o qs               -> hiliteAmbiguousQName Nothing qs  -- Issue #4604: not: hiliteProjection qs
-                                      -- Names from @open R r@ should not be highlighted as projections
-      A.Con qs                   -> hiliteAmbiguousQName Nothing qs  -- TODO? Con aspect
-      A.PatternSyn qs            -> hilitePatternSynonym qs
-      A.Macro q                  -> hiliteQName (Just Macro) q
-      A.Lit _r l                 -> hl l
-      A.QuestionMark _mi _ii     -> mempty
-      A.Underscore _mi           -> mempty
-      A.Dot _r e                 -> hl e                   -- TODO? Projection?
-      A.App _r e es              -> hl e <> hl es
-      A.WithApp _r e es          -> hl e <> hl es
-      A.Lam _r bs e              -> hl bs <> hl e
-      A.AbsurdLam _r _h          -> mempty
-      A.ExtendedLam _r _di _q cs -> hl cs -- No hilighting of generated extended lambda name!
-      A.Pi _r tel b              -> hl tel <> hl b
-      A.Generalized _qs e        -> hl e
-      A.Fun _r a b               -> hl a <> hl b
-      A.Let _r bs e              -> hl bs <> hl e
-      A.ETel _tel                -> mempty  -- Printing only construct
-      A.Rec _r ass               -> hl ass
-      A.RecUpdate _r e ass       -> hl e <> hl ass
-      A.ScopedExpr _ e           -> hl e
-      A.Quote _r                 -> mempty
-      A.QuoteTerm _r             -> mempty
-      A.Unquote _r               -> mempty
-      A.Tactic _r e es           -> hl e <> hl es
-      A.DontCare e               -> hl e
+      A.Var x                       -> hl $ A.BindName x        -- bound variable like binder
+      A.Def' q _                    -> hiliteQName Nothing q
+      A.Proj _o qs                  -> hiliteAmbiguousQName Nothing qs  -- Issue #4604: not: hiliteProjection qs
+                                         -- Names from @open R r@ should not be highlighted as projections
+      A.Con qs                      -> hiliteAmbiguousQName Nothing qs  -- TODO? Con aspect
+      A.PatternSyn qs               -> hilitePatternSynonym qs
+      A.Macro q                     -> hiliteQName (Just Macro) q
+      A.Lit _r l                    -> hl l
+      A.QuestionMark _mi _ii        -> mempty
+      A.Underscore _mi              -> mempty
+      A.Dot _r e                    -> hl e                   -- TODO? Projection?
+      A.App _r e es                 -> hl e <> hl es
+      A.WithApp _r e es             -> hl e <> hl es
+      A.Lam _r bs e                 -> hl bs <> hl e
+      A.AbsurdLam _r _h             -> mempty
+      A.ExtendedLam _r _di _e _q cs -> hl cs -- No hilighting of generated extended lambda name!
+      A.Pi _r tel b                 -> hl tel <> hl b
+      A.Generalized _qs e           -> hl e
+      A.Fun _r a b                  -> hl a <> hl b
+      A.Let _r bs e                 -> hl bs <> hl e
+      A.ETel _tel                   -> mempty  -- Printing only construct
+      A.Rec _r ass                  -> hl ass
+      A.RecUpdate _r e ass          -> hl e <> hl ass
+      A.ScopedExpr _ e              -> hl e
+      A.Quote _r                    -> mempty
+      A.QuoteTerm _r                -> mempty
+      A.Unquote _r                  -> mempty
+      A.Tactic _r e es              -> hl e <> hl es
+      A.DontCare e                  -> hl e
     where
     hl a = hilite a
 
@@ -445,7 +452,7 @@ instance Hilite A.AmbiguousQName where
 instance Hilite A.ModuleName where
   hilite m@(A.MName xs) = do
     modMap <- asks hleModMap
-    foldMap (hiliteModule . (isTopLevelModule modMap,)) xs
+    hiliteModule (isTopLevelModule modMap, m)
     where
     isTopLevelModule modMap =
       case mapMaybe
@@ -525,11 +532,20 @@ hiliteField xs x bindingR = hiliteCName xs x noRange bindingR $ nameAsp Field
 -- For top level modules, we set the binding site to the beginning of the file
 -- so that clicking on an imported module will jump to the beginning of the file
 -- which defines this module.
-hiliteModule :: (Bool, A.Name) -> Hiliter
-hiliteModule (isTopLevelModule, n) =
-  hiliteCName [] (A.nameConcrete n) noRange mR $ nameAsp Module
+hiliteModule :: (Bool, A.ModuleName) -> Hiliter
+hiliteModule (isTopLevelModule, A.MName []) = mempty
+hiliteModule (isTopLevelModule, A.MName (n:ns)) =
+  hiliteCName
+    (map A.nameConcrete ms)
+    (A.nameConcrete m)
+    noRange
+    mR
+    (nameAsp Module)
   where
-  mR = Just $ applyWhen isTopLevelModule P.beginningOfFile $ A.nameBindingSite n
+  (ms, m) = initLast1 n ns
+  mR = Just $
+       applyWhen isTopLevelModule P.beginningOfFile $
+       A.nameBindingSite m
 
 -- This was Highlighting.Generate.nameToFile:
 -- | Converts names to suitable 'File's.
@@ -551,15 +567,15 @@ hiliteCName xs x fr mR asp = do
   -- We don't care if we get any funny ranges.
   if all (== Strict.Just fileName) fileNames then pure $
     frFile modMap <>
-    several (map rToR rs)
-            (aspects { definitionSite = mFilePos modMap })
+    H.singleton (rToR rs)
+                (aspects { definitionSite = mFilePos modMap })
    else
     mempty
   where
   aspects       = asp $ C.isOperator x
   fileNames     = mapMaybe (fmap P.srcFile . P.rStart . getRange) (x : xs)
   frFile modMap = H.singleton (rToR fr) (aspects { definitionSite = notHere <$> mFilePos modMap })
-  rs            = map getRange (x : xs)
+  rs            = getRange (x : xs)
 
   -- The fixity declaration should not get a symbolic anchor.
   notHere d = d { defSiteHere = False }

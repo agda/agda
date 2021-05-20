@@ -326,7 +326,12 @@ newArgsMetaCtx' frozen condition (El s tm) tel perm ctx = do
           ctx' = (map . mapModality) (mod `inverseComposeModality`) ctx
       (m, u) <- applyModalityToContext info $
                  newValueMetaCtx frozen RunMetaOccursCheck CmpLeq a tel' perm ctx'
-      setMetaArgInfo m (getArgInfo dom)
+      -- Jesper, 2021-05-05: When creating a metavariable from a
+      -- generalizable variable, we must set the modality at which it
+      -- will be generalized.  Don't do this for other metavariables,
+      -- as they should keep the defaul modality (see #5363).
+      whenM ((== YesGeneralizeVar) <$> viewTC eGeneralizeMetas) $
+        setMetaGeneralizableArgInfo m $ hideOrKeepInstance info
       setMetaNameSuggestion m (absName codom)
       args <- newArgsMetaCtx' frozen condition (codom `absApp` u) tel perm ctx
       return $ Arg info u : args
@@ -1569,7 +1574,7 @@ openMetasToPostulates = do
         ]
 
       -- Add the new postulate to the signature.
-      addConstant q $ defaultDefn defaultArgInfo q t Axiom
+      addConstant q $ defaultDefn defaultArgInfo q t defaultAxiom
 
       -- Solve the meta.
       let inst = InstV [] $ Def q []

@@ -177,6 +177,7 @@ data KindOfBlock
   | InstanceBlock   -- ^ @instance@.  Actually, here all kinds of sub-declarations are allowed a priori.
   | FieldBlock      -- ^ @field@.  Ensured by parser.
   | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
+  | ConstructorBlock  -- ^ @constructor@, in @interleaved mutual@.
   deriving (Data, Eq, Ord, Show)
 
 

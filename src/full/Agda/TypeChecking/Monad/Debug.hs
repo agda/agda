@@ -9,6 +9,7 @@ import qualified Control.DeepSeq as DeepSeq (force)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Identity
 import Control.Monad.Writer
@@ -34,31 +35,68 @@ import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Impossible
 
 class (Functor m, Applicative m, Monad m) => MonadDebug m where
-  displayDebugMessage :: VerboseKey -> VerboseLevel -> String -> m ()
-  displayDebugMessage k n s = traceDebugMessage k n s $ return ()
-
-  traceDebugMessage :: VerboseKey -> VerboseLevel -> String -> m a -> m a
-  traceDebugMessage k n s cont = displayDebugMessage k n s >> cont
 
   formatDebugMessage :: VerboseKey -> VerboseLevel -> TCM Doc -> m String
-
-  getVerbosity :: m Verbosity
-
-  default getVerbosity :: HasOptions m => m Verbosity
-  getVerbosity = optVerbose <$> pragmaOptions
-
-  isDebugPrinting :: m Bool
-
-  default isDebugPrinting :: MonadTCEnv m => m Bool
-  isDebugPrinting = asksTC envIsDebugPrinting
-
-  nowDebugPrinting :: m a -> m a
-
-  default nowDebugPrinting :: MonadTCEnv m => m a -> m a
-  nowDebugPrinting = locallyTC eIsDebugPrinting $ const True
+  traceDebugMessage  :: VerboseKey -> VerboseLevel -> String -> m a -> m a
 
   -- | Print brackets around debug messages issued by a computation.
-  verboseBracket :: VerboseKey -> VerboseLevel -> String -> m a -> m a
+  verboseBracket     :: VerboseKey -> VerboseLevel -> String -> m a -> m a
+
+  getVerbosity       :: m Verbosity
+
+  -- | Check whether we are currently debug printing.
+  isDebugPrinting    :: m Bool
+
+  -- | Flag in a computation that we are currently debug printing.
+  nowDebugPrinting   :: m a -> m a
+
+  -- default implementation of transformed debug monad
+
+  default formatDebugMessage
+    :: (MonadTrans t, MonadDebug n, m ~ t n)
+    => VerboseKey -> VerboseLevel -> TCM Doc -> m String
+  formatDebugMessage k n d = lift $ formatDebugMessage k n d
+
+  default traceDebugMessage
+    :: (MonadTransControl t, MonadDebug n, m ~ t n)
+    => VerboseKey -> VerboseLevel -> String -> m a -> m a
+  traceDebugMessage k n s = liftThrough $ traceDebugMessage k n s
+
+  default verboseBracket
+    :: (MonadTransControl t, MonadDebug n, m ~ t n)
+    => VerboseKey -> VerboseLevel -> String -> m a -> m a
+  verboseBracket k n s = liftThrough $ verboseBracket k n s
+
+  default getVerbosity
+    :: (MonadTrans t, MonadDebug n, m ~ t n)
+    => m Verbosity
+  getVerbosity = lift getVerbosity
+
+  default isDebugPrinting
+    :: (MonadTrans t, MonadDebug n, m ~ t n)
+    => m Bool
+  isDebugPrinting = lift isDebugPrinting
+
+  default nowDebugPrinting
+    :: (MonadTransControl t, MonadDebug n, m ~ t n)
+    => m a -> m a
+  nowDebugPrinting = liftThrough nowDebugPrinting
+
+-- Default implementations (working around the restriction to only
+-- have one default signature).
+
+defaultGetVerbosity :: HasOptions m => m Verbosity
+defaultGetVerbosity = optVerbose <$> pragmaOptions
+
+defaultIsDebugPrinting :: MonadTCEnv m => m Bool
+defaultIsDebugPrinting = asksTC envIsDebugPrinting
+
+defaultNowDebugPrinting :: MonadTCEnv m => m a -> m a
+defaultNowDebugPrinting = locallyTC eIsDebugPrinting $ const True
+
+-- | Print a debug message if switched on.
+displayDebugMessage :: MonadDebug m => VerboseKey -> VerboseLevel -> String -> m ()
+displayDebugMessage k n s = traceDebugMessage k n s $ return ()
 
 -- | During printing, catch internal errors of kind 'Impossible' and print them.
 catchAndPrintImpossible
@@ -79,12 +117,13 @@ catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
 
 instance MonadDebug TCM where
 
-  displayDebugMessage k n s = do
+  traceDebugMessage k n s cont = do
     -- Andreas, 2019-08-20, issue #4016:
     -- Force any lazy 'Impossible' exceptions to the surface and handle them.
     s  <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force $ s
     cb <- getsTC $ stInteractionOutputCallback . stPersistentState
     cb (Resp_RunningInfo n s)
+    cont
 
   formatDebugMessage k n d = catchAndPrintImpossible k n $ do
     render <$> d `catchError` \ err -> do
@@ -103,71 +142,27 @@ instance MonadDebug TCM where
       closeVerboseBracketException k n
       throwError e
 
-instance MonadDebug m => MonadDebug (ExceptT e m) where
-  displayDebugMessage k n s = lift $ displayDebugMessage k n s
-  formatDebugMessage k n d = lift $ formatDebugMessage k n d
-  getVerbosity = lift getVerbosity
-  isDebugPrinting = lift isDebugPrinting
-  nowDebugPrinting = mapExceptT nowDebugPrinting
-  verboseBracket k n s = mapExceptT (verboseBracket k n s)
+  getVerbosity     = defaultGetVerbosity
+  isDebugPrinting  = defaultIsDebugPrinting
+  nowDebugPrinting = defaultNowDebugPrinting
+
+-- MonadTrans default instances
+
+deriving instance MonadDebug m => MonadDebug (BlockT m)  -- ghc <= 8.0, GeneralizedNewtypeDeriving
+instance MonadDebug m => MonadDebug (ChangeT m)
+instance MonadDebug m => MonadDebug (ExceptT e m)
+instance MonadDebug m => MonadDebug (MaybeT m)
+instance MonadDebug m => MonadDebug (ReaderT r m)
+instance MonadDebug m => MonadDebug (StateT s m)
+instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m)
+instance MonadDebug m => MonadDebug (IdentityT m)
+
+-- We are lacking MonadTransControl ListT
 
 instance MonadDebug m => MonadDebug (ListT m) where
-  displayDebugMessage k n s = lift $ displayDebugMessage k n s
-  formatDebugMessage k n d = lift $ formatDebugMessage k n d
-  getVerbosity = lift getVerbosity
-  isDebugPrinting = lift isDebugPrinting
-  nowDebugPrinting = liftListT nowDebugPrinting
-  verboseBracket k n s = liftListT $ verboseBracket k n s
-
-instance MonadDebug m => MonadDebug (MaybeT m) where
-  displayDebugMessage k n s = lift $ displayDebugMessage k n s
-  formatDebugMessage k n d = lift $ formatDebugMessage k n d
-  getVerbosity = lift getVerbosity
-  isDebugPrinting = lift isDebugPrinting
-  nowDebugPrinting = mapMaybeT nowDebugPrinting
-  verboseBracket k n s = MaybeT . verboseBracket k n s . runMaybeT
-
-instance MonadDebug m => MonadDebug (ReaderT r m) where
-  displayDebugMessage k n s = lift $ displayDebugMessage k n s
-  formatDebugMessage k n d = lift $ formatDebugMessage k n d
-  getVerbosity = lift getVerbosity
-  isDebugPrinting = lift isDebugPrinting
-  nowDebugPrinting = mapReaderT nowDebugPrinting
-  verboseBracket k n s = mapReaderT $ verboseBracket k n s
-
-instance MonadDebug m => MonadDebug (StateT s m) where
-  displayDebugMessage k n s = lift $ displayDebugMessage k n s
-  formatDebugMessage k n d = lift $ formatDebugMessage k n d
-  getVerbosity = lift getVerbosity
-  isDebugPrinting = lift isDebugPrinting
-  nowDebugPrinting = mapStateT nowDebugPrinting
-  verboseBracket k n s = mapStateT $ verboseBracket k n s
-
-instance (MonadDebug m, Monoid w) => MonadDebug (WriterT w m) where
-  displayDebugMessage k n s = lift $ displayDebugMessage k n s
-  formatDebugMessage k n d = lift $ formatDebugMessage k n d
-  getVerbosity = lift getVerbosity
-  isDebugPrinting = lift isDebugPrinting
-  nowDebugPrinting = mapWriterT nowDebugPrinting
-  verboseBracket k n s = mapWriterT $ verboseBracket k n s
-
-instance MonadDebug m => MonadDebug (ChangeT m) where
-  displayDebugMessage k n s = lift $ displayDebugMessage k n s
-  formatDebugMessage k n d  = lift $ formatDebugMessage k n d
-  getVerbosity              = lift $ getVerbosity
-  isDebugPrinting           = lift $ isDebugPrinting
-  nowDebugPrinting          = mapChangeT $ nowDebugPrinting
-  verboseBracket k n s      = mapChangeT $ verboseBracket k n s
-
-instance MonadDebug m => MonadDebug (IdentityT m) where
-  displayDebugMessage k n s = lift $ displayDebugMessage k n s
-  formatDebugMessage k n d  = lift $ formatDebugMessage k n d
-  getVerbosity              = lift $ getVerbosity
-  isDebugPrinting           = lift $ isDebugPrinting
-  nowDebugPrinting          = mapIdentityT $ nowDebugPrinting
-  verboseBracket k n s      = mapIdentityT $ verboseBracket k n s
-
-deriving instance MonadDebug m => MonadDebug (BlockT m)
+  traceDebugMessage k n s = liftListT $ traceDebugMessage k n s
+  verboseBracket    k n s = liftListT $ verboseBracket k n s
+  nowDebugPrinting        = liftListT nowDebugPrinting
 
 -- | Debug print some lines if the verbosity level for the given
 --   'VerboseKey' is at least 'VerboseLevel'.
@@ -278,7 +273,7 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
                  | otherwise = do
     t <- getVerbosity
     let ks = parseVerboseKey k
-        m  = last $ 0 : Trie.lookupPath ks t
+        m  = lastWithDefault 0 $ Trie.lookupPath ks t
     return (n <= m)
 
 -- | Check whether a certain verbosity level is activated (exact match).

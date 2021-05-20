@@ -6,7 +6,8 @@ module Agda.Syntax.Parser.Monad
     , ParseState(..)
     , ParseError(..), ParseWarning(..)
     , LexState
-    , LayoutBlock(..)
+    , LayoutBlock(..), LayoutContext, LayoutStatus(..)
+    , Column
     , ParseFlags (..)
       -- * Running the parser
     , initState
@@ -21,8 +22,10 @@ module Agda.Syntax.Parser.Monad
     , getLexState, pushLexState, popLexState
       -- ** Layout
     , topBlock, popBlock, pushBlock
+    , getContext, setContext, modifyContext
+    , resetLayoutStatus
       -- ** Errors
-    , parseWarningName
+    , parseWarning, parseWarningName
     , parseError, parseErrorAt, parseError', parseErrorRange
     , lexError
     )
@@ -40,6 +43,7 @@ import Data.Maybe ( listToMaybe )
 import Agda.Interaction.Options.Warnings
 
 import Agda.Syntax.Position
+import Agda.Syntax.Parser.Tokens ( Keyword( KwMutual ) )
 
 import Agda.Utils.FileName
 import Agda.Utils.List ( tailWithDefault )
@@ -66,9 +70,12 @@ data ParseState = PState
     , parsePrevChar :: !Char                 -- ^ the character before the input
     , parsePrevToken:: String                -- ^ the previous token
     , parseLayout   :: LayoutContext         -- ^ the stack of layout blocks
+    , parseLayStatus:: LayoutStatus          -- ^ the status of the coming layout block
+    , parseLayKw    :: Keyword               -- ^ the keyword for the coming layout block
     , parseLexState :: [LexState]            -- ^ the state of the lexer
                                              --   (states can be nested so we need a stack)
     , parseFlags    :: ParseFlags            -- ^ parametrization of the parser
+    , parseWarnings :: ![ParseWarning]       -- ^ In reverse order.
     }
     deriving Show
 
@@ -79,14 +86,38 @@ data ParseState = PState
 type LexState = Int
 
 -- | The stack of layout blocks.
+--
+--   When we encounter a layout keyword, we push a 'Tentative' block
+--   with 'noColumn'.  This is replaced by aproper column once we
+--   reach the next token.
 type LayoutContext = [LayoutBlock]
 
 -- | We need to keep track of the context to do layout. The context
 --   specifies the indentation columns of the open layout blocks. See
 --   "Agda.Syntax.Parser.Layout" for more informaton.
 data LayoutBlock
-  = Layout Int32    -- ^ layout at specified column
+  = Layout Keyword LayoutStatus Column
+      -- ^ Layout at specified 'Column', introduced by 'Keyword'.
     deriving Show
+
+-- | A (layout) column.
+type Column = Int32
+
+-- | Status of a layout column (see #1145).
+--   A layout column is 'Tentative' until we encounter a new line.
+--   This allows stacking of layout keywords.
+--
+--   Inside a @LayoutContext@ the sequence of 'Confirmed' columns
+--   needs to be strictly increasing.
+--   'Tentative columns between 'Confirmed' columns need to be
+--   strictly increasing as well.
+data LayoutStatus
+  = Tentative  -- ^ The token defining the layout column was on the same line
+               --   as the layout keyword and we have not seen a new line yet.
+  | Confirmed  -- ^ We have seen a new line since the layout keyword
+               --   and the layout column has not been superseded by
+               --   a smaller column.
+    deriving (Eq, Show)
 
 -- | Parser flags.
 data ParseFlags = ParseFlags
@@ -137,14 +168,22 @@ data ParseWarning
     { warnRange    :: !(Range' SrcFile)
                       -- ^ The range of the bigger overlapping token
     }
+  | UnsupportedAttribute Range !(Maybe String)
+    -- ^ Unsupported attribute.
+  | MultipleAttributes Range !(Maybe String)
+    -- ^ Multiple attributes.
   deriving (Data, Show)
 
 instance NFData ParseWarning where
   rnf (OverlappingTokensWarning _) = ()
+  rnf (UnsupportedAttribute _ s)   = rnf s
+  rnf (MultipleAttributes _ s)     = rnf s
 
 parseWarningName :: ParseWarning -> WarningName
 parseWarningName = \case
   OverlappingTokensWarning{} -> OverlappingTokensWarning_
+  UnsupportedAttribute{}     -> UnsupportedAttribute_
+  MultipleAttributes{}       -> MultipleAttributes_
 
 -- | The result of parsing something.
 data ParseResult a
@@ -169,6 +208,12 @@ parseError msg = do
     , errPrevToken = parsePrevToken s
     , errMsg       = msg
     }
+
+-- | Records a warning.
+
+parseWarning :: ParseWarning -> Parser ()
+parseWarning w =
+  modify' $ \s -> s { parseWarnings = w : parseWarnings s }
 
 {--------------------------------------------------------------------------
     Instances
@@ -210,8 +255,23 @@ instance Pretty ParseWarning where
       [ (pretty warnRange <> colon) <+>
         "Multi-line comment spans one or more literate text blocks."
       ]
+  pretty (UnsupportedAttribute r s) = vcat
+    [ (pretty r <> colon) <+>
+      (case s of
+         Nothing -> "Attributes"
+         Just s  -> text s <+> "attributes") <+>
+      "are not supported here."
+    ]
+  pretty (MultipleAttributes r s) = vcat
+    [ (pretty r <> colon) <+>
+      "Multiple" <+>
+      maybe id (\s -> (text s <+>)) s "attributes (ignored)."
+    ]
+
 instance HasRange ParseWarning where
   getRange OverlappingTokensWarning{warnRange} = warnRange
+  getRange (UnsupportedAttribute r _)          = r
+  getRange (MultipleAttributes r _)            = r
 
 {--------------------------------------------------------------------------
     Running the parser
@@ -226,8 +286,13 @@ initStatePos pos flags inp st =
                 , parsePrevChar     = '\n'
                 , parsePrevToken    = ""
                 , parseLexState     = st
-                , parseLayout       = []
+                , parseLayout       = []        -- the first block will be from the top-level layout
+                , parseLayStatus    = Confirmed -- for the to-be-determined column of the top-level layout
+                , parseLayKw        = KwMutual  -- Layout keyword for the top-level layout.
+                                                -- Does not mean that the top-level block is a mutual block.
+                                                -- Just for better errors on stray @constructor@ decls.
                 , parseFlags        = flags
+                , parseWarnings     = []
                 }
   where
   pos' = pos { srcFile = () }
@@ -334,11 +399,14 @@ lexError msg =
     Layout
  --------------------------------------------------------------------------}
 
-getContext :: Parser LayoutContext
+getContext :: MonadState ParseState m => m LayoutContext
 getContext = gets parseLayout
 
 setContext :: LayoutContext -> Parser ()
-setContext ctx = modify $ \ s -> s { parseLayout = ctx }
+setContext = modifyContext . const
+
+modifyContext :: (LayoutContext -> LayoutContext) -> Parser ()
+modifyContext f = modify $ \ s -> s { parseLayout = f (parseLayout s) }
 
 -- | Return the current layout block.
 topBlock :: Parser (Maybe LayoutBlock)
@@ -352,6 +420,8 @@ popBlock =
             _:ctx   -> setContext ctx
 
 pushBlock :: LayoutBlock -> Parser ()
-pushBlock l =
-    do  ctx <- getContext
-        setContext (l : ctx)
+pushBlock l = modifyContext (l :)
+
+-- | When we see a layout keyword, by default we expect a 'Tentative' block.
+resetLayoutStatus :: Parser ()
+resetLayoutStatus = modify $ \ s -> s { parseLayStatus = Tentative }

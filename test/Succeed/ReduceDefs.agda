@@ -4,6 +4,8 @@ open import Agda.Builtin.List
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
 open import Agda.Builtin.Equality
 
+pattern vArg x = arg (arg-info visible (modality relevant quantity-ω)) x
+
 macro
   macro₁ : Term -> TC ⊤
   macro₁ goal = do
@@ -12,9 +14,9 @@ macro
     qu' ← quoteTC u'
     unify qu' goal
 
-test₁ : macro₁ ≡ def (quote _-_)
-                   (arg (arg-info visible relevant) (lit (nat 3)) ∷
-                    arg (arg-info visible relevant) (lit (nat 3)) ∷ [])
+test₁ :
+  macro₁ ≡
+  def (quote _-_) (vArg (lit (nat 3)) ∷ vArg (lit (nat 3)) ∷ [])
 test₁ = refl
 
 
@@ -26,7 +28,7 @@ macro
     qu' ← quoteTC u'
     unify qu' goal
 
-test₂ : macro₂ ≡ def (quote _+_)
-                   (arg (arg-info visible relevant) (lit (nat 0)) ∷
-                    arg (arg-info visible relevant) (lit (nat 3)) ∷ [])
+test₂ :
+  macro₂ ≡
+  def (quote _+_) (vArg (lit (nat 0)) ∷ vArg (lit (nat 3)) ∷ [])
 test₂ = refl

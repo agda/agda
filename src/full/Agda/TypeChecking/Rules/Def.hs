@@ -579,7 +579,8 @@ checkSystemCoverage f [n] t cs = do
       reportSDoc "tc.sys.cover" 10 $ "equalTerm " <+> prettyTCM (unArg phi) <+> prettyTCM psi
       equalTerm interval (unArg phi) psi
 
-      forM_ (init $ init $ List.tails pcs) $ \ ((phi1,cl1):pcs') -> do
+      forM_ (initWithDefault __IMPOSSIBLE__ $
+             initWithDefault __IMPOSSIBLE__ $ List.tails pcs) $ \ ((phi1,cl1):pcs') -> do
         forM_ pcs' $ \ (phi2,cl2) -> do
           phi12 <- reduce (imin `apply` [argN phi1, argN phi2])
           forallFaceMaps phi12 (\ _ _ -> __IMPOSSIBLE__) $ \ sigma -> do

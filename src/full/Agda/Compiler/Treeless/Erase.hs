@@ -164,9 +164,16 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
 -- | Doesn't have any type information (other than the name of the data type),
 --   so we can't do better than checking if all constructors are present.
 pruneUnreachable :: Int -> CaseType -> TTerm -> [TAlt] -> E (TTerm, [TAlt])
-pruneUnreachable _ (CTData q) d bs' = do
-  cs <- lift $ getNotErasedConstructors q
-  let bs = flip filter bs' $ \case
+pruneUnreachable _ (CTData quantity q) d bs' = do
+  -- In an erased setting erased constructors are not treated
+  -- specially.
+  cs <- lift $
+        if hasQuantity0 quantity
+        then getConstructors q
+        else getNotErasedConstructors q
+  let bs | hasQuantity0 quantity = bs'
+         | otherwise             =
+           flip filter bs' $ \case
              a@TACon{} -> (aCon a) `elem` cs
              TAGuard{} -> True
              TALit{}   -> True

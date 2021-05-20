@@ -87,6 +87,9 @@ prettyQuantity :: LensQuantity a => a -> Doc -> Doc
 prettyQuantity a d =
   if render d == "_" then d else pretty (getQuantity a) <+> d
 
+prettyErased :: Erased -> Doc -> Doc
+prettyErased = prettyQuantity . asQuantity
+
 prettyCohesion :: LensCohesion a => a -> Doc -> Doc
 prettyCohesion a d =
   if render d == "_" then d else pretty (getCohesion a) <+> d
@@ -184,7 +187,9 @@ instance Pretty Expr where
                     , nest 2 $ pretty e
                     ]
             AbsurdLam _ h -> lambda <+> absurd h
-            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (fmap pretty pes)
+            ExtendedLam _ e pes ->
+              lambda <+>
+              prettyErased e (bracesAndSemicolons (fmap pretty pes))
             Fun _ e1 e2 ->
                 sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
                     , pretty e2
@@ -581,8 +586,8 @@ instance Pretty Pragma where
       hsep $ ["INLINE", pretty i]
     pretty (InlinePragma _ False i) =
       hsep $ ["NOINLINE", pretty i]
-    pretty (ImpossiblePragma _) =
-      hsep $ ["IMPOSSIBLE"]
+    pretty (ImpossiblePragma _ strs) =
+      hsep $ ["IMPOSSIBLE"] ++ map text strs
     pretty (EtaPragma _ x) =
       hsep $ ["ETA", pretty x]
     pretty (TerminationCheckPragma _ tc) =

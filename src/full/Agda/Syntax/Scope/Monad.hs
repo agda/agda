@@ -53,7 +53,9 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|), nonEmpty)
+import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -225,17 +227,16 @@ checkNoShadowing old new = do
     -- Filter out the underscores.
     let newNames = filter (not . isNoName) $ AssocList.keys diff
     -- Associate each name to its occurrences.
-    let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
+    let nameOccs1 :: [(C.Name, List1 Range)]
+        nameOccs1 = Map.toList $ Map.fromListWith (<>) $ map pairWithRange newNames
     -- Warn if we have two or more occurrences of the same name.
-    unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
-      scopeWarning $ ShadowingInTelescope conflicts
+    let nameOccs2 :: [(C.Name, List2 Range)]
+        nameOccs2 = mapMaybe (traverseF List2.fromList1Maybe) nameOccs1
+    caseList nameOccs2 (return ()) $ \ c conflicts -> do
+      scopeWarning $ ShadowingInTelescope $ c :| conflicts
   where
-    pairWithRange :: C.Name -> (C.Name, [Range])
-    pairWithRange n = (n, [getRange n])
-
-    atLeastTwo :: [a] -> Bool
-    atLeastTwo (_ : _ : _) = True
-    atLeastTwo _ = False
+    pairWithRange :: C.Name -> (C.Name, List1 Range)
+    pairWithRange n = (n, singleton $ getRange n)
 
 getVarsToBind :: ScopeM LocalVars
 getVarsToBind = useScope scopeVarsToBind
@@ -668,7 +669,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
                --   return $ A.mnameFromList $ newL ++ suffix
                -- Ulf, 2016-02-22: #1726
                -- We still need to copy modules from 'open public'. Same as in renName.
-               y <- refresh (last $ A.mnameToList x)
+               y <- refresh $ lastWithDefault __IMPOSSIBLE__ $ A.mnameToList x
                return $ A.mnameFromList $ newM ++ [y]
             -- Andreas, Jesper, 2015-07-02: Issue 1597
             -- Don't copy a module over itself, it will just be emptied of its contents.

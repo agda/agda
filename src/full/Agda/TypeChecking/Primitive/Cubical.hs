@@ -1023,8 +1023,7 @@ primTransHComp cmd ts nelims = do
                          | Just as <- allApplyElims es, [] <- recFields r -> compData False (recPars r) cmd l (as <$ t) sbA sphi u u0
                      Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons}
                        | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es -> compData (not $ null $ pcons) (pars+ixs) cmd l (as <$ t) sbA sphi u u0
-                     -- postulates with no arguments do not need to transport.
-                     Axiom{} | [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
+                     Axiom constTransp | constTransp, [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
                      _          -> fallback
 
                  _ -> fallback

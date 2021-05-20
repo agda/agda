@@ -376,7 +376,7 @@ Other features
 
 .. option:: --auto-inline
 
-     Turn on automatic compile-time inlining.
+     Turn on automatic compile-time inlining. See :ref:`inline-pragma` for more information.
 
 .. option:: --no-auto-inline
 

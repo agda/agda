@@ -1,5 +1,9 @@
-Issue3517/M.agda:5,1-24
-Importing module Issue3517.S not using the --no-sized-types flag
-from a module which does.
+Issue3517/S.agda:1,1-37
+Cannot set OPTIONS pragma --sized-types with safe flag.
 when scope checking the declaration
-  open import Issue3517.S
+  import Issue3517.S
+Issue3517/S.agda:5,1-37
+Importing module Agda.Builtin.Size not using the --safe flag from a
+module which does.
+when scope checking the declaration
+  open import Agda.Builtin.Size public

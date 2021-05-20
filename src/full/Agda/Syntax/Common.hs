@@ -957,6 +957,63 @@ instance NFData Quantity where
   rnf (Quantity1 o) = rnf o
   rnf (Quantityω o) = rnf o
 
+-- ** Erased.
+
+-- | A special case of 'Quantity': erased or not.
+
+data Erased
+  = Erased Q0Origin
+  | NotErased QωOrigin
+  deriving (Data, Show, Eq, Generic)
+
+-- | The default value of type 'Erased': not erased.
+
+defaultErased :: Erased
+defaultErased = NotErased QωInferred
+
+-- 'Erased' can be converted into 'Quantity'.
+
+asQuantity :: Erased -> Quantity
+asQuantity (Erased    o) = Quantity0 o
+asQuantity (NotErased o) = Quantityω o
+
+-- | Equality ignoring origin.
+
+sameErased :: Erased -> Erased -> Bool
+sameErased = sameQuantity `on` asQuantity
+
+-- | Is the value \"erased\"?
+
+isErased :: Erased -> Bool
+isErased = hasQuantity0 . asQuantity
+
+instance NFData Erased
+
+instance HasRange Erased where
+  getRange = getRange . asQuantity
+
+instance KillRange Erased where
+  killRange = \case
+    Erased o    -> Erased $ killRange o
+    NotErased o -> NotErased $ killRange o
+
+-- | Composition of values of type 'Erased'.
+--
+-- 'Erased' is dominant.
+-- 'NotErased' is neutral.
+--
+-- Right-biased for the origin.
+
+composeErased :: Erased -> Erased -> Erased
+composeErased = curry $ \case
+  (Erased o,    Erased o')    -> Erased (o <> o')
+  (NotErased _, Erased o)     -> Erased o
+  (Erased o,    NotErased _)  -> Erased o
+  (NotErased o, NotErased o') -> NotErased (o <> o')
+
+instance Semigroup (UnderComposition Erased) where
+  (<>) = liftA2 composeErased
+
 ---------------------------------------------------------------------------
 -- * Relevance
 ---------------------------------------------------------------------------

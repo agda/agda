@@ -82,7 +82,7 @@ instance NamesIn Definition where
 
 instance NamesIn Defn where
   namesIn' sg = \case
-    Axiom              -> mempty
+    Axiom _            -> mempty
     DataOrRecSig{}     -> mempty
     GeneralizableVar{} -> mempty
     PrimitiveSort{}    -> mempty

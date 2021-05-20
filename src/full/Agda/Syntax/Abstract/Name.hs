@@ -15,7 +15,7 @@ import Data.Data (Data)
 import Data.Foldable (length)
 import Data.Function
 import Data.Hashable (Hashable(..))
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 import Data.Void
 
@@ -129,8 +129,7 @@ instance IsProjP Void where
 
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool
-isAnonymousModuleName (MName []) = False
-isAnonymousModuleName (MName ms) = isNoName $ last ms
+isAnonymousModuleName (MName mms) = maybe False isNoName $ L.lastMaybe mms
 
 -- | Sets the ranges of the individual names in the module name to
 -- match those of the corresponding concrete names. If the concrete
@@ -222,9 +221,9 @@ qnameToConcrete (QName m x) =       -- Use the canonical name here (#5048)
 
 mnameToConcrete :: ModuleName -> C.QName
 mnameToConcrete (MName []) = __IMPOSSIBLE__ -- C.QName C.noName_  -- should never happen?
-mnameToConcrete (MName xs) = foldr C.Qual (C.QName $ last cs) $ init cs
+mnameToConcrete (MName (x:xs)) = foldr C.Qual (C.QName $ List1.last cs) $ List1.init cs
   where
-    cs = map nameConcrete xs
+    cs = fmap nameConcrete (x :| xs)
 
 -- | Computes the 'TopLevelModuleName' corresponding to the given
 -- module name, which is assumed to represent a top-level module name.
@@ -256,7 +255,7 @@ isOperator = C.isOperator . nameConcrete . qnameName
 
 -- | Is the first module a weak parent of the second?
 isLeParentModuleOf :: ModuleName -> ModuleName -> Bool
-isLeParentModuleOf = isPrefixOf `on` mnameToList
+isLeParentModuleOf = List.isPrefixOf `on` mnameToList
 
 -- | Is the first module a proper parent of the second?
 isLtParentModuleOf :: ModuleName -> ModuleName -> Bool
@@ -272,7 +271,7 @@ isLtChildModuleOf :: ModuleName -> ModuleName -> Bool
 isLtChildModuleOf = flip isLtParentModuleOf
 
 isInModule :: QName -> ModuleName -> Bool
-isInModule q m = mnameToList m `isPrefixOf` qnameToList0 q
+isInModule q m = mnameToList m `List.isPrefixOf` qnameToList0 q
 
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.

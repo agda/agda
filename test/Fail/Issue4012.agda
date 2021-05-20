@@ -17,7 +17,9 @@ abstract
 
   unquoteDecl g = do
     ty ← quoteTC D
-    _  ← declareDef (arg (arg-info visible relevant) g) ty
+    _  ← declareDef
+           (arg (arg-info visible (modality relevant quantity-ω)) g)
+           ty
     qc ← quoteTC c
     defineFun g (clause [] [] qc ∷ [])
 

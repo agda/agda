@@ -1,0 +1,7 @@
+packages: .
+optional-packages: std-lib
+
+source-repository-package
+    type: git
+    location: https://github.com/agda/text-icu.git
+    tag: 1925609610459faa93c151c53dc76cc66e3d627c

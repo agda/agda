@@ -93,6 +93,15 @@ libToTCM m = do
     Left s  -> typeError $ GenericDocError s
     Right x -> return x
 
+getAgdaLibFiles :: FilePath -> TCM [AgdaLibFile]
+getAgdaLibFiles root = do
+  useLibs <- optUseLibs <$> commandLineOptions
+  if | useLibs   -> libToTCM $ mkLibM [] $ getAgdaLibFiles' root
+     | otherwise -> return []
+
+getLibraryOptions :: FilePath -> TCM [OptionsPragma]
+getLibraryOptions root = map _libPragmas <$> getAgdaLibFiles root
+
 setLibraryPaths
   :: AbsolutePath
      -- ^ The base directory of relative paths.

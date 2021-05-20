@@ -1,6 +1,6 @@
 top_command (cmd_load currentFile ["-i.", "-i.."])
 top_command (cmd_load currentFile ["-i.", "-i.."])
--- These should give not in scope errors:
+-- Issue #4647: These should no longer give in scope errors:
 top_command (cmd_infer_toplevel Normalised "unused")
 top_command (cmd_infer_toplevel Normalised "used")
 top_command (cmd_infer_toplevel Normalised "Private.not-in-scope")

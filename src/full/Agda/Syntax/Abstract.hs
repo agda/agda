@@ -97,7 +97,7 @@ data Expr
   | WithApp ExprInfo Expr [Expr]       -- ^ With application.
   | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
   | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
-  | ExtendedLam ExprInfo DefInfo QName (List1 Clause)
+  | ExtendedLam ExprInfo DefInfo Erased QName (List1 Clause)
   | Pi   ExprInfo Telescope1 Expr      -- ^ Dependent function space @Γ → A@.
   | Generalized (Set QName) Expr       -- ^ Like a Pi, but the ordering is not known
   | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
@@ -529,37 +529,38 @@ type HoleContent = C.HoleContent' () BindName Pattern Expr
 --   Does not distinguish between prefix and postfix projections.
 
 instance Eq Expr where
-  ScopedExpr _ a1         == ScopedExpr _ a2         = a1 == a2
+  ScopedExpr _ a1            == ScopedExpr _ a2            = a1 == a2
 
-  Var a1                  == Var a2                  = a1 == a2
-  Def' a1 s1              == Def' a2 s2              = (a1, s1) == (a2, s2)
-  Proj _ a1               == Proj _ a2               = a1 == a2
-  Con a1                  == Con a2                  = a1 == a2
-  PatternSyn a1           == PatternSyn a2           = a1 == a2
-  Macro a1                == Macro a2                = a1 == a2
-  Lit r1 a1               == Lit r2 a2               = (r1, a1) == (r2, a2)
-  QuestionMark a1 b1      == QuestionMark a2 b2      = (a1, b1) == (a2, b2)
-  Underscore a1           == Underscore a2           = a1 == a2
-  Dot r1 e1               == Dot r2 e2               = (r1, e1) == (r2, e2)
-  App a1 b1 c1            == App a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
-  WithApp a1 b1 c1        == WithApp a2 b2 c2        = (a1, b1, c1) == (a2, b2, c2)
-  Lam a1 b1 c1            == Lam a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
-  AbsurdLam a1 b1         == AbsurdLam a2 b2         = (a1, b1) == (a2, b2)
-  ExtendedLam a1 b1 c1 d1 == ExtendedLam a2 b2 c2 d2 = (a1, b1, c1, d1) == (a2, b2, c2, d2)
-  Pi a1 b1 c1             == Pi a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
-  Generalized a1 b1       == Generalized a2 b2       = (a1, b1) == (a2, b2)
-  Fun a1 b1 c1            == Fun a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
-  Let a1 b1 c1            == Let a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
-  ETel a1                 == ETel a2                 = a1 == a2
-  Rec a1 b1               == Rec a2 b2               = (a1, b1) == (a2, b2)
-  RecUpdate a1 b1 c1      == RecUpdate a2 b2 c2      = (a1, b1, c1) == (a2, b2, c2)
-  Quote a1                == Quote a2                = a1 == a2
-  QuoteTerm a1            == QuoteTerm a2            = a1 == a2
-  Unquote a1              == Unquote a2              = a1 == a2
-  Tactic a1 b1 c1         == Tactic a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
-  DontCare a1             == DontCare a2             = a1 == a2
+  Var a1                     == Var a2                     = a1 == a2
+  Def' a1 s1                 == Def' a2 s2                 = (a1, s1) == (a2, s2)
+  Proj _ a1                  == Proj _ a2                  = a1 == a2
+  Con a1                     == Con a2                     = a1 == a2
+  PatternSyn a1              == PatternSyn a2              = a1 == a2
+  Macro a1                   == Macro a2                   = a1 == a2
+  Lit r1 a1                  == Lit r2 a2                  = (r1, a1) == (r2, a2)
+  QuestionMark a1 b1         == QuestionMark a2 b2         = (a1, b1) == (a2, b2)
+  Underscore a1              == Underscore a2              = a1 == a2
+  Dot r1 e1                  == Dot r2 e2                  = (r1, e1) == (r2, e2)
+  App a1 b1 c1               == App a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
+  WithApp a1 b1 c1           == WithApp a2 b2 c2           = (a1, b1, c1) == (a2, b2, c2)
+  Lam a1 b1 c1               == Lam a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
+  AbsurdLam a1 b1            == AbsurdLam a2 b2            = (a1, b1) == (a2, b2)
+  ExtendedLam a1 b1 c1 d1 e1 == ExtendedLam a2 b2 c2 d2 e2 = (a1, b1, c1, d1, e1) ==
+                                                             (a2, b2, c2, d2, e2)
+  Pi a1 b1 c1                == Pi a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
+  Generalized a1 b1          == Generalized a2 b2          = (a1, b1) == (a2, b2)
+  Fun a1 b1 c1               == Fun a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
+  Let a1 b1 c1               == Let a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
+  ETel a1                    == ETel a2                    = a1 == a2
+  Rec a1 b1                  == Rec a2 b2                  = (a1, b1) == (a2, b2)
+  RecUpdate a1 b1 c1         == RecUpdate a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
+  Quote a1                   == Quote a2                   = a1 == a2
+  QuoteTerm a1               == QuoteTerm a2               = a1 == a2
+  Unquote a1                 == Unquote a2                 = a1 == a2
+  Tactic a1 b1 c1            == Tactic a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
+  DontCare a1                == DontCare a2                = a1 == a2
 
-  _                       == _                       = False
+  _                          == _                          = False
 
 -- | Does not compare 'ScopeInfo' fields.
 
@@ -615,34 +616,34 @@ instance HasRange TypedBinding where
     getRange (TLet r _)    = r
 
 instance HasRange Expr where
-    getRange (Var x)               = getRange x
-    getRange (Def' x _)            = getRange x
-    getRange (Proj _ x)            = getRange x
-    getRange (Con x)               = getRange x
-    getRange (Lit i _)             = getRange i
-    getRange (QuestionMark i _)    = getRange i
-    getRange (Underscore  i)       = getRange i
-    getRange (Dot i _)             = getRange i
-    getRange (App i _ _)           = getRange i
-    getRange (WithApp i _ _)       = getRange i
-    getRange (Lam i _ _)           = getRange i
-    getRange (AbsurdLam i _)       = getRange i
-    getRange (ExtendedLam i _ _ _) = getRange i
-    getRange (Pi i _ _)            = getRange i
-    getRange (Generalized _ x)     = getRange x
-    getRange (Fun i _ _)           = getRange i
-    getRange (Let i _ _)           = getRange i
-    getRange (Rec i _)             = getRange i
-    getRange (RecUpdate i _ _)     = getRange i
-    getRange (ETel tel)            = getRange tel
-    getRange (ScopedExpr _ e)      = getRange e
-    getRange (Quote i)             = getRange i
-    getRange (QuoteTerm i)         = getRange i
-    getRange (Unquote i)           = getRange i
-    getRange (Tactic i _ _)        = getRange i
-    getRange (DontCare{})          = noRange
-    getRange (PatternSyn x)        = getRange x
-    getRange (Macro x)             = getRange x
+    getRange (Var x)                 = getRange x
+    getRange (Def' x _)              = getRange x
+    getRange (Proj _ x)              = getRange x
+    getRange (Con x)                 = getRange x
+    getRange (Lit i _)               = getRange i
+    getRange (QuestionMark i _)      = getRange i
+    getRange (Underscore  i)         = getRange i
+    getRange (Dot i _)               = getRange i
+    getRange (App i _ _)             = getRange i
+    getRange (WithApp i _ _)         = getRange i
+    getRange (Lam i _ _)             = getRange i
+    getRange (AbsurdLam i _)         = getRange i
+    getRange (ExtendedLam i _ _ _ _) = getRange i
+    getRange (Pi i _ _)              = getRange i
+    getRange (Generalized _ x)       = getRange x
+    getRange (Fun i _ _)             = getRange i
+    getRange (Let i _ _)             = getRange i
+    getRange (Rec i _)               = getRange i
+    getRange (RecUpdate i _ _)       = getRange i
+    getRange (ETel tel)              = getRange tel
+    getRange (ScopedExpr _ e)        = getRange e
+    getRange (Quote i)               = getRange i
+    getRange (QuoteTerm i)           = getRange i
+    getRange (Unquote i)             = getRange i
+    getRange (Tactic i _ _)          = getRange i
+    getRange (DontCare{})            = noRange
+    getRange (PatternSyn x)          = getRange x
+    getRange (Macro x)               = getRange x
 
 instance HasRange Declaration where
     getRange (Axiom    _ i _ _ _ _  ) = getRange i
@@ -746,34 +747,34 @@ instance KillRange TypedBinding where
   killRange (TLet r lbs)     = killRange2 TLet r lbs
 
 instance KillRange Expr where
-  killRange (Var x)                = killRange1 Var x
-  killRange (Def' x v)             = killRange2 Def' x v
-  killRange (Proj o x)             = killRange1 (Proj o) x
-  killRange (Con x)                = killRange1 Con x
-  killRange (Lit i l)              = killRange2 Lit i l
-  killRange (QuestionMark i ii)    = killRange2 QuestionMark i ii
-  killRange (Underscore  i)        = killRange1 Underscore i
-  killRange (Dot i e)              = killRange2 Dot i e
-  killRange (App i e1 e2)          = killRange3 App i e1 e2
-  killRange (WithApp i e es)       = killRange3 WithApp i e es
-  killRange (Lam i b e)            = killRange3 Lam i b e
-  killRange (AbsurdLam i h)        = killRange2 AbsurdLam i h
-  killRange (ExtendedLam i n d ps) = killRange4 ExtendedLam i n d ps
-  killRange (Pi i a b)             = killRange3 Pi i a b
-  killRange (Generalized s x)      = killRange1 (Generalized s) x
-  killRange (Fun i a b)            = killRange3 Fun i a b
-  killRange (Let i ds e)           = killRange3 Let i ds e
-  killRange (Rec i fs)             = killRange2 Rec i fs
-  killRange (RecUpdate i e fs)     = killRange3 RecUpdate i e fs
-  killRange (ETel tel)             = killRange1 ETel tel
-  killRange (ScopedExpr s e)       = killRange1 (ScopedExpr s) e
-  killRange (Quote i)              = killRange1 Quote i
-  killRange (QuoteTerm i)          = killRange1 QuoteTerm i
-  killRange (Unquote i)            = killRange1 Unquote i
-  killRange (Tactic i e xs)        = killRange3 Tactic i e xs
-  killRange (DontCare e)           = killRange1 DontCare e
-  killRange (PatternSyn x)         = killRange1 PatternSyn x
-  killRange (Macro x)              = killRange1 Macro x
+  killRange (Var x)                  = killRange1 Var x
+  killRange (Def' x v)               = killRange2 Def' x v
+  killRange (Proj o x)               = killRange1 (Proj o) x
+  killRange (Con x)                  = killRange1 Con x
+  killRange (Lit i l)                = killRange2 Lit i l
+  killRange (QuestionMark i ii)      = killRange2 QuestionMark i ii
+  killRange (Underscore  i)          = killRange1 Underscore i
+  killRange (Dot i e)                = killRange2 Dot i e
+  killRange (App i e1 e2)            = killRange3 App i e1 e2
+  killRange (WithApp i e es)         = killRange3 WithApp i e es
+  killRange (Lam i b e)              = killRange3 Lam i b e
+  killRange (AbsurdLam i h)          = killRange2 AbsurdLam i h
+  killRange (ExtendedLam i n e d ps) = killRange5 ExtendedLam i n e d ps
+  killRange (Pi i a b)               = killRange3 Pi i a b
+  killRange (Generalized s x)        = killRange1 (Generalized s) x
+  killRange (Fun i a b)              = killRange3 Fun i a b
+  killRange (Let i ds e)             = killRange3 Let i ds e
+  killRange (Rec i fs)               = killRange2 Rec i fs
+  killRange (RecUpdate i e fs)       = killRange3 RecUpdate i e fs
+  killRange (ETel tel)               = killRange1 ETel tel
+  killRange (ScopedExpr s e)         = killRange1 (ScopedExpr s) e
+  killRange (Quote i)                = killRange1 Quote i
+  killRange (QuoteTerm i)            = killRange1 QuoteTerm i
+  killRange (Unquote i)              = killRange1 Unquote i
+  killRange (Tactic i e xs)          = killRange3 Tactic i e xs
+  killRange (DontCare e)             = killRange1 DontCare e
+  killRange (PatternSyn x)           = killRange1 PatternSyn x
+  killRange (Macro x)                = killRange1 Macro x
 
 instance KillRange Suffix where
   killRange = id

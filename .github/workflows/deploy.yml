@@ -6,39 +6,37 @@ on:
     branches: [master]
     types:
       - completed
+  workflow_dispatch:
+
 defaults:
   run:
     shell: bash
 jobs:
   auto-cancel:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: Ubuntu-latest
     steps:
     - uses: styfle/cancel-workflow-action@0.6.0
       with:
         access_token: ${{ github.token }}
   build:
+    if: ${{ always() }}
     needs: auto-cancel
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-18.04]
-        ghc-ver: [8.10.4]
-        cabal-ver: [3.2]
+        ghc-ver: [9.0.1]
+        cabal-ver: [3.4]
 
     env:
-      ARGS: "--disable-executable-profiling --disable-library-profiling"
+      ARGS: "--disable-executable-profiling --disable-library-profiling --enable-split-sections"
       # Liang-Ting Chen (2021-01-01):
       # Cabal cannot compile statically with text-icu (required by the flag `enable-cluster-counting`),
       # see https://github.com/4e6/text-icu-static-example
-      LINUX_ARGS: "--enable-split-sections --enable-executable-static"
-      # Liang-Ting Chen (2021-01-01):
-      # The option `split-sections` is ignored on macOS, see https://gitlab.haskell.org/ghc/ghc/-/issues/11445 for details.
-      # Andreas, 2021-03-04, issue #5259.
-      # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
-      # MACOS_ARGS: "--flags=enable-cluster-counting"
-      MACOS_ARGS: ""
-      WIN64_ARGS: "--enable-split-sections --flags=enable-cluster-counting"
+      LINUX_ARGS: "--enable-executable-static"
+      MACOS_ARGS: "--flags=enable-cluster-counting"
+      WIN64_ARGS: "--flags=enable-cluster-counting"
     outputs:
       sha: ${{ steps.vars.outputs.sha }}
     runs-on: ${{ matrix.os }}
@@ -91,16 +89,10 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
 
-    - name: Add the path to icu4c to the cabal configuration (macOS)
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        echo "extra-lib-dirs: /usr/local/opt/icu4c/lib">> ~/.cabal/config
-        echo "extra-include-dirs: /usr/local/opt/icu4c/include" >> ~/.cabal/config
-
     - name: Install the icu4c library (Windows)
       if: ${{ runner.os == 'Windows' }}
       env:
-        ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-67-1/icu4c-67_1-Win64-MSVC2017.zip'
+        ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
         ICU_DIR: '/c/icu4c'
         ICU_FILE: 'icu4c.zip'
       run: |
@@ -143,6 +135,9 @@ jobs:
 
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       # TODO: Move this part to Makefile
+      env:
+        ICU_VER: '69'
+        ICU_DIR: '/usr/local/opt/icu4c/lib'
       run: |
         mkdir -p ${{ steps.vars.outputs.nightly }}/bin
         cp -a src/data ${{ steps.vars.outputs.nightly }}
@@ -156,22 +151,20 @@ jobs:
           find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
           strip ${{ steps.vars.outputs.nightly }}/bin/*
           cp -a .github/*.sh ${{ steps.vars.outputs.nightly }}
-          # Andreas, 2021-03-04, issue #5259.
-          # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
-          # if [[ "$OSTYPE" == "darwin"* ]]; then
-          # # Change the path to the dynamic library icu4c to the run-time search path:
-          # #
-          # # 1. the same directory of executable, i.e. @executable_path
-          # # 2. @executable_path/../lib
-          # # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
-          # #
-          #   mkdir ${{ steps.vars.outputs.nightly }}/lib
-          #   cp /usr/local/opt/icu4c/lib/libicuuc.67.dylib /usr/local/opt/icu4c/lib/libicui18n.67.dylib /usr/local/opt/icu4c/lib/libicudata.67.dylib ${{ steps.vars.outputs.nightly }}/lib
-          #   install_name_tool -change /usr/local/opt/icu4c/lib/libicuuc.67.dylib @rpath/libicuuc.67.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
-          #   install_name_tool -change /usr/local/opt/icu4c/lib/libicui18n.67.dylib @rpath/libicui18n.67.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
-          #   install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath /usr/local/opt/icu4c/lib ${{ steps.vars.outputs.nightly }}/bin/agda
-          #   otool -L ${{ steps.vars.outputs.nightly }}/bin/agda
-          # fi
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+          # Change the path to the dynamic library icu4c to the run-time search path:
+          #
+          # 1. the same directory of executable, i.e. @executable_path
+          # 2. @executable_path/../lib
+          # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
+          #
+          mkdir ${{ steps.vars.outputs.nightly }}/lib
+          cp ${ICU_DIR}/libicuuc.${ICU_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_VER}.dylib ${ICU_DIR}/libicudata.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/lib
+          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_VER}.dylib @rpath/libicuuc.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
+          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_VER}.dylib @rpath/libicui18n.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
+          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath ${ICU_DIR} ${{ steps.vars.outputs.nightly }}/bin/agda
+          otool -L ${{ steps.vars.outputs.nightly }}/bin/agda
+          fi
         fi
         file ${{ steps.vars.outputs.nightly }}/bin/agda
     - name: Compress the Agda executable
@@ -197,7 +190,7 @@ jobs:
         if-no-files-found: error
         retention-days: 3
   deploy: # release a nightly build if triggered on master }}
-    if: ${{ github.ref == 'refs/heads/master' }}
+    if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run' }}
     needs: build
     runs-on: ubuntu-latest
     steps:

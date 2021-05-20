@@ -56,10 +56,6 @@ data CommandState = CommandState
     --
     -- This queue should only be manipulated by
     -- 'initialiseCommandQueue' and 'maybeAbort'.
-  , interactionMode      :: !InteractionMode
-    -- ^ For top-level commands, we switch into a mode
-    --   where the interface contains also the private definitions.
-    --   See issues #4647 and #1804.
   }
 
 type OldInteractionScopes = Map InteractionId ScopeInfo
@@ -74,7 +70,6 @@ initCommandState commandQueue =
     , optionsOnReload      = defaultOptions
     , oldInteractionScopes = Map.empty
     , commandQueue         = commandQueue
-    , interactionMode      = RegularInteraction
     }
 
 -- | Monad for computing answers to interactive commands.
@@ -92,27 +87,6 @@ data CurrentFile = CurrentFile
   , currentFileStamp :: ClockTime
       -- ^ The modification time stamp of the file when it was loaded.
   } deriving (Show)
-
-------------------------------------------------------------------------
--- Interaction modes (issue #4647)
-
--- | When a command is invoked at top-level, we wish to be the scope
---   of the top-level module but also have access to the private
---   declaration that are removed during serialization.
---
---   Thus, top-level commands switch to mode 'TopLevelInteraction'
---   which initially reloads the current module to restore the
---   private declarations into the scope.
---
---   Switching to a new file will fall back to 'RegularInteraction'.
-
-data InteractionMode
-  = RegularInteraction
-      -- ^ Initial mode. Use deserialized interface.
-  | TopLevelInteraction
-      -- ^ Mode for top-level commands.  Use original interface
-      --   that also contains the private declarations.
-  deriving (Show, Eq)
 
 ------------------------------------------------------------------------
 -- Command queues

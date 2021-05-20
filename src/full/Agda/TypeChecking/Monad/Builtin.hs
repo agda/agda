@@ -194,6 +194,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
+    primQuantity, primQuantity0, primQuantityω,
+    primModality, primModalityConstructor,
     primAssoc, primAssocLeft, primAssocRight, primAssocNon,
     primPrecedence, primPrecRelated, primPrecUnrelated,
     primFixity, primFixityFixity,
@@ -322,6 +324,11 @@ primVisible                           = getBuiltin builtinVisible
 primRelevance                         = getBuiltin builtinRelevance
 primRelevant                          = getBuiltin builtinRelevant
 primIrrelevant                        = getBuiltin builtinIrrelevant
+primQuantity                          = getBuiltin builtinQuantity
+primQuantity0                         = getBuiltin builtinQuantity0
+primQuantityω                         = getBuiltin builtinQuantityω
+primModality                          = getBuiltin builtinModality
+primModalityConstructor               = getBuiltin builtinModalityConstructor
 primAssoc                             = getBuiltin builtinAssoc
 primAssocLeft                         = getBuiltin builtinAssocLeft
 primAssocRight                        = getBuiltin builtinAssocRight

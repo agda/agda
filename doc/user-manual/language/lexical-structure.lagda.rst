@@ -214,7 +214,19 @@ layout keywords:
 
 .. code-block:: none
 
-   abstract do field instance let macro mutual postulate primitive private where
+   abstract
+   constructor
+   do
+   field
+   instance
+   let
+   macro
+   mutual
+   postulate
+   primitive
+   private
+   variable
+   where
 
 The first token after the layout keyword decides the indentation of the block.
 Any token indented more than this is part of the previous statement, a token at
@@ -233,6 +245,16 @@ the block.
   one = suc zero
 
 Note that the indentation of the layout keyword does not matter.
+
+If several layout blocks are started by layout keywords without line
+break in between (where line breaks inside block comments do not
+count), then those blocks indented *more* than the last block go
+passive, meaning they cannot be further extended by new statements::
+
+  private module M where postulate
+            A : Set                 -- module-block goes passive
+            B : Set                 -- postulate-block can still be extended
+          module N where            -- private-block can still be extended
 
 An Agda file contains one top-level layout block, with the special rule that
 the contents of the top-level module need not be indented.

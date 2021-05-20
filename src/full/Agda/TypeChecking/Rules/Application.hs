@@ -59,7 +59,7 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List  ( (!!!), groupOn )
+import Agda.Utils.List  ( (!!!), groupOn, initWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -158,6 +158,7 @@ checkApplication cmp hd args e t =
       tTerm <- primAgdaTerm
       tName <- primQName
 
+      -- Andreas, 2021-05-13, can we use @initWithDefault __IMPOSSIBLE__@ here?
       let argTel   = init $ telToList tel -- last argument is the hole term
 
           -- inspect macro type to figure out if arguments need to be wrapped in quote/quoteTerm
@@ -173,9 +174,9 @@ checkApplication cmp hd args e t =
           makeArgs :: [Dom (String, Type)] -> [NamedArg A.Expr] -> ([NamedArg A.Expr], [NamedArg A.Expr])
           makeArgs [] args = ([], args)
           makeArgs _  []   = ([], [])
-          makeArgs tel@(d : _) (arg : args) =
+          makeArgs tel@(d : tel1) (arg : args) =
             case insertImplicit arg tel of
-              NoInsertNeeded -> first (mkArg (snd $ unDom d) arg :) $ makeArgs (tail tel) args
+              NoInsertNeeded -> first (mkArg (snd $ unDom d) arg :) $ makeArgs tel1 args
               ImpInsert is   -> makeArgs (drop (length is) tel) (arg : args)
               BadImplicits   -> (arg : args, [])  -- fail later in checkHeadApplication
               NoSuchName{}   -> (arg : args, [])  -- ditto
@@ -1484,7 +1485,7 @@ checkConId c rs vs t1 = do
           pathAbs iv (NoAbs (stringToArgName "_") (unArg x))
       p <- blockArg ty (rs !!! 5) p $ do
         equalTermOnFace (unArg phi) ty (unArg p) const_x   -- G, phi |- p = \ i . x
-      return $ init args ++ [p]
+      return $ initWithDefault __IMPOSSIBLE__ args ++ [p]
       -- phi <- reduce phi
       -- forallFaceMaps (unArg phi) $ \ alpha -> do
       --   iv@(PathType s _ l a x y) <- idViewAsPath (applySubst alpha t1)

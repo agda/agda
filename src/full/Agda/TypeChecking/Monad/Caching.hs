@@ -16,9 +16,6 @@ module Agda.TypeChecking.Monad.Caching
   , restorePostScopeState
   ) where
 
-
-import qualified Data.Map as Map
-
 import Agda.Syntax.Common
 
 import Agda.Interaction.Options
@@ -26,6 +23,7 @@ import Agda.Interaction.Options
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
@@ -72,7 +70,7 @@ restorePostScopeState pss = do
                   }
     in  s{stPostScopeState = pss'}
   where
-    mergeIPMap lm sm = Map.mapWithKey (\k v -> maybe v (`mergeIP` v) (Map.lookup k lm)) sm
+    mergeIPMap lm sm = BiMap.mapWithKey (\k v -> maybe v (`mergeIP` v) (BiMap.lookup k lm)) sm
     -- see #1338 on why we need to use the new ranges.
     mergeIP li si = li { ipRange = ipRange si }
 

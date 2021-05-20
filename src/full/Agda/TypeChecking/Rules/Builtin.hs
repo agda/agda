@@ -246,6 +246,13 @@ coreBuiltins =
   , (builtinRelevance                        |-> BuiltinData tset [builtinRelevant, builtinIrrelevant])
   , (builtinRelevant                         |-> BuiltinDataCons trelevance)
   , (builtinIrrelevant                       |-> BuiltinDataCons trelevance)
+    -- Quantity
+  , (builtinQuantity                         |-> BuiltinData tset [builtinQuantity0, builtinQuantityω])
+  , (builtinQuantity0                        |-> BuiltinDataCons tquantity)
+  , (builtinQuantityω                        |-> BuiltinDataCons tquantity)
+    -- Modality
+  , (builtinModality                         |-> BuiltinData tset [builtinModalityConstructor])
+  , (builtinModalityConstructor              |-> BuiltinDataCons (trelevance --> tquantity --> tmodality))
     -- Associativity
   , builtinAssoc                             |-> BuiltinData tset [builtinAssocLeft, builtinAssocRight, builtinAssocNon]
   , builtinAssocLeft                         |-> BuiltinDataCons tassoc
@@ -274,7 +281,7 @@ coreBuiltins =
   , (builtinFalse                            |-> BuiltinDataCons tbool)
   , (builtinArgArg                           |-> BuiltinDataCons (hPi "A" tset (targinfo --> tv0 --> targ tv0)))
   , (builtinAbsAbs                           |-> BuiltinDataCons (hPi "A" tset (tstring  --> tv0 --> tabs tv0)))
-  , (builtinArgArgInfo                       |-> BuiltinDataCons (thiding --> trelevance --> targinfo))
+  , (builtinArgArgInfo                       |-> BuiltinDataCons (thiding --> tmodality --> targinfo))
   , (builtinAgdaTermVar                      |-> BuiltinDataCons (tnat --> targs --> tterm))
   , (builtinAgdaTermLam                      |-> BuiltinDataCons (thiding --> tabs tterm --> tterm))
   , (builtinAgdaTermExtLam                   |-> BuiltinDataCons (tlist tclause --> targs --> tterm))
@@ -428,6 +435,8 @@ coreBuiltins =
         tbool      = el primBool
         thiding    = el primHiding
         trelevance = el primRelevance
+        tquantity  = el primQuantity
+        tmodality  = el primModality
         tassoc     = el primAssoc
         tprec      = el primPrecedence
         tfixity    = el primFixity
@@ -818,11 +827,11 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
               Axiom {} -> do
                 builtinSizeHook s q t'
                 -- And compilation pragmas for base types
-                when (s == builtinLevel)  $ addHaskellPragma q "= type ()"
-                when (s == builtinChar)   $ addHaskellPragma q "= type Char"
-                when (s == builtinString) $ addHaskellPragma q "= type Data.Text.Text"
-                when (s == builtinFloat)  $ addHaskellPragma q "= type Double"
-                when (s == builtinWord64) $ addHaskellPragma q "= type MAlonzo.RTE.Word64"
+                when (s == builtinLevel)  $ setConstTranspAxiom q >> addHaskellPragma q "= type ()"
+                when (s == builtinChar)   $ setConstTranspAxiom q >> addHaskellPragma q "= type Char"
+                when (s == builtinString) $ setConstTranspAxiom q >> addHaskellPragma q "= type Data.Text.Text"
+                when (s == builtinFloat)  $ setConstTranspAxiom q >> addHaskellPragma q "= type Double"
+                when (s == builtinWord64) $ setConstTranspAxiom q >> addHaskellPragma q "= type MAlonzo.RTE.Word64"
                 when (s == builtinPathP)  $ builtinPathPHook q
                 bindBuiltinName s v
               _        -> err
@@ -834,6 +843,10 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           (,t) <$> checkExpr e t
         f v t
         bindBuiltinName s v
+
+setConstTranspAxiom :: QName -> TCM ()
+setConstTranspAxiom q =
+  modifySignature $ updateDefinition q $ updateTheDef (const $ constTranspAxiom)
 
 builtinPathPHook :: QName -> TCM ()
 builtinPathPHook q =
@@ -929,7 +942,7 @@ bindBuiltinNoDef b q = inTopContext $ do
                 , funMutual    = Just []
                 , funTerminates = Just True
                 }
-            | otherwise = Axiom
+            | otherwise = defaultAxiom
 
     Just (BuiltinPrim name axioms) -> do
       PrimImpl t pf <- lookupPrimitiveFunction name

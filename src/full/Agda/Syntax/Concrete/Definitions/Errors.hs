@@ -15,6 +15,7 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.CallStack ( CallStack )
 import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
 
@@ -102,7 +103,7 @@ data DeclarationWarning'
   --   by @{-\# TERMINATING \#-}@ and @{-\# NON_TERMINATING \#-}@.
   | PragmaCompiled Range
   -- ^ @COMPILE@ pragmas are not allowed in safe mode
-  | ShadowingInTelescope [(Name, [Range])]
+  | ShadowingInTelescope (List1 (Name, List2 Range))
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
   | UnknownNamesInPolarityPragmas [Name]
@@ -357,7 +358,7 @@ instance Pretty DeclarationWarning' where
     pwords "public does not have any effect in a private block."
   pretty (ShadowingInTelescope nrs) = fsep $
     pwords "Shadowing in telescope, repeated variable names:"
-    ++ punctuate comma (map (pretty . fst) nrs)
+    ++ punctuate comma (fmap (pretty . fst) nrs)
 
 instance NFData DeclarationWarning
 instance NFData DeclarationWarning'

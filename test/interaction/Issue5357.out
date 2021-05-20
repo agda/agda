@@ -1,0 +1,12 @@
+== Good run
+== Should check Top -> B -> D -> C
+Checking Issue5357 (Issue5357.agda).
+Checking Imports.Issue5357-B (Imports/Issue5357-B.agda).
+Checking Imports.Issue5357-D (Imports/Issue5357-D.agda).
+Checking Imports.Issue5357-C (Imports/Issue5357-C.agda).
+== Failing run
+== Should check D -> error
+Checking Imports.Issue5357-D (Imports/Issue5357-D.agda).
+Imports/Issue5357-D.agda:3,5-9
+Set₂ != Set₁
+when checking that the expression Set₁ has type Set₁

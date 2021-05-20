@@ -1,5 +1,5 @@
 SafeFlagPragmas.agda:1,1-7,43
 Cannot set OPTIONS pragmas --allow-unsolved-metas
 --no-positivity-check --no-termination-check --type-in-type
---injective-type-constructors --experimental-irrelevance
-with safe flag.
+--sized-types --injective-type-constructors
+--experimental-irrelevance with safe flag.

@@ -256,9 +256,13 @@ instance HasOptions AbsToCon where
   commandLineOptions = AbsToCon commandLineOptions
 
 instance MonadDebug AbsToCon where
-  displayDebugMessage k n s = AbsToCon $ displayDebugMessage k n s
-  formatDebugMessage k n s = AbsToCon $ formatDebugMessage k n s
-  verboseBracket k n s m = AbsToCon $ verboseBracket k n s $ unAbsToCon m
+  formatDebugMessage k n s      = AbsToCon $ formatDebugMessage k n s
+  traceDebugMessage  k n s cont = AbsToCon $ traceDebugMessage  k n s $ unAbsToCon cont  -- can't eta-reduce!
+  verboseBracket     k n s cont = AbsToCon $ verboseBracket     k n s $ unAbsToCon cont  -- because of GHC-9.0
+
+  getVerbosity     = defaultGetVerbosity
+  isDebugPrinting  = defaultIsDebugPrinting
+  nowDebugPrinting = defaultNowDebugPrinting
 
 runAbsToCon :: MonadAbsToCon m => AbsToCon c -> m c
 runAbsToCon m = do
@@ -792,7 +796,7 @@ instance ToConcrete A.Expr where
                   (bs@(A.DomainFull _ : _), e) -> (b:bs, e)
                   _                            -> ([b], e)
           lamView e = ([], e)
-    toConcrete (A.ExtendedLam i di qname cs) =
+    toConcrete (A.ExtendedLam i di erased qname cs) =
         bracket lamBrackets $ do
           decls <- concat <$> toConcrete cs
           let namedPat np = case getHiding np of
@@ -821,7 +825,8 @@ instance ToConcrete A.Expr where
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
                 return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
-          C.ExtendedLam (getRange i) . List1.fromList <$> mapM decl2clause decls
+          C.ExtendedLam (getRange i) erased . List1.fromList <$>
+            mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 
     toConcrete (A.Pi _ tel1 e0) = do

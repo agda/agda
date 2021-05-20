@@ -3,5 +3,5 @@ interleaved mutual
   data Foo : Set → Set
   data Foo_Bar : Set
 
-  constructor
+  data _ where
     foobar : Foo Bar

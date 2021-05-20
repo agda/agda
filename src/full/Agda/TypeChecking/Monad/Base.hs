@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE UndecidableInstances #-}  -- ghc >= 8.2, GeneralizedNewtypeDeriving MonadTransControl BlockT
 
 module Agda.TypeChecking.Monad.Base
   ( module Agda.TypeChecking.Monad.Base
@@ -22,6 +23,8 @@ import Control.Monad.Trans          ( MonadTrans(..), lift )
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
+
+import Control.Parallel             ( pseq )
 
 import Data.Array (Ix)
 import Data.Function
@@ -84,10 +87,12 @@ import Agda.Interaction.Options.Warnings
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback)
 import Agda.Interaction.Highlighting.Precise
-  (CompressedFile, HighlightingInfo, NameKind)
+  (HighlightingInfo, NameKind)
 import Agda.Interaction.Library
 
 import Agda.Utils.Benchmark (MonadBench(..))
+import Agda.Utils.BiMap (BiMap, HasTag(..))
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
@@ -156,9 +161,10 @@ instance Show TCState where
   show _ = "TCSt{}"
 
 data PreScopeState = PreScopeState
-  { stPreTokens             :: !CompressedFile -- from lexer
-    -- ^ Highlighting info for tokens (but not those tokens for
-    -- which highlighting exists in 'stSyntaxInfo').
+  { stPreTokens             :: !HighlightingInfo
+    -- ^ Highlighting info for tokens and Happy parser warnings (but
+    -- not for those tokens/warnings for which highlighting exists in
+    -- 'stPostSyntaxInfo').
   , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
     --   Those most not be serialized!
@@ -209,7 +215,7 @@ type DisambiguatedNames = IntMap DisambiguatedName
 type ConcreteNames = Map Name [C.Name]
 
 data PostScopeState = PostScopeState
-  { stPostSyntaxInfo          :: !CompressedFile
+  { stPostSyntaxInfo          :: !HighlightingInfo
     -- ^ Highlighting info.
   , stPostDisambiguatedNames  :: !DisambiguatedNames
     -- ^ Disambiguation carried out by the type checker.
@@ -384,7 +390,7 @@ initPostScopeState = PostScopeState
   { stPostSyntaxInfo           = mempty
   , stPostDisambiguatedNames   = IntMap.empty
   , stPostMetaStore            = IntMap.empty
-  , stPostInteractionPoints    = Map.empty
+  , stPostInteractionPoints    = empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
@@ -424,7 +430,7 @@ initState = TCSt
 -- * st-prefixed lenses
 ------------------------------------------------------------------------
 
-stTokens :: Lens' CompressedFile TCState
+stTokens :: Lens' HighlightingInfo TCState
 stTokens f s =
   f (stPreTokens (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreTokens = x}}
@@ -551,7 +557,7 @@ stFreshNameId f s =
   f (stPostFreshNameId (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostFreshNameId = x}}
 
-stSyntaxInfo :: Lens' CompressedFile TCState
+stSyntaxInfo :: Lens' HighlightingInfo TCState
 stSyntaxInfo f s =
   f (stPostSyntaxInfo (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSyntaxInfo = x}}
@@ -887,7 +893,6 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
 data ModuleCheckMode
   = ModuleScopeChecked
   | ModuleTypeChecked
-  | ModuleTypeCheckedRetainingPrivates
   deriving (Eq, Ord, Bounded, Enum, Show, Generic)
 
 
@@ -950,7 +955,9 @@ data Interface = Interface
   , iBuiltin         :: BuiltinThings (String, QName)
   , iForeignCode     :: Map BackendName [ForeignCode]
   , iHighlighting    :: HighlightingInfo
-  , iPragmaOptions   :: [OptionsPragma]
+  , iDefaultPragmaOptions :: [OptionsPragma]
+    -- ^ Pragma options set in library files.
+  , iFilePragmaOptions    :: [OptionsPragma]
     -- ^ Pragma options set in the file.
   , iOptionsUsed     :: PragmaOptions
     -- ^ Options/features used when checking the file (can be different
@@ -964,7 +971,8 @@ data Interface = Interface
 instance Pretty Interface where
   pretty (Interface
             sourceH source fileT importedM moduleN scope insideS signature
-            display userwarn importwarn builtin foreignCode highlighting pragmaO
+            display userwarn importwarn builtin foreignCode highlighting
+            libPragmaO filePragmaO
             oUsed patternS warnings partialdefs) =
 
     hang "Interface" 2 $ vcat
@@ -982,7 +990,8 @@ instance Pretty Interface where
       , "builtin:"             <+> (pretty . show) builtin
       , "Foreign code:"        <+> (pretty . show) foreignCode
       , "highlighting:"        <+> (pretty . show) highlighting
-      , "pragma options:"      <+> (pretty . show) pragmaO
+      , "library pragma options:" <+> (pretty . show) libPragmaO
+      , "file pragma options:" <+> (pretty . show) filePragmaO
       , "options used:"        <+> (pretty . show) oUsed
       , "pattern syns:"        <+> (pretty . show) patternS
       , "warnings:"            <+> (pretty . show) warnings
@@ -1240,7 +1249,12 @@ instance Pretty a => Pretty (Judgement a) where
 -- ** Generalizable variables
 -----------------------------------------------------------------------------
 
-data DoGeneralize = YesGeneralize | NoGeneralize
+data DoGeneralize
+  = YesGeneralizeVar  -- ^ Generalize because it is a generalizable variable.
+  | YesGeneralizeMeta -- ^ Generalize because it is a metavariable and
+                      --   we're currently checking the type of a generalizable variable
+                      --   (this should get the default modality).
+  | NoGeneralize      -- ^ Don't generalize.
   deriving (Eq, Ord, Show, Data, Generic)
 
 -- | The value of a generalizable variable. This is created to be a
@@ -1479,12 +1493,15 @@ data InteractionPoint = InteractionPoint
 
 instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 
+instance HasTag InteractionPoint where
+  type Tag InteractionPoint = MetaId
+  tag = ipMeta
+
 -- | Data structure managing the interaction points.
 --
 --   We never remove interaction points from this map, only set their
 --   'ipSolved' to @True@.  (Issue #2368)
-type InteractionPoints = Map InteractionId InteractionPoint
-
+type InteractionPoints = BiMap InteractionId InteractionPoint
 
 -- | Flag to indicate whether the meta is overapplied in the
 --   constraint.  A meta is overapplied if it has more arguments than
@@ -1927,9 +1944,9 @@ projDropPars (Projection Just{} d _ _ lams) o =
       let core = Lam i $ Abs y $ Var 0 [Proj o d] in
       List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) core pars
 -- Projection-like functions:
-projDropPars (Projection Nothing _ _ _ lams) o | null lams = __IMPOSSIBLE__
 projDropPars (Projection Nothing d _ _ lams) o =
-  List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def d []) $ init $ getProjLams lams
+  List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def d []) $
+    initWithDefault __IMPOSSIBLE__ $ getProjLams lams
 
 -- | The info of the principal (record) argument.
 projArgInfo :: Projection -> ArgInfo
@@ -1968,7 +1985,17 @@ data CompKit = CompKit
 emptyCompKit :: CompKit
 emptyCompKit = CompKit Nothing Nothing
 
+defaultAxiom :: Defn
+defaultAxiom = Axiom False
+
+constTranspAxiom :: Defn
+constTranspAxiom = Axiom True
+
 data Defn = Axiom -- ^ Postulate
+            { axiomConstTransp :: Bool
+              -- ^ Can transp for this postulate be constant?
+              --   Set to @True@ for bultins like String.
+            }
           | DataOrRecSig
             { datarecPars :: Int }
             -- ^ Data or record type signature that doesn't yet have a definition
@@ -2124,7 +2151,7 @@ instance Pretty Definition where
       , "theDef            =" <?> pretty theDef ] <+> "}"
 
 instance Pretty Defn where
-  pretty Axiom = "Axiom"
+  pretty Axiom{} = "Axiom"
   pretty (DataOrRecSig n)   = "DataOrRecSig" <+> pretty n
   pretty GeneralizableVar{} = "GeneralizableVar"
   pretty (AbstractDefn def) = "AbstractDefn" <?> parens (pretty def)
@@ -2706,8 +2733,9 @@ data HighlightingMethod
     deriving (Eq, Show, Read, Data, Generic)
 
 -- | @ifTopLevelAndHighlightingLevelIs l b m@ runs @m@ when we're
--- type-checking the top-level module and either the highlighting
--- level is /at least/ @l@ or @b@ is 'True'.
+-- type-checking the top-level module (or before we've started doing
+-- this) and either the highlighting level is /at least/ @l@ or @b@ is
+-- 'True'.
 
 ifTopLevelAndHighlightingLevelIsOr ::
   MonadTCEnv tcm => HighlightingLevel -> Bool -> tcm () -> tcm ()
@@ -2715,16 +2743,14 @@ ifTopLevelAndHighlightingLevelIsOr l b m = do
   e <- askTC
   when (envHighlightingLevel e >= l || b) $
     case (envImportPath e) of
-      -- No current module
-      [] -> pure ()
-      -- Top level ("main") module
-      (_:[]) -> m
-      -- Below the main module
+      -- Below the main module.
       (_:_:_) -> pure ()
+      -- In or before the top-level module.
+      _ -> m
 
 -- | @ifTopLevelAndHighlightingLevelIs l m@ runs @m@ when we're
--- type-checking the top-level module and the highlighting level is
--- /at least/ @l@.
+-- type-checking the top-level module (or before we've started doing
+-- this) and the highlighting level is /at least/ @l@.
 
 ifTopLevelAndHighlightingLevelIs ::
   MonadTCEnv tcm => HighlightingLevel -> tcm () -> tcm ()
@@ -3822,9 +3848,48 @@ fmapReduce :: (a -> b) -> ReduceM a -> ReduceM b
 fmapReduce f (ReduceM m) = ReduceM $ \ e -> f $! m e
 {-# INLINE fmapReduce #-}
 
+-- Andreas, 2021-05-12, issue #5379:
+-- It seems more stable to force to evaluate @mf <*> ma@
+-- from left to right, for the sake of printing
+-- debug messages in order.
 apReduce :: ReduceM (a -> b) -> ReduceM a -> ReduceM b
-apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e -> f e $! x e
+apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e ->
+  let g = f e
+      a = x e
+  in  g `pseq` a `pseq` g a
 {-# INLINE apReduce #-}
+
+-- Andreas, 2021-05-12, issue #5379
+-- Since the MonadDebug instance of ReduceM is implemented via
+-- unsafePerformIO, we need to force results that later
+-- computations do not depend on, otherwise we lose debug messages.
+thenReduce :: ReduceM a -> ReduceM b -> ReduceM b
+thenReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e -> x e `pseq` y e
+{-# INLINE thenReduce #-}
+
+-- Andreas, 2021-05-14:
+-- `seq` does not force evaluation order, the optimizier is allowed to replace
+-- @
+--    a `seq` b`
+-- @
+-- by:
+-- @
+--    b `seq` a `seq` b
+-- @
+-- see https://hackage.haskell.org/package/parallel/docs/Control-Parallel.html
+--
+-- In contrast, `pseq` is only strict in its first argument, so such a permutation
+-- is forbidden.
+-- If we want to ensure that debug messages are printed before exceptions are
+-- propagated, we need to use `pseq`, as in:
+-- @
+--    unsafePerformIO (putStrLn "Black hawk is going down...") `pseq` throw HitByRPG
+-- @
+beforeReduce :: ReduceM a -> ReduceM b -> ReduceM a
+beforeReduce (ReduceM x) (ReduceM y) = ReduceM $ \ e ->
+  let a = x e
+  in  a `pseq` y e `pseq` a
+{-# INLINE beforeReduce #-}
 
 bindReduce :: ReduceM a -> (a -> ReduceM b) -> ReduceM b
 bindReduce (ReduceM m) f = ReduceM $ \ e -> unReduceM (f $! m e) e
@@ -3836,6 +3901,8 @@ instance Functor ReduceM where
 instance Applicative ReduceM where
   pure x = ReduceM (const x)
   (<*>) = apReduce
+  (*>)  = thenReduce
+  (<*)  = beforeReduce
 
 instance Monad ReduceM where
   return = pure
@@ -3853,10 +3920,16 @@ instance ReadTCState ReduceM where
   locallyTCState l f = onReduceEnv $ mapRedSt $ over l f
 
 runReduceM :: ReduceM a -> TCM a
-runReduceM m = do
-  e <- askTC
-  s <- getTC
-  return $! unReduceM m (ReduceEnv e s)
+runReduceM m = TCM $ \ r e -> do
+  s <- readIORef r
+  E.evaluate $ unReduceM m $ ReduceEnv e s
+  -- Andreas, 2021-05-13, issue #5379
+  -- This was the following, which is apparently not strict enough
+  -- to force all unsafePerformIOs...
+  -- runReduceM m = do
+  --   e <- askTC
+  --   s <- getTC
+  --   return $! unReduceM m (ReduceEnv e s)
 
 runReduceF :: (a -> ReduceM b) -> TCM (a -> b)
 runReduceF f = do
@@ -4051,7 +4124,8 @@ class Monad m => MonadBlock m where
   catchPatternErr :: (Blocker -> m a) -> m a -> m a
 
 newtype BlockT m a = BlockT { unBlockT :: ExceptT Blocker m a }
-  deriving ( Functor, Applicative, Monad, MonadTrans, MonadIO, Fail.MonadFail
+  deriving ( Functor, Applicative, Monad, MonadTrans -- , MonadTransControl -- requires GHC >= 8.2
+           , MonadIO, Fail.MonadFail
            , ReadTCState, HasOptions
            , MonadTCEnv, MonadTCState, MonadTCM
            )
@@ -4480,7 +4554,7 @@ instance KillRange CompKit where
 instance KillRange Defn where
   killRange def =
     case def of
-      Axiom -> Axiom
+      Axiom a -> Axiom a
       DataOrRecSig n -> DataOrRecSig n
       GeneralizableVar -> GeneralizableVar
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
@@ -4594,6 +4668,7 @@ instance NFData TypeCheckingProblem
 instance NFData RunMetaOccursCheck
 instance NFData MetaInfo
 instance NFData InteractionPoint
+instance NFData InteractionPoints
 instance NFData Overapplied
 instance NFData t => NFData (IPBoundary' t)
 instance NFData IPClause

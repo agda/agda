@@ -21,6 +21,7 @@ import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
+import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 
 data Compiled = Compiled
@@ -194,7 +195,9 @@ tIfThenElse :: TTerm -> TTerm -> TTerm -> TTerm
 tIfThenElse c i e = TApp (TPrim PIf) [c, i, e]
 
 data CaseType
-  = CTData QName -- case on datatype
+  = CTData Quantity QName
+    -- Case on datatype. The 'Quantity' is zero for matches on erased
+    -- arguments.
   | CTNat
   | CTInt
   | CTChar

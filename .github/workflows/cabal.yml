@@ -2,6 +2,10 @@ name: Build (cabal)
 
 on:
   push:
+    branches:
+    - master
+    - issue*
+    - release*
     paths:
     - '.github/workflows/cabal.yml'
     - 'Agda.cabal'
@@ -50,7 +54,7 @@ jobs:
         cabal-ver: [3.4]
     env:
       FLAGS: "-f enable-cluster-counting"
-      ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-67-1/icu4c-67_1-Win64-MSVC2017.zip'
+      ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
     steps:
     - uses: actions/checkout@v2
       with:
@@ -73,12 +77,6 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install libicu-dev -qq
 
-    - name: Add the path to icu4c to the cabal configuration
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        echo "extra-lib-dirs: /usr/local/opt/icu4c/lib"         >> ~/.cabal/config
-        echo "extra-include-dirs: /usr/local/opt/icu4c/include" >> ~/.cabal/config
-
     - name: Download the icu4c library from unicode-org (Windows)
       if: ${{ runner.os == 'Windows' }}
       env:
@@ -100,19 +98,14 @@ jobs:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
-        key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ runner.os }}-cabal-01-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
-      # Andreas, 2021-03-04, issue #5259.
-      # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
-      if: ${{ runner.os != 'macOS' && !steps.cache.outputs.cache-hit }}
+      if: ${{ !steps.cache.outputs.cache-hit }}
       run: |
         cabal build --only-dependencies
 
     - name: Build Agda
-      # Andreas, 2021-03-04, issue #5259.
-      # Disable -fenable-cluster-counting build on macOS because of text-icu issues.
-      if: ${{ runner.os != 'macOS' }}
       run: |
         cabal build
 

@@ -539,7 +539,7 @@ checkGeneralize s i info x e = do
 
     -- Check the signature and collect the created metas.
     (telNames, tGen) <-
-      generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralize) $
+      generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralizeMeta) $
         workOnTypes $ isType_ e
     let n = length telNames
 
@@ -645,7 +645,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
           MacroName -> set funMacro True emptyFunction{ funAbstr = Info.defAbstract i }
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
-          AxiomName -> Axiom     -- Old comment: NB: used also for data and record type sigs
+          AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
 
   addConstant x =<< do

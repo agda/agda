@@ -26,10 +26,9 @@ Documentation
 Getting Started
 ----------------
 
-* [Prerequisites](http://agda.readthedocs.io/en/latest/getting-started/prerequisites.html)
-* [Installation](http://agda.readthedocs.io/en/latest/getting-started/installation.html)
+* [Installation](https://agda.readthedocs.io/en/latest/getting-started/installation.html)
 * [Quick guide to editing, type checking and compiling Agda
-  code](http://agda.readthedocs.io/en/latest/getting-started/quick-guide.html)
+  code](https://agda.readthedocs.io/en/latest/getting-started/a-taste-of-agda.html)
 
 Contributing to Agda
 --------------------

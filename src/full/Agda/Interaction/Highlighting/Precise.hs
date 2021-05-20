@@ -1,41 +1,30 @@
-{-# LANGUAGE CPP                        #-}
 -- | Types used for precise syntax highlighting.
 
 module Agda.Interaction.Highlighting.Precise
-  ( -- * Files
+  ( -- * Highlighting information
     Aspect(..)
   , NameKind(..)
   , OtherAspect(..)
   , Aspects(..)
   , DefinitionSite(..)
   , TokenBased(..)
-  , File(..)
+  , RangePair(..)
+  , rangePairInvariant
+  , PositionMap(..)
+  , DelayedMerge(..)
+  , delayedMergeInvariant
   , HighlightingInfo
-    -- ** Creation
+  , highlightingInfoInvariant
+  , HighlightingInfoBuilder
+  , highlightingInfoBuilderInvariant
+    -- ** Operations
   , parserBased
-  , singleton
-  , several
   , kindOfNameToNameKind
-    -- ** Merging
-  , merge
-    -- ** Inspection
-  , smallestPos
-  , toMap
-    -- * Compressed files
-  , CompressedFile(..)
-  , compressedFileInvariant
-  , compress
-  , decompress
-  , noHighlightingInRange
-    -- ** Creation
-  , singletonC
-  , severalC
-  , splitAtC
-  , selectC
-    -- ** Inspection
-  , smallestPosC
-    -- ** Merge
-  , mergeC
+  , IsBasicRangeMap(..)
+  , RangeMap.several
+  , Convert(..)
+  , RangeMap.insideAndOutside
+  , RangeMap.restrictTo
   ) where
 
 import Prelude hiding (null)
@@ -47,12 +36,13 @@ import Control.Monad
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-#if __GLASGOW_HASKELL__ < 804
 import Data.Semigroup
-#endif
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -67,14 +57,17 @@ import Agda.Syntax.Scope.Base                   ( KindOfName(..) )
 import Agda.Interaction.Highlighting.Range
 
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
+import Agda.Utils.RangeMap (RangeMap, IsBasicRangeMap(..))
+import qualified Agda.Utils.RangeMap as RangeMap
 import Agda.Utils.String
 
 import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
--- Files
+-- Highlighting information
 
 -- | Syntactic aspects of the code. (These cannot overlap.)
 
@@ -194,37 +187,108 @@ instance Eq Aspects where
   Aspects a o _ d t == Aspects a' o' _ d' t' =
     (a, o, d, t) == (a', o', d', t')
 
--- | A 'File' is a mapping from file positions to meta information.
+-- | A limited kind of syntax highlighting information: a pair
+-- consisting of 'Ranges' and 'Aspects'.
+--
+-- Note the invariant which 'RangePair's should satisfy
+-- ('rangePairInvariant').
+
+newtype RangePair = RangePair
+  { rangePair :: (Ranges, Aspects)
+  }
+  deriving (Show, NFData)
+
+-- | Invariant for 'RangePair'.
+
+rangePairInvariant :: RangePair -> Bool
+rangePairInvariant (RangePair (rs, _)) =
+  rangesInvariant rs
+
+-- | Syntax highlighting information, represented by maps from
+-- positions to 'Aspects'.
 --
 -- The first position in the file has number 1.
 
-newtype File = File { mapping :: IntMap Aspects }
-  deriving (Eq, Show)
+newtype PositionMap = PositionMap
+  { positionMap :: IntMap Aspects
+  }
+  deriving (Show, NFData)
 
--- | Syntax highlighting information.
+-- | Highlighting info with delayed merging.
+--
+-- Merging large sets of highlighting info repeatedly might be costly.
+-- The idea of this type is to accumulate small pieces of highlighting
+-- information, and then to merge them all at the end.
+--
+-- Note the invariant which values of this type should satisfy
+-- ('delayedMergeInvariant').
 
-type HighlightingInfo = CompressedFile
+newtype DelayedMerge hl = DelayedMerge (Endo [hl])
+  deriving (Semigroup, Monoid)
+
+instance Show hl => Show (DelayedMerge hl) where
+  showsPrec _ (DelayedMerge f) =
+    showString "DelayedMerge (Endo (" .
+    shows (appEndo f []) .
+    showString " ++))"
+
+-- | Invariant for @'DelayedMerge' hl@, parametrised by the invariant
+-- for @hl@.
+--
+-- Additionally the endofunction should be extensionally equal to @(fs
+-- '++')@ for some list @fs@.
+
+delayedMergeInvariant :: (hl -> Bool) -> DelayedMerge hl -> Bool
+delayedMergeInvariant inv (DelayedMerge f) =
+  all inv (appEndo f [])
+
+-- | Highlighting information.
+--
+-- Note the invariant which values of this type should satisfy
+-- ('highlightingInfoInvariant').
+--
+-- This is a type synonym in order to make it easy to change to
+-- another representation.
+
+type HighlightingInfo = RangeMap Aspects
+
+-- | The invariant for 'HighlightingInfo'.
+
+highlightingInfoInvariant :: HighlightingInfo -> Bool
+highlightingInfoInvariant = RangeMap.rangeMapInvariant
+
+-- | A type that is intended to be used when constructing highlighting
+-- information.
+--
+-- Note the invariant which values of this type should satisfy
+-- ('highlightingInfoBuilderInvariant').
+--
+-- This is a type synonym in order to make it easy to change to
+-- another representation.
+--
+-- The type should be an instance of @'IsBasicRangeMap' 'Aspects'@,
+-- 'Semigroup' and 'Monoid', and there should be an instance of
+-- @'Convert' 'HighlightingInfoBuilder' 'HighlightingInfo'@.
+
+type HighlightingInfoBuilder = DelayedMerge RangePair
+
+-- | The invariant for 'HighlightingInfoBuilder'.
+--
+-- Additionally the endofunction should be extensionally equal to @(fs
+-- '++')@ for some list @fs@.
+
+highlightingInfoBuilderInvariant :: HighlightingInfoBuilder -> Bool
+highlightingInfoBuilderInvariant =
+  delayedMergeInvariant rangePairInvariant
 
 ------------------------------------------------------------------------
--- Creation
+-- Creation and conversion
 
 -- | A variant of 'mempty' with 'tokenBased' set to
 -- 'NotOnlyTokenBased'.
 
 parserBased :: Aspects
 parserBased = mempty { tokenBased = NotOnlyTokenBased }
-
--- | @'singleton' rs m@ is a file whose positions are those in @rs@,
--- and in which every position is associated with @m@.
-
-singleton :: Ranges -> Aspects -> File
-singleton rs m = File {
- mapping = IntMap.fromAscList [ (p, m) | p <- rangesToPositions rs ] }
-
--- | Like 'singleton', but with several 'Ranges' instead of only one.
-
-several :: [Ranges] -> Aspects -> File
-several rs m = mconcat $ map (\r -> singleton r m) rs
 
 -- | Conversion from classification of the scope checker.
 
@@ -245,6 +309,84 @@ kindOfNameToNameKind = \case
   AxiomName                -> Postulate
   PrimName                 -> Primitive
   OtherDefName             -> Function
+
+instance IsBasicRangeMap Aspects RangePair where
+  singleton rs m = RangePair (rs, m)
+
+  toList (RangePair (Ranges rs, m)) =
+    [ (r, m) | r <- rs, not (null r) ]
+
+  toMap f = toMap (convert (DelayedMerge (Endo (f :))) :: PositionMap)
+
+instance IsBasicRangeMap Aspects PositionMap where
+  singleton rs m = PositionMap
+    { positionMap =
+      IntMap.fromDistinctAscList [ (p, m) | p <- rangesToPositions rs ]
+    }
+
+  toList = map join . List1.groupBy' p . IntMap.toAscList . positionMap
+    where
+    p (pos1, m1) (pos2, m2) = pos2 == pos1 + 1 && m1 == m2
+    join pms = ( Range { from = List1.head ps, to = List1.last ps + 1 }
+               , List1.head ms
+               )
+      where (ps, ms) = List1.unzip pms
+
+  toMap = positionMap
+
+instance Semigroup a =>
+         IsBasicRangeMap a (DelayedMerge (RangeMap a)) where
+  singleton r m = DelayedMerge (Endo (singleton r m :))
+
+  toMap  f = toMap  (convert f :: RangeMap a)
+  toList f = toList (convert f :: RangeMap a)
+
+instance IsBasicRangeMap Aspects (DelayedMerge RangePair) where
+  singleton r m = DelayedMerge (Endo (singleton r m :))
+
+  toMap  f = toMap  (convert f :: PositionMap)
+  toList f = toList (convert f :: RangeMap Aspects)
+
+instance IsBasicRangeMap Aspects (DelayedMerge PositionMap) where
+  singleton r m = DelayedMerge (Endo (singleton r m :))
+
+  toMap  f = toMap  (convert f :: PositionMap)
+  toList f = toList (convert f :: PositionMap)
+
+-- | Conversion between different types.
+
+class Convert a b where
+  convert :: a -> b
+
+instance Monoid hl => Convert (DelayedMerge hl) hl where
+  convert (DelayedMerge f) = mconcat (appEndo f [])
+
+instance Convert (RangeMap Aspects) (RangeMap Aspects) where
+  convert = id
+
+instance Convert PositionMap (RangeMap Aspects) where
+  convert =
+    RangeMap.fromNonOverlappingNonEmptyAscendingList .
+    toList
+
+instance Convert (DelayedMerge PositionMap) (RangeMap Aspects) where
+  convert f = convert (convert f :: PositionMap)
+
+instance Convert (DelayedMerge RangePair) PositionMap where
+  convert (DelayedMerge f) =
+    PositionMap $
+    IntMap.fromListWith (flip (<>))
+      [ (p, m)
+      | RangePair (r, m) <- appEndo f []
+      , p                <- rangesToPositions r
+      ]
+
+instance Convert (DelayedMerge RangePair) (RangeMap Aspects) where
+  convert (DelayedMerge f) =
+    mconcat
+      [ singleton r m
+      | RangePair (r, m) <- appEndo f []
+      ]
 
 ------------------------------------------------------------------------
 -- Merging
@@ -312,173 +454,13 @@ instance Monoid Aspects where
     }
   mappend = (<>)
 
--- | Merges files.
+instance Semigroup PositionMap where
+  f1 <> f2 = PositionMap
+    { positionMap = (IntMap.unionWith mappend `on` positionMap) f1 f2 }
 
-merge :: File -> File -> File
-merge f1 f2 =
-  File { mapping = (IntMap.unionWith mappend `on` mapping) f1 f2 }
-
-instance Semigroup File where
-  (<>) = merge
-
-instance Monoid File where
-  mempty  = File { mapping = IntMap.empty }
+instance Monoid PositionMap where
+  mempty  = PositionMap { positionMap = IntMap.empty }
   mappend = (<>)
-
-------------------------------------------------------------------------
--- Inspection
-
--- | Returns the smallest position, if any, in the 'File'.
-
-smallestPos :: File -> Maybe Int
-smallestPos = fmap (fst . fst) . IntMap.minViewWithKey . mapping
-
--- | Convert the 'File' to a map from file positions (counting from 1)
--- to meta information.
-
-toMap :: File -> IntMap Aspects
-toMap = mapping
-
-------------------------------------------------------------------------
--- Compressed files
-
--- | A compressed 'File', in which consecutive positions with the same
--- 'Aspects' are stored together.
-
-newtype CompressedFile =
-  CompressedFile { ranges :: [(Range, Aspects)] }
-  deriving (Eq, Show, Generic)
-
--- | Invariant for compressed files.
---
--- Note that these files are not required to be /maximally/
--- compressed, because ranges are allowed to be empty, and the
--- 'Aspects's in adjacent ranges are allowed to be equal.
-
-compressedFileInvariant :: CompressedFile -> Bool
-compressedFileInvariant (CompressedFile []) = True
-compressedFileInvariant (CompressedFile f)  =
-  all rangeInvariant rs &&
-  all (not . null) rs &&
-  and (zipWith (<=) (map to $ init rs) (map from $ tail rs))
-  where rs = map fst f
-
--- | Compresses a file by merging consecutive positions with equal
--- meta information into longer ranges.
-
-compress :: File -> CompressedFile
-compress f =
-  CompressedFile $ map join $ groupBy' p (IntMap.toAscList $ mapping f)
-  where
-  p (pos1, m1) (pos2, m2) = pos2 == pos1 + 1 && m1 == m2
-  join pms = ( Range { from = head ps, to = last ps + 1 }
-             , head ms
-             )
-    where (ps, ms) = unzip pms
-
--- | Decompresses a compressed file.
-
-decompress :: CompressedFile -> File
-decompress =
-  File .
-  IntMap.fromList .
-  concatMap (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
-  ranges
-
--- | Clear any highlighting info for the given ranges. Used to make sure
---   unsolved meta highlighting overrides error highlighting.
-noHighlightingInRange :: Ranges -> CompressedFile -> CompressedFile
-noHighlightingInRange rs (CompressedFile hs) =
-    CompressedFile $ concatMap clear hs
-  where
-    clear (r, i) =
-      case minus (Ranges [r]) rs of
-        Ranges [] -> []
-        Ranges rs -> [ (r, i) | r <- rs ]
-
-------------------------------------------------------------------------
--- Operations that work directly with compressed files
-
--- | @'singletonC' rs m@ is a file whose positions are those in @rs@,
--- and in which every position is associated with @m@.
-
-singletonC :: Ranges -> Aspects -> CompressedFile
-singletonC (Ranges rs) m =
-  CompressedFile [(r, m) | r <- rs, not (null r)]
-
--- | Like 'singletonR', but with a list of 'Ranges' instead of a
--- single one.
-
-severalC :: [Ranges] -> Aspects -> CompressedFile
-severalC rss m = mconcat $ map (\rs -> singletonC rs m) rss
-
--- | Merges compressed files.
-
-mergeC :: CompressedFile -> CompressedFile -> CompressedFile
-mergeC (CompressedFile f1) (CompressedFile f2) =
-  CompressedFile (mrg f1 f2)
-  where
-  mrg []             f2             = f2
-  mrg f1             []             = f1
-  mrg (p1@(i1,_):f1) (p2@(i2,_):f2)
-    | to i1 <= from i2 = p1 : mrg f1      (p2:f2)
-    | to i2 <= from i1 = p2 : mrg (p1:f1) f2
-    | to i1 <= to i2   = ps1 ++ mrg f1 (ps2 ++ f2)
-    | otherwise        = ps1 ++ mrg (ps2 ++ f1) f2
-      where (ps1, ps2) = fuse p1 p2
-
-  -- Precondition: The ranges are overlapping.
-  fuse (i1, m1) (i2, m2) =
-    ( fix [ (Range { from = a, to = b }, ma)
-          , (Range { from = b, to = c }, mergeAspects m1 m2)
-          ]
-    , fix [ (Range { from = c, to = d }, md)
-          ]
-    )
-    where
-    [(a, ma), (b, _), (c, _), (d, md)] =
-      List.sortBy (compare `on` fst)
-             [(from i1, m1), (to i1, m1), (from i2, m2), (to i2, m2)]
-    fix = filter (not . null . fst)
-
-instance Semigroup CompressedFile where
-  (<>) = mergeC
-
-instance Monoid CompressedFile where
-  mempty  = CompressedFile []
-  mappend = (<>)
-
--- | @splitAtC p f@ splits the compressed file @f@ into @(f1, f2)@,
--- where all the positions in @f1@ are @< p@, and all the positions
--- in @f2@ are @>= p@.
-
-splitAtC :: Int -> CompressedFile ->
-            (CompressedFile, CompressedFile)
-splitAtC p f = (CompressedFile f1, CompressedFile f2)
-  where
-  (f1, f2) = split $ ranges f
-
-  split [] = ([], [])
-  split (rx@(r,x) : f)
-    | p <= from r = ([], rx:f)
-    | to r <= p   = (rx:f1, f2)
-    | otherwise   = ([ (toP, x) ], (fromP, x) : f)
-    where (f1, f2) = split f
-          toP      = Range { from = from r, to = p    }
-          fromP    = Range { from = p,      to = to r }
-
-selectC :: P.Range -> CompressedFile -> CompressedFile
-selectC r cf = cf'
-  where
-    (from, to)    = fromMaybe (0,0) (rangeToEndPoints r)
-    (_, (cf', _)) = (second (splitAtC to)) . splitAtC from $ cf
-
-
--- | Returns the smallest position, if any, in the 'CompressedFile'.
-
-smallestPosC :: CompressedFile -> Maybe Int
-smallestPosC (CompressedFile [])           = Nothing
-smallestPosC (CompressedFile ((r, _) : _)) = Just (from r)
 
 ------------------------------------------------------------------------
 -- NFData instances
@@ -487,7 +469,6 @@ instance NFData Aspect
 instance NFData NameKind
 instance NFData OtherAspect
 instance NFData DefinitionSite
-instance NFData CompressedFile
 
 instance NFData Aspects where
   rnf (Aspects a b c d _) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d

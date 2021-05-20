@@ -27,6 +27,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Maybe
@@ -158,7 +159,7 @@ checkIApplyConfluence f cl = case cl of
                                              ipc@IPClause{ipcBoundary = b}
                                                -> ipc {ipcBoundary = b ++ cs'}
                                              ipc@IPNoClause{} -> ipc}
-                modifyInteractionPoints (Map.adjust f ii)
+                modifyInteractionPoints (BiMap.adjust f ii)
               _ -> return ()
 
 

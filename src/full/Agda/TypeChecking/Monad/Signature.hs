@@ -776,7 +776,9 @@ defaultGetConstInfo st env q = do
             _             -> q
 
           dropLastModule q@QName{ qnameModule = m } =
-            q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
+            q{ qnameModule = mnameFromList $
+                 initWithDefault __IMPOSSIBLE__ $ mnameToList m
+             }
 
 -- HasConstInfo lifts through monad transformers
 -- (see default signatures in HasConstInfo class).
@@ -1071,7 +1073,7 @@ makeAbstract d =
                , theDef = def
                }
   where
-    makeAbs Axiom         = Just Axiom
+    makeAbs d@Axiom{}            = Just d
     makeAbs d@DataOrRecSig{}     = Just d
     makeAbs d@GeneralizableVar{} = Just d
     makeAbs d@Datatype {} = Just $ AbstractDefn d

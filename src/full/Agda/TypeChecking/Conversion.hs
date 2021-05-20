@@ -775,6 +775,7 @@ antiUnify pid a u v = do
     (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
       a <- maybe abort (return . snd) =<< getConType x a
       antiUnifyElims pid a (Con x ci []) us vs
+    (Def f [], Def g []) | f == g -> return (Def f [])
     (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
       a <- computeElimHeadType f us vs
       antiUnifyElims pid a (Def f []) us vs
@@ -1370,7 +1371,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
             -- Jesper, 2019-10-13: abort if this is an interaction
             -- meta or a generalizable meta
             abort <- (isJust <$> isInteractionMeta x) `or2M`
-                     ((== YesGeneralize) <$> isGeneralizableMeta x)
+                     ((== YesGeneralizeVar) <$> isGeneralizableMeta x)
             if | abort -> postpone
                | otherwise -> do
                   x' <- case mvJudgement mv of

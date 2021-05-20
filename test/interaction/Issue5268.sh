@@ -23,13 +23,13 @@ FILE=Issue5268.agda
 
 rm -rf "${BASE}"
 mkdir -p "${BASE}/${SRC}"
-cd "${BASE}"
+cd "${BASE}" > /dev/null
 ln -s "${SRC}" sym
 echo 'S : Set; S = S' > "${SRC}/${FILE}"
 echo 'include: a' > "src/Main.agda-lib"
 # No problem here:
 # echo 'include: .' > "${SRC}/Main.agda-lib"
-cd "${ROOT}"
+cd "${ROOT}" > /dev/null
 
 # # Debug printing
 # pwd

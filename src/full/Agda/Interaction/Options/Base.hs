@@ -67,7 +67,7 @@ import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) 
 import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
-import Agda.Utils.List          ( groupOn, wordsBy )
+import Agda.Utils.List          ( groupOn, initLast1, wordsBy )
 import Agda.Utils.Pretty        ( singPlural )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
@@ -165,10 +165,6 @@ data PragmaOptions = PragmaOptions
   , optKeepPatternVariables      :: Bool
       -- ^ Should case splitting replace variables with dot patterns
       --   (False) or keep them as variables (True).
-  , optTopLevelInteractionNoPrivate :: Bool
-     -- ^ If @True@, disable reloading mechanism introduced in issue #4647
-     --   that brings private declarations in main module into scope
-     --   to remedy not-in-scope errors in top-level interaction commands.
   , optInstanceSearchDepth       :: Int
   , optOverlappingInstances      :: Bool
   , optQualifiedInstances        :: Bool  -- ^ Should instance search consider instances with qualified names?
@@ -295,7 +291,6 @@ defaultPragmaOptions = PragmaOptions
   , optFirstOrder                = False
   , optPostfixProjections        = False
   , optKeepPatternVariables      = False
-  , optTopLevelInteractionNoPrivate = False
   , optInstanceSearchDepth       = 500
   , optOverlappingInstances      = False
   , optQualifiedInstances        = True
@@ -359,9 +354,7 @@ unsafePragmaOptions clo opts =
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
   [ "--omega-in-omega"                           | optOmegaInOmega opts              ] ++
--- [ "--sized-types"                              | optSizedTypes opts                ] ++
-  [ "--sized-types and --guardedness"            | collapseDefault (optSizedTypes opts)
-                                                 , collapseDefault (optGuardedness opts) ] ++
+  [ "--sized-types"                              | collapseDefault (optSizedTypes opts) ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
@@ -471,10 +464,8 @@ helpFlag (Just str) o = case string2HelpTopic str of
 
 safeFlag :: Flag PragmaOptions
 safeFlag o = do
-  let guardedness = optGuardedness o
   let sizedTypes  = optSizedTypes o
   return $ o { optSafe        = True
-             , optGuardedness = setDefault False guardedness
              , optSizedTypes  = setDefault False sizedTypes
              }
 
@@ -484,8 +475,8 @@ flatSplitFlag o = return $ o { optFlatSplit = True }
 noFlatSplitFlag :: Flag PragmaOptions
 noFlatSplitFlag o = return $ o { optFlatSplit = False }
 
-doubleCheckFlag :: Flag PragmaOptions
-doubleCheckFlag o = return $ o { optDoubleCheck = True }
+doubleCheckFlag :: Bool -> Flag PragmaOptions
+doubleCheckFlag b o = return $ o { optDoubleCheck = b }
 
 noSyntacticEqualityFlag :: Flag PragmaOptions
 noSyntacticEqualityFlag o = return $ o { optSyntacticEquality = False }
@@ -725,9 +716,6 @@ postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 keepPatternVariablesFlag :: Flag PragmaOptions
 keepPatternVariablesFlag o = return $ o { optKeepPatternVariables = True }
 
-topLevelInteractionNoPrivateFlag :: Flag PragmaOptions
-topLevelInteractionNoPrivateFlag o = return $ o { optTopLevelInteractionNoPrivate = True }
-
 instanceDepthFlag :: String -> Flag PragmaOptions
 instanceDepthFlag s o = do
   d <- integerArgument "--instance-search-depth" s
@@ -783,11 +771,13 @@ verboseFlag s o =
     do  (k,n) <- parseVerbose s
         return $ o { optVerbose = Trie.insert k n $ optVerbose o }
   where
+    parseVerbose :: String -> OptM ([VerboseKey], VerboseLevel)
     parseVerbose s = case wordsBy (`elem` (":." :: String)) s of
       []  -> usage
-      ss  -> do
-        n <- maybe usage return $ readMaybe (last ss)
-        return (init ss, n)
+      s0:ss0 -> do
+        let (ss, s) = initLast1 s0 ss0
+        n <- maybe usage return $ readMaybe s
+        return (ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
 warningModeFlag :: String -> Flag PragmaOptions
@@ -983,8 +973,6 @@ pragmaOptions =
                     "make postfix projection notation the default"
     , Option []     ["keep-pattern-variables"] (NoArg keepPatternVariablesFlag)
                     "don't replace variables with dot patterns during case splitting"
-    , Option []     ["top-level-interaction-no-private"] (NoArg topLevelInteractionNoPrivateFlag)
-                    "in top-level interaction commands, don't reload file to bring private declarations into scope"
     , Option []     ["instance-search-depth"] (ReqArg instanceDepthFlag "N")
                     "set instance search depth to N (default: 500)"
     , Option []     ["overlapping-instances"] (NoArg overlappingInstancesFlag)
@@ -994,13 +982,15 @@ pragmaOptions =
     , Option []     ["qualified-instances"] (NoArg qualifiedInstancesFlag)
                     "use instances with qualified names (default)"
     , Option []     ["no-qualified-instances"] (NoArg noQualifiedInstancesFlag)
-                    "don't use instances with qualified names (default)"
+                    "don't use instances with qualified names"
     , Option []     ["inversion-max-depth"] (ReqArg inversionMaxDepthFlag "N")
                     "set maximum depth for pattern match inversion to N (default: 50)"
     , Option []     ["safe"] (NoArg safeFlag)
-                    "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types and --no-guardedness "
-    , Option []     ["double-check"] (NoArg doubleCheckFlag)
+                    "disable postulates, unsafe OPTION pragmas and primEraseEquality, implies --no-sized-types"
+    , Option []     ["double-check"] (NoArg (doubleCheckFlag True))
                     "enable double-checking of all terms using the internal typechecker"
+    , Option []     ["no-double-check"] (NoArg (doubleCheckFlag False))
+                    "disable double-checking of terms (default)"
     , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)
                     "disable the syntactic equality shortcut in the conversion checker"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")

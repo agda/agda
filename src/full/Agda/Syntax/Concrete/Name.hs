@@ -21,6 +21,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List  (last1)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
@@ -57,7 +58,7 @@ type NameParts = List1 NamePart
 
 isOpenMixfix :: Name -> Bool
 isOpenMixfix = \case
-  Name _ _ (x :| xs@(_:_)) -> x == Hole || last xs == Hole
+  Name _ _ (x :| x' : xs) -> x == Hole || last1 x' xs == Hole
   _ -> False
 
 instance Underscore Name where

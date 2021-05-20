@@ -48,7 +48,7 @@ The clauses for different functions can be interleaved e.g. for pedagogical purp
 
 You can mix arbitrary declarations, such as modules and postulates, with mutually recursive
 definitions. For data types and records the following syntax is used to separate the
-declaration from the introduction of constructors in one or many ``constructor`` blocks::
+declaration from the introduction of constructors in one or many ``data ... where`` blocks::
 
   interleaved mutual
 
@@ -58,17 +58,17 @@ declaration from the introduction of constructors in one or many ``constructor``
     El : U → Set
 
     -- We have a code for the type of natural numbers in our universe
-    constructor `Nat : U
+    data U where `Nat : U
     El `Nat = Nat
 
     -- Btw we know how to pair values in a record
     record _×_ A B where
-      constructor _,_
-      inductive
+      inductive; constructor _,_
       field fst : A; snd : B
 
     -- And we have a code for pairs in our universe
-    constructor _`×_ : (A B : U) → U
+    data _ where
+      _`×_ : (A B : U) → U
     El (A `× B) = El A × El B
 
   -- we can now build types of nested pairs of natural numbers
@@ -79,8 +79,11 @@ declaration from the introduction of constructors in one or many ``constructor``
   val-example : El ty-example
   val-example = 0 , ((1 , 2) , 3)
 
+You can mix constructors for different data types in a ``data _ where`` block
+(underscore instead of name).
 
-These mutual blocks get desugared into the forward declaration blocks described below by:
+The ``interleaved mutual`` blocks get desugared into the
+:ref:`mutual-recursion-forward-declaration` blocks described below by:
 
 - leaving the signatures where they are,
 - grouping the clauses for a function together with the first of them, and
@@ -103,8 +106,7 @@ automatically inferred by Agda:
   g = b[f, g].
 
 You can mix arbitrary declarations, such as modules and postulates, with mutually recursive definitions.
-For data types and records the following syntax is used to separate the declaration from the definition:
-::
+For data types and records the following syntax is used to separate the declaration from the definition::
 
   -- Declaration.
   data Vec (A : Set) : Nat → Set  -- Note the absence of ‘where’.
@@ -144,6 +146,11 @@ Such a separation of declaration and definition is for instance needed when defi
 
     Interpretation nat      = Nat
     Interpretation (pi a b) = (x : Interpretation a) → Interpretation (b x)
+
+.. note::
+  In contrast to :ref:`mutual-recursion-interleaved-mutual`,
+  in forward-declaration style we can only have one ``data ... where``
+  block per data type.
 
 When making separated declarations/definitions private or abstract you should attach the ``private`` keyword to the declaration and the ``abstract`` keyword to the definition. For instance, a private, abstract function can be defined as
 
