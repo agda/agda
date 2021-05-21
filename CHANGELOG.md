@@ -168,6 +168,22 @@ Language
   pred (inn m) = m
   ```
 
+* The parameter arguments of constructors and record fields are now
+  marked as erased
+  ([#4786](https://github.com/agda/agda/issues/4786)).
+
+  For instance, the type of the constructor `c` below is now `{@0 A :
+  Set} → D A`, and the type of the record field `R.f` is {@0 A : Set}
+  → R A → A`:
+  ```agda
+  data D (A : Set) : Set where
+    c : D A
+
+  record R (A : Set) : Set where
+    field
+      f : A
+  ```
+
 * `Set` and `Prop` are no longer keywords but are now primitives
   defined in the module `Agda.Primitive`. They can be renamed when
   importing this module, for example:

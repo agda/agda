@@ -85,9 +85,11 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         dataDef <- bindGeneralizedParameters parNames t $ \ gtel t0 ->
                    bindParameters (npars - length parNames) ps t0 $ \ ptel t0 -> do
 
-            -- Parameters are always hidden in constructors
+            -- Parameters are always hidden and erased in constructors
             let tel  = abstract gtel ptel
-                tel' = hideAndRelParams <$> tel
+                tel' = applyQuantity zeroQuantity .
+                       hideAndRelParams <$>
+                       tel
             -- let tel' = hideTel tel
 
             -- The type we get from bindParameters is Θ -> s where Θ is the type of
