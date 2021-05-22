@@ -100,7 +100,7 @@ Pragmas and options
   See [Guarded Cubical](https://agda.readthedocs.io/en/v2.6.2/language/guarded-cubical.html)
   in the documentation for more.
 
-* The flags `--guardedness` and `--sized-types are no longer enabled
+* The flags `--guardedness` and `--sized-types` are no longer enabled
   by default.
 
 Command-line interaction
