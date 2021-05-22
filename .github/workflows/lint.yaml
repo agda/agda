@@ -51,4 +51,3 @@ jobs:
       uses: rwe/actions-hlint-run@v2
       with:
         path: '["src/", "test/"]'
-        fail-on: warning
