@@ -1,6 +1,30 @@
 Release notes for Agda version 2.6.2
 ====================================
 
+Highlights
+----------
+
+* Several improvements and bug-fixes related to [Run-time
+  Irrelevance](https://agda.readthedocs.io/en/v2.6.2/language/runtime-irrelevance.html).
+
+* Several improvements and bug-fixes related to the [JavaScript
+  Backend](https://agda.readthedocs.io/en/v2.6.2/tools/compilers.html#javascript-backend).
+
+* Added experimental support for [Guarded Cubical
+  Agda](https://agda.readthedocs.io/en/v2.6.2/language/guarded-cubical.html).
+
+* The [Primitive
+  Sorts](https://agda.readthedocs.io/en/v2.6.2/language/built-ins.html#sorts)
+  of Agda (`Set` and `Prop`) are no longer keywords and can be renamed
+  when importing `Agda.Primitive`.
+
+* Added native support for the [Inspect
+  Idiom](https://agda.readthedocs.io/en/v2.6.2/language/with-abstraction.html#with-abstraction-equality).
+
+* Added support for making [System
+  Calls](https://agda.readthedocs.io/en/v2.6.2/language/reflection.html#system-calls)
+  from the reflection API.
+
 Installation and infrastructure
 -------------------------------
 
