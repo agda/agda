@@ -433,6 +433,17 @@ Language
   ... | f = f n
   ```
 
+* It is now possible to add hiding and relevance annotations to `with`
+  expressions. For example:
+
+  ```agda
+  module _ (A B : Set) (recompute : .B → .{{A}} → B) where
+
+    _$_ : .(A → B) → .A → B
+    f $ x with .{f} | .(f x) | .{{x}}
+    ... | y = recompute y
+  ```
+
 Builtins
 --------
 

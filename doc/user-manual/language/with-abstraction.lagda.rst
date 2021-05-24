@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --allow-unsolved-metas #-}
+  {-# OPTIONS --allow-unsolved-metas --irrelevant-projections #-}
   module language.with-abstraction where
 
   open import Agda.Builtin.Nat using (Nat; zero; suc; _<_)
@@ -334,6 +334,43 @@ n`` so in the right-hand side of the last clause we have ``q : P (suc fn)`` and
 ``lem : P (suc fn) → R``.
 
 See :ref:`the-inspect-idiom` below for an alternative approach.
+
+..
+  ::
+  module with-modalities where
+
+.. _with-modalities:
+
+Making with-abstractions hidden and/or irrelevant
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to add hiding and relevance annotations to `with`
+expressions. For example::
+
+    module _ (A B : Set) (recompute : .B → .{{A}} → B) where
+
+      _$_ : .(A → B) → .A → B
+      f $ x with .{f} | .(f x) | .{{x}}
+      ... | y = recompute y
+
+This can be useful for hiding with-abstractions that you do not need
+to match on but that need to be abstracted over for the result to be
+well-typed. It can also be used to abstract over the fields of a
+record type with irrelevant fields, for example::
+
+    record EqualBools : Set₁ where
+      field
+        bool1  : Bool
+        bool2  : Bool
+        .same : bool1 ≡ bool2
+    open EqualBools
+
+    example : EqualBools → EqualBools
+    example x with bool1 x | bool2 x | .(same x)
+    ...     | true  | y′ | eq′ = record { bool1 = true;  bool2 = y′; same = eq′ }
+    ...     | false | y′ | eq′ = record { bool1 = false; bool2 = y′; same = eq′ }
+
+
 
 ..
   ::
