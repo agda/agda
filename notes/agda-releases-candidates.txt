@@ -59,6 +59,10 @@ followed:
 
     make up-to-date-std-lib
 
+* Obtain and install the cubical library branch related to the Agda:
+
+    make up-to-date-cubical
+
 * Run the test-suite:
 
     make compile-emacs-mode
