@@ -79,18 +79,18 @@ When releasing the following procedure can be followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove the Cabal test-suite from Agda.cabal.
+1) Remove the Cabal test-suite from Agda.cabal.
 
-* Remove -Werror and -fprof-auto from Agda.cabal (this is required by
+2) Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Removed unnecessary dependencies from stack-XYZ.yaml files:
+3) Removed unnecessary dependencies from stack-XYZ.yaml files:
 
   + Removed QuickCheck dependency
   + Removed tasty-* dependencies
   + Removed local package (src/size-solver)
 
-* Added to the extra-source-files field in Agda.cabal the file (see
+4) Added to the extra-source-files field in Agda.cabal the file (see
   Issues #4216):
 
     doc/user-manual.pdf
@@ -131,14 +131,7 @@ When releasing the following procedure can be followed:
     cabal upload --publish dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
     cabal upload --publish -d dist-newstyle/Agda-$RC_VERSION-docs.tar.gz
 
-* Remove from the extra-source-files field in Agda.cabal the file (see
-  Issues #4216):
-
-    doc/user-manual.pdf
-
-* Restore the Cabal test-suite in Agda.cabal.
-
-* Restore -Werror and -fprof-auto in Agda.cabal.
+* Revert changes made in 1), 2), 3) and 4).
 
 * Push all changes (in the release-$MAJORVERSION branch):
 
