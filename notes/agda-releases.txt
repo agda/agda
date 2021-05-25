@@ -79,10 +79,16 @@ When releasing the following procedure can be followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
+* Remove the Cabal test-suite from Agda.cabal.
+
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Remove the Cabal test-suite from Agda.cabal.
+* Removed unnecessary dependencies from stack-XYZ.yaml files:
+
+  + Removed QuickCheck dependency
+  + Removed tasty-* dependencies
+  + Removed local package (src/size-solver)
 
 * Added to the extra-source-files field in Agda.cabal the file (see
   Issues #4216):
