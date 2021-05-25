@@ -3,7 +3,14 @@ compiler: ghc-8.8.4
 compiler-check: match-exact
 
 extra-deps:
+- QuickCheck-2.14.2
 - random-1.2.0
 - splitmix-0.1.0.3
 - git: https://github.com/agda/text-icu.git
   commit: 1925609610459faa93c151c53dc76cc66e3d627c
+
+
+# Local packages, usually specified by relative directory name
+packages:
+  - '.'
+  - 'src/size-solver'
