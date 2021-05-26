@@ -290,6 +290,28 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
 
   -- Erase
   , "primEraseEquality" |-> return "erased"
+
+  -- Cubical
+  , builtinIMin       |-> return "(&&)"
+  , builtinIMax       |-> return "(||)"
+  , builtinINeg       |-> return "not"
+  , "primPartial"     |-> return "\\_ _ x -> x"
+  , "primPartialP"    |-> return "\\_ _ x -> x"
+  , builtinPOr        |-> return "\\_ i _ _ x y -> if i then x else y"
+  , builtinComp       |-> return "\\_ _ _ _ x -> x"
+  , builtinTrans      |-> return "\\_ _ _ x -> x"
+  , builtinHComp      |-> return "\\_ _ _ _ x -> x"
+  , builtinSubOut     |-> return "\\_ _ _ _ x -> x"
+  , builtin_glueU     |-> return "\\_ _ _ _ _ x -> x"
+  , builtin_unglueU   |-> return "\\_ _ _ _ x -> x"
+  , builtinFaceForall |-> return
+                            "\\f -> f True == True && f False == True"
+  , "primDepIMin"     |-> return "\\i f -> if i then f () else False"
+  , "primIdFace"      |-> return "\\_ _ _ _ -> fst"
+  , "primIdPath"      |-> return "\\_ _ _ _ -> snd"
+  , "primIdJ"         |-> return "\\_ _ _ _ _ x _ _ -> x"
+  , builtinIdElim     |-> return
+                            "\\_ _ _ _ _ f x y -> f (fst y) x (snd y)"
   ]
   where
   x |-> s = (x, Left <$> s)

@@ -77,7 +77,21 @@ data GHCEnv = GHCEnv
   , ghcEnvWord64
   , ghcEnvInf
   , ghcEnvSharp
-  , ghcEnvFlat :: Maybe QName
+  , ghcEnvFlat
+  , ghcEnvInterval
+  , ghcEnvIZero
+  , ghcEnvIOne
+  , ghcEnvIsOne
+  , ghcEnvItIsOne
+  , ghcEnvIsOne1
+  , ghcEnvIsOne2
+  , ghcEnvIsOneEmpty
+  , ghcEnvPathP
+  , ghcEnvSub
+  , ghcEnvSubIn
+  , ghcEnvId
+  , ghcEnvConId
+    :: Maybe QName
     -- Various (possibly) builtin names.
   }
 

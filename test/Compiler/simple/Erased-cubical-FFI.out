@@ -1,0 +1,8 @@
+COMPILE_FAILED
+
+ret > ExitFailure 42
+out > /Erased-cubical-FFI.agda:13,1-35
+out > The type Not-compiled → Bool cannot be translated to a
+out > corresponding Haskell type, because it contains a name that is not
+out > compiled (Not-compiled).
+out >

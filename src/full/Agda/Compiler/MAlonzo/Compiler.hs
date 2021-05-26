@@ -183,7 +183,7 @@ ghcPreCompile flags = do
           "Compilation of code that uses " ++ s ++ " is not supported."
   case cubical of
     Nothing      -> return ()
-    Just CErased -> notSupported "--erased-cubical"
+    Just CErased -> return ()
     Just CFull   -> notSupported "--cubical"
 
   outDir <- compileDir
@@ -194,39 +194,65 @@ ghcPreCompile flags = do
                 , optGhcCompileDir = outDir
                 }
 
-  mbool    <- getBuiltinName builtinBool
-  mtrue    <- getBuiltinName builtinTrue
-  mfalse   <- getBuiltinName builtinFalse
-  mlist    <- getBuiltinName builtinList
-  mnil     <- getBuiltinName builtinNil
-  mcons    <- getBuiltinName builtinCons
-  mmaybe   <- getBuiltinName builtinMaybe
-  mnothing <- getBuiltinName builtinNothing
-  mjust    <- getBuiltinName builtinJust
-  mnat     <- getBuiltinName builtinNat
-  minteger <- getBuiltinName builtinInteger
-  mword64  <- getBuiltinName builtinWord64
-  minf     <- getBuiltinName builtinInf
-  msharp   <- getBuiltinName builtinSharp
-  mflat    <- getBuiltinName builtinFlat
+  mbool       <- getBuiltinName builtinBool
+  mtrue       <- getBuiltinName builtinTrue
+  mfalse      <- getBuiltinName builtinFalse
+  mlist       <- getBuiltinName builtinList
+  mnil        <- getBuiltinName builtinNil
+  mcons       <- getBuiltinName builtinCons
+  mmaybe      <- getBuiltinName builtinMaybe
+  mnothing    <- getBuiltinName builtinNothing
+  mjust       <- getBuiltinName builtinJust
+  mnat        <- getBuiltinName builtinNat
+  minteger    <- getBuiltinName builtinInteger
+  mword64     <- getBuiltinName builtinWord64
+  minf        <- getBuiltinName builtinInf
+  msharp      <- getBuiltinName builtinSharp
+  mflat       <- getBuiltinName builtinFlat
+  minterval   <- getBuiltinName builtinInterval
+  mizero      <- getBuiltinName builtinIZero
+  mione       <- getBuiltinName builtinIOne
+  misone      <- getBuiltinName builtinIsOne
+  mitisone    <- getBuiltinName builtinItIsOne
+  misone1     <- getBuiltinName builtinIsOne1
+  misone2     <- getBuiltinName builtinIsOne2
+  misoneempty <- getBuiltinName builtinIsOneEmpty
+  mpathp      <- getBuiltinName builtinPathP
+  msub        <- getBuiltinName builtinSub
+  msubin      <- getBuiltinName builtinSubIn
+  mid         <- getBuiltinName builtinId
+  mconid      <- getBuiltinName builtinConId
 
   return $ GHCEnv
-    { ghcEnvOpts    = ghcOpts
-    , ghcEnvBool    = mbool
-    , ghcEnvTrue    = mtrue
-    , ghcEnvFalse   = mfalse
-    , ghcEnvMaybe   = mmaybe
-    , ghcEnvNothing = mnothing
-    , ghcEnvJust    = mjust
-    , ghcEnvList    = mlist
-    , ghcEnvNil     = mnil
-    , ghcEnvCons    = mcons
-    , ghcEnvNat     = mnat
-    , ghcEnvInteger = minteger
-    , ghcEnvWord64  = mword64
-    , ghcEnvInf     = minf
-    , ghcEnvSharp   = msharp
-    , ghcEnvFlat    = mflat
+    { ghcEnvOpts       = ghcOpts
+    , ghcEnvBool       = mbool
+    , ghcEnvTrue       = mtrue
+    , ghcEnvFalse      = mfalse
+    , ghcEnvMaybe      = mmaybe
+    , ghcEnvNothing    = mnothing
+    , ghcEnvJust       = mjust
+    , ghcEnvList       = mlist
+    , ghcEnvNil        = mnil
+    , ghcEnvCons       = mcons
+    , ghcEnvNat        = mnat
+    , ghcEnvInteger    = minteger
+    , ghcEnvWord64     = mword64
+    , ghcEnvInf        = minf
+    , ghcEnvSharp      = msharp
+    , ghcEnvFlat       = mflat
+    , ghcEnvInterval   = minterval
+    , ghcEnvIZero      = mizero
+    , ghcEnvIOne       = mione
+    , ghcEnvIsOne      = misone
+    , ghcEnvItIsOne    = mitisone
+    , ghcEnvIsOne1     = misone1
+    , ghcEnvIsOne2     = misone2
+    , ghcEnvIsOneEmpty = misoneempty
+    , ghcEnvPathP      = mpathp
+    , ghcEnvSub        = msub
+    , ghcEnvSubIn      = msubin
+    , ghcEnvId         = mid
+    , ghcEnvConId      = mconid
     }
 
 ghcPostCompile :: GHCEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
@@ -249,7 +275,14 @@ ghcPreModule
   -> Maybe FilePath    -- ^ Path to the @.agdai@ file.
   -> TCM (Recompile GHCModuleEnv GHCModule)
                  -- ^ Could we confirm the existence of a main function?
-ghcPreModule cenv isMain m mifile = ifM uptodate noComp yesComp
+ghcPreModule cenv isMain m mifile =
+  (do let check = ifM uptodate noComp yesComp
+      cubical <- optCubical <$> pragmaOptions
+      case cubical of
+        -- Code that uses --cubical is not compiled.
+        Just CFull   -> noComp
+        Just CErased -> check
+        Nothing      -> check)
     `runReaderT` GHCModuleEnv cenv (HsModuleEnv m (isMain == IsMain))
   where
     uptodate = case mifile of
@@ -418,7 +451,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         let d = unqhname "d" q
         Just true  <- getBuiltinName builtinTrue
         Just false <- getBuiltinName builtinFalse
-        cs <- mapM compiledcondecl [false, true]
+        cs <- mapM (compiledcondecl Nothing) [false, true]
         retDecls $ [ compiledTypeSynonym q "Bool" 0
                    , HS.FunBind [HS.Match d [] (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                    cs
@@ -433,7 +466,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         Just nil  <- getBuiltinName builtinNil
         Just cons <- getBuiltinName builtinCons
         let vars f n = map (f . ihname "a") [0 .. n - 1]
-        cs <- mapM compiledcondecl [nil, cons]
+        cs <- mapM (compiledcondecl Nothing) [nil, cons]
         retDecls $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
                    , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                    cs
@@ -448,7 +481,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         Just nothing <- getBuiltinName builtinNothing
         Just just    <- getBuiltinName builtinJust
         let vars f n = map (f . ihname "a") [0 .. n - 1]
-        cs <- mapM compiledcondecl [nothing, just]
+        cs <- mapM (compiledcondecl Nothing) [nothing, just]
         retDecls $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "Maybe")
                    , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                    cs
@@ -457,7 +490,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       _ | is ghcEnvInf -> do
         _ <- primSharp -- To get a proper error for missing SHARP.
         Just sharp <- getBuiltinName builtinSharp
-        sharpC     <- compiledcondecl sharp
+        sharpC     <- (compiledcondecl Nothing) sharp
         let d   = unqhname "d" q
             err = "No term-level implementation of the INFINITY builtin."
         retDecls $ [ compiledTypeSynonym q "MAlonzo.RTE.Infinity" 2
@@ -466,6 +499,122 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                        emptyBinds]
                    , sharpC
                    ]
+
+      -- The interval is compiled as the type of booleans: 0 is
+      -- compiled as False and 1 as True.
+      Axiom{} | is ghcEnvInterval -> do
+        _       <- sequence_ [primIZero, primIOne]
+        Just i0 <- getBuiltinName builtinIZero
+        Just i1 <- getBuiltinName builtinIOne
+        cs      <- mapM (compiledcondecl (Just 0)) [i0, i1]
+        retDecls $
+          [ compiledTypeSynonym q "Bool" 0
+          , HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs HS.unit_con) emptyBinds]
+          ] ++
+          cs
+
+      -- IsOne is compiled as the constant function to the unit type.
+      -- Partial/PartialP are compiled as functions from the unit type
+      -- to the underlying type.
+      Axiom{} | is ghcEnvIsOne -> do
+        retDecls $
+          [ HS.TypeDecl (unqhname "T" q) [HS.UnkindedVar (ihname "a" 0)]
+              (HS.FakeType "()")
+          , HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs HS.unit_con) emptyBinds]
+          ]
+
+      -- itIsOne.
+      Axiom{} | is ghcEnvItIsOne -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs HS.unit_con) emptyBinds]
+          ]
+
+      -- IsOne1/IsOne2.
+      Axiom{} | is ghcEnvIsOne1 || is ghcEnvIsOne2 -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ -> ()"))
+                 emptyBinds]
+          ]
+
+      -- isOneEmpty.
+      Axiom{} | is ghcEnvIsOneEmpty -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ x _ -> x ()"))
+                 emptyBinds]
+          ]
+
+      -- PathP is compiled as a function from the interval (booleans)
+      -- to the underlying type.
+      Axiom{} | is ghcEnvPathP -> do
+        _        <- sequence_ [primInterval]
+        Just int <- getBuiltinName builtinInterval
+        int      <- xhqn "T" int
+        retDecls $
+          [ HS.TypeDecl (unqhname "T" q)
+              [HS.UnkindedVar (ihname "a" i) | i <- [0..3]]
+              (HS.TyFun (HS.TyCon int) mazAnyType)
+          , HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
+                 emptyBinds]
+          ]
+
+      -- Sub is compiled as the underlying type.
+      Axiom{} | is ghcEnvSub -> do
+        retDecls $
+          [ HS.TypeDecl (unqhname "T" q)
+              [HS.UnkindedVar (ihname "a" i) | i <- [0..3]]
+              (HS.TyVar (ihname "a" 1))
+          , HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
+                 emptyBinds]
+          ]
+
+      -- subIn.
+      Axiom{} | is ghcEnvSubIn -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ x -> x"))
+                 emptyBinds]
+          ]
+
+      -- Id x y is compiled as a pair of a boolean and whatever
+      -- Path x y is compiled to.
+      Axiom{} | is ghcEnvId -> do
+        _        <- sequence_ [primInterval]
+        Just int <- getBuiltinName builtinInterval
+        int      <- xhqn "T" int
+        retDecls $
+          [ HS.TypeDecl (unqhname "T" q)
+              [HS.UnkindedVar (ihname "a" i) | i <- [0..3]]
+              (HS.TyApp (HS.FakeType "(,) Bool")
+                 (HS.TyFun (HS.TyCon int) mazAnyType))
+          , HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
+                 emptyBinds]
+          ]
+
+      -- conid.
+      Axiom{} | is ghcEnvConId -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (unqhname "d" q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "(,)"))
+                 emptyBinds]
+          ]
 
       DataOrRecSig{} -> __IMPOSSIBLE__
 
@@ -479,19 +628,17 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       Function{} -> function pragma $ functionViaTreeless q
 
-      Datatype{ dataPathCons = _ : _ } -> do
-        s <- render <$> prettyTCM q
-        typeError $ NotImplemented $
-          "Higher inductive types (" ++ s ++ ")"
-
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl }
-        | Just hsdata@(HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
+              , dataPathCons = pcs
+              } | Just hsdata@(HsData r ty hsCons) <- pragma ->
+        setCurrentRange r $ do
+        checkHigherConstructorsErased q pcs
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
         liftTCM $ computeErasedConstructorArgs q
         cs <- liftTCM $ getNotErasedConstructors q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
-        cds <- mapM compiledcondecl cs
+        cds <- mapM (compiledcondecl Nothing) cs
         let result = concat $
               [ tvaldecl q Inductive (np + ni) [] (Just __IMPOSSIBLE__)
               , [ compiledTypeSynonym q ty np ]
@@ -499,7 +646,10 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               , ccscov
               ]
         retDecls result
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl } -> do
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
+              , dataPathCons = pcs
+              } -> do
+        checkHigherConstructorsErased q pcs
         liftTCM $ computeErasedConstructorArgs q
         cs <- liftTCM $ getNotErasedConstructors q
         cds <- mapM (flip condecl Inductive) cs
@@ -516,7 +666,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
             let cs = [conName con]
             liftTCM $ computeErasedConstructorArgs q
             ccscov <- constructorCoverageCode q np cs ty hsCons
-            cds <- mapM compiledcondecl cs
+            cds <- mapM (compiledcondecl Nothing) cs
             retDecls $
               tvaldecl q inductionKind np [] (Just __IMPOSSIBLE__) ++
               [compiledTypeSynonym q ty np] ++ cds ++ ccscov
@@ -604,6 +754,14 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ Text.pack $ "postulate evaluated: " ++ prettyShow q
+
+  checkHigherConstructorsErased :: QName -> [QName] -> HsCompileM ()
+  checkHigherConstructorsErased q pcs = liftTCM $
+    whenM (anyM pcs ((usableQuantity <$>) . getConstInfo)) $ do
+      s <- render <$> prettyTCM q
+      typeError $ NotImplemented $
+        "Higher inductive types with non-erased higher constructors ("
+        ++ s ++ ")"
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> HsCompileM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
@@ -919,9 +1077,13 @@ condecl q _ind = do
                    ]
   return $ HS.ConDecl (unqhname "C" q) argTypes
 
-compiledcondecl :: QName -> HsCompileM HS.Decl
-compiledcondecl q = do
-  ar <- liftTCM $ erasedArity q
+compiledcondecl
+  :: Maybe Nat  -- ^ The constructor's arity (after erasure).
+  -> QName -> HsCompileM HS.Decl
+compiledcondecl mar q = do
+  ar <- case mar of
+    Nothing -> liftTCM $ erasedArity q
+    Just ar -> return ar
   hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
   let patVars = map (HS.PVar . ihname "a") [0 .. ar - 1]
   return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname "C" q) patVars) (HS.PApp (hsName hsCon) patVars)

@@ -163,6 +163,8 @@ getHaskellConstructor c = do
       | c `is` ghcEnvNothing -> return $ Just "Nothing"
       | c `is` ghcEnvJust    -> return $ Just "Just"
       | c `is` ghcEnvSharp   -> return $ Just "MAlonzo.RTE.Sharp"
+      | c `is` ghcEnvIZero   -> return $ Just "False"
+      | c `is` ghcEnvIOne    -> return $ Just "True"
     Constructor{conData = d} -> do
       mp <- liftTCM $ getHaskellPragma d
       case mp of

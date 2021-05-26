@@ -31,6 +31,7 @@ import Agda.Compiler.MAlonzo.Pretty () --instance only
 
 import qualified Agda.Utils.Haskell.Syntax as HS
 import Agda.Utils.List
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
 
@@ -64,6 +65,7 @@ data WhyNot = NoPragmaFor QName
             | BadLambda Term
             | BadMeta Term
             | BadDontCare Term
+            | NotCompiled QName
 
 type ToHs = ExceptT WhyNot HsCompileM
 
@@ -76,12 +78,15 @@ notAHaskellType top offender = typeError . GenericDocError =<< do
     reason (BadLambda        v) = pwords "the lambda term" ++ [prettyTCM v <> "."]
     reason (BadMeta          v) = pwords "a meta variable" ++ [prettyTCM v <> "."]
     reason (BadDontCare      v) = pwords "an erased term" ++ [prettyTCM v <> "."]
+    reason (NotCompiled      x) = pwords "a name that is not compiled"
+                                  ++ [parens (prettyTCM x) <> "."]
     reason (NoPragmaFor      x) = prettyTCM x : pwords "which does not have a COMPILE pragma."
     reason (WrongPragmaFor _ x) = prettyTCM x : pwords "which has the wrong kind of COMPILE pragma."
 
     possibleFix BadLambda{}     = empty
     possibleFix BadMeta{}       = empty
     possibleFix BadDontCare{}   = empty
+    possibleFix NotCompiled{}   = empty
     possibleFix (NoPragmaFor d) = suggestPragma d $ "add a pragma"
     possibleFix (WrongPragmaFor r d) = suggestPragma d $
       sep [ "replace the value-level pragma at", nest 2 $ pretty r, "by" ]
@@ -112,6 +117,8 @@ getHsType' q = runToHs (Def q []) (getHsType q)
 
 getHsType :: QName -> ToHs HS.Type
 getHsType x = do
+  unlessM (isCompiled x) $ throwError $ NotCompiled x
+
   d   <- liftTCM $ getHaskellPragma x
   env <- askGHCEnv
   let is t p = Just t == p env
@@ -137,6 +144,21 @@ getHsType x = do
     Just HsType{}      -> namedType
     Just HsData{}      -> namedType
     _                  -> throwError $ NoPragmaFor x
+
+-- | Is the given thing compiled?
+
+isCompiled :: HasConstInfo m => QName -> m Bool
+isCompiled q = usableModality <$> getConstInfo q
+
+-- | Does the name stand for a data or record type?
+
+isData :: HasConstInfo m => QName -> m Bool
+isData q = do
+  def <- theDef <$> getConstInfo q
+  return $ case def of
+    Datatype{} -> True
+    Record{}   -> True
+    _          -> False
 
 getHsVar :: (MonadFail tcm, MonadTCM tcm) => Nat -> tcm HS.Name
 getHsVar i = HS.Ident . encodeName <$> nameOfBV i
@@ -255,13 +277,10 @@ hsTypeApproximation poly fv t = do
             | otherwise -> do
                 let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims els
                 foldl HS.TyApp <$> getHsType' q <*> mapM (go n . unArg) args
-              `catchError` \ _ -> do -- Not a Haskell type
-                def <- theDef <$> getConstInfo q
-                let isData | Datatype{} <- def = True
-                           | Record{}   <- def = True
-                           | otherwise         = False
-                if isData then HS.TyCon <$> xhqn "T" q
-                          else return mazAnyType
+              `catchError` \ _ -> -- Not a Haskell type
+                ifM (and2M (isCompiled q) (isData q))
+                  (HS.TyCon <$> xhqn "T" q)
+                  (return mazAnyType)
           Sort{} -> return $ HS.FakeType "()"
           _ -> return mazAnyType
   go fv (unEl t)

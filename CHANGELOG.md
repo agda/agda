@@ -86,6 +86,9 @@ Pragmas and options
   manual](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue-and-erased-higher-constructors)
   for more details.
 
+  The GHC backend can compile code that uses `--erased-cubical` if the
+  top-level module uses this flag.
+
   This feature is experimental.
 
 * New options `--qualified-instances` (default) and
@@ -853,8 +856,11 @@ Compiler backends -----------------
   for that particular instance, see
   [#5153](https://github.com/agda/agda/issues/5153)).
 
-- Both the GHC and JS backends now refuse to compile Cubical Agda
-  code.
+- Both the GHC and JS backends now refuse to compile code that uses
+  `--cubical`.
+
+  Note that support for compiling code that uses `--erased-cubical`
+  has been added to the GHC backend (see above).
 
 LaTeX backend
 -------------
