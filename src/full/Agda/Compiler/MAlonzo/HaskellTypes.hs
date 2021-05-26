@@ -20,7 +20,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Primitive (getBuiltinName)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
@@ -113,23 +112,27 @@ getHsType' q = runToHs (Def q []) (getHsType q)
 
 getHsType :: QName -> ToHs HS.Type
 getHsType x = do
-  d <- liftTCM $ getHaskellPragma x
-  list <- liftTCM $ getBuiltinName builtinList
-  mayb <- liftTCM $ getBuiltinName builtinMaybe
-  inf  <- liftTCM $ getBuiltinName builtinInf
-  let namedType = do
+  d   <- liftTCM $ getHaskellPragma x
+  env <- askGHCEnv
+  let is t p = Just t == p env
+
+      namedType = do
         -- For these builtin types, the type name (xhqn ...) refers to the
         -- generated, but unused, datatype and not the primitive type.
-        nat  <- getBuiltinName builtinNat
-        int  <- getBuiltinName builtinInteger
-        bool <- getBuiltinName builtinBool
-        if  | Just x `elem` [nat, int] -> return $ hsCon "Integer"
-            | Just x == bool           -> return $ hsCon "Bool"
-            | otherwise                -> lift $ hsCon . prettyShow <$> xhqn "T" x
+        if  | x `is` ghcEnvNat ||
+              x `is` ghcEnvInteger -> return $ hsCon "Integer"
+            | x `is` ghcEnvBool    -> return $ hsCon "Bool"
+            | otherwise            ->
+              lift $ hsCon . prettyShow <$> xhqn "T" x
   mapExceptT (setCurrentRange d) $ case d of
-    _ | Just x == list -> lift $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for List
-    _ | Just x == mayb -> lift $ hsCon . prettyShow <$> xhqn "T" x -- we ignore Haskell pragmas for Maybe
-    _ | Just x == inf  -> return $ hsQCon "MAlonzo.RTE" "Infinity"
+    _ | x `is` ghcEnvList ->
+        lift $ hsCon . prettyShow <$> xhqn "T" x
+        -- we ignore Haskell pragmas for List
+    _ | x `is` ghcEnvMaybe ->
+        lift $ hsCon . prettyShow <$> xhqn "T" x
+        -- we ignore Haskell pragmas for Maybe
+    _ | x `is` ghcEnvInf ->
+        return $ hsQCon "MAlonzo.RTE" "Infinity"
     Just HsDefn{}      -> throwError $ WrongPragmaFor (getRange d) x
     Just HsType{}      -> namedType
     Just HsData{}      -> namedType
@@ -227,13 +230,8 @@ data PolyApprox = PolyApprox | NoPolyApprox
 
 hsTypeApproximation :: PolyApprox -> Int -> Type -> HsCompileM HS.Type
 hsTypeApproximation poly fv t = do
-  list <- getBuiltinName builtinList
-  mayb <- getBuiltinName builtinMaybe
-  bool <- getBuiltinName builtinBool
-  int  <- getBuiltinName builtinInteger
-  nat  <- getBuiltinName builtinNat
-  word <- getBuiltinName builtinWord64
-  let is q b = Just q == b
+  env <- askGHCEnv
+  let is q b = Just q == b env
       tyCon  = HS.TyCon . HS.UnQual . HS.Ident
       rteCon = HS.TyCon . HS.Qual mazRTE . HS.Ident
       tyVar n i = HS.TyVar $ HS.Ident $ "a" ++ show (n - i)
@@ -244,14 +242,16 @@ hsTypeApproximation poly fv t = do
           Pi a b -> hsFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
-            | q `is` list, Apply t <- last1 (Proj ProjSystem __IMPOSSIBLE__) els
-                        -> HS.TyApp (tyCon "[]") <$> go n (unArg t)
-            | q `is` mayb, Apply t <- last1 (Proj ProjSystem __IMPOSSIBLE__) els
-                        -> HS.TyApp (tyCon "Maybe") <$> go n (unArg t)
-            | q `is` bool -> return $ tyCon "Bool"
-            | q `is` int  -> return $ tyCon "Integer"
-            | q `is` nat  -> return $ tyCon "Integer"
-            | q `is` word -> return $ rteCon "Word64"
+            | q `is` ghcEnvList
+            , Apply t <- last1 (Proj ProjSystem __IMPOSSIBLE__) els ->
+              HS.TyApp (tyCon "[]") <$> go n (unArg t)
+            | q `is` ghcEnvMaybe
+            , Apply t <- last1 (Proj ProjSystem __IMPOSSIBLE__) els ->
+              HS.TyApp (tyCon "Maybe") <$> go n (unArg t)
+            | q `is` ghcEnvBool    -> return $ tyCon "Bool"
+            | q `is` ghcEnvInteger -> return $ tyCon "Integer"
+            | q `is` ghcEnvNat     -> return $ tyCon "Integer"
+            | q `is` ghcEnvWord64  -> return $ rteCon "Word64"
             | otherwise -> do
                 let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims els
                 foldl HS.TyApp <$> getHsType' q <*> mapM (go n . unArg) args

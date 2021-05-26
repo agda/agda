@@ -63,6 +63,22 @@ data GHCOptions = GHCOptions
 
 data GHCEnv = GHCEnv
   { ghcEnvOpts :: GHCOptions
+  , ghcEnvBool
+  , ghcEnvTrue
+  , ghcEnvFalse
+  , ghcEnvMaybe
+  , ghcEnvNothing
+  , ghcEnvJust
+  , ghcEnvList
+  , ghcEnvNil
+  , ghcEnvCons
+  , ghcEnvNat
+  , ghcEnvInteger
+  , ghcEnvWord64
+  , ghcEnvInf
+  , ghcEnvSharp
+  , ghcEnvFlat :: Maybe QName
+    -- Various (possibly) builtin names.
   }
 
 -- | Module compilation environment, bundling the overall

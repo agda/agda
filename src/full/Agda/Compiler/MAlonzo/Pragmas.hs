@@ -17,6 +17,7 @@ import Agda.Utils.String ( ltrim )
 import Agda.Utils.Three
 
 import Agda.Compiler.Common
+import Agda.Compiler.MAlonzo.Misc
 
 import Agda.Utils.Impossible
 
@@ -148,27 +149,22 @@ sanityCheckPragma def (Just HsExport{}) =
 
 -- TODO: cache this to avoid parsing the pragma for every constructor
 --       occurrence!
-getHaskellConstructor :: QName -> TCM (Maybe HaskellCode)
+getHaskellConstructor :: QName -> HsCompileM (Maybe HaskellCode)
 getHaskellConstructor c = do
-  c       <- canonicalName c
-  cDef    <- theDef <$> getConstInfo c
-  true    <- getBuiltinName builtinTrue
-  false   <- getBuiltinName builtinFalse
-  nil     <- getBuiltinName builtinNil
-  cons    <- getBuiltinName builtinCons
-  nothing <- getBuiltinName builtinNothing
-  just    <- getBuiltinName builtinJust
-  sharp   <- getBuiltinName builtinSharp
+  c    <- canonicalName c
+  cDef <- theDef <$> getConstInfo c
+  env  <- askGHCEnv
+  let is c p = Just c == p env
   case cDef of
-    _ | Just c == true    -> return $ Just "True"
-      | Just c == false   -> return $ Just "False"
-      | Just c == nil     -> return $ Just "[]"
-      | Just c == cons    -> return $ Just "(:)"
-      | Just c == nothing -> return $ Just "Nothing"
-      | Just c == just    -> return $ Just "Just"
-      | Just c == sharp   -> return $ Just "MAlonzo.RTE.Sharp"
+    _ | c `is` ghcEnvTrue    -> return $ Just "True"
+      | c `is` ghcEnvFalse   -> return $ Just "False"
+      | c `is` ghcEnvNil     -> return $ Just "[]"
+      | c `is` ghcEnvCons    -> return $ Just "(:)"
+      | c `is` ghcEnvNothing -> return $ Just "Nothing"
+      | c `is` ghcEnvJust    -> return $ Just "Just"
+      | c `is` ghcEnvSharp   -> return $ Just "MAlonzo.RTE.Sharp"
     Constructor{conData = d} -> do
-      mp <- getHaskellPragma d
+      mp <- liftTCM $ getHaskellPragma d
       case mp of
         Just (HsData _ _ hsCons) -> do
           cons <- defConstructors . theDef <$> getConstInfo d

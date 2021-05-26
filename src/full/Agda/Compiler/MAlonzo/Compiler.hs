@@ -193,7 +193,41 @@ ghcPreCompile flags = do
                 , optGhcFlags      = flagGhcFlags flags
                 , optGhcCompileDir = outDir
                 }
-  return $ GHCEnv ghcOpts
+
+  mbool    <- getBuiltinName builtinBool
+  mtrue    <- getBuiltinName builtinTrue
+  mfalse   <- getBuiltinName builtinFalse
+  mlist    <- getBuiltinName builtinList
+  mnil     <- getBuiltinName builtinNil
+  mcons    <- getBuiltinName builtinCons
+  mmaybe   <- getBuiltinName builtinMaybe
+  mnothing <- getBuiltinName builtinNothing
+  mjust    <- getBuiltinName builtinJust
+  mnat     <- getBuiltinName builtinNat
+  minteger <- getBuiltinName builtinInteger
+  mword64  <- getBuiltinName builtinWord64
+  minf     <- getBuiltinName builtinInf
+  msharp   <- getBuiltinName builtinSharp
+  mflat    <- getBuiltinName builtinFlat
+
+  return $ GHCEnv
+    { ghcEnvOpts    = ghcOpts
+    , ghcEnvBool    = mbool
+    , ghcEnvTrue    = mtrue
+    , ghcEnvFalse   = mfalse
+    , ghcEnvMaybe   = mmaybe
+    , ghcEnvNothing = mnothing
+    , ghcEnvJust    = mjust
+    , ghcEnvList    = mlist
+    , ghcEnvNil     = mnil
+    , ghcEnvCons    = mcons
+    , ghcEnvNat     = mnat
+    , ghcEnvInteger = minteger
+    , ghcEnvWord64  = mword64
+    , ghcEnvInf     = minf
+    , ghcEnvSharp   = msharp
+    , ghcEnvFlat    = mflat
+    }
 
 ghcPostCompile :: GHCEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
 ghcPostCompile _cenv _isMain mods = do
@@ -354,11 +388,8 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
     , nest 2 $ text (prettyShow d)
     ]
   pragma <- liftTCM $ getHaskellPragma q
-  mbool  <- getBuiltinName builtinBool
-  mlist  <- getBuiltinName builtinList
-  mmaybe <- getBuiltinName builtinMaybe
-  minf   <- getBuiltinName builtinInf
-  mflat  <- getBuiltinName builtinFlat
+  env <- askGHCEnv
+  let is p = Just q == p env
   typeCheckedMainDef <- checkTypeOfMain def
   let mainDecl = maybeToList $ checkedMainDecl <$> typeCheckedMainDef
   let retDecls ds = return (mempty, ds)
@@ -366,7 +397,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
     case d of
 
       _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $
-          if Just q == mflat
+          if is ghcEnvFlat
           then genericError
                 "\"COMPILE GHC\" pragmas are not allowed for the FLAT builtin."
           else do
@@ -382,7 +413,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
             retDecls $ fbWithType hsty (fakeExp hs)
 
       -- Compiling Bool
-      Datatype{} | Just q == mbool -> do
+      Datatype{} | is ghcEnvBool -> do
         _ <- sequence_ [primTrue, primFalse] -- Just to get the proper error for missing TRUE/FALSE
         let d = unqhname "d" q
         Just true  <- getBuiltinName builtinTrue
@@ -393,7 +424,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                    cs
 
       -- Compiling List
-      Datatype{ dataPars = np } | Just q == mlist -> do
+      Datatype{ dataPars = np } | is ghcEnvList -> do
         _ <- sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
@@ -408,7 +439,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                    cs
 
       -- Compiling Maybe
-      Datatype{ dataPars = np } | Just q == mmaybe -> do
+      Datatype{ dataPars = np } | is ghcEnvMaybe -> do
         _ <- sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin maybe; they always compile to Haskell lists."
@@ -423,7 +454,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                    cs
 
       -- Compiling Inf
-      _ | Just q == minf -> do
+      _ | is ghcEnvInf -> do
         _ <- primSharp -- To get a proper error for missing SHARP.
         Just sharp <- getBuiltinName builtinSharp
         sharpC     <- compiledcondecl sharp
@@ -499,10 +530,10 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   function mhe fun = do
     (imp, defs) <- fun
     let ccls = mkwhere defs
-    mflat <- getBuiltinName builtinFlat
     case mhe of
-      Just (HsExport r name) -> setCurrentRange r $
-        if Just q == mflat
+      Just (HsExport r name) -> setCurrentRange r $ do
+        env <- askGHCEnv
+        if Just q == ghcEnvFlat env
         then genericError
               "\"COMPILE GHC as\" pragmas are not allowed for the FLAT builtin."
         else do
@@ -664,10 +695,9 @@ closedTerm v = do
 -- Translate case on bool to if
 mkIf :: T.TTerm -> CC T.TTerm
 mkIf t@(TCase e _ d [TACon c1 0 b1, TACon c2 0 b2]) | T.isUnreachable d = do
-  mTrue  <- liftCC $ getBuiltinName builtinTrue
-  mFalse <- liftCC $ getBuiltinName builtinFalse
-  let isTrue  c = Just c == mTrue
-      isFalse c = Just c == mFalse
+  env <- liftCC askGHCEnv
+  let isTrue  c = Just c == ghcEnvTrue  env
+      isFalse c = Just c == ghcEnvFalse env
   if | isTrue c1, isFalse c2 -> return $ T.tIfThenElse (TCoerce $ TVar e) b1 b2
      | isTrue c2, isFalse c1 -> return $ T.tIfThenElse (TCoerce $ TVar e) b2 b1
      | otherwise             -> return t
@@ -767,12 +797,13 @@ alt sc a = do
     T.TACon {T.aCon = c} -> do
       intros (T.aArity a) $ \ xs -> do
         erased <- liftCC $ getErasedConArgs c
-        nil  <- liftCC $ getBuiltinName builtinNil
-        cons <- liftCC $ getBuiltinName builtinCons
+        env    <- liftCC askGHCEnv
         hConNm <-
-          if | Just c == nil  -> return $ HS.UnQual $ HS.Ident "[]"
-             | Just c == cons -> return $ HS.UnQual $ HS.Symbol ":"
-             | otherwise      -> liftCC $ conhqn c
+          if | Just c == ghcEnvNil env ->
+               return $ HS.UnQual $ HS.Ident "[]"
+             | Just c == ghcEnvCons env ->
+               return $ HS.UnQual $ HS.Symbol ":"
+             | otherwise -> liftCC $ conhqn c
         mkAlt (HS.PApp hConNm $ [HS.PVar x | (x, False) <- zip xs erased])
     T.TAGuard g b -> do
       g <- term g
@@ -891,7 +922,7 @@ condecl q _ind = do
 compiledcondecl :: QName -> HsCompileM HS.Decl
 compiledcondecl q = do
   ar <- liftTCM $ erasedArity q
-  hsCon <- liftTCM $ fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
+  hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
   let patVars = map (HS.PVar . ihname "a") [0 .. ar - 1]
   return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname "C" q) patVars) (HS.PApp (hsName hsCon) patVars)
 
