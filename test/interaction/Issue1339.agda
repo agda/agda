@@ -1,5 +1,7 @@
 -- Andreas, 2014-11-02
 
+{-# OPTIONS --guardedness #-}
+
 record U : Set where
   coinductive
   constructor inn

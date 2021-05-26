@@ -171,6 +171,12 @@ prettyWarning = \case
              pwords "also mean that you need to increase the maximum depth using the flag" ++
              pwords "--inversion-max-depth=N"
 
+    NoGuardednessFlag q ->
+      fsep $ [ prettyTCM q ] ++ pwords "is declared coinductive, but option" ++
+             pwords "--guardedness is not enabled. Coinductive functions on" ++
+             pwords "this type will likely be rejected by the termination" ++
+             pwords "checker unless this flag is enabled."
+
     GenericWarning d -> return d
 
     GenericNonFatalError d -> return d

@@ -3,7 +3,7 @@
    Example by Maxime Denes, adapted by Andreas Abel
 -}
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --guardedness #-}
 
 module CoinductionAndUnivalence where
 

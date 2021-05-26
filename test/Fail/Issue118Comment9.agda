@@ -1,3 +1,4 @@
+{-# OPTIONS --guardedness #-}
 
 module Issue118Comment9 where
 

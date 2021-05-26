@@ -26,6 +26,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
@@ -43,6 +44,7 @@ import Agda.Utils.POMonoid
 import Agda.Utils.Pretty (render)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -190,6 +192,13 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , "{-# ETA" <+> prettyTCM name <+> "#-}"
               ]
       reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
+
+      -- Jesper, 2021-05-26: Warn when declaring coinductive record
+      -- but neither --guardedness nor --sized-types is enabled.
+      when (conInduction == CoInductive) $ do
+        guardedness <- collapseDefault . optGuardedness <$> pragmaOptions
+        sizedTypes  <- collapseDefault . optSizedTypes  <$> pragmaOptions
+        unless (guardedness || sizedTypes) $ warning $ NoGuardednessFlag name
 
       -- Add the record definition.
 

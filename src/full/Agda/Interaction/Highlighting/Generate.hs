@@ -430,6 +430,7 @@ warningHighlighting' b w = case tcWarning w of
   InstanceNoOutputTypeName{} -> mempty
   InstanceArgWithExplicitArg{} -> mempty
   InversionDepthReached{}    -> mempty
+  NoGuardednessFlag{}        -> mempty
   GenericWarning{}           -> mempty
   GenericUseless r _         -> deadcodeHighlighting r
   -- Andreas, 2020-03-21, issue #4456:

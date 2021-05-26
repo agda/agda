@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --allow-unsolved-metas #-}
+{-# OPTIONS --cubical --guardedness --allow-unsolved-metas #-}
 
 open import Agda.Primitive.Cubical
 open import Agda.Builtin.Cubical.Path

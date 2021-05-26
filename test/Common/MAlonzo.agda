@@ -1,3 +1,4 @@
+{-# OPTIONS --guardedness #-}
 
 module Common.MAlonzo where
 

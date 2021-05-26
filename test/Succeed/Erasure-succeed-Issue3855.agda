@@ -1,6 +1,8 @@
 -- Andreas, 2019-06-18, LAIM 2019, issue #3855:
 -- Successful tests for the erasure (@0) modality.
 
+{-# OPTIONS --guardedness #-}
+
 module _ where
 
 open import Agda.Builtin.Bool

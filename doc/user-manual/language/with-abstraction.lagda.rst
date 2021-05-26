@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --allow-unsolved-metas --irrelevant-projections #-}
+  {-# OPTIONS --allow-unsolved-metas --irrelevant-projections --guardedness #-}
   module language.with-abstraction where
 
   open import Agda.Builtin.Nat using (Nat; zero; suc; _<_)
