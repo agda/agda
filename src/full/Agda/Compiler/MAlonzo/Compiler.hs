@@ -78,7 +78,7 @@ import Agda.Utils.Impossible
 ghcBackend :: Backend
 ghcBackend = Backend ghcBackend'
 
-ghcBackend' :: Backend' GHCFlags GHCCompileEnv GHCModuleEnv GHCModule GHCDefinition
+ghcBackend' :: Backend' GHCFlags GHCEnv GHCModuleEnv GHCModule GHCDefinition
 ghcBackend' = Backend'
   { backendName           = "GHC"
   , backendVersion        = Nothing
@@ -145,17 +145,17 @@ class Monad m => ReadGHCOpts m where
 instance Monad m => ReadGHCOpts (ReaderT GHCOptions m) where
   askGhcOpts = ask
 
-instance Monad m => ReadGHCOpts (ReaderT GHCCompileEnv m) where
-  askGhcOpts = withReaderT ghcCompileEnvOpts askGhcOpts
+instance Monad m => ReadGHCOpts (ReaderT GHCEnv m) where
+  askGhcOpts = withReaderT ghcEnvOpts askGhcOpts
 
 instance Monad m => ReadGHCOpts (ReaderT GHCModuleEnv m) where
-  askGhcOpts = withReaderT ghcModCompileEnv askGhcOpts
+  askGhcOpts = withReaderT ghcModEnv askGhcOpts
 
 instance Monad m => ReadHsModuleEnv (ReaderT GHCModuleEnv m) where
   askHsModuleEnv = withReaderT ghcModHsModuleEnv askHsModuleEnv
 
 data GHCModule = GHCModule
-  { ghcModEnv                :: GHCModuleEnv
+  { ghcModModuleEnv :: GHCModuleEnv
   , ghcModMainFuncs :: [MainFunctionDef]
   -- ^ The `main` function definition(s), if both the module is
   --   the @IsMain@ module (root/focused) and a suitable `main`
@@ -163,10 +163,10 @@ data GHCModule = GHCModule
   }
 
 instance Monad m => ReadGHCOpts (ReaderT GHCModule m) where
-  askGhcOpts = withReaderT ghcModEnv askGhcOpts
+  askGhcOpts = withReaderT ghcModModuleEnv askGhcOpts
 
 instance Monad m => ReadHsModuleEnv (ReaderT GHCModule m) where
-  askHsModuleEnv = withReaderT ghcModEnv askHsModuleEnv
+  askHsModuleEnv = withReaderT ghcModModuleEnv askHsModuleEnv
 
 data GHCDefinition = GHCDefinition
   { ghcDefUsesFloat  :: UsesFloat
@@ -178,7 +178,7 @@ data GHCDefinition = GHCDefinition
 
 --- Top-level compilation ---
 
-ghcPreCompile :: GHCFlags -> TCM GHCCompileEnv
+ghcPreCompile :: GHCFlags -> TCM GHCEnv
 ghcPreCompile flags = do
   cubical <- optCubical <$> pragmaOptions
   let notSupported s =
@@ -196,9 +196,9 @@ ghcPreCompile flags = do
                 , optGhcFlags      = flagGhcFlags flags
                 , optGhcCompileDir = outDir
                 }
-  return $ GHCCompileEnv ghcOpts
+  return $ GHCEnv ghcOpts
 
-ghcPostCompile :: GHCCompileEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
+ghcPostCompile :: GHCEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
 ghcPostCompile _cenv _isMain mods = do
   -- FIXME: @curMName@ and @curIF@ are evil TCM state, but there does not appear to be
   --------- another way to retrieve the compilation root ("main" module or interaction focused).
@@ -212,7 +212,7 @@ ghcPostCompile _cenv _isMain mods = do
 --- Module compilation ---
 
 ghcPreModule
-  :: GHCCompileEnv
+  :: GHCEnv
   -> IsMain      -- ^ Are we looking at the main module?
   -> ModuleName
   -> Maybe FilePath    -- ^ Path to the @.agdai@ file.
@@ -241,7 +241,7 @@ ghcPreModule cenv isMain m mifile = ifM uptodate noComp yesComp
       asks Recompile
 
 ghcPostModule
-  :: GHCCompileEnv
+  :: GHCEnv
   -> GHCModuleEnv
   -> IsMain        -- ^ Are we looking at the main module?
   -> ModuleName
@@ -273,7 +273,7 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
 
   return $ GHCModule menv mainDefs
 
-ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
+ghcCompileDef :: GHCEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
 ghcCompileDef _cenv menv _isMain def = do
   ((usesFloat, decls, mainFuncDef), (HsCompileState imps)) <- definition def `runHsCompileT` ghcModHsModuleEnv menv
   return $ GHCDefinition usesFloat decls def (checkedMainDef <$> mainFuncDef) imps

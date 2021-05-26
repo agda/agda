@@ -61,15 +61,15 @@ data GHCOptions = GHCOptions
 -- | A static part of the GHC backend's environment that does not
 -- change from module to module.
 
-data GHCCompileEnv = GHCCompileEnv
-  { ghcCompileEnvOpts :: GHCOptions
+data GHCEnv = GHCEnv
+  { ghcEnvOpts :: GHCOptions
   }
 
 -- | Module compilation environment, bundling the overall
 --   backend session options along with the module's basic
 --   readable properties.
 data GHCModuleEnv = GHCModuleEnv
-  { ghcModCompileEnv  :: GHCCompileEnv
+  { ghcModEnv         :: GHCEnv
   , ghcModHsModuleEnv :: HsModuleEnv
   }
 
