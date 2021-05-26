@@ -73,37 +73,43 @@ data GHCModuleEnv = GHCModuleEnv
   , ghcModHsModuleEnv :: HsModuleEnv
   }
 
--- | Monads that can produce an @HsModuleEnv@
-class Monad m => ReadHsModuleEnv m where
+-- | Monads that can produce a 'GHCModuleEnv'.
+class Monad m => ReadGHCModuleEnv m where
+  askGHCModuleEnv :: m GHCModuleEnv
+
+  default askGHCModuleEnv
+    :: (MonadTrans t, Monad n, m ~ (t n), ReadGHCModuleEnv n)
+    => m GHCModuleEnv
+  askGHCModuleEnv = lift askGHCModuleEnv
+
   askHsModuleEnv :: m HsModuleEnv
+  askHsModuleEnv = ghcModHsModuleEnv <$> askGHCModuleEnv
 
-  default askHsModuleEnv
-    :: (MonadTrans t, Monad n, m ~ (t n), ReadHsModuleEnv n)
-    => m HsModuleEnv
-  askHsModuleEnv = lift askHsModuleEnv
+  askGHCEnv :: m GHCEnv
+  askGHCEnv = ghcModEnv <$> askGHCModuleEnv
 
-instance Monad m => ReadHsModuleEnv (ReaderT HsModuleEnv m) where
-  askHsModuleEnv = ask
+instance Monad m => ReadGHCModuleEnv (ReaderT GHCModuleEnv m) where
+  askGHCModuleEnv = ask
 
-instance ReadHsModuleEnv m => ReadHsModuleEnv (ExceptT e m)
-instance ReadHsModuleEnv m => ReadHsModuleEnv (IdentityT m)
-instance ReadHsModuleEnv m => ReadHsModuleEnv (MaybeT m)
-instance ReadHsModuleEnv m => ReadHsModuleEnv (StateT s m)
+instance ReadGHCModuleEnv m => ReadGHCModuleEnv (ExceptT e m)
+instance ReadGHCModuleEnv m => ReadGHCModuleEnv (IdentityT m)
+instance ReadGHCModuleEnv m => ReadGHCModuleEnv (MaybeT m)
+instance ReadGHCModuleEnv m => ReadGHCModuleEnv (StateT s m)
 
 newtype HsCompileState = HsCompileState
   { mazAccumlatedImports :: Set ModuleName
   } deriving (Eq, Semigroup, Monoid)
 
 -- | Transformer adding read-only module info and a writable set of imported modules
-type HsCompileT m = ReaderT HsModuleEnv (StateT HsCompileState m)
+type HsCompileT m = ReaderT GHCModuleEnv (StateT HsCompileState m)
 
 -- | The default compilation monad is the entire TCM (☹️) enriched with our state and module info
 type HsCompileM = HsCompileT TCM
 
-runHsCompileT' :: HsCompileT m a -> HsModuleEnv -> HsCompileState -> m (a, HsCompileState)
+runHsCompileT' :: HsCompileT m a -> GHCModuleEnv -> HsCompileState -> m (a, HsCompileState)
 runHsCompileT' t e s = (flip runStateT s) . (flip runReaderT e) $ t
 
-runHsCompileT :: HsCompileT m a -> HsModuleEnv -> m (a, HsCompileState)
+runHsCompileT :: HsCompileT m a -> GHCModuleEnv -> m (a, HsCompileState)
 runHsCompileT t e = runHsCompileT' t e mempty
 
 --------------------------------------------------
@@ -113,17 +119,17 @@ runHsCompileT t e = runHsCompileT' t e mempty
 -- | Whether the current module is expected to have the `main` function.
 --   This corresponds to the @IsMain@ flag provided to the backend,
 --   not necessarily whether the GHC module actually has a `main` function defined.
-curIsMainModule :: ReadHsModuleEnv m => m Bool
+curIsMainModule :: ReadGHCModuleEnv m => m Bool
 curIsMainModule = mazIsMainModule <$> askHsModuleEnv
 
 -- | This is the same value as @curMName@, but does not rely on the TCM's state.
 --   (@curMName@ and co. should be removed, but the current @Backend@ interface
 --   is not sufficient yet to allow that)
-curAgdaMod :: ReadHsModuleEnv m => m ModuleName
+curAgdaMod :: ReadGHCModuleEnv m => m ModuleName
 curAgdaMod = mazModuleName <$> askHsModuleEnv
 
 -- | Get the Haskell module name of the currently-focused Agda module
-curHsMod :: ReadHsModuleEnv m => m HS.ModuleName
+curHsMod :: ReadGHCModuleEnv m => m HS.ModuleName
 curHsMod = mazMod <$> curAgdaMod
 
 -- The following naming scheme seems to be used:

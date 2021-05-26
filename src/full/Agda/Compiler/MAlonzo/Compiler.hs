@@ -151,9 +151,6 @@ instance Monad m => ReadGHCOpts (ReaderT GHCEnv m) where
 instance Monad m => ReadGHCOpts (ReaderT GHCModuleEnv m) where
   askGhcOpts = withReaderT ghcModEnv askGhcOpts
 
-instance Monad m => ReadHsModuleEnv (ReaderT GHCModuleEnv m) where
-  askHsModuleEnv = withReaderT ghcModHsModuleEnv askHsModuleEnv
-
 data GHCModule = GHCModule
   { ghcModModuleEnv :: GHCModuleEnv
   , ghcModMainFuncs :: [MainFunctionDef]
@@ -165,8 +162,8 @@ data GHCModule = GHCModule
 instance Monad m => ReadGHCOpts (ReaderT GHCModule m) where
   askGhcOpts = withReaderT ghcModModuleEnv askGhcOpts
 
-instance Monad m => ReadHsModuleEnv (ReaderT GHCModule m) where
-  askHsModuleEnv = withReaderT ghcModModuleEnv askHsModuleEnv
+instance Monad m => ReadGHCModuleEnv (ReaderT GHCModule m) where
+  askGHCModuleEnv = withReaderT ghcModModuleEnv askGHCModuleEnv
 
 data GHCDefinition = GHCDefinition
   { ghcDefUsesFloat  :: UsesFloat
@@ -275,7 +272,8 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
 
 ghcCompileDef :: GHCEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
 ghcCompileDef _cenv menv _isMain def = do
-  ((usesFloat, decls, mainFuncDef), (HsCompileState imps)) <- definition def `runHsCompileT` ghcModHsModuleEnv menv
+  ((usesFloat, decls, mainFuncDef), (HsCompileState imps)) <-
+    definition def `runHsCompileT` menv
   return $ GHCDefinition usesFloat decls def (checkedMainDef <$> mainFuncDef) imps
 
 -- | We do not erase types that have a 'HsData' pragma.
@@ -973,10 +971,10 @@ outFileAndDir m = do
   where
   repldot c = List.map $ \ c' -> if c' == '.' then c else c'
 
-curOutFileAndDir :: (MonadGHCIO m, ReadHsModuleEnv m) => m (FilePath, FilePath)
+curOutFileAndDir :: (MonadGHCIO m, ReadGHCModuleEnv m) => m (FilePath, FilePath)
 curOutFileAndDir = outFileAndDir =<< curHsMod
 
-curOutFile :: (MonadGHCIO m, ReadHsModuleEnv m) => m FilePath
+curOutFile :: (MonadGHCIO m, ReadGHCModuleEnv m) => m FilePath
 curOutFile = snd <$> curOutFileAndDir
 
 callGHC :: ReaderT GHCModule TCM ()
