@@ -1,8 +1,8 @@
-Issue1946-4.agda:41,1-42,18
+Issue1946-4.agda:53,1-54,18
 Termination checking failed for the following functions:
   bla
 Problematic calls:
   Issue1946-4.♯-1
-    (at Issue1946-4.agda:42,12-13)
+    (at Issue1946-4.agda:54,12-13)
   bla
-    (at Issue1946-4.agda:42,14-17)
+    (at Issue1946-4.agda:54,14-17)

@@ -1,3 +1,4 @@
+{-# OPTIONS --guardedness #-}
 
 module Issue616 where
 

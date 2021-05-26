@@ -1,44 +1,44 @@
-Issue1014.agda:18,3-22,83
+Issue1014.agda:19,3-23,83
 Termination checking failed for the following functions:
   NoWith.bar
 Problematic calls:
   Issue1014.NoWith.♯-0
-    (at Issue1014.agda:22,28-29)
+    (at Issue1014.agda:23,28-29)
   bar A (proj₁ (h n An)) h (proj₂ (proj₂ (h n An)))
-    (at Issue1014.agda:22,31-34)
-Issue1014.agda:29,3-33,82
+    (at Issue1014.agda:23,31-34)
+Issue1014.agda:30,3-34,82
 Termination checking failed for the following functions:
   CorrectlyRejected.bar'
 Problematic calls:
   bar' A h n An | h n An
   Issue1014.CorrectlyRejected.♯-1
-    (at Issue1014.agda:33,61-62)
+    (at Issue1014.agda:34,61-62)
   bar' A h n' An'
-    (at Issue1014.agda:33,64-68)
-Issue1014.agda:40,3-42,63
+    (at Issue1014.agda:34,64-68)
+Issue1014.agda:41,3-43,63
 Termination checking failed for the following functions:
   CorrectlyRejected.bar
 Problematic calls:
   bar n An | h n An
   Issue1014.CorrectlyRejected.♯-2
-    (at Issue1014.agda:42,47-48)
+    (at Issue1014.agda:43,47-48)
   bar n' An'
-    (at Issue1014.agda:42,50-53)
-Issue1014.agda:47,3-51,81
+    (at Issue1014.agda:43,50-53)
+Issue1014.agda:48,3-52,81
 Termination checking failed for the following functions:
   WasAccepted1.bar
 Problematic calls:
   bar A n h An | h n An
   Issue1014.WasAccepted1.♯-3
-    (at Issue1014.agda:51,61-62)
+    (at Issue1014.agda:52,61-62)
   bar A n' h An'
-    (at Issue1014.agda:51,64-67)
-Issue1014.agda:62,1-64,63
+    (at Issue1014.agda:52,64-67)
+Issue1014.agda:63,1-65,63
 Termination checking failed for the following functions:
   bar
 Problematic calls:
   bar n h An | h n An
   Issue1014.♯-4
-    (at Issue1014.agda:64,45-46)
+    (at Issue1014.agda:65,45-46)
   bar n' h An'
-    (at Issue1014.agda:64,48-51)
+    (at Issue1014.agda:65,48-51)

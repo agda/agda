@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 data D : Set where
 
 record R : Set where

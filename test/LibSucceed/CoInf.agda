@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module CoInf where
 
 open import Codata.Musical.Notation

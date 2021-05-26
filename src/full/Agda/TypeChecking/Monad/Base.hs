@@ -3278,6 +3278,9 @@ data Warning
   --   top-level instances.
   | InversionDepthReached    QName
   -- ^ The --inversion-max-depth was reached.
+  | NoGuardednessFlag        QName
+  -- ^ A coinductive record was declared but neither --guardedness nor
+  --   --sized-types is enabled.
 
   -- Generic warnings for one-off things
   | GenericWarning           Doc
@@ -3384,6 +3387,7 @@ warningName = \case
   GenericWarning{}             -> GenericWarning_
   InversionDepthReached{}      -> InversionDepthReached_
   ModuleDoesntExport{}         -> ModuleDoesntExport_
+  NoGuardednessFlag{}          -> NoGuardednessFlag_
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
   OldBuiltin{}                 -> OldBuiltin_
