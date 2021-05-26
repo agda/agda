@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module Issue826-2 where
 
 open import Common.Coinduction

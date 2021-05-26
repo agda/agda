@@ -1,3 +1,4 @@
+{-# OPTIONS --guardedness #-}
 
 module CompilingCoinduction where
 

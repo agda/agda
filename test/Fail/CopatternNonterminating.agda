@@ -1,4 +1,4 @@
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --copatterns --guardedness #-}
 -- {-# OPTIONS -v term:20 #-}
 -- {-# OPTIONS --no-positivity-check #-}
 -- {-# OPTIONS -v tc.def.fun:50  #-}

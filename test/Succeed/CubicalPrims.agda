@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical #-}
+{-# OPTIONS --cubical --guardedness #-}
 module CubicalPrims where
 
 open import Agda.Primitive renaming (_⊔_ to ℓ-max)

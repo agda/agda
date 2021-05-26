@@ -228,6 +228,7 @@ data WarningName
   | InstanceNoOutputTypeName_
   | InversionDepthReached_
   | ModuleDoesntExport_
+  | NoGuardednessFlag_
   | NotInScope_
   | NotStrictlyPositive_
   | OldBuiltin_
@@ -384,6 +385,7 @@ warningNameDescription = \case
   InstanceArgWithExplicitArg_      -> "instance arguments with explicit arguments are never considered by instance search."
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
   InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
+  NoGuardednessFlag_               -> "Coinductive record but no --guardedness flag."
   ModuleDoesntExport_              -> "Imported name is not actually exported."
   DuplicateUsing_                  -> "Repeated names in using directive."
   FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."

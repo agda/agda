@@ -1,6 +1,7 @@
 -- Andreas, 2016-11-03, issue #2291, reported by Aerate
 
 -- {-# OPTIONS -v interaction.helper:100 #-}
+{-# OPTIONS --guardedness #-}
 
 record Foo : Set where
   coinductive

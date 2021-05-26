@@ -1,5 +1,7 @@
 -- Andreas, 2014-07-02 Documenting the ETA pragma
 
+{-# OPTIONS --guardedness #-}
+
 open import Common.Equality
 
 mutual

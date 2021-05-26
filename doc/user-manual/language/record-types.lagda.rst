@@ -1,5 +1,7 @@
 ..
   ::
+  {-# OPTIONS --guardedness #-}
+
   module language.record-types where
 
   open import Agda.Builtin.Bool
