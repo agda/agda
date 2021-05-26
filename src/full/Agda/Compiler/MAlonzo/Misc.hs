@@ -47,6 +47,32 @@ data HsModuleEnv = HsModuleEnv
   --   not necessarily whether the GHC module has a `main` function defined.
   }
 
+-- | The options derived from
+-- 'Agda.Compiler.MAlonzo.Compiler.GHCFlags' and other shared options.
+
+data GHCOptions = GHCOptions
+  { optGhcCallGhc    :: Bool
+  , optGhcBin        :: FilePath
+    -- ^ Use the compiler at PATH instead of "ghc"
+  , optGhcFlags      :: [String]
+  , optGhcCompileDir :: FilePath
+  }
+
+-- | A static part of the GHC backend's environment that does not
+-- change from module to module.
+
+data GHCCompileEnv = GHCCompileEnv
+  { ghcCompileEnvOpts :: GHCOptions
+  }
+
+-- | Module compilation environment, bundling the overall
+--   backend session options along with the module's basic
+--   readable properties.
+data GHCModuleEnv = GHCModuleEnv
+  { ghcModCompileEnv  :: GHCCompileEnv
+  , ghcModHsModuleEnv :: HsModuleEnv
+  }
+
 -- | Monads that can produce an @HsModuleEnv@
 class Monad m => ReadHsModuleEnv m where
   askHsModuleEnv :: m HsModuleEnv

@@ -138,15 +138,6 @@ withCompilerFlag fp o = case flagGhcBin o of
 
 --- Context types ---
 
--- | The options derived from @GHCFlags@ and other shared options.
-data GHCOptions = GHCOptions
-  { optGhcCallGhc    :: Bool
-  , optGhcBin        :: FilePath
-    -- ^ Use the compiler at PATH instead of "ghc"
-  , optGhcFlags      :: [String]
-  , optGhcCompileDir :: FilePath
-  }
-
 -- | Monads that can read @GHCOptions@
 class Monad m => ReadGHCOpts m where
   askGhcOpts :: m GHCOptions
@@ -154,20 +145,8 @@ class Monad m => ReadGHCOpts m where
 instance Monad m => ReadGHCOpts (ReaderT GHCOptions m) where
   askGhcOpts = ask
 
-data GHCCompileEnv = GHCCompileEnv
-  { ghcCompileEnvOpts :: GHCOptions
-  }
-
 instance Monad m => ReadGHCOpts (ReaderT GHCCompileEnv m) where
   askGhcOpts = withReaderT ghcCompileEnvOpts askGhcOpts
-
--- | Module compilation environment, bundling the overall
---   backend session options along with the module's basic
---   readable properties.
-data GHCModuleEnv = GHCModuleEnv
-  { ghcModCompileEnv  :: GHCCompileEnv
-  , ghcModHsModuleEnv :: HsModuleEnv
-  }
 
 instance Monad m => ReadGHCOpts (ReaderT GHCModuleEnv m) where
   askGhcOpts = withReaderT ghcModCompileEnv askGhcOpts
