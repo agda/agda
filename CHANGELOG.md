@@ -327,7 +327,6 @@ Language
   [#4638](https://github.com/agda/agda/issues/4638)).
 
   Constructors can be marked as erased. Example:
-
   ```agda
     {-# OPTIONS --cubical --safe #-}
 
@@ -352,28 +351,10 @@ Language
   ```
   In the code above the constructor `trivial` is only available at
   compile-time, whereas `∣_∣` is also available at run-time. Erased
-  names can be used in bodies of clauses that match on `trivial`, like
-  the final clause of `rec`. (Note that Cubical Agda programs still
-  cannot be compiled.)
-
-  The following code is also accepted:
-  ```agda
-  {-# OPTIONS --without-K --safe #-}
-
-  open import Agda.Builtin.Bool
-
-  data D : Set where
-    run-time        : Bool → D
-    @0 compile-time : Bool → D
-
-  f : @0 D → D
-  f (compile-time x) = compile-time x
-  f (run-time _)     = run-time true
-  ```
-  Agda allows matching on an erased argument if there is only one
-  valid *run-time* case. (If the K rule is turned off, then the data
-  type must also be non-indexed.) When `f` is compiled the clause that
-  matches on `compile-time` is omitted.
+  names can be used in bodies of clauses that match on `trivial`, if
+  the match is done in a non-erased position, like in the final clause
+  of `rec`. (Note that Cubical Agda programs still cannot be
+  compiled.)
 
 * Erased pattern-matching lambdas (see
   [#4525](https://github.com/agda/agda/issues/4525)).
