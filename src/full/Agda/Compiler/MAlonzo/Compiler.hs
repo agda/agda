@@ -1121,8 +1121,7 @@ tvaldecl q ind npar cds cl =
 
 infodecl :: QName -> [HS.Decl] -> [HS.Decl]
 infodecl _ [] = []
-infodecl q ds =
-  fakeD (unqhname NameK q) (haskellStringLiteral $ prettyShow q) : ds
+infodecl q ds = HS.Comment (prettyShow q) : ds
 
 --------------------------------------------------
 -- Writing out a haskell module

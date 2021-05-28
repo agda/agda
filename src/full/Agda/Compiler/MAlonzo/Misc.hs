@@ -181,9 +181,6 @@ data NameKind
     -- ^ Constructors.
   | VarK VariableKind
     -- ^ Variables.
-  | NameK
-    -- ^ Names standing for strings containing the Agda names of
-    -- things.
   | CoverK
     -- ^ Used for coverage checking.
   | CheckK
@@ -215,7 +212,6 @@ encodeString k s = prefix ++ concatMap encode s
     VarK A              -> "a"
     VarK V              -> "v"
     VarK X              -> "x"
-    NameK               -> "name"
     CoverK              -> "cover"
     CheckK              -> "check"
     FunK NoUnused       -> "du"
