@@ -65,6 +65,7 @@ instance Pretty HS.Decl where
     HS.FunBind ms -> vcat $ map pretty ms
     HS.PatSyn p1 p2 -> sep [ "pattern" <+> pretty p1 <+> "=" <+> pretty p2 ]
     HS.FakeDecl s -> text s
+    HS.Comment s -> vcat $ map (("--" <+>) . text) (lines s)
 
 instance Pretty HS.ConDecl where
   pretty (HS.ConDecl c sts) =

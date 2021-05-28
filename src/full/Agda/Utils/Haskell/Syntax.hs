@@ -28,6 +28,7 @@ data Decl = TypeDecl Name [TyVarBind] Type
           | FunBind [Match]
           | PatSyn Pat Pat
           | FakeDecl String
+          | Comment String
   deriving (Eq)
 
 data DataOrNew = DataType | NewType
