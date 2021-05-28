@@ -6,7 +6,7 @@ extra-deps:
 - aeson-1.5.6.0
 - alex-3.2.6
 - async-2.2.3
-- bifunctors-5.5.10
+- bifunctors-5.5.11
 - blaze-html-0.9.1.2
 - boxes-0.1.5
 - case-insensitive-1.2.1.0
@@ -60,7 +60,6 @@ extra-deps:
 - th-compat-0.1.2
 - QuickCheck-2.14.2
 - filemanip-0.3.6.3
-- ieee754-0.8.0
 - process-extras-0.7.4
 - tasty-1.4.1
 - tasty-hunit-0.10.0.3
