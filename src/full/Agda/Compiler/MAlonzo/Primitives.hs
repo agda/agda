@@ -85,7 +85,7 @@ checkTypeOfMain' m@(MainFunctionDef def) = CheckedMainFunctionDef m <$> do
   where
     mainAlias = HS.FunBind [HS.Match mainLHS [] mainRHS emptyBinds ]
     mainLHS   = HS.Ident "main"
-    mainRHS   = HS.UnGuardedRhs $ HS.App mazCoerce (HS.Var $ HS.UnQual $ unqhname "d" $ defName def)
+    mainRHS   = HS.UnGuardedRhs $ HS.App mazCoerce (HS.Var $ HS.UnQual $ dname $ defName def)
 
 treelessPrimName :: TPrim -> String
 treelessPrimName p =

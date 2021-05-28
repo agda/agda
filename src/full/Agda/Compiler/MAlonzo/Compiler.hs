@@ -448,7 +448,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- Compiling Bool
       Datatype{} | is ghcEnvBool -> do
         _ <- sequence_ [primTrue, primFalse] -- Just to get the proper error for missing TRUE/FALSE
-        let d = unqhname "d" q
+        let d = dname q
         Just true  <- getBuiltinName builtinTrue
         Just false <- getBuiltinName builtinFalse
         cs <- mapM (compiledcondecl Nothing) [false, true]
@@ -461,7 +461,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         _ <- sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
-        let d = unqhname "d" q
+        let d = dname q
             t = unqhname "T" q
         Just nil  <- getBuiltinName builtinNil
         Just cons <- getBuiltinName builtinCons
@@ -476,7 +476,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         _ <- sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin maybe; they always compile to Haskell lists."
-        let d = unqhname "d" q
+        let d = dname q
             t = unqhname "T" q
         Just nothing <- getBuiltinName builtinNothing
         Just just    <- getBuiltinName builtinJust
@@ -491,7 +491,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         _ <- primSharp -- To get a proper error for missing SHARP.
         Just sharp <- getBuiltinName builtinSharp
         sharpC     <- (compiledcondecl Nothing) sharp
-        let d   = unqhname "d" q
+        let d   = dname q
             err = "No term-level implementation of the INFINITY builtin."
         retDecls $ [ compiledTypeSynonym q "MAlonzo.RTE.Infinity" 2
                    , HS.FunBind [HS.Match d [HS.PVar (ihname "a" 0)]
@@ -510,7 +510,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         retDecls $
           [ compiledTypeSynonym q "Bool" 0
           , HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs HS.unit_con) emptyBinds]
           ] ++
           cs
@@ -523,7 +523,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
           [ HS.TypeDecl (unqhname "T" q) [HS.UnkindedVar (ihname "a" 0)]
               (HS.FakeType "()")
           , HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs HS.unit_con) emptyBinds]
           ]
 
@@ -531,7 +531,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Axiom{} | is ghcEnvItIsOne -> do
         retDecls $
           [ HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs HS.unit_con) emptyBinds]
           ]
 
@@ -539,7 +539,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Axiom{} | is ghcEnvIsOne1 || is ghcEnvIsOne2 -> do
         retDecls $
           [ HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ -> ()"))
                  emptyBinds]
           ]
@@ -548,7 +548,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Axiom{} | is ghcEnvIsOneEmpty -> do
         retDecls $
           [ HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "\\_ x _ -> x ()"))
                  emptyBinds]
           ]
@@ -564,7 +564,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               [HS.UnkindedVar (ihname "a" i) | i <- [0..3]]
               (HS.TyFun (HS.TyCon int) mazAnyType)
           , HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
                  emptyBinds]
           ]
@@ -576,7 +576,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               [HS.UnkindedVar (ihname "a" i) | i <- [0..3]]
               (HS.TyVar (ihname "a" 1))
           , HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
                  emptyBinds]
           ]
@@ -585,7 +585,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Axiom{} | is ghcEnvSubIn -> do
         retDecls $
           [ HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ x -> x"))
                  emptyBinds]
           ]
@@ -602,7 +602,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               (HS.TyApp (HS.FakeType "(,) Bool")
                  (HS.TyFun (HS.TyCon int) mazAnyType))
           , HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
                  emptyBinds]
           ]
@@ -611,7 +611,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Axiom{} | is ghcEnvConId -> do
         retDecls $
           [ HS.FunBind
-              [HS.Match (unqhname "d" q) []
+              [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "(,)"))
                  emptyBinds]
           ]
@@ -746,10 +746,10 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
   fbWithType :: HS.Type -> HS.Exp -> [HS.Decl]
   fbWithType ty e =
-    HS.TypeSig [unqhname "d" q] ty : fb e
+    HS.TypeSig [dname q] ty : fb e
 
   fb :: HS.Exp -> [HS.Decl]
-  fb e  = [HS.FunBind [HS.Match (unqhname "d" q) []
+  fb e  = [HS.FunBind [HS.Match (dname q) []
                                 (HS.UnGuardedRhs e) emptyBinds]]
 
   axiomErr :: HS.Exp
@@ -1104,7 +1104,7 @@ tvaldecl q ind npar cds cl =
   maybe [HS.DataDecl kind tn [] cds' []]
         (const []) cl
   where
-  (tn, vn) = (unqhname "T" q, unqhname "d" q)
+  (tn, vn) = (unqhname "T" q, dname q)
   pvs = [ HS.PVar        $ ihname "a" i | i <- [0 .. npar - 1]]
 
   -- Inductive data types consisting of a single constructor with a

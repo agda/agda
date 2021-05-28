@@ -348,7 +348,7 @@ fakeDS :: String -> String -> HS.Decl
 fakeDS = fakeD . HS.Ident
 
 fakeDQ :: QName -> String -> HS.Decl
-fakeDQ = fakeD . unqhname "d"
+fakeDQ = fakeD . dname
 
 fakeType :: String -> HS.Type
 fakeType = HS.FakeType
