@@ -346,14 +346,6 @@ mazCoerce :: HS.Exp
 -- mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident mazCoerceName
 mazCoerce = HS.Var $ HS.UnQual $ HS.Ident mazCoerceName
 
--- Andreas, 2011-11-16: error incomplete match now RTE-call
-mazIncompleteMatch :: HS.Exp
-mazIncompleteMatch = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazIncompleteMatch"
-
-rtmIncompleteMatch :: QName -> HS.Exp
-rtmIncompleteMatch q =
-  mazIncompleteMatch `HS.App` hsVarUQ (unqhname NameK q)
-
 mazUnreachableError :: HS.Exp
 mazUnreachableError = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazUnreachableError"
 
