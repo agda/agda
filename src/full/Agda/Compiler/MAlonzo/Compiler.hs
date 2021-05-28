@@ -462,10 +462,10 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
         let d = dname q
-            t = unqhname "T" q
+            t = unqhname TypeK q
         Just nil  <- getBuiltinName builtinNil
         Just cons <- getBuiltinName builtinCons
-        let vars f n = map (f . ihname "a") [0 .. n - 1]
+        let vars f n = map (f . ihname A) [0 .. n - 1]
         cs <- mapM (compiledcondecl Nothing) [nil, cons]
         retDecls $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
                    , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
@@ -477,10 +477,10 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin maybe; they always compile to Haskell lists."
         let d = dname q
-            t = unqhname "T" q
+            t = unqhname TypeK q
         Just nothing <- getBuiltinName builtinNothing
         Just just    <- getBuiltinName builtinJust
-        let vars f n = map (f . ihname "a") [0 .. n - 1]
+        let vars f n = map (f . ihname A) [0 .. n - 1]
         cs <- mapM (compiledcondecl Nothing) [nothing, just]
         retDecls $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "Maybe")
                    , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
@@ -494,7 +494,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         let d   = dname q
             err = "No term-level implementation of the INFINITY builtin."
         retDecls $ [ compiledTypeSynonym q "MAlonzo.RTE.Infinity" 2
-                   , HS.FunBind [HS.Match d [HS.PVar (ihname "a" 0)]
+                   , HS.FunBind [HS.Match d [HS.PVar (ihname A 0)]
                        (HS.UnGuardedRhs (HS.FakeExp ("error " ++ show err)))
                        emptyBinds]
                    , sharpC
@@ -520,7 +520,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- to the underlying type.
       Axiom{} | is ghcEnvIsOne -> do
         retDecls $
-          [ HS.TypeDecl (unqhname "T" q) [HS.UnkindedVar (ihname "a" 0)]
+          [ HS.TypeDecl (unqhname TypeK q) [HS.UnkindedVar (ihname A 0)]
               (HS.FakeType "()")
           , HS.FunBind
               [HS.Match (dname q) []
@@ -558,10 +558,10 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Axiom{} | is ghcEnvPathP -> do
         _        <- sequence_ [primInterval]
         Just int <- getBuiltinName builtinInterval
-        int      <- xhqn "T" int
+        int      <- xhqn TypeK int
         retDecls $
-          [ HS.TypeDecl (unqhname "T" q)
-              [HS.UnkindedVar (ihname "a" i) | i <- [0..3]]
+          [ HS.TypeDecl (unqhname TypeK q)
+              [HS.UnkindedVar (ihname A i) | i <- [0..3]]
               (HS.TyFun (HS.TyCon int) mazAnyType)
           , HS.FunBind
               [HS.Match (dname q) []
@@ -572,9 +572,9 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       -- Sub is compiled as the underlying type.
       Axiom{} | is ghcEnvSub -> do
         retDecls $
-          [ HS.TypeDecl (unqhname "T" q)
-              [HS.UnkindedVar (ihname "a" i) | i <- [0..3]]
-              (HS.TyVar (ihname "a" 1))
+          [ HS.TypeDecl (unqhname TypeK q)
+              [HS.UnkindedVar (ihname A i) | i <- [0..3]]
+              (HS.TyVar (ihname A 1))
           , HS.FunBind
               [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
@@ -595,10 +595,10 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Axiom{} | is ghcEnvId -> do
         _        <- sequence_ [primInterval]
         Just int <- getBuiltinName builtinInterval
-        int      <- xhqn "T" int
+        int      <- xhqn TypeK int
         retDecls $
-          [ HS.TypeDecl (unqhname "T" q)
-              [HS.UnkindedVar (ihname "a" i) | i <- [0..3]]
+          [ HS.TypeDecl (unqhname TypeK q)
+              [HS.UnkindedVar (ihname A i) | i <- [0..3]]
               (HS.TyApp (HS.FakeType "(,) Bool")
                  (HS.TyFun (HS.TyCon int) mazAnyType))
           , HS.FunBind
@@ -790,7 +790,7 @@ ccContext f e = (\ cxt -> e { _ccContext = cxt }) <$> f (_ccContext e)
 -- | Initial environment for expression generation.
 initCCEnv :: CCEnv
 initCCEnv = CCEnv
-  { _ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
+  { _ccNameSupply = map (ihname V) [0..]  -- DON'T CHANGE THESE NAMES!
   , _ccContext    = []
   }
 
@@ -821,8 +821,8 @@ intros n cont = freshNames n $ \xs ->
 checkConstructorType :: QName -> HaskellCode -> HsCompileM [HS.Decl]
 checkConstructorType q hs = do
   ty <- haskellType q
-  return [ HS.TypeSig [unqhname "check" q] ty
-         , HS.FunBind [HS.Match (unqhname "check" q) []
+  return [ HS.TypeSig [unqhname CheckK q] ty
+         , HS.FunBind [HS.Match (unqhname CheckK q) []
                                 (HS.UnGuardedRhs $ fakeExp hs) emptyBinds]
          ]
 
@@ -837,8 +837,8 @@ checkCover q ty n cs hsCons = do
   cs <- zipWithM makeClause cs hsCons
   let rhs = HS.Case (HS.Var $ HS.UnQual $ HS.Ident "x") cs
 
-  return [ HS.TypeSig [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
-         , HS.FunBind [HS.Match (unqhname "cover" q) [HS.PVar $ HS.Ident "x"]
+  return [ HS.TypeSig [unqhname CoverK q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
+         , HS.FunBind [HS.Match (unqhname CoverK q) [HS.PVar $ HS.Ident "x"]
                                 (HS.UnGuardedRhs rhs) emptyBinds]
          ]
 
@@ -882,14 +882,16 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
           missing = drop given used
       if not isCompiled && ArgUnused `elem` used
         then if ArgUnused `elem` missing then term (etaExpand (needed - given) tm0) else do
-          f <- liftCC $ HS.Var <$> xhqn "du" f  -- use stripped function
+          f <- liftCC $ HS.Var <$> xhqn (FunK NoUnused) f
+                                   -- use stripped function
           -- Andreas, 2019-11-07, issue #4169.
           -- Insert coercion unconditionally as erasure of arguments
           -- that are matched upon might remove the unfolding of codomain types.
           -- (Hard to explain, see test/Compiler/simple/Issue4169.)
           hsCoerce f `apps` filterUsed used ts
         else do
-          f <- liftCC $ HS.Var <$> xhqn "d" f  -- use original (non-stripped) function
+          f <- liftCC $ HS.Var <$> xhqn (FunK PossiblyUnused) f
+                                   -- use original (non-stripped) function
           coe f `apps` ts
 
     (T.TCon c, ts) -> do
@@ -1075,7 +1077,7 @@ condecl q _ind = do
                    | (t, False) <- zip (drop np argTypes0)
                                        (fromMaybe [] erased ++ repeat False)
                    ]
-  return $ HS.ConDecl (unqhname "C" q) argTypes
+  return $ HS.ConDecl (unqhname ConK q) argTypes
 
 compiledcondecl
   :: Maybe Nat  -- ^ The constructor's arity (after erasure).
@@ -1085,15 +1087,16 @@ compiledcondecl mar q = do
     Nothing -> liftTCM $ erasedArity q
     Just ar -> return ar
   hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
-  let patVars = map (HS.PVar . ihname "a") [0 .. ar - 1]
-  return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname "C" q) patVars) (HS.PApp (hsName hsCon) patVars)
+  let patVars = map (HS.PVar . ihname A) [0 .. ar - 1]
+  return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname ConK q) patVars)
+             (HS.PApp (hsName hsCon) patVars)
 
 compiledTypeSynonym :: QName -> String -> Nat -> HS.Decl
 compiledTypeSynonym q hsT arity =
-  HS.TypeDecl (unqhname "T" q) (map HS.UnkindedVar vs)
+  HS.TypeDecl (unqhname TypeK q) (map HS.UnkindedVar vs)
               (foldl HS.TyApp (HS.FakeType hsT) $ map HS.TyVar vs)
   where
-    vs = [ ihname "a" i | i <- [0 .. arity - 1]]
+    vs = [ ihname A i | i <- [0 .. arity - 1]]
 
 tvaldecl :: QName
          -> Induction
@@ -1104,8 +1107,8 @@ tvaldecl q ind npar cds cl =
   maybe [HS.DataDecl kind tn [] cds' []]
         (const []) cl
   where
-  (tn, vn) = (unqhname "T" q, dname q)
-  pvs = [ HS.PVar        $ ihname "a" i | i <- [0 .. npar - 1]]
+  (tn, vn) = (unqhname TypeK q, dname q)
+  pvs = [ HS.PVar $ ihname A i | i <- [0 .. npar - 1]]
 
   -- Inductive data types consisting of a single constructor with a
   -- single argument are translated into newtypes.
@@ -1119,7 +1122,7 @@ tvaldecl q ind npar cds cl =
 infodecl :: QName -> [HS.Decl] -> [HS.Decl]
 infodecl _ [] = []
 infodecl q ds =
-  fakeD (unqhname "name" q) (haskellStringLiteral $ prettyShow q) : ds
+  fakeD (unqhname NameK q) (haskellStringLiteral $ prettyShow q) : ds
 
 --------------------------------------------------
 -- Writing out a haskell module

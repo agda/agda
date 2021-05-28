@@ -162,26 +162,76 @@ curAgdaMod = mazModuleName <$> askHsModuleEnv
 curHsMod :: ReadGHCModuleEnv m => m HS.ModuleName
 curHsMod = mazMod <$> curAgdaMod
 
--- The following naming scheme seems to be used:
---
--- * Types coming from Agda are named "T\<number\>".
---
--- * Other definitions coming from Agda are named "d\<number\>".
---   Exception: the main function is named "main".
---
--- * Names coming from Haskell must always be used qualified.
---   Exception: names from the Prelude.
+-- | There are two kinds of functions: those definitely without unused
+-- arguments, and those that might have unused arguments.
 
-ihname :: String -> Nat -> HS.Name
-ihname s i = HS.Ident $ s ++ show i
+data FunctionKind = NoUnused | PossiblyUnused
 
-unqhname :: String -> QName -> HS.Name
-{- NOT A GOOD IDEA, see Issue 728
-unqhname s q | ("d", "main") == (s, show(qnameName q)) = HS.Ident "main"
-             | otherwise = ihname s (idnum $ nameId $ qnameName $ q)
--}
-unqhname s q = ihname s (idnum $ nameId $ qnameName $ q)
-   where idnum (NameId x _) = fromIntegral x
+-- | Different kinds of variables: those starting with @a@, those
+-- starting with @v@, and those starting with @x@.
+
+data VariableKind = A | V | X
+
+-- | Different kinds of names.
+
+data NameKind
+  = TypeK
+    -- ^ Types.
+  | ConK
+    -- ^ Constructors.
+  | VarK VariableKind
+    -- ^ Variables.
+  | NameK
+    -- ^ Names standing for strings containing the Agda names of
+    -- things.
+  | CoverK
+    -- ^ Used for coverage checking.
+  | CheckK
+    -- ^ Used for constructor type checking.
+  | FunK FunctionKind
+    -- ^ Other functions.
+
+-- | Turns strings into valid Haskell identifiers.
+--
+-- In order to avoid clashes with names of regular Haskell definitions
+-- (those not generated from Agda definitions), make sure that the
+-- Haskell names are always used qualified, with the exception of
+-- names from the prelude.
+
+encodeString :: NameKind -> String -> String
+encodeString k s = prefix ++ concatMap encode s
+  where
+  encode '\'' = "''"
+  encode c
+    | isLower c || isUpper c || c == '_' ||
+      generalCategory c == DecimalNumber =
+      [c]
+    | otherwise =
+      "'" ++ show (fromEnum c) ++ "'"
+
+  prefix = case k of
+    TypeK               -> "T"
+    ConK                -> "C"
+    VarK A              -> "a"
+    VarK V              -> "v"
+    VarK X              -> "x"
+    NameK               -> "name"
+    CoverK              -> "cover"
+    CheckK              -> "check"
+    FunK NoUnused       -> "du"
+    FunK PossiblyUnused -> "d"
+
+ihname :: VariableKind -> Nat -> HS.Name
+ihname k i = HS.Ident $ encodeString (VarK k) (show i)
+
+unqhname :: NameKind -> QName -> HS.Name
+unqhname k q =
+  HS.Ident $ encodeString k $
+    "_" ++ prettyShow (nameCanonical n) ++ "_" ++ idnum (nameId n)
+  where
+  n = qnameName q
+
+  idnum (NameId x _) = show (fromIntegral x)
 
 -- the toplevel module containing the given one
 tlmodOf :: ReadTCState m => ModuleName -> m HS.ModuleName
@@ -200,15 +250,15 @@ xqual q n = do
       modify (HsCompileState . Set.insert m1 . mazAccumlatedImports)
       return (HS.Qual (mazMod m1) n)
 
-xhqn :: String -> QName -> HsCompileM HS.QName
-xhqn s q = xqual q (unqhname s q)
+xhqn :: NameKind -> QName -> HsCompileM HS.QName
+xhqn k q = xqual q (unqhname k q)
 
 hsName :: String -> HS.QName
 hsName s = HS.UnQual (HS.Ident s)
 
 -- always use the original name for a constructor even when it's redefined.
 conhqn :: QName -> HsCompileM HS.QName
-conhqn q = xhqn "C" =<< canonicalName q
+conhqn q = xhqn ConK =<< canonicalName q
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> HsCompileM HS.QName
@@ -217,11 +267,11 @@ bltQual b s = do
   xqual q (HS.Ident s)
 
 dname :: QName -> HS.Name
-dname q = unqhname "d" q
+dname q = unqhname (FunK PossiblyUnused) q
 
 -- | Name for definition stripped of unused arguments
 duname :: QName -> HS.Name
-duname q = unqhname "du" q
+duname q = unqhname (FunK NoUnused) q
 
 hsPrimOp :: String -> HS.QOp
 hsPrimOp s = HS.QVarOp $ HS.UnQual $ HS.Symbol s
@@ -301,7 +351,8 @@ mazIncompleteMatch :: HS.Exp
 mazIncompleteMatch = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazIncompleteMatch"
 
 rtmIncompleteMatch :: QName -> HS.Exp
-rtmIncompleteMatch q = mazIncompleteMatch `HS.App` hsVarUQ (unqhname "name" q)
+rtmIncompleteMatch q =
+  mazIncompleteMatch `HS.App` hsVarUQ (unqhname NameK q)
 
 mazUnreachableError :: HS.Exp
 mazUnreachableError = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazUnreachableError"

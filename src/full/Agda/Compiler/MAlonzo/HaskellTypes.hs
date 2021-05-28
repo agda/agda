@@ -130,13 +130,13 @@ getHsType x = do
               x `is` ghcEnvInteger -> return $ hsCon "Integer"
             | x `is` ghcEnvBool    -> return $ hsCon "Bool"
             | otherwise            ->
-              lift $ hsCon . prettyShow <$> xhqn "T" x
+              lift $ hsCon . prettyShow <$> xhqn TypeK x
   mapExceptT (setCurrentRange d) $ case d of
     _ | x `is` ghcEnvList ->
-        lift $ hsCon . prettyShow <$> xhqn "T" x
+        lift $ hsCon . prettyShow <$> xhqn TypeK x
         -- we ignore Haskell pragmas for List
     _ | x `is` ghcEnvMaybe ->
-        lift $ hsCon . prettyShow <$> xhqn "T" x
+        lift $ hsCon . prettyShow <$> xhqn TypeK x
         -- we ignore Haskell pragmas for Maybe
     _ | x `is` ghcEnvInf ->
         return $ hsQCon "MAlonzo.RTE" "Infinity"
@@ -161,14 +161,8 @@ isData q = do
     _          -> False
 
 getHsVar :: (MonadFail tcm, MonadTCM tcm) => Nat -> tcm HS.Name
-getHsVar i = HS.Ident . encodeName <$> nameOfBV i
-  where
-    encodeName x = "x" ++ concatMap encode (prettyShow x)
-    okChars = ['a'..'z'] ++ ['A'..'Y'] ++ "_'"
-    encode 'Z' = "ZZ"
-    encode c
-      | c `elem` okChars = [c]
-      | otherwise        = "Z" ++ show (fromEnum c)
+getHsVar i =
+  HS.Ident . encodeString (VarK X) . prettyShow <$> nameOfBV i
 
 haskellType' :: Type -> HsCompileM HS.Type
 haskellType' t = runToHs (unEl t) (fromType t)
@@ -279,7 +273,7 @@ hsTypeApproximation poly fv t = do
                 foldl HS.TyApp <$> getHsType' q <*> mapM (go n . unArg) args
               `catchError` \ _ -> -- Not a Haskell type
                 ifM (and2M (isCompiled q) (isData q))
-                  (HS.TyCon <$> xhqn "T" q)
+                  (HS.TyCon <$> xhqn TypeK q)
                   (return mazAnyType)
           Sort{} -> return $ HS.FakeType "()"
           _ -> return mazAnyType
