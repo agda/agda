@@ -55,7 +55,7 @@ fromList1Maybe = \case
 instance IsList (List2 a) where
   type Item (List2 a) = a
 
-  -- | Unsafe! O(1).
+  -- Unsafe! O(1).
   fromList :: [a] -> List2 a
   fromList (a : b : cs) = List2 a b cs
   fromList _            = __IMPOSSIBLE__

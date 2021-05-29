@@ -822,7 +822,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- before we apply the import directive.
     scope = restrictPrivate scope0
 
-    -- | Return names in the @using@ directive, discarding duplicates.
+    -- Return names in the @using@ directive, discarding duplicates.
     -- Monadic for the sake of throwing warnings.
     discardDuplicatesInUsing :: C.Using -> ScopeM [C.ImportedName]
     discardDuplicatesInUsing = \case
@@ -832,7 +832,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
         List1.unlessNull dups $ warning . DuplicateUsing
         return ys
 
-    -- | If both @using@ and @hiding@ directive are present,
+    -- If both @using@ and @hiding@ directive are present,
     -- the hiding directive may only contain modules whose twins are mentioned.
     -- Monadic for the sake of error reporting.
     sanityCheck notMentioned = \case
@@ -861,14 +861,14 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
              [ r , Renaming (ImportedModule y) (ImportedModule z) Nothing rng ]
           r -> [r]
 
-    -- | Names and modules (abstract) in scope before the import.
+    -- Names and modules (abstract) in scope before the import.
     namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
     modulesInScope = (allNamesInScope scope :: ThingsInScope AbstractModule)
     concreteNamesInScope = (Map.keys namesInScope ++ Map.keys modulesInScope :: [C.Name])
 
-    -- | AST versions of the concrete names passed as an argument.
-    --   We get back a pair consisting of a list of missing exports first,
-    --   and a list of successful imports second.
+    -- AST versions of the concrete names passed as an argument.
+    -- We get back a pair consisting of a list of missing exports first,
+    -- and a list of successful imports second.
     checkExist :: [ImportedName] -> ([ImportedName], [ImportedName' (C.Name, A.QName) (C.Name, A.ModuleName)])
     checkExist xs = partitionEithers $ for xs $ \ name -> case name of
       ImportedName x   -> ImportedName   . (x,) . setRange (getRange x) . anameName <$> resolve name x namesInScope

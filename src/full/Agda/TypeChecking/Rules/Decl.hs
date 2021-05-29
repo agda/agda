@@ -223,7 +223,7 @@ checkDecl d = setCurrentRange d $ do
     checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
       A.Axiom kind i defaultArgInfo Nothing x t
 
-    -- | Switch maybe to abstract mode, benchmark, and debug print bracket.
+    -- Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
           . ( MonadTCEnv m, MonadPretty m, MonadDebug m
             , MonadBench m, Bench.BenchPhase m ~ Phase
@@ -236,7 +236,7 @@ checkDecl d = setCurrentRange d $ do
       reportSDoc "tc.decl" 5 $ ("Checked" <+> prettyTCM x) <> "."
       return r
 
-    -- | Switch to AbstractMode if any of the i is AbstractDef.
+    -- Switch to AbstractMode if any of the i is AbstractDef.
     checkMaybeAbstractly :: forall m i a . ( MonadTCEnv m , AnyIsAbstract i )
                          => i -> m a -> m a
     checkMaybeAbstractly = localTC . set lensIsAbstract . anyIsAbstract
@@ -413,8 +413,8 @@ highlight_ hlmod d = do
       -- generate highlighting from it.
       -- Simply because all the highlighting info is wrong
       -- in the record constructor type:
-      -- * fields become bound variables,
-      -- * declarations become let-bound variables.
+      -- i) fields become bound variables,
+      -- ii) declarations become let-bound variables.
       -- We do not need that crap.
       dummy = A.Lit empty $ LitString $
         "do not highlight construct(ed/or) type"

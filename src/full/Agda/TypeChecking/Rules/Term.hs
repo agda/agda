@@ -1255,11 +1255,11 @@ checkExpr' cmp e t =
         postponeTypeCheckingProblem (CheckExpr cmp e t) x
 
   where
-  -- | Call checkExpr with an hidden lambda inserted if appropriate,
-  --   else fallback.
+  -- Call checkExpr with an hidden lambda inserted if appropriate,
+  -- else fallback.
   tryInsertHiddenLambda
     :: A.Expr
-    -> Type      -- ^ Reduced.
+    -> Type      -- Reduced.
     -> TCM Term
     -> TCM Term
   tryInsertHiddenLambda e tReduced fallback

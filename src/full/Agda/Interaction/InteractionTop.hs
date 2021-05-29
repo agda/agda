@@ -222,7 +222,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
       put s'
       return x
 
-    -- | Handle every possible kind of error (#637), except for
+    -- Handle every possible kind of error (#637), except for
     -- AsyncCancelled, which is used to abort Agda.
     handleNastyErrors :: CommandM () -> CommandM ()
     handleNastyErrors m = commandMToIO $ \ toIO -> do
@@ -241,7 +241,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         Right x -> return x
         Left e  -> E.throwIO e
 
-    -- | Displays an error and instructs Emacs to jump to the site of the
+    -- Displays an error and instructs Emacs to jump to the site of the
     -- error. Because this function may switch the focus to another file
     -- the status information is also updated.
     handleErr method e = do
@@ -363,14 +363,12 @@ maybeAbort m = do
           return (Command Nothing)
   where
 
-  -- | Returns if the currently executing command should be aborted.
+  -- Returns if the currently executing command should be aborted.
   -- The "abort number" is returned.
 
   waitForAbort
-    :: Integer
-       -- ^ The number of the currently executing command.
-    -> CommandQueue
-       -- ^ The command queue.
+    :: Integer       -- The number of the currently executing command.
+    -> CommandQueue  -- The command queue.
     -> IO Integer
   waitForAbort n q = do
     atomically $ do
@@ -379,7 +377,7 @@ maybeAbort m = do
         Just a' | n <= a' -> return a'
         _                 -> retry
 
-  -- | Removes every command for which the command number is at most
+  -- Removes every command for which the command number is at most
   -- the given number (the "abort number") from the command queue.
   --
   -- New commands could be added to the end of the queue while this

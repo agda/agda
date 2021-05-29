@@ -983,7 +983,7 @@ checkLHS mf = updateModality checkLHS_ where
       liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit)
 
 
-    -- | Split a Partial.
+    -- Split a Partial.
     --
     -- Example for splitPartial:
     -- @
@@ -1033,10 +1033,10 @@ checkLHS mf = updateModality checkLHS_ where
     --   sigma = fails because several substitutions [[1/i],[1/j]] correspond to phi
     -- @
 
-    splitPartial :: Telescope     -- ^ The types of arguments before the one we split on
-                 -> Dom Type      -- ^ The type of the argument we split on
-                 -> Abs Telescope -- ^ The types of arguments after the one we split on
-                 -> [(A.Expr, A.Expr)] -- ^ [(φ₁ = b1),..,(φn = bn)]
+    splitPartial :: Telescope     -- The types of arguments before the one we split on
+                 -> Dom Type      -- The type of the argument we split on
+                 -> Abs Telescope -- The types of arguments after the one we split on
+                 -> [(A.Expr, A.Expr)] -- [(φ₁ = b1),..,(φn = bn)]
                  -> ExceptT TCErr tcm (LHSState a)
     splitPartial delta1 dom adelta2 ts = do
 
@@ -1143,10 +1143,10 @@ checkLHS mf = updateModality checkLHS_ where
       liftTCM $ updateLHSState (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]))
 
 
-    splitLit :: Telescope     -- ^ The types of arguments before the one we split on
-             -> Dom Type      -- ^ The type of the literal we split on
-             -> Abs Telescope -- ^ The types of arguments after the one we split on
-             -> Literal       -- ^ The literal written by the user
+    splitLit :: Telescope      -- The types of arguments before the one we split on
+             -> Dom Type       -- The type of the literal we split on
+             -> Abs Telescope  -- The types of arguments after the one we split on
+             -> Literal        -- The literal written by the user
              -> ExceptT TCErr tcm (LHSState a)
     splitLit delta1 dom@Dom{domInfo = info, unDom = a} adelta2 lit = do
       let delta2 = absApp adelta2 (Lit lit)
@@ -1182,12 +1182,12 @@ checkLHS mf = updateModality checkLHS_ where
       liftTCM $ updateLHSState (LHSState delta' ip' problem' target' psplit)
 
 
-    splitCon :: Telescope     -- ^ The types of arguments before the one we split on
-             -> Dom Type      -- ^ The type of the constructor we split on
-             -> Abs Telescope -- ^ The types of arguments after the one we split on
-             -> A.Pattern     -- ^ The pattern written by the user
-             -> Maybe AmbiguousQName  -- ^ @Just c@ for a (possibly ambiguous) constructor @c@, or
-                                      --   @Nothing@ for a record pattern
+    splitCon :: Telescope      -- The types of arguments before the one we split on
+             -> Dom Type       -- The type of the constructor we split on
+             -> Abs Telescope  -- The types of arguments after the one we split on
+             -> A.Pattern      -- The pattern written by the user
+             -> Maybe AmbiguousQName  -- @Just c@ for a (possibly ambiguous) constructor @c@, or
+                                      -- @Nothing@ for a record pattern
              -> ExceptT TCErr tcm (LHSState a)
     splitCon delta1 dom@Dom{domInfo = info, unDom = a} adelta2 focusPat ambC = do
       let delta2 = absBody adelta2
@@ -1660,13 +1660,13 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         [ "Wrong hiding used for projection " , prettyTCM d ]
 
     tryProj
-      :: Bool                 -- ^ Are we allowed to create new constraints?
-      -> [Dom QName]          -- ^ Fields of record type under consideration.
-      -> QName                -- ^ Name of record type we are eliminating.
-      -> Args                 -- ^ Parameters of record type we are eliminating.
-      -> QName                -- ^ Candidate projection.
+      :: Bool                 -- Are we allowed to create new constraints?
+      -> [Dom QName]          -- Fields of record type under consideration.
+      -> QName                -- Name of record type we are eliminating.
+      -> Args                 -- Parameters of record type we are eliminating.
+      -> QName                -- Candidate projection.
       -> ExceptT TCErr TCM (QName, (Arg Type, ArgInfo, Maybe TCState))
-           -- ^ TCState contains possibly new constraints/meta solutions.
+           -- TCState contains possibly new constraints/meta solutions.
     tryProj constraintsOk fs r vs d0 = isProjection d0 >>= \case
       -- Not a projection
       Nothing -> wrongProj d0
@@ -1754,20 +1754,17 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
 
   where
     tryDisambiguate
-      :: Bool
-           -- ^ May we constrain/solve metas to arrive at unique disambiguation?
-      -> QName
-           -- ^ Data/record type.
-      -> [QName]
-           -- ^ Its constructor(s).
+      :: Bool     -- May we constrain/solve metas to arrive at unique disambiguation?
+      -> QName    -- Data/record type.
+      -> [QName]  -- Its constructor(s).
       -> ( ( [TCErr]
            , [List1 (QName, ConHead, (Type, Maybe TCState))]
            )
-           -> TCM (ConHead, Type) )
-           -- ^ Failure continuation, taking possible disambiguations
-           --   grouped by the original constructor name in 'ConHead'.
-      -> TCM (ConHead, Type)
-           -- ^ Unique disambiguation and its type.
+           -> TCM (ConHead, Type) )  -- Failure continuation, taking
+                                     -- possible disambiguations
+                                     -- grouped by the original
+                                     -- constructor name in 'ConHead'.
+      -> TCM (ConHead, Type)  -- Unique disambiguation and its type.
     tryDisambiguate constraintsOk d cons failure = do
       reportSDoc "tc.lhs.disamb" 30 $ sep $ List.concat $
         [ [ "tryDisambiguate" ]
@@ -1816,15 +1813,15 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
       ConstructorPatternInWrongDatatype c d
 
     tryCon
-      :: Bool        -- ^ Are we allowed to constrain metas?
-      -> [QName]     -- ^ Constructors of data type under consideration.
-      -> QName       -- ^ Name of data/record type we are eliminating.
-      -> Args        -- ^ Parameters of data/record type we are eliminating.
-      -> QName       -- ^ Candidate constructor.
+      :: Bool        -- Are we allowed to constrain metas?
+      -> [QName]     -- Constructors of data type under consideration.
+      -> QName       -- Name of data/record type we are eliminating.
+      -> Args        -- Parameters of data/record type we are eliminating.
+      -> QName       -- Candidate constructor.
       -> ExceptT TCErr TCM (QName, ConHead, (Type, Maybe TCState))
-           -- ^ If this candidate succeeds, return its disambiguation
-           --   its type, and maybe the state obtained after checking it
-           --   (which may contain new constraints/solutions).
+           -- If this candidate succeeds, return its disambiguation
+           -- its type, and maybe the state obtained after checking it
+           -- (which may contain new constraints/solutions).
     tryCon constraintsOk cons d pars c = getConstInfo' c >>= \case
       Left (SigUnknown err) -> __IMPOSSIBLE__
       Left SigAbstract -> abstractConstructor c
@@ -1856,9 +1853,9 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
 
         return (c, con, (cType, mst))
 
-    -- | This deduplication identifies different names of the same constructor, ensuring
-    -- that the "ambiguous constructor" error does not fire for the case described
-    -- in #4130.
+    -- This deduplication identifies different names of the same
+    -- constructor, ensuring that the "ambiguous constructor" error
+    -- does not fire for the case described in #4130.
     --
     -- Andreas, 2020-06-17, issue #4135:
     -- However, we need to distinguish different occurrences

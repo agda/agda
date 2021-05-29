@@ -428,11 +428,11 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
     incs       = nubOn id . concatMap _libIncludes
     dot        = [ "." | not $ null dots ]
 
-    -- | Due to library dependencies, the work list may grow temporarily.
+    -- Due to library dependencies, the work list may grow temporarily.
     find
-      :: LibrariesFile  -- ^ Only for error reporting.
-      -> [LibName]      -- ^ Already resolved libraries.
-      -> [LibName]      -- ^ Work list: libraries left to be resolved.
+      :: LibrariesFile  -- Only for error reporting.
+      -> [LibName]      -- Already resolved libraries.
+      -> [LibName]      -- Work list: libraries left to be resolved.
       -> Writer [Either LibError LibWarning] [AgdaLibFile]
     find _ _ [] = pure []
     find file visited (x : xs)

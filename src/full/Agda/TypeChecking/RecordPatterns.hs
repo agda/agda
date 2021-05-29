@@ -152,8 +152,8 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
       Done{}    -> return cc
       Case i cs -> loops i cs
 
-    loops :: Arg Int              -- ^ split variable
-          -> Case CompiledClauses -- ^ original split tree
+    loops :: Arg Int               -- split variable
+          -> Case CompiledClauses  -- original split tree
           -> m CompiledClauses
     loops i cs@Branches{ projPatterns   = comatch
                        , conBranches    = conMap

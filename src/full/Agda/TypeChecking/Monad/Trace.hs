@@ -163,7 +163,7 @@ instance MonadTrace TCM where
     callRange = getRange call
     callHasRange = not $ null callRange
 
-    -- | Should the given call trigger interactive highlighting?
+    -- Should the given call trigger interactive highlighting?
     highlightCall = case call of
       CheckClause{}             -> True
       CheckLHS{}                -> True

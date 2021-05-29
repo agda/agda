@@ -827,9 +827,9 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
   -- With case: @f xs with {a} in eqa | b in eqb | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
   -- We need to modify the patterns `ps1, ps2, ...` in the user-provided clauses
   -- to insert the {eqb} names so that the equality proofs are available on the various RHS.
-  withRHS :: QName        -- ^ name of the with-function
-          -> [A.WithExpr] -- ^ @[{a} in eqa, b in eqb, {{c}}, ...]@
-          -> [A.Clause]   -- ^ @[(ps1 = rhs1), (ps2 = rhs), ...]@
+  withRHS :: QName         -- name of the with-function
+          -> [A.WithExpr]  -- @[{a} in eqa, b in eqb, {{c}}, ...]@
+          -> [A.Clause]    -- @[(ps1 = rhs1), (ps2 = rhs), ...]@
           -> TCM (Maybe Term, WithFunctionProblem)
   withRHS aux es cs = do
 

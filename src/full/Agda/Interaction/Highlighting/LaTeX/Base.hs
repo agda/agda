@@ -792,13 +792,13 @@ toLaTeX env path source hi =
   where
   infoMap = toMap hi
 
-  -- | This function preserves laziness of the list
+  -- This function preserves laziness of the list
   withLast :: (a -> a) -> [a] -> [a]
   withLast _ [] = []
   withLast f [a] = [f a]
   withLast f (a:as) = a:withLast f as
 
-  -- | This function preserves laziness of the list
+  -- This function preserves laziness of the list
   withFirst :: (a -> a) -> [a] -> [a]
   withFirst _ [] = []
   withFirst f (a:as) = f a:as

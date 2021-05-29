@@ -313,7 +313,7 @@ code onlyCode fileType = mconcat . if onlyCode
     -- Do not create anchors for whitespace.
     applyUnless (mi == mempty) (annotate pos mi) $ toHtml s
 
-  -- | Proposed in #3373, implemented in #3384
+  -- Proposed in #3373, implemented in #3384
   mkRst :: [TokenInfo] -> Html
   mkRst = mconcat . (toHtml rstDelimiter :) . map go
     where
@@ -321,8 +321,8 @@ code onlyCode fileType = mconcat . if onlyCode
         then preEscapedToHtml s
         else mkHtml token
 
-  -- | Proposed in #3137, implemented in #3313
-  --   Improvement proposed in #3366, implemented in #3367
+  -- Proposed in #3137, implemented in #3313
+  -- Improvement proposed in #3366, implemented in #3367
   mkMd :: [[TokenInfo]] -> Html
   mkMd = mconcat . go
     where
@@ -351,19 +351,19 @@ code onlyCode fileType = mconcat . if onlyCode
         then preEscapedToHtml s
         else mkHtml token
 
-  -- | Put anchors that enable referencing that token.
-  --   We put a fail safe numeric anchor (file position) for internal references
-  --   (issue #2756), as well as a heuristic name anchor for external references
-  --   (issue #2604).
+  -- Put anchors that enable referencing that token.
+  -- We put a fail safe numeric anchor (file position) for internal references
+  -- (issue #2756), as well as a heuristic name anchor for external references
+  -- (issue #2604).
   annotate :: Int -> Aspects -> Html -> Html
   annotate pos mi =
     applyWhen hereAnchor (anchorage nameAttributes mempty <>) . anchorage posAttributes
     where
-    -- | Warp an anchor (<A> tag) with the given attributes around some HTML.
+    -- Warp an anchor (<A> tag) with the given attributes around some HTML.
     anchorage :: [Attribute] -> Html -> Html
     anchorage attrs html = Html5.a html !! attrs
 
-    -- | File position anchor (unique, reliable).
+    -- File position anchor (unique, reliable).
     posAttributes :: [Attribute]
     posAttributes = concat
       [ [Attr.id $ stringValue $ show pos ]
@@ -371,7 +371,7 @@ code onlyCode fileType = mconcat . if onlyCode
       , Attr.class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
       ]
 
-    -- | Named anchor (not reliable, but useful in the general case for outside refs).
+    -- Named anchor (not reliable, but useful in the general case for outside refs).
     nameAttributes :: [Attribute]
     nameAttributes = [ Attr.id $ stringValue $ fromMaybe __IMPOSSIBLE__ $ mDefSiteAnchor ]
 
@@ -398,16 +398,16 @@ code onlyCode fileType = mconcat . if onlyCode
     -- Notes are not included.
     noteClasses _s = []
 
-    -- | Should we output a named anchor?
-    --   Only if we are at the definition site now (@here@)
-    --   and such a pretty named anchor exists (see 'defSiteAnchor').
+    -- Should we output a named anchor?
+    -- Only if we are at the definition site now (@here@)
+    -- and such a pretty named anchor exists (see 'defSiteAnchor').
     hereAnchor      :: Bool
     hereAnchor      = here && isJust mDefSiteAnchor
 
     mDefinitionSite :: Maybe DefinitionSite
     mDefinitionSite = definitionSite mi
 
-    -- | Are we at the definition site now?
+    -- Are we at the definition site now?
     here            :: Bool
     here            = maybe False defSiteHere mDefinitionSite
 

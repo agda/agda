@@ -581,8 +581,7 @@ hiliteCName xs x fr mR asp = do
   notHere d = d { defSiteHere = False }
 
   mFilePos
-    :: SourceToModule
-         -- ^ Maps source file paths to module names.
+    :: SourceToModule  -- Maps source file paths to module names.
     -> Maybe DefinitionSite
   mFilePos modMap = do
     r <- mR
