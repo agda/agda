@@ -84,8 +84,7 @@ extra-deps:
 - data-default-instances-old-locale-0.0.1
 - fmlist-0.9.4
 - old-locale-1.0.0.7
-- git: https://github.com/agda/text-icu.git
-  commit: 1925609610459faa93c151c53dc76cc66e3d627c
+- text-icu-0.7.1.0
 
 # extra deps for cpphs flag
 - cpphs-1.20.9.1
