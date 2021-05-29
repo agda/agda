@@ -17,9 +17,7 @@ extra-deps:
 - text-1.2.3.1
 - uuid-types-1.0.3
 - wcwidth-0.0.2
-- git: https://github.com/agda/text-icu.git
-  commit: 1925609610459faa93c151c53dc76cc66e3d627c
-
+- text-icu-0.7.1.0
 
 # Local packages, usually specified by relative directory name
 packages:
