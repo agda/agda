@@ -956,11 +956,11 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           m <- getContextSize
           assignMeta' m x t n ids v
   where
-    -- | Try to remove meta arguments from lhs that mention variables not occurring on rhs.
+    -- Try to remove meta arguments from lhs that mention variables not occurring on rhs.
     attemptPruning
-      :: MetaId  -- ^ Meta-variable (lhs)
-      -> Args    -- ^ Meta arguments (lhs)
-      -> FVs     -- ^ Variables occuring on the rhs
+      :: MetaId  -- Meta-variable (lhs)
+      -> Args    -- Meta arguments (lhs)
+      -> FVs     -- Variables occuring on the rhs
       -> TCM a
     attemptPruning x args fvs = do
       -- non-linear lhs: we cannot solve, but prune
@@ -1423,8 +1423,8 @@ checkLinearity ids0 = do
   let grps = groupOn fst ids
   concat <$> mapM makeLinear grps
   where
-    -- | Non-determinism can be healed if type is singleton. [Issue 593]
-    --   (Same as for irrelevance.)
+    -- Non-determinism can be healed if type is singleton. [Issue 593]
+    -- (Same as for irrelevance.)
     makeLinear :: SubstCand -> ExceptT () TCM SubstCand
     makeLinear []            = __IMPOSSIBLE__
     makeLinear grp@[_]       = return grp

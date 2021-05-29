@@ -368,7 +368,7 @@ simplify FunctionKit{..} = simpl
         overlapped (TALit l _)    (TALit l' _)   = l == l'
         overlapped _              _              = False
 
-    -- | Drop unreachable cases for Nat and Int cases.
+    -- Drop unreachable cases for Nat and Int cases.
     pruneLitCases :: Int -> CaseInfo -> TTerm -> [TAlt] -> S TTerm
     pruneLitCases x t d bs | CTNat == caseType t =
       case complete bs [] Nothing of

@@ -611,8 +611,8 @@ getDisplayForms q = do
 chaseDisplayForms :: QName -> TCM (Set QName)
 chaseDisplayForms q = go Set.empty [q]
   where
-    go :: Set QName        -- ^ Accumulator.
-       -> [QName]          -- ^ Work list.  TODO: make work set to avoid duplicate chasing?
+    go :: Set QName        -- Accumulator.
+       -> [QName]          -- Work list.  TODO: make work set to avoid duplicate chasing?
        -> TCM (Set QName)
     go used []       = pure used
     go used (q : qs) = do

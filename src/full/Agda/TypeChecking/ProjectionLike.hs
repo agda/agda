@@ -334,10 +334,10 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     PrimitiveSort{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but PrimitiveSort"
     Record{}       -> reportSLn "tc.proj.like" 30 $ "  not a function, but Record"
   where
-    -- | If the user wrote a record expression as rhs,
-    --   the recordExpressionsToCopatterns translation will turn this into copatterns,
-    --   violating the conditions of projection-likeness.
-    --   Andreas, 2019-07-11, issue #3843.
+    -- If the user wrote a record expression as rhs,
+    -- the recordExpressionsToCopatterns translation will turn this into copatterns,
+    -- violating the conditions of projection-likeness.
+    -- Andreas, 2019-07-11, issue #3843.
     isRecordExpression :: Term -> Bool
     isRecordExpression = \case
       Con _ ConORec _ -> True

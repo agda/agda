@@ -328,6 +328,6 @@ getTypeInfo t0 = do
             I.Function{ funClauses = cs } ->
               sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El __DUMMY_SORT__) . clauseBody) cs
             _ -> return NotErasable
-  -- | The backend also has a say whether a type is eraseable or not.
+  -- The backend also has a say whether a type is eraseable or not.
   erasureForbidden :: QName -> E Bool
   erasureForbidden q = lift $ not <$> activeBackendMayEraseType q

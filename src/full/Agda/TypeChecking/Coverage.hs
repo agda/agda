@@ -379,12 +379,12 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
           splitError err
   where
     -- Andreas, 2019-08-07, issue #3966
-    -- | When we get a SplitError, tighten the error Range to the clauses
+    -- When we get a SplitError, tighten the error Range to the clauses
     -- that are still candidates for covering the SplitClause.
     splitError :: SplitError -> TCM a
     splitError = withRangeOfCandidateClauses . typeError . SplitError
 
-    -- | This repeats the matching, but since we are crashing anyway,
+    -- This repeats the matching, but since we are crashing anyway,
     -- the extra work just to compute a better Range does not matter.
     withRangeOfCandidateClauses :: TCM a -> TCM a
     withRangeOfCandidateClauses cont = do
@@ -505,10 +505,10 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
 
     -- Try to split result
     trySplitRes
-      :: BlockedOnResult -- ^ Are we blocked on the result?
-      -> Bool            -- ^ Is this the last thing we try?
-      -> (SplitError -> TCM CoverResult) -- ^ Handler for 'SplitError'
-      -> TCM CoverResult -- ^ Continuation
+      :: BlockedOnResult                  -- Are we blocked on the result?
+      -> Bool                             -- Is this the last thing we try?
+      -> (SplitError -> TCM CoverResult)  -- Handler for 'SplitError'
+      -> TCM CoverResult                  -- Continuation
       -> TCM CoverResult
     -- not blocked on result: try regular splits
     trySplitRes NotBlockedOnResult finalSplit splitError cont

@@ -108,7 +108,7 @@ catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
     , vcat $ map (nest 2 . text) $ lines $ show imposs
     ]
   where
-  -- | Exception filter: Catch only the 'Impossible' exception during debug printing.
+  -- Exception filter: Catch only the 'Impossible' exception during debug printing.
   catchMe :: Impossible -> Maybe Impossible
   catchMe = filterMaybe $ \case
     Impossible{}            -> True

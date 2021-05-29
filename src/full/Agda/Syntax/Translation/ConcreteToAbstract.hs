@@ -1635,8 +1635,8 @@ instance ToAbstract LetDef where
           C.RHS e -> return e
           C.AbsurdRHS -> genericError $ "Missing right hand side in let binding"
 
-        -- | Only record patterns allowed, but we do not exclude data constructors here.
-        --   They will fail in the type checker.
+        -- Only record patterns allowed, but we do not exclude data constructors here.
+        -- They will fail in the type checker.
         checkValidLetPattern :: A.Pattern' e -> ScopeM ()
         checkValidLetPattern = \case
             A.VarP{}             -> yes

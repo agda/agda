@@ -239,7 +239,7 @@ buildParsers kind exprNames = do
             IdPart p : _                -> rangedThing p
             _                           -> __IMPOSSIBLE__
 
-        -- | Are the initial and final identifier parts present with
+        -- Are the initial and final identifier parts present with
         -- the right mix of leading and trailing underscores?
         correctUnderscores :: Bool -> Bool -> Notation -> Bool
         correctUnderscores withInitialHole withFinalHole n =
@@ -433,16 +433,13 @@ buildParsers kind exprNames = do
              &&
           fixityAssoc (notaFixity (sectNotation s)) == ass
 
-        mkP :: PrecedenceKey
-               -- ^ Memoisation key.
+        mkP :: PrecedenceKey  -- Memoisation key.
             -> ParseSections
             -> Parser e e
             -> [NotationSection]
-            -> Parser e e
-               -- ^ A parser for an expression of higher precedence.
-            -> Bool
-               -- ^ Include the \"expression of higher precedence\"
-               -- parser as one of the choices?
+            -> Parser e e  -- A parser for an expression of higher precedence.
+            -> Bool  -- Include the \"expression of higher precedence\"
+                     -- parser as one of the choices?
             -> Parser e e
         mkP key parseSections p0 ops higher includeHigher =
             memoise (NodeK key) $

@@ -203,14 +203,14 @@ newLayoutBlock = LexAction $ \ inp _ _ -> do
     return $ TokSymbol SymOpenVirtualBrace i
   where
 
-    -- | Get and reset the status of the coming layout block.
+    -- Get and reset the status of the coming layout block.
     popPendingLayout :: Parser LayoutStatus
     popPendingLayout = do
         status <- gets parseLayStatus
         resetLayoutStatus
         return status
 
-    -- | The confirmed layout column, or 0 if there is none.
+    -- The confirmed layout column, or 0 if there is none.
     confirmedLayoutColumn :: LayoutContext -> Column
     confirmedLayoutColumn = \case
        Layout _ Confirmed c : _   -> c
@@ -234,12 +234,12 @@ confirmLayout = getLexState >>= \ case
   _                   -> confirmLayoutAtNewLine
   where
 
-  -- | Mark the pending layout block as 'Confirmed'.
+  -- Mark the pending layout block as 'Confirmed'.
   confirmedLayoutComing :: Parser ()
   confirmedLayoutComing = modify $ \ s -> s { parseLayStatus = Confirmed }
 
-  -- | Encountering a newline outside of a 'layout' state we confirm top
-  --   tentative layout columns.
+  -- Encountering a newline outside of a 'layout' state we confirm top
+  -- tentative layout columns.
   confirmLayoutAtNewLine :: Parser ()
   confirmLayoutAtNewLine = modifyContext $ confirmTentativeBlocks Nothing
 

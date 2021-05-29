@@ -334,9 +334,9 @@ reifyDisplayFormP f ps wps = do
 
     displayLHS
       :: MonadReify m
-      => A.Patterns   -- ^ Patterns to substituted into display term.
-      -> DisplayTerm  -- ^ Display term.
-      -> m (QName, A.Patterns, A.Patterns)  -- ^ New head, patterns, with-patterns.
+      => A.Patterns   -- Patterns to substituted into display term.
+      -> DisplayTerm  -- Display term.
+      -> m (QName, A.Patterns, A.Patterns)  -- New head, patterns, with-patterns.
     displayLHS ps d = do
         let (f, vs, es) = flattenWith d
         ps  <- mapM elimToPat vs
@@ -351,7 +351,7 @@ reifyDisplayFormP f ps wps = do
         elimToPat (I.Apply arg) = argToPat arg
         elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ unambiguous d
 
-        -- | Substitute variables in display term by patterns.
+        -- Substitute variables in display term by patterns.
         termToPat :: MonadReify m => DisplayTerm -> m (Named_ A.Pattern)
 
         -- Main action HERE:
@@ -779,12 +779,12 @@ reifyTerm expandAnonDefs0 v0 = do
     -- them (plus the associated arguments to the extended lambda), we produce
     -- something
 
-    -- * that violates internal invariants.  In particular, the permutation
-    --   dbPatPerm from the patterns to the telescope can no longer be
-    --   computed.  (And in fact, dropping from the start of the telescope is
-    --   just plainly unsound then.)
+    -- i) that violates internal invariants.  In particular, the permutation
+    -- dbPatPerm from the patterns to the telescope can no longer be
+    -- computed.  (And in fact, dropping from the start of the telescope is
+    -- just plainly unsound then.)
 
-    -- * prints the wrong thing (old fix for #2047)
+    -- ii) prints the wrong thing (old fix for #2047)
 
     -- What we do now, is more sound, although not entirely satisfying:
     -- When the "parameter" patterns of an external lambdas are not variable

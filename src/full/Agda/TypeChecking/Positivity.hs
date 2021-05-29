@@ -315,9 +315,8 @@ preprocess ob = case pp Nothing ob of
   Nothing -> Concat' []
   Just ob -> ob
   where
-  pp :: Maybe Nat
-        -- ^ Variables larger than or equal to this number, if any,
-        --   are not retained.
+  pp :: Maybe Nat  -- Variables larger than or equal to this number, if any,
+                   -- are not retained.
      -> OccurrencesBuilder
      -> Maybe OccurrencesBuilder'
   pp !m = \case
@@ -692,14 +691,11 @@ computeEdges muts q ob =
   mkEdge
      :: Occurrence
      -> OccurrencesBuilder'
-     -> Node
-        -- ^ The current target node.
-     -> DS.Seq Where
-        -- ^ 'Where' information encountered before the current target
-        -- node was (re)selected.
-     -> DS.Seq Where
-        -- ^ 'Where' information encountered after the current target
-        -- node was (re)selected.
+     -> Node          -- The current target node.
+     -> DS.Seq Where  -- 'Where' information encountered before the current target
+                      -- node was (re)selected.
+     -> DS.Seq Where  -- 'Where' information encountered after the current target
+                      -- node was (re)selected.
      -> TCM ([Graph.Edge Node (Edge OccursWhere)] ->
              [Graph.Edge Node (Edge OccursWhere)])
   mkEdge !pol ob to cs os = case ob of
@@ -733,10 +729,9 @@ computeEdges muts q ob =
                , Graph.label  = Edge pol o
                } :)
 
-  -- | This function might return a new target node.
+  -- This function might return a new target node.
   mkEdge'
-    :: Node
-        -- ^ The current target node.
+    :: Node  -- The current target node.
     -> Occurrence
     -> Where
     -> TCM (Maybe Node, Occurrence)

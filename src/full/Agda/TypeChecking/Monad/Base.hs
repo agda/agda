@@ -2113,7 +2113,7 @@ data Defn = Axiom -- ^ Postulate
               --   'Nothing' if no erasure analysis has been performed yet.
               --   The length of the list is @conArity@.
             }
-          | Primitive
+          | Primitive  -- ^ Primitive or builtin functions.
             { primAbstr :: IsAbstract
             , primName  :: String
             , primClauses :: [Clause]
@@ -2124,7 +2124,6 @@ data Defn = Axiom -- ^ Postulate
               -- ^ 'Nothing' for primitive functions,
               --   @'Just' something@ for builtin functions.
             }
-            -- ^ Primitive or builtin functions.
           | PrimitiveSort
             { primName :: String
             , primSort :: Sort

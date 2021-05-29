@@ -751,6 +751,10 @@ library
                  -Werror=unused-packages
                  -Werror=unused-record-wildcards
 
+  -- NOTE: If adding or removing flags, also change `.ghci-9.0`
+  if impl(ghc >= 9.0)
+    ghc-options: -Werror=invalid-haddock
+
   ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
@@ -1083,3 +1087,7 @@ test-suite agda-tests
                  -Werror=redundant-record-wildcards
                  -Werror=unused-packages
                  -Werror=unused-record-wildcards
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.0`
+  if impl(ghc >= 9.0)
+    ghc-options: -Werror=invalid-haddock

@@ -67,7 +67,7 @@ instance MentionsMeta t => MentionsMeta (Abs t) where
 
 instance MentionsMeta t => MentionsMeta (Arg t) where
   mentionsMetas xs a | isIrrelevant a = False
-  -- ^ we don't have to look inside irrelevant arguments when deciding to wake constraints
+  -- we don't have to look inside irrelevant arguments when deciding to wake constraints
   mentionsMetas xs a = mentionsMetas xs (unArg a)
 
 instance MentionsMeta t => MentionsMeta (Dom t) where

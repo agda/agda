@@ -624,15 +624,14 @@ niceDeclarations fixs ds = do
       .  PositivityCheck
       -> UniverseCheck
       -> (Range -> Origin -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> [LamBinding] -> [decl] -> NiceDeclaration)
-         -- ^ Construct definition.
+         -- Construct definition.
       -> (Range -> Access -> IsAbstract -> PositivityCheck -> UniverseCheck -> Name -> [LamBinding] -> Expr -> NiceDeclaration)
-         -- ^ Construct signature.
-      -> ([a] -> Nice [decl])
-         -- ^ Constructor checking.
+         -- Construct signature.
+      -> ([a] -> Nice [decl])        -- Constructor checking.
       -> Range
-      -> Name          -- ^ Data/record type name.
-      -> Maybe ([LamBinding], Expr)    -- ^ Parameters and type.  If not @Nothing@ a signature is created.
-      -> Maybe ([LamBinding], [a])     -- ^ Parameters and constructors.  If not @Nothing@, a definition body is created.
+      -> Name                        -- Data/record type name.
+      -> Maybe ([LamBinding], Expr)  -- Parameters and type.  If not @Nothing@ a signature is created.
+      -> Maybe ([LamBinding], [a])   -- Parameters and constructors.  If not @Nothing@, a definition body is created.
       -> Nice [NiceDeclaration]
     dataOrRec pc uc mkDef mkSig niceD r x mt mcs = do
       mds <- Trav.forM mcs $ \ (tel, cs) -> (tel,) <$> niceD cs
@@ -792,12 +791,12 @@ niceDeclarations fixs ds = do
        hasEllipsis p || couldBeCallOf mFixity x p
     couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False
 
-    -- | Turn a new style `interleaved mutual' block into a new style mutual block
-    --   by grouping the declarations in blocks.
+    -- Turn a new style `interleaved mutual' block into a new style mutual block
+    -- by grouping the declarations in blocks.
     mkInterleavedMutual
-      :: Range                -- ^ Range of the whole @mutual@ block.
-      -> [NiceDeclaration]    -- ^ Declarations inside the block.
-      -> Nice NiceDeclaration -- ^ Returns a 'NiceMutual'.
+      :: Range                 -- Range of the whole @mutual@ block.
+      -> [NiceDeclaration]     -- Declarations inside the block.
+      -> Nice NiceDeclaration  -- Returns a 'NiceMutual'.
     mkInterleavedMutual r ds' = do
       (other, (m, checks, _)) <- runStateT (groupByBlocks r ds') (empty, mempty, 0)
       let idecls = other ++ concatMap (uncurry interleavedDecl) (Map.toList m)
@@ -835,8 +834,8 @@ niceDeclarations fixs ds = do
         ------------------------------------------------------------------------------
         -- Adding constructors & clauses
 
-        addDataConstructors :: Maybe Name         -- ^ Data type the constructors belong to
-                            -> [NiceConstructor]  -- ^ Constructors to add
+        addDataConstructors :: Maybe Name         -- Data type the constructors belong to
+                            -> [NiceConstructor]  -- Constructors to add
                             -> StateT (InterleavedMutual, MutualChecks, Int) Nice ()
         -- if we know the type's name, we can go ahead
         addDataConstructors (Just n) ds = do
@@ -959,12 +958,12 @@ niceDeclarations fixs ds = do
        | otherwise = Left (n, [])
     isConstructor _ _ = __IMPOSSIBLE__
 
-    -- | Turn an old-style mutual block into a new style mutual block
-    --   by pushing the definitions to the end.
+    -- Turn an old-style mutual block into a new style mutual block
+    -- by pushing the definitions to the end.
     mkOldMutual
-      :: Range                -- ^ Range of the whole @mutual@ block.
-      -> [NiceDeclaration]    -- ^ Declarations inside the block.
-      -> Nice NiceDeclaration -- ^ Returns a 'NiceMutual'.
+      :: Range                 -- Range of the whole @mutual@ block.
+      -> [NiceDeclaration]     -- Declarations inside the block.
+      -> Nice NiceDeclaration  -- Returns a 'NiceMutual'.
     mkOldMutual r ds' = do
         -- Postulate the missing definitions
         let ps = loneSigsFromLoneNames loneNames
@@ -1185,7 +1184,7 @@ niceDeclarations fixs ds = do
         return ds -- no change!
 
     instanceBlock
-      :: Range  -- ^ Range of @instance@ keyword.
+      :: Range  -- Range of @instance@ keyword.
       -> [NiceDeclaration]
       -> Nice [NiceDeclaration]
     instanceBlock _ [] = return []
@@ -1197,7 +1196,7 @@ niceDeclarations fixs ds = do
 
     -- Make a declaration eligible for instance search.
     mkInstance
-      :: Range  -- ^ Range of @instance@ keyword.
+      :: Range  -- Range of @instance@ keyword.
       -> Updater NiceDeclaration
     mkInstance r0 = \case
         Axiom r p a i rel x e          -> (\ i -> Axiom r p a i rel x e) <$> setInstance r0 i
@@ -1223,7 +1222,7 @@ niceDeclarations fixs ds = do
         d@NiceGeneralize{}             -> return d
 
     setInstance
-      :: Range  -- ^ Range of @instance@ keyword.
+      :: Range  -- Range of @instance@ keyword.
       -> Updater IsInstance
     setInstance r0 = \case
       i@InstanceDef{} -> return i

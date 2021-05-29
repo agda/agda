@@ -215,9 +215,9 @@ insertImplicit' a ts
       takeHiddenUntil (sameHiding a) ts
 
     where
-    -- | @takeHiddenUntil p ts@ returns the 'getHiding' of the prefix of @ts@
-    --   until @p@ holds or a visible argument is encountered.
-    --   If @p@ never holds, 'Nothing' is returned.
+    -- @takeHiddenUntil p ts@ returns the 'getHiding' of the prefix of @ts@
+    -- until @p@ holds or a visible argument is encountered.
+    -- If @p@ never holds, 'Nothing' is returned.
     --
     --   Precondition: @p@ should imply @not . visible@.
     takeHiddenUntil :: (Dom ArgName -> Bool) -> [Dom ArgName] -> Maybe [Dom ()]

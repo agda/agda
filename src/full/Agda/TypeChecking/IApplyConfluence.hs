@@ -196,7 +196,7 @@ unifyElims vs ts k = do
     bindS binds = parallelS (for [0..maximum (-1:map fst binds)] $ (\ i -> fromMaybe (deBruijnVar i) (List.lookup i binds)))
 
     codomain :: Substitution
-             -> [Nat] -- ^ support
+             -> [Nat]  -- support
              -> Context -> Context
     codomain s vs cxt = map snd $ filter (\ (i,c) -> i `List.notElem` vs) $ zip [0..] cxt'
      where
