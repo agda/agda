@@ -1,4 +1,4 @@
-Tested with `cabal-install 3.2.0.0`.
+Tested with `ghc-8.10.4` and `cabal-install 3.4.0.0`.
 
 When releasing the following procedure can be followed:
 
