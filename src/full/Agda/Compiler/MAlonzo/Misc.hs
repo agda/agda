@@ -93,6 +93,8 @@ data GHCEnv = GHCEnv
   , ghcEnvConId
     :: Maybe QName
     -- Various (possibly) builtin names.
+  , ghcEnvIsTCBuiltin :: QName -> Bool
+    -- ^ Is the given name a @TC@ builtin (except for @TC@ itself)?
   }
 
 -- | Module compilation environment, bundling the overall

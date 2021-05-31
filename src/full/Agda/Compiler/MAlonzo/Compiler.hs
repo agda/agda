@@ -7,6 +7,7 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Reader
 import Control.Monad.Writer hiding ((<>))
 
+import qualified Data.HashSet as HashSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -223,36 +224,77 @@ ghcPreCompile flags = do
   mid         <- getBuiltinName builtinId
   mconid      <- getBuiltinName builtinConId
 
+  istcbuiltin <- do
+    builtins <- mapM getBuiltinName
+      [ builtinAgdaTCMReturn
+      , builtinAgdaTCMBind
+      , builtinAgdaTCMUnify
+      , builtinAgdaTCMTypeError
+      , builtinAgdaTCMInferType
+      , builtinAgdaTCMCheckType
+      , builtinAgdaTCMNormalise
+      , builtinAgdaTCMReduce
+      , builtinAgdaTCMCatchError
+      , builtinAgdaTCMQuoteTerm
+      , builtinAgdaTCMUnquoteTerm
+      , builtinAgdaTCMQuoteOmegaTerm
+      , builtinAgdaTCMGetContext
+      , builtinAgdaTCMExtendContext
+      , builtinAgdaTCMInContext
+      , builtinAgdaTCMFreshName
+      , builtinAgdaTCMDeclareDef
+      , builtinAgdaTCMDeclarePostulate
+      , builtinAgdaTCMDefineFun
+      , builtinAgdaTCMGetType
+      , builtinAgdaTCMGetDefinition
+      , builtinAgdaTCMBlockOnMeta
+      , builtinAgdaTCMCommit
+      , builtinAgdaTCMIsMacro
+      , builtinAgdaTCMWithNormalisation
+      , builtinAgdaTCMWithReconsParams
+      , builtinAgdaTCMDebugPrint
+      , builtinAgdaTCMOnlyReduceDefs
+      , builtinAgdaTCMDontReduceDefs
+      , builtinAgdaTCMNoConstraints
+      , builtinAgdaTCMRunSpeculative
+      , builtinAgdaTCMExec
+      ]
+    return $
+      flip HashSet.member $
+      HashSet.fromList $
+      catMaybes builtins
+
   return $ GHCEnv
-    { ghcEnvOpts       = ghcOpts
-    , ghcEnvBool       = mbool
-    , ghcEnvTrue       = mtrue
-    , ghcEnvFalse      = mfalse
-    , ghcEnvMaybe      = mmaybe
-    , ghcEnvNothing    = mnothing
-    , ghcEnvJust       = mjust
-    , ghcEnvList       = mlist
-    , ghcEnvNil        = mnil
-    , ghcEnvCons       = mcons
-    , ghcEnvNat        = mnat
-    , ghcEnvInteger    = minteger
-    , ghcEnvWord64     = mword64
-    , ghcEnvInf        = minf
-    , ghcEnvSharp      = msharp
-    , ghcEnvFlat       = mflat
-    , ghcEnvInterval   = minterval
-    , ghcEnvIZero      = mizero
-    , ghcEnvIOne       = mione
-    , ghcEnvIsOne      = misone
-    , ghcEnvItIsOne    = mitisone
-    , ghcEnvIsOne1     = misone1
-    , ghcEnvIsOne2     = misone2
-    , ghcEnvIsOneEmpty = misoneempty
-    , ghcEnvPathP      = mpathp
-    , ghcEnvSub        = msub
-    , ghcEnvSubIn      = msubin
-    , ghcEnvId         = mid
-    , ghcEnvConId      = mconid
+    { ghcEnvOpts        = ghcOpts
+    , ghcEnvBool        = mbool
+    , ghcEnvTrue        = mtrue
+    , ghcEnvFalse       = mfalse
+    , ghcEnvMaybe       = mmaybe
+    , ghcEnvNothing     = mnothing
+    , ghcEnvJust        = mjust
+    , ghcEnvList        = mlist
+    , ghcEnvNil         = mnil
+    , ghcEnvCons        = mcons
+    , ghcEnvNat         = mnat
+    , ghcEnvInteger     = minteger
+    , ghcEnvWord64      = mword64
+    , ghcEnvInf         = minf
+    , ghcEnvSharp       = msharp
+    , ghcEnvFlat        = mflat
+    , ghcEnvInterval    = minterval
+    , ghcEnvIZero       = mizero
+    , ghcEnvIOne        = mione
+    , ghcEnvIsOne       = misone
+    , ghcEnvItIsOne     = mitisone
+    , ghcEnvIsOne1      = misone1
+    , ghcEnvIsOne2      = misone2
+    , ghcEnvIsOneEmpty  = misoneempty
+    , ghcEnvPathP       = mpathp
+    , ghcEnvSub         = msub
+    , ghcEnvSubIn       = msubin
+    , ghcEnvId          = mid
+    , ghcEnvConId       = mconid
+    , ghcEnvIsTCBuiltin = istcbuiltin
     }
 
 ghcPostCompile :: GHCEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
@@ -613,6 +655,16 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
           [ HS.FunBind
               [HS.Match (dname q) []
                  (HS.UnGuardedRhs (HS.FakeExp "(,)"))
+                 emptyBinds]
+          ]
+
+      -- TC builtins are compiled to erased, which is an ∞-ary
+      -- function.
+      Axiom{} | ghcEnvIsTCBuiltin env q -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs (HS.FakeExp mazErasedName))
                  emptyBinds]
           ]
 
