@@ -13,6 +13,12 @@ module Agda.Builtin.Cubical.Id where
   {-# BUILTIN ID           Id       #-}
   {-# BUILTIN CONID        conid    #-}
 
+  -- Id x y is treated as a pair of I and x ≡ y, using "i" for the
+  -- first component and "p" for the second.
+  {-# COMPILE JS conid =
+      _ => _ => _ => _ => i => p => { return { "i" : i, "p" : p } }
+    #-}
+
   primitive
     primDepIMin : _
     primIdFace : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → I

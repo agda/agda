@@ -340,6 +340,28 @@ exports.primFloatATanh = function(x) {
     return Math.atanh(x);
 };
 
+// Cubical primitives.
+exports.primIMin = x => y => x && y;
+exports.primIMax = x => y => x || y;
+exports.primINeg = x => !x;
+exports.primPartial = _ => _ => x => x;
+exports.primPartialP = _ => _ => x => x;
+exports.primPOr = _ => i => _ => _ => x => y => i ? x : y;
+exports.primComp = _ => _ => _ => _ => x => x;
+exports.primTransp = _ => _ => _ => x => x;
+exports.primHComp = _ => _ => _ => _ => x => x;
+exports.primSubOut = _ => _ => _ => _ => x => x;
+exports.prim_glueU = _ => _ => _ => _ => _ => x => x;
+exports.prim_unglueU = _ => _ => _ => _ => x => x;
+exports.primFaceForall = f => f(true) == true && f(false) == false;
+exports.primDepIMin =
+    i => f => i ? f({ "tt" : a => a["tt"]() }) : false;
+exports.primIdFace = _ => _ => _ => _ => x => x["i"];
+exports.primIdPath = _ => _ => _ => _ => x => x["p"];
+exports.primIdJ = _ => _ => _ => _ => _ => x => _ => _ => x;
+exports.primIdElim =
+    _ => _ => _ => _ => _ => f => x => y => f(y["i"])(x)(y["p"]);
+
 // Other stuff
 exports.primSeq = function(x, y) {
   return y;
@@ -367,5 +389,3 @@ exports.primShowQName = function(x) {
 exports.primQNameFixity = function(x) {
     return x["fixity"];
 };
-
-

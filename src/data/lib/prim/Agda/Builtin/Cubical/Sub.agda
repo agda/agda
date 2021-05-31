@@ -12,5 +12,8 @@ module Agda.Builtin.Cubical.Sub where
 
   {-# BUILTIN SUBIN inc #-}
 
+  -- Sub A φ u is treated as A.
+  {-# COMPILE JS inc = _ => _ => _ => x => x #-}
+
   primitive
     primSubOut : ∀ {ℓ} {A : Set ℓ} {φ : I} {u : Partial φ A} → Sub _ φ u → A

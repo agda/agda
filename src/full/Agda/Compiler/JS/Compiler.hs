@@ -153,7 +153,7 @@ jsPreCompile opts = do
           "Compilation of code that uses " ++ s ++ " is not supported."
   case cubical of
     Nothing      -> return ()
-    Just CErased -> notSupported "--erased-cubical"
+    Just CErased -> return ()
     Just CFull   -> notSupported "--cubical"
 
   return opts
@@ -202,10 +202,21 @@ mergeModules ms
 
 --- Module compilation ---
 
-type JSModuleEnv = Maybe CoinductionKit
+data JSModuleEnv = JSModuleEnv
+  { jsCoinductionKit :: Maybe CoinductionKit
+  , jsCompile        :: Bool
+    -- ^ Should this module be compiled?
+  }
 
 jsPreModule :: JSOptions -> IsMain -> ModuleName -> Maybe FilePath -> TCM (Recompile JSModuleEnv Module)
-jsPreModule _opts _ m mifile = ifM uptodate noComp yesComp
+jsPreModule _opts _ m mifile = do
+  cubical <- optCubical <$> pragmaOptions
+  let compile = case cubical of
+        -- Code that uses --cubical is not compiled.
+        Just CFull   -> False
+        Just CErased -> True
+        Nothing      -> True
+  ifM uptodate noComp (yesComp compile)
   where
     uptodate = case mifile of
       Nothing -> pure False
@@ -219,11 +230,15 @@ jsPreModule _opts _ m mifile = ifM uptodate noComp yesComp
     -- A skipped module acts as a fake main module, to be skipped by --js-verify as well.
     skippedModule = Module (jsMod m) mempty mempty (Just __IMPOSSIBLE__)
 
-    yesComp = do
+    yesComp compile = do
       m   <- prettyShow <$> curMName
       out <- outFile_
       reportSLn "compile.js" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
-      Recompile <$> coinductionKit
+      kit <- coinductionKit
+      return $ Recompile $ JSModuleEnv
+        { jsCoinductionKit = kit
+        , jsCompile        = compile
+        }
 
 jsPostModule :: JSOptions -> JSModuleEnv -> IsMain -> ModuleName -> [Maybe Export] -> TCM Module
 jsPostModule opts _ isMain _ defs = do
@@ -378,13 +393,18 @@ defJSDef def =
     dropEquals = dropWhile $ \ c -> isSpace c || c == '='
 
 definition' :: EnvWithOpts -> QName -> Definition -> Type -> JSQName -> TCM (Maybe Export)
-definition' kit q d t ls = if not (usableModality d) then return Nothing else do
+definition' kit q d t ls =
+  if not (jsCompile (snd kit)) || not (usableModality d)
+  then return Nothing
+  else do
   checkCompilerPragmas q
   case theDef d of
     -- coinduction
-    Constructor{} | Just q == (nameOfSharp <$> snd kit) -> do
+    Constructor{}
+      | Just q == (nameOfSharp <$> jsCoinductionKit (snd kit)) -> do
       return Nothing
-    Function{} | Just q == (nameOfFlat <$> snd kit) -> do
+    Function{}
+      | Just q == (nameOfFlat <$> jsCoinductionKit (snd kit)) -> do
       ret $ Lambda 1 $ Apply (Lookup (local 0) flatName) []
 
     DataOrRecSig{} -> __IMPOSSIBLE__
@@ -428,8 +448,12 @@ definition' kit q d t ls = if not (usableModality d) then return Nothing else do
           else Just $ Export ls funBody'
 
     Primitive{primName = p}
-      | p `Set.member` cubicalPrimitives ->
-        typeError $ NotImplemented p
+      | p == builtin_glueU ->
+        -- The string prim^glueU is not a valid JS name.
+        plainJS "agdaRTS.prim_glueU"
+      | p == builtin_unglueU ->
+        -- The string prim^unglueU is not a valid JS name.
+        plainJS "agdaRTS.prim_unglueU"
       | p `Set.member` primitives ->
         plainJS $ "agdaRTS." ++ p
       | Just e <- defJSDef d ->
@@ -438,10 +462,6 @@ definition' kit q d t ls = if not (usableModality d) then return Nothing else do
         ret Undefined
     PrimitiveSort{} -> return Nothing
 
-    Datatype{ dataPathCons = _ : _ } -> do
-      s <- render <$> prettyTCM q
-      typeError $ NotImplemented $
-        "Higher inductive types (" ++ s ++ ")"
     Datatype{} -> do
         computeErasedConstructorArgs q
         ret emp
@@ -497,7 +517,8 @@ compileTerm kit t = go t
           Datatype {} -> return (String "*")
           Record {} -> return (String "*")
           _ -> qname q
-      T.TApp (T.TCon q) [x] | Just q == (nameOfSharp <$> snd kit) -> do
+      T.TApp (T.TCon q) [x]
+        | Just q == (nameOfSharp <$> jsCoinductionKit (snd kit)) -> do
         x <- go x
         let evalThunk = unlines
               [ "function() {"
@@ -693,32 +714,12 @@ outFile_ = do
   m <- curMName
   outFile (jsMod m)
 
--- | Cubical primitives that are (currently) not compiled.
---
--- TODO: Primitives that are neither part of this set nor of
--- 'primitives', and for which 'defJSDef' does not return anything,
--- are silently compiled to 'Undefined'. Thus, if a cubical primitive
--- is by accident omitted from 'cubicalPrimitives', then programs that
--- should be rejected are compiled to something which might not work
--- as intended. A better approach might be to list exactly those
--- primitives which should be compiled to 'Undefined'.
-
-cubicalPrimitives :: Set String
-cubicalPrimitives = Set.fromList
-  [ "primIMin"
-  , "primIMax"
-  , "primINeg"
-  , "primPartial"
-  , "primPartialP"
-  , "primPFrom1"
-  , "primPOr"
-  , "primComp"
-  , "primTransp"
-  , "primHComp"
-  , "primSubOut"
-  ]
-
 -- | Primitives implemented in the JS Agda RTS.
+--
+-- TODO: Primitives that are not part of this set, and for which
+-- 'defJSDef' does not return anything, are silently compiled to
+-- 'Undefined'. A better approach might be to list exactly those
+-- primitives which should be compiled to 'Undefined'.
 primitives :: Set String
 primitives = Set.fromList
   [  "primShowInteger"
@@ -832,25 +833,25 @@ primitives = Set.fromList
   -- , "primShowMeta"                -- missing
   -- , "primMetaToNat"               -- missing
   -- , "primMetaToNatInjective"      -- missing
-  -- , "primIMin"                    -- missing
-  -- , "primIMax"                    -- missing
-  -- , "primINeg"                    -- missing
-  -- , "primPOr"                     -- missing
-  -- , "primComp"                    -- missing
-  -- , builtinTrans                  -- missing
-  -- , builtinHComp                  -- missing
-  -- , "primIdJ"                     -- missing
-  -- , "primPartial"                 -- missing
-  -- , "primPartialP"                -- missing
+  , builtinIMin
+  , builtinIMax
+  , builtinINeg
+  , "primPartial"
+  , "primPartialP"
+  , builtinPOr
+  , builtinComp
+  , builtinTrans
+  , builtinHComp
+  , builtinSubOut
+  , builtin_glueU
+  , builtin_unglueU
+  , builtinFaceForall
+  , "primDepIMin"
+  , "primIdFace"
+  , "primIdPath"
+  , "primIdJ"
+  , builtinIdElim
   -- , builtinGlue                   -- missing
   -- , builtin_glue                  -- missing
   -- , builtin_unglue                -- missing
-  -- , builtinFaceForall             -- missing
-  -- , "primDepIMin"                 -- missing
-  -- , "primIdFace"                  -- missing
-  -- , "primIdPath"                  -- missing
-  -- , builtinIdElim                 -- missing
-  -- , builtinSubOut                 -- missing
-  -- , builtin_glueU                 -- missing
-  -- , builtin_unglueU               -- missing
   ]
