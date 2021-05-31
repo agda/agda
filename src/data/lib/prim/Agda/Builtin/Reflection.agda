@@ -349,3 +349,39 @@ postulate
 {-# BUILTIN AGDATCMWITHRECONSPARAMS           withReconstructed          #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
+
+-- All the TC primitives are compiled to functions that return
+-- undefined, rather than just undefined, in an attempt to make sure
+-- that code will run properly.
+{-# COMPILE JS returnTC          = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS bindTC            = _ => _ => _ => _ =>
+                                   _ => _ =>           undefined #-}
+{-# COMPILE JS unify             = _ => _ =>           undefined #-}
+{-# COMPILE JS typeError         = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS inferType         = _ =>                undefined #-}
+{-# COMPILE JS checkType         = _ => _ =>           undefined #-}
+{-# COMPILE JS normalise         = _ =>                undefined #-}
+{-# COMPILE JS reduce            = _ =>                undefined #-}
+{-# COMPILE JS catchTC           = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS quoteTC           = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS unquoteTC         = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS quoteωTC          = _ => _ =>           undefined #-}
+{-# COMPILE JS getContext        =                     undefined #-}
+{-# COMPILE JS extendContext     = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS inContext         = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS freshName         = _ =>                undefined #-}
+{-# COMPILE JS declareDef        = _ => _ =>           undefined #-}
+{-# COMPILE JS declarePostulate  = _ => _ =>           undefined #-}
+{-# COMPILE JS defineFun         = _ => _ =>           undefined #-}
+{-# COMPILE JS getType           = _ =>                undefined #-}
+{-# COMPILE JS getDefinition     = _ =>                undefined #-}
+{-# COMPILE JS blockOnMeta       = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS commitTC          =                     undefined #-}
+{-# COMPILE JS isMacro           = _ =>                undefined #-}
+{-# COMPILE JS withNormalisation = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS withReconstructed = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS debugPrint        = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS onlyReduceDefs    = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS dontReduceDefs    = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS noConstraints     = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS runSpeculative    = _ => _ => _ =>      undefined #-}

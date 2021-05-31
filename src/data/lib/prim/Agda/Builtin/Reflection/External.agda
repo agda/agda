@@ -13,3 +13,5 @@ postulate
          → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
 
 {-# BUILTIN AGDATCMEXEC execTC #-}
+
+{-# COMPILE JS execTC = _ => _ => _ => undefined #-}
