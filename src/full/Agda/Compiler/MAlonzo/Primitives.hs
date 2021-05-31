@@ -199,7 +199,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   -- Machine word functions
   , "primWord64ToNat"   |-> return "MAlonzo.RTE.word64ToNat"
   , "primWord64FromNat" |-> return "MAlonzo.RTE.word64FromNat"
-  , "primWord64ToNatInjective" |-> return "erased"
+  , "primWord64ToNatInjective" |-> return mazErasedName
 
   -- Floating point functions
   , "primFloatEquality"          |-> return "MAlonzo.RTE.Float.doubleEq"
@@ -210,7 +210,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primFloatIsNegativeZero"    |-> return "(isNegativeZero :: Double -> Bool)"
   , "primFloatIsSafeInteger"     |-> return "MAlonzo.RTE.Float.isSafeInteger"
   , "primFloatToWord64"          |-> return "MAlonzo.RTE.Float.doubleToWord64"
-  , "primFloatToWord64Injective" |-> return "erased"
+  , "primFloatToWord64Injective" |-> return mazErasedName
   , "primNatToFloat"             |-> return "(MAlonzo.RTE.Float.intToDouble :: Integer -> Double)"
   , "primIntToFloat"             |-> return "(MAlonzo.RTE.Float.intToDouble :: Integer -> Double)"
   , "primFloatRound"             |-> return "MAlonzo.RTE.Float.doubleRound"
@@ -259,7 +259,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primCharToNat" |-> return "(fromIntegral . fromEnum :: Char -> Integer)"
   , "primNatToChar" |-> return "MAlonzo.RTE.natToChar"
   , "primShowChar"  |-> return "(Data.Text.pack . show :: Char -> Data.Text.Text)"
-  , "primCharToNatInjective" |-> return "erased"
+  , "primCharToNatInjective" |-> return mazErasedName
 
   -- String functions
   , "primStringUncons"   |-> return "Data.Text.uncons"
@@ -268,8 +268,8 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"
   , "primStringEquality" |-> rel "(==)" "Data.Text.Text"
   , "primShowString"     |-> return "(Data.Text.pack . show :: Data.Text.Text -> Data.Text.Text)"
-  , "primStringToListInjective" |-> return "erased"
-  , "primStringFromListInjective" |-> return "erased"
+  , "primStringToListInjective" |-> return mazErasedName
+  , "primStringFromListInjective" |-> return mazErasedName
 
   -- Reflection
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"
@@ -277,19 +277,19 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primShowQName"       |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
   , "primQNameFixity"     |-> return "MAlonzo.RTE.qnameFixity"
   , "primQNameToWord64s"  |-> return "\\ qn -> (MAlonzo.RTE.nameId qn, MAlonzo.RTE.moduleId qn)"
-  , "primQNameToWord64sInjective" |-> return "erased"
+  , "primQNameToWord64sInjective" |-> return mazErasedName
   , "primMetaEquality"    |-> rel "(==)" "Integer"
   , "primMetaLess"        |-> rel "(<)" "Integer"
   , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"
   , "primMetaToNat"       |-> return "(id :: Integer -> Integer)"
-  , "primMetaToNatInjective" |-> return "erased"
+  , "primMetaToNatInjective" |-> return mazErasedName
 
   -- Seq
   , "primForce"      |-> return "\\ _ _ _ _ x f -> f $! x"
-  , "primForceLemma" |-> return "erased"
+  , "primForceLemma" |-> return mazErasedName
 
   -- Erase
-  , "primEraseEquality" |-> return "erased"
+  , "primEraseEquality" |-> return mazErasedName
 
   -- Cubical
   , builtinIMin       |-> return "(&&)"
