@@ -142,6 +142,15 @@ Pragmas and options
   See [Guarded Cubical](https://agda.readthedocs.io/en/latest/language/guarded-cubical.html)
   in the documentation for more.
 
+* The new option `--ghc-strict-data`, which is inspired by the GHC
+  language extension `StrictData`, makes the GHC backend compile
+  inductive data and record constructors to constructors with strict
+  arguments.
+
+  This does not apply to certain builtin types—lists, the maybe type,
+  and some types related to reflection—and might not apply to types
+  with `COMPILE GHC … = data …` pragmas.
+
 * The flags `--guardedness` and `--sized-types` are no longer enabled
   by default.
 

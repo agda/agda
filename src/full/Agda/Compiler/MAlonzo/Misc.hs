@@ -56,6 +56,8 @@ data GHCOptions = GHCOptions
     -- ^ Use the compiler at PATH instead of "ghc"
   , optGhcFlags      :: [String]
   , optGhcCompileDir :: FilePath
+  , optGhcStrictData :: Bool
+    -- ^ Make inductive constructors strict?
   }
 
 -- | A static part of the GHC backend's environment that does not

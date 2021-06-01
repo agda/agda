@@ -34,7 +34,14 @@ The backend can be invoked from the command line using the flag
 
 .. code-block:: bash
 
-  agda --compile [--compile-dir=<DIR>] [--ghc-flag=<FLAG>] <FILE>.agda
+  agda --compile [--compile-dir=<DIR>] [--ghc-flag=<FLAG>]
+    [--ghc-strict-data] <FILE>.agda
+
+When the flag ``--ghc-strict-data`` is used inductive data and record
+constructors are compiled to constructors with strict arguments. (This
+does not apply to certain builtin types—lists, the maybe type, and
+some types related to reflection—and might not apply to types with
+``COMPILE GHC … = data …`` pragmas.)
 
 Pragmas
 ^^^^^^^

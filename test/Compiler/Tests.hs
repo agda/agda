@@ -38,7 +38,10 @@ data ExecResult
 data CodeOptimization = NonOptimized | Optimized | MinifiedOptimized
   deriving (Show, Read, Eq)
 
-data Compiler = MAlonzo | JS CodeOptimization
+data StrictData = Strict | Lazy
+  deriving (Show, Read, Eq)
+
+data Compiler = MAlonzo StrictData | JS CodeOptimization
   deriving (Show, Read, Eq)
 
 data CompilerOptions
@@ -54,7 +57,9 @@ data TestOptions
     } deriving (Show, Read)
 
 allCompilers :: [Compiler]
-allCompilers = [MAlonzo] ++ map JS [NonOptimized, Optimized, MinifiedOptimized]
+allCompilers =
+  map MAlonzo [Lazy, Strict] ++
+  map JS [NonOptimized, Optimized, MinifiedOptimized]
 
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
@@ -77,7 +82,7 @@ disabledTests =
     -----------------------------------------------------------------------------
     -- The test case for #2918 stopped working when inlining of
     -- recursive pattern-matching lambdas was disabled.
-  , disable "Compiler/MAlonzo/simple/Issue2918$"
+  , disable "Compiler/MAlonzo_.*/simple/Issue2918$"
     -----------------------------------------------------------------------------
     -- The following test cases fail (at least at the time of writing)
     -- for the JS backend.
@@ -104,7 +109,12 @@ disabledTests =
 tests :: IO TestTree
 tests = do
   nodeBin <- findExecutable "node"
-  let enabledCompilers = [MAlonzo] ++ [JS opt | isJust nodeBin, opt <- [NonOptimized, Optimized, MinifiedOptimized]]
+  let enabledCompilers =
+        [MAlonzo s | s <- [Lazy, Strict]] ++
+        [ JS opt
+        | isJust nodeBin
+        , opt <- [NonOptimized, Optimized, MinifiedOptimized]
+        ]
   _ <- case nodeBin of
     Nothing -> putStrLn "No JS node binary found, skipping JS tests."
     Just n -> putStrLn $ "Using JS node binary at " ++ n
@@ -134,7 +144,8 @@ simpleTests comp = do
   return $ testGroup "simple" $ catMaybes tests'
 
   where compArgs :: Compiler -> AgdaArgs
-        compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision"]
+        compArgs MAlonzo{} =
+          ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision"]
         compArgs JS{} = []
 
 -- The Compiler tests using the standard library are horribly
@@ -170,9 +181,9 @@ stdlibTests comp = do
 
 
 specialTests :: Compiler -> IO (Maybe TestTree)
-specialTests MAlonzo = do
+specialTests c@MAlonzo{} = do
   let t = fromJust $
-            agdaRunProgGoldenTest1 testDir MAlonzo (return extraArgs)
+            agdaRunProgGoldenTest1 testDir c (return extraArgs)
               (testDir </> "ExportTestAgda.agda") defaultOptions cont
 
   return $ Just $ testGroup "special" [t]
@@ -255,7 +266,9 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           )
 
         argsForComp :: Compiler -> [String]
-        argsForComp MAlonzo = [ "--compile" ]
+        argsForComp (MAlonzo s) = [ "--compile" ] ++ case s of
+          Lazy   -> []
+          Strict -> ["--ghc-strict-data"]
         argsForComp (JS o)  = [ "--js", "--js-verify" ] ++ case o of
           NonOptimized      -> []
           Optimized         -> [ "--js-optimize" ]

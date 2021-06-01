@@ -102,7 +102,9 @@ data GHCFlags = GHCFlags
   , flagGhcCallGhc :: Bool
   , flagGhcBin     :: Maybe FilePath
     -- ^ Use the compiler at PATH instead of "ghc"
-  , flagGhcFlags   :: [String]
+  , flagGhcFlags      :: [String]
+  , flagGhcStrictData :: Bool
+    -- ^ Make inductive constructors strict?
   }
   deriving Generic
 
@@ -110,10 +112,11 @@ instance NFData GHCFlags
 
 defaultGHCFlags :: GHCFlags
 defaultGHCFlags = GHCFlags
-  { flagGhcCompile = False
-  , flagGhcCallGhc = True
-  , flagGhcBin     = Nothing
-  , flagGhcFlags   = []
+  { flagGhcCompile    = False
+  , flagGhcCallGhc    = True
+  , flagGhcBin        = Nothing
+  , flagGhcFlags      = []
+  , flagGhcStrictData = False
   }
 
 ghcCommandLineFlags :: [OptDescr (Flag GHCFlags)]
@@ -126,11 +129,14 @@ ghcCommandLineFlags =
                     "give the flag GHC-FLAG to GHC"
     , Option []     ["with-compiler"] (ReqArg withCompilerFlag "PATH")
                     "use the compiler available at PATH"
+    , Option []     ["ghc-strict-data"] (NoArg strictData)
+                    "make inductive constructors strict"
     ]
   where
-    enable      o = pure o{ flagGhcCompile = True }
-    dontCallGHC o = pure o{ flagGhcCallGhc = False }
-    ghcFlag f   o = pure o{ flagGhcFlags   = flagGhcFlags o ++ [f] }
+    enable      o = pure o{ flagGhcCompile    = True }
+    dontCallGHC o = pure o{ flagGhcCallGhc    = False }
+    ghcFlag f   o = pure o{ flagGhcFlags      = flagGhcFlags o ++ [f] }
+    strictData  o = pure o{ flagGhcStrictData = True }
 
 withCompilerFlag :: FilePath -> Flag GHCFlags
 withCompilerFlag fp o = case flagGhcBin o of
@@ -193,6 +199,7 @@ ghcPreCompile flags = do
                 , optGhcBin        = fromMaybe "ghc" (flagGhcBin flags)
                 , optGhcFlags      = flagGhcFlags flags
                 , optGhcCompileDir = outDir
+                , optGhcStrictData = flagGhcStrictData flags
                 }
 
   mbool       <- getBuiltinName builtinBool
@@ -651,10 +658,16 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       -- conid.
       Axiom{} | is ghcEnvConId -> do
+        strict <- optGhcStrictData <$> askGhcOpts
+        let var = (if strict then HS.PBangPat else id) . HS.PVar
         retDecls $
           [ HS.FunBind
-              [HS.Match (dname q) []
-                 (HS.UnGuardedRhs (HS.FakeExp "(,)"))
+              [HS.Match (dname q)
+                 [ var (ihname A i) | i <- [0..1] ]
+                 (HS.UnGuardedRhs $
+                  HS.App (HS.App (HS.FakeExp "(,)")
+                            (HS.Var (HS.UnQual (ihname A 0))))
+                    (HS.Var (HS.UnQual (ihname A 1))))
                  emptyBinds]
           ]
 
@@ -1121,11 +1134,15 @@ litqnamepat x =
 
 condecl :: QName -> Induction -> HsCompileM HS.ConDecl
 condecl q _ind = do
+  opts <- askGhcOpts
   def <- getConstInfo q
   let Constructor{ conPars = np, conErased = erased } = theDef def
   (argTypes0, _) <- hsTelApproximation (defType def)
-  let argTypes   = [ (Just HS.Lazy, t)
-                     -- Currently all constructors are lazy.
+  let strict     = if conInd (theDef def) == Inductive &&
+                      optGhcStrictData opts
+                   then HS.Strict
+                   else HS.Lazy
+      argTypes   = [ (Just strict, t)
                    | (t, False) <- zip (drop np argTypes0)
                                        (fromMaybe [] erased ++ repeat False)
                    ]
@@ -1196,7 +1213,8 @@ writeModule (HS.Module m ps imp ds) = do
     HS.Module m (p : ps) imp ds
   where
   p = HS.LanguagePragma $ List.map HS.Ident $
-        [ "EmptyDataDecls"
+        [ "BangPatterns"
+        , "EmptyDataDecls"
         , "EmptyCase"
         , "ExistentialQuantification"
         , "ScopedTypeVariables"
