@@ -9,7 +9,7 @@ import Control.Monad.Trans
 
 import Data.Char     ( isSpace )
 import Data.Foldable ( forM_ )
-import Data.List     ( dropWhileEnd, intercalate, partition )
+import Data.List     ( dropWhileEnd, findIndex, intercalate, partition )
 import Data.Set      ( Set )
 
 import qualified Data.Set as Set
@@ -452,15 +452,20 @@ definition' kit q d t ls = if not (usableModality d) then return Nothing else do
           if optJSOptimize (fst kit)
             then Lambda 1 $ Apply (Local (LocalId 0)) args
             else Object $ Map.fromList [ (l, Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args) ]
-        dt ->
-          ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) index) args
+        dt -> do
+          i <- index
+          ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) i) args
           where
-            index | Datatype{} <- dt
-                  , optJSOptimize (fst kit)
-                  , cs <- defConstructors dt
-                  = headWithDefault __IMPOSSIBLE__
-                      [MemberIndex i (mkComment l) | (i, x) <- zip [0..] cs, x == q]
-                  | otherwise = l
+            index :: TCM MemberId
+            index
+              | Datatype{} <- dt
+              , optJSOptimize (fst kit) = do
+                  q  <- canonicalName q
+                  cs <- mapM canonicalName $ defConstructors dt
+                  case findIndex (q ==) cs of
+                    Just i  -> return $ MemberIndex i (mkComment l)
+                    Nothing -> __IMPOSSIBLE_VERBOSE__ $ unwords [ "Constructor", prettyShow q, "not found in", prettyShow cs ]
+              | otherwise = return l
             mkComment (MemberId s) = Comment s
             mkComment _ = mempty
 
