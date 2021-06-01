@@ -614,7 +614,7 @@ lambdaQuantityCheck dom info
   | otherwise = do
       let qPi  = getQuantity dom  -- quantity of function type
       let qLam = getQuantity info -- quantity of lambda
-      unless (qPi `moreQuantity` qLam) $ do
+      unless (qPi `sameQuantity` qLam) $ do
         typeError WrongQuantityInLambda
       return info
 
