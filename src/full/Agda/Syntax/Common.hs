@@ -459,8 +459,13 @@ inverseComposeModality (Modality r q c) (Modality r' q' c') =
 
 -- | Left division by a 'Modality'.
 --   Used e.g. to modify context when going into a @m@ argument.
-inverseApplyModality :: LensModality a => Modality -> a -> a
-inverseApplyModality m = mapModality (m `inverseComposeModality`)
+--
+-- Note that this function does not change quantities.
+inverseApplyModalityButNotQuantity :: LensModality a => Modality -> a -> a
+inverseApplyModalityButNotQuantity m =
+  mapModality (m' `inverseComposeModality`)
+  where
+  m' = setQuantity (Quantity1 Q1Inferred) m
 
 -- | 'Modality' forms a pointwise additive monoid.
 addModality :: Modality -> Modality -> Modality

@@ -862,7 +862,8 @@ checkLHS mf = updateModality checkLHS_ where
  updateModality cont st@(LHSState tel ip problem target psplit) = do
       let m = getModality target
       applyModalityToContext m $ do
-        cont $ over (lhsTel . listTel) (map $ inverseApplyModality m) st
+        cont $ over (lhsTel . listTel)
+                 (map $ inverseApplyModalityButNotQuantity m) st
         -- Andreas, 2018-10-23, issue #3309
         -- the modalities in the clause telescope also need updating.
 

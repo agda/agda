@@ -322,8 +322,10 @@ newArgsMetaCtx' frozen condition (El s tm) tel perm ctx = do
       let mod  = getModality info
           -- Issue #3031: It's not enough to applyModalityToContext, since most (all?)
           -- of the context lives in tel. Don't forget the arguments in ctx.
-          tel' = telFromList . map (mod `inverseApplyModality`) . telToList $ tel
-          ctx' = (map . mapModality) (mod `inverseComposeModality`) ctx
+          tel' = telFromList $
+                 map (mod `inverseApplyModalityButNotQuantity`) $
+                 telToList tel
+          ctx' = map (mod `inverseApplyModalityButNotQuantity`) ctx
       (m, u) <- applyModalityToContext info $
                  newValueMetaCtx frozen RunMetaOccursCheck CmpLeq a tel' perm ctx'
       -- Jesper, 2021-05-05: When creating a metavariable from a
