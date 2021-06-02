@@ -58,6 +58,8 @@ data GHCOptions = GHCOptions
   , optGhcCompileDir :: FilePath
   , optGhcStrictData :: Bool
     -- ^ Make inductive constructors strict?
+  , optGhcStrict :: Bool
+    -- ^ Make functions strict?
   }
 
 -- | A static part of the GHC backend's environment that does not
@@ -290,7 +292,7 @@ hsTypedDouble n = HS.ExpTypeSig (HS.Lit (HS.Frac $ toRational n)) (HS.TyCon (hsN
 
 hsLet :: HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
 hsLet x e b =
-  HS.Let (HS.BDecls [HS.FunBind [HS.Match x [] (HS.UnGuardedRhs e) emptyBinds]]) b
+  HS.Let (HS.BDecls [HS.LocalBind HS.Lazy x (HS.UnGuardedRhs e)]) b
 
 hsVarUQ :: HS.Name -> HS.Exp
 hsVarUQ = HS.Var . HS.UnQual

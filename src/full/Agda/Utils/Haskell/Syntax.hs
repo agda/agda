@@ -26,6 +26,9 @@ data Decl = TypeDecl Name [TyVarBind] Type
           | DataDecl DataOrNew Name [TyVarBind] [ConDecl] [Deriving]
           | TypeSig [Name] Type
           | FunBind [Match]
+            -- ^ Should not be used when 'LocalBind' could be used.
+          | LocalBind Strictness Name Rhs
+            -- ^ Should only be used in @let@ or @where@.
           | PatSyn Pat Pat
           | FakeDecl String
           | Comment String

@@ -63,6 +63,10 @@ instance Pretty HS.Decl where
       sep [ hsep (punctuate comma (map pretty fs)) <+> "::"
           , nest 2 $ pretty t ]
     HS.FunBind ms -> vcat $ map pretty ms
+    HS.LocalBind s f rhs ->
+      sep [ pretty s <> pretty f
+          , nest 2 $ prettyRhs "=" rhs
+          ]
     HS.PatSyn p1 p2 -> sep [ "pattern" <+> pretty p1 <+> "=" <+> pretty p2 ]
     HS.FakeDecl s -> text s
     HS.Comment s -> vcat $ map (("--" <+>) . text) (lines s)
@@ -91,7 +95,7 @@ instance Pretty HS.Pat where
   prettyPrec pr pat =
     case pat of
       HS.PVar x         -> pretty x
-      HS.PLit l         -> pretty l
+      HS.PLit l         -> prettyPrec pr l
       HS.PAsPat x p     -> mparens (pr > 10) $ pretty x <> "@" <> prettyPrec 11 p
       HS.PWildCard      -> "_"
       HS.PBangPat p     -> "!" <> prettyPrec 11 p
@@ -147,10 +151,17 @@ instance Pretty HS.Stmt where
   pretty (HS.Generator p e) = sep [ pretty p <+> "<-", nest 2 $ pretty e ]
 
 instance Pretty HS.Literal where
-  pretty (HS.Int n)    = integer n
-  pretty (HS.Frac x)   = double (fromRational x)
-  pretty (HS.Char c)   = text (show c)
-  pretty (HS.String s) = text (show s)
+  prettyPrec pr = \case
+    HS.Int n    -> parensIfNeg n $ integer n
+    HS.Frac x   -> parensIfNeg d $ double d
+                   where
+                   d = fromRational x
+    HS.Char c   -> text (show c)
+    HS.String s -> text (show s)
+    where
+    parensIfNeg :: (Ord n, Num n) => n -> Doc -> Doc
+    parensIfNeg x =
+      if x < 0 then mparens (pr > 10) else id
 
 instance Pretty HS.Exp where
   prettyPrec pr e =

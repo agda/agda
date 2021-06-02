@@ -38,10 +38,10 @@ data ExecResult
 data CodeOptimization = NonOptimized | Optimized | MinifiedOptimized
   deriving (Show, Read, Eq)
 
-data StrictData = Strict | Lazy
+data Strict = Strict | StrictData | Lazy
   deriving (Show, Read, Eq)
 
-data Compiler = MAlonzo StrictData | JS CodeOptimization
+data Compiler = MAlonzo Strict | JS CodeOptimization
   deriving (Show, Read, Eq)
 
 data CompilerOptions
@@ -58,7 +58,7 @@ data TestOptions
 
 allCompilers :: [Compiler]
 allCompilers =
-  map MAlonzo [Lazy, Strict] ++
+  map MAlonzo [Lazy, StrictData, Strict] ++
   map JS [NonOptimized, Optimized, MinifiedOptimized]
 
 defaultOptions :: TestOptions
@@ -110,7 +110,7 @@ tests :: IO TestTree
 tests = do
   nodeBin <- findExecutable "node"
   let enabledCompilers =
-        [MAlonzo s | s <- [Lazy, Strict]] ++
+        [MAlonzo s | s <- [Lazy, StrictData, Strict]] ++
         [ JS opt
         | isJust nodeBin
         , opt <- [NonOptimized, Optimized, MinifiedOptimized]
@@ -267,8 +267,9 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
 
         argsForComp :: Compiler -> [String]
         argsForComp (MAlonzo s) = [ "--compile" ] ++ case s of
-          Lazy   -> []
-          Strict -> ["--ghc-strict-data"]
+          Lazy       -> []
+          StrictData -> ["--ghc-strict-data"]
+          Strict     -> ["--ghc-strict"]
         argsForComp (JS o)  = [ "--js", "--js-verify" ] ++ case o of
           NonOptimized      -> []
           Optimized         -> [ "--js-optimize" ]

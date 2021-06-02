@@ -1,7 +1,8 @@
 TestOptions
   { forCompilers =
-      [ (MAlonzo Lazy,   CompilerOptions {extraAgdaArgs = ["--no-main"]})
-      , (MAlonzo Strict, CompilerOptions {extraAgdaArgs = ["--no-main"]})
+      [ (MAlonzo Lazy,       CompilerOptions {extraAgdaArgs = ["--no-main"]})
+      , (MAlonzo StrictData, CompilerOptions {extraAgdaArgs = ["--no-main"]})
+      , (MAlonzo Strict,     CompilerOptions {extraAgdaArgs = ["--no-main"]})
       ]
   , runtimeOptions = []
   , executeProg = False

@@ -34,6 +34,7 @@ import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
 import Agda.Compiler.MAlonzo.HaskellTypes
 import Agda.Compiler.MAlonzo.Pragmas
+import Agda.Compiler.MAlonzo.Strict
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.Erase
@@ -105,6 +106,8 @@ data GHCFlags = GHCFlags
   , flagGhcFlags      :: [String]
   , flagGhcStrictData :: Bool
     -- ^ Make inductive constructors strict?
+  , flagGhcStrict :: Bool
+    -- ^ Make functions strict?
   }
   deriving Generic
 
@@ -117,6 +120,7 @@ defaultGHCFlags = GHCFlags
   , flagGhcBin        = Nothing
   , flagGhcFlags      = []
   , flagGhcStrictData = False
+  , flagGhcStrict     = False
   }
 
 ghcCommandLineFlags :: [OptDescr (Flag GHCFlags)]
@@ -131,12 +135,17 @@ ghcCommandLineFlags =
                     "use the compiler available at PATH"
     , Option []     ["ghc-strict-data"] (NoArg strictData)
                     "make inductive constructors strict"
+    , Option []     ["ghc-strict"] (NoArg strict)
+                    "make functions strict"
     ]
   where
     enable      o = pure o{ flagGhcCompile    = True }
     dontCallGHC o = pure o{ flagGhcCallGhc    = False }
     ghcFlag f   o = pure o{ flagGhcFlags      = flagGhcFlags o ++ [f] }
     strictData  o = pure o{ flagGhcStrictData = True }
+    strict      o = pure o{ flagGhcStrictData = True
+                          , flagGhcStrict     = True
+                          }
 
 withCompilerFlag :: FilePath -> Flag GHCFlags
 withCompilerFlag fp o = case flagGhcBin o of
@@ -200,6 +209,7 @@ ghcPreCompile flags = do
                 , optGhcFlags      = flagGhcFlags flags
                 , optGhcCompileDir = outDir
                 , optGhcStrictData = flagGhcStrictData flags
+                , optGhcStrict     = flagGhcStrict flags
                 }
 
   mbool       <- getBuiltinName builtinBool
@@ -761,43 +771,50 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       _ -> return (imp, ccls)
 
   functionViaTreeless :: QName -> HsCompileM (UsesFloat, [HS.Decl])
-  functionViaTreeless q = caseMaybeM (liftTCM $ toTreeless LazyEvaluation q) (pure mempty) $ \ treeless -> do
+  functionViaTreeless q = do
+    strict <- optGhcStrict <$> askGhcOpts
+    let eval = if strict then EagerEvaluation else LazyEvaluation
+    caseMaybeM (liftTCM $ toTreeless eval q) (pure mempty) $ \ treeless -> do
 
-    used <- fromMaybe [] <$> getCompiledArgUse q
-    let dostrip = ArgUnused `elem` used
+      used <- fromMaybe [] <$> getCompiledArgUse q
+      let dostrip = ArgUnused `elem` used
 
-    -- Compute the type approximation
-    def <- getConstInfo q
-    (argTypes0, resType) <- hsTelApproximation $ defType def
-    let pars = case theDef def of
-                 Function{ funProjection = Just Projection{ projIndex = i } } | i > 0 -> i - 1
-                 _ -> 0
-        argTypes  = drop pars argTypes0
-        argTypesS = filterUsed used argTypes
+      -- Compute the type approximation
+      def <- getConstInfo q
+      (argTypes0, resType) <- hsTelApproximation $ defType def
+      let pars = case theDef def of
+                   Function{ funProjection = Just Projection{ projIndex = i } } | i > 0 -> i - 1
+                   _ -> 0
+          argTypes  = drop pars argTypes0
+          argTypesS = filterUsed used argTypes
 
-    (e, useFloat) <- if dostrip then closedTerm (stripUnusedArguments used treeless)
-                                else closedTerm treeless
-    let (ps, b) = lamView e
-        lamView e =
-          case e of
-            HS.Lambda ps b -> (ps, b)
-            b              -> ([], b)
+      (e, useFloat) <- if dostrip then closedTerm (stripUnusedArguments used treeless)
+                                  else closedTerm treeless
+      let (ps, b) = lamView e
+          lamView e =
+            case e of
+              HS.Lambda ps b -> (ps, b)
+              b              -> ([], b)
 
-        tydecl  f ts t = HS.TypeSig [f] (foldr HS.TyFun t ts)
-        funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs b) emptyBinds]
-        tyfunbind f ts t ps b =
-          let ts' = ts ++ (replicate (length ps - length ts) mazAnyType)
-          in [tydecl f ts' t, funbind f ps b]
+          tydecl  f ts t = HS.TypeSig [f] (foldr HS.TyFun t ts)
+          funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs b) emptyBinds]
+          tyfunbind f ts t ps b =
+            let ts' = ts ++ (replicate (length ps - length ts) mazAnyType)
+            in [tydecl f ts' t, funbind f ps b]
 
-    -- The definition of the non-stripped function
-    (ps0, _) <- lamView <$> closedTerm_ (foldr ($) T.TErased $ replicate (length used) T.TLam)
-    let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), ArgUsed) <- zip ps0 used ]
+      -- The definition of the non-stripped function
+      (ps0, _) <- lamView <$> closedTerm_ (foldr ($) T.TErased $ replicate (length used) T.TLam)
+      let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), ArgUsed) <- zip ps0 used ]
+          ps0' = zipWith (\p u -> case u of
+                                    ArgUsed   -> p
+                                    ArgUnused -> HS.PIrrPat p)
+                   ps0 used
 
-    return (useFloat,
-            if dostrip
-              then tyfunbind (dname q) argTypes resType ps0 b0 ++
-                   tyfunbind (duname q) argTypesS resType ps b
-              else tyfunbind (dname q) argTypes resType ps b)
+      return (useFloat,
+              if dostrip
+                then tyfunbind (dname q) argTypes resType ps0' b0 ++
+                     tyfunbind (duname q) argTypesS resType ps b
+                else tyfunbind (dname q) argTypes resType ps b)
 
   fbWithType :: HS.Type -> HS.Exp -> [HS.Decl]
   fbWithType ty e =
@@ -1199,7 +1216,11 @@ writeModule :: MonadGHCIO m => HS.Module -> m ()
 writeModule (HS.Module m ps imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
   out <- snd <$> outFileAndDir m
+  strict <- optGhcStrict <$> askGhcOpts
   liftIO $ UTF8.writeFile out $ (++ "\n") $ prettyPrint $
+    -- TODO: It might make sense to skip bang patterns for the unused
+    -- arguments of the "non-stripped" functions.
+    (if strict then makeStrict else id) $
     HS.Module m (p : ps) imp ds
   where
   p = HS.LanguagePragma $ List.map HS.Ident $

@@ -321,6 +321,7 @@ library
                     Agda.Compiler.MAlonzo.Pragmas
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
+                    Agda.Compiler.MAlonzo.Strict
                     Agda.Compiler.ToTreeless
                     Agda.Compiler.Treeless.AsPatterns
                     Agda.Compiler.Treeless.Builtin

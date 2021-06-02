@@ -151,6 +151,18 @@ Pragmas and options
   and some types related to reflection—and might not apply to types
   with `COMPILE GHC … = data …` pragmas.
 
+* The new option `--ghc-strict`, which is inspired by the GHC language
+  extension `Strict`, makes the GHC backend generate mostly strict
+  code.
+
+  Functions might not be strict in unused arguments.
+
+  Function definitions coming from `COMPILE GHC` pragmas are not
+  affected.
+
+  This flag implies `--ghc-strict-data`, and the exceptions of that
+  flag applies to this flag as well.
+
 * The flags `--guardedness` and `--sized-types` are no longer enabled
   by default.
 

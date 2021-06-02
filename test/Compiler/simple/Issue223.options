@@ -6,6 +6,12 @@ TestOptions
                 ["--no-main", "--ghc-flag=-i./test/Compiler/simple/"]
             }
         )
+      , ( MAlonzo StrictData
+        , CompilerOptions
+            { extraAgdaArgs =
+                ["--no-main", "--ghc-flag=-i./test/Compiler/simple/"]
+            }
+        )
       , ( MAlonzo Strict
         , CompilerOptions
             { extraAgdaArgs =

@@ -1,7 +1,8 @@
 TestOptions
   { forCompilers =
-      [ (MAlonzo Lazy,   CompilerOptions {extraAgdaArgs = ["--ghc-flag=-itest/Compiler/simple"]})
-      , (MAlonzo Strict, CompilerOptions {extraAgdaArgs = ["--ghc-flag=-itest/Compiler/simple"]})
+      [ (MAlonzo Lazy,       CompilerOptions {extraAgdaArgs = ["--ghc-flag=-itest/Compiler/simple"]})
+      , (MAlonzo StrictData, CompilerOptions {extraAgdaArgs = ["--ghc-flag=-itest/Compiler/simple"]})
+      , (MAlonzo Strict,     CompilerOptions {extraAgdaArgs = ["--ghc-flag=-itest/Compiler/simple"]})
       ]
   , runtimeOptions = []
   , executeProg = True
