@@ -743,8 +743,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   where
   function :: Maybe HaskellPragma -> HsCompileM (UsesFloat, [HS.Decl]) -> HsCompileM (UsesFloat, [HS.Decl])
   function mhe fun = do
-    (imp, defs) <- fun
-    let ccls = mkwhere defs
+    (imp, ccls) <- fun
     case mhe of
       Just (HsExport r name) -> setCurrentRange r $ do
         env <- askGHCEnv
@@ -799,15 +798,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               then tyfunbind (dname q) argTypes resType ps0 b0 ++
                    tyfunbind (duname q) argTypesS resType ps b
               else tyfunbind (dname q) argTypes resType ps b)
-
-  mkwhere :: [HS.Decl] -> [HS.Decl]
-  mkwhere (HS.FunBind [m0, HS.Match dn ps rhs emptyBinds] : fbs@(_:_)) =
-          [HS.FunBind [m0, HS.Match dn ps rhs bindsAux]]
-    where
-    bindsAux :: Maybe HS.Binds
-    bindsAux = Just $ HS.BDecls fbs
-
-  mkwhere fbs = fbs
 
   fbWithType :: HS.Type -> HS.Exp -> [HS.Decl]
   fbWithType ty e =
