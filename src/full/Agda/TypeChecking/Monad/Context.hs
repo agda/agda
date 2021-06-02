@@ -189,10 +189,8 @@ class MonadTCEnv m => MonadAddContext m where
 
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
-defaultAddCtx x a ret = do
-  q <- viewTC eQuantity
-  let ce = (x,) <$> inverseApplyQuantity q a
-  updateContext (raiseS 1) (ce :) ret
+defaultAddCtx x a ret =
+  updateContext (raiseS 1) (((x,) <$> a) :) ret
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange

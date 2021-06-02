@@ -228,10 +228,9 @@ applyModalityToContext thing =
 --   Precondition: @Modality /= Relevant@
 applyModalityToContextOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToContextOnly m = localTC
-  $ over eContext     (map $ inverseApplyModality m')
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyModality m')
-  where
-  m' = setQuantity (Quantity1 Q1Inferred) m
+  $ over eContext (map $ inverseApplyModalityButNotQuantity m)
+  . over eLetBindings
+      (Map.map . fmap . second $ inverseApplyModalityButNotQuantity m)
 
 -- | Apply modality @m@ the the modality annotation of the (typing/equality)
 --   judgement.  This is part of the work done when going into a @m@-context.
