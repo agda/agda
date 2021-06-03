@@ -3,7 +3,7 @@ on:
   push:
     branches:
     - master
-    - issue*
+    - ci-*
     - release*
   pull_request:
 
