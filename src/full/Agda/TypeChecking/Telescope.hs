@@ -335,15 +335,16 @@ expandTelescopeVar
      , PatternSubstitution) -- Γ' ⊢ ρ : Γ
 expandTelescopeVar gamma k delta c = (tel', rho)
   where
-    (ts1,a:ts2) = fromMaybe __IMPOSSIBLE__ $
+    (ts1,xa:ts2) = fromMaybe __IMPOSSIBLE__ $
                     splitExactlyAt k $ telToList gamma
+    a = raise (size delta) (snd <$> xa) -- Γ₁Δ ⊢ D pars
 
     cpi         = ConPatternInfo
       { conPInfo   = defaultPatternInfo
       , conPRecord = True
       , conPFallThrough
                    = False
-      , conPType   = Just $ snd <$> argFromDom a
+      , conPType   = Just $ argFromDom a
       , conPLazy   = True
       }
     cargs       = map (setOrigin Inserted) $ teleNamedArgs delta
