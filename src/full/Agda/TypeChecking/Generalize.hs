@@ -713,8 +713,12 @@ createGenValue x = setCurrentRange x $ do
   let name     = prettyShow (nameConcrete $ qnameName x)
   (m, term) <- newNamedValueMeta DontRunMetaOccursCheck name CmpLeq metaType
 
-  -- Freeze the meta to prevent named generalizable metas to be instantiated.
-  updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }
+  -- Freeze the meta to prevent named generalizable metas from being
+  -- instantiated, and set the quantity of the meta to the declared
+  -- quantity of the generalisable variable.
+  updateMetaVar m $ \ mv ->
+    setQuantity (getQuantity (defArgInfo def)) $
+    mv { mvFrozen = Frozen }
 
   -- Set up names of arg metas
   forM_ (zip3 [1..] (map unArg args) (telToList argTel)) $ \ case
