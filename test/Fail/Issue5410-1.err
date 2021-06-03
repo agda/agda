@@ -1,0 +1,3 @@
+Issue5410-1.agda:16,19-20
+Variable b is declared erased, so it cannot be used here
+when checking that the expression b has type Bool

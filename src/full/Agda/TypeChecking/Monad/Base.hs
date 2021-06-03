@@ -1382,6 +1382,10 @@ instance LensModality MetaInfo where
   setModality mod mi = mi { miModality = mod }
   mapModality f mi = mi { miModality = f $ miModality mi }
 
+instance LensQuantity MetaInfo where
+  getQuantity   = getQuantity . getModality
+  mapQuantity f = mapModality (mapQuantity f)
+
 -- | Name suggestion for meta variable.  Empty string means no suggestion.
 type MetaNameSuggestion = String
 
@@ -1414,6 +1418,10 @@ instance LensModality MetaVariable where
   getModality = getModality . mvInfo
   setModality mod mv = mv { mvInfo = setModality mod $ mvInfo mv }
   mapModality f mv = mv { mvInfo = mapModality f $ mvInfo mv }
+
+instance LensQuantity MetaVariable where
+  getQuantity   = getQuantity . getModality
+  mapQuantity f = mapModality (mapQuantity f)
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
