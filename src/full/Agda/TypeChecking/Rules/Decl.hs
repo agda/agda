@@ -848,7 +848,7 @@ checkModuleArity m tel args = check tel args
         (NotHidden, Hidden, _)            -> bad
         (NotHidden, Instance{}, _)        -> bad
 
--- | Check an application of a section (top-level function, includes @'traceCall'@).
+-- | Check an application of a section.
 checkSectionApplication
   :: Info.ModuleInfo
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
@@ -857,9 +857,13 @@ checkSectionApplication
   -> TCM ()
 checkSectionApplication i m1 modapp copyInfo =
   traceCall (CheckSectionApplication (getRange i) m1 modapp) $
+  -- A section application is type-checked in a non-erased context
+  -- (#5410).
+  localTC (over eQuantity $ mapQuantity (`addQuantity` topQuantity)) $
   checkSectionApplication' i m1 modapp copyInfo
 
--- | Check an application of a section.
+-- | Check an application of a section. (Do not invoke this procedure
+-- directly, use 'checkSectionApplication'.)
 checkSectionApplication'
   :: Info.ModuleInfo
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
