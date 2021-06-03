@@ -6,7 +6,7 @@ on:
   push:
     branches:
     - master
-    - issue*
+    - ci-*
     - release*
     paths:
     - 'src/full/**.hs'
