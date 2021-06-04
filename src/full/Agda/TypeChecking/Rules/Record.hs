@@ -667,18 +667,16 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                                     , conPFallThrough = False
                                     , conPType   = Just $ argFromDom $ fmap snd rt
                                     , conPLazy   = True }
-            conp   = defaultArg $ ConP con cpi $
-                     [ Arg ai' $ unnamed $ varP ("x" :: String)
-                     | Dom{domInfo = ai'} <- telToList ftel
-                     ]
+            conp   = defaultNamedArg $ ConP con cpi $ teleNamedArgs ftel
             body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ptel `abstract` ftel
+            cltype = Just $ Arg ai $ raise (1 + size ftel2) t
             clause = Clause { clauseLHSRange  = getRange info
                             , clauseFullRange = getRange info
                             , clauseTel       = killRange cltel
-                            , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
+                            , namedClausePats = [conp]
                             , clauseBody      = body
-                            , clauseType      = Just $ Arg ai t'
+                            , clauseType      = cltype
                             , clauseCatchall  = False
                             , clauseExact       = Just True
                             , clauseRecursive   = Just False
