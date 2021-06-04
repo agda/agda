@@ -566,17 +566,13 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       -- The impossible is sometimes possible, so splitting out this part...
       reportSDoc "tc.rec.proj" 5 $ nest 2 $ vcat
           [ "ftel1 =" <+> escapeContext impossible 1 (prettyTCM ftel1)
-          , "t     =" <+> escapeContext impossible 1 (prettyTCM t)
+          , "t     =" <+> escapeContext impossible 1 (addContext ftel1 $ prettyTCM t)
           , "ftel2 =" <+> escapeContext impossible 1 (addContext ftel1 $ underAbstraction dom ftel2 prettyTCM)
           ]
       reportSDoc "tc.rec.proj" 55 $ nest 2 $ vcat
           [ "ftel1 (raw) =" <+> pretty ftel1
           , "t     (raw) =" <+> pretty t
           , "ftel2 (raw) =" <+> pretty ftel2
-          , "ftel2 (in wrong context) =" <+> (addContext ftel1 $ underAbstraction dom ftel2 prettyTCM)
-          ]
-      reportSDoc "tc.rec.proj" 85 $ nest 2 $ vcat
-          [ "ftel2 (very raw) =" <+> (text . show) ftel2
           ]
       reportSDoc "tc.rec.proj" 5 $ nest 2 $ vcat
           [ "vs    =" <+> prettyList_ (map prettyTCM vs)
@@ -597,8 +593,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                     __IMPOSSIBLE__
         else genericError $ "Cannot have record fields with modality " ++ show (getCohesion ai)
 
-      -- Andreas, 2010-09-09 The following comments are misleading, TODO: update
-      -- in fact, tel includes the variable of record type as last one
+      -- The telescope tel includes the variable of record type as last one
       -- e.g. for cartesion product it is
       --
       --   tel = {A' : Set} {B' : Set} (r : Prod A' B')
@@ -606,17 +601,18 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       -- create the projection functions (instantiate the type with the values
       -- of the previous fields)
 
+      -- The type of the projection function should be
+      --  {Δ} -> (r : R Δ) -> t
+      -- where Δ are the parameters of R
+
       {- what are the contexts?
 
-          Γ, tel, ftel₁     ⊢ t
-          Γ, tel, r         ⊢ reverse vs : ftel₁
-          Γ, tel, r, ftel₁  ⊢ t' = raiseFrom (size ftel₁) 1 t
-          Γ, tel, r         ⊢ t'' = applySubst (parallelS vs) t'
+          Δ , ftel₁              ⊢ t
+          Δ , (r : R Δ)          ⊢ parallelS vs : ftel₁
+          Δ , (r : R Δ) , ftel₁  ⊢ t' = raiseFrom (size ftel₁) 1 t
+          Δ , (r : R Δ)          ⊢ t'' = applySubst (parallelS vs) t'
+                                 ⊢ finalt = telePi tel t''
       -}
-
-      -- The type of the projection function should be
-      --  {tel} -> (r : R Δ) -> t
-      -- where Δ = Γ, tel is the current context
       let t'       = raiseFrom (size ftel1) 1 t
           t''      = applySubst (parallelS vs) t'
           finalt   = telePi (replaceEmptyName "r" tel) t''
@@ -701,14 +697,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               , projLams     = ProjLams $ map (argFromDom . fmap fst) telList
               }
 
-        reportSDoc "tc.rec.proj" 80 $ sep
-          [ "adding projection"
-          , nest 2 $ prettyTCM projname <+> text (show clause)
-          ]
         reportSDoc "tc.rec.proj" 70 $ sep
           [ "adding projection"
-          , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> "=" <+>
-                       inTopContext (addContext ftel (maybe "_|_" prettyTCM (clauseBody clause)))
+          , nest 2 $ prettyTCM projname <+> pretty clause
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
           [ "adding projection"
