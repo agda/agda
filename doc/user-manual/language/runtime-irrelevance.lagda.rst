@@ -167,12 +167,12 @@ The type checker enters compile-time mode when
   - Compile-time mode is not entered for the domains of non-erased Π
     types.
   - If the K rule is off then compile-time mode is not entered for
-    non-erased constructors or record fields.
+    non-erased constructors (of fibrant type) or record fields.
 
-Note that the type checker does not enter compile-time mode based on the type a term is checked against. In particular
+Note that the type checker does not enter compile-time mode based on
+the type a term is checked against (except that a distinction is
+sometimes made between fibrant and non-fibrant types). In particular,
 checking a term against ``Set`` does not trigger compile-time mode.
-
-
 
 Subtyping of runtime-irrelevant function spaces
 ===============================================

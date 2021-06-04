@@ -1096,8 +1096,9 @@ bindParameter npars ps x a b ret =
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
 --   The third argument is the type of the constructor.
 --
---   When --without-K also check that the types of fields at quantity
---   `plenty` are also available at quantity plenty themselves. See #4784.
+--   When @--without-K@ is active and the type is fibrant the
+--   procedure also checks that the type is usable at the current
+--   modality. See #4784 and #5434.
 --
 --   As a side effect, return the arity of the constructor.
 
@@ -1113,32 +1114,33 @@ fitsIn uc forceds t s = do
   -- s' <- instantiateFull (getSort t)
   -- noConstraints $ s' `leqSort` s
 
+  withoutK <- withoutKOption
+  when withoutK $ whenM (isFibrant s) $ do
+    q <- viewTC eQuantity
+    usableAtModality (setQuantity q defaultModality) (unEl t)
 
-  vt <- do
-    t <- pathViewAsPi t
-    return $ case t of
-                  Left (a,b)     -> Just (True ,a,b)
-                  Right (El _ t) | Pi a b <- t
-                                 -> Just (False,a,b)
-                  _              -> Nothing
-  case vt of
-    Just (isPath, dom, b) -> do
-      withoutK <- withoutKOption
-      when (withoutK && not isPath) $ do
-       whenM (isFibrant s) $ do
-        q <- asksTC getQuantity
-        usableAtModality
-          (setQuantity (composeQuantity (getQuantity dom) q) defaultModality)
-          (unEl $ unDom dom)
-      let (forced,forceds') = nextIsForced forceds
-      unless (isForced forced && not withoutK) $ do
-        sa <- reduce $ getSort dom
-        unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $ sa `leqSort` s
-      addContext (absName b, dom) $ do
-        succ <$> fitsIn uc forceds' (absBody b) (raise 1 s)
-    _ -> do
-      getSort t `leqSort` s
-      return 0
+  fitsIn' withoutK forceds t s
+  where
+  fitsIn' withoutK forceds t s = do
+    vt <- do
+      t <- pathViewAsPi t
+      return $ case t of
+                    Left (a,b)     -> Just (True ,a,b)
+                    Right (El _ t) | Pi a b <- t
+                                   -> Just (False,a,b)
+                    _              -> Nothing
+    case vt of
+      Just (isPath, dom, b) -> do
+        let (forced,forceds') = nextIsForced forceds
+        unless (isForced forced && not withoutK) $ do
+          sa <- reduce $ getSort dom
+          unless (isPath || uc == NoUniverseCheck || sa == SizeUniv) $
+            sa `leqSort` s
+        addContext (absName b, dom) $ do
+          succ <$> fitsIn' withoutK forceds' (absBody b) (raise 1 s)
+      _ -> do
+        getSort t `leqSort` s
+        return 0
 
 -- | When --without-K is enabled, we should check that the sorts of
 --   the index types fit into the sort of the datatype.
