@@ -44,8 +44,11 @@ When releasing the following procedure can be followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Update the year in the copyright of the user manual, in
-  `/doc/user-manual/conf.py`, if necessary.
+* Update the copyright year range in
+
+  - Agda.cabal
+  - /doc/user-manual/conf.py
+  - LICENSE
 
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
