@@ -1226,6 +1226,7 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#5238](https://github.com/agda/agda/issues/5238): Rewrites are conjuring elements out of thin air
   -  [#5245](https://github.com/agda/agda/issues/5245): An infinite loop?
   -  [#5250](https://github.com/agda/agda/issues/5250): Change of warning options ignored
+  -  [#5251](https://github.com/agda/agda/issues/5251): @0 annotation on lambda ignored
   -  [#5252](https://github.com/agda/agda/issues/5252): Internal error when case splitting pattern-lambda with higher rank type
   -  [#5286](https://github.com/agda/agda/issues/5286): Wrong error location with do notation and parse error in lhs
   -  [#5288](https://github.com/agda/agda/issues/5288): Very weird behaviour with compiled Data.Nat.Show.readMaybe
@@ -1243,3 +1244,6 @@ tracker](https://github.com/agda/agda/issues)):
   -  [#5367](https://github.com/agda/agda/issues/5367): Parser regression involving `with` and `let`
   -  [#5370](https://github.com/agda/agda/issues/5370): Inconsistency in agda --help
   -  [#5375](https://github.com/agda/agda/issues/5375): Efficient conversion between interaction points and meta-variables
+  -  [#5410](https://github.com/agda/agda/issues/5410): Module applications in where clauses of erased definitions yield non-erased code
+  -  [#5424](https://github.com/agda/agda/issues/5424): Internal error in v2.6.2 release candidate 1
+  -  [#5434](https://github.com/agda/agda/issues/5434): The user manual's explanation of how erasure is checked for constructors does not match the implementation
