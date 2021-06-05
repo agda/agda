@@ -442,14 +442,14 @@ quicklatex-test :
 .PHONY : std-library-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
-		(cd std-lib && cabal run GenerateEverything --allow-newer=base && \
+		(cd std-lib && cabal run GenerateEverything && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
 
 .PHONY : cubical-test ##
 cubical-test :
-	-rm -r cubical/_build
+	-rm -rf cubical/_build
 	@$(call decorate, "Cubical library test", \
 		time $(MAKE) -C cubical \
                   AGDA_EXEC=$(AGDA_BIN) RTS_OPTIONS=$(AGDA_OPTS))
