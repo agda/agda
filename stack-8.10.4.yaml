@@ -3,4 +3,11 @@ compiler: ghc-8.10.4
 compiler-check: match-exact
 
 extra-deps:
+- tasty-1.4.0.3
+- tasty-silver-3.2.1
 - text-icu-0.7.1.0
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/size-solver'

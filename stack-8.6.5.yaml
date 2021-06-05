@@ -3,6 +3,7 @@ compiler: ghc-8.6.5
 compiler-check: match-exact
 
 extra-deps:
+- QuickCheck-2.14.2
 - STMonadTrans-0.4.3
 - cpphs-1.20.9
 - data-hash-0.2.0.1
@@ -14,3 +15,8 @@ extra-deps:
 - splitmix-0.1.0.3
 - uuid-types-1.0.3
 - text-icu-0.7.1.0
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/size-solver'
