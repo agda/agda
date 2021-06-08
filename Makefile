@@ -352,6 +352,7 @@ test : check-whitespace \
        fail \
        bugs \
        interaction \
+       interaction-json \
        examples \
        std-lib-test \
        cubical-test \
@@ -408,6 +409,11 @@ fail :
 interaction :
 	@$(call decorate, "Suite of interaction tests", \
 		$(MAKE) -C test/interaction)
+
+.PHONY : interaction-json ##
+interaction-json :
+	@$(call decorate, "Suite of interaction-json tests", \
+		$(MAKE) -C test/interaction-json)
 
 .PHONY : interactive ##
 interactive :
@@ -579,7 +585,7 @@ hpc-build: ensure-hash-is-correct
 	$(CABAL) $(CABAL_CONFIGURE_CMD) --enable-library-coverage $(CABAL_INSTALL_OPTS)
 	$(CABAL) $(CABAL_BUILD_CMD) $(CABAL_OPTS)
 
-agda.tix: ./examples/agda.tix ./test/common/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
+agda.tix: ./examples/agda.tix ./test/common/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/interaction-json/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
 	hpc sum --output=$@ $^
 
 .PHONY: hpc ## Generate a code coverage report via cabal.
