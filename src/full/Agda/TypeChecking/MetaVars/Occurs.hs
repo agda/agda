@@ -596,6 +596,7 @@ instance Occurs Sort where
       SSet a     -> SSet <$> occurs a
       s@SizeUniv -> return s
       s@LockUniv -> return s
+      s@IntervalUniv -> return s
       UnivSort s -> UnivSort <$> do flexibly $ occurs s
       MetaS x es -> do
         MetaV x es <- occurs (MetaV x es)
@@ -616,6 +617,7 @@ instance Occurs Sort where
       SSet a     -> metaOccurs m a
       SizeUniv   -> return ()
       LockUniv   -> return ()
+      IntervalUniv -> return ()
       UnivSort s -> metaOccurs m s
       MetaS x es -> metaOccurs m $ MetaV x es
       DefS d es  -> metaOccurs m $ Def d es
@@ -828,6 +830,7 @@ instance AnyRigid Sort where
       SSet l     -> anyRigid f l
       SizeUniv   -> return False
       LockUniv   -> return False
+      IntervalUniv -> return False
       PiSort a s1 s2 -> return False
       FunSort s1 s2 -> return False
       UnivSort s -> anyRigid f s

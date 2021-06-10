@@ -136,6 +136,7 @@ instance NamesIn Sort where
     SSet l      -> namesIn' sg l
     SizeUniv    -> mempty
     LockUniv    -> mempty
+    IntervalUniv -> mempty
     PiSort a b c  -> namesIn' sg (a, b, c)
     FunSort a b -> namesIn' sg (a, b)
     UnivSort a  -> namesIn' sg a

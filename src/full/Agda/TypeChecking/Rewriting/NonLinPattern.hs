@@ -88,6 +88,7 @@ instance PatternFrom () Sort NLPSort where
       SSet l   -> __IMPOSSIBLE__
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
+      IntervalUniv -> return PIntervalUniv
       PiSort _ _ _ -> __IMPOSSIBLE__
       FunSort _ _ -> __IMPOSSIBLE__
       UnivSort _ -> __IMPOSSIBLE__
@@ -221,6 +222,7 @@ instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PInf f n) = return $ Inf f n
   nlPatToTerm PSizeUniv = return SizeUniv
   nlPatToTerm PLockUniv = return LockUniv
+  nlPatToTerm PIntervalUniv = return IntervalUniv
 
 -- | Gather the set of pattern variables of a non-linear pattern
 class NLPatVars a where
@@ -242,6 +244,7 @@ instance NLPatVars NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PIntervalUniv -> empty
 
 instance NLPatVars NLPat where
   nlPatVarsUnder k = \case
@@ -298,6 +301,7 @@ instance GetMatchables NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PIntervalUniv -> empty
 
 instance GetMatchables Term where
   getMatchables = getDefs' __IMPOSSIBLE__ singleton
@@ -331,3 +335,4 @@ instance Free NLPSort where
     PInf f n  -> mempty
     PSizeUniv -> mempty
     PLockUniv -> mempty
+    PIntervalUniv -> mempty

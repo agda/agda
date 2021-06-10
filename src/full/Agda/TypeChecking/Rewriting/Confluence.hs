@@ -835,6 +835,7 @@ instance AllHoles Sort where
     SSet l       -> fmap SSet <$> allHoles_ l
     SizeUniv     -> empty
     LockUniv     -> empty
+    IntervalUniv -> empty
     PiSort{}     -> __IMPOSSIBLE__
     FunSort{}    -> __IMPOSSIBLE__
     UnivSort{}   -> __IMPOSSIBLE__
@@ -911,6 +912,7 @@ instance MetasToVars Sort where
     SSet l     -> SSet     <$> metasToVars l
     SizeUniv   -> pure SizeUniv
     LockUniv   -> pure LockUniv
+    IntervalUniv -> pure IntervalUniv
     PiSort s t u -> PiSort   <$> metasToVars s <*> metasToVars t <*> metasToVars u
     FunSort s t -> FunSort <$> metasToVars s <*> metasToVars t
     UnivSort s -> UnivSort <$> metasToVars s

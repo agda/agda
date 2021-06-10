@@ -164,7 +164,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primSigma,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero, primMaybe, primNothing, primJust,
-    primPath, primPathP, primInterval, primIZero, primIOne, primPartial, primPartialP,
+    primPath, primPathP, primIntervalUniv, primInterval, primIZero, primIOne, primPartial, primPartialP,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
     primSub, primSubIn, primSubOut,
@@ -247,6 +247,7 @@ primConId                             = getBuiltin builtinConId
 primIdElim                            = getPrimitiveTerm builtinIdElim
 primPath                              = getBuiltin builtinPath
 primPathP                             = getBuiltin builtinPathP
+primIntervalUniv                      = getBuiltin builtinIntervalUniv
 primInterval                          = getBuiltin builtinInterval
 primIZero                             = getBuiltin builtinIZero
 primIOne                              = getBuiltin builtinIOne
@@ -452,6 +453,7 @@ data SortKit = SortKit
   , nameOfProp     :: QName
   , nameOfSSet     :: QName
   , nameOfSetOmega :: IsFibrant -> QName
+  , nameOfIntervalUniv :: QName
   }
 
 sortKit :: HasBuiltins m => m SortKit
@@ -461,6 +463,7 @@ sortKit = do
   Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
   Def sset     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
   Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
+  Def intervaluniv _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtInIntervalUniv
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
@@ -468,6 +471,7 @@ sortKit = do
     , nameOfSetOmega = \case
         IsFibrant -> setomega
         IsStrict  -> ssetomega
+    , nameOfIntervalUniv = intervaluniv
     }
 
 
