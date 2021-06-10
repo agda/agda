@@ -153,7 +153,7 @@ instance EmbPrj I.Sort where
   icod_ (DefS a b)   = icodeN 7 DefS a b
   icod_ (SSet  a  ) = icodeN 8 SSet a
   icod_ LockUniv    = icodeN 9 LockUniv
-  icod_ IntervalUniv = icodeN 10 LockUniv
+  icod_ IntervalUniv = icodeN 10 IntervalUniv
   icod_ (DummyS s)   = do
     liftIO $ putStrLn $ "Dummy sort in serialization: " ++ s
     __IMPOSSIBLE__
