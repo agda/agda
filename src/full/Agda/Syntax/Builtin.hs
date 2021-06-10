@@ -295,6 +295,7 @@ builtinsNoDef :: [String]
 builtinsNoDef =
   sizeBuiltins ++
   [ builtinConId
+  , builtinIntervalUniv
   , builtinInterval
   , builtinPartial
   , builtinPartialP

@@ -453,7 +453,6 @@ data SortKit = SortKit
   , nameOfProp     :: QName
   , nameOfSSet     :: QName
   , nameOfSetOmega :: IsFibrant -> QName
-  , nameOfIntervalUniv :: QName
   }
 
 sortKit :: HasBuiltins m => m SortKit
@@ -463,7 +462,6 @@ sortKit = do
   Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
   Def sset     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
   Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
-  Def intervaluniv _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtInIntervalUniv
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
@@ -471,7 +469,6 @@ sortKit = do
     , nameOfSetOmega = \case
         IsFibrant -> setomega
         IsStrict  -> ssetomega
-    , nameOfIntervalUniv = intervaluniv
     }
 
 

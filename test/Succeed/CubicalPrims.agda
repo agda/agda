@@ -12,6 +12,40 @@ open import Agda.Builtin.Sigma
 open import Agda.Builtin.List
 open Helpers
 
+-- ISet lives in SSet₁
+
+ISet' : SSet (lsuc lzero)
+ISet' = ISet
+
+-- I is all we have in ISet
+itsI : ISet
+itsI = I
+
+{-
+  This is the key property we want:
+  the unbased path type of a fibrant type is fibrant
+  this is not true (and shouldn't be true) if we replace ISet with SSet
+-}
+[ISet→Set]↦Set : ∀ {ℓ} → ISet → Set ℓ → Set ℓ
+[ISet→Set]↦Set J A = J → A
+
+[ISet→SSet]↦SSet : ∀ {ℓ} → ISet → SSet ℓ → SSet ℓ
+[ISet→SSet]↦SSet J A = J → A
+
+-- For maps into types in ISet, we treat it like SSet
+
+[Set→ISet]↦SSet : ∀ {ℓ} → Set ℓ → ISet → SSet ℓ
+[Set→ISet]↦SSet A J = A → J
+
+[ISet→ISet]↦SSet : ISet → ISet → SSet -- not in ISet
+[ISet→ISet]↦SSet J K = J → K
+
+-- ISet ≤ SSet
+
+record Wrap (A : ISet) : SSet where
+  field
+    unwrap : A
+
 module _ {ℓ} {A : Set ℓ} where
   trans : {x y z : A} → x ≡ y → y ≡ z → x ≡ z
   trans {x = x} p q i = primComp (λ _ → A) (λ { j (i = i0) → x
