@@ -29,6 +29,9 @@ itsI = I
 [ISet→Set]↦Set : ∀ {ℓ} → ISet → Set ℓ → Set ℓ
 [ISet→Set]↦Set J A = J → A
 
+[:ISet→Set]↦Set : ∀ {ℓ} → (J : ISet) → (J → Set ℓ) → Set ℓ
+[:ISet→Set]↦Set J A = (j : J) → A j
+
 [ISet→SSet]↦SSet : ∀ {ℓ} → ISet → SSet ℓ → SSet ℓ
 [ISet→SSet]↦SSet J A = J → A
 
