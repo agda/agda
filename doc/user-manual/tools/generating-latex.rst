@@ -621,9 +621,11 @@ Including Agda code in a larger LaTeX document
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sometimes you might want to include a bit of code without making the
-whole document a literate Agda file. Here is one way in which this can
-be accomplished. (Perhaps this technique was invented by Anton
-Setzer.) Put the code in a separate file, and use ``\newcommand`` to
+whole document a literate Agda file. There are two ways in which this
+can be accomplished.
+
+(The following technique was probably invented by Anton
+Setzer.)  Put the code in a separate file, and use ``\newcommand`` to
 give a name to each piece of code that should be typeset:
 
 .. code-block:: latex
@@ -660,6 +662,58 @@ directory (or on the TeX search path).
 Note that this technique can also be used to present code in a
 different order, if the rules imposed by Agda are not compatible with
 the order that you would prefer.
+
+There is another technique that uses the catchfilebetweentags_
+latex package. Assuming you have some code in :file:`Code.lagda`
+and want to include it in :file:`Paper.tex`, you first add
+tags to your code as follows:
+
+ .. code-block:: lagda
+   :caption: Code.lagda
+
+   %<*nat>
+   \begin{code}
+   data ℕ : Set where
+     zero  : ℕ
+     suc   : (n : ℕ) → ℕ
+   \end{code}
+   %</nat>
+
+   %<*plus>
+   \begin{code}
+   _+_ : ℕ → ℕ → ℕ
+   zero   + n = n
+   suc m  + n = suc (m + n)
+   \end{code}
+   %</plus>
+
+You can then use ``\ExecuteMetaData``, as provided by
+catchfilebetweentags_, to include the code. Note that
+the code does not have to be in the same order (or from
+the same files).  This method is particularly convenient
+when you want to write a paper or presentation about
+a library of code.
+
+.. code-block:: latex
+   :caption: Paper.tex
+
+   % Other setup related to Agda...
+   \usepackage{catchfilebetweentags}
+
+   \begin{document}
+
+     \begin{itemize}
+       \item The natural numbers
+     \end{itemize}
+
+     \ExecuteMetaData[latex/Code.tex]{nat}
+
+     \begin{itemize}
+       \item Addition (\AgdaFunction{\_+\_})
+     \end{itemize}
+
+     \ExecuteMetaData[latex/Code.tex]{plus}
+
 
 Examples
 --------
@@ -743,4 +797,5 @@ code.
 
 .. _polytable: https://www.ctan.org/pkg/polytable
 .. _hyperref: https://www.ctan.org/pkg/hyperref
+.. _catchfilebetweentags: https://www.ctan.org/pkg/catchfilebetweentags
 .. _ICU: http://site.icu-project.org/
