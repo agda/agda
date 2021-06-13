@@ -40,7 +40,7 @@ Since: 2013-06-15.
 Cloning
 --------
 
-Since Agda's repository uses submodules, you should cloning the
+Since Agda's repository uses submodules, you should be cloning the
 repository by running:
 ```bash
 git clone --recurse-submodules git@github.com:agda/agda.git
