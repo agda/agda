@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeFamilies #-} -- for type equality ~
-
 -- | Computing the polarity (variance) of function arguments,
 --   for the sake of subtyping.
 

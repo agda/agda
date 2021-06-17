@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Non-empty lists.
 --
 --   Better name @List1@ for non-empty lists, plus missing functionality.
@@ -50,8 +52,10 @@ initLast = List1.init &&& List1.last
 
 -- | Build a list with one element.
 
+#if !(MIN_VERSION_base(4,15,0))
 singleton :: a -> List1 a
 singleton = (:| [])
+#endif
 
 -- | Append a list to a non-empty list.
 

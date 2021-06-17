@@ -1,7 +1,6 @@
 -- Andreas, 2016-02-01 KEEP in compilation loop to prevent bit-rotting.
 
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Standalone program for testing size constraint solver.

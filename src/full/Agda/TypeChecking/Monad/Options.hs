@@ -36,8 +36,7 @@ setPragmaOptions opts = do
   clo <- commandLineOptions
   let unsafe = unsafePragmaOptions clo opts
   when (Lens.getSafeMode opts && not (null unsafe)) $ warning $ SafeFlagPragma unsafe
-  ok <- liftIO $ runOptM $ checkOpts (clo { optPragmaOptions = opts })
-  case ok of
+  runOptM (checkOpts clo{ optPragmaOptions = opts }) >>= \case
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
       stPragmaOptions `setTCLens` optPragmaOptions opts
@@ -64,8 +63,7 @@ setCommandLineOptions'
   -> CommandLineOptions
   -> TCM ()
 setCommandLineOptions' root opts = do
-  z <- liftIO $ runOptM $ checkOpts opts
-  case z of
+  runOptM (checkOpts opts) >>= \case
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
       incs <- case optAbsoluteIncludePaths opts of
@@ -105,7 +103,6 @@ setLibraryPaths root o =
 
 setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
 setLibraryIncludes o
-  | optPrintVersion o  = __IMPOSSIBLE__
   | not (optUseLibs o) = pure o
   | otherwise = do
     let libs = optLibraries o
@@ -119,7 +116,6 @@ addDefaultLibraries
   -> CommandLineOptions
   -> TCM CommandLineOptions
 addDefaultLibraries root o
-  | optPrintVersion o = __IMPOSSIBLE__
   | not (null $ optLibraries o) || not (optUseLibs o) = pure o
   | otherwise = do
   (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
@@ -130,9 +126,7 @@ addDefaultLibraries root o
 addTrustedExecutables
   :: CommandLineOptions
   -> TCM CommandLineOptions
-addTrustedExecutables o
-  | optPrintAgdaDir o || optPrintVersion o = __IMPOSSIBLE__
-  | otherwise = do
+addTrustedExecutables o = do
   trustedExes <- libToTCM $ getTrustedExecutables
   -- Wen, 2020-06-03
   -- Replace the map wholesale instead of computing the union because this function
@@ -143,8 +137,7 @@ addTrustedExecutables o
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
     opts <- commandLineOptions
-    z    <- liftIO $ runOptM (parsePragmaOptions ps opts)
-    case z of
+    runOptM (parsePragmaOptions ps opts) >>= \case
       Left err    -> typeError $ GenericError err
       Right opts' -> setPragmaOptions opts'
 
@@ -161,6 +154,18 @@ disableDisplayForms =
 -- | Check if display forms are enabled.
 displayFormsEnabled :: MonadTCEnv m => m Bool
 displayFormsEnabled = asksTC envDisplayFormsEnabled
+
+-- | Gets the include directories.
+--
+-- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
+-- 'setCommandLineOptions' must have run).
+
+getIncludeDirs :: HasOptions m => m [AbsolutePath]
+getIncludeDirs = do
+  incs <- optAbsoluteIncludePaths <$> commandLineOptions
+  case incs of
+    [] -> __IMPOSSIBLE__
+    _  -> return incs
 
 -- | Makes the given directories absolute and stores them as include
 -- directories.
@@ -183,10 +188,9 @@ setIncludeDirs incs root = do
   incs <- return $  map (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
-  libdir <- liftIO $ defaultLibDir
       -- NB: This is an absolute file name, but
       -- Agda.Utils.FilePath wants to check absoluteness anyway.
-  let primdir = mkAbsolute $ libdir </> "prim"
+  primdir <- liftIO $ mkAbsolute <$> getPrimitiveLibDir
       -- We add the default dir at the end, since it is then
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...
@@ -261,12 +265,6 @@ withShowAllArguments' yes = withPragmaOptions $ \ opts ->
 -- | Change 'PragmaOptions' for a computation and restore afterwards.
 withPragmaOptions :: ReadTCState m => (PragmaOptions -> PragmaOptions) -> m a -> m a
 withPragmaOptions = locallyTCState stPragmaOptions
-
-ignoreInterfaces :: HasOptions m => m Bool
-ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
-
-ignoreAllInterfaces :: HasOptions m => m Bool
-ignoreAllInterfaces = optIgnoreAllInterfaces <$> commandLineOptions
 
 positivityCheckEnabled :: HasOptions m => m Bool
 positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions

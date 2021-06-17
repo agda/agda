@@ -1,5 +1,5 @@
+{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeFamilies    #-}
 
 module Internal.TypeChecking.Generators where
 
@@ -516,8 +516,10 @@ instance ShrinkC Term where
     Sort s       -> Sort <$> shrinkC conf s
     MetaV m es   -> map unArg (argsFromElims es) ++
                     (MetaV m <$> shrinkC conf (NoType es))
+#if __GLASGOW_HASKELL__ < 900
     DontCare _   -> __IMPOSSIBLE__
     Dummy{}      -> __IMPOSSIBLE__
+#endif
     where
       validType t
         | not (tcIsType conf) = True

@@ -1,6 +1,11 @@
 Release notes for Agda version 2.6.2
 ====================================
 
+Installation and infrastructure
+-------------------------------
+
+* Added support for GHC 8.10.3.
+
 Command-line interaction
 ------------------------
 
@@ -213,7 +218,7 @@ Language
   ```
 
 * Erased constructors (see
-  [#4522](https://github.com/agda/agda/issues/4638)).
+  [#4638](https://github.com/agda/agda/issues/4638)).
 
   Constructors can be marked as erased. Example:
 
@@ -263,6 +268,14 @@ Language
   valid *run-time* case. (If the K rule is turned off, then the data
   type must also be non-indexed.) When `f` is compiled the clause that
   matches on `compile-time` is omitted.
+
+* New (?) rule for modalities of generalised variables
+  (see [#5058](https://github.com/agda/agda/issues/5058)).
+
+  The new rule is that generalisable variables get the modality that
+  they are declared with, whereas other variables always get the
+  default modality. (It is unclear what the old rule was, perhaps
+  nothing was changed.)
 
 Builtins
 --------
@@ -489,7 +502,7 @@ Emacs mode
 * New keyboard shortcut `C-c C-x C-i` for toggling display of irrelevant arguments.
 
 JSON Interaction mode
-----------
+---------------------
 
 Changes have been made to the structure of error and warning messages. The
 changes are summarized below. See [#5052](https://github.com/agda/agda/issues/5052)
@@ -576,6 +589,12 @@ for additional details.
   }
   ```
 
+Compiler backends
+-----------------
+
+- With option `--allow-unsolved-metas`, code with holes can be compiled.
+  If a hole is reached at runtime, the compiled program crashes.
+  See issue [#5103](https://github.com/agda/agda/issues/5103)
 
 JS backend
 ----------
@@ -757,3 +776,9 @@ JS backend
 - `--js-minify` flag has been added to the `agda` compiler.
 
   With `--js-minify`, `agda` discards comments and whitespace in the generated JS code.
+
+
+Agda as a library (API)
+-----------------------
+
+* The `SourceInfo` record has been renamed to `Source`, and the `sourceInfo` function to `parseSource`.

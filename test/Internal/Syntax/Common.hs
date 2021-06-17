@@ -16,6 +16,12 @@ instance CoArbitrary Modality
 instance Arbitrary Modality where
   arbitrary = Modality <$> arbitrary <*> arbitrary <*> arbitrary
 
+instance Arbitrary a => Arbitrary (UnderAddition a) where
+  arbitrary = UnderAddition <$> arbitrary
+
+instance Arbitrary a => Arbitrary (UnderComposition a) where
+  arbitrary = UnderComposition <$> arbitrary
+
 instance CoArbitrary Q0Origin where
   coarbitrary = \case
     Q0Inferred -> variant 0
@@ -100,11 +106,17 @@ instance (Arbitrary a, Arbitrary b) => Arbitrary (Using' a b) where
 
 -- Quantity is a POMonoid
 
-prop_monoid_Quantity :: Property3 Quantity
-prop_monoid_Quantity = isMonoid
+prop_monoid_Quantity_comp :: Property3 (UnderComposition Quantity)
+prop_monoid_Quantity_comp = isMonoid
 
-prop_monotone_comp_Quantity :: Property3 Quantity
-prop_monotone_comp_Quantity = isMonotoneComposition
+prop_monotone_comp_Quantity_comp :: Property3 (UnderComposition Quantity)
+prop_monotone_comp_Quantity_comp = isMonotoneComposition
+
+prop_monoid_Quantity_add :: Property3 (UnderAddition Quantity)
+prop_monoid_Quantity_add = isMonoid
+
+prop_monotone_comp_Quantity_add :: Property3 (UnderAddition Quantity)
+prop_monotone_comp_Quantity_add = isMonotoneComposition
 
 -- -- | Quantities ω=ℕ, 1={1}, 0={0}  do not form a Galois connection.
 --
@@ -118,14 +130,14 @@ prop_monotone_comp_Quantity = isMonotoneComposition
 
 -- Relevance is a LeftClosedPOMonoid
 
-prop_monoid_Relevance :: Property3 Relevance
-prop_monoid_Relevance = isMonoid
+prop_monoid_Relevance_comp :: Property3 (UnderComposition Relevance)
+prop_monoid_Relevance_comp = isMonoid
 
-prop_monotone_comp_Relevance :: Property3 Relevance
-prop_monotone_comp_Relevance = isMonotoneComposition
+prop_monotone_comp_Relevance_comp :: Property3 (UnderComposition Relevance)
+prop_monotone_comp_Relevance_comp = isMonotoneComposition
 
-prop_Galois_Relevance :: Prop3 Relevance
-prop_Galois_Relevance = isGaloisConnection
+prop_Galois_Relevance_comp :: Prop3 (UnderComposition Relevance)
+prop_Galois_Relevance_comp = isGaloisConnection
 
 prop_left_identity_invcomp_Relevance :: Relevance -> Bool
 prop_left_identity_invcomp_Relevance x = Relevant `inverseComposeRelevance` x == x
@@ -133,15 +145,27 @@ prop_left_identity_invcomp_Relevance x = Relevant `inverseComposeRelevance` x ==
 prop_right_absorptive_invcomp_Relevance :: Relevance -> Bool
 prop_right_absorptive_invcomp_Relevance x = x `inverseComposeRelevance` Relevant == Relevant
 
+prop_monoid_Relevance_add :: Property3 (UnderAddition Relevance)
+prop_monoid_Relevance_add = isMonoid
+
+prop_monotone_comp_Relevance_add :: Property3 (UnderAddition Relevance)
+prop_monotone_comp_Relevance_add = isMonotoneComposition
+
 -- Modality is a POMonoid
 
-prop_monoid_Modality :: Property3 Modality
-prop_monoid_Modality = isMonoid
+prop_monoid_Modality_comp :: Property3 (UnderComposition Modality)
+prop_monoid_Modality_comp = isMonoid
 
-prop_monotone_comp_Modality :: Property3 Modality
+prop_monotone_comp_Modality :: Property3 (UnderComposition Modality)
 prop_monotone_comp_Modality = isMonotoneComposition
 
--- -- | The following does not hold, see prop_Galois_Quanity.
+prop_monoid_Modality_add :: Property3 (UnderAddition Modality)
+prop_monoid_Modality_add = isMonoid
+
+prop_monotone_comp_Modality_add :: Property3 (UnderAddition Modality)
+prop_monotone_comp_Modality_add = isMonotoneComposition
+
+-- -- | The following does not hold, see prop_Galois_Quantity.
 -- prop_Galois_Modality :: Prop3 Modality
 -- prop_Galois_Modality = isGaloisConnection
 

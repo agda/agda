@@ -107,6 +107,9 @@ STACK_INSTALL_OPTS += --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 # Options for building Agda's dependencies.
 CABAL_INSTALL_DEP_OPTS = --only-dependencies \
                          $(CABAL_INSTALL_OPTS)
+STACK_INSTALL_DEP_OPTS = --only-dependencies \
+                         $(STACK_INSTALL_OPTS)
+
 # Options for building the Agda exectutable.
 # -j1 so that cabal will print built progress to stdout.
 CABAL_INSTALL_BIN_OPTS = -j1 --disable-library-profiling \
@@ -132,7 +135,10 @@ ensure-hash-is-correct:
 
 .PHONY: install-deps ## Install Agda dependencies.
 install-deps:
-ifndef HAS_STACK
+ifdef HAS_STACK
+	@echo "===================== Installing dependencies using Stack ================"
+	time $(STACK_INSTALL) $(STACK_INSTALL_DEP_OPTS)
+else
 	@echo "========================= Installing dependencies using Cabal ============"
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_DEP_OPTS)
 endif
@@ -421,7 +427,7 @@ quicklatex-test :
 .PHONY : std-library-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
-		(cd std-lib && $(RUNGHC) GenerateEverything.hs && \
+		(cd std-lib && make Everything.agda && \
 						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
@@ -498,7 +504,7 @@ testing-emacs-mode:
 .PHONY : install-size-solver ## Install the size solver.
 install-size-solver :
 	@$(call decorate, "Installing the size-solver program", \
-		$(MAKE) -C src/size-solver install-bin)
+		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(STACK_INSTALL_OPTS)' CABAL_INSTALL_OPTS='$(CABAL_INSTALL_OPTS)' install-bin)
 
 .PHONY : test-size-solver ##
 test-size-solver : install-size-solver
@@ -508,12 +514,25 @@ test-size-solver : install-size-solver
 ##############################################################################
 ## Development
 
+## Setting the `stack.yaml` file ############################################
+
+# The variable `GHC_COMPILER` is to be defined as a command-line argument.
+# For example: `make set-default-stack-file GHC_COMPILER=8.10.2`
+set-default-stack-file : remove-default-stack-file
+	ln -s stack-$(GHC_COMPILER).yaml stack.yaml
+	cd $(FIXW_PATH) && ln -s stack-$(GHC_COMPILER).yaml stack.yaml
+
+remove-default-stack-file :
+	rm -f stack.yaml
+	cd $(FIXW_PATH) && rm -f stack.yaml
+
 ## Whitespace-related #######################################################
 # Agda can fail to compile on Windows if files which are CPP-processed
 # don't end with a newline character (because we use -Werror).
 
-FIXW_PATH = src/fix-whitespace
-FIXW_BIN  = $(FIXW_PATH)/dist/build/fix-whitespace/fix-whitespace
+FIXW_PATH  = src/fix-whitespace
+FIXW_BUILD = dist/build/fix-whitespace/
+FIXW_BIN   = $(FIXW_PATH)/$(FIXW_BUILD)/fix-whitespace
 
 .PHONY : fix-whitespace ## Fix the whitespace issue.
 fix-whitespace : $(FIXW_BIN)
@@ -527,11 +546,16 @@ check-whitespace : $(FIXW_BIN)
 install-fix-whitespace : $(FIXW_BIN)
 
 $(FIXW_BIN) :
-	git submodule update --init src/fix-whitespace
+	@git submodule update --init src/fix-whitespace
 ifdef HAS_STACK
-	$(STACK) build fix-whitespace
-	mkdir -p $(FIXW_PATH)/dist/build/fix-whitespace/
-	cp $(shell $(STACK) path --local-install-root)/bin/fix-whitespace $(FIXW_BIN)
+ifneq  ("$(wildcard $(FIXW_PATH)/stack.yaml)","")
+	cd $(FIXW_PATH) && \
+        mkdir -p $(FIXW_BUILD) && \
+        $(STACK) install --stack-yaml ./stack.yaml --local-bin-path $(FIXW_BUILD)
+else
+	@echo "Missing the $(FIXW_PATH)/stack.yaml" file
+	@echo "You can fix the issue by running 'make set-default-stack-file GHC_COMPILER=X.Y.Z'"
+endif
 else
 	cd $(FIXW_PATH) && $(CABAL) $(CABAL_INSTALL_CMD)
 endif

@@ -59,9 +59,6 @@ getEnv = askTC
 withHighlightingLevel :: HighlightingLevel -> TCM a -> TCM a
 withHighlightingLevel h = localTC $ \ e -> e { envHighlightingLevel = h }
 
-withoutOptionsChecking :: TCM a -> TCM a
-withoutOptionsChecking = localTC $ \ e -> e { envCheckOptionConsistency = False }
-
 -- | Restore setting for 'ExpandLast' to default.
 doExpandLast :: TCM a -> TCM a
 doExpandLast = localTC $ \ e -> e { envExpandLast = setExpand (envExpandLast e) }

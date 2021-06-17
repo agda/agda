@@ -152,9 +152,14 @@ addRewriteRules qs = do
 
   -- Run confluence check for the new rules
   -- (should be done after adding all rules, see #3795)
-  whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk ->
+  whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
+    -- Global confluence checker requires rules to be sorted
+    -- according to the generality of their lhs
+    when (confChk == GlobalConfluenceCheck) $
+      forM_ (nubOn id $ map rewHead rews) sortRulesOfSymbol
     checkConfluenceOfRules confChk rews
-
+    reportSDoc "rewriting" 10 $
+      "done checking confluence of rules" <+> prettyList_ (map (prettyTCM . rewName) rews)
 
 -- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule
 --   @
@@ -273,7 +278,7 @@ checkRewriteRule q = do
           "variables free in the rewrite rule: " <+> text (show freeVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
-        let rew = RewriteRule q gamma f ps rhs (unDom b)
+        let rew = RewriteRule q gamma f ps rhs (unDom b) False
 
         reportSDoc "rewriting" 10 $ vcat
           [ "checked rewrite rule" , prettyTCM rew ]
@@ -364,7 +369,9 @@ rewriteWith :: Type
             -> RewriteRule
             -> Elims
             -> ReduceM (Either (Blocked Term) Term)
-rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b) es = do
+rewriteWith t hd rew@(RewriteRule q gamma _ ps rhs b isClause) es
+ | isClause = return $ Left $ NotBlocked ReallyNotBlocked $ hd es
+ | otherwise = do
   traceSDoc "rewriting.rewrite" 50 (sep
     [ "{ attempting to rewrite term " <+> prettyTCM (hd es)
     , " having head " <+> prettyTCM (hd []) <+> " of type " <+> prettyTCM t
@@ -393,19 +400,7 @@ rewrite :: Blocked_ -> (Elims -> Term) -> RewriteRules -> Elims -> ReduceM (Redu
 rewrite block hd rules es = do
   rewritingAllowed <- optRewriting <$> pragmaOptions
   if (rewritingAllowed && not (null rules)) then do
-    t <- case hd [] of
-      Def f []   -> defType <$> getConstInfo f
-      Con (ConHead { conName = c }) _ [] -> do
-        -- Andreas, 2018-09-08, issue #3211:
-        -- discount module parameters for constructor heads
-        vs <- freeVarsToApply c
-        -- Jesper, 2020-06-17, issue #4755: add dummy arguments in
-        -- case we don't have enough parameters
-        npars <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters c
-        let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
-        t <- defType <$> getConstInfo c
-        t `piApplyM` (vs ++ ws)
-      _ -> __IMPOSSIBLE__
+    (_ , t) <- fromMaybe __IMPOSSIBLE__ <$> getTypedHead (hd [])
     loop block t rules =<< instantiateFull' es -- TODO: remove instantiateFull?
   else
     return $ NoReduction (block $> hd es)

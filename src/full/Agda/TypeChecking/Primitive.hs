@@ -1,4 +1,3 @@
-{-# LANGUAGE MonoLocalBinds             #-}
 
 {-| Primitive functions, such as addition on builtin integers.
 -}

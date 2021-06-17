@@ -106,6 +106,16 @@ intersectVars = zipWithM areVars where
     areVars (Apply (Arg _ (Var n []))) (Apply (Arg _ (Var m []))) = Just $ n /= m -- prune different vars
     areVars _ _                                   = Nothing
 
+-- | Run the given computation but turn any errors into blocked computations with the given blocker
+blockOnError :: MonadError TCErr m => Blocker -> m a -> m a
+blockOnError blocker f
+  | blocker == neverUnblock = f
+  | otherwise               = f `catchError` \case
+    TypeError{}         -> throwError $ PatternErr blocker
+    PatternErr blocker' -> throwError $ PatternErr $ unblockOnEither blocker blocker'
+    err@Exception{}     -> throwError err
+    err@IOException{}   -> throwError err
+
 equalTerm :: MonadConversion m => Type -> Term -> Term -> m ()
 equalTerm = compareTerm CmpEq
 
@@ -243,20 +253,20 @@ compareAs' cmp tt m n = case tt of
 compareTerm' :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareTerm' cmp a m n =
   verboseBracket "tc.conv.term" 20 "compareTerm" $ do
-  a' <- reduce a
-  (catchConstraint (ValueCmp cmp (AsTermsOf a') m n) :: m () -> m ()) $ do
+  (ba, a') <- reduceWithBlocker a
+  (catchConstraint (ValueCmp cmp (AsTermsOf a') m n) :: m () -> m ()) $ blockOnError ba $ do
     reportSDoc "tc.conv.term" 30 $ fsep
       [ "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, ":", prettyTCM a' ]
     propIrr  <- isPropEnabled
     isSize   <- isJust <$> isSizeType a'
-    s        <- reduce $ getSort a'
+    (bs, s)  <- reduceWithBlocker $ getSort a'
     mlvl     <- getBuiltin' builtinLevel
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
       [ "a'   =" <+> pretty a'
       , "mlvl =" <+> pretty mlvl
       , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
       ]
-    case s of
+    blockOnError bs $ case s of
       Prop{} | propIrr -> compareIrrelevant a' m n
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
@@ -417,10 +427,13 @@ compareAtom cmp t m n =
                              ]
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
-    (mb',nb') <- ifM (asksTC envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
+    (mb',nb') <- do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
       return (mb', nb')
+    let getBlocker (Blocked b _) = b
+        getBlocker NotBlocked{}  = neverUnblock
+        blocker = unblockOnEither (getBlocker mb') (getBlocker nb')
     reportSLn "tc.conv.atom.size" 50 $ "term size after reduce: " ++ show (termSize $ ignoreBlocking mb', termSize $ ignoreBlocking nb')
 
     -- constructorForm changes literal to constructors
@@ -438,22 +451,9 @@ compareAtom cmp t m n =
     let m = ignoreBlocking mb
         n = ignoreBlocking nb
 
-        postpone u = addConstraint u $ ValueCmp cmp t m n
+        checkDefinitionalEquality = unlessM (pureCompareAs CmpEq t m n) notEqual
 
-        -- Jesper, 2019-05-14, Issue #3776: If the type is blocked,
-        -- the comparison could be solved by eta-expansion so we
-        -- cannot fail hard
-        postponeIfBlockedAs :: CompareAs -> (Blocked CompareAs -> m ()) -> m ()
-        postponeIfBlockedAs AsTypes       f = f $ NotBlocked ReallyNotBlocked AsTypes
-        postponeIfBlockedAs AsSizes       f = f $ NotBlocked ReallyNotBlocked AsSizes
-        postponeIfBlockedAs (AsTermsOf t) f = ifBlocked t
-          (\ b t -> f (Blocked b $ AsTermsOf t) `catchError` \case
-              TypeError{} -> postpone b
-              err         -> throwError err)
-          (\nb t -> f $ NotBlocked nb $ AsTermsOf t)
-
-        checkDefinitionalEquality = unlessM (pureCompareAs CmpEq t m n) $
-                                      postpone (unblockOnAnyMetaIn (m, n))
+        notEqual = typeError $ UnequalTerms cmp m n t
 
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
@@ -476,8 +476,9 @@ compareAtom cmp t m n =
           MetaV y yArgs <- ignoreBlocking nb -> -- envCompareBlocked check above.
         if | x == y, cmpBlocked -> do
               a <- metaType x
-              compareElims [] [] a (MetaV x []) xArgs yArgs
-           | x == y ->
+              blockOnError (unblockOnMeta x) $
+                compareElims [] [] a (MetaV x []) xArgs yArgs
+           | x == y -> blockOnError (unblockOnMeta x) $
             case intersectVars xArgs yArgs of
               -- all relevant arguments are variables
               Just kills -> do
@@ -486,8 +487,8 @@ compareAtom cmp t m n =
                 case killResult of
                   NothingToPrune   -> return ()
                   PrunedEverything -> return ()
-                  PrunedNothing    -> postpone (unblockOnAnyMetaIn (m, n))
-                  PrunedSomething  -> postpone (unblockOnAnyMetaIn (m, n))
+                  PrunedNothing    -> checkDefinitionalEquality
+                  PrunedSomething  -> checkDefinitionalEquality
               -- not all relevant arguments are variables
               Nothing -> checkDefinitionalEquality -- Check definitional equality on meta-variables
                               -- (same as for blocked terms)
@@ -511,10 +512,10 @@ compareAtom cmp t m n =
       -- one side a meta
       _ | MetaV x es <- ignoreBlocking mb -> assign dir x es n
       _ | MetaV x es <- ignoreBlocking nb -> assign rid x es m
-      (Blocked{}, Blocked{})  -> checkDefinitionalEquality
-      (Blocked b _, _) -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term goes first
-      (_, Blocked b _) -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
-      _ -> postponeIfBlockedAs t $ \bt -> do
+      (Blocked{}, Blocked{}) | not cmpBlocked  -> checkDefinitionalEquality
+      (Blocked b _, _) | not cmpBlocked -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term  goes first
+      (_, Blocked b _) | not cmpBlocked -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
+      _ -> blockOnError blocker $ do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.
         -- -- 'False' means: leave (Def f []) unchanged even for
@@ -573,7 +574,7 @@ compareAtom cmp t m n =
                   -- Constructors are covariant in their arguments
                   -- (see test/succeed/CovariantConstructors).
                   compareElims (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
-          _ -> typeError $ UnequalTerms cmp m n $ ignoreBlocking bt
+          _ -> notEqual
     where
         -- returns True in case we handled the comparison already.
         compareEtaPrims :: MonadConversion m => QName -> Elims -> Elims -> m Bool

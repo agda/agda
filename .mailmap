@@ -25,6 +25,7 @@
 ##############################################################################
 
 Adam Gundry <adam.gundry@strath.ac.uk>
+Adam Sandberg Eriksson <adam@sandbergericsson.se>
 Alan Jeffrey <ajeffrey@bell-labs.com> ajeffrey
 Alexandre Buisse <buisse@cs.chalmers.se>
 Andreas Abel <andreas.abel@ifi.lmu.de> andreas.abel
@@ -54,8 +55,9 @@ Herminie Pagel <nlp@fairbill.com> herminie <47478084+pnlph@users.noreply.github.
 Herminie Pagel <nlp@fairbill.com> pnlph
 Holger Borum <holger.stadel.borum@gmail.com> blaavogn
 James Burton <j.burton@brighton.ac.uk>
-James Chapman <james@cs.ioc.ee> james
-James Chapman <james@cs.ioc.ee> James Chapman <jmchapman@gmail.com>
+James Chapman <james.chapman@iohk.io> james
+James Chapman <james.chapman@iohk.io> <jmchapman@gmail.com>
+James Chapman <james.chapman@iohk.io> <james@cs.ioc.ee>
 Jean-Philippe Bernardy <jeanphilippe.bernardy@gmail.com> jeanphilippe.bernardy
 Jesper Cockx <jesper.cockx@cs.kuleuven.be> jesper.cockx
 Jesper Cockx <jesper.cockx@cs.kuleuven.be> <jesper@sikanda.be>
@@ -64,6 +66,7 @@ Kuen-Bang Hou (Favonia) <favonia@gmail.com>
 Lennart Augustsson <lennart@augustsson.net>
 Liang-Ting Chen <liang.ting.chen.tw@gmail.com>
 LUA Ting-Gan <banacorn@gmail.com>
+LUA Ting-Gan <banacorn@gmail.com> Ting-Gian Lua <banacorn@Ting-Giande-MacBook-Pro.local>
 Makoto Takeyama <makoto.takeyama@aist.go.jp> makoto.takeyama
 Marcin Benke <marcin.benke@gmail.com> marcin.benke
 Marko Dimjašević <marko@dimjasevic.net> Marko Dimjašević <mdimjasevic@users.noreply.github.com>
@@ -81,6 +84,7 @@ Philipp Hausmann <ph_git@314.ch> Philipp Hausmann <philipp@xpc001.lenzburg>
 Ryan Scott <ryan.gl.scott@ku.edu>
 Samuel Gélineau <gelisam@gmail.com>
 Shin-Cheng Mu <scm@iis.sinica.edu.tw>
+Simon Boulier <SimonBoulier@users.noreply.github.com>
 Stefan Monnier <monnier@iro.umontreal.ca> monnier
 Steven Keuchel <steven.keuchel@gmail.com>
 Tesla Ice Zhang <ice1000kotlin@foxmail.com> ice1000
@@ -91,7 +95,11 @@ Ulf Norell <ulfn@chalmers.se> ulf.norell <ulf.norell@gmail.com>
 Ulf Norell <ulfn@chalmers.se> ulf.norell <ulf.norell@86b02449-c53c-0410-81b4-87051234213d>
 Ulf Norell <ulfn@chalmers.se> ulfn
 <ulfn@chalmers.se> <ulf.norell@gmail.com>
+Uma Zalakain <ping@umazalakain.info> <uma@gisa-elkartea.org>
 Víctor López Juan <victor@lopezjuan.com>
 Wen Kokke <wen.kokke@gmail.com> Pepijn Kokke <pepijn.kokke@gmail.com>
+Wen Kokke <wen.kokke@gmail.com> <wenkokke@users.noreply.github.com>
 Wouter Swierstra <w.s.swierstra@uu.nl> <wss@cs.nott.ac.uk>
 Wojciech Jedynak <wjedynak@gmail.com>
+Zack Grannan <zgrannan@gmail.com>
+Zack Grannan <zgrannan@gmail.com> <zgrannan@protonmail.com>

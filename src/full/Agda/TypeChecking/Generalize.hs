@@ -157,9 +157,12 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Pair metas with their metaInfo
   mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntSet.toList allmetas
 
-  constrainedMetas <- Set.unions <.> mapM (constraintMetas . clValue . theConstraint) =<<
-                        ((++) <$> useTC stAwakeConstraints
-                              <*> useTC stSleepingConstraints)
+  cs <- (++) <$> useTC stAwakeConstraints
+             <*> useTC stSleepingConstraints
+
+  reportSDoc "tc.generalize" 50 $ "current constraints:" <?> vcat (map prettyTCM cs)
+
+  constrainedMetas <- Set.unions <$> mapM (constraintMetas . clValue . theConstraint) cs
 
   reportSDoc "tc.generalize" 30 $ nest 2 $
     "constrainedMetas     = " <+> prettyList_ (map prettyTCM $ Set.toList constrainedMetas)
@@ -290,7 +293,12 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
     args <- getContextArgs
     fmap concat $ forM sortedMetas $ \ m -> do
       mv   <- lookupMeta m
-      let info = hideOrKeepInstance $ getArgInfo $ miGeneralizable $ mvInfo mv
+      let info =
+            (if m `elem` alsoGeneralize
+             then setModality defaultModality
+             else id) $
+            hideOrKeepInstance $
+            getArgInfo $ miGeneralizable $ mvInfo mv
           HasType{ jMetaType = t } = mvJudgement mv
           perm = mvPermutation mv
       t' <- piApplyM t $ permute (takeP (length args) perm) args
@@ -543,7 +551,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     newMetaFromOld mv ρ mA = setCurrentRange mv $
       case mA of
         Nothing -> do
-          s @ (MetaS y _) <- newSortMeta
+          s@(MetaS y _) <- newSortMeta
           return (y, Sort s)
         Just _A -> do
           let _Aρ = applySubst ρ _A

@@ -6,6 +6,7 @@ import Prelude hiding (null)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Identity
 import Control.Monad.Writer
 
 import qualified Data.Set as Set
@@ -106,6 +107,9 @@ class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
     :: (MonadTrans t, MonadTrace n, t n ~ m)
     => RemoveTokenBasedHighlighting -> HighlightingInfo -> m ()
   printHighlightingInfo r i = lift $ printHighlightingInfo r i
+
+instance MonadTrace m => MonadTrace (IdentityT m) where
+  traceClosureCall c f = IdentityT $ traceClosureCall c $ runIdentityT f
 
 instance MonadTrace m => MonadTrace (ReaderT r m) where
   traceClosureCall c f = ReaderT $ \r -> traceClosureCall c $ runReaderT f r

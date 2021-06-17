@@ -247,6 +247,12 @@ mazUnreachableError = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazUnreachableError"
 rtmUnreachableError :: HS.Exp
 rtmUnreachableError = mazUnreachableError
 
+mazHole :: HS.Exp
+mazHole = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazHole"
+
+rtmHole :: String -> HS.Exp
+rtmHole s = mazHole `HS.App` HS.Lit (HS.String $ T.pack s)
+
 mazAnyType :: HS.Type
 mazAnyType = HS.TyCon (hsName mazAnyTypeName)
 

@@ -1128,7 +1128,7 @@ fitsIn uc forceds t s = do
        whenM (isFibrant s) $ do
         q <- asksTC getQuantity
         usableAtModality
-          (setQuantity (getQuantity dom <> q) defaultModality)
+          (setQuantity (composeQuantity (getQuantity dom) q) defaultModality)
           (unEl $ unDom dom)
       let (forced,forceds') = nextIsForced forceds
       unless (isForced forced && not withoutK) $ do

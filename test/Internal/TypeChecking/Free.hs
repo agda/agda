@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE CPP                       #-}
 
@@ -305,7 +303,7 @@ prop_isSemimodule_withVarOcc1_counterexample =
   withVarOcc r (m <> m') /=           -- LHS: Flexible [1]
   withVarOcc r m <> withVarOcc r m'   -- RHS: Flexible [1,2]
   where
-    occ o  = VarOcc o mempty
+    occ o  = VarOcc o unitModality
     rig    = occ Unguarded
     flex n = occ $ Flexible $ singleton $ MetaId n
     r      :: VarOcc
@@ -319,7 +317,7 @@ prop_isSemimodule_withVarOcc2_counterexample =
   withVarOcc (r <> s) m /=
   withVarOcc r m <> withVarOcc s m
   where
-    occ o  = VarOcc o mempty
+    occ o  = VarOcc o unitModality
     flex n = occ $ Flexible $ singleton $ MetaId n
     r, s   :: VarOcc
     r      = flex 1

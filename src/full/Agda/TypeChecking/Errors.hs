@@ -387,7 +387,7 @@ instance PrettyTCM TypeError where
     IllformedProjectionPattern p -> fsep $
       pwords "Ill-formed projection pattern " ++ [prettyA p]
 
-    CannotEliminateWithPattern p a -> do
+    CannotEliminateWithPattern b p a -> do
       let isProj = isJust (isProjP p)
       fsep $
         pwords "Cannot eliminate type" ++ prettyTCM a : if
@@ -468,6 +468,7 @@ instance PrettyTCM TypeError where
         pwords "Previous definition of" ++ [help m] ++ pwords "module" ++ [prettyTCM x] ++
         pwords "at" ++ [prettyTCM r]
       where
+        help :: MonadPretty m => ModuleName -> m Doc
         help m = caseMaybeM (isDatatypeModule m) empty $ \case
           IsDataModule   -> "(datatype)"
           IsRecordModule -> "(record)"
@@ -1254,11 +1255,12 @@ instance PrettyUnequal Type where
   prettyUnequal t1 ncmp t2 = prettyUnequal (unEl t1) ncmp (unEl t2)
 
 instance PrettyTCM SplitError where
+  prettyTCM :: forall m. MonadPretty m => SplitError -> m Doc
   prettyTCM err = case err of
     NotADatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of non-datatype" ++ [prettyTCM t]
 
-    BlockedType t -> enterClosure t $ \ t -> fsep $
+    BlockedType b t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
 
     IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
@@ -1280,7 +1282,7 @@ instance PrettyTCM SplitError where
       pwords "because it has no constructor"
  -}
 
-    UnificationStuck c tel cIxs gIxs errs
+    UnificationStuck b c tel cIxs gIxs errs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
       | otherwise                  -> vcat . concat $
         [ [ fsep . concat $
@@ -1300,6 +1302,7 @@ instance PrettyTCM SplitError where
         -- Andreas, 2019-08-08, issue #3943
         -- To not print hidden indices just as {_}, we strip the Arg and print
         -- the hiding information manually.
+        prEq :: Arg Term -> Arg Term -> m Doc
         prEq cIx gIx = addContext tel $ nest 2 $ hsep [ pr cIx , "≟" , pr gIx ]
         pr arg = prettyRelevance arg . prettyHiding arg id <$> prettyTCM (unArg arg)
 
@@ -1318,6 +1321,7 @@ instance PrettyTCM SplitError where
       pwords "Case to handle:") $$ nest 2 (vcat $ [display cl])
                                 $$ ((pure msg <+> enterClosure t displayAbs) <> ".")
         where
+        displayAbs :: Abs Type -> m Doc
         displayAbs (Abs x t) = addContext x $ prettyTCM t
         displayAbs (NoAbs x t) = prettyTCM t
         display (tel, ps) = prettyTCM $ NamedClause f True $

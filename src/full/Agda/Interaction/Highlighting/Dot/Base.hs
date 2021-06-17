@@ -61,13 +61,13 @@ initialDotState = DotState
 type DotM n a = Ord n => ReaderT (Env n) (State (DotState n)) a
 
 runDotM :: Env n -> DotM n x -> DotGraph
-runDotM env@Env{} = dsGraph . flip execState initialDotState . flip runReaderT env
+runDotM env@Env{} dotM = dsGraph $ execState (runReaderT dotM env) initialDotState
 
 getLabel :: n -> DotM n L.Text
-getLabel = liftM2 deLabel ask . pure
+getLabel name = (liftM2 deLabel ask . pure) name
 
 getConnections :: n -> DotM n [n]
-getConnections = liftM2 deConnections ask . pure
+getConnections name = (liftM2 deConnections ask . pure) name
 
 -- | Translate an entity name into an internal 'NodeId'.
 --   Returns @True@ if the 'ModuleName' is new, i.e., has not been
@@ -108,8 +108,8 @@ dottify' entity = do
   -- add them as connections to the graph.
   when continue $ do
     connectedEntities <- getConnections entity
-    connectedNodeIds <- mapM dottify' connectedEntities
-    mapM_ (addConnection nodeId) connectedNodeIds
+    connectedNodeIds <- mapM (\dotM -> dottify' dotM) connectedEntities
+    mapM_ (\dotM -> addConnection nodeId dotM) connectedNodeIds
   return nodeId
 
 -- * Graph rendering

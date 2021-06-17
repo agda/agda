@@ -42,7 +42,7 @@ newtype ErrorFunction =
 
 -- | Throw an error message according to the supplied method.
 lookAheadError :: String -> LookAhead a
-lookAheadError s = ($ s) =<< do LookAhead $ asks throwError
+lookAheadError s = ($ s) =<< do LookAhead $ asks (\e -> throwError e)
 
 {--------------------------------------------------------------------------
     Operations

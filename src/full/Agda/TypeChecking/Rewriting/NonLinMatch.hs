@@ -324,15 +324,12 @@ instance Match Type NLPat Term where
                   | conName c == f = ps
                   | otherwise      = map (Apply . fmap mkField) flds
             match r gamma k (ct, Con c ci) ps' (map Apply vs)
-          MetaV m es -> do
-            matchingBlocked $ blocked_ m
           v -> maybeBlock v
       PLam i p' -> case unEl t of
         Pi a b -> do
           let body = raise 1 v `apply` [Arg i (var 0)]
               k'   = ExtendTel a (Abs (absName b) k)
           match r gamma k' (absBody b) (absBody p') body
-        MetaV m es -> matchingBlocked $ blocked_ m
         v -> maybeBlock v
       PPi pa pb -> case v of
         Pi a b -> do
@@ -440,3 +437,21 @@ equal a u v = runBlocked (pureEqualTerm a u v) >>= \case
       , " and " <+> prettyTCM v
       ]) $ do
     return $ Just $ NotBlocked ReallyNotBlocked ()
+
+-- | Utility function for getting the name and type of a head term (i.e. a
+--   `Def` or `Con` with no arguments)
+getTypedHead :: PureTCM m => Term -> m (Maybe (QName, Type))
+getTypedHead = \case
+  Def f []   -> Just . (f,) . defType <$> getConstInfo f
+  Con (ConHead { conName = c }) _ [] -> do
+    -- Andreas, 2018-09-08, issue #3211:
+    -- discount module parameters for constructor heads
+    vs <- freeVarsToApply c
+    -- Jesper, 2020-06-17, issue #4755: add dummy arguments in
+    -- case we don't have enough parameters
+    npars <- fromMaybe __IMPOSSIBLE__ <$> getNumberOfParameters c
+    let ws = replicate (npars - size vs) $ defaultArg __DUMMY_TERM__
+    t0 <- defType <$> getConstInfo c
+    t <- t0 `piApplyM` (vs ++ ws)
+    return $ Just (c , t)
+  _ -> return Nothing

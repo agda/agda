@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP       #-}
 {-# LANGUAGE PolyKinds #-}
 
 module MAlonzo.RTE where
@@ -37,6 +36,9 @@ mazIncompleteMatch s = error ("Agda: incomplete pattern matching: " ++ s)
 
 mazUnreachableError :: a
 mazUnreachableError = error ("Agda: unreachable code reached.")
+
+mazHole :: String -> a
+mazHole s = error ("Agda: reached hole: " ++ s)
 
 addInt :: Integer -> Integer -> Integer
 addInt = (+)

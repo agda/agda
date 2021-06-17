@@ -246,6 +246,7 @@ instance Apply RewriteRule where
        , rewPats    = applySubst sub (rewPats r)
        , rewRHS     = applyNLPatSubst sub (rewRHS r)
        , rewType    = applyNLPatSubst sub (rewType r)
+       , rewFromClause = rewFromClause r
        }
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -630,8 +631,8 @@ instance Abstract Definition where
 --   we do not need to change lhs, rhs, and t since they live in Γ.
 --   See 'Abstract Clause'.
 instance Abstract RewriteRule where
-  abstract tel (RewriteRule q gamma f ps rhs t) =
-    RewriteRule q (abstract tel gamma) f ps rhs t
+  abstract tel (RewriteRule q gamma f ps rhs t c) =
+    RewriteRule q (abstract tel gamma) f ps rhs t c
 
 instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
   abstract tel []  = []
@@ -679,15 +680,19 @@ instance Abstract Defn where
       -- Andreas, 2015-05-11 if projection was applied to Var 0
       -- then abstract over last element of tel (the others are params).
       if projIndex p > 0 then d' else
-        d' { funClauses  = abstract tel1 cs
+        d' { funClauses  = map (abstractClause tel1) cs
            , funCompiled = abstract tel1 cc
            , funCovering = abstract tel1 cov
            , funInv      = abstract tel1 inv
            , funExtLam   = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
            }
         where
-          d' = d { funProjection = Just $ abstract tel p }
+          d' = d { funProjection = Just $ abstract tel p
+                 , funClauses    = map (abstractClause EmptyTel) cs }
           tel1 = telFromList $ drop (size tel - 1) $ telToList tel
+          -- #5128: clause telescopes should be abstracted over the full telescope, regardless of
+          --        projection shenanigans.
+          abstractClause tel1 c = (abstract tel1 c) { clauseTel = abstract tel $ clauseTel c }
 
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars       = np + size tel
@@ -948,11 +953,12 @@ instance Subst NLPSort where
 
 instance Subst RewriteRule where
   type SubstArg RewriteRule = NLPat
-  applySubst rho (RewriteRule q gamma f ps rhs t) =
+  applySubst rho (RewriteRule q gamma f ps rhs t c) =
     RewriteRule q (applyNLPatSubst rho gamma)
                 f (applySubst (liftS n rho) ps)
                   (applyNLPatSubst (liftS n rho) rhs)
                   (applyNLPatSubst (liftS n rho) t)
+                  c
     where n = size gamma
 
 instance Subst a => Subst (Blocked a) where

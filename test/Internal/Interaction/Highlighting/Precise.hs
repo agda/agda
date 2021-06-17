@@ -2,7 +2,7 @@
 
 module Internal.Interaction.Highlighting.Precise ( tests ) where
 
-import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Precise as P
 import Agda.Interaction.Highlighting.Range
 
 import Control.Monad
@@ -51,7 +51,7 @@ prop_compress f =
 -- Operations that work directly with compressed files
 
 prop_singleton :: Ranges -> Aspects -> Bool
-prop_singleton rs m = singleton rs m == decompress (singletonC rs m)
+prop_singleton rs m = P.singleton rs m == decompress (singletonC rs m)
 
 prop_several :: [Ranges] -> Aspects -> Bool
 prop_several rss m = several rss m == decompress (severalC rss m)

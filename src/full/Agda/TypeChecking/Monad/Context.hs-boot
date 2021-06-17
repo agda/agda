@@ -1,10 +1,10 @@
-{-# LANGUAGE TypeFamilies #-}  -- for type equality ~
 
 module Agda.TypeChecking.Monad.Context where
 
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
+import Control.Monad.Trans.Identity ( IdentityT )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -42,6 +42,7 @@ class MonadTCEnv m => MonadAddContext m where
       withFreshName r x $ run . cont
     restoreT $ return st
 
+instance MonadAddContext m => MonadAddContext (IdentityT m) where
 instance MonadAddContext m => MonadAddContext (ReaderT r m) where
 instance MonadAddContext m => MonadAddContext (StateT r m) where
 

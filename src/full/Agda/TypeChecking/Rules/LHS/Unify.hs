@@ -618,16 +618,16 @@ rightToLeftStrategy s =
 
 completeStrategyAt :: Int -> UnifyStrategy
 completeStrategyAt k s = msum $ map (\strat -> strat k s) $
-    [ skipIrrelevantStrategy
-    , basicUnifyStrategy
-    , literalStrategy
-    , dataStrategy
-    , etaExpandVarStrategy
-    , etaExpandEquationStrategy
-    , injectiveTypeConStrategy
-    , injectivePragmaStrategy
-    , simplifySizesStrategy
-    , checkEqualityStrategy
+    [ (\n -> skipIrrelevantStrategy n)
+    , (\n -> basicUnifyStrategy n)
+    , (\n -> literalStrategy n)
+    , (\n -> dataStrategy n)
+    , (\n -> etaExpandVarStrategy n)
+    , (\n -> etaExpandEquationStrategy n)
+    , (\n -> injectiveTypeConStrategy n)
+    , (\n -> injectivePragmaStrategy n)
+    , (\n -> simplifySizesStrategy n)
+    , (\n -> checkEqualityStrategy n)
     ]
 
 -- | @isHom n x@ returns x lowered by n if the variables 0..n-1 don't occur in x.
@@ -1175,7 +1175,7 @@ solutionStep retry s
         | IntMap.null vars = tel
         | otherwise        = telFromList $ zipWith upd (downFrom $ size tel) (telToList tel)
         where
-          upd i a | Just md' <- IntMap.lookup i vars = setModality (md <> md') a
+          upd i a | Just md' <- IntMap.lookup i vars = setModality (composeModality md md') a
                   | otherwise                        = a
   s <- return $ s { varTel = updModality (getModality fi) bound (varTel s) }
 
@@ -1324,7 +1324,7 @@ patternBindingForcedVars forced v = do
           | Just vs <- allApplyElims es -> do
             fs <- defForced <$> getConstInfo (conName c)
             let goArg Forced    v = return $ fmap (unnamed . dotP) v
-                goArg NotForced v = fmap unnamed <$> traverse (go $ md <> getModality v) v
+                goArg NotForced v = fmap unnamed <$> traverse (go $ composeModality md $ getModality v) v
             (ps, bound) <- listen $ zipWithM goArg (fs ++ repeat NotForced) vs
             if IntMap.null bound
               then return $ dotP v  -- bound nothing

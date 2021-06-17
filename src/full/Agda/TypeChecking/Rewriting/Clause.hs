@@ -45,6 +45,7 @@ clauseToRewriteRule f q cl = clauseBody cl <&> \rhs -> RewriteRule
   , rewPats    = toNLPat $ namedClausePats cl
   , rewRHS     = rhs
   , rewType    = unArg $ fromMaybe __IMPOSSIBLE__  $ clauseType cl
+  , rewFromClause = True
   }
 
 class ToNLPat a b where

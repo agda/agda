@@ -1,4 +1,3 @@
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.MetaVars.Mention where
 
@@ -30,7 +29,8 @@ instance MentionsMeta Term where
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints
     MetaV y args -> HashSet.member y xs || mm args   -- TODO: we really only have to look one level deep at meta args
     where
-      mm v = mentionsMetas xs v
+      mm :: forall t. MentionsMeta t => t -> Bool
+      mm = mentionsMetas xs
 
 instance MentionsMeta Level where
   mentionsMetas xs (Max _ as) = mentionsMetas xs as
@@ -121,7 +121,8 @@ instance MentionsMeta Constraint where
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
     UsableAtModality mod t -> mm t
     where
-      mm v = mentionsMetas xs v
+      mm :: forall t. MentionsMeta t => t -> Bool
+      mm = mentionsMetas xs
 
 instance MentionsMeta CompareAs where
   mentionsMetas xs = \case

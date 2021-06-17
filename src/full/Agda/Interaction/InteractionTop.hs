@@ -1,6 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
-
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -65,7 +63,6 @@ import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton
 import Agda.Interaction.Imports  ( Mode(..) )
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
-import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 
 import Agda.Compiler.Backend
 
@@ -299,6 +296,7 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
+    inEmacs :: forall a. CommandM a -> CommandM a
     inEmacs = liftCommandMT $ withEnv $ initEnv
             { envHighlightingLevel  = highlighting
             , envHighlightingMethod = highlightingMethod
@@ -502,15 +500,15 @@ interpret (Cmd_load m argv) =
   mode = Imp.TypeCheck TopLevelInteraction -- do not reset InteractionMode
 
 interpret (Cmd_compile backend file argv) =
-  cmd_load' file argv allowUnsolved mode $ \ (i, mw) -> do
-    mw' <- lift $ applyFlagsToTCWarnings mw
-    case mw' of
+  cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
+    mw <- lift $ applyFlagsToTCWarnings $ crWarnings checkResult
+    case mw of
       [] -> do
         lift $ case backend of
-          LaTeX                    -> LaTeX.generateLaTeX i
-          QuickLaTeX               -> LaTeX.generateLaTeX i
-          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain i   -- for backwards compatibility
-          OtherBackend b           -> callBackend b IsMain  i
+          LaTeX                    -> callBackend "LaTeX" IsMain checkResult
+          QuickLaTeX               -> callBackend "LaTeX" IsMain checkResult
+          OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
+          OtherBackend b           -> callBackend b IsMain checkResult
         display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
       w@(_:_) -> display_info $ Info_Error $ Info_CompilationError w
   where
@@ -601,14 +599,14 @@ interpret (Cmd_load_highlighting_info source) = do
       if ex
         then
            do
-              si <- Imp.sourceInfo absSource
-              let m = Imp.siModuleName si
+              src <- Imp.parseSource absSource
+              let m = Imp.srcModuleName src
               checkModuleName m absSource Nothing
               mmi <- getVisitedModule m
               case mmi of
                 Nothing -> return Nothing
                 Just mi ->
-                  if hashText (Imp.siSource si) == iSourceHash (miInterface mi)
+                  if hashText (Imp.srcText src) == iSourceHash (miInterface mi)
                     then do
                       modFile <- useTC stModuleToSource
                       method  <- viewTC eHighlightingMethod
@@ -876,7 +874,7 @@ cmd_load'
                --   Providing 'TypeCheck RegularInteraction' here
                --   will reset 'InteractionMode' accordingly.
                --   Otherwise, only if different file from last time.
-  -> ((Interface, [TCWarning]) -> CommandM a)
+  -> (CheckResult -> CommandM a)
                -- ^ Continuation after successful loading.
   -> CommandM a
 cmd_load' file argv unsolvedOK mode cmd = do
@@ -902,19 +900,19 @@ cmd_load' file argv unsolvedOK mode cmd = do
     t <- liftIO $ getModificationTime file
 
     -- Parse the file.
-    si <- lift $ Imp.sourceInfo (SourceFile fp)
+    src <- lift $ Imp.parseSource (SourceFile fp)
 
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
     opts0 <- gets optionsOnReload
     backends <- useTC stBackends
-    z <- liftIO $ runOptM $ parseBackendOptions backends argv opts0
+    z <- runOptM $ parseBackendOptions backends argv opts0
     case z of
       Left err   -> lift $ typeError $ GenericError err
       Right (_, opts) -> do
         opts <- lift $ addTrustedExecutables opts
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
-            root     = projectRoot fp $ Imp.siModuleName si
+            root     = projectRoot fp $ Imp.srcModuleName src
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
         displayStatus
 
@@ -930,7 +928,7 @@ cmd_load' file argv unsolvedOK mode cmd = do
     -- Remove any prior syntax highlighting.
     putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
 
-    ok <- lift $ Imp.typeCheckMain mode si
+    ok <- lift $ Imp.typeCheckMain mode src
 
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the
@@ -1025,6 +1023,9 @@ give_gen force ii rng s0 giveRefine = do
     -- parse string and "give", obtaining an abstract expression
     -- and newly created interaction points
     (time, (ae, ae0, iis)) <- maybeTimed $ lift $ do
+        -- Issue 3000: mark the current hole as solved before giving, to avoid confusing it with potential
+        -- new interaction points introduced by the give.
+        removeInteractionPoint ii
         mis  <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
         given <- B.parseExprIn ii rng s
@@ -1168,7 +1169,7 @@ status = do
             mm <- lookupModuleFromSource f
             case mm of
               Nothing -> return False -- work-around for Issue1007
-              Just m  -> maybe False (not . miWarnings) <$> getVisitedModule m
+              Just m  -> maybe False (null . miWarnings) <$> getVisitedModule m
         else
             return False
 

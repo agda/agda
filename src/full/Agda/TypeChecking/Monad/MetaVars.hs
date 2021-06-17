@@ -6,6 +6,7 @@ import Prelude hiding (null)
 
 import Control.Monad.Except
 import Control.Monad.State
+import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Reader
 import Control.Monad.Writer
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
@@ -243,19 +244,28 @@ isInstantiatedMeta' m = do
 --   fact that blocked terms are represented by two meta variables. To find the
 --   second one we need to look up the meta listeners for the one in the
 --   UnBlock constraint.
+--   This is used for the purpose of deciding if a metavariable is constrained or if it can be
+--   generalized over (see Agda.TypeChecking.Generalize).
 constraintMetas :: Constraint -> TCM (Set MetaId)
 constraintMetas = \case
     -- We don't use allMetas here since some constraints should not stop us from generalizing. For
     -- instance CheckSizeLtSat (see #3694). We also have to check meta listeners to get metas of
     -- UnBlock constraints.
-      ValueCmp _ t u v         -> return $ allMetas Set.singleton (t, u, v)
-      ValueCmpOnFace _ p t u v -> return $ allMetas Set.singleton (p, t, u, v)
-      ElimCmp _ _ t u es es'   -> return $ allMetas Set.singleton (t, u, es, es')
+    -- #5147: Don't count metas in the type of a constraint. For instance the constraint u = v : t
+    -- should not stop us from generalize metas in t, since we could never solve those metas based
+    -- on that constraint alone.
+      ValueCmp _ _ u v         -> return $ allMetas Set.singleton (u, v)
+      ValueCmpOnFace _ p _ u v -> return $ allMetas Set.singleton (p, u, v)
+      ElimCmp _ _ _ _ es es'   -> return $ allMetas Set.singleton (es, es')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')
       UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)
       UnBlock x                -> Set.insert x . Set.unions <$> (mapM listenerMetas =<< getMetaListeners x)
-      FindInstance{}           -> return mempty  -- v Ignore these constraints
+      FindInstance x _         ->
+        -- #5093: We should not generalize over metas bound by instance constraints.
+        -- We keep instance constraints even if the meta is solved, to check that it could indeed
+        -- be filled by instance search. If it's solved, look in the solution.
+        caseMaybeM (isInstantiatedMeta' x) (return $ Set.singleton x) $ return . allMetas Set.singleton
       IsEmpty{}                -> return mempty
       CheckFunDef{}            -> return mempty
       CheckSizeLtSat{}         -> return mempty
@@ -263,7 +273,7 @@ constraintMetas = \case
       HasPTSRule{}             -> return mempty
       CheckMetaInst x          -> return mempty
       CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)
-      UsableAtModality _ t     -> return $ allMetas Set.singleton t
+      UsableAtModality{}       -> return mempty
   where
     -- For blocked constant twin variables
     listenerMetas EtaExpand{}           = return Set.empty
@@ -277,14 +287,17 @@ createMetaInfo'
   :: (MonadTCEnv m, ReadTCState m)
   => RunMetaOccursCheck -> m MetaInfo
 createMetaInfo' b = do
-  r   <- getCurrentRange
-  cl  <- buildClosure r
-  gen <- viewTC eGeneralizeMetas
+  r        <- getCurrentRange
+  cl       <- buildClosure r
+  gen      <- viewTC eGeneralizeMetas
+  let onlyUserQ q | noUserQuantity q = setQuantity topQuantity q
+                  | otherwise        = q
+  modality <- onlyUserQ <$> viewTC eModality
   return MetaInfo
     { miClosRange       = cl
     , miMetaOccursCheck = b
     , miNameSuggestion  = ""
-    , miGeneralizable   = hide $ defaultArg gen
+    , miGeneralizable   = hide $ setModality modality $ defaultArg gen
     }
 
 setValueMetaName :: MonadMetaSolver m => Term -> MetaNameSuggestion -> m ()
@@ -322,15 +335,20 @@ setMetaOccursCheck mi b = updateMetaVar mi $ \ mvar ->
 
 class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
   freshInteractionId :: m InteractionId
+  default freshInteractionId
+    :: (MonadTrans t, MonadInteractionPoints n, t n ~ m)
+    => m InteractionId
+  freshInteractionId = lift freshInteractionId
+
   modifyInteractionPoints :: (InteractionPoints -> InteractionPoints) -> m ()
-
-instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m) where
-  freshInteractionId = lift freshInteractionId
+  default modifyInteractionPoints
+    :: (MonadTrans t, MonadInteractionPoints n, t n ~ m)
+    => (InteractionPoints -> InteractionPoints) -> m ()
   modifyInteractionPoints = lift . modifyInteractionPoints
 
-instance MonadInteractionPoints m => MonadInteractionPoints (StateT r m) where
-  freshInteractionId = lift freshInteractionId
-  modifyInteractionPoints = lift . modifyInteractionPoints
+instance MonadInteractionPoints m => MonadInteractionPoints (IdentityT m)
+instance MonadInteractionPoints m => MonadInteractionPoints (ReaderT r m)
+instance MonadInteractionPoints m => MonadInteractionPoints (StateT s m)
 
 instance MonadInteractionPoints TCM where
   freshInteractionId = fresh
@@ -371,6 +389,7 @@ registerInteractionPoint preciseRange r maybeId = do
       return ii
 
 -- | Find an interaction point by 'Range' by searching the whole map.
+--   Issue 3000: Don't consider solved interaction points.
 --
 --   O(n): linear in the number of registered interaction points.
 
@@ -380,7 +399,7 @@ findInteractionPoint_ r m = do
   listToMaybe $ mapMaybe sameRange $ Map.toList m
   where
     sameRange :: (InteractionId, InteractionPoint) -> Maybe InteractionId
-    sameRange (ii, InteractionPoint r' _ _ _) | r == r' = Just ii
+    sameRange (ii, InteractionPoint r' _ False _) | r == r' = Just ii
     sameRange _ = Nothing
 
 -- | Hook up meta variable to interaction point.

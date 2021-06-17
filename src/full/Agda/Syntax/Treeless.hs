@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 -- | The treeless syntax is intended to be used as input for the compiler backends.
@@ -214,6 +213,10 @@ data TError
   -- Runtime behaviour of unreachable code is undefined, but preferably
   -- the program will exit with an error message. The compiler is free
   -- to assume that this code is unreachable and to remove it.
+  | TMeta String
+  -- ^ Code which could not be obtained because of a hole in the program.
+  -- This should throw a runtime error.
+  -- The string gives some information about the meta variable that got compiled.
   deriving (Data, Show, Eq, Ord)
 
 

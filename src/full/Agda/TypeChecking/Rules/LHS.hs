@@ -953,8 +953,9 @@ checkLHS mf = updateModality checkLHS_ where
         ]
 
       -- @p@ should be a projection pattern projection from @target@
-      (orig, ambProjName) <- ifJust (A.isProjP p) return $
-        addContext tel $ softTypeError $ CannotEliminateWithPattern p (unArg target)
+      (orig, ambProjName) <- ifJust (A.isProjP p) return $ addContext tel $ do
+        block <- isBlocked target
+        softTypeError $ CannotEliminateWithPattern block p (unArg target)
 
       (projName, comatchingAllowed, recName, projType) <- suspendErrors $ do
         -- Andreas, 2018-10-18, issue #3289: postfix projections do not have hiding
@@ -1338,18 +1339,18 @@ checkLHS mf = updateModality checkLHS_ where
              TelV tel dt <- telView da'
              return $ abstract (mapCohesion updCoh <$> tel) a
 
-      let stuck errs = softTypeError $ SplitError $
-            UnificationStuck (conName c) (delta1 `abstract` gamma) cixs ixs' errs
+      let stuck b errs = softTypeError $ SplitError $
+            UnificationStuck b (conName c) (delta1 `abstract` gamma) cixs ixs' errs
 
       liftTCM (withKIfStrict $ unifyIndices delta1Gamma flex da' cixs ixs') >>= \case
 
         -- Mismatch.  Report and abort.
         NoUnify neg -> hardTypeError $ ImpossibleConstructor (conName c) neg
 
-        UnifyBlocked block -> stuck [] -- TODO: postpone and retry later
+        UnifyBlocked block -> stuck (Just block) []
 
         -- Unclear situation.  Try next split.
-        UnifyStuck errs -> stuck errs
+        UnifyStuck errs -> stuck Nothing errs
 
         -- Success.
         Unifies (delta1',rho0,es) -> do
@@ -1418,7 +1419,7 @@ checkLHS mf = updateModality checkLHS_ where
                   -- either sets to Quantity0 or is the identity.
                   updResMod q =
                     case cq of
-                     Quantity0{} -> cq <> q
+                     Quantity0{} -> composeQuantity cq q
                                  -- zero-out, preserves origin
                      Quantity1{} -> __IMPOSSIBLE__
                      Quantityω{} -> q
@@ -1545,13 +1546,20 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
     DontCare{} -> __IMPOSSIBLE__
     Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
-  -- Type is blocked on something: fail softly
-  _ -> \ _a -> blockedType
+  -- neutral type: fail softly
+  StuckOn{}     -> \ _a -> softTypeError =<< notData
+  AbsurdMatch{} -> \ _a -> softTypeError =<< notData
+
+  -- missing clauses: fail hard
+  -- TODO: postpone checking of the whole clause until later?
+  MissingClauses{} -> \ _a -> hardTypeError =<< notData
+
+  -- underapplied type: should not happen
+  Underapplied{} -> __IMPOSSIBLE__
 
   where
   notData      = liftTCM $ SplitError . NotADatatype <$> buildClosure a0
-  blockedType  = softTypeError =<< do liftTCM $ SplitError . BlockedType <$> buildClosure a0
-  blocked _ _a = blockedType
+  blocked b _a = softTypeError =<< do liftTCM $ SplitError . BlockedType b <$> buildClosure a0
 
 -- | Get the constructor of the given record type together with its type.
 --   Throws an error if the type is not a record type.

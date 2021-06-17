@@ -9,6 +9,7 @@ import qualified Control.Monad.Fail as Fail
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Identity (IdentityT)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 
@@ -37,25 +38,22 @@ class ( Functor m
       ) => HasBuiltins m where
   getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
 
-instance HasBuiltins m => HasBuiltins (MaybeT m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
+  default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => String -> m (Maybe (Builtin PrimFun))
+  getBuiltinThing = lift . getBuiltinThing
 
-instance HasBuiltins m => HasBuiltins (ExceptT e m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance HasBuiltins m => HasBuiltins (ListT m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance HasBuiltins m => HasBuiltins (ReaderT e m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance HasBuiltins m => HasBuiltins (StateT s m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
-
-instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m) where
-  getBuiltinThing b = lift $ getBuiltinThing b
+instance HasBuiltins m => HasBuiltins (ExceptT e m)
+instance HasBuiltins m => HasBuiltins (IdentityT m)
+instance HasBuiltins m => HasBuiltins (ListT m)
+instance HasBuiltins m => HasBuiltins (MaybeT m)
+instance HasBuiltins m => HasBuiltins (ReaderT e m)
+instance HasBuiltins m => HasBuiltins (StateT s m)
+instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m)
 
 deriving instance HasBuiltins m => HasBuiltins (BlockT m)
+
+instance MonadIO m => HasBuiltins (TCMT m) where
+  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useTC stLocalBuiltins)
+                      (Map.lookup b <$> useTC stImportedBuiltins)
 
 -- If Agda is changed so that the type of a literal can belong to an
 -- inductive family (with at least one index), then the implementation
@@ -77,10 +75,6 @@ litType = \case
   LitMeta _ _ -> el <$> primAgdaMeta
   where
     el t = El (mkType 0) t
-
-instance MonadIO m => HasBuiltins (TCMT m) where
-  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useTC stLocalBuiltins)
-                      (Map.lookup b <$> useTC stImportedBuiltins)
 
 setBuiltinThings :: BuiltinThings PrimFun -> TCM ()
 setBuiltinThings b = stLocalBuiltins `setTCLens` b

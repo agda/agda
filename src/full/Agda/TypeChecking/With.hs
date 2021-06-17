@@ -1,5 +1,4 @@
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE NoMonoLocalBinds #-}  -- counteract MonoLocalBinds implied by TypeFamilies
 
 module Agda.TypeChecking.With where
 
@@ -546,6 +545,7 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
           (e, t') <- piOrPathApplyM t v
           strip (self `applyE` e) t' ps qs
 
+        mismatch :: forall m a. (MonadAddContext m, MonadTCError m) => m a
         mismatch = addContext delta $ typeError $
           WithClausePatternMismatch (namedArg p0) q
         mismatchOrigin o o' = addContext delta . typeError . GenericDocError =<< fsep

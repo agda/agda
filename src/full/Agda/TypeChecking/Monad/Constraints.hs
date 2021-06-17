@@ -170,11 +170,15 @@ instance MonadConstraint m => MonadConstraint (ReaderT e m) where
   modifySleepingConstraints = lift . modifySleepingConstraints
   wakeConstraints = lift . wakeConstraints
 
-addAndUnblocker :: MonadConstraint m => Blocker -> m a -> m a
-addAndUnblocker u = catchPatternErr $ \ u' -> patternViolation (u <> u')
+addAndUnblocker :: MonadBlock m => Blocker -> m a -> m a
+addAndUnblocker u
+  | u == alwaysUnblock = id
+  | otherwise          = catchPatternErr $ \ u' -> patternViolation (u <> u')
 
-addOrUnblocker :: MonadConstraint m => Blocker -> m a -> m a
-addOrUnblocker u = catchPatternErr $ \ u' -> patternViolation (unblockOnEither u u')
+addOrUnblocker :: MonadBlock m => Blocker -> m a -> m a
+addOrUnblocker u
+  | u == neverUnblock = id
+  | otherwise         = catchPatternErr $ \ u' -> patternViolation (unblockOnEither u u')
 
 -- | Add new a constraint
 addConstraint' :: Blocker -> Constraint -> TCM ()

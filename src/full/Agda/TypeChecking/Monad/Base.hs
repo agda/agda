@@ -1,7 +1,9 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
 
-module Agda.TypeChecking.Monad.Base where
+module Agda.TypeChecking.Monad.Base
+  ( module Agda.TypeChecking.Monad.Base
+  , HasOptions (..)
+  ) where
 
 import Prelude hiding (null)
 
@@ -721,6 +723,7 @@ class Monad m => MonadFresh i m where
 instance MonadFresh i m => MonadFresh i (ReaderT r m)
 instance MonadFresh i m => MonadFresh i (StateT s m)
 instance MonadFresh i m => MonadFresh i (ListT m)
+instance MonadFresh i m => MonadFresh i (IdentityT m)
 
 instance HasFresh i => MonadFresh i TCM where
   fresh = do
@@ -853,6 +856,9 @@ class Monad m => MonadStConcreteNames m where
 instance MonadStConcreteNames TCM where
   runStConcreteNames m = stateTCLensM stConcreteNames $ runStateT m
 
+instance MonadStConcreteNames m => MonadStConcreteNames (IdentityT m) where
+  runStConcreteNames m = IdentityT $ runStConcreteNames $ StateT $ runIdentityT . runStateT m
+
 instance MonadStConcreteNames m => MonadStConcreteNames (ReaderT r m) where
   runStConcreteNames m = ReaderT $ runStConcreteNames . StateT . flip (runReaderT . runStateT m)
 
@@ -865,14 +871,28 @@ instance MonadStConcreteNames m => MonadStConcreteNames (StateT s m) where
 -- ** Interface
 ---------------------------------------------------------------------------
 
+
+-- | Distinguishes between type-checked and scope-checked interfaces
+--   when stored in the map of `VisitedModules`.
+data ModuleCheckMode
+  = ModuleScopeChecked
+  | ModuleTypeChecked
+  | ModuleTypeCheckedRetainingPrivates
+  deriving (Eq, Ord, Bounded, Enum, Show)
+
+
 data ModuleInfo = ModuleInfo
   { miInterface  :: Interface
-  , miWarnings   :: Bool
-    -- ^ 'True' if warnings were encountered when the module was type
-    -- checked.
+  , miWarnings   :: [TCWarning]
+    -- ^ Warnings were encountered when the module was type checked.
+    --   These might include warnings not stored in the interface itself,
+    --   specifically unsolved interaction metas.
+    --   See "Agda.Interaction.Imports"
   , miPrimitive  :: Bool
     -- ^ 'True' if the module is a primitive module, which should always
     -- be importable.
+  , miMode       :: ModuleCheckMode
+    -- ^ The `ModuleCheckMode` used to create the `Interface`
   }
 
 -- Note that the use of 'C.TopLevelModuleName' here is a potential
@@ -880,7 +900,7 @@ data ModuleInfo = ModuleInfo
 -- identifiers.
 
 type VisitedModules = Map C.TopLevelModuleName ModuleInfo
-type DecodedModules = Map C.TopLevelModuleName Interface
+type DecodedModules = Map C.TopLevelModuleName ModuleInfo
 
 data ForeignCode = ForeignCode Range String
   deriving Show
@@ -1633,6 +1653,7 @@ data RewriteRule = RewriteRule
   , rewPats    :: PElims     -- ^ @Γ ⊢ f ps : t@.
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
+  , rewFromClause :: Bool    -- ^ Was this rewrite rule created from a clause in the definition of the function?
   }
     deriving (Data, Show)
 
@@ -2084,7 +2105,7 @@ instance Pretty Defn where
       , "funMutual       =" <?> pshow funMutual
       , "funAbstr        =" <?> pshow funAbstr
       , "funDelayed      =" <?> pshow funDelayed
-      , "funProjection   =" <?> pshow funProjection
+      , "funProjection   =" <?> pretty funProjection
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
       , "funWith         =" <?> pretty funWith ] <?> "}"
@@ -2130,6 +2151,18 @@ instance Pretty Defn where
       , "primSort =" <?> pshow primSort
       ] <?> "}"
 
+instance Pretty Projection where
+  pretty Projection{..} =
+    "Projection {" <?> vcat
+      [ "projProper   =" <?> pretty projProper
+      , "projOrig     =" <?> pretty projOrig
+      , "projFromType =" <?> pretty projFromType
+      , "projIndex    =" <?> pshow projIndex
+      , "projLams     =" <?> pretty projLams
+      ]
+
+instance Pretty ProjLams where
+  pretty (ProjLams args) = pretty args
 
 -- | Is the record type recursive?
 recRecursive :: Defn -> Bool
@@ -2789,9 +2822,6 @@ data TCEnv =
                 -- ^ Should new metas generalized over.
           , envGeneralizedVars :: Map QName GeneralizedValue
                 -- ^ Values for used generalizable variables.
-          , envCheckOptionConsistency :: Bool
-                -- ^ Do we check that options in imported files are
-                --   consistent with each other?
           , envActiveBackendName :: Maybe BackendName
                 -- ^ Is some backend active at the moment, and if yes, which?
                 --   NB: we only store the 'BackendName' here, otherwise
@@ -2825,7 +2855,7 @@ initEnv = TCEnv { envContext             = []
   -- The initial mode should be 'ConcreteMode', ensuring you
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
-                , envModality               = mempty
+                , envModality               = unitModality
                 , envSplitOnStrict          = False
                 , envDisplayFormsEnabled    = True
                 , envRange                  = noRange
@@ -2854,7 +2884,6 @@ initEnv = TCEnv { envContext             = []
                 , envCheckpoints            = Map.singleton 0 IdS
                 , envGeneralizeMetas        = NoGeneralize
                 , envGeneralizedVars        = Map.empty
-                , envCheckOptionConsistency = True
                 , envActiveBackendName      = Nothing
                 }
 
@@ -3379,7 +3408,7 @@ data TerminationError = TerminationError
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
   = NotADatatype        (Closure Type)  -- ^ Neither data type nor record.
-  | BlockedType         (Closure Type)  -- ^ Type could not be sufficiently reduced.
+  | BlockedType Blocker (Closure Type)  -- ^ Type could not be sufficiently reduced.
   | IrrelevantDatatype  (Closure Type)  -- ^ Data type, but in irrelevant position.
   | ErasedDatatype Bool (Closure Type)  -- ^ Data type, but in erased position.
                                         --   If the boolean is 'True',
@@ -3390,7 +3419,8 @@ data SplitError
   -- UNUSED, but keep!
   -- -- | NoRecordConstructor Type  -- ^ record type, but no constructor
   | UnificationStuck
-    { cantSplitConName  :: QName        -- ^ Constructor.
+    { cantSplitBlocker  :: Maybe Blocker -- ^ Blocking metavariable (if any)
+    , cantSplitConName  :: QName        -- ^ Constructor.
     , cantSplitTel      :: Telescope    -- ^ Context for indices.
     , cantSplitConIdx   :: Args         -- ^ Inferred indices (from type of constructor).
     , cantSplitGivenIdx :: Args         -- ^ Expected indices (from checking pattern).
@@ -3478,7 +3508,7 @@ data TypeError
         | UninstantiatedDotPattern A.Expr
         | ForcedConstructorNotInstantiated A.Pattern
         | IllformedProjectionPattern A.Pattern
-        | CannotEliminateWithPattern (NamedArg A.Pattern) Type
+        | CannotEliminateWithPattern (Maybe Blocker) (NamedArg A.Pattern) Type
         | WrongNumberOfConstructorArguments QName Nat Nat
         | ShouldBeEmpty Type [DeBruijnPattern]
         | ShouldBeASort Type
@@ -3684,18 +3714,6 @@ instance E.Exception TCErr
 -- * Accessing options
 -----------------------------------------------------------------------------
 
-class (Functor m, Applicative m, Monad m) => HasOptions m where
-  -- | Returns the pragma options which are currently in effect.
-  pragmaOptions      :: m PragmaOptions
-  -- | Returns the command line options which are currently in effect.
-  commandLineOptions :: m CommandLineOptions
-
-  default pragmaOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m PragmaOptions
-  pragmaOptions      = lift pragmaOptions
-
-  default commandLineOptions :: (HasOptions n, MonadTrans t, m ~ t n) => m CommandLineOptions
-  commandLineOptions = lift commandLineOptions
-
 instance MonadIO m => HasOptions (TCMT m) where
   pragmaOptions = useTC stPragmaOptions
 
@@ -3706,15 +3724,6 @@ instance MonadIO m => HasOptions (TCMT m) where
 
 -- HasOptions lifts through monad transformers
 -- (see default signatures in the HasOptions class).
-
-instance HasOptions m => HasOptions (ChangeT m)
-instance HasOptions m => HasOptions (ExceptT e m)
-instance HasOptions m => HasOptions (IdentityT m)
-instance HasOptions m => HasOptions (ListT m)
-instance HasOptions m => HasOptions (MaybeT m)
-instance HasOptions m => HasOptions (ReaderT r m)
-instance HasOptions m => HasOptions (StateT s m)
-instance (HasOptions m, Monoid w) => HasOptions (WriterT w m)
 
 -- Ternary options are annoying to deal with so we provide auxiliary
 -- definitions using @collapseDefault@.
@@ -3727,18 +3736,6 @@ guardednessOption = collapseDefault . optGuardedness <$> pragmaOptions
 
 withoutKOption :: HasOptions m => m Bool
 withoutKOption = collapseDefault . optWithoutK <$> pragmaOptions
-
--- | Gets the include directories.
---
--- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
--- 'setCommandLineOptions' must have run).
-
-getIncludeDirs :: HasOptions m => m [AbsolutePath]
-getIncludeDirs = do
-  incs <- optAbsoluteIncludePaths <$> commandLineOptions
-  case incs of
-    [] -> __IMPOSSIBLE__
-    _  -> return incs
 
 enableCaching :: HasOptions m => m Bool
 enableCaching = optCaching <$> pragmaOptions
@@ -3922,49 +3919,23 @@ class Monad m => MonadTCState m where
   putTC :: TCState -> m ()
   modifyTC :: (TCState -> TCState) -> m ()
 
-  {-# MINIMAL getTC, (putTC | modifyTC) #-}
-  putTC      = modifyTC . const
-  modifyTC f = putTC . f =<< getTC
+  default getTC :: (MonadTrans t, MonadTCState n, t n ~ m) => m TCState
+  getTC = lift getTC
 
-instance MonadTCState m => MonadTCState (MaybeT m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
+  default putTC :: (MonadTrans t, MonadTCState n, t n ~ m) => TCState -> m ()
+  putTC = lift . putTC
+
+  default modifyTC :: (MonadTrans t, MonadTCState n, t n ~ m) => (TCState -> TCState) -> m ()
   modifyTC = lift . modifyTC
 
-instance MonadTCState m => MonadTCState (ListT m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (ExceptT err m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (ReaderT r m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (StateT s m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (ChangeT m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
-
-instance MonadTCState m => MonadTCState (IdentityT m) where
-  getTC    = lift getTC
-  putTC    = lift . putTC
-  modifyTC = lift . modifyTC
+instance MonadTCState m => MonadTCState (MaybeT m)
+instance MonadTCState m => MonadTCState (ListT m)
+instance MonadTCState m => MonadTCState (ExceptT err m)
+instance MonadTCState m => MonadTCState (ReaderT r m)
+instance MonadTCState m => MonadTCState (StateT s m)
+instance MonadTCState m => MonadTCState (ChangeT m)
+instance MonadTCState m => MonadTCState (IdentityT m)
+instance (Monoid w, MonadTCState m) => MonadTCState (WriterT w m)
 
 -- ** @TCState@ accessors (no lenses)
 
@@ -4148,6 +4119,7 @@ instance MonadIO m => MonadTCEnv (TCMT m) where
 instance MonadIO m => MonadTCState (TCMT m) where
   getTC   = TCM $ \ r _e -> liftIO (readIORef r)
   putTC s = TCM $ \ r _e -> liftIO (writeIORef r s)
+  modifyTC f = putTC . f =<< getTC
 
 instance MonadIO m => ReadTCState (TCMT m) where
   getTCState = getTC
@@ -4437,8 +4409,8 @@ instance KillRange NLPSort where
   killRange PLockUniv = PLockUniv
 
 instance KillRange RewriteRule where
-  killRange (RewriteRule q gamma f es rhs t) =
-    killRange6 RewriteRule q gamma f es rhs t
+  killRange (RewriteRule q gamma f es rhs t c) =
+    killRange6 RewriteRule q gamma f es rhs t c
 
 instance KillRange CompiledRepresentation where
   killRange = id

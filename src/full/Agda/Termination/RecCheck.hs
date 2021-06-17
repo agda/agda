@@ -11,7 +11,6 @@
    This implementation by Andreas.
 -}
 
-{-# LANGUAGE CPP #-}
 
 module Agda.Termination.RecCheck
     ( recursive
