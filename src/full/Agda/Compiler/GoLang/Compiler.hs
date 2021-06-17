@@ -186,8 +186,6 @@ goPostModule :: GoOptions -> GoModuleEnv -> IsMain -> ModuleName -> [Maybe GoDef
 goPostModule opts _ isMain _ defs = do
   m             <- goMod <$> curMName
   is            <- map (goMod . fst) . iImportedModules <$> curIF
-  reportSDoc "function.go" 10 $ "\n m:" <+> (text . show) m
-  reportSDoc "function.go" 10 $ "\n is:" <+> (text . show) is
   let importDeclarations = GoImportDeclarations $ (map goImportDecl is) ++ ["math/big", "helper"]
   let importUsages = (map goImportUsg is) ++ [(GoImportUsage "big"), (GoImportUsage "helper")] 
   let mod = Module m (importDeclarations : ([GoImportField] ++ importUsages)) es
@@ -195,10 +193,8 @@ goPostModule opts _ isMain _ defs = do
   mdir <- compileDir
   when (optGoTransform opts) $ do
     liftIO $ setCurrentDirectory mdir
-    reportSDoc "function.go" 5 $ " mdir:" <+> (text . show) mdir
     let comm = unwords [ "go", "tool", "go2go", "translate", (go2goFilePath m) ]
     let commFormat = unwords [ "gofmt", "-w", "-s", (goFilePath m) ]
-    reportSDoc "function.go" 6 $ "\n cmd:" <+> (text . show) comm
     liftIO $ callCommand comm
     liftIO $ callCommand commFormat
   return mod
@@ -296,7 +292,6 @@ type EnvWithOpts = (GoOptions, GoModuleEnv)
 
 definition :: EnvWithOpts -> (QName,Definition) -> TCM (Maybe GoDef)
 definition kit (q,d) = do
-  reportSDoc "compile.go" 10 $ "compiling def:" <+> prettyTCM q
   (_,ls) <- global q
   d <- instantiateFull d
 
@@ -357,10 +352,8 @@ definition' kit q d t ls = do
   case theDef d of
     -- coinduction
     Constructor{} | Just q == (nameOfSharp <$> snd kit) -> do
-      reportSDoc "compile.go" 30 $ " con1:" <+> (text . show) d
       return Nothing
     Function{} | Just q == (nameOfFlat <$> snd kit) -> do
-      reportSDoc "compile.go" 30 $ " f1:" <+> (text . show) d
       return Nothing
     DataOrRecSig{} -> __IMPOSSIBLE__
     Axiom -> return Nothing
@@ -385,7 +378,7 @@ definition' kit q d t ls = do
             let count = countFalses used 
                 genericTypesUsed = retrieveGenericArguments goArg 
                 args = map (snd . unDom) (telToList tel)
-                (given, body) = T.tLamView funBody  
+                (given, body) = T.tLamView funBody
                 etaN = length $ dropWhile id $ reverse $ drop given used
             reportSDoc "function.go" 30 $ " compiled treeless fun:" <+> pretty funBody    
             funBody' <- compileTerm kit (given - (count + 1)) goArg body
@@ -558,8 +551,6 @@ getTypelessMethodCallParams' (x : xs) = (GoMethodCallParam x EmptyType) : (getTy
 writeModule :: Module -> TCM ()
 writeModule m = do
   out <- outFile (modName m)
-  reportSDoc "function.go" 4 $ "out: :" <+> (text . show) out
-  reportSDoc "compile.go" 10 $ "module: :" <+> (multiLineText (show m))
   liftIO (writeFile out (GoPretty.prettyPrintGo m))
 
 outFile :: GlobalId -> TCM FilePath
@@ -568,7 +559,6 @@ outFile m = do
   let (fdir, fn) = splitFileName (goFileName m)
   let dir = mdir </> fdir
       fp  = dir </> fn
-  reportSDoc "function.go" 5 $ " dir o:" <+> (text . show) dir    
   liftIO $ createDirectoryIfMissing True dir
   return fp
 
@@ -604,7 +594,6 @@ goTypeApproximationF fv t = do
         let is q b = Just q == b
         case tu of
           Pi a b -> do
-            reportSDoc "function.go" 10 $ "in pi: :" <+> (text . show) b
             p1 <- go n (unEl $ unDom a)
             p2 <- go (n + k) (unEl $ unAbs b)
             return $ PiType p1 p2
@@ -629,11 +618,8 @@ goTypeApproximation' fv t = do
         let is q b = Just q == b
         case tu of
           Pi a b -> do
-            reportSDoc "function.go" 10 $ "in pi: :" <+> (text . show) b
             p1 <- goTypeApproximationF n (unDom a)
             p2 <- goTypeApproximationF (n + k) (unAbs b)
-            reportSDoc "function.go" 10 $ "in p1: :" <+> (text . show) p1
-            reportSDoc "function.go" 10 $ "in p2: :" <+> (text . show) p2
             return $ PiType p1 p2
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
@@ -655,11 +641,8 @@ goTypeApproximationRet fv t = do
         let is q b = Just q == b
         case tu of
           Pi a b -> do
-            reportSDoc "function.go" 10 $ "in pi: :" <+> (text . show) b
             p1 <- go n (unEl $ unDom a)
             p2 <- go (n + k) (unEl $ unAbs b)
-            reportSDoc "function.go" 10 $ "in p1: :" <+> (text . show) p1
-            reportSDoc "function.go" 10 $ "in p2: :" <+> (text . show) p2
             return $ PiType p1 p2
             where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
