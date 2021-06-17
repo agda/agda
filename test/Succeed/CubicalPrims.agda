@@ -12,40 +12,40 @@ open import Agda.Builtin.Sigma
 open import Agda.Builtin.List
 open Helpers
 
--- ISet lives in SSet₁
+-- IUniv lives in SSet₁
 
-ISet' : SSet (lsuc lzero)
-ISet' = ISet
+IUniv' : SSet (lsuc lzero)
+IUniv' = IUniv
 
--- I is all we have in ISet
-itsI : ISet
+-- I is all we have in IUniv
+itsI : IUniv
 itsI = I
 
 {-
   This is the key property we want:
   the unbased path type of a fibrant type is fibrant
-  this is not true (and shouldn't be true) if we replace ISet with SSet
+  this is not true (and shouldn't be true) if we replace IUniv with SSet
 -}
-[ISet→Set]↦Set : ∀ {ℓ} → ISet → Set ℓ → Set ℓ
-[ISet→Set]↦Set J A = J → A
+[IUniv→Set]↦Set : ∀ {ℓ} → IUniv → Set ℓ → Set ℓ
+[IUniv→Set]↦Set J A = J → A
 
-[:ISet→Set]↦Set : ∀ {ℓ} → (J : ISet) → (J → Set ℓ) → Set ℓ
-[:ISet→Set]↦Set J A = (j : J) → A j
+[:IUniv→Set]↦Set : ∀ {ℓ} → (J : IUniv) → (J → Set ℓ) → Set ℓ
+[:IUniv→Set]↦Set J A = (j : J) → A j
 
-[ISet→SSet]↦SSet : ∀ {ℓ} → ISet → SSet ℓ → SSet ℓ
-[ISet→SSet]↦SSet J A = J → A
+[IUniv→SSet]↦SSet : ∀ {ℓ} → IUniv → SSet ℓ → SSet ℓ
+[IUniv→SSet]↦SSet J A = J → A
 
--- For maps into types in ISet, we treat it like SSet
+-- For maps into types in IUniv, we treat it like SSet
 
-[Set→ISet]↦SSet : ∀ {ℓ} → Set ℓ → ISet → SSet ℓ
-[Set→ISet]↦SSet A J = A → J
+[Set→IUniv]↦SSet : ∀ {ℓ} → Set ℓ → IUniv → SSet ℓ
+[Set→IUniv]↦SSet A J = A → J
 
-[ISet→ISet]↦SSet : ISet → ISet → SSet -- not in ISet
-[ISet→ISet]↦SSet J K = J → K
+[IUniv→IUniv]↦SSet : IUniv → IUniv → SSet -- not in IUniv
+[IUniv→IUniv]↦SSet J K = J → K
 
--- ISet ≤ SSet
+-- IUniv ≤ SSet
 
-record Wrap (A : ISet) : SSet where
+record Wrap (A : IUniv) : SSet where
   field
     unwrap : A
 
