@@ -1082,8 +1082,14 @@ primTransHComp cmd ts nelims = do
                                                          <@> phi
                                                          <@> a0
           LockUniv -> return $ Just $ \ _ _ a0 -> a0
-          IntervalUniv -> return $ Just $ \ _ _ a0 -> a0
-          _       -> return Nothing
+          IntervalUniv -> do
+            x' <- reduceB $ unDom x
+            mInterval <- getBuiltinName' builtinInterval
+            case unEl $ ignoreBlocking x' of
+              Def q [] | Just q == mInterval -> return $ Just $ \ _ _ a0 -> a0
+              _ -> return Nothing
+          _ -> return Nothing
+
       caseMaybe labA (return Nothing) $ \ trA -> Just <$> do
       [phi, u0] <- mapM (open . unArg) [phi, u0]
       u <- traverse open (unArg <$> u)

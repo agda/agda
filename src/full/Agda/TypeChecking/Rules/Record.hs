@@ -124,12 +124,11 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       --   else ftel
 
       -- cubical: the interval universe does not contain records with parameters
-      when (s == IntervalUniv && npars > 0) $
+      when (s == IntervalUniv) $
         typeError . GenericDocError =<<
-        fsep [ "Record" <+> prettyTCM name
-             , "in the interval universe"
+        fsep [ "The sort of" <+> prettyTCM name
+             , "cannot be the interval universe"
              , prettyTCM s
-             , "cannot have paramaters"
              ]
 
       reportSDoc "tc.rec" 20 $ do

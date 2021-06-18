@@ -12,43 +12,6 @@ open import Agda.Builtin.Sigma
 open import Agda.Builtin.List
 open Helpers
 
--- IUniv lives in SSet₁
-
-IUniv' : SSet (lsuc lzero)
-IUniv' = IUniv
-
--- I is all we have in IUniv
-itsI : IUniv
-itsI = I
-
-{-
-  This is the key property we want:
-  the unbased path type of a fibrant type is fibrant
-  this is not true (and shouldn't be true) if we replace IUniv with SSet
--}
-[IUniv→Set]↦Set : ∀ {ℓ} → IUniv → Set ℓ → Set ℓ
-[IUniv→Set]↦Set J A = J → A
-
-[:IUniv→Set]↦Set : ∀ {ℓ} → (J : IUniv) → (J → Set ℓ) → Set ℓ
-[:IUniv→Set]↦Set J A = (j : J) → A j
-
-[IUniv→SSet]↦SSet : ∀ {ℓ} → IUniv → SSet ℓ → SSet ℓ
-[IUniv→SSet]↦SSet J A = J → A
-
--- For maps into types in IUniv, we treat it like SSet
-
-[Set→IUniv]↦SSet : ∀ {ℓ} → Set ℓ → IUniv → SSet ℓ
-[Set→IUniv]↦SSet A J = A → J
-
-[IUniv→IUniv]↦SSet : IUniv → IUniv → SSet -- not in IUniv
-[IUniv→IUniv]↦SSet J K = J → K
-
--- IUniv ≤ SSet
-
-record Wrap (A : IUniv) : SSet where
-  field
-    unwrap : A
-
 module _ {ℓ} {A : Set ℓ} where
   trans : {x y z : A} → x ≡ y → y ≡ z → x ≡ z
   trans {x = x} p q i = primComp (λ _ → A) (λ { j (i = i0) → x
@@ -396,3 +359,64 @@ trues3 = primComp (λ i → let p = trans ListNot ListNot in
 
 test-trues3 : trues3 ≡ trues
 test-trues3 = refl
+
+{- Interval sort -}
+
+-- IUniv lives in SSet₁ and I lives in IUniv
+
+IUniv' : SSet (lsuc lzero)
+IUniv' = IUniv
+
+I' : IUniv
+I' = I
+
+-- Key property of IUniv: The type of maps from J : IUniv to a fibrant type is fibrant.
+-- This is not true (and shouldn't be true) if we replace IUniv with SSet.
+
+[IUniv→Set]↦Set : ∀ {ℓ} → (J : IUniv) → (J → Set ℓ) → Set ℓ
+[IUniv→Set]↦Set J A = (j : J) → A j
+
+[IUniv→SSet]↦SSet : ∀ {ℓ} → IUniv → SSet ℓ → SSet ℓ
+[IUniv→SSet]↦SSet J A = J → A
+
+-- For maps into types in IUniv, we treat it like SSet
+
+[Set→IUniv]↦SSet : ∀ {ℓ} → Set ℓ → IUniv → SSet ℓ
+[Set→IUniv]↦SSet A J = A → J
+
+-- IUniv ≤ SSet
+
+record Wrap (A : IUniv) : SSet where
+  field
+    unwrap : A
+
+-- composition and transport in I → A
+
+module HCompI→ {ℓ} {A : I → Set ℓ} (φ : I)
+   (let C = (j : I) → A j) (p : ∀ i → Partial φ C) (p0 : C [ φ ↦ p i0 ])
+   where
+
+  hcompI→ : C
+  hcompI→ j = primHComp (λ i u → p i u j) (ouc p0 j)
+
+  test-hcompI→ : hcompI→ ≡ primHComp p (ouc p0)
+  test-hcompI→ = refl
+
+module TranspI→ {ℓ} {A : I → I → Set ℓ}
+  (let C = λ (i : I) → (j : I) → (A i j))
+  (p0 : C i0)
+  where
+
+ transpI→ : C i1
+ transpI→ j = primTransp (λ i → A i j) i0 (p0 j)
+
+ test-transpI→ : transpI→ ≡ primTransp (\ i → C i) i0 p0
+ test-transpI→ = refl
+
+module TranspIUniv→ {J : I → IUniv} {ℓ} {A : (i : I) → J i → Set ℓ}
+  (let C = λ (i : I) → (j : J i) → (A i j))
+  (p0 : C i0)
+  where
+
+  test-transpJ→ : C i1
+  test-transpJ→ = primTransp C i0 p0

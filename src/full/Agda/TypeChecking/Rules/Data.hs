@@ -117,7 +117,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             -- cubical: the interval universe does not contain datatypes
             when (s == IntervalUniv) $
               typeError . GenericDocError =<<
-              fsep [ "The sort of a datatype" <+> prettyTCM name
+              fsep [ "The sort of" <+> prettyTCM name
                    , "cannot be the interval universe"
                    , prettyTCM s
                    ]
