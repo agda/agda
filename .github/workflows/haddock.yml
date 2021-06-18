@@ -23,8 +23,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04]
-        ghc-ver: ["9.0.1"]
-        cabal-ver: ["3.4"]
+        ghc-ver: ["8.10.5"]
+        cabal-ver: ["3.2"]
 
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
