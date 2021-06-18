@@ -11,7 +11,6 @@ ghc_new_version="$2"
 files='Agda.cabal '
 files+='src/agda-bisect/agda-bisect.cabal '
 files+='src/release-tools/closed-issues-for-milestone/closed-issues-for-milestone.cabal '
-files+='src/hs-tags/hs-tags.cabal '
 files+='src/size-solver/size-solver.cabal '
 
 for i in $files; do
