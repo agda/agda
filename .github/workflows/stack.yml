@@ -52,7 +52,7 @@ jobs:
       matrix:
         os: [ubuntu-18.04]
         stack-ver: [2.7.1]
-        ghc-ver: [9.0.1, 8.10.5, 8.10.4, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        ghc-ver: [9.0.1, 8.10.5, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
         include:
           - os: macos-latest
             ghc-ver: 9.0.1
