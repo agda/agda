@@ -1,4 +1,4 @@
-Tested with `ghc-8.10.4` and `cabal-install 3.4.0.0`.
+Tested with `ghc-8.10.5` and `cabal-install 3.4.0.0`.
 
 When releasing a release candidate (RC) the following procedure can be
 followed:
@@ -110,7 +110,7 @@ followed:
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
-    tar xzf $BASE/dist/Agda-$RC_VERSION.tar.gz
+    tar xzf $BASE/dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
     cd Agda-$RC_VERSION
     cabal install --program-suffix=-$RC_VERSION
     agda-$RC_VERSION --version

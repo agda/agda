@@ -1,4 +1,4 @@
-Tested with `ghc-8.10.4` and `cabal-install 3.4.0.0`.
+Tested with `ghc-8.10.5` and `cabal-install 3.4.0.0`.
 
 When releasing the following procedure can be followed:
 
@@ -117,7 +117,7 @@ When releasing the following procedure can be followed:
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
-    tar xzf $BASE/dist/Agda-$MAJORVERSION.tar.gz
+    tar xzf $BASE/dist-newstyle/sdist/Agda-$MAJORVERSION.tar.gz
     cd Agda-$MAJORVERSION
     cabal install --program-suffix=-$MAJORVERSION
     agda-$MAJOR_VERSION --version
