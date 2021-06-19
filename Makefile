@@ -122,7 +122,8 @@ STACK_INSTALL_BIN_OPTS = --no-library-profiling \
                          $(STACK_INSTALL_OPTS)
 
 CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
-                       $(CABAL_INSTALL_BIN_OPTS)
+                       --disable-library-profiling \
+                       $(CABAL_INSTALL_OPTS)
 
 ##############################################################################
 ## Installation
