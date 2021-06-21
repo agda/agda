@@ -1008,6 +1008,10 @@ bindBuiltinNoDef b q = inTopContext $ do
                 "primIntervalUniv" -> IntervalUniv
                 _              -> __IMPOSSIBLE__
           def = PrimitiveSort sortname s
+      -- Check for the cubical flag if the sort requries it
+      case sortname of
+        "primIntervalUniv" -> requireCubical CErased ""
+        _ -> return ()
       addConstant' q defaultArgInfo q (sort $ univSort s) def
       bindBuiltinName b $ Def q []
 

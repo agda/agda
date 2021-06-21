@@ -376,13 +376,13 @@ I' = I
 [IUniv→Set]↦Set : ∀ {ℓ} → (J : IUniv) → (J → Set ℓ) → Set ℓ
 [IUniv→Set]↦Set J A = (j : J) → A j
 
-[IUniv→SSet]↦SSet : ∀ {ℓ} → IUniv → SSet ℓ → SSet ℓ
-[IUniv→SSet]↦SSet J A = J → A
+[IUniv→SSet]↦SSet : ∀ {ℓ} → (J : IUniv) → (J → SSet ℓ) → SSet ℓ
+[IUniv→SSet]↦SSet J A = (j : J) → A j
 
 -- For maps into types in IUniv, we treat it like SSet
 
-[Set→IUniv]↦SSet : ∀ {ℓ} → Set ℓ → IUniv → SSet ℓ
-[Set→IUniv]↦SSet A J = A → J
+[Set→IUniv]↦SSet : ∀ {ℓ} → (A : Set ℓ) → (A → IUniv) → SSet ℓ
+[Set→IUniv]↦SSet A J = (a : A) → J a
 
 -- IUniv ≤ SSet
 
