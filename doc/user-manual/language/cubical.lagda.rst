@@ -910,7 +910,7 @@ the following ``BUILTIN``, primitives and postulates:
   primitive
     primTransp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (a : A i0) → A i1
     primHComp : ∀ {a} {A : Set a} {φ : I} → (∀ i → Partial φ A) → A → A
-    
+
 The interval ``I`` belongs to its own sort, ``IUniv``. Types in this sort
 do not support composition and transport (unlike ``Set``), but function
 types from types in this sort to types in ``Set`` do (unlike `SSet`).
