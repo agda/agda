@@ -1989,7 +1989,7 @@ leqConj (rs, rst) (qs, qst) = do
   if toSet qs `Set.isSubsetOf` toSet rs
     then do
       interval <-
-        El IntervalUniv <$> fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
+        El IntervalUniv . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
       -- we don't want to generate new constraints here because
       -- 1. in some situations the same constraint would get generated twice.
       -- 2. unless things are completely accepted we are going to
