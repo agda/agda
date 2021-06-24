@@ -31,6 +31,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
   builtinSet, builtinProp, builtinSetOmega, builtinStrictSet, builtinSSetOmega,
   builtinLockUniv,
+  builtinIntervalUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
   builtinAgdaSortProp, builtinAgdaSortPropLit, builtinAgdaSortInf,
@@ -110,6 +111,7 @@ builtinConId                             = "CONID"
 builtinIdElim                            = "primIdElim"
 builtinPath                              = "PATH"
 builtinPathP                             = "PATHP"
+builtinIntervalUniv                      = "CUBEINTERVALUNIV"
 builtinInterval                          = "INTERVAL"
 builtinIMin                              = "primIMin"
 builtinIMax                              = "primIMax"
@@ -293,6 +295,7 @@ builtinsNoDef :: [String]
 builtinsNoDef =
   sizeBuiltins ++
   [ builtinConId
+  , builtinIntervalUniv
   , builtinInterval
   , builtinPartial
   , builtinPartialP

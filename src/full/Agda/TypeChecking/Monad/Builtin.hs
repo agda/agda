@@ -164,7 +164,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primSigma,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero, primMaybe, primNothing, primJust,
-    primPath, primPathP, primInterval, primIZero, primIOne, primPartial, primPartialP,
+    primPath, primPathP, primIntervalUniv, primInterval, primIZero, primIOne, primPartial, primPartialP,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
     primSub, primSubIn, primSubOut,
@@ -247,6 +247,7 @@ primConId                             = getBuiltin builtinConId
 primIdElim                            = getPrimitiveTerm builtinIdElim
 primPath                              = getBuiltin builtinPath
 primPathP                             = getBuiltin builtinPathP
+primIntervalUniv                      = getBuiltin builtinIntervalUniv
 primInterval                          = getBuiltin builtinInterval
 primIZero                             = getBuiltin builtinIZero
 primIOne                              = getBuiltin builtinIOne

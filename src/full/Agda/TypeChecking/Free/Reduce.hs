@@ -151,4 +151,5 @@ instance ForceNotFree Sort where
     s@(Inf _ _)-> return s
     s@SizeUniv -> return s
     s@LockUniv -> return s
+    s@IntervalUniv -> return s
     s@DummyS{} -> return s

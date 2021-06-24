@@ -114,9 +114,9 @@ The interval and path types
 ---------------------------
 
 The key idea of Cubical Type Theory is to add an interval type ``I :
-SSet`` (the reason this is in ``SSet`` is because it doesn't support
-the ``transp`` and ``hcomp`` operations). A variable ``i : I``
-intuitively corresponds to a point in the `real unit interval
+IUniv`` (the reason this is in a special sort ``IUniv`` is because it
+doesn't support the ``transp`` and ``hcomp`` operations). A variable
+``i : I`` intuitively corresponds to a point in the `real unit interval
 <https://en.wikipedia.org/wiki/Unit_interval>`_. In an empty context,
 there are only two values of type ``I``: the two endpoints of the
 interval, ``i0`` and ``i1``.
@@ -867,7 +867,8 @@ the following ``BUILTIN``, primitives and postulates:
 
 .. code-block:: agda
 
-  {-# BUILTIN INTERVAL I    #-} -- I : SSet
+  {-# BUILTIN CUBEINTERVALUNIV IUniv #-}  -- IUniv : SSet₁
+  {-# BUILTIN INTERVAL I  #-}  -- I : IUniv
   {-# BUILTIN IZERO    i0   #-}
   {-# BUILTIN IONE     i1   #-}
 
@@ -909,6 +910,10 @@ the following ``BUILTIN``, primitives and postulates:
   primitive
     primTransp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (a : A i0) → A i1
     primHComp : ∀ {a} {A : Set a} {φ : I} → (∀ i → Partial φ A) → A → A
+
+The interval ``I`` belongs to its own sort, ``IUniv``. Types in this sort
+do not support composition and transport (unlike ``Set``), but function
+types from types in this sort to types in ``Set`` do (unlike `SSet`).
 
 The Path types are exported by ``Agda.Builtin.Cubical.Path``:
 

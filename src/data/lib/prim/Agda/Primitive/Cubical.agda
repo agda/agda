@@ -2,7 +2,8 @@
 
 module Agda.Primitive.Cubical where
 
-{-# BUILTIN INTERVAL I  #-}  -- I : Setω
+{-# BUILTIN CUBEINTERVALUNIV IUniv #-}  -- IUniv : SSet₁
+{-# BUILTIN INTERVAL I  #-}  -- I : IUniv
 
 {-# BUILTIN IZERO    i0 #-}
 {-# BUILTIN IONE     i1 #-}

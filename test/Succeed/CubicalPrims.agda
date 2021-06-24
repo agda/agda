@@ -359,3 +359,64 @@ trues3 = primComp (λ i → let p = trans ListNot ListNot in
 
 test-trues3 : trues3 ≡ trues
 test-trues3 = refl
+
+{- Interval sort -}
+
+-- IUniv lives in SSet₁ and I lives in IUniv
+
+IUniv' : SSet (lsuc lzero)
+IUniv' = IUniv
+
+I' : IUniv
+I' = I
+
+-- Key property of IUniv: The type of maps from J : IUniv to a fibrant type is fibrant.
+-- This is not true (and shouldn't be true) if we replace IUniv with SSet.
+
+[IUniv→Set]↦Set : ∀ {ℓ} → (J : IUniv) → (J → Set ℓ) → Set ℓ
+[IUniv→Set]↦Set J A = (j : J) → A j
+
+[IUniv→SSet]↦SSet : ∀ {ℓ} → (J : IUniv) → (J → SSet ℓ) → SSet ℓ
+[IUniv→SSet]↦SSet J A = (j : J) → A j
+
+-- For maps into types in IUniv, we treat it like SSet
+
+[Set→IUniv]↦SSet : ∀ {ℓ} → (A : Set ℓ) → (A → IUniv) → SSet ℓ
+[Set→IUniv]↦SSet A J = (a : A) → J a
+
+-- IUniv ≤ SSet
+
+record Wrap (A : IUniv) : SSet where
+  field
+    unwrap : A
+
+-- composition and transport in I → A
+
+module HCompI→ {ℓ} {A : I → Set ℓ} (φ : I)
+   (let C = (j : I) → A j) (p : ∀ i → Partial φ C) (p0 : C [ φ ↦ p i0 ])
+   where
+
+  hcompI→ : C
+  hcompI→ j = primHComp (λ i u → p i u j) (ouc p0 j)
+
+  test-hcompI→ : hcompI→ ≡ primHComp p (ouc p0)
+  test-hcompI→ = refl
+
+module TranspI→ {ℓ} {A : I → I → Set ℓ}
+  (let C = λ (i : I) → (j : I) → (A i j))
+  (p0 : C i0)
+  where
+
+ transpI→ : C i1
+ transpI→ j = primTransp (λ i → A i j) i0 (p0 j)
+
+ test-transpI→ : transpI→ ≡ primTransp (\ i → C i) i0 p0
+ test-transpI→ = refl
+
+module TranspIUniv→ {J : I → IUniv} {ℓ} {A : (i : I) → J i → Set ℓ}
+  (let C = λ (i : I) → (j : J i) → (A i j))
+  (p0 : C i0)
+  where
+
+  test-transpJ→ : C i1
+  test-transpJ→ = primTransp C i0 p0

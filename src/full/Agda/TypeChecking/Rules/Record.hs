@@ -123,6 +123,14 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       --   then telFromList $ map (setRelevance Irrelevant) $ telToList ftel
       --   else ftel
 
+      -- cubical: the interval universe does not contain records with parameters
+      when (s == IntervalUniv) $
+        typeError . GenericDocError =<<
+        fsep [ "The sort of" <+> prettyTCM name
+             , "cannot be the interval universe"
+             , prettyTCM s
+             ]
+
       reportSDoc "tc.rec" 20 $ do
         gamma <- getContextTelescope  -- the record params (incl. module params)
         "gamma = " <+> inTopContext (prettyTCM gamma)

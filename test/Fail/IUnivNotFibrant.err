@@ -1,0 +1,3 @@
+IUnivNotFibrant.agda:4,8-12
+SSet (lsuc lzero) is not less or equal than Set₁
+when checking the definition of Wrap

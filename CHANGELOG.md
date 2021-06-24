@@ -21,6 +21,11 @@ Language
 
   This feature is experimental.
 
+* The cubical interval `I` now belongs to its own sort, `IUniv`, rather
+  than `SSet`. For `J : ISet` and `A : J → Set l`, we have
+  `(j : J) → A : Set l`, that is, the type of functions from a type in `ISet`
+  to a fibrant type is fibrant.
+
 Compiler backends
 -----------------
 

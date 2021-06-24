@@ -121,8 +121,9 @@ coreBuiltins =
                                                               (El (varSort 1) <$> varM 0 <@> primIZero) -->
                                                               (El (varSort 1) <$> varM 0 <@> primIOne) -->
                                                               return (sort $ varSort 1)))
+  , (builtinIntervalUniv                     |-> BuiltinSort "primIntervalUniv")
   , (builtinInterval                         |-> BuiltinData (requireCubical CErased "" >>
-                                                              (return $ ssort $ ClosedLevel 0)) [builtinIZero,builtinIOne])
+                                                              (return $ sort IntervalUniv)) [builtinIZero,builtinIOne])
   , (builtinSub                              |-> builtinPostulateC CErased (runNamesT [] $ hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    nPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
                                                                    nPi' "φ" (cl tinterval) $ \ phi ->
@@ -131,7 +132,7 @@ coreBuiltins =
   , (builtinSubIn                            |-> builtinPostulateC CErased (runNamesT [] $
                                                                    hPi' "a" (el $ cl primLevel) $ \ a ->
                                                                    hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
-                                                                   hPi' "φ" (elSSet $ cl primInterval) $ \ phi ->
+                                                                   hPi' "φ" (cl tinterval) $ \ phi ->
                                                                    nPi' "x" (el' a bA) $ \ x ->
                                                                    el's a $ cl primSub <#> a <@> bA <@> phi <@> lam "o" (\ _ -> x)))
   , (builtinIZero                            |-> BuiltinDataCons tinterval)
@@ -453,7 +454,7 @@ coreBuiltins =
         ttelescope = tlist (tpair primLevelZero primLevelZero tstring (targ ttype))
         tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
         tTCM_ a    = el (primAgdaTCM <#> primLevelZero <@> a)
-        tinterval  = El (SSet $ ClosedLevel 0) <$> primInterval
+        tinterval  = El IntervalUniv <$> primInterval
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
@@ -1004,8 +1005,13 @@ bindBuiltinNoDef b q = inTopContext $ do
                 "primStrictSet" -> mkSSet 0
                 "primSetOmega" -> Inf IsFibrant 0
                 "primStrictSetOmega" -> Inf IsStrict 0
+                "primIntervalUniv" -> IntervalUniv
                 _              -> __IMPOSSIBLE__
           def = PrimitiveSort sortname s
+      -- Check for the cubical flag if the sort requries it
+      case sortname of
+        "primIntervalUniv" -> requireCubical CErased ""
+        _ -> return ()
       addConstant' q defaultArgInfo q (sort $ univSort s) def
       bindBuiltinName b $ Def q []
 

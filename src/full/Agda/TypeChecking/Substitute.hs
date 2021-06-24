@@ -832,6 +832,7 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
+    IntervalUniv -> IntervalUniv
     PiSort a s1 s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
     UnivSort s -> coerce $ univSort $ coerce $ sub s
@@ -940,6 +941,7 @@ instance Subst NLPSort where
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv
+    PIntervalUniv -> PIntervalUniv
 
 instance Subst RewriteRule where
   type SubstArg RewriteRule = NLPat
@@ -1498,6 +1500,7 @@ univSort' (Inf f n) = Just $ Inf f $ 1 + n
 univSort' (SSet l) = Just $ SSet $ levelSuc l
 univSort' SizeUniv = Just $ Inf IsFibrant 0
 univSort' LockUniv = Just $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
+univSort' IntervalUniv = Just $ SSet $ ClosedLevel 1
 univSort' s        = Nothing
 
 univSort :: Sort -> Sort
@@ -1518,6 +1521,7 @@ isSmallSort Type{}     = Just (True,IsFibrant)
 isSmallSort Prop{}     = Just (True,IsFibrant)
 isSmallSort SizeUniv   = Just (True,IsFibrant)
 isSmallSort LockUniv   = Just (True,IsFibrant)
+isSmallSort IntervalUniv = Just (True,IsStrict)
 isSmallSort (Inf f _)  = Just (False,f)
 isSmallSort SSet{}     = Just (True,IsStrict)
 isSmallSort MetaS{}    = Nothing
@@ -1543,6 +1547,12 @@ funSort' a b = case (a, b) of
   (LockUniv      , b            ) -> Just b
   -- No functions into lock types
   (a             , LockUniv     ) -> Nothing
+  -- @IntervalUniv@ behaves like @SSet@, but functions into @Type@ land in @Type
+  (IntervalUniv  , IntervalUniv ) -> Just $ SSet $ ClosedLevel 0
+  (IntervalUniv  , SSet b       ) -> Just $ SSet $ b
+  (IntervalUniv  , Type b       ) -> Just $ Type $ b
+  (Type a        , IntervalUniv ) -> Just $ SSet $ a
+  (SSet a        , IntervalUniv ) -> Just $ SSet $ a
   (SizeUniv      , b            ) -> Just b
   (a             , SizeUniv     ) | Just (True,_) <- isSmallSort a -> Just SizeUniv
   (Prop a        , Type b       ) -> Just $ Type $ levelLub a b

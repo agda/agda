@@ -214,6 +214,7 @@ instance Match () NLPSort Sort where
         | fp == f, np == n   -> yes
       (PSizeUniv , SizeUniv) -> yes
       (PLockUniv , LockUniv) -> yes
+      (PIntervalUniv , IntervalUniv) -> yes
 
       -- blocked cases
       (_ , UnivSort{}) -> matchingBlocked b

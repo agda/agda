@@ -114,6 +114,14 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   else throwError err
               reduce s
 
+            -- cubical: the interval universe does not contain datatypes
+            when (s == IntervalUniv) $
+              typeError . GenericDocError =<<
+              fsep [ "The sort of" <+> prettyTCM name
+                   , "cannot be the interval universe"
+                   , prettyTCM s
+                   ]
+
             -- when `--without-K`, all the indices should fit in the
             -- sort of the datatype (see #3420).
             let s' = case s of
