@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-      - issue*
+      - ci-*
       - release*
     paths:
       - '.github/workflows/lint.yaml'
