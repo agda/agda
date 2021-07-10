@@ -469,6 +469,30 @@ Emacs mode
                   (insert "\n")))))))
   ```
 
+* You can run agda inside nix-shell by setting a custom wrapper function
+  ```elisp
+      (defun nix-file (where &optional name)
+        "Locate the nix file `NAME' closest to `WHERE'.
+
+      Returns a string containing the path to the `nix-file'.
+
+      If `NAME' is not provided it tries to find `shell.nix', if that
+      fails too then `default.nix', otherwise nil is returned."
+        (flet ((locate (file) (let ((location (locate-dominating-file where file)))
+                                (when location (concat location file)))))
+          (if name (locate name)
+            (or (locate "shell.nix") (locate "default.nix")))))
+
+      (defun nix-shell-agda2 (args)
+        (let ((nix-file (or (nix-file ".")
+                          (error "Nix file not found."))))
+          (cons "nix-shell"
+            (list (expand-file-name nix-file) "--run"
+              (mapconcat #'identity args " ")))))
+
+      (setq agda2-command-wrapper-function #'nix-shell-agda2)
+  ```
+
 Faster compilation of Agda
 ==========================
 
