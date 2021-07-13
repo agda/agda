@@ -37,13 +37,13 @@ keywords
   ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ``
   :ref:`∀ <notational-conventions>` ``..`` ``...``
   ``abstract``
+  ``coinductive``
   ``constructor``
   ``data``
   :ref:`do <do-notation>`
   ``eta-equality``
   ``field``
   :ref:`forall <notational-conventions>`
-  ``hiding``
   ``import``
   ``in``
   ``inductive``
@@ -63,13 +63,9 @@ keywords
   ``postulate``
   ``primitive``
   ``private``
-  ``public``
   :ref:`quote <reflection>`
-  ``quoteContext``
-  ``quoteGoal``
   :ref:`quoteTerm <macros>`
   ``record``
-  ``renaming``
   ``rewrite``
   ``Set``
   ``syntax``
@@ -77,7 +73,6 @@ keywords
   :ref:`unquote <macros>`
   :ref:`unquoteDecl <unquoting-declarations>`
   :ref:`unquoteDef <unquoting-declarations>`
-  ``using``
   :ref:`variable <generalization-of-declared-variables>`
   ``where``
   ``with``
@@ -85,6 +80,16 @@ keywords
   The ``Set`` keyword can appear with a natural number suffix, optionally
   subscripted (see :ref:`sort-system`). For instance ``Set42`` and
   ``Set₄₂`` are both keywords.
+
+keywords in import directives
+  The following words are only reserved in import directives
+  (in connection with ``import`` or ``open``):
+
+  ``public``
+  ``using``
+  ``hiding``
+  ``renaming``
+  ``to``
 
 .. _names:
 
