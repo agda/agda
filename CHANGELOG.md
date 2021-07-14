@@ -61,3 +61,5 @@ LaTeX backend
 
 * Files `agda.sty` and `postprocess-latex.pl` are now found in the `latex/`
   subdirectory of the Agda data directory (`agda --print-agda-dir`).
+
+* `agda.sty` is now versioned (printed to the `.log` file by `latex`).
