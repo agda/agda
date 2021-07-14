@@ -89,12 +89,13 @@ extra-source-files: CHANGELOG.md
                     stack-9.0.1.yaml
 
 data-dir:           src/data
-data-files:         agda.sty
-                    emacs-mode/*.el
+data-files:         emacs-mode/*.el
                     html/Agda.css
                     html/highlight-hover.js
                     JS/agda-rts.js
                     JS/biginteger.js
+                    latex/agda.sty
+                    latex/postprocess-latex.pl
                     lib/prim/Agda/Builtin/Bool.agda
                     lib/prim/Agda/Builtin/Char.agda
                     lib/prim/Agda/Builtin/Char/Properties.agda
@@ -133,7 +134,6 @@ data-files:         agda.sty
                     lib/prim/Agda/Primitive/Cubical.agda
                     MAlonzo/src/MAlonzo/*.hs
                     MAlonzo/src/MAlonzo/RTE/*.hs
-                    postprocess-latex.pl
 
 source-repository head
   type:     git

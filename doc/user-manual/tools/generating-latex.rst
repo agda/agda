@@ -520,7 +520,7 @@ issuing the command
 
 .. code-block:: console
 
-   $ cp $(dirname $(dirname $(agda-mode locate)))/postprocess-latex.pl .
+   $ cp $(agda --print-agda-dir)/latex/postprocess-latex.pl .
 
 In order to generate a PDF, you can then do the following:
 

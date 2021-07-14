@@ -655,6 +655,11 @@ stringLiteral t = [t]
 ------------------------------------------------------------------------
 -- * Main.
 
+-- | The Agda data directory containing the files for the LaTeX backend.
+
+latexDataDir :: FilePath
+latexDataDir = "latex"
+
 defaultStyFile :: String
 defaultStyFile = "agda.sty"
 
@@ -695,7 +700,8 @@ prepareCommonAssets dir = do
       (T.pack $ unwords [defaultStyFile, "was not found. Copying a default version of", defaultStyFile, "into", dir])
       []
     liftIO $ do
-      styFile <- getDataFileName defaultStyFile
+      styFile <- getDataFileName $
+        latexDataDir </> defaultStyFile
       copyFile styFile (dir </> defaultStyFile)
 
 -- | Generates a LaTeX file for the given interface.
