@@ -67,6 +67,11 @@ import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
+-- | The Agda data directory containing the files for the HTML backend.
+
+htmlDataDir :: FilePath
+htmlDataDir = "html"
+
 -- | The name of the default CSS file.
 
 defaultCSSFile :: FilePath
@@ -196,13 +201,14 @@ prepareCommonDestinationAssets options = liftIO $ do
   -- the output directory.
   let cssFile = htmlOptCssFile options
   when (isNothing $ cssFile) $ do
-    defCssFile <- getDataFileName defaultCSSFile
+    defCssFile <- getDataFileName $
+      htmlDataDir </> defaultCSSFile
     copyFile defCssFile (htmlDir </> defaultCSSFile)
 
   let highlightOccurrences = htmlOptHighlightOccurrences options
   when highlightOccurrences $ do
     highlightJsFile <- getDataFileName $
-      "JS" </> occurrenceHighlightJsFile
+      htmlDataDir </> occurrenceHighlightJsFile
     copyFile highlightJsFile (htmlDir </> occurrenceHighlightJsFile)
 
 -- | Converts module names to the corresponding HTML file names.

@@ -89,12 +89,12 @@ extra-source-files: CHANGELOG.md
                     stack-9.0.1.yaml
 
 data-dir:           src/data
-data-files:         Agda.css
-                    agda.sty
+data-files:         agda.sty
                     emacs-mode/*.el
+                    html/Agda.css
+                    html/highlight-hover.js
                     JS/agda-rts.js
                     JS/biginteger.js
-                    JS/highlight-hover.js
                     lib/prim/Agda/Builtin/Bool.agda
                     lib/prim/Agda/Builtin/Char.agda
                     lib/prim/Agda/Builtin/Char/Properties.agda

@@ -13,7 +13,7 @@ the following command in a shell:
 
 You can change the way in which the code is highlighted by providing
 your own CSS file instead of the :download:`default, included one
-<../../../src/data/Agda.css>` (use the ``--css`` option).
+<../../../src/data/html/Agda.css>` (use the ``--css`` option).
 
 You can also highlight all the occurrences of the symbol your mouse is
 hovering in the HTML by adding the ``--highlight-occurrences`` option.
