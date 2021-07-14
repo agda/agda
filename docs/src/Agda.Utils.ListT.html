@@ -1,0 +1,670 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP  #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE UndecidableInstances  #-}</span><span> </span><span class="hs-comment">-- Due MonadReader/MonadState fundep</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- | @ListT@ done right,</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--   see https://www.haskell.org/haskellwiki/ListT_done_right_alternative</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--   There is also the @list-t@ package on hackage (Nikita Volkov)</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--   but it again depends on other packages we do not use yet,</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--   so we rather implement the few bits we need afresh.</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Utils.ListT</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Alternative</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&lt;|&gt;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">empty</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Fail</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Fail</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span class="hs-cpp">
+
+#if !(MIN_VERSION_base(4,11,0))
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Semigroup</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Semigroup</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Maybe.html"><span class="hs-identifier">Agda.Utils.Maybe</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Monad.html"><span class="hs-identifier">Agda.Utils.Monad</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- | Lazy monadic computation of a list of results.</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">newtype</span><span> </span><span id="ListT"><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span></span><span> </span><span id="local-6989586621680700332"><span class="annot"><a href="#local-6989586621680700332"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621680700331"><span class="annot"><a href="#local-6989586621680700331"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ListT"><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="runListT"><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. ListT m a -&gt; m (Maybe (a, ListT m a))
+</span><a href="Agda.Utils.ListT.html#runListT"><span class="hs-identifier hs-var hs-var">runListT</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621680700332"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700331"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700332"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700331"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680700086"><span id="local-6989586621680700093"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; ListT m a -&gt; ListT m b)
+-&gt; (forall a b. a -&gt; ListT m b -&gt; ListT m a) -&gt; Functor (ListT m)
+forall a b. a -&gt; ListT m b -&gt; ListT m a
+forall a b. (a -&gt; b) -&gt; ListT m a -&gt; ListT m b
+forall (m :: * -&gt; *) a b. Functor m =&gt; a -&gt; ListT m b -&gt; ListT m a
+forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; b) -&gt; ListT m a -&gt; ListT m b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+&lt;$ :: forall a b. a -&gt; ListT m b -&gt; ListT m a
+$c&lt;$ :: forall (m :: * -&gt; *) a b. Functor m =&gt; a -&gt; ListT m b -&gt; ListT m a
+fmap :: forall a b. (a -&gt; b) -&gt; ListT m a -&gt; ListT m b
+$cfmap :: forall (m :: * -&gt; *) a b.
+Functor m =&gt;
+(a -&gt; b) -&gt; ListT m a -&gt; ListT m b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- | Boilerplate function to lift 'MonadReader' through the 'ListT' transformer.</span><span>
+</span><span id="line-31"></span><span id="local-6989586621680700319"><span id="local-6989586621680700320"><span id="local-6989586621680700321"><span id="local-6989586621680700322"><span class="annot"><a href="Agda.Utils.ListT.html#mapListT"><span class="hs-identifier hs-type">mapListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700321"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700321"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700320"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700319"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700320"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700319"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700322"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700321"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700320"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700319"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span><span>
+</span><span id="line-32"></span><span id="mapListT"><span class="annot"><span class="annottext">mapListT :: forall (m :: * -&gt; *) a (n :: * -&gt; *) b.
+(m (Maybe (a, ListT m a)) -&gt; n (Maybe (b, ListT n b)))
+-&gt; ListT m a -&gt; ListT n b
+</span><a href="Agda.Utils.ListT.html#mapListT"><span class="hs-identifier hs-var hs-var">mapListT</span></a></span></span><span> </span><span id="local-6989586621680700080"><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; n (Maybe (b, ListT n b))
+</span><a href="#local-6989586621680700080"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">n (Maybe (b, ListT n b)) -&gt; ListT n b
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span> </span><span class="annot"><span class="annottext">(n (Maybe (b, ListT n b)) -&gt; ListT n b)
+-&gt; (ListT m a -&gt; n (Maybe (b, ListT n b)))
+-&gt; ListT m a
+-&gt; ListT n b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; n (Maybe (b, ListT n b))
+</span><a href="#local-6989586621680700080"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (a, ListT m a)) -&gt; n (Maybe (b, ListT n b)))
+-&gt; (ListT m a -&gt; m (Maybe (a, ListT m a)))
+-&gt; ListT m a
+-&gt; n (Maybe (b, ListT n b))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a. ListT m a -&gt; m (Maybe (a, ListT m a))
+</span><a href="Agda.Utils.ListT.html#runListT"><span class="hs-identifier hs-var hs-var">runListT</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- | Inverse to 'mapListT'.</span><span>
+</span><span id="line-35"></span><span id="local-6989586621680700308"><span id="local-6989586621680700309"><span id="local-6989586621680700310"><span id="local-6989586621680700311"><span class="annot"><a href="Agda.Utils.ListT.html#unmapListT"><span class="hs-identifier hs-type">unmapListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700311"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700310"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700309"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700308"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700311"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700310"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700311"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700310"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700309"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700308"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700309"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700308"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-36"></span><span id="unmapListT"><span class="annot"><span class="annottext">unmapListT :: forall (m :: * -&gt; *) a (n :: * -&gt; *) b.
+(ListT m a -&gt; ListT n b)
+-&gt; m (Maybe (a, ListT m a)) -&gt; n (Maybe (b, ListT n b))
+</span><a href="Agda.Utils.ListT.html#unmapListT"><span class="hs-identifier hs-var hs-var">unmapListT</span></a></span></span><span> </span><span id="local-6989586621680700077"><span class="annot"><span class="annottext">ListT m a -&gt; ListT n b
+</span><a href="#local-6989586621680700077"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT n b -&gt; n (Maybe (b, ListT n b))
+forall (m :: * -&gt; *) a. ListT m a -&gt; m (Maybe (a, ListT m a))
+</span><a href="Agda.Utils.ListT.html#runListT"><span class="hs-identifier hs-var hs-var">runListT</span></a></span><span> </span><span class="annot"><span class="annottext">(ListT n b -&gt; n (Maybe (b, ListT n b)))
+-&gt; (m (Maybe (a, ListT m a)) -&gt; ListT n b)
+-&gt; m (Maybe (a, ListT m a))
+-&gt; n (Maybe (b, ListT n b))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; ListT n b
+</span><a href="#local-6989586621680700077"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(ListT m a -&gt; ListT n b)
+-&gt; (m (Maybe (a, ListT m a)) -&gt; ListT m a)
+-&gt; m (Maybe (a, ListT m a))
+-&gt; ListT n b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- * List operations</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- | The empty lazy list.</span><span>
+</span><span id="line-41"></span><span id="local-6989586621680700302"><span id="local-6989586621680700303"><span class="annot"><a href="Agda.Utils.ListT.html#nilListT"><span class="hs-identifier hs-type">nilListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700303"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700303"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700302"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-42"></span><span id="nilListT"><span class="annot"><span class="annottext">nilListT :: forall (m :: * -&gt; *) a. Monad m =&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#nilListT"><span class="hs-identifier hs-var hs-var">nilListT</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (a, ListT m a)) -&gt; ListT m a)
+-&gt; m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe (a, ListT m a) -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe (a, ListT m a)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- | Consing a value to a lazy list.</span><span>
+</span><span id="line-45"></span><span id="local-6989586621680700292"><span id="local-6989586621680700293"><span class="annot"><a href="Agda.Utils.ListT.html#consListT"><span class="hs-identifier hs-type">consListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700293"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700292"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700293"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700292"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700293"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700292"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-46"></span><span id="consListT"><span class="annot"><span class="annottext">consListT :: forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; ListT m a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#consListT"><span class="hs-identifier hs-var hs-var">consListT</span></a></span></span><span> </span><span id="local-6989586621680700070"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680700070"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621680700069"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700069"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (a, ListT m a)) -&gt; ListT m a)
+-&gt; m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe (a, ListT m a) -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe (a, ListT m a) -&gt; m (Maybe (a, ListT m a)))
+-&gt; Maybe (a, ListT m a) -&gt; m (Maybe (a, ListT m a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a, ListT m a) -&gt; Maybe (a, ListT m a)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680700070"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700069"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | Singleton lazy list.</span><span>
+</span><span id="line-49"></span><span id="local-6989586621680700288"><span id="local-6989586621680700289"><span class="annot"><a href="Agda.Utils.ListT.html#sgListT"><span class="hs-identifier hs-type">sgListT</span></a></span><span> </span><span class="hs-glyph">::</span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700289"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700288"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700289"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700288"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-50"></span><span id="sgListT"><span class="annot"><span class="annottext">sgListT :: forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#sgListT"><span class="hs-identifier hs-var hs-var">sgListT</span></a></span></span><span> </span><span id="local-6989586621680700064"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680700064"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; ListT m a -&gt; ListT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; ListT m a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#consListT"><span class="hs-identifier hs-var">consListT</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680700064"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#nilListT"><span class="hs-identifier hs-var">nilListT</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- | Case distinction over lazy list.</span><span>
+</span><span id="line-53"></span><span id="local-6989586621680700283"><span id="local-6989586621680700284"><span id="local-6989586621680700285"><span class="annot"><a href="Agda.Utils.ListT.html#caseListT"><span class="hs-identifier hs-type">caseListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700285"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700285"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700284"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700285"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700283"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700284"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700285"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700284"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700285"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700283"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700285"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700283"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-54"></span><span id="caseListT"><span class="annot"><span class="annottext">caseListT :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+ListT m a -&gt; m b -&gt; (a -&gt; ListT m a -&gt; m b) -&gt; m b
+</span><a href="Agda.Utils.ListT.html#caseListT"><span class="hs-identifier hs-var hs-var">caseListT</span></a></span></span><span> </span><span id="local-6989586621680700060"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700060"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621680700059"><span class="annot"><span class="annottext">m b
+</span><a href="#local-6989586621680700059"><span class="hs-identifier hs-var">nil</span></a></span></span><span> </span><span id="local-6989586621680700058"><span class="annot"><span class="annottext">a -&gt; ListT m a -&gt; m b
+</span><a href="#local-6989586621680700058"><span class="hs-identifier hs-var">cons</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; m b -&gt; ((a, ListT m a) -&gt; m b) -&gt; m b
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+m (Maybe a) -&gt; m b -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.Utils.Maybe.html#caseMaybeM"><span class="hs-identifier hs-var">caseMaybeM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListT m a -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a. ListT m a -&gt; m (Maybe (a, ListT m a))
+</span><a href="Agda.Utils.ListT.html#runListT"><span class="hs-identifier hs-var hs-var">runListT</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700060"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m b
+</span><a href="#local-6989586621680700059"><span class="hs-identifier hs-var">nil</span></a></span><span> </span><span class="annot"><span class="annottext">(((a, ListT m a) -&gt; m b) -&gt; m b) -&gt; ((a, ListT m a) -&gt; m b) -&gt; m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; ListT m a -&gt; m b) -&gt; (a, ListT m a) -&gt; m b
+forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; ListT m a -&gt; m b
+</span><a href="#local-6989586621680700058"><span class="hs-identifier hs-var">cons</span></a></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- | Folding a lazy list, effects left-to-right.</span><span>
+</span><span id="line-57"></span><span id="local-6989586621680700271"><span id="local-6989586621680700272"><span id="local-6989586621680700273"><span class="annot"><a href="Agda.Utils.ListT.html#foldListT"><span class="hs-identifier hs-type">foldListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700273"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700272"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700273"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700271"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700273"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700271"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700273"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700271"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700273"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700272"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700273"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700271"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-58"></span><span id="foldListT"><span class="annot"><span class="annottext">foldListT :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b -&gt; m b) -&gt; m b -&gt; ListT m a -&gt; m b
+</span><a href="Agda.Utils.ListT.html#foldListT"><span class="hs-identifier hs-var hs-var">foldListT</span></a></span></span><span> </span><span id="local-6989586621680700052"><span class="annot"><span class="annottext">a -&gt; m b -&gt; m b
+</span><a href="#local-6989586621680700052"><span class="hs-identifier hs-var">cons</span></a></span></span><span> </span><span id="local-6989586621680700051"><span class="annot"><span class="annottext">m b
+</span><a href="#local-6989586621680700051"><span class="hs-identifier hs-var">nil</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; m b
+</span><a href="#local-6989586621680700050"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-59"></span><span>  </span><span id="local-6989586621680700050"><span class="annot"><span class="annottext">loop :: ListT m a -&gt; m b
+</span><a href="#local-6989586621680700050"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span id="local-6989586621680700049"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700049"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; m b -&gt; (a -&gt; ListT m a -&gt; m b) -&gt; m b
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+ListT m a -&gt; m b -&gt; (a -&gt; ListT m a -&gt; m b) -&gt; m b
+</span><a href="Agda.Utils.ListT.html#caseListT"><span class="hs-identifier hs-var">caseListT</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700049"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">m b
+</span><a href="#local-6989586621680700051"><span class="hs-identifier hs-var">nil</span></a></span><span> </span><span class="annot"><span class="annottext">((a -&gt; ListT m a -&gt; m b) -&gt; m b) -&gt; (a -&gt; ListT m a -&gt; m b) -&gt; m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621680700048"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680700048"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621680700047"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700047"><span class="hs-identifier hs-var">l'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; m b -&gt; m b
+</span><a href="#local-6989586621680700052"><span class="hs-identifier hs-var">cons</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680700048"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">(m b -&gt; m b) -&gt; m b -&gt; m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; m b
+</span><a href="#local-6989586621680700050"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700047"><span class="hs-identifier hs-var">l'</span></a></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- | Lazy monadic disjunction of lazy monadic list, effects left-to-right</span><span>
+</span><span id="line-62"></span><span id="local-6989586621680700266"><span id="local-6989586621680700267"><span class="annot"><a href="Agda.Utils.ListT.html#anyListT"><span class="hs-identifier hs-type">anyListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700267"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700267"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700266"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700266"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700267"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700267"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-63"></span><span id="anyListT"><span class="annot"><span class="annottext">anyListT :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+ListT m a -&gt; (a -&gt; m Bool) -&gt; m Bool
+</span><a href="Agda.Utils.ListT.html#anyListT"><span class="hs-identifier hs-var hs-var">anyListT</span></a></span></span><span> </span><span id="local-6989586621680700041"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700041"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621680700040"><span class="annot"><span class="annottext">a -&gt; m Bool
+</span><a href="#local-6989586621680700040"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m Bool -&gt; m Bool) -&gt; m Bool -&gt; ListT m a -&gt; m Bool
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b -&gt; m b) -&gt; m b -&gt; ListT m a -&gt; m b
+</span><a href="Agda.Utils.ListT.html#foldListT"><span class="hs-identifier hs-var">foldListT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">m Bool -&gt; m Bool -&gt; m Bool
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m Bool -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#or2M"><span class="hs-identifier hs-var">or2M</span></a></span><span> </span><span class="annot"><span class="annottext">(m Bool -&gt; m Bool -&gt; m Bool)
+-&gt; (a -&gt; m Bool) -&gt; a -&gt; m Bool -&gt; m Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m Bool
+</span><a href="#local-6989586621680700040"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; m Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700041"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- | Lazy monadic conjunction of lazy monadic list, effects left-to-right</span><span>
+</span><span id="line-66"></span><span id="local-6989586621680700037"><span id="local-6989586621680700038"><span class="annot"><a href="Agda.Utils.ListT.html#allListT"><span class="hs-identifier hs-type">allListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700038"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700038"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700037"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700037"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700038"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700038"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-67"></span><span id="allListT"><span class="annot"><span class="annottext">allListT :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+ListT m a -&gt; (a -&gt; m Bool) -&gt; m Bool
+</span><a href="Agda.Utils.ListT.html#allListT"><span class="hs-identifier hs-var hs-var">allListT</span></a></span></span><span> </span><span id="local-6989586621680700031"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700031"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621680700030"><span class="annot"><span class="annottext">a -&gt; m Bool
+</span><a href="#local-6989586621680700030"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m Bool -&gt; m Bool) -&gt; m Bool -&gt; ListT m a -&gt; m Bool
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b -&gt; m b) -&gt; m b -&gt; ListT m a -&gt; m b
+</span><a href="Agda.Utils.ListT.html#foldListT"><span class="hs-identifier hs-var">foldListT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">m Bool -&gt; m Bool -&gt; m Bool
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m Bool -&gt; m Bool
+</span><a href="Agda.Utils.Monad.html#and2M"><span class="hs-identifier hs-var">and2M</span></a></span><span> </span><span class="annot"><span class="annottext">(m Bool -&gt; m Bool -&gt; m Bool)
+-&gt; (a -&gt; m Bool) -&gt; a -&gt; m Bool -&gt; m Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m Bool
+</span><a href="#local-6989586621680700030"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; m Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700031"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- | Force all values in the lazy list, effects left-to-right</span><span>
+</span><span id="line-70"></span><span id="local-6989586621680700259"><span id="local-6989586621680700260"><span class="annot"><a href="Agda.Utils.ListT.html#sequenceListT"><span class="hs-identifier hs-type">sequenceListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700260"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700260"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700259"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700260"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680700259"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-71"></span><span id="sequenceListT"><span class="annot"><span class="annottext">sequenceListT :: forall (m :: * -&gt; *) a. Monad m =&gt; ListT m a -&gt; m [a]
+</span><a href="Agda.Utils.ListT.html#sequenceListT"><span class="hs-identifier hs-var hs-var">sequenceListT</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m [a] -&gt; m [a]) -&gt; m [a] -&gt; ListT m a -&gt; m [a]
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b -&gt; m b) -&gt; m b -&gt; ListT m a -&gt; m b
+</span><a href="Agda.Utils.ListT.html#foldListT"><span class="hs-identifier hs-var">foldListT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([a] -&gt; [a]) -&gt; m [a] -&gt; m [a]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">(&lt;$&gt;)</span></span><span> </span><span class="annot"><span class="annottext">(([a] -&gt; [a]) -&gt; m [a] -&gt; m [a])
+-&gt; (a -&gt; [a] -&gt; [a]) -&gt; a -&gt; m [a] -&gt; m [a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">:</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(m [a] -&gt; ListT m a -&gt; m [a]) -&gt; m [a] -&gt; ListT m a -&gt; m [a]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; m [a]
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- | The join operation of the @ListT m@ monad.</span><span>
+</span><span id="line-74"></span><span id="local-6989586621680700250"><span id="local-6989586621680700251"><span class="annot"><a href="Agda.Utils.ListT.html#concatListT"><span class="hs-identifier hs-type">concatListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700251"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700251"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700251"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700250"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700251"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700250"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-75"></span><span id="concatListT"><span class="annot"><span class="annottext">concatListT :: forall (m :: * -&gt; *) a. Monad m =&gt; ListT m (ListT m a) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#concatListT"><span class="hs-identifier hs-var hs-var">concatListT</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (a, ListT m a)) -&gt; ListT m a)
+-&gt; (ListT m (ListT m a) -&gt; m (Maybe (a, ListT m a)))
+-&gt; ListT m (ListT m a)
+-&gt; ListT m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(ListT m a -&gt; m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a)))
+-&gt; m (Maybe (a, ListT m a))
+-&gt; ListT m (ListT m a)
+-&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b -&gt; m b) -&gt; m b -&gt; ListT m a -&gt; m b
+</span><a href="Agda.Utils.ListT.html#foldListT"><span class="hs-identifier hs-var">foldListT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ListT m a -&gt; ListT m a)
+-&gt; m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a (n :: * -&gt; *) b.
+(ListT m a -&gt; ListT n b)
+-&gt; m (Maybe (a, ListT m a)) -&gt; n (Maybe (b, ListT n b))
+</span><a href="Agda.Utils.ListT.html#unmapListT"><span class="hs-identifier hs-var">unmapListT</span></a></span><span> </span><span class="annot"><span class="annottext">((ListT m a -&gt; ListT m a)
+ -&gt; m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a)))
+-&gt; (ListT m a -&gt; ListT m a -&gt; ListT m a)
+-&gt; ListT m a
+-&gt; m (Maybe (a, ListT m a))
+-&gt; m (Maybe (a, ListT m a))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; ListT m a -&gt; ListT m a
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe (a, ListT m a) -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe (a, ListT m a)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- * Monadic list operations.</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- | We can ``run'' a computation of a 'ListT' as it is monadic itself.</span><span>
+</span><span id="line-80"></span><span id="local-6989586621680700243"><span id="local-6989586621680700244"><span class="annot"><a href="Agda.Utils.ListT.html#runMListT"><span class="hs-identifier hs-type">runMListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700244"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700244"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700244"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700243"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700244"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700243"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-81"></span><span id="runMListT"><span class="annot"><span class="annottext">runMListT :: forall (m :: * -&gt; *) a. Monad m =&gt; m (ListT m a) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#runMListT"><span class="hs-identifier hs-var hs-var">runMListT</span></a></span></span><span> </span><span id="local-6989586621680700011"><span class="annot"><span class="annottext">m (ListT m a)
+</span><a href="#local-6989586621680700011"><span class="hs-identifier hs-var">ml</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (a, ListT m a)) -&gt; ListT m a)
+-&gt; m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a. ListT m a -&gt; m (Maybe (a, ListT m a))
+</span><a href="Agda.Utils.ListT.html#runListT"><span class="hs-identifier hs-var hs-var">runListT</span></a></span><span> </span><span class="annot"><span class="annottext">(ListT m a -&gt; m (Maybe (a, ListT m a)))
+-&gt; m (ListT m a) -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">m (ListT m a)
+</span><a href="#local-6989586621680700011"><span class="hs-identifier hs-var">ml</span></a></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- | Monadic cons.</span><span>
+</span><span id="line-84"></span><span id="local-6989586621680700236"><span id="local-6989586621680700237"><span class="annot"><a href="Agda.Utils.ListT.html#consMListT"><span class="hs-identifier hs-type">consMListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700237"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700237"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700236"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700237"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700236"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700237"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700236"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-85"></span><span id="consMListT"><span class="annot"><span class="annottext">consMListT :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ListT m a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#consMListT"><span class="hs-identifier hs-var hs-var">consMListT</span></a></span></span><span> </span><span id="local-6989586621680700004"><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621680700004"><span class="hs-identifier hs-var">ma</span></a></span></span><span> </span><span id="local-6989586621680700003"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700003"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (a, ListT m a)) -&gt; ListT m a)
+-&gt; m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a, ListT m a) -&gt; Maybe (a, ListT m a)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">((a, ListT m a) -&gt; Maybe (a, ListT m a))
+-&gt; (a -&gt; (a, ListT m a)) -&gt; a -&gt; Maybe (a, ListT m a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-special">,</span></span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680700003"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe (a, ListT m a)) -&gt; m a -&gt; m (Maybe (a, ListT m a))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621680700004"><span class="hs-identifier hs-var">ma</span></a></span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- consMListT ma l = runMListT $ liftM (`consListT` l) ma</span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- simplification:</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- consMListT ma l = ListT $ runListT =&lt;&lt; liftM (`consListT` l) ma</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- consMListT ma l = ListT $ runListT =&lt;&lt; (`consListT` l) &lt;$&gt; ma</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- consMListT ma l = ListT $ runListT =&lt;&lt; do a &lt;- ma; return $ a `consListT` l</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- consMListT ma l = ListT $ do a &lt;- ma; runListT =&lt;&lt; do return $ a `consListT` l</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- consMListT ma l = ListT $ do a &lt;- ma; runListT $ a `consListT` l</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- consMListT ma l = ListT $ do a &lt;- ma; runListT $ ListT $ return $ Just (a, l)</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- consMListT ma l = ListT $ do a &lt;- ma; return $ Just (a, l)</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- consMListT ma l = ListT $ Just . (,l) &lt;$&gt; ma</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- | Monadic singleton.</span><span>
+</span><span id="line-99"></span><span id="local-6989586621680700232"><span id="local-6989586621680700233"><span class="annot"><a href="Agda.Utils.ListT.html#sgMListT"><span class="hs-identifier hs-type">sgMListT</span></a></span><span> </span><span class="hs-glyph">::</span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700233"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700233"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700232"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700233"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700232"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-100"></span><span id="sgMListT"><span class="annot"><span class="annottext">sgMListT :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#sgMListT"><span class="hs-identifier hs-var hs-var">sgMListT</span></a></span></span><span> </span><span id="local-6989586621680699998"><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621680699998"><span class="hs-identifier hs-var">ma</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m a -&gt; ListT m a -&gt; ListT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ListT m a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#consMListT"><span class="hs-identifier hs-var">consMListT</span></a></span><span> </span><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621680699998"><span class="hs-identifier hs-var">ma</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#nilListT"><span class="hs-identifier hs-var">nilListT</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- | Extending a monadic function to 'ListT'.</span><span>
+</span><span id="line-103"></span><span id="local-6989586621680700227"><span id="local-6989586621680700228"><span id="local-6989586621680700229"><span class="annot"><a href="Agda.Utils.ListT.html#mapMListT"><span class="hs-identifier hs-type">mapMListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700229"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680700228"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700229"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700227"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700229"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700228"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700229"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700227"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-104"></span><span id="mapMListT"><span class="annot"><span class="annottext">mapMListT :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; ListT m a -&gt; ListT m b
+</span><a href="Agda.Utils.ListT.html#mapMListT"><span class="hs-identifier hs-var hs-var">mapMListT</span></a></span></span><span> </span><span id="local-6989586621680699990"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621680699990"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span id="local-6989586621680699989"><span class="annot"><span class="annottext">m (Maybe (a, ListT m a))
+</span><a href="#local-6989586621680699989"><span class="hs-identifier hs-var">ml</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe (b, ListT m b)) -&gt; ListT m b
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (b, ListT m b)) -&gt; ListT m b)
+-&gt; m (Maybe (b, ListT m b)) -&gt; ListT m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a))
+-&gt; m (Maybe (b, ListT m b))
+-&gt; ((a, ListT m a) -&gt; m (Maybe (b, ListT m b)))
+-&gt; m (Maybe (b, ListT m b))
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+m (Maybe a) -&gt; m b -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.Utils.Maybe.html#caseMaybeM"><span class="hs-identifier hs-var">caseMaybeM</span></a></span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a))
+</span><a href="#local-6989586621680699989"><span class="hs-identifier hs-var">ml</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe (b, ListT m b) -&gt; m (Maybe (b, ListT m b))
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe (b, ListT m b)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(((a, ListT m a) -&gt; m (Maybe (b, ListT m b)))
+ -&gt; m (Maybe (b, ListT m b)))
+-&gt; ((a, ListT m a) -&gt; m (Maybe (b, ListT m b)))
+-&gt; m (Maybe (b, ListT m b))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680699988"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680699988"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680699987"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699987"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-106"></span><span>    </span><span id="local-6989586621680699986"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680699986"><span class="hs-identifier hs-var">b</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621680699990"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680699988"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-107"></span><span>    </span><span class="annot"><span class="annottext">Maybe (b, ListT m b) -&gt; m (Maybe (b, ListT m b))
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe (b, ListT m b) -&gt; m (Maybe (b, ListT m b)))
+-&gt; Maybe (b, ListT m b) -&gt; m (Maybe (b, ListT m b))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(b, ListT m b) -&gt; Maybe (b, ListT m b)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680699986"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m b) -&gt; ListT m a -&gt; ListT m b
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; ListT m a -&gt; ListT m b
+</span><a href="Agda.Utils.ListT.html#mapMListT"><span class="hs-identifier hs-var">mapMListT</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621680699990"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699987"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- | Alternative implementation using 'foldListT'.</span><span>
+</span><span id="line-110"></span><span id="local-6989586621680699983"><span id="local-6989586621680699984"><span id="local-6989586621680699985"><span class="annot"><a href="Agda.Utils.ListT.html#mapMListT_alt"><span class="hs-identifier hs-type">mapMListT_alt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680699985"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680699984"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680699985"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680699983"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680699985"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680699984"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680699985"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680699983"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-111"></span><span id="mapMListT_alt"><span class="annot"><span class="annottext">mapMListT_alt :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; ListT m a -&gt; ListT m b
+</span><a href="Agda.Utils.ListT.html#mapMListT_alt"><span class="hs-identifier hs-var hs-var">mapMListT_alt</span></a></span></span><span> </span><span id="local-6989586621680699972"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621680699972"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (ListT m b) -&gt; ListT m b
+forall (m :: * -&gt; *) a. Monad m =&gt; m (ListT m a) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#runMListT"><span class="hs-identifier hs-var">runMListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m (ListT m b) -&gt; ListT m b)
+-&gt; (ListT m a -&gt; m (ListT m b)) -&gt; ListT m a -&gt; ListT m b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m (ListT m b) -&gt; m (ListT m b))
+-&gt; m (ListT m b) -&gt; ListT m a -&gt; m (ListT m b)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b -&gt; m b) -&gt; m b -&gt; ListT m a -&gt; m b
+</span><a href="Agda.Utils.ListT.html#foldListT"><span class="hs-identifier hs-var">foldListT</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m (ListT m b) -&gt; m (ListT m b)
+</span><a href="#local-6989586621680699971"><span class="hs-identifier hs-var">cons</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListT m b -&gt; m (ListT m b)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">ListT m b
+forall (m :: * -&gt; *) a. Monad m =&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#nilListT"><span class="hs-identifier hs-var">nilListT</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621680699971"><span class="annot"><span class="annottext">cons :: a -&gt; m (ListT m b) -&gt; m (ListT m b)
+</span><a href="#local-6989586621680699971"><span class="hs-identifier hs-var hs-var">cons</span></a></span></span><span> </span><span id="local-6989586621680699970"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680699970"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621680699969"><span class="annot"><span class="annottext">m (ListT m b)
+</span><a href="#local-6989586621680699969"><span class="hs-identifier hs-var">ml</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m b -&gt; ListT m b -&gt; ListT m b
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ListT m a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#consMListT"><span class="hs-identifier hs-var">consMListT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621680699972"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680699970"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(ListT m b -&gt; ListT m b) -&gt; m (ListT m b) -&gt; m (ListT m b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">m (ListT m b)
+</span><a href="#local-6989586621680699969"><span class="hs-identifier hs-var">ml</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- | Change from one monad to another</span><span>
+</span><span id="line-115"></span><span id="local-6989586621680700217"><span id="local-6989586621680700219"><span id="local-6989586621680700220"><span class="annot"><a href="Agda.Utils.ListT.html#liftListT"><span class="hs-identifier hs-type">liftListT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700220"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700219"><span class="hs-identifier hs-type">m'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621680700218"><span class="annot"><a href="#local-6989586621680700218"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><a href="#local-6989586621680700220"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700218"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680700219"><span class="hs-identifier hs-type">m'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700218"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700220"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700217"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700219"><span class="hs-identifier hs-type">m'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700217"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-116"></span><span id="liftListT"><span class="annot"><span class="annottext">liftListT :: forall (m :: * -&gt; *) (m' :: * -&gt; *) a.
+(Monad m, Monad m') =&gt;
+(forall a. m a -&gt; m' a) -&gt; ListT m a -&gt; ListT m' a
+</span><a href="Agda.Utils.ListT.html#liftListT"><span class="hs-identifier hs-var hs-var">liftListT</span></a></span></span><span> </span><span id="local-6989586621680699957"><span class="annot"><span class="annottext">forall a. m a -&gt; m' a
+</span><a href="#local-6989586621680699957"><span class="hs-identifier hs-var">lift</span></a></span></span><span> </span><span id="local-6989586621680699956"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699956"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m' (ListT m' a) -&gt; ListT m' a
+forall (m :: * -&gt; *) a. Monad m =&gt; m (ListT m a) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#runMListT"><span class="hs-identifier hs-var">runMListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m' (ListT m' a) -&gt; ListT m' a) -&gt; m' (ListT m' a) -&gt; ListT m' a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">m' (Maybe (a, ListT m a))
+-&gt; m' (ListT m' a)
+-&gt; ((a, ListT m a) -&gt; m' (ListT m' a))
+-&gt; m' (ListT m' a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+m (Maybe a) -&gt; m b -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.Utils.Maybe.html#caseMaybeM"><span class="hs-identifier hs-var">caseMaybeM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; m' (Maybe (a, ListT m a))
+forall a. m a -&gt; m' a
+</span><a href="#local-6989586621680699957"><span class="hs-identifier hs-var">lift</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (a, ListT m a)) -&gt; m' (Maybe (a, ListT m a)))
+-&gt; m (Maybe (a, ListT m a)) -&gt; m' (Maybe (a, ListT m a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a. ListT m a -&gt; m (Maybe (a, ListT m a))
+</span><a href="Agda.Utils.ListT.html#runListT"><span class="hs-identifier hs-var hs-var">runListT</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699956"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListT m' a -&gt; m' (ListT m' a)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">ListT m' a
+forall (m :: * -&gt; *) a. Monad m =&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#nilListT"><span class="hs-identifier hs-var">nilListT</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(((a, ListT m a) -&gt; m' (ListT m' a)) -&gt; m' (ListT m' a))
+-&gt; ((a, ListT m a) -&gt; m' (ListT m' a)) -&gt; m' (ListT m' a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-117"></span><span>    </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621680699955"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680699955"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621680699954"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699954"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ListT m' a -&gt; m' (ListT m' a)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(ListT m' a -&gt; m' (ListT m' a)) -&gt; ListT m' a -&gt; m' (ListT m' a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; ListT m' a -&gt; ListT m' a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; ListT m a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#consListT"><span class="hs-identifier hs-var">consListT</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680699955"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">(ListT m' a -&gt; ListT m' a) -&gt; ListT m' a -&gt; ListT m' a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(forall a. m a -&gt; m' a) -&gt; ListT m a -&gt; ListT m' a
+forall (m :: * -&gt; *) (m' :: * -&gt; *) a.
+(Monad m, Monad m') =&gt;
+(forall a. m a -&gt; m' a) -&gt; ListT m a -&gt; ListT m' a
+</span><a href="Agda.Utils.ListT.html#liftListT"><span class="hs-identifier hs-var">liftListT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. m a -&gt; m' a
+</span><a href="#local-6989586621680699957"><span class="hs-identifier hs-var">lift</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699954"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- Instances</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span id="local-6989586621680700209"><span id="local-6989586621680700210"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680699949"><span id="local-6989586621680699951"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700210"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700210"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700209"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621680699945"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699945"><span class="hs-identifier hs-var">l1</span></a></span></span><span> </span><span id="local-6989586621680699944"><span class="annot"><span class="annottext">&lt;&gt; :: ListT m a -&gt; ListT m a -&gt; ListT m a
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">&lt;&gt;</span></span></span><span> </span><span id="local-6989586621680699943"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699943"><span class="hs-identifier hs-var">l2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall (m :: * -&gt; *) a. m (Maybe (a, ListT m a)) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-var">ListT</span></a></span><span> </span><span class="annot"><span class="annottext">(m (Maybe (a, ListT m a)) -&gt; ListT m a)
+-&gt; m (Maybe (a, ListT m a)) -&gt; ListT m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a)))
+-&gt; m (Maybe (a, ListT m a))
+-&gt; ListT m a
+-&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b -&gt; m b) -&gt; m b -&gt; ListT m a -&gt; m b
+</span><a href="Agda.Utils.ListT.html#foldListT"><span class="hs-identifier hs-var">foldListT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ListT m a -&gt; ListT m a)
+-&gt; m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a (n :: * -&gt; *) b.
+(ListT m a -&gt; ListT n b)
+-&gt; m (Maybe (a, ListT m a)) -&gt; n (Maybe (b, ListT n b))
+</span><a href="Agda.Utils.ListT.html#unmapListT"><span class="hs-identifier hs-var">unmapListT</span></a></span><span> </span><span class="annot"><span class="annottext">((ListT m a -&gt; ListT m a)
+ -&gt; m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a)))
+-&gt; (a -&gt; ListT m a -&gt; ListT m a)
+-&gt; a
+-&gt; m (Maybe (a, ListT m a))
+-&gt; m (Maybe (a, ListT m a))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; ListT m a -&gt; ListT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; ListT m a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#consListT"><span class="hs-identifier hs-var">consListT</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListT m a -&gt; m (Maybe (a, ListT m a))
+forall (m :: * -&gt; *) a. ListT m a -&gt; m (Maybe (a, ListT m a))
+</span><a href="Agda.Utils.ListT.html#runListT"><span class="hs-identifier hs-var hs-var">runListT</span></a></span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699943"><span class="hs-identifier hs-var">l2</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699945"><span class="hs-identifier hs-var">l1</span></a></span></span></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span id="local-6989586621680700246"><span id="local-6989586621680700247"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680699936"><span id="local-6989586621680699938"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700247"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700247"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700246"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-125"></span><span>  </span><span id="local-6989586621680699933"><span class="annot"><span class="annottext">mempty :: ListT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mempty</span></span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#nilListT"><span class="hs-identifier hs-var">nilListT</span></a></span></span></span><span class="hs-cpp">
+#if !(MIN_VERSION_base(4,11,0))
+</span><span>  </span><span class="hs-identifier">mappend</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-operator">&lt;&gt;</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-130"></span><span id="local-6989586621680700204"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680699925"><span id="local-6989586621680699927"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621680700204"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621680700204"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700204"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Alternative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700204"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-131"></span><span>  </span><span id="local-6989586621680699922"><span class="annot"><span class="annottext">empty :: forall a. ListT m a
+</span><a href="#local-6989586621680699922"><span class="hs-identifier hs-var hs-var hs-var hs-var">empty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m a
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-132"></span><span>  </span><span id="local-6989586621680699920"><span class="annot"><span class="annottext">&lt;|&gt; :: forall a. ListT m a -&gt; ListT m a -&gt; ListT m a
+</span><a href="#local-6989586621680699920"><span class="hs-operator hs-var hs-var hs-var hs-var">(&lt;|&gt;)</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; ListT m a -&gt; ListT m a
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span id="local-6989586621680700196"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621680700196"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621680700196"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700196"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadPlus</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700196"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-135"></span><span>  </span><span id="local-6989586621680699907"><span class="annot"><span class="annottext">mzero :: forall a. ListT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mzero</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m a
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-136"></span><span>  </span><span id="local-6989586621680699904"><span class="annot"><span class="annottext">mplus :: forall a. ListT m a -&gt; ListT m a -&gt; ListT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mplus</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m a -&gt; ListT m a -&gt; ListT m a
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span></span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span id="local-6989586621680699902"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680699892"><span id="local-6989586621680699894"><span id="local-6989586621680699896"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621680699902"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621680699902"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680699902"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680699902"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-139"></span><span>  </span><span id="local-6989586621680699889"><span class="annot"><span class="annottext">pure :: forall a. a -&gt; ListT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">pure</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; ListT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#sgListT"><span class="hs-identifier hs-var">sgListT</span></a></span><span>
+</span><span id="line-140"></span><span>  </span><span id="local-6989586621680699887"><span class="annot"><span class="annottext">&lt;*&gt; :: forall a b. ListT m (a -&gt; b) -&gt; ListT m a -&gt; ListT m b
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(&lt;*&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m (a -&gt; b) -&gt; ListT m a -&gt; ListT m b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m (a -&gt; b) -&gt; m a -&gt; m b
+</span><span class="hs-identifier hs-var">ap</span></span></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span>  </span><span class="hs-comment">-- Another Applicative, but not the canonical one.</span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-comment">-- l1 &lt;*&gt; l2 = ListT $ loop &lt;$&gt; runListT l1 &lt;*&gt; runListT l2</span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-comment">--   where</span><span>
+</span><span id="line-145"></span><span>  </span><span class="hs-comment">--   loop (Just (f, l1')) (Just (a, l2')) = Just (f a, l1' &lt;*&gt; l2')</span><span>
+</span><span id="line-146"></span><span>  </span><span class="hs-comment">--   loop _ _ = Nothing</span><span>
+</span><span id="line-147"></span><span>
+</span><span id="line-148"></span><span id="local-6989586621680699885"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680699880"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621680699885"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621680699885"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680699885"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680699885"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-149"></span><span>  </span><span id="local-6989586621680699876"><span class="annot"><span class="annottext">return :: forall a. a -&gt; ListT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">return</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; ListT m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span>
+</span><span id="line-150"></span><span>  </span><span id="local-6989586621680699873"><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699873"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621680699872"><span class="annot"><span class="annottext">&gt;&gt;= :: forall a b. ListT m a -&gt; (a -&gt; ListT m b) -&gt; ListT m b
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">&gt;&gt;=</span></span></span><span> </span><span id="local-6989586621680699871"><span class="annot"><span class="annottext">a -&gt; ListT m b
+</span><a href="#local-6989586621680699871"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m (ListT m b) -&gt; ListT m b
+forall (m :: * -&gt; *) a. Monad m =&gt; ListT m (ListT m a) -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#concatListT"><span class="hs-identifier hs-var">concatListT</span></a></span><span> </span><span class="annot"><span class="annottext">(ListT m (ListT m b) -&gt; ListT m b)
+-&gt; ListT m (ListT m b) -&gt; ListT m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; ListT m b
+</span><a href="#local-6989586621680699871"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; ListT m b) -&gt; ListT m a -&gt; ListT m (ListT m b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">ListT m a
+</span><a href="#local-6989586621680699873"><span class="hs-identifier hs-var">l</span></a></span></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadTrans</span></span><span> </span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-153"></span><span>  </span><span id="local-6989586621680699865"><span class="annot"><span class="annottext">lift :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ListT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">lift</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m a -&gt; ListT m a
+forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; ListT m a
+</span><a href="Agda.Utils.ListT.html#sgMListT"><span class="hs-identifier hs-var">sgMListT</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span id="local-6989586621680700161"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621680700161"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621680700161"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700161"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-156"></span><span>  </span><span id="local-6989586621680699850"><span class="annot"><span class="annottext">liftIO :: forall a. IO a -&gt; ListT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">liftIO</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m a -&gt; ListT m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m a -&gt; ListT m a) -&gt; (IO a -&gt; m a) -&gt; IO a -&gt; ListT m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">IO a -&gt; m a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span></span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span id="local-6989586621680700154"><span id="local-6989586621680700155"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680699843"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621680700155"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="#local-6989586621680700154"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700155"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="#local-6989586621680700154"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700155"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-159"></span><span>  </span><span id="local-6989586621680699838"><span class="annot"><span class="annottext">ask :: ListT m r
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">ask</span></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m r -&gt; ListT m r
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">m r
+forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
+</span><span class="hs-identifier hs-var">ask</span></span><span>
+</span><span id="line-160"></span><span>  </span><span id="local-6989586621680699835"><span class="annot"><span class="annottext">local :: forall a. (r -&gt; r) -&gt; ListT m a -&gt; ListT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">local</span></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a)))
+-&gt; ListT m a -&gt; ListT m a
+forall (m :: * -&gt; *) a (n :: * -&gt; *) b.
+(m (Maybe (a, ListT m a)) -&gt; n (Maybe (b, ListT n b)))
+-&gt; ListT m a -&gt; ListT n b
+</span><a href="Agda.Utils.ListT.html#mapListT"><span class="hs-identifier hs-var">mapListT</span></a></span><span> </span><span class="annot"><span class="annottext">((m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a)))
+ -&gt; ListT m a -&gt; ListT m a)
+-&gt; ((r -&gt; r)
+    -&gt; m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a)))
+-&gt; (r -&gt; r)
+-&gt; ListT m a
+-&gt; ListT m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(r -&gt; r) -&gt; m (Maybe (a, ListT m a)) -&gt; m (Maybe (a, ListT m a))
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">local</span></span></span></span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span id="local-6989586621680700148"><span id="local-6989586621680700149"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680699828"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621680700149"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="#local-6989586621680700148"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700149"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="#local-6989586621680700148"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700149"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-163"></span><span>  </span><span id="local-6989586621680699823"><span class="annot"><span class="annottext">get :: ListT m s
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">get</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m s -&gt; ListT m s
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">m s
+forall s (m :: * -&gt; *). MonadState s m =&gt; m s
+</span><span class="hs-identifier hs-var">get</span></span><span>
+</span><span id="line-164"></span><span>  </span><span id="local-6989586621680699818"><span class="annot"><span class="annottext">put :: s -&gt; ListT m ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">put</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m () -&gt; ListT m ()
+forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">(m () -&gt; ListT m ()) -&gt; (s -&gt; m ()) -&gt; s -&gt; ListT m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">s -&gt; m ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; s -&gt; m ()
+</span><span class="hs-identifier hs-var">put</span></span></span></span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span id="local-6989586621680700144"><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680700144"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.ListT.html#ListT"><span class="hs-identifier hs-type">ListT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680700144"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-167"></span><span>  </span><span id="local-6989586621680699807"><span class="annot"><span class="annottext">fail :: forall a. String -&gt; ListT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fail</span></span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListT m a
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a
+</span><span class="hs-identifier hs-var">empty</span></span></span><span>
+</span><span id="line-168"></span></pre></body></html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE KindSignatures #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE DataKinds      #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- | Potentially uninitialised Booleans</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- The initial motivation for this small library is to be able to distinguish</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- between a boolean option with a default value and an option which has been</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- set to what happens to be the default value. In one case the default can be</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- overriden (e.g. --cubical implies --without-K) while in the other case the</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- user has made a mistake which they need to fix.</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Utils.WithDefault</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.TypeLits.html"><span class="hs-identifier">Agda.Utils.TypeLits</span></a></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- We don't want to have to remember for each flag whether its default value</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- is True or False. So we bake it into the representation: the flag's type</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- will mention its default value as a phantom parameter.</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">data</span><span> </span><span id="WithDefault"><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-var">WithDefault</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680812839"><span class="annot"><a href="#local-6989586621680812839"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Default"><span class="annot"><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Value"><span class="annot"><a href="Agda.Utils.WithDefault.html#Value"><span class="hs-identifier hs-var">Value</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680812813"><span id="local-6989586621680812817"><span class="annot"><span class="annottext">WithDefault b -&gt; WithDefault b -&gt; Bool
+(WithDefault b -&gt; WithDefault b -&gt; Bool)
+-&gt; (WithDefault b -&gt; WithDefault b -&gt; Bool) -&gt; Eq (WithDefault b)
+forall (b :: Bool). WithDefault b -&gt; WithDefault b -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: WithDefault b -&gt; WithDefault b -&gt; Bool
+$c/= :: forall (b :: Bool). WithDefault b -&gt; WithDefault b -&gt; Bool
+== :: WithDefault b -&gt; WithDefault b -&gt; Bool
+$c== :: forall (b :: Bool). WithDefault b -&gt; WithDefault b -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680812802"><span id="local-6989586621680812804"><span id="local-6989586621680812810"><span class="annot"><span class="annottext">Int -&gt; WithDefault b -&gt; ShowS
+[WithDefault b] -&gt; ShowS
+WithDefault b -&gt; String
+(Int -&gt; WithDefault b -&gt; ShowS)
+-&gt; (WithDefault b -&gt; String)
+-&gt; ([WithDefault b] -&gt; ShowS)
+-&gt; Show (WithDefault b)
+forall (b :: Bool). Int -&gt; WithDefault b -&gt; ShowS
+forall (b :: Bool). [WithDefault b] -&gt; ShowS
+forall (b :: Bool). WithDefault b -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [WithDefault b] -&gt; ShowS
+$cshowList :: forall (b :: Bool). [WithDefault b] -&gt; ShowS
+show :: WithDefault b -&gt; String
+$cshow :: forall (b :: Bool). WithDefault b -&gt; String
+showsPrec :: Int -&gt; WithDefault b -&gt; ShowS
+$cshowsPrec :: forall (b :: Bool). Int -&gt; WithDefault b -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span id="local-6989586621680812833"><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680812833"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>  </span><span id="local-6989586621680812797"><span class="annot"><span class="annottext">rnf :: WithDefault b -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">rnf</span></span></span><span> </span><span class="annot"><span class="annottext">WithDefault b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.WithDefault.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- The main mode of operation of these flags, apart from setting them explicitly,</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- is to toggle them one way or the other if they hadn't been already.</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span id="local-6989586621680812832"><span class="annot"><a href="Agda.Utils.WithDefault.html#setDefault"><span class="hs-identifier hs-type">setDefault</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680812832"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680812832"><span class="hs-identifier hs-type">b</span></a></span></span><span>
+</span><span id="line-33"></span><span id="setDefault"><span class="annot"><span class="annottext">setDefault :: forall (b :: Bool). Bool -&gt; WithDefault b -&gt; WithDefault b
+</span><a href="Agda.Utils.WithDefault.html#setDefault"><span class="hs-identifier hs-var hs-var">setDefault</span></a></span></span><span> </span><span id="local-6989586621680812794"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621680812794"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><span class="annottext">WithDefault b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; WithDefault b
+forall (b :: Bool). Bool -&gt; WithDefault b
+</span><a href="Agda.Utils.WithDefault.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621680812794"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span id="local-6989586621680812793"><span class="annot"><span class="annottext">WithDefault b
+</span><a href="#local-6989586621680812793"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">WithDefault b
+</span><a href="#local-6989586621680812793"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- Provided that the default value is a known boolean (in practice we only use</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- True or False), we can collapse a potentially uninitialised value to a boolean.</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span id="local-6989586621680812830"><span class="annot"><a href="Agda.Utils.WithDefault.html#collapseDefault"><span class="hs-identifier hs-type">collapseDefault</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.TypeLits.html#KnownBool"><span class="hs-identifier hs-type">KnownBool</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680812830"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.WithDefault.html#WithDefault"><span class="hs-identifier hs-type">WithDefault</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680812830"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-41"></span><span id="collapseDefault"><span class="annot"><span class="annottext">collapseDefault :: forall (b :: Bool). KnownBool b =&gt; WithDefault b -&gt; Bool
+</span><a href="Agda.Utils.WithDefault.html#collapseDefault"><span class="hs-identifier hs-var hs-var">collapseDefault</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-42"></span><span>  </span><span id="local-6989586621680812789"><span class="annot"><span class="annottext">w :: WithDefault b
+</span><a href="#local-6989586621680812789"><span class="hs-identifier hs-var">w</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><span class="annottext">WithDefault b
+</span><a href="Agda.Utils.WithDefault.html#Default"><span class="hs-identifier hs-var">Default</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">WithDefault b -&gt; Bool
+forall (proxy :: Bool -&gt; *) (b :: Bool).
+KnownBool b =&gt;
+proxy b -&gt; Bool
+</span><a href="Agda.Utils.TypeLits.html#boolVal"><span class="hs-identifier hs-var">boolVal</span></a></span><span> </span><span class="annot"><span class="annottext">WithDefault b
+</span><a href="#local-6989586621680812789"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span class="annot"><a href="Agda.Utils.WithDefault.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span id="local-6989586621680812787"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621680812787"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621680812787"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-44"></span></pre></body></html>

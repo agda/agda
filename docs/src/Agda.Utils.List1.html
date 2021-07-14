@@ -1,0 +1,447 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Non-empty lists.</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--   Better name @List1@ for non-empty lists, plus missing functionality.</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--   Import:</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--     {-# LANGUAGE PatternSynonyms #-}</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--     import           Agda.Utils.List1 (List1, pattern (:|))</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--     import qualified Agda.Utils.List1 as List1</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--   @</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wno-incomplete-patterns #-}</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-comment">-- because of https://gitlab.haskell.org/ghc/ghc/issues/10339</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Utils.List1</span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html"><span class="hs-identifier">Agda.Utils.List1</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">filter</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Arrow</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&amp;&amp;&amp;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">filterM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">zipWithM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">zipWithM_</span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Either</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Either</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Maybe</span></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Semigroup</span></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List.NonEmpty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NonEmpty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List.NonEmpty</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List1</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NonEmpty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Functor.html"><span class="hs-identifier">Agda.Utils.Functor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Functor.html#%3C.%3E"><span class="hs-operator">(&lt;.&gt;)</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html"><span class="hs-identifier">Agda.Utils.Null</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier">Null</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">type</span><span> </span><span id="List1"><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-var">List1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Data.List.NonEmpty.NonEmpty</span></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- | Return the last element and the rest.</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span id="local-6989586621680693805"><span class="annot"><a href="Agda.Utils.List1.html#initLast"><span class="hs-identifier hs-type">initLast</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693805"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693805"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621680693805"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-50"></span><span id="initLast"><span class="annot"><span class="annottext">initLast :: forall a. List1 a -&gt; ([a], a)
+</span><a href="Agda.Utils.List1.html#initLast"><span class="hs-identifier hs-var hs-var">initLast</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; [a]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.init</span></span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; [a]) -&gt; (NonEmpty a -&gt; a) -&gt; NonEmpty a -&gt; ([a], a)
+forall (a :: * -&gt; * -&gt; *) b c c'.
+Arrow a =&gt;
+a b c -&gt; a b c' -&gt; a b (c, c')
+</span><span class="hs-operator hs-var">&amp;&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; a
+forall a. NonEmpty a -&gt; a
+</span><span class="hs-identifier hs-var">List1.last</span></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-comment">-- traverses twice, but does not create intermediate pairs</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | Build a list with one element.</span><span class="hs-cpp">
+
+#if !(MIN_VERSION_base(4,15,0))
+</span><span class="hs-identifier">singleton</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">List1</span><span> </span><span class="hs-identifier">a</span><span>
+</span><span id="line-57"></span><span class="hs-identifier">singleton</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-operator">:|</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- | Append a list to a non-empty list.</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span id="local-6989586621680693794"><span class="annot"><a href="Agda.Utils.List1.html#append"><span class="hs-identifier hs-type">append</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693794"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693794"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693794"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-63"></span><span id="append"><span class="annot"><span class="annottext">append :: forall a. List1 a -&gt; [a] -&gt; List1 a
+</span><a href="Agda.Utils.List1.html#append"><span class="hs-identifier hs-var hs-var">append</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693646"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693646"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621680693644"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693644"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621680693643"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693643"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693646"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; NonEmpty a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; [a]
+forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693644"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693643"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- | Prepend a list to a non-empty list.</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span id="local-6989586621680693789"><span class="annot"><a href="Agda.Utils.List1.html#prepend"><span class="hs-identifier hs-type">prepend</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693789"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693789"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693789"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-68"></span><span id="prepend"><span class="annot"><span class="annottext">prepend :: forall a. [a] -&gt; List1 a -&gt; List1 a
+</span><a href="Agda.Utils.List1.html#prepend"><span class="hs-identifier hs-var hs-var">prepend</span></a></span></span><span> </span><span id="local-6989586621680693639"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693639"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span id="local-6989586621680693638"><span class="annot"><span class="annottext">List1 a
+</span><a href="#local-6989586621680693638"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; List1 a -&gt; List1 a) -&gt; List1 a -&gt; [a] -&gt; List1 a
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; List1 a -&gt; List1 a
+forall a. a -&gt; NonEmpty a -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">(&lt;|)</span></span><span> </span><span class="annot"><span class="annottext">List1 a
+</span><a href="#local-6989586621680693638"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693639"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- | More precise type for @snoc@.</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span id="local-6989586621680693783"><span class="annot"><a href="Agda.Utils.List1.html#snoc"><span class="hs-identifier hs-type">snoc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693783"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693783"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693783"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-73"></span><span id="snoc"><span class="annot"><span class="annottext">snoc :: forall a. [a] -&gt; a -&gt; List1 a
+</span><a href="Agda.Utils.List1.html#snoc"><span class="hs-identifier hs-var hs-var">snoc</span></a></span></span><span> </span><span id="local-6989586621680693634"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693634"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span id="local-6989586621680693633"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693633"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; List1 a -&gt; List1 a
+forall a. [a] -&gt; List1 a -&gt; List1 a
+</span><a href="Agda.Utils.List1.html#prepend"><span class="hs-identifier hs-var">prepend</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693634"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">(List1 a -&gt; List1 a) -&gt; List1 a -&gt; List1 a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693633"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; List1 a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- | More precise type for 'Agda.Utils.List.groupBy''.</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- A variant of 'List.groupBy' which applies the predicate to consecutive</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- pairs.</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- O(n).</span><span>
+</span><span id="line-80"></span><span class="annot"><a href="Agda.Utils.List1.html#groupBy%27"><span class="hs-identifier hs-type">groupBy'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621680693777"><span class="annot"><a href="#local-6989586621680693777"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680693777"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693777"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693777"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693777"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-81"></span><span id="groupBy%27"><span class="annot"><span class="annottext">groupBy' :: forall a. (a -&gt; a -&gt; Bool) -&gt; [a] -&gt; [List1 a]
+</span><a href="Agda.Utils.List1.html#groupBy%27"><span class="hs-identifier hs-var hs-var">groupBy'</span></a></span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-82"></span><span class="annot"><a href="Agda.Utils.List1.html#groupBy%27"><span class="hs-identifier hs-var">groupBy'</span></a></span><span> </span><span id="local-6989586621680693631"><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+</span><a href="#local-6989586621680693631"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621680693630"><span class="annot"><span class="annottext">xxs :: [a]
+</span><a href="#local-6989586621680693630"><span class="hs-identifier hs-var">xxs</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621680693629"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693629"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621680693628"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693628"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; [(Bool, a)] -&gt; [List1 a]
+</span><a href="#local-6989586621680693627"><span class="hs-identifier hs-var">grp</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693629"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">([(Bool, a)] -&gt; [List1 a]) -&gt; [(Bool, a)] -&gt; [List1 a]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; a -&gt; (Bool, a)) -&gt; [a] -&gt; [a] -&gt; [(Bool, a)]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">List.zipWith</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621680693625"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693625"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621680693624"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693624"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+</span><a href="#local-6989586621680693631"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693625"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693624"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693624"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693630"><span class="hs-identifier hs-var">xxs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693628"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-84"></span><span>  </span><span class="annot"><a href="#local-6989586621680693627"><span class="hs-identifier hs-type">grp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621680693777"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621680693777"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693777"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-85"></span><span>  </span><span id="local-6989586621680693627"><span class="annot"><span class="annottext">grp :: a -&gt; [(Bool, a)] -&gt; [List1 a]
+</span><a href="#local-6989586621680693627"><span class="hs-identifier hs-var hs-var">grp</span></a></span></span><span> </span><span id="local-6989586621680693623"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693623"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621680693622"><span class="annot"><span class="annottext">[(Bool, a)]
+</span><a href="#local-6989586621680693622"><span class="hs-identifier hs-var">ys</span></a></span></span><span>
+</span><span id="line-86"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693621"><span class="annot"><span class="annottext">[(Bool, a)]
+</span><a href="#local-6989586621680693621"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680693620"><span class="annot"><span class="annottext">[(Bool, a)]
+</span><a href="#local-6989586621680693620"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Bool, a) -&gt; Bool) -&gt; [(Bool, a)] -&gt; ([(Bool, a)], [(Bool, a)])
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">List.span</span></span><span> </span><span class="annot"><span class="annottext">(Bool, a) -&gt; Bool
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">[(Bool, a)]
+</span><a href="#local-6989586621680693622"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693623"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; List1 a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">((Bool, a) -&gt; a) -&gt; [(Bool, a)] -&gt; [a]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">List.map</span></span><span> </span><span class="annot"><span class="annottext">(Bool, a) -&gt; a
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">[(Bool, a)]
+</span><a href="#local-6989586621680693621"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">List1 a -&gt; [List1 a] -&gt; [List1 a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[(Bool, a)]
+</span><a href="#local-6989586621680693620"><span class="hs-identifier hs-var">rest</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-88"></span><span>      </span><span class="hs-special">[</span><span class="hs-special">]</span><span>                 </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-89"></span><span>      </span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621680693618"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621680693618"><span class="hs-identifier hs-var">_false</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680693617"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693617"><span class="hs-identifier hs-var">z</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621680693616"><span class="annot"><span class="annottext">[(Bool, a)]
+</span><a href="#local-6989586621680693616"><span class="hs-identifier hs-var">zs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; [(Bool, a)] -&gt; [List1 a]
+</span><a href="#local-6989586621680693627"><span class="hs-identifier hs-var">grp</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693617"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">[(Bool, a)]
+</span><a href="#local-6989586621680693616"><span class="hs-identifier hs-var">zs</span></a></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- | Concatenate one or more non-empty lists.</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span id="local-6989586621680693765"><span class="annot"><a href="Agda.Utils.List1.html#concat"><span class="hs-identifier hs-type">concat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693765"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693765"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-94"></span><span id="concat"><span class="annot"><span class="annottext">concat :: forall a. [List1 a] -&gt; [a]
+</span><a href="Agda.Utils.List1.html#concat"><span class="hs-identifier hs-var hs-var">concat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NonEmpty a -&gt; [a]) -&gt; [NonEmpty a] -&gt; [a]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; [a]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">toList</span></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- | Like 'Data.List.union'.  Duplicates in the first list are not removed.</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- O(nm).</span><span>
+</span><span id="line-98"></span><span id="local-6989586621680693760"><span class="annot"><a href="Agda.Utils.List1.html#union"><span class="hs-identifier hs-type">union</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="#local-6989586621680693760"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693760"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693760"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693760"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-99"></span><span id="union"><span class="annot"><span class="annottext">union :: forall a. Eq a =&gt; List1 a -&gt; List1 a -&gt; List1 a
+</span><a href="Agda.Utils.List1.html#union"><span class="hs-identifier hs-var hs-var">union</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693607"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693607"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621680693606"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693606"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621680693605"><span class="annot"><span class="annottext">NonEmpty a
+</span><a href="#local-6989586621680693605"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693607"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; NonEmpty a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; [a]
+forall a. Eq a =&gt; [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.union</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693606"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Bool) -&gt; NonEmpty a -&gt; [a]
+forall a. (a -&gt; Bool) -&gt; NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693607"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">NonEmpty a
+</span><a href="#local-6989586621680693605"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- * Recovering non-emptyness.</span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span id="local-6989586621680693754"><span id="local-6989586621680693755"><span class="annot"><a href="Agda.Utils.List1.html#ifNull"><span class="hs-identifier hs-type">ifNull</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693755"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693754"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693755"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693754"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693754"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-104"></span><span id="ifNull"><span class="annot"><span class="annottext">ifNull :: forall a b. [a] -&gt; b -&gt; (List1 a -&gt; b) -&gt; b
+</span><a href="Agda.Utils.List1.html#ifNull"><span class="hs-identifier hs-var hs-var">ifNull</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span id="local-6989586621680693600"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680693600"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><span class="annottext">List1 a -&gt; b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680693600"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-105"></span><span class="annot"><a href="Agda.Utils.List1.html#ifNull"><span class="hs-identifier hs-var">ifNull</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693599"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693599"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621680693598"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693598"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621680693597"><span class="annot"><span class="annottext">List1 a -&gt; b
+</span><a href="#local-6989586621680693597"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List1 a -&gt; b
+</span><a href="#local-6989586621680693597"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(List1 a -&gt; b) -&gt; List1 a -&gt; b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693599"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; List1 a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693598"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span id="local-6989586621680693750"><span id="local-6989586621680693751"><span class="annot"><a href="Agda.Utils.List1.html#ifNotNull"><span class="hs-identifier hs-type">ifNotNull</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693751"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693751"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693750"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693750"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693750"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-108"></span><span id="ifNotNull"><span class="annot"><span class="annottext">ifNotNull :: forall a b. [a] -&gt; (List1 a -&gt; b) -&gt; b -&gt; b
+</span><a href="Agda.Utils.List1.html#ifNotNull"><span class="hs-identifier hs-var hs-var">ifNotNull</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="annot"><span class="annottext">List1 a -&gt; b
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621680693595"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680693595"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680693595"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-109"></span><span class="annot"><a href="Agda.Utils.List1.html#ifNotNull"><span class="hs-identifier hs-var">ifNotNull</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693594"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693594"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621680693593"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693593"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621680693592"><span class="annot"><span class="annottext">List1 a -&gt; b
+</span><a href="#local-6989586621680693592"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List1 a -&gt; b
+</span><a href="#local-6989586621680693592"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(List1 a -&gt; b) -&gt; List1 a -&gt; b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693594"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; List1 a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693593"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span id="local-6989586621680693745"><span id="local-6989586621680693747"><span class="annot"><a href="Agda.Utils.List1.html#unlessNull"><span class="hs-identifier hs-type">unlessNull</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Null.html#Null"><span class="hs-identifier hs-type">Null</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693747"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693745"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693745"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693747"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693747"><span class="hs-identifier hs-type">m</span></a></span></span></span><span>
+</span><span id="line-112"></span><span id="unlessNull"><span class="annot"><span class="annottext">unlessNull :: forall m a. Null m =&gt; [a] -&gt; (List1 a -&gt; m) -&gt; m
+</span><a href="Agda.Utils.List1.html#unlessNull"><span class="hs-identifier hs-var hs-var">unlessNull</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>       </span><span class="annot"><span class="annottext">List1 a -&gt; m
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m
+forall a. Null a =&gt; a
+</span><a href="Agda.Utils.Null.html#empty"><span class="hs-identifier hs-var">empty</span></a></span><span>
+</span><span id="line-113"></span><span class="annot"><a href="Agda.Utils.List1.html#unlessNull"><span class="hs-identifier hs-var">unlessNull</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693587"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693587"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621680693586"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693586"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621680693585"><span class="annot"><span class="annottext">List1 a -&gt; m
+</span><a href="#local-6989586621680693585"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">List1 a -&gt; m
+</span><a href="#local-6989586621680693585"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(List1 a -&gt; m) -&gt; List1 a -&gt; m
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693587"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; List1 a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693586"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- * List functions with no special behavior for non-empty lists.</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- | Checks if all the elements in the list are equal. Assumes that</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--   the 'Eq' instance stands for an equivalence relation.</span><span>
+</span><span id="line-119"></span><span class="hs-comment">--   O(n).</span><span>
+</span><span id="line-120"></span><span id="local-6989586621680693741"><span class="annot"><a href="Agda.Utils.List1.html#allEqual"><span class="hs-identifier hs-type">allEqual</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="#local-6989586621680693741"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693741"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-121"></span><span id="allEqual"><span class="annot"><span class="annottext">allEqual :: forall a. Eq a =&gt; List1 a -&gt; Bool
+</span><a href="Agda.Utils.List1.html#allEqual"><span class="hs-identifier hs-var hs-var">allEqual</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693580"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693580"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621680693579"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693579"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Bool) -&gt; [a] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693580"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693579"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- | Like 'Maybe.catMaybes'.</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span id="local-6989586621680693737"><span class="annot"><a href="Agda.Utils.List1.html#catMaybes"><span class="hs-identifier hs-type">catMaybes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621680693737"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693737"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-126"></span><span id="catMaybes"><span class="annot"><span class="annottext">catMaybes :: forall a. List1 (Maybe a) -&gt; [a]
+</span><a href="Agda.Utils.List1.html#catMaybes"><span class="hs-identifier hs-var hs-var">catMaybes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>  </span><span class="annot"><span class="annottext">[Maybe a] -&gt; [a]
+forall a. [Maybe a] -&gt; [a]
+</span><span class="hs-identifier hs-var">Maybe.catMaybes</span></span><span> </span><span class="annot"><span class="annottext">([Maybe a] -&gt; [a])
+-&gt; (NonEmpty (Maybe a) -&gt; [Maybe a]) -&gt; NonEmpty (Maybe a) -&gt; [a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (Maybe a) -&gt; [Maybe a]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- | Like 'List1.filter'.</span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span id="local-6989586621680693730"><span id="local-6989586621680693731"><span class="annot"><a href="Agda.Utils.List1.html#mapMaybe"><span class="hs-identifier hs-type">mapMaybe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680693731"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621680693730"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693731"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693730"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-131"></span><span id="mapMaybe"><span class="annot"><span class="annottext">mapMaybe :: forall a b. (a -&gt; Maybe b) -&gt; List1 a -&gt; [b]
+</span><a href="Agda.Utils.List1.html#mapMaybe"><span class="hs-identifier hs-var hs-var">mapMaybe</span></a></span></span><span> </span><span id="local-6989586621680693573"><span class="annot"><span class="annottext">a -&gt; Maybe b
+</span><a href="#local-6989586621680693573"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">Maybe.mapMaybe</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe b
+</span><a href="#local-6989586621680693573"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">([a] -&gt; [b]) -&gt; (NonEmpty a -&gt; [a]) -&gt; NonEmpty a -&gt; [b]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty a -&gt; [a]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- | Like 'Data.Either.partitionEithers'.</span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span id="local-6989586621680693724"><span id="local-6989586621680693725"><span class="annot"><a href="Agda.Utils.List1.html#partitionEithers"><span class="hs-identifier hs-type">partitionEithers</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621680693725"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693724"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693725"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693724"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-136"></span><span id="partitionEithers"><span class="annot"><span class="annottext">partitionEithers :: forall a b. List1 (Either a b) -&gt; ([a], [b])
+</span><a href="Agda.Utils.List1.html#partitionEithers"><span class="hs-identifier hs-var hs-var">partitionEithers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either a b] -&gt; ([a], [b])
+forall a b. [Either a b] -&gt; ([a], [b])
+</span><span class="hs-identifier hs-var">Either.partitionEithers</span></span><span> </span><span class="annot"><span class="annottext">([Either a b] -&gt; ([a], [b]))
+-&gt; (NonEmpty (Either a b) -&gt; [Either a b])
+-&gt; NonEmpty (Either a b)
+-&gt; ([a], [b])
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (Either a b) -&gt; [Either a b]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- | Like 'Data.Either.lefts'.</span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span id="local-6989586621680693718"><span id="local-6989586621680693719"><span class="annot"><a href="Agda.Utils.List1.html#lefts"><span class="hs-identifier hs-type">lefts</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621680693719"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693718"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693719"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-141"></span><span id="lefts"><span class="annot"><span class="annottext">lefts :: forall a b. List1 (Either a b) -&gt; [a]
+</span><a href="Agda.Utils.List1.html#lefts"><span class="hs-identifier hs-var hs-var">lefts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either a b] -&gt; [a]
+forall a b. [Either a b] -&gt; [a]
+</span><span class="hs-identifier hs-var">Either.lefts</span></span><span>  </span><span class="annot"><span class="annottext">([Either a b] -&gt; [a])
+-&gt; (NonEmpty (Either a b) -&gt; [Either a b])
+-&gt; NonEmpty (Either a b)
+-&gt; [a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (Either a b) -&gt; [Either a b]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- | Like 'Data.Either.rights'.</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span id="local-6989586621680693712"><span id="local-6989586621680693713"><span class="annot"><a href="Agda.Utils.List1.html#rights"><span class="hs-identifier hs-type">rights</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="#local-6989586621680693713"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693712"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680693712"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-146"></span><span id="rights"><span class="annot"><span class="annottext">rights :: forall a b. List1 (Either a b) -&gt; [b]
+</span><a href="Agda.Utils.List1.html#rights"><span class="hs-identifier hs-var hs-var">rights</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either a b] -&gt; [b]
+forall a b. [Either a b] -&gt; [b]
+</span><span class="hs-identifier hs-var">Either.rights</span></span><span>  </span><span class="annot"><span class="annottext">([Either a b] -&gt; [b])
+-&gt; (NonEmpty (Either a b) -&gt; [Either a b])
+-&gt; NonEmpty (Either a b)
+-&gt; [b]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">NonEmpty (Either a b) -&gt; [Either a b]
+forall a. NonEmpty a -&gt; [a]
+</span><span class="hs-identifier hs-var">List1.toList</span></span><span>
+</span><span id="line-147"></span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- | Non-efficient, monadic 'nub'.</span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- O(n&#178;).</span><span>
+</span><span id="line-151"></span><span id="local-6989586621680693706"><span id="local-6989586621680693707"><span class="annot"><a href="Agda.Utils.List1.html#nubM"><span class="hs-identifier hs-type">nubM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621680693707"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680693706"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693706"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693707"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693706"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693707"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693706"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-152"></span><span id="nubM"><span class="annot"><span class="annottext">nubM :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+(a -&gt; a -&gt; m Bool) -&gt; List1 a -&gt; m (List1 a)
+</span><a href="Agda.Utils.List1.html#nubM"><span class="hs-identifier hs-var hs-var">nubM</span></a></span></span><span> </span><span id="local-6989586621680693554"><span class="annot"><span class="annottext">a -&gt; a -&gt; m Bool
+</span><a href="#local-6989586621680693554"><span class="hs-identifier hs-var">eq</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693553"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693553"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621680693552"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693552"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693553"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; NonEmpty a
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">:|</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([a] -&gt; NonEmpty a) -&gt; m [a] -&gt; m (NonEmpty a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-keyword">do</span><span> </span><span class="annot"><span class="annottext">(a -&gt; a -&gt; m Bool) -&gt; [a] -&gt; m [a]
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+(a -&gt; a -&gt; m Bool) -&gt; [a] -&gt; m [a]
+</span><a href="Agda.Utils.List.html#nubM"><span class="hs-identifier hs-var">List.nubM</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; m Bool
+</span><a href="#local-6989586621680693554"><span class="hs-identifier hs-var">eq</span></a></span><span> </span><span class="annot"><span class="annottext">([a] -&gt; m [a]) -&gt; m [a] -&gt; m [a]
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m Bool) -&gt; [a] -&gt; m [a]
+forall (m :: * -&gt; *) a.
+Applicative m =&gt;
+(a -&gt; m Bool) -&gt; [a] -&gt; m [a]
+</span><span class="hs-identifier hs-var">filterM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (a -&gt; m Bool) -&gt; a -&gt; m Bool
+forall (m :: * -&gt; *) b c a.
+Functor m =&gt;
+(b -&gt; c) -&gt; (a -&gt; m b) -&gt; a -&gt; m c
+</span><a href="Agda.Utils.Functor.html#%3C.%3E"><span class="hs-operator hs-var">&lt;.&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; m Bool
+</span><a href="#local-6989586621680693554"><span class="hs-identifier hs-var">eq</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693553"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693552"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- | Like 'Control.Monad.zipWithM'.</span><span>
+</span><span id="line-155"></span><span>
+</span><span id="line-156"></span><span id="local-6989586621680693684"><span id="local-6989586621680693685"><span id="local-6989586621680693686"><span id="local-6989586621680693687"><span class="annot"><a href="Agda.Utils.List1.html#zipWithM"><span class="hs-identifier hs-type">zipWithM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621680693687"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680693686"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693685"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693687"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693684"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693686"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693685"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693687"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693684"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-157"></span><span id="zipWithM"><span class="annot"><span class="annottext">zipWithM :: forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; m c) -&gt; List1 a -&gt; List1 b -&gt; m (List1 c)
+</span><a href="Agda.Utils.List1.html#zipWithM"><span class="hs-identifier hs-var hs-var">zipWithM</span></a></span></span><span> </span><span id="local-6989586621680693541"><span class="annot"><span class="annottext">a -&gt; b -&gt; m c
+</span><a href="#local-6989586621680693541"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693540"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693540"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621680693539"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693539"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693538"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680693538"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621680693537"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621680693537"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">c -&gt; [c] -&gt; NonEmpty c
+forall a. a -&gt; [a] -&gt; NonEmpty a
+</span><span class="hs-operator hs-var">(:|)</span></span><span> </span><span class="annot"><span class="annottext">(c -&gt; [c] -&gt; NonEmpty c) -&gt; m c -&gt; m ([c] -&gt; NonEmpty c)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; m c
+</span><a href="#local-6989586621680693541"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693540"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680693538"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">m ([c] -&gt; NonEmpty c) -&gt; m [c] -&gt; m (NonEmpty c)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; m c) -&gt; [a] -&gt; [b] -&gt; m [c]
+forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; m c) -&gt; [a] -&gt; [b] -&gt; m [c]
+</span><span class="hs-identifier hs-var">List.zipWithM</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; m c
+</span><a href="#local-6989586621680693541"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693539"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621680693537"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- | Like 'Control.Monad.zipWithM'.</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span id="local-6989586621680693670"><span id="local-6989586621680693671"><span id="local-6989586621680693672"><span id="local-6989586621680693673"><span class="annot"><a href="Agda.Utils.List1.html#zipWithM_"><span class="hs-identifier hs-type">zipWithM_</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621680693673"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680693672"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693671"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693673"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693670"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693672"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.List1.html#List1"><span class="hs-identifier hs-type">List1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680693671"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680693673"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-162"></span><span id="zipWithM_"><span class="annot"><span class="annottext">zipWithM_ :: forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; m c) -&gt; List1 a -&gt; List1 b -&gt; m ()
+</span><a href="Agda.Utils.List1.html#zipWithM_"><span class="hs-identifier hs-var hs-var">zipWithM_</span></a></span></span><span> </span><span id="local-6989586621680693532"><span class="annot"><span class="annottext">a -&gt; b -&gt; m c
+</span><a href="#local-6989586621680693532"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693531"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693531"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621680693530"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693530"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680693529"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680693529"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:|</span></span><span> </span><span id="local-6989586621680693528"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621680693528"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; m c
+</span><a href="#local-6989586621680693532"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680693531"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621680693529"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">m c -&gt; m () -&gt; m ()
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b -&gt; m c) -&gt; [a] -&gt; [b] -&gt; m ()
+forall (m :: * -&gt; *) a b c.
+Applicative m =&gt;
+(a -&gt; b -&gt; m c) -&gt; [a] -&gt; [b] -&gt; m ()
+</span><span class="hs-identifier hs-var">List.zipWithM_</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; m c
+</span><a href="#local-6989586621680693532"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680693530"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621680693528"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-163"></span></pre></body></html>

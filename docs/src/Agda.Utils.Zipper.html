@@ -1,0 +1,462 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Utils.Zipper</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">class</span><span> </span><span id="Zipper"><span class="annot"><a href="Agda.Utils.Zipper.html#Zipper"><span class="hs-identifier hs-var">Zipper</span></a></span></span><span> </span><span id="local-6989586621680813133"><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Carrier"><span class="annot"><a href="Agda.Utils.Zipper.html#Carrier"><span class="hs-identifier hs-var">Carrier</span></a></span></span><span> </span><span id="local-6989586621680813133"><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Element"><span class="annot"><a href="Agda.Utils.Zipper.html#Element"><span class="hs-identifier hs-var">Element</span></a></span></span><span> </span><span id="local-6989586621680813133"><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span></span><span>
+</span><span id="line-8"></span><span>  </span><span id="firstHole"><span class="annot"><a href="Agda.Utils.Zipper.html#firstHole"><span class="hs-identifier hs-type">firstHole</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Carrier"><span class="hs-identifier hs-type">Carrier</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#Element"><span class="hs-identifier hs-type">Element</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>  </span><span id="plugHole"><span class="annot"><a href="Agda.Utils.Zipper.html#plugHole"><span class="hs-identifier hs-type">plugHole</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Element"><span class="hs-identifier hs-type">Element</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Carrier"><span class="hs-identifier hs-type">Carrier</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span id="nextHole"><span class="annot"><a href="Agda.Utils.Zipper.html#nextHole"><span class="hs-identifier hs-type">nextHole</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Element"><span class="hs-identifier hs-type">Element</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#Carrier"><span class="hs-identifier hs-type">Carrier</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#Element"><span class="hs-identifier hs-type">Element</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621680813133"><span class="hs-identifier hs-type">z</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">data</span><span> </span><span id="ListZipper"><span class="annot"><a href="Agda.Utils.Zipper.html#ListZipper"><span class="hs-identifier hs-var">ListZipper</span></a></span></span><span> </span><span id="local-6989586621680813176"><span class="annot"><a href="#local-6989586621680813176"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ListZip"><span class="annot"><a href="Agda.Utils.Zipper.html#ListZip"><span class="hs-identifier hs-var">ListZip</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680813176"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680813176"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680813053"><span id="local-6989586621680813058"><span class="annot"><span class="annottext">ListZipper a -&gt; ListZipper a -&gt; Bool
+(ListZipper a -&gt; ListZipper a -&gt; Bool)
+-&gt; (ListZipper a -&gt; ListZipper a -&gt; Bool) -&gt; Eq (ListZipper a)
+forall a. Eq a =&gt; ListZipper a -&gt; ListZipper a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: ListZipper a -&gt; ListZipper a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; ListZipper a -&gt; ListZipper a -&gt; Bool
+== :: ListZipper a -&gt; ListZipper a -&gt; Bool
+$c== :: forall a. Eq a =&gt; ListZipper a -&gt; ListZipper a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680813028"><span id="local-6989586621680813030"><span id="local-6989586621680813033"><span id="local-6989586621680813036"><span id="local-6989586621680813039"><span id="local-6989586621680813043"><span id="local-6989586621680813048"><span class="annot"><span class="annottext">Eq (ListZipper a)
+Eq (ListZipper a)
+-&gt; (ListZipper a -&gt; ListZipper a -&gt; Ordering)
+-&gt; (ListZipper a -&gt; ListZipper a -&gt; Bool)
+-&gt; (ListZipper a -&gt; ListZipper a -&gt; Bool)
+-&gt; (ListZipper a -&gt; ListZipper a -&gt; Bool)
+-&gt; (ListZipper a -&gt; ListZipper a -&gt; Bool)
+-&gt; (ListZipper a -&gt; ListZipper a -&gt; ListZipper a)
+-&gt; (ListZipper a -&gt; ListZipper a -&gt; ListZipper a)
+-&gt; Ord (ListZipper a)
+ListZipper a -&gt; ListZipper a -&gt; Bool
+ListZipper a -&gt; ListZipper a -&gt; Ordering
+ListZipper a -&gt; ListZipper a -&gt; ListZipper a
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+forall {a}. Ord a =&gt; Eq (ListZipper a)
+forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; Bool
+forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; Ordering
+forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; ListZipper a
+min :: ListZipper a -&gt; ListZipper a -&gt; ListZipper a
+$cmin :: forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; ListZipper a
+max :: ListZipper a -&gt; ListZipper a -&gt; ListZipper a
+$cmax :: forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; ListZipper a
+&gt;= :: ListZipper a -&gt; ListZipper a -&gt; Bool
+$c&gt;= :: forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; Bool
+&gt; :: ListZipper a -&gt; ListZipper a -&gt; Bool
+$c&gt; :: forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; Bool
+&lt;= :: ListZipper a -&gt; ListZipper a -&gt; Bool
+$c&lt;= :: forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; Bool
+&lt; :: ListZipper a -&gt; ListZipper a -&gt; Bool
+$c&lt; :: forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; Bool
+compare :: ListZipper a -&gt; ListZipper a -&gt; Ordering
+$ccompare :: forall a. Ord a =&gt; ListZipper a -&gt; ListZipper a -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680813016"><span id="local-6989586621680813018"><span id="local-6989586621680813025"><span class="annot"><span class="annottext">Int -&gt; ListZipper a -&gt; ShowS
+[ListZipper a] -&gt; ShowS
+ListZipper a -&gt; String
+(Int -&gt; ListZipper a -&gt; ShowS)
+-&gt; (ListZipper a -&gt; String)
+-&gt; ([ListZipper a] -&gt; ShowS)
+-&gt; Show (ListZipper a)
+forall a. Show a =&gt; Int -&gt; ListZipper a -&gt; ShowS
+forall a. Show a =&gt; [ListZipper a] -&gt; ShowS
+forall a. Show a =&gt; ListZipper a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [ListZipper a] -&gt; ShowS
+$cshowList :: forall a. Show a =&gt; [ListZipper a] -&gt; ShowS
+show :: ListZipper a -&gt; String
+$cshow :: forall a. Show a =&gt; ListZipper a -&gt; String
+showsPrec :: Int -&gt; ListZipper a -&gt; ShowS
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; ListZipper a -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680813008"><span id="local-6989586621680813013"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; ListZipper a -&gt; ListZipper b)
+-&gt; (forall a b. a -&gt; ListZipper b -&gt; ListZipper a)
+-&gt; Functor ListZipper
+forall a b. a -&gt; ListZipper b -&gt; ListZipper a
+forall a b. (a -&gt; b) -&gt; ListZipper a -&gt; ListZipper b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+&lt;$ :: forall a b. a -&gt; ListZipper b -&gt; ListZipper a
+$c&lt;$ :: forall a b. a -&gt; ListZipper b -&gt; ListZipper a
+fmap :: forall a b. (a -&gt; b) -&gt; ListZipper a -&gt; ListZipper b
+$cfmap :: forall a b. (a -&gt; b) -&gt; ListZipper a -&gt; ListZipper b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680812959"><span id="local-6989586621680812961"><span id="local-6989586621680812963"><span id="local-6989586621680812965"><span id="local-6989586621680812967"><span id="local-6989586621680812969"><span id="local-6989586621680812973"><span id="local-6989586621680812975"><span id="local-6989586621680812977"><span id="local-6989586621680812979"><span id="local-6989586621680812981"><span id="local-6989586621680812983"><span id="local-6989586621680812985"><span id="local-6989586621680812989"><span id="local-6989586621680812991"><span id="local-6989586621680813000"><span id="local-6989586621680813002"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; ListZipper m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ListZipper a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ListZipper a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; ListZipper a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; ListZipper a -&gt; a)
+-&gt; (forall a. ListZipper a -&gt; [a])
+-&gt; (forall a. ListZipper a -&gt; Bool)
+-&gt; (forall a. ListZipper a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; ListZipper a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; ListZipper a -&gt; a)
+-&gt; (forall a. Ord a =&gt; ListZipper a -&gt; a)
+-&gt; (forall a. Num a =&gt; ListZipper a -&gt; a)
+-&gt; (forall a. Num a =&gt; ListZipper a -&gt; a)
+-&gt; Foldable ListZipper
+forall a. Eq a =&gt; a -&gt; ListZipper a -&gt; Bool
+forall a. Num a =&gt; ListZipper a -&gt; a
+forall a. Ord a =&gt; ListZipper a -&gt; a
+forall m. Monoid m =&gt; ListZipper m -&gt; m
+forall a. ListZipper a -&gt; Bool
+forall a. ListZipper a -&gt; Int
+forall a. ListZipper a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; ListZipper a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ListZipper a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+product :: forall a. Num a =&gt; ListZipper a -&gt; a
+$cproduct :: forall a. Num a =&gt; ListZipper a -&gt; a
+sum :: forall a. Num a =&gt; ListZipper a -&gt; a
+$csum :: forall a. Num a =&gt; ListZipper a -&gt; a
+minimum :: forall a. Ord a =&gt; ListZipper a -&gt; a
+$cminimum :: forall a. Ord a =&gt; ListZipper a -&gt; a
+maximum :: forall a. Ord a =&gt; ListZipper a -&gt; a
+$cmaximum :: forall a. Ord a =&gt; ListZipper a -&gt; a
+elem :: forall a. Eq a =&gt; a -&gt; ListZipper a -&gt; Bool
+$celem :: forall a. Eq a =&gt; a -&gt; ListZipper a -&gt; Bool
+length :: forall a. ListZipper a -&gt; Int
+$clength :: forall a. ListZipper a -&gt; Int
+null :: forall a. ListZipper a -&gt; Bool
+$cnull :: forall a. ListZipper a -&gt; Bool
+toList :: forall a. ListZipper a -&gt; [a]
+$ctoList :: forall a. ListZipper a -&gt; [a]
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; ListZipper a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; ListZipper a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; ListZipper a -&gt; a
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; ListZipper a -&gt; a
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ListZipper a -&gt; b
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ListZipper a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ListZipper a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ListZipper a -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ListZipper a -&gt; m
+fold :: forall m. Monoid m =&gt; ListZipper m -&gt; m
+$cfold :: forall m. Monoid m =&gt; ListZipper m -&gt; m
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680812939"><span id="local-6989586621680812941"><span id="local-6989586621680812943"><span id="local-6989586621680812952"><span class="annot"><span class="annottext">Functor ListZipper
+Foldable ListZipper
+Functor ListZipper
+-&gt; Foldable ListZipper
+-&gt; (forall (f :: * -&gt; *) a b.
+    Applicative f =&gt;
+    (a -&gt; f b) -&gt; ListZipper a -&gt; f (ListZipper b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    ListZipper (f a) -&gt; f (ListZipper a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; ListZipper a -&gt; m (ListZipper b))
+-&gt; (forall (m :: * -&gt; *) a.
+    Monad m =&gt;
+    ListZipper (m a) -&gt; m (ListZipper a))
+-&gt; Traversable ListZipper
+forall (t :: * -&gt; *).
+Functor t
+-&gt; Foldable t
+-&gt; (forall (f :: * -&gt; *) a b.
+    Applicative f =&gt;
+    (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+ListZipper (m a) -&gt; m (ListZipper a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+ListZipper (f a) -&gt; f (ListZipper a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; ListZipper a -&gt; m (ListZipper b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; ListZipper a -&gt; f (ListZipper b)
+sequence :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+ListZipper (m a) -&gt; m (ListZipper a)
+$csequence :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+ListZipper (m a) -&gt; m (ListZipper a)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; ListZipper a -&gt; m (ListZipper b)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; ListZipper a -&gt; m (ListZipper b)
+sequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+ListZipper (f a) -&gt; f (ListZipper a)
+$csequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+ListZipper (f a) -&gt; f (ListZipper a)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; ListZipper a -&gt; f (ListZipper b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; ListZipper a -&gt; f (ListZipper b)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span id="local-6989586621680813132"><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Zipper"><span class="hs-identifier hs-type">Zipper</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ListZipper"><span class="hs-identifier hs-type">ListZipper</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813132"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Carrier"><span class="annot"><a href="Agda.Utils.Zipper.html#Carrier"><span class="hs-identifier hs-var">Carrier</span></a></span></span><span> </span><span id="local-6989586621680813132"><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ListZipper"><span class="hs-identifier hs-type">ListZipper</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813132"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621680813132"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Element"><span class="annot"><a href="Agda.Utils.Zipper.html#Element"><span class="hs-identifier hs-var">Element</span></a></span></span><span> </span><span id="local-6989586621680813132"><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ListZipper"><span class="hs-identifier hs-type">ListZipper</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813132"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621680813132"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span id="local-6989586621680812932"><span class="annot"><span class="annottext">firstHole :: Carrier (ListZipper a)
+-&gt; Maybe (Element (ListZipper a), ListZipper a)
+</span><a href="#local-6989586621680812932"><span class="hs-identifier hs-var hs-var hs-var hs-var">firstHole</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680812931"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680812931"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621680812930"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812930"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, ListZipper a) -&gt; Maybe (a, ListZipper a)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680812931"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; ListZipper a
+forall a. [a] -&gt; [a] -&gt; ListZipper a
+</span><a href="Agda.Utils.Zipper.html#ListZip"><span class="hs-identifier hs-var">ListZip</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812930"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>  </span><span class="annot"><a href="Agda.Utils.Zipper.html#firstHole"><span class="hs-identifier hs-var">firstHole</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (Element (ListZipper a), ListZipper a)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-20"></span><span>  </span><span id="local-6989586621680812929"><span class="annot"><span class="annottext">plugHole :: Element (ListZipper a) -&gt; ListZipper a -&gt; Carrier (ListZipper a)
+</span><a href="#local-6989586621680812929"><span class="hs-identifier hs-var hs-var hs-var hs-var">plugHole</span></a></span></span><span> </span><span id="local-6989586621680812928"><span class="annot"><span class="annottext">Element (ListZipper a)
+</span><a href="#local-6989586621680812928"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ListZip"><span class="hs-identifier hs-type">ListZip</span></a></span><span> </span><span id="local-6989586621680812927"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812927"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621680812926"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812926"><span class="hs-identifier hs-var">zs</span></a></span></span><span class="hs-special">)</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a]
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812927"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; [a]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">a
+Element (ListZipper a)
+</span><a href="#local-6989586621680812928"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812926"><span class="hs-identifier hs-var">zs</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span id="local-6989586621680812924"><span class="annot"><span class="annottext">nextHole :: Element (ListZipper a)
+-&gt; ListZipper a
+-&gt; Either
+     (Carrier (ListZipper a)) (Element (ListZipper a), ListZipper a)
+</span><a href="#local-6989586621680812924"><span class="hs-identifier hs-var hs-var hs-var hs-var">nextHole</span></a></span></span><span> </span><span id="local-6989586621680812923"><span class="annot"><span class="annottext">Element (ListZipper a)
+</span><a href="#local-6989586621680812923"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ListZip"><span class="hs-identifier hs-type">ListZip</span></a></span><span> </span><span id="local-6989586621680812922"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812922"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Either [a] (a, ListZipper a)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a] -&gt; [a]
+forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+Element (ListZipper a)
+</span><a href="#local-6989586621680812923"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812922"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>  </span><span class="annot"><a href="Agda.Utils.Zipper.html#nextHole"><span class="hs-identifier hs-var">nextHole</span></a></span><span> </span><span id="local-6989586621680812921"><span class="annot"><span class="annottext">Element (ListZipper a)
+</span><a href="#local-6989586621680812921"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ListZip"><span class="hs-identifier hs-type">ListZip</span></a></span><span> </span><span id="local-6989586621680812920"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812920"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680812919"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680812919"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621680812918"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812918"><span class="hs-identifier hs-var">zs</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a, ListZipper a) -&gt; Either [a] (a, ListZipper a)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680812919"><span class="hs-identifier hs-var">z</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; ListZipper a
+forall a. [a] -&gt; [a] -&gt; ListZipper a
+</span><a href="Agda.Utils.Zipper.html#ListZip"><span class="hs-identifier hs-var">ListZip</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+Element (ListZipper a)
+</span><a href="#local-6989586621680812921"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; [a] -&gt; [a]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812920"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621680812918"><span class="hs-identifier hs-var">zs</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">data</span><span> </span><span id="ComposeZipper"><span class="annot"><a href="Agda.Utils.Zipper.html#ComposeZipper"><span class="hs-identifier hs-var">ComposeZipper</span></a></span></span><span> </span><span id="local-6989586621680813119"><span class="annot"><a href="#local-6989586621680813119"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span id="local-6989586621680813118"><span class="annot"><a href="#local-6989586621680813118"><span class="hs-identifier hs-type">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ComposeZip"><span class="annot"><a href="Agda.Utils.Zipper.html#ComposeZip"><span class="hs-identifier hs-var">ComposeZip</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621680813119"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813118"><span class="hs-identifier hs-type">g</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span id="local-6989586621680813122"><span id="local-6989586621680813123"><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#Zipper"><span class="hs-identifier hs-type">Zipper</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813123"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Zipper"><span class="hs-identifier hs-type">Zipper</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813122"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Element"><span class="hs-identifier hs-type">Element</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813123"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Carrier"><span class="hs-identifier hs-type">Carrier</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813122"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Zipper"><span class="hs-identifier hs-type">Zipper</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ComposeZipper"><span class="hs-identifier hs-type">ComposeZipper</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813123"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813122"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Carrier"><span class="annot"><a href="Agda.Utils.Zipper.html#Carrier"><span class="hs-identifier hs-var">Carrier</span></a></span></span><span> </span><span id="local-6989586621680813122"><span id="local-6989586621680813123"><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ComposeZipper"><span class="hs-identifier hs-type">ComposeZipper</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813123"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813122"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Carrier"><span class="hs-identifier hs-type">Carrier</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813123"><span class="hs-identifier hs-type">f</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Element"><span class="annot"><a href="Agda.Utils.Zipper.html#Element"><span class="hs-identifier hs-var">Element</span></a></span></span><span> </span><span id="local-6989586621680813122"><span id="local-6989586621680813123"><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ComposeZipper"><span class="hs-identifier hs-type">ComposeZipper</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813123"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813122"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Agda.Utils.Zipper.html#Element"><span class="hs-identifier hs-type">Element</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680813122"><span class="hs-identifier hs-type">g</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span id="local-6989586621680812897"><span class="annot"><span class="annottext">firstHole :: Carrier (ComposeZipper f g)
+-&gt; Maybe (Element (ComposeZipper f g), ComposeZipper f g)
+</span><a href="#local-6989586621680812897"><span class="hs-identifier hs-var hs-var hs-var hs-var">firstHole</span></a></span></span><span> </span><span id="local-6989586621680812896"><span class="annot"><span class="annottext">Carrier (ComposeZipper f g)
+</span><a href="#local-6989586621680812896"><span class="hs-identifier hs-var">c1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621680812895"><span class="annot"><span class="annottext">Carrier g
+</span><a href="#local-6989586621680812895"><span class="hs-identifier hs-var">c2</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680812894"><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812894"><span class="hs-identifier hs-var">z1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Carrier f -&gt; Maybe (Element f, f)
+forall z. Zipper z =&gt; Carrier z -&gt; Maybe (Element z, z)
+</span><a href="Agda.Utils.Zipper.html#firstHole"><span class="hs-identifier hs-var">firstHole</span></a></span><span> </span><span class="annot"><span class="annottext">Carrier f
+Carrier (ComposeZipper f g)
+</span><a href="#local-6989586621680812896"><span class="hs-identifier hs-var">c1</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span class="annot"><span class="annottext">Carrier g -&gt; f -&gt; Maybe (Element g, ComposeZipper f g)
+forall {g} {f}.
+(Zipper g, Zipper f, Element f ~ Carrier g) =&gt;
+Carrier g -&gt; f -&gt; Maybe (Element g, ComposeZipper f g)
+</span><a href="#local-6989586621680812893"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Carrier g
+</span><a href="#local-6989586621680812895"><span class="hs-identifier hs-var">c2</span></a></span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812894"><span class="hs-identifier hs-var">z1</span></a></span><span>
+</span><span id="line-32"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>      </span><span id="local-6989586621680812893"><span class="annot"><span class="annottext">go :: Carrier g -&gt; f -&gt; Maybe (Element g, ComposeZipper f g)
+</span><a href="#local-6989586621680812893"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621680812883"><span class="annot"><span class="annottext">Carrier g
+</span><a href="#local-6989586621680812883"><span class="hs-identifier hs-var">c2</span></a></span></span><span> </span><span id="local-6989586621680812882"><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812882"><span class="hs-identifier hs-var">z1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-34"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Carrier g -&gt; Maybe (Element g, g)
+forall z. Zipper z =&gt; Carrier z -&gt; Maybe (Element z, z)
+</span><a href="Agda.Utils.Zipper.html#firstHole"><span class="hs-identifier hs-var">firstHole</span></a></span><span> </span><span class="annot"><span class="annottext">Carrier g
+</span><a href="#local-6989586621680812883"><span class="hs-identifier hs-var">c2</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-35"></span><span>          </span><span class="annot"><span class="annottext">Maybe (Element g, g)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Element f -&gt; f -&gt; Either (Carrier f) (Element f, f)
+forall z.
+Zipper z =&gt;
+Element z -&gt; z -&gt; Either (Carrier z) (Element z, z)
+</span><a href="Agda.Utils.Zipper.html#nextHole"><span class="hs-identifier hs-var">nextHole</span></a></span><span> </span><span class="annot"><span class="annottext">Carrier g
+Element f
+</span><a href="#local-6989586621680812883"><span class="hs-identifier hs-var">c2</span></a></span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812882"><span class="hs-identifier hs-var">z1</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-36"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (Element g, ComposeZipper f g)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-37"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680812881"><span class="annot"><span class="annottext">Element f
+</span><a href="#local-6989586621680812881"><span class="hs-identifier hs-var">c2'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680812880"><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812880"><span class="hs-identifier hs-var">z1'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Carrier g -&gt; f -&gt; Maybe (Element g, ComposeZipper f g)
+</span><a href="#local-6989586621680812893"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Carrier g
+Element f
+</span><a href="#local-6989586621680812881"><span class="hs-identifier hs-var">c2'</span></a></span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812880"><span class="hs-identifier hs-var">z1'</span></a></span><span>
+</span><span id="line-38"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680812879"><span class="annot"><span class="annottext">Element g
+</span><a href="#local-6989586621680812879"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680812878"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812878"><span class="hs-identifier hs-var">z2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Element g, ComposeZipper f g)
+-&gt; Maybe (Element g, ComposeZipper f g)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Element g
+</span><a href="#local-6989586621680812879"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">f -&gt; g -&gt; ComposeZipper f g
+forall f g. f -&gt; g -&gt; ComposeZipper f g
+</span><a href="Agda.Utils.Zipper.html#ComposeZip"><span class="hs-identifier hs-var">ComposeZip</span></a></span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812882"><span class="hs-identifier hs-var">z1</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812878"><span class="hs-identifier hs-var">z2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621680812875"><span class="annot"><span class="annottext">plugHole :: Element (ComposeZipper f g)
+-&gt; ComposeZipper f g -&gt; Carrier (ComposeZipper f g)
+</span><a href="#local-6989586621680812875"><span class="hs-identifier hs-var hs-var hs-var hs-var">plugHole</span></a></span></span><span> </span><span id="local-6989586621680812874"><span class="annot"><span class="annottext">Element (ComposeZipper f g)
+</span><a href="#local-6989586621680812874"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ComposeZip"><span class="hs-identifier hs-type">ComposeZip</span></a></span><span> </span><span id="local-6989586621680812873"><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812873"><span class="hs-identifier hs-var">z1</span></a></span></span><span> </span><span id="local-6989586621680812872"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812872"><span class="hs-identifier hs-var">z2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Element f -&gt; f -&gt; Carrier f
+forall z. Zipper z =&gt; Element z -&gt; z -&gt; Carrier z
+</span><a href="Agda.Utils.Zipper.html#plugHole"><span class="hs-identifier hs-var">plugHole</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Element g -&gt; g -&gt; Carrier g
+forall z. Zipper z =&gt; Element z -&gt; z -&gt; Carrier z
+</span><a href="Agda.Utils.Zipper.html#plugHole"><span class="hs-identifier hs-var">plugHole</span></a></span><span> </span><span class="annot"><span class="annottext">Element g
+Element (ComposeZipper f g)
+</span><a href="#local-6989586621680812874"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812872"><span class="hs-identifier hs-var">z2</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812873"><span class="hs-identifier hs-var">z1</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span id="local-6989586621680812867"><span class="annot"><span class="annottext">nextHole :: Element (ComposeZipper f g)
+-&gt; ComposeZipper f g
+-&gt; Either
+     (Carrier (ComposeZipper f g))
+     (Element (ComposeZipper f g), ComposeZipper f g)
+</span><a href="#local-6989586621680812867"><span class="hs-identifier hs-var hs-var hs-var hs-var">nextHole</span></a></span></span><span> </span><span id="local-6989586621680812866"><span class="annot"><span class="annottext">Element (ComposeZipper f g)
+</span><a href="#local-6989586621680812866"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Utils.Zipper.html#ComposeZip"><span class="hs-identifier hs-type">ComposeZip</span></a></span><span> </span><span id="local-6989586621680812865"><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812865"><span class="hs-identifier hs-var">z1</span></a></span></span><span> </span><span id="local-6989586621680812864"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812864"><span class="hs-identifier hs-var">z2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Element g -&gt; g -&gt; Either (Carrier g) (Element g, g)
+forall z.
+Zipper z =&gt;
+Element z -&gt; z -&gt; Either (Carrier z) (Element z, z)
+</span><a href="Agda.Utils.Zipper.html#nextHole"><span class="hs-identifier hs-var">nextHole</span></a></span><span> </span><span class="annot"><span class="annottext">Element g
+Element (ComposeZipper f g)
+</span><a href="#local-6989586621680812866"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812864"><span class="hs-identifier hs-var">z2</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-42"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680812863"><span class="annot"><span class="annottext">Element g
+</span><a href="#local-6989586621680812863"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680812862"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812862"><span class="hs-identifier hs-var">z2'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Element g, ComposeZipper f g)
+-&gt; Either (Carrier f) (Element g, ComposeZipper f g)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Element g
+</span><a href="#local-6989586621680812863"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">f -&gt; g -&gt; ComposeZipper f g
+forall f g. f -&gt; g -&gt; ComposeZipper f g
+</span><a href="Agda.Utils.Zipper.html#ComposeZip"><span class="hs-identifier hs-var">ComposeZip</span></a></span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812865"><span class="hs-identifier hs-var">z1</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812862"><span class="hs-identifier hs-var">z2'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621680812861"><span class="annot"><span class="annottext">Carrier g
+</span><a href="#local-6989586621680812861"><span class="hs-identifier hs-var">c2</span></a></span></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Carrier g -&gt; f -&gt; Either (Carrier f) (Element g, ComposeZipper f g)
+forall {f} {g}.
+(Zipper f, Zipper g, Element f ~ Carrier g) =&gt;
+Carrier g -&gt; f -&gt; Either (Carrier f) (Element g, ComposeZipper f g)
+</span><a href="#local-6989586621680812860"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Carrier g
+</span><a href="#local-6989586621680812861"><span class="hs-identifier hs-var">c2</span></a></span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812865"><span class="hs-identifier hs-var">z1</span></a></span><span>
+</span><span id="line-44"></span><span>        </span><span class="hs-keyword">where</span><span>
+</span><span id="line-45"></span><span>          </span><span id="local-6989586621680812860"><span class="annot"><span class="annottext">go :: Carrier g -&gt; f -&gt; Either (Carrier f) (Element g, ComposeZipper f g)
+</span><a href="#local-6989586621680812860"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621680812850"><span class="annot"><span class="annottext">Carrier g
+</span><a href="#local-6989586621680812850"><span class="hs-identifier hs-var">c2</span></a></span></span><span> </span><span id="local-6989586621680812849"><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812849"><span class="hs-identifier hs-var">z1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-46"></span><span>            </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Element f -&gt; f -&gt; Either (Carrier f) (Element f, f)
+forall z.
+Zipper z =&gt;
+Element z -&gt; z -&gt; Either (Carrier z) (Element z, z)
+</span><a href="Agda.Utils.Zipper.html#nextHole"><span class="hs-identifier hs-var">nextHole</span></a></span><span> </span><span class="annot"><span class="annottext">Carrier g
+Element f
+</span><a href="#local-6989586621680812850"><span class="hs-identifier hs-var">c2</span></a></span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812849"><span class="hs-identifier hs-var">z1</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-47"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680812848"><span class="annot"><span class="annottext">Element f
+</span><a href="#local-6989586621680812848"><span class="hs-identifier hs-var">c2'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680812847"><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812847"><span class="hs-identifier hs-var">z1'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-48"></span><span>                </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Carrier g -&gt; Maybe (Element g, g)
+forall z. Zipper z =&gt; Carrier z -&gt; Maybe (Element z, z)
+</span><a href="Agda.Utils.Zipper.html#firstHole"><span class="hs-identifier hs-var">firstHole</span></a></span><span> </span><span class="annot"><span class="annottext">Carrier g
+Element f
+</span><a href="#local-6989586621680812848"><span class="hs-identifier hs-var">c2'</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-49"></span><span>                  </span><span class="annot"><span class="annottext">Maybe (Element g, g)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Carrier g -&gt; f -&gt; Either (Carrier f) (Element g, ComposeZipper f g)
+</span><a href="#local-6989586621680812860"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Carrier g
+Element f
+</span><a href="#local-6989586621680812848"><span class="hs-identifier hs-var">c2'</span></a></span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812847"><span class="hs-identifier hs-var">z1'</span></a></span><span>
+</span><span id="line-50"></span><span>                  </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621680812846"><span class="annot"><span class="annottext">Element g
+</span><a href="#local-6989586621680812846"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680812845"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812845"><span class="hs-identifier hs-var">z2'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Element g, ComposeZipper f g)
+-&gt; Either (Carrier f) (Element g, ComposeZipper f g)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Element g
+</span><a href="#local-6989586621680812846"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">f -&gt; g -&gt; ComposeZipper f g
+forall f g. f -&gt; g -&gt; ComposeZipper f g
+</span><a href="Agda.Utils.Zipper.html#ComposeZip"><span class="hs-identifier hs-var">ComposeZip</span></a></span><span> </span><span class="annot"><span class="annottext">f
+</span><a href="#local-6989586621680812847"><span class="hs-identifier hs-var">z1'</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621680812845"><span class="hs-identifier hs-var">z2'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621680812844"><span class="annot"><span class="annottext">Carrier f
+</span><a href="#local-6989586621680812844"><span class="hs-identifier hs-var">c1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Carrier f -&gt; Either (Carrier f) (Element g, ComposeZipper f g)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">Carrier f
+</span><a href="#local-6989586621680812844"><span class="hs-identifier hs-var">c1</span></a></span></span></span><span>
+</span><span id="line-52"></span></pre></body></html>

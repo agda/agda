@@ -1,0 +1,1652 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621680731604"><span id="local-6989586621680731605"><span id="local-6989586621680731606"><span id="local-6989586621680731607"><span id="local-6989586621680731608"><span id="local-6989586621680731609"><span id="local-6989586621680731610"><span id="local-6989586621680731611"><span id="local-6989586621680731612"><span id="local-6989586621680731613"></span></span></span></span></span></span></span></span></span></span><span class="hs-comment">-- | Basic data types for library management.</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Interaction.Library.Base</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Arrow</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">first</span></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">second</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">isDigit</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Data</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Data</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Text</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Directory</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.FilePath</span></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html"><span class="hs-identifier">Agda.Interaction.Options.Warnings</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.FileName.html"><span class="hs-identifier">Agda.Utils.FileName</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Pretty.html"><span class="hs-identifier">Agda.Utils.Pretty</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- | A symbolic library name.</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">type</span><span> </span><span id="LibName"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-var">LibName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">data</span><span> </span><span id="LibrariesFile"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibrariesFile"><span class="hs-identifier hs-var">LibrariesFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LibrariesFile"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibrariesFile"><span class="hs-identifier hs-var">LibrariesFile</span></a></span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="lfPath"><span class="annot"><span class="annottext">LibrariesFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#lfPath"><span class="hs-identifier hs-var hs-var">lfPath</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-35"></span><span>      </span><span class="hs-comment">-- ^ E.g. @~/.agda/libraries@.</span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="lfExists"><span class="annot"><span class="annottext">LibrariesFile -&gt; Bool
+</span><a href="Agda.Interaction.Library.Base.html#lfExists"><span class="hs-identifier hs-var hs-var">lfExists</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-37"></span><span>       </span><span class="hs-comment">-- ^ The libraries file might not exist,</span><span>
+</span><span id="line-38"></span><span>       </span><span class="hs-comment">--   but we may print its assumed location in error messages.</span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680731548"><span id="local-6989586621680731550"><span id="local-6989586621680731559"><span class="annot"><span class="annottext">LineNumber -&gt; LibrariesFile -&gt; ShowS
+[LibrariesFile] -&gt; ShowS
+LibrariesFile -&gt; String
+(LineNumber -&gt; LibrariesFile -&gt; ShowS)
+-&gt; (LibrariesFile -&gt; String)
+-&gt; ([LibrariesFile] -&gt; ShowS)
+-&gt; Show LibrariesFile
+forall a.
+(LineNumber -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [LibrariesFile] -&gt; ShowS
+$cshowList :: [LibrariesFile] -&gt; ShowS
+show :: LibrariesFile -&gt; String
+$cshow :: LibrariesFile -&gt; String
+showsPrec :: LineNumber -&gt; LibrariesFile -&gt; ShowS
+$cshowsPrec :: LineNumber -&gt; LibrariesFile -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- | A symbolic executable name.</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">type</span><span> </span><span id="ExeName"><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExeName"><span class="hs-identifier hs-var">ExeName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span id="local-6989586621680731543"><span id="local-6989586621680731544"></span></span><span class="hs-keyword">data</span><span> </span><span id="ExecutablesFile"><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExecutablesFile"><span class="hs-identifier hs-var">ExecutablesFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ExecutablesFile"><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExecutablesFile"><span class="hs-identifier hs-var">ExecutablesFile</span></a></span></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="efPath"><span class="annot"><span class="annottext">ExecutablesFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#efPath"><span class="hs-identifier hs-var hs-var">efPath</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-47"></span><span>      </span><span class="hs-comment">-- ^ E.g. @~/.agda/executables@.</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="efExists"><span class="annot"><span class="annottext">ExecutablesFile -&gt; Bool
+</span><a href="Agda.Interaction.Library.Base.html#efExists"><span class="hs-identifier hs-var hs-var">efExists</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-49"></span><span>       </span><span class="hs-comment">-- ^ The executables file might not exist,</span><span>
+</span><span id="line-50"></span><span>       </span><span class="hs-comment">--   but we may print its assumed location in error messages.</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680731530"><span id="local-6989586621680731532"><span id="local-6989586621680731538"><span class="annot"><span class="annottext">LineNumber -&gt; ExecutablesFile -&gt; ShowS
+[ExecutablesFile] -&gt; ShowS
+ExecutablesFile -&gt; String
+(LineNumber -&gt; ExecutablesFile -&gt; ShowS)
+-&gt; (ExecutablesFile -&gt; String)
+-&gt; ([ExecutablesFile] -&gt; ShowS)
+-&gt; Show ExecutablesFile
+forall a.
+(LineNumber -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [ExecutablesFile] -&gt; ShowS
+$cshowList :: [ExecutablesFile] -&gt; ShowS
+show :: ExecutablesFile -&gt; String
+$cshow :: ExecutablesFile -&gt; String
+showsPrec :: LineNumber -&gt; ExecutablesFile -&gt; ShowS
+$cshowsPrec :: LineNumber -&gt; ExecutablesFile -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680731492"><span id="local-6989586621680731494"><span id="local-6989586621680731496"><span id="local-6989586621680731498"><span id="local-6989586621680731500"><span id="local-6989586621680731502"><span id="local-6989586621680731504"><span id="local-6989586621680731506"><span id="local-6989586621680731508"><span id="local-6989586621680731510"><span id="local-6989586621680731512"><span id="local-6989586621680731514"><span id="local-6989586621680731519"><span id="local-6989586621680731526"><span class="annot"><span class="annottext">Typeable ExecutablesFile
+Typeable ExecutablesFile
+-&gt; (forall (c :: * -&gt; *).
+    (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+    -&gt; (forall g. g -&gt; c g) -&gt; ExecutablesFile -&gt; c ExecutablesFile)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c ExecutablesFile)
+-&gt; (ExecutablesFile -&gt; Constr)
+-&gt; (ExecutablesFile -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c ExecutablesFile))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e))
+    -&gt; Maybe (c ExecutablesFile))
+-&gt; ((forall b. Data b =&gt; b -&gt; b)
+    -&gt; ExecutablesFile -&gt; ExecutablesFile)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r)
+    -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; ExecutablesFile -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r)
+    -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; ExecutablesFile -&gt; r)
+-&gt; (forall u.
+    (forall d. Data d =&gt; d -&gt; u) -&gt; ExecutablesFile -&gt; [u])
+-&gt; (forall u.
+    LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; ExecutablesFile -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d)
+    -&gt; ExecutablesFile -&gt; m ExecutablesFile)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d)
+    -&gt; ExecutablesFile -&gt; m ExecutablesFile)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d)
+    -&gt; ExecutablesFile -&gt; m ExecutablesFile)
+-&gt; Data ExecutablesFile
+ExecutablesFile -&gt; DataType
+ExecutablesFile -&gt; Constr
+(forall b. Data b =&gt; b -&gt; b) -&gt; ExecutablesFile -&gt; ExecutablesFile
+forall a.
+Typeable a
+-&gt; (forall (c :: * -&gt; *).
+    (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+    -&gt; (forall g. g -&gt; c g) -&gt; a -&gt; c a)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c a)
+-&gt; (a -&gt; Constr)
+-&gt; (a -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c a))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c a))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; a -&gt; a)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; [u])
+-&gt; (forall u. LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; Data a
+forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; ExecutablesFile -&gt; u
+forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; ExecutablesFile -&gt; [u]
+forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; ExecutablesFile -&gt; r
+forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; ExecutablesFile -&gt; r
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; ExecutablesFile -&gt; m ExecutablesFile
+forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; ExecutablesFile -&gt; m ExecutablesFile
+forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c ExecutablesFile
+forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; ExecutablesFile -&gt; c ExecutablesFile
+forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c ExecutablesFile)
+forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e))
+-&gt; Maybe (c ExecutablesFile)
+gmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; ExecutablesFile -&gt; m ExecutablesFile
+$cgmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; ExecutablesFile -&gt; m ExecutablesFile
+gmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; ExecutablesFile -&gt; m ExecutablesFile
+$cgmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; ExecutablesFile -&gt; m ExecutablesFile
+gmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; ExecutablesFile -&gt; m ExecutablesFile
+$cgmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; ExecutablesFile -&gt; m ExecutablesFile
+gmapQi :: forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; ExecutablesFile -&gt; u
+$cgmapQi :: forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; ExecutablesFile -&gt; u
+gmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; ExecutablesFile -&gt; [u]
+$cgmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; ExecutablesFile -&gt; [u]
+gmapQr :: forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; ExecutablesFile -&gt; r
+$cgmapQr :: forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; ExecutablesFile -&gt; r
+gmapQl :: forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; ExecutablesFile -&gt; r
+$cgmapQl :: forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; ExecutablesFile -&gt; r
+gmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; ExecutablesFile -&gt; ExecutablesFile
+$cgmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; ExecutablesFile -&gt; ExecutablesFile
+dataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e))
+-&gt; Maybe (c ExecutablesFile)
+$cdataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e))
+-&gt; Maybe (c ExecutablesFile)
+dataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c ExecutablesFile)
+$cdataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c ExecutablesFile)
+dataTypeOf :: ExecutablesFile -&gt; DataType
+$cdataTypeOf :: ExecutablesFile -&gt; DataType
+toConstr :: ExecutablesFile -&gt; Constr
+$ctoConstr :: ExecutablesFile -&gt; Constr
+gunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c ExecutablesFile
+$cgunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c ExecutablesFile
+gfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; ExecutablesFile -&gt; c ExecutablesFile
+$cgfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; ExecutablesFile -&gt; c ExecutablesFile
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Data</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(forall x. ExecutablesFile -&gt; Rep ExecutablesFile x)
+-&gt; (forall x. Rep ExecutablesFile x -&gt; ExecutablesFile)
+-&gt; Generic ExecutablesFile
+forall x. Rep ExecutablesFile x -&gt; ExecutablesFile
+forall x. ExecutablesFile -&gt; Rep ExecutablesFile x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cto :: forall x. Rep ExecutablesFile x -&gt; ExecutablesFile
+$cfrom :: forall x. ExecutablesFile -&gt; Rep ExecutablesFile x
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | The special name @\&quot;.\&quot;@ is used to indicated that the current directory</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--   should count as a project root.</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--</span><span>
+</span><span id="line-56"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#libNameForCurrentDir"><span class="hs-identifier hs-type">libNameForCurrentDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-type">LibName</span></a></span><span>
+</span><span id="line-57"></span><span id="libNameForCurrentDir"><span class="annot"><span class="annottext">libNameForCurrentDir :: String
+</span><a href="Agda.Interaction.Library.Base.html#libNameForCurrentDir"><span class="hs-identifier hs-var hs-var">libNameForCurrentDir</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;.&quot;</span></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- | A file can either belong to a project located at a given root</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--   containing one or more .agda-lib files, or be part of the default</span><span>
+</span><span id="line-61"></span><span class="hs-comment">--   project.</span><span>
+</span><span id="line-62"></span><span id="local-6989586621680731484"><span id="local-6989586621680731485"></span></span><span class="hs-keyword">data</span><span> </span><span id="ProjectConfig"><span class="annot"><a href="Agda.Interaction.Library.Base.html#ProjectConfig"><span class="hs-identifier hs-var">ProjectConfig</span></a></span></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="ProjectConfig"><span class="annot"><a href="Agda.Interaction.Library.Base.html#ProjectConfig"><span class="hs-identifier hs-var">ProjectConfig</span></a></span></span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-special">{</span><span> </span><span id="configRoot"><span class="annot"><span class="annottext">ProjectConfig -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#configRoot"><span class="hs-identifier hs-var hs-var">configRoot</span></a></span></span><span>         </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-65"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="configAgdaLibFiles"><span class="annot"><span class="annottext">ProjectConfig -&gt; [String]
+</span><a href="Agda.Interaction.Library.Base.html#configAgdaLibFiles"><span class="hs-identifier hs-var hs-var">configAgdaLibFiles</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span class="hs-special">]</span><span>
+</span><span id="line-66"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="DefaultProjectConfig"><span class="annot"><a href="Agda.Interaction.Library.Base.html#DefaultProjectConfig"><span class="hs-identifier hs-var">DefaultProjectConfig</span></a></span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="annottext">(forall x. ProjectConfig -&gt; Rep ProjectConfig x)
+-&gt; (forall x. Rep ProjectConfig x -&gt; ProjectConfig)
+-&gt; Generic ProjectConfig
+forall x. Rep ProjectConfig x -&gt; ProjectConfig
+forall x. ProjectConfig -&gt; Rep ProjectConfig x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cto :: forall x. Rep ProjectConfig x -&gt; ProjectConfig
+$cfrom :: forall x. ProjectConfig -&gt; Rep ProjectConfig x
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- | Content of a @.agda-lib@ file.</span><span>
+</span><span id="line-71"></span><span class="hs-comment">--</span><span>
+</span><span id="line-72"></span><span id="local-6989586621680731476"><span id="local-6989586621680731477"></span></span><span class="hs-keyword">data</span><span> </span><span id="AgdaLibFile"><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-var">AgdaLibFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="AgdaLibFile"><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-var">AgdaLibFile</span></a></span></span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="_libName"><span class="annot"><span class="annottext">AgdaLibFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#_libName"><span class="hs-identifier hs-var hs-var">_libName</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-type">LibName</span></a></span><span>     </span><span class="hs-comment">-- ^ The symbolic name of the library.</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_libFile"><span class="annot"><span class="annottext">AgdaLibFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#_libFile"><span class="hs-identifier hs-var hs-var">_libFile</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>    </span><span class="hs-comment">-- ^ Path to this @.agda-lib@ file (not content of the file).</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_libIncludes"><span class="annot"><span class="annottext">AgdaLibFile -&gt; [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libIncludes"><span class="hs-identifier hs-var hs-var">_libIncludes</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span class="hs-special">]</span><span>  </span><span class="hs-comment">-- ^ Roots where to look for the modules of the library.</span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_libDepends"><span class="annot"><span class="annottext">AgdaLibFile -&gt; [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libDepends"><span class="hs-identifier hs-var hs-var">_libDepends</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-type">LibName</span></a></span><span class="hs-special">]</span><span>   </span><span class="hs-comment">-- ^ Dependencies.</span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="_libPragmas"><span class="annot"><span class="annottext">AgdaLibFile -&gt; [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libPragmas"><span class="hs-identifier hs-var hs-var">_libPragmas</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>    </span><span class="hs-comment">-- ^ Default pragma options for all files in the library.</span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680731457"><span id="local-6989586621680731459"><span id="local-6989586621680731468"><span class="annot"><span class="annottext">LineNumber -&gt; AgdaLibFile -&gt; ShowS
+[AgdaLibFile] -&gt; ShowS
+AgdaLibFile -&gt; String
+(LineNumber -&gt; AgdaLibFile -&gt; ShowS)
+-&gt; (AgdaLibFile -&gt; String)
+-&gt; ([AgdaLibFile] -&gt; ShowS)
+-&gt; Show AgdaLibFile
+forall a.
+(LineNumber -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [AgdaLibFile] -&gt; ShowS
+$cshowList :: [AgdaLibFile] -&gt; ShowS
+show :: AgdaLibFile -&gt; String
+$cshow :: AgdaLibFile -&gt; String
+showsPrec :: LineNumber -&gt; AgdaLibFile -&gt; ShowS
+$cshowsPrec :: LineNumber -&gt; AgdaLibFile -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(forall x. AgdaLibFile -&gt; Rep AgdaLibFile x)
+-&gt; (forall x. Rep AgdaLibFile x -&gt; AgdaLibFile)
+-&gt; Generic AgdaLibFile
+forall x. Rep AgdaLibFile x -&gt; AgdaLibFile
+forall x. AgdaLibFile -&gt; Rep AgdaLibFile x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cto :: forall x. Rep AgdaLibFile x -&gt; AgdaLibFile
+$cfrom :: forall x. AgdaLibFile -&gt; Rep AgdaLibFile x
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#emptyLibFile"><span class="hs-identifier hs-type">emptyLibFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-82"></span><span id="emptyLibFile"><span class="annot"><span class="annottext">emptyLibFile :: AgdaLibFile
+</span><a href="Agda.Interaction.Library.Base.html#emptyLibFile"><span class="hs-identifier hs-var hs-var">emptyLibFile</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AgdaLibFile :: String -&gt; String -&gt; [String] -&gt; [String] -&gt; [String] -&gt; AgdaLibFile
+</span><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_libName :: String
+</span><a href="Agda.Interaction.Library.Base.html#_libName"><span class="hs-identifier hs-var">_libName</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_libFile :: String
+</span><a href="Agda.Interaction.Library.Base.html#_libFile"><span class="hs-identifier hs-var">_libFile</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_libIncludes :: [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libIncludes"><span class="hs-identifier hs-var">_libIncludes</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_libDepends :: [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libDepends"><span class="hs-identifier hs-var">_libDepends</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_libPragmas :: [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libPragmas"><span class="hs-identifier hs-var">_libPragmas</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- | Lenses for AgdaLibFile</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#libName"><span class="hs-identifier hs-type">libName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-type">LibName</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-93"></span><span id="libName"><span class="annot"><span class="annottext">libName :: Lens' String AgdaLibFile
+</span><a href="Agda.Interaction.Library.Base.html#libName"><span class="hs-identifier hs-var hs-var">libName</span></a></span></span><span> </span><span id="local-6989586621680731450"><span class="annot"><span class="annottext">String -&gt; f String
+</span><a href="#local-6989586621680731450"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621680731449"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731449"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; f String
+</span><a href="#local-6989586621680731450"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AgdaLibFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#_libName"><span class="hs-identifier hs-var hs-var">_libName</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731449"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f String -&gt; (String -&gt; AgdaLibFile) -&gt; f AgdaLibFile
+forall (m :: * -&gt; *) a b. Functor m =&gt; m a -&gt; (a -&gt; b) -&gt; m b
+</span><a href="Agda.Utils.Functor.html#%3C%26%3E"><span class="hs-operator hs-var">&lt;&amp;&gt;</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621680731447"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731447"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731449"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_libName :: String
+</span><a href="Agda.Interaction.Library.Base.html#_libName"><span class="hs-identifier hs-var">_libName</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731447"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#libFile"><span class="hs-identifier hs-type">libFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-96"></span><span id="libFile"><span class="annot"><span class="annottext">libFile :: Lens' String AgdaLibFile
+</span><a href="Agda.Interaction.Library.Base.html#libFile"><span class="hs-identifier hs-var hs-var">libFile</span></a></span></span><span> </span><span id="local-6989586621680731443"><span class="annot"><span class="annottext">String -&gt; f String
+</span><a href="#local-6989586621680731443"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621680731442"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731442"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; f String
+</span><a href="#local-6989586621680731443"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AgdaLibFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#_libFile"><span class="hs-identifier hs-var hs-var">_libFile</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731442"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f String -&gt; (String -&gt; AgdaLibFile) -&gt; f AgdaLibFile
+forall (m :: * -&gt; *) a b. Functor m =&gt; m a -&gt; (a -&gt; b) -&gt; m b
+</span><a href="Agda.Utils.Functor.html#%3C%26%3E"><span class="hs-operator hs-var">&lt;&amp;&gt;</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621680731441"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731441"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731442"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_libFile :: String
+</span><a href="Agda.Interaction.Library.Base.html#_libFile"><span class="hs-identifier hs-var">_libFile</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731441"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#libIncludes"><span class="hs-identifier hs-type">libIncludes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-99"></span><span id="libIncludes"><span class="annot"><span class="annottext">libIncludes :: Lens' [String] AgdaLibFile
+</span><a href="Agda.Interaction.Library.Base.html#libIncludes"><span class="hs-identifier hs-var hs-var">libIncludes</span></a></span></span><span> </span><span id="local-6989586621680731437"><span class="annot"><span class="annottext">[String] -&gt; f [String]
+</span><a href="#local-6989586621680731437"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621680731436"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731436"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; f [String]
+</span><a href="#local-6989586621680731437"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AgdaLibFile -&gt; [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libIncludes"><span class="hs-identifier hs-var hs-var">_libIncludes</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731436"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f [String] -&gt; ([String] -&gt; AgdaLibFile) -&gt; f AgdaLibFile
+forall (m :: * -&gt; *) a b. Functor m =&gt; m a -&gt; (a -&gt; b) -&gt; m b
+</span><a href="Agda.Utils.Functor.html#%3C%26%3E"><span class="hs-operator hs-var">&lt;&amp;&gt;</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621680731435"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621680731435"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731436"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_libIncludes :: [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libIncludes"><span class="hs-identifier hs-var">_libIncludes</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621680731435"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#libDepends"><span class="hs-identifier hs-type">libDepends</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-type">LibName</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-102"></span><span id="libDepends"><span class="annot"><span class="annottext">libDepends :: Lens' [String] AgdaLibFile
+</span><a href="Agda.Interaction.Library.Base.html#libDepends"><span class="hs-identifier hs-var hs-var">libDepends</span></a></span></span><span> </span><span id="local-6989586621680731431"><span class="annot"><span class="annottext">[String] -&gt; f [String]
+</span><a href="#local-6989586621680731431"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621680731430"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731430"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; f [String]
+</span><a href="#local-6989586621680731431"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AgdaLibFile -&gt; [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libDepends"><span class="hs-identifier hs-var hs-var">_libDepends</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731430"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f [String] -&gt; ([String] -&gt; AgdaLibFile) -&gt; f AgdaLibFile
+forall (m :: * -&gt; *) a b. Functor m =&gt; m a -&gt; (a -&gt; b) -&gt; m b
+</span><a href="Agda.Utils.Functor.html#%3C%26%3E"><span class="hs-operator hs-var">&lt;&amp;&gt;</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621680731429"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621680731429"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731430"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_libDepends :: [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libDepends"><span class="hs-identifier hs-var">_libDepends</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621680731429"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#libPragmas"><span class="hs-identifier hs-type">libPragmas</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-105"></span><span id="libPragmas"><span class="annot"><span class="annottext">libPragmas :: Lens' [String] AgdaLibFile
+</span><a href="Agda.Interaction.Library.Base.html#libPragmas"><span class="hs-identifier hs-var hs-var">libPragmas</span></a></span></span><span> </span><span id="local-6989586621680731425"><span class="annot"><span class="annottext">[String] -&gt; f [String]
+</span><a href="#local-6989586621680731425"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621680731424"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731424"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; f [String]
+</span><a href="#local-6989586621680731425"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AgdaLibFile -&gt; [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libPragmas"><span class="hs-identifier hs-var hs-var">_libPragmas</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731424"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f [String] -&gt; ([String] -&gt; AgdaLibFile) -&gt; f AgdaLibFile
+forall (m :: * -&gt; *) a b. Functor m =&gt; m a -&gt; (a -&gt; b) -&gt; m b
+</span><a href="Agda.Utils.Functor.html#%3C%26%3E"><span class="hs-operator hs-var">&lt;&amp;&gt;</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621680731423"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621680731423"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731424"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_libPragmas :: [String]
+</span><a href="Agda.Interaction.Library.Base.html#_libPragmas"><span class="hs-identifier hs-var">_libPragmas</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621680731423"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- * Library warnings and errors</span><span>
+</span><span id="line-110"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-keyword">type</span><span> </span><span id="LineNumber"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LineNumber"><span class="hs-identifier hs-var">LineNumber</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span id="local-6989586621680731421"><span id="local-6989586621680731422"></span></span><span class="hs-keyword">data</span><span> </span><span id="LibPositionInfo"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibPositionInfo"><span class="hs-identifier hs-var">LibPositionInfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LibPositionInfo"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibPositionInfo"><span class="hs-identifier hs-var">LibPositionInfo</span></a></span></span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="libFilePos"><span class="annot"><span class="annottext">LibPositionInfo -&gt; Maybe String
+</span><a href="Agda.Interaction.Library.Base.html#libFilePos"><span class="hs-identifier hs-var hs-var">libFilePos</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-comment">-- ^ Name of @libraries@ file</span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="lineNumPos"><span class="annot"><span class="annottext">LibPositionInfo -&gt; LineNumber
+</span><a href="Agda.Interaction.Library.Base.html#lineNumPos"><span class="hs-identifier hs-var hs-var">lineNumPos</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LineNumber"><span class="hs-identifier hs-type">LineNumber</span></a></span><span>     </span><span class="hs-comment">-- ^ Line number in @libraries@ file.</span><span>
+</span><span id="line-117"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="filePos"><span class="annot"><span class="annottext">LibPositionInfo -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#filePos"><span class="hs-identifier hs-var hs-var">filePos</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>       </span><span class="hs-comment">-- ^ Library file</span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680731405"><span id="local-6989586621680731407"><span id="local-6989586621680731415"><span class="annot"><span class="annottext">LineNumber -&gt; LibPositionInfo -&gt; ShowS
+[LibPositionInfo] -&gt; ShowS
+LibPositionInfo -&gt; String
+(LineNumber -&gt; LibPositionInfo -&gt; ShowS)
+-&gt; (LibPositionInfo -&gt; String)
+-&gt; ([LibPositionInfo] -&gt; ShowS)
+-&gt; Show LibPositionInfo
+forall a.
+(LineNumber -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [LibPositionInfo] -&gt; ShowS
+$cshowList :: [LibPositionInfo] -&gt; ShowS
+show :: LibPositionInfo -&gt; String
+$cshow :: LibPositionInfo -&gt; String
+showsPrec :: LineNumber -&gt; LibPositionInfo -&gt; ShowS
+$cshowsPrec :: LineNumber -&gt; LibPositionInfo -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680731364"><span id="local-6989586621680731366"><span id="local-6989586621680731368"><span id="local-6989586621680731370"><span id="local-6989586621680731372"><span id="local-6989586621680731374"><span id="local-6989586621680731376"><span id="local-6989586621680731378"><span id="local-6989586621680731380"><span id="local-6989586621680731382"><span id="local-6989586621680731384"><span id="local-6989586621680731386"><span id="local-6989586621680731392"><span id="local-6989586621680731400"><span class="annot"><span class="annottext">Typeable LibPositionInfo
+Typeable LibPositionInfo
+-&gt; (forall (c :: * -&gt; *).
+    (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+    -&gt; (forall g. g -&gt; c g) -&gt; LibPositionInfo -&gt; c LibPositionInfo)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibPositionInfo)
+-&gt; (LibPositionInfo -&gt; Constr)
+-&gt; (LibPositionInfo -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibPositionInfo))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e))
+    -&gt; Maybe (c LibPositionInfo))
+-&gt; ((forall b. Data b =&gt; b -&gt; b)
+    -&gt; LibPositionInfo -&gt; LibPositionInfo)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r)
+    -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibPositionInfo -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r)
+    -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibPositionInfo -&gt; r)
+-&gt; (forall u.
+    (forall d. Data d =&gt; d -&gt; u) -&gt; LibPositionInfo -&gt; [u])
+-&gt; (forall u.
+    LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibPositionInfo -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d)
+    -&gt; LibPositionInfo -&gt; m LibPositionInfo)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d)
+    -&gt; LibPositionInfo -&gt; m LibPositionInfo)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d)
+    -&gt; LibPositionInfo -&gt; m LibPositionInfo)
+-&gt; Data LibPositionInfo
+LibPositionInfo -&gt; DataType
+LibPositionInfo -&gt; Constr
+(forall b. Data b =&gt; b -&gt; b) -&gt; LibPositionInfo -&gt; LibPositionInfo
+forall a.
+Typeable a
+-&gt; (forall (c :: * -&gt; *).
+    (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+    -&gt; (forall g. g -&gt; c g) -&gt; a -&gt; c a)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c a)
+-&gt; (a -&gt; Constr)
+-&gt; (a -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c a))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c a))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; a -&gt; a)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; [u])
+-&gt; (forall u. LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; Data a
+forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibPositionInfo -&gt; u
+forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibPositionInfo -&gt; [u]
+forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibPositionInfo -&gt; r
+forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibPositionInfo -&gt; r
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; LibPositionInfo -&gt; m LibPositionInfo
+forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; LibPositionInfo -&gt; m LibPositionInfo
+forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibPositionInfo
+forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; LibPositionInfo -&gt; c LibPositionInfo
+forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibPositionInfo)
+forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e))
+-&gt; Maybe (c LibPositionInfo)
+gmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; LibPositionInfo -&gt; m LibPositionInfo
+$cgmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; LibPositionInfo -&gt; m LibPositionInfo
+gmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; LibPositionInfo -&gt; m LibPositionInfo
+$cgmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; LibPositionInfo -&gt; m LibPositionInfo
+gmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; LibPositionInfo -&gt; m LibPositionInfo
+$cgmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d)
+-&gt; LibPositionInfo -&gt; m LibPositionInfo
+gmapQi :: forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibPositionInfo -&gt; u
+$cgmapQi :: forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibPositionInfo -&gt; u
+gmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibPositionInfo -&gt; [u]
+$cgmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibPositionInfo -&gt; [u]
+gmapQr :: forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibPositionInfo -&gt; r
+$cgmapQr :: forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibPositionInfo -&gt; r
+gmapQl :: forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibPositionInfo -&gt; r
+$cgmapQl :: forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibPositionInfo -&gt; r
+gmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; LibPositionInfo -&gt; LibPositionInfo
+$cgmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; LibPositionInfo -&gt; LibPositionInfo
+dataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e))
+-&gt; Maybe (c LibPositionInfo)
+$cdataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e))
+-&gt; Maybe (c LibPositionInfo)
+dataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibPositionInfo)
+$cdataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibPositionInfo)
+dataTypeOf :: LibPositionInfo -&gt; DataType
+$cdataTypeOf :: LibPositionInfo -&gt; DataType
+toConstr :: LibPositionInfo -&gt; Constr
+$ctoConstr :: LibPositionInfo -&gt; Constr
+gunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibPositionInfo
+$cgunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibPositionInfo
+gfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; LibPositionInfo -&gt; c LibPositionInfo
+$cgfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; LibPositionInfo -&gt; c LibPositionInfo
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Data</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(forall x. LibPositionInfo -&gt; Rep LibPositionInfo x)
+-&gt; (forall x. Rep LibPositionInfo x -&gt; LibPositionInfo)
+-&gt; Generic LibPositionInfo
+forall x. Rep LibPositionInfo x -&gt; LibPositionInfo
+forall x. LibPositionInfo -&gt; Rep LibPositionInfo x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cto :: forall x. Rep LibPositionInfo x -&gt; LibPositionInfo
+$cfrom :: forall x. LibPositionInfo -&gt; Rep LibPositionInfo x
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span id="local-6989586621680731360"><span id="local-6989586621680731361"></span></span><span class="hs-keyword">data</span><span> </span><span id="LibWarning"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-var">LibWarning</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LibWarning"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-var">LibWarning</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibPositionInfo"><span class="hs-identifier hs-type">LibPositionInfo</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning%27"><span class="hs-identifier hs-type">LibWarning'</span></a></span><span>
+</span><span id="line-122"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680731349"><span id="local-6989586621680731351"><span id="local-6989586621680731357"><span class="annot"><span class="annottext">LineNumber -&gt; LibWarning -&gt; ShowS
+[LibWarning] -&gt; ShowS
+LibWarning -&gt; String
+(LineNumber -&gt; LibWarning -&gt; ShowS)
+-&gt; (LibWarning -&gt; String)
+-&gt; ([LibWarning] -&gt; ShowS)
+-&gt; Show LibWarning
+forall a.
+(LineNumber -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [LibWarning] -&gt; ShowS
+$cshowList :: [LibWarning] -&gt; ShowS
+show :: LibWarning -&gt; String
+$cshow :: LibWarning -&gt; String
+showsPrec :: LineNumber -&gt; LibWarning -&gt; ShowS
+$cshowsPrec :: LineNumber -&gt; LibWarning -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680731313"><span id="local-6989586621680731315"><span id="local-6989586621680731317"><span id="local-6989586621680731319"><span id="local-6989586621680731321"><span id="local-6989586621680731323"><span id="local-6989586621680731325"><span id="local-6989586621680731327"><span id="local-6989586621680731329"><span id="local-6989586621680731331"><span id="local-6989586621680731333"><span id="local-6989586621680731335"><span id="local-6989586621680731340"><span id="local-6989586621680731345"><span class="annot"><span class="annottext">Typeable LibWarning
+Typeable LibWarning
+-&gt; (forall (c :: * -&gt; *).
+    (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+    -&gt; (forall g. g -&gt; c g) -&gt; LibWarning -&gt; c LibWarning)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibWarning)
+-&gt; (LibWarning -&gt; Constr)
+-&gt; (LibWarning -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibWarning))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e))
+    -&gt; Maybe (c LibWarning))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; LibWarning -&gt; LibWarning)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r)
+    -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r)
+    -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning -&gt; [u])
+-&gt; (forall u.
+    LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning)
+-&gt; Data LibWarning
+LibWarning -&gt; DataType
+LibWarning -&gt; Constr
+(forall b. Data b =&gt; b -&gt; b) -&gt; LibWarning -&gt; LibWarning
+forall a.
+Typeable a
+-&gt; (forall (c :: * -&gt; *).
+    (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+    -&gt; (forall g. g -&gt; c g) -&gt; a -&gt; c a)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c a)
+-&gt; (a -&gt; Constr)
+-&gt; (a -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c a))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c a))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; a -&gt; a)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; [u])
+-&gt; (forall u. LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; Data a
+forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning -&gt; u
+forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning -&gt; [u]
+forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning -&gt; r
+forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning -&gt; r
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning
+forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning
+forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibWarning
+forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; LibWarning -&gt; c LibWarning
+forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibWarning)
+forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c LibWarning)
+gmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning
+$cgmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning
+gmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning
+$cgmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning
+gmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning
+$cgmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning -&gt; m LibWarning
+gmapQi :: forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning -&gt; u
+$cgmapQi :: forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning -&gt; u
+gmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning -&gt; [u]
+$cgmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning -&gt; [u]
+gmapQr :: forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning -&gt; r
+$cgmapQr :: forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning -&gt; r
+gmapQl :: forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning -&gt; r
+$cgmapQl :: forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning -&gt; r
+gmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; LibWarning -&gt; LibWarning
+$cgmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; LibWarning -&gt; LibWarning
+dataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c LibWarning)
+$cdataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c LibWarning)
+dataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibWarning)
+$cdataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibWarning)
+dataTypeOf :: LibWarning -&gt; DataType
+$cdataTypeOf :: LibWarning -&gt; DataType
+toConstr :: LibWarning -&gt; Constr
+$ctoConstr :: LibWarning -&gt; Constr
+gunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibWarning
+$cgunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibWarning
+gfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; LibWarning -&gt; c LibWarning
+$cgfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; LibWarning -&gt; c LibWarning
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Data</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(forall x. LibWarning -&gt; Rep LibWarning x)
+-&gt; (forall x. Rep LibWarning x -&gt; LibWarning) -&gt; Generic LibWarning
+forall x. Rep LibWarning x -&gt; LibWarning
+forall x. LibWarning -&gt; Rep LibWarning x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cto :: forall x. Rep LibWarning x -&gt; LibWarning
+$cfrom :: forall x. LibWarning -&gt; Rep LibWarning x
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- | Library Warnings.</span><span>
+</span><span id="line-125"></span><span id="local-6989586621680731309"><span id="local-6989586621680731310"></span></span><span class="hs-keyword">data</span><span> </span><span id="LibWarning%27"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning%27"><span class="hs-identifier hs-var">LibWarning'</span></a></span></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="UnknownField"><span class="annot"><a href="Agda.Interaction.Library.Base.html#UnknownField"><span class="hs-identifier hs-var">UnknownField</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ExeNotFound"><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExeNotFound"><span class="hs-identifier hs-var">ExeNotFound</span></a></span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExecutablesFile"><span class="hs-identifier hs-type">ExecutablesFile</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-128"></span><span>      </span><span class="hs-comment">-- ^ Raised when a trusted executable can not be found.</span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ExeNotExecutable"><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExeNotExecutable"><span class="hs-identifier hs-var">ExeNotExecutable</span></a></span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExecutablesFile"><span class="hs-identifier hs-type">ExecutablesFile</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span>
+</span><span id="line-130"></span><span>      </span><span class="hs-comment">-- ^ Raised when a trusted executable does not have the executable permission.</span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680731291"><span id="local-6989586621680731293"><span id="local-6989586621680731304"><span class="annot"><span class="annottext">LineNumber -&gt; LibWarning' -&gt; ShowS
+[LibWarning'] -&gt; ShowS
+LibWarning' -&gt; String
+(LineNumber -&gt; LibWarning' -&gt; ShowS)
+-&gt; (LibWarning' -&gt; String)
+-&gt; ([LibWarning'] -&gt; ShowS)
+-&gt; Show LibWarning'
+forall a.
+(LineNumber -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [LibWarning'] -&gt; ShowS
+$cshowList :: [LibWarning'] -&gt; ShowS
+show :: LibWarning' -&gt; String
+$cshow :: LibWarning' -&gt; String
+showsPrec :: LineNumber -&gt; LibWarning' -&gt; ShowS
+$cshowsPrec :: LineNumber -&gt; LibWarning' -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621680731249"><span id="local-6989586621680731251"><span id="local-6989586621680731253"><span id="local-6989586621680731255"><span id="local-6989586621680731257"><span id="local-6989586621680731259"><span id="local-6989586621680731261"><span id="local-6989586621680731263"><span id="local-6989586621680731265"><span id="local-6989586621680731267"><span id="local-6989586621680731269"><span id="local-6989586621680731271"><span id="local-6989586621680731279"><span id="local-6989586621680731287"><span class="annot"><span class="annottext">Typeable LibWarning'
+Typeable LibWarning'
+-&gt; (forall (c :: * -&gt; *).
+    (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+    -&gt; (forall g. g -&gt; c g) -&gt; LibWarning' -&gt; c LibWarning')
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibWarning')
+-&gt; (LibWarning' -&gt; Constr)
+-&gt; (LibWarning' -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibWarning'))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e))
+    -&gt; Maybe (c LibWarning'))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; LibWarning' -&gt; LibWarning')
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r)
+    -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning' -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r)
+    -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning' -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning' -&gt; [u])
+-&gt; (forall u.
+    LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning' -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning')
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning')
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning')
+-&gt; Data LibWarning'
+LibWarning' -&gt; DataType
+LibWarning' -&gt; Constr
+(forall b. Data b =&gt; b -&gt; b) -&gt; LibWarning' -&gt; LibWarning'
+forall a.
+Typeable a
+-&gt; (forall (c :: * -&gt; *).
+    (forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+    -&gt; (forall g. g -&gt; c g) -&gt; a -&gt; c a)
+-&gt; (forall (c :: * -&gt; *).
+    (forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+    -&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c a)
+-&gt; (a -&gt; Constr)
+-&gt; (a -&gt; DataType)
+-&gt; (forall (t :: * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d. Data d =&gt; c (t d)) -&gt; Maybe (c a))
+-&gt; (forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+    Typeable t =&gt;
+    (forall d e. (Data d, Data e) =&gt; c (t d e)) -&gt; Maybe (c a))
+-&gt; ((forall b. Data b =&gt; b -&gt; b) -&gt; a -&gt; a)
+-&gt; (forall r r'.
+    (r -&gt; r' -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall r r'.
+    (r' -&gt; r -&gt; r) -&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; a -&gt; r)
+-&gt; (forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; [u])
+-&gt; (forall u. LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; a -&gt; u)
+-&gt; (forall (m :: * -&gt; *).
+    Monad m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; (forall (m :: * -&gt; *).
+    MonadPlus m =&gt;
+    (forall d. Data d =&gt; d -&gt; m d) -&gt; a -&gt; m a)
+-&gt; Data a
+forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning' -&gt; u
+forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning' -&gt; [u]
+forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning' -&gt; r
+forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning' -&gt; r
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning'
+forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning'
+forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibWarning'
+forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; LibWarning' -&gt; c LibWarning'
+forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibWarning')
+forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e))
+-&gt; Maybe (c LibWarning')
+gmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning'
+$cgmapMo :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning'
+gmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning'
+$cgmapMp :: forall (m :: * -&gt; *).
+MonadPlus m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning'
+gmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning'
+$cgmapM :: forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall d. Data d =&gt; d -&gt; m d) -&gt; LibWarning' -&gt; m LibWarning'
+gmapQi :: forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning' -&gt; u
+$cgmapQi :: forall u.
+LineNumber -&gt; (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning' -&gt; u
+gmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning' -&gt; [u]
+$cgmapQ :: forall u. (forall d. Data d =&gt; d -&gt; u) -&gt; LibWarning' -&gt; [u]
+gmapQr :: forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning' -&gt; r
+$cgmapQr :: forall r r'.
+(r' -&gt; r -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning' -&gt; r
+gmapQl :: forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning' -&gt; r
+$cgmapQl :: forall r r'.
+(r -&gt; r' -&gt; r)
+-&gt; r -&gt; (forall d. Data d =&gt; d -&gt; r') -&gt; LibWarning' -&gt; r
+gmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; LibWarning' -&gt; LibWarning'
+$cgmapT :: (forall b. Data b =&gt; b -&gt; b) -&gt; LibWarning' -&gt; LibWarning'
+dataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e))
+-&gt; Maybe (c LibWarning')
+$cdataCast2 :: forall (t :: * -&gt; * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d e. (Data d, Data e) =&gt; c (t d e))
+-&gt; Maybe (c LibWarning')
+dataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibWarning')
+$cdataCast1 :: forall (t :: * -&gt; *) (c :: * -&gt; *).
+Typeable t =&gt;
+(forall d. Data d =&gt; c (t d)) -&gt; Maybe (c LibWarning')
+dataTypeOf :: LibWarning' -&gt; DataType
+$cdataTypeOf :: LibWarning' -&gt; DataType
+toConstr :: LibWarning' -&gt; Constr
+$ctoConstr :: LibWarning' -&gt; Constr
+gunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibWarning'
+$cgunfold :: forall (c :: * -&gt; *).
+(forall b r. Data b =&gt; c (b -&gt; r) -&gt; c r)
+-&gt; (forall r. r -&gt; c r) -&gt; Constr -&gt; c LibWarning'
+gfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; LibWarning' -&gt; c LibWarning'
+$cgfoldl :: forall (c :: * -&gt; *).
+(forall d b. Data d =&gt; c (d -&gt; b) -&gt; d -&gt; c b)
+-&gt; (forall g. g -&gt; c g) -&gt; LibWarning' -&gt; c LibWarning'
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Data</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">(forall x. LibWarning' -&gt; Rep LibWarning' x)
+-&gt; (forall x. Rep LibWarning' x -&gt; LibWarning')
+-&gt; Generic LibWarning'
+forall x. Rep LibWarning' x -&gt; LibWarning'
+forall x. LibWarning' -&gt; Rep LibWarning' x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cto :: forall x. Rep LibWarning' x -&gt; LibWarning'
+$cfrom :: forall x. LibWarning' -&gt; Rep LibWarning' x
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-keyword">data</span><span> </span><span id="LibError"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-var">LibError</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LibError"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-var">LibError</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibPositionInfo"><span class="hs-identifier hs-type">LibPositionInfo</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError%27"><span class="hs-identifier hs-type">LibError'</span></a></span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#libraryWarningName"><span class="hs-identifier hs-type">libraryWarningName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Options.Warnings.html#WarningName"><span class="hs-identifier hs-type">WarningName</span></a></span><span>
+</span><span id="line-136"></span><span id="libraryWarningName"><span class="annot"><span class="annottext">libraryWarningName :: LibWarning -&gt; WarningName
+</span><a href="Agda.Interaction.Library.Base.html#libraryWarningName"><span class="hs-identifier hs-var hs-var">libraryWarningName</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span> </span><span id="local-6989586621680731244"><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><a href="#local-6989586621680731244"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#UnknownField"><span class="hs-identifier hs-type">UnknownField</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WarningName
+</span><a href="Agda.Interaction.Options.Warnings.html#LibUnknownField_"><span class="hs-identifier hs-var">LibUnknownField_</span></a></span><span>
+</span><span id="line-137"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#libraryWarningName"><span class="hs-identifier hs-var">libraryWarningName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span> </span><span id="local-6989586621680731242"><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><a href="#local-6989586621680731242"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExeNotFound"><span class="hs-identifier hs-type">ExeNotFound</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WarningName
+</span><a href="Agda.Interaction.Options.Warnings.html#ExeNotFoundWarning_"><span class="hs-identifier hs-var">ExeNotFoundWarning_</span></a></span><span>
+</span><span id="line-138"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#libraryWarningName"><span class="hs-identifier hs-var">libraryWarningName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span> </span><span id="local-6989586621680731240"><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><a href="#local-6989586621680731240"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExeNotExecutable"><span class="hs-identifier hs-type">ExeNotExecutable</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">WarningName
+</span><a href="Agda.Interaction.Options.Warnings.html#ExeNotExecutableWarning_"><span class="hs-identifier hs-var">ExeNotExecutableWarning_</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- | Collected errors while processing library files.</span><span>
+</span><span id="line-141"></span><span class="hs-comment">--</span><span>
+</span><span id="line-142"></span><span class="hs-keyword">data</span><span> </span><span id="LibError%27"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError%27"><span class="hs-identifier hs-var">LibError'</span></a></span></span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="LibNotFound"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibNotFound"><span class="hs-identifier hs-var">LibNotFound</span></a></span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibrariesFile"><span class="hs-identifier hs-type">LibrariesFile</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-type">LibName</span></a></span><span>
+</span><span id="line-144"></span><span>      </span><span class="hs-comment">-- ^ Raised when a library name could not successfully be resolved</span><span>
+</span><span id="line-145"></span><span>      </span><span class="hs-comment">--   to an @.agda-lib@ file.</span><span>
+</span><span id="line-146"></span><span>      </span><span class="hs-comment">--</span><span>
+</span><span id="line-147"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="AmbiguousLib"><span class="annot"><a href="Agda.Interaction.Library.Base.html#AmbiguousLib"><span class="hs-identifier hs-var">AmbiguousLib</span></a></span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibName"><span class="hs-identifier hs-type">LibName</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-148"></span><span>      </span><span class="hs-comment">-- ^ Raised when a library name is defined in several @.agda-lib files@.</span><span>
+</span><span id="line-149"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="OtherError"><span class="annot"><a href="Agda.Interaction.Library.Base.html#OtherError"><span class="hs-identifier hs-var">OtherError</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-150"></span><span>      </span><span class="hs-comment">-- ^ Generic error.</span><span>
+</span><span id="line-151"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621680731220"><span id="local-6989586621680731222"><span id="local-6989586621680731234"><span class="annot"><span class="annottext">LineNumber -&gt; LibError' -&gt; ShowS
+[LibError'] -&gt; ShowS
+LibError' -&gt; String
+(LineNumber -&gt; LibError' -&gt; ShowS)
+-&gt; (LibError' -&gt; String)
+-&gt; ([LibError'] -&gt; ShowS)
+-&gt; Show LibError'
+forall a.
+(LineNumber -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [LibError'] -&gt; ShowS
+$cshowList :: [LibError'] -&gt; ShowS
+show :: LibError' -&gt; String
+$cshow :: LibError' -&gt; String
+showsPrec :: LineNumber -&gt; LibError' -&gt; ShowS
+$cshowsPrec :: LineNumber -&gt; LibError' -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- | Cache locations of project configurations and parsed .agda-lib files</span><span>
+</span><span id="line-154"></span><span class="hs-keyword">type</span><span> </span><span id="LibState"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibState"><span class="hs-identifier hs-var">LibState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ProjectConfig"><span class="hs-identifier hs-type">ProjectConfig</span></a></span><span>
+</span><span id="line-156"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span>
+</span><span id="line-157"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- | Collects 'LibError's and 'LibWarning's.</span><span>
+</span><span id="line-160"></span><span class="hs-comment">--</span><span>
+</span><span id="line-161"></span><span class="hs-keyword">type</span><span> </span><span id="LibErrorIO"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibErrorIO"><span class="hs-identifier hs-var">LibErrorIO</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-type">LibError</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibState"><span class="hs-identifier hs-type">LibState</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- | Throws 'Doc' exceptions, still collects 'LibWarning's.</span><span>
+</span><span id="line-164"></span><span class="hs-keyword">type</span><span> </span><span id="LibM"><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibM"><span class="hs-identifier hs-var">LibM</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Doc</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">WriterT</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibState"><span class="hs-identifier hs-type">LibState</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span id="local-6989586621680731912"><span class="annot"><a href="Agda.Interaction.Library.Base.html#warnings"><span class="hs-identifier hs-type">warnings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadWriter</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-type">LibError</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="#local-6989586621680731912"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680731912"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-167"></span><span id="warnings"><span class="annot"><span class="annottext">warnings :: forall (m :: * -&gt; *).
+MonadWriter [Either LibError LibWarning] m =&gt;
+[LibWarning] -&gt; m ()
+</span><a href="Agda.Interaction.Library.Base.html#warnings"><span class="hs-identifier hs-var hs-var">warnings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either LibError LibWarning] -&gt; m ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="annot"><span class="annottext">([Either LibError LibWarning] -&gt; m ())
+-&gt; ([LibWarning] -&gt; [Either LibError LibWarning])
+-&gt; [LibWarning]
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(LibWarning -&gt; Either LibError LibWarning)
+-&gt; [LibWarning] -&gt; [Either LibError LibWarning]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">LibWarning -&gt; Either LibError LibWarning
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span id="local-6989586621680731900"><span class="annot"><a href="Agda.Interaction.Library.Base.html#warnings%27"><span class="hs-identifier hs-type">warnings'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadWriter</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-type">LibError</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="#local-6989586621680731900"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning%27"><span class="hs-identifier hs-type">LibWarning'</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680731900"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-170"></span><span id="warnings%27"><span class="annot"><span class="annottext">warnings' :: forall (m :: * -&gt; *).
+MonadWriter [Either LibError LibWarning] m =&gt;
+[LibWarning'] -&gt; m ()
+</span><a href="Agda.Interaction.Library.Base.html#warnings%27"><span class="hs-identifier hs-var hs-var">warnings'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either LibError LibWarning] -&gt; m ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="annot"><span class="annottext">([Either LibError LibWarning] -&gt; m ())
+-&gt; ([LibWarning'] -&gt; [Either LibError LibWarning])
+-&gt; [LibWarning']
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(LibWarning' -&gt; Either LibError LibWarning)
+-&gt; [LibWarning'] -&gt; [Either LibError LibWarning]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LibWarning -&gt; Either LibError LibWarning
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(LibWarning -&gt; Either LibError LibWarning)
+-&gt; (LibWarning' -&gt; LibWarning)
+-&gt; LibWarning'
+-&gt; Either LibError LibWarning
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Maybe LibPositionInfo -&gt; LibWarning' -&gt; LibWarning
+</span><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-var">LibWarning</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe LibPositionInfo
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-171"></span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- UNUSED Liang-Ting Chen 2019-07-16</span><span>
+</span><span id="line-173"></span><span class="hs-comment">--warning :: MonadWriter [Either LibError LibWarning] m =&gt; LibWarning -&gt; m ()</span><span>
+</span><span id="line-174"></span><span class="hs-comment">--warning = warnings . pure</span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span id="local-6989586621680731898"><span class="annot"><a href="Agda.Interaction.Library.Base.html#raiseErrors%27"><span class="hs-identifier hs-type">raiseErrors'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadWriter</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-type">LibError</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="#local-6989586621680731898"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError%27"><span class="hs-identifier hs-type">LibError'</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680731898"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-177"></span><span id="raiseErrors%27"><span class="annot"><span class="annottext">raiseErrors' :: forall (m :: * -&gt; *).
+MonadWriter [Either LibError LibWarning] m =&gt;
+[LibError'] -&gt; m ()
+</span><a href="Agda.Interaction.Library.Base.html#raiseErrors%27"><span class="hs-identifier hs-var hs-var">raiseErrors'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either LibError LibWarning] -&gt; m ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="annot"><span class="annottext">([Either LibError LibWarning] -&gt; m ())
+-&gt; ([LibError'] -&gt; [Either LibError LibWarning])
+-&gt; [LibError']
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(LibError' -&gt; Either LibError LibWarning)
+-&gt; [LibError'] -&gt; [Either LibError LibWarning]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LibError -&gt; Either LibError LibWarning
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(LibError -&gt; Either LibError LibWarning)
+-&gt; (LibError' -&gt; LibError)
+-&gt; LibError'
+-&gt; Either LibError LibWarning
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe LibPositionInfo -&gt; LibError' -&gt; LibError
+</span><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-var">LibError</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe LibPositionInfo
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span id="local-6989586621680731896"><span class="annot"><a href="Agda.Interaction.Library.Base.html#raiseErrors"><span class="hs-identifier hs-type">raiseErrors</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadWriter</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-type">LibError</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="#local-6989586621680731896"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-type">LibError</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680731896"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-180"></span><span id="raiseErrors"><span class="annot"><span class="annottext">raiseErrors :: forall (m :: * -&gt; *).
+MonadWriter [Either LibError LibWarning] m =&gt;
+[LibError] -&gt; m ()
+</span><a href="Agda.Interaction.Library.Base.html#raiseErrors"><span class="hs-identifier hs-var hs-var">raiseErrors</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Either LibError LibWarning] -&gt; m ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">tell</span></span><span> </span><span class="annot"><span class="annottext">([Either LibError LibWarning] -&gt; m ())
+-&gt; ([LibError] -&gt; [Either LibError LibWarning])
+-&gt; [LibError]
+-&gt; m ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(LibError -&gt; Either LibError LibWarning)
+-&gt; [LibError] -&gt; [Either LibError LibWarning]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">LibError -&gt; Either LibError LibWarning
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span>
+</span><span id="line-181"></span><span>
+</span><span id="line-182"></span><span id="local-6989586621680731893"><span class="annot"><a href="Agda.Interaction.Library.Base.html#getCachedProjectConfig"><span class="hs-identifier hs-type">getCachedProjectConfig</span></a></span><span>
+</span><span id="line-183"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibState"><span class="hs-identifier hs-type">LibState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680731893"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621680731893"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-184"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680731893"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ProjectConfig"><span class="hs-identifier hs-type">ProjectConfig</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-185"></span><span id="getCachedProjectConfig"><span class="annot"><span class="annottext">getCachedProjectConfig :: forall (m :: * -&gt; *).
+(MonadState LibState m, MonadIO m) =&gt;
+String -&gt; m (Maybe ProjectConfig)
+</span><a href="Agda.Interaction.Library.Base.html#getCachedProjectConfig"><span class="hs-identifier hs-var hs-var">getCachedProjectConfig</span></a></span></span><span> </span><span id="local-6989586621680731186"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731186"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-186"></span><span>  </span><span id="local-6989586621680731185"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731185"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO String -&gt; m String
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO String -&gt; m String) -&gt; IO String -&gt; m String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
+</span><span class="hs-identifier hs-var">canonicalizePath</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731186"><span class="hs-identifier hs-var">path</span></a></span><span>
+</span><span id="line-187"></span><span>  </span><span id="local-6989586621680731182"><span class="annot"><span class="annottext">Map String ProjectConfig
+</span><a href="#local-6989586621680731182"><span class="hs-identifier hs-var">cache</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(LibState -&gt; Map String ProjectConfig)
+-&gt; m (Map String ProjectConfig)
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">LibState -&gt; Map String ProjectConfig
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span>
+</span><span id="line-188"></span><span>  </span><span class="annot"><span class="annottext">Maybe ProjectConfig -&gt; m (Maybe ProjectConfig)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Maybe ProjectConfig -&gt; m (Maybe ProjectConfig))
+-&gt; Maybe ProjectConfig -&gt; m (Maybe ProjectConfig)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Map String ProjectConfig -&gt; Maybe ProjectConfig
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731185"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="annot"><span class="annottext">Map String ProjectConfig
+</span><a href="#local-6989586621680731182"><span class="hs-identifier hs-var">cache</span></a></span><span>
+</span><span id="line-189"></span><span>
+</span><span id="line-190"></span><span id="local-6989586621680731871"><span class="annot"><a href="Agda.Interaction.Library.Base.html#storeCachedProjectConfig"><span class="hs-identifier hs-type">storeCachedProjectConfig</span></a></span><span>
+</span><span id="line-191"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibState"><span class="hs-identifier hs-type">LibState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680731871"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621680731871"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-192"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ProjectConfig"><span class="hs-identifier hs-type">ProjectConfig</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680731871"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-193"></span><span id="storeCachedProjectConfig"><span class="annot"><span class="annottext">storeCachedProjectConfig :: forall (m :: * -&gt; *).
+(MonadState LibState m, MonadIO m) =&gt;
+String -&gt; ProjectConfig -&gt; m ()
+</span><a href="Agda.Interaction.Library.Base.html#storeCachedProjectConfig"><span class="hs-identifier hs-var hs-var">storeCachedProjectConfig</span></a></span></span><span> </span><span id="local-6989586621680731168"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731168"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span id="local-6989586621680731167"><span class="annot"><span class="annottext">ProjectConfig
+</span><a href="#local-6989586621680731167"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-194"></span><span>  </span><span id="local-6989586621680731166"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731166"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO String -&gt; m String
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO String -&gt; m String) -&gt; IO String -&gt; m String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
+</span><span class="hs-identifier hs-var">canonicalizePath</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731168"><span class="hs-identifier hs-var">path</span></a></span><span>
+</span><span id="line-195"></span><span>  </span><span class="annot"><span class="annottext">(LibState -&gt; LibState) -&gt; m ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="annot"><span class="annottext">((LibState -&gt; LibState) -&gt; m ()) -&gt; (LibState -&gt; LibState) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Map String ProjectConfig -&gt; Map String ProjectConfig)
+-&gt; LibState -&gt; LibState
+forall (a :: * -&gt; * -&gt; *) b c d.
+Arrow a =&gt;
+a b c -&gt; a (b, d) (c, d)
+</span><span class="hs-identifier hs-var">first</span></span><span> </span><span class="annot"><span class="annottext">((Map String ProjectConfig -&gt; Map String ProjectConfig)
+ -&gt; LibState -&gt; LibState)
+-&gt; (Map String ProjectConfig -&gt; Map String ProjectConfig)
+-&gt; LibState
+-&gt; LibState
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+-&gt; ProjectConfig
+-&gt; Map String ProjectConfig
+-&gt; Map String ProjectConfig
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731166"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="annot"><span class="annottext">ProjectConfig
+</span><a href="#local-6989586621680731167"><span class="hs-identifier hs-var">conf</span></a></span><span>
+</span><span id="line-196"></span><span>
+</span><span id="line-197"></span><span id="local-6989586621680731860"><span class="annot"><a href="Agda.Interaction.Library.Base.html#getCachedAgdaLibFile"><span class="hs-identifier hs-type">getCachedAgdaLibFile</span></a></span><span>
+</span><span id="line-198"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibState"><span class="hs-identifier hs-type">LibState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680731860"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621680731860"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-199"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680731860"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-200"></span><span id="getCachedAgdaLibFile"><span class="annot"><span class="annottext">getCachedAgdaLibFile :: forall (m :: * -&gt; *).
+(MonadState LibState m, MonadIO m) =&gt;
+String -&gt; m (Maybe AgdaLibFile)
+</span><a href="Agda.Interaction.Library.Base.html#getCachedAgdaLibFile"><span class="hs-identifier hs-var hs-var">getCachedAgdaLibFile</span></a></span></span><span> </span><span id="local-6989586621680731154"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731154"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-201"></span><span>  </span><span id="local-6989586621680731153"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731153"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO String -&gt; m String
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO String -&gt; m String) -&gt; IO String -&gt; m String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
+</span><span class="hs-identifier hs-var">canonicalizePath</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731154"><span class="hs-identifier hs-var">path</span></a></span><span>
+</span><span id="line-202"></span><span>  </span><span class="annot"><span class="annottext">(LibState -&gt; Maybe AgdaLibFile) -&gt; m (Maybe AgdaLibFile)
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">((LibState -&gt; Maybe AgdaLibFile) -&gt; m (Maybe AgdaLibFile))
+-&gt; (LibState -&gt; Maybe AgdaLibFile) -&gt; m (Maybe AgdaLibFile)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Map String AgdaLibFile -&gt; Maybe AgdaLibFile
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731153"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="annot"><span class="annottext">(Map String AgdaLibFile -&gt; Maybe AgdaLibFile)
+-&gt; (LibState -&gt; Map String AgdaLibFile)
+-&gt; LibState
+-&gt; Maybe AgdaLibFile
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">LibState -&gt; Map String AgdaLibFile
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span>
+</span><span id="line-203"></span><span>
+</span><span id="line-204"></span><span id="local-6989586621680731856"><span class="annot"><a href="Agda.Interaction.Library.Base.html#storeCachedAgdaLibFile"><span class="hs-identifier hs-type">storeCachedAgdaLibFile</span></a></span><span>
+</span><span id="line-205"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibState"><span class="hs-identifier hs-type">LibState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680731856"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621680731856"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-206"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680731856"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-207"></span><span id="storeCachedAgdaLibFile"><span class="annot"><span class="annottext">storeCachedAgdaLibFile :: forall (m :: * -&gt; *).
+(MonadState LibState m, MonadIO m) =&gt;
+String -&gt; AgdaLibFile -&gt; m ()
+</span><a href="Agda.Interaction.Library.Base.html#storeCachedAgdaLibFile"><span class="hs-identifier hs-var hs-var">storeCachedAgdaLibFile</span></a></span></span><span> </span><span id="local-6989586621680731142"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731142"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span id="local-6989586621680731141"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731141"><span class="hs-identifier hs-var">lib</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-208"></span><span>  </span><span id="local-6989586621680731140"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731140"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO String -&gt; m String
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO String -&gt; m String) -&gt; IO String -&gt; m String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO String
+</span><span class="hs-identifier hs-var">canonicalizePath</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731142"><span class="hs-identifier hs-var">path</span></a></span><span>
+</span><span id="line-209"></span><span>  </span><span class="annot"><span class="annottext">(LibState -&gt; LibState) -&gt; m ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="annot"><span class="annottext">((LibState -&gt; LibState) -&gt; m ()) -&gt; (LibState -&gt; LibState) -&gt; m ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Map String AgdaLibFile -&gt; Map String AgdaLibFile)
+-&gt; LibState -&gt; LibState
+forall (a :: * -&gt; * -&gt; *) b c d.
+Arrow a =&gt;
+a b c -&gt; a (d, b) (d, c)
+</span><span class="hs-identifier hs-var">second</span></span><span> </span><span class="annot"><span class="annottext">((Map String AgdaLibFile -&gt; Map String AgdaLibFile)
+ -&gt; LibState -&gt; LibState)
+-&gt; (Map String AgdaLibFile -&gt; Map String AgdaLibFile)
+-&gt; LibState
+-&gt; LibState
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+-&gt; AgdaLibFile -&gt; Map String AgdaLibFile -&gt; Map String AgdaLibFile
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731140"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731141"><span class="hs-identifier hs-var">lib</span></a></span><span>
+</span><span id="line-210"></span><span>
+</span><span id="line-211"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-212"></span><span class="hs-comment">-- * Prettyprinting errors and warnings</span><span>
+</span><span id="line-213"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-214"></span><span>
+</span><span id="line-215"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#formatLibPositionInfo"><span class="hs-identifier hs-type">formatLibPositionInfo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibPositionInfo"><span class="hs-identifier hs-type">LibPositionInfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Doc</span></span><span>
+</span><span id="line-216"></span><span id="formatLibPositionInfo"><span class="annot"><span class="annottext">formatLibPositionInfo :: LibPositionInfo -&gt; String -&gt; Doc
+</span><a href="Agda.Interaction.Library.Base.html#formatLibPositionInfo"><span class="hs-identifier hs-var hs-var">formatLibPositionInfo</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibPositionInfo"><span class="hs-identifier hs-type">LibPositionInfo</span></a></span><span> </span><span id="local-6989586621680731138"><span class="annot"><span class="annottext">Maybe String
+</span><a href="#local-6989586621680731138"><span class="hs-identifier hs-var">libFile</span></a></span></span><span> </span><span id="local-6989586621680731137"><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621680731137"><span class="hs-identifier hs-var">lineNum</span></a></span></span><span> </span><span id="local-6989586621680731136"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731136"><span class="hs-identifier hs-var">file</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621680731135"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731135"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-217"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621680731133"><span class="annot"><span class="annottext">loc :: String
+</span><a href="#local-6989586621680731133"><span class="hs-identifier hs-var hs-var">loc</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621680731132"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731132"><span class="hs-identifier hs-var">lf</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe String
+</span><a href="#local-6989586621680731138"><span class="hs-identifier hs-var">libFile</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731132"><span class="hs-identifier hs-var">lf</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;:&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">LineNumber -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><a href="#local-6989586621680731137"><span class="hs-identifier hs-var">lineNum</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;: &quot;</span></span><span>
+</span><span id="line-218"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-219"></span><span>  </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Failed to read&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; [a] -&gt; [a] -&gt; Bool
+</span><span class="hs-operator hs-var">`List.isPrefixOf`</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731135"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-220"></span><span>     </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731133"><span class="hs-identifier hs-var">loc</span></a></span><span>
+</span><span id="line-221"></span><span>     </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731136"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;:&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">(</span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; String -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">all</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isDigit</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LineNumber -&gt; ShowS
+forall a. LineNumber -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">take</span></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731135"><span class="hs-identifier hs-var">err</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; &quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-222"></span><span>
+</span><span id="line-223"></span><span class="hs-comment">-- | Pretty-print 'LibError'.</span><span>
+</span><span id="line-224"></span><span class="annot"><a href="Agda.Interaction.Library.Base.html#formatLibError"><span class="hs-identifier hs-type">formatLibError</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-type">LibError</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Doc</span></span><span>
+</span><span id="line-225"></span><span id="formatLibError"><span class="annot"><span class="annottext">formatLibError :: [AgdaLibFile] -&gt; LibError -&gt; Doc
+</span><a href="Agda.Interaction.Library.Base.html#formatLibError"><span class="hs-identifier hs-var hs-var">formatLibError</span></a></span></span><span> </span><span id="local-6989586621680731126"><span class="annot"><span class="annottext">[AgdaLibFile]
+</span><a href="#local-6989586621680731126"><span class="hs-identifier hs-var">installed</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibError"><span class="hs-identifier hs-type">LibError</span></a></span><span> </span><span id="local-6989586621680731125"><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><a href="#local-6989586621680731125"><span class="hs-identifier hs-var">mc</span></a></span></span><span> </span><span id="local-6989586621680731124"><span class="annot"><span class="annottext">LibError'
+</span><a href="#local-6989586621680731124"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621680731123"><span class="hs-identifier hs-var">prefix</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621680731121"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-226"></span><span>  </span><span id="local-6989586621680731123"><span class="annot"><span class="annottext">prefix :: Doc
+</span><a href="#local-6989586621680731123"><span class="hs-identifier hs-var hs-var">prefix</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><a href="#local-6989586621680731125"><span class="hs-identifier hs-var">mc</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-227"></span><span>    </span><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>                      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-228"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621680731120"><span class="annot"><span class="annottext">LibPositionInfo
+</span><a href="#local-6989586621680731120"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#OtherError"><span class="hs-identifier hs-type">OtherError</span></a></span><span> </span><span id="local-6989586621680731119"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731119"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">LibError'
+</span><a href="#local-6989586621680731124"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LibPositionInfo -&gt; String -&gt; Doc
+</span><a href="Agda.Interaction.Library.Base.html#formatLibPositionInfo"><span class="hs-identifier hs-var">formatLibPositionInfo</span></a></span><span> </span><span class="annot"><span class="annottext">LibPositionInfo
+</span><a href="#local-6989586621680731120"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731119"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-229"></span><span>    </span><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><span class="hs-identifier">_</span></span><span>                            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-230"></span><span>
+</span><span id="line-231"></span><span>  </span><span id="local-6989586621680731121"><span class="annot"><span class="annottext">body :: Doc
+</span><a href="#local-6989586621680731121"><span class="hs-identifier hs-var hs-var">body</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">LibError'
+</span><a href="#local-6989586621680731124"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-232"></span><span>    </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibNotFound"><span class="hs-identifier hs-type">LibNotFound</span></a></span><span> </span><span id="local-6989586621680731118"><span class="annot"><span class="annottext">LibrariesFile
+</span><a href="#local-6989586621680731118"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621680731117"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731117"><span class="hs-identifier hs-var">lib</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Doc] -&gt; Doc
+forall (t :: * -&gt; *). Foldable t =&gt; t Doc -&gt; Doc
+</span><a href="Agda.Utils.Pretty.html#vcat"><span class="hs-identifier hs-var">vcat</span></a></span><span> </span><span class="annot"><span class="annottext">([Doc] -&gt; Doc) -&gt; [Doc] -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-233"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Library '&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731117"><span class="hs-identifier hs-var">lib</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;' not found.&quot;</span></span><span>
+</span><span id="line-234"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Doc] -&gt; Doc
+forall (t :: * -&gt; *). Foldable t =&gt; t Doc -&gt; Doc
+</span><a href="Agda.Utils.Pretty.html#sep"><span class="hs-identifier hs-var">sep</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;Add the path to its .agda-lib file to&quot;</span></span><span>
+</span><span id="line-235"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">LineNumber -&gt; Doc -&gt; Doc
+</span><span class="hs-identifier hs-var">nest</span></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">(Doc -&gt; Doc) -&gt; Doc -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;'&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">LibrariesFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#lfPath"><span class="hs-identifier hs-var hs-var">lfPath</span></a></span><span> </span><span class="annot"><span class="annottext">LibrariesFile
+</span><a href="#local-6989586621680731118"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;'&quot;</span></span><span>
+</span><span id="line-236"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;to install.&quot;</span></span><span>
+</span><span id="line-237"></span><span>            </span><span class="hs-special">]</span><span>
+</span><span id="line-238"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;Installed libraries:&quot;</span></span><span>
+</span><span id="line-239"></span><span>      </span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Doc] -&gt; [Doc] -&gt; [Doc]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-240"></span><span>      </span><span class="annot"><span class="annottext">(Doc -&gt; Doc) -&gt; [Doc] -&gt; [Doc]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">LineNumber -&gt; Doc -&gt; Doc
+</span><span class="hs-identifier hs-var">nest</span></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span>
+</span><span id="line-241"></span><span>         </span><span class="hs-special">(</span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[AgdaLibFile] -&gt; Bool
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[AgdaLibFile]
+</span><a href="#local-6989586621680731126"><span class="hs-identifier hs-var">installed</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;(none)&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-242"></span><span>          </span><span class="hs-keyword">else</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">[Doc] -&gt; Doc
+forall (t :: * -&gt; *). Foldable t =&gt; t Doc -&gt; Doc
+</span><a href="Agda.Utils.Pretty.html#sep"><span class="hs-identifier hs-var">sep</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#_libName"><span class="hs-identifier hs-var hs-var">_libName</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731112"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">LineNumber -&gt; Doc -&gt; Doc
+</span><span class="hs-identifier hs-var">nest</span></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">(Doc -&gt; Doc) -&gt; Doc -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><span class="hs-identifier hs-var">parens</span></span><span> </span><span class="annot"><span class="annottext">(Doc -&gt; Doc) -&gt; Doc -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#_libFile"><span class="hs-identifier hs-var hs-var">_libFile</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731112"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-243"></span><span>               </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621680731112"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731112"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[AgdaLibFile]
+</span><a href="#local-6989586621680731126"><span class="hs-identifier hs-var">installed</span></a></span><span> </span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span>    </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AmbiguousLib"><span class="hs-identifier hs-type">AmbiguousLib</span></a></span><span> </span><span id="local-6989586621680731110"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731110"><span class="hs-identifier hs-var">lib</span></a></span></span><span> </span><span id="local-6989586621680731109"><span class="annot"><span class="annottext">[AgdaLibFile]
+</span><a href="#local-6989586621680731109"><span class="hs-identifier hs-var">tgts</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Doc] -&gt; Doc
+forall (t :: * -&gt; *). Foldable t =&gt; t Doc -&gt; Doc
+</span><a href="Agda.Utils.Pretty.html#vcat"><span class="hs-identifier hs-var">vcat</span></a></span><span> </span><span class="annot"><span class="annottext">([Doc] -&gt; Doc) -&gt; [Doc] -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-246"></span><span>      </span><span class="annot"><span class="annottext">[Doc] -&gt; Doc
+forall (t :: * -&gt; *). Foldable t =&gt; t Doc -&gt; Doc
+</span><a href="Agda.Utils.Pretty.html#sep"><span class="hs-identifier hs-var">sep</span></a></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Ambiguous library '&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731110"><span class="hs-identifier hs-var">lib</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;'.&quot;</span></span><span>
+</span><span id="line-247"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;Could refer to any one of&quot;</span></span><span>
+</span><span id="line-248"></span><span>          </span><span class="hs-special">]</span><span>
+</span><span id="line-249"></span><span>        </span><span class="annot"><span class="annottext">Doc -&gt; [Doc] -&gt; [Doc]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">LineNumber -&gt; Doc -&gt; Doc
+</span><span class="hs-identifier hs-var">nest</span></span><span> </span><span class="annot"><span class="annottext">LineNumber
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">(Doc -&gt; Doc) -&gt; Doc -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AgdaLibFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#_libName"><span class="hs-identifier hs-var hs-var">_libName</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731108"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc
+</span><span class="hs-identifier hs-var">parens</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile -&gt; String
+</span><a href="Agda.Interaction.Library.Base.html#_libFile"><span class="hs-identifier hs-var hs-var">_libFile</span></a></span><span> </span><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731108"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621680731108"><span class="annot"><span class="annottext">AgdaLibFile
+</span><a href="#local-6989586621680731108"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[AgdaLibFile]
+</span><a href="#local-6989586621680731109"><span class="hs-identifier hs-var">tgts</span></a></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-250"></span><span>
+</span><span id="line-251"></span><span>
+</span><span id="line-252"></span><span>    </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#OtherError"><span class="hs-identifier hs-type">OtherError</span></a></span><span> </span><span id="local-6989586621680731107"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731107"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731107"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-253"></span><span>
+</span><span id="line-254"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680731102"><span id="local-6989586621680731104"><span class="annot"><a href="Agda.Utils.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-255"></span><span>  </span><span id="local-6989586621680731098"><span class="annot"><span class="annottext">pretty :: LibWarning -&gt; Doc
+</span><a href="Agda.Utils.Pretty.html#pretty"><span class="hs-identifier hs-var hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span><span> </span><span id="local-6989586621680731096"><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><a href="#local-6989586621680731096"><span class="hs-identifier hs-var">mc</span></a></span></span><span> </span><span id="local-6989586621680731095"><span class="annot"><span class="annottext">LibWarning'
+</span><a href="#local-6989586621680731095"><span class="hs-identifier hs-var">w</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><a href="#local-6989586621680731094"><span class="hs-identifier hs-var">prefix</span></a></span><span> </span><span class="annot"><span class="annottext">Doc -&gt; Doc -&gt; Doc
+</span><span class="hs-operator hs-var">&lt;+&gt;</span></span><span> </span><span class="annot"><span class="annottext">LibWarning' -&gt; Doc
+forall a. Pretty a =&gt; a -&gt; Doc
+</span><a href="Agda.Utils.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="annot"><span class="annottext">LibWarning'
+</span><a href="#local-6989586621680731095"><span class="hs-identifier hs-var">w</span></a></span><span>
+</span><span id="line-256"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-257"></span><span>      </span><span id="local-6989586621680731094"><span class="annot"><span class="annottext">prefix :: Doc
+</span><a href="#local-6989586621680731094"><span class="hs-identifier hs-var hs-var">prefix</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><a href="#local-6989586621680731096"><span class="hs-identifier hs-var">mc</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-258"></span><span>        </span><span class="annot"><span class="annottext">Maybe LibPositionInfo
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Doc
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-259"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621680731093"><span class="annot"><span class="annottext">LibPositionInfo
+</span><a href="#local-6989586621680731093"><span class="hs-identifier hs-var">c</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">LibPositionInfo -&gt; String -&gt; Doc
+</span><a href="Agda.Interaction.Library.Base.html#formatLibPositionInfo"><span class="hs-identifier hs-var">formatLibPositionInfo</span></a></span><span> </span><span class="annot"><span class="annottext">LibPositionInfo
+</span><a href="#local-6989586621680731093"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-260"></span><span>
+</span><span id="line-261"></span><span>
+</span><span id="line-262"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680731088"><span id="local-6989586621680731090"><span class="annot"><a href="Agda.Utils.Pretty.html#Pretty"><span class="hs-identifier hs-type">Pretty</span></a></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning%27"><span class="hs-identifier hs-type">LibWarning'</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-263"></span><span>  </span><span id="local-6989586621680731081"><span class="annot"><span class="annottext">pretty :: LibWarning' -&gt; Doc
+</span><a href="#local-6989586621680731081"><span class="hs-identifier hs-var hs-var hs-var hs-var">pretty</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#UnknownField"><span class="hs-identifier hs-type">UnknownField</span></a></span><span> </span><span id="local-6989586621680731080"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731080"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Unknown field '&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731080"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;'&quot;</span></span><span>
+</span><span id="line-264"></span><span>  </span><span class="annot"><a href="Agda.Utils.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExeNotFound"><span class="hs-identifier hs-type">ExeNotFound</span></a></span><span> </span><span id="local-6989586621680731079"><span class="annot"><span class="annottext">ExecutablesFile
+</span><a href="#local-6989586621680731079"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621680731078"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731078"><span class="hs-identifier hs-var">exe</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Executable '&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731078"><span class="hs-identifier hs-var">exe</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;' not found.&quot;</span></span><span>
+</span><span id="line-265"></span><span>  </span><span class="annot"><a href="Agda.Utils.Pretty.html#pretty"><span class="hs-identifier hs-var">pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExeNotExecutable"><span class="hs-identifier hs-type">ExeNotExecutable</span></a></span><span> </span><span id="local-6989586621680731077"><span class="annot"><span class="annottext">ExecutablesFile
+</span><a href="#local-6989586621680731077"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621680731076"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731076"><span class="hs-identifier hs-var">exe</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Doc
+</span><span class="hs-identifier hs-var">text</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Doc) -&gt; String -&gt; Doc
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Executable '&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621680731076"><span class="hs-identifier hs-var">exe</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;' not executable.&quot;</span></span><span>
+</span><span id="line-266"></span><span>
+</span><span id="line-267"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-268"></span><span class="hs-comment">-- NFData instances</span><span>
+</span><span id="line-269"></span><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><span id="line-270"></span><span>
+</span><span id="line-271"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680731074"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ExecutablesFile"><span class="hs-identifier hs-type">ExecutablesFile</span></a></span></span><span>
+</span><span id="line-272"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680731071"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#ProjectConfig"><span class="hs-identifier hs-type">ProjectConfig</span></a></span></span><span>
+</span><span id="line-273"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680731069"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#AgdaLibFile"><span class="hs-identifier hs-type">AgdaLibFile</span></a></span></span><span>
+</span><span id="line-274"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680731067"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibPositionInfo"><span class="hs-identifier hs-type">LibPositionInfo</span></a></span></span><span>
+</span><span id="line-275"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680731065"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning"><span class="hs-identifier hs-type">LibWarning</span></a></span></span><span>
+</span><span id="line-276"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621680731063"><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Agda.Interaction.Library.Base.html#LibWarning%27"><span class="hs-identifier hs-type">LibWarning'</span></a></span></span><span>
+</span><span id="line-277"></span></pre></body></html>

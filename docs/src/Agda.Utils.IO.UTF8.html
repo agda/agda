@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Text IO using the UTF8 character encoding.</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Utils.IO.UTF8</span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#readTextFile"><span class="hs-identifier">readTextFile</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#writeFile"><span class="hs-identifier">Agda.Utils.IO.UTF8.writeFile</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#writeTextToFile"><span class="hs-identifier">writeTextToFile</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Lazy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Lazy</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Lazy.IO</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">System.IO</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IO</span></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- | Converts many character sequences which may be interpreted as</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- line or paragraph separators into '\n'.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- Note that '\r\n' is assumed to have already been converted to '\n'.</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#convertLineEndings"><span class="hs-identifier hs-type">convertLineEndings</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-20"></span><span id="convertLineEndings"><span class="annot"><span class="annottext">convertLineEndings :: Text -&gt; Text
+</span><a href="Agda.Utils.IO.UTF8.html#convertLineEndings"><span class="hs-identifier hs-var hs-var">convertLineEndings</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Char) -&gt; Text -&gt; Text
+</span><span class="hs-identifier hs-var">T.map</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char
+</span><a href="#local-6989586621680684605"><span class="hs-identifier hs-var">convert</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-comment">-- ASCII:</span><span>
+</span><span id="line-23"></span><span>  </span><span id="local-6989586621680684605"><span class="annot"><span class="annottext">convert :: Char -&gt; Char
+</span><a href="#local-6989586621680684605"><span class="hs-identifier hs-var hs-var">convert</span></a></span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\x000D'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\n'</span></span><span>  </span><span class="hs-comment">-- CR  (Carriage return)</span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><a href="#local-6989586621680684605"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\x000C'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\n'</span></span><span>  </span><span class="hs-comment">-- FF  (Form feed)</span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-comment">-- Unicode:</span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><a href="#local-6989586621680684605"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\x0085'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\n'</span></span><span>  </span><span class="hs-comment">-- NEXT LINE</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><a href="#local-6989586621680684605"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\x2028'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\n'</span></span><span>  </span><span class="hs-comment">-- LINE SEPARATOR</span><span>
+</span><span id="line-28"></span><span>  </span><span class="annot"><a href="#local-6989586621680684605"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\x2029'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\n'</span></span><span>  </span><span class="hs-comment">-- PARAGRAPH SEPARATOR</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-comment">-- Not a line ending (or '\x000A'):</span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><a href="#local-6989586621680684605"><span class="hs-identifier hs-var">convert</span></a></span><span> </span><span id="local-6989586621680684604"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621680684604"><span class="hs-identifier hs-var">c</span></a></span></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621680684604"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- | Reads a UTF8-encoded text file and converts many character</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- sequences which may be interpreted as line or paragraph separators</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- into '\n'.</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#readTextFile"><span class="hs-identifier hs-type">readTextFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-37"></span><span id="readTextFile"><span class="annot"><span class="annottext">readTextFile :: FilePath -&gt; IO Text
+</span><a href="Agda.Utils.IO.UTF8.html#readTextFile"><span class="hs-identifier hs-var hs-var">readTextFile</span></a></span></span><span> </span><span id="local-6989586621680684603"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621680684603"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text
+</span><a href="Agda.Utils.IO.UTF8.html#convertLineEndings"><span class="hs-identifier hs-var">convertLineEndings</span></a></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Text) -&gt; IO Text -&gt; IO Text
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621680684601"><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684601"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IOMode -&gt; IO Handle
+</span><span class="hs-identifier hs-var">IO.openFile</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621680684603"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">IOMode
+</span><span class="hs-identifier hs-var">IO.ReadMode</span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><span class="annottext">Handle -&gt; NewlineMode -&gt; IO ()
+</span><span class="hs-identifier hs-var">IO.hSetNewlineMode</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684601"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">(NewlineMode -&gt; IO ()) -&gt; NewlineMode -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-40"></span><span>    </span><span class="annot"><span class="annottext">NewlineMode :: Newline -&gt; Newline -&gt; NewlineMode
+</span><span class="hs-identifier hs-type">IO.NewlineMode</span></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">inputNL :: Newline
+</span><span class="hs-identifier hs-var">IO.inputNL</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Newline
+</span><span class="hs-identifier hs-var">IO.CRLF</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">outputNL :: Newline
+</span><span class="hs-identifier hs-var">IO.outputNL</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Newline
+</span><span class="hs-identifier hs-var">IO.LF</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-41"></span><span>  </span><span class="annot"><span class="annottext">Handle -&gt; TextEncoding -&gt; IO ()
+</span><span class="hs-identifier hs-var">IO.hSetEncoding</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684601"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">TextEncoding
+</span><span class="hs-identifier hs-var">IO.utf8</span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="annot"><span class="annottext">Handle -&gt; IO Text
+</span><span class="hs-identifier hs-var">T.hGetContents</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684601"><span class="hs-identifier hs-var">h</span></a></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- | Writes a UTF8-encoded text file. The native convention for line</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- endings is used.</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#writeFile"><span class="hs-identifier hs-type">writeFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span id="writeFile"><span class="annot"><span class="annottext">writeFile :: FilePath -&gt; FilePath -&gt; IO ()
+</span><a href="Agda.Utils.IO.UTF8.html#writeFile"><span class="hs-identifier hs-var hs-var">writeFile</span></a></span></span><span> </span><span id="local-6989586621680684589"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621680684589"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621680684588"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621680684588"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IOMode -&gt; (Handle -&gt; IO ()) -&gt; IO ()
+forall r. FilePath -&gt; IOMode -&gt; (Handle -&gt; IO r) -&gt; IO r
+</span><span class="hs-identifier hs-var">IO.withFile</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621680684589"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">IOMode
+</span><span class="hs-identifier hs-var">IO.WriteMode</span></span><span> </span><span class="annot"><span class="annottext">((Handle -&gt; IO ()) -&gt; IO ()) -&gt; (Handle -&gt; IO ()) -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621680684585"><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684585"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><span class="annottext">Handle -&gt; TextEncoding -&gt; IO ()
+</span><span class="hs-identifier hs-var">IO.hSetEncoding</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684585"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">TextEncoding
+</span><span class="hs-identifier hs-var">IO.utf8</span></span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><span class="annottext">Handle -&gt; FilePath -&gt; IO ()
+</span><span class="hs-identifier hs-var">IO.hPutStr</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684585"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621680684588"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- | Writes a UTF8-encoded text file. The native convention for line</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- endings is used.</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Agda.Utils.IO.UTF8.html#writeTextToFile"><span class="hs-identifier hs-type">writeTextToFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span id="writeTextToFile"><span class="annot"><span class="annottext">writeTextToFile :: FilePath -&gt; Text -&gt; IO ()
+</span><a href="Agda.Utils.IO.UTF8.html#writeTextToFile"><span class="hs-identifier hs-var hs-var">writeTextToFile</span></a></span></span><span> </span><span id="local-6989586621680684583"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621680684583"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621680684582"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621680684582"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IOMode -&gt; (Handle -&gt; IO ()) -&gt; IO ()
+forall r. FilePath -&gt; IOMode -&gt; (Handle -&gt; IO r) -&gt; IO r
+</span><span class="hs-identifier hs-var">IO.withFile</span></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621680684583"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">IOMode
+</span><span class="hs-identifier hs-var">IO.WriteMode</span></span><span> </span><span class="annot"><span class="annottext">((Handle -&gt; IO ()) -&gt; IO ()) -&gt; (Handle -&gt; IO ()) -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621680684581"><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684581"><span class="hs-identifier hs-var">h</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><span class="annottext">Handle -&gt; TextEncoding -&gt; IO ()
+</span><span class="hs-identifier hs-var">IO.hSetEncoding</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684581"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">TextEncoding
+</span><span class="hs-identifier hs-var">IO.utf8</span></span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><span class="annottext">Handle -&gt; Text -&gt; IO ()
+</span><span class="hs-identifier hs-var">T.hPutStr</span></span><span> </span><span class="annot"><span class="annottext">Handle
+</span><a href="#local-6989586621680684581"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621680684582"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-59"></span></pre></body></html>

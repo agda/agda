@@ -1,0 +1,751 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | This module defines the names of all BUILTINs.</span><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.Syntax.Builtin</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.List.html"><span class="hs-identifier">Agda.Utils.List</span></a></span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNat"><span class="hs-identifier hs-type">builtinNat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSuc"><span class="hs-identifier hs-type">builtinSuc</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinZero"><span class="hs-identifier hs-type">builtinZero</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNatPlus"><span class="hs-identifier hs-type">builtinNatPlus</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNatMinus"><span class="hs-identifier hs-type">builtinNatMinus</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-7"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNatTimes"><span class="hs-identifier hs-type">builtinNatTimes</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNatDivSucAux"><span class="hs-identifier hs-type">builtinNatDivSucAux</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNatModSucAux"><span class="hs-identifier hs-type">builtinNatModSucAux</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNatEquals"><span class="hs-identifier hs-type">builtinNatEquals</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-8"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNatLess"><span class="hs-identifier hs-type">builtinNatLess</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinInteger"><span class="hs-identifier hs-type">builtinInteger</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIntegerPos"><span class="hs-identifier hs-type">builtinIntegerPos</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIntegerNegSuc"><span class="hs-identifier hs-type">builtinIntegerNegSuc</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-9"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinWord64"><span class="hs-identifier hs-type">builtinWord64</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-10"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinFloat"><span class="hs-identifier hs-type">builtinFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinChar"><span class="hs-identifier hs-type">builtinChar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinString"><span class="hs-identifier hs-type">builtinString</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinUnit"><span class="hs-identifier hs-type">builtinUnit</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinUnitUnit"><span class="hs-identifier hs-type">builtinUnitUnit</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-11"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSigma"><span class="hs-identifier hs-type">builtinSigma</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-12"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinBool"><span class="hs-identifier hs-type">builtinBool</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinTrue"><span class="hs-identifier hs-type">builtinTrue</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinFalse"><span class="hs-identifier hs-type">builtinFalse</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-13"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinList"><span class="hs-identifier hs-type">builtinList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNil"><span class="hs-identifier hs-type">builtinNil</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinCons"><span class="hs-identifier hs-type">builtinCons</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIO"><span class="hs-identifier hs-type">builtinIO</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-14"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinMaybe"><span class="hs-identifier hs-type">builtinMaybe</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinNothing"><span class="hs-identifier hs-type">builtinNothing</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinJust"><span class="hs-identifier hs-type">builtinJust</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-15"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinPath"><span class="hs-identifier hs-type">builtinPath</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinPathP"><span class="hs-identifier hs-type">builtinPathP</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinInterval"><span class="hs-identifier hs-type">builtinInterval</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIZero"><span class="hs-identifier hs-type">builtinIZero</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIOne"><span class="hs-identifier hs-type">builtinIOne</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinPartial"><span class="hs-identifier hs-type">builtinPartial</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinPartialP"><span class="hs-identifier hs-type">builtinPartialP</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-16"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIMin"><span class="hs-identifier hs-type">builtinIMin</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIMax"><span class="hs-identifier hs-type">builtinIMax</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinINeg"><span class="hs-identifier hs-type">builtinINeg</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-17"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIsOne"><span class="hs-identifier hs-type">builtinIsOne</span></a></span><span class="hs-special">,</span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinItIsOne"><span class="hs-identifier hs-type">builtinItIsOne</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIsOne1"><span class="hs-identifier hs-type">builtinIsOne1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIsOne2"><span class="hs-identifier hs-type">builtinIsOne2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIsOneEmpty"><span class="hs-identifier hs-type">builtinIsOneEmpty</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-18"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinComp"><span class="hs-identifier hs-type">builtinComp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinPOr"><span class="hs-identifier hs-type">builtinPOr</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-19"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinTrans"><span class="hs-identifier hs-type">builtinTrans</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinHComp"><span class="hs-identifier hs-type">builtinHComp</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-20"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSub"><span class="hs-identifier hs-type">builtinSub</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSubIn"><span class="hs-identifier hs-type">builtinSubIn</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSubOut"><span class="hs-identifier hs-type">builtinSubOut</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinEquiv"><span class="hs-identifier hs-type">builtinEquiv</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinEquivFun"><span class="hs-identifier hs-type">builtinEquivFun</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinEquivProof"><span class="hs-identifier hs-type">builtinEquivProof</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-22"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinTranspProof"><span class="hs-identifier hs-type">builtinTranspProof</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinGlue"><span class="hs-identifier hs-type">builtinGlue</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtin_glue"><span class="hs-identifier hs-type">builtin_glue</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtin_unglue"><span class="hs-identifier hs-type">builtin_unglue</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtin_glueU"><span class="hs-identifier hs-type">builtin_glueU</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtin_unglueU"><span class="hs-identifier hs-type">builtin_unglueU</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-25"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinFaceForall"><span class="hs-identifier hs-type">builtinFaceForall</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinId"><span class="hs-identifier hs-type">builtinId</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinConId"><span class="hs-identifier hs-type">builtinConId</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIdElim"><span class="hs-identifier hs-type">builtinIdElim</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSizeUniv"><span class="hs-identifier hs-type">builtinSizeUniv</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSize"><span class="hs-identifier hs-type">builtinSize</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSizeLt"><span class="hs-identifier hs-type">builtinSizeLt</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-28"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSizeSuc"><span class="hs-identifier hs-type">builtinSizeSuc</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSizeInf"><span class="hs-identifier hs-type">builtinSizeInf</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSizeMax"><span class="hs-identifier hs-type">builtinSizeMax</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-29"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinInf"><span class="hs-identifier hs-type">builtinInf</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSharp"><span class="hs-identifier hs-type">builtinSharp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinFlat"><span class="hs-identifier hs-type">builtinFlat</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinEquality"><span class="hs-identifier hs-type">builtinEquality</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinRefl"><span class="hs-identifier hs-type">builtinRefl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinRewrite"><span class="hs-identifier hs-type">builtinRewrite</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinLevelMax"><span class="hs-identifier hs-type">builtinLevelMax</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinLevel"><span class="hs-identifier hs-type">builtinLevel</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinLevelZero"><span class="hs-identifier hs-type">builtinLevelZero</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinLevelSuc"><span class="hs-identifier hs-type">builtinLevelSuc</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-32"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSet"><span class="hs-identifier hs-type">builtinSet</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinProp"><span class="hs-identifier hs-type">builtinProp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSetOmega"><span class="hs-identifier hs-type">builtinSetOmega</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinStrictSet"><span class="hs-identifier hs-type">builtinStrictSet</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinSSetOmega"><span class="hs-identifier hs-type">builtinSSetOmega</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinLockUniv"><span class="hs-identifier hs-type">builtinLockUniv</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIntervalUniv"><span class="hs-identifier hs-type">builtinIntervalUniv</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-35"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinFromNat"><span class="hs-identifier hs-type">builtinFromNat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinFromNeg"><span class="hs-identifier hs-type">builtinFromNeg</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinFromString"><span class="hs-identifier hs-type">builtinFromString</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-36"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinQName"><span class="hs-identifier hs-type">builtinQName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaSort"><span class="hs-identifier hs-type">builtinAgdaSort</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaSortSet"><span class="hs-identifier hs-type">builtinAgdaSortSet</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaSortLit"><span class="hs-identifier hs-type">builtinAgdaSortLit</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-37"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaSortProp"><span class="hs-identifier hs-type">builtinAgdaSortProp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaSortPropLit"><span class="hs-identifier hs-type">builtinAgdaSortPropLit</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaSortInf"><span class="hs-identifier hs-type">builtinAgdaSortInf</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-38"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaSortUnsupported"><span class="hs-identifier hs-type">builtinAgdaSortUnsupported</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinHiding"><span class="hs-identifier hs-type">builtinHiding</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinHidden"><span class="hs-identifier hs-type">builtinHidden</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinInstance"><span class="hs-identifier hs-type">builtinInstance</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinVisible"><span class="hs-identifier hs-type">builtinVisible</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-40"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinRelevance"><span class="hs-identifier hs-type">builtinRelevance</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinRelevant"><span class="hs-identifier hs-type">builtinRelevant</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinIrrelevant"><span class="hs-identifier hs-type">builtinIrrelevant</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-41"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinQuantity"><span class="hs-identifier hs-type">builtinQuantity</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinQuantity0"><span class="hs-identifier hs-type">builtinQuantity0</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinQuantity%3C9"><span class="hs-identifier hs-type">builtinQuantity&#969;</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-42"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinModality"><span class="hs-identifier hs-type">builtinModality</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinModalityConstructor"><span class="hs-identifier hs-type">builtinModalityConstructor</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-43"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAssoc"><span class="hs-identifier hs-type">builtinAssoc</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAssocLeft"><span class="hs-identifier hs-type">builtinAssocLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAssocRight"><span class="hs-identifier hs-type">builtinAssocRight</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAssocNon"><span class="hs-identifier hs-type">builtinAssocNon</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinPrecedence"><span class="hs-identifier hs-type">builtinPrecedence</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinPrecRelated"><span class="hs-identifier hs-type">builtinPrecRelated</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinPrecUnrelated"><span class="hs-identifier hs-type">builtinPrecUnrelated</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-45"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinFixity"><span class="hs-identifier hs-type">builtinFixity</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinFixityFixity"><span class="hs-identifier hs-type">builtinFixityFixity</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-46"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinArgInfo"><span class="hs-identifier hs-type">builtinArgInfo</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinArgArgInfo"><span class="hs-identifier hs-type">builtinArgArgInfo</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-47"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinArg"><span class="hs-identifier hs-type">builtinArg</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinArgArg"><span class="hs-identifier hs-type">builtinArgArg</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-48"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAbs"><span class="hs-identifier hs-type">builtinAbs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAbsAbs"><span class="hs-identifier hs-type">builtinAbsAbs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTerm"><span class="hs-identifier hs-type">builtinAgdaTerm</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermVar"><span class="hs-identifier hs-type">builtinAgdaTermVar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermLam"><span class="hs-identifier hs-type">builtinAgdaTermLam</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermExtLam"><span class="hs-identifier hs-type">builtinAgdaTermExtLam</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermDef"><span class="hs-identifier hs-type">builtinAgdaTermDef</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermCon"><span class="hs-identifier hs-type">builtinAgdaTermCon</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermPi"><span class="hs-identifier hs-type">builtinAgdaTermPi</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-51"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermSort"><span class="hs-identifier hs-type">builtinAgdaTermSort</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermLit"><span class="hs-identifier hs-type">builtinAgdaTermLit</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermUnsupported"><span class="hs-identifier hs-type">builtinAgdaTermUnsupported</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTermMeta"><span class="hs-identifier hs-type">builtinAgdaTermMeta</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-52"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaErrorPart"><span class="hs-identifier hs-type">builtinAgdaErrorPart</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaErrorPartString"><span class="hs-identifier hs-type">builtinAgdaErrorPartString</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaErrorPartTerm"><span class="hs-identifier hs-type">builtinAgdaErrorPartTerm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaErrorPartName"><span class="hs-identifier hs-type">builtinAgdaErrorPartName</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaLiteral"><span class="hs-identifier hs-type">builtinAgdaLiteral</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaLitNat"><span class="hs-identifier hs-type">builtinAgdaLitNat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaLitWord64"><span class="hs-identifier hs-type">builtinAgdaLitWord64</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaLitFloat"><span class="hs-identifier hs-type">builtinAgdaLitFloat</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaLitChar"><span class="hs-identifier hs-type">builtinAgdaLitChar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaLitString"><span class="hs-identifier hs-type">builtinAgdaLitString</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaLitQName"><span class="hs-identifier hs-type">builtinAgdaLitQName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaLitMeta"><span class="hs-identifier hs-type">builtinAgdaLitMeta</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaClause"><span class="hs-identifier hs-type">builtinAgdaClause</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaClauseClause"><span class="hs-identifier hs-type">builtinAgdaClauseClause</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaClauseAbsurd"><span class="hs-identifier hs-type">builtinAgdaClauseAbsurd</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaPattern"><span class="hs-identifier hs-type">builtinAgdaPattern</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaPatVar"><span class="hs-identifier hs-type">builtinAgdaPatVar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaPatCon"><span class="hs-identifier hs-type">builtinAgdaPatCon</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaPatDot"><span class="hs-identifier hs-type">builtinAgdaPatDot</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaPatLit"><span class="hs-identifier hs-type">builtinAgdaPatLit</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaPatProj"><span class="hs-identifier hs-type">builtinAgdaPatProj</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaPatAbsurd"><span class="hs-identifier hs-type">builtinAgdaPatAbsurd</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionFunDef"><span class="hs-identifier hs-type">builtinAgdaDefinitionFunDef</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-59"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionDataDef"><span class="hs-identifier hs-type">builtinAgdaDefinitionDataDef</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionRecordDef"><span class="hs-identifier hs-type">builtinAgdaDefinitionRecordDef</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-60"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionDataConstructor"><span class="hs-identifier hs-type">builtinAgdaDefinitionDataConstructor</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionPostulate"><span class="hs-identifier hs-type">builtinAgdaDefinitionPostulate</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-61"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionPrimitive"><span class="hs-identifier hs-type">builtinAgdaDefinitionPrimitive</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinition"><span class="hs-identifier hs-type">builtinAgdaDefinition</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-62"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaMeta"><span class="hs-identifier hs-type">builtinAgdaMeta</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCM"><span class="hs-identifier hs-type">builtinAgdaTCM</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMReturn"><span class="hs-identifier hs-type">builtinAgdaTCMReturn</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMBind"><span class="hs-identifier hs-type">builtinAgdaTCMBind</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMUnify"><span class="hs-identifier hs-type">builtinAgdaTCMUnify</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-64"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMTypeError"><span class="hs-identifier hs-type">builtinAgdaTCMTypeError</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMInferType"><span class="hs-identifier hs-type">builtinAgdaTCMInferType</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMCheckType"><span class="hs-identifier hs-type">builtinAgdaTCMCheckType</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMNormalise"><span class="hs-identifier hs-type">builtinAgdaTCMNormalise</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMReduce"><span class="hs-identifier hs-type">builtinAgdaTCMReduce</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-66"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMCatchError"><span class="hs-identifier hs-type">builtinAgdaTCMCatchError</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-67"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMGetContext"><span class="hs-identifier hs-type">builtinAgdaTCMGetContext</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMExtendContext"><span class="hs-identifier hs-type">builtinAgdaTCMExtendContext</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMInContext"><span class="hs-identifier hs-type">builtinAgdaTCMInContext</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-68"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMFreshName"><span class="hs-identifier hs-type">builtinAgdaTCMFreshName</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDeclareDef"><span class="hs-identifier hs-type">builtinAgdaTCMDeclareDef</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDeclarePostulate"><span class="hs-identifier hs-type">builtinAgdaTCMDeclarePostulate</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDefineFun"><span class="hs-identifier hs-type">builtinAgdaTCMDefineFun</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-69"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMGetType"><span class="hs-identifier hs-type">builtinAgdaTCMGetType</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMGetDefinition"><span class="hs-identifier hs-type">builtinAgdaTCMGetDefinition</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-70"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMQuoteTerm"><span class="hs-identifier hs-type">builtinAgdaTCMQuoteTerm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMUnquoteTerm"><span class="hs-identifier hs-type">builtinAgdaTCMUnquoteTerm</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMQuoteOmegaTerm"><span class="hs-identifier hs-type">builtinAgdaTCMQuoteOmegaTerm</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-71"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMBlockOnMeta"><span class="hs-identifier hs-type">builtinAgdaTCMBlockOnMeta</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMCommit"><span class="hs-identifier hs-type">builtinAgdaTCMCommit</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMIsMacro"><span class="hs-identifier hs-type">builtinAgdaTCMIsMacro</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-72"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMWithNormalisation"><span class="hs-identifier hs-type">builtinAgdaTCMWithNormalisation</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMWithReconsParams"><span class="hs-identifier hs-type">builtinAgdaTCMWithReconsParams</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDebugPrint"><span class="hs-identifier hs-type">builtinAgdaTCMDebugPrint</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-73"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMOnlyReduceDefs"><span class="hs-identifier hs-type">builtinAgdaTCMOnlyReduceDefs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDontReduceDefs"><span class="hs-identifier hs-type">builtinAgdaTCMDontReduceDefs</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-74"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMNoConstraints"><span class="hs-identifier hs-type">builtinAgdaTCMNoConstraints</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-75"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMRunSpeculative"><span class="hs-identifier hs-type">builtinAgdaTCMRunSpeculative</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-76"></span><span>  </span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMExec"><span class="hs-identifier hs-type">builtinAgdaTCMExec</span></a></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span id="builtinNat"><span class="annot"><span class="annottext">builtinNat :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNat"><span class="hs-identifier hs-var hs-var">builtinNat</span></a></span></span><span>                               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NATURAL&quot;</span></span><span>
+</span><span id="line-80"></span><span id="builtinSuc"><span class="annot"><span class="annottext">builtinSuc :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSuc"><span class="hs-identifier hs-var hs-var">builtinSuc</span></a></span></span><span>                               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SUC&quot;</span></span><span>
+</span><span id="line-81"></span><span id="builtinZero"><span class="annot"><span class="annottext">builtinZero :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinZero"><span class="hs-identifier hs-var hs-var">builtinZero</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ZERO&quot;</span></span><span>
+</span><span id="line-82"></span><span id="builtinNatPlus"><span class="annot"><span class="annottext">builtinNatPlus :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNatPlus"><span class="hs-identifier hs-var hs-var">builtinNatPlus</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NATPLUS&quot;</span></span><span>
+</span><span id="line-83"></span><span id="builtinNatMinus"><span class="annot"><span class="annottext">builtinNatMinus :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNatMinus"><span class="hs-identifier hs-var hs-var">builtinNatMinus</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NATMINUS&quot;</span></span><span>
+</span><span id="line-84"></span><span id="builtinNatTimes"><span class="annot"><span class="annottext">builtinNatTimes :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNatTimes"><span class="hs-identifier hs-var hs-var">builtinNatTimes</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NATTIMES&quot;</span></span><span>
+</span><span id="line-85"></span><span id="builtinNatDivSucAux"><span class="annot"><span class="annottext">builtinNatDivSucAux :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNatDivSucAux"><span class="hs-identifier hs-var hs-var">builtinNatDivSucAux</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NATDIVSUCAUX&quot;</span></span><span>
+</span><span id="line-86"></span><span id="builtinNatModSucAux"><span class="annot"><span class="annottext">builtinNatModSucAux :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNatModSucAux"><span class="hs-identifier hs-var hs-var">builtinNatModSucAux</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NATMODSUCAUX&quot;</span></span><span>
+</span><span id="line-87"></span><span id="builtinNatEquals"><span class="annot"><span class="annottext">builtinNatEquals :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNatEquals"><span class="hs-identifier hs-var hs-var">builtinNatEquals</span></a></span></span><span>                         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NATEQUALS&quot;</span></span><span>
+</span><span id="line-88"></span><span id="builtinNatLess"><span class="annot"><span class="annottext">builtinNatLess :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNatLess"><span class="hs-identifier hs-var hs-var">builtinNatLess</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NATLESS&quot;</span></span><span>
+</span><span id="line-89"></span><span id="builtinWord64"><span class="annot"><span class="annottext">builtinWord64 :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinWord64"><span class="hs-identifier hs-var hs-var">builtinWord64</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;WORD64&quot;</span></span><span>
+</span><span id="line-90"></span><span id="builtinInteger"><span class="annot"><span class="annottext">builtinInteger :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinInteger"><span class="hs-identifier hs-var hs-var">builtinInteger</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;INTEGER&quot;</span></span><span>
+</span><span id="line-91"></span><span id="builtinIntegerPos"><span class="annot"><span class="annottext">builtinIntegerPos :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIntegerPos"><span class="hs-identifier hs-var hs-var">builtinIntegerPos</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;INTEGERPOS&quot;</span></span><span>
+</span><span id="line-92"></span><span id="builtinIntegerNegSuc"><span class="annot"><span class="annottext">builtinIntegerNegSuc :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIntegerNegSuc"><span class="hs-identifier hs-var hs-var">builtinIntegerNegSuc</span></a></span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;INTEGERNEGSUC&quot;</span></span><span>
+</span><span id="line-93"></span><span id="builtinFloat"><span class="annot"><span class="annottext">builtinFloat :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinFloat"><span class="hs-identifier hs-var hs-var">builtinFloat</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;FLOAT&quot;</span></span><span>
+</span><span id="line-94"></span><span id="builtinChar"><span class="annot"><span class="annottext">builtinChar :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinChar"><span class="hs-identifier hs-var hs-var">builtinChar</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;CHAR&quot;</span></span><span>
+</span><span id="line-95"></span><span id="builtinString"><span class="annot"><span class="annottext">builtinString :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinString"><span class="hs-identifier hs-var hs-var">builtinString</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;STRING&quot;</span></span><span>
+</span><span id="line-96"></span><span id="builtinUnit"><span class="annot"><span class="annottext">builtinUnit :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinUnit"><span class="hs-identifier hs-var hs-var">builtinUnit</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;UNIT&quot;</span></span><span>
+</span><span id="line-97"></span><span id="builtinUnitUnit"><span class="annot"><span class="annottext">builtinUnitUnit :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinUnitUnit"><span class="hs-identifier hs-var hs-var">builtinUnitUnit</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;UNITUNIT&quot;</span></span><span>
+</span><span id="line-98"></span><span id="builtinSigma"><span class="annot"><span class="annottext">builtinSigma :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSigma"><span class="hs-identifier hs-var hs-var">builtinSigma</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SIGMA&quot;</span></span><span>
+</span><span id="line-99"></span><span id="builtinBool"><span class="annot"><span class="annottext">builtinBool :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinBool"><span class="hs-identifier hs-var hs-var">builtinBool</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;BOOL&quot;</span></span><span>
+</span><span id="line-100"></span><span id="builtinTrue"><span class="annot"><span class="annottext">builtinTrue :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinTrue"><span class="hs-identifier hs-var hs-var">builtinTrue</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;TRUE&quot;</span></span><span>
+</span><span id="line-101"></span><span id="builtinFalse"><span class="annot"><span class="annottext">builtinFalse :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinFalse"><span class="hs-identifier hs-var hs-var">builtinFalse</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;FALSE&quot;</span></span><span>
+</span><span id="line-102"></span><span id="builtinList"><span class="annot"><span class="annottext">builtinList :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinList"><span class="hs-identifier hs-var hs-var">builtinList</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;LIST&quot;</span></span><span>
+</span><span id="line-103"></span><span id="builtinNil"><span class="annot"><span class="annottext">builtinNil :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNil"><span class="hs-identifier hs-var hs-var">builtinNil</span></a></span></span><span>                               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NIL&quot;</span></span><span>
+</span><span id="line-104"></span><span id="builtinCons"><span class="annot"><span class="annottext">builtinCons :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinCons"><span class="hs-identifier hs-var hs-var">builtinCons</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;CONS&quot;</span></span><span>
+</span><span id="line-105"></span><span id="builtinMaybe"><span class="annot"><span class="annottext">builtinMaybe :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinMaybe"><span class="hs-identifier hs-var hs-var">builtinMaybe</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;MAYBE&quot;</span></span><span>
+</span><span id="line-106"></span><span id="builtinNothing"><span class="annot"><span class="annottext">builtinNothing :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinNothing"><span class="hs-identifier hs-var hs-var">builtinNothing</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;NOTHING&quot;</span></span><span>
+</span><span id="line-107"></span><span id="builtinJust"><span class="annot"><span class="annottext">builtinJust :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinJust"><span class="hs-identifier hs-var hs-var">builtinJust</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;JUST&quot;</span></span><span>
+</span><span id="line-108"></span><span id="builtinIO"><span class="annot"><span class="annottext">builtinIO :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIO"><span class="hs-identifier hs-var hs-var">builtinIO</span></a></span></span><span>                                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;IO&quot;</span></span><span>
+</span><span id="line-109"></span><span id="builtinId"><span class="annot"><span class="annottext">builtinId :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinId"><span class="hs-identifier hs-var hs-var">builtinId</span></a></span></span><span>                                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ID&quot;</span></span><span>
+</span><span id="line-110"></span><span id="builtinConId"><span class="annot"><span class="annottext">builtinConId :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinConId"><span class="hs-identifier hs-var hs-var">builtinConId</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;CONID&quot;</span></span><span>
+</span><span id="line-111"></span><span id="builtinIdElim"><span class="annot"><span class="annottext">builtinIdElim :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIdElim"><span class="hs-identifier hs-var hs-var">builtinIdElim</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primIdElim&quot;</span></span><span>
+</span><span id="line-112"></span><span id="builtinPath"><span class="annot"><span class="annottext">builtinPath :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinPath"><span class="hs-identifier hs-var hs-var">builtinPath</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PATH&quot;</span></span><span>
+</span><span id="line-113"></span><span id="builtinPathP"><span class="annot"><span class="annottext">builtinPathP :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinPathP"><span class="hs-identifier hs-var hs-var">builtinPathP</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PATHP&quot;</span></span><span>
+</span><span id="line-114"></span><span id="builtinIntervalUniv"><span class="annot"><span class="annottext">builtinIntervalUniv :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIntervalUniv"><span class="hs-identifier hs-var hs-var">builtinIntervalUniv</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;CUBEINTERVALUNIV&quot;</span></span><span>
+</span><span id="line-115"></span><span id="builtinInterval"><span class="annot"><span class="annottext">builtinInterval :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinInterval"><span class="hs-identifier hs-var hs-var">builtinInterval</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;INTERVAL&quot;</span></span><span>
+</span><span id="line-116"></span><span id="builtinIMin"><span class="annot"><span class="annottext">builtinIMin :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIMin"><span class="hs-identifier hs-var hs-var">builtinIMin</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primIMin&quot;</span></span><span>
+</span><span id="line-117"></span><span id="builtinIMax"><span class="annot"><span class="annottext">builtinIMax :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIMax"><span class="hs-identifier hs-var hs-var">builtinIMax</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primIMax&quot;</span></span><span>
+</span><span id="line-118"></span><span id="builtinINeg"><span class="annot"><span class="annottext">builtinINeg :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinINeg"><span class="hs-identifier hs-var hs-var">builtinINeg</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primINeg&quot;</span></span><span>
+</span><span id="line-119"></span><span id="builtinIZero"><span class="annot"><span class="annottext">builtinIZero :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIZero"><span class="hs-identifier hs-var hs-var">builtinIZero</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;IZERO&quot;</span></span><span>
+</span><span id="line-120"></span><span id="builtinIOne"><span class="annot"><span class="annottext">builtinIOne :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIOne"><span class="hs-identifier hs-var hs-var">builtinIOne</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;IONE&quot;</span></span><span>
+</span><span id="line-121"></span><span id="builtinPartial"><span class="annot"><span class="annottext">builtinPartial :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinPartial"><span class="hs-identifier hs-var hs-var">builtinPartial</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PARTIAL&quot;</span></span><span>
+</span><span id="line-122"></span><span id="builtinPartialP"><span class="annot"><span class="annottext">builtinPartialP :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinPartialP"><span class="hs-identifier hs-var hs-var">builtinPartialP</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PARTIALP&quot;</span></span><span>
+</span><span id="line-123"></span><span id="builtinIsOne"><span class="annot"><span class="annottext">builtinIsOne :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIsOne"><span class="hs-identifier hs-var hs-var">builtinIsOne</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ISONE&quot;</span></span><span>
+</span><span id="line-124"></span><span id="builtinItIsOne"><span class="annot"><span class="annottext">builtinItIsOne :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinItIsOne"><span class="hs-identifier hs-var hs-var">builtinItIsOne</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ITISONE&quot;</span></span><span>
+</span><span id="line-125"></span><span id="builtinEquiv"><span class="annot"><span class="annottext">builtinEquiv :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinEquiv"><span class="hs-identifier hs-var hs-var">builtinEquiv</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;EQUIV&quot;</span></span><span>
+</span><span id="line-126"></span><span id="builtinEquivFun"><span class="annot"><span class="annottext">builtinEquivFun :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinEquivFun"><span class="hs-identifier hs-var hs-var">builtinEquivFun</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;EQUIVFUN&quot;</span></span><span>
+</span><span id="line-127"></span><span id="builtinEquivProof"><span class="annot"><span class="annottext">builtinEquivProof :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinEquivProof"><span class="hs-identifier hs-var hs-var">builtinEquivProof</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;EQUIVPROOF&quot;</span></span><span>
+</span><span id="line-128"></span><span id="builtinTranspProof"><span class="annot"><span class="annottext">builtinTranspProof :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinTranspProof"><span class="hs-identifier hs-var hs-var">builtinTranspProof</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;TRANSPPROOF&quot;</span></span><span>
+</span><span id="line-129"></span><span id="builtinGlue"><span class="annot"><span class="annottext">builtinGlue :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinGlue"><span class="hs-identifier hs-var hs-var">builtinGlue</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primGlue&quot;</span></span><span>
+</span><span id="line-130"></span><span id="builtin_glue"><span class="annot"><span class="annottext">builtin_glue :: String
+</span><a href="Agda.Syntax.Builtin.html#builtin_glue"><span class="hs-identifier hs-var hs-var">builtin_glue</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;prim^glue&quot;</span></span><span>
+</span><span id="line-131"></span><span id="builtin_unglue"><span class="annot"><span class="annottext">builtin_unglue :: String
+</span><a href="Agda.Syntax.Builtin.html#builtin_unglue"><span class="hs-identifier hs-var hs-var">builtin_unglue</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;prim^unglue&quot;</span></span><span>
+</span><span id="line-132"></span><span id="builtin_glueU"><span class="annot"><span class="annottext">builtin_glueU :: String
+</span><a href="Agda.Syntax.Builtin.html#builtin_glueU"><span class="hs-identifier hs-var hs-var">builtin_glueU</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;prim^glueU&quot;</span></span><span>
+</span><span id="line-133"></span><span id="builtin_unglueU"><span class="annot"><span class="annottext">builtin_unglueU :: String
+</span><a href="Agda.Syntax.Builtin.html#builtin_unglueU"><span class="hs-identifier hs-var hs-var">builtin_unglueU</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;prim^unglueU&quot;</span></span><span>
+</span><span id="line-134"></span><span id="builtinFaceForall"><span class="annot"><span class="annottext">builtinFaceForall :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinFaceForall"><span class="hs-identifier hs-var hs-var">builtinFaceForall</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primFaceForall&quot;</span></span><span>
+</span><span id="line-135"></span><span id="builtinIsOne1"><span class="annot"><span class="annottext">builtinIsOne1 :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIsOne1"><span class="hs-identifier hs-var hs-var">builtinIsOne1</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ISONE1&quot;</span></span><span>
+</span><span id="line-136"></span><span id="builtinIsOne2"><span class="annot"><span class="annottext">builtinIsOne2 :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIsOne2"><span class="hs-identifier hs-var hs-var">builtinIsOne2</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ISONE2&quot;</span></span><span>
+</span><span id="line-137"></span><span id="builtinIsOneEmpty"><span class="annot"><span class="annottext">builtinIsOneEmpty :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIsOneEmpty"><span class="hs-identifier hs-var hs-var">builtinIsOneEmpty</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ISONEEMPTY&quot;</span></span><span>
+</span><span id="line-138"></span><span id="builtinComp"><span class="annot"><span class="annottext">builtinComp :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinComp"><span class="hs-identifier hs-var hs-var">builtinComp</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primComp&quot;</span></span><span>
+</span><span id="line-139"></span><span id="builtinPOr"><span class="annot"><span class="annottext">builtinPOr :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinPOr"><span class="hs-identifier hs-var hs-var">builtinPOr</span></a></span></span><span>                               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primPOr&quot;</span></span><span>
+</span><span id="line-140"></span><span id="builtinTrans"><span class="annot"><span class="annottext">builtinTrans :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinTrans"><span class="hs-identifier hs-var hs-var">builtinTrans</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primTransp&quot;</span></span><span>
+</span><span id="line-141"></span><span id="builtinHComp"><span class="annot"><span class="annottext">builtinHComp :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinHComp"><span class="hs-identifier hs-var hs-var">builtinHComp</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primHComp&quot;</span></span><span>
+</span><span id="line-142"></span><span id="builtinSub"><span class="annot"><span class="annottext">builtinSub :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSub"><span class="hs-identifier hs-var hs-var">builtinSub</span></a></span></span><span>                               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SUB&quot;</span></span><span>
+</span><span id="line-143"></span><span id="builtinSubIn"><span class="annot"><span class="annottext">builtinSubIn :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSubIn"><span class="hs-identifier hs-var hs-var">builtinSubIn</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SUBIN&quot;</span></span><span>
+</span><span id="line-144"></span><span id="builtinSubOut"><span class="annot"><span class="annottext">builtinSubOut :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSubOut"><span class="hs-identifier hs-var hs-var">builtinSubOut</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primSubOut&quot;</span></span><span>
+</span><span id="line-145"></span><span id="builtinSizeUniv"><span class="annot"><span class="annottext">builtinSizeUniv :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeUniv"><span class="hs-identifier hs-var hs-var">builtinSizeUniv</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SIZEUNIV&quot;</span></span><span>
+</span><span id="line-146"></span><span id="builtinSize"><span class="annot"><span class="annottext">builtinSize :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSize"><span class="hs-identifier hs-var hs-var">builtinSize</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SIZE&quot;</span></span><span>
+</span><span id="line-147"></span><span id="builtinSizeLt"><span class="annot"><span class="annottext">builtinSizeLt :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeLt"><span class="hs-identifier hs-var hs-var">builtinSizeLt</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SIZELT&quot;</span></span><span>
+</span><span id="line-148"></span><span id="builtinSizeSuc"><span class="annot"><span class="annottext">builtinSizeSuc :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeSuc"><span class="hs-identifier hs-var hs-var">builtinSizeSuc</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SIZESUC&quot;</span></span><span>
+</span><span id="line-149"></span><span id="builtinSizeInf"><span class="annot"><span class="annottext">builtinSizeInf :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeInf"><span class="hs-identifier hs-var hs-var">builtinSizeInf</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SIZEINF&quot;</span></span><span>
+</span><span id="line-150"></span><span id="builtinSizeMax"><span class="annot"><span class="annottext">builtinSizeMax :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeMax"><span class="hs-identifier hs-var hs-var">builtinSizeMax</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SIZEMAX&quot;</span></span><span>
+</span><span id="line-151"></span><span id="builtinInf"><span class="annot"><span class="annottext">builtinInf :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinInf"><span class="hs-identifier hs-var hs-var">builtinInf</span></a></span></span><span>                               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;INFINITY&quot;</span></span><span>
+</span><span id="line-152"></span><span id="builtinSharp"><span class="annot"><span class="annottext">builtinSharp :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSharp"><span class="hs-identifier hs-var hs-var">builtinSharp</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SHARP&quot;</span></span><span>
+</span><span id="line-153"></span><span id="builtinFlat"><span class="annot"><span class="annottext">builtinFlat :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinFlat"><span class="hs-identifier hs-var hs-var">builtinFlat</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;FLAT&quot;</span></span><span>
+</span><span id="line-154"></span><span id="builtinEquality"><span class="annot"><span class="annottext">builtinEquality :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinEquality"><span class="hs-identifier hs-var hs-var">builtinEquality</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;EQUALITY&quot;</span></span><span>
+</span><span id="line-155"></span><span id="builtinRefl"><span class="annot"><span class="annottext">builtinRefl :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinRefl"><span class="hs-identifier hs-var hs-var">builtinRefl</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;REFL&quot;</span></span><span>
+</span><span id="line-156"></span><span id="builtinRewrite"><span class="annot"><span class="annottext">builtinRewrite :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinRewrite"><span class="hs-identifier hs-var hs-var">builtinRewrite</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;REWRITE&quot;</span></span><span>
+</span><span id="line-157"></span><span id="builtinLevelMax"><span class="annot"><span class="annottext">builtinLevelMax :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinLevelMax"><span class="hs-identifier hs-var hs-var">builtinLevelMax</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;LEVELMAX&quot;</span></span><span>
+</span><span id="line-158"></span><span id="builtinLevel"><span class="annot"><span class="annottext">builtinLevel :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinLevel"><span class="hs-identifier hs-var hs-var">builtinLevel</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;LEVEL&quot;</span></span><span>
+</span><span id="line-159"></span><span id="builtinLevelZero"><span class="annot"><span class="annottext">builtinLevelZero :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinLevelZero"><span class="hs-identifier hs-var hs-var">builtinLevelZero</span></a></span></span><span>                         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;LEVELZERO&quot;</span></span><span>
+</span><span id="line-160"></span><span id="builtinLevelSuc"><span class="annot"><span class="annottext">builtinLevelSuc :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinLevelSuc"><span class="hs-identifier hs-var hs-var">builtinLevelSuc</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;LEVELSUC&quot;</span></span><span>
+</span><span id="line-161"></span><span id="builtinSet"><span class="annot"><span class="annottext">builtinSet :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSet"><span class="hs-identifier hs-var hs-var">builtinSet</span></a></span></span><span>                               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;TYPE&quot;</span></span><span>
+</span><span id="line-162"></span><span id="builtinProp"><span class="annot"><span class="annottext">builtinProp :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinProp"><span class="hs-identifier hs-var hs-var">builtinProp</span></a></span></span><span>                              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PROP&quot;</span></span><span>
+</span><span id="line-163"></span><span id="builtinSetOmega"><span class="annot"><span class="annottext">builtinSetOmega :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSetOmega"><span class="hs-identifier hs-var hs-var">builtinSetOmega</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SETOMEGA&quot;</span></span><span>
+</span><span id="line-164"></span><span id="builtinLockUniv"><span class="annot"><span class="annottext">builtinLockUniv :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinLockUniv"><span class="hs-identifier hs-var hs-var">builtinLockUniv</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;primLockUniv&quot;</span></span><span>
+</span><span id="line-165"></span><span id="builtinSSetOmega"><span class="annot"><span class="annottext">builtinSSetOmega :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinSSetOmega"><span class="hs-identifier hs-var hs-var">builtinSSetOmega</span></a></span></span><span>                         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;STRICTSETOMEGA&quot;</span></span><span>
+</span><span id="line-166"></span><span id="builtinStrictSet"><span class="annot"><span class="annottext">builtinStrictSet :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinStrictSet"><span class="hs-identifier hs-var hs-var">builtinStrictSet</span></a></span></span><span>                         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;STRICTSET&quot;</span></span><span>
+</span><span id="line-167"></span><span id="builtinFromNat"><span class="annot"><span class="annottext">builtinFromNat :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinFromNat"><span class="hs-identifier hs-var hs-var">builtinFromNat</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;FROMNAT&quot;</span></span><span>
+</span><span id="line-168"></span><span id="builtinFromNeg"><span class="annot"><span class="annottext">builtinFromNeg :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinFromNeg"><span class="hs-identifier hs-var hs-var">builtinFromNeg</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;FROMNEG&quot;</span></span><span>
+</span><span id="line-169"></span><span id="builtinFromString"><span class="annot"><span class="annottext">builtinFromString :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinFromString"><span class="hs-identifier hs-var hs-var">builtinFromString</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;FROMSTRING&quot;</span></span><span>
+</span><span id="line-170"></span><span id="builtinQName"><span class="annot"><span class="annottext">builtinQName :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinQName"><span class="hs-identifier hs-var hs-var">builtinQName</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;QNAME&quot;</span></span><span>
+</span><span id="line-171"></span><span id="builtinAgdaSort"><span class="annot"><span class="annottext">builtinAgdaSort :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaSort"><span class="hs-identifier hs-var hs-var">builtinAgdaSort</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDASORT&quot;</span></span><span>
+</span><span id="line-172"></span><span id="builtinAgdaSortSet"><span class="annot"><span class="annottext">builtinAgdaSortSet :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaSortSet"><span class="hs-identifier hs-var hs-var">builtinAgdaSortSet</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDASORTSET&quot;</span></span><span>
+</span><span id="line-173"></span><span id="builtinAgdaSortLit"><span class="annot"><span class="annottext">builtinAgdaSortLit :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaSortLit"><span class="hs-identifier hs-var hs-var">builtinAgdaSortLit</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDASORTLIT&quot;</span></span><span>
+</span><span id="line-174"></span><span id="builtinAgdaSortProp"><span class="annot"><span class="annottext">builtinAgdaSortProp :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaSortProp"><span class="hs-identifier hs-var hs-var">builtinAgdaSortProp</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDASORTPROP&quot;</span></span><span>
+</span><span id="line-175"></span><span id="builtinAgdaSortPropLit"><span class="annot"><span class="annottext">builtinAgdaSortPropLit :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaSortPropLit"><span class="hs-identifier hs-var hs-var">builtinAgdaSortPropLit</span></a></span></span><span>                   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDASORTPROPLIT&quot;</span></span><span>
+</span><span id="line-176"></span><span id="builtinAgdaSortInf"><span class="annot"><span class="annottext">builtinAgdaSortInf :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaSortInf"><span class="hs-identifier hs-var hs-var">builtinAgdaSortInf</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDASORTINF&quot;</span></span><span>
+</span><span id="line-177"></span><span id="builtinAgdaSortUnsupported"><span class="annot"><span class="annottext">builtinAgdaSortUnsupported :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaSortUnsupported"><span class="hs-identifier hs-var hs-var">builtinAgdaSortUnsupported</span></a></span></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDASORTUNSUPPORTED&quot;</span></span><span>
+</span><span id="line-178"></span><span id="builtinHiding"><span class="annot"><span class="annottext">builtinHiding :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinHiding"><span class="hs-identifier hs-var hs-var">builtinHiding</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;HIDING&quot;</span></span><span>
+</span><span id="line-179"></span><span id="builtinHidden"><span class="annot"><span class="annottext">builtinHidden :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinHidden"><span class="hs-identifier hs-var hs-var">builtinHidden</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;HIDDEN&quot;</span></span><span>
+</span><span id="line-180"></span><span id="builtinInstance"><span class="annot"><span class="annottext">builtinInstance :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinInstance"><span class="hs-identifier hs-var hs-var">builtinInstance</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;INSTANCE&quot;</span></span><span>
+</span><span id="line-181"></span><span id="builtinVisible"><span class="annot"><span class="annottext">builtinVisible :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinVisible"><span class="hs-identifier hs-var hs-var">builtinVisible</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;VISIBLE&quot;</span></span><span>
+</span><span id="line-182"></span><span id="builtinRelevance"><span class="annot"><span class="annottext">builtinRelevance :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinRelevance"><span class="hs-identifier hs-var hs-var">builtinRelevance</span></a></span></span><span>                         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;RELEVANCE&quot;</span></span><span>
+</span><span id="line-183"></span><span id="builtinRelevant"><span class="annot"><span class="annottext">builtinRelevant :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinRelevant"><span class="hs-identifier hs-var hs-var">builtinRelevant</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;RELEVANT&quot;</span></span><span>
+</span><span id="line-184"></span><span id="builtinIrrelevant"><span class="annot"><span class="annottext">builtinIrrelevant :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinIrrelevant"><span class="hs-identifier hs-var hs-var">builtinIrrelevant</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;IRRELEVANT&quot;</span></span><span>
+</span><span id="line-185"></span><span id="builtinQuantity"><span class="annot"><span class="annottext">builtinQuantity :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinQuantity"><span class="hs-identifier hs-var hs-var">builtinQuantity</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;QUANTITY&quot;</span></span><span>
+</span><span id="line-186"></span><span id="builtinQuantity0"><span class="annot"><span class="annottext">builtinQuantity0 :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinQuantity0"><span class="hs-identifier hs-var hs-var">builtinQuantity0</span></a></span></span><span>                         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;QUANTITY-0&quot;</span></span><span>
+</span><span id="line-187"></span><span id="builtinQuantity%3C9"><span class="annot"><span class="annottext">builtinQuantity&#969; :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinQuantity%3C9"><span class="hs-identifier hs-var hs-var">builtinQuantity&#969;</span></a></span></span><span>                         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;QUANTITY-&#969;&quot;</span></span><span>
+</span><span id="line-188"></span><span id="builtinModality"><span class="annot"><span class="annottext">builtinModality :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinModality"><span class="hs-identifier hs-var hs-var">builtinModality</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;MODALITY&quot;</span></span><span>
+</span><span id="line-189"></span><span id="builtinModalityConstructor"><span class="annot"><span class="annottext">builtinModalityConstructor :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinModalityConstructor"><span class="hs-identifier hs-var hs-var">builtinModalityConstructor</span></a></span></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;MODALITY-CONSTRUCTOR&quot;</span></span><span>
+</span><span id="line-190"></span><span id="builtinAssoc"><span class="annot"><span class="annottext">builtinAssoc :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAssoc"><span class="hs-identifier hs-var hs-var">builtinAssoc</span></a></span></span><span>                             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ASSOC&quot;</span></span><span>
+</span><span id="line-191"></span><span id="builtinAssocLeft"><span class="annot"><span class="annottext">builtinAssocLeft :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAssocLeft"><span class="hs-identifier hs-var hs-var">builtinAssocLeft</span></a></span></span><span>                         </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ASSOCLEFT&quot;</span></span><span>
+</span><span id="line-192"></span><span id="builtinAssocRight"><span class="annot"><span class="annottext">builtinAssocRight :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAssocRight"><span class="hs-identifier hs-var hs-var">builtinAssocRight</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ASSOCRIGHT&quot;</span></span><span>
+</span><span id="line-193"></span><span id="builtinAssocNon"><span class="annot"><span class="annottext">builtinAssocNon :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAssocNon"><span class="hs-identifier hs-var hs-var">builtinAssocNon</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ASSOCNON&quot;</span></span><span>
+</span><span id="line-194"></span><span id="builtinPrecedence"><span class="annot"><span class="annottext">builtinPrecedence :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinPrecedence"><span class="hs-identifier hs-var hs-var">builtinPrecedence</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PRECEDENCE&quot;</span></span><span>
+</span><span id="line-195"></span><span id="builtinPrecRelated"><span class="annot"><span class="annottext">builtinPrecRelated :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinPrecRelated"><span class="hs-identifier hs-var hs-var">builtinPrecRelated</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PRECRELATED&quot;</span></span><span>
+</span><span id="line-196"></span><span id="builtinPrecUnrelated"><span class="annot"><span class="annottext">builtinPrecUnrelated :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinPrecUnrelated"><span class="hs-identifier hs-var hs-var">builtinPrecUnrelated</span></a></span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;PRECUNRELATED&quot;</span></span><span>
+</span><span id="line-197"></span><span id="builtinFixity"><span class="annot"><span class="annottext">builtinFixity :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinFixity"><span class="hs-identifier hs-var hs-var">builtinFixity</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;FIXITY&quot;</span></span><span>
+</span><span id="line-198"></span><span id="builtinFixityFixity"><span class="annot"><span class="annottext">builtinFixityFixity :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinFixityFixity"><span class="hs-identifier hs-var hs-var">builtinFixityFixity</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;FIXITYFIXITY&quot;</span></span><span>
+</span><span id="line-199"></span><span id="builtinArg"><span class="annot"><span class="annottext">builtinArg :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinArg"><span class="hs-identifier hs-var hs-var">builtinArg</span></a></span></span><span>                               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ARG&quot;</span></span><span>
+</span><span id="line-200"></span><span id="builtinArgInfo"><span class="annot"><span class="annottext">builtinArgInfo :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinArgInfo"><span class="hs-identifier hs-var hs-var">builtinArgInfo</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ARGINFO&quot;</span></span><span>
+</span><span id="line-201"></span><span id="builtinArgArgInfo"><span class="annot"><span class="annottext">builtinArgArgInfo :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinArgArgInfo"><span class="hs-identifier hs-var hs-var">builtinArgArgInfo</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ARGARGINFO&quot;</span></span><span>
+</span><span id="line-202"></span><span id="builtinArgArg"><span class="annot"><span class="annottext">builtinArgArg :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinArgArg"><span class="hs-identifier hs-var hs-var">builtinArgArg</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ARGARG&quot;</span></span><span>
+</span><span id="line-203"></span><span id="builtinAbs"><span class="annot"><span class="annottext">builtinAbs :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAbs"><span class="hs-identifier hs-var hs-var">builtinAbs</span></a></span></span><span>                               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ABS&quot;</span></span><span>
+</span><span id="line-204"></span><span id="builtinAbsAbs"><span class="annot"><span class="annottext">builtinAbsAbs :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAbsAbs"><span class="hs-identifier hs-var hs-var">builtinAbsAbs</span></a></span></span><span>                            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ABSABS&quot;</span></span><span>
+</span><span id="line-205"></span><span id="builtinAgdaTerm"><span class="annot"><span class="annottext">builtinAgdaTerm :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTerm"><span class="hs-identifier hs-var hs-var">builtinAgdaTerm</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERM&quot;</span></span><span>
+</span><span id="line-206"></span><span id="builtinAgdaTermVar"><span class="annot"><span class="annottext">builtinAgdaTermVar :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermVar"><span class="hs-identifier hs-var hs-var">builtinAgdaTermVar</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMVAR&quot;</span></span><span>
+</span><span id="line-207"></span><span id="builtinAgdaTermLam"><span class="annot"><span class="annottext">builtinAgdaTermLam :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermLam"><span class="hs-identifier hs-var hs-var">builtinAgdaTermLam</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMLAM&quot;</span></span><span>
+</span><span id="line-208"></span><span id="builtinAgdaTermExtLam"><span class="annot"><span class="annottext">builtinAgdaTermExtLam :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermExtLam"><span class="hs-identifier hs-var hs-var">builtinAgdaTermExtLam</span></a></span></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMEXTLAM&quot;</span></span><span>
+</span><span id="line-209"></span><span id="builtinAgdaTermDef"><span class="annot"><span class="annottext">builtinAgdaTermDef :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermDef"><span class="hs-identifier hs-var hs-var">builtinAgdaTermDef</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMDEF&quot;</span></span><span>
+</span><span id="line-210"></span><span id="builtinAgdaTermCon"><span class="annot"><span class="annottext">builtinAgdaTermCon :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermCon"><span class="hs-identifier hs-var hs-var">builtinAgdaTermCon</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMCON&quot;</span></span><span>
+</span><span id="line-211"></span><span id="builtinAgdaTermPi"><span class="annot"><span class="annottext">builtinAgdaTermPi :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermPi"><span class="hs-identifier hs-var hs-var">builtinAgdaTermPi</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMPI&quot;</span></span><span>
+</span><span id="line-212"></span><span id="builtinAgdaTermSort"><span class="annot"><span class="annottext">builtinAgdaTermSort :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermSort"><span class="hs-identifier hs-var hs-var">builtinAgdaTermSort</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMSORT&quot;</span></span><span>
+</span><span id="line-213"></span><span id="builtinAgdaTermLit"><span class="annot"><span class="annottext">builtinAgdaTermLit :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermLit"><span class="hs-identifier hs-var hs-var">builtinAgdaTermLit</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMLIT&quot;</span></span><span>
+</span><span id="line-214"></span><span id="builtinAgdaTermUnsupported"><span class="annot"><span class="annottext">builtinAgdaTermUnsupported :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermUnsupported"><span class="hs-identifier hs-var hs-var">builtinAgdaTermUnsupported</span></a></span></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMUNSUPPORTED&quot;</span></span><span>
+</span><span id="line-215"></span><span id="builtinAgdaTermMeta"><span class="annot"><span class="annottext">builtinAgdaTermMeta :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTermMeta"><span class="hs-identifier hs-var hs-var">builtinAgdaTermMeta</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATERMMETA&quot;</span></span><span>
+</span><span id="line-216"></span><span id="builtinAgdaErrorPart"><span class="annot"><span class="annottext">builtinAgdaErrorPart :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaErrorPart"><span class="hs-identifier hs-var hs-var">builtinAgdaErrorPart</span></a></span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAERRORPART&quot;</span></span><span>
+</span><span id="line-217"></span><span id="builtinAgdaErrorPartString"><span class="annot"><span class="annottext">builtinAgdaErrorPartString :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaErrorPartString"><span class="hs-identifier hs-var hs-var">builtinAgdaErrorPartString</span></a></span></span><span>               </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAERRORPARTSTRING&quot;</span></span><span>
+</span><span id="line-218"></span><span id="builtinAgdaErrorPartTerm"><span class="annot"><span class="annottext">builtinAgdaErrorPartTerm :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaErrorPartTerm"><span class="hs-identifier hs-var hs-var">builtinAgdaErrorPartTerm</span></a></span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAERRORPARTTERM&quot;</span></span><span>
+</span><span id="line-219"></span><span id="builtinAgdaErrorPartName"><span class="annot"><span class="annottext">builtinAgdaErrorPartName :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaErrorPartName"><span class="hs-identifier hs-var hs-var">builtinAgdaErrorPartName</span></a></span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAERRORPARTNAME&quot;</span></span><span>
+</span><span id="line-220"></span><span id="builtinAgdaLiteral"><span class="annot"><span class="annottext">builtinAgdaLiteral :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaLiteral"><span class="hs-identifier hs-var hs-var">builtinAgdaLiteral</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDALITERAL&quot;</span></span><span>
+</span><span id="line-221"></span><span id="builtinAgdaLitNat"><span class="annot"><span class="annottext">builtinAgdaLitNat :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaLitNat"><span class="hs-identifier hs-var hs-var">builtinAgdaLitNat</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDALITNAT&quot;</span></span><span>
+</span><span id="line-222"></span><span id="builtinAgdaLitWord64"><span class="annot"><span class="annottext">builtinAgdaLitWord64 :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaLitWord64"><span class="hs-identifier hs-var hs-var">builtinAgdaLitWord64</span></a></span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDALITWORD64&quot;</span></span><span>
+</span><span id="line-223"></span><span id="builtinAgdaLitFloat"><span class="annot"><span class="annottext">builtinAgdaLitFloat :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaLitFloat"><span class="hs-identifier hs-var hs-var">builtinAgdaLitFloat</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDALITFLOAT&quot;</span></span><span>
+</span><span id="line-224"></span><span id="builtinAgdaLitChar"><span class="annot"><span class="annottext">builtinAgdaLitChar :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaLitChar"><span class="hs-identifier hs-var hs-var">builtinAgdaLitChar</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDALITCHAR&quot;</span></span><span>
+</span><span id="line-225"></span><span id="builtinAgdaLitString"><span class="annot"><span class="annottext">builtinAgdaLitString :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaLitString"><span class="hs-identifier hs-var hs-var">builtinAgdaLitString</span></a></span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDALITSTRING&quot;</span></span><span>
+</span><span id="line-226"></span><span id="builtinAgdaLitQName"><span class="annot"><span class="annottext">builtinAgdaLitQName :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaLitQName"><span class="hs-identifier hs-var hs-var">builtinAgdaLitQName</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDALITQNAME&quot;</span></span><span>
+</span><span id="line-227"></span><span id="builtinAgdaLitMeta"><span class="annot"><span class="annottext">builtinAgdaLitMeta :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaLitMeta"><span class="hs-identifier hs-var hs-var">builtinAgdaLitMeta</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDALITMETA&quot;</span></span><span>
+</span><span id="line-228"></span><span id="builtinAgdaClause"><span class="annot"><span class="annottext">builtinAgdaClause :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaClause"><span class="hs-identifier hs-var hs-var">builtinAgdaClause</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDACLAUSE&quot;</span></span><span>
+</span><span id="line-229"></span><span id="builtinAgdaClauseClause"><span class="annot"><span class="annottext">builtinAgdaClauseClause :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaClauseClause"><span class="hs-identifier hs-var hs-var">builtinAgdaClauseClause</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDACLAUSECLAUSE&quot;</span></span><span>
+</span><span id="line-230"></span><span id="builtinAgdaClauseAbsurd"><span class="annot"><span class="annottext">builtinAgdaClauseAbsurd :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaClauseAbsurd"><span class="hs-identifier hs-var hs-var">builtinAgdaClauseAbsurd</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDACLAUSEABSURD&quot;</span></span><span>
+</span><span id="line-231"></span><span id="builtinAgdaPattern"><span class="annot"><span class="annottext">builtinAgdaPattern :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaPattern"><span class="hs-identifier hs-var hs-var">builtinAgdaPattern</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAPATTERN&quot;</span></span><span>
+</span><span id="line-232"></span><span id="builtinAgdaPatVar"><span class="annot"><span class="annottext">builtinAgdaPatVar :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaPatVar"><span class="hs-identifier hs-var hs-var">builtinAgdaPatVar</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAPATVAR&quot;</span></span><span>
+</span><span id="line-233"></span><span id="builtinAgdaPatCon"><span class="annot"><span class="annottext">builtinAgdaPatCon :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaPatCon"><span class="hs-identifier hs-var hs-var">builtinAgdaPatCon</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAPATCON&quot;</span></span><span>
+</span><span id="line-234"></span><span id="builtinAgdaPatDot"><span class="annot"><span class="annottext">builtinAgdaPatDot :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaPatDot"><span class="hs-identifier hs-var hs-var">builtinAgdaPatDot</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAPATDOT&quot;</span></span><span>
+</span><span id="line-235"></span><span id="builtinAgdaPatLit"><span class="annot"><span class="annottext">builtinAgdaPatLit :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaPatLit"><span class="hs-identifier hs-var hs-var">builtinAgdaPatLit</span></a></span></span><span>                        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAPATLIT&quot;</span></span><span>
+</span><span id="line-236"></span><span id="builtinAgdaPatProj"><span class="annot"><span class="annottext">builtinAgdaPatProj :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaPatProj"><span class="hs-identifier hs-var hs-var">builtinAgdaPatProj</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAPATPROJ&quot;</span></span><span>
+</span><span id="line-237"></span><span id="builtinAgdaPatAbsurd"><span class="annot"><span class="annottext">builtinAgdaPatAbsurd :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaPatAbsurd"><span class="hs-identifier hs-var hs-var">builtinAgdaPatAbsurd</span></a></span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAPATABSURD&quot;</span></span><span>
+</span><span id="line-238"></span><span id="builtinAgdaDefinitionFunDef"><span class="annot"><span class="annottext">builtinAgdaDefinitionFunDef :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionFunDef"><span class="hs-identifier hs-var hs-var">builtinAgdaDefinitionFunDef</span></a></span></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDADEFINITIONFUNDEF&quot;</span></span><span>
+</span><span id="line-239"></span><span id="builtinAgdaDefinitionDataDef"><span class="annot"><span class="annottext">builtinAgdaDefinitionDataDef :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionDataDef"><span class="hs-identifier hs-var hs-var">builtinAgdaDefinitionDataDef</span></a></span></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDADEFINITIONDATADEF&quot;</span></span><span>
+</span><span id="line-240"></span><span id="builtinAgdaDefinitionRecordDef"><span class="annot"><span class="annottext">builtinAgdaDefinitionRecordDef :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionRecordDef"><span class="hs-identifier hs-var hs-var">builtinAgdaDefinitionRecordDef</span></a></span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDADEFINITIONRECORDDEF&quot;</span></span><span>
+</span><span id="line-241"></span><span id="builtinAgdaDefinitionDataConstructor"><span class="annot"><span class="annottext">builtinAgdaDefinitionDataConstructor :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionDataConstructor"><span class="hs-identifier hs-var hs-var">builtinAgdaDefinitionDataConstructor</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDADEFINITIONDATACONSTRUCTOR&quot;</span></span><span>
+</span><span id="line-242"></span><span id="builtinAgdaDefinitionPostulate"><span class="annot"><span class="annottext">builtinAgdaDefinitionPostulate :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionPostulate"><span class="hs-identifier hs-var hs-var">builtinAgdaDefinitionPostulate</span></a></span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDADEFINITIONPOSTULATE&quot;</span></span><span>
+</span><span id="line-243"></span><span id="builtinAgdaDefinitionPrimitive"><span class="annot"><span class="annottext">builtinAgdaDefinitionPrimitive :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinitionPrimitive"><span class="hs-identifier hs-var hs-var">builtinAgdaDefinitionPrimitive</span></a></span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDADEFINITIONPRIMITIVE&quot;</span></span><span>
+</span><span id="line-244"></span><span id="builtinAgdaDefinition"><span class="annot"><span class="annottext">builtinAgdaDefinition :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaDefinition"><span class="hs-identifier hs-var hs-var">builtinAgdaDefinition</span></a></span></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDADEFINITION&quot;</span></span><span>
+</span><span id="line-245"></span><span id="builtinAgdaMeta"><span class="annot"><span class="annottext">builtinAgdaMeta :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaMeta"><span class="hs-identifier hs-var hs-var">builtinAgdaMeta</span></a></span></span><span>                          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDAMETA&quot;</span></span><span>
+</span><span id="line-246"></span><span id="builtinAgdaTCM"><span class="annot"><span class="annottext">builtinAgdaTCM :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCM"><span class="hs-identifier hs-var hs-var">builtinAgdaTCM</span></a></span></span><span>                           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCM&quot;</span></span><span>
+</span><span id="line-247"></span><span id="builtinAgdaTCMReturn"><span class="annot"><span class="annottext">builtinAgdaTCMReturn :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMReturn"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMReturn</span></a></span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMRETURN&quot;</span></span><span>
+</span><span id="line-248"></span><span id="builtinAgdaTCMBind"><span class="annot"><span class="annottext">builtinAgdaTCMBind :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMBind"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMBind</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMBIND&quot;</span></span><span>
+</span><span id="line-249"></span><span id="builtinAgdaTCMUnify"><span class="annot"><span class="annottext">builtinAgdaTCMUnify :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMUnify"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMUnify</span></a></span></span><span>                      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMUNIFY&quot;</span></span><span>
+</span><span id="line-250"></span><span id="builtinAgdaTCMTypeError"><span class="annot"><span class="annottext">builtinAgdaTCMTypeError :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMTypeError"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMTypeError</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMTYPEERROR&quot;</span></span><span>
+</span><span id="line-251"></span><span id="builtinAgdaTCMInferType"><span class="annot"><span class="annottext">builtinAgdaTCMInferType :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMInferType"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMInferType</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMINFERTYPE&quot;</span></span><span>
+</span><span id="line-252"></span><span id="builtinAgdaTCMCheckType"><span class="annot"><span class="annottext">builtinAgdaTCMCheckType :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMCheckType"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMCheckType</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMCHECKTYPE&quot;</span></span><span>
+</span><span id="line-253"></span><span id="builtinAgdaTCMNormalise"><span class="annot"><span class="annottext">builtinAgdaTCMNormalise :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMNormalise"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMNormalise</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMNORMALISE&quot;</span></span><span>
+</span><span id="line-254"></span><span id="builtinAgdaTCMReduce"><span class="annot"><span class="annottext">builtinAgdaTCMReduce :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMReduce"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMReduce</span></a></span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMREDUCE&quot;</span></span><span>
+</span><span id="line-255"></span><span id="builtinAgdaTCMCatchError"><span class="annot"><span class="annottext">builtinAgdaTCMCatchError :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMCatchError"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMCatchError</span></a></span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMCATCHERROR&quot;</span></span><span>
+</span><span id="line-256"></span><span id="builtinAgdaTCMGetContext"><span class="annot"><span class="annottext">builtinAgdaTCMGetContext :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMGetContext"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMGetContext</span></a></span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMGETCONTEXT&quot;</span></span><span>
+</span><span id="line-257"></span><span id="builtinAgdaTCMExtendContext"><span class="annot"><span class="annottext">builtinAgdaTCMExtendContext :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMExtendContext"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMExtendContext</span></a></span></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMEXTENDCONTEXT&quot;</span></span><span>
+</span><span id="line-258"></span><span id="builtinAgdaTCMInContext"><span class="annot"><span class="annottext">builtinAgdaTCMInContext :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMInContext"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMInContext</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMINCONTEXT&quot;</span></span><span>
+</span><span id="line-259"></span><span id="builtinAgdaTCMFreshName"><span class="annot"><span class="annottext">builtinAgdaTCMFreshName :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMFreshName"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMFreshName</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMFRESHNAME&quot;</span></span><span>
+</span><span id="line-260"></span><span id="builtinAgdaTCMDeclareDef"><span class="annot"><span class="annottext">builtinAgdaTCMDeclareDef :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDeclareDef"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMDeclareDef</span></a></span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMDECLAREDEF&quot;</span></span><span>
+</span><span id="line-261"></span><span id="builtinAgdaTCMDeclarePostulate"><span class="annot"><span class="annottext">builtinAgdaTCMDeclarePostulate :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDeclarePostulate"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMDeclarePostulate</span></a></span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMDECLAREPOSTULATE&quot;</span></span><span>
+</span><span id="line-262"></span><span id="builtinAgdaTCMDefineFun"><span class="annot"><span class="annottext">builtinAgdaTCMDefineFun :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDefineFun"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMDefineFun</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMDEFINEFUN&quot;</span></span><span>
+</span><span id="line-263"></span><span id="builtinAgdaTCMGetType"><span class="annot"><span class="annottext">builtinAgdaTCMGetType :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMGetType"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMGetType</span></a></span></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMGETTYPE&quot;</span></span><span>
+</span><span id="line-264"></span><span id="builtinAgdaTCMGetDefinition"><span class="annot"><span class="annottext">builtinAgdaTCMGetDefinition :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMGetDefinition"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMGetDefinition</span></a></span></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMGETDEFINITION&quot;</span></span><span>
+</span><span id="line-265"></span><span id="builtinAgdaTCMBlockOnMeta"><span class="annot"><span class="annottext">builtinAgdaTCMBlockOnMeta :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMBlockOnMeta"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMBlockOnMeta</span></a></span></span><span>                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMBLOCKONMETA&quot;</span></span><span>
+</span><span id="line-266"></span><span id="builtinAgdaTCMCommit"><span class="annot"><span class="annottext">builtinAgdaTCMCommit :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMCommit"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMCommit</span></a></span></span><span>                     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMCOMMIT&quot;</span></span><span>
+</span><span id="line-267"></span><span id="builtinAgdaTCMQuoteTerm"><span class="annot"><span class="annottext">builtinAgdaTCMQuoteTerm :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMQuoteTerm"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMQuoteTerm</span></a></span></span><span>                  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMQUOTETERM&quot;</span></span><span>
+</span><span id="line-268"></span><span id="builtinAgdaTCMUnquoteTerm"><span class="annot"><span class="annottext">builtinAgdaTCMUnquoteTerm :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMUnquoteTerm"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMUnquoteTerm</span></a></span></span><span>                </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMUNQUOTETERM&quot;</span></span><span>
+</span><span id="line-269"></span><span id="builtinAgdaTCMQuoteOmegaTerm"><span class="annot"><span class="annottext">builtinAgdaTCMQuoteOmegaTerm :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMQuoteOmegaTerm"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMQuoteOmegaTerm</span></a></span></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMQUOTEOMEGATERM&quot;</span></span><span>
+</span><span id="line-270"></span><span id="builtinAgdaTCMIsMacro"><span class="annot"><span class="annottext">builtinAgdaTCMIsMacro :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMIsMacro"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMIsMacro</span></a></span></span><span>                    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMISMACRO&quot;</span></span><span>
+</span><span id="line-271"></span><span id="builtinAgdaTCMWithNormalisation"><span class="annot"><span class="annottext">builtinAgdaTCMWithNormalisation :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMWithNormalisation"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMWithNormalisation</span></a></span></span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMWITHNORMALISATION&quot;</span></span><span>
+</span><span id="line-272"></span><span id="builtinAgdaTCMWithReconsParams"><span class="annot"><span class="annottext">builtinAgdaTCMWithReconsParams :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMWithReconsParams"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMWithReconsParams</span></a></span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMWITHRECONSPARAMS&quot;</span></span><span>
+</span><span id="line-273"></span><span id="builtinAgdaTCMDebugPrint"><span class="annot"><span class="annottext">builtinAgdaTCMDebugPrint :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDebugPrint"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMDebugPrint</span></a></span></span><span>                 </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMDEBUGPRINT&quot;</span></span><span>
+</span><span id="line-274"></span><span id="builtinAgdaTCMOnlyReduceDefs"><span class="annot"><span class="annottext">builtinAgdaTCMOnlyReduceDefs :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMOnlyReduceDefs"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMOnlyReduceDefs</span></a></span></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMONLYREDUCEDEFS&quot;</span></span><span>
+</span><span id="line-275"></span><span id="builtinAgdaTCMDontReduceDefs"><span class="annot"><span class="annottext">builtinAgdaTCMDontReduceDefs :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMDontReduceDefs"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMDontReduceDefs</span></a></span></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMDONTREDUCEDEFS&quot;</span></span><span>
+</span><span id="line-276"></span><span id="builtinAgdaTCMNoConstraints"><span class="annot"><span class="annottext">builtinAgdaTCMNoConstraints :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMNoConstraints"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMNoConstraints</span></a></span></span><span>              </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMNOCONSTRAINTS&quot;</span></span><span>
+</span><span id="line-277"></span><span id="builtinAgdaTCMRunSpeculative"><span class="annot"><span class="annottext">builtinAgdaTCMRunSpeculative :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMRunSpeculative"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMRunSpeculative</span></a></span></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMRUNSPECULATIVE&quot;</span></span><span>
+</span><span id="line-278"></span><span id="builtinAgdaTCMExec"><span class="annot"><span class="annottext">builtinAgdaTCMExec :: String
+</span><a href="Agda.Syntax.Builtin.html#builtinAgdaTCMExec"><span class="hs-identifier hs-var hs-var">builtinAgdaTCMExec</span></a></span></span><span>                       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;AGDATCMEXEC&quot;</span></span><span>
+</span><span id="line-279"></span><span>
+</span><span id="line-280"></span><span class="hs-comment">-- | Builtins that come without a definition in Agda syntax.</span><span>
+</span><span id="line-281"></span><span class="hs-comment">--   These are giving names to Agda internal concepts which</span><span>
+</span><span id="line-282"></span><span class="hs-comment">--   cannot be assigned an Agda type.</span><span>
+</span><span id="line-283"></span><span class="hs-comment">--</span><span>
+</span><span id="line-284"></span><span class="hs-comment">--   An example would be a user-defined name for @Set@.</span><span>
+</span><span id="line-285"></span><span class="hs-comment">--</span><span>
+</span><span id="line-286"></span><span class="hs-comment">--     {-# BUILTIN TYPE Type #-}</span><span>
+</span><span id="line-287"></span><span class="hs-comment">--</span><span>
+</span><span id="line-288"></span><span class="hs-comment">--   The type of @Type@ would be @Type : Level &#8594; Set&#969;@</span><span>
+</span><span id="line-289"></span><span class="hs-comment">--   which is not valid Agda.</span><span>
+</span><span id="line-290"></span><span>
+</span><span id="line-291"></span><span class="annot"><a href="Agda.Syntax.Builtin.html#isBuiltinNoDef"><span class="hs-identifier hs-type">isBuiltinNoDef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-292"></span><span id="isBuiltinNoDef"><span class="annot"><span class="annottext">isBuiltinNoDef :: String -&gt; Bool
+</span><a href="Agda.Syntax.Builtin.html#isBuiltinNoDef"><span class="hs-identifier hs-var hs-var">isBuiltinNoDef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String -&gt; Bool
+forall a. Ord a =&gt; [a] -&gt; a -&gt; Bool
+</span><a href="Agda.Utils.List.html#hasElem"><span class="hs-identifier hs-var">hasElem</span></a></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="Agda.Syntax.Builtin.html#builtinsNoDef"><span class="hs-identifier hs-var">builtinsNoDef</span></a></span><span>
+</span><span id="line-293"></span><span>
+</span><span id="line-294"></span><span class="annot"><a href="Agda.Syntax.Builtin.html#builtinsNoDef"><span class="hs-identifier hs-type">builtinsNoDef</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-295"></span><span id="builtinsNoDef"><span class="annot"><span class="annottext">builtinsNoDef :: [String]
+</span><a href="Agda.Syntax.Builtin.html#builtinsNoDef"><span class="hs-identifier hs-var hs-var">builtinsNoDef</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-296"></span><span>  </span><span class="annot"><span class="annottext">[String]
+</span><a href="Agda.Syntax.Builtin.html#sizeBuiltins"><span class="hs-identifier hs-var">sizeBuiltins</span></a></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; [String] -&gt; [String]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-297"></span><span>  </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinConId"><span class="hs-identifier hs-var">builtinConId</span></a></span><span>
+</span><span id="line-298"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinIntervalUniv"><span class="hs-identifier hs-var">builtinIntervalUniv</span></a></span><span>
+</span><span id="line-299"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinInterval"><span class="hs-identifier hs-var">builtinInterval</span></a></span><span>
+</span><span id="line-300"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinPartial"><span class="hs-identifier hs-var">builtinPartial</span></a></span><span>
+</span><span id="line-301"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinPartialP"><span class="hs-identifier hs-var">builtinPartialP</span></a></span><span>
+</span><span id="line-302"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinIsOne"><span class="hs-identifier hs-var">builtinIsOne</span></a></span><span>
+</span><span id="line-303"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSub"><span class="hs-identifier hs-var">builtinSub</span></a></span><span>
+</span><span id="line-304"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinIZero"><span class="hs-identifier hs-var">builtinIZero</span></a></span><span>
+</span><span id="line-305"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinIOne"><span class="hs-identifier hs-var">builtinIOne</span></a></span><span>
+</span><span id="line-306"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSet"><span class="hs-identifier hs-var">builtinSet</span></a></span><span>
+</span><span id="line-307"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinProp"><span class="hs-identifier hs-var">builtinProp</span></a></span><span>
+</span><span id="line-308"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSetOmega"><span class="hs-identifier hs-var">builtinSetOmega</span></a></span><span>
+</span><span id="line-309"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinStrictSet"><span class="hs-identifier hs-var">builtinStrictSet</span></a></span><span>
+</span><span id="line-310"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSSetOmega"><span class="hs-identifier hs-var">builtinSSetOmega</span></a></span><span>
+</span><span id="line-311"></span><span>  </span><span class="hs-special">]</span><span>
+</span><span id="line-312"></span><span>
+</span><span id="line-313"></span><span class="annot"><a href="Agda.Syntax.Builtin.html#sizeBuiltins"><span class="hs-identifier hs-type">sizeBuiltins</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span>
+</span><span id="line-314"></span><span id="sizeBuiltins"><span class="annot"><span class="annottext">sizeBuiltins :: [String]
+</span><a href="Agda.Syntax.Builtin.html#sizeBuiltins"><span class="hs-identifier hs-var hs-var">sizeBuiltins</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-315"></span><span>  </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeUniv"><span class="hs-identifier hs-var">builtinSizeUniv</span></a></span><span>
+</span><span id="line-316"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSize"><span class="hs-identifier hs-var">builtinSize</span></a></span><span>
+</span><span id="line-317"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeLt"><span class="hs-identifier hs-var">builtinSizeLt</span></a></span><span>
+</span><span id="line-318"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeSuc"><span class="hs-identifier hs-var">builtinSizeSuc</span></a></span><span>
+</span><span id="line-319"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeInf"><span class="hs-identifier hs-var">builtinSizeInf</span></a></span><span>
+</span><span id="line-320"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="Agda.Syntax.Builtin.html#builtinSizeMax"><span class="hs-identifier hs-var">builtinSizeMax</span></a></span><span>
+</span><span id="line-321"></span><span>  </span><span class="hs-special">]</span><span>
+</span><span id="line-322"></span></pre></body></html>

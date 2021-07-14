@@ -1,0 +1,104 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Agda.TypeChecking.Monad.Closure</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Base</span></a></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Env.html"><span class="hs-identifier">Agda.TypeChecking.Monad.Env</span></a></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.State.html"><span class="hs-identifier">Agda.TypeChecking.Monad.State</span></a></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Agda.Utils.Lens.html"><span class="hs-identifier">Agda.Utils.Lens</span></a></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span id="local-6989586621680844020"><span id="local-6989586621680844022"><span id="local-6989586621680844023"><span id="local-6989586621680844026"><span class="annot"><a href="Agda.TypeChecking.Monad.Closure.html#enterClosure"><span class="hs-identifier hs-type">enterClosure</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680844026"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680844026"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#LensClosure"><span class="hs-identifier hs-type">LensClosure</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680844023"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680844022"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>             </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680844022"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680844023"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680844026"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680844020"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680844026"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680844020"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span><span>
+</span><span id="line-13"></span><span id="enterClosure"><span class="annot"><span class="annottext">enterClosure :: forall (m :: * -&gt; *) a c b.
+(MonadTCEnv m, ReadTCState m, LensClosure a c) =&gt;
+c -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.TypeChecking.Monad.Closure.html#enterClosure"><span class="hs-identifier hs-var hs-var">enterClosure</span></a></span></span><span> </span><span id="local-6989586621680843951"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621680843951"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621680843950"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621680843950"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Closure"><span class="hs-identifier hs-type">Closure</span></a></span><span> </span><span id="local-6989586621680843948"><span class="annot"><span class="annottext">Signature
+</span><a href="#local-6989586621680843948"><span class="hs-identifier hs-var">_sig</span></a></span></span><span> </span><span id="local-6989586621680843947"><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621680843947"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621680843946"><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621680843946"><span class="hs-identifier hs-var">scope</span></a></span></span><span> </span><span id="local-6989586621680843945"><span class="annot"><span class="annottext">Map ModuleName CheckpointId
+</span><a href="#local-6989586621680843945"><span class="hs-identifier hs-var">cps</span></a></span></span><span> </span><span id="local-6989586621680843944"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680843944"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621680843951"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">c -&gt; Lens' (Closure a) c -&gt; Closure a
+forall o i. o -&gt; Lens' i o -&gt; i
+</span><a href="Agda.Utils.Lens.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. LensClosure a b =&gt; Lens' (Closure a) b
+Lens' (Closure a) c
+</span><a href="Agda.TypeChecking.Monad.Base.html#lensClosure"><span class="hs-identifier hs-var">lensClosure</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-14"></span><span>  </span><span id="local-6989586621680843938"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621680843938"><span class="hs-identifier hs-var">isDbg</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Lens' Bool TCEnv -&gt; m Bool
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; Lens' a TCEnv -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Base.html#viewTC"><span class="hs-identifier hs-var">viewTC</span></a></span><span> </span><span class="annot"><span class="annottext">Lens' Bool TCEnv
+</span><a href="Agda.TypeChecking.Monad.Base.html#eIsDebugPrinting"><span class="hs-identifier hs-var">eIsDebugPrinting</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="annot"><span class="annottext">ScopeInfo -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a. ReadTCState m =&gt; ScopeInfo -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.State.html#withScope_"><span class="hs-identifier hs-var">withScope_</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeInfo
+</span><a href="#local-6989586621680843946"><span class="hs-identifier hs-var">scope</span></a></span><span>
+</span><span id="line-16"></span><span>    </span><span class="annot"><span class="annottext">(m b -&gt; m b) -&gt; m b -&gt; m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' (Map ModuleName CheckpointId) TCState
+-&gt; (Map ModuleName CheckpointId -&gt; Map ModuleName CheckpointId)
+-&gt; m b
+-&gt; m b
+forall (m :: * -&gt; *) a b.
+ReadTCState m =&gt;
+Lens' a TCState -&gt; (a -&gt; a) -&gt; m b -&gt; m b
+</span><a href="Agda.TypeChecking.Monad.Base.html#locallyTCState"><span class="hs-identifier hs-var">locallyTCState</span></a></span><span> </span><span class="annot"><span class="annottext">Lens' (Map ModuleName CheckpointId) TCState
+</span><a href="Agda.TypeChecking.Monad.Base.html#stModuleCheckpoints"><span class="hs-identifier hs-var">stModuleCheckpoints</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map ModuleName CheckpointId
+-&gt; Map ModuleName CheckpointId -&gt; Map ModuleName CheckpointId
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Map ModuleName CheckpointId
+</span><a href="#local-6989586621680843945"><span class="hs-identifier hs-var">cps</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>    </span><span class="annot"><span class="annottext">(m b -&gt; m b) -&gt; m b -&gt; m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TCEnv -&gt; m b -&gt; m b
+forall (m :: * -&gt; *) a. MonadTCEnv m =&gt; TCEnv -&gt; m a -&gt; m a
+</span><a href="Agda.TypeChecking.Monad.Env.html#withEnv"><span class="hs-identifier hs-var">withEnv</span></a></span><span> </span><span class="annot"><span class="annottext">TCEnv
+</span><a href="#local-6989586621680843947"><span class="hs-identifier hs-var">env</span></a></span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">envIsDebugPrinting :: Bool
+</span><a href="Agda.TypeChecking.Monad.Base.html#envIsDebugPrinting"><span class="hs-identifier hs-var">envIsDebugPrinting</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621680843938"><span class="hs-identifier hs-var">isDbg</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-18"></span><span>    </span><span class="annot"><span class="annottext">(m b -&gt; m b) -&gt; m b -&gt; m b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621680843950"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621680843944"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span id="local-6989586621680843982"><span id="local-6989586621680843983"><span id="local-6989586621680843984"><span class="annot"><a href="Agda.TypeChecking.Monad.Closure.html#withClosure"><span class="hs-identifier hs-type">withClosure</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843984"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843984"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Closure"><span class="hs-identifier hs-type">Closure</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843983"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680843983"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680843984"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843982"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680843984"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Closure"><span class="hs-identifier hs-type">Closure</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843982"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-21"></span><span id="withClosure"><span class="annot"><span class="annottext">withClosure :: forall (m :: * -&gt; *) a b.
+(MonadTCEnv m, ReadTCState m) =&gt;
+Closure a -&gt; (a -&gt; m b) -&gt; m (Closure b)
+</span><a href="Agda.TypeChecking.Monad.Closure.html#withClosure"><span class="hs-identifier hs-var hs-var">withClosure</span></a></span></span><span> </span><span id="local-6989586621680843914"><span class="annot"><span class="annottext">Closure a
+</span><a href="#local-6989586621680843914"><span class="hs-identifier hs-var">cl</span></a></span></span><span> </span><span id="local-6989586621680843913"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621680843913"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Closure a -&gt; (a -&gt; m (Closure b)) -&gt; m (Closure b)
+forall (m :: * -&gt; *) a c b.
+(MonadTCEnv m, ReadTCState m, LensClosure a c) =&gt;
+c -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="Agda.TypeChecking.Monad.Closure.html#enterClosure"><span class="hs-identifier hs-var">enterClosure</span></a></span><span> </span><span class="annot"><span class="annottext">Closure a
+</span><a href="#local-6989586621680843914"><span class="hs-identifier hs-var">cl</span></a></span><span> </span><span class="annot"><span class="annottext">((a -&gt; m (Closure b)) -&gt; m (Closure b))
+-&gt; (a -&gt; m (Closure b)) -&gt; m (Closure b)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621680843913"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; m b) -&gt; (b -&gt; m (Closure b)) -&gt; a -&gt; m (Closure b)
+forall (m :: * -&gt; *) a b c.
+Monad m =&gt;
+(a -&gt; m b) -&gt; (b -&gt; m c) -&gt; a -&gt; m c
+</span><span class="hs-operator hs-var">&gt;=&gt;</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; m (Closure b)
+forall (m :: * -&gt; *) a.
+(MonadTCEnv m, ReadTCState m) =&gt;
+a -&gt; m (Closure a)
+</span><a href="Agda.TypeChecking.Monad.Base.html#buildClosure"><span class="hs-identifier hs-var">buildClosure</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span id="local-6989586621680843969"><span id="local-6989586621680843970"><span id="local-6989586621680843971"><span class="annot"><a href="Agda.TypeChecking.Monad.Closure.html#mapClosure"><span class="hs-identifier hs-type">mapClosure</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#MonadTCEnv"><span class="hs-identifier hs-type">MonadTCEnv</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843971"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#ReadTCState"><span class="hs-identifier hs-type">ReadTCState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843971"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621680843970"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680843971"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843969"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Closure"><span class="hs-identifier hs-type">Closure</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843970"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621680843971"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Agda.TypeChecking.Monad.Base.html#Closure"><span class="hs-identifier hs-type">Closure</span></a></span><span> </span><span class="annot"><a href="#local-6989586621680843969"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-24"></span><span id="mapClosure"><span class="annot"><span class="annottext">mapClosure :: forall (m :: * -&gt; *) a b.
+(MonadTCEnv m, ReadTCState m) =&gt;
+(a -&gt; m b) -&gt; Closure a -&gt; m (Closure b)
+</span><a href="Agda.TypeChecking.Monad.Closure.html#mapClosure"><span class="hs-identifier hs-var hs-var">mapClosure</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Closure a -&gt; (a -&gt; m b) -&gt; m (Closure b))
+-&gt; (a -&gt; m b) -&gt; Closure a -&gt; m (Closure b)
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">Closure a -&gt; (a -&gt; m b) -&gt; m (Closure b)
+forall (m :: * -&gt; *) a b.
+(MonadTCEnv m, ReadTCState m) =&gt;
+Closure a -&gt; (a -&gt; m b) -&gt; m (Closure b)
+</span><a href="Agda.TypeChecking.Monad.Closure.html#withClosure"><span class="hs-identifier hs-var">withClosure</span></a></span><span>
+</span><span id="line-25"></span></pre></body></html>
