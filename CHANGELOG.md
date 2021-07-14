@@ -57,4 +57,9 @@ LaTeX backend
 * Files `agda.sty` and `postprocess-latex.pl` are now found in the `latex/`
   subdirectory of the Agda data directory (`agda --print-agda-dir`).
 
-* `agda.sty` is now versioned (printed to the `.log` file by `latex`).
+* `agda.sty` is now versioned (printed to the `.log` file by `latex`)
+  (see [#5473](https://github.com/agda/agda/issues/5473)).
+
+* Italics correction (inserted by `\textit` e.g. in `\AgdaBound`) now works,
+  thanks to moving the `\textcolor` wrapping to the outside in `agda.sty`
+  (see [#5471](https://github.com/agda/agda/issues/5471)).
