@@ -50,3 +50,9 @@ Compiler backends
 
   This flag implies `--ghc-strict-data`, and the exceptions of that
   flag applies to this flag as well.
+
+LaTeX backend
+-------------
+
+* Files `agda.sty` and `postprocess-latex.pl` are now found in the `latex/`
+  subdirectory of the Agda data directory (`agda --print-agda-dir`).
