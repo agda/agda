@@ -50,6 +50,8 @@ When releasing the following procedure can be followed:
   - /doc/user-manual/conf.py
   - LICENSE
 
+* Check the date and version in `/src/data/latex/agda.sty`.
+
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
 
