@@ -379,6 +379,8 @@ Some Agda Hacking Lore
 * Whenever you change the interface file format you should update
   `Agda.TypeChecking.Serialise.currentInterfaceVersion`.
 
+* Whenever you change `agda.sty`, update the date in `\ProvidesPackage`.
+
 * Use `__IMPOSSIBLE__` instead of calls to error. `__IMPOSSIBLE__`
   generates errors of the following form:
 
