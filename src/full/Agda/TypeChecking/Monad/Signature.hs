@@ -991,6 +991,12 @@ freeVarsToApply :: (Functor m, HasConstInfo m, HasOptions m,
                 => QName -> m Args
 freeVarsToApply q = do
   vs <- moduleParamsToApply $ qnameModule q
+  -- Andreas, 2021-07-14, issue #5470
+  -- getConstInfo will fail if q is not in scope,
+  -- but in this case there are no free vars to apply, since
+  -- we cannot be in a child module of its defining module.
+  -- So if we short cut the nil-case here, we avoid the internal error of #5470.
+  if null vs then return [] else do
   t <- defType <$> getConstInfo q
   let TelV tel _ = telView'UpTo (size vs) t
   unless (size tel == size vs) __IMPOSSIBLE__
