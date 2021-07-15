@@ -13,7 +13,7 @@ import Data.Bits (finiteBitSize)
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Monoid
-import Data.List
+import Data.List (isPrefixOf)
 import System.Directory
 import System.IO.Temp
 import System.FilePath

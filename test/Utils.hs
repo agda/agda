@@ -11,7 +11,7 @@ import Data.Array
 import Data.Bifunctor (first)
 import qualified Data.ByteString as BS
 import Data.Char
-import Data.List
+import Data.List (intercalate, sortBy)
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map

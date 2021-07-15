@@ -7,7 +7,7 @@ module Main (main) where
 import Control.Exception
 import Control.Monad
 import Data.Char
-import Data.List
+import Data.List (intercalate, isInfixOf)
 import Data.Maybe
 import Data.Version
 import Numeric
