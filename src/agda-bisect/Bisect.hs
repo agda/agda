@@ -1,7 +1,7 @@
 import Control.Exception
 import Control.Monad
 import Data.Char
-import Data.List
+import Data.List (intercalate, isInfixOf, isPrefixOf)
 import Data.Maybe
 import Data.Monoid
 import Data.Time.Clock

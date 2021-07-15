@@ -11,7 +11,7 @@ import Agda.Utils.Null ( null )
 import Control.Monad
 
 import Data.Int
-import Data.List hiding ( null )
+import Data.List (sort)
 import Data.Set (Set)
 import qualified Data.Set as Set
 

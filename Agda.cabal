@@ -1093,4 +1093,5 @@ test-suite agda-tests
 
   -- NOTE: If adding or removing flags, also change `.ghci-9.0`
   if impl(ghc >= 9.0)
-    ghc-options: -Werror=invalid-haddock
+    ghc-options: -Werror=compat-unqualified-imports
+                 -Werror=invalid-haddock
