@@ -6,7 +6,7 @@ import Agda.Compiler.MAlonzo.Encode
 import Agda.Compiler.MAlonzo.Misc
 
 import Data.Char
-import Data.List
+import Data.List ( intercalate, isPrefixOf )
 
 import Internal.Helpers
 

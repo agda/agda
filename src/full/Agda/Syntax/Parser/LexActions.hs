@@ -23,7 +23,7 @@ import Control.Monad.State (modify)
 
 import Data.Bifunctor
 import Data.Char
-import Data.List
+import Data.Foldable (foldl')
 import Data.Maybe
 
 import Agda.Syntax.Common (pattern Ranged)

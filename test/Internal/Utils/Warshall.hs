@@ -5,7 +5,7 @@ module Internal.Utils.Warshall ( tests ) where
 import Agda.Syntax.Common ( Nat )
 import Agda.Utils.Warshall
 
-import Data.List
+import Data.List          ( sort )
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -134,4 +134,3 @@ return [] -- KEEP!
 
 tests :: TestTree
 tests = testProperties "Internal.Utils.Warshall" $allProperties
-

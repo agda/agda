@@ -12,7 +12,7 @@ import Agda.Utils.List ( downFrom )
 import Agda.Utils.Permutation
 
 import Data.Functor
-import Data.List as List
+import Data.List ( (\\), nub, sort )
 import Data.Maybe
 
 import Internal.Helpers

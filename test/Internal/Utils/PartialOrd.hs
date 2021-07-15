@@ -7,7 +7,7 @@ module Internal.Utils.PartialOrd
 
 import Agda.Utils.PartialOrd
 
-import Data.List
+import Data.List ( (\\) )
 import Data.Set (Set)
 import qualified Data.Set as Set
 

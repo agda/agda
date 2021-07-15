@@ -26,7 +26,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.List
+import Data.List (isSuffixOf)
 
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
@@ -79,7 +79,7 @@ cxtSubst :: MonadFail m => Names -> NamesT m (Substitution' a)
 cxtSubst ctx = do
   ctx' <- currentCxt
   if (ctx `isSuffixOf` ctx')
-     then return $ raiseS (genericLength ctx' - genericLength ctx)
+     then return $ raiseS (length ctx' - length ctx)
      else fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
 
 inCxt :: (MonadFail m, Subst a) => Names -> a -> NamesT m a

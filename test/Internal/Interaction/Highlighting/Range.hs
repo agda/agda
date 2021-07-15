@@ -6,7 +6,7 @@ import Agda.Interaction.Highlighting.Range
 import qualified Agda.Syntax.Position as P
 import Agda.Utils.List
 
-import Data.List
+import Data.List ( (\\), sort)
 
 import Internal.Helpers
 import Internal.Syntax.Position ()

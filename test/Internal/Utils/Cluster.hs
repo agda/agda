@@ -5,7 +5,7 @@ module Internal.Utils.Cluster ( tests ) where
 import Agda.Utils.Cluster
 
 import Data.Char
-import Data.List
+import Data.List (delete, intersect, sort)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Foldable as Fold
