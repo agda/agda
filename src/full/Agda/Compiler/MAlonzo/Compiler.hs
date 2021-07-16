@@ -261,6 +261,8 @@ ghcPreCompile flags = do
       , builtinAgdaTCMFreshName
       , builtinAgdaTCMDeclareDef
       , builtinAgdaTCMDeclarePostulate
+      , builtinAgdaTCMDeclareData
+      , builtinAgdaTCMDefineData
       , builtinAgdaTCMDefineFun
       , builtinAgdaTCMGetType
       , builtinAgdaTCMGetDefinition

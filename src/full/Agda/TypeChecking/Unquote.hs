@@ -24,10 +24,13 @@ import Agda.Syntax.Common hiding ( Nat )
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views
+import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
+import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName))
 
 import Agda.Interaction.Library ( ExeName )
 import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
@@ -48,6 +51,8 @@ import Agda.TypeChecking.CheckInternal
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl
+import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Either
 import Agda.Utils.Lens
@@ -567,6 +572,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
+             , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
              , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (unElim v))
              ]
@@ -580,6 +586,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
              , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
              , (f `isDef` primAgdaTCMWithReconsParams, tcWithReconsParams (unElim u))
+             , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
              , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
              , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
              ]
@@ -910,6 +917,96 @@ evalTCM v = do
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 
+    -- A datatype is expected to be declared with a function type.
+    -- The second argument indicates how many preceding types are parameters.
+    tcDeclareData :: QName -> Integer -> R.Type -> UnquoteM Term
+    tcDeclareData x npars t = inOriginalContext $ do
+      setDirty
+      tell [x]
+      liftTCM $ do
+        reportSDoc "tc.unquote.decl" 10 $ sep
+          [ "declare Data" <+> prettyTCM x <+> ":"
+          , nest 2 $ prettyR t
+          ]
+        alreadyDefined <- isRight <$> getConstInfo' x
+        when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
+        e <- toAbstract_ t
+        -- The type to be checked with @checkSig@ is without parameters.
+        let (tel, e') = removeParsThen (fromInteger npars) (,) e
+        ac <- asksTC (^. lensIsAbstract)
+        let defIn = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
+        checkSig DataName defIn x (A.GeneralizeTel Map.empty tel) e'
+        primUnitUnit
+
+    -- For now, there is no reflected syntax for open terms
+    -- Thus the types of given constructors are expected to be function types
+    -- with arguments as parameters.
+    tcDefineData :: QName -> [(QName, R.Type)] -> UnquoteM Term
+    tcDefineData x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
+      caseEitherM (getConstInfo' x)
+        (const $ genericError $ "Missing declaration for " ++ prettyShow x) $ \def -> do
+        npars <- case theDef def of
+                   DataOrRecSig n -> return n
+                   _              -> genericError $ prettyShow x ++
+                     " is not declared as a datatype or record, or it already has a definition."
+
+        es <- mapM (toAbstract_ . snd) cs
+        reportSDoc "tc.unquote.def" 10 $ vcat $
+          [ "declaring constructors of" <+> prettyTCM x <+> ":" ] ++ map prettyA es
+
+        -- The preceding arguments are removed before typechecking since @checkDataDef@ adds
+        -- the parameters of the declared datatype back to the context.
+        -- Variable names which refer to removed arguments in the given constructors
+        -- are substituted with those of the parameters of the declared datatype.
+
+        -- Translate parameters back to abstract syntax.
+        t   <- instantiateFull . defType =<< instantiateDef def
+        tel <- reify =<< theTel <$> telViewUpTo npars t
+
+        let f = removeParsThen npars (substNames' tel)
+        es' <- foldr (liftM2 (:) . f) (pure []) es -- Optimization?
+
+        ac <- asksTC (^. lensIsAbstract)
+        let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
+            conNames = map fst cs
+            toAxiom c e = A.Axiom ConName i defaultArgInfo Nothing c e
+            as = zipWith toAxiom conNames es' -- Constructors are axioms.
+            lams = map toLamBinding tel
+        reportSDoc "tc.unquote.def" 10 $ vcat $
+          [ "checking datatype: " <+> prettyTCM x <+> " with constructors:"
+          , nest 2 (vcat (map prettyTCM conNames))
+          ]
+        checkDataDef i x YesUniverseCheck (A.DataDefParams Set.empty lams) as
+        primUnitUnit
+      where
+        toLamBinding :: A.TypedBinding -> A.LamBinding
+        toLamBinding (A.TBind _ tac (b :| []) _) = A.DomainFree tac b
+        toLamBinding _ = __IMPOSSIBLE__
+
+        -- Substitute @Var x@ for @Var y@ in an @Expr@.
+        substName :: Name -> Name -> (A.Expr -> A.Expr)
+        substName x y e@(A.Var n)
+                | y == n    = A.Var x
+                | otherwise = e
+        substName _ _ e = e
+
+        substNames' :: [A.TypedBinding] -> [A.TypedBinding] -> A.Expr -> TCM A.Expr
+        substNames' (a : as) (b : bs) e = do
+          let (namea, expra) = bindingToPair a
+              (nameb, exprb) = bindingToPair b -- Allow non-hidden arguments?
+          e' <- substNames' as bs e
+          if expra == exprb
+          then return $ mapExpr (substName namea nameb) e'
+          else genericError $
+                 "Given arguments doesn't match the parameters of datatype" ++ prettyShow x
+                 -- TODO: Show which constructor causes the error.
+        substNames' [] [] e = return e
+        substNames' _ _ _ = genericError $ "Number of parameters doesn't match!"
+
+        bindingToPair :: A.TypedBinding -> (Name, A.Expr)
+        bindingToPair (A.TBind _ _ (n :| _) e) = (A.unBind . A.binderName $ namedArg n, e)
+        bindingToPair _ = __IMPOSSIBLE__
+
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term
     tcDefineFun x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
       whenM (isLeft <$> getConstInfo' x) $
@@ -933,6 +1030,13 @@ evalTCM v = do
         _ -> liftTCM $ typeError . GenericDocError =<<
           "Should be a pair: " <+> prettyTCM u
 
+    -- The second argument is continuation.
+    removeParsThen :: Int -> ([A.TypedBinding] -> A.Expr -> a) -> A.Expr -> a
+    removeParsThen 0     f e                   = f [] e
+    removeParsThen npars f (A.Pi _ (n :| _) e) | npars < 0 = __IMPOSSIBLE__
+    removeParsThen npars f (A.Pi _ (n :| _) e) =
+      removeParsThen (npars - 1) (\xs e' -> f (n : xs) e') e
+    removeParsThen _ _ _ = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- * Trusted executables

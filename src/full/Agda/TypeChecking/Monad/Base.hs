@@ -2269,6 +2269,18 @@ emptyFunction = Function
   , funCovering    = []
   }
 
+emptyDatatype :: Defn
+emptyDatatype = Datatype
+  { dataPars     = 0
+  , dataIxs      = 0
+  , dataClause   = Nothing
+  , dataCons     = []
+  , dataSort     = Type (Max 1 [])
+  , dataMutual   = Nothing
+  , dataAbstr    = ConcreteDef
+  , dataPathCons = []
+  }
+
 funFlag :: FunctionFlag -> Lens' Bool Defn
 funFlag flag f def@Function{ funFlags = flags } =
   f (Set.member flag flags) <&>

@@ -283,6 +283,8 @@ postulate
   freshName        : String → TC Name
   declareDef       : Arg Name → Type → TC ⊤
   declarePostulate : Arg Name → Type → TC ⊤
+  declareData      : Name → Nat → Type → TC ⊤
+  defineData       : Name → List (Σ Name (λ _ → Term)) → TC ⊤
   defineFun        : Name → List Clause → TC ⊤
   getType          : Name → TC Type
   getDefinition    : Name → TC Definition
@@ -336,6 +338,8 @@ postulate
 {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
 {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
 {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
+{-# BUILTIN AGDATCMDECLAREDATA                declareData                #-}
+{-# BUILTIN AGDATCMDEFINEDATA                 defineData                 #-}
 {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
 {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
 {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}
@@ -372,6 +376,8 @@ postulate
 {-# COMPILE JS freshName         = _ =>                undefined #-}
 {-# COMPILE JS declareDef        = _ => _ =>           undefined #-}
 {-# COMPILE JS declarePostulate  = _ => _ =>           undefined #-}
+{-# COMPILE JS declareData       = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS defineData        = _ => _ =>           undefined #-}
 {-# COMPILE JS defineFun         = _ => _ =>           undefined #-}
 {-# COMPILE JS getType           = _ =>                undefined #-}
 {-# COMPILE JS getDefinition     = _ =>                undefined #-}

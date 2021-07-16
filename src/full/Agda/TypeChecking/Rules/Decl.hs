@@ -219,10 +219,6 @@ checkDecl d = setCurrentRange d $ do
 
     where
 
-    -- check record or data type signature
-    checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
-      A.Axiom kind i defaultArgInfo Nothing x t
-
     -- Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
           . ( MonadTCEnv m, MonadPretty m, MonadDebug m
@@ -778,6 +774,12 @@ checkMutual i ds = inMutualBlock $ \ blockId -> defaultOpenLevelsToZero $ do
     mapM_ checkDecl ds
 
   (blockId, ) . mutualNames <$> lookupMutualBlock blockId
+
+    -- check record or data type signature
+checkSig :: KindOfName -> A.DefInfo -> QName -> A.GeneralizeTelescope -> A.Expr -> TCM ()
+checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
+  A.Axiom kind i defaultArgInfo Nothing x t
+
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()
