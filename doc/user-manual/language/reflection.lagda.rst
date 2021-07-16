@@ -450,6 +450,17 @@ following primitive operations::
     -- option.
     declarePostulate : Arg Name → Type → TC ⊤
 
+    -- Declare a new datatype. The second argument indicates how many preceding
+    -- types of the third argument are parameters. The datatype must be defined
+    -- later using 'defineData'.
+    declareData      : Name → Nat → Type → TC ⊤
+
+    -- Define a declared datatype with constructor definitions. The datatype
+    -- may have been declared using 'declareData' or with the keyword
+    -- 'data ... where ... '. The second argument is a list of pairs, each
+    -- containing a name of a constructor and its type.
+    defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
+
     -- Define a declared function. The function may have been declared using
     -- 'declareDef' or with an explicit type signature in the program.
     defineFun : Name → List Clause → TC ⊤
@@ -518,6 +529,8 @@ following primitive operations::
   {-# BUILTIN AGDATCMFRESHNAME                  freshName                  #-}
   {-# BUILTIN AGDATCMDECLAREDEF                 declareDef                 #-}
   {-# BUILTIN AGDATCMDECLAREPOSTULATE           declarePostulate           #-}
+  {-# BUILTIN AGDATCMDECLAREDATA                declareData                #-}
+  {-# BUILTIN AGDATCMDEFINEDATA                 defineData                 #-}
   {-# BUILTIN AGDATCMDEFINEFUN                  defineFun                  #-}
   {-# BUILTIN AGDATCMGETTYPE                    getType                    #-}
   {-# BUILTIN AGDATCMGETDEFINITION              getDefinition              #-}

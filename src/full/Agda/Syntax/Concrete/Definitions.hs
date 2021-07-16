@@ -1171,7 +1171,7 @@ niceDeclarations fixs ds = do
         covCheck NicePatternSyn{}    = YesCoverageCheck
         covCheck NiceGeneralize{}    = YesCoverageCheck
         covCheck NiceLoneConstructor{} = YesCoverageCheck
-        covCheck NiceUnquoteData{}   = YesCoverageCheck 
+        covCheck NiceUnquoteData{}   = YesCoverageCheck
 
         -- ASR (26 December 2015): Do not positivity check a mutual
         -- block if any of its inner declarations comes with a

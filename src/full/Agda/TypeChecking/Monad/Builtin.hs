@@ -214,7 +214,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMReduce,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
-    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDefineFun,
+    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDeclareData, primAgdaTCMDefineData, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
@@ -409,6 +409,8 @@ primAgdaTCMInContext                  = getBuiltin builtinAgdaTCMInContext
 primAgdaTCMFreshName                  = getBuiltin builtinAgdaTCMFreshName
 primAgdaTCMDeclareDef                 = getBuiltin builtinAgdaTCMDeclareDef
 primAgdaTCMDeclarePostulate           = getBuiltin builtinAgdaTCMDeclarePostulate
+primAgdaTCMDeclareData                = getBuiltin builtinAgdaTCMDeclareData
+primAgdaTCMDefineData                 = getBuiltin builtinAgdaTCMDefineData
 primAgdaTCMDefineFun                  = getBuiltin builtinAgdaTCMDefineFun
 primAgdaTCMGetType                    = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition              = getBuiltin builtinAgdaTCMGetDefinition
