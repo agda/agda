@@ -916,8 +916,8 @@ LamClauses
    | AbsurdLamClause semi LamClause { $3 <| singleton $1 }
    | NonAbsurdLamClause { singleton $1 }
 
--- Parses all extended lambda clauses including a single absurd clause. For λ
--- where this is not taken care of in AbsurdLambda
+-- Parses all extended lambda clauses including a single absurd clause.
+-- For lambda-where this is not[sic!, now?] taken care of in AbsurdLambda.
 LamWhereClauses :: { List1 LamClause }
 LamWhereClauses
    : LamWhereClauses semi LamClause { $3 <| $1 }
@@ -2015,10 +2015,7 @@ onlyErased as = do
     CohesionAttribute{}  -> unsup "Cohesion"
     LockAttribute{}      -> unsup "Lock"
     TacticAttribute{}    -> unsup "Tactic"
-    QuantityAttribute q  -> case q of
-      Quantity1{} -> unsup "Linearity"
-      Quantity0 o -> return $ Just (Erased    o)
-      Quantityω o -> return $ Just (NotErased o)
+    QuantityAttribute q  -> maybe (unsup "Linearity") (return . Just) $ erasedFromQuantity q
     where
     unsup s = do
       parseWarning $ UnsupportedAttribute (attrRange a) (Just s)
@@ -2115,14 +2112,15 @@ exprToAssignment e@(RawApp r es)
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
       [] ->
         -- Andreas, 2021-05-06, issue #5365
-        -- Handle pathological cases like @do ←@ and @do x ←@.
+        -- Handle pathological cases like @do <-@ and @do x <-@.
         case (es1, es2) of
           (e1:rest1, e2:rest2) -> do
             p <- exprToPattern $ rawApp $ e1 :| rest1
             pure $ Just (p, getRange arr, rawApp (e2 :| rest2))
           _ -> parseError' (rStart' $ getRange e) $ "Incomplete binding " ++ prettyShow e
   where
-    isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) = arr `elem` ["<-", "←"]
+    isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) =
+      arr `elem` ["<-", "\x2190"]  -- \leftarrow [issue #5465, unicode might crash happy]
     isLeftArrow _ = False
 exprToAssignment _ = pure Nothing
 

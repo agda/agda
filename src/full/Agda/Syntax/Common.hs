@@ -1002,11 +1002,19 @@ data Erased
 defaultErased :: Erased
 defaultErased = NotErased QωInferred
 
--- 'Erased' can be converted into 'Quantity'.
+-- | 'Erased' can be embedded into 'Quantity'.
 
 asQuantity :: Erased -> Quantity
 asQuantity (Erased    o) = Quantity0 o
 asQuantity (NotErased o) = Quantityω o
+
+-- | 'Quantity' can be projected onto 'Erased'.
+
+erasedFromQuantity :: Quantity -> Maybe Erased
+erasedFromQuantity = \case
+  Quantity1{} -> Nothing
+  Quantity0 o -> Just $ Erased    o
+  Quantityω o -> Just $ NotErased o
 
 -- | Equality ignoring origin.
 
