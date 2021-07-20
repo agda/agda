@@ -716,19 +716,15 @@ etaExpandAtRecordType t u = do
 etaContractRecord :: HasConstInfo m => QName -> ConHead -> ConInfo -> Args -> m Term
 etaContractRecord r c ci args = if all (not . usableModality) args then fallBack else do
   Just Record{ recFields = xs } <- isRecord r
-  let check :: Arg Term -> Dom QName -> Maybe (Maybe Term)
-      check a ax = do
-      -- @a@ is the constructor argument, @ax@ the corr. record field name
-        -- skip irrelevant record fields by returning DontCare
-        case (getRelevance a, hasElims $ unArg a) of
-          (Irrelevant, _)   -> Just Nothing
-          -- if @a@ is the record field name applied to a single argument
-          -- then it passes the check
-          (_, Just (_, [])) -> Nothing  -- not a projection
-          (_, Just (h, e0:es0))
-            | (es, Proj _o f) <- initLast1 e0 es0
-            , unDom ax == f -> Just $ Just $ h es
-          _                 -> Nothing
+  reportSDoc "tc.record.eta.contract" 20 $ vcat
+    [ "eta contracting record"
+    , nest 2 $ vcat
+      [ "record type r  =" <+> prettyTCM r
+      , "constructor c  =" <+> prettyTCM c
+      , "field names xs =" <+> pretty    xs
+      , "fields    args =" <+> prettyTCM args
+      ]
+    ]
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
     GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
@@ -743,6 +739,19 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
         _ -> fallBack  -- a Nothing
   where
   fallBack = return (mkCon c ci args)
+  check :: Arg Term -> Dom QName -> Maybe (Maybe Term)
+  check a ax = do
+  -- @a@ is the constructor argument, @ax@ the corr. record field name
+    -- skip irrelevant record fields by returning DontCare
+    case (getRelevance a, hasElims $ unArg a) of
+      (Irrelevant, _)   -> Just Nothing
+      -- if @a@ is the record field name applied to a single argument
+      -- then it passes the check
+      (_, Just (_, [])) -> Nothing  -- not a projection
+      (_, Just (h, e0:es0))
+        | (es, Proj _o f) <- initLast1 e0 es0
+        , unDom ax == f -> Just $ Just $ h es
+      _                 -> Nothing
 
 -- | Is the type a hereditarily singleton record type? May return a
 -- blocking metavariable.
