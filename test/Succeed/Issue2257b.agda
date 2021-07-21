@@ -3,6 +3,8 @@
 
 {-# OPTIONS --allow-unsolved-metas #-}
 
+{-# OPTIONS -v impossible:70 #-}
+
 -- {-# OPTIONS -v tc.ip:20 #-}
 -- {-# OPTIONS -v tc:20 #-}
 
