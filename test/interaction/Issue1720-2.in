@@ -1,3 +1,8 @@
 top_command (cmd_load currentFile [])
+goal_command 0 cmd_give "a1"
+goal_command 2 cmd_give "b1"
+goal_command 1 (cmd_solveOne AsIs) ""
+top_command (cmd_load currentFile [])
 goal_command 0 cmd_give "fa"
-goal_command 1 cmd_give "b1"
+goal_command 2 cmd_give "fb"
+goal_command 1 (cmd_solveOne AsIs) ""
