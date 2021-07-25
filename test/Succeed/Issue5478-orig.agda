@@ -1,5 +1,9 @@
 {-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --double-check #-}
+
 -- {-# OPTIONS -v impossible:70 #-}
+-- {-# OPTIONS -v tc.interaction:30 #-}
+-- {-# OPTIONS -v tc.check.internal:20 #-}
 
 open import Agda.Builtin.Sigma
 

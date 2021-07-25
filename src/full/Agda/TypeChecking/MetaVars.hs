@@ -401,13 +401,20 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     -- Ideally, Agda would organize contexts in ancestry trees
     -- with substitutions to move between parent and child.
     let glen = length gamma
+    let dlen = length delta
     let gxs  = map (fst . unDom) gamma
     let dxs  = map (fst . unDom) delta
+    reportSDoc "tc.interaction" 20 $ vcat
+      [ "reusing meta"
+      , nest 2 $ "creation context:" <+> pretty gxs
+      , nest 2 $ "reusage  context:" <+> pretty dxs
+      ]
+
     -- When checking a record declaration (e.g. Σ), creation context Γ
     -- might be of the forms Γ₀,Γ₁ or Γ₀,fst,Γ₁ or Γ₀,fst,snd,Γ₁ whereas
     -- Δ is of the form Γ₀,r,Γ₁,{Δ₂} for record variable r.
     -- So first find the record variable in Δ.
-    args <- case List.findIndex nameIsRecordName dxs of
+    rev_args <- case List.findIndex nameIsRecordName dxs of
 
       -- Case: no record variable in the context.
       -- Test whether Δ is an extension of Γ.
@@ -427,12 +434,25 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
             ]
           __IMPOSSIBLE__
         -- Apply the meta to |Γ| arguments from Δ.
-        take glen <$> getContextArgs
+        return $ map var [dlen - glen .. dlen - 1]
 
       -- Case: record variable in the context.
       Just k -> do
         -- Verify that the contexts relate as expected.
         let g0len = length dxs - k - 1
+        -- Find out the Δ₂ and Γ₁ parts.
+        -- However, as they do not share common ancestry, the @nameId@s differ,
+        -- so we consider only the original concrete names.
+        -- This is a bit risky... blame goes to #434.
+        let gys = map nameCanonical gxs
+        let dys = map nameCanonical dxs
+        let (d2len, g1len) = findOverlap (take k dys) gys
+        reportSDoc "tc.interaction" 30 $ vcat $ map (nest 2)
+          [ "glen  =" <+> pretty glen
+          , "g0len =" <+> pretty g0len
+          , "g1len =" <+> pretty g1len
+          , "d2len =" <+> pretty d2len
+          ]
         -- The Γ₀ part should match.
         unless (drop (glen - g0len) gxs == drop (k + 1) dxs) $ do
           reportSDoc "impossible" 10 $ vcat
@@ -442,13 +462,6 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
             , nest 2 $ pretty dxs
             ]
           __IMPOSSIBLE__
-        -- Find out the Δ₂ and Γ₁ parts.
-        -- However, as they do not share common ancestry, the @nameId@s differ,
-        -- so we consider only the original concrete names.
-        -- This is a bit risky... blame goes to #434.
-        let gys = map nameCanonical gxs
-        let dys = map nameCanonical dxs
-        let (d2len, g1len) = findOverlap (take k dys) gys
         -- The Γ₁ part should match.
         unless ( ((==) `on` take g1len) gys (drop d2len dys) ) $ do
           reportSDoc "impossible" 10 $ vcat
@@ -457,27 +470,27 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
             , "to be an expansion of the meta-reuse context (with record var)"
             , nest 2 $ pretty dxs
             ]
-          reportSDoc "impossible" 20 $ vcat $ map (nest 2)
-            [ "glen  =" <+> pretty glen
-            , "g1len =" <+> pretty g1len
-            , "g0len =" <+> pretty g0len
-            , "d2len =" <+> pretty d2len
-            ]
           __IMPOSSIBLE__
-        (vs1, Arg _ v : vs0) <- splitAt g1len . drop d2len <$> getContextArgs
+        let (vs1, v : vs0) = splitAt g1len $ map var [d2len..dlen-1]
         -- We need to expand the record var @v@ into the correct number of fields.
         let numFields = glen - g1len - g0len
-        -- Get the record type.
-        let t = snd . unDom . fromMaybe __IMPOSSIBLE__ $ delta !!! k
-        -- Get the record field names.
-        fs <- getRecordTypeFields t
-        -- Field arguments to the original meta are projections from the record var.
-        let vfs = map (fmap (\ x -> v `applyE` [Proj ProjSystem x]) . argFromDom) fs
-        -- These are the final args to the original meta:
-        return $ vs1 ++ reverse (take numFields vfs) ++ vs0
+        if numFields <= 0 then return $ vs1 ++ vs0 else do
+          -- Get the record type.
+          let t = snd . unDom . fromMaybe __IMPOSSIBLE__ $ delta !!! k
+          -- Get the record field names.
+          fs <- getRecordTypeFields t
+          -- Field arguments to the original meta are projections from the record var.
+          let vfs = map ((\ x -> v `applyE` [Proj ProjSystem x]) . unDom) fs
+          -- These are the final args to the original meta:
+          return $ vs1 ++ reverse (take numFields vfs) ++ vs0
 
+    -- Use ArgInfo from Γ.
+    let args = reverse $ zipWith (<$) rev_args $ map argFromDom gamma
     -- Take the permutation into account (see TC.Monad.MetaVars.getMetaContextArgs).
-    return (x, MetaV x $ map Apply $ permute (takeP (length args) p) args)
+    let vs = permute (takeP (length args) p) args
+    reportSDoc "tc.interaction" 20 $ vcat
+      [ "meta reuse arguments:" <+> prettyTCM vs ]
+    return (x, MetaV x $ map Apply vs)
 
 -- | Construct a blocked constant if there are constraints.
 blockTerm
