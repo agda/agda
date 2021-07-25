@@ -1,5 +1,5 @@
 {-# OPTIONS --allow-unsolved-metas #-}
-{-# OPTIONS --double-check #-}
+{-# OPTIONS --no-double-check #-}
 
 -- {-# OPTIONS -v impossible:70 #-}
 -- {-# OPTIONS -v tc.interaction:30 #-}
