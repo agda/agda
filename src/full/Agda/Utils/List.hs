@@ -18,6 +18,8 @@ import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
 
+import Agda.Utils.Impossible
+
 ---------------------------------------------------------------------------
 -- * Variants of list case, cons, head, tail, init, last
 ---------------------------------------------------------------------------
@@ -387,6 +389,23 @@ data StrSufSt a
   = SSSMismatch                 -- ^ Error.
   | SSSStrip (ReversedSuffix a) -- ^ "Negative string" to remove from end. List may be empty.
   | SSSResult [a]               -- ^ "Positive string" (result). Non-empty list.
+
+-- ** Finding overlap
+
+-- | Find out whether the first string @xs@
+--   has a suffix that is a prefix of the second string @ys@.
+--   So, basically, find the overlap where the strings can be glued together.
+--   Returns the index where the overlap starts and the length of the overlap.
+--   The length of the overlap plus the index is the length of the first string.
+--   Note that in the worst case, the empty overlap @(length xs,0)@ is returned.
+findOverlap :: forall a. Eq a => [a] -> [a] -> (Int, Int)
+findOverlap xs ys =
+  headWithDefault __IMPOSSIBLE__ $ mapMaybe maybePrefix $ zip [0..] (List.tails xs)
+  where
+  maybePrefix :: (Int, [a]) -> Maybe (Int, Int)
+  maybePrefix (k, xs')
+    | xs' `List.isPrefixOf` ys = Just (k, length xs')
+    | otherwise                = Nothing
 
 ---------------------------------------------------------------------------
 -- * Groups and chunks

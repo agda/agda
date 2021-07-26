@@ -1,5 +1,7 @@
 -- Andreas, 2016-07-29, issue #1720 reported by Mietek Bak
 
+{-# OPTIONS --double-check #-}
+
 postulate
   A  : Set
   B  : A → Set
