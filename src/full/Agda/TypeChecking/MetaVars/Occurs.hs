@@ -175,8 +175,16 @@ definitionCheck d = do
       m   = occMeta $ feExtra cxt
   -- Anything goes if we are both irrelevant and erased.
   -- Otherwise, have to check the modality of the defined name.
-  unless (irr && er) $ do
-    dmod <- modalityOfConst d
+  unless (irr && er) $ getConstInfo' d >>= \case
+   Left _ -> do
+    -- Andreas, 2021-07-29.
+    -- The definition is not in scope.
+    -- This shouldn't happen, but does so in issue #5492.
+    -- Let's bail out...
+    patternViolation' alwaysUnblock 35 $
+      unwords ["occursCheck: definition", prettyShow d, "not in scope" ]
+   Right def -> do
+    let dmod = getModality def
     unless (irr || usableRelevance dmod) $ do
       reportSDoc "tc.meta.occurs" 35 $ hsep
         [ "occursCheck: definition"
