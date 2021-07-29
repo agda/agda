@@ -606,10 +606,10 @@ May be more efficient than restarting Agda."
                       "Cmd_abort"))
 
 (defun agda2-abort-done ()
-  "Removes annotations, resets certain variables.
+  "Resets certain variables.
 Intended to be used by the backend if an abort command was
 successful."
-  (agda2-remove-annotations)
+  (agda2-info-action "*Aborted*" "Aborted." t)
   (setq agda2-highlight-in-progress nil
         agda2-last-responses        nil))
 
