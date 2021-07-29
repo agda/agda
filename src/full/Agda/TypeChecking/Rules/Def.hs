@@ -1013,9 +1013,22 @@ checkWithRHS
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
 checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 cs =
-  Bench.billTo [Bench.Typing, Bench.With] $ do
+  verboseBracket "tc.with.top" 25 "checkWithRHS" $ do
+    Bench.billTo [Bench.Typing, Bench.With] $ do
         withArgs <- withArguments vtys0
         let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
+
+        reportSDoc "tc.with.top" 30 $ vcat $
+          -- declared locally because we do not want to use the unzip'd thing!
+          let (vs, as) = unzipWith unArg vtys0 in
+          [ "vs (before normalization) =" <+> prettyTCM vs
+          , "as (before normalization) =" <+> prettyTCM as
+          ]
+        reportSDoc "tc.with.top" 45 $ vcat $
+          -- declared locally because we do not want to use the unzip'd thing!
+          let (vs, as) = unzipWith unArg vtys0 in
+          [ "vs (before norm., raw) =" <+> pretty vs
+          ]
         vtys0 <- normalise vtys0
 
         -- Andreas, 2012-09-17: for printing delta,

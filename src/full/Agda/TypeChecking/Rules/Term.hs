@@ -1577,7 +1577,7 @@ isModuleFreeVar i = do
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
 --   arguments.  Otherwise, leave the type polymorphic.
 inferExprForWith :: Arg A.Expr -> TCM (Term, Type)
-inferExprForWith (Arg info e) =
+inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForWith" $
   applyRelevanceToContext (getRelevance info) $ do
     reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
     reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)
