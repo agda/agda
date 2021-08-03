@@ -82,6 +82,7 @@ instance EmbPrj Warning where
     GenericUseless a b                    -> icodeN 35 GenericUseless a b
     RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
+    NoEquivWhenSplitting a                -> icodeN 38 NoEquivWhenSplitting a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -122,6 +123,7 @@ instance EmbPrj Warning where
     [35, a, b]           -> valuN GenericUseless a b
     [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
+    [38, a]              -> valuN NoEquivWhenSplitting a
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where

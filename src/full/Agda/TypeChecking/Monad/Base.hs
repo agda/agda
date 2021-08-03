@@ -3215,6 +3215,8 @@ data Warning
     -- ^ COMPILE directive for an erased symbol
   | NotInScopeW [C.QName]
     -- ^ Out of scope error we can recover from
+  | NoEquivWhenSplitting Doc
+    -- ^ Was not able to compute a full equivalence when splitting
   | AsPatternShadowsConstructorOrPatternSynonym Bool
     -- ^ The as-name in an as-pattern may not shadow a constructor (@False@)
     --   or pattern synonym name (@True@),
@@ -3264,6 +3266,7 @@ warningName = \case
   ModuleDoesntExport{}         -> ModuleDoesntExport_
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
+  NoEquivWhenSplitting{}       -> NoEquivWhenSplitting_
   OldBuiltin{}                 -> OldBuiltin_
   SafeFlagNoPositivityCheck    -> SafeFlagNoPositivityCheck_
   SafeFlagNonTerminating       -> SafeFlagNonTerminating_
