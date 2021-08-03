@@ -1390,6 +1390,9 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
     (,,) <$> ps <*> rhsTy <*> rhs
 
   let (ps,ty,rhs) = unAbsN $ unAbsN $ unAbs $ unAbsN $ ps_ty_rhs
+  qs <- mapM (fmap (fromMaybe __IMPOSSIBLE__) . getName') [builtinINeg, builtinIMax, builtinIMin]
+  rhs <- addContext cTel $
+           locallyReduceDefs (OnlyReduceDefs (Set.fromList $ q_trX : qs)) $ normalise rhs
   let cl = Clause { clauseTel = cTel
                   , namedClausePats = ps
                   , clauseBody = Just rhs
@@ -2103,7 +2106,7 @@ computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
       -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ
       let (rho1,rho2) = splitS (size gamma) $ toSplitPSubst rho0
 
-      let defp = DefP defaultPatternInfo hCompName . map (setOrigin Inserted) $
+      let defp = DefP defaultPatternInfo hCompName . map (setOrigin Inserted) $ -- should there be a different Origin here?
                    map (fmap unnamed) [setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP defaultPatternInfo $ dlvl
                                       ,setHiding Hidden $ defaultArg $ applySubst rho1 $ DotP defaultPatternInfo $ dterm]
                    ++ applySubst rho2 (teleNamedArgs gamma) -- rho0?
@@ -2256,10 +2259,13 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
                     | otherwise
             = NoInfo
 
-      when (isLeft tauInv) $ do
-        whenM (optCubical <$> pragmaOptions) $ do
-        -- TODO better error msg.
-        lift $ genericWarning =<< text "No equiv while splitting on indexed family"
+      case tauInv of
+        Right{} -> return ()
+        Left SplitOnStrict -> return ()
+        Left x -> do
+          whenM withoutKOption $ do
+            -- TODO better error msg.
+            lift $ warning . NoEquivWhenSplitting =<< text "No equiv while splitting on indexed family" <+> prettyTCM x
 
       debugSubst "rho0" rho0
 
@@ -2478,12 +2484,13 @@ split' checkEmpty ind allowPartialCover inserttrailing
         -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
         -- cons = constructors of this datatype
         (dr, d, pars, ixs, cons', isHIT) <- inContextOfT $ isDatatype ind t
+        isFib <- lift $ isFibrant t
         cons <- case checkEmpty of
           CheckEmpty   -> ifM (liftTCM $ inContextOfT $ isEmptyType $ unDom t) (pure []) (pure cons')
           NoCheckEmpty -> pure cons'
         mns  <- forM cons $ \ con -> fmap (SplitCon con,) <$>
           computeNeighbourhood delta1 n delta2 d pars ixs x tel ps cps con
-        hcompsc <- if (isHIT || size ixs > 0) && not (null mns) && inserttrailing == DoInsertTrailing
+        hcompsc <- if isFib && (isHIT || (size ixs > 0)) && not (null mns) && inserttrailing == DoInsertTrailing
                    then computeHCompSplit delta1 n delta2 d pars ixs x tel ps cps
                    else return Nothing
         return ( dr
