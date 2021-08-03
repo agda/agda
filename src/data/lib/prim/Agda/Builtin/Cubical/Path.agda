@@ -5,10 +5,6 @@ module Agda.Builtin.Cubical.Path where
 
   open import Agda.Primitive.Cubical
 
-  postulate
-    PathP : ∀ {ℓ} (A : I → Set ℓ) → A i0 → A i1 → Set ℓ
-
-  {-# BUILTIN PATHP        PathP     #-}
 
   infix 4 _≡_
 

@@ -51,3 +51,9 @@ syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
 primitive
   primTransp : ∀ {ℓ} (A : (i : I) → Set (ℓ i)) (φ : I) (a : A i0) → A i1
   primHComp  : ∀ {ℓ} {A : Set ℓ} {φ : I} (u : ∀ i → Partial φ A) (a : A) → A
+
+
+postulate
+  PathP : ∀ {ℓ} (A : I → Set ℓ) → A i0 → A i1 → Set ℓ
+
+{-# BUILTIN PATHP        PathP     #-}
