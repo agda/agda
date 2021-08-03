@@ -2263,7 +2263,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         Right{} -> return ()
         Left SplitOnStrict -> return ()
         Left x -> do
-          whenM withoutKOption $ do
+          whenM (optCubical <$> pragmaOptions) $ do
             -- TODO better error msg.
             lift $ warning . NoEquivWhenSplitting =<< text "No equiv while splitting on indexed family" <+> prettyTCM x
 

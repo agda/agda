@@ -3,7 +3,7 @@
 
 module Agda.Builtin.Cubical.Path where
 
-  open import Agda.Primitive.Cubical
+  open import Agda.Primitive.Cubical using (PathP) public
 
 
   infix 4 _≡_

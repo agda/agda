@@ -403,7 +403,8 @@ instance ComputeOccurrences Clause where
   occurrences cl = do
     let ps    = namedClausePats cl
         items = IntMap.elems $ patItems ps -- sorted from low to high DBI
-    -- if hasDefP ps then return mempty else do
+    -- TODO #3733: handle hcomp/transp clauses properly
+    if hasDefP ps then return mempty else do
     (Concat (mapMaybe matching (zip [0..] ps)) <>) <$> do
       withExtendedOccEnv' items $
         occurrences $ clauseBody cl

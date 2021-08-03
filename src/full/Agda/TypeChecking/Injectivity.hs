@@ -191,7 +191,9 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
       varToArg _ h           = return h
 
   -- We don't need to consider absurd clauses
-  let computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
+  let computeHead c | hasDefP (namedClausePats c) = return []
+      -- re #3733 TODO: properly handle transpX/hcomp clauses above.
+      computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
         maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
         h <- if maybeIrr then return UnknownHead else
           varToArg c =<< do
