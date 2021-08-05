@@ -508,7 +508,7 @@ etaExpandBoundVar i = fmap (\ (delta, sigma, tau, _) -> (delta, sigma, tau)) <$>
 --
 --   Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
 
-expandRecordVar :: Int -> Telescope -> TCM (Maybe (Telescope, Substitution, Substitution, Telescope))
+expandRecordVar :: PureTCM m => Int -> Telescope -> m (Maybe (Telescope, Substitution, Substitution, Telescope))
 expandRecordVar i gamma0 = do
   -- Get the context with last variable added last in list.
   let gamma = telToList gamma0

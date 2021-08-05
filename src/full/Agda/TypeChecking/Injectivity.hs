@@ -104,7 +104,8 @@ headSymbol v = do -- ignoreAbstractMode $ do
             fs <- mutualNames <$> lookupMutualBlock mb
             if Set.member f fs then no else yes
         Function{}    -> no
-        Primitive{}   -> no
+        Primitive{primName} | primName == builtinHComp -> yes -- TODO 3733: only if it's a HIT or indexed fam.
+                            | otherwise -> no
         PrimitiveSort{} -> no
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
@@ -188,7 +189,9 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
       varToArg _ h           = return h
 
   -- We don't need to consider absurd clauses
-  let computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
+  let computeHead c | hasDefP (namedClausePats c) = return []
+      -- re #3733 TODO: properly handle transpX/hcomp clauses above.
+      computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
         maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
         h <- if maybeIrr then return UnknownHead else
           varToArg c =<< do

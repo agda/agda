@@ -243,7 +243,7 @@ primNothing                           = getBuiltin builtinNothing
 primJust                              = getBuiltin builtinJust
 primIO                                = getBuiltin builtinIO
 primId                                = getBuiltin builtinId
-primConId                             = getBuiltin builtinConId
+primConId                             = getPrimitiveTerm builtinConId
 primIdElim                            = getPrimitiveTerm builtinIdElim
 primPath                              = getBuiltin builtinPath
 primPathP                             = getBuiltin builtinPathP
@@ -592,6 +592,23 @@ pathUnview :: PathView -> Type
 pathUnview (OType t) = t
 pathUnview (PathType s path l t lhs rhs) =
   El s $ Def path $ map Apply [l, t, lhs, rhs]
+
+------------------------------------------------------------------------
+-- * Swan's Id Equality
+------------------------------------------------------------------------
+
+-- f x (< phi , p > : Id A x _) = Just (phi,p)
+conidView' :: HasBuiltins m => m (Term -> Term -> Maybe (Arg Term,Arg Term))
+conidView' = do
+  mn <- sequence <$> mapM getName' [builtinReflId, builtinConId]
+  mio <- getTerm' builtinIOne
+  let fallback = return $ \ _ _ -> Nothing
+  caseMaybe mn fallback $ \ [refl,conid] ->
+   caseMaybe mio fallback $ \ io -> return $ \ x t ->
+    case t of
+      Con h _ [] | conName h == refl -> Just (defaultArg io,defaultArg (Lam defaultArgInfo $ NoAbs "_" $ x))
+      Def d es | Just [l,a,x,y,phi,p] <- allApplyElims es, d == conid -> Just (phi, p)
+      _ -> Nothing
 
 ------------------------------------------------------------------------
 -- * Builtin equality

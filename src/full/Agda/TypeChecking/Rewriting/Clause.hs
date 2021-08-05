@@ -5,6 +5,7 @@ import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
@@ -38,6 +39,7 @@ clauseQName f i = QName (qnameModule f) <$> clauseName (qnameName f) i
 --   if @clauseBody cl@ is @Nothing@. Precondition: @clauseType cl@ is
 --   not @Nothing@.
 clauseToRewriteRule :: QName -> QName -> Clause -> Maybe RewriteRule
+clauseToRewriteRule f q cl | hasDefP (namedClausePats cl) = Nothing
 clauseToRewriteRule f q cl = clauseBody cl <&> \rhs -> RewriteRule
   { rewName    = q
   , rewContext = clauseTel cl

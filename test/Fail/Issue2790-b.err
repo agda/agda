@@ -1,2 +1,8 @@
+Issue2790-b.agda:7,1-21
+No equiv while splitting on indexed family WithKEnabled
+when checking the definition of uip
+Issue2790-b.agda:7,1-21
+No equiv while splitting on indexed family WithKEnabled
+when checking the definition of uip
 Issue2790-b.agda:1,1-42
 Cannot set OPTIONS pragma --cubical and --with-K with safe flag.
