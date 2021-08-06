@@ -455,6 +455,8 @@ library
                     Agda.TypeChecking.Coverage
                     Agda.TypeChecking.Coverage.Match
                     Agda.TypeChecking.Coverage.SplitTree
+                    Agda.TypeChecking.Coverage.SplitClause
+                    Agda.TypeChecking.Coverage.Cubical
                     Agda.TypeChecking.Datatypes
                     Agda.TypeChecking.DeadCode
                     Agda.TypeChecking.DisplayForm

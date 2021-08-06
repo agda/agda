@@ -217,6 +217,23 @@ getNumberOfParameters d = do
     Constructor{ conPars = n } -> return $ Just n
     _                          -> return Nothing
 
+-- | This is a simplified version of @isDatatype@ from @Coverage@,
+--   useful when we do not want to import the module.
+getDatatypeArgs :: HasConstInfo m => Type -> m (Maybe (QName, Args, Args))
+getDatatypeArgs t = do
+  case unEl t of
+    Def d es -> do
+      let ~(Just args) = allApplyElims es
+      def <- theDef <$> getConstInfo d
+      case def of
+        Datatype{dataPars = np} -> do
+          let !(ps, is) = splitAt np args
+          return $ Just (d,   ps, is)
+        Record{} -> do
+          return $ Just (d, args, [])
+        _ -> return Nothing
+    _ -> return Nothing
+
 getNotErasedConstructors :: QName -> TCM [QName]
 getNotErasedConstructors d = do
   cs <- getConstructors d
