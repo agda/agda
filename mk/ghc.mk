@@ -26,7 +26,7 @@ ifneq ($(GHC),)
 
   # major.minor.subminor, e.g. 8.10.2
   ifdef HAS_STACK
-    GHC_VER := $(shell stack query | sed -n 's/.*actual: ghc-\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
+    GHC_VER := $(shell stack query | sed -n 's/.*actual: ghc-\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
     # The following variant needs GNU awk (not POSIX compatible) [issue #5480]:
     # GHC_VER := $(shell stack query | awk 'match ($$0, /actual: ghc-([0-9]+\.[0-9]+\.[0-9]+)/, ver) { print (ver[1]); }')
   else
