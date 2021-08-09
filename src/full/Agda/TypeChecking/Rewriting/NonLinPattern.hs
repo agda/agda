@@ -26,6 +26,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Primitive.Cubical
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
@@ -61,8 +62,14 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
       let hd' = hd `apply` [ u ]
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
-    (IApply x y u : es) -> typeError $ GenericError $
-      "Rewrite rules with cubical are not yet supported"
+    (IApply x y i : es) -> do
+      ~(PathType s q l b u v) <- pathView =<< reduce t
+      let t' = El s $ unArg b `apply` [ defaultArg i ]
+      let hd' = hd `applyE` [IApply x y i]
+      interval <- primIntervalType
+      p   <- patternFrom r k interval i
+      ps  <- patternFrom r k (t',hd') es
+      return $ IApply (PTerm x) (PTerm y) p : ps
     (Proj o f : es) -> do
       ~(Just (El _ (Pi a b))) <- getDefType f =<< reduce t
       let t' = b `absApp` hd
