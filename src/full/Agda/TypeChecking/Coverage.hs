@@ -939,7 +939,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
         Left x -> do
           whenM (isJust . optCubical <$> pragmaOptions) $ do
             -- re #3733: TODO better error msg.
-            lift $ warning . NoEquivWhenSplitting =<< text "No equiv while splitting on indexed family" <+> prettyTCM x
+            lift $ warning . NoEquivWhenSplitting =<< prettyTCM x
 
       debugSubst "rho0" rho0
 

@@ -108,7 +108,11 @@ prettyWarning = \case
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
 
-    NoEquivWhenSplitting doc -> return doc
+    NoEquivWhenSplitting doc -> vcat
+            [ fwords $ "Could not generate equivalence when splitting on indexed family, " ++
+                       "the function will not compute on transports by a path."
+            , nest 2 $ "Reason:" <+> pure doc
+            ]
 
     CantGeneralizeOverSorts ms -> vcat
             [ text "Cannot generalize over unsolved sort metas:"
