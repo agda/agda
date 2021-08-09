@@ -1,3 +1,0 @@
-Issue4384.agda:14,1-20
-Rewrite rules with cubical are not yet supported
-when checking the pragma REWRITE bad

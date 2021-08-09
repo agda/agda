@@ -52,6 +52,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Primitive.Cubical
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
@@ -169,6 +170,14 @@ instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
       match r gamma k a p v
       let t'  = absApp b (unArg v)
           hd' = hd . (Apply v:)
+      match r gamma k (t',hd') ps vs
+
+    (IApply x y p , IApply u v i) -> do
+      ~(PathType s q l b _u _v) <- addContext k $ pathView =<< reduce t
+      Right interval <- runExceptT primIntervalType
+      match r gamma k interval p i
+      let t' = El s $ unArg b `apply` [ defaultArg i ]
+      let hd' = hd . (IApply u v i:)
       match r gamma k (t',hd') ps vs
 
     (Proj o f, Proj o' f') | f == f' -> do
