@@ -284,6 +284,15 @@ defArgs m = asks (occUnfold . feExtra) >>= \case
   NoUnfold  -> flexibly m
   YesUnfold -> weakly m
 
+-- | For a path constructor `c : ... -> Path D a b`, we have that e.g. `c es i0` reduces to `a`.
+--   So we have to consider its arguments as flexible when we do not actually unfold.
+conArgs :: Elims -> OccursM a -> OccursM a
+conArgs es m = asks (occUnfold . feExtra) >>= \case
+  YesUnfold -> m
+  NoUnfold | null [ () | IApply{} <- es ]
+            -> m
+  NoUnfold  -> flexibly m
+
 unfoldB :: (Instantiate t, Reduce t) => t -> OccursM (Blocked t)
 unfoldB v = do
   unfold <- asks $ occUnfold . feExtra
@@ -469,7 +478,7 @@ instance Occurs Term where
             Def d <$> occDef d es
           Con c ci vs -> do
             definitionCheck (conName c)
-            Con c ci <$> occurs vs  -- if strongly rigid, remain so
+            Con c ci <$> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
           Pi a b      -> uncurry Pi <$> occurs (a,b)
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs s
           MetaV m' es -> do
