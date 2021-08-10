@@ -140,6 +140,7 @@ ensure-hash-is-correct:
 .PHONY: copy-bins-with-suffix-% ## Copy binaries to local bin directory with suffix
 copy-bins-with-suffix-%:
 ifdef HAS_STACK
+	mkdir -p $(shell $(STACK) path --local-bin)
 	cp $(shell $(STACK) --work-dir=$(STACK_BUILD_DIR) path --dist-dir)/build/agda/agda $(shell $(STACK) path --local-bin)/agda-$*
 	cp $(shell $(STACK) --work-dir=$(STACK_BUILD_DIR) path --dist-dir)/build/agda-mode/agda-mode $(shell $(STACK) path --local-bin)/agda-mode-$*
 endif
@@ -193,7 +194,7 @@ ifdef HAS_STACK
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(FAST_BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --work-dir=$(FAST_STACK_BUILD_DIR) --dist-dir)/build $(FAST_BUILD_DIR)
-	STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR) $(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker
+	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR) 
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
@@ -211,7 +212,7 @@ quicker-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR) $(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker
+	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR) 
 else
 	@echo "===================== Installing using Cabal with -O0 ===================="
 	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)-quicker
