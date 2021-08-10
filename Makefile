@@ -26,10 +26,11 @@ ifeq ($(PARALLEL_TESTS),)
 PARALLEL_TESTS := $(shell getconf _NPROCESSORS_ONLN)
 endif
 
+AGDA_BIN_SUFFIX = -$(VERSION)
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
 CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) --disable-documentation
-STACK_INSTALL_HELPER = $(STACK) install Agda --no-haddock
+STACK_INSTALL_HELPER = $(STACK) build Agda --no-haddock
 
 # If running on Travis, use --system-ghc.
 # Developers running `make` will usually want to use the GHC version they've
@@ -47,19 +48,17 @@ endif
 
 # quicker install: -O0, no tests
 
-QUICK_BUILD_DIR       = $(BUILD_DIR)-quick
-QUICK_STACK_BUILD_DIR = .stack-work-quick
 
-QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR)
-QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(QUICK_STACK_BUILD_DIR)
+QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR) \
+											--ghc-options=-O0
+QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(QUICK_STACK_BUILD_DIR) \
+											--fast
 
 # fast install: -O0, but tests
 
-FAST_BUILD_DIR       = $(BUILD_DIR)-fast
-FAST_STACK_BUILD_DIR = .stack-work-fast
 
 FAST_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(FAST_BUILD_DIR) \
-                     --enable-tests --ghc-options=-O0 --program-suffix=-fast
+                     --enable-tests --ghc-options=-O0 
 FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(FAST_STACK_BUILD_DIR) \
                      --test --no-run-tests --fast
 
@@ -126,20 +125,28 @@ CABAL_CONFIGURE_OPTS = $(SLOW_CABAL_INSTALL_OPTS) \
                        $(CABAL_INSTALL_OPTS)
 
 ##############################################################################
-## Installation
+## Installation (via stack if stack.yaml is present)
 
 .PHONY: default
 default: install-bin
 
-.PHONY: install ## Install Agda, test suites, and Emacs mode via cabal (or stack if stack.yaml exists).
+.PHONY: install ## Install Agda, test suites, and Emacs mode
 install: install-bin compile-emacs-mode setup-emacs-mode
 
 .PHONY: ensure-hash-is-correct
 ensure-hash-is-correct:
 	touch src/full/Agda/VersionCommit.hs
 
+.PHONY: copy-bins-with-suffix-% ## Copy binaries to local bin directory with suffix
+copy-bins-with-suffix-%:
+ifdef HAS_STACK
+	mkdir -p $(shell $(STACK) path --local-bin)
+	cp $(shell $(STACK) --work-dir=$(STACK_BUILD_DIR) path --dist-dir)/build/agda/agda $(shell $(STACK) path --local-bin)/agda-$*
+	cp $(shell $(STACK) --work-dir=$(STACK_BUILD_DIR) path --dist-dir)/build/agda-mode/agda-mode $(shell $(STACK) path --local-bin)/agda-mode-$*
+endif
+
 .PHONY: install-deps ## Install Agda dependencies.
-install-deps:
+install-deps: 
 ifdef HAS_STACK
 	@echo "===================== Installing dependencies using Stack ================"
 	time $(STACK_INSTALL) $(STACK_INSTALL_DEP_OPTS)
@@ -148,68 +155,70 @@ else
 	time $(CABAL_INSTALL) $(CABAL_INSTALL_DEP_OPTS)
 endif
 
-.PHONY: install-bin ## Install Agda and test suites via cabal (or stack if stack.yaml exists).
+.PHONY: install-bin ## Install Agda and test suites
 install-bin: install-deps ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
+	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "===================== Installing using Cabal with test suites ============"
-	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
+	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)
 endif
 
-# Developer install goal without -foptimize-aggressively nor dependencies
-# Alternative to 'install-bin'
-.PHONY: v1-install
+.PHONY: v1-install ## Developer install goal without -foptimize-aggressively nor dependencies.
+	# Alternative to 'install-bin'
 v1-install:  ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
 	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS) --test --no-run-tests
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
+	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 	@echo "===================== Installing using Cabal with test suites ============"
-	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS) --builddir=$(BUILD_DIR) --enable-tests
+	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS) --builddir=$(BUILD_DIR) --enable-tests --program-suffix=$(AGDA_BIN_SUFFIX)
 endif
 
-.PHONY: fast-install-bin ## Install Agda -O0 and test suites via cabal (or stack if stack.yaml exists).
+.PHONY: fast-install-bin ## Install Agda compiled with -O0 with tests
 fast-install-bin: install-deps fast-install-bin-no-deps
 
-.PHONY: fast-install-bin-no-deps
+.PHONY: fast-install-bin-no-deps ## 
  fast-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	mkdir -p $(BUILD_DIR)/build/
-	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
+	mkdir -p $(FAST_BUILD_DIR)/build/
+	cp -r $(shell $(STACK) path --work-dir=$(FAST_STACK_BUILD_DIR) --dist-dir)/build $(FAST_BUILD_DIR)
+	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR) 
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "============= Installing using Cabal with -O0 and test suites ============"
-	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
+	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)-fast
 endif
 
+.PHONY: quicker-install-bin ## Install Agda compiled with -O0 without tests
 # Disabling optimizations leads to *much* quicker build times.
 # The performance loss is acceptable for running small tests.
-
-.PHONY: quicker-install-bin ## Install Agda (compiled with -O0) via cabal (or stack if stack.yaml exists).
 quicker-install-bin: install-deps quicker-install-bin-no-deps
 
-.PHONY: quicker-install-bin-no-deps
+.PHONY: quicker-install-bin-no-deps ##
 quicker-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
-	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS) --fast
+	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
+	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR) 
 else
 	@echo "===================== Installing using Cabal with -O0 ===================="
-	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0 --program-suffix=-quicker
+	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)-quicker
 endif
 
-# Type check the Agda source only (-fno-code).
+.PHONY: type-check ## Type check the Agda source only (-fno-code).
 # Takes max 40s; can be quicker than make quicker-install-bin (max 5min).
 #
 # Might "fail" with errors like
@@ -218,11 +227,9 @@ endif
 #   ...
 #
 # Thus, ignore exit code.
-
-.PHONY: type-check
 type-check: install-deps type-check-no-deps
 
-.PHONY: type-check-no-deps
+.PHONY: type-check-no-deps ##
 type-check-no-deps :
 	@echo "================= Type checking using Cabal with -fno-code ==============="
 	-time $(CABAL) $(CABAL_BUILD_CMD) --builddir=$(BUILD_DIR)-no-code \
@@ -233,28 +240,29 @@ type-check-no-deps :
                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
 
-.PHONY : install-prof-bin ## Install Agda with profiling enabled via cabal.
-install-prof-bin : install-deps ensure-hash-is-correct
-	$(CABAL_INSTALL) -j1 --enable-library-profiling --enable-profiling \
-          --program-suffix=_p $(CABAL_INSTALL_OPTS)
-
+.PHONY : install-prof-bin ## Install Agda with profiling enabled
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+install-prof-bin : install-deps ensure-hash-is-correct
+	$(CABAL_INSTALL) -j1 --enable-library-profiling --enable-profiling \
+          --program-suffix=$(AGDA_BIN_SUFFIX)-prof $(CABAL_INSTALL_OPTS)
 
-# Builds Agda with the debug flag enabled. A separate build directory
-# is used. The suffix "-debug" is used for the binaries.
+.PHONY : install-debug ## Install Agda with debug enabled
+# A separate build directory is used. The suffix "-debug" is used for the binaries.
 
-.PHONY : install-debug ## Install Agda with debug enabled via cabal.
 install-debug : install-deps ensure-hash-is-correct
 	$(CABAL_INSTALL) --disable-library-profiling \
-        -fdebug --program-suffix=-debug --builddir=$(BUILD_DIR)-debug \
+        -fdebug --program-suffix=$(AGDA_BIN_SUFFIX)-debug --builddir=$(DEBUG_BUILD_DIR) \
         $(CABAL_INSTALL_BIN_OPTS)
 
-.PHONY : debug-install-quick ## Install Agda (compiled with -O0) with debug enabled via cabal.
+.PHONY : debug-install-quick ## Install Agda -O0 with debug enabled
 debug-install-quick : install-deps
 	$(QUICK_CABAL_INSTALL) --disable-library-profiling \
-        -fdebug --program-suffix=-debug-quick --builddir=$(BUILD_DIR)-debug-quick \
+        -fdebug --program-suffix=$(AGDA_BIN_SUFFIX)-debug-quick --builddir=$(QUICK_DEBUG_BUILD_DIR) \
         $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
+
+##############################################################################
+## Agda mode for Emacs
 
 .PHONY : compile-emacs-mode ## Compile Agda's Emacs mode using Emacs.
 compile-emacs-mode: install-bin
@@ -268,7 +276,9 @@ setup-emacs-mode : install-bin
 	@echo
 	$(AGDA_MODE) setup
 
-## Clean ####################################################################
+##############################################################################
+## Clean
+
 clean_helper = if [ -d $(1) ]; then $(CABAL) $(CABAL_CLEAN_CMD) --builddir=$(1); fi;
 
 clean : ## Clean all local builds
@@ -277,7 +287,8 @@ clean : ## Clean all local builds
 	$(STACK) clean --full
 	$(STACK) clean --full --work-dir=$(QUICK_STACK_BUILD_DIR)
 
-## Haddock ###################################################################
+##############################################################################
+## Haddock
 
 .PHONY : haddock ##
 haddock :
@@ -312,7 +323,6 @@ tags : have-bin-hs-tags
 TAGS : have-bin-hs-tags
 	@$(call decorate, "TAGS", \
 		$(MAKE) -C $(FULL_SRC_DIR) TAGS)
-
 
 
 ##############################################################################
@@ -533,6 +543,7 @@ testing-emacs-mode:
 
 # NB. It is necessary to install the Agda library (i.e run `make install-bin`)
 # before installing the `size-solver` program.
+
 .PHONY : install-size-solver ## Install the size solver.
 install-size-solver :
 	@$(call decorate, "Installing the size-solver program", \
@@ -550,11 +561,12 @@ test-size-solver : install-size-solver
 
 # The variable `GHC_COMPILER` is to be defined as a command-line argument.
 # For example: `make set-default-stack-file GHC_COMPILER=8.10.2`
-set-default-stack-file : remove-default-stack-file
+
+set-default-stack-file : remove-default-stack-file ##
 	ln -s stack-$(GHC_COMPILER).yaml stack.yaml
 	cd $(FIXW_PATH) && ln -s stack-$(GHC_COMPILER).yaml stack.yaml
 
-remove-default-stack-file :
+remove-default-stack-file : ##
 	rm -f stack.yaml
 	cd $(FIXW_PATH) && rm -f stack.yaml
 
@@ -594,7 +606,7 @@ hpc-build: ensure-hash-is-correct
 agda.tix: ./examples/agda.tix ./test/common/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix ##
 	hpc sum --output=$@ $^
 
-.PHONY: hpc ## Generate a code coverage report via cabal.
+.PHONY: hpc ## Generate a code coverage report
 hpc: hpc-build test agda.tix
 	hpc report --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda.tix
 	hpc markup --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
@@ -646,6 +658,7 @@ help: ## Display this information.
 
 debug : ## Print debug information.
 	@echo "AGDA_BIN              = $(AGDA_BIN)"
+	@echo "AGDA_BIN_SUFFIX       = $(AGDA_BIN_SUFFIX)"
 	@echo "AGDA_TESTS_BIN        = $(AGDA_TESTS_BIN)"
 	@echo "AGDA_TESTS_OPTIONS    = $(AGDA_TESTS_OPTIONS)"
 	@echo "BUILD_DIR             = $(BUILD_DIR)"
