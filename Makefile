@@ -26,6 +26,7 @@ ifeq ($(PARALLEL_TESTS),)
 PARALLEL_TESTS := $(shell getconf _NPROCESSORS_ONLN)
 endif
 
+AGDA_BIN_SUFFIX = -$(VERSION)
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
 CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) --disable-documentation
@@ -160,12 +161,12 @@ ifdef HAS_STACK
 	time $(STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
-	$(MAKE) copy-bins-with-suffix-$(VERSION)
+	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "===================== Installing using Cabal with test suites ============"
-	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=-$(VERSION)
+	time $(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)
 endif
 
 .PHONY: v1-install ## Developer install goal without -foptimize-aggressively nor dependencies.
@@ -176,10 +177,10 @@ ifdef HAS_STACK
 	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS) --test --no-run-tests
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
-	$(MAKE) copy-bins-with-suffix-$(VERSION)
+	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 	@echo "===================== Installing using Cabal with test suites ============"
-	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS) --builddir=$(BUILD_DIR) --enable-tests --program-suffix=-$(VERSION)
+	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS) --builddir=$(BUILD_DIR) --enable-tests --program-suffix=$(AGDA_BIN_SUFFIX)
 endif
 
 .PHONY: fast-install-bin ## Install Agda compiled with -O0 with tests
@@ -192,12 +193,12 @@ ifdef HAS_STACK
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(FAST_BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --work-dir=$(FAST_STACK_BUILD_DIR) --dist-dir)/build $(FAST_BUILD_DIR)
-	STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR) $(MAKE) copy-bins-with-suffix-$(VERSION)-quicker
+	STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR) $(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "============= Installing using Cabal with -O0 and test suites ============"
-	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=-$(VERSION)-fast
+	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)-fast
 endif
 
 .PHONY: quicker-install-bin ## Install Agda compiled with -O0 without tests
@@ -210,10 +211,10 @@ quicker-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR) $(MAKE) copy-bins-with-suffix-$(VERSION)-quicker
+	STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR) $(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker
 else
 	@echo "===================== Installing using Cabal with -O0 ===================="
-	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=-$(VERSION)-quicker
+	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)-quicker
 endif
 
 .PHONY: type-check ## Type check the Agda source only (-fno-code).
@@ -243,20 +244,20 @@ type-check-no-deps :
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 install-prof-bin : install-deps ensure-hash-is-correct
 	$(CABAL_INSTALL) -j1 --enable-library-profiling --enable-profiling \
-          --program-suffix=-$(VERSION)-prof $(CABAL_INSTALL_OPTS)
+          --program-suffix=$(AGDA_BIN_SUFFIX)-prof $(CABAL_INSTALL_OPTS)
 
 .PHONY : install-debug ## Install Agda with debug enabled
 # A separate build directory is used. The suffix "-debug" is used for the binaries.
 
 install-debug : install-deps ensure-hash-is-correct
 	$(CABAL_INSTALL) --disable-library-profiling \
-        -fdebug --program-suffix=-$(VERSION)-debug --builddir=$(DEBUG_BUILD_DIR) \
+        -fdebug --program-suffix=$(AGDA_BIN_SUFFIX)-debug --builddir=$(DEBUG_BUILD_DIR) \
         $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : debug-install-quick ## Install Agda -O0 with debug enabled
 debug-install-quick : install-deps
 	$(QUICK_CABAL_INSTALL) --disable-library-profiling \
-        -fdebug --program-suffix=-$(VERSION)-debug-quick --builddir=$(QUICK_DEBUG_BUILD_DIR) \
+        -fdebug --program-suffix=$(AGDA_BIN_SUFFIX)-debug-quick --builddir=$(QUICK_DEBUG_BUILD_DIR) \
         $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
 
 ##############################################################################
@@ -656,6 +657,7 @@ help: ## Display this information.
 
 debug : ## Print debug information.
 	@echo "AGDA_BIN              = $(AGDA_BIN)"
+	@echo "AGDA_BIN_SUFFIX       = $(AGDA_BIN_SUFFIX)"
 	@echo "AGDA_TESTS_BIN        = $(AGDA_TESTS_BIN)"
 	@echo "AGDA_TESTS_OPTIONS    = $(AGDA_TESTS_OPTIONS)"
 	@echo "BUILD_DIR             = $(BUILD_DIR)"
