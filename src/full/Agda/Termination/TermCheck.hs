@@ -125,6 +125,7 @@ termDecl' = \case
     A.DataDef{}     -> __IMPOSSIBLE__
     A.UnquoteDecl{} -> __IMPOSSIBLE__
     A.UnquoteDef{}  -> __IMPOSSIBLE__
+    A.UnquoteData{} -> __IMPOSSIBLE__
   where
     termDecls ds = concat <$> mapM termDecl' ds
 

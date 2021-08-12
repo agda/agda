@@ -386,128 +386,125 @@ instance Pretty DoStmt where
   pretty (DoLet _ ds) = "let" <+> vcat (fmap pretty ds)
 
 instance Pretty Declaration where
-    prettyList = vcat . map pretty
-    pretty d =
-        case d of
-            TypeSig i tac x e ->
-                sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
-                    , nest 2 $ pretty e
-                    ]
+  prettyList = vcat . map pretty
+  pretty = \case
+    TypeSig i tac x e ->
+      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
+          , nest 2 $ pretty e
+          ]
+    FieldSig inst tac x (Arg i e) ->
+      mkInst inst $ mkOverlap i $
+      prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
+      pretty $ TypeSig (setRelevance Relevant i) tac x e
+      where
+        mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
+        mkInst NotInstanceDef  d = d
 
-            FieldSig inst tac x (Arg i e) ->
-                mkInst inst $ mkOverlap i $
-                prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
-                pretty $ TypeSig (setRelevance Relevant i) tac x e
-
-                where
-
-                  mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]
-                  mkInst NotInstanceDef  d = d
-
-                  mkOverlap i d | isOverlappable i = "overlap" <+> d
-                                | otherwise        = d
-
-            Field _ fs ->
-              sep [ "field"
-                  , nest 2 $ vcat (map pretty fs)
+        mkOverlap i d | isOverlappable i = "overlap" <+> d
+                      | otherwise        = d
+    Field _ fs ->
+      sep [ "field"
+          , nest 2 $ vcat (map pretty fs)
+          ]
+    FunClause lhs rhs wh _ ->
+      sep [ pretty lhs
+          , nest 2 $ pretty rhs
+          ] $$ nest 2 (pretty wh)
+    DataSig _ x tel e ->
+      sep [ hsep  [ "data"
+                  , pretty x
+                  , fcat (map pretty tel)
                   ]
-            FunClause lhs rhs wh _ ->
-                sep [ pretty lhs
-                    , nest 2 $ pretty rhs
-                    ] $$ nest 2 (pretty wh)
-            DataSig _ x tel e ->
-                sep [ hsep  [ "data"
-                            , pretty x
-                            , fcat (map pretty tel)
-                            ]
-                    , nest 2 $ hsep
-                            [ ":"
-                            , pretty e
-                            ]
-                    ]
-            Data _ x tel e cs ->
-                sep [ hsep  [ "data"
-                            , pretty x
-                            , fcat (map pretty tel)
-                            ]
-                    , nest 2 $ hsep
-                            [ ":"
-                            , pretty e
-                            , "where"
-                            ]
-                    ] $$ nest 2 (vcat $ map pretty cs)
-            DataDef _ x tel cs ->
-                sep [ hsep  [ "data"
-                            , pretty x
-                            , fcat (map pretty tel)
-                            ]
-                    , nest 2 $ "where"
-                    ] $$ nest 2 (vcat $ map pretty cs)
-            RecordSig _ x tel e ->
-                sep [ hsep  [ "record"
-                            , pretty x
-                            , fcat (map pretty tel)
-                            ]
-                    , nest 2 $ hsep
-                            [ ":"
-                            , pretty e
-                            ]
-                    ]
-            Record _ x dir tel e cs ->
-              pRecord x dir tel (Just e) cs
-            RecordDef _ x dir tel cs ->
-              pRecord x dir tel Nothing cs
-            RecordDirective r -> pRecordDirective r
-            Infix f xs  ->
-                pretty f <+> fsep (punctuate comma $ fmap pretty xs)
-            Syntax n xs -> "syntax" <+> pretty n <+> "..."
-            PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
-                                     <+> "=" <+> pretty p
-            Mutual _ ds     -> namedBlock "mutual" ds
-            InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
-            LoneConstructor _ ds -> namedBlock "constructor" ds
-            Abstract _ ds   -> namedBlock "abstract" ds
-            Private _ _ ds  -> namedBlock "private" ds
-            InstanceB _ ds  -> namedBlock "instance" ds
-            Macro _ ds      -> namedBlock "macro" ds
-            Postulate _ ds  -> namedBlock "postulate" ds
-            Primitive _ ds  -> namedBlock "primitive" ds
-            Generalize _ ds -> namedBlock "variable" ds
-            Module _ x tel ds ->
-                hsep [ "module"
-                     , pretty x
-                     , fcat (map pretty tel)
-                     , "where"
-                     ] $$ nest 2 (vcat $ map pretty ds)
-            ModuleMacro _ x (SectionApp _ [] e) DoOpen i | isNoName x ->
-                sep [ pretty DoOpen
-                    , nest 2 $ pretty e
-                    , nest 4 $ pretty i
-                    ]
-            ModuleMacro _ x (SectionApp _ tel e) open i ->
-                sep [ pretty open <+> "module" <+> pretty x <+> fcat (map pretty tel)
-                    , nest 2 $ "=" <+> pretty e <+> pretty i
-                    ]
-            ModuleMacro _ x (RecordModuleInstance _ rec) open i ->
-                sep [ pretty open <+> "module" <+> pretty x
-                    , nest 2 $ "=" <+> pretty rec <+> "{{...}}"
-                    ]
-            Open _ x i  -> hsep [ "open", pretty x, pretty i ]
-            Import _ x rn open i   ->
-                hsep [ pretty open, "import", pretty x, as rn, pretty i ]
-                where
-                    as Nothing  = empty
-                    as (Just x) = "as" <+> pretty (asName x)
-            UnquoteDecl _ xs t ->
-              sep [ "unquoteDecl" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
-            UnquoteDef _ xs t ->
-              sep [ "unquoteDef" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
-            Pragma pr   -> sep [ "{-#" <+> pretty pr, "#-}" ]
-        where
-            namedBlock s ds =
-                sep [ text s
-                    , nest 2 $ vcat $ map pretty ds
-                    ]
+          , nest 2 $ hsep
+                  [ ":"
+                  , pretty e
+                  ]
+          ]
+    Data _ x tel e cs ->
+      sep [ hsep  [ "data"
+                  , pretty x
+                  , fcat (map pretty tel)
+                  ]
+          , nest 2 $ hsep
+                  [ ":"
+                  , pretty e
+                  , "where"
+                  ]
+          ] $$ nest 2 (vcat $ map pretty cs)
+    DataDef _ x tel cs ->
+      sep [ hsep  [ "data"
+                  , pretty x
+                  , fcat (map pretty tel)
+                  ]
+          , nest 2 $ "where"
+          ] $$ nest 2 (vcat $ map pretty cs)
+    RecordSig _ x tel e ->
+      sep [ hsep  [ "record"
+                  , pretty x
+                  , fcat (map pretty tel)
+                  ]
+          , nest 2 $ hsep
+                  [ ":"
+                  , pretty e
+                  ]
+          ]
+    Record _ x dir tel e cs ->
+      pRecord x dir tel (Just e) cs
+    RecordDef _ x dir tel cs ->
+      pRecord x dir tel Nothing cs
+    RecordDirective r -> pRecordDirective r
+    Infix f xs  ->
+      pretty f <+> fsep (punctuate comma $ fmap pretty xs)
+    Syntax n xs -> "syntax" <+> pretty n <+> "..."
+    PatternSyn _ n as p -> "pattern" <+> pretty n <+> fsep (map pretty as)
+                             <+> "=" <+> pretty p
+    Mutual _ ds     -> namedBlock "mutual" ds
+    InterleavedMutual _ ds  -> namedBlock "interleaved mutual" ds
+    LoneConstructor _ ds -> namedBlock "constructor" ds
+    Abstract _ ds   -> namedBlock "abstract" ds
+    Private _ _ ds  -> namedBlock "private" ds
+    InstanceB _ ds  -> namedBlock "instance" ds
+    Macro _ ds      -> namedBlock "macro" ds
+    Postulate _ ds  -> namedBlock "postulate" ds
+    Primitive _ ds  -> namedBlock "primitive" ds
+    Generalize _ ds -> namedBlock "variable" ds
+    Module _ x tel ds ->
+      hsep [ "module"
+           , pretty x
+           , fcat (map pretty tel)
+           , "where"
+           ] $$ nest 2 (vcat $ map pretty ds)
+    ModuleMacro _ x (SectionApp _ [] e) DoOpen i | isNoName x ->
+      sep [ pretty DoOpen
+          , nest 2 $ pretty e
+          , nest 4 $ pretty i
+          ]
+    ModuleMacro _ x (SectionApp _ tel e) open i ->
+      sep [ pretty open <+> "module" <+> pretty x <+> fcat (map pretty tel)
+          , nest 2 $ "=" <+> pretty e <+> pretty i
+          ]
+    ModuleMacro _ x (RecordModuleInstance _ rec) open i ->
+      sep [ pretty open <+> "module" <+> pretty x
+          , nest 2 $ "=" <+> pretty rec <+> "{{...}}"
+          ]
+    Open _ x i  -> hsep [ "open", pretty x, pretty i ]
+    Import _ x rn open i   ->
+      hsep [ pretty open, "import", pretty x, as rn, pretty i ]
+      where
+        as Nothing  = empty
+        as (Just x) = "as" <+> pretty (asName x)
+    UnquoteDecl _ xs t ->
+      sep [ "unquoteDecl" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
+    UnquoteDef _ xs t ->
+      sep [ "unquoteDef" <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
+    UnquoteData _ x xs t ->
+      sep [ "unquoteData" <+> pretty x <+> fsep (map pretty xs) <+> "=", nest 2 $ pretty t ]
+    Pragma pr   -> sep [ "{-#" <+> pretty pr, "#-}" ]
+    where
+      namedBlock s ds =
+          sep [ text s
+              , nest 2 $ vcat $ map pretty ds
+              ]
 
 pHasEta0 :: HasEta0 -> Doc
 pHasEta0 = \case

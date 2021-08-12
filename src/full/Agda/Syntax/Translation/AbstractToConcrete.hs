@@ -1266,6 +1266,8 @@ instance ToConcrete A.Declaration where
     xs <- mapM (unqual <=< toConcrete) xs
     (:[]) . C.UnquoteDef (getRange i) xs <$> toConcrete e
 
+  toConcrete (A.UnquoteData i xs uc j cs e) = __IMPOSSIBLE__
+
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 

@@ -214,6 +214,7 @@ instance Hilite A.Declaration where
       A.PatternSynDef x xs p                 -> hl x <> hl xs <> hl p
       A.UnquoteDecl _mi _di xs e             -> hl xs <> hl e
       A.UnquoteDef _di xs e                  -> hl xs <> hl e
+      A.UnquoteData _i xs _uc _j cs e        -> hl xs <> hl cs <> hl e
       A.ScopedDecl s ds                      -> hl ds
       A.Pragma _r pragma                     -> hl pragma
     where

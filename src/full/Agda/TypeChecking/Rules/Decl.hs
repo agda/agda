@@ -193,6 +193,9 @@ checkDecl d = setCurrentRange d $ do
       -- TODO: Benchmarking for unquote.
       A.UnquoteDecl mi is xs e -> checkMaybeAbstractly is $ checkUnquoteDecl mi is xs e
       A.UnquoteDef is xs e     -> impossible $ checkMaybeAbstractly is $ checkUnquoteDef is xs e
+      A.UnquoteData is xs uc js cs e -> checkMaybeAbstractly (is ++ js) $ do
+        reportSDoc "tc.unquote.data" 20 $ "Checking unquoteDecl data" <+> sep (map prettyTCM xs)
+        Nothing <$ unquoteTop (xs ++ cs) e
 
     whenNothingM (asksTC envMutualBlock) $ do
 
@@ -402,6 +405,7 @@ highlight_ hlmod d = do
     A.Generalize{}           -> highlight d
     A.UnquoteDecl{}          -> highlight d
     A.UnquoteDef{}           -> highlight d
+    A.UnquoteData{}           -> highlight d
     A.Section i x tel ds     -> do
       highlight (A.Section i x tel [])
       when (hlmod == DoHighlightModuleContents) $ mapM_ (highlight_ hlmod) (deepUnscopeDecls ds)
@@ -1031,6 +1035,7 @@ instance ShowHead A.Declaration where
       A.UnquoteDecl  {} -> "UnquoteDecl"
       A.ScopedDecl   {} -> "ScopedDecl"
       A.UnquoteDef   {} -> "UnquoteDef"
+      A.UnquoteData   {} -> "UnquoteDecl data"
 
 debugPrintDecl :: A.Declaration -> TCM ()
 debugPrintDecl d = do

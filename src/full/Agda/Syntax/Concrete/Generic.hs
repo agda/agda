@@ -246,6 +246,7 @@ instance ExprLike Declaration where
      Module r n tel ds         -> Module r n (mapE tel)                $ mapE ds
      UnquoteDecl r x e         -> UnquoteDecl r x (mapE e)
      UnquoteDef r x e          -> UnquoteDef r x (mapE e)
+     UnquoteData r x xs e      -> UnquoteData r x xs (mapE e)
      e@Pragma{}                -> e
    where
      mapE :: ExprLike e => e -> e

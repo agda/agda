@@ -428,6 +428,7 @@ instance ExprLike Declaration where
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
+      UnquoteData i xs uc j cs e -> UnquoteData i xs uc j cs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds
     where
       rec :: RecurseExprRecFn m
@@ -490,6 +491,7 @@ instance DeclaredNames Declaration where
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
+      UnquoteData _ xs _ _ cs _    -> fromList $ map (WithKind DataName) xs ++ map (WithKind ConName) cs
       FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls
       ScopedDecl _ decls           -> declaredNames decls
       Section _ _ _ decls          -> declaredNames decls
