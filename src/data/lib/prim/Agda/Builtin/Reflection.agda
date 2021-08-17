@@ -284,7 +284,7 @@ postulate
   declareDef       : Arg Name → Type → TC ⊤
   declarePostulate : Arg Name → Type → TC ⊤
   declareData      : Name → Nat → Type → TC ⊤
-  defineData       : Name → List (Σ Name (λ _ → Term)) → TC ⊤
+  defineData       : Name → List (Σ Name (λ _ → Type)) → TC ⊤
   defineFun        : Name → List Clause → TC ⊤
   getType          : Name → TC Type
   getDefinition    : Name → TC Definition
