@@ -460,7 +460,24 @@ getInterface x isMain msrc =
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
 
      alreadyVisited x isMain currentOptions $ do
-      file <- maybe (findFile x) (pure . srcOrigin) msrc -- may require source to exist
+      file <- case msrc of
+        Nothing  -> findFile x
+        Just src -> do
+          -- Andreas, 2021-08-17, issue #5508.
+          -- So it happened with @msrc == Just{}@ that the file was not added to @ModuleToSource@,
+          -- only with @msrc == Nothing@ (then @findFile@ does it).
+          -- As a consequence, the file was added later, but with a file name constructed
+          -- from a module name.  As #5508 shows, this can be fatal in case-insensitive file systems.
+          -- The file name (with case variant) then no longer maps to the module name.
+          -- To prevent this, we register the connection in @ModuleToSource@ here,
+          -- where we have the correct spelling of the file name.
+          let file = srcOrigin src
+          modifyTCLens stModuleToSource $ Map.insert x (srcFilePath file)
+          pure file
+      reportSLn "import.iface" 15 $ List.intercalate "\n" $ map ("  " ++)
+        [ "module: " ++ prettyShow x
+        , "file:   " ++ prettyShow file
+        ]
 
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
@@ -917,8 +934,7 @@ createInterface mname file isMain msrc = do
     let srcPath = srcFilePath $ srcOrigin src
 
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
-                       generateTokenInfoFromSource
-                         srcPath (TL.unpack $ srcText src)
+      generateTokenInfoFromSource srcPath (TL.unpack $ srcText src)
     stTokens `modifyTCLens` (fileTokenInfo <>)
 
     setOptionsFromSourcePragmas src
