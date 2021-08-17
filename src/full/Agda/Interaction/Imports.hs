@@ -126,9 +126,7 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
   parsedModName         <- moduleName f parsedMod
-  let sourceDir = takeDirectory $ filePath f
-  useLibs <- optUseLibs <$> commandLineOptions
-  libs <- getAgdaLibFiles sourceDir
+  libs <- getAgdaLibFiles $ takeDirectory $ filePath f
   return Source
     { srcText        = source
     , srcFileType    = fileType
