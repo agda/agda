@@ -104,7 +104,7 @@ createMissingIndexedClauses f n x old_sc scs cs = do
                  --  = [ (SplitCon trX, SplittingDone $ size $ clauseTel trX_cl) ]
              extraCl = [trX_cl, hcomp_cl]
                  --  = [trX_cl]
-         let clauses = extraCl ++ cls
+         let clauses = cls ++ extraCl
          let tree = SplitAt ((+(pars+nixs+1)) <$> n) StrictSplit $
                                            trees
                                         ++ extra
