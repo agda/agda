@@ -290,9 +290,13 @@ dropTopLevelModule :: QName -> TCM QName
 dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 
 -- | Produces a function which drops the filename component of the qualified name.
-topLevelModuleDropper :: (MonadTCEnv m, ReadTCState m) => m (QName -> QName)
+topLevelModuleDropper :: (MonadDebug m, MonadTCEnv m, ReadTCState m) => m (QName -> QName)
 topLevelModuleDropper = do
   caseMaybeM (asksTC envCurrentPath) (return id) $ \ f -> do
+  reportSDoc "err.dropTopLevel" 60 $ vcat
+    [ "current path =" <+> (text . filePath) f
+    , "moduleToSource =" <+> do text . show =<< useR stModuleToSource
+    ]
   m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
   return $ dropTopLevelModule' $ size m
 
