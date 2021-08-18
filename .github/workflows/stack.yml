@@ -66,8 +66,12 @@ jobs:
       EXTRA_ARGS: "--fast"
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
-      # The following is used by Windows only
-      ICU_FILE: "mingw-w64-x86_64-icu-68.2-3-any.pkg.tar.zst"
+      # Liang-Ting Chen (2021-08-18):
+      # Let pacman choose the file name for ICU4C.
+      #
+      # # The following is used by Windows only
+      # ICU_FILE: "mingw-w64-x86_64-icu-68.2-3-any.pkg.tar.zst"
+      ICU: "mingw-w64-x86_64-icu"
 
     defaults:
       run:
@@ -111,7 +115,7 @@ jobs:
       with:
         path: ${{ env.STACK_ROOT }}
         key: |
-          ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
+          ${{ runner.os }}-stack-02-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
 
     - name: Install the icu library (Ubuntu)
       if: ${{ runner.os == 'Linux' }}
@@ -122,8 +126,9 @@ jobs:
     - name: Install the icu library (Windows)
       if: ${{ runner.os == 'Windows' }}
       run: |
-        stack exec ${ARGS} -- wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
-        stack exec ${ARGS} -- pacman -U --noconfirm ${ICU_FILE}
+        # stack exec ${ARGS} -- wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
+        # stack exec ${ARGS} -- pacman -U --noconfirm ${ICU_FILE}
+        stack exec ${ARGS} -- pacman -S --noconfirm ${ICU}
 
     - name: Install the numa library (Ubuntu, GHC 8.4.4)
       if: ${{ runner.os == 'Linux' && matrix.ghc-ver == '8.4.4' }}
