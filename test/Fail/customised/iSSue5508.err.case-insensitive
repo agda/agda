@@ -1,4 +1,3 @@
-Checking Issue5508 (customised/iSSue5508.agda).
 customised/iSSue5508.agda:10,1-11,6
 Termination checking failed for the following functions:
   A
