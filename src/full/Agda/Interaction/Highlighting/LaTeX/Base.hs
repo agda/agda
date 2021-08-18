@@ -661,6 +661,24 @@ stringLiteral t | aspect (info t) == Just String =
 
 stringLiteral t = [t]
 
+-- | Split multi-line comments into several tokens.
+-- See issue #5398.
+multiLineComment :: Token -> Tokens
+multiLineComment Token{ text = s, info = i } | aspect i == Just Comment =
+  map (`Token` i)
+    $ List.intersperse "\n"
+    $ T.lines s
+-- multiLineComment Token{ text = s, info = i } | aspect i == Just Comment =
+--   map emptyToPar
+--     $ List1.groupBy ((==) `on` T.null)
+--     $ T.lines s
+--   where
+--   emptyToPar :: List1 Text -> Token
+--   emptyToPar ts@(t :| _)
+--     | T.null t  = Token{ text = "\n", info = mempty }
+--     | otherwise = Token{ text = sconcat $ List1.intersperse "\n" ts, info = i }
+multiLineComment t = [t]
+
 ------------------------------------------------------------------------
 -- * Main.
 
@@ -783,13 +801,12 @@ toLaTeX env path source hi =
                 tokens
         ) . ( second
                 ( -- Split tokens at newlines
-                  concatMap
-                    ( stringLiteral
-                        . ( \(mi, cs) ->
+                  concatMap stringLiteral
+                . concatMap multiLineComment
+                . map ( \(mi, cs) ->
                               Token {text = T.pack cs, info = fromMaybe mempty mi}
-                          )
-                    )
-                    . groupByFst
+                      )
+                . groupByFst
                 )
             )
       )
