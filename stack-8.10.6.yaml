@@ -1,0 +1,8 @@
+resolver: lts-18.5
+compiler: ghc-8.10.6
+compiler-check: match-exact
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/size-solver'
