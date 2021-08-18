@@ -77,7 +77,7 @@ jobs:
     strategy:
       matrix:
         ghc-ver: [9.0.1]
-        stack-ver: [2.7.1]
+        stack-ver: [2.7.3]
         os: [ubuntu-18.04]
 
     if: |
