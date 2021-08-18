@@ -725,7 +725,6 @@ defineTranspIx d = do
                   nPi' "phi" (primIntervalType) $ \ phi ->
                    (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
 
-      TelV ctel ctype <- telView theType
       reportSDoc "tc.data.ixs" 20 $ "transpIx:" <+> prettyTCM theType
       let
         ctel = abstract params $ abstract deltaI $ ExtendTel (defaultDom $ subst 0 iz rect') (Abs "t" EmptyTel)
@@ -755,7 +754,13 @@ defineTranspIx d = do
                   , funMutual     = Just []
                   , funTerminates = Just True
                   }
-        inTopContext $ addConstant trIx $
+        inTopContext $ do
+         reportSDoc "tc.transpx.type" 15 $ vcat
+           [ "type of" <+> prettyTCM trIx <+> ":"
+           , nest 2 $ prettyTCM theType
+           ]
+
+         addConstant trIx $
           (defaultDefn defaultArgInfo trIx theType (Cubical CErased) fun)
             { defNoCompilation  = True
             }
