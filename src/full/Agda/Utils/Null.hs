@@ -25,11 +25,13 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import Data.Text (Text)
+import qualified Data.Text as Text
 
 import Text.PrettyPrint (Doc, isEmpty)
 
@@ -65,6 +67,10 @@ instance (Null a, Null b, Null c, Null d) => Null (a,b,c,d) where
 instance Null ByteString where
   empty = ByteString.empty
   null  = ByteString.null
+
+instance Null Text where
+  empty = Text.empty
+  null  = Text.null
 
 instance Null [a] where
   empty = []
