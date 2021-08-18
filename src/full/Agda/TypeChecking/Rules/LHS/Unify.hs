@@ -942,13 +942,15 @@ patternBindingForcedVars forced v = do
     noForced v = gets $ IntSet.disjoint (precomputedFreeVars v) . IntMap.keysSet
 
     bind md i = do
-      Just md' <- gets $ IntMap.lookup i
-      if related md POLE md'    -- The new binding site must be more relevant (more relevant = smaller).
-        then do                 -- The forcing analysis guarantees that there exists such a position.
+      gets (IntMap.lookup i) >>= \case
+        Just md' | related md POLE md' -> do
+          -- The new binding site must be more relevant (more relevant = smaller).
+          -- "The forcing analysis guarantees that there exists such a position."
+          -- Really? Andreas, 2021-08-18, issue #5506
           tell   $ IntMap.singleton i md
           modify $ IntMap.delete i
           return $ varP (deBruijnVar i)
-        else return $ dotP (Var i [])
+        _ -> return $ dotP (Var i [])
 
     go md v = ifM (noForced v) (return $ dotP v) $ do
       v' <- lift $ lift $ reduce v
