@@ -194,7 +194,7 @@ ifdef HAS_STACK
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(FAST_BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --work-dir=$(FAST_STACK_BUILD_DIR) --dist-dir)/build $(FAST_BUILD_DIR)
-	$(MAKE) copy-bins-with-suffix-quicker STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR) 
+	$(MAKE) copy-bins-with-suffix-fast STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR) 
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
