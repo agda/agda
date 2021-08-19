@@ -261,7 +261,6 @@ instance Hilite A.Expr where
       A.Quote _r                    -> mempty
       A.QuoteTerm _r                -> mempty
       A.Unquote _r                  -> mempty
-      A.Tactic _r e es              -> hl e <> hl es
       A.DontCare e                  -> hl e
     where
     hl a = hilite a

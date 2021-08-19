@@ -1051,7 +1051,6 @@ instance BlankVars A.Expr where
     A.Quote {}               -> __IMPOSSIBLE__
     A.QuoteTerm {}           -> __IMPOSSIBLE__
     A.Unquote {}             -> __IMPOSSIBLE__
-    A.Tactic {}              -> __IMPOSSIBLE__
     A.DontCare v             -> A.DontCare $ blank bound v
     A.PatternSyn {}          -> e
     A.Macro {}               -> e
