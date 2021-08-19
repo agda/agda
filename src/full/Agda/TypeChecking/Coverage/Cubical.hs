@@ -701,14 +701,14 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
   -- Γ,(φ : I),(p : Path X(η) u v),Δ[ρx][τ] ⊢ τ' = liftS |Δ[ρx]| τ : Γ',Δ[ρx]
 
   -- Γ,(φ : I),(p : Path X(η) u v),Δ[ρx][τ] ⊢
-  --            w = f old_ps[γ1[ρ[τ]],x = c a[ρ[τ]],δ] : old_t[ρx][τ'] = old_t[γ1[ρ[τ]],x = c a[ρ[τ]],δ]
+  --            w := f old_ps[γ1[ρ[τ]],x = c a[ρ[τ]],δ] : old_t[ρx][τ'] = old_t[γ1[ρ[τ]],x = c a[ρ[τ]],δ]
 
   -- Γ,(φ : I),(p : Path X(η) u v),Δ[ρx][τ], α(γ1,x,δ)[ρx][τ'] ⊢ w = e(γ1,x,δ)[ρx][τ']
 
   -- Γ,(φ : I),(p : Path X(η) u v) ⊢ pat := trX p φ (c a) : D η v
 
 
-  -- Ξ = Γ,(φ : I),(p : Path X(η) u v),(δ : Δ[x = pat])
+  -- Ξ := Γ,(φ : I),(p : Path X(η) u v),(δ : Δ[x = pat])
 
   -- Ξ ⊢ δ_f[1] = trTel (i. Δ[γ1[leftInv (~ i)], pat[leftInv (~i)]]) φ δ : Δ[ρ[τ], x = c a[ρ[τ]]]
 
@@ -716,6 +716,15 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
   -- Ξ, α(γ1,x,δ)[ρx][τ'][δ = δ_f[1]] ⊢ w[δ_f[1]] = e(γ1,x,δ)[ρx][τ'][δ_f[1]]
 
   -- Ξ, α(γ1[ρ[τ]],c a[ρ[τ]],δ_f[1]) ⊢ w[δ_f[1]] = e(γ1[ρ[τ]],c a[ρ[τ]],δ_f[1])
+
+  -- Recap:
+  -- Γ1, (x : D η v), Δ ⊢ f old_ps : old_t [α(γ1,x,δ) ↦ e(γ1,x,δ)]
+  -- Ξ := Γ,(φ : I),(p : Path X(η) u v),(δ : Δ[x = pat])
+  -- Ξ ⊢ δ_f[1] := trTel (i. Δ[γ1[leftInv (~ i)], pat[leftInv (~i)]]) φ δ : Δ[ρ[τ], x = c a[ρ[τ]]]
+  -- Γ,(φ : I),(p : Path X(η) u v),Δ[ρx][τ] ⊢
+  --            w := f old_ps[γ1[ρ[τ]],x = c a[ρ[τ]],δ] : old_t[ρx][τ'] = old_t[γ1[ρ[τ]],x = c a[ρ[τ]],δ]
+  -- Γ,(φ : I),(p : Path X(η) u v) ⊢ pat := trX p φ (c a) : D η v
+
 
   -- Ξ ⊢ ?rhs : old_t[γ1,x = pat,δ] [α(γ1,pat,δ) ↦ e(γ1,pat,δ)
   --                               ,φ           ↦ w
@@ -1218,16 +1227,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
               case x of
                 Left bad_t -> cannotCreate "Cannot transport with type family:" bad_t
                 Right args -> return args
-          comp <- do
-            let forward la bA r u = pure tTrans <#> lam "i" (\ i -> la <@> (i `imax` r))
-                                              <@> lam "i" (\ i -> bA <@> (i `imax` r))
-                                              <@> r
-                                              <@> u
-            return $ \ la bA phi u u0 ->
-              pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io) <#> phi
-                        <@> lam "i" (\ i -> ilam "o" $ \ o ->
-                                forward la bA i (u <@> i <..> o))
-                        <@> forward la bA (pure iz) u0
+          comp <- mkComp "hcompClause"
           let
             hcomp la bA phi u u0 = pure tHComp <#> la <#> bA
                                                <#> phi

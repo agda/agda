@@ -458,6 +458,20 @@ instance Reduce a => Reduce (FamilyOrNot a) where
   reduce' x = traverse reduce' x
 
 
+mkComp :: HasBuiltins m => String -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
+mkComp s = do
+  let getTermLocal = getTerm s
+  tComp <- getTermLocal builtinComp
+  return $ \ la bA phi u u0 ->
+    pure tComp <#> la
+               <@> bA
+               <#> phi
+               <@> u
+               <@> u0
+
+
+
+
 -- | Define a "ghcomp" version of gcomp. Normal comp looks like:
 --
 -- comp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u ] (forward A 0 u0)
