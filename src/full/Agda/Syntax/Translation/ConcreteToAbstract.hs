@@ -1035,11 +1035,7 @@ instance ToAbstract C.Expr where
       C.QuoteTerm r -> return $ A.QuoteTerm (ExprRange r)
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
-      C.Tactic r e -> do
-        let AppView e' args = appView e
-        e'   <- toAbstract e'
-        args <- toAbstract args
-        return $ A.Tactic (ExprRange r) e' args
+      C.Tactic r e -> genericError "Syntax error: 'tactic' can only appear in attributes"
 
   -- DontCare
       C.DontCare e -> A.DontCare <$> toAbstract e
