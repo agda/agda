@@ -461,7 +461,7 @@ quicklatex-test :
 	@$(call decorate, "Suite of tests for the QuickLaTeX backend", \
 	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly)
 
-.PHONY : std-library-test ##
+.PHONY : std-lib-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
 		(cd std-lib && cabal run GenerateEverything && \
