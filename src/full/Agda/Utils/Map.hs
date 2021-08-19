@@ -65,10 +65,11 @@ adjustM' f k = getCompose . adjustM (Compose . f) k
 filterKeys :: (k -> Bool) -> Map k a -> Map k a
 filterKeys p = Map.filterWithKey (const . p)
 
--- | O(n log n).  Rebuilds the map from scratch.
---   Not worse than 'Map.mapKeys'.
-mapMaybeKeys :: (Ord k1, Ord k2) => (k1 -> Maybe k2) -> Map k1 a -> Map k2 a
-mapMaybeKeys f = Map.fromList . mapMaybe (\ (k,a) -> (,a) <$> f k) . Map.toList
+-- UNUSED Andreas (2021-08-19)
+-- -- | O(n log n).  Rebuilds the map from scratch.
+-- --   Not worse than 'Map.mapKeys'.
+-- mapMaybeKeys :: (Ord k1, Ord k2) => (k1 -> Maybe k2) -> Map k1 a -> Map k2 a
+-- mapMaybeKeys f = Map.fromList . mapMaybe (\ (k,a) -> (,a) <$> f k) . Map.toList
 
 -- UNUSED Liang-Ting Chen (05-07-2019)
 -- -- | Unzip a map.
