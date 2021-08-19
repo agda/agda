@@ -925,7 +925,7 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
           :: forall a. SetBindingSite a
           => (C.Name -> Maybe C.Name)
           -> ThingsInScope a -> ThingsInScope a
-        updateThingsInScope f = Map.fromList . mapMaybe upd . Map.toAscList
+        updateThingsInScope f = Map.fromListWith __IMPOSSIBLE__ . mapMaybe upd . Map.toAscList
           where
           upd :: (C.Name, [a]) -> Maybe (C.Name, [a])
           upd (x, ys) = f x <&> \ x' -> (x', setBindingSite (getRange x') ys)

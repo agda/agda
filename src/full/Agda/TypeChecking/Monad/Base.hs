@@ -838,7 +838,7 @@ type SourceToModule = Map AbsolutePath TopLevelModuleName
 
 sourceToModule :: TCM SourceToModule
 sourceToModule =
-  Map.fromList
+  Map.fromListWith __IMPOSSIBLE__
      .  List.map (\(m, f) -> (f, m))
      .  Map.toList
     <$> useTC stModuleToSource
