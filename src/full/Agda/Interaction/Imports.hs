@@ -193,24 +193,22 @@ moduleCheckMode = \case
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
     let sig     = iSignature i
-        builtin = Map.toList $ iBuiltin i
+        builtin = Map.toAscList $ iBuiltin i
         prim    = [ x | (_,Prim x) <- builtin ]
-        bi      = Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
+        bi      = Map.fromDistinctAscList [ (x, Builtin t) | (x, Builtin t) <- builtin ]
+                    -- Andreas, 2021-08-19: this seeming identity filters out the @Prim@s
+                    -- and converts the type.
         warns   = iWarnings i
     bs <- getsTC stBuiltinThings
     reportSLn "import.iface.merge" 10 "Merging interface"
     reportSLn "import.iface.merge" 20 $
       "  Current builtins " ++ show (Map.keys bs) ++ "\n" ++
       "  New builtins     " ++ show (Map.keys bi)
-    let check b = case (b1, b2) of
-            (Builtin x, Builtin y)
-              | x == y    -> return ()
-              | otherwise -> typeError $ DuplicateBuiltinBinding b x y
-            _ -> __IMPOSSIBLE__
-          where
-            Just b1 = Map.lookup b bs
-            Just b2 = Map.lookup b bi
-    mapM_ (check . fst) (Map.toList $ Map.intersection bs bi)
+    let check b (Builtin x) (Builtin y)
+              | x == y    = return ()
+              | otherwise = typeError $ DuplicateBuiltinBinding b x y
+        check _ _ _ = __IMPOSSIBLE__
+    sequence_ $ Map.intersectionWithKey check bs bi
     addImportedThings sig bi
       (iPatternSyns i)
       (iDisplayForms i)
