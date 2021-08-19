@@ -19,7 +19,7 @@ import Agda.Syntax.Position
 import Agda.Utils.List1 (List1, pattern (:|))
 import Agda.Utils.Pretty (prettyShow)
 
--- import Agda.Utils.Functor
+import Agda.Utils.Impossible
 
 -- | An attribute is a modifier for `ArgInfo`.
 
@@ -105,7 +105,7 @@ lockAttributeTable = concat
 -- | Concrete syntax for all attributes.
 
 attributesMap :: Map String Attribute
-attributesMap = Map.fromList $ concat
+attributesMap = Map.fromListWith __IMPOSSIBLE__ $ concat
   [ map (second RelevanceAttribute) relevanceAttributeTable
   , map (second QuantityAttribute)  quantityAttributeTable
   , map (second CohesionAttribute)  cohesionAttributeTable

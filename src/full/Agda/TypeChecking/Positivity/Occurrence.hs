@@ -182,7 +182,7 @@ instance Sized OccursWhere where
 
 boundToEverySome ::
   Map Occurrence [(Occurrence -> Bool, Occurrence -> Bool)]
-boundToEverySome = Map.fromList
+boundToEverySome = Map.fromListWith __IMPOSSIBLE__
   [ ( JustPos
     , [((/= Unused), (`elem` [Mixed, JustNeg, JustPos]))]
     )
