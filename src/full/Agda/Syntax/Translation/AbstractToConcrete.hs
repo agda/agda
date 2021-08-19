@@ -126,7 +126,7 @@ makeEnv scope = do
     Env { takenVarNames = Set.fromList vars
         , takenDefNames = defs
         , currentScope = scope
-        , builtins     = Map.fromList builtinList
+        , builtins     = Map.fromListWith __IMPOSSIBLE__ builtinList
         , preserveIIds = False
         , foldPatternSynonyms = foldPatSyns
         }
