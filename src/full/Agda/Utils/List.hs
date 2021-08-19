@@ -618,18 +618,13 @@ nubOn f = loop Set.empty
 -- | Efficient variant of 'nubBy' for finite lists.
 -- O(n log n).
 --
--- Specification: For each list @xs@ there is a list @ys@ which is a
--- permutation of @xs@ such that
+-- > uniqOn f == 'List.sortBy' (compare `'on'` f) . 'nubBy' ((==) `'on'` f)
 --
--- > uniqOn f xs == 'nubBy' ((==) `'on'` f) ys.
---
--- Furthermore:
---
--- > List.sortBy (compare `on` f) (uniqOn f xs) == uniqOn f xs
--- > uniqOn id == Set.toAscList . Set.fromList
+-- If there are several elements with the same @f@-representative,
+-- the first of these is kept.
 --
 uniqOn :: Ord b => (a -> b) -> [a] -> [a]
-uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
+uniqOn key = Map.elems . Map.fromListWith (\ _ -> id) . map (\ a -> (key a, a))
 
 -- | Checks if all the elements in the list are equal. Assumes that
 --   the 'Eq' instance stands for an equivalence relation.
