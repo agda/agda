@@ -58,7 +58,7 @@ QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(QUICK_STACK_BUILD_DIR
 
 
 FAST_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(FAST_BUILD_DIR) \
-                     --enable-tests --ghc-options=-O0 
+                     --enable-tests --ghc-options=-O0
 FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(FAST_STACK_BUILD_DIR) \
                      --test --no-run-tests --fast
 
@@ -146,7 +146,7 @@ ifdef HAS_STACK
 endif
 
 .PHONY: install-deps ## Install Agda dependencies.
-install-deps: 
+install-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing dependencies using Stack ================"
 	time $(STACK_INSTALL) $(STACK_INSTALL_DEP_OPTS)
@@ -187,14 +187,14 @@ endif
 .PHONY: fast-install-bin ## Install Agda compiled with -O0 with tests
 fast-install-bin: install-deps fast-install-bin-no-deps
 
-.PHONY: fast-install-bin-no-deps ## 
+.PHONY: fast-install-bin-no-deps ##
  fast-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(FAST_BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --work-dir=$(FAST_STACK_BUILD_DIR) --dist-dir)/build $(FAST_BUILD_DIR)
-	$(MAKE) copy-bins-with-suffix-fast STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR) 
+	$(MAKE) copy-bins-with-suffix-fast STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
@@ -212,7 +212,7 @@ quicker-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	$(MAKE) copy-bins-with-suffix-quicker STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR) 
+	$(MAKE) copy-bins-with-suffix-quicker STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR)
 else
 	@echo "===================== Installing using Cabal with -O0 ===================="
 	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=-quicker
