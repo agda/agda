@@ -2070,6 +2070,9 @@ data Defn = Axiom -- ^ Postulate
               --   @Nothing@ if not yet computed (by positivity checker).
             , dataAbstr          :: IsAbstract
             , dataPathCons       :: [QName]        -- ^ Path constructor names (subset of dataCons)
+            , dataTranspIx       :: Maybe QName    -- ^ if indexed datatype, name of the "index transport" function.
+            , dataTransp         :: Maybe QName
+              -- ^ transport function, should be available for all datatypes in supported sorts.
             }
           | Record
             { recPars           :: Nat
@@ -3352,6 +3355,8 @@ data Warning
     -- ^ COMPILE directive for an erased symbol
   | NotInScopeW [C.QName]
     -- ^ Out of scope error we can recover from
+  | NoEquivWhenSplitting Doc
+    -- ^ Was not able to compute a full equivalence when splitting
   | AsPatternShadowsConstructorOrPatternSynonym Bool
     -- ^ The as-name in an as-pattern may not shadow a constructor (@False@)
     --   or pattern synonym name (@True@),
@@ -3402,6 +3407,7 @@ warningName = \case
   NoGuardednessFlag{}          -> NoGuardednessFlag_
   NotInScopeW{}                -> NotInScope_
   NotStrictlyPositive{}        -> NotStrictlyPositive_
+  NoEquivWhenSplitting{}       -> NoEquivWhenSplitting_
   OldBuiltin{}                 -> OldBuiltin_
   SafeFlagNoPositivityCheck    -> SafeFlagNoPositivityCheck_
   SafeFlagNonTerminating       -> SafeFlagNonTerminating_
@@ -4577,7 +4583,7 @@ instance KillRange Defn where
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with ->
         killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
-      Datatype a b c d e f g h       -> killRange7 Datatype a b c d e f g h
+      Datatype a b c d e f g h i j   -> killRange8 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
       Primitive a b c d e            -> killRange5 Primitive a b c d e

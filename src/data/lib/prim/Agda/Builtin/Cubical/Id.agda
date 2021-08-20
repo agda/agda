@@ -7,11 +7,15 @@ module Agda.Builtin.Cubical.Id where
   open import Agda.Builtin.Cubical.Path
   open import Agda.Builtin.Cubical.Sub renaming (primSubOut to ouc; Sub to _[_↦_])
 
-  postulate
-    Id : ∀ {ℓ} {A : Set ℓ} → A → A → Set ℓ
-
   {-# BUILTIN ID           Id       #-}
-  {-# BUILTIN CONID        conid    #-}
+  {-# BUILTIN REFLID       reflId   #-}
+
+  private
+    module ConId where
+      primitive
+        primConId : ∀ {ℓ} {A : Set ℓ} {x y : A} → I → x ≡ y → Id x y
+
+  open ConId public renaming (primConId to conid)
 
   -- Id x y is treated as a pair of I and x ≡ y, using "i" for the
   -- first component and "p" for the second.

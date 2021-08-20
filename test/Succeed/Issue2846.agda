@@ -7,8 +7,11 @@ open import Agda.Builtin.Cubical.Id
 reflPath : ∀ {ℓ} {A : Set ℓ} {x : A} → x ≡ x
 reflPath {x = x} = λ i → x
 
-reflId : ∀ {ℓ} {A : Set ℓ} {x : A} → Id x x
-reflId {x = x} = conid i1 reflPath
+reflId' : ∀ {ℓ} {A : Set ℓ} {x : A} → Id x x
+reflId' {x = x} = conid i1 reflPath
+
+_ : ∀ {ℓ} {A : Set ℓ} {x : A} → reflId' {x = x} ≡ reflId
+_ = reflPath
 
 Id-comp-Id : ∀ {ℓ ℓ'} {A : Set ℓ} {x : A} (P : ∀ y → Id x y → Set ℓ')
            → (b : P x reflId) → Id (primIdJ P b reflId) b

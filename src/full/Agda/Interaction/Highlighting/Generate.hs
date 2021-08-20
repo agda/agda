@@ -460,6 +460,7 @@ warningHighlighting' b w = case tcWarning w of
   RewriteMissingRule{}       -> confluenceErrorHighlighting w
   PragmaCompileErased{}      -> deadcodeHighlighting w
   NotInScopeW{}              -> deadcodeHighlighting w
+  NoEquivWhenSplitting{}     -> mempty
   AsPatternShadowsConstructorOrPatternSynonym{}
                              -> deadcodeHighlighting w
   RecordFieldWarning w       -> recordFieldWarningHighlighting w

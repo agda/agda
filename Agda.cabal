@@ -456,6 +456,8 @@ library
                     Agda.TypeChecking.Coverage
                     Agda.TypeChecking.Coverage.Match
                     Agda.TypeChecking.Coverage.SplitTree
+                    Agda.TypeChecking.Coverage.SplitClause
+                    Agda.TypeChecking.Coverage.Cubical
                     Agda.TypeChecking.Datatypes
                     Agda.TypeChecking.DeadCode
                     Agda.TypeChecking.DisplayForm
@@ -544,6 +546,8 @@ library
                     Agda.TypeChecking.Rules.LHS.Problem
                     Agda.TypeChecking.Rules.LHS.ProblemRest
                     Agda.TypeChecking.Rules.LHS.Unify
+                    Agda.TypeChecking.Rules.LHS.Unify.Types
+                    Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
                     Agda.TypeChecking.Rules.Record
                     Agda.TypeChecking.Rules.Term
                     Agda.TypeChecking.Serialise

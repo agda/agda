@@ -231,6 +231,7 @@ data WarningName
   | NoGuardednessFlag_
   | NotInScope_
   | NotStrictlyPositive_
+  | NoEquivWhenSplitting_
   | OldBuiltin_
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
@@ -391,6 +392,7 @@ warningNameDescription = \case
   FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
   NotInScope_                      -> "Out of scope name."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
+  NoEquivWhenSplitting_            -> "Failed to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
   RewriteMaybeNonConfluent_        -> "Failed local confluence check while computing overlap."
