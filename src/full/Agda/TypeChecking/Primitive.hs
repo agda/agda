@@ -796,7 +796,7 @@ type Rel  a = a -> a -> Bool
 type Pred a = a -> Bool
 
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
-primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
+primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBLE__
   -- Issue #4375          ^^^^^^^^^^^^^^^^^^^^^^^^^^
   --   Without this the next fresh checkpoint id gets changed building the primitive functions. This
   --   is bad for caching since it happens when scope checking import declarations (rebinding

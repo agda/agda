@@ -483,7 +483,7 @@ definition' kit q d t ls =
         Record { recFields = flds } -> ret $ curriedLambda nargs $
           if optJSOptimize (fst kit)
             then Lambda 1 $ Apply (Local (LocalId 0)) args
-            else Object $ Map.fromList [ (l, Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args) ]
+            else Object $ Map.singleton l $ Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
         dt -> do
           i <- index
           ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) i) args
@@ -531,7 +531,7 @@ compileTerm kit t = go t
               , "  return result;"
               , "}"
               ]
-        return $ Object $ Map.fromList
+        return $ Object $ Map.fromListWith __IMPOSSIBLE__
           [(flatName, PlainJS evalThunk)
           ,(MemberId "__flat_helper", Lambda 0 x)]
       T.TApp t' xs | Just f <- getDef t' -> do
@@ -563,7 +563,7 @@ compileTerm kit t = go t
         dt <- getConstInfo dt
         alts' <- traverse (compileAlt kit) alts
         let cs  = defConstructors $ theDef dt
-            obj = Object $ Map.fromList [(snd x, y) | (x, y) <- alts']
+            obj = Object $ Map.fromListWith __IMPOSSIBLE__ [(snd x, y) | (x, y) <- alts']
             arr = mkArray [headWithDefault (mempty, Null) [(Comment s, y) | ((c', MemberId s), y) <- alts', c' == c] | c <- cs]
         case (theDef dt, defJSDef dt) of
           (_, Just e) -> do
@@ -597,7 +597,8 @@ compileTerm kit t = go t
 
     mkArray xs
         | 2 * length (filter ((==Null) . snd) xs) <= length xs = Array xs
-        | otherwise = Object $ Map.fromList [(MemberIndex i c, x) | (i, (c, x)) <- zip [0..] xs, x /= Null]
+        | otherwise = Object $ Map.fromListWith __IMPOSSIBLE__
+            [ (MemberIndex i c, x) | (i, (c, x)) <- zip [0..] xs, x /= Null ]
 
 compilePrim :: T.TPrim -> Exp
 compilePrim p =
@@ -671,7 +672,7 @@ literal = \case
 
 litqname :: QName -> Exp
 litqname q =
-  Object $ Map.fromList
+  Object $ Map.fromListWith __IMPOSSIBLE__
     [ (mem "id", Integer $ fromIntegral n)
     , (mem "moduleId", Integer $ fromIntegral m)
     , (mem "name", String $ T.pack $ prettyShow q)
@@ -682,7 +683,7 @@ litqname q =
     fx = theFixity $ nameFixity $ qnameName q
 
     litfixity :: Fixity -> Exp
-    litfixity fx = Object $ Map.fromList
+    litfixity fx = Object $ Map.fromListWith __IMPOSSIBLE__
       [ (mem "assoc", litAssoc $ fixityAssoc fx)
       , (mem "prec", litPrec $ fixityLevel fx)]
 

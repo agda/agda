@@ -65,7 +65,7 @@ recursive names = do
   -- Mark individual clauses of recursive functions:
   --------------------------------------------------
   -- Map names to clause numbers to sets of mentioned names.
-  let clMap = Map.fromList $ zip names perClauses
+  let clMap = Map.fromListWith __IMPOSSIBLE__ $ zip names perClauses
   -- Walk through SCCs.
   forM_ recs $ \ scc -> do
     -- Does a set of names have an overlap with the current scc?
