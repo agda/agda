@@ -252,7 +252,7 @@ casetree cc = do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
     CC.Case (Arg i n) (CC.Branches False conBrs etaBr litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do
                     -- We can treat eta-matches as regular matches here.
-      let conBrs' = Map.union conBrs $ Map.fromList $ map (first conName) $ maybeToList etaBr
+      let conBrs' = caseMaybe etaBr conBrs $ \ (c, br) -> Map.insertWith (\ new old -> old) (conName c) br conBrs
       if Map.null conBrs' && Map.null litBrs then do
         -- there are no branches, just return default
         updateCatchAll catchAll fromCatchAll
