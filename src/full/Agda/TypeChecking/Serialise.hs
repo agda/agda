@@ -123,7 +123,7 @@ encode a = do
     when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
         liftIO $ H.toList stats
-      modifyStatistics $ Map.union stats
+      modifyStatistics $ Map.unionWith (+) stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
       return $!! B.encode (root, nL, ltL, stL, bL, iL, dL)
