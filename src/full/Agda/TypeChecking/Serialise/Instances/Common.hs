@@ -266,16 +266,16 @@ instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
   value m = BiMap.fromDistinctAscendingLists <$> value m
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
-  icod_ m = icode (Map.toList m)
-  value m = Map.fromList `fmap` value m
+  icod_ m = icode (Map.toAscList m)
+  value m = Map.fromDistinctAscList <$> value m
 
 instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
-  icod_ s = icode (Set.toList s)
-  value s = Set.fromList `fmap` value s
+  icod_ s = icode (Set.toAscList s)
+  value s = Set.fromDistinctAscList <$> value s
 
 instance EmbPrj IntSet where
-  icod_ s = icode (IntSet.toList s)
-  value s = IntSet.fromList <$> value s
+  icod_ s = icode (IntSet.toAscList s)
+  value s = IntSet.fromDistinctAscList <$> value s
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Trie a b) where
   icod_ (Trie a b)= icodeN' Trie a b

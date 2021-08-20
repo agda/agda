@@ -317,9 +317,9 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Now we need to prune the unsolved metas to make sure they respect the new
   -- dependencies (#3672). Also update interaction points to point to pruned metas.
   let inscope (ii, InteractionPoint{ipMeta = Just x})
-        | IntSet.member (metaId x) allmetas = [(x, ii)]
-      inscope _ = []
-  ips <- Map.fromList . concatMap inscope . BiMap.toList <$> useTC stInteractionPoints
+        | IntSet.member (metaId x) allmetas = Just (x, ii)
+      inscope _ = Nothing
+  ips <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
   pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize allSortedMetas
 
   -- Fill in the missing details of the telescope record.

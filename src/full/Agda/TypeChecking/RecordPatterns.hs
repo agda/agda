@@ -226,7 +226,7 @@ recordExpressionsToCopatterns = \case
                 -- translate new cases recursively (there might be nested record expressions)
                 traverse recordExpressionsToCopatterns $ Branches
                   { projPatterns   = True
-                  , conBranches    = Map.fromList $
+                  , conBranches    = Map.fromListWith __IMPOSSIBLE__ $
                       zipWith (\ f v -> (unDom f, WithArity 0 $ Done xs v)) fs vs
                   , etaBranch      = Nothing
                   , litBranches    = Map.empty
