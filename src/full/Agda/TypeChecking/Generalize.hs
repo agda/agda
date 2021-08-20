@@ -685,9 +685,9 @@ buildGeneralizeTel con xs = go 0 xs
 createGenValues :: Set QName -> TCM (Map MetaId QName, Map QName GeneralizedValue)
 createGenValues s = do
   genvals <- locallyTC eGeneralizeMetas (const YesGeneralizeVar) $
-               forM (sortBy (compare `on` getRange) $ Set.toList s) createGenValue
-  let metaMap = Map.fromList [ (m, x) | (x, m, _) <- genvals ]
-      nameMap = Map.fromList [ (x, v) | (x, _, v) <- genvals ]
+               mapM createGenValue $ sortBy (compare `on` getRange) $ Set.toList s
+  let metaMap = Map.fromListWith __IMPOSSIBLE__ [ (m, x) | (x, m, _) <- genvals ]
+      nameMap = Map.fromListWith __IMPOSSIBLE__ [ (x, v) | (x, _, v) <- genvals ]
   return (metaMap, nameMap)
 
 -- | Create a generalisable meta for a generalisable variable.
