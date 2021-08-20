@@ -117,7 +117,7 @@ bind n f = Abs n <$> bind' n f
 
 glam :: MonadFail m
      => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
-glam info n f = Lam info <$> bind n f
+glam info n f = Lam info <$> bind n (\ x -> f x)
 
 glamN :: (Functor m, MonadFail m) =>
          [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term

@@ -1172,7 +1172,7 @@ primTransHComp cmd ts nelims = do
                 -- Γ , u1 : A[i1] , i : I
                 bB v = consS v (liftS 1 $ raiseS 1) `applySubst` (absBody b {- Γ , i : I , x : A[i] -})
                 tLam = Lam defaultArgInfo
-            bT <- bind "i" $ fmap bB . v
+            bT <- bind "i" $ \ x -> fmap bB . v $ x
             -- Γ , u1 : A[i1]
             (pure tTrans <#> (tLam <$> traverse (fmap Level . toLevel) bT)
                          <@> (pure . tLam $ unEl                      <$> bT)

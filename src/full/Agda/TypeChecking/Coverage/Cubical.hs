@@ -1286,7 +1286,7 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
                     args <- delta_fill `bapp` i
                     lift $ piApplyM hd $ Arg (domInfo hdom) v : args
           ty_level <- do
-            t <- bind "i" ty
+            t <- bind "i" $ \ x -> ty x
             s <- reduce $ getSort (absBody t)
             reportSDoc "tc.cover.hcomp" 20 $ text "ty_level, s = " <+> prettyTCM s
             case s of
