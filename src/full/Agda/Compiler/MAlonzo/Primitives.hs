@@ -5,6 +5,7 @@ import Control.Arrow ( second )
 import Control.Monad.Trans.Maybe ( MaybeT(MaybeT, runMaybeT) )
 
 import qualified Data.List as List
+import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
@@ -120,44 +121,47 @@ treelessPrimName p =
 importsForPrim :: BuiltinThings PrimFun -> [Definition] -> [HS.ModuleName]
 importsForPrim builtinThings defs = xForPrim table builtinThings defs ++ [HS.ModuleName "Data.Text"]
   where
-  table = Map.fromList $ second (HS.ModuleName <$>) <$>
-    [ "CHAR"                       |-> ["Data.Char"]
-    , "primIsAlpha"                |-> ["Data.Char"]
-    , "primIsAscii"                |-> ["Data.Char"]
-    , "primIsDigit"                |-> ["Data.Char"]
-    , "primIsHexDigit"             |-> ["Data.Char"]
-    , "primIsLatin1"               |-> ["Data.Char"]
-    , "primIsLower"                |-> ["Data.Char"]
-    , "primIsPrint"                |-> ["Data.Char"]
-    , "primIsSpace"                |-> ["Data.Char"]
-    , "primToLower"                |-> ["Data.Char"]
-    , "primToUpper"                |-> ["Data.Char"]
-    , "primFloatInequality"        |-> ["MAlonzo.RTE.Float"]
-    , "primFloatEquality"          |-> ["MAlonzo.RTE.Float"]
-    , "primFloatLess"              |-> ["MAlonzo.RTE.Float"]
-    , "primFloatIsSafeInteger"     |-> ["MAlonzo.RTE.Float"]
-    , "primFloatToWord64"          |-> ["MAlonzo.RTE.Float"]
-    , "primFloatRound"             |-> ["MAlonzo.RTE.Float"]
-    , "primFloatFloor"             |-> ["MAlonzo.RTE.Float"]
-    , "primFloatCeiling"           |-> ["MAlonzo.RTE.Float"]
-    , "primFloatToRatio"           |-> ["MAlonzo.RTE.Float"]
-    , "primRatioToFloat"           |-> ["MAlonzo.RTE.Float"]
-    , "primFloatDecode"            |-> ["MAlonzo.RTE.Float"]
-    , "primFloatEncode"            |-> ["MAlonzo.RTE.Float"]
+  table = Map.fromDistinctAscList $ map (second HS.ModuleName)
+    -- KEEP THIS LIST IN ALPHABETICAL ORDER!
+    -- Otherwise, Map.fromDistinctAscList will produce garbage.
+    [ "CHAR"                       |-> "Data.Char"
+    , "primFloatCeiling"           |-> "MAlonzo.RTE.Float"
+    , "primFloatDecode"            |-> "MAlonzo.RTE.Float"
+    , "primFloatEncode"            |-> "MAlonzo.RTE.Float"
+    , "primFloatEquality"          |-> "MAlonzo.RTE.Float"
+    , "primFloatFloor"             |-> "MAlonzo.RTE.Float"
+    , "primFloatInequality"        |-> "MAlonzo.RTE.Float"
+    , "primFloatIsSafeInteger"     |-> "MAlonzo.RTE.Float"
+    , "primFloatLess"              |-> "MAlonzo.RTE.Float"
+    , "primFloatRound"             |-> "MAlonzo.RTE.Float"
+    , "primFloatToRatio"           |-> "MAlonzo.RTE.Float"
+    , "primFloatToWord64"          |-> "MAlonzo.RTE.Float"
+    , "primIsAlpha"                |-> "Data.Char"
+    , "primIsAscii"                |-> "Data.Char"
+    , "primIsDigit"                |-> "Data.Char"
+    , "primIsHexDigit"             |-> "Data.Char"
+    , "primIsLatin1"               |-> "Data.Char"
+    , "primIsLower"                |-> "Data.Char"
+    , "primIsPrint"                |-> "Data.Char"
+    , "primIsSpace"                |-> "Data.Char"
+    , "primRatioToFloat"           |-> "MAlonzo.RTE.Float"
+    , "primToLower"                |-> "Data.Char"
+    , "primToUpper"                |-> "Data.Char"
     ]
   (|->) = (,)
 
 --------------
 
-xForPrim :: Map.Map String [a] -> BuiltinThings PrimFun -> [Definition] -> [a]
-xForPrim table builtinThings defs =
-  let qs = Set.fromList $ defName <$> defs
-      bs = Map.toList builtinThings
-      getName (Builtin t)            = getPrimName t
-      getName (Prim (PrimFun q _ _)) = q
-  in
-  concat [ fromMaybe [] $ Map.lookup s table
-         | (s, def) <- bs, getName def `Set.member` qs ]
+xForPrim :: Map String a -> BuiltinThings PrimFun -> [Definition] -> [a]
+xForPrim table builtinThings defs = catMaybes
+    [ Map.lookup s table
+    | (s, def) <- Map.toList builtinThings
+    , getName def `Set.member` qs
+    ]
+  where
+  qs = Set.fromList $ map defName defs
+  getName (Builtin t)            = getPrimName t
+  getName (Prim (PrimFun q _ _)) = q
 
 
 -- | Definition bodies for primitive functions
