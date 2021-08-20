@@ -17,6 +17,8 @@ import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
+import Agda.Utils.Impossible
+
 -- * Syntax
 
 -- | Constant finite sizes @n >= 0@.
@@ -115,8 +117,9 @@ type Polarities flex = Map flex Polarity
 emptyPolarities :: Polarities flex
 emptyPolarities = Map.empty
 
+-- Used in size-solver (Andreas, 2021-08-20)
 polaritiesFromAssignments :: Ord flex => [PolarityAssignment flex] -> Polarities flex
-polaritiesFromAssignments = Map.fromList . map (\ (PolarityAssignment p x) -> (x,p))
+polaritiesFromAssignments = Map.fromListWith __IMPOSSIBLE__ . map (\ (PolarityAssignment p x) -> (x,p))
 
 -- | Default polarity is 'Least'.
 getPolarity :: Ord flex => Polarities flex -> flex -> Polarity
