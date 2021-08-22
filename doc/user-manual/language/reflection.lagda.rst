@@ -450,7 +450,7 @@ following primitive operations::
     declarePostulate : Arg Name → Type → TC ⊤
 
     -- Declare a new datatype. The second argument indicates how many preceding
-    -- types of the third argument are parameters. The datatype must be defined 
+    -- types of the third argument are parameters. The datatype must be defined
     -- later using 'defineData'.
     declareData      : Name → Nat → Type → TC ⊤
 
