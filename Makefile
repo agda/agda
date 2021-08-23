@@ -377,7 +377,7 @@ test : check-whitespace \
        std-lib-succeed \
        std-lib-interaction \
        user-manual-test \
-       test-size-solver
+       size-solver-test
 
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
 test-using-std-lib : std-lib-test \
@@ -549,8 +549,8 @@ install-size-solver :
 	@$(call decorate, "Installing the size-solver program", \
 		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(SLOW_STACK_INSTALL_OPTS) $(STACK_INSTALL_OPTS)' CABAL_INSTALL_OPTS='$(SLOW_CABAL_INSTALL_OPTS) $(CABAL_INSTALL_OPTS)' install-bin)
 
-.PHONY : test-size-solver ##
-test-size-solver : install-size-solver
+.PHONY : size-solver-test ##
+size-solver-test : install-size-solver
 	@$(call decorate, "Testing the size-solver program", \
 		$(MAKE) -C src/size-solver test)
 

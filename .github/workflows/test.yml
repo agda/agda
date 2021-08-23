@@ -138,7 +138,7 @@ jobs:
     - name: "Run tests for the size solver"
       run: |
         export PATH=${HOME}/.local/bin:${PATH}
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" test-size-solver
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
 
     - name: "Pack artifacts"
       # This step should go to Makefile.
