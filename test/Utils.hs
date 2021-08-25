@@ -8,7 +8,7 @@ import Control.Exception (finally)
 import Control.Monad
 
 import Data.Array
-import Data.Bifunctor (first)
+import Data.Bifunctor
 import qualified Data.ByteString as BS
 import Data.Char
 import Data.List (intercalate, sortBy)
@@ -88,18 +88,12 @@ runAgdaWithOptions testName opts mflag mvars = do
   backup <- case mvars of
     Nothing      -> pure []
     Just varFile -> do
-      addEnv <- maybe [] (lines . T.unpack) <$> readTextFileMaybe varFile
-      backup <- if null addEnv then pure [] else getEnvironment
-      forM_ addEnv $ \ assgnmt -> do
-        let (var, eqval) = break (== '=') assgnmt
-        -- Andreas, 2020-09-22: according to the documentation of getEnvironment,
-        -- a missing '=' might mean to set the variable to the empty string.
-        -- -- Andreas, 2020-09-22.  Don't just gloss over malformed lines!
-        -- when (null eqval) $ fail $ unlines
-        --   [ "Malformed line", assgnmt, "in file " ++ varFile ]
-        let val = drop 1 eqval  -- drop the '=' sign, unless eqval is null
-        val <- expandEnvironmentVariables val
-        setEnv var val
+      addEnv <- maybe [] (map parseEntry . lines . T.unpack) <$> readTextFileMaybe varFile
+      backup <- if null addEnv then pure [] else do
+        env <- getEnvironment
+        pure $ map (\ (var, _) -> (var, fromMaybe "" $ lookup var env)) addEnv
+      forM_ addEnv $ \ (var, val) -> do
+        setEnv var =<< expandEnvironmentVariables val
       pure backup
 
   let agdaArgs = opts ++ words flags
@@ -124,6 +118,12 @@ runAgdaWithOptions testName opts mflag mvars = do
   pure $ (res,) $ case ret of
     ExitSuccess      -> AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
     ExitFailure code -> AgdaFailure code (agdaErrorFromInt code)
+  where
+  -- parse "x=e" into ("x","e") and "x" into ("x", "")
+  parseEntry :: String -> (String, String)
+  parseEntry = second (drop 1) . break (== '=')
+        -- Andreas, 2020-09-22: according to the documentation of getEnvironment,
+        -- a missing '=' might mean to set the variable to the empty string.
 
 hasWarning :: Text -> Bool
 hasWarning t =
