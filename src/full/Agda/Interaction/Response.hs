@@ -20,7 +20,14 @@ module Agda.Interaction.Response
   ) where
 
 import Agda.Interaction.Base
-  (CommandState, OutputForm, ComputeMode, Rewrite, OutputConstraint, OutputConstraint')
+  ( CommandState
+  , CompilerBackend
+  , ComputeMode
+  , OutputConstraint
+  , OutputConstraint'
+  , OutputForm
+  , Rewrite
+  )
 import Agda.Interaction.Highlighting.Precise
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..), Arg)
@@ -87,7 +94,7 @@ data MakeCaseVariant = Function | ExtendedLambda
 -- | Info to display at the end of an interactive command
 
 data DisplayInfo
-    = Info_CompilationOk WarningsAndNonFatalErrors
+    = Info_CompilationOk CompilerBackend WarningsAndNonFatalErrors
     | Info_Constraints [OutputForm Expr Expr]
     | Info_AllGoalsWarnings Goals WarningsAndNonFatalErrors
     | Info_Time CPUTime

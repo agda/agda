@@ -108,14 +108,17 @@ lispifyResponse (Resp_SolveAll ps) = return
 
 lispifyDisplayInfo :: DisplayInfo -> TCM [Lisp String]
 lispifyDisplayInfo info = case info of
-    Info_CompilationOk ws -> do
+    Info_CompilationOk backend ws -> do
       warnings <- prettyTCWarnings (tcWarnings ws)
       errors <- prettyTCWarnings (nonFatalErrors ws)
+      let
+        msg = concat
+          [ "The module was successfully compiled with backend "
+          , prettyShow backend
+          , ".\n"
+          ]
       -- abusing the goals field since we ignore the title
-      let (body, _) = formatWarningsAndErrors
-                        "The module was successfully compiled.\n"
-                        warnings
-                        errors
+        (body, _) = formatWarningsAndErrors msg warnings errors
       format body "*Compilation result*"
     Info_Constraints s -> format (show $ vcat $ map pretty s) "*Constraints*"
     Info_AllGoalsWarnings ms ws -> do

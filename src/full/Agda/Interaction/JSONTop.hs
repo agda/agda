@@ -252,8 +252,9 @@ instance EncodeTCM Blocker where
   encodeTCM (UnblockOnAny us)    = kind "UnblockOnAny" [ "blockers" @= Set.toList us ]
 
 instance EncodeTCM DisplayInfo where
-  encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
-    [ "warnings"          #= encodeTCM (filterTCWarnings (tcWarnings wes))
+  encodeTCM (Info_CompilationOk backend wes) = kind "CompilationOk"
+    [ "backend"           @= encodePretty backend
+    , "warnings"          #= encodeTCM (filterTCWarnings (tcWarnings wes))
     , "errors"            #= encodeTCM (filterTCWarnings (nonFatalErrors wes))
     ]
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
