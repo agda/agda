@@ -27,6 +27,7 @@ import           Agda.Interaction.Options     (CommandLineOptions,
                                                defaultOptions)
 
 import           Agda.Utils.FileName          (AbsolutePath, mkAbsolute)
+import           Agda.Utils.Pretty            (Pretty(..), prettyShow, text)
 import           Agda.Utils.Time              (ClockTime)
 
 ------------------------------------------------------------------------
@@ -392,10 +393,15 @@ instance Read a => Read (Position' a) where
 data CompilerBackend = LaTeX | QuickLaTeX | OtherBackend String
     deriving (Eq)
 
+-- TODO 2021-08-25 get rid of custom Show instance
 instance Show CompilerBackend where
-  show LaTeX            = "LaTeX"
-  show QuickLaTeX       = "QuickLaTeX"
-  show (OtherBackend s) = s
+  show = prettyShow
+
+instance Pretty CompilerBackend where
+  pretty = \case
+    LaTeX          -> "LaTeX"
+    QuickLaTeX     -> "QuickLaTeX"
+    OtherBackend s -> text s
 
 instance Read CompilerBackend where
   readsPrec _ s = do
