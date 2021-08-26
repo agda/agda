@@ -52,13 +52,13 @@ userManualTestDir = testDirPrefix "user-manual"
 disabledTests :: [RegexFilter]
 disabledTests = []
 
--- | List of test groups with names
+-- | Test group with subgroups
 --
 -- @
---   [ "LaTeXAndHTML" , "HTMLOnly" , "LaTeXOnly" , "QuickLaTeXOnly" ]
+--   "LaTeXAndHTML" / [ "HTML" , "LaTeX" , "QuickLaTeX" ]
 -- @.
 --
-tests :: IO [TestTree]
+tests :: IO TestTree
 tests = do
   agdaBin  <- getAgdaBin
   suiteTests <- concat <$> mapM (taggedListOfAllTests agdaBin) testDirs
@@ -67,11 +67,11 @@ tests = do
         HTML       -> One
         LaTeX      -> Two
         QuickLaTeX -> Three
-  return
-    [ testGroup "LaTeXAndHTML"   $ map snd allTests
-    , testGroup "HTMLOnly"       $ map snd html
-    , testGroup "LaTeXOnly"      $ map snd latex
-    , testGroup "QuickLaTeXOnly" $ map snd quicklatex
+  return $
+    testGroup "LaTeXAndHTML"
+    [ testGroup "HTML"       $ map snd html
+    , testGroup "LaTeX"      $ map snd latex
+    , testGroup "QuickLaTeX" $ map snd quicklatex
     ]
 
 taggedListOfAllTests :: FilePath -> FilePath -> IO [(Kind, TestTree)]
