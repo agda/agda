@@ -449,17 +449,17 @@ latex-html-test :
 .PHONY : html-test ##
 html-test :
 	@$(call decorate, "Suite of tests for the HTML backend", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/HTMLOnly)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/HTML)
 
 .PHONY : latex-test ##
 latex-test :
 	@$(call decorate, "Suite of tests for the LaTeX backend", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXOnly)
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/LaTeX)
 
 .PHONY : quicklatex-test ##
 quicklatex-test :
 	@$(call decorate, "Suite of tests for the QuickLaTeX backend", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/QuickLaTeX)
 
 .PHONY : std-lib-test ##
 std-lib-test :
