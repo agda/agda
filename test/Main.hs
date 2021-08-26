@@ -1,5 +1,3 @@
-{-# LANGUAGE DoAndIfThenElse      #-}
-
 module Main where
 
 import qualified Compiler.Tests as COMPILER
@@ -22,21 +20,28 @@ import Utils
 
 main :: IO ()
 main = do
-  agdaBin <- doesEnvContain "AGDA_BIN"
-  if agdaBin
-    then
-      tests >>= TM.defaultMain1 disabledTests
-    else do
+  doesEnvContain "AGDA_BIN" >>= \case
+    True  -> TM.defaultMain1 disabledTests =<< tests
+    False -> do
       putStrLn $ unlines
-            [ "The AGDA_BIN environment variable is not set. Do not execute"
-            , "these tests directly using \"cabal test\" or \"cabal install --run-tests\", instead"
-            , "use the Makefile."
-            , "Are you maybe using the Makefile together with an old cabal-install version?"
-            , "Versions of cabal-install before 1.20.0.0 have a bug and will trigger this error."
-            , "The Makefile requires cabal-install 1.20.0.0 or later to work properly."
-            , "See also Issue #1489 and #1490."
-            ]
-      exitWith (ExitFailure 1)
+        [ "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+        , "@ The AGDA_BIN environment variable is not set.                             @"
+        , "@ It looks like you are running 'cabal test' or 'cabal install --runtests'. @"
+        , "@ This will only run parts of the Agda test-suite.                          @"
+        , "@ The preferred way of running the tests is via the Makefile ('make test'). @"
+        , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+        ]
+      TM.defaultMain1 (makefileDependentTests ++ disabledTests) =<< tests
+      -- putStrLn $ unlines
+      --       [ "The AGDA_BIN environment variable is not set. Do not execute"
+      --       , "these tests directly using \"cabal test\" or \"cabal install --run-tests\", instead"
+      --       , "use the Makefile."
+      --       , "Are you maybe using the Makefile together with an old cabal-install version?"
+      --       , "Versions of cabal-install before 1.20.0.0 have a bug and will trigger this error."
+      --       , "The Makefile requires cabal-install 1.20.0.0 or later to work properly."
+      --       , "See also Issue #1489 and #1490."
+      --       ]
+      -- exitWith (ExitFailure 1)
 
 -- | All tests covered by the tasty testsuite.
 tests :: IO TestTree
@@ -45,13 +50,13 @@ tests = do
     sequence $
       -- N.B.: This list is written using (:) so that lines can be swapped easily:
       -- (The number denotes the order of the Makefile as of 2021-08-25.)
-      {- 5 -} sg LATEXHTML.tests   :
-      {- 3 -} sg BUGS.tests        :
       {- 1 -} sg SUCCEED.tests     :
-      {- 6 -} pu INTERNAL.tests    :
-      {- 9 -} sg USERMANUAL.tests  :
-      {- 4 -} pu INTERACTIVE.tests :
       {- 2 -} sg FAIL.tests        :
+      {- 3 -} sg BUGS.tests        :
+      {- 4 -} pu INTERACTIVE.tests :
+      {- 9 -} sg USERMANUAL.tests  :
+      {- 5 -} sg LATEXHTML.tests   :
+      {- 6 -} pu INTERNAL.tests    :
       {- 7 -} sg COMPILER.tests    :
       {- 8 -} sg LIBSUCCEED.tests  :
       []
@@ -62,6 +67,8 @@ tests = do
   -- sg m = (:[]) <$> m
   -- pu x = pure [x]
 
+makefileDependentTests :: [RegexFilter]
+makefileDependentTests = SUCCEED.makefileDependentTests
 
 disabledTests :: [RegexFilter]
 disabledTests = concat

@@ -915,6 +915,11 @@ test-suite agda-tests
                     , UserManual.Tests
                     , Utils
 
+  -- Andreas, 2021-08-26, see https://github.com/haskell/cabal/issues/7577
+  -- Since 'agda-tests' wants to call 'agda', we have to add it here,
+  -- should we want to run 'cabal test'.
+  build-tool-depends: Agda:agda
+
   build-depends:  Agda
                 , array >= 0.5.1.1 && < 0.6
                 , base >= 4.9.0.0 && < 4.16
