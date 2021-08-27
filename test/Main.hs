@@ -31,7 +31,13 @@ main = do
         , "@ The preferred way of running the tests is via the Makefile ('make test'). @"
         , "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
         ]
-      TM.defaultMain1 (makefileDependentTests ++ disabledTests) =<< tests
+      agdaBin <- getAgdaBin
+      doesCommandExist agdaBin >>= \case
+        True ->
+          TM.defaultMain1 cabalDisabledTests =<< tests
+        False -> do
+          putStrLn $ unwords ["Could not find executable", agdaBin ]
+          exitFailure
       -- putStrLn $ unlines
       --       [ "The AGDA_BIN environment variable is not set. Do not execute"
       --       , "these tests directly using \"cabal test\" or \"cabal install --run-tests\", instead"
@@ -50,12 +56,12 @@ tests = do
     sequence $
       -- N.B.: This list is written using (:) so that lines can be swapped easily:
       -- (The number denotes the order of the Makefile as of 2021-08-25.)
+      {- 5 -} sg LATEXHTML.tests   :
       {- 1 -} sg SUCCEED.tests     :
       {- 2 -} sg FAIL.tests        :
       {- 3 -} sg BUGS.tests        :
       {- 4 -} pu INTERACTIVE.tests :
       {- 9 -} sg USERMANUAL.tests  :
-      {- 5 -} sg LATEXHTML.tests   :
       {- 6 -} pu INTERNAL.tests    :
       {- 7 -} sg COMPILER.tests    :
       {- 8 -} sg LIBSUCCEED.tests  :
@@ -66,6 +72,16 @@ tests = do
   -- If one @tests@ returns a list of test trees, use these wrappers:
   -- sg m = (:[]) <$> m
   -- pu x = pure [x]
+
+-- | Filtering out tests for @cabal test@.
+
+cabalDisabledTests :: [RegexFilter]
+cabalDisabledTests = concat
+  [ disabledTests
+  , makefileDependentTests
+  , LATEXHTML.latexTests
+  , LATEXHTML.icuTests
+  ]
 
 makefileDependentTests :: [RegexFilter]
 makefileDependentTests = SUCCEED.makefileDependentTests

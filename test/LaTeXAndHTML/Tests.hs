@@ -52,6 +52,19 @@ userManualTestDir = testDirPrefix "user-manual"
 disabledTests :: [RegexFilter]
 disabledTests = []
 
+-- | Filtering out tests using Text.ICU.
+
+icuTests :: [RegexFilter]
+icuTests = [ disable "LaTeXAndHTML/.*/Grapheme.*" ]
+  where disable = RFInclude
+
+-- | Filtering out tests using latex.
+
+latexTests :: [RegexFilter]
+latexTests = [ disable "LaTeXAndHTML/.*LaTeX/.*" ]
+  where disable = RFInclude
+
+
 -- | Test group with subgroups
 --
 -- @
