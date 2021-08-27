@@ -27,7 +27,7 @@ import Control.Monad.Except
 import Data.Functor
 import Data.Maybe
 
-import Agda.Interaction.Options (optCumulativity)
+import Agda.Interaction.Options (optCumulativity, optRewriting)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -208,7 +208,9 @@ sortOf t = do
         case unEl (ignoreBlocking ba) of
           Pi b c -> sortOfE (c `absApp` v) (hd . (e:)) es
           _ | Blocked m _ <- ba -> patternViolation m
-            | otherwise         -> __IMPOSSIBLE__
+            | otherwise         -> ifM (optRewriting <$> pragmaOptions)
+                {-then-} (patternViolation neverUnblock)  -- Not IMPOSSIBLE because of possible non-confluent rewriting (see #5531)
+                {-else-} __IMPOSSIBLE__
       Proj o f -> do
         a <- reduce a
         ~(El _ (Pi b c)) <- fromMaybe __IMPOSSIBLE__ <$> getDefType f a
