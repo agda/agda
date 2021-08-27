@@ -1,0 +1,4 @@
+Issue5531.agda:50,23-31
+ap (λ z → Σ (_A_208 z) (B z)) _239 (ab _δ₀_236) (ab _δ₁_237) !=<
+Σ _A_232 _B_233
+when checking that the expression ap ab δ₂ has type Σ _A_232 _B_233
