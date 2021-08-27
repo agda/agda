@@ -66,7 +66,7 @@ jobs:
     - name: Configure the build plan
       run: |
         cabal update
-        cabal configure ${FLAGS} -O1
+        cabal configure -O1 --enable-tests
 
     - uses: actions/cache@v2
       name: Cache dependencies
@@ -82,10 +82,13 @@ jobs:
       run: |
         cabal build --only-dependencies --enable-tests
 
-    - name: Build Agda
+    - name: Install Agda
       run: |
-        cabal build
+        mkdir -p ${HOME}/bin
+        cabal install --installdir=${HOME}/bin
+# bin instead of .cabal/bin as this might be more portable (Windows)
 
     - name: Build and test Agda
       run: |
+        export PATH=${HOME}/bin:${PATH}
         cabal test
