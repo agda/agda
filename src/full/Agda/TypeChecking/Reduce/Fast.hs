@@ -72,6 +72,7 @@ import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Functor
 import Agda.Utils.Pretty
@@ -1373,6 +1374,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         -- Bad work-around for #3870: don't fail hard during instance search.
       | speculative          = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
       | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
+      | hasRewriting         = rewriteAM (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
       | otherwise            = runReduce $
           traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ prettyShow f)
                    __IMPOSSIBLE__

@@ -165,20 +165,24 @@ instance Match (Type, Elims -> Term) [Elim' NLPat] Elims where
      , "  with               " <+> addContext k (prettyTCM v)
      , "  eliminating head   " <+> addContext k (prettyTCM $ hd []) <+> ":" <+> addContext k (prettyTCM t)]) $ do
    case (p,v) of
-    (Apply p, Apply v) -> do
-      ~(Pi a b) <- addContext k $ unEl <$> reduce t
-      match r gamma k a p v
-      let t'  = absApp b (unArg v)
-          hd' = hd . (Apply v:)
-      match r gamma k (t',hd') ps vs
+    (Apply p, Apply v) -> (addContext k $ unEl <$> reduce t) >>= \case
+      Pi a b -> do
+        match r gamma k a p v
+        let t'  = absApp b (unArg v)
+            hd' = hd . (Apply v:)
+        match r gamma k (t',hd') ps vs
+      t -> traceSDoc "rewriting.match" 20
+        ("application at non-pi type (possible non-confluence?) " <+> prettyTCM t) mzero
 
-    (IApply x y p , IApply u v i) -> do
-      ~(PathType s q l b _u _v) <- addContext k $ pathView =<< reduce t
-      Right interval <- runExceptT primIntervalType
-      match r gamma k interval p i
-      let t' = El s $ unArg b `apply` [ defaultArg i ]
-      let hd' = hd . (IApply u v i:)
-      match r gamma k (t',hd') ps vs
+    (IApply x y p , IApply u v i) -> (addContext k $ pathView =<< reduce t) >>= \case
+      PathType s q l b _u _v -> do
+        Right interval <- runExceptT primIntervalType
+        match r gamma k interval p i
+        let t' = El s $ unArg b `apply` [ defaultArg i ]
+        let hd' = hd . (IApply u v i:)
+        match r gamma k (t',hd') ps vs
+      t -> traceSDoc "rewriting.match" 20
+        ("interval application at non-pi type (possible non-confluence?) " <+> prettyTCM (pathUnview t)) mzero
 
     (Proj o f, Proj o' f') | f == f' -> do
       ~(Just (El _ (Pi a b))) <- addContext k $ getDefType f =<< reduce t

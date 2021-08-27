@@ -1,0 +1,4 @@
+Issue5396.agda:28,13-17
+not 0 != true of type Bool
+when checking that the expression refl has type
+not (0' unit) ≡ true
