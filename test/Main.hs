@@ -81,6 +81,7 @@ cabalDisabledTests = concat
   , makefileDependentTests
   , LATEXHTML.latexTests
   , LATEXHTML.icuTests
+  , COMPILER.stdlibTestFilter
   ]
 
 makefileDependentTests :: [RegexFilter]

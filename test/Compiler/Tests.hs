@@ -106,6 +106,12 @@ disabledTests =
   ]
   where disable = RFInclude
 
+stdlibTestFilter :: [RegexFilter]
+stdlibTestFilter =
+  [ disable "Compiler/.*/with-stdlib"
+  ]
+  where disable = RFInclude
+
 tests :: IO TestTree
 tests = do
   nodeBin <- findExecutable "node"
