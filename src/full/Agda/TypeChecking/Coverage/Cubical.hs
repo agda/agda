@@ -876,7 +876,13 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
                   , clauseExact = Nothing
                   }
 
+
   debugClause "tc.cover.trxcon" cl
+
+  reportSDoc "tc.cover.trxcon" 20 $ vcat $
+    [ "clause:"
+    ,  nest 2 $ prettyTCM . QNamed f $ cl
+    ]
 
   let mod = fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
   -- we follow what `cover` does when updating the modality from the target.
