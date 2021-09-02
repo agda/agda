@@ -13,6 +13,7 @@ import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
   (readFileMaybe, goldenTestIO1, GDiff (..), GShow (..))
+import Test.Tasty.Silver.Filter ( RegexFilter( RFInclude ) )
 
 import System.Directory
 import System.Exit
@@ -34,9 +35,17 @@ tests = do
 
   return $ testGroup "Succeed" tests'
   where
-  -- Andreas, 2020-10-19, work around issue #4940:
-  -- Put @ExecAgda@ last.
-  reorder = uncurry (++) . List.partition (("ExecAgda" /=) . dropAgdaExtension)
+  reorder = id
+  -- -- Andreas, 2020-10-19, work around issue #4940:
+  -- -- Put @ExecAgda@ last.
+  -- reorder = uncurry (++) . List.partition (not . ("ExecAgda" `List.isInfixOf`))
+
+-- | Tests that get special preparation from the Makefile.
+makefileDependentTests :: [RegexFilter]
+makefileDependentTests =
+  [ disable "Succeed/ExecAgda"
+  ]
+  where disable = RFInclude
 
 data TestResult
   = TestSuccess
