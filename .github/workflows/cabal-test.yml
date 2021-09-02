@@ -10,7 +10,6 @@ on:
     - '.github/workflows/cabal-test.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
-    - 'src/agda-mode/**'
     - 'src/full/**'
     - 'src/main/**'
     - 'test/**.hs'
@@ -19,7 +18,6 @@ on:
     - '.github/workflows/cabal-test.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
-    - 'src/agda-mode/**'
     - 'src/full/**'
     - 'src/main/**'
     - 'test/**.hs'
@@ -90,6 +88,12 @@ jobs:
       run: |
         cabal build --only-dependencies --enable-tests
 
+    # Andreas, 2021-09-02:
+    # Installing Agda, instead of just building it, is to work around
+    # https://github.com/haskell/cabal/issues/7577
+    # which hides the build executable from the tests when there is
+    # a Custom cabal setup (atm works only for Simple setup).
+    # Once haskell/cabal#7577 is fixed, we can dispose of this workaround.
     - name: Install Agda
       run: |
         mkdir -p ${HOME}/bin

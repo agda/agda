@@ -74,6 +74,8 @@ cabalDisabledTests = concat
   , COMPILER.stdlibTestFilter
   ]
 
+-- | Some tests get extra setup through the @Makefile@.
+
 makefileDependentTests :: [RegexFilter]
 makefileDependentTests = SUCCEED.makefileDependentTests
 

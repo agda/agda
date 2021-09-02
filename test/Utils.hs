@@ -315,6 +315,11 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , (T.pack Agda.Version.package, "«Agda-package»")
       -- Andreas, 2021-08-26.  When run with 'cabal test',
       -- Agda.Version.package didn't match, so let's be generous:
+      -- Andreas, 2021-09-02.  The match failure could be triggered
+      -- when we are running the *installed* version of Agda rather
+      -- than the *built* one, see .github/workflows/cabal-test.yml.
+      -- Maybe the match failures will disappear once we drop
+      -- the workaround for haskell/cabal#7577.
       -- Andreas, 2021-08-28.  To work around haskell/cabal#7209,
       -- "The Grinch stole all the vowels", we also have to
       -- recognize Agd (instead of Agda) as package name.

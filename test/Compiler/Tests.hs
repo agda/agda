@@ -106,6 +106,8 @@ disabledTests =
   ]
   where disable = RFInclude
 
+-- | Filtering out compiler tests using the Agda standard library.
+
 stdlibTestFilter :: [RegexFilter]
 stdlibTestFilter =
   [ disable "Compiler/.*/with-stdlib"
