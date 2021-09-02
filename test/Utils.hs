@@ -135,9 +135,7 @@ getEnvAgdaArgs :: IO AgdaArgs
 getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
 
 getAgdaBin :: IO FilePath
-getAgdaBin = fromMaybeM err $ getEnvVar "AGDA_BIN"
-  where
-  err = fail "AGDA_BIN environment variable not set, aborting..."
+getAgdaBin = getProg "agda"
 
 -- | Gets the program executable. If an environment variable
 -- YYY_BIN is defined (with yyy converted to upper case),
@@ -315,6 +313,18 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , ("\\\\", "/")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
       , (T.pack Agda.Version.package, "«Agda-package»")
+      -- Andreas, 2021-08-26.  When run with 'cabal test',
+      -- Agda.Version.package didn't match, so let's be generous:
+      -- Andreas, 2021-09-02.  The match failure could be triggered
+      -- when we are running the *installed* version of Agda rather
+      -- than the *built* one, see .github/workflows/cabal-test.yml.
+      -- Maybe the match failures will disappear once we drop
+      -- the workaround for haskell/cabal#7577.
+      -- Andreas, 2021-08-28.  To work around haskell/cabal#7209,
+      -- "The Grinch stole all the vowels", we also have to
+      -- recognize Agd (instead of Agda) as package name.
+      -- See CI run: https://github.com/agda/agda/runs/3449775214?check_suite_focus=true
+      , ("Agda?-[.0-9]+(-[[:alnum:]]+)?", "«Agda-package»")
       , ("[^ (]*lib.prim", "agda-default-include-path")
       , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
       ]

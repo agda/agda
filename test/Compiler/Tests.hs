@@ -106,6 +106,14 @@ disabledTests =
   ]
   where disable = RFInclude
 
+-- | Filtering out compiler tests using the Agda standard library.
+
+stdlibTestFilter :: [RegexFilter]
+stdlibTestFilter =
+  [ disable "Compiler/.*/with-stdlib"
+  ]
+  where disable = RFInclude
+
 tests :: IO TestTree
 tests = do
   nodeBin <- findExecutable "node"
