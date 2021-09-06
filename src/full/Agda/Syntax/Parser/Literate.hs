@@ -26,6 +26,9 @@ import Control.Monad ((<=<))
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
 import Text.Regex.TDFA
+  ( Regex, getAllTextSubmatches, match, matchM
+  , makeRegexOpts, blankCompOpt, blankExecOpt, newSyntax, caseSensitive
+  )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
