@@ -25,6 +25,7 @@ import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.Monad
 
 import Agda.Utils.Null (ifNull)
+import Agda.Utils.Maybe (caseMaybeM, fromMaybeM)
 
 {--------------------------------------------------------------------------
     The look-ahead monad
@@ -69,13 +70,17 @@ liftP = LookAhead . lift . lift
 
 -- | Look at the next character. Fails if there are no more characters.
 nextChar :: LookAhead Char
-nextChar =
+nextChar = fromMaybeM (lookAheadError "unexpected end of file") nextCharMaybe
+
+-- | Look at the next character. Return 'Nothing' if there are no more characters.
+nextCharMaybe :: LookAhead (Maybe Char)
+nextCharMaybe =
     do  inp <- getInput
         case alexGetChar inp of
-            Nothing         -> lookAheadError "unexpected end of file"
+            Nothing         -> return Nothing
             Just (c,inp')   ->
                 do  setInput inp'
-                    return c
+                    return $ Just c
 
 
 -- | Consume all the characters up to the current look-ahead position.
@@ -150,7 +155,7 @@ match' c xs def = do
               pure $ setInput inp >> p
 
         -- Keep trying to find a (longer) match.
-        match'' fallback' bs' =<< nextChar
+        maybe fallback' (match'' fallback' bs') =<< nextCharMaybe
 
 -- | Run a 'LookAhead' computation. The first argument is the error function.
 runLookAhead :: (forall b. String -> LookAhead b) -> LookAhead a -> Parser a
