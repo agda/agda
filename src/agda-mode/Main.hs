@@ -1,10 +1,12 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 -- | A program which either tries to add setup code for Agda's Emacs
 -- mode to the users .emacs file, or provides information to Emacs
 -- about where the Emacs mode is installed.
 
 module Main (main) where
 
-import Control.Exception
+import Control.Exception as E
 import Control.Monad
 import Data.Char
 import Data.List (intercalate, isInfixOf)
@@ -16,6 +18,7 @@ import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO
+-- import System.IO.Error (isDoesNotExistError)
 import System.Process
 
 import Paths_Agda (getDataDir, version)
@@ -163,7 +166,7 @@ askEmacs query = do
   bracket (openTempFile tempDir "askEmacs")
           (removeFile . fst) $ \(file, h) -> do
     hClose h
-    exit <- rawSystem "emacs"
+    exit <- rawSystemWithDiagnostics "emacs"
                       [ "--no-desktop", "-nw", "--no-splash"
                           -- Andreas, 2014-01-11: ^ try a leaner startup of emacs
                           -- Andreas, 2018-09-08: -nw instead of --no-window-system as some emacses do not support the long version
@@ -181,6 +184,26 @@ askEmacs query = do
       -- Uses evaluate to ensure that the file is not closed
       -- prematurely.
       return result
+
+-- | Like 'rawSystem' but handles 'IOException' by printing diagnostics
+-- (@PATH@) before 'exitFailure'.
+
+rawSystemWithDiagnostics
+  :: FilePath  -- ^ Command to run.
+  -> [String]  -- ^ Arguments to command.
+  -> IO ExitCode
+rawSystemWithDiagnostics cmd args =
+    rawSystem cmd args
+  `E.catch` \ (e :: IOException) -> do
+     informLn $ unwords [ "FAILED:", showCommandForUser cmd args ]
+     informLn $ unwords [ "Exception:", show e ]
+     -- The PATH might be useful in other exceptions, like "permission denied".
+     -- when (isDoesNotExistError e) $ do
+     path <- fromMaybe "(not found)" <$> findExecutable cmd
+     informLn $ unwords [ "Executable", cmd, "at:", path ]
+     informLn "PATH:"
+     mapM_ (informLn . ("  - " ++)) =<< getSearchPath
+     exitFailure
 
 -- | Escapes the string so that Emacs can parse it as an Elisp string.
 
@@ -225,7 +248,7 @@ compileElispFiles = do
       exitFailure
   where
   compile dataDir f = do
-    exit <- rawSystem "emacs" $
+    exit <- rawSystemWithDiagnostics "emacs" $
                       [ "--no-init-file", "--no-site-file"
                       , "--directory", dataDir
                       , "--batch"
