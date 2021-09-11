@@ -193,6 +193,12 @@ This can, in some cases, give a noticeable speedup.
 Emacs Lisp files, then Emacs may continue using the old, compiled
 files.
 
+Installing the standard library
+-------------------------------
+
+Installing the standard library, should you choose to use it,
+is an additional step using `a separate repository <https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
+
 
 .. _prebuilt-packages:
 
