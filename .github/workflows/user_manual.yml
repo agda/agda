@@ -6,13 +6,11 @@ on:
     - master
     - ci-*
     - release*
-    paths:
+    paths: &trigger_path_list
     - 'doc/user-manual/**'
     - '.github/workflows/user_manual.yml'
   pull_request:
-    paths:
-    - 'doc/user-manual/**'
-    - '.github/workflows/user_manual.yml'
+    paths: *trigger_path_list
 
 jobs:
   build:

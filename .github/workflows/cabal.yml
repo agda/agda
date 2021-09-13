@@ -6,7 +6,7 @@ on:
     - master
     - ci-*
     - release*
-    paths:
+    paths: &trigger_path_list
     - '.github/workflows/cabal.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
@@ -15,14 +15,7 @@ on:
     - 'src/main/**'
     - 'test/**.hs'
   pull_request:
-    paths:
-    - '.github/workflows/cabal.yml'
-    - 'Agda.cabal'
-    - 'Setup.hs'
-    - 'src/agda-mode/**'
-    - 'src/full/**'
-    - 'src/main/**'
-    - 'test/**.hs'
+    paths: *trigger_path_list
 
 defaults:
   run:

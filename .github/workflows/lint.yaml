@@ -6,7 +6,7 @@ on:
       - master
       - ci-*
       - release*
-    paths:
+    paths: &trigger_path_list
       - '.github/workflows/lint.yaml'
       - '.hlint.yaml'
       - 'Agda.cabal'
@@ -19,12 +19,7 @@ on:
       - opened
       - reopened
       - synchronize
-    paths:
-      - '.github/workflows/lint.yaml'
-      - '.hlint.yaml'
-      - 'Agda.cabal'
-      - 'src/**'
-      - 'test/**'
+    paths: *trigger_path_list
 
 jobs:
   hlint:

@@ -6,7 +6,7 @@ on:
     - master
     - ci-*
     - release*
-    paths:
+    paths: &trigger_path_list
     - '.github/workflows/stack.yml'
     - 'Agda.cabal'
     - 'Setup.hs'
@@ -17,16 +17,7 @@ on:
     - 'src/size-solver/**'
     - 'test/**.hs'
   pull_request:
-    paths:
-    - '.github/workflows/stack.yml'
-    - 'Agda.cabal'
-    - 'Setup.hs'
-    - 'stack*.yaml'
-    - 'src/agda-mode/**'
-    - 'src/full/**'
-    - 'src/main/**'
-    - 'src/size-solver/**'
-    - 'test/**.hs'
+    paths: *trigger_path_list
 
 jobs:
   auto-cancel:
