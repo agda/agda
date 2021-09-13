@@ -1234,7 +1234,6 @@ instance InstantiateFull t => InstantiateFull (Strict.Maybe t)
 instance InstantiateFull t => InstantiateFull (Arg t)
 instance InstantiateFull t => InstantiateFull (Elim' t)
 instance InstantiateFull t => InstantiateFull (Named name t)
-instance InstantiateFull t => InstantiateFull (Open t)
 instance InstantiateFull t => InstantiateFull (WithArity t)
 instance InstantiateFull t => InstantiateFull (IPBoundary' t)
 
@@ -1358,6 +1357,14 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
 
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i fin n tac x) = Dom i fin n <$> instantiateFull' tac <*> instantiateFull' x
+
+-- Andreas, 2021-09-13, issue #5544, need to traverse @checkpoints@ map
+instance InstantiateFull t => InstantiateFull (Open t) where
+  instantiateFull' (OpenThing checkpoint checkpoints modl t) =
+    OpenThing checkpoint
+    <$> instantiateFull' checkpoints
+    <*> pure modl
+    <*> instantiateFull' t
 
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
