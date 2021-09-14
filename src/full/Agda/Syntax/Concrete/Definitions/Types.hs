@@ -17,6 +17,8 @@ import Agda.Syntax.Concrete.Pretty
 
 import Agda.Utils.Pretty
 import Agda.Utils.Impossible
+import Agda.Utils.List1 (List1)
+import qualified Agda.Utils.List1 as List1
 
 {--------------------------------------------------------------------------
     Types
@@ -142,12 +144,16 @@ type InterleavedMutual = Map Name InterleavedDecl
 
 data InterleavedDecl
   = InterleavedData
-    { infixDataSig  :: (Int, NiceDeclaration)           -- a data signature
-    , infixDataCons :: Maybe (Int, [[NiceConstructor]]) -- and associated constructors
+    { infixDataSig  :: (Int, NiceDeclaration)
+        -- ^ a data signature
+    , infixDataCons :: Maybe (Int, List1 [NiceConstructor])
+        -- ^ and associated constructors
     }
   | InterleavedFun
-    { infixFunSig     :: (Int, NiceDeclaration)                  -- a fun signature
-    , infixFunClauses :: Maybe (Int, [([Declaration],[Clause])]) -- and associated fun clauses
+    { infixFunSig     :: (Int, NiceDeclaration)
+        -- ^ a fun signature
+    , infixFunClauses :: Maybe (Int, List1 ([Declaration],[Clause]))
+        -- ^ and associated fun clauses
     }
 
 isInterleavedFun :: InterleavedDecl -> Maybe ()
@@ -163,11 +169,11 @@ interleavedDecl k = \case
   InterleavedData (i, d@(NiceDataSig _ acc abs pc uc _ pars _)) ds ->
     let fpars = concatMap dropTypeAndModality pars
         ddef  = NiceDataDef noRange UserWritten abs pc uc k fpars
-    in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (concat (reverse dss)))]) ds
+    in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (sconcat (List1.reverse dss)))]) ds
   InterleavedFun (i, d@(FunSig r acc abs inst mac info tc cc n e)) dcs ->
-    let fdef dcss = let (dss, css) = unzip dcss in
-                    FunDef r (concat dss) abs inst tc cc n (concat css)
-    in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (reverse dcss))]) dcs
+    let fdef dcss = let (dss, css) = List1.unzip dcss in
+                    FunDef r (sconcat dss) abs inst tc cc n (sconcat css)
+    in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (List1.reverse dcss))]) dcs
   _ -> __IMPOSSIBLE__ -- someone messed up and broke the invariant
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
