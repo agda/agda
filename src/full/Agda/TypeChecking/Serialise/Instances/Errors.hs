@@ -192,6 +192,7 @@ instance EmbPrj DeclarationWarning' where
     InvalidRecordDirective a          -> icodeN 29 InvalidRecordDirective a
     InvalidConstructor a              -> icodeN 30 InvalidConstructor a
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
+    MissingDeclarations a             -> icodeN 32 MissingDeclarations a
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -226,6 +227,7 @@ instance EmbPrj DeclarationWarning' where
     [29,r]   -> valuN InvalidRecordDirective r
     [30,r]   -> valuN InvalidConstructor r
     [31,r]   -> valuN InvalidConstructorBlock r
+    [32,r]   -> valuN MissingDeclarations r
     _ -> malformed
 
 instance EmbPrj LibWarning where
