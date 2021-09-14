@@ -848,7 +848,9 @@ niceDeclarations fixs ds = do
                     Nothing        -> ((i , ds :| [] ), i+1)
                     Just (i1, ds1) -> ((i1, ds <| ds1), i)
               put (Map.insert n (InterleavedData i0 sig (Just cs')) m, checks, i')
-            _ -> __IMPOSSIBLE__ -- we have resolved the name `n` already and it comes from a DataSig!
+            _ -> declarationException $ MissingDataSignature n
+              -- Andreas, 2021-09-14, issue #5558:
+              -- It is not impossible to encounter a definition without previous signature.
 
         addDataConstructors Nothing [] = pure ()
 

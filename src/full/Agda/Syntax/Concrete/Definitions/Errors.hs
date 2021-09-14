@@ -34,6 +34,8 @@ data DeclarationException'
   | InvalidName Name
   | DuplicateDefinition Name
   | DuplicateAnonDeclaration Range
+  | MissingDataSignature Name
+      -- ^ In an @interleaved mutual@ block, encountered a definition not preceded by a signature.
   | MissingWithClauses Name LHS
   | WrongDefinition Name DataRecOrFun DataRecOrFun
   | DeclarationPanic String
@@ -205,6 +207,7 @@ instance HasRange DeclarationException' where
   getRange (InvalidName x)                      = getRange x
   getRange (DuplicateDefinition x)              = getRange x
   getRange (DuplicateAnonDeclaration r)         = r
+  getRange (MissingDataSignature x)             = getRange x
   getRange (MissingWithClauses x lhs)           = getRange lhs
   getRange (WrongDefinition x k k')             = getRange x
   getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
@@ -263,6 +266,8 @@ instance Pretty DeclarationException' where
     pwords "Duplicate definition of" ++ [pretty x]
   pretty (DuplicateAnonDeclaration _) = fsep $
     pwords "Duplicate declaration of _"
+  pretty (MissingDataSignature x) = fsep $
+    pwords "Missing data signature for" ++ [pretty x]
   pretty (MissingWithClauses x lhs) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
 

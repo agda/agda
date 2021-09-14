@@ -238,7 +238,7 @@ withCatchallPragma ca f = do
 niceWarning :: DeclarationWarning -> Nice ()
 niceWarning w = modify $ \ st -> st { niceWarn = w : niceWarn st }
 
-declarationException :: HasCallStack => DeclarationException' -> Nice a
+declarationException :: (MonadError DeclarationException m, HasCallStack) => DeclarationException' -> m a
 declarationException e = withCallerCallStack $ throwError . flip DeclarationException e
 
 declarationWarning' :: DeclarationWarning' -> CallStack -> Nice ()
