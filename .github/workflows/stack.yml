@@ -51,15 +51,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-18.04]
-        stack-ver: ['latest']
-        ghc-ver: [9.0.1, 8.10.6, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        stack-ver: [latest]
+        ghc-ver: [9.0.1, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
         include:
           - os: macos-latest
             ghc-ver: 9.0.1
-            stack-ver: 'latest'
+            stack-ver: latest
           - os: windows-latest
             ghc-ver: 9.0.1
-            stack-ver: 'latest'
+            stack-ver: latest
 
     env:
       ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal"
