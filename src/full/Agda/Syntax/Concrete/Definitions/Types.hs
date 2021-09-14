@@ -144,17 +144,24 @@ type InterleavedMutual = Map Name InterleavedDecl
 
 data InterleavedDecl
   = InterleavedData
-    { infixDataSig  :: (Int, NiceDeclaration)
-        -- ^ a data signature
-    , infixDataCons :: Maybe (Int, List1 [NiceConstructor])
-        -- ^ and associated constructors
+    { interleavedDeclNum  :: DeclNum
+        -- ^ Internal number of the data signature.
+    , interleavedDeclSig  :: NiceDeclaration
+        -- ^ The data signature.
+    , interleavedDataCons :: Maybe (DeclNum, List1 [NiceConstructor])
+        -- ^ Constructors associated to the data signature.
     }
   | InterleavedFun
-    { infixFunSig     :: (Int, NiceDeclaration)
-        -- ^ a fun signature
-    , infixFunClauses :: Maybe (Int, List1 ([Declaration],[Clause]))
-        -- ^ and associated fun clauses
+    { interleavedDeclNum  :: DeclNum
+        -- ^ Internal number of the function signature.
+    , interleavedDeclSig  :: NiceDeclaration
+        -- ^ The function signature.
+    , interleavedFunClauses :: Maybe (DeclNum, List1 ([Declaration],[Clause]))
+        -- ^ Function clauses associated to the function signature.
     }
+
+-- | Numbering declarations in an @interleaved mutual@ block.
+type DeclNum = Int
 
 isInterleavedFun :: InterleavedDecl -> Maybe ()
 isInterleavedFun InterleavedFun{} = Just ()
@@ -164,13 +171,13 @@ isInterleavedData :: InterleavedDecl -> Maybe ()
 isInterleavedData InterleavedData{} = Just ()
 isInterleavedData _ = Nothing
 
-interleavedDecl :: Name -> InterleavedDecl -> [(Int, NiceDeclaration)]
+interleavedDecl :: Name -> InterleavedDecl -> [(DeclNum, NiceDeclaration)]
 interleavedDecl k = \case
-  InterleavedData (i, d@(NiceDataSig _ acc abs pc uc _ pars _)) ds ->
+  InterleavedData i d@(NiceDataSig _ acc abs pc uc _ pars _) ds ->
     let fpars = concatMap dropTypeAndModality pars
         ddef  = NiceDataDef noRange UserWritten abs pc uc k fpars
     in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (sconcat (List1.reverse dss)))]) ds
-  InterleavedFun (i, d@(FunSig r acc abs inst mac info tc cc n e)) dcs ->
+  InterleavedFun i d@(FunSig r acc abs inst mac info tc cc n e) dcs ->
     let fdef dcss = let (dss, css) = List1.unzip dcss in
                     FunDef r (sconcat dss) abs inst tc cc n (sconcat css)
     in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (List1.reverse dcss))]) dcs
