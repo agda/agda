@@ -834,11 +834,12 @@ niceDeclarations fixs ds = do
         ------------------------------------------------------------------------------
         -- Adding constructors & clauses
 
-        addDataConstructors :: Maybe Name         -- Data type the constructors belong to
+        addDataConstructors :: Maybe Range        -- Range of the `data A where` (if any)
+                            -> Maybe Name         -- Data type the constructors belong to
                             -> [NiceConstructor]  -- Constructors to add
                             -> StateT (InterleavedMutual, MutualChecks, Int) Nice ()
         -- if we know the type's name, we can go ahead
-        addDataConstructors (Just n) ds = do
+        addDataConstructors mr (Just n) ds = do
           (m, checks, i) <- get
           case Map.lookup n m of
             Just (InterleavedData (i0, sig) cs) -> do
@@ -848,12 +849,16 @@ niceDeclarations fixs ds = do
                     Nothing        -> ((i, [ds])   , i+1)
                     Just (i1, ds1) -> ((i1, ds:ds1), i)
               put (Map.insert n (InterleavedData (i0, sig) (Just cs')) m, checks, i')
-            _ -> __IMPOSSIBLE__ -- we have resolved the name `n` already and it comes from a DataSig!
+            _ -> lift $ declarationWarning $ MissingDeclarations $ case mr of
+                   Just r -> [(n, r)]
+                   Nothing -> flip foldMap ds $ \case
+                     Axiom r _ _ _ _ n _ -> [(n, r)]
+                     _ -> __IMPOSSIBLE__
 
-        addDataConstructors Nothing [] = pure ()
+        addDataConstructors mr Nothing [] = pure ()
 
         -- Otherwise we try to guess which datasig the constructor is referring to
-        addDataConstructors Nothing (d : ds) = do
+        addDataConstructors mr Nothing (d : ds) = do
           -- get the candidate data types that are in this interleaved mutual block
           (m, _, _) <- get
           let sigs = mapMaybe (\ (n, d) -> n <$ isInterleavedData d) $ Map.toList m
@@ -862,9 +867,9 @@ niceDeclarations fixs ds = do
             Right n -> do
               -- if so grab the whole block that may work and add them
               let (ds0, ds1) = span (isRight . isConstructor [n]) ds
-              addDataConstructors (Just n) (d : ds0)
+              addDataConstructors Nothing (Just n) (d : ds0)
               -- and then repeat the process for the rest of the block
-              addDataConstructors Nothing ds1
+              addDataConstructors Nothing Nothing ds1
             Left (n, ns) -> lift $ declarationException $ AmbiguousConstructor (getRange d) n ns
 
         addFunDef :: NiceDeclaration -> StateT (InterleavedMutual, MutualChecks, Int) Nice ()
@@ -925,8 +930,8 @@ niceDeclarations fixs ds = do
           let oneOff act = act >>= \ ns -> (ns ++) <$> groupByBlocks r ds
           case d of
             NiceDataSig{}                -> oneOff $ [] <$ addDataType d
-            NiceDataDef _ _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just n) ds
-            NiceLoneConstructor r ds     -> oneOff $ [] <$ addDataConstructors Nothing ds
+            NiceDataDef r _ _ _ _ n _ ds -> oneOff $ [] <$ addDataConstructors (Just r) (Just n) ds
+            NiceLoneConstructor r ds     -> oneOff $ [] <$ addDataConstructors Nothing Nothing ds
             FunSig{}                     -> oneOff $ [] <$ addFunType d
             FunDef _ _ _  _ _ _ n cs
                       | not (isNoName n) -> oneOff $ [] <$ addFunDef d

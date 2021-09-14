@@ -90,6 +90,8 @@ data DeclarationWarning'
   | InvalidTerminationCheckPragma Range
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
+  | MissingDeclarations [(Name, Range)]
+      -- ^ Definitions (e.g. constructors or functions) without a declaration.
   | MissingDefinitions [(Name, Range)]
       -- ^ Declarations (e.g. type signatures) without a definition.
   | NotAllowedInMutual Range String
@@ -139,6 +141,7 @@ declarationWarningName' = \case
   InvalidRecordDirective{}          -> InvalidRecordDirective_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   InvalidCoverageCheckPragma{}      -> InvalidCoverageCheckPragma_
+  MissingDeclarations{}             -> MissingDeclarations_
   MissingDefinitions{}              -> MissingDefinitions_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
   OpenPublicPrivate{}               -> OpenPublicPrivate_
@@ -179,6 +182,7 @@ unsafeDeclarationWarning' = \case
   InvalidRecordDirective{}          -> False
   InvalidTerminationCheckPragma{}   -> False
   InvalidCoverageCheckPragma{}      -> False
+  MissingDeclarations{}             -> True  -- not safe
   MissingDefinitions{}              -> True  -- not safe
   NotAllowedInMutual{}              -> False -- really safe?
   OpenPublicPrivate{}               -> False
@@ -223,6 +227,7 @@ instance HasRange DeclarationWarning' where
   getRange (UnknownFixityInMixfixDecl xs)       = getRange xs
   getRange (UnknownNamesInPolarityPragmas xs)   = getRange xs
   getRange (PolarityPragmasButNotPostulates xs) = getRange xs
+  getRange (MissingDeclarations xs)             = getRange xs
   getRange (MissingDefinitions xs)              = getRange xs
   getRange (UselessPrivate r)                   = r
   getRange (NotAllowedInMutual r x)             = r
@@ -308,6 +313,9 @@ instance Pretty DeclarationWarning' where
   pretty (UnknownNamesInPolarityPragmas xs) = fsep $
     pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
     ++ punctuate comma  (map pretty xs)
+  pretty (MissingDeclarations xs) = fsep $
+   pwords "The following names are defined but not accompanied by a declaration:"
+   ++ punctuate comma (map (pretty . fst) xs)
   pretty (MissingDefinitions xs) = fsep $
    pwords "The following names are declared but not accompanied by a definition:"
    ++ punctuate comma (map (pretty . fst) xs)

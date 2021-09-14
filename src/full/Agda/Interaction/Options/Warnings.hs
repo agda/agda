@@ -124,6 +124,7 @@ errorWarnings = Set.fromList
   [ CoverageIssue_
   , GenericNonFatalError_
   , MissingDefinitions_
+  , MissingDeclarations_
   , NotAllowedInMutual_
   , NotStrictlyPositive_
   , OverlappingTokensWarning_
@@ -195,6 +196,7 @@ data WarningName
   | InvalidNoUniverseCheckPragma_
   | InvalidRecordDirective_
   | InvalidTerminationCheckPragma_
+  | MissingDeclarations_
   | MissingDefinitions_
   | NotAllowedInMutual_
   | OpenPublicAbstract_
@@ -352,6 +354,7 @@ warningNameDescription = \case
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
   InvalidRecordDirective_          -> "No record directive outside of record definition / below field declarations."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
+  MissingDeclarations_             -> "Definitions not associated to a declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   OpenPublicAbstract_              -> "'open public' directive in an 'abstract' block."

@@ -498,6 +498,7 @@ warningHighlighting' b w = case tcWarning w of
     W.ShadowingInTelescope nrs       -> foldMap
                                           (shadowingTelHighlighting . snd)
                                           nrs
+    MissingDeclarations{}            -> missingDefinitionHighlighting w
     MissingDefinitions{}             -> missingDefinitionHighlighting w
     -- TODO: explore highlighting opportunities here!
     InvalidCatchallPragma{}           -> mempty
