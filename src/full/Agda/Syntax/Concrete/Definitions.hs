@@ -89,7 +89,7 @@ import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (isSublistOf, spanJust)
-import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Null
@@ -846,8 +846,8 @@ niceDeclarations fixs ds = do
               lift $ removeLoneSig n
               -- add the constructors to the existing ones (if any)
               let (cs', i') = case cs of
-                    Nothing        -> ((i, [ds])   , i+1)
-                    Just (i1, ds1) -> ((i1, ds:ds1), i)
+                    Nothing        -> ((i , ds :| [] ), i+1)
+                    Just (i1, ds1) -> ((i1, ds <| ds1), i)
               put (Map.insert n (InterleavedData (i0, sig) (Just cs')) m, checks, i')
             _ -> lift $ declarationWarning $ MissingDeclarations $ case mr of
                    Just r -> [(n, r)]
@@ -879,8 +879,8 @@ niceDeclarations fixs ds = do
           case Map.lookup n m of
             Just (InterleavedFun (i0, sig) cs0) -> do
               let (cs', i') = case cs0 of
-                    Nothing        -> ((i, [(ds, cs)]) , i+1)
-                    Just (i1, cs1) -> ((i1, (ds, cs):cs1), i)
+                    Nothing        -> ((i,  (ds, cs) :| [] ), i+1)
+                    Just (i1, cs1) -> ((i1, (ds, cs) <| cs1), i)
               put (Map.insert n (InterleavedFun (i0, sig) (Just cs')) m, check <> checks, i')
             _ -> __IMPOSSIBLE__ -- A FunDef always come after an existing FunSig!
         addFunDef _ = __IMPOSSIBLE__
@@ -910,8 +910,8 @@ niceDeclarations fixs ds = do
               case Map.lookup n m of
                 Just (InterleavedFun (i0, sig) cs0) -> do
                   let (cs', i') = case cs0 of
-                        Nothing        -> ((i, [(fits,cs)]), i+1)
-                        Just (i1, cs1) -> ((i1, (fits,cs):cs1), i)
+                        Nothing        -> ((i,  (fits,cs) :| [] ), i+1)
+                        Just (i1, cs1) -> ((i1, (fits,cs) <| cs1), i)
                   let checks' = Fold.fold checkss
                   put (Map.insert n (InterleavedFun (i0, sig) (Just cs')) m, checks' <> checks, i')
                 _ -> __IMPOSSIBLE__
