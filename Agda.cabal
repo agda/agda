@@ -85,7 +85,7 @@ extra-source-files: CHANGELOG.md
                     stack-8.4.4.yaml
                     stack-8.6.5.yaml
                     stack-8.8.4.yaml
-                    stack-8.10.6.yaml
+                    stack-8.10.7.yaml
                     stack-9.0.1.yaml
 
 data-dir:           src/data
