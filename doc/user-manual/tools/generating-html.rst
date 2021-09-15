@@ -15,6 +15,14 @@ You can change the way in which the code is highlighted by providing
 your own CSS file instead of the :download:`default, included one
 <../../../src/data/html/Agda.css>` (use the ``--css`` option).
 
+.. note::
+
+  The :file:`Agda.css` shipped with Agda is located at
+  :file:`{${AGDA_DIR}}/html/Agda.css`.  Since version 2.6.2, the
+  :envvar:`AGDA_DIR` is printed by option :option:`--print-agda-dir`.
+  Thus, you can get hold of the CSS file via
+  :samp:`cat $(agda --print-agda-dir)/html/Agda.css`.
+
 You can also highlight all the occurrences of the symbol your mouse is
 hovering in the HTML by adding the ``--highlight-occurrences`` option.
 The default behaviour only highlight the single symbol your mouse is

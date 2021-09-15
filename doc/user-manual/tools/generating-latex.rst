@@ -29,6 +29,14 @@ the LaTeX output directory (by default :file:`latex`). Note that the
 appearance of typeset code can be modified by overriding definitions
 from :file:`agda.sty`.
 
+.. note::
+
+  The :file:`agda.sty` shipped with Agda is located at
+  :file:`{${AGDA_DIR}}/latex/agda.sty`.  Since version 2.6.2, the
+  :envvar:`AGDA_DIR` is printed by option :option:`--print-agda-dir`.
+  Thus, you can get hold of the CSS file via
+  :samp:`cat $(agda --print-agda-dir)/latex/agda.sty`.
+
 .. _unicode-latex:
 
 Known pitfalls and issues
