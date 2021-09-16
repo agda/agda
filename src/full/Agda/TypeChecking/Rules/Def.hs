@@ -402,6 +402,12 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         -- Add the definition
         inTopContext $ addConstant name =<< do
+
+          reportSDoc "tc.def.fun.clauses" 15 $ inTopContext $ do
+            vcat [ "final clauses for" <+> prettyTCM name <+>  ":"
+                 , nest 2 $ vcat $ map (prettyTCM . QNamed name) cs
+                 ]
+
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           defn <- autoInline $

@@ -58,7 +58,7 @@ QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(QUICK_STACK_BUILD_DIR
 
 
 FAST_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(FAST_BUILD_DIR) \
-                     --enable-tests --ghc-options=-O0 
+                     --enable-tests --ghc-options=-O0
 FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(FAST_STACK_BUILD_DIR) \
                      --test --no-run-tests --fast
 
@@ -146,7 +146,7 @@ ifdef HAS_STACK
 endif
 
 .PHONY: install-deps ## Install Agda dependencies.
-install-deps: 
+install-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing dependencies using Stack ================"
 	time $(STACK_INSTALL) $(STACK_INSTALL_DEP_OPTS)
@@ -187,19 +187,19 @@ endif
 .PHONY: fast-install-bin ## Install Agda compiled with -O0 with tests
 fast-install-bin: install-deps fast-install-bin-no-deps
 
-.PHONY: fast-install-bin-no-deps ## 
+.PHONY: fast-install-bin-no-deps ##
  fast-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "============= Installing using Stack with -O0 and test suites ============"
 	time $(FAST_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
 	mkdir -p $(FAST_BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --work-dir=$(FAST_STACK_BUILD_DIR) --dist-dir)/build $(FAST_BUILD_DIR)
-	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR) 
+	$(MAKE) copy-bins-with-suffix-fast STACK_BUILD_DIR=$(FAST_STACK_BUILD_DIR)
 else
 # `cabal new-install --enable-tests` emits the error message (bug?):
 # cabal: --enable-tests was specified, but tests can't be enabled in a remote package
 	@echo "============= Installing using Cabal with -O0 and test suites ============"
-	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)-fast
+	time $(FAST_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=-fast
 endif
 
 .PHONY: quicker-install-bin ## Install Agda compiled with -O0 without tests
@@ -212,10 +212,10 @@ quicker-install-bin-no-deps:
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with -O0 ===================="
 	time $(QUICK_STACK_INSTALL) $(STACK_INSTALL_BIN_OPTS)
-	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)-quicker STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR) 
+	$(MAKE) copy-bins-with-suffix-quicker STACK_BUILD_DIR=$(QUICK_STACK_BUILD_DIR)
 else
 	@echo "===================== Installing using Cabal with -O0 ===================="
-	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=$(AGDA_BIN_SUFFIX)-quicker
+	time $(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS) --program-suffix=-quicker
 endif
 
 .PHONY: type-check ## Type check the Agda source only (-fno-code).
@@ -245,20 +245,20 @@ type-check-no-deps :
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 install-prof-bin : install-deps ensure-hash-is-correct
 	$(CABAL_INSTALL) -j1 --enable-library-profiling --enable-profiling \
-          --program-suffix=$(AGDA_BIN_SUFFIX)-prof $(CABAL_INSTALL_OPTS)
+          --program-suffix=-prof $(CABAL_INSTALL_OPTS)
 
 .PHONY : install-debug ## Install Agda with debug enabled
 # A separate build directory is used. The suffix "-debug" is used for the binaries.
 
 install-debug : install-deps ensure-hash-is-correct
 	$(CABAL_INSTALL) --disable-library-profiling \
-        -fdebug --program-suffix=$(AGDA_BIN_SUFFIX)-debug --builddir=$(DEBUG_BUILD_DIR) \
+        -fdebug --program-suffix=-debug --builddir=$(DEBUG_BUILD_DIR) \
         $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : debug-install-quick ## Install Agda -O0 with debug enabled
 debug-install-quick : install-deps
 	$(QUICK_CABAL_INSTALL) --disable-library-profiling \
-        -fdebug --program-suffix=$(AGDA_BIN_SUFFIX)-debug-quick --builddir=$(QUICK_DEBUG_BUILD_DIR) \
+        -fdebug --program-suffix=-debug-quick --builddir=$(QUICK_DEBUG_BUILD_DIR) \
         $(CABAL_INSTALL_BIN_OPTS) --ghc-options=-O0
 
 ##############################################################################
@@ -377,7 +377,7 @@ test : check-whitespace \
        std-lib-succeed \
        std-lib-interaction \
        user-manual-test \
-       test-size-solver
+       size-solver-test
 
 .PHONY : test-using-std-lib ## Run all tests which use the standard library.
 test-using-std-lib : std-lib-test \
@@ -417,7 +417,7 @@ common :
 .PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
-		echo $(AGDA_BIN) > test/Succeed/exec-tc/executables && \
+		echo $(shell which $(AGDA_BIN)) > test/Succeed/exec-tc/executables && \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed ; \
 		rm test/Succeed/exec-tc/executables )
 
@@ -449,19 +449,19 @@ latex-html-test :
 .PHONY : html-test ##
 html-test :
 	@$(call decorate, "Suite of tests for the HTML backend", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/HTMLOnly)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/HTML)
 
 .PHONY : latex-test ##
 latex-test :
 	@$(call decorate, "Suite of tests for the LaTeX backend", \
-		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXOnly)
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/LaTeX)
 
 .PHONY : quicklatex-test ##
 quicklatex-test :
 	@$(call decorate, "Suite of tests for the QuickLaTeX backend", \
-	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/QuickLaTeXOnly)
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML/QuickLaTeX)
 
-.PHONY : std-library-test ##
+.PHONY : std-lib-test ##
 std-lib-test :
 	@$(call decorate, "Standard library test", \
 		(cd std-lib && cabal run GenerateEverything && \
@@ -549,8 +549,8 @@ install-size-solver :
 	@$(call decorate, "Installing the size-solver program", \
 		$(MAKE) -C src/size-solver STACK_INSTALL_OPTS='$(SLOW_STACK_INSTALL_OPTS) $(STACK_INSTALL_OPTS)' CABAL_INSTALL_OPTS='$(SLOW_CABAL_INSTALL_OPTS) $(CABAL_INSTALL_OPTS)' install-bin)
 
-.PHONY : test-size-solver ##
-test-size-solver : install-size-solver
+.PHONY : size-solver-test ##
+size-solver-test : install-size-solver
 	@$(call decorate, "Testing the size-solver program", \
 		$(MAKE) -C src/size-solver test)
 

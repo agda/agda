@@ -38,7 +38,7 @@ You need recent versions of the following programs to compile Agda:
 * GHC:           https://www.haskell.org/ghc/
 
   + Agda has been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5, 8.8.4,
-    8.10.5 and 9.0.1.
+    8.10.6 and 9.0.1.
 
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
@@ -193,6 +193,12 @@ This can, in some cases, give a noticeable speedup.
 Emacs Lisp files, then Emacs may continue using the old, compiled
 files.
 
+Installing the standard library
+-------------------------------
+
+Installing the standard library, should you choose to use it,
+is an additional step using `a separate repository <https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
+
 
 .. _prebuilt-packages:
 
@@ -324,6 +330,19 @@ Nix is extremely flexible and we have only described how to install
 Agda globally using ``nix-env``. One can also declare which packages
 to install globally in a configuration file or pull in Agda and some
 relevant libraries for a particular project using ``nix-shell``.
+
+The Agda git repository is a `Nix flake <https://nixos.wiki/wiki/Flakes>`_
+to allow using a development version with Nix. The flake has the following
+outputs:
+
+- ``overlay``: A ``nixpkgs`` `overlay <https://nixos.wiki/wiki/Overlays>`_
+  which makes ``haskellPackages.Agda`` (which the top-level ``agda``
+  package depends on) be the build of the relevant checkout.
+- ``haskellOverlay``: An overlay for ``haskellPackages`` which overrides
+  the ``Agda`` attribute to point to the build of the relevant checkout.
+  This can be used to make the development version available at a different
+  attribute name, or to override Agda for an alternative haskell package
+  set.
 
 OS X
 ----

@@ -309,6 +309,8 @@ order for the change to take effect."
   ("increment" . ("∆"))
   ("inf"       . ("∞"))
   ("&"         . ("⅋"))
+  ("z;"        . ("⨟"))
+  ("z:"        . ("⦂"))
 
   ;; Circled operators.
 
@@ -966,6 +968,12 @@ order for the change to take effect."
   ;; ("_y" . ("y"))
   ;; ("_z" . ("z"))
 
+  ("_Gb" . ("ᵦ"))
+  ("_Gg" . ("ᵧ"))
+  ("_Gr" . ("ᵨ"))
+  ("_Gf" . ("ᵩ"))
+  ("_Gc" . ("ᵪ"))
+
   ("^a" . ("ᵃ"))
   ("^b" . ("ᵇ"))
   ("^c" . ("ᶜ"))
@@ -1019,6 +1027,14 @@ order for the change to take effect."
   ;; ("^X" . ("X"))
   ;; ("^Y" . ("Y"))
   ;; ("^Z" . ("Z"))
+
+  ("^Gb" . ("ᵝ"))
+  ("^Gg" . ("ᵞ"))
+  ("^Gd" . ("ᵟ"))
+  ("^Ge" . ("ᵋ"))
+  ("^Gth" . ("ᶿ"))
+  ("^Gf" . ("ᵠ"))
+  ("^Gc" . ("ᵡ"))
 
   ;; Some ISO8859-1 characters.
 

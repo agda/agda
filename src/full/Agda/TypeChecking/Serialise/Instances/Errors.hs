@@ -84,6 +84,7 @@ instance EmbPrj Warning where
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
     ParseWarning a                        -> icodeN 38 ParseWarning a
     NoGuardednessFlag a                   -> icodeN 39 NoGuardednessFlag a
+    NoEquivWhenSplitting a                -> icodeN 40 NoEquivWhenSplitting a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -126,6 +127,7 @@ instance EmbPrj Warning where
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
     [38, a]              -> valuN ParseWarning a
     [39, a]              -> valuN NoGuardednessFlag a
+    [40, a]              -> valuN NoEquivWhenSplitting a
     _ -> malformed
 
 instance EmbPrj ParseWarning where

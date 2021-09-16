@@ -8,7 +8,7 @@ import Control.Exception (finally)
 import Control.Monad
 
 import Data.Array
-import Data.Bifunctor (first)
+import Data.Bifunctor
 import qualified Data.ByteString as BS
 import Data.Char
 import Data.List (intercalate, sortBy)
@@ -88,18 +88,12 @@ runAgdaWithOptions testName opts mflag mvars = do
   backup <- case mvars of
     Nothing      -> pure []
     Just varFile -> do
-      addEnv <- maybe [] (lines . T.unpack) <$> readTextFileMaybe varFile
-      backup <- if null addEnv then pure [] else getEnvironment
-      forM_ addEnv $ \ assgnmt -> do
-        let (var, eqval) = break (== '=') assgnmt
-        -- Andreas, 2020-09-22: according to the documentation of getEnvironment,
-        -- a missing '=' might mean to set the variable to the empty string.
-        -- -- Andreas, 2020-09-22.  Don't just gloss over malformed lines!
-        -- when (null eqval) $ fail $ unlines
-        --   [ "Malformed line", assgnmt, "in file " ++ varFile ]
-        let val = drop 1 eqval  -- drop the '=' sign, unless eqval is null
-        val <- expandEnvironmentVariables val
-        setEnv var val
+      addEnv <- maybe [] (map parseEntry . lines . T.unpack) <$> readTextFileMaybe varFile
+      backup <- if null addEnv then pure [] else do
+        env <- getEnvironment
+        pure $ map (\ (var, _) -> (var, fromMaybe "" $ lookup var env)) addEnv
+      forM_ addEnv $ \ (var, val) -> do
+        setEnv var =<< expandEnvironmentVariables val
       pure backup
 
   let agdaArgs = opts ++ words flags
@@ -124,6 +118,12 @@ runAgdaWithOptions testName opts mflag mvars = do
   pure $ (res,) $ case ret of
     ExitSuccess      -> AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
     ExitFailure code -> AgdaFailure code (agdaErrorFromInt code)
+  where
+  -- parse "x=e" into ("x","e") and "x" into ("x", "")
+  parseEntry :: String -> (String, String)
+  parseEntry = second (drop 1) . break (== '=')
+        -- Andreas, 2020-09-22: according to the documentation of getEnvironment,
+        -- a missing '=' might mean to set the variable to the empty string.
 
 hasWarning :: Text -> Bool
 hasWarning t =
@@ -135,9 +135,7 @@ getEnvAgdaArgs :: IO AgdaArgs
 getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
 
 getAgdaBin :: IO FilePath
-getAgdaBin = fromMaybeM err $ getEnvVar "AGDA_BIN"
-  where
-  err = fail "AGDA_BIN environment variable not set, aborting..."
+getAgdaBin = getProg "agda"
 
 -- | Gets the program executable. If an environment variable
 -- YYY_BIN is defined (with yyy converted to upper case),
@@ -315,6 +313,18 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , ("\\\\", "/")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
       , (T.pack Agda.Version.package, "«Agda-package»")
+      -- Andreas, 2021-08-26.  When run with 'cabal test',
+      -- Agda.Version.package didn't match, so let's be generous:
+      -- Andreas, 2021-09-02.  The match failure could be triggered
+      -- when we are running the *installed* version of Agda rather
+      -- than the *built* one, see .github/workflows/cabal-test.yml.
+      -- Maybe the match failures will disappear once we drop
+      -- the workaround for haskell/cabal#7577.
+      -- Andreas, 2021-08-28.  To work around haskell/cabal#7209,
+      -- "The Grinch stole all the vowels", we also have to
+      -- recognize Agd (instead of Agda) as package name.
+      -- See CI run: https://github.com/agda/agda/runs/3449775214?check_suite_focus=true
+      , ("Agda?-[.0-9]+(-[[:alnum:]]+)?", "«Agda-package»")
       , ("[^ (]*lib.prim", "agda-default-include-path")
       , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
       ]

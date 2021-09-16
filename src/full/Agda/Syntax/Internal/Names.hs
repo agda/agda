@@ -90,8 +90,8 @@ instance NamesIn Defn where
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
     Function    { funClauses = cl, funCompiled = cc }
       -> namesIn' sg (cl, cc)
-    Datatype    { dataClause = cl, dataCons = cs, dataSort = s }
-      -> namesIn' sg (cl, cs, s)
+    Datatype    { dataClause = cl, dataCons = cs, dataSort = s, dataTranspIx = trX, dataTransp = trD }
+      -> namesIn' sg (cl, cs, s, (trX, trD))
     Record      { recClause = cl, recConHead = c, recFields = fs, recComp = comp }
       -> namesIn' sg (cl, c, fs, comp)
       -- Don't need recTel since those will be reachable from the constructor

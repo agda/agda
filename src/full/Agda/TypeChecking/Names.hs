@@ -33,9 +33,14 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Level
+import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.Free
 
 import Agda.Utils.Fail (Fail, runFail_)
+import Agda.Utils.Impossible
 
 instance HasBuiltins m => HasBuiltins (NamesT m) where
   getBuiltinThing b = lift $ getBuiltinThing b
@@ -99,23 +104,20 @@ open a = do
   ctx <- NamesT ask
   pure $ inCxt ctx a
 
-bind' :: (MonadFail m, Subst b, DeBruijn b, Subst a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m a
+bind' :: (MonadFail m) => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m a
 bind' n f = do
   cxt <- NamesT ask
   (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (deBruijnVar 0)))
 
 bind :: ( MonadFail m
-        , Subst b
-        , DeBruijn b
-        , Subst a
-        , Free a
         ) =>
-        ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)
+        ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m (Abs a)
 bind n f = Abs n <$> bind' n f
+
 
 glam :: MonadFail m
      => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
-glam info n f = Lam info <$> bind n f
+glam info n f = Lam info <$> bind n (\ x -> f x)
 
 glamN :: (Functor m, MonadFail m) =>
          [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term
@@ -129,3 +131,84 @@ lam n f = glam defaultArgInfo n f
 ilam :: MonadFail m
     => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
+
+
+
+data AbsN a = AbsN { absNName :: [ArgName], unAbsN :: a } deriving (Functor,Foldable,Traversable)
+
+instance Subst a => Subst (AbsN a) where
+  type SubstArg (AbsN a) = SubstArg a
+  applySubst rho (AbsN xs a) = AbsN xs (applySubst (liftS (length xs) rho) a)
+
+-- | Will crash on @NoAbs@
+toAbsN :: Abs (AbsN a) -> AbsN a
+toAbsN (Abs n x') = AbsN (n : absNName x') (unAbsN x')
+toAbsN NoAbs{} = __IMPOSSIBLE__
+
+absAppN :: Subst a => AbsN a -> [SubstArg a] -> a
+absAppN f xs = (parallelS $ reverse xs) `applySubst` unAbsN f
+
+type ArgVars m = (forall b. (Subst b, DeBruijn b) => [NamesT m (Arg b)])
+
+type Vars m = (forall b. (Subst b, DeBruijn b) => [NamesT m b])
+type Var m = (forall b. (Subst b, DeBruijn b) => NamesT m b)
+
+bindN :: ( MonadFail m
+        ) =>
+        [ArgName] -> (Vars m -> NamesT m a) -> NamesT m (AbsN a)
+bindN [] f = AbsN [] <$> f []
+bindN (x:xs) f = toAbsN <$> bind x (\ x -> bindN xs (\ xs -> f (x:xs)))
+
+bindNArg :: ( MonadFail m
+        ) =>
+        [Arg ArgName] -> (ArgVars m -> NamesT m a) -> NamesT m (AbsN a)
+bindNArg [] f = AbsN [] <$> f []
+bindNArg (Arg i x:xs) f = toAbsN <$> bind x (\ x -> bindNArg xs (\ xs -> f ((Arg i <$> x):xs)))
+
+
+applyN :: ( Monad m
+        , Subst a
+        ) =>
+        NamesT m (AbsN a) -> [NamesT m (SubstArg a)] -> NamesT m a
+applyN f xs = do
+  f <- f
+  xs <- sequence xs
+  unless (length xs == length (absNName f)) $ __IMPOSSIBLE__
+  return $ absAppN f xs
+
+applyN' :: ( Monad m
+        , Subst a
+        ) =>
+        NamesT m (AbsN a) -> NamesT m [SubstArg a] -> NamesT m a
+applyN' f xs = do
+  f <- f
+  xs <- xs
+  unless (length xs == length (absNName f)) $ __IMPOSSIBLE__
+  return $ absAppN f xs
+
+abstractN :: ( MonadFail m
+             , Abstract a
+             ) =>
+             NamesT m Telescope -> (Vars m -> NamesT m a) -> NamesT m a
+abstractN tel f = do
+  tel <- tel
+  u <- bindN (teleNames tel) f
+  return $ abstract tel $ unAbsN u
+
+abstractT :: ( MonadFail m
+             , Abstract a
+             ) =>
+             String -> NamesT m Type -> (Var m -> NamesT m a) -> NamesT m a
+abstractT n ty f = do
+  u <- bind n f
+  ty <- ty
+  let tel = ExtendTel (defaultDom ty) $ Abs n EmptyTel
+  return $ abstract tel $ unAbs u
+
+
+lamTel :: Monad m => NamesT m (Abs [Term]) -> NamesT m ([Term])
+lamTel t = map (Lam defaultArgInfo) . sequenceA <$> t
+
+appTel :: Monad m => NamesT m [Term] -> NamesT m Term -> NamesT m [Term]
+appTel = liftM2 (\ fs x -> map (`apply` [Arg defaultArgInfo x]) fs)
+

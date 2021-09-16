@@ -851,6 +851,7 @@ primitives = Set.fromList
   , "primIdPath"
   , "primIdJ"
   , builtinIdElim
+  , builtinConId
   -- , builtinGlue                   -- missing
   -- , builtin_glue                  -- missing
   -- , builtin_unglue                -- missing

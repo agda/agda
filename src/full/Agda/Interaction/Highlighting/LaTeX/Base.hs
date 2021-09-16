@@ -16,17 +16,30 @@ module Agda.Interaction.Highlighting.LaTeX.Base
   ) where
 
 import Prelude hiding (log)
+
+import Data.Bifunctor (second)
 import Data.Char
 import Data.Maybe
 import Data.Function
 import Data.Foldable (toList)
-import Control.Monad.Trans.Reader as R ( ReaderT(runReaderT) )
+#if !(MIN_VERSION_base(4,11,0))
+import Data.Semigroup (Semigroup(..))
+#endif
+
+import Control.Monad (forM_, mapM_, unless, when)
+import Control.Monad.Trans.Reader as R ( ReaderT(runReaderT))
 import Control.Monad.RWS.Strict
-import Control.Arrow (second)
+  ( MonadIO(..), RWST(runRWST)
+  , MonadReader(..), asks
+  , MonadState(..), gets, modify
+  , lift, tell
+  )
+
 import System.Directory
 import System.Exit
 import System.FilePath
 import System.Process
+
 import Data.Text (Text)
 import qualified Data.Text               as T
 #ifdef COUNT_CLUSTERS
@@ -55,7 +68,10 @@ import Agda.Interaction.Highlighting.Precise hiding (toList)
 import Agda.TypeChecking.Monad (Interface(..))
 
 import Agda.Utils.FileName (AbsolutePath)
-import Agda.Utils.List     (last1)
+import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Functor  ((<&>))
+import Agda.Utils.List     (last1, updateHead, updateLast)
+import Agda.Utils.Maybe    (whenJust)
 import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.Impossible
@@ -72,7 +88,7 @@ class Monad m => MonadLogLaTeX m where
 -- into a WriterT, but that becomes slightly more complicated to reason about in
 -- the presence of IO exceptions.
 --
--- We want the logging to be reasonbly polymorphic, avoid space leaks that can occur
+-- We want the logging to be reasonably polymorphic, avoid space leaks that can occur
 -- with WriterT, and also be usable during outer phases such as directory preparation.
 --
 -- I'm not certain this is the best way to do it, but whatever.
@@ -217,12 +233,7 @@ emptyEnv twe = Env twe []
 -- locale is used), and otherwise the number of code points.
 
 size :: Text -> LaTeX Int
-size t = do
-  f <- estimateTextWidth <$> ask
-  return $ f t
-
-(<+>) :: Text -> Text -> Text
-(<+>) = T.append
+size t = asks estimateTextWidth <&> ($ t)
 
 -- | Does the string consist solely of whitespace?
 
@@ -244,12 +255,13 @@ replaceSpaces = T.map (\c -> if isSpaceNotNewline c then ' ' else c)
 -- | If the `Token` consists of spaces, the internal column counter is advanced
 --   by the length of the token. Otherwise, `moveColumnForToken` is a no-op.
 moveColumnForToken :: Token -> LaTeX ()
-moveColumnForToken t = do
-  unless (isSpaces (text t)) $ do
-    log MoveColumn $ text t
+moveColumnForToken Token{ text = t } = do
+  unless (isSpaces t) $ do
+    log MoveColumn t
     -- ASR (2021-02-07). The eta-expansion is required by GHC >= 9.0.1
     -- (see Issue #4955).
-    (\n -> moveColumn n) =<< size (text t)
+    n <- size t
+    moveColumn n
 
 -- | Merges 'columns' into 'columnsPrev', resets 'column' and
 -- 'columns'
@@ -293,10 +305,8 @@ registerColumn kind = do
 -- column).
 
 useColumn :: AlignmentColumn -> LaTeX ()
-useColumn c = case columnKind c of
-  Nothing -> return ()
-  Just i  -> modify $ \s ->
-               s { usedColumns = Set.insert i (usedColumns s) }
+useColumn c = whenJust (columnKind c) $ \ i ->
+  modify $ \ s -> s { usedColumns = Set.insert i (usedColumns s) }
 
 -- | Alignment column zero in the current code block.
 
@@ -355,7 +365,7 @@ log debug text = logHelper debug text []
 
 output :: Output -> LaTeX ()
 output item = do
-  log Output (T.pack $ show item)
+  log Output $ tshow item
   tell [item]
 
 ------------------------------------------------------------------------
@@ -371,7 +381,7 @@ nl = "%\n"
 -- in the same column.
 
 agdaSpace :: Text
-agdaSpace = cmdPrefix <+> "Space" <+> cmdArg T.empty <+> nl
+agdaSpace = cmdPrefix <> "Space" <> cmdArg T.empty <> nl
 
 -- | The column's name.
 --
@@ -386,7 +396,7 @@ columnName c = T.pack $ case columnKind c of
 -- | Opens a column with the given name.
 
 ptOpen' :: Text -> Text
-ptOpen' name = "\\>[" <+> name <+> "]"
+ptOpen' name = "\\>[" <> name <> "]"
 
 -- | Opens the given column.
 
@@ -397,7 +407,7 @@ ptOpen c = ptOpen' (columnName c)
 -- lines.
 
 ptOpenBeginningOfLine :: Text
-ptOpenBeginningOfLine = ptOpen' "." <+> "[@{}l@{}]"
+ptOpenBeginningOfLine = ptOpen' "." <> "[@{}l@{}]"
 
 -- | Opens the given column, and inserts an indentation instruction
 -- with the given argument at the end of it.
@@ -407,34 +417,34 @@ ptOpenIndent
   -> Int              -- ^ Indentation instruction argument.
   -> Text
 ptOpenIndent c delta =
-  ptOpen c <+> "[@{}l@{"
-           <+> cmdPrefix
-           <+> "Indent"
-           <+> cmdArg (T.pack $ show delta)
-           <+> "}]"
+  ptOpen c <> "[@{}l@{"
+           <> cmdPrefix
+           <> "Indent"
+           <> cmdArg (T.pack $ show delta)
+           <> "}]"
 
 ptClose :: Text
 ptClose = "\\<"
 
 ptClose' :: AlignmentColumn -> Text
 ptClose' c =
-  ptClose <+> "[" <+> columnName c <+> "]"
+  ptClose <> "[" <> columnName c <> "]"
 
 ptNL :: Text
-ptNL = nl <+> "\\\\\n"
+ptNL = nl <> "\\\\\n"
 
 ptEmptyLine :: Text
 ptEmptyLine =
-  nl <+> "\\\\["
-     <+> cmdPrefix
-     <+> "EmptyExtraSkip"
-     <+> "]%\n"
+  nl <> "\\\\["
+     <> cmdPrefix
+     <> "EmptyExtraSkip"
+     <> "]%\n"
 
 cmdPrefix :: Text
 cmdPrefix = "\\Agda"
 
 cmdArg :: Text -> Text
-cmdArg x = "{" <+> x <+> "}"
+cmdArg x = "{" <> x <> "}"
 
 ------------------------------------------------------------------------
 -- * Output generation from a stream of labelled tokens.
@@ -442,51 +452,50 @@ cmdArg x = "{" <+> x <+> "}"
 processLayers :: [(LayerRole, Tokens)] -> LaTeX ()
 -- ASR (2021-02-07). The eta-expansion on @lt@ is required by GHC >=
 -- 9.0.1 (see Issue #4955).
-processLayers lt = (mapM_ $ \(layerRole,toks) -> do
+processLayers lt = forM_ lt $ \ (layerRole,toks) -> do
   case layerRole of
     L.Markup  -> processMarkup  toks
     L.Comment -> processComment toks
-    L.Code    -> processCode    toks) lt
-
-processMarkup, processComment, processCode :: Tokens -> LaTeX ()
+    L.Code    -> processCode    toks
 
 -- | Deals with markup, which is output verbatim.
--- ASR (2021-02-07). The eta-expansion on @t@ is required by GHC >=
+processMarkup :: Tokens -> LaTeX ()
+-- ASR (2021-02-07). The eta-expansion on @ts@ is required by GHC >=
 -- 9.0.1 (see Issue #4955).
-processMarkup t = (mapM_ $ \t' -> do
+processMarkup ts = forM_ ts $ \ t' -> do
   moveColumnForToken t'
-  output (Text (text t'))) t
+  output (Text (text t'))
 
 -- | Deals with literate text, which is output verbatim
--- ASR (2021-02-07). The eta-expansion with @t@ is required by GHC >=
+processComment :: Tokens -> LaTeX ()
+-- ASR (2021-02-07). The eta-expansion with @ts@ is required by GHC >=
 -- 9.0.1 (see Issue #4955).
-processComment t = (mapM_ $ \t' -> do
+processComment ts = forM_ ts $ \ t' -> do
   unless ("%" == T.take 1 (T.stripStart (text t'))) $ do
     moveColumnForToken t'
-  output (Text (text t'))) t
+  output (Text (text t'))
 
 -- | Deals with code blocks. Every token, except spaces, is pretty
 -- printed as a LaTeX command.
+processCode :: Tokens -> LaTeX ()
 processCode toks' = do
   output $ Text nl
   enterCode
   mapM_ go toks'
   ptOpenWhenColumnZero =<< gets column
-  output $ Text $ ptClose <+> nl
+  output $ Text $ ptClose <> nl
   leaveCode
 
   where
-    go tok' = do
+    go tok'@Token{ text = tok } = do
       -- Get the column information before grabbing the token, since
       -- grabbing (possibly) moves the column.
       col  <- gets column
 
       moveColumnForToken tok'
-      let tok = text tok'
       log Code tok
 
-      if (tok == T.empty) then return ()
-      else do
+      unless (T.null tok) $
         if (isSpaces tok) then do
             spaces $ T.group $ replaceSpaces tok
         else do
@@ -494,7 +503,7 @@ processCode toks' = do
           output $ Text $
             -- we return the escaped token wrapped in commands corresponding
             -- to its aspect (if any) and other aspects (e.g. error, unsolved meta)
-            foldr (\c t -> cmdPrefix <+> T.pack c <+> cmdArg t)
+            foldr (\c t -> cmdPrefix <> T.pack c <> cmdArg t)
                   (escape tok)
                   $ map fromOtherAspect (toList $ otherAspects $ info tok') ++
                     concatMap fromAspect (toList $ aspect $ info tok')
@@ -556,7 +565,7 @@ processCode toks' = do
 -- | Escapes special characters.
 escape :: Text -> Text
 escape (T.uncons -> Nothing)     = T.empty
-escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
+escape (T.uncons -> Just (c, s)) = T.pack (replace c) <> escape s
   where
   replace :: Char -> String
   replace char = case char of
@@ -592,7 +601,7 @@ spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
     -- ASR (2021-02-07). The eta-expansion @\o -> output o@ is
     -- required by GHC >= 9.0.1 (see Issue #4955).
     (\o -> output o) . Text . ptOpen =<< columnZero
-  output $ Text $ ptClose <+> ptNL <+>
+  output $ Text $ ptClose <> ptNL <>
                   T.replicate (T.length s - 1) ptEmptyLine
   resetColumn
   spaces ss
@@ -619,7 +628,7 @@ spaces [ s ] = do
     codeBlock  <- gets codeBlock
 
     log Spaces $
-      "col == 0: " <+> T.pack (show (len, columns))
+      "col == 0: " <> T.pack (show (len, columns))
 
     case filter ((<= len) . columnColumn) columns of
       c : _ | columnColumn c == len, isJust (columnKind c) -> do
@@ -651,6 +660,24 @@ stringLiteral t | aspect (info t) == Just String =
     where (pre , suf) = T.span isSpaceNotNewline tok
 
 stringLiteral t = [t]
+
+-- | Split multi-line comments into several tokens.
+-- See issue #5398.
+multiLineComment :: Token -> Tokens
+multiLineComment Token{ text = s, info = i } | aspect i == Just Comment =
+  map (`Token` i)
+    $ List.intersperse "\n"
+    $ T.lines s
+-- multiLineComment Token{ text = s, info = i } | aspect i == Just Comment =
+--   map emptyToPar
+--     $ List1.groupBy ((==) `on` T.null)
+--     $ T.lines s
+--   where
+--   emptyToPar :: List1 Text -> Token
+--   emptyToPar ts@(t :| _)
+--     | T.null t  = Token{ text = "\n", info = mempty }
+--     | otherwise = Token{ text = sconcat $ List1.intersperse "\n" ts, info = i }
+multiLineComment t = [t]
 
 ------------------------------------------------------------------------
 -- * Main.
@@ -747,13 +774,13 @@ toLaTeX env path source hi =
       ( ( \(role, tokens) ->
             (role,) $
               -- This bit fixes issue 954
-              ( if L.isCode role
-                  then-- Remove trailing whitespace from the
+              ( applyWhen (L.isCode role) $
+                  -- Remove trailing whitespace from the
                   -- final line; the function spaces
                   -- expects trailing whitespace to be
                   -- followed by a newline character.
                     whenMoreThanOne
-                      ( withLast
+                      ( updateLast
                           $ withTokenText
                           $ \suf ->
                             maybe
@@ -761,8 +788,8 @@ toLaTeX env path source hi =
                               (T.dropWhileEnd isSpaceNotNewline)
                               (T.stripSuffix "\n" suf)
                       )
-                      . withLast (withTokenText $ T.dropWhileEnd isSpaceNotNewline)
-                      . withFirst
+                      . updateLast (withTokenText $ T.dropWhileEnd isSpaceNotNewline)
+                      . updateHead
                         ( withTokenText $
                             \pre ->
                               fromMaybe pre $ T.stripPrefix "\n" $
@@ -770,19 +797,16 @@ toLaTeX env path source hi =
                                   isSpaceNotNewline
                                   pre
                         )
-                  else-- do nothing
-                    id
               )
                 tokens
         ) . ( second
                 ( -- Split tokens at newlines
-                  concatMap
-                    ( stringLiteral
-                        . ( \(mi, cs) ->
+                  concatMap stringLiteral
+                . concatMap multiLineComment
+                . map ( \(mi, cs) ->
                               Token {text = T.pack cs, info = fromMaybe mempty mi}
-                          )
-                    )
-                    . groupByFst
+                      )
+                . groupByFst
                 )
             )
       )
@@ -797,17 +821,6 @@ toLaTeX env path source hi =
   $ L.unpack source
   where
   infoMap = toMap hi
-
-  -- This function preserves laziness of the list
-  withLast :: (a -> a) -> [a] -> [a]
-  withLast _ [] = []
-  withLast f [a] = [f a]
-  withLast f (a:as) = a:withLast f as
-
-  -- This function preserves laziness of the list
-  withFirst :: (a -> a) -> [a] -> [a]
-  withFirst _ [] = []
-  withFirst f (a:as) = f a:as
 
   whenMoreThanOne :: ([a] -> [a]) -> [a] -> [a]
   whenMoreThanOne f xs@(_:_:_) = f xs
@@ -826,5 +839,5 @@ processTokens env ts = do
     render _ (Text s)        = s
     render s (MaybeColumn c)
       | Just i <- columnKind c,
-        not (Set.member i (usedColumns s)) = agdaSpace
-      | otherwise                          = nl <+> ptOpen c
+        not (i `Set.member` usedColumns s) = agdaSpace
+      | otherwise                          = nl <> ptOpen c

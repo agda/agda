@@ -1,0 +1,8 @@
+customised/iSSue5508.agda:6,8-17
+The name of the top level module does not match the file name. The
+module Issue5508 should be defined in one of the following files:
+  customised/Issue5508.agda
+  customised/Issue5508.lagda
+  agda-default-include-path/Issue5508.agda
+  agda-default-include-path/Issue5508.lagda
+

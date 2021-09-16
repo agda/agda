@@ -53,6 +53,15 @@ General options
 
      Show version number.
 
+.. option:: --print-agda-dir
+
+     .. versionadded:: 2.6.2
+
+     Outputs the root (:envvar:`AGDA_DIR`)
+     of the directory structure holding Agda's data files
+     such as core libraries, style files for the backends etc.
+
+
 Compilation
 ~~~~~~~~~~~
 

@@ -166,7 +166,6 @@ instance ExprLike Expr where
       Unquote{}                  -> pure e0
       DontCare e                 -> DontCare <$> recurse e
       PatternSyn{}               -> pure e0
-      Tactic ei e xs             -> Tactic ei <$> recurse e <*> recurse xs
       Macro{}                    -> pure e0
 
   foldExpr :: forall m. FoldExprFn m Expr
@@ -198,7 +197,6 @@ instance ExprLike Expr where
       Quote{}                -> m
       QuoteTerm{}            -> m
       Unquote{}              -> m
-      Tactic _ e xs          -> m `mappend` fold e `mappend` fold xs
       DontCare e             -> m `mappend` fold e
    where
      m = f e
@@ -235,7 +233,6 @@ instance ExprLike Expr where
       Quote{}                    -> f e
       QuoteTerm{}                -> f e
       Unquote{}                  -> f e
-      Tactic ei e xs             -> f =<< Tactic ei <$> trav e <*> trav xs
       DontCare e                 -> f =<< DontCare <$> trav e
       PatternSyn{}               -> f e
       Macro{}                    -> f e
@@ -585,7 +582,6 @@ instance DeclaredNames RHS where
 --     Quote{}               -> mempty
 --     QuoteTerm{}           -> mempty
 --     Unquote{}             -> mempty
---     Tactic _ e xs         -> declaredNames e <> declaredNames xs
 --     DontCare{}            -> mempty
 --     PatternSyn{}          -> mempty
 --     Macro{}               -> mempty

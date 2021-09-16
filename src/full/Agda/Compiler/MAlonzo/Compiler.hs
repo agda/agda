@@ -239,7 +239,7 @@ ghcPreCompile flags = do
   msub        <- getBuiltinName builtinSub
   msubin      <- getBuiltinName builtinSubIn
   mid         <- getBuiltinName builtinId
-  mconid      <- getBuiltinName builtinConId
+  mconid      <- getPrimitiveName' builtinConId
 
   istcbuiltin <- do
     builtins <- mapM getBuiltinName
@@ -653,13 +653,14 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       -- Id x y is compiled as a pair of a boolean and whatever
       -- Path x y is compiled to.
-      Axiom{} | is ghcEnvId -> do
+      Datatype{} | is ghcEnvId -> do
         _        <- sequence_ [primInterval]
         Just int <- getBuiltinName builtinInterval
         int      <- xhqn TypeK int
+        -- re  #3733: implement reflId
         retDecls $
           [ HS.TypeDecl (unqhname TypeK q)
-              [HS.UnkindedVar (ihname A i) | i <- [0..3]]
+              [] -- [HS.UnkindedVar (ihname A i) | i <- [0..3]]
               (HS.TyApp (HS.FakeType "(,) Bool")
                  (HS.TyFun (HS.TyCon int) mazAnyType))
           , HS.FunBind
@@ -669,7 +670,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
           ]
 
       -- conid.
-      Axiom{} | is ghcEnvConId -> do
+      Primitive{} | is ghcEnvConId -> do
         strict <- optGhcStrictData <$> askGhcOpts
         let var = (if strict then HS.PBangPat else id) . HS.PVar
         retDecls $

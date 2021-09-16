@@ -3,7 +3,6 @@ Agda 2
 
 [![Hackage version](https://img.shields.io/hackage/v/Agda.svg?label=Hackage)](http://hackage.haskell.org/package/Agda)
 [![Stackage version](https://www.stackage.org/package/Agda/badge/lts?label=Stackage)](https://www.stackage.org/package/Agda)
-[![Travis Status](https://travis-ci.org/agda/agda.svg?branch=master)](https://travis-ci.org/agda/agda)
 [![Test](https://github.com/agda/agda/workflows/Build,%20Test,%20and%20Benchmark/badge.svg?branch=master)](https://github.com/agda/agda/actions?query=workflow%3A%22Build%2C+Test%2C+and+Benchmark%22)
 [![Stack Build Status via GH Actions](https://github.com/agda/agda/workflows/stack%20build/badge.svg)](https://github.com/agda/agda/actions?query=workflow%3A%22stack+build%22)
 [![Documentation Status](https://readthedocs.org/projects/agda/badge/?version=latest)](http://agda.readthedocs.io/en/latest/?badge=latest)

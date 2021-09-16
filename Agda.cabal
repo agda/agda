@@ -39,7 +39,7 @@ tested-with:        GHC == 8.0.2
                     GHC == 8.4.4
                     GHC == 8.6.5
                     GHC == 8.8.4
-                    GHC == 8.10.5
+                    GHC == 8.10.7
                     GHC == 9.0.1
 
 extra-source-files: CHANGELOG.md
@@ -85,7 +85,7 @@ extra-source-files: CHANGELOG.md
                     stack-8.4.4.yaml
                     stack-8.6.5.yaml
                     stack-8.8.4.yaml
-                    stack-8.10.5.yaml
+                    stack-8.10.7.yaml
                     stack-9.0.1.yaml
 
 data-dir:           src/data
@@ -455,6 +455,8 @@ library
                     Agda.TypeChecking.Coverage
                     Agda.TypeChecking.Coverage.Match
                     Agda.TypeChecking.Coverage.SplitTree
+                    Agda.TypeChecking.Coverage.SplitClause
+                    Agda.TypeChecking.Coverage.Cubical
                     Agda.TypeChecking.Datatypes
                     Agda.TypeChecking.DeadCode
                     Agda.TypeChecking.DisplayForm
@@ -543,6 +545,8 @@ library
                     Agda.TypeChecking.Rules.LHS.Problem
                     Agda.TypeChecking.Rules.LHS.ProblemRest
                     Agda.TypeChecking.Rules.LHS.Unify
+                    Agda.TypeChecking.Rules.LHS.Unify.Types
+                    Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
                     Agda.TypeChecking.Rules.Record
                     Agda.TypeChecking.Rules.Term
                     Agda.TypeChecking.Serialise
@@ -910,6 +914,11 @@ test-suite agda-tests
                     , Succeed.Tests
                     , UserManual.Tests
                     , Utils
+
+  -- Andreas, 2021-08-26, see https://github.com/haskell/cabal/issues/7577
+  -- Since 'agda-tests' wants to call 'agda', we have to add it here,
+  -- should we want to run 'cabal test'.
+  build-tool-depends: Agda:agda
 
   build-depends:  Agda
                 , array >= 0.5.1.1 && < 0.6

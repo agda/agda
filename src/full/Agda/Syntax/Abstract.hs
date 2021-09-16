@@ -110,8 +110,6 @@ data Expr
   | Quote ExprInfo                     -- ^ Quote an identifier 'QName'.
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
-  | Tactic ExprInfo Expr [NamedArg Expr]
-                                       -- ^ @tactic e x1 .. xn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
   deriving (Data, Show, Generic)
 
@@ -557,7 +555,6 @@ instance Eq Expr where
   Quote a1                   == Quote a2                   = a1 == a2
   QuoteTerm a1               == QuoteTerm a2               = a1 == a2
   Unquote a1                 == Unquote a2                 = a1 == a2
-  Tactic a1 b1 c1            == Tactic a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
   DontCare a1                == DontCare a2                = a1 == a2
 
   _                          == _                          = False
@@ -640,7 +637,6 @@ instance HasRange Expr where
     getRange (Quote i)               = getRange i
     getRange (QuoteTerm i)           = getRange i
     getRange (Unquote i)             = getRange i
-    getRange (Tactic i _ _)          = getRange i
     getRange (DontCare{})            = noRange
     getRange (PatternSyn x)          = getRange x
     getRange (Macro x)               = getRange x
@@ -771,7 +767,6 @@ instance KillRange Expr where
   killRange (Quote i)                = killRange1 Quote i
   killRange (QuoteTerm i)            = killRange1 QuoteTerm i
   killRange (Unquote i)              = killRange1 Unquote i
-  killRange (Tactic i e xs)          = killRange3 Tactic i e xs
   killRange (DontCare e)             = killRange1 DontCare e
   killRange (PatternSyn x)           = killRange1 PatternSyn x
   killRange (Macro x)                = killRange1 Macro x
@@ -1052,7 +1047,6 @@ instance SubstExpr Expr where
     Quote{}         -> __IMPOSSIBLE__
     QuoteTerm{}     -> __IMPOSSIBLE__
     Unquote{}       -> __IMPOSSIBLE__
-    Tactic{}        -> __IMPOSSIBLE__
     DontCare{}      -> __IMPOSSIBLE__
     Macro{}         -> __IMPOSSIBLE__
 

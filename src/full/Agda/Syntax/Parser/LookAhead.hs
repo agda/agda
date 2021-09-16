@@ -24,6 +24,9 @@ import Control.Monad.State
 import Agda.Syntax.Parser.Alex
 import Agda.Syntax.Parser.Monad
 
+import Agda.Utils.Null (ifNull)
+import Agda.Utils.Maybe (caseMaybeM, fromMaybeM)
+
 {--------------------------------------------------------------------------
     The look-ahead monad
  --------------------------------------------------------------------------}
@@ -67,13 +70,17 @@ liftP = LookAhead . lift . lift
 
 -- | Look at the next character. Fails if there are no more characters.
 nextChar :: LookAhead Char
-nextChar =
+nextChar = fromMaybeM (lookAheadError "unexpected end of file") nextCharMaybe
+
+-- | Look at the next character. Return 'Nothing' if there are no more characters.
+nextCharMaybe :: LookAhead (Maybe Char)
+nextCharMaybe =
     do  inp <- getInput
         case alexGetChar inp of
-            Nothing         -> lookAheadError "unexpected end of file"
+            Nothing         -> return Nothing
             Just (c,inp')   ->
                 do  setInput inp'
-                    return c
+                    return $ Just c
 
 
 -- | Consume all the characters up to the current look-ahead position.
@@ -113,17 +120,42 @@ match xs def =
     the input is not advanced.
 -}
 match' :: Char -> [(String, LookAhead a)] -> LookAhead a -> LookAhead a
-match' c xs def =
-    do  inp <- getInput
-        match'' inp xs c
-    where
-        match'' inp bs c =
-            case bs' of
-                []          -> setInput inp >> def
-                [("",p)]    -> p
-                _           -> match'' inp bs' =<< nextChar
-            where
-                bs' = [ (s, p) | (c':s, p) <- bs, c == c' ]
+match' c xs def = do
+
+  -- Set the error continuation to the default @def@, but make sure we reset
+  -- the input to where we started speculative matching.
+  inp <- getInput
+  let fallback = setInput inp >> def
+
+  -- Find the longest match from the table.
+  match'' fallback xs c
+
+  where
+  match'' fallback bs c =
+
+    -- Match the first character, dropping entries that do not match.
+    ifNull [ (s, p) | (c':s, p) <- bs, c == c' ]
+
+      -- If no alternatives are left, fall back to the failure continuation.
+      {-then-} fallback
+
+      -- Otherwise:
+      {-else-} $ \ bs' -> do
+
+        -- If we have a successful match, store it in the failure continuation.
+        fallback' <- do
+          case lookup "" bs' of
+
+            -- No match yet.
+            Nothing -> pure fallback
+
+            -- Match found!  Remember it, and the state of the input where we found it.
+            Just p  -> do
+              inp <- getInput
+              pure $ setInput inp >> p
+
+        -- Keep trying to find a (longer) match.
+        maybe fallback' (match'' fallback' bs') =<< nextCharMaybe
 
 -- | Run a 'LookAhead' computation. The first argument is the error function.
 runLookAhead :: (forall b. String -> LookAhead b) -> LookAhead a -> Parser a

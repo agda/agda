@@ -5,16 +5,7 @@
 -- prelude stolen from Saizan/cubical-demo
 
 open import Agda.Primitive.Cubical public
-
-postulate
-  Path' : ∀ {ℓ} {A :     Set ℓ} → A    → A    → Set ℓ
-  PathP : ∀ {ℓ} (A : I → Set ℓ) → A i0 → A i1 → Set ℓ
-
-{-# BUILTIN PATHP        PathP     #-}
-
-infix 4 _≡_
-_≡_ : ∀ {ℓ} {A : Set ℓ} → A → A → Set ℓ
-_≡_ {A = A} = PathP (λ _ → A)
+open import Agda.Builtin.Cubical.Path
 
 Path = _≡_
 

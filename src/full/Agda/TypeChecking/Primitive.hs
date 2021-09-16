@@ -963,6 +963,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primIdPath"          |-> primIdPath'
   , builtinIdElim         |-> primIdElim'
   , builtinSubOut         |-> primSubOut'
+  , builtinConId          |-> primConId'
   , builtin_glueU         |-> prim_glueU'
   , builtin_unglueU       |-> prim_unglueU'
   , builtinLockUniv       |-> primLockUniv'

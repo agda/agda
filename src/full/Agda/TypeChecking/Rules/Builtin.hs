@@ -158,18 +158,16 @@ coreBuiltins =
                                                                    pPi' "o" (cl primIZero) (\ o ->
                                                                         el' l $ gApply' (setRelevance Irrelevant defaultArgInfo) bA o)))
 
-  , (builtinId                               |-> builtinPostulateC CErased (hPi "a" (el primLevel) $
+  , (builtinId                               |-> BuiltinData ((>>) (requireCubical CErased "") $ hPi "a" (el primLevel) $
                                                               hPi "A" (return $ sort $ varSort 0) $
                                                               (El (varSort 1) <$> varM 0) -->
                                                               (El (varSort 1) <$> varM 0) -->
-                                                              return (sort $ varSort 1)))
-  , (builtinConId                            |-> builtinPostulateC CErased (hPi "a" (el primLevel) $
-                                                           hPi "A" (return $ sort $ varSort 0) $
-                                                           hPi "x" (El (varSort 1) <$> varM 0) $
-                                                           hPi "y" (El (varSort 2) <$> varM 1) $
-                                                           tinterval -->
-                                                           (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0) -->
-                                                           (El (varSort 3) <$> primId <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)))
+                                                             return (sort $ varSort 1)) [builtinReflId])
+  , (builtinReflId                           |-> BuiltinDataCons ((>>) (requireCubical CErased "") $ runNamesT [] $
+                                                              hPi' "a" (el primLevel) $ \ l ->
+                                                              hPi' "A" (sort . tmSort <$> l) $ \ bA ->
+                                                              hPi' "x" (el' l bA) $ \ x ->
+                                                              el' l (primId <#> l <#> bA <@> x <@> x)))
   , (builtinEquiv                            |-> BuiltinUnknown (Just $ requireCubical CFull "" >> runNamesT [] (
                                                                     hPi' "l" (el $ cl primLevel) $ \ a ->
                                                                     hPi' "l'" (el $ cl primLevel) $ \ b ->
@@ -859,6 +857,19 @@ builtinPathPHook q =
       $ updateDefPolarity       id
       . updateDefArgOccurrences (const [Unused,StrictPos,Mixed,Mixed])
 
+builtinIdHook :: QName -> TCM ()
+builtinIdHook q = do
+      modifySignature $ updateDefinition q
+        $ updateDefPolarity       id
+        . updateDefArgOccurrences (const [Unused,StrictPos,Mixed,Mixed])
+      modifySignature $ updateDefinition q
+        $ updateTheDef (\ def@Datatype{} -> def { dataPars = 3, dataIxs = 1})
+
+builtinReflIdHook :: QName -> TCM ()
+builtinReflIdHook q = do
+      modifySignature $ updateDefinition q
+        $ updateTheDef (\ def@Constructor{} -> def { conPars = 3, conArity = 0})
+
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> ResolvedName -> TCM ()
 bindBuiltin b x = do
@@ -982,11 +993,15 @@ bindBuiltinNoDef b q = inTopContext $ do
               }
       addConstant' q defaultArgInfo q t def
       addDataCons d [q]
+
+      when (b == builtinReflId)     $ builtinReflIdHook q
+
       bindBuiltinName b $ Con ch ConOSystem []
 
     Just (BuiltinData mt cs) -> do
       t <- mt
       addConstant' q defaultArgInfo q t (def t)
+      when (b == builtinId)     $ builtinIdHook q
       bindBuiltinName b $ Def q []
       where
         def t = Datatype
@@ -998,6 +1013,8 @@ bindBuiltinNoDef b q = inTopContext $ do
               , dataAbstr      = ConcreteDef
               , dataMutual     = Nothing
               , dataPathCons   = []
+              , dataTranspIx   = Nothing -- Id has custom transp def.
+              , dataTransp     = Nothing
               }
 
     Just (BuiltinSort sortname) -> do

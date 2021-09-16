@@ -62,8 +62,8 @@ nPi = gpi defaultArgInfo
 
 hPi', nPi' :: (MonadFail m, MonadAddContext m, MonadDebug m)
            => String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
-hPi' s a b = hPi s a (bind' s b)
-nPi' s a b = nPi s a (bind' s b)
+hPi' s a b = hPi s a (bind' s (\ x -> b x))
+nPi' s a b = nPi s a (bind' s (\ x -> b x))
 
 pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
      => String -> NamesT m Term -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
