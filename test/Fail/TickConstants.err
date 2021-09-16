@@ -1,0 +1,4 @@
+TickConstants.agda:13,10-25
+The following vars are not allowed in a later value applied to c
+                                                               x : [x]
+when checking that the expression foo (c x) (c x) has type Set

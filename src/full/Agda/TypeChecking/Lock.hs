@@ -9,8 +9,9 @@ where
 
 import Control.Monad.Reader
 
---import qualified Data.IntMap as IMap
+import qualified Data.IntMap as IMap
 import qualified Data.IntSet as ISet
+import qualified Data.Set as Set
 
 
 import Agda.Syntax.Common
@@ -28,7 +29,7 @@ import Agda.TypeChecking.Free
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
-import Agda.Utils.VarSet as Set
+import Agda.Utils.VarSet as VSet
 
 import Agda.Utils.Impossible
 
@@ -59,10 +60,8 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
      ]
 
   -- Strategy: compute allowed variables, check that @t@ doesn't use more.
-  mv <- isVar (unArg lk)
-  caseMaybe mv noVar $ \ i -> do
-
-  isLock i
+  mi <- getLockVar (unArg lk)
+  caseMaybe mi (return ()) $ \ i -> do
 
   cxt <- getContext
   let toCheck = zip [0..] $ zipWith raise [1..] (take i cxt)
@@ -94,20 +93,32 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
     patternViolation alwaysUnblock
   else do
     notAllowedVarsError (unArg lk) (ISet.toList illegalVars)
- where
-   noVar = typeError $ GenericError "lock should be a var"
+
+
+getLockVar :: Term -> TCMT IO (Maybe Int)
+getLockVar lk = do
+  let
+    fv = freeVarsIgnore IgnoreInAnnotations lk
+    flex = flexibleVars fv
+
+  unless (IMap.null flex) $ do
+    let metas = Set.unions $ map (foldrMetaSet Set.insert Set.empty) $ IMap.elems flex
+    patternViolation $ unblockOnAnyMeta $ metas
+
+  is <- filterM isLock $ ISet.toList $ rigidVars fv
+
+  -- Out of the lock variables that appear in @lk@ the one in the
+  -- left-most position in the context is what will determine the
+  -- available context for the head.
+  let mi | Prelude.null is   = Nothing
+         | otherwise = Just $ maximum is
+
+  return $ mi
+
+  where
    isLock i = do
      islock <- getLock . domInfo <$> lookupBV i
-     unless (islock == IsLock) $
-       typeError $ GenericError "Cannot eliminate with non-lock variable."
-
--- to use only on lock terms
-isVar :: Term -> TCMT IO (Maybe Int)
-isVar t = do
-  t <- abortIfBlocked t
-  case t of
-    (Var l []) -> return $ Just l
-    _          -> return $ Nothing
+     return $ islock == IsLock
 
 isTimeless :: Type -> TCM Bool
 isTimeless t = do
@@ -125,9 +136,9 @@ notAllowedVarsError lk is = do
 
 checkEarlierThan :: Term -> VarSet -> TCM ()
 checkEarlierThan lk fvs = do
-  mv <- isVar lk
-  caseMaybe mv __IMPOSSIBLE__ $ \ i -> do
-    let problems = filter (<= i) $ Set.toList fvs
+  mv <- getLockVar lk
+  caseMaybe mv (return ()) $ \ i -> do
+    let problems = filter (<= i) $ VSet.toList fvs
     forM_ problems $ \ j -> do
       ty <- typeOfBV j
       unlessM (isTimeless ty) $
