@@ -13,7 +13,7 @@ all : $(targets)
 # Normalize YAML files by going via JSON.
 # This expands anchors which are not understood by github workflows.
 
-% : $(srcpath)/% $(header)
+% : $(srcpath)/% $(header) Makefile
 	@cp $(header) $@
 	yaml2json $< | json2yaml - >> $@
 
@@ -27,7 +27,7 @@ requirements: req-cabal
 req-cabal:
 	cabal install yaml -f-no-exe
 
-STACK_OPTS = --resolver nightly --system-ghc
+STACK_OPTS = --system-ghc
 req-stack:
 	stack install yaml --flag yaml:-no-exe ${STACK_OPTS}
 
