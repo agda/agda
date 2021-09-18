@@ -5,7 +5,6 @@
 ##  Edit source in /src/github/workflows/ instead!  ##
 ##                                                  ##
 ######################################################
-name: Build (stack)
 jobs:
   auto-cancel:
     if: |
@@ -15,53 +14,53 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
-      with:
+    - with:
         access_token: ${{ github.token }}
+      uses: styfle/cancel-workflow-action@0.6.0
   stack:
-    runs-on: ${{ matrix.os }}
+    env:
+      ICU: mingw-w64-x86_64-icu
+      ARGS: --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal
+      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
+        Agda:debug
+      EXTRA_ARGS: --fast
+    defaults:
+      run:
+        shell: bash
     strategy:
-      fail-fast: false
       matrix:
         include:
-        - os: macos-latest
+        - stack-ver: latest
           ghc-ver: 9.0.1
-          stack-ver: latest
-        - os: windows-latest
+          os: macos-latest
+        - stack-ver: latest
           ghc-ver: 9.0.1
-          stack-ver: latest
-        os:
-        - ubuntu-18.04
+          os: windows-latest
+        stack-ver:
+        - latest
         ghc-ver:
         - 9.0.1
-        - 8.10.6
+        - 8.10.7
         - 8.8.4
         - 8.6.5
         - 8.4.4
         - 8.2.2
         - 8.0.2
-        stack-ver:
-        - latest
-    defaults:
-      run:
-        shell: bash
-    env:
-      ARGS: --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal
-      ICU: mingw-w64-x86_64-icu
-      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
-        Agda:debug
-      EXTRA_ARGS: --fast
+        os:
+        - ubuntu-18.04
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    needs: auto-cancel
     steps:
-    - uses: actions/checkout@v2
-      with:
+    - with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
-      with:
-        stack-version: ${{ matrix.stack-ver }}
+      uses: actions/checkout@v2
+    - with:
         ghc-version: ${{ matrix.ghc-ver }}
+        stack-version: ${{ matrix.stack-ver }}
         enable-stack: true
-    - name: Update and configure stack package index
-      run: |
+      uses: haskell/actions/setup@v1
+    - run: |
         stack update --silent
         if [[ "$OSTYPE" == "linux-gnu"* || "$OSTYPE" == "darwin"* ]]; then
           echo "system-ghc: true" >> ~/.stack/config.yaml
@@ -69,53 +68,50 @@ jobs:
           echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
         fi
         stack build ${ARGS} --dry-run
+      name: Update and configure stack package index
     - if: ${{ runner.os == 'Linux' }}
-      uses: actions/cache@v2
-      id: cache-on-unix
       with:
+        path: ~/.stack
         key: |
           ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
-        path: ~/.stack
-      name: Cache dependencies (Unix-like)
-    - if: ${{ runner.os == 'Windows' }}
       uses: actions/cache@v2
-      id: cache-on-win64
+      name: Cache dependencies (Unix-like)
+      id: cache-on-unix
+    - if: ${{ runner.os == 'Windows' }}
       with:
+        path: ${{ env.STACK_ROOT }}
         key: |
           ${{ runner.os }}-stack-02-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
-        path: ${{ env.STACK_ROOT }}
+      uses: actions/cache@v2
       name: Cache dependencies (Windows)
+      id: cache-on-win64
     - if: ${{ runner.os == 'Linux' }}
-      name: Install the icu library (Ubuntu)
       run: |
         sudo apt-get update -qq
         sudo apt-get install libicu-dev -qq
+      name: Install the icu library (Ubuntu)
     - if: ${{ runner.os == 'Windows' }}
-      name: Install the icu library (Windows)
       run: |
         # stack exec ${ARGS} -- wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
         # stack exec ${ARGS} -- pacman -U --noconfirm ${ICU_FILE}
         stack exec ${ARGS} -- pacman -S --noconfirm ${ICU}
+      name: Install the icu library (Windows)
     - if: ${{ runner.os == 'Linux' && matrix.ghc-ver == '8.4.4' }}
-      name: Install the numa library (Ubuntu, GHC 8.4.4)
       run: |
         sudo apt-get install libnuma-dev -qq
+      name: Install the numa library (Ubuntu, GHC 8.4.4)
     - if: ${{ !steps.cache-on-unix.outputs.cache-hit && !steps.cache-on-win64.outputs.cache-hit
         }}
-      name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
-    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
+      name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
+    - run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
+      name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
         (i.e. the test suite).
-      run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
-    - name: Build Agda with the non-default flags Agda.cabal.
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
-    needs: auto-cancel
+    - run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
+      name: Build Agda with the non-default flags Agda.cabal.
+name: Build (stack)
 'on':
-  push:
-    branches:
-    - master
-    - ci-*
-    - release*
+  pull_request:
     paths:
     - .github/workflows/stack.yml
     - Agda.cabal
@@ -126,7 +122,11 @@ jobs:
     - src/main/**
     - src/size-solver/**
     - test/**.hs
-  pull_request:
+  push:
+    branches:
+    - master
+    - ci-*
+    - release*
     paths:
     - .github/workflows/stack.yml
     - Agda.cabal

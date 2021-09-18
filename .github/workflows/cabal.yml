@@ -8,58 +8,46 @@
 defaults:
   run:
     shell: bash
-name: Build (cabal)
 jobs:
-  auto-cancel:
-    if: |
-      !contains(github.event.head_commit.message, '[skip ci]')
-      && !contains(github.event.head_commit.message, '[ci skip]')
-      && !contains(github.event.head_commit.message, '[github skip]')
-      && !contains(github.event.head_commit.message, '[skip github]')
-    runs-on: Ubuntu-latest
-    steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
-      with:
-        access_token: ${{ github.token }}
   cabal:
-    runs-on: ${{ matrix.os }}
+    env:
+      FLAGS: -f enable-cluster-counting
+      ICU_URL: https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip
     strategy:
-      fail-fast: false
       matrix:
+        ghc-ver:
+        - 9.0.1
+        cabal-ver:
+        - 3.4
         os:
         - windows-latest
         - macos-latest
         - ubuntu-18.04
-        cabal-ver:
-        - 3.4
-        ghc-ver:
-        - 9.0.1
-    env:
-      FLAGS: -f enable-cluster-counting
-      ICU_URL: https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    needs: auto-cancel
     steps:
-    - uses: actions/checkout@v2
-      with:
+    - with:
         submodules: recursive
-    - uses: haskell/actions/setup@v1
-      id: setup-haskell
-      with:
-        ghc-version: ${{ matrix.ghc-ver }}
+      uses: actions/checkout@v2
+    - with:
         cabal-version: ${{ matrix.cabal-ver }}
-    - name: Configure the build plan
-      run: |
+        ghc-version: ${{ matrix.ghc-ver }}
+      uses: haskell/actions/setup@v1
+      id: setup-haskell
+    - run: |
         cabal update
         cabal configure ${FLAGS} -O0
+      name: Configure the build plan
     - if: ${{ runner.os == 'Linux' }}
-      name: Install the icu library (Ubuntu)
       run: |
         sudo apt-get update -qq
         sudo apt-get install libicu-dev -qq
+      name: Install the icu library (Ubuntu)
     - if: ${{ runner.os == 'Windows' }}
       env:
-        ICU_FILE: /tmp/icu4c.zip
         ICU_DIR: /c/icu4c
-      name: Download the icu4c library from unicode-org (Windows)
+        ICU_FILE: /tmp/icu4c.zip
       run: |
         curl -sSLo ${ICU_FILE} ${ICU_URL}
         7z e ${ICU_FILE} -o${ICU_DIR}
@@ -68,32 +56,40 @@ jobs:
 
         echo "extra-lib-dirs: $(cygpath -w ${ICU_DIR})">> ${APPDATA}/cabal/config
         echo "extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)" >> ${APPDATA}/cabal/config
-    - uses: actions/cache@v2
-      id: cache
-      with:
-        key: ${{ runner.os }}-cabal-01-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver
-          }}-${{ hashFiles('**/plan.json') }}
+      name: Download the icu4c library from unicode-org (Windows)
+    - with:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
+        key: ${{ runner.os }}-cabal-01-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver
+          }}-${{ hashFiles('**/plan.json') }}
+      uses: actions/cache@v2
       name: Cache dependencies
+      id: cache
     - if: ${{ !steps.cache.outputs.cache-hit }}
-      name: Install dependencies
       run: |
         cabal build --only-dependencies
-    - name: Build Agda
-      run: |
+      name: Install dependencies
+    - run: |
         cabal build
-    - name: Build Agda without enable-cluster-counting
-      run: |
+      name: Build Agda
+    - run: |
         cabal configure -O0
         cabal build
-    needs: auto-cancel
+      name: Build Agda without enable-cluster-counting
+  auto-cancel:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+    runs-on: Ubuntu-latest
+    steps:
+    - with:
+        access_token: ${{ github.token }}
+      uses: styfle/cancel-workflow-action@0.6.0
+name: Build (cabal)
 'on':
-  push:
-    branches:
-    - master
-    - ci-*
-    - release*
+  pull_request:
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal
@@ -102,7 +98,11 @@ jobs:
     - src/full/**
     - src/main/**
     - test/**.hs
-  pull_request:
+  push:
+    branches:
+    - master
+    - ci-*
+    - release*
     paths:
     - .github/workflows/cabal.yml
     - Agda.cabal

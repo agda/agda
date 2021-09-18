@@ -5,7 +5,6 @@
 ##  Edit source in /src/github/workflows/ instead!  ##
 ##                                                  ##
 ######################################################
-name: Lint
 jobs:
   hlint:
     if: |
@@ -16,15 +15,27 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2.3.1
-    - uses: rwe/actions-hlint-setup@v1
-      with:
+    - with:
         version: 3.1.6
+      uses: rwe/actions-hlint-setup@v1
       name: Set up hlint
-    - uses: rwe/actions-hlint-run@v2
-      with:
+    - with:
         path: '["src/", "test/"]'
+      uses: rwe/actions-hlint-run@v2
       name: Run hlint
+name: Lint
 'on':
+  pull_request:
+    types:
+    - opened
+    - reopened
+    - synchronize
+    paths:
+    - .github/workflows/lint.yaml
+    - .hlint.yaml
+    - Agda.cabal
+    - src/**
+    - test/**
   push:
     branches:
     - master
@@ -36,14 +47,3 @@ jobs:
     - Agda.cabal
     - src/**
     - test/**
-  pull_request:
-    paths:
-    - .github/workflows/lint.yaml
-    - .hlint.yaml
-    - Agda.cabal
-    - src/**
-    - test/**
-    types:
-    - opened
-    - reopened
-    - synchronize

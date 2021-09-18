@@ -8,43 +8,31 @@
 defaults:
   run:
     shell: bash
-name: Deploy
 jobs:
-  auto-cancel:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion
-      == 'success' }}
-    runs-on: Ubuntu-latest
-    steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
-      with:
-        access_token: ${{ github.token }}
   build:
     if: ${{ always() }}
-    outputs:
-      sha: ${{ steps.vars.outputs.sha }}
-    runs-on: ${{ matrix.os }}
+    env:
+      ARGS: --disable-executable-profiling --disable-library-profiling --enable-split-sections
+      LINUX_ARGS: --enable-executable-static
+      WIN64_ARGS: --flags=enable-cluster-counting
+      MACOS_ARGS: --flags=enable-cluster-counting
     strategy:
-      fail-fast: false
       matrix:
+        ghc-ver:
+        - 9.0.1
+        cabal-ver:
+        - 3.4
         os:
         - windows-latest
         - macos-latest
         - ubuntu-18.04
-        cabal-ver:
-        - 3.4
-        ghc-ver:
-        - 9.0.1
-    env:
-      ARGS: --disable-executable-profiling --disable-library-profiling --enable-split-sections
-      LINUX_ARGS: --enable-executable-static
-      MACOS_ARGS: --flags=enable-cluster-counting
-      WIN64_ARGS: --flags=enable-cluster-counting
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    needs: auto-cancel
     steps:
     - uses: actions/checkout@v2
       name: Check out the master branch
-    - id: vars
-      name: Set up platform-dependent variables
-      run: |
+    - run: |
         sha=`echo $(git rev-parse --short=7 HEAD)`
         nightly=`echo Agda-nightly`
 
@@ -74,24 +62,25 @@ jobs:
           echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
           echo "::set-output name=args::${ARGS} ${LINUX_ARGS}"
         fi
-    - name: Display build variables
-      run: |
+      name: Set up platform-dependent variables
+      id: vars
+    - run: |
         echo nightly=${{ steps.vars.outputs.nightly }}
         echo compress-cmd=${{ steps.vars.outputs.compress-cmd }}
         echo filename=${{ steps.vars.outputs.filename }}
         echo content-type=${{ steps.vars.outputs.content-type }}
         echo args=${{ steps.vars.outputs.args }}
-    - uses: haskell/actions/setup@v1
-      id: setup-haskell
-      with:
-        ghc-version: ${{ matrix.ghc-ver }}
+      name: Display build variables
+    - with:
         cabal-version: ${{ matrix.cabal-ver }}
+        ghc-version: ${{ matrix.ghc-ver }}
+      uses: haskell/actions/setup@v1
+      id: setup-haskell
     - if: ${{ runner.os == 'Windows' }}
       env:
-        ICU_FILE: icu4c.zip
         ICU_DIR: /c/icu4c
         ICU_URL: https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip
-      name: Install the icu4c library (Windows)
+        ICU_FILE: icu4c.zip
       run: |
         curl -sSLo ${ICU_FILE} ${ICU_URL}
         7z e ${ICU_FILE} -o${ICU_DIR} && rm ${ICU_FILE}
@@ -99,8 +88,8 @@ jobs:
 
         echo "extra-lib-dirs: $(cygpath -w ${ICU_DIR})">> ${APPDATA}/cabal/config
         echo "extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)" >> ${APPDATA}/cabal/config
-    - name: Configure the build plan
-      run: |
+      name: Install the icu4c library (Windows)
+    - run: |
         cabal configure ${{ steps.vars.outputs.args }}
 
         #    - uses: actions/cache@v2
@@ -112,20 +101,20 @@ jobs:
         #        # A unique cache is used for each stack.yaml.
         #        key: nightly-${{ runner.os }}-ghc-${{ matrix.ghc-ver }}-cabal-${{ hashFiles('**/plan.json') }}
         #
+      name: Configure the build plan
     - if: ${{ !steps.cache.outputs.cache-hit }}
-      name: Build dependencies
       run: cabal build exe:agda exe:agda-mode --only-dependencies -v0
-    - uses: nick-invision/retry@v2
-      with:
-        retry_on: error
+      name: Build dependencies
+    - with:
         command: cabal build exe:agda exe:agda-mode
-        timeout_minutes: 60
         max_attempts: 3
+        timeout_minutes: 60
+        retry_on: error
+      uses: nick-invision/retry@v2
       name: Build Agda
     - env:
-        ICU_VER: '69'
         ICU_DIR: /usr/local/opt/icu4c/lib
-      name: Move artefacts to ${{ steps.vars.outputs.nightly }}
+        ICU_VER: '69'
       run: |
         mkdir -p ${{ steps.vars.outputs.nightly }}/bin
         cp -a src/data ${{ steps.vars.outputs.nightly }}
@@ -155,57 +144,68 @@ jobs:
           fi
         fi
         file ${{ steps.vars.outputs.nightly }}/bin/agda
+      name: Move artefacts to ${{ steps.vars.outputs.nightly }}
     - if: ${{ runner.os != 'macOS' }}
-      uses: svenstaro/upx-action@v2
       with:
         strip: false
         file: ${{ steps.vars.outputs.nightly }}/bin/${{ steps.vars.outputs.exe }}
+      uses: svenstaro/upx-action@v2
       name: Compress the Agda executable
-    - name: Display the version information
-      run: |
+    - run: |
         ${{ steps.vars.outputs.nightly }}/bin/agda --version
-    - name: Pack artefacts
-      run: |
+      name: Display the version information
+    - run: |
         ${{ steps.vars.outputs.compress-cmd }}
-    - uses: actions/upload-artifact@v2
-      with:
-        retention-days: 3
-        if-no-files-found: error
-        name: ${{ steps.vars.outputs.filename }}
+      name: Pack artefacts
+    - with:
         path: ${{ steps.vars.outputs.filename }}
-    needs: auto-cancel
+        name: ${{ steps.vars.outputs.filename }}
+        if-no-files-found: error
+        retention-days: 3
+      uses: actions/upload-artifact@v2
+    outputs:
+      sha: ${{ steps.vars.outputs.sha }}
+  auto-cancel:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion
+      == 'success' }}
+    runs-on: Ubuntu-latest
+    steps:
+    - with:
+        access_token: ${{ github.token }}
+      uses: styfle/cancel-workflow-action@0.6.0
   deploy:
     if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run'
       }}
     runs-on: ubuntu-latest
+    needs: build
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/download-artifact@v2
-      with:
+    - with:
         path: artifacts
-    - uses: dev-drprasad/delete-tag-and-release@v0.1.2
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-      with:
+      uses: actions/download-artifact@v2
+    - with:
         tag_name: nightly
         delete_release: true
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      uses: dev-drprasad/delete-tag-and-release@v0.1.2
       name: Delete the nightly tag if any
     - env:
         GITHUB_TOKEN: ${{ github.token }}
-      name: Create a nightly release and upload artifacts as release assets
       run: |
         assets=()
         for asset in artifacts/**/*; do
           assets+=("-a" "$asset")
         done
         hub release create "${assets[@]}" -m "Nightly Build (${{ needs.build.outputs.sha }}@master)" 'nightly'
-    needs: build
+      name: Create a nightly release and upload artifacts as release assets
+name: Deploy
 'on':
+  workflow_dispatch: null
   workflow_run:
-    workflows:
-    - Build, Test, and Benchmark
     branches:
     - master
     types:
     - completed
-  workflow_dispatch: null
+    workflows:
+    - Build, Test, and Benchmark
