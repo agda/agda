@@ -327,6 +327,7 @@ TAGS : have-bin-hs-tags
 
 ##############################################################################
 ## Standard library
+
 .PHONY : std-lib ## Update the standard library.
 std-lib :
 	git submodule update --init std-lib
@@ -342,6 +343,7 @@ fast-forward-std-lib :
 
 ##############################################################################
 ## Cubical library
+
 .PHONY : cubical ## Update the cubical library.
 cubical :
 	git submodule update --init cubical
@@ -352,6 +354,13 @@ up-to-date-cubical : cubical
 .PHONY : fast-forward-cubical ##
 fast-forward-cubical :
 	git submodule update --init --remote cubical
+
+##############################################################################
+## Continuous Integration
+
+.PHONY : workflows ## Build the workflow configuration in .github/workflows.
+workflows :
+	make -C .github/workflows
 
 ##############################################################################
 ## Testing
