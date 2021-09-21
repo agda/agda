@@ -7,7 +7,9 @@ import Control.Applicative ( Alternative((<|>), many) )
 import Control.Monad ((<=<))
 
 import Data.Either
+import Data.Function (on)
 import Data.Kind ( Type )
+import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
 import Data.Set (Set)
@@ -277,39 +279,39 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
 
   where
 
-  (leadingHoles, syn1)                  = span    isNormalHole syn
-  (withoutExternalHoles, trailingHoles) = spanEnd isNormalHole syn1
+  (leadingHoles, syn1)                  = span    isAHole syn
+  (withoutExternalHoles, trailingHoles) = spanEnd isAHole syn1
 
   leadingHole = case leadingHoles of
-    [NormalHole _ h] -> h
-    _                -> __IMPOSSIBLE__
+    [HolePart _ h] -> h
+    _              -> __IMPOSSIBLE__
 
   trailingHole = case trailingHoles of
-    [NormalHole _ h] -> h
-    _                -> __IMPOSSIBLE__
+    [HolePart _ h] -> h
+    _              -> __IMPOSSIBLE__
 
   worker ::
     [Name] -> Notation ->
     Parser e (Range, [Either (MaybePlaceholder e, NamedArg (Ranged Int))
-                             (LamBinding, Ranged Int)])
+                             (LamBinding, Ranged BoundVariablePosition)])
   worker ms []              = pure (noRange, [])
   worker ms (IdPart x : xs) =
     (\r1 (r2, es) -> (fuseRanges r1 r2, es))
       <$> partP ms (rangedThing x)
       <*> worker [] xs
           -- Only the first part is qualified.
-  worker ms (NormalHole _ h : xs) =
+  worker ms (HolePart _ h : xs) =
     (\e (r, es) -> (r, Left (e, h) : es))
       <$> maybePlaceholder
             (if isOp && parseSections == ParseSections
              then Just Middle else Nothing)
             p
       <*> worker ms xs
-  worker ms (WildHole h : xs) =
+  worker ms (WildPart h : xs) =
     (\(r, es) -> let anon = mkBinder_ simpleHole
                  in (r, Right (mkBinding h anon) : es))
       <$> worker ms xs
-  worker ms (BindHole _ h : xs) = do
+  worker ms (VarPart _ h : xs) = do
     (\ b (r, es) -> (r, Right (mkBinding h b) : es))
            -- Andreas, 2011-04-07 put just 'Relevant' here, is this
            -- correct?
@@ -322,13 +324,19 @@ opP parseSections p (NewNotation q names _ syn isOp) kind =
 
   findExprFor ::
     [(MaybePlaceholder e, NamedArg (Ranged Int))] ->
-    [(LamBinding, Ranged Int)] -> Int ->
+    [(LamBinding, Ranged BoundVariablePosition)] -> Int ->
     NamedArg (MaybePlaceholder (OpApp e))
   findExprFor normalHoles binders n =
     case [ h | h@(_, m) <- normalHoles, rangedThing (namedArg m) == n ] of
       [(Placeholder p,     arg)] -> set (Placeholder p) arg
       [(NoPlaceholder _ e, arg)] ->
-        List1.ifNull [ b | (b, m) <- binders, rangedThing m == n ]
+        List1.ifNull
+          (map snd $
+           List.sortBy (compare `on` fst)
+             [ (varNumber (rangedThing m), b)
+             | (b, m) <- binders
+             , holeNumber (rangedThing m) == n
+             ])
         {-then-} (set (noPlaceholder (Ordinary e)) arg) -- no variable to bind
         {-else-} $ \ bs -> set (noPlaceholder (SyntaxBindingLambda (fuseRange bs e) bs e)) arg
       _ -> __IMPOSSIBLE__

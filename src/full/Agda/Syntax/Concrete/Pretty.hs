@@ -623,11 +623,11 @@ instance Pretty Fixity where
     Unrelated  -> empty
     Related{}  -> pretty ass <+> pretty level
 
-instance Pretty GenPart where
-    pretty (IdPart x)   = text $ rangedThing x
-    pretty BindHole{}   = underscore
-    pretty NormalHole{} = underscore
-    pretty WildHole{}   = underscore
+instance Pretty NotationPart where
+    pretty (IdPart x) = text $ rangedThing x
+    pretty HolePart{} = underscore
+    pretty VarPart{}  = underscore
+    pretty WildPart{} = underscore
 
     prettyList = hcat . map pretty
 
