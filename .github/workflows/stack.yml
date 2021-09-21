@@ -60,31 +60,32 @@ jobs:
         stack-version: ${{ matrix.stack-ver }}
         enable-stack: true
       uses: haskell/actions/setup@v1
+      id: haskell-setup
+    - run: |
+        echo "runner.os   = ${{ runner.os }}"
+        echo "OSTYPE      = ${{ env.OSTYPE }}"
+        echo "ghc-path    = ${{ steps.haskell-setup.outputs.ghc-path    }}"
+        echo "ghc-exe     = ${{ steps.haskell-setup.outputs.ghc-exe     }}"
+        echo "cabal-path  = ${{ steps.haskell-setup.outputs.cabal-path  }}"
+        echo "cabal-exe   = ${{ steps.haskell-setup.outputs.cabal-exe   }}"
+        echo "cabal-store = ${{ steps.haskell-setup.outputs.cabal-store }}"
+        echo "stack-path  = ${{ steps.haskell-setup.outputs.stack-path  }}"
+        echo "stack-exe   = ${{ steps.haskell-setup.outputs.stack-exe   }}"
+        echo "stack-root  = ${{ steps.haskell-setup.outputs.stack-root  }}"
+        echo "STACK_ROOT  = ${{ env.STACK_ROOT }}"
+      name: Information about the Haskell setup
     - run: |
         stack update --silent
-        if [[ "$OSTYPE" == "linux-gnu"* || "$OSTYPE" == "darwin"* ]]; then
-          echo "system-ghc: true" >> ~/.stack/config.yaml
-        else
-          echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
-        fi
+        echo "system-ghc: true" >> ${{ steps.haskell-setup.outputs.stack-root }}/config.yaml
         stack build ${ARGS} --dry-run
       name: Update and configure stack package index
-    - if: ${{ runner.os == 'Linux' }}
-      with:
-        path: ~/.stack
+    - with:
+        path: ${{ steps.haskell-setup.outputs.stack-root }}
         key: |
           ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
       uses: actions/cache@v2
       name: Cache dependencies (Unix-like)
-      id: cache-on-unix
-    - if: ${{ runner.os == 'Windows' }}
-      with:
-        path: ${{ env.STACK_ROOT }}
-        key: |
-          ${{ runner.os }}-stack-02-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
-      uses: actions/cache@v2
-      name: Cache dependencies (Windows)
-      id: cache-on-win64
+      id: cache
     - if: ${{ runner.os == 'Linux' }}
       run: |
         sudo apt-get update -qq
@@ -100,8 +101,7 @@ jobs:
       run: |
         sudo apt-get install libnuma-dev -qq
       name: Install the numa library (Ubuntu, GHC 8.4.4)
-    - if: ${{ !steps.cache-on-unix.outputs.cache-hit && !steps.cache-on-win64.outputs.cache-hit
-        }}
+    - if: ${{ !steps.cache.outputs.cache-hit }}
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
       name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
     - run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
