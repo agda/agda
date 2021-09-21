@@ -82,22 +82,26 @@ jobs:
 
     - name: Information about the Haskell setup
       run: |
-        echo "runner.os   = ${{ runner.os }}"
-        echo "OSTYPE      = ${{ env.OSTYPE }}"
-        echo "ghc-path    = ${{ steps.haskell-setup.outputs.ghc-path    }}"
-        echo "ghc-exe     = ${{ steps.haskell-setup.outputs.ghc-exe     }}"
-        echo "cabal-path  = ${{ steps.haskell-setup.outputs.cabal-path  }}"
-        echo "cabal-exe   = ${{ steps.haskell-setup.outputs.cabal-exe   }}"
-        echo "cabal-store = ${{ steps.haskell-setup.outputs.cabal-store }}"
-        echo "stack-path  = ${{ steps.haskell-setup.outputs.stack-path  }}"
-        echo "stack-exe   = ${{ steps.haskell-setup.outputs.stack-exe   }}"
-        echo "stack-root  = ${{ steps.haskell-setup.outputs.stack-root  }}"
-        echo "STACK_ROOT  = ${{ env.STACK_ROOT }}"
+        echo "runner.os         = ${{ runner.os                               }}"
+        echo "OSTYPE            = ${{ env.OSTYPE                              }}"
+        echo "ghc-path          = ${{ steps.haskell-setup.outputs.ghc-path    }}"
+        echo "ghc-exe           = ${{ steps.haskell-setup.outputs.ghc-exe     }}"
+        echo "cabal-path        = ${{ steps.haskell-setup.outputs.cabal-path  }}"
+        echo "cabal-exe         = ${{ steps.haskell-setup.outputs.cabal-exe   }}"
+        echo "cabal-store       = ${{ steps.haskell-setup.outputs.cabal-store }}"
+        echo "stack-path        = ${{ steps.haskell-setup.outputs.stack-path  }}"
+        echo "stack-exe         = ${{ steps.haskell-setup.outputs.stack-exe   }}"
+        echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
+        echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
+        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
 
     - name: Update and configure stack package index
       run: |
+        echo "STACK_ROOT = ${STACK_ROOT}"
         stack update --silent
-        echo "system-ghc: true" >> ${{ steps.haskell-setup.outputs.stack-root }}/config.yaml
+        ## Using ${{ steps.haskell-setup.outputs.stack-root }} fails because of \-mangling
+        # echo "system-ghc: true" >> ${{ steps.haskell-setup.outputs.stack-root }}/config.yaml
+        echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
         stack build ${ARGS} --dry-run
 
     - uses: actions/cache@v2
