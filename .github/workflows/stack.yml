@@ -74,21 +74,23 @@ jobs:
         echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
         echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
         echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
+        echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
       name: Information about the Haskell setup
     - run: |
-        echo "STACK_ROOT = ${STACK_ROOT}"
+        echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
+        echo "STACK_VER         = ${STACK_VER}"
+      name: More information about the Haskell setup
+    - run: |
         stack update --silent
-        ## Using ${{ steps.haskell-setup.outputs.stack-root }} fails because of \-mangling
-        # echo "system-ghc: true" >> ${{ steps.haskell-setup.outputs.stack-root }}/config.yaml
         echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
         stack build ${ARGS} --dry-run
       name: Update and configure stack package index
     - with:
         path: ${{ steps.haskell-setup.outputs.stack-root }}
         key: |
-          ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
+          ${{ runner.os }}-stack-01-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
       uses: actions/cache@v2
-      name: Cache dependencies (Unix-like)
+      name: Cache dependencies
       id: cache
     - if: ${{ runner.os == 'Linux' }}
       run: |
