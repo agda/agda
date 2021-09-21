@@ -2969,9 +2969,9 @@ toAbstractOpApp op ns es = do
     -- Get the notation for the operator.
     nota <- getNotation op ns
     let parts = notation nota
-    -- We can throw away the @BindingHoles@, since binders
+    -- We can throw away the @VarPart@s, since binders
     -- have been preprocessed into @OpApp C.Expr@.
-    let nonBindingParts = filter (not . isBindingHole) parts
+    let nonBindingParts = filter (not . isBinder) parts
     -- We should be left with as many holes as we have been given args @es@.
     -- If not, crash.
     unless (length (filter isAHole nonBindingParts) == length es) __IMPOSSIBLE__

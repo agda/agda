@@ -668,10 +668,10 @@ hiliteAName x include asp = do
 
     boundAspect = nameAsp Bound False
 
-    genPartFile (BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
-    genPartFile (NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
-    genPartFile WildHole{}       = mempty
-    genPartFile (IdPart x)       = H.singleton (rToR $ getRange x) (asp False)
+    genPartFile (VarPart r i)  = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile (HolePart r i) = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile WildPart{}     = mempty
+    genPartFile (IdPart x)     = H.singleton (rToR $ getRange x) (asp False)
 
 -- * Short auxiliary functions.
 ---------------------------------------------------------------------------

@@ -1,0 +1,4 @@
+Issue394-1.agda:5,36-36
+Issue394-1.agda:5,36: Malformed syntax declaration: syntax must use binding holes exactly once
+<EOF><ERROR>
+...

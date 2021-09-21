@@ -224,9 +224,9 @@ buildParsers kind exprNames = do
           Trie.member (addHole withHole p) partListsInExpr
           where
           p = case n of
-            NormalHole{} : IdPart p : _ -> rangedThing p
-            IdPart p : _                -> rangedThing p
-            _                           -> __IMPOSSIBLE__
+            HolePart{} : IdPart p : _ -> rangedThing p
+            IdPart p : _              -> rangedThing p
+            _                         -> __IMPOSSIBLE__
 
         -- Is the last identifier part present in n present in the
         -- expression, without any succeeding name parts, except for a
@@ -235,9 +235,9 @@ buildParsers kind exprNames = do
           Trie.member (addHole withHole p) reversedPartListsInExpr
           where
           p = case reverse n of
-            NormalHole{} : IdPart p : _ -> rangedThing p
-            IdPart p : _                -> rangedThing p
-            _                           -> __IMPOSSIBLE__
+            HolePart{} : IdPart p : _ -> rangedThing p
+            IdPart p : _              -> rangedThing p
+            _                         -> __IMPOSSIBLE__
 
         -- Are the initial and final identifier parts present with
         -- the right mix of leading and trailing underscores?

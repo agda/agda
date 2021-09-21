@@ -2903,65 +2903,98 @@ instance NFData ExpandedEllipsis where
   rnf NoEllipsis             = ()
 
 -- | Notation as provided by the @syntax@ declaration.
-type Notation = [GenPart]
+type Notation = [NotationPart]
 
 noNotation :: Notation
 noNotation = []
 
--- | Part of a Notation
-data GenPart
-  = BindHole Range (Ranged Int)
-    -- ^ Argument is the position of the hole (with binding) where the binding should occur.
-    --   First range is the rhs range and second is the binder.
-  | NormalHole Range (NamedArg (Ranged Int))
-    -- ^ Argument is where the expression should go.
-  | WildHole (Ranged Int)
-    -- ^ An underscore in binding position.
-  | IdPart RString
+-- | Positions of variables in syntax declarations.
+
+data BoundVariablePosition = BoundVariablePosition
+  { holeNumber :: !Int
+    -- ^ The position (in the left-hand side of the syntax
+    -- declaration) of the hole in which the variable is bound,
+    -- counting from zero (and excluding parts that are not holes).
+    -- For instance, for @syntax Σ A (λ x → B) = B , A , x@ the number
+    -- for @x@ is @1@, corresponding to @B@ (@0@ would correspond to
+    -- @A@).
+  , varNumber :: !Int
+    -- ^ The position in the list of variables for this particular
+    -- variable, counting from zero, and including wildcards. For
+    -- instance, for @syntax F (λ x _ y → A) = y ! A ! x@ the number
+    -- for @x@ is @0@, the number for @_@ is @1@, and the number for
+    -- @y@ is @2@.
+  }
+  deriving (Data, Eq, Ord, Show)
+
+-- | Notation parts.
+
+data NotationPart
+  = IdPart RString
+    -- ^ An identifier part. For instance, for @_+_@ the only
+    -- identifier part is @+@.
+  | HolePart Range (NamedArg (Ranged Int))
+    -- ^ A hole: a place where argument expressions can be written.
+    -- For instance, for @_+_@ the two underscores are holes, and for
+    -- @syntax Σ A (λ x → B) = B , A , x@ the variables @A@ and @B@
+    -- are holes. The number is the position of the hole, counting
+    -- from zero. For instance, the number for @A@ is @0@, and the
+    -- number for @B@ is @1@.
+  | VarPart Range (Ranged BoundVariablePosition)
+    -- ^ A bound variable.
+    --
+    -- The first range is the range of the variable in the right-hand
+    -- side of the syntax declaration, and the second range is the
+    -- range of the variable in the left-hand side.
+  | WildPart (Ranged BoundVariablePosition)
+    -- ^ A wildcard (an underscore in binding position).
   deriving (Data, Show)
 
-instance Eq GenPart where
-  BindHole _ i   == BindHole _ j   = i == j
-  NormalHole _ x == NormalHole _ y = x == y
-  WildHole i     == WildHole j     = i == j
-  IdPart x       == IdPart y       = x == y
-  _              == _              = False
+instance Eq NotationPart where
+  VarPart _ i  == VarPart _ j  = i == j
+  HolePart _ x == HolePart _ y = x == y
+  WildPart i   == WildPart j   = i == j
+  IdPart x     == IdPart y     = x == y
+  _            == _            = False
 
-instance Ord GenPart where
-  BindHole _ i   `compare` BindHole _ j   = i `compare` j
-  NormalHole _ x `compare` NormalHole _ y = x `compare` y
-  WildHole i     `compare` WildHole j     = i `compare` j
-  IdPart x       `compare` IdPart y       = x `compare` y
-  BindHole{}     `compare` _              = LT
-  _              `compare` BindHole{}     = GT
-  NormalHole{}   `compare` _              = LT
-  _              `compare` NormalHole{}   = GT
-  WildHole{}     `compare` _              = LT
-  _              `compare` WildHole{}     = GT
+instance Ord NotationPart where
+  VarPart _ i  `compare` VarPart _ j  = i `compare` j
+  HolePart _ x `compare` HolePart _ y = x `compare` y
+  WildPart i   `compare` WildPart j   = i `compare` j
+  IdPart x     `compare` IdPart y     = x `compare` y
+  VarPart{}    `compare` _            = LT
+  _            `compare` VarPart{}    = GT
+  HolePart{}   `compare` _            = LT
+  _            `compare` HolePart{}   = GT
+  WildPart{}   `compare` _            = LT
+  _            `compare` WildPart{}   = GT
 
-instance HasRange GenPart where
+instance HasRange NotationPart where
   getRange = \case
-    IdPart x       -> getRange x
-    BindHole r _   -> r
-    WildHole i     -> getRange i
-    NormalHole r _ -> r
+    IdPart x     -> getRange x
+    VarPart r _  -> r
+    WildPart i   -> getRange i
+    HolePart r _ -> r
 
-instance SetRange GenPart where
+instance SetRange NotationPart where
   setRange r = \case
-    IdPart x       -> IdPart x
-    BindHole _ i   -> BindHole r i
-    WildHole i     -> WildHole i
-    NormalHole _ i -> NormalHole r i
+    IdPart x     -> IdPart x
+    VarPart _ i  -> VarPart r i
+    WildPart i   -> WildPart i
+    HolePart _ i -> HolePart r i
 
-instance KillRange GenPart where
+instance KillRange NotationPart where
   killRange = \case
-    IdPart x       -> IdPart $ killRange x
-    BindHole _ i   -> BindHole noRange $ killRange i
-    WildHole i     -> WildHole $ killRange i
-    NormalHole _ x -> NormalHole noRange $ killRange x
+    IdPart x     -> IdPart $ killRange x
+    VarPart _ i  -> VarPart noRange $ killRange i
+    WildPart i   -> WildPart $ killRange i
+    HolePart _ x -> HolePart noRange $ killRange x
 
-instance NFData GenPart where
-  rnf (BindHole _ a)   = rnf a
-  rnf (NormalHole _ a) = rnf a
-  rnf (WildHole a)     = rnf a
-  rnf (IdPart a)       = rnf a
+instance NFData BoundVariablePosition where
+  rnf = (`seq` ())
+
+instance NFData NotationPart where
+  rnf (VarPart _ a)  = rnf a
+  rnf (HolePart _ a) = rnf a
+  rnf (WildPart a)   = rnf a
+  rnf (IdPart a)     = rnf a

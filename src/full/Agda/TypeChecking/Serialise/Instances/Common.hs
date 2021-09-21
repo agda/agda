@@ -385,16 +385,21 @@ instance EmbPrj Fixity' where
 
   value = valueN (\ f n -> Fixity' f n noRange)
 
-instance EmbPrj GenPart where
-  icod_ (BindHole a b)   = icodeN 0 BindHole a b
-  icod_ (NormalHole a b) = icodeN 1 NormalHole a b
-  icod_ (WildHole a)     = icodeN 2 WildHole a
-  icod_ (IdPart a)       = icodeN' IdPart a
+instance EmbPrj BoundVariablePosition where
+  icod_ (BoundVariablePosition a b) = icodeN' BoundVariablePosition a b
+
+  value = valueN BoundVariablePosition
+
+instance EmbPrj NotationPart where
+  icod_ (VarPart a b)  = icodeN 0 VarPart a b
+  icod_ (HolePart a b) = icodeN 1 HolePart a b
+  icod_ (WildPart a)   = icodeN 2 WildPart a
+  icod_ (IdPart a)     = icodeN' IdPart a
 
   value = vcase valu where
-    valu [0, a, b] = valuN BindHole a b
-    valu [1, a, b] = valuN NormalHole a b
-    valu [2, a]    = valuN WildHole a
+    valu [0, a, b] = valuN VarPart a b
+    valu [1, a, b] = valuN HolePart a b
+    valu [2, a]    = valuN WildPart a
     valu [a]       = valuN IdPart a
     valu _         = malformed
 
