@@ -74,39 +74,51 @@ jobs:
         submodules: recursive
 
     - uses: haskell/actions/setup@v1
+      id: haskell-setup
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: ${{ matrix.stack-ver }}
         enable-stack: true
 
+    - name: Information about the Haskell setup
+      run: |
+        echo "runner.os         = ${{ runner.os                               }}"
+        echo "OSTYPE            = ${{ env.OSTYPE                              }}"
+        echo "ghc-path          = ${{ steps.haskell-setup.outputs.ghc-path    }}"
+        echo "ghc-exe           = ${{ steps.haskell-setup.outputs.ghc-exe     }}"
+        echo "cabal-path        = ${{ steps.haskell-setup.outputs.cabal-path  }}"
+        echo "cabal-exe         = ${{ steps.haskell-setup.outputs.cabal-exe   }}"
+        echo "cabal-store       = ${{ steps.haskell-setup.outputs.cabal-store }}"
+        echo "stack-path        = ${{ steps.haskell-setup.outputs.stack-path  }}"
+        echo "stack-exe         = ${{ steps.haskell-setup.outputs.stack-exe   }}"
+        echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
+        echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
+        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
+        echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
+
+    # In a second step we can inspect the GITHUB_ENV set in the previous step:
+    - name: More information about the Haskell setup
+      run: |
+        echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
+        echo "STACK_VER         = ${STACK_VER}"
+
     - name: Update and configure stack package index
+      ## Using ${{ steps.haskell-setup.outputs.stack-root }} fails because of \-mangling
+      # echo "system-ghc: true" >> ${{ steps.haskell-setup.outputs.stack-root }}/config.yaml
       run: |
         stack update --silent
-        if [[ "$OSTYPE" == "linux-gnu"* || "$OSTYPE" == "darwin"* ]]; then
-          echo "system-ghc: true" >> ~/.stack/config.yaml
-        else
-          echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
-        fi
+        echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
         stack build ${ARGS} --dry-run
 
     - uses: actions/cache@v2
-      name: Cache dependencies (Unix-like)
-      id: cache-on-unix
-      if: ${{ runner.os == 'Linux' }}
+      name: Cache dependencies
+      id: cache
       with:
-        path: "~/.stack"
+        path: ${{ steps.haskell-setup.outputs.stack-root }}
         # A unique cache is used for each stack.yaml.
+        # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
         key: |
-          ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
-
-    - uses: actions/cache@v2
-      name: Cache dependencies (Windows)
-      id: cache-on-win64
-      if: ${{ runner.os == 'Windows' }}
-      with:
-        path: ${{ env.STACK_ROOT }}
-        key: |
-          ${{ runner.os }}-stack-02-${{ matrix.stack-ver }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
+          ${{ runner.os }}-stack-01-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
 
     - name: Install the icu library (Ubuntu)
       if: ${{ runner.os == 'Linux' }}
@@ -127,7 +139,7 @@ jobs:
         sudo apt-get install libnuma-dev -qq
 
     - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
-      if: ${{ !steps.cache-on-unix.outputs.cache-hit && !steps.cache-on-win64.outputs.cache-hit }}
+      if: ${{ !steps.cache.outputs.cache-hit }}
       run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
 
     - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
