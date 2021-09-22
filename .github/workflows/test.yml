@@ -227,6 +227,7 @@ name: Build, Test, and Benchmark
     paths-ignore:
     - .github/*
     - .github/workflows/cabal.yml
+    - .github/workflows/cabal-test.yml
     - .github/workflows/haddock.yml
     - .github/workflows/lint.yml
     - .github/workflows/deploy.yml
@@ -259,6 +260,7 @@ name: Build, Test, and Benchmark
     paths-ignore:
     - .github/*
     - .github/workflows/cabal.yml
+    - .github/workflows/cabal-test.yml
     - .github/workflows/haddock.yml
     - .github/workflows/lint.yml
     - .github/workflows/deploy.yml

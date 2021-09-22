@@ -18,7 +18,7 @@ jobs:
         ghc-ver:
         - 9.0.1
         cabal-ver:
-        - 3.4
+        - latest
         os:
         - windows-latest
         - macos-latest
@@ -35,6 +35,14 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
       uses: haskell/actions/setup@v1
       id: setup-haskell
+    - run: |
+        export GHC_VER=$(ghc --numeric-version)
+        export CABAL_VER=$(cabal --numeric-version)
+        echo "GHC_VER   = ${GHC_VER}"
+        echo "CABAL_VER = ${CABAL_VER}"
+        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
+        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
+      name: Environment settings based on the Haskell setup
     - run: |
         cabal update
         cabal configure ${FLAGS} -O0
@@ -60,8 +68,8 @@ jobs:
     - with:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-        key: ${{ runner.os }}-cabal-01-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver
-          }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
+          hashFiles('**/plan.json') }}
       uses: actions/cache@v2
       name: Cache dependencies
       id: cache
