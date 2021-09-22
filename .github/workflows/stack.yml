@@ -20,7 +20,6 @@ jobs:
   stack:
     env:
       ICU: mingw-w64-x86_64-icu
-      ARGS: --stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal
       NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
         Agda:debug
       EXTRA_ARGS: --fast
@@ -75,11 +74,15 @@ jobs:
         echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
         echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
         echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
-      name: Information about the Haskell setup
+        export GHC_VER=$(ghc --numeric-version)
+        echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --no-terminal"    >> ${GITHUB_ENV}
+      name: Environment settings based on the Haskell setup
     - run: |
         echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
         echo "STACK_VER         = ${STACK_VER}"
-      name: More information about the Haskell setup
+        echo "GHC_VER           = ${GHC_VER}"
+      name: Environment (review)
     - run: |
         stack update --silent
         echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
@@ -88,7 +91,7 @@ jobs:
     - with:
         path: ${{ steps.haskell-setup.outputs.stack-root }}
         key: |
-          ${{ runner.os }}-stack-01-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
+          ${{ runner.os }}-stack-01-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
       uses: actions/cache@v2
       name: Cache dependencies
       id: cache
@@ -103,7 +106,7 @@ jobs:
         # stack exec ${ARGS} -- pacman -U --noconfirm ${ICU_FILE}
         stack exec ${ARGS} -- pacman -S --noconfirm ${ICU}
       name: Install the icu library (Windows)
-    - if: ${{ runner.os == 'Linux' && matrix.ghc-ver == '8.4.4' }}
+    - if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
       run: |
         sudo apt-get install libnuma-dev -qq
       name: Install the numa library (Ubuntu, GHC 8.4.4)
