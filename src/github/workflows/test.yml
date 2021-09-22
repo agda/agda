@@ -9,6 +9,7 @@ on:
     paths-ignore: &ignore_path_list
     - '.github/*'
     - '.github/workflows/cabal.yml'
+    - '.github/workflows/cabal-test.yml'
     - '.github/workflows/haddock.yml'
     - '.github/workflows/lint.yml'
     - '.github/workflows/deploy.yml'
