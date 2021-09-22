@@ -40,6 +40,16 @@ jobs:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
 
+    - name: Environment settings based on the Haskell setup
+      run: |
+        export GHC_VER=$(ghc --numeric-version)
+        export CABAL_VER=$(cabal --numeric-version)
+        echo "GHC_VER    = ${GHC_VER}"
+        echo "CABLAL_VER = ${CABAL_VER}"
+        echo "GHC_VER=${GHC_VER}"         >> ${GITHUB_ENV}
+        echo "CABAL_VER=${CABAL_VER}"     >> ${GITHUB_ENV}
+      # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
+
     - name: Resolve dependencies
       run: |
         cabal update
@@ -52,7 +62,7 @@ jobs:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
         # The file `plan.json` contains the build information.
-        key: ${{ runner.os }}-cabal-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ runner.os }}-cabal-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json') }}
 
     - name: Install dependencies
       if: ${{ !steps.cache.outputs.cache-hit }}

@@ -53,7 +53,8 @@ jobs:
             stack-ver: latest
 
     env:
-      ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal"
+      ## ARGS is set later, depending on the actually picked GHC version
+      # ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal"
       EXTRA_ARGS: "--fast"
       NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
 
@@ -64,6 +65,7 @@ jobs:
       # ICU_FILE: "mingw-w64-x86_64-icu-68.2-3-any.pkg.tar.zst"
       ICU: "mingw-w64-x86_64-icu"
 
+    # Need bash on Windows for piping and evaluation.
     defaults:
       run:
         shell: bash
@@ -80,7 +82,7 @@ jobs:
         stack-version: ${{ matrix.stack-ver }}
         enable-stack: true
 
-    - name: Information about the Haskell setup
+    - name: Environment settings based on the Haskell setup
       run: |
         echo "runner.os         = ${{ runner.os                               }}"
         echo "OSTYPE            = ${{ env.OSTYPE                              }}"
@@ -95,12 +97,17 @@ jobs:
         echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
         echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
         echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
+        export GHC_VER=$(ghc --numeric-version)
+        echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --no-terminal"    >> ${GITHUB_ENV}
+    # From now on, use env.GHC_VER rather than matrix.ghc-ver
 
-    # In a second step we can inspect the GITHUB_ENV set in the previous step:
-    - name: More information about the Haskell setup
+    # In a second step we can inspect and use the GITHUB_ENV set in the previous step:
+    - name: Environment (review)
       run: |
         echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
         echo "STACK_VER         = ${STACK_VER}"
+        echo "GHC_VER           = ${GHC_VER}"
 
     - name: Update and configure stack package index
       ## Using ${{ steps.haskell-setup.outputs.stack-root }} fails because of \-mangling
@@ -118,7 +125,7 @@ jobs:
         # A unique cache is used for each stack.yaml.
         # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
         key: |
-          ${{ runner.os }}-stack-01-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', matrix.ghc-ver)) }}
+          ${{ runner.os }}-stack-01-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
 
     - name: Install the icu library (Ubuntu)
       if: ${{ runner.os == 'Linux' }}
@@ -134,7 +141,7 @@ jobs:
         stack exec ${ARGS} -- pacman -S --noconfirm ${ICU}
 
     - name: Install the numa library (Ubuntu, GHC 8.4.4)
-      if: ${{ runner.os == 'Linux' && matrix.ghc-ver == '8.4.4' }}
+      if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
       run: |
         sudo apt-get install libnuma-dev -qq
 
