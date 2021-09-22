@@ -20,9 +20,9 @@ jobs:
     strategy:
       matrix:
         ghc-ver: [9.0.1]
-        cabal-ver: [3.4.0.0]
+        cabal-ver: [latest]
         # stack-ver: [2.5.1]
-        fix-whitespace-ver: [0.0.5]
+        fix-whitespace-ver: [0.0.7]
 
     steps:
     - uses: actions/checkout@v2
