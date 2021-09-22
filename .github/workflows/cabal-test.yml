@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         ghc-ver:
-        - latest
+        - 9.0.1
         cabal-ver:
         - latest
         os:
@@ -32,14 +32,22 @@ jobs:
       uses: haskell/actions/setup@v1
       id: setup-haskell
     - run: |
+        export GHC_VER=$(ghc --numeric-version)
+        export CABAL_VER=$(cabal --numeric-version)
+        echo "GHC_VER   = ${GHC_VER}"
+        echo "CABAL_VER = ${CABAL_VER}"
+        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
+        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
+      name: Environment settings based on the Haskell setup
+    - run: |
         cabal update
         cabal configure -O1 --enable-tests
       name: Configure the build plan
     - with:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
-        key: ${{ runner.os }}-cabal-01-${{ matrix.ghc-ver }}-${{ matrix.cabal-ver
-          }}-${{ hashFiles('**/plan.json') }}
+        key: ${{ runner.os }}-cabal-test-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
+          hashFiles('**/plan.json') }}
       uses: actions/cache@v2
       name: Cache dependencies
       id: cache
