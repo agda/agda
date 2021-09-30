@@ -185,6 +185,9 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
     primLockUniv,
+    primClock, primTick, primForcingTick,
+    primEmbTick, primDiamondTick, primTickIrr, primForcingTickIrr,
+    primForcingApp, primForcingAppDep,
     primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
@@ -276,6 +279,15 @@ primIsOneEmpty                        = getBuiltin builtinIsOneEmpty
 primSub                               = getBuiltin builtinSub
 primSubIn                             = getBuiltin builtinSubIn
 primSubOut                            = getPrimitiveTerm builtinSubOut
+primClock                             = getBuiltin builtinClock
+primTick                              = getBuiltin builtinTick
+primForcingTick                       = getBuiltin builtinForcingTick
+primEmbTick                           = getBuiltin "EMBTICK"
+primDiamondTick                       = getBuiltin "DIAMONDTICK"
+primTickIrr                           = getPrimitiveTerm "primTickIrr"
+primForcingTickIrr                    = getPrimitiveTerm "primForcingTickIrr"
+primForcingApp                        = getPrimitiveTerm "primForcingApp"
+primForcingAppDep                     = getPrimitiveTerm "primForcingAppDep"
 primNat                               = getBuiltin builtinNat
 primSuc                               = getBuiltin builtinSuc
 primZero                              = getBuiltin builtinZero

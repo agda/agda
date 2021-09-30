@@ -24,6 +24,9 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtin_glueU, builtin_unglueU,
   builtinFaceForall,
   builtinId, builtinReflId, builtinConId, builtinIdElim,
+  builtinClock, builtinTick, builtinForcingTick,
+  builtinEmbTick, builtinDiamondTick, builtinTickIrr, builtinForcingTickIrr,
+  builtinForcingApp, builtinForcingAppDep,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -143,6 +146,15 @@ builtinHComp                             = "primHComp"
 builtinSub                               = "SUB"
 builtinSubIn                             = "SUBIN"
 builtinSubOut                            = "primSubOut"
+builtinClock                             = "CLOCK"
+builtinTick                              = "TICK"
+builtinForcingTick                       = "FORCINGTICK"
+builtinEmbTick                           = "EMBTICK"
+builtinDiamondTick                       = "DIAMONDTICK"
+builtinTickIrr                           = "primTickIrr"
+builtinForcingTickIrr                    = "primForcingTickIrr"
+builtinForcingApp                        = "primForcingApp"
+builtinForcingAppDep                     = "primForcingAppDep"
 builtinSizeUniv                          = "SIZEUNIV"
 builtinSize                              = "SIZE"
 builtinSizeLt                            = "SIZELT"

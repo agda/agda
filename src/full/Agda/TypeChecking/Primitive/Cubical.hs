@@ -2295,3 +2295,91 @@ debugClause s c = do
     rhsTy = clauseType c
     rhs = clauseBody c
 
+
+--- Guarded Cubical
+-------------------
+
+tLockUniv, tClock :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Type
+tLockUniv  = El (Type $ levelSuc $ Max 0 []) <$> primLockUniv
+tClock     = El (Type $ Max 0 []) <$> primClock
+
+tTick, tFTick, tType :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => NamesT m Term -> NamesT m Type
+tTick    k = El LockUniv <$> (cl primTick <@> k)
+tFTick   k = El LockUniv <$> (cl primForcingTick <@> k)
+tType    l = el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)
+
+
+primTickIrr' :: TCM PrimitiveImpl
+primTickIrr' = do
+  requireCubical CErased ""
+  t <- (runNamesT [] $
+          hPi' "k" (cl tClock) $ \ k ->
+          tTick k -->
+          tTick k -->
+          cl primIntervalType -->
+          tTick k)
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 4 $ \ ts -> do
+    case ts of
+     [k,a,b,r] -> return $ NoReduction $ map notReduced ts
+     _         -> __IMPOSSIBLE__
+
+primForcingTickIrr' :: TCM PrimitiveImpl
+primForcingTickIrr' = do
+  requireCubical CErased ""
+  t <- (runNamesT [] $
+          hPi' "k" (cl tClock) $ \ k ->
+          tFTick k -->
+          tFTick k -->
+          cl primIntervalType -->
+          tFTick k)
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 4 $ \ ts -> do
+    case ts of
+     [k,a,b,r] -> return $ NoReduction $ map notReduced ts
+     _         -> __IMPOSSIBLE__
+
+primForcingApp' :: TCM PrimitiveImpl
+primForcingApp' = do
+  requireCubical CErased ""
+  t <- (runNamesT [] $
+          hPi' "a" (el primLevel) $ \ a ->
+          hPi' "A" (cl tClock --> tType a) $ \ bA ->
+          (nPi' "k" (cl tClock) $ \ k ->
+           tTick k #--> el' a (bA <@> k)) -->
+          (nPi' "k" (cl tClock) $ \ k ->
+           tFTick k #--> el' a (bA <@> k)
+          ))
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ts -> do
+    case ts of
+     [a,bA] -> do
+       mtFAppDep <- getTerm' builtinForcingAppDep
+       case mtFAppDep of
+         Nothing -> return $ NoReduction $ map notReduced [a,bA]
+         Just tFAppDep -> do
+           bA <- fmap (Arg (argInfo bA)) $ runNamesT [] $ do
+             bA <- open $ unArg bA
+             lam "k" $ \ k ->
+              glam (setLock IsLock defaultArgInfo) "_" $ \ _ ->
+               bA
+
+           redReturn $ tFAppDep `apply` [a,bA]
+
+     _         -> __IMPOSSIBLE__
+
+primForcingAppDep' :: TCM PrimitiveImpl
+primForcingAppDep' = do
+  requireCubical CErased ""
+  t <- runNamesT [] $
+          hPi' "a" (el primLevel) $ \ a ->
+          hPi' "A" (nPi' "k" (cl tClock) $ \ k ->
+                     tTick k #--> tType a) $ \ bA ->
+          (nPi' "k" (cl tClock) $ \ k ->
+           lPi' "α" (tTick k) $ \ alpha ->
+           el' a (bA <@> k <@> alpha)) -->
+          (nPi' "k" (cl tClock) $ \ k ->
+          lPi' "α" (tFTick k) $ \ alpha ->
+          el' a (cl primForcingApp <#> (cl primLevelSuc <@> a) <#> (lam "k" $ \ _ -> unEl <$> tType a) <@> bA <@> k <@> alpha)
+          )
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
+    case ts of
+     [a,bA,t,k,lk] -> return $ NoReduction $ map notReduced ts
+     _         -> __IMPOSSIBLE__

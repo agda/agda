@@ -108,6 +108,16 @@ coreBuiltins =
   , (builtinQName                            |-> builtinPostulate tset)
   , (builtinAgdaMeta                         |-> builtinPostulate tset)
   , (builtinIO                               |-> builtinPostulate (tset --> tset))
+  , (builtinClock                            |-> builtinPostulate tset)
+  , (builtinTick                             |-> builtinPostulate (tClock --> tLockUniv))
+  , (builtinForcingTick                      |-> builtinPostulate (tClock --> tLockUniv))
+  , (builtinEmbTick                          |-> builtinPostulate (runNamesT [] $
+                                                             hPi' "k" (cl tClock) $ \ k ->
+                                                             (El LockUniv <$> (primTick <@> k)) -->
+                                                             (El LockUniv <$> (primForcingTick <@> k))))
+  , (builtinDiamondTick                      |-> builtinPostulate (runNamesT [] $
+                                                             hPi' "k" (cl tClock) $ \ k ->
+                                                             (El LockUniv <$> (primForcingTick <@> k))))
   , (builtinPath                             |-> BuiltinUnknown
                                                              (Just $ requireCubical CErased "" >>
                                                              hPi "a" (el primLevel) (
