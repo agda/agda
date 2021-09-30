@@ -47,7 +47,7 @@ arguments.
 Erasure annotations can also appear in function arguments (both first-order and higher-order). For instance, here is
 an implementation of ``foldl`` on vectors::
 
-  foldl : (B : Nat → Set b)
+  foldl : (B : @0 Nat → Set b)
         → (f : ∀ {@0 n} → B n → A → B (suc n))
         → (z : B 0)
         → ∀ {@0 n} → Vec A n → B n
