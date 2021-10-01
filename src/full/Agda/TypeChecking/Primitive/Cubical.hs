@@ -2320,7 +2320,13 @@ primTickIrr' = do
           tTick k)
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 4 $ \ ts -> do
     case ts of
-     [k,a,b,r] -> return $ NoReduction $ map notReduced ts
+     [k,a,b,r] -> do
+       sr <- reduceB r
+       iview <- intervalView'
+       case iview $ unArg $ ignoreBlocking $ sr of
+         IZero -> redReturn $ unArg a
+         IOne  -> redReturn $ unArg b
+         _     -> return $ NoReduction $ map notReduced [k,a,b] ++ [reduced sr]
      _         -> __IMPOSSIBLE__
 
 primForcingTickIrr' :: TCM PrimitiveImpl
@@ -2334,7 +2340,22 @@ primForcingTickIrr' = do
           tFTick k)
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 4 $ \ ts -> do
     case ts of
-     [k,a,b,r] -> return $ NoReduction $ map notReduced ts
+     [k,a,b,r] -> do
+       sr <- reduceB r
+       iview <- intervalView'
+       case iview $ unArg $ ignoreBlocking $ sr of
+         IZero -> redReturn $ unArg a
+         IOne  -> redReturn $ unArg b
+         _     -> do
+           ftview <- ftickView'
+           sa <- reduceB a
+           sb <- reduceB b
+           case map (ftview . unArg . ignoreBlocking) [sa,sb] of
+             [FTEmb k' a,FTEmb _ b]
+               -> redReturn =<< ftickUnview (FTEmb k' $ TIrr k' a b (unArg $ ignoreBlocking sr))
+             [FTDia{},FTDia{}]
+               -> redReturn $ unArg . ignoreBlocking $ sa
+             _ -> return $ NoReduction $ notReduced k : map reduced [sa,sb,sr]
      _         -> __IMPOSSIBLE__
 
 primForcingApp' :: TCM PrimitiveImpl
@@ -2381,5 +2402,12 @@ primForcingAppDep' = do
           )
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
-     [a,bA,t,k,lk] -> return $ NoReduction $ map notReduced ts
+     [a,bA,t,k,lk] -> do
+       slk <- reduceB lk
+       ftview <- ftickView'
+       tick <- tickUnview'
+       case ftview $ unArg $ ignoreBlocking slk of
+         FTEmb _k lk' -> redReturn $ unArg t `apply` [argN (unArg k), setLock IsLock $ argN $ tick lk']
+         _            -> return $ NoReduction $ map notReduced ts
+                         -- TODO: cases for t = dfix, pfix, \lambda \alpha. t'
      _         -> __IMPOSSIBLE__
