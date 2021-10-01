@@ -75,6 +75,7 @@ checkLockedVars t ty lk lk_ty = catchConstraint (CheckLockedVars t ty lk lk_ty) 
   if termVars `ISet.isSubsetOf` earlierVars then return () else do
 
   checked <- fmap catMaybes . forM toCheck $ \ (j,dom) -> do
+    -- TODO: run isTimeless only on Tick/FTick
     ifM (isTimeless (snd . unDom $ dom))
         (return $ Just j)
         (return $ Nothing)
@@ -123,7 +124,7 @@ getLockVar lk = do
 isTimeless :: Type -> TCM Bool
 isTimeless t = do
   t <- abortIfBlocked t
-  timeless <- mapM getName' [builtinInterval, builtinIsOne]
+  timeless <- mapM getName' [builtinInterval, builtinIsOne, builtinClock]
   case unEl t of
     Def q _ | Just q `elem` timeless -> return True
     _                                -> return False
@@ -141,5 +142,6 @@ checkEarlierThan lk fvs = do
     let problems = filter (<= i) $ VSet.toList fvs
     forM_ problems $ \ j -> do
       ty <- typeOfBV j
+      -- TODO: run isTimeless only on i : Tick/FTick
       unlessM (isTimeless ty) $
         notAllowedVarsError lk [j]
