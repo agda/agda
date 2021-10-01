@@ -745,6 +745,21 @@ isIOne :: IntervalView -> Bool
 isIOne IOne = True
 isIOne _ = False
 
+
+data TickView
+      = TIrr Term TickView TickView Term
+      | TickVar Int
+      | TTerm Term -- ^ metas or other junk.
+      deriving Show
+
+data FTickView
+      = FTIrr Term FTickView FTickView Term
+      | FTVar Int
+      | FTEmb Term TickView
+      | FTDia Term
+      | FTTerm Term -- ^ metas or other junk.
+      deriving Show
+
 ---------------------------------------------------------------------------
 -- * Absurd Lambda
 ---------------------------------------------------------------------------

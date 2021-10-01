@@ -550,6 +550,84 @@ intervalUnview' = do
              INeg x   -> apply ineg [x]
              OTerm t -> t
 
+tickView' :: HasBuiltins m => m (Term -> TickView)
+tickView' = do
+  tirr <- getName' builtinTickIrr
+  let go t =
+        case t of
+          Def q es ->
+            case es of
+              [Apply k,Apply a, Apply b, Apply r]
+                | Just q == tirr -> TIrr (unArg k) (go $ unArg a) (go $ unArg b) (unArg r)
+              _                  -> TTerm t
+          Var i [] -> TickVar i
+          _        -> TTerm t
+  return go
+
+ftickView' :: HasBuiltins m => m (Term -> FTickView)
+ftickView' = do
+  emb  <- getName' builtinEmbTick
+  ftirr <- getName' builtinForcingTickIrr
+  dia   <- getName' builtinDiamondTick
+  tick <- tickView'
+  let go t =
+        case t of
+          Def q es ->
+            case es of
+              [Apply k,Apply a, Apply b, Apply r]
+                | Just q == ftirr -> FTIrr (unArg k) (go $ unArg a) (go $ unArg b) (unArg r)
+              [Apply k,Apply y]
+                | Just q == emb   -> FTEmb (unArg k) (tick $ unArg y)
+              [Apply k]
+                | Just q == dia   -> FTDia (unArg k)
+              _                   -> FTTerm t
+          Var i [] -> FTVar i
+          _        -> FTTerm t
+  return go
+
+tickView :: HasBuiltins m => Term -> m TickView
+tickView t = do
+  f <- tickView'
+  return (f t)
+
+ftickView :: HasBuiltins m => Term -> m FTickView
+ftickView t = do
+  f <- ftickView'
+  return (f t)
+
+tickUnview' :: HasBuiltins m => m (TickView -> Term)
+tickUnview' = do
+  tirr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinTickIrr
+  let go v = case v of
+             TIrr k a b r -> apply tirr $ setHiding Hidden (defaultArg k) : map defaultArg [go a, go b, r]
+             TickVar i    -> Var i []
+             TTerm t      -> t
+  return go
+
+ftickUnview' :: HasBuiltins m => m (FTickView -> Term)
+ftickUnview' = do
+  ftirr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinForcingTickIrr
+  emb   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinEmbTick
+  dia   <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinDiamondTick
+  tick  <- tickUnview'
+  let go v = case v of
+             FTIrr k a b r -> apply ftirr $ setHiding Hidden (defaultArg k) : map defaultArg [go a, go b, r]
+             FTEmb k a     -> apply emb   $ setHiding Hidden (defaultArg k) : map defaultArg [tick a]
+             FTDia k       -> apply dia   $ setHiding Hidden (defaultArg k) : []
+             FTVar i       -> Var i []
+             FTTerm t      -> t
+  return go
+
+tickUnview :: HasBuiltins m => TickView -> m Term
+tickUnview t = do
+  f <- tickUnview'
+  return (f t)
+
+ftickUnview :: HasBuiltins m => FTickView -> m Term
+ftickUnview t = do
+  f <- ftickUnview'
+  return (f t)
+
 ------------------------------------------------------------------------
 -- * Path equality
 ------------------------------------------------------------------------
