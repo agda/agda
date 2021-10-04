@@ -10,7 +10,7 @@ import Data.Bifunctor
 import Data.Function
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as List1
-import Data.List.NonEmpty (pattern (:|))
+import Data.List.NonEmpty (pattern (:|), (<|))
 import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -258,6 +258,32 @@ spanEnd p = snd . foldr f (True, ([], []))
   f :: a -> (Bool, ([a], [a])) -> (Bool, ([a], [a]))
   f x (b', (xs, ys)) = (b, if b then (xs, x:ys) else (x:xs, ys))
     where b = b' && p x
+
+-- | Breaks a list just /after/ an element satisfying the predicate is
+--   found.
+--
+--   >>> breakAfter1 even 1 [3,5,2,4,7,8]
+--   ([1,3,5,2],[4,7,8])
+
+breakAfter1 :: (a -> Bool) -> a -> [a] -> (List1 a, [a])
+breakAfter1 p = loop
+  where
+  loop x = \case
+    xs@[]         -> (x :| [], xs)
+    xs@(y : ys)
+      | p x       -> (x :| [], xs)
+      | otherwise -> let (vs, ws) = loop y ys in (x <| vs, ws)
+
+-- | Breaks a list just /after/ an element satisfying the predicate is
+--   found.
+--
+--   >>> breakAfter even [1,3,5,2,4,7,8]
+--   ([1,3,5,2],[4,7,8])
+
+breakAfter :: (a -> Bool) -> [a] -> ([a], [a])
+breakAfter p = \case
+  []   -> ([], [])
+  x:xs -> first List1.toList $ breakAfter1 p x xs
 
 -- | A generalized version of @takeWhile@.
 --   (Cf. @mapMaybe@ vs. @filter@).

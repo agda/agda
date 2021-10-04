@@ -88,6 +88,15 @@ groupBy' p xxs@(x : xs) = grp x $ List.zipWith (\ x y -> (p x y, y)) xxs xs
       []                 -> []
       ((_false, z) : zs) -> grp z zs
 
+-- | Breaks a list just /after/ an element satisfying the predicate is
+--   found.
+--
+--   >>> breakAfter even [1,3,5,2,4,7,8]
+--   ([1,3,5,2],[4,7,8])
+
+breakAfter :: (a -> Bool) -> List1 a -> (List1 a, [a])
+breakAfter p (x :| xs) = List.breakAfter1 p x xs
+
 -- | Concatenate one or more non-empty lists.
 
 concat :: [List1 a] -> [a]
