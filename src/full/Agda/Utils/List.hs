@@ -9,6 +9,8 @@ import qualified Data.Array as Array
 import Data.Bifunctor
 import Data.Function
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as List1
+import Data.List.NonEmpty (pattern (:|))
 import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -17,6 +19,8 @@ import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
+
+import {-# SOURCE #-} Agda.Utils.List1 (List1)
 
 import Agda.Utils.Impossible
 
@@ -458,15 +462,16 @@ chop n xs = ys : chop n zs
 --   O(n).
 --
 --    > intercalate [x] (chopWhen (== x) xs) == xs
-chopWhen :: (a -> Bool) -> [a] -> [[a]]
-chopWhen p [] = []
-chopWhen p xs = loop xs
+chopWhen :: forall a. (a -> Bool) -> [a] -> [[a]]
+chopWhen p []     = []
+chopWhen p (x:xs) = loop (x :| xs)
   where
   -- Local function to avoid unnecessary pattern matching.
-  loop xs = case break p xs of
-    (w, [])     -> [w]
-    (w, [_])    -> [w, []]
-    (w, _ : ys) -> w : loop ys  -- here we already know that ys /= []
+  loop :: List1 a -> [[a]]
+  loop xs = case List1.break p xs of
+    (w, []        ) -> [w]
+    (w, _ : []    ) -> [w, []]
+    (w, _ : y : ys) -> w : loop (y :| ys)
 
 ---------------------------------------------------------------------------
 -- * List as sets
