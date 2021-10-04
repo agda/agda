@@ -146,22 +146,11 @@ isBlank = (&&) <$> isSpace <*> (/= '\n')
 literateExtsShortList :: [String]
 literateExtsShortList = [".lagda"]
 
--- | Breaks a list just /after/ an element satisfying the predicate is
---   found.
---
---   >>> break1 even [1,3,5,2,4,7,8]
---   ([1,3,5,2],[4,7,8])
-
-break1 :: (a -> Bool) -> [a] -> ([a],[a])
-break1 _ []           =  ([], [])
-break1 p (x:xs) | p x = (x:[],xs)
-break1 p (x:xs)       = let (ys,zs) = break1 p xs in (x:ys,zs)
-
 -- | Returns a tuple consisting of the first line of the input, and the rest
 --   of the input.
 
 getLine :: String -> (String, String)
-getLine = break1 (== '\n')
+getLine = breakAfter (== '\n')
 
 -- | Canonical decomposition of an empty literate file.
 
