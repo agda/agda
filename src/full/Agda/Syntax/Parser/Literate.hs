@@ -131,10 +131,7 @@ illiterate xs = concat
 -- | Replaces non-space characters in a string with spaces.
 
 bleach :: String -> String
-bleach s = map go s
-  where
-  go c | isSpace c = c
-  go _             = ' '
+bleach = map $ \ c -> if isSpace c && c /= '\t' then c else ' '
 
 -- | Check if a character is a blank character.
 

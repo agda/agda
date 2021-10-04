@@ -7,8 +7,8 @@ open import Agda.Builtin.String
 
 ### Marisa
 
-> Sure, but you're still just a tanuki, right?
-> The kind that drums on their bellies on the night of the full moon, right?
+> Sure, but you're still just a tanuki,	right?
+> The kind that drums on their bellies on the night of the full moon,	right?
 
 ```agda
 module TenDesires where
