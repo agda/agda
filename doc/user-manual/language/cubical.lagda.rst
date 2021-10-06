@@ -903,7 +903,7 @@ the following ``BUILTIN``, primitives and postulates:
             → PartialP (primIMax i j) A
 
     -- Computes in terms of primHComp and primTransp
-    primComp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (∀ i → Partial φ (A i)) → (a : A i0) → A i1
+    primComp : ∀ {a} (A : (i : I) → Set (a i)) {φ : I} → (∀ i → Partial φ (A i)) → (a : A i0) → A i1
 
   syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
 
