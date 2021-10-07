@@ -1040,9 +1040,6 @@ instance ToAbstract C.Expr where
   -- DontCare
       C.DontCare e -> A.DontCare <$> toAbstract e
 
-  -- forall-generalize
-      C.Generalized e -> toAbstractGeneralized e
-
 -- | Scope check and prefix with set of generalizable variables.
 toAbstractGeneralized :: C.Expr -> ScopeM A.Expr
 toAbstractGeneralized e = do

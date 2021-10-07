@@ -139,7 +139,6 @@ instance ExprLike Expr where
      DontCare e         -> f $ DontCare               $ mapE e
      Equal{}            -> f $ e0
      Ellipsis{}         -> f $ e0
-     Generalized e      -> f $ Generalized            $ mapE e
    where
      mapE :: ExprLike e => e -> e
      mapE = mapExpr f

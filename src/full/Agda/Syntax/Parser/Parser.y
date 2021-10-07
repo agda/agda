@@ -1151,7 +1151,7 @@ Declaration
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
 TypeSigs :: { List1 Declaration }
-TypeSigs : SpaceIds ':' Expr { fmap (\ x -> typeSig defaultArgInfo Nothing x $3) $1 }
+TypeSigs : SpaceIds ':' Expr { fmap (\ x -> TypeSig defaultArgInfo Nothing x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots:
@@ -1159,7 +1159,7 @@ TypeSigs : SpaceIds ':' Expr { fmap (\ x -> typeSig defaultArgInfo Nothing x $3)
 ArgTypeSigs :: { List1 (Arg Declaration) }
 ArgTypeSigs
   : ModalArgIds ':' Expr { let (attrs, xs) = $1 in
-                           fmap (fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $3)) xs }
+                           fmap (fmap (\ x -> TypeSig defaultArgInfo (getTacticAttr attrs) x $3)) xs }
   | 'overlap' ModalArgIds ':' Expr {%
       let (attrs, xs) = $2
           setOverlap x =
@@ -1167,7 +1167,7 @@ ArgTypeSigs
               Instance _ -> return $ makeInstance' YesOverlap x
               _          -> parseErrorRange $1
                              "The 'overlap' keyword only applies to instance fields (fields marked with {{ }})"
-      in T.traverse (setOverlap . fmap (\ x -> typeSig defaultArgInfo (getTacticAttr attrs) x $4)) xs }
+      in T.traverse (setOverlap . fmap (\ x -> TypeSig defaultArgInfo (getTacticAttr attrs) x $4)) xs }
   | 'instance' ArgTypeSignatures {
     let
       setInstance (TypeSig info tac x t) = TypeSig (makeInstance info) tac x t
@@ -2344,7 +2344,7 @@ funClauseOrTypeSigs attrs lhs' with mrhs wh = do
         LHS p _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
         LHS p [] [] -> forMM (patternToNames p) $ \ (info, x) -> do
           info <- applyAttrs attrs info
-          return $ typeSig info (getTacticAttr attrs) x e
+          return $ TypeSig info (getTacticAttr attrs) x e
       _ -> parseError "A type signature cannot have a where clause"
 
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
@@ -2353,9 +2353,6 @@ parseDisplayPragma r pos s =
     ParseOk s (FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
-
-typeSig :: ArgInfo -> TacticAttribute -> Name -> Expr -> Declaration
-typeSig i tac n e = TypeSig i tac n (Generalized e)
 
 -- * Attributes
 

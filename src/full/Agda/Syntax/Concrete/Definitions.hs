@@ -201,10 +201,10 @@ replaceSigs ps = if Map.null ps then id else \case
         let x = if isNoName x' then noName (nameRange x') else x' in
         Just (x, Axiom r acc abst inst argi x' e)
       NiceRecSig r acc abst _ _ x pars t ->
-        let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
+        let e = makePi (lamBindingsToTelescope r pars) t in
         Just (x, Axiom r acc abst NotInstanceDef defaultArgInfo x e)
       NiceDataSig r acc abst _ _ x pars t ->
-        let e = Generalized $ makePi (lamBindingsToTelescope r pars) t in
+        let e = makePi (lamBindingsToTelescope r pars) t in
         Just (x, Axiom r acc abst NotInstanceDef defaultArgInfo x e)
       _ -> Nothing
 

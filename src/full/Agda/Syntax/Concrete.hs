@@ -178,7 +178,6 @@ data Expr
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
-  | Generalized Expr
   deriving (Data, Eq)
 
 type OpAppArgs = OpAppArgs' Expr
@@ -668,7 +667,6 @@ returnExpr (Pi _ e)        = returnExpr e
 returnExpr (Fun _ _  e)    = returnExpr e
 returnExpr (Let _ _ e)     = returnExpr =<< e
 returnExpr (Paren _ e)     = returnExpr e
-returnExpr (Generalized e) = returnExpr e
 returnExpr e               = pure e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
@@ -831,7 +829,6 @@ instance HasRange Expr where
       DontCare{}         -> noRange
       Equal r _ _        -> r
       Ellipsis r         -> r
-      Generalized e      -> getRange e
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
@@ -1086,7 +1083,6 @@ instance KillRange Expr where
   killRange (DontCare e)          = killRange1 DontCare e
   killRange (Equal _ x y)         = Equal noRange x y
   killRange (Ellipsis _)          = Ellipsis noRange
-  killRange (Generalized e)       = killRange1 Generalized e
 
 instance KillRange LamBinding where
   killRange (DomainFree b) = killRange1 DomainFree b
@@ -1203,7 +1199,6 @@ instance NFData Expr where
   rnf (DontCare a)        = rnf a
   rnf (Equal _ a b)       = rnf a `seq` rnf b
   rnf (Ellipsis _)        = ()
-  rnf (Generalized e)     = rnf e
 
 -- | Ranges are not forced.
 

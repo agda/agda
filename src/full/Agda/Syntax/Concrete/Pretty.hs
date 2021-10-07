@@ -226,7 +226,6 @@ instance Pretty Expr where
             DontCare e -> "." <> parens (pretty e)
             Equal _ a b -> pretty a <+> "=" <+> pretty b
             Ellipsis _  -> "..."
-            Generalized e -> pretty e
         where
           absurd NotHidden  = "()"
           absurd Instance{} = "{{}}"

@@ -839,7 +839,7 @@ instance ToConcrete A.Expr where
         piTel (A.Pi _ tel e) = first List1.toList $ piTel1 tel e
         piTel e              = ([], e)
 
-    toConcrete (A.Generalized _ e) = C.Generalized <$> toConcrete e
+    toConcrete (A.Generalized _ e) = toConcrete e
 
     toConcrete (A.Fun i a b) =
         bracket piBrackets
@@ -1127,7 +1127,7 @@ instance ToConcrete A.Declaration where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Generalize (getRange i) [C.TypeSig j tac x' $ C.Generalized t']]
+      return [C.Generalize (getRange i) [C.TypeSig j tac x' t']]
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
