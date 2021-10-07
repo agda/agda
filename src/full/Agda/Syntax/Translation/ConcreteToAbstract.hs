@@ -200,7 +200,7 @@ recordConstructorType decls =
         C.NiceField r pr ab inst tac x a -> do
           fx  <- getConcreteFixity x
           let bv = unnamed (C.mkBinder $ (C.mkBoundName x fx) { bnameTactic = tac }) <$ a
-          toAbstract $ C.TBind r (singleton bv) (unArg a)
+          Just <$> do toAbstractTBind r (singleton bv) =<< toAbstractCtxGeneralized TopCtx (unArg a)
 
         -- Public open is allowed and will take effect when scope checking as
         -- proper declarations.
@@ -1107,6 +1107,14 @@ instance ToAbstract C.TypedBinding where
 
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
+    Just <$> toAbstractTBind r xs t'
+
+  toAbstract (C.TLet r ds) = A.mkTLet r <$> toAbstract (LetDefs ds)
+
+-- | Handle tactic attributes in binders.
+
+toAbstractTBind :: Range -> List1 (NamedArg C.Binder) -> A.Expr -> ScopeM A.TypedBinding
+toAbstractTBind r xs t' = do
     tac <- traverse toAbstract $
              case List1.mapMaybe (bnameTactic . C.binderName . namedArg) xs of
                []      -> Nothing
@@ -1114,8 +1122,7 @@ instance ToAbstract C.TypedBinding where
                -- Invariant: all tactics are the same
                -- (distributed in the parser, TODO: don't)
     xs' <- toAbstract $ fmap (updateNamedArg (fmap $ NewName LambdaBound)) xs
-    return $ Just $ A.TBind r tac xs' t'
-  toAbstract (C.TLet r ds) = A.mkTLet r <$> toAbstract (LetDefs ds)
+    return $ A.TBind r tac xs' t'
 
 -- | Scope check a module (top level function).
 --
@@ -2110,8 +2117,7 @@ unGeneralized t = (mempty, t)
 collectGeneralizables :: ScopeM a -> ScopeM (Set I.QName, a)
 collectGeneralizables m = bracket_ open close $ do
     a <- m
-    s <- useTC stGeneralizedVars
-    case s of
+    useTC stGeneralizedVars >>= \case
         Nothing -> __IMPOSSIBLE__
         Just s -> return (s, a)
   where
