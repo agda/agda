@@ -456,7 +456,7 @@ class ToAbstract c where
 
 -- | This function should be used instead of 'toAbstract' for things that need
 --   to keep track of precedences to make sure that we don't forget about it.
-toAbstractCtx :: ToAbstract c => Precedence -> c-> ScopeM (AbsOfCon c)
+toAbstractCtx :: ToAbstract c => Precedence -> c -> ScopeM (AbsOfCon c)
 toAbstractCtx ctx c = withContextPrecedence ctx $ toAbstract c
 
 --UNUSED Liang-Ting Chen 2019-07-16
@@ -1041,9 +1041,17 @@ instance ToAbstract C.Expr where
       C.DontCare e -> A.DontCare <$> toAbstract e
 
   -- forall-generalize
-      C.Generalized e -> do
+      C.Generalized e -> toAbstractGeneralized e
+
+-- | Scope check and prefix with set of generalizable variables.
+toAbstractGeneralized :: C.Expr -> ScopeM A.Expr
+toAbstractGeneralized e = do
         (s, e) <- collectGeneralizables $ toAbstract e
         pure $ A.generalized s e
+
+-- | Scope check and prefix with set of generalizable variables.
+toAbstractCtxGeneralized :: Precedence -> C.Expr -> ScopeM A.Expr
+toAbstractCtxGeneralized ctx e = withContextPrecedence ctx $ toAbstractGeneralized e
 
 instance ToAbstract C.ModuleAssignment where
   type AbsOfCon C.ModuleAssignment = (A.ModuleName, Maybe A.LetBinding)
@@ -1687,7 +1695,7 @@ instance ToAbstract NiceDeclaration where
     C.NiceGeneralize r p i tac x t -> do
       reportSLn "scope.decl" 10 $ "found nice generalize: " ++ prettyShow x
       tac <- traverse (toAbstractCtx TopCtx) tac
-      t_ <- toAbstractCtx TopCtx t
+      t_ <- toAbstractCtxGeneralized TopCtx t
       let (s, t) = unGeneralized t_
       reportSLn "scope.decl" 50 $ "generalizations: " ++ show (Set.toList s, t)
       f <- getConcreteFixity x
@@ -1706,7 +1714,7 @@ instance ToAbstract NiceDeclaration where
       let maskIP (C.QuestionMark r _) = C.Underscore r Nothing
           maskIP e                     = e
       tac <- traverse (toAbstractCtx TopCtx) tac
-      t' <- toAbstractCtx TopCtx $ mapExpr maskIP t
+      t' <- traverse (toAbstractCtxGeneralized TopCtx) $ mapExpr maskIP t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       -- Andreas, 2018-06-09 issue #2170
@@ -1723,7 +1731,7 @@ instance ToAbstract NiceDeclaration where
 
   -- Primitive function
     PrimitiveFunction r p a x t -> do
-      t' <- traverse (toAbstractCtx TopCtx) t
+      t' <- traverse (toAbstractCtxGeneralized TopCtx) t
       f  <- getConcreteFixity x
       y  <- freshAbstractQName f x
       bindName p PrimName x y
@@ -1743,7 +1751,7 @@ instance ToAbstract NiceDeclaration where
           -- computing generalised parameters, but in the type checker any named
           -- generalizable arguments in the sort should be bound variables.
           toAbstract (GenTelAndType (map makeDomainFull ls) t)
-        t' <- toAbstract t
+        t' <- toAbstractGeneralized t
         f  <- getConcreteFixity x
         x' <- freshAbstractQName f x
         bindName' p RecName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
@@ -1755,7 +1763,7 @@ instance ToAbstract NiceDeclaration where
         withLocalVars $ do
           ls' <- withCheckNoShadowing $
             toAbstract $ GenTel $ map makeDomainFull ls
-          t'  <- toAbstract $ C.Generalized t
+          t'  <- toAbstractGeneralized t
           f  <- getConcreteFixity x
           x' <- freshAbstractQName f x
           mErr <- bindName'' p DataName (GeneralizedVarsMetadata $ generalizeTelVars ls') x x'
@@ -2087,7 +2095,7 @@ instance ToAbstract NiceDeclaration where
       -- checking postulate or type sig. without checking safe flag
       toAbstractNiceAxiom :: KindOfName -> C.NiceDeclaration -> ScopeM A.Declaration
       toAbstractNiceAxiom kind (C.Axiom r p a i info x t) = do
-        t' <- toAbstractCtx TopCtx t
+        t' <- toAbstractCtxGeneralized TopCtx t
         f  <- getConcreteFixity x
         mp <- getConcretePolarity x
         y  <- freshAbstractQName f x
@@ -2251,7 +2259,7 @@ instance ToAbstract DataConstrDecl where
       C.Axiom r p1 a1 i info x t -> do -- rel==Relevant
         -- unless (p1 == p) __IMPOSSIBLE__  -- This invariant is currently violated by test/Succeed/Issue282.agda
         unless (a1 == a) __IMPOSSIBLE__
-        t' <- toAbstractCtx TopCtx t
+        t' <- toAbstractCtxGeneralized TopCtx t
         -- The abstract name is the qualified one
         -- Bind it twice, once unqualified and once qualified
         f <- getConcreteFixity x
