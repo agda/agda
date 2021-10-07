@@ -119,9 +119,11 @@ pattern Def x = Def' x NoSuffix
 
 -- | Smart constructor for Generalized
 generalized :: Set QName -> Expr -> Expr
-generalized s e
-    | null s    = e
-    | otherwise = Generalized s e
+generalized s
+  | null s    = id
+  | otherwise = \case
+      Generalized s' e -> Generalized (s `Set.union` s') e
+      e                -> Generalized s e
 
 -- | Record field assignment @f = e@.
 type Assign  = FieldAssignment' Expr
