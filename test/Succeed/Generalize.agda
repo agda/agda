@@ -40,6 +40,9 @@ module Definitions where
     K : B → C → B
     K x _ = x
 
+    field
+      fld₁ : B₀
+
 -- Original content (postulates only)
 
 data _≡_ {ℓ}{A : Set ℓ} (x : A) : A → Set ℓ where
