@@ -6,9 +6,11 @@ module Agda.TypeChecking.Primitive.Cubical where
 import Prelude hiding (null, (!!))
 
 import Control.Monad
+import Control.Monad.Cont
 import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 import Control.Exception
+import Data.Coerce
 import Data.Typeable
 import Data.String
 
@@ -2405,17 +2407,352 @@ primForcingAppDep' = do
           lPi' ForcingTick "α" (tFTick k) $ \ alpha ->
           el' a (cl primForcingApp <#> (cl primLevelSuc <@> a) <#> (lam "k" $ \ _ -> unEl <$> tType a) <@> bA <@> k <🔒> alpha)
           )
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
-    case ts of
-     [a,bA,t,k,lk] -> do
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ impl
+  where
+    impl [a,bA,Arg tinfo t,k,lk] = do
        slk <- reduceB lk
        ftview <- ftickView'
        tick <- tickUnview'
-       case ftview $ unArg $ ignoreBlocking slk of
-         FTEmb _k lk' -> redReturn $ unArg t `apply` [argN (unArg k), setLock IsLock $ argN $ tick lk']
-         _            -> return $ NoReduction $ map notReduced ts
-                         -- TODO: cases for t = dfix, pfix, \lambda \alpha. t'
-     _         -> __IMPOSSIBLE__
+       int <- intervalUnview'
+       let lk = unArg $ ignoreBlocking slk
+       let advanceCase = advanceCase' slk
+       case ftview $ lk of
+         FTEmb _k lk' -> redReturn $ t `apply` [argN (unArg k), setLock (IsLock Tick) $ argN $ tick lk']
+         FTDia _k     -> advanceCase True
+           -- do
+           -- stk <- reduceB $ t `apply` [argN $ unArg k]
+           -- mpfix <- getName' builtinPFix
+           -- case ignoreBlocking stk of
+           --   Def q es | Just [k,a,bA,f,r] <- allApplyElims es, Just q == mpfix
+           --     -> redReturn =<< (runNamesT [] $ pfixBeta int q `applyN` map (pure . unArg) [k,a,bA,f])
+           --   Lam _ (Abs _ u) -> do
+           --     u <- reduce u
+           --     case u of
+           --       Def q es | Just [k,a,bA,f,r,lk2] <- allApplyElims es
+           --                , Just q == mpfix
+           --                , Var 0 [] <- unArg lk2
+           --          -> redReturn $ subst 0 lk $
+           --               unArg f `apply` [argN $ Def q [] `apply` [k,a,bA,f,argN $ int IZero]]
+           --       _  -> advanceCase
+           --   _ -> advanceCase
+         _            -> advanceCase False
+      where
+        reducePFix False slk _ m = m
+        reducePFix True  slk t m = do
+           let lk = unArg $ ignoreBlocking slk
+           int <- intervalUnview'
+           mpfix <- getName' builtinPFix
+           case subst 0 (unArg k) t of
+             Def q es | Just [k,a,bA,f,r] <- allApplyElims es, Just q == mpfix
+                    -> (redReturn =<<) $ runNamesT [] $
+                         pfixBeta int q `applyN` map (pure . unArg) [k,a,bA,f]
+             Lam _ (Abs _ u) -> do
+               case u of
+                 Def q es | Just [k,a,bA,f,r,lk2] <- allApplyElims es
+                          , Just q == mpfix
+                          , Var 0 [] <- unArg lk2
+                    -> (redReturn . subst 0 lk =<<) $ runNamesT [] $
+                         pfixBeta int q `applyN` map (pure . unArg) [k,a,bA,f]
+                 _u -> m
+             _t     -> m
+        advanceCase' slk isdia = do
+             st <- reduceB t
+             -- apply to fresh clock: TODO maybe better to check if Lam instead.
+             st0 <- reduceB (raise 1 t `apply` [argN $ var 0])
+             let t0 = ignoreBlocking st0
+                 lamAbs = Lam defaultArgInfo . Abs "k"
+                 tlamAbs nm = Lam (setLock (IsLock Tick) defaultArgInfo) . Abs nm
+             let bail' st = do
+                   reportSDoc "tc.forcing.reduce" 90 $ text "st0:" <+> pretty t0
+                   return $ NoReduction $ [ notReduced a, notReduced bA
+                                          , reduced $ Arg tinfo <$> st
+                                          , notReduced k, reduced slk
+                                          ]
+                 bail = bail' (const lamAbs <$> st <*> st0)
+
+             reducePFix isdia slk t0 $ do
+             case t0 of
+               Lam info (NoAbs _ t') -> do
+                 redReturn $ subst 0 (unArg k) t'
+               Lam info (Abs alpha t') -> do
+                 st' <- reduceB t'
+                 let bail = bail' $
+                              const (const (lamAbs . tlamAbs alpha)) <$> st <*> st0 <*> st'
+                 let t' = ignoreBlocking st'
+
+                 reducePFix isdia slk (Lam info (Abs alpha t')) $ do
+
+                 bailIfEtaLong t' bail $ do
+                 --  γ : Γ, δ : adv(Δ,k',u,·) ⊢ τ := [γ,k',u,δ] : Γ, k : Cl, α : k, Δ
+                 -- but Δ = ·.
+                 let tau = parallelS [unArg $ ignoreBlocking slk, unArg k]
+                 -- TODO: tau is ill-typed, u : FTick k', but α : Tick k
+                 mt'' <- advance tau 0 t' `runContT` (return . Just)
+                 case mt'' of
+                   Nothing  -> bail
+                   Just t'' -> redReturn t''
+               _            -> bail
+    impl  _ =  __IMPOSSIBLE__
+    bailIfEtaLong t' bail m = do
+     let es = case t' of
+                Def f es -> es
+                Con _ _  es -> es
+                Var i es    -> es
+                MetaV i es  -> es
+                _           -> []
+     case reverse es of
+       (Apply x : _) | Var 0 [] <- unArg x
+         -> bail
+       _ -> m
+
+
+
+{-
+
+
+
+
+Γ, k : Cl, α : k ⊢ t : A
+
+fv(t,A) ⊆ (Γ - u), k : Cl, α : k
+Γ ⊢ u : k'
+-----------------------------
+Γ ⊢ (k.λ α. t) [k',u] = adv(t,k',u) : adv(A,k',u)
+
+
+Γ, k : Cl, α : k, Δ ⊢ t : A
+Γ,adv(Δ,k',u,·) ⊢ u : k'
+
+fv(t,A) ⊆ (Γ - u), k : Cl, α : k, Δ
+-----------------------------
+Γ,adv(Δ,k',u,·) ⊢ (k.λ α. t) [k',u] = adv(t,k',u,Δ) : adv(A,k',u,Δ)
+
+
+Γ, k : Cl, α : k, Δ ⊢ t : A
+Γ,adv(Δ,k',u,·) ⊢ u : k'
+fv(t,A) ⊆ (Γ - u), k : Cl, α : k, Δ
+-----------------------------
+Γ,adv(Δ,k',u,·) ⊢ adv(t,k',u,Δ) : adv(A,k',u,Δ)
+
+γ : Γ, δ : adv(Δ,k',u,·)                ⊢ τ := [γ,k',u,δ] : Γ, k : Cl, α : k, Δ
+γ : Γ, δ : adv(Δ,k',u,·), k : Cl, α : k ⊢ σ := [γ,k ,α,δ] : Γ, k : Cl, α : k, Δ
+
+inputs:
+  - |Δ| = index of α in Γ, k : Cl, α : k, Δ
+  - τ
+
+adv(Lam t,k',u,Δ) = adv(t, k', u, Δ)
+adv(Abs (x:A). t,k',u,Δ) = adv(t, k'↑, u↑, Δ.x:A)
+adv(k,k',u,Δ) = k'
+adv(x,k',u,Δ) = x
+  with x /= k,α
+
+-- De Brujin way:
+adv(i < |Δ∣    ,k',u,Δ) = i
+adv(0+|Δ|      ,k',u,Δ) = k'
+adv(1+|Δ|      ,k',u,Δ) = u
+adv(i+|k,α|+|Δ|,k',u,Δ) = i
+
+-- The sub way:
+γ : Γ, δ : adv(Δ,k',u,·) ⊢ τ := [γ,k',u,δ] : Γ, k : Cl, α : k, Δ
+
+adv(h [α],k',u,Δ) = bF (λ k α → hσ) [k',u]
+  Γ, k : Cl, α : k, Δ ⊢ h : ▹ k A
+  Γ, δ : adv(Δ,k',u,·), k : Cl, α : k ⊢ hσ
+  σ = γ,k,α,δ'
+  -- δ' := Dummy^|Δ| or strengthen?
+  -- point is: h is not using anything from α or after.
+  -- problem: timeless in Δ
+  -- However:
+     adv(Cl   ,…) = Cl
+     adv(Ι    ,…) = Ι
+     adv(r = 1,…) = (r = 1)
+  -- ok so δ' := δ. Because when h uses those vars it will be well-typed.
+
+  Γ, δ : adv(Δ,k',u,·), k : Cl, α : k ⊢ σ := [γ,k,α,δ] : Γ, k : Cl, α : k, Δ
+adv(h $ a,k',u,Δ) = adv(h,k',u,Δ) $ adv(a,k',u,Δ)
+
+adv(h .proj,k',u,Δ) = adv(h,k',u,Δ) .proj
+
+adv(h [v],k',u,Δ) = bF (\ k α → hσ) [k',adv(v,k',u,Δ)]
+  with α ∈ v
+  then `α` has to be the leftmost var in `v`, because they are all for the clock `k`.
+
+  Slight problem: h might be in an exotic sort.
+                  We could rule it out by restricting piSort LockU ...
+
+adv(h [v],k',u,Δ) = adv(h,k',u,Δ) [adv(v,k',u,Δ)]
+  with α ∉ v
+
+  adv(v,k',u,Δ) = v τ
+
+  where γ : Γ, δ : adv(Δ,k',u,·) ⊢ τ := γ,k',u,δ : Γ, k : Cl, α : k, Δ
+
+adv(h [?M es],k',u,Δ) = adv(h,k',u,Δ) [adv(v,k',u,Δ)]
+
+   If es ≠ … [v(α)] … then we can proceed like in the α ∉ v case.
+
+   However if es = … [v(α)] … then `?M es` could solve to v (which ∋ α), so we can't ignore the case.
+
+   Though we can't just proceed like in the α ∈ v case because `?M` might not be allowed
+   to solve to `v` here or to a `k` tick at all, so the typing does not guarantee
+   `h` would make sense in a `bF` application.
+
+   We would need to be allowed adv(..) in the syntax, so we can block at this point.
+
+   I guess instead adv(..) has to be able to bail at any point and just return the original unreduced term.
+
+   should adv reduce at it traverses? well, considering we want to
+   replace `α` applications with `u` it might not make a lot of
+   sense to reduce first. OTOH we will have to reduce to expose the dfix/pfix to advance when u = ◇.
+   reducing first makes bailing more wasteful, but not reducing might inflict more bailing.
+
+   I suppose we want to reduce the tick application terms? Or maybe just instantiate?
+
+adv(bF t [κ,v],k',u,Δ) = bF (adv(t,k',u,Δ)) adv([κ,v],k',u,Δ)
+
+   Γ, k : Cl, α : k, Δ ⊢ k,v      fv(k,v) ⊆ (Γ - u), k : Cl, α : k, Δ
+
+   Γ,adv(Δ,k',u,·) ⊢ adv([κ,v],k',u,Δ) : (k : Cl, FTick k)
+
+   conclusion: we do not have to special case bF.
+
+adv(?M,k',u,Δ) = ?M
+
+adv(Def f,k',u,Δ) = Def f
+
+both ?M and Def f are closed terms, if we get here we don't need to worry about k and α
+-}
+
+type AdvanceM a = ContT (Maybe Term) ReduceM a
+
+instance HasBuiltins m => HasBuiltins (ContT r m)
+
+class Subst a => Advance a where
+  advance :: Substitution' (SubstArg a) -> Nat -> a -> AdvanceM a
+
+  default advance :: (a ~ f b, Traversable f, Advance b, SubstArg a ~ SubstArg b) =>
+                     Substitution' (SubstArg a) -> Nat -> a -> AdvanceM a
+  advance rho n = traverse (advance rho n)
+
+instance Advance a => Advance (Abs a) where
+  advance tau a (Abs x t) = Abs x <$> advance (liftS 1 tau) (a+1) t
+  advance tau a (NoAbs x t) = NoAbs x <$> advance tau a t
+
+
+instance Advance a => Advance (Arg a) where
+  advance tau n arg = setFreeVariables unknownFreeVariables <$> traverse (advance tau n) arg
+
+advanceTerm :: Substitution' Term -> Nat -> Term -> AdvanceM Term
+advanceTerm rho n t = case t of
+    Var i es    -> advanceHead (Var i []) es
+    Lam info m  -> Lam info <$> advance rho n m
+    Def f es    -> advanceHead (Def f []) es
+    Con c ci es -> advanceHead (Con c ci []) $ es
+    MetaV x es  -> advanceHead (MetaV x []) $ es
+    l@(Lit _)   -> pure $ l
+    Level l     -> levelTm <$> advance rho n l
+    Pi a b      -> Pi <$> advance rho n a <*> advance rho n b
+    Sort s      -> Sort <$> advance rho n s
+    DontCare mv -> dontCare <$> advance rho n mv
+    Dummy s es  -> advanceHead (Dummy s []) $ es
+ where
+   heads :: Term -> Elims -> [(Term,Elims)]
+   heads h [] = []
+   heads h ees@(e : es) = (h, ees) : heads h' es
+     where h' = h `applyE` [e]
+   advanceHead :: Term -> Elims -> AdvanceM Term
+   advanceHead h [] = pure $ applySubst rho h
+   advanceHead h es = advanceHead' $ reverse $ heads h es
+   hasTick :: Nat -> Term -> AdvanceM (Term,Bool)
+   hasTick n v = do
+     sv <- lift $ reduceB v
+     let bail = ContT (const $ return Nothing)
+     case sv of
+       Blocked{}                        -> bail
+       NotBlocked{ ignoreBlocking = v } -> do
+         let go t = case t of
+               TickVar i    -> pure $ i == n
+               TIrr _ x y _ -> (||) <$> go x <*> go y
+               TTerm _      -> bail
+         fmap (ignoreBlocking sv,) . go =<< tickView v
+   tickToFTick :: Term -> Term -> ReduceM Term
+   tickToFTick k v = do
+     v <- tickView v
+     ftick <- ftickUnview'
+     let go t = case t of
+           TickVar i -> FTEmb k $ TickVar i
+           TIrr k x y r -> FTIrr k (go x) (go y) r
+           TTerm t -> FTTerm t
+     return $ ftick $ go v
+
+   advanceHead' :: [(Term,Elims)] -> AdvanceM Term
+   advanceHead' []              = __IMPOSSIBLE__
+   advanceHead' ((h,[])    :hs) = __IMPOSSIBLE__
+   advanceHead' ((h,e : es):hs) =
+     case e of
+       Apply arg | IsLock Tick <- getLock arg, v <- unArg arg -> do
+         (v,b) <- hasTick n v
+         lift $ reportSDoc "adv" 20 $ text "hasTick" <+> pretty (n,v) <+> " = " <+> pretty b
+         if not b then fallback else do
+         bF <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinForcingAppDep
+         let k' = applySubst rho $ var (n+1)
+         v' <- lift $ tickToFTick k' $ applySubst rho v
+         runNamesT [] $ do
+           k' <- open k'
+           v' <- open v'
+           -- Γ, δ : adv(Δ,k',u,·), k : Cl, α : k ⊢ σ := [γ,k,α,δ] : Γ, k : Cl, α : k, Δ
+           let sigma = let xs = [ var (i+2) | i <- [0..n-1]] ++ [var 0, var 1]
+                       in foldr consS (raiseS (length xs)) xs
+           lift $ lift $ reportSDoc "adv" 20 $ text "sigma :=" <+> pretty sigma
+           h' <- open $ AbsN ["k","α"] $ applySubst sigma h `apply` [setLock (IsLock Tick) $ argN $ var 0]
+           result <- pure bF <#> (pure $ Dummy "l" []) <#> (pure $ Dummy "A" [])
+                             <@> (lam "k" $ \ k -> llam Tick "α" $ \ a -> h' `applyN` [k,a]) <@> k' <◇> v'
+           lift $ lift $ reportSDoc "adv" 20 $ text "result :=" <+> pretty result
+           return $ result `applyE` es
+       e -> fallback
+     where
+       fallback | null hs   = (applySubst rho h `applyE`) <$> (traverse (traverse (advance rho n)) $ e : es)
+                | otherwise = advanceHead' hs
+
+instance Advance a => Advance (Maybe a)
+
+instance (Advance a, Advance b, SubstArg a ~ SubstArg b) => Advance (Dom' a b) where
+  advance rho n dom = do
+    tactic <- advance rho n (domTactic dom)
+    setFreeVariables unknownFreeVariables <$>
+      traverse (advance rho n) dom{ domTactic = tactic }
+
+
+instance Advance Term where
+  advance tau a t = advanceTerm tau a t
+
+instance Advance (Sort' Term) where
+  advance rho n = \case
+    Type n     -> Type <$> adv n
+    Prop n     -> Prop <$> adv n
+    Inf f n    -> pure $ Inf f n
+    SSet n     -> SSet <$> adv n
+    SizeUniv   -> pure SizeUniv
+    LockUniv   -> pure LockUniv
+    IntervalUniv -> pure IntervalUniv
+    PiSort a s1 s2 -> piSort <$> (adv a) <*> (adv s1) <*> (adv s2)
+    FunSort s1 s2 -> funSort <$> (adv s1) <*> (adv s2)
+    UnivSort s -> univSort <$> adv s
+    -- TODO: do the proper advanceHead
+    MetaS x es -> MetaS x <$> traverse (traverse adv) es
+    DefS d es  -> DefS d <$> traverse (traverse adv) es
+    s@DummyS{} -> pure s
+    where
+      adv :: forall b. (SubstArg b ~ Term, Advance b) => b -> AdvanceM b
+      adv x = advance rho n x
+
+instance Advance Level where
+
+instance Advance Type where
+  advance rho n (El s t) = El <$> advance rho n s <*> advance rho n t
+
+
 primPFix' :: TCM PrimitiveImpl
 primPFix' = do
   requireCubical CErased ""
