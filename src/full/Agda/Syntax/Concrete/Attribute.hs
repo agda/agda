@@ -98,7 +98,8 @@ cohesionAttributeTable =
 lockAttributeTable :: [(String, Lock)]
 lockAttributeTable = concat
   [ map (, IsNotLock) [ "notlock" ] -- default, shouldn't be used much
-  , map (, IsLock) [ "lock", "tick" ] -- 🔓
+  , map (, IsLock Tick) [ "lock", "tick" ] -- 🔓
+  , map (, IsLock ForcingTick) [ "ftick" ] -- 🔓
   ]
 
 

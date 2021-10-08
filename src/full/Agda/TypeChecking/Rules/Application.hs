@@ -714,7 +714,7 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                   let e' = e { nameOf = (nameOf e) <|> dname }
                   checkNamedArg (Arg info' e') a
 
-                let c | IsLock == getLock info' = Just $ Abs "t" (CheckLockedVars (Var 0 []) (raise 1 t0') (raise 1 $ Arg info' u) (raise 1 a))
+                let c | isLock info' = Just $ Abs "t" (CheckLockedVars (Var 0 []) (raise 1 t0') (raise 1 $ Arg info' u) (raise 1 a))
                       | otherwise = Nothing
                 lift $ reportSDoc "tc.term.lock" 40 $ text "lock =" <+> text (show $ getLock info')
                 lift $ reportSDoc "tc.term.lock" 40 $ addContext (defaultDom $ t0') $ maybe (text "nothing") prettyTCM (absBody <$> c)

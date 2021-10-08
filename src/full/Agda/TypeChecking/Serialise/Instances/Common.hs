@@ -595,13 +595,22 @@ instance EmbPrj Annotation where
     [l] -> valuN Annotation l
     _ -> malformed
 
-instance EmbPrj Lock where
-  icod_ IsNotLock = return 0
-  icod_ IsLock    = return 1
+instance EmbPrj LockKind where
+  icod_ Tick        = return 0
+  icod_ ForcingTick = return 1
 
-  value 0 = return IsNotLock
-  value 1 = return IsLock
+  value 0 = return Tick
+  value 1 = return ForcingTick
   value _ = malformed
+
+instance EmbPrj Lock where
+  icod_ IsNotLock = icodeN' IsNotLock
+  icod_ (IsLock k)= icodeN' IsLock k
+
+  value = vcase valu where
+    valu []  = valuN IsNotLock
+    valu [a] = valuN IsLock a
+    valu _   = malformed
 
 instance EmbPrj Origin where
   icod_ UserWritten = return 0

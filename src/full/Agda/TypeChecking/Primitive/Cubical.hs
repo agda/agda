@@ -2394,11 +2394,11 @@ primForcingAppDep' = do
           hPi' "A" (nPi' "k" (cl tClock) $ \ k ->
                      tTick k #--> tType a) $ \ bA ->
           (nPi' "k" (cl tClock) $ \ k ->
-           lPi' "α" (tTick k) $ \ alpha ->
-           el' a (bA <@> k <@> alpha)) -->
+           lPi' Tick "α" (tTick k) $ \ alpha ->
+           el' a (bA <@> k <🔒> alpha)) -->
           (nPi' "k" (cl tClock) $ \ k ->
-          lPi' "α" (tFTick k) $ \ alpha ->
-          el' a (cl primForcingApp <#> (cl primLevelSuc <@> a) <#> (lam "k" $ \ _ -> unEl <$> tType a) <@> bA <@> k <@> alpha)
+          lPi' ForcingTick "α" (tFTick k) $ \ alpha ->
+          el' a (cl primForcingApp <#> (cl primLevelSuc <@> a) <#> (lam "k" $ \ _ -> unEl <$> tType a) <@> bA <@> k <🔒> alpha)
           )
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of

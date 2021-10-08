@@ -1033,7 +1033,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
             TelV tel' _ <- telViewUpToPath (length args) t
             forM_ ids $ \(i,u) -> do
               d <- lookupBV i
-              when (getLock (getArgInfo d) == IsLock) $ do
+              when (isLock (getArgInfo d)) $ do
                 let us = IntSet.unions $ map snd $ filter (earlierThan i . fst) idvars
                 -- us Earlier than u
                 addContext tel' $ checkEarlierThan u us

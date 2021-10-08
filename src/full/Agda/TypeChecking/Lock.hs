@@ -106,7 +106,7 @@ getLockVar lk = do
     let metas = Set.fromList $ concatMap (foldrMetaSet (:) []) $ IMap.elems flex
     patternViolation $ unblockOnAnyMeta $ metas
 
-  is <- filterM isLock $ ISet.toList $ rigidVars fv
+  is <- filterM isLockVar $ ISet.toList $ rigidVars fv
 
   -- Out of the lock variables that appear in @lk@ the one in the
   -- left-most position in the context is what will determine the
@@ -117,9 +117,8 @@ getLockVar lk = do
   return $ mi
 
   where
-   isLock i = do
-     islock <- getLock . domInfo <$> lookupBV i
-     return $ islock == IsLock
+   isLockVar i = do
+     isLock . domInfo <$> lookupBV i
 
 isTimeless :: Type -> TCM Bool
 isTimeless t = do

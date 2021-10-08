@@ -158,7 +158,7 @@ varDependencies tel = addLocks . allDependencies IntSet.empty
     addLocks s | IntSet.null s = s
                | otherwise = IntSet.union s $ IntSet.fromList $ filter (>= m) locks
       where
-        locks = catMaybes [ deBruijnView (unArg a) | (a :: Arg Term) <- teleArgs tel, getLock a == IsLock]
+        locks = catMaybes [ deBruijnView (unArg a) | (a :: Arg Term) <- teleArgs tel, isLock a]
         m = IntSet.findMin s
     n  = size tel
     ts = flattenTel tel

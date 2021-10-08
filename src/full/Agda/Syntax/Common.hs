@@ -1297,17 +1297,25 @@ instance LensAnnotation (Arg t) where
 -- * Locks
 ---------------------------------------------------------------------------
 
-data Lock = IsNotLock
-          | IsLock -- ^ In the future there might be different kinds of them.
-                   --   For now we assume lock weakening.
+data LockKind = Tick         -- ^ simple  tick of Cubical Clocked TT
+              | ForcingTick  -- ^ forcing tick of Cubical Clocked TT
   deriving (Data, Show, Generic, Eq, Enum, Bounded, Ord)
+
+data Lock = IsNotLock
+          | IsLock LockKind
+          -- ^ We assume lock weakening for all lock kinds.
+  deriving (Data, Show, Generic, Eq, Ord)
 
 defaultLock :: Lock
 defaultLock = IsNotLock
 
+instance NFData LockKind where
+  rnf Tick = ()
+  rnf ForcingTick = ()
+
 instance NFData Lock where
   rnf IsNotLock = ()
-  rnf IsLock    = ()
+  rnf (IsLock k) = rnf k
 
 class LensLock a where
 
@@ -1331,6 +1339,10 @@ instance LensLock ArgInfo where
 instance LensLock (Arg t) where
   getLock = getLock . getArgInfo
   setLock = mapArgInfo . setLock
+
+isLock :: LensLock a => a -> Bool
+isLock x | IsLock{} <- getLock x = True
+         | otherwise             = False
 
 ---------------------------------------------------------------------------
 -- * Cohesion

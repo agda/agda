@@ -32,12 +32,14 @@ infixr 4 -->
 infixr 4 .-->
 infixr 4 ..-->
 infixr 4 #-->
+infixr 4 ##-->
 
-(-->), (.-->), (..-->), (#-->) :: Applicative m => m Type -> m Type -> m Type
+(-->), (.-->), (..-->), (#-->), (##-->) :: Applicative m => m Type -> m Type -> m Type
 a --> b = garr id a b
 a .--> b = garr (mapRelevance $ const $ Irrelevant) a b
 a ..--> b = garr (mapRelevance $ const $ NonStrict) a b
-a #--> b = garr (setLock IsLock) a b
+a #--> b = garr (setLock $ IsLock Tick) a b
+a ##--> b = garr (setLock $ IsLock ForcingTick) a b
 
 garr :: Applicative m => (ArgInfo -> ArgInfo) -> m Type -> m Type -> m Type
 garr f a b = do
@@ -62,11 +64,13 @@ hPi, nPi :: (MonadAddContext m, MonadDebug m)
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
-hPi', nPi', lPi' :: (MonadFail m, MonadAddContext m, MonadDebug m)
+hPi', nPi' :: (MonadFail m, MonadAddContext m, MonadDebug m)
            => String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
 hPi' s a b = hPi s a (bind' s (\ x -> b x))
 nPi' s a b = nPi s a (bind' s (\ x -> b x))
-lPi' s a b = gpi (setLock IsLock defaultArgInfo) s a (bind' s $ \ x -> b x)
+lPi' :: (MonadFail m, MonadAddContext m, MonadDebug m)
+           => LockKind -> String -> NamesT m Type -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
+lPi' k s a b = gpi (setLock (IsLock k) defaultArgInfo) s a (bind' s $ \ x -> b x)
 
 pPi' :: (MonadAddContext m, HasBuiltins m, MonadDebug m)
      => String -> NamesT m Term -> (NamesT m Term -> NamesT m Type) -> NamesT m Type
@@ -107,10 +111,12 @@ gApply' info a b = do
     y <- b
     pure $ x `apply` [Arg info y]
 
-(<@>),(<#>),(<..>) :: Applicative m => m Term -> m Term -> m Term
+(<@>),(<#>),(<..>),(<🔒>),(<◇>) :: Applicative m => m Term -> m Term -> m Term
 (<@>) = gApply NotHidden
 (<#>) = gApply Hidden
 (<..>) = gApply' (setRelevance Irrelevant defaultArgInfo)
+(<🔒>) = gApply' (setLock (IsLock Tick) defaultArgInfo)
+(<◇>) = gApply' (setLock (IsLock ForcingTick) defaultArgInfo)
 
 (<@@>) :: Applicative m => m Term -> (m Term,m Term,m Term) -> m Term
 t <@@> (x,y,r) = do
