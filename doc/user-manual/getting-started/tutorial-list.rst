@@ -111,6 +111,8 @@ Courses using Agda
 - `Correct-by-construction Programming in Agda
   <https://github.com/jespercockx/ohrid19-agda>`__, a course at the
   EUTYPES Summer School '19 in Ohrid.
+- `Lectures on Agda <https://www.mathstat.dal.ca/~selinger/agda-lectures/>`__
+  , a course by Peter Selinger at Dalhousie University, Winter 2021.
 
 Miscellaneous
 =============
