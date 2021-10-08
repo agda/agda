@@ -1,6 +1,45 @@
 {-# OPTIONS --without-K --safe #-}
 
-open import Level
+open import Agda.Primitive as Prim public
+  using    (Level; _⊔_; Setω)
+  renaming (lzero to zero; lsuc to suc)
+
+open import Agda.Builtin.Sigma public
+  renaming (fst to proj₁; snd to proj₂)
+  hiding (module Σ)
+
+infixr 2 _×_
+
+variable
+  a b c p q r : Level
+  A B C : Set a
+
+_×_ : ∀ (A : Set a) (B : Set b) → Set (a ⊔ b)
+A × B = Σ A λ _ → B
+
+<_,_> : ∀ {A : Set a} {B : A → Set b} {C : ∀ {x} → B x → Set c}
+        (f : (x : A) → B x) → ((x : A) → C (f x)) →
+        ((x : A) → Σ (B x) C)
+< f , g > x = (f x , g x)
+
+map : ∀ {P : A → Set p} {Q : B → Set q} →
+      (f : A → B) → (∀ {x} → P x → Q (f x)) →
+      Σ A P → Σ B Q
+map f g (x , y) = (f x , g y)
+
+
+zip : ∀ {P : A → Set p} {Q : B → Set q} {R : C → Set r} →
+      (_∙_ : A → B → C) →
+      (∀ {x y} → P x → Q y → R (x ∙ y)) →
+      Σ A P → Σ B Q → Σ C R
+zip _∙_ _∘_ (a , p) (b , q) = ((a ∙ b) , (p ∘ q))
+
+curry′ : (A × B → C) → (A → B → C)
+curry′ k a b = k (a , b)
+
+swap : A × B → B × A
+swap (x , y) = (y , x)
+
 
 record Category (o ℓ e : Level) : Set (suc (o ⊔ ℓ ⊔ e)) where
   eta-equality
@@ -24,12 +63,9 @@ _[_,_] = Category._⇒_
 
 module Inner {x₁ x₂ x₃} (CC : Category x₁ x₂ x₃) where
 
-  open import Level
   private
     variable
       o ℓ e o′ ℓ′ e′ o″ ℓ″ e″ : Level
-
-  open import Data.Product using (_×_; Σ; _,_; curry′; proj₁; proj₂; zip; map; <_,_>; swap)
 
   zipWith : ∀ {a b c p q r s} {A : Set a} {B : Set b} {C : Set c} {P : A → Set p} {Q : B → Set q} {R : C → Set r} {S : (x : C) → R x → Set s} (_∙_ : A → B → C) → (_∘_ : ∀ {x y} → P x → Q y → R (x ∙ y)) → (_*_ : (x : C) → (y : R x) → S x y) → (x : Σ A P) → (y : Σ B Q) → S (proj₁ x ∙ proj₁ y) (proj₂ x ∘ proj₂ y)
   zipWith _∙_ _∘_ _*_ (a , p) (b , q) = (a ∙ b) * (p ∘ q)
