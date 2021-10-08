@@ -2379,12 +2379,17 @@ primForcingApp' = do
            bA <- fmap (Arg (argInfo bA)) $ runNamesT [] $ do
              bA <- open $ unArg bA
              lam "k" $ \ k ->
-              glam (setLock IsLock defaultArgInfo) "_" $ \ _ ->
-               bA
+              llam Tick "_" $ \ _ ->
+               bA <@> k
 
            redReturn $ tFAppDep `apply` [a,bA]
 
      _         -> __IMPOSSIBLE__
+
+
+pfixBeta :: MonadFail m => (IntervalView -> Term) -> QName -> NamesT m (AbsN Term)
+pfixBeta int pfix = bindN ["k","a","A","f"] $ \ [k,a,bA,f] -> do
+  f <@> (pure (Def pfix []) <#> k <#> a <#> bA <@> f <@> (pure $ int IZero))
 
 primForcingAppDep' :: TCM PrimitiveImpl
 primForcingAppDep' = do
@@ -2411,3 +2416,27 @@ primForcingAppDep' = do
          _            -> return $ NoReduction $ map notReduced ts
                          -- TODO: cases for t = dfix, pfix, \lambda \alpha. t'
      _         -> __IMPOSSIBLE__
+primPFix' :: TCM PrimitiveImpl
+primPFix' = do
+  requireCubical CErased ""
+  t <- runNamesT [] $
+          hPi' "k" (cl tClock) $ \ k ->
+          hPi' "a" (el primLevel) $ \ a ->
+          hPi' "A" (tType a) $ \ bA ->
+          ((tTick k #--> el' a bA) #--> el' a bA) -->
+          cl primIntervalType -->
+          (tTick k #--> el' a bA)
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do
+     case ts of
+       [k,a,bA,f,r] -> do
+         sr <- reduceB r
+         iview <- intervalView'
+         int   <- intervalUnview'
+         pfix <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinPFix
+         case iview $ unArg $ ignoreBlocking $ sr of
+           IOne -> (redReturn =<<) $ runNamesT [] $ do
+                    [k,a,bA,f] <- mapM (open . unArg) [k,a,bA,f]
+                    llam Tick "_" $ \ _ ->
+                      pfixBeta int pfix `applyN` [k,a,bA,f]
+           _    -> return $ NoReduction $ map notReduced [k,a,bA,f] ++ [reduced sr]
+       _ -> __IMPOSSIBLE__

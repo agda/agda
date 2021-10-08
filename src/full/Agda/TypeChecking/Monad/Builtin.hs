@@ -188,6 +188,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primClock, primTick, primForcingTick,
     primEmbTick, primDiamondTick, primTickIrr, primForcingTickIrr,
     primForcingApp, primForcingAppDep,
+    primPFix,
     primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
     primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
@@ -282,12 +283,13 @@ primSubOut                            = getPrimitiveTerm builtinSubOut
 primClock                             = getBuiltin builtinClock
 primTick                              = getBuiltin builtinTick
 primForcingTick                       = getBuiltin builtinForcingTick
-primEmbTick                           = getBuiltin "EMBTICK"
-primDiamondTick                       = getBuiltin "DIAMONDTICK"
-primTickIrr                           = getPrimitiveTerm "primTickIrr"
-primForcingTickIrr                    = getPrimitiveTerm "primForcingTickIrr"
-primForcingApp                        = getPrimitiveTerm "primForcingApp"
-primForcingAppDep                     = getPrimitiveTerm "primForcingAppDep"
+primEmbTick                           = getBuiltin builtinEmbTick
+primDiamondTick                       = getBuiltin builtinDiamondTick
+primTickIrr                           = getPrimitiveTerm builtinTickIrr
+primForcingTickIrr                    = getPrimitiveTerm builtinForcingTickIrr
+primForcingApp                        = getPrimitiveTerm builtinForcingApp
+primForcingAppDep                     = getPrimitiveTerm builtinForcingAppDep
+primPFix                              = getPrimitiveTerm builtinPFix
 primNat                               = getBuiltin builtinNat
 primSuc                               = getBuiltin builtinSuc
 primZero                              = getBuiltin builtinZero

@@ -27,6 +27,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinClock, builtinTick, builtinForcingTick,
   builtinEmbTick, builtinDiamondTick, builtinTickIrr, builtinForcingTickIrr,
   builtinForcingApp, builtinForcingAppDep,
+  builtinPFix,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -155,6 +156,7 @@ builtinTickIrr                           = "primTickIrr"
 builtinForcingTickIrr                    = "primForcingTickIrr"
 builtinForcingApp                        = "primForcingApp"
 builtinForcingAppDep                     = "primForcingAppDep"
+builtinPFix                              = "primPathFix"
 builtinSizeUniv                          = "SIZEUNIV"
 builtinSize                              = "SIZE"
 builtinSizeLt                            = "SIZELT"
