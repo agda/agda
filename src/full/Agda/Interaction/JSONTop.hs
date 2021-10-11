@@ -3,7 +3,6 @@ module Agda.Interaction.JSONTop
     ) where
 import Control.Monad.State
 
-import Data.Aeson hiding (Result(..))
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Text as T

@@ -12,7 +12,6 @@ import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.IO.TempFile (writeToTempFile)
 
-import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Map as Map
 
