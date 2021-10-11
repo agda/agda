@@ -44,11 +44,7 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
-          # - windows-latest
-          ## Andreas, 2021-08-28, giving up on running the test-suite under Windows.
-          ## There is e.g. https://github.com/phile314/tasty-silver/issues/16
-          ## that may be responsible that diffs are not shown,
-          ## and that prevents me from running the test-suite interactively.
+          - windows-latest
         ghc-ver: [9.0.1]
         cabal-ver: [latest]
 
