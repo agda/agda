@@ -4,16 +4,22 @@
 -- | Encoding stuff into JSON values in TCM
 
 module Agda.Interaction.JSON
-  ( EncodeTCM(..)
+  ( module Export
+  , EncodeTCM(..)
   , obj, kind, kind'
+  , (.=)
   , (@=), (#=)
-  , (>=>), (<=<)
-  -- , ToRep(..), rep
   ) where
 
-import Control.Monad ((>=>), (<=<))
-import Data.Aeson
-import Data.Aeson.Types (Pair)
+import Control.Monad as Export ((>=>), (<=<))
+import Data.Aeson    as Export hiding (Result(..), (.=))
+
+import qualified Data.Aeson
+import Data.Aeson.Types ( Pair )
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.Key as Key
+#endif
+
 import Data.Text (Text)
 import GHC.Int (Int32)
 
@@ -27,6 +33,16 @@ import Agda.Utils.Pretty
 import qualified Agda.Utils.FileName as File
 import qualified Agda.Utils.Maybe.Strict as Strict
 
+#if MIN_VERSION_aeson(2,0,0)
+toKey :: Text -> Key
+toKey = Key.fromText
+#else
+type Key = Text
+
+toKey :: Text -> Key
+toKey = id
+#endif
+
 ---------------------------------------------------------------------------
 -- * The EncodeTCM class
 
@@ -39,6 +55,10 @@ class EncodeTCM a where
 -- | TCM monadic version of object
 obj :: [TCM Pair] -> TCM Value
 obj = (object <$>) . sequence
+
+-- | A key-value pair for encoding a JSON object.
+(.=) :: ToJSON a => Text -> a -> Pair
+(.=) = (Data.Aeson..=) . toKey
 
 -- | Pairs a key with a value wrapped in TCM
 (#=) :: (ToJSON a) => Text -> TCM a -> TCM Pair
