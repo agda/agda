@@ -933,8 +933,9 @@ test-suite agda-tests
                 , uri-encode >= 1.5.0.4 && < 1.6
 
   -- Andreas (2021-10-11): tasty-silver < 3.3 does not work interactively under Windows
+  -- Andreas (2021-10-13): tasty-silver-3.3 has problems with CRLF and git diff
   if os(windows)
-    build-depends: tasty-silver >= 3.3
+    build-depends: tasty-silver >= 3.3.1
 
   -- ASR (2018-10-16).
   -- text-1.2.3.0 required for supporting GHC 8.4.1, 8.4.2 and
