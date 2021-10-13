@@ -62,7 +62,7 @@ Functions are constructed by lambda abstractions, which can be either typed or u
   example₁ = \ (A : Set)(x : A) → x
   example₂ = \ A x → x
 
-You can also use the Unicode symbol ``λ`` (type “\\lambda” in the Emacs Agda mode) instead of ``\\``.
+You can also use the Unicode symbol ``λ`` (type “\\lambda” or “\\Gl” in the Emacs Agda mode) instead of ``\`` (type “\\\\” in the Emacs Agda mode).
 
 The application of a function ``f : (x : A) → B`` to an argument ``a : A`` is written ``f a`` and the type of this is ``B[x := a]``.
 
