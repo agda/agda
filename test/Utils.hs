@@ -300,7 +300,10 @@ mkRegex :: Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
   RT.compile R.defaultCompOpt R.defaultExecOpt r
 
-cleanOutput' :: FilePath -> Text -> Text
+cleanOutput'
+  :: FilePath  -- ^ @pwd@, with slashes rather than backslashes.
+  -> Text      -- ^ Output to sanitize.
+  -> Text      -- ^ Sanitized output.
 cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
   where
     rgxs = map (first mkRegex)
@@ -309,8 +312,11 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , ("[^ (]*test.Common.", "")
       , ("[^ (]*test.Bugs.", "")
       , ("[^ (]*test.LibSucceed.", "")
-      , (T.pack pwd `T.append` ".test", "..")
       , ("\\\\", "/")
+        -- Andreas, 2021-10-13, issue #5549
+        -- First, replace backslashes by slashes, then try to match @pwd@,
+        -- which has already backslashes by slashes replaced.
+      , (T.pack pwd `T.append` ".test", "..")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
       , (T.pack Agda.Version.package, "«Agda-package»")
       -- Andreas, 2021-08-26.  When run with 'cabal test',
@@ -332,7 +338,11 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
 cleanOutput :: Text -> IO Text
 cleanOutput inp = do
   pwd <- getCurrentDirectory
-  return $ cleanOutput' pwd inp
+  return $ cleanOutput' (map slashify pwd) inp
+  where
+    slashify = \case
+      '\\' -> '/'
+      c    -> c
 
 doesCommandExist :: String -> IO Bool
 doesCommandExist cmd = isJust <$> findExecutable cmd
