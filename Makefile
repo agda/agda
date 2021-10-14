@@ -29,8 +29,25 @@ endif
 AGDA_BIN_SUFFIX = -$(VERSION)
 AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
-CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) --disable-documentation
-STACK_INSTALL_HELPER = $(STACK) build Agda --no-haddock
+# A cabal/stack dictionary
+
+CABAL_OPT_NO_DOCS = --disable-documentation
+STACK_OPT_NO_DOCS = --no-haddock
+
+CABAL_OPT_TESTS   = --enable-tests
+STACK_OPT_TESTS   = --test --no-run-tests
+
+CABAL_OPT_FAST    = --ghc-options=-O0
+STACK_OPT_FAST    = --fast
+
+CABAL_FLAG_ICU    = -fenable-cluster-counting
+STACK_FLAG_ICU    = --flag Agda:enable-cluster-counting
+
+CABAL_FLAG_OPTIM_HEAVY = -foptimise-heavily
+STACK_FLAG_OPTIM_HEAVY = --flag Agda:optimise-heavily
+
+CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_OPT_NO_DOCS)
+STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
 
 # If running on Travis, use --system-ghc.
 # Developers running `make` will usually want to use the GHC version they've
@@ -48,31 +65,21 @@ endif
 
 # quicker install: -O0, no tests
 
-
-QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(QUICK_BUILD_DIR) \
-											--ghc-options=-O0
-QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(QUICK_STACK_BUILD_DIR) \
-											--fast
+QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) $(CABAL_OPT_FAST) --builddir=$(QUICK_BUILD_DIR)
+QUICK_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_FAST) --work-dir=$(QUICK_STACK_BUILD_DIR)
 
 # fast install: -O0, but tests
 
-
-FAST_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(FAST_BUILD_DIR) \
-                     --enable-tests --ghc-options=-O0
-FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) --work-dir=$(FAST_STACK_BUILD_DIR) \
-                     --test --no-run-tests --fast
+FAST_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) $(CABAL_OPT_TESTS) $(CABAL_OPT_FAST) --builddir=$(FAST_BUILD_DIR)
+FAST_STACK_INSTALL = $(STACK_INSTALL_HELPER) $(STACK_OPT_TESTS) $(STACK_OPT_FAST) --work-dir=$(FAST_STACK_BUILD_DIR)
 
 # ordinary install: optimizations and tests
 
-SLOW_CABAL_INSTALL_OPTS = --builddir=$(BUILD_DIR) --enable-tests \
-                          -foptimise-heavily
-SLOW_STACK_INSTALL_OPTS = --test --no-run-tests \
-                          --flag Agda:optimise-heavily
+SLOW_CABAL_INSTALL_OPTS = $(CABAL_OPT_TESTS) $(CABAL_FLAG_OPTIM_HEAVY) --builddir=$(BUILD_DIR)
+SLOW_STACK_INSTALL_OPTS = $(STACK_OPT_TESTS) $(STACK_FLAG_OPTIM_HEAVY)
 
-CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) \
-                          $(SLOW_CABAL_INSTALL_OPTS)
-STACK_INSTALL           = $(STACK_INSTALL_HELPER) \
-                          $(SLOW_STACK_INSTALL_OPTS)
+CABAL_INSTALL           = $(CABAL_INSTALL_HELPER) $(SLOW_CABAL_INSTALL_OPTS)
+STACK_INSTALL           = $(STACK_INSTALL_HELPER) $(SLOW_STACK_INSTALL_OPTS)
 
 # Depending on your machine and ghc version you might want to tweak the amount of memory
 # given to ghc to compile Agda. To do this set GHC_RTS_OPTS in mk/config.mk (gitignored).
@@ -100,18 +107,16 @@ STACK_INSTALL_OPTS =
 # Only enable cluster-counting by default for non-Windows, due to agda/agda#5012
 # The msys* and mingw* strings derived from: https://stackoverflow.com/a/18434831/141513
 ifeq ($(filter msys% mingw%,$(shell echo "$${OSTYPE:-unknown}")),)
-  CABAL_INSTALL_OPTS += -fenable-cluster-counting
-  STACK_INSTALL_OPTS += --flag Agda:enable-cluster-counting
+  CABAL_INSTALL_OPTS += $(CABAL_FLAG_ICU)
+  STACK_INSTALL_OPTS += $(STACK_FLAG_ICU)
 endif
 
 CABAL_INSTALL_OPTS += --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 STACK_INSTALL_OPTS += --ghc-options $(GHC_OPTS) $(STACK_OPTS)
 
 # Options for building Agda's dependencies.
-CABAL_INSTALL_DEP_OPTS = --only-dependencies \
-                         $(CABAL_INSTALL_OPTS)
-STACK_INSTALL_DEP_OPTS = --only-dependencies \
-                         $(STACK_INSTALL_OPTS)
+CABAL_INSTALL_DEP_OPTS = --only-dependencies $(CABAL_INSTALL_OPTS)
+STACK_INSTALL_DEP_OPTS = --only-dependencies $(STACK_INSTALL_OPTS)
 
 # Options for building the Agda exectutable.
 # -j1 so that cabal will print built progress to stdout.
@@ -175,13 +180,13 @@ endif
 v1-install:  ensure-hash-is-correct
 ifdef HAS_STACK
 	@echo "===================== Installing using Stack with test suites ============"
-	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS) --test --no-run-tests
+	time $(STACK_INSTALL_HELPER) $(STACK_INSTALL_BIN_OPTS) $(STACK_OPT_TESTS)
 	mkdir -p $(BUILD_DIR)/build/
 	cp -r $(shell $(STACK) path --dist-dir)/build $(BUILD_DIR)
 	$(MAKE) copy-bins-with-suffix$(AGDA_BIN_SUFFIX)
 else
 	@echo "===================== Installing using Cabal with test suites ============"
-	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS) --builddir=$(BUILD_DIR) --enable-tests --program-suffix=$(AGDA_BIN_SUFFIX)
+	time $(CABAL_INSTALL_HELPER) $(CABAL_INSTALL_BIN_OPTS) $(CABAL_OPT_TESTS) --builddir=$(BUILD_DIR) --program-suffix=$(AGDA_BIN_SUFFIX)
 endif
 
 .PHONY: fast-install-bin ## Install Agda compiled with -O0 with tests
@@ -238,6 +243,19 @@ type-check-no-deps :
           2>&1 \
           | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
+
+## Andreas, 2021-10-14: This does not work, agda-tests is not type-checked.
+## Maybe because cabal fails with an error after type-checking the library component.
+# .PHONY: type-check-with-tests ## Type check only, including tests
+# type-check-with-tests :
+# 	@echo "================= Type checking using Cabal with -fno-code ==============="
+# 	$(CABAL) $(CABAL_CONFIGURE_CMD) $(CABAL_CONFIGURE_OPTS) --builddir=$(BUILD_DIR)-no-code
+# 	-time $(CABAL) $(CABAL_BUILD_CMD) agda-tests --builddir=$(BUILD_DIR)-no-code \
+#           --ghc-options=-fno-code \
+#           --ghc-options=-fwrite-interface \
+#           2>&1 \
+#           | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
+#                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
 
 .PHONY : install-prof-bin ## Install Agda with profiling enabled
