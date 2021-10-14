@@ -26,6 +26,7 @@ import Control.Monad.Trans
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import System.FilePath
+import System.Directory         ( doesFileExist )
 
 import Agda.Interaction.Library ( findProjectRoot )
 
@@ -74,7 +75,7 @@ mkInterfaceFile
   :: AbsolutePath             -- ^ Path to the candidate interface file
   -> IO (Maybe InterfaceFile) -- ^ Interface file iff it exists
 mkInterfaceFile fp = do
-  ex <- doesFileExistCaseSensitive $ filePath fp
+  ex <- doesFileExist $ filePath fp
   pure (ex ?$> InterfaceFile fp)
 
 -- | Converts an Agda file name to the corresponding interface file
@@ -159,7 +160,7 @@ findFile'' dirs m modFile =
       files          <- fileList acceptableFileExts
       filesShortList <- fileList parseFileExtsShortList
       existingFiles  <-
-        liftIO $ filterM (doesFileExistCaseSensitive . filePath . srcFilePath) files
+        liftIO $ filterM (doesFileExist . filePath . srcFilePath) files
       return $ case nubOn id existingFiles of
         []     -> (Left (NotFound filesShortList), modFile)
         [file] -> (Right file, Map.insert m (srcFilePath file) modFile)
