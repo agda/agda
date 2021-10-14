@@ -2,6 +2,7 @@
 
 module Bugs.Tests where
 
+import Data.Function (on)
 import Data.Monoid ((<>))
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -30,15 +31,21 @@ data TestResult
   | TestWarning T.Text
   | TestSuccess
 
-mkTest :: FilePath -- inp file
+mkTest :: FilePath -- ^ Agda file to test.
        -> TestTree
-mkTest inp =
-  goldenTest1 testName readGolden doRun resDiff resShow resUpdate where
-
-  testName   = asTestName testDir inp
-  flagFile   = dropAgdaExtension inp <.> ".flags"
-  errFile    = dropAgdaExtension inp <.> ".err"
-  warnFile   = dropAgdaExtension inp <.> ".warn"
+mkTest agdaFile =
+  goldenTest1
+    testName
+    readGolden
+    doRun
+    (textDiff `on` printTestResult)
+    (ShowText . printTestResult)
+    resUpdate
+  where
+  testName   = asTestName testDir agdaFile
+  flagFile   = dropAgdaExtension agdaFile <.> ".flags"
+  errFile    = dropAgdaExtension agdaFile <.> ".err"
+  warnFile   = dropAgdaExtension agdaFile <.> ".warn"
 
   readGolden = Just <$> do
     hasWarn <- doesFileExist warnFile
@@ -50,7 +57,7 @@ mkTest inp =
 
   doRun = do
     let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/"
-                   , inp, "--ignore-interfaces", "--no-libraries"
+                   , agdaFile, "--ignore-interfaces", "--no-libraries"
                    ]
     (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile) Nothing
     pure $ case ret of
@@ -63,18 +70,6 @@ mkTest inp =
     TestSuccess   -> pure ()
     TestWarning w -> writeTextFile warnFile w
     TestFailure e -> writeTextFile errFile e
-
-
-resDiff :: TestResult -> TestResult -> GDiff
-resDiff t1 t2
-  | m1 == m2  = Equal
-  | otherwise = DiffText Nothing m1 m2
-
-  where m1 = printTestResult t1
-        m2 = printTestResult t2
-
-resShow :: TestResult -> GShow
-resShow = ShowText . printTestResult
 
 printTestResult :: TestResult -> T.Text
 printTestResult = \case
