@@ -11,7 +11,6 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO.Temp
-import System.PosixCompat.Files (touchFile)
 
 import Test.Tasty
 import Test.Tasty.Silver
@@ -55,7 +54,13 @@ mkFailTest
   :: FilePath -- ^ Input file (Agda file).
   -> TestTree
 mkFailTest agdaFile =
-  goldenTestIO1 testName readGolden (printTestResult <$> doRun) resDiff (pure . resShow) $ Just updGolden
+  goldenTestIO1
+    testName
+    readGolden
+    (printTestResult <$> doRun)
+    (textDiffWithTouch agdaFile)
+    (pure . ShowText)
+    (Just updGolden)
   where
   testName   = asTestName testDir agdaFile
   goldenFile = dropAgdaExtension agdaFile <.> ".err"
@@ -71,24 +76,6 @@ mkFailTest agdaFile =
                    ]
     runAgdaWithOptions testName agdaArgs (Just flagFile) Nothing
       <&> expectFail
-
-  -- | Treats newlines or consecutive whitespaces as one single whitespace.
-  --
-  -- Philipp20150923: On travis lines are wrapped at different positions sometimes.
-  -- It's not really clear to me why this happens, but just ignoring line breaks
-  -- for comparing the results should be fine.
-  resDiff :: T.Text -> T.Text -> IO GDiff
-  resDiff t1 t2
-    | stripConsecutiveWhiteSpace t1 == stripConsecutiveWhiteSpace t2 = return Equal
-    | otherwise = do
-        -- Andreas, 2020-06-09, issue #4736
-        -- If the output has changed, the test case is "interesting"
-        -- regardless of whether the golden value is updated or not.
-        -- Thus, we touch the agdaFile to have it sorted up in the next
-        -- test run.
-        -- -- putStrLn $ "TOUCHING " ++ agdaFile
-        touchFile agdaFile
-        return $ DiffText Nothing t1 t2
 
 -- | A test for case-insensitivity of the file system.
 caseInsensitiveFileSystem :: IO Bool
@@ -107,8 +94,13 @@ caseInsensitiveFileSystem4671 = do
 
 issue4671 :: TestTree
 issue4671 =
-  goldenTest1 "Issue4671" (readTextFileMaybe =<< goldenFile)
-    doRun resDiff resShow (\ res -> goldenFile >>= (`writeTextFile` res))
+  goldenTest1
+    "Issue4671"
+    (readTextFileMaybe =<< goldenFile)
+    doRun
+    textDiff
+    ShowText
+    (\ res -> goldenFile >>= (`writeTextFile` res))
   where
     dir = testDir </> "customised"
     goldenFile = snd <$> caseInsensitiveFileSystem4671
@@ -123,8 +115,13 @@ issue4671 =
 
 issue5508 :: TestTree
 issue5508 =
-  goldenTest1 "iSSue5508" (readTextFileMaybe =<< goldenFile)
-    doRun resDiff resShow (\ res -> goldenFile >>= (`writeTextFile` res))
+  goldenTest1
+    "iSSue5508"
+    (readTextFileMaybe =<< goldenFile)
+    doRun
+    textDiff
+    ShowText
+    (\ res -> goldenFile >>= (`writeTextFile` res))
   where
     dir = testDir </> "customised"
     goldenFile = caseInsensitiveFileSystem <&> (dir </>) . \case
@@ -152,15 +149,26 @@ issue5101 = testGroup "Issue5101" $
     let flagsFile = dir </> testName <.> "flags"
     let agdaArgs = ["-v0", "--no-libraries", "-i" ++ dir]
     let doRun = runAgdaWithOptions testName agdaArgs (Just flagsFile) Nothing <&> printTestResult . expectFail
-    goldenTest1 testName (readTextFileMaybe goldenFile)
-      doRun resDiff resShow (writeTextFile goldenFile)
+    goldenTest1
+      testName
+      (readTextFileMaybe goldenFile)
+      doRun
+      textDiff
+      ShowText
+      (writeTextFile goldenFile)
   where
   dir = testDir
   suffixes = ["Repl", "Emacs", "JSON", "Vim"]
 
 issue2649 :: TestTree
-issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
-  doRun resDiff resShow (writeTextFile goldenFile)
+issue2649 =
+  goldenTest1
+    "Issue2649"
+    (readTextFileMaybe goldenFile)
+    doRun
+    textDiff
+    ShowText
+    (writeTextFile goldenFile)
   where
     dir = testDir </> "customised"
     goldenFile = dir </> "Issue2649.err"
@@ -172,8 +180,14 @@ issue2649 = goldenTest1 "Issue2649" (readTextFileMaybe goldenFile)
         <&> printTestResult . expectFail
 
 nestedProjectRoots :: TestTree
-nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenFile)
-  doRun resDiff resShow (writeTextFile goldenFile)
+nestedProjectRoots =
+  goldenTest1
+    "NestedProjectRoots"
+    (readTextFileMaybe goldenFile)
+    doRun
+    textDiff
+    ShowText
+    (writeTextFile goldenFile)
   where
     dir = testDir </> "customised"
     goldenFile = dir </> "NestedProjectRoots.err"
@@ -207,29 +221,6 @@ expectFail (res, ret) = case ret of
   -- Otherwise, we print all the output
   AgdaFailure{}                 -> TestResult $ printProgramResult res
 
--- | Treats newlines or consecutive whitespaces as one single whitespace.
---
--- Philipp20150923: On travis lines are wrapped at different positions sometimes.
--- It's not really clear to me why this happens, but just ignoring line breaks
--- for comparing the results should be fine.
-resDiff :: T.Text -> T.Text -> GDiff
-resDiff t1 t2 =
-  if stripConsecutiveWhiteSpace t1 == stripConsecutiveWhiteSpace t2
-    then
-      Equal
-    else
-      DiffText Nothing t1 t2
-
-
--- | Converts newlines and consecutive whitespaces into one single whitespace.
---
-stripConsecutiveWhiteSpace :: T.Text -> T.Text
-stripConsecutiveWhiteSpace
-  = replace (mkRegex " +")      " "
-  . replace (mkRegex "(\n|\r)") " "
-
-resShow :: T.Text -> GShow
-resShow = ShowText
 
 printTestResult :: TestResult -> T.Text
 printTestResult = \case

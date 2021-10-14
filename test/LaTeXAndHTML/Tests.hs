@@ -132,7 +132,7 @@ mkLaTeXOrHTMLTest
   -> FilePath -- ^ Input file.
   -> TestTree
 mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
-  goldenVsAction
+  goldenVsAction'
     testName
     goldenFile
     (liftM2 (,) getCurrentDirectory doRun)

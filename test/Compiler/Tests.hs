@@ -246,7 +246,7 @@ agdaRunProgGoldenTest1 :: FilePath     -- ^ directory where to run the tests.
     -> Maybe TestTree
 agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
   | (Just cOpts) <- lookup comp (forCompilers opts) =
-      Just $ goldenVsAction testName goldenFile (doRun cOpts) printExecResult
+      Just $ goldenVsAction' testName goldenFile (doRun cOpts) printExecResult
   | otherwise = Nothing
   where goldenFile = dropAgdaExtension inp <.> ".out"
         testName   = asTestName dir inp
