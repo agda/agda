@@ -339,11 +339,12 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
 cleanOutput :: Text -> IO Text
 cleanOutput inp = do
   pwd <- getCurrentDirectory
-  return $ cleanOutput' (map slashify pwd) inp
-  where
-    slashify = \case
-      '\\' -> '/'
-      c    -> c
+  return $ cleanOutput' (map backSlashToSlash pwd) inp
+
+backSlashToSlash :: Char -> Char
+backSlashToSlash = \case
+  '\\' -> '/'
+  c    -> c
 
 doesCommandExist :: String -> IO Bool
 doesCommandExist cmd = isJust <$> findExecutable cmd
