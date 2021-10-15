@@ -16,7 +16,7 @@ open import Data.Unit
 open import Data.Sum
 open import Data.Product
 open import Data.List
-open import Data.List.Any
+open import Data.List.Relation.Unary.Any
 open import Data.Container hiding (_∈_) renaming (μ to μ^C; ⟦_⟧ to ⟦_⟧^C; _▷_ to _◃_)
 open import Data.Container.Combinator using () renaming (_×_ to _×^C_)
 open import Data.Container.FreeMonad as FM

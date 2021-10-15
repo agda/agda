@@ -19,7 +19,7 @@ open import Data.Container.FreeMonad using (rawMonad)
 open import Relation.Binary.PropositionalEquality
 open import Category.Monad
 
-open import Data.List.Relation.Subset.Propositional
+open import Data.List.Relation.Binary.Subset.Propositional
 open import Issue854.Types
 open import Issue854.Context
 open import Issue854.WellTyped
