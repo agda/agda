@@ -38,9 +38,12 @@ tests = testGroup "Interactive"
       -- Check that every line in testName.stdout.expected (if exists) is a substring of stdout. Same for stderr.
       whenM (doesFileExist $ testDir </> testName <.> "stdout" <.> "expected") $ do
         expected <- TIO.readFile stdoutFp
-        for_ (Text.lines expected) $
+        -- Andreas, 2021-10-16, PR #5596:
+        -- Remove indentation and trailing whitespace, thus avoiding CRLF issues.
+        for_ (map Text.strip $ Text.lines expected) $
           assertBool ("Invalid stdout: " ++ show stdout) . (`Text.isInfixOf` stdout)
       whenM (doesFileExist $ testDir </> testName <.> "stderr" <.> "expected") $ do
         expected <- TIO.readFile stderrFp
-        for_ (Text.lines expected) $
+        -- Remove indentation and trailing whitespace, thus avoiding CRLF issues.
+        for_ (map Text.strip $ Text.lines expected) $
           assertBool ("Invalid stderr: " ++ show stderr) . (`Text.isInfixOf` stderr)
