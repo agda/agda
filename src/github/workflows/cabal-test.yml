@@ -100,7 +100,11 @@ jobs:
         cabal install --installdir=${HOME}/bin
 # bin instead of .cabal/bin as this might be more portable (Windows)
 
+    # Andreas, 2021-10-16:
+    # On Windows, we need to set up code page 65001 for the sake of Unicode.
+    # See https://stackoverflow.com/questions/27616611/run-time-exception-when-attempting-to-print-a-unicode-character
     - name: Build and test Agda
       run: |
         export PATH=${HOME}/bin:${PATH}
+        [ "${{ runner.os }}" == "Windows" ] && chcp.com 65001
         cabal test

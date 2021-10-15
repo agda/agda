@@ -62,6 +62,7 @@ jobs:
       name: Install Agda
     - run: |
         export PATH=${HOME}/bin:${PATH}
+        [ "${{ runner.os }}" == "Windows" ] && chcp.com 65001
         cabal test
       name: Build and test Agda
   auto-cancel:
