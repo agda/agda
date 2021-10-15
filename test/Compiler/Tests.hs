@@ -251,12 +251,13 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
   where goldenFile = dropAgdaExtension inp <.> ".out"
         testName   = asTestName dir inp
 
+        doRun :: CompilerOptions -> IO ExecResult
         -- Andreas, 2017-04-14, issue #2317
         -- Create temporary files in system temp directory.
         -- This has the advantage that upon Ctrl-C no junk is left behind
         -- in the Agda directory.
-        -- doRun cOpts = withTempDirectory dir testName (\compDir -> do
-        doRun cOpts = withSystemTempDirectory testName (\compDir -> do
+        -- WAS: withTempDirectory
+        doRun cOpts = withSystemTempDirectory testName $ \ compDir -> do
           -- get extra arguments
           extraArgs' <- extraArgs
           -- compile file
@@ -268,10 +269,13 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           res@(ret, out, err) <- readAgdaProcessWithExitCode args T.empty
 
           absDir <- canonicalizePath dir
-          removePaths [absDir, compDir] <$> case ret of
+          -- Andreas, 2021-10-16, PR #5596
+          -- For portability, we also need to remove the path separator.
+          -- The result of @removePaths@ is only portable if the remaining part is a
+          -- simple file name (no directory names left).
+          removePaths (map addTrailingPathSeparator [absDir, compDir]) <$> case ret of
             ExitSuccess -> cont compDir out err
             ExitFailure _ -> return $ CompileFailed $ toProgramResult res
-          )
 
         argsForComp :: Compiler -> [String]
         argsForComp (MAlonzo s) = [ "--compile" ] ++ case s of
@@ -291,6 +295,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           removePaths' (ProgramResult c out err) = ProgramResult c (rm out) (rm err)
 
           rm = foldr (.) id $
+               -- NB: @T.concat . T.splitOn x@ removes all occurrences of @x@ in a text.
                map (\p -> T.concat . T.splitOn (T.pack p)) ps
 
 readOptions :: FilePath -- file name of the agda file
