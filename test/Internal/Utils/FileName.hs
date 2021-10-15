@@ -45,10 +45,19 @@ prop_absolutePathInvariant x =
   f == dropTrailingPathSeparator f
   where f = filePath x
 
-prop_mkAbsolute :: FilePath -> Property
-prop_mkAbsolute f =
-  let path = rootPath ++ f
-  in  isValid path ==> prop_absolutePathInvariant $ mkAbsolute $ path
+-- -- Andreas, 2021-10-16, PR #5596
+-- -- This is a badly constructed test, as it has no proper generator
+-- -- for @FilePath@ but just takes random strings and then filters with @isValid@.
+-- --
+-- -- Such a test might fail by exhaustion, see e.g.:
+-- -- https://github.com/agda/agda/pull/5596#issuecomment-943760761
+-- -- *** Gave up! Passed only 94 tests; 1000 discarded tests.
+-- --
+-- -- Fix this test if you care about it!  I'll drop it for now.
+-- prop_mkAbsolute :: FilePath -> Property
+-- prop_mkAbsolute f =
+--   let path = rootPath ++ f
+--   in  isValid path ==> prop_absolutePathInvariant $ mkAbsolute $ path
 
 ------------------------------------------------------------------------
 -- * All tests
