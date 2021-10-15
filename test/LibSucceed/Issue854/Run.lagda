@@ -17,7 +17,7 @@ open import Data.Empty
 open import Data.Unit
 open import Data.Sum
 open import Data.Product as Prod
-open import Data.List.Any
+open import Data.List.Relation.Unary.Any
 open import Data.Container as Cont hiding (_∈_)
     renaming (⟦_⟧ to ⟦_⟧^C; μ to μ^C; _⇒_ to _⇒^C_)
 open import Data.Container.Combinator using () renaming (_⊎_ to _⊎^C_)

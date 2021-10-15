@@ -3,19 +3,25 @@
 
 \AgdaHide{
 \begin{code}
+
+{-# OPTIONS --sized-types #-}
+
 module Issue854.Examples where
 
-open import Function
+open import Function.Base
+open import Function.Inverse using (module Inverse)
 open import Data.Unit
 open import Data.Product
 open import Data.List
-open import Data.List.Any
+open import Data.List.Membership.Propositional
+open import Data.List.Relation.Unary.Any
 open import Data.Container.FreeMonad using (rawMonad)
 open import Relation.Binary.PropositionalEquality
-open import Relation.Binary.List.Pointwise hiding (refl)
+open import Data.List.Relation.Binary.Pointwise hiding (refl)
+open import Data.List.Relation.Binary.Subset.Propositional
+open import Data.List.Relation.Binary.Subset.Propositional.Properties using (xs⊆xs++ys)
 open import Category.Monad
 
-open Membership-≡
 open import Issue854.Types
 open import Issue854.Context
 open import Issue854.WellTyped
@@ -84,19 +90,8 @@ state^Homo =
   ƛ ƛ ƛ ((π₂ (force (var (suc zero)) · ⟨⟩)) · var (suc (suc zero))) ∷
   ƛ ƛ return (var (suc zero) , var zero) ∷ []
 
-private
-  -- XXX: Move to std-lib?
-  inl-++ : ∀ {A : Set}{xs ys : List A} → xs ⊆ (xs ++ ys)
-  inl-++ {xs = []}      ()
-  inl-++ {xs = x ∷ xs}  (here refl)  = here refl
-  inl-++ {xs = x ∷ xs}  (there p)    = there (inl-++ p)
-
-  inr-++ : ∀ {A : Set}{xs ys : List A} → ys ⊆ (xs ++ ys)
-  inr-++ {xs = []}      p = p
-  inr-++ {xs = x ∷ xs}  p = there (inr-++ {xs = xs} p)
-
 ex-state : [] ⊢^c _ ∶ [] ⋆ (𝟙 ⊗ N)
-ex-state = run {Σ′ = State N}{[]} state^Homo state^suc inl-++ id · #0
+ex-state = run {Σ′ = State N}{[]} state^Homo state^suc (xs⊆xs++ys _ _) id · #0
 
 test-state : ⟦ ex-state ⟧^c tt ≡ ⟦ return (⟨⟩ , #1) ⟧^c tt
 test-state = refl
@@ -155,7 +150,7 @@ aborting = _to_  (op (here refl) · ⟨⟩)
 -- f < p · q > a = _to_ a (weaken^C f · var zero) q p
 --
 -- put-abort : ∀ {Γ S} → Γ ⊢^c _ ∶ (State S ++ Abort) ⋆ 𝟙
--- put-abort {S = S} = op put < inl-++ · inr-++ {xs = State S} > aborting
+-- put-abort {S = S} = op put < xs⊆xs++ys · xs⊆ys++xs {xs = State S} > aborting
 -- -- (aborting to (op put · var zero)) (inr′ {xs = State S}) inl′
 --   where
 --   put : (S , 𝟙) ∈ State S
@@ -203,7 +198,7 @@ ex-state′ = run {Σ′ = State 𝟚} state^Homo ex id id
 ++-comm : ∀ {a}{A : Set a} xs {ys : List A} → xs ++ ys ⊆ ys ++ xs
 ++-comm xs m = to (++↔++ xs _) ⟨$⟩ m
   where
-  open import Data.List.Any.Properties
+  open import Data.List.Relation.Unary.Any.Properties
   open import Function.Inverse
   open import Function.Equality
   open Inverse
