@@ -25,11 +25,11 @@ disabledTests =
 notTests :: [String]
 notTests =
   [ -- These modules are imported by Issue784.agda
-    "Issue784/"
+    addTrailingPathSeparator "Issue784"
     -- These modules are imported by Issue846.agda
-  , "Issue846/"
+  , addTrailingPathSeparator "Issue846"
     -- These modules are imported by Issue854.agda
-  , "Issue854/"
+  , addTrailingPathSeparator "Issue854"
     -- This module is imported by DeBruijnExSubstSized.agda
   , "Termination-Sized-DeBruijnBase"
   ]
