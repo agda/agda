@@ -9,7 +9,7 @@ open import Erased-cubical.Cubical-again
 -- Code from such modules that was originally defined in modules using
 -- --without-K or --erased-cubical can be used without restrictions.
 
-_ : {A : Set} → A → ∥ A ∥
+_ : {A : Set} → A → ∥ A ∥ᴱ
 _ = ∣_∣
 
 _ : D

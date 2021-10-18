@@ -801,14 +801,13 @@ equalities that the identity types don't.
 
 .. _erased-cubical:
 
-Cubical Agda with erased glue and erased higher constructors
-------------------------------------------------------------
+Cubical Agda with erased glue
+-----------------------------
 
 The option :option:`--erased-cubical` enables a variant of Cubical
 Agda in which glue (and the other builtins defined in
 ``Agda.Builtin.Cubical.Glue``) must only be used in
-:ref:`erased<runtime-irrelevance>` settings, and higher constructors
-must be erased.
+:ref:`erased<runtime-irrelevance>` settings.
 
 Regular Cubical Agda code can import code that uses
 :option:`--erased-cubical`. Regular Cubical Agda code can also be

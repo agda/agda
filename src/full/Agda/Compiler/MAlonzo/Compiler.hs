@@ -708,7 +708,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               , dataPathCons = pcs
               } | Just hsdata@(HsData r ty hsCons) <- pragma ->
         setCurrentRange r $ do
-        checkHigherConstructorsErased q pcs
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
         liftTCM $ computeErasedConstructorArgs q
@@ -725,7 +724,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
               , dataPathCons = pcs
               } -> do
-        checkHigherConstructorsErased q pcs
         liftTCM $ computeErasedConstructorArgs q
         cs <- liftTCM $ getNotErasedConstructors q
         cds <- mapM (flip condecl Inductive) cs
@@ -827,14 +825,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ Text.pack $ "postulate evaluated: " ++ prettyShow q
-
-  checkHigherConstructorsErased :: QName -> [QName] -> HsCompileM ()
-  checkHigherConstructorsErased q pcs = liftTCM $
-    whenM (anyM pcs ((usableQuantity <$>) . getConstInfo)) $ do
-      s <- render <$> prettyTCM q
-      typeError $ NotImplemented $
-        "Higher inductive types with non-erased higher constructors ("
-        ++ s ++ ")"
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> HsCompileM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
