@@ -17,9 +17,15 @@ _ =
 
 -- Erased higher constructors are allowed.
 
+data ∥_∥ᴱ (A : Set) : Set where
+  ∣_∣     : A → ∥ A ∥ᴱ
+  @0 trivial : (x y : ∥ A ∥ᴱ) → x ≡ y
+
+-- Non-erased higher constructors are also allowed.
+
 data ∥_∥ (A : Set) : Set where
   ∣_∣     : A → ∥ A ∥
-  @0 trivial : (x y : ∥ A ∥) → x ≡ y
+  trivial : (x y : ∥ A ∥) → x ≡ y
 
 -- Modules that use --cubical can be imported.
 

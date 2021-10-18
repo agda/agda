@@ -1,3 +1,0 @@
-Erased-cubical-Higher-constructor.agda:9,3-34
-When --erased-cubical is used higher constructors must be erased
-when checking the constructor trivial in the declaration of ∥_∥
