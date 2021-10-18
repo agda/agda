@@ -545,7 +545,8 @@ compileTerm kit t = go t
             -- number of eta expanded args
             etaN = length $ dropWhile (== ArgUsed) $ reverse $ drop given used
 
-            args = filterUsed used $ xs ++ (T.TVar <$> downFrom etaN)
+            args = filterUsed used $
+                     raise etaN xs ++ (T.TVar <$> downFrom etaN)
 
         curriedLambda etaN <$> (curriedApply <$> go (raise etaN t') <*> mapM go args)
 
