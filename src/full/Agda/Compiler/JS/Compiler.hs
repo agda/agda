@@ -34,7 +34,7 @@ import Agda.Syntax.Abstract.Name
     mnameToList, qnameName, qnameModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Type
-  , arity, nameFixity, unDom )
+  , nameFixity, unDom, telToList )
 import Agda.Syntax.Literal       ( Literal(..) )
 import Agda.Syntax.Treeless      ( ArgUsage(..), filterUsed )
 import qualified Agda.Syntax.Treeless as T
@@ -43,6 +43,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Telescope ( telView )
 
 import Agda.Utils.FileName ( isNewerThan )
 import Agda.Utils.Function ( iterate' )
@@ -471,7 +472,8 @@ definition' kit q d t ls =
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
     Constructor{conData = p, conPars = nc} -> do
-      let np = arity t - nc
+      TelV tel _ <- telView t
+      let np = length (telToList tel) - nc
       erased <- getErasedConArgs q
       let nargs = np - length (filter id erased)
           args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
