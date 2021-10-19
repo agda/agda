@@ -1,3 +1,0 @@
-Issue2170-subtyping.agda:32,36-40
-unirr (irr a) != a of type Bool
-when checking that the expression refl has type unirr (irr a) ≡ a

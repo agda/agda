@@ -1056,7 +1056,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           --   @
           -- we need to check that @A <: A'@ (due to contravariance).
           let sigma = parallelS $ reverse $ map unArg args
-          hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
+          hasSubtyping <- optCumulativity <$> pragmaOptions
           when hasSubtyping $ forM_ ids $ \(i , u) -> do
             -- @u@ is a (projected) variable, so we can infer its type
             a  <- applySubst sigma <$> addContext tel' (infer u)

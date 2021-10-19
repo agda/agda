@@ -689,12 +689,10 @@ compareDom cmp0
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
   b1 b2 errH errR errQ errC cont = do
-  hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
-  let cmp = if hasSubtyping then cmp0 else CmpEq
   if | not $ sameHiding dom1 dom2 -> errH
-     | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) -> errR
-     | not $ compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) -> errQ
-     | not $ compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> errR
+     | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> errQ
+     | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> errC
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
@@ -712,18 +710,6 @@ compareDom cmp0
         -- blocked any more by getting stuck on domains.
         -- Only the domain type in context will be blocked.
         -- But see issue #1258.
-
-compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
-compareRelevance CmpEq  = (==)
-compareRelevance CmpLeq = (<=)
-
-compareQuantity :: Comparison -> Quantity -> Quantity -> Bool
-compareQuantity CmpEq  = sameQuantity
-compareQuantity CmpLeq = moreQuantity
-
-compareCohesion :: Comparison -> Cohesion -> Cohesion -> Bool
-compareCohesion CmpEq  = sameCohesion
-compareCohesion CmpLeq = moreCohesion
 
 -- | When comparing argument spines (in compareElims) where the first arguments
 --   don't match, we keep going, substituting the anti-unification of the two

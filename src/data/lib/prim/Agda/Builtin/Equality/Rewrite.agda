@@ -1,5 +1,4 @@
-{-# OPTIONS --without-K --rewriting --no-sized-types --no-guardedness
-            --no-subtyping #-}
+{-# OPTIONS --without-K --rewriting --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Equality.Rewrite where
 

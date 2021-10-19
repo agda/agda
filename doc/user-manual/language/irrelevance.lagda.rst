@@ -305,12 +305,3 @@ Contrary to normal instance arguments, irrelevant instance arguments (see :ref:`
 
   find-nonzero : (n : Nat) {{x y : NonZero n}} → Nat
   find-nonzero n = pred′ n
-
-
-Subtyping of irrelevant function spaces
-=======================================
-
-Normally, if ``f : .(x : A) → B`` then we have ``λ x → f x : (x : A) →
-B`` but not ``f : (x : A) → B``.  When the option ``--subtyping`` is
-enabled, Agda will make use of the subtyping rule ``.(x : A) → B <: (x
-: A) → B``, so there is no need for eta-expanding the function ``f``.
