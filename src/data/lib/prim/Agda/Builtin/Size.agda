@@ -1,5 +1,5 @@
 {-# OPTIONS --without-K --no-universe-polymorphism --sized-types
-            --no-guardedness --no-subtyping #-}
+            --no-guardedness #-}
 
 module Agda.Builtin.Size where
 

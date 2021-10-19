@@ -594,15 +594,7 @@ lambdaIrrelevanceCheck dom info
   | otherwise = do
       let rPi  = getRelevance dom  -- relevance of function type
       let rLam = getRelevance info -- relevance of lambda
-        -- Andreas, 2017-01-24, issue #2429
-        -- we should report an error if we try to check a relevant function
-        -- against an irrelevant function type (subtyping violation)
-      unless (moreRelevant rPi rLam) $ do
-        -- @rLam == Relevant@ is impossible here
-        -- @rLam == Irrelevant@ is impossible here (least relevant)
-        -- this error can only happen if @rLam == NonStrict@ and @rPi == Irrelevant@
-        unless (rLam == NonStrict) __IMPOSSIBLE__  -- separate tests for separate line nums
-        unless (rPi == Irrelevant) __IMPOSSIBLE__
+      unless (sameRelevance rPi rLam) $
         typeError WrongIrrelevanceInLambda
       return info
 

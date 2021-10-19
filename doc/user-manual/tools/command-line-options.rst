@@ -462,19 +462,9 @@ Other features
      .. versionadded:: 2.6.1
 
      Enable [disable] cumulative subtyping of universes, i.e. if `A :
-     Set i` then also `A : Set j` for all `j >= i`. Implies
-     `--subtyping`.
+     Set i` then also `A : Set j` for all `j >= i`.
 
      Default: ``--no-cumulativity``
-
-.. option:: --subtyping, --no-subtyping
-
-     .. versionadded:: 2.6.1
-
-     Enable [disable] subtyping rules globally, including subtyping
-     for irrelevance, erasure (`@0`) and flat (`@♭`) modalities.
-
-     Default: ``--no-subtyping``
 
 .. option:: --no-import-sorts
 

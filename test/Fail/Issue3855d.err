@@ -1,5 +1,4 @@
-Issue3855d.agda:26,1-30,4
-Expected an erased argument, but found a unrestricted argument
-when checking that the clause
-works = record { to = [_] ; from = _ ; to∘from = λ _ → refl } has
-type {A : Set} → A ↠ Erased A
+Issue3855d.agda:25,15-18
+(@0 erased₁ : _A_11) → Erased _A_11 !=< A → Erased A because one is
+a non-erased function type and the other is an erased function type
+when checking that the expression [_] has type A → Erased A

@@ -180,17 +180,6 @@ the type a term is checked against (except that a distinction is
 sometimes made between fibrant and non-fibrant types). In particular,
 checking a term against ``Set`` does not trigger compile-time mode.
 
-Subtyping of runtime-irrelevant function spaces
-===============================================
-
-Normally, if ``f : (@0 x : A) → B`` then we have ``λ x → f x : (x : A)
-→ B`` but not ``f : (x : A) → B``.  When the option ``--subtyping`` is
-enabled, Agda will make use of the subtyping rule ``(@0 x : A) → B <:
-(x : A) → B``, so there is no need for eta-expanding the function
-``f``.
-
-
-
 .. _references:
 
 References

@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical --no-subtyping #-}
+{-# OPTIONS --erased-cubical #-}
 
 module Agda.Primitive.Cubical where
 

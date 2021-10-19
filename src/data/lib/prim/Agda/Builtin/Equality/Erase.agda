@@ -1,5 +1,4 @@
-{-# OPTIONS --with-K --safe --no-sized-types --no-guardedness
-            --no-subtyping #-}
+{-# OPTIONS --with-K --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Equality.Erase where
 
