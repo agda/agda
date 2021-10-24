@@ -234,8 +234,10 @@ name: Build, Test, and Benchmark
     - .github/workflows/stack.yml
     - .github/workflows/user_manual.yml
     - .github/workflows/whitespace.yml
+    - src/agda-bisect/**
     - src/fix-whitespace/**
     - src/hs-tags/**
+    - src/release-tools/**
     - .travis
     - macros/**
     - notes/**
@@ -267,8 +269,10 @@ name: Build, Test, and Benchmark
     - .github/workflows/stack.yml
     - .github/workflows/user_manual.yml
     - .github/workflows/whitespace.yml
+    - src/agda-bisect/**
     - src/fix-whitespace/**
     - src/hs-tags/**
+    - src/release-tools/**
     - .travis
     - macros/**
     - notes/**
