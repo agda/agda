@@ -187,6 +187,9 @@ options =
   optionCompiler =
     optional $
       strOption $
+        short 'w' <>
+        long "with-ghc" <>
+        long "with-compiler" <>
         long "compiler" <>
         help "Use COMPILER to compile Agda" <>
         metavar "COMPILER" <>
