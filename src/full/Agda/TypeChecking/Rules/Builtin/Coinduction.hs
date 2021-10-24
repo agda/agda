@@ -48,8 +48,7 @@ typeOfFlat = hPi "a" (el primLevel) $
 -- definition.
 
 bindBuiltinInf :: ResolvedName -> TCM ()
-bindBuiltinInf x = bindPostulatedName builtinInf x $ \inf _ ->
-  instantiateFull =<< checkExpr (A.Def inf) =<< typeOfInf
+bindBuiltinInf x = bindPostulatedName builtinInf x $ \inf _ -> return $ Def inf []
 
 -- | Binds the SHARP builtin, and changes the definitions of INFINITY
 -- and SHARP.
@@ -64,7 +63,7 @@ bindBuiltinSharp x =
   bindPostulatedName builtinSharp x $ \sharp sharpDefn -> do
     sharpType <- typeOfSharp
     TelV fieldTel _ <- telView sharpType
-    sharpE    <- instantiateFull =<< checkExpr (A.Def sharp) sharpType
+    let sharpE = Def sharp []
     Def inf _ <- primInf
     infDefn   <- getConstInfo inf
     addConstant (defName infDefn) $
@@ -111,7 +110,7 @@ bindBuiltinSharp x =
 bindBuiltinFlat :: ResolvedName -> TCM ()
 bindBuiltinFlat x =
   bindPostulatedName builtinFlat x $ \ flat flatDefn -> do
-    flatE       <- instantiateFull =<< checkExpr (A.Def flat) =<< typeOfFlat
+    let flatE   = Def flat []
     Def sharp _ <- primSharp
     kit         <- requireLevels
     Def inf _   <- primInf
