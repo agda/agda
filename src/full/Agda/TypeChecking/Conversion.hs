@@ -388,12 +388,15 @@ compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 
 -- | Compute the head type of an elimination. For projection-like functions
 --   this requires inferring the type of the principal argument.
-computeElimHeadType :: MonadConversion m => QName -> Elims -> Elims -> m Type
+computeElimHeadType :: MonadConversion m => QName -> Elims -> Elims -> m (Type,(Elims,Elims))
 computeElimHeadType f es es' = do
   def <- getConstInfo f
+
+  ifM (isForcingApp f) (doForcingApp def) $ do
+
   -- To compute the type @a@ of a projection-like @f@,
   -- we have to infer the type of its first argument.
-  if projectionArgs (theDef def) <= 0 then return $ defType def else do
+  if projectionArgs (theDef def) <= 0 then return $ (defType def,(es,es')) else do
     -- Find an first argument to @f@.
     let arg = case (es, es') of
               (Apply arg : _, _) -> arg
@@ -410,7 +413,45 @@ computeElimHeadType f es es' = do
     -- a meta-variable, e.g. in interactive development.
     -- In this case, we postpone.
     targ <- abortIfBlocked targ
-    fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
+    fmap (,(es,es')) . fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
+
+  where
+    isDummy (Apply t) | Dummy{} <- unArg t = True
+    isDummy _         = False
+--    isForcingApp :: QName -> TCM Bool
+    isForcingApp q = do
+      (Just q ==) <$> getName' builtinForcingAppDep
+--    doForcingApp :: Definition -> TCM (Type,(Elims,Elims))
+    doForcingApp def = do
+      let (es0,es1) = splitAt 2 es
+          (es'0,es'1) = splitAt 2 es'
+      case (es0,es'0) of
+         (as,as') | all isDummy as, not $ all isDummy as' -> do
+                      return $ (defType def, (as'++es1, as'++es'1))
+         (as,as') | not $ all isDummy as, all isDummy as' -> do
+                      return $ (defType def, (as++es1, as++es'1))
+         (as,as') | all isDummy as, all isDummy as' -> do
+                      let marg = case (es1,es'1) of
+                                   (Apply arg : _,_) -> Just arg
+                                   (_,Apply arg : _) -> Just arg
+                                   _                 -> Nothing
+
+                      caseMaybe marg (return $ (defType def, (es, es'))) -- pray
+                        $ \ arg -> do
+                      clk <- tClock
+                      tick <- runNamesT [] $ tTick $ pure $ var 0
+                      as0 <- addContext ("k" :: String,defaultDom clk) $
+                              addContext ("α" :: String, setLock (IsLock Tick) $ defaultDom tick) $ do
+                                targ <- (infer =<<) . reduce $ unArg arg `apply` [argN $ var 1, argN $ var 0]
+                                targ <- abortIfBlocked targ
+                                Type l <- reduce $ getSort targ
+                                let l' = strengthenS __IMPOSSIBLE__ 2 `applySubst` l
+                                typ <- runNamesT [] $
+                                         lam "k" $ \ _ -> llam Tick "α" $ \ _ -> pure $ unEl targ
+                                return $ map (Apply . argH) $ [levelTm l', typ]
+                      return $ (defType def, (as0++es1,as0++es'1))
+         (as,as') -> return (defType def,(es,es'))
+
 
 -- | Syntax directed equality on atomic values
 --
@@ -556,7 +597,7 @@ compareAtom cmp t m n =
               unlessM (compareEtaPrims f es es') $ do
 
               -- 3c. Oh no, we actually have to work and compare the eliminations!
-               a <- computeElimHeadType f es es'
+               (a,(es,es')) <- computeElimHeadType f es es'
                -- The polarity vector of projection-like functions
                -- does not include the parameters.
                pol <- getPolarity' cmp f
@@ -764,7 +805,7 @@ antiUnify pid a u v = do
       antiUnifyElims pid a (Con x ci []) us vs
     (Def f [], Def g []) | f == g -> return (Def f [])
     (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
-      a <- computeElimHeadType f us vs
+      (a,(us,vs)) <- computeElimHeadType f us vs
       antiUnifyElims pid a (Def f []) us vs
     _ -> fallback
   where

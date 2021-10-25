@@ -326,7 +326,7 @@ checkRewriteRule q = do
         Con c' _ es' | f == conName c' -> return es'
         _                              -> fail
       unless (null es && null es') $ do
-        a   <- computeElimHeadType f es es'
+        (a,(es,es'))   <- computeElimHeadType f es es'
         pol <- getPolarity' CmpEq f
         ok  <- dontAssignMetas $ tryConversion $
                  compareElims pol [] a (Def f []) es es'
