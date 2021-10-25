@@ -103,6 +103,10 @@ instance LensArgInfo (Dom' t e) where
   setArgInfo ai dom = dom { domInfo = ai }
   mapArgInfo f  dom = dom { domInfo = f $ domInfo dom }
 
+instance LensLock (Dom' t e) where
+  getLock        = getLock . getArgInfo
+  mapLock f  dom = mapArgInfo (mapLock f) dom
+
 -- The other lenses are defined through LensArgInfo
 
 instance LensHiding        (Dom' t e) where
