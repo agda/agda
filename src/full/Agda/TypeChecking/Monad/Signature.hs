@@ -718,6 +718,7 @@ class ( Functor m
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m
+      , HasBuiltins m
       ) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.

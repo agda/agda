@@ -12,6 +12,7 @@ import Agda.TypeChecking.Monad.Base
   ( TCM, ReadTCState, HasOptions, MonadTCEnv
   , Definition, RewriteRules
   )
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin (HasBuiltins)
 import Agda.TypeChecking.Monad.Debug (MonadDebug)
 
 import Agda.Utils.Pretty (prettyShow)
@@ -24,6 +25,7 @@ class ( Functor m
       , HasOptions m
       , MonadDebug m
       , MonadTCEnv m
+      , HasBuiltins m
       ) => HasConstInfo m where
   getConstInfo :: QName -> m Definition
   getConstInfo q = getConstInfo' q >>= \case

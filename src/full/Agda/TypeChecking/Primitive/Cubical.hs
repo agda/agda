@@ -26,6 +26,7 @@ import Agda.Interaction.Options ( optCubical )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Names
@@ -2393,6 +2394,7 @@ pfixBeta :: MonadFail m => (IntervalView -> Term) -> QName -> NamesT m (AbsN Ter
 pfixBeta int pfix = bindN ["k","a","A","f"] $ \ [k,a,bA,f] -> do
   f <@> (pure (Def pfix []) <#> k <#> a <#> bA <@> f <@> (pure $ int IZero))
 
+
 primForcingAppDep' :: TCM PrimitiveImpl
 primForcingAppDep' = do
   requireCubical CErased ""
@@ -2415,83 +2417,76 @@ primForcingAppDep' = do
        tick <- tickUnview'
        int <- intervalUnview'
        let lk = unArg $ ignoreBlocking slk
-       let advanceCase = advanceCase' slk
        case ftview $ lk of
          FTEmb _k lk' -> redReturn $ t `apply` [argN (unArg k), setLock (IsLock Tick) $ argN $ tick lk']
-         FTDia _k     -> advanceCase True
-           -- do
-           -- stk <- reduceB $ t `apply` [argN $ unArg k]
-           -- mpfix <- getName' builtinPFix
-           -- case ignoreBlocking stk of
-           --   Def q es | Just [k,a,bA,f,r] <- allApplyElims es, Just q == mpfix
-           --     -> redReturn =<< (runNamesT [] $ pfixBeta int q `applyN` map (pure . unArg) [k,a,bA,f])
-           --   Lam _ (Abs _ u) -> do
-           --     u <- reduce u
-           --     case u of
-           --       Def q es | Just [k,a,bA,f,r,lk2] <- allApplyElims es
-           --                , Just q == mpfix
-           --                , Var 0 [] <- unArg lk2
-           --          -> redReturn $ subst 0 lk $
-           --               unArg f `apply` [argN $ Def q [] `apply` [k,a,bA,f,argN $ int IZero]]
-           --       _  -> advanceCase
-           --   _ -> advanceCase
-         _            -> advanceCase False
+         FTDia _k     -> advanceCase' slk True
+         _            -> advanceCase' slk False
       where
         reducePFix False slk _ m = m
         reducePFix True  slk t m = do
            let lk = unArg $ ignoreBlocking slk
-           int <- intervalUnview'
            mpfix <- getName' builtinPFix
-           case subst 0 (unArg k) t of
-             Def q es | Just [k,a,bA,f,r] <- allApplyElims es, Just q == mpfix
-                    -> (redReturn =<<) $ runNamesT [] $
-                         pfixBeta int q `applyN` map (pure . unArg) [k,a,bA,f]
+           let thek = unArg k
+           case t of
+             Def q es | Just [k,a,bA,f,r] <- allApplyElims es
+                      , Just q == mpfix
+                      -> do
+               int <- intervalUnview'
+               (redReturn =<<) $ runNamesT [] $
+                 pfixBeta int q `applyN` map (pure . unArg) (subst 0 thek [k,a,bA,f])
              Lam _ (Abs _ u) -> do
                case u of
                  Def q es | Just [k,a,bA,f,r,lk2] <- allApplyElims es
                           , Just q == mpfix
                           , Var 0 [] <- unArg lk2
-                    -> (redReturn . subst 0 lk =<<) $ runNamesT [] $
-                         pfixBeta int q `applyN` map (pure . unArg) [k,a,bA,f]
+                          -> do
+                   int <- intervalUnview'
+                   (redReturn =<<) $ runNamesT [] $
+                     pfixBeta int q `applyN` map (pure . unArg) (parallelS [lk,thek] `applySubst` [k,a,bA,f])
                  _u -> m
              _t     -> m
         advanceCase' slk isdia = do
-             st <- reduceB t
-             -- apply to fresh clock: TODO maybe better to check if Lam instead.
-             st0 <- reduceB (raise 1 t `apply` [argN $ var 0])
-             let t0 = ignoreBlocking st0
-                 lamAbs = Lam defaultArgInfo . Abs "k"
-                 tlamAbs nm = Lam (setLock (IsLock Tick) defaultArgInfo) . Abs nm
-             let bail' st = do
-                   reportSDoc "tc.forcing.reduce" 90 $ text "st0:" <+> pretty t0
-                   return $ NoReduction $ [ notReduced a, notReduced bA
-                                          , reduced $ Arg tinfo <$> st
-                                          , notReduced k, reduced slk
-                                          ]
-                 bail = bail' (const lamAbs <$> st <*> st0)
+          st <- reduceB t
+          -- apply to fresh clock: TODO maybe better to check if Lam instead.
+          st0 <- reduceB (raise 1 t `apply` [argN $ var 0])
+          let t0 = ignoreBlocking st0
+              lamAbs = Lam defaultArgInfo . Abs "k"
+              tlamAbs nm = Lam (setLock (IsLock Tick) defaultArgInfo) . Abs nm
+          let bail' st = do
+                reportSDoc "tc.forcing.reduce" 90 $ text "t0:" <+> pretty t0
+                reportSDoc "tc.forcing.reduce" 90 $ text "st:" <+> prettyTCM st
+                reportSDoc "tc.forcing.reduce" 90 $ text "st:" <+> text (show (() <$ st))
+                return $ NoReduction $ [ notReduced a, notReduced bA
+                                       , reduced $ Arg tinfo <$> st
+                                       , notReduced k, reduced slk
+                                       ]
 
-             reducePFix isdia slk t0 $ do
-             case t0 of
-               Lam info (NoAbs _ t') -> do
-                 redReturn $ subst 0 (unArg k) t'
-               Lam info (Abs alpha t') -> do
-                 st' <- reduceB t'
-                 let bail = bail' $
-                              const (const (lamAbs . tlamAbs alpha)) <$> st <*> st0 <*> st'
-                 let t' = ignoreBlocking st'
+          case t0 of
+            Lam info (NoAbs _ t') -> do
+              redReturn $ subst 0 (unArg k) t'
+            Lam info (Abs alpha t') -> do
+              st' <- reduceB t'
+              let bailWith blocker = bail' $
+                    fmap (lamAbs . tlamAbs alpha) st' <* st <* st0 <* blocker
+              let t' = ignoreBlocking st'
 
-                 reducePFix isdia slk (Lam info (Abs alpha t')) $ do
+              reducePFix isdia slk (Lam info (Abs alpha t')) $ do
 
-                 bailIfEtaLong t' bail $ do
-                 --  γ : Γ, δ : adv(Δ,k',u,·) ⊢ τ := [γ,k',u,δ] : Γ, k : Cl, α : k, Δ
-                 -- but Δ = ·.
-                 let tau = parallelS [unArg $ ignoreBlocking slk, unArg k]
-                 -- TODO: tau is ill-typed, u : FTick k', but α : Tick k
-                 mt'' <- advance tau 0 t' `runContT` (return . Just)
-                 case mt'' of
-                   Nothing  -> bail
-                   Just t'' -> redReturn t''
-               _            -> bail
+              bailIfEtaLong t' (bailWith $ notBlocked ()) $ do
+              --  γ : Γ, δ : adv(Δ,k',u,·) ⊢ τ := [γ,k',u,δ] : Γ, k : Cl, α : k, Δ
+              -- but Δ = ·.
+              let tau = -- WAS: Strengthen __IMPOSSIBLE__ $ [unArg k] ++# idS
+                        [Dummy "lk" [], unArg k] ++# idS
+              mt'' <- advance (AdvArgs tau 0 (unArg $ ignoreBlocking slk)) t' `runContT` (return . Right)
+              case mt'' of
+                Left blk  -> do
+                  reportSDoc "tc.forcing.reduce" 90 $ text "bailing on Left"
+                  bailWith (Blocked blk ())
+                Right t'' -> redReturn t''
+            _            ->
+              reducePFix isdia slk t0 $ do
+              reportSDoc "tc.forcing.reduce" 90 $ text "bail no lambda"
+              bail' (const lamAbs <$> st <*> st0)
     impl  _ =  __IMPOSSIBLE__
     bailIfEtaLong t' bail m = do
      let es = case t' of
@@ -2502,7 +2497,9 @@ primForcingAppDep' = do
                 _           -> []
      case reverse es of
        (Apply x : _) | Var 0 [] <- unArg x
-         -> bail
+         -> do
+         reportSDoc "tc.forcing.reduce" 90 $ text "bailing on eta-long"
+         bail
        _ -> m
 
 
@@ -2624,111 +2621,179 @@ adv(Def f,k',u,Δ) = Def f
 both ?M and Def f are closed terms, if we get here we don't need to worry about k and α
 -}
 
-type AdvanceM a = ContT (Maybe Term) ReduceM a
+type AdvanceM a = ContT (Either Blocker Term) ReduceM a
+
+data AdvArgs a = AdvArgs { advSusbst :: Substitution' a
+                         , advLockIx :: Nat
+                         , advFTick  :: Term
+                         }
+
+liftAA :: AdvArgs a -> AdvArgs a
+liftAA (AdvArgs tau n t) = AdvArgs (liftS 1 tau) (n+1) (raise 1 t)
 
 instance HasBuiltins m => HasBuiltins (ContT r m)
 
-class Subst a => Advance a where
-  advance :: Substitution' (SubstArg a) -> Nat -> a -> AdvanceM a
+class (Subst a) => Advance a where
+  advance :: AdvArgs (SubstArg a) -> a -> AdvanceM a
 
   default advance :: (a ~ f b, Traversable f, Advance b, SubstArg a ~ SubstArg b) =>
-                     Substitution' (SubstArg a) -> Nat -> a -> AdvanceM a
-  advance rho n = traverse (advance rho n)
+                     AdvArgs (SubstArg a) -> a -> AdvanceM a
+  advance rho = traverse (advance rho)
 
 instance Advance a => Advance (Abs a) where
-  advance tau a (Abs x t) = Abs x <$> advance (liftS 1 tau) (a+1) t
-  advance tau a (NoAbs x t) = NoAbs x <$> advance tau a t
+  advance tau (Abs x t) = Abs x <$> advance (liftAA tau) t
+  advance tau (NoAbs x t) = NoAbs x <$> advance tau t
 
 
-instance Advance a => Advance (Arg a) where
-  advance tau n arg = setFreeVariables unknownFreeVariables <$> traverse (advance tau n) arg
+instance Advance a => Advance [a]
+instance (a ~ Term) => Advance (Elim' a) where
+  advance rho (Apply arg)    = Apply <$> advance rho arg
+  advance rho (IApply x y r) = IApply <$> advance rho x <*> advance rho y <*> advance rho r
+  advance rho p@Proj{}       = pure p
 
-advanceTerm :: Substitution' Term -> Nat -> Term -> AdvanceM Term
-advanceTerm rho n t = case t of
-    Var i es    -> advanceHead (Var i []) es
-    Lam info m  -> Lam info <$> advance rho n m
-    Def f es    -> advanceHead (Def f []) es
-    Con c ci es -> advanceHead (Con c ci []) $ es
-    MetaV x es  -> advanceHead (MetaV x []) $ es
+instance (a ~ Term) => Advance (Arg a) where
+  advance rho@(AdvArgs tau n u) arg = setFreeVariables unknownFreeVariables <$> arg'
+    where
+      advanceFTick t = do
+        t <- lift $ reduceB t
+        case t of
+          Blocked{theBlocker = blk} -> abortAdv blk
+          NotBlocked{ignoreBlocking = t} | Just i <- isMeta t -> abortAdv (UnblockOnMeta i)
+          NotBlocked{ignoreBlocking = t} -> do
+            ftickView <- ftickView'
+            let go ft = case ft of
+                  FTIrr k ft0 ft1 r -> FTIrr (applySubst tau k) <$> go ft0 <*> go ft1 <*> pure (applySubst tau r)
+                  FTVar i -> pure $ FTTerm $ lookupS tau i
+                  FTEmb k t -> tickToFTick rho k t
+                  FTDia k -> pure $ FTDia $ applySubst tau k
+                  FTTerm u -> abortAdv $ unblockOnAnyMetaIn u
+            ftickUnview =<< (go $ ftickView t)
+      arg' | IsLock ForcingTick <- getLock arg  = traverse advanceFTick arg
+           | otherwise = traverse (advance rho) arg
+
+tickToFTick :: AdvArgs Term -> Term -> TickView -> AdvanceM FTickView
+tickToFTick rho@(AdvArgs tau n ft) k v = do
+   let go t = case t of
+         TickVar i | i == n    -> pure $ FTTerm ft
+                   | otherwise -> pure $ FTEmb k $ TTerm $ lookupS tau i
+         TIrr k x y r -> FTIrr (applySubst tau k) <$> (go x)  <*> (go y) <*> pure (applySubst tau r)
+         TTerm t      -> abortAdv $ unblockOnAnyMetaIn t
+   go v
+
+abortAdv :: Blocker -> AdvanceM a
+abortAdv blk = ContT (const $ pure $ Left blk)
+
+
+data AppView = AppTerm Term
+             | AppView :$: Elim
+
+instance Apply AppView where
+  applyE v [] = v
+  applyE v (e : es) = applyE (v :$: e) es
+
+iappView :: Term -> AppView
+iappView t = case t of
+    Var i es    -> applyE (AppTerm $ Var i []) es
+    Lam info m  -> AppTerm $ t
+    Def f es    -> applyE (AppTerm $ Def f []) es
+    Con c ci es -> applyE (AppTerm $ Con c ci []) $ es
+    MetaV x es  -> applyE (AppTerm $ MetaV x []) $ es
+    l@(Lit _)   -> AppTerm t
+    Level l     -> AppTerm t
+    Pi a b      -> AppTerm t
+    Sort s      -> AppTerm t
+    DontCare mv -> AppTerm t
+    Dummy s es  -> applyE (AppTerm $ Dummy s []) $ es
+
+
+iappUnview :: AppView -> Term
+iappUnview t = go t []
+  where
+    go (AppTerm t) es = applyE t es
+    go (v :$: e) es = go v (e : es)
+
+
+advanceTerm :: AdvArgs Term -> Term -> AdvanceM Term
+advanceTerm rho@(AdvArgs tau n ft) t = case t of
+    Var i es    -> advanceHead (Var i [])    es
+    Def f es    -> advanceHead (Def f [])    es
+    Con c ci es -> advanceHead (Con c ci []) es
+    MetaV x es  -> advanceHead (MetaV x [])  es
+    Dummy s es  -> advanceHead (Dummy s [])  es
+    Lam info m  -> Lam info <$> advance rho m
     l@(Lit _)   -> pure $ l
-    Level l     -> levelTm <$> advance rho n l
-    Pi a b      -> Pi <$> advance rho n a <*> advance rho n b
-    Sort s      -> Sort <$> advance rho n s
-    DontCare mv -> dontCare <$> advance rho n mv
-    Dummy s es  -> advanceHead (Dummy s []) $ es
+    Level l     -> levelTm <$> advance rho l
+    Pi a b      -> Pi <$> advance rho a <*> advance rho b
+    Sort s      -> Sort <$> advance rho s
+    DontCare mv -> dontCare <$> advance rho mv
  where
-   heads :: Term -> Elims -> [(Term,Elims)]
-   heads h [] = []
-   heads h ees@(e : es) = (h, ees) : heads h' es
-     where h' = h `applyE` [e]
-   advanceHead :: Term -> Elims -> AdvanceM Term
-   advanceHead h [] = pure $ applySubst rho h
-   advanceHead h es = advanceHead' $ reverse $ heads h es
    hasTick :: Nat -> Term -> AdvanceM (Term,Bool)
    hasTick n v = do
      sv <- lift $ reduceB v
-     let bail = ContT (const $ return Nothing)
      case sv of
-       Blocked{}                        -> bail
+       Blocked{theBlocker = blk}        -> abortAdv blk
        NotBlocked{ ignoreBlocking = v } -> do
          let go t = case t of
                TickVar i    -> pure $ i == n
                TIrr _ x y _ -> (||) <$> go x <*> go y
-               TTerm _      -> bail
+               TTerm t      -> abortAdv $ unblockOnAnyMetaIn t
          fmap (ignoreBlocking sv,) . go =<< tickView v
+
    tickToFTick :: Term -> Term -> ReduceM Term
    tickToFTick k v = do
      v <- tickView v
      ftick <- ftickUnview'
      let go t = case t of
-           TickVar i -> FTEmb k $ TickVar i
-           TIrr k x y r -> FTIrr k (go x) (go y) r
-           TTerm t -> FTTerm t
+           TickVar i | i == n    -> FTTerm ft
+                     | otherwise -> FTEmb k $ TTerm $ lookupS tau i
+           TIrr k x y r -> FTIrr (applySubst tau k) (go x) (go y) (applySubst tau r)
+           TTerm t      -> __IMPOSSIBLE__ -- FTTerm (applySubst tau t)
      return $ ftick $ go v
 
-   advanceHead' :: [(Term,Elims)] -> AdvanceM Term
-   advanceHead' []              = __IMPOSSIBLE__
-   advanceHead' ((h,[])    :hs) = __IMPOSSIBLE__
-   advanceHead' ((h,e : es):hs) =
+   advanceHead :: Term -> Elims -> AdvanceM Term
+   advanceHead h es = iappUnview <$> advanceHead' (AppTerm h `applyE` es)
+
+   advanceHead' :: AppView -> AdvanceM AppView
+   advanceHead' (AppTerm h) = pure $ AppTerm $ applySubst tau h
+   advanceHead' (t :$: e) = do
+     let fallback = (:$:) <$> advanceHead' t <*> advance rho e
      case e of
        Apply arg | IsLock Tick <- getLock arg, v <- unArg arg -> do
          (v,b) <- hasTick n v
          lift $ reportSDoc "adv" 20 $ text "hasTick" <+> pretty (n,v) <+> " = " <+> pretty b
          if not b then fallback else do
+         let h = iappUnview t
          bF <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinForcingAppDep
-         let k' = applySubst rho $ var (n+1)
-         v' <- lift $ tickToFTick k' $ applySubst rho v
+         let k' = applySubst tau $ var (n+1)
+         v' <- lift $ tickToFTick k' v
          runNamesT [] $ do
            k' <- open k'
            v' <- open v'
            -- Γ, δ : adv(Δ,k',u,·), k : Cl, α : k ⊢ σ := [γ,k,α,δ] : Γ, k : Cl, α : k, Δ
            let sigma = let xs = [ var (i+2) | i <- [0..n-1]] ++ [var 0, var 1]
-                       in foldr consS (raiseS (length xs)) xs
+                       in foldr consS (raiseS (n+2) {- (length xs) -}) xs
            lift $ lift $ reportSDoc "adv" 20 $ text "sigma :=" <+> pretty sigma
            h' <- open $ AbsN ["k","α"] $ applySubst sigma h `apply` [setLock (IsLock Tick) $ argN $ var 0]
            result <- pure bF <#> (pure $ Dummy "l" []) <#> (pure $ Dummy "A" [])
                              <@> (lam "k" $ \ k -> llam Tick "α" $ \ a -> h' `applyN` [k,a]) <@> k' <◇> v'
            lift $ lift $ reportSDoc "adv" 20 $ text "result :=" <+> pretty result
-           return $ result `applyE` es
+           return $ AppTerm result
        e -> fallback
-     where
-       fallback | null hs   = (applySubst rho h `applyE`) <$> (traverse (traverse (advance rho n)) $ e : es)
-                | otherwise = advanceHead' hs
+
 
 instance Advance a => Advance (Maybe a)
 
 instance (Advance a, Advance b, SubstArg a ~ SubstArg b) => Advance (Dom' a b) where
-  advance rho n dom = do
-    tactic <- advance rho n (domTactic dom)
+  advance rho dom = do
+    tactic <- advance rho (domTactic dom)
     setFreeVariables unknownFreeVariables <$>
-      traverse (advance rho n) dom{ domTactic = tactic }
-
+      traverse (advance rho) dom{ domTactic = tactic }
 
 instance Advance Term where
-  advance tau a t = advanceTerm tau a t
+  advance = advanceTerm
 
 instance Advance (Sort' Term) where
-  advance rho n = \case
+  advance rho = \case
     Type n     -> Type <$> adv n
     Prop n     -> Prop <$> adv n
     Inf f n    -> pure $ Inf f n
@@ -2739,18 +2804,18 @@ instance Advance (Sort' Term) where
     PiSort a s1 s2 -> piSort <$> (adv a) <*> (adv s1) <*> (adv s2)
     FunSort s1 s2 -> funSort <$> (adv s1) <*> (adv s2)
     UnivSort s -> univSort <$> adv s
-    -- TODO: do the proper advanceHead
-    MetaS x es -> MetaS x <$> traverse (traverse adv) es
-    DefS d es  -> DefS d <$> traverse (traverse adv) es
+    -- TODO: do the proper advanceHead, actually doable with DefS.
+    MetaS x es -> MetaS x <$> adv es
+    DefS d es  -> DefS d <$> adv es
     s@DummyS{} -> pure s
     where
       adv :: forall b. (SubstArg b ~ Term, Advance b) => b -> AdvanceM b
-      adv x = advance rho n x
+      adv x = advance rho x
 
 instance Advance Level where
 
 instance Advance Type where
-  advance rho n (El s t) = El <$> advance rho n s <*> advance rho n t
+  advance rho (El s t) = El <$> advance rho s <*> advance rho t
 
 
 primPFix' :: TCM PrimitiveImpl
@@ -2760,7 +2825,7 @@ primPFix' = do
           hPi' "k" (cl tClock) $ \ k ->
           hPi' "a" (el primLevel) $ \ a ->
           hPi' "A" (tType a) $ \ bA ->
-          ((tTick k #--> el' a bA) #--> el' a bA) -->
+          ((tTick k #--> el' a bA) --> el' a bA) -->
           cl primIntervalType -->
           (tTick k #--> el' a bA)
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 5 $ \ ts -> do

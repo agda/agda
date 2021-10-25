@@ -29,6 +29,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
+import Agda.Utils.Update
 
 import Agda.Utils.Impossible
 
@@ -41,6 +42,7 @@ class ( Functor m
   default getBuiltinThing :: (MonadTrans t, HasBuiltins n, t n ~ m) => String -> m (Maybe (Builtin PrimFun))
   getBuiltinThing = lift . getBuiltinThing
 
+instance HasBuiltins m => HasBuiltins (ChangeT m)
 instance HasBuiltins m => HasBuiltins (ExceptT e m)
 instance HasBuiltins m => HasBuiltins (IdentityT m)
 instance HasBuiltins m => HasBuiltins (ListT m)
