@@ -529,7 +529,7 @@ in a folder that we refer to as our top-level folder.
 .. code-block:: agda
 
   {-# OPTIONS --guardedness #-}
-  
+
   module hello-world-prog where
 
   open import IO
