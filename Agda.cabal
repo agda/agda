@@ -226,7 +226,7 @@ library
                 -- hashable 1.2.0.10 makes library-test 10x
                 -- slower. The issue was fixed in hashable 1.2.1.0.
                 -- https://github.com/tibbe/hashable/issues/57.
-                , hashable >= 1.2.1.0 && < 1.4
+                , hashable >= 1.2.1.0 && < 1.5
                 -- There is a "serious bug"
                 -- (https://hackage.haskell.org/package/hashtables-1.2.0.2/changelog)
                 -- in hashtables 1.2.0.0/1.2.0.1. This bug seems to
