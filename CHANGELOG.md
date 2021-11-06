@@ -107,6 +107,9 @@ Compiler backends
   This flag implies `--ghc-strict-data`, and the exceptions of that
   flag applies to this flag as well.
 
+* JS backend now uses the native `BigInt` instead of the
+  [biginteger.js](https://github.com/silentmatt/javascript-biginteger).
+
 LaTeX backend
 -------------
 
