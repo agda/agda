@@ -41,7 +41,6 @@
 /src/full/TAGS
 /test/**/MAlonzo
 /test/Compiler/simple/agda-rts.js
-/test/Compiler/simple/biginteger.js
 /test/Compiler/simple/highlight-hover.js
 /test/Compiler/simple/Erasure-Issue2640
 /test/Compiler/simple/Issue4168
@@ -56,7 +55,6 @@
 /test/Compiler/simple/Word
 /test/Compiler/with-stdlib/AllStdLib
 /test/Compiler/with-stdlib/agda-rts.js
-/test/Compiler/with-stdlib/biginteger.js
 /test/Compiler/with-stdlib/highlight-hover.js
 agda-ffi/dist
 agda-stdlib
