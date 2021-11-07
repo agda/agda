@@ -27,9 +27,6 @@ exports.uprimIntegerMinus = (x, y) => x - y;
 // uprimIntegerMultiply : (Int, Int) -> Int
 exports.uprimIntegerMultiply = (x, y) => x * y;
 
-// NOTE: this isn't really a remainder but modulo (as it was previously
-// implemented by biginteger.js), should it be a remainder?
-
 // uprimIntegerRem : (Int, Int) -> Int
 exports.uprimIntegerRem = (x, y) => x % y;
 
