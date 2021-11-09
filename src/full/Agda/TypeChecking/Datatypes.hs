@@ -68,6 +68,15 @@ consOfHIT c = do
     Record{} -> return False
     _  -> __IMPOSSIBLE__
 
+isPathCons :: HasConstInfo m => QName -> m Bool
+isPathCons c = do
+  d <- getConstructorData c
+  def <- theDef <$> getConstInfo d
+  case def of
+    Datatype {dataPathCons = xs} -> return $ c `elem` xs
+    Record{} -> return False
+    _  -> __IMPOSSIBLE__
+
 -- | @getConType c t@ computes the constructor parameters from type @t@
 --   and returns them plus the instantiated type of constructor @c@.
 --   This works also if @t@ is a function type ending in a data/record type;
