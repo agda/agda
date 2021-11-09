@@ -43,8 +43,8 @@ STACK_OPT_FAST    = --fast
 CABAL_FLAG_ICU    = -fenable-cluster-counting
 STACK_FLAG_ICU    = --flag Agda:enable-cluster-counting
 
-CABAL_FLAG_OPTIM_HEAVY = -foptimise-heavily
-STACK_FLAG_OPTIM_HEAVY = --flag Agda:optimise-heavily
+CABAL_FLAG_OPTIM_HEAVY ?= -foptimise-heavily
+STACK_FLAG_OPTIM_HEAVY ?= --flag Agda:optimise-heavily
 
 CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_OPT_NO_DOCS)
 STACK_INSTALL_HELPER = $(STACK) build Agda $(STACK_OPT_NO_DOCS)
