@@ -451,13 +451,22 @@ instance EmbPrj CompiledClauses where
     valu [2, a, b] = valuN Case a b
     valu _         = malformed
 
+instance EmbPrj WhenInjective where
+  icod_ AlwaysInjective = icodeN 0 AlwaysInjective
+  icod_ UnlessCubical   = icodeN 1 UnlessCubical
+
+  value = vcase valu where
+    valu [0] = valuN AlwaysInjective
+    valu [1] = valuN UnlessCubical
+    valu _   = malformed
+
 instance EmbPrj a => EmbPrj (FunctionInverse' a) where
   icod_ NotInjective = icodeN' NotInjective
-  icod_ (Inverse a)  = icodeN' Inverse a
+  icod_ (Inverse w a)  = icodeN' Inverse w a
 
   value = vcase valu where
     valu []  = valuN NotInjective
-    valu [a] = valuN Inverse a
+    valu [w,a] = valuN Inverse w a
     valu _   = malformed
 
 instance EmbPrj TermHead where
