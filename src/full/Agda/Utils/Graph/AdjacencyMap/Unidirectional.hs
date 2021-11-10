@@ -64,6 +64,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , gaussJordanFloydWarshallMcNaughtonYamada
   , gaussJordanFloydWarshallMcNaughtonYamadaReference
   , transitiveClosure
+  , transitiveReduction
   , complete, completeIter
   )
   where
@@ -993,3 +994,21 @@ gaussJordanFloydWarshallMcNaughtonYamada g =
 --         NEW EDGES WILL BE ADDED! Use 'Maybe ()' instead.
 transitiveClosure :: (Ord n, Eq e, StarSemiRing e) => Graph n e -> Graph n e
 transitiveClosure = fst . gaussJordanFloydWarshallMcNaughtonYamada
+
+-- | The transitive reduction of the graph: a graph with the same
+-- reachability relation as the graph, but with as few edges as
+-- possible.
+--
+-- Precondition: The graph must be acyclic. The number of nodes in the
+-- graph must not be larger than @'maxBound' :: 'Int'@.
+--
+-- Worst-case time complexity: /O(e n log n)/ (this has not been
+-- verified carefully).
+--
+-- The algorithm is based on one found on Wikipedia.
+
+transitiveReduction :: Ord n => Graph n e -> Graph n ()
+transitiveReduction g =
+  fmap (const ()) $
+  filterEdges ((== 1) . fst . label) $
+  longestPaths g
