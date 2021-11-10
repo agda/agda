@@ -326,6 +326,11 @@ prop_invariant_gaussEtAl :: G -> Bool
 prop_invariant_gaussEtAl =
   invariant . fst . gaussJordanFloydWarshallMcNaughtonYamada
 
+prop_invariant_transitiveReduction :: Property
+prop_invariant_transitiveReduction =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+    invariant (transitiveReduction g)
+
 ------------------------------------------------------------------------
 -- * Graph properties
 ------------------------------------------------------------------------
@@ -643,6 +648,24 @@ prop_gaussEtAl g =
                     else ">= 4") ++
     " strongly connected component(s)"
     where noSCCs = length (sccs g)
+
+prop_transitiveReduction1 :: Property
+prop_transitiveReduction1 =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+  fmap (const ())
+    (transitiveClosure (fmap Just (transitiveReduction g)))
+    ==
+  fmap (const ()) (transitiveClosure (fmap Just g))
+
+prop_transitiveReduction2 :: Property
+prop_transitiveReduction2 =
+  forAll positive $ \n ->
+  let g = decreasingGraph n in
+  Set.fromList (edges (transitiveReduction g)) ==
+  Set.fromList
+    [ Edge { source = 1 + i, target = i, label = () }
+    | i <- [1 .. n - 1]
+    ]
 
 -- | A property for
 -- 'Agda.TypeChecking.Positivity.Occurrence.productOfEdgesInBoundedWalk'.
