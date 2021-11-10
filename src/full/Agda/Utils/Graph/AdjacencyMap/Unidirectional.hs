@@ -59,6 +59,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
     -- * Reachability
   , reachableFrom, reachableFromSet
   , walkSatisfying
+  , longestPaths
     -- * Transitive closure
   , gaussJordanFloydWarshallMcNaughtonYamada
   , gaussJordanFloydWarshallMcNaughtonYamadaReference
@@ -73,6 +74,7 @@ import Prelude hiding ( lookup, null, unzip )
 
 
 import qualified Data.Array.IArray as Array
+import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Function
 import qualified Data.Graph as Graph
@@ -776,6 +778,57 @@ walkSatisfying every some g from to =
 
   reachesTo =
     reachableFrom (fromEdges (map transposeEdge everyEdges)) to
+
+-- | Constructs a graph @g'@ with the same nodes as the original graph
+-- @g@. In @g'@ there is an edge from @n1@ to @n2@ if and only if
+-- there is a (possibly empty) simple path from @n1@ to @n2@ in @g@.
+-- In that case the edge is labelled with all of the longest (in terms
+-- of numbers of edges) simple paths from @n1@ to @n2@ in @g@, as well
+-- as the lengths of these paths.
+--
+-- Precondition: The graph must be acyclic. The number of nodes in the
+-- graph must not be larger than @'maxBound' :: 'Int'@.
+--
+-- Worst-case time complexity (if the paths are not inspected):
+-- /O(e n log n)/ (this has not been verified carefully).
+--
+-- The algorithm is based on one found on Wikipedia.
+
+longestPaths ::
+  forall n e. Ord n => Graph n e -> Graph n (Int, [[Edge n e]])
+longestPaths g =
+  Graph $
+  fmap (fmap (mapSnd toList)) $
+  List.foldl' (flip addLongestFrom) Map.empty $
+  sccs' g
+  where
+  addLongestFrom ::
+    Graph.SCC n ->
+    Map n (Map n (Int, Seq [Edge n e])) ->
+    Map n (Map n (Int, Seq [Edge n e]))
+  addLongestFrom Graph.CyclicSCC{}    !_  = __IMPOSSIBLE__
+  addLongestFrom (Graph.AcyclicSCC n) pss =
+    Map.insert n
+      (Map.insert n (0, Seq.singleton []) $
+       Map.unionsWith longest candidates)
+      pss
+    where
+    longest p1@(n1, ps1) p2@(n2, ps2) = case compare n1 n2 of
+      GT -> p1
+      LT -> p2
+      EQ -> (n1, ps1 Seq.>< ps2)
+
+    candidates :: [Map n (Int, Seq [Edge n e])]
+    candidates =
+      flip map (neighbours n g) $ \(n', e) ->
+      let edge = Edge
+            { source = n
+            , target = n'
+            , label  = e
+            }
+      in case Map.lookup n' pss of
+        Nothing -> Map.empty
+        Just ps -> fmap (succ -*- fmap (edge :)) ps
 
 ------------------------------------------------------------------------
 -- Transitive closure
