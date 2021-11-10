@@ -144,3 +144,7 @@ DOT backend
 
   Note that the module given on the command line might not be
   included.
+
+* The generated graphs no longer contain "redundant" edges: if a
+  module is imported both directly and indirectly, then the edge
+  corresponding to the direct import is omitted.

@@ -224,8 +224,14 @@ postCompileDot cenv _main modulesByName =
   moduleGraph :: Graph (WithUniqueInt L.Text) ()
   moduleGraph =
     Graph.renameNodesMonotonic (fmap (L.pack . prettyShow)) $
+    Graph.transitiveReduction $
     Graph.filterNodesKeepingEdges
       (\n -> Graph.otherValue n `Set.member` modulesToInclude) $
+    -- The following use of transitive reduction should not affect the
+    -- semantics. It tends to make the graph smaller, so it might
+    -- improve the overall performance of the code, but I did not
+    -- verify this.
+    Graph.transitiveReduction $
     Graph.addUniqueInts $
     Graph.fromEdges $
     concat $
