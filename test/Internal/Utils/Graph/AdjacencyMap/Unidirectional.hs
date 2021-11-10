@@ -15,7 +15,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
-import Agda.Utils.List (distinct)
+import Agda.Utils.List (distinct, nubOn)
 import Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
 import Agda.Utils.Singleton (Singleton)
@@ -29,7 +29,9 @@ import Data.Function
 import qualified Data.Graph as Graph
 import qualified Data.List as List
 import Data.Maybe
+import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Internal.Helpers
@@ -94,6 +96,31 @@ prop_graphWithNodes :: [N] -> Property
 prop_graphWithNodes ns =
   forAll (graphWithNodes ns :: Gen G) $ \g ->
     nodes g == Set.fromList ns
+
+-- | Generates an acyclic graph.
+
+acyclicGraph ::
+  forall n e. (Ord n, Arbitrary n, Arbitrary e) => Gen (Graph n e)
+acyclicGraph = do
+  nodes      <- nubOn id <$> arbitrary
+  (_, edges) <- foldM (flip addEdgesFrom) (Set.empty, []) nodes
+  return (fromEdges edges `union` fromNodes nodes)
+  where
+  addEdgesFrom :: n -> (Set n, [Edge n e]) -> Gen (Set n, [Edge n e])
+  addEdgesFrom n (seen, es) =
+    (Set.insert n seen,) <$>
+    if null seen
+    then return es
+    else (++ es) <$> listOf edge
+    where
+    edge = do
+      n' <- elements (Set.toList seen)
+      e  <- arbitrary
+      return (Edge { source = n, target = n', label = e })
+
+prop_acyclicGraph :: Property
+prop_acyclicGraph =
+  forAll (acyclicGraph :: Gen G) acyclic
 
 -- | Generates a node from the graph. (Unless the graph is empty.)
 
@@ -170,6 +197,10 @@ prop_invariant = invariant
 prop_invariant_shrink :: G -> Bool
 prop_invariant_shrink = all invariant . shrink
 
+prop_invariant_acyclicGraph :: Property
+prop_invariant_acyclicGraph =
+  forAll (acyclicGraph :: Gen G) invariant
+
 prop_invariant_fromNodes :: [N] -> Bool
 prop_invariant_fromNodes = invariant . fromNodes
 
@@ -245,6 +276,11 @@ prop_invariant_removeEdge g =
 
 prop_invariant_filterEdges :: (Edge N E -> Bool) -> G -> Bool
 prop_invariant_filterEdges f = invariant . filterEdges f
+
+prop_invariant_filterNodesKeepingEdges :: (N -> Bool) -> Property
+prop_invariant_filterNodesKeepingEdges p =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+  invariant (filterNodesKeepingEdges p g)
 
 prop_invariant_unzip :: G -> Bool
 prop_invariant_unzip g = invariant g1 && invariant g2
@@ -364,6 +400,17 @@ prop_removeEdge g =
    not (t `elem` map target (edgesFrom g [s])) ==>
    forAll arbitrary $ \l ->
      removeEdge s t (insertEdge (Edge s t l) g) == g)
+
+prop_filterNodesKeepingEdges :: (N -> Bool) -> Property
+prop_filterNodesKeepingEdges p =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+  not (null (nodes g)) ==>
+  let g' = filterNodesKeepingEdges p g in
+  forAll (nodeIn g) $ \n ->
+    if p n
+    then Set.filter p (Map.keysSet (reachableFrom g n)) ==
+         Map.keysSet (reachableFrom g' n)
+    else not (n `Set.member` nodes g')
 
 prop_sccs' :: G -> Bool
 prop_sccs' g =

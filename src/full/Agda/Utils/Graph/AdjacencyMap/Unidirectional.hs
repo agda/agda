@@ -44,6 +44,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , removeEdge
   , filterNodes
   , filterEdges
+  , filterNodesKeepingEdges
   , unzip
   , composeWith
     -- * Strongly connected components
@@ -464,6 +465,59 @@ filterEdges f =
     Map.filterWithKey (\t l ->
       f (Edge { source = s, target = t, label = l }))) .
   graph
+
+-- | Removes the nodes that do not satisfy the predicate from the
+-- graph, but keeps the edges: if there is a path in the original
+-- graph between two nodes that are retained, then there is a path
+-- between these two nodes also in the resulting graph.
+--
+-- Precondition: The graph must be acyclic.
+--
+-- Worst-case time complexity: /O(e n log n)/ (this has not been
+-- verified carefully).
+
+filterNodesKeepingEdges ::
+  forall n e. (Ord n, SemiRing e) =>
+  (n -> Bool) -> Graph n e -> Graph n e
+filterNodesKeepingEdges p g =
+  foldr (insertEdgeWith oplus) (filterNodes p g)
+    (fst edgesToAddAndRemove)
+  where
+  -- The new edges that should be added, and a map from nodes that
+  -- should be removed to edges that should potentially be added
+  -- (after being combined with paths into the nodes that should be
+  -- removed).
+  edgesToAddAndRemove :: ([Edge n e], Map n (Map n e))
+  edgesToAddAndRemove =
+    List.foldl' edgesToAddAndRemoveForSCC ([], Map.empty) (sccs' g)
+
+  edgesToAddAndRemoveForSCC (add, !remove) (Graph.AcyclicSCC n)
+    | p n =
+      ( (do (n', e) <- neighbours n g
+            case Map.lookup n' remove of
+              Nothing -> []
+              Just es ->
+                flip map (Map.toList es) $ \(n', e') -> Edge
+                  { source = n
+                  , target = n'
+                  , label  = e `otimes` e'
+                  })
+          ++
+        add
+      , remove
+      )
+    | otherwise =
+      ( add
+      , Map.insert
+          n
+          (Map.unionsWith oplus $
+           flip map (neighbours n g) $ \(n', e) ->
+             case Map.lookup n' remove of
+               Nothing -> Map.singleton n' e
+               Just es -> fmap (e `otimes`) es)
+          remove
+      )
+  edgesToAddAndRemoveForSCC _ (Graph.CyclicSCC{}) = __IMPOSSIBLE__
 
 -- | Unzips the graph. /O(n + e)/.
 
