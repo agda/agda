@@ -492,16 +492,28 @@ composeWith times plus (Graph g) (Graph g') = Graph (Map.map comp g)
 
 -- | The graph's strongly connected components, in reverse topological
 -- order.
+--
+-- The time complexity is likely /O(n + e log n)/ (but this depends on
+-- the, at the time of writing undocumented, time complexity of
+-- 'Graph.stronglyConnComp').
 
 sccs' :: Ord n => Graph n e -> [Graph.SCC n]
 sccs' g =
   Graph.stronglyConnComp
-    [ (n, n, map target (edgesFrom g [n]))
-    | n <- Set.toList (nodes g)
+    [ (n, n, Map.keys es)
+    | (n, es) <- Map.toAscList (graph g)
     ]
+    -- Graph.stronglyConnComp sorts this list, and the sorting
+    -- algorithm that is used is adaptive, so it may make sense to
+    -- generate a sorted list. (These comments apply to one specific
+    -- version of the code in Graph, compiled in a specific way.)
 
 -- | The graph's strongly connected components, in reverse topological
 -- order.
+--
+-- The time complexity is likely /O(n + e log n)/ (but this depends on
+-- the, at the time of writing undocumented, time complexity of
+-- 'Graph.stronglyConnComp').
 
 sccs :: Ord n => Graph n e -> [[n]]
 sccs = map Graph.flattenSCC . sccs'
