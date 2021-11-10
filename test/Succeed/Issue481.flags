@@ -1,1 +1,1 @@
---dependency-graph=Issue481.dot
+--dependency-graph=Issue481.dot --dependency-graph-include=test-succeed

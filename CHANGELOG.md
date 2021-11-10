@@ -134,3 +134,13 @@ LaTeX backend
 * Italics correction (inserted by `\textit` e.g. in `\AgdaBound`) now works,
   thanks to moving the `\textcolor` wrapping to the outside in `agda.sty`
   (see [#5471](https://github.com/agda/agda/issues/5471)).
+
+DOT backend
+-----------
+
+* The new option `--dependency-graph-include=LIBRARY` can be used to
+  restrict the dependency graph to modules from one or more libraries
+  (see [#5634](https://github.com/agda/agda/issues/5634)).
+
+  Note that the module given on the command line might not be
+  included.

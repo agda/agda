@@ -85,12 +85,15 @@ mkSucceedTest extraOpts dir agdaFile =
   doRun = do
 
     let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/", agdaFile
-                   , "--no-libraries"
                    , "-vimpossible:10" -- BEWARE: no spaces allowed here
                    , "-vwarning:1"
                    , "--double-check"
-                   ]
-                     ++ extraOpts
+                   ] ++
+                   [ if testName == "Issue481"
+                     then "--no-default-libraries"
+                     else "--no-libraries"
+                   ] ++
+                   extraOpts
 
     (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile) (Just varFile)
 
