@@ -187,6 +187,18 @@ connectivityGraph =
 connected :: Ord n => Graph n Connected -> n -> n -> Bool
 connected g i j = Graph.lookup i j g == Just Connected
 
+-- | A graph with nodes from @1@ to the given number that contains an
+-- edge from @m@ to @n@ if and only if @m > n@.
+--
+-- Precondition: The number must be positive.
+
+decreasingGraph :: Int -> Graph Int ()
+decreasingGraph n
+  | n == 1    = fromNodes [1]
+  | otherwise = foldr (\n' -> insert n n' ()) g [1 .. n-1]
+    where
+    g = decreasingGraph (n - 1)
+
 ------------------------------------------------------------------------
 -- * The graph invariant is established/preserved by all operations
 ------------------------------------------------------------------------
@@ -292,6 +304,11 @@ prop_invariant_composeWith ::
 prop_invariant_composeWith f1 f2 g1 =
   forAll (graphWithNodes (Set.toList (nodes g1))) $ \g2 ->
     invariant (composeWith f1 f2 g1 g2)
+
+prop_invariant_longestPaths :: Property
+prop_invariant_longestPaths =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+    invariant (longestPaths g)
 
 prop_invariant_complete :: G -> Bool
 prop_invariant_complete = invariant . complete
@@ -542,6 +559,32 @@ prop_walkSatisfying g every some =
                    isWalk g from to es
                      &&
                    all every es && any some es
+
+prop_longestPaths1 :: Property
+prop_longestPaths1 =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+  not (null (nodes g)) ==>
+  let g' = longestPaths g in
+  property
+    (all (\(n, ps) -> all ((== n) . length) ps) $
+     map Graph.label (edges g'))
+    .&&.
+  (forAll (nodeIn g) $ \n ->
+   Map.keysSet (reachableFrom g n)
+     ==
+   Map.keysSet (neighboursMap n g'))
+
+prop_longestPaths2 :: Property
+prop_longestPaths2 =
+  forAll positive $ \n ->
+  let g = decreasingGraph n in
+  forAll (nodeIn g) $ \m ->
+  forAll (nodeIn g) $ \n ->
+  let e = Map.lookup n (neighboursMap m (longestPaths g)) in
+  counterexample (show e) $
+  if m < n
+  then e == Nothing
+  else fmap fst e == Just (m - n)
 
 -- | Computes the transitive closure of the graph.
 --
