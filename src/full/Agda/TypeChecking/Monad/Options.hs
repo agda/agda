@@ -13,6 +13,8 @@ import System.Directory
 import System.FilePath
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete (TopLevelModuleName)
+import qualified Agda.Syntax.Concrete as C
 import Agda.TypeChecking.Monad.Debug (reportSDoc)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
@@ -94,14 +96,26 @@ libToTCM m = do
     Left s  -> typeError $ GenericDocError s
     Right x -> return x
 
-getAgdaLibFiles :: FilePath -> TCM [AgdaLibFile]
-getAgdaLibFiles root = do
+-- | Returns the library files for a given file.
+
+getAgdaLibFiles
+  :: AbsolutePath        -- ^ The file name.
+  -> TopLevelModuleName  -- ^ The top-level module name.
+  -> TCM [AgdaLibFile]
+getAgdaLibFiles f m = do
   useLibs <- optUseLibs <$> commandLineOptions
   if | useLibs   -> libToTCM $ mkLibM [] $ getAgdaLibFiles' root
      | otherwise -> return []
+  where
+  root = filePath (C.projectRoot f m)
 
-getLibraryOptions :: FilePath -> TCM [OptionsPragma]
-getLibraryOptions root = map _libPragmas <$> getAgdaLibFiles root
+-- | Returns the library options for a given file.
+
+getLibraryOptions
+  :: AbsolutePath        -- ^ The file name.
+  -> TopLevelModuleName  -- ^ The top-level module name.
+  -> TCM [OptionsPragma]
+getLibraryOptions f m = map _libPragmas <$> getAgdaLibFiles f m
 
 setLibraryPaths
   :: AbsolutePath

@@ -15,12 +15,13 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
-import Agda.Utils.List (distinct)
+import Agda.Utils.List (distinct, nubOn)
 import Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
 import Agda.Utils.Singleton (Singleton)
 import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.Impossible
+import Agda.Utils.Pretty
 
 import Control.Monad
 
@@ -29,7 +30,9 @@ import Data.Function
 import qualified Data.Graph as Graph
 import qualified Data.List as List
 import Data.Maybe
+import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Internal.Helpers
@@ -95,6 +98,31 @@ prop_graphWithNodes ns =
   forAll (graphWithNodes ns :: Gen G) $ \g ->
     nodes g == Set.fromList ns
 
+-- | Generates an acyclic graph.
+
+acyclicGraph ::
+  forall n e. (Ord n, Arbitrary n, Arbitrary e) => Gen (Graph n e)
+acyclicGraph = do
+  nodes      <- nubOn id <$> arbitrary
+  (_, edges) <- foldM (flip addEdgesFrom) (Set.empty, []) nodes
+  return (fromEdges edges `union` fromNodes nodes)
+  where
+  addEdgesFrom :: n -> (Set n, [Edge n e]) -> Gen (Set n, [Edge n e])
+  addEdgesFrom n (seen, es) =
+    (Set.insert n seen,) <$>
+    if null seen
+    then return es
+    else (++ es) <$> listOf edge
+    where
+    edge = do
+      n' <- elements (Set.toList seen)
+      e  <- arbitrary
+      return (Edge { source = n, target = n', label = e })
+
+prop_acyclicGraph :: Property
+prop_acyclicGraph =
+  forAll (acyclicGraph :: Gen G) acyclic
+
 -- | Generates a node from the graph. (Unless the graph is empty.)
 
 nodeIn :: (Ord n, Arbitrary n) => Graph n e -> Gen n
@@ -130,6 +158,9 @@ n = N . Positive
 instance Show N where
   show (N (Positive n)) = "n " ++ show n
 
+instance Pretty N where
+  pretty = text . show
+
 instance CoArbitrary N where
   coarbitrary (N (Positive n)) = coarbitrary n
 
@@ -160,6 +191,18 @@ connectivityGraph =
 connected :: Ord n => Graph n Connected -> n -> n -> Bool
 connected g i j = Graph.lookup i j g == Just Connected
 
+-- | A graph with nodes from @1@ to the given number that contains an
+-- edge from @m@ to @n@ if and only if @m > n@.
+--
+-- Precondition: The number must be positive.
+
+decreasingGraph :: Int -> Graph Int ()
+decreasingGraph n
+  | n == 1    = fromNodes [1]
+  | otherwise = foldr (\n' -> insert n n' ()) g [1 .. n-1]
+    where
+    g = decreasingGraph (n - 1)
+
 ------------------------------------------------------------------------
 -- * The graph invariant is established/preserved by all operations
 ------------------------------------------------------------------------
@@ -169,6 +212,10 @@ prop_invariant = invariant
 
 prop_invariant_shrink :: G -> Bool
 prop_invariant_shrink = all invariant . shrink
+
+prop_invariant_acyclicGraph :: Property
+prop_invariant_acyclicGraph =
+  forAll (acyclicGraph :: Gen G) invariant
 
 prop_invariant_fromNodes :: [N] -> Bool
 prop_invariant_fromNodes = invariant . fromNodes
@@ -222,6 +269,10 @@ prop_invariant_transpose = invariant . transpose
 prop_invariant_clean :: G -> Bool
 prop_invariant_clean = invariant . clean
 
+prop_invariant_filterNodes :: (N -> Bool) -> G -> Bool
+prop_invariant_filterNodes p g =
+  invariant (filterNodes p g)
+
 prop_invariant_removeNodes :: G -> Property
 prop_invariant_removeNodes g =
   forAll (listOf (frequency [(5, nodeIn g), (1, arbitrary)])) $ \ns ->
@@ -242,6 +293,25 @@ prop_invariant_removeEdge g =
 prop_invariant_filterEdges :: (Edge N E -> Bool) -> G -> Bool
 prop_invariant_filterEdges f = invariant . filterEdges f
 
+prop_invariant_filterNodesKeepingEdges :: (N -> Bool) -> Property
+prop_invariant_filterNodesKeepingEdges p =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+  invariant (filterNodesKeepingEdges p g)
+
+prop_invariant_renameNodes :: G -> Bool
+prop_invariant_renameNodes = invariant . renameNodes ren
+  where
+  ren (N (Positive n)) = - n
+
+prop_invariant_renameNodesMonotonic :: G -> Bool
+prop_invariant_renameNodesMonotonic =
+  invariant . renameNodesMonotonic ren
+  where
+  ren (N (Positive n)) = n
+
+prop_invariant_addUniqueInts :: G -> Bool
+prop_invariant_addUniqueInts = invariant . addUniqueInts
+
 prop_invariant_unzip :: G -> Bool
 prop_invariant_unzip g = invariant g1 && invariant g2
   where
@@ -252,6 +322,11 @@ prop_invariant_composeWith ::
 prop_invariant_composeWith f1 f2 g1 =
   forAll (graphWithNodes (Set.toList (nodes g1))) $ \g2 ->
     invariant (composeWith f1 f2 g1 g2)
+
+prop_invariant_longestPaths :: Property
+prop_invariant_longestPaths =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+    invariant (longestPaths g)
 
 prop_invariant_complete :: G -> Bool
 prop_invariant_complete = invariant . complete
@@ -268,6 +343,11 @@ prop_invariant_gaussEtAlReference =
 prop_invariant_gaussEtAl :: G -> Bool
 prop_invariant_gaussEtAl =
   invariant . fst . gaussJordanFloydWarshallMcNaughtonYamada
+
+prop_invariant_transitiveReduction :: Property
+prop_invariant_transitiveReduction =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+    invariant (transitiveReduction g)
 
 ------------------------------------------------------------------------
 -- * Graph properties
@@ -345,6 +425,10 @@ prop_clean g =
     &&
   discrete g == (null . edges . clean) g
 
+prop_filterNodes :: (N -> Bool) -> G -> Bool
+prop_filterNodes p g =
+  Set.filter p (nodes g) == nodes (filterNodes p g)
+
 prop_removeEdge :: G -> Property
 prop_removeEdge g =
   (not (null (edges g)) ==>
@@ -356,6 +440,35 @@ prop_removeEdge g =
    not (t `elem` map target (edgesFrom g [s])) ==>
    forAll arbitrary $ \l ->
      removeEdge s t (insertEdge (Edge s t l) g) == g)
+
+prop_filterNodesKeepingEdges :: (N -> Bool) -> Property
+prop_filterNodesKeepingEdges p =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+  not (null (nodes g)) ==>
+  let g' = filterNodesKeepingEdges p g in
+  forAll (nodeIn g) $ \n ->
+    if p n
+    then Set.filter p (Map.keysSet (reachableFrom g n)) ==
+         Map.keysSet (reachableFrom g' n)
+    else not (n `Set.member` nodes g')
+
+prop_renameNodes :: G -> Bool
+prop_renameNodes g =
+  renameNodes inv (renameNodes ren g) == g
+  where
+  ren (N (Positive n)) = - n
+  inv n                = N (Positive (- n))
+
+prop_renameNodesMonotonic :: G -> Bool
+prop_renameNodesMonotonic g =
+  renameNodesMonotonic inv (renameNodesMonotonic ren g) == g
+  where
+  ren (N (Positive n)) = n
+  inv n                = N (Positive n)
+
+prop_addUniqueInts :: G -> Bool
+prop_addUniqueInts g =
+  renameNodes otherValue (addUniqueInts g) == g
 
 prop_sccs' :: G -> Bool
 prop_sccs' g =
@@ -488,6 +601,32 @@ prop_walkSatisfying g every some =
                      &&
                    all every es && any some es
 
+prop_longestPaths1 :: Property
+prop_longestPaths1 =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+  not (null (nodes g)) ==>
+  let g' = longestPaths g in
+  property
+    (all (\(n, ps) -> all ((== n) . length) ps) $
+     map Graph.label (edges g'))
+    .&&.
+  (forAll (nodeIn g) $ \n ->
+   Map.keysSet (reachableFrom g n)
+     ==
+   Map.keysSet (neighboursMap n g'))
+
+prop_longestPaths2 :: Property
+prop_longestPaths2 =
+  forAll positive $ \n ->
+  let g = decreasingGraph n in
+  forAll (nodeIn g) $ \m ->
+  forAll (nodeIn g) $ \n ->
+  let e = Map.lookup n (neighboursMap m (longestPaths g)) in
+  counterexample (show e) $
+  if m < n
+  then e == Nothing
+  else fmap fst e == Just (m - n)
+
 -- | Computes the transitive closure of the graph.
 --
 -- Note that this algorithm is not guaranteed to be correct (or
@@ -545,6 +684,24 @@ prop_gaussEtAl g =
                     else ">= 4") ++
     " strongly connected component(s)"
     where noSCCs = length (sccs g)
+
+prop_transitiveReduction1 :: Property
+prop_transitiveReduction1 =
+  forAll (acyclicGraph :: Gen G) $ \g ->
+  fmap (const ())
+    (transitiveClosure (fmap Just (transitiveReduction g)))
+    ==
+  fmap (const ()) (transitiveClosure (fmap Just g))
+
+prop_transitiveReduction2 :: Property
+prop_transitiveReduction2 =
+  forAll positive $ \n ->
+  let g = decreasingGraph n in
+  Set.fromList (edges (transitiveReduction g)) ==
+  Set.fromList
+    [ Edge { source = 1 + i, target = i, label = () }
+    | i <- [1 .. n - 1]
+    ]
 
 -- | A property for
 -- 'Agda.TypeChecking.Positivity.Occurrence.productOfEdgesInBoundedWalk'.

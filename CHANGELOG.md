@@ -77,6 +77,18 @@ Syntax
   syntax Σ₂ A (λ x₁ x₂ → P) = [ x₁ x₂ ⦂ A ] × P
   ```
 
+Library management
+------------------
+
+* Library files below the "project root" are now ignored
+  (see [#5644](https://github.com/agda/agda/issues/5644)).
+
+  For instance, if you have a module called `A.B.C` in the directory
+  `Root/A/B`, then `.agda-lib` files in `Root/A` or `Root/A/B` do not
+  affect what options are used to type-check `A.B.C`: `.agda-lib`
+  files for `A.B.C` have to reside in `Root`, or further up the
+  directory hierarchy.
+
 Compiler backends
 -----------------
 
@@ -122,3 +134,17 @@ LaTeX backend
 * Italics correction (inserted by `\textit` e.g. in `\AgdaBound`) now works,
   thanks to moving the `\textcolor` wrapping to the outside in `agda.sty`
   (see [#5471](https://github.com/agda/agda/issues/5471)).
+
+DOT backend
+-----------
+
+* The new option `--dependency-graph-include=LIBRARY` can be used to
+  restrict the dependency graph to modules from one or more libraries
+  (see [#5634](https://github.com/agda/agda/issues/5634)).
+
+  Note that the module given on the command line might not be
+  included.
+
+* The generated graphs no longer contain "redundant" edges: if a
+  module is imported both directly and indirectly, then the edge
+  corresponding to the direct import is omitted.

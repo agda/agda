@@ -99,6 +99,20 @@ Generating highlighted source code
 
      Generate a Dot_ file ``FILE`` with a module dependency graph.
 
+.. option:: --dependency-graph-include={LIBRARY}
+
+     Include modules from the given library in the dependency graph.
+     This option can be used multiple times to include modules from
+     several libraries. If this option is not used at all, then all
+     modules are included. (Note that the module given on the command
+     line might not be included.)
+
+     A module ``M`` is considered to be in the library ``L`` if ``L``
+     is the ``name`` of a ``.agda-lib`` file ``A``
+     :ref:`associated<The_agda-lib_files_associated_to_a_give_Agda_file>`
+     to ``M`` (even if ``M``'s file can not be found via the
+     ``include`` paths in ``A``).
+
 .. option:: --html
 
      Generate HTML files with highlighted source code (see
