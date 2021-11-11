@@ -45,6 +45,8 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , filterNodes
   , filterEdges
   , filterNodesKeepingEdges
+  , renameNodes, renameNodesMonotonic
+  , WithUniqueInt(..), addUniqueInts
   , unzip
   , composeWith
     -- * Strongly connected components
@@ -521,6 +523,81 @@ filterNodesKeepingEdges p g =
           remove
       )
   edgesToAddAndRemoveForSCC _ (Graph.CyclicSCC{}) = __IMPOSSIBLE__
+
+-- | Renames the nodes.
+--
+-- Precondition: The renaming function must be injective.
+--
+-- Time complexity: /O((n + e) log n)/.
+
+renameNodes :: Ord n2 => (n1 -> n2) -> Graph n1 e -> Graph n2 e
+renameNodes ren =
+  Graph .
+  fmap (Map.mapKeys ren) .
+  Map.mapKeys ren .
+  graph
+
+-- | Renames the nodes.
+--
+-- Precondition: The renaming function @ren@ must be strictly
+-- increasing (if @x '<' y@ then @ren x '<' ren y@).
+--
+-- Time complexity: /O(n + e)/.
+
+renameNodesMonotonic ::
+  (Ord n1, Ord n2) => (n1 -> n2) -> Graph n1 e -> Graph n2 e
+renameNodesMonotonic ren =
+  Graph .
+  fmap (Map.mapKeysMonotonic ren) .
+  Map.mapKeysMonotonic ren .
+  graph
+
+-- | @WithUniqueInt n@ consists of pairs of (unique) 'Int's and values
+-- of type @n@.
+--
+-- Values of this type are compared by comparing the 'Int's.
+
+data WithUniqueInt n = WithUniqueInt
+  { uniqueInt  :: !Int
+  , otherValue :: !n
+  }
+  deriving (Show, Functor)
+
+instance Eq (WithUniqueInt n) where
+  WithUniqueInt i1 _ == WithUniqueInt i2 _ = i1 == i2
+
+instance Ord (WithUniqueInt n) where
+  compare (WithUniqueInt i1 _) (WithUniqueInt i2 _) = compare i1 i2
+
+instance Pretty n => Pretty (WithUniqueInt n) where
+  pretty (WithUniqueInt i n) =
+    parens ((pretty i <> comma) <+> pretty n)
+
+-- | Combines each node label with a unique 'Int'.
+--
+-- Precondition: The number of nodes in the graph must not be larger
+-- than @'maxBound' :: 'Int'@.
+--
+-- Time complexity: /O(n + e log n)/.
+
+addUniqueInts ::
+  forall n e. Ord n => Graph n e -> Graph (WithUniqueInt n) e
+addUniqueInts g =
+  Graph $
+  Map.fromDistinctAscList $
+  map (\(i, (n, m)) ->
+        (WithUniqueInt i n, Map.mapKeysMonotonic ren m)) $
+  zip [0..] $
+  Map.toAscList $
+  graph g
+  where
+  renaming :: Map n Int
+  renaming = snd $ Map.mapAccum (\i _ -> (succ i, i)) 0 (graph g)
+
+  ren :: n -> WithUniqueInt n
+  ren n = case Map.lookup n renaming of
+    Just i  -> WithUniqueInt i n
+    Nothing -> __IMPOSSIBLE__
 
 -- | Unzips the graph. /O(n + e)/.
 

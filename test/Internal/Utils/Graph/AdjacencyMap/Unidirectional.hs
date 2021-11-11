@@ -294,6 +294,20 @@ prop_invariant_filterNodesKeepingEdges p =
   forAll (acyclicGraph :: Gen G) $ \g ->
   invariant (filterNodesKeepingEdges p g)
 
+prop_invariant_renameNodes :: G -> Bool
+prop_invariant_renameNodes = invariant . renameNodes ren
+  where
+  ren (N (Positive n)) = - n
+
+prop_invariant_renameNodesMonotonic :: G -> Bool
+prop_invariant_renameNodesMonotonic =
+  invariant . renameNodesMonotonic ren
+  where
+  ren (N (Positive n)) = n
+
+prop_invariant_addUniqueInts :: G -> Bool
+prop_invariant_addUniqueInts = invariant . addUniqueInts
+
 prop_invariant_unzip :: G -> Bool
 prop_invariant_unzip g = invariant g1 && invariant g2
   where
@@ -433,6 +447,24 @@ prop_filterNodesKeepingEdges p =
     then Set.filter p (Map.keysSet (reachableFrom g n)) ==
          Map.keysSet (reachableFrom g' n)
     else not (n `Set.member` nodes g')
+
+prop_renameNodes :: G -> Bool
+prop_renameNodes g =
+  renameNodes inv (renameNodes ren g) == g
+  where
+  ren (N (Positive n)) = - n
+  inv n                = N (Positive (- n))
+
+prop_renameNodesMonotonic :: G -> Bool
+prop_renameNodesMonotonic g =
+  renameNodesMonotonic inv (renameNodesMonotonic ren g) == g
+  where
+  ren (N (Positive n)) = n
+  inv n                = N (Positive n)
+
+prop_addUniqueInts :: G -> Bool
+prop_addUniqueInts g =
+  renameNodes otherValue (addUniqueInts g) == g
 
 prop_sccs' :: G -> Bool
 prop_sccs' g =
