@@ -77,6 +77,18 @@ Syntax
   syntax Σ₂ A (λ x₁ x₂ → P) = [ x₁ x₂ ⦂ A ] × P
   ```
 
+Library management
+------------------
+
+* Library files below the "project root" are now ignored
+  (see [#5644](https://github.com/agda/agda/issues/5644)).
+
+  For instance, if you have a module called `A.B.C` in the directory
+  `Root/A/B`, then `.agda-lib` files in `Root/A` or `Root/A/B` do not
+  affect what options are used to type-check `A.B.C`: `.agda-lib`
+  files for `A.B.C` have to reside in `Root`, or further up the
+  directory hierarchy.
+
 Compiler backends
 -----------------
 

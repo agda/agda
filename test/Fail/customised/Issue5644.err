@@ -1,0 +1,4 @@
+customised/Issue5644/A/B.agda:3,1-24
+Cannot use NON_TERMINATING pragma with safe flag.
+when scope checking the declaration
+  import A.B

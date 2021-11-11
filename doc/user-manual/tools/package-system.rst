@@ -93,6 +93,31 @@ Naturally, unnamed libraries cannot be depended upon.
 But dropping the ``name`` is possible if the library file only serves to list
 include paths and/or dependencies of the current project.
 
+.. _The_agda-lib_files_associated_to_a_give_Agda_file:
+
+The ``.agda-lib`` files associated to a given Agda file
+-------------------------------------------------------
+
+When a given file is type-checked Agda uses the options from the
+``flags`` field of zero or more library files. These files are found
+in the following way:
+
+- First the file's root directory is found. If the top-level module in
+  the file is called ``A.B.C``, then it has to be in the directory
+  ``root/A/B`` or ``root\A\B``. The root directory is the directory
+  ``root``.
+
+- If ``root`` contains any ``.agda-lib`` files, then these files are
+  used.
+
+- Otherwise a search is made upwards in the directory hierarchy, and
+  the search stops once one or more ``.agda-lib`` files are found in a
+  directory. If no ``.agda-lib`` files are found, then none are used.
+
+Note that if the search finds two or more ``.agda-lib`` files, then
+the flags from all of these files are used, and flags from different
+files are ordered in an unspecified way.
+
 Installing libraries
 --------------------
 

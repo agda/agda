@@ -126,7 +126,7 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
   parsedModName         <- moduleName f parsedMod
-  libs <- getAgdaLibFiles $ takeDirectory $ filePath f
+  libs                  <- getAgdaLibFiles f parsedModName
   return Source
     { srcText        = source
     , srcFileType    = fileType
@@ -671,7 +671,9 @@ loadDecodedModule file mi = do
   -- want the pragmas to apply to interactive commands in the UI.
   -- Jesper, 2021-04-18: Check for changed options in library files!
   -- (see #5250)
-  libOptions <- lift $ getLibraryOptions $ takeDirectory fp
+  libOptions <- lift $ getLibraryOptions
+    (srcFilePath file)
+    (toTopLevelModuleName $ iModuleName i)
   lift $ mapM_ setOptionsFromPragma (libOptions ++ iFilePragmaOptions i)
 
   -- Check that options that matter haven't changed compared to

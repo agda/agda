@@ -38,6 +38,7 @@ tests = do
   where
   customizedTests =
     [ testGroup "customised" $
+        issue5644 :
         issue5508 :
         issue5101 :
         issue4671 :
@@ -91,6 +92,31 @@ caseInsensitiveFileSystem4671 = do
     goldenFileSens    = dir </> "Issue4671.err.case-sensitive"
     goldenFileInsens  = dir </> "Issue4671.err.case-insensitive"
     goldenFileInsens' = dir </> "Issue4671.err.cAsE-inSensitive" -- case variant, to test file system
+
+issue5644 :: TestTree
+issue5644 =
+  goldenTest1
+    name
+    (readTextFileMaybe goldenFile)
+    doRun
+    textDiff
+    ShowText
+    (writeTextFile goldenFile)
+  where
+    name       = "Issue5644"
+    dir        = testDir </> "customised"
+    goldenFile = dir </> name <.> "err"
+    doRun = do
+      let agdaArgs file =
+            [ "-v0"
+            , "--no-default-libraries"
+            , "-i" ++ dir
+            , "-i" ++ dir </> name
+            , dir </> file
+            ]
+      runAgdaWithOptions
+        name (agdaArgs (name <.> "agda")) Nothing Nothing
+        <&> printTestResult . expectFail
 
 issue4671 :: TestTree
 issue4671 =
