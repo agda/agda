@@ -21,6 +21,7 @@ import Agda.Utils.SemiRing
 import Agda.Utils.Singleton (Singleton)
 import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.Impossible
+import Agda.Utils.Pretty
 
 import Control.Monad
 
@@ -156,6 +157,9 @@ n = N . Positive
 
 instance Show N where
   show (N (Positive n)) = "n " ++ show n
+
+instance Pretty N where
+  pretty = text . show
 
 instance CoArbitrary N where
   coarbitrary (N (Positive n)) = coarbitrary n
