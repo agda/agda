@@ -222,6 +222,10 @@ prop_invariant_transpose = invariant . transpose
 prop_invariant_clean :: G -> Bool
 prop_invariant_clean = invariant . clean
 
+prop_invariant_filterNodes :: (N -> Bool) -> G -> Bool
+prop_invariant_filterNodes p g =
+  invariant (filterNodes p g)
+
 prop_invariant_removeNodes :: G -> Property
 prop_invariant_removeNodes g =
   forAll (listOf (frequency [(5, nodeIn g), (1, arbitrary)])) $ \ns ->
@@ -344,6 +348,10 @@ prop_clean g =
   all (not . null . Graph.label) (edges (clean g))
     &&
   discrete g == (null . edges . clean) g
+
+prop_filterNodes :: (N -> Bool) -> G -> Bool
+prop_filterNodes p g =
+  Set.filter p (nodes g) == nodes (filterNodes p g)
 
 prop_removeEdge :: G -> Property
 prop_removeEdge g =

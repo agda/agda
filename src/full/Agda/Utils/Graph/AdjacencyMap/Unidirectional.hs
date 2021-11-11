@@ -42,6 +42,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , clean
   , removeNode, removeNodes
   , removeEdge
+  , filterNodes
   , filterEdges
   , unzip
   , composeWith
@@ -425,16 +426,22 @@ transpose g =
 clean :: Null e => Graph n e -> Graph n e
 clean = Graph . Map.map (Map.filter (not . null)) . graph
 
+-- | The graph @filterNodes p g@ contains exactly those nodes from @g@
+-- that satisfy the predicate @p@. Edges to or from nodes that are
+-- removed are also removed. /O(n + e)/.
+
+filterNodes :: Ord n => (n -> Bool) -> Graph n e -> Graph n e
+filterNodes p (Graph g) = Graph (Map.mapMaybeWithKey remSrc g)
+  where
+  remSrc s m
+    | p s       = Just (Map.filterWithKey (\t _ -> p t) m)
+    | otherwise = Nothing
+
 -- | @removeNodes ns g@ removes the nodes in @ns@ (and all
 -- corresponding edges) from @g@. /O((n + e) log |@ns@|)/.
 
 removeNodes :: Ord n => Set n -> Graph n e -> Graph n e
-removeNodes ns (Graph g) = Graph (Map.mapMaybeWithKey remSrc g)
-  where
-  remSrc s m
-    | Set.member s ns = Nothing
-    | otherwise       =
-        Just (Map.filterWithKey (\t _ -> not (Set.member t ns)) m)
+removeNodes ns = filterNodes (\n -> not (Set.member n ns))
 
 -- | @removeNode n g@ removes the node @n@ (and all corresponding
 -- edges) from @g@. /O(n + e)/.
