@@ -63,7 +63,7 @@ insertImplicitBindersT1 bs@(b :| _) a = setCurrentRange b $ do
          ]
   hs <- insImp b tel
   -- Continue with implicit binders inserted before @b@.
-  let bs0@(b1 :| bs1) = List1.prepend hs bs
+  let bs0@(b1 :| bs1) = List1.prependList hs bs
   reduce a >>= piOrPath >>= \case
     -- If @a@ is a function (or path) type, continue inserting after @b1@.
     Left (_, ty) -> (b1 :|) <$> insertImplicitBindersT bs1 (absBody ty)

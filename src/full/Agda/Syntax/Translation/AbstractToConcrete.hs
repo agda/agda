@@ -835,7 +835,7 @@ instance ToConcrete A.Expr where
          bindToConcrete tel $ \ tel' ->
            C.makePi (List1.catMaybes tel') <$> toConcreteTop e
       where
-        piTel1 tel e         = first (List1.append tel) $ piTel e
+        piTel1 tel e         = first (List1.appendList tel) $ piTel e
         piTel (A.Pi _ tel e) = first List1.toList $ piTel1 tel e
         piTel e              = ([], e)
 

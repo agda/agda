@@ -57,20 +57,22 @@ singleton :: a -> List1 a
 singleton = (:| [])
 #endif
 
+#if !MIN_VERSION_base(4,16,0)
 -- | Append a list to a non-empty list.
 
-append :: List1 a -> [a] -> List1 a
-append (x :| xs) ys = x :| mappend xs ys
+appendList :: List1 a -> [a] -> List1 a
+appendList (x :| xs) ys = x :| mappend xs ys
 
 -- | Prepend a list to a non-empty list.
 
-prepend :: [a] -> List1 a -> List1 a
-prepend as bs = foldr (<|) bs as
+prependList :: [a] -> List1 a -> List1 a
+prependList as bs = foldr (<|) bs as
+#endif
 
 -- | More precise type for @snoc@.
 
 snoc :: [a] -> a -> List1 a
-snoc as a = prepend as $ a :| []
+snoc as a = prependList as $ a :| []
 
 -- | More precise type for 'Agda.Utils.List.groupBy''.
 --
