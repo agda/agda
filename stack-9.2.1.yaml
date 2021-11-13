@@ -109,8 +109,9 @@ extra-deps:
 - xml-1.3.14
 - zlib-0.6.2.3
 
-# Windows needs this instead of time-1.11.*, via unix-compat
-- time-1.9.3
+# Andreas, 2021-11-13: This does not help with installing unix-compat:
+# # Windows needs this instead of time-1.11.*, via unix-compat
+# - time-1.9.3
 
 # Fixup:
 - Cabal-3.6.2.0
