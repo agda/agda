@@ -782,7 +782,7 @@ appView = loop []
   loop acc = \case
     AppP p a         -> loop (namedArg a : acc) p
     OpAppP _ op _ ps -> (IdentP op :| fmap namedArg ps)
-                          `List1.append`
+                          `List1.appendList`
                         reverse acc
     ParenP _ p       -> loop acc p
     RawAppP _ _      -> __IMPOSSIBLE__
