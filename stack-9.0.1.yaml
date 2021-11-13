@@ -2,6 +2,10 @@ resolver: nightly-2021-11-12
 compiler: ghc-9.0.1
 compiler-check: match-exact
 
+extra-deps:
+# happy-1.21.0 is deprecated, but currently in nightly (commercialhaskell/stackage#6294)
+- happy-1.20.0
+
 flags:
   transformers-compat:
     five-three: true
