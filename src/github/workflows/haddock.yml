@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04]
-        ghc-ver: ['9.0.1']
+        ghc-ver: ['9.2.1']
         cabal-ver: [latest]
 
     if: |

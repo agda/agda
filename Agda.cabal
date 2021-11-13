@@ -166,8 +166,8 @@ flag optimise-heavily
     Enable some expensive optimisations when compiling Agda.
 
 custom-setup
-  setup-depends:  base >= 4.9.0.0 && < 4.16
-                , Cabal >= 1.24.0.0 && < 3.5
+  setup-depends:  base >= 4.9.0.0 && < 4.17
+                , Cabal >= 1.24.0.0 && < 3.7
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , process >= 1.4.2.0 && < 1.7
@@ -205,7 +205,7 @@ library
   build-depends:  aeson >= 1.1.2.0 && < 2.1
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
-                , base >= 4.9.0.0 && < 4.16
+                , base >= 4.9.0.0 && < 4.17
                 , binary >= 0.8.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
@@ -248,7 +248,7 @@ library
                 , split >= 0.2.0.0 && < 0.2.4
                 , stm >= 2.4.4 && < 2.6
                 , strict >= 0.3.2 && < 0.5
-                , template-haskell >= 2.11.0.0 && < 2.18
+                , template-haskell >= 2.11.0.0 && < 2.19
                 , text >= 1.2.3.0 && < 1.3
                 , time >= 1.6.0.1 && < 1.13
                 , transformers >= 0.5 && < 0.7
@@ -812,7 +812,7 @@ executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:    base >= 4.9.0.0 && < 4.16
+  build-depends:    base >= 4.9.0.0 && < 4.17
                   , directory >= 1.2.6.2 && < 1.4
                   , filepath >= 1.4.1.0 && < 1.5
                   , process >= 1.4.2.0 && < 1.7
@@ -902,7 +902,7 @@ test-suite agda-tests
 
   build-depends:  Agda
                 , array >= 0.5.1.1 && < 0.6
-                , base >= 4.9.0.0 && < 4.16
+                , base >= 4.9.0.0 && < 4.17
                 , bytestring >= 0.10.8.1 && < 0.12
                 -- containers-0.5.11.0 is the first to contain IntSet.intersection
                 , containers >= 0.5.11.0 && < 0.7

@@ -26,18 +26,24 @@ jobs:
     defaults:
       run:
         shell: bash
+    continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2')
+      }}
     strategy:
       matrix:
         include:
         - stack-ver: latest
-          ghc-ver: 9.0.1
+          ghc-ver: 9.2.1
           os: macos-latest
         - stack-ver: latest
           ghc-ver: 9.0.1
           os: windows-latest
+        - stack-ver: latest
+          ghc-ver: 9.2.1
+          os: windows-latest
         stack-ver:
         - latest
         ghc-ver:
+        - 9.2.1
         - 9.0.1
         - 8.10.7
         - 8.8.4

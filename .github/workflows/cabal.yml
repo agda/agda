@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         ghc-ver:
-        - 9.0.1
+        - 9.2.1
         cabal-ver:
         - latest
         os:
