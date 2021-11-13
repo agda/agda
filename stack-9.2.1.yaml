@@ -113,6 +113,10 @@ extra-deps:
 # # Windows needs this instead of time-1.11.*, via unix-compat
 # - time-1.9.3
 
+# Andreas, 2021-11-13: unix-compat (0.5.3) needs Win32 < 2.12
+# See https://github.com/jacobstanley/unix-compat/issues/48
+- Win32-2.11.1.0
+
 # Fixup:
 - Cabal-3.6.2.0
 # "this GHC boot package has been pruned (issue #4510);"
