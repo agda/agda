@@ -61,6 +61,9 @@ jobs:
   build:
     strategy:
       matrix:
+        # TODO (Andreas, 2021-11-13)
+        # Upgrade to 9.2.1 once this does not cause problems with shelltestrunner
+        # https://github.com/agda/agda/pull/5648#issuecomment-968100273
         ghc-ver: [9.0.1]
         stack-ver: [latest]
         os: [ubuntu-18.04]

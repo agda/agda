@@ -26,8 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-18.04]
-        ghc-ver: [9.0.1]
-        cabal-ver: [3.4]
+        ghc-ver: [9.2.1]
+        cabal-ver: [3.6]
 
     env:
       ARGS: "--disable-executable-profiling --disable-library-profiling --enable-split-sections"

@@ -1,0 +1,159 @@
+resolver: ghc-9.2.1
+compiler: ghc-9.2.1
+compiler-check: match-exact
+
+extra-deps:
+- Diff-0.4.0
+- HUnit-1.6.2.0
+- ListLike-4.7.6
+- OneTuple-0.3.1
+- QuickCheck-2.14.2
+- StateVar-1.2.2
+- STMonadTrans-0.4.6
+- aeson-2.0.2.0
+- alex-3.2.6
+- ansi-terminal-0.11
+- ansi-wl-pprint-0.6.9
+- assoc-1.0.2
+- async-2.2.4
+- attoparsec-0.14.2
+- base-compat-0.12.1
+- base-compat-batteries-0.12.1
+- base-orphans-0.8.6
+- bifunctors-5.5.11
+- blaze-builder-0.4.2.2
+- blaze-html-0.9.1.2
+- blaze-markup-0.8.2.8
+- boxes-0.1.5
+- call-stack-0.4.0
+- case-insensitive-1.2.1.0
+- clock-0.8.2
+- cmdargs-0.10.21
+- colour-2.3.6
+- comonad-5.0.8
+- contravariant-1.5.5
+- cpphs-1.20.9.1
+- data-default-0.7.1.1
+- data-default-class-0.1.2.0
+- data-default-instances-containers-0.0.1
+- data-default-instances-dlist-0.0.1
+- data-default-instances-old-locale-0.0.1
+- data-fix-0.3.2
+- data-hash-0.2.0.1
+- distributive-0.6.2.1
+- dlist-1.0
+- edit-distance-0.2.2.1
+- equivalence-0.3.5
+- extensible-exceptions-0.1.1.4
+- fail-4.9.0.0
+- filemanip-0.3.6.3
+- fmlist-0.9.4
+- generic-deriving-1.14.1
+- gitrev-1.3.1
+- happy-1.20.0
+- hashable-1.3.5.0
+- hashtables-1.2.4.2
+- haskell-lexer-1.1
+- hostname-1.0
+- indexed-traversable-0.1.2
+- indexed-traversable-instances-0.1.1
+- integer-logarithms-1.0.3.1
+- mintty-0.1.2
+- monad-control-1.0.3.1
+- murmur-hash-0.1.0.10
+- network-uri-2.6.4.1
+- old-locale-1.0.0.7
+- optparse-applicative-0.16.1.0
+- parallel-3.2.2.0
+- polyparse-1.13
+- pretty-show-1.10
+- primitive-0.7.3.0
+- process-extras-0.7.4
+- random-1.2.1
+- regex-base-0.94.0.1
+- regex-posix-0.96.0.0
+- regex-tdfa-1.3.1.1
+- safe-0.3.19
+- scientific-0.3.7.0
+- semialign-1.2.0.1
+- semigroupoids-5.3.6
+- silently-1.2.5.2
+- split-0.2.3.4
+- splitmix-0.1.0.4
+- strict-0.4.0.1
+- tagged-0.8.6.1
+- tasty-1.4.2
+- tasty-hunit-0.10.0.3
+- tasty-quickcheck-0.10.1.2
+- tasty-silver-3.3.1
+- temporary-1.3
+- test-framework-0.8.2.0
+- test-framework-hunit-0.3.0.2
+- text-icu-0.7.1.0
+- text-short-0.1.4
+- th-abstraction-0.4.3.0
+- th-compat-0.1.3
+- these-1.1.1.1
+- time-compat-1.9.6.1
+- transformers-base-0.4.6
+- transformers-compat-0.7.1
+- unbounded-delays-0.1.1.1
+- unix-compat-0.5.3
+- unordered-containers-0.2.15.0
+- uri-encode-1.5.0.7
+- utf8-string-1.0.2
+- uuid-types-1.0.5
+- vector-0.12.3.1
+- wcwidth-0.0.2
+- witherable-0.4.2
+- xml-1.3.14
+- zlib-0.6.2.3
+
+# Andreas, 2021-11-13:
+# Windows needs this instead of time-1.11.*, via unix-compat
+- time-1.9.3
+
+# Andreas, 2021-11-13: unix-compat (0.5.3) needs Win32 < 2.12
+# See https://github.com/jacobstanley/unix-compat/issues/48
+# Andreas, 2021-11-14: haskeline (0.8.2) needs Win32 < 2.10 || >= 2.12
+- Win32-2.9.0.0
+
+# Fixup:
+- Cabal-3.6.2.0
+# "this GHC boot package has been pruned (issue #4510);"
+- directory-1.3.7.0
+- haskeline-0.8.2
+- process-1.6.13.2
+- unix-2.7.2.2
+
+
+flags:
+  transformers-compat:
+    five-three: true
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- 'src/size-solver'
+
+
+
+
+
+# - parsec-3.1.14.0
+# - pretty-1.1.3.6
+
+#
+#
+
+# - stm-2.5.0.0
+# - terminfo-0.4.1.5
+# - text-1.2.5.0
+#
+
+# - time-1.11.1.1
+
+# - transformers-0.5.6.2
+# - unix-2.7.2.2
+
+#
