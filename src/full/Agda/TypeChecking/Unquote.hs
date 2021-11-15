@@ -125,7 +125,7 @@ isDef f tm = loop <$> liftTCM tm
     loop _         = False
 
 reduceQuotedTerm :: Term -> UnquoteM Term
-reduceQuotedTerm t = do
+reduceQuotedTerm t = locallyReduceAllDefs $ do
   ifBlocked t {-then-} (\ m _ -> do s <- gets snd; throwError $ BlockedOnMeta s m)
               {-else-} (\ _ t -> return t)
 
