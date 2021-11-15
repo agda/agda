@@ -126,11 +126,8 @@ isDef f tm = loop <$> liftTCM tm
 
 reduceQuotedTerm :: Term -> UnquoteM Term
 reduceQuotedTerm t = do
-  b <- ifBlocked t {-then-} (\ m _ -> pure $ Left  m)
-                   {-else-} (\ _ t -> pure $ Right t)
-  case b of
-    Left m  -> do s <- gets snd; throwError $ BlockedOnMeta s m
-    Right t -> return t
+  ifBlocked t {-then-} (\ m _ -> do s <- gets snd; throwError $ BlockedOnMeta s m)
+              {-else-} (\ _ t -> return t)
 
 class Unquote a where
   unquote :: I.Term -> UnquoteM a
