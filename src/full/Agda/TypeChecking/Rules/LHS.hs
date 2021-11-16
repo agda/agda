@@ -1956,17 +1956,17 @@ checkSortOfSplitVar dr a tel mtarget = do
 
   where
     checkPropSplit
-      | IsRecord _ _ <- dr     = return ()
+      | IsRecord Nothing _ <- dr = return ()
       | Just target <- mtarget = do
         reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
         checkIsProp target
       | otherwise              = do
           reportSDoc "tc.sort.check" 20 $ "no target prop"
-          splitOnPropError
+          splitOnPropError dr
 
     checkIsProp t = runBlocked (isPropM t) >>= \case
-      Left b      -> splitOnPropError -- TODO
-      Right False -> splitOnPropError
+      Left b      -> splitOnPropError dr -- TODO
+      Right False -> splitOnPropError dr
       Right True  -> return ()
 
     checkFibrantSplit
@@ -1994,8 +1994,15 @@ checkSortOfSplitVar dr a tel mtarget = do
       Right False -> splitOnFibrantError Nothing
       Right True  -> return ()
 
-    splitOnPropError = softTypeError $ GenericError
-      "Cannot split on datatype in Prop unless target is in Prop"
+    splitOnPropError dr = softTypeError =<< do
+      liftTCM $ GenericDocError <$>
+        ("Cannot split on" <+> kindOfData dr <+> "in Prop unless target is in Prop")
+      where
+        kindOfData :: DataOrRecord -> TCM Doc
+        kindOfData IsData                          = "datatype"
+        kindOfData (IsRecord Nothing _)            = "record type"
+        kindOfData (IsRecord (Just Inductive) _)   = "inductive record type"
+        kindOfData (IsRecord (Just CoInductive) _) = "coinductive record type"
 
     splitOnFibrantError' t mb = softTypeError =<< do
       liftTCM $ SortOfSplitVarError mb <$> fsep
