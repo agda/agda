@@ -2209,8 +2209,8 @@ instance Pretty Defn where
     "Constructor {" <?> vcat
       [ "conPars   =" <?> pshow conPars
       , "conArity  =" <?> pshow conArity
-      , "conSrcCon =" <?> pshow conSrcCon
-      , "conData   =" <?> pshow conData
+      , "conSrcCon =" <?> pretty conSrcCon
+      , "conData   =" <?> pretty conData
       , "conAbstr  =" <?> pshow conAbstr
       , "conInd    =" <?> pshow conInd
       , "conErased =" <?> pshow conErased ] <?> "}"
