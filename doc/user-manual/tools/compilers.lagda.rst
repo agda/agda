@@ -47,7 +47,8 @@ When the flag ``--ghc-strict`` is used the GHC backend generates
 mostly strict code. Note that functions might not be strict in unused
 arguments, and that function definitions coming from ``COMPILE GHC``
 pragmas are not affected. This flag implies ``--ghc-strict-data``, and
-the exceptions of that flag applies to this flag as well.
+the exceptions of that flag applies to this flag as well. (Note that
+this option requires the use of GHC 9 or later.)
 
 Pragmas
 ^^^^^^^
