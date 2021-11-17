@@ -1208,23 +1208,32 @@ writeModule (HS.Module m ps imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
   out <- snd <$> outFileAndDir m
   strict <- optGhcStrict <$> askGhcOpts
+  let p = HS.LanguagePragma $ List.map HS.Ident $
+            [ "BangPatterns"
+            , "EmptyDataDecls"
+            , "EmptyCase"
+            , "ExistentialQuantification"
+            , "ScopedTypeVariables"
+            , "NoMonomorphismRestriction"
+            , "RankNTypes"
+            , "PatternSynonyms"
+            , "OverloadedStrings"
+            ] ++
+            -- If --ghc-strict is used, then the language extension
+            -- QualifiedDo is activated. At the time of writing no
+            -- code is generated that depends on this extension
+            -- (except for the pragmas), but --ghc-strict is broken
+            -- with at least some versions of GHC prior to version 9,
+            -- and QualifiedDo was introduced with GHC 9.
+            if strict
+            then ["QualifiedDo"]
+            else []
   liftIO $ UTF8.writeFile out $ (++ "\n") $ prettyPrint $
     -- TODO: It might make sense to skip bang patterns for the unused
     -- arguments of the "non-stripped" functions.
     (if strict then makeStrict else id) $
     HS.Module m (p : ps) imp ds
   where
-  p = HS.LanguagePragma $ List.map HS.Ident $
-        [ "BangPatterns"
-        , "EmptyDataDecls"
-        , "EmptyCase"
-        , "ExistentialQuantification"
-        , "ScopedTypeVariables"
-        , "NoMonomorphismRestriction"
-        , "RankNTypes"
-        , "PatternSynonyms"
-        , "OverloadedStrings"
-        ]
 
 outFileAndDir :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
 outFileAndDir m = do

@@ -119,6 +119,8 @@ Compiler backends
   This flag implies `--ghc-strict-data`, and the exceptions of that
   flag applies to this flag as well.
 
+  Note that this option requires the use of GHC 9 or later.
+
 * JS backend now uses the native `BigInt` instead of the
   [biginteger.js](https://github.com/silentmatt/javascript-biginteger).
 

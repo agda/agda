@@ -19,10 +19,14 @@ import System.IO.Temp
 import System.FilePath
 import System.Environment
 import System.Exit
+import qualified System.Process as P
 import System.Process.Text as PT
 
 import Control.Monad (forM)
 import Data.Maybe
+import Text.Read
+
+import Agda.Utils.List
 
 type GHCArgs = [String]
 
@@ -116,9 +120,16 @@ stdlibTestFilter =
 
 tests :: IO TestTree
 tests = do
-  nodeBin <- findExecutable "node"
-  let enabledCompilers =
-        [MAlonzo s | s <- [Lazy, StrictData, Strict]] ++
+  nodeBin    <- findExecutable "node"
+  ghcVersion <- findGHCVersion
+  let ghcVersionAtLeast9 = case ghcVersion of
+        Just (n : _) | n >= 9 -> True
+        _                     -> False
+      enabledCompilers =
+        [ MAlonzo s
+        | s <- [Lazy, StrictData] ++
+               if ghcVersionAtLeast9 then [Strict] else []
+        ] ++
         [ JS opt
         | isJust nodeBin
         , opt <- [NonOptimized, Optimized, MinifiedOptimized]
@@ -316,3 +327,19 @@ printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r)    = "COMPILE_FAILED\n\n"    <> printProgramResult r
 printExecResult (CompileSucceeded r) = "COMPILE_SUCCEEDED\n\n" <> printProgramResult r
 printExecResult (ExecutedProg r)     = "EXECUTED_PROGRAM\n\n"  <> printProgramResult r
+
+-- | Tries to figure out the version of the program @ghc@ (if such a
+-- program can be found).
+
+findGHCVersion :: IO (Maybe [Integer])
+findGHCVersion = do
+  (code, version, _) <-
+    P.readProcessWithExitCode "ghc" ["--numeric-version"] ""
+  case code of
+    ExitFailure{} -> return Nothing
+    ExitSuccess   -> return $
+      sequence $
+      concat $
+      map (map readMaybe . wordsBy (== '.')) $
+      take 1 $
+      lines version
