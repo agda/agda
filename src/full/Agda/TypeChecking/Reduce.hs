@@ -6,6 +6,7 @@ import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Map (Map)
+import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import Data.Foldable
 import Data.Traversable
@@ -1366,9 +1367,16 @@ instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) wh
 instance InstantiateFull t => InstantiateFull (Open t) where
   instantiateFull' (OpenThing checkpoint checkpoints modl t) =
     OpenThing checkpoint
-    <$> instantiateFull' checkpoints
+    <$> (instantiateFull' =<< prune checkpoints)
     <*> pure modl
     <*> instantiateFull' t
+    where
+      -- Ulf, 2021-11-17, #5544
+      --  Remove checkpoints that are no longer in scope, since they can
+      --  mention functions that deadcode elimination will get rid of.
+      prune cps = do
+        inscope <- viewTC eCheckpoints
+        return $ cps `Map.intersection` inscope
 
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
