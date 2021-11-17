@@ -477,7 +477,7 @@ definition Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
 definition def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ ("Compiling" <+> prettyTCM q) <> ":"
-    , nest 2 $ text (prettyShow d)
+    , nest 2 $ pretty d
     ]
   pragma <- liftTCM $ getHaskellPragma q
   env <- askGHCEnv
