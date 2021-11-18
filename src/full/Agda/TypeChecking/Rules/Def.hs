@@ -101,10 +101,16 @@ checkFunDef delayed i name cs = do
                   mapM_ unfreezeMeta (x : xs)
                 checkAlias t info delayed i name e mc
             | otherwise -> do -- Warn about abstract alias (will never work!)
-              setCurrentRange i $ genericWarning =<<
-                "Missing type signature for abstract definition" <+> (prettyTCM name <> ".") $$
-                fsep (pwords "Types of abstract definitions are never inferred since this would leak" ++
-                      pwords "information that should be abstract.")
+              -- Ulf, 2021-11-18, #5620: Don't warn if the meta is solved. A more intuitive solution
+              -- would be to not treat definitions with solved meta types as aliases, but in mutual
+              -- blocks you might actually have solved the type of an alias by the time you get to
+              -- the definition. See test/Succeed/SizeInfinity.agda for an example where this
+              -- happens.
+              whenM (isOpenMeta . mvInstantiation <$> lookupMeta x) $
+                setCurrentRange i $ genericWarning =<<
+                  "Missing type signature for abstract definition" <+> (prettyTCM name <> ".") $$
+                  fsep (pwords "Types of abstract definitions are never inferred since this would leak" ++
+                        pwords "information that should be abstract.")
               checkFunDef' t info delayed Nothing Nothing i name cs
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
