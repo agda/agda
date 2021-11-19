@@ -492,12 +492,12 @@ pathViewAsPi'whnf
   => m (Type -> Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi'whnf = do
   view <- pathView'
-  minterval  <- getBuiltin' builtinInterval
+  minterval  <- getTerm' builtinInterval
   return $ \ t -> case view t of
     PathType s l p a x y | Just interval <- minterval ->
       let name | Lam _ (Abs n _) <- unArg a = n
                | otherwise = "i"
-          i = El (SSet $ ClosedLevel 0) interval
+          i = El intervalSort interval
       in
         Left $ ((defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]), (unArg x, unArg y))
 

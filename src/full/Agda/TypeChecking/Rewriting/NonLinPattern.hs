@@ -125,10 +125,15 @@ instance PatternFrom Type Term NLPat where
       [ "building a pattern from term v = " <+> prettyTCM v
       , " of type " <+> prettyTCM t
       ]
+    pview <- pathViewAsPi'whnf
     let done = return $ PTerm v
     case (unEl t , stripDontCare v) of
       (Pi a b , _) -> do
         let body = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
+        p <- addContext a (patternFrom r (k+1) (absBody b) body)
+        return $ PLam (domInfo a) $ Abs (absName b) p
+      _ | Left ((a,b),(x,y)) <- pview t -> do
+        let body = raise 1 v `applyE` [ IApply (raise 1 $ x) (raise 1 $ y) $ var 0 ]
         p <- addContext a (patternFrom r (k+1) (absBody b) body)
         return $ PLam (domInfo a) $ Abs (absName b) p
       (_ , Var i es)
@@ -138,7 +143,7 @@ instance PatternFrom Type Term NLPat where
        -- The arguments of `var i` should be distinct bound variables
        -- in order to build a Miller pattern
        | Just vs <- allApplyElims es -> do
-           TelV tel _ <- telView =<< typeOfBV i
+           TelV tel _ <- telViewPath =<< typeOfBV i
            unless (size tel >= size vs) __IMPOSSIBLE__
            let ts = applySubst (parallelS $ reverse $ map unArg vs) $ map unDom $ flattenTel tel
            mbvs <- forM (zip ts vs) $ \(t , v) -> do
