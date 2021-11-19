@@ -15,12 +15,13 @@ tested-with:
   GHC == 8.8.4
   GHC == 8.10.7
   GHC == 9.0.1
+  GHC == 9.2.1
 
 executable closed-issues-for-milestone
   main-is:          Main.hs
   default-language: Haskell2010
 
-  build-depends:  base       >= 4.13.0.0  && < 4.16
+  build-depends:  base       >= 4.13.0.0  && < 4.17
                 , bytestring >= 0.10.9.0  && < 0.12
                 , github     >= 0.26      && < 0.28
                 , text       >= 1.2.3     && < 1.3
@@ -30,3 +31,4 @@ executable closed-issues-for-milestone
     -Wall
     -Wcompat
     -Werror
+    -threaded
