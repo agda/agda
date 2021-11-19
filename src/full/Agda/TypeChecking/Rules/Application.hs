@@ -118,10 +118,12 @@ checkApplication cmp hd args e t =
     ]
   case unScope hd of
     -- Subcase: unambiguous projection
-    A.Proj o p | Just x <- getUnambiguous p -> checkUnambiguousProjectionApplication cmp e t x o hd args
+    A.Proj o p | Just x <- getUnambiguous p -> do
+      checkUnambiguousProjectionApplication cmp e t x o hd args
 
     -- Subcase: ambiguous projection
-    A.Proj o p -> checkProjApp cmp e o (unAmbQ p) args t
+    A.Proj o p -> do
+      checkProjApp cmp e o (unAmbQ p) args t
 
     -- Subcase: unambiguous constructor
     A.Con ambC | Just c <- getUnambiguous ambC -> do
