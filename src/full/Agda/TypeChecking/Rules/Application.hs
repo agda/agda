@@ -961,16 +961,20 @@ disambiguateConstructor cs0 t = do
 ---------------------------------------------------------------------------
 
 checkUnambiguousProjectionApplication :: Comparison -> A.Expr -> Type -> QName -> ProjOrigin -> A.Expr -> [NamedArg A.Expr] -> TCM Term
-checkUnambiguousProjectionApplication cmp e t x o hd args =
+checkUnambiguousProjectionApplication cmp e t x o hd args = do
+  let fallback = checkHeadApplication cmp e t hd args
   -- Andreas, 2021-02-19, issue #3289
   -- If a postfix projection was moved to the head by appView,
   -- we have to patch the first argument with the correct hiding info.
   case (o, args) of
     (ProjPostfix, arg : rest) -> do
-      pr <- fromMaybe __IMPOSSIBLE__ <$> isProjection x
-      let ai = projArgInfo pr
-      checkHeadApplication cmp e t hd (setArgInfo ai arg : rest)
-    _ -> checkHeadApplication cmp e t hd args
+      -- Andreas, 2021-11-19, issue #5657:
+      -- If @x@ has been brought into scope by e.g. @open R r@, it is no longer
+      -- a projection even though the scope checker labels it so.
+      -- Thus, @isProjection@ may fail.
+      caseMaybeM (isProjection x) fallback $ \ pr -> do
+        checkHeadApplication cmp e t hd (setArgInfo (projArgInfo pr) arg : rest)
+    _ -> fallback
 
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
