@@ -1,0 +1,3 @@
+Issue5657.agda:11,11-12
+Set should be a function type, but it isn't
+when checking that r is a valid argument to a function of type Set
