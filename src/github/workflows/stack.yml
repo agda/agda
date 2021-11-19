@@ -51,14 +51,16 @@ jobs:
           - os: windows-latest
             ghc-ver: 9.0.1
             stack-ver: latest
-          - os: windows-latest
-            # TODO (Andreas, 2021-11-14)
-            # Upgrade to 9.2.1 once stack works fine with GHC 9.2 and Cabal 3.6 under Windows
-            # Also, unix-compat is a bit behind: https://github.com/jacobstanley/unix-compat/pull/47
-            ghc-ver: 9.2.1
-            stack-ver: latest
-    # Try "allowed-failure" for Windows with GHC 9.2
-    continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
+    # Andreas, 2021-11-19, re #5649
+    # pause stack/Win/9.2 workflow until stack is ready for 9.2
+    #       - os: windows-latest
+    #         # TODO (Andreas, 2021-11-14)
+    #         # Upgrade to 9.2.1 once stack works fine with GHC 9.2 and Cabal 3.6 under Windows
+    #         # Also, unix-compat is a bit behind: https://github.com/jacobstanley/unix-compat/pull/47
+    #         ghc-ver: 9.2.1
+    #         stack-ver: latest
+    # # Try "allowed-failure" for Windows with GHC 9.2
+    # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
     env:
       ## ARGS is set later, depending on the actually picked GHC version
       # ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal"
