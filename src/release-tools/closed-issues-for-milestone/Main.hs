@@ -15,11 +15,9 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.Vector as V
 
 import System.Environment ( getArgs, getEnv, getProgName )
-import System.Exit ( exitFailure )
-import System.IO ( hPutStrLn, stderr )
+import System.Exit        ( die )
 
 import GitHub.Auth ( Auth( OAuth ) )
--- import GitHub.Data.Id ( Id(..) )
 
 import GitHub.Data.Definitions
   ( IssueLabel ( labelName )
@@ -47,7 +45,7 @@ import GitHub.Endpoints.Issues ( issuesForRepoR )
 import GitHub.Request ( github )
 
 envGHToken :: String
-envGHToken = "GITHUBTOKEN"
+envGHToken = "GITHUB_TOKEN"
 
 owner, repo :: Text
 owner = "agda"
@@ -57,7 +55,11 @@ theRepo :: String
 theRepo = Text.unpack owner ++ "/" ++ Text.unpack repo
 
 main :: IO ()
-main = getArgs >>= \case { [arg] -> run (Text.pack arg) ; _ -> usage }
+main = getArgs >>= \case
+  "-h"     : _ -> usage
+  "--help" : _ -> usage
+  [arg]        -> run (Text.pack arg)
+  _            -> usage
 
 usage :: IO ()
 usage = do
@@ -66,7 +68,9 @@ usage = do
     [ "Usage: " ++ progName ++ " <milestone>"
     , ""
     , "Retrieves closed issues for the given milestone from github repository"
-    , theRepo ++ " and prints them as csv to stdout."
+    , theRepo ++ " and prints them as markdown to stdout."
+    , ""
+    , "Expects an access token in environment variable GITHUB_TOKEN."
     ]
 
 issueLabelsNames :: Issue -> [Text]
@@ -160,7 +164,3 @@ run mileStoneTitle = do
 -- | Crash on exception.
 crashOr :: Show e => IO (Either e a) -> IO a
 crashOr m = either (die . show) return =<< m
-
--- | Crash with error message
-die :: String -> IO a
-die e = do hPutStrLn stderr e; exitFailure
