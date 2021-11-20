@@ -90,6 +90,7 @@ Compiler backends
 
 * JS backend now uses the native `BigInt` instead of the
   [biginteger.js](https://github.com/silentmatt/javascript-biginteger).
+  Fixes [#4878](https://github.com/agda/agda/issues/4878).
 
 LaTeX backend
 -------------
