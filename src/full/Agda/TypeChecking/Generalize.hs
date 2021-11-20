@@ -265,7 +265,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- generalizing over, since they will need to be pruned appropriately (see
   -- Issue 3672).
   allSortedMetas <- fromMaybeM (typeError GeneralizeCyclicDependency) $
-    dependencySortMetas (generalizeOver ++ reallyDontGeneralize)
+    dependencySortMetas (generalizeOver ++ reallyDontGeneralize ++ map fst openSortMetas)
   let sortedMetas = filter shouldGeneralize allSortedMetas
 
   let dropCxt err = updateContext (strengthenS err 1) (drop 1)
