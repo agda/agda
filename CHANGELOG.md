@@ -23,7 +23,8 @@ Language
   The GHC and JS backends can compile code that uses
   `--erased-cubical` if the top-level module uses this flag.
 
-  This feature is experimental.
+  This feature is experimental and should be used with the
+  [development version of Agda](https://github.com/agda/agda).
 
 Compiler backends
 -----------------
@@ -43,6 +44,9 @@ Compiler backends
   and some types related to reflection—and might not apply to types
   with `COMPILE GHC … = data …` pragmas.
 
+  This feature is experimental and should be used with the
+  [development version of Agda](https://github.com/agda/agda).
+
 * The new option `--ghc-strict`, which is inspired by the GHC language
   extension `Strict`, makes the GHC backend generate mostly strict
   code.
@@ -56,6 +60,10 @@ Compiler backends
   flag applies to this flag as well.
 
   Note that this option requires the use of GHC 9 or later.
+
+  This feature is experimental and should be used with the
+  [development version of Agda](https://github.com/agda/agda).
+
 
 * JS backend now uses the native `BigInt` instead of the
   [biginteger.js](https://github.com/silentmatt/javascript-biginteger).
