@@ -57,7 +57,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Pretty ( Pretty, prettyShow )
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.VarSet (VarSet)
@@ -789,8 +789,8 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   reportSDoc "tc.meta.assign" 45 $
     "MetaVars.assign: type of meta: " <+> prettyTCM t
 
-  reportSLn "tc.meta.assign" 75 $
-    "MetaVars.assign: assigning meta  " ++ show x ++ "  with args  " ++ show args ++ "  to  " ++ show v
+  reportSDoc "tc.meta.assign" 75 $
+    text "MetaVars.assign: assigning meta  " <> pretty x <> text "  with args  " <> pretty args <> text "  to  " <> pretty v
 
   case (v, mvJudgement mvar) of
       (Sort s, HasType{}) -> hasBiggerSort s
@@ -1392,7 +1392,7 @@ subtypingForSizeLt dir   x mvar t args v cont = do
 
 -- | Eta-expand bound variables like @z@ in @X (fst z)@.
 expandProjectedVars
-  :: ( Show a, PrettyTCM a, NoProjectedVar a
+  :: ( Pretty a, PrettyTCM a, NoProjectedVar a
      -- , Normalise a, TermLike a, Subst Term a
      , ReduceAndEtaContract a
      , PrettyTCM b, TermSubst b
@@ -1406,7 +1406,7 @@ expandProjectedVars args v ret = loop (args, v) where
     reportSDoc "tc.meta.assign.proj" 45 $ "meta args: " <+> prettyTCM args
     args <- callByName $ reduceAndEtaContract args
     reportSDoc "tc.meta.assign.proj" 45 $ "norm args: " <+> prettyTCM args
-    reportSDoc "tc.meta.assign.proj" 85 $ "norm args: " <+> text (show args)
+    reportSDoc "tc.meta.assign.proj" 85 $ "norm args: " <+> pretty args
     let done = ret args v
     case noProjectedVar args of
       Right ()              -> do
