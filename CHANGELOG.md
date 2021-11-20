@@ -1,5 +1,5 @@
-Release notes for Agda version 2.6.3
-====================================
+Release notes for Agda version 2.6.2.1
+======================================
 
 Installation and infrastructure
 -------------------------------
