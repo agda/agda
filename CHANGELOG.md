@@ -4,7 +4,30 @@ Release notes for Agda version 2.6.2.1
 Installation and infrastructure
 -------------------------------
 
-Added support for GHC 8.10.6.
+Agda 2.6.2.1 is expected to build with GHC versions 8.0 to 9.2.
+It has been tested with the latest minor version releases of GHC for
+each of these major versions:
+
+  - 8.0.2
+  - 8.2.2
+  - 8.4.4
+  - 8.6.5
+  - 8.8.4
+  - 8.10.7: Issue [#5539](https://github.com/agda/agda/issues/5539).
+  - 9.0.1
+  - 9.2.1:
+    Issue [#5442](https://github.com/agda/agda/issues/5442),
+    stackage issue [#6318](https://github.com/commercialhaskell/stackage/pull/6318).
+
+Agda 2.6.2.1 has been adapted to recent changes in the Haskell ecosystem, including:
+
+  - `Cabal-3.6.2`
+  - `aeson-2.0`:
+    Issue [#5593](https://github.com/agda/agda/issues/5593),
+    stackage issue [#6217](https://github.com/commercialhaskell/stackage/issues/6217).
+  - `hashable-1.4`:
+    Stackage issue [#6268](https://github.com/commercialhaskell/stackage/issues/6268).
+  - `transformers-0.6`
 
 Language
 --------
