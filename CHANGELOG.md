@@ -15,6 +15,7 @@ Highlights
 * Fixes some regressions introduced in 2.6.2:
   [#5508](https://github.com/agda/agda/issues/5508)
   [#5544](https://github.com/agda/agda/issues/5544)
+  [#5565](https://github.com/agda/agda/issues/5565)
   [#5584](https://github.com/agda/agda/issues/5584)
   [#5620](https://github.com/agda/agda/issues/5620)
   [#5638](https://github.com/agda/agda/issues/5638)
@@ -165,6 +166,7 @@ For 2.6.2.1, the following issues were
   - [#5539](https://github.com/agda/agda/issues/5539): Support GHC 8.10.7
   - [#5544](https://github.com/agda/agda/issues/5544): Internal error caused by addition of `Checkpoints` to `OpenThing`
   - [#5557](https://github.com/agda/agda/issues/5557): Allow Agda to output data files
+  - [#5565](https://github.com/agda/agda/issues/5565): Internal error in Agda.TypeChecking.MetaVars
   - [#5593](https://github.com/agda/agda/issues/5593): Compilation failure with `aeson-2`
   - [#5602](https://github.com/agda/agda/issues/5602): The JS backend does not reduce constructor type signatures
   - [#5610](https://github.com/agda/agda/issues/5610): Panic when checking pragma BUILTIN SHARP
