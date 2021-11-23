@@ -2711,7 +2711,7 @@ hasExpandedEllipsis core = case core of
   C.LHSProj{}       -> hasExpandedEllipsis $ namedArg $ C.lhsFocus core -- can this ever be ExpandedEllipsis?
   C.LHSWith{}       -> hasExpandedEllipsis $ C.lhsHead core
   C.LHSEllipsis r p -> case p of
-    C.LHSWith _ wps _ -> ExpandedEllipsis r (length wps)
+    C.LHSWith p wps _ -> hasExpandedEllipsis p <> ExpandedEllipsis r (length wps)
     C.LHSHead{}       -> ExpandedEllipsis r 0
     C.LHSProj{}       -> ExpandedEllipsis r 0
     C.LHSEllipsis{}   -> __IMPOSSIBLE__
