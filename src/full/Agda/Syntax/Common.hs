@@ -2894,6 +2894,15 @@ instance Null ExpandedEllipsis where
   null  = (== NoEllipsis)
   empty = NoEllipsis
 
+instance Semigroup ExpandedEllipsis where
+  NoEllipsis <> e          = e
+  e          <> NoEllipsis = e
+  (ExpandedEllipsis r1 k1) <> (ExpandedEllipsis r2 k2) = ExpandedEllipsis (r1 <> r2) (k1 + k2)
+
+instance Monoid ExpandedEllipsis where
+  mempty  = NoEllipsis
+  mappend = (<>)
+
 instance KillRange ExpandedEllipsis where
   killRange (ExpandedEllipsis _ k) = ExpandedEllipsis noRange k
   killRange NoEllipsis             = NoEllipsis
