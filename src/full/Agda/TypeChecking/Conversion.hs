@@ -412,6 +412,15 @@ computeElimHeadType f es es' = do
     targ <- abortIfBlocked targ
     fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
 
+
+abortIfMissingClauses :: (Blocked Term, Blocked Term) -> Blocker
+abortIfMissingClauses (NotBlocked nb t, NotBlocked nb' t') =
+  case nb <> nb' of
+    MissingClauses -> alwaysUnblock
+    _              -> neverUnblock
+abortIfMissingClauses _ = __IMPOSSIBLE__
+
+
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
@@ -425,12 +434,18 @@ compareAtom cmp t m n =
                              , prettyTCM n
                              , prettyTCM t
                              ]
+    let blockIfMissingClauses b@Blocked{} = b
+        -- re #5600: We might add more clauses to the function later,
+        --           so we shouldn't commit to an UnequalTerms error yet,
+        --           even if there are no metas blocking computation.
+        blockIfMissingClauses (NotBlocked MissingClauses t) = Blocked alwaysUnblock t
+        blockIfMissingClauses b@NotBlocked{} = b
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
     (mb',nb') <- do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
-      return (mb', nb')
+      return (blockIfMissingClauses mb', blockIfMissingClauses nb')
     let getBlocker (Blocked b _) = b
         getBlocker NotBlocked{}  = neverUnblock
         blocker = unblockOnEither (getBlocker mb') (getBlocker nb')
@@ -515,7 +530,10 @@ compareAtom cmp t m n =
       (Blocked{}, Blocked{}) | not cmpBlocked  -> checkDefinitionalEquality
       (Blocked b _, _) | not cmpBlocked -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term  goes first
       (_, Blocked b _) | not cmpBlocked -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
-      _ -> blockOnError blocker $ do
+      bs -> do
+        let blocker' | cmpBlocked = blocker
+                     | otherwise = unblockOnEither blocker $ abortIfMissingClauses bs
+        blockOnError blocker' $ do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.
         -- -- 'False' means: leave (Def f []) unchanged even for
