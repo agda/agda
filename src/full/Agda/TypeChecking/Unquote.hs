@@ -45,6 +45,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ReconstructParameters
 import Agda.TypeChecking.CheckInternal
+import Agda.TypeChecking.InstanceArguments ( getInstanceCandidates )
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
@@ -557,6 +558,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
              , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
              , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
+             , (f `isDef` primAgdaTCMGetInstances,               uqFun1 tcGetInstances               u)
              ]
              failEval
     I.Def f [u, v] ->
@@ -929,6 +931,14 @@ evalTCM v = do
           return x
         _ -> liftTCM $ typeError . GenericDocError =<<
           "Should be a pair: " <+> prettyTCM u
+
+    tcGetInstances :: MetaId -> UnquoteM Term
+    tcGetInstances m = liftTCM (getInstanceCandidates m) >>= \case
+      Left unblock -> do
+        s <- gets snd
+        throwError (BlockedOnMeta s unblock)
+      Right cands -> liftTCM $
+        buildList <*> mapM (quoteTerm . candidateTerm) cands
 
 
 ------------------------------------------------------------------------
