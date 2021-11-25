@@ -171,4 +171,5 @@ For 2.6.2.1, the following issues were
   - [#5602](https://github.com/agda/agda/issues/5602): The JS backend does not reduce constructor type signatures
   - [#5610](https://github.com/agda/agda/issues/5610): Panic when checking pragma BUILTIN SHARP
   - [#5620](https://github.com/agda/agda/issues/5620): Seemingly incorrect warning for abstract definition without type signature
+  - [#5633](https://github.com/agda/agda/issues/5633): Case splitting inserts one with pattern too much (regression in 2.6.2)
   - [#5657](https://github.com/agda/agda/issues/5657): Internal error with postfix projection
