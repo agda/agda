@@ -147,7 +147,7 @@ data Parsers e = Parsers
   , flattenedScope :: FlatScope
     -- ^ A flattened scope that only contains those names that are
     -- unqualified or qualified by qualifiers that occur in the list
-    -- of names given to 'buildParser'.
+    -- of names given to 'buildParsers'.
   }
 
 -- | Builds parsers for operator applications from all the operators
