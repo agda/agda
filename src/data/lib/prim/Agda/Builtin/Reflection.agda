@@ -316,6 +316,10 @@ postulate
   -- new TC state if it is 'true'.
   runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
 
+  -- Get a list of all possible instance candidates for the given meta
+  -- variable (it does not have to be an instance meta).
+  getInstances : Meta → TC (List Term)
+
 {-# BUILTIN AGDATCM                           TC                         #-}
 {-# BUILTIN AGDATCMRETURN                     returnTC                   #-}
 {-# BUILTIN AGDATCMBIND                       bindTC                     #-}
@@ -348,6 +352,7 @@ postulate
 {-# BUILTIN AGDATCMWITHRECONSPARAMS           withReconstructed          #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
+{-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
 
 -- All the TC primitives are compiled to functions that return
 -- undefined, rather than just undefined, in an attempt to make sure
@@ -384,3 +389,4 @@ postulate
 {-# COMPILE JS dontReduceDefs    = _ => _ => _ => _ => undefined #-}
 {-# COMPILE JS noConstraints     = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS runSpeculative    = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS getInstances      = _ =>                undefined #-}

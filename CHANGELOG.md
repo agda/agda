@@ -49,6 +49,22 @@ Language
   `(j : J) → A : Set l`, that is, the type of functions from a type in `ISet`
   to a fibrant type is fibrant.
 
+* A new reflection primitive `getInstances : Meta → TC (List Term)`
+  was added to `Agda.Builtin.Reflection`. This operation returns the
+  list of all possibly valid instance candidates for a given
+  metavariable. For example, the following macro instantiates the goal
+  with the first instance candidate, even if there are several:
+  ```agda
+  macro
+    pickWhatever : Term → TC ⊤
+    pickWhatever hole@(meta m _) = do
+      (cand ∷ _) ← getInstances m
+        where [] -> typeError (strErr "No candidates!" ∷ [])
+      unify hole cand
+    pickWhatever _ = typeError (strErr "Already solved!" ∷ [])
+  ```
+
+
 Syntax
 ------
 

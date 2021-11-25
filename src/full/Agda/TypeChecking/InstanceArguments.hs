@@ -5,6 +5,7 @@ module Agda.TypeChecking.InstanceArguments
   , isInstanceConstraint
   , shouldPostponeInstanceSearch
   , postponeInstanceConstraints
+  , getInstanceCandidates
   ) where
 
 import Control.Monad.Except
@@ -225,6 +226,19 @@ findInstance m Nothing = do
 
 findInstance m (Just cands) =                          -- Note: if no blocking meta variable this will not unblock until the end of the mutual block
   whenJustM (findInstance' m cands) $ (\ (cands, b) -> addConstraint b $ FindInstance m $ Just cands)
+
+-- | Entry point for `tcGetInstances` primitive
+getInstanceCandidates :: MetaId -> TCM (Either Blocker [Candidate])
+getInstanceCandidates m = do
+  mv <- lookupMeta m
+  setCurrentRange mv $ do
+    t <- instantiate =<< getMetaTypeInContext m
+    TelV tel t' <- telViewUpTo' (-1) notVisible t
+    addContext tel $ initialInstanceCandidates t' >>= \case
+      Left b -> return $ Left b
+      Right cands -> checkCandidates m t' cands >>= \case
+        Nothing -> return $ Right cands
+        Just (_ , cands') -> return $ Right cands'
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
