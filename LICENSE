@@ -4,19 +4,21 @@ partially based on code from Agda 1 by Catarina Coquand and Makoto Takeyama,
 and from Agdalight by Ulf Norell and Andreas Abel.
 
 Agda 2 is currently actively developed mainly by Andreas Abel,
-Guillaume Allais, Jesper Cockx, Nils Anders Danielsson, Philipp
-Hausmann, Fredrik Nordvall Forsberg, Ulf Norell, Víctor López Juan,
-Andrés Sicard-Ramírez, and Andrea Vezzosi.
+Guillaume Allais, Liang-Ting Chen, Jesper Cockx, Matthew Daggitt, Nils
+Anders Danielsson, Ulf Norell, Andrés Sicard-Ramírez, and Andrea
+Vezzosi.
 
 Further, Agda 2 has received contributions by, amongst others, Stevan
 Andjelkovic, Marcin Benke, Jean-Philippe Bernardy, Guillaume Brunerie,
-James Chapman, Dominique Devriese, Péter Diviánszky, Olle Fredriksson,
-Adam Gundry, Daniel Gustafsson, Kuen-Bang Hou (favonia), Patrik
-Jansson, Alan Jeffrey, Wolfram Kahl, Wen Kokke, Fredrik Lindblad,
-Francesco Mazzoli, Stefan Monnier, Darin Morrison, Guilhem Moulin,
-Nicolas Pouillard, Nobuo Yamashita, Christian Sattler, Makoto
-Takeyama and Tesla Ice Zhang.  The full list of contributors is
-available at https://github.com/agda/agda/graphs/contributors
+James Chapman, Dominique Devriese, Péter Diviánszky, Robert Estelle,
+Olle Fredriksson, Adam Gundry, Daniel Gustafsson, Philipp Hausmann,
+Alan Jeffrey, Wolfram Kahl, Wen Kokke, John Leo, Fredrik Lindblad,
+Víctor López Juan, Ting-Gan Lua, Francesco Mazzoli, Stefan Monnier,
+Guilhem Moulin, Fredrik Nordvall Forsberg, Nicolas Pouillard, Jonathan
+Prieto, Christian Sattler, Makoto Takeyama, Noam Zeilberger, and Tesla
+Ice Zhang.  The full list of contributors is available at
+https://github.com/agda/agda/graphs/contributors or from the git
+repository via ``git shortlog -sne``.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -71,7 +73,7 @@ SUCH DAMAGE.
 
 ------------------------------------------------------------------------
 
-The file src/data/JS/highlight-hover.js (and the following licence
+The file src/data/html/highlight-hover.js (and the following licence
 text?) seems to use the following licence:
 
 Copyright 2002-2010, Simon Marlow.  All rights reserved.
