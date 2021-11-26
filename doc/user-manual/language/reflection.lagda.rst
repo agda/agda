@@ -492,7 +492,7 @@ following primitive operations::
     -- the old TC state if the second component is 'false', or keep the
     -- new TC state if it is 'true'.
     runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
-    
+
     -- Get a list of all possible instance candidates for the given meta
     -- variable (it does not have to be an instance meta).
     getInstances : Meta → TC (List Term)
