@@ -177,42 +177,41 @@ findProjectConfig root = mkLibM [] $ findProjectConfig' root
 findProjectConfig'
   :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
   -> LibErrorIO ProjectConfig          -- ^ Actual root and @.agda-lib@ files for this project
-findProjectConfig' root = do
-  getCachedProjectConfig root >>= \case
-    Just conf -> return conf
-    Nothing   -> do
-      libFiles <- liftIO $ filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
-      case libFiles of
-        []     -> liftIO (upPath root) >>= \case
-          Just up -> do
-            conf <- findProjectConfig' up
-            storeCachedProjectConfig root conf
-            return conf
-          Nothing -> return DefaultProjectConfig
-        files -> do
-          let conf = ProjectConfig root files
-          storeCachedProjectConfig root conf
-          return conf
-
+findProjectConfig' dir =
+  search . parents =<< liftIO (makeAbsolute dir)
   where
-    -- Note that "going up" one directory is OS dependent
-    -- if the directory is a symlink.
-    --
-    -- Quoting from https://hackage.haskell.org/package/directory-1.3.6.1/docs/System-Directory.html#v:canonicalizePath :
-    --
-    --   Note that on Windows parent directories .. are always fully
-    --   expanded before the symbolic links, as consistent with the
-    --   rest of the Windows API (such as GetFullPathName). In
-    --   contrast, on POSIX systems parent directories .. are
-    --   expanded alongside symbolic links from left to right. To
-    --   put this more concretely: if L is a symbolic link for R/P,
-    --   then on Windows L\.. refers to ., whereas on other
-    --   operating systems L/.. refers to R.
-    upPath :: FilePath -> IO (Maybe FilePath)
-    upPath root = do
-      up <- canonicalizePath $ root </> ".."
-      if up == root then return Nothing else return $ Just up
+  -- On a Posix system the following equalities hold:
+  --
+  --   parents "/foo/bar" == ["/foo/bar","/foo/","/"]
+  --   parents "/foo/bar/" == ["/foo/bar/","/foo/","/"]
+  --
+  -- I believe that it is the case that the returned list is built in
+  -- linear time (in the length of the input), and that "traversing"
+  -- one of the resulting paths is linear in the length of the path.
+  parents :: FilePath -> [FilePath]
+  parents =
+    reverse .
+    map ($ []) . tail . scanl (\ds d -> ds . (d ++)) id .
+    splitPath
 
+  search :: [FilePath] -> LibErrorIO ProjectConfig
+  search []           = return DefaultProjectConfig
+  search (dir : dirs) =
+    getCachedProjectConfig dir >>= \case
+      Just conf -> return conf
+      Nothing   -> do
+        libFiles <- liftIO $
+          filter ((== ".agda-lib") . takeExtension) <$>
+            getDirectoryContents dir
+        case libFiles of
+          [] -> do
+            conf <- search dirs
+            storeCachedProjectConfig dir conf
+            return conf
+          files -> do
+            let conf = ProjectConfig dir files
+            storeCachedProjectConfig dir conf
+            return conf
 
 -- | Get project root
 
