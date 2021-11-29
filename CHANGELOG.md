@@ -23,7 +23,7 @@ Highlights
 
 * Improvements to the compiler backends (see below).
 
-* Feature preview: `--erased-cubical` and `--ghc-strict`.
+* Feature preview: `--ghc-strict`.
 
 Installation and infrastructure
 -------------------------------
@@ -53,34 +53,11 @@ Agda 2.6.2.1 has been adapted to recent changes in the Haskell ecosystem, includ
     Stackage issue [#6268](https://github.com/commercialhaskell/stackage/issues/6268).
   - `transformers-0.6`
 
-Language
---------
-
-* The new option `--erased-cubical` turns on a variant of Cubical Agda
-  (see [#4701](https://github.com/agda/agda/issues/4701)).
-
-  When this variant of Cubical Agda is used glue (and some related
-  builtins) may only be used in erased settings. One can import
-  regular Cubical Agda code from this variant of Cubical Agda, but
-  names defined using Cubical Agda are (mostly) treated as if they had
-  been marked as erased. See the [reference
-  manual](https://agda.readthedocs.io/en/latest/language/cubical.html#cubical-agda-with-erased-glue-and-erased-higher-constructors)
-  for more details.
-
-  The GHC and JS backends can compile code that uses
-  `--erased-cubical` if the top-level module uses this flag.
-
-  This feature is experimental and should be used with the
-  [development version of Agda](https://github.com/agda/agda).
-
 Compiler backends
 -----------------
 
 * Both the GHC and JS backends now refuse to compile code that uses
   `--cubical`.
-
-  Note that support for compiling code that uses `--erased-cubical`
-  has been added to both backends (see above).
 
 * The new option `--ghc-strict-data`, which is inspired by the GHC
   language extension `StrictData`, makes the GHC backend compile
@@ -168,7 +145,6 @@ For 2.6.2.1, the following issues were
   - [#5557](https://github.com/agda/agda/issues/5557): Allow Agda to output data files
   - [#5565](https://github.com/agda/agda/issues/5565): Internal error in Agda.TypeChecking.MetaVars
   - [#5593](https://github.com/agda/agda/issues/5593): Compilation failure with `aeson-2`
-  - [#5601](https://github.com/agda/agda/issues/5601): Now `--erased-cubical supports higher constructors.
   - [#5602](https://github.com/agda/agda/issues/5602): The JS backend does not reduce constructor type signatures
   - [#5610](https://github.com/agda/agda/issues/5610): Panic when checking pragma BUILTIN SHARP
   - [#5620](https://github.com/agda/agda/issues/5620): Seemingly incorrect warning for abstract definition without type signature

@@ -709,6 +709,7 @@ firstOrderFlag o = return $ o { optFirstOrder = True }
 cubicalFlag
   :: Cubical  -- ^ Which variant of Cubical Agda?
   -> Flag PragmaOptions
+cubicalFlag CErased _ = throwError "--erased-cubical is not available."
 cubicalFlag variant o = do
   let withoutK = optWithoutK o
   return $ o { optCubical  = Just variant
