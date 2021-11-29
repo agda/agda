@@ -1,3 +1,0 @@
-Erased-cubical-Glue.agda:13,30-31
-Identifier _≃_ is declared erased, so it cannot be used here
-when checking that the expression B x ≃ A has type Set _a_4

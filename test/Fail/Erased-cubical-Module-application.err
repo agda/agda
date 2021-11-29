@@ -1,3 +1,0 @@
-Erased-cubical-Module-application.agda:13,5-11
-Identifier EC.∣_∣ is declared erased, so it cannot be used here
-when checking that the expression EC.∣_∣ has type A → EC.∥ A ∥

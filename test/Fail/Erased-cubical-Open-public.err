@@ -1,3 +1,0 @@
-Erased-cubical-Open-public.agda:12,5-6
-Identifier A is declared erased, so it cannot be used here
-when checking that the expression A has type Set

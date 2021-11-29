@@ -1,4 +1,4 @@
-{-# OPTIONS --erased-cubical --safe --no-sized-types --no-guardedness
+{-# OPTIONS --cubical --safe --no-sized-types --no-guardedness
             --no-subtyping #-}
 
 module Agda.Builtin.Cubical.HCompU where

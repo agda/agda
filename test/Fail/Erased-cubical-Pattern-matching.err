@@ -1,3 +1,0 @@
-Erased-cubical-Pattern-matching.agda:11,7-8
-Identifier c is declared erased, so it cannot be used here
-when checking that the expression c has type D
