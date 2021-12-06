@@ -2102,13 +2102,19 @@ unGeneralized (A.Generalized s t) = (s, t)
 unGeneralized (A.ScopedExpr si e) = A.ScopedExpr si <$> unGeneralized e
 unGeneralized t = (mempty, t)
 
+alreadyGeneralizing :: ScopeM Bool
+alreadyGeneralizing = isJust <$> useTC stGeneralizedVars
+
 collectGeneralizables :: ScopeM a -> ScopeM (Set I.QName, a)
-collectGeneralizables m = bracket_ open close $ do
-    a <- m
-    s <- useTC stGeneralizedVars
-    case s of
-        Nothing -> __IMPOSSIBLE__
-        Just s -> return (s, a)
+collectGeneralizables m =
+  -- #5683: No nested generalization
+  ifM alreadyGeneralizing ((Set.empty,) <$> m) $
+  {-else-} bracket_ open close $ do
+      a <- m
+      s <- useTC stGeneralizedVars
+      case s of
+          Nothing -> __IMPOSSIBLE__
+          Just s -> return (s, a)
   where
     open = do
         gvs <- useTC stGeneralizedVars
