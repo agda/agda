@@ -278,6 +278,9 @@ Placement of generalized bindings
 The following rules are used to place generalized variables:
 
 - Generalized variables are placed at the front of the type signature or telescope.
+- Type signatures appearing inside other type signatures, for instance in let bindings or
+  dependent function arguments are not generalized. Instead any generalizable variables
+  in such types are generalized over in the parent signature.
 - Variables mentioned eariler are placed before variables mentioned later, where
   nested variables count as being mentioned together with their parent.
 
