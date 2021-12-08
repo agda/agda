@@ -4,7 +4,7 @@ Release notes for Agda version 2.6.3
 Installation and infrastructure
 -------------------------------
 
-Added support for GHC 8.10.6.
+Agda supports GHC versions 8.0.2 to 9.2.1.
 
 Language
 --------
@@ -114,44 +114,8 @@ Compiler backends
   Note that support for compiling code that uses `--erased-cubical`
   has been added to both backends (see above).
 
-* The new option `--ghc-strict-data`, which is inspired by the GHC
-  language extension `StrictData`, makes the GHC backend compile
-  inductive data and record constructors to constructors with strict
-  arguments.
-
-  This does not apply to certain builtin types—lists, the maybe type,
-  and some types related to reflection—and might not apply to types
-  with `COMPILE GHC … = data …` pragmas.
-
-* The new option `--ghc-strict`, which is inspired by the GHC language
-  extension `Strict`, makes the GHC backend generate mostly strict
-  code.
-
-  Functions might not be strict in unused arguments.
-
-  Function definitions coming from `COMPILE GHC` pragmas are not
-  affected.
-
-  This flag implies `--ghc-strict-data`, and the exceptions of that
-  flag applies to this flag as well.
-
-  Note that this option requires the use of GHC 9 or later.
-
-* JS backend now uses the native `BigInt` instead of the
-  [biginteger.js](https://github.com/silentmatt/javascript-biginteger).
-
 LaTeX backend
 -------------
-
-* Files `agda.sty` and `postprocess-latex.pl` are now found in the `latex/`
-  subdirectory of the Agda data directory (`agda --print-agda-dir`).
-
-* `agda.sty` is now versioned (printed to the `.log` file by `latex`)
-  (see [#5473](https://github.com/agda/agda/issues/5473)).
-
-* Italics correction (inserted by `\textit` e.g. in `\AgdaBound`) now works,
-  thanks to moving the `\textcolor` wrapping to the outside in `agda.sty`
-  (see [#5471](https://github.com/agda/agda/issues/5471)).
 
 DOT backend
 -----------
