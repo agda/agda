@@ -29,6 +29,7 @@ Language Reference
    let-and-where
    lexical-structure
    literal-overloading
+   lossy-unification
    mixfix-operators
    module-system
    mutual-recursion
