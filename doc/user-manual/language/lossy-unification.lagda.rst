@@ -12,11 +12,14 @@ Lossy Unification
 
 The option ``--experimental-lossy-unification`` enables an
 experimental heuristic in the unification checker intended to improve
-its performance for unification problems of the form ``f es₀ = f es₁``, 
+its performance for unification problems of the form ``f es₀ = f es₁``,
 i.e. unifying two applications of the same defined function, here
 ``f``, to possibly different lists of arguments and projections
 ``es₀`` and ``es₁``.
 The heuristic is sound but not complete.
+In particular if Agda accepts code with the flag enabled it should
+also accept it without the flag (with enough resources, and possibly
+needing extra type annotations).
 
 The option can be used either globally or in an ``OPTIONS`` pragma, in the latter
 case it applies only to the current module.
@@ -58,18 +61,17 @@ Drawbacks
 The main drawback is that the heursitic is not complete, i.e. it will cause Agda to
 ignore some possible solutions to unification variables.
 For example if ``f`` is a constant function, then the constraint ``f
-?0 = f 1`` does not uniquely determines ``?0``, but the heuristic will
+?0 = f 1`` does not uniquely determine ``?0``, but the heuristic will
 end up assigning ``1`` to ``?0``.
 
 Such assignments can lead to Agda to report a type error which would
 not have been reported without the heuristic. This is because committing to
 ``?0 = 1`` might make other constraints unsatifiable.
 
-The other drawback is that there are also cases where performance of
-unification will be worse with the heuristic. Specifically if
-unification will repeatedly attempt to unify lists of arguments ``es₀
-= es₁`` and fails, that is extra wasted effort that would not have
-been spent without the heuristic.
+The other drawback is that in some cases performance of
+unification will be worse with the heuristic. Specifically, if
+the heuristic will repeatedly attempt to unify lists of arguments ``es₀
+= es₁`` while failing.
 
 
 References
