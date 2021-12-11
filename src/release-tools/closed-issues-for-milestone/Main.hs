@@ -37,7 +37,10 @@ import GitHub.Data.Issues
 
 import GitHub.Data.Name ( Name( N ), untagName )
 import GitHub.Data.Milestone ( Milestone( milestoneNumber, milestoneTitle ) )
-import GitHub.Data.Options ( stateClosed )
+import GitHub.Data.Options
+  ( optionsMilestone
+  , stateClosed
+  )
 import GitHub.Data.Request ( FetchCount(FetchAll) )
 
 import GitHub.Endpoints.Issues.Milestones ( milestonesR )
@@ -130,10 +133,11 @@ run mileStoneTitle = do
   -- Debug.
   debugPrint $ "Getting issues for milestone number " ++ show  mileStoneId
 
+  let issueFilter = optionsMilestone mileStoneId <> stateClosed
   -- Get list of issues. GitHub's REST API v3 considers every pull
   -- request an issue. For this reason we get a list of both issues
   -- and pull requests when using the function 'issuesForRepo''.
-  issueVector <- crashOr $ github auth (issuesForRepoR (N owner) (N repo) stateClosed FetchAll)
+  issueVector <- crashOr $ github auth (issuesForRepoR (N owner) (N repo) issueFilter FetchAll)
     -- Symbols not exported.
     -- IssueRepoMod $ \ o ->
     --   o { issueRepoOptionsMilestone = FilterBy mileStoneId
