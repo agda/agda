@@ -16,6 +16,7 @@ import qualified Data.Vector as V
 
 import System.Environment ( getArgs, getEnv, getProgName )
 import System.Exit        ( die )
+import System.IO          ( hPutStrLn, stderr )
 
 import GitHub.Auth ( Auth( OAuth ) )
 
@@ -73,6 +74,9 @@ usage = do
     , "Expects an access token in environment variable GITHUB_TOKEN."
     ]
 
+debugPrint :: String -> IO ()
+debugPrint = hPutStrLn stderr
+
 issueLabelsNames :: Issue -> [Text]
 issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
 
@@ -114,6 +118,8 @@ run mileStoneTitle = do
 
   -- Log in to repo.
 
+  debugPrint $ "Getting milestone " ++ Text.unpack mileStoneTitle
+
   -- Resolve milestone into milestone id.
   mileStoneVector <- crashOr $ github auth (milestonesR (N owner) (N repo) FetchAll)
   mileStoneId <- case filter ((mileStoneTitle ==) . milestoneTitle) $ toList mileStoneVector of
@@ -122,7 +128,7 @@ run mileStoneTitle = do
     _   -> die $ "Milestone " ++ Text.unpack mileStoneTitle ++ " ambiguous in github repo " ++ theRepo
 
   -- Debug.
-  -- print mileStoneId
+  debugPrint $ "Getting issues for milestone number " ++ show  mileStoneId
 
   -- Get list of issues. GitHub's REST API v3 considers every pull
   -- request an issue. For this reason we get a list of both issues
@@ -143,6 +149,9 @@ run mileStoneTitle = do
         , milestoneNumber m == mileStoneId
         , not $ any (`elem` issueLabelsNames i) labelsNotInChangelog
         ]
+
+  debugPrint $ unwords
+    [ "Found", show (length issues), "closed issues tagged with milestone", Text.unpack mileStoneTitle ]
 
   -- Print issues.
 
