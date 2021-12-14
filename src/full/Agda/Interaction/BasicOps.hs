@@ -112,9 +112,7 @@ parseExprIn ii rng s = do
     withMetaInfo mi $
       concreteToAbstract (clScope mi) e
 
-giveExpr :: UseForce -> Maybe InteractionId -> MetaId -> Expr -> TCM ()
--- When translator from internal to abstract is given, this function might return
--- the expression returned by the type checker.
+giveExpr :: UseForce -> Maybe InteractionId -> MetaId -> Expr -> TCM Term
 giveExpr force mii mi e = do
     mv <- lookupMeta mi
     -- In the context (incl. signature) of the meta variable,
@@ -169,6 +167,7 @@ giveExpr force mii mi e = do
           reportSDoc "interaction.give" 20 $ "give: double checking"
           vfull <- instantiateFull v
           checkInternal vfull CmpLeq t'
+        return v
 
 -- | After a give, redo termination etc. checks for function which was complemented.
 redoChecks :: Maybe InteractionId -> TCM ()
@@ -202,7 +201,8 @@ give force ii mr e = liftTCM $ do
   reportSDoc "interaction.give" 10 $ "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
-  do setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
+  _ <- do
+     setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
      giveExpr force (Just ii) mi e
     `catchError` \ case
       -- Turn PatternErr into proper error:
