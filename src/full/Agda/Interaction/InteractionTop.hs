@@ -748,7 +748,7 @@ interpret (Cmd_elaborate_give norm ii rng s) = do
     nf <- B.normalForm norm term
     txt <- localTC (\ e -> e { envPrintMetasBare = True }) (TCP.prettyTCM nf)
     return $ show txt
-  give_gen WithoutForce ii rng have ElaborateGive
+  give_gen WithoutForce ii rng have $ ElaborateGive norm
 
 interpret (Cmd_goal_type_context norm ii rng s) =
   cmd_goal_type_context_and GoalOnly norm ii rng s
@@ -950,7 +950,7 @@ atTopLevel cmd = liftCommandMT B.atTopLevel cmd
 ---------------------------------------------------------------------------
 -- Giving, refining.
 
-data GiveRefine = Give | Refine | Intro | ElaborateGive
+data GiveRefine = Give | Refine | Intro | ElaborateGive Rewrite
   deriving (Eq, Show)
 
 -- | A "give"-like action (give, refine, etc).
@@ -976,10 +976,10 @@ give_gen force ii rng s0 giveRefine = do
   unless (null s) $ do
     let give_ref =
           case giveRefine of
-            Give          -> B.give
-            Refine        -> B.refine
-            Intro         -> B.refine
-            ElaborateGive -> B.give
+            Give               -> B.give
+            Refine             -> B.refine
+            Intro              -> B.refine
+            ElaborateGive norm -> B.give
     -- save scope of the interaction point (for printing the given expr. later)
     scope     <- lift $ getInteractionScope ii
     -- parse string and "give", obtaining an abstract expression
@@ -1016,7 +1016,7 @@ give_gen force ii rng s0 giveRefine = do
     -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
     -- Ulf, 2015-03-30, if we're doing intro we can't do literal give since
     -- there is nothing in the hole (issue 1892).
-    let literally = giveRefine /= Intro && giveRefine /= ElaborateGive && ae == ae0 && rng /= noRange
+    let literally = (giveRefine == Give || giveRefine == Refine) && ae == ae0 && rng /= noRange
     -- Ulf, 2014-01-24: This works for give since we're highlighting the string
     -- that's already in the buffer. Doing it before the give action means that
     -- the highlighting is moved together with the text when the hole goes away.
