@@ -521,10 +521,10 @@ getMetaRange = getRange <.> lookupMeta
 getInteractionScope :: InteractionId -> TCM ScopeInfo
 getInteractionScope = getMetaScope <.> lookupMeta <=< lookupInteractionId
 
-withMetaInfo' :: MetaVariable -> TCM a -> TCM a
+withMetaInfo' :: (MonadTCEnv m, ReadTCState m, MonadTrace m) => MetaVariable -> m a -> m a
 withMetaInfo' mv = withMetaInfo (miClosRange $ mvInfo mv)
 
-withMetaInfo :: Closure Range -> TCM a -> TCM a
+withMetaInfo :: (MonadTCEnv m, ReadTCState m, MonadTrace m) => Closure Range -> m a -> m a
 withMetaInfo mI cont = enterClosure mI $ \ r ->
   setCurrentRange r cont
 

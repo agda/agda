@@ -1003,12 +1003,16 @@ typeInMeta ii norm e =
         withMetaInfo mi $
             typeInCurrent norm e
 
-withInteractionId :: InteractionId -> TCM a -> TCM a
+withInteractionId
+  :: (MonadFail m, ReadTCState m, MonadError TCErr m, MonadTCEnv m, MonadTrace m)
+  => InteractionId -> m a -> m a
 withInteractionId i ret = do
   m <- lookupInteractionId i
   withMetaId m ret
 
-withMetaId :: MetaId -> TCM a -> TCM a
+withMetaId
+  :: (MonadFail m, MonadTCEnv m, ReadTCState m, MonadTrace m)
+  => MetaId -> m a -> m a
 withMetaId m ret = do
   mv <- lookupMeta m
   withMetaInfo' mv ret
