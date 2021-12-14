@@ -1,5 +1,5 @@
 {-# OPTIONS --without-K --safe --universe-polymorphism --no-sized-types
-            --guardedness --no-subtyping #-}
+            --guardedness #-}
 
 module Agda.Builtin.Coinduction where
 

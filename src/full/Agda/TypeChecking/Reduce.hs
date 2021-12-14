@@ -6,6 +6,7 @@ import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Map (Map)
+import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import Data.Foldable
 import Data.Traversable
@@ -1237,7 +1238,6 @@ instance InstantiateFull t => InstantiateFull (Strict.Maybe t)
 instance InstantiateFull t => InstantiateFull (Arg t)
 instance InstantiateFull t => InstantiateFull (Elim' t)
 instance InstantiateFull t => InstantiateFull (Named name t)
-instance InstantiateFull t => InstantiateFull (Open t)
 instance InstantiateFull t => InstantiateFull (WithArity t)
 instance InstantiateFull t => InstantiateFull (IPBoundary' t)
 
@@ -1362,6 +1362,21 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
 
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i fin n tac x) = Dom i fin n <$> instantiateFull' tac <*> instantiateFull' x
+
+-- Andreas, 2021-09-13, issue #5544, need to traverse @checkpoints@ map
+instance InstantiateFull t => InstantiateFull (Open t) where
+  instantiateFull' (OpenThing checkpoint checkpoints modl t) =
+    OpenThing checkpoint
+    <$> (instantiateFull' =<< prune checkpoints)
+    <*> pure modl
+    <*> instantiateFull' t
+    where
+      -- Ulf, 2021-11-17, #5544
+      --  Remove checkpoints that are no longer in scope, since they can
+      --  mention functions that deadcode elimination will get rid of.
+      prune cps = do
+        inscope <- viewTC eCheckpoints
+        return $ cps `Map.intersection` inscope
 
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
@@ -1492,7 +1507,7 @@ instance InstantiateFull System where
 
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
-  instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv
+  instantiateFull' (Inverse w inv) = Inverse w <$> instantiateFull' inv
 
 instance InstantiateFull a => InstantiateFull (Case a) where
   instantiateFull' (Branches cop cs eta ls m b lz) =

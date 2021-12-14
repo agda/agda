@@ -1,7 +1,7 @@
 
 {-| EDSL to construct terms without touching De Bruijn indices.
 
-e.g. if given t, u :: Term, Γ ⊢ t, u : A, we can build "λ f. f t u" like this:
+e.g. given t, u :: Term, Γ ⊢ t, u : A, we can build "λ f. f t u" like this:
 
 runNames [] $ do
   -- @open@ binds @t@ and @u@ to computations that know how to weaken themselves in
@@ -9,10 +9,10 @@ runNames [] $ do
 
   [t,u] <- mapM open [t,u]
 
-  -- @lam@ gives the illusion of HOAS by providing f as a computation
+  -- @lam@ gives the illusion of HOAS by providing f as a computation.
   -- It also extends the internal context with the name "f", so that
   -- @t@ and @u@ will get weakened in the body.
-  -- Then we finish the job using the (<@>) combinator from Agda.TypeChecking.Primitive
+  -- We apply f with the (<@>) combinator from Agda.TypeChecking.Primitive.
 
   lam "f" $ \ f -> f <@> t <@> u
 
@@ -66,63 +66,77 @@ newtype NamesT m a = NamesT { unName :: ReaderT Names m a }
            , PureTCM
            )
 
--- deriving instance MonadState s m => MonadState s (NamesT m)
 
+-- | A list of variable names from a context.
 type Names = [String]
 
 runNamesT :: Names -> NamesT m a -> m a
 runNamesT n m = runReaderT (unName m) n
 
--- We use @Fail@ instead of @Identity@ because the computation can fail.
 runNames :: Names -> NamesT Fail a -> a
 runNames n m = runFail_ (runNamesT n m)
 
 currentCxt :: Monad m => NamesT m Names
 currentCxt = NamesT ask
 
+-- | @cxtSubst Γ@ returns the substitution needed to go
+--   from Γ to the current context.
+--
+--   Fails if @Γ@ is not a subcontext of the current one.
 cxtSubst :: MonadFail m => Names -> NamesT m (Substitution' a)
 cxtSubst ctx = do
   ctx' <- currentCxt
   if (ctx `isSuffixOf` ctx')
      then return $ raiseS (length ctx' - length ctx)
-     else fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
+     else fail $ "out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
 
+-- | @inCxt Γ t@ takes a @t@ in context @Γ@ and produce an action that
+--   will return @t@ weakened to the current context.
+--
+--   Fails whenever @cxtSubst Γ@ would.
 inCxt :: (MonadFail m, Subst a) => Names -> a -> NamesT m a
 inCxt ctx a = do
   sigma <- cxtSubst ctx
   return $ applySubst sigma a
 
--- closed terms
+-- | Closed terms
 cl' :: Applicative m => a -> NamesT m a
 cl' = pure
 
 cl :: Monad m => m a -> NamesT m a
 cl = lift
 
+-- | Open terms in the current context.
 open :: (MonadFail m, Subst a) => a -> NamesT m (NamesT m a)
 open a = do
   ctx <- NamesT ask
   pure $ inCxt ctx a
 
-bind' :: (MonadFail m) => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m a
+-- | Monadic actions standing for variables.
+--
+--   @b@ is quantified over so the same variable can be used e.g. both
+--   as a pattern and as an expression.
+type Var m = forall b. (Subst b, DeBruijn b) => NamesT m b
+
+
+-- | @bind n f@ provides @f@ with a fresh variable, which can be used in any extended context.
+--
+--   Returns an @Abs@ which binds the extra variable.
+bind :: MonadFail m => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m (Abs a)
+bind n f = Abs n <$> bind' n f
+
+-- | Like @bind@ but returns a bare term.
+bind' :: MonadFail m => ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m a
 bind' n f = do
   cxt <- NamesT ask
   (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (deBruijnVar 0)))
 
-bind :: ( MonadFail m
-        ) =>
-        ArgName -> ((forall b. (Subst b, DeBruijn b) => NamesT m b) -> NamesT m a) -> NamesT m (Abs a)
-bind n f = Abs n <$> bind' n f
 
+-- * Helpers to build lambda abstractions.
 
 glam :: MonadFail m
      => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 glam info n f = Lam info <$> bind n (\ x -> f x)
-
-glamN :: (Functor m, MonadFail m) =>
-         [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term
-glamN [] f = f $ pure []
-glamN (Arg i n:ns) f = glam i n $ \ x -> glamN ns (\ xs -> f ((:) <$> (Arg i <$> x) <*> xs))
 
 lam :: MonadFail m
     => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
@@ -133,6 +147,7 @@ ilam :: MonadFail m
 ilam n f = glam (setRelevance Irrelevant defaultArgInfo) n f
 
 
+-- * Combinators for n-ary binders.
 
 data AbsN a = AbsN { absNName :: [ArgName], unAbsN :: a } deriving (Functor,Foldable,Traversable)
 
@@ -143,7 +158,7 @@ instance Subst a => Subst (AbsN a) where
 -- | Will crash on @NoAbs@
 toAbsN :: Abs (AbsN a) -> AbsN a
 toAbsN (Abs n x') = AbsN (n : absNName x') (unAbsN x')
-toAbsN NoAbs{} = __IMPOSSIBLE__
+toAbsN NoAbs{}    = __IMPOSSIBLE__
 
 absAppN :: Subst a => AbsN a -> [SubstArg a] -> a
 absAppN f xs = (parallelS $ reverse xs) `applySubst` unAbsN f
@@ -151,7 +166,6 @@ absAppN f xs = (parallelS $ reverse xs) `applySubst` unAbsN f
 type ArgVars m = (forall b. (Subst b, DeBruijn b) => [NamesT m (Arg b)])
 
 type Vars m = (forall b. (Subst b, DeBruijn b) => [NamesT m b])
-type Var m = (forall b. (Subst b, DeBruijn b) => NamesT m b)
 
 bindN :: ( MonadFail m
         ) =>
@@ -164,6 +178,12 @@ bindNArg :: ( MonadFail m
         [Arg ArgName] -> (ArgVars m -> NamesT m a) -> NamesT m (AbsN a)
 bindNArg [] f = AbsN [] <$> f []
 bindNArg (Arg i x:xs) f = toAbsN <$> bind x (\ x -> bindNArg xs (\ xs -> f ((Arg i <$> x):xs)))
+
+
+glamN :: (Functor m, MonadFail m) =>
+         [Arg ArgName] -> (NamesT m Args -> NamesT m Term) -> NamesT m Term
+glamN [] f = f $ pure []
+glamN (Arg i n:ns) f = glam i n $ \ x -> glamN ns (\ xs -> f ((:) <$> (Arg i <$> x) <*> xs))
 
 
 applyN :: ( Monad m

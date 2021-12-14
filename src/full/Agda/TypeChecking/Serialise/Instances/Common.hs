@@ -266,16 +266,16 @@ instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
   value m = BiMap.fromDistinctAscendingLists <$> value m
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
-  icod_ m = icode (Map.toList m)
-  value m = Map.fromList `fmap` value m
+  icod_ m = icode (Map.toAscList m)
+  value m = Map.fromDistinctAscList <$> value m
 
 instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
-  icod_ s = icode (Set.toList s)
-  value s = Set.fromList `fmap` value s
+  icod_ s = icode (Set.toAscList s)
+  value s = Set.fromDistinctAscList <$> value s
 
 instance EmbPrj IntSet where
-  icod_ s = icode (IntSet.toList s)
-  value s = IntSet.fromList <$> value s
+  icod_ s = icode (IntSet.toAscList s)
+  value s = IntSet.fromDistinctAscList <$> value s
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Trie a b) where
   icod_ (Trie a b)= icodeN' Trie a b
@@ -385,16 +385,21 @@ instance EmbPrj Fixity' where
 
   value = valueN (\ f n -> Fixity' f n noRange)
 
-instance EmbPrj GenPart where
-  icod_ (BindHole a b)   = icodeN 0 BindHole a b
-  icod_ (NormalHole a b) = icodeN 1 NormalHole a b
-  icod_ (WildHole a)     = icodeN 2 WildHole a
-  icod_ (IdPart a)       = icodeN' IdPart a
+instance EmbPrj BoundVariablePosition where
+  icod_ (BoundVariablePosition a b) = icodeN' BoundVariablePosition a b
+
+  value = valueN BoundVariablePosition
+
+instance EmbPrj NotationPart where
+  icod_ (VarPart a b)  = icodeN 0 VarPart a b
+  icod_ (HolePart a b) = icodeN 1 HolePart a b
+  icod_ (WildPart a)   = icodeN 2 WildPart a
+  icod_ (IdPart a)     = icodeN' IdPart a
 
   value = vcase valu where
-    valu [0, a, b] = valuN BindHole a b
-    valu [1, a, b] = valuN NormalHole a b
-    valu [2, a]    = valuN WildHole a
+    valu [0, a, b] = valuN VarPart a b
+    valu [1, a, b] = valuN HolePart a b
+    valu [2, a]    = valuN WildPart a
     valu [a]       = valuN IdPart a
     valu _         = malformed
 

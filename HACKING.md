@@ -474,6 +474,18 @@ Emacs mode
 Faster compilation of Agda
 ==========================
 
+Since: November 2021.
+
+* When you run `make install`, then the option optimise-heavily is by
+  default activated. If you want to override this option (for faster
+  build times, at the cost of possibly making Agda slower), then you
+  can include the following text in `mk/config.mk`, which is ignored
+  by Git:
+  ```
+  CABAL_FLAG_OPTIM_HEAVY =
+  STACK_FLAG_OPTIM_HEAVY =
+  ```
+
 Since: April 2020.
 
 * `make type-check` just type-checks the Agda source, generating no code.

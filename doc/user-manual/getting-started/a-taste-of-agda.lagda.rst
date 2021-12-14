@@ -528,6 +528,8 @@ in a folder that we refer to as our top-level folder.
 
 .. code-block:: agda
 
+  {-# OPTIONS --guardedness #-}
+
   module hello-world-prog where
 
   open import IO
@@ -537,9 +539,12 @@ in a folder that we refer to as our top-level folder.
 
 A quick line-by-line explanation:
 
-* The first line declares the top-level module, named ``hello-world-prog``.
+* The first line is a :ref:`pragma <pragmas>` (a special comment)
+  that specifies some options at the top of the file.
 
-* The second line imports the ``IO`` module from the `standard library
+* The second line declares the top-level module, named ``hello-world-prog``.
+
+* The third line imports the ``IO`` module from the `standard library
   <std-lib_>`_ and brings its contents into scope.
 
 * A module exporting a function ``main`` of type ``Main`` (defined in

@@ -19,6 +19,9 @@ Pred A = A -> Set
 Resp : {A : Set} -> Rel A -> {B : Set} -> Rel B -> Pred (A -> B)
 Resp _R_ _S_ f = forall x y -> x R y -> f x S f y
 
+_∋_ : (A : Set) → A → A
+A ∋ x = x
+
 mutual
 
   infixr 10 _,_
@@ -58,11 +61,11 @@ mutual
               {pf₂ : (x y : El A₂) -> x =El= y -> f₂ x =El= f₂ y} ->
               A₂ =S= A₁ ->
               ((x : El A₁)(y : El A₂) -> x =El= y -> f₁ x =El= f₂ y) ->
-              ƛ f₁ pf₁ =El= ƛ f₂ pf₂
+              (El (Π A₁ F₁) ∋ ƛ f₁ pf₁) =El= (El (Π A₂ F₂) ∋ ƛ f₂ pf₂)
     eqInΣ   : {A₁ A₂ : Setoid}{F₁ : Fam A₁}{F₂ : Fam A₂}
               {x₁ : El A₁}{y₁ : El (F₁ ! x₁)}
               {x₂ : El A₂}{y₂ : El (F₂ ! x₂)} ->
-              F₁ =Fam= F₂ -> x₁ =El= x₂ -> y₁ =El= y₂ -> (x₁ , y₁) =El= (x₂ , y₂)
+              F₁ =Fam= F₂ -> x₁ =El= x₂ -> y₁ =El= y₂ -> (El (Σ A₁ F₁) ∋ (x₁ , y₁ )) =El= (El (Σ A₂ F₂) ∋ (x₂ , y₂))
 
   data _=Fam=_ {A B : Setoid}(F : Fam A)(G : Fam B) : Set where
     eqFam : B =S= A -> (forall x y -> x =El= y -> F ! x =S= G ! y) -> F =Fam= G

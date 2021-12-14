@@ -44,6 +44,7 @@ module Agda.TypeChecking.Free
     , IgnoreSorts(..)
     , freeVars, freeVars', filterVarMap, filterVarMapToList
     , runFree, rigidVars, stronglyRigidVars, unguardedVars, allVars
+    , flexibleVars
     , allFreeVars
     , allRelevantVars, allRelevantVarsIgnoring
     , freeVarsIgnore
@@ -303,15 +304,14 @@ rigidVars :: VarMap -> VarSet
 rigidVars = filterVarMap $ \case
   VarOcc o _ -> o `elem` [ WeaklyRigid, Unguarded, StronglyRigid ]
 
--- UNUSED Liang-Ting Chen 2019-07-16
 -- | Variables occuring in arguments of metas.
---   These are only potentially free, depending how the meta variable is instantiated.
---   The set contains the id's of the meta variables that this variable is an argument to.
---flexibleVars :: VarMap -> IntMap MetaSet
---flexibleVars (VarMap m) = (`IntMap.mapMaybe` m) $ \case
---  VarOcc (Flexible ms) _ -> Just ms
---  _ -> Nothing
---
+--  These are only potentially free, depending how the meta variable is instantiated.
+--  The set contains the id's of the meta variables that this variable is an argument to.
+flexibleVars :: VarMap -> IntMap MetaSet
+flexibleVars (VarMap m) = (`IntMap.mapMaybe` m) $ \case
+ VarOcc (Flexible ms) _ -> Just ms
+ _ -> Nothing
+
 ---- | Variables in irrelevant arguments and under a @DontCare@, i.e.,
 ----   in irrelevant positions.
 --irrelevantVars :: VarMap -> VarSet

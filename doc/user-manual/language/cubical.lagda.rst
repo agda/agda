@@ -801,14 +801,13 @@ equalities that the identity types don't.
 
 .. _erased-cubical:
 
-Cubical Agda with erased glue and erased higher constructors
-------------------------------------------------------------
+Cubical Agda with erased glue
+-----------------------------
 
 The option :option:`--erased-cubical` enables a variant of Cubical
 Agda in which glue (and the other builtins defined in
 ``Agda.Builtin.Cubical.Glue``) must only be used in
-:ref:`erased<runtime-irrelevance>` settings, and higher constructors
-must be erased.
+:ref:`erased<runtime-irrelevance>` settings.
 
 Regular Cubical Agda code can import code that uses
 :option:`--erased-cubical`. Regular Cubical Agda code can also be
@@ -903,7 +902,7 @@ the following ``BUILTIN``, primitives and postulates:
             → PartialP (primIMax i j) A
 
     -- Computes in terms of primHComp and primTransp
-    primComp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (∀ i → Partial φ (A i)) → (a : A i0) → A i1
+    primComp : ∀ {a} (A : (i : I) → Set (a i)) {φ : I} → (∀ i → Partial φ (A i)) → (a : A i0) → A i1
 
   syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
 

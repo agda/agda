@@ -876,7 +876,22 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
                   , clauseExact = Nothing
                   }
 
+
   debugClause "tc.cover.trxcon" cl
+
+  reportSDoc "tc.cover.trxcon" 20 $ vcat $
+    [ "clause:"
+    ,  nest 2 $ prettyTCM . QNamed f $ cl
+    ]
+
+  let mod = fromMaybe __IMPOSSIBLE__ $ scTarget old_sc
+  -- we follow what `cover` does when updating the modality from the target.
+  applyModalityToContext mod $ do
+    unlessM (asksTC hasQuantity0) $ do
+    let mod = getModality . fromJust $ scTarget old_sc
+    reportSDoc "tc.cover.trxcon" 20 $ text "testing usable at mod: " <+> pretty mod
+    addContext cTel $ usableAtModality mod rhs
+
   return cl
 
 -- | If given @TheInfo{}@ then assumes "x : Id u v" and

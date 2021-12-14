@@ -69,7 +69,7 @@ requireCubical wanted s = do
     CErased -> "--cubical or --erased-cubical"
 
 primIntervalType :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Type
-primIntervalType = El IntervalUniv <$> primInterval
+primIntervalType = El intervalSort <$> primInterval
 
 primINeg' :: TCM PrimitiveImpl
 primINeg' = do

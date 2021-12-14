@@ -1005,14 +1005,14 @@ instance PrettyTCM TypeError where
                sortBy (compare `on` prettyShow . notaName . sectNotation) $
                filter (not . closedWithoutHoles) sects))
       where
-      trimLeft  = dropWhile isNormalHole
-      trimRight = dropWhileEnd isNormalHole
+      trimLeft  = dropWhile isAHole
+      trimRight = dropWhileEnd isAHole
 
       closedWithoutHoles sect =
         sectKind sect == NonfixNotation
           &&
-        null [ () | NormalHole {} <- trimLeft $ trimRight $
-                                       notation (sectNotation sect) ]
+        null [ () | HolePart{} <- trimLeft $ trimRight $
+                                    notation (sectNotation sect) ]
 
       prettyName n = Boxes.text $
         P.render (P.pretty n) ++

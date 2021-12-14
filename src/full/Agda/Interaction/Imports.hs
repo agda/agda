@@ -126,7 +126,7 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
   parsedModName         <- moduleName f parsedMod
-  libs <- getAgdaLibFiles $ takeDirectory $ filePath f
+  libs                  <- getAgdaLibFiles f parsedModName
   return Source
     { srcText        = source
     , srcFileType    = fileType
@@ -193,24 +193,22 @@ moduleCheckMode = \case
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
     let sig     = iSignature i
-        builtin = Map.toList $ iBuiltin i
+        builtin = Map.toAscList $ iBuiltin i
         prim    = [ x | (_,Prim x) <- builtin ]
-        bi      = Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
+        bi      = Map.fromDistinctAscList [ (x, Builtin t) | (x, Builtin t) <- builtin ]
+                    -- Andreas, 2021-08-19: this seeming identity filters out the @Prim@s
+                    -- and converts the type.
         warns   = iWarnings i
     bs <- getsTC stBuiltinThings
     reportSLn "import.iface.merge" 10 "Merging interface"
     reportSLn "import.iface.merge" 20 $
       "  Current builtins " ++ show (Map.keys bs) ++ "\n" ++
       "  New builtins     " ++ show (Map.keys bi)
-    let check b = case (b1, b2) of
-            (Builtin x, Builtin y)
-              | x == y    -> return ()
-              | otherwise -> typeError $ DuplicateBuiltinBinding b x y
-            _ -> __IMPOSSIBLE__
-          where
-            Just b1 = Map.lookup b bs
-            Just b2 = Map.lookup b bi
-    mapM_ (check . fst) (Map.toList $ Map.intersection bs bi)
+    let check b (Builtin x) (Builtin y)
+              | x == y    = return ()
+              | otherwise = typeError $ DuplicateBuiltinBinding b x y
+        check _ _ _ = __IMPOSSIBLE__
+    sequence_ $ Map.intersectionWithKey check bs bi
     addImportedThings sig bi
       (iPatternSyns i)
       (iDisplayForms i)
@@ -673,7 +671,9 @@ loadDecodedModule file mi = do
   -- want the pragmas to apply to interactive commands in the UI.
   -- Jesper, 2021-04-18: Check for changed options in library files!
   -- (see #5250)
-  libOptions <- lift $ getLibraryOptions $ takeDirectory fp
+  libOptions <- lift $ getLibraryOptions
+    (srcFilePath file)
+    (toTopLevelModuleName $ iModuleName i)
   lift $ mapM_ setOptionsFromPragma (libOptions ++ iFilePragmaOptions i)
 
   -- Check that options that matter haven't changed compared to

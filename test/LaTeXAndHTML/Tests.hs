@@ -132,7 +132,7 @@ mkLaTeXOrHTMLTest
   -> FilePath -- ^ Input file.
   -> TestTree
 mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
-  goldenVsAction
+  goldenVsAction'
     testName
     goldenFile
     (liftM2 (,) getCurrentDirectory doRun)
@@ -194,9 +194,12 @@ mkLaTeXOrHTMLTest k copy agdaBin testDir inp =
                    , "--no-libraries"
                    ] ++ extraFlags
     when copy $ copyFile inp newFile
-    res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
-    if ret /= ExitSuccess then
-      return $ AgdaFailed (toProgramResult res)
+    (exitcode, out, err) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
+    if exitcode /= ExitSuccess then
+      AgdaFailed <$> do
+        ProgramResult exitcode
+          <$> cleanOutput out
+          <*> cleanOutput err
     else do
       output <- decodeUtf8 <$> BS.readFile (outDir </> outFileName)
       let done    = return $ Success output

@@ -27,13 +27,14 @@ import System.FilePath
 import qualified System.FilePath.Find as Find
 import System.FilePath.GlobPattern
 import System.IO.Temp
-import System.PosixCompat.Time (epochTime)
-import System.PosixCompat.Files (modificationTime)
-import System.Process (proc, CreateProcess(..) )
+import System.PosixCompat.Time       ( epochTime )
+import System.PosixCompat.Files      ( modificationTime, touchFile )
+import System.Process                ( proc, CreateProcess(..) )
 import qualified System.Process.Text as PT
 
+import Test.Tasty                 ( TestName, TestTree )
 import Test.Tasty.Silver
-import Test.Tasty.Silver.Advanced (readFileMaybe)
+import Test.Tasty.Silver.Advanced ( GDiff(..), pattern ShowText, goldenTest1, readFileMaybe )
 
 import qualified Text.Regex.TDFA as R
 import qualified Text.Regex.TDFA.Text as RT ( compile )
@@ -300,7 +301,10 @@ mkRegex :: Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
   RT.compile R.defaultCompOpt R.defaultExecOpt r
 
-cleanOutput' :: FilePath -> Text -> Text
+cleanOutput'
+  :: FilePath  -- ^ @pwd@, with slashes rather than backslashes.
+  -> Text      -- ^ Output to sanitize.
+  -> Text      -- ^ Sanitized output.
 cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
   where
     rgxs = map (first mkRegex)
@@ -309,8 +313,11 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , ("[^ (]*test.Common.", "")
       , ("[^ (]*test.Bugs.", "")
       , ("[^ (]*test.LibSucceed.", "")
-      , (T.pack pwd `T.append` ".test", "..")
       , ("\\\\", "/")
+        -- Andreas, 2021-10-13, issue #5549
+        -- First, replace backslashes by slashes, then try to match @pwd@,
+        -- which has already backslashes by slashes replaced.
+      , (T.pack pwd `T.append` ".test", "..")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
       , (T.pack Agda.Version.package, "«Agda-package»")
       -- Andreas, 2021-08-26.  When run with 'cabal test',
@@ -332,7 +339,59 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
 cleanOutput :: Text -> IO Text
 cleanOutput inp = do
   pwd <- getCurrentDirectory
-  return $ cleanOutput' pwd inp
+  return $ cleanOutput' (map slashify pwd) inp
+  where
+    slashify = \case
+      '\\' -> '/'
+      c    -> c
 
 doesCommandExist :: String -> IO Bool
 doesCommandExist cmd = isJust <$> findExecutable cmd
+
+-- | Standard golden value diff that ignores line-breaks and consecutive whitespace.
+textDiff :: Text -> Text -> GDiff
+textDiff t1 t2 =
+  if T.words t1 == T.words t2
+    then
+      Equal
+    else
+      DiffText Nothing t1 t2
+
+-- | Like 'textDiff', but touch given file if golden value does not match.
+--
+--   (This will take the respective test earlier next time the suite runs.)
+textDiffWithTouch :: FilePath -> Text -> Text -> IO GDiff
+textDiffWithTouch agdaFile t1 t2
+    | T.words t1 == T.words t2 = return Equal
+    | otherwise = do
+        -- Andreas, 2020-06-09, issue #4736
+        -- If the output has changed, the test case is "interesting"
+        -- regardless of whether the golden value is updated or not.
+        -- Thus, we touch the agdaFile to have it sorted up in the next
+        -- test run.
+        -- -- putStrLn $ "TOUCHING " ++ agdaFile
+        touchFile agdaFile
+        return $ DiffText Nothing t1 t2
+
+-- | Compare something text-like against the golden file contents.
+-- For the conversion of inputs to text you may want to use the Data.Text.Encoding
+-- or/and System.Process.Text modules.
+--
+-- Variant of 'goldenVsAction' that compares golden and actual value
+-- word-wise, rather than character-wise, so it is more robust against
+-- whitespace differences.
+goldenVsAction'
+  :: TestName      -- ^ Test name.
+  -> FilePath      -- ^ Path to the «golden» file (the file that contains correct output).
+  -> IO a          -- ^ Action that returns a text-like value.
+  -> (a -> T.Text) -- ^ Converts a value to it's textual representation.
+  -> TestTree      -- ^ The test verifies that the returned textual representation
+                   --   is the same as the golden file contents.
+goldenVsAction' name ref act toTxt =
+  goldenTest1
+    name
+    (fmap decodeUtf8 <$> readFileMaybe ref)
+    (toTxt <$> act)
+    textDiff
+    ShowText
+    (BS.writeFile ref . encodeUtf8)

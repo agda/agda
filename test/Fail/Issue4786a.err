@@ -1,0 +1,3 @@
+Issue4786a.agda:12,18-19
+Variable A is declared erased, so it cannot be used here
+when checking that the expression A has type Set

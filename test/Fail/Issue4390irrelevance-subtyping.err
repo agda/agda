@@ -1,5 +1,0 @@
-Failed to solve the following constraints:
-  _9 (f = f) _ = f _ : A (blocked on _9)
-Unsolved metas at the following locations:
-  Issue4390irrelevance-subtyping.agda:10,9-10
-  Issue4390irrelevance-subtyping.agda:13,11-15

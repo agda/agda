@@ -479,7 +479,7 @@ definition Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
 definition def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ ("Compiling" <+> prettyTCM q) <> ":"
-    , nest 2 $ text (prettyShow d)
+    , nest 2 $ pretty d
     ]
   pragma <- liftTCM $ getHaskellPragma q
   env <- askGHCEnv
@@ -710,7 +710,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               , dataPathCons = pcs
               } | Just hsdata@(HsData r ty hsCons) <- pragma ->
         setCurrentRange r $ do
-        checkHigherConstructorsErased q pcs
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
         liftTCM $ computeErasedConstructorArgs q
@@ -727,7 +726,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
               , dataPathCons = pcs
               } -> do
-        checkHigherConstructorsErased q pcs
         liftTCM $ computeErasedConstructorArgs q
         cs <- liftTCM $ getNotErasedConstructors q
         cds <- mapM (flip condecl Inductive) cs
@@ -829,14 +827,6 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ Text.pack $ "postulate evaluated: " ++ prettyShow q
-
-  checkHigherConstructorsErased :: QName -> [QName] -> HsCompileM ()
-  checkHigherConstructorsErased q pcs = liftTCM $
-    whenM (anyM pcs ((usableQuantity <$>) . getConstInfo)) $ do
-      s <- render <$> prettyTCM q
-      typeError $ NotImplemented $
-        "Higher inductive types with non-erased higher constructors ("
-        ++ s ++ ")"
 
 constructorCoverageCode :: QName -> Int -> [QName] -> HaskellType -> [HaskellCode] -> HsCompileM [HS.Decl]
 constructorCoverageCode q np cs hsTy hsCons = do
@@ -1220,23 +1210,32 @@ writeModule (HS.Module m ps imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
   out <- snd <$> outFileAndDir m
   strict <- optGhcStrict <$> askGhcOpts
+  let p = HS.LanguagePragma $ List.map HS.Ident $
+            [ "BangPatterns"
+            , "EmptyDataDecls"
+            , "EmptyCase"
+            , "ExistentialQuantification"
+            , "ScopedTypeVariables"
+            , "NoMonomorphismRestriction"
+            , "RankNTypes"
+            , "PatternSynonyms"
+            , "OverloadedStrings"
+            ] ++
+            -- If --ghc-strict is used, then the language extension
+            -- QualifiedDo is activated. At the time of writing no
+            -- code is generated that depends on this extension
+            -- (except for the pragmas), but --ghc-strict is broken
+            -- with at least some versions of GHC prior to version 9,
+            -- and QualifiedDo was introduced with GHC 9.
+            if strict
+            then ["QualifiedDo"]
+            else []
   liftIO $ UTF8.writeFile out $ (++ "\n") $ prettyPrint $
     -- TODO: It might make sense to skip bang patterns for the unused
     -- arguments of the "non-stripped" functions.
     (if strict then makeStrict else id) $
     HS.Module m (p : ps) imp ds
   where
-  p = HS.LanguagePragma $ List.map HS.Ident $
-        [ "BangPatterns"
-        , "EmptyDataDecls"
-        , "EmptyCase"
-        , "ExistentialQuantification"
-        , "ScopedTypeVariables"
-        , "NoMonomorphismRestriction"
-        , "RankNTypes"
-        , "PatternSynonyms"
-        , "OverloadedStrings"
-        ]
 
 outFileAndDir :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
 outFileAndDir m = do

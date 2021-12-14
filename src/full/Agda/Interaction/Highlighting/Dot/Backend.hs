@@ -3,11 +3,7 @@ module Agda.Interaction.Highlighting.Dot.Backend
   ( dotBackend
   ) where
 
-import Agda.Interaction.Highlighting.Dot.Base
-  ( dottify
-  , renderDotToFile
-  , Env(Env, deConnections, deLabel)
-  )
+import Agda.Interaction.Highlighting.Dot.Base (renderDotToFile)
 
 import Control.Monad.Except
   ( MonadIO
@@ -18,8 +14,10 @@ import Control.Monad.Except
 
 import Control.DeepSeq
 
-import Data.Map ( Map )
-import Data.Set ( Set )
+import Data.HashSet (HashSet)
+import Data.Map (Map)
+import Data.Set (Set)
+import qualified Data.HashSet as HashSet
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
@@ -30,27 +28,38 @@ import GHC.Generics (Generic)
 import Agda.Compiler.Backend (Backend(..), Backend'(..), Definition, Recompile(..))
 import Agda.Compiler.Common (curIF, IsMain)
 
+import Agda.Interaction.FindFile (findFile, srcFilePath)
+import Agda.Interaction.Library
 import Agda.Interaction.Options
   ( ArgDescr(ReqArg)
   , Flag
   , OptDescr(..)
   )
 
-import Agda.Syntax.Abstract ( ModuleName )
+import Agda.Syntax.Abstract (ModuleName, toTopLevelModuleName)
 
 import Agda.TypeChecking.Monad
   ( Interface(iImportedModules, iModuleName)
   , MonadTCError
   , ReadTCState
+  , MonadTCM(..)
   , genericError
+  , reportSDoc
+  , getAgdaLibFiles
   )
+import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional
+  (Graph, WithUniqueInt)
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.Pretty ( prettyShow )
 
 -- ------------------------------------------------------------------------
 
 data DotFlags = DotFlags
   { dotFlagDestination :: Maybe FilePath
+  , dotFlagLibraries   :: Maybe (HashSet String)
+    -- ^ Only include modules from the given libraries.
   } deriving (Eq, Generic)
 
 instance NFData DotFlags
@@ -58,27 +67,43 @@ instance NFData DotFlags
 defaultDotFlags :: DotFlags
 defaultDotFlags = DotFlags
   { dotFlagDestination = Nothing
+  , dotFlagLibraries   = Nothing
   }
 
 dotFlagsDescriptions :: [OptDescr (Flag DotFlags)]
 dotFlagsDescriptions =
   [ Option [] ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
               "generate a Dot file with a module dependency graph"
+  , Option [] ["dependency-graph-include"]
+      (ReqArg includeFlag "LIBRARY")
+      "include modules from the given library (default: all modules)"
   ]
 
 dependencyGraphFlag :: FilePath -> Flag DotFlags
 dependencyGraphFlag f o = return $ o { dotFlagDestination = Just f }
 
+includeFlag :: String -> Flag DotFlags
+includeFlag l o = return $
+  o { dotFlagLibraries =
+        case dotFlagLibraries o of
+          Nothing -> Just (HashSet.singleton l)
+          Just s  -> Just (HashSet.insert l s)
+    }
+
 data DotCompileEnv = DotCompileEnv
-  { _dotCompileEnvDestination :: FilePath
+  { dotCompileEnvDestination :: FilePath
+  , dotCompileEnvLibraries   :: Maybe (HashSet String)
+    -- ^ Only include modules from the given libraries.
   }
 
 -- Currently unused
 data DotModuleEnv = DotModuleEnv
 
 data DotModule = DotModule
-  { _dotModuleName :: ModuleName
+  { dotModuleName          :: ModuleName
   , dotModuleImportedNames :: Set ModuleName
+  , dotModuleInclude       :: Bool
+    -- ^ Include the module in the graph?
   }
 
 -- | Currently unused
@@ -111,8 +136,13 @@ preCompileDot
   :: MonadError String m
   => DotFlags
   -> m DotCompileEnv
-preCompileDot (DotFlags (Just dest)) = return $ DotCompileEnv dest
-preCompileDot (DotFlags Nothing)     = throwError "The Dot backend was invoked without being enabled!"
+preCompileDot d = case dotFlagDestination d of
+  Just dest -> return $ DotCompileEnv
+    { dotCompileEnvDestination = dest
+    , dotCompileEnvLibraries   = dotFlagLibraries d
+    }
+  Nothing ->
+    throwError "The Dot backend was invoked without being enabled!"
 
 preModuleDot
   :: Applicative m
@@ -133,17 +163,50 @@ compileDefDot
 compileDefDot _cenv _menv _main _def = pure DotDef
 
 postModuleDot
-  :: (MonadIO m, ReadTCState m)
+  :: (MonadTCM m, ReadTCState m)
   => DotCompileEnv
   -> DotModuleEnv
   -> IsMain
   -> ModuleName
   -> [DotDef]
   -> m DotModule
-postModuleDot _cenv DotModuleEnv _main moduleName _defs = do
+postModuleDot cenv DotModuleEnv _main moduleName _defs = do
   i <- curIF
   let importedModuleNames = Set.fromList $ fst <$> (iImportedModules i)
-  return $ DotModule moduleName importedModuleNames
+  include <- case dotCompileEnvLibraries cenv of
+    Nothing -> return True
+    Just ls -> liftTCM $ do
+      let m = toTopLevelModuleName moduleName
+      f    <- findFile m
+      libs <- getAgdaLibFiles (srcFilePath f) m
+
+      let incLibs = filter (\l -> _libName l `HashSet.member` ls) libs
+          inLib   = not (null incLibs)
+
+      reportSDoc "dot.include" 10 $ do
+        let name = pretty moduleName
+            list = nest 2 . vcat . map (text . _libName)
+        if inLib then
+          fsep
+            ([ "Including"
+             , name
+             ] ++
+             pwords "because it is in the following libraries:") $$
+          list incLibs
+        else
+          fsep
+            (pwords "Not including" ++
+             [name <> ","] ++
+             pwords "which is in the following libraries:") $$
+          list libs
+
+      return inLib
+
+  return $ DotModule
+    { dotModuleName          = moduleName
+    , dotModuleImportedNames = importedModuleNames
+    , dotModuleInclude       = include
+    }
 
 postCompileDot
   :: (MonadIO m, ReadTCState m)
@@ -151,10 +214,33 @@ postCompileDot
   -> IsMain
   -> Map ModuleName DotModule
   -> m ()
-postCompileDot (DotCompileEnv fp) _main modulesByName = do
-  let env = Env
-        { deConnections = (maybe [] (Set.toList . dotModuleImportedNames) . (flip Map.lookup modulesByName))
-        , deLabel       = L.pack . prettyShow
-        }
-  dot <- dottify env . iModuleName <$> curIF
-  renderDotToFile dot fp
+postCompileDot cenv _main modulesByName =
+  renderDotToFile moduleGraph (dotCompileEnvDestination cenv)
+  where
+  modulesToInclude :: Set ModuleName
+  modulesToInclude =
+    Map.keysSet $ Map.filter dotModuleInclude modulesByName
+
+  moduleGraph :: Graph (WithUniqueInt L.Text) ()
+  moduleGraph =
+    Graph.renameNodesMonotonic (fmap (L.pack . prettyShow)) $
+    Graph.transitiveReduction $
+    Graph.filterNodesKeepingEdges
+      (\n -> Graph.otherValue n `Set.member` modulesToInclude) $
+    -- The following use of transitive reduction should not affect the
+    -- semantics. It tends to make the graph smaller, so it might
+    -- improve the overall performance of the code, but I did not
+    -- verify this.
+    Graph.transitiveReduction $
+    Graph.addUniqueInts $
+    Graph.fromEdges $
+    concat $
+    map (\(name, m) ->
+          [ Graph.Edge
+              { source = name
+              , target = target
+              , label  = ()
+              }
+          | target <- Set.toList $ dotModuleImportedNames m
+          ]) $
+    Map.toList modulesByName

@@ -838,7 +838,7 @@ type SourceToModule = Map AbsolutePath TopLevelModuleName
 
 sourceToModule :: TCM SourceToModule
 sourceToModule =
-  Map.fromList
+  Map.fromListWith __IMPOSSIBLE__
      .  List.map (\(m, f) -> (f, m))
      .  Map.toList
     <$> useTC stModuleToSource
@@ -2209,8 +2209,8 @@ instance Pretty Defn where
     "Constructor {" <?> vcat
       [ "conPars   =" <?> pshow conPars
       , "conArity  =" <?> pshow conArity
-      , "conSrcCon =" <?> pshow conSrcCon
-      , "conData   =" <?> pshow conData
+      , "conSrcCon =" <?> pretty conSrcCon
+      , "conData   =" <?> pretty conData
       , "conAbstr  =" <?> pshow conAbstr
       , "conInd    =" <?> pshow conInd
       , "conErased =" <?> pshow conErased ] <?> "}"
@@ -2238,7 +2238,7 @@ instance Pretty Projection where
 
 instance Pretty c => Pretty (FunctionInverse' c) where
   pretty NotInjective = "NotInjective"
-  pretty (Inverse inv) = "Inverse" <?>
+  pretty (Inverse w inv) = "Inverse" <+> text (show w) <?>
     vcat [ pretty h <+> "->" <?> pretty cs
          | (h, cs) <- Map.toList inv ]
 
@@ -2529,9 +2529,11 @@ defForced d = case theDef d of
 type FunctionInverse = FunctionInverse' Clause
 type InversionMap c = Map TermHead [c]
 
+data WhenInjective = AlwaysInjective | UnlessCubical deriving (Data,Show,Generic)
+
 data FunctionInverse' c
   = NotInjective
-  | Inverse (InversionMap c)
+  | Inverse WhenInjective (InversionMap c)
   deriving (Data, Show, Functor, Generic)
 
 data TermHead = SortHead
@@ -4594,7 +4596,7 @@ instance KillRange MutualId where
 
 instance KillRange c => KillRange (FunctionInverse' c) where
   killRange NotInjective = NotInjective
-  killRange (Inverse m)  = Inverse $ killRangeMap m
+  killRange (Inverse w m)  = Inverse w $ killRangeMap m
 
 instance KillRange TermHead where
   killRange SortHead     = SortHead
@@ -4717,6 +4719,7 @@ instance NFData Simplification
 instance NFData AllowedReduction
 instance NFData ReduceDefs
 instance NFData PrimFun
+instance NFData WhenInjective
 instance NFData c => NFData (FunctionInverse' c)
 instance NFData TermHead
 instance NFData Call

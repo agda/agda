@@ -255,7 +255,7 @@ casetree cc = do
       -- re #3733 TODO: revise when compiling --cubical
       conBrs <- fmap Map.fromList $ filterM (isConstructor . fst) (Map.toList conBrs)
                     -- We can treat eta-matches as regular matches here.
-      let conBrs' = Map.union conBrs $ Map.fromList $ map (first conName) $ maybeToList etaBr
+      let conBrs' = caseMaybe etaBr conBrs $ \ (c, br) -> Map.insertWith (\ new old -> old) (conName c) br conBrs
       if Map.null conBrs' && Map.null litBrs then do
         -- there are no branches, just return default
         updateCatchAll catchAll fromCatchAll

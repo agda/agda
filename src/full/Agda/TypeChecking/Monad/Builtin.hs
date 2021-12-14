@@ -496,6 +496,9 @@ getPrimitiveName' n = fmap primFunName <$> getPrimitive' n
 isPrimitive :: HasBuiltins m => String -> QName -> m Bool
 isPrimitive n q = (Just q ==) <$> getPrimitiveName' n
 
+intervalSort :: Sort
+intervalSort = IntervalUniv
+
 intervalView' :: HasBuiltins m => m (Term -> IntervalView)
 intervalView' = do
   iz <- getBuiltinName' builtinIZero

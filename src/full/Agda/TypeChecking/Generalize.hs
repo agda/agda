@@ -265,7 +265,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- generalizing over, since they will need to be pruned appropriately (see
   -- Issue 3672).
   allSortedMetas <- fromMaybeM (typeError GeneralizeCyclicDependency) $
-    dependencySortMetas (generalizeOver ++ reallyDontGeneralize)
+    dependencySortMetas (generalizeOver ++ reallyDontGeneralize ++ map fst openSortMetas)
   let sortedMetas = filter shouldGeneralize allSortedMetas
 
   let dropCxt err = updateContext (strengthenS err 1) (drop 1)
@@ -317,9 +317,9 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Now we need to prune the unsolved metas to make sure they respect the new
   -- dependencies (#3672). Also update interaction points to point to pruned metas.
   let inscope (ii, InteractionPoint{ipMeta = Just x})
-        | IntSet.member (metaId x) allmetas = [(x, ii)]
-      inscope _ = []
-  ips <- Map.fromList . concatMap inscope . BiMap.toList <$> useTC stInteractionPoints
+        | IntSet.member (metaId x) allmetas = Just (x, ii)
+      inscope _ = Nothing
+  ips <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
   pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize allSortedMetas
 
   -- Fill in the missing details of the telescope record.
@@ -685,9 +685,9 @@ buildGeneralizeTel con xs = go 0 xs
 createGenValues :: Set QName -> TCM (Map MetaId QName, Map QName GeneralizedValue)
 createGenValues s = do
   genvals <- locallyTC eGeneralizeMetas (const YesGeneralizeVar) $
-               forM (sortBy (compare `on` getRange) $ Set.toList s) createGenValue
-  let metaMap = Map.fromList [ (m, x) | (x, m, _) <- genvals ]
-      nameMap = Map.fromList [ (x, v) | (x, _, v) <- genvals ]
+               mapM createGenValue $ sortBy (compare `on` getRange) $ Set.toList s
+  let metaMap = Map.fromListWith __IMPOSSIBLE__ [ (m, x) | (x, m, _) <- genvals ]
+      nameMap = Map.fromListWith __IMPOSSIBLE__ [ (x, v) | (x, _, v) <- genvals ]
   return (metaMap, nameMap)
 
 -- | Create a generalisable meta for a generalisable variable.

@@ -9,7 +9,7 @@ open import Erased-cubical.Erased public
 -- Code defined using --erased-cubical can be imported and used by
 -- regular Cubical Agda code.
 
-_ : {A : Set} → A → ∥ A ∥
+_ : {A : Set} → A → ∥ A ∥ᴱ
 _ = ∣_∣
 
 -- The constructor trivialᶜ is defined in a module that uses --cubical

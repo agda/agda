@@ -444,8 +444,8 @@ type RecordDirectives = RecordDirectives' (Name, IsInstance)
 
 data Declaration
   = TypeSig ArgInfo TacticAttribute Name Expr
+      -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
   | FieldSig IsInstance TacticAttribute Name (Arg Expr)
-  -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
   | Generalize Range [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field Range [FieldSignature]
   | FunClause LHS RHS WhereClause Bool

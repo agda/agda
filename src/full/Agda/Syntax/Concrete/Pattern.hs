@@ -377,7 +377,7 @@ splitEllipsis k (p:ps)
 --  Pattern needs to be parsed already (operators resolved).
 patternAppView :: Pattern -> List1 (NamedArg Pattern)
 patternAppView = \case
-    AppP p arg      -> patternAppView p `List1.append` [arg]
+    AppP p arg      -> patternAppView p `List1.appendList` [arg]
     OpAppP _ x _ ps -> defaultNamedArg (IdentP x) :| ps
     ParenP _ p      -> patternAppView p
     RawAppP _ _     -> __IMPOSSIBLE__

@@ -67,12 +67,14 @@ import Agda.Utils.FileName (canonicalizeAbsolutePath)
 import Agda.Utils.Hash
 import Agda.Utils.IORef
 
+import Agda.Utils.Impossible
+
 -- Note that the Binary instance for Int writes 64 bits, but throws
 -- away the 32 high bits when reading (at the time of writing, on
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20210803 * 10 + 0
+currentInterfaceVersion = 20211026 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -121,9 +123,9 @@ encode a = do
       statistics "A.QName"     qnameC
       statistics "A.Name"      nameC
     when collectStats $ do
-      stats <- Map.fromList . map (second toInteger) <$> do
+      stats <- Map.fromListWith __IMPOSSIBLE__ . map (second toInteger) <$> do
         liftIO $ H.toList stats
-      modifyStatistics $ Map.union stats
+      modifyStatistics $ Map.unionWith (+) stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
       return $!! B.encode (root, nL, ltL, stL, bL, iL, dL)

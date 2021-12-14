@@ -254,6 +254,7 @@ instance Match Type NLPat Term where
         prettyTerm = withShowAllArguments $ addContext k $ prettyTCM v
         prettyType = withShowAllArguments $ addContext k $ prettyTCM t
     etaRecord <- addContext k $ isEtaRecordType t
+    pview <- pathViewAsPi'whnf
     prop <- fromRight __IMPOSSIBLE__ <.> runBlocked . addContext k $ isPropM t
     let r = if prop then Irrelevant else r0
     traceSDoc "rewriting.match" 30 (sep
@@ -343,6 +344,10 @@ instance Match Type NLPat Term where
         Pi a b -> do
           let body = raise 1 v `apply` [Arg i (var 0)]
               k'   = ExtendTel a (Abs (absName b) k)
+          match r gamma k' (absBody b) (absBody p') body
+        _ | Left ((a,b),(x,y)) <- pview t -> do
+          let body = raise 1 v `applyE` [ IApply (raise 1 x) (raise 1 y) $ var 0 ]
+              k'   = ExtendTel a (Abs "i" k)
           match r gamma k' (absBody b) (absBody p') body
         v -> maybeBlock v
       PPi pa pb -> case v of

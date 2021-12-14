@@ -1,0 +1,165 @@
+name: Build (stack)
+
+on:
+  push:
+    branches:
+    - master
+    - ci-*
+    - release*
+    paths: &trigger_path_list
+    - '.github/workflows/stack.yml'
+    - 'Agda.cabal'
+    - 'Setup.hs'
+    - 'stack*.yaml'
+    - 'src/agda-mode/**'
+    - 'src/full/**'
+    - 'src/main/**'
+    - 'src/size-solver/**'
+    - 'test/**.hs'
+  pull_request:
+    paths: *trigger_path_list
+
+jobs:
+  auto-cancel:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
+    runs-on: Ubuntu-latest # Required, but it can be anything here.
+
+    steps:
+    - uses: styfle/cancel-workflow-action@0.6.0
+      with:
+        access_token: ${{ github.token }}
+
+  stack:
+    needs: auto-cancel
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04]
+        stack-ver: [latest]
+        ghc-ver: [9.2.1, 9.0.1, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        include:
+          - os: macos-latest
+            ghc-ver: 9.2.1
+            stack-ver: latest
+          - os: windows-latest
+            ghc-ver: 9.0.1
+            stack-ver: latest
+    # Andreas, 2021-11-19, re #5649
+    # pause stack/Win/9.2 workflow until stack is ready for 9.2
+    #       - os: windows-latest
+    #         # TODO (Andreas, 2021-11-14)
+    #         # Upgrade to 9.2.1 once stack works fine with GHC 9.2 and Cabal 3.6 under Windows
+    #         # Also, unix-compat is a bit behind: https://github.com/jacobstanley/unix-compat/pull/47
+    #         ghc-ver: 9.2.1
+    #         stack-ver: latest
+    # # Try "allowed-failure" for Windows with GHC 9.2
+    # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
+    env:
+      ## ARGS is set later, depending on the actually picked GHC version
+      # ARGS: "--stack-yaml=stack-${{ matrix.ghc-ver }}.yaml --no-terminal"
+      EXTRA_ARGS: "--fast"
+      NON_DEFAULT_FLAGS: "--flag Agda:enable-cluster-counting --flag Agda:cpphs --flag Agda:debug"
+
+      # Liang-Ting Chen (2021-08-18):
+      # Let pacman choose the file name for ICU4C.
+      #
+      # # The following is used by Windows only
+      # ICU_FILE: "mingw-w64-x86_64-icu-68.2-3-any.pkg.tar.zst"
+      ICU: "mingw-w64-x86_64-icu"
+
+    # Need bash on Windows for piping and evaluation.
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - uses: haskell/actions/setup@v1
+      id: haskell-setup
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+        stack-version: ${{ matrix.stack-ver }}
+        enable-stack: true
+
+    - name: Environment settings based on the Haskell setup
+      run: |
+        echo "runner.os         = ${{ runner.os                               }}"
+        echo "OSTYPE            = ${{ env.OSTYPE                              }}"
+        echo "ghc-path          = ${{ steps.haskell-setup.outputs.ghc-path    }}"
+        echo "ghc-exe           = ${{ steps.haskell-setup.outputs.ghc-exe     }}"
+        echo "cabal-path        = ${{ steps.haskell-setup.outputs.cabal-path  }}"
+        echo "cabal-exe         = ${{ steps.haskell-setup.outputs.cabal-exe   }}"
+        echo "cabal-store       = ${{ steps.haskell-setup.outputs.cabal-store }}"
+        echo "stack-path        = ${{ steps.haskell-setup.outputs.stack-path  }}"
+        echo "stack-exe         = ${{ steps.haskell-setup.outputs.stack-exe   }}"
+        echo "stack-root        = ${{ steps.haskell-setup.outputs.stack-root  }}"
+        echo "STACK_ROOT (orig) = ${{ env.STACK_ROOT                          }}"
+        echo "STACK_ROOT=${{ steps.haskell-setup.outputs.stack-root }}" >> ${GITHUB_ENV}
+        echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
+        export GHC_VER=$(ghc --numeric-version)
+        echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --no-terminal"    >> ${GITHUB_ENV}
+    # From now on, use env.GHC_VER rather than matrix.ghc-ver
+
+    # In a second step we can inspect and use the GITHUB_ENV set in the previous step:
+    - name: Environment (review)
+      run: |
+        echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
+        echo "STACK_VER         = ${STACK_VER}"
+        echo "GHC_VER           = ${GHC_VER}"
+
+    - name: Update and configure stack package index
+      ## Using ${{ steps.haskell-setup.outputs.stack-root }} fails because of \-mangling
+      # echo "system-ghc: true" >> ${{ steps.haskell-setup.outputs.stack-root }}/config.yaml
+      run: |
+        stack update --silent
+        echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
+        stack build ${ARGS} --dry-run
+
+    - uses: actions/cache@v2
+      name: Cache dependencies
+      id: cache
+      with:
+        path: ${{ steps.haskell-setup.outputs.stack-root }}
+        # A unique cache is used for each stack.yaml.
+        # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
+        key: |
+          ${{ runner.os }}-stack-01-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
+
+    - name: Install the icu library (Ubuntu)
+      if: ${{ runner.os == 'Linux' }}
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install libicu-dev -qq
+
+    - name: Install the icu library (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      run: |
+        # stack exec ${ARGS} -- wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
+        # stack exec ${ARGS} -- pacman -U --noconfirm ${ICU_FILE}
+        stack exec ${ARGS} -- pacman -S --noconfirm ${ICU}
+
+    - name: Install the numa library (Ubuntu, GHC 8.4.4)
+      if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
+      run: |
+        sudo apt-get install libnuma-dev -qq
+
+    - name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
+      if: ${{ !steps.cache.outputs.cache-hit }}
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
+
+    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests` (i.e. the test suite).
+      run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
+
+    - name: Build Agda with the non-default flags Agda.cabal.
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}

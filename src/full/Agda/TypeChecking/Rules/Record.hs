@@ -239,7 +239,9 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
         -- Add record constructor to signature
         addConstant' conName defaultArgInfo conName
-            (telh `abstract` contype) $
+             -- The parameters are erased in the constructor's type.
+            (fmap (applyQuantity zeroQuantity) telh
+             `abstract` contype) $
             Constructor
               { conPars   = npars
               , conArity  = size fs
@@ -329,17 +331,24 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- Andreas, 2016-02-09, Issue 1815 (see also issue 1759).
       -- For checking the record declarations, hide the record parameters
       -- and the parameters of the parent modules.
-      modifyContextInfo hideOrKeepInstance $ addRecordVar $ do
+      modifyContextInfo hideOrKeepInstance $ do
+        -- The parameters are erased in the types of the projections.
+        params <- fmap (applyQuantity zeroQuantity) <$> getContext
 
         -- Check the types of the fields and the other record declarations.
-        withCurrentModule m $ do
+        addRecordVar $ withCurrentModule m $ do
 
           -- Andreas, 2013-09-13, 2016-01-06.
           -- Argument telescope for the projections: all parameters are hidden.
           -- This means parameters of the parent modules and of the current
           -- record type.
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
-          tel' <- getContextTelescope
+          tel' <- do
+            ctxt <- getContext
+            case ctxt of
+              []    -> __IMPOSSIBLE__
+              r : _ -> return $
+                telFromList' nameToArgName $ reverse $ r : params
           setModuleCheckpoint m
           checkRecordProjections m name hasNamedCon con tel' ftel fields
 
@@ -535,7 +544,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
 
     [@con@  ]  name of the record constructor
 
-    [@tel@  ]  parameters and record variable r ("self")
+    [@tel@  ]  parameters (erased) and record variable r ("self")
 
     [@ftel@ ]  telescope of fields
 

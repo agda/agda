@@ -58,6 +58,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -67,6 +68,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Warnings
+
+import Agda.Interaction.Options
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
@@ -104,14 +107,16 @@ headSymbol v = do -- ignoreAbstractMode $ do
             fs <- mutualNames <$> lookupMutualBlock mb
             if Set.member f fs then no else yes
         Function{}    -> no
-        Primitive{primName} | primName == builtinHComp -> yes -- TODO 3733: only if it's a HIT or indexed fam.
-                            | otherwise -> no
+        Primitive{}   -> no
         PrimitiveSort{} -> no
         GeneralizableVar{} -> __IMPOSSIBLE__
         Constructor{} -> __IMPOSSIBLE__
         AbstractDefn{}-> __IMPOSSIBLE__
     -- Andreas, 2019-07-10, issue #3900: canonicalName needs ignoreAbstractMode
-    Con c _ _ -> ignoreAbstractMode $ Just . ConsHead <$> canonicalName (conName c)
+    Con c _ _ -> ignoreAbstractMode $ do
+                 q <- canonicalName (conName c)
+                 ifM (isPathCons q) (return Nothing) $
+                     {- else -}     return $ Just $ ConsHead q
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
     Var i [] -> return (Just $ VarHead i) -- Only naked variables. Otherwise substituting a neutral term is not guaranteed to stay neutral.
@@ -190,7 +195,7 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
 
   -- We don't need to consider absurd clauses
   let computeHead c | hasDefP (namedClausePats c) = return []
-      -- re #3733 TODO: properly handle transpX/hcomp clauses above.
+      -- hasDefP clauses are skipped, these matter only for --cubical, in which case the function will behave as NotInjective.
       computeHead c@Clause{ clauseBody = Just body , clauseType = Just tbody } = do
         maybeIrr <- fromRight (const True) <.> runBlocked $ isIrrelevantOrPropM tbody
         h <- if maybeIrr then return UnknownHead else
@@ -214,8 +219,9 @@ checkInjectivity' f cs = fromMaybe NotInjective <.> runMaybeT $ do
       case uc of
         [c] -> prettyTCM $ map namedArg $ namedClausePats c
         _   -> "(multiple clauses)"
-
-  return $ Inverse hdMap
+  let cond | any (hasDefP . namedClausePats) cs = UnlessCubical
+           | otherwise                          = AlwaysInjective
+  return $ Inverse cond hdMap
 
 -- | If a clause is over-applied we can't trust the head (Issue 2944). For
 --   instance, the clause might be `f ps = u , v` and the actual call `f vs
@@ -275,9 +281,11 @@ functionInverse
 functionInverse = \case
   Def f es -> do
     inv <- defInverse <$> getConstInfo f
+    cubical <- optCubical <$> pragmaOptions
     case inv of
       NotInjective -> return NoInv
-      Inverse m    -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
+      Inverse UnlessCubical m | isJust cubical -> return NoInv
+      Inverse w m -> maybe NoInv (Inv f es) <$> (traverse (checkOverapplication es) =<< instantiateVarHeads f es m)
         -- NB: Invertible functions are never classified as
         --     projection-like, so this is fine, we are not
         --     missing parameters.  (Andreas, 2013-11-01)

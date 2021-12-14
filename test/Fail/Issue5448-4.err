@@ -1,0 +1,6 @@
+Issue5448-4.agda:8,1-19
+Agda.Primitive.Cubical.primTransp (λ i → P (x i)) φ
+(subst P refl
+ (Agda.Primitive.Cubical.primTransp (λ i → P x₁) φ
+  x₂)) is not usable at the required modality
+when checking the definition of subst

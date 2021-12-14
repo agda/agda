@@ -1,0 +1,216 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Build, Test, and Benchmark"]
+    branches: [master]
+    types:
+      - completed
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+jobs:
+  auto-cancel:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: Ubuntu-latest
+    steps:
+    - uses: styfle/cancel-workflow-action@0.6.0
+      with:
+        access_token: ${{ github.token }}
+  build:
+    if: ${{ always() }}
+    needs: auto-cancel
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-18.04]
+        ghc-ver: [9.2.1]
+        cabal-ver: [3.6]
+
+    env:
+      ARGS: "--disable-executable-profiling --disable-library-profiling --enable-split-sections"
+      # Liang-Ting Chen (2021-01-01):
+      # Cabal cannot compile statically with text-icu (required by the flag `enable-cluster-counting`),
+      # see https://github.com/4e6/text-icu-static-example
+      LINUX_ARGS: "--enable-executable-static"
+      MACOS_ARGS: "--flags=enable-cluster-counting"
+      WIN64_ARGS: "--flags=enable-cluster-counting"
+    outputs:
+      sha: ${{ steps.vars.outputs.sha }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Check out the master branch
+      uses: actions/checkout@v2
+    - name: Set up platform-dependent variables
+      id: vars
+      run: |
+        sha=`echo $(git rev-parse --short=7 HEAD)`
+        nightly=`echo Agda-nightly`
+
+        echo ::set-output name=sha::${sha}
+        echo ::set-output name=nightly::${nightly}
+
+        if [[ "$OSTYPE" == "msys"* ]]; then
+          echo "::set-output name=args::${ARGS} ${WIN64_ARGS}"
+          filename="${nightly}-win64.zip"
+          echo ::set-output name=exe::agda.exe
+          echo ::set-output name=filename::${filename}
+          echo ::set-output name=content-type::application/zip
+          echo "::set-output name=compress-cmd::7z a ${filename} ${nightly} -bb -mx=9"
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+          echo "::set-output name=args::${ARGS} ${MACOS_ARGS}"
+          filename="${nightly}-macOS.tar.xz"
+          echo ::set-output name=exe::agda
+          echo "::set-output name=filename::${filename}"
+          echo "::set-output name=content-type::application/x-xz"
+          echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
+        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+          echo "::set-output name=args::${ARGS} ${MACOS_ARGS}"
+          filename="${nightly}-linux.tar.xz"
+          echo ::set-output name=exe::agda
+          echo "::set-output name=filename::${filename}"
+          echo "::set-output name=content-type::application/x-xz"
+          echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
+          echo "::set-output name=args::${ARGS} ${LINUX_ARGS}"
+        fi
+    - name: Display build variables
+      run: |
+        echo nightly=${{ steps.vars.outputs.nightly }}
+        echo compress-cmd=${{ steps.vars.outputs.compress-cmd }}
+        echo filename=${{ steps.vars.outputs.filename }}
+        echo content-type=${{ steps.vars.outputs.content-type }}
+        echo args=${{ steps.vars.outputs.args }}
+
+    - uses: haskell/actions/setup@v1
+      id: setup-haskell
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+        cabal-version: ${{ matrix.cabal-ver }}
+
+    - name: Install the icu4c library (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      env:
+        ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
+        ICU_DIR: '/c/icu4c'
+        ICU_FILE: 'icu4c.zip'
+      run: |
+        curl -sSLo ${ICU_FILE} ${ICU_URL}
+        7z e ${ICU_FILE} -o${ICU_DIR} && rm ${ICU_FILE}
+        mkdir -p ${ICU_DIR}/include/unicode && mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
+
+        echo "extra-lib-dirs: $(cygpath -w ${ICU_DIR})">> ${APPDATA}/cabal/config
+        echo "extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)" >> ${APPDATA}/cabal/config
+
+    - name: Configure the build plan
+      run: |
+        cabal configure ${{ steps.vars.outputs.args }}
+
+        #    - uses: actions/cache@v2
+        #      name: Cache dependencies
+        #      id: cache
+        #      with:
+        #        path: |
+        #          ${{ steps.setup-haskell.outputs.cabal-store }}
+        #        # A unique cache is used for each stack.yaml.
+        #        key: nightly-${{ runner.os }}-ghc-${{ matrix.ghc-ver }}-cabal-${{ hashFiles('**/plan.json') }}
+        #
+    - name: Build dependencies
+      if: ${{ !steps.cache.outputs.cache-hit }}
+      run: cabal build exe:agda exe:agda-mode --only-dependencies -v0
+
+    - name: Build Agda
+      uses: nick-invision/retry@v2
+      # Liang-Ting (2020-12-8):
+      # Due to a ghc bug on Windows, it is necessary to build Agda twice (or more)
+      # See:
+      #   - https://github.com/agda/agda/issues/4543
+      #   - https://gitlab.haskell.org/ghc/ghc/-/issues/18634
+      with:
+        max_attempts: 3
+        timeout_minutes: 60
+        retry_on: error
+        command: cabal build exe:agda exe:agda-mode
+
+    - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
+      # TODO: Move this part to Makefile
+      env:
+        ICU_VER: '69'
+        ICU_DIR: '/usr/local/opt/icu4c/lib'
+      run: |
+        mkdir -p ${{ steps.vars.outputs.nightly }}/bin
+        cp -a src/data ${{ steps.vars.outputs.nightly }}
+
+        if [[ "$OSTYPE" == "msys"* ]]; then
+          find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
+          cp -a .github/*.bat ${{ steps.vars.outputs.nightly }}
+          cp /c/icu4c/icu*.dll ${{ steps.vars.outputs.nightly }}/bin
+          C:/ProgramData/Chocolatey/bin/strip.exe ${{ steps.vars.outputs.nightly }}/bin/*
+        else
+          find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
+          strip ${{ steps.vars.outputs.nightly }}/bin/*
+          cp -a .github/*.sh ${{ steps.vars.outputs.nightly }}
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+          # Change the path to the dynamic library icu4c to the run-time search path:
+          #
+          # 1. the same directory of executable, i.e. @executable_path
+          # 2. @executable_path/../lib
+          # 3. the default location of system-wide icu4c installed by homebrew, ie. /usr/local/opt/icu4c/lib
+          #
+          mkdir ${{ steps.vars.outputs.nightly }}/lib
+          cp ${ICU_DIR}/libicuuc.${ICU_VER}.dylib ${ICU_DIR}/libicui18n.${ICU_VER}.dylib ${ICU_DIR}/libicudata.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/lib
+          install_name_tool -change ${ICU_DIR}/libicuuc.${ICU_VER}.dylib @rpath/libicuuc.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
+          install_name_tool -change ${ICU_DIR}/libicui18n.${ICU_VER}.dylib @rpath/libicui18n.${ICU_VER}.dylib ${{ steps.vars.outputs.nightly }}/bin/agda
+          install_name_tool -add_rpath @executable_path -add_rpath @executable_path/../lib -add_rpath ${ICU_DIR} ${{ steps.vars.outputs.nightly }}/bin/agda
+          otool -L ${{ steps.vars.outputs.nightly }}/bin/agda
+          fi
+        fi
+        file ${{ steps.vars.outputs.nightly }}/bin/agda
+    - name: Compress the Agda executable
+      # UPX does not support macOS Big Sur.
+      # Liang-Ting Chen (2020-01-04):
+      #   Executables compressed by UPX are not usable on macOS 11 (Big Sur),
+      #   see https://github.com/upx/upx/issues/424
+      if: ${{ runner.os != 'macOS' }}
+      uses: svenstaro/upx-action@v2
+      with:
+        file: ${{ steps.vars.outputs.nightly }}/bin/${{ steps.vars.outputs.exe }}
+        strip: false
+    - name: Display the version information
+      run: |
+        ${{ steps.vars.outputs.nightly }}/bin/agda --version
+    - name: Pack artefacts
+      run: |
+        ${{ steps.vars.outputs.compress-cmd }}
+    - uses: actions/upload-artifact@v2
+      with:
+        path: ${{ steps.vars.outputs.filename }}
+        name: ${{ steps.vars.outputs.filename }}
+        if-no-files-found: error
+        retention-days: 3
+  deploy: # release a nightly build if triggered on master }}
+    if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run' }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/download-artifact@v2
+      with:
+        path: artifacts
+    - name: Delete the nightly tag if any
+      uses: dev-drprasad/delete-tag-and-release@v0.1.2
+      with:
+        delete_release: true
+        tag_name: 'nightly'
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+    - name: Create a nightly release and upload artifacts as release assets
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        assets=()
+        for asset in artifacts/**/*; do
+          assets+=("-a" "$asset")
+        done
+        hub release create "${assets[@]}" -m "Nightly Build (${{ needs.build.outputs.sha }}@master)" 'nightly'

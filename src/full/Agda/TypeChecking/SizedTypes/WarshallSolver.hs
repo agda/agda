@@ -653,7 +653,8 @@ commonSuccs :: (Ord r, Ord f) =>
                Graph r f a -> [Node r f] -> Map (Node r f) [Edge' r f a]
 commonSuccs hg srcs = intersectAll $ map (buildmap . outgoing hg) srcs
   where
-   buildmap            = Map.fromList . map (\ e -> (dest e, [e]))
+   buildmap            = Map.fromListWith __IMPOSSIBLE__ . map (\ e -> (dest e, [e]))
+     -- __IMPOSSIBLE__ because it is not a multi-graph; there is at most one egde per (src,dest)
    intersectAll []     = Map.empty
    intersectAll (m:ms) = foldl (Map.intersectionWith (++)) m ms
 
@@ -665,7 +666,7 @@ commonSuccs hg srcs = intersectAll $ map (buildmap . outgoing hg) srcs
 commonPreds :: (Ord r, Ord f) => Graph r f a -> [Node r f] -> Map (Node r f) [Edge' r f a]
 commonPreds hg tgts = intersectAll $  map (buildmap . incoming hg) tgts
   where
-   buildmap = Map.fromList . map (\ e -> (src e, [e]))
+   buildmap = Map.fromListWith __IMPOSSIBLE__ . map (\ e -> (src e, [e]))
    intersectAll []     = Map.empty
    intersectAll (m:ms) = foldl (Map.intersectionWith (++)) m ms
 
@@ -868,7 +869,7 @@ solveGraph pols hg g = do
       xs = Set.toAscList $ Set.unions [ Map.keysSet lbs, Map.keysSet ubs, fs ]
   -- iterate over all flexible variables
   xas <- catMaybes <$> do
-    forM xs $ \ x -> do
+    forM xs $ \ x -> fmap (x,) <$> do
       -- get lower and upper bounds for flexible x
       let lx = Set.toList $ Map.findWithDefault Set.empty x lbs
           ux = Set.toList $ Map.findWithDefault Set.empty x ubs
@@ -892,16 +893,16 @@ solveGraph pols hg g = do
                      | Just l' <- findRigidBelow hg l -> return $ Just l'
               _ -> Left $ "inconsistent upper bound for " ++ prettyShow x
       case (lb, ub) of
-        (Just l, Nothing) -> return $ Just (x, l)  -- solve x = lower bound
-        (Nothing, Just u) -> return $ Just (x, u)  -- solve x = upper bound
+        (Just l, Nothing) -> return $ Just l  -- solve x = lower bound
+        (Nothing, Just u) -> return $ Just u  -- solve x = upper bound
         (Just l,  Just u) -> do
           traceM ("lower bound for " ++ prettyShow x ++ ": " ++ prettyShow l)
           traceM ("upper bound for " ++ prettyShow x ++ ": " ++ prettyShow u)
           case getPolarity pols x of
-            Least    -> return $ Just (x, l)
-            Greatest -> return $ Just (x, u)
+            Least    -> return $ Just l
+            Greatest -> return $ Just u
         _ -> return Nothing
-  return $ Solution $ Map.fromList xas
+  return $ Solution $ Map.fromDistinctAscList xas
 
 -- | Solve a forest of constraint graphs relative to a hypotheses graph.
 --   Concatenate individual solutions.

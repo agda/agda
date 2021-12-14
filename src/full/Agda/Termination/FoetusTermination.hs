@@ -33,6 +33,8 @@ import Agda.Termination.Matrix
 import Agda.Utils.QuickCheck
 import Agda.Utils.Tuple
 
+import Agda.Utils.Impossible
+
 -- | @'terminates' cs@ checks if the functions represented by @cs@
 -- terminate. The call graph @cs@ should have one entry ('Call') per
 -- recursive function application.
@@ -61,9 +63,9 @@ terminates cs | ok        = Right perms
   lexs = [ (i, lexOrder $ fromDiagonals rb)
          | (i, rb) <- recursionBehaviours cs ]
 
-  ok       = all (isRight . snd) lexs
-  perms    = Map.fromList [ (x, y)             | (x, Right y) <- lexs ]
-  problems = Map.fromList [ (x, Set.map snd y) | (x, Left  y) <- lexs ]
+  ok       = Map.null problems
+  perms    = Map.fromListWith __IMPOSSIBLE__ [ (x, y)             | (x, Right y) <- lexs ]
+  problems = Map.fromListWith __IMPOSSIBLE__ [ (x, Set.map snd y) | (x, Left  y) <- lexs ]
 
 -- | Completes the call graph and computes the corresponding recursion
 -- behaviours.
@@ -119,7 +121,7 @@ example1 = buildCallGraph [c1, c2, c3]
             , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]] }
 
 prop_terminates_example1 =
-  terminates example1 == Right (Map.fromList [(1, [1]), (2, [2, 1])])
+  terminates example1 == Right (Map.fromListWith __IMPOSSIBLE__ [(1, [1]), (2, [2, 1])])
 
 -- | An example which is not handled by this algorithm: argument
 -- swapping addition.
@@ -138,8 +140,8 @@ example2 = buildCallGraph [c]
 
 prop_terminates_example2 =
   terminates example2 ==
-  Left (Map.fromList [(1, ( Set.fromList [1, 2]
-                          , Set.fromList [Set.fromList [1]] ))])
+  Left (Map.singleton 1 ( Set.fromList [1, 2]
+                        , Set.fromList [Set.fromList [1]] ))
 
 -- | A related example which /is/ handled: argument swapping addition
 -- using two alternating functions.
@@ -162,7 +164,7 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
                                                         , [Lt, Unknown] ] }
 
 prop_terminates_example3 =
-  terminates example3 == Right (Map.fromList [(1, [1]), (2, [1])])
+  terminates example3 == Right (Map.fromListWith __IMPOSSIBLE__ [(1, [1]), (2, [1])])
 
 -- | A contrived example.
 --
@@ -192,8 +194,8 @@ example4 = buildCallGraph [c1, c2, c3]
 
 prop_terminates_example4 =
   terminates example4 ==
-  Left (Map.fromList [(1, ( Set.fromList [2]
-                          , Set.fromList [Set.fromList [1]] ))])
+  Left (Map.singleton 1 ( Set.fromList [2]
+                        , Set.fromList [Set.fromList [1]] ))
 
 -- | This should terminate.
 --
@@ -220,7 +222,7 @@ example5 = buildCallGraph [c1, c2, c3, c4]
                                                      , [Unknown, Le] ] }
 
 prop_terminates_example5 =
-  terminates example5 == Right (Map.fromList [(1, [2, 1]), (2, [2, 1])])
+  terminates example5 == Right (Map.fromListWith __IMPOSSIBLE__ [(1, [2, 1]), (2, [2, 1])])
 
 -- | Another example which should fail.
 --
@@ -244,8 +246,8 @@ example6 = buildCallGraph [c1, c2, c3]
 
 prop_terminates_example6 =
   terminates example6 ==
-  Left (Map.fromList [(1, ( Set.fromList []
-                          , Set.fromList [Set.fromList [2, 3]] ))])
+  Left (Map.singleton 1 ( Set.fromList []
+                        , Set.fromList [Set.fromList [2, 3]] ))
 
 ------------------------------------------------------------------------
 -- All tests

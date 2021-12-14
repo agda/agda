@@ -21,7 +21,6 @@ module Agda.Syntax.Parser.Literate
   )
   where
 
-import Prelude hiding (getLine)
 import Control.Monad ((<=<))
 import Data.Char (isSpace)
 import Data.List (isPrefixOf)
@@ -34,6 +33,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 
 import Agda.Utils.List
+import qualified Agda.Utils.List1 as List1
+
 import Agda.Utils.Impossible
 
 -- | Role of a character in the file.
@@ -130,10 +131,7 @@ illiterate xs = concat
 -- | Replaces non-space characters in a string with spaces.
 
 bleach :: String -> String
-bleach s = map go s
-  where
-  go c | isSpace c = c
-  go _             = ' '
+bleach = map $ \ c -> if isSpace c && c /= '\t' then c else ' '
 
 -- | Check if a character is a blank character.
 
@@ -146,22 +144,15 @@ isBlank = (&&) <$> isSpace <*> (/= '\n')
 literateExtsShortList :: [String]
 literateExtsShortList = [".lagda"]
 
--- | Breaks a list just /after/ an element satisfying the predicate is
---   found.
---
---   >>> break1 even [1,3,5,2,4,7,8]
---   ([1,3,5,2],[4,7,8])
-
-break1 :: (a -> Bool) -> [a] -> ([a],[a])
-break1 _ []           =  ([], [])
-break1 p (x:xs) | p x = (x:[],xs)
-break1 p (x:xs)       = let (ys,zs) = break1 p xs in (x:ys,zs)
-
 -- | Returns a tuple consisting of the first line of the input, and the rest
 --   of the input.
 
-getLine :: String -> (String, String)
-getLine = break1 (== '\n')
+caseLine :: a -> (String -> String -> a) -> String -> a
+caseLine a k = \case
+  []   -> a
+  x:xs -> k (List1.toList line) rest
+    where
+    (line, rest) = breakAfter1 (== '\n') x xs
 
 -- | Canonical decomposition of an empty literate file.
 
@@ -183,22 +174,18 @@ literateTeX :: Position -> String -> [Layer]
 literateTeX pos s = mkLayers pos (tex s)
   where
   tex :: String -> [(LayerRole, String)]
-  tex [] = []
-  tex s  =
-    let (line, rest) = getLine s in
+  tex = caseLine [] $ \ line rest ->
     case r_begin `matchM` line of
       Just (getAllTextSubmatches -> [_, pre, _, markup, whitespace]) ->
         (Comment, pre) : (Markup, markup) :
         (Code, whitespace) : code rest
       Just _  -> __IMPOSSIBLE__
-      Nothing -> (Comment, line):tex rest
+      Nothing -> (Comment, line) : tex rest
 
   r_begin = rex "(([^\\%]|\\\\.)*)(\\\\begin\\{code\\}[^\n]*)(\n)?"
 
   code :: String -> [(LayerRole, String)]
-  code [] = []
-  code s  =
-    let (line, rest) = getLine s in
+  code = caseLine [] $ \ line rest ->
     case r_end `matchM` line of
       Just (getAllTextSubmatches -> [_, code, markup, post]) ->
         (Code, code) : (Markup, markup) : (Comment, post) : tex rest
@@ -210,12 +197,10 @@ literateTeX pos s = mkLayers pos (tex s)
 -- | Preprocessor for Markdown.
 
 literateMd :: Position -> String -> [Layer]
-literateMd pos s = mkLayers pos$ md s
+literateMd pos s = mkLayers pos $ md s
   where
   md :: String -> [(LayerRole, String)]
-  md [] = []
-  md s  =
-    let (line, rest) = getLine s in
+  md = caseLine [] $ \ line rest ->
     case md_begin `matchM` line of
       Just (getAllTextSubmatches -> [_, pre, markup, _]) ->
         (Comment, pre) : (Markup, markup) : code rest
@@ -230,9 +215,7 @@ literateMd pos s = mkLayers pos$ md s
   md_begin_other = rex "[[:space:]]*```[a-zA-Z0-9-]*[[:space:]]*"
 
   code :: String -> [(LayerRole, String)]
-  code [] = []
-  code s  =
-    let (line, rest) = getLine s in
+  code = caseLine [] $ \ line rest ->
     case md_end `matchM` line of
       Just (getAllTextSubmatches -> [_, markup]) ->
         (Markup, markup) : md rest
@@ -241,9 +224,7 @@ literateMd pos s = mkLayers pos$ md s
 
   -- A non-Agda code block.
   code_other :: String -> [(LayerRole, String)]
-  code_other [] = []
-  code_other s  =
-    let (line, rest) = getLine s in
+  code_other = caseLine [] $ \ line rest ->
     (Comment, line) :
     if md_end `match` line
     then md rest
@@ -254,13 +235,12 @@ literateMd pos s = mkLayers pos$ md s
 -- | Preprocessor for reStructuredText.
 
 literateRsT :: Position -> String -> [Layer]
-literateRsT pos s = mkLayers pos$ rst s
+literateRsT pos s = mkLayers pos $ rst s
   where
   rst :: String -> [(LayerRole, String)]
-  rst [] = []
-  rst s  = maybe_code s
+  rst = caseLine [] maybe_code
 
-  maybe_code s =
+  maybe_code line rest =
     if r_comment `match` line then
       not_code
     else case r_code `match` line of
@@ -273,30 +253,25 @@ literateRsT pos s = mkLayers pos$ rst s
           (Comment, before ++ ":") : (Markup, ":" ++ after) : code rest
       _ -> __IMPOSSIBLE__
     where
-    (line, rest) = getLine s
     not_code     = (Comment, line) : rst rest
 
   -- Finds the next indented block in the input.
   code :: String -> [(LayerRole, String)]
-  code [] = []
-  code s  =
-    let (line, rest) = getLine s in
+  code = caseLine [] $ \ line rest ->
     if all isSpace line then
       (Markup, line) : code rest
     else
       let xs = takeWhile isBlank line in
       if null xs
-      then maybe_code s
+      then maybe_code line rest
       else (Code, line) : indented xs rest
 
   -- Process an indented block.
   indented :: String -> String -> [(LayerRole, String)]
-  indented _ [] = []
-  indented ind s =
-    let (line, rest) = getLine s
-    in  if all isSpace line || (ind `isPrefixOf` line)
+  indented ind = caseLine [] $ \ line rest ->
+    if all isSpace line || (ind `isPrefixOf` line)
           then (Code, line) : indented ind rest
-          else maybe_code s
+          else maybe_code line rest
 
   -- Beginning of a code block.
   r_code = rex "(.*)(::)([[:space:]]*)"
@@ -307,12 +282,10 @@ literateRsT pos s = mkLayers pos$ rst s
 -- | Preprocessor for Org mode documents.
 
 literateOrg :: Position -> String -> [Layer]
-literateOrg pos s = mkLayers pos$ org s
+literateOrg pos s = mkLayers pos $ org s
   where
   org :: String -> [(LayerRole, String)]
-  org [] = []
-  org s  =
-    let (line, rest) = getLine s in
+  org = caseLine [] $ \ line rest ->
     if org_begin `match` line then
       (Markup, line) : code rest
     else
@@ -324,9 +297,7 @@ literateOrg pos s = mkLayers pos$ org s
   org_begin = rex' "\\`(.*)([[:space:]]*\\#\\+begin_src agda2[[:space:]]+)"
 
   code :: String -> [(LayerRole, String)]
-  code [] = []
-  code s  =
-    let (line, rest) = getLine s in
+  code = caseLine [] $ \ line rest ->
     if org_end `match` line then
       (Markup, line) : org rest
     else

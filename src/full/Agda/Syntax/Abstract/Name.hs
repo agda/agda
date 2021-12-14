@@ -239,7 +239,7 @@ qualifyM :: ModuleName -> ModuleName -> ModuleName
 qualifyM m1 m2 = mnameFromList $ mnameToList m1 ++ mnameToList m2
 
 qualifyQ :: ModuleName -> QName -> QName
-qualifyQ m x = qnameFromList $ mnameToList m `List1.prepend` qnameToList x
+qualifyQ m x = qnameFromList $ mnameToList m `List1.prependList` qnameToList x
 
 qualify :: ModuleName -> Name -> QName
 qualify = QName

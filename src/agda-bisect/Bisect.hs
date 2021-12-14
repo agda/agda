@@ -1,3 +1,5 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 import Control.Exception
 import Control.Monad
 import Data.Char
@@ -64,7 +66,10 @@ data Options = Options
   , mustFinishWithin          :: Maybe Int
   , extraArguments            :: Bool
   , patchFile                 :: Maybe FilePath
-  , compiler                  :: Maybe String
+  , compiler                  :: Maybe FilePath
+      -- ^ Path to the Haskell compiler (passed to cabal).
+  , cabal                     :: FilePath
+      -- ^ Path to cabal.
   , defaultCabalOptions       :: Bool
   , cabalOptions              :: [String]
   , skipStrings               :: [String]
@@ -119,6 +124,7 @@ options =
      <*> optionNoExtraArguments
      <*> optionPatchFile
      <*> optionCompiler
+     <*> optionCabal
      <*> optionNoDefaultCabalOptions
      <*> optionCabalOptions
      <*> optionSkipSkipped
@@ -187,9 +193,20 @@ options =
   optionCompiler =
     optional $
       strOption $
+        short 'w' <>
+        long "with-ghc" <>
+        long "with-compiler" <>
         long "compiler" <>
         help "Use COMPILER to compile Agda" <>
         metavar "COMPILER" <>
+        action "command"
+
+  optionCabal =
+      strOption $
+        long "with-cabal" <>
+        help "Use CABAL as path to the cabal program" <>
+        metavar "CABAL" <>
+        value  "cabal"  <>
         action "command"
 
   optionNoDefaultCabalOptions =
@@ -205,6 +222,10 @@ options =
         help "Additional option given to cabal v1-install" <>
         metavar "OPTION" <>
         completer (commandCompleter "cabal" ["v1-install", "--list-options"])
+          -- TODO (Andreas, 2021-10-24)
+          -- The completer should rather invoke the program given by "--with-cabal".
+          -- However, this may not be straightforward to implement in the declarative
+          -- interface of optparse-applicative.
 
   optionSkipSkipped =
     (\ skip -> if skip then ciSkipStrings else []) <$> do
@@ -465,7 +486,7 @@ main = do
       return ()
 
     Just (DryRunCommit commit) -> do
-      setupSandbox
+      setupSandbox opts
 
       let checkout c = callProcess "git" ["checkout", c]
       bracket currentCommit checkout $ \_ -> do
@@ -475,7 +496,7 @@ main = do
         return ()
 
     Nothing -> do
-      setupSandbox
+      setupSandbox opts
 
       bisect opts
 
@@ -517,12 +538,12 @@ validRevision rev = do
 
 -- | Tries to make sure that a Cabal sandbox will be used.
 
-setupSandbox :: IO ()
-setupSandbox = do
+setupSandbox :: Options -> IO ()
+setupSandbox Options{ cabal } = do
   sandboxExists <- callProcessWithResultSilently
-                     "cabal" ["v1-sandbox", "list-sources"]
+                     cabal ["v1-sandbox", "list-sources"]
   unless sandboxExists $
-    callProcess "cabal" ["v1-sandbox", "init"]
+    callProcess cabal ["v1-sandbox", "init"]
 
 -- | Performs the bisection process.
 
@@ -736,9 +757,9 @@ installAgda opts
 -- binary called @agda@).
 
 cabalInstall :: Options -> FilePath -> IO (Maybe FilePath)
-cabalInstall opts file = do
+cabalInstall opts@Options{ cabal } file = do
   commit <- currentCommit
-  ok     <- callProcessWithResult "cabal" $ concat
+  ok     <- callProcessWithResult cabal $ concat
      [ [ "v1-install"
        , "--force-reinstalls"
        , "--disable-library-profiling"
@@ -763,9 +784,9 @@ cabalInstall opts file = do
 -- ignores the exit codes of the programs it calls.
 
 copyDataFiles :: Options -> IO ()
-copyDataFiles opts = do
-  callProcessWithResult "cabal" ("v1-configure" : compilerFlag opts)
-  callProcessWithResult "cabal" ["v1-copy", "-v"]
+copyDataFiles opts@Options{ cabal } = do
+  callProcessWithResult cabal ("v1-configure" : compilerFlag opts)
+  callProcessWithResult cabal ["v1-copy", "-v"]
   return ()
 
 -- | The suffix of the Agda binary.

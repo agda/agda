@@ -10,69 +10,62 @@
 // which return Agda types like Maybe. These are never emitted by the compiler,
 // but can be used internally to define other prefixes.
 
-const biginteger = require("biginteger");
-
 // Integers
-exports.primIntegerFromString = function(x) {
-  return biginteger.BigInteger(x);
-};
-exports.primShowInteger = function(x) {
-  return x.toString();
-};
-exports.uprimIntegerPlus = function(x,y) {
-  return x.add(y);
-};
-exports.uprimIntegerMinus = function(x,y) {
-  return x.subtract(y);
-};
-exports.uprimIntegerMultiply = function(x,y) {
-  return x.multiply(y);
-};
-exports.uprimIntegerRem = function(x, y) {
-  return x.remainder(y);
-};
-exports.uprimIntegerQuot = function(x, y) {
-  return x.quotient(y);
-};
-exports.uprimIntegerEqual = function(x,y) {
-  return x.compare(y) == 0;
-};
-exports.uprimIntegerGreaterOrEqualThan = function(x,y) {
-  return x.compare(y) >= 0;
-};
-exports.uprimIntegerLessThan = function(x,y) {
-  return x.compare(y) == -1;
-};
+
+// primIntegerFromString : String -> Int
+exports.primIntegerFromString = BigInt;
+
+// primShowInteger : Int -> String
+exports.primShowInteger = x => x.toString();
+
+// uprimIntegerPlus : (Int, Int) -> Int
+exports.uprimIntegerPlus = (x, y) => x + y;
+
+// uprimIntegerMinus : (Int, Int) -> Int
+exports.uprimIntegerMinus = (x, y) => x - y;
+
+// uprimIntegerMultiply : (Int, Int) -> Int
+exports.uprimIntegerMultiply = (x, y) => x * y;
+
+// uprimIntegerRem : (Int, Int) -> Int
+exports.uprimIntegerRem = (x, y) => x % y;
+
+// uprimIntegerQuot : (Int, Int) -> Int
+exports.uprimIntegerQuot = (x, y) => x / y;
+
+// uprimIntegerEqual : (Int, Int) -> Bool
+exports.uprimIntegerEqual = (x, y) => x === y;
+
+// uprimIntegerGreaterOrEqualThan : (Int, Int) -> Bool
+exports.uprimIntegerGreaterOrEqualThan = (x, y) => x >= y;
+
+// uprimIntegerLessThan : (Int, Int) -> Bool
+exports.uprimIntegerLessThan = (x, y) => x < y;
 
 // Words
-const WORD64_MAX_VALUE = exports.primIntegerFromString("18446744073709552000");
+const WORD64_MAX_VALUE = 18446744073709552000n;
 
-exports.primWord64ToNat = function(x) {
-    return x;
-};
-exports.primWord64FromNat = function(x) {
-    return x.remainder(WORD64_MAX_VALUE);
-};
-exports.uprimWord64Plus = function(x, y) {
-    return x.add(y).remainder(WORD64_MAX_VALUE);
-};
-exports.uprimWord64Minus = function(x, y) {
-    return x.add(WORD64_MAX_VALUE).subtract(y).remainder(WORD64_MAX_VALUE);
-};
-exports.uprimWord64Multiply = function(x, y) {
-    return x.multiply(y).remainder(WORD64_MAX_VALUE);
-};
+// primWord64ToNat : Word64 -> Nat
+exports.primWord64ToNat = x => x;
+
+// primWord64FromNat : Nat -> Word64
+exports.primWord64FromNat = x => x % WORD64_MAX_VALUE;
+
+// uprimWord64Plus : (Word64, Word64) -> Word64
+exports.uprimWord64Plus = (x, y) => (x + y) % WORD64_MAX_VALUE;
+
+// uprimWord64Minus : (Word64, Word64) -> Word64
+exports.uprimWord64Minus = (x, y) => (x + WORD64_MAX_VALUE - y) % WORD64_MAX_VALUE;
+
+// uprimWord64Multiply : (Word64, Word64) -> Word64
+exports.uprimWord64Multiply = (x, y) => (x * y) % WORD64_MAX_VALUE;
 
 // Natural numbers
-exports.primNatMinus = function(x) {
-  return function(y) {
-    var z = x.subtract(y);
-    if (z.isNegative()) {
-      return biginteger.ZERO;
-    } else {
-      return z;
-    }
-  };
+
+// primNatMinus : Nat -> Nat -> Nat
+exports.primNatMinus = x => y => {
+  const z = x - y;
+  return z < 0n ? 0n : z;
 };
 
 // Floating-point numbers
@@ -192,11 +185,11 @@ exports.primFloatIsSafeInteger = function(x) {
 
 
 // These WORD64 values were obtained via `castDoubleToWord64` in Haskell:
-const WORD64_NAN      = exports.primIntegerFromString("18444492273895866368");
-const WORD64_POS_INF  = exports.primIntegerFromString("9218868437227405312");
-const WORD64_NEG_INF  = exports.primIntegerFromString("18442240474082181120");
-const WORD64_POS_ZERO = exports.primIntegerFromString("0");
-const WORD64_NEG_ZERO = exports.primIntegerFromString("9223372036854775808");
+const WORD64_NAN      = 18444492273895866368n;
+const WORD64_POS_INF  = 9218868437227405312n;
+const WORD64_NEG_INF  = 18442240474082181120n;
+const WORD64_POS_ZERO = 0n;
+const WORD64_NEG_ZERO = 9223372036854775808n;
 
 exports.primFloatToWord64 = function(x) {
     if (exports.primFloatIsNaN(x)) {
@@ -223,32 +216,33 @@ exports.primFloatToWord64 = function(x) {
         sign = (sign === -1 ? "1" : "0");
         mantissa = (mantissa.toString(2)).padStart(11, "0");
         exponent = (mantissa.toString(2)).padStart(52, "0");
-        return exports.primIntegerFromString(parseInt(
-            sign + mantissa + exponent, 2).toString());
+        return BigInt(parseInt(sign + mantissa + exponent, 2));
     }
 };
 
-exports.primNatToFloat = function(x) {
-    return x.valueOf();
+// primNatToFloat : Nat -> Float
+exports.primNatToFloat = Number;
+
+// primIntToFloat : Int -> Float
+exports.primIntToFloat = Number;
+
+// primRatioToFloat : Int -> Int -> Float
+exports.primRatioToFloat = x => y => Number(x) / Number(y);
+
+// uprimFloatEncode : (Int, Int) -> Maybe Float
+exports.uprimFloatEncode = (x, y) => {
+  const mantissa = Number(x);
+  const exponent = Number(y);
+
+  if (Number.isSafeInteger(mantissa) && -1024 <= exponent && exponent <= 1024) {
+    return mantissa * (2 ** exponent);
+  }
+
+  else {
+    return null;
+  }
 };
-exports.primIntToFloat = function(x) {
-    return x.valueOf();
-};
-exports.primRatioToFloat = function(x) {
-    return function(y) {
-        return x.valueOf() / y.valueOf();
-    };
-};
-exports.uprimFloatEncode = function(x, y) {
-    var mantissa = x.valueOf();
-    var exponent = y.valueOf();
-    if (Number.isSafeInteger(mantissa) && -1024 <= exponent && exponent <= 1024) {
-        return mantissa * (2 ** exponent);
-    }
-    else {
-        return null;
-    }
-};
+
 exports.primShowFloat = function(x) {
     // See Issue #2192.
     if (Number.isInteger(x)) {
@@ -364,29 +358,21 @@ exports.primIdElim =
     _ => _ => _ => _ => _ => f => x => y => f(y["i"])(x)(y["p"]);
 
 // Other stuff
-exports.primSeq = function(x, y) {
-  return y;
-};
-exports.uprimQNameEquality = function(x,y) {
-    return x["id"].compare(y["id"]) == 0 && x["moduleId"].compare(y["moduleId"]) == 0;
-};
-exports.primQNameEquality = function(x) {
-    return function(y) {
-        return exports.uprimQNameEquality(x, y);
-    };
-};
-exports.primQNameLess = function(x) {
-  return function(y) {
-    switch (x["id"].compare(y["id"])) {
-      case -1: return true;
-      case  1: return false;
-      default: return x["moduleId"].compare(y["moduleId"]) == -1;
-    };
-  };
-};
-exports.primShowQName = function(x) {
-    return x["name"];
-};
-exports.primQNameFixity = function(x) {
-    return x["fixity"];
-};
+
+// primSeq : (X, Y) -> Y
+exports.primSeq = (x, y) => y;
+
+// uprimQNameEquality : (Name, Name) -> Bool
+exports.uprimQNameEquality = (x, y) => x['id'] === y['id'] && x['moduleId'] === y['moduleId'];
+
+// primQNameEquality : Name -> Name -> Bool
+exports.primQNameEquality = x => y => exports.uprimQNameEquality(x, y);
+
+// primQNameLess : Name -> Name -> Bool
+exports.primQNameLess = x => y => x['id'] === y['id'] ? x['moduleId'] < y['moduleId'] : x['id'] < y['id'];
+
+// primShowQName : Name -> String
+exports.primShowQName = x => x['name'];
+
+// primQNameFixity : Name -> Fixity
+exports.primQNameFixity = x => x['fixity'];

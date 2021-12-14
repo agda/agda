@@ -1,6 +1,6 @@
 -- The Agda primitives (preloaded).
 
-{-# OPTIONS --without-K --no-subtyping --no-import-sorts #-}
+{-# OPTIONS --without-K --no-import-sorts #-}
 
 module Agda.Primitive where
 
