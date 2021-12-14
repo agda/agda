@@ -995,12 +995,15 @@ evalTCM v = do
           let (namea, expra) = bindingToPair a
               (nameb, exprb) = bindingToPair b -- Allow non-hidden arguments?
           e' <- substNames' as bs e
-          if expra == exprb
-          then return $ mapExpr (substName namea nameb) e'
-          else genericDocError =<< hcat
-                 [ "Given argument ", prettyTCM exprb,
-                   " doesn't match the parameter ", prettyTCM expra,
-                   " of datatype ", pretty x ]
+          return $ mapExpr (substName namea nameb) e'
+          -- Don't check the parameters match or not for now,
+          -- The parameters should be the same anyway.
+          --if expra == exprb
+          --then return $ mapExpr (substName namea nameb) e'
+          --else genericDocError =<< hcat
+          --       [ "Given argument ", prettyTCM exprb,
+          --         " doesn't match the parameter ", prettyTCM expra,
+          --         " of datatype ", pretty x ]
                --TODO: Show which constructor causes the error.
         substNames' [] [] e = return e
         substNames' _ _ _ = genericError $ "Number of parameters doesn't match!"
