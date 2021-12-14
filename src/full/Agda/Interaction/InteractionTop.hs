@@ -971,7 +971,7 @@ give_gen
   -> CommandM ()
 give_gen force ii rng s0 giveRefine = do
   let s = trim s0
-  lift $ reportSLn "interaction.give" 20 $ "give_gen  " ++ s
+  reportSLn "interaction.give" 20 $ "give_gen  " ++ s
   -- Andreas, 2015-02-26 if string is empty do nothing rather
   -- than giving a parse error.
   unless (null s) $ do
@@ -982,17 +982,17 @@ give_gen force ii rng s0 giveRefine = do
             Intro              -> B.refine
             ElaborateGive norm -> B.give
     -- save scope of the interaction point (for printing the given expr. later)
-    scope     <- lift $ getInteractionScope ii
+    scope     <- getInteractionScope ii
     -- parse string and "give", obtaining an abstract expression
     -- and newly created interaction points
-    (time, (ae, ae0, iis)) <- maybeTimed $ lift $ do
+    (time, (ae, ae0, iis)) <- maybeTimed $ do
         -- Issue 3000: mark the current hole as solved before giving, to avoid confusing it with potential
         -- new interaction points introduced by the give.
         removeInteractionPoint ii
         mis  <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
-        given <- B.parseExprIn ii rng s
-        ae    <- give_ref force ii Nothing given
+        given <- lift $ B.parseExprIn ii rng s
+        ae    <- lift $ give_ref force ii Nothing given
         mis' <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
         return (ae, given, mis' List.\\ mis)
@@ -1000,11 +1000,11 @@ give_gen force ii rng s0 giveRefine = do
     insertOldInteractionScope ii scope
     -- sort the new interaction points and put them into the state
     -- in replacement of the old interaction point
-    iis' <- lift $ sortInteractionPoints iis
+    iis' <- sortInteractionPoints iis
     modifyTheInteractionPoints $ replace ii iis'
     -- print abstract expr
-    ce        <- lift $ abstractToConcreteScope scope ae
-    lift $ reportS "interaction.give" 30
+    ce        <- abstractToConcreteScope scope ae
+    reportS "interaction.give" 30
       [ "ce = " ++ show ce
       , "scopePrecedence = " ++ show (scope ^. scopePrecedence)
       ]
@@ -1022,17 +1022,17 @@ give_gen force ii rng s0 giveRefine = do
     -- that's already in the buffer. Doing it before the give action means that
     -- the highlighting is moved together with the text when the hole goes away.
     -- To make it work for refine we'd have to adjust the ranges.
-    when literally $ lift $ do
+    when literally $ do
       l <- asksTC envHighlightingLevel
-      when (l /= None) $ do
+      when (l /= None) $ lift $ do
         printHighlightingInfo KeepHighlighting =<<
           generateTokenInfoFromString rng s
         highlightExpr ae
     putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
-    lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
+    reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
     -- display new goal set (if not measuring time)
     maybe (interpret $ Cmd_metas AsIs) (display_info . Info_Time) time
-    lift $ reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
+    reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
   where
     -- Substitutes xs for x in ys.
     replace x xs ys = concatMap (\ y -> if y == x then xs else [y]) ys
