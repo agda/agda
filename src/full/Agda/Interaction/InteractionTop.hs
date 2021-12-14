@@ -15,6 +15,7 @@ import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM.TVar
 import qualified Control.Exception as E
 import Control.Monad.Except
+import Control.Monad.Fail (MonadFail)
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State hiding (state)
@@ -1054,7 +1055,9 @@ highlightExpr e =
 
 -- | Sorts interaction points based on their ranges.
 
-sortInteractionPoints :: [InteractionId] -> TCM [InteractionId]
+sortInteractionPoints
+  :: (MonadInteractionPoints m, MonadError TCErr m, MonadFail m)
+  => [InteractionId] -> m [InteractionId]
 sortInteractionPoints is =
   map fst . List.sortBy (compare `on` snd) <$> do
     forM is $ \ i -> do
