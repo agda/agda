@@ -518,7 +518,9 @@ getInteractionRange = ipRange <.> lookupInteractionPoint
 getMetaRange :: (MonadFail m, ReadTCState m) => MetaId -> m Range
 getMetaRange = getRange <.> lookupMeta
 
-getInteractionScope :: InteractionId -> TCM ScopeInfo
+getInteractionScope
+  :: (MonadFail m, ReadTCState m, MonadError TCErr m, MonadTCEnv m)
+  => InteractionId -> m ScopeInfo
 getInteractionScope = getMetaScope <.> lookupMeta <=< lookupInteractionId
 
 withMetaInfo' :: (MonadTCEnv m, ReadTCState m, MonadTrace m) => MetaVariable -> m a -> m a
