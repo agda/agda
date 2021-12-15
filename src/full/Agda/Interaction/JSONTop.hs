@@ -26,7 +26,7 @@ import Agda.VersionCommit
 
 import Agda.TypeChecking.Errors (getAllWarningsOfTCErr)
 import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..))
-import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange)
+import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange, withMetaId)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
 import Agda.TypeChecking.Pretty.Warning (filterTCWarnings)
@@ -113,7 +113,7 @@ instance EncodeTCM NamedMeta where
     , "range" #= intervalsTCM
     ]
     where
-      nameTCM = encodeShow <$> B.withMetaId (nmid m) (prettyATop m)
+      nameTCM = encodeShow <$> withMetaId (nmid m) (prettyATop m)
       intervalsTCM = toJSON <$> getMetaRange (nmid m)
 
 instance EncodeTCM GiveResult where

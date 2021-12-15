@@ -663,7 +663,7 @@ interpret (Cmd_refine ii rng s) = give_gen WithoutForce ii rng s Refine
 
 interpret (Cmd_intro pmLambda ii rng _) = do
   ss <- lift $ B.introTactic pmLambda ii
-  liftCommandMT (B.withInteractionId ii) $ case ss of
+  liftCommandMT (withInteractionId ii) $ case ss of
     []    -> do
       display_info $ Info_Intro_NotFound
     [s]   -> give_gen WithoutForce ii rng s Intro
@@ -729,11 +729,11 @@ interpret (Cmd_context norm ii _ _) =
 
 interpret (Cmd_helper_function norm ii rng s) = do
   -- Create type of application of new helper function that would solve the goal.
-  helperType <- liftLocalState $ B.withInteractionId ii $ inTopContext $ B.metaHelperType norm ii rng s
+  helperType <- liftLocalState $ withInteractionId ii $ inTopContext $ B.metaHelperType norm ii rng s
   display_info $ Info_GoalSpecific ii (Goal_HelperFunction helperType)
 
 interpret (Cmd_infer norm ii rng s) = do
-  expr <- liftLocalState $ B.withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+  expr <- liftLocalState $ withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
   display_info $ Info_GoalSpecific ii (Goal_InferredType expr)
 
 interpret (Cmd_goal_type norm ii _ _) =
@@ -762,13 +762,13 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
             then return GoalOnly
             else do
               typ <- liftLocalState
-                    $ B.withInteractionId ii
+                    $ withInteractionId ii
                     $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
               return (GoalAndHave typ)
   cmd_goal_type_context_and aux norm ii rng s
 
 interpret (Cmd_goal_type_context_check norm ii rng s) = do
-  term <- liftLocalState $ B.withInteractionId ii $ do
+  term <- liftLocalState $ withInteractionId ii $ do
     expr <- B.parseExprIn ii rng s
     goal <- B.typeOfMeta AsIs ii
     term <- case goal of
@@ -778,17 +778,17 @@ interpret (Cmd_goal_type_context_check norm ii rng s) = do
   cmd_goal_type_context_and (GoalAndElaboration term) norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
-  liftCommandMT (B.withInteractionId ii) $ showModuleContents norm rng s
+  liftCommandMT (withInteractionId ii) $ showModuleContents norm rng s
 
 interpret (Cmd_why_in_scope_toplevel s) =
   atTopLevel $ whyInScope s
 
 interpret (Cmd_why_in_scope ii _range s) =
-  liftCommandMT (B.withInteractionId ii) $ whyInScope s
+  liftCommandMT (withInteractionId ii) $ whyInScope s
 
 interpret (Cmd_make_case ii rng s) = do
   (f, casectxt, cs) <- lift $ makeCase ii rng s
-  liftCommandMT (B.withInteractionId ii) $ do
+  liftCommandMT (withInteractionId ii) $ do
     tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
     unicode <- getsTC $ optUseUnicode . getPragmaOptions
     pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyA cs
@@ -831,7 +831,7 @@ interpret (Cmd_make_case ii rng s) = do
 interpret (Cmd_compute cmode ii rng s) = do
   expr <- liftLocalState $ do
     e <- B.parseExprIn ii rng $ B.computeWrapInput cmode s
-    B.withInteractionId ii $ applyWhen (B.computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent cmode e
+    withInteractionId ii $ applyWhen (B.computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent cmode e
   display_info $ Info_GoalSpecific ii (Goal_NormalForm cmode expr)
 
 interpret Cmd_show_version = display_info Info_Version
