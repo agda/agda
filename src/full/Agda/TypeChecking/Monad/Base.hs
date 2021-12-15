@@ -3106,6 +3106,9 @@ eCompareBlocked f e = f (envCompareBlocked e) <&> \ x -> e { envCompareBlocked =
 ePrintDomainFreePi :: Lens' Bool TCEnv
 ePrintDomainFreePi f e = f (envPrintDomainFreePi e) <&> \ x -> e { envPrintDomainFreePi = x }
 
+ePrintMetasBare :: Lens' Bool TCEnv
+ePrintMetasBare f e = f (envPrintMetasBare e) <&> \ x -> e { envPrintMetasBare = x }
+
 eInsideDotPattern :: Lens' Bool TCEnv
 eInsideDotPattern f e = f (envInsideDotPattern e) <&> \ x -> e { envInsideDotPattern = x }
 
