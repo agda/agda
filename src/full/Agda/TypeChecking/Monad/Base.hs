@@ -2907,6 +2907,9 @@ data TCEnv =
           , envConflComputingOverlap :: Bool
                 -- ^ Are we currently computing the overlap between
                 --   two rewrite rules for the purpose of confluence checking?
+          , envCurrentlyElaborating :: Bool
+                -- ^ Are we currently in the process of executing an
+                --   elaborate-and-give interactive command?
           }
     deriving (Generic)
 
@@ -2966,6 +2969,7 @@ initEnv = TCEnv { envContext             = []
                 , envGeneralizedVars        = Map.empty
                 , envActiveBackendName      = Nothing
                 , envConflComputingOverlap  = False
+                , envCurrentlyElaborating   = False
                 }
 
 class LensTCEnv a where
@@ -3144,6 +3148,9 @@ eActiveBackendName f e = f (envActiveBackendName e) <&> \ x -> e { envActiveBack
 
 eConflComputingOverlap :: Lens' Bool TCEnv
 eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envConflComputingOverlap = x }
+
+eCurrentlyElaborating :: Lens' Bool TCEnv
+eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
 
 ---------------------------------------------------------------------------
 -- ** Context
