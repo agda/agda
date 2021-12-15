@@ -194,7 +194,7 @@ lispifyDisplayInfo info = case info of
     Info_GoalSpecific ii kind -> lispifyGoalSpecificDisplayInfo ii kind
 
 lispifyGoalSpecificDisplayInfo :: InteractionId -> GoalDisplayInfo -> TCM [Lisp String]
-lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
+lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
   case kind of
     Goal_HelperFunction helperType -> do
       doc <- inTopContext $ prettyATop helperType
