@@ -740,16 +740,7 @@ interpret (Cmd_goal_type norm ii _ _) =
   display_info $ Info_GoalSpecific ii (Goal_CurrentGoal norm)
 
 interpret (Cmd_elaborate_give norm ii rng s) = do
-  have <- liftLocalState $ B.withInteractionId ii $ do
-    expr <- B.parseExprIn ii rng s
-    goal <- B.typeOfMeta AsIs ii
-    term <- case goal of
-      OfType _ ty -> checkExpr expr =<< isType_ ty
-      _           -> __IMPOSSIBLE__
-    nf <- B.normalForm norm term
-    txt <- localTC (\ e -> e { envPrintMetasBare = True }) (TCP.prettyTCM nf)
-    return $ show txt
-  give_gen WithoutForce ii rng have $ ElaborateGive norm
+  give_gen WithoutForce ii rng s $ ElaborateGive norm
 
 interpret (Cmd_goal_type_context norm ii rng s) =
   cmd_goal_type_context_and GoalOnly norm ii rng s
@@ -980,7 +971,7 @@ give_gen force ii rng s0 giveRefine = do
             Give               -> B.give
             Refine             -> B.refine
             Intro              -> B.refine
-            ElaborateGive norm -> B.give
+            ElaborateGive norm -> B.elaborate_give norm
     -- save scope of the interaction point (for printing the given expr. later)
     scope     <- getInteractionScope ii
     -- parse string and "give", obtaining an abstract expression
