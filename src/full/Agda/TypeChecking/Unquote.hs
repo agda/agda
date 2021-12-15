@@ -660,6 +660,8 @@ evalTCM v = do
 
     tcFreshName :: Text -> TCM Term
     tcFreshName s = do
+      whenM (viewTC eCurrentlyElaborating) $
+        typeError $ GenericError "Not supported: declaring new names from an edit-time macro"
       m <- currentModule
       quoteName . qualify m <$> freshName_ (T.unpack s)
 
