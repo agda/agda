@@ -126,18 +126,6 @@ notAValidLetBinding = locatedTypeError NotAValidLetBinding
 --annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
 --annotateDecl m = annotateDecls $ (:[]) <$> m
 
-annotateDecls :: ScopeM [A.Declaration] -> ScopeM A.Declaration
-annotateDecls m = do
-  ds <- m
-  s  <- getScope
-  return $ ScopedDecl s ds
-
-annotateExpr :: ScopeM A.Expr -> ScopeM A.Expr
-annotateExpr m = do
-  e <- m
-  s <- getScope
-  return $ ScopedExpr s e
-
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
 noDotorEqPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
 noDotorEqPattern err = dot
