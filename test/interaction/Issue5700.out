@@ -1,0 +1,6 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "_n_7 : Nat [ at Issue5700.agda:13,8-15 ] " nil)
+((last . 1) . (agda2-goals-action '()))
