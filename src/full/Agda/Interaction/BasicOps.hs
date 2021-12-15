@@ -212,6 +212,31 @@ give force ii mr e = liftTCM $ do
   removeInteractionPoint ii
   return e
 
+-- | Try to fill hole by elaborated expression.
+elaborate_give
+  :: Rewrite        -- ^ Normalise result?
+  -> UseForce       -- ^ Skip safety checks?
+  -> InteractionId  -- ^ Hole.
+  -> Maybe Range
+  -> Expr           -- ^ The expression to give.
+  -> TCM Expr       -- ^ If successful, return the elaborated expression.
+elaborate_give norm force ii mr e = withInteractionId ii $ do
+  -- if Range is given, update the range of the interaction meta
+  mi  <- lookupInteractionId ii
+  whenJust mr $ updateMetaVarRange mi
+  reportSDoc "interaction.give" 10 $ "giving expression" TP.<+> prettyTCM e
+  reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
+  -- Try to give mi := e
+  v <- do
+     setMetaOccursCheck mi DontRunMetaOccursCheck -- #589, #2710: Allow giving recursive solutions.
+     giveExpr force (Just ii) mi e
+    `catchError` \ case
+      -- Turn PatternErr into proper error:
+      PatternErr{} -> typeError . GenericDocError =<< do
+        withInteractionId ii $ "Failed to give" TP.<+> prettyTCM e
+      err -> throwError err
+  nv <- normalForm norm v
+  locallyTC ePrintMetasBare (const True) $ reify nv
 
 -- | Try to refine hole by expression @e@.
 --
