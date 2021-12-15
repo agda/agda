@@ -190,9 +190,16 @@ instance ToAbstract Term where
       return $ A.Pi exprNoRange (singleton a) b
     R.Sort s   -> toAbstract s
     R.Lit l    -> toAbstract l
-    R.Meta x es    -> toAbstract (A.Underscore info, es)
-      where info = emptyMetaInfo{ metaNumber = Just x }
-    R.Unknown      -> return $ Underscore emptyMetaInfo
+    R.Meta x es    -> do
+      info <- mkMetaInfo
+      let info' = info{ metaNumber = Just x }
+      toAbstract (A.Underscore info', es)
+    R.Unknown      -> Underscore <$> mkMetaInfo
+
+mkMetaInfo :: ReadTCState m => m MetaInfo
+mkMetaInfo = do
+  scope <- getScope
+  return $ emptyMetaInfo { metaScope = scope }
 
 mkDef :: HasConstInfo m => QName -> m A.Expr
 mkDef f =
@@ -231,7 +238,7 @@ instance ToAbstract Sort where
       PropS x -> mkApp (A.Def propName) <$> toAbstract x
       PropLitS x -> return $ A.Def' propName $ A.Suffix x
       InfS x -> return $ A.Def' infName $ A.Suffix x
-      UnknownS -> return $ mkApp (A.Def setName) $ Underscore emptyMetaInfo
+      UnknownS -> mkApp (A.Def setName) . Underscore <$> mkMetaInfo
 
 instance ToAbstract R.Pattern where
   type AbsOfRef R.Pattern = A.Pattern
