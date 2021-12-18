@@ -740,8 +740,7 @@ interpret (Cmd_goal_type norm ii _ _) =
   display_info $ Info_GoalSpecific ii (Goal_CurrentGoal norm)
 
 interpret (Cmd_elaborate_give norm ii rng s) =
-  locallyTC eCurrentlyElaborating (const True) $
-    give_gen WithoutForce ii rng s $ ElaborateGive norm
+  give_gen WithoutForce ii rng s $ ElaborateGive norm
 
 interpret (Cmd_goal_type_context norm ii rng s) =
   cmd_goal_type_context_and GoalOnly norm ii rng s
