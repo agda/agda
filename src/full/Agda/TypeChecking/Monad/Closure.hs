@@ -12,10 +12,9 @@ enterClosure :: (MonadTCEnv m, ReadTCState m, LensClosure a c)
              => c -> (a -> m b) -> m b
 enterClosure c k | Closure _sig env scope cps x <- c ^. lensClosure = do
   isDbg <- viewTC eIsDebugPrinting
-  isElab <- viewTC eCurrentlyElaborating
   withScope_ scope
     $ locallyTCState stModuleCheckpoints (const cps)
-    $ withEnv env{ envIsDebugPrinting = isDbg, envCurrentlyElaborating = isElab }
+    $ withEnv env{ envIsDebugPrinting = isDbg }
     $ k x
 
 withClosure :: (MonadTCEnv m, ReadTCState m) => Closure a -> (a -> m b) -> m (Closure b)
