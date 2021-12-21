@@ -112,11 +112,11 @@ parseExprIn ii rng s = do
     withMetaInfo mi $
       concreteToAbstract (clScope mi) e
 
+-- Type check the given expression and assign its value to the meta
+-- Precondition: we are in the context where the given meta was created.
 giveExpr :: UseForce -> Maybe InteractionId -> MetaId -> Expr -> TCM Term
 giveExpr force mii mi e = do
     mv <- lookupMeta mi
-    -- In the context (incl. signature) of the meta variable,
-    -- type check expression and assign meta
     let t = case mvJudgement mv of
               IsSort{}    -> __IMPOSSIBLE__
               HasType _ _ t -> t
