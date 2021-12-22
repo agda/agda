@@ -399,8 +399,8 @@ tryResolveName kinds names x = do
   fromConcreteSuffix = \case
     Nothing              -> Nothing
     Just C.Prime{}       -> Nothing
-    Just (C.Index i)     -> Just $ A.Suffix $ toInteger i
-    Just (C.Subscript i) -> Just $ A.Suffix $ toInteger i
+    Just (C.Index i)     -> Just $ A.Suffix i
+    Just (C.Subscript i) -> Just $ A.Suffix i
 
 -- | Test if a given abstract name can appear with a suffix. Currently
 --   only true for the names of builtin sorts @Set@ and @Prop@.
