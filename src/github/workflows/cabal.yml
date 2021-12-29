@@ -92,8 +92,7 @@ jobs:
         mkdir -p ${ICU_DIR}/include/unicode
         mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
 
-        echo "extra-lib-dirs: $(cygpath -w ${ICU_DIR})">> ${APPDATA}/cabal/config
-        echo "extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)" >> ${APPDATA}/cabal/config
+        cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
 
     - uses: actions/cache@v2
       name: Cache dependencies

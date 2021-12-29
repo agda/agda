@@ -86,8 +86,7 @@ jobs:
         7z e ${ICU_FILE} -o${ICU_DIR} && rm ${ICU_FILE}
         mkdir -p ${ICU_DIR}/include/unicode && mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
 
-        echo "extra-lib-dirs: $(cygpath -w ${ICU_DIR})">> ${APPDATA}/cabal/config
-        echo "extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)" >> ${APPDATA}/cabal/config
+        cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
       name: Install the icu4c library (Windows)
     - run: |
         cabal configure ${{ steps.vars.outputs.args }}
