@@ -586,10 +586,14 @@ evalTCM v = do
     I.Def f [_, _, u, v] ->
       choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v))
+--             , (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMOnlyReduceDefs, tcOnlyReduceDefs (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMDontReduceDefs, tcDontReduceDefs (unElim u) (unElim v))
+             ]
+             failEval
+    I.Def f [_, _, u, v, w] ->
+      choice [ (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v) (unElim w))
              ]
              failEval
     I.Def f [_, _, _, _, m, k] ->
@@ -777,15 +781,16 @@ evalTCM v = do
            ds' <- addContext d' $ recons ds
            return $ d' : ds'
 
-    extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
-    extendCxt a m = do
+    extendCxt :: String -> Arg R.Type -> UnquoteM a -> UnquoteM a
+    extendCxt s a m = do
       a <- locallyReduceAllDefs $ liftTCM $ traverse (isType_ <=< toAbstract_) a
-      liftU1 (addContext ("x" :: String, domFromArg a :: Dom Type)) m
+      liftU1 (addContext (s :: String, domFromArg a :: Dom Type)) m
 
-    tcExtendContext :: Term -> Term -> UnquoteM Term
-    tcExtendContext a m = do
+    tcExtendContext :: Term -> Term -> Term -> UnquoteM Term
+    tcExtendContext s a m = do
+      s <- unquote s
       a <- unquote a
-      fmap (strengthen impossible) $ extendCxt a $ do
+      fmap (strengthen impossible) $ extendCxt (T.unpack s) a $ do
         v <- evalTCM $ raise 1 m
         when (freeIn 0 v) $ liftTCM $ genericDocError =<<
           hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
@@ -799,7 +804,7 @@ evalTCM v = do
       where
         go :: [Arg R.Type] -> UnquoteM Term -> UnquoteM Term
         go []       m = m
-        go (a : as) m = go as (extendCxt a m)
+        go (a : as) m = go as (extendCxt "x" a m)
 
     constInfo :: QName -> TCM Definition
     constInfo x = either err return =<< getConstInfo' x

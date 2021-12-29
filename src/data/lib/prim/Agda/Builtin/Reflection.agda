@@ -164,6 +164,7 @@ data Sort    : Set
 data Pattern : Set
 data Clause  : Set
 Type = Term
+Telescope = List (Σ String λ _ → Arg Type)
 
 data Term where
   var       : (x : Nat) (args : List (Arg Term)) → Term
@@ -194,8 +195,8 @@ data Pattern where
   absurd : (x : Nat)     → Pattern  -- absurd patterns counts as variables
 
 data Clause where
-  clause        : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) (t : Term) → Clause
-  absurd-clause : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) → Clause
+  clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
+  absurd-clause : (tel : Telescope) (ps : List (Arg Pattern)) → Clause
 
 {-# BUILTIN AGDATERM      Term    #-}
 {-# BUILTIN AGDASORT      Sort    #-}
@@ -276,9 +277,9 @@ postulate
   quoteTC          : ∀ {a} {A : Set a} → A → TC Term
   unquoteTC        : ∀ {a} {A : Set a} → Term → TC A
   quoteωTC         : ∀ {A : Setω} → A → TC Term
-  getContext       : TC (List (Arg Type))
-  extendContext    : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
-  inContext        : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
+  getContext       : TC Telescope
+  extendContext    : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
+  inContext        : ∀ {a} {A : Set a} → Telescope → TC A → TC A
   freshName        : String → TC Name
   declareDef       : Arg Name → Type → TC ⊤
   declarePostulate : Arg Name → Type → TC ⊤
@@ -371,7 +372,7 @@ postulate
 {-# COMPILE JS unquoteTC         = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS quoteωTC          = _ => _ =>           undefined #-}
 {-# COMPILE JS getContext        =                     undefined #-}
-{-# COMPILE JS extendContext     = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS extendContext     = _ => _ => _ => _ => _ => undefined #-}
 {-# COMPILE JS inContext         = _ => _ => _ => _ => undefined #-}
 {-# COMPILE JS freshName         = _ =>                undefined #-}
 {-# COMPILE JS declareDef        = _ => _ =>           undefined #-}

@@ -366,7 +366,7 @@ coreBuiltins =
                                                                    tTCM 1 (varM 0) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMGetContext                 |-> builtinPostulate (tTCM_ (unEl <$> tlist (targ ttype)))
   , builtinAgdaTCMExtendContext              |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
-                                                                   targ ttype --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+                                                                   tstring --> targ ttype --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMInContext                  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
                                                                    tlist (targ ttype) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMFreshName                  |-> builtinPostulate (tstring --> tTCM_ primQName)
