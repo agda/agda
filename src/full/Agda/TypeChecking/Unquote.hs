@@ -586,7 +586,6 @@ evalTCM v = do
     I.Def f [_, _, u, v] ->
       choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
---             , (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMOnlyReduceDefs, tcOnlyReduceDefs (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMDontReduceDefs, tcDontReduceDefs (unElim u) (unElim v))
@@ -802,9 +801,9 @@ evalTCM v = do
       c <- unquote c
       liftU1 unsafeInTopContext $ go c (evalTCM m)
       where
-        go :: [Arg R.Type] -> UnquoteM Term -> UnquoteM Term
+        go :: [(Text , Arg R.Type)] -> UnquoteM Term -> UnquoteM Term
         go []       m = m
-        go (a : as) m = go as (extendCxt "x" a m)
+        go ((s , a) : as) m = go as (extendCxt (T.unpack s) a m)
 
     constInfo :: QName -> TCM Definition
     constInfo x = either err return =<< getConstInfo' x
