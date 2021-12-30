@@ -1,6 +1,9 @@
 
 module Agda.TypeChecking.Monad.Context where
 
+import Data.Text (Text)
+import qualified Data.Text as T
+
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -328,6 +331,10 @@ instance AddContext (List1 (NamedArg Name), Type) where
 instance AddContext (String, Dom Type) where
   addContext (s, dom) ret =
     withFreshName noRange s $ \x -> addCtx (setNotInScope x) dom ret
+  contextSize _ = 1
+
+instance AddContext (Text, Dom Type) where
+  addContext (s, dom) ret = addContext (T.unpack s, dom) ret
   contextSize _ = 1
 
 instance AddContext (KeepNames String, Dom Type) where

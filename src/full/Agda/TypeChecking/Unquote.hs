@@ -780,16 +780,16 @@ evalTCM v = do
            ds' <- addContext d' $ recons ds
            return $ d' : ds'
 
-    extendCxt :: String -> Arg R.Type -> UnquoteM a -> UnquoteM a
+    extendCxt :: Text -> Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt s a m = do
       a <- locallyReduceAllDefs $ liftTCM $ traverse (isType_ <=< toAbstract_) a
-      liftU1 (addContext (s :: String, domFromArg a :: Dom Type)) m
+      liftU1 (addContext (s, domFromArg a :: Dom Type)) m
 
     tcExtendContext :: Term -> Term -> Term -> UnquoteM Term
     tcExtendContext s a m = do
       s <- unquote s
       a <- unquote a
-      fmap (strengthen impossible) $ extendCxt (T.unpack s) a $ do
+      fmap (strengthen impossible) $ extendCxt s a $ do
         v <- evalTCM $ raise 1 m
         when (freeIn 0 v) $ liftTCM $ genericDocError =<<
           hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
@@ -803,7 +803,7 @@ evalTCM v = do
       where
         go :: [(Text , Arg R.Type)] -> UnquoteM Term -> UnquoteM Term
         go []       m = m
-        go ((s , a) : as) m = go as (extendCxt (T.unpack s) a m)
+        go ((s , a) : as) m = go as (extendCxt s a m)
 
     constInfo :: QName -> TCM Definition
     constInfo x = either err return =<< getConstInfo' x
