@@ -324,7 +324,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
     -- we need to print them postfix.
     let postProjInExtLam = applyWhen (isJust casectxt) $
           withPragmaOptions $ \ opt -> opt { optPostfixProjections = True }
-    (piTel, sc) <- insertTrailingArgs $ clauseToSplitClause clause
+    (piTel, sc) <- insertTrailingArgs False $ clauseToSplitClause clause
     -- Andreas, 2015-05-05 If we introduced new function arguments
     -- do not split on result.  This might be more what the user wants.
     -- To split on result, he can then C-c C-c again.
