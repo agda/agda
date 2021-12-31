@@ -297,7 +297,7 @@ isCovered f cs sc = do
       ]
     ]
   -- Jesper, 2019-10: introduce trailing arguments (see #3828)
-  (_ , sc') <- insertTrailingArgs sc
+  (_ , sc') <- insertTrailingArgs True sc
   CoverResult { coverMissingClauses = missing } <- cover f cs sc'
   return $ null missing
  -- Andreas, 2019-08-08 and 2020-02-11
@@ -517,16 +517,24 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     -- blocked on arguments that are not yet introduced:
 
     -- we must split on a variable so that the target type becomes a pi type
-    trySplitRes (BlockedOnApply IsApply) finalSplit splitError cont
-      | finalSplit = __IMPOSSIBLE__ -- already ruled out by lhs checker
-      | otherwise  = cont
+    trySplitRes (BlockedOnApply IsApply) finalSplit splitError cont = do
+      -- Andreas, 2021-12-31, issue #5712.
+      -- If there is a tactic to solve the clause, we might not have inserted
+      -- trailing args (due to #5358).  Now we force it!
+      (tel, sc') <- insertTrailingArgs True sc
+      if null tel then
+        if finalSplit then __IMPOSSIBLE__ -- already ruled out by lhs checker
+        else cont
+      else cover f cs sc'
+
     -- ...or it was an IApply pattern, so we might just need to introduce the variable now.
     trySplitRes (BlockedOnApply IsIApply) finalSplit splitError cont
        = do
-         caseMaybeM (splitResultPath f sc) fallback $ (cover f cs . snd) <=< insertTrailingArgs
+         caseMaybeM (splitResultPath f sc) fallback $ (cover f cs . snd) <=< insertTrailingArgs False
       where
         fallback | finalSplit = __IMPOSSIBLE__ -- already ruled out by lhs checker?
                  | otherwise  = cont
+
     -- blocked on result but there are catchalls:
     -- try regular splits if there are any, or else throw an error,
     -- this is nicer than continuing and reporting unreachable clauses
@@ -546,7 +554,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
         Right (Covering n scs) -> do
           -- If result splitting was successful, continue coverage checking.
           (projs, results) <- unzip <$> do
-            mapM (traverseF $ cover f cs <=< (snd <.> insertTrailingArgs)) scs
+            mapM (traverseF $ cover f cs <=< (snd <.> insertTrailingArgs False)) scs
             -- OR:
             -- forM scs $ \ (proj, sc') -> (proj,) <$> do
             --   cover f cs =<< do
@@ -970,11 +978,14 @@ fixTargetType q tag sc@SClause{ scTel = sctel, scSubst = sigma } target = do
 
 -- | Add more patterns to split clause if the target type is a function type.
 --   Returns the domains of the function type (if any).
-insertTrailingArgs :: SplitClause -> TCM (Telescope, SplitClause)
-insertTrailingArgs sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints = cps, scTarget = target } = do
+insertTrailingArgs
+  :: Bool         -- ^ Force insertion even when there is a 'domTactic'?
+  -> SplitClause
+  -> TCM (Telescope, SplitClause)
+insertTrailingArgs force sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCheckpoints = cps, scTarget = target } = do
   let fallback = return (empty, sc)
   caseMaybe target fallback $ \ a -> do
-    if isJust (domTactic a) then fallback else do
+    if isJust (domTactic a) && not force then fallback else do
     (TelV tel b) <- telViewUpTo (-1) $ unDom a
     reportSDoc "tc.cover.target" 15 $ sep
       [ "target type telescope: " <+> do
@@ -990,7 +1001,7 @@ insertTrailingArgs sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scCh
         sctel'    = telFromList $ telToList (raise n sctel) ++ telToList tel
         -- Dot patterns in @ps@ need to be raised!  (Issue 1298)
         ps'       = applySubst (raiseS n) ps ++ xs
-        newTarget = Just $ a $> b
+        newTarget = Just $ (if not (null tel) then a{ domTactic = Nothing } else a) $> b
         sc'       = SClause
           { scTel    = sctel'
           , scPats   = ps'
@@ -1455,7 +1466,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
   ns <- case inserttrailing of
     DontInsertTrailing -> return ns
     DoInsertTrailing   -> lift $ forM ns $ \(con,sc) ->
-      (con,) . snd <$> insertTrailingArgs sc
+      (con,) . snd <$> insertTrailingArgs False sc
 
   mHCompName <- getPrimitiveName' builtinHComp
   withoutK   <- collapseDefault . optWithoutK <$> pragmaOptions
