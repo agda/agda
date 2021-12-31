@@ -364,7 +364,7 @@ coreBuiltins =
   , builtinAgdaTCMReduce                     |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMCatchError                 |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
                                                                    tTCM 1 (varM 0) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
-  , builtinAgdaTCMGetContext                 |-> builtinPostulate (tTCM_ (unEl <$> tlist (targ ttype)))
+  , builtinAgdaTCMGetContext                 |-> builtinPostulate (tTCM_ (unEl <$> ttelescope))
   , builtinAgdaTCMExtendContext              |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $
                                                                    tstring --> targ ttype --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMInContext                  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $

@@ -33,7 +33,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level
 
-import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quotingKit)
+import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quoteDomWithKit, quotingKit)
 import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Warnings
@@ -189,6 +189,10 @@ instance ToTerm Bool where
 instance ToTerm Term where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTermWithKit kit)
   toTermR = do quoteTermWithKit <$> quotingKit;
+
+instance ToTerm (Dom Type) where
+  toTerm  = do kit <- quotingKit; runReduceF (quoteDomWithKit kit)
+  toTermR = do quoteDomWithKit <$> quotingKit
 
 instance ToTerm Type where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
