@@ -274,12 +274,13 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
     , nest 2 $ "target sort =" <+> do addContext tel $ maybe (text "<none>") (prettyTCM . getSort . unDom) target
     ]
   reportSLn "tc.cover.cover" 80 $ "raw target =\n" ++ show target
-  reportSLn "tc.cover.matching" 20 $ "clauses when matching:"
-  forM_ cs $ \ c -> do
-    let gamma = clauseTel c
-        ps = namedClausePats c
-    reportSDoc "tc.cover.matching" 20 $ addContext gamma $
-        "ps   :" <+> prettyTCM (fmap namedArg ps)
+  verboseS  "tc.cover.matching" 20 $ do
+    reportSLn "tc.cover.matching" 20 $ "clauses when matching:"
+    forM_ cs $ \ c -> do
+      let gamma = clauseTel c
+          ps = namedClausePats c
+      reportSDoc "tc.cover.matching" 20 $ addContext gamma $
+          "ps   :" <+> prettyTCM (fmap namedArg ps)
 
   match cs ps >>= \case
     Yes (i,mps) -> do
