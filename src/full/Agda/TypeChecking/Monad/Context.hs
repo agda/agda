@@ -420,8 +420,8 @@ addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 -- * Querying the context
 
 -- | Get the current context.
-{-# SPECIALIZE getContext :: TCM [Dom (Name, Type)] #-}
-getContext :: MonadTCEnv m => m [Dom (Name, Type)]
+{-# SPECIALIZE getContext :: TCM Context #-}
+getContext :: MonadTCEnv m => m Context
 getContext = asksTC envContext
 
 -- | Get the size of the current context.
@@ -452,8 +452,8 @@ getContextNames = map (fst . unDom) <$> getContext
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
-{-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe (Dom (Name, Type))) #-}
-lookupBV' :: MonadTCEnv m => Nat -> m (Maybe (Dom (Name, Type)))
+{-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe ContextEntry) #-}
+lookupBV' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
 lookupBV' n = do
   ctx <- getContext
   return $ raise (n + 1) <$> ctx !!! n

@@ -987,7 +987,7 @@ contextOfMeta ii norm = withInteractionId ii $ do
          <*> forMaybeM letVars mkLet
 
   where
-    mkVar :: Dom (Name, Type) -> TCM (Maybe ResponseContextEntry)
+    mkVar :: ContextEntry -> TCM (Maybe ResponseContextEntry)
     mkVar Dom{ domInfo = ai, unDom = (name, t) } = do
       if shouldHide ai name then return Nothing else Just <$> do
         let n = nameConcrete name
