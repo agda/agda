@@ -417,15 +417,15 @@ following primitive operations::
     -- it is indexable by deBruijn index. Note that the types in the context are
     -- valid in the rest of the context. To use in the current context they need
     -- to be weakened by 1 + their position in the list.
-    getContext : TC (List (Arg Type))
+    getContext : TC Telescope
 
-    -- Extend the current context with a variable of the given type.
-    extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
+    -- Extend the current context with a variable of the given type and its name.
+    extendContext : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
 
     -- Set the current context. Takes a context telescope entries in
     -- reverse order, as given by `getContext`. Each type should be valid
     -- in the context formed by the remaining elements in the list.
-    inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
+    inContext : ∀ {a} {A : Set a} → Telescope → TC A → TC A
 
     -- Quote a value, returning the corresponding Term.
     quoteTC : ∀ {a} {A : Set a} → A → TC Term

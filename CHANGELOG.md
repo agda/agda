@@ -64,6 +64,12 @@ Language
     pickWhatever _ = typeError (strErr "Already solved!" ∷ [])
   ```
 
+* The reflection primitives `getContext` and `inContext` use nominal context
+  `List (Σ String λ _ → Arg Type)` instead of  `List (Arg Type)` for printing
+  type information better. Similarly, `extendContext` takes an extra argument
+  of type `String`.
+
+
 
 Syntax
 ------
