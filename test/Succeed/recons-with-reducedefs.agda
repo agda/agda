@@ -54,8 +54,7 @@ macro
   y hole = do
       (function (clause tel ps t ∷ [])) ← withReconstructed (dontReduceDefs (quote foo ∷ []) (getDefinition (quote bar)))
         where _ → quoteTC "ERROR" >>= unify hole
-      let ctx = map snd tel
-      t ← inContext (reverse ctx)
+      t ← inContext (reverse tel)
           (withReconstructed (dontReduceDefs (quote foo ∷ []) (normalise t)))
       quoteTC t >>= unify hole
 

@@ -18,13 +18,17 @@ macro
 
 -- The context on the rhs of each of the two functions below is the same, a single String
 
-Γ = vArg (def (quote String) []) ∷ []
+Γ : Telescope
+Γ = ("s" , vArg (def (quote String) [])) ∷ []
 
 context-Γ₀ : String → This: Γ
 context-Γ₀ s = this: evalT getContext
 
 module _ (S : String) where
-  context-Γ₁ : This: Γ
+  Γ' : Telescope
+  Γ' = ("S" , vArg (def (quote String) [])) ∷ []
+
+  context-Γ₁ : This: Γ'
   context-Γ₁ = this: evalT getContext
 
 downMap : {A : Set} → (Nat → A) → Nat → List A

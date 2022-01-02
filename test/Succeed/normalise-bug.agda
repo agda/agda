@@ -30,7 +30,7 @@ macro
   ntest f a = do
      (function te@(clause tel _ t ∷ [])) ← withReconstructed $ getDefinition f where
         _ → typeError $ strErr "ERROR" ∷ []
-     t ← withReconstructed $ inContext (reverse $ map snd tel) $ normalise t
+     t ← withReconstructed $ inContext (reverse tel) $ normalise t
      quoteTC t >>= unify a
 
 -- A record with parameters.
