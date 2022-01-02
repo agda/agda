@@ -84,8 +84,6 @@ jobs:
         sudo apt-get install texlive-binaries ${APT_GET_OPTS}
         sudo apt-get install emacs-nox ${APT_GET_OPTS}
       name: Install Tex Live and Emacs
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
-      name: Cubical library test
     - run: |
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
@@ -104,6 +102,8 @@ jobs:
       name: User manual (test)
     - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
       name: Testing the Emacs mode
+    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
+      name: Cubical library test
   test:
     runs-on: ${{ needs.build.outputs.os }}
     needs: build
