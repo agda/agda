@@ -271,6 +271,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMIsMacro
       , builtinAgdaTCMWithNormalisation
       , builtinAgdaTCMWithReconsParams
+      , builtinAgdaTCMFormatErrorParts
       , builtinAgdaTCMDebugPrint
       , builtinAgdaTCMOnlyReduceDefs
       , builtinAgdaTCMDontReduceDefs

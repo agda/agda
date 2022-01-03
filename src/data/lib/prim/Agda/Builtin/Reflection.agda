@@ -298,6 +298,7 @@ postulate
   -- getDefinition, normalise, reduce, inferType, checkType and getContext
   withReconstructed : ∀ {a} {A : Set a} → TC A → TC A
 
+  formatErrorParts : List ErrorPart → TC String
   -- Prints the third argument if the corresponding verbosity level is turned
   -- on (with the -v flag to Agda).
   debugPrint : String → Nat → List ErrorPart → TC ⊤
@@ -347,6 +348,7 @@ postulate
 {-# BUILTIN AGDATCMCOMMIT                     commitTC                   #-}
 {-# BUILTIN AGDATCMISMACRO                    isMacro                    #-}
 {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
+{-# BUILTIN AGDATCMFORMATERRORPARTS           formatErrorParts           #-}
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
 {-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
 {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}

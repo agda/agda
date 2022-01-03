@@ -557,6 +557,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMReduce,                     tcFun1 tcReduce                     u)
              , (f `isDef` primAgdaTCMGetType,                    tcFun1 tcGetType                    u)
              , (f `isDef` primAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
+             , (f `isDef` primAgdaTCMFormatErrorParts,           tcFun1 tcFormatErrorParts           u)
              , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
              , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
              , (f `isDef` primAgdaTCMGetInstances,               uqFun1 tcGetInstances               u)
@@ -572,15 +573,15 @@ evalTCM v = do
              ]
              failEval
     I.Def f [l, a, u] ->
-      choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
-             , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
-             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
-             , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
-             , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
-             , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
-             , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
-             , (f `isDef` primAgdaTCMWithReconsParams, tcWithReconsParams (unElim u))
-             , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
+      choice [ (f `isDef` primAgdaTCMReturn,             return (unElim u))
+             , (f `isDef` primAgdaTCMTypeError,          tcFun1 tcTypeError   u)
+             , (f `isDef` primAgdaTCMQuoteTerm,          tcQuoteTerm (unElim u))
+             , (f `isDef` primAgdaTCMUnquoteTerm,        tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
+             , (f `isDef` primAgdaTCMBlockOnMeta,        uqFun1 tcBlockOnMeta u)
+             , (f `isDef` primAgdaTCMDebugPrint,         tcFun3 tcDebugPrint l a u)
+             , (f `isDef` primAgdaTCMNoConstraints,      tcNoConstraints (unElim u))
+             , (f `isDef` primAgdaTCMWithReconsParams,   tcWithReconsParams (unElim u))
+             , (f `isDef` primAgdaTCMRunSpeculative,     tcRunSpeculative (unElim u))
              , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
              ]
              failEval
@@ -689,6 +690,10 @@ evalTCM v = do
       s <- getTC
       modify (second $ const s)
       liftTCM primUnitUnit
+
+    tcFormatErrorParts :: [ErrorPart] -> TCM Term
+    tcFormatErrorParts msg = quoteString . prettyShow <$> prettyErrorParts msg
+
 
     tcTypeError :: [ErrorPart] -> TCM a
     tcTypeError err = typeError . GenericDocError =<< prettyErrorParts err
