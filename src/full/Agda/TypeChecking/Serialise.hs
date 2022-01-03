@@ -23,6 +23,8 @@ module Agda.TypeChecking.Serialise
   )
   where
 
+import Prelude hiding ( null )
+
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( takeDirectory )
 
@@ -36,7 +38,8 @@ import Control.Monad.State.Strict
 
 import Data.Array.IArray
 import Data.Word
-import qualified Data.ByteString.Builder as L
+import Data.ByteString.Lazy    ( ByteString )
+import Data.ByteString.Builder ( byteString, toLazyByteString )
 import qualified Data.ByteString.Lazy as L
 import qualified Data.HashTable.IO as H
 import qualified Data.Map as Map
@@ -66,6 +69,7 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.FileName (canonicalizeAbsolutePath)
 import Agda.Utils.Hash
 import Agda.Utils.IORef
+import Agda.Utils.Null
 
 import Agda.Utils.Impossible
 
@@ -79,10 +83,10 @@ currentInterfaceVersion = 20211026 * 10 + 0
 -- | The result of 'encode' and 'encodeInterface'.
 
 data Encoded = Encoded
-  { uncompressed :: L.ByteString
+  { uncompressed :: ByteString
     -- ^ The uncompressed bytestring, without hashes and the interface
     -- version.
-  , compressed :: L.ByteString
+  , compressed :: ByteString
     -- ^ The compressed bytestring.
   }
 
@@ -135,7 +139,7 @@ encode a = do
           }
     cbits <- Bench.billTo [ Bench.Serialization, Bench.Compress ] $
       return $!! G.compressWith compressParams bits1
-    let x = B.encode currentInterfaceVersion `L.append` cbits
+    let x = B.encode currentInterfaceVersion <> cbits
     return (Encoded { uncompressed = bits1, compressed = x })
   where
     l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
@@ -152,7 +156,7 @@ encode a = do
       tickN (kind ++ " (reused)") $ fromIntegral reused
 #endif
 
--- encode :: EmbPrj a => a -> TCM L.ByteString
+-- encode :: EmbPrj a => a -> TCM ByteString
 -- encode a = do
 --     fileMod <- sourceToModule
 --     (x, shared, total) <- liftIO $ do
@@ -160,7 +164,7 @@ encode a = do
 --       root <- runReaderT (icode a) newD
 --       nL <- l nD; sL <- l sD; iL <- l iD; dL <- l dD
 --       (shared, total) <- readIORef stats
---       return (B.encode currentInterfaceVersion `L.append`
+--       return (B.encode currentInterfaceVersion <>
 --               G.compress (B.encode (root, nL, sL, iL, dL)), shared, total)
 --     verboseS "profile.sharing" 10 $ do
 --       tickN "pointers (reused)" $ fromIntegral shared
@@ -174,7 +178,7 @@ encode a = do
 --
 -- Returns 'Nothing' if a decoding error is encountered.
 
-decode :: EmbPrj a => L.ByteString -> TCM (Maybe a)
+decode :: EmbPrj a => ByteString -> TCM (Maybe a)
 decode s = do
   mf   <- useTC stModuleToSource
   incs <- getIncludeDirs
@@ -186,7 +190,7 @@ decode s = do
   (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
 
     ((r, nL, ltL, stL, bL, iL, dL), s, _) <- return $ runGetState B.get s 0
-    if s /= L.empty
+    if not (null s)
      then noResult "Garbage at end."
      else do
 
@@ -226,9 +230,9 @@ decode s = do
 encodeInterface :: Interface -> TCM Encoded
 encodeInterface i = do
   r <- encode i
-  return (r { compressed = L.append hashes (compressed r) })
+  return r{ compressed = hashes <> compressed r }
   where
-    hashes :: L.ByteString
+    hashes :: ByteString
     hashes = B.runPut $ B.put (iSourceHash i) >> B.put (iFullHash i)
 
 -- | Encodes an interface. To ensure relocatability file paths in
@@ -237,7 +241,7 @@ encodeInterface i = do
 -- An uncompressed bytestring corresponding to the encoded interface
 -- is returned.
 
-encodeFile :: FilePath -> Interface -> TCM L.ByteString
+encodeFile :: FilePath -> Interface -> TCM ByteString
 encodeFile f i = do
   r <- encodeInterface i
   liftIO $ createDirectoryIfMissing True (takeDirectory f)
@@ -249,7 +253,7 @@ encodeFile f i = do
 -- Returns 'Nothing' if the file does not start with the right magic
 -- number or some other decoding error is encountered.
 
-decodeInterface :: L.ByteString -> TCM (Maybe Interface)
+decodeInterface :: ByteString -> TCM (Maybe Interface)
 decodeInterface s = do
 
   -- Note that runGetState and the decompression code below can raise
@@ -264,10 +268,10 @@ decodeInterface s = do
        if ver /= currentInterfaceVersion
        then Left "Wrong interface version."
        else Right $
-            L.toLazyByteString $
+            toLazyByteString $
             Z.foldDecompressStreamWithInput
-              (\s -> (L.byteString s <>))
-              (\s -> if L.null s
+              (\s -> (byteString s <>))
+              (\s -> if null s
                      then mempty
                      else error "Garbage at end.")
               (\err -> error (show err))
@@ -281,7 +285,7 @@ decodeInterface s = do
         "Error when decoding interface file: " ++ err
       return Nothing
 
-decodeHashes :: L.ByteString -> Maybe (Hash, Hash)
+decodeHashes :: ByteString -> Maybe (Hash, Hash)
 decodeHashes s
   | L.length s < 16 = Nothing
   | otherwise       = Just $ B.runGet getH $ L.take 16 s
