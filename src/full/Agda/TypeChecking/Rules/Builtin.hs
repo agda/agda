@@ -231,9 +231,10 @@ coreBuiltins =
                                                    , builtinAgdaTermPi, builtinAgdaTermSort
                                                    , builtinAgdaTermLit, builtinAgdaTermMeta
                                                    , builtinAgdaTermUnsupported])
-  , builtinAgdaErrorPart                     |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName ]
+  , builtinAgdaErrorPart                     |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartPatt, builtinAgdaErrorPartName ]
   , builtinAgdaErrorPartString               |-> BuiltinDataCons (tstring --> terrorpart)
   , builtinAgdaErrorPartTerm                 |-> BuiltinDataCons (tterm --> terrorpart)
+  , builtinAgdaErrorPartPatt                 |-> BuiltinDataCons (tpat --> terrorpart)
   , builtinAgdaErrorPartName                 |-> BuiltinDataCons (tqname --> terrorpart)
   -- Andreas, 2017-01-12, issue #2386: special handling of builtinEquality
   -- , (builtinEquality                         |-> BuiltinData (hPi "a" (el primLevel) $

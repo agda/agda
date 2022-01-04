@@ -203,11 +203,13 @@ data Definition : Set where
 data ErrorPart : Set where
   strErr  : String → ErrorPart
   termErr : Term → ErrorPart
+  pattErr : Pattern → ErrorPart
   nameErr : Name → ErrorPart
 
 {-# BUILTIN AGDAERRORPART       ErrorPart #-}
 {-# BUILTIN AGDAERRORPARTSTRING strErr    #-}
 {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
+{-# BUILTIN AGDAERRORPARTPATT   pattErr   #-}
 {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
 
 -- TC monad --

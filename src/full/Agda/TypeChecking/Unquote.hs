@@ -280,11 +280,12 @@ unquoteString x = T.unpack <$> unquote x
 unquoteNString :: Arg Term -> UnquoteM Text
 unquoteNString = unquoteN
 
-data ErrorPart = StrPart String | TermPart A.Expr | NamePart QName
+data ErrorPart = StrPart String | TermPart A.Expr | PattPart A.Pattern | NamePart QName
 
 instance PrettyTCM ErrorPart where
-  prettyTCM (StrPart s) = text s
+  prettyTCM (StrPart s)  = text s
   prettyTCM (TermPart t) = prettyTCM t
+  prettyTCM (PattPart p) = prettyTCM p
   prettyTCM (NamePart x) = prettyTCM x
 
 -- | We do a little bit of work here to make it possible to generate nice
@@ -300,6 +301,7 @@ prettyErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
         (s0, "")        -> consLine (StrPart s0) (splitLines ss)
         _               -> __IMPOSSIBLE__
     splitLines (p@TermPart{} : ss) = consLine p (splitLines ss)
+    splitLines (p@PattPart{} : ss) = consLine p (splitLines ss)
     splitLines (p@NamePart{} : ss) = consLine p (splitLines ss)
 
     consLine l []        = [[l]]
@@ -313,6 +315,7 @@ instance Unquote ErrorPart where
       Con c _ es | Just [x] <- allApplyElims es ->
         choice [ (c `isCon` primAgdaErrorPartString, StrPart . T.unpack <$> unquoteNString x)
                , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> ((liftTCM . toAbstractWithoutImplicit) =<< (unquoteN x :: UnquoteM R.Term)))
+               , (c `isCon` primAgdaErrorPartPatt,   PattPart <$> ((liftTCM . toAbstractWithoutImplicit) =<< (unquoteN x :: UnquoteM R.Pattern)))
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
                __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "error part" t
@@ -693,7 +696,6 @@ evalTCM v = do
 
     tcFormatErrorParts :: [ErrorPart] -> TCM Term
     tcFormatErrorParts msg = quoteString . prettyShow <$> prettyErrorParts msg
-
 
     tcTypeError :: [ErrorPart] -> TCM a
     tcTypeError err = typeError . GenericDocError =<< prettyErrorParts err

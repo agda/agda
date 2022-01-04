@@ -191,7 +191,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
-    primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
+    primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartPatt, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
     primQuantity, primQuantity0, primQuantityω,
@@ -363,6 +363,7 @@ primAgdaTermMeta                      = getBuiltin builtinAgdaTermMeta
 primAgdaErrorPart                     = getBuiltin builtinAgdaErrorPart
 primAgdaErrorPartString               = getBuiltin builtinAgdaErrorPartString
 primAgdaErrorPartTerm                 = getBuiltin builtinAgdaErrorPartTerm
+primAgdaErrorPartPatt                 = getBuiltin builtinAgdaErrorPartPatt
 primAgdaErrorPartName                 = getBuiltin builtinAgdaErrorPartName
 primAgdaLiteral                       = getBuiltin builtinAgdaLiteral
 primAgdaLitNat                        = getBuiltin builtinAgdaLitNat
