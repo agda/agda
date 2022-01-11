@@ -213,7 +213,7 @@ checkDecl d = setCurrentRange d $ do
             A.Generalize{} -> pure ()
             _ -> do
               reportSLn "tc.decl" 20 $ "Freezing all metas."
-              void $ freezeMetas' $ \ (MetaId x) -> IntSet.member x metas
+              void $ freezeMetas metas
 
         theMutualChecks
 
@@ -522,10 +522,10 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
     (a, ms) <- metasCreatedBy m
     reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
     wakeupConstraints_   -- solve emptiness and instance constraints
-    xs <- freezeMetas' $ (`IntSet.member` ms) . metaId
+    xs <- freezeMetas ms
     reportSDoc "tc.decl.ax" 20 $ vcat
       [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ IntSet.toList ms)
-      , "We froze the following ones of these:       " <+> sep (map prettyTCM xs)
+      , "We froze the following ones of these:       " <+> sep (map prettyTCM $ IntSet.toList xs)
       ]
     return a
 
