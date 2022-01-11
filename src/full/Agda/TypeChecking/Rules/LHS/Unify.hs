@@ -350,9 +350,13 @@ basicUnifyStrategy k s = do
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
   Equal Dom{unDom = a} u v <- eqConstructorForm =<< eqUnLevel =<< reduce (getEqualityUnraised k s)
-  sa <- reduce $ getSort a
+  sortOk <- reduce (getSort a) <&> \case
+    Type{} -> True
+    Inf{}  -> True
+    SSet{} -> True
+    _      -> False
   case unEl a of
-    Def d es | Type{} <- sa -> do
+    Def d es | sortOk -> do
       npars <- catMaybesMP $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
