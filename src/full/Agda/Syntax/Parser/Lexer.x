@@ -37,9 +37,8 @@ import Agda.Syntax.Literal
 
 }
 
--- Unicode is not handled by the following regular expressions.
--- Instead, unicode characters are translated to 7-bit ASCII
--- by Agda.Syntax.Parser.LexActions.foolAlex in a preprocessing pass.
+-- Note that the regular expressions should not use non-ASCII
+-- characters, see Agda.Syntax.Parser.Alex.alexGetByte.
 
 $digit       = 0-9
 $hexdigit    = [ $digit a-f A-F ]
