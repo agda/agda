@@ -1196,7 +1196,9 @@ buildInterface src topLevel = do
     let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     warnings <- getAllWarnings AllWarnings
     reportSLn "import.iface" 7 "  instantiating all meta variables"
-    i <- instantiateFull Interface
+    -- Note that the meta-variables in the definitions in "sig" have
+    -- already been instantiated (by eliminateDeadCode).
+    i <- instantiateFullExceptForDefinitions Interface
       { iSourceHash      = hashText source
       , iSource          = source
       , iFileType        = fileType

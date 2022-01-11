@@ -1537,24 +1537,44 @@ instance InstantiateFull Clause where
        <*> return ell
 
 instance InstantiateFull Interface where
-    instantiateFull' (Interface h s ft ms mod scope inside
-                               sig display userwarn importwarn b foreignCode
-                               highlighting libPragmas filePragmas usedOpts patsyns
-                               warnings partialdefs) =
-        Interface h s ft ms mod scope inside
-            <$> instantiateFull' sig
-            <*> instantiateFull' display
-            <*> return userwarn
-            <*> return importwarn
-            <*> instantiateFull' b
-            <*> return foreignCode
-            <*> return highlighting
-            <*> return libPragmas
-            <*> return filePragmas
-            <*> return usedOpts
-            <*> return patsyns
-            <*> return warnings
-            <*> return partialdefs
+  instantiateFull' i = do
+    defs <- instantiateFull' (i ^. intSignature . sigDefinitions)
+    instantiateFullExceptForDefinitions'
+      (set (intSignature . sigDefinitions) defs i)
+
+-- | Instantiates everything except for definitions in the signature.
+
+instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
+instantiateFullExceptForDefinitions'
+  (Interface h s ft ms mod scope inside sig display userwarn importwarn
+     b foreignCode highlighting libPragmas filePragmas usedOpts patsyns
+     warnings partialdefs) =
+  Interface h s ft ms mod scope inside
+    <$> ((\s r -> Sig { _sigSections     = s
+                      , _sigDefinitions  = sig ^. sigDefinitions
+                      , _sigRewriteRules = r
+                      })
+         <$> instantiateFull' (sig ^. sigSections)
+         <*> instantiateFull' (sig ^. sigRewriteRules))
+    <*> instantiateFull' display
+    <*> return userwarn
+    <*> return importwarn
+    <*> instantiateFull' b
+    <*> return foreignCode
+    <*> return highlighting
+    <*> return libPragmas
+    <*> return filePragmas
+    <*> return usedOpts
+    <*> return patsyns
+    <*> return warnings
+    <*> return partialdefs
+
+-- | Instantiates everything except for definitions in the signature.
+
+instantiateFullExceptForDefinitions ::
+  MonadReduce m => Interface -> m Interface
+instantiateFullExceptForDefinitions =
+  liftReduce . instantiateFullExceptForDefinitions'
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t
