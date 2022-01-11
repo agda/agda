@@ -265,10 +265,15 @@ getDefArity def = do
   let dropped = case theDef def of
         defn@Function{} -> projectionArgs defn
         _ -> 0
-  -- TODO: instantiateFull followed by arity could perhaps be
-  -- optimised, presumably the instantiation can be performed
-  -- lazily.
-  subtract dropped . arity <$> instantiateFull (defType def)
+  subtract dropped <$> arity' (defType def)
+  where
+  -- A variant of "\t -> arity <$> instantiateFull t".
+  arity' :: Type -> TCM Int
+  arity' t = do
+    t <- instantiate t
+    case unEl t of
+      Pi _ t -> succ <$> arity' (unAbs t)
+      _      -> return 0
 
 -- Computing occurrences --------------------------------------------------
 
