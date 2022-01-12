@@ -552,15 +552,6 @@ getMetaVariables p = do
   store <- getMetaStore
   return [ MetaId i | (i, mv) <- IntMap.assocs store, p mv ]
 
-getInstantiatedMetas :: ReadTCState m => m [MetaId]
-getInstantiatedMetas = getMetaVariables (isInst . mvInstantiation)
-  where
-    isInst Open                           = False
-    isInst OpenInstance                   = False
-    isInst BlockedConst{}                 = False
-    isInst PostponedTypeCheckingProblem{} = False
-    isInst InstV{}                        = True
-
 getOpenMetas :: ReadTCState m => m [MetaId]
 getOpenMetas = getMetaVariables (isOpenMeta . mvInstantiation)
 
