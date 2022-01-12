@@ -1280,7 +1280,10 @@ data MetaVariable =
                 , mvInstantiation :: MetaInstantiation
                 , mvListeners     :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
-                , mvTwin          :: Maybe MetaId -- ^ @Just m@ means this meta will be equated to @m@ when the latter is unblocked. See @blockedTermOnProblem@.
+                , mvTwin          :: Maybe MetaId
+                  -- ^ @Just m@ means that this meta-variable will be
+                  -- equated to @m@ when the latter is unblocked. See
+                  -- 'Agda.TypeChecking.MetaVars.blockTermOnProblem'.
                 }
   deriving Generic
 
