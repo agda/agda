@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans.Identity ( IdentityT )
@@ -127,12 +128,17 @@ modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
 modifyMetaStore f = stMetaStore `modifyTCLens` f
 
 -- | Run a computation and record which new metas it created.
-metasCreatedBy :: ReadTCState m => m a -> m (a, IntSet)
+metasCreatedBy :: ReadTCState m => m a -> m (a, MetaStore)
 metasCreatedBy m = do
-  before <- IntMap.keysSet <$> useTC stMetaStore
-  a <- m
-  after  <- IntMap.keysSet <$> useTC stMetaStore
-  return (a, after IntSet.\\ before)
+  -- Compute largestMeta strictly to avoid leaking memory.
+  !largestMeta <- force . fmap fst . IntMap.lookupMax <$>
+                    useTC stMetaStore
+  a            <- m
+  ms           <- useTC stMetaStore
+  let createdMetas = case largestMeta of
+        Nothing          -> ms
+        Just largestMeta -> snd $ IntMap.split largestMeta ms
+  return (a, createdMetas)
 
 -- | Lookup a meta variable.
 lookupMeta' :: ReadTCState m => MetaId -> m (Maybe MetaVariable)
@@ -584,11 +590,11 @@ clearMetaListeners m =
 
 -- | Freeze the given meta-variables and return those that were not
 --   already frozen.
-freezeMetas :: IntSet -> TCM IntSet
+freezeMetas :: MetaStore -> TCM IntSet
 freezeMetas ms =
   execWriterT $
   modifyTCLensM stMetaStore $
-  execStateT (mapM_ freeze $ IntSet.toList ms)
+  execStateT (mapM_ freeze $ IntMap.keys ms)
   where
   freeze :: Monad m => Int -> StateT MetaStore (WriterT IntSet m) ()
   freeze m = do
