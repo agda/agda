@@ -1002,6 +1002,11 @@ instance Pretty Interface where
 iFullHash :: Interface -> Hash
 iFullHash i = combineHashes $ iSourceHash i : List.map snd (iImportedModules i)
 
+-- | A lens for the 'iSignature' field of the 'Interface' type.
+
+intSignature :: Lens' Signature Interface
+intSignature f i = f (iSignature i) <&> \s -> i { iSignature = s }
+
 ---------------------------------------------------------------------------
 -- ** Closure
 ---------------------------------------------------------------------------
