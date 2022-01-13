@@ -10,7 +10,7 @@ import Control.Arrow (first)
 import Control.Monad
 import Control.Monad.Except
 
-import Data.IntSet (IntSet)
+import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -127,7 +127,8 @@ generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar 
   return (genTelNames, t', userdata)
 
 -- | Create metas for the generalizable variables and run the type check action.
-createMetasAndTypeCheck :: Set QName -> TCM a -> TCM (a, Map MetaId QName, IntSet)
+createMetasAndTypeCheck ::
+  Set QName -> TCM a -> TCM (a, Map MetaId QName, MetaStore)
 createMetasAndTypeCheck s typecheckAction = do
   ((namedMetas, x), allmetas) <- metasCreatedBy $ do
     (metamap, genvals) <- createGenValues s
@@ -150,13 +151,15 @@ withGenRecVar ret = do
 --   generalized. Called in the context extended with the telescope record variable (whose type is
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
-computeGeneralization :: Type -> Map MetaId name -> IntSet -> TCM (Telescope, [Maybe name], Substitution)
+computeGeneralization ::
+  Type -> Map MetaId name -> MetaStore ->
+  TCM (Telescope, [Maybe name], Substitution)
 computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints $ do
 
   reportSDoc "tc.generalize" 10 $ "computing generalization for type" <+> prettyTCM genRecMeta
 
   -- Pair metas with their metaInfo
-  mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntSet.toList allmetas
+  mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntMap.keys allmetas
 
   -- Issue 4727: filter out metavariables that were created before the
   -- current checkpoint, since they are too old to be generalized.
@@ -317,7 +320,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Now we need to prune the unsolved metas to make sure they respect the new
   -- dependencies (#3672). Also update interaction points to point to pruned metas.
   let inscope (ii, InteractionPoint{ipMeta = Just x})
-        | IntSet.member (metaId x) allmetas = Just (x, ii)
+        | IntMap.member (metaId x) allmetas = Just (x, ii)
       inscope _ = Nothing
   ips <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
   pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize allSortedMetas

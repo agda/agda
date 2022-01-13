@@ -9,9 +9,10 @@ import Control.Monad.Writer (tell)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
+import qualified Data.IntMap as IntMap
+import qualified Data.IntSet as IntSet
 import Data.Maybe
 import qualified Data.Set as Set
-import qualified Data.IntSet as IntSet
 import Data.Set (Set)
 
 import Agda.Interaction.Highlighting.Generate
@@ -524,7 +525,7 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
     wakeupConstraints_   -- solve emptiness and instance constraints
     xs <- freezeMetas ms
     reportSDoc "tc.decl.ax" 20 $ vcat
-      [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ IntSet.toList ms)
+      [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ IntMap.keys ms)
       , "We froze the following ones of these:       " <+> sep (map prettyTCM $ IntSet.toList xs)
       ]
     return a
