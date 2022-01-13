@@ -544,9 +544,6 @@ withMetaId m ret = do
   mv <- lookupMeta m
   withMetaInfo' mv ret
 
-getMetaVariableSet :: ReadTCState m => m IntSet
-getMetaVariableSet = IntMap.keysSet <$> getMetaStore
-
 getMetaVariables :: ReadTCState m => (MetaVariable -> Bool) -> m [MetaId]
 getMetaVariables p = do
   store <- getMetaStore
