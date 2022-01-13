@@ -10,7 +10,7 @@ module Agda.TypeChecking.InstanceArguments
 
 import Control.Monad.Except
 import Control.Monad.Reader
-import qualified Data.IntSet as IntSet
+import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -370,9 +370,9 @@ filterResetingState m cands f = do
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, a)] -> TCM [(Candidate, Term, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
-  metas <- getMetaVariableSet
+  metas <- getMetaStore
   -- Does `it` have any metas in the initial meta variable store?
-  let freshMetas = getAny . allMetas (Any . (`IntSet.notMember` metas) . metaId)
+  let freshMetas = getAny . allMetas (Any . (`IntMap.notMember` metas) . metaId)
 
   -- Take overlappable candidates into account
   let cands =
