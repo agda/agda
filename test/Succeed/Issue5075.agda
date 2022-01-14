@@ -27,7 +27,7 @@ macro
   rtest f a = do
      (function (clause tel _ t ∷ [])) ← withReconstructed (getDefinition f) where
         _ → typeError (strErr "ERROR" ∷ [])
-     t ← inContext (reverse (map snd tel)) (normalise t)
+     t ← inContext (reverse tel) (normalise t)
      quoteTC t >>= unify a
 
 transp : ∀ m n → Vec (Vec Nat n) m → Vec (Vec Nat m) n

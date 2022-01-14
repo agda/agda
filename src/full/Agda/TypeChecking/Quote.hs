@@ -221,11 +221,11 @@ quotingKit = do
 
       quoteTelescope :: Telescope -> ReduceM Term
       quoteTelescope tel = quoteList quoteTelEntry $ telToList tel
-        where
-          quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
-          quoteTelEntry dom@Dom{ unDom = (x , t) } = do
-            SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
-            Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
+
+      quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
+      quoteTelEntry dom@Dom{ unDom = (x , t) } = do
+        SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+        Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
 
       list :: [ReduceM Term] -> ReduceM Term
       list = foldr (\ a as -> cons !@ a @@ as) (pure nil)

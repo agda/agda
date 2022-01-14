@@ -1,7 +1,7 @@
 
 module Agda.TypeChecking.Unquote where
 
-import Control.Arrow (first, second)
+import Control.Arrow (first, second, (&&&))
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -586,10 +586,13 @@ evalTCM v = do
     I.Def f [_, _, u, v] ->
       choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMWithNormalisation, tcWithNormalisation (unElim u) (unElim v))
-             , (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMOnlyReduceDefs, tcOnlyReduceDefs (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMDontReduceDefs, tcDontReduceDefs (unElim u) (unElim v))
+             ]
+             failEval
+    I.Def f [_, _, u, v, w] ->
+      choice [ (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v) (unElim w))
              ]
              failEval
     I.Def f [_, _, _, _, m, k] ->
@@ -760,32 +763,36 @@ evalTCM v = do
     tcGetContext :: UnquoteM Term
     tcGetContext = liftTCM $ do
       r <- isReconstructed
-      as <- map (fmap snd) <$> getContext
+      as <- map (nameToArgName . fst . unDom &&& fmap snd) <$> getContext
       as <- etaContract =<< process as
       if r then do
-         as <- recons (reverse as)
-         let as' = reverse as
-         locallyReconstructed $ buildList <*> mapM quoteDom as'
+        as <- recons (reverse as)
+        let as' = reverse as
+        locallyReconstructed $ buildList <*> mapM quoteDomWithName as'
       else
-         buildList <*> mapM quoteDom as
+        buildList <*> mapM quoteDomWithName as
       where
-         recons :: [Dom Type] -> TCM [Dom Type]
-         recons [] = return []
-         recons (d@Dom {unDom=t} : ds) = do
-           t <- locallyReduceAllDefs $ reconstructParametersInType t
-           let d' = d{unDom=t}
-           ds' <- addContext d' $ recons ds
-           return $ d' : ds'
+        recons :: [(ArgName, Dom Type)] -> TCM [(ArgName, Dom Type)]
+        recons []                        = return []
+        recons ((s, d@Dom {unDom=t}):ds) = do
+          t <- locallyReduceAllDefs $ reconstructParametersInType t
+          let d' = d{unDom=t}
+          ds' <- addContext (s, d') $ recons ds
+          return $ (s, d'):ds'
 
-    extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
-    extendCxt a m = do
+        quoteDomWithName :: (ArgName, Dom Type) -> TCM Term
+        quoteDomWithName (x, t) = toTerm <*> pure (T.pack x, t)
+
+    extendCxt :: Text -> Arg R.Type -> UnquoteM a -> UnquoteM a
+    extendCxt s a m = do
       a <- locallyReduceAllDefs $ liftTCM $ traverse (isType_ <=< toAbstract_) a
-      liftU1 (addContext ("x" :: String, domFromArg a :: Dom Type)) m
+      liftU1 (addContext (s, domFromArg a :: Dom Type)) m
 
-    tcExtendContext :: Term -> Term -> UnquoteM Term
-    tcExtendContext a m = do
+    tcExtendContext :: Term -> Term -> Term -> UnquoteM Term
+    tcExtendContext s a m = do
+      s <- unquote s
       a <- unquote a
-      fmap (strengthen impossible) $ extendCxt a $ do
+      fmap (strengthen impossible) $ extendCxt s a $ do
         v <- evalTCM $ raise 1 m
         when (freeIn 0 v) $ liftTCM $ genericDocError =<<
           hcat ["Local variable '", prettyTCM (var 0), "' escaping in result of extendContext:"]
@@ -797,9 +804,9 @@ evalTCM v = do
       c <- unquote c
       liftU1 unsafeInTopContext $ go c (evalTCM m)
       where
-        go :: [Arg R.Type] -> UnquoteM Term -> UnquoteM Term
-        go []       m = m
-        go (a : as) m = go as (extendCxt a m)
+        go :: [(Text , Arg R.Type)] -> UnquoteM Term -> UnquoteM Term
+        go []             m = m
+        go ((s , a) : as) m = go as (extendCxt s a m)
 
     constInfo :: QName -> TCM Definition
     constInfo x = either err return =<< getConstInfo' x

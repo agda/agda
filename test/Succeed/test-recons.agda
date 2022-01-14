@@ -60,8 +60,7 @@ macro
     (function (clause tel ps t ∷ [])) ←
       withReconstructed (getDefinition n)
       where _ → quoteTC "ERROR" >>= unify hole
-    let ctx = map snd tel
-    t ← inContext (reverse ctx)
+    t ← inContext (reverse tel)
         (withReconstructed (normalise t))
     let d = function (clause tel ps t ∷ [])
     get-len d >>= unify hole
@@ -72,8 +71,7 @@ macro
     (function (clause tel ps t ∷ [])) ←
       withReconstructed (getDefinition n)
       where _ → quoteTC "ERROR" >>= unify hole
-    let ctx = map snd tel
-    t ← inContext (reverse ctx) (withReconstructed (reduce t))
+    t ← inContext (reverse tel) (withReconstructed (reduce t))
     let d = function (clause tel ps t ∷ [])
     get-len d >>= unify hole
 
@@ -91,8 +89,8 @@ test₄ : (lit (nat 5)) ≡ def-redR test-rvec
 test₄ = refl
 
 
-pictx : Term → List (Arg Type)
-pictx (pi a (abs s x)) = a ∷ pictx x
+pictx : Term → Telescope
+pictx (pi a (abs s x)) = (s , a) ∷ pictx x
 pictx _ = []
 
 macro
@@ -108,9 +106,8 @@ bar : (A : Set) (eq : [] {A = A} ≡ []) (x : Nat) → ⊤
 bar _ _ _ = tt
 
 -- if getContext were to work incorrectly, this function wouldn't typecheck
-test₅ : List (Arg Type)
+test₅ : Telescope
 test₅ = get-ctx bar
-
 
 
 data NotAVec (X : Set) (y : Nat) : Set where
