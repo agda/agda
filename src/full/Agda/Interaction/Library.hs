@@ -65,6 +65,7 @@ import Agda.Utils.Environment
 import Agda.Utils.FileName
 import Agda.Utils.Functor ( (<&>) )
 import Agda.Utils.IO ( catchIO )
+import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1 )
 import qualified Agda.Utils.List1 as List1
@@ -257,7 +258,7 @@ readDefaultsFile = do
     agdaDir <- liftIO getAgdaAppDir
     let file = agdaDir </> defaultsFile
     ifNotM (liftIO $ doesFileExist file) (return []) $ {-else-} do
-      ls <- liftIO $ map snd . stripCommentLines <$> readFile file
+      ls <- liftIO $ map snd . stripCommentLines <$> UTF8.readFile file
       return $ concatMap splitCommas ls
   `catchIO` \ e -> do
     raiseErrors' [ OtherError $ unlines ["Failed to read defaults file.", show e] ]
@@ -301,7 +302,7 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
       Left err -> raiseErrors' [OtherError err] >> return []
       Right file -> do
         if not (lfExists file) then return [] else do
-          ls    <- liftIO $ stripCommentLines <$> readFile (lfPath file)
+          ls    <- liftIO $ stripCommentLines <$> UTF8.readFile (lfPath file)
           files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
           parseLibFiles (Just file) $ nubOn snd files
   `catchIO` \ e -> do
@@ -370,7 +371,7 @@ getTrustedExecutables
 getTrustedExecutables = mkLibM [] $ do
     file <- liftIO getExecutablesFile
     if not (efExists file) then return Map.empty else do
-      es    <- liftIO $ stripCommentLines <$> readFile (efPath file)
+      es    <- liftIO $ stripCommentLines <$> UTF8.readFile (efPath file)
       files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- es ]
       tmp   <- parseExecutablesFile file $ nubOn snd files
       return tmp
