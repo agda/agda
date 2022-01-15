@@ -2,6 +2,7 @@
 
 module Agda.Utils.IO.UTF8
   ( readTextFile
+  , Agda.Utils.IO.UTF8.readFile
   , Agda.Utils.IO.UTF8.writeFile
   , writeTextToFile
   ) where
@@ -40,6 +41,15 @@ readTextFile file = convertLineEndings <$> do
     IO.NewlineMode { IO.inputNL = IO.CRLF, IO.outputNL = IO.LF }
   IO.hSetEncoding h IO.utf8
   T.hGetContents h
+
+-- | Reads a UTF8-encoded text file and converts many character
+-- sequences which may be interpreted as line or paragraph separators
+-- into '\n'.
+
+readFile :: FilePath -> IO String
+readFile f = do
+  s <- readTextFile f
+  return $ T.unpack s
 
 -- | Writes a UTF8-encoded text file. The native convention for line
 -- endings is used.
