@@ -1292,4 +1292,4 @@ callGHC = do
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
   let doCall = optGhcCallGhc opts
-  liftTCM $ callCompiler doCall ghcBin args
+  liftTCM $ callCompiler doCall ghcBin args Nothing
