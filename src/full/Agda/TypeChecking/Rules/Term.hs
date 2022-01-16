@@ -1346,7 +1346,8 @@ doQuoteTerm cmp et t = do
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
 unquoteM tacA hole holeType = do
-  tac <- checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+  tac <- applyQuantityToContext zeroQuantity $
+    checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
   inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType
 
 -- | Run a tactic `tac : Term → TC ⊤` in a hole (second argument) of the type

@@ -25,6 +25,17 @@ Language
 
   This feature is experimental.
 
+* `macro` definitions can now be used even when they are declared as erased.
+  For example, this is now accepted:
+  ```agda
+  macro
+    @0 trivial : Term → TC ⊤
+    trivial = unify (con (quote refl) [])
+
+  test : 42 ≡ 42
+  test = trivial
+  ```
+
 Compiler backends
 -----------------
 
