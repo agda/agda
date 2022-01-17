@@ -274,6 +274,7 @@ runTCMPrettyErrors tcm = do
             s1  <- prettyError err
             let ss = filter (not . null) $ s2s ++ [s1]
             unless (null s1) (liftIO $ putStr $ unlines ss)
+            liftIO $ helpForLocaleError err
             return (Just TCMError)
       ) `catchImpossible` \e -> do
           liftIO $ putStr $ show e
@@ -286,4 +287,30 @@ runTCMPrettyErrors tcm = do
       liftIO $ do
         putStrLn "\n\nError when handling error:"
         putStrLn $ tcErrString err
+        helpForLocaleError err
       exitAgdaWith UnknownError
+
+-- | If the error is an IO error, and the error message suggests that
+-- the problem is related to locales or code pages, print out some
+-- extra information.
+
+helpForLocaleError :: TCErr -> IO ()
+helpForLocaleError e = case e of
+  (IOException _ _ e)
+    | "invalid argument" `List.isInfixOf` show e -> msg
+  _                                              -> return ()
+  where
+  msg = putStr $ unlines
+    [ ""
+    , "This error may be due to the use of a locale or code page that does not"
+    , "support some character used in the program being type-checked."
+    , ""
+    , "If you are using Windows, try switching to a different code page (for"
+    , "instance by running the command 'CHCP 65001')."
+    , ""
+    , "If you are using a Unix-like system, try using a different locale. The"
+    , "installed locales are perhaps printed by the command 'locale -a'. If you"
+    , "have a UTF-8 locale installed (for instance sv_SE.utf8), then you can"
+    , "perhaps make Agda use this locale by running something like"
+    , "'LC_ALL=sv_SE.utf-8 agda <...>'."
+    ]
