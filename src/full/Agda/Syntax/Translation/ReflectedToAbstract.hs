@@ -118,7 +118,7 @@ toAbstractWithoutImplicit ::
   , HasConstInfo m
   ) => r -> m (AbsOfRef r)
 toAbstractWithoutImplicit x = do
-  xs <- getContextNames
+  xs <- killRange <$> getContextNames
   let ctx = zip xs $ repeat R.Unknown
   runReaderT (toAbstract x) ctx
 
