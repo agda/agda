@@ -49,10 +49,10 @@ runAgda backends = runAgda' $ builtinBackends ++ backends
 
 -- | The main function without importing built-in backends
 runAgda' :: [Backend] -> IO ()
-runAgda' backends = do
-  progName <- getProgName
-  argv     <- getArgs
-  conf     <- runExceptT $ do
+runAgda' backends = runTCMPrettyErrors $ do
+  progName <- liftIO getProgName
+  argv     <- liftIO getArgs
+  conf     <- liftIO $ runExceptT $ do
     (bs, opts) <- ExceptT $ runOptM $ parseBackendOptions backends argv defaultOptions
     -- The absolute path of the input file, if provided
     inputFile <- liftIO $ mapM absolute $ optInputFile opts
@@ -60,12 +60,12 @@ runAgda' backends = do
     return (bs, opts, mode)
 
   case conf of
-    Left err -> optionError err
+    Left err -> liftIO $ optionError err
     Right (bs, opts, mode) -> case mode of
-      MainModePrintHelp hp   -> printUsage bs hp
-      MainModePrintVersion   -> printVersion bs
-      MainModePrintAgdaDir   -> printAgdaDir
-      MainModeRun interactor -> runTCMPrettyErrors $ do
+      MainModePrintHelp hp   -> liftIO $ printUsage bs hp
+      MainModePrintVersion   -> liftIO $ printVersion bs
+      MainModePrintAgdaDir   -> liftIO $ printAgdaDir
+      MainModeRun interactor -> do
         setTCLens stBackends bs
         runAgdaWithOptions interactor progName opts
 
@@ -251,17 +251,39 @@ optionError err = do
   exitAgdaWith OptionError
 
 -- | Run a TCM action in IO; catch and pretty print errors.
+
+-- If some error message cannot be printed due to locale issues, then
+-- one may get the "Error when handling error" error message. There is
+-- currently no test case for this error, but on some systems one can
+-- (at the time of writing) trigger it by running @LC_CTYPE=C agda
+-- --no-libraries Bug.agda@, where @Bug.agda@ contains the following
+-- code (if there is some other file in the same directory, for
+-- instance @Bug.lagda@, then the error message may be different):
+--
+-- @
+-- _ : Set
+-- _ = Set
+-- @
+
 runTCMPrettyErrors :: TCM () -> IO ()
 runTCMPrettyErrors tcm = do
-    r <- runTCMTop $ tcm `catchError` \err -> do
-      s2s <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
-      s1  <- prettyError err
-      let ss = filter (not . null) $ s2s ++ [s1]
-      unless (null s1) (liftIO $ putStr $ unlines ss)
-      throwError err
-    case r of
-      Right _ -> exitSuccess
-      Left _  -> exitAgdaWith TCMError
-  `catchImpossible` \e -> do
-    putStr $ show e
-    exitAgdaWith ImpossibleError
+  r <- runTCMTop
+    ( ( (Nothing <$ tcm)
+          `catchError` \err -> do
+            s2s <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
+            s1  <- prettyError err
+            let ss = filter (not . null) $ s2s ++ [s1]
+            unless (null s1) (liftIO $ putStr $ unlines ss)
+            return (Just TCMError)
+      ) `catchImpossible` \e -> do
+          liftIO $ putStr $ show e
+          return (Just ImpossibleError)
+    )
+  case r of
+    Right Nothing       -> exitSuccess
+    Right (Just reason) -> exitAgdaWith reason
+    Left err            -> do
+      liftIO $ do
+        putStrLn "\n\nError when handling error:"
+        putStrLn $ tcErrString err
+      exitAgdaWith UnknownError
