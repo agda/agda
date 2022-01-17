@@ -336,7 +336,8 @@ unquoteTop xs e = do
   lzero <- primLevelZero
   let vArg = defaultArg
       hArg = setHiding Hidden . vArg
-  m    <- checkExpr e $ El (mkType 0) $ apply tcm [hArg lzero, vArg unit]
+  m    <- applyQuantityToContext zeroQuantity $
+            checkExpr e $ El (mkType 0) $ apply tcm [hArg lzero, vArg unit]
   res  <- runUnquoteM $ tell xs >> evalTCM m
   case res of
     Left err      -> typeError $ UnquoteFailed err
