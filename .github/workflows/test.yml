@@ -81,6 +81,7 @@ jobs:
     - run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
       name: Install and configure the icu library
     - run: |
+        sudo apt-get update
         sudo apt-get install texlive-binaries ${APT_GET_OPTS}
         sudo apt-get install emacs-nox ${APT_GET_OPTS}
       name: Install Tex Live and Emacs
