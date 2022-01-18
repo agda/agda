@@ -12,6 +12,7 @@ import Data.Maybe
 
 import System.Environment
 import System.Console.GetOpt
+import qualified System.IO as IO
 
 import Paths_Agda            ( getDataDir )
 
@@ -61,13 +62,30 @@ runAgda' backends = runTCMPrettyErrors $ do
 
   case conf of
     Left err -> liftIO $ optionError err
-    Right (bs, opts, mode) -> case mode of
-      MainModePrintHelp hp   -> liftIO $ printUsage bs hp
-      MainModePrintVersion   -> liftIO $ printVersion bs
-      MainModePrintAgdaDir   -> liftIO $ printAgdaDir
-      MainModeRun interactor -> do
-        setTCLens stBackends bs
-        runAgdaWithOptions interactor progName opts
+    Right (bs, opts, mode) -> do
+
+      when (optTransliterate opts) $ liftIO $ do
+        -- When --interaction or --interaction-json is used, then we
+        -- use UTF-8 when writing to stdout (and when reading from
+        -- stdin).
+        if optGHCiInteraction opts || optJSONInteraction opts
+        then optionError $
+               "The option --transliterate must not be combined with " ++
+               "--interaction or --interaction-json"
+        else do
+          -- Transliterate unsupported code points.
+          enc <- IO.mkTextEncoding
+                   (show IO.localeEncoding ++ "//TRANSLIT")
+          IO.hSetEncoding IO.stdout enc
+          IO.hSetEncoding IO.stderr enc
+
+      case mode of
+        MainModePrintHelp hp   -> liftIO $ printUsage bs hp
+        MainModePrintVersion   -> liftIO $ printVersion bs
+        MainModePrintAgdaDir   -> liftIO $ printAgdaDir
+        MainModeRun interactor -> do
+          setTCLens stBackends bs
+          runAgdaWithOptions interactor progName opts
 
 -- | Main execution mode
 data MainMode
@@ -305,12 +323,20 @@ helpForLocaleError e = case e of
     , "This error may be due to the use of a locale or code page that does not"
     , "support some character used in the program being type-checked."
     , ""
-    , "If you are using Windows, try switching to a different code page (for"
-    , "instance by running the command 'CHCP 65001')."
+    , "If it is, then one option is to use the option --transliterate, in which"
+    , "case unsupported characters are (hopefully) replaced with something else,"
+    , "perhaps question marks. However, that could make the output harder to"
+    , "read."
     , ""
-    , "If you are using a Unix-like system, try using a different locale. The"
-    , "installed locales are perhaps printed by the command 'locale -a'. If you"
-    , "have a UTF-8 locale installed (for instance sv_SE.utf8), then you can"
-    , "perhaps make Agda use this locale by running something like"
-    , "'LC_ALL=sv_SE.utf-8 agda <...>'."
+    , "If you want to fix the problem \"properly\", then you could try one of the"
+    , "following suggestions:"
+    , ""
+    , "* If you are using Windows, try switching to a different code page (for"
+    , "  instance by running the command 'CHCP 65001')."
+    , ""
+    , "* If you are using a Unix-like system, try using a different locale. The"
+    , "  installed locales are perhaps printed by the command 'locale -a'. If"
+    , "  you have a UTF-8 locale installed (for instance sv_SE.utf8), then you"
+    , "  can perhaps make Agda use this locale by running something like"
+    , "  'LC_ALL=sv_SE.utf-8 agda <...>'."
     ]

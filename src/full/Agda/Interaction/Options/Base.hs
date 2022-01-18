@@ -118,6 +118,8 @@ data CommandLineOptions = Options
   , optOnlyScopeChecking     :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
     --   type-checked?
+  , optTransliterate         :: Bool
+    -- ^ Should code points that are not supported by the locale be transliterated?
   }
   deriving (Show, Generic)
 
@@ -252,6 +254,7 @@ defaultOptions = Options
   , optLocalInterfaces       = False
   , optPragmaOptions         = defaultPragmaOptions
   , optOnlyScopeChecking     = False
+  , optTransliterate         = False
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -562,6 +565,9 @@ vimFlag o = return $ o { optGenerateVimFile = True }
 onlyScopeCheckingFlag :: Flag CommandLineOptions
 onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 
+transliterateFlag :: Flag CommandLineOptions
+transliterateFlag o = return $ o { optTransliterate = True }
+
 countClustersFlag :: Flag PragmaOptions
 countClustersFlag o =
 #ifdef COUNT_CLUSTERS
@@ -846,6 +852,8 @@ standardOptions =
                     "don't use default libraries"
     , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
                     "only scope-check the top-level module, do not type-check it"
+    , Option []     ["transliterate"] (NoArg transliterateFlag)
+                    "transliterate unsupported code points when printing to stdout/stderr"
     ] ++ map (fmap lensPragmaOptions) pragmaOptions
 
 -- | Defined locally here since module ''Agda.Interaction.Options.Lenses''

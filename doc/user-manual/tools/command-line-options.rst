@@ -61,6 +61,18 @@ General options
      of the directory structure holding Agda's data files
      such as core libraries, style files for the backends etc.
 
+.. option:: --transliterate
+
+     .. versionadded:: 2.6.3
+
+     When writing to stdout or stderr Agda will (hopefully) replace
+     code points that are not supported by the current locale or code
+     page by something else, perhaps question marks.
+
+     This option is not supported when :option:`--interaction` or
+     :option:`--interaction-json` are used, because when those options
+     are used Agda uses UTF-8 when writing to stdout (and when reading
+     from stdin).
 
 Compilation
 ~~~~~~~~~~~
