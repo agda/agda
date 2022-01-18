@@ -9,17 +9,21 @@ module Agda.Utils.IO.UTF8
 
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.Encoding as T
 import qualified Data.Text.Lazy.IO as T
+import qualified Data.ByteString.Lazy as B
 import qualified System.IO as IO
+import qualified System.IO.Error as E
 
 -- | Converts many character sequences which may be interpreted as
 -- line or paragraph separators into '\n'.
---
--- Note that '\r\n' is assumed to have already been converted to '\n'.
 
 convertLineEndings :: Text -> Text
-convertLineEndings = T.map convert
+convertLineEndings = T.map convert . convertNLCR
   where
+  -- Replaces NL CR with NL.
+  convertNLCR = T.replace "\n\x000D" "\n"
+
   -- ASCII:
   convert '\x000D' = '\n'  -- CR  (Carriage return)
   convert '\x000C' = '\n'  -- FF  (Form feed)
@@ -33,14 +37,17 @@ convertLineEndings = T.map convert
 -- | Reads a UTF8-encoded text file and converts many character
 -- sequences which may be interpreted as line or paragraph separators
 -- into '\n'.
+--
+-- If the file cannot be decoded, then an 'IOException' is raised.
 
 readTextFile :: FilePath -> IO Text
-readTextFile file = convertLineEndings <$> do
-  h <- IO.openFile file IO.ReadMode
-  IO.hSetNewlineMode h $
-    IO.NewlineMode { IO.inputNL = IO.CRLF, IO.outputNL = IO.LF }
-  IO.hSetEncoding h IO.utf8
-  T.hGetContents h
+readTextFile file = do
+  s <- T.decodeUtf8' <$> B.readFile file
+  case s of
+    Right s -> return $ convertLineEndings s
+    Left _  -> E.ioError $ E.userError $
+      "Failed to read the file " ++ file ++ ".\n" ++
+      "Please ensure that this file uses the UTF-8 character encoding."
 
 -- | Reads a UTF8-encoded text file and converts many character
 -- sequences which may be interpreted as line or paragraph separators
