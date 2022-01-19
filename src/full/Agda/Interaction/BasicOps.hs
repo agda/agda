@@ -822,13 +822,14 @@ typesOfVisibleMetas norm =
 typesOfHiddenMetas :: Rewrite -> TCM [OutputConstraint Expr NamedMeta]
 typesOfHiddenMetas norm = liftTCM $ do
   is    <- getInteractionMetas
-  store <- IntMap.filterWithKey (openAndImplicit is . MetaId) <$> getMetaStore
+  store <- IntMap.filterWithKey (implicit is . MetaId) <$>
+             useR stOpenMetaStore
   mapM (typeOfMetaMI norm . MetaId) $ IntMap.keys store
   where
-  openAndImplicit is x m | isJust (mvTwin m) = False
-  openAndImplicit is x m =
+  implicit is x m | isJust (mvTwin m) = False
+  implicit is x m =
     case mvInstantiation m of
-      M.InstV{} -> False
+      M.InstV{} -> __IMPOSSIBLE__
       M.Open    -> x `notElem` is
       M.OpenInstance -> x `notElem` is  -- OR: True !?
       M.BlockedConst{} -> False

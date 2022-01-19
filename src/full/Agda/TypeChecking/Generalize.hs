@@ -53,7 +53,7 @@ import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
-
+import Agda.Utils.Tuple
 
 -- | Generalize a telescope over a set of generalizable variables.
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
@@ -128,7 +128,7 @@ generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar 
 
 -- | Create metas for the generalizable variables and run the type check action.
 createMetasAndTypeCheck ::
-  Set QName -> TCM a -> TCM (a, Map MetaId QName, MetaStore)
+  Set QName -> TCM a -> TCM (a, Map MetaId QName, MetaStores)
 createMetasAndTypeCheck s typecheckAction = do
   ((namedMetas, x), allmetas) <- metasCreatedBy $ do
     (metamap, genvals) <- createGenValues s
@@ -152,14 +152,16 @@ withGenRecVar ret = do
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
 computeGeneralization ::
-  Type -> Map MetaId name -> MetaStore ->
+  Type -> Map MetaId name -> MetaStores ->
   TCM (Telescope, [Maybe name], Substitution)
 computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints $ do
 
   reportSDoc "tc.generalize" 10 $ "computing generalization for type" <+> prettyTCM genRecMeta
 
   -- Pair metas with their metaInfo
-  mvs <- mapM ((\ x -> (x,) <$> lookupMeta x) . MetaId) $ IntMap.keys allmetas
+  let mvs = map (mapFst MetaId) $
+            IntMap.assocs (openMetas allmetas) ++
+            IntMap.assocs (solvedMetas allmetas)
 
   -- Issue 4727: filter out metavariables that were created before the
   -- current checkpoint, since they are too old to be generalized.
@@ -320,7 +322,9 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Now we need to prune the unsolved metas to make sure they respect the new
   -- dependencies (#3672). Also update interaction points to point to pruned metas.
   let inscope (ii, InteractionPoint{ipMeta = Just x})
-        | IntMap.member (metaId x) allmetas = Just (x, ii)
+        | IntMap.member (metaId x) (openMetas allmetas) ||
+          IntMap.member (metaId x) (solvedMetas allmetas) =
+          Just (x, ii)
       inscope _ = Nothing
   ips <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints
   pruneUnsolvedMetas genRecName genRecCon genTel genRecFields ips shouldGeneralize allSortedMetas

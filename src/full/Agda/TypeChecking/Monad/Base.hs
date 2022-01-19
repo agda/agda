@@ -224,7 +224,10 @@ data PostScopeState = PostScopeState
     -- ^ Disambiguation carried out by the type checker.
     --   Maps position of first name character to disambiguated @'A.QName'@
     --   for each @'A.AmbiguousQName'@ already passed by the type checker.
-  , stPostMetaStore           :: !MetaStore
+  , stPostOpenMetaStore       :: !MetaStore
+    -- ^ Used for open meta-variables.
+  , stPostSolvedMetaStore     :: !MetaStore
+    -- ^ Used for instantiated meta-variables.
   , stPostInteractionPoints   :: !InteractionPoints -- scope checker first
   , stPostAwakeConstraints    :: !Constraints
   , stPostSleepingConstraints :: !Constraints
@@ -395,7 +398,8 @@ initPostScopeState :: PostScopeState
 initPostScopeState = PostScopeState
   { stPostSyntaxInfo           = mempty
   , stPostDisambiguatedNames   = IntMap.empty
-  , stPostMetaStore            = IntMap.empty
+  , stPostOpenMetaStore        = IntMap.empty
+  , stPostSolvedMetaStore      = IntMap.empty
   , stPostInteractionPoints    = empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
@@ -578,10 +582,15 @@ stDisambiguatedNames f s =
   f (stPostDisambiguatedNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostDisambiguatedNames = x}}
 
-stMetaStore :: Lens' MetaStore TCState
-stMetaStore f s =
-  f (stPostMetaStore (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostMetaStore = x}}
+stOpenMetaStore :: Lens' MetaStore TCState
+stOpenMetaStore f s =
+  f (stPostOpenMetaStore (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostOpenMetaStore = x}}
+
+stSolvedMetaStore :: Lens' MetaStore TCState
+stSolvedMetaStore f s =
+  f (stPostSolvedMetaStore (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostSolvedMetaStore = x}}
 
 stInteractionPoints :: Lens' InteractionPoints TCState
 stInteractionPoints f s =

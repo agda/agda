@@ -131,14 +131,16 @@ recDef include name = do
 anyDefs :: GetDefs a => (QName -> Bool) -> a -> TCM (Set QName)
 anyDefs include a = do
   -- Prepare function to lookup metas outside of TCM
-  st <- getMetaStore
-  let lookup (MetaId x) = (mvInstantiation <$> IntMap.lookup x st) >>= \case
-        InstV _ v                      -> Just v    -- TODO: ignoring the lambdas might be bad?
-        Open                           -> Nothing
-        OpenInstance                   -> Nothing
-        BlockedConst{}                 -> Nothing
-        PostponedTypeCheckingProblem{} -> Nothing
+  st <- useR stSolvedMetaStore
+  let lookup (MetaId x) = inst . mvInstantiation <$> IntMap.lookup x st
       -- we collect only those used definitions that are in @names@
       emb d = if include d then Set.singleton d else Set.empty
   -- get all the Defs that are in names
   return $ getDefs' lookup emb a
+  where
+  -- TODO: Is it bad to ignore the lambdas?
+  inst (InstV _ v)                    = v
+  inst Open                           = __IMPOSSIBLE__
+  inst OpenInstance                   = __IMPOSSIBLE__
+  inst BlockedConst{}                 = __IMPOSSIBLE__
+  inst PostponedTypeCheckingProblem{} = __IMPOSSIBLE__

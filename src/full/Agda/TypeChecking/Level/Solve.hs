@@ -27,8 +27,8 @@ import Agda.Utils.Monad
 --   level, and instantiate them to the lowest level.
 defaultOpenLevelsToZero :: (PureTCM m, MonadMetaSolver m) => m a -> m a
 defaultOpenLevelsToZero f = ifNotM (optCumulativity <$> pragmaOptions) f $ do
-  (result , newMetas) <- metasCreatedBy f
-  defaultLevelsToZero newMetas
+  (result, newMetas) <- metasCreatedBy f
+  defaultLevelsToZero (openMetas newMetas)
   return result
 
 defaultLevelsToZero :: forall m. (PureTCM m, MonadMetaSolver m) => MetaStore -> m ()

@@ -370,9 +370,9 @@ filterResetingState m cands f = do
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, a)] -> TCM [(Candidate, Term, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
-  metas <- getMetaStore
-  -- Does `it` have any metas in the initial meta variable store?
-  let freshMetas = getAny . allMetas (Any . (`IntMap.notMember` metas) . metaId)
+  !nextMeta <- nextMeta
+  -- Does "it" contain any fresh meta-variables?
+  let freshMetas = getAny . allMetas (\m -> Any (not (m < nextMeta)))
 
   -- Take overlappable candidates into account
   let cands =
