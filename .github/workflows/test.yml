@@ -154,7 +154,7 @@ jobs:
         stack-ver:
         - latest
         ghc-ver:
-        - 9.0.1
+        - 9.0.2
         os:
         - ubuntu-18.04
     runs-on: ${{ matrix.os }}
