@@ -329,11 +329,22 @@ updateDefBlocked f def@Defn{ defBlocked = b } = def { defBlocked = f b }
 -- | Set the top-level module. This affects the global module id of freshly
 --   generated names.
 
--- TODO: Is the hash-function collision-free? If not, then the
--- implementation of 'setTopLevelModule' should be changed.
-
 setTopLevelModule :: C.QName -> TCM ()
-setTopLevelModule x = stFreshNameId `setTCLens` NameId 0 (ModuleNameHash $ hashString $ prettyShow x)
+setTopLevelModule x = do
+  m <- Map.lookup hash <$> useR stModuleNameHashes
+  case m of
+    Nothing -> stModuleNameHashes `modifyTCLens` Map.insert hash x
+    Just m
+      | m == x    -> return ()
+      | otherwise ->
+        typeError $ GenericError $
+          "Module name hash collision for " ++ name ++ " and " ++
+          prettyShow m ++ " (you may want to consider renaming one " ++
+          "of these modules)"
+  stFreshNameId `setTCLens` NameId 0 hash
+  where
+  name = prettyShow x
+  hash = ModuleNameHash (hashString name)
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
