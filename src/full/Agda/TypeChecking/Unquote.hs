@@ -35,6 +35,7 @@ import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Irrelevance ( workOnTypes )
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -716,7 +717,7 @@ evalTCM v = do
     tcCheckType :: R.Term -> R.Type -> TCM Term
     tcCheckType v a = do
       r <- isReconstructed
-      a <- locallyReduceAllDefs $ isType_ =<< toAbstract_ a
+      a <- workOnTypes $ locallyReduceAllDefs $ isType_ =<< toAbstract_ a
       e <- toAbstract_ v
       v <- checkExpr e a
       if r then do
@@ -785,7 +786,7 @@ evalTCM v = do
 
     extendCxt :: Text -> Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt s a m = do
-      a <- locallyReduceAllDefs $ liftTCM $ traverse (isType_ <=< toAbstract_) a
+      a <- workOnTypes $ locallyReduceAllDefs $ liftTCM $ traverse (isType_ <=< toAbstract_) a
       liftU1 (addContext (s, domFromArg a :: Dom Type)) m
 
     tcExtendContext :: Term -> Term -> Term -> UnquoteM Term
