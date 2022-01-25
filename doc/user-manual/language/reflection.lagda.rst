@@ -351,6 +351,7 @@ implement pretty printing for reflected terms.
   data ErrorPart : Set where
     strErr  : String → ErrorPart
     termErr : Term → ErrorPart
+    pattErr : Pattern → ErrorPart
     nameErr : Name → ErrorPart
 
   {-# BUILTIN AGDAERRORPART       ErrorPart #-}
@@ -473,6 +474,9 @@ following primitive operations::
     -- to the info buffer instead. For instance, giving -v a.b.c:10 enables
     -- printing from debugPrint "a.b.c.d" 10 msg.
     debugPrint : String → Nat → List ErrorPart → TC ⊤
+
+    -- Return the formatted string of the argument using the internal pretty printer.
+    formatErrorParts : List ErrorPart → TC String
 
     -- Only allow reduction of specific definitions while executing the TC computation
     onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
