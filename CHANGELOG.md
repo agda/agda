@@ -80,7 +80,7 @@ Language
   test = trivial
   ```
 
-* A new reflection primitive `formatErrorParts : List ErrorPart → TC String` 
+* A new reflection primitive `formatErrorParts : List ErrorPart → TC String`
   is added. It takes a list of `ErrorPart` and return its formatted string.
 
 * A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
