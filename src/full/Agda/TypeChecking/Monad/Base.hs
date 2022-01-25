@@ -364,6 +364,14 @@ initPersistentState = PersistentTCSt
   , stPersistBackends           = []
   }
 
+-- | An initial 'MetaId'.
+
+initialMetaId :: MetaId
+initialMetaId = MetaId
+  { metaId     = 0
+  , metaModule = noModuleNameHash
+  }
+
 -- | Empty state of type checker.
 
 initPreScopeState :: PreScopeState
@@ -398,8 +406,8 @@ initPostScopeState :: PostScopeState
 initPostScopeState = PostScopeState
   { stPostSyntaxInfo           = mempty
   , stPostDisambiguatedNames   = IntMap.empty
-  , stPostOpenMetaStore        = IntMap.empty
-  , stPostSolvedMetaStore      = IntMap.empty
+  , stPostOpenMetaStore        = Map.empty
+  , stPostSolvedMetaStore      = Map.empty
   , stPostInteractionPoints    = empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
@@ -417,7 +425,7 @@ initPostScopeState = PostScopeState
   , stPostTCWarnings           = []
   , stPostMutualBlocks         = Map.empty
   , stPostLocalBuiltins        = Map.empty
-  , stPostFreshMetaId          = 0
+  , stPostFreshMetaId          = initialMetaId
   , stPostFreshMutualId        = 0
   , stPostFreshProblemId       = 1
   , stPostFreshCheckpointId    = 1
@@ -1428,7 +1436,7 @@ instance Pretty NamedMeta where
   pretty (NamedMeta "_" x) = pretty x
   pretty (NamedMeta s  x) = text $ "_" ++ s ++ prettyShow x
 
-type MetaStore = IntMap MetaVariable
+type MetaStore = Map MetaId MetaVariable
 
 instance HasRange MetaInfo where
   getRange = clValue . miClosRange

@@ -41,7 +41,7 @@ import Control.Monad.ST.Unsafe (unsafeSTToIO, unsafeInterleaveST)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.IntMap as IntMap
+import qualified Data.Map.Strict as MapS
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Semigroup ((<>))
@@ -808,7 +808,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     -- Are we currently instance searching. In that case we don't fail hard on missing clauses. This
     -- is a (very unsatisfactory) work-around for #3870.
     speculative    = redSt rEnv ^. stConsideringInstance
-    getMetaInst m  = mvInstantiation <$> IntMap.lookup (metaId m) metaStore
+    getMetaInst m  = mvInstantiation <$> MapS.lookup m metaStore
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
     callByNeed     = envCallByNeed (redEnv rEnv) && not (optCallByName $ redSt rEnv ^. stPragmaOptions)

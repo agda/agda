@@ -144,13 +144,7 @@ punctuate d ts
 -- * The PrettyTCM class
 ---------------------------------------------------------------------------
 
-type MonadPretty m =
-  ( MonadReify m
-  , MonadAbsToCon m
-  , IsString (m Doc)
-  , Null (m Doc)
-  , Semigroup (m Doc)
-  )
+type MonadPretty m = MonadAbsToCon m
 
 -- This instance is to satify the constraints of superclass MonadPretty:
 -- | This instance is more specific than a generic instance
@@ -241,7 +235,25 @@ instance PrettyTCM a => PrettyTCM (Judgement a) where
 instance PrettyTCM MetaId where
   prettyTCM x = do
     mn <- getMetaNameSuggestion x
-    pretty $ NamedMeta mn x
+    prettyTCM $ NamedMeta mn x
+
+instance PrettyTCM NamedMeta where
+  prettyTCM (NamedMeta s m) = do
+    current <- currentModuleNameHash
+    modName <- Map.lookup (metaModule m) <$> useR stModuleNameHashes
+    case modName of
+      Nothing      -> __IMPOSSIBLE__
+      Just modName -> prefix <> inBetween <> text (show (metaId m))
+        where
+        prefix =
+          if metaModule m == current
+          then empty
+          else pretty modName <> text "."
+
+        inBetween = case s of
+          ""  -> text "_"
+          "_" -> text "_"
+          s   -> text $ "_" ++ s ++ "_"
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = ("[" <+> prettyTCM a <+> "]") <> text (P.prettyShow x)

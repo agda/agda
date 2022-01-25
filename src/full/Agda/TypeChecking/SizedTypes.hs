@@ -5,7 +5,7 @@ module Agda.TypeChecking.SizedTypes where
 import Prelude hiding (null)
 
 import Control.Monad.Except
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
@@ -516,7 +516,7 @@ data OldSizeExpr
   deriving (Eq, Show)
 
 instance Pretty OldSizeExpr where
-  pretty (SizeMeta m _) = P.text $ "X" ++ show (fromIntegral m :: Int)
+  pretty (SizeMeta m _) = P.text "X" <> P.pretty m
   pretty (Rigid i)      = P.text $ "c" ++ show i
 
 -- | Size constraints we can solve.

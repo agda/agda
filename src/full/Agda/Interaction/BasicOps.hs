@@ -12,8 +12,8 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
 
-import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
+import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Maybe
@@ -60,6 +60,7 @@ import Agda.TypeChecking.Coverage.Match ( SplitPattern )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
+import Agda.TypeChecking.Pretty.Constraint (prettyRangeConstraint)
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Names
@@ -79,6 +80,7 @@ import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty as P
@@ -481,6 +483,10 @@ instance Reify Constraint where
       OfType <$> reify (MetaV m []) <*> reify t
     reify (UsableAtModality mod t) = UsableAtMod mod <$> reify t
 
+instance (Pretty a, Pretty b) => PrettyTCM (OutputForm a b) where
+  prettyTCM (OutputForm r pids unblock c) =
+    prettyRangeConstraint r pids unblock (pretty c)
+
 instance (Pretty a, Pretty b) => Pretty (OutputForm a b) where
   pretty (OutputForm r pids unblock c) =
     pretty c <?>
@@ -673,6 +679,16 @@ stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
     interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs
     stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
 
+-- | Converts an 'InteractionId' to a 'MetaId'.
+
+interactionIdToMetaId :: ReadTCState m => InteractionId -> m MetaId
+interactionIdToMetaId i = do
+  h <- currentModuleNameHash
+  return MetaId
+    { metaId     = fromIntegral i
+    , metaModule = h
+    }
+
 getConstraints' :: (ProblemConstraint -> TCM ProblemConstraint) -> (ProblemConstraint -> Bool) -> TCM [OutputForm C.Expr C.Expr]
 getConstraints' g f = liftTCM $ do
     cs <- stripConstraintPids . filter f <$> (mapM g =<< M.getAllConstraints)
@@ -685,7 +701,8 @@ getConstraints' g f = liftTCM $ do
     toOutputForm (ii, mi, e) = do
       mv <- getMetaInfo <$> lookupMeta mi
       withMetaInfo mv $ do
-        let m = QuestionMark emptyMetaInfo{ metaNumber = Just $ fromIntegral ii } ii
+        mi <- interactionIdToMetaId ii
+        let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
         abstractToConcrete_ $ OutputForm noRange [] alwaysUnblock $ Assign m e
 
 
@@ -822,9 +839,8 @@ typesOfVisibleMetas norm =
 typesOfHiddenMetas :: Rewrite -> TCM [OutputConstraint Expr NamedMeta]
 typesOfHiddenMetas norm = liftTCM $ do
   is    <- getInteractionMetas
-  store <- IntMap.filterWithKey (implicit is . MetaId) <$>
-             useR stOpenMetaStore
-  mapM (typeOfMetaMI norm . MetaId) $ IntMap.keys store
+  store <- MapS.filterWithKey (implicit is) <$> useR stOpenMetaStore
+  mapM (typeOfMetaMI norm) $ MapS.keys store
   where
   implicit is x m | isJust (mvTwin m) = False
   implicit is x m =

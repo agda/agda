@@ -9,8 +9,7 @@ import Control.Monad.Writer (tell)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
-import qualified Data.IntMap as IntMap
-import qualified Data.IntSet as IntSet
+import qualified Data.Map.Strict as MapS
 import Data.Maybe
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -528,9 +527,9 @@ whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
     xs <- freezeMetas (openMetas ms)
     reportSDoc "tc.decl.ax" 20 $ vcat
       [ "Abstract type signature produced new open metas: " <+>
-        sep (map prettyTCM $ IntMap.keys (openMetas ms))
+        sep (map prettyTCM $ MapS.keys (openMetas ms))
       , "We froze the following ones of these:            " <+>
-        sep (map prettyTCM $ IntSet.toList xs)
+        sep (map prettyTCM $ Set.toList xs)
       ]
     return a
 

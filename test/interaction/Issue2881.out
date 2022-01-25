@@ -5,4 +5,4 @@
 (agda2-info-action "*All Goals, Errors*" "?0 : X ?1 : P (f i c) ?2 : D ∞ _27 : Q (f ∞ ?2) (h ∞ ?2) [ at Issue2881.agda:23,22-23 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: h ∞ ?2 = h ∞ n : P (f ∞ ?2) (blocked on _n_22) f ∞ ?2 = f ∞ n : X (blocked on _n_22) " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 (agda2-status-action "")
-(agda2-info-action "*Constraints*" "h ∞ ?2 = h ∞ n : P (f ∞ _26) (blocked on _22, belongs to problem 51) f ∞ ?2 = f ∞ n : X (blocked on _22, belongs to problems 51, 52) _28 := λ n → g _ _ (_27 (n = n)) (blocked on problem 51) _25 := λ n → ?2 (n = n) (blocked on problem 52, belongs to problem 51) _23 := λ n → ∞ (blocked on problem 52, belongs to problem 51)" nil)
+(agda2-info-action "*Constraints*" "h ∞ ?2 = h ∞ n : P (f ∞ _26) (blocked on _n_22, belongs to problem 51) f ∞ ?2 = f ∞ n : X (blocked on _n_22, belongs to problems 51, 52) _28 := λ n → g _ _ (_27 (n = n)) (blocked on problem 51) _25 := λ n → ?2 (n = n) (blocked on problem 52, belongs to problem 51) _23 := λ n → ∞ (blocked on problem 52, belongs to problem 51)" nil)

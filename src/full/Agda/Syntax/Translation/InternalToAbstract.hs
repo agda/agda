@@ -177,7 +177,7 @@ instance Reify MetaId where
     type ReifiesTo MetaId = Expr
 
     reifyWhen = reifyWhenE
-    reify x@(MetaId n) = do
+    reify x = do
       b <- asksTC envPrintMetasBare
       mi  <- mvInfo <$> lookupMeta x
       let mi' = Info.MetaInfo

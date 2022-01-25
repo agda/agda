@@ -23,6 +23,7 @@ import Data.Graph
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
+import qualified Data.Map.Strict as MapS
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -132,7 +133,7 @@ anyDefs :: GetDefs a => (QName -> Bool) -> a -> TCM (Set QName)
 anyDefs include a = do
   -- Prepare function to lookup metas outside of TCM
   st <- useR stSolvedMetaStore
-  let lookup (MetaId x) = inst . mvInstantiation <$> IntMap.lookup x st
+  let lookup x = inst . mvInstantiation <$> MapS.lookup x st
       -- we collect only those used definitions that are in @names@
       emb d = if include d then Set.singleton d else Set.empty
   -- get all the Defs that are in names

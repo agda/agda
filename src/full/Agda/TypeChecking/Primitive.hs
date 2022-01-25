@@ -41,6 +41,7 @@ import Agda.TypeChecking.Warnings
 import Agda.Utils.Char
 import Agda.Utils.Float
 import Agda.Utils.List
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
@@ -455,6 +456,13 @@ mkPrimInjective a b qn = do
     reduce' eq >>= \case
       Con{} -> redReturn $ refl t
       _     -> return $ NoReduction $ map notReduced ts
+
+-- | Converts 'MetaId's to natural numbers.
+
+metaToNat :: MetaId -> Nat
+metaToNat m =
+  fromIntegral (moduleNameHash $ metaModule m) * 2^64 +
+  fromIntegral (metaId m)
 
 primMetaToNatInjective :: TCM PrimitiveImpl
 primMetaToNatInjective = do
@@ -946,7 +954,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBL
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   , "primShowMeta"        |-> mkPrimFun1 (T.pack . prettyShow :: MetaId -> Text)
-  , "primMetaToNat"       |-> mkPrimFun1 (fromIntegral . metaId :: MetaId -> Nat)
+  , "primMetaToNat"       |-> mkPrimFun1 metaToNat
   , "primMetaToNatInjective" |-> primMetaToNatInjective
   , "primIMin"            |-> primIMin'
   , "primIMax"            |-> primIMax'

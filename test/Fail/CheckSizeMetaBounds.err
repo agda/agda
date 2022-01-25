@@ -2,6 +2,6 @@ CheckSizeMetaBounds.agda:24,17-20
 Cannot solve size constraints
 [i, j, n] j < ∞ |- _i_18 ≤ _j_17
 [i, j, n] j < ∞ |- ↑ _j_17 ≤ i
-Reason: inconsistent upper bound for 17
+Reason: inconsistent upper bound for _j_17
 when checking that (magic n) is a valid argument to a function of
 type {j = j₁ : Size< i} → Nat → Nat

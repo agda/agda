@@ -95,7 +95,15 @@ instance EncodeTCM ProblemId where
 instance EncodeTCM MetaId    where
 
 instance ToJSON ProblemId where toJSON (ProblemId i) = toJSON i
-instance ToJSON MetaId    where toJSON (MetaId    i) = toJSON i
+
+instance ToJSON ModuleNameHash where
+  toJSON (ModuleNameHash h) = toJSON h
+
+instance ToJSON MetaId where
+  toJSON m = object
+    [ "id"     .= toJSON (metaId m)
+    , "module" .= toJSON (metaModule m)
+    ]
 
 instance EncodeTCM InteractionId where
   encodeTCM ii@(InteractionId i) = obj

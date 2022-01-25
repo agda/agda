@@ -16,6 +16,7 @@ import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
+import qualified Data.Map.Strict as MapS
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
@@ -148,9 +149,9 @@ metasCreatedBy m = do
   created :: Lens' MetaStore TCState -> MetaId -> m MetaStore
   created store next = do
     ms <- useTC store
-    return $ case IntMap.splitLookup (metaId next) ms of
+    return $ case MapS.splitLookup next ms of
       (_, Nothing, ms) -> ms
-      (_, Just m,  ms) -> IntMap.insert (metaId next) m ms
+      (_, Just m,  ms) -> MapS.insert next m ms
 
 -- | Lookup a meta variable.
 lookupMeta' :: ReadTCState m => MetaId -> m (Maybe MetaVariable)
@@ -160,7 +161,7 @@ lookupMeta' m = do
     mv@Just{} -> return mv
     Nothing   -> lkup <$> useR stOpenMetaStore
   where
-  lkup = IntMap.lookup (metaId m)
+  lkup = MapS.lookup m
 
 lookupMeta :: (MonadFail m, ReadTCState m) => MetaId -> m MetaVariable
 lookupMeta m = fromMaybeM failure $ lookupMeta' m
@@ -178,8 +179,8 @@ updateMetaVarTCM m f = do
     Nothing -> return ()
     Just mv -> do
       let mv'    = f mv
-          insert = (`modifyTCLens` IntMap.insert (metaId m) mv')
-          delete = (`modifyTCLens` IntMap.delete (metaId m))
+          insert = (`modifyTCLens` MapS.insert m mv')
+          delete = (`modifyTCLens` MapS.delete m)
       case ( isOpenMeta (mvInstantiation mv)
            , isOpenMeta (mvInstantiation mv')
            ) of
@@ -196,7 +197,7 @@ insertMetaVar m mv
   | isOpenMeta (mvInstantiation mv) = insert stOpenMetaStore
   | otherwise                       = insert stSolvedMetaStore
   where
-  insert = (`modifyTCLens` IntMap.insert (metaId m) mv)
+  insert = (`modifyTCLens` MapS.insert m mv)
 
 getMetaPriority :: (MonadFail m, ReadTCState m) => MetaId -> m MetaPriority
 getMetaPriority = mvPriority <.> lookupMeta
@@ -589,7 +590,7 @@ withMetaId m ret = do
   withMetaInfo' mv ret
 
 getOpenMetas :: ReadTCState m => m [MetaId]
-getOpenMetas = map MetaId . IntMap.keys <$> useR stOpenMetaStore
+getOpenMetas = MapS.keys <$> useR stOpenMetaStore
 
 isOpenMeta :: MetaInstantiation -> Bool
 isOpenMeta Open                           = True
@@ -623,26 +624,27 @@ clearMetaListeners m =
 
 -- | Freeze the given meta-variables (but only if they are open) and
 -- return those that were not already frozen.
-freezeMetas :: MetaStore -> TCM IntSet
+freezeMetas :: MetaStore -> TCM (Set MetaId)
 freezeMetas ms =
   execWriterT $
   modifyTCLensM stOpenMetaStore $
-  execStateT (mapM_ freeze $ IntMap.keys ms)
+  execStateT (mapM_ freeze $ MapS.keys ms)
   where
-  freeze :: Monad m => Int -> StateT MetaStore (WriterT IntSet m) ()
+  freeze ::
+    Monad m => MetaId -> StateT MetaStore (WriterT (Set MetaId) m) ()
   freeze m = do
     store <- get
-    case IntMap.lookup m store of
+    case MapS.lookup m store of
       Just mvar
         | mvFrozen mvar /= Frozen -> do
-          lift $ tell (IntSet.singleton m)
-          put $ IntMap.insert m (mvar { mvFrozen = Frozen }) store
+          lift $ tell (Set.singleton m)
+          put $ MapS.insert m (mvar { mvFrozen = Frozen }) store
         | otherwise -> return ()
       Nothing -> return ()
 
 -- | Thaw all open meta variables.
 unfreezeMetas :: TCM ()
-unfreezeMetas = stOpenMetaStore `modifyTCLens` IntMap.map unfreeze
+unfreezeMetas = stOpenMetaStore `modifyTCLens` MapS.map unfreeze
   where
   unfreeze :: MetaVariable -> MetaVariable
   unfreeze mvar = mvar { mvFrozen = Instantiable }

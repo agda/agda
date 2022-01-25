@@ -1007,8 +1007,8 @@ createInterface mname file isMain msrc = do
 
     -- Profiling: Count number of metas.
     verboseS "profile.metas" 10 $ do
-      MetaId n <- fresh
-      tickN "metas" (fromIntegral n)
+      m <- fresh
+      tickN "metas" (fromIntegral (metaId m))
 
     -- Highlighting from type checker.
     reportSLn "import.iface.create" 7 "Starting highlighting from type info."

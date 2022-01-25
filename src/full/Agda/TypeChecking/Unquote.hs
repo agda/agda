@@ -414,7 +414,7 @@ instance Unquote MetaId where
             m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
             typeError . GenericDocError =<<
               sep [ "Can't unquote stale metavariable"
-                  , pretty m <> "." <> pretty x ]
+                  , pretty m <> "._" <> pretty (metaId x) ]
         return x
       _ -> throwError $ NonCanonical "meta variable" t
 

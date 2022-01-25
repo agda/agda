@@ -9,9 +9,9 @@ import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Function
-import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
+import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
 import qualified Data.Traversable as Trav
@@ -57,7 +57,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty ( Pretty, prettyShow )
+import Agda.Utils.Pretty (Pretty, prettyShow, render)
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.VarSet (VarSet)
@@ -1664,21 +1664,21 @@ openMetasToPostulates = do
   m <- asksTC envCurrentModule
 
   -- Go through all open metas.
-  ms <- IntMap.assocs <$> useTC stOpenMetaStore
+  ms <- MapS.assocs <$> useTC stOpenMetaStore
   forM_ ms $ \ (x, mv) -> do
     let t = dummyTypeToOmega $ jMetaType $ mvJudgement mv
 
     -- Create a name for the new postulate.
     let r = clValue $ miClosRange $ mvInfo mv
-    -- s <- render <$> prettyTCM x -- Using _ is a bad idea, as it prints as prefix op
-    let s = "unsolved#meta." ++ prettyShow x
+    s' <- render <$> prettyTCM x -- Using _ is a bad idea, as it prints as prefix op
+    let s = "unsolved#meta." ++ filter (/= '_') s'
     n <- freshName r s
     let q = A.QName m n
 
     -- Debug.
     reportSDoc "meta.postulate" 20 $ vcat
       [ text ("Turning " ++ if isSortMeta_ mv then "sort" else "value" ++ " meta ")
-          <+> prettyTCM (MetaId x) <+> " into postulate."
+          <+> prettyTCM x <+> " into postulate."
       , nest 2 $ vcat
         [ "Name: " <+> prettyTCM q
         , "Type: " <+> prettyTCM t
@@ -1690,7 +1690,7 @@ openMetasToPostulates = do
 
     -- Solve the meta.
     let inst = InstV [] $ Def q []
-    updateMetaVar (MetaId x) $ \ mv0 -> mv0 { mvInstantiation = inst }
+    updateMetaVar x $ \ mv0 -> mv0 { mvInstantiation = inst }
     return ()
   where
     -- Unsolved sort metas can have a type ending in a Dummy if they are allowed to be instantiated

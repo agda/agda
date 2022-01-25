@@ -151,3 +151,11 @@ DOT backend
 * The generated graphs no longer contain "redundant" edges: if a
   module is imported both directly and indirectly, then the edge
   corresponding to the direct import is omitted.
+
+JSON API
+--------
+
+* The JSON API now represents meta-variables differently, using
+  objects containing two keys, `id` and `module`, both with values
+  that are (natural) numbers. See
+  [#5731](https://github.com/agda/agda/issues/5731).

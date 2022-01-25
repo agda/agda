@@ -2322,11 +2322,17 @@ instance NFData IsMacro
 -- * NameId
 ---------------------------------------------------------------------------
 
-newtype ModuleNameHash = ModuleNameHash Word64
-  deriving (Eq, Ord, Show, Data)
+newtype ModuleNameHash = ModuleNameHash { moduleNameHash :: Word64 }
+  deriving (Eq, Ord, Data, Hashable)
 
 noModuleNameHash :: ModuleNameHash
 noModuleNameHash = ModuleNameHash 0
+
+-- | The record selector is not included in the resulting strings.
+
+instance Show ModuleNameHash where
+  showsPrec p (ModuleNameHash h) = showParen (p > 0) $
+    showString "ModuleNameHash " . shows h
 
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
@@ -2359,23 +2365,41 @@ instance Hashable NameId where
 -- * Meta variables
 ---------------------------------------------------------------------------
 
--- | A meta variable identifier is just a natural number.
---
-newtype MetaId = MetaId { metaId :: Nat }
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Data, Generic)
+-- | Meta-variable identifiers use the same structure as 'NameId's.
+
+data MetaId = MetaId
+  { metaId     :: {-# UNPACK #-} !Word64
+  , metaModule :: {-# UNPACK #-} !ModuleNameHash
+  }
+  deriving (Eq, Ord, Data, Generic)
 
 instance Pretty MetaId where
-  pretty (MetaId n) = text $ "_" ++ show n
+  pretty (MetaId n m) =
+    text $ "_" ++ show n ++ "@" ++ show (moduleNameHash m)
 
--- | Show non-record version of this newtype.
+instance Enum MetaId where
+  succ MetaId{..} = MetaId { metaId = succ metaId, .. }
+  pred MetaId{..} = MetaId { metaId = pred metaId, .. }
+
+  -- The following functions should not be used.
+  toEnum   = __IMPOSSIBLE__
+  fromEnum = __IMPOSSIBLE__
+
+-- | The record selectors are not included in the resulting strings.
+
 instance Show MetaId where
-  showsPrec p (MetaId n) = showParen (p > 0) $
-    showString "MetaId " . shows n
+  showsPrec p (MetaId n m) = showParen (p > 0) $
+    showString "MetaId " .
+    showsPrec 11 n .
+    showString " " .
+    showsPrec 11 m
 
 instance NFData MetaId where
-  rnf (MetaId x) = rnf x
+  rnf (MetaId x y) = rnf x `seq` rnf y
 
-instance Hashable MetaId
+instance Hashable MetaId where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt salt (MetaId n m) = hashWithSalt salt (n, m)
 
 newtype Constr a = Constr a
 

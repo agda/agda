@@ -10,12 +10,12 @@ import Control.Arrow (first)
 import Control.Monad
 import Control.Monad.Except
 
-import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Map.Strict as MapS
 import Data.List (partition, sortBy)
 import Data.Monoid
 import Data.Function (on)
@@ -159,9 +159,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   reportSDoc "tc.generalize" 10 $ "computing generalization for type" <+> prettyTCM genRecMeta
 
   -- Pair metas with their metaInfo
-  let mvs = map (mapFst MetaId) $
-            IntMap.assocs (openMetas allmetas) ++
-            IntMap.assocs (solvedMetas allmetas)
+  let mvs = MapS.assocs (openMetas allmetas) ++
+            MapS.assocs (solvedMetas allmetas)
 
   -- Issue 4727: filter out metavariables that were created before the
   -- current checkpoint, since they are too old to be generalized.
@@ -322,8 +321,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Now we need to prune the unsolved metas to make sure they respect the new
   -- dependencies (#3672). Also update interaction points to point to pruned metas.
   let inscope (ii, InteractionPoint{ipMeta = Just x})
-        | IntMap.member (metaId x) (openMetas allmetas) ||
-          IntMap.member (metaId x) (solvedMetas allmetas) =
+        | MapS.member x (openMetas allmetas) ||
+          MapS.member x (solvedMetas allmetas) =
           Just (x, ii)
       inscope _ = Nothing
   ips <- Map.fromDistinctAscList . mapMaybe inscope . fst . BiMap.toDistinctAscendingLists <$> useTC stInteractionPoints

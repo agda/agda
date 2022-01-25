@@ -401,19 +401,25 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
       TypeError _ _ cl -> case clValue cl of
         MetaOccursInItself{} ->
           typeError . GenericDocError =<<
-            fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")
+            fsep [ text "Refuse to construct infinite term by instantiating"
+                 , prettyTCM m
+                 , "to"
                  , prettyTCM =<< instantiateFull v
                  ]
         MetaCannotDependOn _ i ->
           ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
           ( typeError . GenericDocError =<<
-            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to")
+            fsep [ text "Cannot instantiate the metavariable"
+                 , prettyTCM m
+                 , "to"
                  , prettyTCM v
                  , "since universe polymorphism is disabled"
                  ]
           ) {- else -}
           ( typeError . GenericDocError =<<
-              fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+              fsep [ text "Cannot instantiate the metavariable"
+                   , prettyTCM m
+                   , "to solution"
                    , prettyTCM v
                    , "since it contains the variable"
                    , enterClosure cl $ \_ -> prettyTCM (Var i [])
@@ -422,13 +428,17 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
             )
         MetaIrrelevantSolution _ _ ->
           typeError . GenericDocError =<<
-            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+            fsep [ text "Cannot instantiate the metavariable"
+                 , prettyTCM m
+                 , "to solution"
                  , prettyTCM v
                  , "since (part of) the solution was created in an irrelevant context"
                  ]
         MetaErasedSolution _ _ ->
           typeError . GenericDocError =<<
-            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+            fsep [ text "Cannot instantiate the metavariable"
+                 , prettyTCM m
+                 , "to solution"
                  , prettyTCM v
                  , "since (part of) the solution was created in an erased context"
                  ]

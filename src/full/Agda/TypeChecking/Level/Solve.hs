@@ -5,7 +5,7 @@ module Agda.TypeChecking.Level.Solve where
 import Control.Monad
 import Control.Monad.Except
 
-import qualified Data.IntMap as IntMap
+import qualified Data.Map.Strict as MapS
 import Data.Maybe
 
 import Agda.Interaction.Options
@@ -32,7 +32,7 @@ defaultOpenLevelsToZero f = ifNotM (optCumulativity <$> pragmaOptions) f $ do
   return result
 
 defaultLevelsToZero :: forall m. (PureTCM m, MonadMetaSolver m) => MetaStore -> m ()
-defaultLevelsToZero xs = loop =<< openLevelMetas (map MetaId $ IntMap.keys xs)
+defaultLevelsToZero xs = loop =<< openLevelMetas (MapS.keys xs)
   where
     loop :: [MetaId] -> m ()
     loop xs = do

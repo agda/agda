@@ -2,5 +2,5 @@ Issue300.agda:18,39-40
 Cannot solve size constraints
 [Id, k, m, p, j, n] j ≤ (_9 (i = j))
 [Id, k, m, p, j, n] (↑ k) ≤ (_9 (i = k))
-Reason: inconsistent lower bound for 9
+Reason: inconsistent lower bound for _9
 when checking that the expression n has type Nat (_9 (i = j))
