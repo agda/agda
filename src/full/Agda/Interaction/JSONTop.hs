@@ -423,7 +423,7 @@ instance EncodeTCM Response where
     where
       encodeSolution (i, expr) = object
         [ "interactionPoint"  .= i
-        , "expression"        .= show expr
+        , "expression"        .= P.prettyShow expr
         ]
 
 -- | Convert Response to an JSON value for interactive editor frontends.
