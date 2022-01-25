@@ -17,6 +17,10 @@ import Internal.Utils.NonEmptyList () -- instances only
 -- * Properties
 ------------------------------------------------------------------------
 
+-- | A type used for the tests.
+
+type C = Int
+
 -- Fundamental properties: soundness and completeness
 
 -- | Not too many clusters.  (Algorithm equated all it could.)
