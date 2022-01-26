@@ -524,9 +524,14 @@ compiler-test :
 	@$(call decorate, "Compiler tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler --regex-exclude AllStdLib)
 
+.PHONY : ghc-compiler-test ##
+ghc-compiler-test :
+	@$(call decorate, "GHC Compiler tests", \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/MAlonzo_Lazy --regex-exclude AllStdLib)
+
 .PHONY : js-compiler-test ##
 js-compiler-test :
-	@$(call decorate, "Compiler tests", \
+	@$(call decorate, "JS Compiler tests", \
 		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler/JS_MinifiedOptimized --regex-exclude AllStdLib)
 
 .PHONY : std-lib-compiler-test ##
