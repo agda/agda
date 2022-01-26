@@ -1233,11 +1233,22 @@ writeModule (HS.Module m ps imp ds) = do
             , "PatternSynonyms"
             , "OverloadedStrings"
             ]
+  let ghcOptions =
+        List.map HS.OtherPragma
+          [ ""  -- to separate from LANGUAGE pragmas
+          , "{-# OPTIONS_GHC -Wno-overlapping-patterns #-}"
+              -- Andreas, 2022-01-26, issue #5758:
+              -- Place this in generated file rather than
+              -- passing it only when calling GHC from within Agda.
+              -- This will silence the warning for the Agda-generated .hs
+              -- files while it can be on for other .hs files in the same
+              -- project.  (E.g., when using cabal/stack to compile.)
+          ]
   liftIO $ UTF8.writeFile out $ (++ "\n") $ prettyPrint $
     -- TODO: It might make sense to skip bang patterns for the unused
     -- arguments of the "non-stripped" functions.
     applyWhen strict makeStrict $
-    HS.Module m (concat [languagePragmas, ps]) imp ds
+    HS.Module m (concat [languagePragmas, ghcOptions, ps]) imp ds
 
 outFileAndDir :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
 outFileAndDir m = do
@@ -1285,7 +1296,6 @@ callGHC = do
         [ fp
         , "--make"
         , "-fwarn-incomplete-patterns"
-        , "-fno-warn-overlapping-patterns"
         ]
       args     = overridableArgs ++ ghcopts ++ otherArgs
 
