@@ -49,7 +49,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
-  builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
+  builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartPatt, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
   builtinAgdaClause, builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
@@ -69,7 +69,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm, builtinAgdaTCMQuoteOmegaTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
-  builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconsParams, builtinAgdaTCMDebugPrint,
+  builtinAgdaTCMFormatErrorParts, builtinAgdaTCMDebugPrint,
+  builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconsParams,
   builtinAgdaTCMOnlyReduceDefs, builtinAgdaTCMDontReduceDefs,
   builtinAgdaTCMNoConstraints,
   builtinAgdaTCMRunSpeculative,
@@ -218,6 +219,7 @@ builtinAgdaTermMeta                      = "AGDATERMMETA"
 builtinAgdaErrorPart                     = "AGDAERRORPART"
 builtinAgdaErrorPartString               = "AGDAERRORPARTSTRING"
 builtinAgdaErrorPartTerm                 = "AGDAERRORPARTTERM"
+builtinAgdaErrorPartPatt                 = "AGDAERRORPARTPATT"
 builtinAgdaErrorPartName                 = "AGDAERRORPARTNAME"
 builtinAgdaLiteral                       = "AGDALITERAL"
 builtinAgdaLitNat                        = "AGDALITNAT"
@@ -272,6 +274,7 @@ builtinAgdaTCMQuoteOmegaTerm             = "AGDATCMQUOTEOMEGATERM"
 builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMWithReconsParams           = "AGDATCMWITHRECONSPARAMS"
+builtinAgdaTCMFormatErrorParts           = "AGDATCMFORMATERRORPARTS"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMOnlyReduceDefs             = "AGDATCMONLYREDUCEDEFS"
 builtinAgdaTCMDontReduceDefs             = "AGDATCMDONTREDUCEDEFS"

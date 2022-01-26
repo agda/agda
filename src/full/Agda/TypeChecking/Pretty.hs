@@ -272,6 +272,9 @@ instance PrettyTCM A.Expr where
 instance PrettyTCM A.TypedBinding where
   prettyTCM = prettyA
 
+instance PrettyTCM A.Pattern where
+  prettyTCM = prettyA
+
 instance PrettyTCM Relevance where
   prettyTCM = pretty
 

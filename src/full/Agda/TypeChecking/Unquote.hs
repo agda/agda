@@ -280,11 +280,12 @@ unquoteString x = T.unpack <$> unquote x
 unquoteNString :: Arg Term -> UnquoteM Text
 unquoteNString = unquoteN
 
-data ErrorPart = StrPart String | TermPart A.Expr | NamePart QName
+data ErrorPart = StrPart String | TermPart A.Expr | PattPart A.Pattern | NamePart QName
 
 instance PrettyTCM ErrorPart where
-  prettyTCM (StrPart s) = text s
+  prettyTCM (StrPart s)  = text s
   prettyTCM (TermPart t) = prettyTCM t
+  prettyTCM (PattPart p) = prettyTCM p
   prettyTCM (NamePart x) = prettyTCM x
 
 -- | We do a little bit of work here to make it possible to generate nice
@@ -300,6 +301,7 @@ prettyErrorParts = vcat . map (hcat . map prettyTCM) . splitLines
         (s0, "")        -> consLine (StrPart s0) (splitLines ss)
         _               -> __IMPOSSIBLE__
     splitLines (p@TermPart{} : ss) = consLine p (splitLines ss)
+    splitLines (p@PattPart{} : ss) = consLine p (splitLines ss)
     splitLines (p@NamePart{} : ss) = consLine p (splitLines ss)
 
     consLine l []        = [[l]]
@@ -313,6 +315,7 @@ instance Unquote ErrorPart where
       Con c _ es | Just [x] <- allApplyElims es ->
         choice [ (c `isCon` primAgdaErrorPartString, StrPart . T.unpack <$> unquoteNString x)
                , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> ((liftTCM . toAbstractWithoutImplicit) =<< (unquoteN x :: UnquoteM R.Term)))
+               , (c `isCon` primAgdaErrorPartPatt,   PattPart <$> ((liftTCM . toAbstractWithoutImplicit) =<< (unquoteN x :: UnquoteM R.Pattern)))
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
                __IMPOSSIBLE__
       _ -> throwError $ NonCanonical "error part" t
@@ -557,6 +560,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMReduce,                     tcFun1 tcReduce                     u)
              , (f `isDef` primAgdaTCMGetType,                    tcFun1 tcGetType                    u)
              , (f `isDef` primAgdaTCMGetDefinition,              tcFun1 tcGetDefinition              u)
+             , (f `isDef` primAgdaTCMFormatErrorParts,           tcFun1 tcFormatErrorParts           u)
              , (f `isDef` primAgdaTCMIsMacro,                    tcFun1 tcIsMacro                    u)
              , (f `isDef` primAgdaTCMFreshName,                  tcFun1 tcFreshName                  u)
              , (f `isDef` primAgdaTCMGetInstances,               uqFun1 tcGetInstances               u)
@@ -572,15 +576,15 @@ evalTCM v = do
              ]
              failEval
     I.Def f [l, a, u] ->
-      choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
-             , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
-             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
-             , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
-             , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
-             , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
-             , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
-             , (f `isDef` primAgdaTCMWithReconsParams, tcWithReconsParams (unElim u))
-             , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
+      choice [ (f `isDef` primAgdaTCMReturn,             return (unElim u))
+             , (f `isDef` primAgdaTCMTypeError,          tcFun1 tcTypeError   u)
+             , (f `isDef` primAgdaTCMQuoteTerm,          tcQuoteTerm (unElim u))
+             , (f `isDef` primAgdaTCMUnquoteTerm,        tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
+             , (f `isDef` primAgdaTCMBlockOnMeta,        uqFun1 tcBlockOnMeta u)
+             , (f `isDef` primAgdaTCMDebugPrint,         tcFun3 tcDebugPrint l a u)
+             , (f `isDef` primAgdaTCMNoConstraints,      tcNoConstraints (unElim u))
+             , (f `isDef` primAgdaTCMWithReconsParams,   tcWithReconsParams (unElim u))
+             , (f `isDef` primAgdaTCMRunSpeculative,     tcRunSpeculative (unElim u))
              , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
              ]
              failEval
@@ -689,6 +693,9 @@ evalTCM v = do
       s <- getTC
       modify (second $ const s)
       liftTCM primUnitUnit
+
+    tcFormatErrorParts :: [ErrorPart] -> TCM Term
+    tcFormatErrorParts msg = quoteString . prettyShow <$> prettyErrorParts msg
 
     tcTypeError :: [ErrorPart] -> TCM a
     tcTypeError err = typeError . GenericDocError =<< prettyErrorParts err

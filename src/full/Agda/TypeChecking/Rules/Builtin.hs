@@ -231,9 +231,10 @@ coreBuiltins =
                                                    , builtinAgdaTermPi, builtinAgdaTermSort
                                                    , builtinAgdaTermLit, builtinAgdaTermMeta
                                                    , builtinAgdaTermUnsupported])
-  , builtinAgdaErrorPart                     |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName ]
+  , builtinAgdaErrorPart                     |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartPatt, builtinAgdaErrorPartName ]
   , builtinAgdaErrorPartString               |-> BuiltinDataCons (tstring --> terrorpart)
   , builtinAgdaErrorPartTerm                 |-> BuiltinDataCons (tterm --> terrorpart)
+  , builtinAgdaErrorPartPatt                 |-> BuiltinDataCons (tpat --> terrorpart)
   , builtinAgdaErrorPartName                 |-> BuiltinDataCons (tqname --> terrorpart)
   -- Andreas, 2017-01-12, issue #2386: special handling of builtinEquality
   -- , (builtinEquality                         |-> BuiltinData (hPi "a" (el primLevel) $
@@ -383,6 +384,7 @@ coreBuiltins =
   , builtinAgdaTCMIsMacro                    |-> builtinPostulate (tqname --> tTCM_ primBool)
   , builtinAgdaTCMWithNormalisation          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tbool --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMWithReconsParams           |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMFormatErrorParts           |-> builtinPostulate (tlist terrorpart --> tTCM_ primString)
   , builtinAgdaTCMDebugPrint                 |-> builtinPostulate (tstring --> tnat --> tlist terrorpart --> tTCM_ primUnit)
   , builtinAgdaTCMOnlyReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMDontReduceDefs             |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist tqname --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
