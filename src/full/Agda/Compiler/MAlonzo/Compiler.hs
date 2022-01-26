@@ -70,6 +70,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow, render)
+import Agda.Utils.Singleton
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 
@@ -1212,7 +1213,16 @@ writeModule (HS.Module m ps imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
   out <- snd <$> outFileAndDir m
   strict <- optGhcStrict <$> askGhcOpts
-  let p = HS.LanguagePragma $ List.map HS.Ident $
+  let languagePragmas =
+        List.map (HS.LanguagePragma . singleton . HS.Ident) $
+          List.sort $
+            [ "QualifiedDo" | strict ] ++
+                -- If --ghc-strict is used, then the language extension
+                -- QualifiedDo is activated. At the time of writing no
+                -- code is generated that depends on this extension
+                -- (except for the pragmas), but --ghc-strict is broken
+                -- with at least some versions of GHC prior to version 9,
+                -- and QualifiedDo was introduced with GHC 9.
             [ "BangPatterns"
             , "EmptyDataDecls"
             , "EmptyCase"
@@ -1222,21 +1232,12 @@ writeModule (HS.Module m ps imp ds) = do
             , "RankNTypes"
             , "PatternSynonyms"
             , "OverloadedStrings"
-            ] ++
-            -- If --ghc-strict is used, then the language extension
-            -- QualifiedDo is activated. At the time of writing no
-            -- code is generated that depends on this extension
-            -- (except for the pragmas), but --ghc-strict is broken
-            -- with at least some versions of GHC prior to version 9,
-            -- and QualifiedDo was introduced with GHC 9.
-            if strict
-            then ["QualifiedDo"]
-            else []
+            ]
   liftIO $ UTF8.writeFile out $ (++ "\n") $ prettyPrint $
     -- TODO: It might make sense to skip bang patterns for the unused
     -- arguments of the "non-stripped" functions.
     applyWhen strict makeStrict $
-    HS.Module m (p : ps) imp ds
+    HS.Module m (concat [languagePragmas, ps]) imp ds
 
 outFileAndDir :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
 outFileAndDir m = do
