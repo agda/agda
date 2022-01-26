@@ -17,12 +17,15 @@ prettyPrint = show . pretty
 
 instance Pretty HS.Module where
   pretty (HS.Module m pragmas imps decls) =
-    vcat [ vcat $ map pretty pragmas
-         , "module" <+> pretty m <+> "where"
-         , ""
-         , vcat $ map pretty imps
-         , ""
-         , vcat $ map pretty decls ]
+    vcat $ concat
+      [ map pretty pragmas
+      , [ "" | not $ null pragmas ]
+      , [ "module" <+> pretty m <+> "where" ]
+      , [ "" ]
+      , map pretty imps
+      , [ "" ]
+      , map pretty decls
+      ]
 
 instance Pretty HS.ModulePragma where
   pretty (HS.LanguagePragma ps) =
