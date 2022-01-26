@@ -1235,9 +1235,8 @@ writeModule (HS.Module m ps imp ds) = do
   liftIO $ UTF8.writeFile out $ (++ "\n") $ prettyPrint $
     -- TODO: It might make sense to skip bang patterns for the unused
     -- arguments of the "non-stripped" functions.
-    (if strict then makeStrict else id) $
+    applyWhen strict makeStrict $
     HS.Module m (p : ps) imp ds
-  where
 
 outFileAndDir :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
 outFileAndDir m = do
@@ -1262,9 +1261,7 @@ callGHC = do
   opts    <- askGhcOpts
   hsmod   <- prettyPrint <$> curHsMod
   agdaMod <- curAgdaMod
-  let outputName = case mnameToList agdaMod of
-        [] -> __IMPOSSIBLE__
-        m:ms -> last1 m ms
+  let outputName = lastWithDefault __IMPOSSIBLE__ $ mnameToList agdaMod
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 
