@@ -5,5 +5,5 @@
 :script .ghci-8.8
 :set -Wderiving-defaults
 :set -Wredundant-record-wildcards
-:set -Wunused-packages
+:set -Wno-unused-packages
 :set -Wunused-record-wildcards
