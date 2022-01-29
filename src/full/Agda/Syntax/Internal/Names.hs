@@ -2,6 +2,8 @@
 
 module Agda.Syntax.Internal.Names where
 
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HMap
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Map (Map)
 import Data.Set (Set)
@@ -11,10 +13,12 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Treeless
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Singleton
 import Agda.Utils.Impossible
 
@@ -67,6 +71,7 @@ class NamesIn a where
 
 -- Generic collections
 instance NamesIn a => NamesIn (Maybe a)
+instance NamesIn a => NamesIn (Strict.Maybe a)
 instance NamesIn a => NamesIn [a]
 instance NamesIn a => NamesIn (NonEmpty a)
 instance NamesIn a => NamesIn (Set a)
@@ -97,6 +102,18 @@ instance (NamesIn a, NamesIn b, NamesIn c, NamesIn d) => NamesIn (a, b, c, d) wh
   namesAndMetasIn' sg (x, y, z, u) =
     namesAndMetasIn' sg ((x, y), (z, u))
 
+instance
+  (NamesIn a, NamesIn b, NamesIn c, NamesIn d, NamesIn e) =>
+  NamesIn (a, b, c, d, e) where
+  namesAndMetasIn' sg (x, y, z, u, v) =
+    namesAndMetasIn' sg ((x, y), (z, (u, v)))
+
+instance
+  (NamesIn a, NamesIn b, NamesIn c, NamesIn d, NamesIn e, NamesIn f) =>
+  NamesIn (a, b, c, d, e, f) where
+  namesAndMetasIn' sg (x, y, z, u, v, w) =
+    namesAndMetasIn' sg ((x, (y, z)), (u, (v, w)))
+
 instance NamesIn CompKit where
   namesAndMetasIn' sg (CompKit a b) = namesAndMetasIn' sg (a,b)
 
@@ -110,6 +127,9 @@ instance NamesIn MetaId where
 
 instance NamesIn ConHead where
   namesAndMetasIn' sg h = namesAndMetasIn' sg (conName h)
+
+instance NamesIn Bool where
+  namesAndMetasIn' _ _ = mempty
 
 -- Andreas, 2017-07-27
 -- In the following clauses, the choice of fields is not obvious
@@ -225,6 +245,15 @@ instance NamesIn a => NamesIn (Elim' a) where
   namesAndMetasIn' sg (Proj _ f)       = namesAndMetasIn' sg f
   namesAndMetasIn' sg (IApply x y arg) = namesAndMetasIn' sg (x, y, arg)
 
+instance NamesIn a => NamesIn (Substitution' a) where
+  namesAndMetasIn' sg = \case
+    IdS            -> mempty
+    EmptyS _       -> mempty
+    t :# s         -> namesAndMetasIn' sg (t, s)
+    Strengthen _ s -> namesAndMetasIn' sg s
+    Wk _ s         -> namesAndMetasIn' sg s
+    Lift _ s       -> namesAndMetasIn' sg s
+
 instance NamesIn DisplayForm where
   namesAndMetasIn' sg (Display _ ps v) = namesAndMetasIn' sg (ps, v)
 
@@ -235,6 +264,101 @@ instance NamesIn DisplayTerm where
     DDef f es        -> namesAndMetasIn' sg (f, es)
     DDot v           -> namesAndMetasIn' sg v
     DTerm v          -> namesAndMetasIn' sg v
+
+instance NamesIn a => NamesIn (Builtin a) where
+  namesAndMetasIn' sg = \case
+    Builtin t -> namesAndMetasIn' sg t
+    Prim x    -> namesAndMetasIn' sg x
+
+-- | Note that the 'primFunImplementation' is skipped.
+instance NamesIn PrimFun where
+  namesAndMetasIn' sg = \case
+    PrimFun x _ _ -> namesAndMetasIn' sg x
+
+instance NamesIn Section where
+  namesAndMetasIn' sg = \case
+    Section tel -> namesAndMetasIn' sg tel
+
+instance NamesIn NLPat where
+  namesAndMetasIn' sg = \case
+    PVar _ _      -> mempty
+    PDef a b      -> namesAndMetasIn' sg (a, b)
+    PLam _ a      -> namesAndMetasIn' sg a
+    PPi a b       -> namesAndMetasIn' sg (a, b)
+    PSort a       -> namesAndMetasIn' sg a
+    PBoundVar _ a -> namesAndMetasIn' sg a
+    PTerm a       -> namesAndMetasIn' sg a
+
+instance NamesIn NLPType where
+  namesAndMetasIn' sg = \case
+    NLPType a b -> namesAndMetasIn' sg (a, b)
+
+instance NamesIn NLPSort where
+  namesAndMetasIn' sg = \case
+    PType a       -> namesAndMetasIn' sg a
+    PProp a       -> namesAndMetasIn' sg a
+    PInf _ _      -> mempty
+    PSizeUniv     -> mempty
+    PLockUniv     -> mempty
+    PIntervalUniv -> mempty
+
+instance NamesIn RewriteRule where
+  namesAndMetasIn' sg = \case
+    RewriteRule a b c d e f _ ->
+      namesAndMetasIn' sg (a, b, c, d, e, f)
+
+instance (NamesIn a, NamesIn b) => NamesIn (HashMap a b) where
+  namesAndMetasIn' sg = namesAndMetasIn' sg . HMap.toList
+
+instance NamesIn System where
+  namesAndMetasIn' sg (System tel cs) = namesAndMetasIn' sg (tel, cs)
+
+instance NamesIn ExtLamInfo where
+  namesAndMetasIn' sg (ExtLamInfo _ _ s) = namesAndMetasIn' sg s
+
+instance NamesIn a => NamesIn (FunctionInverse' a) where
+  namesAndMetasIn' sg = \case
+    NotInjective -> mempty
+    Inverse _ m  -> namesAndMetasIn' sg m
+
+instance NamesIn TTerm where
+  namesAndMetasIn' sg = \case
+    TVar _         -> mempty
+    TPrim _        -> mempty
+    TDef x         -> namesAndMetasIn' sg x
+    TApp t xs      -> namesAndMetasIn' sg (t, xs)
+    TLam t         -> namesAndMetasIn' sg t
+    TLit l         -> namesAndMetasIn' sg l
+    TCon x         -> namesAndMetasIn' sg x
+    TLet t1 t2     -> namesAndMetasIn' sg (t1, t2)
+    TCase _ c t ts -> namesAndMetasIn' sg (c, t, ts)
+    TUnit          -> mempty
+    TSort          -> mempty
+    TErased        -> mempty
+    TCoerce t      -> namesAndMetasIn' sg t
+    TError _       -> mempty
+
+instance NamesIn TAlt where
+  namesAndMetasIn' sg = \case
+    TACon x _ t   -> namesAndMetasIn' sg (x, t)
+    TAGuard t1 t2 -> namesAndMetasIn' sg (t1, t2)
+    TALit l t     -> namesAndMetasIn' sg (l, t)
+
+instance NamesIn CaseType where
+  namesAndMetasIn' sg = \case
+    CTData _ x -> namesAndMetasIn' sg x
+    CTNat      -> mempty
+    CTInt      -> mempty
+    CTChar     -> mempty
+    CTString   -> mempty
+    CTFloat    -> mempty
+    CTQName    -> mempty
+
+instance NamesIn CaseInfo where
+  namesAndMetasIn' sg (CaseInfo _ t) = namesAndMetasIn' sg t
+
+instance NamesIn Compiled where
+  namesAndMetasIn' sg (Compiled t _) = namesAndMetasIn' sg t
 
 -- Pattern synonym stuff --
 
