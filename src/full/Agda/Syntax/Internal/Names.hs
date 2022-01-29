@@ -134,55 +134,49 @@ instance NamesIn Bool where
 -- Andreas, 2017-07-27
 -- In the following clauses, the choice of fields is not obvious
 -- to the reader.  Please comment on the choices.
---
--- Also, this would be more robust if these were constructor-style
--- matches instead of record-style matches.
--- If someone adds a field containing names, this would go unnoticed.
 
 instance NamesIn Definition where
-  namesAndMetasIn' sg def =
-    namesAndMetasIn' sg (defType def, theDef def, defDisplay def)
+  namesAndMetasIn' sg
+    (Defn _ _ t _ _ _ _ disp _ _ _ _ _ _ _ _ _ _ def) =
+    namesAndMetasIn' sg (t, def, disp)
 
 instance NamesIn Defn where
   namesAndMetasIn' sg = \case
     Axiom _            -> mempty
-    DataOrRecSig{}     -> mempty
-    GeneralizableVar{} -> mempty
-    PrimitiveSort{}    -> mempty
+    DataOrRecSig _     -> mempty
+    GeneralizableVar   -> mempty
+    PrimitiveSort _ s  -> namesAndMetasIn' sg s
     AbstractDefn{}     -> __IMPOSSIBLE__
     -- Andreas 2017-07-27, Q: which names can be in @cc@ which are not already in @cl@?
-    Function    { funClauses = cl, funCompiled = cc }
-      -> namesAndMetasIn' sg (cl, cc)
-    Datatype    { dataClause = cl, dataCons = cs, dataSort = s, dataTranspIx = trX, dataTransp = trD }
-      -> namesAndMetasIn' sg (cl, cs, s, (trX, trD))
-    Record      { recClause = cl, recConHead = c, recFields = fs, recComp = comp }
-      -> namesAndMetasIn' sg (cl, c, fs, comp)
-      -- Don't need recTel since those will be reachable from the constructor
-    Constructor { conSrcCon = c, conData = d, conComp = kit, conProj = fs }
+    Function cl cc _ _ _ _ _ _ _ _ _ _ el _
+      -> namesAndMetasIn' sg (cl, cc, el)
+    Datatype _ _ cl cs s _ _ _ trX trD
+      -> namesAndMetasIn' sg (cl, cs, s, trX, trD)
+    Record _ cl c _ fs recTel _ _ _ _ _ comp
+      -> namesAndMetasIn' sg (cl, c, fs, recTel, comp)
+    Constructor _ _ c d _ _ kit fs _ _
       -> namesAndMetasIn' sg (c, d, kit, fs)
-    Primitive   { primClauses = cl, primCompiled = cc }
+    Primitive _ _ cl _ cc
       -> namesAndMetasIn' sg (cl, cc)
 
 instance NamesIn Clause where
-  namesAndMetasIn' sg
-    Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b,
-            clauseType = t } =
+  namesAndMetasIn' sg (Clause _ _ tel ps b t _ _ _ _ _) =
     namesAndMetasIn' sg (tel, ps, b, t)
 
 instance NamesIn CompiledClauses where
   namesAndMetasIn' sg (Case _ c) = namesAndMetasIn' sg c
   namesAndMetasIn' sg (Done _ v) = namesAndMetasIn' sg v
-  namesAndMetasIn' sg Fail{}     = mempty
+  namesAndMetasIn' sg (Fail _)   = mempty
 
 -- Andreas, 2017-07-27
 -- Why ignoring the litBranches?
 instance NamesIn a => NamesIn (Case a) where
-  namesAndMetasIn' sg Branches{ conBranches = bs, catchAllBranch = c } =
+  namesAndMetasIn' sg (Branches _ bs _ _ c _ _) =
     namesAndMetasIn' sg (bs, c)
 
 instance NamesIn (Pattern' a) where
   namesAndMetasIn' sg = \case
-    VarP{}          -> mempty
+    VarP _ _        -> mempty
     LitP _ l        -> namesAndMetasIn' sg l
     DotP _ v        -> namesAndMetasIn' sg v
     ConP c _ args   -> namesAndMetasIn' sg (c, args)
@@ -207,7 +201,7 @@ instance NamesIn Sort where
     UnivSort a  -> namesAndMetasIn' sg a
     MetaS x es  -> namesAndMetasIn' sg (x, es)
     DefS d es   -> namesAndMetasIn' sg (d, es)
-    DummyS{}    -> mempty
+    DummyS _    -> mempty
 
 instance NamesIn Term where
   namesAndMetasIn' sg = \case
@@ -221,7 +215,7 @@ instance NamesIn Term where
     Level l      -> namesAndMetasIn' sg l
     MetaV x args -> namesAndMetasIn' sg (x, args)
     DontCare v   -> namesAndMetasIn' sg v
-    Dummy{}      -> mempty
+    Dummy _ args -> namesAndMetasIn' sg args
 
 instance NamesIn Level where
   namesAndMetasIn' sg (Max _ ls) = namesAndMetasIn' sg ls
@@ -232,13 +226,13 @@ instance NamesIn PlusLevel where
 -- For QName and Meta literals!
 instance NamesIn Literal where
   namesAndMetasIn' sg = \case
-    LitNat{}      -> mempty
-    LitWord64{}   -> mempty
-    LitString{}   -> mempty
-    LitChar{}     -> mempty
-    LitFloat{}    -> mempty
-    LitQName    x -> namesAndMetasIn' sg x
-    LitMeta _ m   -> namesAndMetasIn' sg m
+    LitNat _    -> mempty
+    LitWord64 _ -> mempty
+    LitString _ -> mempty
+    LitChar _   -> mempty
+    LitFloat _  -> mempty
+    LitQName x  -> namesAndMetasIn' sg x
+    LitMeta _ m -> namesAndMetasIn' sg m
 
 instance NamesIn a => NamesIn (Elim' a) where
   namesAndMetasIn' sg (Apply arg)      = namesAndMetasIn' sg arg
@@ -368,13 +362,13 @@ instance NamesIn PSyn where
 
 instance NamesIn (A.Pattern' a) where
   namesAndMetasIn' sg = \case
-    A.VarP{}               -> mempty
+    A.VarP _               -> mempty
     A.ConP _ c args        -> namesAndMetasIn' sg (c, args)
     A.ProjP _ _ d          -> namesAndMetasIn' sg d
     A.DefP _ f args        -> namesAndMetasIn' sg (f, args)
-    A.WildP{}              -> mempty
+    A.WildP _              -> mempty
     A.AsP _ _ p            -> namesAndMetasIn' sg p
-    A.AbsurdP{}            -> mempty
+    A.AbsurdP _            -> mempty
     A.LitP _ l             -> namesAndMetasIn' sg l
     A.PatternSynP _ c args -> namesAndMetasIn' sg (c, args)
     A.RecP _ fs            -> namesAndMetasIn' sg fs
