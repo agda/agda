@@ -231,8 +231,8 @@ showScope = do
 metaParseExpr ::  InteractionId -> String -> TCM A.Expr
 metaParseExpr ii s =
     do  m <- lookupInteractionId ii
-        scope <- getMetaScope <$> lookupMeta m
-        r <- getRange <$> lookupMeta m
+        scope <- getMetaScope <$> lookupLocalMeta m
+        r <- getRange <$> lookupLocalMeta m
         -- liftIO $ putStrLn $ prettyShow scope
         let pos = fromMaybe __IMPOSSIBLE__ (rStart r)
         e <- runPM $ parsePosString exprParser pos s
@@ -304,7 +304,7 @@ typeIn _ = liftIO $ putStrLn ":typeIn meta expr"
 showContext :: [String] -> TCM ()
 showContext (meta:args) = do
     i <- InteractionId <$> readM meta
-    mi <- lookupMeta =<< lookupInteractionId i
+    mi <- lookupLocalMeta =<< lookupInteractionId i
     withMetaInfo (getMetaInfo mi) $ do
       ctx <- List.map I.unDom . telToList <$> getContextTelescope
       zipWithM_ display ctx $ reverse $ zipWith const [1..] ctx

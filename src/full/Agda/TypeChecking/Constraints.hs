@@ -261,7 +261,7 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
         reportSDoc "tc.constr.unblock" 15 $ hsep ["not unblocking", prettyTCM m, "because",
                                                   ifM (isFrozen m) "it's frozen" "meta assignments are turned off"]
         addConstraint alwaysUnblock $ UnBlock m) $ do
-    inst <- mvInstantiation <$> lookupMeta m
+    inst <- lookupMetaInstantiation m
     reportSDoc "tc.constr.unblock" 65 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
     case inst of
       BlockedConst t -> do

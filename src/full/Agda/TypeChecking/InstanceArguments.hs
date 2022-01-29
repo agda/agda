@@ -208,7 +208,7 @@ findInstance :: MetaId -> Maybe [Candidate] -> TCM ()
 findInstance m Nothing = do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   setCurrentRange mv $ do
     reportSLn "tc.instance" 20 $ "The type of the FindInstance constraint isn't known, trying to find it again."
     t <- instantiate =<< getMetaTypeInContext m
@@ -231,7 +231,7 @@ findInstance m (Just cands) =                          -- Note: if no blocking m
 -- | Entry point for `tcGetInstances` primitive
 getInstanceCandidates :: MetaId -> TCM (Either Blocker [Candidate])
 getInstanceCandidates m = do
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   setCurrentRange mv $ do
     t <- instantiate =<< getMetaTypeInContext m
     TelV tel t' <- telViewUpTo' (-1) notVisible t
@@ -252,7 +252,7 @@ findInstance' m cands = ifM (isFrozen m) (do
     return $ Just (cands, neverUnblock)) $ billTo [Benchmark.Typing, Benchmark.InstanceSearch] $ do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   setCurrentRange mv $ do
       reportSLn "tc.instance" 15 $
         "findInstance 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
@@ -371,9 +371,12 @@ filterResetingState m cands f = do
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, a)] -> TCM [(Candidate, Term, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
-  !nextMeta <- nextMeta
+  !nextMeta    <- nextLocalMeta
+  isRemoteMeta <- isRemoteMeta
   -- Does "it" contain any fresh meta-variables?
-  let freshMetas = getAny . allMetas (\m -> Any (not (m < nextMeta)))
+  let freshMetas =
+        getAny .
+        allMetas (\m -> Any (not (isRemoteMeta m || m < nextMeta)))
 
   -- Take overlappable candidates into account
   let cands =
@@ -386,7 +389,7 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
     , nest 2 $ vcat [ if freshMetas v then "(redacted)" else
                       sep [ prettyTCM v ]
                     | (_, v, _) <- cands ] ]
-  rel <- getMetaRelevance <$> lookupMeta m
+  rel <- getRelevance <$> lookupMetaModality m
   case cands of
     []            -> return cands
     cvd : _ | isIrrelevant rel -> do
@@ -464,7 +467,7 @@ checkCandidates m t cands =
     checkCandidateForMeta m t (Candidate q term t' _) = checkDepth term t' $ do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
-      mv <- lookupMeta m
+      mv <- lookupLocalMeta m
       setCurrentRange mv $ do
         debugConstraints
         verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $

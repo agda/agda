@@ -207,6 +207,8 @@ data PreScopeState = PreScopeState
   , stPreModuleNameHashes :: !(Map ModuleNameHash C.QName)
     -- ^ Module name hashes that have been used so far. Used to detect
     -- hash collisions.
+  , stPreImportedMetaStore :: !RemoteMetaStore
+    -- ^ Used for meta-variables from other modules.
   }
   deriving Generic
 
@@ -224,10 +226,10 @@ data PostScopeState = PostScopeState
     -- ^ Disambiguation carried out by the type checker.
     --   Maps position of first name character to disambiguated @'A.QName'@
     --   for each @'A.AmbiguousQName'@ already passed by the type checker.
-  , stPostOpenMetaStore       :: !MetaStore
+  , stPostOpenMetaStore       :: !LocalMetaStore
     -- ^ Used for open meta-variables.
-  , stPostSolvedMetaStore     :: !MetaStore
-    -- ^ Used for instantiated meta-variables.
+  , stPostSolvedMetaStore     :: !LocalMetaStore
+    -- ^ Used for local, instantiated meta-variables.
   , stPostInteractionPoints   :: !InteractionPoints -- scope checker first
   , stPostAwakeConstraints    :: !Constraints
   , stPostSleepingConstraints :: !Constraints
@@ -400,6 +402,7 @@ initPreScopeState = PreScopeState
   , stPreModuleNameHashes     = Map.singleton noModuleNameHash (C.QName C.noName_)
     -- We should get a hash collision if the hash of any actual module
     -- name is noModuleNameHash.
+  , stPreImportedMetaStore    = HMap.empty
   }
 
 initPostScopeState :: PostScopeState
@@ -575,6 +578,11 @@ stModuleNameHashes f s =
   f (stPreModuleNameHashes (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreModuleNameHashes = x}}
 
+stImportedMetaStore :: Lens' RemoteMetaStore TCState
+stImportedMetaStore f s =
+  f (stPreImportedMetaStore (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedMetaStore = x}}
+
 stFreshNameId :: Lens' NameId TCState
 stFreshNameId f s =
   f (stPostFreshNameId (stPostScopeState s)) <&>
@@ -590,12 +598,12 @@ stDisambiguatedNames f s =
   f (stPostDisambiguatedNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostDisambiguatedNames = x}}
 
-stOpenMetaStore :: Lens' MetaStore TCState
+stOpenMetaStore :: Lens' LocalMetaStore TCState
 stOpenMetaStore f s =
   f (stPostOpenMetaStore (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostOpenMetaStore = x}}
 
-stSolvedMetaStore :: Lens' MetaStore TCState
+stSolvedMetaStore :: Lens' LocalMetaStore TCState
 stSolvedMetaStore f s =
   f (stPostSolvedMetaStore (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSolvedMetaStore = x}}
@@ -974,6 +982,8 @@ data Interface = Interface
     --   Used in 'Agda.Interaction.BasicOps.AtTopLevel'
     --   and     'Agda.Interaction.CommandLine.interactionLoop'.
   , iSignature       :: Signature
+  , iMetaBindings    :: RemoteMetaStore
+    -- ^ Instantiations for meta-variables that come from this module.
   , iDisplayForms    :: DisplayForms
     -- ^ Display forms added for imported identifiers.
   , iUserWarnings    :: Map A.QName Text
@@ -999,9 +1009,9 @@ data Interface = Interface
 instance Pretty Interface where
   pretty (Interface
             sourceH source fileT importedM moduleN scope insideS signature
-            display userwarn importwarn builtin foreignCode highlighting
-            libPragmaO filePragmaO
-            oUsed patternS warnings partialdefs) =
+            metas display userwarn importwarn builtin foreignCode
+            highlighting libPragmaO filePragmaO oUsed patternS warnings
+            partialdefs) =
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
@@ -1012,6 +1022,7 @@ instance Pretty Interface where
       , "scope:"               <+> (pretty . show) scope
       , "inside scope:"        <+> (pretty . show) insideS
       , "signature:"           <+> (pretty . show) signature
+      , "meta-variables:"      <+> (pretty . show) metas
       , "display:"             <+> (pretty . show) display
       , "user warnings:"       <+> (pretty . show) userwarn
       , "import warning:"      <+> (pretty . show) importwarn
@@ -1272,7 +1283,7 @@ data Judgement a
     { jMetaId   :: a
     , jMetaType :: Type -- Andreas, 2011-04-26: type needed for higher-order sort metas
     }
-  deriving Generic
+  deriving (Show, Generic)
 
 instance Pretty a => Pretty (Judgement a) where
     pretty (HasType a cmp t) = hsep [ pretty a, ":"    , pretty t ]
@@ -1301,6 +1312,8 @@ data GeneralizedValue = GeneralizedValue
 ---------------------------------------------------------------------------
 -- ** Meta variables
 ---------------------------------------------------------------------------
+
+-- | Information about local meta-variables.
 
 data MetaVariable =
         MetaVar { mvInfo          :: MetaInfo
@@ -1345,12 +1358,55 @@ data Frozen
     deriving (Eq, Show, Generic)
 
 data MetaInstantiation
-        = InstV [Arg String] Term -- ^ solved by term (abstracted over some free variables)
-        | Open               -- ^ unsolved
-        | OpenInstance       -- ^ open, to be instantiated by instance search
-        | BlockedConst Term  -- ^ solution blocked by unsolved constraints
+        = InstV Instantiation -- ^ solved
+        | Open                -- ^ unsolved
+        | OpenInstance        -- ^ open, to be instantiated by instance search
+        | BlockedConst Term   -- ^ solution blocked by unsolved constraints
         | PostponedTypeCheckingProblem (Closure TypeCheckingProblem)
   deriving Generic
+
+-- | Meta-variable instantiations.
+
+data Instantiation = Instantiation
+  { instTel :: [Arg String]
+    -- ^ The solution is abstracted over these free variables.
+  , instBody :: Term
+    -- ^ The body of the solution.
+  }
+  deriving (Show, Generic)
+
+-- | Information about remote meta-variables.
+--
+-- Remote meta-variables are meta-variables originating in other
+-- modules. These meta-variables are always instantiated. We do not
+-- retain all the information about a local meta-variable when
+-- creating an interface:
+--
+-- * The 'mvPriority' field is not needed, because the meta-variable
+--   cannot be instantiated.
+-- * The 'mvFrozen' field is not needed, because there is no point in
+--   freezing instantiated meta-variables.
+-- * The 'mvListeners' field is not needed, because no meta-variable
+--   should be listening to this one.
+-- * The 'mvTwin' field is not needed, because the meta-variable has
+--   already been instantiated.
+-- * The 'mvPermutation' is currently removed, but could be retained
+--   if it turns out to be useful for something.
+-- * The only part of the 'mvInfo' field that is kept is the
+--   'miModality' field. The 'miMetaOccursCheck' and 'miGeneralizable'
+--   fields are omitted, because the meta-variable has already been
+--   instantiated. The 'Range' that is part of the 'miClosRange' field
+--   and the 'miNameSuggestion' field are omitted because instantiated
+--   meta-variables are typically not presented to users. Finally the
+--   'Closure' part of the 'miClosRange' field is omitted because it
+--   can be large (at least if we ignore potential sharing).
+
+data RemoteMetaVariable = RemoteMetaVariable
+  { rmvInstantiation :: Instantiation
+  , rmvModality      :: Modality
+  , rmvJudgement     :: Judgement MetaId
+  }
+  deriving (Show, Generic)
 
 -- | Solving a 'CheckArgs' constraint may or may not check the target type. If
 --   it did, it returns a handle to any unsolved constraints.
@@ -1381,7 +1437,9 @@ data TypeCheckingProblem
   deriving Generic
 
 instance Show MetaInstantiation where
-  show (InstV tel t) = "InstV " ++ show tel ++ " (" ++ show t ++ ")"
+  show (InstV inst) =
+    "InstV " ++ show (instTel inst) ++
+    " (" ++ show (instBody inst) ++ ")"
   show Open      = "Open"
   show OpenInstance = "OpenInstance"
   show (BlockedConst t) = "BlockedConst (" ++ show t ++ ")"
@@ -1422,6 +1480,9 @@ instance LensQuantity MetaInfo where
   getQuantity   = getQuantity . getModality
   mapQuantity f = mapModality (mapQuantity f)
 
+instance LensRelevance MetaInfo where
+  mapRelevance f = mapModality (mapRelevance f)
+
 -- | Name suggestion for meta variable.  Empty string means no suggestion.
 type MetaNameSuggestion = String
 
@@ -1436,7 +1497,13 @@ instance Pretty NamedMeta where
   pretty (NamedMeta "_" x) = pretty x
   pretty (NamedMeta s  x) = text $ "_" ++ s ++ prettyShow x
 
-type MetaStore = Map MetaId MetaVariable
+-- | Used for meta-variables from the current module.
+
+type LocalMetaStore = Map MetaId MetaVariable
+
+-- | Used for meta-variables from other modules (and in 'Interface's).
+
+type RemoteMetaStore = HashMap MetaId RemoteMetaVariable
 
 instance HasRange MetaInfo where
   getRange = clValue . miClosRange
@@ -1455,8 +1522,21 @@ instance LensModality MetaVariable where
   setModality mod mv = mv { mvInfo = setModality mod $ mvInfo mv }
   mapModality f mv = mv { mvInfo = mapModality f $ mvInfo mv }
 
+instance LensRelevance MetaVariable where
+  setRelevance mod mv = mv { mvInfo = setRelevance mod $ mvInfo mv }
+
 instance LensQuantity MetaVariable where
   getQuantity   = getQuantity . getModality
+  mapQuantity f = mapModality (mapQuantity f)
+
+instance LensModality RemoteMetaVariable where
+  getModality      = rmvModality
+  mapModality f mv = mv { rmvModality = f $ rmvModality mv }
+
+instance LensRelevance RemoteMetaVariable where
+  mapRelevance f = mapModality (mapRelevance f)
+
+instance LensQuantity RemoteMetaVariable where
   mapQuantity f = mapModality (mapQuantity f)
 
 normalMetaPriority :: MetaPriority
@@ -1479,12 +1559,6 @@ getMetaEnv m = clEnv $ getMetaInfo m
 
 getMetaSig :: MetaVariable -> Signature
 getMetaSig m = clSignature $ getMetaInfo m
-
-getMetaRelevance :: MetaVariable -> Relevance
-getMetaRelevance = getRelevance . getModality
-
-getMetaModality :: MetaVariable -> Modality
-getMetaModality = getModality
 
 -- Lenses
 
@@ -4744,6 +4818,8 @@ instance NFData GeneralizedValue
 instance NFData MetaVariable
 instance NFData Listener
 instance NFData MetaInstantiation
+instance NFData Instantiation
+instance NFData RemoteMetaVariable
 instance NFData Frozen
 instance NFData PrincipalArgTypeMetas
 instance NFData TypeCheckingProblem

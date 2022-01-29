@@ -404,9 +404,9 @@ instance EmbPrj NotationPart where
     valu _         = malformed
 
 instance EmbPrj MetaId where
-  icod_ (MetaId a b) = icodeN' MetaId a b
+  icod_ (MetaId a b) = icode (a, b)
 
-  value = valueN MetaId
+  value m = uncurry MetaId <$> value m
 
 instance EmbPrj A.QName where
   icod_ n@(A.QName a b) = icodeMemo qnameD qnameC (qnameId n) $ icodeN' A.QName a b

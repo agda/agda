@@ -39,6 +39,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad.ST
 import Control.Monad.ST.Unsafe (unsafeSTToIO, unsafeInterleaveST)
 
+import qualified Data.HashMap.Strict as HMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
@@ -804,11 +805,15 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
-    metaStore      = redSt rEnv ^. stSolvedMetaStore
+    localMetas     = redSt rEnv ^. stSolvedMetaStore
+    remoteMetas    = redSt rEnv ^. stImportedMetaStore
     -- Are we currently instance searching. In that case we don't fail hard on missing clauses. This
     -- is a (very unsatisfactory) work-around for #3870.
     speculative    = redSt rEnv ^. stConsideringInstance
-    getMetaInst m  = mvInstantiation <$> MapS.lookup m metaStore
+    getMetaInst m  = case MapS.lookup m localMetas of
+                       Just mv -> Just (mvInstantiation mv)
+                       Nothing -> InstV . rmvInstantiation <$>
+                                    HMap.lookup m remoteMetas
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
     callByNeed     = envCallByNeed (redEnv rEnv) && not (optCallByName $ redSt rEnv ^. stPragmaOptions)
@@ -962,10 +967,10 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           case getMetaInst m of
             Nothing ->
               runAM (Eval (mkValue (blocked m ()) cl) ctrl)
-            Just (InstV xs t) -> do
+            Just (InstV i) -> do
               spine' <- elimsToSpine env es
-              let (zs, env, !spine'') = buildEnv xs (spine' <> spine)
-              runAM (evalClosure (lams zs t) env spine'' ctrl)
+              let (zs, env, !spine'') = buildEnv (instTel i) (spine' <> spine)
+              runAM (evalClosure (lams zs (instBody i)) env spine'' ctrl)
             Just Open{}                         -> __IMPOSSIBLE__
             Just OpenInstance{}                 -> __IMPOSSIBLE__
             Just BlockedConst{}                 -> __IMPOSSIBLE__

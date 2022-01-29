@@ -499,6 +499,15 @@ Other features
      Disable the implicit statement `open import Agda.Primitive using
      (Set; Prop)` at the start of each top-level Agda module.
 
+.. option:: --save-metas, --no-save-metas
+
+     .. versionadded:: 2.6.3
+
+     Save [or do not save] meta-variables in ``.agdai`` files. The
+     alternative is to expand the meta-variables to their definitions.
+     This option can affect performance. The default is to not save
+     the meta-variables.
+
 .. _warnings:
 
 Warnings
@@ -861,6 +870,7 @@ again, the source file is re-typechecked instead:
 * :option:`--inversion-max-depth`
 * :option:`--warning`
 * :option:`--allow-exec`
+* :option:`--save-metas`
 
 
 .. _Vim: https://www.vim.org/

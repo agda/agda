@@ -76,7 +76,7 @@ parseVariables f cxt asb ii rng ss = do
   -- Get into the context of the meta.
   mId <- lookupInteractionId ii
   updateMetaVarRange mId rng
-  mi  <- getMetaInfo <$> lookupMeta mId
+  mi  <- getMetaInfo <$> lookupLocalMeta mId
   enterClosure mi $ \ r -> do
 
   reportSDoc "interaction.case" 20 $ do

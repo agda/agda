@@ -140,7 +140,7 @@ anyDefs include a = do
   return $ getDefs' lookup emb a
   where
   -- TODO: Is it bad to ignore the lambdas?
-  inst (InstV _ v)                    = v
+  inst (InstV i)                      = instBody i
   inst Open                           = __IMPOSSIBLE__
   inst OpenInstance                   = __IMPOSSIBLE__
   inst BlockedConst{}                 = __IMPOSSIBLE__

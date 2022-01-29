@@ -306,7 +306,7 @@ instance UsableRelevance Term where
     Sort s   -> usableRel rel s
     Level l  -> return True
     MetaV m vs -> do
-      mrel <- getMetaRelevance <$> lookupMeta m
+      mrel <- getRelevance <$> lookupMetaModality m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
     DontCare v -> usableRel rel v -- TODO: allow irrelevant things to be used in DontCare position?
     Dummy{}  -> return True
@@ -413,7 +413,7 @@ instance UsableModality Term where
     Sort s   -> usableMod mod s
     Level l  -> return True
     MetaV m vs -> do
-      mmod <- getMetaModality <$> lookupMeta m
+      mmod <- lookupMetaModality m
       let ok = mmod `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Metavariable" <+> prettyTCM (MetaV m []) <+>

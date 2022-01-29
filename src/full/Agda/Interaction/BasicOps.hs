@@ -104,7 +104,7 @@ parseExprIn :: InteractionId -> Range -> String -> TCM Expr
 parseExprIn ii rng s = do
     mId <- lookupInteractionId ii
     updateMetaVarRange mId rng
-    mi  <- getMetaInfo <$> lookupMeta mId
+    mi  <- getMetaInfo <$> lookupLocalMeta mId
     e   <- parseExpr rng s
     -- Andreas, 2019-08-19, issue #4007
     -- We need to be in the TCEnv of the meta variable
@@ -118,7 +118,7 @@ parseExprIn ii rng s = do
 -- Precondition: we are in the context where the given meta was created.
 giveExpr :: UseForce -> Maybe InteractionId -> MetaId -> Expr -> TCM Term
 giveExpr force mii mi e = do
-    mv <- lookupMeta mi
+    mv <- lookupLocalMeta mi
     let t = case mvJudgement mv of
               IsSort{}    -> __IMPOSSIBLE__
               HasType _ _ t -> t
@@ -252,7 +252,7 @@ refine
   -> TCM Expr       -- ^ The successfully given expression.
 refine force ii mr e = do
   mi <- lookupInteractionId ii
-  mv <- lookupMeta mi
+  mv <- lookupLocalMeta mi
   let range = fromMaybe (getRange mv) mr
       scope = M.getMetaScope mv
   reportSDoc "interaction.refine" 10 $
@@ -335,7 +335,7 @@ evalInCurrent cmode e = do
 evalInMeta :: InteractionId -> ComputeMode -> Expr -> TCM Expr
 evalInMeta ii cmode e =
    do   m <- lookupInteractionId ii
-        mi <- getMetaInfo <$> lookupMeta m
+        mi <- getMetaInfo <$> lookupLocalMeta m
         withMetaInfo mi $
             evalInCurrent cmode e
 
@@ -435,7 +435,7 @@ instance Reify Constraint where
         tac <- A.App defaultAppInfo_ (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
         OfType tac <$> reify goal
     reify (UnBlock m) = do
-        mi <- mvInstantiation <$> lookupMeta m
+        mi <- lookupMetaInstantiation m
         m' <- reify (MetaV m [])
         case mi of
           BlockedConst t -> do
@@ -479,7 +479,7 @@ instance Reify Constraint where
       return $ PTSInstance a b
     reify (CheckLockedVars t _ lk _) = CheckLock <$> reify t <*> reify (unArg lk)
     reify (CheckMetaInst m) = do
-      t <- jMetaType . mvJudgement <$> lookupMeta m
+      t <- jMetaType . mvJudgement <$> lookupLocalMeta m
       OfType <$> reify (MetaV m []) <*> reify t
     reify (UsableAtModality mod t) = UsableAtMod mod <$> reify t
 
@@ -699,7 +699,7 @@ getConstraints' g f = liftTCM $ do
     return $ ss ++ cs
   where
     toOutputForm (ii, mi, e) = do
-      mv <- getMetaInfo <$> lookupMeta mi
+      mv <- getMetaInfo <$> lookupLocalMeta mi
       withMetaInfo mv $ do
         mi <- interactionIdToMetaId ii
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
@@ -773,7 +773,7 @@ getSolvedInteractionPoints all norm = concat <$> do
   mapM solution =<< getInteractionIdsAndMetas
   where
     solution (i, m) = do
-      mv <- lookupMeta m
+      mv <- lookupLocalMeta m
       withMetaInfo (getMetaInfo mv) $ do
         args  <- getContextArgs
         scope <- getScope
@@ -794,7 +794,7 @@ getSolvedInteractionPoints all norm = concat <$> do
 
 typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputConstraint Expr NamedMeta)
 typeOfMetaMI norm mi =
-     do mv <- lookupMeta mi
+     do mv <- lookupLocalMeta mi
         withMetaInfo (getMetaInfo mv) $
           rewriteJudg mv (mvJudgement mv)
    where
@@ -992,7 +992,7 @@ metaHelperType norm ii rng s = case words s of
 
 contextOfMeta :: InteractionId -> Rewrite -> TCM [ResponseContextEntry]
 contextOfMeta ii norm = withInteractionId ii $ do
-  info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
+  info <- getMetaInfo <$> (lookupLocalMeta =<< lookupInteractionId ii)
   withMetaInfo info $ do
     -- List of local variables.
     cxt <- getContext
@@ -1041,7 +1041,7 @@ typeInCurrent norm e =
 typeInMeta :: InteractionId -> Rewrite -> Expr -> TCM Expr
 typeInMeta ii norm e =
    do   m <- lookupInteractionId ii
-        mi <- getMetaInfo <$> lookupMeta m
+        mi <- getMetaInfo <$> lookupLocalMeta m
         withMetaInfo mi $
             typeInCurrent norm e
 
@@ -1054,7 +1054,7 @@ typeInMeta ii norm e =
 introTactic :: Bool -> InteractionId -> TCM [String]
 introTactic pmLambda ii = do
   mi <- lookupInteractionId ii
-  mv <- lookupMeta mi
+  mv <- lookupLocalMeta mi
   withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
     HasType _ _ t -> do
         t <- reduce =<< piApplyM t =<< getContextArgs

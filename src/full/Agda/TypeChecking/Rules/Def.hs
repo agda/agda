@@ -97,7 +97,7 @@ checkFunDef delayed i name cs = do
                 -- See issue 729.
                 -- Ulf, 2021-02-09: also unfreeze metas in the sort of this type
                 whenM (isFrozen x) $ do
-                  xs <- allMetasList . jMetaType . mvJudgement <$> lookupMeta x
+                  xs <- allMetasList . jMetaType . mvJudgement <$> lookupLocalMeta x
                   mapM_ unfreezeMeta (x : xs)
                 checkAlias t info delayed i name e mc
             | otherwise -> do -- Warn about abstract alias (will never work!)
@@ -106,7 +106,7 @@ checkFunDef delayed i name cs = do
               -- blocks you might actually have solved the type of an alias by the time you get to
               -- the definition. See test/Succeed/SizeInfinity.agda for an example where this
               -- happens.
-              whenM (isOpenMeta . mvInstantiation <$> lookupMeta x) $
+              whenM (isOpenMeta <$> lookupMetaInstantiation x) $
                 setCurrentRange i $ genericWarning =<<
                   "Missing type signature for abstract definition" <+> (prettyTCM name <> ".") $$
                   fsep (pwords "Types of abstract definitions are never inferred since this would leak" ++

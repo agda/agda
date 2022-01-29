@@ -102,13 +102,11 @@ instance EmbPrj I.Term where
   icod_ (Def      a b) = icodeN 3 Def a b
   icod_ (Con    a b c) = icodeN 4 Con a b c
   icod_ (Pi       a b) = icodeN 5 Pi a b
+  icod_ (MetaV    a b) = icodeN 6 MetaV a b
   icod_ (Sort     a  ) = icodeN 7 Sort a
-  icod_ (MetaV    a b) = __IMPOSSIBLE__
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
-  icod_ (Dummy s _)    = do
-    liftIO $ putStrLn $ "Dummy term in serialization: " ++ s
-    __IMPOSSIBLE__
+  icod_ (Dummy    a b) = icodeN 10 Dummy a b
 
   value = vcase valu where
     valu [a]       = valuN var   a
@@ -118,9 +116,11 @@ instance EmbPrj I.Term where
     valu [3, a, b] = valuN Def   a b
     valu [4, a, b, c] = valuN Con a b c
     valu [5, a, b] = valuN Pi    a b
+    valu [6, a, b] = valuN MetaV a b
     valu [7, a]    = valuN Sort  a
     valu [8, a]    = valuN DontCare a
     valu [9, a]    = valuN Level a
+    valu [10, a, b] = valuN Dummy a b
     valu _         = malformed
 
 instance EmbPrj Level where
@@ -149,14 +149,12 @@ instance EmbPrj I.Sort where
   icod_ (PiSort a b c) = icodeN 4 PiSort a b c
   icod_ (FunSort a b) = icodeN 5 FunSort a b
   icod_ (UnivSort a) = icodeN 6 UnivSort a
-  icod_ (MetaS a b)  = __IMPOSSIBLE__
   icod_ (DefS a b)   = icodeN 7 DefS a b
   icod_ (SSet  a  ) = icodeN 8 SSet a
   icod_ LockUniv    = icodeN 9 LockUniv
   icod_ IntervalUniv = icodeN 10 IntervalUniv
-  icod_ (DummyS s)   = do
-    liftIO $ putStrLn $ "Dummy sort in serialization: " ++ s
-    __IMPOSSIBLE__
+  icod_ (MetaS a b)  = icodeN 11 MetaS a b
+  icod_ (DummyS s)   = icodeN 12 DummyS s
 
   value = vcase valu where
     valu [0, a]    = valuN Type  a
@@ -170,6 +168,8 @@ instance EmbPrj I.Sort where
     valu [8, a]    = valuN SSet a
     valu [9]       = valuN LockUniv
     valu [10]      = valuN IntervalUniv
+    valu [11, a, b] = valuN MetaS a b
+    valu [12, s]   = valuN DummyS s
     valu _         = malformed
 
 instance EmbPrj DisplayForm where
@@ -571,3 +571,31 @@ instance EmbPrj a => EmbPrj (Substitution' a) where
     valu [4, a, b] = valuN Wk a b
     valu [5, a, b] = valuN Lift a b
     valu _         = malformed
+
+instance EmbPrj Instantiation where
+  icod_ (Instantiation a b) = icodeN' Instantiation a b
+  value = valueN Instantiation
+
+instance EmbPrj Comparison where
+  icod_ CmpEq  = icodeN' CmpEq
+  icod_ CmpLeq = icodeN 0 CmpLeq
+
+  value = vcase valu
+    where
+    valu []  = valuN CmpEq
+    valu [0] = valuN CmpLeq
+    valu _   = malformed
+
+instance EmbPrj a => EmbPrj (Judgement a) where
+  icod_ (HasType a b c) = icodeN' HasType a b c
+  icod_ (IsSort a b)    = icodeN' IsSort a b
+
+  value = vcase valu
+    where
+    valu [a, b, c] = valuN HasType a b c
+    valu [a, b]    = valuN IsSort a b
+    valu _         = malformed
+
+instance EmbPrj RemoteMetaVariable where
+  icod_ (RemoteMetaVariable a b c) = icodeN' RemoteMetaVariable a b c
+  value = valueN RemoteMetaVariable

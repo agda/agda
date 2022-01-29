@@ -90,7 +90,7 @@ checkIApplyConfluence f cl = case cl of
                 caseMaybeM (isInteractionMeta m) (return ()) $ \ ii -> do
                 cs' <- do
                   reportSDoc "tc.iapply.ip" 20 $ "clTel =" <+> prettyTCM clTel
-                  mv <- lookupMeta m
+                  mv <- lookupLocalMeta m
                   enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
                   ty <- getMetaType m
                   mTel <- getContextTelescope
@@ -209,7 +209,7 @@ unifyElims vs ts k = do
 -- the context extension @Δ@ is taken from the @Closure@.
 unifyElimsMeta :: MetaId -> Args -> Closure Constraint -> ([(Term,Term)] -> Constraint -> TCM a) -> TCM a
 unifyElimsMeta m es_m cl k = ifM (isNothing . optCubical <$> pragmaOptions) (enterClosure cl $ k []) $ do
-                  mv <- lookupMeta m
+                  mv <- lookupLocalMeta m
                   enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
                   ty <- metaType m
                   mTel0 <- getContextTelescope

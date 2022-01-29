@@ -126,6 +126,16 @@ Library management
   files for `A.B.C` have to reside in `Root`, or further up the
   directory hierarchy.
 
+Performance
+-----------
+
+* Meta-variables can now be saved in `.agdai` files, instead
+  of being expanded. This can affect performance. (See
+  [#5731](https://github.com/agda/agda/issues/5731).)
+
+  Meta-variables are saved if the pragma option `--save-metas` is
+  used. This option can be overridden by `--no-save-metas`.
+
 Compiler backends
 -----------------
 

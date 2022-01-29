@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical #-}
+{-# OPTIONS --cubical --save-metas #-}
 
 -- The code in this module should not be compiled. However, the
 -- following re-exported code should be compiled.

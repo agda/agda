@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical #-}
+{-# OPTIONS --cubical --save-metas #-}
 
 module Erased-cubical-Pattern-matching-Cubical where
 

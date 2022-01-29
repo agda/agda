@@ -18,8 +18,7 @@ import Data.Maybe
 import System.IO.Unsafe
 
 import Agda.Syntax.Internal
-import Agda.TypeChecking.Monad hiding
-  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta', constructorForm )
+import Agda.TypeChecking.Monad hiding (enterClosure, constructorForm)
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Lens

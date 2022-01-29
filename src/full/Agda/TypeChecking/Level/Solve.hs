@@ -31,12 +31,13 @@ defaultOpenLevelsToZero f = ifNotM (optCumulativity <$> pragmaOptions) f $ do
   defaultLevelsToZero (openMetas newMetas)
   return result
 
-defaultLevelsToZero :: forall m. (PureTCM m, MonadMetaSolver m) => MetaStore -> m ()
+defaultLevelsToZero ::
+  forall m. (PureTCM m, MonadMetaSolver m) => LocalMetaStore -> m ()
 defaultLevelsToZero xs = loop =<< openLevelMetas (MapS.keys xs)
   where
     loop :: [MetaId] -> m ()
     loop xs = do
-      let isOpen x = isOpenMeta . mvInstantiation <$> lookupMeta x
+      let isOpen x = isOpenMeta <$> lookupMetaInstantiation x
       xs <- filterM isOpen xs
       allMetaTypes <- getOpenMetas >>= traverse metaType
       let notInTypeOfMeta x = not $ mentionsMeta x allMetaTypes

@@ -89,16 +89,18 @@ instance MonadMetaSolver TCM where
 findIdx :: Eq a => [a] -> a -> Maybe Int
 findIdx vs v = List.elemIndex v (reverse vs)
 
+-- | Does the given local meta-variable have a twin meta-variable?
+
 hasTwinMeta :: MetaId -> TCM Bool
 hasTwinMeta x = do
-    m <- lookupMeta x
+    m <- lookupLocalMeta x
     return $ isJust $ mvTwin m
 
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MetaId -> TCM Bool
 isBlockedTerm x = do
     reportSLn "tc.meta.blocked" 12 $ "is " ++ prettyShow x ++ " a blocked term? "
-    i <- mvInstantiation <$> lookupMeta x
+    i <- lookupMetaInstantiation x
     let r = case i of
             BlockedConst{}                 -> True
             PostponedTypeCheckingProblem{} -> True
@@ -111,7 +113,7 @@ isBlockedTerm x = do
 
 isEtaExpandable :: [MetaKind] -> MetaId -> TCM Bool
 isEtaExpandable kinds x = do
-    i <- mvInstantiation <$> lookupMeta x
+    i <- lookupMetaInstantiation x
     return $ case i of
       Open{}                         -> True
       OpenInstance{}                 -> Records `notElem` kinds
@@ -144,7 +146,8 @@ assignTermTCM' x tel v = do
 
     verboseS "profile.metas" 10 $ liftTCM $ return () {-tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas-}
     updateMetaVarTCM x $ \ mv ->
-      mv { mvInstantiation = InstV tel (killRange v) }
+      mv { mvInstantiation = InstV $ Instantiation
+             { instTel = tel, instBody = killRange v } }
     etaExpandListeners x
     wakeupConstraints x
     reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ prettyShow x
@@ -392,7 +395,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
     MetaVar
       { mvInfo = MetaInfo{ miClosRange = Closure{ clEnv = TCEnv{ envContext = gamma }}}
       , mvPermutation = p
-      } <- fromMaybe __IMPOSSIBLE__ <$> lookupMeta' x
+      } <- fromMaybe __IMPOSSIBLE__ <$> lookupLocalMeta' x
     -- Get the current context Δ.
     delta <- getContext
     -- A bit hazardous:
@@ -635,8 +638,8 @@ wakeupListener (CheckConstraint _ c) = do
 etaExpandMetaSafe :: (MonadMetaSolver m) => MetaId -> m ()
 etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
 
--- | Eta expand a metavariable, if it is of the specified kind.
---   Don't do anything if the metavariable is a blocked term.
+-- | Eta-expand a local meta-variable, if it is of the specified kind.
+--   Don't do anything if the meta-variable is a blocked term.
 etaExpandMetaTCM :: [MetaKind] -> MetaId -> TCM ()
 etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignMetas `and2M` isEtaExpandable kinds m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
@@ -650,7 +653,7 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
           reportSDoc "tc.meta.eta" 20 $ do
             "we do not expand meta variable" <+> prettyTCM m <+>
               text ("(requested was expansion of " ++ show kinds ++ ")")
-    meta <- lookupMeta m
+    meta <- lookupLocalMeta m
     case mvJudgement meta of
       IsSort{} -> dontExpand
       HasType _ cmp a -> do
@@ -766,7 +769,7 @@ assignWrapper dir x es v doAssign = do
 assign :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
 assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
-  mvar <- lookupMeta x  -- information associated with meta x
+  mvar <- lookupLocalMeta x  -- information associated with meta x
   let t = jMetaType $ mvJudgement mvar
 
   -- Andreas, 2011-05-20 TODO!
@@ -1252,7 +1255,7 @@ assignMeta' m x t n ids v = do
 
     -- Andreas, 2013-10-25 double check solution before assigning
     whenM (optDoubleCheck  <$> pragmaOptions) $ do
-      m <- lookupMeta x
+      m <- lookupLocalMeta x
       reportSDoc "tc.meta.check" 30 $ "double checking solution"
       catchConstraint (CheckMetaInst x) $
         addContext tel' $ checkSolutionForMeta x m v' a
@@ -1279,18 +1282,19 @@ assignMeta' m x t n ids v = do
 --   instantiated, add a constraint to check the instantiation later.
 checkMetaInst :: MetaId -> TCM ()
 checkMetaInst x = do
-  m <- lookupMeta x
+  m <- lookupLocalMeta x
   let postpone = addConstraint (unblockOnMeta x) $ CheckMetaInst x
   case mvInstantiation m of
     BlockedConst{} -> postpone
     PostponedTypeCheckingProblem{} -> postpone
     Open{} -> postpone
     OpenInstance{} -> postpone
-    InstV xs v -> do
-      let n = size xs
+    InstV inst -> do
+      let n = size (instTel inst)
           t = jMetaType $ mvJudgement m
       (telv@(TelV tel a),bs) <- telViewUpToPathBoundary n t
-      catchConstraint (CheckMetaInst x) $ addContext tel $ checkSolutionForMeta x m v a
+      catchConstraint (CheckMetaInst x) $ addContext tel $
+        checkSolutionForMeta x m (instBody inst) a
 
 -- | Check that the instantiation of the metavariable with the given
 --   term is well-typed.
@@ -1351,8 +1355,8 @@ checkSubtypeIsEqual a b = do
 -- @_Y args <= u@.
 subtypingForSizeLt
   :: CompareDirection -- ^ @dir@
-  -> MetaId           -- ^ The meta variable @x@.
-  -> MetaVariable     -- ^ Its associated information @mvar <- lookupMeta x@.
+  -> MetaId           -- ^ The local meta-variable @x@.
+  -> MetaVariable     -- ^ Its associated information @mvar <- lookupLocalMeta x@.
   -> Type             -- ^ Its type @t = jMetaType $ mvJudgement mvar@
   -> Args             -- ^ Its arguments.
   -> Term             -- ^ Its to-be-assigned value @v@, such that @x args `dir` v@.
@@ -1689,7 +1693,8 @@ openMetasToPostulates = do
     addConstant' q defaultArgInfo q t defaultAxiom
 
     -- Solve the meta.
-    let inst = InstV [] $ Def q []
+    let inst = InstV $ Instantiation
+                 { instTel = [], instBody = Def q [] }
     updateMetaVar x $ \ mv0 -> mv0 { mvInstantiation = inst }
     return ()
   where
@@ -1714,7 +1719,7 @@ dependencySortMetas metas = do
   where
     -- Sort metas don't have types, but we still want to sort them.
     getType m = do
-      mv <- lookupMeta m
-      case mvJudgement mv of
+      j <- lookupMetaJudgement m
+      case j of
         IsSort{}                 -> return Nothing
         HasType{ jMetaType = t } -> Just <$> instantiateFull t

@@ -179,7 +179,7 @@ instance Reify MetaId where
     reifyWhen = reifyWhenE
     reify x = do
       b <- asksTC envPrintMetasBare
-      mi  <- mvInfo <$> lookupMeta x
+      mi  <- mvInfo <$> lookupLocalMeta x
       let mi' = Info.MetaInfo
                  { metaRange          = getRange $ miClosRange mi
                  , metaScope          = clScope $ miClosRange mi
@@ -556,7 +556,7 @@ reifyTerm expandAnonDefs0 v0 = do
 
           es' <- reify es
 
-          mv <- lookupMeta x
+          mv <- lookupLocalMeta x
           (msub1,meta_tel,msub2) <- do
             local_chkpt <- viewTC eCurrentCheckpoint
             (chkpt, tel, msub2) <- enterClosure mv $ \ _ ->

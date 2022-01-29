@@ -196,6 +196,8 @@ data PragmaOptions = PragmaOptions
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
   , optAllowExec                 :: Bool
+  , optSaveMetas                 :: WithDefault 'False
+    -- ^ Save meta-variables.
   , optShowIdentitySubstitutions :: Bool
     -- ^ Show identity substitutions when pretty-printing terms
     --   (i.e. always show all arguments of a metavariable)
@@ -312,6 +314,7 @@ defaultPragmaOptions = PragmaOptions
   , optFlatSplit                 = True
   , optImportSorts               = True
   , optAllowExec                 = False
+  , optSaveMetas                 = Default
   , optShowIdentitySubstitutions = False
   }
 
@@ -415,6 +418,7 @@ restartOptions =
   , (B . (== Just GlobalConfluenceCheck) . optConfluenceCheck, "--confluence-check")
   , (B . not . optImportSorts, "--no-import-sorts")
   , (B . optAllowExec, "--allow-exec")
+  , (B . collapseDefault . optSaveMetas, "--save-metas")
   ]
 
 -- to make all restart options have the same type
@@ -804,6 +808,9 @@ noImportSorts o = return $ o { optImportSorts = False }
 allowExec :: Flag PragmaOptions
 allowExec o = return $ o { optAllowExec = True }
 
+saveMetas :: Bool -> Flag PragmaOptions
+saveMetas save o = return $ o { optSaveMetas = Value save }
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
   where
@@ -1025,6 +1032,10 @@ pragmaOptions =
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
     , Option []     ["allow-exec"] (NoArg allowExec)
                     "allow system calls to trusted executables with primExec"
+    , Option []     ["save-metas"] (NoArg $ saveMetas True)
+                    "save meta-variables"
+    , Option []     ["no-save-metas"] (NoArg $ saveMetas False)
+                    "do not save meta-variables (the default)"
     ]
 
 -- | Pragma options of previous versions of Agda.

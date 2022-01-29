@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical #-}
+{-# OPTIONS --cubical --save-metas #-}
 
 open import Agda.Builtin.IO
 open import Agda.Builtin.String

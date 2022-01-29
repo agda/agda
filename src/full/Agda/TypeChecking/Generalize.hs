@@ -128,7 +128,7 @@ generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar 
 
 -- | Create metas for the generalizable variables and run the type check action.
 createMetasAndTypeCheck ::
-  Set QName -> TCM a -> TCM (a, Map MetaId QName, MetaStores)
+  Set QName -> TCM a -> TCM (a, Map MetaId QName, LocalMetaStores)
 createMetasAndTypeCheck s typecheckAction = do
   ((namedMetas, x), allmetas) <- metasCreatedBy $ do
     (metamap, genvals) <- createGenValues s
@@ -152,7 +152,7 @@ withGenRecVar ret = do
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
 computeGeneralization ::
-  Type -> Map MetaId name -> MetaStores ->
+  Type -> Map MetaId name -> LocalMetaStores ->
   TCM (Telescope, [Maybe name], Substitution)
 computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints $ do
 
@@ -167,7 +167,8 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- TODO: make metasCreatedBy smarter so it doesn't see pruned
   -- versions of old metas as new metas.
   cp <- viewTC eCurrentCheckpoint
-  let isFreshMeta (x,mv) = enterClosure mv $ \ _ -> isJust <$> checkpointSubstitution' cp
+  let isFreshMeta :: MonadReduce m => (MetaId, MetaVariable) -> m Bool
+      isFreshMeta (x,mv) = enterClosure mv $ \ _ -> isJust <$> checkpointSubstitution' cp
   mvs <- filterM isFreshMeta mvs
   cs <- (++) <$> useTC stAwakeConstraints
              <*> useTC stSleepingConstraints
@@ -209,7 +210,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   cp <- viewTC eCurrentCheckpoint
   let canGeneralize x | isConstrained x = return False
       canGeneralize x = do
-          mv   <- lookupMeta x
+          mv   <- lookupLocalMeta x
           msub <- enterClosure mv $ \ _ ->
                     checkpointSubstitution' cp
           let sameContext =
@@ -237,15 +238,18 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
           return sameContext
   inherited <- fmap Set.unions $ forM generalizableClosed $ \ (x, mv) ->
     case mvInstantiation mv of
-      InstV _ v -> do
+      InstV inst -> do
         parentName <- getMetaNameSuggestion x
-        metas <- filterM canGeneralize . Set.toList . allMetas Set.singleton =<< instantiateFull v
+        metas <- filterM canGeneralize . Set.toList .
+                 allMetas Set.singleton =<<
+                 instantiateFull (instBody inst)
         let suggestNames i [] = return ()
             suggestNames i (m : ms) = do
               -- #4291: Override existing meta name suggestion. If we solved the parent with a new
               --        meta use the parent name for that, otherwise suffix with a number.
-              let suf | null ms && i == 1, MetaV{} <- v = ""
-                      | otherwise                       = "." ++ show i
+              let suf | null ms && i == 1,
+                        MetaV{} <- instBody inst = ""
+                      | otherwise                = "." ++ show i
               setMetaNameSuggestion m (parentName ++ suf)
               suggestNames (i + 1) ms
         unless (null metas) $
@@ -305,7 +309,7 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   teleTypes <- do
     args <- getContextArgs
     fmap concat $ forM sortedMetas $ \ m -> do
-      mv   <- lookupMeta m
+      mv <- lookupLocalMeta m
       let info =
             hideOrKeepInstance $
             getArgInfo $ miGeneralizable $ mvInfo mv
@@ -334,6 +338,15 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
   -- Now abstract over the telescope. We need to apply the substitution that subsitutes a record
   -- value packing up the generalized variables for the genTel variable.
   let sub = unpackSub genRecCon (map (argInfo . fst) teleTypes) (length teleTypes)
+
+  -- Instantiate all fresh meta-variables to get rid of
+  -- __DUMMY_TERM__.
+  genTel <- flip instantiateWhen genTel $ \m -> do
+    mv <- lookupMeta m
+    case mv of
+      Nothing         -> __IMPOSSIBLE__
+      Just Left{}     -> return False
+      Just (Right mv) -> isFreshMeta (m, mv)
 
   return (genTel, telNames, sub)
 
@@ -383,7 +396,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
     -- on any variables introduced after the genRec. See test/Fail/Issue3672b.agda for a test case.
     prePrune x = do
       cp <- viewTC eCurrentCheckpoint
-      mv <- lookupMeta x
+      mv <- lookupLocalMeta x
       (i, _A) <- enterClosure mv $ \ _ -> do
         δ <- checkpointSubstitution cp
         _A <- case mvJudgement mv of
@@ -435,7 +448,7 @@ pruneUnsolvedMetas genRecName genRecCon genTel genRecFields interactionPoints is
 
     pruneMeta _Θ x = do
       cp <- viewTC eCurrentCheckpoint
-      mv <- lookupMeta x
+      mv <- lookupLocalMeta x
       -- The reason we are doing all this inside the closure of x is so that if x is an interaction
       -- meta we get the right context for the pruned interaction meta.
       enterClosure mv $ \ _ ->

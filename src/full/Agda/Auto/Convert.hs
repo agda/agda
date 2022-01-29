@@ -25,7 +25,8 @@ import qualified Agda.TypeChecking.Monad.Base as MB
 import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, ignoreAbstractMode)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, envContext, clEnv)
-import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo, lookupInteractionPoint)
+import Agda.TypeChecking.Monad.MetaVars
+  (lookupMeta, withMetaInfo, lookupInteractionPoint)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 import Agda.TypeChecking.Substitute (applySubst, renamingR)
@@ -160,7 +161,7 @@ tomy imi icns typs = do
           when (Map.notMember eqi eqsm) $ do
            modify $ \s -> s {sEqs = (Map.insert eqi Nothing eqsm, eqi : eqsl)}
         ) (zip eqs [0..])
-       mv <- lift $ lookupMeta mi
+       mv <- lift $ lookupLocalMetaAuto mi
        msol <- case MB.mvInstantiation mv of
                      MB.InstV{} ->
                       lift $ withMetaInfo (getMetaInfo mv) $ do
@@ -262,8 +263,22 @@ getConst iscon name mode = do
 
 getdfv :: I.MetaId -> A.QName -> MB.TCM Cm.Nat
 getdfv mainm name = do
- mv <- lookupMeta mainm
+ mv <- lookupLocalMetaAuto mainm
  withMetaInfo (getMetaInfo mv) $ getDefFreeVars name
+
+-- | A variant of 'lookupLocalMeta' that, if applied to a remote
+-- meta-variable, raises a special error message noting that remote
+-- meta-variables are not handled by the auto command.
+
+lookupLocalMetaAuto :: I.MetaId -> MB.TCM MB.MetaVariable
+lookupLocalMetaAuto m = do
+  mv <- lookupMeta m
+  case mv of
+    Just (Right mv) -> return mv
+    Nothing         -> __IMPOSSIBLE__
+    Just Left{}     -> MB.typeError $ MB.GenericError $
+      "The auto command does not support remote meta-variables," ++
+      "consider using --no-save-metas"
 
 getMeta :: I.MetaId -> TOM (Metavar (Exp O) (RefInfo O))
 getMeta name = do

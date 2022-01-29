@@ -206,7 +206,7 @@ isType_ e = traceCall (IsType_ e) $ do
         , prettyTCM x
         , text $ " for interaction point " ++ show ii
         ]
-      mv <- lookupMeta x
+      mv <- lookupLocalMeta x
       let s0 = jMetaType . mvJudgement $ mv
       -- Andreas, 2016-10-14, issue #2257
       -- The meta was created in a context of length @n@.
@@ -885,7 +885,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
     -- There might be metas in the blocker not known in the reset state, as they could have been
     -- created somewhere on the way to the type error.
     blocker <- (`onBlockingMetasM` blocker) $ \ x ->
-                lookupMeta' x >>= \ case
+                lookupMeta x >>= \ case
       -- Case: we do not know the meta, so cannot unblock.
       Nothing -> return neverUnblock
       -- Case: we know the meta here.
@@ -899,8 +899,10 @@ catchIlltypedPatternBlockedOnMeta m handle = do
       -- fact not very helpful. Yes there is no hope of solving the problem, but throwing a hard
       -- error means we rob the user of the tools needed to figure out why the meta has not been
       -- solved. Better to leave the constraint.
-      Just m | InstV{} <- mvInstantiation m -> return alwaysUnblock
-             | otherwise -> return $ unblockOnMeta x
+      Just Left{} -> return alwaysUnblock
+      Just (Right m)
+        | InstV{} <- mvInstantiation m -> return alwaysUnblock
+        | otherwise                    -> return $ unblockOnMeta x
 
     -- If it's not blocked or we can't ever unblock reraise the error.
     if blocker `elem` [neverUnblock, alwaysUnblock] then reraise else handle (err, blocker)
@@ -1353,10 +1355,10 @@ unquoteTactic tac hole goal = do
   case ok of
     Left (BlockedOnMeta oldState blocker) -> do
       putTC oldState
-      let stripFreshMeta x = maybe neverUnblock (const $ unblockOnMeta x) <$> lookupMeta' x
+      let stripFreshMeta x = maybe neverUnblock (const $ unblockOnMeta x) <$> lookupLocalMeta' x
       blocker' <- onBlockingMetasM stripFreshMeta blocker
       r <- case Set.toList $ allBlockingMetas blocker' of
-            x : _ -> getRange <$> lookupMeta' x
+            x : _ -> getRange <$> lookupLocalMeta' x
             []    -> return noRange
       setCurrentRange r $
         addConstraint blocker' (UnquoteTactic tac hole goal)

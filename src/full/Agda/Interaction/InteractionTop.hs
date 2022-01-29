@@ -843,7 +843,7 @@ solveInstantiatedGoals norm mii = do
   putResponse $ Resp_SolveAll out
   where
       prt (i, m, e) = do
-        mi <- getMetaInfo <$> lookupMeta m
+        mi <- getMetaInfo <$> lookupLocalMeta m
         e' <- withMetaInfo mi $ abstractToConcreteCtx TopCtx e
         return (i, e')
 

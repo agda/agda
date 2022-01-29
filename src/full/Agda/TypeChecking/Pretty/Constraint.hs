@@ -93,7 +93,7 @@ instance PrettyTCM Constraint where
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
         UnBlock m   -> do
             -- BlockedConst t <- mvInstantiation <$> lookupMeta m
-            mi <- mvInstantiation <$> lookupMeta m
+            mi <- lookupMetaInstantiation m
             case mi of
               BlockedConst t -> prettyCmp ":=" m t
               PostponedTypeCheckingProblem cl -> enterClosure cl $ \p ->
@@ -147,7 +147,7 @@ instance PrettyTCM Constraint where
           e <- reify v
           prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
         CheckMetaInst x -> do
-          m <- lookupMeta x
+          m <- lookupLocalMeta x
           case mvJudgement m of
             HasType{ jMetaType = t } -> prettyTCM x <+> ":" <+> prettyTCM t
             IsSort{} -> prettyTCM x <+> "is a sort"

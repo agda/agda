@@ -1005,9 +1005,10 @@ compareIrrelevant t v0 w0 = do
   try v w $ try w v $ return ()
   where
     try (MetaV x es) w fallback = do
-      mv <- lookupMeta x
-      let rel  = getMetaRelevance mv
-          inst = case mvInstantiation mv of
+      mi <- lookupMetaInstantiation x
+      mm <- lookupMetaModality x
+      let rel  = getRelevance mm
+          inst = case mi of
                    InstV{} -> True
                    _       -> False
       reportSDoc "tc.conv.irr" 20 $ vcat
@@ -1379,7 +1380,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
           , not areWeComputingOverlap
           , Just (mb@(MetaV x es) , bs') <- singleMetaView $ (map . fmap) ignoreBlocking (List1.toList bs)
           , null bs' || noMetas (Level a , unSingleLevels bs') -> do
-            mv <- lookupMeta x
+            mv <- lookupLocalMeta x
             -- Jesper, 2019-10-13: abort if this is an interaction
             -- meta or a generalizable meta
             abort <- (isJust <$> isInteractionMeta x) `or2M`

@@ -225,8 +225,8 @@ metaCheck m = do
   --   abort ctx $ MetaOccursInItself m'
   when (m == m0) $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++ prettyShow m
 
-  mv <- lookupMeta m
-  let mmod = getMetaModality mv
+  mv <- lookupLocalMeta m
+  let mmod = getModality mv
       mmod' = setRelevance rel $ setQuantity qnt $ mmod
   if (mmod `moreUsableModality` mmod') then return m else do
     reportSDoc "tc.meta.occurs" 35 $ hsep
@@ -367,7 +367,7 @@ occursCheck
   :: (Occurs a, InstantiateFull a, PrettyTCM a)
   => MetaId -> VarMap -> a -> TCM a
 occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   n  <- getContextSize
   reportSLn "tc.meta.occurs" 35 $ "occursCheck " ++ show m ++ " " ++ show xs
   let initEnv unf = FreeEnv
@@ -378,7 +378,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
           , occCxtSize = n
           }
         , feFlexRig   = StronglyRigid -- ? Unguarded
-        , feModality  = getMetaModality mv
+        , feModality  = getModality mv
         , feSingleton = variableCheck xs
         }
   initOccursCheck mv
@@ -389,7 +389,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
       -- (unless metavariable is irrelevant, in which case the
       -- constraint will anyway be dropped)
       case err of
-        PatternErr{} | not (isIrrelevant $ getMetaModality mv) -> do
+        PatternErr{} | not (isIrrelevant $ getModality mv) -> do
           initOccursCheck mv
           occurs v `runReaderT` initEnv YesUnfold
         _ -> throwError err
@@ -911,7 +911,7 @@ killArgs :: (MonadMetaSolver m) => [Bool] -> MetaId -> m PruneResult
 killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   allowAssign <- asksTC envAssignMetas
   if mvFrozen mv == Frozen || not allowAssign then return PrunedNothing else do
       -- Andreas 2011-04-26, we allow pruning in MetaV and MetaS
@@ -1037,7 +1037,7 @@ performKill
   -> Type          -- ^ The pruned type of the new meta var.
   -> m ()
 performKill kills m a = do
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__
   -- Arity of the old meta.
   let n = size kills
