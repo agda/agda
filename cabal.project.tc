@@ -1,0 +1,12 @@
+-- 2022-01-30
+-- Dedicated cabal.project file for type-checking only.
+-- Use in: `cabal build --project-file=<THIS> --builddir=<DIR>
+
+-- Passing the ghc-options directly on the command line causes the
+-- dependencies to be rebuild. Thus, this workaround is necessary.
+-- See https://github.com/haskell/cabal/issues/7368.
+
+packages: .
+
+package Agda
+  ghc-options: -fno-code -fwrite-interface
