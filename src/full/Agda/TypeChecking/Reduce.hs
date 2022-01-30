@@ -56,6 +56,18 @@ instantiate = liftReduce . instantiate'
 instantiateFull :: (InstantiateFull a, MonadReduce m) => a -> m a
 instantiateFull = liftReduce . instantiateFull'
 
+-- | A variant of 'instantiateFull' that only instantiates those
+-- meta-variables that satisfy the predicate.
+
+instantiateWhen ::
+  (InstantiateFull a, MonadReduce m) =>
+  (MetaId -> ReduceM Bool) ->
+  a -> m a
+instantiateWhen p =
+  liftReduce .
+  localR (\env -> env { redPred = Just p }) .
+  instantiateFull'
+
 reduce :: (Reduce a, MonadReduce m) => a -> m a
 reduce = liftReduce . reduce'
 
@@ -139,8 +151,20 @@ instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
 instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) where
     instantiate' (x,y,z) = (,,) <$> instantiate' x <*> instantiate' y <*> instantiate' z
 
+-- | Run the second computation if the 'redPred' predicate holds for
+-- the given meta-variable (or if the predicate is not defined), and
+-- otherwise the first computation.
+
+ifPredicateDoesNotHoldFor ::
+  MetaId -> ReduceM a -> ReduceM a -> ReduceM a
+ifPredicateDoesNotHoldFor m doesNotHold holds = do
+  pred <- redPred <$> askR
+  case pred of
+    Nothing -> holds
+    Just p  -> ifM (p m) holds doesNotHold
+
 instance Instantiate Term where
-  instantiate' t@(MetaV x es) = do
+  instantiate' t@(MetaV x es) = ifPredicateDoesNotHoldFor x (return t) $ do
     blocking <- view stInstantiateBlocking <$> getTCState
 
     mv <- lookupMeta x

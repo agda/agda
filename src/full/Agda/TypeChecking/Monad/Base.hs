@@ -3887,8 +3887,12 @@ enableCaching = optCaching <$> pragmaOptions
 
 -- | Environment of the reduce monad.
 data ReduceEnv = ReduceEnv
-  { redEnv :: TCEnv    -- ^ Read only access to environment.
-  , redSt  :: TCState  -- ^ Read only access to state (signature, metas...).
+  { redEnv  :: TCEnv    -- ^ Read only access to environment.
+  , redSt   :: TCState  -- ^ Read only access to state (signature, metas...).
+  , redPred :: Maybe (MetaId -> ReduceM Bool)
+    -- ^ An optional predicate that is used by 'instantiate'' and
+    -- 'instantiateFull'': meta-variables are only instantiated if
+    -- they satisfy this predicate.
   }
 
 mapRedEnv :: (TCEnv -> TCEnv) -> ReduceEnv -> ReduceEnv
@@ -3899,7 +3903,7 @@ mapRedSt f s = s { redSt = f (redSt s) }
 
 mapRedEnvSt :: (TCEnv -> TCEnv) -> (TCState -> TCState) -> ReduceEnv
             -> ReduceEnv
-mapRedEnvSt f g (ReduceEnv e s) = ReduceEnv (f e) (g s)
+mapRedEnvSt f g (ReduceEnv e s p) = ReduceEnv (f e) (g s) p
 
 -- Lenses
 reduceEnv :: Lens' TCEnv ReduceEnv
@@ -3992,7 +3996,7 @@ instance ReadTCState ReduceM where
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = TCM $ \ r e -> do
   s <- readIORef r
-  E.evaluate $ unReduceM m $ ReduceEnv e s
+  E.evaluate $ unReduceM m $ ReduceEnv e s Nothing
   -- Andreas, 2021-05-13, issue #5379
   -- This was the following, which is apparently not strict enough
   -- to force all unsafePerformIOs...
@@ -4005,7 +4009,7 @@ runReduceF :: (a -> ReduceM b) -> TCM (a -> b)
 runReduceF f = do
   e <- askTC
   s <- getTC
-  return $ \x -> unReduceM (f x) (ReduceEnv e s)
+  return $ \x -> unReduceM (f x) (ReduceEnv e s Nothing)
 
 instance MonadTCEnv ReduceM where
   askTC   = ReduceM redEnv
