@@ -255,7 +255,6 @@ unifyIndices' tel flex a us vs = do
           ]
     initialState    <- initUnifyState tel flex a us vs
     reportSDoc "tc.lhs.unify" 20 $ "initial unifyState:" <+> prettyTCM initialState
-    reportSDoc "tc.lhs.unify" 70 $ "initial unifyState:" <+> text (show initialState)
     (result,log) <- runUnifyLogT $ unify initialState rightToLeftStrategy
     forM result $ \ s -> do -- Unifies case
         let output = mconcat [output | (UnificationStep _ _ output,_) <- log ]
@@ -859,7 +858,7 @@ solutionStep retry s
   caseEitherM (return eusable) (return . UnifyBlocked) $ \ usable -> do
 
   reportSDoc "tc.lhs.unify" 45 $ "Modality ok: " <+> prettyTCM usable
-  unless usable $ reportSLn "tc.lhs.unify" 65 $ "Rejected solution: " ++ show u
+  unless usable $ reportSDoc "tc.lhs.unify" 65 $ "Rejected solution: " <+> prettyTCM u
 
   -- We need a Flat equality to solve a Flat variable.
   -- This also ought to take care of the need for a usableCohesion check.
