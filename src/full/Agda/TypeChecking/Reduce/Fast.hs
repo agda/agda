@@ -502,9 +502,11 @@ derefPointer (Pointer ptr) = readSTRef ptr
 
 -- | In most cases pointers that we dereference do not contain black holes.
 derefPointer_ :: Pointer s -> ST s (Closure s)
-derefPointer_ ptr = do
-  Thunk cl <- derefPointer ptr
-  return cl
+derefPointer_ ptr =
+  derefPointer ptr <&> \case
+    Thunk cl  -> cl
+    BlackHole -> __IMPOSSIBLE__
+
 
 -- | Only use for debug printing!
 unsafeDerefPointer :: Pointer s -> Thunk (Closure s)
