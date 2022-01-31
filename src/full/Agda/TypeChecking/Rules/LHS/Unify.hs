@@ -840,10 +840,12 @@ solutionStep retry s
   -- Jesper, Andreas, 2018-10-17: the quantity of the equation is morally
   -- always @Quantity0@, since the indices of the data type are runtime erased.
   -- Thus, we need not change the quantity of the solution.
+  envmod <- viewTC eModality
   let eqrel  = getRelevance dom
       eqmod  = getModality dom
       varmod = getModality dom'
       mod    = applyUnless (NonStrict `moreRelevant` eqrel) (setRelevance eqrel)
+             $ applyUnless (usableQuantity envmod) (setQuantity zeroQuantity)
              $ varmod
   reportSDoc "tc.lhs.unify" 65 $ text $ "Equation modality: " ++ show (getModality dom)
   reportSDoc "tc.lhs.unify" 65 $ text $ "Variable modality: " ++ show varmod
