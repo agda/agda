@@ -161,6 +161,7 @@ data PragmaOptions = PragmaOptions
   , optEta                       :: Bool
   , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
   , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
+  , optEraseRecordParameters     :: Bool  -- ^ Mark parameters of record modules as erased?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   , optCubical                   :: Maybe Cubical
   , optGuarded                   :: Bool
@@ -301,6 +302,7 @@ defaultPragmaOptions = PragmaOptions
   , optEta                       = True
   , optForcing                   = True
   , optProjectionLike            = True
+  , optEraseRecordParameters     = False
   , optRewriting                 = False
   , optCubical                   = Nothing
   , optGuarded                   = False
@@ -432,6 +434,7 @@ restartOptions =
   , (B . not . optImportSorts, "--no-import-sorts")
   , (B . optAllowExec, "--allow-exec")
   , (B . collapseDefault . optSaveMetas, "--save-metas")
+  , (B . optEraseRecordParameters, "--erase-record-parameters")
   ]
 
 -- to make all restart options have the same type
@@ -841,6 +844,12 @@ allowExec o = return $ o { optAllowExec = True }
 saveMetas :: Bool -> Flag PragmaOptions
 saveMetas save o = return $ o { optSaveMetas = Value save }
 
+eraseRecordParametersFlag :: Flag PragmaOptions
+eraseRecordParametersFlag o = return $ o { optEraseRecordParameters = True }
+
+noEraseRecordParametersFlag :: Flag PragmaOptions
+noEraseRecordParametersFlag o = return $ o { optEraseRecordParameters = False }
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
   where
@@ -994,6 +1003,10 @@ pragmaOptions =
                     "disable the forcing analysis for data constructors (optimisation)"
     , Option []     ["no-projection-like"] (NoArg noProjectionLikeFlag)
                     "disable the analysis whether function signatures liken those of projections (optimisation)"
+    , Option []     ["erase-record-parameters"] (NoArg eraseRecordParametersFlag)
+                    "mark all parameters of record modules as erased"
+    , Option []     ["no-erase-record-parameters"] (NoArg noEraseRecordParametersFlag)
+                    "do mark all parameters of record modules as erased (default)"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
     , Option []     ["local-confluence-check"] (NoArg $ confluenceCheckFlag LocalConfluenceCheck)
