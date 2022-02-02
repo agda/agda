@@ -4233,31 +4233,31 @@ pureTCM f = TCM $ \ r e -> do
 -- [1] When compiled with -auto-all and run with -p: roughly 750%
 -- faster for one example.
 
-returnTCMT :: MonadIO m => a -> TCMT m a
-returnTCMT = \x -> TCM $ \_ _ -> return x
+returnTCMT :: Applicative m => a -> TCMT m a
+returnTCMT = \x -> TCM $ \_ _ -> pure x
 {-# INLINE returnTCMT #-}
 
-bindTCMT :: MonadIO m => TCMT m a -> (a -> TCMT m b) -> TCMT m b
+bindTCMT :: Monad m => TCMT m a -> (a -> TCMT m b) -> TCMT m b
 bindTCMT = \(TCM m) k -> TCM $ \r e -> m r e >>= \x -> unTCM (k x) r e
 {-# INLINE bindTCMT #-}
 
-thenTCMT :: MonadIO m => TCMT m a -> TCMT m b -> TCMT m b
-thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
+thenTCMT :: Applicative m => TCMT m a -> TCMT m b -> TCMT m b
+thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e *> m2 r e
 {-# INLINE thenTCMT #-}
 
-instance MonadIO m => Functor (TCMT m) where
+instance Functor m => Functor (TCMT m) where
   fmap = fmapTCMT
 
-fmapTCMT :: MonadIO m => (a -> b) -> TCMT m a -> TCMT m b
+fmapTCMT :: Functor m => (a -> b) -> TCMT m a -> TCMT m b
 fmapTCMT = \f (TCM m) -> TCM $ \r e -> fmap f (m r e)
 {-# INLINE fmapTCMT #-}
 
-instance MonadIO m => Applicative (TCMT m) where
+instance Applicative m => Applicative (TCMT m) where
   pure  = returnTCMT
   (<*>) = apTCMT
 
-apTCMT :: MonadIO m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
-apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)
+apTCMT :: Applicative m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
+apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> mf r e <*> m r e
 {-# INLINE apTCMT #-}
 
 instance MonadTrans TCMT where
