@@ -26,8 +26,8 @@ data TCEnv
 data TCState
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
 
-instance MonadIO m => Applicative (TCMT m)
-instance MonadIO m => Functor (TCMT m)
+instance Applicative m => Applicative (TCMT m)
+instance Functor m => Functor (TCMT m)
 instance MonadIO m => Monad (TCMT m)
 instance MonadIO m => MonadIO (TCMT m)
 
