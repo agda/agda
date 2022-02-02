@@ -4244,7 +4244,14 @@ instance MonadTrans TCMT where
     lift m = TCM $ \_ _ -> m
 
 -- We want a special monad implementation of fail.
+#if __GLASGOW_HASKELL__ < 808
 instance MonadIO m => Monad (TCMT m) where
+#else
+-- Andreas, 2022-02-02, issue #5659:
+-- @transformers-0.6@ requires exactly a @Monad@ superclass constraint here
+-- if we want @instance MonadTrans TCMT@.
+instance Monad m => Monad (TCMT m) where
+#endif
     return = pure
     (>>=)  = bindTCMT
     (>>)   = (*>)
