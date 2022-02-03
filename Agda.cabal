@@ -222,7 +222,7 @@ library
                 , deepseq >= 1.4.2.0 && < 1.5
                 , directory >= 1.2.6.2 && < 1.4
                 , edit-distance >= 0.2.1.2 && < 0.3
-                , equivalence >= 0.3.2 && < 0.4
+                , equivalence >= 0.3.2 && < 0.5
                 -- exceptions-0.8 instead of 0.10 because of stack
                 , exceptions >= 0.8 && < 0.11
                 , filepath >= 1.4.1.0 && < 1.5
