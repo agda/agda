@@ -19,7 +19,7 @@ jobs:
         cabal-ver:
         - latest
         os:
-        - ubuntu-18.04
+        - ubuntu-latest
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
