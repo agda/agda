@@ -17,6 +17,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.List (nub)
 
+import Agda.Interaction.Options.Base
+
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Views (deepUnscope)
@@ -55,6 +57,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -185,8 +188,14 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
 
         let cons   = map A.axiomName cs  -- get constructor names
 
-        mtranspix <- inTopContext $ defineTranspIx name
-        transpFun <- inTopContext $ defineTranspFun name mtranspix cons (dataPathCons dataDef)
+        (mtranspix, transpFun) <-
+          ifM (collapseDefault . optWithoutK <$> pragmaOptions)
+            (do mtranspix <- inTopContext $ defineTranspIx name
+                transpFun <- inTopContext $
+                               defineTranspFun name mtranspix cons
+                                 (dataPathCons dataDef)
+                return (mtranspix, transpFun))
+            (return (Nothing, Nothing))
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
