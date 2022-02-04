@@ -331,7 +331,7 @@ instance EncodeTCM DisplayInfo where
     ]
   encodeTCM (Info_GoalSpecific ii info) = kind "GoalSpecific"
     [ "interactionPoint"  @= ii
-    , "goalInfo"          #= encodeGoalSpecific ii info
+    , "goalInfo"          #= withInteractionId ii (encodeGoalSpecific ii info)
     ]
 
 instance EncodeTCM GoalTypeAux where
