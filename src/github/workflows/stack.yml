@@ -50,6 +50,9 @@ jobs:
             stack-ver: latest
           - os: windows-latest
             ghc-ver: 9.0.1
+              # Andreas, 2022-02-07: stack-9.0.1.yaml has text-icu-0.8.0 just for the Windows CI.
+              # If you update the ghc-ver here, make sure that text-icu is new enough to work
+              # with the latest mingw-w64-x86_64-icu.
             stack-ver: latest
     # Andreas, 2021-11-19, re #5649
     # pause stack/Win/9.2 workflow until stack is ready for 9.2
@@ -80,6 +83,9 @@ jobs:
         shell: bash
 
     steps:
+
+    # Checkout is needed before the first call to stack exec ${ARGS}
+    # because it provides the stack-*.yaml file.
     - uses: actions/checkout@v2
       with:
         submodules: recursive
@@ -142,12 +148,19 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install libicu-dev -qq
 
+    # Note that msys2 libraries have to be installed via
+    #   stack exec ${ARGS} -- pacman ...
+    # because stack comes with its own msys2 instance, see
+    #   https://docs.haskellstack.org/en/stable/developing_on_windows/
+    # NB: the ${ARGS} is necessary, otherwise stack installs another GHC...
+    # Andreas, 2022-02-04, issue #5768:
+    # To work around keyring problems, we update msys2-keyring before installing ICU.
     - name: Install the icu library (Windows)
       if: ${{ runner.os == 'Windows' }}
       run: |
-        # stack exec ${ARGS} -- wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
-        # stack exec ${ARGS} -- pacman -U --noconfirm ${ICU_FILE}
-        stack exec ${ARGS} -- pacman -S --noconfirm ${ICU}
+        stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
+        stack exec ${ARGS} -- pacman --noconfirm -S ${ICU}
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
 
     - name: Install the numa library (Ubuntu, GHC 8.4.4)
       if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
