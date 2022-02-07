@@ -12,7 +12,6 @@ jobs:
   cabal:
     env:
       FLAGS: -f enable-cluster-counting
-      ICU_URL: https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip
     strategy:
       matrix:
         ghc-ver:
@@ -22,7 +21,7 @@ jobs:
         os:
         - windows-latest
         - macos-latest
-        - ubuntu-18.04
+        - ubuntu-20.04
       fail-fast: false
     runs-on: ${{ matrix.os }}
     needs: auto-cancel
@@ -47,23 +46,16 @@ jobs:
         cabal update
         cabal configure ${FLAGS} -O0
       name: Configure the build plan
-    - if: ${{ runner.os == 'Linux' }}
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install libicu-dev -qq
-      name: Install the icu library (Ubuntu)
     - if: ${{ runner.os == 'Windows' }}
-      env:
-        ICU_DIR: /c/icu4c
-        ICU_FILE: /tmp/icu4c.zip
+      shell: pwsh
       run: |
-        curl -sSLo ${ICU_FILE} ${ICU_URL}
-        7z e ${ICU_FILE} -o${ICU_DIR}
-        mkdir -p ${ICU_DIR}/include/unicode
-        mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
-
-        cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
-      name: Download the icu4c library from unicode-org (Windows)
+        $env:PATH = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;$origPath;$env:PATH"
+        pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
+      name: Install the ICU library (Windows)
+    - if: ${{ runner.os == 'macOS' }}
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
+      name: Set up pkg-config for the ICU library (macOS)
     - with:
         path: |
           ${{ steps.setup-haskell.outputs.cabal-store }}
