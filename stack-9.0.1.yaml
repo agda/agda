@@ -7,6 +7,9 @@ extra-deps:
 # happy-1.21.0 is deprecated, but currently in nightly
 # (commercialhaskell/stackage#6294)
 - happy-1.20.0
+# Andreas, 2022-02-07
+# On Windows, we install the latest ICU (v69), which is only supported from text-icu >= 0.8
+- text-icu-0.8.0
 
 flags:
   transformers-compat:

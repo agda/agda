@@ -103,9 +103,9 @@ jobs:
       name: Install the icu library (Ubuntu)
     - if: ${{ runner.os == 'Windows' }}
       run: |
-        # stack exec ${ARGS} -- wget -q http://repo.msys2.org/mingw/x86_64/${ICU_FILE}
-        # stack exec ${ARGS} -- pacman -U --noconfirm ${ICU_FILE}
-        stack exec ${ARGS} -- pacman -S --noconfirm ${ICU}
+        stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
+        stack exec ${ARGS} -- pacman --noconfirm -S ${ICU}
+        stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
       name: Install the icu library (Windows)
     - if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
       run: |
