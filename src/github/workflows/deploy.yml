@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-18.04]
+        os: [windows-2022, macos-latest, ubuntu-20.04]
         ghc-ver: [9.2.1]
         cabal-ver: [3.6]
 
@@ -41,8 +41,10 @@ jobs:
       sha: ${{ steps.vars.outputs.sha }}
     runs-on: ${{ matrix.os }}
     steps:
+
     - name: Check out the master branch
       uses: actions/checkout@v2
+
     - name: Set up platform-dependent variables
       id: vars
       run: |
@@ -75,6 +77,7 @@ jobs:
           echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
           echo "::set-output name=args::${ARGS} ${LINUX_ARGS}"
         fi
+
     - name: Display build variables
       run: |
         echo nightly=${{ steps.vars.outputs.nightly }}
@@ -91,16 +94,22 @@ jobs:
 
     - name: Install the icu4c library (Windows)
       if: ${{ runner.os == 'Windows' }}
-      env:
-        ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
-        ICU_DIR: '/c/icu4c'
-        ICU_FILE: 'icu4c.zip'
+      shell: pwsh
       run: |
-        curl -sSLo ${ICU_FILE} ${ICU_URL}
-        7z e ${ICU_FILE} -o${ICU_DIR} && rm ${ICU_FILE}
-        mkdir -p ${ICU_DIR}/include/unicode && mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
+        $env:PATH = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;$origPath;$env:PATH"
+        pacman -v --debug --noconfirm -Sy mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
 
-        cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
+      ## Old method:
+      # env:
+      #   ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
+      #   ICU_DIR: '/c/icu4c'
+      #   ICU_FILE: 'icu4c.zip'
+      # run: |
+      #   curl -sSLo ${ICU_FILE} ${ICU_URL}
+      #   7z e ${ICU_FILE} -o${ICU_DIR} && rm ${ICU_FILE}
+      #   mkdir -p ${ICU_DIR}/include/unicode && mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
+
+      #   cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
 
     - name: Configure the build plan
       run: |
@@ -137,6 +146,8 @@ jobs:
       env:
         ICU_VER: '69'
         ICU_DIR: '/usr/local/opt/icu4c/lib'
+        DLL:     "/c/msys64/mingw64/bin/libicu*.dll"
+          ## was /c/icu4c/icu*.dll
       run: |
         mkdir -p ${{ steps.vars.outputs.nightly }}/bin
         cp -a src/data ${{ steps.vars.outputs.nightly }}
@@ -144,7 +155,7 @@ jobs:
         if [[ "$OSTYPE" == "msys"* ]]; then
           find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
           cp -a .github/*.bat ${{ steps.vars.outputs.nightly }}
-          cp /c/icu4c/icu*.dll ${{ steps.vars.outputs.nightly }}/bin
+          cp ${DLL} ${{ steps.vars.outputs.nightly }}/bin/
           C:/ProgramData/Chocolatey/bin/strip.exe ${{ steps.vars.outputs.nightly }}/bin/*
         else
           find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
@@ -166,6 +177,7 @@ jobs:
           fi
         fi
         file ${{ steps.vars.outputs.nightly }}/bin/agda
+
     - name: Compress the Agda executable
       # UPX does not support macOS Big Sur.
       # Liang-Ting Chen (2020-01-04):
@@ -176,18 +188,22 @@ jobs:
       with:
         file: ${{ steps.vars.outputs.nightly }}/bin/${{ steps.vars.outputs.exe }}
         strip: false
+
     - name: Display the version information
       run: |
         ${{ steps.vars.outputs.nightly }}/bin/agda --version
+
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
+
     - uses: actions/upload-artifact@v2
       with:
         path: ${{ steps.vars.outputs.filename }}
         name: ${{ steps.vars.outputs.filename }}
         if-no-files-found: error
         retention-days: 3
+
   deploy: # release a nightly build if triggered on master }}
     if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'workflow_run' }}
     needs: build

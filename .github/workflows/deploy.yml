@@ -23,9 +23,9 @@ jobs:
         cabal-ver:
         - 3.6
         os:
-        - windows-latest
+        - windows-2022
         - macos-latest
-        - ubuntu-18.04
+        - ubuntu-20.04
       fail-fast: false
     runs-on: ${{ matrix.os }}
     needs: auto-cancel
@@ -77,16 +77,10 @@ jobs:
       uses: haskell/actions/setup@v1
       id: setup-haskell
     - if: ${{ runner.os == 'Windows' }}
-      env:
-        ICU_DIR: /c/icu4c
-        ICU_URL: https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip
-        ICU_FILE: icu4c.zip
+      shell: pwsh
       run: |
-        curl -sSLo ${ICU_FILE} ${ICU_URL}
-        7z e ${ICU_FILE} -o${ICU_DIR} && rm ${ICU_FILE}
-        mkdir -p ${ICU_DIR}/include/unicode && mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
-
-        cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
+        $env:PATH = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;$origPath;$env:PATH"
+        pacman -v --debug --noconfirm -Sy mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
       name: Install the icu4c library (Windows)
     - run: |
         cabal configure ${{ steps.vars.outputs.args }}
@@ -113,6 +107,7 @@ jobs:
       name: Build Agda
     - env:
         ICU_DIR: /usr/local/opt/icu4c/lib
+        DLL: /c/msys64/mingw64/bin/libicu*.dll
         ICU_VER: '69'
       run: |
         mkdir -p ${{ steps.vars.outputs.nightly }}/bin
@@ -121,7 +116,7 @@ jobs:
         if [[ "$OSTYPE" == "msys"* ]]; then
           find dist-newstyle/build \( -name 'agda.exe' -o -name 'agda-mode.exe' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
           cp -a .github/*.bat ${{ steps.vars.outputs.nightly }}
-          cp /c/icu4c/icu*.dll ${{ steps.vars.outputs.nightly }}/bin
+          cp ${DLL} ${{ steps.vars.outputs.nightly }}/bin/
           C:/ProgramData/Chocolatey/bin/strip.exe ${{ steps.vars.outputs.nightly }}/bin/*
         else
           find dist-newstyle/build \( -name 'agda' -o -name 'agda-mode' \) -type f -exec cp {} ${{ steps.vars.outputs.nightly }}/bin \;
