@@ -145,11 +145,11 @@ backend:
   :file:`.tex` file are placed to :samp:`{directory}`. Default:
   ``latex``.
 
-``--only-scope-checking``
+:option:`--only-scope-checking`
   Generates highlighting without typechecking the file. See
   :ref:`quickLaTeX`.
 
-``--count-clusters``
+:option:`--count-clusters`
   Count extended grapheme clusters when generating LaTeX code. This
   option can be given in :ref:`OPTIONS<options-pragma>` pragmas.
   See :ref:`grapheme-clusters`.
@@ -282,7 +282,7 @@ The alignment feature regards the string ``+̲``, containing ``+`` and a
 combining character, as having length two. However, it seems more
 reasonable to treat it as having length one, as it occupies a single
 column, if displayed "properly" using a monospace font. The flag
-``--count-clusters`` is an attempt at fixing this. When this flag is
+:option:`--count-clusters` is an attempt at fixing this. When this flag is
 enabled the backend counts `"extended grapheme clusters"
 <http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries>`_
 rather than code points.
@@ -305,7 +305,7 @@ character by the alignment algorithm:
 
 Note also that the layout machinery does not count extended grapheme
 clusters, but code points. The following code is syntactically
-correct, but if ``--count-clusters`` is used, then the LaTeX backend
+correct, but if :option:`--count-clusters` is used, then the LaTeX backend
 does not align the two field keywords:
 
 ::
@@ -313,7 +313,7 @@ does not align the two field keywords:
   record +̲ : Set₁ where  field A : Set
                           field B : Set
 
-The ``--count-clusters`` flag is not enabled in all builds of Agda,
+The :option:`--count-clusters` flag is not enabled in all builds of Agda,
 because the implementation depends on the ICU_ library, the
 installation of which could cause extra trouble for some users. The
 presence of this flag is controlled by the Cabal flag
