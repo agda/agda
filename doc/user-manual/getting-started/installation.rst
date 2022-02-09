@@ -63,9 +63,18 @@ as root to get the correct files installed.
 Optionally one can also install the `ICU
 <http://site.icu-project.org>`_ library, which is used to implement
 the :option:`--count-clusters` flag. Under Debian or Ubuntu it may suffice
-to install *libicu-dev*. Once the ICU library is installed one can
+to install ``libicu-dev``. Once the ICU library is installed one can
 hopefully enable the :option:`--count-clusters` flag by giving the
-:option:`enable-cluster-counting` flag to *cabal install*.
+:option:`enable-cluster-counting` flag to *cabal install*:
+
+.. code-block:: bash
+
+  cabal install -f enable-cluster-counting
+
+More information on installing the ICU prerequisite (like for other OSs)
+is available at
+https://github.com/haskell/text-icu/blob/master/README.markdown#prerequisites
+(retrieved 2022-02-09).
 
 
 
@@ -206,6 +215,8 @@ is an additional step using `a separate repository <https://github.com/agda/agda
 
 Prebuilt Packages and System-Specific Instructions
 ==================================================
+
+See also https://repology.org/project/agda/versions.
 
 Arch Linux
 ----------
@@ -418,7 +429,14 @@ After getting the development version from the Git `repository
     make install
 
   Note that on a Mac, because ICU is installed in a non-standard location,
-  you need to specify this location on the command line:
+  you may need to set
+
+  .. code-block:: bash
+
+    export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
+
+  (cf. ``brew link icu4c``)
+  or specify this location on the command line:
 
   .. code-block:: bash
 
