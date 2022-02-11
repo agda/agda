@@ -241,13 +241,9 @@ instance EmbPrj LibWarning where
 instance EmbPrj LibWarning' where
   icod_ = \case
     UnknownField     a   -> icodeN 0 UnknownField a
-    ExeNotFound      a b -> icodeN 1 ExeNotFound a b
-    ExeNotExecutable a b -> icodeN 2 ExeNotExecutable a b
 
   value = vcase $ \case
     [0, a]    -> valuN UnknownField a
-    [1, a, b] -> valuN ExeNotFound a b
-    [2, a, b] -> valuN ExeNotExecutable a b
     _ -> malformed
 
 instance EmbPrj ExecutablesFile where
