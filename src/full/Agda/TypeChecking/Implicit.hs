@@ -120,7 +120,8 @@ implicitNamedArgs n expand t0 = do
 
             return $ makeInstance info
           (_, v) <- newMetaArg info' x CmpLeq a
-          whenJust tac $ \ tac -> liftTCM $ unquoteTactic tac v a
+          whenJust tac $ \ tac -> liftTCM $
+            applyModalityToContext info $ unquoteTactic tac v a
           let narg = Arg info (Named (Just $ WithOrigin Inserted $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
