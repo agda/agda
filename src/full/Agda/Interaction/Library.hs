@@ -388,26 +388,12 @@ parseExecutablesFile
 parseExecutablesFile ef files =
   fmap (Map.fromList . catMaybes) . forM files $ \(ln, fp) -> do
 
-    -- Check if the executable exists.
-    fpExists <- liftIO $ doesFileExist fp
-    if not fpExists
-      then do warnings' [ExeNotFound ef fp]
-              return Nothing
-      else do
-
-      -- Check if the executable is executable.
-      fpPerms <- liftIO $ getPermissions fp
-      if not (executable fpPerms)
-        then do warnings' [ExeNotExecutable ef fp]
-                return Nothing
-        else do
-
-        -- Compute canonical executable name and absolute filepath.
-        let strExeName  = takeFileName fp
-        let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
-        let txtExeName  = T.pack strExeName'
-        exePath <- liftIO $ makeAbsolute fp
-        return $ Just (txtExeName, exePath)
+    -- Compute canonical executable name and absolute filepath.
+    let strExeName  = takeFileName fp
+    let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
+    let txtExeName  = T.pack strExeName'
+    exePath <- liftIO $ makeAbsolute fp
+    return $ Just (txtExeName, exePath)
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes

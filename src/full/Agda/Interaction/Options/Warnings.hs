@@ -150,8 +150,6 @@ errorWarnings = Set.fromList
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
-  , ExeNotFoundWarning_
-  , ExeNotExecutableWarning_
   ]
 
 allWarnings :: Set WarningName
@@ -268,9 +266,6 @@ data WarningName
   -- Record field warnings
   | DuplicateFieldsWarning_
   | TooManyFieldsWarning_
-  -- System call warnings
-  | ExeNotFoundWarning_
-  | ExeNotExecutableWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -425,6 +420,3 @@ warningNameDescription = \case
   -- Record field warnings
   DuplicateFieldsWarning_          -> "Record expression with duplicate field names."
   TooManyFieldsWarning_            -> "Record expression with invalid field names."
-  -- System call warnings
-  ExeNotFoundWarning_              -> "Trusted executable cannot be found."
-  ExeNotExecutableWarning_         -> "Trusted executable does not have permission to execute."
