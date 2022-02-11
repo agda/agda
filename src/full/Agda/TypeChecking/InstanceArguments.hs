@@ -86,7 +86,6 @@ initialInstanceCandidates t = do
           vars = [ Candidate LocalCandidate x t (isOverlappable info)
                  | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
                  , isInstance info
-                 , usableModality info
                  ]
 
       -- {{}}-fields of variables are also candidates
