@@ -221,7 +221,10 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   The @String@ typically describes the location where we create this dummy,
             --   but can contain other information as well.
             --   The second field accumulates eliminations in case we
-            --   apply a dummy term to more of them.
+            --   apply a dummy term to more of them. Dummy terms should never be used in places
+            --   where they can affect type checking, so syntactic checks are free to ignore the
+            --   eliminators, which are only there to ease debugging when a dummy term incorrectly
+            --   leaks into a relevant position.
   deriving (Data, Show)
 
 type ConInfo = ConOrigin
