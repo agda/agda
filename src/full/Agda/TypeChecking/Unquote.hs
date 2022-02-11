@@ -17,6 +17,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Word
 
+import System.Directory (doesFileExist, getPermissions, executable)
 import System.Process ( readProcessWithExitCode )
 import System.Exit ( ExitCode(..) )
 
@@ -990,8 +991,13 @@ tcExec exe args stdIn = do
   requireAllowExec
   exes <- optTrustedExecutables <$> commandLineOptions
   case Map.lookup exe exes of
-    Nothing -> raiseExeNotFound exe exes
+    Nothing -> raiseExeNotTrusted exe exes
     Just fp -> do
+      -- Check that the executable exists.
+      unlessM (liftIO $ doesFileExist fp) $ raiseExeNotFound exe fp
+      -- Check that the executable is executable.
+      unlessM (liftIO $ executable <$> getPermissions fp) $ raiseExeNotExecutable exe fp
+
       let strArgs    = T.unpack <$> args
       let strStdIn   = T.unpack stdIn
       (datExitCode, strStdOut, strStdErr) <- lift $ readProcessWithExitCode fp strArgs strStdIn
@@ -1003,8 +1009,17 @@ tcExec exe args stdIn = do
 
 -- | Raise an error if the trusted executable cannot be found.
 --
-raiseExeNotFound :: ExeName -> Map ExeName FilePath -> TCM a
-raiseExeNotFound exe exes = genericDocError =<< do
+raiseExeNotTrusted :: ExeName -> Map ExeName FilePath -> TCM a
+raiseExeNotTrusted exe exes = genericDocError =<< do
   vcat . map pretty $
     ("Could not find '" ++ T.unpack exe ++ "' in list of trusted executables:") :
     [ "  - " ++ T.unpack exe | exe <- Map.keys exes ]
+
+raiseExeNotFound :: ExeName -> FilePath -> TCM a
+raiseExeNotFound exe fp = genericDocError =<< do
+  text $ "Could not find file '" ++ fp ++ "' for trusted executable " ++ T.unpack exe
+
+raiseExeNotExecutable :: ExeName -> FilePath -> TCM a
+raiseExeNotExecutable exe fp = genericDocError =<< do
+  text $ "File '" ++ fp ++ "' for trusted executable" ++ T.unpack exe ++ " does not have permission to execute"
+
