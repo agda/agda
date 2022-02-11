@@ -181,7 +181,9 @@ buildParsers
 buildParsers kind exprNames = do
     flat         <- flattenScope (qualifierModules exprNames) <$>
                       getScope
-    (names, ops) <- localNames flat
+    (names, ops0) <- localNames flat
+    let ops | kind == IsPattern = filter (not . isLambdaNotation) ops0
+            | otherwise         = ops0
 
     let -- All names.
         namesInExpr :: Set QName
