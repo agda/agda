@@ -363,6 +363,15 @@ mergeNotations =
   merge []         = __IMPOSSIBLE__
   merge ns@(n : _) = n { notaNames = Set.unions $ map notaNames ns }
 
+-- | Check if a notation contains any lambdas (in which case it cannot be used in a pattern).
+isLambdaNotation :: NewNotation -> Bool
+isLambdaNotation n = any isBinder (notation n)
+  where
+    isBinder VarPart{}  = True
+    isBinder WildPart{} = True
+    isBinder IdPart{}   = False
+    isBinder HolePart{} = False
+
 -- | Lens for 'Fixity' in 'NewNotation'.
 
 _notaFixity :: Lens' Fixity NewNotation
