@@ -79,6 +79,7 @@ import Agda.Compiler.JS.Syntax
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
+import Agda.Compiler.JS.Pretty (JSModuleStyle(..))
 
 import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
@@ -119,8 +120,11 @@ data JSOptions = JSOptions
       -- ^ Remove spaces etc. See https://en.wikipedia.org/wiki/Minification_(programming).
   , optJSVerify   :: Bool
       -- ^ Run generated code through interpreter.
+  , optJSModuleStyle :: JSModuleStyle
   }
   deriving Generic
+
+instance NFData JSModuleStyle
 
 instance NFData JSOptions
 
@@ -130,6 +134,7 @@ defaultJSOptions = JSOptions
   , optJSOptimize = False
   , optJSMinify   = False
   , optJSVerify   = False
+  , optJSModuleStyle = JSCJS
   }
 
 jsCommandLineFlags :: [OptDescr (Flag JSOptions)]
@@ -139,12 +144,16 @@ jsCommandLineFlags =
     -- Minification is described at https://en.wikipedia.org/wiki/Minification_(programming)
     , Option [] ["js-minify"] (NoArg enableMin) "minify generated JS code"
     , Option [] ["js-verify"] (NoArg enableVerify) "except for main module, run generated JS modules through `node` (needs to be in PATH)"
+    , Option [] ["js-cjs"] (NoArg setCJS) "use CommonJS module style (default)"
+    , Option [] ["js-amd"] (NoArg setAMD) "use AMD module style for JS"
     ]
   where
     enable       o = pure o{ optJSCompile  = True }
     enableOpt    o = pure o{ optJSOptimize = True }
     enableMin    o = pure o{ optJSMinify   = True }
     enableVerify o = pure o{ optJSVerify   = True }
+    setCJS       o = pure o{ optJSModuleStyle = JSCJS }
+    setAMD       o = pure o{ optJSModuleStyle = JSAMD }
 
 --- Top-level compilation ---
 
@@ -172,8 +181,12 @@ jsPostCompile opts _ ms = do
   compDir  <- compileDir
   liftIO $ do
     dataDir <- getDataDir
-    let srcDir = dataDir </> "JS"
-    copyDirContent srcDir compDir
+    let fname = case optJSModuleStyle opts of
+          JSCJS -> "agda-rts.js"
+          JSAMD -> "agda-rts.amd.js"
+        srcPath = dataDir </> "JS" </> fname
+        compPath = compDir </> fname
+    copyIfChanged srcPath compPath
 
   -- Verify generated JS modules (except for main).
 
@@ -245,7 +258,7 @@ jsPostModule opts _ isMain _ defs = do
   m  <- jsMod <$> curMName
   is <- map (jsMod . fst) . iImportedModules <$> curIF
   let mod = Module m is (reorder es) callMain
-  writeModule (optJSMinify opts) mod
+  writeModule (optJSMinify opts) (optJSModuleStyle opts) mod
   return mod
   where
   es       = catMaybes defs
@@ -706,10 +719,10 @@ litmeta (MetaId m h) =
 -- Writing out an ECMAScript module
 --------------------------------------------------
 
-writeModule :: Bool -> Module -> TCM ()
-writeModule minify m = do
+writeModule :: Bool -> JSModuleStyle -> Module -> TCM ()
+writeModule minify ms m = do
   out <- outFile (modName m)
-  liftIO (writeFile out (JSPretty.prettyShow minify m))
+  liftIO (writeFile out (JSPretty.prettyShow minify ms m))
 
 outFile :: GlobalId -> TCM FilePath
 outFile m = do

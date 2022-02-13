@@ -1,5 +1,7 @@
 module Agda.Compiler.JS.Pretty where
 
+import GHC.Generics (Generic)
+
 import Data.Char ( isAsciiLower, isAsciiUpper, isDigit )
 import Data.List ( intercalate )
 import Data.String ( IsString (fromString) )
@@ -34,6 +36,9 @@ import Agda.Compiler.JS.Syntax hiding (exports)
 --  standard pretty printers.
 --- This library code is only used in this module, and it is specialized to pretty
 --- print JavaScript code for the Agda backend, so I think its best place is in this module.
+data JSModuleStyle = JSCJS | JSAMD
+  deriving Generic
+
 data Doc
     = Doc String
     | Indent Int Doc
@@ -198,10 +203,10 @@ unescapes s = text $ concatMap unescape s
 --   if b is true then the output is minified
 
 class Pretty a where
-    pretty :: (Nat, Bool) -> a -> Doc
+    pretty :: (Nat, Bool, JSModuleStyle) -> a -> Doc
 
-prettyShow :: Pretty a => Bool -> a -> String
-prettyShow minify = render minify . pretty (0, minify)
+prettyShow :: Pretty a => Bool -> JSModuleStyle -> a -> String
+prettyShow minify ms = render minify . pretty (0, minify, ms)
 
 instance Pretty a => Pretty (Maybe a) where
   pretty n = maybe mempty (pretty n)
@@ -212,7 +217,7 @@ instance (Pretty a, Pretty b) => Pretty (a,b) where
 -- Pretty-print collections
 
 class Pretties a where
-    pretties :: (Nat, Bool) -> a -> [Doc]
+    pretties :: (Nat, Bool, JSModuleStyle) -> a -> [Doc]
 
 instance Pretty a => Pretties [a] where
   pretties n = map (pretty n)
@@ -226,7 +231,7 @@ instance (Pretty a, Pretty b) => Pretties (Map a b) where
 -- Pretty print identifiers
 
 instance Pretty LocalId where
-  pretty (n, _) (LocalId x) = text $ indexWithDefault __IMPOSSIBLE__ vars (n - x - 1)
+  pretty (n, _, _) (LocalId x) = text $ indexWithDefault __IMPOSSIBLE__ vars (n - x - 1)
     where
       vars = ("": map show [0..]) >>= \s -> map (:s) ['a'..'z']
 
@@ -239,7 +244,7 @@ instance Pretty MemberId where
 
 instance Pretty Comment where
   pretty _ (Comment "") = mempty
-  pretty (_, True) _ = mempty
+  pretty (_, True, _) _ = mempty
   pretty _ (Comment s) = text $ "/* " ++ s ++ " */"
 
 -- Pretty print expressions
@@ -254,9 +259,9 @@ instance Pretty Exp where
   pretty n (Char c)          = "\"" <> unescapes [c] <> "\""
   pretty n (Integer x)       = "agdaRTS.primIntegerFromString(\"" <> text (show x) <> "\")"
   pretty n (Double x)        = text $ show x
-  pretty (n, min) (Lambda x e) =
-    mparens (x /= 1) (punctuate "," (pretties (n+x, min) (map LocalId [x-1, x-2 .. 0])))
-    <+> "=>" <+> block (n+x, min) e
+  pretty (n, min, ms) (Lambda x e) =
+    mparens (x /= 1) (punctuate "," (pretties (n+x, min, ms) (map LocalId [x-1, x-2 .. 0])))
+    <+> "=>" <+> block (n+x, min, ms) e
   pretty n (Object o)        = braces $ punctuate "," $ pretties n o
   pretty n (Array es)        = brackets $ punctuate "," [pretty n c <> pretty n e | (c, e) <- es]
   pretty n (Apply f es)      = pretty n f <> parens (punctuate "," $ pretties n es)
@@ -267,7 +272,7 @@ instance Pretty Exp where
   pretty n (Const c)         = text c
   pretty n (PlainJS js)      = text js
 
-block :: (Nat, Bool) -> Exp -> Doc
+block :: (Nat, Bool, JSModuleStyle) -> Exp -> Doc
 block n e = mparens (doNest e) $ pretty n e
   where
     doNest Object{} = True
@@ -276,7 +281,7 @@ block n e = mparens (doNest e) $ pretty n e
 modname :: GlobalId -> Doc
 modname (GlobalId ms) = text $ "\"" ++ intercalate "." ms ++ "\""
 
-exports :: (Nat, Bool) -> Set JSQName -> [Export] -> Doc
+exports :: (Nat, Bool, JSModuleStyle) -> Set JSQName -> [Export] -> Doc
 exports n lss [] = Empty
 exports n lss es0@(Export ls e : es)
   -- If the parent of @ls@ is already defined (or no parent exists), @ls@ can be defined
@@ -295,19 +300,35 @@ instance Pretty [(GlobalId, Export)] where
            | (g, Export ls e) <- es ]
 
 instance Pretty Module where
-  pretty n (Module m is es callMain) = vsep
-    [ importRTS
+  pretty opt@(n, min, JSCJS) (Module m is es callMain) = vsep
+    [ "var agdaRTS" <+> "=" <+> "require(\"agda-rts\");"
     , imports
-    , exports n Set.empty es
-    , pretty n callMain
+    , exports opt Set.empty es
+    , pretty opt callMain
+    ]
+    $+$ ""
+    where
+      imports = vcat [
+        "var " <> indent (pretty opt e) <+> "=" <+> "require(" <> modname e <> ");"
+        | e <- toList (globals es <> Set.fromList is)
+        ]
+      les = toList (globals es <> Set.fromList is)
+  pretty opt@(n, min, JSAMD) (Module m is es callMain) = vsep
+    [ "define(['agda-rts'"
+      <+> hcat [ ", " <+> modname e | e <- les ]
+      <+> "],"
+    , "function(agdaRTS"
+      <+> hcat [ ", " <+> pretty opt e | e <- les ]
+      <+> ") {"
+    , "var exports = {};"
+    , exports opt Set.empty es
+    , pretty opt callMain
+    , "return exports; });"
     ]
     $+$ "" -- Final newline
     where
-      importRTS = "var agdaRTS" <+> "=" <+> "require(\"agda-rts\");"
-      imports   = vcat
-        [ "var " <> indent (pretty n e) <+> "=" <+> "require(" <> modname e <> ");"
-        | e <- toList (globals es <> Set.fromList is)
-        ]
+      les = toList (globals es <> Set.fromList is)
+
 
 variableName :: String -> String
 variableName s = if isValidJSIdent s then "z_" ++ s else "h_" ++ show (hashString s)
