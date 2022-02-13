@@ -1,5 +1,6 @@
 module Agda.Utils.IO.Directory
   ( copyDirContent
+  , copyIfChanged
   )
 where
 

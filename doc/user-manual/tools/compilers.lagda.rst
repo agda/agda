@@ -111,6 +111,10 @@ typically faster and less readable.
 The ``--js-minify`` flag makes the generated JavaScript code
 smaller and less readable.
 
+Agda can currently generate either CommonJS (used by NodeJS) flavour modules or
+AMD (for in-browser usage) flavour modules which can be toggled by ``--js-cjs``
+(default) and ``--js-amd`` flags.
+
 
 Optimizations
 -------------
