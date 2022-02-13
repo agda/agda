@@ -249,7 +249,7 @@ instance EncodeTCM (OutputForm C.Expr C.Expr) where
     [ "range"      @= range
     , "problems"   @= problems
     , "unblocker"  @= unblock
-    , "constraint" #= encodeOC (pure . encodeShow) (pure . encodeShow) oc
+    , "constraint" #= encodeOC (pure . encodePretty) (pure . encodePretty) oc
     ]
 
 instance EncodeTCM Blocker where
