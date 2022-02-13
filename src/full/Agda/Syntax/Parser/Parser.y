@@ -916,8 +916,8 @@ LamClauses
    | AbsurdLamClause semi LamClause { $3 <| singleton $1 }
    | NonAbsurdLamClause { singleton $1 }
 
--- Parses all extended lambda clauses including a single absurd clause. For λ
--- where this is not taken care of in AbsurdLambda
+-- Parses all extended lambda clauses including a single absurd clause.
+-- For lambda-where this is not[sic!, now?] taken care of in AbsurdLambda.
 LamWhereClauses :: { List1 LamClause }
 LamWhereClauses
    : LamWhereClauses semi LamClause { $3 <| $1 }
@@ -1314,7 +1314,7 @@ UnquoteDecl
 Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
   case $2 of
-    Name _ _ (_ :| []) -> case mkNotation $3 $5 of
+    Name _ _ (_ :| []) -> case mkNotation $3 (reverse $5) of
       Left err -> parseError $ "Malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
     _ -> parseError "Syntax declarations are allowed only for simple names (without holes)"
@@ -1330,9 +1330,18 @@ PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
 PatternSynArgs :: { [Arg Name] }
 PatternSynArgs : DomainFreeBindings    {% patternSynArgs $1 }
 
+-- The list should be reversed.
+
 SimpleIds :: { [RString] }
-SimpleIds : SimpleId { [$1] }
-          | SimpleIds SimpleId {$1 ++ [$2]}
+SimpleIds : SimpleId           { [$1] }
+          | SimpleIds SimpleId { $2 : $1 }
+
+-- The list should be reversed.
+
+SimpleIdsOrWildcards :: { List1 RString }
+SimpleIdsOrWildcards
+  : SimpleIdOrWildcard                      { List1.singleton $1 }
+  | SimpleIdsOrWildcards SimpleIdOrWildcard { $2 <| $1 }
 
 HoleNames :: { [NamedArg HoleName] }
 HoleNames :                    { [] }
@@ -1349,19 +1358,23 @@ HoleName
 SimpleTopHole :: { HoleName }
 SimpleTopHole
   : SimpleId { ExprHole $1 }
-  | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
-  | '(' '\\' '_'      '->' SimpleId ')' { LambdaHole (Ranged (getRange $3) "_") $5 }
+  | '(' '\\' SimpleIdsOrWildcards '->' SimpleId ')'
+    { LambdaHole (List1.reverse $3) $5 }
 
 SimpleHole :: { HoleName }
 SimpleHole
   : SimpleId { ExprHole $1 }
-  | '\\' SimpleId '->' SimpleId { LambdaHole $2 $4 }
-  | '\\' '_'      '->' SimpleId { LambdaHole (Ranged (getRange $3) "_") $4 }
--- Variable name hole to be implemented later.
+  | '\\' SimpleIdsOrWildcards '->' SimpleId
+    { LambdaHole (List1.reverse $2) $4 }
 
 -- Discard the interval.
 SimpleId :: { RString }
 SimpleId : id  { Ranged (getRange $ fst $1) (stringToRawName $ snd $1) }
+
+SimpleIdOrWildcard :: { RString }
+SimpleIdOrWildcard
+  : SimpleId { $1 }
+  | '_'      { Ranged (getRange $1) "_" }
 
 MaybeOpen :: { Maybe Range }
 MaybeOpen : 'open'      { Just (getRange $1) }
@@ -2015,10 +2028,7 @@ onlyErased as = do
     CohesionAttribute{}  -> unsup "Cohesion"
     LockAttribute{}      -> unsup "Lock"
     TacticAttribute{}    -> unsup "Tactic"
-    QuantityAttribute q  -> case q of
-      Quantity1{} -> unsup "Linearity"
-      Quantity0 o -> return $ Just (Erased    o)
-      Quantityω o -> return $ Just (NotErased o)
+    QuantityAttribute q  -> maybe (unsup "Linearity") (return . Just) $ erasedFromQuantity q
     where
     unsup s = do
       parseWarning $ UnsupportedAttribute (attrRange a) (Just s)
@@ -2115,14 +2125,15 @@ exprToAssignment e@(RawApp r es)
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
       [] ->
         -- Andreas, 2021-05-06, issue #5365
-        -- Handle pathological cases like @do ←@ and @do x ←@.
+        -- Handle pathological cases like @do <-@ and @do x <-@.
         case (es1, es2) of
           (e1:rest1, e2:rest2) -> do
             p <- exprToPattern $ rawApp $ e1 :| rest1
             pure $ Just (p, getRange arr, rawApp (e2 :| rest2))
           _ -> parseError' (rStart' $ getRange e) $ "Incomplete binding " ++ prettyShow e
   where
-    isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) = arr `elem` ["<-", "←"]
+    isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) =
+      arr `elem` ["<-", "\x2190"]  -- \leftarrow [issue #5465, unicode might crash happy]
     isLeftArrow _ = False
 exprToAssignment _ = pure Nothing
 

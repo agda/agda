@@ -1,4 +1,4 @@
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --copatterns --sized-types #-}
 
 open import Common.Size
 open import Common.Prelude

@@ -843,20 +843,20 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
       -- with cost O(n log n) time, it makes sense to test for the identity.
   | otherwise = (recomputeInScopeSets $ mergeScope sUse sRen, (nameClashes, moduleClashes))
   where
-    -- | Names kept via using/hiding.
+    -- Names kept via using/hiding.
     sUse :: Scope
     sUse = useOrHide (usingOrHiding dir) s
 
-    -- | Things kept (under a different name) via renaming.
+    -- Things kept (under a different name) via renaming.
     sRen :: Scope
     sRen = rename impRenaming s
 
-    -- | Which names are considered to be defined by a module?
-    --   The ones actually defined there publicly ('publicNS')
-    --   and the ones imported publicly ('ImportedNS')?
+    -- Which names are considered to be defined by a module?
+    -- The ones actually defined there publicly ('publicNS')
+    -- and the ones imported publicly ('ImportedNS')?
     exportedNSs = [PublicNS, ImportedNS]
 
-    -- | Name clashes introduced by the @renaming@ clause.
+    -- Name clashes introduced by the @renaming@ clause.
     nameClashes :: Set C.Name
     nameClashes = Map.keysSet rNames `Set.intersection` Map.keysSet uNames
       -- NB: `intersection` returns a subset of the first argument.
@@ -868,7 +868,7 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
       uNames = namesInScope exportedNSs sUse
       rNames = namesInScope exportedNSs sRen
 
-    -- | Module name clashes introduced by the @renaming@ clause.
+    -- Module name clashes introduced by the @renaming@ clause.
 
     -- Note: need to cut and paste because of 'InScope' dependent types trickery.
     moduleClashes :: Set C.Name
@@ -925,7 +925,7 @@ applyImportDirective_ dir@(ImportDirective{ impRenaming }) s
           :: forall a. SetBindingSite a
           => (C.Name -> Maybe C.Name)
           -> ThingsInScope a -> ThingsInScope a
-        updateThingsInScope f = Map.fromList . mapMaybe upd . Map.toAscList
+        updateThingsInScope f = Map.fromListWith __IMPOSSIBLE__ . mapMaybe upd . Map.toAscList
           where
           upd :: (C.Name, [a]) -> Maybe (C.Name, [a])
           upd (x, ys) = f x <&> \ x' -> (x', setBindingSite (getRange x') ys)
@@ -1117,15 +1117,15 @@ scopeLookup' q scope =
     root    :: Scope
     root    = mergeScopes $ current : map moduleScope (scopeParents current)
 
-    -- | Find a concrete, possibly qualified name in scope @s@.
+    -- Find a concrete, possibly qualified name in scope @s@.
     findName :: forall a. InScope a => C.QName -> Scope -> [(a, Access)]
     findName q0 s = case q0 of
       C.QName x  -> lookupName x s
       C.Qual x q -> do
-        let -- | Get the modules named @x@ in scope @s@.
+        let -- Get the modules named @x@ in scope @s@.
             mods :: [A.ModuleName]
             mods = amodName . fst <$> lookupName x s
-            -- | Get the definitions named @x@ in scope @s@ and interpret them as modules.
+            -- Get the definitions named @x@ in scope @s@ and interpret them as modules.
             -- Andreas, 2013-05-01: Issue 836 debates this feature:
             -- Qualified constructors are qualified by their datatype rather than a module
             defs :: [A.ModuleName] -- NB:: Defined but not used

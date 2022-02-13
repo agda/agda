@@ -38,7 +38,7 @@ You need recent versions of the following programs to compile Agda:
 * GHC:           https://www.haskell.org/ghc/
 
   + Agda has been tested with GHC 8.0.2, 8.2.2, 8.4.4, 8.6.5, 8.8.4,
-    8.10.4 and 9.0.1.
+    8.10.7, 9.0.1 and 9.2.1.
 
 * cabal-install: https://www.haskell.org/cabal/
 * Alex:          https://www.haskell.org/alex/
@@ -63,9 +63,18 @@ as root to get the correct files installed.
 Optionally one can also install the `ICU
 <http://site.icu-project.org>`_ library, which is used to implement
 the :option:`--count-clusters` flag. Under Debian or Ubuntu it may suffice
-to install *libicu-dev*. Once the ICU library is installed one can
+to install ``libicu-dev``. Once the ICU library is installed one can
 hopefully enable the :option:`--count-clusters` flag by giving the
-:option:`enable-cluster-counting` flag to *cabal install*.
+:option:`enable-cluster-counting` flag to *cabal install*:
+
+.. code-block:: bash
+
+  cabal install -f enable-cluster-counting
+
+More information on installing the ICU prerequisite (like for other OSs)
+is available at
+https://github.com/haskell/text-icu/blob/master/README.markdown#prerequisites
+(retrieved 2022-02-09).
 
 
 
@@ -163,6 +172,8 @@ GHC version, respectively.
 
 Running the ``agda-mode`` program
 ---------------------------------
+**Warning**: Intalling ``agda-mode`` via ``melpa`` is discouraged.
+It is stronly advised to install ``agda-mode`` for ``emacs`` as described below:
 
 After installing the ``agda-mode`` program using ``cabal`` or
 ``stack`` run the following command:
@@ -193,11 +204,19 @@ This can, in some cases, give a noticeable speedup.
 Emacs Lisp files, then Emacs may continue using the old, compiled
 files.
 
+Installing the standard library
+-------------------------------
+
+Installing the standard library, should you choose to use it,
+is an additional step using `a separate repository <https://github.com/agda/agda-stdlib/blob/master/notes/installation-guide.md>`_.
+
 
 .. _prebuilt-packages:
 
 Prebuilt Packages and System-Specific Instructions
 ==================================================
+
+See also https://repology.org/project/agda/versions.
 
 Arch Linux
 ----------
@@ -325,6 +344,19 @@ Agda globally using ``nix-env``. One can also declare which packages
 to install globally in a configuration file or pull in Agda and some
 relevant libraries for a particular project using ``nix-shell``.
 
+The Agda git repository is a `Nix flake <https://nixos.wiki/wiki/Flakes>`_
+to allow using a development version with Nix. The flake has the following
+outputs:
+
+- ``overlay``: A ``nixpkgs`` `overlay <https://nixos.wiki/wiki/Overlays>`_
+  which makes ``haskellPackages.Agda`` (which the top-level ``agda``
+  package depends on) be the build of the relevant checkout.
+- ``haskellOverlay``: An overlay for ``haskellPackages`` which overrides
+  the ``Agda`` attribute to point to the build of the relevant checkout.
+  This can be used to make the development version available at a different
+  attribute name, or to override Agda for an alternative haskell package
+  set.
+
 OS X
 ----
 
@@ -397,7 +429,14 @@ After getting the development version from the Git `repository
     make install
 
   Note that on a Mac, because ICU is installed in a non-standard location,
-  you need to specify this location on the command line:
+  you may need to set
+
+  .. code-block:: bash
+
+    export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
+
+  (cf. ``brew link icu4c``)
+  or specify this location on the command line:
 
   .. code-block:: bash
 

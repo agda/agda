@@ -1,4 +1,6 @@
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Equality
 open import Agda.Builtin.Size
 

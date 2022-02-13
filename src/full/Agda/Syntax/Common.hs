@@ -75,6 +75,32 @@ instance Pretty FileType where
 instance NFData FileType
 
 ---------------------------------------------------------------------------
+-- * Agda variants
+---------------------------------------------------------------------------
+
+-- | Variants of Cubical Agda.
+
+data Cubical = CErased | CFull
+    deriving (Eq, Show, Generic)
+
+instance NFData Cubical
+
+-- | Agda variants.
+--
+-- Only some variants are tracked.
+
+data Language
+  = WithoutK
+  | WithK
+  | Cubical Cubical
+    deriving (Eq, Show, Generic)
+
+instance KillRange Language where
+  killRange = id
+
+instance NFData Language
+
+---------------------------------------------------------------------------
 -- * Record Directives
 ---------------------------------------------------------------------------
 
@@ -459,8 +485,13 @@ inverseComposeModality (Modality r q c) (Modality r' q' c') =
 
 -- | Left division by a 'Modality'.
 --   Used e.g. to modify context when going into a @m@ argument.
-inverseApplyModality :: LensModality a => Modality -> a -> a
-inverseApplyModality m = mapModality (m `inverseComposeModality`)
+--
+-- Note that this function does not change quantities.
+inverseApplyModalityButNotQuantity :: LensModality a => Modality -> a -> a
+inverseApplyModalityButNotQuantity m =
+  mapModality (m' `inverseComposeModality`)
+  where
+  m' = setQuantity (Quantity1 Q1Inferred) m
 
 -- | 'Modality' forms a pointwise additive monoid.
 addModality :: Modality -> Modality -> Modality
@@ -971,11 +1002,19 @@ data Erased
 defaultErased :: Erased
 defaultErased = NotErased QωInferred
 
--- 'Erased' can be converted into 'Quantity'.
+-- | 'Erased' can be embedded into 'Quantity'.
 
 asQuantity :: Erased -> Quantity
 asQuantity (Erased    o) = Quantity0 o
 asQuantity (NotErased o) = Quantityω o
+
+-- | 'Quantity' can be projected onto 'Erased'.
+
+erasedFromQuantity :: Quantity -> Maybe Erased
+erasedFromQuantity = \case
+  Quantity1{} -> Nothing
+  Quantity0 o -> Just $ Erased    o
+  Quantityω o -> Just $ NotErased o
 
 -- | Equality ignoring origin.
 
@@ -2283,11 +2322,17 @@ instance NFData IsMacro
 -- * NameId
 ---------------------------------------------------------------------------
 
-newtype ModuleNameHash = ModuleNameHash Word64
-  deriving (Eq, Ord, Show, Data)
+newtype ModuleNameHash = ModuleNameHash { moduleNameHash :: Word64 }
+  deriving (Eq, Ord, Data, Hashable)
 
 noModuleNameHash :: ModuleNameHash
 noModuleNameHash = ModuleNameHash 0
+
+-- | The record selector is not included in the resulting strings.
+
+instance Show ModuleNameHash where
+  showsPrec p (ModuleNameHash h) = showParen (p > 0) $
+    showString "ModuleNameHash " . shows h
 
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
@@ -2320,23 +2365,41 @@ instance Hashable NameId where
 -- * Meta variables
 ---------------------------------------------------------------------------
 
--- | A meta variable identifier is just a natural number.
---
-newtype MetaId = MetaId { metaId :: Nat }
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Data, Generic)
+-- | Meta-variable identifiers use the same structure as 'NameId's.
+
+data MetaId = MetaId
+  { metaId     :: {-# UNPACK #-} !Word64
+  , metaModule :: {-# UNPACK #-} !ModuleNameHash
+  }
+  deriving (Eq, Ord, Data, Generic)
 
 instance Pretty MetaId where
-  pretty (MetaId n) = text $ "_" ++ show n
+  pretty (MetaId n m) =
+    text $ "_" ++ show n ++ "@" ++ show (moduleNameHash m)
 
--- | Show non-record version of this newtype.
+instance Enum MetaId where
+  succ MetaId{..} = MetaId { metaId = succ metaId, .. }
+  pred MetaId{..} = MetaId { metaId = pred metaId, .. }
+
+  -- The following functions should not be used.
+  toEnum   = __IMPOSSIBLE__
+  fromEnum = __IMPOSSIBLE__
+
+-- | The record selectors are not included in the resulting strings.
+
 instance Show MetaId where
-  showsPrec p (MetaId n) = showParen (p > 0) $
-    showString "MetaId " . shows n
+  showsPrec p (MetaId n m) = showParen (p > 0) $
+    showString "MetaId " .
+    showsPrec 11 n .
+    showString " " .
+    showsPrec 11 m
 
 instance NFData MetaId where
-  rnf (MetaId x) = rnf x
+  rnf (MetaId x y) = rnf x `seq` rnf y
 
-instance Hashable MetaId
+instance Hashable MetaId where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt salt (MetaId n m) = hashWithSalt salt (n, m)
 
 newtype Constr a = Constr a
 
@@ -2855,6 +2918,15 @@ instance Null ExpandedEllipsis where
   null  = (== NoEllipsis)
   empty = NoEllipsis
 
+instance Semigroup ExpandedEllipsis where
+  NoEllipsis <> e          = e
+  e          <> NoEllipsis = e
+  (ExpandedEllipsis r1 k1) <> (ExpandedEllipsis r2 k2) = ExpandedEllipsis (r1 <> r2) (k1 + k2)
+
+instance Monoid ExpandedEllipsis where
+  mempty  = NoEllipsis
+  mappend = (<>)
+
 instance KillRange ExpandedEllipsis where
   killRange (ExpandedEllipsis _ k) = ExpandedEllipsis noRange k
   killRange NoEllipsis             = NoEllipsis
@@ -2864,65 +2936,98 @@ instance NFData ExpandedEllipsis where
   rnf NoEllipsis             = ()
 
 -- | Notation as provided by the @syntax@ declaration.
-type Notation = [GenPart]
+type Notation = [NotationPart]
 
 noNotation :: Notation
 noNotation = []
 
--- | Part of a Notation
-data GenPart
-  = BindHole Range (Ranged Int)
-    -- ^ Argument is the position of the hole (with binding) where the binding should occur.
-    --   First range is the rhs range and second is the binder.
-  | NormalHole Range (NamedArg (Ranged Int))
-    -- ^ Argument is where the expression should go.
-  | WildHole (Ranged Int)
-    -- ^ An underscore in binding position.
-  | IdPart RString
+-- | Positions of variables in syntax declarations.
+
+data BoundVariablePosition = BoundVariablePosition
+  { holeNumber :: !Int
+    -- ^ The position (in the left-hand side of the syntax
+    -- declaration) of the hole in which the variable is bound,
+    -- counting from zero (and excluding parts that are not holes).
+    -- For instance, for @syntax Σ A (λ x → B) = B , A , x@ the number
+    -- for @x@ is @1@, corresponding to @B@ (@0@ would correspond to
+    -- @A@).
+  , varNumber :: !Int
+    -- ^ The position in the list of variables for this particular
+    -- variable, counting from zero, and including wildcards. For
+    -- instance, for @syntax F (λ x _ y → A) = y ! A ! x@ the number
+    -- for @x@ is @0@, the number for @_@ is @1@, and the number for
+    -- @y@ is @2@.
+  }
+  deriving (Data, Eq, Ord, Show)
+
+-- | Notation parts.
+
+data NotationPart
+  = IdPart RString
+    -- ^ An identifier part. For instance, for @_+_@ the only
+    -- identifier part is @+@.
+  | HolePart Range (NamedArg (Ranged Int))
+    -- ^ A hole: a place where argument expressions can be written.
+    -- For instance, for @_+_@ the two underscores are holes, and for
+    -- @syntax Σ A (λ x → B) = B , A , x@ the variables @A@ and @B@
+    -- are holes. The number is the position of the hole, counting
+    -- from zero. For instance, the number for @A@ is @0@, and the
+    -- number for @B@ is @1@.
+  | VarPart Range (Ranged BoundVariablePosition)
+    -- ^ A bound variable.
+    --
+    -- The first range is the range of the variable in the right-hand
+    -- side of the syntax declaration, and the second range is the
+    -- range of the variable in the left-hand side.
+  | WildPart (Ranged BoundVariablePosition)
+    -- ^ A wildcard (an underscore in binding position).
   deriving (Data, Show)
 
-instance Eq GenPart where
-  BindHole _ i   == BindHole _ j   = i == j
-  NormalHole _ x == NormalHole _ y = x == y
-  WildHole i     == WildHole j     = i == j
-  IdPart x       == IdPart y       = x == y
-  _              == _              = False
+instance Eq NotationPart where
+  VarPart _ i  == VarPart _ j  = i == j
+  HolePart _ x == HolePart _ y = x == y
+  WildPart i   == WildPart j   = i == j
+  IdPart x     == IdPart y     = x == y
+  _            == _            = False
 
-instance Ord GenPart where
-  BindHole _ i   `compare` BindHole _ j   = i `compare` j
-  NormalHole _ x `compare` NormalHole _ y = x `compare` y
-  WildHole i     `compare` WildHole j     = i `compare` j
-  IdPart x       `compare` IdPart y       = x `compare` y
-  BindHole{}     `compare` _              = LT
-  _              `compare` BindHole{}     = GT
-  NormalHole{}   `compare` _              = LT
-  _              `compare` NormalHole{}   = GT
-  WildHole{}     `compare` _              = LT
-  _              `compare` WildHole{}     = GT
+instance Ord NotationPart where
+  VarPart _ i  `compare` VarPart _ j  = i `compare` j
+  HolePart _ x `compare` HolePart _ y = x `compare` y
+  WildPart i   `compare` WildPart j   = i `compare` j
+  IdPart x     `compare` IdPart y     = x `compare` y
+  VarPart{}    `compare` _            = LT
+  _            `compare` VarPart{}    = GT
+  HolePart{}   `compare` _            = LT
+  _            `compare` HolePart{}   = GT
+  WildPart{}   `compare` _            = LT
+  _            `compare` WildPart{}   = GT
 
-instance HasRange GenPart where
+instance HasRange NotationPart where
   getRange = \case
-    IdPart x       -> getRange x
-    BindHole r _   -> r
-    WildHole i     -> getRange i
-    NormalHole r _ -> r
+    IdPart x     -> getRange x
+    VarPart r _  -> r
+    WildPart i   -> getRange i
+    HolePart r _ -> r
 
-instance SetRange GenPart where
+instance SetRange NotationPart where
   setRange r = \case
-    IdPart x       -> IdPart x
-    BindHole _ i   -> BindHole r i
-    WildHole i     -> WildHole i
-    NormalHole _ i -> NormalHole r i
+    IdPart x     -> IdPart x
+    VarPart _ i  -> VarPart r i
+    WildPart i   -> WildPart i
+    HolePart _ i -> HolePart r i
 
-instance KillRange GenPart where
+instance KillRange NotationPart where
   killRange = \case
-    IdPart x       -> IdPart $ killRange x
-    BindHole _ i   -> BindHole noRange $ killRange i
-    WildHole i     -> WildHole $ killRange i
-    NormalHole _ x -> NormalHole noRange $ killRange x
+    IdPart x     -> IdPart $ killRange x
+    VarPart _ i  -> VarPart noRange $ killRange i
+    WildPart i   -> WildPart $ killRange i
+    HolePart _ x -> HolePart noRange $ killRange x
 
-instance NFData GenPart where
-  rnf (BindHole _ a)   = rnf a
-  rnf (NormalHole _ a) = rnf a
-  rnf (WildHole a)     = rnf a
-  rnf (IdPart a)       = rnf a
+instance NFData BoundVariablePosition where
+  rnf = (`seq` ())
+
+instance NFData NotationPart where
+  rnf (VarPart _ a)  = rnf a
+  rnf (HolePart _ a) = rnf a
+  rnf (WildPart a)   = rnf a
+  rnf (IdPart a)     = rnf a

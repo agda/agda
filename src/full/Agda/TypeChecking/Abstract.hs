@@ -136,7 +136,7 @@ abstractTerm a u@Con{} b v = do
         , nest 2 $ sep [ (text . show) v <+> ":", nest 2 $ (text . show) b ] ]
 
   hole <- qualify <$> currentModule <*> freshName_ ("hole" :: String)
-  noMutualBlock $ addConstant hole $ defaultDefn defaultArgInfo hole a defaultAxiom
+  noMutualBlock $ addConstant' hole defaultArgInfo hole a defaultAxiom
 
   args <- map Apply <$> getContextArgs
   let n = length args
@@ -208,6 +208,7 @@ instance AbsTerm Sort where
     SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
+    IntervalUniv -> LockUniv
     PiSort a s1 s2 -> PiSort (absS a) (absS s1) (absS s2)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s

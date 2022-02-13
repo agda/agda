@@ -1,6 +1,6 @@
 -- Andreas and James, 2013-11-19
 
-{-# OPTIONS --copatterns  #-}
+{-# OPTIONS --copatterns --guardedness #-}
 -- {-# OPTIONS -v tc.cover.splittree:15 -v tc.cc:15 #-}
 
 open import Common.Level

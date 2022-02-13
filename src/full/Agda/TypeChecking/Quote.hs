@@ -10,6 +10,7 @@ import qualified Data.Text as T
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern ( hasDefP )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -174,6 +175,7 @@ quotingKit = do
       quoteSort SSet{}   = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
       quoteSort LockUniv = pure unsupportedSort
+      quoteSort IntervalUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort FunSort{} = pure unsupportedSort
       quoteSort UnivSort{}   = pure unsupportedSort
@@ -219,11 +221,11 @@ quotingKit = do
 
       quoteTelescope :: Telescope -> ReduceM Term
       quoteTelescope tel = quoteList quoteTelEntry $ telToList tel
-        where
-          quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
-          quoteTelEntry dom@Dom{ unDom = (x , t) } = do
-            SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
-            Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
+
+      quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
+      quoteTelEntry dom@Dom{ unDom = (x , t) } = do
+        SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+        Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
 
       list :: [ReduceM Term] -> ReduceM Term
       list = foldr (\ a as -> cons !@ a @@ as) (pure nil)
@@ -244,6 +246,11 @@ quotingKit = do
       quoteArgs :: Args -> ReduceM Term
       quoteArgs ts = list (map (quoteArg quoteTerm) ts)
 
+      -- has the clause been generated (in particular by --cubical)?
+      -- TODO: have an explicit clause origin field?
+      generatedClause :: Clause -> Bool
+      generatedClause cl = hasDefP (namedClausePats cl)
+
       quoteTerm :: Term -> ReduceM Term
       quoteTerm v = do
         v <- instantiate' v
@@ -262,6 +269,7 @@ quotingKit = do
               qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
+                    cs <- return $ filter (not . generatedClause) cs
                     n <- size <$> lookupSection m
                     let (pars, args) = splitAt n ts
                     extlam !@ list (map (quoteClause Nothing . (`apply` pars)) cs)
@@ -311,6 +319,9 @@ quotingKit = do
       quoteDefn def =
         case theDef def of
           Function{funClauses = cs, funProjection = proj} ->
+           do
+            -- re #3733: maybe these should be quoted but marked as generated?
+            cs <- return $ filter (not . generatedClause) cs
             agdaDefinitionFunDef !@ quoteList (quoteClause proj) cs
           Datatype{dataPars = np, dataCons = cs} ->
             agdaDefinitionDataDef !@! quoteNat (fromIntegral np) @@ quoteList (pure . quoteName) cs

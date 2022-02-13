@@ -94,6 +94,7 @@ import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty hiding (Mode)
 import Agda.Utils.Hash
 import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -126,9 +127,7 @@ parseSource sourceFile@(SourceFile f) = Bench.billTo [Bench.Parsing] $ do
   (parsedMod, fileType) <- runPM $
                            parseFile moduleParser f $ TL.unpack source
   parsedModName         <- moduleName f parsedMod
-  let sourceDir = takeDirectory $ filePath f
-  useLibs <- optUseLibs <$> commandLineOptions
-  libs <- getAgdaLibFiles sourceDir
+  libs                  <- getAgdaLibFiles f parsedModName
   return Source
     { srcText        = source
     , srcFileType    = fileType
@@ -195,25 +194,26 @@ moduleCheckMode = \case
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
     let sig     = iSignature i
-        builtin = Map.toList $ iBuiltin i
+        builtin = Map.toAscList $ iBuiltin i
         prim    = [ x | (_,Prim x) <- builtin ]
-        bi      = Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
+        bi      = Map.fromDistinctAscList [ (x, Builtin t) | (x, Builtin t) <- builtin ]
+                    -- Andreas, 2021-08-19: this seeming identity filters out the @Prim@s
+                    -- and converts the type.
         warns   = iWarnings i
     bs <- getsTC stBuiltinThings
     reportSLn "import.iface.merge" 10 "Merging interface"
     reportSLn "import.iface.merge" 20 $
       "  Current builtins " ++ show (Map.keys bs) ++ "\n" ++
       "  New builtins     " ++ show (Map.keys bi)
-    let check b = case (b1, b2) of
-            (Builtin x, Builtin y)
-              | x == y    -> return ()
-              | otherwise -> typeError $ DuplicateBuiltinBinding b x y
-            _ -> __IMPOSSIBLE__
-          where
-            Just b1 = Map.lookup b bs
-            Just b2 = Map.lookup b bi
-    mapM_ (check . fst) (Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi
+    let check b (Builtin x) (Builtin y)
+              | x == y    = return ()
+              | otherwise = typeError $ DuplicateBuiltinBinding b x y
+        check _ _ _ = __IMPOSSIBLE__
+    sequence_ $ Map.intersectionWithKey check bs bi
+    addImportedThings
+      sig
+      (iMetaBindings i)
+      bi
       (iPatternSyns i)
       (iDisplayForms i)
       (iUserWarnings i)
@@ -232,6 +232,7 @@ mergeInterface i = do
 
 addImportedThings
   :: Signature
+  -> RemoteMetaStore
   -> BuiltinThings PrimFun
   -> A.PatternSynDefns
   -> DisplayForms
@@ -239,8 +240,10 @@ addImportedThings
   -> Set QName             -- ^ Name of imported definitions which are partial
   -> [TCWarning]
   -> TCM ()
-addImportedThings isig ibuiltin patsyns display userwarn partialdefs warnings = do
+addImportedThings isig metas ibuiltin patsyns display userwarn
+                  partialdefs warnings = do
   stImports              `modifyTCLens` \ imp -> unionSignatures [imp, isig]
+  stImportedMetaStore    `modifyTCLens` HMap.union metas
   stImportedBuiltins     `modifyTCLens` \ imp -> Map.union imp ibuiltin
   stImportedUserWarnings `modifyTCLens` \ imp -> Map.union imp userwarn
   stImportedPartialDefs  `modifyTCLens` \ imp -> Set.union imp partialdefs
@@ -462,7 +465,24 @@ getInterface x isMain msrc =
        setCommandLineOptions . stPersistentOptions . stPersistentState =<< getTC
 
      alreadyVisited x isMain currentOptions $ do
-      file <- maybe (findFile x) (pure . srcOrigin) msrc -- may require source to exist
+      file <- case msrc of
+        Nothing  -> findFile x
+        Just src -> do
+          -- Andreas, 2021-08-17, issue #5508.
+          -- So it happened with @msrc == Just{}@ that the file was not added to @ModuleToSource@,
+          -- only with @msrc == Nothing@ (then @findFile@ does it).
+          -- As a consequence, the file was added later, but with a file name constructed
+          -- from a module name.  As #5508 shows, this can be fatal in case-insensitive file systems.
+          -- The file name (with case variant) then no longer maps to the module name.
+          -- To prevent this, we register the connection in @ModuleToSource@ here,
+          -- where we have the correct spelling of the file name.
+          let file = srcOrigin src
+          modifyTCLens stModuleToSource $ Map.insert x (srcFilePath file)
+          pure file
+      reportSLn "import.iface" 15 $ List.intercalate "\n" $ map ("  " ++)
+        [ "module: " ++ prettyShow x
+        , "file:   " ++ prettyShow file
+        ]
 
       reportSLn "import.iface" 10 $ "  Check for cycle"
       checkForImportCycle
@@ -658,7 +678,9 @@ loadDecodedModule file mi = do
   -- want the pragmas to apply to interactive commands in the UI.
   -- Jesper, 2021-04-18: Check for changed options in library files!
   -- (see #5250)
-  libOptions <- lift $ getLibraryOptions $ takeDirectory fp
+  libOptions <- lift $ getLibraryOptions
+    (srcFilePath file)
+    (toTopLevelModuleName $ iModuleName i)
   lift $ mapM_ setOptionsFromPragma (libOptions ++ iFilePragmaOptions i)
 
   -- Check that options that matter haven't changed compared to
@@ -724,6 +746,7 @@ createInterfaceIsolated x file msrc = do
       ds          <- getDecodedModules
       opts        <- stPersistentOptions . stPersistentState <$> getTC
       isig        <- useTC stImports
+      metas       <- useTC stImportedMetaStore
       ibuiltin    <- useTC stImportedBuiltins
       display     <- useTC stImportsDisplayForms
       userwarn    <- useTC stImportedUserWarnings
@@ -753,7 +776,8 @@ createInterfaceIsolated x file msrc = do
                setInteractionOutputCallback ho
                stModuleToSource `setTCLens` mf
                setVisitedModules vs
-               addImportedThings isig ibuiltin ipatsyns display userwarn partialdefs []
+               addImportedThings isig metas ibuiltin ipatsyns display
+                 userwarn partialdefs []
 
                r  <- createInterface x file NotMainInterface msrc
                mf' <- useTC stModuleToSource
@@ -919,8 +943,7 @@ createInterface mname file isMain msrc = do
     let srcPath = srcFilePath $ srcOrigin src
 
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
-                       generateTokenInfoFromSource
-                         srcPath (TL.unpack $ srcText src)
+      generateTokenInfoFromSource srcPath (TL.unpack $ srcText src)
     stTokens `modifyTCLens` (fileTokenInfo <>)
 
     setOptionsFromSourcePragmas src
@@ -993,8 +1016,8 @@ createInterface mname file isMain msrc = do
 
     -- Profiling: Count number of metas.
     verboseS "profile.metas" 10 $ do
-      MetaId n <- fresh
-      tickN "metas" (fromIntegral n)
+      m <- fresh
+      tickN "metas" (fromIntegral (metaId m))
 
     -- Highlighting from type checker.
     reportSLn "import.iface.create" 7 "Starting highlighting from type info."
@@ -1168,12 +1191,14 @@ buildInterface src topLevel = do
     -- and should be dead-code eliminated (#1928).
     origDisplayForms <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> useTC stImportsDisplayForms
     -- TODO: Kill some ranges?
-    (display, sig) <- eliminateDeadCode origDisplayForms =<< getSignature
-    userwarns      <- useTC stLocalUserWarnings
-    importwarn     <- useTC stWarningOnImport
-    syntaxInfo     <- useTC stSyntaxInfo
-    optionsUsed    <- useTC stPragmaOptions
-    partialDefs    <- useTC stLocalPartialDefs
+    (display, sig, solvedMetas) <-
+      eliminateDeadCode builtin origDisplayForms ==<<
+        (getSignature, useR stSolvedMetaStore)
+    userwarns   <- useTC stLocalUserWarnings
+    importwarn  <- useTC stWarningOnImport
+    syntaxInfo  <- useTC stSyntaxInfo
+    optionsUsed <- useTC stPragmaOptions
+    partialDefs <- useTC stLocalPartialDefs
 
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
@@ -1181,29 +1206,38 @@ buildInterface src topLevel = do
     patsyns <- killRange <$> getPatternSyns
     let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
     warnings <- getAllWarnings AllWarnings
-    reportSLn "import.iface" 7 "  instantiating all meta variables"
-    i <- instantiateFull Interface
-      { iSourceHash      = hashText source
-      , iSource          = source
-      , iFileType        = fileType
-      , iImportedModules = mhs
-      , iModuleName      = mname
-      , iScope           = empty -- publicModules scope
-      , iInsideScope     = topLevelScope topLevel
-      , iSignature       = sig
-      , iDisplayForms    = display
-      , iUserWarnings    = userwarns
-      , iImportWarning   = importwarn
-      , iBuiltin         = builtin'
-      , iForeignCode     = foreignCode
-      , iHighlighting    = syntaxInfo
-      , iDefaultPragmaOptions = defPragmas
-      , iFilePragmaOptions    = filePragmas
-      , iOptionsUsed     = optionsUsed
-      , iPatternSyns     = patsyns
-      , iWarnings        = warnings
-      , iPartialDefs     = partialDefs
-      }
+    let i = Interface
+          { iSourceHash      = hashText source
+          , iSource          = source
+          , iFileType        = fileType
+          , iImportedModules = mhs
+          , iModuleName      = mname
+          , iScope           = empty -- publicModules scope
+          , iInsideScope     = topLevelScope topLevel
+          , iSignature       = sig
+          , iMetaBindings    = solvedMetas
+          , iDisplayForms    = display
+          , iUserWarnings    = userwarns
+          , iImportWarning   = importwarn
+          , iBuiltin         = builtin'
+          , iForeignCode     = foreignCode
+          , iHighlighting    = syntaxInfo
+          , iDefaultPragmaOptions = defPragmas
+          , iFilePragmaOptions    = filePragmas
+          , iOptionsUsed     = optionsUsed
+          , iPatternSyns     = patsyns
+          , iWarnings        = warnings
+          , iPartialDefs     = partialDefs
+          }
+    i <-
+      ifM (collapseDefault . optSaveMetas <$> pragmaOptions)
+        (return i)
+        (do reportSLn "import.iface" 7
+              "  instantiating all meta variables"
+            -- Note that the meta-variables in the definitions in
+            -- "sig" have already been instantiated (by
+            -- eliminateDeadCode).
+            instantiateFullExceptForDefinitions i)
     reportSLn "import.iface" 7 "  interface complete"
     return i
 

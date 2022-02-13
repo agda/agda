@@ -22,9 +22,9 @@ commitInfo
   where
     hash = $(gitHash)
 
-    -- | Check if any tracked files have uncommitted changes
+    -- Check if any tracked files have uncommitted changes
     dirty | $(gitDirtyTracked) = "-dirty"
           | otherwise          = ""
 
-    -- | Abbreviate a commit hash while keeping it unambiguous
+    -- Abbreviate a commit hash while keeping it unambiguous
     abbrev = take 7

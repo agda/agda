@@ -5,8 +5,7 @@ module Agda.TypeChecking.Level.Solve where
 import Control.Monad
 import Control.Monad.Except
 
-import qualified Data.IntSet as IntSet
-import Data.IntSet (IntSet)
+import qualified Data.Map.Strict as MapS
 import Data.Maybe
 
 import Agda.Interaction.Options
@@ -28,16 +27,17 @@ import Agda.Utils.Monad
 --   level, and instantiate them to the lowest level.
 defaultOpenLevelsToZero :: (PureTCM m, MonadMetaSolver m) => m a -> m a
 defaultOpenLevelsToZero f = ifNotM (optCumulativity <$> pragmaOptions) f $ do
-  (result , newMetas) <- metasCreatedBy f
-  defaultLevelsToZero newMetas
+  (result, newMetas) <- metasCreatedBy f
+  defaultLevelsToZero (openMetas newMetas)
   return result
 
-defaultLevelsToZero :: forall m. (PureTCM m, MonadMetaSolver m) => IntSet -> m ()
-defaultLevelsToZero xs = loop =<< openLevelMetas (map MetaId $ IntSet.elems xs)
+defaultLevelsToZero ::
+  forall m. (PureTCM m, MonadMetaSolver m) => LocalMetaStore -> m ()
+defaultLevelsToZero xs = loop =<< openLevelMetas (MapS.keys xs)
   where
     loop :: [MetaId] -> m ()
     loop xs = do
-      let isOpen x = isOpenMeta . mvInstantiation <$> lookupMeta x
+      let isOpen x = isOpenMeta <$> lookupMetaInstantiation x
       xs <- filterM isOpen xs
       allMetaTypes <- getOpenMetas >>= traverse metaType
       let notInTypeOfMeta x = not $ mentionsMeta x allMetaTypes

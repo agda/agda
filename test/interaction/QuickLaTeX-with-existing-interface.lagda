@@ -1,4 +1,6 @@
 \begin{code}
+{-# OPTIONS --guardedness #-}
+
 record Σ (A : Set) (B : A → Set) : Set where
   coinductive
   constructor c

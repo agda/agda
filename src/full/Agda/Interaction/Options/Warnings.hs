@@ -124,6 +124,7 @@ errorWarnings = Set.fromList
   [ CoverageIssue_
   , GenericNonFatalError_
   , MissingDefinitions_
+  , MissingDeclarations_
   , NotAllowedInMutual_
   , NotStrictlyPositive_
   , OverlappingTokensWarning_
@@ -149,8 +150,6 @@ errorWarnings = Set.fromList
   , RewriteMaybeNonConfluent_
   , RewriteAmbiguousRules_
   , RewriteMissingRule_
-  , ExeNotFoundWarning_
-  , ExeNotExecutableWarning_
   ]
 
 allWarnings :: Set WarningName
@@ -195,6 +194,7 @@ data WarningName
   | InvalidNoUniverseCheckPragma_
   | InvalidRecordDirective_
   | InvalidTerminationCheckPragma_
+  | MissingDeclarations_
   | MissingDefinitions_
   | NotAllowedInMutual_
   | OpenPublicAbstract_
@@ -228,8 +228,10 @@ data WarningName
   | InstanceNoOutputTypeName_
   | InversionDepthReached_
   | ModuleDoesntExport_
+  | NoGuardednessFlag_
   | NotInScope_
   | NotStrictlyPositive_
+  | NoEquivWhenSplitting_
   | OldBuiltin_
   | PragmaCompileErased_
   | RewriteMaybeNonConfluent_
@@ -265,9 +267,6 @@ data WarningName
   -- Record field warnings
   | DuplicateFieldsWarning_
   | TooManyFieldsWarning_
-  -- System call warnings
-  | ExeNotFoundWarning_
-  | ExeNotExecutableWarning_
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance NFData WarningName
@@ -350,6 +349,7 @@ warningNameDescription = \case
   InvalidNoUniverseCheckPragma_    -> "No universe checking pragmas before non-`data' or `record' declaration."
   InvalidRecordDirective_          -> "No record directive outside of record definition / below field declarations."
   InvalidTerminationCheckPragma_   -> "Termination checking pragmas before non-function or `mutual' blocks."
+  MissingDeclarations_             -> "Definitions not associated to a declaration."
   MissingDefinitions_              -> "Declarations not associated to a definition."
   NotAllowedInMutual_              -> "Declarations not allowed in a mutual block."
   OpenPublicAbstract_              -> "'open public' directive in an 'abstract' block."
@@ -384,11 +384,13 @@ warningNameDescription = \case
   InstanceArgWithExplicitArg_      -> "instance arguments with explicit arguments are never considered by instance search."
   InstanceWithExplicitArg_         -> "`instance` declarations with explicit arguments are never considered by instance search."
   InversionDepthReached_           -> "Inversions of pattern-matching failed due to exhausted inversion depth."
+  NoGuardednessFlag_               -> "Coinductive record but no --guardedness flag."
   ModuleDoesntExport_              -> "Imported name is not actually exported."
   DuplicateUsing_                  -> "Repeated names in using directive."
   FixityInRenamingModule_          -> "Found fixity annotation in renaming directive for module."
   NotInScope_                      -> "Out of scope name."
   NotStrictlyPositive_             -> "Failed strict positivity checks."
+  NoEquivWhenSplitting_            -> "Failed to compute full equivalence when splitting on indexed family."
   OldBuiltin_                      -> "Deprecated `BUILTIN' pragmas."
   PragmaCompileErased_             -> "`COMPILE' pragma targeting an erased symbol."
   RewriteMaybeNonConfluent_        -> "Failed local confluence check while computing overlap."
@@ -420,6 +422,3 @@ warningNameDescription = \case
   -- Record field warnings
   DuplicateFieldsWarning_          -> "Record expression with duplicate field names."
   TooManyFieldsWarning_            -> "Record expression with invalid field names."
-  -- System call warnings
-  ExeNotFoundWarning_              -> "Trusted executable cannot be found."
-  ExeNotExecutableWarning_         -> "Trusted executable does not have permission to execute."

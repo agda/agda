@@ -6,6 +6,7 @@ import Control.Monad.Reader
 
 import Data.Maybe
 import Data.Map (Map)
+import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import Data.Foldable
 import Data.Traversable
@@ -55,6 +56,18 @@ instantiate = liftReduce . instantiate'
 instantiateFull :: (InstantiateFull a, MonadReduce m) => a -> m a
 instantiateFull = liftReduce . instantiateFull'
 
+-- | A variant of 'instantiateFull' that only instantiates those
+-- meta-variables that satisfy the predicate.
+
+instantiateWhen ::
+  (InstantiateFull a, MonadReduce m) =>
+  (MetaId -> ReduceM Bool) ->
+  a -> m a
+instantiateWhen p =
+  liftReduce .
+  localR (\env -> env { redPred = Just p }) .
+  instantiateFull'
+
 reduce :: (Reduce a, MonadReduce m) => a -> m a
 reduce = liftReduce . reduce'
 
@@ -90,9 +103,9 @@ simplify = liftReduce . simplify'
 -- | Meaning no metas left in the instantiation.
 isFullyInstantiatedMeta :: MetaId -> TCM Bool
 isFullyInstantiatedMeta m = do
-  mv <- lookupMeta m
-  case mvInstantiation mv of
-    InstV _tel v -> noMetas <$> instantiateFull v
+  inst <- lookupMetaInstantiation m
+  case inst of
+    InstV inst -> noMetas <$> instantiateFull (instBody inst)
     _ -> return False
 
 -- | Blocking on all blockers.
@@ -138,34 +151,64 @@ instance (Instantiate a, Instantiate b) => Instantiate (a,b) where
 instance (Instantiate a, Instantiate b,Instantiate c) => Instantiate (a,b,c) where
     instantiate' (x,y,z) = (,,) <$> instantiate' x <*> instantiate' y <*> instantiate' z
 
+-- | Run the second computation if the 'redPred' predicate holds for
+-- the given meta-variable (or if the predicate is not defined), and
+-- otherwise the first computation.
+
+ifPredicateDoesNotHoldFor ::
+  MetaId -> ReduceM a -> ReduceM a -> ReduceM a
+ifPredicateDoesNotHoldFor m doesNotHold holds = do
+  pred <- redPred <$> askR
+  case pred of
+    Nothing -> holds
+    Just p  -> ifM (p m) holds doesNotHold
+
 instance Instantiate Term where
-  instantiate' t@(MetaV x es) = do
+  instantiate' t@(MetaV x es) = ifPredicateDoesNotHoldFor x (return t) $ do
     blocking <- view stInstantiateBlocking <$> getTCState
 
-    mv <- lookupMeta x
-    let mi = mvInstantiation mv
+    m <- lookupMeta x
+    case m of
+      Just (Left rmv) -> cont (rmvInstantiation rmv)
 
-    case mi of
-      InstV tel v -> instantiate' inst
-        where
-          -- A slight complication here is that the meta might be underapplied,
-          -- in which case we have to build the lambda abstraction before
-          -- applying the substitution, or overapplied in which case we need to
-          -- fall back to applyE.
-          (es1, es2) = splitAt (length tel) es
-          vs1 = reverse $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
-          rho = vs1 ++# wkS (length vs1) idS
-                -- really should be .. ++# emptyS but using wkS makes it reduce to idS
-                -- when applicable
-          -- specification: inst == foldr mkLam v tel `applyE` es
-          inst = applySubst rho (foldr mkLam v $ drop (length es1) tel) `applyE` es2
-      _ | Just m' <- mvTwin mv, blocking -> do
-            instantiate' (MetaV m' es)
-      Open                             -> return t
-      OpenInstance                     -> return t
-      BlockedConst u | blocking  -> instantiate' . unBrave $ BraveTerm u `applyE` es
-                     | otherwise -> return t
-      PostponedTypeCheckingProblem _ -> return t
+      Just (Right mv) -> case mvInstantiation mv of
+         InstV inst -> cont inst
+
+         _ | Just m' <- mvTwin mv, blocking ->
+           instantiate' (MetaV m' es)
+
+         Open -> return t
+
+         OpenInstance -> return t
+
+         BlockedConst u
+           | blocking  -> instantiate' . unBrave $
+                          BraveTerm u `applyE` es
+           | otherwise -> return t
+
+         PostponedTypeCheckingProblem _ -> return t
+
+      Nothing -> __IMPOSSIBLE_VERBOSE__
+                   ("Meta-variable not found: " ++ prettyShow x)
+    where
+    cont i = instantiate' inst
+      where
+      -- A slight complication here is that the meta might be underapplied,
+      -- in which case we have to build the lambda abstraction before
+      -- applying the substitution, or overapplied in which case we need to
+      -- fall back to applyE.
+      (es1, es2) = splitAt (length (instTel i)) es
+      vs1 = reverse $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
+      rho = vs1 ++# wkS (length vs1) idS
+            -- really should be .. ++# emptyS but using wkS makes it reduce to idS
+            -- when applicable
+      -- specification:
+      -- inst == foldr mkLam (instBody i) (instTel i) `applyE` es
+      inst =
+        applySubst rho
+          (foldr mkLam (instBody i) $ drop (length es1) (instTel i))
+          `applyE` es2
+
   instantiate' (Level l) = levelTm <$> instantiate' l
   instantiate' (Sort s) = Sort <$> instantiate' s
   instantiate' t = return t
@@ -348,6 +391,7 @@ instance Reduce Sort where
         SSet s'    -> SSet <$> reduce' s'
         SizeUniv   -> return SizeUniv
         LockUniv   -> return LockUniv
+        IntervalUniv -> return IntervalUniv
         MetaS x es -> return s
         DefS d es  -> return s -- postulated sorts do not reduce
         DummyS{}   -> return s
@@ -446,7 +490,7 @@ maybeFastReduceTerm v = do
       MetaV x _ -> ifM (isOpen x) (return $ blocked x v) (maybeFast v)
       _         -> maybeFast v
   where
-    isOpen x = isOpenMeta . mvInstantiation <$> lookupMeta x
+    isOpen x = isOpenMeta <$> lookupMetaInstantiation x
     maybeFast v = ifM shouldTryFastReduce (fastReduce v) (slowReduceTerm v)
 
 slowReduceTerm :: Term -> ReduceM (Blocked Term)
@@ -942,6 +986,7 @@ instance Simplify Sort where
         SSet s     -> SSet <$> simplify' s
         SizeUniv   -> return s
         LockUniv   -> return s
+        IntervalUniv -> return s
         MetaS x es -> MetaS x <$> simplify' es
         DefS d es  -> DefS d <$> simplify' es
         DummyS{}   -> return s
@@ -1090,6 +1135,7 @@ instance Normalise Sort where
         SSet s     -> SSet <$> normalise' s
         SizeUniv   -> return SizeUniv
         LockUniv   -> return LockUniv
+        IntervalUniv -> return IntervalUniv
         MetaS x es -> return s
         DefS d es  -> return s
         DummyS{}   -> return s
@@ -1234,7 +1280,6 @@ instance InstantiateFull t => InstantiateFull (Strict.Maybe t)
 instance InstantiateFull t => InstantiateFull (Arg t)
 instance InstantiateFull t => InstantiateFull (Elim' t)
 instance InstantiateFull t => InstantiateFull (Named name t)
-instance InstantiateFull t => InstantiateFull (Open t)
 instance InstantiateFull t => InstantiateFull (WithArity t)
 instance InstantiateFull t => InstantiateFull (IPBoundary' t)
 
@@ -1297,6 +1342,7 @@ instance InstantiateFull Sort where
             Inf _ _    -> return s
             SizeUniv   -> return s
             LockUniv   -> return s
+            IntervalUniv -> return s
             MetaS x es -> MetaS x <$> instantiateFull' es
             DefS d es  -> DefS d <$> instantiateFull' es
             DummyS{}   -> return s
@@ -1358,6 +1404,21 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
 
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
     instantiateFull' (Dom i fin n tac x) = Dom i fin n <$> instantiateFull' tac <*> instantiateFull' x
+
+-- Andreas, 2021-09-13, issue #5544, need to traverse @checkpoints@ map
+instance InstantiateFull t => InstantiateFull (Open t) where
+  instantiateFull' (OpenThing checkpoint checkpoints modl t) =
+    OpenThing checkpoint
+    <$> (instantiateFull' =<< prune checkpoints)
+    <*> pure modl
+    <*> instantiateFull' t
+    where
+      -- Ulf, 2021-11-17, #5544
+      --  Remove checkpoints that are no longer in scope, since they can
+      --  mention functions that deadcode elimination will get rid of.
+      prune cps = do
+        inscope <- viewTC eCheckpoints
+        return $ cps `Map.intersection` inscope
 
 instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull' cl = do
@@ -1432,6 +1493,7 @@ instance InstantiateFull NLPSort where
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
   instantiateFull' PLockUniv = return PLockUniv
+  instantiateFull' PIntervalUniv = return PIntervalUniv
 
 instance InstantiateFull RewriteRule where
   instantiateFull' (RewriteRule q gamma f ps rhs t c) =
@@ -1487,7 +1549,7 @@ instance InstantiateFull System where
 
 instance InstantiateFull FunctionInverse where
   instantiateFull' NotInjective = return NotInjective
-  instantiateFull' (Inverse inv) = Inverse <$> instantiateFull' inv
+  instantiateFull' (Inverse w inv) = Inverse w <$> instantiateFull' inv
 
 instance InstantiateFull a => InstantiateFull (Case a) where
   instantiateFull' (Branches cop cs eta ls m b lz) =
@@ -1516,25 +1578,62 @@ instance InstantiateFull Clause where
        <*> return unreachable
        <*> return ell
 
+instance InstantiateFull Instantiation where
+  instantiateFull' (Instantiation a b) =
+    Instantiation a <$> instantiateFull' b
+
+instance InstantiateFull (Judgement MetaId) where
+  instantiateFull' (HasType a b c) =
+    HasType a b <$> instantiateFull' c
+  instantiateFull' (IsSort a b) =
+    IsSort a <$> instantiateFull' b
+
+instance InstantiateFull RemoteMetaVariable where
+  instantiateFull' (RemoteMetaVariable a b c) = RemoteMetaVariable
+    <$> instantiateFull' a
+    <*> return b
+    <*> instantiateFull' c
+
 instance InstantiateFull Interface where
-    instantiateFull' (Interface h s ft ms mod scope inside
-                               sig display userwarn importwarn b foreignCode
-                               highlighting libPragmas filePragmas usedOpts patsyns
-                               warnings partialdefs) =
-        Interface h s ft ms mod scope inside
-            <$> instantiateFull' sig
-            <*> instantiateFull' display
-            <*> return userwarn
-            <*> return importwarn
-            <*> instantiateFull' b
-            <*> return foreignCode
-            <*> return highlighting
-            <*> return libPragmas
-            <*> return filePragmas
-            <*> return usedOpts
-            <*> return patsyns
-            <*> return warnings
-            <*> return partialdefs
+  instantiateFull' i = do
+    defs <- instantiateFull' (i ^. intSignature . sigDefinitions)
+    instantiateFullExceptForDefinitions'
+      (set (intSignature . sigDefinitions) defs i)
+
+-- | Instantiates everything except for definitions in the signature.
+
+instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
+instantiateFullExceptForDefinitions'
+  (Interface h s ft ms mod scope inside sig metas display userwarn
+     importwarn b foreignCode highlighting libPragmas filePragmas
+     usedOpts patsyns warnings partialdefs) =
+  Interface h s ft ms mod scope inside
+    <$> ((\s r -> Sig { _sigSections     = s
+                      , _sigDefinitions  = sig ^. sigDefinitions
+                      , _sigRewriteRules = r
+                      })
+         <$> instantiateFull' (sig ^. sigSections)
+         <*> instantiateFull' (sig ^. sigRewriteRules))
+    <*> instantiateFull' metas
+    <*> instantiateFull' display
+    <*> return userwarn
+    <*> return importwarn
+    <*> instantiateFull' b
+    <*> return foreignCode
+    <*> return highlighting
+    <*> return libPragmas
+    <*> return filePragmas
+    <*> return usedOpts
+    <*> return patsyns
+    <*> return warnings
+    <*> return partialdefs
+
+-- | Instantiates everything except for definitions in the signature.
+
+instantiateFullExceptForDefinitions ::
+  MonadReduce m => Interface -> m Interface
+instantiateFullExceptForDefinitions =
+  liftReduce . instantiateFullExceptForDefinitions'
 
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t

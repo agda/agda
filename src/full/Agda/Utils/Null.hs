@@ -11,8 +11,8 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.ByteString.Char8 (ByteString)
-import qualified Data.ByteString.Char8 as ByteString
+import qualified Data.ByteString.Char8 as ByteStringChar8
+import qualified Data.ByteString.Lazy as ByteStringLazy
 
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
@@ -25,11 +25,13 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import Data.Text (Text)
+import qualified Data.Text as Text
 
 import Text.PrettyPrint (Doc, isEmpty)
 
@@ -62,9 +64,17 @@ instance (Null a, Null b, Null c, Null d) => Null (a,b,c,d) where
   empty          = (empty, empty, empty, empty)
   null (a,b,c,d) = null a && null b && null c && null d
 
-instance Null ByteString where
-  empty = ByteString.empty
-  null  = ByteString.null
+instance Null ByteStringChar8.ByteString where
+  empty = ByteStringChar8.empty
+  null  = ByteStringChar8.null
+
+instance Null ByteStringLazy.ByteString where
+  empty = ByteStringLazy.empty
+  null  = ByteStringLazy.null
+
+instance Null Text where
+  empty = Text.empty
+  null  = Text.null
 
 instance Null [a] where
   empty = []

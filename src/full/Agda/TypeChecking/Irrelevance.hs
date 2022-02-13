@@ -228,10 +228,9 @@ applyModalityToContext thing =
 --   Precondition: @Modality /= Relevant@
 applyModalityToContextOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToContextOnly m = localTC
-  $ over eContext     (map $ inverseApplyModality m')
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyModality m')
-  where
-  m' = setQuantity (Quantity1 Q1Inferred) m
+  $ over eContext (map $ inverseApplyModalityButNotQuantity m)
+  . over eLetBindings
+      (Map.map . fmap . second $ inverseApplyModalityButNotQuantity m)
 
 -- | Apply modality @m@ the the modality annotation of the (typing/equality)
 --   judgement.  This is part of the work done when going into a @m@-context.
@@ -307,7 +306,7 @@ instance UsableRelevance Term where
     Sort s   -> usableRel rel s
     Level l  -> return True
     MetaV m vs -> do
-      mrel <- getMetaRelevance <$> lookupMeta m
+      mrel <- getRelevance <$> lookupMetaModality m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
     DontCare v -> usableRel rel v -- TODO: allow irrelevant things to be used in DontCare position?
     Dummy{}  -> return True
@@ -323,6 +322,7 @@ instance UsableRelevance Sort where
     SSet l -> usableRel rel l
     SizeUniv -> return True
     LockUniv -> return True
+    IntervalUniv -> return True
     PiSort a s1 s2 -> usableRel rel (a,s1,s2)
     FunSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
@@ -413,7 +413,7 @@ instance UsableModality Term where
     Sort s   -> usableMod mod s
     Level l  -> return True
     MetaV m vs -> do
-      mmod <- getMetaModality <$> lookupMeta m
+      mmod <- lookupMetaModality m
       let ok = mmod `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Metavariable" <+> prettyTCM (MetaV m []) <+>
@@ -515,6 +515,7 @@ isFibrant a = abortIfBlocked (getSort a) <&> \case
   SSet{}     -> False
   SizeUniv{} -> False
   LockUniv{} -> False
+  IntervalUniv{} -> False
   PiSort{}   -> False
   FunSort{}  -> False
   UnivSort{} -> False
@@ -533,6 +534,7 @@ isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
   SSet{}     -> False
   SizeUniv{} -> False
   LockUniv{} -> True
+  IntervalUniv{} -> True
   PiSort{}   -> False
   FunSort{}  -> False
   UnivSort{} -> False

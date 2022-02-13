@@ -412,6 +412,15 @@ computeElimHeadType f es es' = do
     targ <- abortIfBlocked targ
     fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
 
+
+abortIfMissingClauses :: (Blocked Term, Blocked Term) -> Blocker
+abortIfMissingClauses (NotBlocked nb t, NotBlocked nb' t') =
+  case nb <> nb' of
+    MissingClauses -> alwaysUnblock
+    _              -> neverUnblock
+abortIfMissingClauses _ = __IMPOSSIBLE__
+
+
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
@@ -425,12 +434,18 @@ compareAtom cmp t m n =
                              , prettyTCM n
                              , prettyTCM t
                              ]
+    let blockIfMissingClauses b@Blocked{} = b
+        -- re #5600: We might add more clauses to the function later,
+        --           so we shouldn't commit to an UnequalTerms error yet,
+        --           even if there are no metas blocking computation.
+        blockIfMissingClauses (NotBlocked MissingClauses t) = Blocked alwaysUnblock t
+        blockIfMissingClauses b@NotBlocked{} = b
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
     (mb',nb') <- do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
-      return (mb', nb')
+      return (blockIfMissingClauses mb', blockIfMissingClauses nb')
     let getBlocker (Blocked b _) = b
         getBlocker NotBlocked{}  = neverUnblock
         blocker = unblockOnEither (getBlocker mb') (getBlocker nb')
@@ -515,7 +530,10 @@ compareAtom cmp t m n =
       (Blocked{}, Blocked{}) | not cmpBlocked  -> checkDefinitionalEquality
       (Blocked b _, _) | not cmpBlocked -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term  goes first
       (_, Blocked b _) | not cmpBlocked -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
-      _ -> blockOnError blocker $ do
+      bs -> do
+        let blocker' | cmpBlocked = blocker
+                     | otherwise = unblockOnEither blocker $ abortIfMissingClauses bs
+        blockOnError blocker' $ do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.
         -- -- 'False' means: leave (Def f []) unchanged even for
@@ -689,12 +707,10 @@ compareDom cmp0
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
   b1 b2 errH errR errQ errC cont = do
-  hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
-  let cmp = if hasSubtyping then cmp0 else CmpEq
   if | not $ sameHiding dom1 dom2 -> errH
-     | not $ compareRelevance cmp (getRelevance dom1) (getRelevance dom2) -> errR
-     | not $ compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) -> errQ
-     | not $ compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> errR
+     | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> errQ
+     | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> errC
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
@@ -712,18 +728,6 @@ compareDom cmp0
         -- blocked any more by getting stuck on domains.
         -- Only the domain type in context will be blocked.
         -- But see issue #1258.
-
-compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
-compareRelevance CmpEq  = (==)
-compareRelevance CmpLeq = (<=)
-
-compareQuantity :: Comparison -> Quantity -> Quantity -> Bool
-compareQuantity CmpEq  = sameQuantity
-compareQuantity CmpLeq = moreQuantity
-
-compareCohesion :: Comparison -> Cohesion -> Cohesion -> Bool
-compareCohesion CmpEq  = sameCohesion
-compareCohesion CmpLeq = moreCohesion
 
 -- | When comparing argument spines (in compareElims) where the first arguments
 --   don't match, we keep going, substituting the anti-unification of the two
@@ -1001,9 +1005,10 @@ compareIrrelevant t v0 w0 = do
   try v w $ try w v $ return ()
   where
     try (MetaV x es) w fallback = do
-      mv <- lookupMeta x
-      let rel  = getMetaRelevance mv
-          inst = case mvInstantiation mv of
+      mi <- lookupMetaInstantiation x
+      mm <- lookupMetaModality x
+      let rel  = getRelevance mm
+          inst = case mi of
                    InstV{} -> True
                    _       -> False
       reportSDoc "tc.conv.irr" 20 $ vcat
@@ -1230,15 +1235,16 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (SSet{}  , Inf IsStrict _) -> yes
       (SSet{}  , Inf IsFibrant _) -> no
 
-      -- @SizeUniv@ and @Prop0@ are bottom sorts.
+      -- @LockUniv@, @IntervalUniv@, @SizeUniv@, and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
       (_       , LockUniv) -> equalSort s1 s2
+      (_       , IntervalUniv) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
       (_       , Prop (Max 0 [])) -> equalSort s1 s2
       (_       , Type (Max 0 []))
         | not propEnabled  -> equalSort s1 s2
 
-      -- SizeUniv is unrelated to any @Set l@ or @Prop l@
+      -- @SizeUniv@ and @LockUniv@ are unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
       (SizeUniv , Inf{}  ) -> no
@@ -1247,6 +1253,13 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (LockUniv, Prop{}  ) -> no
       (LockUniv , Inf{}  ) -> no
       (LockUniv, SSet{}  ) -> no
+
+      -- @IntervalUniv@ is below @SSet l@, but not @Set l@ or @Prop l@
+      (IntervalUniv, Type{}) -> no
+      (IntervalUniv, Prop{}) -> no
+      (IntervalUniv , Inf IsStrict _) -> yes
+      (IntervalUniv , Inf IsFibrant _) -> no
+      (IntervalUniv , SSet b) -> leqLevel (ClosedLevel 0) b
 
       -- If the first sort is a small sort that rigidly depends on a
       -- variable and the second sort does not mention this variable,
@@ -1367,7 +1380,7 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
           , not areWeComputingOverlap
           , Just (mb@(MetaV x es) , bs') <- singleMetaView $ (map . fmap) ignoreBlocking (List1.toList bs)
           , null bs' || noMetas (Level a , unSingleLevels bs') -> do
-            mv <- lookupMeta x
+            mv <- lookupLocalMeta x
             -- Jesper, 2019-10-13: abort if this is an interaction
             -- meta or a generalizable meta
             abort <- (isJust <$> isInteractionMeta x) `or2M`
@@ -1620,6 +1633,7 @@ equalSort s1 s2 = do
             (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
             (LockUniv   , LockUniv   ) -> yes
+            (IntervalUniv , IntervalUniv) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
             (Inf f m    , Inf f' n   ) ->
               if f == f' && (m == n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
@@ -1980,7 +1994,7 @@ leqConj (rs, rst) (qs, qst) = do
   if toSet qs `Set.isSubsetOf` toSet rs
     then do
       interval <-
-        elSSet $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
+        El IntervalUniv . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
       -- we don't want to generate new constraints here because
       -- 1. in some situations the same constraint would get generated twice.
       -- 2. unless things are completely accepted we are going to

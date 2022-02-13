@@ -26,6 +26,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Primitive.Cubical
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
@@ -61,8 +62,14 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
       let hd' = hd `apply` [ u ]
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
-    (IApply x y u : es) -> typeError $ GenericError $
-      "Rewrite rules with cubical are not yet supported"
+    (IApply x y i : es) -> do
+      ~(PathType s q l b u v) <- pathView =<< reduce t
+      let t' = El s $ unArg b `apply` [ defaultArg i ]
+      let hd' = hd `applyE` [IApply x y i]
+      interval <- primIntervalType
+      p   <- patternFrom r k interval i
+      ps  <- patternFrom r k (t',hd') es
+      return $ IApply (PTerm x) (PTerm y) p : ps
     (Proj o f : es) -> do
       ~(Just (El _ (Pi a b))) <- getDefType f =<< reduce t
       let t' = b `absApp` hd
@@ -88,6 +95,7 @@ instance PatternFrom () Sort NLPSort where
       SSet l   -> __IMPOSSIBLE__
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
+      IntervalUniv -> return PIntervalUniv
       PiSort _ _ _ -> __IMPOSSIBLE__
       FunSort _ _ -> __IMPOSSIBLE__
       UnivSort _ -> __IMPOSSIBLE__
@@ -117,10 +125,15 @@ instance PatternFrom Type Term NLPat where
       [ "building a pattern from term v = " <+> prettyTCM v
       , " of type " <+> prettyTCM t
       ]
+    pview <- pathViewAsPi'whnf
     let done = return $ PTerm v
     case (unEl t , stripDontCare v) of
       (Pi a b , _) -> do
         let body = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
+        p <- addContext a (patternFrom r (k+1) (absBody b) body)
+        return $ PLam (domInfo a) $ Abs (absName b) p
+      _ | Left ((a,b),(x,y)) <- pview t -> do
+        let body = raise 1 v `applyE` [ IApply (raise 1 $ x) (raise 1 $ y) $ var 0 ]
         p <- addContext a (patternFrom r (k+1) (absBody b) body)
         return $ PLam (domInfo a) $ Abs (absName b) p
       (_ , Var i es)
@@ -130,7 +143,7 @@ instance PatternFrom Type Term NLPat where
        -- The arguments of `var i` should be distinct bound variables
        -- in order to build a Miller pattern
        | Just vs <- allApplyElims es -> do
-           TelV tel _ <- telView =<< typeOfBV i
+           TelV tel _ <- telViewPath =<< typeOfBV i
            unless (size tel >= size vs) __IMPOSSIBLE__
            let ts = applySubst (parallelS $ reverse $ map unArg vs) $ map unDom $ flattenTel tel
            mbvs <- forM (zip ts vs) $ \(t , v) -> do
@@ -221,6 +234,7 @@ instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PInf f n) = return $ Inf f n
   nlPatToTerm PSizeUniv = return SizeUniv
   nlPatToTerm PLockUniv = return LockUniv
+  nlPatToTerm PIntervalUniv = return IntervalUniv
 
 -- | Gather the set of pattern variables of a non-linear pattern
 class NLPatVars a where
@@ -242,6 +256,7 @@ instance NLPatVars NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PIntervalUniv -> empty
 
 instance NLPatVars NLPat where
   nlPatVarsUnder k = \case
@@ -298,6 +313,7 @@ instance GetMatchables NLPSort where
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
+    PIntervalUniv -> empty
 
 instance GetMatchables Term where
   getMatchables = getDefs' __IMPOSSIBLE__ singleton
@@ -331,3 +347,4 @@ instance Free NLPSort where
     PInf f n  -> mempty
     PSizeUniv -> mempty
     PLockUniv -> mempty
+    PIntervalUniv -> mempty

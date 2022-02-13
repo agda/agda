@@ -94,12 +94,12 @@ jobs:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR std-lib-succeed
         - make BUILD_DIR=$BUILD_DIR std-lib-interaction
         - make BUILD_DIR=$BUILD_DIR TAGS
-        - make test-size-solver
+        - make BUILD_DIR="dist" test-size-solver
         - make BUILD_DIR=$BUILD_DIR testing-emacs-mode
         - make install-agda-bisect
 
     - <<: *complete-job
-      env: GHC_VER=8.10.4 CABAL_VER=3.2
+      env: GHC_VER=8.10.5 CABAL_VER=3.2
     - <<: *complete-job
       env: GHC_VER=8.8.4 CABAL_VER=3.2
     - <<: *complete-job

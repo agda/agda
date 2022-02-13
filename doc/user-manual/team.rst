@@ -13,19 +13,18 @@ Agda 2 is currently actively developed mainly by (in alphabetical order):
 * Guillaume Allais
 * Liang-Ting Chen
 * Jesper Cockx
+* Matthew Daggitt
 * Nils Anders Danielsson
-* Víctor López Juan
 * Ulf Norell
 * Andrés Sicard-Ramírez
 * Andrea Vezzosi
-* Tesla Ice Zhang
 
 Agda 2 has received major contributions by the following developers, amongst others.
 Some contributors have pioneered a feature which shall be mentioned here.
 But many have worked on these features for improvements and maintenance.
 
-* Andreas Abel: *termination checker, sized types, irrelevance, copatterns*
-* Guillaume Allais: *warnings, pattern guards, standard library 1.0*
+* Andreas Abel: *termination checker, sized types, irrelevance, copatterns, erasure*
+* Guillaume Allais: *warnings, pattern guards, standard library 1.0 and above*
 * Stevan Andjelkovic: *LaTeX backend*
 * Miëtek Bak: *Agda logo*
 * Marcin Benke: *original "Alonzo" compiler to Haskell*
@@ -35,11 +34,11 @@ But many have worked on these features for improvements and maintenance.
 * Liang-Ting Chen: *github workflows*
 * Jesper Cockx: *rewriting, unification* ``--without-K``
 * Catarina Coquand: *Agda 1*
-* Matthew Daggitt: *standard library 1.0*
-* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*
+* Matthew Daggitt: *standard library 1.0 and above*
+* Nils Anders Danielsson: *efficient positivity checker, HTML backend, highlighting, standard library*, ``--erased-cubical``
 * Dominique Devriese: ``instance`` *arguments*
 * Péter Diviánszky: *web frontent,* ``variable`` *declarations*
-* Robert Estelle
+* Robert Estelle: *refactoring of backends, main driver*
 * Olle Fredriksson: *Epic compiler backend*
 * Paolo Giarrusso
 * Adam Gundry: *pattern synonyms*
@@ -52,26 +51,27 @@ But many have worked on these features for improvements and maintenance.
 * Wen Kokke
 * John Leo
 * Fredrik Lindblad: *Agsy proof search "Auto"*
-* Víctor López Juan: "tog" prototype, markdown frontend, documentation*
+* Víctor López Juan: *"tog" prototype, markdown frontend, documentation*
 * Ting-Gan Lua
-* Francesco Mazzoli: "tog" prototype*
+* Francesco Mazzoli: *"tog" prototype*
 * Stefan Monnier
 * Guilhem Moulin: *highlighting*
 * Fredrik Nordvall Forsberg: *pattern lambdas, warnings*
 * Ulf Norell: *Agda 2*
 * Nicolas Pouillard: *module record expressions*
-* Benjamin Price
 * Jonathan Prieto: *Agda package manager*
-* Nobuo Yamashita
 * Christian Sattler
 * Andrés Sicard-Ramírez: *Agda releases, Travis CI*
 * Makoto Takeyama: *Agda 1, Emacs mode, "MAlonzo" compiler to Haskell, serialization*
-* Andrea Vezzosi: *Cubical Agda, Agda-flat, Agda-parametric*
+* Andrea Vezzosi: *Cubical Agda, Agda-flat, Agda-parametric, Guarded Cubical Agda*
 * Noam Zeilberger: *pattern lambdas*
 * Tesla Ice Zhang
 
-The full list of contributors (more than 140)
-is available at https://github.com/agda/agda/graphs/contributors .
+The full list of code and documentation contributors (more than 170)
+is available at https://github.com/agda/agda/graphs/contributors
+or from the git repository via ``git shortlog -sne``.
+Numerous further individuals have contributed to Agda by reporting
+issues, building backends and editor support, packaging Agda etc.
 
 The Agda license is `here
 <https://github.com/agda/agda/blob/master/LICENSE>`_.

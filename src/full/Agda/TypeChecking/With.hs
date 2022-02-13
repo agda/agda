@@ -366,14 +366,14 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     setVarArgInfo x p = setOrigin (getOrigin p) $ setArgInfo (varArgInfo x) p
 
     strip
-      :: Term                         -- ^ Self.
-      -> Type                         -- ^ The type to be eliminated.
-      -> [NamedArg A.Pattern]       -- ^ With-clause patterns.
-      -> [NamedArg DeBruijnPattern] -- ^ Parent-clause patterns with de Bruijn indices relative to Δ.
+      :: Term                         -- Self.
+      -> Type                         -- The type to be eliminated.
+      -> [NamedArg A.Pattern]         -- With-clause patterns.
+      -> [NamedArg DeBruijnPattern]   -- Parent-clause patterns with de Bruijn indices relative to Δ.
       -> WriterT [ProblemEq] TCM [NamedArg A.Pattern]
-            -- ^ With-clause patterns decomposed by parent-clause patterns.
-            --   Also outputs named dot patterns from the parent clause that
-            --   we need to add let-bindings for.
+            -- With-clause patterns decomposed by parent-clause patterns.
+            -- Also outputs named dot patterns from the parent clause that
+            -- we need to add let-bindings for.
 
     -- Case: out of with-clause patterns.
     strip self t [] qs@(_ : _) = do
@@ -573,28 +573,20 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         prettyProjOrigin ProjPostfix = "a postfix projection"
         prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
 
-        -- | Make a WildP, keeping arg. info.
+        -- Make a WildP, keeping arg. info.
         makeWildP :: NamedArg A.Pattern -> NamedArg A.Pattern
         makeWildP = updateNamedArg $ const $ A.WildP patNoRange
 
         -- case I.ConP / A.ConP
         stripConP
-          :: QName
-             -- ^ Data type name of this constructor pattern.
-          -> [Arg Term]
-             -- ^ Data type arguments of this constructor pattern.
-          -> Abs Type
-             -- ^ Type the remaining patterns eliminate.
-          -> ConHead
-             -- ^ Constructor of this pattern.
-          -> ConInfo
-             -- ^ Constructor info of this pattern (constructor/record).
-          -> [NamedArg DeBruijnPattern]
-             -- ^ Argument patterns (parent clause).
-          -> [NamedArg A.Pattern]
-             -- ^ Argument patterns (with clause).
-          -> WriterT [ProblemEq] TCM [NamedArg A.Pattern]
-             -- ^ Stripped patterns.
+          :: QName       -- Data type name of this constructor pattern.
+          -> [Arg Term]  -- Data type arguments of this constructor pattern.
+          -> Abs Type    -- Type the remaining patterns eliminate.
+          -> ConHead     -- Constructor of this pattern.
+          -> ConInfo     -- Constructor info of this pattern (constructor/record).
+          -> [NamedArg DeBruijnPattern]  -- Argument patterns (parent clause).
+          -> [NamedArg A.Pattern]        -- Argument patterns (with clause).
+          -> WriterT [ProblemEq] TCM [NamedArg A.Pattern]  -- Stripped patterns.
         stripConP d us b c ci qs' ps' = do
 
           -- Get the type and number of parameters of the constructor.

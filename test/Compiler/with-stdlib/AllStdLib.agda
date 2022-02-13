@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --guardedness --sized-types #-}
 
 module AllStdLib where
 

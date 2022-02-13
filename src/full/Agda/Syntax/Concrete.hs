@@ -319,14 +319,14 @@ mkTLet r (d:ds) = Just $ TLet r (d :| ds)
 
    We use fixity information to see which name is actually defined.
 -}
-data LHS = LHS
+data LHS = LHS  -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
   { lhsOriginalPattern :: Pattern
     -- ^ e.g. @f ps | wps@
   , lhsRewriteEqn      :: [RewriteEqn]
     -- ^ @(rewrite e | with p <- e in eq)@ (many)
   , lhsWithExpr        :: [WithExpr]
     -- ^ @with e1 in eq | {e2} | ...@ (many)
-  } -- ^ Original pattern (including with-patterns), rewrite equations and with-expressions.
+  }
   deriving (Data, Eq)
 
 type RewriteEqn = RewriteEqn' () Name Pattern Expr
@@ -444,8 +444,8 @@ type RecordDirectives = RecordDirectives' (Name, IsInstance)
 
 data Declaration
   = TypeSig ArgInfo TacticAttribute Name Expr
+      -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
   | FieldSig IsInstance TacticAttribute Name (Arg Expr)
-  -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
   | Generalize Range [TypeSignature] -- ^ Variables to be generalized, can be hidden and/or irrelevant.
   | Field Range [FieldSignature]
   | FunClause LHS RHS WhereClause Bool

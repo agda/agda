@@ -175,8 +175,16 @@ definitionCheck d = do
       m   = occMeta $ feExtra cxt
   -- Anything goes if we are both irrelevant and erased.
   -- Otherwise, have to check the modality of the defined name.
-  unless (irr && er) $ do
-    dmod <- modalityOfConst d
+  unless (irr && er) $ getConstInfo' d >>= \case
+   Left _ -> do
+    -- Andreas, 2021-07-29.
+    -- The definition is not in scope.
+    -- This shouldn't happen, but does so in issue #5492.
+    -- Let's bail out...
+    patternViolation' alwaysUnblock 35 $
+      unwords ["occursCheck: definition", prettyShow d, "not in scope" ]
+   Right def -> do
+    let dmod = getModality def
     unless (irr || usableRelevance dmod) $ do
       reportSDoc "tc.meta.occurs" 35 $ hsep
         [ "occursCheck: definition"
@@ -217,8 +225,8 @@ metaCheck m = do
   --   abort ctx $ MetaOccursInItself m'
   when (m == m0) $ patternViolation' neverUnblock 50 $ "occursCheck failed: Found " ++ prettyShow m
 
-  mv <- lookupMeta m
-  let mmod = getMetaModality mv
+  mv <- lookupLocalMeta m
+  let mmod = getModality mv
       mmod' = setRelevance rel $ setQuantity qnt $ mmod
   if (mmod `moreUsableModality` mmod') then return m else do
     reportSDoc "tc.meta.occurs" 35 $ hsep
@@ -283,6 +291,15 @@ defArgs :: OccursM a -> OccursM a
 defArgs m = asks (occUnfold . feExtra) >>= \case
   NoUnfold  -> flexibly m
   YesUnfold -> weakly m
+
+-- | For a path constructor `c : ... -> Path D a b`, we have that e.g. `c es i0` reduces to `a`.
+--   So we have to consider its arguments as flexible when we do not actually unfold.
+conArgs :: Elims -> OccursM a -> OccursM a
+conArgs es m = asks (occUnfold . feExtra) >>= \case
+  YesUnfold -> m
+  NoUnfold | null [ () | IApply{} <- es ]
+            -> m
+  NoUnfold  -> flexibly m
 
 unfoldB :: (Instantiate t, Reduce t) => t -> OccursM (Blocked t)
 unfoldB v = do
@@ -350,7 +367,7 @@ occursCheck
   :: (Occurs a, InstantiateFull a, PrettyTCM a)
   => MetaId -> VarMap -> a -> TCM a
 occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   n  <- getContextSize
   reportSLn "tc.meta.occurs" 35 $ "occursCheck " ++ show m ++ " " ++ show xs
   let initEnv unf = FreeEnv
@@ -361,7 +378,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
           , occCxtSize = n
           }
         , feFlexRig   = StronglyRigid -- ? Unguarded
-        , feModality  = getMetaModality mv
+        , feModality  = getModality mv
         , feSingleton = variableCheck xs
         }
   initOccursCheck mv
@@ -372,7 +389,7 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
       -- (unless metavariable is irrelevant, in which case the
       -- constraint will anyway be dropped)
       case err of
-        PatternErr{} | not (isIrrelevant $ getMetaModality mv) -> do
+        PatternErr{} | not (isIrrelevant $ getModality mv) -> do
           initOccursCheck mv
           occurs v `runReaderT` initEnv YesUnfold
         _ -> throwError err
@@ -384,19 +401,25 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
       TypeError _ _ cl -> case clValue cl of
         MetaOccursInItself{} ->
           typeError . GenericDocError =<<
-            fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")
+            fsep [ text "Refuse to construct infinite term by instantiating"
+                 , prettyTCM m
+                 , "to"
                  , prettyTCM =<< instantiateFull v
                  ]
         MetaCannotDependOn _ i ->
           ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
           ( typeError . GenericDocError =<<
-            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to")
+            fsep [ text "Cannot instantiate the metavariable"
+                 , prettyTCM m
+                 , "to"
                  , prettyTCM v
                  , "since universe polymorphism is disabled"
                  ]
           ) {- else -}
           ( typeError . GenericDocError =<<
-              fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+              fsep [ text "Cannot instantiate the metavariable"
+                   , prettyTCM m
+                   , "to solution"
                    , prettyTCM v
                    , "since it contains the variable"
                    , enterClosure cl $ \_ -> prettyTCM (Var i [])
@@ -405,13 +428,17 @@ occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
             )
         MetaIrrelevantSolution _ _ ->
           typeError . GenericDocError =<<
-            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+            fsep [ text "Cannot instantiate the metavariable"
+                 , prettyTCM m
+                 , "to solution"
                  , prettyTCM v
                  , "since (part of) the solution was created in an irrelevant context"
                  ]
         MetaErasedSolution _ _ ->
           typeError . GenericDocError =<<
-            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+            fsep [ text "Cannot instantiate the metavariable"
+                 , prettyTCM m
+                 , "to solution"
                  , prettyTCM v
                  , "since (part of) the solution was created in an erased context"
                  ]
@@ -437,7 +464,7 @@ instance Occurs Term where
         reportSDoc "tc.meta.occurs" 45 $
           text ("occursCheck " ++ prettyShow m ++ " (" ++ show (feFlexRig ctx) ++ ") of ") <+> prettyTCM v
         reportSDoc "tc.meta.occurs" 70 $
-          nest 2 $ text $ show v
+          nest 2 $ pretty v
         case v of
           Var i es   -> do
             allowed <- getAll . ($ unitModality) <$> variable i
@@ -469,7 +496,7 @@ instance Occurs Term where
             Def d <$> occDef d es
           Con c ci vs -> do
             definitionCheck (conName c)
-            Con c ci <$> occurs vs  -- if strongly rigid, remain so
+            Con c ci <$> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
           Pi a b      -> uncurry Pi <$> occurs (a,b)
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs s
           MetaV m' es -> do
@@ -596,6 +623,7 @@ instance Occurs Sort where
       SSet a     -> SSet <$> occurs a
       s@SizeUniv -> return s
       s@LockUniv -> return s
+      s@IntervalUniv -> return s
       UnivSort s -> UnivSort <$> do flexibly $ occurs s
       MetaS x es -> do
         MetaV x es <- occurs (MetaV x es)
@@ -616,6 +644,7 @@ instance Occurs Sort where
       SSet a     -> metaOccurs m a
       SizeUniv   -> return ()
       LockUniv   -> return ()
+      IntervalUniv -> return ()
       UnivSort s -> metaOccurs m s
       MetaS x es -> metaOccurs m $ MetaV x es
       DefS d es  -> metaOccurs m $ Def d es
@@ -828,6 +857,7 @@ instance AnyRigid Sort where
       SSet l     -> anyRigid f l
       SizeUniv   -> return False
       LockUniv   -> return False
+      IntervalUniv -> return False
       PiSort a s1 s2 -> return False
       FunSort s1 s2 -> return False
       UnivSort s -> anyRigid f s
@@ -881,7 +911,7 @@ killArgs :: (MonadMetaSolver m) => [Bool] -> MetaId -> m PruneResult
 killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   allowAssign <- asksTC envAssignMetas
   if mvFrozen mv == Frozen || not allowAssign then return PrunedNothing else do
       -- Andreas 2011-04-26, we allow pruning in MetaV and MetaS
@@ -1007,7 +1037,7 @@ performKill
   -> Type          -- ^ The pruned type of the new meta var.
   -> m ()
 performKill kills m a = do
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__
   -- Arity of the old meta.
   let n = size kills

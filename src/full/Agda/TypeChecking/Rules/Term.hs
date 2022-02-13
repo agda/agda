@@ -206,7 +206,7 @@ isType_ e = traceCall (IsType_ e) $ do
         , prettyTCM x
         , text $ " for interaction point " ++ show ii
         ]
-      mv <- lookupMeta x
+      mv <- lookupLocalMeta x
       let s0 = jMetaType . mvJudgement $ mv
       -- Andreas, 2016-10-14, issue #2257
       -- The meta was created in a context of length @n@.
@@ -491,11 +491,14 @@ checkLambda' cmp b xps typ body target = do
     trySeeingIfPath = do
       cubical <- optCubical <$> pragmaOptions
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xps
-      let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
+      let postpone' = if isJust cubical then postpone else \ _ _ -> dontUseTargetType
       ifBlocked target postpone' $ \ _ t -> do
-        ifPath t dontUseTargetType $ if cubical
+        ifPath t dontUseTargetType $ if isJust cubical
           then checkPath b body t
-          else genericError "Option --cubical needed to build a path with a lambda abstraction"
+          else genericError $ unwords
+                 [ "Option --cubical/--erased-cubical needed to build"
+                 , "a path with a lambda abstraction"
+                 ]
 
     postpone blocker tgt = flip postponeTypeCheckingProblem blocker $
       CheckExpr cmp (A.Lam A.exprNoRange (A.DomainFull b) body) tgt
@@ -591,15 +594,7 @@ lambdaIrrelevanceCheck dom info
   | otherwise = do
       let rPi  = getRelevance dom  -- relevance of function type
       let rLam = getRelevance info -- relevance of lambda
-        -- Andreas, 2017-01-24, issue #2429
-        -- we should report an error if we try to check a relevant function
-        -- against an irrelevant function type (subtyping violation)
-      unless (moreRelevant rPi rLam) $ do
-        -- @rLam == Relevant@ is impossible here
-        -- @rLam == Irrelevant@ is impossible here (least relevant)
-        -- this error can only happen if @rLam == NonStrict@ and @rPi == Irrelevant@
-        unless (rLam == NonStrict) __IMPOSSIBLE__  -- separate tests for separate line nums
-        unless (rPi == Irrelevant) __IMPOSSIBLE__
+      unless (sameRelevance rPi rLam) $
         typeError WrongIrrelevanceInLambda
       return info
 
@@ -614,7 +609,7 @@ lambdaQuantityCheck dom info
   | otherwise = do
       let qPi  = getQuantity dom  -- quantity of function type
       let qLam = getQuantity info -- quantity of lambda
-      unless (qPi `moreQuantity` qLam) $ do
+      unless (qPi `sameQuantity` qLam) $ do
         typeError WrongQuantityInLambda
       return info
 
@@ -745,8 +740,9 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
             [ ("Adding absurd function" <+> prettyTCM mod) <> prettyTCM aux
             , nest 2 $ "of type" <+> prettyTCM t'
             ]
+          lang <- getLanguage
           addConstant aux $
-            (\ d -> (defaultDefn (setModality mod info') aux t' d)
+            (\ d -> (defaultDefn (setModality mod info') aux t' lang d)
                     { defPolarity       = [Nonvariant]
                     , defArgOccurrences = [Unused] })
             $ emptyFunction
@@ -818,8 +814,10 @@ checkExtendedLambda cmp i di erased qname cs e t = do
        -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
        -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
        addConstant qname =<< do
+         lang <- getLanguage
          useTerPragma $
-           (defaultDefn info qname t emptyFunction) { defMutual = j }
+           (defaultDefn info qname t lang emptyFunction)
+             { defMutual = j }
        checkFunDef' t info NotDelayed (Just $ ExtLamInfo lamMod False empty) Nothing di qname $
          List1.toList cs
        whenNothingM (asksTC envMutualBlock) $
@@ -887,7 +885,7 @@ catchIlltypedPatternBlockedOnMeta m handle = do
     -- There might be metas in the blocker not known in the reset state, as they could have been
     -- created somewhere on the way to the type error.
     blocker <- (`onBlockingMetasM` blocker) $ \ x ->
-                lookupMeta' x >>= \ case
+                lookupMeta x >>= \ case
       -- Case: we do not know the meta, so cannot unblock.
       Nothing -> return neverUnblock
       -- Case: we know the meta here.
@@ -901,8 +899,10 @@ catchIlltypedPatternBlockedOnMeta m handle = do
       -- fact not very helpful. Yes there is no hope of solving the problem, but throwing a hard
       -- error means we rob the user of the tools needed to figure out why the meta has not been
       -- solved. Better to leave the constraint.
-      Just m | InstV{} <- mvInstantiation m -> return alwaysUnblock
-             | otherwise -> return $ unblockOnMeta x
+      Just Left{} -> return alwaysUnblock
+      Just (Right m)
+        | InstV{} <- mvInstantiation m -> return alwaysUnblock
+        | otherwise                    -> return $ unblockOnMeta x
 
     -- If it's not blocked or we can't ever unblock reraise the error.
     if blocker `elem` [neverUnblock, alwaysUnblock] then reraise else handle (err, blocker)
@@ -1255,11 +1255,11 @@ checkExpr' cmp e t =
         postponeTypeCheckingProblem (CheckExpr cmp e t) x
 
   where
-  -- | Call checkExpr with an hidden lambda inserted if appropriate,
-  --   else fallback.
+  -- Call checkExpr with an hidden lambda inserted if appropriate,
+  -- else fallback.
   tryInsertHiddenLambda
     :: A.Expr
-    -> Type      -- ^ Reduced.
+    -> Type      -- Reduced.
     -> TCM Term
     -> TCM Term
   tryInsertHiddenLambda e tReduced fallback
@@ -1340,7 +1340,8 @@ doQuoteTerm cmp et t = do
 -- | Unquote a TCM computation in a given hole.
 unquoteM :: A.Expr -> Term -> Type -> TCM ()
 unquoteM tacA hole holeType = do
-  tac <- checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+  tac <- applyQuantityToContext zeroQuantity $
+    checkExpr tacA =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
   inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType
 
 -- | Run a tactic `tac : Term → TC ⊤` in a hole (second argument) of the type
@@ -1354,10 +1355,10 @@ unquoteTactic tac hole goal = do
   case ok of
     Left (BlockedOnMeta oldState blocker) -> do
       putTC oldState
-      let stripFreshMeta x = maybe neverUnblock (const $ unblockOnMeta x) <$> lookupMeta' x
+      let stripFreshMeta x = maybe neverUnblock (const $ unblockOnMeta x) <$> lookupLocalMeta' x
       blocker' <- onBlockingMetasM stripFreshMeta blocker
       r <- case Set.toList $ allBlockingMetas blocker' of
-            x : _ -> getRange <$> lookupMeta' x
+            x : _ -> getRange <$> lookupLocalMeta' x
             []    -> return noRange
       setCurrentRange r $
         addConstraint blocker' (UnquoteTactic tac hole goal)
@@ -1571,7 +1572,7 @@ isModuleFreeVar i = do
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
 --   arguments.  Otherwise, leave the type polymorphic.
 inferExprForWith :: Arg A.Expr -> TCM (Term, Type)
-inferExprForWith (Arg info e) =
+inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForWith" $
   applyRelevanceToContext (getRelevance info) $ do
     reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
     reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)

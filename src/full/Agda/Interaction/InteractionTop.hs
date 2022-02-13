@@ -15,6 +15,7 @@ import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM.TVar
 import qualified Control.Exception as E
 import Control.Monad.Except
+import Control.Monad.Fail (MonadFail)
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State hiding (state)
@@ -222,7 +223,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
       put s'
       return x
 
-    -- | Handle every possible kind of error (#637), except for
+    -- Handle every possible kind of error (#637), except for
     -- AsyncCancelled, which is used to abort Agda.
     handleNastyErrors :: CommandM () -> CommandM ()
     handleNastyErrors m = commandMToIO $ \ toIO -> do
@@ -241,7 +242,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         Right x -> return x
         Left e  -> E.throwIO e
 
-    -- | Displays an error and instructs Emacs to jump to the site of the
+    -- Displays an error and instructs Emacs to jump to the site of the
     -- error. Because this function may switch the focus to another file
     -- the status information is also updated.
     handleErr method e = do
@@ -363,14 +364,12 @@ maybeAbort m = do
           return (Command Nothing)
   where
 
-  -- | Returns if the currently executing command should be aborted.
+  -- Returns if the currently executing command should be aborted.
   -- The "abort number" is returned.
 
   waitForAbort
-    :: Integer
-       -- ^ The number of the currently executing command.
-    -> CommandQueue
-       -- ^ The command queue.
+    :: Integer       -- The number of the currently executing command.
+    -> CommandQueue  -- The command queue.
     -> IO Integer
   waitForAbort n q = do
     atomically $ do
@@ -379,7 +378,7 @@ maybeAbort m = do
         Just a' | n <= a' -> return a'
         _                 -> retry
 
-  -- | Removes every command for which the command number is at most
+  -- Removes every command for which the command number is at most
   -- the given number (the "abort number") from the command queue.
   --
   -- New commands could be added to the end of the queue while this
@@ -508,7 +507,7 @@ interpret (Cmd_compile backend file argv) =
           QuickLaTeX               -> callBackend "LaTeX" IsMain checkResult
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain checkResult
-        display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
+        display_info . Info_CompilationOk backend =<< lift B.getWarningsAndNonFatalErrors
       w@(_:_) -> display_info $ Info_Error $ Info_CompilationError w
   where
   allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
@@ -664,7 +663,7 @@ interpret (Cmd_refine ii rng s) = give_gen WithoutForce ii rng s Refine
 
 interpret (Cmd_intro pmLambda ii rng _) = do
   ss <- lift $ B.introTactic pmLambda ii
-  liftCommandMT (B.withInteractionId ii) $ case ss of
+  liftCommandMT (withInteractionId ii) $ case ss of
     []    -> do
       display_info $ Info_Intro_NotFound
     [s]   -> give_gen WithoutForce ii rng s Intro
@@ -730,27 +729,18 @@ interpret (Cmd_context norm ii _ _) =
 
 interpret (Cmd_helper_function norm ii rng s) = do
   -- Create type of application of new helper function that would solve the goal.
-  helperType <- liftLocalState $ B.withInteractionId ii $ inTopContext $ B.metaHelperType norm ii rng s
+  helperType <- liftLocalState $ withInteractionId ii $ inTopContext $ B.metaHelperType norm ii rng s
   display_info $ Info_GoalSpecific ii (Goal_HelperFunction helperType)
 
 interpret (Cmd_infer norm ii rng s) = do
-  expr <- liftLocalState $ B.withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+  expr <- liftLocalState $ withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
   display_info $ Info_GoalSpecific ii (Goal_InferredType expr)
 
 interpret (Cmd_goal_type norm ii _ _) =
   display_info $ Info_GoalSpecific ii (Goal_CurrentGoal norm)
 
-interpret (Cmd_elaborate_give norm ii rng s) = do
-  have <- liftLocalState $ B.withInteractionId ii $ do
-    expr <- B.parseExprIn ii rng s
-    goal <- B.typeOfMeta AsIs ii
-    term <- case goal of
-      OfType _ ty -> checkExpr expr =<< isType_ ty
-      _           -> __IMPOSSIBLE__
-    nf <- B.normalForm norm term
-    txt <- localTC (\ e -> e { envPrintMetasBare = True }) (TCP.prettyTCM nf)
-    return $ show txt
-  give_gen WithoutForce ii rng have ElaborateGive
+interpret (Cmd_elaborate_give norm ii rng s) =
+  give_gen WithoutForce ii rng s $ ElaborateGive norm
 
 interpret (Cmd_goal_type_context norm ii rng s) =
   cmd_goal_type_context_and GoalOnly norm ii rng s
@@ -763,13 +753,13 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
             then return GoalOnly
             else do
               typ <- liftLocalState
-                    $ B.withInteractionId ii
+                    $ withInteractionId ii
                     $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
               return (GoalAndHave typ)
   cmd_goal_type_context_and aux norm ii rng s
 
 interpret (Cmd_goal_type_context_check norm ii rng s) = do
-  term <- liftLocalState $ B.withInteractionId ii $ do
+  term <- liftLocalState $ withInteractionId ii $ do
     expr <- B.parseExprIn ii rng s
     goal <- B.typeOfMeta AsIs ii
     term <- case goal of
@@ -779,17 +769,17 @@ interpret (Cmd_goal_type_context_check norm ii rng s) = do
   cmd_goal_type_context_and (GoalAndElaboration term) norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
-  liftCommandMT (B.withInteractionId ii) $ showModuleContents norm rng s
+  liftCommandMT (withInteractionId ii) $ showModuleContents norm rng s
 
 interpret (Cmd_why_in_scope_toplevel s) =
   atTopLevel $ whyInScope s
 
 interpret (Cmd_why_in_scope ii _range s) =
-  liftCommandMT (B.withInteractionId ii) $ whyInScope s
+  liftCommandMT (withInteractionId ii) $ whyInScope s
 
 interpret (Cmd_make_case ii rng s) = do
   (f, casectxt, cs) <- lift $ makeCase ii rng s
-  liftCommandMT (B.withInteractionId ii) $ do
+  liftCommandMT (withInteractionId ii) $ do
     tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
     unicode <- getsTC $ optUseUnicode . getPragmaOptions
     pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyA cs
@@ -832,7 +822,7 @@ interpret (Cmd_make_case ii rng s) = do
 interpret (Cmd_compute cmode ii rng s) = do
   expr <- liftLocalState $ do
     e <- B.parseExprIn ii rng $ B.computeWrapInput cmode s
-    B.withInteractionId ii $ applyWhen (B.computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent cmode e
+    withInteractionId ii $ applyWhen (B.computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent cmode e
   display_info $ Info_GoalSpecific ii (Goal_NormalForm cmode expr)
 
 interpret Cmd_show_version = display_info Info_Version
@@ -853,7 +843,7 @@ solveInstantiatedGoals norm mii = do
   putResponse $ Resp_SolveAll out
   where
       prt (i, m, e) = do
-        mi <- getMetaInfo <$> lookupMeta m
+        mi <- getMetaInfo <$> lookupLocalMeta m
         e' <- withMetaInfo mi $ abstractToConcreteCtx TopCtx e
         return (i, e')
 
@@ -952,7 +942,7 @@ atTopLevel cmd = liftCommandMT B.atTopLevel cmd
 ---------------------------------------------------------------------------
 -- Giving, refining.
 
-data GiveRefine = Give | Refine | Intro | ElaborateGive
+data GiveRefine = Give | Refine | Intro | ElaborateGive Rewrite
   deriving (Eq, Show)
 
 -- | A "give"-like action (give, refine, etc).
@@ -972,28 +962,28 @@ give_gen
   -> CommandM ()
 give_gen force ii rng s0 giveRefine = do
   let s = trim s0
-  lift $ reportSLn "interaction.give" 20 $ "give_gen  " ++ s
+  reportSLn "interaction.give" 20 $ "give_gen  " ++ s
   -- Andreas, 2015-02-26 if string is empty do nothing rather
   -- than giving a parse error.
   unless (null s) $ do
     let give_ref =
           case giveRefine of
-            Give          -> B.give
-            Refine        -> B.refine
-            Intro         -> B.refine
-            ElaborateGive -> B.give
+            Give               -> B.give
+            Refine             -> B.refine
+            Intro              -> B.refine
+            ElaborateGive norm -> B.elaborate_give norm
     -- save scope of the interaction point (for printing the given expr. later)
-    scope     <- lift $ getInteractionScope ii
+    scope     <- getInteractionScope ii
     -- parse string and "give", obtaining an abstract expression
     -- and newly created interaction points
-    (time, (ae, ae0, iis)) <- maybeTimed $ lift $ do
+    (time, (ae, ae0, iis)) <- maybeTimed $ do
         -- Issue 3000: mark the current hole as solved before giving, to avoid confusing it with potential
         -- new interaction points introduced by the give.
         removeInteractionPoint ii
         mis  <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
-        given <- B.parseExprIn ii rng s
-        ae    <- give_ref force ii Nothing given
+        given <- lift $ B.parseExprIn ii rng s
+        ae    <- lift $ give_ref force ii Nothing given
         mis' <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
         return (ae, given, mis' List.\\ mis)
@@ -1001,11 +991,11 @@ give_gen force ii rng s0 giveRefine = do
     insertOldInteractionScope ii scope
     -- sort the new interaction points and put them into the state
     -- in replacement of the old interaction point
-    iis' <- lift $ sortInteractionPoints iis
+    iis' <- sortInteractionPoints iis
     modifyTheInteractionPoints $ replace ii iis'
     -- print abstract expr
-    ce        <- lift $ abstractToConcreteScope scope ae
-    lift $ reportS "interaction.give" 30
+    ce        <- abstractToConcreteScope scope ae
+    reportS "interaction.give" 30
       [ "ce = " ++ show ce
       , "scopePrecedence = " ++ show (scope ^. scopePrecedence)
       ]
@@ -1018,22 +1008,22 @@ give_gen force ii rng s0 giveRefine = do
     -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
     -- Ulf, 2015-03-30, if we're doing intro we can't do literal give since
     -- there is nothing in the hole (issue 1892).
-    let literally = giveRefine /= Intro && giveRefine /= ElaborateGive && ae == ae0 && rng /= noRange
+    let literally = (giveRefine == Give || giveRefine == Refine) && ae == ae0 && rng /= noRange
     -- Ulf, 2014-01-24: This works for give since we're highlighting the string
     -- that's already in the buffer. Doing it before the give action means that
     -- the highlighting is moved together with the text when the hole goes away.
     -- To make it work for refine we'd have to adjust the ranges.
-    when literally $ lift $ do
+    when literally $ do
       l <- asksTC envHighlightingLevel
-      when (l /= None) $ do
+      when (l /= None) $ lift $ do
         printHighlightingInfo KeepHighlighting =<<
           generateTokenInfoFromString rng s
         highlightExpr ae
     putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
-    lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
+    reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
     -- display new goal set (if not measuring time)
     maybe (interpret $ Cmd_metas AsIs) (display_info . Info_Time) time
-    lift $ reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
+    reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
   where
     -- Substitutes xs for x in ys.
     replace x xs ys = concatMap (\ y -> if y == x then xs else [y]) ys
@@ -1056,7 +1046,9 @@ highlightExpr e =
 
 -- | Sorts interaction points based on their ranges.
 
-sortInteractionPoints :: [InteractionId] -> TCM [InteractionId]
+sortInteractionPoints
+  :: (MonadInteractionPoints m, MonadError TCErr m, MonadFail m)
+  => [InteractionId] -> m [InteractionId]
 sortInteractionPoints is =
   map fst . List.sortBy (compare `on` snd) <$> do
     forM is $ \ i -> do

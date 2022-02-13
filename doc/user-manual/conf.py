@@ -24,7 +24,7 @@ copyright = u'''2005–2021 remains with the authors.'''
 author = u'The Agda Team'
 
 # The short X.Y version
-version = '2.6.2'
+version = '2.6.3'
 # The full version, including alpha/beta/rc tags
 release = version
 

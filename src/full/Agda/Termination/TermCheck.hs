@@ -255,7 +255,7 @@ termMutual' = do
        -- could be turned into actual splits, because no-confusion
        -- would make the other cases impossible, so I do not disable
        -- this for --without-K entirely.
-       ifM (optCubical <$> pragmaOptions) (return r) {- else -} $
+       ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $
        case r of
          r@Right{} -> return r
          Left{}    -> do
@@ -461,11 +461,6 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
 
         _ -> return empty
   where
-    hasDefP :: [NamedArg DeBruijnPattern] -> Bool
-    hasDefP ps = getAny $ flip foldPattern ps $ \ (x :: DeBruijnPattern) ->
-                  case x of
-                    DefP{} -> Any True
-                    _      -> Any False
 
 
 -- | Collect calls in type signature @f : (x1:A1)...(xn:An) -> B@.
@@ -686,6 +681,7 @@ instance ExtractCalls Sort where
       Inf f n    -> return empty
       SizeUniv   -> return empty
       LockUniv   -> return empty
+      IntervalUniv -> return empty
       Type t     -> terUnguarded $ extract t  -- no guarded levels
       Prop t     -> terUnguarded $ extract t
       SSet t     -> terUnguarded $ extract t

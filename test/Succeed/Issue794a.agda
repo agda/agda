@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module Issue794a where
 
 open import Common.Prelude

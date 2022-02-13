@@ -2,6 +2,49 @@
 
 module Generalize where
 
+open import Agda.Primitive
+
+-- Generalization in definitions
+
+module Definitions where
+
+  variable
+    ℓ : Level
+    A B C : Set ℓ
+    A₀ B₀  : Set
+    a b c : A
+
+  -- Function signature
+
+  id : A → A
+  id x = x
+
+  -- Module signature
+  module M (a : A) where
+    identity = a
+
+  -- Data parameters and constructors
+
+  data Eq (a : A) : A → Setω where
+    refl  : Eq a a
+    trans : Eq a b → Eq b c → Eq a c
+
+  record R (a : A) : Set₁ where
+    field
+      fld : B₀
+
+    open M a
+
+    alias = fld
+
+    K : B → C → B
+    K x _ = x
+
+    field
+      fld₁ : B₀
+
+-- Original content (postulates only)
+
 data _≡_ {ℓ}{A : Set ℓ} (x : A) : A → Set ℓ where
   refl : x ≡ x
 

@@ -16,6 +16,8 @@ import Agda.Syntax.Concrete.Definitions.Errors
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Lens
 
+import Agda.Utils.Impossible
+
 -- | Nicifier monad.
 --   Preserve the state when throwing an exception.
 
@@ -155,7 +157,7 @@ loneFuns = map (second loneSigName) . filter (isFunName . loneSigKind . snd) . M
 -- | Create a 'LoneSigs' map from an association list.
 
 loneSigsFromLoneNames :: [(Range, Name, DataRecOrFun)] -> LoneSigs
-loneSigsFromLoneNames = Map.fromList . map (\(r,x,k) -> (x, LoneSig r x k))
+loneSigsFromLoneNames = Map.fromListWith __IMPOSSIBLE__ . map (\(r,x,k) -> (x, LoneSig r x k))
 
 -- | Lens for field '_termChk'.
 

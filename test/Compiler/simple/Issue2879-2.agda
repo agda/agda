@@ -1,3 +1,5 @@
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.IO
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Size

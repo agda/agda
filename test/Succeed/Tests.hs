@@ -13,12 +13,12 @@ import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
   (readFileMaybe, goldenTestIO1, GDiff (..), GShow (..))
+import Test.Tasty.Silver.Filter ( RegexFilter( RFInclude ) )
 
 import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO.Temp
-import System.PosixCompat.Files (touchFile)
 
 import Utils
 
@@ -34,9 +34,17 @@ tests = do
 
   return $ testGroup "Succeed" tests'
   where
-  -- Andreas, 2020-10-19, work around issue #4940:
-  -- Put @ExecAgda@ last.
-  reorder = uncurry (++) . List.partition (("ExecAgda" /=) . dropAgdaExtension)
+  reorder = id
+  -- -- Andreas, 2020-10-19, work around issue #4940:
+  -- -- Put @ExecAgda@ last.
+  -- reorder = uncurry (++) . List.partition (not . ("ExecAgda" `List.isInfixOf`))
+
+-- | Tests that get special preparation from the Makefile.
+makefileDependentTests :: [RegexFilter]
+makefileDependentTests =
+  [ disable "Succeed/ExecAgda"
+  ]
+  where disable = RFInclude
 
 data TestResult
   = TestSuccess
@@ -50,7 +58,13 @@ mkSucceedTest
   -> FilePath -- ^ Input file (an Agda file).
   -> TestTree
 mkSucceedTest extraOpts dir agdaFile =
-  goldenTestIO1 testName readGolden (printTestResult <$> doRun) resDiff resShow updGolden
+  goldenTestIO1
+    testName
+    readGolden
+    (printTestResult <$> doRun)
+    (textDiffWithTouch agdaFile)
+    (return . ShowText)
+    updGolden
   where
   testName = asTestName dir agdaFile
   baseName = dropAgdaExtension agdaFile
@@ -71,12 +85,15 @@ mkSucceedTest extraOpts dir agdaFile =
   doRun = do
 
     let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/", agdaFile
-                   , "--no-libraries"
                    , "-vimpossible:10" -- BEWARE: no spaces allowed here
                    , "-vwarning:1"
                    , "--double-check"
-                   ]
-                     ++ extraOpts
+                   ] ++
+                   [ if testName == "Issue481"
+                     then "--no-default-libraries"
+                     else "--no-libraries"
+                   ] ++
+                   extraOpts
 
     (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile) (Just varFile)
 
@@ -97,21 +114,6 @@ mkSucceedTest extraOpts dir agdaFile =
           then TestSuccessWithWarnings $ stdOut res -- TODO: distinguish log vs. warn?
           else TestSuccess
       AgdaFailure{} -> return $ TestUnexpectedFail res
-
-  resDiff :: T.Text -> T.Text -> IO GDiff
-  resDiff t1 t2
-    | T.words t1 == T.words t2 = return Equal
-    | otherwise = do
-        -- Andreas, 2020-06-09, issue #4736
-        -- If the output has changed, the test case is "interesting"
-        -- regardless of whether the golden value is updated or not.
-        -- Thus, we touch the agdaFile to have it sorted up in the next
-        -- test run.
-        touchFile agdaFile
-        return $ DiffText Nothing t1 t2
-
-resShow :: T.Text -> IO GShow
-resShow = return . ShowText
 
 printTestResult :: TestResult -> T.Text
 printTestResult = \case

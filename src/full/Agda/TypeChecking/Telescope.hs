@@ -100,7 +100,7 @@ teleDoms tel = zipWith (\ i dom -> deBruijnVar i <$ dom) (downFrom $ size l) l
 --   | (x, Dom {domInfo = info, unDom = (name,_)}) <- zip xs l ]
 --   where l = telToList tel
 
-teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
+teleNamedArgs :: (DeBruijn a) => Tele (Dom t) -> [NamedArg a]
 teleNamedArgs = map namedArgFromDom . teleDoms
 
 -- | A variant of `teleNamedArgs` which takes the argument names (and the argument info)
@@ -335,15 +335,16 @@ expandTelescopeVar
      , PatternSubstitution) -- Γ' ⊢ ρ : Γ
 expandTelescopeVar gamma k delta c = (tel', rho)
   where
-    (ts1,a:ts2) = fromMaybe __IMPOSSIBLE__ $
+    (ts1,xa:ts2) = fromMaybe __IMPOSSIBLE__ $
                     splitExactlyAt k $ telToList gamma
+    a = raise (size delta) (snd <$> xa) -- Γ₁Δ ⊢ D pars
 
     cpi         = ConPatternInfo
       { conPInfo   = defaultPatternInfo
       , conPRecord = True
       , conPFallThrough
                    = False
-      , conPType   = Just $ snd <$> argFromDom a
+      , conPType   = Just $ argFromDom a
       , conPLazy   = True
       }
     cargs       = map (setOrigin Inserted) $ teleNamedArgs delta
@@ -491,12 +492,12 @@ pathViewAsPi'whnf
   => m (Type -> Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi'whnf = do
   view <- pathView'
-  minterval  <- getBuiltin' builtinInterval
+  minterval  <- getTerm' builtinInterval
   return $ \ t -> case view t of
     PathType s l p a x y | Just interval <- minterval ->
       let name | Lam _ (Abs n _) <- unArg a = n
                | otherwise = "i"
-          i = El (SSet $ ClosedLevel 0) interval
+          i = El intervalSort interval
       in
         Left $ ((defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]), (unArg x, unArg y))
 

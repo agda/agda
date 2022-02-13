@@ -3,6 +3,8 @@
 
 -- {-# OPTIONS -v tc.pos:10 -v tc.polarity:20 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 open import Common.Prelude
 

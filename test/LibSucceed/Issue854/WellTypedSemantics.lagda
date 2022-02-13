@@ -3,6 +3,8 @@
 
 \AgdaHide{
 \begin{code}
+{-# OPTIONS --sized-types #-}
+
 module Issue854.WellTypedSemantics where
 
 open import Level using (lower)

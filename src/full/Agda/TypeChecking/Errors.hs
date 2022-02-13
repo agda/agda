@@ -290,9 +290,13 @@ dropTopLevelModule :: QName -> TCM QName
 dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 
 -- | Produces a function which drops the filename component of the qualified name.
-topLevelModuleDropper :: (MonadTCEnv m, ReadTCState m) => m (QName -> QName)
+topLevelModuleDropper :: (MonadDebug m, MonadTCEnv m, ReadTCState m) => m (QName -> QName)
 topLevelModuleDropper = do
   caseMaybeM (asksTC envCurrentPath) (return id) $ \ f -> do
+  reportSDoc "err.dropTopLevel" 60 $ vcat
+    [ "current path =" <+> (text . filePath) f
+    , "moduleToSource =" <+> do text . show =<< useR stModuleToSource
+    ]
   m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
   return $ dropTopLevelModule' $ size m
 
@@ -1001,14 +1005,14 @@ instance PrettyTCM TypeError where
                sortBy (compare `on` prettyShow . notaName . sectNotation) $
                filter (not . closedWithoutHoles) sects))
       where
-      trimLeft  = dropWhile isNormalHole
-      trimRight = dropWhileEnd isNormalHole
+      trimLeft  = dropWhile isAHole
+      trimRight = dropWhileEnd isAHole
 
       closedWithoutHoles sect =
         sectKind sect == NonfixNotation
           &&
-        null [ () | NormalHole {} <- trimLeft $ trimRight $
-                                       notation (sectNotation sect) ]
+        null [ () | HolePart{} <- trimLeft $ trimRight $
+                                    notation (sectNotation sect) ]
 
       prettyName n = Boxes.text $
         P.render (P.pretty n) ++

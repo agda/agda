@@ -13,16 +13,20 @@ import Data.Bits (finiteBitSize)
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Monoid
-import Data.List
+import Data.List (isPrefixOf)
 import System.Directory
 import System.IO.Temp
 import System.FilePath
 import System.Environment
 import System.Exit
+import qualified System.Process as P
 import System.Process.Text as PT
 
 import Control.Monad (forM)
 import Data.Maybe
+import Text.Read
+
+import Agda.Utils.List
 
 type GHCArgs = [String]
 
@@ -38,7 +42,10 @@ data ExecResult
 data CodeOptimization = NonOptimized | Optimized | MinifiedOptimized
   deriving (Show, Read, Eq)
 
-data Compiler = MAlonzo | JS CodeOptimization
+data Strict = Strict | StrictData | Lazy
+  deriving (Show, Read, Eq)
+
+data Compiler = MAlonzo Strict | JS CodeOptimization
   deriving (Show, Read, Eq)
 
 data CompilerOptions
@@ -54,7 +61,9 @@ data TestOptions
     } deriving (Show, Read)
 
 allCompilers :: [Compiler]
-allCompilers = [MAlonzo] ++ map JS [NonOptimized, Optimized, MinifiedOptimized]
+allCompilers =
+  map MAlonzo [Lazy, StrictData, Strict] ++
+  map JS [NonOptimized, Optimized, MinifiedOptimized]
 
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
@@ -77,7 +86,7 @@ disabledTests =
     -----------------------------------------------------------------------------
     -- The test case for #2918 stopped working when inlining of
     -- recursive pattern-matching lambdas was disabled.
-  , disable "Compiler/MAlonzo/simple/Issue2918$"
+  , disable "Compiler/MAlonzo_.*/simple/Issue2918$"
     -----------------------------------------------------------------------------
     -- The following test cases fail (at least at the time of writing)
     -- for the JS backend.
@@ -101,10 +110,30 @@ disabledTests =
   ]
   where disable = RFInclude
 
+-- | Filtering out compiler tests using the Agda standard library.
+
+stdlibTestFilter :: [RegexFilter]
+stdlibTestFilter =
+  [ disable "Compiler/.*/with-stdlib"
+  ]
+  where disable = RFInclude
+
 tests :: IO TestTree
 tests = do
-  nodeBin <- findExecutable "node"
-  let enabledCompilers = [MAlonzo] ++ [JS opt | isJust nodeBin, opt <- [NonOptimized, Optimized, MinifiedOptimized]]
+  nodeBin    <- findExecutable "node"
+  ghcVersion <- findGHCVersion
+  let ghcVersionAtLeast9 = case ghcVersion of
+        Just (n : _) | n >= 9 -> True
+        _                     -> False
+      enabledCompilers =
+        [ MAlonzo s
+        | s <- [Lazy, StrictData] ++
+               if ghcVersionAtLeast9 then [Strict] else []
+        ] ++
+        [ JS opt
+        | isJust nodeBin
+        , opt <- [NonOptimized, Optimized, MinifiedOptimized]
+        ]
   _ <- case nodeBin of
     Nothing -> putStrLn "No JS node binary found, skipping JS tests."
     Just n -> putStrLn $ "Using JS node binary at " ++ n
@@ -134,7 +163,8 @@ simpleTests comp = do
   return $ testGroup "simple" $ catMaybes tests'
 
   where compArgs :: Compiler -> AgdaArgs
-        compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision"]
+        compArgs MAlonzo{} =
+          ghcArgsAsAgdaArgs ["-itest/", "-fno-excess-precision"]
         compArgs JS{} = []
 
 -- The Compiler tests using the standard library are horribly
@@ -170,9 +200,9 @@ stdlibTests comp = do
 
 
 specialTests :: Compiler -> IO (Maybe TestTree)
-specialTests MAlonzo = do
+specialTests c@MAlonzo{} = do
   let t = fromJust $
-            agdaRunProgGoldenTest1 testDir MAlonzo (return extraArgs)
+            agdaRunProgGoldenTest1 testDir c (return extraArgs)
               (testDir </> "ExportTestAgda.agda") defaultOptions cont
 
   return $ Just $ testGroup "special" [t]
@@ -227,7 +257,7 @@ agdaRunProgGoldenTest1 :: FilePath     -- ^ directory where to run the tests.
     -> Maybe TestTree
 agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
   | (Just cOpts) <- lookup comp (forCompilers opts) =
-      Just $ goldenVsAction testName goldenFile (doRun cOpts) printExecResult
+      Just $ goldenVsAction' testName goldenFile (doRun cOpts) printExecResult
   | otherwise = Nothing
   where goldenFile = dropAgdaExtension inp <.> ".out"
         testName   = asTestName dir inp
@@ -255,7 +285,10 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           )
 
         argsForComp :: Compiler -> [String]
-        argsForComp MAlonzo = [ "--compile" ]
+        argsForComp (MAlonzo s) = [ "--compile" ] ++ case s of
+          Lazy       -> []
+          StrictData -> ["--ghc-strict-data"]
+          Strict     -> ["--ghc-strict"]
         argsForComp (JS o)  = [ "--js", "--js-verify" ] ++ case o of
           NonOptimized      -> []
           Optimized         -> [ "--js-optimize" ]
@@ -294,3 +327,19 @@ printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r)    = "COMPILE_FAILED\n\n"    <> printProgramResult r
 printExecResult (CompileSucceeded r) = "COMPILE_SUCCEEDED\n\n" <> printProgramResult r
 printExecResult (ExecutedProg r)     = "EXECUTED_PROGRAM\n\n"  <> printProgramResult r
+
+-- | Tries to figure out the version of the program @ghc@ (if such a
+-- program can be found).
+
+findGHCVersion :: IO (Maybe [Integer])
+findGHCVersion = do
+  (code, version, _) <-
+    P.readProcessWithExitCode "ghc" ["--numeric-version"] ""
+  case code of
+    ExitFailure{} -> return Nothing
+    ExitSuccess   -> return $
+      sequence $
+      concat $
+      map (map readMaybe . wordsBy (== '.')) $
+      take 1 $
+      lines version

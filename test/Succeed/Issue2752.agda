@@ -2,6 +2,8 @@
 --
 -- Problem was: instance does not distribute into mutual blocks.
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.List
 open import Agda.Builtin.Size
 

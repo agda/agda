@@ -147,7 +147,7 @@ data Parsers e = Parsers
   , flattenedScope :: FlatScope
     -- ^ A flattened scope that only contains those names that are
     -- unqualified or qualified by qualifiers that occur in the list
-    -- of names given to 'buildParser'.
+    -- of names given to 'buildParsers'.
   }
 
 -- | Builds parsers for operator applications from all the operators
@@ -181,7 +181,9 @@ buildParsers
 buildParsers kind exprNames = do
     flat         <- flattenScope (qualifierModules exprNames) <$>
                       getScope
-    (names, ops) <- localNames flat
+    (names, ops0) <- localNames flat
+    let ops | kind == IsPattern = filter (not . isLambdaNotation) ops0
+            | otherwise         = ops0
 
     let -- All names.
         namesInExpr :: Set QName
@@ -224,9 +226,9 @@ buildParsers kind exprNames = do
           Trie.member (addHole withHole p) partListsInExpr
           where
           p = case n of
-            NormalHole{} : IdPart p : _ -> rangedThing p
-            IdPart p : _                -> rangedThing p
-            _                           -> __IMPOSSIBLE__
+            HolePart{} : IdPart p : _ -> rangedThing p
+            IdPart p : _              -> rangedThing p
+            _                         -> __IMPOSSIBLE__
 
         -- Is the last identifier part present in n present in the
         -- expression, without any succeeding name parts, except for a
@@ -235,11 +237,11 @@ buildParsers kind exprNames = do
           Trie.member (addHole withHole p) reversedPartListsInExpr
           where
           p = case reverse n of
-            NormalHole{} : IdPart p : _ -> rangedThing p
-            IdPart p : _                -> rangedThing p
-            _                           -> __IMPOSSIBLE__
+            HolePart{} : IdPart p : _ -> rangedThing p
+            IdPart p : _              -> rangedThing p
+            _                         -> __IMPOSSIBLE__
 
-        -- | Are the initial and final identifier parts present with
+        -- Are the initial and final identifier parts present with
         -- the right mix of leading and trailing underscores?
         correctUnderscores :: Bool -> Bool -> Notation -> Bool
         correctUnderscores withInitialHole withFinalHole n =
@@ -433,16 +435,13 @@ buildParsers kind exprNames = do
              &&
           fixityAssoc (notaFixity (sectNotation s)) == ass
 
-        mkP :: PrecedenceKey
-               -- ^ Memoisation key.
+        mkP :: PrecedenceKey  -- Memoisation key.
             -> ParseSections
             -> Parser e e
             -> [NotationSection]
-            -> Parser e e
-               -- ^ A parser for an expression of higher precedence.
-            -> Bool
-               -- ^ Include the \"expression of higher precedence\"
-               -- parser as one of the choices?
+            -> Parser e e  -- A parser for an expression of higher precedence.
+            -> Bool  -- Include the \"expression of higher precedence\"
+                     -- parser as one of the choices?
             -> Parser e e
         mkP key parseSections p0 ops higher includeHigher =
             memoise (NodeK key) $
@@ -785,7 +784,7 @@ appView = loop []
   loop acc = \case
     AppP p a         -> loop (namedArg a : acc) p
     OpAppP _ op _ ps -> (IdentP op :| fmap namedArg ps)
-                          `List1.append`
+                          `List1.appendList`
                         reverse acc
     ParenP _ p       -> loop acc p
     RawAppP _ _      -> __IMPOSSIBLE__

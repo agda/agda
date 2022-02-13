@@ -2,6 +2,8 @@
 -- Record modules for no-eta records should not be irrelevant in
 -- record even if all fields are irrelevant (cc #392).
 
+{-# OPTIONS --guardedness #-}
+
 open import Agda.Builtin.Equality
 
 postulate A : Set

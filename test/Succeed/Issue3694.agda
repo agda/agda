@@ -1,3 +1,4 @@
+{-# OPTIONS --sized-types #-}
 
 import Agda.Builtin.Size
 

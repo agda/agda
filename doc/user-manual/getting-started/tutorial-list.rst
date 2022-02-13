@@ -78,39 +78,42 @@ Courses using Agda
   Material for a 3rd / 4th year course (g53cfr, g54 cfr) at the university of Nottingham 2010 by Thorsten Altenkirch
 - `Type Theory in Rosario <http://www.cs.nott.ac.uk/~psztxa/rosario/>`__
   Material for an Agda course in Rosario, Argentina in 2011 by  Thorsten Altenkirch
-- `Software System Design and Implementation <http://www.cse.unsw.edu.au/~cs3141/>`__
-  , undergrad(?) course at the University of New South Wales by Manuel Chakravarty.
-- `Tüübiteooria / Type Theory <https://courses.cs.ut.ee/2011/typet/Main/HomePage>`__
-  , graduate course at the University of Tartu by Varmo Vene and James Chapman.
-- `Advanced Topics in Programming Languages: Dependent Type Systems <https://www.seas.upenn.edu/~sweirich/cis670/09/>`__
-  , course at the University of Pennsylvania by Stephanie Weirich.
-- `Categorical Logic <https://www.cl.cam.ac.uk/teaching/0910/L20/>`__
-  , course at the University of Cambridge by Samuel Staton.
-- `Dependently typed functional languages <http://www1.eafit.edu.co/asr/courses/dependently-typed-functional-languages/>`_
-  , master level course at EAFIT University by Andrés Sicard-Ramírez.
-- `Introduction to Dependently Typed Programming using Agda <https://github.com/mietek/agda-intro>`__
-  , research level course at the University of Edinburgh by Conor McBride.
-- `Agda <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__
-  , introductory course for master students at ELTE Eötvös Collegium in Budapest by Péter Diviánszky and Ambrus Kaposi.
-- `Types for Programs and Proofs <http://www.cse.chalmers.se/edu/course/DAT140/>`__
-  , course at Chalmers University of Technology.
+- `Software System Design and Implementation <http://www.cse.unsw.edu.au/~cs3141/>`__,
+  undergrad(?) course at the University of New South Wales by Manuel Chakravarty.
+- `Tüübiteooria / Type Theory <https://courses.cs.ut.ee/2011/typet/Main/HomePage>`__,
+  graduate course at the University of Tartu by Varmo Vene and James Chapman.
+- `Advanced Topics in Programming Languages: Dependent Type Systems <https://www.seas.upenn.edu/~sweirich/cis670/09/>`__,
+  course at the University of Pennsylvania by Stephanie Weirich.
+- `Categorical Logic <https://www.cl.cam.ac.uk/teaching/0910/L20/>`__,
+  course at the University of Cambridge by Samuel Staton.
+- `Dependently typed functional languages <http://www1.eafit.edu.co/asr/courses/dependently-typed-functional-languages/>`_,
+  master level course at EAFIT University by Andrés Sicard-Ramírez.
+- `Introduction to Dependently Typed Programming using Agda <https://github.com/mietek/agda-intro>`__,
+  research level course at the University of Edinburgh by Conor McBride.
+- `Agda <https://people.inf.elte.hu/divip/AgdaTutorial/Index.html>`__,
+  introductory course for master students at ELTE Eötvös Collegium in Budapest by Péter Diviánszky and Ambrus Kaposi.
+- `Types for Programs and Proofs <http://www.cse.chalmers.se/edu/course/DAT140/>`__,
+  course at Chalmers University of Technology.
 - `Advanced Functional Programming <https://www.tcs.ifi.lmu.de/lehre/ss-2012/fun>`__
   (in German), course at Ludwig-Maximilians-University Munich.
-- `Dependently typed metaprogramming (in Agda) <https://danel.ahman.ee/agda-course-13/>`__
-  , Summer (2013) course at the University of Cambridge by Conor McBride.
+- `Dependently typed metaprogramming (in Agda) <https://danel.ahman.ee/agda-course-13/>`__,
+  Summer (2013) course at the University of Cambridge by Conor McBride.
 - `Computer-Checked Programs and Proofs <http://dlicata.web.wesleyan.edu/teaching/ccpp-f13/>`__
   (COMP 360-1), Dan Licata, Wesleyan, Fall 2013.
 - `Advanced Functional Programming Fall 2013 <https://github.com/pigworker/CS410-13>`__
   (CS410), Conor McBride, Strathclyde, `notes from 2015 <https://github.com/pigworker/CS410-15/blob/master/CS410-notes.pdf>`__, `videos from 2017 <https://github.com/pigworker/CS410-17/>`__.
 - `Interactive Theorem proving <http://www.cs.swan.ac.uk/~csetzer/lectures/intertheo/07/>`__
   (CS__336), Anton Setzer, Swansea University, Lent 2008.
-- `Inductive and inductive-recursive definitions in Intuitionistic Type Theory <https://www.cs.uoregon.edu/research/summerschool/summer15/curriculum.html>`__
-  , lectures by Peter Dybjer at the Oregon Programming Languages Summer School 2015.
-- `Introduction to Univalent Foundations of Mathematics with Agda <https://www.cs.bham.ac.uk/~mhe/HoTT-UF-in-Agda-Lecture-Notes/index.html>`__ , MGS 2019 Martín Hötzel Escardó
+- `Inductive and inductive-recursive definitions in Intuitionistic Type Theory <https://www.cs.uoregon.edu/research/summerschool/summer15/curriculum.html>`__,
+  lectures by Peter Dybjer at the Oregon Programming Languages Summer School 2015.
+- `Introduction to Univalent Foundations of Mathematics with Agda <https://www.cs.bham.ac.uk/~mhe/HoTT-UF-in-Agda-Lecture-Notes/index.html>`__ ,
+  MGS 2019 Martín Hötzel Escardó
 - `Higher-Dimensional Type Theory <https://favonia.org/courses/hdtt2020/>`__ (CSCI 8980), courses on homotopy type theory and cubical type theory, Favonia, the University of Minnesota, Spring 2020
 - `Correct-by-construction Programming in Agda
   <https://github.com/jespercockx/ohrid19-agda>`__, a course at the
   EUTYPES Summer School '19 in Ohrid.
+- `Lectures on Agda <https://www.mathstat.dal.ca/~selinger/agda-lectures/>`__,
+  a course by Peter Selinger at Dalhousie University, Winter 2021.
 
 Miscellaneous
 =============

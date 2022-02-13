@@ -152,8 +152,8 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
       Done{}    -> return cc
       Case i cs -> loops i cs
 
-    loops :: Arg Int              -- ^ split variable
-          -> Case CompiledClauses -- ^ original split tree
+    loops :: Arg Int               -- split variable
+          -> Case CompiledClauses  -- original split tree
           -> m CompiledClauses
     loops i cs@Branches{ projPatterns   = comatch
                        , conBranches    = conMap
@@ -175,8 +175,8 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
               -- inferred eta.
           _ | Just (ch, b) <- eta -> yesEtaCase b ch
           [(c, b)] | not comatch -> -- possible eta-match
-            getConstructorInfo c >>= \ case
-              RecordCon pm YesEta fs -> yesEtaCase b $
+            getConstructorInfo' c >>= \ case
+              Just (RecordCon pm YesEta fs) -> yesEtaCase b $
                 ConHead c (IsRecord pm) Inductive (map argFromDom fs)
               _ -> noEtaCase
           _ -> noEtaCase
@@ -226,7 +226,7 @@ recordExpressionsToCopatterns = \case
                 -- translate new cases recursively (there might be nested record expressions)
                 traverse recordExpressionsToCopatterns $ Branches
                   { projPatterns   = True
-                  , conBranches    = Map.fromList $
+                  , conBranches    = Map.fromListWith __IMPOSSIBLE__ $
                       zipWith (\ f v -> (unDom f, WithArity 0 $ Done xs v)) fs vs
                   , etaBranch      = Nothing
                   , litBranches    = Map.empty

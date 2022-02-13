@@ -229,8 +229,8 @@ instance TermSubst a => Apply (Tele a) where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Definition where
-  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk (apply d args)
+  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk lang (apply d args)
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -508,7 +508,7 @@ instance Apply a => Apply (Case a) where
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
-  apply (Inverse inv) args = Inverse $ apply inv args
+  apply (Inverse w inv) args = Inverse w $ apply inv args
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -610,9 +610,10 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk d) =
+  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) =
     Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens)
-                (replicate (size tel) Nothing ++ gpars) df m c inst copy ma nc inj copat blk (abstract tel d)
+      (replicate (size tel) Nothing ++ gpars)
+      df m c inst copy ma nc inj copat blk lang (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
@@ -740,7 +741,7 @@ namedTelVars m (ExtendTel !dom tel) =
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
-  abstract tel (Inverse inv) = Inverse $ abstract tel inv
+  abstract tel (Inverse w inv) = Inverse w $ abstract tel inv
 
 instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
   abstract tel = map (abstract tel)
@@ -831,6 +832,7 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
+    IntervalUniv -> IntervalUniv
     PiSort a s1 s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
     UnivSort s -> coerce $ univSort $ coerce $ sub s
@@ -939,6 +941,7 @@ instance Subst NLPSort where
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv
+    PIntervalUniv -> PIntervalUniv
 
 instance Subst RewriteRule where
   type SubstArg RewriteRule = NLPat
@@ -1497,6 +1500,7 @@ univSort' (Inf f n) = Just $ Inf f $ 1 + n
 univSort' (SSet l) = Just $ SSet $ levelSuc l
 univSort' SizeUniv = Just $ Inf IsFibrant 0
 univSort' LockUniv = Just $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
+univSort' IntervalUniv = Just $ SSet $ ClosedLevel 1
 univSort' s        = Nothing
 
 univSort :: Sort -> Sort
@@ -1517,6 +1521,7 @@ isSmallSort Type{}     = Just (True,IsFibrant)
 isSmallSort Prop{}     = Just (True,IsFibrant)
 isSmallSort SizeUniv   = Just (True,IsFibrant)
 isSmallSort LockUniv   = Just (True,IsFibrant)
+isSmallSort IntervalUniv = Just (True,IsStrict)
 isSmallSort (Inf f _)  = Just (False,f)
 isSmallSort SSet{}     = Just (True,IsStrict)
 isSmallSort MetaS{}    = Nothing
@@ -1542,6 +1547,12 @@ funSort' a b = case (a, b) of
   (LockUniv      , b            ) -> Just b
   -- No functions into lock types
   (a             , LockUniv     ) -> Nothing
+  -- @IntervalUniv@ behaves like @SSet@, but functions into @Type@ land in @Type
+  (IntervalUniv  , IntervalUniv ) -> Just $ SSet $ ClosedLevel 0
+  (IntervalUniv  , SSet b       ) -> Just $ SSet $ b
+  (IntervalUniv  , Type b       ) -> Just $ Type $ b
+  (Type a        , IntervalUniv ) -> Just $ SSet $ a
+  (SSet a        , IntervalUniv ) -> Just $ SSet $ a
   (SizeUniv      , b            ) -> Just b
   (a             , SizeUniv     ) | Just (True,_) <- isSmallSort a -> Just SizeUniv
   (Prop a        , Type b       ) -> Just $ Type $ levelLub a b

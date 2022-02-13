@@ -1,6 +1,8 @@
 -- Andreas, 2016-02-21 issue 1862 reported by nad
 -- {-# OPTIONS -v tc.decl:10 -v tc.def.where:10 -v tc.meta:10 -v tc.size.solve:100 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 data Nat (i : Size) : Set where

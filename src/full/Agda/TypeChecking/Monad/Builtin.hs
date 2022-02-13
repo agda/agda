@@ -164,7 +164,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primSigma,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero, primMaybe, primNothing, primJust,
-    primPath, primPathP, primInterval, primIZero, primIOne, primPartial, primPartialP,
+    primPath, primPathP, primIntervalUniv, primInterval, primIZero, primIOne, primPartial, primPartialP,
     primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
     primSub, primSubIn, primSubOut,
@@ -191,7 +191,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
-    primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
+    primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartPatt, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
     primQuantity, primQuantity0, primQuantityω,
@@ -216,11 +216,13 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
-    primAgdaTCMWithNormalisation, primAgdaTCMDebugPrint, primAgdaTCMWithReconsParams,
+    primAgdaTCMFormatErrorParts, primAgdaTCMDebugPrint,
+    primAgdaTCMWithNormalisation, primAgdaTCMWithReconsParams,
     primAgdaTCMOnlyReduceDefs, primAgdaTCMDontReduceDefs,
     primAgdaTCMNoConstraints,
     primAgdaTCMRunSpeculative,
-    primAgdaTCMExec
+    primAgdaTCMExec,
+    primAgdaTCMGetInstances
     :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Term
 
 primInteger                           = getBuiltin builtinInteger
@@ -243,10 +245,11 @@ primNothing                           = getBuiltin builtinNothing
 primJust                              = getBuiltin builtinJust
 primIO                                = getBuiltin builtinIO
 primId                                = getBuiltin builtinId
-primConId                             = getBuiltin builtinConId
+primConId                             = getPrimitiveTerm builtinConId
 primIdElim                            = getPrimitiveTerm builtinIdElim
 primPath                              = getBuiltin builtinPath
 primPathP                             = getBuiltin builtinPathP
+primIntervalUniv                      = getBuiltin builtinIntervalUniv
 primInterval                          = getBuiltin builtinInterval
 primIZero                             = getBuiltin builtinIZero
 primIOne                              = getBuiltin builtinIOne
@@ -360,6 +363,7 @@ primAgdaTermMeta                      = getBuiltin builtinAgdaTermMeta
 primAgdaErrorPart                     = getBuiltin builtinAgdaErrorPart
 primAgdaErrorPartString               = getBuiltin builtinAgdaErrorPartString
 primAgdaErrorPartTerm                 = getBuiltin builtinAgdaErrorPartTerm
+primAgdaErrorPartPatt                 = getBuiltin builtinAgdaErrorPartPatt
 primAgdaErrorPartName                 = getBuiltin builtinAgdaErrorPartName
 primAgdaLiteral                       = getBuiltin builtinAgdaLiteral
 primAgdaLitNat                        = getBuiltin builtinAgdaLitNat
@@ -414,12 +418,14 @@ primAgdaTCMCommit                     = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
 primAgdaTCMWithReconsParams           = getBuiltin builtinAgdaTCMWithReconsParams
+primAgdaTCMFormatErrorParts           = getBuiltin builtinAgdaTCMFormatErrorParts
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
 primAgdaTCMOnlyReduceDefs             = getBuiltin builtinAgdaTCMOnlyReduceDefs
 primAgdaTCMDontReduceDefs             = getBuiltin builtinAgdaTCMDontReduceDefs
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec
+primAgdaTCMGetInstances               = getBuiltin builtinAgdaTCMGetInstances
 
 -- | The coinductive primitives.
 
@@ -492,6 +498,9 @@ getPrimitiveName' n = fmap primFunName <$> getPrimitive' n
 
 isPrimitive :: HasBuiltins m => String -> QName -> m Bool
 isPrimitive n q = (Just q ==) <$> getPrimitiveName' n
+
+intervalSort :: Sort
+intervalSort = IntervalUniv
 
 intervalView' :: HasBuiltins m => m (Term -> IntervalView)
 intervalView' = do
@@ -591,6 +600,23 @@ pathUnview :: PathView -> Type
 pathUnview (OType t) = t
 pathUnview (PathType s path l t lhs rhs) =
   El s $ Def path $ map Apply [l, t, lhs, rhs]
+
+------------------------------------------------------------------------
+-- * Swan's Id Equality
+------------------------------------------------------------------------
+
+-- f x (< phi , p > : Id A x _) = Just (phi,p)
+conidView' :: HasBuiltins m => m (Term -> Term -> Maybe (Arg Term,Arg Term))
+conidView' = do
+  mn <- sequence <$> mapM getName' [builtinReflId, builtinConId]
+  mio <- getTerm' builtinIOne
+  let fallback = return $ \ _ _ -> Nothing
+  caseMaybe mn fallback $ \ [refl,conid] ->
+   caseMaybe mio fallback $ \ io -> return $ \ x t ->
+    case t of
+      Con h _ [] | conName h == refl -> Just (defaultArg io,defaultArg (Lam defaultArgInfo $ NoAbs "_" $ x))
+      Def d es | Just [l,a,x,y,phi,p] <- allApplyElims es, d == conid -> Just (phi, p)
+      _ -> Nothing
 
 ------------------------------------------------------------------------
 -- * Builtin equality

@@ -83,6 +83,8 @@ instance EmbPrj Warning where
     RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
     ParseWarning a                        -> icodeN 38 ParseWarning a
+    NoGuardednessFlag a                   -> icodeN 39 NoGuardednessFlag a
+    NoEquivWhenSplitting a                -> icodeN 40 NoEquivWhenSplitting a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -124,6 +126,8 @@ instance EmbPrj Warning where
     [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
     [38, a]              -> valuN ParseWarning a
+    [39, a]              -> valuN NoGuardednessFlag a
+    [40, a]              -> valuN NoEquivWhenSplitting a
     _ -> malformed
 
 instance EmbPrj ParseWarning where
@@ -188,6 +192,7 @@ instance EmbPrj DeclarationWarning' where
     InvalidRecordDirective a          -> icodeN 29 InvalidRecordDirective a
     InvalidConstructor a              -> icodeN 30 InvalidConstructor a
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
+    MissingDeclarations a             -> icodeN 32 MissingDeclarations a
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -222,6 +227,7 @@ instance EmbPrj DeclarationWarning' where
     [29,r]   -> valuN InvalidRecordDirective r
     [30,r]   -> valuN InvalidConstructor r
     [31,r]   -> valuN InvalidConstructorBlock r
+    [32,r]   -> valuN MissingDeclarations r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -235,13 +241,9 @@ instance EmbPrj LibWarning where
 instance EmbPrj LibWarning' where
   icod_ = \case
     UnknownField     a   -> icodeN 0 UnknownField a
-    ExeNotFound      a b -> icodeN 1 ExeNotFound a b
-    ExeNotExecutable a b -> icodeN 2 ExeNotExecutable a b
 
   value = vcase $ \case
     [0, a]    -> valuN UnknownField a
-    [1, a, b] -> valuN ExeNotFound a b
-    [2, a, b] -> valuN ExeNotExecutable a b
     _ -> malformed
 
 instance EmbPrj ExecutablesFile where

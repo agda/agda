@@ -1,11 +1,5 @@
 digraph dependencies {
-   m0[label="Issue481"];
-   m1[label="Common.Issue481ParametrizedModule"];
-   m2[label="Agda.Primitive"];
-   m3[label="Issue481Record"];
-   m0 -> m1;
-   m0 -> m2;
-   m0 -> m3;
-   m1 -> m2;
+   m2[label="Issue481Record"];
+   m3[label="Issue481"];
    m3 -> m2;
 }

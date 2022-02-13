@@ -261,7 +261,6 @@ instance Hilite A.Expr where
       A.Quote _r                    -> mempty
       A.QuoteTerm _r                -> mempty
       A.Unquote _r                  -> mempty
-      A.Tactic _r e es              -> hl e <> hl es
       A.DontCare e                  -> hl e
     where
     hl a = hilite a
@@ -581,8 +580,7 @@ hiliteCName xs x fr mR asp = do
   notHere d = d { defSiteHere = False }
 
   mFilePos
-    :: SourceToModule
-         -- ^ Maps source file paths to module names.
+    :: SourceToModule  -- Maps source file paths to module names.
     -> Maybe DefinitionSite
   mFilePos modMap = do
     r <- mR
@@ -670,10 +668,10 @@ hiliteAName x include asp = do
 
     boundAspect = nameAsp Bound False
 
-    genPartFile (BindHole r i)   = several [rToR r, rToR $ getRange i] boundAspect
-    genPartFile (NormalHole r i) = several [rToR r, rToR $ getRange i] boundAspect
-    genPartFile WildHole{}       = mempty
-    genPartFile (IdPart x)       = H.singleton (rToR $ getRange x) (asp False)
+    genPartFile (VarPart r i)  = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile (HolePart r i) = several [rToR r, rToR $ getRange i] boundAspect
+    genPartFile WildPart{}     = mempty
+    genPartFile (IdPart x)     = H.singleton (rToR $ getRange x) (asp False)
 
 -- * Short auxiliary functions.
 ---------------------------------------------------------------------------

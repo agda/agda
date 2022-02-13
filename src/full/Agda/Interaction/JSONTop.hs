@@ -3,7 +3,6 @@ module Agda.Interaction.JSONTop
     ) where
 import Control.Monad.State
 
-import Data.Aeson hiding (Result(..))
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Text as T
@@ -27,7 +26,7 @@ import Agda.VersionCommit
 
 import Agda.TypeChecking.Errors (getAllWarningsOfTCErr)
 import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..))
-import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange)
+import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange, withMetaId)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
 import Agda.TypeChecking.Pretty.Warning (filterTCWarnings)
@@ -96,7 +95,15 @@ instance EncodeTCM ProblemId where
 instance EncodeTCM MetaId    where
 
 instance ToJSON ProblemId where toJSON (ProblemId i) = toJSON i
-instance ToJSON MetaId    where toJSON (MetaId    i) = toJSON i
+
+instance ToJSON ModuleNameHash where
+  toJSON (ModuleNameHash h) = toJSON h
+
+instance ToJSON MetaId where
+  toJSON m = object
+    [ "id"     .= toJSON (metaId m)
+    , "module" .= toJSON (metaModule m)
+    ]
 
 instance EncodeTCM InteractionId where
   encodeTCM ii@(InteractionId i) = obj
@@ -114,7 +121,7 @@ instance EncodeTCM NamedMeta where
     , "range" #= intervalsTCM
     ]
     where
-      nameTCM = encodeShow <$> B.withMetaId (nmid m) (prettyATop m)
+      nameTCM = encodeShow <$> withMetaId (nmid m) (prettyATop m)
       intervalsTCM = toJSON <$> getMetaRange (nmid m)
 
 instance EncodeTCM GiveResult where
@@ -252,8 +259,9 @@ instance EncodeTCM Blocker where
   encodeTCM (UnblockOnAny us)    = kind "UnblockOnAny" [ "blockers" @= Set.toList us ]
 
 instance EncodeTCM DisplayInfo where
-  encodeTCM (Info_CompilationOk wes) = kind "CompilationOk"
-    [ "warnings"          #= encodeTCM (filterTCWarnings (tcWarnings wes))
+  encodeTCM (Info_CompilationOk backend wes) = kind "CompilationOk"
+    [ "backend"           @= encodePretty backend
+    , "warnings"          #= encodeTCM (filterTCWarnings (tcWarnings wes))
     , "errors"            #= encodeTCM (filterTCWarnings (nonFatalErrors wes))
     ]
   encodeTCM (Info_Constraints constraints) = kind "Constraints"
@@ -423,7 +431,7 @@ instance EncodeTCM Response where
     where
       encodeSolution (i, expr) = object
         [ "interactionPoint"  .= i
-        , "expression"        .= show expr
+        , "expression"        .= P.prettyShow expr
         ]
 
 -- | Convert Response to an JSON value for interactive editor frontends.

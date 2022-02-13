@@ -5,12 +5,14 @@ module Agda.TypeChecking.InstanceArguments
   , isInstanceConstraint
   , shouldPostponeInstanceSearch
   , postponeInstanceConstraints
+  , getInstanceCandidates
   ) where
 
 import Control.Monad.Except
 import Control.Monad.Reader
-import qualified Data.IntSet as IntSet
+import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
+import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Bifunctor
@@ -84,7 +86,6 @@ initialInstanceCandidates t = do
           vars = [ Candidate LocalCandidate x t (isOverlappable info)
                  | (x, Dom{domInfo = info, unDom = (_, t)}) <- varsAndRaisedTypes
                  , isInstance info
-                 , usableModality info
                  ]
 
       -- {{}}-fields of variables are also candidates
@@ -206,7 +207,7 @@ findInstance :: MetaId -> Maybe [Candidate] -> TCM ()
 findInstance m Nothing = do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   setCurrentRange mv $ do
     reportSLn "tc.instance" 20 $ "The type of the FindInstance constraint isn't known, trying to find it again."
     t <- instantiate =<< getMetaTypeInContext m
@@ -226,6 +227,19 @@ findInstance m Nothing = do
 findInstance m (Just cands) =                          -- Note: if no blocking meta variable this will not unblock until the end of the mutual block
   whenJustM (findInstance' m cands) $ (\ (cands, b) -> addConstraint b $ FindInstance m $ Just cands)
 
+-- | Entry point for `tcGetInstances` primitive
+getInstanceCandidates :: MetaId -> TCM (Either Blocker [Candidate])
+getInstanceCandidates m = do
+  mv <- lookupLocalMeta m
+  setCurrentRange mv $ do
+    t <- instantiate =<< getMetaTypeInContext m
+    TelV tel t' <- telViewUpTo' (-1) notVisible t
+    addContext tel $ initialInstanceCandidates t' >>= \case
+      Left b -> return $ Left b
+      Right cands -> checkCandidates m t' cands >>= \case
+        Nothing -> return $ Right cands
+        Just (_ , cands') -> return $ Right cands'
+
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
 findInstance' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Blocker))
@@ -237,7 +251,7 @@ findInstance' m cands = ifM (isFrozen m) (do
     return $ Just (cands, neverUnblock)) $ billTo [Benchmark.Typing, Benchmark.InstanceSearch] $ do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
-  mv <- lookupMeta m
+  mv <- lookupLocalMeta m
   setCurrentRange mv $ do
       reportSLn "tc.instance" 15 $
         "findInstance 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
@@ -356,9 +370,12 @@ filterResetingState m cands f = do
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, a)] -> TCM [(Candidate, Term, a)]
 dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidates" $ do
-  metas <- getMetaVariableSet
-  -- Does `it` have any metas in the initial meta variable store?
-  let freshMetas = getAny . allMetas (Any . (`IntSet.notMember` metas) . metaId)
+  !nextMeta    <- nextLocalMeta
+  isRemoteMeta <- isRemoteMeta
+  -- Does "it" contain any fresh meta-variables?
+  let freshMetas =
+        getAny .
+        allMetas (\m -> Any (not (isRemoteMeta m || m < nextMeta)))
 
   -- Take overlappable candidates into account
   let cands =
@@ -371,7 +388,7 @@ dropSameCandidates m cands0 = verboseBracket "tc.instance" 30 "dropSameCandidate
     , nest 2 $ vcat [ if freshMetas v then "(redacted)" else
                       sep [ prettyTCM v ]
                     | (_, v, _) <- cands ] ]
-  rel <- getMetaRelevance <$> lookupMeta m
+  rel <- getRelevance <$> lookupMetaModality m
   case cands of
     []            -> return cands
     cvd : _ | isIrrelevant rel -> do
@@ -449,7 +466,7 @@ checkCandidates m t cands =
     checkCandidateForMeta m t (Candidate q term t' _) = checkDepth term t' $ do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
-      mv <- lookupMeta m
+      mv <- lookupLocalMeta m
       setCurrentRange mv $ do
         debugConstraints
         verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $

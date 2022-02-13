@@ -1,5 +1,5 @@
 -- Andreas, 2014-05-20 Triggered by Andrea Vezzosi & NAD
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --copatterns --sized-types #-}
 -- {-# OPTIONS -v tc.conv.coerce:10 #-}
 
 open import Common.Size

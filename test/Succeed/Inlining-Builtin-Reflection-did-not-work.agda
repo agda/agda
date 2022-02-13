@@ -113,6 +113,7 @@ data Sort   : Set
 data Clause : Set
 data Term   : Set
 Type = Term
+Telescope = List (Σ String λ _ → Arg Type)
 
 data Term where
   var       : (x : Nat) (args : List (Arg Term)) → Term
@@ -143,8 +144,8 @@ data Pattern : Set where
   absurd : (x : Nat)     → Pattern
 
 data Clause where
-  clause        : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) (t : Term) → Clause
-  absurd-clause : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) → Clause
+  clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
+  absurd-clause : (tel : Telescope) (ps : List (Arg Pattern)) → Clause
 
 {-# BUILTIN AGDATERM    Term    #-}
 {-# BUILTIN AGDASORT    Sort    #-}
@@ -202,11 +203,13 @@ data Definition : Set where
 data ErrorPart : Set where
   strErr  : String → ErrorPart
   termErr : Term → ErrorPart
+  pattErr : Pattern → ErrorPart
   nameErr : Name → ErrorPart
 
 {-# BUILTIN AGDAERRORPART       ErrorPart #-}
 {-# BUILTIN AGDAERRORPARTSTRING strErr    #-}
 {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
+{-# BUILTIN AGDAERRORPARTPATT   pattErr   #-}
 {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
 
 -- TC monad --
@@ -223,9 +226,9 @@ postulate
   catchTC       : ∀ {a} {A : Set a} → TC A → TC A → TC A
   quoteTC       : ∀ {a} {A : Set a} → A → TC Term
   unquoteTC     : ∀ {a} {A : Set a} → Term → TC A
-  getContext    : TC (List (Arg Type))
-  extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
-  inContext     : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
+  getContext    : TC Telescope
+  extendContext : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
+  inContext     : ∀ {a} {A : Set a} → Telescope → TC A → TC A
   freshName     : String → TC Name
   declareDef    : Arg Name → Type → TC ⊤
   defineFun     : Name → List Clause → TC ⊤

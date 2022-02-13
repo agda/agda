@@ -102,13 +102,11 @@ instance EmbPrj I.Term where
   icod_ (Def      a b) = icodeN 3 Def a b
   icod_ (Con    a b c) = icodeN 4 Con a b c
   icod_ (Pi       a b) = icodeN 5 Pi a b
+  icod_ (MetaV    a b) = icodeN 6 MetaV a b
   icod_ (Sort     a  ) = icodeN 7 Sort a
-  icod_ (MetaV    a b) = __IMPOSSIBLE__
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
-  icod_ (Dummy s _)    = do
-    liftIO $ putStrLn $ "Dummy term in serialization: " ++ s
-    __IMPOSSIBLE__
+  icod_ (Dummy    a b) = icodeN 10 Dummy a b
 
   value = vcase valu where
     valu [a]       = valuN var   a
@@ -118,9 +116,11 @@ instance EmbPrj I.Term where
     valu [3, a, b] = valuN Def   a b
     valu [4, a, b, c] = valuN Con a b c
     valu [5, a, b] = valuN Pi    a b
+    valu [6, a, b] = valuN MetaV a b
     valu [7, a]    = valuN Sort  a
     valu [8, a]    = valuN DontCare a
     valu [9, a]    = valuN Level a
+    valu [10, a, b] = valuN Dummy a b
     valu _         = malformed
 
 instance EmbPrj Level where
@@ -149,13 +149,12 @@ instance EmbPrj I.Sort where
   icod_ (PiSort a b c) = icodeN 4 PiSort a b c
   icod_ (FunSort a b) = icodeN 5 FunSort a b
   icod_ (UnivSort a) = icodeN 6 UnivSort a
-  icod_ (MetaS a b)  = __IMPOSSIBLE__
   icod_ (DefS a b)   = icodeN 7 DefS a b
   icod_ (SSet  a  ) = icodeN 8 SSet a
   icod_ LockUniv    = icodeN 9 LockUniv
-  icod_ (DummyS s)   = do
-    liftIO $ putStrLn $ "Dummy sort in serialization: " ++ s
-    __IMPOSSIBLE__
+  icod_ IntervalUniv = icodeN 10 IntervalUniv
+  icod_ (MetaS a b)  = icodeN 11 MetaS a b
+  icod_ (DummyS s)   = icodeN 12 DummyS s
 
   value = vcase valu where
     valu [0, a]    = valuN Type  a
@@ -168,6 +167,9 @@ instance EmbPrj I.Sort where
     valu [7, a, b] = valuN DefS a b
     valu [8, a]    = valuN SSet a
     valu [9]       = valuN LockUniv
+    valu [10]      = valuN IntervalUniv
+    valu [11, a, b] = valuN MetaS a b
+    valu [12, s]   = valuN DummyS s
     valu _         = malformed
 
 instance EmbPrj DisplayForm where
@@ -208,7 +210,7 @@ instance EmbPrj CompKit where
   value = valueN CompKit
 
 instance EmbPrj Definition where
-  icod_ (Defn a b c d e f g h i j k l m n o p q r) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p q r
+  icod_ (Defn a b c d e f g h i j k l m n o p q r s) = icodeN' Defn a b (P.killRange c) d e f g h i j k l m n o p q r s
 
   value = valueN Defn
 
@@ -262,7 +264,8 @@ instance EmbPrj NLPSort where
   icod_ (PProp a)   = icodeN 1 PProp a
   icod_ (PInf f a)  = icodeN 2 PInf f a
   icod_ PSizeUniv   = icodeN 3 PSizeUniv
-  icod_ PLockUniv   = icodeN 4 PSizeUniv
+  icod_ PLockUniv   = icodeN 4 PLockUniv
+  icod_ PIntervalUniv = icodeN 5 PIntervalUniv
 
   value = vcase valu where
     valu [0, a] = valuN PType a
@@ -270,6 +273,7 @@ instance EmbPrj NLPSort where
     valu [2, f, a] = valuN PInf f a
     valu [3]    = valuN PSizeUniv
     valu [4]    = valuN PLockUniv
+    valu [5]    = valuN PIntervalUniv
     valu _      = malformed
 
 instance EmbPrj RewriteRule where
@@ -366,7 +370,7 @@ instance EmbPrj Defn where
   icod_ (Function    a b s t (_:_) c d e f g h i j k)   = __IMPOSSIBLE__
   icod_ (Function    a b s t []    c d e f g h i j k)   =
     icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k
-  icod_ (Datatype    a b c d e f g h)                   = icodeN 2 Datatype a b c d e f g h
+  icod_ (Datatype    a b c d e f g h i j)               = icodeN 2 Datatype a b c d e f g h i j
   icod_ (Record      a b c d e f g h i j k l)           = icodeN 3 Record a b c d e f g h i j k l
   icod_ (Constructor a b c d e f g h i j)               = icodeN 4 Constructor a b c d e f g h i j
   icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
@@ -378,7 +382,7 @@ instance EmbPrj Defn where
   value = vcase valu where
     valu [0, a]                                     = valuN Axiom a
     valu [1, a, b, s, c, d, e, f, g, h, i, j, k]    = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k
-    valu [2, a, b, c, d, e, f, g, h]                = valuN Datatype a b c d e f g h
+    valu [2, a, b, c, d, e, f, g, h, i, j]          = valuN Datatype a b c d e f g h i j
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l]    = valuN Record  a b c d e f g h i j k l
     valu [4, a, b, c, d, e, f, g, h, i, j]          = valuN Constructor a b c d e f g h i j
     valu [5, a, b, c, d, e]                         = valuN Primitive   a b c d e
@@ -447,13 +451,22 @@ instance EmbPrj CompiledClauses where
     valu [2, a, b] = valuN Case a b
     valu _         = malformed
 
+instance EmbPrj WhenInjective where
+  icod_ AlwaysInjective = icodeN 0 AlwaysInjective
+  icod_ UnlessCubical   = icodeN 1 UnlessCubical
+
+  value = vcase valu where
+    valu [0] = valuN AlwaysInjective
+    valu [1] = valuN UnlessCubical
+    valu _   = malformed
+
 instance EmbPrj a => EmbPrj (FunctionInverse' a) where
   icod_ NotInjective = icodeN' NotInjective
-  icod_ (Inverse a)  = icodeN' Inverse a
+  icod_ (Inverse w a)  = icodeN' Inverse w a
 
   value = vcase valu where
     valu []  = valuN NotInjective
-    valu [a] = valuN Inverse a
+    valu [w,a] = valuN Inverse w a
     valu _   = malformed
 
 instance EmbPrj TermHead where
@@ -558,3 +571,31 @@ instance EmbPrj a => EmbPrj (Substitution' a) where
     valu [4, a, b] = valuN Wk a b
     valu [5, a, b] = valuN Lift a b
     valu _         = malformed
+
+instance EmbPrj Instantiation where
+  icod_ (Instantiation a b) = icodeN' Instantiation a b
+  value = valueN Instantiation
+
+instance EmbPrj Comparison where
+  icod_ CmpEq  = icodeN' CmpEq
+  icod_ CmpLeq = icodeN 0 CmpLeq
+
+  value = vcase valu
+    where
+    valu []  = valuN CmpEq
+    valu [0] = valuN CmpLeq
+    valu _   = malformed
+
+instance EmbPrj a => EmbPrj (Judgement a) where
+  icod_ (HasType a b c) = icodeN' HasType a b c
+  icod_ (IsSort a b)    = icodeN' IsSort a b
+
+  value = vcase valu
+    where
+    valu [a, b, c] = valuN HasType a b c
+    valu [a, b]    = valuN IsSort a b
+    valu _         = malformed
+
+instance EmbPrj RemoteMetaVariable where
+  icod_ (RemoteMetaVariable a b c) = icodeN' RemoteMetaVariable a b c
+  value = valueN RemoteMetaVariable

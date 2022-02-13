@@ -50,7 +50,7 @@ import Agda.Utils.List  ( stripSuffix, nubOn )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad ( ifM, unlessM )
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Pretty ( Pretty(..), prettyShow )
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
@@ -63,6 +63,9 @@ import Agda.Utils.Impossible
 -- @AbsolutePath@ does exist.
 newtype SourceFile    = SourceFile    { srcFilePath :: AbsolutePath } deriving (Eq, Ord)
 newtype InterfaceFile = InterfaceFile { intFilePath :: AbsolutePath }
+
+instance Pretty SourceFile    where pretty = pretty . srcFilePath
+instance Pretty InterfaceFile where pretty = pretty . intFilePath
 
 -- | Makes an interface file from an AbsolutePath candidate.
 --   If the file does not exist, then fail by returning @Nothing@.

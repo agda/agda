@@ -351,6 +351,7 @@ implement pretty printing for reflected terms.
   data ErrorPart : Set where
     strErr  : String → ErrorPart
     termErr : Term → ErrorPart
+    pattErr : Pattern → ErrorPart
     nameErr : Name → ErrorPart
 
   {-# BUILTIN AGDAERRORPART       ErrorPart #-}
@@ -417,15 +418,15 @@ following primitive operations::
     -- it is indexable by deBruijn index. Note that the types in the context are
     -- valid in the rest of the context. To use in the current context they need
     -- to be weakened by 1 + their position in the list.
-    getContext : TC (List (Arg Type))
+    getContext : TC Telescope
 
-    -- Extend the current context with a variable of the given type.
-    extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
+    -- Extend the current context with a variable of the given type and its name.
+    extendContext : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
 
     -- Set the current context. Takes a context telescope entries in
     -- reverse order, as given by `getContext`. Each type should be valid
     -- in the context formed by the remaining elements in the list.
-    inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
+    inContext : ∀ {a} {A : Set a} → Telescope → TC A → TC A
 
     -- Quote a value, returning the corresponding Term.
     quoteTC : ∀ {a} {A : Set a} → A → TC Term
@@ -474,6 +475,9 @@ following primitive operations::
     -- printing from debugPrint "a.b.c.d" 10 msg.
     debugPrint : String → Nat → List ErrorPart → TC ⊤
 
+    -- Return the formatted string of the argument using the internal pretty printer.
+    formatErrorParts : List ErrorPart → TC String
+
     -- Only allow reduction of specific definitions while executing the TC computation
     onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
 
@@ -492,6 +496,10 @@ following primitive operations::
     -- the old TC state if the second component is 'false', or keep the
     -- new TC state if it is 'true'.
     runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+
+    -- Get a list of all possible instance candidates for the given meta
+    -- variable (it does not have to be an instance meta).
+    getInstances : Meta → TC (List Term)
 
   {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
   {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
@@ -521,6 +529,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
   {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
+  {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
 
 Metaprogramming
 ---------------

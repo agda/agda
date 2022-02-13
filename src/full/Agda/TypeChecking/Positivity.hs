@@ -1,3 +1,4 @@
+{-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
@@ -27,6 +28,7 @@ import Debug.Trace
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position (HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
@@ -263,10 +265,15 @@ getDefArity def = do
   let dropped = case theDef def of
         defn@Function{} -> projectionArgs defn
         _ -> 0
-  -- TODO: instantiateFull followed by arity could perhaps be
-  -- optimised, presumably the instantiation can be performed
-  -- lazily.
-  subtract dropped . arity <$> instantiateFull (defType def)
+  subtract dropped <$> arity' (defType def)
+  where
+  -- A variant of "\t -> arity <$> instantiateFull t".
+  arity' :: Type -> TCM Int
+  arity' t = do
+    t <- instantiate t
+    case unEl t of
+      Pi _ t -> succ <$> arity' (unAbs t)
+      _      -> return 0
 
 -- Computing occurrences --------------------------------------------------
 
@@ -315,9 +322,8 @@ preprocess ob = case pp Nothing ob of
   Nothing -> Concat' []
   Just ob -> ob
   where
-  pp :: Maybe Nat
-        -- ^ Variables larger than or equal to this number, if any,
-        --   are not retained.
+  pp :: Maybe Nat  -- Variables larger than or equal to this number, if any,
+                   -- are not retained.
      -> OccurrencesBuilder
      -> Maybe OccurrencesBuilder'
   pp !m = \case
@@ -405,6 +411,8 @@ instance ComputeOccurrences Clause where
   occurrences cl = do
     let ps    = namedClausePats cl
         items = IntMap.elems $ patItems ps -- sorted from low to high DBI
+    -- TODO #3733: handle hcomp/transp clauses properly
+    if hasDefP ps then return mempty else do
     (Concat (mapMaybe matching (zip [0..] ps)) <>) <$> do
       withExtendedOccEnv' items $
         occurrences $ clauseBody cl
@@ -692,14 +700,11 @@ computeEdges muts q ob =
   mkEdge
      :: Occurrence
      -> OccurrencesBuilder'
-     -> Node
-        -- ^ The current target node.
-     -> DS.Seq Where
-        -- ^ 'Where' information encountered before the current target
-        -- node was (re)selected.
-     -> DS.Seq Where
-        -- ^ 'Where' information encountered after the current target
-        -- node was (re)selected.
+     -> Node          -- The current target node.
+     -> DS.Seq Where  -- 'Where' information encountered before the current target
+                      -- node was (re)selected.
+     -> DS.Seq Where  -- 'Where' information encountered after the current target
+                      -- node was (re)selected.
      -> TCM ([Graph.Edge Node (Edge OccursWhere)] ->
              [Graph.Edge Node (Edge OccursWhere)])
   mkEdge !pol ob to cs os = case ob of
@@ -733,10 +738,9 @@ computeEdges muts q ob =
                , Graph.label  = Edge pol o
                } :)
 
-  -- | This function might return a new target node.
+  -- This function might return a new target node.
   mkEdge'
-    :: Node
-        -- ^ The current target node.
+    :: Node  -- The current target node.
     -> Occurrence
     -> Where
     -> TCM (Maybe Node, Occurrence)

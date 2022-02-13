@@ -37,7 +37,7 @@ CABAL_FLAGS = \
   --enable-tests \
   --enable-benchmarks \
   --enable-documentation \
-  --fenable-cluster-counting \
+  -fenable-cluster-counting \
 
 
 # EOF

@@ -23,6 +23,8 @@ import Agda.Utils.SemiRing
 import Agda.Utils.List (nubOn)
 import Agda.Utils.Pretty as P
 
+import Agda.Utils.Impossible
+
 type Matrix a = Array (Int,Int) a
 
 -- assuming a square matrix
@@ -52,7 +54,7 @@ warshallG g = fromMatrix $ warshall m
 
     m = array b [ ((n, m), edge i j) | (i, n) <- nodes, (j, m) <- nodes ]
 
-    fromMatrix matrix = Map.fromList $ do
+    fromMatrix matrix = Map.fromListWith __IMPOSSIBLE__ $ do
       (i, n) <- nodes
       let es = [ (fst (nodes !! m), e)
                | m <- [0..len - 1]

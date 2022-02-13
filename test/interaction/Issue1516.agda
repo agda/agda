@@ -1,5 +1,5 @@
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --copatterns --guardedness #-}
 
 record U : Set where
   coinductive

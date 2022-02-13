@@ -1,6 +1,6 @@
 -- Andreas, 2017-02-27, issue #2477
 
-{-# OPTIONS --show-irrelevant #-}
+{-# OPTIONS --show-irrelevant --sized-types #-}
 
 open import Agda.Builtin.Size
 open import Agda.Builtin.Nat using (suc) renaming (Nat to ℕ)

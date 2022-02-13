@@ -35,7 +35,7 @@ import qualified Control.Monad.Fail as Fail
 
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -44,6 +44,8 @@ import Data.Void
 import Data.List (sortBy)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
+import Data.Semigroup (Semigroup, (<>))
+import Data.String
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -63,8 +65,13 @@ import Agda.Syntax.Scope.Monad ( tryResolveName )
 
 import Agda.TypeChecking.Monad.State (getScope, getAllPatternSyns)
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.MetaVars
+import Agda.TypeChecking.Monad.Pure
+import Agda.TypeChecking.Monad.Signature
+import {-# SOURCE #-} Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.Interaction.Options
 
 import qualified Agda.Utils.AssocList as AssocList
@@ -78,7 +85,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix
 
@@ -126,7 +133,7 @@ makeEnv scope = do
     Env { takenVarNames = Set.fromList vars
         , takenDefNames = defs
         , currentScope = scope
-        , builtins     = Map.fromList builtinList
+        , builtins     = Map.fromListWith __IMPOSSIBLE__ builtinList
         , preserveIIds = False
         , foldPatternSynonyms = foldPatSyns
         }
@@ -187,20 +194,17 @@ resolveName_ q cands = fromRight (const UnknownName) <$> resolveName allKindsOfN
 
 -- The Monad --------------------------------------------------------------
 
--- | We need:
---   - Read access to the AbsToCon environment
---   - Read access to the TC environment
---   - Read access to the TC state
---   - Read and write access to the stConcreteNames part of the TC state
---   - Read access to the options
---   - Permission to print debug messages
+-- | The function 'runAbsToCon' can target any monad that satisfies
+-- the constraints of 'MonadAbsToCon'.
 type MonadAbsToCon m =
-  ( MonadTCEnv m
-  , ReadTCState m
+  ( MonadFresh NameId m
+  , MonadInteractionPoints m
   , MonadStConcreteNames m
   , HasOptions m
-  , HasBuiltins m
-  , MonadDebug m
+  , PureTCM m
+  , IsString (m Doc)
+  , Null (m Doc)
+  , Semigroup (m Doc)
   )
 
 newtype AbsToCon a = AbsToCon
@@ -263,6 +267,43 @@ instance MonadDebug AbsToCon where
   getVerbosity     = defaultGetVerbosity
   isDebugPrinting  = defaultIsDebugPrinting
   nowDebugPrinting = defaultNowDebugPrinting
+
+instance HasConstInfo AbsToCon where
+  getConstInfo' a      = AbsToCon (getConstInfo' a)
+  getRewriteRulesFor a = AbsToCon (getRewriteRulesFor a)
+
+instance MonadAddContext AbsToCon where
+  addCtx a b c = AbsToCon (addCtx a b (unAbsToCon c))
+
+  addLetBinding' a b c d =
+    AbsToCon (addLetBinding' a b c (unAbsToCon d))
+
+  updateContext a b c = AbsToCon (updateContext a b (unAbsToCon c))
+
+  withFreshName a b c =
+    AbsToCon (withFreshName a b (\x -> unAbsToCon (c x)))
+
+instance MonadReduce AbsToCon where
+  liftReduce a = AbsToCon (liftReduce a)
+
+instance PureTCM AbsToCon where
+
+instance MonadFresh NameId AbsToCon where
+  fresh = AbsToCon fresh
+
+instance MonadInteractionPoints AbsToCon where
+  freshInteractionId        = AbsToCon freshInteractionId
+  modifyInteractionPoints a = AbsToCon (modifyInteractionPoints a)
+
+instance IsString (AbsToCon Doc) where
+  fromString a = AbsToCon (fromString a)
+
+instance Null (AbsToCon Doc) where
+  empty = AbsToCon empty
+  null  = __IMPOSSIBLE__
+
+instance Semigroup (AbsToCon Doc) where
+  a <> b = AbsToCon (unAbsToCon a <> unAbsToCon b)
 
 runAbsToCon :: MonadAbsToCon m => AbsToCon c -> m c
 runAbsToCon m = do
@@ -726,9 +767,10 @@ instance ToConcrete A.Expr where
       return $ C.QuestionMark (getRange i) $
                  interactionId ii <$ guard (preserve || isJust (metaNumber i))
 
-    toConcrete (A.Underscore i)     = return $
-      C.Underscore (getRange i) $
-        prettyShow . NamedMeta (metaNameSuggestion i) . MetaId . metaId <$> metaNumber i
+    toConcrete (A.Underscore i) =
+      C.Underscore (getRange i) <$>
+      traverse (\m -> render <$> prettyTCM m)
+        (NamedMeta (metaNameSuggestion i) <$> metaNumber i)
 
     toConcrete (A.Dot i e) =
       C.Dot (getRange i) <$> toConcrete e
@@ -835,7 +877,7 @@ instance ToConcrete A.Expr where
          bindToConcrete tel $ \ tel' ->
            C.makePi (List1.catMaybes tel') <$> toConcreteTop e
       where
-        piTel1 tel e         = first (List1.append tel) $ piTel e
+        piTel1 tel e         = first (List1.appendList tel) $ piTel e
         piTel (A.Pi _ tel e) = first List1.toList $ piTel1 tel e
         piTel e              = ([], e)
 
@@ -880,12 +922,6 @@ instance ToConcrete A.Expr where
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
     toConcrete (A.Unquote i) = return $ C.Unquote (getRange i)
-    toConcrete (A.Tactic i e xs) = do
-      e' <- toConcrete e
-      xs' <- toConcrete xs
-      let r      = getRange i
-          rawtac = foldl (C.App r) e' xs'
-      return $ C.Tactic (getRange i) rawtac
 
     -- Andreas, 2012-04-02: TODO!  print DontCare as irrAxiom
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
@@ -1781,5 +1817,5 @@ instance ToConcrete InteractionId where
 
 instance ToConcrete NamedMeta where
     type ConOfAbs NamedMeta = C.Expr
-    toConcrete i = do
-      return $ C.Underscore noRange (Just $ prettyShow i)
+    toConcrete i =
+      C.Underscore noRange . Just . render <$> prettyTCM i

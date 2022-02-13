@@ -194,7 +194,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
         let getsols :: [I.Term] -> TCM [(MetaId, A.Expr)]
             getsols sol = do
              exprs <- forM (zip (Map.keys tccons) sol) $ \ (mi, e) -> do
-               mv   <- lookupMeta mi
+               mv   <- lookupLocalMetaAuto mi
                e    <- etaContract e
                expr <- modifyAbstractExpr <$> do withMetaInfo (getMetaInfo mv) $ reify e
                return (mi, expr)
@@ -232,7 +232,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                  else do
                   aexprss <- mapM getsols rsols
                   cexprss <- forM aexprss $ mapM $ \(mi, e) -> do
-                    mv <- lookupMeta mi
+                    mv <- lookupLocalMetaAuto mi
                     withMetaInfo (getMetaInfo mv) $ do
                       (mi,) <$> abstractToConcrete_ e
                   let ss = dropWhile (== ' ') . dropWhile (/= ' ') . prettyShow
@@ -288,7 +288,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
               -- cexprss <- mapM (mapM (\(mi, e) -> lookupMeta mi >>= \mv -> withMetaInfo (getMetaInfo mv) $ abstractToConcrete_ e >>= \e' -> return (mi, e'))) aexprss
               cexprss <- forM aexprss $ do
                 mapM $ \ (mi, e) -> do
-                  mv <- lookupMeta mi
+                  mv <- lookupLocalMetaAuto mi
                   withMetaInfo (getMetaInfo mv) $ do
                     e' <- abstractToConcrete_ e
                     return (mi, e')
@@ -335,7 +335,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
                            -- (const retry)
                            -- (\_ -> return (Nothing, Just ("Failed to give expr for side solution of " ++ show mi)))
                          Just ii' -> do ae <- give WithoutForce ii' Nothing expr
-                                        mv <- lookupMeta mi
+                                        mv <- lookupLocalMetaAuto mi
                                         let scope = getMetaScope mv
                                         ce <- abstractToConcreteScope scope ae
                                         let cmnt = if ii' == ii then agsyinfo ticks else ""
@@ -398,7 +398,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
        _ -> stopWithMsg "Metavariable is not at top level of clause RHS"
 
      MRefine listmode -> do
-      mv <- lookupMeta mi
+      mv <- lookupLocalMetaAuto mi
       let tt = jMetaType $ mvJudgement mv
           minfo = getMetaInfo mv
       targettyp <- withMetaInfo minfo $ do
@@ -464,7 +464,7 @@ auto ii rng argstr = liftTCM $ locallyTC eMakeCase (const True) $ do
 -- Get the functions and axioms defined in the same module as @def@.
 autohints :: AutoHintMode -> I.MetaId -> Maybe AN.QName -> TCM [Hint]
 autohints AHMModule mi (Just def) = do
-  scope <- clScope . getMetaInfo <$> lookupMeta mi
+  scope <- clScope . getMetaInfo <$> lookupLocalMetaAuto mi
   let names     = Scope.nsNames $ Scope.everythingInScope scope
       qnames    = map (Scope.anameName . head) $ Map.elems names
       modnames  = filter (\n -> AN.qnameModule n == AN.qnameModule def && n /= def) qnames

@@ -1,4 +1,4 @@
--- {-# OPTIONS --sized-types #-} Option obsolete since 2014-04-12.
+{-# OPTIONS --sized-types #-}
 
 module SizedTypesLeqInfty where
 

@@ -15,11 +15,10 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.Vector as V
 
 import System.Environment ( getArgs, getEnv, getProgName )
-import System.Exit ( exitFailure )
-import System.IO ( hPutStrLn, stderr )
+import System.Exit        ( die )
+import System.IO          ( hPutStrLn, stderr )
 
 import GitHub.Auth ( Auth( OAuth ) )
--- import GitHub.Data.Id ( Id(..) )
 
 import GitHub.Data.Definitions
   ( IssueLabel ( labelName )
@@ -47,7 +46,7 @@ import GitHub.Endpoints.Issues ( issuesForRepoR )
 import GitHub.Request ( github )
 
 envGHToken :: String
-envGHToken = "GITHUBTOKEN"
+envGHToken = "GITHUB_TOKEN"
 
 owner, repo :: Text
 owner = "agda"
@@ -57,7 +56,11 @@ theRepo :: String
 theRepo = Text.unpack owner ++ "/" ++ Text.unpack repo
 
 main :: IO ()
-main = getArgs >>= \case { [arg] -> run (Text.pack arg) ; _ -> usage }
+main = getArgs >>= \case
+  "-h"     : _ -> usage
+  "--help" : _ -> usage
+  [arg]        -> run (Text.pack arg)
+  _            -> usage
 
 usage :: IO ()
 usage = do
@@ -66,8 +69,13 @@ usage = do
     [ "Usage: " ++ progName ++ " <milestone>"
     , ""
     , "Retrieves closed issues for the given milestone from github repository"
-    , theRepo ++ " and prints them as csv to stdout."
+    , theRepo ++ " and prints them as markdown to stdout."
+    , ""
+    , "Expects an access token in environment variable GITHUB_TOKEN."
     ]
+
+debugPrint :: String -> IO ()
+debugPrint = hPutStrLn stderr
 
 issueLabelsNames :: Issue -> [Text]
 issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
@@ -75,8 +83,12 @@ issueLabelsNames i = map (untagName . labelName) $ V.toList $ issueLabels i
 -- Please keep the labels in the list in alphabetic order!
 labelsNotInChangelog :: [Text]
 labelsNotInChangelog =
-  [ "benchmark-suite"
-  , "closed-issues-program"
+  [ "Makefile"
+  , "agda-bisect"
+  , "benchmark-suite"
+  , "bug-tracker"
+  , "closed-issues-for-milestone"
+  , "devx"
   , "debug"
   , "documented-in-changelog"
   , "faq"
@@ -106,6 +118,8 @@ run mileStoneTitle = do
 
   -- Log in to repo.
 
+  debugPrint $ "Getting milestone " ++ Text.unpack mileStoneTitle
+
   -- Resolve milestone into milestone id.
   mileStoneVector <- crashOr $ github auth (milestonesR (N owner) (N repo) FetchAll)
   mileStoneId <- case filter ((mileStoneTitle ==) . milestoneTitle) $ toList mileStoneVector of
@@ -114,7 +128,7 @@ run mileStoneTitle = do
     _   -> die $ "Milestone " ++ Text.unpack mileStoneTitle ++ " ambiguous in github repo " ++ theRepo
 
   -- Debug.
-  -- print mileStoneId
+  debugPrint $ "Getting issues for milestone number " ++ show  mileStoneId
 
   -- Get list of issues. GitHub's REST API v3 considers every pull
   -- request an issue. For this reason we get a list of both issues
@@ -136,6 +150,9 @@ run mileStoneTitle = do
         , not $ any (`elem` issueLabelsNames i) labelsNotInChangelog
         ]
 
+  debugPrint $ unwords
+    [ "Found", show (length issues), "closed issues tagged with milestone", Text.unpack mileStoneTitle ]
+
   -- Print issues.
 
   forM_ issues $ \ Issue{ issueNumber, issueTitle } -> do
@@ -156,7 +173,3 @@ run mileStoneTitle = do
 -- | Crash on exception.
 crashOr :: Show e => IO (Either e a) -> IO a
 crashOr m = either (die . show) return =<< m
-
--- | Crash with error message
-die :: String -> IO a
-die e = do hPutStrLn stderr e; exitFailure

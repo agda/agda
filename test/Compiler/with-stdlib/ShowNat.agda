@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module ShowNat where
 
 open import IO

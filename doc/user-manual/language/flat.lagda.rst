@@ -79,13 +79,3 @@ the ``--no-flat-split`` flag
 .. code-block:: agda
 
   {-# OPTIONS --no-flat-split #-}
-
-
-Subtyping of flat function spaces
-===============================================
-
-Normally, if ``f : (@♭ x : A) → B`` then we have ``λ x → f x : (x : A)
-→ B`` but not ``f : (x : A) → B``.  When the option ``--subtyping`` is
-enabled, Agda will make use of the subtyping rule ``(@♭ x : A) → B <:
-(x : A) → B``, so there is no need for eta-expanding the function
-``f``.

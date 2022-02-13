@@ -107,7 +107,7 @@ match :: PureTCM m
 match cs ps = foldr choice (return No) $ zipWith matchIt [0..] cs
   where
     matchIt :: PureTCM m
-            => Nat     -- ^ Clause number.
+            => Nat  -- Clause number.
             -> Clause
             -> m (Match (Nat, SplitInstantiation))
     matchIt i c = fmap (i,) <$> matchClause ps c

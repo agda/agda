@@ -65,6 +65,7 @@ import Agda.Utils.Environment
 import Agda.Utils.FileName
 import Agda.Utils.Functor ( (<&>) )
 import Agda.Utils.IO ( catchIO )
+import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.List
 import Agda.Utils.List1 ( List1 )
 import qualified Agda.Utils.List1 as List1
@@ -257,7 +258,7 @@ readDefaultsFile = do
     agdaDir <- liftIO getAgdaAppDir
     let file = agdaDir </> defaultsFile
     ifNotM (liftIO $ doesFileExist file) (return []) $ {-else-} do
-      ls <- liftIO $ map snd . stripCommentLines <$> readFile file
+      ls <- liftIO $ map snd . stripCommentLines <$> UTF8.readFile file
       return $ concatMap splitCommas ls
   `catchIO` \ e -> do
     raiseErrors' [ OtherError $ unlines ["Failed to read defaults file.", show e] ]
@@ -301,7 +302,7 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
       Left err -> raiseErrors' [OtherError err] >> return []
       Right file -> do
         if not (lfExists file) then return [] else do
-          ls    <- liftIO $ stripCommentLines <$> readFile (lfPath file)
+          ls    <- liftIO $ stripCommentLines <$> UTF8.readFile (lfPath file)
           files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
           parseLibFiles (Just file) $ nubOn snd files
   `catchIO` \ e -> do
@@ -370,7 +371,7 @@ getTrustedExecutables
 getTrustedExecutables = mkLibM [] $ do
     file <- liftIO getExecutablesFile
     if not (efExists file) then return Map.empty else do
-      es    <- liftIO $ stripCommentLines <$> readFile (efPath file)
+      es    <- liftIO $ stripCommentLines <$> UTF8.readFile (efPath file)
       files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- es ]
       tmp   <- parseExecutablesFile file $ nubOn snd files
       return tmp
@@ -387,26 +388,12 @@ parseExecutablesFile
 parseExecutablesFile ef files =
   fmap (Map.fromList . catMaybes) . forM files $ \(ln, fp) -> do
 
-    -- Check if the executable exists.
-    fpExists <- liftIO $ doesFileExist fp
-    if not fpExists
-      then do warnings' [ExeNotFound ef fp]
-              return Nothing
-      else do
-
-      -- Check if the executable is executable.
-      fpPerms <- liftIO $ getPermissions fp
-      if not (executable fpPerms)
-        then do warnings' [ExeNotExecutable ef fp]
-                return Nothing
-        else do
-
-        -- Compute canonical executable name and absolute filepath.
-        let strExeName  = takeFileName fp
-        let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
-        let txtExeName  = T.pack strExeName'
-        exePath <- liftIO $ makeAbsolute fp
-        return $ Just (txtExeName, exePath)
+    -- Compute canonical executable name and absolute filepath.
+    let strExeName  = takeFileName fp
+    let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
+    let txtExeName  = T.pack strExeName'
+    exePath <- liftIO $ makeAbsolute fp
+    return $ Just (txtExeName, exePath)
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes
@@ -428,11 +415,11 @@ libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ WriterT $ do
     incs       = nubOn id . concatMap _libIncludes
     dot        = [ "." | not $ null dots ]
 
-    -- | Due to library dependencies, the work list may grow temporarily.
+    -- Due to library dependencies, the work list may grow temporarily.
     find
-      :: LibrariesFile  -- ^ Only for error reporting.
-      -> [LibName]      -- ^ Already resolved libraries.
-      -> [LibName]      -- ^ Work list: libraries left to be resolved.
+      :: LibrariesFile  -- Only for error reporting.
+      -> [LibName]      -- Already resolved libraries.
+      -> [LibName]      -- Work list: libraries left to be resolved.
       -> Writer [Either LibError LibWarning] [AgdaLibFile]
     find _ _ [] = pure []
     find file visited (x : xs)

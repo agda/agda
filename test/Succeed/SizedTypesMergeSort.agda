@@ -1,5 +1,7 @@
 -- {-# OPTIONS -v tc.size:100 #-}
 
+{-# OPTIONS --sized-types #-}
+
 module SizedTypesMergeSort where
 
 open import Common.Size

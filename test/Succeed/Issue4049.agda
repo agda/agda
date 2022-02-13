@@ -1,6 +1,8 @@
 -- Andreas, 2019-10-21, issue #4049
 -- reported and test case by andy-morris
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data A : Size → Set

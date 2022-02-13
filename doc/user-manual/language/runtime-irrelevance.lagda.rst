@@ -44,10 +44,15 @@ arguments.
   annotation, using Brady et al's forcing analysis :ref:`[1] <references>`. Marking it erased explictly, however,
   ensures that it is erased without relying on the analysis.
 
+.. note::
+  In the type signature of a constructor or record field the
+  parameters are always marked as erased, even if the parameters are
+  not marked as erased in the data or record type's telescope.
+
 Erasure annotations can also appear in function arguments (both first-order and higher-order). For instance, here is
 an implementation of ``foldl`` on vectors::
 
-  foldl : (B : Nat → Set b)
+  foldl : (B : @0 Nat → Set b)
         → (f : ∀ {@0 n} → B n → A → B (suc n))
         → (z : B 0)
         → ∀ {@0 n} → Vec A n → B n
@@ -116,7 +121,13 @@ In the code above the constructor ``trivial`` is only available at
 compile-time, whereas ``∣_∣`` is also available at run-time. Clauses
 that match on erased constructors in non-erased positions are omitted
 by (at least some) compiler backends, so one can use erased names in
-the bodies of such clauses.
+the bodies of such clauses. (There is an
+:ref:`exception<erased-cubical>` for constructors that were not
+declared as erased, but that are treated as erased because they were
+defined using Cubical Agda, and are used in a module that uses the
+option :option:`--erased-cubical`.)
+
+.. _run-time-irrelevance-rules:
 
 Rules
 =====
@@ -167,23 +178,12 @@ The type checker enters compile-time mode when
   - Compile-time mode is not entered for the domains of non-erased Π
     types.
   - If the K rule is off then compile-time mode is not entered for
-    non-erased constructors or record fields.
+    non-erased constructors (of fibrant type) or record fields.
 
-Note that the type checker does not enter compile-time mode based on the type a term is checked against. In particular
+Note that the type checker does not enter compile-time mode based on
+the type a term is checked against (except that a distinction is
+sometimes made between fibrant and non-fibrant types). In particular,
 checking a term against ``Set`` does not trigger compile-time mode.
-
-
-
-Subtyping of runtime-irrelevant function spaces
-===============================================
-
-Normally, if ``f : (@0 x : A) → B`` then we have ``λ x → f x : (x : A)
-→ B`` but not ``f : (x : A) → B``.  When the option ``--subtyping`` is
-enabled, Agda will make use of the subtyping rule ``(@0 x : A) → B <:
-(x : A) → B``, so there is no need for eta-expanding the function
-``f``.
-
-
 
 .. _references:
 

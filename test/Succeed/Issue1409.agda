@@ -2,6 +2,7 @@
 
 {-# OPTIONS --without-K #-}
 {-# OPTIONS --copatterns #-}
+{-# OPTIONS --sized-types #-}
 
 open import Common.Size
 

@@ -23,6 +23,7 @@ import Data.Graph
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
+import qualified Data.Map.Strict as MapS
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -65,7 +66,7 @@ recursive names = do
   -- Mark individual clauses of recursive functions:
   --------------------------------------------------
   -- Map names to clause numbers to sets of mentioned names.
-  let clMap = Map.fromList $ zip names perClauses
+  let clMap = Map.fromListWith __IMPOSSIBLE__ $ zip names perClauses
   -- Walk through SCCs.
   forM_ recs $ \ scc -> do
     -- Does a set of names have an overlap with the current scc?
@@ -131,14 +132,16 @@ recDef include name = do
 anyDefs :: GetDefs a => (QName -> Bool) -> a -> TCM (Set QName)
 anyDefs include a = do
   -- Prepare function to lookup metas outside of TCM
-  st <- getMetaStore
-  let lookup (MetaId x) = (mvInstantiation <$> IntMap.lookup x st) >>= \case
-        InstV _ v                      -> Just v    -- TODO: ignoring the lambdas might be bad?
-        Open                           -> Nothing
-        OpenInstance                   -> Nothing
-        BlockedConst{}                 -> Nothing
-        PostponedTypeCheckingProblem{} -> Nothing
+  st <- useR stSolvedMetaStore
+  let lookup x = inst . mvInstantiation <$> MapS.lookup x st
       -- we collect only those used definitions that are in @names@
       emb d = if include d then Set.singleton d else Set.empty
   -- get all the Defs that are in names
   return $ getDefs' lookup emb a
+  where
+  -- TODO: Is it bad to ignore the lambdas?
+  inst (InstV i)                      = instBody i
+  inst Open                           = __IMPOSSIBLE__
+  inst OpenInstance                   = __IMPOSSIBLE__
+  inst BlockedConst{}                 = __IMPOSSIBLE__
+  inst PostponedTypeCheckingProblem{} = __IMPOSSIBLE__

@@ -108,16 +108,21 @@ lispifyResponse (Resp_SolveAll ps) = return
 
 lispifyDisplayInfo :: DisplayInfo -> TCM [Lisp String]
 lispifyDisplayInfo info = case info of
-    Info_CompilationOk ws -> do
+    Info_CompilationOk backend ws -> do
       warnings <- prettyTCWarnings (tcWarnings ws)
       errors <- prettyTCWarnings (nonFatalErrors ws)
+      let
+        msg = concat
+          [ "The module was successfully compiled with backend "
+          , prettyShow backend
+          , ".\n"
+          ]
       -- abusing the goals field since we ignore the title
-      let (body, _) = formatWarningsAndErrors
-                        "The module was successfully compiled.\n"
-                        warnings
-                        errors
+        (body, _) = formatWarningsAndErrors msg warnings errors
       format body "*Compilation result*"
-    Info_Constraints s -> format (show $ vcat $ map pretty s) "*Constraints*"
+    Info_Constraints s -> do
+      doc <- TCP.vcat $ map prettyTCM s
+      format (render doc) "*Constraints*"
     Info_AllGoalsWarnings ms ws -> do
       goals <- showGoals ms
       warnings <- prettyTCWarnings (tcWarnings ws)
@@ -191,7 +196,7 @@ lispifyDisplayInfo info = case info of
     Info_GoalSpecific ii kind -> lispifyGoalSpecificDisplayInfo ii kind
 
 lispifyGoalSpecificDisplayInfo :: InteractionId -> GoalDisplayInfo -> TCM [Lisp String]
-lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
+lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
   case kind of
     Goal_HelperFunction helperType -> do
       doc <- inTopContext $ prettyATop helperType
@@ -220,18 +225,19 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ B.withInteractionId ii $
             | otherwise  = [ text $ delimiter "Boundary"
                            , vcat $ map pretty bndry
                            ]
-      let constraintsDoc = if (null constraints)
-            then  []
-            else  [ text $ delimiter "Constraints"
-                  , vcat $ map pretty constraints
-                  ]
-      let doc = vcat $
-            [ "Goal:" <+> goalDoc
-            , auxDoc
-            , vcat boundaryDoc
-            , text (replicate 60 '\x2014')
-            , ctxDoc
-            ] ++ constraintsDoc
+      let constraintsDoc
+            | null constraints = []
+            | otherwise        =
+              [ TCP.text $ delimiter "Constraints"
+              , TCP.vcat $ map prettyTCM constraints
+              ]
+      doc <- TCP.vcat $
+        [ "Goal:" TCP.<+> return goalDoc
+        , return auxDoc
+        , return (vcat boundaryDoc)
+        , TCP.text (replicate 60 '\x2014')
+        , return ctxDoc
+        ] ++ constraintsDoc
       format (render doc) "*Goal type etc.*"
     Goal_CurrentGoal norm -> do
       doc <- prettyTypeOfMeta norm ii

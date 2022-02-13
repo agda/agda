@@ -1,5 +1,6 @@
 -- Andreas, 2013-01-08, Reported by andres.sicard.ramirez, Jan 7
 -- {-# OPTIONS -v term:10 -v term.matrices:40 #-}
+{-# OPTIONS --guardedness #-}
 
 -- The difference between @bar@ and @bar'@ is the position of the
 -- hypothesis (n : ℕ). While @bar@ is accepted by the termination
@@ -93,4 +94,3 @@ kept call from .Issue1014.♯-0 5 4 3 2 1 0
 ,[.,.,.,.,.,.,0]]
 [Issue1014.bar] does termination check
 -}
-

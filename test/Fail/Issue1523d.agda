@@ -1,3 +1,5 @@
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 postulate

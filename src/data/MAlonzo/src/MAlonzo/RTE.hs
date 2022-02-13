@@ -32,9 +32,6 @@ instance Ord QName where
 erased :: a
 erased = coe (\ _ -> erased)
 
-mazIncompleteMatch :: String -> a
-mazIncompleteMatch s = error ("Agda: incomplete pattern matching: " ++ s)
-
 mazUnreachableError :: a
 mazUnreachableError = error ("Agda: unreachable code reached.")
 

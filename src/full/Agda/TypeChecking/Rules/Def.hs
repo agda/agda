@@ -97,14 +97,20 @@ checkFunDef delayed i name cs = do
                 -- See issue 729.
                 -- Ulf, 2021-02-09: also unfreeze metas in the sort of this type
                 whenM (isFrozen x) $ do
-                  xs <- allMetasList . jMetaType . mvJudgement <$> lookupMeta x
+                  xs <- allMetasList . jMetaType . mvJudgement <$> lookupLocalMeta x
                   mapM_ unfreezeMeta (x : xs)
                 checkAlias t info delayed i name e mc
             | otherwise -> do -- Warn about abstract alias (will never work!)
-              setCurrentRange i $ genericWarning =<<
-                "Missing type signature for abstract definition" <+> (prettyTCM name <> ".") $$
-                fsep (pwords "Types of abstract definitions are never inferred since this would leak" ++
-                      pwords "information that should be abstract.")
+              -- Ulf, 2021-11-18, #5620: Don't warn if the meta is solved. A more intuitive solution
+              -- would be to not treat definitions with solved meta types as aliases, but in mutual
+              -- blocks you might actually have solved the type of an alias by the time you get to
+              -- the definition. See test/Succeed/SizeInfinity.agda for an example where this
+              -- happens.
+              whenM (isOpenMeta <$> lookupMetaInstantiation x) $
+                setCurrentRange i $ genericWarning =<<
+                  "Missing type signature for abstract definition" <+> (prettyTCM name <> ".") $$
+                  fsep (pwords "Types of abstract definitions are never inferred since this would leak" ++
+                        pwords "information that should be abstract.")
               checkFunDef' t info delayed Nothing Nothing i name cs
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
@@ -178,7 +184,7 @@ checkAlias t ai delayed i name e mc =
         _          -> id
 
   -- Add the definition
-  addConstant name $ defaultDefn ai name t
+  addConstant' name ai name t
                    $ set funMacro (Info.defMacro i == MacroDef) $
                      emptyFunction
                       { funClauses = [ Clause  -- trivial clause @name = v@
@@ -402,6 +408,12 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
 
         -- Add the definition
         inTopContext $ addConstant name =<< do
+
+          reportSDoc "tc.def.fun.clauses" 15 $ inTopContext $ do
+            vcat [ "final clauses for" <+> prettyTCM name <+>  ":"
+                 , nest 2 $ vcat $ map (prettyTCM . QNamed name) cs
+                 ]
+
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           defn <- autoInline $
@@ -417,9 +429,10 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
              , funWith           = with
              , funCovering       = covering
              }
+          lang <- getLanguage
           useTerPragma $
             updateDefCopatternLHS (const $ hasProjectionPatterns cc) $
-            defaultDefn ai name fullType defn
+            defaultDefn ai name fullType lang defn
 
         reportSDoc "tc.def.fun" 10 $ do
           sep [ "added " <+> prettyTCM name <+> ":"
@@ -827,9 +840,9 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps absurdPat trhs _ _asb _) rhs0
   -- With case: @f xs with {a} in eqa | b in eqb | {{c}} | ...; ... | ps1 = rhs1; ... | ps2 = rhs2; ...@
   -- We need to modify the patterns `ps1, ps2, ...` in the user-provided clauses
   -- to insert the {eqb} names so that the equality proofs are available on the various RHS.
-  withRHS :: QName        -- ^ name of the with-function
-          -> [A.WithExpr] -- ^ @[{a} in eqa, b in eqb, {{c}}, ...]@
-          -> [A.Clause]   -- ^ @[(ps1 = rhs1), (ps2 = rhs), ...]@
+  withRHS :: QName         -- name of the with-function
+          -> [A.WithExpr]  -- @[{a} in eqa, b in eqb, {{c}}, ...]@
+          -> [A.Clause]    -- @[(ps1 = rhs1), (ps2 = rhs), ...]@
           -> TCM (Maybe Term, WithFunctionProblem)
   withRHS aux es cs = do
 
@@ -1012,9 +1025,22 @@ checkWithRHS
   -> TCM (Maybe Term, WithFunctionProblem)
                                 -- Note: as-bindings already bound (in checkClause)
 checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 cs =
-  Bench.billTo [Bench.Typing, Bench.With] $ do
+  verboseBracket "tc.with.top" 25 "checkWithRHS" $ do
+    Bench.billTo [Bench.Typing, Bench.With] $ do
         withArgs <- withArguments vtys0
         let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
+
+        reportSDoc "tc.with.top" 30 $ vcat $
+          -- declared locally because we do not want to use the unzip'd thing!
+          let (vs, as) = unzipWith unArg vtys0 in
+          [ "vs (before normalization) =" <+> prettyTCM vs
+          , "as (before normalization) =" <+> prettyTCM as
+          ]
+        reportSDoc "tc.with.top" 45 $ vcat $
+          -- declared locally because we do not want to use the unzip'd thing!
+          let (vs, as) = unzipWith unArg vtys0 in
+          [ "vs (before norm., raw) =" <+> pretty vs
+          ]
         vtys0 <- normalise vtys0
 
         -- Andreas, 2012-09-17: for printing delta,
@@ -1063,7 +1089,10 @@ checkWithRHS x aux t (LHSResult npars delta ps _absurdPat trhs _ _asb _) vtys0 c
             v         = Nothing -- generated by checkWithFunction
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
-          useTerPragma $ defaultDefn defaultArgInfo aux __DUMMY_TYPE__ emptyFunction
+          lang <- getLanguage
+          useTerPragma $
+            defaultDefn defaultArgInfo aux __DUMMY_TYPE__ lang
+              emptyFunction
 
         reportSDoc "tc.with.top" 20 $ vcat $
           let (vs, as) = unzipWith unArg vtys in
@@ -1157,8 +1186,10 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
         , prettyTCM dt
         ]
   addConstant aux =<< do
-    useTerPragma $ (defaultDefn defaultArgInfo aux withFunType emptyFunction)
-                   { defDisplay = [df] }
+    lang <- getLanguage
+    useTerPragma $
+      (defaultDefn defaultArgInfo aux withFunType lang emptyFunction)
+        { defDisplay = [df] }
   -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 
   reportSDoc "tc.with.top" 10 $ sep

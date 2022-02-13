@@ -1,4 +1,4 @@
-Tested with `cabal-install 3.2.0.0`.
+Tested with `ghc-8.10.5` and `cabal-install 3.4.0.0`.
 
 When releasing a release candidate (RC) the following procedure can be
 followed:
@@ -32,8 +32,11 @@ followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Update the year in the copyright of the user manual, in
-  `/doc/user-manual/conf.py`, if necessary.
+* Update the copyright year range in
+
+  - Agda.cabal
+  - /doc/user-manual/conf.py
+  - LICENSE
 
 * Get a clean Agda repository.
 
@@ -59,6 +62,10 @@ followed:
 
     make up-to-date-std-lib
 
+* Obtain and install the cubical library branch related to the Agda:
+
+    make up-to-date-cubical
+
 * Run the test-suite:
 
     make compile-emacs-mode
@@ -68,12 +75,18 @@ followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove -Werror and -fprof-auto from Agda.cabal (this is required by
+1) Remove the Cabal test-suite from Agda.cabal.
+
+2) Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Remove the Cabal test-suite from Agda.cabal.
+3) Removed unnecessary dependencies from stack-XYZ.yaml files:
 
-* Added to the extra-source-files field in Agda.cabal the file (see
+  + Removed QuickCheck dependency
+  + Removed tasty-* dependencies
+  + Removed local package (src/size-solver)
+
+4) Added to the extra-source-files field in Agda.cabal the file (see
   Issues #4216):
 
     doc/user-manual.pdf
@@ -97,7 +110,7 @@ followed:
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
-    tar xzf $BASE/dist/Agda-$RC_VERSION.tar.gz
+    tar xzf $BASE/dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
     cd Agda-$RC_VERSION
     cabal install --program-suffix=-$RC_VERSION
     agda-$RC_VERSION --version
@@ -115,14 +128,7 @@ followed:
     cabal upload dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
     cabal upload -d dist-newstyle/Agda-$RC_VERSION-docs.tar.gz
 
-* Remove from the extra-source-files field in Agda.cabal the file (see
-  Issues #4216):
-
-    doc/user-manual.pdf
-
-* Restore the Cabal test-suite in Agda.cabal.
-
-* Restore -Werror and -fprof-auto in Agda.cabal.
+* Revert changes made in 1), 2), 3) and 4).
 
 * Restore the Agda version
 

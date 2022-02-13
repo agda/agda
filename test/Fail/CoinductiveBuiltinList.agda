@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 module CoinductiveBuiltinList where
 
 open import Common.Coinduction

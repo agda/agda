@@ -253,6 +253,18 @@ bindVarsToBind = do
   printLocals 10 "bound variables:"
   modifyScope_ $ setVarsToBind []
 
+annotateDecls :: ReadTCState m => m [A.Declaration] -> m A.Declaration
+annotateDecls m = do
+  ds <- m
+  s  <- getScope
+  return $ A.ScopedDecl s ds
+
+annotateExpr :: ReadTCState m => m A.Expr -> m A.Expr
+annotateExpr m = do
+  e <- m
+  s <- getScope
+  return $ A.ScopedExpr s e
+
 ---------------------------------------------------------------------------
 -- * Names
 ---------------------------------------------------------------------------
@@ -387,8 +399,8 @@ tryResolveName kinds names x = do
   fromConcreteSuffix = \case
     Nothing              -> Nothing
     Just C.Prime{}       -> Nothing
-    Just (C.Index i)     -> Just $ A.Suffix $ toInteger i
-    Just (C.Subscript i) -> Just $ A.Suffix $ toInteger i
+    Just (C.Index i)     -> Just $ A.Suffix i
+    Just (C.Subscript i) -> Just $ A.Suffix i
 
 -- | Test if a given abstract name can appear with a suffix. Currently
 --   only true for the names of builtin sorts @Set@ and @Prop@.
@@ -822,7 +834,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- before we apply the import directive.
     scope = restrictPrivate scope0
 
-    -- | Return names in the @using@ directive, discarding duplicates.
+    -- Return names in the @using@ directive, discarding duplicates.
     -- Monadic for the sake of throwing warnings.
     discardDuplicatesInUsing :: C.Using -> ScopeM [C.ImportedName]
     discardDuplicatesInUsing = \case
@@ -832,7 +844,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
         List1.unlessNull dups $ warning . DuplicateUsing
         return ys
 
-    -- | If both @using@ and @hiding@ directive are present,
+    -- If both @using@ and @hiding@ directive are present,
     -- the hiding directive may only contain modules whose twins are mentioned.
     -- Monadic for the sake of error reporting.
     sanityCheck notMentioned = \case
@@ -861,14 +873,14 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
              [ r , Renaming (ImportedModule y) (ImportedModule z) Nothing rng ]
           r -> [r]
 
-    -- | Names and modules (abstract) in scope before the import.
+    -- Names and modules (abstract) in scope before the import.
     namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
     modulesInScope = (allNamesInScope scope :: ThingsInScope AbstractModule)
     concreteNamesInScope = (Map.keys namesInScope ++ Map.keys modulesInScope :: [C.Name])
 
-    -- | AST versions of the concrete names passed as an argument.
-    --   We get back a pair consisting of a list of missing exports first,
-    --   and a list of successful imports second.
+    -- AST versions of the concrete names passed as an argument.
+    -- We get back a pair consisting of a list of missing exports first,
+    -- and a list of successful imports second.
     checkExist :: [ImportedName] -> ([ImportedName], [ImportedName' (C.Name, A.QName) (C.Name, A.ModuleName)])
     checkExist xs = partitionEithers $ for xs $ \ name -> case name of
       ImportedName x   -> ImportedName   . (x,) . setRange (getRange x) . anameName <$> resolve name x namesInScope

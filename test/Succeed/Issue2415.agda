@@ -3,6 +3,8 @@
 
 -- {-# OPTIONS -v tc.size.solve:40 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 open import Common.Equality
 

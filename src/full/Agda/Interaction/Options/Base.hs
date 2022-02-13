@@ -63,6 +63,7 @@ import Agda.Interaction.Options.Help
   )
 import Agda.Interaction.Options.Warnings
 import Agda.Syntax.Concrete.Glyph ( unsafeSetUnicodeOrAscii, UnicodeOrAscii(..) )
+import Agda.Syntax.Common (Cubical(..))
 
 import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
@@ -117,6 +118,8 @@ data CommandLineOptions = Options
   , optOnlyScopeChecking     :: Bool
     -- ^ Should the top-level module only be scope-checked, and not
     --   type-checked?
+  , optTransliterate         :: Bool
+    -- ^ Should code points that are not supported by the locale be transliterated?
   }
   deriving (Show, Generic)
 
@@ -140,10 +143,9 @@ data PragmaOptions = PragmaOptions
   , optCompletenessCheck         :: Bool
   , optUniverseCheck             :: Bool
   , optOmegaInOmega              :: Bool
-  , optSubtyping                 :: WithDefault 'False
   , optCumulativity              :: Bool
-  , optSizedTypes                :: WithDefault 'True
-  , optGuardedness               :: WithDefault 'True
+  , optSizedTypes                :: WithDefault 'False
+  , optGuardedness               :: WithDefault 'False
   , optInjectiveTypeConstructors :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
@@ -156,7 +158,7 @@ data PragmaOptions = PragmaOptions
   , optForcing                   :: Bool  -- ^ Perform the forcing analysis on data constructors?
   , optProjectionLike            :: Bool  -- ^ Perform the projection-likeness analysis on functions?
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
-  , optCubical                   :: Bool
+  , optCubical                   :: Maybe Cubical
   , optGuarded                   :: Bool
   , optFirstOrder                :: Bool  -- ^ Should we speculatively unify function applications as if they were injective?
   , optPostfixProjections        :: Bool
@@ -194,6 +196,8 @@ data PragmaOptions = PragmaOptions
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
   , optAllowExec                 :: Bool
+  , optSaveMetas                 :: WithDefault 'False
+    -- ^ Save meta-variables.
   , optShowIdentitySubstitutions :: Bool
     -- ^ Show identity substitutions when pretty-printing terms
     --   (i.e. always show all arguments of a metavariable)
@@ -252,6 +256,7 @@ defaultOptions = Options
   , optLocalInterfaces       = False
   , optPragmaOptions         = defaultPragmaOptions
   , optOnlyScopeChecking     = False
+  , optTransliterate         = False
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -272,7 +277,6 @@ defaultPragmaOptions = PragmaOptions
   , optCompletenessCheck         = True
   , optUniverseCheck             = True
   , optOmegaInOmega              = False
-  , optSubtyping                 = Default
   , optCumulativity              = False
   , optSizedTypes                = Default
   , optGuardedness               = Default
@@ -286,7 +290,7 @@ defaultPragmaOptions = PragmaOptions
   , optForcing                   = True
   , optProjectionLike            = True
   , optRewriting                 = False
-  , optCubical                   = False
+  , optCubical                   = Nothing
   , optGuarded                   = False
   , optFirstOrder                = False
   , optPostfixProjections        = False
@@ -310,6 +314,7 @@ defaultPragmaOptions = PragmaOptions
   , optFlatSplit                 = True
   , optImportSorts               = True
   , optAllowExec                 = False
+  , optSaveMetas                 = Default
   , optShowIdentitySubstitutions = False
   }
 
@@ -359,7 +364,9 @@ unsafePragmaOptions clo opts =
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
-  [ "--cubical and --with-K"                     | optCubical opts
+  [ "--cubical and --with-K"                     | optCubical opts == Just CFull
+                                                 , not (collapseDefault $ optWithoutK opts) ] ++
+  [ "--erased-cubical and --with-K"              | optCubical opts == Just CErased
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
   [ "--cumulativity"                             | optCumulativity opts              ] ++
   [ "--allow-exec"                               | optAllowExec opts                 ] ++
@@ -379,10 +386,9 @@ restartOptions =
   , (B . optTerminationCheck,  "--no-termination-check")
   , (B . not . optUniverseCheck, "--type-in-type")
   , (B . optOmegaInOmega, "--omega-in-omega")
-  , (B . collapseDefault . optSubtyping, "--subtyping")
   , (B . optCumulativity, "--cumulativity")
-  , (B . not . collapseDefault . optSizedTypes, "--no-sized-types")
-  , (B . not . collapseDefault . optGuardedness, "--no-guardedness")
+  , (B . collapseDefault . optSizedTypes, "--no-sized-types")
+  , (B . collapseDefault . optGuardedness, "--no-guardedness")
   , (B . optInjectiveTypeConstructors, "--injective-type-constructors")
   , (B . optProp, "--prop")
   , (B . collapseDefault . optTwoLevel, "--two-level")
@@ -393,7 +399,8 @@ restartOptions =
   , (B . optExactSplit, "--exact-split")
   , (B . not . optEta, "--no-eta-equality")
   , (B . optRewriting, "--rewriting")
-  , (B . optCubical, "--cubical")
+  , (B . (== Just CFull) . optCubical, "--cubical")
+  , (B . (== Just CErased) . optCubical, "--erased-cubical")
   , (B . optGuarded, "--guarded")
   , (B . optOverlappingInstances, "--overlapping-instances")
   , (B . optQualifiedInstances, "--qualified-instances")
@@ -411,6 +418,7 @@ restartOptions =
   , (B . (== Just GlobalConfluenceCheck) . optConfluenceCheck, "--confluence-check")
   , (B . not . optImportSorts, "--no-import-sorts")
   , (B . optAllowExec, "--allow-exec")
+  , (B . collapseDefault . optSaveMetas, "--save-metas")
   ]
 
 -- to make all restart options have the same type
@@ -419,14 +427,20 @@ data RestartCodomain = C CutOff | B Bool | I Int | W WarningMode
 
 -- | An infective option is an option that if used in one module, must
 --   be used in all modules that depend on this module.
+--
+-- Note that @--cubical@ and @--erased-cubical@ are \"jointly
+-- infective\": if one of them is used in one module, then one or the
+-- other must be used in all modules that depend on this module.
 
 infectiveOptions :: [(PragmaOptions -> Bool, String)]
 infectiveOptions =
-  [ (optCubical, "--cubical")
+  [ (isJust . optCubical, "--cubical/--erased-cubical")
   , (optGuarded, "--guarded")
   , (optProp, "--prop")
   , (collapseDefault . optTwoLevel, "--two-level")
   , (optRewriting, "--rewriting")
+  , (collapseDefault . optSizedTypes, "--sized-types")
+  , (collapseDefault . optGuardedness, "--guardedness")
   ]
 
 -- | A coinfective option is an option that if used in one module, must
@@ -437,9 +451,6 @@ coinfectiveOptions =
   [ (optSafe, "--safe")
   , (collapseDefault . optWithoutK, "--without-K")
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
-  , (not . collapseDefault . optSizedTypes, "--no-sized-types")
-  , (not . collapseDefault . optGuardedness, "--no-guardedness")
-  , (not . collapseDefault . optSubtyping, "--no-subtyping")
   , (not . optCumulativity, "--no-cumulativity")
   ]
 
@@ -558,6 +569,9 @@ vimFlag o = return $ o { optGenerateVimFile = True }
 onlyScopeCheckingFlag :: Flag CommandLineOptions
 onlyScopeCheckingFlag o = return $ o { optOnlyScopeChecking = True }
 
+transliterateFlag :: Flag CommandLineOptions
+transliterateFlag o = return $ o { optTransliterate = True }
+
 countClustersFlag :: Flag PragmaOptions
 countClustersFlag o =
 #ifdef COUNT_CLUSTERS
@@ -607,17 +621,8 @@ dontUniverseCheckFlag o = return $ o { optUniverseCheck = False }
 omegaInOmegaFlag :: Flag PragmaOptions
 omegaInOmegaFlag o = return $ o { optOmegaInOmega = True }
 
-subtypingFlag :: Flag PragmaOptions
-subtypingFlag o = return $ o { optSubtyping = Value True }
-
-noSubtypingFlag :: Flag PragmaOptions
-noSubtypingFlag o = return $ o { optSubtyping = Value False }
-
 cumulativityFlag :: Flag PragmaOptions
-cumulativityFlag o =
-  return $ o { optCumulativity = True
-             , optSubtyping    = setDefault True $ optSubtyping o
-             }
+cumulativityFlag o = return $ o { optCumulativity = True }
 
 noCumulativityFlag :: Flag PragmaOptions
 noCumulativityFlag o = return $ o { optCumulativity = False }
@@ -630,10 +635,7 @@ noEtaFlag :: Flag PragmaOptions
 noEtaFlag o = return $ o { optEta = False }
 
 sizedTypes :: Flag PragmaOptions
-sizedTypes o =
-  return $ o { optSizedTypes = Value True
-             --, optSubtyping  = setDefault True $ optSubtyping o
-             }
+sizedTypes o = return $ o { optSizedTypes = Value True }
 
 noSizedTypes :: Flag PragmaOptions
 noSizedTypes o = return $ o { optSizedTypes = Value False }
@@ -698,10 +700,12 @@ rewritingFlag o = return $ o { optRewriting = True }
 firstOrderFlag :: Flag PragmaOptions
 firstOrderFlag o = return $ o { optFirstOrder = True }
 
-cubicalFlag :: Flag PragmaOptions
-cubicalFlag o = do
+cubicalFlag
+  :: Cubical  -- ^ Which variant of Cubical Agda?
+  -> Flag PragmaOptions
+cubicalFlag variant o = do
   let withoutK = optWithoutK o
-  return $ o { optCubical  = True
+  return $ o { optCubical  = Just variant
              , optWithoutK = setDefault True withoutK
              , optTwoLevel = setDefault True $ optTwoLevel o
              }
@@ -804,6 +808,9 @@ noImportSorts o = return $ o { optImportSorts = False }
 allowExec :: Flag PragmaOptions
 allowExec o = return $ o { optAllowExec = True }
 
+saveMetas :: Bool -> Flag PragmaOptions
+saveMetas save o = return $ o { optSaveMetas = Value save }
+
 integerArgument :: String -> String -> OptM Int
 integerArgument flag s = maybe usage return $ readMaybe s
   where
@@ -852,6 +859,8 @@ standardOptions =
                     "don't use default libraries"
     , Option []     ["only-scope-checking"] (NoArg onlyScopeCheckingFlag)
                     "only scope-check the top-level module, do not type-check it"
+    , Option []     ["transliterate"] (NoArg transliterateFlag)
+                    "transliterate unsupported code points when printing to stdout/stderr"
     ] ++ map (fmap lensPragmaOptions) pragmaOptions
 
 -- | Defined locally here since module ''Agda.Interaction.Options.Lenses''
@@ -897,10 +906,6 @@ pragmaOptions =
                     "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["omega-in-omega"] (NoArg omegaInOmegaFlag)
                     "enable typing rule Setω : Setω (this makes Agda inconsistent)"
-    , Option []     ["subtyping"] (NoArg subtypingFlag)
-                    "enable subtyping rules in general (e.g. for irrelevance and erasure)"
-    , Option []     ["no-subtyping"] (NoArg noSubtypingFlag)
-                    "disable subtyping rules in general (e.g. for irrelevance and erasure) (default)"
     , Option []     ["cumulativity"] (NoArg cumulativityFlag)
                     "enable subtyping of universes (e.g. Set =< Set₁) (implies --subtyping)"
     , Option []     ["no-cumulativity"] (NoArg noCumulativityFlag)
@@ -963,8 +968,10 @@ pragmaOptions =
                     "enable global confluence checking of REWRITE rules (more restrictive than --local-confluence-check)"
     , Option []     ["no-confluence-check"] (NoArg noConfluenceCheckFlag)
                     "disable confluence checking of REWRITE rules (default)"
-    , Option []     ["cubical"] (NoArg cubicalFlag)
+    , Option []     ["cubical"] (NoArg $ cubicalFlag CFull)
                     "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
+    , Option []     ["erased-cubical"] (NoArg $ cubicalFlag CErased)
+                    "enable cubical features (some only in erased settings), implies --without-K"
     , Option []     ["guarded"] (NoArg guardedFlag)
                     "enable @lock/@tick attributes"
     , Option []     ["experimental-lossy-unification"] (NoArg firstOrderFlag)
@@ -1025,6 +1032,10 @@ pragmaOptions =
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
     , Option []     ["allow-exec"] (NoArg allowExec)
                     "allow system calls to trusted executables with primExec"
+    , Option []     ["save-metas"] (NoArg $ saveMetas True)
+                    "save meta-variables"
+    , Option []     ["no-save-metas"] (NoArg $ saveMetas False)
+                    "do not save meta-variables (the default)"
     ]
 
 -- | Pragma options of previous versions of Agda.

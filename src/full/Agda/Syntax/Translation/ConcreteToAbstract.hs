@@ -126,18 +126,6 @@ notAValidLetBinding = locatedTypeError NotAValidLetBinding
 --annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
 --annotateDecl m = annotateDecls $ (:[]) <$> m
 
-annotateDecls :: ScopeM [A.Declaration] -> ScopeM A.Declaration
-annotateDecls m = do
-  ds <- m
-  s  <- getScope
-  return $ ScopedDecl s ds
-
-annotateExpr :: ScopeM A.Expr -> ScopeM A.Expr
-annotateExpr m = do
-  e <- m
-  s <- getScope
-  return $ ScopedExpr s e
-
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
 noDotorEqPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
 noDotorEqPattern err = dot
@@ -1035,11 +1023,7 @@ instance ToAbstract C.Expr where
       C.QuoteTerm r -> return $ A.QuoteTerm (ExprRange r)
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
-      C.Tactic r e -> do
-        let AppView e' args = appView e
-        e'   <- toAbstract e'
-        args <- toAbstract args
-        return $ A.Tactic (ExprRange r) e' args
+      C.Tactic r e -> genericError "Syntax error: 'tactic' can only appear in attributes"
 
   -- DontCare
       C.DontCare e -> A.DontCare <$> toAbstract e
@@ -1635,8 +1619,8 @@ instance ToAbstract LetDef where
           C.RHS e -> return e
           C.AbsurdRHS -> genericError $ "Missing right hand side in let binding"
 
-        -- | Only record patterns allowed, but we do not exclude data constructors here.
-        --   They will fail in the type checker.
+        -- Only record patterns allowed, but we do not exclude data constructors here.
+        -- They will fail in the type checker.
         checkValidLetPattern :: A.Pattern' e -> ScopeM ()
         checkValidLetPattern = \case
             A.VarP{}             -> yes
@@ -2106,13 +2090,19 @@ unGeneralized (A.Generalized s t) = (s, t)
 unGeneralized (A.ScopedExpr si e) = A.ScopedExpr si <$> unGeneralized e
 unGeneralized t = (mempty, t)
 
+alreadyGeneralizing :: ScopeM Bool
+alreadyGeneralizing = isJust <$> useTC stGeneralizedVars
+
 collectGeneralizables :: ScopeM a -> ScopeM (Set I.QName, a)
-collectGeneralizables m = bracket_ open close $ do
-    a <- m
-    s <- useTC stGeneralizedVars
-    case s of
-        Nothing -> __IMPOSSIBLE__
-        Just s -> return (s, a)
+collectGeneralizables m =
+  -- #5683: No nested generalization
+  ifM alreadyGeneralizing ((Set.empty,) <$> m) $
+  {-else-} bracket_ open close $ do
+      a <- m
+      s <- useTC stGeneralizedVars
+      case s of
+          Nothing -> __IMPOSSIBLE__
+          Just s -> return (s, a)
   where
     open = do
         gvs <- useTC stGeneralizedVars
@@ -2715,7 +2705,7 @@ hasExpandedEllipsis core = case core of
   C.LHSProj{}       -> hasExpandedEllipsis $ namedArg $ C.lhsFocus core -- can this ever be ExpandedEllipsis?
   C.LHSWith{}       -> hasExpandedEllipsis $ C.lhsHead core
   C.LHSEllipsis r p -> case p of
-    C.LHSWith _ wps _ -> ExpandedEllipsis r (length wps)
+    C.LHSWith p wps _ -> hasExpandedEllipsis p <> ExpandedEllipsis r (length wps)
     C.LHSHead{}       -> ExpandedEllipsis r 0
     C.LHSProj{}       -> ExpandedEllipsis r 0
     C.LHSEllipsis{}   -> __IMPOSSIBLE__
@@ -2973,9 +2963,9 @@ toAbstractOpApp op ns es = do
     -- Get the notation for the operator.
     nota <- getNotation op ns
     let parts = notation nota
-    -- We can throw away the @BindingHoles@, since binders
+    -- We can throw away the @VarPart@s, since binders
     -- have been preprocessed into @OpApp C.Expr@.
-    let nonBindingParts = filter (not . isBindingHole) parts
+    let nonBindingParts = filter (not . isBinder) parts
     -- We should be left with as many holes as we have been given args @es@.
     -- If not, crash.
     unless (length (filter isAHole nonBindingParts) == length es) __IMPOSSIBLE__

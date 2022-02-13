@@ -177,9 +177,9 @@ instance Reify MetaId where
     type ReifiesTo MetaId = Expr
 
     reifyWhen = reifyWhenE
-    reify x@(MetaId n) = do
+    reify x = do
       b <- asksTC envPrintMetasBare
-      mi  <- mvInfo <$> lookupMeta x
+      mi  <- mvInfo <$> lookupLocalMeta x
       let mi' = Info.MetaInfo
                  { metaRange          = getRange $ miClosRange mi
                  , metaScope          = clScope $ miClosRange mi
@@ -334,9 +334,9 @@ reifyDisplayFormP f ps wps = do
 
     displayLHS
       :: MonadReify m
-      => A.Patterns   -- ^ Patterns to substituted into display term.
-      -> DisplayTerm  -- ^ Display term.
-      -> m (QName, A.Patterns, A.Patterns)  -- ^ New head, patterns, with-patterns.
+      => A.Patterns   -- Patterns to substituted into display term.
+      -> DisplayTerm  -- Display term.
+      -> m (QName, A.Patterns, A.Patterns)  -- New head, patterns, with-patterns.
     displayLHS ps d = do
         let (f, vs, es) = flattenWith d
         ps  <- mapM elimToPat vs
@@ -351,7 +351,7 @@ reifyDisplayFormP f ps wps = do
         elimToPat (I.Apply arg) = argToPat arg
         elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ unambiguous d
 
-        -- | Substitute variables in display term by patterns.
+        -- Substitute variables in display term by patterns.
         termToPat :: MonadReify m => DisplayTerm -> m (Named_ A.Pattern)
 
         -- Main action HERE:
@@ -556,7 +556,7 @@ reifyTerm expandAnonDefs0 v0 = do
 
           es' <- reify es
 
-          mv <- lookupMeta x
+          mv <- lookupLocalMeta x
           (msub1,meta_tel,msub2) <- do
             local_chkpt <- viewTC eCurrentCheckpoint
             (chkpt, tel, msub2) <- enterClosure mv $ \ _ ->
@@ -779,12 +779,12 @@ reifyTerm expandAnonDefs0 v0 = do
     -- them (plus the associated arguments to the extended lambda), we produce
     -- something
 
-    -- * that violates internal invariants.  In particular, the permutation
-    --   dbPatPerm from the patterns to the telescope can no longer be
-    --   computed.  (And in fact, dropping from the start of the telescope is
-    --   just plainly unsound then.)
+    -- i) that violates internal invariants.  In particular, the permutation
+    -- dbPatPerm from the patterns to the telescope can no longer be
+    -- computed.  (And in fact, dropping from the start of the telescope is
+    -- just plainly unsound then.)
 
-    -- * prints the wrong thing (old fix for #2047)
+    -- ii) prints the wrong thing (old fix for #2047)
 
     -- What we do now, is more sound, although not entirely satisfying:
     -- When the "parameter" patterns of an external lambdas are not variable
@@ -1051,7 +1051,6 @@ instance BlankVars A.Expr where
     A.Quote {}               -> __IMPOSSIBLE__
     A.QuoteTerm {}           -> __IMPOSSIBLE__
     A.Unquote {}             -> __IMPOSSIBLE__
-    A.Tactic {}              -> __IMPOSSIBLE__
     A.DontCare v             -> A.DontCare $ blank bound v
     A.PatternSyn {}          -> e
     A.Macro {}               -> e
@@ -1384,6 +1383,9 @@ instance Reify Sort where
         I.LockUniv  -> do
           lockU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinLockUniv
           return $ A.Def lockU
+        I.IntervalUniv -> do
+          intervalU <- fromMaybe __IMPOSSIBLE__ <$> getName' builtinIntervalUniv
+          return $ A.Def intervalU
         I.PiSort a s1 s2 -> do
           pis <- freshName_ ("piSort" :: String) -- TODO: hack
           (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)

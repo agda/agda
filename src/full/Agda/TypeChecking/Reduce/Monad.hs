@@ -18,8 +18,7 @@ import Data.Maybe
 import System.IO.Unsafe
 
 import Agda.Syntax.Internal
-import Agda.TypeChecking.Monad hiding
-  ( enterClosure, isInstantiatedMeta, verboseS, typeOfConst, lookupMeta, lookupMeta', constructorForm )
+import Agda.TypeChecking.Monad hiding (enterClosure, constructorForm)
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Lens
@@ -72,13 +71,13 @@ instance MonadAddContext ReduceM where
 instance MonadDebug ReduceM where
 
   traceDebugMessage k n s cont = do
-    ReduceEnv env st <- askR
+    ReduceEnv env st _ <- askR
     unsafePerformIO $ do
       _ <- runTCM env st $ displayDebugMessage k n s
       return $ cont
 
   formatDebugMessage k n d = do
-    ReduceEnv env st <- askR
+    ReduceEnv env st _ <- askR
     unsafePerformIO $ do
       (s , _) <- runTCM env st $ formatDebugMessage k n d
       return $ return s
@@ -93,7 +92,7 @@ instance MonadDebug ReduceM where
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor
   getConstInfo' q = do
-    ReduceEnv env st <- askR
+    ReduceEnv env st _ <- askR
     defaultGetConstInfo st env q
 
 instance PureTCM ReduceM where

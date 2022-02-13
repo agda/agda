@@ -86,7 +86,11 @@ instance CoArbitrary Induction where
   coarbitrary CoInductive = variant 1
 
 instance Arbitrary MetaId where
-  arbitrary = MetaId <$> arbitrary
+  arbitrary = elements
+    [ MetaId x (ModuleNameHash y)
+    | x <- [0, 1]
+    , y <- [0, 1]
+    ]
 
 instance Arbitrary Hiding where
   arbitrary = elements [ Hidden, NotHidden, Instance NoOverlap, Instance YesOverlap ]

@@ -1,0 +1,10 @@
+Failed to solve the following constraints:
+  h _75 _76 = base : 𝕊¹ (blocked on all(_75, _76))
+  g _49 _50 = base : 𝕊¹ (blocked on _49)
+Unsolved metas at the following locations:
+  InjectivityHITs.agda:34,7-8
+  InjectivityHITs.agda:34,9-10
+  InjectivityHITs.agda:35,5-9
+  InjectivityHITs.agda:49,7-8
+  InjectivityHITs.agda:49,9-10
+  InjectivityHITs.agda:50,5-9

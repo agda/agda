@@ -1,5 +1,9 @@
 -- By default both sized types and constructor-based guardedness are
 -- available.
+-- Jesper, 2021-05-12: This is no longer the case, you now have to
+-- ask for the combination explicitly.
+
+{-# OPTIONS --guardedness --sized-types #-}
 
 open import Agda.Builtin.Size
 

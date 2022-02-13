@@ -5,6 +5,7 @@ RsTHighlightCodeAuto
 ..
 
 ::
+   {-# OPTIONS --sized-types #-}
    module RsTHighlightCodeAuto where
 
 Mokou:

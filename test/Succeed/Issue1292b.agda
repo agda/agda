@@ -1,6 +1,6 @@
 -- Andreas, 2014-10-05
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --sized-types #-}
 
 -- {-# OPTIONS -v tc.size:20  #-}
 

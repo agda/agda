@@ -29,6 +29,14 @@ the LaTeX output directory (by default :file:`latex`). Note that the
 appearance of typeset code can be modified by overriding definitions
 from :file:`agda.sty`.
 
+.. note::
+
+  The :file:`agda.sty` shipped with Agda is located at
+  :file:`{${AGDA_DIR}}/latex/agda.sty`.  Since version 2.6.2, the
+  :envvar:`AGDA_DIR` is printed by option :option:`--print-agda-dir`.
+  Thus, you can get hold of the CSS file via
+  :samp:`cat $(agda --print-agda-dir)/latex/agda.sty`.
+
 .. _unicode-latex:
 
 Known pitfalls and issues
@@ -137,11 +145,11 @@ backend:
   :file:`.tex` file are placed to :samp:`{directory}`. Default:
   ``latex``.
 
-``--only-scope-checking``
+:option:`--only-scope-checking`
   Generates highlighting without typechecking the file. See
   :ref:`quickLaTeX`.
 
-``--count-clusters``
+:option:`--count-clusters`
   Count extended grapheme clusters when generating LaTeX code. This
   option can be given in :ref:`OPTIONS<options-pragma>` pragmas.
   See :ref:`grapheme-clusters`.
@@ -274,7 +282,7 @@ The alignment feature regards the string ``+̲``, containing ``+`` and a
 combining character, as having length two. However, it seems more
 reasonable to treat it as having length one, as it occupies a single
 column, if displayed "properly" using a monospace font. The flag
-``--count-clusters`` is an attempt at fixing this. When this flag is
+:option:`--count-clusters` is an attempt at fixing this. When this flag is
 enabled the backend counts `"extended grapheme clusters"
 <http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries>`_
 rather than code points.
@@ -297,7 +305,7 @@ character by the alignment algorithm:
 
 Note also that the layout machinery does not count extended grapheme
 clusters, but code points. The following code is syntactically
-correct, but if ``--count-clusters`` is used, then the LaTeX backend
+correct, but if :option:`--count-clusters` is used, then the LaTeX backend
 does not align the two field keywords:
 
 ::
@@ -305,7 +313,7 @@ does not align the two field keywords:
   record +̲ : Set₁ where  field A : Set
                           field B : Set
 
-The ``--count-clusters`` flag is not enabled in all builds of Agda,
+The :option:`--count-clusters` flag is not enabled in all builds of Agda,
 because the implementation depends on the ICU_ library, the
 installation of which could cause extra trouble for some users. The
 presence of this flag is controlled by the Cabal flag
@@ -520,7 +528,7 @@ issuing the command
 
 .. code-block:: console
 
-   $ cp $(dirname $(dirname $(agda-mode locate)))/postprocess-latex.pl .
+   $ cp $(agda --print-agda-dir)/latex/postprocess-latex.pl .
 
 In order to generate a PDF, you can then do the following:
 
@@ -621,9 +629,11 @@ Including Agda code in a larger LaTeX document
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sometimes you might want to include a bit of code without making the
-whole document a literate Agda file. Here is one way in which this can
-be accomplished. (Perhaps this technique was invented by Anton
-Setzer.) Put the code in a separate file, and use ``\newcommand`` to
+whole document a literate Agda file. There are two ways in which this
+can be accomplished.
+
+(The following technique was probably invented by Anton
+Setzer.)  Put the code in a separate file, and use ``\newcommand`` to
 give a name to each piece of code that should be typeset:
 
 .. code-block:: latex
@@ -660,6 +670,58 @@ directory (or on the TeX search path).
 Note that this technique can also be used to present code in a
 different order, if the rules imposed by Agda are not compatible with
 the order that you would prefer.
+
+There is another technique that uses the catchfilebetweentags_
+latex package. Assuming you have some code in :file:`Code.lagda`
+and want to include it in :file:`Paper.tex`, you first add
+tags to your code as follows:
+
+ .. code-block:: lagda
+   :caption: Code.lagda
+
+   %<*nat>
+   \begin{code}
+   data ℕ : Set where
+     zero  : ℕ
+     suc   : (n : ℕ) → ℕ
+   \end{code}
+   %</nat>
+
+   %<*plus>
+   \begin{code}
+   _+_ : ℕ → ℕ → ℕ
+   zero   + n = n
+   suc m  + n = suc (m + n)
+   \end{code}
+   %</plus>
+
+You can then use ``\ExecuteMetaData``, as provided by
+catchfilebetweentags_, to include the code. Note that
+the code does not have to be in the same order (or from
+the same files).  This method is particularly convenient
+when you want to write a paper or presentation about
+a library of code.
+
+.. code-block:: latex
+   :caption: Paper.tex
+
+   % Other setup related to Agda...
+   \usepackage{catchfilebetweentags}
+
+   \begin{document}
+
+     \begin{itemize}
+       \item The natural numbers
+     \end{itemize}
+
+     \ExecuteMetaData[latex/Code.tex]{nat}
+
+     \begin{itemize}
+       \item Addition (\AgdaFunction{\_+\_})
+     \end{itemize}
+
+     \ExecuteMetaData[latex/Code.tex]{plus}
+
 
 Examples
 --------
@@ -743,4 +805,5 @@ code.
 
 .. _polytable: https://www.ctan.org/pkg/polytable
 .. _hyperref: https://www.ctan.org/pkg/hyperref
+.. _catchfilebetweentags: https://www.ctan.org/pkg/catchfilebetweentags
 .. _ICU: http://site.icu-project.org/

@@ -124,18 +124,12 @@ data LibWarning = LibWarning (Maybe LibPositionInfo) LibWarning'
 -- | Library Warnings.
 data LibWarning'
   = UnknownField String
-  | ExeNotFound ExecutablesFile FilePath
-      -- ^ Raised when a trusted executable can not be found.
-  | ExeNotExecutable ExecutablesFile FilePath
-      -- ^ Raised when a trusted executable does not have the executable permission.
   deriving (Show, Data, Generic)
 
 data LibError = LibError (Maybe LibPositionInfo) LibError'
 
 libraryWarningName :: LibWarning -> WarningName
 libraryWarningName (LibWarning c (UnknownField{})) = LibUnknownField_
-libraryWarningName (LibWarning c (ExeNotFound{})) = ExeNotFoundWarning_
-libraryWarningName (LibWarning c (ExeNotExecutable{})) = ExeNotExecutableWarning_
 
 -- | Collected errors while processing library files.
 --
@@ -261,8 +255,6 @@ instance Pretty LibWarning where
 
 instance Pretty LibWarning' where
   pretty (UnknownField s) = text $ "Unknown field '" ++ s ++ "'"
-  pretty (ExeNotFound file exe) = text $ "Executable '" ++ exe ++ "' not found."
-  pretty (ExeNotExecutable file exe) = text $ "Executable '" ++ exe ++ "' not executable."
 
 ------------------------------------------------------------------------
 -- NFData instances

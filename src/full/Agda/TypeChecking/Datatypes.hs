@@ -32,6 +32,9 @@ getConHead c = runExceptT $ do
     Record     { recConHead = c' } -> return c'
     _ -> throwError $ SigUnknown $ prettyShow c ++ " is not a constructor"
 
+isConstructor :: (HasConstInfo m) => QName -> m Bool
+isConstructor q = isRight <$> getConHead q
+
 -- | Get true constructor with fields, expanding literals to constructors
 --   if possible.
 getConForm :: QName -> TCM (Either SigError ConHead)
@@ -62,6 +65,15 @@ consOfHIT c = do
   def <- theDef <$> getConstInfo d
   case def of
     Datatype {dataPathCons = xs} -> return $ not $ null xs
+    Record{} -> return False
+    _  -> __IMPOSSIBLE__
+
+isPathCons :: HasConstInfo m => QName -> m Bool
+isPathCons c = do
+  d <- getConstructorData c
+  def <- theDef <$> getConstInfo d
+  case def of
+    Datatype {dataPathCons = xs} -> return $ c `elem` xs
     Record{} -> return False
     _  -> __IMPOSSIBLE__
 
@@ -164,16 +176,19 @@ data ConstructorInfo
 --   For getting just the arity of constructor @c@,
 --   use @either id size <$> getConstructorArity c@.
 getConstructorInfo :: HasConstInfo m => QName -> m ConstructorInfo
-getConstructorInfo c = do
+getConstructorInfo c = fromMaybe __IMPOSSIBLE__ <$> getConstructorInfo' c
+
+getConstructorInfo' :: HasConstInfo m => QName -> m (Maybe ConstructorInfo)
+getConstructorInfo' c = do
   (theDef <$> getConstInfo c) >>= \case
-    Constructor{ conData = d, conArity = n } -> do
+    Constructor{ conData = d, conArity = n } -> Just <$> do
       (theDef <$> getConstInfo d) >>= \case
         r@Record{ recFields = fs } ->
            return $ RecordCon (recPatternMatching r) (recEtaEquality r) fs
         Datatype{} ->
            return $ DataCon n
         _ -> __IMPOSSIBLE__
-    _ -> __IMPOSSIBLE__
+    _ -> return Nothing
 
 ---------------------------------------------------------------------------
 -- * Data types
@@ -210,6 +225,23 @@ getNumberOfParameters d = do
     Record{ recPars = n }      -> return $ Just n
     Constructor{ conPars = n } -> return $ Just n
     _                          -> return Nothing
+
+-- | This is a simplified version of @isDatatype@ from @Coverage@,
+--   useful when we do not want to import the module.
+getDatatypeArgs :: HasConstInfo m => Type -> m (Maybe (QName, Args, Args))
+getDatatypeArgs t = do
+  case unEl t of
+    Def d es -> do
+      let ~(Just args) = allApplyElims es
+      def <- theDef <$> getConstInfo d
+      case def of
+        Datatype{dataPars = np} -> do
+          let !(ps, is) = splitAt np args
+          return $ Just (d,   ps, is)
+        Record{} -> do
+          return $ Just (d, args, [])
+        _ -> return Nothing
+    _ -> return Nothing
 
 getNotErasedConstructors :: QName -> TCM [QName]
 getNotErasedConstructors d = do

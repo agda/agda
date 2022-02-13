@@ -1,5 +1,7 @@
 -- {-# OPTIONS -v tc.conv.coerce:10 -v tc.conv.size:40 -v tc.size.solve:40 #-}
 -- Andreas, 2014-06-16 Coercion for sizes
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 data Nat (i : Size) : Set where

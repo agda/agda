@@ -1,6 +1,7 @@
 TC.Rules.Def.checkclause reached A.WithRHS
 DebugWith.with-34 (f b)
 with function module: [DebugWith] free variables: 0
+{ checkWithRHS
 delta  = (trash1 : Trash) (b : A) (trash2 : Trash)
          (f : (x : A) → P x) (trash3 : Trash)
 vs     = [f b]
@@ -19,6 +20,7 @@ fPerm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
             delta1 (b : A) (f : (x : A) → P x)
             delta2 (trash1 : Trash) (trash2 : Trash)
                    (trash3 : Trash)
+}
 checkWithFunction
   delta1 = (b : A) (f : (x : A) → P x)
   delta2 = (trash1 : Trash) (trash2 : Trash) (trash3 : Trash)

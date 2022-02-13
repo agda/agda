@@ -1,0 +1,4 @@
+Issue5705.agda:5,15-37
+Set₉₂₂₃₃₇₂₀₃₆₈₅₄₇₇₅₈₀₉ != Set₁
+when checking that the expression Set₉₂₂₃₃₇₂₀₃₆₈₅₄₇₇₅₈₀₈ has type
+Set₁

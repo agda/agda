@@ -1,6 +1,8 @@
 -- This test case seems to be due to Andreas Abel, Andrea Vezzosi and
 -- NAD. The code below should be rejected.
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data SizeLt (i : Size) : Set where

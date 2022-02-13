@@ -1,7 +1,7 @@
 -- Andreas, 2013-03-20 Problem was that CompiledClause.Match.unfoldCoinduction
 -- did not instantiate metas
 -- {-# OPTIONS -v tc.meta.assign:10 -v tc.reduce:100 -v tc.with.abstract:50 #-}
-{-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas --guardedness #-}
 module Issue826 where
 
 open import Common.Coinduction

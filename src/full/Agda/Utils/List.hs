@@ -9,6 +9,8 @@ import qualified Data.Array as Array
 import Data.Bifunctor
 import Data.Function
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as List1
+import Data.List.NonEmpty (pattern (:|), (<|))
 import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -17,6 +19,10 @@ import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
+
+import {-# SOURCE #-} Agda.Utils.List1 (List1)
+
+import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Variants of list case, cons, head, tail, init, last
@@ -253,6 +259,32 @@ spanEnd p = snd . foldr f (True, ([], []))
   f x (b', (xs, ys)) = (b, if b then (xs, x:ys) else (x:xs, ys))
     where b = b' && p x
 
+-- | Breaks a list just /after/ an element satisfying the predicate is
+--   found.
+--
+--   >>> breakAfter1 even 1 [3,5,2,4,7,8]
+--   ([1,3,5,2],[4,7,8])
+
+breakAfter1 :: (a -> Bool) -> a -> [a] -> (List1 a, [a])
+breakAfter1 p = loop
+  where
+  loop x = \case
+    xs@[]         -> (x :| [], xs)
+    xs@(y : ys)
+      | p x       -> (x :| [], xs)
+      | otherwise -> let (vs, ws) = loop y ys in (x <| vs, ws)
+
+-- | Breaks a list just /after/ an element satisfying the predicate is
+--   found.
+--
+--   >>> breakAfter even [1,3,5,2,4,7,8]
+--   ([1,3,5,2],[4,7,8])
+
+breakAfter :: (a -> Bool) -> [a] -> ([a], [a])
+breakAfter p = \case
+  []   -> ([], [])
+  x:xs -> first List1.toList $ breakAfter1 p x xs
+
 -- | A generalized version of @takeWhile@.
 --   (Cf. @mapMaybe@ vs. @filter@).
 --   @O(length . takeWhileJust f).
@@ -388,6 +420,23 @@ data StrSufSt a
   | SSSStrip (ReversedSuffix a) -- ^ "Negative string" to remove from end. List may be empty.
   | SSSResult [a]               -- ^ "Positive string" (result). Non-empty list.
 
+-- ** Finding overlap
+
+-- | Find out whether the first string @xs@
+--   has a suffix that is a prefix of the second string @ys@.
+--   So, basically, find the overlap where the strings can be glued together.
+--   Returns the index where the overlap starts and the length of the overlap.
+--   The length of the overlap plus the index is the length of the first string.
+--   Note that in the worst case, the empty overlap @(length xs,0)@ is returned.
+findOverlap :: forall a. Eq a => [a] -> [a] -> (Int, Int)
+findOverlap xs ys =
+  headWithDefault __IMPOSSIBLE__ $ mapMaybe maybePrefix $ zip [0..] (List.tails xs)
+  where
+  maybePrefix :: (Int, [a]) -> Maybe (Int, Int)
+  maybePrefix (k, xs')
+    | xs' `List.isPrefixOf` ys = Just (k, length xs')
+    | otherwise                = Nothing
+
 ---------------------------------------------------------------------------
 -- * Groups and chunks
 ---------------------------------------------------------------------------
@@ -439,15 +488,16 @@ chop n xs = ys : chop n zs
 --   O(n).
 --
 --    > intercalate [x] (chopWhen (== x) xs) == xs
-chopWhen :: (a -> Bool) -> [a] -> [[a]]
-chopWhen p [] = []
-chopWhen p xs = loop xs
+chopWhen :: forall a. (a -> Bool) -> [a] -> [[a]]
+chopWhen p []     = []
+chopWhen p (x:xs) = loop (x :| xs)
   where
   -- Local function to avoid unnecessary pattern matching.
-  loop xs = case break p xs of
-    (w, [])     -> [w]
-    (w, [_])    -> [w, []]
-    (w, _ : ys) -> w : loop ys  -- here we already know that ys /= []
+  loop :: List1 a -> [[a]]
+  loop xs = case List1.break p xs of
+    (w, []        ) -> [w]
+    (w, _ : []    ) -> [w, []]
+    (w, _ : y : ys) -> w : loop (y :| ys)
 
 ---------------------------------------------------------------------------
 -- * List as sets
@@ -568,18 +618,13 @@ nubOn f = loop Set.empty
 -- | Efficient variant of 'nubBy' for finite lists.
 -- O(n log n).
 --
--- Specification: For each list @xs@ there is a list @ys@ which is a
--- permutation of @xs@ such that
+-- > uniqOn f == 'List.sortBy' (compare `'on'` f) . 'nubBy' ((==) `'on'` f)
 --
--- > uniqOn f xs == 'nubBy' ((==) `'on'` f) ys.
---
--- Furthermore:
---
--- > List.sortBy (compare `on` f) (uniqOn f xs) == uniqOn f xs
--- > uniqOn id == Set.toAscList . Set.fromList
+-- If there are several elements with the same @f@-representative,
+-- the first of these is kept.
 --
 uniqOn :: Ord b => (a -> b) -> [a] -> [a]
-uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
+uniqOn key = Map.elems . Map.fromListWith (\ _ -> id) . map (\ a -> (key a, a))
 
 -- | Checks if all the elements in the list are equal. Assumes that
 --   the 'Eq' instance stands for an equivalence relation.

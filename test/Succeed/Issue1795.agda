@@ -6,6 +6,8 @@
 -- {-# OPTIONS -v tc.with.type:50 #-}
 -- {-# OPTIONS -v tc.check.internal:30 -v tc.infer.internal:30 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Unit
 open import Common.Size
 

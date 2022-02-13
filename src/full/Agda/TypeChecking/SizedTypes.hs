@@ -5,7 +5,7 @@ module Agda.TypeChecking.SizedTypes where
 import Prelude hiding (null)
 
 import Control.Monad.Except
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
@@ -463,7 +463,7 @@ getSizeMetas interactionMetas = do
     getOpenMetas >>= do
       mapM $ \ m -> do
         let no = return Nothing
-        mi <- lookupMeta m
+        mi <- lookupLocalMeta m
         case mvJudgement mi of
           _ | BlockedConst{} <- mvInstantiation mi -> no  -- Blocked terms should not be touched (#2637, #2881)
           HasType _ cmp a -> do
@@ -516,7 +516,7 @@ data OldSizeExpr
   deriving (Eq, Show)
 
 instance Pretty OldSizeExpr where
-  pretty (SizeMeta m _) = P.text $ "X" ++ show (fromIntegral m :: Int)
+  pretty (SizeMeta m _) = P.text "X" <> P.pretty m
   pretty (Rigid i)      = P.text $ "c" ++ show i
 
 -- | Size constraints we can solve.
@@ -628,109 +628,3 @@ oldCanonicalizeSizeConstraint c@(Leq a n b) =
            return $ Leq (SizeMeta m xs') n (SizeMeta l [0..size ys-1])
          -- give up
        | otherwise -> Nothing
-
--- | Main function.
---   Uses the old solver for size constraints using "Agda.Utils.Warshall".
---   This solver does not smartly use size hypotheses @j : Size< i@.
---   It only checks that its computed solution is compatible
-oldSolveSizeConstraints :: TCM ()
-oldSolveSizeConstraints = whenM haveSizedTypes $ do
-  reportSLn "tc.size.solve" 70 $ "Considering to solve size constraints"
-  cs0 <- getSizeConstraints (== CmpLeq)
-  cs <- oldComputeSizeConstraints cs0
-  ms <- getSizeMetas True -- get all size metas, also interaction metas
-
-  when (not (null cs) || not (null ms)) $ do
-    reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
-
-    cs <- return $ mapMaybe oldCanonicalizeSizeConstraint cs
-    reportSLn "tc.size.solve" 10 $ "Canonicalized constraints: " ++ show cs
-
-    let -- Error for giving up
-        cannotSolve = typeError . GenericDocError =<<
-          vcat ("Cannot solve size constraints" : map prettyTCM cs0)
-
-        -- Size metas in constraints.
-        metas0 :: [(MetaId, Int)]  -- meta id + arity
-        metas0 = List.nubOn id $ map (mapSnd length) $ concatMap flexibleVariables cs
-
-        -- Unconstrained size metas that do not occur in constraints.
-        metas1 :: [(MetaId, Int)]
-        metas1 = forMaybe ms $ \ (m, _, tel) ->
-          maybe (Just (m, size tel)) (const Nothing) $
-            lookup m metas0
-
-        -- All size metas
-        metas = metas0 ++ metas1
-
-    reportSLn "tc.size.solve" 15 $ "Metas: " ++ show metas0 ++ ", " ++ show metas1
-
-    verboseS "tc.size.solve" 20 $
-        -- debug print the type of all size metas
-        forM_ metas $ \ (m, _) ->
-            reportSDoc "tc.size.solve" 20 $ prettyTCM =<< mvJudgement <$> lookupMeta m
-
-    -- Run the solver.
-    unlessM (oldSolver metas cs) cannotSolve
-
-    -- Double-checking the solution.
-
-    -- Andreas, 2012-09-19
-    -- The returned solution might not be consistent with
-    -- the hypotheses on rigid vars (j : Size< i).
-    -- Thus, we double check that all size constraints
-    -- have been solved correctly.
-    flip catchError (const cannotSolve) $
-      noConstraints $
-        forM_ cs0 $ withConstraint solveConstraint
-
-
--- | Old solver for size constraints using "Agda.Utils.Warshall".
---   This solver does not smartly use size hypotheses @j : Size< i@.
-oldSolver
-  :: [(MetaId, Int)]      -- ^ Size metas and their arity.
-  -> [OldSizeConstraint]  -- ^ Size constraints (in preprocessed form).
-  -> TCM Bool             -- ^ Returns @False@ if solver fails.
-oldSolver metas cs = do
-  let cannotSolve    = return False
-      mkFlex (m, ar) = W.NewFlex (fromIntegral m) $ \ i -> fromIntegral i < ar
-      mkConstr (Leq a n b)  = W.Arc (mkNode a) n (mkNode b)
-      mkNode (Rigid i)      = W.Rigid $ W.RVar i
-      mkNode (SizeMeta m _) = W.Flex $ fromIntegral m
-
-  -- run the Warshall solver
-  case W.solve $ map mkFlex metas ++ map mkConstr cs of
-    Nothing  -> cannotSolve
-    Just sol -> do
-      reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ prettyShow sol
-      suc   <- primSizeSuc
-      infty <- primSizeInf
-      let plus v 0 = v
-          plus v n = suc `apply1` plus v (n - 1)
-
-          inst (i, e) = do
-
-            let m  = fromIntegral i  -- meta variable identifier
-                ar = fromMaybe __IMPOSSIBLE__ $ lookup m metas  -- meta var arity
-
-                term (W.SizeConst W.Infinite) = infty
-                term (W.SizeVar j n) | j < ar = plus (var $ ar - j - 1) n
-                term _                        = __IMPOSSIBLE__
-
-                tel = replicate ar $ defaultArg "s"
-                -- convert size expression to term
-                v = term e
-
-            reportSDoc "tc.size.solve" 20 $ sep
-              [ pretty m <+> ":="
-              , nest 2 $ prettyTCM v
-              ]
-
-            -- Andreas, 2012-09-25: do not assign interaction metas to \infty
-            let isInf (W.SizeConst W.Infinite) = True
-                isInf _                        = False
-            unlessM (((isInf e &&) . isJust <$> isInteractionMeta m) `or2M` isFrozen m) $
-              assignTerm m tel v
-
-      mapM_ inst $ Map.toList sol
-      return True

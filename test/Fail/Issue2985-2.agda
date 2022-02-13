@@ -1,5 +1,7 @@
 -- This variant of the code is due to Ulf Norell.
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data ⊥ : Set where

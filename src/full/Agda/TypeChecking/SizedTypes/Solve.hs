@@ -137,7 +137,7 @@ solveSizeConstraints flag =  do
 
     -- @allMetas@ does not reduce or instantiate;
     -- this is why we require the size constraints to be normalised.
-    return (cl, map metaId . Set.toList $
+    return (cl, Set.toList $
       sizeMetaSet `Set.intersection` allMetas singleton c)
 
   -- Now, some constraints may have no metas (clcs), the others have at least one (othercs).
@@ -368,7 +368,7 @@ solveSizeConstraints_ flag cs0 = do
   -- Cluster constraints according to the meta variables they mention.
   -- @csNoM@ are the constraints that do not mention any meta.
   let (csNoM, csMs) = (`List.partitionMaybe` ccs') $ \ p@(c0, c) ->
-        fmap (p,) $ nonEmpty $ map (metaId . sizeMetaId) $ Set.toList $ flexs c
+        fmap (p,) $ nonEmpty $ map sizeMetaId $ Set.toList $ flexs c
   -- @css@ are the clusters of constraints.
       css :: [List1 (CC,HypSizeConstraint)]
       css = cluster' csMs
@@ -390,7 +390,7 @@ solveCluster flag ccs = do
   let err reason = typeError . GenericDocError =<< do
         vcat $
           [ text $ "Cannot solve size constraints" ] ++ prettyCs ++
-          [ text $ "Reason: " ++ reason ]
+          [ "Reason:" <+> reason ]
   reportSDoc "tc.size.solve" 20 $ vcat $
     "Solving constraint cluster" : prettyCs
   -- Find the super context of all contexts.
@@ -465,11 +465,11 @@ solveCluster flag ccs = do
   -- Convert size metas to flexible vars.
   let metas :: [SizeMeta]
       metas = concatMap (foldMap (:[])) csC
-      csF   :: [Size.Constraint' NamedRigid Int]
-      csF   = map (fmap (metaId . sizeMetaId)) csC
+      csF   :: [Size.Constraint' NamedRigid MetaId]
+      csF   = map (fmap sizeMetaId) csC
 
   -- Construct the hypotheses graph.
-  let hyps = map (fmap (metaId . sizeMetaId)) hs
+  let hyps = map (fmap sizeMetaId) hs
   -- There cannot be negative cycles in hypotheses graph due to scoping.
   let hg = either __IMPOSSIBLE__ id $ hypGraph (rigids csF) hyps
 
@@ -487,7 +487,7 @@ solveCluster flag ccs = do
   -- Andreas, 2016-07-13, issue 2096.
   -- Running the solver once might result in unsolvable left-over constraints.
   -- We need to iterate the solver to detect this.
-  sol :: Solution NamedRigid Int <- either err return $
+  sol :: Solution NamedRigid MetaId <- either err return $
     iterateSolver Map.empty hg csF emptySolution
 
   -- Convert solution to meta instantiation.
@@ -495,29 +495,28 @@ solveCluster flag ccs = do
     unless (validOffset a) __IMPOSSIBLE__
     -- Solution does not contain metas
     u <- unSizeExpr $ fmap __IMPOSSIBLE__ a
-    let x = MetaId m
     let SizeMeta _ xs = fromMaybe __IMPOSSIBLE__ $
-          List.find ((m==) . metaId . sizeMetaId) metas
+          List.find ((m==) . sizeMetaId) metas
     -- Check that solution is well-scoped
     let ys = rigidIndex <$> Set.toList (rigids a)
         ok = all (`elem` xs) ys -- TODO: more efficient
     -- unless ok $ err "ill-scoped solution for size meta variable"
     u <- if ok then return u else primSizeInf
-    t <- getMetaType x
+    t <- getMetaType m
     reportSDoc "tc.size.solve" 20 $ unsafeModifyContext (const gamma) $ do
       let args = map (Apply . defaultArg . var) xs
-      "solution " <+> prettyTCM (MetaV x args) <+> " := " <+> prettyTCM u
+      "solution " <+> prettyTCM (MetaV m args) <+> " := " <+> prettyTCM u
     reportSDoc "tc.size.solve" 60 $ vcat
       [ text $ "  xs = " ++ show xs
       , text $ "  u  = " ++ show u
       ]
-    ifM (isFrozen x `or2M` (not <$> asksTC envAssignMetas)) (return Set.empty) $ do
-      assignMeta n x t xs u
-      return $ Set.singleton x
+    ifM (isFrozen m `or2M` (not <$> asksTC envAssignMetas)) (return Set.empty) $ do
+      assignMeta n m t xs u
+      return $ Set.singleton m
     -- WRONG:
     -- let partialSubst = List.sort $ zip xs $ map var $ downFrom n
-    -- assignMeta' n x t (length xs) partialSubst u
-    -- WRONG: assign DirEq x (map (defaultArg . var) xs) u
+    -- assignMeta' n m t (length xs) partialSubst u
+    -- WRONG: assign DirEq m (map (defaultArg . var) xs) u
 
   -- Possibly set remaining size metas to ∞ (issue 1862)
   -- unless we have an interaction meta in the cluster (issue 2095).

@@ -1,0 +1,3 @@
+Issue5481.agda:19,14-19
+Cannot split on inductive record type in Prop unless target is in Prop
+when checking that the pattern acc p has type Acc a

@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 open import Agda.Builtin.Coinduction
 open import Agda.Builtin.Equality
 open import Agda.Builtin.List

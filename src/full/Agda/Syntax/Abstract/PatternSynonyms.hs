@@ -14,7 +14,6 @@ import Control.Monad.Writer hiding (forM)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (forM)
-import Data.List
 import Data.Void
 
 import Agda.Syntax.Common

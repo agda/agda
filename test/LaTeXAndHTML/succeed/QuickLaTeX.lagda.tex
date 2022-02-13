@@ -5,6 +5,8 @@
 \begin{document}
 
 \begin{code}
+{-# OPTIONS --sized-types #-}
+
 {-# BUILTIN SIZE Size #-}
 
 record Sigma (A : Set) (B : A → Set) : Set where
