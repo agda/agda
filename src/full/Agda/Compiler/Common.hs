@@ -2,7 +2,9 @@
 
 module Agda.Compiler.Common where
 
-import Data.List as List
+import Prelude hiding ((!!))
+
+import Data.List as List hiding ((!!))
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -28,6 +30,7 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 

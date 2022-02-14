@@ -16,6 +16,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Agda.Utils.Bag as Bag
+import Agda.Utils.CallStack.Base
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
@@ -157,6 +158,16 @@ initWithDefault _  (a:as) = init1 a as
 []       !!! _         = Nothing
 (x : _)  !!! 0         = Just x
 (_ : xs) !!! n         = xs !!! (n - 1)
+
+-- | A variant of 'Prelude.!!' that might provide more informative
+-- error messages if the index is out of bounds.
+--
+-- Precondition: The index should not be out of bounds.
+
+(!!) :: HasCallStack => [a] -> Int -> a
+xs !! i = case xs !!! i of
+  Just x  -> x
+  Nothing -> __IMPOSSIBLE__
 
 -- | Lookup function with default value for index out of range.
 --   O(min n index).

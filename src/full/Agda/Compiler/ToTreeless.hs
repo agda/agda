@@ -4,6 +4,8 @@ module Agda.Compiler.ToTreeless
   , closedTermToTreeless
   ) where
 
+import Prelude hiding ((!!))
+
 import Control.Arrow (first)
 import Control.Monad.Reader
 

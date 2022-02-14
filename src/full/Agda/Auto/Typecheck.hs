@@ -1,6 +1,8 @@
 
 module Agda.Auto.Typecheck where
 
+import Prelude hiding ((!!))
+
 import Data.IORef
 
 import Agda.Syntax.Common (Hiding (..))
@@ -9,6 +11,7 @@ import Agda.Auto.Syntax
 import Agda.Auto.SearchControl
 
 import Agda.Utils.Impossible
+import Agda.Utils.List
 
 -- ---------------------------------
 

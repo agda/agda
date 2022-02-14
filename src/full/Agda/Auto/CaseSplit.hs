@@ -1,6 +1,8 @@
 
 module Agda.Auto.CaseSplit where
 
+import Prelude hiding ((!!))
+
 import Data.IORef
 import Data.Tuple (swap)
 import Data.List (elemIndex)
@@ -22,7 +24,7 @@ import Agda.Auto.Typecheck
 
 import Agda.Utils.Impossible
 import Agda.Utils.Monad (or2M)
-import Agda.Utils.List (last1)
+import Agda.Utils.List ((!!), last1)
 
 abspatvarname :: String
 abspatvarname = "\0absurdPattern"

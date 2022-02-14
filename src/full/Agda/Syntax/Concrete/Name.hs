@@ -3,6 +3,8 @@
 -}
 module Agda.Syntax.Concrete.Name where
 
+import Prelude hiding ((!!))
+
 import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
@@ -21,7 +23,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
-import Agda.Utils.List  (last1)
+import Agda.Utils.List  ((!!), last1)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty

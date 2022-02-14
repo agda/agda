@@ -1,7 +1,7 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 module Agda.TypeChecking.Rules.LHS.Unify.LeftInverse where
 
-import Prelude hiding (null)
+import Prelude hiding ((!!), null)
 
 import Control.Monad
 import Control.Monad.State

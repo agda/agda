@@ -5,7 +5,7 @@ module Agda.Auto.Auto
       , AutoProgress(..)
       ) where
 
-import Prelude hiding (null)
+import Prelude hiding ((!!), null)
 
 import Control.Monad.Except
 import Control.Monad.State
@@ -52,6 +52,7 @@ import Agda.Auto.CaseSplit
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( prettyShow )

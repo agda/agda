@@ -1,6 +1,8 @@
 
 module Agda.Auto.Convert where
 
+import Prelude hiding ((!!))
+
 import Control.Monad.Except
 import Control.Monad.State
 
@@ -46,6 +48,7 @@ import Agda.Auto.CaseSplit hiding (lift)
 
 import Agda.Utils.Either
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Monad       ( forMaybeMM )
 import Agda.Utils.Permutation ( Permutation(Perm), permute, takeP, compactP )
 import Agda.Utils.Pretty      ( prettyShow )

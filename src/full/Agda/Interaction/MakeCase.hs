@@ -2,7 +2,7 @@
 
 module Agda.Interaction.MakeCase where
 
-import Prelude hiding (null)
+import Prelude hiding ((!!), null)
 
 import Control.Monad
 

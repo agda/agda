@@ -11,6 +11,8 @@ We do this in a finite map, assigning consecutive numbers to nodes.
 -}
 module Agda.Utils.Warshall where
 
+import Prelude hiding ((!!))
+
 import Control.Monad.State
 
 import Data.Maybe
@@ -20,7 +22,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Utils.SemiRing
-import Agda.Utils.List (nubOn)
+import Agda.Utils.List ((!!), nubOn)
 import Agda.Utils.Pretty as P
 
 import Agda.Utils.Impossible

@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.With where
 
+import Prelude hiding ((!!))
+
 import Control.Monad
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 
