@@ -1,6 +1,6 @@
 {- 2010-09-28 Andreas, example from Alan Jeffery, see Issue 336 -}
 
--- {-# OPTIONS -v profile:100 -v tc.term.lambda:5 #-}
+-- {-# OPTIONS --profile=all -v tc.term.lambda:5 #-}
 
 module WhyWeNeedTypedLambda where
 

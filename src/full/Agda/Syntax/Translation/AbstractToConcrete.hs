@@ -264,9 +264,10 @@ instance MonadDebug AbsToCon where
   traceDebugMessage  k n s cont = AbsToCon $ traceDebugMessage  k n s $ unAbsToCon cont  -- can't eta-reduce!
   verboseBracket     k n s cont = AbsToCon $ verboseBracket     k n s $ unAbsToCon cont  -- because of GHC-9.0
 
-  getVerbosity     = defaultGetVerbosity
-  isDebugPrinting  = defaultIsDebugPrinting
-  nowDebugPrinting = defaultNowDebugPrinting
+  getVerbosity      = defaultGetVerbosity
+  getProfileOptions = defaultGetProfileOptions
+  isDebugPrinting   = defaultIsDebugPrinting
+  nowDebugPrinting  = defaultNowDebugPrinting
 
 instance HasConstInfo AbsToCon where
   getConstInfo' a      = AbsToCon (getConstInfo' a)

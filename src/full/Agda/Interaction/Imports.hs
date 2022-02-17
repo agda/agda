@@ -92,6 +92,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty hiding (Mode)
+import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Hash
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
@@ -1015,7 +1016,7 @@ createInterface mname file isMain msrc = do
     unfreezeMetas
 
     -- Profiling: Count number of metas.
-    verboseS "profile.metas" 10 $ do
+    whenProfile Profile.Metas $ do
       m <- fresh
       tickN "metas" (fromIntegral (metaId m))
 
@@ -1121,13 +1122,13 @@ createInterface mname file isMain msrc = do
     -- stMetaStore `setTCLens` savedMetaStore
 
     -- Profiling: Print statistics.
-    printStatistics 30 (Just mname) =<< getStatistics
+    printStatistics (Just mname) =<< getStatistics
 
     -- Get the statistics of the current module
     -- and add it to the accumulated statistics.
     localStatistics <- getStatistics
     lensAccumStatistics `modifyTCLens` Map.unionWith (+) localStatistics
-    verboseS "profile" 1 $ reportSLn "import.iface" 5 "Accumulated statistics."
+    reportSLn "import.iface" 5 "Accumulated statistics."
 
     isPrimitiveModule <- Lens.isPrimitiveModule (filePath srcPath)
 

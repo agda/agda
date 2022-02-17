@@ -16,6 +16,7 @@ import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Library.Base
 import Agda.Termination.CutOff
 import Agda.Utils.Pretty
+import Agda.Utils.ProfileOptions
 
 import Agda.Utils.Impossible
 
@@ -269,13 +270,24 @@ instance EmbPrj Doc where
 
 instance EmbPrj PragmaOptions where
   icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ->
-      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd ->
+      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd
 
   value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc] ->
-      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc, ddd] ->
+      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd
     _ -> malformed
+
+instance EmbPrj ProfileOptions where
+  icod_ opts = icode (profileOptionsToList opts)
+  value = fmap profileOptionsFromList . value
+
+instance EmbPrj ProfileOption where
+  icod_ = icode . fromEnum
+  value = value >=> \ n -> if lo <= n && n <= hi then pure (toEnum n) else malformed
+    where
+      lo = fromEnum (minBound :: ProfileOption)
+      hi = fromEnum (maxBound :: ProfileOption)
 
 instance EmbPrj UnicodeOrAscii
 

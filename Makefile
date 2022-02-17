@@ -1,8 +1,8 @@
 # Top-level Makefile for Agda 2
 # Authors: Ulf Norell, Nils Anders Danielsson, Francesco Mazzoli, Liang-Ting Chen
 
-# Profiling verbosity for std-lib-test
-PROFVERB=7
+# Profiling settings for std-lib-test
+PROFILEOPTS=--profile=internal
 
 # Various paths and commands
 
@@ -515,7 +515,7 @@ quicklatex-test :
 std-lib-test :
 	@$(call decorate, "Standard library test", \
 		(cd std-lib && cabal run GenerateEverything && \
-						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
+						time $(AGDA_BIN) $(AGDA_OPTS) --ignore-interfaces --no-default-libraries $(PROFILEOPTS) \
 														 -i. -isrc README.agda \
 														 +RTS -s))
 
@@ -529,7 +529,7 @@ cubical-test :
 .PHONY : continue-std-lib-test ##
 continue-std-lib-test :
 	@(cd std-lib && \
-          time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s)
+          time $(AGDA_BIN) $(PROFILEOPTS) --no-default-libraries -i. -isrc README.agda +RTS -s)
 
 .PHONY : std-lib-succeed ##
 std-lib-succeed :
