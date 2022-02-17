@@ -29,6 +29,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.ProfileOptions
 import Agda.Utils.Update
 import qualified Agda.Utils.Trie as Trie
 
@@ -43,6 +44,7 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
   verboseBracket     :: VerboseKey -> VerboseLevel -> String -> m a -> m a
 
   getVerbosity       :: m Verbosity
+  getProfileOptions  :: m ProfileOptions
 
   -- | Check whether we are currently debug printing.
   isDebugPrinting    :: m Bool
@@ -72,6 +74,11 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
     => m Verbosity
   getVerbosity = lift getVerbosity
 
+  default getProfileOptions
+    :: (MonadTrans t, MonadDebug n, m ~ t n)
+    => m ProfileOptions
+  getProfileOptions = lift getProfileOptions
+
   default isDebugPrinting
     :: (MonadTrans t, MonadDebug n, m ~ t n)
     => m Bool
@@ -87,6 +94,9 @@ class (Functor m, Applicative m, Monad m) => MonadDebug m where
 
 defaultGetVerbosity :: HasOptions m => m Verbosity
 defaultGetVerbosity = optVerbose <$> pragmaOptions
+
+defaultGetProfileOptions :: HasOptions m => m ProfileOptions
+defaultGetProfileOptions = optProfiling <$> pragmaOptions
 
 defaultIsDebugPrinting :: MonadTCEnv m => m Bool
 defaultIsDebugPrinting = asksTC envIsDebugPrinting
@@ -142,9 +152,10 @@ instance MonadDebug TCM where
       closeVerboseBracketException k n
       throwError e
 
-  getVerbosity     = defaultGetVerbosity
-  isDebugPrinting  = defaultIsDebugPrinting
-  nowDebugPrinting = defaultNowDebugPrinting
+  getVerbosity      = defaultGetVerbosity
+  getProfileOptions = defaultGetProfileOptions
+  isDebugPrinting   = defaultIsDebugPrinting
+  nowDebugPrinting  = defaultNowDebugPrinting
 
 -- MonadTrans default instances
 
@@ -320,3 +331,13 @@ verbosity k = stPragmaOptions . verbOpt . Trie.valueAt (parseVerboseKey k) . def
 
     defaultTo :: Eq a => a -> Lens' a (Maybe a)
     defaultTo x f m = filterMaybe (== x) <$> f (fromMaybe x m)
+
+-- | Check whether a certain profile option is activated.
+{-# SPECIALIZE hasProfileOption :: ProfileOption -> TCM Bool #-}
+hasProfileOption :: MonadDebug m => ProfileOption -> m Bool
+hasProfileOption opt = containsProfileOption opt <$> getProfileOptions
+
+-- | Run some code when the given profiling option is active.
+whenProfile :: MonadDebug m => ProfileOption -> m () -> m ()
+whenProfile opt = whenM (hasProfileOption opt)
+

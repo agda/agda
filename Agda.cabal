@@ -616,6 +616,7 @@ library
                     Agda.Utils.Pointer
                     Agda.Utils.POMonoid
                     Agda.Utils.Pretty
+                    Agda.Utils.ProfileOptions
                     Agda.Utils.RangeMap
                     Agda.Utils.SemiRing
                     Agda.Utils.Semigroup

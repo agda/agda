@@ -78,6 +78,7 @@ import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty hiding (Mode)
+import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.String
 import Agda.Utils.Time
@@ -1167,7 +1168,7 @@ parseAndDoAtToplevel cmd s = do
 
 maybeTimed :: CommandM a -> CommandM (Maybe CPUTime, a)
 maybeTimed work = do
-  doTime <- lift $ hasVerbosity "profile.interactive" 10
+  doTime <- lift $ hasProfileOption Profile.Interactive
   if not doTime
     then (Nothing,) <$> work
     else do

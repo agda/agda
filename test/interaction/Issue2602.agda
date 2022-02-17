@@ -1,6 +1,6 @@
 -- Andreas, 2017-07-29, issue and test case by Nisse
 
-{-# OPTIONS -vprofile:7 #-}
+{-# OPTIONS --profile=interactive #-}
 
 A : Set
 A = {!Set!} -- Give to provoke error

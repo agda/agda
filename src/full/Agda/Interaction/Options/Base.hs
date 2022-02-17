@@ -70,6 +70,7 @@ import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, initLast1, wordsBy )
 import Agda.Utils.Pretty        ( singPlural )
+import Agda.Utils.ProfileOptions
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.WithDefault
@@ -132,6 +133,7 @@ data PragmaOptions = PragmaOptions
   , optShowIrrelevant            :: Bool
   , optUseUnicode                :: UnicodeOrAscii
   , optVerbose                   :: Verbosity
+  , optProfiling                 :: ProfileOptions
   , optProp                      :: Bool
   , optTwoLevel                  :: WithDefault 'False
   , optAllowUnsolved             :: Bool
@@ -265,6 +267,7 @@ defaultPragmaOptions = PragmaOptions
   , optShowIrrelevant            = False
   , optUseUnicode                = UnicodeOk
   , optVerbose                   = defaultVerbosity
+  , optProfiling                 = noProfileOptions
   , optProp                      = False
   , optTwoLevel                  = Default
   , optExperimentalIrrelevance   = False
@@ -784,6 +787,12 @@ verboseFlag s o =
         return (ss, n)
     usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
+profileFlag :: String -> Flag PragmaOptions
+profileFlag s o =
+  case addProfileOption s (optProfiling o) of
+    Left err   -> throwError err
+    Right prof -> pure o{ optProfiling = prof }
+
 warningModeFlag :: String -> Flag PragmaOptions
 warningModeFlag s o = case warningModeUpdate s of
   Right upd -> return $ o { optWarningMode = upd (optWarningMode o) }
@@ -892,6 +901,8 @@ pragmaOptions =
                     "don't use unicode characters when printing terms"
     , Option ['v']  ["verbose"] (ReqArg verboseFlag "N")
                     "set verbosity level to N"
+    , Option []     ["profile"] (ReqArg profileFlag "TYPE")
+                    ("turn on profiling for TYPE (where TYPE=" ++ intercalate "|" validProfileOptionStrings ++ ")")
     , Option []     ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
                     "succeed and create interface file regardless of unsolved meta variables"
     , Option []     ["allow-incomplete-matches"] (NoArg allowIncompleteMatchFlag)

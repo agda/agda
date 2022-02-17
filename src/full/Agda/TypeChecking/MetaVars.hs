@@ -58,6 +58,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (Pretty, prettyShow, render)
+import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Graph.TopSort as Graph
 import Agda.Utils.VarSet (VarSet)
@@ -144,7 +145,7 @@ assignTermTCM' x tel v = do
      -- verify (new) invariants
     whenM (not <$> asksTC envAssignMetas) __IMPOSSIBLE__
 
-    verboseS "profile.metas" 10 $ liftTCM $ return () {-tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas-}
+    whenProfile Profile.Metas $ liftTCM $ return () {-tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas-}
     updateMetaVarTCM x $ \ mv ->
       mv { mvInstantiation = InstV $ Instantiation
              { instTel = tel, instBody = killRange v } }

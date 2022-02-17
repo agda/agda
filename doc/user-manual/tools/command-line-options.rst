@@ -233,6 +233,34 @@ Printing and debugging
 
      Set verbosity level to ``N``.
 
+.. option:: --profile={PROF}
+
+    Turn on profiling option ``PROF``. Available options are
+
+    .. list-table::
+
+       * - ``internal``
+         - Measure time taken by various parts of the system (type checking, serialization, etc)
+       * - ``modules``
+         - Measure time spent on individual (Agda) modules
+       * - ``definitions``
+         - Measure time spent on individual (Agda) definitions
+       * - ``sharing``
+         - Measure things related to sharing
+       * - ``serialize``
+         - Collect detailed statistics about serialization
+       * - ``constraints``
+         - Collect statistics about constraint solving
+       * - ``metas``
+         - Count number of created metavariables
+       * - ``interactive``
+         - Measure time of interactive commands
+
+    Only one of ``internal``, ``modules``, and ``definitions`` can be turned on
+    at a time. You can also give ``--profile=all`` to turn on all profiling
+    options (choosing ``internal`` over ``modules`` and ``definitions``, use
+    ``--profile=modules --profile=all`` to pick ``modules`` instead).
+
 Copatterns and projections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

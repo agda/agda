@@ -12,13 +12,13 @@ default: imp-300
 # Benchmark nested imports with one data decl
 
 imp-% : import-%
-	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
+	time $(AGDA_BIN) +RTS -s -RTS --profile=all --ignore-interfaces -i $< $</Main.agda
 
 import-% :
 	$(RUNGHC) QuadraticImportOneData.hs $@ $*
 
 imp0-% : import0-%
-	time $(AGDA_BIN) +RTS -s -RTS -v profile:20 --ignore-interfaces -i $< $</Main.agda
+	time $(AGDA_BIN) +RTS -s -RTS --profile=all --ignore-interfaces -i $< $</Main.agda
 
 import0-% :
 	$(RUNGHC) QuadraticImportOneDataNoUsing.hs $@ $*

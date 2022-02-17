@@ -1,4 +1,4 @@
-{-# OPTIONS -v profile.interactive:100 #-}
+{-# OPTIONS --profile=interactive #-}
 open import Common.Prelude
 open import Common.Equality
 

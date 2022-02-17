@@ -53,6 +53,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
+import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
@@ -158,8 +159,8 @@ compareAs cmp a u v = do
   -- are different somewhere.  Leads to infeasibility in issue 854.
   -- (u, v) <- instantiateFull (u, v)
   -- let equal = u == v
-  if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
-      verboseS "profile.sharing" 20 $ tick "unequal terms"
+  if equal then whenProfile Profile.Sharing $ tick "equal terms" else do
+      whenProfile Profile.Sharing $ tick "unequal terms"
       reportSDoc "tc.conv.term" 15 $ sep $
         [ "compareTerm (not syntactically equal)"
         , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
