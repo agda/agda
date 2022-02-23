@@ -5,8 +5,9 @@ module Agda.TypeChecking.MetaVars where
 
 import Prelude hiding (null)
 
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Monad        ( foldM, forM, forM_, liftM2, void )
+import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
+import Control.Monad.Trans  ( lift )
 
 import Data.Function
 import qualified Data.IntMap as IntMap

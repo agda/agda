@@ -1,7 +1,9 @@
 
 module Agda.TypeChecking.Monad.Options where
 
-import Control.Arrow ( (&&&) )
+import Control.Arrow          ( (&&&) )
+import Control.Monad          ( unless, when )
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State

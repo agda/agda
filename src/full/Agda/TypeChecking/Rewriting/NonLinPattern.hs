@@ -6,7 +6,8 @@
 
 module Agda.TypeChecking.Rewriting.NonLinPattern where
 
-import Control.Monad.Reader
+import Control.Monad        ( (>=>), forM )
+import Control.Monad.Reader ( asks )
 
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet

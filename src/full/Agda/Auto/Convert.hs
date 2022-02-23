@@ -1,7 +1,9 @@
 
 module Agda.Auto.Convert where
 
+import Control.Monad          ( when )
 import Control.Monad.Except
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.State
 
 import Data.Bifunctor (first)

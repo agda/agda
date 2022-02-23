@@ -1,6 +1,12 @@
 
 module Agda.Auto.CaseSplit where
 
+import Control.Monad.State as St hiding (lift)
+import Control.Monad.Reader as Rd hiding (lift)
+import qualified Control.Monad.State as St
+import Control.Monad.IO.Class ( MonadIO(..) )
+
+import Data.Function
 import Data.IORef
 import Data.Tuple (swap)
 import Data.List (elemIndex)
@@ -8,10 +14,6 @@ import Data.List (elemIndex)
 import Data.Monoid ((<>), Sum(..))
 import qualified Data.Set    as Set
 import qualified Data.IntMap as IntMap
-import Control.Monad.State as St hiding (lift)
-import Control.Monad.Reader as Rd hiding (lift)
-import qualified Control.Monad.State as St
-import Data.Function
 
 import Agda.Syntax.Common (Hiding(..))
 import Agda.Auto.NarrowingSearch

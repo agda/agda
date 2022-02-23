@@ -6,6 +6,8 @@ module Agda.TypeChecking.Monad.Debug
 
 import qualified Control.Exception as E
 import qualified Control.DeepSeq as DeepSeq (force)
+
+import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State

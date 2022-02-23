@@ -23,9 +23,9 @@ module Agda.Syntax.Translation.InternalToAbstract
 
 import Prelude hiding (null)
 
-import Control.Applicative (liftA2)
-import Control.Arrow ((&&&))
-import Control.Monad.State
+import Control.Applicative ( liftA2 )
+import Control.Arrow       ( (&&&) )
+import Control.Monad       ( filterM, forM )
 
 import qualified Data.List as List
 import qualified Data.Map as Map

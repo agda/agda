@@ -60,8 +60,8 @@
 module Agda.TypeChecking.Free.Lazy where
 
 import Control.Applicative hiding (empty)
-import Control.Monad.Reader
-
+import Control.Monad        ( guard )
+import Control.Monad.Reader ( MonadReader(..), asks, ReaderT, Reader, runReader )
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap

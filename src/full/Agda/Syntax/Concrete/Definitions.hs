@@ -54,8 +54,10 @@ module Agda.Syntax.Concrete.Definitions
 
 import Prelude hiding (null)
 
-import Control.Monad.Except
-import Control.Monad.State
+import Control.Monad         ( forM, guard, unless, void, when )
+import Control.Monad.Except  ( )
+import Control.Monad.State   ( MonadState(..), gets, StateT, runStateT )
+import Control.Monad.Trans   ( lift )
 
 import Data.Bifunctor
 import Data.Data (Data)

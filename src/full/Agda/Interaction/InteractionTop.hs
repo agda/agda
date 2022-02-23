@@ -13,13 +13,16 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM.TVar
-import qualified Control.Exception as E
-import Control.Monad.Except
-import Control.Monad.Fail (MonadFail)
-import Control.Monad.Identity
-import Control.Monad.Reader
-import Control.Monad.State hiding (state)
+
+import qualified Control.Exception  as E
+
+import Control.Monad
+import Control.Monad.Except         ( MonadError(..), ExceptT(..), runExceptT )
+import Control.Monad.IO.Class       ( MonadIO(..) )
+import Control.Monad.Fail           ( MonadFail )
+import Control.Monad.State          ( MonadState(..), gets, modify, runStateT )
 import Control.Monad.STM
+import Control.Monad.Trans          ( lift )
 
 import qualified Data.Char as Char
 import Data.Function

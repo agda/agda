@@ -4,6 +4,7 @@ module Agda.TypeChecking.Rules.Term where
 
 import Prelude hiding ( null )
 
+import Control.Monad         ( (<=<), forM )
 import Control.Monad.Except
 import Control.Monad.Reader
 

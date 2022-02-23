@@ -26,10 +26,11 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), first)
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Arrow        ( (&&&), first )
+import Control.Monad        ( (<=<), forM, forM_, guard, liftM2 )
+import Control.Monad.Except ( runExceptT )
+import Control.Monad.Reader ( MonadReader(..), asks, runReaderT )
+import Control.Monad.State  ( StateT(..), runStateT )
 
 import qualified Control.Monad.Fail as Fail
 

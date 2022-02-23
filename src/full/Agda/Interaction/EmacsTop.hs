@@ -7,7 +7,11 @@ module Agda.Interaction.EmacsTop
     , prettyTypeOfMeta
     ) where
 
-import Control.Monad.State hiding (state)
+import Control.Monad
+import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Monad.State    ( evalStateT )
+import Control.Monad.Trans    ( lift )
+
 import qualified Data.List as List
 
 import Agda.Syntax.Common

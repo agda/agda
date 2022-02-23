@@ -10,12 +10,13 @@ import Agda.Interaction.Highlighting.Dot.Base
   )
 
 import Control.Monad.Except
-  ( MonadIO
-  , ExceptT
+  ( ExceptT
   , runExceptT
   , MonadError(throwError)
   )
-
+import Control.Monad.IO.Class
+  ( MonadIO(..)
+  )
 import Control.DeepSeq
 
 import Data.Map ( Map )

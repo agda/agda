@@ -3,7 +3,9 @@ module Agda.Interaction.CommandLine
   ( runInteractionLoop
   ) where
 
+import Control.Monad
 import Control.Monad.Except
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.State
 import Control.Monad.Reader
 

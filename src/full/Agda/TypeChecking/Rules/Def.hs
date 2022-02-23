@@ -4,8 +4,8 @@ module Agda.TypeChecking.Rules.Def where
 
 import Prelude hiding ( null )
 
-import Control.Monad.Except
-import Control.Monad.State
+import Control.Monad        ( forM, forM_ )
+import Control.Monad.Except ( MonadError(..) )
 
 import Data.Bifunctor
 import Data.Function

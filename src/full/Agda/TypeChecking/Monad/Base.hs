@@ -15,14 +15,16 @@ import qualified Control.Exception as E
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad                ( void )
 import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.Writer hiding ((<>))
+import Control.Monad.IO.Class       ( MonadIO(..) )
+import Control.Monad.State          ( MonadState(..), modify, StateT(..), runStateT )
+import Control.Monad.Reader         ( MonadReader(..), ReaderT(..), runReaderT )
+import Control.Monad.Writer         ( WriterT )
 import Control.Monad.Trans          ( MonadTrans(..), lift )
 import Control.Monad.Trans.Control  ( MonadTransControl(..), liftThrough )
-import Control.Monad.Trans.Identity
-import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Identity ( IdentityT(..), runIdentityT )
+import Control.Monad.Trans.Maybe    ( MaybeT(..) )
 
 import Control.Parallel             ( pseq )
 

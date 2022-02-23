@@ -1,9 +1,11 @@
 
 module Agda.TypeChecking.Monad.Builtin where
 
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.IO.Class       ( MonadIO )
+import Control.Monad.Reader         ( ReaderT )
+import Control.Monad.State          ( StateT )
 import Control.Monad.Trans.Identity ( IdentityT )
+import Control.Monad.Trans          ( MonadTrans, lift )
 
 import qualified Control.Monad.Fail as Fail
 

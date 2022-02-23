@@ -6,7 +6,7 @@
 
 module Agda.Interaction.Options.Lenses where
 
-import Control.Monad.State
+import Control.Monad.IO.Class   ( MonadIO(..) )
 
 import Data.Set (Set)
 import qualified Data.Set as Set

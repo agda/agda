@@ -6,13 +6,14 @@ import Prelude hiding (null)
 
 import qualified Control.Monad.Fail as Fail
 
-import Control.Arrow (first, second)
-import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.Writer hiding ((<>))
-import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.Identity
+import Control.Arrow                 ( first, second )
+import Control.Monad.Except          ( ExceptT )
+import Control.Monad.State           ( StateT  )
+import Control.Monad.Reader          ( ReaderT )
+import Control.Monad.Writer          ( WriterT )
+import Control.Monad.Trans.Maybe     ( MaybeT  )
+import Control.Monad.Trans.Identity  ( IdentityT )
+import Control.Monad.Trans           ( MonadTrans, lift )
 
 import Data.Foldable (for_)
 import qualified Data.List as List

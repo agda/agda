@@ -1,7 +1,8 @@
 module Agda.Syntax.Concrete.Definitions.Monad where
 
-import Control.Monad.Except
-import Control.Monad.State
+import Control.Monad        ( unless )
+import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
+import Control.Monad.State  ( MonadState(..), modify, State, runState )
 
 import Data.Bifunctor (second)
 import Data.Map (Map)

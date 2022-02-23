@@ -9,10 +9,13 @@ module Agda.TypeChecking.RecordPatterns
   , recordPatternToProjections
   ) where
 
-import Control.Arrow (first, second)
-import Control.Monad.Fix
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Arrow          ( first, second )
+import Control.Monad          ( forM, unless, when, zipWithM )
+import Control.Monad.Fix      ( mfix )
+import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Monad.Reader   ( MonadReader(..), ReaderT(..), runReaderT )
+import Control.Monad.State    ( MonadState(..), StateT(..), runStateT )
+import Control.Monad.Trans    ( lift )
 
 import qualified Data.List as List
 import Data.Maybe

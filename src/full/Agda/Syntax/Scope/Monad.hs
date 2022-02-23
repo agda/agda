@@ -10,7 +10,6 @@ import Prelude hiding (null)
 import Control.Arrow ((***))
 import Control.Monad
 import Control.Monad.Except
-import Control.Monad.Writer hiding ((<>))
 import Control.Monad.State
 
 import Data.Either ( partitionEithers )

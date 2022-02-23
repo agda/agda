@@ -24,8 +24,10 @@ module Agda.Syntax.Parser
     ) where
 
 import Control.Exception
+import Control.Monad          ( forM_ )
 import Control.Monad.Except
 import Control.Monad.State
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Bifunctor
 import qualified Data.List as List

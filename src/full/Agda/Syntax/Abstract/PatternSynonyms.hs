@@ -8,8 +8,9 @@ module Agda.Syntax.Abstract.PatternSynonyms
   , mergePatternSynDefs
   ) where
 
-import Control.Applicative ( Alternative(empty) )
-import Control.Monad.Writer hiding (forM)
+import Control.Applicative  ( Alternative(empty) )
+import Control.Monad        ( foldM, guard, zipWithM, zipWithM_ )
+import Control.Monad.Writer ( MonadWriter(..), WriterT, execWriterT )
 
 import Data.Map (Map)
 import qualified Data.Map as Map

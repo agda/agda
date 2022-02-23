@@ -1,8 +1,9 @@
 
 module Agda.Syntax.Internal.Pattern where
 
-import Control.Arrow (second)
-import Control.Monad.State
+import Control.Arrow       ( second )
+import Control.Monad       ( (>=>), forM )
+import Control.Monad.State ( MonadState(..), State, evalState )
 
 import Data.Maybe
 import Data.Monoid

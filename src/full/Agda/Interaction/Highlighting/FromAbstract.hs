@@ -13,7 +13,8 @@ module Agda.Interaction.Highlighting.FromAbstract
 import Prelude hiding (null)
 
 import Control.Applicative
-import Control.Monad.Reader
+import Control.Monad         ( (<=<) )
+import Control.Monad.Reader  ( MonadReader(..), asks, Reader, runReader )
 
 import qualified Data.Map      as Map
 import           Data.Maybe
