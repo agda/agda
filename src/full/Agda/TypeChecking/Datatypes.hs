@@ -1,7 +1,8 @@
 
 module Agda.TypeChecking.Datatypes where
 
-import Control.Monad.Except
+import Control.Monad        ( filterM )
+import Control.Monad.Except ( MonadError(..), ExceptT(..), runExceptT )
 
 import Data.Maybe (fromMaybe)
 

@@ -7,9 +7,10 @@ module Agda.Utils.Monad
     )
     where
 
-import Control.Applicative  (liftA2)
-import Control.Monad.Except
-import Control.Monad.State
+import Control.Applicative  ( liftA2 )
+import Control.Monad        ( MonadPlus(..), guard, unless, when )
+import Control.Monad.Except ( MonadError(catchError, throwError) )
+import Control.Monad.State  ( MonadState(get, put) )
 
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold

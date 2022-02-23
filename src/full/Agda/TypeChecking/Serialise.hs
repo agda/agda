@@ -33,6 +33,7 @@ import Control.DeepSeq
 import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Except
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
 import Control.Monad.State.Strict
 

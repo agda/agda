@@ -6,8 +6,10 @@ module Agda.Compiler.ToTreeless
 
 import Prelude hiding ((!!))
 
-import Control.Arrow (first)
-import Control.Monad.Reader
+import Control.Arrow        ( first )
+import Control.Monad        ( filterM, foldM, forM, zipWithM )
+import Control.Monad.Reader ( MonadReader(..), asks, ReaderT, runReaderT )
+import Control.Monad.Trans  ( lift )
 
 import Data.Maybe
 import Data.Map (Map)

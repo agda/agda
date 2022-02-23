@@ -13,6 +13,8 @@ import Control.Applicative hiding (empty)
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad          ( forM )
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
 

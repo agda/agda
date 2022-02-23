@@ -1,7 +1,9 @@
 module Agda.Interaction.JSONTop
     ( jsonREPL
     ) where
-import Control.Monad.State
+
+import Control.Monad          ( (<=<), forM )
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS

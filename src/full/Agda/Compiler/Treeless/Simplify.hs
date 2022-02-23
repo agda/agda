@@ -1,7 +1,8 @@
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
-import Control.Arrow (second, (***))
-import Control.Monad.Reader
+import Control.Arrow        ( (***), second )
+import Control.Monad        ( (>=>), guard )
+import Control.Monad.Reader ( MonadReader(..), asks, Reader, runReader )
 import qualified Data.List as List
 
 import Agda.Syntax.Treeless

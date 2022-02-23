@@ -22,11 +22,14 @@ module Agda.TypeChecking.Names where
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad          ( liftM2, unless )
+import Control.Monad.Except   ( MonadError )
+import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Monad.Reader   ( MonadReader(..), ReaderT, runReaderT )
+import Control.Monad.State    ( MonadState )
+import Control.Monad.Trans    ( MonadTrans, lift )
 
-import Data.List (isSuffixOf)
+import Data.List              ( isSuffixOf )
 
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
@@ -231,4 +234,3 @@ lamTel t = map (Lam defaultArgInfo) . sequenceA <$> t
 
 appTel :: Monad m => NamesT m [Term] -> NamesT m Term -> NamesT m [Term]
 appTel = liftM2 (\ fs x -> map (`apply` [Arg defaultArgInfo x]) fs)
-

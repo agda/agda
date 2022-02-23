@@ -6,7 +6,8 @@ module Agda.Interaction.BasicOps where
 
 import Prelude hiding (null)
 
-import Control.Arrow (first)
+import Control.Arrow          ( first )
+import Control.Monad          ( (>=>), forM, guard )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State

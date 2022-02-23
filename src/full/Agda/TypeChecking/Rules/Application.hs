@@ -10,7 +10,8 @@ module Agda.TypeChecking.Rules.Application
 
 import Prelude hiding ( null )
 
-import Control.Applicative ((<|>))
+import Control.Applicative        ( (<|>) )
+import Control.Monad              ( forM, forM_, guard, liftM2 )
 import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe

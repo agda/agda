@@ -1,11 +1,14 @@
 
 module Agda.TypeChecking.Unquote where
 
-import Control.Arrow (first, second, (&&&))
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
-import Control.Monad.Writer hiding ((<>))
+import Control.Arrow          ( first, second, (&&&) )
+import Control.Monad          ( (<=<) )
+import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
+import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Monad.Reader   ( ReaderT(..), runReaderT )
+import Control.Monad.State    ( gets, modify, StateT(..), runStateT )
+import Control.Monad.Writer   ( MonadWriter(..), WriterT(..), runWriterT )
+import Control.Monad.Trans    ( lift )
 
 import Data.Char
 import Data.Map (Map)
@@ -1022,4 +1025,3 @@ raiseExeNotFound exe fp = genericDocError =<< do
 raiseExeNotExecutable :: ExeName -> FilePath -> TCM a
 raiseExeNotExecutable exe fp = genericDocError =<< do
   text $ "File '" ++ fp ++ "' for trusted executable" ++ T.unpack exe ++ " does not have permission to execute"
-

@@ -7,6 +7,7 @@ import Control.DeepSeq
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char ( isDigit )
 import Data.Data ( Data )

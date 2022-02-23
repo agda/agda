@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.MetaVars where
 
 import Prelude hiding (null)
 
+import Control.Monad                ( (<=<), guard )
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Trans.Identity ( IdentityT )

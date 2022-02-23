@@ -9,10 +9,12 @@
 
 module Agda.TypeChecking.SyntacticEquality (SynEq, checkSyntacticEquality) where
 
-import Control.Arrow ((***))
-import Control.Monad.State
+import Control.Arrow            ( (***) )
+import Control.Monad            ( zipWithM )
+import Control.Monad.State      ( MonadState(..), StateT, runStateT )
+import Control.Monad.Trans      ( lift )
 
-import Agda.Interaction.Options (optSyntacticEquality)
+import Agda.Interaction.Options ( optSyntacticEquality )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

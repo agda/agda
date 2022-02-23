@@ -6,7 +6,9 @@ module Agda.TypeChecking.Monad.Builtin
 
 import qualified Control.Monad.Fail as Fail
 
+import Control.Monad                ( liftM2, void )
 import Control.Monad.Except
+import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Identity (IdentityT)

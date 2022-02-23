@@ -7,9 +7,10 @@ module Agda.Syntax.Abstract.Pattern where
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), second)
-import Control.Monad.Identity
-import Control.Applicative (liftA2)
+import Control.Arrow           ( (***), second )
+import Control.Monad           ( (>=>) )
+import Control.Monad.Identity  ( Identity(..), runIdentity )
+import Control.Applicative     ( liftA2 )
 
 
 import Data.Maybe

@@ -18,8 +18,8 @@ module Agda.Termination.TermCheck
 
 import Prelude hiding ( null )
 
-import Control.Applicative (liftA2)
-import Control.Monad.Reader
+import Control.Applicative  ( liftA2 )
+import Control.Monad        ( (<=<), filterM, forM, forM_, zipWithM )
 
 import Data.Foldable (toList)
 import qualified Data.List as List

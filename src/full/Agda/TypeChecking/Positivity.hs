@@ -7,7 +7,8 @@ import Prelude hiding ( null )
 
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
-import Control.Monad.Reader
+import Control.Monad        ( forM_, guard, liftM2 )
+import Control.Monad.Reader ( MonadReader(..), asks, Reader, runReader )
 
 import Data.Either
 import qualified Data.Foldable as Fold

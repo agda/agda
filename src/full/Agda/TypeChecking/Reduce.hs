@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.Reduce where
 
-import Control.Monad.Reader
+import Control.Monad ( (>=>), void )
 
 import Data.Maybe
 import Data.Map (Map)

@@ -6,7 +6,8 @@ module Agda.TypeChecking.Empty
   , checkEmptyTel
   ) where
 
-import Control.Monad.Except
+import Control.Monad        ( void )
+import Control.Monad.Except ( MonadError(..) )
 
 import Data.Semigroup
 import qualified Data.Set as Set
