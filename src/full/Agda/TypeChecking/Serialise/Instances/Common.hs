@@ -3,10 +3,11 @@
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State.Strict (gets, modify)
-
+import Control.Monad              ( (<=<) )
+import Control.Monad.IO.Class     ( MonadIO(..) )
+import Control.Monad.Except       ( MonadError(..) )
+import Control.Monad.Reader       ( MonadReader(..), asks )
+import Control.Monad.State.Strict ( gets, modify )
 
 import Data.Array.IArray
 import Data.Word

@@ -5,8 +5,10 @@ module Agda.Syntax.Concrete.Pattern where
 
 import Control.Applicative ( liftA2 )
 import Control.Arrow ( first )
+import Control.Monad ( (>=>) )
 import Control.Monad.Identity
-import Control.Monad.Writer
+
+import Data.Monoid ( Any(..), Endo(..), Sum(..) )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete

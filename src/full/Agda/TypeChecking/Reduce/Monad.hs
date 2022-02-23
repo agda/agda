@@ -10,7 +10,7 @@ module Agda.TypeChecking.Reduce.Monad
 
 import Prelude hiding (null)
 
-import Control.Monad.Reader
+import Control.Monad         ( liftM2 )
 
 import qualified Data.Map as Map
 import Data.Maybe

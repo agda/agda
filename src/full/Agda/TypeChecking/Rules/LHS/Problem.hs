@@ -11,8 +11,9 @@ module Agda.TypeChecking.Rules.LHS.Problem
 
 import Prelude hiding (null)
 
-import Control.Arrow ( (***) )
-import Control.Monad.Writer hiding ((<>))
+import Control.Arrow        ( (***) )
+import Control.Monad        ( zipWithM )
+import Control.Monad.Writer ( MonadWriter(..), Writer, runWriter )
 
 import Data.Functor (($>))
 import Data.IntMap (IntMap)

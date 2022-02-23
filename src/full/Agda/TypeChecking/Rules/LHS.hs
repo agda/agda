@@ -18,7 +18,7 @@ import Control.Arrow (left, second)
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
-import Control.Monad.Writer hiding ((<>))
+import Control.Monad.Writer       ( MonadWriter(..), runWriterT )
 import Control.Monad.Trans.Maybe
 
 import Data.IntSet (IntSet)

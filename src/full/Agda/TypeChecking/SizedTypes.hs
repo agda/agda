@@ -4,8 +4,8 @@ module Agda.TypeChecking.SizedTypes where
 
 import Prelude hiding (null)
 
-import Control.Monad.Except
-import Control.Monad.Writer hiding ((<>))
+import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.Writer ( MonadWriter(..), WriterT(..), runWriterT )
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List

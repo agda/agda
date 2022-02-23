@@ -6,12 +6,13 @@ module Agda.Interaction.Highlighting.Dot.Backend
 import Agda.Interaction.Highlighting.Dot.Base (renderDotToFile)
 
 import Control.Monad.Except
-  ( MonadIO
-  , ExceptT
+  ( ExceptT
   , runExceptT
   , MonadError(throwError)
   )
-
+import Control.Monad.IO.Class
+  ( MonadIO(..)
+  )
 import Control.DeepSeq
 
 import Data.HashSet (HashSet)

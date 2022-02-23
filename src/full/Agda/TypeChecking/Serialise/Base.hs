@@ -9,6 +9,7 @@ import Control.Exception (evaluate)
 
 import Control.Monad.Catch (catchAll)
 import Control.Monad.Except
+import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, gets)
 

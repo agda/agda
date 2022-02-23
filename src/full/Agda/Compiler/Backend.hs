@@ -22,7 +22,8 @@ module Agda.Compiler.Backend
   ) where
 
 import Control.DeepSeq
-import Control.Monad.State
+import Control.Monad              ( (<=<) )
+import Control.Monad.Trans        ( lift )
 import Control.Monad.Trans.Maybe
 
 import qualified Data.List as List

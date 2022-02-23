@@ -1,9 +1,12 @@
 
 module Agda.Auto.NarrowingSearch where
 
+import Control.Monad       ( foldM, when )
+import Control.Monad.State ( MonadState(..), modify, StateT, evalStateT, runStateT )
+import Control.Monad.Trans ( lift )
+
 import Data.IORef hiding (writeIORef, modifyIORef)
 import qualified Data.IORef as NoUndo (writeIORef, modifyIORef)
-import Control.Monad.State
 
 import Agda.Utils.Impossible
 import Agda.Utils.Empty

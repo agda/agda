@@ -7,7 +7,9 @@ module Agda.Auto.Auto
 
 import Prelude hiding ((!!), null)
 
+import Control.Monad          ( filterM, forM, guard, join, when )
 import Control.Monad.Except
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.State
 
 import qualified Data.List as List

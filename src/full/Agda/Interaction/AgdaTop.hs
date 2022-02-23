@@ -2,7 +2,11 @@ module Agda.Interaction.AgdaTop
     ( repl
     ) where
 
-import Control.Monad.State
+import Control.Monad                ( unless )
+import Control.Monad.IO.Class       ( MonadIO(..) )
+import Control.Monad.State          ( evalStateT, runStateT )
+import Control.Monad.Trans          ( lift )
+
 import Data.Char
 import Data.Maybe
 import System.IO

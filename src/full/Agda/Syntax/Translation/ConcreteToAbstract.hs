@@ -19,9 +19,9 @@ module Agda.Syntax.Translation.ConcreteToAbstract
 
 import Prelude hiding ( null )
 
-import Control.Applicative hiding ( empty )
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Monad        ( (<=<), foldM, forM, forM_, zipWithM, zipWithM_ )
+import Control.Applicative  ( liftA2, liftA3 )
+import Control.Monad.Except ( MonadError(..) )
 
 import Data.Bifunctor
 import Data.Foldable (traverse_)

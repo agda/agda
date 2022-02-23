@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.Context where
 import Data.Text (Text)
 import qualified Data.Text as T
 
+import Control.Monad                ( (<=<), forM, when )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State

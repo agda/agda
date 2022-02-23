@@ -8,8 +8,10 @@ module Agda.TypeChecking.InstanceArguments
   , getInstanceCandidates
   ) where
 
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Monad        ( forM )
+import Control.Monad.Except ( MonadError(..) )
+import Control.Monad.Trans  ( lift )
+
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS

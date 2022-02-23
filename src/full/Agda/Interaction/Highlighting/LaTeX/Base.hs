@@ -29,10 +29,13 @@ import Data.Semigroup (Semigroup(..))
 import Control.Monad (forM_, mapM_, unless, when)
 import Control.Monad.Trans.Reader as R ( ReaderT(runReaderT))
 import Control.Monad.RWS.Strict
-  ( MonadIO(..), RWST(runRWST)
+  ( RWST(runRWST)
   , MonadReader(..), asks
   , MonadState(..), gets, modify
   , lift, tell
+  )
+import Control.Monad.IO.Class
+  ( MonadIO(..)
   )
 
 import System.Directory

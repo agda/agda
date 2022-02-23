@@ -5,6 +5,8 @@ module Agda.Interaction.Base where
 
 import           Control.Concurrent.STM.TChan
 import           Control.Concurrent.STM.TVar
+
+import           Control.Monad                ( mplus, liftM2, liftM4 )
 import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Monad.State

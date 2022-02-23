@@ -2,9 +2,10 @@
 
 module Agda.Syntax.Translation.ReflectedToAbstract where
 
-import Control.Arrow ( (***) )
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Arrow        ( (***) )
+import Control.Monad        ( foldM )
+import Control.Monad.Except ( MonadError )
+import Control.Monad.Reader ( MonadReader(..), asks, reader, runReaderT )
 
 import Data.Maybe
 import Data.Set (Set)

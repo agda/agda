@@ -38,10 +38,12 @@ module Agda.Interaction.Library
   , findLib'
   ) where
 
-import Control.Arrow ( first , second )
+import Control.Arrow          ( first , second )
+import Control.Monad          ( filterM, forM )
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char
 import Data.Data ( Data )

@@ -5,7 +5,7 @@ module Agda.TypeChecking.Monad.State where
 
 import qualified Control.Exception as E
 
-import Control.Monad.State (void)
+import Control.Monad       (void)
 import Control.Monad.Trans (MonadIO, liftIO)
 
 import Data.Maybe

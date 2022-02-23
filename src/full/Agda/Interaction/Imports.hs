@@ -24,7 +24,9 @@ module Agda.Interaction.Imports
 
 import Prelude hiding (null)
 
+import Control.Monad               ( forM, forM_, void )
 import Control.Monad.Except
+import Control.Monad.IO.Class      ( MonadIO(..) )
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E

@@ -12,6 +12,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 
 import Data.Function
