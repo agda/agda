@@ -153,13 +153,16 @@ compareAs cmp a u v = do
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ prettyTCM a
     ]
-  -- Check syntactic equality. This actually saves us quite a bit of work.
-  ((u, v), equal) <- SynEq.checkSyntacticEquality u v
+
   -- OLD CODE, traverses the *full* terms u v at each step, even if they
   -- are different somewhere.  Leads to infeasibility in issue 854.
   -- (u, v) <- instantiateFull (u, v)
   -- let equal = u == v
-  if equal then whenProfile Profile.Sharing $ tick "equal terms" else do
+
+  -- Check syntactic equality. This actually saves us quite a bit of work.
+  SynEq.checkSyntacticEquality u v
+    (\_ _ -> whenProfile Profile.Sharing $ tick "equal terms") $
+    \u v -> do
       whenProfile Profile.Sharing $ tick "unequal terms"
       reportSDoc "tc.conv.term" 15 $ sep $
         [ "compareTerm (not syntactically equal)"
@@ -749,8 +752,7 @@ compareDom cmp0
 --   #2384.
 antiUnify :: MonadConversion m => ProblemId -> Type -> Term -> Term -> m Term
 antiUnify pid a u v = do
-  ((u, v), eq) <- SynEq.checkSyntacticEquality u v
-  if eq then return u else do
+  SynEq.checkSyntacticEquality u v (\u _ -> return u) $ \u v -> do
   (u, v) <- reduce (u, v)
   reportSDoc "tc.conv.antiUnify" 30 $ vcat
     [ "antiUnify"
@@ -1180,10 +1182,11 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
   let postpone = addConstraint (unblockOnAnyMetaIn (s1, s2)) (SortCmp CmpLeq s1 s2)
       no       = typeError $ NotLeqSort s1 s2
       yes      = return ()
-      synEq    = ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
-        ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
-        if | equal     -> yes
-           | otherwise -> postpone
+      synEq    =
+        ifNotM (optSyntacticEquality <$> pragmaOptions)
+          postpone
+          (SynEq.checkSyntacticEquality s1 s2
+             (\ _ _ -> yes) (\_ _ -> postpone))
   reportSDoc "tc.conv.sort" 30 $
     sep [ "leqSort"
         , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
@@ -1301,7 +1304,12 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
               , prettyTCM b ]
 
       (a, b) <- reduce (a, b)
-      ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+      SynEq.checkSyntacticEquality a b
+        (\_ _ ->
+          reportSDoc "tc.conv.level" 60
+            "checkSyntacticEquality returns True") $ \a b -> do
+      reportSDoc "tc.conv.level" 60
+        "checkSyntacticEquality returns False"
 
       let notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
           postpone = patternViolation (unblockOnAnyMetaIn (a, b))
@@ -1309,10 +1317,6 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
           wrap m = m `catchError` \case
             TypeError{} -> notok
             err         -> throwError err
-
-      reportSDoc "tc.conv.level" 60 $
-        "checkSyntacticEquality returns" <+> prettyTCM equal
-      unless equal $ do
 
       cumulativity <- optCumulativity <$> pragmaOptions
       areWeComputingOverlap <- viewTC eConflComputingOverlap
@@ -1450,10 +1454,12 @@ equalLevel a b = do
         ]
 
   (a, b) <- reduce (a, b)
-  ((a, b), equal) <- SynEq.checkSyntacticEquality a b
-  reportSDoc "tc.conv.level" 60 $
-    "checkSyntacticEquality returns" <+> prettyTCM equal
-  unless equal $ do
+  SynEq.checkSyntacticEquality a b
+    (\_ _ ->
+      reportSDoc "tc.conv.level" 60
+        "checkSyntacticEquality returns True") $ \a b -> do
+
+  reportSDoc "tc.conv.level" 60 "checkSyntacticEquality returns False"
 
   -- Jesper, 2014-02-02 remove terms that certainly do not contribute
   -- to the maximum
@@ -1679,10 +1685,9 @@ equalSort s1 s2 = do
       synEq s1 s2 = do
         let postpone = addConstraint (unblockOnAnyMetaIn (s1, s2)) $ SortCmp CmpEq s1 s2
         doSynEq <- optSyntacticEquality <$> pragmaOptions
-        if | doSynEq -> do
-               ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
-               if | equal     -> return ()
-                  | otherwise -> postpone
+        if | doSynEq ->
+               SynEq.checkSyntacticEquality s1 s2
+                 (\_ _ -> return ()) (\_ _ -> postpone)
            | otherwise -> postpone
 
       -- Equate a sort @s1@ to @univSort s2@

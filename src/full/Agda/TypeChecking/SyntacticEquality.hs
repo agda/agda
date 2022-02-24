@@ -26,25 +26,48 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Monad (ifM)
 
 
--- | Syntactic equality check for terms.
+-- | Syntactic equality check for terms. If syntactic equality
+-- checking is turned on, then 'checkSyntacticEquality' behaves as if
+-- it were implemented in the following way (which does not match the
+-- given type signature), only that @v@ and @v'@ are only fully
+-- instantiated to the depth where they are equal:
 --   @
---      checkSyntacticEquality v v' = do
+--      checkSyntacticEquality v v' s f = do
 --        (v, v') <- instantiateFull (v, v')
---         return ((v, v'), v==v')
+--        if v == v' then s v v' else f v v'
 --   @
---   only that @v, v'@ are only fully instantiated to the depth
---   where they are equal.
+-- If syntactic equality checking is not turned on, then
+-- 'checkSyntacticEquality' instantiates the two terms and takes the
+-- failure branch.
 --
---   This means in particular that the returned @v,v'@ cannot be @MetaV@s
---   that are instantiated.
+-- Note that in either case the returned values @v@ and @v'@ cannot be
+-- @MetaV@s that are instantiated.
 
-{-# SPECIALIZE checkSyntacticEquality :: Term -> Term -> ReduceM ((Term, Term), Bool) #-}
-{-# SPECIALIZE checkSyntacticEquality :: Type -> Type -> ReduceM ((Type, Type), Bool) #-}
-checkSyntacticEquality :: (Instantiate a, SynEq a, MonadReduce m) => a -> a -> m ((a, a), Bool)
-checkSyntacticEquality v v' = liftReduce $ do
+{-# SPECIALIZE checkSyntacticEquality ::
+      Term -> Term ->
+      (Term -> Term -> ReduceM a) ->
+      (Term -> Term -> ReduceM a) ->
+      ReduceM a #-}
+{-# SPECIALIZE checkSyntacticEquality ::
+      Type -> Type ->
+      (Type -> Type -> ReduceM a) ->
+      (Type -> Type -> ReduceM a) ->
+      ReduceM a #-}
+checkSyntacticEquality
+  :: (Instantiate a, SynEq a, MonadReduce m)
+  => a
+  -> a
+  -> (a -> a -> m b)  -- ^ Continuation used upon success.
+  -> (a -> a -> m b)  -- ^ Continuation used upon failure, or if
+                      --   syntactic equality checking has been turned
+                      --   off.
+  -> m b
+checkSyntacticEquality v v' s f =
   ifM (optSyntacticEquality <$> pragmaOptions)
-  {-then-} (synEq v v' `runStateT` True)
-  {-else-} ((,False) <$> instantiate (v,v'))
+  {-then-} (do ((v, v'), equal) <-
+                 liftReduce $ synEq v v' `runStateT` True
+               if equal then s v v' else f v v')
+  {-else-} (uncurry f =<< instantiate (v,v'))
 
 -- | Monad for checking syntactic equality
 type SynEqM = StateT Bool ReduceM

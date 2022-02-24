@@ -1325,8 +1325,7 @@ checkSubtypeIsEqual a b = do
   reportSDoc "tc.meta.subtype" 30 $
     "checking that subtype" <+> prettyTCM a <+>
     "of" <+> prettyTCM b <+> "is actually equal."
-  ((a, b), equal) <- SynEq.checkSyntacticEquality a b
-  unless equal $ do
+  SynEq.checkSyntacticEquality a b (\_ _ -> return ()) $ \a b -> do
     cumulativity <- optCumulativity <$> pragmaOptions
     abortIfBlocked (unEl b) >>= \case
       Sort sb -> abortIfBlocked (unEl a) >>= \case
