@@ -142,6 +142,23 @@ Performance
   Meta-variables are saved if the pragma option `--save-metas` is
   used. This option can be overridden by `--no-save-metas`.
 
+* The new option `--syntactic-equality[=FUEL]` can be used to limit
+  how many times the syntactic equality shortcut is allowed to fail
+  (see [#5801](https://github.com/agda/agda/issues/5801)).
+
+  If `FUEL` is omitted, then the syntactic equality shortcut is
+  enabled without any restrictions.
+
+  If `FUEL` is given, then the syntactic equality shortcut is given
+  `FUEL` units of fuel. The exact meaning of this is
+  implementation-dependent, but successful uses of the shortcut do not
+  affect the amount of fuel. Currently the fuel is decreased in the
+  failure continuations of the implementation of the syntactic
+  equality shortcut.
+
+  The idea for this option comes from András Kovács'
+  [smalltt](https://github.com/AndrasKovacs/smalltt/blob/989b020309686e04374f1ab7844f468386d2eb2f/README.md#approximate-conversion-checking).
+
 Compiler backends
 -----------------
 

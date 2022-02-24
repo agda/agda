@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -950,6 +951,8 @@ createInterface mname file isMain msrc = do
     stTokens `modifyTCLens` (fileTokenInfo <>)
 
     setOptionsFromSourcePragmas src
+    syntactic <- optSyntacticEquality <$> pragmaOptions
+    localTC (\env -> env { envSyntacticEqualityFuel = syntactic }) $ do
 
     verboseS "import.iface.create" 15 $ do
       nestingLevel      <- asksTC (pred . length . envImportPath)

@@ -1183,7 +1183,7 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       no       = typeError $ NotLeqSort s1 s2
       yes      = return ()
       synEq    =
-        ifNotM (optSyntacticEquality <$> pragmaOptions)
+        ifNotM SynEq.syntacticEqualityFuelRemains
           postpone
           (SynEq.checkSyntacticEquality s1 s2
              (\ _ _ -> yes) (\_ _ -> postpone))
@@ -1684,7 +1684,7 @@ equalSort s1 s2 = do
       synEq :: Sort -> Sort -> m ()
       synEq s1 s2 = do
         let postpone = addConstraint (unblockOnAnyMetaIn (s1, s2)) $ SortCmp CmpEq s1 s2
-        doSynEq <- optSyntacticEquality <$> pragmaOptions
+        doSynEq <- SynEq.syntacticEqualityFuelRemains
         if | doSynEq ->
                SynEq.checkSyntacticEquality s1 s2
                  (\_ _ -> return ()) (\_ _ -> postpone)

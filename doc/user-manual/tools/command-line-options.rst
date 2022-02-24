@@ -476,6 +476,21 @@ Other features
      Disable the syntactic equality shortcut in the conversion
      checker.
 
+.. option:: --syntactic-equality={N}
+
+     .. versionadded:: 2.6.3
+
+     Give the syntactic equality shortcut ``N`` units of fuel (``N``
+     must be a natural number).
+
+     If ``N`` is omitted, then the syntactic equality shortcut is
+     enabled without any restrictions.
+
+     If ``N`` is given, then the syntactic equality shortcut is given
+     ``N`` units of fuel. The exact meaning of this is
+     implementation-dependent, but successful uses of the shortcut do
+     not affect the amount of fuel.
+
 .. option:: --safe
 
      Disable postulates, unsafe :ref:`OPTIONS<options-pragma>` pragmas

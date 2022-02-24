@@ -69,6 +69,7 @@ import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Functor       ( (<&>) )
 import Agda.Utils.Lens          ( Lens', over )
 import Agda.Utils.List          ( groupOn, initLast1, wordsBy )
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty        ( singPlural )
 import Agda.Utils.ProfileOptions
 import Agda.Utils.Trie          ( Trie )
@@ -175,7 +176,14 @@ data PragmaOptions = PragmaOptions
   , optInversionMaxDepth         :: Int
   , optSafe                      :: Bool
   , optDoubleCheck               :: Bool
-  , optSyntacticEquality         :: Bool  -- ^ Should conversion checker use syntactic equality shortcut?
+  , optSyntacticEquality         :: !(Strict.Maybe Int)
+    -- ^ Should the conversion checker use the syntactic equality
+    -- shortcut? 'Nothing' means that it should. @'Just' n@, for a
+    -- non-negative number @n@, means that syntactic equality checking
+    -- gets @n@ units of fuel. If the fuel becomes zero, then
+    -- syntactic equality checking is turned off. The fuel counter is
+    -- decreased in the failure continuation of
+    -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
   , optWarningMode               :: WarningMode
   , optCompileNoMain             :: Bool
   , optCaching                   :: Bool
@@ -304,7 +312,7 @@ defaultPragmaOptions = PragmaOptions
   , optInversionMaxDepth         = 50
   , optSafe                      = False
   , optDoubleCheck               = False
-  , optSyntacticEquality         = True
+  , optSyntacticEquality         = Strict.Nothing
   , optWarningMode               = defaultWarningMode
   , optCompileNoMain             = False
   , optCaching                   = True
@@ -410,7 +418,7 @@ restartOptions =
   , (B . not . optQualifiedInstances, "--no-qualified-instances")
   , (B . optSafe, "--safe")
   , (B . optDoubleCheck, "--double-check")
-  , (B . not . optSyntacticEquality, "--no-syntactic-equality")
+  , (M . optSyntacticEquality, "--syntactic-equality")
   , (B . not . optAutoInline, "--no-auto-inline")
   , (B . not . optFastReduce, "--no-fast-reduce")
   , (B . optCallByName, "--call-by-name")
@@ -425,7 +433,8 @@ restartOptions =
   ]
 
 -- to make all restart options have the same type
-data RestartCodomain = C CutOff | B Bool | I Int | W WarningMode
+data RestartCodomain
+  = C CutOff | B Bool | I Int | M !(Strict.Maybe Int) | W WarningMode
   deriving Eq
 
 -- | An infective option is an option that if used in one module, must
@@ -492,8 +501,17 @@ noFlatSplitFlag o = return $ o { optFlatSplit = False }
 doubleCheckFlag :: Bool -> Flag PragmaOptions
 doubleCheckFlag b o = return $ o { optDoubleCheck = b }
 
-noSyntacticEqualityFlag :: Flag PragmaOptions
-noSyntacticEqualityFlag o = return $ o { optSyntacticEquality = False }
+syntacticEqualityFlag :: Maybe String -> Flag PragmaOptions
+syntacticEqualityFlag s o =
+  case fuel of
+    Left err   -> throwError err
+    Right fuel -> return $ o { optSyntacticEquality = fuel }
+  where
+  fuel = case s of
+    Nothing -> Right Strict.Nothing
+    Just s  -> case readMaybe s of
+      Just n | n >= 0 -> Right (Strict.Just n)
+      _               -> Left $ "Not a natural number: " ++ s
 
 noSortComparisonFlag :: Flag PragmaOptions
 noSortComparisonFlag o = return o
@@ -1009,8 +1027,10 @@ pragmaOptions =
                     "enable double-checking of all terms using the internal typechecker"
     , Option []     ["no-double-check"] (NoArg (doubleCheckFlag False))
                     "disable double-checking of terms (default)"
-    , Option []     ["no-syntactic-equality"] (NoArg noSyntacticEqualityFlag)
+    , Option []     ["no-syntactic-equality"] (NoArg $ syntacticEqualityFlag (Just "0"))
                     "disable the syntactic equality shortcut in the conversion checker"
+    , Option []     ["syntactic-equality"] (OptArg syntacticEqualityFlag "FUEL")
+                    "give the syntactic equality shortcut FUEL units of fuel (default: unlimited)"
     , Option ['W']  ["warning"] (ReqArg warningModeFlag "FLAG")
                     ("set warning flags. See --help=warning.")
     , Option []     ["no-main"] (NoArg compileFlagNoMain)

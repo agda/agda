@@ -3028,6 +3028,15 @@ data TCEnv =
           , envCurrentlyElaborating :: Bool
                 -- ^ Are we currently in the process of executing an
                 --   elaborate-and-give interactive command?
+          , envSyntacticEqualityFuel :: !(Strict.Maybe Int)
+                -- ^ If this counter is 'Strict.Nothing', then
+                -- syntactic equality checking is unrestricted. If it
+                -- is zero, then syntactic equality checking is not
+                -- run at all. If it is a positive number, then
+                -- syntactic equality checking is allowed to run, but
+                -- the counter is decreased in the failure
+                -- continuation of
+                -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
           }
     deriving (Generic)
 
@@ -3088,6 +3097,7 @@ initEnv = TCEnv { envContext             = []
                 , envActiveBackendName      = Nothing
                 , envConflComputingOverlap  = False
                 , envCurrentlyElaborating   = False
+                , envSyntacticEqualityFuel  = Strict.Nothing
                 }
 
 class LensTCEnv a where
