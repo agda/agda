@@ -22,12 +22,12 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
-import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..))
-import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..))
+import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), alwaysUnblock)
+import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..), noRange)
 import Agda.VersionCommit
 
 import Agda.TypeChecking.Errors (getAllWarningsOfTCErr)
-import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..))
+import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..), withInteractionId)
 import Agda.TypeChecking.Monad.MetaVars (getInteractionRange, getMetaRange, withMetaId)
 import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
@@ -270,7 +270,7 @@ instance EncodeTCM DisplayInfo where
     [ "constraints"       #= forM constraints encodeTCM
     ]
   encodeTCM (Info_AllGoalsWarnings (vis, invis) wes) = kind "AllGoalsWarnings"
-    [ "visibleGoals"      #= forM vis (encodeOC encodeTCM encodePrettyTCM)
+    [ "visibleGoals"      #= forM vis (\i -> withInteractionId (B.outputFormId $ OutputForm noRange [] alwaysUnblock i) $ encodeOC encodeTCM encodePrettyTCM i)
     , "invisibleGoals"    #= forM invis (encodeOC encodeTCM encodePrettyTCM)
     , "warnings"          #= encodeTCM (filterTCWarnings (tcWarnings wes))
     , "errors"            #= encodeTCM (filterTCWarnings (nonFatalErrors wes))
@@ -333,7 +333,7 @@ instance EncodeTCM DisplayInfo where
     ]
   encodeTCM (Info_GoalSpecific ii info) = kind "GoalSpecific"
     [ "interactionPoint"  @= ii
-    , "goalInfo"          #= encodeGoalSpecific ii info
+    , "goalInfo"          #= withInteractionId ii (encodeGoalSpecific ii info)
     ]
 
 instance EncodeTCM GoalTypeAux where
