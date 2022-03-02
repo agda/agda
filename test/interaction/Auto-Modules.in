@@ -1,8 +1,0 @@
-top_command (cmd_load currentFile [])
-goal_command 0 cmd_autoOne ""
-goal_command 1 cmd_autoOne ""
-goal_command 2 cmd_autoOne ""
-goal_command 3 cmd_autoOne "p"
-goal_command 4 cmd_autoOne ""
-goal_command 5 cmd_autoOne ""
-

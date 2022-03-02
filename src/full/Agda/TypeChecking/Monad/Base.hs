@@ -5550,6 +5550,7 @@ defaultInteractionOutputCallback = \case
   Resp_GiveAction {}        -> __IMPOSSIBLE__
   Resp_MakeCase {}          -> __IMPOSSIBLE__
   Resp_SolveAll {}          -> __IMPOSSIBLE__
+  Resp_Mimer {}             -> __IMPOSSIBLE__
   Resp_DisplayInfo {}       -> __IMPOSSIBLE__
   Resp_RunningInfo _ s      -> liftIO $ do
                                  putStr s

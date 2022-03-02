@@ -60,6 +60,7 @@ data Response_boot tcErr tcWarning warningsAndNonFatalErrors
       -- ^ Response is list of printed clauses.
     | Resp_SolveAll [(InteractionId, Expr)]
       -- ^ Solution for one or more meta-variables.
+    | Resp_Mimer InteractionId (Maybe String)
     | Resp_DisplayInfo (DisplayInfo_boot tcErr tcWarning warningsAndNonFatalErrors)
     | Resp_RunningInfo Int String
       -- ^ The integer is the message's debug level.

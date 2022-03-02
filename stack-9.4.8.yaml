@@ -12,3 +12,6 @@ flags:
     win32-2-13-1: false
   ansi-terminal:
     win32-2-13-1: false
+
+extra-deps:
+- pqueue-1.5.0.0

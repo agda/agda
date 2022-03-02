@@ -83,6 +83,7 @@ extra-deps:
 - parsec-3.1.15.0
 - peano-0.1.0.1
 - polyparse-1.13
+- pqueue-1.5.0.0
 - pretty-1.1.3.6
 - primitive-0.7.4.0
 - process-1.6.15.0

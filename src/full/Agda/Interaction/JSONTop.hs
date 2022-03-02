@@ -464,6 +464,9 @@ instance EncodeTCM Response where
         [ "interactionPoint"  .= i
         , "expression"        .= P.prettyShow expr
         ]
+  encodeTCM (Resp_Mimer ii str) = kind "Mimer"
+    [ "solution" @= str
+    ]
 
 -- | Convert Response to an JSON value for interactive editor frontends.
 jsonifyResponse :: Response -> TCM ByteString
