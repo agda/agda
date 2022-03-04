@@ -91,6 +91,7 @@ data CommandLineOptions = Options
   , optInputFile             :: Maybe FilePath
   , optIncludePaths          :: [FilePath]
   , optAbsoluteIncludePaths  :: [AbsolutePath]
+    -- ^ The list should not contain duplicates.
   , optLibraries             :: [LibName]
   , optOverrideLibrariesFile :: Maybe FilePath
   -- ^ Use this (if Just) instead of .agda/libraries
