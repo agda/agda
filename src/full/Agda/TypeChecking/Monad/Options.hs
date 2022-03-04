@@ -27,6 +27,7 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
 import Agda.Utils.FileName
 import Agda.Utils.Functor
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 import Agda.Utils.WithDefault
@@ -220,7 +221,7 @@ setIncludeDirs incs root = do
       -- We add the default dir at the end, since it is then
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...
-  incs <- return $ incs ++ [primdir]
+  incs <- return $ nubOn id $ incs ++ [primdir]
 
   reportSDoc "setIncludeDirs" 10 $ return $ vcat
     [ "Old include directories:"
