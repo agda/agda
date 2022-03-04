@@ -9,25 +9,36 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
 
+import qualified Data.Graph as Graph
+import Data.List (sort)
 import Data.Maybe
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 import System.Directory
 import System.FilePath
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete (TopLevelModuleName)
+import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad.Debug (reportSDoc)
 import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Imports
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Benchmark
+import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Library
 import Agda.Utils.FileName
 import Agda.Utils.Functor
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
+import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
@@ -183,8 +194,9 @@ getIncludeDirs = do
 -- | Makes the given directories absolute and stores them as include
 -- directories.
 --
--- If the include directories change, then the state is reset (completely,
--- except for the include directories and 'stInteractionOutputCallback').
+-- If the include directories change, then the state is reset
+-- (completely, except for the include directories and some other
+-- things).
 --
 -- An empty list is interpreted as @["."]@.
 
@@ -229,18 +241,97 @@ setIncludeDirs incs root = do
   -- up in a situation in which we use the contents of the file
   -- "old-path/M.agda", when the user actually meant
   -- "new-path/M.agda".
-  when (oldIncs /= incs) $ do
+  when (sort oldIncs /= sort incs) $ do
     ho <- getInteractionOutputCallback
     tcWarnings <- useTC stTCWarnings -- restore already generated warnings
     projectConfs <- useTC stProjectConfigs  -- restore cached project configs & .agda-lib
     agdaLibFiles <- useTC stAgdaLibFiles    -- files, since they use absolute paths
+    decodedModules <- getDecodedModules
+    (keptDecodedModules, modFile) <- modulesToKeep incs decodedModules
     resetAllState
     setTCLens stTCWarnings tcWarnings
     setTCLens stProjectConfigs projectConfs
     setTCLens stAgdaLibFiles agdaLibFiles
     setInteractionOutputCallback ho
+    setDecodedModules keptDecodedModules
+    setTCLens stModuleToSource modFile
 
   Lens.putAbsoluteIncludePaths incs
+  where
+  -- A decoded module is kept if its top-level module name is resolved
+  -- to the same absolute path using the old and the new include
+  -- directories, and the same applies to all dependencies.
+  --
+  -- File system accesses are cached using the ModuleToSource data
+  -- structure: For the old include directories this should mean that
+  -- the file system is not accessed, but the file system is accessed
+  -- for the new include directories, and certain changes to the file
+  -- system could lead to interfaces being discarded. A new
+  -- ModuleToSource structure, constructed using the new include
+  -- directories, is returned.
+  modulesToKeep
+    :: [AbsolutePath]  -- New include directories.
+    -> DecodedModules  -- Old decoded modules.
+    -> TCM (DecodedModules, ModuleToSource)
+  modulesToKeep incs old = process Map.empty Map.empty modules
+    where
+    -- A graph with one node per module in old, and an edge from m to
+    -- n if the module corresponding to m imports the module
+    -- corresponding to n.
+    dependencyGraph :: G.Graph A.ModuleName ()
+    dependencyGraph =
+      G.fromNodes
+        [ iModuleName $ miInterface m
+        | m <- Map.elems old
+        ]
+        `G.union`
+      G.fromEdges
+        [ G.Edge
+            { source = iModuleName $ miInterface m
+            , target = d
+            , label = ()
+            }
+        | m      <- Map.elems old
+        , (d, _) <- iImportedModules $ miInterface m
+        ]
+
+    -- All the modules from old, sorted so that all of a module's
+    -- dependencies precede it in the list.
+    modules :: [ModuleInfo]
+    modules =
+      map (\case
+              Graph.CyclicSCC{} ->
+                -- Agda does not allow cycles in the dependency graph.
+                __IMPOSSIBLE__
+              Graph.AcyclicSCC m ->
+                case Map.lookup (A.toTopLevelModuleName m) old of
+                  Just m  -> m
+                  Nothing -> __IMPOSSIBLE__) $
+      G.sccs' dependencyGraph
+
+    process ::
+      Map A.ModuleName ModuleInfo -> ModuleToSource -> [ModuleInfo] ->
+      TCM (DecodedModules, ModuleToSource)
+    process !keep !modFile [] = return
+      ( Map.fromList $
+        map (mapFst A.toTopLevelModuleName) $
+        Map.toList keep
+      , modFile
+      )
+    process keep modFile (m : ms) = do
+      let deps     = map fst $ iImportedModules $ miInterface m
+          depsKept = all (`Map.member` keep) deps
+      (keep, modFile) <-
+        if not depsKept then return (keep, modFile) else do
+        let n = iModuleName $ miInterface m
+            t = A.toTopLevelModuleName n
+        oldF            <- findFile' t
+        (newF, modFile) <- liftIO $ findFile'' incs t modFile
+        return $ case (oldF, newF) of
+          (Right f1, Right f2) | f1 == f2 ->
+            (Map.insert n m keep, modFile)
+          _ -> (keep, modFile)
+      process keep modFile ms
 
 isPropEnabled :: HasOptions m => m Bool
 isPropEnabled = optProp <$> pragmaOptions
