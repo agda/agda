@@ -377,7 +377,7 @@ union = unionWith $ \ left right -> left
 -- occur in both graphs (labels from the first graph are given as the
 -- first argument to the function).
 --
--- Time complexity: /O(n₁ log (n₂/n₁ + 1) + e₁ log e₂/, where /n₁/ is
+-- Time complexity: /O(n₁ log (n₂/n₁ + 1) + e₁ log e₂)/, where /n₁/ is
 -- the number of nodes in the graph with the smallest number of nodes
 -- and /n₂/ is the number of nodes in the other graph, and /e₁/ is the
 -- number of edges in the graph with the smallest number of edges and
