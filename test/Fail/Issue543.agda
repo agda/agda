@@ -4,8 +4,6 @@
 
 module Issue543 where
 
-import Common.Level
-import Common.Irrelevance
 open import Common.Equality
 
 data   ⊥ : Set where

@@ -266,8 +266,8 @@ lookupSection m = maybe EmptyTel (^. secTelescope) <$> getSection m
 addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
   reportSDoc "tc.display.section" 20 $ "Computing display forms for" <+> pretty x
-  def <- theDef <$> getConstInfo x
-  let v = case def of
+  def <- getConstInfo x
+  let v = case theDef def of
              Constructor{conSrcCon = h} -> Con h{ conName = x } ConOSystem []
              _                          -> Def x []
 
@@ -1225,7 +1225,7 @@ droppedPars d = case theDef d of
     Axiom{}                  -> 0
     DataOrRecSig{}           -> 0
     GeneralizableVar{}       -> 0
-    def@Function{}           -> projectionArgs def
+    def@Function{}           -> projectionArgs d
     Datatype  {dataPars = _} -> 0  -- not dropped
     Record     {recPars = _} -> 0  -- not dropped
     Constructor{conPars = n} -> n
@@ -1244,6 +1244,15 @@ isProjection_ def =
     Function { funProjection = result } -> result
     _                                   -> Nothing
 
+-- | Is it the name of a non-irrelevant record projection?
+{-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}
+isRelevantProjection :: HasConstInfo m => QName -> m (Maybe Projection)
+isRelevantProjection qn = isRelevantProjection_ <$> getConstInfo qn
+
+isRelevantProjection_ :: Definition -> Maybe Projection
+isRelevantProjection_ def =
+  if isIrrelevant def then Nothing else isProjection_ $ theDef def
+
 -- | Is it a function marked STATIC?
 isStaticFun :: Defn -> Bool
 isStaticFun = (^. funStatic)
@@ -1260,20 +1269,21 @@ isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
   (projIndex isP > 0) && isJust (projProper isP)
 
 -- | Number of dropped initial arguments of a projection(-like) function.
-projectionArgs :: Defn -> Int
-projectionArgs = maybe 0 (max 0 . pred . projIndex) . isProjection_
+projectionArgs :: Definition -> Int
+projectionArgs = maybe 0 (max 0 . pred . projIndex) . isRelevantProjection_
 
 -- | Check whether a definition uses copatterns.
 usesCopatterns :: (HasConstInfo m) => QName -> m Bool
 usesCopatterns q = defCopatternLHS <$> getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper
---   postfix projection if @f@ is a projection.
+--   postfix projection if @f@ is a projection which is not irrelevant.
 applyDef :: (HasConstInfo m)
          => ProjOrigin -> QName -> Arg Term -> m Term
 applyDef o f a = do
   let fallback = return $ Def f [Apply a]
-  caseMaybeM (isProjection f) fallback $ \ isP -> do
+  -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.
+  caseMaybeM (isRelevantProjection f) fallback $ \ isP -> do
     if projIndex isP <= 0 then fallback else do
       -- Get the original projection, if existing.
       if isNothing (projProper isP) then fallback else do
