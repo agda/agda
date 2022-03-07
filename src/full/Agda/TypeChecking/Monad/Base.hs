@@ -1438,14 +1438,13 @@ data TypeCheckingProblem
   | DoQuoteTerm Comparison Term Type -- ^ Quote the given term and check type against `Term`
   deriving Generic
 
-instance Show MetaInstantiation where
-  show (InstV inst) =
-    "InstV " ++ show (instTel inst) ++
-    " (" ++ show (instBody inst) ++ ")"
-  show Open      = "Open"
-  show OpenInstance = "OpenInstance"
-  show (BlockedConst t) = "BlockedConst (" ++ show t ++ ")"
-  show (PostponedTypeCheckingProblem{}) = "PostponedTypeCheckingProblem (...)"
+instance Pretty MetaInstantiation where
+  pretty = \case
+    Open                                     -> "Open"
+    OpenInstance                             -> "OpenInstance"
+    PostponedTypeCheckingProblem{}           -> "PostponedTypeCheckingProblem (...)"
+    BlockedConst t                           -> hsep [ "BlockedConst", parens (pretty t) ]
+    InstV Instantiation{ instTel, instBody } -> hsep [ "InstV", pretty instTel, parens (pretty instBody) ]
 
 -- | Meta variable priority:
 --   When we have an equation between meta-variables, which one

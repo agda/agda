@@ -263,7 +263,7 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
                                                   ifM (isFrozen m) "it's frozen" "meta assignments are turned off"]
         addConstraint alwaysUnblock $ UnBlock m) $ do
     inst <- lookupMetaInstantiation m
-    reportSDoc "tc.constr.unblock" 65 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
+    reportSDoc "tc.constr.unblock" 65 $ "unblocking a metavar yields the constraint:" <+> pretty inst
     case inst of
       BlockedConst t -> do
         reportSDoc "tc.constr.blocked" 15 $

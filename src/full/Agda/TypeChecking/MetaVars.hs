@@ -110,7 +110,7 @@ isBlockedTerm x = do
             Open{}                         -> False
             OpenInstance{}                 -> False
     reportSLn "tc.meta.blocked" 12 $
-      if r then "  yes, because " ++ show i else "  no"
+      if r then "  yes, because " ++ prettyShow i else "  no"
     return r
 
 isEtaExpandable :: [MetaKind] -> MetaId -> TCM Bool
@@ -745,7 +745,7 @@ assignWrapper :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, Mona
 assignWrapper dir x es v doAssign = do
   ifNotM (asksTC envAssignMetas) dontAssign $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
-      "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
+      "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ prettyShow dir) <+> prettyTCM v
     nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
   where dontAssign = do

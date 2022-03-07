@@ -190,7 +190,7 @@ definitionCheck d = do
         [ "occursCheck: definition"
         , prettyTCM d
         , "has relevance"
-        , prettyTCM (getRelevance dmod)
+        , text . show $ getRelevance dmod
         ]
       abort neverUnblock $ MetaIrrelevantSolution m $ Def d []
     unless (er || usableQuantity dmod) $ do
@@ -198,7 +198,7 @@ definitionCheck d = do
         [ "occursCheck: definition"
         , prettyTCM d
         , "has quantity"
-        , prettyTCM (getQuantity dmod)
+        , text . show $ getQuantity dmod
         ]
       abort neverUnblock $ MetaErasedSolution m $ Def d []
 
@@ -233,9 +233,9 @@ metaCheck m = do
       [ "occursCheck: meta variable"
       , prettyTCM m
       , "has relevance"
-      , prettyTCM (getRelevance mmod)
+      , text . show $ getRelevance mmod
       , "and quantity"
-      , prettyTCM (getQuantity mmod)
+      , text . show $ getQuantity mmod
       ]
     allowAssign <- asksTC envAssignMetas
     -- Jesper, 2020-11-10: if we encounter a metavariable that is

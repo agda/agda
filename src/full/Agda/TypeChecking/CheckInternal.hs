@@ -41,6 +41,7 @@ import Agda.TypeChecking.Telescope
 
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.Pretty  (prettyShow)
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -162,12 +163,12 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
     [ "checking internal "
     , nest 2 $ sep [ prettyTCM v <+> ":"
                    , nest 2 $ prettyTCM t ] ]
-  reportSDoc "tc.check.internal" 30 $ sep
+  reportSDoc "tc.check.internal" 60 $ sep
     [ "checking internal with DB indices"
     , nest 2 $ sep [ pretty v <+> ":"
                    , nest 2 $ pretty t ] ]
   ctx <- getContextTelescope
-  reportSDoc "tc.check.internal" 30 $ sep
+  unless (null ctx) $ reportSDoc "tc.check.internal" 30 $ sep
     [ "In context"
     , nest 2 $ sep [ prettyTCM ctx ] ]
   -- Bring projection-like funs in post-fix form,
@@ -322,8 +323,7 @@ checkModality action mod mod' = do
 
 -- | Infer type of a neutral term.
 infer :: (MonadCheckInternal m) => Term -> m Type
-infer v = do
-  case v of
+infer = \case
     Var i es   -> do
       a <- typeOfBV i
       snd <$> inferSpine a (Var i   []) es
@@ -332,7 +332,10 @@ infer v = do
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
       snd <$> inferSpine a (MetaV x []) es
-    _ -> __IMPOSSIBLE__
+    v -> __IMPOSSIBLE_VERBOSE__ $ unlines
+      [ "CheckInternal.infer: non-inferable term:"
+      , "  " ++ prettyShow v
+      ]
 
 -- | Infer ordinary function application.
 inferDef :: (MonadCheckInternal m) => QName -> Elims -> m Type
@@ -370,7 +373,7 @@ inferSpine' action t self self' (e : es) = do
     , "type t = " <+> pretty t
     , "self  = " <+> pretty self
     , "self' = " <+> pretty self'
-    , "eliminated by e = " <+> text (show e)
+    , "eliminated by e = " <+> pretty e
     ]
   case e of
     IApply x y r -> do
