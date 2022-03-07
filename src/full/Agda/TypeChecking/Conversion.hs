@@ -193,8 +193,10 @@ compareAs cmp a u v = do
         (Def f es, Def f' es') | f == f' ->
           ifNotM (optFirstOrder <$> pragmaOptions) fallback $ {- else -} unlessSubtyping $ do
           def <- getConstInfo f
-          -- We do not shortcut projection-likes
-          if isJust $ isProjection_ (theDef def) then fallback else do
+          -- We do not shortcut projection-likes,
+          -- Andreas, 2022-03-07, issue #5809:
+          -- but irrelevant projections since they are applied to their parameters.
+          if isJust $ isRelevantProjection_ def then fallback else do
           pol <- getPolarity' cmp f
           compareElims pol [] (defType def) (Def f []) es es' `orelse` fallback
         _               -> fallback
@@ -393,8 +395,8 @@ computeElimHeadType f es es' = do
   def <- getConstInfo f
   -- To compute the type @a@ of a projection-like @f@,
   -- we have to infer the type of its first argument.
-  if projectionArgs (theDef def) <= 0 then return $ defType def else do
-    -- Find an first argument to @f@.
+  if projectionArgs def <= 0 then return $ defType def else do
+    -- Find a first argument to @f@.
     let arg = case (es, es') of
               (Apply arg : _, _) -> arg
               (_, Apply arg : _) -> arg

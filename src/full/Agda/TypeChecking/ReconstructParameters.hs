@@ -167,17 +167,14 @@ reconstructParameters' act a v = do
     mapHide t l = l
 
 dropParameters :: TermLike a => a -> TCM a
-dropParameters = traverseTermM dropPars
-  where
-    dropPars v =
-      case v of
+dropParameters = traverseTermM $
+    \case
         Con c ci vs -> do
           Constructor{ conData = d } <- theDef <$> getConstInfo (conName c)
           Just n <- defParameters <$> getConstInfo d
           return $ Con c ci $ drop n vs
-        Def f vs -> do
-          isProj <- isProjection f
-          case isProj of
+        v@(Def f vs) -> do
+          isRelevantProjection f >>= \case
             Nothing -> return v
             Just pr -> return $ applyE (projDropPars pr ProjSystem) vs
-        _        -> return v
+        v -> return v

@@ -263,7 +263,8 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
 
 inferHeadDef :: ProjOrigin -> QName -> TCM (Elims -> Term, Type)
 inferHeadDef o x = do
-  proj <- isProjection x
+  -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.
+  proj <- isRelevantProjection x
   rel  <- getRelevance . defArgInfo <$> getConstInfo x
   let app =
         case proj of
