@@ -49,7 +49,10 @@ jobs:
     - if: ${{ runner.os == 'Windows' }}
       shell: pwsh
       run: |
-        $env:PATH = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;$origPath;$env:PATH"
+        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+      name: Setup MSYS path (Windows)
+    - if: ${{ runner.os == 'Windows' }}
+      run: |
         pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
       name: Install the ICU library (Windows)
     - if: ${{ runner.os == 'macOS' }}

@@ -75,11 +75,16 @@ jobs:
         cabal update
         cabal configure ${FLAGS} -O0
 
-    - name: Install the ICU library (Windows)
+    # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
+    - name: Setup MSYS path (Windows)
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
       run: |
-        $env:PATH = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;$origPath;$env:PATH"
+        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+    - name: Install the ICU library (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      run: |
         pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
 
     - name: Set up pkg-config for the ICU library (macOS)
