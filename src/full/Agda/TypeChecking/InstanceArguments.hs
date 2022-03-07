@@ -601,7 +601,8 @@ applyDroppingParameters t vs = do
         Constructor {conPars = n} -> return $ Con c ci (map Apply $ drop n vs)
         _ -> __IMPOSSIBLE__
     Def f [] -> do
-      mp <- isProjection f
+      -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.
+      mp <- isRelevantProjection f
       case mp of
         Just Projection{projIndex = n} -> do
           case drop n vs of
