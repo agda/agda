@@ -24,6 +24,7 @@ import Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Size
 import Agda.Utils.Either
+import Agda.Utils.Function (applyWhen)
 
 import Agda.Utils.Impossible
 
@@ -172,9 +173,7 @@ reconstructParameters' act a v = do
     applyWithoutReversing _            _   = __IMPOSSIBLE__
 
     mapHide (El _ (Pi a b)) (p:tl) =
-      case argInfoHiding (domInfo a) of
-        Hidden -> (hideAndRelParams p):(mapHide (unAbs b) tl)
-        _      -> p:(mapHide (unAbs b) tl)
+      applyWhen (getHiding a == Hidden) hideAndRelParams p : mapHide (unAbs b) tl
     mapHide t l = l
 
 dropParameters :: TermLike a => a -> TCM a

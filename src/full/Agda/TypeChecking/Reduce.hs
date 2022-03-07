@@ -598,12 +598,14 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
       -- (i.e., those that failed the termination check)
       -- and delayed definitions
       -- are not unfolded unless explicitly permitted.
-      dontUnfold =
-        (defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed)
-        || (defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed)
-        || (defDelayed info == Delayed && not unfoldDelayed)
-        || prp == Right True || isIrrelevant (defArgInfo info)
-        || not defOk
+      dontUnfold = or
+        [ defNonterminating info && SmallSet.notMember NonTerminatingReductions allowed
+        , defTerminationUnconfirmed info && SmallSet.notMember UnconfirmedReductions allowed
+        , defDelayed info == Delayed && not unfoldDelayed
+        , prp == Right True
+        , isIrrelevant info
+        , not defOk
+        ]
       copatterns = defCopatternLHS info
   case def of
     Constructor{conSrcCon = c} -> do
@@ -616,12 +618,20 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
     PrimitiveSort{ primSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
+
     _  -> do
-      if (RecursiveReductions `SmallSet.member` allowed) ||
-         (isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed) || -- includes projection-like
-         (isInlineFun def && InlineReductions `SmallSet.member` allowed) ||
-         (definitelyNonRecursive_ def && copatterns && CopatternReductions `SmallSet.member` allowed) ||
-         (definitelyNonRecursive_ def && FunctionReductions `SmallSet.member` allowed)
+      if or
+          [ RecursiveReductions `SmallSet.member` allowed
+          , isJust (isProjection_ def) && ProjectionReductions `SmallSet.member` allowed
+              -- Includes projection-like and irrelevant projections.
+              -- Note: irrelevant projections lead to @dontUnfold@ and
+              -- so are not actually unfolded.
+          , isInlineFun def && InlineReductions `SmallSet.member` allowed
+          , definitelyNonRecursive_ def && or
+            [ copatterns && CopatternReductions `SmallSet.member` allowed
+            , FunctionReductions `SmallSet.member` allowed
+            ]
+          ]
         then
           reduceNormalE v0 f (map notReduced es) dontUnfold
                        (defClauses info) (defCompiled info) rewr

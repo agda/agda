@@ -58,7 +58,7 @@ recursive names = do
   let nonRec = mapMaybe (\case{ AcyclicSCC x -> Just x ; _ -> Nothing}) sccs
   let recs   = mapMaybe (\case{ CyclicSCC xs -> Just xs; _ -> Nothing}) sccs
 
-  reportSLn "rec.graph" 20 $ show graph
+  reportSLn "rec.graph" 60 $ show graph
 
   -- Mark all non-recursive functions and their clauses as such.
   mapM_ markNonRecursive nonRec
