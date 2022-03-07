@@ -36,6 +36,7 @@ import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedP
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
+import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -344,11 +345,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           -- record type.
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- do
-            ctxt <- getContext
-            case ctxt of
-              []    -> __IMPOSSIBLE__
-              r : _ -> return $
-                telFromList' nameToArgName $ reverse $ r : params
+            r <- headWithDefault __IMPOSSIBLE__ <$> getContext
+            return $ telFromList' nameToArgName $ reverse $ r : params
           setModuleCheckpoint m
           checkRecordProjections m name hasNamedCon con tel' ftel fields
 
@@ -362,7 +360,6 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       modifySignature $ updateDefinition conName $ \def ->
         def { defMatchable = Set.fromList $ map unDom fs }
 
-      return ()
   where
   -- Andreas, 2020-04-19, issue #4560
   -- If the user declared the record constructor as @pattern@,
