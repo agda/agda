@@ -544,7 +544,7 @@ matchingTarget conf t = maybe (return True) (match t) (currentTarget conf)
 
 termToDBP :: Term -> TerM DeBruijnPattern
 termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
-  termToPattern =<< do liftTCM $ stripAllProjections t
+  termToPattern =<< do liftTCM $ stripAllProjections =<< normalise t
 
 -- | Convert a term (from a dot pattern) to a pattern for the purposes of the termination checker.
 --
@@ -565,7 +565,7 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 --   termToPattern t = unnamed <$> termToPattern t
 
 instance TermToPattern Term DeBruijnPattern where
-  termToPattern t = liftTCM (reduce t >>= constructorForm) >>= \case
+  termToPattern t = liftTCM (constructorForm t) >>= \case
     -- Constructors.
     Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
     Def s [Apply arg] -> do
@@ -599,7 +599,7 @@ termClause clause = do
     , nest 2 $ "ps  =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
   forM' body $ \ v -> addContext tel $ do
-    -- TODO: combine the following two traversals.
+    -- TODO: combine the following two traversals, avoid full normalisation.
     -- Parse dot patterns as patterns as far as possible.
     ps <- postTraversePatternM parseDotP ps
     -- Blank out coconstructors.
