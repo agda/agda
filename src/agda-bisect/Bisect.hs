@@ -1,12 +1,16 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 
 import Control.Exception
 import Control.Monad
 import Data.Char
 import Data.List (intercalate, isInfixOf, isPrefixOf)
+import Data.List.Extra (trim)
 import Data.Maybe
 import Data.Monoid
 import Data.Time.Clock
+import Data.Version
+import qualified Data.Version as V
 import GHC.IO.Encoding
 import Options.Applicative
 import System.Directory
@@ -15,6 +19,7 @@ import System.FilePath
 import System.IO
 import System.Posix.Signals
 import System.Process
+import Text.ParserCombinators.ReadP (ReadP, readP_to_S)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<>), (<$>), (</>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 import Text.Printf
@@ -40,19 +45,30 @@ defaultFlags =
   , "--no-libraries"
   ]
 
--- | Default flags given to cabal v1-install (excludes some flags that
--- cannot be overridden).
+-- | Default flags given to cabal v2-build / v1-install
+-- (excludes some flags that cannot be overridden).
 
-defaultCabalFlags :: [String]
-defaultCabalFlags =
-  [ "--ghc-option=-O0"
-  ]
+defaultCabalFlags :: Options -> [String]
+defaultCabalFlags Options{ v1cabal } =
+  if v1cabal then defaultV1CabalFlags else defaultV2CabalFlags
 
--- | An absolute path to the compiled Agda executable. (If caching is
--- not enabled.)
+-- | Default flags given to @cabal v1-install@
+-- (excludes some flags that cannot be overridden).
 
-compiledAgda :: IO FilePath
-compiledAgda =
+defaultV1CabalFlags :: [String]
+defaultV1CabalFlags = [ "--ghc-option=-O0" ]
+
+-- | Default flags given to @cabal v2-build@
+-- (excludes some flags that cannot be overridden).
+
+defaultV2CabalFlags :: [String]
+defaultV2CabalFlags = [ "-O0" ]
+
+-- | An absolute path to the compiled Agda executable when building in
+-- a sandbox. (If caching is not enabled.)
+
+compiledAgdaInSandbox :: IO FilePath
+compiledAgdaInSandbox =
   (</> ".cabal-sandbox/bin/agda") <$> getCurrentDirectory
 
 -- | Options.
@@ -70,6 +86,11 @@ data Options = Options
       -- ^ Path to the Haskell compiler (passed to cabal).
   , cabal                     :: FilePath
       -- ^ Path to cabal.
+  , cabalPlan                 :: FilePath
+      -- ^ Path to cabal-plan executable.
+  , v1cabal                   :: Bool
+      -- ^ Use v1-commands and a sandbox when building with cabal.
+      --   Legacy mode, only for @cabal < 3.3@.
   , defaultCabalOptions       :: Bool
   , cabalOptions              :: [String]
   , skipStrings               :: [String]
@@ -125,6 +146,8 @@ options =
      <*> optionPatchFile
      <*> optionCompiler
      <*> optionCabal
+     <*> optionCabalPlan
+     <*> optionV1Cabal
      <*> optionNoDefaultCabalOptions
      <*> optionCabalOptions
      <*> optionSkipSkipped
@@ -209,6 +232,19 @@ options =
         value  "cabal"  <>
         action "command"
 
+  optionCabalPlan =
+      strOption $
+        long "with-cabal-plan" <>
+        help "Use CABAL_PLAN as path to the cabal-plan program" <>
+        metavar "CABAL_PLAN" <>
+        value  "cabal-plan"  <>
+        action "command"
+
+  optionV1Cabal =
+      switch $
+        long "v1-cabal" <>
+        help "Build in a cabal sandbox using v1-install.  Legacy mode, requires cabal < 3.3."
+
   optionNoDefaultCabalOptions =
     not <$> do
       switch $
@@ -219,9 +255,15 @@ options =
     many $
       strOption $
         long "cabal-option" <>
-        help "Additional option given to cabal v1-install" <>
+        help "Additional option given to cabal v2-build (resp. v1-install)" <>
         metavar "OPTION" <>
-        completer (commandCompleter "cabal" ["v1-install", "--list-options"])
+        completer (commandCompleter "cabal" ["v2-build", "--list-options"])
+          -- TODO (Andreas, 2022-03-09)
+          -- With "--v1-cabal" we would need this completer:
+          --   completer (commandCompleter "cabal" ["v1-install", "--list-options"])
+          -- However, this may not be straightforward to implement in the declarative
+          -- interface of optparse-applicative.
+          --
           -- TODO (Andreas, 2021-10-24)
           -- The completer should rather invoke the program given by "--with-cabal".
           -- However, this may not be straightforward to implement in the declarative
@@ -257,7 +299,7 @@ options =
   optionCache =
       switch $
         long "cache" <>
-        help "Cache builds"
+        help "Cache builds (implies --v1-cabal)"
 
   optionLog =
     optional $
@@ -346,8 +388,12 @@ options =
   -- 'noInternalError'. Note that this function is not idempotent.
 
   fixOptions :: Options -> Options
-  fixOptions = fix3 . fix2 . fix1
+  fixOptions = fix3 . fix2 . fix1 . fix0
     where
+    fix0 opt
+      | cacheBuilds opt = opt { v1cabal = True }
+      | otherwise = opt
+
     fix1 opt
       | noInternalError opt = opt
           { mustSucceed   = False
@@ -361,7 +407,7 @@ options =
 
     fix3 opt
       | defaultCabalOptions opt = opt
-          { cabalOptions = defaultCabalFlags ++ cabalOptions opt
+          { cabalOptions = defaultCabalFlags opt ++ cabalOptions opt
           }
       | otherwise = opt
 
@@ -394,10 +440,21 @@ options =
         ]
 
     , paragraph
-        [ "The script gives the following options to cabal v1-install,"
+        [ "The script gives the following options to cabal v2-build,"
         , "unless --no-default-cabal-options has been given:"
         ] `newline`
-      indent 2 (foldr1 newline $ map string defaultCabalFlags)
+      indent 2 (foldr1 newline $ map string defaultV2CabalFlags)
+        `newline`
+      paragraph
+        [ "(Other options are also given to cabal v2-build.)"
+        ]
+
+    , paragraph
+        [ "In case of --v1-cabal,"
+        , "the script gives the following options to cabal v1-install,"
+        , "unless --no-default-cabal-options has been given:"
+        ] `newline`
+      indent 2 (foldr1 newline $ map string defaultV1CabalFlags)
         `newline`
       paragraph
         [ "(Other options are also given to cabal v1-install.)"
@@ -480,6 +537,7 @@ options =
 main :: IO ()
 main = do
   opts <- options
+  checkOptions opts
   case dryRun opts of
     Just (DryRunAgda agda) -> do
       runAgda agda opts
@@ -500,31 +558,86 @@ main = do
 
       bisect opts
 
+-- | Partially check for sanity of the setup given by the options.
+
+checkOptions :: Options -> IO ()
+checkOptions Options{ .. } = do
+  mapM checkCompiler compiler
+  checkCabal v1cabal cabal
+  unless v1cabal $ checkCabalPlan cabalPlan
+
+-- | Check for the existence of the given @--compiler@ and report its version.
+
+checkCompiler :: FilePath -> IO ()
+checkCompiler compiler = do
+  versionString <- numericVersion compiler
+  putStrLn $ unwords [ "Using compiler", compiler, "version", versionString ]
+
+-- | Check that the right version of @cabal@ is used, report its version.
+
+checkCabal :: Bool -> FilePath -> IO ()
+checkCabal v1cabal cabal = do
+  versionString <- numericVersion cabal
+  when v1cabal $ do
+    case runReadP parseVersion versionString of
+      Nothing -> putStrLn $ unwords
+        [ "Warning: failed to parse version", versionString
+        , "returned by", cabal, "--numeric-version"
+        ]
+      Just version -> do
+        unless (version < makeVersion [3,3]) $
+          die $ unwords
+            [ "Need cabal < 3.3 to work with --v1-cabal, but got version"
+            , showVersion version
+            ]
+  putStrLn $ unwords [ "Using", cabal, "version", versionString ]
+
+-- | Check that the right version of @cabal-plan@ is used, report its version.
+
+checkCabalPlan :: FilePath -> IO ()
+checkCabalPlan cabalPlan = do
+  answer <- readProcessChar8 cabalPlan ["--version"]
+  versionString <- case mapMaybe (runReadP parseVersion) $ words answer of
+    [] -> do
+      putStrLn $ unwords
+        [ "Warning: failed to parse anser", show answer
+        , "returned by", cabalPlan, "--version"
+        ]
+      return "(unkonwn)"
+    version : _ -> do
+      unless (version >= makeVersion [0,2]) $
+        die $ unwords
+          [ "Need cabal-plan >= 0.2, but got version"
+          , showVersion version
+          ]
+      return $ showVersion version
+  putStrLn $ unwords [ "Using", cabalPlan, "version", versionString ]
+
+-- | Asks a command for its @--numeric-version@.
+
+numericVersion :: FilePath -> IO String
+numericVersion cmd = readProcessChar8 cmd ["--numeric-version"]
+
+-- | Run a 'ReadP' parser.
+
+runReadP :: ReadP a -> String -> Maybe a
+runReadP parser input = listToMaybe [ a | (a,"") <- readP_to_S parser input ]
+
 -- | The current git commit.
 
 currentCommit :: IO String
-currentCommit = do
-  s <- withEncoding char8 $
-         readProcess "git" ["rev-parse", "HEAD"] ""
-  return $ dropFinalNewline s
-  where
-  dropFinalNewline s = case reverse s of
-    '\n' : s -> reverse s
-    _        -> s
+currentCommit = readProcessChar8 "git" ["rev-parse", "HEAD"]
 
 -- | The branches that contain the current git commit.
 
 currentBranches :: IO [String]
 currentBranches = do
-  s <- withEncoding char8 $
-         readProcess "git"
+  lines <$> readProcessChar8 "git"
            [ "for-each-ref"
            , "--format=%(refname:short)"
            , "refs/heads/"
            , "--contains=HEAD"
            ]
-           ""
-  return $ lines s
 
 -- | Raises an error if the given string does not refer to a unique
 -- git revision.
@@ -539,7 +652,7 @@ validRevision rev = do
 -- | Tries to make sure that a Cabal sandbox will be used.
 
 setupSandbox :: Options -> IO ()
-setupSandbox Options{ cabal } = do
+setupSandbox Options{ v1cabal, cabal } = when v1cabal $ do
   sandboxExists <- callProcessWithResultSilently
                      cabal ["v1-sandbox", "list-sources"]
   unless sandboxExists $
@@ -614,8 +727,8 @@ data Result = Good | Bad | Skip
 -- | Tries to first install Agda, and then run the test.
 
 installAndRunAgda :: Options -> IO Result
-installAndRunAgda opts = do
-  ok <- installAgda opts
+installAndRunAgda opts@Options{ v1cabal } = do
+  ok <- if v1cabal then installAgda opts else buildAgda opts
   case ok of
     Nothing   -> return Skip
     Just agda -> runAgda agda opts
@@ -709,7 +822,48 @@ runAgda agda opts = do
   where
   indent = unlines . map ("  " ++) . lines
 
--- | Tries to install Agda.
+-- | Tries to @cabal v2-build agda@.
+--
+-- If the build is successful, then the path to the Agda binary
+-- is returned.
+
+buildAgda :: Options -> IO (Maybe FilePath)
+buildAgda opts@Options{..} = bracketBuild opts $ do
+  -- TODO: --only-dependencies first?
+  ok <- callProcessWithResult cabal $ concat
+     [ [ "v2-build"
+       , "--disable-library-profiling"
+       , "--disable-documentation"
+       ]
+     , compilerFlag opts
+     , cabalOptions
+     , ["agda"]  -- the executable we would like to build from Agda.cabal
+     ]
+  if ok
+    then Just <$> compiledAgdaFromCabalPlan cabalPlan
+    else return Nothing
+
+-- | An absolute path to the Agda executable build by v2-cabal.
+
+compiledAgdaFromCabalPlan :: FilePath -> IO FilePath
+compiledAgdaFromCabalPlan cabalPlan =
+  readProcessChar8 cabalPlan ["--ascii", "list-bin", "agda"]
+    -- TODO: should this be --unicode (UTF8 encoding)?
+
+-- | Prepare Agda source code for compilation.
+
+bracketBuild :: Options -> IO a -> IO a
+bracketBuild opts doBuild =
+  uncurry bracket_ makeBuildEasier $ do
+
+    -- Patch Agda with given patch-file (if any)
+    forM_ (patchFile opts) $ \ file -> do
+      callCommand $ unwords [ "patch", "--batch", "-p0", "<", file ]
+        -- TODO: do we need to catch IO errors, e.g. to handle patch failures?
+
+    doBuild
+
+-- | Tries to cabal v1-install Agda.
 --
 -- If the installation is successful, then the path to the Agda binary
 -- is returned.
@@ -732,13 +886,7 @@ installAgda opts
   where
   install :: IO (Maybe FilePath)
   install =
-    uncurry bracket_ makeBuildEasier $ do
-
-      -- Patch Agda with given patch-file (if any)
-      forM_ (patchFile opts) $ \ file -> do
-        callCommand $ unwords [ "patch", "--batch", "-p0", "<", file ]
-      -- TODO: do we need to catch IO errors, e.g. to handle patch failures?
-
+    bracketBuild opts $ do
       ok <- cabalInstall opts "Agda.cabal"
       case ok of
         Nothing -> return ok
@@ -773,7 +921,7 @@ cabalInstall opts@Options{ cabal } file = do
      , [file]
      ]
   case (ok, cacheBuilds opts) of
-    (True , False) -> Just <$> compiledAgda
+    (True , False) -> Just <$> compiledAgdaInSandbox
     (True , True ) -> Just <$> cachedAgda commit (timeout opts) (patchFile opts)
     (False, _    ) -> return Nothing
 
@@ -817,7 +965,7 @@ cachedAgda
   -> Maybe FilePath  -- ^ Patch file that has been applied to the Agda sources.
   -> IO FilePath
 cachedAgda commit timeout patchfile =
-   (++ programSuffix commit timeout patchfile) <$> compiledAgda
+   (++ programSuffix commit timeout patchfile) <$> compiledAgdaInSandbox
 
 -- | Generates a @--with-compiler=…@ flag if the user has specified
 -- that a specific compiler should be used.
@@ -850,6 +998,11 @@ makeBuildEasier =
   )
   where
   cabalFile = "Agda.cabal"
+
+-- | Get trimmed stdout of a program in @char8@ encoding.
+
+readProcessChar8 :: FilePath -> [String] -> IO String
+readProcessChar8 cmd args = trim <$> withEncoding char8 (readProcess cmd args "")
 
 -- | Runs the given program with the given arguments. Returns 'True'
 -- iff the command exits successfully.

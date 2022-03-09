@@ -3,6 +3,7 @@ synopsis: Git bisect wrapper script for the Agda code base
 version: 0.1
 cabal-version: >= 1.10
 author: Nils Anders Danielsson
+maintainer: Andreas Abel
 build-type: Simple
 tested-with:
   GHC == 8.0.2
@@ -11,7 +12,7 @@ tested-with:
   GHC == 8.6.5
   GHC == 8.8.4
   GHC == 8.10.7
-  GHC == 9.0.1
+  GHC == 9.0.2
   GHC == 9.2.1
 
 executable agda-bisect
@@ -21,7 +22,9 @@ executable agda-bisect
     , ansi-wl-pprint       >= 0.6.7.3 && < 0.7
     , directory            >= 1.2.6.2 && < 1.4
     , filepath             >= 1.4.1.0 && < 1.5
-    , optparse-applicative >= 0.13    && < 0.17
+    , extra                >= 0.3
+        -- `trim` exists so since extra-0.3
+    , optparse-applicative >= 0.13    && < 0.18
     , process              >= 1.4.2.0 && < 1.7
     , time                 >= 1.6.0.1 && < 1.13
     , unix                 >= 2.7.2.0 && < 2.8
