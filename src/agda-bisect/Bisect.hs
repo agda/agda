@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -744,7 +745,7 @@ runAgda agda opts = do
       Script prog args   -> return (prog, agda : args)
       AgdaArguments args -> do
         flags <- if extraArguments opts then do
-                   help <- readProcess agda ["--help"] ""
+                   help <- readProcessCabal agda ["--help"] ""
                    return $ filter (`isInfixOf` help) defaultFlags
                   else
                    return []
@@ -756,10 +757,10 @@ runAgda agda opts = do
       -- timeout command.
       runMaybeTimeout prog args = case mustFinishWithin opts of
         Nothing -> (\r -> Just (r, Nothing)) <$>
-                     readProcessWithExitCode prog args ""
+                     readProcessWithExitCodeCabal prog args ""
         Just n  -> do
           before      <- getCurrentTime
-          r@(c, _, _) <- readProcessWithExitCode
+          r@(c, _, _) <- readProcessWithExitCodeCabal
                            "timeout"
                            ("--kill-after=3" : show n : prog : args)
                            ""
@@ -822,6 +823,28 @@ runAgda agda opts = do
   where
   indent = unlines . map ("  " ++) . lines
 
+  readProcessCabal cmd args input
+    | v1cabal opts = readProcess cmd args input
+    | otherwise    = readProcess (cabal opts) (cabalArgs cmd args) input
+
+  readProcessWithExitCodeCabal cmd args input
+    | v1cabal opts = readProcessWithExitCode cmd args input
+    | otherwise    = readProcessWithExitCode (cabal opts) (cabalArgs cmd args) input
+
+  cabalArgs cmd args
+    | cmd == agda = concat
+        [ [ "run" ]
+        , v2CabalFlags opts
+        , [ "agda", "--" ]
+        , args
+        ]
+    | otherwise = concat
+        [ [ "exec" ]
+        , v2CabalFlags opts
+        , [ "--", cmd ]
+        , args
+        ]
+
 -- | Tries to @cabal v2-build agda@.
 --
 -- If the build is successful, then the path to the Agda binary
@@ -830,18 +853,35 @@ runAgda agda opts = do
 buildAgda :: Options -> IO (Maybe FilePath)
 buildAgda opts@Options{..} = bracketBuild opts $ do
   -- TODO: --only-dependencies first?
-  ok <- callProcessWithResult cabal $ concat
-     [ [ "v2-build"
-       , "--disable-library-profiling"
-       , "--disable-documentation"
-       ]
-     , compilerFlag opts
-     , cabalOptions
-     , ["agda"]  -- the executable we would like to build from Agda.cabal
+  callV2Cabal opts "v2-build" ["agda"] >>= \case
+    True  -> Just <$> compiledAgdaFromCabalPlan cabalPlan
+    False -> return Nothing
+
+-- | Call a cabal v2-command.
+--
+-- Supplies the cabal flags as determined by the 'Options' and standard flags.
+-- (Note: v2-cabal always needs to be called with the same configuration,
+-- otherwise it rebuilds the project.)
+callV2Cabal :: Options -> String -> [String] -> IO Bool
+callV2Cabal opts cmd args =
+  callProcessWithResult (cabal opts) $ concat
+     [ [ cmd ]
+     , v2CabalFlags opts
+     , args
      ]
-  if ok
-    then Just <$> compiledAgdaFromCabalPlan cabalPlan
-    else return Nothing
+
+-- | The v2-cabal flags as determined by the 'Options' and standard flags.
+-- (Note: v2-cabal always needs to be called with the same configuration,
+-- otherwise it rebuilds the project.)
+v2CabalFlags :: Options -> [String]
+v2CabalFlags opts =
+  concat
+    [ [ "--disable-library-profiling"
+      , "--disable-documentation"
+      ]
+    , compilerFlag opts
+    , cabalOptions opts
+    ]
 
 -- | An absolute path to the Agda executable build by v2-cabal.
 
