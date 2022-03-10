@@ -1,0 +1,6 @@
+Issue5823.agda:25,1-26,91
+Termination checking failed for the following functions:
+  isPropAcc
+Problematic calls:
+  isPropAcc (x n p) (y n p)
+    (at Issue5823.agda:26,65-74)
