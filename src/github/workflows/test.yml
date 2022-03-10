@@ -62,11 +62,11 @@ jobs:
     strategy:
       matrix:
         # TODO (Andreas, 2021-11-13)
-        # Upgrade to 9.2.1 once this does not cause problems with shelltestrunner
+        # Upgrade to 9.2.2 once this does not cause problems with shelltestrunner
         # https://github.com/agda/agda/pull/5648#issuecomment-968100273
-        ghc-ver: [9.0.2]
+        ghc-ver: [9.2.2]
         stack-ver: [latest]
-        os: [ubuntu-18.04]
+        os: [ubuntu-20.04]
 
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -324,4 +324,3 @@ jobs:
     # this job.
     - name: "Cubical library test"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
-

@@ -1,21 +1,21 @@
-resolver: nightly-2022-01-19
+resolver: nightly-2022-03-10
 compiler: ghc-9.0.2
 compiler-check: match-exact
 
-extra-deps:
-# Andreas, 2021-11-13
-# happy-1.21.0 is deprecated, but currently in nightly
-# (commercialhaskell/stackage#6294)
-- happy-1.20.0
+# extra-deps:
+# # Andreas, 2021-11-13
+# # happy-1.21.0 is deprecated, but currently in nightly
+# # (commercialhaskell/stackage#6294)
+# - happy-1.20.0
 
 flags:
   transformers-compat:
     five-three: true
-  # Andreas, 2021-11-14
-  # Work around problem in nightly-2021-11-12
-  # (commercialhaskell/stackage#6304 and RyanGlScott/mintty#4):
-  mintty:
-    Win32-2-13-1: false
+  # # Andreas, 2021-11-14
+  # # Work around problem in nightly-2021-11-12
+  # # (commercialhaskell/stackage#6304 and RyanGlScott/mintty#4):
+  # mintty:
+  #   Win32-2-13-1: false
 
 # Local packages, usually specified by relative directory name
 packages:
