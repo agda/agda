@@ -30,7 +30,13 @@ jobs:
       matrix:
         include:
         - stack-ver: latest
-          ghc-ver: 9.2.1
+          ghc-ver: 9.2.2
+          os: ubuntu-20.04
+        - stack-ver: latest
+          ghc-ver: 9.0.2
+          os: ubuntu-20.04
+        - stack-ver: latest
+          ghc-ver: 9.2.2
           os: macos-latest
         - stack-ver: latest
           ghc-ver: 9.0.1
@@ -38,8 +44,6 @@ jobs:
         stack-ver:
         - latest
         ghc-ver:
-        - 9.2.1
-        - 9.0.2
         - 8.10.7
         - 8.8.4
         - 8.6.5
@@ -96,6 +100,11 @@ jobs:
       uses: actions/cache@v2
       name: Cache dependencies
       id: cache
+    - if: ${{ runner.os == 'macOS' }}
+      shell: bash
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
+      name: Set up pkg-config for the ICU library (macOS)
     - if: ${{ runner.os == 'Linux' }}
       run: |
         sudo apt-get update -qq

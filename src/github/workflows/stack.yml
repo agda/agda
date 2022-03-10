@@ -43,13 +43,32 @@ jobs:
       matrix:
         os: [ubuntu-18.04]
         stack-ver: [latest]
-        ghc-ver: [9.2.1, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        ghc-ver: [8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+          # Andreas, 2022-03-10: the LTS for GHC 8.10 has text-icu-0.7.1.0
+          # (sarting with LTS 17.14).  Our stack-8.y.z.yaml files
+          # declare extra-dep text-icu-0.7.1.0 (rather than using 0.7.0.1 from LTS).
+          # text-icu-0.7 works on ubuntu-18 but not on ubuntu-20, as the latter
+          # has a too new ICU library (requires text-icu-0.8).
+          # We could update the vm to ubuntu-20.04, but then we would have
+          # to put text-icu-0.8.0.1 as extra-dep into the stack.yaml files.
+          # This might draw more extra-deps after it, so let's not do it
+          # while we can still run ubuntu-18.
+          # (This also means that we test both text-icu-0.7 and -0.8).
         include:
+          - os: ubuntu-20.04
+            ghc-ver: 9.2.2
+            stack-ver: latest
+          - os: ubuntu-20.04
+            ghc-ver: 9.0.2
+            stack-ver: latest
           - os: macos-latest
-            ghc-ver: 9.2.1
+            ghc-ver: 9.2.2
             stack-ver: latest
           - os: windows-latest
             ghc-ver: 9.0.1
+              # Andreas, 2022-03-10: chocolatey does not have GHC 9.2.2 yet.
+              # (This makes haskell/actions/setup crash.)
+              # But also, stack/windows is still not ready for GHC 9.2.
               # Andreas, 2022-02-07: stack-9.0.1.yaml has text-icu-0.8.0 just for the Windows CI.
               # If you update the ghc-ver here, make sure that text-icu is new enough to work
               # with the latest mingw-w64-x86_64-icu.
@@ -58,9 +77,9 @@ jobs:
     # pause stack/Win/9.2 workflow until stack is ready for 9.2
     #       - os: windows-latest
     #         # TODO (Andreas, 2021-11-14)
-    #         # Upgrade to 9.2.1 once stack works fine with GHC 9.2 and Cabal 3.6 under Windows
+    #         # Upgrade to 9.2.2 once stack works fine with GHC 9.2 and Cabal 3.6 under Windows
     #         # Also, unix-compat is a bit behind: https://github.com/jacobstanley/unix-compat/pull/47
-    #         ghc-ver: 9.2.1
+    #         ghc-ver: 9.2.2
     #         stack-ver: latest
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
@@ -141,6 +160,12 @@ jobs:
         # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
         key: |
           ${{ runner.os }}-stack-01-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
+
+    - name: Set up pkg-config for the ICU library (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      shell: bash
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
 
     - name: Install the icu library (Ubuntu)
       if: ${{ runner.os == 'Linux' }}
