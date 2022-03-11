@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.Records where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans.Maybe
@@ -34,6 +36,7 @@ import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
 import Agda.Utils.Either
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -781,24 +784,28 @@ isSingletonRecord' regardIrrelevance r ps rs = do
   reportSDoc "tc.meta.eta" 30 $ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
   -- Andreas, 2022-03-10, issue #5823
   -- We need to make sure we are not infinitely unfolding records, so we only expand each once,
-  -- and keep track of which we have already seen.
+  -- and keep track of the recursive ones we have already seen.
   if r `Set.member` rs then no else do
     caseMaybeM (isRecord r) no $ \ def -> do
-      fmap (mkCon (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
+      -- We might not know yet whether a record type is recursive because the positivity checker hasn't run yet.
+      -- In this case, we pessimistically consider the record type to be recursive (@True@).
+      let recursive = maybe True (not . null) $ recMutual def
+      fmap (mkCon (recConHead def) ConOSystem) <$> do
+        check (applyWhen recursive (Set.insert r) rs) $ recTel def `apply` ps
   where
   -- Check that all entries of the constructor telescope are singletons.
-  check :: Telescope -> m (Maybe [Arg Term])
-  check tel = do
+  check :: Set QName -> Telescope -> m (Maybe [Arg Term])
+  check rs tel = do
     reportSDoc "tc.meta.eta" 30 $
       "isSingletonRecord' checking telescope " <+> prettyTCM tel
     case tel of
       EmptyTel -> yes
       ExtendTel dom tel -> ifM (return regardIrrelevance `and2M` isIrrelevantOrPropM dom)
         {-then-}
-          (underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check)
+          (underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check rs)
         {-else-} $ do
-          caseMaybeM (isSingletonType' regardIrrelevance (unDom dom) (Set.insert r rs)) no $ \ v -> do
-            underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) v :)) . check
+          caseMaybeM (isSingletonType' regardIrrelevance (unDom dom) rs) no $ \ v -> do
+            underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) v :)) . check rs
   no  = return Nothing
   yes = return $ Just []
 
