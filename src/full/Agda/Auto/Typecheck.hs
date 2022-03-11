@@ -408,26 +408,6 @@ iotastep smartcheck e = case rawValue e of
       mbfailed "dopat: wrong amount of args"
     else
      mbret $ Left (Left aa)
-    where
-     qq =
-      mbcase (hnn_blks a) $ \(hna, blks) -> case rawValue hna of
-       HNApp (Const c') as ->
-        if c == c' then
-         mbcase (getAllArgs as) $ \as' ->
-          if length as' == length pas then
-           mbcase (dopats pas (map PENo as')) $ \x -> case x of
-            Right (hnas, ss) -> mbret $ Right (PEConApp a c' hnas, ss)
-            Left (Right blks) -> mbret $ Left (Right blks)
-            Left (Left hnas) -> mbret $ Left $ Left (PEConApp a c' hnas)
-          else
-           mbfailed "dopat: wrong amount of args"
-        else do
-         cd <- readIORef c'
-         case cdcont cd of
-          Constructor{} -> mbcase (getAllArgs as) $ \as' ->
-           mbret $ Left (Left (PEConApp a c' (map PENo as')))
-          _ -> mbret $ Left (Right (addblk hna blks))
-       _ -> mbret $ Left (Right (addblk hna blks))
  dopat (PatProj cs) a =
   case a of
    PENo a ->
