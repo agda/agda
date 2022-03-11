@@ -336,7 +336,9 @@ instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
       return $ PatConApp c (replicate npar PatExp ++ pats')
 
     -- UNSUPPORTED CASES
-    I.ProjP{}   -> lift copatternsNotImplemented
+    I.ProjP po q -> do
+      c     <- getConst True q TMAll
+      return $ PatProj c
     I.LitP{}    -> lift literalsNotImplemented
     I.DefP{}    -> lift hitsNotImplemented
 
@@ -579,7 +581,12 @@ constructPats cmap mainm clause = do
        I.DotP _ t -> do
         (t2, _) <- runStateT (convert t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
-       I.ProjP{} -> copatternsNotImplemented
+       I.ProjP po c -> do
+        (c2, _) <- runStateT (getConst True c TMAll) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
+        -- (ns', ps') <- cnvps ns ps
+        cc <- liftIO $ readIORef c2
+        let Just (npar,_) = fst $ cdorigin cc
+        return (ns, HI hid (CSPatProj c2))
        I.LitP{} -> literalsNotImplemented
        I.DefP{} -> hitsNotImplemented
 

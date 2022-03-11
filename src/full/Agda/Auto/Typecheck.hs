@@ -408,6 +408,45 @@ iotastep smartcheck e = case rawValue e of
       mbfailed "dopat: wrong amount of args"
     else
      mbret $ Left (Left aa)
+    where
+     qq =
+      mbcase (hnn_blks a) $ \(hna, blks) -> case rawValue hna of
+       HNApp (Const c') as ->
+        if c == c' then
+         mbcase (getAllArgs as) $ \as' ->
+          if length as' == length pas then
+           mbcase (dopats pas (map PENo as')) $ \x -> case x of
+            Right (hnas, ss) -> mbret $ Right (PEConApp a c' hnas, ss)
+            Left (Right blks) -> mbret $ Left (Right blks)
+            Left (Left hnas) -> mbret $ Left $ Left (PEConApp a c' hnas)
+          else
+           mbfailed "dopat: wrong amount of args"
+        else do
+         cd <- readIORef c'
+         case cdcont cd of
+          Constructor{} -> mbcase (getAllArgs as) $ \as' ->
+           mbret $ Left (Left (PEConApp a c' (map PENo as')))
+          _ -> mbret $ Left (Right (addblk hna blks))
+       _ -> mbret $ Left (Right (addblk hna blks))
+ dopat (PatProj cs) a =
+  case a of
+   PENo a ->
+    if smartcheck then
+     mbcase (meta_not_constructor a) $ \notcon -> if notcon then mbret $ Left $ Right noblks else qq -- to know more often if iota step is possible
+    else
+     qq
+    where
+     qq =
+      mbcase (hnn_blks a) $ \(hna, blks) -> case rawValue hna of
+       HNApp (Const c') as ->
+        do
+         cd <- readIORef c'
+         case cdcont cd of
+          Constructor{} -> mbcase (getAllArgs as) $ \as' ->
+           mbret $ Left (Left (PEConApp a c' (map PENo as')))
+          _ -> mbret $ Left (Right (addblk hna blks))
+       _ -> mbret $ Left (Right (addblk hna blks))
+   aa@(PEConApp a c' as) -> mbret $ Left (Left aa)
  dopat PatVar{} a@(PENo a') = mbret $ Right (a, [a'])
  dopat PatVar{} a@(PEConApp a' _ _) = mbret $ Right (a, [a'])
  dopat PatExp a = mbret $ Right (a, [])
