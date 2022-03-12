@@ -154,7 +154,8 @@ Performance
   implementation-dependent, but successful uses of the shortcut do not
   affect the amount of fuel. Currently the fuel is decreased in the
   failure continuations of the implementation of the syntactic
-  equality shortcut.
+  equality shortcut. When a failure continuation completes the fuel is
+  restored to its previous amount.
 
   The idea for this option comes from András Kovács'
   [smalltt](https://github.com/AndrasKovacs/smalltt/blob/989b020309686e04374f1ab7844f468386d2eb2f/README.md#approximate-conversion-checking).
