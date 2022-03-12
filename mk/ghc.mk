@@ -3,7 +3,7 @@ include $(TOP)/mk/stack.mk
 
 ifeq ($(GHC),)
   ifdef HAS_STACK
-    GHC := $(STACK) ghc --
+    GHC := $(STACK_SILENT) ghc --
   else
     GHC := $(shell which ghc)
   endif
@@ -11,7 +11,7 @@ endif
 
 ifeq ($(RUNGHC),)
   ifdef HAS_STACK
-    RUNGHC := $(STACK) runghc --
+    RUNGHC := $(STACK_SILENT) runghc --
   else
     RUNGHC := $(shell which runghc)
   endif
