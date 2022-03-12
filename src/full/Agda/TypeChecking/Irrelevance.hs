@@ -118,13 +118,12 @@ workOnTypes cont = do
 --   as argument.
 workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
-  = modifyContextInfo (mapRelevance f)
+  = (if experimental
+     then modifyContextInfo (mapRelevance irrToNonStrict)
+     else id)
   . applyQuantityToContext zeroQuantity
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
-  where
-    f | experimental = irrToNonStrict
-      | otherwise    = id
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
