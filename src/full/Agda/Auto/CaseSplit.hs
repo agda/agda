@@ -47,6 +47,7 @@ type CSPat o = HI (CSPatI o)
 type CSCtx o = [HI (MId, MExp o)]
 
 data CSPatI o = CSPatConApp (ConstRef o) [CSPat o]
+              | CSPatProj (ConstRef o)
               | CSPatVar Nat
               | CSPatExp (MExp o)
               | CSWith (MExp o) -- always an App
