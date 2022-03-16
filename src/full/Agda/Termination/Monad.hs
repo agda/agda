@@ -601,16 +601,23 @@ instance Pretty CallPath where
 -- | A very crude way of estimating the @SIZELT@ chains
 --   @i > j > k@ in context.  Returns 3 in this case.
 --   Overapproximates.
+class TerSetSizeDepth b where
+  terSetSizeDepth :: b -> TerM a -> TerM a
+
+instance TerSetSizeDepth Telescope where
+  terSetSizeDepth = terSetSizeDepth . telToList
 
 -- TODO: more precise analysis, constructing a tree
 -- of relations between size variables.
-terSetSizeDepth :: Telescope -> TerM a -> TerM a
-terSetSizeDepth tel cont = do
-  n <- liftTCM $ sum <$> do
-    forM (telToList tel) $ \ dom -> do
-      a <- reduce $ snd $ unDom dom
-      ifM (isJust <$> isSizeType a) (return 1) {- else -} $
-        case unEl a of
-          MetaV{} -> return 1
-          _       -> return 0
-  terLocal (set terSizeDepth n) cont
+instance TerSetSizeDepth ListTel where
+  terSetSizeDepth doms cont = do
+    n <- liftTCM $ sum <$> do
+      forM doms $ \ dom -> do
+        -- Andreas, 2022-03-12, TODO:
+        -- use ifBlocked?  Shouldn't blocked types be treated like metas?
+        a <- reduce $ snd $ unDom dom
+        ifM (isJust <$> isSizeType a) (return 1) {- else -} $
+          case unEl a of
+            MetaV{} -> return 1
+            _       -> return 0
+    terLocal (set terSizeDepth n) cont

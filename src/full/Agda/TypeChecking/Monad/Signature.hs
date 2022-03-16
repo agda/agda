@@ -112,6 +112,7 @@ addConstant' q info x t def = do
 setTerminates :: QName -> Bool -> TCM ()
 setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ \case
     def@Function{} -> def { funTerminates = Just b }
+    def@Record{}   -> def { recTerminates = Just b }
     def -> def
 
 -- | Set CompiledClauses of a defined function symbol.

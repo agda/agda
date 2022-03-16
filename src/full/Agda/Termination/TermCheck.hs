@@ -115,7 +115,7 @@ termDecl' = \case
     A.ScopedDecl scope ds -> {- withScope_ scope $ -} termDecls ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ r _ _ _ _ ds -> termDecls ds
+    A.RecDef _ x _ _ _ _ ds -> termMutual [x] <> termDecls ds
     -- These should all be wrapped in mutual blocks
     A.FunDef{}      -> __IMPOSSIBLE__
     A.DataSig{}     -> __IMPOSSIBLE__
@@ -129,7 +129,7 @@ termDecl' = \case
     -- for symbols that need to be termination-checked.
     getNames = concatMap getName
     getName (A.FunDef i x delayed cs)   = [x]
-    getName (A.RecDef _ _ _ _ _ _ ds)   = getNames ds
+    getName (A.RecDef _ x _ _ _ _ ds)   = x : getNames ds
     getName (A.Mutual _ ds)             = getNames ds
     getName (A.Section _ _ _ ds)        = getNames ds
     getName (A.ScopedDecl _ ds)         = getNames ds
@@ -210,7 +210,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
      -- New check currently only makes a difference for copatterns.
      -- Since it is slow, only invoke it if
      -- any of the definitions uses copatterns.
-     res <- ifM (orM $ map usesCopatterns allNames)
+     res <- ifM (pure True) -- TODO (orM $ map usesCopatterns allNames)
          -- Then: New check, one after another.
          (runTerm $ forM' allNames $ termFunction)
          -- Else: Old check, all at once.
@@ -343,6 +343,7 @@ reportCalls no calls = do
     return ()
 
 -- | @termFunction name@ checks @name@ for termination.
+-- If it passes the termination check it is marked as "terminates" in the signature.
 
 termFunction :: QName -> TerM Result
 termFunction name = do
@@ -395,10 +396,28 @@ termFunction name = do
 
     names <- terGetUserNames
     case r of
-      Left calls -> return $ singleton $ terminationError ([name] `List.intersect` names) calls
+
+      Left calls -> do
+        let err = terminationError [name | name `elem` names] calls
+        -- Functions must be terminating, records types need not...
+        getConstInfo name <&> theDef >>= \case
+
+          -- Records need not terminate, so we just put the error on the debug log.
+          Record{} -> do
+            reportSDoc "term.warn.no" 10 $ vcat $
+              hsep [ "Record type", prettyTCM name, "does not termination check.", "Problematic calls:" ] :
+              (map (nest 2 . prettyTCM) $ List.sortOn callInfoRange calls)
+            mempty
+
+          -- Functions must terminate, so we report the error.
+          Function{} -> return $ singleton err
+
+          _ -> __IMPOSSIBLE__
+
       Right () -> do
-        liftTCM $ reportSLn "term.warn.yes" 2 $
+        reportSLn "term.warn.yes" 2 $
           prettyShow name ++ " does termination check"
+        liftTCM $ setTerminates name True
         return mempty
    where
      reportTarget r = liftTCM $
@@ -459,9 +478,28 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
               then return empty
               else termClause cl
 
-        _ -> return empty
-  where
+        -- @record R pars : Set where field tel@
+        -- is treated like function @R pars = tel@.
+        Record{ recPars, recTel } -> termRecTel recPars recTel
 
+        _ -> return empty
+
+-- | Extract "calls" to the field types from a record constructor telescope.
+-- Does not extract from the parameters, but treats these as the "pattern variables"
+-- (the lhs of the "function").
+termRecTel :: Nat -> Telescope -> TerM Calls
+termRecTel npars tel = do
+  -- Set up the record parameters like function parameters.
+  let (pars, fields) = splitAt npars $ telToList tel
+  addContext pars $ do
+    ps <- mkPats npars
+    terSetPatterns ps $ terSetSizeDepth pars $ do
+      -- Treat the record fields like the body of a function.
+      extract $ telFromList fields
+  where
+  -- create n variable patterns
+  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
+  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Collect calls in type signature @f : (x1:A1)...(xn:An) -> B@.
 --   It is treated as if there were the additional function clauses.
@@ -696,6 +734,11 @@ instance ExtractCalls Sort where
 
 instance ExtractCalls Type where
   extract (El s t) = extract (s, t)
+
+instance ExtractCalls a => ExtractCalls (Tele a) where
+  extract = \case
+    EmptyTel        -> mempty
+    ExtendTel a tel -> extract a <> extract tel
 
 -- | Extract recursive calls from a constructor application.
 

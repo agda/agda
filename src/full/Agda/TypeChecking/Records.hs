@@ -790,8 +790,9 @@ isSingletonRecord' regardIrrelevance r ps rs = do
       -- We might not know yet whether a record type is recursive because the positivity checker hasn't run yet.
       -- In this case, we pessimistically consider the record type to be recursive (@True@).
       let recursive = maybe True (not . null) $ recMutual def
+      let nonTerminating = maybe True not $ recTerminates def
       fmap (mkCon (recConHead def) ConOSystem) <$> do
-        check (applyWhen recursive (Set.insert r) rs) $ recTel def `apply` ps
+        check (applyWhen (recursive && nonTerminating) (Set.insert r) rs) $ recTel def `apply` ps
   where
   -- Check that all entries of the constructor telescope are singletons.
   check :: Set QName -> Telescope -> m (Maybe [Arg Term])

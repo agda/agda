@@ -106,3 +106,11 @@ instance GetDefs a => GetDefs (Abs a)   where
 
 instance (GetDefs a, GetDefs b) => GetDefs (a,b) where
   getDefs (a,b) = getDefs a >> getDefs b
+
+instance GetDefs Telescope where
+  getDefs = getDefs . telToList
+
+-- no defs here
+
+instance {-# OVERLAPPING #-} GetDefs String where
+  getDefs _ = return ()

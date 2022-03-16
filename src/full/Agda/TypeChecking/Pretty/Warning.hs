@@ -82,7 +82,7 @@ prettyWarning = \case
                concatMap termErrFunctions because)
         $$ fwords "Problematic calls:"
         $$ nest 2 (fmap (P.vcat . List.nub) $
-              mapM prettyTCM $ List.sortBy (compare `on` callInfoRange) $
+              mapM prettyTCM $ List.sortOn callInfoRange $
               concatMap termErrCalls because)
 
     UnreachableClauses f pss -> fsep $

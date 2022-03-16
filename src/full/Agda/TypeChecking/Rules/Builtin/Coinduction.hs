@@ -82,6 +82,7 @@ bindBuiltinSharp x =
                   , recEtaEquality'   = Inferred $ NoEta CopatternMatching
                   , recPatternMatching= CopatternMatching
                   , recMutual         = Just []
+                  , recTerminates     = Just True  -- not recursive
                   , recAbstr          = ConcreteDef
                   , recComp           = emptyCompKit
                   }
