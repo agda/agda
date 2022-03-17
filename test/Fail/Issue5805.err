@@ -1,8 +1,1 @@
-Issue5805.agda:29,1-31,6
-(ff≡f : (_65 ∘ _65) ≡ _65) →
-?1 (ff≡f = ff≡f) (λ x → _65 (_65 x)) ≡ ?1 (ff≡f = ff≡f) _65 → Set
-is not a valid type
-when checking that the type
-(ff≡f : (_65 ∘ _65) ≡ _65) →
-?1 (ff≡f = ff≡f) (λ x → _65 (_65 x)) ≡ ?1 (ff≡f = ff≡f) _65 → Set
-of the generated with function is well-formed
+Panic: uncaught pattern violation

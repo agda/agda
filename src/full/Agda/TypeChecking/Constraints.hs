@@ -32,6 +32,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 import {-# SOURCE #-} Agda.TypeChecking.Lock
+import {-# SOURCE #-} Agda.TypeChecking.CheckInternal ( checkType )
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.Functor
@@ -297,6 +298,7 @@ solveConstraint_ (CheckLockedVars a b c d)   = checkLockedVars a b c d
 solveConstraint_ (HasBiggerSort a)      = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
+solveConstraint_ (CheckType t)          = checkType t
 solveConstraint_ (UsableAtModality mod t) = usableAtModality mod t
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term

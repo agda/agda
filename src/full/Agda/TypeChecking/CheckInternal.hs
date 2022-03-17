@@ -57,9 +57,8 @@ type MonadCheckInternal m = MonadConversion m
 
 -- | Entry point for e.g. checking WithFunctionType.
 checkType :: (MonadCheckInternal m) => Type -> m ()
-checkType t = do
-  let err = typeError $ InvalidType $ unEl t
-  inferred <- catchPatternErr (\_ -> err) $ checkType' t
+checkType t = catchConstraint (CheckType t) $ do
+  inferred <- checkType' t
   equalSort (getSort t) inferred
 
 -- | Check a type and infer its sort.

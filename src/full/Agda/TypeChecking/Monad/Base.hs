@@ -1111,6 +1111,7 @@ data Constraint
   | HasBiggerSort Sort
   | HasPTSRule (Dom Type) (Abs Sort)
   | CheckMetaInst MetaId
+  | CheckType Type
   | UnBlock MetaId
     -- ^ Meta created for a term blocked by a postponed type checking problem or unsolved
     --   constraints. The 'MetaInstantiation' for the meta (when unsolved) is either 'BlockedConst'
@@ -1160,6 +1161,7 @@ instance Free Constraint where
       CheckLockedVars a b c d -> freeVars' ((a,b),(c,d))
       UnquoteTactic t h g   -> freeVars' (t, (h, g))
       CheckMetaInst m       -> mempty
+      CheckType t           -> freeVars' t
       UsableAtModality mod t -> freeVars' t
 
 instance TermLike Constraint where
@@ -1179,6 +1181,7 @@ instance TermLike Constraint where
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, Sort <$> s)
       CheckMetaInst m        -> mempty
+      CheckType t            -> foldTerm f t
       UsableAtModality m t   -> foldTerm f t
 
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented

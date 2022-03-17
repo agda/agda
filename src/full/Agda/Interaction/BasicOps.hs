@@ -482,6 +482,7 @@ instance Reify Constraint where
     reify (CheckMetaInst m) = do
       t <- jMetaType . mvJudgement <$> lookupLocalMeta m
       OfType <$> reify (MetaV m []) <*> reify t
+    reify (CheckType t) = JustType <$> reify t
     reify (UsableAtModality mod t) = UsableAtMod mod <$> reify t
 
 instance (Pretty a, Pretty b) => PrettyTCM (OutputForm a b) where
@@ -650,6 +651,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         HasPTSRule a b             -> Nothing
         UnquoteTactic{}            -> Nothing
         CheckMetaInst{}            -> Nothing
+        CheckType t                -> isMeta (unEl t)
         CheckLockedVars t _ _ _    -> isMeta t
         UsableAtModality _ t       -> isMeta t
 
