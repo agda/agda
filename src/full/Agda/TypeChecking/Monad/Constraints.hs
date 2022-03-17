@@ -210,6 +210,7 @@ addConstraintTo bucket unblock c = do
       CheckFunDef{}    -> True
       UnquoteTactic{}  -> True
       CheckMetaInst{}  -> True
+      CheckType{}      -> True
       CheckLockedVars{} -> True
       UsableAtModality{} -> True
 

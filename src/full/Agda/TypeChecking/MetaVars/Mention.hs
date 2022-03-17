@@ -119,6 +119,7 @@ instance MentionsMeta Constraint where
     HasPTSRule a b      -> mm (a, b)
     UnquoteTactic tac hole goal -> False
     CheckMetaInst m     -> True   -- TODO
+    CheckType t         -> mm t
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
     UsableAtModality mod t -> mm t
     where
