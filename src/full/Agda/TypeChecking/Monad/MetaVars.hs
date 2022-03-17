@@ -280,6 +280,7 @@ constraintMetas = \case
       HasBiggerSort{}          -> return mempty
       HasPTSRule{}             -> return mempty
       CheckMetaInst x          -> return mempty
+      CheckType t              -> return $ allMetas Set.singleton t
       CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)
       UsableAtModality{}       -> return mempty
   where
