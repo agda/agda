@@ -9,8 +9,10 @@ module Agda.Interaction.Highlighting.Dot.Base
   , Env(..)
   ) where
 
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad          (liftM2, when)
+import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Reader   (ReaderT, runReaderT, ask)
+import Control.Monad.State    (State, execState, get, modify, put)
 
 import qualified Data.Map as M
 import Data.Map(Map)
