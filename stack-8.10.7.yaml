@@ -5,4 +5,3 @@ compiler-check: match-exact
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
-- 'src/size-solver'

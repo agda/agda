@@ -4,4 +4,3 @@ compiler-check: match-exact
 
 packages:
 - '.'
-- 'src/size-solver'
