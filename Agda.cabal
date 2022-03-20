@@ -657,7 +657,7 @@ library
     ghc-options: -fprint-potential-instances
                  -- Initially, we disable all the warnings.
                  -w
-                 -Werror
+                 -Wwarn
                  -- This option must be the first one after disabling the
                  -- warnings. See Issue #2094.
                  -Wunrecognised-warning-flags
@@ -690,34 +690,34 @@ library
                  -Wwrong-do-bind
   else
     ghc-options: -fprint-potential-instances
-                 -Werror=unrecognised-warning-flags
-                 -Werror=deprecated-flags
-                 -Werror=deriving-typeable
-                 -Werror=dodgy-exports
-                 -Werror=dodgy-foreign-imports
-                 -Werror=dodgy-imports
-                 -Werror=duplicate-exports
-                 -Werror=empty-enumerations
-                 -Werror=identities
-                 -Werror=incomplete-patterns
-                 -Werror=inline-rule-shadowing
-                 -Werror=missing-fields
-                 -Werror=missing-methods
-                 -Werror=missing-pattern-synonym-signatures
-                 -Werror=missing-signatures
-                 -Werror=noncanonical-monad-instances
-                 -Werror=noncanonical-monoid-instances
-                 -Werror=overflowed-literals
-                 -Werror=overlapping-patterns
-                 -Werror=semigroup
-                 -Werror=tabs
-                 -Werror=typed-holes
-                 -Werror=unrecognised-pragmas
-                 -Werror=unticked-promoted-constructors
-                 -Werror=unused-do-bind
-                 -Werror=unused-foralls
-                 -Werror=warnings-deprecations
-                 -Werror=wrong-do-bind
+                 -Wwarn=unrecognised-warning-flags
+                 -Wwarn=deprecated-flags
+                 -Wwarn=deriving-typeable
+                 -Wwarn=dodgy-exports
+                 -Wwarn=dodgy-foreign-imports
+                 -Wwarn=dodgy-imports
+                 -Wwarn=duplicate-exports
+                 -Wwarn=empty-enumerations
+                 -Wwarn=identities
+                 -Wwarn=incomplete-patterns
+                 -Wwarn=inline-rule-shadowing
+                 -Wwarn=missing-fields
+                 -Wwarn=missing-methods
+                 -Wwarn=missing-pattern-synonym-signatures
+                 -Wwarn=missing-signatures
+                 -Wwarn=noncanonical-monad-instances
+                 -Wwarn=noncanonical-monoid-instances
+                 -Wwarn=overflowed-literals
+                 -Wwarn=overlapping-patterns
+                 -Wwarn=semigroup
+                 -Wwarn=tabs
+                 -Wwarn=typed-holes
+                 -Wwarn=unrecognised-pragmas
+                 -Wwarn=unticked-promoted-constructors
+                 -Wwarn=unused-do-bind
+                 -Wwarn=unused-foralls
+                 -Wwarn=warnings-deprecations
+                 -Wwarn=wrong-do-bind
 
   -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
@@ -725,35 +725,33 @@ library
                  -- ASR TODO (2017-07-23): `make haddock` fails when
                  -- this flag is on.
                  -- -Wmissing-home-modules
-                 -Werror=simplifiable-class-constraints
-                 -Werror=unbanged-strict-patterns
+                 -Wwarn=simplifiable-class-constraints
+                 -Wwarn=unbanged-strict-patterns
 
   -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
-    ghc-options: -Werror=inaccessible-code
-                 -Werror=star-binder
-                 -Werror=star-is-type
+    ghc-options: -Wwarn=inaccessible-code
+                 -Wwarn=star-binder
+                 -Wwarn=star-is-type
 
   -- The following warning is an error in GHC >= 8.10.
   if impl(ghc >= 8.6) && impl(ghc < 8.10)
-    ghc-options: -Werror=implicit-kind-vars
+    ghc-options: -Wwarn=implicit-kind-vars
 
   -- NOTE: If adding or removing flags, also change `.ghci-8.8`
   if impl(ghc >= 8.8)
-    ghc-options: -Werror=missed-extra-shared-lib
+    ghc-options: -Wwarn=missed-extra-shared-lib
 
   -- NOTE: If adding or removing flags, also change `.ghci-8.10`
   if impl(ghc >= 8.10)
-    ghc-options: -Werror=deriving-defaults
-                 -Werror=redundant-record-wildcards
-                 -Werror=unused-packages
-                 -Werror=unused-record-wildcards
+    ghc-options: -Wwarn=deriving-defaults
+                 -Wwarn=redundant-record-wildcards
+                 -Wwarn=unused-packages
+                 -Wwarn=unused-record-wildcards
 
   -- NOTE: If adding or removing flags, also change `.ghci-9.0`
   if impl(ghc >= 9.0)
-    ghc-options: -Werror=invalid-haddock
-
-  ghc-prof-options: -fprof-auto
+    ghc-options: -Wwarn=invalid-haddock
 
   default-language: Haskell2010
 
@@ -828,257 +826,3 @@ executable agda-mode
                   , filepath >= 1.4.1.0 && < 1.5
                   , process >= 1.4.2.0 && < 1.7
   default-language: Haskell2010
-
--- Cabal testsuite integration has some serious bugs, but we
--- can still make it work. See also:
--- https://github.com/haskell/cabal/issues/1938
--- https://github.com/haskell/cabal/issues/2214
--- https://github.com/haskell/cabal/issues/1953
---
--- This test suite should only be run using the Makefile.
--- The Makefile sets up the required environment,
--- executing the tests using cabal directly is almost
--- guaranteed to fail. See also Issue 1490.
-test-suite agda-tests
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   test/
-  main-is:          Main.hs
-  other-modules:      Bugs.Tests
-                    , Compiler.Tests
-                    , Fail.Tests
-                    , Interactive.Tests
-                    , Internal.Compiler.MAlonzo.Encode
-                    , Internal.Helpers
-                    , Internal.Interaction.Highlighting.Precise
-                    , Internal.Interaction.Highlighting.Range
-                    , Internal.Interaction.Library
-                    , Internal.Interaction.Options
-                    , Internal.Syntax.Abstract.Name
-                    , Internal.Syntax.Common
-                    , Internal.Syntax.Concrete.Name
-                    , Internal.Syntax.Internal
-                    , Internal.Syntax.Parser.Parser
-                    , Internal.Syntax.Position
-                    , Internal.Termination.CallGraph
-                    , Internal.Termination.CallMatrix
-                    , Internal.Termination.Order
-                    , Internal.Termination.Semiring
-                    , Internal.Termination.SparseMatrix
-                    , Internal.Termination.Termination
-                    , Internal.Tests
-                    , Internal.TypeChecking
-                    , Internal.TypeChecking.Free
-                    , Internal.TypeChecking.Free.Lazy
-                    , Internal.TypeChecking.Generators
-                    , Internal.TypeChecking.Irrelevance
-                    , Internal.TypeChecking.Monad.Base
-                    , Internal.TypeChecking.Positivity
-                    , Internal.TypeChecking.Positivity.Occurrence
-                    , Internal.TypeChecking.Rules.LHS.Problem
-                    , Internal.TypeChecking.SizedTypes
-                    , Internal.TypeChecking.SizedTypes.Syntax
-                    , Internal.TypeChecking.SizedTypes.WarshallSolver
-                    , Internal.TypeChecking.Substitute
-                    , Internal.Utils.AssocList
-                    , Internal.Utils.Bag
-                    , Internal.Utils.BiMap
-                    , Internal.Utils.Cluster
-                    , Internal.Utils.Either
-                    , Internal.Utils.Favorites
-                    , Internal.Utils.FileName
-                    , Internal.Utils.Graph.AdjacencyMap.Unidirectional
-                    , Internal.Utils.IntSet
-                    , Internal.Utils.List
-                    , Internal.Utils.ListT
-                    , Internal.Utils.Maybe.Strict
-                    , Internal.Utils.Monoid
-                    , Internal.Utils.NonEmptyList
-                    , Internal.Utils.PartialOrd
-                    , Internal.Utils.Permutation
-                    , Internal.Utils.RangeMap
-                    , Internal.Utils.SmallSet
-                    , Internal.Utils.Three
-                    , Internal.Utils.Trie
-                    , Internal.Utils.Warshall
-                    , LaTeXAndHTML.Tests
-                    , LibSucceed.Tests
-                    , Succeed.Tests
-                    , UserManual.Tests
-                    , Utils
-
-  -- Andreas, 2021-08-26, see https://github.com/haskell/cabal/issues/7577
-  -- Since 'agda-tests' wants to call 'agda', we have to add it here,
-  -- should we want to run 'cabal test'.
-  build-tool-depends: Agda:agda
-
-  build-depends:  Agda
-                , array
-                , base
-                , bytestring
-                , containers
-                , directory
-                , filepath
-                , filemanip >= 0.3.6.3 && < 0.4
-                , mtl
-                , process
-                , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
-                , QuickCheck >= 2.14.1 && < 2.15
-                , regex-tdfa
-                , strict >= 0.3.2 && < 0.5
-                , tasty >= 1.1.0.4 && < 1.5
-                , tasty-hunit >= 0.9.2 && < 0.11
-                , tasty-quickcheck >= 0.9.2 && < 0.11
-                -- tasty-silver 3.1.13 has option --ansi-tricks=false
-                -- NB: tasty-silver 3.2 requires tasty >= 1.4
-                -- tasty-silver < 3.3 does not work interactively under Windows
-                , tasty-silver >= 3.1.13 && < 3.4
-                , temporary >= 1.2.0.3 && < 1.4
-                , text
-                , unix-compat >= 0.4.3.1 && < 0.6
-                , uri-encode
-
-  -- Andreas (2021-10-11): tasty-silver < 3.3 does not work interactively under Windows
-  if os(windows)
-    build-depends: tasty-silver >= 3.3
-
-  default-language:  Haskell2010
-
-  -- NOTE: If adding or removing default extensions, also change:
-  --         .ghci-8.0
-  --         .hlint.yaml
-  -- This should also use the same extensions as the `library` target above.
-  default-extensions:  BangPatterns
-                     , ConstraintKinds
-                     --L-T Chen (2019-07-15):
-                     -- Enabling DataKinds only locally makes the compile time
-                     -- slightly shorter, see PR #3920.
-                     --, DataKinds
-                     , DefaultSignatures
-                     , DeriveDataTypeable
-                     , DeriveFoldable
-                     , DeriveFunctor
-                     , DeriveGeneric
-                     , DeriveTraversable
-                     , ExistentialQuantification
-                     , FlexibleContexts
-                     , FlexibleInstances
-                     , FunctionalDependencies
-                     , GeneralizedNewtypeDeriving
-                     , InstanceSigs
-                     , LambdaCase
-                     , MultiParamTypeClasses
-                     , MultiWayIf
-                     , NamedFieldPuns
-                     , OverloadedStrings
-                     , PatternSynonyms
-                     , RankNTypes
-                     , RecordWildCards
-                     , ScopedTypeVariables
-                     , StandaloneDeriving
-                     , TupleSections
-                     , TypeFamilies
-                     , TypeSynonymInstances
-
-  if flag(optimise-heavily)
-    ghc-options: -fexpose-all-unfoldings
-                 -fspecialise-aggressively
-
-  -- NOTE: If adding or removing flags, also change `.ghci-8.0`
-  if impl(ghc <= 8.0.2)
-    ghc-options: -threaded
-                 -- Initially, we disable all the warnings.
-                 -w
-                 -Werror
-                 -- This option must be the first one after disabling the
-                 -- warnings. See Issue #2094.
-                 -Wunrecognised-warning-flags
-                 -Wdeprecated-flags
-                 -Wderiving-typeable
-                 -Wdodgy-exports
-                 -Wdodgy-foreign-imports
-                 -Wdodgy-imports
-                 -Wduplicate-exports
-                 -Wempty-enumerations
-                 -Widentities
-                 -Wincomplete-patterns
-                 -Winline-rule-shadowing
-                 -Wmissing-fields
-                 -Wmissing-methods
-                 -Wmissing-pattern-synonym-signatures
-                 -Wmissing-signatures
-                 -Wnoncanonical-monad-instances
-                 -Wnoncanonical-monoid-instances
-                 -Woverflowed-literals
-                 -Woverlapping-patterns
-                 -Wsemigroup
-                 -Wtabs
-                 -Wtyped-holes
-                 -Wunrecognised-pragmas
-                 -Wunticked-promoted-constructors
-                 -Wunused-do-bind
-                 -Wunused-foralls
-                 -Wwarnings-deprecations
-                 -Wwrong-do-bind
-  else
-    ghc-options: -threaded
-                 -Werror=unrecognised-warning-flags
-                 -Werror=deprecated-flags
-                 -Werror=deriving-typeable
-                 -Werror=dodgy-exports
-                 -Werror=dodgy-foreign-imports
-                 -Werror=dodgy-imports
-                 -Werror=duplicate-exports
-                 -Werror=empty-enumerations
-                 -Werror=identities
-                 -Werror=incomplete-patterns
-                 -Werror=inline-rule-shadowing
-                 -Werror=missing-fields
-                 -Werror=missing-methods
-                 -Werror=missing-pattern-synonym-signatures
-                 -Werror=missing-signatures
-                 -Werror=noncanonical-monad-instances
-                 -Werror=noncanonical-monoid-instances
-                 -Werror=overflowed-literals
-                 -Werror=overlapping-patterns
-                 -Werror=semigroup
-                 -Werror=tabs
-                 -Werror=typed-holes
-                 -Werror=unrecognised-pragmas
-                 -Werror=unticked-promoted-constructors
-                 -Werror=unused-do-bind
-                 -Werror=unused-foralls
-                 -Werror=warnings-deprecations
-                 -Werror=wrong-do-bind
-
-  -- ASR (2017-04-11). TODO: Using -Werror=missing-home-modules generates an
-  -- error.
-  -- NOTE: If adding or removing flags, also change `.ghci-8.2`
-  if impl(ghc >= 8.2)
-    ghc-options: -Werror=cpp-undef
-                 -Werror=simplifiable-class-constraints
-                 -Werror=unbanged-strict-patterns
-
-  -- NOTE: If adding or removing flags, also change `.ghci-8.6`
-  if impl(ghc >= 8.6)
-    ghc-options: -Werror=inaccessible-code
-                 -Werror=star-binder
-                 -Werror=star-is-type
-  -- The following warning is an error in GHC >= 8.10.
-  if impl(ghc >= 8.6) && impl(ghc < 8.10)
-    ghc-options: -Werror=implicit-kind-vars
-
-  -- NOTE: If adding or removing flags, also change `.ghci-8.8`
-  if impl(ghc >= 8.8)
-    ghc-options: -Werror=missed-extra-shared-lib
-
-  -- NOTE: If adding or removing flags, also change `.ghci-8.10`
-  if impl(ghc >= 8.10)
-    ghc-options: -Werror=deriving-defaults
-                 -Werror=redundant-record-wildcards
-                 -Werror=unused-packages
-                 -Werror=unused-record-wildcards
-
-  -- NOTE: If adding or removing flags, also change `.ghci-9.0`
-  if impl(ghc >= 9.0)
-    ghc-options: -Werror=compat-unqualified-imports
-                 -Werror=invalid-haddock
