@@ -4,7 +4,7 @@ cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
-copyright:       (c) 2005-2021 The Agda Team.
+copyright:       (c) 2005-2022 The Agda Team.
 author:          Ulf Norell and The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
 maintainer:      The Agda Team
 homepage:        http://wiki.portal.chalmers.se/agda/
