@@ -65,7 +65,14 @@ type MutualNames = [QName]
 
 -- | The target of the function we are checking.
 
-type Target = QName
+data Target
+  = TargetDef QName
+      -- ^ The target of recursion is a @record@, @data@, or unreducible @Def@.
+  | TargetRecord
+      -- ^ We are termination-checking a record.
+  | TargetOther
+      -- ^ None of the above two or unknown.
+  deriving (Eq, Show)
 
 -- | The current guardedness level.
 
@@ -100,7 +107,7 @@ data TerEnv = TerEnv
   , terHaveInlinedWith :: Bool
     -- ^ Does the actual clause result from with-inlining?
     --   (If yes, it may be ill-typed.)
-  , terTarget  :: Maybe Target
+  , terTarget  :: Target
     -- ^ Target type of the function we are currently termination checking.
     --   Only the constructors of 'Target' are considered guarding.
   , terDelayed :: Delayed
@@ -153,7 +160,7 @@ defaultTerEnv = TerEnv
   , terMutual                   = __IMPOSSIBLE__ -- needs to be set!
   , terCurrent                  = __IMPOSSIBLE__ -- needs to be set!
   , terHaveInlinedWith          = False
-  , terTarget                   = Nothing
+  , terTarget                   = TargetOther
   , terDelayed                  = NotDelayed
   , terMaskArgs                 = repeat False   -- use all arguments (mask none)
   , terMaskResult               = False          -- use result (do not mask)
@@ -282,10 +289,10 @@ terGetMutual = terAsks terMutual
 terGetUserNames :: TerM [QName]
 terGetUserNames = terAsks terUserNames
 
-terGetTarget :: TerM (Maybe Target)
+terGetTarget :: TerM Target
 terGetTarget = terAsks terTarget
 
-terSetTarget :: Maybe Target -> TerM a -> TerM a
+terSetTarget :: Target -> TerM a -> TerM a
 terSetTarget t = terLocal $ \ e -> e { terTarget = t }
 
 terGetHaveInlinedWith :: TerM Bool

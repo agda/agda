@@ -781,7 +781,10 @@ isSingletonRecord'
                      --   otherwise we would construct an infinite inhabitant (in an infinite time...).
   -> m (Maybe Term)  -- ^ The unique inhabitant, if any.  May contain dummy terms in irrelevant positions.
 isSingletonRecord' regardIrrelevance r ps rs = do
-  reportSDoc "tc.meta.eta" 30 $ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
+  reportSDoc "tc.meta.eta" 30 $ vcat
+    [ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
+    , "  already visited:" <+> hsep (map prettyTCM $ Set.toList rs)
+    ]
   -- Andreas, 2022-03-10, issue #5823
   -- We need to make sure we are not infinitely unfolding records, so we only expand each once,
   -- and keep track of the recursive ones we have already seen.
@@ -791,6 +794,10 @@ isSingletonRecord' regardIrrelevance r ps rs = do
       -- In this case, we pessimistically consider the record type to be recursive (@True@).
       let recursive = maybe True (not . null) $ recMutual def
       let nonTerminating = maybe True not $ recTerminates def
+      reportSDoc "tc.meta.eta" 30 $ vcat
+        [ hsep [ prettyTCM r, "is recursive      :", prettyTCM recursive      ]
+        , hsep [ prettyTCM r, "is non-terminating:", prettyTCM nonTerminating ]
+        ]
       fmap (mkCon (recConHead def) ConOSystem) <$> do
         check (applyWhen (recursive && nonTerminating) (Set.insert r) rs) $ recTel def `apply` ps
   where

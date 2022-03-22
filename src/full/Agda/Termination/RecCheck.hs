@@ -89,10 +89,8 @@ markNonRecursive q = modifySignature $ updateDefinition q $ updateTheDef $ \case
    { funTerminates = Just True
    , funClauses    = map (\ cl -> cl { clauseRecursive = Just False }) $ funClauses def
    }
-  def@Record{ recMutual = mut } -> def
+  def@Record{} -> def
    { recTerminates = Just True
-   , recMutual     = if maybe True null mut then Just [] else __IMPOSSIBLE__
-       -- Andreas, 2022-03-12: Crash if some other agent (positivity checker) came to another result.
    }
   def -> def
 
