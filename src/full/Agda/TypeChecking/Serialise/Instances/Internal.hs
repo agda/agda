@@ -371,7 +371,7 @@ instance EmbPrj Defn where
   icod_ (Function    a b s t []    c d e f g h i j k)   =
     icodeN 1 (\ a b s -> Function a b s t []) a b s c d e f g h i j k
   icod_ (Datatype    a b c d e f g h i j)               = icodeN 2 Datatype a b c d e f g h i j
-  icod_ (Record      a b c d e f g h i j k l)           = icodeN 3 Record a b c d e f g h i j k l
+  icod_ (Record      a b c d e f g h i j k l m)         = icodeN 3 Record a b c d e f g h i j k l m
   icod_ (Constructor a b c d e f g h i j)               = icodeN 4 Constructor a b c d e f g h i j
   icod_ (Primitive   a b c d e)                         = icodeN 5 Primitive a b c d e
   icod_ (PrimitiveSort a b)                             = icodeN 6 PrimitiveSort a b
@@ -383,7 +383,7 @@ instance EmbPrj Defn where
     valu [0, a]                                     = valuN Axiom a
     valu [1, a, b, s, c, d, e, f, g, h, i, j, k]    = valuN (\ a b s -> Function a b s Nothing []) a b s c d e f g h i j k
     valu [2, a, b, c, d, e, f, g, h, i, j]          = valuN Datatype a b c d e f g h i j
-    valu [3, a, b, c, d, e, f, g, h, i, j, k, l]    = valuN Record  a b c d e f g h i j k l
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m] = valuN Record   a b c d e f g h i j k l m
     valu [4, a, b, c, d, e, f, g, h, i, j]          = valuN Constructor a b c d e f g h i j
     valu [5, a, b, c, d, e]                         = valuN Primitive   a b c d e
     valu [6, a, b]                                  = valuN PrimitiveSort a b

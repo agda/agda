@@ -3,6 +3,7 @@ Termination checking failed for the following functions:
   dl-iso, Fresh→Fresh′, Fresh→AllFresh
 Problematic calls:
   f dl-iso (dcons a₁ l x)
+  f⁻¹ dl-iso (dl″ l′ (proj₂ p))
   Fresh→Fresh′ eq p | l″ | sym eq
   f dl-iso (dcons a l x)
   Fresh→AllFresh eq p | l″ | sym eq

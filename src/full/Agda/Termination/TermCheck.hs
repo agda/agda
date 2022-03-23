@@ -115,8 +115,11 @@ termDecl' = \case
     A.ScopedDecl scope ds -> {- withScope_ scope $ -} termDecls ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ r _ _ _ _ ds -> termDecls ds
-    -- These should all be wrapped in mutual blocks
+    A.RecDef _ x _ _ _ _ ds -> termMutual [x] <> termDecls ds
+        -- Andreas, 2022-10-23, issue #5823
+        -- Also check record types for termination.
+        -- They are unfolded during construction of unique inhabitants of eta-records.
+    -- These should all be wrapped in mutual blocks:
     A.FunDef{}      -> __IMPOSSIBLE__
     A.DataSig{}     -> __IMPOSSIBLE__
     A.DataDef{}     -> __IMPOSSIBLE__
@@ -129,7 +132,7 @@ termDecl' = \case
     -- for symbols that need to be termination-checked.
     getNames = concatMap getName
     getName (A.FunDef i x delayed cs)   = [x]
-    getName (A.RecDef _ _ _ _ _ _ ds)   = getNames ds
+    getName (A.RecDef _ x _ _ _ _ ds)   = x : getNames ds
     getName (A.Mutual _ ds)             = getNames ds
     getName (A.Section _ _ _ ds)        = getNames ds
     getName (A.ScopedDecl _ ds)         = getNames ds
@@ -207,22 +210,14 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
              " with cutoff=" ++ show cutoff ++ "..."
            terLocal setNames cont
 
-     -- New check currently only makes a difference for copatterns.
+     -- New check currently only makes a difference for copatterns and record types.
      -- Since it is slow, only invoke it if
-     -- any of the definitions uses copatterns.
-     res <- ifM (orM $ map usesCopatterns allNames)
+     -- any of the definitions uses copatterns or is a record type.
+     ifM (anyM allNames $ \ q -> usesCopatterns q `or2M` (isJust <$> isRecord q))
          -- Then: New check, one after another.
          (runTerm $ forM' allNames $ termFunction)
          -- Else: Old check, all at once.
          (runTerm $ termMutual')
-
-     -- Record result of termination check in signature.
-     -- If there are some termination errors, we collect them in
-     -- the state and mark the definition as non-terminating so
-     -- that it does not get unfolded
-     let terminates = null res
-     forM_ allNames $ \ q -> setTerminates q terminates
-     return res
 
 -- | @termMutual'@ checks all names of the current mutual block,
 --   henceforth called @allNames@, for termination.
@@ -268,10 +263,15 @@ termMutual' = do
   -- the names the user has declared.  This is for error reporting.
   names <- terGetUserNames
   case r of
-    Left calls -> return $ singleton $ terminationError names $ callInfos calls
+
+    Left calls -> do
+      mapM_ (`setTerminates` False) allNames
+      return $ singleton $ terminationError names $ callInfos calls
+
     Right{} -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
         prettyShow (names) ++ " does termination check"
+      mapM_ (`setTerminates` True) allNames
       return mempty
 
 -- | Smart constructor for 'TerminationError'.
@@ -343,9 +343,10 @@ reportCalls no calls = do
     return ()
 
 -- | @termFunction name@ checks @name@ for termination.
+-- If it passes the termination check it is marked as "terminates" in the signature.
 
 termFunction :: QName -> TerM Result
-termFunction name = do
+termFunction name = inConcreteOrAbstractMode name $ \ def -> do
 
   -- Function @name@ is henceforth referred to by its @index@
   -- in the list of @allNames@ of the mutual block.
@@ -356,7 +357,13 @@ termFunction name = do
   -- Retrieve the target type of the function to check.
   -- #4256: Don't use typeOfConst (which instantiates type with module params), since termination
   -- checking is running in the empty context, but with the current module unchanged.
-  target <- liftTCM $ do typeEndsInDef . defType =<< getConstInfo name
+  target <- case theDef def of
+    -- We are termination-checking a record (calls to record will not be guarding):
+    Record{} -> return TargetRecord
+    -- We are termination-checking a definition:
+    _ -> typeEndsInDef (defType def) <&> \case
+           Just d  -> TargetDef d
+           Nothing -> TargetOther
   reportTarget target
   terSetTarget target $ do
 
@@ -385,26 +392,61 @@ termFunction name = do
      cutoff <- terGetCutOff
      let ?cutoff = cutoff
      r <- billToTerGraph $ Term.terminatesFilter (== index) calls1
-     case r of
+
+     -- Andrea: 22/04/2020.
+     -- With cubical we will always have a clause where the dot
+     -- patterns are instead replaced with a variable, so they
+     -- cannot be relied on for termination.
+     -- See issue #4606 for a counterexample involving HITs.
+     --
+     -- Without the presence of HITs I conjecture that dot patterns
+     -- could be turned into actual splits, because no-confusion
+     -- would make the other cases impossible, so I do not disable
+     -- this for --without-K entirely.
+     --
+     -- Andreas, 2022-03-21: The check for --cubical was missing here.
+     ifM (isJust . optCubical <$> pragmaOptions) (return r) {- else -} $ case r of
        Right () -> return $ Right ()
-       Left{}    -> do
+       Left{}   -> do
          -- Try again, but include the dot patterns this time.
          calls2 <- terSetUseDotPatterns True $ collect
          reportCalls "" calls2
-         billToTerGraph $ mapLeft callInfos $ Term.terminatesFilter (== index) calls2
+         billToTerGraph $ Term.terminatesFilter (== index) calls2
 
     names <- terGetUserNames
-    case r of
-      Left calls -> return $ singleton $ terminationError ([name] `List.intersect` names) calls
+    case mapLeft callInfos r of
+
+      Left calls -> do
+        -- Mark as non-terminating.
+        setTerminates name False
+
+        -- Functions must be terminating, records types need not...
+        case theDef def of
+
+          -- Records need not terminate, so we just put the error on the debug log.
+          Record{} -> do
+            reportSDoc "term.warn.no" 10 $ vcat $
+              hsep [ "Record type", prettyTCM name, "does not termination check.", "Problematic calls:" ] :
+              (map (nest 2 . prettyTCM) $ List.sortOn callInfoRange calls)
+            mempty
+
+          -- Functions must terminate, so we report the error.
+          _ -> do
+            let err = TerminationError [name | name `elem` names] calls
+            return $ singleton err
+
       Right () -> do
-        liftTCM $ reportSLn "term.warn.yes" 2 $
+        reportSLn "term.warn.yes" 2 $
           prettyShow name ++ " does termination check"
+        setTerminates name True
         return mempty
    where
-     reportTarget r = liftTCM $
-       reportSLn "term.target" 20 $ "  target type " ++
-         caseMaybe r "not recognized" (\ q ->
-           "ends in " ++ prettyShow q)
+     reportTarget :: MonadDebug m => Target -> m ()
+     reportTarget tgt = reportSLn "term.target" 20 $ ("  " ++) $
+       case tgt of
+         TargetRecord -> "termination checking a record type"
+         TargetDef q  -> unwords [ "target type ends in", prettyShow q ]
+         TargetOther  -> "target type not recognized"
 
 -- | To process the target type.
 typeEndsInDef :: MonadTCM tcm => Type -> tcm (Maybe QName)
@@ -426,6 +468,13 @@ typeEndsInDef t = liftTCM $ do
 --   consider dot patterns or not.
 termDef :: QName -> TerM Calls
 termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
+
+ -- Skip calls to record types unless we are checking a record type in the first place.
+ let isRecord_ = case theDef def of { Record{} -> True; _ -> False }
+ let notTargetRecord = terGetTarget <&> \case
+       TargetRecord -> False
+       _ -> True
+ ifM (pure isRecord_ `and2M` notTargetRecord) mempty {-else-} $ do
 
   -- Retrieve definition
   let t = defType def
@@ -459,9 +508,28 @@ termDef name = terSetCurrent name $ inConcreteOrAbstractMode name $ \ def -> do
               then return empty
               else termClause cl
 
-        _ -> return empty
-  where
+        -- @record R pars : Set where field tel@
+        -- is treated like function @R pars = tel@.
+        Record{ recPars, recTel } -> termRecTel recPars recTel
 
+        _ -> return empty
+
+-- | Extract "calls" to the field types from a record constructor telescope.
+-- Does not extract from the parameters, but treats these as the "pattern variables"
+-- (the lhs of the "function").
+termRecTel :: Nat -> Telescope -> TerM Calls
+termRecTel npars tel = do
+  -- Set up the record parameters like function parameters.
+  let (pars, fields) = splitAt npars $ telToList tel
+  addContext pars $ do
+    ps <- mkPats npars
+    terSetPatterns ps $ terSetSizeDepth pars $ do
+      -- Treat the record fields like the body of a function.
+      extract $ telFromList fields
+  where
+  -- create n variable patterns
+  mkPats n  = zipWith mkPat (downFrom n) <$> getContextNames
+  mkPat i x = notMasked $ VarP defaultPatternInfo $ DBPatVar (prettyShow x) i
 
 -- | Collect calls in type signature @f : (x1:A1)...(xn:An) -> B@.
 --   It is treated as if there were the additional function clauses.
@@ -519,24 +587,12 @@ setMasks t cont = do
 
 -- | Is the current target type among the given ones?
 
-targetElem :: [Target] -> TerM Bool
-targetElem ds = maybe False (`elem` ds) <$> terGetTarget
+targetElem :: [QName] -> TerM Bool
+targetElem ds = terGetTarget <&> \case
+  TargetDef d  -> d `elem` ds
+  TargetRecord -> False
+  TargetOther  -> False
 
-{-
--- | The target type of the considered recursive definition.
-data Target
-  = Set        -- ^ Constructing a Set (only meaningful with 'guardingTypeConstructors').
-  | Data QName -- ^ Constructing a coinductive or mixed type (could be data or record).
-  deriving (Eq, Show)
-
--- | Check wether a 'Target" corresponds to the current one.
-matchingTarget :: DBPConf -> Target -> TCM Bool
-matchingTarget conf t = maybe (return True) (match t) (currentTarget conf)
-  where
-    match Set      Set       = return True
-    match (Data d) (Data d') = mutuallyRecursive d d'
-    match _ _                = return False
--}
 
 -- | Convert a term (from a dot pattern) to a DeBruijn pattern.
 --
@@ -697,6 +753,11 @@ instance ExtractCalls Sort where
 instance ExtractCalls Type where
   extract (El s t) = extract (s, t)
 
+instance ExtractCalls a => ExtractCalls (Tele a) where
+  extract = \case
+    EmptyTel        -> mempty
+    ExtendTel a tel -> extract a <> extract tel
+
 -- | Extract recursive calls from a constructor application.
 
 constructor
@@ -757,8 +818,11 @@ function g es0 = do
        -- call leads outside the mutual block and can be ignored
        Nothing   -> return calls
 
-       -- call is to one of the mutally recursive functions
+       -- call is to one of the mutally recursive functions/record
        Just gInd -> do
+         cutoff <- terGetCutOff
+         let ?cutoff = cutoff
+
          delayed <- terGetDelayed
          -- Andreas, 2017-02-14, issue #2458:
          -- If we have inlined with-functions, we could be illtyped,
@@ -794,15 +858,30 @@ function g es0 = do
          -- spent on call matrix generation
          (nrows, ncols, matrix) <- billTo [Benchmark.Termination, Benchmark.Compare] $
            compareArgs es
-         -- only a delayed definition can be guarded
-         let ifDelayed o | Order.decreasing o && delayed == NotDelayed = Order.le
-                         | otherwise                                  = o
+
+         -- Andreas, 2022-03-21, #5823:
+         -- If we are "calling" a record type we are guarded unless the origin
+         -- of the termination analysis is itself a record.
+         -- This is because we usually do not "unfold" record types into their
+         -- field telescope.  We only do so when trying to construct the
+         -- unique inhabitant of record type (singleton analysis).
+         -- In the latter case, a call to a record type is not guarding.
+         guarded' <- isRecord g >>= \case
+           Just{} -> terGetTarget >>= \case
+             TargetRecord
+               -> return guarded
+             _ -> return (guarded .*. Order.lt)
+                    -- guarding when we call a record and not termination checking a record
+           Nothing
+             -- only a delayed definition can be guarded
+             | Order.decreasing guarded && delayed == NotDelayed
+               -> return Order.le
+             | otherwise
+               -> return guarded
          liftTCM $ reportSLn "term.guardedness" 20 $
            "composing with guardedness " ++ prettyShow guarded ++
-           " counting as " ++ prettyShow (ifDelayed guarded)
-         cutoff <- terGetCutOff
-         let ?cutoff = cutoff
-         let matrix' = composeGuardedness (ifDelayed guarded) matrix
+           " counting as " ++ prettyShow guarded'
+         let matrix' = composeGuardedness guarded' matrix
 
          -- Andreas, 2013-04-26 FORBIDDINGLY expensive!
          -- This PrettyTCM QName cost 50% of the termination time for std-lib!!
@@ -905,12 +984,11 @@ getNonRecursiveClauses q =
 
 instance ExtractCalls Term where
   extract t = do
-    liftTCM $ reportSDoc "term.check.term" 50 $ do
+    reportSDoc "term.check.term" 50 $ do
       "looking for calls in" <+> prettyTCM t
 
     -- Instantiate top-level MetaVar.
-    t <- liftTCM $ instantiate t
-    case t of
+    instantiate t >>= \case
 
       -- Constructed value.
       Con ConHead{conName = c, conDataRecord = dataOrRec} _ es -> do
@@ -921,13 +999,19 @@ instance ExtractCalls Term where
         -- If we encounter a coinductive record constructor
         -- in a type mutual with the current target
         -- then we count it as guarding.
-        let inductive   = return Inductive
-            coinductive = return CoInductive
+        let inductive   = return Inductive    -- not guarding, but preserving
+            coinductive = return CoInductive  -- guarding
+        -- ♯ is guarding
         ind <- ifM ((Just c ==) <$> terGetSharp) coinductive $ {-else-} do
+          -- data constructors are not guarding
           if dataOrRec == IsData then inductive else do
-          caseMaybeM (liftTCM $ isRecordConstructor c) inductive $ \ (q, def) -> do
+          -- abstract constructors are not guarding
+          caseMaybeM (isRecordConstructor c) inductive $ \ (q, def) -> do
             reportSLn "term.check.term" 50 $ "constructor " ++ prettyShow c ++ " has record type " ++ prettyShow q
+            -- inductive record constructors are not guarding
             if recInduction def /= Just CoInductive then inductive else do
+            -- coinductive constructors unrelated to the mutually
+            -- constructed inhabitants of coinductive types are not guarding
             ifM (targetElem . fromMaybe __IMPOSSIBLE__ $ recMutual def)
                {-then-} coinductive
                {-else-} inductive
@@ -942,17 +1026,16 @@ instance ExtractCalls Term where
       -- Neutral term. Destroys guardedness.
       Var i es -> terUnguarded $ extract es
 
-      -- Dependent function space. Destroys guardedness.
+      -- Dependent function space.
       Pi a (Abs x b) ->
-        terUnguarded $
         CallGraph.union <$>
         extract a <*> do
           a <- maskSizeLt a  -- OR: just do not add a to the context!
           addContext (x, a) $ terRaise $ extract b
 
-      -- Non-dependent function space. Destroys guardedness.
+      -- Non-dependent function space.
       Pi a (NoAbs _ b) ->
-        terUnguarded $ CallGraph.union <$> extract a <*> extract b
+        CallGraph.union <$> extract a <*> extract b
 
       -- Literal.
       Lit l -> return empty
@@ -1031,7 +1114,7 @@ compareArgs es = do
   let guardedness =
         if useGuardedness
         then decr True $ projsCaller - projsCallee
-        else Order.Unknown
+        else Order.le
   liftTCM $ reportSDoc "term.guardedness" 30 $ sep
     [ "compareArgs:"
     , nest 2 $ text $ "projsCaller = " ++ prettyShow projsCaller

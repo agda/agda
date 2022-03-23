@@ -89,6 +89,9 @@ markNonRecursive q = modifySignature $ updateDefinition q $ updateTheDef $ \case
    { funTerminates = Just True
    , funClauses    = map (\ cl -> cl { clauseRecursive = Just False }) $ funClauses def
    }
+  def@Record{} -> def
+   { recTerminates = Just True
+   }
   def -> def
 
 -- | Mark all clauses of a function as recursive or non-recursive.
@@ -113,11 +116,17 @@ recDef include name = do
 
   -- Get names in body
   (perClause, ns2) <- case theDef def of
+
     Function{ funClauses = cls } -> do
       perClause <- do
         forM (zip [0..] cls) $ \ (i, cl) ->
           (i,) <$> anyDefs include cl
       return (IntMap.fromList perClause, mconcat $ map snd perClause)
+
+    Record{ recTel } -> do
+      ns <- anyDefs include recTel
+      return (IntMap.singleton 0 ns, ns)
+
     _ -> return (mempty, mempty)
 
   reportS "rec.graph" 20
