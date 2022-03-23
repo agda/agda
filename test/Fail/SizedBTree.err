@@ -14,5 +14,7 @@ Termination checking failed for the following functions:
 Problematic calls:
   deep2 {i} {A} (node {i'} (node {i''} l r) x)
   | deep2 {↑ i''} {A} (deep2 {↑ i''} {A} (node {_} {_} {i''} l r))
+  deep2 {↑ i''} {A} (deep2 {↑ i''} {A} (node {_} {_} {i''} l r))
+    (at SizedBTree.agda:67,34-39)
   deep2 {↑ i'} {A} (node {_} {_} {i'} l2 r2)
     (at SizedBTree.agda:69,22-27)

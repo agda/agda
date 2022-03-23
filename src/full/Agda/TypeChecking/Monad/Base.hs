@@ -2222,6 +2222,10 @@ data Defn = Axiom -- ^ Postulate
               -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
               --   'Nothing' means that the user did not specify it, which is an error
               --   for recursive records.
+            , recTerminates     :: Maybe Bool
+              -- ^ 'Just True' means that unfolding of the recursive record terminates,
+              --   'Just False' means that we have no evidence for termination,
+              --   and 'Nothing' means we have not run the termination checker yet.
             , recAbstr          :: IsAbstract
             , recComp           :: CompKit
             }
@@ -4730,8 +4734,8 @@ instance KillRange Defn where
       AbstractDefn{} -> __IMPOSSIBLE__ -- only returned by 'getConstInfo'!
       Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with ->
         killRange14 Function cls comp ct tt covering inv mut isAbs delayed proj flags term extlam with
-      Datatype a b c d e f g h i j   -> killRange8 Datatype a b c d e f g h i j
-      Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
+      Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
+      Record a b c d e f g h i j k l m -> killRange13 Record a b c d e f g h i j k l m
       Constructor a b c d e f g h i j-> killRange10 Constructor a b c d e f g h i j
       Primitive a b c d e            -> killRange5 Primitive a b c d e
       PrimitiveSort a b              -> killRange2 PrimitiveSort a b
