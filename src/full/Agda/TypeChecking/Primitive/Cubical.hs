@@ -461,6 +461,8 @@ unglueTranspGlue :: PureTCM m =>
                   -> FamilyOrNot
                        (Arg Term, Arg Term, Arg Term, Arg Term, Arg Term, Arg Term)
                   -> m Term
+-- ...    |- psi, u0
+-- ..., i |- la, lb, bA, phi, bT, e
 unglueTranspGlue psi u0 (IsFam (la, lb, bA, phi, bT, e)) = do
       let
         localUse = builtinTrans ++ " for " ++ builtinGlue
@@ -496,21 +498,31 @@ unglueTranspGlue psi u0 (IsFam (la, lb, bA, phi, bT, e)) = do
                           <@> (imax phi (ineg i))
                           <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
+
+        -- glue1 t a = glue la[i1/i] lb[i1/i] bA[i1/i] phi[i1/i] bT[i1/i] e[i1/i] t a
         glue1 <- do
           g <- open $ (tglue `apply`) . map ((setHiding Hidden) . (subst 0 io)) $ [la, lb, bA, phi, bT, e]
           return $ \ t a -> g <@> t <@> a
-        unglue0 <- do
-          ug <- open $ (tunglue `apply`) . map ((setHiding Hidden) . (subst 0 iz)) $ [la, lb, bA, phi, bT, e]
-          return $ \ a -> ug <@> a
+
         [la, lb, bA, phi, bT, e] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, lb, bA, phi, bT, e]
+
+        -- Andreas, 2022-03-24, fixing #5838
+        -- Following the updated note
+        --
+        --   Simon Huber, A Cubical Type Theory for Higher Inductive Types
+        --   https://simhu.github.io/misc/hcomp.pdf (February 2022)
+        --
+        -- See: https://github.com/agda/agda/issues/5755#issuecomment-1043797776
+
+        -- unglue_u0 i = unglue la[i/i] lb[i/i] bA[i/i] phi[i/i] bT[i/i] e[i/i] u0
+        let unglue_u0 i =
+              foldl (<#>) (pure tunglue) (map (<@> i) [la, lb, bA, phi, bT, e]) <@> u0
+
         view <- intervalView'
 
-        -- phi1 <- view <$> (reduce =<< (phi <@> pure io))
-        -- if not $ (isIOne phi1) then return Nothing else Just <$> do
         let
           tf i o = transpFill lb (lam "i" $ \ i -> bT <@> i <..> o) psi u0 i
           t1 o = tf (pure io) o
-          a0 = unglue0 u0
 
           -- compute "forall. phi"
           forallphi = pure tForall <@> phi
@@ -522,14 +534,14 @@ unglueTranspGlue psi u0 (IsFam (la, lb, bA, phi, bT, e)) = do
                                              <@> psi
                                              <@> forallphi
                                              <@> ilam "o" (\ a -> bA <@> i)
-                                             <@> ilam "o" (\ _ -> a0)
+                                             <@> ilam "o" (\ _ -> unglue_u0 i)
                                              <@> ilam "o" (\ o -> pure tEFun <#> (lb <@> i)
                                                                                <#> (la <@> i)
                                                                                <#> (bT <@> i <..> o)
                                                                                <#> (bA <@> i)
                                                                                <@> (e <@> i <..> o)
                                                                                <@> (tf i o)))
-                 a0
+                 (unglue_u0 (pure iz))
 
           max l l' = pure tLMax <@> l <@> l'
           sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y
@@ -642,6 +654,9 @@ compGlue DoHComp psi (Just u) u0 (IsNot (la, lb, bA, phi, bT, e)) tpos = do
         case tpos of
           Head -> t1 (pure tItIsOne)
           Eliminated -> a1
+
+-- ...    |- psi, u0
+-- ..., i |- la, lb, bA, phi, bT, e
 compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       let
         localUse = builtinTrans ++ " for " ++ builtinGlue
@@ -677,20 +692,32 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
                           <@> (imax phi (ineg i))
                           <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
+
+        -- glue1 t a = glue la[i1/i] lb[i1/i] bA[i1/i] phi[i1/i] bT[i1/i] e[i1/i] t a
         glue1 <- do
           g <- open $ (tglue `apply`) . map ((setHiding Hidden) . (subst 0 io)) $ [la, lb, bA, phi, bT, e]
           return $ \ t a -> g <@> t <@> a
-        unglue0 <- do
-          ug <- open $ (tunglue `apply`) . map ((setHiding Hidden) . (subst 0 iz)) $ [la, lb, bA, phi, bT, e]
-          return $ \ a -> ug <@> a
+
         [la, lb, bA, phi, bT, e] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, lb, bA, phi, bT, e]
+
+        -- Andreas, 2022-03-24, fixing #5838
+        -- Following the updated note
+        --
+        --   Simon Huber, A Cubical Type Theory for Higher Inductive Types
+        --   https://simhu.github.io/misc/hcomp.pdf (February 2022)
+        --
+        -- See: https://github.com/agda/agda/issues/5755#issuecomment-1043797776
+
+        -- unglue_u0 i = unglue la[i/i] lb[i/i] bA[i/i] phi[i/i] bT[i/i] e[i/e] u0
+        let unglue_u0 i =
+              foldl (<#>) (pure tunglue) (map (<@> i) [la, lb, bA, phi, bT, e]) <@> u0
+
         view <- intervalView'
 
         ifM (headStop tpos (phi <@> pure io)) (return Nothing) $ Just <$> do
         let
           tf i o = transpFill lb (lam "i" $ \ i -> bT <@> i <..> o) psi u0 i
           t1 o = tf (pure io) o
-          a0 = unglue0 u0
 
           -- compute "forall. phi"
           forallphi = pure tForall <@> phi
@@ -701,15 +728,15 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
                  (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
                                              <@> psi
                                              <@> forallphi
-                                             <@> ilam "o" (\ a -> bA <@> i)
-                                             <@> ilam "o" (\ _ -> a0)
+                                             <@> ilam "o" (\ _ -> bA <@> i)
+                                             <@> ilam "o" (\ _ -> unglue_u0 i)
                                              <@> ilam "o" (\ o -> pure tEFun <#> (lb <@> i)
                                                                                <#> (la <@> i)
                                                                                <#> (bT <@> i <..> o)
                                                                                <#> (bA <@> i)
                                                                                <@> (e <@> i <..> o)
                                                                                <@> (tf i o)))
-                 a0
+                 (unglue_u0 (pure iz))
 
           max l l' = pure tLMax <@> l <@> l'
           sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y
@@ -864,13 +891,26 @@ compHCompU DoTransp psi Nothing u0 (IsFam (la, phi, bT, bA)) tpos = do
           let bAS = pure tSubIn <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
           g <- (open =<<) $ pure tglue <#> la <#> phi <#> bT <#> bAS
           return $ \ t a -> g <@> t <@> a
-        unglue0 <- do
-          tunglue <- cl $ getTermLocal builtin_unglueU
-          [la, phi, bT, bA] <- mapM (open . unArg . subst 0 iz) $ [la, phi, bT, bA]
-          let bAS = pure tSubIn <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
-          ug <- (open =<<) $ pure tunglue <#> la <#> phi <#> bT <#> bAS
-          return $ \ a -> ug <@> a
+
         [la, phi, bT, bA] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, phi, bT, bA]
+
+        -- Andreas, 2022-03-25, issue #5838.
+        -- Port the fix of @unglueTranspGlue@ and @compGlue DoTransp@
+        -- also to @compHCompU DoTransp@, as suggested by Tom Jack and Anders Mörtberg.
+        -- We define @unglue_u0 i@ that is first used with @i@ and then with @i0@.
+        -- The original code used it only with @i0@.
+        tunglue <- cl $ getTermLocal builtin_unglueU
+        let bAS i =
+              pure tSubIn  <#> (pure tLSuc <@> (la <@> i))
+                           <#> (Sort . tmSort <$> (la <@> i))
+                           <#> (phi <@> i)
+                           <@> (bA <@> i)
+        let unglue_u0 i =
+              pure tunglue <#> (la <@> i)
+                           <#> (phi <@> i)
+                           <#> (bT <@> i)
+                           <#> bAS i
+                           <@> u0
 
         ifM (headStop tpos (phi <@> pure io)) (return Nothing) $ Just <$> do
 
@@ -878,7 +918,6 @@ compHCompU DoTransp psi Nothing u0 (IsFam (la, phi, bT, bA)) tpos = do
           lb = la
           tf i o = transpFill lb (lam "i" $ \ i -> bT <@> i <@> pure io <..> o) psi u0 i
           t1 o = tf (pure io) o
-          a0 = unglue0 u0
 
           -- compute "forall. phi"
           forallphi = pure tForall <@> phi
@@ -889,12 +928,12 @@ compHCompU DoTransp psi Nothing u0 (IsFam (la, phi, bT, bA)) tpos = do
                  (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
                                              <@> psi
                                              <@> forallphi
-                                             <@> ilam "o" (\ a -> bA <@> i)
-                                             <@> ilam "o" (\ _ -> a0)
+                                             <@> ilam "o" (\ _ -> bA <@> i)
+                                             <@> ilam "o" (\ _ -> unglue_u0 i)
                                              <@> ilam "o" (\ o -> transp (la <@> i)
                                                                            (\ j -> bT <@> i <@> ineg j <..> o)
                                                                            (tf i o)))
-                 a0
+                 (unglue_u0 (pure iz))
 
           w i o = lam "x" $
                   transp (la <@> i)
