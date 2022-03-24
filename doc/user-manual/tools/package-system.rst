@@ -155,7 +155,7 @@ There are three ways a library gets used:
 
 - You supply the ``--library=LIB`` (or ``-l LIB``) option to Agda. This is
   equivalent to adding a ``-iPATH`` for each of the include paths of ``LIB``
-  and its (transitive) dependencies. In this case the current directory is *not* 
+  and its (transitive) dependencies. In this case the current directory is *not*
   implicitly added to the include paths.
 
 - No explicit ``--library`` flag is given, and the current project root
