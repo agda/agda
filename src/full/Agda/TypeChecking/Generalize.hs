@@ -175,7 +175,9 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
 
   reportSDoc "tc.generalize" 50 $ "current constraints:" <?> vcat (map prettyTCM cs)
 
-  constrainedMetas <- Set.unions <$> mapM (constraintMetas . clValue . theConstraint) cs
+  -- #5845: unsolvedMetasIn looks inside meta instantations (specifically BlockedConsts) to find
+  -- metas trying to hide from us.
+  constrainedMetas <- unsolvedMetasIn . Set.unions =<< mapM (constraintMetas . clValue . theConstraint) cs
 
   reportSDoc "tc.generalize" 30 $ nest 2 $
     "constrainedMetas     = " <+> prettyList_ (map prettyTCM $ Set.toList constrainedMetas)

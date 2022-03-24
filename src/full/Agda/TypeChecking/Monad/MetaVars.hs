@@ -414,6 +414,25 @@ constraintMetas = \case
     listenerMetas EtaExpand{}           = return Set.empty
     listenerMetas (CheckConstraint _ c) = constraintMetas (clValue $ theConstraint c)
 
+-- | Compute all unsolved metas appearing in a set of metas and their solutions. For blocked terms,
+--   return both the meta and metas appearing in the term. Used by generalization to compute
+--   constrained metas. #5845 was caused by not looking at metas appearing in blocked terms.
+unsolvedMetasIn :: Set MetaId -> TCM (Set MetaId)
+unsolvedMetasIn xs = loop Set.empty (Set.toList xs) Set.empty
+  where
+    loop :: Set MetaId -> [MetaId] -> Set MetaId -> TCM (Set MetaId)
+    loop seen [] q
+      | null q    = return Set.empty
+      | otherwise = loop seen (Set.toList q) Set.empty
+    loop seen (x : xs) q =
+      lookupMetaInstantiation x >>= \ case
+        InstV i                        -> loop seen' xs (q <> allMetas Set.singleton (instBody i))
+        Open                           -> Set.insert x <$> loop seen' xs q
+        OpenInstance                   -> Set.insert x <$> loop seen' xs q
+        BlockedConst v                 -> Set.insert x <$> loop seen' xs (q <> allMetas Set.singleton v)
+        PostponedTypeCheckingProblem{} -> Set.insert x <$> loop seen' xs q
+      where seen' = Set.insert x seen
+
 -- | Create 'MetaInfo' in the current environment.
 createMetaInfo :: (MonadTCEnv m, ReadTCState m) => m MetaInfo
 createMetaInfo = createMetaInfo' RunMetaOccursCheck
