@@ -194,6 +194,7 @@ instance EmbPrj DeclarationWarning' where
     InvalidConstructor a              -> icodeN 30 InvalidConstructor a
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
     MissingDeclarations a             -> icodeN 32 MissingDeclarations a
+    HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -229,6 +230,7 @@ instance EmbPrj DeclarationWarning' where
     [30,r]   -> valuN InvalidConstructor r
     [31,r]   -> valuN InvalidConstructorBlock r
     [32,r]   -> valuN MissingDeclarations r
+    [33,r]   -> valuN HiddenGeneralize r
     _ -> malformed
 
 instance EmbPrj LibWarning where

@@ -186,6 +186,7 @@ data WarningName
   | EmptyPrivate_
   | EmptyRewritePragma_
   | EmptyWhere_
+  | HiddenGeneralize_
   | InvalidCatchallPragma_
   | InvalidConstructor_
   | InvalidConstructorBlock_
@@ -341,6 +342,7 @@ warningNameDescription = \case
   EmptyPrivate_                    -> "Empty `private' blocks."
   EmptyRewritePragma_              -> "Empty `REWRITE' pragmas."
   EmptyWhere_                      -> "Empty `where' blocks."
+  HiddenGeneralize_                -> "Hidden identifieres in variable blocks."
   InvalidCatchallPragma_           -> "`CATCHALL' pragmas before a non-function clause."
   InvalidConstructor_              -> "`constructor' blocks may only contain type signatures for constructors."
   InvalidConstructorBlock_         -> "No `constructor' blocks outside of `interleaved mutual' blocks."
