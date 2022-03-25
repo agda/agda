@@ -483,6 +483,12 @@ warningHighlighting' b w = case tcWarning w of
     EmptyPrivate{}                   -> deadcodeHighlighting w
     EmptyGeneralize{}                -> deadcodeHighlighting w
     EmptyField{}                     -> deadcodeHighlighting w
+    HiddenGeneralize{}               -> mempty
+      -- Andreas, 2022-03-25, issue #5850
+      -- We would like @deadcodeHighlighting w@ for the braces in
+      -- @variable {x} : A@, but these have no range, so we cannot highlight them.
+      -- Highlighting the variable instead might be misleading,
+      -- suggesting that it is not generalized over.
     UselessAbstract{}                -> deadcodeHighlighting w
     UselessInstance{}                -> deadcodeHighlighting w
     UselessPrivate{}                 -> deadcodeHighlighting w

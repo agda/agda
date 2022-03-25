@@ -307,6 +307,10 @@ niceDeclarations fixs ds = do
         Generalize r sigs -> do
           gs <- forM sigs $ \case
             sig@(TypeSig info tac x t) -> do
+              -- Andreas, 2022-03-25, issue #5850:
+              -- Warn about @variable {x} : A@ which is equivalent to @variable x : A@.
+              when (getHiding info == Hidden) $
+                declarationWarning $ HiddenGeneralize $ getRange x
               return $ NiceGeneralize (getRange sig) PublicAccess info tac x t
             _ -> __IMPOSSIBLE__
           return (gs, ds)
