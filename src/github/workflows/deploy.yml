@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2022, macos-latest, ubuntu-20.04]
-        ghc-ver: [9.2.1]
+        ghc-ver: ['9.2']
         cabal-ver: [3.6]
 
     env:

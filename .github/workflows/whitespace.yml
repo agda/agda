@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         ghc-ver:
-        - 9.2.2
+        - '9.2'
         cabal-ver:
         - latest
         fix-whitespace-ver:
