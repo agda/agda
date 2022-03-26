@@ -72,9 +72,7 @@ jobs:
             stack-ver: latest
           - os: windows-latest
             ghc-ver: 9.0.1
-              # Andreas, 2022-03-10: chocolatey does not have GHC 9.2.2 yet.
-              # (This makes haskell/actions/setup crash.)
-              # But also, stack/windows is still not ready for GHC 9.2.
+              # Andreas, 2022-03-26: stack/windows is still not ready for GHC 9.2.
               # Andreas, 2022-02-07: stack-9.0.1.yaml has text-icu-0.8.0 just for the Windows CI.
               # If you update the ghc-ver here, make sure that text-icu is new enough to work
               # with the latest mingw-w64-x86_64-icu.
