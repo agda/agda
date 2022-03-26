@@ -43,6 +43,12 @@ jobs:
       matrix:
         os: [ubuntu-18.04]
         stack-ver: [latest]
+        # Andreas, 2022-03-26:
+        # Note: ghc-ver needs to be spelled out with minor version, i.e., x.y.z
+        # rather than x.y (which haskell-setup would resolve to a suitable .z)
+        # because ghc-ver is to pick the stack-$(ghc-ver).yaml file.
+        # If switching to a new GHC minor version needs manual action, i.e.,
+        # adding the respective stack-x.y.z.yaml file.
         ghc-ver: [8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
           # Andreas, 2022-03-10: the LTS for GHC 8.10 has text-icu-0.7.1.0
           # (sarting with LTS 17.14).  Our stack-8.y.z.yaml files

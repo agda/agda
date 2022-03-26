@@ -61,10 +61,10 @@ jobs:
   build:
     strategy:
       matrix:
-        # TODO (Andreas, 2021-11-13)
-        # Upgrade to 9.2.2 once this does not cause problems with shelltestrunner
-        # https://github.com/agda/agda/pull/5648#issuecomment-968100273
-        ghc-ver: [9.2.2]
+        # Andreas, 2022-03-26:
+        # ghc-ver should be given as x.y.z (as opposed to x.y only)
+        # because it is used verbatim when referring to stack-x.y.z.yaml.
+        ghc-ver: ['9.2.2']
         stack-ver: [latest]
         os: [ubuntu-20.04]
 
