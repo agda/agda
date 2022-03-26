@@ -49,7 +49,7 @@ jobs:
           ## There is e.g. https://github.com/phile314/tasty-silver/issues/16
           ## that may be responsible that diffs are not shown,
           ## and that prevents me from running the test-suite interactively.
-        ghc-ver: [9.2.2]
+        ghc-ver: ['9.2']
         cabal-ver: [latest]
 
     steps:
