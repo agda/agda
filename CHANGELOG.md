@@ -5,7 +5,11 @@ Highlights
 ----------
 
 * Agda 2.6.2.2 catches up to changes in the Haskell ecosystem
-  (`bytestring-0.11.2.0`, `mtl-2.3-rc3/4`, `text-icu-0.8.0.1`).
+  (`bytestring-0.11.2.0`, `mtl-2.3-rc3/4`, `text-icu-0.8.0.1`,
+  stackage `lts-19.0` and `nightly`).
+
+* Fixes inconsistency [#5838](https://github.com/agda/agda/issues/5838)
+  in `--cubical`.
 
 * Fixes some regressions introduced in 2.6.1:
 
@@ -20,6 +24,9 @@ Highlights
 
   - [#5784](https://github.com/agda/agda/issues/5784):
     `primEraseEquality` does not compute.
+
+  - [#5805](https://github.com/agda/agda/issues/5805):
+    internal error involving holes and `with`.
 
   - [#5819](https://github.com/agda/agda/issues/5819):
     internal error when reducing in termination checker.
@@ -52,6 +59,9 @@ Language
   test = trivial
   ```
 
+* Fixed inconsistent `--cubical` reductions for `transp`:
+  issue [#5838](https://github.com/agda/agda/issues/5838).
+
 * Fixed issues with reflection:
 
   - [#5762](https://github.com/agda/agda/issues/5762):
@@ -62,6 +72,9 @@ Language
 
   - [#5700](https://github.com/agda/agda/issues/5700):
     scope of metas created during macro expansion.
+
+  - [#5712](https://github.com/agda/agda/issues/5712):
+    internal error with tactics on record fields of function type.
 
 * Fixed issues with instance search:
 
