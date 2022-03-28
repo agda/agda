@@ -1,0 +1,4 @@
+Issue5856.agda:18,8-11
+Patterns are not allowed in Path-lambdas
+when checking that the expression λ .patternInTele0 @ (c e) → a has
+type a ≡ a
