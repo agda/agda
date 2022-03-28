@@ -1347,8 +1347,8 @@ instance Reify (QNamed System) where
         result = A.Clause (spineToLhs lhs) [] rhs A.noWhereDecls False
       return result
 
-instance Reify Type where
-    type ReifiesTo Type = Expr
+instance Reify I.Type where
+    type ReifiesTo I.Type = A.Type
 
     reifyWhen = reifyWhenE
     reify (I.El _ t) = reify t

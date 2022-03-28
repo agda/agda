@@ -1261,7 +1261,7 @@ instance PrettyUnequal Term where
     (d1, d2, d) <- prettyInEqual t1 t2
     fsep $ return d1 : ncmp : return d2 : return d : []
 
-instance PrettyUnequal Type where
+instance PrettyUnequal I.Type where
   prettyUnequal t1 ncmp t2 = prettyUnequal (unEl t1) ncmp (unEl t2)
 
 instance PrettyTCM SplitError where
@@ -1328,7 +1328,7 @@ instance PrettyTCM SplitError where
       pwords "Case to handle:") $$ nest 2 (vcat $ [display cl])
                                 $$ ((pure msg <+> enterClosure t displayAbs) <> ".")
         where
-        displayAbs :: Abs Type -> m Doc
+        displayAbs :: Abs I.Type -> m Doc
         displayAbs (Abs x t) = addContext x $ prettyTCM t
         displayAbs (NoAbs x t) = prettyTCM t
         display (tel, ps) = prettyTCM $ NamedClause f True $
