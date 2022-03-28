@@ -73,6 +73,10 @@ instance Ord BindName where
 
 type Args = [NamedArg Expr]
 
+-- | Types are just expressions.
+-- Use this type synonym for hinting that an expression should be a type.
+type Type = Expr
+
 -- | Expressions after scope checking (operators parsed, names resolved).
 data Expr
   = Var  Name                          -- ^ Bound variable.
@@ -98,9 +102,9 @@ data Expr
   | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
   | AbsurdLam ExprInfo Hiding          -- ^ @λ()@ or @λ{}@.
   | ExtendedLam ExprInfo DefInfo Erased QName (List1 Clause)
-  | Pi   ExprInfo Telescope1 Expr      -- ^ Dependent function space @Γ → A@.
-  | Generalized (Set QName) Expr       -- ^ Like a Pi, but the ordering is not known
-  | Fun  ExprInfo (Arg Expr) Expr      -- ^ Non-dependent function space.
+  | Pi   ExprInfo Telescope1 Type      -- ^ Dependent function space @Γ → A@.
+  | Generalized (Set QName) Type       -- ^ Like a Pi, but the ordering is not known
+  | Fun  ExprInfo (Arg Type) Type      -- ^ Non-dependent function space.
   | Let  ExprInfo (List1 LetBinding) Expr
                                        -- ^ @let bs in e@.
   | ETel Telescope                     -- ^ Only used when printing telescopes.
@@ -113,12 +117,12 @@ data Expr
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
   deriving (Data, Show, Generic)
 
--- | Pattern synonym for regular Def
+-- | Pattern synonym for regular 'Def'.
 pattern Def :: QName -> Expr
 pattern Def x = Def' x NoSuffix
 
--- | Smart constructor for Generalized
-generalized :: Set QName -> Expr -> Expr
+-- | Smart constructor for 'Generalized'.
+generalized :: Set QName -> Type -> Type
 generalized s e
     | null s    = e
     | otherwise = Generalized s e
@@ -155,15 +159,15 @@ instance Pretty ScopeCopyInfo where
 type RecordDirectives = RecordDirectives' QName
 
 data Declaration
-  = Axiom      KindOfName DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
+  = Axiom      KindOfName DefInfo ArgInfo (Maybe [Occurrence]) QName Type
     -- ^ Type signature (can be irrelevant, but not hidden).
     --
     -- The fourth argument contains an optional assignment of
     -- polarities to arguments.
-  | Generalize (Set QName) DefInfo ArgInfo QName Expr
+  | Generalize (Set QName) DefInfo ArgInfo QName Type
     -- ^ First argument is set of generalizable variables used in the type.
-  | Field      DefInfo QName (Arg Expr)              -- ^ record field
-  | Primitive  DefInfo QName (Arg Expr)              -- ^ primitive function
+  | Field      DefInfo QName (Arg Type)              -- ^ record field
+  | Primitive  DefInfo QName (Arg Type)              -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
   | Section    Range ModuleName GeneralizeTelescope [Declaration]
   | Apply      ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
@@ -174,11 +178,11 @@ data Declaration
   | Open       ModuleInfo ModuleName ImportDirective
     -- ^ only retained for highlighting purposes
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
-  | DataSig    DefInfo QName GeneralizeTelescope Expr -- ^ lone data signature
+  | DataSig    DefInfo QName GeneralizeTelescope Type -- ^ lone data signature
   | DataDef    DefInfo QName UniverseCheck DataDefParams [Constructor]
-  | RecSig     DefInfo QName GeneralizeTelescope Expr -- ^ lone record signature
-  | RecDef     DefInfo QName UniverseCheck RecordDirectives DataDefParams Expr [Declaration]
-      -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+  | RecSig     DefInfo QName GeneralizeTelescope Type -- ^ lone record signature
+  | RecDef     DefInfo QName UniverseCheck RecordDirectives DataDefParams Type [Declaration]
+      -- ^ The 'Type' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
       --   The optional 'Range' is for the @pattern@ attribute.
   | PatternSynDef QName [Arg BindName] (Pattern' Void)
@@ -223,7 +227,7 @@ data Pragma
 
 -- | Bindings that are valid in a @let@.
 data LetBinding
-  = LetBind LetInfo ArgInfo BindName Expr Expr
+  = LetBind LetInfo ArgInfo BindName Type Expr
     -- ^ @LetBind info rel name type defn@
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
@@ -235,7 +239,6 @@ data LetBinding
   | LetDeclaredVariable BindName
     -- ^ Only used for highlighting. Refers to the first occurrence of
     -- @x@ in @let x : A; x = e@.
---  | LetGeneralize DefInfo ArgInfo Expr
   deriving (Data, Show, Eq, Generic)
 
 -- | Only 'Axiom's.
@@ -288,13 +291,13 @@ mkDomainFree = DomainFree Nothing
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range TacticAttr (List1 (NamedArg Binder)) Expr
+  = TBind Range TacticAttr (List1 (NamedArg Binder)) Type
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range (List1 LetBinding)
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Data, Show, Eq, Generic)
 
-mkTBind :: Range -> List1 (NamedArg Binder) -> Expr -> TypedBinding
+mkTBind :: Range -> List1 (NamedArg Binder) -> Type -> TypedBinding
 mkTBind r = TBind r Nothing
 
 mkTLet :: Range -> [LetBinding] -> Maybe TypedBinding
@@ -304,7 +307,7 @@ mkTLet r (d:ds) = Just $ TLet r (d :| ds)
 type Telescope1 = List1 TypedBinding
 type Telescope  = [TypedBinding]
 
-mkPi :: ExprInfo -> Telescope -> Expr -> Expr
+mkPi :: ExprInfo -> Telescope -> Type -> Type
 mkPi i []     e = e
 mkPi i (x:xs) e = Pi i (x :| xs) e
 
