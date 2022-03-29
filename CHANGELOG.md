@@ -238,6 +238,9 @@ Reflection
   invoked from instead of returning the type a name would have outside
   of all modules.
 
+Syntax
+------
+
 * It is now OK to put lambda-bound variables anywhere in the
   right-hand side of a syntax declaration. However, there must always
   be at least one "identifier" between any two regular "holes". For
@@ -521,4 +524,3 @@ tracker](https://github.com/agda/agda/issues)):
   - [#6273](https://github.com/agda/agda/issues/6273): Missing highlighting when interleaved mutual is used
   - [#6276](https://github.com/agda/agda/issues/6276): LaTeX/HTML generation doesn't properly render parameters of pre-declared records
   - [#6281](https://github.com/agda/agda/issues/6281): Special treatment of attribute followed by underscore in pretty-printer
-
