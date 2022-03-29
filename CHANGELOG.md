@@ -234,8 +234,9 @@ Reflection
 * [**Breaking**] A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
   is added.
 
-Syntax declarations
--------------------
+* The reflection primitive `getType` respects the module context it is
+  invoked from instead of returning the type a name would have outside
+  of all modules.
 
 * It is now OK to put lambda-bound variables anywhere in the
   right-hand side of a syntax declaration. However, there must always
