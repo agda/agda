@@ -1,4 +1,4 @@
 Issue5468.agda:33,1-16
 primTransp (λ i → x i) φ
-(unbox [ x₁ ]) is not usable at the required modality
+(unbox [ x₁ ]) is not usable at the required modality .
 when checking the definition of unbox

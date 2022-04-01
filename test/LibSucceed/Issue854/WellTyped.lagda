@@ -7,7 +7,7 @@
 \begin{code}
 module Issue854.WellTyped where
 
-open import Function hiding (_∋_)
+open import Function hiding (_∋_; force)
 open import Data.Fin
 open import Data.Product
 open import Data.List

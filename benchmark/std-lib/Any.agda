@@ -9,13 +9,13 @@ module Any where
 
 open import Algebra
 import Algebra.Definitions as FP
-open import Category.Monad
+open import Effect.Monad
 open import Data.Bool
 open import Data.Bool.Properties
 open import Data.Empty
 open import Data.List as List
 open import Data.List.Relation.Unary.Any as Any using (Any; here; there)
-import Data.List.Categorical
+import Data.List.Effectful
 open import Data.Product as Prod hiding (swap)
 open import Data.Product.Function.NonDependent.Propositional
   using (_×-cong_)
@@ -44,7 +44,7 @@ open Related.EquationalReasoning
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×-⊎-commutativeSemiring k ℓ)
   open module ListMonad {ℓ} =
-    RawMonad (Data.List.Categorical.monad {ℓ = ℓ})
+    RawMonad (Data.List.Effectful.monad {ℓ = ℓ})
 
 ------------------------------------------------------------------------
 -- Some lemmas related to map, find and lose
@@ -520,7 +520,7 @@ concat↔ {P = P} {xss = xss} = record
 map-with-∈↔ :
   ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p} {xs : List A}
     {f : ∀ {x} → x ∈ xs → B} →
-  (∃₂ λ x (x∈xs : x ∈ xs) → P (f x∈xs)) ↔ Any P (map-with-∈ xs f)
+  (∃₂ λ x (x∈xs : x ∈ xs) → P (f x∈xs)) ↔ Any P (mapWith∈ xs f)
 map-with-∈↔ {A = A} {B} {P} = record
   { to         = P.→-to-⟶ (map-with-∈⁺ _)
   ; from       = P.→-to-⟶ (map-with-∈⁻ _ _)
@@ -533,14 +533,14 @@ map-with-∈↔ {A = A} {B} {P} = record
   map-with-∈⁺ : ∀ {xs : List A}
                 (f : ∀ {x} → x ∈ xs → B) →
                 (∃₂ λ x (x∈xs : x ∈ xs) → P (f x∈xs)) →
-                Any P (map-with-∈ xs f)
+                Any P (mapWith∈ xs f)
   map-with-∈⁺ f (_ , here refl  , p) = here p
   map-with-∈⁺ f (_ , there x∈xs , p) =
     there $ map-with-∈⁺ (f ∘ there) (_ , x∈xs , p)
 
   map-with-∈⁻ : ∀ (xs : List A)
                 (f : ∀ {x} → x ∈ xs → B) →
-                Any P (map-with-∈ xs f) →
+                Any P (mapWith∈ xs f) →
                 ∃₂ λ x (x∈xs : x ∈ xs) → P (f x∈xs)
   map-with-∈⁻ []       f ()
   map-with-∈⁻ (y ∷ xs) f (here  p) = (y , here refl , p)
@@ -555,7 +555,7 @@ map-with-∈↔ {A = A} {B} {P} = record
     rewrite from∘to (f ∘ there) (_ , x∈xs , p) = refl
 
   to∘from : ∀ (xs : List A) (f : ∀ {x} → x ∈ xs → B)
-            (p : Any P (map-with-∈ xs f)) →
+            (p : Any P (mapWith∈ xs f)) →
             map-with-∈⁺ f (map-with-∈⁻ xs f p) ≡ p
   to∘from []       f ()
   to∘from (y ∷ xs) f (here  p) = refl

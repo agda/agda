@@ -20,7 +20,7 @@ open import Data.Container.FreeMonad using (rawMonad; inn)
     renaming (_⋆_ to _⋆^C_)
 open import Data.W
 open import Relation.Binary.PropositionalEquality
-open import Category.Monad
+open import Effect.Monad
 
 open import Data.List.Membership.Propositional
 open import Issue854.Types

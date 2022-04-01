@@ -18,7 +18,7 @@ open import Data.Container.Combinator using ()
 open import Data.Container.FreeMonad
     renaming (_⋆_ to _⋆^C_; _⋆C_ to _⋆^CC_)
 open import Data.W
-open import Category.Monad
+open import Effect.Monad
 \end{code}
 }
 

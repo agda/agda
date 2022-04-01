@@ -1,6 +1,6 @@
 module Issue784.RefAPI where
 
-open import Issue784.Values public
+open import Issue784.Values public hiding (seq)
 open import Issue784.Context -- that should be private
 open import Issue784.Transformer public
 

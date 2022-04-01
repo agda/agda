@@ -49,6 +49,15 @@ Language
   `(j : J) → A : Set l`, that is, the type of functions from a type in `ISet`
   to a fibrant type is fibrant.
 
+* The option `--experimental-irrelevance` is now perhaps incompatible
+  with Cubical Agda and perhaps also postulated univalence (see
+  [#5611](https://github.com/agda/agda/issues/5611) and
+  [#5861](https://github.com/agda/agda/pull/5861)).
+
+  This is not meant to imply that the option was not already
+  incompatible with those things. Note that
+  `--experimental-irrelevance` cannot be used together with `--safe`.
+
 * A new reflection primitive `getInstances : Meta → TC (List Term)`
   was added to `Agda.Builtin.Reflection`. This operation returns the
   list of all possibly valid instance candidates for a given

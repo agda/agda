@@ -4,7 +4,7 @@
 
 open import Relation.Binary
 open import Relation.Binary.OrderMorphism
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality hiding (poset)
 import Relation.Binary.Properties.StrictTotalOrder as STOProps
 open import Data.Product
 open import Level
@@ -50,14 +50,14 @@ open STOProps (record { Carrier = _ ; _≈_ = _; _<_ = _
                       ; isStrictTotalOrder = posOrdered })
 
 import IndexedMap as Map -- renaming (Map to MemoTable)
-open import Category.Monad
-open import Category.Monad.State
+open import Effect.Monad
+open import Effect.Monad.State
 import Data.List as List; open List using (List)
-open import Data.Unit hiding (poset; _≤_)
+open import Data.Unit
 open import Function
-open import Data.Maybe hiding (Eq)
-open import Data.Product.Relation.Lex.Strict
-open import Data.Product.Relation.Pointwise.NonDependent
+open import Data.Maybe
+open import Data.Product.Relation.Binary.Lex.Strict
+open import Data.Product.Relation.Binary.Pointwise.NonDependent
 import Relation.Binary.Construct.On as On
 
 ------------------------------------------------------------------------
