@@ -33,7 +33,7 @@ jobs:
       name: Unpack artifacts
     - with:
         path: ~/.stack
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
       uses: actions/cache@v2
       name: Cache dependencies
@@ -73,7 +73,7 @@ jobs:
       name: Unpack artifacts
     - with:
         path: ~/.stack
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
       uses: actions/cache@v2
       name: Cache dependencies
@@ -126,7 +126,7 @@ jobs:
       name: Unpack artifacts
     - with:
         path: ~/.stack
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
       uses: actions/cache@v2
       name: Cache dependencies
@@ -180,7 +180,7 @@ jobs:
       name: Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml
     - with:
         path: ~/.stack
-        key: ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-00-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
       uses: actions/cache@v2
       name: Cache dependencies
