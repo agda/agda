@@ -132,6 +132,11 @@ Pragmas and options
 * Profiling options are now turned on with a new `--profile` flag instead of
   abusing the debug verbosity option. (See [#5781](https://github.com/agda/agda/issues/5731).)
 
+* The option `--without-K` has been renamed `--cubical-compatible` (See
+  [#5843](https://github.com/agda/agda/issues/5843).)
+
+  The old name is retained for backwards compatibility.
+
 Performance
 -----------
 
