@@ -1,6 +1,6 @@
 -- Andreas, 2014-10-05
 
-{-# OPTIONS --without-K --sized-types #-}
+{-# OPTIONS --cubical-compatible --sized-types #-}
 
 -- {-# OPTIONS -v tc.size:20  #-}
 
@@ -21,6 +21,6 @@ div' : {size : Size} -> Nat {size} -> Nat -> Nat {size}
 div' zero    n = zero
 div' (suc m) n = suc (div' (sub m n) n)
 
--- should termination check even --without-K
+-- should termination check even --cubical-compatible
 
 -- -}

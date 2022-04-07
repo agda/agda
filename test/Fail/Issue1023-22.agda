@@ -1,6 +1,6 @@
 -- Andreas, 2014-10-05, code by Jesper Cockx
 
-{-# OPTIONS --without-K --guardedness #-}
+{-# OPTIONS --cubical-compatible --guardedness #-}
 
 open import Common.Coinduction
 open import Common.Equality

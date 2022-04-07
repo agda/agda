@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting #-}
+{-# OPTIONS --cubical-compatible --rewriting #-}
 
 module Issue1719.Pushouts where
 

@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 module WithoutK-PatternSynonyms1 where
 
@@ -8,6 +8,6 @@ data _≡_ {A : Set} (x : A) : A → Set where
 
 pattern r = refl
 
--- The --without-K option works with pattern synonyms.
+-- The --cubical-compatible option works with pattern synonyms.
 K : (A : Set) (x : A) (P : x ≡ x → Set) → P refl → (p : x ≡ x ) →  P p
 K A x P pr r = pr

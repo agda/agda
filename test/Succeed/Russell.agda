@@ -1,6 +1,6 @@
 -- Andreas, 2013-03-15
 -- Paolo Capriotti's formalization of Russell's paradox
-{-# OPTIONS --without-K --type-in-type #-}
+{-# OPTIONS --cubical-compatible --type-in-type #-}
 module Russell where
 
 open import Common.Product

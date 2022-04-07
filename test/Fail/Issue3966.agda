@@ -2,7 +2,7 @@
 --
 -- Precise error location for unification problem during coverage checking.
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 module _ {A : Set} where
 

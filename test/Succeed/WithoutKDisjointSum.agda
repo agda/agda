@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 -- Issue raised by Martin Escardo 2012-12-13
 -- on the Agda list "no longer type checks"
 module WithoutKDisjointSum where

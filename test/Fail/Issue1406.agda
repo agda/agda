@@ -1,7 +1,7 @@
 -- Andreas, 2014-01-16, issue 1406
 -- Agda with K again is inconsistent with classical logic
 
--- {-# OPTIONS --without-K #-}
+-- {-# OPTIONS --cubical-compatible #-}
 
 open import Common.Level
 open import Common.Prelude
@@ -16,7 +16,7 @@ data HEq {α} {A : Set α} (a : A) : {B : Set α} (b : B) → Set (lsuc α) wher
 mkHet : {A B : Set} (eq : A ≡ B) (a : A) → HEq a (cast eq a)
 mkHet refl a = refl
 
--- Type with a big forced index. (Allowed unless --without-K.)
+-- Type with a big forced index. (Allowed unless --cubical-compatible.)
 -- This definition is allowed in Agda master since 2014-10-17
 -- https://github.com/agda/agda/commit/9a4ebdd372dc0510e2d77e726fb0f4e6f56781e8
 -- However, probably the consequences of this new feature have not

@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting #-}
+{-# OPTIONS --cubical-compatible --rewriting #-}
 
 module Generalize where
 

@@ -1,7 +1,7 @@
 -- Andreas, 2014-01-10
 -- Code by Jesper Cockx and Conor McBride and folks from the Coq-club
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 -- An empty type.
 

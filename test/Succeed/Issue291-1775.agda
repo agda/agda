@@ -1,8 +1,8 @@
 -- Andreas, 2011-04-14
 -- {-# OPTIONS -v tc.cover:20 -v tc.lhs.unify:20 #-}
 
--- Jesper, 2016-06-23: should also work --without-K
-{-# OPTIONS --without-K #-}
+-- Jesper, 2016-06-23: should also work --cubical-compatible
+{-# OPTIONS --cubical-compatible #-}
 
 module Issue291-1775 where
 

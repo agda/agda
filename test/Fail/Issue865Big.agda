@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 -- {-# OPTIONS -v tc.data:100 #-}
 module Issue865Big where
 

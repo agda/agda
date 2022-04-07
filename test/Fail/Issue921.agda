@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 {-# OPTIONS --allow-unsolved-metas #-}
 
 -- This issue demonstrates that a failing termination check,
