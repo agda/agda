@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 module Issue1025 where
 

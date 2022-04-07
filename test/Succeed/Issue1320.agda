@@ -4,7 +4,7 @@
 -- The following is accepted.
 
 {-# OPTIONS --guardedness #-}
-{-# OPTIONS --without-K  #-}
+{-# OPTIONS --cubical-compatible  #-}
 
 -- {-# OPTIONS -v term:30 #-}
 

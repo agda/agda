@@ -1,6 +1,6 @@
 -- Liang-Ting, 2022-01-14, issue #5734
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 open import Agda.Builtin.Unit
 open import Agda.Builtin.List

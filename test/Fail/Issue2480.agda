@@ -1,6 +1,6 @@
 -- Example by Simon Huber
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 data _≡_ {A : Set} (a : A) : A → Set where
   refl : a ≡ a

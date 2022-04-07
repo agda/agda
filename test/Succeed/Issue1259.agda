@@ -1,6 +1,6 @@
 -- Andreas, 2014-08-28, reported by Jacques Carette
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 -- {-# OPTIONS -v term:20 #-}
 

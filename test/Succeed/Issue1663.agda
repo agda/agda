@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting --confluence-check #-}
+{-# OPTIONS --cubical-compatible --rewriting --confluence-check #-}
 
 postulate
   _↦_ : ∀ {i} {A : Set i} → A → A → Set i

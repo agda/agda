@@ -1,6 +1,6 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
--- Andreas, 2020-02-07, instances of #906 needing --without-K to throw
+-- Andreas, 2020-02-07, instances of #906 needing --cubical-compatible to throw
 -- off the termination checker.
 
 module Issue906WithoutK where

@@ -1,5 +1,5 @@
 
-{-# OPTIONS --without-K --rewriting --confluence-check #-}
+{-# OPTIONS --cubical-compatible --rewriting --confluence-check #-}
 
 open import Issue1719.Common
 open import Issue1719.Spans

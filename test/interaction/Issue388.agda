@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 module Issue388 where
 
 data P (A : Set₁) : A → Set₁ where

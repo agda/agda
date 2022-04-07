@@ -11,7 +11,7 @@ Note the spurious Tm datatype that isn't used anywhere? Remove it, move its decl
 Now uncomment the two implicit arguments at the bottom of the code. All metavars are now resolved. Now put the Tm datatype back in - yellow spots reappear, but different from before!
 -}
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 module Issue918 where
 
 record ⊤ : Set where

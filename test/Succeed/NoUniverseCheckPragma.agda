@@ -5,9 +5,9 @@
 
 -- Andreas, 2019-07-16, issue #3916:
 -- {-# NO_UNIVERSE_CHECK #-} should also disable the index sort check
--- for --without-K.
+-- for --cubical-compatible.
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 module _ where
 

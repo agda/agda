@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 open import Agda.Primitive
 open import Agda.Builtin.Nat
