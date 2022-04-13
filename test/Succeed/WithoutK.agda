@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --universe-polymorphism #-}
+{-# OPTIONS --cubical-compatible --universe-polymorphism #-}
 
 module WithoutK where
 

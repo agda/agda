@@ -14,6 +14,7 @@ Language Reference
    core-language
    coverage-checking
    cubical
+   cubical-compatible
    cumulativity
    data-types
    flat

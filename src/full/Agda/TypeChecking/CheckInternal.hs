@@ -57,7 +57,7 @@ type MonadCheckInternal m = MonadConversion m
 
 -- | Entry point for e.g. checking WithFunctionType.
 checkType :: (MonadCheckInternal m) => Type -> m ()
-checkType t = do
+checkType t = catchConstraint (CheckType t) $ do
   inferred <- checkType' t
   equalSort (getSort t) inferred
 
@@ -346,8 +346,8 @@ inferDef f es = do
 -- | Infer possibly projection-like function application
 inferDef' :: (MonadCheckInternal m) => QName -> Arg Term -> Elims -> m Type
 inferDef' f a es = do
-  isProj <- isProjection f
-  case isProj of
+  -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.
+  isRelevantProjection f >>= \case
     Just Projection{ projIndex = n } | n > 0 -> do
       let self = unArg a
       b <- infer self

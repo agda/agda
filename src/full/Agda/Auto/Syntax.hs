@@ -112,10 +112,8 @@ data Pat o
   | PatVar String
   | PatExp
     -- ^ Dot pattern.
-{- TODO: projection patterns.
   | PatProj (ConstRef o)
     -- ^ Projection pattern.
--}
 
 type ConstRef o = IORef (ConstDef o)
 

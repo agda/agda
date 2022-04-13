@@ -479,7 +479,9 @@ data Declaration
   | ModuleMacro Range  Name ModuleApplication !OpenShortHand ImportDirective
   | Module      Range QName Telescope [Declaration]
   | UnquoteDecl Range [Name] Expr
+      -- ^ @unquoteDecl xs = e@
   | UnquoteDef  Range [Name] Expr
+      -- ^ @unquoteDef xs = e@
   | Pragma      Pragma
   deriving (Data, Eq)
 

@@ -1,6 +1,6 @@
 {- Example by Andrew Pitts, 2016-05-23 -}
 
-{-# OPTIONS --rewriting --without-K #-}
+{-# OPTIONS --rewriting --cubical-compatible #-}
 
 open import Agda.Builtin.Equality public
 

@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         ghc-ver:
-        - 9.2.1
+        - '9.2'
         cabal-ver:
         - 3.6
         os:
@@ -111,7 +111,7 @@ jobs:
     - env:
         ICU_DIR: /usr/local/opt/icu4c/lib
         DLL: /c/msys64/mingw64/bin/libicu*.dll
-        ICU_VER: '69'
+        ICU_VER: '70'
       run: |
         mkdir -p ${{ steps.vars.outputs.nightly }}/bin
         cp -a src/data ${{ steps.vars.outputs.nightly }}

@@ -2,7 +2,7 @@
 -- All of the following corecursive functions from Data.Stream
 -- should pass the termination checker.
 
-{-# OPTIONS --without-K --guardedness #-}
+{-# OPTIONS --cubical-compatible --guardedness #-}
 -- {-# OPTIONS -v term:20 #-}
 
 open import Common.Coinduction

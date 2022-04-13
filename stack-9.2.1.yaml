@@ -71,7 +71,7 @@ extra-deps:
 - process-extras-0.7.4
 - random-1.2.1
 - regex-base-0.94.0.1
-- regex-posix-0.96.0.0
+- regex-posix-0.96.0.1
 - regex-tdfa-1.3.1.1
 - safe-0.3.19
 - scientific-0.3.7.0
@@ -89,7 +89,7 @@ extra-deps:
 - temporary-1.3
 - test-framework-0.8.2.0
 - test-framework-hunit-0.3.0.2
-- text-icu-0.7.1.0
+- text-icu-0.8.0.1
 - text-short-0.1.4
 - th-abstraction-0.4.3.0
 - th-compat-0.1.3

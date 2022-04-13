@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting --confluence-check #-}
+{-# OPTIONS --cubical-compatible --rewriting --confluence-check #-}
 
 module Issue1719.Common where
 

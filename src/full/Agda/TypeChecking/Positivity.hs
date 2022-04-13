@@ -263,10 +263,7 @@ checkStrictlyPositive mi qset = do
 
 getDefArity :: Definition -> TCM Int
 getDefArity def = do
-  let dropped = case theDef def of
-        defn@Function{} -> projectionArgs defn
-        _ -> 0
-  subtract dropped <$> arity' (defType def)
+  subtract (projectionArgs def) <$> arity' (defType def)
   where
   -- A variant of "\t -> arity <$> instantiateFull t".
   arity' :: Type -> TCM Int

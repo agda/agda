@@ -61,12 +61,12 @@ jobs:
   build:
     strategy:
       matrix:
-        # TODO (Andreas, 2021-11-13)
-        # Upgrade to 9.2.1 once this does not cause problems with shelltestrunner
-        # https://github.com/agda/agda/pull/5648#issuecomment-968100273
-        ghc-ver: [9.0.2]
+        # Andreas, 2022-03-26:
+        # ghc-ver should be given as x.y.z (as opposed to x.y only)
+        # because it is used verbatim when referring to stack-x.y.z.yaml.
+        ghc-ver: ['9.2.2']
         stack-ver: [latest]
-        os: [ubuntu-18.04]
+        os: [ubuntu-20.04]
 
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -111,7 +111,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-00-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -181,7 +181,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Suite of tests for bugs"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
@@ -231,7 +231,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -282,7 +282,7 @@ jobs:
       with:
         path: "~/.stack"
         # A unique cache is used for each stack.yaml.
-        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
+        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml') }}-${{ hashFiles('stack.yaml.lock') }}
 
     - name: "Install and configure the icu library"
       run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
@@ -324,4 +324,3 @@ jobs:
     # this job.
     - name: "Cubical library test"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
-

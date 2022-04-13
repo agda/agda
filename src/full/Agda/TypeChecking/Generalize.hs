@@ -830,6 +830,7 @@ createGenRecordType genRecMeta@(El genRecSort _) sortedMetas = do
            , recEtaEquality' = Inferred YesEta
            , recPatternMatching = CopatternMatching
            , recInduction    = Nothing
+           , recTerminates   = Just True    -- not recursive
            , recAbstr        = ConcreteDef
            , recComp         = emptyCompKit
            }

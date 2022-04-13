@@ -1,3 +1,3 @@
-{-# OPTIONS --universe-polymorphism --no-irrelevant-projections --without-K #-}
+{-# OPTIONS --universe-polymorphism --no-irrelevant-projections --cubical-compatible #-}
 module SafeFlagSafePragmas where
 

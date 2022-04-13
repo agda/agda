@@ -1,6 +1,6 @@
 {- Example by Guillaume Brunerie, 17-11-2015 -}
 
-{-# OPTIONS --rewriting --without-K #-}
+{-# OPTIONS --rewriting --cubical-compatible #-}
 
 open import Agda.Primitive
 

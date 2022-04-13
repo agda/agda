@@ -1,7 +1,7 @@
 -- Andreas, 2019-07-05, during work on issue #3889
 -- Test-case for with extracted from the standard library
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 open import Agda.Primitive
 open import Agda.Builtin.Equality

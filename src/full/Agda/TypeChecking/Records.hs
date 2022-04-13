@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.Records where
 
+import Prelude hiding (null)
+
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans.Maybe
@@ -10,6 +12,7 @@ import Control.Monad.Writer
 import Data.Bifunctor
 import qualified Data.List as List
 import Data.Maybe
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
 
@@ -33,6 +36,7 @@ import Agda.TypeChecking.Warnings
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
 
 import Agda.Utils.Either
+import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -759,58 +763,91 @@ etaContractRecord r c ci args = if all (not . usableModality) args then fallBack
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
 isSingletonRecord :: (PureTCM m, MonadBlock m) => QName -> Args -> m Bool
-isSingletonRecord r ps = isJust <$> isSingletonRecord' False r ps
+isSingletonRecord r ps = isJust <$> isSingletonRecord' False r ps mempty
 
 isSingletonRecordModuloRelevance :: (PureTCM m, MonadBlock m)
                                  => QName -> Args -> m Bool
-isSingletonRecordModuloRelevance r ps = isJust <$> isSingletonRecord' True r ps
+isSingletonRecordModuloRelevance r ps = isJust <$> isSingletonRecord' True r ps mempty
 
 -- | Return the unique (closed) inhabitant if exists.
 --   In case of counting irrelevance in, the returned inhabitant
 --   contains dummy terms.
-isSingletonRecord' :: forall m. (PureTCM m, MonadBlock m)
-                   => Bool -> QName -> Args -> m (Maybe Term)
-isSingletonRecord' regardIrrelevance r ps = do
-  reportSDoc "tc.meta.eta" 30 $ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
-  isRecord r >>= \case
-    Nothing  -> return Nothing
-    Just def -> do
-      fmap (mkCon (recConHead def) ConOSystem) <$> check (recTel def `apply` ps)
+isSingletonRecord'
+  :: forall m. (PureTCM m, MonadBlock m)
+  => Bool            -- ^ Should disregard irrelevant fields?
+  -> QName           -- ^ Name of record type to check.
+  -> Args            -- ^ Parameters given to the record type.
+  -> Set QName       -- ^ Non-terminating record types we already encountered.
+                     --   These are considered as non-singletons,
+                     --   otherwise we would construct an infinite inhabitant (in an infinite time...).
+  -> m (Maybe Term)  -- ^ The unique inhabitant, if any.  May contain dummy terms in irrelevant positions.
+isSingletonRecord' regardIrrelevance r ps rs = do
+  reportSDoc "tc.meta.eta" 30 $ vcat
+    [ "Is" <+> prettyTCM (Def r $ map Apply ps) <+> "a singleton record type?"
+    , "  already visited:" <+> hsep (map prettyTCM $ Set.toList rs)
+    ]
+  -- Andreas, 2022-03-10, issue #5823
+  -- We need to make sure we are not infinitely unfolding records, so we only expand each once,
+  -- and keep track of the recursive ones we have already seen.
+  if r `Set.member` rs then no else do
+    caseMaybeM (isRecord r) no $ \ def -> do
+      -- We might not know yet whether a record type is recursive because the positivity checker hasn't run yet.
+      -- In this case, we pessimistically consider the record type to be recursive (@True@).
+      let recursive = maybe True (not . null) $ recMutual def
+      -- Andreas, 2022-03-23, issue #5823
+      -- We may pass through terminating record types as often as we want.
+      -- If the termination checker has not run yet, we pessimistically consider the record type
+      -- to be non-terminating.
+      let nonTerminating = maybe True not $ recTerminates def
+      reportSDoc "tc.meta.eta" 30 $ vcat
+        [ hsep [ prettyTCM r, "is recursive      :", prettyTCM recursive      ]
+        , hsep [ prettyTCM r, "is non-terminating:", prettyTCM nonTerminating ]
+        ]
+      fmap (mkCon (recConHead def) ConOSystem) <$> do
+        check (applyWhen (recursive && nonTerminating) (Set.insert r) rs) $ recTel def `apply` ps
   where
-  check :: Telescope -> m (Maybe [Arg Term])
-  check tel = do
+  -- Check that all entries of the constructor telescope are singletons.
+  check :: Set QName -> Telescope -> m (Maybe [Arg Term])
+  check rs tel = do
     reportSDoc "tc.meta.eta" 30 $
       "isSingletonRecord' checking telescope " <+> prettyTCM tel
     case tel of
-      EmptyTel -> return $ Just []
+      EmptyTel -> yes
       ExtendTel dom tel -> ifM (return regardIrrelevance `and2M` isIrrelevantOrPropM dom)
         {-then-}
-          (underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check)
+          (underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) __DUMMY_TERM__ :)) . check rs)
         {-else-} $ do
-          isSing <- isSingletonType' regardIrrelevance $ unDom dom
-          case isSing of
-            Nothing  -> return Nothing
-            (Just v) -> underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) v :)) . check
+          caseMaybeM (isSingletonType' regardIrrelevance (unDom dom) rs) no $ \ v -> do
+            underAbstraction dom tel $ fmap (fmap (Arg (domInfo dom) v :)) . check rs
+  no  = return Nothing
+  yes = return $ Just []
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.
 isSingletonType :: (PureTCM m, MonadBlock m) => Type -> m (Maybe Term)
-isSingletonType = isSingletonType' False
+isSingletonType t = isSingletonType' False t mempty
 
 -- | Check whether a type has a unique inhabitant (irrelevant parts ignored).
 --   Can be blocked by a metavar.
 isSingletonTypeModuloRelevance :: (PureTCM m, MonadBlock m) => Type -> m Bool
-isSingletonTypeModuloRelevance t = isJust <$> isSingletonType' True t
+isSingletonTypeModuloRelevance t = isJust <$> isSingletonType' True t mempty
 
-isSingletonType' :: (PureTCM m, MonadBlock m) => Bool -> Type -> m (Maybe Term)
-isSingletonType' regardIrrelevance t = do
+isSingletonType'
+  :: (PureTCM m, MonadBlock m)
+  => Bool            -- ^ Should disregard irrelevant fields?
+  -> Type            -- ^ Type to check.
+  -> Set QName       -- ^ Non-terminating record typess we already encountered.
+                     --   These are considered as non-singletons,
+                     --   otherwise we would construct an infinite inhabitant (in an infinite time...).
+  -> m (Maybe Term)  -- ^ The unique inhabitant, if any.  May contain dummy terms in irrelevant positions.
+isSingletonType' regardIrrelevance t rs = do
     TelV tel t <- telView t
     t <- abortIfBlocked t
     addContext tel $ do
       res <- isRecordType t
       case res of
         Just (r, ps, def) | YesEta <- recEtaEquality def -> do
-          fmap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
+          fmap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps rs
         _ -> return Nothing
 
 -- | Checks whether the given term (of the given type) is beta-eta-equivalent

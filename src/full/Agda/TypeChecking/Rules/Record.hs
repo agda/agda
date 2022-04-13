@@ -235,6 +235,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
                   -- in case the record turns out to be recursive.
               -- Determined by positivity checker:
               , recMutual         = Nothing
+              -- Determined by the termination checker:
+              , recTerminates     = Nothing
               , recComp           = emptyCompKit -- filled in later
               }
 

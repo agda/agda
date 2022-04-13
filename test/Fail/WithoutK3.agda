@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --show-implicit #-}
+{-# OPTIONS --cubical-compatible --show-implicit #-}
 
 module WithoutK3 where
 

@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2022, macos-latest, ubuntu-20.04]
-        ghc-ver: [9.2.1]
+        ghc-ver: ['9.2']
         cabal-ver: [3.6]
 
     env:
@@ -149,7 +149,9 @@ jobs:
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       # TODO: Move this part to Makefile
       env:
-        ICU_VER: '69'
+        # Andreas, 2022-03-11, the ICU version has been updated upstream
+        # (WAS: '69').
+        ICU_VER: '70'
         ICU_DIR: '/usr/local/opt/icu4c/lib'
         DLL:     "/c/msys64/mingw64/bin/libicu*.dll"
           ## was /c/icu4c/icu*.dll

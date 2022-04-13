@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 -- {-# OPTIONS -v tc.lhs.unify:15 #-}
 

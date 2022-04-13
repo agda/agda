@@ -4,7 +4,7 @@ Release notes for Agda version 2.6.3
 Installation and infrastructure
 -------------------------------
 
-Agda supports GHC versions 8.0.2 to 9.2.1.
+Agda supports GHC versions 8.0.2 to 9.2.2.
 
 Language
 --------
@@ -132,6 +132,11 @@ Pragmas and options
 * Profiling options are now turned on with a new `--profile` flag instead of
   abusing the debug verbosity option. (See [#5781](https://github.com/agda/agda/issues/5731).)
 
+* The option `--without-K` has been renamed `--cubical-compatible` (See
+  [#5843](https://github.com/agda/agda/issues/5843).)
+
+  The old name is retained for backwards compatibility.
+
 Performance
 -----------
 
@@ -154,7 +159,8 @@ Performance
   implementation-dependent, but successful uses of the shortcut do not
   affect the amount of fuel. Currently the fuel is decreased in the
   failure continuations of the implementation of the syntactic
-  equality shortcut.
+  equality shortcut. When a failure continuation completes the fuel is
+  restored to its previous amount.
 
   The idea for this option comes from András Kovács'
   [smalltt](https://github.com/AndrasKovacs/smalltt/blob/989b020309686e04374f1ab7844f468386d2eb2f/README.md#approximate-conversion-checking).

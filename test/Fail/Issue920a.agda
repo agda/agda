@@ -1,6 +1,6 @@
 -- Andreas, 2013-10-26, reported by Jesper Cockx
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 module Issue920a where
 

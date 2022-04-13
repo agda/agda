@@ -408,6 +408,7 @@ restartOptions =
   , (B . optIrrelevantProjections, "--irrelevant-projections")
   , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
   , (B . collapseDefault . optWithoutK, "--without-K")
+  , (B . collapseDefault . optWithoutK, "--cubical-compatible")
   , (B . optExactSplit, "--exact-split")
   , (B . not . optEta, "--no-eta-equality")
   , (B . optRewriting, "--rewriting")
@@ -463,6 +464,7 @@ coinfectiveOptions :: [(PragmaOptions -> Bool, String)]
 coinfectiveOptions =
   [ (optSafe, "--safe")
   , (collapseDefault . optWithoutK, "--without-K")
+  , (collapseDefault . optWithoutK, "--cubical-compatible")
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (not . optCumulativity, "--no-cumulativity")
   ]
@@ -972,8 +974,10 @@ pragmaOptions =
                     "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
     , Option []     ["with-K"] (NoArg withKFlag)
                     "enable the K rule in pattern matching (default)"
+    , Option []     ["cubical-compatible"] (NoArg withoutKFlag)
+                    "turn on checks to make code compatible with --cubical (e.g. disabling the K rule)"
     , Option []     ["without-K"] (NoArg withoutKFlag)
-                    "disable the K rule in pattern matching"
+                    "alias for --cubical-compatible (legacy)"
     , Option []     ["copatterns"] (NoArg copatternsFlag)
                     "enable definitions by copattern matching (default)"
     , Option []     ["no-copatterns"] (NoArg noCopatternsFlag)
@@ -999,9 +1003,9 @@ pragmaOptions =
     , Option []     ["no-confluence-check"] (NoArg noConfluenceCheckFlag)
                     "disable confluence checking of REWRITE rules (default)"
     , Option []     ["cubical"] (NoArg $ cubicalFlag CFull)
-                    "enable cubical features (e.g. overloads lambdas for paths), implies --without-K"
+                    "enable cubical features (e.g. overloads lambdas for paths), implies --cubical-compatible"
     , Option []     ["erased-cubical"] (NoArg $ cubicalFlag CErased)
-                    "enable cubical features (some only in erased settings), implies --without-K"
+                    "enable cubical features (some only in erased settings), implies --cubical-compatible"
     , Option []     ["guarded"] (NoArg guardedFlag)
                     "enable @lock/@tick attributes"
     , Option []     ["experimental-lossy-unification"] (NoArg firstOrderFlag)

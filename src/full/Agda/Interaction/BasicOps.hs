@@ -482,6 +482,7 @@ instance Reify Constraint where
     reify (CheckMetaInst m) = do
       t <- jMetaType . mvJudgement <$> lookupLocalMeta m
       OfType <$> reify (MetaV m []) <*> reify t
+    reify (CheckType t) = JustType <$> reify t
     reify (UsableAtModality mod t) = UsableAtMod mod <$> reify t
 
 instance (Pretty a, Pretty b) => PrettyTCM (OutputForm a b) where
@@ -650,6 +651,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         HasPTSRule a b             -> Nothing
         UnquoteTactic{}            -> Nothing
         CheckMetaInst{}            -> Nothing
+        CheckType t                -> isMeta (unEl t)
         CheckLockedVars t _ _ _    -> isMeta t
         UsableAtModality _ t       -> isMeta t
 
@@ -943,8 +945,8 @@ metaHelperType norm ii rng s = case words s of
     -- renameVars = onNames (stringToArgName <.> renameVar . argNameToString)
     renameVars = onNames renameVar
 
-    -- onNames :: Applicative m => (ArgName -> m ArgName) -> Type -> m Type
-    onNames :: Applicative m => (String -> m String) -> Type -> m Type
+    -- onNames :: Applicative m => (ArgName -> m ArgName) -> I.Type -> m I.Type
+    onNames :: Applicative m => (String -> m String) -> I.Type -> m I.Type
     onNames f (El s v) = El s <$> onNamesTm f v
 
     -- onNamesTel :: Applicative f => (ArgName -> f ArgName) -> I.Telescope -> f I.Telescope
@@ -1014,7 +1016,7 @@ contextOfMeta ii norm = withInteractionId ii $ do
         ty <- reifyUnblocked =<< normalForm norm t
         return $ ResponseContextEntry n x (Arg ai ty) Nothing s
 
-    mkLet :: (Name, Open (Term, Dom Type)) -> TCM (Maybe ResponseContextEntry)
+    mkLet :: (Name, Open (Term, Dom I.Type)) -> TCM (Maybe ResponseContextEntry)
     mkLet (name, lb) = do
       (tm, !dom) <- getOpen lb
       if shouldHide (domInfo dom) name then return Nothing else Just <$> do
@@ -1227,7 +1229,7 @@ moduleContents
      -- ^ The range of the next argument.
   -> String
      -- ^ The module name.
-  -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
+  -> TCM ([C.Name], I.Telescope, [(C.Name, I.Type)])
      -- ^ Module names,
      --   context extension needed to print types,
      --   names paired up with corresponding types.
@@ -1250,7 +1252,7 @@ moduleContents norm rng s = traceCall ModuleContents $ do
 getRecordContents
   :: Rewrite  -- ^ Amount of normalization in types.
   -> C.Expr   -- ^ Expression presumably of record type.
-  -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
+  -> TCM ([C.Name], I.Telescope, [(C.Name, I.Type)])
               -- ^ Module names,
               --   context extension,
               --   names paired up with corresponding types.
@@ -1284,7 +1286,7 @@ getModuleContents
        -- ^ Amount of normalization in types.
   -> Maybe C.QName
        -- ^ Module name, @Nothing@ if top-level module.
-  -> TCM ([C.Name], I.Telescope, [(C.Name, Type)])
+  -> TCM ([C.Name], I.Telescope, [(C.Name, I.Type)])
        -- ^ Module names,
        --   context extension,
        --   names paired up with corresponding types.

@@ -42,9 +42,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-20.04]
-        ghc-ver: [9.2.1]
+        os: [ubuntu-20.04]
+        ghc-ver: [9.2.2, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
         cabal-ver: [latest]
+        include:
+          - os: macos-latest
+            ghc-ver: 9.2.2
+            cabal-ver: latest
+          # Andreas, 2022-03-10, chocolatey does not have GHC 9.2.2 yet
+          - os: windows-latest
+            ghc-ver: 9.2.1
+            cabal-ver: latest
     env:
       FLAGS: "-f enable-cluster-counting"
       # ICU_URL: 'https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-Win64-MSVC2019.zip'
@@ -69,11 +77,6 @@ jobs:
         echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
         echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
       # From now on, use env.{GHC|CABAL}_VER rather than matrix.{ghc|cabal}-ver!
-
-    - name: Configure the build plan
-      run: |
-        cabal update
-        cabal configure ${FLAGS} -O0
 
     # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
     - name: Setup MSYS path (Windows)
@@ -114,6 +117,11 @@ jobs:
     #     mv ${ICU_DIR}/*.h ${ICU_DIR}/include/unicode
 
     #     cabal user-config update --augment="extra-lib-dirs: $(cygpath -w ${ICU_DIR})" --augment="extra-include-dirs: $(cygpath -w ${ICU_DIR}/include)"
+
+    - name: Configure the build plan
+      run: |
+        cabal update
+        cabal configure ${FLAGS} -O0
 
     - uses: actions/cache@v2
       name: Cache dependencies

@@ -306,10 +306,6 @@ getEqs = forMaybeMM getAllConstraints $ \ eqc -> do
       return $ Just (tomyIneq ineq, ee, ei)
     _ -> return Nothing
 
-copatternsNotImplemented :: MB.TCM a
-copatternsNotImplemented = MB.typeError $ MB.NotImplemented $
-  "The Agda synthesizer (Agsy) does not support copatterns yet"
-
 literalsNotImplemented :: MB.TCM a
 literalsNotImplemented = MB.typeError $ MB.NotImplemented $
   "The Agda synthesizer (Agsy) does not support literals yet"
@@ -354,9 +350,9 @@ instance Conversion TOM (Cm.Arg I.Pattern) (Pat O) where
       cc    <- lift $ liftIO $ readIORef c
       let Just (npar,_) = fst $ cdorigin cc
       return $ PatConApp c (replicate npar PatExp ++ pats')
+    I.ProjP _ q -> PatProj <$> getConst True q TMAll
 
     -- UNSUPPORTED CASES
-    I.ProjP{}   -> lift copatternsNotImplemented
     I.LitP{}    -> lift literalsNotImplemented
     I.DefP{}    -> lift hitsNotImplemented
 
@@ -599,7 +595,10 @@ constructPats cmap mainm clause = do
        I.DotP _ t -> do
         (t2, _) <- runStateT (convert t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
-       I.ProjP{} -> copatternsNotImplemented
+       I.ProjP po c -> do
+        (c2, _) <- runStateT (getConst True c TMAll) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
+        cc <- liftIO $ readIORef c2
+        return (ns, HI hid (CSPatProj c2))
        I.LitP{} -> literalsNotImplemented
        I.DefP{} -> hitsNotImplemented
 

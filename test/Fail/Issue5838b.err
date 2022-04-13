@@ -1,0 +1,3 @@
+Issue5838b.agda:219,1-5
+false != true of type Bool
+when checking the definition of bad'

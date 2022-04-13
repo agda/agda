@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --safe #-}
+{-# OPTIONS --cubical-compatible --safe #-}
 
 open import Agda.Primitive as Prim public
   using    (Level; _⊔_; Setω)

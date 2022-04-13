@@ -1,6 +1,6 @@
 -- Andreas, 2014-01-21, Issue 1209 reported by Andrea
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 {-# OPTIONS --copatterns #-}
 {-# OPTIONS --sized-types #-}
 

@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --guardedness #-}
+{-# OPTIONS --cubical-compatible --guardedness #-}
 module Common.Coinduction where
 
 open import Agda.Builtin.Coinduction public

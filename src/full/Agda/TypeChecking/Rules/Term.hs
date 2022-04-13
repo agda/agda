@@ -415,14 +415,13 @@ checkTacticAttribute PiNotLam e = do
   expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
   checkExpr e expectedType
 
-ifPath :: Type -> TCM a -> TCM a -> TCM a
-ifPath ty fallback work = do
-  pv <- pathView ty
-  if isPathType pv then work else fallback
-
 checkPath :: A.TypedBinding -> A.Expr -> Type -> TCM Term
-checkPath b@(A.TBind _ _ (x':|[]) typ) body ty = do
-    let x    = updateNamedArg (A.unBind . A.binderName) x'
+checkPath b@(A.TBind _r _tac (xp :| []) typ) body ty = do
+ reportSDoc "tc.term.lambda" 30 $ hsep [ "checking path lambda", prettyA xp ]
+ case (A.extractPattern $ namedArg xp) of
+  Just{}  -> setCurrentRange xp $ genericError $ "Patterns are not allowed in Path-lambdas"
+  Nothing -> do
+    let x    = updateNamedArg (A.unBind . A.binderName) xp
         info = getArgInfo x
     PathType s path level typ lhs rhs <- pathView ty
     interval <- primIntervalType
@@ -439,6 +438,7 @@ checkPath b@(A.TBind _ _ (x':|[]) typ) body ty = do
       equalTerm (btyp iOne) rhs' (unArg rhs)
       return t
 checkPath b body ty = __IMPOSSIBLE__
+
 ---------------------------------------------------------------------------
 -- * Lambda abstractions
 ---------------------------------------------------------------------------
@@ -490,11 +490,11 @@ checkLambda' cmp b xps typ body target = do
     info = getArgInfo $ List1.head xs
 
     trySeeingIfPath = do
-      cubical <- optCubical <$> pragmaOptions
+      cubical <- isJust . optCubical <$> pragmaOptions
       reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xps
-      let postpone' = if isJust cubical then postpone else \ _ _ -> dontUseTargetType
+      let postpone' = if cubical then postpone else \ _ _ -> dontUseTargetType
       ifBlocked target postpone' $ \ _ t -> do
-        ifPath t dontUseTargetType $ if isJust cubical
+        ifNotM (isPathType <$> pathView t) dontUseTargetType {-else-} $ if cubical
           then checkPath b body t
           else genericError $ unwords
                  [ "Option --cubical/--erased-cubical needed to build"
