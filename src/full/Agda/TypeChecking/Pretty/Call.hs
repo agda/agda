@@ -24,6 +24,8 @@ import qualified Agda.Utils.Pretty as P
 
 import Agda.Utils.Impossible
 
+import Agda.Version (docsUrl)
+
 sayWhere :: MonadPretty m => HasRange a => a -> m Doc -> m Doc
 sayWhere x d = applyUnless (null r) (prettyTCM r $$) d
   where r = getRange x
@@ -142,7 +144,8 @@ instance PrettyTCM Call where
 
     CheckWithFunctionType a -> fsep $
       pwords "when checking that the type" ++
-      [prettyTCM a] ++ pwords "of the generated with function is well-formed"
+      [prettyTCM a] ++ pwords "of the generated with function is well-formed" ++
+      [parens $ text $ docsUrl "language/with-abstraction.html#ill-typed-with-abstractions"]
 
     CheckDotPattern e v -> fsep $
       pwords "when checking that the given dot pattern" ++ [prettyA e] ++

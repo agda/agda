@@ -2,3 +2,4 @@ Issue206.agda:12,1-19
 w != i of type I
 when checking that the type (w : I) (p : P w) (q : Q p) → Set₁ of
 the generated with function is well-formed
+(https://agda.readthedocs.io/en/v2.6.3/language/with-abstraction.html#ill-typed-with-abstractions)
