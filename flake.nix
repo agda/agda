@@ -3,16 +3,26 @@
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
-  outputs = { self, nixpkgs, flake-utils }: (flake-utils.lib.eachDefaultSystem (system: {
-    packages =  let
-      pkgs = import nixpkgs { inherit system; overlays = [ self.overlay ]; };
-    in {
+  outputs = { self, nixpkgs, flake-utils }: (flake-utils.lib.eachDefaultSystem (system: let
+    pkgs = import nixpkgs { inherit system; overlays = [ self.overlay ]; };
+  in {
+    packages = {
       inherit (pkgs.haskellPackages) Agda;
 
       # TODO agda2-mode
     };
 
     defaultPackage = self.packages.${system}.Agda;
+
+    devShell = pkgs.mkShell {
+      inputsFrom = [ self.defaultPackage.${system} ];
+      packages = with pkgs; [
+        pkg-config
+        zlib
+        icu
+        haskellPackages.fix-whitespace
+      ];
+    };
   })) // {
     overlay = final: prev: {
       haskellPackages = prev.haskellPackages.override {
