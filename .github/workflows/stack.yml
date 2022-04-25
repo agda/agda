@@ -96,7 +96,7 @@ jobs:
     - with:
         path: ${{ steps.haskell-setup.outputs.stack-root }}
         key: |
-          ${{ runner.os }}-stack-00-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
+          ${{ runner.os }}-stack-00-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
       uses: actions/cache@v2
       name: Cache dependencies
       id: cache

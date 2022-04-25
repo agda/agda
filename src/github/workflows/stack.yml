@@ -163,7 +163,7 @@ jobs:
         # A unique cache is used for each stack.yaml.
         # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
         key: |
-          ${{ runner.os }}-stack-00-${{ env.STACK_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
+          ${{ runner.os }}-stack-00-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
 
     - name: Set up pkg-config for the ICU library (macOS)
       if: ${{ runner.os == 'macOS' }}
