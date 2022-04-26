@@ -323,7 +323,7 @@ instance Pretty Module where
     , "var exports = {};"
     , exports opt Set.empty es
     , pretty opt callMain
-    , "return exports; });"
+    , "; return exports; });"
     ]
     $+$ "" -- Final newline
     where
