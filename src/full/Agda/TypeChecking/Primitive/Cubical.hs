@@ -9,15 +9,15 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 import Control.Exception
+
 import Data.Typeable
 import Data.String
 
+import Data.Bifunctor ( second )
 import Data.Either ( partitionEithers )
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
-import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.Foldable hiding (null)
 
 import Agda.Interaction.Options ( optCubical )
@@ -37,6 +37,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 
@@ -46,8 +47,9 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
 import Agda.Utils.Size
+import Agda.Utils.BoolSet (BoolSet)
 import qualified Agda.Utils.Pretty as P
-
+import qualified Agda.Utils.BoolSet as BoolSet
 
 -- | Checks that the correct variant of Cubical Agda is activated.
 -- Note that @--erased-cubical@ \"counts as\" @--cubical@ in erased
@@ -1347,7 +1349,7 @@ primTransHComp cmd ts nelims = do
               boolToI b = if b then unview IOne else unview IZero
             as <- decomposeInterval phi
             andM . for as $ \ (bs,ts) -> do
-                 let u' = listS (Map.toAscList $ Map.map boolToI bs) `applySubst` u
+                 let u' = listS (IntMap.toAscList $ IntMap.map boolToI bs) `applySubst` u
                  t <- reduce2Lam u'
                  return $! p $ ignoreBlocking t
     reduce2Lam t = do
@@ -1367,7 +1369,7 @@ primTransHComp cmd ts nelims = do
             as <- decomposeInterval phi
             (flags,t_alphas) <- fmap unzip . forM as $ \ (bs,ts) -> do
                  let u' = listS bs' `applySubst` u
-                     bs' = (Map.toAscList $ Map.map boolToI bs)
+                     bs' = IntMap.toAscList $ IntMap.map boolToI bs
                      -- Γ₁, i : I, Γ₂, j : I, Γ₃  ⊢ weaken : Γ₁, Γ₂, Γ₃   for bs' = [(j,_),(i,_)]
                      -- ordering of "j,i,.." matters.
                  let weaken = foldr (\ j s -> s `composeS` raiseFromS j 1) idS (map fst bs')
@@ -1431,7 +1433,7 @@ primTransHComp cmd ts nelims = do
               let
                 phis :: [Term]
                 phis = for bools $ \ m ->
-                            foldr (iMin . (\(i,b) -> if b then var i else iNeg (var i))) iO (Map.toList m)
+                            foldr (iMin . (\(i,b) -> applyUnless b iNeg $ var i)) iO (IntMap.toList m)
               runNamesT [] $ do
                 u <- open u
                 [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
@@ -1766,9 +1768,9 @@ primFaceForall' = do
       fr <- getTerm builtinFaceForall builtinFaceForall
       let v = view t
           us =
-            [ map Left (Map.toList bsm) ++ map Right ts
+            [ map Left (IntMap.toList bsm) ++ map Right ts
               | (bsm, ts) <- us',
-                0 `Map.notMember` bsm
+                0 `IntMap.notMember` bsm
             ]
           fm (i, b) = if b then var (i - 1) else unview (INeg (argN (var $ i - 1)))
           ffr t = fr `apply` [argN $ Lam defaultArgInfo $ Abs "i" t]
@@ -1784,19 +1786,19 @@ primFaceForall' = do
                 us
       --   traceSLn "cube.forall" 20 (unlines [show v, show us', show us, show r]) $
       return $ case us' of
-        [(m, [_])] | Map.null m -> Nothing
+        [(m, [_])] | null m -> Nothing
         v -> r
 
-decomposeInterval :: HasBuiltins m => Term -> m [(Map Int Bool,[Term])]
+decomposeInterval :: HasBuiltins m => Term -> m [(IntMap Bool, [Term])]
 decomposeInterval t = do
-  xs <- decomposeInterval' t
-  let isConsistent xs = all (\ xs -> Set.size xs == 1) . Map.elems $ xs  -- optimize by not doing generate + filter
-  return [ (Map.map (head . Set.toList) bsm,ts)
-            | (bsm,ts) <- xs
-            , isConsistent bsm
-            ]
+  decomposeInterval' t <&> \ xs ->
+    [ (bm, ts)
+    | (bsm :: IntMap BoolSet, ts) <- xs
+    , bm <- maybeToList $ traverse BoolSet.toSingleton bsm
+        -- discard inconsistent mappings
+    ]
 
-decomposeInterval' :: HasBuiltins m => Term -> m [(Map Int (Set Bool),[Term])]
+decomposeInterval' :: HasBuiltins m => Term -> m [(IntMap BoolSet, [Term])]
 decomposeInterval' t = do
      view   <- intervalView'
      unview <- intervalUnview'
@@ -1814,7 +1816,7 @@ decomposeInterval' t = do
      return [ (bsm,ts)
             | xs <- f v
             , let (bs,ts) = partitionEithers xs
-            , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
+            , let bsm     = IntMap.fromListWith BoolSet.union $ map (second BoolSet.singleton) bs
             ]
 
 
