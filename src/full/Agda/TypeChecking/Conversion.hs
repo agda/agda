@@ -10,9 +10,9 @@ import Control.Monad.Fail (MonadFail)
 
 import Data.Function
 import Data.Semigroup ((<>))
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
@@ -54,6 +54,8 @@ import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.ProfileOptions as Profile
+import Agda.Utils.BoolSet (BoolSet)
+import qualified Agda.Utils.BoolSet as BoolSet
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
@@ -1874,7 +1876,7 @@ equalSort s1 s2 = do
 --   xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
 --   return xs
 
-forallFaceMaps :: MonadConversion m => Term -> (Map.Map Int Bool -> Blocker -> Term -> m a) -> (Substitution -> m a) -> m [a]
+forallFaceMaps :: MonadConversion m => Term -> (IntMap Bool -> Blocker -> Term -> m a) -> (Substitution -> m a) -> m [a]
 forallFaceMaps t kb k = do
   reportSDoc "conv.forall" 20 $
       fsep ["forallFaceMaps"
@@ -1887,7 +1889,7 @@ forallFaceMaps t kb k = do
     return (\b -> if b then io else iz)
   forM as $ \ (ms,ts) -> do
    ifBlockeds ts (kb ms) $ \ _ _ -> do
-    let xs = map (second boolToI) $ Map.toAscList ms
+    let xs = map (second boolToI) $ IntMap.toAscList ms
     cxt <- getContext
     reportSDoc "conv.forall" 20 $
       fsep ["substContextN"
@@ -1980,7 +1982,7 @@ compareInterval cmp i t u = do
    isBlocked NotBlocked{} = False
 
 
-type Conj = (Map.Map Int (Set.Set Bool),[Term])
+type Conj = (IntMap BoolSet, [Term])
 
 isCanonical :: [Conj] -> Bool
 isCanonical = all (null . snd)
@@ -1999,7 +2001,7 @@ leqInterval r q =
 -- ' {q_j | j} ⊆ {r_i | i}
 leqConj :: MonadConversion m => Conj -> Conj -> m Bool
 leqConj (rs, rst) (qs, qst) = do
-  if toSet qs `Set.isSubsetOf` toSet rs
+  if IntMap.isSubmapOfBy BoolSet.isSubsetOf qs rs
     then do
       interval <-
         El IntervalUniv . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
@@ -2013,8 +2015,6 @@ leqConj (rs, rst) (qs, qst) = do
       listSubset qst rst
     else
       return False
-  where
-    toSet m = Set.fromList [(i, b) | (i, bs) <- Map.toList m, b <- Set.toList bs]
 
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: MonadConversion m => Term -> Type -> Term -> Term -> m ()
@@ -2039,7 +2039,7 @@ compareTermOnFace' k cmp phi ty u v = do
              ineg <- cl $ getPrimitiveTerm "primINeg"
              psi <- open psi
              let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (if b then i else pure ineg <@> i) <@> r)
-                          psi (Map.toList ms) -- TODO Andrea: make a view?
+                          psi (IntMap.toList ms) -- TODO Andrea: make a view?
              phi
     addConstraint blocker (ValueCmpOnFace cmp phi ty u v)
 

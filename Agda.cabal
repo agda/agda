@@ -576,6 +576,7 @@ library
                     Agda.Utils.Bag
                     Agda.Utils.Benchmark
                     Agda.Utils.BiMap
+                    Agda.Utils.BoolSet
                     Agda.Utils.CallStack
                     Agda.Utils.Char
                     Agda.Utils.Cluster
