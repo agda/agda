@@ -769,7 +769,9 @@ library
 
   -- NOTE: If adding or removing flags, also change `.ghci-9.2.2`
   if impl(ghc >= 9.2.2)
-    ghc-options: -Werror=unicode-bidirectional-format-characters
+    ghc-options: -Werror=operator-whitespace
+                 -Werror=redundant-bang-patterns
+                 -Werror=unicode-bidirectional-format-characters
 
   ghc-prof-options: -fprof-auto
 
@@ -1111,4 +1113,6 @@ test-suite agda-tests
 
   -- NOTE: If adding or removing flags, also change `.ghci-9.2.2`
   if impl(ghc >= 9.2.2)
-    ghc-options: -Werror=unicode-bidirectional-format-characters
+    ghc-options: -Werror=operator-whitespace
+                 -Werror=redundant-bang-patterns
+                 -Werror=unicode-bidirectional-format-characters
