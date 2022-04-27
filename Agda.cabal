@@ -760,6 +760,17 @@ library
   if impl(ghc >= 9.0)
     ghc-options: -Werror=invalid-haddock
 
+  -- NOTE: If adding or removing flags, also change `.ghci-9.0.2`
+  --
+  -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
+  -- from 9.2.1 and added back in 9.2.2.
+  if impl(ghc == 9.0.2)
+    ghc-options: -Werror=unicode-bidirectional-format-characters
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.2.2`
+  if impl(ghc >= 9.2.2)
+    ghc-options: -Werror=unicode-bidirectional-format-characters
+
   ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
@@ -1090,3 +1101,14 @@ test-suite agda-tests
   if impl(ghc >= 9.0)
     ghc-options: -Werror=compat-unqualified-imports
                  -Werror=invalid-haddock
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.0.2`
+  --
+  -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
+  -- from 9.2.1 and added back in 9.2.2.
+  if impl(ghc == 9.0.2)
+    ghc-options: -Werror=unicode-bidirectional-format-characters
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.2.2`
+  if impl(ghc >= 9.2.2)
+    ghc-options: -Werror=unicode-bidirectional-format-characters
