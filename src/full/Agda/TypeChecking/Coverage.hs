@@ -437,7 +437,7 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                   _ -> False
             caseMaybe (List.find (isComp . fst) scs) fallback $ \ (sp, newSc) -> do
             (res,cs') <- createMissingHCompClause f n x sc newSc cs
-            scs2 <- return $ filter (not . isComp . fst) scs
+            let scs2 = filter (not . isComp . fst) scs
             return (scs2,cs',res)
           let results_extra = results_hc ++ results_trX
               trees_extra = map (\(sp,cr) -> (sp, coverSplitTree cr)) results_extra

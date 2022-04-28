@@ -185,14 +185,14 @@ mkNotation holes ids = do
                               -- This range is filled in by mkPart.
         case namedArg h of
           ExprHole y      -> [(y, hole y)]
-          LambdaHole xs y ->
-            [(y, hole y)] ++
-            map
-              (\(n, x) -> case rangedThing x of
+          LambdaHole xs y -> [(y, hole y)] ++
+            zipWith
+              (\ n x -> case rangedThing x of
                 "_" -> (x, WildPart (rp x n))
                 _   -> (x, VarPart noRange (rp x n)))
                                    -- Filled in by mkPart.
-               (zip [0..] $ List1.toList xs)
+              [0..]
+              (List1.toList xs)
 
       -- Check whether all hole names are distinct.
       -- The hole names are the keys of the @holeMap@.

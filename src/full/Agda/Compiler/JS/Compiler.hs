@@ -9,7 +9,7 @@ import Control.Monad.Trans
 
 import Data.Char     ( isSpace )
 import Data.Foldable ( forM_ )
-import Data.List     ( dropWhileEnd, findIndex, intercalate, partition )
+import Data.List     ( dropWhileEnd, elemIndex, intercalate, partition )
 import Data.Set      ( Set )
 
 import qualified Data.Set as Set
@@ -494,7 +494,7 @@ definition' kit q d t ls =
               , optJSOptimize (fst kit) = do
                   q  <- canonicalName q
                   cs <- mapM canonicalName $ defConstructors dt
-                  case findIndex (q ==) cs of
+                  case q `elemIndex` cs of
                     Just i  -> return $ MemberIndex i (mkComment l)
                     Nothing -> __IMPOSSIBLE_VERBOSE__ $ unwords [ "Constructor", prettyShow q, "not found in", prettyShow cs ]
               | otherwise = return l
