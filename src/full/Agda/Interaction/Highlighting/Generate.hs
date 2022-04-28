@@ -537,7 +537,7 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
     functionDefs = foldMap (\x -> H.singleton (rToR $ bindingSite x) m) $
                    concatMap termErrFunctions termErrs
     callSites    = foldMap (\r -> H.singleton (rToR r) m) $
-                   concatMap (map callInfoRange . termErrCalls) termErrs
+                   concatMap (map getRange . termErrCalls) termErrs
     bindingSite  = A.nameBindingSite . A.qnameName
 
 -- | Generate syntax highlighting for not-strictly-positive inductive
