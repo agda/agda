@@ -6,5 +6,5 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "f ?")
 (agda2-status-action "")
-(agda2-info-action "*All Goals, Errors*" "?1 : Set ———— Errors ———————————————————————————————————————————————— Issue3264.agda:6,7-12 Termination checking failed for the following functions: f Problematic calls: f (?1 (A = A)) when checking that the expression f ? has type Set " nil)
+(agda2-info-action "*All Goals, Errors*" "?1 : Set ———— Errors ———————————————————————————————————————————————— Issue3264.agda:6,7-12 Termination checking failed for the following functions: f Problematic calls: f (?1 (A = A)) (at 1,1-2) when checking that the expression f ? has type Set " nil)
 ((last . 1) . (agda2-goals-action '(1)))

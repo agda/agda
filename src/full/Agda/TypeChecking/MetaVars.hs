@@ -149,7 +149,15 @@ assignTermTCM' x tel v = do
     whenProfile Profile.Metas $ liftTCM $ return () {-tickMax "max-open-metas" . (fromIntegral . size) =<< getOpenMetas-}
     updateMetaVarTCM x $ \ mv ->
       mv { mvInstantiation = InstV $ Instantiation
-             { instTel = tel, instBody = killRange v } }
+             { instTel = tel
+             , instBody = v
+             -- Andreas, 2022-04-28, issue #5875:
+             -- Can't killRange the meta-solution, since this will destroy
+             -- ranges of termination errors (and potentially other passes
+             -- that run on internal syntax)!
+             -- , instBody = killRange v
+             }
+         }
     etaExpandListeners x
     wakeupConstraints x
     reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ prettyShow x
