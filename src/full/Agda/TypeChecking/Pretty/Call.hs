@@ -35,9 +35,9 @@ sayWhen r Nothing   m = sayWhere r m
 sayWhen r (Just cl) m = sayWhere r (m $$ prettyTCM cl)
 
 instance PrettyTCM CallInfo where
-  prettyTCM c = do
-    let call = prettyTCM $ callInfoCall c
-        r    = callInfoRange c
+  prettyTCM (CallInfo callInfoTarget callInfoCall) = do
+    let call = prettyTCM callInfoCall
+        r    = getRange callInfoTarget
     if null $ P.pretty r
       then call
       else call $$ nest 2 ("(at" <+> prettyTCM r) <> ")"

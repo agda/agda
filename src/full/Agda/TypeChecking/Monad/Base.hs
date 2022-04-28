@@ -3617,13 +3617,14 @@ instance Eq TCWarning where
 
 data CallInfo = CallInfo
   { callInfoTarget :: QName
-    -- ^ Target function name.
-  , callInfoRange :: Range
-    -- ^ Range of the target function.
+    -- ^ Target function name.  (Contains its range.)
   , callInfoCall :: Closure Term
     -- ^ To be formatted representation of the call.
   } deriving (Show, Generic)
     -- no Eq, Ord instances: too expensive! (see issues 851, 852)
+
+instance HasRange CallInfo where
+  getRange = getRange . callInfoTarget
 
 -- | We only 'show' the name of the callee.
 instance Pretty CallInfo where pretty = pretty . callInfoTarget
