@@ -867,7 +867,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     --  - Look up in the environment if variable
     --  - Perform a beta step if lambda and application elimination in the spine
     --  - Perform a record beta step if record constructor and projection elimination in the spine
-    runAM' s@(Eval cl@(Closure Unevaled t env spine) !ctrl) = {-# SCC "runAM.Eval" #-}
+    runAM' s@(Eval cl@(Closure Unevaled t env spine) ctrl) = {-# SCC "runAM.Eval" #-}
       case t of
 
         -- Case: definition. Enter 'Match' state if defined function or shift to evaluating an
