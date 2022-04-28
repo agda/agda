@@ -2,11 +2,14 @@ Issue5819.agda:72,1-120,45
 Termination checking failed for the following functions:
   dl-iso, Fresh→Fresh′, Fresh→AllFresh
 Problematic calls:
-  f dl-iso (dcons a₁ l x)
-  f⁻¹ dl-iso (dl″ l′ (proj₂ p))
   Fresh→Fresh′ eq p | l″ | sym eq
-  f dl-iso (dcons a l x)
   Fresh→AllFresh eq p | l″ | sym eq
+  f dl-iso (dcons a₁ l x)
+    (at Issue5819.agda:78,19-25)
+  f dl-iso (dcons a l x)
+    (at Issue5819.agda:83,21-27)
+  f⁻¹ dl-iso (dl″ l′ (proj₂ p))
+    (at Issue5819.agda:88,19-25)
   Fresh→Fresh′ refl p
     (at Issue5819.agda:95,11-23)
   Fresh→AllFresh refl p

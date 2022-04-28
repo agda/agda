@@ -6,5 +6,5 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "(λ (j₁ : Size< i) → fixU j₁ f)")
 (agda2-status-action "")
-(agda2-info-action "*All Errors*" "1,1-27 Termination checking failed for the following functions: fixU Problematic calls: (fixU j f) when checking that the expression λ (j₁ : Size< i) → fixU j₁ f has type (j₁ : Size< i) → A j₁ → U j₁ " nil)
+(agda2-info-action "*All Errors*" "1,1-27 Termination checking failed for the following functions: fixU Problematic calls: (fixU j f) (at 1,19-23) when checking that the expression λ (j₁ : Size< i) → fixU j₁ f has type (j₁ : Size< i) → A j₁ → U j₁ " nil)
 ((last . 1) . (agda2-goals-action '()))
