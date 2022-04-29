@@ -25,7 +25,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, macos-latest, ubuntu-20.04]
+        # Andreas, 2022-04-30, issue #5874
+        # statically linked executables with GHC 9.2.2 broke on ubuntu-20.04
+        # on 2022-04-08
+        # Reverting to ubuntu-18.04 fixes this for the moment.
+        os: [windows-2022, macos-latest, ubuntu-18.04]
         ghc-ver: ['9.2']
         cabal-ver: [3.6]
 
@@ -69,13 +73,12 @@ jobs:
           echo "::set-output name=content-type::application/x-xz"
           echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-          echo "::set-output name=args::${ARGS} ${MACOS_ARGS}"
+          echo "::set-output name=args::${ARGS} ${LINUX_ARGS}"
           filename="${nightly}-linux.tar.xz"
           echo ::set-output name=exe::agda
           echo "::set-output name=filename::${filename}"
           echo "::set-output name=content-type::application/x-xz"
           echo "::set-output name=compress-cmd::tar -a -cvf ${filename} ${nightly}"
-          echo "::set-output name=args::${ARGS} ${LINUX_ARGS}"
         fi
 
     - name: Display build variables
@@ -91,6 +94,16 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc-ver }}
         cabal-version: ${{ matrix.cabal-ver }}
+
+    # DOES NOT HELP
+    # # Workaround suggested in https://gitlab.haskell.org/ghc/ghc/-/issues/21454#note_425291
+    # # Force reinstall of GHC 9.2.2 from ubuntu binaries
+    # - name: Force reinstall of GHC 9.2.2 (Linux)
+    #   if: ${{ runner.os == 'Linux' }}
+    #   run: |
+    #     ghcup config set url-source '{"OwnSource": "https://raw.githubusercontent.com/haskell/ghcup-metadata/ubuntu20.04/ghcup-0.0.7.yaml"}'
+    #     ghcup install ghc --force --set 9.2.2
+
 
     # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
     - name: Setup MSYS path (Windows)
@@ -120,6 +133,7 @@ jobs:
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
 
+      # Caching is disabled...
         #    - uses: actions/cache@v2
         #      name: Cache dependencies
         #      id: cache
@@ -130,21 +144,25 @@ jobs:
         #        key: nightly-${{ runner.os }}-ghc-${{ matrix.ghc-ver }}-cabal-${{ hashFiles('**/plan.json') }}
         #
     - name: Build dependencies
-      if: ${{ !steps.cache.outputs.cache-hit }}
+      # Caching is disabled...
+      # if: ${{ !steps.cache.outputs.cache-hit }}
       run: cabal build exe:agda exe:agda-mode --only-dependencies -v0
 
     - name: Build Agda
-      uses: nick-invision/retry@v2
-      # Liang-Ting (2020-12-8):
-      # Due to a ghc bug on Windows, it is necessary to build Agda twice (or more)
-      # See:
-      #   - https://github.com/agda/agda/issues/4543
-      #   - https://gitlab.haskell.org/ghc/ghc/-/issues/18634
-      with:
-        max_attempts: 3
-        timeout_minutes: 60
-        retry_on: error
-        command: cabal build exe:agda exe:agda-mode
+      run: cabal build exe:agda exe:agda-mode
+
+    # - name: Build Agda
+    #   uses: nick-invision/retry@v2
+    #   # Liang-Ting (2020-12-8):
+    #   # Due to a ghc bug on Windows, it is necessary to build Agda twice (or more)
+    #   # See:
+    #   #   - https://github.com/agda/agda/issues/4543
+    #   #   - https://gitlab.haskell.org/ghc/ghc/-/issues/18634
+    #   with:
+    #     max_attempts: 3
+    #     timeout_minutes: 60
+    #     retry_on: error
+    #     command: cabal build exe:agda exe:agda-mode
 
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       # TODO: Move this part to Makefile
