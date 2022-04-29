@@ -1014,7 +1014,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           let deltaArg i = do
                 i <- i
                 xs <- sequence delta_ps
-                pure $ flip map xs (fmap (`apply` [argN i]))
+                pure $ map (fmap (`apply` [argN i])) xs
 
           let
             origPTrX = do
@@ -1080,7 +1080,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
 
         Def _ es <- unEl <$> reduce ty
         -- Δ.aTel ⊢ con_ixs : X
-        let con_ixs = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ snd $ splitAt npars es
+        let con_ixs = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop npars es
 
         reportSDoc "tc.data.transp.con" 20 $
           addContext prm $ "aTel:" <+> prettyTCM aTel
@@ -1094,7 +1094,7 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
                      aTel <- open $ AbsN (teleNames prm) aTel
                      parI <- open parI
                      abstract_trD $ \ delta _ _ -> do
-                     let args = aTel `applyN` flip map delta (\ p -> p <@> pure iz)
+                     let args = aTel `applyN` map (<@> pure iz) delta
                      args
         res <- runNamesT [] $ do
           let aTelNames = teleNames aTel
@@ -1131,12 +1131,10 @@ defineConClause trD' isHIT mtrX npars nixs xTel' telI sigma dT' cnames = do
           let deltaArg i = do
                 i <- i
                 xs <- sequence delta_ps
-                pure $ flip map xs (fmap (`apply` [argN i]))
+                pure $ map (fmap (`apply` [argN i])) xs
 
           let
-            origP = do
-               conp <- ConP chead noConPatternInfo <$> ps0
-               pure conp
+            origP = ConP chead noConPatternInfo <$> ps0
             ps = sequence $ delta_ps ++ x_ps ++ phi_ps ++ [argN . unnamed <$> origP]
           let
             orig = patternToTerm <$> origP

@@ -1067,7 +1067,7 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
         phi <- phi
         return $ (phi,tm_phi) : concatMap (\(v,(l,r)) -> [(neg `apply` [argN v],l),(v,r)]) xs
 
-    imax <- return $ \ i j -> apply max . map argN $ [i,j]
+    let imax i j = apply max $ map argN [i,j]
     tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
     let
       pOr l ty phi psi u0 u1 = do
