@@ -235,8 +235,8 @@ postCompileDot cenv _main modulesByName =
     Graph.transitiveReduction $
     Graph.addUniqueInts $
     Graph.fromEdges $
-    concat $
-    map (\(name, m) ->
+    concatMap
+       (\ (name, m) ->
           [ Graph.Edge
               { source = name
               , target = target

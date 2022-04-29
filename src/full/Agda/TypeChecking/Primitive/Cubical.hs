@@ -1889,8 +1889,10 @@ transpSysTel' flag delta us phi args = do
     gTransp (Just l) t u phi a
      | flag = do
       t' <- t
-      us' <- sequence $ map snd u
-      case (0 `freeIn` (raise 1 t' `lazyAbsApp` var 0),0 `freeIn` map (`lazyAbsApp` var 0) (map (raise 1) us')) of
+      us' <- mapM snd u
+      case ( 0 `freeIn` (raise 1 t' `lazyAbsApp` var 0)
+           , 0 `freeIn` map (\ u -> raise 1 u `lazyAbsApp` var 0) us'
+           ) of
         (False,False) -> a
         (False,True)  -> doGTransp l t u phi a -- TODO? optimize to "hcomp (l <@> io) (bapp t io) ((phi,NoAbs a):u) a" ?
         (True,_) -> doGTransp l t u phi a
@@ -2121,14 +2123,14 @@ transpPathPTel' theTel x y phi p = do
  qs <- (open =<<) $ fmap (fmap (\ (Abs n (Arg i t)) -> Arg i (Lam defaultArgInfo $ Abs n t)) . sequenceA)
                   $ bind "j" $ \ j -> do
    theTel <- absApp <$> theTel <*> j
-   faces <- sequence $ [neg j, j]
+   faces <- sequence [neg j, j]
    us <- forM [x,y] $ \ z -> do
            bind "i" $ \ i -> forM z (<@> i)
    let sys = zip faces us
    -- [(neg j, bind "i" $ \ i -> flip map x (<@> i))
    -- ,(j , bind "i" $ \ i -> flip map y (<@> i))]
    phi <- phi
-   p0 <- sequence $ flip map p (<@> j)
+   p0 <- mapM (<@> j) p
    let toArgs = zipWith (\ a t -> t <$ a) (teleArgNames (unAbs $ theTel))
    eq <- lift . runExceptT $ transpSysTel' False theTel sys phi (toArgs p0)
    either (lift . lift . throw . CannotTransp) pure eq
@@ -2154,7 +2156,7 @@ transpPathTel' theTel x y phi p = do
    -- [(neg j, bind "i" $ \ i -> flip map x (<@> i))
    -- ,(j , bind "i" $ \ i -> flip map y (<@> i))]
    phi <- phi
-   p0 <- sequence $ flip map p (<@> j)
+   p0 <- mapM (<@> j) p
    let toArgs = zipWith (\ a t -> t <$ a) (teleArgNames (unAbs theTel))
    eq <- lift . runExceptT $ transpSysTel' False theTel sys phi (toArgs p0)
    either (lift . lift . throw . CannotTransp) pure eq
@@ -2217,7 +2219,9 @@ expTelescope int tel = unflattenTel names ys
 
 -- | Γ, Δ^I, i : I |- expS |Δ| : Γ, Δ
 expS :: Nat -> Substitution
-expS stel = prependS __IMPOSSIBLE__ (map Just [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..stel] ]) (raiseS (stel + 1))
+expS stel = prependS __IMPOSSIBLE__
+  [ Just (var n `apply` [Arg defaultArgInfo $ var 0]) | n <- [1..stel] ]
+  (raiseS (stel + 1))
 
 
 -- * Special cases of Type

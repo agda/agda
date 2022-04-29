@@ -274,12 +274,14 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = ru
           phis = 1 -- neqs
         interval <- lift $ primIntervalType
          -- Γ, φs : I^phis
-        let gamma_phis = abstract gamma (telFromList $ map (defaultDom . (,interval)) $ map (("phi"++) . show) $ [0 .. phis - 1])
+        let gamma_phis = abstract gamma $ telFromList $
+              map (defaultDom . (,interval) . ("phi" ++) . show) [0 .. phis - 1]
         working_tel <- abstract gamma_phis <$>
           errorToUnsupported (pathTelescope' (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st))
-        reportSDoc "tc.lhs.unify.inv" 20 $ "working tel:" <+> prettyTCM (working_tel :: Telescope)
-        addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "working tel args:" <+> prettyTCM (teleArgs working_tel :: [Arg Term])
-
+        reportSDoc "tc.lhs.unify.inv" 20 $ vcat
+          [ "working tel:" <+> prettyTCM (working_tel :: Telescope)
+          , addContext working_tel $ "working tel args:" <+> prettyTCM (teleArgs working_tel :: [Arg Term])
+          ]
         (tau,leftInv,phi) <- addContext working_tel $ runNamesT [] $ do
           let raiseFrom tel x = raise (size working_tel - size tel) x
 
@@ -324,7 +326,7 @@ buildEquiv (UnificationStep st step@(Solution k ty fx tm side) output) next = ru
                           Right{} -> unview . INeg . argN
           let
                   -- csingl :: NamesT tcm Term -> NamesT tcm [Arg Term]
-                  csingl i = sequence $ map (fmap defaultArg) $ csingl' i
+                  csingl i = mapM (fmap defaultArg) $ csingl' i
                   -- csingl' :: NamesT tcm Term -> [NamesT tcm Term]
                   csingl' i = [ k_arg <@@> (u,v,appSide <$> i)
                               , lam "j" $ \ j ->
@@ -434,15 +436,17 @@ buildEquiv (UnificationStep st step@(EtaExpandVar fv _d _args) output) next = fm
           phis = 1
         interval <- primIntervalType
          -- Γ, φs : I^phis
-        let gamma_phis = abstract gamma (telFromList $ map (defaultDom . (,interval)) $ map (("phi"++) . show) $ [0 .. phis - 1])
+        let gamma_phis = abstract gamma $ telFromList $
+              map (defaultDom . (,interval) . ("phi"++) . show) [0 .. phis - 1]
         working_tel <- abstract gamma_phis <$>
           pathTelescope (raise phis $ eqTel st) (raise phis $ eqLHS st) (raise phis $ eqRHS st)
         let raiseFrom tel x = (size working_tel - size tel) + x
         let phi = var $ raiseFrom gamma_phis 0
 
         caseMaybeM (expandRecordVar (raiseFrom gamma x) working_tel) __IMPOSSIBLE__ $ \ (_,tau,rho,_) -> do
-          addContext working_tel $ reportSDoc "tc.lhs.unify.inv" 20 $ "tau    :" <+> prettyTCM tau
+          reportSDoc "tc.lhs.unify.inv" 20 $ addContext working_tel $ "tau    :" <+> prettyTCM tau
           return $ ((working_tel,rho,tau,raiseS 1),phi)
+
 buildEquiv (UnificationStep st step output) _ = do
   reportSDoc "tc.lhs.unify.inv" 20 $ "steps"
   let illegal     = return $ Left $ Illegal step

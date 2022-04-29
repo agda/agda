@@ -293,7 +293,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
             args1 <- (mapM open =<<) $ (absApp <$> args <*> pure io)
             -- faces ought to be constant on "j"
             faces <- pure (fmap (map fst) old_sides) `applyN` args1
-            us <- forM (sequence (fmap (map snd) old_sides)) $ \ u -> do
+            us <- forM (mapM (map snd) old_sides) $ \ u -> do
                   lam "j" $ \ j -> ilam "o" $ \ _ -> do
                     args <- (mapM open =<<) $ (absApp <$> args <*> j)
                     pure u `applyN` args
@@ -325,9 +325,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     -- Ξ ⊢ w0 := f old_ps[γ1,x = pat_rec[1] ,δ_f[1]] : old_t[γ1,x = pat_rec[1],δ_f[1]]
     -- Ξ ⊢ rhs := tr (i. old_t[γ1,x = pat_rec[~i], δ_f[~i]]) (φ ∧ ψ) w0 -- TODO plus sides.
     syspsi <- (open =<<) $ lam "i" $ \ i -> ilam "o" $ \ _ -> do
-      c <- mkComp $ bindN ["i","j"] $ \ ij -> do
-        let i = ij List.!! 0
-            j = ij List.!! 1
+      c <- mkComp $ bindN ["i","j"] $ \ [i,j] -> do
         Abs n (data_ty,lines) <- bind "k" $ \ k -> do
           let phi_k = max phi (neg k)
           let p_k = flip map p $ \ p -> lam "h" $ \ h -> p <@> (min k h)
@@ -355,7 +353,7 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     syse <- mkBndry $ bind "j" $ \ _ -> sequence $ g1 ++ [absApp <$> pat_rec <*> pure iz] ++ d
     let sys = syse ++ [(phi,sysphi)] ++ [(psi,syspsi)]
     w0 <- (open =<<) $ do
-      let w = mkComp (bindN ["i","j"] $ \ ij -> absApp <$> pat_rec <*> (ij List.!! 1))
+      let w = mkComp (bindN ["i","j"] $ \ [_i, j] -> absApp <$> pat_rec <*> j)
       absApp <$> w <*> pure iz
     let rhs = hcomp (unDom <$> rhsTy) sys w0
     (,,) <$> ps <*> rhsTy <*> rhs
@@ -587,7 +585,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
             args1 <- (mapM open =<<) $ (absApp <$> args <*> pure io)
             -- faces ought to be constant on "j"
             faces <- pure (fmap (map fst) old_sides) `applyN` args1
-            us <- forM (sequence (fmap (map snd) old_sides)) $ \ u -> do
+            us <- forM (mapM (map snd) old_sides) $ \ u -> do
                   lam "j" $ \ j -> ilam "o" $ \ _ -> do
                     args <- (mapM open =<<) $ (absApp <$> args <*> j)
                     pure u `applyN` args
@@ -595,7 +593,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
     rhs <- do
       d_f <- (open =<<) $ bind "j" $ \ j -> do
         tel <- bind "j" $ \ j -> delta `applyN` (g1 ++ [absApp <$> pat_rec <*> j])
-        face <- pure iz
+        let face = iz
         j <- j
         d <- map defaultArg <$> sequence d
         Right d_f <- lift $ runExceptT $ trFillTel tel face d j
@@ -1069,7 +1067,7 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
         phi <- phi
         return $ (phi,tm_phi) : concatMap (\(v,(l,r)) -> [(neg `apply` [argN v],l),(v,r)]) xs
 
-    imax <- return $ \ i j -> apply max . map argN $ [i,j]
+    let imax i j = apply max $ map argN [i,j]
     tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
     let
       pOr l ty phi psi u0 u1 = do

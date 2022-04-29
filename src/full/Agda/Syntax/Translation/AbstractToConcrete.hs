@@ -771,7 +771,7 @@ instance ToConcrete A.Expr where
 
     toConcrete (A.Underscore i) =
       C.Underscore (getRange i) <$>
-      traverse (\m -> render <$> prettyTCM m)
+      traverse (render <.> prettyTCM)
         (NamedMeta (metaNameSuggestion i) <$> metaNumber i)
 
     toConcrete (A.Dot i e) =
