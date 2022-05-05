@@ -1133,17 +1133,16 @@ introTactic pmLambda ii = do
       case r of
         Left err -> return []
         Right cov -> 
-           -- mapM showUnambiguousConName $ concatMap (conName . scPats) $ splitClauses cov
            mapM conWithArgs $ map scPats $ splitClauses cov
       where
         conWithArgs x = do
            let [ch] = conHead x
            cn <- showUnambiguousConName ch
            sia <- showImplicitArguments
-           return $ List.intercalate " "
-                      (cn : [ if v then "?" else "{?}"
-                            | v <- map ( (== NotHidden) . getHiding ) (conFields ch)
-                            , v || sia ])
+           return $ List.intercalate " " $
+                       cn : [ if v then "?" else "{?}"
+                            | v <- map visible $ conFields ch
+                            , v || sia ]
            
         
 
