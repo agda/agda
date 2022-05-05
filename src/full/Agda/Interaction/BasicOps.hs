@@ -1090,9 +1090,9 @@ introTactic pmLambda ii = do
      `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where
-    conName :: [NamedArg SplitPattern] -> [I.ConHead]
-    conName [p] = [ c | I.ConP c _ _ <- [namedArg p] ]
-    conName _   = __IMPOSSIBLE__
+    conHead :: [NamedArg SplitPattern] -> [I.ConHead]
+    conHead [p] = [ c | I.ConP c _ _ <- [namedArg p] ]
+    conHead _   = __IMPOSSIBLE__
 
     showUnambiguousConName v =
        render . pretty <$> runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
@@ -1132,8 +1132,20 @@ introTactic pmLambda ii = do
       r <- splitLast CoInductive tel pat
       case r of
         Left err -> return []
-        Right cov ->
-           mapM showUnambiguousConName $ concatMap (conName . scPats) $ splitClauses cov
+        Right cov -> 
+           -- mapM showUnambiguousConName $ concatMap (conName . scPats) $ splitClauses cov
+           mapM conWithArgs $ map scPats $ splitClauses cov
+      where
+        conWithArgs x = do
+           let [ch] = conHead x
+           cn <- showUnambiguousConName ch
+           sia <- showImplicitArguments
+           return $ List.intercalate " "
+                      (cn : [ if v then "?" else "{?}"
+                            | v <- map ( (== NotHidden) . getHiding ) (conFields ch)
+                            , v || sia ])
+           
+        
 
     introRec :: QName -> TCM [String]
     introRec d = do
