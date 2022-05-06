@@ -1,4 +1,4 @@
-Failed to solve the following constraints:
-  Agda.Primitive.Setω =< _4 (blocked on _4)
-Unsolved metas at the following locations:
-  Issue2285-record.agda:4,8-11
+Issue2285-record.agda:4,8-11
+The universe _4 of Big
+is unresolved, thus does not permit data or record declarations
+when checking the definition of Big

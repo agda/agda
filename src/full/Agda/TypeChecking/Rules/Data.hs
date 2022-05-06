@@ -126,24 +126,6 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   else throwError err
               reduce s
 
-            -- cubical: the interval universe does not contain datatypes
-            when (s == IntervalUniv) $
-              typeError . GenericDocError =<<
-              fsep [ "The sort of" <+> prettyTCM name
-                   , "cannot be the interval universe"
-                   , prettyTCM s
-                   ]
-
-            -- when `--without-K`, all the indices should fit in the
-            -- sort of the datatype (see #3420).
-            let s' = case s of
-                  Prop l -> Type l
-                  _      -> s
-            -- Andreas, 2019-07-16, issue #3916:
-            -- NoUniverseCheck should also disable the index sort check!
-            unless (uc == NoUniverseCheck) $
-              whenM withoutKOption $ checkIndexSorts s' ixTel
-
             reportSDoc "tc.data.sort" 20 $ vcat
               [ "checking datatype" <+> prettyTCM name
               , nest 2 $ vcat
@@ -180,11 +162,25 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
               isPathCons <- checkConstructor name uc tel' nofIxs s c
               return $ if isPathCons == PathCons then Just (A.axiomName c) else Nothing
 
+
+            -- cubical: the interval universe does not contain datatypes
+            -- similar: SizeUniv, ...
+            checkDataSort name s
+
+            -- when `--without-K`, all the indices should fit in the
+            -- sort of the datatype (see #3420).
+            -- Andreas, 2019-07-16, issue #3916:
+            -- NoUniverseCheck should also disable the index sort check!
+            unless (uc == NoUniverseCheck) $
+              whenM withoutKOption $ do
+                let s' = case s of
+                      Prop l -> Type l
+                      _      -> s
+                checkIndexSorts s' ixTel
+
             -- Return the data definition
             return dataDef{ dataPathCons = catMaybes pathCons
                           }
-
-
 
         let cons   = map A.axiomName cs  -- get constructor names
 
@@ -205,6 +201,44 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                    , dataTransp   = transpFun
                    }
 
+-- | Make sure that the target universe admits data type definitions.
+--   E.g. @IUniv@, @SizeUniv@ etc. do not accept new constructions.
+checkDataSort :: QName -> Sort -> TCM ()
+checkDataSort name s = do
+  s <- reduce s
+  let
+   yes   = return ()
+   no    = typeError . GenericDocError =<<
+              fsep [ "The universe"
+                   , prettyTCM s
+                   , "of"
+                   , prettyTCM name
+                   , "does not admit data or record declarations"
+                   ]
+   dunno = typeError . GenericDocError =<<
+              fsep [ "The universe"
+                   , prettyTCM s
+                   , "of"
+                   , prettyTCM name
+                   , "is unresolved, thus does not permit data or record declarations"
+                   ]
+  case s of
+    -- Sorts that admit data definitions.
+    Type _   -> yes
+    Prop _   -> yes
+    Inf _ _  -> yes
+    SSet _   -> yes
+    DefS _ _ -> yes
+    -- Sorts that do not admit data definitions.
+    SizeUniv     -> no
+    LockUniv     -> no
+    IntervalUniv -> no
+    -- Unsolved sorts.
+    PiSort _ _ _ -> dunno
+    FunSort _ _  -> dunno
+    UnivSort _   -> dunno
+    MetaS _ _    -> dunno
+    DummyS _     -> __IMPOSSIBLE__
 
 -- | Ensure that the type is a sort.
 --   If it is not directly a sort, compare it to a 'newSortMetaBelowInf'.
