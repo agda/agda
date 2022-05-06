@@ -338,7 +338,7 @@ helpForLocaleError e = case e of
     , ""
     , "* If you are using a Unix-like system, try using a different locale. The"
     , "  installed locales are perhaps printed by the command 'locale -a'. If"
-    , "  you have a UTF-8 locale installed (for instance sv_SE.utf8), then you"
+    , "  you have a UTF-8 locale installed (for instance sv_SE.UTF-8), then you"
     , "  can perhaps make Agda use this locale by running something like"
-    , "  'LC_ALL=sv_SE.utf-8 agda <...>'."
+    , "  'LC_ALL=sv_SE.UTF-8 agda <...>'."
     ]
