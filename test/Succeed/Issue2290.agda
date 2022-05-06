@@ -6,7 +6,7 @@ postulate
   F : Set → Set
 
 mutual
-  data D : A → _ where
+  data D : A → Set _ where
   FDa = F (D a)
 
 -- ERROR WAS:
@@ -15,5 +15,5 @@ mutual
 -- Should pass.
 
 mutual
-  data E : (x : A) → _ where
+  data E : (x : A) → Set _ where
   FEa = F (E a)
