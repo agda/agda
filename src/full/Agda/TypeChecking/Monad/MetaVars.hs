@@ -405,6 +405,7 @@ constraintMetas = \case
       CheckSizeLtSat{}         -> return mempty
       HasBiggerSort{}          -> return mempty
       HasPTSRule{}             -> return mempty
+      CheckDataSort{}          -> return mempty
       CheckMetaInst x          -> return mempty
       CheckType t              -> return $ allMetas Set.singleton t
       CheckLockedVars a b c d  -> return $ allMetas Set.singleton (a, b, c, d)

@@ -1,4 +1,4 @@
 Issue5891DataInIUniv.agda:10,8-13
-The universe _6 of False
-is unresolved, thus does not permit data or record declarations
+The universe IUniv of False
+does not admit data or record declarations
 when checking the definition of False

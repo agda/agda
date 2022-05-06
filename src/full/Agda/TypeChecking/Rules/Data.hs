@@ -24,6 +24,7 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Views (deepUnscope)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Internal.MetaVars (unblockOnAnyMetaIn)
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
@@ -204,41 +205,39 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
 -- | Make sure that the target universe admits data type definitions.
 --   E.g. @IUniv@, @SizeUniv@ etc. do not accept new constructions.
 checkDataSort :: QName -> Sort -> TCM ()
-checkDataSort name s = do
-  s <- reduce s
-  let
-   yes   = return ()
-   no    = typeError . GenericDocError =<<
+checkDataSort name s = setCurrentRange name $ do
+  ifBlocked s postpone {-else-} $ \ _ (s :: Sort) -> do
+    let
+      yes :: TCM ()
+      yes = return ()
+      no  :: TCM ()
+      no  = typeError . GenericDocError =<<
               fsep [ "The universe"
                    , prettyTCM s
                    , "of"
                    , prettyTCM name
                    , "does not admit data or record declarations"
                    ]
-   dunno = typeError . GenericDocError =<<
-              fsep [ "The universe"
-                   , prettyTCM s
-                   , "of"
-                   , prettyTCM name
-                   , "is unresolved, thus does not permit data or record declarations"
-                   ]
-  case s of
-    -- Sorts that admit data definitions.
-    Type _   -> yes
-    Prop _   -> yes
-    Inf _ _  -> yes
-    SSet _   -> yes
-    DefS _ _ -> yes
-    -- Sorts that do not admit data definitions.
-    SizeUniv     -> no
-    LockUniv     -> no
-    IntervalUniv -> no
-    -- Unsolved sorts.
-    PiSort _ _ _ -> dunno
-    FunSort _ _  -> dunno
-    UnivSort _   -> dunno
-    MetaS _ _    -> dunno
-    DummyS _     -> __IMPOSSIBLE__
+    case s of
+      -- Sorts that admit data definitions.
+      Type _       -> yes
+      Prop _       -> yes
+      Inf _ _      -> yes
+      SSet _       -> yes
+      DefS _ _     -> yes
+      -- Sorts that do not admit data definitions.
+      SizeUniv     -> no
+      LockUniv     -> no
+      IntervalUniv -> no
+      -- Unsolved sorts.
+      PiSort _ _ _ -> postpone (unblockOnAnyMetaIn s) s
+      FunSort _ _  -> postpone (unblockOnAnyMetaIn s) s
+      UnivSort _   -> postpone (unblockOnAnyMetaIn s) s
+      MetaS _ _    -> __IMPOSSIBLE__
+      DummyS _     -> __IMPOSSIBLE__
+  where
+    postpone :: Blocker -> Sort -> TCM ()
+    postpone b s = addConstraint b $ CheckDataSort name s
 
 -- | Ensure that the type is a sort.
 --   If it is not directly a sort, compare it to a 'newSortMetaBelowInf'.

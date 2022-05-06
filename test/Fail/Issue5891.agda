@@ -8,6 +8,9 @@ open import Agda.Builtin.Size
 
 data ⊥ : Set where
 
+-- Original exploit:
+-- data False : SizeUniv where
+
 False : SizeUniv
 False = (X : SizeUniv) → X
 
