@@ -189,12 +189,16 @@ lispifyDisplayInfo info = case info of
       format (render doc) "*Context*"
     Info_Intro_NotFound -> format "No introduction forms found." "*Intro*"
     Info_Intro_ConstructorUnknown ss -> do
-      let doc = sep [ "Don't know which constructor to introduce of"
-                    , let mkOr []     = []
-                          mkOr [x, y] = [text x <+> "or" <+> text y]
-                          mkOr (x:xs) = text x : mkOr xs
-                      in nest 2 $ fsep $ punctuate comma (mkOr ss)
-                    ]
+      -- temoporary code, this should happen earlier,
+      consWTy <- mapM (\(x , y) ->
+                         case y of
+                           Nothing -> return $ text x
+                           Just z -> do
+                               doc <- prettyATop z
+                               return $ text $ x ++ " | " ++ render doc 
+                               
+                             ) ss
+      let doc = sep ("Don't know which constructor to introduce of" : consWTy)
       format (render doc) "*Intro*"
     Info_Version -> format ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
     Info_GoalSpecific ii kind -> lispifyGoalSpecificDisplayInfo ii kind

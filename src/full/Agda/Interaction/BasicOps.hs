@@ -88,8 +88,10 @@ import Agda.Utils.Pretty as P
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.String
-
+import Agda.Utils.Tuple
 import Agda.Utils.Impossible
+
+import Data.List.NonEmpty (toList)
 
 -- | Parses an expression.
 
@@ -1054,7 +1056,7 @@ typeInMeta ii norm e =
 -- used to refine the goal. Uses the coverage checker
 -- to find out which constructors are possible.
 --
-introTactic :: Bool -> InteractionId -> TCM [String]
+introTactic :: Bool -> InteractionId -> TCM [(String, Maybe A.Expr)]
 introTactic pmLambda ii = do
   mi <- lookupInteractionId ii
   mv <- lookupLocalMeta mi
@@ -1075,7 +1077,7 @@ introTactic pmLambda ii = do
                 ]
               case (tel', tel) of
                 (EmptyTel, EmptyTel) -> return []
-                _ -> introFun (telToList tel' ++ telToList tel)
+                _ -> fmap (fmap (\x -> (x , Nothing))) $ introFun (telToList tel' ++ telToList tel)
 
         case unEl t of
           I.Def d _ -> do
@@ -1084,7 +1086,7 @@ introTactic pmLambda ii = do
               Datatype{}    -> addContext tel' $ introData t
               Record{ recNamedCon = name }
                 | name      -> addContext tel' $ introData t
-                | otherwise -> addContext tel' $ introRec d
+                | otherwise -> fmap (fmap (\x -> (x , Nothing))) $ addContext tel' $ introRec d
               _ -> fallback
           _ -> fallback
      `catchError` \_ -> return []
@@ -1098,7 +1100,7 @@ introTactic pmLambda ii = do
     conName _   = __IMPOSSIBLE__
 
     showUnambiguousConName v =
-       render . pretty <$> runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
+       runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
 
     showTCM :: PrettyTCM a => a -> TCM String
     showTCM v = render <$> prettyTCM v
@@ -1128,7 +1130,7 @@ introTactic pmLambda ii = do
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
-    introData :: I.Type -> TCM [String]
+    introData :: I.Type -> TCM [(String , Maybe A.Expr)]
     introData t = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
@@ -1137,16 +1139,42 @@ introTactic pmLambda ii = do
         Left err -> return []
         Right cov -> mapM conWithArgs $ catMaybes $ map (conName . scPats) $ splitClauses cov
       where
+
+        bindingList :: Telescope1 -> [NamedArg Binder]
+        bindingList =
+          concatMap (\(A.TBind _ _ x _) -> toList x  )
+          . toList
+
+        argsFromTy :: Expr -> [(Maybe String , Hiding)] 
+        argsFromTy = \case
+          A.Pi _ t cd -> (map (\na -> (((render . pretty) <$> (nameOf $ unArg na)) , getHiding na ) ) $ bindingList t ) ++ argsFromTy cd
+          A.Fun _ a cd -> (Nothing , getHiding a ) : argsFromTy cd
+          A.Def' _ _ -> []
+          A.App _ _ _ -> []
+          _ -> __IMPOSSIBLE__
+
         conWithArgs ch = do
-             cn <- showUnambiguousConName ch
+             cqn <- showUnambiguousConName ch
+             let cn = render $ pretty  cqn
              sia <- showImplicitArguments
-             return $ unwords $
-                         cn : [ case v of
-                                    Hidden ->      "{?}"
-                                    Instance _ -> "{{?}}"
-                                    NotHidden ->    "?"
-                              | v <- map getHiding $ conFields ch
-                              , v == NotHidden || sia ]
+             cTy <- typeInMeta ii Normalised (A.Con $ unambiguous $ (I.conName ch))
+             let introStr = unwords $ (cn :)
+                        $ flip mapMaybe (argsFromTy cTy) $ \case
+                            (_ , NotHidden)  -> Just "?"
+                            (mbFQnm , Hidden) -> 
+                                if sia
+                                then Just $ case mbFQnm of
+                                               Just fNm -> "{ "++ fNm ++ " = ?}"
+                                               Nothing -> "{?}"
+                                else Nothing
+                            (mbFQnm , Instance _) ->
+                                if sia
+                                then Just $ case mbFQnm of
+                                               Just fNm -> "{{ "++ fNm ++ " = ?}}"
+                                               Nothing -> "{{?}}"
+                                else Nothing
+             return (introStr , Just $ cTy)
+                         
 
 
 
@@ -1328,3 +1356,4 @@ whyInScope s = do
   return ( lookup x $ map (first C.QName) $ scope ^. scopeLocals
          , scopeLookup x scope
          , scopeLookup x scope )
+

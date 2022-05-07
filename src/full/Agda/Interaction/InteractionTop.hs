@@ -670,9 +670,8 @@ interpret (Cmd_intro pmLambda ii rng _) = do
   liftCommandMT (withInteractionId ii) $ case ss of
     []    -> do
       display_info $ Info_Intro_NotFound
-    [s]   -> give_gen WithoutForce ii rng s Intro
-    _:_:_ -> do
-      display_info $ Info_Intro_ConstructorUnknown ss
+    [(s,_)]   -> give_gen WithoutForce ii rng s Intro
+    _:_:_ -> display_info $ Info_Intro_ConstructorUnknown ss
 
 interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   let s' = trim s
