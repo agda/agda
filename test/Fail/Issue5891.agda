@@ -1,5 +1,6 @@
 -- AIM XXXV, 2022-05-06, issue #5891:
 -- SizeUniv : SizeUniv was causing non-termination and inhabitation of Size< 0.
+-- This is inconsistent; proof by Jonathan Chan.
 
 {-# OPTIONS --sized-types #-}
 
@@ -20,6 +21,7 @@ False = (X : SizeUniv) → X
 -- Setω != SizeUniv
 -- when checking that the expression (X : SizeUniv) → X has type SizeUniv
 
+-- Step 1: Hurken's Paradox with SizeUniv : SizeUniv.
 
 ℘ : SizeUniv → SizeUniv
 ℘ S = S → SizeUniv
@@ -48,27 +50,36 @@ M _ 𝟚 𝟛 = 𝟛 Δ 𝟚 (λ p → 𝟛 (λ y → p (τ (σ y))))
 L : (∀ p → (∀ x → σ x p → p x) → p Ω) → False
 L 𝟘 = 𝟘 Δ M (λ p → 𝟘 (λ y → p (τ (σ y))))
 
-false : False
-false = L R
+-- Prevent unfolding, as this term has no whnf.
+-- Stops Agda from looping.
 
-not-true : ∀ i → Size< i
-not-true i = false (Size< i)
+abstract
+  false : False
+  false = L R
 
-data Empty (i : Size) : Set where
-  emp : ∀{j : Size< i} → Empty j → Empty i
+-- This gives us a predecessor on Size.
 
-empty : ∀ i → Empty i
-empty i = empty (false (Size< i))
+size-pred : ∀ i → Size< i
+size-pred i = false (Size< i)
 
-{-
+-- Step 2: Size predecessor is inconsistent.
 
--- -}
+-- Jonathan Chag:
+-- I managed to do so using ∞ but only because it's the only closed
+-- size expression, not using the ∞ < ∞ property, although the
+-- principle is the same as for #3026:
 
+data _>_ (s : Size) : Size → Set where
+  lt : (r : Size< s) → s > r
 
--- data Eq {ℓ} (A : Set ℓ) (x : A) : A → Set ℓ where
---   refl : Eq A x x
+data Acc (s : Size) : Set where
+  acc : (∀ {r} → s > r → Acc r) → Acc s
 
--- -}
--- -}
--- -}
--- -}
+wf : ∀ s → Acc s
+wf s = acc λ{ (lt r) → wf r }
+
+¬wf : ∀ s → Acc s → ⊥
+¬wf s (acc p) = ¬wf (size-pred s) (p (lt (size-pred s)))
+
+absurd : ⊥
+absurd = (¬wf ∞) (wf ∞)

@@ -132,12 +132,15 @@ path t = primPath <@> t
 el :: Functor m => m Term -> m Type
 el t = El (mkType 0) <$> t
 
+-- | The universe @Set0@ as a type.
 tset :: Applicative m => m Type
 tset = pure $ sort (mkType 0)
 
+-- | @SizeUniv@ as a sort.
 sSizeUniv :: Sort
 sSizeUniv = SizeUniv
 
+-- | @SizeUniv@ as a type.
 tSizeUniv :: Applicative m => m Type
 tSizeUniv = pure $ sort sSizeUniv
 
