@@ -31,8 +31,11 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters, fitsIn, forceSort,
-                                      defineCompData, defineTranspOrHCompForFields )
+import Agda.TypeChecking.Rules.Data
+  ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters
+  , checkDataSort, fitsIn, forceSort
+  , defineCompData, defineTranspOrHCompForFields
+  )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -123,14 +126,6 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       --   if s == Prop
       --   then telFromList $ map (setRelevance Irrelevant) $ telToList ftel
       --   else ftel
-
-      -- cubical: the interval universe does not contain records with parameters
-      when (s == IntervalUniv) $
-        typeError . GenericDocError =<<
-        fsep [ "The sort of" <+> prettyTCM name
-             , "cannot be the interval universe"
-             , prettyTCM s
-             ]
 
       reportSDoc "tc.rec" 20 $ do
         gamma <- getContextTelescope  -- the record params (incl. module params)
@@ -270,6 +265,10 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
       -- Check that the fields fit inside the sort
       _ <- fitsIn uc [] contype s
+
+      -- Check that the sort admits record declarations.
+      checkDataSort name s
+
 
       {- Andreas, 2011-04-27 WRONG because field types are checked again
          and then non-stricts should not yet be irrelevant

@@ -1,0 +1,4 @@
+Issue5891.agda:16,9-27
+Setω != SizeUniv
+when checking that the expression (X : SizeUniv) → X has type
+SizeUniv

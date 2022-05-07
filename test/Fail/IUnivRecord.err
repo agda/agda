@@ -1,3 +1,4 @@
 IUnivRecord.agda:3,8-11
-The sort of Bad cannot be the interval universe IUniv
+The universe IUniv of Bad
+does not admit data or record declarations
 when checking the definition of Bad
