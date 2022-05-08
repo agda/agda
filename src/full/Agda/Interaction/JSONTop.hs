@@ -280,7 +280,7 @@ instance EncodeTCM DisplayInfo where
     ]
   encodeTCM (Info_Error err) = encodeTCM err
   encodeTCM Info_Intro_NotFound = kind "IntroNotFound" []
-  encodeTCM (Info_Intro_ConstructorUnknown introductions) = kind "IntroConstructorUnknown"
+  encodeTCM (Info_Intro_ConstructorUnknown _ introductions) = kind "IntroConstructorUnknown"
     [ "constructors"      @= map toJSON (map fst introductions)
     ]
   encodeTCM (Info_Auto info) = kind "Auto"

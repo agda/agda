@@ -671,7 +671,7 @@ interpret (Cmd_intro pmLambda ii rng _) = do
     []    -> do
       display_info $ Info_Intro_NotFound
     [(s,_)]   -> give_gen WithoutForce ii rng s Intro
-    _:_:_ -> display_info $ Info_Intro_ConstructorUnknown ss
+    _:_:_ -> display_info $ Info_Intro_ConstructorUnknown ii ss
 
 interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
   let s' = trim s

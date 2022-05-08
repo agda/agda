@@ -872,6 +872,16 @@ The action depends on the prefix argument:
       ((inhibit-modification-hooks t))
   (agda2-update old-g paren)))
 
+
+
+(defun agda2-intro-constructor-select (old-g choices)
+  "con select" ;; TODO : write description here
+  (interactive)
+  (let* ((choicesLabels (mapcar #'car choices))
+         (y (cdr (assoc (completing-read "Constructor: " choicesLabels nil t) choices ))))
+    (if y (agda2-give-action old-g (concat "(" y ")"))))) ;; this is dirty, quick fix, TODO : needs to be well handled on haskell side, like Give
+
+
 (defun agda2-refine (pmlambda)
   "Refine the goal at point.
 If the goal contains an expression e, and some \"suffix\" of the

@@ -102,7 +102,7 @@ data DisplayInfo
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
     | Info_Intro_NotFound
-    | Info_Intro_ConstructorUnknown [(String, Maybe A.Expr)]
+    | Info_Intro_ConstructorUnknown InteractionId [(String, Maybe (String , A.Expr))]
     | Info_Auto String
         -- ^ 'Info_Auto' denotes either an error or a success (when 'Resp_GiveAction' is present)
         --   TODO: split these into separate constructors

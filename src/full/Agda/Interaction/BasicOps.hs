@@ -1056,7 +1056,7 @@ typeInMeta ii norm e =
 -- used to refine the goal. Uses the coverage checker
 -- to find out which constructors are possible.
 --
-introTactic :: Bool -> InteractionId -> TCM [(String, Maybe A.Expr)]
+introTactic :: Bool -> InteractionId -> TCM [(String, Maybe (String, A.Expr))]
 introTactic pmLambda ii = do
   mi <- lookupInteractionId ii
   mv <- lookupLocalMeta mi
@@ -1130,7 +1130,7 @@ introTactic pmLambda ii = do
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
-    introData :: I.Type -> TCM [(String , Maybe A.Expr)]
+    introData :: I.Type -> TCM [(String , Maybe (String , A.Expr))]
     introData t = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
@@ -1145,9 +1145,16 @@ introTactic pmLambda ii = do
           concatMap (\(A.TBind _ _ x _) -> toList x  )
           . toList
 
-        argsFromTy :: Expr -> [(Maybe String , Hiding)] 
+        argsFromTy :: Expr -> [(Maybe String , Hiding)]
         argsFromTy = \case
-          A.Pi _ t cd -> (map (\na -> (((render . pretty) <$> (nameOf $ unArg na)) , getHiding na ) ) $ bindingList t ) ++ argsFromTy cd
+          A.Pi _ t cd ->
+              (map (\na ->
+                ( case ((render . pretty) <$> (nameOf $ unArg na)) of
+                    Just ('.' : _) -> Nothing
+                    Just x -> Just x
+                    _ -> Nothing
+                , getHiding na ) ) $ bindingList t )
+               ++ argsFromTy cd
           A.Fun _ a cd -> (Nothing , getHiding a ) : argsFromTy cd
           A.Def' _ _ -> []
           A.App _ _ _ -> []
@@ -1161,7 +1168,7 @@ introTactic pmLambda ii = do
              let introStr = unwords $ (cn :)
                         $ flip mapMaybe (argsFromTy cTy) $ \case
                             (_ , NotHidden)  -> Just "?"
-                            (mbFQnm , Hidden) -> 
+                            (mbFQnm , Hidden) ->
                                 if sia
                                 then Just $ case mbFQnm of
                                                Just fNm -> "{ "++ fNm ++ " = ?}"
@@ -1173,8 +1180,8 @@ introTactic pmLambda ii = do
                                                Just fNm -> "{{ "++ fNm ++ " = ?}}"
                                                Nothing -> "{{?}}"
                                 else Nothing
-             return (introStr , Just $ cTy)
-                         
+             return (introStr , Just (cn , cTy))
+
 
 
 

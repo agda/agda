@@ -43,6 +43,8 @@ import Agda.Utils.String
 import Agda.Utils.Time (CPUTime)
 import Agda.VersionCommit
 
+import Agda.Utils.Impossible
+
 ----------------------------------
 
 -- | 'mimicGHCi' is a fake ghci interpreter for the Emacs frontend
@@ -188,18 +190,15 @@ lispifyDisplayInfo info = case info of
       doc <- localTCState (prettyResponseContext ii False ctx)
       format (render doc) "*Context*"
     Info_Intro_NotFound -> format "No introduction forms found." "*Intro*"
-    Info_Intro_ConstructorUnknown ss -> do
-      -- temoporary code, this should happen earlier,
-      consWTy <- mapM (\(x , y) ->
+    Info_Intro_ConstructorUnknown ii ss -> do
+      csWTy <- forM ss $ \(x , y) ->
                          case y of
-                           Nothing -> return $ text x
-                           Just z -> do
-                               doc <- prettyATop z
-                               return $ text $ x ++ " | " ++ render doc 
-                               
-                             ) ss
-      let doc = sep ("Don't know which constructor to introduce of" : consWTy)
-      format (render doc) "*Intro*"
+                           Nothing -> __IMPOSSIBLE__
+                           Just (c , ty) -> do
+                               d <- prettyATop ty
+                               return $ Cons (A $ quote $ c ++ " : " ++ render d) ((A $ quote $ x))
+
+      return $ [ L [ A "agda2-intro-constructor-select" , showNumIId ii ,  Q $ L $ csWTy ] ]
     Info_Version -> format ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
     Info_GoalSpecific ii kind -> lispifyGoalSpecificDisplayInfo ii kind
 
