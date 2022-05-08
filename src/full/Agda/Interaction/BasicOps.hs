@@ -88,7 +88,6 @@ import Agda.Utils.Pretty as P
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.String
-import Agda.Utils.Tuple
 import Agda.Utils.Impossible
 
 import Data.List.NonEmpty (toList)
