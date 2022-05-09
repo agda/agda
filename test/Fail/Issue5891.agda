@@ -64,7 +64,7 @@ size-pred i = false (Size< i)
 
 -- Step 2: Size predecessor is inconsistent.
 
--- Jonathan Chag:
+-- Jonathan Chan:
 -- I managed to do so using ∞ but only because it's the only closed
 -- size expression, not using the ∞ < ∞ property, although the
 -- principle is the same as for #3026:
