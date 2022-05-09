@@ -482,7 +482,10 @@ insertInspects ps = \case
   A.LHSWith core wps [] ->
     let ps' = map (fmap $ fmap patOfName) ps in
     A.LHSWith core (insertIn ps' wps) []
-  _ -> __IMPOSSIBLE__
+  -- Andreas, AIM XXXV, 2022-05-09, issue #5728:
+  -- Cases other than LHSWith actually do not make sense, but let them
+  -- through to get a proper error later.
+  lhs -> lhs
 
   where
 
