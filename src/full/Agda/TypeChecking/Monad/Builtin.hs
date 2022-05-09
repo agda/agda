@@ -243,8 +243,10 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
     primAgdaTCMFormatErrorParts, primAgdaTCMDebugPrint,
-    primAgdaTCMWithNormalisation, primAgdaTCMWithReconsParams,
-    primAgdaTCMOnlyReduceDefs, primAgdaTCMDontReduceDefs,
+    primAgdaTCMWithNormalisation, primAgdaTCMWithReconstructed,
+    primAgdaTCMWithExpandLast, primAgdaTCMWithReduceDefs,
+    primAgdaTCMAskNormalisation, primAgdaTCMAskReconstructed,
+    primAgdaTCMAskExpandLast, primAgdaTCMAskReduceDefs,
     primAgdaTCMNoConstraints,
     primAgdaTCMRunSpeculative,
     primAgdaTCMExec,
@@ -446,11 +448,15 @@ primAgdaTCMBlockOnMeta                = getBuiltin builtinAgdaTCMBlockOnMeta
 primAgdaTCMCommit                     = getBuiltin builtinAgdaTCMCommit
 primAgdaTCMIsMacro                    = getBuiltin builtinAgdaTCMIsMacro
 primAgdaTCMWithNormalisation          = getBuiltin builtinAgdaTCMWithNormalisation
-primAgdaTCMWithReconsParams           = getBuiltin builtinAgdaTCMWithReconsParams
+primAgdaTCMWithReconstructed          = getBuiltin builtinAgdaTCMWithReconstructed
+primAgdaTCMWithExpandLast             = getBuiltin builtinAgdaTCMWithExpandLast
+primAgdaTCMWithReduceDefs             = getBuiltin builtinAgdaTCMWithReduceDefs
+primAgdaTCMAskNormalisation           = getBuiltin builtinAgdaTCMAskNormalisation
+primAgdaTCMAskReconstructed           = getBuiltin builtinAgdaTCMAskReconstructed
+primAgdaTCMAskExpandLast              = getBuiltin builtinAgdaTCMAskExpandLast
+primAgdaTCMAskReduceDefs              = getBuiltin builtinAgdaTCMAskReduceDefs
 primAgdaTCMFormatErrorParts           = getBuiltin builtinAgdaTCMFormatErrorParts
 primAgdaTCMDebugPrint                 = getBuiltin builtinAgdaTCMDebugPrint
-primAgdaTCMOnlyReduceDefs             = getBuiltin builtinAgdaTCMOnlyReduceDefs
-primAgdaTCMDontReduceDefs             = getBuiltin builtinAgdaTCMDontReduceDefs
 primAgdaTCMNoConstraints              = getBuiltin builtinAgdaTCMNoConstraints
 primAgdaTCMRunSpeculative             = getBuiltin builtinAgdaTCMRunSpeculative
 primAgdaTCMExec                       = getBuiltin builtinAgdaTCMExec

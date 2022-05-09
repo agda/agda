@@ -1,3 +1,5 @@
+open import Agda.Builtin.Bool
+open import Agda.Builtin.Sigma
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Nat
 open import Agda.Builtin.List
@@ -10,7 +12,7 @@ macro
   macro₁ : Term -> TC ⊤
   macro₁ goal = do
     u   ← quoteTC ((1 + 2) - 3)
-    u'  ← onlyReduceDefs (quote _+_ ∷ []) (normalise u)
+    u'  ← withReduceDefs (true , (quote _+_ ∷ [])) (normalise u)
     qu' ← quoteTC u'
     unify qu' goal
 
@@ -24,7 +26,7 @@ macro
   macro₂ : Term -> TC ⊤
   macro₂ goal = do
     u   ← quoteTC ((1 - 2) + 3)
-    u'  ← dontReduceDefs (quote _+_ ∷ []) (normalise u)
+    u'  ← withReduceDefs (false , (quote _+_ ∷ [])) (normalise u)
     qu' ← quoteTC u'
     unify qu' goal
 

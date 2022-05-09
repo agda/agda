@@ -1,3 +1,5 @@
+open import Agda.Builtin.Bool
+open import Agda.Builtin.Sigma
 open import Agda.Builtin.List
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Unit
@@ -10,6 +12,6 @@ make2 hole = bindTC (normalise (def (quote _+_) (vArg (lit (nat 1)) ∷ vArg (li
 
 macro
   tester : Term → TC ⊤
-  tester hole = onlyReduceDefs (quote _+_ ∷ []) (make2 hole)
+  tester hole = withReduceDefs (true , (quote _+_ ∷ [])) (make2 hole)
 
 _ = tester

@@ -1,3 +1,4 @@
+open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
@@ -51,9 +52,9 @@ macro
   z : Name → Term → TC ⊤
   z n hole = do
     (function (clause tel ps t ∷ [])) ←
-      withReconstructed $ getDefinition n
+      withReconstructed true $ getDefinition n
       where _ → quoteTC "ERROR" >>= unify hole
-    t ← withReconstructed
+    t ← withReconstructed true
         $ inContext (reverse tel)
         $ normalise t
     quoteTC t >>= unify hole
@@ -71,9 +72,9 @@ test₁ = refl
 macro
   q : Name → Term → TC ⊤
   q n hole = do
-    t ← withReconstructed $
+    t ← withReconstructed true $
         getType n
-    t ← withReconstructed $
+    t ← withReconstructed true $
         normalise t
     quoteTC t >>= unify hole
 

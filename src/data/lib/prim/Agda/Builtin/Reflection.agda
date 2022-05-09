@@ -299,21 +299,26 @@ postulate
   -- If the argument is 'true' makes the following primitives also normalise
   -- their results: inferType, checkType, quoteTC, getType, and getContext
   withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  askNormalisation  : TC Bool
 
   -- Makes the following primitives to reconstruct hidden arguments
   -- getDefinition, normalise, reduce, inferType, checkType and getContext
-  withReconstructed : ∀ {a} {A : Set a} → TC A → TC A
+  withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  askReconstructed  : TC Bool
+
+  -- Whether implicit arguments at the end should be turned into metas
+  withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
+  askExpandLast  : TC Bool
+
+  -- White/blacklist specific definitions for reduction while executing the TC computation
+  -- true for whitelist, false for blacklist
+  withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
+  askReduceDefs  : TC (Σ Bool λ _ → List Name)
 
   formatErrorParts : List ErrorPart → TC String
   -- Prints the third argument if the corresponding verbosity level is turned
   -- on (with the -v flag to Agda).
   debugPrint : String → Nat → List ErrorPart → TC ⊤
-
-  -- Only allow reduction of specific definitions while executing the TC computation
-  onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
-
-  -- Don't allow reduction of specific definitions while executing the TC computation
-  dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
 
   -- Fail if the given computation gives rise to new, unsolved
   -- "blocking" constraints.
@@ -358,11 +363,15 @@ postulate
 {-# BUILTIN AGDATCMPRAGMAFOREIGN              pragmaForeign              #-}
 {-# BUILTIN AGDATCMPRAGMACOMPILE              pragmaCompile              #-}
 {-# BUILTIN AGDATCMWITHNORMALISATION          withNormalisation          #-}
+{-# BUILTIN AGDATCMWITHRECONSTRUCTED          withReconstructed          #-}
+{-# BUILTIN AGDATCMWITHEXPANDLAST             withExpandLast             #-}
+{-# BUILTIN AGDATCMWITHREDUCEDEFS             withReduceDefs             #-}
+{-# BUILTIN AGDATCMASKNORMALISATION           askNormalisation           #-}
+{-# BUILTIN AGDATCMASKRECONSTRUCTED           askReconstructed           #-}
+{-# BUILTIN AGDATCMASKEXPANDLAST              askExpandLast              #-}
+{-# BUILTIN AGDATCMASKREDUCEDEFS              askReduceDefs              #-}
 {-# BUILTIN AGDATCMFORMATERRORPARTS           formatErrorParts           #-}
 {-# BUILTIN AGDATCMDEBUGPRINT                 debugPrint                 #-}
-{-# BUILTIN AGDATCMONLYREDUCEDEFS             onlyReduceDefs             #-}
-{-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
-{-# BUILTIN AGDATCMWITHRECONSPARAMS           withReconstructed          #-}
 {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
 {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
 {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
@@ -400,10 +409,14 @@ postulate
 {-# COMPILE JS pragmaForeign     = _ => _ =>           undefined #-}
 {-# COMPILE JS pragmaCompile     = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS withNormalisation = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS withReconstructed = _ => _ => _ =>      undefined #-}
+{-# COMPILE JS withReconstructed = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS withExpandLast    = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS withReduceDefs    = _ => _ => _ => _ => undefined #-}
+{-# COMPILE JS askNormalisation  =                     undefined #-}
+{-# COMPILE JS askReconstructed  =                     undefined #-}
+{-# COMPILE JS askExpandLast     =                     undefined #-}
+{-# COMPILE JS askReduceDefs     =                     undefined #-}
 {-# COMPILE JS debugPrint        = _ => _ => _ =>      undefined #-}
-{-# COMPILE JS onlyReduceDefs    = _ => _ => _ => _ => undefined #-}
-{-# COMPILE JS dontReduceDefs    = _ => _ => _ => _ => undefined #-}
 {-# COMPILE JS noConstraints     = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS runSpeculative    = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS getInstances      = _ =>                undefined #-}

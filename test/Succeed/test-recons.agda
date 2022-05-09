@@ -1,3 +1,4 @@
+open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Unit
 open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
@@ -50,7 +51,7 @@ macro
 
   def-recons : Name → Term → TC ⊤
   def-recons n hole = do
-    d ← withReconstructed (getDefinition n)
+    d ← withReconstructed true (getDefinition n)
     l ← get-len d
     unify hole l
 
@@ -58,10 +59,10 @@ macro
   def-normR : Name → Term → TC ⊤
   def-normR n hole = do
     (function (clause tel ps t ∷ [])) ←
-      withReconstructed (getDefinition n)
+      withReconstructed true (getDefinition n)
       where _ → quoteTC "ERROR" >>= unify hole
     t ← inContext (reverse tel)
-        (withReconstructed (normalise t))
+        (withReconstructed true (normalise t))
     let d = function (clause tel ps t ∷ [])
     get-len d >>= unify hole
 
@@ -69,9 +70,9 @@ macro
   def-redR : Name → Term → TC ⊤
   def-redR n hole = do
     (function (clause tel ps t ∷ [])) ←
-      withReconstructed (getDefinition n)
+      withReconstructed true (getDefinition n)
       where _ → quoteTC "ERROR" >>= unify hole
-    t ← inContext (reverse tel) (withReconstructed (reduce t))
+    t ← inContext (reverse tel) (withReconstructed true (reduce t))
     let d = function (clause tel ps t ∷ [])
     get-len d >>= unify hole
 
@@ -98,7 +99,7 @@ macro
   get-ctx n hole = do
     t ← getType n
     let c = pictx t
-    c ← withReconstructed
+    c ← withReconstructed true
         (inContext (reverse c) getContext)
     quoteTC c >>= unify hole
 
@@ -122,7 +123,7 @@ macro
   chk-type hole = do
     T ← quoteTC (NotAVec Nat 5)
     t ← quoteTC (mk {X = Nat} {y = 5})
-    (con _ (_ ∷ arg _ t ∷ [])) ← withReconstructed (checkType t T)
+    (con _ (_ ∷ arg _ t ∷ [])) ← withReconstructed true (checkType t T)
       where _ → quoteTC "ERROR" >>= unify hole
     quoteTC t >>= unify hole
 
@@ -137,9 +138,9 @@ q = refl
 macro
   inf-type₁ : Term → TC ⊤
   inf-type₁ hole = do
-    (function (clause _ _ b ∷ [])) ← withReconstructed (getDefinition (quote q))
+    (function (clause _ _ b ∷ [])) ← withReconstructed true (getDefinition (quote q))
       where _ → quoteTC "ERROR" >>= unify hole
-    (def _ (l ∷ L ∷ e₁ ∷ e₂ ∷ [])) ← withReconstructed  (inferType b)
+    (def _ (l ∷ L ∷ e₁ ∷ e₂ ∷ [])) ← withReconstructed true (inferType b)
       where _ → quoteTC "ERROR" >>= unify hole
     (arg _ (con _ (_ ∷ (arg _ N) ∷ []))) ← returnTC e₁
       where _ → quoteTC "ERROR" >>= unify hole
@@ -161,9 +162,9 @@ eq = refl
 macro
   inf-type₂ : Term → TC ⊤
   inf-type₂ hole = do
-    (function (clause _ _ b ∷ [])) ← withReconstructed (getDefinition (quote eq))
+    (function (clause _ _ b ∷ [])) ← withReconstructed true (getDefinition (quote eq))
       where _ → quoteTC "ERROR" >>= unify hole
-    (def _ (_ ∷ _ ∷ arg _ lhs ∷ _ ∷ [])) ← withReconstructed  (inferType b)
+    (def _ (_ ∷ _ ∷ arg _ lhs ∷ _ ∷ [])) ← withReconstructed true (inferType b)
       where _ → quoteTC "ERROR" >>= unify hole
     quoteTC lhs >>= unify hole
 
