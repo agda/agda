@@ -50,6 +50,7 @@ import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Utils.Either
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
@@ -419,7 +420,7 @@ defineCompData :: QName      -- datatype name
                -> Boundary   -- [(i,t_i,b_i)],  Γ.Φ ⊢ [ (i=0) -> t_i; (i=1) -> u_i ] : B_i
                -> TCM CompKit
 defineCompData d con params names fsT t boundary = do
-  required <- mapM getTerm'
+  missingBuiltin <- (`anyM` isNothing <.> getTerm')
     [ builtinInterval
     , builtinIZero
     , builtinIOne
@@ -429,7 +430,7 @@ defineCompData d con params names fsT t boundary = do
     , builtinPOr
     , builtinItIsOne
     ]
-  if not (all isJust required) then return $ emptyCompKit else do
+  if missingBuiltin then return emptyCompKit else do
     hcomp  <- whenDefined (null boundary) [builtinHComp,builtinTrans] (defineTranspOrHCompD DoHComp  d con params names fsT t boundary)
     transp <- whenDefined True            [builtinTrans]              (defineTranspOrHCompD DoTransp d con params names fsT t boundary)
     return $ CompKit
@@ -793,7 +794,7 @@ defineTranspIx d = do
                   , funTerminates = Just True
                   }
         inTopContext $ do
-         reportSDoc "tc.transpx.type" 15 $ vcat
+         reportSDoc "tc.data.ixs.transp.type" 15 $ vcat
            [ "type of" <+> prettyTCM trIx <+> ":"
            , nest 2 $ prettyTCM theType
            ]

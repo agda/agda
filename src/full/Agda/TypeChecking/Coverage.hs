@@ -767,13 +767,6 @@ hiddenInserted ai
   | otherwise  = setOrigin Inserted ai
 
 
--- | Checks if a type in this sort supports hcomp.
---   currently all such types will have a Level.
---   precondition: Sort in whnf and not blocked.
-hasHComp :: Sort -> Maybe Level
-hasHComp (Type l) = Just l
-hasHComp _        = Nothing
-
 
 computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
   -> PatVarName                   -- ^ Name of pattern variable at split point.
@@ -864,8 +857,15 @@ computeNeighbourhood
   -> CoverM (Maybe (SplitClause, IInfo))   -- ^ New split clause if successful.
 computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
+  def <- getConstInfo d
+
+  -- Get the (approximate sort) of the data type.
+  -- We are only interested whether it is Type _, SSet _, or not.
+  -- THIS DOESN'T WORK:  (e.g., def could be Record{})
+  -- let dsort = dataSort $ theDef def
+
   -- Get the type of the datatype
-  dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
+  let dtype = (`piApply` pars) . defType $ def
 
   -- Get the real constructor name
   con <- liftTCM $ fromRight __IMPOSSIBLE__ <$> getConForm c
@@ -907,11 +907,16 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
   -- TODO: should we propagate the modality in general?
   -- See also LHS checking.
-  dtype <- do
+  (dsort, dtype) <- do
          let updCoh = composeCohesion (getCohesion info)
          TelV dtel dt <- telView dtype
-         return $ abstract (mapCohesion updCoh <$> dtel) dt
-  dsort <- addContext delta1 $ reduce (getSort dtype)
+         dsort <- fromMaybe __IMPOSSIBLE__ . isSort . unEl <$> do addContext dtel $ reduce dt
+         return $ (dsort,) $ abstract (mapCohesion updCoh <$> dtel) dt
+
+  -- AIM XXXV, 2022-05-09, issue #5816:
+  -- Ulf says the following is wrong, as it does not get the
+  -- sort that the data type targets, but the sort of the sort:
+  -- dsort <- addContext delta1 $ reduce (getSort dtype)
 
   withKIfStrict <- case dsort of
     SSet{} -> return $ locallyTC eSplitOnStrict $ const True
@@ -942,6 +947,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
       let unifyInfo | Type _ <- dsort     -- only types of sort Type l have trX constructors:
                                           -- re #3733: update if we add transp for other sorts.
+                        -- TODO: Check @isJust (hasHComp dsort)@ instead (for uniformity)?
                     , not $ null $ conIxs -- no point propagating this info if trivial?
                     , Right (tau,leftInv) <- tauInv
             = TheInfo $ UE delta1Gamma delta1' eqTel (map unArg conIxs) (map unArg givenIxs) rho0 tau leftInv

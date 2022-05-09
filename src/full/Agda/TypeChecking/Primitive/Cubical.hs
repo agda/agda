@@ -2227,7 +2227,7 @@ expS stel = prependS __IMPOSSIBLE__
 -- * Special cases of Type
 -----------------------------------------------------------
 
--- | A @Type@ with sort @Type l@
+-- | A @Type@ with sort @Type l@.
 --   Such a type supports both hcomp and transp.
 data LType = LEl Level Term deriving (Eq,Show)
 

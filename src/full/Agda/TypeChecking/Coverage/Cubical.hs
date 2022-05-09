@@ -73,7 +73,8 @@ createMissingIndexedClauses :: QName
                             -> [(SplitTag,(SplitClause,IInfo))]
                             -> [Clause]
                             -> TCM ([(SplitTag,CoverResult)],[Clause])
-createMissingIndexedClauses f n x old_sc scs cs = do
+createMissingIndexedClauses f n x old_sc scs cs =
+  ifNotM (targetsRightUniv old_sc) {-then-} fallback {-else-} $ do
   reflId <- getName' builtinReflId
   let infos = [(c,i) | (SplitCon c, (_,TheInfo i)) <- scs ]
   case scs of
@@ -98,9 +99,9 @@ createMissingIndexedClauses f n x old_sc scs cs = do
          (trees,cls) <- fmap unzip . forM infos $ \ (c,i) -> do
            cl <- createMissingTrXConClause trX f n x old_sc c i
            return $ ((SplitCon c , SplittingDone (size $ clauseTel cl)) , cl)
-         let extra = [ (SplitCon trX, SplittingDone $ size $ clauseTel trX_cl)
-                                           , (SplitCon hcomp, SplittingDone $ size $ clauseTel hcomp_cl)
-                                           ]
+         let extra = [ (SplitCon trX,   SplittingDone $ size $ clauseTel trX_cl)
+                     , (SplitCon hcomp, SplittingDone $ size $ clauseTel hcomp_cl)
+                     ]
                  --  = [ (SplitCon trX, SplittingDone $ size $ clauseTel trX_cl) ]
              extraCl = [trX_cl, hcomp_cl]
                  --  = [trX_cl]
@@ -120,7 +121,41 @@ createMissingIndexedClauses f n x old_sc scs cs = do
          addClauses f clauses
          return $ ([(SplitCon trX,res)],cs++clauses)
 --         return $ ([],[])
-    xs | otherwise -> return ([],cs)
+    xs | otherwise -> fallback
+  where
+    fallback = return ([],cs)
+    -- only create extra clauses if target is in a Type universe
+
+-- AIM XXXV, 2022-05-09, issue #5816.
+-- Skip generating extra clauses unless split type and target type is in a Type universe.
+-- TODO: Allow for other universes?
+-- TODO: Postponable?
+targetsRightUniv :: SplitClause -> TCM Bool
+targetsRightUniv old_sc =
+  case scTarget old_sc of
+    Nothing  -> __IMPOSSIBLE__
+    Just dom -> do
+      TelV tel target <- telView $ unDom dom
+      isJust . hasHComp <$> reduce (getSort target)
+
+-- | Checks if a type in this sort supports hcomp.
+--   Currently all such types will have a Level.
+--   Precondition: Sort in whnf and not blocked.
+hasHComp :: Sort -> Maybe Level
+hasHComp = \case
+  Type l       -> Just l
+  Prop _       -> Nothing
+  Inf _ _      -> Nothing
+  SSet _       -> Nothing
+  IntervalUniv -> Nothing
+  LockUniv     -> Nothing
+  SizeUniv     -> Nothing
+  PiSort _ _ _ -> Nothing
+  FunSort _ _  -> Nothing
+  UnivSort _   -> Nothing
+  MetaS _ _    -> Nothing
+  DefS _ _     -> Nothing
+  DummyS{}     -> __IMPOSSIBLE__
 
 createMissingTrXTrXClause :: QName -- ^ trX
                             -> QName -- ^ f defined
@@ -643,6 +678,7 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
                  }
   debugClause "tc.cover.trx.hcomp" c
   return c
+
 createMissingTrXConClause :: QName -- trX
                             -> QName -- f defined
                             -> Arg Nat
@@ -1157,6 +1193,8 @@ createMissingHCompClause
   -> [Clause]
    -> TCM ([(SplitTag,CoverResult)], [Clause])
 createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs = setCurrentRange f $ do
+  let fallback = return ([], cs)
+  ifNotM (targetsRightUniv old_sc) {-then-} fallback {-else-} $ do
   reportSDoc "tc.cover.hcomp" 20 $ addContext tel $ text "Trying to create right-hand side of type" <+> prettyTCM t
   reportSDoc "tc.cover.hcomp" 30 $ addContext tel $ text "ps = " <+> prettyTCMPatternList (fromSplitPatterns ps)
   reportSDoc "tc.cover.hcomp" 30 $ text "tel = " <+> prettyTCM tel

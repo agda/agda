@@ -4,9 +4,15 @@ module Agda.Builtin.Cubical.Glue where
 
 open import Agda.Primitive
 open import Agda.Builtin.Sigma
-open import Agda.Primitive.Cubical renaming (primINeg to ~_; primIMax to _∨_; primIMin to _∧_;
-                                             primHComp to hcomp; primTransp to transp; primComp to comp;
-                                             itIsOne to 1=1)
+open import Agda.Primitive.Cubical renaming
+  ( primINeg   to ~_
+  ; primIMax   to _∨_
+  ; primIMin   to _∧_
+  ; primHComp  to hcomp
+  ; primTransp to transp
+  ; primComp   to comp
+  ; itIsOne    to 1=1
+  )
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub renaming (Sub to _[_↦_]; primSubOut to ouc)
 import Agda.Builtin.Cubical.HCompU as HCompU
