@@ -246,6 +246,12 @@ The standard library is available in Debian and Ubuntu from Lucid onwards. To in
 
   apt-get install agda-stdlib
 
+You may need to install the main agda package on Ubuntu as well
+
+.. code-block:: bash
+
+  apt-get install agda
+
 More information:
 
 * `Agda (Debian) <https://tracker.debian.org/pkg/agda>`_
