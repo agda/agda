@@ -296,22 +296,22 @@ postulate
   pragmaForeign    : String → String → TC ⊤
   pragmaCompile    : String → Name → String → TC ⊤
 
-  -- If the argument is 'true' makes the following primitives also normalise
+  -- If 'true', makes the following primitives also normalise
   -- their results: inferType, checkType, quoteTC, getType, and getContext
   withNormalisation : ∀ {a} {A : Set a} → Bool → TC A → TC A
   askNormalisation  : TC Bool
 
-  -- Makes the following primitives to reconstruct hidden arguments
+  -- If 'true', makes the following primitives to reconstruct hidden arguments:
   -- getDefinition, normalise, reduce, inferType, checkType and getContext
   withReconstructed : ∀ {a} {A : Set a} → Bool → TC A → TC A
   askReconstructed  : TC Bool
 
-  -- Whether implicit arguments at the end should be turned into metas
+  -- Whether implicit arguments at the end should be turned into metavariables
   withExpandLast : ∀ {a} {A : Set a} → Bool → TC A → TC A
   askExpandLast  : TC Bool
 
   -- White/blacklist specific definitions for reduction while executing the TC computation
-  -- true for whitelist, false for blacklist
+  -- 'true' for whitelist, 'false' for blacklist
   withReduceDefs : ∀ {a} {A : Set a} → (Σ Bool λ _ → List Name) → TC A → TC A
   askReduceDefs  : TC (Σ Bool λ _ → List Name)
 
