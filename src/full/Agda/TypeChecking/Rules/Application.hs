@@ -6,6 +6,7 @@ module Agda.TypeChecking.Rules.Application
   , checkApplication
   , inferApplication
   , checkProjAppToKnownPrincipalArg
+  , inferDef
   ) where
 
 import Prelude hiding ( null )

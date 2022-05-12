@@ -68,6 +68,8 @@ import Agda.TypeChecking.Names
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
+import Agda.TypeChecking.Rules.Term (inferExpr')
+import Agda.TypeChecking.Rules.Application (inferDef)
 import qualified Agda.TypeChecking.Pretty as TP
 import Agda.TypeChecking.Warnings
   ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaTCWarning
@@ -89,6 +91,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.String
 import Agda.Utils.Impossible
+import Agda.Utils.Tuple
 
 import Data.List.NonEmpty (toList)
 
@@ -1049,13 +1052,37 @@ typeInMeta ii norm e =
         withMetaInfo mi $
             typeInCurrent norm e
 
+
+
+
+-- inferInMeta :: InteractionId -> Rewrite -> Expr -> TCM (I.Term , I.Type)
+-- inferInMeta ii norm e =
+--    do   m <- lookupInteractionId ii
+--         mi <- getMetaInfo <$> lookupLocalMeta m
+--         withMetaInfo mi $ (mapPairM (normalForm norm) (normalForm norm) =<< inferExpr' ExpandLast e)
+
+
+-- inferInMetaConHead :: InteractionId -> Rewrite -> Expr -> TCM (I.Term , I.Type)
+-- inferInMetaConHead ii norm e =
+--    do   m <- lookupInteractionId ii
+--         mi <- getMetaInfo <$> lookupLocalMeta m
+--         withMetaInfo mi $ (mapPairM (normalForm norm) (normalForm norm) =<< inferExpr' ExpandLast e)
+
+
+
+-- inferDef (\ _ -> Con con ConOCon []) c
+
 -- | The intro tactic.
 --
 -- Returns the terms (as strings) that can be
 -- used to refine the goal. Uses the coverage checker
 -- to find out which constructors are possible.
 --
-introTactic :: Bool -> InteractionId -> TCM [(String, Maybe (String, A.Expr))]
+
+-- todo IntroTacticResult
+
+introTactic :: Bool -> InteractionId ->
+                    TCM [(String, Maybe (String, A.Expr))]
 introTactic pmLambda ii = do
   mi <- lookupInteractionId ii
   mv <- lookupLocalMeta mi
@@ -1139,47 +1166,97 @@ introTactic pmLambda ii = do
         Right cov -> mapM conWithArgs $ catMaybes $ map (conName . scPats) $ splitClauses cov
       where
 
-        bindingList :: Telescope1 -> [NamedArg Binder]
-        bindingList =
-          concatMap (\(A.TBind _ _ x _) -> toList x  )
-          . toList
-
-        argsFromTy :: Expr -> [(Maybe String , Hiding)]
-        argsFromTy = \case
-          A.Pi _ t cd ->
-              (map (\na ->
-                ( case ((render . pretty) <$> (nameOf $ unArg na)) of
-                    Just ('.' : _) -> Nothing
-                    Just x -> Just x
-                    _ -> Nothing
-                , getHiding na ) ) $ bindingList t )
-               ++ argsFromTy cd
-          A.Fun _ a cd -> (Nothing , getHiding a ) : argsFromTy cd
-          A.Def' _ _ -> []
-          A.App _ _ _ -> []
-          _ -> __IMPOSSIBLE__
-
         conWithArgs ch = do
              cqn <- showUnambiguousConName ch
              let cn = render $ pretty  cqn
              sia <- showImplicitArguments
-             cTy <- typeInMeta ii Normalised (A.Con $ unambiguous $ (I.conName ch))
+             let conE = (A.Con $ unambiguous $ (I.conName ch))
+             cTyA <- typeInMeta ii Normalised conE
+             mTy <- getMetaType =<< lookupInteractionId ii
+             cDefTy <- defType <$> getConstInfo (I.conName ch)
+             -- reportSLn "interaction.intro" 1 $ "con: " ++ cn
+             -- reportSLn "interaction.intro" 1 $ "ty: " ++ prettyShow cDefTy
+
+             mi <- lookupInteractionId ii
+             mv <- lookupLocalMeta mi
+             let range = getRange mv
+                 scope = M.getMetaScope mv
+             let rng = rightMargin range
+                 toNA :: Bool -> Dom (ArgName, I.Type) -> TCM (Maybe ((NamedArg A.Expr) , InteractionId))
+                 toNA b d =
+                   if (b || (not $ isInstance d)) then do
+                     let info = Info.MetaInfo
+                          { Info.metaRange = rng
+                          , Info.metaScope = set scopePrecedence [argumentCtx_] scope
+                          , metaNumber = Nothing -- in order to print just as ?, not ?n
+                          , metaNameSuggestion = ""
+                          }
+
+                     ii <- registerInteractionPoint False rng Nothing
+                     let metaVar = QuestionMark info ii
+                     return $ Just (namedArgFromDom $ fmap (\_ -> metaVar) d , ii)
+                   else return Nothing
+             mArgsNoIA <- fmap catMaybes $ traverse (toNA False) $ domain cDefTy
+             mArgs <- fmap catMaybes $ traverse (toNA True) $ domain cDefTy
+             let conAppMetasNoInstanceArgs = A.app conE (fst <$>  mArgsNoIA)
+             let conAppMetas = A.app conE ( fst <$> mArgs)
+
+             reportSLn "interaction.intro" 1 $ "con: " ++ cn
+
+             ((includeInstanceArgs , mArgs') , chE@(I.Con _ _ es)) <-
+                  catchError (((False , mArgsNoIA) ,) <$> checkExpr conAppMetasNoInstanceArgs mTy)
+                       (\_ -> ((True , mArgs) ,)  <$> checkExpr conAppMetas mTy)
+                     
+             reportSLn "interaction.intro" 1 $ "conWArgs: " ++ prettyShow chE
+
+             -- argMetasI <- catchError (traverse (\(_ , ii) -> lookupInteractionId ii >>= lookupMetaInstantiation) mArgs')
+             --                 (\e -> (reportSLn "interaction.intro" 1 $ "traverseMEtasErr: " ++ (show e)) >> return [])
+
+             -- temprary code for debuging
+             -- _ <- traverse (\(_ , ii) -> do
+             --               mIns <- lookupInteractionId ii >>= lookupMetaInstantiation
+             --               if isOpenMeta mIns
+             --               then reportSLn "interaction.intro" 1 $ "openM"
+             --               else reportSLn "interaction.intro" 1 $ "notOpenM"
+             --           )
+             --      mArgs
+             -- t :: [(MetaInstantiation , (Maybe String , Hiding))]
+
+             (t :: [(MetaInstantiation , (Maybe String , Hiding))]) <-
+                traverse (\(a , d) -> do
+                    mi <- case (unArg a) of
+                             I.MetaV mId [] -> lookupMetaInstantiation mId
+                    
+                    return (mi , (( (>>= (filterMaybe (not . isGeneratedName))) . (fmap (rangedThing . woThing)) . getNameOf) d ,  getHiding d))
+                       
+                     ) (zip (argsFromElims es) (domain cDefTy))
+                   
+
+    -- (zip argMetasI (map ((( (>>= (filterMaybe (not . isGeneratedName))) . (fmap (rangedThing . woThing)) . getNameOf) /\ getHiding) . fst ) mArgs'))
+
+
+             -- reportSLn "interaction.intro" 1 $ "tm: " ++ prettyShow iTerm
+             -- reportSLn "interaction.intro" 1 $ "ty: " ++ prettyShow cTy
+             -- reportSLn "interaction.intro" 1 $ "m-ty: " ++ prettyShow mTy
              let introStr = unwords $ (cn :)
-                        $ flip mapMaybe (argsFromTy cTy) $ \case
-                            (_ , NotHidden)  -> Just "?"
-                            (mbFQnm , Hidden) ->
-                                if sia
-                                then Just $ case mbFQnm of
+                        $ flip mapMaybe t                              
+                        $ uncurry
+                        $ \mI -> let o = isOpenMeta mI in \case
+                            (_ , NotHidden)  -> Just $ if o then "?" else "_" 
+                            (mbNm , Hidden) ->
+                                if (sia && o)
+                                then Just $ case mbNm of
                                                Just fNm -> "{ "++ fNm ++ " = ?}"
                                                Nothing -> "{?}"
                                 else Nothing
-                            (mbFQnm , Instance _) ->
-                                if sia
-                                then Just $ case mbFQnm of
+                            (mbNm , Instance _) ->
+                                if (sia && o)
+                                then Just $ case mbNm of
                                                Just fNm -> "{{ "++ fNm ++ " = ?}}"
                                                Nothing -> "{{?}}"
                                 else Nothing
-             return (introStr , Just (cn , cTy))
+             reportSLn "interaction.intro" 1 $ "term to introduce: " ++ introStr
+             return (introStr , Just (cn , cTyA))
 
 
 

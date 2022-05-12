@@ -4656,6 +4656,11 @@ getGeneralizedFieldName q
   | otherwise                                      = Nothing
   where strName = prettyShow $ nameConcrete $ qnameName q
 
+-- | Check whether name was generated, assuming convention of starting generated names by dot
+isGeneratedName :: String -> Bool
+isGeneratedName ('.' : _) = True 
+isGeneratedName _ = False
+
 ---------------------------------------------------------------------------
 -- * KillRange instances
 ---------------------------------------------------------------------------

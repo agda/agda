@@ -962,6 +962,12 @@ arity t = case unEl t of
   Pi  _ b -> 1 + arity (unAbs b)
   _       -> 0
 
+domain :: Type -> ListTel
+domain t = case unEl t of
+  Pi a b -> ( ((,) $ absName b) <$> a) : domain (unAbs b) 
+  _       -> []
+
+
 -- | Suggest a name if available (i.e. name is not "_")
 class Suggest a where
   suggestName :: a -> Maybe String
