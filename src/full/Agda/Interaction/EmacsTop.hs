@@ -44,8 +44,6 @@ import Agda.Utils.String
 import Agda.Utils.Time (CPUTime)
 import Agda.VersionCommit
 
-import Agda.Utils.Impossible
-
 ----------------------------------
 
 -- | 'mimicGHCi' is a fake ghci interpreter for the Emacs frontend
