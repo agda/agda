@@ -1226,7 +1226,7 @@ introTactic pmLambda ii = do
                 traverse (\(a , d) -> do
                     mi <- case (unArg a) of
                              I.MetaV mId [] -> lookupMetaInstantiation mId
-                    
+                             _ -> __IMPOSSIBLE__
                     return (mi , (( (>>= (filterMaybe (not . isGeneratedName))) . (fmap (rangedThing . woThing)) . getNameOf) d ,  getHiding d))
                        
                      ) (zip (argsFromElims es) (domain cDefTy))
