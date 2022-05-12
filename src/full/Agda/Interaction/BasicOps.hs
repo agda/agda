@@ -68,8 +68,6 @@ import Agda.TypeChecking.Names
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
-import Agda.TypeChecking.Rules.Term (inferExpr')
-import Agda.TypeChecking.Rules.Application (inferDef)
 import qualified Agda.TypeChecking.Pretty as TP
 import Agda.TypeChecking.Warnings
   ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaTCWarning
