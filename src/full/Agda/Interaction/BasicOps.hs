@@ -1180,8 +1180,8 @@ introTactic pmLambda ii = do
              let cn = render $ pretty  cqn
              sia <- showImplicitArguments
              let conE = (A.Con $ unambiguous $ (I.conName ch))
-             cTyA <- typeInMeta ii Normalised conE
              mTy <- getMetaType =<< lookupInteractionId ii
+             cTyA <- reifyUnblocked =<< normalForm Normalised mTy 
              cDefTy <- defType <$> getConstInfo (I.conName ch)
              -- reportSLn "interaction.intro" 1 $ "con: " ++ cn
              -- reportSLn "interaction.intro" 1 $ "ty: " ++ prettyShow cDefTy
@@ -1197,7 +1197,7 @@ introTactic pmLambda ii = do
                      let info = Info.MetaInfo
                           { Info.metaRange = rng
                           , Info.metaScope = set scopePrecedence [argumentCtx_] scope
-                          , metaNumber = Nothing -- in order to print just as ?, not ?n
+                          , metaNumber = Nothing
                           , metaNameSuggestion = ""
                           }
 
