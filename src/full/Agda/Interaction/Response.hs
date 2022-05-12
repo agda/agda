@@ -15,6 +15,7 @@ module Agda.Interaction.Response
   , ResponseContextEntry(..)
   , Status (..)
   , GiveResult (..)
+  , IntroOportunity (..)
   , InteractionOutputCallback
   , defaultInteractionOutputCallback
   ) where
@@ -102,7 +103,7 @@ data DisplayInfo
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
     | Info_Intro_NotFound
-    | Info_Intro_ConstructorUnknown InteractionId [(String, Maybe (String , A.Expr))]
+    | Info_Intro_ConstructorUnknown InteractionId [IntroOportunity]
     | Info_Auto String
         -- ^ 'Info_Auto' denotes either an error or a success (when 'Resp_GiveAction' is present)
         --   TODO: split these into separate constructors
@@ -217,3 +218,9 @@ defaultInteractionOutputCallback = \case
   Resp_ClearHighlighting {} -> __IMPOSSIBLE__
   Resp_DoneAborting {}      -> __IMPOSSIBLE__
   Resp_DoneExiting {}       -> __IMPOSSIBLE__
+
+data IntroOportunity = IntroOportunity
+  { constructorName   :: String
+  , stringToIntroduce :: String
+  , typeOfConstructor :: String
+  }

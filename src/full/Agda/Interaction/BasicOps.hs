@@ -25,7 +25,7 @@ import qualified Data.Text as T
 
 import Agda.Interaction.Base
 import Agda.Interaction.Options
-import Agda.Interaction.Response (Goals, ResponseContextEntry(..))
+import Agda.Interaction.Response (Goals, ResponseContextEntry(..) , IntroOportunity(..))
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
@@ -42,7 +42,7 @@ import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
-import Agda.Syntax.Fixity(Precedence(..), argumentCtx_)
+import Agda.Syntax.Fixity(Precedence(..), argumentCtx_ , appBrackets)
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
@@ -1061,22 +1061,11 @@ typeInMeta ii norm e =
 
 
 
--- inferInMeta :: InteractionId -> Rewrite -> Expr -> TCM (I.Term , I.Type)
--- inferInMeta ii norm e =
---    do   m <- lookupInteractionId ii
---         mi <- getMetaInfo <$> lookupLocalMeta m
---         withMetaInfo mi $ (mapPairM (normalForm norm) (normalForm norm) =<< inferExpr' ExpandLast e)
+data IntroTacticResult
+  = IntroTactic_NotFound
+  | IntroTactic_Success String
+  | IntroTactic_MultiplePossibleConstructors [IntroOportunity]
 
-
--- inferInMetaConHead :: InteractionId -> Rewrite -> Expr -> TCM (I.Term , I.Type)
--- inferInMetaConHead ii norm e =
---    do   m <- lookupInteractionId ii
---         mi <- getMetaInfo <$> lookupLocalMeta m
---         withMetaInfo mi $ (mapPairM (normalForm norm) (normalForm norm) =<< inferExpr' ExpandLast e)
-
-
-
--- inferDef (\ _ -> Con con ConOCon []) c
 
 -- | The intro tactic.
 --
@@ -1085,10 +1074,8 @@ typeInMeta ii norm e =
 -- to find out which constructors are possible.
 --
 
--- todo IntroTacticResult
 
-introTactic :: Bool -> InteractionId ->
-                    TCM [(String, Maybe (String, A.Expr))]
+introTactic :: Bool -> InteractionId -> TCM IntroTacticResult
 introTactic pmLambda ii = do
   mi <- lookupInteractionId ii
   mv <- lookupLocalMeta mi
@@ -1108,8 +1095,8 @@ introTactic pmLambda ii = do
                 , "tel  = " TP.<+> prettyTCM tel
                 ]
               case (tel', tel) of
-                (EmptyTel, EmptyTel) -> return []
-                _ -> fmap (fmap (\x -> (x , Nothing))) $ introFun (telToList tel' ++ telToList tel)
+                (EmptyTel, EmptyTel) -> return IntroTactic_NotFound
+                _ -> IntroTactic_Success <$> introFun (telToList tel' ++ telToList tel)
 
         case unEl t of
           I.Def d _ -> do
@@ -1118,10 +1105,10 @@ introTactic pmLambda ii = do
               Datatype{}    -> addContext tel' $ introData t
               Record{ recNamedCon = name }
                 | name      -> addContext tel' $ introData t
-                | otherwise -> fmap (fmap (\x -> (x , Nothing))) $ addContext tel' $ introRec d
+                | otherwise -> IntroTactic_Success <$>  (addContext tel' $ introRec d)
               _ -> fallback
           _ -> fallback
-     `catchError` \_ -> return []
+     `catchError` \_ -> return IntroTactic_NotFound
     _ -> __IMPOSSIBLE__
   where
     conName :: [NamedArg SplitPattern] -> Maybe I.ConHead
@@ -1137,7 +1124,7 @@ introTactic pmLambda ii = do
     showTCM :: PrettyTCM a => a -> TCM String
     showTCM v = render <$> prettyTCM v
 
-    introFun :: ListTel -> TCM [String]
+    introFun :: ListTel -> TCM String
     introFun tel = addContext tel' $ do
         reportSDoc "interaction.intro" 10 $ do "introFun" TP.<+> prettyTCM (telFromList tel)
         imp <- showImplicitArguments
@@ -1153,8 +1140,8 @@ introTactic pmLambda ii = do
                                , okHiding h
                                ]
         if pmLambda
-           then return [ unwords $ ["λ", "{"] ++ vars ++ ["→", "?", "}"] ]
-           else return [ unwords $ ["λ"]      ++ vars ++ ["→", "?"] ]
+           then return $ unwords $ ["λ", "{"] ++ vars ++ ["→", "?", "}"]
+           else return $ unwords $ ["λ"]      ++ vars ++ ["→", "?"]
       where
         n = size tel
         hs   = map getHiding tel
@@ -1162,71 +1149,64 @@ introTactic pmLambda ii = do
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
-    introData :: I.Type -> TCM [(String , Maybe (String , A.Expr))]
+    introData :: I.Type -> TCM IntroTacticResult
     introData t = do
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
       r <- splitLast CoInductive tel pat
       case r of
-        Left err -> return []
-        Right cov -> mapM conWithArgs $ catMaybes $ map (conName . scPats) $ splitClauses cov
+        Left err -> return IntroTactic_NotFound
+        Right cov -> do
+           l <- mapM conWithArgs $ mapMaybe (conName . scPats) $ splitClauses cov
+           return $
+             case l of
+                []  -> IntroTactic_NotFound
+                [IntroOportunity{ stringToIntroduce = x}] -> IntroTactic_Success x
+                _ -> IntroTactic_MultiplePossibleConstructors l
       where
 
         conWithArgs ch = do
              cqn <- showUnambiguousConName ch
              let cn = render $ pretty  cqn
+             reportSLn "interaction.intro" 20 $ "con: " ++ cn
              sia <- showImplicitArguments
              let conE = (A.Con $ unambiguous $ (I.conName ch))
              mTy <- getMetaType =<< lookupInteractionId ii
-             cTyA <- reifyUnblocked =<< normalForm Normalised mTy 
+
              cDefTy <- defType <$> getConstInfo (I.conName ch)
-             -- reportSLn "interaction.intro" 1 $ "con: " ++ cn
-             -- reportSLn "interaction.intro" 1 $ "ty: " ++ prettyShow cDefTy
+             let tel = telToList $ theTel $ telView' cDefTy
+             cTyA <- fmap render $ prettyATop =<< reifyUnblocked =<< normalForm Normalised cDefTy
 
              mi <- lookupInteractionId ii
              mv <- lookupLocalMeta mi
              let range = getRange mv
                  scope = M.getMetaScope mv
              let rng = rightMargin range
-                 toNA :: Bool -> Dom (ArgName, I.Type) -> TCM (Maybe ((NamedArg A.Expr) , InteractionId))
-                 toNA b d =
-                   if (b || (not $ isInstance d)) then do
-                     let info = Info.MetaInfo
-                          { Info.metaRange = rng
-                          , Info.metaScope = set scopePrecedence [argumentCtx_] scope
-                          , metaNumber = Nothing
-                          , metaNameSuggestion = ""
-                          }
 
-                     ii <- registerInteractionPoint False rng Nothing
-                     let metaVar = QuestionMark info ii
-                     return $ Just (namedArgFromDom $ fmap (\_ -> metaVar) d , ii)
-                   else return Nothing
-             mArgsNoIA <- fmap catMaybes $ traverse (toNA False) $ domain cDefTy
-             mArgs <- fmap catMaybes $ traverse (toNA True) $ domain cDefTy
-             let conAppMetasNoInstanceArgs = A.app conE (fst <$>  mArgsNoIA)
-             let conAppMetas = A.app conE ( fst <$> mArgs)
+                 applyMetasAndCheckAgainstHole includeInsArgs = do
+                   let toNA :: Dom (ArgName, I.Type) -> TCM (Maybe ((NamedArg A.Expr) , InteractionId))
+                       toNA d =
+                          if (includeInsArgs || (not $ isInstance d)) then do
+                            let info = Info.MetaInfo
+                                 { Info.metaRange = rng
+                                 , Info.metaScope = set scopePrecedence [argumentCtx_] scope
+                                 , metaNumber = Nothing
+                                 , metaNameSuggestion = ""
+                                 }
 
-             reportSLn "interaction.intro" 1 $ "con: " ++ cn
+                            ii <- registerInteractionPoint False rng Nothing
+                            let metaVar = QuestionMark info ii
+                            return $ Just (namedArgFromDom $ fmap (\_ -> metaVar) d , ii)
+                          else return Nothing
+                   mArgs <- fmap catMaybes $ traverse toNA tel
+                   let conAppMetas = A.app conE ( fst <$> mArgs)
+                   ((includeInsArgs , mArgs) ,) <$> checkExpr conAppMetas mTy
 
-             ((includeInstanceArgs , mArgs') , chE@(I.Con _ _ es)) <-
-                  catchError (((False , mArgsNoIA) ,) <$> checkExpr conAppMetasNoInstanceArgs mTy)
-                       (\_ -> ((True , mArgs) ,)  <$> checkExpr conAppMetas mTy)
-                     
-             reportSLn "interaction.intro" 1 $ "conWArgs: " ++ prettyShow chE
 
-             -- argMetasI <- catchError (traverse (\(_ , ii) -> lookupInteractionId ii >>= lookupMetaInstantiation) mArgs')
-             --                 (\e -> (reportSLn "interaction.intro" 1 $ "traverseMEtasErr: " ++ (show e)) >> return [])
+             ((wereInstanceArgumentsIncluded , mArgs') , chE@(I.Con _ _ es)) <-
+                  catchError (applyMetasAndCheckAgainstHole False)
+                       (\_ -> applyMetasAndCheckAgainstHole True )
 
-             -- temprary code for debuging
-             -- _ <- traverse (\(_ , ii) -> do
-             --               mIns <- lookupInteractionId ii >>= lookupMetaInstantiation
-             --               if isOpenMeta mIns
-             --               then reportSLn "interaction.intro" 1 $ "openM"
-             --               else reportSLn "interaction.intro" 1 $ "notOpenM"
-             --           )
-             --      mArgs
-             -- t :: [(MetaInstantiation , (Maybe String , Hiding))]
 
              (t :: [(MetaInstantiation , (Maybe String , Hiding))]) <-
                 traverse (\(a , d) -> do
@@ -1234,40 +1214,47 @@ introTactic pmLambda ii = do
                              I.MetaV mId [] -> lookupMetaInstantiation mId
                              _ -> __IMPOSSIBLE__
                     return (mi , (( (>>= (filterMaybe (not . isGeneratedName))) . (fmap (rangedThing . woThing)) . getNameOf) d ,  getHiding d))
-                       
-                     ) (zip (argsFromElims es) (domain cDefTy))
-                   
 
-    -- (zip argMetasI (map ((( (>>= (filterMaybe (not . isGeneratedName))) . (fmap (rangedThing . woThing)) . getNameOf) /\ getHiding) . fst ) mArgs'))
+                     ) (zip (argsFromElims es) tel)
 
 
-             -- reportSLn "interaction.intro" 1 $ "tm: " ++ prettyShow iTerm
-             -- reportSLn "interaction.intro" 1 $ "ty: " ++ prettyShow cTy
-             -- reportSLn "interaction.intro" 1 $ "m-ty: " ++ prettyShow mTy
-             let introStr = unwords $ (cn :)
-                        $ flip mapMaybe t                              
-                        $ uncurry
+             let argFilter :: (MetaInstantiation , (Maybe String , Hiding)) -> Bool
+                 argFilter = uncurry $ \mI -> \case
+                            (_ , NotHidden)  -> True
+                            (_ , _) -> (sia && isOpenMeta mI)
+
+                 renderArg :: (MetaInstantiation , (Maybe String , Hiding)) -> String
+                 renderArg = uncurry
                         $ \mI -> let o = isOpenMeta mI in \case
-                            (_ , NotHidden)  -> Just $ if o then "?" else "_" 
+                            (_ , NotHidden)  -> if o then "?" else "_"
                             (mbNm , Hidden) ->
-                                if (sia && o)
-                                then Just $ case mbNm of
-                                               Just fNm -> "{ "++ fNm ++ " = ?}"
-                                               Nothing -> "{?}"
-                                else Nothing
+                                case mbNm of
+                                  Just fNm -> "{ "++ fNm ++ " = ?}"
+                                  Nothing -> "{?}"
                             (mbNm , Instance _) ->
-                                if (sia && o)
-                                then Just $ case mbNm of
-                                               Just fNm -> "{{ "++ fNm ++ " = ?}}"
-                                               Nothing -> "{{?}}"
-                                else Nothing
-             reportSLn "interaction.intro" 1 $ "term to introduce: " ++ introStr
-             return (introStr , Just (cn , cTyA))
+                                case mbNm of
+                                  Just fNm -> "{{ "++ fNm ++ " = ?}}"
+                                  Nothing -> "{{?}}"
+
+                 argsToRender = filter argFilter t
+                 introStr = unwords $ (cn :) $ for argsToRender renderArg
+
+
+                 introStrFinal =
+                    if (appBrackets (_scopePrecedence scope) && not (null argsToRender))
+                    then concat ["(",introStr,")"]
+                    else introStr
+
+             return $ IntroOportunity
+               { constructorName   = cn
+               , stringToIntroduce = introStrFinal
+               , typeOfConstructor = cTyA
+               }
 
 
 
 
-    introRec :: QName -> TCM [String]
+    introRec :: QName -> TCM String
     introRec d = do
       hfs <- getRecordFieldNames d
       fs <- ifM showImplicitArguments
@@ -1275,7 +1262,7 @@ introTactic pmLambda ii = do
             (return [ unDom a | a <- hfs, visible a ])
       let e = C.Rec noRange $ for fs $ \ f ->
             Left $ C.FieldAssignment f $ C.QuestionMark noRange Nothing
-      return [ prettyShow e ]
+      return $ prettyShow e
       -- Andreas, 2019-02-25, remark:
       -- prettyShow is ok here since we are just printing something like
       -- record { f1 = ? ; ... ; fn = ?}

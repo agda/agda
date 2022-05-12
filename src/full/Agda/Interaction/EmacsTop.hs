@@ -36,6 +36,7 @@ import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Precise (TokenBased(..))
 import Agda.Interaction.InteractionTop (localStateCommandM)
 import Agda.Utils.Function (applyWhen)
+import Agda.Utils.Functor (for)
 import Agda.Utils.Null (empty)
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
@@ -190,15 +191,13 @@ lispifyDisplayInfo info = case info of
       doc <- localTCState (prettyResponseContext ii False ctx)
       format (render doc) "*Context*"
     Info_Intro_NotFound -> format "No introduction forms found." "*Intro*"
-    Info_Intro_ConstructorUnknown ii ss -> do
-      csWTy <- forM ss $ \(x , y) ->
-                         case y of
-                           Nothing -> __IMPOSSIBLE__
-                           Just (c , ty) -> do
-                               d <- prettyATop ty
-                               return $ Cons (A $ quote $ c ++ " : " ++ render d) ((A $ quote $ x))
-
-      return $ [ L [ A "agda2-intro-constructor-select" , showNumIId ii ,  Q $ L $ csWTy ] ]
+    Info_Intro_ConstructorUnknown ii ss -> return $
+      let csWTy =
+            for ss $ \x ->
+               Cons (A $ quote $ constructorName x)
+                 (Cons (A $ quote $ typeOfConstructor x)
+                       (A $ quote $ stringToIntroduce x))
+      in [ L [ A "agda2-intro-constructor-select" , showNumIId ii ,  Q $ L $ csWTy ] ]
     Info_Version -> format ("Agda version " ++ versionWithCommitInfo) "*Agda Version*"
     Info_GoalSpecific ii kind -> lispifyGoalSpecificDisplayInfo ii kind
 

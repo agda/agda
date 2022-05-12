@@ -4664,7 +4664,7 @@ getGeneralizedFieldName q
 
 -- | Check whether name was generated, assuming convention of starting generated names by dot
 isGeneratedName :: String -> Bool
-isGeneratedName ('.' : _) = True 
+isGeneratedName ('.' : _) = True
 isGeneratedName _ = False
 
 ---------------------------------------------------------------------------

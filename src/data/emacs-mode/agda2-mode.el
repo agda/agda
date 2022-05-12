@@ -873,13 +873,14 @@ The action depends on the prefix argument:
   (agda2-update old-g paren)))
 
 
-
 (defun agda2-intro-constructor-select (old-g choices)
   "con select" ;; TODO : write description here
   (interactive)
-  (let* ((choicesLabels (mapcar #'car choices))
-         (y (cdr (assoc (completing-read "Constructor: " choicesLabels nil t) choices ))))
-    (if y (agda2-give-action old-g (concat "(" y ")"))))) ;; this is dirty, quick fix, TODO : needs to be well handled on haskell side, like Give
+  (let* ((choicesLabels (mapcar (lambda (x) (propertize (car x) 'display (concat (car x) " : " (car (cdr x)) ) ))  choices))
+         (z (minibuffer-with-setup-hook 'minibuffer-complete
+               (completing-read "Constructor: " choicesLabels nil t)))
+         (y (cdr (cdr (assoc z choices )))))
+    (if y (agda2-give-action old-g y))))
 
 
 (defun agda2-refine (pmlambda)
