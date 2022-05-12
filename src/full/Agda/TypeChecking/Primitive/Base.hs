@@ -132,22 +132,16 @@ path t = primPath <@> t
 el :: Functor m => m Term -> m Type
 el t = El (mkType 0) <$> t
 
+-- | The universe @Set0@ as a type.
 tset :: Applicative m => m Type
 tset = pure $ sort (mkType 0)
 
+-- | @SizeUniv@ as a sort.
 sSizeUniv :: Sort
--- sSizeUniv = mkType 0
--- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
 sSizeUniv = SizeUniv
 
+-- | @SizeUniv@ as a type.
 tSizeUniv :: Applicative m => m Type
--- tSizeUniv = tset
--- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
--- tSizeUniv = return $ El sSizeUniv $ Sort sSizeUniv
--- Andreas, 2015-03-16 Since equality checking for types
--- includes equality checking for sorts, we cannot put
--- SizeUniv in Setω.  (SizeUniv : Setω) == (_0 : suc _0)
--- will first instantiate _0 := Setω, which is wrong.
 tSizeUniv = pure $ sort sSizeUniv
 
 -- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.

@@ -231,6 +231,10 @@ encodeOC f encPrettyTCM = \case
   , "type"           #= encPrettyTCM a
   , "error"          #= encodeTCM err
   ]
+ DataSort q s -> kind "DataSort"
+  [ "name"           @= encodePretty q
+  , "sort"           #= f s
+  ]
  CheckLock t lk -> kind "CheckLock"
   [ "head"           #= f t
   , "lock"           #= f lk

@@ -994,6 +994,7 @@ instance Subst Constraint where
     HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
     CheckLockedVars a b c d  -> CheckLockedVars (rf a) (rf b) (rf c) (rf d)
     UnquoteTactic t h g      -> UnquoteTactic (rf t) (rf h) (rf g)
+    CheckDataSort q s        -> CheckDataSort q (rf s)
     CheckMetaInst m          -> CheckMetaInst m
     CheckType t              -> CheckType (rf t)
     UsableAtModality mod m   -> UsableAtModality mod (rf m)

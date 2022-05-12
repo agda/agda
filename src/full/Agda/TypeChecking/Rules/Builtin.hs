@@ -304,9 +304,7 @@ coreBuiltins =
   , (builtinHidden                           |-> BuiltinDataCons thiding)
   , (builtinInstance                         |-> BuiltinDataCons thiding)
   , (builtinVisible                          |-> BuiltinDataCons thiding)
-  , (builtinSizeUniv                         |-> builtinPostulate tSizeUniv) -- SizeUniv : SizeUniv
--- See comment on tSizeUniv: the following does not work currently.
---  , (builtinSizeUniv                          |-> builtinPostulate tSetOmega) -- SizeUniv : Setω
+  , (builtinSizeUniv                         |-> builtinPostulate tsetOmega) -- SizeUniv : Setω
   , (builtinSize                             |-> builtinPostulate tSizeUniv)
   , (builtinSizeLt                           |-> builtinPostulate (tsize ..--> tSizeUniv))
   , (builtinSizeSuc                          |-> builtinPostulate (tsize --> tsize))

@@ -1110,6 +1110,10 @@ data Constraint
 --    -- ^ A delayed instantiation.  Replaces @ValueCmp@ in 'postponeTypeCheckingProblem'.
   | HasBiggerSort Sort
   | HasPTSRule (Dom Type) (Abs Sort)
+  | CheckDataSort QName Sort
+    -- ^ Check that the sort 'Sort' of data type 'QName' admits data/record types.
+    -- E.g., sorts @IUniv@, @SizeUniv@ etc. do not admit such constructions.
+    -- See 'Agda.TypeChecking.Rules.Data.checkDataSort'.
   | CheckMetaInst MetaId
   | CheckType Type
   | UnBlock MetaId
@@ -1160,6 +1164,7 @@ instance Free Constraint where
       HasPTSRule a s        -> freeVars' (a , s)
       CheckLockedVars a b c d -> freeVars' ((a,b),(c,d))
       UnquoteTactic t h g   -> freeVars' (t, (h, g))
+      CheckDataSort _ s     -> freeVars' s
       CheckMetaInst m       -> mempty
       CheckType t           -> freeVars' t
       UsableAtModality mod t -> freeVars' t
@@ -1180,6 +1185,7 @@ instance TermLike Constraint where
       CheckFunDef{}          -> mempty
       HasBiggerSort s        -> foldTerm f s
       HasPTSRule a s         -> foldTerm f (a, Sort <$> s)
+      CheckDataSort _ s      -> foldTerm f s
       CheckMetaInst m        -> mempty
       CheckType t            -> foldTerm f t
       UsableAtModality m t   -> foldTerm f t

@@ -443,6 +443,7 @@ data OutputConstraint a b
       | PTSInstance b b
       | PostponedCheckFunDef QName a TCErr
       | CheckLock b b
+      | DataSort QName b
       | UsableAtMod Modality b
   deriving (Functor)
 

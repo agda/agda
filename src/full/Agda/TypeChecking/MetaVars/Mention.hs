@@ -118,6 +118,7 @@ instance MentionsMeta Constraint where
     HasBiggerSort a     -> mm a
     HasPTSRule a b      -> mm (a, b)
     UnquoteTactic tac hole goal -> False
+    CheckDataSort q s   -> mm s
     CheckMetaInst m     -> True   -- TODO
     CheckType t         -> mm t
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
