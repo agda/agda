@@ -1059,8 +1059,6 @@ typeInMeta ii norm e =
             typeInCurrent norm e
 
 
-
-
 data IntroTacticResult
   = IntroTactic_NotFound
   | IntroTactic_Success String
@@ -1073,7 +1071,6 @@ data IntroTacticResult
 -- used to refine the goal. Uses the coverage checker
 -- to find out which constructors are possible.
 --
-
 
 introTactic :: Bool -> InteractionId -> TCM IntroTacticResult
 introTactic pmLambda ii = do
@@ -1111,15 +1108,6 @@ introTactic pmLambda ii = do
      `catchError` \_ -> return IntroTactic_NotFound
     _ -> __IMPOSSIBLE__
   where
-    conName :: [NamedArg SplitPattern] -> Maybe I.ConHead
-    conName [p] =
-          case namedArg p of
-            I.ConP c _ _  -> Just c
-            _ -> Nothing
-    conName _   = __IMPOSSIBLE__
-
-    showUnambiguousConName v =
-       runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
 
     showTCM :: PrettyTCM a => a -> TCM String
     showTCM v = render <$> prettyTCM v
@@ -1157,66 +1145,76 @@ introTactic pmLambda ii = do
       case r of
         Left err -> return IntroTactic_NotFound
         Right cov -> do
-           l <- mapM conWithArgs $ mapMaybe (conName . scPats) $ splitClauses cov
+           mTy <- getMetaType =<< lookupInteractionId ii
+           l <- mapM (makeIntroductionTerm mTy) $ mapMaybe (conName . scPats) $ splitClauses cov
            return $
              case l of
-                []  -> IntroTactic_NotFound
-                [IntroOportunity{ stringToIntroduce = x}] -> IntroTactic_Success x
-                _ -> IntroTactic_MultiplePossibleConstructors l
+                []                    -> IntroTactic_NotFound
+                [x@IntroOportunity{}] -> IntroTactic_Success (stringToIntroduce x)
+                _                     -> IntroTactic_MultiplePossibleConstructors l
       where
 
-        conWithArgs ch = do
-             cqn <- showUnambiguousConName ch
-             let cn = render $ pretty  cqn
-             reportSLn "interaction.intro" 20 $ "con: " ++ cn
-             sia <- showImplicitArguments
-             let conE = (A.Con $ unambiguous $ (I.conName ch))
-             mTy <- getMetaType =<< lookupInteractionId ii
+        conName :: [NamedArg SplitPattern] -> Maybe I.ConHead
+        conName [p] =
+              case namedArg p of
+                I.ConP c _ _  -> Just c
+                _ -> Nothing
+        conName _   = __IMPOSSIBLE__
 
-             cDefTy <- defType <$> getConstInfo (I.conName ch)
-             let tel = telToList $ theTel $ telView' cDefTy
-             cTyA <- fmap render $ prettyATop =<< reifyUnblocked =<< normalForm Normalised cDefTy
+        showUnambiguousConName v =
+           runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
 
-             mi <- lookupInteractionId ii
-             mv <- lookupLocalMeta mi
-             let range = getRange mv
-                 scope = M.getMetaScope mv
-             let rng = rightMargin range
+        makeIntroductionTerm mTy ch = do
+             cn <- (render . pretty) <$> showUnambiguousConName ch
+             reportSLn "interaction.introData.makeIntroductionTerm" 20 $ "constructor: " ++ cn
 
-                 applyMetasAndCheckAgainstHole includeInsArgs = do
+
+             (tel , renderedConstructorType) <- do
+                  cDefTy <- defType <$> getConstInfo (I.conName ch)
+                  ct <- prettyATop =<< reifyUnblocked =<< normalForm Normalised cDefTy
+                  return (telToList $ theTel $ telView' cDefTy , render ct)
+
+             scope <- getScope
+
+             -- This applies constructor to all of its arguments, including hidden trailing args.
+             -- Depending on the flag, it can skip instance arguments.
+             -- Resulting Expr is checked against the type of the hole.
+             let applyMetasAndCheckAgainstHole includeInsArgs = (includeInsArgs ,) <$> do
                    let toNA :: Dom (ArgName, I.Type) -> TCM (Maybe ((NamedArg A.Expr) , InteractionId))
                        toNA d =
                           if (includeInsArgs || (not $ isInstance d)) then do
+                            rng <- rightMargin <$> getCurrentRange
                             let info = Info.MetaInfo
                                  { Info.metaRange = rng
                                  , Info.metaScope = set scopePrecedence [argumentCtx_] scope
                                  , metaNumber = Nothing
                                  , metaNameSuggestion = ""
                                  }
-
                             ii <- registerInteractionPoint False rng Nothing
                             let metaVar = QuestionMark info ii
                             return $ Just (namedArgFromDom $ fmap (\_ -> metaVar) d , ii)
                           else return Nothing
                    mArgs <- fmap catMaybes $ traverse toNA tel
-                   let conAppMetas = A.app conE ( fst <$> mArgs)
-                   ((includeInsArgs , mArgs) ,) <$> checkExpr conAppMetas mTy
+                   let conAppMetas = A.app (A.Con $ unambiguous $ (I.conName ch)) (fst <$> mArgs)
+                   checkExpr conAppMetas mTy
 
-
-             ((wereInstanceArgumentsIncluded , mArgs') , chE@(I.Con _ _ es)) <-
+             -- If type checking without metas for instane arguments fails,
+             -- another attempt is made - this time with metas everywhere.
+             (wereInstanceArgumentsIncluded , chE@(I.Con _ _ es)) <-
                   catchError (applyMetasAndCheckAgainstHole False)
                        (\_ -> applyMetasAndCheckAgainstHole True )
 
-
+             -- This inspects elims in inferred term, depending on the path teaken above
+             -- metas for instance arguments may have been introduced either
+             -- during type checking or manually in `applyMetasAndCheckAgainstHole`.
              (t :: [(MetaInstantiation , (Maybe String , Hiding))]) <-
-                traverse (\(a , d) -> do
+                forM (zip (argsFromElims es) tel) (\(a , d) -> do
                     mi <- case (unArg a) of
                              I.MetaV mId [] -> lookupMetaInstantiation mId
                              _ -> __IMPOSSIBLE__
-                    return (mi , (( (>>= (filterMaybe (not . isGeneratedName))) . (fmap (rangedThing . woThing)) . getNameOf) d ,  getHiding d))
+                    return (mi , (((>>= (filterMaybe (not . isGeneratedName))) . (fmap (rangedThing . woThing)) . getNameOf) d ,  getHiding d)))
 
-                     ) (zip (argsFromElims es) tel)
-
+             sia <- showImplicitArguments
 
              let argFilter :: (MetaInstantiation , (Maybe String , Hiding)) -> Bool
                  argFilter = uncurry $ \mI -> \case
@@ -1248,7 +1246,7 @@ introTactic pmLambda ii = do
              return $ IntroOportunity
                { constructorName   = cn
                , stringToIntroduce = introStrFinal
-               , typeOfConstructor = cTyA
+               , typeOfConstructor = renderedConstructorType
                }
 
 

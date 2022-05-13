@@ -221,6 +221,12 @@ defaultInteractionOutputCallback = \case
 
 data IntroOportunity = IntroOportunity
   { constructorName   :: String
+    -- Used to provide autocompletion interface in editor.
   , stringToIntroduce :: String
+    -- Term ready to be given, applied to arguments
+    -- and parenthesized acording to scope of the meta.
   , typeOfConstructor :: String
+    -- Pretty printed type of the constructor,
+    -- to be displayed together with constructor name
+    -- in the completion window.
   }
