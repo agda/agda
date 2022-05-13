@@ -526,6 +526,12 @@ cubical-test :
 		time $(MAKE) -C cubical \
                   AGDA_BIN=$(AGDA_BIN) RTS_OPTIONS=$(AGDA_OPTS))
 
+.PHONY : continue-cubical-test ##
+continue-cubical-test :
+	@$(call decorate, "Continuing cubical library test", \
+		time $(MAKE) -C cubical \
+                  AGDA_BIN=$(AGDA_BIN) RTS_OPTIONS=$(AGDA_OPTS))
+
 .PHONY : continue-std-lib-test ##
 continue-std-lib-test :
 	@(cd std-lib && \
