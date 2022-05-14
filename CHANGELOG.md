@@ -30,7 +30,7 @@ Language
   ([#4786](https://github.com/agda/agda/issues/4786)).
 
   For instance, the type of the constructor `c` below is now `{@0 A :
-  Set} → D A`, and the type of the record field `R.f` is {@0 A : Set}
+  Set} → D A`, and the type of the record field `R.f` is `{@0 A : Set}
   → R A → A`:
   ```agda
   data D (A : Set) : Set where
