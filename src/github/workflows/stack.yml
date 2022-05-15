@@ -187,7 +187,8 @@ jobs:
     - name: Install the icu library (Windows)
       if: ${{ runner.os == 'Windows' }}
       run: |
-        stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
+        stack exec ${ARGS} -- pacman --noconfirm -Syuu
+        # stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
         stack exec ${ARGS} -- pacman --noconfirm -S ${ICU}
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
 
