@@ -1201,8 +1201,10 @@ telView'UpTo 0 t = TelV EmptyTel t
 telView'UpTo n t = case unEl t of
   Pi a b  -> absV a (absName b) $ telView'UpTo (n - 1) (absBody b)
   _       -> TelV EmptyTel t
-  where
-    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
+-- | Add given binding to the front of the telescope.
+absV :: Dom a -> ArgName -> TelV a -> TelV a
+absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 
 -- ** Creating telescopes from lists of types
