@@ -377,8 +377,6 @@ telViewUpTo' n p t = do
     Pi a b | p a -> absV a (absName b) <$> do
                       underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
     _            -> return $ TelV EmptyTel t
-  where
-    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 telViewPath :: PureTCM m => Type -> m TelView
 telViewPath = telViewUpToPath (-1)
@@ -395,7 +393,6 @@ telViewUpToPath n t = do
                    -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
     Right t        -> return $ TelV EmptyTel t
   where
-    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 -- | [[ (i,(x,y)) ]] = [(i=0) -> x, (i=1) -> y]
 type Boundary = Boundary' (Term,Term)
@@ -523,7 +520,6 @@ telView'UpToPath n t = do
                    -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
     Right t        -> return $ TelV EmptyTel t
   where
-    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 telView'Path :: Type -> TCM TelView
 telView'Path = telView'UpToPath (-1)
