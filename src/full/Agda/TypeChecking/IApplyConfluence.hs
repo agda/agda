@@ -49,7 +49,7 @@ checkIApplyConfluence_ f = whenM (isJust . optCubical <$> pragmaOptions) $ do
   case theDef d of
     Function{funClauses = cls', funCovering = cls} -> do
       reportSDoc "tc.cover.iapply" 10 $ text "length cls =" <+> pretty (length cls)
-      when (null cls && not (null $ concatMap (iApplyVars . namedClausePats) cls')) $
+      when (null cls && any (not . null . iApplyVars . namedClausePats) cls') $
         __IMPOSSIBLE__
       modifySignature $ updateDefinition f $ updateTheDef
         $ updateCovering (const [])
