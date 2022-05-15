@@ -96,16 +96,25 @@ arityPiPath t = do
     Left (_ , u) -> (+1) <$> arityPiPath (unAbs u)
     Right _ -> return 0
 
-iApplyVars :: DeBruijn a => [NamedArg (Pattern' a)] -> [Int]
-iApplyVars ps = flip concatMap (map namedArg ps) $ \case
-                             IApplyP _ t u x ->
-                               [fromMaybe __IMPOSSIBLE__ (deBruijnView x)]
-                             VarP{} -> []
-                             ProjP{}-> []
-                             LitP{} -> []
-                             DotP{} -> []
-                             DefP _ _ ps -> iApplyVars ps
-                             ConP _ _ ps -> iApplyVars ps
+-- | Collect the interval copattern variables as list of de Bruijn indices.
+class IApplyVars p where
+  iApplyVars :: p -> [Int]
+
+instance DeBruijn a => IApplyVars (Pattern' a) where
+  iApplyVars = \case
+    IApplyP _ t u x -> [ fromMaybe __IMPOSSIBLE__ $ deBruijnView x ]
+    VarP{}          -> []
+    ProjP{}         -> []
+    LitP{}          -> []
+    DotP{}          -> []
+    DefP _ _ ps     -> iApplyVars ps
+    ConP _ _ ps     -> iApplyVars ps
+
+instance IApplyVars p => IApplyVars (NamedArg p) where
+  iApplyVars = iApplyVars . namedArg
+
+instance IApplyVars p => IApplyVars [p] where
+  iApplyVars = concatMap iApplyVars
 
 isInterval :: (MonadTCM m, MonadReduce m) => Type -> m Bool
 isInterval t = liftTCM $ do

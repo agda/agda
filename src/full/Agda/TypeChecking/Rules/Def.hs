@@ -746,19 +746,6 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
             ]
           ]
 
-        -- check naturality wrt the interval.
-        let
-          -- TODO:: Defined but not used
-          iApplyVars :: [NamedArg DeBruijnPattern] -> [(Int, (Term,Term))]
-          iApplyVars ps = flip concatMap (map namedArg ps) $ \case
-                             IApplyP _ t u x -> [(dbPatVarIndex x,(t,u))]
-                             VarP{} -> []
-                             ProjP{}-> []
-                             LitP{} -> []
-                             DotP{} -> []
-                             DefP _ _ ps -> iApplyVars ps
-                             ConP _ _ ps -> iApplyVars ps
-
         -- compute body modification for irrelevant definitions, see issue 610
         rel <- asksTC getRelevance
         let bodyMod body = case rel of
