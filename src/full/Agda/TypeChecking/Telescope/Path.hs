@@ -17,6 +17,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Size
@@ -91,10 +92,9 @@ telePiPath_ tel t bndry = do
 --   Does not reduce the type.
 arityPiPath :: Type -> TCM Int
 arityPiPath t = do
-  t' <- piOrPath t
-  case t' of
-    Left (_ , u) -> (+1) <$> arityPiPath (unAbs u)
-    Right _ -> return 0
+  piOrPath t >>= \case
+    Left (_, u) -> (+1) <$> arityPiPath (unAbs u)
+    Right _     -> return 0
 
 -- | Collect the interval copattern variables as list of de Bruijn indices.
 class IApplyVars p where
@@ -116,11 +116,10 @@ instance IApplyVars p => IApplyVars (NamedArg p) where
 instance IApplyVars p => IApplyVars [p] where
   iApplyVars = concatMap iApplyVars
 
+-- | Check whether a type is the built-in interval type.
 isInterval :: (MonadTCM m, MonadReduce m) => Type -> m Bool
 isInterval t = liftTCM $ do
-  mi <- getName' builtinInterval
-  caseMaybe mi (return False) $ \ i -> do
-  t <- reduce $ unEl t
-  case t of
-    Def q [] -> return $ q == i
-    _        -> return $ False
+  caseMaybeM (getName' builtinInterval) (return False) $ \ i -> do
+  reduce (unEl t) <&> \case
+    Def q [] -> q == i
+    _        -> False
