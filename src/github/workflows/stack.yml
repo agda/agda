@@ -163,7 +163,7 @@ jobs:
         # A unique cache is used for each stack.yaml.
         # Note that matrix.stack-ver might be simply 'latest', so we use STACK_VER.
         key: |
-          ${{ runner.os }}-stack-00-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
+          ${{ runner.os }}-stack-20220503-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
 
     - name: Set up pkg-config for the ICU library (macOS)
       if: ${{ runner.os == 'macOS' }}
@@ -184,10 +184,13 @@ jobs:
     # NB: the ${ARGS} is necessary, otherwise stack installs another GHC...
     # Andreas, 2022-02-04, issue #5768:
     # To work around keyring problems, we update msys2-keyring before installing ICU.
+    # Andreas, 2022-05-15, pr #5909: the keyring problem was solved upstream by
+    # updating Stack-MSYS to 2022-05-03.
     - name: Install the icu library (Windows)
       if: ${{ runner.os == 'Windows' }}
       run: |
-        stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
+        stack exec ${ARGS} -- pacman --noconfirm -Syuu
+        # stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
         stack exec ${ARGS} -- pacman --noconfirm -S ${ICU}
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
 
