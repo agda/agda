@@ -489,36 +489,38 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                 (g0,_:g1) = splitAt (size gamma - 1 - ix) $ flattenTel gamma
                 (ns0,_:ns1) = splitAt (size gamma - 1 - ix) $ teleNames gamma
 
-              c = Clause { clauseTel       = gamma'
-                         , clauseType      = Just $ argN t
-                         , namedClausePats = pats
-                         , clauseFullRange = noRange
+              c = Clause { clauseFullRange = noRange
                          , clauseLHSRange  = noRange
-                         , clauseCatchall  = False
+                         , clauseTel       = gamma'
+                         , namedClausePats = pats
                          , clauseBody      = Just $ rhs
+                         , clauseType      = Just $ argN t
+                         , clauseCatchall    = False
                          , clauseExact       = Just True
                          , clauseRecursive   = Just False  -- definitely non-recursive!
                          , clauseUnreachable = Just False
-                         , clauseEllipsis  = NoEllipsis
+                         , clauseEllipsis    = NoEllipsis
+                         , clauseWhereModule = Nothing
                          }
            reportSDoc "trans.rec.face" 17 $ text $ show c
            return c
   cs <- forM (zip3 fns clause_types bodies) $ \ (fname, clause_ty, body) -> do
           let
               pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP ProjSystem $ unArg fname]
-              c = Clause { clauseTel       = gamma
-                         , clauseType      = Just $ argN (unDom clause_ty)
-                         , namedClausePats = pats
-                         , clauseFullRange = noRange
+              c = Clause { clauseFullRange = noRange
                          , clauseLHSRange  = noRange
-                         , clauseCatchall  = False
+                         , clauseTel       = gamma
+                         , namedClausePats = pats
                          , clauseBody      = Just body
+                         , clauseType      = Just $ argN (unDom clause_ty)
+                         , clauseCatchall    = False
                          , clauseExact       = Just True
                          , clauseRecursive   = Nothing
                              -- Andreas 2020-02-06 TODO
                              -- Or: Just False;  is it known to be non-recursive?
                          , clauseUnreachable = Just False
-                         , clauseEllipsis  = NoEllipsis
+                         , clauseEllipsis    = NoEllipsis
+                         , clauseWhereModule = Nothing
                          }
           reportSDoc "trans.rec" 17 $ text $ show c
           reportSDoc "trans.rec" 16 $ text "type =" <+> text (show (clauseType c))
@@ -695,7 +697,8 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                             , clauseExact       = Just True
                             , clauseRecursive   = Just False
                             , clauseUnreachable = Just False
-                            , clauseEllipsis  = NoEllipsis
+                            , clauseEllipsis    = NoEllipsis
+                            , clauseWhereModule = Nothing
                             }
 
         let projection = Projection

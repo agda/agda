@@ -223,18 +223,19 @@ getClauseZipperForIP f clauseNo = do
 
 recheckAbstractClause :: Type -> Maybe Substitution -> A.SpineClause -> TCM (Clause, Context, [AsBinding])
 recheckAbstractClause t sub acl = checkClauseLHS t sub acl $ \ lhs -> do
-  let cl = Clause{ clauseLHSRange    = getRange acl
-                 , clauseFullRange   = getRange acl
-                 , clauseTel         = lhsVarTele lhs
-                 , namedClausePats   = lhsPatterns lhs
-                 , clauseBody        = Nothing -- We don't need the body for make case
-                 , clauseType        = Just (lhsBodyType lhs)
-                 , clauseCatchall    = False
-                 , clauseExact       = Nothing
-                 , clauseRecursive   = Nothing
-                 , clauseUnreachable = Nothing
-                 , clauseEllipsis    = lhsEllipsis $ A.spLhsInfo $ A.clauseLHS acl
-                 }
+  let cl = Clause { clauseLHSRange    = getRange acl
+                  , clauseFullRange   = getRange acl
+                  , clauseTel         = lhsVarTele lhs
+                  , namedClausePats   = lhsPatterns lhs
+                  , clauseBody        = Nothing -- We don't need the body for make case
+                  , clauseType        = Just (lhsBodyType lhs)
+                  , clauseCatchall    = False
+                  , clauseExact       = Nothing
+                  , clauseRecursive   = Nothing
+                  , clauseUnreachable = Nothing
+                  , clauseEllipsis    = lhsEllipsis $ A.spLhsInfo $ A.clauseLHS acl
+                  , clauseWhereModule = A.whereModule $ A.clauseWhereDecls acl
+                  }
   cxt <- getContext
   let asb = lhsAsBindings lhs
   return (cl, cxt, asb)
@@ -501,15 +502,25 @@ makeAbsurdClause f ell (SClause tel sps _ _ t) = do
       , "ell     =" <+> text (show ell)
       ]
     ]
-  withCurrentModule (qnameModule f) $ do
+  withCurrentModule (qnameModule f) $
     -- Andreas, 2015-05-29 Issue 635
     -- Contract implicit record patterns before printing.
     -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
-    let c = Clause noRange noRange tel ps Nothing (argFromDom <$> t) False Nothing Nothing Nothing ell
-    let ps = namedClausePats c
-    inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
-
+    inTopContext $ reify $ QNamed f $ Clause
+      { clauseLHSRange  = noRange
+      , clauseFullRange = noRange
+      , clauseTel       = tel
+      , namedClausePats = ps
+      , clauseBody      = Nothing
+      , clauseType      = argFromDom <$> t
+      , clauseCatchall    = False
+      , clauseExact       = Nothing
+      , clauseRecursive   = Nothing
+      , clauseUnreachable = Nothing
+      , clauseEllipsis    = ell
+      , clauseWhereModule = Nothing
+      }
 
 -- | Make a clause with a question mark as rhs.
 

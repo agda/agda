@@ -333,7 +333,7 @@ instance Hilite A.ProblemEq where
   hilite (A.ProblemEq p _t _dom) = hilite p
 
 instance Hilite A.WhereDeclarations where
-  hilite (A.WhereDecls m ds) = hilite m <> hilite ds
+  hilite (A.WhereDecls m _ ds) = hilite m <> hilite ds
 
 instance Hilite A.GeneralizeTelescope where
   hilite (A.GeneralizeTel _gen tel) = hilite tel

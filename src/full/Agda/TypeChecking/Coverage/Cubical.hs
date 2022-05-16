@@ -359,18 +359,19 @@ createMissingTrXTrXClause q_trX f n x old_sc = do
     (,,) <$> ps <*> rhsTy <*> rhs
   let (ps,ty,rhs) = unAbsN $ unAbs $ unAbsN $ unAbs $ unAbsN $ unAbs $ unAbsN $ ps_ty_rhs
   reportSDoc "tc.cover.trx.trx" 20 $ "trX-trX clause for" <+> prettyTCM f
-  let c = Clause { clauseTel = cTel
-                  , namedClausePats = ps
-                  , clauseBody = Just rhs
-                  , clauseType = Just $ Arg (getArgInfo ty) (unDom ty)
-                  , clauseLHSRange = noRange
-                  , clauseFullRange = noRange
-                  , clauseCatchall = False
-                  , clauseRecursive = Just True
-                  , clauseUnreachable = Just False
-                  , clauseEllipsis = NoEllipsis
-                  , clauseExact = Nothing
-                  }
+  let c = Clause { clauseLHSRange  = noRange
+                 , clauseFullRange = noRange
+                 , clauseTel       = cTel
+                 , namedClausePats = ps
+                 , clauseBody      = Just rhs
+                 , clauseType      = Just $ Arg (getArgInfo ty) (unDom ty)
+                 , clauseCatchall    = False
+                 , clauseExact       = Nothing
+                 , clauseRecursive   = Just True
+                 , clauseUnreachable = Just False
+                 , clauseEllipsis    = NoEllipsis
+                 , clauseWhereModule = Nothing
+                 }
   debugClause "tc.cover.trx.trx" c
   return $ c
 createMissingTrXHCompClause :: QName
@@ -627,20 +628,21 @@ createMissingTrXHCompClause q_trX f n x old_sc = do
     (,,) <$> ps <*> rhsTy <*> pure rhs
   let (ps,ty,rhs) = unAbsN $ unAbs $ unAbs $ unAbs $ unAbsN $ unAbs $ unAbsN $ ps_ty_rhs
   reportSDoc "tc.cover.trx.hcomp" 20 $ "trX-hcomp clause for" <+> prettyTCM f
-  let c = Clause { clauseTel = cTel
-                  , namedClausePats = ps
-                  , clauseBody = Just rhs
-                  , clauseType = Just $ Arg (getArgInfo ty) (unDom ty)
-                  , clauseLHSRange = noRange
-                  , clauseFullRange = noRange
-                  , clauseCatchall = False
-                  , clauseRecursive = Just True
-                  , clauseUnreachable = Just False
-                  , clauseEllipsis = NoEllipsis
-                  , clauseExact = Nothing
-                  }
+  let c = Clause { clauseLHSRange  = noRange
+                 , clauseFullRange = noRange
+                 , clauseTel       = cTel
+                 , namedClausePats = ps
+                 , clauseBody      = Just rhs
+                 , clauseType      = Just $ Arg (getArgInfo ty) (unDom ty)
+                 , clauseCatchall    = False
+                 , clauseExact       = Nothing
+                 , clauseRecursive   = Just True
+                 , clauseUnreachable = Just False
+                 , clauseEllipsis    = NoEllipsis
+                 , clauseWhereModule = Nothing
+                 }
   debugClause "tc.cover.trx.hcomp" c
-  return $ c
+  return c
 createMissingTrXConClause :: QName -- trX
                             -> QName -- f defined
                             -> Arg Nat
@@ -861,17 +863,18 @@ createMissingTrXConClause q_trX f n x old_sc c (UE gamma gamma' xTel u v rho tau
   qs <- mapM (fmap (fromMaybe __IMPOSSIBLE__) . getName') [builtinINeg, builtinIMax, builtinIMin]
   rhs <- addContext cTel $
            locallyReduceDefs (OnlyReduceDefs (Set.fromList $ q_trX : qs)) $ normalise rhs
-  let cl = Clause { clauseTel = cTel
-                  , namedClausePats = ps
-                  , clauseBody = Just rhs
-                  , clauseType = Just $ Arg (getArgInfo ty) (unDom ty)
-                  , clauseLHSRange = noRange
+  let cl = Clause { clauseLHSRange  = noRange
                   , clauseFullRange = noRange
-                  , clauseCatchall = False
-                  , clauseRecursive = Just True
+                  , clauseTel       = cTel
+                  , namedClausePats = ps
+                  , clauseBody      = Just rhs
+                  , clauseType      = Just $ Arg (getArgInfo ty) (unDom ty)
+                  , clauseCatchall    = False
+                  , clauseExact       = Nothing
+                  , clauseRecursive   = Just True
                   , clauseUnreachable = Just False
-                  , clauseEllipsis = NoEllipsis
-                  , clauseExact = Nothing
+                  , clauseEllipsis    = NoEllipsis
+                  , clauseWhereModule = Nothing
                   }
 
 
@@ -1111,11 +1114,12 @@ createMissingConIdClause f _n x old_sc (TheInfo info) = setCurrentRange f $ do
                     , namedClausePats = ps
                     , clauseBody      = Just $ rhs
                     , clauseType      = Just $ Arg (domInfo ty) (unDom ty)
-                    , clauseCatchall  = False
+                    , clauseCatchall    = False
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
-                    , clauseRecursive = Just False
-                    , clauseEllipsis = NoEllipsis
-                    , clauseExact = Nothing
+                    , clauseRecursive   = Just False
+                    , clauseEllipsis    = NoEllipsis
+                    , clauseExact       = Nothing
+                    , clauseWhereModule = Nothing
                     }
   addClauses f [cl]
   return $ Just ((SplitCon conId,SplittingDone (size working_tel)),cl)
@@ -1356,11 +1360,12 @@ createMissingHCompClause f n x old_sc (SClause tel ps _sigma' _cps (Just t)) cs 
                     , namedClausePats = fromSplitPatterns ps
                     , clauseBody      = Just $ rhs
                     , clauseType      = Just $ defaultArg t
-                    , clauseCatchall  = False
+                    , clauseCatchall    = False
                     , clauseExact       = Just True
                     , clauseRecursive   = Nothing     -- TODO: can it be recursive?
                     , clauseUnreachable = Just False  -- missing, thus, not unreachable
-                    , clauseEllipsis  = NoEllipsis
+                    , clauseEllipsis    = NoEllipsis
+                    , clauseWhereModule = Nothing
                     }
   addClauses f [cl]  -- Important: add at the end.
   let result = CoverResult

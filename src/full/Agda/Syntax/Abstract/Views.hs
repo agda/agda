@@ -367,7 +367,7 @@ instance (ExprLike qn, ExprLike nm, ExprLike p, ExprLike e) => ExprLike (Rewrite
     Invert qn pes -> Invert <$> recurseExpr f qn <*> recurseExpr f pes
 
 instance ExprLike WhereDeclarations where
-  recurseExpr f (WhereDecls a b) = WhereDecls a <$> recurseExpr f b
+  recurseExpr f (WhereDecls a b c) = WhereDecls a b <$> recurseExpr f c
 
 instance ExprLike ModuleApplication where
   recurseExpr :: forall m. RecurseExprFn m ModuleApplication
@@ -519,7 +519,7 @@ instance DeclaredNames Clause where
   declaredNames (Clause _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
 
 instance DeclaredNames WhereDeclarations where
-  declaredNames (WhereDecls _ ds) = declaredNames ds
+  declaredNames (WhereDecls _ _ ds) = declaredNames ds
 
 instance DeclaredNames RHS where
   declaredNames = \case

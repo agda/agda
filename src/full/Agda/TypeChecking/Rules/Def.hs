@@ -194,11 +194,12 @@ checkAlias t ai delayed i name e mc =
                           , namedClausePats = []
                           , clauseBody      = Just $ bodyMod v
                           , clauseType      = Just $ Arg ai t
-                          , clauseCatchall  = False
-                          , clauseExact     = Just True
-                          , clauseRecursive = Nothing   -- we don't know yet
+                          , clauseCatchall    = False
+                          , clauseExact       = Just True
+                          , clauseRecursive   = Nothing   -- we don't know yet
                           , clauseUnreachable = Just False
-                          , clauseEllipsis = NoEllipsis
+                          , clauseEllipsis    = NoEllipsis
+                          , clauseWhereModule = Nothing
                           } ]
                       , funCompiled = Just $ Done [] $ bodyMod v
                       , funSplitTree = Just $ SplittingDone 0
@@ -332,15 +333,16 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
                  let c = Clause
                        { clauseFullRange = noRange
                        , clauseLHSRange  = noRange
-                       , clauseTel = tel
+                       , clauseTel       = tel
                        , namedClausePats = teleNamedArgs tel
-                       , clauseBody = Nothing
-                       , clauseType = Just (defaultArg t)
-                       , clauseCatchall = False
-                       , clauseExact     = Just True
-                       , clauseRecursive = Just False
+                       , clauseBody      = Nothing
+                       , clauseType      = Just (defaultArg t)
+                       , clauseCatchall    = False
+                       , clauseExact       = Just True
+                       , clauseRecursive   = Just False
                        , clauseUnreachable = Just False
-                       , clauseEllipsis = NoEllipsis
+                       , clauseEllipsis    = NoEllipsis
+                       , clauseWhereModule = Nothing
                        }
                  return (cs ++ [c], pure sys)
 
@@ -783,7 +785,8 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
                  , clauseExact       = exact
                  , clauseRecursive   = Nothing -- we don't know yet
                  , clauseUnreachable = Nothing -- we don't know yet
-                 , clauseEllipsis  = lhsEllipsis i
+                 , clauseEllipsis    = lhsEllipsis i
+                 , clauseWhereModule = A.whereModule wh
                  }
 
 
@@ -1223,8 +1226,8 @@ checkWhere
   :: A.WhereDeclarations -- ^ Where-declarations to check.
   -> TCM a               -- ^ Continuation.
   -> TCM a
-checkWhere wh@(A.WhereDecls whmod ds) ret = do
-  ensureNoNamedWhereInRefinedContext whmod
+checkWhere wh@(A.WhereDecls whmod whNamed ds) ret = do
+  when (not whNamed) $ ensureNoNamedWhereInRefinedContext whmod
   loop ds
   where
     loop = \case
