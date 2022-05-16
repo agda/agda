@@ -552,19 +552,20 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                   reportSDoc "tc.mod.apply" 80 $ ("new def for" <+> pretty x) <?> pretty newDef
                   return newDef
 
-            cl = Clause { clauseLHSRange  = getRange $ defClauses d
-                        , clauseFullRange = getRange $ defClauses d
-                        , clauseTel       = EmptyTel
-                        , namedClausePats = []
-                        , clauseBody      = Just $ dropArgs pars $ case oldDef of
+            cl = Clause { clauseLHSRange    = getRange $ defClauses d
+                        , clauseFullRange   = getRange $ defClauses d
+                        , clauseTel         = EmptyTel
+                        , namedClausePats   = []
+                        , clauseBody        = Just $ dropArgs pars $ case oldDef of
                             Function{funProjection = Just p} -> projDropParsApply p ProjSystem rel ts'
                             _ -> Def x $ map Apply ts'
-                        , clauseType      = Just $ defaultArg t
-                        , clauseCatchall  = False
+                        , clauseType        = Just $ defaultArg t
+                        , clauseCatchall    = False
                         , clauseExact       = Just True
                         , clauseRecursive   = Just False -- definitely not recursive
                         , clauseUnreachable = Just False -- definitely not unreachable
-                        , clauseEllipsis  = NoEllipsis
+                        , clauseEllipsis    = NoEllipsis
+                        , clauseWhereModule = Nothing
                         }
               where
                 -- The number of remaining parameters. We need to drop the

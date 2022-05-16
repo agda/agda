@@ -668,18 +668,19 @@ frommyClause (ids, pats, mrhs) = do
           Nothing -> return $ Nothing
           Just e -> Just <$> convert e
  let cperm =  Perm nv perm
- return $ I.Clause
+ return I.Clause
    { I.clauseLHSRange  = SP.noRange
    , I.clauseFullRange = SP.noRange
    , I.clauseTel       = tel
    , I.namedClausePats = IP.numberPatVars __IMPOSSIBLE__ cperm $ applySubst (renamingR $ compactP cperm) ps
-   , I.clauseBody  = body
-   , I.clauseType  = Nothing -- TODO: compute clause type
-   , I.clauseCatchall = False
+   , I.clauseBody      = body
+   , I.clauseType      = Nothing -- TODO: compute clause type
+   , I.clauseCatchall    = False
    , I.clauseExact       = Nothing -- TODO
    , I.clauseRecursive   = Nothing -- TODO: Don't know here whether recursive or not !?
    , I.clauseUnreachable = Nothing -- TODO: Don't know here whether reachable or not !?
-   , I.clauseEllipsis = Cm.NoEllipsis
+   , I.clauseEllipsis    = Cm.NoEllipsis
+   , I.clauseWhereModule = Nothing
    }
 
 contains_constructor :: [CSPat O] -> Bool

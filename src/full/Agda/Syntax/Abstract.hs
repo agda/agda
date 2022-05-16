@@ -368,12 +368,14 @@ data WhereDeclarations = WhereDecls
   { whereModule :: Maybe ModuleName
       -- #2897: we need to restrict named where modules in refined contexts,
       --        so remember whether it was named here
-  , whereDecls  :: Maybe Declaration
+  , whereAnywhere :: Bool
+      -- ^ is it an ordinary unnamed @where@?
+  , whereDecls :: Maybe Declaration
       -- ^ The declaration is a 'Section'.
   } deriving (Data, Show, Eq, Generic)
 
 instance Null WhereDeclarations where
-  empty = WhereDecls empty empty
+  empty = WhereDecls empty False empty
 
 noWhereDecls :: WhereDeclarations
 noWhereDecls = empty
@@ -702,7 +704,7 @@ instance HasRange RHS where
     getRange (RewriteRHS xes _ rhs wh) = getRange (xes, rhs, wh)
 
 instance HasRange WhereDeclarations where
-  getRange (WhereDecls _ ds) = getRange ds
+  getRange (WhereDecls _ _ ds) = getRange ds
 
 instance HasRange LetBinding where
     getRange (LetBind i _ _ _ _     ) = getRange i
@@ -845,7 +847,7 @@ instance KillRange RHS where
   killRange (RewriteRHS xes spats rhs wh) = killRange4 RewriteRHS xes spats rhs wh
 
 instance KillRange WhereDeclarations where
-  killRange (WhereDecls a b) = killRange2 WhereDecls a b
+  killRange (WhereDecls a b c) = killRange3 WhereDecls a b c
 
 instance KillRange LetBinding where
   killRange (LetBind   i info a b c) = killRange5 LetBind i info a b c

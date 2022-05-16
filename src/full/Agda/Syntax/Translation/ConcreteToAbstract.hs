@@ -2524,7 +2524,7 @@ whereToAbstract1 r whname whds inner = do
    void $ -- We can ignore the returned default A.ImportDirective.
     openModule TopOpenModule (Just am) (C.QName m) $
       defaultImportDir { publicOpen = Just noRange }
-  return (x, A.WhereDecls (am <$ whname) $ singleton d)
+  return (x, A.WhereDecls (Just am) (isNothing whname) $ singleton d)
 
 data TerminationOrPositivity = Termination | Positivity
   deriving (Show)

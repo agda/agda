@@ -1035,15 +1035,15 @@ instance ToConcrete A.LetBinding where
 instance ToConcrete A.WhereDeclarations where
   type ConOfAbs A.WhereDeclarations = WhereClause
 
-  bindToConcrete (A.WhereDecls _ Nothing) ret = ret C.NoWhere
-  bindToConcrete (A.WhereDecls (Just am) (Just (A.Section _ _ _ ds))) ret = do
+  bindToConcrete (A.WhereDecls _ _ Nothing) ret = ret C.NoWhere
+  bindToConcrete (A.WhereDecls (Just am) False (Just (A.Section _ _ _ ds))) ret = do
     ds' <- declsToConcrete ds
     cm  <- unqualify <$> lookupModule am
     -- Andreas, 2016-07-08 I put PublicAccess in the following SomeWhere
     -- Should not really matter for printing...
     let wh' = (if isNoName cm then AnyWhere noRange else SomeWhere noRange cm PublicAccess) $ ds'
     local (openModule' am defaultImportDir id) $ ret wh'
-  bindToConcrete (A.WhereDecls _ (Just d)) ret =
+  bindToConcrete (A.WhereDecls _ _ (Just d)) ret =
     ret . AnyWhere noRange =<< toConcrete d
 
 mergeSigAndDef :: [C.Declaration] -> [C.Declaration]

@@ -173,17 +173,18 @@ coverageCheck f t cs = do
         -- ifNotM (isEmptyTel tel) (return True) $ do
       -- Jesper, 2018-11-28, Issue #3407: if the clause is absurd,
       -- add the appropriate absurd clause to the definition.
-      let cl = Clause { clauseLHSRange    = noRange
-                      , clauseFullRange   = noRange
-                      , clauseTel         = tel
-                      , namedClausePats   = applySubst sub ps
-                      , clauseBody        = Nothing
-                      , clauseType        = Nothing
+      let cl = Clause { clauseLHSRange  = noRange
+                      , clauseFullRange = noRange
+                      , clauseTel       = tel
+                      , namedClausePats = applySubst sub ps
+                      , clauseBody      = Nothing
+                      , clauseType      = Nothing
                       , clauseCatchall    = True       -- absurd clauses are safe as catch-all
                       , clauseExact       = Just False
                       , clauseRecursive   = Just False
                       , clauseUnreachable = Just False
                       , clauseEllipsis    = NoEllipsis
+                      , clauseWhereModule = Nothing
                       }
       reportSDoc "tc.cover.missing" 20 $ inTopContext $ do
         sep [ "adding missing absurd clause"
@@ -390,11 +391,12 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , namedClausePats = (s `applySubst` ps) ++ extra
                     , clauseBody      = (`applyE` patternsToElims extra) . (s `applyPatSubst`) <$> clauseBody cl
                     , clauseType      = ty
-                    , clauseCatchall  = clauseCatchall cl
-                    , clauseExact     = clauseExact cl
-                    , clauseRecursive = clauseRecursive cl
+                    , clauseCatchall    = clauseCatchall cl
+                    , clauseExact       = clauseExact cl
+                    , clauseRecursive   = clauseRecursive cl
                     , clauseUnreachable = clauseUnreachable cl
-                    , clauseEllipsis  = clauseEllipsis cl
+                    , clauseEllipsis    = clauseEllipsis cl
+                    , clauseWhereModule = clauseWhereModule cl
                     }
       where
         (vs,qs) = unzip mps
@@ -600,11 +602,12 @@ inferMissingClause f (SClause tel ps _ cps (Just t)) = setCurrentRange f $ do
                   , namedClausePats = fromSplitPatterns ps
                   , clauseBody      = Just rhs
                   , clauseType      = Just (argFromDom t)
-                  , clauseCatchall  = False
+                  , clauseCatchall    = False
                   , clauseExact       = Just True
                   , clauseRecursive   = Nothing     -- could be recursive
                   , clauseUnreachable = Just False  -- missing, thus, not unreachable
-                  , clauseEllipsis  = NoEllipsis
+                  , clauseEllipsis    = NoEllipsis
+                  , clauseWhereModule = Nothing
                   }
   addClauses f [cl]  -- Important: add at the end.
   return cl
