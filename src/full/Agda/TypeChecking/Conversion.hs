@@ -849,10 +849,10 @@ compareAtom_ cmp t m n =
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
 compareDom_ :: (MonadConversion m , Free c)
   => CompareDirection -- ^ @cmp@ The comparison direction
-  -> Dom Type   -- ^ @a1@  The smaller domain.
-  -> Dom Type   -- ^ @a2@  The other domain.
-  -> Abs c      -- ^ @b1@  The smaller codomain.
-  -> Abs c      -- ^ @b2@  The bigger codomain.
+  -> Dom Type   -- ^ @a1@  The left domain.
+  -> Dom Type   -- ^ @a2@  The right domain.
+  -> Abs c      -- ^ @b1@  The left codomain.
+  -> Abs c      -- ^ @b2@  The right codomain.
   -> m ()     -- ^ Continuation if mismatch in 'Hiding'.
   -> m ()     -- ^ Continuation if mismatch in 'Relevance'.
   -> m ()     -- ^ Continuation if mismatch in 'Quantity'.
@@ -875,7 +875,7 @@ compareDom_ cmp0
           dependent = (r /= Irrelevant) && dirToCmp (\_ _ b2 -> isBinderUsed b2) cmp b1 b2
       pid <- newProblem_ $ dirToCmp_ (\dir () -> compareType_ dir) cmp0 () (H'LHS a1) (H'RHS a2)
       -- Chose the smaller type and domain
-      let (a0,dom0) = selectSmaller cmp (a1,dom1) (a2,dom2)
+      let (a0,dom0) = selectSmaller cmp0 (a1,dom1) (a2,dom2)
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
