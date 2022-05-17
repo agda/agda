@@ -41,8 +41,8 @@
 :def agda_load_local_ghci \_ -> do
   let localGhci = ".ghci.local"
   exists <- System.Directory.doesFileExist localGhci
-  return $ if exists
-    then ":script " ++ localGhci
+  Prelude.return Prelude.$ if exists
+    then ":script " Prelude.++ localGhci
     else ""
 :}
 :agda_load_local_ghci
