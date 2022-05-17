@@ -353,11 +353,6 @@ maybe_vclose : {- empty -} { () }
     Meta rules
  --------------------------------------------------------------------------}
 
--- The first token in a file decides the indentation of the top-level layout
--- block. Or not. It will if we allow the top-level module to be omitted.
--- topen :      {- empty -}     {% pushCurrentContext }
-
-
 {-  A layout block might have to be closed by a parse error. Example:
         let x = e in e'
     Here the 'let' starts a layout block which should end before the 'in'.  The
@@ -367,7 +362,7 @@ maybe_vclose : {- empty -} { () }
 -}
 close :: { () }
 close : vclose  { () }
-      | error   {% popContext }
+      | error   {% popBlock }
 
 
 -- You can use concrete semi colons in a layout block started with a virtual
@@ -626,16 +621,25 @@ Expr
 
 -- Level 1: Application
 Expr1 :: { Expr }
-Expr1  : WithExprs {% case $1 of
-                      { e :| [] -> return e
-                      ; e :| es -> return $ WithApp (fuseRange e es) e es
-                      }
-                   }
+Expr1
+  : UnnamedWithExprs
+      {% case $1 of
+           { e :| [] -> return e
+           ; e :| es -> return $ WithApp (fuseRange e es) e es
+           }
+      }
 
-WithExprs :: { List1 Expr }
+WithExprs :: { List1 (Named Name Expr) }
 WithExprs
-  : Application3 '|' WithExprs { rawApp $1 <| $3 }
-  | Application                { singleton (rawApp $1) }
+  : Application3 'in' Id     '|' WithExprs { named $3  (rawApp $1) <| $5 }
+  | Application3 {- empty -} '|' WithExprs { unnamed   (rawApp $1) <| $3 }
+  | Application3 'in' Id                   { singleton (named $3 (rawApp $1)) }
+  | Application3 {- empty -}               { singleton (unnamed  (rawApp $1)) }
+
+UnnamedWithExprs :: { List1 Expr }
+UnnamedWithExprs
+  :  Application3 '|' UnnamedWithExprs { (rawApp $1) <| $3 }
+  | {- empty -} Application            { singleton (rawApp $1) }
 
 Application :: { List1 Expr }
 Application
@@ -659,19 +663,12 @@ LetBody : 'in' Expr   { Just $2 }
 
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam
-    : '\\' '{' LamClauses '}'                  { ExtendedLam (getRange ($1,$2,$3,$4)) (List1.reverse $3) }
-    | '\\' 'where' vopen LamWhereClauses close { ExtendedLam (getRange ($1, $2, $4))  (List1.reverse $4) }
-    | '\\' AbsurdLamBindings
-             {% case $2 of
-                  Left (bs, h) -> List1.ifNull bs
-                    {-then-} (return $ AbsurdLam r h)
-                    {-else-} $ \ bs -> return $ Lam r bs (AbsurdLam r h)
-                    where r = fuseRange $1 bs
-                  Right es -> do
-                    -- It is of the form @\ { p1 ... () }@.
-                    cl <- mkAbsurdLamClause False es
-                    return $ ExtendedLam (fuseRange $1 es) $ singleton cl
-             }
+    : '\\'             '{' LamClauses '}'                  {% extLam (getRange ($1, $2, $4))     []                $3 }
+    | '\\' Attributes1 '{' LamClauses '}'                  {% extLam (getRange ($1, $3, $5))     (List1.toList $2) $4 }
+    | '\\'             'where' vopen LamWhereClauses close {% extLam (getRange ($1, $2, $3, $5)) []                $4 }
+    | '\\' Attributes1 'where' vopen LamWhereClauses close {% extLam (getRange ($1, $3, $4, $6)) (List1.toList $2) $5 }
+    | '\\'             AbsurdLamBindings                   {% extOrAbsLam (getRange $1) []                $2 }
+    | '\\' Attributes1 AbsurdLamBindings                   {% extOrAbsLam (getRange $1) (List1.toList $2) $3 }
 
 Application3 :: { List1 Expr }
 Application3
@@ -702,7 +699,7 @@ Expr3NoCurly
     | 'quote'                           { Quote (getRange $1) }
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
-    | '(|' WithExprs '|)'               { IdiomBrackets (getRange ($1,$2,$3)) $ List1.toList $2 }
+    | '(|' UnnamedWithExprs '|)'        { IdiomBrackets (getRange ($1,$2,$3)) (List1.toList $2) }
     | '(|)'                             { IdiomBrackets (getRange $1) [] }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }
@@ -919,8 +916,8 @@ LamClauses
    | AbsurdLamClause semi LamClause { $3 <| singleton $1 }
    | NonAbsurdLamClause { singleton $1 }
 
--- Parses all extended lambda clauses including a single absurd clause. For λ
--- where this is not taken care of in AbsurdLambda
+-- Parses all extended lambda clauses including a single absurd clause.
+-- For lambda-where this is not[sic!, now?] taken care of in AbsurdLambda.
 LamWhereClauses :: { List1 LamClause }
 LamWhereClauses
    : LamWhereClauses semi LamClause { $3 <| $1 }
@@ -1083,26 +1080,22 @@ CommaImportNames1
 
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
-LHS :: { LHS }
-LHS : Expr1 WithRewriteExpressions
-        {% exprToLHS $1      >>= \p ->
-           buildWithBlock $2 >>= \ (rs, es) ->
-           return (p rs $ fmap observeHiding es)
-        }
+LHS :: { [RewriteEqn] -> [WithExpr] -> LHS }
+LHS : Expr1 {% exprToLHS $1 }
 
-WithRewriteExpressions :: { [Either RewriteEqn (List1 Expr)] }
-WithRewriteExpressions
-  : {- empty -} { [] }
-  | 'with' Expr1 WithRewriteExpressions
-    {% (++ $3) `fmap` buildWithStmt $2 }
-  | 'rewrite' Expr1 WithRewriteExpressions
-    { Left (Rewrite $ fmap ((),) (fromWithApp $2)) : $3 }
+WithClause :: { [Either RewriteEqn (List1 (Named Name Expr))] }
+WithClause
+  : 'with' WithExprs WithClause
+    {% fmap (++ $3) (buildWithStmt $2)  }
+  | 'rewrite' UnnamedWithExprs WithClause
+    { Left (Rewrite $ fmap ((),) $2) : $3 }
+  | {- empty -} { [] }
 
 -- Parsing either an expression @e@ or a @(rewrite | with p <-) e1 | ... | en@.
 HoleContent :: { HoleContent }
 HoleContent
   : Expr                   {  HoleContentExpr    $1 }
-  | WithRewriteExpressions
+  | WithClause
     {% fmap HoleContentRewrite $ forM $1 $ \case
          Left r  -> pure r
          Right{} -> parseError "Cannot declare a 'with' abstraction from inside a hole."
@@ -1150,9 +1143,6 @@ Declaration
     | PatternSyn      { singleton $1 }
     | UnquoteDecl     { singleton $1 }
     | Constructor     { singleton $1 }
-    | RecordInduction       { singleton $1 }
-    | RecordEta             { singleton $1 }
-    | RecordPatternMatching { singleton $1 }
 
 {--------------------------------------------------------------------------
     Individual declarations
@@ -1188,13 +1178,22 @@ ArgTypeSigs
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 -- FunClause also handle possibly dotted type signatures.
 FunClause :: { List1 Declaration }
-FunClause : LHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 }
-  | Attributes1 LHS RHS WhereClause {% funClauseOrTypeSigs (List1.toList $1) $2 $3 $4 }
+FunClause
+  : {- emptyb -} LHS WHS RHS WhereClause {% funClauseOrTypeSigs [] $1 $2 $3 $4 }
+  | Attributes1  LHS WHS RHS WhereClause {% funClauseOrTypeSigs (List1.toList $1) $2 $3 $4 $5 }
+
+-- "With Hand Side", in between the Left & the Right hand ones
+WHS :: { [Either RewriteEqn (List1 (Named Name Expr))] }
+WHS
+  : {- empty -}                           { [] }
+  | 'with'    WithExprs        WithClause {% fmap (++ $3) (buildWithStmt $2) }
+  | 'rewrite' UnnamedWithExprs WithClause { Left (Rewrite $ fmap ((),) $2) : $3 }
 
 RHS :: { RHSOrTypeSigs }
-RHS : '=' Expr      { JustRHS (RHS $2) }
-    | ':' Expr      { TypeSigsRHS $2 }
-    | {- empty -}   { JustRHS AbsurdRHS }
+RHS
+  : {- empty -}    { JustRHS AbsurdRHS }
+  | '='       Expr { JustRHS (RHS $2) }
+  | ':'       Expr { TypeSigsRHS $2 }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
@@ -1228,17 +1227,15 @@ RecordSig :: { Declaration }
 RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
   {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
 
--- Declaration of record constructor name.
 Constructor :: { Declaration }
-Constructor : 'constructor' Declarations0
-  {% case $2 of
-      -- this is fairly disgusting but hopefully allows us to use `constructor` for both
-      -- record constructors and constructor blocks in mutual blocks
-      { [FunClause (LHS p [] [] NoEllipsis) AbsurdRHS NoWhere _]
-          | Just n <- isSingleIdentifierP p -> pure (RecordDirective (Constructor n NotInstanceDef))
-      ;  _ -> pure $ LoneConstructor (getRange ($1,$2)) $2
-      }
-  }
+Constructor : 'data' '_' 'where' Declarations0
+  { LoneConstructor (getRange ($1,$4)) $4 }
+
+-- Declaration of record constructor name.
+RecordConstructorName :: { (Name, IsInstance) }
+RecordConstructorName :                  'constructor' Id       { ($2, NotInstanceDef) }
+                      | 'instance' vopen 'constructor' Id close { ($4, InstanceDef (getRange $1)) }
+
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -1317,7 +1314,7 @@ UnquoteDecl
 Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
   case $2 of
-    Name _ _ (_ :| []) -> case mkNotation $3 $5 of
+    Name _ _ (_ :| []) -> case mkNotation $3 (reverse $5) of
       Left err -> parseError $ "Malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
     _ -> parseError "Syntax declarations are allowed only for simple names (without holes)"
@@ -1333,12 +1330,21 @@ PatternSyn : 'pattern' Id PatternSynArgs '=' Expr {% do
 PatternSynArgs :: { [Arg Name] }
 PatternSynArgs : DomainFreeBindings    {% patternSynArgs $1 }
 
+-- The list should be reversed.
+
 SimpleIds :: { [RString] }
-SimpleIds : SimpleId { [$1] }
-          | SimpleIds SimpleId {$1 ++ [$2]}
+SimpleIds : SimpleId           { [$1] }
+          | SimpleIds SimpleId { $2 : $1 }
+
+-- The list should be reversed.
+
+SimpleIdsOrWildcards :: { List1 RString }
+SimpleIdsOrWildcards
+  : SimpleIdOrWildcard                      { List1.singleton $1 }
+  | SimpleIdsOrWildcards SimpleIdOrWildcard { $2 <| $1 }
 
 HoleNames :: { [NamedArg HoleName] }
-HoleNames : HoleName { [$1] }
+HoleNames :                    { [] }
           | HoleNames HoleName {$1 ++ [$2]}
 
 HoleName :: { NamedArg HoleName }
@@ -1352,19 +1358,23 @@ HoleName
 SimpleTopHole :: { HoleName }
 SimpleTopHole
   : SimpleId { ExprHole $1 }
-  | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
-  | '(' '\\' '_'      '->' SimpleId ')' { LambdaHole (Ranged (getRange $3) "_") $5 }
+  | '(' '\\' SimpleIdsOrWildcards '->' SimpleId ')'
+    { LambdaHole (List1.reverse $3) $5 }
 
 SimpleHole :: { HoleName }
 SimpleHole
   : SimpleId { ExprHole $1 }
-  | '\\' SimpleId '->' SimpleId { LambdaHole $2 $4 }
-  | '\\' '_'      '->' SimpleId { LambdaHole (Ranged (getRange $3) "_") $4 }
--- Variable name hole to be implemented later.
+  | '\\' SimpleIdsOrWildcards '->' SimpleId
+    { LambdaHole (List1.reverse $2) $4 }
 
 -- Discard the interval.
 SimpleId :: { RString }
 SimpleId : id  { Ranged (getRange $ fst $1) (stringToRawName $ snd $1) }
+
+SimpleIdOrWildcard :: { RString }
+SimpleIdOrWildcard
+  : SimpleId { $1 }
+  | '_'      { Ranged (getRange $1) "_" }
 
 MaybeOpen :: { Maybe Range }
 MaybeOpen : 'open'      { Just (getRange $1) }
@@ -1387,7 +1397,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
          -- TODO: Don't use (insecure) hashes in this way.
     ; fresh  = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show unique
     ; fresh' = Name mr NotInScope $ singleton $ Id $ stringToRawName $ ".#" ++ prettyShow m ++ "-" ++ show (unique + 1)
-    ; impStm asR = Import r m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
+    ; impStm asR = Import noRange m (Just (AsName (Right fresh) asR)) DontOpen defaultImportDir
     ; appStm m' es =
         Private r Inserted
           [ ModuleMacro r m'
@@ -1606,8 +1616,8 @@ CatchallPragma
 
 ImpossiblePragma :: { Pragma }
 ImpossiblePragma
-  : '{-#' 'IMPOSSIBLE' '#-}'
-    { ImpossiblePragma (getRange ($1,$2,$3)) }
+  : '{-#' 'IMPOSSIBLE' PragmaStrings '#-}'
+    { ImpossiblePragma (getRange ($1,$2,$4)) $3 }
 
 NoPositivityCheckPragma :: { Pragma }
 NoPositivityCheckPragma
@@ -1702,12 +1712,28 @@ ArgTypeSignatures0
 -- Record declarations, including an optional record constructor name.
 RecordDeclarations :: { (RecordDirectives, [Declaration]) }
 RecordDeclarations
-    : Declarations0 {% extractRecordDirectives $1 }
+    : vopen RecordDirectives close                    {% verifyRecordDirectives $2 <&> (,[]) }
+    | vopen RecordDirectives semi Declarations1 close {% verifyRecordDirectives $2 <&> (, List1.toList $4) }
+    | vopen Declarations1 close                       { (emptyRecordDirectives, List1.toList $2) }
 
-RecordEta :: { Declaration }
+
+RecordDirectives :: { [RecordDirective] }
+RecordDirectives
+    : {- empty -}                           { [] }
+    | RecordDirectives semi RecordDirective { $3 : $1 }
+    | RecordDirective                       { [$1] }
+
+RecordDirective :: { RecordDirective }
+RecordDirective
+    : RecordConstructorName { uncurry Constructor $1 }
+    | RecordInduction       { Induction $1 }
+    | RecordEta             { Eta $1 }
+    | RecordPatternMatching { PatternOrCopattern $1 }
+
+RecordEta :: { Ranged HasEta0 }
 RecordEta
-    : 'eta-equality'    { RecordDirective (Eta (Ranged (getRange $1) YesEta)) }
-    | 'no-eta-equality' { RecordDirective (Eta (Ranged (getRange $1) (NoEta ()))) }
+    : 'eta-equality'    { Ranged (getRange $1) YesEta }
+    | 'no-eta-equality' { Ranged (getRange $1) (NoEta ()) }
 
 -- Directive 'pattern' if a decision between matching on constructor/record pattern
 -- or copattern matching is needed.
@@ -1716,15 +1742,15 @@ RecordEta
 -- with the 'no-eta-equality' declaration.
 -- Nor with the 'constructor' declaration, since it applies also to
 -- the record pattern.
-RecordPatternMatching :: { Declaration }
+RecordPatternMatching :: { Range }
 RecordPatternMatching
-    : 'pattern'     { RecordDirective (PatternOrCopattern (getRange $1)) }
+    : 'pattern'     { getRange $1 }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
-RecordInduction :: { Declaration }
+RecordInduction :: { Ranged Induction }
 RecordInduction
-    : 'inductive'   { RecordDirective (Induction (Ranged (getRange $1) Inductive))   }
-    | 'coinductive' { RecordDirective (Induction (Ranged (getRange $1) CoInductive)) }
+    : 'inductive'   { Ranged (getRange $1) Inductive   }
+    | 'coinductive' { Ranged (getRange $1) CoInductive }
 
 -- Arbitrary declarations
 Declarations :: { List1 Declaration }
@@ -1979,6 +2005,71 @@ addType (DomainFull b) = b
 addType (DomainFree x) = TBind r (singleton x) $ Underscore r Nothing
   where r = getRange x
 
+-- | Returns the value of the first erasure attribute, if any, or else
+-- the default value of type 'Erased'.
+--
+-- Raises warnings for all attributes except for erasure attributes,
+-- and for multiple erasure attributes.
+
+onlyErased
+  :: [Attr]  -- ^ The attributes, in reverse order.
+  -> Parser Erased
+onlyErased as = do
+  es <- catMaybes <$> mapM onlyErased' (reverse as)
+  case es of
+    []     -> return defaultErased
+    [e]    -> return e
+    e : es -> do
+      parseWarning $ MultipleAttributes (getRange es) (Just "erasure")
+      return e
+  where
+  onlyErased' a = case theAttr a of
+    RelevanceAttribute{} -> unsup "Relevance"
+    CohesionAttribute{}  -> unsup "Cohesion"
+    LockAttribute{}      -> unsup "Lock"
+    TacticAttribute{}    -> unsup "Tactic"
+    QuantityAttribute q  -> maybe (unsup "Linearity") (return . Just) $ erasedFromQuantity q
+    where
+    unsup s = do
+      parseWarning $ UnsupportedAttribute (attrRange a) (Just s)
+      return Nothing
+
+-- | Constructs extended lambdas.
+
+extLam
+  :: Range            -- ^ The range of the lambda symbol and @where@ or
+                      --   the braces.
+  -> [Attr]           -- ^ The attributes in reverse order.
+  -> List1 LamClause  -- ^ The clauses in reverse order.
+  -> Parser Expr
+extLam symbolRange attrs cs = do
+  e <- onlyErased attrs
+  let cs' = List1.reverse cs
+  return $ ExtendedLam (getRange (symbolRange, e, cs')) e cs'
+
+-- | Constructs extended or absurd lambdas.
+
+extOrAbsLam
+  :: Range   -- ^ The range of the lambda symbol.
+  -> [Attr]  -- ^ The attributes, in reverse order.
+  -> Either ([LamBinding], Hiding) (List1 Expr)
+  -> Parser Expr
+extOrAbsLam lambdaRange attrs cs = case cs of
+  Right es -> do
+    -- It is of the form @\ { p1 ... () }@.
+    e  <- onlyErased attrs
+    cl <- mkAbsurdLamClause False es
+    return $ ExtendedLam (getRange (lambdaRange, e, es)) e $ singleton cl
+  Left (bs, h) -> do
+    mapM_ (\a -> parseWarning $
+                   UnsupportedAttribute (attrRange a) Nothing)
+          (reverse attrs)
+    List1.ifNull bs
+      {-then-} (return $ AbsurdLam r h)
+      {-else-} $ \ bs -> return $ Lam r bs (AbsurdLam r h)
+    where
+    r = fuseRange lambdaRange bs
+
 -- | Interpret an expression as a list of names and (not parsed yet) as-patterns
 
 exprAsTele :: Expr -> List1 Expr
@@ -2028,44 +2119,56 @@ boundNamesOrAbsurd es
 
 -- | Match a pattern-matching "assignment" statement @p <- e@
 exprToAssignment :: Expr -> Parser (Maybe (Pattern, Range, Expr))
-exprToAssignment (RawApp r es)
+exprToAssignment e@(RawApp r es)
   | (es1, arr : es2) <- List2.break isLeftArrow es =
     case filter isLeftArrow es2 of
       arr : _ -> parseError' (rStart' $ getRange arr) $ "Unexpected " ++ prettyShow arr
-      [] -> Just <$> ((,,) <$> exprToPattern (rawApp $ List1.fromList es1)
-                           <*> pure (getRange arr)
-                           <*> pure (rawApp $ List1.fromList es2))
+      [] ->
+        -- Andreas, 2021-05-06, issue #5365
+        -- Handle pathological cases like @do <-@ and @do x <-@.
+        case (es1, es2) of
+          (e1:rest1, e2:rest2) -> do
+            p <- exprToPattern $ rawApp $ e1 :| rest1
+            pure $ Just (p, getRange arr, rawApp (e2 :| rest2))
+          _ -> parseError' (rStart' $ getRange e) $ "Incomplete binding " ++ prettyShow e
   where
-    isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) = arr `elem` ["<-", "←"]
+    isLeftArrow (Ident (QName (Name _ _ (Id arr :| [])))) =
+      arr `elem` ["<-", "\x2190"]  -- \leftarrow [issue #5465, unicode might crash happy]
     isLeftArrow _ = False
 exprToAssignment _ = pure Nothing
 
 -- | Build a with-block
-buildWithBlock :: [Either RewriteEqn (List1 Expr)] -> Parser ([RewriteEqn], [Expr])
+buildWithBlock ::
+  [Either RewriteEqn (List1 (Named Name Expr))] ->
+  Parser ([RewriteEqn], [Named Name Expr])
 buildWithBlock rees = case groupByEither rees of
   (Left rs : rest) -> (List1.toList rs,) <$> finalWith rest
   rest             -> ([],) <$> finalWith rest
 
   where
 
-    finalWith :: [Either (List1 RewriteEqn) (List1 (List1 Expr))] -> Parser [Expr]
+    finalWith :: (HasRange a, HasRange b) =>
+                 [Either (List1 a) (List1 (List1 b))] -> Parser [b]
     finalWith []             = pure $ []
     finalWith [Right ees]    = pure $ List1.toList $ sconcat ees
     finalWith (Right{} : tl) = parseError' (rStart' $ getRange tl)
       "Cannot use rewrite / pattern-matching with after a with-abstraction."
 
 -- | Build a with-statement
-buildWithStmt :: Expr -> Parser [Either RewriteEqn (List1 Expr)]
-buildWithStmt e = do
-  es <- mapM buildSingleWithStmt $ fromWithApp e
-  let ees = groupByEither $ List1.toList es
-  pure $ map (first (Invert ())) ees
+buildWithStmt :: List1 (Named Name Expr) ->
+                 Parser [Either RewriteEqn (List1 (Named Name Expr))]
+buildWithStmt nes = do
+  ws <- mapM buildSingleWithStmt (List1.toList nes)
+  let rws = groupByEither ws
+  pure $ map (first (Invert ())) rws
 
-buildSingleWithStmt :: Expr -> Parser (Either (Pattern, Expr) Expr)
+buildSingleWithStmt ::
+  Named Name Expr ->
+  Parser (Either (Named Name (Pattern, Expr)) (Named Name Expr))
 buildSingleWithStmt e = do
-  mpatexpr <- exprToAssignment e
+  mpatexpr <- exprToAssignment (namedThing e)
   pure $ case mpatexpr of
-    Just (pat, _, expr) -> Left (pat, expr)
+    Just (pat, _, expr) -> Left ((pat, expr) <$ e)
     Nothing             -> Right e
 
 fromWithApp :: Expr -> List1 Expr
@@ -2149,8 +2252,8 @@ validHaskellModuleName = all ok . splitOnDots
  --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithHiding Expr] -> LHS)
-exprToLHS e = exprToPattern e <&> \ p rwr wth -> LHS p rwr wth NoEllipsis
+exprToLHS :: Expr -> Parser ([RewriteEqn] -> [WithExpr] -> LHS)
+exprToLHS e = LHS <$> exprToPattern e
 
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
@@ -2234,8 +2337,13 @@ patternToNames = \case
     p                        -> parseError $
       "Illegal name in type signature: " ++ prettyShow p
 
-funClauseOrTypeSigs :: [Attr] -> LHS -> RHSOrTypeSigs -> WhereClause -> Parser (List1 Declaration)
-funClauseOrTypeSigs attrs lhs mrhs wh = do
+funClauseOrTypeSigs :: [Attr] -> ([RewriteEqn] -> [WithExpr] -> LHS)
+                    -> [Either RewriteEqn (List1 (Named Name Expr))]
+                    -> RHSOrTypeSigs
+                    -> WhereClause -> Parser (List1 Declaration)
+funClauseOrTypeSigs attrs lhs' with mrhs wh = do
+  (rs , es) <- buildWithBlock with
+  let lhs = lhs' rs (map (fmap observeModifiers) es)
   -- traceShowM lhs
   case mrhs of
     JustRHS rhs   -> do
@@ -2243,11 +2351,11 @@ funClauseOrTypeSigs attrs lhs mrhs wh = do
       return $ singleton $ FunClause lhs rhs wh False
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
-        LHS p _ _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
-        LHS _ _ (_:_) _ -> parseError "Illegal: with in type signature"
-        LHS _ (_:_) _ _ -> parseError "Illegal: rewrite in type signature"
-        LHS p _ _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
-        LHS p [] [] _  -> forMM (patternToNames p) $ \ (info, x) -> do
+        LHS p _ _ | hasEllipsis p -> parseError "The ellipsis ... cannot have a type signature"
+        LHS _ _ (_:_) -> parseError "Illegal: with in type signature"
+        LHS _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
+        LHS p _ _ | hasWithPatterns p -> parseError "Illegal: with patterns in type signature"
+        LHS p [] [] -> forMM (patternToNames p) $ \ (info, x) -> do
           info <- applyAttrs attrs info
           return $ typeSig info (getTacticAttr attrs) x e
       _ -> parseError "A type signature cannot have a where clause"
@@ -2255,7 +2363,7 @@ funClauseOrTypeSigs attrs lhs mrhs wh = do
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
 parseDisplayPragma r pos s =
   case parsePosString pos defaultParseFlags [normal] funclauseParser s of
-    ParseOk s (FunClause (LHS lhs [] [] _) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
+    ParseOk s (FunClause (LHS lhs [] []) (RHS rhs) NoWhere ca :| []) | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 

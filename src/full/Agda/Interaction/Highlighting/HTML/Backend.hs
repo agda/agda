@@ -8,10 +8,14 @@ module Agda.Interaction.Highlighting.HTML.Backend
 import Agda.Interaction.Highlighting.HTML.Base
 
 import Prelude hiding ((!!), concatMap)
+
+import Control.DeepSeq
 import Control.Monad.Trans ( MonadIO )
 import Control.Monad.Except ( MonadError(throwError) )
 
 import Data.Map (Map)
+
+import GHC.Generics (Generic)
 
 import Agda.Interaction.Options
     ( ArgDescr(ReqArg, NoArg)
@@ -38,7 +42,9 @@ data HtmlFlags = HtmlFlags
   , htmlFlagHighlight            :: HtmlHighlight
   , htmlFlagHighlightOccurrences :: Bool
   , htmlFlagCssFile              :: Maybe FilePath
-  } deriving Eq
+  } deriving (Eq, Generic)
+
+instance NFData HtmlFlags
 
 data HtmlCompileEnv = HtmlCompileEnv
   { htmlCompileEnvOpts :: HtmlOptions

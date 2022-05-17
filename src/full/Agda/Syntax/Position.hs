@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric              #-}
-
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
 
@@ -64,6 +62,7 @@ module Agda.Syntax.Position
 
 import Prelude hiding ( null )
 
+import Control.DeepSeq
 import Control.Monad.Writer (runWriter, tell)
 
 import qualified Data.Foldable as Fold
@@ -136,6 +135,12 @@ type SrcFile = Strict.Maybe AbsolutePath
 type Position            = Position' SrcFile
 type PositionWithoutFile = Position' ()
 
+instance NFData Position where
+  rnf = (`seq` ())
+
+instance NFData PositionWithoutFile where
+  rnf = (`seq` ())
+
 -- | An interval. The @iEnd@ position is not included in the interval.
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
@@ -144,6 +149,12 @@ data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
 
 type Interval            = Interval' SrcFile
 type IntervalWithoutFile = Interval' ()
+
+instance NFData Interval where
+  rnf = (`seq` ())
+
+instance NFData IntervalWithoutFile where
+  rnf = (`seq` ())
 
 intervalInvariant :: Ord a => Interval' a -> Bool
 intervalInvariant i =
@@ -188,6 +199,8 @@ data Range' a
     (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Range = Range' SrcFile
+
+instance NFData a => NFData (Range' a)
 
 instance Null (Range' a) where
   null NoRange = True
@@ -688,10 +701,10 @@ rEnd r@(Range f _) = (\p -> p { srcFile = f }) <$> rEnd' r
 --
 -- Precondition: The intervals must point to the same file.
 fuseIntervals :: Ord a => Interval' a -> Interval' a -> Interval' a
-fuseIntervals x y = Interval { iStart = head ss, iEnd = last es }
+fuseIntervals x y = Interval { iStart = s, iEnd = e }
     where
-    ss = sort [iStart x, iStart y]
-    es = sort [iEnd   x, iEnd   y]
+    s = headWithDefault __IMPOSSIBLE__ $ sort [iStart x, iStart y]
+    e = lastWithDefault __IMPOSSIBLE__ $ sort [iEnd   x, iEnd   y]
 
 -- | @fuseRanges r r'@ unions the ranges @r@ and @r'@.
 --

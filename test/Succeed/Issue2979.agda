@@ -1,6 +1,6 @@
 -- Issue #2979 reported by Favonia on 2018-02-23
 
-{-# OPTIONS --without-K --rewriting --confluence-check #-}
+{-# OPTIONS --cubical-compatible --rewriting --confluence-check #-}
 
 data _==_ {A : Set} (a : A) : A → Set where
   idp : a == a

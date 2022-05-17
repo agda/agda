@@ -11,17 +11,19 @@ import qualified Data.HashMap.Strict as HMap
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin ( equalityUnview, primEqualityName )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Sort
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor
-import Agda.Utils.List (splitExactlyAt)
-
+import Agda.Utils.List ( splitExactlyAt, dropEnd )
 import Agda.Utils.Impossible
 
 -- | @abstractType a v b[v] = b@ where @a : v@.
@@ -30,9 +32,9 @@ abstractType a v (El s b) = El (absTerm v s) <$> abstractTerm a v (sort s) b
 
 -- | @piAbstractTerm NotHidden v a b[v] = (w : a) -> b[w]@
 --   @piAbstractTerm Hidden    v a b[v] = {w : a} -> b[w]@
-piAbstractTerm :: Hiding -> Term -> Type -> Type -> TCM Type
-piAbstractTerm h v a b = do
-  fun <- mkPi (setHiding h $ defaultDom ("w", a)) <$> abstractType a v b
+piAbstractTerm :: ArgInfo -> Term -> Type -> Type -> TCM Type
+piAbstractTerm info v a b = do
+  fun <- mkPi (setArgInfo info $ defaultDom ("w", a)) <$> abstractType a v b
   reportSDoc "tc.abstract" 50 $
     sep [ "piAbstract" <+> sep [ prettyTCM v <+> ":", nest 2 $ prettyTCM a ]
         , nest 2 $ "from" <+> prettyTCM b
@@ -45,13 +47,41 @@ piAbstractTerm h v a b = do
 
 -- | @piAbstract (v, a) b[v] = (w : a) -> b[w]@
 --
---   For @rewrite@, it does something special:
+--   For the inspect idiom, it does something special:
+--   @piAbstract (v, a) b[v] = (w : a) {w' : Eq a w v} -> b[w]
 --
+--   For @rewrite@, it does something special:
 --   @piAbstract (prf, Eq a v v') b[v,prf] = (w : a) (w' : Eq a w v') -> b[w,w']@
 
-piAbstract :: WithHiding (Term, EqualityView) -> Type -> TCM Type
-piAbstract (WithHiding h (v, OtherType a))                              b = piAbstractTerm h v a b
-piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
+piAbstract :: Arg (Term, EqualityView) -> Type -> TCM Type
+piAbstract (Arg info (v, OtherType a)) b = piAbstractTerm info v a b
+piAbstract (Arg info (v, IdiomType a)) b = do
+  b  <- raise 1 <$> abstractType a v b
+  eq <- addContext ("w" :: String, defaultDom a) $ do
+    -- manufacture the type @w ≡ v@
+    eqName <- primEqualityName
+    eqTy <- defType <$> getConstInfo eqName
+    -- E.g. @eqTy = eqTel → Set a@ where @eqTel = {a : Level} {A : Set a} (x y : A)@.
+    TelV eqTel _ <- telView eqTy
+    tel  <- newTelMeta (telFromList $ dropEnd 2 $ telToList eqTel)
+    let eq = Def eqName $ map Apply
+                 $ map (setHiding Hidden) tel
+                 -- we write `v ≡ w` because this equality is typically used to
+                 -- get `v` to unfold to whatever pattern was used to refine `w`
+                 -- in a with-clause.
+                 -- If we were to write `w ≡ v`, we would often need to take the
+                 -- symmetric of the proof we get to make use of `rewrite`.
+                 ++ [ defaultArg (raise 1 v)
+                    , defaultArg (var 0)
+                    ]
+    sort <- newSortMeta
+    let ty = El sort eq
+    ty <$ checkType ty
+
+  pure $ mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
+       $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
+       $ b
+piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
   s <- sortOf a
   let prfTy = equalityUnview eqt
       vTy   = El s a
@@ -60,10 +90,11 @@ piAbstract (WithHiding h (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
          abstractType (raise 1 vTy) (unArg $ raise 1 v) b
   return . funType "lhs" vTy . funType "equality" eqTy' . swap01 $ b
   where
-    funType str a = mkPi $ setHiding h $ defaultDom (str, a)
+    funType str a = mkPi $ setArgInfo info $ defaultDom (str, a)
     -- Abstract the lhs (@a@) of the equality only.
     eqt1  = raise 1 eqt
     eqTy' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
+
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.
 class IsPrefixOf a where
@@ -105,7 +136,7 @@ abstractTerm a u@Con{} b v = do
         , nest 2 $ sep [ (text . show) v <+> ":", nest 2 $ (text . show) b ] ]
 
   hole <- qualify <$> currentModule <*> freshName_ ("hole" :: String)
-  noMutualBlock $ addConstant hole $ defaultDefn defaultArgInfo hole a Axiom
+  noMutualBlock $ addConstant' hole defaultArgInfo hole a defaultAxiom
 
   args <- map Apply <$> getContextArgs
   let n = length args
@@ -177,6 +208,7 @@ instance AbsTerm Sort where
     SSet n     -> SSet $ absS n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
+    IntervalUniv -> LockUniv
     PiSort a s1 s2 -> PiSort (absS a) (absS s1) (absS s2)
     FunSort s1 s2 -> FunSort (absS s1) (absS s2)
     UnivSort s -> UnivSort $ absS s

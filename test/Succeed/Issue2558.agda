@@ -1,6 +1,8 @@
 -- Andreas, 2017-04-28, issue #2558 reported by Youyou Cong
 -- Size solver assumed invariants that do not hold.
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 data Con (i : Size) : Set where

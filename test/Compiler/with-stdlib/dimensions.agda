@@ -1,6 +1,8 @@
 -- Source: https://raw.githubusercontent.com/gallais/potpourri/master/agda/poc/dimensions/dimensions.agda
 -- Author: Original by gallais, modified for test suite by P. Hausmann
 
+{-# OPTIONS --guardedness #-}
+
 module dimensions where
 
 open import Data.Nat     as ℕ using (ℕ)
@@ -248,18 +250,16 @@ throw  ℕ.zero   dt p = p V.∷ V.[]
 throw (ℕ.suc n) dt p = p V.∷ throw n dt (newton dt p)
 
 -- the display function generating the output
-open import Data.List       as L using (List)
 open import Data.String     renaming (_++_ to _+s+_)
-open import Data.Product
 open import IO
 import IO.Primitive
-open import Codata.Musical.Notation
 open import Codata.Musical.Colist
 open import Data.Nat.Show as Nat
+open import Level using (0ℓ)
 
-printPoint : point → IO ⊤
+printPoint : point → IO {0ℓ} ⊤
 printPoint p = putStrLn ((Nat.show (val (x p))) +s+ ";" +s+ Nat.show (val (y p)))
 
 main : IO.Primitive.IO ⊤
-main = run (♯ (mapM printPoint (Codata.Musical.Colist.fromList trace)) >> (♯ (return _)))
+main = run (Colist.mapM printPoint (Codata.Musical.Colist.fromList trace) >> return _)
   where trace = V.toList $ throw 15 ⟨ 1 ∶ s ⟩ base

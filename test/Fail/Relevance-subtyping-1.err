@@ -1,0 +1,4 @@
+Relevance-subtyping-1.agda:4,7-8
+.A → B !=< A → B because one is a relevant function type and the
+other is an irrelevant function type
+when checking that the expression g has type A → B

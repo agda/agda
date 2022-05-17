@@ -1,3 +1,5 @@
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 record R (A : Size → Set) (i : Size) : Set where

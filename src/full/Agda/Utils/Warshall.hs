@@ -11,6 +11,8 @@ We do this in a finite map, assigning consecutive numbers to nodes.
 -}
 module Agda.Utils.Warshall where
 
+import Prelude hiding ((!!))
+
 import Control.Monad.State
 
 import Data.Maybe
@@ -20,8 +22,10 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Agda.Utils.SemiRing
-import Agda.Utils.List (nubOn)
+import Agda.Utils.List ((!!), nubOn)
 import Agda.Utils.Pretty as P
+
+import Agda.Utils.Impossible
 
 type Matrix a = Array (Int,Int) a
 
@@ -52,7 +56,7 @@ warshallG g = fromMatrix $ warshall m
 
     m = array b [ ((n, m), edge i j) | (i, n) <- nodes, (j, m) <- nodes ]
 
-    fromMatrix matrix = Map.fromList $ do
+    fromMatrix matrix = Map.fromListWith __IMPOSSIBLE__ $ do
       (i, n) <- nodes
       let es = [ (fst (nodes !! m), e)
                | m <- [0..len - 1]

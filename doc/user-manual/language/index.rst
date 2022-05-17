@@ -12,7 +12,9 @@ Language Reference
    coinduction
    copatterns
    core-language
+   coverage-checking
    cubical
+   cubical-compatible
    cumulativity
    data-types
    flat
@@ -28,6 +30,7 @@ Language Reference
    let-and-where
    lexical-structure
    literal-overloading
+   lossy-unification
    mixfix-operators
    module-system
    mutual-recursion

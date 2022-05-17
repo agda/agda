@@ -5,17 +5,19 @@ module Agda.Main where
 
 import Prelude hiding (null)
 
-import Control.Monad.Except
+import Control.Monad          ( void )
+import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 import qualified Data.List as List
 import Data.Maybe
 
 import System.Environment
 import System.Console.GetOpt
+import qualified System.IO as IO
 
 import Paths_Agda            ( getDataDir )
 
-import Agda.Interaction.Base ( pattern RegularInteraction )
 import Agda.Interaction.CommandLine
 import Agda.Interaction.ExitCode (AgdaError(..), exitSuccess, exitAgdaWith)
 import Agda.Interaction.Options
@@ -50,10 +52,10 @@ runAgda backends = runAgda' $ builtinBackends ++ backends
 
 -- | The main function without importing built-in backends
 runAgda' :: [Backend] -> IO ()
-runAgda' backends = do
-  progName <- getProgName
-  argv     <- getArgs
-  conf     <- runExceptT $ do
+runAgda' backends = runTCMPrettyErrors $ do
+  progName <- liftIO getProgName
+  argv     <- liftIO getArgs
+  conf     <- liftIO $ runExceptT $ do
     (bs, opts) <- ExceptT $ runOptM $ parseBackendOptions backends argv defaultOptions
     -- The absolute path of the input file, if provided
     inputFile <- liftIO $ mapM absolute $ optInputFile opts
@@ -61,14 +63,31 @@ runAgda' backends = do
     return (bs, opts, mode)
 
   case conf of
-    Left err -> optionError err
-    Right (bs, opts, mode) -> case mode of
-      MainModePrintHelp hp   -> printUsage bs hp
-      MainModePrintVersion   -> printVersion bs
-      MainModePrintAgdaDir   -> printAgdaDir
-      MainModeRun interactor -> runTCMPrettyErrors $ do
-        setTCLens stBackends bs
-        runAgdaWithOptions interactor progName opts
+    Left err -> liftIO $ optionError err
+    Right (bs, opts, mode) -> do
+
+      when (optTransliterate opts) $ liftIO $ do
+        -- When --interaction or --interaction-json is used, then we
+        -- use UTF-8 when writing to stdout (and when reading from
+        -- stdin).
+        if optGHCiInteraction opts || optJSONInteraction opts
+        then optionError $
+               "The option --transliterate must not be combined with " ++
+               "--interaction or --interaction-json"
+        else do
+          -- Transliterate unsupported code points.
+          enc <- IO.mkTextEncoding
+                   (show IO.localeEncoding ++ "//TRANSLIT")
+          IO.hSetEncoding IO.stdout enc
+          IO.hSetEncoding IO.stderr enc
+
+      case mode of
+        MainModePrintHelp hp   -> liftIO $ printUsage bs hp
+        MainModePrintVersion   -> liftIO $ printVersion bs
+        MainModePrintAgdaDir   -> liftIO $ printAgdaDir
+        MainModeRun interactor -> do
+          setTCLens stBackends bs
+          runAgdaWithOptions interactor progName opts
 
 -- | Main execution mode
 data MainMode
@@ -181,7 +200,7 @@ runAgdaWithOptions interactor progName opts = do
             Bench.print
 
             -- Print accumulated statistics.
-            printStatistics 1 Nothing =<< useTC lensAccumStatistics
+            printStatistics Nothing =<< useTC lensAccumStatistics
   where
     -- Options are fleshed out here so that (most) errors like
     -- "bad library path" are validated within the interactor,
@@ -200,7 +219,7 @@ runAgdaWithOptions interactor progName opts = do
         -- resetState
           let mode = if optOnlyScopeChecking opts
                      then Imp.ScopeCheck
-                     else Imp.TypeCheck RegularInteraction
+                     else Imp.TypeCheck
 
           result <- Imp.typeCheckMain mode =<< Imp.parseSource (SourceFile inputFile)
 
@@ -252,17 +271,74 @@ optionError err = do
   exitAgdaWith OptionError
 
 -- | Run a TCM action in IO; catch and pretty print errors.
+
+-- If some error message cannot be printed due to locale issues, then
+-- one may get the "Error when handling error" error message. There is
+-- currently no test case for this error, but on some systems one can
+-- (at the time of writing) trigger it by running @LC_CTYPE=C agda
+-- --no-libraries Bug.agda@, where @Bug.agda@ contains the following
+-- code (if there is some other file in the same directory, for
+-- instance @Bug.lagda@, then the error message may be different):
+--
+-- @
+-- _ : Set
+-- _ = Set
+-- @
+
 runTCMPrettyErrors :: TCM () -> IO ()
 runTCMPrettyErrors tcm = do
-    r <- runTCMTop $ tcm `catchError` \err -> do
-      s2s <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
-      s1  <- prettyError err
-      let ss = filter (not . null) $ s2s ++ [s1]
-      unless (null s1) (liftIO $ putStr $ unlines ss)
-      throwError err
-    case r of
-      Right _ -> exitSuccess
-      Left _  -> exitAgdaWith TCMError
-  `catchImpossible` \e -> do
-    putStr $ show e
-    exitAgdaWith ImpossibleError
+  r <- runTCMTop
+    ( ( (Nothing <$ tcm)
+          `catchError` \err -> do
+            s2s <- prettyTCWarnings' =<< getAllWarningsOfTCErr err
+            s1  <- prettyError err
+            let ss = filter (not . null) $ s2s ++ [s1]
+            unless (null s1) (liftIO $ putStr $ unlines ss)
+            liftIO $ helpForLocaleError err
+            return (Just TCMError)
+      ) `catchImpossible` \e -> do
+          liftIO $ putStr $ show e
+          return (Just ImpossibleError)
+    )
+  case r of
+    Right Nothing       -> exitSuccess
+    Right (Just reason) -> exitAgdaWith reason
+    Left err            -> do
+      liftIO $ do
+        putStrLn "\n\nError when handling error:"
+        putStrLn $ tcErrString err
+        helpForLocaleError err
+      exitAgdaWith UnknownError
+
+-- | If the error is an IO error, and the error message suggests that
+-- the problem is related to locales or code pages, print out some
+-- extra information.
+
+helpForLocaleError :: TCErr -> IO ()
+helpForLocaleError e = case e of
+  (IOException _ _ e)
+    | "invalid argument" `List.isInfixOf` show e -> msg
+  _                                              -> return ()
+  where
+  msg = putStr $ unlines
+    [ ""
+    , "This error may be due to the use of a locale or code page that does not"
+    , "support some character used in the program being type-checked."
+    , ""
+    , "If it is, then one option is to use the option --transliterate, in which"
+    , "case unsupported characters are (hopefully) replaced with something else,"
+    , "perhaps question marks. However, that could make the output harder to"
+    , "read."
+    , ""
+    , "If you want to fix the problem \"properly\", then you could try one of the"
+    , "following suggestions:"
+    , ""
+    , "* If you are using Windows, try switching to a different code page (for"
+    , "  instance by running the command 'CHCP 65001')."
+    , ""
+    , "* If you are using a Unix-like system, try using a different locale. The"
+    , "  installed locales are perhaps printed by the command 'locale -a'. If"
+    , "  you have a UTF-8 locale installed (for instance sv_SE.UTF-8), then you"
+    , "  can perhaps make Agda use this locale by running something like"
+    , "  'LC_ALL=sv_SE.UTF-8 agda <...>'."
+    ]

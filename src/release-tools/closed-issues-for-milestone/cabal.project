@@ -1,0 +1,10 @@
+packages: .
+
+-- Andreas, 2021-11-19, configuration for GHC-9.2
+-- see https://github.com/phadej/github/issues/468
+
+constraints: github +openssl
+
+-- Obsoleted by https://github.com/haskell-hvr/deepseq-generics/pull/12
+-- allow-newer: deepseq-generics-0.2.0.0:base
+-- allow-newer: deepseq-generics-0.2.0.0:ghc-prim

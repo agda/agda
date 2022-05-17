@@ -140,66 +140,64 @@ instance ExprLike Expr where
       recurse :: RecurseExprRecFn m
       recurse e = recurseExpr f e
     case e0 of
-      Var{}                   -> pure e0
-      Def'{}                  -> pure e0
-      Proj{}                  -> pure e0
-      Con{}                   -> pure e0
-      Lit{}                   -> pure e0
-      QuestionMark{}          -> pure e0
-      Underscore{}            -> pure e0
-      Dot ei e                -> Dot ei <$> recurse e
-      App ei e arg            -> App ei <$> recurse e <*> recurse arg
-      WithApp ei e es         -> WithApp ei <$> recurse e <*> recurse es
-      Lam ei b e              -> Lam ei <$> recurse b <*> recurse e
-      AbsurdLam{}             -> pure e0
-      ExtendedLam ei di x cls -> ExtendedLam ei di x <$> recurse cls
-      Pi ei tel e             -> Pi ei <$> recurse tel <*> recurse e
-      Generalized  s e        -> Generalized s <$> recurse e
-      Fun ei arg e            -> Fun ei <$> recurse arg <*> recurse e
-      Let ei bs e             -> Let ei <$> recurse bs <*> recurse e
-      ETel tel                -> ETel <$> recurse tel
-      Rec ei bs               -> Rec ei <$> recurse bs
-      RecUpdate ei e bs       -> RecUpdate ei <$> recurse e <*> recurse bs
-      ScopedExpr sc e         -> ScopedExpr sc <$> recurse e
-      Quote{}                 -> pure e0
-      QuoteTerm{}             -> pure e0
-      Unquote{}               -> pure e0
-      DontCare e              -> DontCare <$> recurse e
-      PatternSyn{}            -> pure e0
-      Tactic ei e xs          -> Tactic ei <$> recurse e <*> recurse xs
-      Macro{}                 -> pure e0
+      Var{}                      -> pure e0
+      Def'{}                     -> pure e0
+      Proj{}                     -> pure e0
+      Con{}                      -> pure e0
+      Lit{}                      -> pure e0
+      QuestionMark{}             -> pure e0
+      Underscore{}               -> pure e0
+      Dot ei e                   -> Dot ei <$> recurse e
+      App ei e arg               -> App ei <$> recurse e <*> recurse arg
+      WithApp ei e es            -> WithApp ei <$> recurse e <*> recurse es
+      Lam ei b e                 -> Lam ei <$> recurse b <*> recurse e
+      AbsurdLam{}                -> pure e0
+      ExtendedLam ei di er x cls -> ExtendedLam ei di er x <$> recurse cls
+      Pi ei tel e                -> Pi ei <$> recurse tel <*> recurse e
+      Generalized  s e           -> Generalized s <$> recurse e
+      Fun ei arg e               -> Fun ei <$> recurse arg <*> recurse e
+      Let ei bs e                -> Let ei <$> recurse bs <*> recurse e
+      ETel tel                   -> ETel <$> recurse tel
+      Rec ei bs                  -> Rec ei <$> recurse bs
+      RecUpdate ei e bs          -> RecUpdate ei <$> recurse e <*> recurse bs
+      ScopedExpr sc e            -> ScopedExpr sc <$> recurse e
+      Quote{}                    -> pure e0
+      QuoteTerm{}                -> pure e0
+      Unquote{}                  -> pure e0
+      DontCare e                 -> DontCare <$> recurse e
+      PatternSyn{}               -> pure e0
+      Macro{}                    -> pure e0
 
   foldExpr :: forall m. FoldExprFn m Expr
   foldExpr f e =
     case e of
-      Var{}                -> m
-      Def'{}               -> m
-      Proj{}               -> m
-      Con{}                -> m
-      PatternSyn{}         -> m
-      Macro{}              -> m
-      Lit{}                -> m
-      QuestionMark{}       -> m
-      Underscore{}         -> m
-      Dot _ e              -> m `mappend` fold e
-      App _ e e'           -> m `mappend` fold e `mappend` fold e'
-      WithApp _ e es       -> m `mappend` fold e `mappend` fold es
-      Lam _ b e            -> m `mappend` fold b `mappend` fold e
-      AbsurdLam{}          -> m
-      ExtendedLam _ _ _ cs -> m `mappend` fold cs
-      Pi _ tel e           -> m `mappend` fold tel `mappend` fold e
-      Generalized _ e      -> m `mappend` fold e
-      Fun _ e e'           -> m `mappend` fold e `mappend` fold e'
-      Let _ bs e           -> m `mappend` fold bs `mappend` fold e
-      ETel tel             -> m `mappend` fold tel
-      Rec _ as             -> m `mappend` fold as
-      RecUpdate _ e as     -> m `mappend` fold e `mappend` fold as
-      ScopedExpr _ e       -> m `mappend` fold e
-      Quote{}              -> m
-      QuoteTerm{}          -> m
-      Unquote{}            -> m
-      Tactic _ e xs        -> m `mappend` fold e `mappend` fold xs
-      DontCare e           -> m `mappend` fold e
+      Var{}                  -> m
+      Def'{}                 -> m
+      Proj{}                 -> m
+      Con{}                  -> m
+      PatternSyn{}           -> m
+      Macro{}                -> m
+      Lit{}                  -> m
+      QuestionMark{}         -> m
+      Underscore{}           -> m
+      Dot _ e                -> m `mappend` fold e
+      App _ e e'             -> m `mappend` fold e `mappend` fold e'
+      WithApp _ e es         -> m `mappend` fold e `mappend` fold es
+      Lam _ b e              -> m `mappend` fold b `mappend` fold e
+      AbsurdLam{}            -> m
+      ExtendedLam _ _ _ _ cs -> m `mappend` fold cs
+      Pi _ tel e             -> m `mappend` fold tel `mappend` fold e
+      Generalized _ e        -> m `mappend` fold e
+      Fun _ e e'             -> m `mappend` fold e `mappend` fold e'
+      Let _ bs e             -> m `mappend` fold bs `mappend` fold e
+      ETel tel               -> m `mappend` fold tel
+      Rec _ as               -> m `mappend` fold as
+      RecUpdate _ e as       -> m `mappend` fold e `mappend` fold as
+      ScopedExpr _ e         -> m `mappend` fold e
+      Quote{}                -> m
+      QuoteTerm{}            -> m
+      Unquote{}              -> m
+      DontCare e             -> m `mappend` fold e
    where
      m = f e
      fold :: FoldExprRecFn m
@@ -211,34 +209,33 @@ instance ExprLike Expr where
       trav :: TraverseExprRecFn m
       trav e = traverseExpr f e
     case e of
-      Var{}                   -> f e
-      Def'{}                  -> f e
-      Proj{}                  -> f e
-      Con{}                   -> f e
-      Lit{}                   -> f e
-      QuestionMark{}          -> f e
-      Underscore{}            -> f e
-      Dot ei e                -> f =<< Dot ei <$> trav e
-      App ei e arg            -> f =<< App ei <$> trav e <*> trav arg
-      WithApp ei e es         -> f =<< WithApp ei <$> trav e <*> trav es
-      Lam ei b e              -> f =<< Lam ei <$> trav b <*> trav e
-      AbsurdLam{}             -> f e
-      ExtendedLam ei di x cls -> f =<< ExtendedLam ei di x <$> trav cls
-      Pi ei tel e             -> f =<< Pi ei <$> trav tel <*> trav e
-      Generalized s e         -> f =<< Generalized s <$> trav e
-      Fun ei arg e            -> f =<< Fun ei <$> trav arg <*> trav e
-      Let ei bs e             -> f =<< Let ei <$> trav bs <*> trav e
-      ETel tel                -> f =<< ETel <$> trav tel
-      Rec ei bs               -> f =<< Rec ei <$> trav bs
-      RecUpdate ei e bs       -> f =<< RecUpdate ei <$> trav e <*> trav bs
-      ScopedExpr sc e         -> f =<< ScopedExpr sc <$> trav e
-      Quote{}                 -> f e
-      QuoteTerm{}             -> f e
-      Unquote{}               -> f e
-      Tactic ei e xs          -> f =<< Tactic ei <$> trav e <*> trav xs
-      DontCare e              -> f =<< DontCare <$> trav e
-      PatternSyn{}            -> f e
-      Macro{}                 -> f e
+      Var{}                      -> f e
+      Def'{}                     -> f e
+      Proj{}                     -> f e
+      Con{}                      -> f e
+      Lit{}                      -> f e
+      QuestionMark{}             -> f e
+      Underscore{}               -> f e
+      Dot ei e                   -> f =<< Dot ei <$> trav e
+      App ei e arg               -> f =<< App ei <$> trav e <*> trav arg
+      WithApp ei e es            -> f =<< WithApp ei <$> trav e <*> trav es
+      Lam ei b e                 -> f =<< Lam ei <$> trav b <*> trav e
+      AbsurdLam{}                -> f e
+      ExtendedLam ei di re x cls -> f =<< ExtendedLam ei di re x <$> trav cls
+      Pi ei tel e                -> f =<< Pi ei <$> trav tel <*> trav e
+      Generalized s e            -> f =<< Generalized s <$> trav e
+      Fun ei arg e               -> f =<< Fun ei <$> trav arg <*> trav e
+      Let ei bs e                -> f =<< Let ei <$> trav bs <*> trav e
+      ETel tel                   -> f =<< ETel <$> trav tel
+      Rec ei bs                  -> f =<< Rec ei <$> trav bs
+      RecUpdate ei e bs          -> f =<< RecUpdate ei <$> trav e <*> trav bs
+      ScopedExpr sc e            -> f =<< ScopedExpr sc <$> trav e
+      Quote{}                    -> f e
+      QuoteTerm{}                -> f e
+      Unquote{}                  -> f e
+      DontCare e                 -> f =<< DontCare <$> trav e
+      PatternSyn{}               -> f e
+      Macro{}                    -> f e
 
 instance ExprLike a => ExprLike (Arg a)
 instance ExprLike a => ExprLike (Maybe a)
@@ -258,6 +255,9 @@ instance ExprLike a => ExprLike (FieldAssignment' a) where
 instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
   recurseExpr f = traverseEither (recurseExpr f)
                                  (recurseExpr f)
+
+instance ExprLike BindName where
+  recurseExpr f = pure
 
 instance ExprLike ModuleName where
   recurseExpr f = pure
@@ -361,13 +361,13 @@ instance ExprLike RHS where
       rec :: RecurseExprRecFn m
       rec e = recurseExpr f e
 
-instance (ExprLike qn, ExprLike p, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
+instance (ExprLike qn, ExprLike nm, ExprLike p, ExprLike e) => ExprLike (RewriteEqn' qn nm p e) where
   recurseExpr f = \case
     Rewrite es    -> Rewrite <$> recurseExpr f es
     Invert qn pes -> Invert <$> recurseExpr f qn <*> recurseExpr f pes
 
 instance ExprLike WhereDeclarations where
-  recurseExpr f (WhereDecls a b) = WhereDecls a <$> recurseExpr f b
+  recurseExpr f (WhereDecls a b c) = WhereDecls a b <$> recurseExpr f c
 
 instance ExprLike ModuleApplication where
   recurseExpr :: forall m. RecurseExprFn m ModuleApplication
@@ -519,7 +519,7 @@ instance DeclaredNames Clause where
   declaredNames (Clause _ _ rhs decls _) = declaredNames rhs <> declaredNames decls
 
 instance DeclaredNames WhereDeclarations where
-  declaredNames (WhereDecls _ ds) = declaredNames ds
+  declaredNames (WhereDecls _ _ ds) = declaredNames ds
 
 instance DeclaredNames RHS where
   declaredNames = \case
@@ -582,7 +582,6 @@ instance DeclaredNames RHS where
 --     Quote{}               -> mempty
 --     QuoteTerm{}           -> mempty
 --     Unquote{}             -> mempty
---     Tactic _ e xs         -> declaredNames e <> declaredNames xs
 --     DontCare{}            -> mempty
 --     PatternSyn{}          -> mempty
 --     Macro{}               -> mempty

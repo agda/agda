@@ -19,6 +19,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad hiding (constructorForm)
+import Agda.TypeChecking.Monad.Builtin (getName',builtinHComp, builtinConId)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 
@@ -45,15 +46,19 @@ instance Null (Match a) where
   null _              = False
 
 matchedArgs :: HasCallStack => Int -> IntMap (Arg a) -> [Arg a]
-matchedArgs n vs = map get [0..n-1]
+matchedArgs n vs = map (fromMaybe __IMPOSSIBLE__) $ matchedArgs' n vs
+
+matchedArgs' :: Int -> IntMap (Arg a) -> [Maybe (Arg a)]
+matchedArgs' n vs = map get [0 .. n - 1]
   where
-    get k = fromMaybe __IMPOSSIBLE__ $ IntMap.lookup k vs
+    get k = IntMap.lookup k vs
 
 -- | Builds a proper substitution from an IntMap produced by match(Co)patterns
 buildSubstitution :: HasCallStack => (DeBruijn a)
                   => Int -> IntMap (Arg a) -> Substitution' a
-buildSubstitution n vs = parallelS $ map unArg $ matchedArgs n vs
-
+buildSubstitution n vs = foldr cons idS $ matchedArgs' n vs
+  where cons Nothing  = Strengthen __IMPOSSIBLE__
+        cons (Just v) = consS (unArg v)
 
 instance Semigroup (Match a) where
     -- @NotBlocked (StuckOn e)@ means blocked by a variable.
@@ -257,12 +262,16 @@ matchPattern p u = case (p, u) of
   -- can be matched on.
   isMatchable' :: HasBuiltins m => m (Blocked Term -> Maybe Term)
   isMatchable' = do
-    mhcomp <- getName' builtinHComp
+    [mhcomp,mconid] <- mapM getName' [builtinHComp, builtinConId]
     return $ \ r ->
       case ignoreBlocking r of
         t@Con{} -> Just t
         t@(Def q [l,a,phi,u,u0]) | Just q == mhcomp
                 -> Just t
+        t@(Def q [l,a,x,y,phi,p]) | Just q == mconid
+                -> Just t
+        -- TODO this covers the transpIx functions, but it's a hack.
+        t@(Def q _) | NotBlocked{blockingStatus = MissingClauses} <- r -> Just t
         _       -> Nothing
 
   -- DefP hcomp and ConP matching.

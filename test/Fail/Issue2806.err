@@ -1,0 +1,4 @@
+Issue2806.agda:27,18-22
+b != a of type A
+when checking that the expression refl has type
+u (test b) ≡ v (test b)

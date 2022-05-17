@@ -5,6 +5,8 @@
 -- {-# OPTIONS -v tc.pos:100 #-}
 -- {-# OPTIONS -v tc.polarity:20 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 mutual

@@ -17,7 +17,7 @@ import qualified Prelude
 
 import Agda.TypeChecking.Free
 import qualified Agda.TypeChecking.Free
-import Agda.TypeChecking.Free.Lazy (MetaSet, VarMap, theVarMap)
+import Agda.TypeChecking.Free.Lazy (MetaSet(..), VarMap, theVarMap)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 
@@ -39,15 +39,12 @@ import qualified Data.IntSet as IntSet
 
 type VarSetBlocked = IntMap Blocker
 
-metaSetToSet :: MetaSet -> Set MetaId
-metaSetToSet = Set.fromAscList . ISet.toAscList
-
 freeVarsBlocked :: forall v. Free v => v -> VarSetBlocked
 freeVarsBlocked = fmap varOccToBlocker . theVarMap . (freeVars :: v -> VarMap)
   where
     varOccToBlocker :: VarOcc -> Blocker
     varOccToBlocker = varFlexRig <&> \case
-      Flexible mvs   -> unblockOnAnyMeta (metaSetToSet mvs)
+      Flexible mvs   -> unblockOnAnyMeta (theMetaSet mvs)
       WeaklyRigid    -> neverUnblock
       Unguarded      -> neverUnblock
       StronglyRigid  -> neverUnblock
@@ -78,4 +75,3 @@ subtract i = IntMap.mapKeysMonotonic (\x -> x - i)
 
 instance PrettyTCM VarSetBlocked where
   prettyTCM = prettyTCM . map (\(v,bs) -> (Var v [],bs)) . IntMap.toList
-

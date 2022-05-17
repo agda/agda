@@ -27,12 +27,14 @@ import Agda.TypeChecking.Warnings
 
 import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Application
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Data ( checkDataSort )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
 import {-# SOURCE #-} Agda.TypeChecking.Lock
+import {-# SOURCE #-} Agda.TypeChecking.CheckInternal ( checkType )
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
 import Agda.Utils.Functor
@@ -43,6 +45,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
+import qualified Agda.Utils.ProfileOptions as Profile
 
 import Agda.Utils.Impossible
 
@@ -241,7 +244,7 @@ solveAwakeConstraints' = solveSomeAwakeConstraints (const True)
 --   True solve constraints even if already 'isSolvingConstraints'.
 solveSomeAwakeConstraintsTCM :: (ProblemConstraint -> Bool) -> Bool -> TCM ()
 solveSomeAwakeConstraintsTCM solveThis force = do
-    verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . List.genericLength =<< getAllConstraints
+    whenProfile Profile.Constraints $ liftTCM $ tickMax "max-open-constraints" . List.genericLength =<< getAllConstraints
     whenM ((force ||) . not <$> isSolvingConstraints) $ nowSolvingConstraints $ do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
      -- Ulf, 2016-12-06: Don't inherit problems here! Stored constraints
@@ -260,7 +263,7 @@ solveSomeAwakeConstraintsTCM solveThis force = do
 
 solveConstraintTCM :: Constraint -> TCM ()
 solveConstraintTCM c = do
-    verboseS "profile.constraints" 10 $ liftTCM $ tick "attempted-constraints"
+    whenProfile Profile.Constraints $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
       pids <- asksTC envActiveProblems
       reportSDoc "tc.constr.solve.constr" 20 $ text (show pids) <+> prettyTCM c
@@ -282,8 +285,8 @@ solveConstraint_ (UnBlock m)                =   -- alwaysUnblock since these hav
         reportSDoc "tc.constr.unblock" 15 $ hsep ["not unblocking", prettyTCM m, "because",
                                                   ifM (isFrozen m) "it's frozen" "meta assignments are turned off"]
         addConstraint alwaysUnblock $ UnBlock m) $ do
-    inst <- mvInstantiation <$> lookupMeta m
-    reportSDoc "tc.constr.unblock" 65 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
+    inst <- lookupMetaInstantiation m
+    reportSDoc "tc.constr.unblock" 65 $ "unblocking a metavar yields the constraint:" <+> pretty inst
     case inst of
       BlockedConst t -> do
         reportSDoc "tc.constr.blocked" 15 $
@@ -316,13 +319,15 @@ solveConstraint_ (CheckFunDef d i q cs _err) = withoutCache $
 solveConstraint_ (CheckLockedVars a b c d)   = checkLockedVars a b c d
 solveConstraint_ (HasBiggerSort a)      = hasBiggerSort a
 solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b
+solveConstraint_ (CheckDataSort q s)    = checkDataSort q s
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
+solveConstraint_ (CheckType t)          = checkType t
 solveConstraint_ (UsableAtModality mod t) = usableAtModality mod t
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem = \case
   CheckExpr cmp e t              -> checkExpr' cmp e t
-  CheckArgs eh r args t0 t1 k    -> checkArguments eh r args t0 t1 k
+  CheckArgs cmp eh r args t0 t1 k -> checkArguments cmp eh r args t0 t1 k
   CheckProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt patm ->
     checkProjAppToKnownPrincipalArg cmp e o ds args t k v0 pt patm
   CheckLambda cmp args body target -> checkPostponedLambda cmp args body target

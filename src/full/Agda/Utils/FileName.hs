@@ -16,6 +16,7 @@ import System.Directory
 import System.FilePath
 
 import Control.Applicative ( liftA2 )
+import Control.DeepSeq
 #ifdef mingw32_HOST_OS
 import Control.Exception   ( bracket )
 import System.Win32        ( findFirstFile, findClose, getFindDataFileName )
@@ -38,7 +39,7 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { textPath :: Text }
-  deriving (Show, Eq, Ord, Data, Hashable)
+  deriving (Show, Eq, Ord, Data, Hashable, NFData)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
@@ -73,11 +74,12 @@ absolute f = mkAbsolute <$> do
   -- canonicalizePath sometimes truncates paths pointing to
   -- non-existing files/directories.
   ex <- doesFileExist f `or2M` doesDirectoryExist f
-  if ex then
+  if ex then do
     -- Andreas, 2020-08-11, issue #4828
-    -- Do not use @canonicalizePath@ here as it resolves symlinks,
+    -- Do not use @canonicalizePath@ on the full path as it resolves symlinks,
     -- which leads to wrong placement of the .agdai file.
-    makeAbsolute f
+    dir <- canonicalizePath (takeDirectory f)
+    return (dir </> takeFileName f)
    else do
     cwd <- getCurrentDirectory
     return (cwd </> f)

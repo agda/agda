@@ -19,6 +19,7 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Sequence (Seq)
 
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
@@ -45,7 +46,9 @@ data OccursWhere
     -- includes the main information, and if the first sequence is
     -- non-empty, then it includes information about the context of
     -- the second sequence.
-  deriving (Show, Eq, Ord, Data)
+  deriving (Show, Eq, Ord, Data, Generic)
+
+instance NFData OccursWhere
 
 -- | One part of the description of an occurrence.
 data Where
@@ -60,7 +63,9 @@ data Where
   | Matched          -- ^ matched against in a clause of a defined function
   | IsIndex          -- ^ is an index of an inductive family
   | InDefOf QName    -- ^ in the definition of a constant
-  deriving (Show, Eq, Ord, Data)
+  deriving (Show, Eq, Ord, Data, Generic)
+
+instance NFData Where
 
 -- | Subterm occurrences for positivity checking.
 --   The constructors are listed in increasing information they provide:
@@ -177,7 +182,7 @@ instance Sized OccursWhere where
 
 boundToEverySome ::
   Map Occurrence [(Occurrence -> Bool, Occurrence -> Bool)]
-boundToEverySome = Map.fromList
+boundToEverySome = Map.fromListWith __IMPOSSIBLE__
   [ ( JustPos
     , [((/= Unused), (`elem` [Mixed, JustNeg, JustPos]))]
     )

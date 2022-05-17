@@ -1,5 +1,7 @@
 -- Andreas, 2015-05-28 example by Andrea Vezzosi
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 data Nat (i : Size) : Set where

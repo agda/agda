@@ -1,5 +1,0 @@
-Failed to solve the following constraints:
-  _15 (p = (squash a)) = a : A (blocked on _15)
-Unsolved metas at the following locations:
-  Issue2170-unify-subtyping.agda:20,42-43
-  Issue2170-unify-subtyping.agda:20,45-49

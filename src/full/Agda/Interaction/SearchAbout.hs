@@ -20,6 +20,7 @@ import Agda.Interaction.BasicOps (normalForm, parseName)
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Internal as I
 
+import Agda.Utils.List   ( initLast1  )
 import Agda.Utils.Pretty ( prettyShow )
 
 findMentions :: Rewrite -> Range -> String -> ScopeM [(C.Name, I.Type)]
@@ -60,11 +61,12 @@ findMentions norm rg nm = do
   return $ concat ress
 
   where
+    isString :: String -> Either String String
+    isString ('"' : c : cs)
+      | (str, '"') <- initLast1 c cs
+      = Left $ filter (/= '"') str
     isString str
-      |  not (null str)
-      && head str == '"'
-      && last str == '"' = Left $ filter (/= '"') str
-      | otherwise        = Right str
+      = Right str
 
     anames (DefinedName _ an _)   = [an]
     anames (FieldName     ans)    = toList ans

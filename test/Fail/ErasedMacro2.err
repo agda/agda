@@ -1,0 +1,3 @@
+ErasedMacro2.agda:12,7-10
+Variable A is declared erased, so it cannot be used here
+when inferring the type of A

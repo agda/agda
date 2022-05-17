@@ -2,9 +2,10 @@
 
 module Agda.Syntax.Translation.ReflectedToAbstract where
 
-import Control.Arrow ( (***) )
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Arrow        ( (***) )
+import Control.Monad        ( foldM )
+import Control.Monad.Except ( MonadError )
+import Control.Monad.Reader ( MonadReader(..), asks, reader, runReaderT )
 
 import Data.Maybe
 import Data.Set (Set)
@@ -118,7 +119,7 @@ toAbstractWithoutImplicit ::
   , HasConstInfo m
   ) => r -> m (AbsOfRef r)
 toAbstractWithoutImplicit x = do
-  xs <- getContextNames
+  xs <- killRange <$> getContextNames
   let ctx = zip xs $ repeat R.Unknown
   runReaderT (toAbstract x) ctx
 
@@ -182,16 +183,24 @@ instance ToAbstract Term where
           cname   = nameConcrete name
           defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
       cs <- toAbstract $ fmap (QNamed qname) cs
-      toAbstract (A.ExtendedLam exprNoRange defInfo qname cs, es)
+      toAbstract
+        (A.ExtendedLam exprNoRange defInfo defaultErased qname cs, es)
     R.Pi a b   -> do
       (b, name) <- toAbstract b
       a         <- toAbstract (a, name)
       return $ A.Pi exprNoRange (singleton a) b
     R.Sort s   -> toAbstract s
     R.Lit l    -> toAbstract l
-    R.Meta x es    -> toAbstract (A.Underscore info, es)
-      where info = emptyMetaInfo{ metaNumber = Just x }
-    R.Unknown      -> return $ Underscore emptyMetaInfo
+    R.Meta x es    -> do
+      info <- mkMetaInfo
+      let info' = info{ metaNumber = Just x }
+      toAbstract (A.Underscore info', es)
+    R.Unknown      -> Underscore <$> mkMetaInfo
+
+mkMetaInfo :: ReadTCState m => m MetaInfo
+mkMetaInfo = do
+  scope <- getScope
+  return $ emptyMetaInfo { metaScope = scope }
 
 mkDef :: HasConstInfo m => QName -> m A.Expr
 mkDef f =
@@ -222,10 +231,15 @@ instance ToAbstract Sort where
   type AbsOfRef Sort = Expr
   toAbstract s = do
     setName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
+    propName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinProp
+    infName <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSetOmega
     case s of
       SetS x -> mkApp (A.Def setName) <$> toAbstract x
       LitS x -> return $ A.Def' setName $ A.Suffix x
-      UnknownS -> return $ mkApp (A.Def setName) $ Underscore emptyMetaInfo
+      PropS x -> mkApp (A.Def propName) <$> toAbstract x
+      PropLitS x -> return $ A.Def' propName $ A.Suffix x
+      InfS x -> return $ A.Def' infName $ A.Suffix x
+      UnknownS -> mkApp (A.Def setName) . Underscore <$> mkMetaInfo
 
 instance ToAbstract R.Pattern where
   type AbsOfRef R.Pattern = A.Pattern
@@ -290,4 +304,3 @@ checkClauseTelescopeBindings tel pats =
     bound R.LitP{}      = Set.empty
     bound (R.AbsurdP i) = Set.singleton i
     bound R.ProjP{}     = Set.empty
-

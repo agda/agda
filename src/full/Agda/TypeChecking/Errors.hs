@@ -63,6 +63,7 @@ import Agda.TypeChecking.Reduce (instantiate)
 import Agda.Utils.FileName
 import Agda.Utils.Float  ( toStringWithoutDotZero )
 import Agda.Utils.Function
+import Agda.Utils.List   ( initLast )
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
@@ -291,9 +292,13 @@ dropTopLevelModule :: QName -> TCM QName
 dropTopLevelModule q = ($ q) <$> topLevelModuleDropper
 
 -- | Produces a function which drops the filename component of the qualified name.
-topLevelModuleDropper :: (MonadTCEnv m, ReadTCState m) => m (QName -> QName)
+topLevelModuleDropper :: (MonadDebug m, MonadTCEnv m, ReadTCState m) => m (QName -> QName)
 topLevelModuleDropper = do
   caseMaybeM (asksTC envCurrentPath) (return id) $ \ f -> do
+  reportSDoc "err.dropTopLevel" 60 $ vcat
+    [ "current path =" <+> (text . filePath) f
+    , "moduleToSource =" <+> do text . show =<< useR stModuleToSource
+    ]
   m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
   return $ dropTopLevelModule' $ size m
 
@@ -1007,14 +1012,14 @@ instance PrettyTCM TypeError where
                sortBy (compare `on` prettyShow . notaName . sectNotation) $
                filter (not . closedWithoutHoles) sects))
       where
-      trimLeft  = dropWhile isNormalHole
-      trimRight = dropWhileEnd isNormalHole
+      trimLeft  = dropWhile isAHole
+      trimRight = dropWhileEnd isAHole
 
       closedWithoutHoles sect =
         sectKind sect == NonfixNotation
           &&
-        null [ () | NormalHole {} <- trimLeft $ trimRight $
-                                       notation (sectNotation sect) ]
+        null [ () | HolePart{} <- trimLeft $ trimRight $
+                                    notation (sectNotation sect) ]
 
       prettyName n = Boxes.text $
         P.render (P.pretty n) ++
@@ -1052,11 +1057,18 @@ instance PrettyTCM TypeError where
                     (foldr (\x s -> C.nameToRawName x ++ "." ++ s)
                            ""
                            (List1.init (C.qnameParts (notaName nota))))
-                    (trim (notation nota))
+                    (spacesBetweenAdjacentIds $
+                     trim (notation nota))
 
         qualifyFirstIdPart _ []              = []
         qualifyFirstIdPart q (IdPart x : ps) = IdPart (fmap (q ++) x) : ps
         qualifyFirstIdPart q (p : ps)        = p : qualifyFirstIdPart q ps
+
+        spacesBetweenAdjacentIds (IdPart x : ps@(IdPart _ : _)) =
+          IdPart x : IdPart (unranged " ") : spacesBetweenAdjacentIds ps
+        spacesBetweenAdjacentIds (p : ps) =
+          p : spacesBetweenAdjacentIds ps
+        spacesBetweenAdjacentIds [] = []
 
         trim = case sectKind sect of
           InfixNotation   -> trimLeft . trimRight
@@ -1065,9 +1077,7 @@ instance PrettyTCM TypeError where
           NonfixNotation  -> id
           NoNotation      -> __IMPOSSIBLE__
 
-        (names, name) = case Set.toList $ notaNames nota of
-          [] -> __IMPOSSIBLE__
-          ns -> (init ns, last ns)
+        (names, name) = fromMaybe __IMPOSSIBLE__ $ initLast $ Set.toList $ notaNames nota
 
         strut = Boxes.emptyBox (length names) 0
 
@@ -1258,7 +1268,7 @@ instance PrettyUnequal Term where
     (d1, d2, d) <- prettyUnequal_ (H'LHS t1) (H'RHS t2)
     fsep $ return d1 : ncmp : return d2 : return d : []
 
-instance PrettyUnequal Type where
+instance PrettyUnequal I.Type where
   prettyUnequal t1 ncmp t2 = prettyUnequal (unEl t1) ncmp (unEl t2)
 
 instance PrettyTCM SplitError where
@@ -1269,9 +1279,6 @@ instance PrettyTCM SplitError where
 
     BlockedType b t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot split on argument of unresolved type" ++ [prettyTCM t]
-
-    IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
-      pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM t]
 
     ErasedDatatype causedByWithoutK t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot branch on erased argument of datatype" ++
@@ -1328,7 +1335,7 @@ instance PrettyTCM SplitError where
       pwords "Case to handle:") $$ nest 2 (vcat $ [display cl])
                                 $$ ((pure msg <+> enterClosure t displayAbs) <> ".")
         where
-        displayAbs :: Abs Type -> m Doc
+        displayAbs :: Abs I.Type -> m Doc
         displayAbs (Abs x t) = addContext x $ prettyTCM t
         displayAbs (NoAbs x t) = prettyTCM t
         display (tel, ps) = prettyTCM $ NamedClause f True $

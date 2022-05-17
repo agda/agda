@@ -1,4 +1,5 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Agda.TypeChecking.Primitive.Cubical where
 
@@ -7,18 +8,23 @@ import Prelude hiding (null, (!!))
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Trans ( lift )
+import Control.Exception
 
+import Data.Typeable
+import Data.String
+
+import Data.Bifunctor ( second )
 import Data.Either ( partitionEithers )
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import qualified Data.List as List
 import Data.Foldable hiding (null)
 
 import Agda.Interaction.Options ( optCubical )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive.Base
@@ -26,28 +32,50 @@ import Agda.TypeChecking.Monad
 
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.Either
+import Agda.Utils.Function
 import Agda.Utils.Functor
+import Agda.Utils.Maybe
+
 import Agda.Utils.Impossible
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
+import Agda.Utils.Size
+import Agda.Utils.BoolSet (BoolSet)
+import qualified Agda.Utils.Pretty as P
+import qualified Agda.Utils.BoolSet as BoolSet
 
-requireCubical :: String -> TCM ()
-requireCubical s = do
-  cubical <- optCubical <$> pragmaOptions
-  unless cubical $
-    typeError $ GenericError $ "Missing option --cubical" ++ s
+-- | Checks that the correct variant of Cubical Agda is activated.
+-- Note that @--erased-cubical@ \"counts as\" @--cubical@ in erased
+-- contexts.
+
+requireCubical
+  :: Cubical -- ^ Which variant of Cubical Agda is required?
+  -> String -> TCM ()
+requireCubical wanted s = do
+  cubical         <- optCubical <$> pragmaOptions
+  inErasedContext <- hasQuantity0 <$> getEnv
+  case cubical of
+    Just CFull -> return ()
+    Just CErased | wanted == CErased || inErasedContext -> return ()
+    _ -> typeError $ GenericError $ "Missing option " ++ opt ++ s
+  where
+  opt = case wanted of
+    CFull   -> "--cubical"
+    CErased -> "--cubical or --erased-cubical"
 
 primIntervalType :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m) => m Type
-primIntervalType = El (SSet $ ClosedLevel 0) <$> primInterval
+primIntervalType = El intervalSort <$> primInterval
 
 primINeg' :: TCM PrimitiveImpl
 primINeg' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ ts -> do
     case ts of
@@ -73,7 +101,7 @@ primINeg' = do
 
 primDepIMin' :: TCM PrimitiveImpl
 primDepIMin' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- runNamesT [] $
        nPi' "φ" primIntervalType $ \ φ ->
        pPi' "o" φ (\ o -> primIntervalType) --> primIntervalType
@@ -97,7 +125,7 @@ primDepIMin' = do
 
 primIBin :: IntervalView -> IntervalView -> TCM PrimitiveImpl
 primIBin unit absorber = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- primIntervalType --> primIntervalType --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 2 $ \ ts -> do
     case ts of
@@ -123,12 +151,12 @@ primIBin unit absorber = do
 
 primIMin' :: TCM PrimitiveImpl
 primIMin' = do
-  requireCubical ""
+  requireCubical CErased ""
   primIBin IOne IZero
 
 primIMax' :: TCM PrimitiveImpl
 primIMax' = do
-  requireCubical ""
+  requireCubical CErased ""
   primIBin IZero IOne
 
 imax :: HasBuiltins m => m Term -> m Term -> m Term
@@ -146,7 +174,7 @@ imin x y = do
 -- ∀ {a}{c}{A : Set a}{x : A}(C : ∀ y → Id x y → Set c) → C x (conid i1 (\ i → x)) → ∀ {y} (p : Id x y) → C y p
 primIdJ :: TCM PrimitiveImpl
 primIdJ = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "c" (el $ cl primLevel) $ \ c ->
@@ -160,7 +188,7 @@ primIdJ = do
        hPi' "y" (el' a bA) (\ y ->
         nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
         el' c $ bC <@> y <@> p)
-  conidn <- getBuiltinName builtinConId
+  conidn <- getName' builtinConId
   conid  <- primConId
   -- TODO make a kit
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 8 $ \ ts -> do
@@ -172,9 +200,10 @@ primIdJ = do
     case ts of
      [la,lc,a,x,c,d,y,eq] -> do
        seq    <- reduceB' eq
-       case unArg $ ignoreBlocking $ seq of
-         (Def q [Apply la,Apply a,Apply x,Apply y,Apply phi,Apply p])
-           | Just q == conidn, Just comp <- mcomp -> do
+       cview <- conidView'
+       case cview (unArg x) $ unArg $ ignoreBlocking $ seq of
+         Just (phi,p)
+           | Just comp <- mcomp -> do
           redReturn $ runNames [] $ do
              [lc,c,d,la,a,x,y,phi,p] <- mapM (open . unArg) [lc,c,d,la,a,x,y,phi,p]
              let w i = do
@@ -194,7 +223,7 @@ primIdJ = do
 
 primIdElim' :: TCM PrimitiveImpl
 primIdElim' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "c" (el $ cl primLevel) $ \ c ->
@@ -222,8 +251,9 @@ primIdElim' = do
     case ts of
       [a,c,bA,x,bC,f,y,p] -> do
         sp <- reduceB' p
-        case unArg $ ignoreBlocking sp of
-          Def q [Apply _a, Apply _bA, Apply _x, Apply _y, Apply phi , Apply w] -> do
+        cview <- conidView'
+        case cview (unArg x) $ unArg $ ignoreBlocking sp of
+          Just (phi , w) -> do
             let y' = sin `apply` [a,bA                            ,phi,argN $ unArg y]
             let w' = sin `apply` [a,argN $ path `apply` [a,bA,x,y],phi,argN $ unArg w]
             redReturn $ unArg f `apply` [phi, defaultArg y', defaultArg w']
@@ -233,7 +263,7 @@ primIdElim' = do
 
 primPOr :: TCM PrimitiveImpl
 primPOr = do
-  requireCubical ""
+  requireCubical CErased ""
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel)    $ \ a  ->
           nPi' "i" primIntervalType $ \ i  ->
@@ -263,7 +293,7 @@ primPOr = do
 
 primPartial' :: TCM PrimitiveImpl
 primPartial' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) (\ a ->
         nPi' "φ" primIntervalType $ \ _ ->
@@ -281,7 +311,7 @@ primPartial' = do
 
 primPartialP' :: TCM PrimitiveImpl
 primPartialP' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) (\ a ->
         nPi' "φ" primIntervalType $ \ phi ->
@@ -299,7 +329,7 @@ primPartialP' = do
 
 primSubOut' :: TCM PrimitiveImpl
 primSubOut' = do
-  requireCubical ""
+  requireCubical CErased ""
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel) $ \ a ->
           hPi' "A" (el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
@@ -321,9 +351,32 @@ primSubOut' = do
               _ -> return $ NoReduction $ map notReduced [a,bA] ++ [reduced sphi, notReduced u, reduced sx]
       _ -> __IMPOSSIBLE__
 
+primConId' :: TCM PrimitiveImpl
+primConId' = do
+  requireCubical CErased ""
+  t <- runNamesT [] $
+       hPi' "a" (el $ cl primLevel) $ \ a ->
+       hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+       hPi' "x" (el' a bA) $ \ x ->
+       hPi' "y" (el' a bA) $ \ y ->
+       primIntervalType -->
+       (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
+       --> (el' a $ cl primId <#> a <#> bA <@> x <@> y)
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 6 $ \ ts -> do
+    case ts of
+      [l,bA,x,y,phi,p] -> do
+        sphi <- reduceB' phi
+        view <- intervalView'
+        case view $ unArg $ ignoreBlocking sphi of
+          IOne -> do
+            reflId <- getTerm builtinConId builtinReflId
+            redReturn $ reflId
+          _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced sphi, notReduced p]
+      _ -> __IMPOSSIBLE__
+
 primIdFace' :: TCM PrimitiveImpl
 primIdFace' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -336,14 +389,15 @@ primIdFace' = do
       [l,bA,x,y,t] -> do
         st <- reduceB' t
         mConId <- getName' builtinConId
-        case unArg (ignoreBlocking st) of
-          Def q [_,_,_,_, Apply phi,_] | Just q == mConId -> redReturn (unArg phi)
+        cview <- conidView'
+        case cview (unArg x) $ unArg (ignoreBlocking st) of
+          Just (phi,_) -> redReturn (unArg phi)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
 
 primIdPath' :: TCM PrimitiveImpl
 primIdPath' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -356,15 +410,16 @@ primIdPath' = do
       [l,bA,x,y,t] -> do
         st <- reduceB' t
         mConId <- getName' builtinConId
-        case unArg (ignoreBlocking st) of
-          Def q [_,_,_,_,_,Apply w] | Just q == mConId -> redReturn (unArg w)
+        cview <- conidView'
+        case cview (unArg x) $ unArg (ignoreBlocking st) of
+          Just (_,w)-> redReturn (unArg w)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
 
 
 primTrans' :: TCM PrimitiveImpl
 primTrans' = do
-  requireCubical ""
+  requireCubical CErased ""
   t    <- runNamesT [] $
           hPi' "a" (primIntervalType --> el (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -375,7 +430,7 @@ primTrans' = do
 
 primHComp' :: TCM PrimitiveImpl
 primHComp' = do
-  requireCubical ""
+  requireCubical CErased ""
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel) $ \ a ->
           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -396,9 +451,27 @@ data FamilyOrNot a
   | IsNot { famThing :: a }
   deriving (Eq,Show,Functor,Foldable,Traversable)
 
+familyOrNot :: IsString p => FamilyOrNot a -> p
+familyOrNot (IsFam x) = "IsFam"
+familyOrNot (IsNot x) = "IsNot"
+
 instance Reduce a => Reduce (FamilyOrNot a) where
   reduceB' x = traverse id <$> traverse reduceB' x
   reduce' x = traverse reduce' x
+
+
+mkComp :: HasBuiltins m => String -> NamesT m (NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term -> NamesT m Term)
+mkComp s = do
+  let getTermLocal = getTerm s
+  tComp <- getTermLocal builtinComp
+  return $ \ la bA phi u u0 ->
+    pure tComp <#> la
+               <@> bA
+               <#> phi
+               <@> u
+               <@> u0
+
+
 
 
 -- | Define a "ghcomp" version of gcomp. Normal comp looks like:
@@ -448,6 +521,8 @@ unglueTranspGlue :: PureTCM m =>
                   -> FamilyOrNot
                        (Arg Term, Arg Term, Arg Term, Arg Term, Arg Term, Arg Term)
                   -> m Term
+-- ...    |- psi, u0
+-- ..., i |- la, lb, bA, phi, bT, e
 unglueTranspGlue psi u0 (IsFam (la, lb, bA, phi, bT, e)) = do
       let
         localUse = builtinTrans ++ " for " ++ builtinGlue
@@ -478,26 +553,36 @@ unglueTranspGlue psi u0 (IsFam (la, lb, bA, phi, bT, e)) = do
         gcomp <- mkGComp localUse
 
         let transpFill la bA phi u0 i =
-              pure tTrans <#> ilam "j" (\ j -> la <@> imin i j)
-                          <@> ilam "j" (\ j -> bA <@> imin i j)
+              pure tTrans <#> lam "j" (\ j -> la <@> imin i j)
+                          <@> lam "j" (\ j -> bA <@> imin i j)
                           <@> (imax phi (ineg i))
                           <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
+
+        -- glue1 t a = glue la[i1/i] lb[i1/i] bA[i1/i] phi[i1/i] bT[i1/i] e[i1/i] t a
         glue1 <- do
           g <- open $ (tglue `apply`) . map ((setHiding Hidden) . (subst 0 io)) $ [la, lb, bA, phi, bT, e]
           return $ \ t a -> g <@> t <@> a
-        unglue0 <- do
-          ug <- open $ (tunglue `apply`) . map ((setHiding Hidden) . (subst 0 iz)) $ [la, lb, bA, phi, bT, e]
-          return $ \ a -> ug <@> a
+
         [la, lb, bA, phi, bT, e] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, lb, bA, phi, bT, e]
+
+        -- Andreas, 2022-03-24, fixing #5838
+        -- Following the updated note
+        --
+        --   Simon Huber, A Cubical Type Theory for Higher Inductive Types
+        --   https://simhu.github.io/misc/hcomp.pdf (February 2022)
+        --
+        -- See: https://github.com/agda/agda/issues/5755#issuecomment-1043797776
+
+        -- unglue_u0 i = unglue la[i/i] lb[i/i] bA[i/i] phi[i/i] bT[i/i] e[i/i] u0
+        let unglue_u0 i =
+              foldl (<#>) (pure tunglue) (map (<@> i) [la, lb, bA, phi, bT, e]) <@> u0
+
         view <- intervalView'
 
-        -- phi1 <- view <$> (reduce =<< (phi <@> pure io))
-        -- if not $ (isIOne phi1) then return Nothing else Just <$> do
         let
           tf i o = transpFill lb (lam "i" $ \ i -> bT <@> i <..> o) psi u0 i
           t1 o = tf (pure io) o
-          a0 = unglue0 u0
 
           -- compute "forall. phi"
           forallphi = pure tForall <@> phi
@@ -509,14 +594,14 @@ unglueTranspGlue psi u0 (IsFam (la, lb, bA, phi, bT, e)) = do
                                              <@> psi
                                              <@> forallphi
                                              <@> ilam "o" (\ a -> bA <@> i)
-                                             <@> ilam "o" (\ _ -> a0)
+                                             <@> ilam "o" (\ _ -> unglue_u0 i)
                                              <@> ilam "o" (\ o -> pure tEFun <#> (lb <@> i)
                                                                                <#> (la <@> i)
                                                                                <#> (bT <@> i <..> o)
                                                                                <#> (bA <@> i)
                                                                                <@> (e <@> i <..> o)
                                                                                <@> (tf i o)))
-                 a0
+                 (unglue_u0 (pure iz))
 
           max l l' = pure tLMax <@> l <@> l'
           sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y
@@ -629,6 +714,9 @@ compGlue DoHComp psi (Just u) u0 (IsNot (la, lb, bA, phi, bT, e)) tpos = do
         case tpos of
           Head -> t1 (pure tItIsOne)
           Eliminated -> a1
+
+-- ...    |- psi, u0
+-- ..., i |- la, lb, bA, phi, bT, e
 compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       let
         localUse = builtinTrans ++ " for " ++ builtinGlue
@@ -659,25 +747,37 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
         gcomp <- mkGComp localUse
 
         let transpFill la bA phi u0 i =
-              pure tTrans <#> ilam "j" (\ j -> la <@> imin i j)
-                          <@> ilam "j" (\ j -> bA <@> imin i j)
+              pure tTrans <#> lam "j" (\ j -> la <@> imin i j)
+                          <@> lam "j" (\ j -> bA <@> imin i j)
                           <@> (imax phi (ineg i))
                           <@> u0
         [psi,u0] <- mapM (open . unArg) [psi,u0]
+
+        -- glue1 t a = glue la[i1/i] lb[i1/i] bA[i1/i] phi[i1/i] bT[i1/i] e[i1/i] t a
         glue1 <- do
           g <- open $ (tglue `apply`) . map ((setHiding Hidden) . (subst 0 io)) $ [la, lb, bA, phi, bT, e]
           return $ \ t a -> g <@> t <@> a
-        unglue0 <- do
-          ug <- open $ (tunglue `apply`) . map ((setHiding Hidden) . (subst 0 iz)) $ [la, lb, bA, phi, bT, e]
-          return $ \ a -> ug <@> a
+
         [la, lb, bA, phi, bT, e] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, lb, bA, phi, bT, e]
+
+        -- Andreas, 2022-03-24, fixing #5838
+        -- Following the updated note
+        --
+        --   Simon Huber, A Cubical Type Theory for Higher Inductive Types
+        --   https://simhu.github.io/misc/hcomp.pdf (February 2022)
+        --
+        -- See: https://github.com/agda/agda/issues/5755#issuecomment-1043797776
+
+        -- unglue_u0 i = unglue la[i/i] lb[i/i] bA[i/i] phi[i/i] bT[i/i] e[i/e] u0
+        let unglue_u0 i =
+              foldl (<#>) (pure tunglue) (map (<@> i) [la, lb, bA, phi, bT, e]) <@> u0
+
         view <- intervalView'
 
         ifM (headStop tpos (phi <@> pure io)) (return Nothing) $ Just <$> do
         let
           tf i o = transpFill lb (lam "i" $ \ i -> bT <@> i <..> o) psi u0 i
           t1 o = tf (pure io) o
-          a0 = unglue0 u0
 
           -- compute "forall. phi"
           forallphi = pure tForall <@> phi
@@ -688,15 +788,15 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
                  (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
                                              <@> psi
                                              <@> forallphi
-                                             <@> ilam "o" (\ a -> bA <@> i)
-                                             <@> ilam "o" (\ _ -> a0)
+                                             <@> ilam "o" (\ _ -> bA <@> i)
+                                             <@> ilam "o" (\ _ -> unglue_u0 i)
                                              <@> ilam "o" (\ o -> pure tEFun <#> (lb <@> i)
                                                                                <#> (la <@> i)
                                                                                <#> (bT <@> i <..> o)
                                                                                <#> (bA <@> i)
                                                                                <@> (e <@> i <..> o)
                                                                                <@> (tf i o)))
-                 a0
+                 (unglue_u0 (pure iz))
 
           max l l' = pure tLMax <@> l <@> l'
           sigCon x y = pure (Con (sigmaCon kit) ConOSystem []) <@> x <@> y
@@ -790,7 +890,7 @@ compHCompU DoHComp psi (Just u) u0 (IsNot (la, phi, bT, bA)) tpos = do
           hfill la bA phi u u0 i = pure tHComp <#> la
                                                <#> bA
                                                <#> (pure tIMax <@> phi <@> (pure tINeg <@> i))
-                                               <@> lam "j" (\ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> ilam "o" (\ a -> bA)
+                                               <@> lam "j" (\ j -> pure tPOr <#> la <@> phi <@> (pure tINeg <@> i) <@> ilam "o" (\ _ -> bA)
                                                      <@> ilam "o" (\ o -> u <@> (pure tIMin <@> i <@> j) <..> o)
                                                      <@> ilam "o" (\ _ -> u0))
                                                <@> u0
@@ -851,13 +951,26 @@ compHCompU DoTransp psi Nothing u0 (IsFam (la, phi, bT, bA)) tpos = do
           let bAS = pure tSubIn <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
           g <- (open =<<) $ pure tglue <#> la <#> phi <#> bT <#> bAS
           return $ \ t a -> g <@> t <@> a
-        unglue0 <- do
-          tunglue <- cl $ getTermLocal builtin_unglueU
-          [la, phi, bT, bA] <- mapM (open . unArg . subst 0 iz) $ [la, phi, bT, bA]
-          let bAS = pure tSubIn <#> (pure tLSuc <@> la) <#> (Sort . tmSort <$> la) <#> phi <@> bA
-          ug <- (open =<<) $ pure tunglue <#> la <#> phi <#> bT <#> bAS
-          return $ \ a -> ug <@> a
+
         [la, phi, bT, bA] <- mapM (\ a -> open . runNames [] $ lam "i" (const (pure $ unArg a))) [la, phi, bT, bA]
+
+        -- Andreas, 2022-03-25, issue #5838.
+        -- Port the fix of @unglueTranspGlue@ and @compGlue DoTransp@
+        -- also to @compHCompU DoTransp@, as suggested by Tom Jack and Anders Mörtberg.
+        -- We define @unglue_u0 i@ that is first used with @i@ and then with @i0@.
+        -- The original code used it only with @i0@.
+        tunglue <- cl $ getTermLocal builtin_unglueU
+        let bAS i =
+              pure tSubIn  <#> (pure tLSuc <@> (la <@> i))
+                           <#> (Sort . tmSort <$> (la <@> i))
+                           <#> (phi <@> i)
+                           <@> (bA <@> i)
+        let unglue_u0 i =
+              pure tunglue <#> (la <@> i)
+                           <#> (phi <@> i)
+                           <#> (bT <@> i)
+                           <#> bAS i
+                           <@> u0
 
         ifM (headStop tpos (phi <@> pure io)) (return Nothing) $ Just <$> do
 
@@ -865,7 +978,6 @@ compHCompU DoTransp psi Nothing u0 (IsFam (la, phi, bT, bA)) tpos = do
           lb = la
           tf i o = transpFill lb (lam "i" $ \ i -> bT <@> i <@> pure io <..> o) psi u0 i
           t1 o = tf (pure io) o
-          a0 = unglue0 u0
 
           -- compute "forall. phi"
           forallphi = pure tForall <@> phi
@@ -876,12 +988,12 @@ compHCompU DoTransp psi Nothing u0 (IsFam (la, phi, bT, bA)) tpos = do
                  (lam "i" $ \ i -> pure tPOr <#> (la <@> i)
                                              <@> psi
                                              <@> forallphi
-                                             <@> ilam "o" (\ a -> bA <@> i)
-                                             <@> ilam "o" (\ _ -> a0)
+                                             <@> ilam "o" (\ _ -> bA <@> i)
+                                             <@> ilam "o" (\ _ -> unglue_u0 i)
                                              <@> ilam "o" (\ o -> transp (la <@> i)
                                                                            (\ j -> bT <@> i <@> ineg j <..> o)
                                                                            (tf i o)))
-                 a0
+                 (unglue_u0 (pure iz))
 
           w i o = lam "x" $
                   transp (la <@> i)
@@ -1020,11 +1132,11 @@ primTransHComp cmd ts nelims = do
                                 -> redReturn $ (Def hCompR []) `apply`
                                                (as ++ [ignoreBlocking sphi,fromMaybe __IMPOSSIBLE__ u,u0])
 
-                         | Just as <- allApplyElims es, [] <- recFields r -> compData False (recPars r) cmd l (as <$ t) sbA sphi u u0
-                     Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons}
-                       | and [null pcons | DoHComp  <- [cmd]], Just as <- allApplyElims es -> compData (not $ null $ pcons) (pars+ixs) cmd l (as <$ t) sbA sphi u u0
-                     -- postulates with no arguments do not need to transport.
-                     Axiom{} | [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
+                         | Just as <- allApplyElims es, [] <- recFields r -> compData Nothing False (recPars r) cmd l (as <$ t) sbA sphi u u0
+                     Datatype{dataPars = pars, dataIxs = ixs, dataPathCons = pcons, dataTransp = mtrD}
+                       | and [null pcons && ixs == 0 | DoHComp  <- [cmd]], Just as <- allApplyElims es ->
+                         compData mtrD ((not $ null $ pcons) || ixs > 0) (pars+ixs) cmd l (as <$ t) sbA sphi u u0
+                     Axiom constTransp | constTransp, [] <- es, DoTransp <- cmd -> redReturn $ unArg u0
                      _          -> fallback
 
                  _ -> fallback
@@ -1070,7 +1182,14 @@ primTransHComp cmd ts nelims = do
                                                          <@> phi
                                                          <@> a0
           LockUniv -> return $ Just $ \ _ _ a0 -> a0
-          _       -> return Nothing
+          IntervalUniv -> do
+            x' <- reduceB $ unDom x
+            mInterval <- getBuiltinName' builtinInterval
+            case unEl $ ignoreBlocking x' of
+              Def q [] | Just q == mInterval -> return $ Just $ \ _ _ a0 -> a0
+              _ -> return Nothing
+          _ -> return Nothing
+
       caseMaybe labA (return Nothing) $ \ trA -> Just <$> do
       [phi, u0] <- mapM (open . unArg) [phi, u0]
       u <- traverse open (unArg <$> u)
@@ -1094,7 +1213,7 @@ primTransHComp cmd ts nelims = do
                 -- Γ , u1 : A[i1] , i : I
                 bB v = consS v (liftS 1 $ raiseS 1) `applySubst` (absBody b {- Γ , i : I , x : A[i] -})
                 tLam = Lam defaultArgInfo
-            bT <- bind "i" $ fmap bB . v
+            bT <- bind "i" $ \ x -> fmap bB . v $ x
             -- Γ , u1 : A[i1]
             (pure tTrans <#> (tLam <$> traverse (fmap Level . toLevel) bT)
                          <@> (pure . tLam $ unEl                      <$> bT)
@@ -1169,9 +1288,9 @@ primTransHComp cmd ts nelims = do
     compId cmd sphi u a0 l bA_x_y = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for " ++ builtinId
       unview <- intervalUnview'
-      mConId <- getBuiltinName' builtinConId
-      let isConId (Def q _) = Just q == mConId
-          isConId _         = False
+      mConId <- getName' builtinConId
+      cview <- conidView'
+      let isConId t = isJust $ cview __DUMMY_TERM__ t
       sa0 <- reduceB' a0
       -- wasteful to compute b even when cheaper checks might fail
       b <- case u of
@@ -1185,10 +1304,11 @@ primTransHComp cmd ts nelims = do
           tFace <- getTermLocal "primIdFace"
           tPath <- getTermLocal "primIdPath"
           tPathType <- getTermLocal builtinPath
+          tConId <- getTermLocal builtinConId
           runNamesT [] $ do
             let io = pure $ unview IOne
                 iz = pure $ unview IZero
-                conId = pure $ Def conid []
+                conId = pure $ tConId
             l <- case l of
                    IsFam l -> open . unArg $ l
                    IsNot l -> do
@@ -1229,19 +1349,19 @@ primTransHComp cmd ts nelims = do
               boolToI b = if b then unview IOne else unview IZero
             as <- decomposeInterval phi
             andM . for as $ \ (bs,ts) -> do
-                 let u' = listS (Map.toAscList $ Map.map boolToI bs) `applySubst` u
+                 let u' = listS (IntMap.toAscList $ IntMap.map boolToI bs) `applySubst` u
                  t <- reduce2Lam u'
                  return $! p $ ignoreBlocking t
     reduce2Lam t = do
           t <- reduce' t
-          case lam2Abs t of
+          case lam2Abs Relevant t of
             t -> underAbstraction_ t $ \ t -> do
                t <- reduce' t
-               case lam2Abs t of
+               case lam2Abs Irrelevant t of
                  t -> underAbstraction_ t reduceB'
          where
-           lam2Abs (Lam _ t) = absBody t <$ t
-           lam2Abs t         = Abs "y" (raise 1 t `apply` [argN $ var 0])
+           lam2Abs rel (Lam _ t) = absBody t <$ t
+           lam2Abs rel t         = Abs "y" (raise 1 t `apply` [setRelevance rel $ argN $ var 0])
     allComponentsBack unview phi u p = do
             let
               boolToI b = if b then unview IOne else unview IZero
@@ -1249,14 +1369,14 @@ primTransHComp cmd ts nelims = do
             as <- decomposeInterval phi
             (flags,t_alphas) <- fmap unzip . forM as $ \ (bs,ts) -> do
                  let u' = listS bs' `applySubst` u
-                     bs' = (Map.toAscList $ Map.map boolToI bs)
+                     bs' = IntMap.toAscList $ IntMap.map boolToI bs
                      -- Γ₁, i : I, Γ₂, j : I, Γ₃  ⊢ weaken : Γ₁, Γ₂, Γ₃   for bs' = [(j,_),(i,_)]
                      -- ordering of "j,i,.." matters.
                  let weaken = foldr (\ j s -> s `composeS` raiseFromS j 1) idS (map fst bs')
                  t <- reduce2Lam u'
                  return $ (p $ ignoreBlocking t, listToMaybe [ (weaken `applySubst` (lamlam <$> t),bs) | null ts ])
             return $ (flags,t_alphas)
-    compData False _ cmd@DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
+    compData mtrD False _ cmd@DoHComp (IsNot l) (IsNot ps) fsc sphi (Just u) a0 = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
 
       let sc = famThing <$> fsc
@@ -1313,7 +1433,7 @@ primTransHComp cmd ts nelims = do
               let
                 phis :: [Term]
                 phis = for bools $ \ m ->
-                            foldr (iMin . (\(i,b) -> if b then var i else iNeg (var i))) iO (Map.toList m)
+                            foldr (iMin . (\(i,b) -> applyUnless b iNeg $ var i)) iO (IntMap.toList m)
               runNamesT [] $ do
                 u <- open u
                 [l,c] <- mapM (open . unArg) [l,ignoreBlocking sc]
@@ -1333,8 +1453,16 @@ primTransHComp cmd ts nelims = do
                                           (ps ++ map argN [phi,u,a0])
               Nothing        -> noRed' su
 
-    compData _     0 DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
-    compData isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
+    compData mtrD        _     0     DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = redReturn $ unArg a0
+    compData (Just trD) isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
+      let sc = famThing <$> fsc
+      let f = unArg . ignoreBlocking
+          phi :: Term
+          phi = f $ sphi
+      let lam_i = Lam defaultArgInfo . Abs "i"
+      redReturn $ Def trD [] `apply` (map (fmap lam_i) ps ++ map argN [phi,unArg a0])
+
+    compData mtrD isHIT _ cmd@DoTransp (IsFam l) (IsFam ps) fsc sphi Nothing a0 = do
       let getTermLocal = getTerm $ cmdToName cmd ++ " for data types"
       let sc = famThing <$> fsc
       mhcompName <- getName' builtinHComp
@@ -1369,11 +1497,27 @@ primTransHComp cmd ts nelims = do
                         pure transp <#> l <@> bC <@> phi <@> (u <@> j <..> o))
                    <@> (pure transp <#> l <@> bC <@> phi <@> u0)
         _ -> noRed
-    compData _ _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
+    compData mtrX isHITorIx nargs cmd l t sbA sphi u u0 = do
+      () <- reportSDoc "impossible" 10 $ "compData" <+> (nest 2 . vcat)
+       [ "mtrX:       " <+> pretty mtrX
+       , "isHITorIx:  " <+> pretty isHITorIx
+       , "nargs:      " <+> pretty nargs
+       , "cmd:        " <+> text (show cmd)
+       , "l:          " <+> familyOrNot l
+       , "t:          " <+> familyOrNot t <+> pretty (famThing t)
+       , "sbA:          " <+> familyOrNot (ignoreBlocking $ sbA)
+       , "sphi:       " <+> pretty (ignoreBlocking sphi)
+       , "isJust u:   " <+> pretty (isJust u)
+       , "u0:         " <+> pretty u0
+       ]
+      __IMPOSSIBLE__
+
+--    compData _ _ _ _ _ _ _ _ _ _ = __IMPOSSIBLE__
+
 
 primComp :: TCM PrimitiveImpl
 primComp = do
-  requireCubical ""
+  requireCubical CErased ""
   t    <- runNamesT [] $
           hPi' "a" (primIntervalType --> el (cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" primIntervalType $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
@@ -1417,7 +1561,7 @@ primComp = do
 
 prim_glueU' :: TCM PrimitiveImpl
 prim_glueU' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "φ" primIntervalType $ \ φ ->
@@ -1440,7 +1584,7 @@ prim_glueU' = do
 
 prim_unglueU' :: TCM PrimitiveImpl
 prim_unglueU' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "φ" primIntervalType $ \ φ ->
@@ -1500,7 +1644,7 @@ prim_unglueU' = do
 
 primGlue' :: TCM PrimitiveImpl
 primGlue' = do
-  requireCubical ""
+  requireCubical CFull ""
   -- Glue' : ∀ {l} (A : Set l) → ∀ φ → (T : Partial (Set a) φ) (f : (PartialP φ \ o → (T o) -> A))
   --            ([f] : PartialP φ \ o → isEquiv (T o) A (f o)) → Set l
   t <- runNamesT [] $
@@ -1524,7 +1668,7 @@ primGlue' = do
 
 prim_glue' :: TCM PrimitiveImpl
 prim_glue' = do
-  requireCubical ""
+  requireCubical CFull ""
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
@@ -1546,7 +1690,7 @@ prim_glue' = do
 
 prim_unglue' :: TCM PrimitiveImpl
 prim_unglue' = do
-  requireCubical ""
+  requireCubical CFull ""
   t <- runNamesT [] $
        hPi' "la" (el $ cl primLevel) (\ la ->
        hPi' "lb" (el $ cl primLevel) $ \ lb ->
@@ -1601,7 +1745,7 @@ prim_unglue' = do
 -- TODO Andrea: keep reductions that happen under foralls?
 primFaceForall' :: TCM PrimitiveImpl
 primFaceForall' = do
-  requireCubical ""
+  requireCubical CErased ""
   t <- (primIntervalType --> primIntervalType) --> primIntervalType
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 1 $ \ts -> case ts of
     [phi] -> do
@@ -1624,9 +1768,9 @@ primFaceForall' = do
       fr <- getTerm builtinFaceForall builtinFaceForall
       let v = view t
           us =
-            [ map Left (Map.toList bsm) ++ map Right ts
+            [ map Left (IntMap.toList bsm) ++ map Right ts
               | (bsm, ts) <- us',
-                0 `Map.notMember` bsm
+                0 `IntMap.notMember` bsm
             ]
           fm (i, b) = if b then var (i - 1) else unview (INeg (argN (var $ i - 1)))
           ffr t = fr `apply` [argN $ Lam defaultArgInfo $ Abs "i" t]
@@ -1642,19 +1786,19 @@ primFaceForall' = do
                 us
       --   traceSLn "cube.forall" 20 (unlines [show v, show us', show us, show r]) $
       return $ case us' of
-        [(m, [_])] | Map.null m -> Nothing
+        [(m, [_])] | null m -> Nothing
         v -> r
 
-decomposeInterval :: HasBuiltins m => Term -> m [(Map Int Bool,[Term])]
+decomposeInterval :: HasBuiltins m => Term -> m [(IntMap Bool, [Term])]
 decomposeInterval t = do
-  xs <- decomposeInterval' t
-  let isConsistent xs = all (\ xs -> Set.size xs == 1) . Map.elems $ xs  -- optimize by not doing generate + filter
-  return [ (Map.map (head . Set.toList) bsm,ts)
-            | (bsm,ts) <- xs
-            , isConsistent bsm
-            ]
+  decomposeInterval' t <&> \ xs ->
+    [ (bm, ts)
+    | (bsm :: IntMap BoolSet, ts) <- xs
+    , bm <- maybeToList $ traverse BoolSet.toSingleton bsm
+        -- discard inconsistent mappings
+    ]
 
-decomposeInterval' :: HasBuiltins m => Term -> m [(Map Int (Set Bool),[Term])]
+decomposeInterval' :: HasBuiltins m => Term -> m [(IntMap BoolSet, [Term])]
 decomposeInterval' t = do
      view   <- intervalView'
      unview <- intervalUnview'
@@ -1672,7 +1816,7 @@ decomposeInterval' t = do
      return [ (bsm,ts)
             | xs <- f v
             , let (bs,ts) = partitionEithers xs
-            , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
+            , let bsm     = IntMap.fromListWith BoolSet.union $ map (second BoolSet.singleton) bs
             ]
 
 
@@ -1682,21 +1826,84 @@ transpTel :: Abs Telescope -- Γ ⊢ i.Δ
           -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ
           -> Args          -- Γ ⊢ δ : Δ[0]
           -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[1]
-transpTel delta phi args = do
-  tTransp <- liftTCM primTrans
-  imin <- liftTCM primIMin
-  imax <- liftTCM primIMax
-  ineg <- liftTCM primINeg
+transpTel = transpTel' False
+
+
+transpTel' :: (PureTCM m, MonadError TCErr m) =>
+          Bool -> Abs Telescope -- Γ ⊢ i.Δ
+          -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ
+          -> Args          -- Γ ⊢ δ : Δ[0]
+          -> ExceptT (Closure (Abs Type)) m Args      -- Γ ⊢ Δ[1]
+transpTel' flag delta phi args = transpSysTel' flag delta [] phi args
+
+type LM m a = NamesT (ExceptT (Closure (Abs Type)) m) a
+-- transporting with an extra system/partial element
+-- or composing when some of the system is known to be constant.
+transpSysTel' :: forall m. (PureTCM m, MonadError TCErr m) =>
+          Bool
+          -> Abs Telescope -- Γ ⊢ i.Δ
+          -> [(Term,Abs [Term])] -- [(ψ,i.δ)] with  Γ,ψ ⊢ i.δ : [i : I]. Δ[i]  -- the proof of [ψ] is not in scope.
+          -> Term          -- Γ ⊢ φ : F  -- i.Δ const on φ and all i.δ const on φ ∧ ψ
+          -> Args          -- Γ ⊢ δ : Δ[0]
+          -> ExceptT (Closure (Abs Type)) m Args      -- Γ ⊢ Δ[1]
+transpSysTel' flag delta us phi args = do
+  reportSDoc "cubical.prim.transpTel" 20 $
+      sep [ text "transpSysTel'"
+          , (text "delta  =" <+>) $ nest 2 $ addContext ("i" :: String, __DUMMY_DOM__) $ prettyTCM (unAbs delta)
+--          , (text "us =" <+>) $ nest 2 $ prettyList $ map prettyTCM us
+          , (text "phi    =" <+>) $ nest 2 $ prettyTCM phi
+          , (text "args   =" <+>) $ nest 2 $ prettyList $ map prettyTCM args
+          ]
+  let getTermLocal = getTerm "transpSys"
+  tTransp <- lift primTrans
+  tComp <- getTermLocal builtinComp
+  tPOr <- getTermLocal builtinPOr
+  iz <- lift primIZero
+  imin <- lift primIMin
+  imax <- lift primIMax
+  ineg <- lift primINeg
   let
-    noTranspError t = lift . throwError =<< liftTCM (buildClosure t)
-    bapp :: (Applicative m, Subst a) => m (Abs a) -> m (SubstArg a) -> m a
+    noTranspError t = do
+      reportSDoc "cubical.prim.transpTel" 20 $ nest 2 $ (text "error type =" <+>) $
+        addContext ("i" :: String, __DUMMY_DOM__) $ prettyTCM $ unAbs t
+      lift . throwError =<< buildClosure t
+    bapp :: forall m a. (Applicative m, Subst a) => m (Abs a) -> m (SubstArg a) -> m a
     bapp t u = lazyAbsApp <$> t <*> u
-    gTransp (Just l) t phi a = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
-    gTransp Nothing  t phi a = do
+    doGTransp l t us phi a | null us = pure tTransp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <@> phi <@> a
+                           | otherwise = pure tComp <#> l <@> (Lam defaultArgInfo . fmap unEl <$> t) <#> face <@> uphi <@> a
+      where
+        -- [phi -> a; us]
+        face = foldr (\ x y -> pure imax <@> x <@> y) (pure iz) (phi : map fst us)
+        uphi = lam "i" $ \ i -> ilam "o" $ \ o -> do
+          let sys' = (phi , a) : map (mapSnd (`bapp` i)) us
+              sys = map (mapSnd $ ilam "o" . const) sys'
+          combine (l <@> i) (unEl <$> bapp t i) __IMPOSSIBLE__ sys <..> o
+    combine l ty d [] = d
+    combine l ty d [(psi,u)] = u
+    combine l ty d ((psi,u):xs)
+            = pure tPOr <#> l <@> psi <@> (foldr (\ x y -> pure imax <@> x <@> y) (pure iz) (map fst xs))
+                        <#> (ilam "o" $ \ _ -> ty) -- the type
+                        <@> u <@> (combine l ty d xs)
+
+    gTransp :: Maybe (LM m Term) -> LM m (Abs Type) -> [(LM m Term,LM m (Abs Term))] -> LM m Term -> LM m Term -> LM m Term
+    gTransp (Just l) t u phi a
+     | flag = do
+      t' <- t
+      us' <- mapM snd u
+      case ( 0 `freeIn` (raise 1 t' `lazyAbsApp` var 0)
+           , 0 `freeIn` map (\ u -> raise 1 u `lazyAbsApp` var 0) us'
+           ) of
+        (False,False) -> a
+        (False,True)  -> doGTransp l t u phi a -- TODO? optimize to "hcomp (l <@> io) (bapp t io) ((phi,NoAbs a):u) a" ?
+        (True,_) -> doGTransp l t u phi a
+     | otherwise = doGTransp l t u phi a
+
+    gTransp Nothing t sys phi a = do
+      let (psis,us) = unzip sys
       -- Γ ⊢ i.Ξ
       xi <- (open =<<) $ do
         bind "i" $ \ i -> do
-          TelV xi _ <- (liftTCM . telView =<<) $ t `bapp` i
+          TelV xi _ <- (lift . telView =<<) $ t `bapp` i
           return xi
       argnames <- do
         teleArgNames . unAbs <$> xi
@@ -1707,53 +1914,77 @@ transpTel delta phi args = do
           xi_args <- xi_args
           ni <- pure ineg <@> i
           phi <- phi
-          lift $ piApplyM ti =<< trFillTel xin phi xi_args ni
+          lift $ piApplyM ti =<< trFillTel' flag xin phi xi_args ni
+        usxi <- forM us $ \ u -> bind "i" $ \ i -> do
+          ui <- u `bapp` i
+          xin <- bind "i" $ \ i -> xi `bapp` (pure ineg <@> i)
+          xi_args <- xi_args
+          ni <- pure ineg <@> i
+          phi <- phi
+          lift $ apply ui <$> trFillTel' flag xin phi xi_args ni
         axi <- do
           a <- a
           xif <- bind "i" $ \ i -> xi `bapp` (pure ineg <@> i)
           phi <- phi
           xi_args <- xi_args
-          lift $ apply a <$> transpTel xif phi xi_args
+          lift $ apply a <$> transpTel' flag xif phi xi_args
         s <- reduce $ getSort (absBody b')
+        reportSDoc "cubical.transp" 20 $ pretty (raise 1 b' `lazyAbsApp` var 0)
+        let noTranspSort = if 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) || 0 `freeIn` (map (`lazyAbsApp` var 0) (raise 1 usxi))
+              then noTranspError b'
+              else return axi
+
         case s of
           Type l -> do
             l <- open $ lam_i (Level l)
             b' <- open b'
             axi <- open axi
-            gTransp (Just l) b' phi axi
-          Inf _ n  ->
-            if 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) then noTranspError b' else return axi
-          SSet _  ->
-            if 0 `freeIn` (raise 1 b' `lazyAbsApp` var 0) then noTranspError b' else return axi
+            usxi <- mapM open usxi
+            gTransp (Just l) b' (zip psis usxi) phi axi
+          Inf _ n  -> noTranspSort
+          SSet _  -> noTranspSort
+          SizeUniv -> noTranspSort
+          LockUniv -> noTranspSort
+          IntervalUniv -> noTranspSort
+          Prop{}  -> noTranspSort
           _ -> noTranspError b'
     lam_i = Lam defaultArgInfo . Abs "i"
-    go :: Telescope -> Term -> Args -> ExceptT (Closure (Abs Type)) TCM Args
-    go EmptyTel            _   []       = return []
-    go (ExtendTel t delta) phi (a:args) = do
+    go :: Telescope -> [[(Term,Term)]] -> Term -> Args -> ExceptT (Closure (Abs Type)) m Args
+    go EmptyTel            [] _  []       = return []
+    go (ExtendTel t delta) (u:us) phi (a:args) = do
       -- Γ,i ⊢ t
       -- Γ,i ⊢ (x : t). delta
       -- Γ ⊢ a : t[0]
       s <- reduce $ getSort t
-      -- Γ ⊢ b : t[1], Γ,i ⊢ b : t[i]
+      -- Γ ⊢ b : t[1]    Γ, i ⊢ bf : t[i]
       (b,bf) <- runNamesT [] $ do
         l <- case s of
                SSet _ -> return Nothing
+               IntervalUniv -> return Nothing
+               SizeUniv     -> return Nothing
+               LockUniv     -> return Nothing
                Inf _ n -> return Nothing
                Type l -> Just <$> open (lam_i (Level l))
                _ -> noTranspError (Abs "i" (unDom t))
         t <- open $ Abs "i" (unDom t)
+        u <- forM u $ \ (psi,upsi) -> do
+              (,) <$> open psi <*> open (Abs "i" upsi)
         [phi,a] <- mapM open [phi, unArg a]
-        b <- gTransp l t phi a
+        b <- gTransp l t u phi a
         bf <- bind "i" $ \ i -> do
                             gTransp ((<$> l) $ \ l -> lam "j" $ \ j -> l <@> (pure imin <@> i <@> j))
                                     (bind "j" $ \ j -> t `bapp` (pure imin <@> i <@> j))
+                                    u
                                     (pure imax <@> (pure ineg <@> i) <@> phi)
                                     a
         return (b, absBody bf)
-      (:) (b <$ a) <$> go (lazyAbsApp delta bf) phi args
-    go (ExtendTel t delta) phi []    = __IMPOSSIBLE__
-    go EmptyTel            _   (_:_) = __IMPOSSIBLE__
-  go (absBody delta) phi args
+      (:) (b <$ a) <$> go (lazyAbsApp delta bf) us phi args
+    go EmptyTel            _ _ _ = __IMPOSSIBLE__
+    go (ExtendTel t delta) _ _ _ = __IMPOSSIBLE__
+  let (psis,uss) = unzip us
+      us' | null us = replicate (length args) []
+          | otherwise = map (zip psis) $ List.transpose (map absBody uss)
+  go (absBody delta) us' phi args
 
 -- | Like @transpTel@ but performing a transpFill.
 trFillTel :: Abs Telescope -- Γ ⊢ i.Δ
@@ -1761,10 +1992,350 @@ trFillTel :: Abs Telescope -- Γ ⊢ i.Δ
           -> Args          -- Γ ⊢ δ : Δ[0]
           -> Term          -- Γ ⊢ r : I
           -> ExceptT (Closure (Abs Type)) TCM Args      -- Γ ⊢ Δ[r]
-trFillTel delta phi args r = do
-  imin <- liftTCM primIMin
-  imax <- liftTCM primIMax
-  ineg <- liftTCM primINeg
-  transpTel (Abs "j" $ raise 1 delta `lazyAbsApp` (imin `apply` (map argN [var 0, raise 1 r])))
+trFillTel = trFillTel' False
+
+trFillTel' :: (PureTCM m, MonadError TCErr m) =>
+          Bool
+          -> Abs Telescope -- Γ ⊢ i.Δ
+          -> Term
+          -> Args          -- Γ ⊢ δ : Δ[0]
+          -> Term          -- Γ ⊢ r : I
+          -> ExceptT (Closure (Abs Type)) m Args      -- Γ ⊢ Δ[r]
+trFillTel' flag delta phi args r = do
+  imin <- lift primIMin
+  imax <- lift primIMax
+  ineg <- lift primINeg
+  transpTel' flag (Abs "j" $ raise 1 delta `lazyAbsApp` (imin `apply` (map argN [var 0, raise 1 r])))
             (imax `apply` [argN $ ineg `apply` [argN r], argN phi])
             args
+
+
+
+-- hcompTel' :: Bool -> Telescope -> [(Term,Abs [Term])] -> [Term] -> ExceptT (Closure (Abs Type)) TCM [Term]
+-- hcompTel' b delta sides base = undefined
+
+-- hFillTel' :: Bool -> Telescope -- Γ ⊢ Δ
+--           -> [(Term,Abs [Term])]  -- [(φ,i.δ)] with  Γ,φ ⊢ i.δ : I → Δ
+--           -> [Term]            -- Γ ⊢ δ0 : Δ, matching the [(φ,i.δ)]
+--           -> Term -- Γ ⊢ r : I
+--           -> ExceptT (Closure (Abs Type)) TCM [Term]
+-- hFillTel' b delta sides base = undefined
+
+pathTelescope
+  :: forall m. (PureTCM m, MonadError TCErr m) =>
+  Telescope -- Δ
+  -> [Arg Term] -- lhs : Δ
+  -> [Arg Term] -- rhs : Δ
+  -> m Telescope
+pathTelescope tel lhs rhs = do
+  x <- runExceptT (pathTelescope' tel lhs rhs)
+  case x of
+    Left t -> do
+      enterClosure t $ \ t ->
+                 typeError . GenericDocError =<<
+                    (text "The sort of" <+> pretty t <+> text "should be of the form \"Set l\"")
+    Right tel -> return tel
+
+pathTelescope'
+  :: forall m. (PureTCM m, MonadError (Closure Type) m) =>
+  Telescope -- Δ
+  -> [Arg Term] -- lhs : Δ
+  -> [Arg Term] -- rhs : Δ
+  -> m Telescope
+pathTelescope' tel lhs rhs = do
+  pathp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPathP
+  go pathp (raise 1 tel) lhs rhs
+ where
+  -- Γ,i ⊢ Δ, Γ ⊢ lhs : Δ[0], Γ ⊢ rhs : Δ[1]
+  go :: Term -> Telescope -> [Arg Term] -> [Arg Term] -> m Telescope
+  go pathp (ExtendTel a tel) (u : lhs) (v : rhs) = do
+    let t = unDom a
+    l <- subst 0 __DUMMY_TERM__ <$> getLevel t
+    let a' = El (Type l) (apply pathp $ [argH $ Level l] ++ map argN [Lam defaultArgInfo (Abs "i" $ unEl t), unArg u, unArg v])
+        -- Γ,eq : u ≡ v, i : I ⊢ m = eq i : t[i]
+        -- m  = runNames [] $ do
+        --        [u,v] <- mapM (open . unArg) [u,v]
+        --        bind "eq" $ \ eq -> bind "i" $ \ i ->
+    (ExtendTel (a' <$ a) <$>) . runNamesT [] $ do
+      let nm = (absName tel)
+      tel <- open $ Abs "i" tel
+      [u,v] <- mapM (open . unArg) [u,v]
+      [lhs,rhs] <- mapM open [lhs,rhs]
+      bind nm $ \ eq -> do
+        lhs <- lhs
+        rhs <- rhs
+        tel' <- bind "i" $ \ i ->
+                  lazyAbsApp <$> (lazyAbsApp <$> tel <*> i) <*> (eq <@@> (u, v, i))
+        lift $ go pathp (absBody tel') lhs rhs
+  go _ EmptyTel [] [] = return EmptyTel
+  go _ _ _ _ = __IMPOSSIBLE__
+  getLevel :: Type -> m Level
+  getLevel t = do
+    s <- reduce $ getSort t
+    case s of
+      Type l -> pure l
+      s      -> throwError =<< buildClosure t
+
+combineSys :: HasBuiltins m => NamesT m Term -> NamesT m Term -> [(NamesT m Term, NamesT m Term)] -> NamesT m Term
+combineSys l ty xs = snd <$> combineSys' l ty xs
+
+combineSys' :: HasBuiltins m => NamesT m Term -> NamesT m Term -> [(NamesT m Term, NamesT m Term)] -> NamesT m (Term,Term)
+combineSys' l ty xs = do
+    tPOr <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinPOr
+    tMax <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIMax
+    iz <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIZero
+    tEmpty <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinIsOneEmpty
+
+    let
+      max i j = pure tMax <@> i <@> j
+      pOr l ty phi psi u0 u1 = do
+          pure tPOr <#> l
+                    <@> phi <@> psi
+                    <#> (ilam "o" $ \ _ -> ty) <@> u0 <@> u1
+
+      -- TODO: optimize the foldr away?
+      combine [] = pure tEmpty <#> l <#> (ilam "o" $ \ _ -> ty)
+      combine [(psi,u)] = u
+      combine ((psi,u):xs) = pOr l ty psi (foldr max (pure iz) (map fst xs)) u (combine xs)
+    (,) <$> foldr max (pure iz) (map fst xs) <*> combine xs
+
+
+data TranspError = CannotTransp {errorType :: (Closure (Abs Type)) }
+
+instance Exception TranspError
+instance Show TranspError where
+  show _ = "TranspError"
+
+tryTranspError :: TCM a -> TCM (Either (Closure (Abs Type)) a)
+tryTranspError (TCM m) = TCM $ \ s env -> do
+  mapLeft errorType <$> (try (m s env))
+
+transpPathPTel' ::
+             NamesT TCM (Abs (Abs Telescope)) -- ^ j.i.Δ                 const on φ
+             -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[0,i]  const on φ
+             -> [NamesT TCM Term]          -- ^ y : (i : I) → Δ[1,i]  const on φ
+             -> NamesT TCM Term            -- ^ φ
+             -> [NamesT TCM Term]          -- ^ p : PathP (λ j → Δ[j,0]) (x 0) (y 0)
+             -> NamesT TCM [Arg Term] -- PathP (λ j → Δ[j,0]) (x 1) (y 1) [ φ ↦ q ]
+transpPathPTel' theTel x y phi p = do
+ let neg j = cl primINeg <@> j
+ -- is the open overkill?
+ qs <- (open =<<) $ fmap (fmap (\ (Abs n (Arg i t)) -> Arg i (Lam defaultArgInfo $ Abs n t)) . sequenceA)
+                  $ bind "j" $ \ j -> do
+   theTel <- absApp <$> theTel <*> j
+   faces <- sequence [neg j, j]
+   us <- forM [x,y] $ \ z -> do
+           bind "i" $ \ i -> forM z (<@> i)
+   let sys = zip faces us
+   -- [(neg j, bind "i" $ \ i -> flip map x (<@> i))
+   -- ,(j , bind "i" $ \ i -> flip map y (<@> i))]
+   phi <- phi
+   p0 <- mapM (<@> j) p
+   let toArgs = zipWith (\ a t -> t <$ a) (teleArgNames (unAbs $ theTel))
+   eq <- lift . runExceptT $ transpSysTel' False theTel sys phi (toArgs p0)
+   either (lift . lift . throw . CannotTransp) pure eq
+ qs
+
+transpPathTel' ::
+             NamesT TCM (Abs Telescope) -- ^ i.Δ                 const on φ
+             -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[i]  const on φ
+             -> [NamesT TCM Term]          -- ^ y : (i : I) → Δ[i]  const on φ
+             -> NamesT TCM Term            -- ^ φ
+             -> [NamesT TCM Term]          -- ^ p : Path (Δ[0]) (x 0) (y 0)
+             -> NamesT TCM [Arg Term] -- Path (Δ[1]) (x 1) (y 1) [ φ ↦ q ]
+transpPathTel' theTel x y phi p = do
+ let neg j = cl primINeg <@> j
+ -- is the open overkill?
+ qs <- (open =<<) $ fmap (fmap (\ (Abs n (Arg i t)) -> Arg i (Lam defaultArgInfo $ Abs n t)) . sequenceA)
+                  $ bind "j" $ \ j -> do
+   theTel <- theTel
+   faces <- sequence $ [neg j, j]
+   us <- forM [x,y] $ \ z -> do
+           bind "i" $ \ i -> forM z (<@> i)
+   let sys = zip faces us
+   -- [(neg j, bind "i" $ \ i -> flip map x (<@> i))
+   -- ,(j , bind "i" $ \ i -> flip map y (<@> i))]
+   phi <- phi
+   p0 <- mapM (<@> j) p
+   let toArgs = zipWith (\ a t -> t <$ a) (teleArgNames (unAbs theTel))
+   eq <- lift . runExceptT $ transpSysTel' False theTel sys phi (toArgs p0)
+   either (lift . lift . throw . CannotTransp) pure eq
+ qs
+
+trFillPathTel' ::
+               NamesT TCM (Abs Telescope) -- ^ i.Δ                 const on φ
+             -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[i]  const on φ
+             -> [NamesT TCM Term]          -- ^ y : (i : I) → Δ[i]  const on φ
+             -> NamesT TCM Term            -- ^ φ
+             -> [NamesT TCM Term]          -- ^ p : Path (Δ[0]) (x 0) (y 0)
+             -> NamesT TCM Term            -- ^ r
+             -> NamesT TCM [Arg Term] -- Path (Δ[r]) (x r) (y r) [ φ ↦ q; (r = 0) ↦ q ]
+trFillPathTel' tel x y phi p r = do
+  let max i j = cl primIMin <@> i <@> j
+  let min i j = cl primIMin <@> i <@> j
+  let neg i = cl primINeg <@> i
+  x' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM x (<@> (min r i))
+  y' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM y (<@> (min r i))
+  transpPathTel' (bind "i" $ \ i -> absApp <$> tel <*> min r i)
+                 x'
+                 y'
+                 (max phi (neg r))
+                 p
+
+trFillPathPTel' ::
+               NamesT TCM (Abs (Abs Telescope)) -- ^ j.i.Δ                 const on φ
+             -> [NamesT TCM Term]          -- ^ x : (i : I) → Δ[0,i]  const on φ
+             -> [NamesT TCM Term]          -- ^ y : (i : I) → Δ[1,i]  const on φ
+             -> NamesT TCM Term            -- ^ φ
+             -> [NamesT TCM Term]          -- ^ p : Path (\ j -> Δ[j,0]) (x 0) (y 0)
+             -> NamesT TCM Term            -- ^ r
+             -> NamesT TCM [Arg Term] -- Path (\ j → Δ[j,r]) (x r) (y r) [ φ ↦ q; (r = 0) ↦ q ]
+trFillPathPTel' tel x y phi p r = do
+  let max i j = cl primIMin <@> i <@> j
+  let min i j = cl primIMin <@> i <@> j
+  let neg i = cl primINeg <@> i
+  x' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM x (<@> (min r i))
+  y' <- (mapM open =<<) $ lamTel $ bind "i" $ \ i -> forM y (<@> (min r i))
+  transpPathPTel' (bind "j" $ \ j -> bind "i" $ \ i -> absApp <$> (absApp <$> tel <*> j) <*> min r i)
+                 x'
+                 y'
+                 (max phi (neg r))
+                 p
+
+
+
+-- given Γ ⊢ I type, and Γ ⊢ Δ telescope, build Δ^I such that
+-- Γ ⊢ (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
+expTelescope :: Type -> Telescope -> Telescope
+expTelescope int tel = unflattenTel names ys
+  where
+    stel = size tel
+    xs = flattenTel tel
+    names = teleNames tel
+    t = ExtendTel (defaultDom $ raise stel int) (Abs "i" EmptyTel)
+    s = expS stel
+    ys = map (fmap (abstract t) . applySubst s) xs
+
+
+-- | Γ, Δ^I, i : I |- expS |Δ| : Γ, Δ
+expS :: Nat -> Substitution
+expS stel = prependS __IMPOSSIBLE__
+  [ Just (var n `apply` [Arg defaultArgInfo $ var 0]) | n <- [1..stel] ]
+  (raiseS (stel + 1))
+
+
+-- * Special cases of Type
+-----------------------------------------------------------
+
+-- | A @Type@ with sort @Type l@
+--   Such a type supports both hcomp and transp.
+data LType = LEl Level Term deriving (Eq,Show)
+
+fromLType :: LType -> Type
+fromLType (LEl l t) = El (Type l) t
+
+lTypeLevel :: LType -> Level
+lTypeLevel (LEl l t) = l
+
+toLType :: MonadReduce m => Type -> m (Maybe LType)
+toLType ty = do
+  sort <- reduce $ getSort ty
+  case sort of
+    Type l -> return $ Just $ LEl l (unEl ty)
+    _      -> return $ Nothing
+
+instance Subst LType where
+  type SubstArg LType = Term
+  applySubst rho (LEl l t) = LEl (applySubst rho l) (applySubst rho t)
+
+-- | A @Type@ that either has sort @Type l@ or is a closed definition.
+--   Such a type supports some version of transp.
+--   In particular we want to allow the Interval as a @ClosedType@.
+data CType = ClosedType Sort QName | LType LType deriving (Eq,Show)
+
+instance P.Pretty CType where
+  pretty = P.pretty . fromCType
+
+fromCType :: CType -> Type
+fromCType (ClosedType s q) = El s (Def q [])
+fromCType (LType t) = fromLType t
+
+toCType :: MonadReduce m => Type -> m (Maybe CType)
+toCType ty = do
+  sort <- reduce $ getSort ty
+  case sort of
+    Type l -> return $ Just $ LType (LEl l (unEl ty))
+    SSet{} -> do
+      t <- reduce (unEl ty)
+      case t of
+        Def q [] -> return $ Just $ ClosedType sort q
+        _        -> return $ Nothing
+    _      -> return $ Nothing
+
+instance Subst CType where
+  type SubstArg CType = Term
+  applySubst rho (ClosedType s q) = ClosedType (applySubst rho s) q
+  applySubst rho (LType t) = LType $ applySubst rho t
+
+hcomp :: (HasBuiltins m, MonadError TCErr m, MonadReduce m) =>
+               NamesT m Type
+               -> [(NamesT m Term, NamesT m Term)]
+               -> NamesT m Term
+               -> NamesT m Term
+hcomp ty sys u0 = do
+  iz <- primIZero
+  tHComp <- primHComp
+  let max i j = cl primIMax <@> i <@> j
+  ty <- ty
+  Just (LEl l ty) <- toLType ty
+  l <- open $ Level l
+  ty <- open $ ty
+  face <- (foldr max (pure iz) $ map fst $ sys)
+  sys <- lam "i'" $ \ i -> combineSys l ty [(phi, u <@> i) | (phi,u) <- sys]
+  pure tHComp <#> l <#> ty <#> pure face <@> pure sys <@> u0
+
+transpSys :: (HasBuiltins m, MonadError TCErr m, MonadReduce m) =>
+               NamesT m (Abs Type) -- ty
+               -> [(NamesT m Term, NamesT m Term)] -- sys
+               -> NamesT m Term -- φ
+               -> NamesT m Term
+               -> NamesT m Term
+transpSys ty sys phi u = do
+  let max i j = cl primIMax <@> i <@> j
+  iz <- primIZero
+  tTransp <- primTrans
+  tComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinComp
+  l_ty <- bind "i" $ \ i -> do
+      ty <- absApp <$> ty <*> i
+      Just (LEl l ty) <- toLType ty
+      return (l,ty)
+  l <- open $ Lam defaultArgInfo . fmap (Level . fst) $ l_ty
+  ty <- open $ Lam defaultArgInfo . fmap snd $ l_ty
+
+  if null sys then pure tTransp <#> l <@> ty <@> phi <@> u else do
+
+  let face = max phi (foldr max (pure iz) $ map fst $ sys)
+  sys <- (open =<<) $ lam "i'" $ \ i -> do
+    let base = (phi, ilam "o" $ \ _ -> u)
+    combineSys l ty $ base : [(phi, u <@> i) | (phi,u) <- sys]
+
+  pure tComp <#> l <@> ty <#> face <@> sys <@> u
+
+debugClause :: String -> Clause -> TCM ()
+debugClause s c = do
+      reportSDoc s 20 $
+        "gamma:" <+> prettyTCM gamma
+      reportSDoc s 20 $ addContext gamma $
+        "ps   :" <+> prettyTCM (patternsToElims ps)
+      reportSDoc s 20 $ addContext gamma $
+        "type :" <+> maybe "nothing" prettyTCM rhsTy
+      reportSDoc s 20 $ addContext gamma $
+        "body :" <+> maybe "nothing" prettyTCM rhs
+
+      reportSDoc s 30 $
+        addContext gamma $ "c:" <+> pretty c
+  where
+    gamma = clauseTel c
+    ps = namedClausePats c
+    rhsTy = clauseType c
+    rhs = clauseBody c

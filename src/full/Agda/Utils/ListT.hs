@@ -15,6 +15,7 @@ import Control.Monad
 import Control.Monad.Fail as Fail
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup(..))

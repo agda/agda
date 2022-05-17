@@ -22,26 +22,9 @@ import qualified Agda.Utils.Benchmark as B
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
+import qualified Agda.Utils.ProfileOptions as Profile
 
-benchmarkKey :: String
-benchmarkKey = "profile"
-
-benchmarkLevel :: Int
-benchmarkLevel = 7
-
-benchmarkModulesKey :: String
-benchmarkModulesKey = "profile.modules"
-
-benchmarkModulesLevel :: Int
-benchmarkModulesLevel = 10
-
-benchmarkDefsKey :: String
-benchmarkDefsKey = "profile.definitions"
-
-benchmarkDefsLevel :: Int
-benchmarkDefsLevel = 10
-
--- | When verbosity is set or changes, we need to turn benchmarking on or off.
+-- | When profile options are set or changed, we need to turn benchmarking on or off.
 updateBenchmarkingStatus :: TCM ()
 -- {-# SPECIALIZE updateBenchmarkingStatus :: TCM () #-}
 -- updateBenchmarkingStatus :: (HasOptions m, MonadBench a m) => m ()
@@ -51,20 +34,14 @@ updateBenchmarkingStatus =
 -- | Check whether benchmarking is activated.
 {-# SPECIALIZE benchmarking :: TCM (B.BenchmarkOn Phase) #-}
 benchmarking :: MonadTCM tcm => tcm (B.BenchmarkOn Phase)
-benchmarking = liftTCM $ do
-  -- Ulf, 2016-12-13: Using verbosity levels to control the type of
-  -- benchmarking isn't ideal, but let's stick with it for now.
-  internal <- hasVerbosity benchmarkKey benchmarkLevel
-  defs     <- hasVerbosity benchmarkDefsKey benchmarkDefsLevel
-  modules  <- hasVerbosity benchmarkModulesKey benchmarkModulesLevel
-  return $ case (internal, defs, modules) of
-    (True, _, _) -> B.BenchmarkSome isInternalAccount
-    (_, True, _) -> B.BenchmarkSome isDefAccount
-    (_, _, True) -> B.BenchmarkSome isModuleAccount
-    _            -> B.BenchmarkOff
+benchmarking = liftTCM $
+  ifM (hasProfileOption Profile.Internal)    (pure $ B.BenchmarkSome isInternalAccount) $
+  ifM (hasProfileOption Profile.Definitions) (pure $ B.BenchmarkSome isDefAccount) $
+  ifM (hasProfileOption Profile.Modules)     (pure $ B.BenchmarkSome isModuleAccount) $
+  pure B.BenchmarkOff
 
 -- | Prints the accumulated benchmark results. Does nothing if
--- profiling is not activated at level 2.
+--   no benchmark profiling is enabled.
 print :: MonadTCM tcm => tcm ()
 print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   b <- B.getBenchmark
@@ -76,9 +53,8 @@ print = liftTCM $ whenM (B.isBenchmarkOn [] <$> benchmarking) $ do
   -- Ulf, 2020-03-04: Using benchmarkLevel here means that it only prints if internal benchmarking
   -- is turned on, effectively making module/definition benchmarking impossible (since internal
   -- takes precedence). It needs to be > 1 to avoid triggering #2602 though. Also use
-  -- displayDebugMessage instead of reportSLn to avoid requiring -v profile:2 in addition to the
-  -- specific profile levels.
-  displayDebugMessage benchmarkKey 2 $ prettyShow b
+  -- displayDebugMessage instead of reportSLn to avoid requiring -v profile:2.
+  displayDebugMessage "profile" 2 $ prettyShow b
 
 -- -- | Bill a computation to a specific account.
 -- {-# SPECIALIZE billTo :: Account -> TCM a -> TCM a #-}

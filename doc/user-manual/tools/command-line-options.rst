@@ -53,6 +53,27 @@ General options
 
      Show version number.
 
+.. option:: --print-agda-dir
+
+     .. versionadded:: 2.6.2
+
+     Outputs the root (:envvar:`AGDA_DIR`)
+     of the directory structure holding Agda's data files
+     such as core libraries, style files for the backends etc.
+
+.. option:: --transliterate
+
+     .. versionadded:: 2.6.3
+
+     When writing to stdout or stderr Agda will (hopefully) replace
+     code points that are not supported by the current locale or code
+     page by something else, perhaps question marks.
+
+     This option is not supported when :option:`--interaction` or
+     :option:`--interaction-json` are used, because when those options
+     are used Agda uses UTF-8 when writing to stdout (and when reading
+     from stdin).
+
 Compilation
 ~~~~~~~~~~~
 
@@ -89,6 +110,20 @@ Generating highlighted source code
 .. option:: --dependency-graph={FILE}
 
      Generate a Dot_ file ``FILE`` with a module dependency graph.
+
+.. option:: --dependency-graph-include={LIBRARY}
+
+     Include modules from the given library in the dependency graph.
+     This option can be used multiple times to include modules from
+     several libraries. If this option is not used at all, then all
+     modules are included. (Note that the module given on the command
+     line might not be included.)
+
+     A module ``M`` is considered to be in the library ``L`` if ``L``
+     is the ``name`` of a ``.agda-lib`` file ``A``
+     :ref:`associated<The_agda-lib_files_associated_to_a_give_Agda_file>`
+     to ``M`` (even if ``M``'s file can not be found via the
+     ``include`` paths in ``A``).
 
 .. option:: --html
 
@@ -198,6 +233,34 @@ Printing and debugging
 
      Set verbosity level to ``N``.
 
+.. option:: --profile={PROF}
+
+    Turn on profiling option ``PROF``. Available options are
+
+    .. list-table::
+
+       * - ``internal``
+         - Measure time taken by various parts of the system (type checking, serialization, etc)
+       * - ``modules``
+         - Measure time spent on individual (Agda) modules
+       * - ``definitions``
+         - Measure time spent on individual (Agda) definitions
+       * - ``sharing``
+         - Measure things related to sharing
+       * - ``serialize``
+         - Collect detailed statistics about serialization
+       * - ``constraints``
+         - Collect statistics about constraint solving
+       * - ``metas``
+         - Count number of created metavariables
+       * - ``interactive``
+         - Measure time of interactive commands
+
+    Only one of ``internal``, ``modules``, and ``definitions`` can be turned on
+    at a time. You can also give ``--profile=all`` to turn on all profiling
+    options (choosing ``internal`` over ``modules`` and ``definitions``, use
+    ``--profile=modules --profile=all`` to pick ``modules`` instead).
+
 Copatterns and projections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -226,6 +289,11 @@ Experimental features
 
      Enable cubical features. Turns on :option:`--without-K` (see
      :ref:`cubical`).
+
+.. option:: --erased-cubical
+
+     Enable a :ref:`variant<erased-cubical>` of Cubical Agda, and turn
+     on :option:`--without-K`.
 
 .. option:: --experimental-irrelevance
 
@@ -376,7 +444,7 @@ Other features
 
 .. option:: --auto-inline
 
-     Turn on automatic compile-time inlining.
+     Turn on automatic compile-time inlining. See :ref:`inline-pragma` for more information.
 
 .. option:: --no-auto-inline
 
@@ -407,6 +475,21 @@ Other features
 
      Disable the syntactic equality shortcut in the conversion
      checker.
+
+.. option:: --syntactic-equality={N}
+
+     .. versionadded:: 2.6.3
+
+     Give the syntactic equality shortcut ``N`` units of fuel (``N``
+     must be a natural number).
+
+     If ``N`` is omitted, then the syntactic equality shortcut is
+     enabled without any restrictions.
+
+     If ``N`` is given, then the syntactic equality shortcut is given
+     ``N`` units of fuel. The exact meaning of this is
+     implementation-dependent, but successful uses of the shortcut do
+     not affect the amount of fuel.
 
 .. option:: --safe
 
@@ -448,19 +531,9 @@ Other features
      .. versionadded:: 2.6.1
 
      Enable [disable] cumulative subtyping of universes, i.e. if `A :
-     Set i` then also `A : Set j` for all `j >= i`. Implies
-     `--subtyping`.
+     Set i` then also `A : Set j` for all `j >= i`.
 
      Default: ``--no-cumulativity``
-
-.. option:: --subtyping, --no-subtyping
-
-     .. versionadded:: 2.6.1
-
-     Enable [disable] subtyping rules globally, including subtyping
-     for irrelevance, erasure (`@0`) and flat (`@♭`) modalities.
-
-     Default: ``--no-subtyping``
 
 .. option:: --no-import-sorts
 
@@ -468,6 +541,15 @@ Other features
 
      Disable the implicit statement `open import Agda.Primitive using
      (Set; Prop)` at the start of each top-level Agda module.
+
+.. option:: --save-metas, --no-save-metas
+
+     .. versionadded:: 2.6.3
+
+     Save [or do not save] meta-variables in ``.agdai`` files. The
+     alternative is to expand the meta-variables to their definitions.
+     This option can affect performance. The default is to not save
+     the meta-variables.
 
 .. _warnings:
 
@@ -785,6 +867,7 @@ are infective:
 
 * :option:`--cubical`
 * ``--prop``
+* ``--rewriting``
 
 A *coinfective* option is an option that if used in one module, must
 be used in all modules that this module depends on. The following
@@ -830,6 +913,7 @@ again, the source file is re-typechecked instead:
 * :option:`--inversion-max-depth`
 * :option:`--warning`
 * :option:`--allow-exec`
+* :option:`--save-metas`
 
 
 .. _Vim: https://www.vim.org/

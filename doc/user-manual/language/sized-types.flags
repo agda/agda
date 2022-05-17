@@ -1,1 +1,2 @@
 -i std-lib/src
+--no-double-check

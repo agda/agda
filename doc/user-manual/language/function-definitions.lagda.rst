@@ -1,5 +1,6 @@
 ..
   ::
+  {-# OPTIONS --rewriting --sized-types #-}
   module language.function-definitions where
 
   open import language.built-ins
@@ -58,7 +59,7 @@ By default, Agda checks the following properties of a function definition:
 - No variable should occur more than once on the left-hand side of a single
   clause.
 - The patterns of all clauses should together cover all possible inputs of
-  the function.
+  the function, see :ref:`coverage-checking`.
 - The function should be terminating on all possible inputs, see
   :ref:`termination-checking`.
 

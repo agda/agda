@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --show-implicit #-}
+{-# OPTIONS --cubical-compatible --show-implicit #-}
 -- {-# OPTIONS -v tc.data:100 #-}
 module WithoutK9 where
 

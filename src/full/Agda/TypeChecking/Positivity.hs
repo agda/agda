@@ -1,3 +1,4 @@
+{-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
@@ -6,7 +7,8 @@ import Prelude hiding ( null )
 
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
-import Control.Monad.Reader
+import Control.Monad        ( forM_, guard, liftM2 )
+import Control.Monad.Reader ( MonadReader(..), asks, Reader, runReader )
 
 import Data.Either
 import qualified Data.Foldable as Fold
@@ -27,6 +29,7 @@ import Debug.Trace
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position (HasRange(..), noRange)
 import Agda.TypeChecking.Datatypes ( isDataOrRecordType )
 import Agda.TypeChecking.Functions
@@ -260,13 +263,15 @@ checkStrictlyPositive mi qset = do
 
 getDefArity :: Definition -> TCM Int
 getDefArity def = do
-  let dropped = case theDef def of
-        defn@Function{} -> projectionArgs defn
-        _ -> 0
-  -- TODO: instantiateFull followed by arity could perhaps be
-  -- optimised, presumably the instantiation can be performed
-  -- lazily.
-  subtract dropped . arity <$> instantiateFull (defType def)
+  subtract (projectionArgs def) <$> arity' (defType def)
+  where
+  -- A variant of "\t -> arity <$> instantiateFull t".
+  arity' :: Type -> TCM Int
+  arity' t = do
+    t <- instantiate t
+    case unEl t of
+      Pi _ t -> succ <$> arity' (unAbs t)
+      _      -> return 0
 
 -- Computing occurrences --------------------------------------------------
 
@@ -277,6 +282,10 @@ data Item = AnArg Nat
 instance HasRange Item where
   getRange (AnArg _) = noRange
   getRange (ADef qn)   = getRange qn
+
+instance Pretty Item where
+  prettyPrec p (AnArg i) = P.mparens (p > 9) $ "AnArg" P.<+> P.pretty i
+  prettyPrec p (ADef qn) = P.mparens (p > 9) $ "ADef"  P.<+> P.pretty qn
 
 type Occurrences = Map Item [OccursWhere]
 
@@ -311,9 +320,8 @@ preprocess ob = case pp Nothing ob of
   Nothing -> Concat' []
   Just ob -> ob
   where
-  pp :: Maybe Nat
-        -- ^ Variables larger than or equal to this number, if any,
-        --   are not retained.
+  pp :: Maybe Nat  -- Variables larger than or equal to this number, if any,
+                   -- are not retained.
      -> OccurrencesBuilder
      -> Maybe OccurrencesBuilder'
   pp !m = \case
@@ -401,6 +409,8 @@ instance ComputeOccurrences Clause where
   occurrences cl = do
     let ps    = namedClausePats cl
         items = IntMap.elems $ patItems ps -- sorted from low to high DBI
+    -- TODO #3733: handle hcomp/transp clauses properly
+    if hasDefP ps then return mempty else do
     (Concat (mapMaybe matching (zip [0..] ps)) <>) <$> do
       withExtendedOccEnv' items $
         occurrences $ clauseBody cl
@@ -527,13 +537,14 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             -- in same way as it was obtained when the data types was checked.
             TelV tel t <- putAllowedReductions allReductions $
               telViewPath . defType =<< getConstInfo c
+            let (tel0,tel1) = splitTelescopeAt np tel
             -- Do not collect occurrences in the data parameters.
             -- Normalization needed e.g. for test/succeed/Bush.agda.
             -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
-            tel' <- normalise $ telFromList $ drop np $ telToList tel
+            tel1' <- addContext tel0 $ normalise $ tel1
             let vars = map (Just . AnArg) . downFrom
             -- Occurrences in the types of the constructor arguments.
-            mappend (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel') $ do
+            mappend (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel1') $ do
               -- Occurrences in the indices of the data type the constructor targets.
               -- Andreas, 2020-02-15, issue #4447:
               -- WAS: @t@ is not necessarily a data type, but it could be something
@@ -563,9 +574,9 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
 
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
-      let tel' = telFromList $ drop np $ telToList tel
+      let (tel0,tel1) = splitTelescopeAt np tel
           vars = map (Just . AnArg) $ downFrom np
-      getOccurrences vars =<< normalise tel' -- Andreas, 2017-01-01, issue #1899, treat like data types
+      getOccurrences vars =<< addContext tel0 (normalise tel1) -- Andreas, 2017-01-01, issue #1899, treat like data types
 
     -- Arguments to other kinds of definitions are hard-wired.
     Constructor{}      -> mempty
@@ -630,7 +641,7 @@ buildOccurrenceGraph qs =
           $+$
         nest 2 (vcat $
            map (\(i, n) ->
-                   (text (show i) <> ":") <+> text (show n) <+>
+                   (pretty i <> ":") <+> text (show n) <+>
                    "occurrences") $
            List.sortBy (compare `on` snd) $
            Map.toList (flatten occs))
@@ -687,14 +698,11 @@ computeEdges muts q ob =
   mkEdge
      :: Occurrence
      -> OccurrencesBuilder'
-     -> Node
-        -- ^ The current target node.
-     -> DS.Seq Where
-        -- ^ 'Where' information encountered before the current target
-        -- node was (re)selected.
-     -> DS.Seq Where
-        -- ^ 'Where' information encountered after the current target
-        -- node was (re)selected.
+     -> Node          -- The current target node.
+     -> DS.Seq Where  -- 'Where' information encountered before the current target
+                      -- node was (re)selected.
+     -> DS.Seq Where  -- 'Where' information encountered after the current target
+                      -- node was (re)selected.
      -> TCM ([Graph.Edge Node (Edge OccursWhere)] ->
              [Graph.Edge Node (Edge OccursWhere)])
   mkEdge !pol ob to cs os = case ob of
@@ -728,10 +736,9 @@ computeEdges muts q ob =
                , Graph.label  = Edge pol o
                } :)
 
-  -- | This function might return a new target node.
+  -- This function might return a new target node.
   mkEdge'
-    :: Node
-        -- ^ The current target node.
+    :: Node  -- The current target node.
     -> Occurrence
     -> Where
     -> TCM (Maybe Node, Occurrence)

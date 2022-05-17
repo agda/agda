@@ -6,12 +6,14 @@ import Prelude hiding (null)
 
 import qualified Control.Monad.Fail as Fail
 
-import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad.Writer hiding ((<>))
-import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.Identity
+import Control.Arrow                 ( first, second )
+import Control.Monad.Except          ( ExceptT )
+import Control.Monad.State           ( StateT  )
+import Control.Monad.Reader          ( ReaderT )
+import Control.Monad.Writer          ( WriterT )
+import Control.Monad.Trans.Maybe     ( MaybeT  )
+import Control.Monad.Trans.Identity  ( IdentityT )
+import Control.Monad.Trans           ( MonadTrans, lift )
 
 import Data.Foldable (for_)
 import qualified Data.List as List
@@ -22,13 +24,15 @@ import qualified Data.HashMap.Strict as HMap
 import Data.Maybe
 import Data.Semigroup ((<>))
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren, ScopeCopyInfo(..))
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names
 import Agda.Syntax.Position
-import Agda.Syntax.Treeless (Compiled(..), TTerm)
+import Agda.Syntax.Treeless (Compiled(..), TTerm, ArgUsage)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
@@ -37,6 +41,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
+import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.DropArgs
@@ -49,6 +54,7 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
+import {-# SOURCE #-} Agda.TypeChecking.Reduce
 
 import {-# SOURCE #-} Agda.Compiler.Treeless.Erase
 import {-# SOURCE #-} Agda.Compiler.Builtin
@@ -93,10 +99,20 @@ addConstant q d = do
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old
                       , defInstance = defInstance new `mplus` defInstance old }
 
+-- | A combination of 'addConstant' and 'defaultDefn'. The 'Language'
+-- does not need to be supplied.
+
+addConstant' ::
+  QName -> ArgInfo -> QName -> Type -> Defn -> TCM ()
+addConstant' q info x t def = do
+  lang <- getLanguage
+  addConstant q $ defaultDefn info x t lang def
+
 -- | Set termination info of a defined function symbol.
-setTerminates :: QName -> Bool -> TCM ()
+setTerminates :: MonadTCState m => QName -> Bool -> m ()
 setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ \case
     def@Function{} -> def { funTerminates = Just b }
+    def@Record{}   -> def { recTerminates = Just b }
     def -> def
 
 -- | Set CompiledClauses of a defined function symbol.
@@ -237,62 +253,90 @@ getSection m = do
 lookupSection :: (Functor m, ReadTCState m) => ModuleName -> m Telescope
 lookupSection m = maybe EmptyTel (^. secTelescope) <$> getSection m
 
--- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
+-- | Add display forms for a name @f@ copied by a module application. Essentially if @f@ can reduce to
+--
+-- @
+-- λ xs → A.B.C.f vs
+-- @
+--
+-- by unfolding module application copies (`defCopy`), then we add a display form
+--
+-- @
+-- A.B.C.f vs ==> f xs
+-- @
 addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
-  def  <- getConstInfo x
-  args <- drop (projectionArgs $ theDef def) <$> getContextArgs
-  add args x x $ map Apply $ raise 1 args -- make room for the single match variable of the display form
+  reportSDoc "tc.display.section" 20 $ "Computing display forms for" <+> pretty x
+  def <- getConstInfo x
+  let v = case theDef def of
+             Constructor{conSrcCon = h} -> Con h{ conName = x } ConOSystem []
+             _                          -> Def x []
+
+  -- Compute all unfoldings of x by repeatedly calling reduceDefCopy
+  vs <- unfoldings x v
+  reportSDoc "tc.display.section" 20 $ nest 2 $ vcat
+    [ "unfoldings:" <?> vcat [ "-" <+> pretty v | v <- vs ] ]
+
+  -- Turn unfoldings into display forms
+  npars <- subtract (projectionArgs def) <$> getContextSize
+  let dfs = catMaybes $ map (displayForm npars v) vs
+  reportSDoc "tc.display.section" 20 $ nest 2 $ vcat
+    [ "displayForms:" <?> vcat [ "-" <+> (pretty y <+> "-->" <?> pretty df) | (y, df) <- dfs ] ]
+
+  -- and add them
+  mapM_ (uncurry addDisplayForm) dfs
   where
-    add args top x es0 = do
-      def <- getConstInfo x
-      let cs = defClauses def
-          isCopy = defCopy def
-      case cs of
-        [ cl ] -> do
-          if not isCopy
-            then noDispForm x "not a copy" else do
-          if not $ all (isVar . namedArg) $ namedClausePats cl
-            then noDispForm x "properly matching patterns" else do
-          -- We have
-          --    x ps = e
-          -- and we're trying to generate a display form
-          --    x es0 <-- e[es0/ps]
-          -- Of course x es0 might be an over- or underapplication, hence the
-          -- n/m arithmetic.
-          let n          = size $ namedClausePats cl
-              (es1, es2) = splitAt n es0
-              m          = n - size es1
-              vs1 = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
-              sub = parallelS $ reverse $ vs1 ++ replicate m (var 0)
-              body = applySubst sub (compiledClauseBody cl) `applyE` es2
-          case unSpine <$> body of
-            Just (Def y es) -> do
-              let df = Display m es $ DTerm $ Def top $ map Apply args
-              reportSDoc "tc.display.section" 20 $ vcat
-                [ "adding display form " <+> pretty y <+> " --> " <+> pretty top
-                , text (show df)
-                ]
-              addDisplayForm y df
-              add args top y es
-            Just v          -> noDispForm x $ "not a def body, but " <+> pretty v
-            Nothing         -> noDispForm x $ "bad body"
-        [] | Constructor{ conSrcCon = h } <- theDef def -> do
-              let y  = conName h
-                  df = Display 0 [] $ DTerm $ Con (h {conName = top }) ConOSystem []
-              reportSDoc "tc.display.section" 20 $ vcat
-                [ "adding display form" <+> pretty y <+> "-->" <+> pretty top
-                , text (show df)
-                ]
-              addDisplayForm y df
-        [] -> noDispForm x "no clauses"
-        (_:_:_) -> noDispForm x "many clauses"
 
-    noDispForm x reason = reportSDoc "tc.display.section" 30 $
-      "no display form from" <+> pretty x <+> "because" <+> reason
+    -- To get display forms for projections we need to unSpine here.
+    view :: Term -> ([Arg ArgName], Term)
+    view = second unSpine . lamView
 
-    isVar VarP{} = True
-    isVar _      = False
+    -- Given an unfolding `top = λ xs → y es` generate a display form
+    -- `y es ==> top xs`. The first `npars` variables in `xs` are module parameters
+    -- and should not be pattern variables, but matched literally.
+    displayForm :: Nat -> Term -> Term -> Maybe (QName, DisplayForm)
+    displayForm npars top v =
+      case view v of
+        (xs, Def y es)   -> (y,)         <$> mkDisplay xs es
+        (xs, Con h i es) -> (conName h,) <$> mkDisplay xs es
+        _ -> __IMPOSSIBLE__
+      where
+        mkDisplay xs es = Just (Display (n - npars) es $ DTerm $ top `apply` args)
+          where
+            n    = length xs
+            args = zipWith (\ x i -> var i <$ x) xs (downFrom n)
+
+    -- Unfold a single defCopy.
+    unfoldOnce :: Term -> TCM (Reduced () Term)
+    unfoldOnce v = case view v of
+      (xs, Def f es)   -> (fmap . fmap) (unlamView xs) (reduceDefCopyTCM f es)
+      (xs, Con c i es) -> (fmap . fmap) (unlamView xs) (reduceDefCopyTCM (conName c) es)
+      _                -> pure $ NoReduction ()
+
+    -- Compute all reduceDefCopy unfoldings of `x`. Stop when we hit a non-copy.
+    unfoldings :: QName -> Term -> TCM [Term]
+    unfoldings x v = unfoldOnce v >>= \ case
+      NoReduction{}     -> return []
+      YesReduction _ v' -> do
+        let headSymbol = case snd $ view v' of
+              Def y _   -> Just y
+              Con y _ _ -> Just (conName y)
+              _         -> Nothing
+        case headSymbol of
+          Nothing -> return []
+          Just y | x == y -> do
+            -- This should never happen, but if it does, getting an __IMPOSSIBLE__ is much better
+            -- than looping.
+            reportSDoc "impossible" 10 $ nest 2 $ vcat
+              [ "reduceDefCopy said YesReduction but the head symbol is the same!?"
+              , nest 2 $ "v  =" <+> pretty v
+              , nest 2 $ "v' =" <+> pretty v'
+              ]
+            __IMPOSSIBLE__
+          Just y -> do
+            ifM (defCopy <$> getConstInfo y)
+                ((v' :) <$> unfoldings y v')  -- another copy so keep going
+                (return [v'])                 -- not a copy, we stop
 
 -- | Module application (followed by module parameter abstraction).
 applySection
@@ -321,7 +365,7 @@ applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = d
         rename x
           | x `Map.member` rd = pure mempty
           | otherwise =
-              Map.singleton x . pure . qnameFromList . singleton <$> freshName_ (show $ qnameName x)
+              Map.singleton x . pure . qnameFromList . singleton <$> freshName_ (prettyShow $ qnameName x)
 
         constructorData :: QName -> TCM (Maybe QName)
         constructorData x = do
@@ -399,7 +443,10 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
           -- Issue1238: the copied def should be an 'instance' if the original
           -- def is one. Skip constructors since the original constructor will
           -- still work as an instance.
-          unless isCon $ whenJust inst $ \ c -> addNamedInstance y c
+          -- Issue5583: Don't skip constructures, because the original constructor doesn't always
+          -- work. For instance if it's only available in an anonymous module generated by
+          -- `open import M args`.
+          whenJust inst $ \ c -> addNamedInstance y c
           -- Set display form for the old name if it's not a constructor.
 {- BREAKS fail/Issue478
           -- Andreas, 2012-10-20 and if we are not an anonymous module
@@ -420,7 +467,11 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
             inst = defInstance d
             -- the name is set by the addConstant function
             nd :: QName -> TCM Definition
-            nd y = for def $ \ df -> Defn
+            nd y = do
+              -- The arguments may use some feature of the current
+              -- language.
+              lang <- getLanguage
+              for def $ \ df -> Defn
                     { defArgInfo        = defArgInfo d
                     , defName           = y
                     , defType           = t
@@ -438,6 +489,14 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                     , defInjective      = False
                     , defCopatternLHS   = isCopatternLHS [cl]
                     , defBlocked        = defBlocked d
+                    , defLanguage       =
+                      case defLanguage d of
+                        -- Note that Cubical Agda code can be imported
+                        -- when --erased-cubical is used.
+                        l@(Cubical CFull) -> l
+                        Cubical CErased   -> lang
+                        WithoutK          -> lang
+                        WithK             -> lang
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
@@ -493,19 +552,20 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                   reportSDoc "tc.mod.apply" 80 $ ("new def for" <+> pretty x) <?> pretty newDef
                   return newDef
 
-            cl = Clause { clauseLHSRange  = getRange $ defClauses d
-                        , clauseFullRange = getRange $ defClauses d
-                        , clauseTel       = EmptyTel
-                        , namedClausePats = []
-                        , clauseBody      = Just $ dropArgs pars $ case oldDef of
+            cl = Clause { clauseLHSRange    = getRange $ defClauses d
+                        , clauseFullRange   = getRange $ defClauses d
+                        , clauseTel         = EmptyTel
+                        , namedClausePats   = []
+                        , clauseBody        = Just $ dropArgs pars $ case oldDef of
                             Function{funProjection = Just p} -> projDropParsApply p ProjSystem rel ts'
                             _ -> Def x $ map Apply ts'
-                        , clauseType      = Just $ defaultArg t
-                        , clauseCatchall  = False
+                        , clauseType        = Just $ defaultArg t
+                        , clauseCatchall    = False
                         , clauseExact       = Just True
                         , clauseRecursive   = Just False -- definitely not recursive
                         , clauseUnreachable = Just False -- definitely not unreachable
-                        , clauseEllipsis  = NoEllipsis
+                        , clauseEllipsis    = NoEllipsis
+                        , clauseWhereModule = Nothing
                         }
               where
                 -- The number of remaining parameters. We need to drop the
@@ -581,8 +641,8 @@ getDisplayForms q = do
 chaseDisplayForms :: QName -> TCM (Set QName)
 chaseDisplayForms q = go Set.empty [q]
   where
-    go :: Set QName        -- ^ Accumulator.
-       -> [QName]          -- ^ Work list.  TODO: make work set to avoid duplicate chasing?
+    go :: Set QName        -- Accumulator.
+       -> [QName]          -- Work list.  TODO: make work set to avoid duplicate chasing?
        -> TCM (Set QName)
     go used []       = pure used
     go used (q : qs) = do
@@ -695,6 +755,24 @@ class ( Functor m
 
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 
+-- | The computation 'getConstInfo' sometimes tweaks the returned
+-- 'Definition', depending on the current 'Language' and the
+-- 'Language' of the 'Definition'. This variant of 'getConstInfo' does
+-- not perform any tweaks.
+
+getOriginalConstInfo ::
+  (ReadTCState m, HasConstInfo m) => QName -> m Definition
+getOriginalConstInfo q = do
+  def  <- getConstInfo q
+  lang <- getLanguage
+  case (lang, defLanguage def) of
+    (Cubical CErased, Cubical CFull) ->
+      locallyTCState
+        stPragmaOptions
+        (\opts -> opts { optCubical = Just CFull })
+        (getConstInfo q)
+    _ -> return def
+
 defaultGetRewriteRulesFor :: (ReadTCState m, MonadTCEnv m) => QName -> m RewriteRules
 defaultGetRewriteRulesFor q = ifNotM (shouldReduceDef q) (return []) $ do
   st <- getTCState
@@ -727,7 +805,7 @@ defaultGetConstInfo st env q = do
         idefs = st^.(stImports . sigDefinitions)
     case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> return $ Left $ SigUnknown $ "Unbound name: " ++ prettyShow q ++ showQNameId q
-        [d] -> mkAbs env d
+        [d] -> mkAbs env =<< fixQuantity d
         ds  -> __IMPOSSIBLE_VERBOSE__ $ "Ambiguous name: " ++ prettyShow q
     where
       mkAbs env d
@@ -746,7 +824,19 @@ defaultGetConstInfo st env q = do
             _             -> q
 
           dropLastModule q@QName{ qnameModule = m } =
-            q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
+            q{ qnameModule = mnameFromList $
+                 initWithDefault __IMPOSSIBLE__ $ mnameToList m
+             }
+
+      -- Names defined when --cubical is active are (to a large
+      -- degree) treated as erased when --erased-cubical is used.
+      fixQuantity d = do
+        current <- getLanguage
+        return $
+          if defLanguage d == Cubical CFull &&
+             current == Cubical CErased
+          then setQuantity zeroQuantity d
+          else d
 
 -- HasConstInfo lifts through monad transformers
 -- (see default signatures in HasConstInfo class).
@@ -806,14 +896,14 @@ modifyArgOccurrences d f =
 setTreeless :: QName -> TTerm -> TCM ()
 setTreeless q t =
   modifyGlobalDefinition q $ updateTheDef $ \case
-    fun@Function{} -> fun{ funTreeless = Just $ Compiled t [] }
+    fun@Function{} -> fun{ funTreeless = Just $ Compiled t Nothing }
     _ -> __IMPOSSIBLE__
 
-setCompiledArgUse :: QName -> [Bool] -> TCM ()
+setCompiledArgUse :: QName -> [ArgUsage] -> TCM ()
 setCompiledArgUse q use =
   modifyGlobalDefinition q $ updateTheDef $ \case
     fun@Function{} ->
-      fun{ funTreeless = for (funTreeless fun) $ \ c -> c { cArgUsage = use } }
+      fun{ funTreeless = funTreeless fun <&> \ c -> c { cArgUsage = Just use } }
     _ -> __IMPOSSIBLE__
 
 getCompiled :: HasConstInfo m => QName -> m (Maybe Compiled)
@@ -842,8 +932,8 @@ setErasedConArgs q args = modifyGlobalDefinition q $ updateTheDef $ \case
 getTreeless :: HasConstInfo m => QName -> m (Maybe TTerm)
 getTreeless q = fmap cTreeless <$> getCompiled q
 
-getCompiledArgUse :: HasConstInfo m => QName -> m [Bool]
-getCompiledArgUse q = maybe [] cArgUsage <$> getCompiled q
+getCompiledArgUse :: HasConstInfo m => QName -> m (Maybe [ArgUsage])
+getCompiledArgUse q = (cArgUsage =<<) <$> getCompiled q
 
 -- | add data constructors to a datatype
 addDataCons :: QName -> [QName] -> TCM ()
@@ -907,6 +997,12 @@ freeVarsToApply :: (Functor m, HasConstInfo m, HasOptions m,
                 => QName -> m Args
 freeVarsToApply q = do
   vs <- moduleParamsToApply $ qnameModule q
+  -- Andreas, 2021-07-14, issue #5470
+  -- getConstInfo will fail if q is not in scope,
+  -- but in this case there are no free vars to apply, since
+  -- we cannot be in a child module of its defining module.
+  -- So if we short cut the nil-case here, we avoid the internal error of #5470.
+  if null vs then return [] else do
   t <- defType <$> getConstInfo q
   let TelV tel _ = telView'UpTo (size vs) t
   unless (size tel == size vs) __IMPOSSIBLE__
@@ -1010,7 +1106,7 @@ instantiateDef d = do
     m   <- currentModule
     reportSDoc "tc.sig.inst" 30 $
       "instDef in" <+> pretty m <> ":" <+> pretty (defName d) <+>
-      text (unwords $ map show $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
+      fsep (map pretty $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
   return $ d `apply` vs
 
 instantiateRewriteRule :: (Functor m, HasConstInfo m, HasOptions m,
@@ -1041,7 +1137,7 @@ makeAbstract d =
                , theDef = def
                }
   where
-    makeAbs Axiom         = Just Axiom
+    makeAbs d@Axiom{}            = Just d
     makeAbs d@DataOrRecSig{}     = Just d
     makeAbs d@GeneralizableVar{} = Just d
     makeAbs d@Datatype {} = Just $ AbstractDefn d
@@ -1131,7 +1227,7 @@ droppedPars d = case theDef d of
     Axiom{}                  -> 0
     DataOrRecSig{}           -> 0
     GeneralizableVar{}       -> 0
-    def@Function{}           -> projectionArgs def
+    def@Function{}           -> projectionArgs d
     Datatype  {dataPars = _} -> 0  -- not dropped
     Record     {recPars = _} -> 0  -- not dropped
     Constructor{conPars = n} -> n
@@ -1150,6 +1246,15 @@ isProjection_ def =
     Function { funProjection = result } -> result
     _                                   -> Nothing
 
+-- | Is it the name of a non-irrelevant record projection?
+{-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}
+isRelevantProjection :: HasConstInfo m => QName -> m (Maybe Projection)
+isRelevantProjection qn = isRelevantProjection_ <$> getConstInfo qn
+
+isRelevantProjection_ :: Definition -> Maybe Projection
+isRelevantProjection_ def =
+  if isIrrelevant def then Nothing else isProjection_ $ theDef def
+
 -- | Is it a function marked STATIC?
 isStaticFun :: Defn -> Bool
 isStaticFun = (^. funStatic)
@@ -1166,20 +1271,21 @@ isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
   (projIndex isP > 0) && isJust (projProper isP)
 
 -- | Number of dropped initial arguments of a projection(-like) function.
-projectionArgs :: Defn -> Int
-projectionArgs = maybe 0 (max 0 . pred . projIndex) . isProjection_
+projectionArgs :: Definition -> Int
+projectionArgs = maybe 0 (max 0 . pred . projIndex) . isRelevantProjection_
 
 -- | Check whether a definition uses copatterns.
 usesCopatterns :: (HasConstInfo m) => QName -> m Bool
 usesCopatterns q = defCopatternLHS <$> getConstInfo q
 
 -- | Apply a function @f@ to its first argument, producing the proper
---   postfix projection if @f@ is a projection.
+--   postfix projection if @f@ is a projection which is not irrelevant.
 applyDef :: (HasConstInfo m)
          => ProjOrigin -> QName -> Arg Term -> m Term
 applyDef o f a = do
   let fallback = return $ Def f [Apply a]
-  caseMaybeM (isProjection f) fallback $ \ isP -> do
+  -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.
+  caseMaybeM (isRelevantProjection f) fallback $ \ isP -> do
     if projIndex isP <= 0 then fallback else do
       -- Get the original projection, if existing.
       if isNothing (projProper isP) then fallback else do

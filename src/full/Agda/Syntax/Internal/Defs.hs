@@ -81,6 +81,7 @@ instance GetDefs Sort where
     SSet l    -> getDefs l
     SizeUniv  -> return ()
     LockUniv  -> return ()
+    IntervalUniv -> return ()
     PiSort a s1 s2 -> getDefs a >> getDefs s1 >> getDefs s2
     FunSort s1 s2 -> getDefs s1 >> getDefs s2
     UnivSort s  -> getDefs s
@@ -105,3 +106,11 @@ instance GetDefs a => GetDefs (Abs a)   where
 
 instance (GetDefs a, GetDefs b) => GetDefs (a,b) where
   getDefs (a,b) = getDefs a >> getDefs b
+
+instance GetDefs Telescope where
+  getDefs = getDefs . telToList
+
+-- no defs here
+
+instance {-# OVERLAPPING #-} GetDefs String where
+  getDefs _ = return ()

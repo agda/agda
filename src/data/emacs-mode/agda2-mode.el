@@ -28,7 +28,7 @@
 
 ;;; Code:
 
-(defvar agda2-version "2.6.2"
+(defvar agda2-version "2.6.3"
   "The version of the Agda mode.
 Note that the same version of the Agda executable must be used.")
 
@@ -203,13 +203,12 @@ to this variable to take effect."
                         (modify-syntax-entry keys "w" tbl)))
                     (standard-syntax-table))
     ;; Then override the remaining special cases.
-    (dolist (cs '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
+    (dolist (cs '((?- . "w 12") (?\n . ">")
                   (?. . ".") (?\; . ".") (?! . ".")))
       (modify-syntax-entry (car cs) (cdr cs) tbl))
     tbl)
   "Syntax table used by the Agda mode:
 
-{}  | Comment characters, matching parentheses.
 -   | Comment character, word constituent.
 \n  | Comment ender.
 .;! | Punctuation.
@@ -607,10 +606,10 @@ May be more efficient than restarting Agda."
                       "Cmd_abort"))
 
 (defun agda2-abort-done ()
-  "Removes annotations, resets certain variables.
+  "Resets certain variables.
 Intended to be used by the backend if an abort command was
 successful."
-  (agda2-remove-annotations)
+  (agda2-info-action "*Aborted*" "Aborted." t)
   (setq agda2-highlight-in-progress nil
         agda2-last-responses        nil))
 
@@ -1307,7 +1306,8 @@ top-level scope."
 
 (agda2-maybe-normalised
  agda2-elaborate-give
- "Elaborate check the given expression against the hole's type and fill in hole with the elaborated term"
+ "Elaborate check the given expression against the hole's type and fill in the
+ hole with the elaborated term"
  "Cmd_elaborate_give"
  "expression to elaborate and give")
 
@@ -1325,7 +1325,8 @@ top-level scope."
 
 (agda2-maybe-normalised
  agda2-goal-and-context-and-checked
- "Shows the context, the goal and check the given expression's against the hole's type"
+ "Shows the context, the goal and check the given expression's against
+ the hole's type"
  "Cmd_goal_type_context_check"
  "expression to type")
 

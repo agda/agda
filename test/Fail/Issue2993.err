@@ -1,10 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument
-    _AF_165
-      : {n = n₂ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
-        ⦃ AF = AF₁ : Applicative F₁ ⦄ (f₁ : A → F₁ B₁) {n = n₃ : Nat}
-        (x₁ : A) (v₁ : Vec A n₃) →
-        Applicative (λ v₂ → _F_180 v₂)
+  Resolve instance argument _AF_165 : Applicative (λ v₁ → _F_180 v₁)
   Candidates
     AF : Applicative F
     applicativeComp :
@@ -12,11 +7,7 @@ Failed to solve the following constraints:
       ⦃ _ : Applicative G ⦄ →
       Applicative (F₁ o G)
     (stuck)
-  Resolve instance argument
-    _AF_176
-      : {n = n₁ : Nat} {F = F₁ : Set → Set} {A : Set} {B = B₁ : Set}
-        ⦃ AF = AF₁ : Applicative F₁ ⦄ →
-        Applicative (λ v → _F_177 v)
+  Resolve instance argument _AF_176 : Applicative (λ v → _F_177 v)
   Candidates
     AF : Applicative F
     applicativeComp :

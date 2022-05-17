@@ -1,14 +1,9 @@
-{-# OPTIONS --cubical --safe --no-sized-types --no-guardedness
-            --no-subtyping #-}
+{-# OPTIONS --erased-cubical --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Cubical.Path where
 
-  open import Agda.Primitive.Cubical
+  open import Agda.Primitive.Cubical using (PathP) public
 
-  postulate
-    PathP : ∀ {ℓ} (A : I → Set ℓ) → A i0 → A i1 → Set ℓ
-
-  {-# BUILTIN PATHP        PathP     #-}
 
   infix 4 _≡_
 

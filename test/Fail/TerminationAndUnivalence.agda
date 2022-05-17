@@ -2,7 +2,7 @@
    Issue 1023
 -}
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 module TerminationAndUnivalence where
 

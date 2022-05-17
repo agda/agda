@@ -20,6 +20,8 @@ Since version 2.2.8 Agda supports irrelevancy annotations. The general rule is t
   This section is about compile-time irrelevance. See :ref:`runtime-irrelevance` for the section on
   run-time irrelevance.
 
+The more recent :ref:`prop` serves a similar purpose and can be used to simulate irrelevance.
+
 Motivating example
 ==================
 
@@ -213,6 +215,7 @@ An important example is the irrelevance axiom ``irrAx``: ::
     .irrAx : ∀ {ℓ} {A : Set ℓ} -> .A -> A
 
 This axiom is not provable inside Agda, but it is often very useful when working with irrelevance.
+The irrelevance axiom is a form of non-constructive choice.
 
 Irrelevant record fields
 ========================
@@ -236,12 +239,12 @@ Projections for irrelevant fields are only created if option
   record Squash (A : Set) : Set where
     constructor squash
     field
-      .proof : A
+      .unsquash : A
 
   open Squash
 
-  .unsquash : ∀ {A} → Squash A → A
-  unsquash x = proof x
+  .example : ∀ {A} → Squash A → A
+  example x = unsquash x
 
 **Example 3.** We can define the subset of ``x : A`` satisfying ``P x`` with irrelevant membership certificates. ::
 
@@ -253,6 +256,16 @@ Projections for irrelevant fields are only created if option
 
   .certificate : {A : Set}{P : A -> Set} -> (x : Subset A P) -> P (Subset.elem x)
   certificate (a # p) = irrAx p
+
+**Example 4.** Irrelevant projections are justified by the irrelevance axiom. ::
+
+  .unsquash' : ∀ {A} → Squash A → A
+  unsquash' (squash x) = irrAx x
+
+  .irrAx' : ∀ {A} → .A → A
+  irrAx' x = unsquash (squash x)
+
+Like the irrelevance axiom, irrelevant projections cannot be reduced.
 
 Dependent irrelevant function types
 ===================================
@@ -305,12 +318,3 @@ Contrary to normal instance arguments, irrelevant instance arguments (see :ref:`
 
   find-nonzero : (n : Nat) {{x y : NonZero n}} → Nat
   find-nonzero n = pred′ n
-
-
-Subtyping of irrelevant function spaces
-=======================================
-
-Normally, if ``f : .(x : A) → B`` then we have ``λ x → f x : (x : A) →
-B`` but not ``f : (x : A) → B``.  When the option ``--subtyping`` is
-enabled, Agda will make use of the subtyping rule ``.(x : A) → B <: (x
-: A) → B``, so there is no need for eta-expanding the function ``f``.

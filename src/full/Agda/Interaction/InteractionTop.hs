@@ -13,12 +13,16 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM.TChan
 import Control.Concurrent.STM.TVar
-import qualified Control.Exception as E
-import Control.Monad.Except
-import Control.Monad.Identity
-import Control.Monad.Reader
-import Control.Monad.State hiding (state)
+
+import qualified Control.Exception  as E
+
+import Control.Monad
+import Control.Monad.Except         ( MonadError(..), ExceptT(..), runExceptT )
+import Control.Monad.IO.Class       ( MonadIO(..) )
+import Control.Monad.Fail           ( MonadFail )
+import Control.Monad.State          ( MonadState(..), gets, modify, runStateT )
 import Control.Monad.STM
+import Control.Monad.Trans          ( lift )
 
 import qualified Data.Char as Char
 import Data.Function
@@ -60,7 +64,7 @@ import Agda.Interaction.Response hiding (Function, ExtendedLambda)
 import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.Highlighting.Precise hiding (Error, Postulate, singleton)
-import Agda.Interaction.Imports  ( Mode(..) )
+import Agda.Interaction.Imports  ( Mode, pattern ScopeCheck, pattern TypeCheck )
 import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
 
@@ -76,7 +80,8 @@ import Agda.Utils.Lens
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding (Mode)
+import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import Agda.Utils.String
 import Agda.Utils.Time
@@ -222,7 +227,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
       put s'
       return x
 
-    -- | Handle every possible kind of error (#637), except for
+    -- Handle every possible kind of error (#637), except for
     -- AsyncCancelled, which is used to abort Agda.
     handleNastyErrors :: CommandM () -> CommandM ()
     handleNastyErrors m = commandMToIO $ \ toIO -> do
@@ -241,20 +246,18 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
         Right x -> return x
         Left e  -> E.throwIO e
 
-    -- | Displays an error and instructs Emacs to jump to the site of the
+    -- Displays an error and instructs Emacs to jump to the site of the
     -- error. Because this function may switch the focus to another file
     -- the status information is also updated.
     handleErr method e = do
-        unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
         unsolved <- lift $ computeUnsolvedInfo
         err     <- lift $ errorHighlighting e
         modFile <- lift $ useTC stModuleToSource
         method  <- case method of
           Nothing -> lift $ viewTC eHighlightingMethod
           Just m  -> return m
-        let info = compress $ mconcat $
+        let info = convert $ err <> unsolved
                      -- Errors take precedence over unsolved things.
-                     err : if unsolvedNotOK then [unsolved] else []
 
         -- TODO: make a better predicate for this
         noError <- lift $ null <$> prettyError e
@@ -284,15 +287,16 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd) =
     -- Raises an error if the given file is not the one currently
     -- loaded.
     cf <- gets theCurrentFile
-    when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $
-        lift $ typeError $ GenericError "Error: First load the file."
+    when (not (independent cmd) && Just currentAbs /= (currentFilePath <$> cf)) $ do
+        let mode = TypeCheck
+        cmd_load' current [] True mode $ \_ -> return ()
 
     withCurrentFile $ interpret cmd
 
     cf' <- gets theCurrentFile
     when (updateInteractionPointsAfter cmd
             &&
-          Just currentAbs == (currentFilePath <$> cf')) $
+          Just currentAbs == (currentFilePath <$> cf')) $ do
         putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
 
   where
@@ -364,14 +368,12 @@ maybeAbort m = do
           return (Command Nothing)
   where
 
-  -- | Returns if the currently executing command should be aborted.
+  -- Returns if the currently executing command should be aborted.
   -- The "abort number" is returned.
 
   waitForAbort
-    :: Integer
-       -- ^ The number of the currently executing command.
-    -> CommandQueue
-       -- ^ The command queue.
+    :: Integer       -- The number of the currently executing command.
+    -> CommandQueue  -- The command queue.
     -> IO Integer
   waitForAbort n q = do
     atomically $ do
@@ -380,7 +382,7 @@ maybeAbort m = do
         Just a' | n <= a' -> return a'
         _                 -> retry
 
-  -- | Removes every command for which the command number is at most
+  -- Removes every command for which the command number is at most
   -- the given number (the "abort number") from the command queue.
   --
   -- New commands could be added to the end of the queue while this
@@ -497,7 +499,7 @@ interpret :: Interaction -> CommandM ()
 interpret (Cmd_load m argv) =
   cmd_load' m argv True mode $ \_ -> interpret $ Cmd_metas AsIs
   where
-  mode = Imp.TypeCheck TopLevelInteraction -- do not reset InteractionMode
+  mode = TypeCheck
 
 interpret (Cmd_compile backend file argv) =
   cmd_load' file argv allowUnsolved mode $ \ checkResult -> do
@@ -509,12 +511,12 @@ interpret (Cmd_compile backend file argv) =
           QuickLaTeX               -> callBackend "LaTeX" IsMain checkResult
           OtherBackend "GHCNoMain" -> callBackend "GHC" NotMain checkResult   -- for backwards compatibility
           OtherBackend b           -> callBackend b IsMain checkResult
-        display_info . Info_CompilationOk =<< lift B.getWarningsAndNonFatalErrors
+        display_info . Info_CompilationOk backend =<< lift B.getWarningsAndNonFatalErrors
       w@(_:_) -> display_info $ Info_Error $ Info_CompilationError w
   where
   allowUnsolved = backend `elem` [LaTeX, QuickLaTeX]
-  mode | QuickLaTeX <- backend = Imp.ScopeCheck
-       | otherwise             = Imp.TypeCheck RegularInteraction  -- reset InteractionMode
+  mode | QuickLaTeX <- backend = ScopeCheck
+       | otherwise             = TypeCheck
 
 interpret Cmd_constraints =
     display_info . Info_Constraints =<< lift B.getConstraints
@@ -665,7 +667,7 @@ interpret (Cmd_refine ii rng s) = give_gen WithoutForce ii rng s Refine
 
 interpret (Cmd_intro pmLambda ii rng _) = do
   ss <- lift $ B.introTactic pmLambda ii
-  liftCommandMT (B.withInteractionId ii) $ case ss of
+  liftCommandMT (withInteractionId ii) $ case ss of
     []    -> do
       display_info $ Info_Intro_NotFound
     [s]   -> give_gen WithoutForce ii rng s Intro
@@ -731,27 +733,18 @@ interpret (Cmd_context norm ii _ _) =
 
 interpret (Cmd_helper_function norm ii rng s) = do
   -- Create type of application of new helper function that would solve the goal.
-  helperType <- liftLocalState $ B.withInteractionId ii $ inTopContext $ B.metaHelperType norm ii rng s
+  helperType <- liftLocalState $ withInteractionId ii $ inTopContext $ B.metaHelperType norm ii rng s
   display_info $ Info_GoalSpecific ii (Goal_HelperFunction helperType)
 
 interpret (Cmd_infer norm ii rng s) = do
-  expr <- liftLocalState $ B.withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+  expr <- liftLocalState $ withInteractionId ii $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
   display_info $ Info_GoalSpecific ii (Goal_InferredType expr)
 
 interpret (Cmd_goal_type norm ii _ _) =
   display_info $ Info_GoalSpecific ii (Goal_CurrentGoal norm)
 
-interpret (Cmd_elaborate_give norm ii rng s) = do
-  have <- liftLocalState $ B.withInteractionId ii $ do
-    expr <- B.parseExprIn ii rng s
-    goal <- B.typeOfMeta AsIs ii
-    term <- case goal of
-      OfType _ ty -> checkExpr expr =<< isType_ ty
-      _           -> __IMPOSSIBLE__
-    nf <- B.normalForm norm term
-    txt <- localTC (\ e -> e { envPrintMetasBare = True }) (TCP.prettyTCM nf)
-    return $ show txt
-  give_gen WithoutForce ii rng have ElaborateGive
+interpret (Cmd_elaborate_give norm ii rng s) =
+  give_gen WithoutForce ii rng s $ ElaborateGive norm
 
 interpret (Cmd_goal_type_context norm ii rng s) =
   cmd_goal_type_context_and GoalOnly norm ii rng s
@@ -764,13 +757,13 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
             then return GoalOnly
             else do
               typ <- liftLocalState
-                    $ B.withInteractionId ii
+                    $ withInteractionId ii
                     $ B.typeInMeta ii norm =<< B.parseExprIn ii rng s
               return (GoalAndHave typ)
   cmd_goal_type_context_and aux norm ii rng s
 
 interpret (Cmd_goal_type_context_check norm ii rng s) = do
-  term <- liftLocalState $ B.withInteractionId ii $ do
+  term <- liftLocalState $ withInteractionId ii $ do
     expr <- B.parseExprIn ii rng s
     goal <- B.typeOfMeta AsIs ii
     term <- case goal of
@@ -780,17 +773,17 @@ interpret (Cmd_goal_type_context_check norm ii rng s) = do
   cmd_goal_type_context_and (GoalAndElaboration term) norm ii rng s
 
 interpret (Cmd_show_module_contents norm ii rng s) =
-  liftCommandMT (B.withInteractionId ii) $ showModuleContents norm rng s
+  liftCommandMT (withInteractionId ii) $ showModuleContents norm rng s
 
 interpret (Cmd_why_in_scope_toplevel s) =
   atTopLevel $ whyInScope s
 
 interpret (Cmd_why_in_scope ii _range s) =
-  liftCommandMT (B.withInteractionId ii) $ whyInScope s
+  liftCommandMT (withInteractionId ii) $ whyInScope s
 
 interpret (Cmd_make_case ii rng s) = do
   (f, casectxt, cs) <- lift $ makeCase ii rng s
-  liftCommandMT (B.withInteractionId ii) $ do
+  liftCommandMT (withInteractionId ii) $ do
     tel <- lift $ lookupSection (qnameModule f) -- don't shadow the names in this telescope
     unicode <- getsTC $ optUseUnicode . getPragmaOptions
     pcs      :: [Doc]      <- lift $ inTopContext $ addContext tel $ mapM prettyA cs
@@ -833,7 +826,7 @@ interpret (Cmd_make_case ii rng s) = do
 interpret (Cmd_compute cmode ii rng s) = do
   expr <- liftLocalState $ do
     e <- B.parseExprIn ii rng $ B.computeWrapInput cmode s
-    B.withInteractionId ii $ applyWhen (B.computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent cmode e
+    withInteractionId ii $ applyWhen (B.computeIgnoreAbstract cmode) ignoreAbstractMode $ B.evalInCurrent cmode e
   display_info $ Info_GoalSpecific ii (Goal_NormalForm cmode expr)
 
 interpret Cmd_show_version = display_info Info_Version
@@ -854,7 +847,7 @@ solveInstantiatedGoals norm mii = do
   putResponse $ Resp_SolveAll out
   where
       prt (i, m, e) = do
-        mi <- getMetaInfo <$> lookupMeta m
+        mi <- getMetaInfo <$> lookupLocalMeta m
         e' <- withMetaInfo mi $ abstractToConcreteCtx TopCtx e
         return (i, e')
 
@@ -870,10 +863,7 @@ cmd_load'
   :: FilePath  -- ^ File to load into interaction.
   -> [String]  -- ^ Arguments to Agda for loading this file
   -> Bool      -- ^ Allow unsolved meta-variables?
-  -> Imp.Mode  -- ^ Full type-checking, or only scope-checking?
-               --   Providing 'TypeCheck RegularInteraction' here
-               --   will reset 'InteractionMode' accordingly.
-               --   Otherwise, only if different file from last time.
+  -> Mode      -- ^ Full type-checking, or only scope-checking?
   -> (CheckResult -> CommandM a)
                -- ^ Continuation after successful loading.
   -> CommandM a
@@ -883,15 +873,6 @@ cmd_load' file argv unsolvedOK mode cmd = do
     unless ex $ typeError $ GenericError $
       "The file " ++ file ++ " was not found."
 
-    -- When switching to a new file, or @mode@ indicates such a reset,
-    -- fall back to RegularInteraction.
-    mode <- gets theCurrentFile >>= \case
-      Just CurrentFile{ currentFilePath = fp' }
-        | mode /= TypeCheck RegularInteraction
-        , fp == fp'
-        -> pure mode  -- keep InteractionMode
-      _ -> regularMode mode <$ setInteractionMode RegularInteraction  -- reset
-
     -- Forget the previous "current file" and interaction points.
     modify $ \ st -> st { theInteractionPoints = []
                         , theCurrentFile       = Nothing
@@ -899,8 +880,29 @@ cmd_load' file argv unsolvedOK mode cmd = do
 
     t <- liftIO $ getModificationTime file
 
+    -- Update the status. Because the "current file" is not set the
+    -- status is not "Checked".
+    displayStatus
+
+    -- Reset the state, preserving options and decoded modules. Note
+    -- that if the include directories have changed, then the decoded
+    -- modules are reset by TCM.setCommandLineOptions' below.
+    lift resetState
+
+    -- Clear the info buffer to make room for information about which
+    -- module is currently being type-checked.
+    putResponse Resp_ClearRunningInfo
+
+    -- Remove any prior syntax highlighting.
+    putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
+
     -- Parse the file.
+    --
+    -- Note that options are set below.
     src <- lift $ Imp.parseSource (SourceFile fp)
+
+    -- Store the warnings.
+    warnings <- useTC stTCWarnings
 
     -- All options are reset when a file is reloaded, including the
     -- choice of whether or not to display implicit arguments.
@@ -914,19 +916,9 @@ cmd_load' file argv unsolvedOK mode cmd = do
         let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
             root     = projectRoot fp $ Imp.srcModuleName src
         lift $ TCM.setCommandLineOptions' root $ mapPragmaOptions update opts
-        displayStatus
 
-    -- Reset the state, preserving options and decoded modules. Note
-    -- that if the include directories have changed, then the decoded
-    -- modules are reset when cmd_load' is run by ioTCM.
-    lift resetState
-
-    -- Clear the info buffer to make room for information about which
-    -- module is currently being type-checked.
-    putResponse Resp_ClearRunningInfo
-
-    -- Remove any prior syntax highlighting.
-    putResponse (Resp_ClearHighlighting NotOnlyTokenBased)
+    -- Restore the warnings that were saved above.
+    modifyTCLens stTCWarnings (++ warnings)
 
     ok <- lift $ Imp.typeCheckMain mode src
 
@@ -942,53 +934,19 @@ cmd_load' file argv unsolvedOK mode cmd = do
 
     cmd ok
 
-  where
-  -- Update import mode to RegularInteraction.
-  regularMode = \case
-    TypeCheck _ -> TypeCheck RegularInteraction
-    ScopeCheck  -> ScopeCheck
-
 -- | Set 'envCurrentPath' to 'theCurrentFile', if any.
 withCurrentFile :: CommandM a -> CommandM a
 withCurrentFile m = do
   mfile <- gets $ fmap currentFilePath . theCurrentFile
   localTC (\ e -> e { envCurrentPath = mfile }) m
 
--- | Top-level commands switch to 'TopLevelInteraction' mode if necessary.
 atTopLevel :: CommandM a -> CommandM a
-atTopLevel cmd = do
-  -- Don't switch if --top-level-interaction-no-private.
-  ifM (optTopLevelInteractionNoPrivate <$> pragmaOptions) continue $ {-else-} do
-  gets interactionMode >>= \case
-    TopLevelInteraction -> continue  -- Already in the correct mode.
-    RegularInteraction  -> continue `handleNotInScope` do
-      -- Have to switch mode.
-      setInteractionMode TopLevelInteraction
-      CurrentFile file argv _stamp <- gets $ fromMaybe __IMPOSSIBLE__ . theCurrentFile
-      cmd_load' (filePath file) argv allowUnsolved mode $ \ _ -> continue
-  where
-  continue      = liftCommandMT B.atTopLevel cmd
-  allowUnsolved = True
-  mode          = Imp.TypeCheck TopLevelInteraction
-
-setInteractionMode :: InteractionMode -> CommandM ()
-setInteractionMode mode = modify $ \ st -> st { interactionMode = mode }
-
--- | Handle a 'NotInScope' error, reraise other errors.
-handleNotInScope :: CommandM a -> CommandM a -> CommandM a
-handleNotInScope cmd handler = do
-  cmd `catchError` \case
-    TypeError _ _ (Closure _sig _env _scope _checkpoints (TCM.NotInScope _xs)) -> do
-      reportSLn "interaction.top" 60 $ "Handling `Not in scope` error"
-      handler
-    err -> do
-      reportSLn "interaction.top" 60 $ show err
-      throwError err
+atTopLevel cmd = liftCommandMT B.atTopLevel cmd
 
 ---------------------------------------------------------------------------
 -- Giving, refining.
 
-data GiveRefine = Give | Refine | Intro | ElaborateGive
+data GiveRefine = Give | Refine | Intro | ElaborateGive Rewrite
   deriving (Eq, Show)
 
 -- | A "give"-like action (give, refine, etc).
@@ -1008,25 +966,28 @@ give_gen
   -> CommandM ()
 give_gen force ii rng s0 giveRefine = do
   let s = trim s0
-  lift $ reportSLn "interaction.give" 20 $ "give_gen  " ++ s
+  reportSLn "interaction.give" 20 $ "give_gen  " ++ s
   -- Andreas, 2015-02-26 if string is empty do nothing rather
   -- than giving a parse error.
   unless (null s) $ do
     let give_ref =
           case giveRefine of
-            Give          -> B.give
-            Refine        -> B.refine
-            Intro         -> B.refine
-            ElaborateGive -> B.give
+            Give               -> B.give
+            Refine             -> B.refine
+            Intro              -> B.refine
+            ElaborateGive norm -> B.elaborate_give norm
     -- save scope of the interaction point (for printing the given expr. later)
-    scope     <- lift $ getInteractionScope ii
+    scope     <- getInteractionScope ii
     -- parse string and "give", obtaining an abstract expression
     -- and newly created interaction points
-    (time, (ae, ae0, iis)) <- maybeTimed $ lift $ do
+    (time, (ae, ae0, iis)) <- maybeTimed $ do
+        -- Issue 3000: mark the current hole as solved before giving, to avoid confusing it with potential
+        -- new interaction points introduced by the give.
+        removeInteractionPoint ii
         mis  <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
-        given <- B.parseExprIn ii rng s
-        ae    <- give_ref force ii Nothing given
+        given <- lift $ B.parseExprIn ii rng s
+        ae    <- lift $ give_ref force ii Nothing given
         mis' <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
         return (ae, given, mis' List.\\ mis)
@@ -1034,11 +995,11 @@ give_gen force ii rng s0 giveRefine = do
     insertOldInteractionScope ii scope
     -- sort the new interaction points and put them into the state
     -- in replacement of the old interaction point
-    iis' <- lift $ sortInteractionPoints iis
+    iis' <- sortInteractionPoints iis
     modifyTheInteractionPoints $ replace ii iis'
     -- print abstract expr
-    ce        <- lift $ abstractToConcreteScope scope ae
-    lift $ reportS "interaction.give" 30
+    ce        <- abstractToConcreteScope scope ae
+    reportS "interaction.give" 30
       [ "ce = " ++ show ce
       , "scopePrecedence = " ++ show (scope ^. scopePrecedence)
       ]
@@ -1051,22 +1012,22 @@ give_gen force ii rng s0 giveRefine = do
     -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
     -- Ulf, 2015-03-30, if we're doing intro we can't do literal give since
     -- there is nothing in the hole (issue 1892).
-    let literally = giveRefine /= Intro && giveRefine /= ElaborateGive && ae == ae0 && rng /= noRange
+    let literally = (giveRefine == Give || giveRefine == Refine) && ae == ae0 && rng /= noRange
     -- Ulf, 2014-01-24: This works for give since we're highlighting the string
     -- that's already in the buffer. Doing it before the give action means that
     -- the highlighting is moved together with the text when the hole goes away.
     -- To make it work for refine we'd have to adjust the ranges.
-    when literally $ lift $ do
+    when literally $ do
       l <- asksTC envHighlightingLevel
-      when (l /= None) $ do
+      when (l /= None) $ lift $ do
         printHighlightingInfo KeepHighlighting =<<
           generateTokenInfoFromString rng s
         highlightExpr ae
     putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
-    lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
+    reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
     -- display new goal set (if not measuring time)
     maybe (interpret $ Cmd_metas AsIs) (display_info . Info_Time) time
-    lift $ reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
+    reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
   where
     -- Substitutes xs for x in ys.
     replace x xs ys = concatMap (\ y -> if y == x then xs else [y]) ys
@@ -1078,19 +1039,20 @@ give_gen force ii rng s0 giveRefine = do
 
 highlightExpr :: A.Expr -> TCM ()
 highlightExpr e =
-  localTC (\st -> st { envImportPath         = [dummyModule]
+  localTC (\st -> st { envImportPath         = []
                      , envHighlightingLevel  = NonInteractive
                      , envHighlightingMethod = Direct }) $
     generateAndPrintSyntaxInfo decl Full True
   where
-    dummyModule = C.toTopLevelModuleName (C.QName noName_)
-    dummy = mkName_ (NameId 0 0) ("dummy" :: String)
+    dummy = mkName_ (NameId 0 noModuleNameHash) ("dummy" :: String)
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
     decl  = A.Axiom OtherDefName info defaultArgInfo Nothing (qnameFromList $ singleton dummy) e
 
 -- | Sorts interaction points based on their ranges.
 
-sortInteractionPoints :: [InteractionId] -> TCM [InteractionId]
+sortInteractionPoints
+  :: (MonadInteractionPoints m, MonadError TCErr m, MonadFail m)
+  => [InteractionId] -> m [InteractionId]
 sortInteractionPoints is =
   map fst . List.sortBy (compare `on` snd) <$> do
     forM is $ \ i -> do
@@ -1209,7 +1171,7 @@ parseAndDoAtToplevel cmd s = do
 
 maybeTimed :: CommandM a -> CommandM (Maybe CPUTime, a)
 maybeTimed work = do
-  doTime <- lift $ hasVerbosity "profile.interactive" 10
+  doTime <- lift $ hasProfileOption Profile.Interactive
   if not doTime
     then (Nothing,) <$> work
     else do

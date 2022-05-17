@@ -1,0 +1,8 @@
+Failed to solve the following constraints:
+  x = _q.B.1_20 : A alternatively A pending []
+    (blocked on _q.B.1_20, belongs to problem 25)
+  x = _q.B.1_20 : A (blocked on _q.B.1_20)
+  q = _q_21 : P x alternatively P _q.B.1_20 pending [25]
+    (blocked on any(_q.B.1_20, _q_21, problem 25))
+Unsolved metas at the following locations:
+  Issue5058b.agda:16,8-9

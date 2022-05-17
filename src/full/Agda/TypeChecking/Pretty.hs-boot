@@ -31,20 +31,15 @@ nest                  :: Functor m => Int -> m Doc -> m Doc
 pretty                :: (Applicative m, P.Pretty a) => a -> m Doc
 prettyList_           :: (Applicative m, Semigroup (m Doc), Foldable t) => t (m Doc) -> m Doc
 
--- Inlining definitions of MonadReify and MonadAbsToCon to avoid
--- having to import them
+-- The definition of MonadAbsToCon is inlined so that the module
+-- Agda.Syntax.Translation.AbstractToConcrete does not need to be
+-- imported.
 type MonadPretty m =
-  ( ( PureTCM m
-    , MonadInteractionPoints m
-    , MonadFresh NameId m
-    )
-  , ( MonadTCEnv m
-    , ReadTCState m
-    , MonadStConcreteNames m
-    , HasOptions m
-    , HasBuiltins m
-    , MonadDebug m
-    )
+  ( MonadFresh NameId m
+  , MonadInteractionPoints m
+  , MonadStConcreteNames m
+  , HasOptions m
+  , PureTCM m
   , IsString (m Doc)
   , Null (m Doc)
   , Semigroup (m Doc)
@@ -65,6 +60,7 @@ instance PrettyTCM a => PrettyTCM [a]
 
 instance PrettyTCM Name
 instance PrettyTCM QName
+instance PrettyTCM NamedMeta
 instance PrettyTCM Term
 instance PrettyTCM Elim
 instance PrettyTCM Type

@@ -1,0 +1,4 @@
+Erasure-subtyping-3.agda:2,7-8
+A → B !=< @0 A → B because one is a non-erased function type and
+the other is an erased function type
+when checking that the expression g has type @0 A → B

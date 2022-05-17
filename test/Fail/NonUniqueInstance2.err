@@ -1,6 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument
-    _9 : (m₁ n₁ : Nat) ⦃ _ : suc m₁ < suc n₁ ⦄ → m₁ < n₁
+  Resolve instance argument _9 : m < n
   Candidates
     _ : m < n
     <-suc : {m = m₁ : Nat} {n = n₁ : Nat} ⦃ _ : m₁ < n₁ ⦄ → m₁ < suc n₁

@@ -1,5 +1,7 @@
 -- Andreas, 2011-04-14
 -- {-# OPTIONS -v tc.cover:20 -v tc.lhs.unify:20 #-}
+{-# OPTIONS --guardedness #-}
+
 module Issue291b where
 
 open import Common.Coinduction

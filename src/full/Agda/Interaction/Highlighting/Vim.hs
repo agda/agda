@@ -18,6 +18,7 @@ import Agda.TypeChecking.Monad
 
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Tuple
+import Agda.Utils.Pretty
 
 vimFile :: FilePath -> FilePath
 vimFile file =
@@ -72,9 +73,9 @@ toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds
         defs = [ x | (x, def:_) <- Map.toList ns, isDefName (anameKind def) ]
         flds = [ x | (x, fld:_) <- Map.toList ns, anameKind fld == FldName  ]
 
-        mcons = map show cons
-        mdefs = map show defs
-        mflds = map show flds
+        mcons = map prettyShow cons
+        mdefs = map prettyShow defs
+        mflds = map prettyShow flds
 
         micons = concatMap parts cons
         midefs = concatMap parts defs

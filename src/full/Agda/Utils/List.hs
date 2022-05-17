@@ -9,14 +9,21 @@ import qualified Data.Array as Array
 import Data.Bifunctor
 import Data.Function
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as List1
+import Data.List.NonEmpty (pattern (:|), (<|))
 import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Agda.Utils.Bag as Bag
+import Agda.Utils.CallStack.Base
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<.>))
 import Agda.Utils.Tuple
+
+import {-# SOURCE #-} Agda.Utils.List1 (List1)
+
+import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Variants of list case, cons, head, tail, init, last
@@ -72,6 +79,19 @@ lastMaybe :: [a] -> Maybe a
 lastMaybe [] = Nothing
 lastMaybe xs = Just $ last xs
 
+-- | Last element (safe).  Returns a default list on empty lists.
+--   O(n).
+lastWithDefault :: a -> [a] -> a
+lastWithDefault = last1
+
+-- | Last element of non-empty list (safe).
+--   O(n).
+--   @last1 a as = last (a : as)@
+last1 :: a -> [a] -> a
+last1 a = \case
+  [] -> a
+  b:bs -> last1 b bs
+
 -- | Last two elements (safe).
 --   O(n).
 last2 :: [a] -> Maybe (a, a)
@@ -97,14 +117,36 @@ mcons ma as = maybe as (:as) ma
 --   O(n).
 initLast :: [a] -> Maybe ([a],a)
 initLast []     = Nothing
-initLast (a:as) = Just $ loop a as where
-  loop a []      = ([], a)
-  loop a (b : bs) = mapFst (a:) $ loop b bs
+initLast (a:as) = Just $ initLast1 a as
+
+-- | 'init' and 'last' of non-empty list, safe.
+--   O(n).
+--   @initLast1 a as = (init (a:as), last (a:as)@
+initLast1 :: a -> [a] -> ([a], a)
+initLast1 a = \case
+  []   -> ([], a)
+  b:bs -> first (a:) $ initLast1 b bs
+
+-- | 'init' of non-empty list, safe.
+--   O(n).
+--   @init1 a as = init (a:as)@
+init1 :: a -> [a] -> [a]
+init1 a = \case
+  []   -> []
+  b:bs -> a : init1 b bs
 
 -- | @init@, safe.
 --   O(n).
 initMaybe :: [a] -> Maybe [a]
-initMaybe = fmap fst . initLast
+initMaybe = \case
+  []   -> Nothing
+  a:as -> Just $ init1 a as
+
+-- | @init@, safe.
+--   O(n).
+initWithDefault :: [a] -> [a] -> [a]
+initWithDefault as []     = as
+initWithDefault _  (a:as) = init1 a as
 
 ---------------------------------------------------------------------------
 -- * Lookup and indexing
@@ -116,6 +158,16 @@ initMaybe = fmap fst . initLast
 []       !!! _         = Nothing
 (x : _)  !!! 0         = Just x
 (_ : xs) !!! n         = xs !!! (n - 1)
+
+-- | A variant of 'Prelude.!!' that might provide more informative
+-- error messages if the index is out of bounds.
+--
+-- Precondition: The index should not be out of bounds.
+
+(!!) :: HasCallStack => [a] -> Int -> a
+xs !! i = case xs !!! i of
+  Just x  -> x
+  Nothing -> __IMPOSSIBLE__
 
 -- | Lookup function with default value for index out of range.
 --   O(min n index).
@@ -217,6 +269,32 @@ spanEnd p = snd . foldr f (True, ([], []))
   f :: a -> (Bool, ([a], [a])) -> (Bool, ([a], [a]))
   f x (b', (xs, ys)) = (b, if b then (xs, x:ys) else (x:xs, ys))
     where b = b' && p x
+
+-- | Breaks a list just /after/ an element satisfying the predicate is
+--   found.
+--
+--   >>> breakAfter1 even 1 [3,5,2,4,7,8]
+--   ([1,3,5,2],[4,7,8])
+
+breakAfter1 :: (a -> Bool) -> a -> [a] -> (List1 a, [a])
+breakAfter1 p = loop
+  where
+  loop x = \case
+    xs@[]         -> (x :| [], xs)
+    xs@(y : ys)
+      | p x       -> (x :| [], xs)
+      | otherwise -> let (vs, ws) = loop y ys in (x <| vs, ws)
+
+-- | Breaks a list just /after/ an element satisfying the predicate is
+--   found.
+--
+--   >>> breakAfter even [1,3,5,2,4,7,8]
+--   ([1,3,5,2],[4,7,8])
+
+breakAfter :: (a -> Bool) -> [a] -> ([a], [a])
+breakAfter p = \case
+  []   -> ([], [])
+  x:xs -> first List1.toList $ breakAfter1 p x xs
 
 -- | A generalized version of @takeWhile@.
 --   (Cf. @mapMaybe@ vs. @filter@).
@@ -353,6 +431,23 @@ data StrSufSt a
   | SSSStrip (ReversedSuffix a) -- ^ "Negative string" to remove from end. List may be empty.
   | SSSResult [a]               -- ^ "Positive string" (result). Non-empty list.
 
+-- ** Finding overlap
+
+-- | Find out whether the first string @xs@
+--   has a suffix that is a prefix of the second string @ys@.
+--   So, basically, find the overlap where the strings can be glued together.
+--   Returns the index where the overlap starts and the length of the overlap.
+--   The length of the overlap plus the index is the length of the first string.
+--   Note that in the worst case, the empty overlap @(length xs,0)@ is returned.
+findOverlap :: forall a. Eq a => [a] -> [a] -> (Int, Int)
+findOverlap xs ys =
+  headWithDefault __IMPOSSIBLE__ $ mapMaybe maybePrefix $ zip [0..] (List.tails xs)
+  where
+  maybePrefix :: (Int, [a]) -> Maybe (Int, Int)
+  maybePrefix (k, xs')
+    | xs' `List.isPrefixOf` ys = Just (k, length xs')
+    | otherwise                = Nothing
+
 ---------------------------------------------------------------------------
 -- * Groups and chunks
 ---------------------------------------------------------------------------
@@ -365,6 +460,7 @@ groupOn f = List.groupBy ((==) `on` f) . List.sortBy (compare `on` f)
 -- | A variant of 'List.groupBy' which applies the predicate to consecutive
 -- pairs.
 -- O(n).
+-- DEPRECATED in favor of 'Agda.Utils.List1.groupBy''.
 groupBy' :: (a -> a -> Bool) -> [a] -> [[a]]
 groupBy' _ []           = []
 groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
@@ -403,15 +499,16 @@ chop n xs = ys : chop n zs
 --   O(n).
 --
 --    > intercalate [x] (chopWhen (== x) xs) == xs
-chopWhen :: (a -> Bool) -> [a] -> [[a]]
-chopWhen p [] = []
-chopWhen p xs = loop xs
+chopWhen :: forall a. (a -> Bool) -> [a] -> [[a]]
+chopWhen p []     = []
+chopWhen p (x:xs) = loop (x :| xs)
   where
   -- Local function to avoid unnecessary pattern matching.
-  loop xs = case break p xs of
-    (w, [])     -> [w]
-    (w, [_])    -> [w, []]
-    (w, _ : ys) -> w : loop ys  -- here we already know that ys /= []
+  loop :: List1 a -> [[a]]
+  loop xs = case List1.break p xs of
+    (w, []        ) -> [w]
+    (w, _ : []    ) -> [w, []]
+    (w, _ : y : ys) -> w : loop (y :| ys)
 
 ---------------------------------------------------------------------------
 -- * List as sets
@@ -532,18 +629,13 @@ nubOn f = loop Set.empty
 -- | Efficient variant of 'nubBy' for finite lists.
 -- O(n log n).
 --
--- Specification: For each list @xs@ there is a list @ys@ which is a
--- permutation of @xs@ such that
+-- > uniqOn f == 'List.sortBy' (compare `'on'` f) . 'nubBy' ((==) `'on'` f)
 --
--- > uniqOn f xs == 'nubBy' ((==) `'on'` f) ys.
---
--- Furthermore:
---
--- > List.sortBy (compare `on` f) (uniqOn f xs) == uniqOn f xs
--- > uniqOn id == Set.toAscList . Set.fromList
+-- If there are several elements with the same @f@-representative,
+-- the first of these is kept.
 --
 uniqOn :: Ord b => (a -> b) -> [a] -> [a]
-uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
+uniqOn key = Map.elems . Map.fromListWith (\ _ -> id) . map (\ a -> (key a, a))
 
 -- | Checks if all the elements in the list are equal. Assumes that
 --   the 'Eq' instance stands for an equivalence relation.

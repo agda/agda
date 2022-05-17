@@ -1,4 +1,6 @@
 -- {-# OPTIONS -v tc.polarity:15 #-}
+{-# OPTIONS --sized-types #-}
+
 module Issue166 where
 
 open import Common.Size

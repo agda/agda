@@ -1,6 +1,7 @@
-Issue308a.agda:6,18-18
-Issue308a.agda:6,18: Malformed syntax declaration: syntax must alternate holes (x) and non-holes (d d)
-x<ERROR>
-f : D → D
-f x = d d x
-...
+Issue308a.agda:9,7-12
+Don't know how to parse d d x. Could mean any one of:
+  (d d) x
+  d x
+Operators used in the grammar:
+  d d (prefix notation, level 20) [d (Issue308a.agda:4,3-4)]
+when scope checking d d x

@@ -1,12 +1,12 @@
 name:            Agda
-version:         2.6.2
+version:         2.6.3
 cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
-copyright:       (c) 2005-2020 The Agda Team.
+copyright:       (c) 2005-2021 The Agda Team.
 author:          Ulf Norell and The Agda Team, see https://agda.readthedocs.io/en/latest/team.html
-maintainer:      Ulf Norell <ulfn@chalmers.se>
+maintainer:      The Agda Team
 homepage:        http://wiki.portal.chalmers.se/agda/
 bug-reports:     https://github.com/agda/agda/issues
 category:        Dependent types
@@ -24,7 +24,7 @@ description:
   theory, a foundational system for constructive mathematics developed
   by the Swedish logician Per Martin-L&#xf6;f. It has many
   similarities with other proof assistants based on dependent types,
-  such as Coq, Epigram and NuPRL.
+  such as Coq, Idris, Lean and NuPRL.
   .
   This package includes both a command-line program (agda) and an
   Emacs mode. If you want to use the Emacs mode you can set it up by
@@ -39,10 +39,20 @@ tested-with:        GHC == 8.0.2
                     GHC == 8.4.4
                     GHC == 8.6.5
                     GHC == 8.8.4
-                    GHC == 8.10.3
+                    GHC == 8.10.7
+                    GHC == 9.0.1
+                    GHC == 9.0.2
+                    GHC == 9.2.1
+                    GHC == 9.2.2
 
 extra-source-files: CHANGELOG.md
                     README.md
+                    doc/user-manual/agda.svg
+                    doc/release-notes/2.6.2.2.md
+                    doc/release-notes/2.6.2.1.md
+                    doc/release-notes/2.6.2.md
+                    doc/release-notes/2.6.1.3.md
+                    doc/release-notes/2.6.1.2.md
                     doc/release-notes/2.6.1.1.md
                     doc/release-notes/2.6.1.md
                     doc/release-notes/2.6.0.1.md
@@ -76,20 +86,24 @@ extra-source-files: CHANGELOG.md
                     doc/release-notes/2.2.0.md
 -- Liang-Ting (2019-11-26): See Issues #4216
 --                    doc/user-manual.pdf
-                    stack-8.10.3.yaml
-                    stack-8.8.4.yaml
-                    stack-8.6.5.yaml
-                    stack-8.4.4.yaml
-                    stack-8.2.2.yaml
                     stack-8.0.2.yaml
+                    stack-8.2.2.yaml
+                    stack-8.4.4.yaml
+                    stack-8.6.5.yaml
+                    stack-8.8.4.yaml
+                    stack-8.10.7.yaml
+                    stack-9.0.1.yaml
+                    stack-9.0.2.yaml
+                    stack-9.2.1.yaml
+                    stack-9.2.2.yaml
 
 data-dir:           src/data
-data-files:         Agda.css
-                    agda.sty
-                    emacs-mode/*.el
+data-files:         emacs-mode/*.el
+                    html/Agda.css
+                    html/highlight-hover.js
                     JS/agda-rts.js
-                    JS/biginteger.js
-                    JS/highlight-hover.js
+                    latex/agda.sty
+                    latex/postprocess-latex.pl
                     lib/prim/Agda/Builtin/Bool.agda
                     lib/prim/Agda/Builtin/Char.agda
                     lib/prim/Agda/Builtin/Char/Properties.agda
@@ -128,7 +142,6 @@ data-files:         Agda.css
                     lib/prim/Agda/Primitive/Cubical.agda
                     MAlonzo/src/MAlonzo/*.hs
                     MAlonzo/src/MAlonzo/RTE/*.hs
-                    postprocess-latex.pl
 
 source-repository head
   type:     git
@@ -137,7 +150,7 @@ source-repository head
 source-repository this
   type:     git
   location: https://github.com/agda/agda.git
-  tag:      v2.6.2
+  tag:      v2.6.3
 
 flag cpphs
   default:     False
@@ -156,9 +169,14 @@ flag enable-cluster-counting
     Enable the --count-clusters flag. (If enable-cluster-counting is
     False, then the --count-clusters flag triggers an error message.)
 
+flag optimise-heavily
+  default: False
+  description:
+    Enable some expensive optimisations when compiling Agda.
+
 custom-setup
-  setup-depends:  base >= 4.9.0.0 && < 4.16
-                , Cabal >= 1.24.0.0 && < 3.5
+  setup-depends:  base >= 4.9.0.0 && < 4.17
+                , Cabal >= 1.24.0.0 && < 3.7
                 , directory >= 1.2.6.2 && < 1.4
                 , filepath >= 1.4.1.0 && < 1.5
                 , process >= 1.4.2.0 && < 1.7
@@ -178,10 +196,10 @@ library
 
   if flag(enable-cluster-counting)
     cpp-options:    -DCOUNT_CLUSTERS
-    build-depends:  text-icu == 0.7.*
+    build-depends:  text-icu >= 0.7.1.0
 
   if os(windows)
-    build-depends:  Win32 >= 2.3.1.1 && < 2.7
+    build-depends:  Win32 >= 2.3.1.1 && < 2.13
 
   -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
   -- Agda Issue #3344.
@@ -193,22 +211,22 @@ library
   if os(windows) && impl(ghc == 8.6.3)
     buildable: False
 
-  build-depends:  aeson >= 1.1.2.0 && < 1.6
+  build-depends:  aeson >= 1.1.2.0 && < 2.1
                 , array >= 0.5.1.1 && < 0.6
                 , async >= 2.2 && < 2.3
-                , base >= 4.9.0.0 && < 4.16
-                , bifunctors >= 5.4 && < 6.1
+                , base >= 4.9.0.0 && < 4.17
                 , binary >= 0.8.3.0 && < 0.9
                 , blaze-html >= 0.8 && < 0.10
                 , boxes >= 0.1.3 && < 0.2
-                , bytestring >= 0.10.8.1 && < 0.11
+                , bytestring >= 0.10.8.1 && < 0.12
                 , case-insensitive >= 1.2.0.4 && < 1.3
-                , containers >= 0.5.7.1 && < 0.7
+                -- containers-0.5.11.0 is the first to contain IntSet.intersection
+                , containers >= 0.5.11.0 && < 0.7
                 , data-hash >= 0.2.0.0 && < 0.3
                 , deepseq >= 1.4.2.0 && < 1.5
                 , directory >= 1.2.6.2 && < 1.4
                 , edit-distance >= 0.2.1.2 && < 0.3
-                , equivalence >= 0.3.2 && < 0.4
+                , equivalence >= 0.3.2 && < 0.5
                 -- exceptions-0.8 instead of 0.10 because of stack
                 , exceptions >= 0.8 && < 0.11
                 , filepath >= 1.4.1.0 && < 1.5
@@ -216,55 +234,64 @@ library
                 -- hashable 1.2.0.10 makes library-test 10x
                 -- slower. The issue was fixed in hashable 1.2.1.0.
                 -- https://github.com/tibbe/hashable/issues/57.
-                , hashable >= 1.2.1.0 && < 1.4
+                , hashable >= 1.2.1.0 && < 1.5
                 -- There is a "serious bug"
                 -- (https://hackage.haskell.org/package/hashtables-1.2.0.2/changelog)
                 -- in hashtables 1.2.0.0/1.2.0.1. This bug seems to
                 -- have made Agda much slower (infinitely slower?) in
                 -- some cases.
-                , hashtables >= 1.2.0.2 && < 1.3
+                , hashtables >= 1.2.0.2 && < 1.4
                 , haskeline >= 0.7.2.3 && < 0.9
                 -- monad-control-1.0.1.0 is the first to contain liftThrough
                 , monad-control >= 1.0.1.0 && < 1.1
-                -- mtl-2.1 contains a severe bug.
-                --
                 -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
                 -- Need mtl 2.2.2  for export of Control.Monad.IdentityT (ghc 8.2.2+)
-                , mtl >= 2.2.1 && < 2.3
+                , mtl >= 2.2.1 && < 2.4
                 , murmur-hash >= 0.1 && < 0.2
+                , parallel >= 3.2.2.0 && < 3.3
                 , pretty >= 1.1.3.3 && < 1.2
                 , process >= 1.4.2.0 && < 1.7
                 , regex-tdfa >= 1.3.1.0 && < 1.4
                 , split >= 0.2.0.0 && < 0.2.4
                 , stm >= 2.4.4 && < 2.6
                 , strict >= 0.3.2 && < 0.5
-                , template-haskell >= 2.11.0.0 && < 2.18
-                , time >= 1.6.0.1 && < 1.10
+                , template-haskell >= 2.11.0.0 && < 2.19
+                , text >= 1.2.3.0 && < 2.1
+                , time >= 1.6.0.1 && < 1.13
+                , transformers >= 0.5 && < 0.7
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6
                 , zlib == 0.6.*
 
-  -- In hTags the mtl library must be compiled with the version of
-  -- transformers shipped with GHC, so we use that version in Agda (see,
-  -- for example, Issue #2983).
-  if impl(ghc >= 8.6.4) && impl(ghc < 9.1)
-    build-depends: transformers == 0.5.6.2
+  -- Andreas, 2022-02-02, issue #5659:
+  -- Build failure with transformers-0.6.0.{0,1,2} and GHC 8.6.
+  -- Transformers-0.6.0.3 might restored GHC 8.6 buildability.
+  if impl(ghc == 8.6.*)
+    build-depends: transformers < 0.6 || >= 0.6.0.3
 
-  if impl(ghc >= 8.4) && impl(ghc < 8.6.4)
-    build-depends: transformers == 0.5.5.0
+  -- Andreas, 2021-03-10:
+  -- All packages we depend upon should be mentioned in an unconditional
+  -- build-depends field, but additional restrictions on their
+  -- version for specific GHCs may be placed in conditionals.
+  --
+  -- The goal is to be able to make (e.g. when a new GHC comes out)
+  -- revisions on hackage, e.g. relaxing upper bounds.  This process
+  -- currently does not support revising conditionals.
 
-  if impl(ghc < 8.4)
-    build-depends: transformers == 0.5.2.0
-
-  -- ASR (2018-10-16). Required for supporting GHC 8.4.1, 8.4.2 and
+  -- ASR (2018-10-16).
+  -- text-1.2.3.0 required for supporting GHC 8.4.1, 8.4.2 and
   -- 8.4.3. See Issue #3277.
-  if impl(ghc >= 8.4.1) && impl(ghc <= 8.4.3)
-    build-depends: text >= 1.2.3.0 && < 1.3
-  else
-    build-depends: text >= 1.2.3.1 && < 1.3
+  -- The other GHC versions can be restricted to >= 1.2.3.1.
+  if impl(ghc < 8.4.1) || impl(ghc > 8.4.3)
+    build-depends: text >= 1.2.3.1
 
   if impl(ghc >= 8.4)
     build-depends: ghc-compact == 0.1.*
+
+  -- The module Data.Bifoldable is part of the base package starting
+  -- from GHC 8.1.
+  if impl(ghc < 8.1)
+    build-depends: bifunctors >= 5.4 && < 5.6
 
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tools` field can not be modified in Hackage. Agda doesn't
@@ -297,6 +324,7 @@ library
                     Agda.Compiler.MAlonzo.Pragmas
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
+                    Agda.Compiler.MAlonzo.Strict
                     Agda.Compiler.ToTreeless
                     Agda.Compiler.Treeless.AsPatterns
                     Agda.Compiler.Treeless.Builtin
@@ -429,6 +457,8 @@ library
                     Agda.TypeChecking.Coverage
                     Agda.TypeChecking.Coverage.Match
                     Agda.TypeChecking.Coverage.SplitTree
+                    Agda.TypeChecking.Coverage.SplitClause
+                    Agda.TypeChecking.Coverage.Cubical
                     Agda.TypeChecking.Datatypes
                     Agda.TypeChecking.DeadCode
                     Agda.TypeChecking.DisplayForm
@@ -519,6 +549,8 @@ library
                     Agda.TypeChecking.Rules.LHS.Problem
                     Agda.TypeChecking.Rules.LHS.ProblemRest
                     Agda.TypeChecking.Rules.LHS.Unify
+                    Agda.TypeChecking.Rules.LHS.Unify.Types
+                    Agda.TypeChecking.Rules.LHS.Unify.LeftInverse
                     Agda.TypeChecking.Rules.Record
                     Agda.TypeChecking.Rules.Term
                     Agda.TypeChecking.Serialise
@@ -551,7 +583,9 @@ library
                     Agda.Utils.Bag
                     Agda.Utils.Benchmark
                     Agda.Utils.BiMap
+                    Agda.Utils.BoolSet
                     Agda.Utils.CallStack
+                    Agda.Utils.Char
                     Agda.Utils.Cluster
                     Agda.Utils.Dependent
                     Agda.Utils.Empty
@@ -596,6 +630,8 @@ library
                     Agda.Utils.Pointer
                     Agda.Utils.POMonoid
                     Agda.Utils.Pretty
+                    Agda.Utils.ProfileOptions
+                    Agda.Utils.RangeMap
                     Agda.Utils.SemiRing
                     Agda.Utils.Semigroup
                     Agda.Utils.Singleton
@@ -629,11 +665,13 @@ library
                     Agda.Utils.CallStack.Base
                     Agda.Utils.CallStack.Pretty
 
-  -- NOTE: If adding flags, also add to `.ghci-8.0`
-  if impl(ghc <= 8.0.2)
+  if flag(optimise-heavily)
     ghc-options: -fexpose-all-unfoldings
                  -fspecialise-aggressively
-                 -fprint-potential-instances
+
+  -- NOTE: If adding flags, also add to `.ghci-8.0`
+  if impl(ghc <= 8.0.2)
+    ghc-options: -fprint-potential-instances
                  -- Initially, we disable all the warnings.
                  -w
                  -Werror
@@ -667,9 +705,7 @@ library
                  -Wwarnings-deprecations
                  -Wwrong-do-bind
   else
-    ghc-options: -fexpose-all-unfoldings
-                 -fspecialise-aggressively
-                 -fprint-potential-instances
+    ghc-options: -fprint-potential-instances
                  -Werror=unrecognised-warning-flags
                  -Werror=deprecated-flags
                  -Werror=deriving-typeable
@@ -717,8 +753,36 @@ library
                  -Werror=star-binder
                  -Werror=star-is-type
 
+  -- The following warning is an error in GHC >= 8.10.
+  if impl(ghc >= 8.6) && impl(ghc < 8.10)
+    ghc-options: -Werror=implicit-kind-vars
+
+  -- NOTE: If adding or removing flags, also change `.ghci-8.8`
+  if impl(ghc >= 8.8)
+    ghc-options: -Werror=missed-extra-shared-lib
+
+  -- NOTE: If adding or removing flags, also change `.ghci-8.10`
   if impl(ghc >= 8.10)
-    ghc-options: -Werror=incomplete-patterns
+    ghc-options: -Werror=deriving-defaults
+                 -Werror=redundant-record-wildcards
+                 -Werror=unused-packages
+                 -Werror=unused-record-wildcards
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.0`
+  if impl(ghc >= 9.0)
+    ghc-options: -Werror=invalid-haddock
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.0.2`
+  --
+  -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
+  -- from 9.2.1 and added back in 9.2.2.
+  if impl(ghc == 9.0.2)
+    ghc-options: -Werror=unicode-bidirectional-format-characters
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.2.2`
+  if impl(ghc >= 9.2.2)
+    ghc-options: -Werror=redundant-bang-patterns
+                 -Werror=unicode-bidirectional-format-characters
 
   ghc-prof-options: -fprof-auto
 
@@ -735,6 +799,7 @@ library
                     , DeriveDataTypeable
                     , DeriveFoldable
                     , DeriveFunctor
+                    , DeriveGeneric
                     , DeriveTraversable
                     , ExistentialQuantification
                     , FlexibleContexts
@@ -768,8 +833,8 @@ executable agda
                   -- GHC 8.2.1 RC1).
 
                   -- Nothing is used from the following package,
-                  -- except for the prelude.
-                , base >= 4.9.0.0 && < 6
+                  -- except for the Prelude.
+                , base
   default-language: Haskell2010
   -- If someone installs Agda with the setuid bit set, then the
   -- presence of +RTS may be a security problem (see GHC bug #3910).
@@ -787,7 +852,7 @@ executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:    base >= 4.9.0.0 && < 4.16
+  build-depends:    base >= 4.9.0.0 && < 4.17
                   , directory >= 1.2.6.2 && < 1.4
                   , filepath >= 1.4.1.0 && < 1.5
                   , process >= 1.4.2.0 && < 1.7
@@ -802,7 +867,7 @@ executable agda-mode
 -- This test suite should only be run using the Makefile.
 -- The Makefile sets up the required environment,
 -- executing the tests using cabal directly is almost
--- guarantued to fail. See also Issue 1490.
+-- guaranteed to fail. See also Issue 1490.
 test-suite agda-tests
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test/
@@ -859,6 +924,7 @@ test-suite agda-tests
                     , Internal.Utils.NonEmptyList
                     , Internal.Utils.PartialOrd
                     , Internal.Utils.Permutation
+                    , Internal.Utils.RangeMap
                     , Internal.Utils.SmallSet
                     , Internal.Utils.Three
                     , Internal.Utils.Trie
@@ -869,55 +935,40 @@ test-suite agda-tests
                     , UserManual.Tests
                     , Utils
 
+  -- Andreas, 2021-08-26, see https://github.com/haskell/cabal/issues/7577
+  -- Since 'agda-tests' wants to call 'agda', we have to add it here,
+  -- should we want to run 'cabal test'.
+  build-tool-depends: Agda:agda
+
   build-depends:  Agda
-                , array >= 0.5.1.1 && < 0.6
-                , base >= 4.9.0.0 && < 4.16
-                , bytestring >= 0.10.8.1 && < 0.11
-                -- containers-0.5.11.0 is the first to contain IntSet.intersection
-                , containers >= 0.5.11.0 && < 0.7
-                , directory >= 1.2.6.2 && < 1.4
-                , filepath >= 1.4.1.0 && < 1.5
+                , array
+                , base
+                , bytestring
+                , containers
+                , directory
+                , filepath
                 , filemanip >= 0.3.6.3 && < 0.4
-                , ieee754 >= 0.7.8 && < 0.9
-                -- monad-control-1.0.1.0 is the first to contain liftThrough
-                , monad-control >= 1.0.1.0 && < 1.1
-                , mtl >= 2.2.1 && < 2.3
-                , process >= 1.4.2.0 && < 1.7
+                , mtl
+                , process
                 , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.3 && < 0.5 || >= 0.7.1 && < 0.8
                 , QuickCheck >= 2.14.1 && < 2.15
-                , regex-tdfa >= 1.3.1.0 && < 1.4
-                , tasty >= 1.1.0.4 && < 1.3
-                --, tasty >= 1.2.2 && < 1.3
+                , regex-tdfa
+                , strict >= 0.3.2 && < 0.5
+                , tasty >= 1.1.0.4 && < 1.5
                 , tasty-hunit >= 0.9.2 && < 0.11
                 , tasty-quickcheck >= 0.9.2 && < 0.11
                 -- tasty-silver 3.1.13 has option --ansi-tricks=false
-                , tasty-silver >= 3.1.13 && < 3.2
+                -- NB: tasty-silver 3.2 requires tasty >= 1.4
+                -- tasty-silver < 3.3 does not work interactively under Windows
+                , tasty-silver >= 3.1.13 && < 3.4
                 , temporary >= 1.2.0.3 && < 1.4
+                , text
                 , unix-compat >= 0.4.3.1 && < 0.6
-                , uri-encode >= 1.5.0.4 && < 1.6
+                , uri-encode
 
-  -- ASR (2018-10-16). Required for supporting GHC 8.4.1, 8.4.2 and
-  -- 8.4.3. See Issue #3277.
-  if impl(ghc >= 8.4.1) && impl(ghc <= 8.4.3)
-    build-depends: text >= 1.2.3.0 && < 1.3
-  else
-    build-depends: text >= 1.2.3.1 && < 1.3
-
-  -- Liang-Ting chen (2020-01-06):
-  -- utf8-string 1.0.2 conflicts with ListLike
-  -- see https://github.com/ddssff/listlike/issues/12
-  if impl(ghc <= 8.10.3)
-    build-depends: utf8-string <= 1.0.1.1
-
-  -- Agda cannot be built with GHC 8.6.1 due to a compiler bug, see
-  -- Agda Issue #3344.
-  if impl(ghc == 8.6.1)
-    buildable: False
-
-  -- Agda cannot be built with Windows and GHC 8.6.3 due to a compiler
-  -- bug, see Agda Issue #3657.
-  if os(windows) && impl(ghc == 8.6.3)
-    buildable: False
+  -- Andreas (2021-10-11): tasty-silver < 3.3 does not work interactively under Windows
+  if os(windows)
+    build-depends: tasty-silver >= 3.3
 
   default-language:  Haskell2010
 
@@ -935,6 +986,7 @@ test-suite agda-tests
                      , DeriveDataTypeable
                      , DeriveFoldable
                      , DeriveFunctor
+                     , DeriveGeneric
                      , DeriveTraversable
                      , ExistentialQuantification
                      , FlexibleContexts
@@ -956,11 +1008,13 @@ test-suite agda-tests
                      , TypeFamilies
                      , TypeSynonymInstances
 
-  -- NOTE: If adding or removing flags, also change `.ghci-8.0`
-  if impl(ghc <= 8.0.2)
+  if flag(optimise-heavily)
     ghc-options: -fexpose-all-unfoldings
                  -fspecialise-aggressively
-                 -threaded
+
+  -- NOTE: If adding or removing flags, also change `.ghci-8.0`
+  if impl(ghc <= 8.0.2)
+    ghc-options: -threaded
                  -- Initially, we disable all the warnings.
                  -w
                  -Werror
@@ -994,9 +1048,7 @@ test-suite agda-tests
                  -Wwarnings-deprecations
                  -Wwrong-do-bind
   else
-    ghc-options: -fexpose-all-unfoldings
-                 -fspecialise-aggressively
-                 -threaded
+    ghc-options: -threaded
                  -Werror=unrecognised-warning-flags
                  -Werror=deprecated-flags
                  -Werror=deriving-typeable
@@ -1039,3 +1091,34 @@ test-suite agda-tests
     ghc-options: -Werror=inaccessible-code
                  -Werror=star-binder
                  -Werror=star-is-type
+  -- The following warning is an error in GHC >= 8.10.
+  if impl(ghc >= 8.6) && impl(ghc < 8.10)
+    ghc-options: -Werror=implicit-kind-vars
+
+  -- NOTE: If adding or removing flags, also change `.ghci-8.8`
+  if impl(ghc >= 8.8)
+    ghc-options: -Werror=missed-extra-shared-lib
+
+  -- NOTE: If adding or removing flags, also change `.ghci-8.10`
+  if impl(ghc >= 8.10)
+    ghc-options: -Werror=deriving-defaults
+                 -Werror=redundant-record-wildcards
+                 -Werror=unused-packages
+                 -Werror=unused-record-wildcards
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.0`
+  if impl(ghc >= 9.0)
+    ghc-options: -Werror=compat-unqualified-imports
+                 -Werror=invalid-haddock
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.0.2`
+  --
+  -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
+  -- from 9.2.1 and added back in 9.2.2.
+  if impl(ghc == 9.0.2)
+    ghc-options: -Werror=unicode-bidirectional-format-characters
+
+  -- NOTE: If adding or removing flags, also change `.ghci-9.2.2`
+  if impl(ghc >= 9.2.2)
+    ghc-options: -Werror=redundant-bang-patterns
+                 -Werror=unicode-bidirectional-format-characters

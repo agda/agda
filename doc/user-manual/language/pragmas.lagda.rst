@@ -133,7 +133,8 @@ A definition marked with an ``INLINE`` pragma is inlined during compilation. If 
 definition that does no pattern matching, it is also inlined in function bodies at type-checking
 time.
 
-Definitions are automatically marked ``INLINE`` if they satisfy the following criteria:
+When the ``--auto-inline`` :ref:`command-line option <command-line-options>` is enabled, definitions
+are automatically marked ``INLINE`` if they satisfy the following criteria:
 
 * No pattern matching.
 * Uses each argument at most once.

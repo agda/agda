@@ -53,9 +53,8 @@ macro
     (function (clause tel ps t ∷ [])) ←
       withReconstructed $ getDefinition n
       where _ → quoteTC "ERROR" >>= unify hole
-    let ctx = map snd tel
     t ← withReconstructed
-        $ inContext (reverse ctx)
+        $ inContext (reverse tel)
         $ normalise t
     quoteTC t >>= unify hole
 

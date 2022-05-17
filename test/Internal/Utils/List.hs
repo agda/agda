@@ -12,7 +12,7 @@ import Agda.Utils.List
 
 import Data.Either (partitionEithers)
 import Data.Function
-import Data.List as List
+import Data.List ( (\\), elemIndex, intercalate, isPrefixOf, isSuffixOf, nub, nubBy, sort, sortBy )
 
 import Internal.Helpers
 
@@ -141,28 +141,11 @@ prop_nubOn :: (Integer -> Integer) -> [Integer] -> Bool
 prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs
 
 prop_nubAndDuplicatesOn :: (Integer -> Integer) -> [Integer] -> Bool
-prop_nubAndDuplicatesOn f xs = nubAndDuplicatesOn f xs == (ys, xs List.\\ ys)
+prop_nubAndDuplicatesOn f xs = nubAndDuplicatesOn f xs == (ys, xs \\ ys)
   where ys = nubBy ((==) `on` f) xs
 
 prop_uniqOn1 :: (Integer -> Integer) -> [Integer] -> Bool
-prop_uniqOn1 f xs' =
-  or [ uniqOn f xs == nubBy ((==) `on` f) ys
-     | ys <- permutations xs
-     ]
-  where
-  xs = take 5 xs'
-
-  permutations []       = [[]]
-  permutations (x : xs) =
-    [ ys1 ++ x : ys2
-    | ys <- permutations xs
-    , n  <- [0..length ys]
-    , let (ys1, ys2) = splitAt n ys
-    ]
-
-prop_uniqOn2 :: (Integer -> Integer) -> [Integer] -> Bool
-prop_uniqOn2 f xs =
-  sortBy (compare `on` f) (uniqOn f xs) == uniqOn f xs
+prop_uniqOn1 f xs = uniqOn f xs == sortBy (compare `on` f) (nubBy ((==) `on` f) xs)
 
 prop_commonPrefix :: [Integer] -> [Integer] -> [Integer] -> Bool
 prop_commonPrefix xs ys zs =

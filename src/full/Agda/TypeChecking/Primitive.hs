@@ -33,13 +33,15 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level
 
-import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quotingKit)
+import Agda.TypeChecking.Quote (quoteTermWithKit, quoteTypeWithKit, quoteDomWithKit, quotingKit)
 import Agda.TypeChecking.Primitive.Base
 import Agda.TypeChecking.Primitive.Cubical
 import Agda.TypeChecking.Warnings
 
+import Agda.Utils.Char
 import Agda.Utils.Float
 import Agda.Utils.List
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
@@ -188,6 +190,10 @@ instance ToTerm Bool where
 instance ToTerm Term where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTermWithKit kit)
   toTermR = do quoteTermWithKit <$> quotingKit;
+
+instance ToTerm (Dom Type) where
+  toTerm  = do kit <- quotingKit; runReduceF (quoteDomWithKit kit)
+  toTermR = do quoteDomWithKit <$> quotingKit
 
 instance ToTerm Type where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
@@ -451,6 +457,13 @@ mkPrimInjective a b qn = do
       Con{} -> redReturn $ refl t
       _     -> return $ NoReduction $ map notReduced ts
 
+-- | Converts 'MetaId's to natural numbers.
+
+metaToNat :: MetaId -> Nat
+metaToNat m =
+  fromIntegral (moduleNameHash $ metaModule m) * 2^64 +
+  fromIntegral (metaId m)
+
 primMetaToNatInjective :: TCM PrimitiveImpl
 primMetaToNatInjective = do
   meta  <- primType (undefined :: MetaId)
@@ -546,12 +559,7 @@ primEraseEquality = do
     -- and the conversion checker for eliminations does not
     -- like this.
     -- We can only do untyped equality, e.g., by normalisation.
-    -- Jesper, 2020-04-04: We reduce rather than normalise for
-    -- efficiency reasons. In general this is weaker but it is
-    -- equivalent at base types. A stronger version of
-    -- primEraseEquality (using type-directed conversion) may be
-    -- implemented using --rewriting.
-    (u', v') <- reduce' (u, v)
+    (u', v') <- normalise' (u, v)
     if u' == v' then redReturn $ refl u else
       return $ NoReduction $ map notReduced ts
 
@@ -795,7 +803,7 @@ type Rel  a = a -> a -> Bool
 type Pred a = a -> Bool
 
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
-primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
+primitiveFunctions = localTCStateSavingWarnings <$> Map.fromListWith __IMPOSSIBLE__
   -- Issue #4375          ^^^^^^^^^^^^^^^^^^^^^^^^^^
   --   Without this the next fresh checkpoint id gets changed building the primitive functions. This
   --   is bad for caching since it happens when scope checking import declarations (rebinding
@@ -913,7 +921,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primToLower"            |-> mkPrimFun1 toLower
   , "primCharToNat"          |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
   , "primCharToNatInjective" |-> primCharToNatInjective
-  , "primNatToChar"          |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
+  , "primNatToChar"          |-> mkPrimFun1 (integerToChar . unNat)
   , "primShowChar"           |-> mkPrimFun1 (T.pack . prettyShow . LitChar)
 
   -- String functions
@@ -935,13 +943,13 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
   , "primShowQName"       |-> mkPrimFun1 (T.pack . prettyShow :: QName -> Text)
   , "primQNameFixity"     |-> mkPrimFun1 (nameFixity . qnameName)
-  , "primQNameToWord64s"  |-> mkPrimFun1 ((\ (NameId x y) -> (x, y)) . nameId . qnameName
+  , "primQNameToWord64s"  |-> mkPrimFun1 ((\ (NameId x (ModuleNameHash y)) -> (x, y)) . nameId . qnameName
                                           :: QName -> (Word64, Word64))
   , "primQNameToWord64sInjective" |-> primQNameToWord64sInjective
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   , "primShowMeta"        |-> mkPrimFun1 (T.pack . prettyShow :: MetaId -> Text)
-  , "primMetaToNat"       |-> mkPrimFun1 (fromIntegral . metaId :: MetaId -> Nat)
+  , "primMetaToNat"       |-> mkPrimFun1 metaToNat
   , "primMetaToNatInjective" |-> primMetaToNatInjective
   , "primIMin"            |-> primIMin'
   , "primIMax"            |-> primIMax'
@@ -962,6 +970,7 @@ primitiveFunctions = localTCStateSavingWarnings <$> Map.fromList
   , "primIdPath"          |-> primIdPath'
   , builtinIdElim         |-> primIdElim'
   , builtinSubOut         |-> primSubOut'
+  , builtinConId          |-> primConId'
   , builtin_glueU         |-> prim_glueU'
   , builtin_unglueU       |-> prim_unglueU'
   , builtinLockUniv       |-> primLockUniv'

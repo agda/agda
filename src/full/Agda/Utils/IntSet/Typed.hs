@@ -3,6 +3,8 @@
 -- | A thin, zero-cost wrapper over IntSet with types for elements
 module Agda.Utils.IntSet.Typed where
 
+import Control.DeepSeq
+
 import Data.Data (Data)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -21,7 +23,7 @@ import Data.Semigroup (Semigroup)
 type IsInt a = Coercible a Int
 
 newtype ISet a = ISet { runISet :: IntSet }
-  deriving (Data, Eq, Ord, Semigroup, Monoid, Null)
+  deriving (Data, Eq, Ord, Semigroup, Monoid, Null, NFData)
 
 instance IsInt a => Singleton a (ISet a) where
   singleton = coerce IntSet.singleton

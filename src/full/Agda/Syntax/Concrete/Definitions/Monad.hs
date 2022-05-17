@@ -1,7 +1,8 @@
 module Agda.Syntax.Concrete.Definitions.Monad where
 
-import Control.Monad.Except
-import Control.Monad.State
+import Control.Monad        ( unless )
+import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
+import Control.Monad.State  ( MonadState(..), modify, State, runState )
 
 import Data.Bifunctor (second)
 import Data.Map (Map)
@@ -15,6 +16,8 @@ import Agda.Syntax.Concrete.Definitions.Errors
 
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Lens
+
+import Agda.Utils.Impossible
 
 -- | Nicifier monad.
 --   Preserve the state when throwing an exception.
@@ -85,7 +88,7 @@ initNiceEnv = NiceEnv
   , _catchall = False
   , _covChk   = YesCoverageCheck
   , niceWarn  = []
-  , _nameId   = NameId 1 1   -- The module id is bogus.
+  , _nameId   = NameId 1 noModuleNameHash
   }
 
 lensNameId :: Lens' NameId NiceEnv
@@ -155,7 +158,7 @@ loneFuns = map (second loneSigName) . filter (isFunName . loneSigKind . snd) . M
 -- | Create a 'LoneSigs' map from an association list.
 
 loneSigsFromLoneNames :: [(Range, Name, DataRecOrFun)] -> LoneSigs
-loneSigsFromLoneNames = Map.fromList . map (\(r,x,k) -> (x, LoneSig r x k))
+loneSigsFromLoneNames = Map.fromListWith __IMPOSSIBLE__ . map (\(r,x,k) -> (x, LoneSig r x k))
 
 -- | Lens for field '_termChk'.
 

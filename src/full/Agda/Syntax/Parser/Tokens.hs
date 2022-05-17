@@ -37,11 +37,25 @@ data Keyword
         | KwNO_UNIVERSE_CHECK
     deriving (Eq, Show)
 
+-- | Unconditional layout keywords.
+--
+-- Some keywords introduce layout only in certain circumstances,
+-- these are not included here.
+--
 layoutKeywords :: [Keyword]
 layoutKeywords =
-    [ KwLet, KwWhere, KwDo, KwPostulate, KwMutual, KwAbstract
-    , KwPrivate, KwInstance, KwMacro, KwPrimitive, KwField
-    , KwVariable, KwConstructor
+    [ KwAbstract
+    , KwDo
+    , KwField
+    , KwInstance
+    , KwLet
+    , KwMacro
+    , KwMutual
+    , KwPostulate
+    , KwPrimitive
+    , KwPrivate
+    , KwVariable
+    , KwWhere
     ]
 
 data Symbol
@@ -70,7 +84,8 @@ data Token
           -- Special symbols
         | TokSymbol Symbol Interval
           -- Other tokens
-        | TokString (Interval, String)  -- arbitrary string, used in pragmas
+        | TokString (Interval, String)
+            -- ^ Arbitrary string (not enclosed in double quotes), used in pragmas.
         | TokTeX (Interval, String)
         | TokMarkup (Interval, String)
         | TokComment (Interval, String)

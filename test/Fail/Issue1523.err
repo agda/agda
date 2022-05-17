@@ -1,4 +1,4 @@
-Issue1523.agda:28,26-30,23
+Issue1523.agda:30,26-32,23
 Possibly empty type of sizes  (Size< i)
 when checking that the expression
 λ (j : Size< i) (n : Nat j) →

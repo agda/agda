@@ -1,11 +1,13 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..)) where
 
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State.Strict (gets, modify)
-
+import Control.Monad              ( (<=<) )
+import Control.Monad.IO.Class     ( MonadIO(..) )
+import Control.Monad.Except       ( MonadError(..) )
+import Control.Monad.Reader       ( MonadReader(..), asks )
+import Control.Monad.State.Strict ( gets, modify )
 
 import Data.Array.IArray
 import Data.Word
@@ -24,6 +26,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Strict.Tuple (Pair(..))
 import qualified Data.Text      as T
 import qualified Data.Text.Lazy as TL
 import Data.Typeable
@@ -44,9 +47,10 @@ import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
-import Agda.Utils.Empty (Empty)
 import qualified Agda.Utils.Empty as Empty
 import Agda.Utils.FileName
+import Agda.Utils.List2 (List2(List2))
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Trie (Trie(..))
@@ -114,6 +118,11 @@ instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
 
   value = valueN (,)
 
+instance (EmbPrj a, EmbPrj b) => EmbPrj (Pair a b) where
+  icod_ (a :!: b) = icodeN' (:!:) a b
+
+  value = valueN (:!:)
+
 instance (EmbPrj a, EmbPrj b, EmbPrj c) => EmbPrj (a, b, c) where
   icod_ (a, b, c) = icodeN' (,,) a b c
 
@@ -164,6 +173,26 @@ instance EmbPrj FileType where
     [2] -> valuN TexFileType
     [3] -> valuN OrgFileType
     _   -> malformed
+
+instance EmbPrj Cubical where
+  icod_ CErased = icodeN'  CErased
+  icod_ CFull   = icodeN 0 CFull
+
+  value = vcase $ \case
+    []  -> valuN CErased
+    [0] -> valuN CFull
+    _   -> malformed
+
+instance EmbPrj Language where
+  icod_ WithoutK    = icodeN'  WithoutK
+  icod_ WithK       = icodeN 0 WithK
+  icod_ (Cubical a) = icodeN 1 Cubical a
+
+  value = vcase $ \case
+    []     -> valuN WithoutK
+    [0]    -> valuN WithK
+    [1, a] -> valuN Cubical a
+    _      -> malformed
 
 instance EmbPrj AbsolutePath where
   icod_ file = do
@@ -228,21 +257,26 @@ instance EmbPrj a => EmbPrj (NonEmpty a) where
   icod_ = icod_ . NonEmpty.toList
   value = maybe malformed return . nonEmpty <=< value
 
-instance (Ord a, Ord b, EmbPrj a, EmbPrj b) => EmbPrj (BiMap a b) where
-  icod_ m = icode (BiMap.toList m)
-  value m = BiMap.fromList <$> value m
+instance EmbPrj a => EmbPrj (List2 a) where
+  icod_ = icod_ . List2.toList
+  value = maybe malformed return . List2.fromListMaybe <=< value
+
+instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
+         EmbPrj (BiMap k v) where
+  icod_ m = icode (BiMap.toDistinctAscendingLists m)
+  value m = BiMap.fromDistinctAscendingLists <$> value m
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
-  icod_ m = icode (Map.toList m)
-  value m = Map.fromList `fmap` value m
+  icod_ m = icode (Map.toAscList m)
+  value m = Map.fromDistinctAscList <$> value m
 
 instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
-  icod_ s = icode (Set.toList s)
-  value s = Set.fromList `fmap` value s
+  icod_ s = icode (Set.toAscList s)
+  value s = Set.fromDistinctAscList <$> value s
 
 instance EmbPrj IntSet where
-  icod_ s = icode (IntSet.toList s)
-  value s = IntSet.fromList <$> value s
+  icod_ s = icode (IntSet.toAscList s)
+  value s = IntSet.fromDistinctAscList <$> value s
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Trie a b) where
   icod_ (Trie a b)= icodeN' Trie a b
@@ -352,22 +386,28 @@ instance EmbPrj Fixity' where
 
   value = valueN (\ f n -> Fixity' f n noRange)
 
-instance EmbPrj GenPart where
-  icod_ (BindHole a b)   = icodeN 0 BindHole a b
-  icod_ (NormalHole a b) = icodeN 1 NormalHole a b
-  icod_ (WildHole a)     = icodeN 2 WildHole a
-  icod_ (IdPart a)       = icodeN' IdPart a
+instance EmbPrj BoundVariablePosition where
+  icod_ (BoundVariablePosition a b) = icodeN' BoundVariablePosition a b
+
+  value = valueN BoundVariablePosition
+
+instance EmbPrj NotationPart where
+  icod_ (VarPart a b)  = icodeN 0 VarPart a b
+  icod_ (HolePart a b) = icodeN 1 HolePart a b
+  icod_ (WildPart a)   = icodeN 2 WildPart a
+  icod_ (IdPart a)     = icodeN' IdPart a
 
   value = vcase valu where
-    valu [0, a, b] = valuN BindHole a b
-    valu [1, a, b] = valuN NormalHole a b
-    valu [2, a]    = valuN WildHole a
+    valu [0, a, b] = valuN VarPart a b
+    valu [1, a, b] = valuN HolePart a b
+    valu [2, a]    = valuN WildPart a
     valu [a]       = valuN IdPart a
     valu _         = malformed
 
 instance EmbPrj MetaId where
-  icod_ (MetaId n) = icod_ n
-  value i = MetaId <$> value i
+  icod_ (MetaId a b) = icode (a, b)
+
+  value m = uncurry MetaId <$> value m
 
 instance EmbPrj A.QName where
   icod_ n@(A.QName a b) = icodeMemo qnameD qnameC (qnameId n) $ icodeN' A.QName a b
@@ -407,6 +447,11 @@ instance EmbPrj ArgInfo where
   icod_ (ArgInfo h r o fv ann) = icodeN' ArgInfo h r o fv ann
 
   value = valueN ArgInfo
+
+instance EmbPrj ModuleNameHash where
+  icod_ (ModuleNameHash a) = icodeN' ModuleNameHash a
+
+  value = valueN ModuleNameHash
 
 instance EmbPrj NameId where
   icod_ (NameId a b) = icodeN' NameId a b
@@ -667,11 +712,6 @@ instance EmbPrj Impossible where
     valu [2, a, b] = valuN ImpMissingDefinitions a b
     valu [3, a]    = valuN Unimplemented a
     valu _         = malformed
-
-instance EmbPrj Empty where
-  icod_ a = icod_ =<< lift (Empty.toImpossible a)
-
-  value = fmap throwImpossible . value
 
 instance EmbPrj ExpandedEllipsis where
   icod_ NoEllipsis = icodeN' NoEllipsis

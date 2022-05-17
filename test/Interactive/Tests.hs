@@ -19,14 +19,13 @@ testDir = "test" </> "Interactive"
 
 tests :: TestTree
 tests = testGroup "Interactive"
-  [ testCase "Naked" $ do
-    runAgda [testDir </> "Naked.agda"] "Naked"
-  , testCase "Issue1430" $ do
+  [ testCase "Issue1430" $ do
     runAgda ["--no-libraries", testDir </> "Issue1430.agda"] "Issue1430"
-  , testCase "Load" $ do
-    runAgda ["--no-libraries"] "Load"
+  , bareTest "Naked"
+  , bareTest "Load"
   ]
   where
+    bareTest name = testCase name $ runAgda ["--no-libraries"] name
     agdaArgs = [ "-I", "-i.", "-i..", "-itest/Interactive", "--ignore-interfaces" ]
     runAgda :: [String] -> FilePath -> IO ()
     runAgda extraArgs testName = do

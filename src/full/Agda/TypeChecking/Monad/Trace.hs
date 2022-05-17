@@ -163,7 +163,7 @@ instance MonadTrace TCM where
     callRange = getRange call
     callHasRange = not $ null callRange
 
-    -- | Should the given call trigger interactive highlighting?
+    -- Should the given call trigger interactive highlighting?
     highlightCall = case call of
       CheckClause{}             -> True
       CheckLHS{}                -> True
@@ -213,7 +213,7 @@ instance MonadTrace TCM where
       , show info
       , "  modToSrc = " ++ show modToSrc
       ]
-    unless (null $ ranges info) $ do
+    unless (null info) $ do
       appInteractionOutputCallback $
           Resp_HighlightingInfo info remove method modToSrc
 
@@ -261,4 +261,4 @@ highlightAsTypeChecked rPre r m
     p rs y
     return v
     where
-    p rs x = printHighlightingInfo KeepHighlighting (singletonC rs x)
+    p rs x = printHighlightingInfo KeepHighlighting (singleton rs x)

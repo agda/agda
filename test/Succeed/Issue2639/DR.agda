@@ -1,3 +1,5 @@
+{-# OPTIONS --sized-types #-}
+
 module Issue2639.DR (Z : Set) where
 
 open import Agda.Builtin.Size

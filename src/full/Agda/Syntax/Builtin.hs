@@ -23,7 +23,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinGlue, builtin_glue, builtin_unglue,
   builtin_glueU, builtin_unglueU,
   builtinFaceForall,
-  builtinId, builtinConId, builtinIdElim,
+  builtinId, builtinReflId, builtinConId, builtinIdElim,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -31,20 +31,25 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
   builtinSet, builtinProp, builtinSetOmega, builtinStrictSet, builtinSSetOmega,
   builtinLockUniv,
+  builtinIntervalUniv,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
+  builtinAgdaSortProp, builtinAgdaSortPropLit, builtinAgdaSortInf,
   builtinAgdaSortUnsupported,
   builtinHiding, builtinHidden, builtinInstance, builtinVisible,
-  builtinRelevance, builtinRelevant, builtinIrrelevant, builtinArg,
+  builtinRelevance, builtinRelevant, builtinIrrelevant,
+  builtinQuantity, builtinQuantity0, builtinQuantityω,
+  builtinModality, builtinModalityConstructor,
   builtinAssoc, builtinAssocLeft, builtinAssocRight, builtinAssocNon,
   builtinPrecedence, builtinPrecRelated, builtinPrecUnrelated,
   builtinFixity, builtinFixityFixity,
-  builtinArgInfo, builtinArgArgInfo, builtinArgArg,
+  builtinArgInfo, builtinArgArgInfo,
+  builtinArg, builtinArgArg,
   builtinAbs, builtinAbsAbs, builtinAgdaTerm,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
-  builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
+  builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartPatt, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitWord64, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
   builtinAgdaClause, builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
@@ -64,11 +69,13 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm, builtinAgdaTCMQuoteOmegaTerm,
   builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
-  builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconsParams, builtinAgdaTCMDebugPrint,
+  builtinAgdaTCMFormatErrorParts, builtinAgdaTCMDebugPrint,
+  builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconsParams,
   builtinAgdaTCMOnlyReduceDefs, builtinAgdaTCMDontReduceDefs,
   builtinAgdaTCMNoConstraints,
   builtinAgdaTCMRunSpeculative,
-  builtinAgdaTCMExec
+  builtinAgdaTCMExec,
+  builtinAgdaTCMGetInstances
   :: String
 
 builtinNat                               = "NATURAL"
@@ -102,10 +109,12 @@ builtinNothing                           = "NOTHING"
 builtinJust                              = "JUST"
 builtinIO                                = "IO"
 builtinId                                = "ID"
-builtinConId                             = "CONID"
+builtinReflId                            = "REFLID"
+builtinConId                             = "primConId"
 builtinIdElim                            = "primIdElim"
 builtinPath                              = "PATH"
 builtinPathP                             = "PATHP"
+builtinIntervalUniv                      = "CUBEINTERVALUNIV"
 builtinInterval                          = "INTERVAL"
 builtinIMin                              = "primIMin"
 builtinIMax                              = "primIMax"
@@ -165,6 +174,9 @@ builtinQName                             = "QNAME"
 builtinAgdaSort                          = "AGDASORT"
 builtinAgdaSortSet                       = "AGDASORTSET"
 builtinAgdaSortLit                       = "AGDASORTLIT"
+builtinAgdaSortProp                      = "AGDASORTPROP"
+builtinAgdaSortPropLit                   = "AGDASORTPROPLIT"
+builtinAgdaSortInf                       = "AGDASORTINF"
 builtinAgdaSortUnsupported               = "AGDASORTUNSUPPORTED"
 builtinHiding                            = "HIDING"
 builtinHidden                            = "HIDDEN"
@@ -173,6 +185,11 @@ builtinVisible                           = "VISIBLE"
 builtinRelevance                         = "RELEVANCE"
 builtinRelevant                          = "RELEVANT"
 builtinIrrelevant                        = "IRRELEVANT"
+builtinQuantity                          = "QUANTITY"
+builtinQuantity0                         = "QUANTITY-0"
+builtinQuantityω                         = "QUANTITY-ω"
+builtinModality                          = "MODALITY"
+builtinModalityConstructor               = "MODALITY-CONSTRUCTOR"
 builtinAssoc                             = "ASSOC"
 builtinAssocLeft                         = "ASSOCLEFT"
 builtinAssocRight                        = "ASSOCRIGHT"
@@ -202,6 +219,7 @@ builtinAgdaTermMeta                      = "AGDATERMMETA"
 builtinAgdaErrorPart                     = "AGDAERRORPART"
 builtinAgdaErrorPartString               = "AGDAERRORPARTSTRING"
 builtinAgdaErrorPartTerm                 = "AGDAERRORPARTTERM"
+builtinAgdaErrorPartPatt                 = "AGDAERRORPARTPATT"
 builtinAgdaErrorPartName                 = "AGDAERRORPARTNAME"
 builtinAgdaLiteral                       = "AGDALITERAL"
 builtinAgdaLitNat                        = "AGDALITNAT"
@@ -256,12 +274,14 @@ builtinAgdaTCMQuoteOmegaTerm             = "AGDATCMQUOTEOMEGATERM"
 builtinAgdaTCMIsMacro                    = "AGDATCMISMACRO"
 builtinAgdaTCMWithNormalisation          = "AGDATCMWITHNORMALISATION"
 builtinAgdaTCMWithReconsParams           = "AGDATCMWITHRECONSPARAMS"
+builtinAgdaTCMFormatErrorParts           = "AGDATCMFORMATERRORPARTS"
 builtinAgdaTCMDebugPrint                 = "AGDATCMDEBUGPRINT"
 builtinAgdaTCMOnlyReduceDefs             = "AGDATCMONLYREDUCEDEFS"
 builtinAgdaTCMDontReduceDefs             = "AGDATCMDONTREDUCEDEFS"
 builtinAgdaTCMNoConstraints              = "AGDATCMNOCONSTRAINTS"
 builtinAgdaTCMRunSpeculative             = "AGDATCMRUNSPECULATIVE"
 builtinAgdaTCMExec                       = "AGDATCMEXEC"
+builtinAgdaTCMGetInstances               = "AGDATCMGETINSTANCES"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
@@ -281,6 +301,9 @@ builtinsNoDef :: [String]
 builtinsNoDef =
   sizeBuiltins ++
   [ builtinConId
+  , builtinIntervalUniv
+  , builtinId
+  , builtinReflId
   , builtinInterval
   , builtinPartial
   , builtinPartialP

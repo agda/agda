@@ -1,0 +1,9 @@
+Issue3115.agda:2,11-12
+Declaring a variable as hidden has no effect in a variable block.
+Generalization never introduces visible arguments.
+
+———— All done; warnings encountered ————————————————————————
+
+Issue3115.agda:2,11-12
+Declaring a variable as hidden has no effect in a variable block.
+Generalization never introduces visible arguments.

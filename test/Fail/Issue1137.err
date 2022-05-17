@@ -1,8 +1,0 @@
-Issue1137.agda:10,1-14,12
-Termination pragmas are not allowed inside where clauses
-when scope checking the declaration
-  foo = bar
-    where
-      {-# TERMINATING #-}
-      bar : A
-      bar = bar

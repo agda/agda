@@ -76,17 +76,17 @@ tickN s n = modifyCounter s (n +)
 tickMax :: MonadStatistics m => String -> Integer -> m ()
 tickMax s n = modifyCounter s (max n)
 
--- | Print the given statistics if verbosity "profile.ticks" is given.
+-- | Print the given statistics.
 printStatistics
   :: (MonadDebug m, MonadTCEnv m, HasOptions m)
-  => Int -> Maybe C.TopLevelModuleName -> Statistics -> m ()
-printStatistics vl mmname stats = verboseS "profile.ticks" vl $ do
+  => Maybe C.TopLevelModuleName -> Statistics -> m ()
+printStatistics mmname stats = do
   unlessNull (Map.toList stats) $ \ stats -> do
     let -- First column (left aligned) is accounts.
         col1 = Boxes.vcat Boxes.left  $ map (Boxes.text . fst) stats
         -- Second column (right aligned) is numbers.
         col2 = Boxes.vcat Boxes.right $ map (Boxes.text . showThousandSep . snd) stats
         table = Boxes.hsep 1 Boxes.left [col1, col2]
-    reportSLn "profile" 1 $ caseMaybe mmname "Accumulated statistics" $ \ mname ->
+    reportSLn "" 1 $ caseMaybe mmname "Accumulated statistics" $ \ mname ->
       "Statistics for " ++ prettyShow mname
-    reportSLn "profile" 1 $ Boxes.render table
+    reportSLn "" 1 $ Boxes.render table

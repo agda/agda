@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness --no-subtyping #-}
+{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Reflection.External where
 
@@ -13,3 +13,5 @@ postulate
          → TC (Σ Nat (λ _ → Σ String (λ _ → String)))
 
 {-# BUILTIN AGDATCMEXEC execTC #-}
+
+{-# COMPILE JS execTC = _ => _ => _ => undefined #-}

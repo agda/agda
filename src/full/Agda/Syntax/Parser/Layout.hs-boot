@@ -1,8 +1,13 @@
 module Agda.Syntax.Parser.Layout where
 
-import Agda.Syntax.Parser.Alex
-import Agda.Syntax.Parser.Tokens
+import Agda.Syntax.Parser.Alex   (LexAction)
+import Agda.Syntax.Parser.Monad  (Parser)
+import Agda.Syntax.Parser.Tokens (Token)
 
 offsideRule      :: LexAction Token
-newLayoutContext :: LexAction Token
+newLayoutBlock   :: LexAction Token
 emptyLayout      :: LexAction Token
+
+confirmLayout    :: Parser ()
+-- confirmLayoutAtNewLine :: Parser ()
+-- confirmedLayoutComing  :: Parser ()

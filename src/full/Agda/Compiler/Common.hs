@@ -2,7 +2,9 @@
 
 module Agda.Compiler.Common where
 
-import Data.List as List
+import Prelude hiding ((!!))
+
+import Data.List as List hiding ((!!))
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -16,6 +18,7 @@ import Data.Semigroup
 import Control.Monad
 import Control.Monad.State
 
+import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 
@@ -27,6 +30,7 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 
@@ -76,7 +80,7 @@ setInterface :: Interface -> TCM ()
 setInterface i = do
   opts <- getsTC (stPersistentOptions . stPersistentState)
   setCommandLineOptions opts
-  mapM_ setOptionsFromPragma (iPragmaOptions i)
+  mapM_ setOptionsFromPragma (iDefaultPragmaOptions i ++ iFilePragmaOptions i)
   stImportedModules `setTCLens` Set.fromList (map fst $ iImportedModules i)
   stCurrentModule   `setTCLens` Just (iModuleName i)
 
@@ -144,8 +148,16 @@ inCompilerEnv checkResult cont = do
     -- Unfortunately, a pragma option is stored in the interface file as
     -- just a list of strings, thus, the solution is a bit of hack:
     -- We match on whether @["--no-main"]@ is one of the stored options.
-    when (["--no-main"] `elem` iPragmaOptions mainI) $
+    when (["--no-main"] `elem` iFilePragmaOptions mainI) $
       stPragmaOptions `modifyTCLens` \ o -> o { optCompileNoMain = True }
+
+    -- Perhaps all pragma options from the top-level module should be
+    -- made available to the compiler in a suitable way. Here are more
+    -- hacks:
+    when (any ("--cubical" `elem`) (iFilePragmaOptions mainI)) $
+      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CFull }
+    when (any ("--erased-cubical" `elem`) (iFilePragmaOptions mainI)) $
+      stPragmaOptions `modifyTCLens` \ o -> o { optCubical = Just CErased }
 
     setScope (iInsideScope mainI) -- so that compiler errors don't use overly qualified names
     ignoreAbstractMode cont

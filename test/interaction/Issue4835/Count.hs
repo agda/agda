@@ -19,7 +19,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Pretty
 
 -- Find out how often the given module ID occurs in names in the given module.
-countModID :: String -> Word64 -> IO (Either TCErr Int)
+countModID :: String -> ModuleNameHash -> IO (Either TCErr Int)
 countModID modName modID = runTCMTop $ do
   setCommandLineOptions $ defaultOptions
 
@@ -38,7 +38,7 @@ countModID modName modID = runTCMTop $ do
 main = do
   -- Derive the module ID of ModA.
   let qName = (C.Qual . C.simpleName) "Issue4835" $ (C.QName . C.simpleName) "ModA"
-  let modID = hashString $ prettyShow qName
+  let modID = ModuleNameHash $ hashString $ prettyShow qName
 
   -- Count occurrences of the module ID in ModA and ModB, respectively.
   countA <- countModID "ModA" modID

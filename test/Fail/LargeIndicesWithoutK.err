@@ -1,3 +1,4 @@
-LargeIndicesWithoutK.agda:4,6-15
+LargeIndicesWithoutK.agda:5,3-6
 Set a is not less or equal than Set
-when checking the definition of Singleton
+when checking that the type (x : A) → Singleton x of the
+constructor [_] fits in the sort Set of the datatype.

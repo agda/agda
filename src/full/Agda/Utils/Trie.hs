@@ -12,7 +12,7 @@ module Agda.Utils.Trie
 
 import Prelude hiding (null, lookup, filter)
 
-
+import Control.DeepSeq
 
 import Data.Function
 import qualified Data.Maybe as Lazy
@@ -34,6 +34,9 @@ data Trie k v = Trie !(Strict.Maybe v) !(Map k (Trie k v))
            , Functor
            , Foldable
            )
+
+instance (NFData k, NFData v) => NFData (Trie k v) where
+  rnf (Trie a b) = rnf a `seq` rnf b
 
 -- | Empty trie.
 instance Null (Trie k v) where

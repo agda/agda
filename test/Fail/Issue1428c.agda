@@ -1,6 +1,8 @@
 -- Andreas, 2015-03-17
 -- Andreas, 2020-10-26 conform to Issue1428a
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data ⊥ : Set where

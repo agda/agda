@@ -305,7 +305,7 @@ prop_isSemimodule_withVarOcc1_counterexample =
   where
     occ o  = VarOcc o unitModality
     rig    = occ Unguarded
-    flex n = occ $ Flexible $ singleton $ MetaId n
+    flex n = occ $ Flexible $ singleton $ MetaId n (ModuleNameHash 0)
     r      :: VarOcc
     r      = flex 1
     m, m'  :: VarMap
@@ -318,7 +318,7 @@ prop_isSemimodule_withVarOcc2_counterexample =
   withVarOcc r m <> withVarOcc s m
   where
     occ o  = VarOcc o unitModality
-    flex n = occ $ Flexible $ singleton $ MetaId n
+    flex n = occ $ Flexible $ singleton $ MetaId n (ModuleNameHash 0)
     r, s   :: VarOcc
     r      = flex 1
     s      = occ StronglyRigid

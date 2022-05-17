@@ -8,10 +8,10 @@ import Control.Exception (finally)
 import Control.Monad
 
 import Data.Array
-import Data.Bifunctor (first)
+import Data.Bifunctor
 import qualified Data.ByteString as BS
 import Data.Char
-import Data.List
+import Data.List (intercalate, sortBy)
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -27,13 +27,14 @@ import System.FilePath
 import qualified System.FilePath.Find as Find
 import System.FilePath.GlobPattern
 import System.IO.Temp
-import System.PosixCompat.Time (epochTime)
-import System.PosixCompat.Files (modificationTime)
-import System.Process (proc, CreateProcess(..) )
+import System.PosixCompat.Time       ( epochTime )
+import System.PosixCompat.Files      ( modificationTime, touchFile )
+import System.Process                ( proc, CreateProcess(..) )
 import qualified System.Process.Text as PT
 
+import Test.Tasty                 ( TestName, TestTree )
 import Test.Tasty.Silver
-import Test.Tasty.Silver.Advanced (readFileMaybe)
+import Test.Tasty.Silver.Advanced ( GDiff(..), pattern ShowText, goldenTest1, readFileMaybe )
 
 import qualified Text.Regex.TDFA as R
 import qualified Text.Regex.TDFA.Text as RT ( compile )
@@ -88,18 +89,12 @@ runAgdaWithOptions testName opts mflag mvars = do
   backup <- case mvars of
     Nothing      -> pure []
     Just varFile -> do
-      addEnv <- maybe [] (lines . T.unpack) <$> readTextFileMaybe varFile
-      backup <- if null addEnv then pure [] else getEnvironment
-      forM_ addEnv $ \ assgnmt -> do
-        let (var, eqval) = break (== '=') assgnmt
-        -- Andreas, 2020-09-22: according to the documentation of getEnvironment,
-        -- a missing '=' might mean to set the variable to the empty string.
-        -- -- Andreas, 2020-09-22.  Don't just gloss over malformed lines!
-        -- when (null eqval) $ fail $ unlines
-        --   [ "Malformed line", assgnmt, "in file " ++ varFile ]
-        let val = drop 1 eqval  -- drop the '=' sign, unless eqval is null
-        val <- expandEnvironmentVariables val
-        setEnv var val
+      addEnv <- maybe [] (map parseEntry . lines . T.unpack) <$> readTextFileMaybe varFile
+      backup <- if null addEnv then pure [] else do
+        env <- getEnvironment
+        pure $ map (\ (var, _) -> (var, fromMaybe "" $ lookup var env)) addEnv
+      forM_ addEnv $ \ (var, val) -> do
+        setEnv var =<< expandEnvironmentVariables val
       pure backup
 
   let agdaArgs = opts ++ words flags
@@ -124,6 +119,12 @@ runAgdaWithOptions testName opts mflag mvars = do
   pure $ (res,) $ case ret of
     ExitSuccess      -> AgdaSuccess $ filterMaybe hasWarning cleanedStdOut
     ExitFailure code -> AgdaFailure code (agdaErrorFromInt code)
+  where
+  -- parse "x=e" into ("x","e") and "x" into ("x", "")
+  parseEntry :: String -> (String, String)
+  parseEntry = second (drop 1) . break (== '=')
+        -- Andreas, 2020-09-22: according to the documentation of getEnvironment,
+        -- a missing '=' might mean to set the variable to the empty string.
 
 hasWarning :: Text -> Bool
 hasWarning t =
@@ -135,9 +136,7 @@ getEnvAgdaArgs :: IO AgdaArgs
 getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
 
 getAgdaBin :: IO FilePath
-getAgdaBin = fromMaybeM err $ getEnvVar "AGDA_BIN"
-  where
-  err = fail "AGDA_BIN environment variable not set, aborting..."
+getAgdaBin = getProg "agda"
 
 -- | Gets the program executable. If an environment variable
 -- YYY_BIN is defined (with yyy converted to upper case),
@@ -302,7 +301,10 @@ mkRegex :: Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
   RT.compile R.defaultCompOpt R.defaultExecOpt r
 
-cleanOutput' :: FilePath -> Text -> Text
+cleanOutput'
+  :: FilePath  -- ^ @pwd@, with slashes rather than backslashes.
+  -> Text      -- ^ Output to sanitize.
+  -> Text      -- ^ Sanitized output.
 cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
   where
     rgxs = map (first mkRegex)
@@ -311,10 +313,25 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
       , ("[^ (]*test.Common.", "")
       , ("[^ (]*test.Bugs.", "")
       , ("[^ (]*test.LibSucceed.", "")
-      , (T.pack pwd `T.append` ".test", "..")
       , ("\\\\", "/")
+        -- Andreas, 2021-10-13, issue #5549
+        -- First, replace backslashes by slashes, then try to match @pwd@,
+        -- which has already backslashes by slashes replaced.
+      , (T.pack pwd `T.append` ".test", "..")
       , ("\\.hs(:[[:digit:]]+){2}", ".hs:«line»:«col»")
       , (T.pack Agda.Version.package, "«Agda-package»")
+      -- Andreas, 2021-08-26.  When run with 'cabal test',
+      -- Agda.Version.package didn't match, so let's be generous:
+      -- Andreas, 2021-09-02.  The match failure could be triggered
+      -- when we are running the *installed* version of Agda rather
+      -- than the *built* one, see .github/workflows/cabal-test.yml.
+      -- Maybe the match failures will disappear once we drop
+      -- the workaround for haskell/cabal#7577.
+      -- Andreas, 2021-08-28.  To work around haskell/cabal#7209,
+      -- "The Grinch stole all the vowels", we also have to
+      -- recognize Agd (instead of Agda) as package name.
+      -- See CI run: https://github.com/agda/agda/runs/3449775214?check_suite_focus=true
+      , ("Agda?-[.0-9]+(-[[:alnum:]]+)?", "«Agda-package»")
       , ("[^ (]*lib.prim", "agda-default-include-path")
       , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
       ]
@@ -322,7 +339,59 @@ cleanOutput' pwd t = foldl (\ t' (rgx, n) -> replace rgx n t') t rgxs
 cleanOutput :: Text -> IO Text
 cleanOutput inp = do
   pwd <- getCurrentDirectory
-  return $ cleanOutput' pwd inp
+  return $ cleanOutput' (map slashify pwd) inp
+  where
+    slashify = \case
+      '\\' -> '/'
+      c    -> c
 
 doesCommandExist :: String -> IO Bool
 doesCommandExist cmd = isJust <$> findExecutable cmd
+
+-- | Standard golden value diff that ignores line-breaks and consecutive whitespace.
+textDiff :: Text -> Text -> GDiff
+textDiff t1 t2 =
+  if T.words t1 == T.words t2
+    then
+      Equal
+    else
+      DiffText Nothing t1 t2
+
+-- | Like 'textDiff', but touch given file if golden value does not match.
+--
+--   (This will take the respective test earlier next time the suite runs.)
+textDiffWithTouch :: FilePath -> Text -> Text -> IO GDiff
+textDiffWithTouch agdaFile t1 t2
+    | T.words t1 == T.words t2 = return Equal
+    | otherwise = do
+        -- Andreas, 2020-06-09, issue #4736
+        -- If the output has changed, the test case is "interesting"
+        -- regardless of whether the golden value is updated or not.
+        -- Thus, we touch the agdaFile to have it sorted up in the next
+        -- test run.
+        -- -- putStrLn $ "TOUCHING " ++ agdaFile
+        touchFile agdaFile
+        return $ DiffText Nothing t1 t2
+
+-- | Compare something text-like against the golden file contents.
+-- For the conversion of inputs to text you may want to use the Data.Text.Encoding
+-- or/and System.Process.Text modules.
+--
+-- Variant of 'goldenVsAction' that compares golden and actual value
+-- word-wise, rather than character-wise, so it is more robust against
+-- whitespace differences.
+goldenVsAction'
+  :: TestName      -- ^ Test name.
+  -> FilePath      -- ^ Path to the «golden» file (the file that contains correct output).
+  -> IO a          -- ^ Action that returns a text-like value.
+  -> (a -> T.Text) -- ^ Converts a value to it's textual representation.
+  -> TestTree      -- ^ The test verifies that the returned textual representation
+                   --   is the same as the golden file contents.
+goldenVsAction' name ref act toTxt =
+  goldenTest1
+    name
+    (fmap decodeUtf8 <$> readFileMaybe ref)
+    (toTxt <$> act)
+    textDiff
+    ShowText
+    (BS.writeFile ref . encodeUtf8)

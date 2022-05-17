@@ -15,7 +15,7 @@ import Data.Data (Data)
 import Data.Foldable (length)
 import Data.Function
 import Data.Hashable (Hashable(..))
-import Data.List
+import qualified Data.List as List
 import Data.Maybe
 import Data.Void
 
@@ -26,7 +26,7 @@ import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
-import Agda.Utils.List
+import qualified Agda.Utils.List as L
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
@@ -82,7 +82,7 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: List1 QName }
-  deriving (Eq, Ord, Data)
+  deriving (Eq, Ord, Data, NFData)
 
 -- | A singleton "ambiguous" name.
 unambiguous :: QName -> AmbiguousQName
@@ -104,8 +104,12 @@ getUnambiguous _                = Nothing
 -- | A name suffix
 data Suffix
   = NoSuffix
-  | Suffix Integer
+  | Suffix !Integer
   deriving (Data, Show, Eq, Ord)
+
+instance NFData Suffix where
+  rnf NoSuffix   = ()
+  rnf (Suffix _) = ()
 
 -- | Check whether we are a projection pattern.
 class IsProjP a where
@@ -125,8 +129,7 @@ instance IsProjP Void where
 
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool
-isAnonymousModuleName (MName []) = False
-isAnonymousModuleName (MName ms) = isNoName $ last ms
+isAnonymousModuleName (MName mms) = maybe False isNoName $ L.lastMaybe mms
 
 -- | Sets the ranges of the individual names in the module name to
 -- match those of the corresponding concrete names. If the concrete
@@ -172,7 +175,7 @@ noModuleName = mnameFromList []
 
 commonParentModule :: ModuleName -> ModuleName -> ModuleName
 commonParentModule m1 m2 =
-  mnameFromList $ commonPrefix (mnameToList m1) (mnameToList m2)
+  mnameFromList $ L.commonPrefix (mnameToList m1) (mnameToList m2)
 
 -- | Make a 'Name' from some kind of string.
 class MkName a where
@@ -218,9 +221,9 @@ qnameToConcrete (QName m x) =       -- Use the canonical name here (#5048)
 
 mnameToConcrete :: ModuleName -> C.QName
 mnameToConcrete (MName []) = __IMPOSSIBLE__ -- C.QName C.noName_  -- should never happen?
-mnameToConcrete (MName xs) = foldr C.Qual (C.QName $ last cs) $ init cs
+mnameToConcrete (MName (x:xs)) = foldr C.Qual (C.QName $ List1.last cs) $ List1.init cs
   where
-    cs = map nameConcrete xs
+    cs = fmap nameConcrete (x :| xs)
 
 -- | Computes the 'TopLevelModuleName' corresponding to the given
 -- module name, which is assumed to represent a top-level module name.
@@ -236,7 +239,7 @@ qualifyM :: ModuleName -> ModuleName -> ModuleName
 qualifyM m1 m2 = mnameFromList $ mnameToList m1 ++ mnameToList m2
 
 qualifyQ :: ModuleName -> QName -> QName
-qualifyQ m x = qnameFromList $ mnameToList m `List1.prepend` qnameToList x
+qualifyQ m x = qnameFromList $ mnameToList m `List1.prependList` qnameToList x
 
 qualify :: ModuleName -> Name -> QName
 qualify = QName
@@ -252,11 +255,12 @@ isOperator = C.isOperator . nameConcrete . qnameName
 
 -- | Is the first module a weak parent of the second?
 isLeParentModuleOf :: ModuleName -> ModuleName -> Bool
-isLeParentModuleOf = isPrefixOf `on` mnameToList
+isLeParentModuleOf = List.isPrefixOf `on` mnameToList
 
 -- | Is the first module a proper parent of the second?
 isLtParentModuleOf :: ModuleName -> ModuleName -> Bool
-isLtParentModuleOf x y = isJust $ (stripPrefixBy (==) `on` mnameToList) x y
+isLtParentModuleOf x y =
+  isJust $ (L.stripPrefixBy (==) `on` mnameToList) x y
 
 -- | Is the first module a weak child of the second?
 isLeChildModuleOf :: ModuleName -> ModuleName -> Bool
@@ -267,7 +271,7 @@ isLtChildModuleOf :: ModuleName -> ModuleName -> Bool
 isLtChildModuleOf = flip isLtParentModuleOf
 
 isInModule :: QName -> ModuleName -> Bool
-isInModule q m = mnameToList m `isPrefixOf` qnameToList0 q
+isInModule q m = mnameToList m `List.isPrefixOf` qnameToList0 q
 
 -- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.

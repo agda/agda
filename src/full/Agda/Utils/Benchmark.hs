@@ -6,17 +6,21 @@ module Agda.Utils.Benchmark where
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
 import qualified Control.Exception as E (evaluate)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 
 import Data.Function
 import qualified Data.List as List
 import Data.Monoid
 import Data.Maybe
+
+import GHC.Generics (Generic)
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
@@ -41,6 +45,7 @@ type CurrentAccount a = Strict.Maybe (Account a, CPUTime)
 type Timings        a = Trie a CPUTime
 
 data BenchmarkOn a = BenchmarkOff | BenchmarkOn | BenchmarkSome (Account a -> Bool)
+  deriving Generic
 
 isBenchmarkOn :: Account a -> BenchmarkOn a -> Bool
 isBenchmarkOn _ BenchmarkOff      = False
@@ -57,6 +62,7 @@ data Benchmark a = Benchmark
   , timings        :: !(Timings a)
     -- ^ The accounts and their accumulated timing bill.
   }
+  deriving Generic
 
 -- | Initial benchmark structure (empty).
 instance Null (Benchmark a) where
@@ -232,3 +238,8 @@ billToCPS account f k = ifNotM (isBenchmarkOn account <$> getsBenchmark benchmar
 -- | Bill a pure computation to a specific account.
 billPureTo :: MonadBench m  => Account (BenchPhase m) -> c -> m c
 billPureTo account = billTo account . return
+
+-- NFData instances.
+
+instance NFData a => NFData (BenchmarkOn a)
+instance NFData a => NFData (Benchmark a)

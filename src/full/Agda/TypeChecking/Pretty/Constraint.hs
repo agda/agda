@@ -4,8 +4,12 @@ module Agda.TypeChecking.Pretty.Constraint where
 import Prelude hiding (null)
 
 import qualified Data.Set as Set
+import Data.Foldable (Foldable)
+import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import Data.Function
+
+import GHC.Exts (IsList(toList))
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -18,6 +22,8 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.IntSet.Typed (ISet)
 import qualified Agda.Utils.IntSet.Typed as ISet
@@ -48,19 +54,36 @@ prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sor
     interestingPids = ISet.unions $ map (allBlockingProblems . constraintUnblocker) cs'
     stripPids (PConstr pids unblock c) = PConstr (ISet.intersection pids interestingPids) unblock c
 
+prettyRangeConstraint ::
+  (MonadPretty m, Foldable f, Null (f ProblemId)) =>
+  Range -> f ProblemId -> Blocker -> Doc -> m Doc
+prettyRangeConstraint r pids unblock c =
+  return c <?>
+  sep [ prange r
+      , parensNonEmpty $ sep
+          [ blockedOn unblock
+          , prPids (Foldable.toList pids)
+          ]
+      ]
+  where
+  prPids []    = empty
+  prPids [pid] = "belongs to problem" <+> prettyTCM pid
+  prPids pids  = "belongs to problems" <+> fsep (punctuate "," $ map prettyTCM pids)
+
+  comma | null pids = empty
+        | otherwise = ","
+
+  blockedOn (UnblockOnAll bs) | Set.null bs = empty
+  blockedOn (UnblockOnAny bs) | Set.null bs = "stuck" <> comma
+  blockedOn u = "blocked on" <+> (prettyTCM u <> comma)
+
+  prange r | null s    = pure empty
+           | otherwise = text $ " [ at " ++ s ++ " ]"
+    where s = P.prettyShow r
+
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pids unblock c) = prettyTCM c <?> parensNonEmpty (sep [blockedOn unblock, prPids (ISet.toList pids)])
-    where
-      prPids []    = empty
-      prPids [pid] = "belongs to problem" <+> prettyTCM pid
-      prPids pids  = "belongs to problems" <+> fsep (punctuate "," $ map prettyTCM pids)
-
-      comma | null pids = empty
-            | otherwise = ","
-
-      blockedOn (UnblockOnAll bs) | Set.null bs = empty
-      blockedOn (UnblockOnAny bs) | Set.null bs = "stuck" <> comma
-      blockedOn u = "blocked on" <+> (prettyTCM u <> comma)
+  prettyTCM (PConstr pids unblock c) =
+    prettyRangeConstraint noRange (toList pids) unblock =<< prettyTCM c
 
 instance PrettyTCM Constraint where
     prettyTCM = \case
@@ -76,7 +99,7 @@ instance PrettyTCM Constraint where
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
         UnBlock m   -> do
             -- BlockedConst t <- mvInstantiation <$> lookupMeta m
-            mi <- mvInstantiation <$> lookupMeta m
+            mi <- lookupMetaInstantiation m
             case mi of
               BlockedConst t -> prettyCmp ":=" m t
               PostponedTypeCheckingProblem cl -> enterClosure cl $ \p ->
@@ -96,9 +119,13 @@ instance PrettyTCM Constraint where
               --     ]
               --   __IMPOSSIBLE__
         FindInstance m mcands -> do
-            t <- getMetaType m
+            t <- getMetaTypeInContext m
+            TelV tel _ <- telViewUpTo' (-1) notVisible t
             sep [ "Resolve instance argument" <?> prettyCmp ":" m t
-                , cands
+                  -- #4071: Non-visible arguments to the meta are in scope of the candidates add
+                  --        those here to not get out of scope deBruijn indices when printing
+                  --        unsolved constraints.
+                , addContext tel cands
                 ]
           where
             cands =
@@ -125,11 +152,15 @@ instance PrettyTCM Constraint where
         UnquoteTactic v _ _ -> do
           e <- reify v
           prettyTCM (A.App A.defaultAppInfo_ (A.Unquote A.exprNoRange) (defaultNamedArg e))
+        CheckDataSort q s -> do
+          hsep [ "Sort", prettyTCM s, "of", prettyTCM q, "admits data/record definitions." ]
         CheckMetaInst x -> do
-          m <- lookupMeta x
+          m <- lookupLocalMeta x
           case mvJudgement m of
             HasType{ jMetaType = t } -> prettyTCM x <+> ":" <+> prettyTCM t
             IsSort{} -> prettyTCM x <+> "is a sort"
+        CheckType t ->
+          prettyTCM t <+> "is a well-formed type"
         CheckLockedVars t ty lk lk_ty -> do
           "Lock" <+> prettyTCM lk <+> "|-" <+> prettyTCMCtx TopCtx t <+> ":" <+> prettyTCM ty
         UsableAtModality mod t -> "Is usable at" <+> prettyTCM mod <+> ":" <+> prettyTCM t

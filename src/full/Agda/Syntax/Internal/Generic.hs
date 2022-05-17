@@ -100,7 +100,7 @@ instance TermLike Term where
     t@Lit{}     -> f t
     Sort s      -> f =<< Sort <$> traverseTermM f s
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
-    t@Dummy{}   -> f t
+    Dummy s xs  -> f =<< Dummy s <$> traverseTermM f xs
 
   foldTerm f t = f t `mappend` case t of
     Var i xs    -> foldTerm f xs
@@ -113,7 +113,7 @@ instance TermLike Term where
     Lit _       -> mempty
     Sort s      -> foldTerm f s
     DontCare mv -> foldTerm f mv
-    Dummy{}     -> mempty
+    Dummy _ xs  -> foldTerm f xs
 
 instance TermLike Level where
   traverseTermM f (Max n as) = Max n <$> traverseTermM f as
@@ -135,12 +135,13 @@ instance TermLike Sort where
     SSet l     -> SSet <$> traverseTermM f l
     s@SizeUniv -> pure s
     s@LockUniv -> pure s
+    s@IntervalUniv -> pure s
     PiSort a b c -> PiSort   <$> traverseTermM f a <*> traverseTermM f b <*> traverseTermM f c
     FunSort a b -> FunSort   <$> traverseTermM f a <*> traverseTermM f b
     UnivSort a -> UnivSort <$> traverseTermM f a
     MetaS x es -> MetaS x  <$> traverseTermM f es
     DefS q es  -> DefS q   <$> traverseTermM f es
-    s@DummyS{} -> pure s
+    s@(DummyS _) -> pure s
 
   foldTerm f = \case
     Type l     -> foldTerm f l
@@ -149,17 +150,20 @@ instance TermLike Sort where
     SSet l     -> foldTerm f l
     SizeUniv   -> mempty
     LockUniv   -> mempty
+    IntervalUniv -> mempty
     PiSort a b c -> foldTerm f a <> foldTerm f b <> foldTerm f c
     FunSort a b -> foldTerm f a <> foldTerm f b
     UnivSort a -> foldTerm f a
     MetaS _ es -> foldTerm f es
     DefS _ es  -> foldTerm f es
-    DummyS{}   -> mempty
+    DummyS _   -> mempty
 
 instance TermLike EqualityView where
 
   traverseTermM f = \case
     OtherType t -> OtherType
+      <$> traverseTermM f t
+    IdiomType t -> IdiomType
       <$> traverseTermM f t
     EqualityType s eq l t a b -> EqualityType s eq
       <$> traverse (traverseTermM f) l
@@ -169,6 +173,7 @@ instance TermLike EqualityView where
 
   foldTerm f = \case
     OtherType t -> foldTerm f t
+    IdiomType t -> foldTerm f t
     EqualityType s eq l t a b -> foldTerm f (l ++ [t, a, b])
 
 -- | Put it in a monad to make it possible to do strictly.

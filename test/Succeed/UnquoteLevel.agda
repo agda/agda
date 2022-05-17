@@ -10,7 +10,9 @@ foo : (l : Level) → Bool → Bool
 foo _ false = true
 foo _ true = false
 
-test₂ : quoteTerm (foo lzero) ≡ def (quote foo) (arg (argInfo visible relevant) (def (quote lzero) []) ∷ [])
+test₂ :
+  quoteTerm (foo lzero) ≡
+  def (quote foo) (vArg (def (quote lzero) []) ∷ [])
 test₂ = refl
 
 test₃ : unquote (give (quoteTerm lzero)) ≡ lzero

@@ -1,6 +1,7 @@
-{-# LANGUAGE TypeFamilies               #-} -- for type equality ~
-{-# LANGUAGE RoleAnnotations            #-}
-{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE CPP #-}
+#if __GLASGOW_HASKELL__ <= 802
+{-# LANGUAGE RoleAnnotations #-}
+#endif
 
 module Agda.TypeChecking.Monad.Base where
 
@@ -36,10 +37,18 @@ data TCEnv
 data TCState
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
 
-instance MonadIO m => Applicative (TCMT m)
-instance MonadIO m => Functor (TCMT m)
-instance MonadIO m => Monad (TCMT m)
+instance Applicative m => Applicative (TCMT m)
+instance Functor m => Functor (TCMT m)
 instance MonadIO m => MonadIO (TCMT m)
+
+#if __GLASGOW_HASKELL__ < 808
+instance MonadIO m => Monad (TCMT m) where
+#else
+-- Andreas, 2022-02-02, issue #5659:
+-- @transformers-0.6@ requires exactly a @Monad@ superclass constraint here
+-- if we want @instance MonadTrans TCMT@.
+instance Monad m => Monad (TCMT m) where
+#endif
 
 type TCM = TCMT IO
 

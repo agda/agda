@@ -56,6 +56,7 @@ instance MentionsMeta Sort where
     SSet l     -> mentionsMetas xs l
     SizeUniv   -> False
     LockUniv   -> False
+    IntervalUniv -> False
     PiSort a s1 s2 -> mentionsMetas xs (a, s1, s2)
     FunSort s1 s2 -> mentionsMetas xs (s1, s2)
     UnivSort s -> mentionsMetas xs s
@@ -68,7 +69,7 @@ instance MentionsMeta t => MentionsMeta (Abs t) where
 
 instance MentionsMeta t => MentionsMeta (Arg t) where
   mentionsMetas xs a | isIrrelevant a = False
-  -- ^ we don't have to look inside irrelevant arguments when deciding to wake constraints
+  -- we don't have to look inside irrelevant arguments when deciding to wake constraints
   mentionsMetas xs a = mentionsMetas xs (unArg a)
 
 instance MentionsMeta t => MentionsMeta (Dom t) where
@@ -120,7 +121,9 @@ instance MentionsMeta Constraint where
     HasBiggerSort a     -> mm a
     HasPTSRule a b      -> mm (a, b)
     UnquoteTactic tac hole goal -> False
+    CheckDataSort q s   -> mm s
     CheckMetaInst m     -> True   -- TODO
+    CheckType t         -> mm t
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
     UsableAtModality mod t -> mm t
     where

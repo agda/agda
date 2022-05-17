@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting #-}
+{-# OPTIONS --cubical-compatible --rewriting #-}
 
 open import Agda.Primitive using (Level; _⊔_; Setω; lzero; lsuc)
 

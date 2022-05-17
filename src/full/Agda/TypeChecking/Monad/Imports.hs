@@ -19,9 +19,8 @@ module Agda.TypeChecking.Monad.Imports
   , withImportPath
   ) where
 
-import Control.Arrow ( (***) )
-import Control.Monad.State
-
+import Control.Arrow   ( (***) )
+import Control.Monad   ( when )
 
 import Data.Set (Set)
 import qualified Data.Map as Map
@@ -72,7 +71,6 @@ getPrettyVisitedModules = do
   where
   prettyCheckMode :: ModuleCheckMode -> Doc
   prettyCheckMode ModuleTypeChecked                  = ""
-  prettyCheckMode ModuleTypeCheckedRetainingPrivates = " (+ privates)"
   prettyCheckMode ModuleScopeChecked                 = " (scope only)"
 
 getVisitedModule :: ReadTCState m

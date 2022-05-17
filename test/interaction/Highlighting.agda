@@ -139,3 +139,50 @@ module Issue4604 where
 
   rr₂ : RR
   rr₂ = record { A = RR.A rr }  -- All other As should have field/projection color.
+
+-- Highlighting of dot patterns.
+
+module Issue5233 where
+
+  data IsSet : Set₁ → Set where
+    isSet : IsSet Set
+
+  highlight-dot-Set : (A : Set₁) → IsSet A → Set
+  highlight-dot-Set .Set isSet = Nat
+                 -- ^^^^ should be highlighted
+
+  data Vec (A : Set) : Nat → Set where
+    nil  : Vec A zero
+    cons : (n : Nat) (x : A) (xs : Vec A n) → Vec A (suc n)
+
+  idVec : ∀ {A n} → Vec A n → Vec A n
+  idVec {n = .(zero)}  nil           = nil
+  idVec {n = .(suc k)} (cons k x xs) = cons _ x (idVec xs)
+           -- ^^^^^^^ should be highlighted
+
+-- Highlighting of erased pattern-matching lambdas and warnings coming
+-- from the Happy parser.
+
+module Issue4525 where
+
+  @0 _ : Set → Set
+  _ = λ @0 { A → A }
+
+  @0 _ : Set → Set
+  _ =
+    λ @0
+      @ω
+      @erased
+      @plenty
+      @(tactic (λ _ → Set))
+      @irr
+      @irrelevant
+      @shirr
+      @shape-irrelevant
+      @relevant
+      @♭
+      @flat
+      @notlock
+      @lock
+      @tick where
+      A → A

@@ -1,8 +1,9 @@
 
 module Agda.Syntax.Internal.Pattern where
 
-import Control.Arrow (second)
-import Control.Monad.State
+import Control.Arrow       ( second )
+import Control.Monad       ( (>=>), forM )
+import Control.Monad.State ( MonadState(..), State, evalState )
 
 import Data.Maybe
 import Data.Monoid
@@ -354,3 +355,10 @@ instance PatternVarModalities (Pattern' x) where
       LitP{}      -> []
       ProjP{}     -> []
       IApplyP _ _ _ x -> [(x, defaultModality)]
+
+
+hasDefP :: [NamedArg DeBruijnPattern] -> Bool
+hasDefP ps = getAny $ flip foldPattern ps $ \ (x :: DeBruijnPattern) ->
+                  case x of
+                    DefP{} -> Any True
+                    _      -> Any False

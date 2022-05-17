@@ -48,7 +48,7 @@ The clauses for different functions can be interleaved e.g. for pedagogical purp
 
 You can mix arbitrary declarations, such as modules and postulates, with mutually recursive
 definitions. For data types and records the following syntax is used to separate the
-declaration from the introduction of constructors in one or many ``constructor`` blocks::
+declaration from the introduction of constructors in one or many ``data ... where`` blocks::
 
   interleaved mutual
 
@@ -58,17 +58,17 @@ declaration from the introduction of constructors in one or many ``constructor``
     El : U → Set
 
     -- We have a code for the type of natural numbers in our universe
-    constructor `Nat : U
+    data U where `Nat : U
     El `Nat = Nat
 
     -- Btw we know how to pair values in a record
     record _×_ A B where
-      constructor _,_
-      inductive
+      inductive; constructor _,_
       field fst : A; snd : B
 
     -- And we have a code for pairs in our universe
-    constructor _`×_ : (A B : U) → U
+    data _ where
+      _`×_ : (A B : U) → U
     El (A `× B) = El A × El B
 
   -- we can now build types of nested pairs of natural numbers
@@ -79,12 +79,15 @@ declaration from the introduction of constructors in one or many ``constructor``
   val-example : El ty-example
   val-example = 0 , ((1 , 2) , 3)
 
+You can mix constructors for different data types in a ``data _ where`` block
+(underscore instead of name).
 
-These mutual blocks get desugared into the forward declaration blocks described below by:
+The ``interleaved mutual`` blocks get desugared into the
+:ref:`mutual-recursion-forward-declaration` blocks described below by:
 
-- leaving the signatures where they are
-- grouping the clauses for a function together with the first of them
-- grouping the constructors for a datatype together with the first of them
+- leaving the signatures where they are,
+- grouping the clauses for a function together with the first of them, and
+- grouping the constructors for a datatype together with the first of them.
 
 .. _mutual-recursion-forward-declaration:
 
@@ -103,14 +106,13 @@ automatically inferred by Agda:
   g = b[f, g].
 
 You can mix arbitrary declarations, such as modules and postulates, with mutually recursive definitions.
-For data types and records the following syntax is used to separate the declaration from the definition:
-::
+For data types and records the following syntax is used to separate the declaration from the definition::
 
   -- Declaration.
   data Vec (A : Set) : Nat → Set  -- Note the absence of ‘where’.
 
   -- Definition.
-  data Vec A where  -- Note the absence of a type signature.
+  data Vec A where                -- Note the absence of a type signature.
     []   : Vec A zero
     _::_ : {n : Nat} → A → Vec A n → Vec A (suc n)
 
@@ -145,6 +147,11 @@ Such a separation of declaration and definition is for instance needed when defi
     Interpretation nat      = Nat
     Interpretation (pi a b) = (x : Interpretation a) → Interpretation (b x)
 
+.. note::
+  In contrast to :ref:`mutual-recursion-interleaved-mutual`,
+  in forward-declaration style we can only have one ``data ... where``
+  block per data type.
+
 When making separated declarations/definitions private or abstract you should attach the ``private`` keyword to the declaration and the ``abstract`` keyword to the definition. For instance, a private, abstract function can be defined as
 
 ..
@@ -163,10 +170,6 @@ When making separated declarations/definitions private or abstract you should at
 
 Old-style ``mutual`` blocks
 ----------------------------
-
-.. note::
-   You are advised to avoid using this old syntax if possible, but the old syntax
-   is still supported.
 
 Mutual recursive functions can be written by placing the type signatures of all mutually
 recursive function before their definitions:
@@ -192,4 +195,22 @@ the *universe* example from above is expressed as follows::
     Interpretation nat      = Nat
     Interpretation (pi a b) = (x : Interpretation a) → Interpretation (b x)
 
-This alternative syntax desugars into the new syntax.
+This alternative syntax desugars into the new syntax by sorting the
+content of the mutual block into a *declaration* and a *definition*
+part and placing the declarations before the definitions.
+
+*Declarations* comprise:
+
+- Type signatures of functions, ``data`` and ``record`` declarations, ``unquoteDecl``.
+  (*Function* includes here ``postulate`` and ``primitive`` etc.)
+- Module statements, such as ``module`` aliases, ``import`` and ``open`` statements.
+- Pragmas that only need the name, but not the definition of the thing they affect (e.g. ``INJECTIVE``).
+
+*Definitions* comprise:
+
+- Function clauses, ``data`` constructors and ``record`` definitions, ``unquoteDef``.
+- ``pattern`` synonym definitions.
+- Pragmas that need the definition, e.g. ``INLINE``, ``ETA``, etc.
+- Pragmas that are not needed for type checking, like compiler pragmas.
+
+Module definitions with ``module ... where`` are not supported in old-style ``mutual`` blocks.

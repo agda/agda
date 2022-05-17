@@ -57,7 +57,10 @@ the general schema for higher inductive types work, following the
 
 To use the cubical mode Agda needs to be run with the
 :option:`--cubical` command-line-option or with ``{-#
-OPTIONS --cubical #-}`` at the top of the file.
+OPTIONS --cubical #-}`` at the top of the file. There is also a
+variant of the cubical mode, activated using
+:option:`--erased-cubical`, which is described
+:ref:`below<erased-cubical>`.
 
 The cubical mode adds the following features to Agda:
 
@@ -111,9 +114,9 @@ The interval and path types
 ---------------------------
 
 The key idea of Cubical Type Theory is to add an interval type ``I :
-SSet`` (the reason this is in ``SSet`` is because it doesn't support
-the ``transp`` and ``hcomp`` operations). A variable ``i : I``
-intuitively corresponds to a point in the `real unit interval
+IUniv`` (the reason this is in a special sort ``IUniv`` is because it
+doesn't support the ``transp`` and ``hcomp`` operations). A variable
+``i : I`` intuitively corresponds to a point in the `real unit interval
 <https://en.wikipedia.org/wiki/Unit_interval>`_. In an empty context,
 there are only two values of type ``I``: the two endpoints of the
 interval, ``i0`` and ``i1``.
@@ -732,8 +735,7 @@ exports all of the primitives for this type, including the notation
 
 The cubical identity type and the path type are equivalent, so all of
 the results for one can be transported to the other one (using
-univalence). Using this we have implemented an interface to HoTT/UF in
-https://github.com/agda/cubical/blob/master/Cubical/Foundations/HoTT-UF.agda
+univalence). Using this we have implemented an `interface to HoTT/UF <https://github.com/agda/cubical/blob/5de11df25b79ee49d5c084fbbe6dfc66e4147a2e/Cubical/Experiments/HoTT-UF.agda>`_
 which provides the user with the key primitives of Homotopy Type
 Theory and Univalent Foundations implemented using cubical primitives
 under the hood. This hence gives an axiom free version of HoTT/UF
@@ -797,6 +799,38 @@ more involved as the only way to reason about them is using ``J``.
 Furthermore, the path types satisfy many useful definitional
 equalities that the identity types don't.
 
+.. _erased-cubical:
+
+Cubical Agda with erased glue
+-----------------------------
+
+The option :option:`--erased-cubical` enables a variant of Cubical
+Agda in which glue (and the other builtins defined in
+``Agda.Builtin.Cubical.Glue``) must only be used in
+:ref:`erased<runtime-irrelevance>` settings.
+
+Regular Cubical Agda code can import code that uses
+:option:`--erased-cubical`. Regular Cubical Agda code can also be
+imported from code that uses :option:`--erased-cubical`, but names
+defined using Cubical Agda are treated as if they had been marked as
+erased, with some exceptions related to pattern matching:
+
+- Matching on a non-erased imported constructor does not, on its own,
+  make Agda treat the right-hand side as erased.
+
+- Non-erased imported constructors count as non-erased for the
+  purposes of the run-time mode
+  :ref:`rule<run-time-irrelevance-rules>` that one "cannot pattern
+  match on erased arguments, unless there is at most one valid case
+  (not counting erased constructors)".
+
+The reason for these exceptions is that it should be possible to
+import the code from modules that use :option:`--cubical`, in which
+the non-erased constructors are not treated as erased.
+
+Note that names that are re-exported from a Cubical Agda module using
+``open import M args public`` are seen as defined using Cubical Agda.
+
 References
 ----------
 
@@ -832,7 +866,8 @@ the following ``BUILTIN``, primitives and postulates:
 
 .. code-block:: agda
 
-  {-# BUILTIN INTERVAL I    #-} -- I : SSet
+  {-# BUILTIN CUBEINTERVALUNIV IUniv #-}  -- IUniv : SSet₁
+  {-# BUILTIN INTERVAL I  #-}  -- I : IUniv
   {-# BUILTIN IZERO    i0   #-}
   {-# BUILTIN IONE     i1   #-}
 
@@ -867,13 +902,17 @@ the following ``BUILTIN``, primitives and postulates:
             → PartialP (primIMax i j) A
 
     -- Computes in terms of primHComp and primTransp
-    primComp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (∀ i → Partial φ (A i)) → (a : A i0) → A i1
+    primComp : ∀ {a} (A : (i : I) → Set (a i)) {φ : I} → (∀ i → Partial φ (A i)) → (a : A i0) → A i1
 
   syntax primPOr p q u t = [ p ↦ u , q ↦ t ]
 
   primitive
     primTransp : ∀ {a} (A : (i : I) → Set (a i)) (φ : I) → (a : A i0) → A i1
     primHComp : ∀ {a} {A : Set a} {φ : I} → (∀ i → Partial φ A) → A → A
+
+The interval ``I`` belongs to its own sort, ``IUniv``. Types in this sort
+do not support composition and transport (unlike ``Set``), but function
+types from types in this sort to types in ``Set`` do (unlike `SSet`).
 
 The Path types are exported by ``Agda.Builtin.Cubical.Path``:
 
@@ -984,3 +1023,4 @@ The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
                     (w : (x ≡ outS y) [ φ ↦ (λ { (φ = i1) → \ _ → x}) ]) →
                     C (outS y) (conid φ (outS w))) →
                    {y : A} (p : Id x y) → C y p
+

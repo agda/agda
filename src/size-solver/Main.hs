@@ -1,6 +1,7 @@
 -- Andreas, 2016-02-01 KEEP in compilation loop to prevent bit-rotting.
 
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Standalone program for testing size constraint solver.
@@ -12,6 +13,7 @@ module Main where
 
 -- {-
 import Control.Monad
+import Control.Monad.Trans
 
 import Data.Functor
 import Data.Char (isSpace)
@@ -21,11 +23,12 @@ import qualified Data.Set as Set
 import System.Exit
 import System.Environment (getArgs)
 
+import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.SizedTypes.Utils (setDebugging, traceM)
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver
 
-import Agda.Utils.Pretty (Pretty, prettyShow)
+import Agda.Utils.Pretty (Pretty, prettyShow, render, (<+>))
 
 import Parser
 
@@ -74,12 +77,13 @@ main = do
 
   abortOnError $ verifySolution hg cs sol
 
-abort :: String -> IO a
+abort :: Error -> IO a
 abort msg = do
-  putStrLn $ "Error: " ++ msg
+  _ <- TCM.runTCMTop $
+         liftIO . putStrLn . render . ("Error:" <+>) =<< msg
   exitFailure
 
-abortOnError :: Either String a -> IO a
+abortOnError :: Either Error a -> IO a
 abortOnError = either abort return
 
 pprint :: Pretty a => a -> IO ()

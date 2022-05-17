@@ -1,0 +1,3 @@
+BuiltinSharpBadType.agda:10,22-24
+A !=< _A_17 → ⊥
+when checking that the expression ♯_ has type A → ∞ A

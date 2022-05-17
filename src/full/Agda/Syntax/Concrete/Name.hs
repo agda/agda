@@ -1,9 +1,9 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
 -}
 module Agda.Syntax.Concrete.Name where
+
+import Prelude hiding ((!!))
 
 import Control.DeepSeq
 
@@ -23,6 +23,7 @@ import Agda.Syntax.Position
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List  ((!!), last1)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
@@ -59,7 +60,7 @@ type NameParts = List1 NamePart
 
 isOpenMixfix :: Name -> Bool
 isOpenMixfix = \case
-  Name _ _ (x :| xs@(_:_)) -> x == Hole || last xs == Hole
+  Name _ _ (x :| x' : xs) -> x == Hole || last1 x' xs == Hole
   _ -> False
 
 instance Underscore Name where
@@ -131,7 +132,7 @@ data TopLevelModuleName = TopLevelModuleName
   { moduleNameRange :: Range
   , moduleNameParts :: List1 String
   }
-  deriving (Show, Data)
+  deriving (Show, Data, Generic)
 
 instance Eq    TopLevelModuleName where (==)    = (==)    `on` moduleNameParts
 instance Ord   TopLevelModuleName where compare = compare `on` moduleNameParts
@@ -417,7 +418,7 @@ noName_ :: Name
 noName_ = noName noRange
 
 noName :: Range -> Name
-noName r = NoName r (NameId 0 0)
+noName r = NoName r (NameId 0 noModuleNameHash)
 
 -- | Check whether a name is the empty name "_".
 class IsNoName a where
@@ -518,11 +519,11 @@ instance KillRange TopLevelModuleName where
 -- * NFData instances
 ------------------------------------------------------------------------
 
--- | Ranges are not forced.
-
 instance NFData NameInScope where
   rnf InScope    = ()
   rnf NotInScope = ()
+
+-- | Ranges are not forced.
 
 instance NFData Name where
   rnf (Name _ nis ns) = rnf nis `seq` rnf ns
@@ -535,3 +536,5 @@ instance NFData NamePart where
 instance NFData QName where
   rnf (Qual a b) = rnf a `seq` rnf b
   rnf (QName a)  = rnf a
+
+instance NFData TopLevelModuleName

@@ -35,23 +35,61 @@ keywords
   can appear in a name together with other characters.
 
   ``=`` ``|`` ``->`` ``→`` ``:`` ``?`` ``\`` ``λ``
-  :ref:`∀ <notational-conventions>` ``..`` ``...`` ``abstract``
-  ``constructor`` ``data`` :ref:`do <do-notation>` ``eta-equality`` ``field``
-  :ref:`forall <notational-conventions>` ``hiding`` ``import`` ``in``
-  ``inductive`` ``infix`` ``infixl`` ``infixr`` ``instance`` ``interleaved`` ``let``
-  :ref:`macro <macros>` ``module`` ``mutual`` ``no-eta-equality``
-  ``open`` :ref:`overlap <instance-fields>` ``pattern`` ``postulate``
-  ``primitive`` ``private`` ``public`` :ref:`quote <reflection>`
-  ``quoteContext`` ``quoteGoal`` :ref:`quoteTerm <macros>` ``record``
-  ``renaming`` ``rewrite`` ``Set`` ``syntax`` ``tactic``
-  :ref:`unquote <macros>` :ref:`unquoteDecl <unquoting-declarations>`
-  :ref:`unquoteDef <unquoting-declarations>` ``using``
+  :ref:`∀ <notational-conventions>` ``..`` ``...``
+  ``abstract``
+  ``coinductive``
+  ``constructor``
+  ``data``
+  :ref:`do <do-notation>`
+  ``eta-equality``
+  ``field``
+  :ref:`forall <notational-conventions>`
+  ``import``
+  ``in``
+  ``inductive``
+  ``infix``
+  ``infixl``
+  ``infixr``
+  ``instance``
+  ``interleaved``
+  ``let``
+  :ref:`macro <macros>`
+  ``module``
+  ``mutual``
+  ``no-eta-equality``
+  ``open``
+  :ref:`overlap <instance-fields>`
+  ``pattern``
+  ``postulate``
+  ``primitive``
+  ``private``
+  :ref:`quote <reflection>`
+  :ref:`quoteTerm <macros>`
+  ``record``
+  ``rewrite``
+  ``Set``
+  ``syntax``
+  ``tactic``
+  :ref:`unquote <macros>`
+  :ref:`unquoteDecl <unquoting-declarations>`
+  :ref:`unquoteDef <unquoting-declarations>`
   :ref:`variable <generalization-of-declared-variables>`
-  ``where`` ``with``
+  ``where``
+  ``with``
 
   The ``Set`` keyword can appear with a natural number suffix, optionally
   subscripted (see :ref:`sort-system`). For instance ``Set42`` and
   ``Set₄₂`` are both keywords.
+
+keywords in import directives
+  The following words are only reserved in import directives
+  (in connection with ``import`` or ``open``):
+
+  ``public``
+  ``using``
+  ``hiding``
+  ``renaming``
+  ``to``
 
 .. _names:
 
@@ -214,7 +252,19 @@ layout keywords:
 
 .. code-block:: none
 
-   abstract do field instance let macro mutual postulate primitive private where
+   abstract
+   constructor
+   do
+   field
+   instance
+   let
+   macro
+   mutual
+   postulate
+   primitive
+   private
+   variable
+   where
 
 The first token after the layout keyword decides the indentation of the block.
 Any token indented more than this is part of the previous statement, a token at
@@ -233,6 +283,16 @@ the block.
   one = suc zero
 
 Note that the indentation of the layout keyword does not matter.
+
+If several layout blocks are started by layout keywords without line
+break in between (where line breaks inside block comments do not
+count), then those blocks indented *more* than the last block go
+passive, meaning they cannot be further extended by new statements::
+
+  private module M where postulate
+            A : Set                 -- module-block goes passive
+            B : Set                 -- postulate-block can still be extended
+          module N where            -- private-block can still be extended
 
 An Agda file contains one top-level layout block, with the special rule that
 the contents of the top-level module need not be indented.

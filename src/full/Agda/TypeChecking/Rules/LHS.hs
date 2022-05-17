@@ -18,7 +18,7 @@ import Control.Arrow (left, second)
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
-import Control.Monad.Writer hiding ((<>))
+import Control.Monad.Writer       ( MonadWriter(..), runWriterT )
 import Control.Monad.Trans.Maybe
 
 import Data.IntSet (IntSet)
@@ -744,7 +744,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
             weakSub | isJust withSub' = wkS (max 0 $ numPats - arity_a) idS -- if numPats < arity, Θ is empty
                     | otherwise       = wkS (numPats - length cxt) idS
             withSub  = fromMaybe idS withSub'
-            patSub   = map (patternToTerm . namedArg) (reverse $ take numPats qs0) ++# (EmptyS __IMPOSSIBLE__)
+            patSub   = map (patternToTerm . namedArg) (reverse $ take numPats qs0) ++# EmptyS impossible
             paramSub = patSub `composeS` weakSub `composeS` withSub
 
         eqs <- addContext delta $ checkPatternLinearity eqs
@@ -784,7 +784,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
                ]
         reportSDoc "tc.lhs.top" 30 $
           nest 2 $ vcat
-                 [ "vars   = " <+> text (show vars)
+                 [ "vars   = " <+> pretty vars
                  ]
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "withSub  = " <+> pretty withSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "weakSub  = " <+> pretty weakSub
@@ -863,7 +863,8 @@ checkLHS mf = updateModality checkLHS_ where
  updateModality cont st@(LHSState tel ip problem target psplit) = do
       let m = getModality target
       applyModalityToContext m $ do
-        cont $ over (lhsTel . listTel) (map $ inverseApplyModality m) st
+        cont $ over (lhsTel . listTel)
+                 (map $ inverseApplyModalityButNotQuantity m) st
         -- Andreas, 2018-10-23, issue #3309
         -- the modalities in the clause telescope also need updating.
 
@@ -958,7 +959,7 @@ checkLHS mf = updateModality checkLHS_ where
         block <- isBlocked target
         softTypeError $ CannotEliminateWithPattern block p (unArg target)
 
-      (projName, comatchingAllowed, recName, projType) <- suspendErrors $ do
+      (projName, comatchingAllowed, recName, projType, ai) <- suspendErrors $ do
         -- Andreas, 2018-10-18, issue #3289: postfix projections do not have hiding
         -- information for their principal argument; we do not parse @{r}.p@ and the like.
         let h = if orig == ProjPostfix then Nothing else Just $ getHiding p
@@ -977,14 +978,14 @@ checkLHS mf = updateModality checkLHS_ where
 
       -- Compute the new state
       let projP    = applyWhen (orig == ProjPostfix) (setHiding NotHidden) $
-                       target' $> Named Nothing (ProjP orig projName)
+                       Arg ai $ Named Nothing (ProjP orig projName)
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
           problem' = over problemRestPats tail problem
       liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit)
 
 
-    -- | Split a Partial.
+    -- Split a Partial.
     --
     -- Example for splitPartial:
     -- @
@@ -1034,10 +1035,10 @@ checkLHS mf = updateModality checkLHS_ where
     --   sigma = fails because several substitutions [[1/i],[1/j]] correspond to phi
     -- @
 
-    splitPartial :: Telescope     -- ^ The types of arguments before the one we split on
-                 -> Dom Type      -- ^ The type of the argument we split on
-                 -> Abs Telescope -- ^ The types of arguments after the one we split on
-                 -> [(A.Expr, A.Expr)] -- ^ [(φ₁ = b1),..,(φn = bn)]
+    splitPartial :: Telescope     -- The types of arguments before the one we split on
+                 -> Dom Type      -- The type of the argument we split on
+                 -> Abs Telescope -- The types of arguments after the one we split on
+                 -> [(A.Expr, A.Expr)] -- [(φ₁ = b1),..,(φn = bn)]
                  -> ExceptT TCErr tcm (LHSState a)
     splitPartial delta1 dom adelta2 ts = do
 
@@ -1144,10 +1145,10 @@ checkLHS mf = updateModality checkLHS_ where
       liftTCM $ updateLHSState (LHSState delta' ip' problem' target' (psplit ++ [Just o_n]))
 
 
-    splitLit :: Telescope     -- ^ The types of arguments before the one we split on
-             -> Dom Type      -- ^ The type of the literal we split on
-             -> Abs Telescope -- ^ The types of arguments after the one we split on
-             -> Literal       -- ^ The literal written by the user
+    splitLit :: Telescope      -- The types of arguments before the one we split on
+             -> Dom Type       -- The type of the literal we split on
+             -> Abs Telescope  -- The types of arguments after the one we split on
+             -> Literal        -- The literal written by the user
              -> ExceptT TCErr tcm (LHSState a)
     splitLit delta1 dom@Dom{domInfo = info, unDom = a} adelta2 lit = do
       let delta2 = absApp adelta2 (Lit lit)
@@ -1183,12 +1184,12 @@ checkLHS mf = updateModality checkLHS_ where
       liftTCM $ updateLHSState (LHSState delta' ip' problem' target' psplit)
 
 
-    splitCon :: Telescope     -- ^ The types of arguments before the one we split on
-             -> Dom Type      -- ^ The type of the constructor we split on
-             -> Abs Telescope -- ^ The types of arguments after the one we split on
-             -> A.Pattern     -- ^ The pattern written by the user
-             -> Maybe AmbiguousQName  -- ^ @Just c@ for a (possibly ambiguous) constructor @c@, or
-                                      --   @Nothing@ for a record pattern
+    splitCon :: Telescope      -- The types of arguments before the one we split on
+             -> Dom Type       -- The type of the constructor we split on
+             -> Abs Telescope  -- The types of arguments after the one we split on
+             -> A.Pattern      -- The pattern written by the user
+             -> Maybe AmbiguousQName  -- @Just c@ for a (possibly ambiguous) constructor @c@, or
+                                      -- @Nothing@ for a record pattern
              -> ExceptT TCErr tcm (LHSState a)
     splitCon delta1 dom@Dom{domInfo = info, unDom = a} adelta2 focusPat ambC = do
       let delta2 = absBody adelta2
@@ -1413,13 +1414,21 @@ checkLHS mf = updateModality checkLHS_ where
           let eqs' = applyPatSubst rho $ problem ^. problemEqs
               problem' = set problemEqs eqs' problem
 
-          -- Propagate quantity to result type
-          cq <- getQuantity <$> getConstInfo (conName c)
+          -- The result type's quantity is set to 0 for erased
+          -- constructors, but not if the match is made in an erased
+          -- position, or if the original constructor definition is
+          -- not erased.
+          cq <- getQuantity <$> getOriginalConstInfo (conName c)
           let target'' = mapQuantity updResMod target'
                 where
+                  erased = case getQuantity info of
+                    Quantity0{} -> True
+                    Quantity1{} -> __IMPOSSIBLE__
+                    Quantityω{} -> False
                   -- either sets to Quantity0 or is the identity.
                   updResMod q =
                     case cq of
+                     _ | erased  -> q
                      Quantity0{} -> composeQuantity cq q
                                  -- zero-out, preserves origin
                      Quantity1{} -> __IMPOSSIBLE__
@@ -1499,6 +1508,8 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
     Def d es -> liftTCM (theDef <$> getConstInfo d) >>= \case
 
       Datatype{dataPars = np} -> do
+
+        whenM (isInterval a) $ hardTypeError =<< notData
 
         let (pars, ixs) = splitAt np $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         return (IsData, d, pars, ixs)
@@ -1585,7 +1596,7 @@ disambiguateProjection
                     --   @Nothing@ if 'Postfix' projection.
   -> AmbiguousQName -- ^ Name of the projection to be disambiguated.
   -> Arg Type       -- ^ Record type we are projecting from.
-  -> TCM (QName, Bool, QName, Arg Type)
+  -> TCM (QName, Bool, QName, Arg Type, ArgInfo)
        -- ^ @Bool@ signifies whether copattern matching is allowed at
        --   the inferred record type.
 disambiguateProjection h ambD@(AmbQ ds) b = do
@@ -1622,14 +1633,14 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
       -- instead of throwing them to the user immediately.
       disambiguations <- mapM (runExceptT . tryProj constraintsOk fs r vs) ds
       case List1.partitionEithers disambiguations of
-        (_ , (d, (a, mst)) : disambs) | constraintsOk <= null disambs -> do
+        (_ , (d, (a, ai, mst)) : disambs) | constraintsOk <= null disambs -> do
           mapM_ putTC mst -- Activate state changes
           -- From here, we have the correctly disambiguated projection.
           -- For highlighting, we remember which name we disambiguated to.
           -- This is safe here (fingers crossed) as we won't decide on a
           -- different projection even if we backtrack and come here again.
           liftTCM $ storeDisambiguatedProjection d
-          return (d, comatching, r, a)
+          return (d, comatching, r, a, ai)
         other -> failure other
 
     notRecord = wrongProj $ List1.head ds
@@ -1652,13 +1663,13 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         [ "Wrong hiding used for projection " , prettyTCM d ]
 
     tryProj
-      :: Bool                 -- ^ Are we allowed to create new constraints?
-      -> [Dom QName]          -- ^ Fields of record type under consideration.
-      -> QName                -- ^ Name of record type we are eliminating.
-      -> Args                 -- ^ Parameters of record type we are eliminating.
-      -> QName                -- ^ Candidate projection.
-      -> ExceptT TCErr TCM (QName, (Arg Type, Maybe TCState))
-           -- ^ TCState contains possibly new constraints/meta solutions.
+      :: Bool                 -- Are we allowed to create new constraints?
+      -> [Dom QName]          -- Fields of record type under consideration.
+      -> QName                -- Name of record type we are eliminating.
+      -> Args                 -- Parameters of record type we are eliminating.
+      -> QName                -- Candidate projection.
+      -> ExceptT TCErr TCM (QName, (Arg Type, ArgInfo, Maybe TCState))
+           -- TCState contains possibly new constraints/meta solutions.
     tryProj constraintsOk fs r vs d0 = isProjection d0 >>= \case
       -- Not a projection
       Nothing -> wrongProj d0
@@ -1685,7 +1696,10 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- If this was not an ambiguous projection, that's an error.
         argd <- maybe (wrongProj d) return $ List.find ((d ==) . unDom) fs
 
-        let ai = setModality (getModality argd) $ projArgInfo proj
+        -- Issue4998: This used to use the hiding from the principal argument, but this is not
+        -- relevant for the ArgInfo of the clause rhs. We return that separately so we can set the
+        -- correct hiding for the projection pattern in splitRest above.
+        let ai = getArgInfo argd
 
         reportSDoc "tc.lhs.split" 20 $ vcat
           [ text $ "original proj relevance  = " ++ show (getRelevance argd)
@@ -1694,7 +1708,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
         -- Andreas, 2016-12-31, issue #2374:
         -- We can also disambiguate by hiding info.
         -- Andreas, 2018-10-18, issue #3289: postfix projections have no hiding info.
-        unless (caseMaybe h True $ sameHiding ai) $ wrongHiding d
+        unless (caseMaybe h True $ sameHiding $ projArgInfo proj) $ wrongHiding d
 
         -- Andreas, 2016-12-31, issue #1976: Check parameters.
         let chk = checkParameters qr r vs
@@ -1708,7 +1722,7 @@ disambiguateProjection h ambD@(AmbQ ds) b = do
           [ "we are being projected by dType = " <+> prettyTCM dType
           ]
         projType <- liftTCM $ dType `piApplyM` vs
-        return (d0 , (Arg ai projType , mst))
+        return (d0, (Arg ai projType, projArgInfo proj, mst))
 
 -- | Disambiguate a constructor based on the data type it is supposed to be
 --   constructing. Returns the unambiguous constructor name and its type.
@@ -1743,20 +1757,17 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
 
   where
     tryDisambiguate
-      :: Bool
-           -- ^ May we constrain/solve metas to arrive at unique disambiguation?
-      -> QName
-           -- ^ Data/record type.
-      -> [QName]
-           -- ^ Its constructor(s).
+      :: Bool     -- May we constrain/solve metas to arrive at unique disambiguation?
+      -> QName    -- Data/record type.
+      -> [QName]  -- Its constructor(s).
       -> ( ( [TCErr]
            , [List1 (QName, ConHead, (Type, Maybe TCState))]
            )
-           -> TCM (ConHead, Type) )
-           -- ^ Failure continuation, taking possible disambiguations
-           --   grouped by the original constructor name in 'ConHead'.
-      -> TCM (ConHead, Type)
-           -- ^ Unique disambiguation and its type.
+           -> TCM (ConHead, Type) )  -- Failure continuation, taking
+                                     -- possible disambiguations
+                                     -- grouped by the original
+                                     -- constructor name in 'ConHead'.
+      -> TCM (ConHead, Type)  -- Unique disambiguation and its type.
     tryDisambiguate constraintsOk d cons failure = do
       reportSDoc "tc.lhs.disamb" 30 $ sep $ List.concat $
         [ [ "tryDisambiguate" ]
@@ -1805,15 +1816,15 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
       ConstructorPatternInWrongDatatype c d
 
     tryCon
-      :: Bool        -- ^ Are we allowed to constrain metas?
-      -> [QName]     -- ^ Constructors of data type under consideration.
-      -> QName       -- ^ Name of data/record type we are eliminating.
-      -> Args        -- ^ Parameters of data/record type we are eliminating.
-      -> QName       -- ^ Candidate constructor.
+      :: Bool        -- Are we allowed to constrain metas?
+      -> [QName]     -- Constructors of data type under consideration.
+      -> QName       -- Name of data/record type we are eliminating.
+      -> Args        -- Parameters of data/record type we are eliminating.
+      -> QName       -- Candidate constructor.
       -> ExceptT TCErr TCM (QName, ConHead, (Type, Maybe TCState))
-           -- ^ If this candidate succeeds, return its disambiguation
-           --   its type, and maybe the state obtained after checking it
-           --   (which may contain new constraints/solutions).
+           -- If this candidate succeeds, return its disambiguation
+           -- its type, and maybe the state obtained after checking it
+           -- (which may contain new constraints/solutions).
     tryCon constraintsOk cons d pars c = getConstInfo' c >>= \case
       Left (SigUnknown err) -> __IMPOSSIBLE__
       Left SigAbstract -> abstractConstructor c
@@ -1845,9 +1856,9 @@ disambiguateConstructor ambC@(AmbQ cs) d pars = do
 
         return (c, con, (cType, mst))
 
-    -- | This deduplication identifies different names of the same constructor, ensuring
-    -- that the "ambiguous constructor" error does not fire for the case described
-    -- in #4130.
+    -- This deduplication identifies different names of the same
+    -- constructor, ensuring that the "ambiguous constructor" error
+    -- does not fire for the case described in #4130.
     --
     -- Andreas, 2020-06-17, issue #4135:
     -- However, we need to distinguish different occurrences
@@ -1935,37 +1946,41 @@ checkSortOfSplitVar :: (MonadTCM m, PureTCM m, MonadError TCErr m,
                     => DataOrRecord -> a -> Telescope -> Maybe ty -> m ()
 checkSortOfSplitVar dr a tel mtarget = do
   liftTCM (reduce $ getSort a) >>= \case
-    sa@Type{} -> whenM isTwoLevelEnabled $ do
-     if
-      | IsRecord _ _ <- dr     -> return ()
-      | Just target <- mtarget -> do
-          reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
-          checkIsFibrant target
-          forM_ (telToList tel) $ \ d -> do
-            let ty = snd $ unDom d
-            checkIsCoFibrant ty
-      | otherwise              -> do
-          reportSDoc "tc.sort.check" 20 $ "no target"
-          splitOnFibrantError Nothing
-    Prop{}
-      | IsRecord _ _ <- dr     -> return ()
-      | Just target <- mtarget -> do
-        reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
-        checkIsProp target
-      | otherwise              -> do
-          reportSDoc "tc.sort.check" 20 $ "no target prop"
-          splitOnPropError
-    Inf{} -> return () -- see #4109
+    sa@Type{} -> whenM isTwoLevelEnabled checkFibrantSplit
+    Prop{} -> checkPropSplit
+    Inf IsFibrant _ -> whenM isTwoLevelEnabled checkFibrantSplit
+    Inf IsStrict _ -> return ()
     SSet{} -> return ()
     sa      -> softTypeError =<< do
       liftTCM $ SortOfSplitVarError <$> isBlocked sa <*> sep
         [ "Cannot split on datatype in sort" , prettyTCM (getSort a) ]
 
   where
+    checkPropSplit
+      | IsRecord Nothing _ <- dr = return ()
+      | Just target <- mtarget = do
+        reportSDoc "tc.sort.check" 20 $ "target prop:" <+> prettyTCM target
+        checkIsProp target
+      | otherwise              = do
+          reportSDoc "tc.sort.check" 20 $ "no target prop"
+          splitOnPropError dr
+
     checkIsProp t = runBlocked (isPropM t) >>= \case
-      Left b      -> splitOnPropError -- TODO
-      Right False -> splitOnPropError
+      Left b      -> splitOnPropError dr -- TODO
+      Right False -> splitOnPropError dr
       Right True  -> return ()
+
+    checkFibrantSplit
+      | IsRecord _ _ <- dr     = return ()
+      | Just target <- mtarget = do
+          reportSDoc "tc.sort.check" 20 $ "target:" <+> prettyTCM target
+          checkIsFibrant target
+          forM_ (telToList tel) $ \ d -> do
+            let ty = snd $ unDom d
+            checkIsCoFibrant ty
+      | otherwise              = do
+          reportSDoc "tc.sort.check" 20 $ "no target"
+          splitOnFibrantError Nothing
 
     -- Cofibrant types are those that could be the domain of a fibrant
     -- pi type. (Notion by C. Sattler).
@@ -1980,8 +1995,15 @@ checkSortOfSplitVar dr a tel mtarget = do
       Right False -> splitOnFibrantError Nothing
       Right True  -> return ()
 
-    splitOnPropError = softTypeError $ GenericError
-      "Cannot split on datatype in Prop unless target is in Prop"
+    splitOnPropError dr = softTypeError =<< do
+      liftTCM $ GenericDocError <$>
+        ("Cannot split on" <+> kindOfData dr <+> "in Prop unless target is in Prop")
+      where
+        kindOfData :: DataOrRecord -> TCM Doc
+        kindOfData IsData                          = "datatype"
+        kindOfData (IsRecord Nothing _)            = "record type"
+        kindOfData (IsRecord (Just Inductive) _)   = "inductive record type"
+        kindOfData (IsRecord (Just CoInductive) _) = "coinductive record type"
 
     splitOnFibrantError' t mb = softTypeError =<< do
       liftTCM $ SortOfSplitVarError mb <$> fsep

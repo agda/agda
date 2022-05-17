@@ -41,6 +41,7 @@ import Agda.TypeChecking.Telescope
 
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.Pretty  (prettyShow)
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
@@ -56,7 +57,9 @@ type MonadCheckInternal m = MonadConversion m
 
 -- | Entry point for e.g. checking WithFunctionType.
 checkType :: (MonadCheckInternal m) => Type -> m ()
-checkType t = void $ checkType' t
+checkType t = catchConstraint (CheckType t) $ do
+  inferred <- checkType' t
+  equalSort (getSort t) inferred
 
 -- | Check a type and infer its sort.
 --
@@ -116,9 +119,9 @@ data Action m = Action
     -- ^ Called on each subterm before the checker runs.
   , postAction :: Type -> Term -> m Term
     -- ^ Called on each subterm after the type checking.
-  , relevanceAction :: Relevance -> Relevance -> Relevance
+  , modalityAction :: Modality -> Modality -> Modality
     -- ^ Called for each @ArgInfo@.
-    --   The first 'Relevance' is from the type,
+    --   The first 'Modality' is from the type,
     --   the second from the term.
   , elimViewAction :: Term -> m Term
     -- ^ Called for bringing projection-like funs in post-fix form
@@ -130,7 +133,7 @@ defaultAction :: PureTCM m => Action m
 defaultAction = Action
   { preAction       = \ _ -> return
   , postAction      = \ _ -> return
-  , relevanceAction = \ _ -> id
+  , modalityAction  = \ _ -> id
   , elimViewAction  = elimView EvenLone
   }
 
@@ -160,12 +163,12 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
     [ "checking internal "
     , nest 2 $ sep [ prettyTCM v <+> ":"
                    , nest 2 $ prettyTCM t ] ]
-  reportSDoc "tc.check.internal" 30 $ sep
+  reportSDoc "tc.check.internal" 60 $ sep
     [ "checking internal with DB indices"
     , nest 2 $ sep [ pretty v <+> ":"
                    , nest 2 $ pretty t ] ]
   ctx <- getContextTelescope
-  reportSDoc "tc.check.internal" 30 $ sep
+  unless (null ctx) $ reportSDoc "tc.check.internal" 30 $ sep
     [ "In context"
     , nest 2 $ sep [ prettyTCM ctx ] ]
   -- Bring projection-like funs in post-fix form,
@@ -189,11 +192,11 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
       fullyApplyCon c vs t $ \ _d _dt _pars a vs' tel t -> do
         Con c ci vs2 <- checkSpine action a (Con c ci []) vs' cmp t
         -- Strip away the extra arguments
-        return $ applySubst (strengthenS __IMPOSSIBLE__ (size tel))
+        return $ applySubst (strengthenS impossible (size tel))
           $ Con c ci $ take (length vs) vs2
     Lit l      -> do
       lt <- litType l
-      cmptype cmp lt t
+      compareType cmp lt t
       return $ Lit l
     Lam ai vb  -> do
       (a, b) <- maybe (shouldBePi t) return =<< isPath t
@@ -226,7 +229,7 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
     Level l    -> do
       l <- checkLevel action l
       lt <- levelType
-      cmptype cmp lt t
+      compareType cmp lt t
       return $ Level l
     DontCare v -> DontCare <$> checkInternal' action v cmp t
     Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
@@ -279,7 +282,7 @@ checkSpine action a self es cmp t = do
                    , nest 2 $ prettyTCM t ] ]
   ((v, v'), t') <- inferSpine' action a self self es
   t' <- reduce t'
-  v' <$ coerceSize (cmptype cmp) v t' t
+  v' <$ coerceSize (compareType cmp) v t' t
 --UNUSED Liang-Ting Chen 2019-07-16
 --checkArgs
 --  :: (MonadCheckInternal m)
@@ -299,8 +302,8 @@ checkSpine action a self es cmp t = do
 checkArgInfo :: (MonadCheckInternal m) => Action m -> ArgInfo -> ArgInfo -> m ArgInfo
 checkArgInfo action ai ai' = do
   checkHiding    (getHiding ai)     (getHiding ai')
-  r <- checkRelevance action (getRelevance ai)  (getRelevance ai')
-  return $ setRelevance r ai
+  mod <- checkModality action (getModality ai)  (getModality ai')
+  return $ setModality mod ai
 
 checkHiding    :: (MonadCheckInternal m) => Hiding -> Hiding -> m ()
 checkHiding    h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
@@ -308,15 +311,19 @@ checkHiding    h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
 -- | @checkRelevance action term type@.
 --
 --   The @term@ 'Relevance' can be updated by the @action@.
-checkRelevance :: (MonadCheckInternal m) => Action m -> Relevance -> Relevance -> m Relevance
-checkRelevance action r r' = do
-  unless (r == r') $ typeError $ RelevanceMismatch r r'
-  return $ relevanceAction action r' r  -- Argument order for actions: @type@ @term@
+checkModality :: (MonadCheckInternal m) => Action m -> Modality -> Modality -> m Modality
+checkModality action mod mod' = do
+  let (r,r') = (getRelevance mod, getRelevance mod')
+      (q,q') = (getQuantity  mod, getQuantity  mod')
+  unless (sameModality mod mod') $ typeError $ if
+    | not (sameRelevance r r') -> RelevanceMismatch r r'
+    | not (sameQuantity q q')  -> QuantityMismatch  q q'
+    | otherwise -> __IMPOSSIBLE__ -- add more cases when adding new modalities
+  return $ modalityAction action mod' mod  -- Argument order for actions: @type@ @term@
 
 -- | Infer type of a neutral term.
 infer :: (MonadCheckInternal m) => Term -> m Type
-infer v = do
-  case v of
+infer = \case
     Var i es   -> do
       a <- typeOfBV i
       snd <$> inferSpine a (Var i   []) es
@@ -325,7 +332,10 @@ infer v = do
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
       snd <$> inferSpine a (MetaV x []) es
-    _ -> __IMPOSSIBLE__
+    v -> __IMPOSSIBLE_VERBOSE__ $ unlines
+      [ "CheckInternal.infer: non-inferable term:"
+      , "  " ++ prettyShow v
+      ]
 
 -- | Infer ordinary function application.
 inferDef :: (MonadCheckInternal m) => QName -> Elims -> m Type
@@ -336,8 +346,8 @@ inferDef f es = do
 -- | Infer possibly projection-like function application
 inferDef' :: (MonadCheckInternal m) => QName -> Arg Term -> Elims -> m Type
 inferDef' f a es = do
-  isProj <- isProjection f
-  case isProj of
+  -- Andreas, 2022-03-07, issue #5809: don't drop parameters of irrelevant projections.
+  isRelevantProjection f >>= \case
     Just Projection{ projIndex = n } | n > 0 -> do
       let self = unArg a
       b <- infer self
@@ -363,7 +373,7 @@ inferSpine' action t self self' (e : es) = do
     , "type t = " <+> pretty t
     , "self  = " <+> pretty self
     , "self' = " <+> pretty self'
-    , "eliminated by e = " <+> text (show e)
+    , "eliminated by e = " <+> pretty e
     ]
   case e of
     IApply x y r -> do
@@ -419,6 +429,7 @@ checkSort action s =
     SSet l   -> SSet <$> checkLevel action l
     SizeUniv -> return SizeUniv
     LockUniv -> return LockUniv
+    IntervalUniv -> return IntervalUniv
     PiSort dom s1 s2 -> do
       let a = unDom dom
       s1' <- checkSort action s1

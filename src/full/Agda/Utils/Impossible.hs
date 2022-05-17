@@ -9,6 +9,7 @@ module Agda.Utils.Impossible (
 where
 
 import Control.Exception (Exception(..), throw, catchJust)
+import Control.DeepSeq
 import Agda.Utils.CallStack.Base
     ( CallStack
     , HasCallStack
@@ -36,6 +37,17 @@ data Impossible
     -- ^ We reached a program point without all the required
     -- primitives or BUILTIN to proceed forward.
     -- @ImpMissingDefinitions neededDefs forThis@
+
+-- Identify all values of Impossible. We use Impossible as a stand-in for the empty type, so all
+-- values are morally equal.
+instance Eq Impossible where
+  _ == _ = True
+
+instance Ord Impossible where
+  compare _ _ = EQ
+
+instance NFData Impossible where
+  rnf _ = ()
 
 instance Show Impossible where
   show (Impossible loc) = unlines
@@ -97,6 +109,9 @@ __IMPOSSIBLE__ = withCallerCallStack $ throwImpossible . Impossible
 
 __UNIMPLEMENTED__ :: HasCallStack => a
 __UNIMPLEMENTED__ = withCallerCallStack $ throwImpossible . Unimplemented
+
+impossible :: HasCallStack => Impossible
+impossible = withCallerCallStack Impossible
 
 -- | Throw an "Unreachable" error reporting the *caller's* call site.
 -- Note that this call to "withFileAndLine" will be filtered out

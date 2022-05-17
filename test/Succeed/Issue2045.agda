@@ -3,6 +3,8 @@
 
 -- {-# OPTIONS -v tc.term.exlam:100 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 postulate anything : ∀{a}{A : Set a} → A

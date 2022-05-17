@@ -35,13 +35,16 @@ Some other tricks that improves performance:
 module Agda.TypeChecking.Reduce.Fast
   ( fastReduce, fastNormalise ) where
 
+import Prelude hiding ((!!))
+
 import Control.Applicative hiding (empty)
 import Control.Monad.ST
 import Control.Monad.ST.Unsafe (unsafeSTToIO, unsafeInterleaveST)
 
+import qualified Data.HashMap.Strict as HMap
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.IntMap as IntMap
+import qualified Data.Map.Strict as MapS
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Semigroup ((<>))
@@ -67,10 +70,12 @@ import Agda.TypeChecking.Substitute
 import Agda.Interaction.Options
 
 import Agda.Utils.CallStack ( withCurrentCallStack )
+import Agda.Utils.Char
 import Agda.Utils.Float
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Null (empty)
 import Agda.Utils.Functor
 import Agda.Utils.Pretty
@@ -227,7 +232,7 @@ compactDef bEnv def rewr = do
           "primToUpper"                -> mkPrim 1 $ charFun toUpper
           "primToLower"                -> mkPrim 1 $ charFun toLower
           "primCharToNat"              -> mkPrim 1 $ \ [LitChar a] -> nat (fromIntegral (fromEnum a))
-          "primNatToChar"              -> mkPrim 1 $ \ [LitNat a] -> char (toEnum $ fromIntegral $ a `mod` 0x110000)
+          "primNatToChar"              -> mkPrim 1 $ \ [LitNat a] -> char (integerToChar a)
           "primShowChar"               -> mkPrim 1 $ \ [a] -> string (prettyShow a)
 
           -- Strings
@@ -356,7 +361,7 @@ data FastCompiledClauses
 fastCompiledClauses :: BuiltinEnv -> CompiledClauses -> FastCompiledClauses
 fastCompiledClauses bEnv cc =
   case cc of
-    Fail              -> FFail
+    Fail{}            -> FFail
     Done xs b         -> FDone xs b
     Case (Arg _ n) Branches{ etaBranch = Just (c, cc), catchAllBranch = ca } ->
       FEta n (conFields c) (fastCompiledClauses bEnv $ content cc) (fastCompiledClauses bEnv <$> ca)
@@ -500,9 +505,11 @@ derefPointer (Pointer ptr) = readSTRef ptr
 
 -- | In most cases pointers that we dereference do not contain black holes.
 derefPointer_ :: Pointer s -> ST s (Closure s)
-derefPointer_ ptr = do
-  Thunk cl <- derefPointer ptr
-  return cl
+derefPointer_ ptr =
+  derefPointer ptr <&> \case
+    Thunk cl  -> cl
+    BlackHole -> __IMPOSSIBLE__
+
 
 -- | Only use for debug printing!
 unsafeDerefPointer :: Pointer s -> Thunk (Closure s)
@@ -800,8 +807,15 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     compileAndRun . traceDoc "-- fast reduce --"
   where
     -- Helpers to get information from the ReduceEnv.
-    metaStore      = redSt rEnv ^. stMetaStore
-    getMeta m      = maybe __IMPOSSIBLE__ mvInstantiation (IntMap.lookup (metaId m) metaStore)
+    localMetas     = redSt rEnv ^. stSolvedMetaStore
+    remoteMetas    = redSt rEnv ^. stImportedMetaStore
+    -- Are we currently instance searching. In that case we don't fail hard on missing clauses. This
+    -- is a (very unsatisfactory) work-around for #3870.
+    speculative    = redSt rEnv ^. stConsideringInstance
+    getMetaInst m  = case MapS.lookup m localMetas of
+                       Just mv -> Just (mvInstantiation mv)
+                       Nothing -> InstV . rmvInstantiation <$>
+                                    HMap.lookup m remoteMetas
     partialDefs    = runReduce getPartialDefs
     rewriteRules f = cdefRewriteRules (constInfo f)
     callByNeed     = envCallByNeed (redEnv rEnv) && not (optCallByName $ redSt rEnv ^. stPragmaOptions)
@@ -853,7 +867,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     --  - Look up in the environment if variable
     --  - Perform a beta step if lambda and application elimination in the spine
     --  - Perform a record beta step if record constructor and projection elimination in the spine
-    runAM' s@(Eval cl@(Closure Unevaled t env spine) !ctrl) = {-# SCC "runAM.Eval" #-}
+    runAM' s@(Eval cl@(Closure Unevaled t env spine) ctrl) = {-# SCC "runAM.Eval" #-}
       case t of
 
         -- Case: definition. Enter 'Match' state if defined function or shift to evaluating an
@@ -952,12 +966,17 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         -- environment for the closure. Avoiding shifting spines for open metas
         -- save a bit of performance.
         MetaV m es -> evalIApplyAM spine ctrl $
-          case getMeta m of
-            InstV xs t -> do
+          case getMetaInst m of
+            Nothing ->
+              runAM (Eval (mkValue (blocked m ()) cl) ctrl)
+            Just (InstV i) -> do
               spine' <- elimsToSpine env es
-              let (zs, env, !spine'') = buildEnv xs (spine' <> spine)
-              runAM (evalClosure (lams zs t) env spine'' ctrl)
-            _ -> runAM (Eval (mkValue (blocked m ()) cl) ctrl)
+              let (zs, env, !spine'') = buildEnv (instTel i) (spine' <> spine)
+              runAM (evalClosure (lams zs (instBody i)) env spine'' ctrl)
+            Just Open{}                         -> __IMPOSSIBLE__
+            Just OpenInstance{}                 -> __IMPOSSIBLE__
+            Just BlockedConst{}                 -> __IMPOSSIBLE__
+            Just PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
 
         -- Case: unsupported. These terms are not handled by the abstract machine, so we fall back
         -- to slowReduceTerm for these.
@@ -1367,6 +1386,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
     failedMatch f (CatchAll cc spine : stack :> cl) ctrl = runAM (Match f cc spine (stack :> cl) ctrl)
     failedMatch f ([] :> cl) ctrl
       | f `elem` partialDefs = rewriteAM (Eval (mkValue (NotBlocked MissingClauses ()) cl) ctrl)
+      | hasRewriting         = rewriteAM (Eval (mkValue (NotBlocked ReallyNotBlocked ()) cl) ctrl)  -- See #5396
       | otherwise            = runReduce $
           traceSLn "impossible" 10 ("Incomplete pattern matching when applying " ++ prettyShow f)
                    __IMPOSSIBLE__

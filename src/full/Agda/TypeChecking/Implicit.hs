@@ -63,7 +63,7 @@ insertImplicitBindersT1 bs@(b :| _) a = setCurrentRange b $ do
          ]
   hs <- insImp b tel
   -- Continue with implicit binders inserted before @b@.
-  let bs0@(b1 :| bs1) = List1.prepend hs bs
+  let bs0@(b1 :| bs1) = List1.prependList hs bs
   reduce a >>= piOrPath >>= \case
     -- If @a@ is a function (or path) type, continue inserting after @b1@.
     Left (_, ty) -> (b1 :|) <$> insertImplicitBindersT bs1 (absBody ty)
@@ -120,7 +120,8 @@ implicitNamedArgs n expand t0 = do
 
             return $ makeInstance info
           (_, v) <- newMetaArg info' x CmpLeq a
-          whenJust tac $ \ tac -> liftTCM $ unquoteTactic tac v a
+          whenJust tac $ \ tac -> liftTCM $
+            applyModalityToContext info $ unquoteTactic tac v a
           let narg = Arg info (Named (Just $ WithOrigin Inserted $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
@@ -215,9 +216,9 @@ insertImplicit' a ts
       takeHiddenUntil (sameHiding a) ts
 
     where
-    -- | @takeHiddenUntil p ts@ returns the 'getHiding' of the prefix of @ts@
-    --   until @p@ holds or a visible argument is encountered.
-    --   If @p@ never holds, 'Nothing' is returned.
+    -- @takeHiddenUntil p ts@ returns the 'getHiding' of the prefix of @ts@
+    -- until @p@ holds or a visible argument is encountered.
+    -- If @p@ never holds, 'Nothing' is returned.
     --
     --   Precondition: @p@ should imply @not . visible@.
     takeHiddenUntil :: (Dom ArgName -> Bool) -> [Dom ArgName] -> Maybe [Dom ()]

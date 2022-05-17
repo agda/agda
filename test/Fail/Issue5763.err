@@ -1,0 +1,6 @@
+Issue5763.agda:8,1-15
+Could not parse the left-hand side foo (fn x , y)
+Operators used in the grammar:
+  None
+when scope checking the left-hand side foo (fn x , y) in the
+definition of foo

@@ -17,7 +17,9 @@ syntax2	= Syntacticosmos/UntypedLambda.agda -iSyntacticosmos +RTS -K32M
 syntaxTests = syntax1 syntax2
 
 # cwf
-cwf = cwf/CwF.agda --ignore-interfaces -icwf
+# Disabled:
+# cwf = cwf/CwF.agda --ignore-interfaces -icwf
+cwf =
 cwfTests = cwf
 
 # Parsing monad
@@ -31,7 +33,8 @@ functor			 = $(call misc,Functor)
 latemeta		 = $(call misc,LateMetaVariableInstantiation)
 polyfunctor  = $(call misc,UniversePolymorphicFunctor)
 patternmatch = $(call misc,Coverage)
-miscTests		 = functor latemeta polyfunctor patternmatch
+instanceargs = $(call misc,InstanceArgs)
+miscTests		 = functor latemeta polyfunctor patternmatch instanceargs
 
 #proj
 proj = proj/$1.agda -iproj --ignore-interfaces

@@ -1,5 +1,7 @@
 -- {-# OPTIONS -v tc.meta:30 #-}
 
+{-# OPTIONS --sized-types #-}
+
 module GiveSize where
 
 {-# BUILTIN SIZE Size #-}

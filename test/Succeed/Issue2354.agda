@@ -18,6 +18,8 @@
 -- {-# OPTIONS -v tc.instance.rigid:100 -v tc.instance:70 -v tc.size:30 #-}
 -- {-# OPTIONS -v tc.term.con:50 #-}
 
+{-# OPTIONS --sized-types #-}
+
 {-# BUILTIN SIZEUNIV SizeU #-}
 {-# BUILTIN SIZE     Size   #-}
 {-# BUILTIN SIZELT   Size<_ #-}

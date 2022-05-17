@@ -1,0 +1,4 @@
+Issue5891DataInIUniv.agda:10,8-13
+The universe IUniv of False
+does not admit data or record declarations
+when checking the definition of False

@@ -15,6 +15,7 @@ module Agda.Syntax.Notation where
 
 import Prelude hiding (null)
 
+import Control.DeepSeq
 import Control.Monad
 import Control.Monad.Except
 
@@ -22,6 +23,8 @@ import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import GHC.Generics (Generic)
 
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
@@ -31,18 +34,20 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 
--- | Data type constructed in the Happy parser; converted to 'GenPart'
---   before it leaves the Happy code.
+-- | Data type constructed in the Happy parser; converted to
+-- 'NotationPart' before it leaves the Happy code.
 data HoleName
-  = LambdaHole { _bindHoleName :: RString
-               , holeName      :: RString }
-    -- ^ @\ x -> y@; 1st argument is the bound name (unused for now).
+  = LambdaHole { _bindHoleNames :: List1 RString
+               , holeName       :: RString
+               }
+    -- ^ @λ x₁ … xₙ → y@: The first argument contains the bound names.
   | ExprHole   { holeName      :: RString }
     -- ^ Simple named hole with hiding.
 
@@ -56,32 +61,25 @@ stringParts :: Notation -> [String]
 stringParts gs = [ rangedThing x | IdPart x <- gs ]
 
 -- | Target argument position of a part (Nothing if it is not a hole).
-holeTarget :: GenPart -> Maybe Int
-holeTarget (BindHole _   n) = Just $ rangedThing n
-holeTarget (WildHole     n) = Just $ rangedThing n
-holeTarget (NormalHole _ n) = Just $ rangedThing $ namedArg n
-holeTarget IdPart{}         = Nothing
+holeTarget :: NotationPart -> Maybe Int
+holeTarget (VarPart _ n)  = Just $ holeNumber $ rangedThing n
+holeTarget (WildPart n)   = Just $ holeNumber $ rangedThing n
+holeTarget (HolePart _ n) = Just $ rangedThing $ namedArg n
+holeTarget IdPart{}       = Nothing
 
--- | Is the part a hole? WildHoles don't count since they don't correspond to
---   anything the user writes.
-isAHole :: GenPart -> Bool
-isAHole BindHole{}   = True
-isAHole NormalHole{} = True
-isAHole WildHole{}   = False
-isAHole IdPart{}     = False
-
--- | Is the part a normal hole?
-isNormalHole :: GenPart -> Bool
-isNormalHole NormalHole{} = True
-isNormalHole BindHole{}   = False
-isNormalHole WildHole{}   = False
-isNormalHole IdPart{}     = False
+-- | Is the part a hole?
+isAHole :: NotationPart -> Bool
+isAHole HolePart{} = True
+isAHole VarPart{}  = False
+isAHole WildPart{} = False
+isAHole IdPart{}   = False
 
 -- | Is the part a binder?
-isBindingHole :: GenPart -> Bool
-isBindingHole BindHole{} = True
-isBindingHole WildHole{} = True
-isBindingHole _          = False
+isBinder :: NotationPart -> Bool
+isBinder HolePart{} = False
+isBinder VarPart{}  = True
+isBinder WildPart{} = True
+isBinder IdPart{}   = False
 
 -- | Classification of notations.
 
@@ -91,14 +89,14 @@ data NotationKind
   | PostfixNotation -- ^ Ex: @bla_blub_@.
   | NonfixNotation  -- ^ Ex: @bla_blub@.
   | NoNotation
-   deriving (Eq, Show)
+   deriving (Eq, Show, Generic)
 
 -- | Classify a notation by presence of leading and/or trailing
 -- /normal/ holes.
 notationKind :: Notation -> NotationKind
 notationKind []  = NoNotation
-notationKind syn =
-  case (isNormalHole $ head syn, isNormalHole $ last syn) of
+notationKind (h:syn) =
+  case (isAHole h, isAHole $ last1 h syn) of
     (True , True ) -> InfixNotation
     (True , False) -> PostfixNotation
     (False, True ) -> PrefixNotation
@@ -106,16 +104,16 @@ notationKind syn =
 
 -- | From notation with names to notation with indices.
 --
---   Example:
+--   An example (with some parts of the code omitted):
+--   The lists
+--   @["for", "x", "∈", "xs", "return", "e"]@
+--   and
+--   @['LambdaHole' ("x" :| []) "e", 'ExprHole' "xs"]@
+--   are mapped to the following notation:
 --   @
---      ids   = ["for", "x", "∈", "xs", "return", "e"]
---      holes = [ LambdaHole "x" "e",  ExprHole "xs" ]
---   @
---   creates the notation
---   @
---      [ IdPart "for"    , BindHole 0
---      , IdPart "∈"      , NormalHole 1
---      , IdPart "return" , NormalHole 0
+--      [ 'IdPart' "for"    , 'VarPart' ('BoundVariablePosition' 0 0)
+--      , 'IdPart' "∈"      , 'HolePart' 1
+--      , 'IdPart' "return" , 'HolePart' 0
 --      ]
 --   @
 mkNotation :: [NamedArg HoleName] -> [RString] -> Either String Notation
@@ -123,11 +121,9 @@ mkNotation _ [] = throwError "empty notation is disallowed"
 mkNotation holes ids = do
   unless uniqueHoleNames     $ throwError "syntax must use unique argument names"
   let xs :: Notation = map mkPart ids
-  unless (isAlternating xs)  $ throwError $ concat
-     [ "syntax must alternate holes ("
+  unless (noAdjacentHoles xs)  $ throwError $ concat
+     [ "syntax must not contain adjacent holes ("
      , prettyHoles
-     , ") and non-holes ("
-     , prettyNonHoles xs
      , ")"
      ]
   unless (isExprLinear xs)   $ throwError "syntax must use holes exactly once"
@@ -135,25 +131,15 @@ mkNotation holes ids = do
   -- Andreas, 2018-10-18, issue #3285:
   -- syntax that is just a single hole is ill-formed and crashes the operator parser
   when   (isSingleHole xs)   $ throwError "syntax cannot be a single hole"
-  return $ insertWildHoles xs
+  return $ insertWildParts xs
     where
       holeNames :: [RString]
       holeNames = map namedArg holes >>= \case
-        LambdaHole x y -> [x, y]
+        LambdaHole _ y -> [y]
         ExprHole y     -> [y]
 
       prettyHoles :: String
       prettyHoles = List.unwords $ map (rawNameToString . rangedThing) holeNames
-
-      nonHoleNames :: Notation -> [RString]
-      nonHoleNames xs = flip mapMaybe xs $ \case
-        WildHole{}   -> Just $ unranged "_"
-        IdPart x     -> Just x
-        BindHole{}   -> Nothing
-        NormalHole{} -> Nothing
-
-      prettyNonHoles :: Notation -> String
-      prettyNonHoles = List.unwords . map (rawNameToString . rangedThing) . nonHoleNames
 
       mkPart ident = maybe (IdPart ident) (`withRangeOf` ident) $ lookup ident holeMap
 
@@ -162,54 +148,86 @@ mkNotation holes ids = do
       numberedHoles :: [(Int, NamedArg HoleName)]
       numberedHoles = zip holeNumbers holes
 
-      -- The WildHoles don't correspond to anything in the right-hand side so
+      -- The WildParts don't correspond to anything in the right-hand side so
       -- we add them next to their corresponding body. Slightly subtle: due to
       -- the way the operator parsing works they can't be added first or last.
-      insertWildHoles :: [GenPart] -> [GenPart]
-      insertWildHoles xs = foldr ins xs wilds
+      insertWildParts :: [NotationPart] -> [NotationPart]
+      insertWildParts xs = foldr ins xs wilds
         where
-          wilds = [ i | (_, WildHole i) <- holeMap ]
-          ins w (NormalHole r h : hs)
-            | namedArg h == w = NormalHole r h : WildHole w : hs
+          wilds = [ i | (_, WildPart i) <- holeMap ]
+
+          ins w (HolePart r h : hs)
+            | namedArg h == fmap holeNumber w =
+              HolePart r h : WildPart w : hs
           ins w (h : hs) = h : insBefore w hs
           ins _ [] = __IMPOSSIBLE__
 
-          insBefore w (NormalHole r h : hs)
-            | namedArg h == w = WildHole w : NormalHole r h : hs
+          insBefore w (HolePart r h : hs)
+            | namedArg h == fmap holeNumber w =
+              WildPart w : HolePart r h : hs
           insBefore w (h : hs) = h : insBefore w hs
           insBefore _ [] = __IMPOSSIBLE__
 
-      -- Create a map (association list) from hole names to holes.
-      -- A @LambdaHole@ contributes two entries:
-      -- both names are mapped to the same number,
-      -- but distinguished by BindHole vs. NormalHole.
-      holeMap :: [(RString, GenPart)]
+      -- A map (association list) from hole names to notation parts. A
+      -- @LambdaHole@ contributes one or more entries, one @HolePart@
+      -- and zero or more @VarPart@s or @WildParts@, all mapped to the
+      -- same number.
+      holeMap :: [(RString, NotationPart)]
       holeMap = do
-        (i, h) <- numberedHoles    -- v This range is filled in by mkPart
-        let ri x = Ranged (getRange x) i
-            normalHole y = NormalHole noRange $ fmap (ri y <$) h
+        (i, h) <- numberedHoles
+        let ri x   = Ranged (getRange x) i
+            rp x n = Ranged (getRange x) $
+                     BoundVariablePosition
+                       { holeNumber = i
+                       , varNumber  = n
+                       }
+            hole y = HolePart noRange $ fmap (ri y <$) h
+                              -- This range is filled in by mkPart.
         case namedArg h of
-          ExprHole y       -> [(y, normalHole y)]
-          LambdaHole x y
-            | "_" <- rangedThing x -> [(x, WildHole (ri x)),         (y, normalHole y)]
-            | otherwise            -> [(x, BindHole noRange (ri x)), (y, normalHole y)]
-                                                 -- Filled in by mkPart
+          ExprHole y      -> [(y, hole y)]
+          LambdaHole xs y -> [(y, hole y)] ++
+            zipWith
+              (\ n x -> case rangedThing x of
+                "_" -> (x, WildPart (rp x n))
+                _   -> (x, VarPart noRange (rp x n)))
+                                   -- Filled in by mkPart.
+              [0..]
+              (List1.toList xs)
 
       -- Check whether all hole names are distinct.
       -- The hole names are the keys of the @holeMap@.
       uniqueHoleNames = distinct [ x | (x, _) <- holeMap, rangedThing x /= "_" ]
 
-      isExprLinear   xs = List.sort [ i | x <- xs, isNormalHole x, let Just i = holeTarget x ] == holeNumbers
-      isLambdaLinear xs = List.sort [ rangedThing x | BindHole _ x <- xs ] ==
-                          [ i | (i, h) <- numberedHoles,
-                                LambdaHole x _ <- [namedArg h], rangedThing x /= "_" ]
+      isExprLinear xs =
+        List.sort [ i | x <- xs, isAHole x, let Just i = holeTarget x ]
+          ==
+        holeNumbers
 
-      isAlternating :: [GenPart] -> Bool
-      isAlternating []       = __IMPOSSIBLE__
-      isAlternating [x]      = True
-      isAlternating (x:y:xs) = isAHole x /= isAHole y && isAlternating (y:xs)
+      isLambdaLinear xs =
+        List.sort [ rangedThing x | VarPart _ x <- xs ]
+          ==
+        [ BoundVariablePosition { holeNumber = i, varNumber = v }
+        | (i, h) <- numberedHoles
+        , LambdaHole vs _ <- [namedArg h]
+        , (v, x) <- zip [0..] $ map rangedThing $ List1.toList vs
+        , x /= "_"
+        ]
 
-      isSingleHole :: [GenPart] -> Bool
+      noAdjacentHoles :: [NotationPart] -> Bool
+      noAdjacentHoles =
+        noAdj .
+        filter (\h -> case h of
+                   HolePart{} -> True
+                   IdPart{}   -> True
+                   _          -> False)
+        where
+        noAdj []       = __IMPOSSIBLE__
+        noAdj [x]      = True
+        noAdj (x:y:xs) =
+          not (isAHole x && isAHole y) &&
+          noAdj (y:xs)
+
+      isSingleHole :: [NotationPart] -> Bool
       isSingleHole = \case
         [ IdPart{} ] -> False
         [ _hole ]    -> True
@@ -230,7 +248,7 @@ data NewNotation = NewNotation
   , notaIsOperator :: Bool
     -- ^ True if the notation comes from an operator (rather than a
     -- syntax declaration).
-  } deriving Show
+  } deriving (Show, Generic)
 
 instance LensFixity NewNotation where
   lensFixity f nota = f (notaFixity nota) <&> \ fx -> nota { notaFixity = fx }
@@ -268,7 +286,7 @@ notationNames (NewNotation q _ _ parts _) =
 
 -- | Create a 'Notation' (without binders) from a concrete 'Name'.
 --   Does the obvious thing:
---   'Hole's become 'NormalHole's, 'Id's become 'IdParts'.
+--   'Hole's become 'HolePart's, 'Id's become 'IdParts'.
 --   If 'Name' has no 'Hole's, it returns 'noNotation'.
 syntaxOf :: Name -> Notation
 syntaxOf y
@@ -280,7 +298,7 @@ syntaxOf y
     -- Result will have no 'BindingHole's.
     mkSyn :: Int -> [NamePart] -> Notation
     mkSyn n []          = []
-    mkSyn n (Hole : xs) = NormalHole noRange (defaultNamedArg $ unranged n) : mkSyn (1 + n) xs
+    mkSyn n (Hole : xs) = HolePart noRange (defaultNamedArg $ unranged n) : mkSyn (1 + n) xs
     mkSyn n (Id x : xs) = IdPart (unranged x) : mkSyn n xs
 
 -- | Merges 'NewNotation's that have the same precedence level and
@@ -345,6 +363,15 @@ mergeNotations =
   merge []         = __IMPOSSIBLE__
   merge ns@(n : _) = n { notaNames = Set.unions $ map notaNames ns }
 
+-- | Check if a notation contains any lambdas (in which case it cannot be used in a pattern).
+isLambdaNotation :: NewNotation -> Bool
+isLambdaNotation n = any isBinder (notation n)
+  where
+    isBinder VarPart{}  = True
+    isBinder WildPart{} = True
+    isBinder IdPart{}   = False
+    isBinder HolePart{} = False
+
 -- | Lens for 'Fixity' in 'NewNotation'.
 
 _notaFixity :: Lens' Fixity NewNotation
@@ -364,7 +391,7 @@ data NotationSection = NotationSection
   , sectIsSection :: Bool
     -- ^ 'False' for non-sectioned operators.
   }
-  deriving Show
+  deriving (Show, Generic)
 
 -- | Converts a notation to a (non-)section.
 
@@ -396,3 +423,9 @@ instance Pretty NotationSection where
         , pretty nota
         ]
     | otherwise = pretty nota
+
+-- NFData instances
+
+instance NFData NotationKind
+instance NFData NewNotation
+instance NFData NotationSection

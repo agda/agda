@@ -14,17 +14,17 @@ Measuring typechecking performance
 ----------------------------------
 
 Agda can do some internal book-keeping of how time is spent, which can be turned on using the
-``profile`` verbosity:
+``--profile`` flag:
 
-.. option:: -vprofile.definitions:10
+.. option:: --profile=definitions
 
   Break down by time spent checking each top-level definition.
 
-.. option:: -vprofile.modules:10
+.. option:: --profile=modules
 
   Break down by time spent checking each top-level module.
 
-.. option:: -vprofile:7
+.. option:: --profile=internal
 
   Break down by activity (such as parsing, type checking, termination checking, etc).
 

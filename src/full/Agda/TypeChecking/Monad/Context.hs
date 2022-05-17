@@ -2,6 +2,10 @@
 
 module Agda.TypeChecking.Monad.Context where
 
+import Data.Text (Text)
+import qualified Data.Text as T
+
+import Control.Monad                ( (<=<), forM, when )
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -30,7 +34,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
 
-import Agda.Utils.Empty
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -86,7 +89,7 @@ unsafeEscapeContext n = unsafeModifyContext $ H.drop n
 
 -- | Delete the last @n@ bindings from the context. Any occurrences of
 -- these variables are replaced with the given @err@.
-escapeContext :: MonadAddContext m => Empty -> Int -> m a -> m a
+escapeContext :: MonadAddContext m => Impossible -> Int -> m a -> m a
 escapeContext err n = updateContext (strengthenS err n) $ H.drop n
 
 -- * Manipulating checkpoints --
@@ -204,17 +207,13 @@ class MonadTCEnv m => MonadAddContext m where
 
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
-defaultAddCtx x a ret = do
-  q <- viewTC eQuantity
-  let ce = (x,) <$> inverseApplyQuantity q a
-  updateContext (raiseS 1) (⊢!: ce) ret
+defaultAddCtx x a ret =
+  updateContext (raiseS 1) (⊢!: ((x,) <$> a)) ret
 
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx_ :: MonadAddContext m => Name -> Dom TwinT -> m a -> m a
-defaultAddCtx_ x a ret = do
-  q <- viewTC eQuantity
-  let ce = (x,) <$> (inverseApplyQuantity q a)
-  updateContext (raiseS 1) (⊢: ce) ret
+defaultAddCtx_ x a ret =
+  updateContext (raiseS 1) (⊢: ((x,) <$> a)) ret
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
@@ -375,6 +374,10 @@ instance AddContext (String, Dom TwinT) where
     withFreshName noRange s $ \x -> addCtx_ (setNotInScope x) dom ret
   contextSize _ = 1
 
+instance AddContext (Text, Dom Type) where
+  addContext (s, dom) ret = addContext (T.unpack s, dom) ret
+  contextSize _ = 1
+
 instance AddContext (KeepNames String, Dom Type) where
   addContext (KeepNames s, dom) ret =
     withFreshName noRange s $ \ x -> addCtx x dom ret
@@ -450,7 +453,7 @@ getLetBindings = do
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding' :: Name -> Term -> Dom Type -> TCM a -> TCM a #-}
-defaultAddLetBinding' :: MonadTCEnv m => Name -> Term -> Dom Type -> m a -> m a
+defaultAddLetBinding' :: (ReadTCState m, MonadTCEnv m) => Name -> Term -> Dom Type -> m a -> m a
 defaultAddLetBinding' x v t ret = do
     vt <- makeOpen (v, t)
     flip localTC ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
@@ -464,8 +467,8 @@ addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 -- * Querying the context
 
 -- | Get the current context.
-{-# SPECIALIZE getContext :: TCM [Dom (Name, Type)] #-}
-getContext :: (MonadTCEnv m) => m [Dom (Name, Type)]
+{-# SPECIALIZE getContext :: TCM Context #-}
+getContext :: MonadTCEnv m => m Context
 getContext = asksTC (twinAt @'Single . envContext)
 
 -- | Get the current context.
@@ -511,12 +514,12 @@ getContextNames = map (fst . unDom) <$> getContext
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
-{-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe (Dom (Name, Type))) #-}
-lookupBV' :: MonadTCEnv m => Nat -> m (Maybe (Dom (Name, Type)))
+{-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe ContextEntry) #-}
+lookupBV' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
 lookupBV' = fmap (twinAt @'Single) . lookupBV'_
 
-{-# SPECIALIZE lookupBV'_ :: Nat -> TCM (Maybe (Dom (Name, TwinT))) #-}
-lookupBV'_ :: MonadTCEnv m => Nat -> m (Maybe (Dom (Name, TwinT)))
+{-# SPECIALIZE lookupBV'_ :: Nat -> TCM (Maybe ContextEntry_) #-}
+lookupBV'_ :: MonadTCEnv m => Nat -> m (Maybe ContextEntry_)
 lookupBV'_ n = do
   ctx <- getContext_
   return $ raise (n + 1) <$> ctx H.!!! n

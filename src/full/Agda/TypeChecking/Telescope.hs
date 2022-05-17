@@ -100,7 +100,7 @@ teleDoms tel = zipWith (\ i dom -> deBruijnVar i <$ dom) (downFrom $ size l) l
 --   | (x, Dom {domInfo = info, unDom = (name,_)}) <- zip xs l ]
 --   where l = telToList tel
 
-teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
+teleNamedArgs :: (DeBruijn a) => Tele (Dom t) -> [NamedArg a]
 teleNamedArgs = map namedArgFromDom . teleDoms
 
 -- | A variant of `teleNamedArgs` which takes the argument names (and the argument info)
@@ -147,7 +147,7 @@ splitTelescopeAt n tel
 permuteTel :: Permutation -> Telescope -> Telescope
 permuteTel perm tel =
   let names = permute perm $ teleNames tel
-      types = permute perm $ renameP __IMPOSSIBLE__ (flipP perm) $ flattenTel tel
+      types = permute perm $ renameP impossible (flipP perm) $ flattenTel tel
   in  unflattenTel names types
 
 -- | Recursively computes dependencies of a set of variables in a given
@@ -224,7 +224,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
 
     perm  = Perm n $ map (n-1-) $ VarSet.toDescList is ++ VarSet.toDescList isC
 
-    ts1   = renameP __IMPOSSIBLE__ (reverseP perm) (permute perm ts0)
+    ts1   = renameP impossible (reverseP perm) (permute perm ts0)
 
     tel'  = unflattenTel (permute perm names) ts1
 
@@ -261,7 +261,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
 
     perm  = Perm n $ map (n-1-) $ is ++ isC
 
-    ts1   = renameP __IMPOSSIBLE__ (reverseP perm) (permute perm ts0)
+    ts1   = renameP impossible (reverseP perm) (permute perm ts0)
 
     tel'  = unflattenTel (permute perm names) ts1
 
@@ -317,7 +317,7 @@ instantiateTelescope tel k p = guard ok $> (tel', sigma, rho)
     perm  = Perm n $ is    -- works on de Bruijn indices
     rho   = reverseP perm  -- works on de Bruijn levels
 
-    p1    = renameP __IMPOSSIBLE__ perm p -- Γ' ⊢ p1 : A'
+    p1    = renameP impossible perm p -- Γ' ⊢ p1 : A'
     us    = map (\i -> maybe p1 deBruijnVar (List.elemIndex i is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 
@@ -335,15 +335,16 @@ expandTelescopeVar
      , PatternSubstitution) -- Γ' ⊢ ρ : Γ
 expandTelescopeVar gamma k delta c = (tel', rho)
   where
-    (ts1,a:ts2) = fromMaybe __IMPOSSIBLE__ $
+    (ts1,xa:ts2) = fromMaybe __IMPOSSIBLE__ $
                     splitExactlyAt k $ telToList gamma
+    a = raise (size delta) (snd <$> xa) -- Γ₁Δ ⊢ D pars
 
     cpi         = ConPatternInfo
       { conPInfo   = defaultPatternInfo
       , conPRecord = True
       , conPFallThrough
                    = False
-      , conPType   = Just $ snd <$> argFromDom a
+      , conPType   = Just $ argFromDom a
       , conPLazy   = True
       }
     cargs       = map (setOrigin Inserted) $ teleNamedArgs delta
@@ -491,12 +492,12 @@ pathViewAsPi'whnf
   => m (Type -> Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi'whnf = do
   view <- pathView'
-  minterval  <- getBuiltin' builtinInterval
+  minterval  <- getTerm' builtinInterval
   return $ \ t -> case view t of
     PathType s l p a x y | Just interval <- minterval ->
       let name | Lam _ (Abs n _) <- unArg a = n
                | otherwise = "i"
-          i = El (SSet $ ClosedLevel 0) interval
+          i = El intervalSort interval
       in
         Left $ ((defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]), (unArg x, unArg y))
 

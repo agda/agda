@@ -112,7 +112,8 @@ matchingBind :: QName -> Range -> Pattern -> Expr -> Expr -> [LamClause] -> Expr
 matchingBind qBind r p e body cs =
   appOp (setRange r qBind) e             -- Set the range of the lambda to that of the
     $ ExtendedLam (getRange cs)          -- where-clauses to make highlighting of overlapping
-    $ fmap addParens (mainClause :| cs)  -- patterns not highlight the rest of the do-block.
+        defaultErased                    -- patterns not highlight the rest of the do-block.
+    $ fmap addParens (mainClause :| cs)
   where
     mainClause = LamClause { lamLHS      = [p]
                            , lamRHS      = RHS body
@@ -121,8 +122,8 @@ matchingBind qBind r p e body cs =
     -- Add parens to left-hand sides.
     addParens c = c { lamLHS = addP (lamLHS c) }
       where
-      addP []       = __IMPOSSIBLE__
-      addP (p : ps) = [ParenP noRange $ rawAppP $ p :| ps ]
+      addP []           = __IMPOSSIBLE__
+      addP pps@(p : ps) = [ParenP (getRange pps) $ rawAppP $ p :| ps ]
 
 nonMatchingBind :: QName -> Range -> Name -> Expr -> Expr -> Expr
 nonMatchingBind qBind r x e body =

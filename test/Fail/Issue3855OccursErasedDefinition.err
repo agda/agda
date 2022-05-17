@@ -1,4 +1,4 @@
 Issue3855OccursErasedDefinition.agda:16,8-11
-Cannot instantiate the metavariable _2 to solution A
+Cannot instantiate the metavariable _A_2 to solution A
 since (part of) the solution was created in an erased context
 when checking that the expression p _ has type P A

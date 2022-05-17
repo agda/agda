@@ -1,0 +1,3 @@
+Issue5434-4.agda:5,10-11
+(@0 A : Set) (x : A) → R is not usable at the required modality
+when checking the definition of R

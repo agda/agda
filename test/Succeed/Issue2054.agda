@@ -8,6 +8,8 @@
 -- {-# BUILTIN SIZESUC  ↑_     #-}
 -- {-# BUILTIN SIZEINF  ∞     #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 data N : Size → Set where

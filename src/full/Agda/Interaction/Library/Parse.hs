@@ -41,6 +41,7 @@ import Agda.Interaction.Library.Base
 
 import Agda.Utils.Applicative
 import Agda.Utils.IO ( catchIO )
+import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Lens
 import Agda.Utils.List   ( duplicates )
 import Agda.Utils.String ( ltrim )
@@ -109,7 +110,7 @@ agdaLibFields =
 --
 parseLibFile :: FilePath -> IO (P AgdaLibFile)
 parseLibFile file =
-  (fmap setPath . parseLib <$> readFile file) `catchIO` \e ->
+  (fmap setPath . parseLib <$> UTF8.readFile file) `catchIO` \e ->
     return $ throwError $ unlines
       [ "Failed to read library file " ++ file ++ "."
       , "Reason: " ++ show e

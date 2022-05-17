@@ -17,7 +17,7 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   `make install-bin`
 
-* Test the fix-whitespace program:
+*  Remove the `fix-whitespace` program and test it:
 
   `make fix-whitespace`
 
@@ -31,7 +31,7 @@ Let's suppose the new version of GHC is X.Y.Z.
 
   `make haddock`
 
-* Test the hTags program:
+* Remove the `hs-tags` program and test it:
 
   `make TAGS`
 
@@ -83,7 +83,7 @@ Let's suppose the new version of GHC is X.Y.Z.
    ```
 
 * User manual: Update the tested versions of GHC in
-  `/doc/user-manual/getting-started/prerequisites.rst`.
+  `/doc/user-manual/getting-started/installation.rst`.
 
 * Add the file `.ghciXY` and modify the `.ghci`.
 

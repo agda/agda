@@ -58,7 +58,7 @@ matchLeq (a :=< b) (c :=< d)
         go _ [] = IdS
         go y ren0@((y', x) : ren)
           | y == y'   = Var x [] :# go (y + 1) ren
-          | otherwise = Strengthen __IMPOSSIBLE__ $ go (y + 1) ren0
+          | otherwise = Strengthen impossible $ go (y + 1) ren0
 
 -- | Turn a level constraint into a list of inequalities between
 --   single levels, if possible.

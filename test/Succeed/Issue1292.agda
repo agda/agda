@@ -1,6 +1,6 @@
 -- Andreas, 2014-10-05, issue reported by Stevan Andjelkovic
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 postulate
   IO : Set → Set

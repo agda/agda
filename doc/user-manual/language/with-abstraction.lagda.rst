@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --allow-unsolved-metas #-}
+  {-# OPTIONS --allow-unsolved-metas --irrelevant-projections --guardedness #-}
   module language.with-abstraction where
 
   open import Agda.Builtin.Nat using (Nat; zero; suc; _<_)
@@ -106,7 +106,7 @@ following (with the goal types shown in the holes)
 ::
 
     postulate P : ∀ {A} → List A → Set
-    postulate p-nil : P []
+    postulate p-nil : ∀ {A} → P {A} []
     postulate Q : Set
     postulate q-nil : Q
 
@@ -337,6 +337,43 @@ See :ref:`the-inspect-idiom` below for an alternative approach.
 
 ..
   ::
+  module with-modalities where
+
+.. _with-modalities:
+
+Making with-abstractions hidden and/or irrelevant
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to add hiding and relevance annotations to `with`
+expressions. For example::
+
+    module _ (A B : Set) (recompute : .B → .{{A}} → B) where
+
+      _$_ : .(A → B) → .A → B
+      f $ x with .{f} | .(f x) | .{{x}}
+      ... | y = recompute y
+
+This can be useful for hiding with-abstractions that you do not need
+to match on but that need to be abstracted over for the result to be
+well-typed. It can also be used to abstract over the fields of a
+record type with irrelevant fields, for example::
+
+    record EqualBools : Set₁ where
+      field
+        bool1  : Bool
+        bool2  : Bool
+        .same : bool1 ≡ bool2
+    open EqualBools
+
+    example : EqualBools → EqualBools
+    example x with bool1 x | bool2 x | .(same x)
+    ...     | true  | y′ | eq′ = record { bool1 = true;  bool2 = y′; same = eq′ }
+    ...     | false | y′ | eq′ = record { bool1 = false; bool2 = y′; same = eq′ }
+
+
+
+..
+  ::
   module with-clause-underscore where
 
 .. _with-clause-underscore:
@@ -543,83 +580,68 @@ Note that the with-abstracted arguments introduced by the rewrite (``lhs`` and
 
 .. _the-inspect-idiom:
 
-The inspect idiom
-~~~~~~~~~~~~~~~~~
+With-abstraction equality
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When you with-abstract a term ``t`` you lose the connection between
 ``t`` and the new argument representing its value. That's fine as long
 as all instances of ``t`` that you care about get generalised by the
 abstraction, but as we saw :ref:`above <with-on-lemma>` this is not
 always the case. In that example we used simultaneous abstraction to
-make sure that we did capture all the instances we needed. An
-alternative to that is to use the *inspect idiom*, which retains a
-proof that the original term is equal to its abstraction.
+make sure that we did capture all the instances we needed.
+
+An alternative to that is to get Agda to remember in an equality proof
+that the patterns in the with clauses come from the expression you abstracted
+over. This is possible using the ``in`` keyword.
 
 ..
   ::
-    module inspect-idiom-simplest where
+    open import Agda.Builtin.Sigma using (Σ; _,_)
+    open import Agda.Builtin.Nat using (_+_)
 
-In the simplest form, the inspect idiom uses a singleton type::
-
-      data Singleton {a} {A : Set a} (x : A) : Set a where
-        _with≡_ : (y : A) → x ≡ y → Singleton x
-
-      inspect : ∀ {a} {A : Set a} (x : A) → Singleton x
-      inspect x = x with≡ refl
-
-Now instead of with-abstracting ``t``, you can abstract over ``inspect t``. For
-instance,
+In the following artificial example, we try to prove that there exists two
+numbers such that one equals the double of the other. We start by computing
+the double of our input ``m`` and call it ``n``. We can then return the nested
+pair containing ``m``, ``n``, and we now need a proof that ``m + m ≡ n``.
+Luckily we used ``in eq`` when computing ``n`` as ``m + m`` and this ``eq``
+is exactly the proof we need.
 
 ::
 
-      filter : {A : Set} → (A → Bool) → List A → List A
-      filter p [] = []
-      filter p (x ∷ xs) with inspect (p x)
-      ...                  | true  with≡ eq = {! eq : p x ≡ true !}
-      ...                  | false with≡ eq = {! eq : p x ≡ false !}
+    double : Nat → Σ Nat (λ m → Σ Nat (λ n → m + m ≡ n))
+    double m with n ← m + m in eq = m , n , eq
 
-Here we get proofs that ``p x ≡ true`` and ``p x ≡ false`` in the respective
-branches that we can use on the right.  Note that since the with-abstraction is
-over ``inspect (p x)`` rather than ``p x``, the goal and argument types are no
-longer generalised over ``p x``. To fix that we can replace the singleton type
-by a function graph type as follows (see :ref:`anonymous-modules` to learn
-about the use of a module to bind the type arguments to ``Graph`` and
-``inspect``)::
+For a more natural example, we prove that ``filter`` (defined at the top of this
+page) is idempotent. That is to say that applying it twice to an input list is
+the same as only applying it once.
 
-    module _ {a b} {A : Set a} {B : A → Set b} where
+In the ``filter-filter p (x ∷ xs)`` case, abstracting over and then matching
+on the result of ``p x`` allows the first call to ``filter p (x ∷ xs)`` to
+reduce.
 
-      data Graph (f : ∀ x → B x) (x : A) (y : B x) : Set b where
-        ingraph : f x ≡ y → Graph f x y
+In case the element ``x`` is kept (i.e. ``p x`` is ``true``), the second call
+to ``filter`` on the LHS goes on to performs the same ``p x`` test. Because we
+have retained the proof that ``p x ≡ true`` in ``eq``, we are able to rewrite
+by this equality and get it to reduce too.
 
-      inspect : (f : ∀ x → B x) (x : A) → Graph f x (f x)
-      inspect _ _ = ingraph refl
+This leads to just enough computation that we can finish the proof with
+an appeal to congruence and the induction hypothesis.
 
-To use this on a term ``g v`` you with-abstract over both ``g v`` and ``inspect
-g v``. For instance, applying this to the example from above we get
+..
+  ::
+    open ellipsis-usage
+
+    cong : {A B : Set} (f : A → B) → ∀ {x y} → x ≡ y → f x ≡ f y
+    cong f refl = refl
 
 ::
 
-    postulate
-      R     : Set
-      P     : Nat → Set
-      f     : Nat → Nat
-      lemma : ∀ n → P (f n) → R
-
-    Q : Nat → Set
-    Q zero    = ⊥
-    Q (suc n) = P (suc n)
-
-    proof : (n : Nat) → Q (f n) → R
-    proof n q with f n    | inspect f n
-    proof n ()   | zero   | _
-    proof n q    | suc fn | ingraph eq = {! q : P (suc fn), eq : f n ≡ suc fn !}
-
-We could then use the proof that ``f n ≡ suc fn`` to apply ``lemma`` to ``q``.
-
-This version of the inspect idiom is defined (using slightly different names)
-in the `standard library <std-lib_>`_ in the module
-``Relation.Binary.PropositionalEquality`` and in the `agda-prelude`_ in
-``Prelude.Equality.Inspect`` (reexported by ``Prelude``).
+    filter-filter : ∀ {A} p (xs : List A) → filter p (filter p xs) ≡ filter p xs
+    filter-filter p []       = refl
+    filter-filter p (x ∷ xs) with p x in eq
+    ... | false = filter-filter p xs -- easy
+    ... | true -- second filter stuck on `p x`: rewrite by `eq`!
+      rewrite eq = cong (x ∷_) (filter-filter p xs)
 
 Alternatives to with-abstraction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -3,6 +3,8 @@
 
 -- {-# OPTIONS -v tc.size:100 -v tc.meta.assign:30 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 postulate

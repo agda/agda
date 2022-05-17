@@ -4,21 +4,27 @@ module Agda.Compiler.ToTreeless
   , closedTermToTreeless
   ) where
 
-import Control.Arrow (first)
-import Control.Monad.Reader
+import Prelude hiding ((!!))
+
+import Control.Arrow        ( first )
+import Control.Monad        ( filterM, foldM, forM, zipWithM )
+import Control.Monad.Reader ( MonadReader(..), asks, ReaderT, runReaderT )
+import Control.Monad.Trans  ( lift )
 
 import Data.Maybe
 import Data.Map (Map)
-import qualified Data.Map as Map
+import qualified Data.Map  as Map
+import qualified Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Literal
 import qualified Agda.Syntax.Treeless as C
-import Agda.Syntax.Treeless (TTerm, EvaluationStrategy)
+import Agda.Syntax.Treeless (TTerm, EvaluationStrategy, ArgUsage(..))
 
 import Agda.TypeChecking.CompiledClause as CC
 import qualified Agda.TypeChecking.CompiledClause.Compile as CC
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract (binAppView, BinAppView(..))
 import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Pretty
@@ -101,9 +107,9 @@ ccToTreeless eval q cc = do
   reportSDoc "treeless.opt.converted" (30 + v) $ "-- converted" $$ pbody body
   body <- runPipeline eval q (compilerPipeline v q) body
   used <- usedArguments q body
-  when (any not used) $
+  when (ArgUnused `elem` used) $
     reportSDoc "treeless.opt.unused" (30 + v) $
-      "-- used args:" <+> hsep [ if u then text [x] else "_" | (x, u) <- zip ['a'..] used ] $$
+      "-- used args:" <+> hsep [ if u == ArgUsed then text [x] else "_" | (x, u) <- zip ['a'..] used ] $$
       pbody' "[stripped]" (stripUnusedArguments used body)
   reportSDoc "treeless.opt.final" (20 + v) $ pbody body
   setTreeless q body
@@ -228,12 +234,20 @@ casetreeTop eval cc = flip runReaderT (initCCEnv eval) $ do
 casetree :: CC.CompiledClauses -> CC C.TTerm
 casetree cc = do
   case cc of
-    CC.Fail -> return C.tUnreachable
+    CC.Fail xs -> withContextSize (length xs) $ return C.tUnreachable
     CC.Done xs v -> withContextSize (length xs) $ do
       -- Issue 2469: Body context size (`length xs`) may be smaller than current context size
       -- if some arguments are not used in the body.
       v <- lift (putAllowedReductions (SmallSet.fromList [ProjectionReductions, CopatternReductions]) $ normalise v)
-      substTerm v
+      cxt <- asks ccCxt
+      v' <- substTerm v
+      reportS "treeless.convert.casetree" 40 $
+        [ "-- casetree, calling substTerm:"
+        , "--   cxt =" <+> prettyPure cxt
+        , "--   v   =" <+> prettyPure v
+        , "--   v'  =" <+> prettyPure v'
+        ]
+      return v'
     CC.Case _ (CC.Branches True _ _ _ Just{} _ _) -> __IMPOSSIBLE__
       -- Andreas, 2016-06-03, issue #1986: Ulf: "no catch-all for copatterns!"
       -- lift $ do
@@ -241,28 +255,31 @@ casetree cc = do
       --     "Not yet implemented: compilation of copattern matching with catch-all clause"
     CC.Case (Arg _ n) (CC.Branches True conBrs _ _ Nothing _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
-    CC.Case (Arg _ n) (CC.Branches False conBrs etaBr litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do
+    CC.Case (Arg i n) (CC.Branches False conBrs etaBr litBrs catchAll _ lazy) -> lambdasUpTo (n + 1) $ do
+      -- re #3733 TODO: revise when compiling --cubical
+      conBrs <- fmap Map.fromList $ filterM (isConstructor . fst) (Map.toList conBrs)
                     -- We can treat eta-matches as regular matches here.
-      let conBrs' = Map.union conBrs $ Map.fromList $ map (first conName) $ maybeToList etaBr
+      let conBrs' = caseMaybe etaBr conBrs $ \ (c, br) -> Map.insertWith (\ new old -> old) (conName c) br conBrs
       if Map.null conBrs' && Map.null litBrs then do
         -- there are no branches, just return default
         updateCatchAll catchAll fromCatchAll
       else do
-        let go p =
-             case p of
-              ((c:cs), []) -> do
-                c' <- lift (canonicalName c)
-                defn <- theDef <$> lift (getConstInfo c')
-                case defn of
-                  Constructor{conData = dtNm} -> return $ C.CTData dtNm
-                  _                           -> go (cs , [])
-              ([], (LitChar _):_)  -> return C.CTChar
-              ([], (LitString _):_) -> return C.CTString
-              ([], (LitFloat _):_) -> return C.CTFloat
-              ([], (LitQName _):_) -> return C.CTQName
-              _ -> __IMPOSSIBLE__
+        -- Get the type of the scrutinee.
+        caseTy <-
+          case (Map.keys conBrs', Map.keys litBrs) of
+            (cs, []) -> lift $ go cs
+              where
+              go (c:cs) = canonicalName c >>= getConstInfo <&> theDef >>= \case
+                Constructor{conData} ->
+                  return $ C.CTData (getQuantity i) conData
+                _ -> go cs
+              go [] = __IMPOSSIBLE__
+            ([], LitChar   _ : _) -> return C.CTChar
+            ([], LitString _ : _) -> return C.CTString
+            ([], LitFloat  _ : _) -> return C.CTFloat
+            ([], LitQName  _ : _) -> return C.CTQName
+            _ -> __IMPOSSIBLE__
 
-        caseTy <- go (Map.keys conBrs', Map.keys litBrs)
         updateCatchAll catchAll $ do
           x <- asks (lookupLevel n . ccCxt)
           def <- fromCatchAll
@@ -291,7 +308,7 @@ commonArity cc =
       where cxt' = max (x + 1) cxt
     arities cxt (Case _ Branches{projPatterns = True}) = [cxt]
     arities cxt (Done xs _) = [max cxt (length xs)]
-    arities _   Fail        = []
+    arities cxt (Fail xs)   = [max cxt (length xs)]
 
 
     wArities cxt (WithArity k c) = map (\ x -> x - k + 1) $ arities (cxt - 1 + k) c
@@ -300,7 +317,13 @@ updateCatchAll :: Maybe CC.CompiledClauses -> (CC C.TTerm -> CC C.TTerm)
 updateCatchAll Nothing cont = cont
 updateCatchAll (Just cc) cont = do
   def <- casetree cc
-  local (\e -> e { ccCatchAll = Just 0, ccCxt = shift 1 (ccCxt e) }) $ do
+  cxt <- asks ccCxt
+  reportS "treeless.convert.lambdas" 40 $
+    [ "-- updateCatchAll:"
+    , "--   cxt =" <+> prettyPure cxt
+    , "--   def =" <+> prettyPure def
+    ]
+  local (\ e -> e { ccCatchAll = Just 0, ccCxt = shift 1 cxt }) $ do
     C.mkLet def <$> cont
 
 -- | Shrinks or grows the context to the given size.
@@ -309,20 +332,82 @@ updateCatchAll (Just cc) cont = do
 withContextSize :: Int -> CC C.TTerm -> CC C.TTerm
 withContextSize n cont = do
   diff <- asks (((n -) . length) . ccCxt)
-
-  if diff <= 0
-  then do
+  if diff >= 1 then createLambdas diff cont else do
     let diff' = -diff
-    local (\e -> e { ccCxt = shift diff . drop diff' $ ccCxt e }) $
+    cxt <- -- shift diff .
+       -- Andreas, 2021-04-10, issue #5288
+       -- The @shift diff@ is wrong, since we are returning to the original
+       -- context from @cont@, and then we would have to reverse
+       -- the effect of @shift diff@.
+       -- We need to make sure that the result of @cont@ make sense
+       -- in the **present** context, not the changed context
+       -- where it is constructed.
+       --
+       -- Ulf, 2021-04-12, https://github.com/agda/agda/pull/5311/files#r611452551
+       --
+       -- This looks correct, but I can't quite follow the explanation. Here's my understanding:
+       --
+       -- We are building a `TTerm` case tree from `CompiledClauses`. In order
+       -- to be able to match we bind all variables we'll need in a top-level
+       -- lambda `λ a b c d → ..` (say). As we compute the `TTerm` we keep a
+       -- context (list) of `TTerm` deBruijn indices for each `CompiledClause`
+       -- variable. This is a renaming from the *source* context of the
+       -- `CompiledClause` to the *target* context of the `TTerm`.
+       --
+       -- After some pattern matching we might have
+       -- ```
+       -- λ a b c d →
+       --   case c of
+       --     e :: f → {cxt = [d, f, e, b, a]}
+       -- ```
+       -- Now, what's causing the problems here is that `CompiledClauses` can be
+       -- underapplied, so you might have matched on a variable only to find
+       -- that in the catch-all the variable you matched on is bound in a lambda
+       -- in the right-hand side! Extending the example, we might have
+       -- `CompiledClauses` looking like this:
+       -- ```
+       -- case 2 of
+       --   _::_ → done[d, f, e, b, a] ...
+       --   _    → done[b, a] (λ c d → ...)
+       -- ```
+       -- When we get to the catch-all, the context will be `[d, c, b, a]` but
+       -- the right-hand side is only expecting `a` and `b` to be bound. What we
+       -- need to do is compile the right-hand side and then apply it to the
+       -- variables `c` and `d` that we already bound. This is what
+       -- `withContextSize` does.
+       --
+       -- Crucially (and this is where the bug was), we are not changing the
+       -- target context, only the source context (we want a `TTerm` that makes
+       -- sense at this point). This means that the correct move is to drop the
+       -- entries for the additional source variables, but not change what
+       -- target variables the remaining source variables map to. Hence, `drop`
+       -- but no `shift`.
+       --
+       drop diff' <$> asks ccCxt
+    local (\ e -> e { ccCxt = cxt }) $ do
+      reportS "treeless.convert.lambdas" 40 $
+        [ "-- withContextSize:"
+        , "--   n   =" <+> prettyPure n
+        , "--   diff=" <+> prettyPure diff
+        , "--   cxt =" <+> prettyPure cxt
+        ]
       cont <&> (`C.mkTApp` map C.TVar (downFrom diff'))
-  else do
-    local (\e -> e { ccCxt = [0..(diff - 1)] ++ shift diff (ccCxt e)}) $ do
-      createLambdas diff <$> do
-        cont
-  where createLambdas :: Int -> C.TTerm -> C.TTerm
-        createLambdas 0 cont' = cont'
-        createLambdas i cont' | i > 0 = C.TLam (createLambdas (i - 1) cont')
-        createLambdas _ _ = __IMPOSSIBLE__
+
+-- | Prepend the given positive number of lambdas.
+-- Does not update the catchAll expression,
+-- the catchAll expression must be updated separately (or not be used).
+createLambdas :: Int -> CC C.TTerm -> CC C.TTerm
+createLambdas diff cont = do
+  unless (diff >= 1) __IMPOSSIBLE__
+  cxt <- ([0 .. diff-1] ++) . shift diff <$> asks ccCxt
+  local (\ e -> e { ccCxt = cxt }) $ do
+    reportS "treeless.convert.lambdas" 40 $
+      [ "-- createLambdas:"
+      , "--   diff =" <+> prettyPure diff
+      , "--   cxt  =" <+> prettyPure cxt
+      ]
+    -- Prepend diff lambdas
+    cont <&> \ t -> List.iterate C.TLam t !! diff
 
 -- | Adds lambdas until the context has at least the given size.
 -- Updates the catchAll expression to take the additional lambdas into account.
@@ -332,18 +417,23 @@ lambdasUpTo n cont = do
 
   if diff <= 0 then cont -- no new lambdas needed
   else do
-    catchAll <- asks ccCatchAll
-
-    withContextSize n $ do
-      case catchAll of
-        Just catchAll' -> do
+    createLambdas diff $ do
+      asks ccCatchAll >>= \case
+        Just catchAll -> do
+          cxt <- asks ccCxt
+          reportS "treeless.convert.lambdas" 40 $
+            [ "lambdasUpTo: n =" <+> (text . show) n
+            , "  diff         =" <+> (text . show) n
+            , "  catchAll     =" <+> prettyPure catchAll
+            , "  ccCxt        =" <+> prettyPure cxt
+            ]
           -- the catch all doesn't know about the additional lambdas, so just directly
           -- apply it again to the newly introduced lambda arguments.
           -- we also bind the catch all to a let, to avoid code duplication
           local (\e -> e { ccCatchAll = Just 0
-                         , ccCxt = shift 1 (ccCxt e)}) $ do
+                         , ccCxt = shift 1 cxt }) $ do
             let catchAllArgs = map C.TVar $ downFrom diff
-            C.mkLet (C.mkTApp (C.TVar $ catchAll' + diff) catchAllArgs)
+            C.mkLet (C.mkTApp (C.TVar $ catchAll + diff) catchAllArgs)
               <$> cont
         Nothing -> cont
 
@@ -396,6 +486,7 @@ mkRecord fs = lift $ do
 recConFromProj :: QName -> TCM I.ConHead
 recConFromProj q = do
   caseMaybeM (isProjection q) __IMPOSSIBLE__ $ \ proj -> do
+    -- Get the record type name @d@ from the projection.
     let d = unArg $ projFromType proj
     getRecordConstructor d
 
@@ -496,10 +587,11 @@ maybeInlineDef q vs = do
       fun@Function{}
         | fun ^. funInline -> doinline eval
         | otherwise -> do
-        used <- lift $ getCompiledArgUse q
-        let substUsed False _   = pure C.TErased
-            substUsed True  arg = substArg arg
-        C.mkTApp (C.TDef q) <$> sequence [ substUsed u arg | (arg, u) <- zip vs $ used ++ repeat True ]
+        -- If ArgUsage hasn't been computed yet, we assume all arguments are used.
+        used <- lift $ fromMaybe [] <$> getCompiledArgUse q
+        let substUsed _   ArgUnused = pure C.TErased
+            substUsed arg ArgUsed   = substArg arg
+        C.mkTApp (C.TDef q) <$> zipWithM substUsed vs (used ++ repeat ArgUsed)
       _ -> C.mkTApp (C.TDef q) <$> substArgs vs
   where
     doinline eval = C.mkTApp <$> inline eval q <*> substArgs vs

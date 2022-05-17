@@ -1,3 +1,5 @@
+{-# OPTIONS --guardedness #-}
+
 -- Written by P. Hausmann
 module Vec where
 
@@ -5,6 +7,7 @@ open import IO
 open import Data.Vec
 open import Data.Nat
 open import Data.Nat.Show
+open import Level using (0ℓ)
 
 Matrix : Set -> ℕ -> ℕ -> Set
 Matrix a n m = Vec (Vec a m) n
@@ -34,4 +37,4 @@ compute = sum (map sum g)
         g : Matrix ℕ 3 3
         g = madd (transposeM (transposeM m)) (transposeM (madd m idMatrix))
 
-main = run (putStrLn (show compute))
+main = run {0ℓ} (putStrLn (show compute))

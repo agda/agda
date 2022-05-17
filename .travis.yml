@@ -49,7 +49,7 @@ jobs:
   include:
     - &complete-job
       stage: complete
-      env: GHC_VER=8.10.3 CABAL_VER=3.2
+      env: GHC_VER=9.0.1 CABAL_VER=3.4
       before_install:
         - sudo -E apt-add-repository -y "ppa:hvr/ghc" &&
           travis_apt_get_update &&
@@ -94,10 +94,12 @@ jobs:
         - make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS} --hide-successes" TASTY_ANSI_TRICKS=false BUILD_DIR=$BUILD_DIR std-lib-succeed
         - make BUILD_DIR=$BUILD_DIR std-lib-interaction
         - make BUILD_DIR=$BUILD_DIR TAGS
-        - make test-size-solver
+        - make BUILD_DIR="dist" test-size-solver
         - make BUILD_DIR=$BUILD_DIR testing-emacs-mode
         - make install-agda-bisect
 
+    - <<: *complete-job
+      env: GHC_VER=8.10.5 CABAL_VER=3.2
     - <<: *complete-job
       env: GHC_VER=8.8.4 CABAL_VER=3.2
     - <<: *complete-job
@@ -106,5 +108,3 @@ jobs:
       env: GHC_VER=8.4.4 CABAL_VER=2.2
     - <<: *complete-job
       env: GHC_VER=8.2.2 CABAL_VER=2.0
-    - <<: *complete-job
-      env: GHC_VER=8.0.2 CABAL_VER=1.24

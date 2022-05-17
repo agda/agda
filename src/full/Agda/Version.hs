@@ -1,8 +1,7 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Agda.Version
   ( version
   , package
+  , docsUrl
   ) where
 
 import GHC.Generics ( Generic, Rep, packageName )
@@ -23,5 +22,10 @@ version = intercalate "." $ map show $
 
 package :: String
 package = packageName (undefined :: Rep AnArbitrarySymbolInThisPackage p)
+
+-- | Returns a URL corresponding to the given section in the documentation for
+-- the current version.
+docsUrl :: String -> String
+docsUrl section = "https://agda.readthedocs.io/en/v" ++ version ++ "/" ++ section
 
 data AnArbitrarySymbolInThisPackage deriving Generic

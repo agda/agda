@@ -3,7 +3,9 @@ module Agda.Interaction.CommandLine
   ( runInteractionLoop
   ) where
 
+import Control.Monad
 import Control.Monad.Except
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.State
 import Control.Monad.Reader
 
@@ -62,8 +64,13 @@ runReplM :: Maybe AbsolutePath -> TCM () -> (AbsolutePath -> TCM CheckResult) ->
 runReplM initialFile setup checkInterface
     = runIM
     . flip evalStateT (ReplState initialFile)
-    . flip runReaderT (ReplEnv setup checkInterface)
+    . flip runReaderT replEnv
     . unReplM
+  where
+  replEnv = ReplEnv
+    { replSetupAction     = setup
+    , replTypeCheckAction = checkInterface
+    }
 
 data ExitCode a = Continue | ContinueIn TCEnv | Return a
 
@@ -113,7 +120,7 @@ replSetup = do
     liftIO $ putStr splashScreen
 
 checkCurrentFile :: ReplM (Maybe CheckResult)
-checkCurrentFile = caseMaybeM (gets currentFile) (return Nothing) (fmap Just . checkFile)
+checkCurrentFile = traverse checkFile =<< gets currentFile
 
 checkFile :: AbsolutePath -> ReplM CheckResult
 checkFile file = liftTCM . ($ file) =<< asks replTypeCheckAction
@@ -129,6 +136,11 @@ interactionLoop = do
         reload :: ReplM () = do
             checked <- checkCurrentFile
             liftTCM $ setScope $ maybe emptyScopeInfo iInsideScope (crInterface <$> checked)
+            -- Andreas, 2021-01-27, issue #5132, make Set and Prop available from Agda.Primitive
+            -- if no module is loaded.
+            when (isNothing checked) $ do
+              -- @open import Agda.Primitive using (Set; Prop)@
+              void $ liftTCM importPrimitives
           `catchError` \e -> do
             s <- prettyError e
             liftIO $ putStrLn s
@@ -221,8 +233,8 @@ showScope = do
 metaParseExpr ::  InteractionId -> String -> TCM A.Expr
 metaParseExpr ii s =
     do  m <- lookupInteractionId ii
-        scope <- getMetaScope <$> lookupMeta m
-        r <- getRange <$> lookupMeta m
+        scope <- getMetaScope <$> lookupLocalMeta m
+        r <- getRange <$> lookupLocalMeta m
         -- liftIO $ putStrLn $ prettyShow scope
         let pos = fromMaybe __IMPOSSIBLE__ (rStart r)
         e <- runPM $ parsePosString exprParser pos s
@@ -294,7 +306,7 @@ typeIn _ = liftIO $ putStrLn ":typeIn meta expr"
 showContext :: [String] -> TCM ()
 showContext (meta:args) = do
     i <- InteractionId <$> readM meta
-    mi <- lookupMeta =<< lookupInteractionId i
+    mi <- lookupLocalMeta =<< lookupInteractionId i
     withMetaInfo (getMetaInfo mi) $ do
       ctx <- List.map I.unDom . telToList <$> getContextTelescope
       zipWithM_ display ctx $ reverse $ zipWith const [1..] ctx

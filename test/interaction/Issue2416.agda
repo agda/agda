@@ -7,6 +7,8 @@
 -- {-# OPTIONS -v tc.size:40 #-}
 -- {-# OPTIONS -v tc.check.internal:40 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 open import Common.Equality
 

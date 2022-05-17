@@ -1,6 +1,8 @@
 -- Andreas, 2016-04-14 Issue 1821
 -- pts rule for SizeUniv not implemented properly
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 open import Common.Equality
 

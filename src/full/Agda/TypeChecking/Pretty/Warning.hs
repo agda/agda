@@ -82,7 +82,7 @@ prettyWarning = \case
                concatMap termErrFunctions because)
         $$ fwords "Problematic calls:"
         $$ nest 2 (fmap (P.vcat . List.nub) $
-              mapM prettyTCM $ List.sortBy (compare `on` callInfoRange) $
+              mapM prettyTCM $ List.sortOn getRange $
               concatMap termErrCalls because)
 
     UnreachableClauses f pss -> fsep $
@@ -107,6 +107,12 @@ prettyWarning = \case
     NotStrictlyPositive d ocs -> fsep $
       [prettyTCM d] ++ pwords "is not strictly positive, because it occurs"
       ++ [prettyTCM ocs]
+
+    NoEquivWhenSplitting doc -> vcat
+            [ fwords $ "Could not generate equivalence when splitting on indexed family, " ++
+                       "the function will not compute on transports by a path."
+            , nest 2 $ "Reason:" <+> pure doc
+            ]
 
     CantGeneralizeOverSorts ms -> vcat
             [ text "Cannot generalize over unsolved sort metas:"
@@ -170,6 +176,12 @@ prettyWarning = \case
              pwords "Most likely this means you have an unsatisfiable constraint, but it could" ++
              pwords "also mean that you need to increase the maximum depth using the flag" ++
              pwords "--inversion-max-depth=N"
+
+    NoGuardednessFlag q ->
+      fsep $ [ prettyTCM q ] ++ pwords "is declared coinductive, but option" ++
+             pwords "--guardedness is not enabled. Coinductive functions on" ++
+             pwords "this type will likely be rejected by the termination" ++
+             pwords "checker unless this flag is enabled."
 
     GenericWarning d -> return d
 

@@ -3,6 +3,8 @@
 -- {-# OPTIONS -v tc.polarity:20 -v tc.proj.like:10 #-}
 -- {-# OPTIONS -v tc.conv.elim:25 --show-implicit #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 -- List covariant covariant

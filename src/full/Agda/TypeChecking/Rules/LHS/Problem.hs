@@ -11,8 +11,9 @@ module Agda.TypeChecking.Rules.LHS.Problem
 
 import Prelude hiding (null)
 
-import Control.Arrow ( (***) )
-import Control.Monad.Writer hiding ((<>))
+import Control.Arrow        ( (***) )
+import Control.Monad        ( zipWithM )
+import Control.Monad.Writer ( MonadWriter(..), Writer, runWriter )
 
 import Data.Functor (($>))
 import Data.IntMap (IntMap)
@@ -284,9 +285,12 @@ instance Monoid LeftoverPatterns where
   mempty  = empty
   mappend = (<>)
 
+instance PP.Pretty PatVarPosition where
+  pretty = PP.text . show
+
 instance PrettyTCM LeftoverPatterns where
   prettyTCM (LeftoverPatterns varp asb dotp absurdp annp otherp) = vcat
-    [ "pattern variables: " <+> text (show varp)
+    [ "pattern variables: " <+> pretty (IntMap.toList varp)
     , "as bindings:       " <+> prettyList_ (map prettyTCM asb)
     , "dot patterns:      " <+> prettyList_ (map prettyTCM dotp)
     , "absurd patterns:   " <+> prettyList_ (map prettyTCM absurdp)

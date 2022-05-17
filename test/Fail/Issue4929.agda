@@ -35,7 +35,7 @@ _++_ : ∀{a b c} → Stack ∞ a b → Stack ∞ b c → Stack ∞ a c
 (u ∷ E) ++ E′ = u ∷ (E ++ E′)
 
 postulate
-  _∘_ : ∀{a c} → Tm a → Stack ∞ a c → Tm c
+  _∘_ : ∀{i a c} → Tm a → Stack i a c → Tm c
   app-app : ∀{i j a b c}{t : Tm a} {E : Stack i a b} {E′ : Stack j b c} → t ∘ E ∘ E′ ≡ t ∘ E ++ E′
 
 {-# REWRITE app-app #-}

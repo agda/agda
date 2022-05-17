@@ -50,8 +50,23 @@ data Relevance : Set where
 {-# BUILTIN RELEVANT   relevant   #-}
 {-# BUILTIN IRRELEVANT irrelevant #-}
 
+-- Arguments also have a quantity.
+data Quantity : Set where
+  quantity-0 quantity-ω : Quantity
+
+{-# BUILTIN QUANTITY   Quantity   #-}
+{-# BUILTIN QUANTITY-0 quantity-0 #-}
+{-# BUILTIN QUANTITY-ω quantity-ω #-}
+
+-- Relevance and quantity are combined into a modality.
+data Modality : Set where
+  modality : (r : Relevance) (q : Quantity) → Modality
+
+{-# BUILTIN MODALITY             Modality #-}
+{-# BUILTIN MODALITY-CONSTRUCTOR modality #-}
+
 data ArgInfo : Set where
-  arg-info : (v : Visibility) (r : Relevance) → ArgInfo
+  arg-info : (v : Visibility) (m : Modality) → ArgInfo
 
 data Arg (A : Set) : Set where
   arg : (i : ArgInfo) (x : A) → Arg A
@@ -98,6 +113,7 @@ data Sort   : Set
 data Clause : Set
 data Term   : Set
 Type = Term
+Telescope = List (Σ String λ _ → Arg Type)
 
 data Term where
   var       : (x : Nat) (args : List (Arg Term)) → Term
@@ -114,6 +130,9 @@ data Term where
 data Sort where
   set     : (t : Term) → Sort
   lit     : (n : Nat) → Sort
+  prop    : (t : Term) → Sort
+  propLit : (n : Nat) → Sort
+  inf     : (n : Nat) → Sort
   unknown : Sort
 
 data Pattern : Set where
@@ -125,8 +144,8 @@ data Pattern : Set where
   absurd : (x : Nat)     → Pattern
 
 data Clause where
-  clause        : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) (t : Term) → Clause
-  absurd-clause : (tel : List (Σ String λ _ → Arg Type)) (ps : List (Arg Pattern)) → Clause
+  clause        : (tel : Telescope) (ps : List (Arg Pattern)) (t : Term) → Clause
+  absurd-clause : (tel : Telescope) (ps : List (Arg Pattern)) → Clause
 
 {-# BUILTIN AGDATERM    Term    #-}
 {-# BUILTIN AGDASORT    Sort    #-}
@@ -146,6 +165,9 @@ data Clause where
 
 {-# BUILTIN AGDASORTSET         set     #-}
 {-# BUILTIN AGDASORTLIT         lit     #-}
+{-# BUILTIN AGDASORTPROP        prop    #-}
+{-# BUILTIN AGDASORTPROPLIT     propLit #-}
+{-# BUILTIN AGDASORTINF         inf     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
 {-# BUILTIN AGDAPATCON    con     #-}
@@ -181,11 +203,13 @@ data Definition : Set where
 data ErrorPart : Set where
   strErr  : String → ErrorPart
   termErr : Term → ErrorPart
+  pattErr : Pattern → ErrorPart
   nameErr : Name → ErrorPart
 
 {-# BUILTIN AGDAERRORPART       ErrorPart #-}
 {-# BUILTIN AGDAERRORPARTSTRING strErr    #-}
 {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
+{-# BUILTIN AGDAERRORPARTPATT   pattErr   #-}
 {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
 
 -- TC monad --
@@ -202,9 +226,9 @@ postulate
   catchTC       : ∀ {a} {A : Set a} → TC A → TC A → TC A
   quoteTC       : ∀ {a} {A : Set a} → A → TC Term
   unquoteTC     : ∀ {a} {A : Set a} → Term → TC A
-  getContext    : TC (List (Arg Type))
-  extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
-  inContext     : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
+  getContext    : TC Telescope
+  extendContext : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
+  inContext     : ∀ {a} {A : Set a} → Telescope → TC A → TC A
   freshName     : String → TC Name
   declareDef    : Arg Name → Type → TC ⊤
   defineFun     : Name → List Clause → TC ⊤

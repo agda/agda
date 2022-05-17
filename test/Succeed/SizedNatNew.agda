@@ -1,4 +1,5 @@
--- {-# OPTIONS  --sized-types --show-implicit #-}
+-- {-# OPTIONS --show-implicit #-}
+{-# OPTIONS --sized-types #-}
 
 module _ where
 
@@ -71,4 +72,3 @@ NatInfty = Nat {∞}
 
 {-# BUILTIN NATURAL  NatInfty  #-}
 -- {-# BUILTIN NATPLUS     add       #-} -- not accepted
-

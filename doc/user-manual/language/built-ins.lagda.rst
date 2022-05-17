@@ -1,6 +1,6 @@
 ..
   ::
-  {-# OPTIONS --rewriting #-}
+  {-# OPTIONS --rewriting --sized-types #-}
   module language.built-ins where
 
   open import Agda.Builtin.Equality public
@@ -530,7 +530,9 @@ are available on characters (given suitable bindings for
 These functions are implemented by the corresponding Haskell functions from
 `Data.Char <data-char_>`_ (``ord`` and ``chr`` for ``primCharToNat`` and
 ``primNatToChar``). To make ``primNatToChar`` total ``chr`` is applied to the
-natural number modulo ``0x110000``.
+natural number modulo ``0x110000``. Furthermore, to match the behaviour of
+strings, `surrogate code points <surrogate_>`_ are mapped to the replacement
+character ``U+FFFD``.
 
 Converting to a natural number is the obvious embedding, and its proof::
 
@@ -540,6 +542,7 @@ Converting to a natural number is the obvious embedding, and its proof::
 can be found in the ``Properties`` module.
 
 .. _data-char: https://hackage.haskell.org/package/base-4.8.1.0/docs/Data-Char.html
+.. _surrogate: https://www.unicode.org/glossary/#surrogate_code_point
 
 .. _built-in-string:
 
@@ -581,6 +584,10 @@ Converting to and from a list is injective, and their proofs::
     primStringFromListInjective : ∀ a b → primStringFromList a ≡ primStringFromList b → a ≡ b
 
 can found in the ``Properties`` module.
+
+Strings cannot represent `unicode surrogate code points <surrogate_>`_
+(characters in the range ``U+D800`` to ``U+DFFF``). These are replaced by the
+unicode replacement character ``U+FFFD`` if they appear in string literals.
 
 .. _built-in-equality:
 

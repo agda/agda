@@ -4,6 +4,6 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Set " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "1,1-12 Not in scope: Issue3316.A at 1,1-12 when scope checking Issue3316.A" nil)
+(agda2-info-action "*Error*" "1,1-5 Not supported: declaring new names from an edit-time macro when checking that the expression unquote easy has type Set" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")

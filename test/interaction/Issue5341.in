@@ -1,0 +1,4 @@
+IOTCM currentFile NonInteractive Indirect (cmd_load_highlighting_info currentFile)
+goal_command 0 (cmd_infer Instantiated) "A"
+goal_command 0 (cmd_infer Instantiated) "B"
+goal_command 0 (cmd_infer Instantiated) "C"

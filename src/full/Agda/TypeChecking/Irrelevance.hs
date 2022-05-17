@@ -118,13 +118,12 @@ workOnTypes cont = do
 --   as argument.
 workOnTypes' :: (MonadTCEnv m) => Bool -> m a -> m a
 workOnTypes' experimental
-  = modifyContextInfo (mapRelevance f)
+  = (if experimental
+     then modifyContextInfo (mapRelevance irrToNonStrict)
+     else id)
   . applyQuantityToContext zeroQuantity
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
-  where
-    f | experimental = irrToNonStrict
-      | otherwise    = id
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
@@ -168,29 +167,12 @@ applyRelevanceToContextFunBody thing cont =
       (applyRelevanceToContextOnly rel) $    -- enable local irr. defs only when option
       applyRelevanceToJudgementOnly rel cont -- enable global irr. defs alway
 
--- | (Conditionally) wake up erased variables and make them unrestricted.
---   For instance,
---   in an erased function argument otherwise erased variables
---   may be used, so they are awoken before type checking the argument.
---
---   Also allow the use of erased definitions.
+-- | Sets the current quantity (unless the given quantity is 1).
 applyQuantityToContext :: (MonadTCEnv tcm, LensQuantity q) => q -> tcm a -> tcm a
 applyQuantityToContext thing =
   case getQuantity thing of
     Quantity1{} -> id
-    q         -> applyQuantityToContextOnly   q
-               . applyQuantityToJudgementOnly q
-
--- | (Conditionally) wake up erased variables and make them unrestricted.
---   For instance,
---   in an erased function argument otherwise erased variables
---   may be used, so they are awoken before type checking the argument.
---
---   Precondition: @Quantity /= Quantity1@
-applyQuantityToContextOnly :: (MonadTCEnv tcm) => Quantity -> tcm a -> tcm a
-applyQuantityToContextOnly q = localTC
-  $ over eContext     (fmap $ inverseApplyQuantity q)
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyQuantity q)
+    q           -> applyQuantityToJudgementOnly q
 
 -- | Apply quantity @q@ the the quantity annotation of the (typing/equality)
 --   judgement.  This is part of the work done when going into a @q@-context.
@@ -224,6 +206,8 @@ splittableCohesion a = do
 --   may be used, so they are awoken before type checking the argument.
 --
 --   Also allow the use of irrelevant definitions.
+--
+--   This function might also do something for other modalities.
 applyModalityToContext :: (MonadTCEnv tcm, LensModality m) => m -> tcm a -> tcm a
 applyModalityToContext thing =
   case getModality thing of
@@ -234,13 +218,18 @@ applyModalityToContext thing =
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
---   may be used, so they are awoken before type checking the argument.
+--   may be used, so they are awoken before type checking the
+--   argument.
+--
+--   This function might also do something for other modalities, but
+--   not for quantities.
 --
 --   Precondition: @Modality /= Relevant@
 applyModalityToContextOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToContextOnly m = localTC
-  $ over eContext     (fmap $ inverseApplyModality m)
-  . over eLetBindings (Map.map . fmap . second $ inverseApplyModality m)
+  $ over eContext (fmap $ inverseApplyModalityButNotQuantity m)
+  . over eLetBindings
+      (Map.map . fmap . second $ inverseApplyModalityButNotQuantity m)
 
 -- | Apply modality @m@ the the modality annotation of the (typing/equality)
 --   judgement.  This is part of the work done when going into a @m@-context.
@@ -270,10 +259,12 @@ applyModalityToContextFunBody thing cont = do
 --   This is not the right thing to do when type checking interactively in a
 --   hole since it also marks all metas created during type checking as
 --   irrelevant (issue #2568).
+--
+--   Also set the current quantity to 0.
 wakeIrrelevantVars :: (MonadTCEnv tcm) => tcm a -> tcm a
 wakeIrrelevantVars
   = applyRelevanceToContextOnly Irrelevant
-  . applyQuantityToContextOnly  zeroQuantity
+  . applyQuantityToJudgementOnly zeroQuantity
 
 -- | Check whether something can be used in a position of the given relevance.
 --
@@ -314,7 +305,7 @@ instance UsableRelevance Term where
     Sort s   -> usableRel rel s
     Level l  -> return True
     MetaV m vs -> do
-      mrel <- getMetaRelevance <$> lookupMeta m
+      mrel <- getRelevance <$> lookupMetaModality m
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
     DontCare v -> usableRel rel v -- TODO: allow irrelevant things to be used in DontCare position?
     Dummy{}  -> return True
@@ -330,6 +321,7 @@ instance UsableRelevance Sort where
     SSet l -> usableRel rel l
     SizeUniv -> return True
     LockUniv -> return True
+    IntervalUniv -> return True
     PiSort a s1 s2 -> usableRel rel (a,s1,s2)
     FunSort s1 s2 -> usableRel rel (s1,s2)
     UnivSort s -> usableRel rel s
@@ -420,7 +412,7 @@ instance UsableModality Term where
     Sort s   -> usableMod mod s
     Level l  -> return True
     MetaV m vs -> do
-      mmod <- getMetaModality <$> lookupMeta m
+      mmod <- lookupMetaModality m
       let ok = mmod `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Metavariable" <+> prettyTCM (MetaV m []) <+>
@@ -522,6 +514,7 @@ isFibrant a = abortIfBlocked (getSort a) <&> \case
   SSet{}     -> False
   SizeUniv{} -> False
   LockUniv{} -> False
+  IntervalUniv{} -> False
   PiSort{}   -> False
   FunSort{}  -> False
   UnivSort{} -> False
@@ -540,6 +533,7 @@ isCoFibrantSort a = abortIfBlocked (getSort a) <&> \case
   SSet{}     -> False
   SizeUniv{} -> False
   LockUniv{} -> True
+  IntervalUniv{} -> True
   PiSort{}   -> False
   FunSort{}  -> False
   UnivSort{} -> False

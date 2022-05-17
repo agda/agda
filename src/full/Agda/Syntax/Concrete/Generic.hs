@@ -118,7 +118,7 @@ instance ExprLike Expr where
      InstanceArg r e    -> f $ InstanceArg r          $ mapE e
      Lam r bs e         -> f $ Lam r       (mapE bs)  $ mapE e
      AbsurdLam{}        -> f $ e0
-     ExtendedLam r cs   -> f $ ExtendedLam r          $ mapE cs
+     ExtendedLam r e cs -> f $ ExtendedLam r e        $ mapE cs
      Fun r a b          -> f $ Fun r     (mapE <$> a) $ mapE b
      Pi tel e           -> f $ Pi          (mapE tel) $ mapE e
      Rec r es           -> f $ Rec r                  $ mapE es
@@ -177,17 +177,17 @@ instance ExprLike LamBinding where
 
 instance ExprLike LHS where
   mapExpr f = \case
-     LHS ps res wes ell -> LHS ps (mapE res) (mapE wes) ell
+     LHS ps res wes -> LHS ps (mapE res) (mapE wes)
    where
      mapE :: ExprLike a => a -> a
      mapE = mapExpr f
   foldExpr     = __IMPOSSIBLE__
   traverseExpr = __IMPOSSIBLE__
 
-instance (ExprLike qn, ExprLike e) => ExprLike (RewriteEqn' qn p e) where
+instance (ExprLike qn, ExprLike e) => ExprLike (RewriteEqn' qn nm p e) where
   mapExpr f = \case
     Rewrite es    -> Rewrite (mapExpr f es)
-    Invert qn pes -> Invert qn (fmap (mapExpr f <$>) pes)
+    Invert qn pes -> Invert qn (fmap (fmap $ fmap $ mapExpr f) pes)
   foldExpr     = __IMPOSSIBLE__
   traverseExpr = __IMPOSSIBLE__
 

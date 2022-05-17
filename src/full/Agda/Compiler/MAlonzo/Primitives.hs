@@ -5,6 +5,7 @@ import Control.Arrow ( second )
 import Control.Monad.Trans.Maybe ( MaybeT(MaybeT, runMaybeT) )
 
 import qualified Data.List as List
+import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
@@ -85,7 +86,7 @@ checkTypeOfMain' m@(MainFunctionDef def) = CheckedMainFunctionDef m <$> do
   where
     mainAlias = HS.FunBind [HS.Match mainLHS [] mainRHS emptyBinds ]
     mainLHS   = HS.Ident "main"
-    mainRHS   = HS.UnGuardedRhs $ HS.App mazCoerce (HS.Var $ HS.UnQual $ unqhname "d" $ defName def)
+    mainRHS   = HS.UnGuardedRhs $ HS.App mazCoerce (HS.Var $ HS.UnQual $ dname $ defName def)
 
 treelessPrimName :: TPrim -> String
 treelessPrimName p =
@@ -120,44 +121,47 @@ treelessPrimName p =
 importsForPrim :: BuiltinThings PrimFun -> [Definition] -> [HS.ModuleName]
 importsForPrim builtinThings defs = xForPrim table builtinThings defs ++ [HS.ModuleName "Data.Text"]
   where
-  table = Map.fromList $ second (HS.ModuleName <$>) <$>
-    [ "CHAR"                       |-> ["Data.Char"]
-    , "primIsAlpha"                |-> ["Data.Char"]
-    , "primIsAscii"                |-> ["Data.Char"]
-    , "primIsDigit"                |-> ["Data.Char"]
-    , "primIsHexDigit"             |-> ["Data.Char"]
-    , "primIsLatin1"               |-> ["Data.Char"]
-    , "primIsLower"                |-> ["Data.Char"]
-    , "primIsPrint"                |-> ["Data.Char"]
-    , "primIsSpace"                |-> ["Data.Char"]
-    , "primToLower"                |-> ["Data.Char"]
-    , "primToUpper"                |-> ["Data.Char"]
-    , "primFloatInequality"        |-> ["MAlonzo.RTE.Float"]
-    , "primFloatEquality"          |-> ["MAlonzo.RTE.Float"]
-    , "primFloatLess"              |-> ["MAlonzo.RTE.Float"]
-    , "primFloatIsSafeInteger"     |-> ["MAlonzo.RTE.Float"]
-    , "primFloatToWord64"          |-> ["MAlonzo.RTE.Float"]
-    , "primFloatRound"             |-> ["MAlonzo.RTE.Float"]
-    , "primFloatFloor"             |-> ["MAlonzo.RTE.Float"]
-    , "primFloatCeiling"           |-> ["MAlonzo.RTE.Float"]
-    , "primFloatToRatio"           |-> ["MAlonzo.RTE.Float"]
-    , "primRatioToFloat"           |-> ["MAlonzo.RTE.Float"]
-    , "primFloatDecode"            |-> ["MAlonzo.RTE.Float"]
-    , "primFloatEncode"            |-> ["MAlonzo.RTE.Float"]
+  table = Map.fromDistinctAscList $ map (second HS.ModuleName)
+    -- KEEP THIS LIST IN ALPHABETICAL ORDER!
+    -- Otherwise, Map.fromDistinctAscList will produce garbage.
+    [ "CHAR"                       |-> "Data.Char"
+    , "primFloatCeiling"           |-> "MAlonzo.RTE.Float"
+    , "primFloatDecode"            |-> "MAlonzo.RTE.Float"
+    , "primFloatEncode"            |-> "MAlonzo.RTE.Float"
+    , "primFloatEquality"          |-> "MAlonzo.RTE.Float"
+    , "primFloatFloor"             |-> "MAlonzo.RTE.Float"
+    , "primFloatInequality"        |-> "MAlonzo.RTE.Float"
+    , "primFloatIsSafeInteger"     |-> "MAlonzo.RTE.Float"
+    , "primFloatLess"              |-> "MAlonzo.RTE.Float"
+    , "primFloatRound"             |-> "MAlonzo.RTE.Float"
+    , "primFloatToRatio"           |-> "MAlonzo.RTE.Float"
+    , "primFloatToWord64"          |-> "MAlonzo.RTE.Float"
+    , "primIsAlpha"                |-> "Data.Char"
+    , "primIsAscii"                |-> "Data.Char"
+    , "primIsDigit"                |-> "Data.Char"
+    , "primIsHexDigit"             |-> "Data.Char"
+    , "primIsLatin1"               |-> "Data.Char"
+    , "primIsLower"                |-> "Data.Char"
+    , "primIsPrint"                |-> "Data.Char"
+    , "primIsSpace"                |-> "Data.Char"
+    , "primRatioToFloat"           |-> "MAlonzo.RTE.Float"
+    , "primToLower"                |-> "Data.Char"
+    , "primToUpper"                |-> "Data.Char"
     ]
   (|->) = (,)
 
 --------------
 
-xForPrim :: Map.Map String [a] -> BuiltinThings PrimFun -> [Definition] -> [a]
-xForPrim table builtinThings defs =
-  let qs = Set.fromList $ defName <$> defs
-      bs = Map.toList builtinThings
-      getName (Builtin t)            = getPrimName t
-      getName (Prim (PrimFun q _ _)) = q
-  in
-  concat [ fromMaybe [] $ Map.lookup s table
-         | (s, def) <- bs, getName def `Set.member` qs ]
+xForPrim :: Map String a -> BuiltinThings PrimFun -> [Definition] -> [a]
+xForPrim table builtinThings defs = catMaybes
+    [ Map.lookup s table
+    | (s, def) <- Map.toList builtinThings
+    , getName def `Set.member` qs
+    ]
+  where
+  qs = Set.fromList $ map defName defs
+  getName (Builtin t)            = getPrimName t
+  getName (Prim (PrimFun q _ _)) = q
 
 
 -- | Definition bodies for primitive functions
@@ -199,7 +203,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   -- Machine word functions
   , "primWord64ToNat"   |-> return "MAlonzo.RTE.word64ToNat"
   , "primWord64FromNat" |-> return "MAlonzo.RTE.word64FromNat"
-  , "primWord64ToNatInjective" |-> return "erased"
+  , "primWord64ToNatInjective" |-> return mazErasedName
 
   -- Floating point functions
   , "primFloatEquality"          |-> return "MAlonzo.RTE.Float.doubleEq"
@@ -210,7 +214,7 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primFloatIsNegativeZero"    |-> return "(isNegativeZero :: Double -> Bool)"
   , "primFloatIsSafeInteger"     |-> return "MAlonzo.RTE.Float.isSafeInteger"
   , "primFloatToWord64"          |-> return "MAlonzo.RTE.Float.doubleToWord64"
-  , "primFloatToWord64Injective" |-> return "erased"
+  , "primFloatToWord64Injective" |-> return mazErasedName
   , "primNatToFloat"             |-> return "(MAlonzo.RTE.Float.intToDouble :: Integer -> Double)"
   , "primIntToFloat"             |-> return "(MAlonzo.RTE.Float.intToDouble :: Integer -> Double)"
   , "primFloatRound"             |-> return "MAlonzo.RTE.Float.doubleRound"
@@ -257,9 +261,9 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primToUpper"        |-> return "Data.Char.toUpper"
   , "primToLower"        |-> return "Data.Char.toLower"
   , "primCharToNat" |-> return "(fromIntegral . fromEnum :: Char -> Integer)"
-  , "primNatToChar" |-> return "(toEnum . fromIntegral :: Integer -> Char)"
+  , "primNatToChar" |-> return "MAlonzo.RTE.natToChar"
   , "primShowChar"  |-> return "(Data.Text.pack . show :: Char -> Data.Text.Text)"
-  , "primCharToNatInjective" |-> return "erased"
+  , "primCharToNatInjective" |-> return mazErasedName
 
   -- String functions
   , "primStringUncons"   |-> return "Data.Text.uncons"
@@ -268,8 +272,8 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"
   , "primStringEquality" |-> rel "(==)" "Data.Text.Text"
   , "primShowString"     |-> return "(Data.Text.pack . show :: Data.Text.Text -> Data.Text.Text)"
-  , "primStringToListInjective" |-> return "erased"
-  , "primStringFromListInjective" |-> return "erased"
+  , "primStringToListInjective" |-> return mazErasedName
+  , "primStringFromListInjective" |-> return mazErasedName
 
   -- Reflection
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"
@@ -277,19 +281,41 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primShowQName"       |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
   , "primQNameFixity"     |-> return "MAlonzo.RTE.qnameFixity"
   , "primQNameToWord64s"  |-> return "\\ qn -> (MAlonzo.RTE.nameId qn, MAlonzo.RTE.moduleId qn)"
-  , "primQNameToWord64sInjective" |-> return "erased"
+  , "primQNameToWord64sInjective" |-> return mazErasedName
   , "primMetaEquality"    |-> rel "(==)" "Integer"
   , "primMetaLess"        |-> rel "(<)" "Integer"
   , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"
   , "primMetaToNat"       |-> return "(id :: Integer -> Integer)"
-  , "primMetaToNatInjective" |-> return "erased"
+  , "primMetaToNatInjective" |-> return mazErasedName
 
   -- Seq
   , "primForce"      |-> return "\\ _ _ _ _ x f -> f $! x"
-  , "primForceLemma" |-> return "erased"
+  , "primForceLemma" |-> return mazErasedName
 
   -- Erase
-  , "primEraseEquality" |-> return "erased"
+  , "primEraseEquality" |-> return mazErasedName
+
+  -- Cubical
+  , builtinIMin       |-> return "(&&)"
+  , builtinIMax       |-> return "(||)"
+  , builtinINeg       |-> return "not"
+  , "primPartial"     |-> return "\\_ _ x -> x"
+  , "primPartialP"    |-> return "\\_ _ x -> x"
+  , builtinPOr        |-> return "\\_ i _ _ x y -> if i then x else y"
+  , builtinComp       |-> return "\\_ _ _ _ x -> x"
+  , builtinTrans      |-> return "\\_ _ _ x -> x"
+  , builtinHComp      |-> return "\\_ _ _ _ x -> x"
+  , builtinSubOut     |-> return "\\_ _ _ _ x -> x"
+  , builtin_glueU     |-> return "\\_ _ _ _ _ x -> x"
+  , builtin_unglueU   |-> return "\\_ _ _ _ x -> x"
+  , builtinFaceForall |-> return
+                            "\\f -> f True == True && f False == True"
+  , "primDepIMin"     |-> return "\\i f -> if i then f () else False"
+  , "primIdFace"      |-> return "\\_ _ _ _ -> fst"
+  , "primIdPath"      |-> return "\\_ _ _ _ -> snd"
+  , "primIdJ"         |-> return "\\_ _ _ _ _ x _ _ -> x"
+  , builtinIdElim     |-> return
+                            "\\_ _ _ _ _ f x y -> f (fst y) x (snd y)"
   ]
   where
   x |-> s = (x, Left <$> s)

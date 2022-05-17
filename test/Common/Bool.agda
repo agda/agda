@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 module Common.Bool where
 
 open import Agda.Builtin.Bool public

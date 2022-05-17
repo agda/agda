@@ -2,8 +2,7 @@
 -- | The parser monad used by the operator parser
 ------------------------------------------------------------------------
 
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.Syntax.Concrete.Operators.Parser.Monad
   ( MemoKey(..), PrecedenceKey

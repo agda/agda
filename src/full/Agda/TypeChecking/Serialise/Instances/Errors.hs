@@ -9,12 +9,14 @@ import Agda.TypeChecking.Serialise.Instances.Internal () --instance only
 import Agda.TypeChecking.Serialise.Instances.Abstract () --instance only
 
 import Agda.Syntax.Concrete.Definitions (DeclarationWarning(..), DeclarationWarning'(..))
+import Agda.Syntax.Parser.Monad
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
 import Agda.Interaction.Library.Base
 import Agda.Termination.CutOff
 import Agda.Utils.Pretty
+import Agda.Utils.ProfileOptions
 
 import Agda.Utils.Impossible
 
@@ -49,7 +51,6 @@ instance EmbPrj Warning where
     SafeFlagNoCoverageCheck               -> __IMPOSSIBLE__
     SafeFlagInjective                     -> __IMPOSSIBLE__
     SafeFlagEta                           -> __IMPOSSIBLE__
-    ParseWarning a                        -> __IMPOSSIBLE__
     DeprecationWarning a b c              -> icodeN 6 DeprecationWarning a b c
     NicifierIssue a                       -> icodeN 7 NicifierIssue a
     InversionDepthReached a               -> icodeN 8 InversionDepthReached a
@@ -82,6 +83,9 @@ instance EmbPrj Warning where
     GenericUseless a b                    -> icodeN 35 GenericUseless a b
     RewriteAmbiguousRules a b c           -> icodeN 36 RewriteAmbiguousRules a b c
     RewriteMissingRule a b c              -> icodeN 37 RewriteMissingRule a b c
+    ParseWarning a                        -> icodeN 38 ParseWarning a
+    NoGuardednessFlag a                   -> icodeN 39 NoGuardednessFlag a
+    NoEquivWhenSplitting a                -> icodeN 40 NoEquivWhenSplitting a
 
   value = vcase $ \ case
     [0, a, b]            -> valuN UnreachableClauses a b
@@ -122,6 +126,21 @@ instance EmbPrj Warning where
     [35, a, b]           -> valuN GenericUseless a b
     [36, a, b, c]        -> valuN RewriteAmbiguousRules a b c
     [37, a, b, c]        -> valuN RewriteMissingRule a b c
+    [38, a]              -> valuN ParseWarning a
+    [39, a]              -> valuN NoGuardednessFlag a
+    [40, a]              -> valuN NoEquivWhenSplitting a
+    _ -> malformed
+
+instance EmbPrj ParseWarning where
+  icod_ = \case
+    OverlappingTokensWarning a -> icodeN 0 OverlappingTokensWarning a
+    UnsupportedAttribute a b   -> icodeN 1 UnsupportedAttribute a b
+    MultipleAttributes a b     -> icodeN 2 MultipleAttributes a b
+
+  value = vcase $ \case
+    [0, a]    -> valuN OverlappingTokensWarning a
+    [1, a, b] -> valuN UnsupportedAttribute a b
+    [2, a, b] -> valuN MultipleAttributes a b
     _ -> malformed
 
 instance EmbPrj RecordFieldWarning where
@@ -174,6 +193,8 @@ instance EmbPrj DeclarationWarning' where
     InvalidRecordDirective a          -> icodeN 29 InvalidRecordDirective a
     InvalidConstructor a              -> icodeN 30 InvalidConstructor a
     InvalidConstructorBlock a         -> icodeN 31 InvalidConstructorBlock a
+    MissingDeclarations a             -> icodeN 32 MissingDeclarations a
+    HiddenGeneralize r                -> icodeN 33 HiddenGeneralize r
 
   value = vcase $ \case
     [0, a]   -> valuN UnknownNamesInFixityDecl a
@@ -208,6 +229,8 @@ instance EmbPrj DeclarationWarning' where
     [29,r]   -> valuN InvalidRecordDirective r
     [30,r]   -> valuN InvalidConstructor r
     [31,r]   -> valuN InvalidConstructorBlock r
+    [32,r]   -> valuN MissingDeclarations r
+    [33,r]   -> valuN HiddenGeneralize r
     _ -> malformed
 
 instance EmbPrj LibWarning where
@@ -221,13 +244,9 @@ instance EmbPrj LibWarning where
 instance EmbPrj LibWarning' where
   icod_ = \case
     UnknownField     a   -> icodeN 0 UnknownField a
-    ExeNotFound      a b -> icodeN 1 ExeNotFound a b
-    ExeNotExecutable a b -> icodeN 2 ExeNotExecutable a b
 
   value = vcase $ \case
     [0, a]    -> valuN UnknownField a
-    [1, a, b] -> valuN ExeNotFound a b
-    [2, a, b] -> valuN ExeNotExecutable a b
     _ -> malformed
 
 instance EmbPrj ExecutablesFile where
@@ -253,13 +272,24 @@ instance EmbPrj Doc where
 
 instance EmbPrj PragmaOptions where
   icod_ = \case
-    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd ->
-      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd
+    PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee ->
+      icodeN' PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee
 
   value = vcase $ \case
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc, ddd] ->
-      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd
+    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, aa, bb, cc, dd, ee, ff, gg, hh, ii, jj, kk, ll, mm, nn, oo, pp, qq, rr, ss, tt, uu, vv, ww, xx, yy, zz, aaa, bbb, ccc, ddd, eee] ->
+      valuN PragmaOptions a b c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz aaa bbb ccc ddd eee
     _ -> malformed
+
+instance EmbPrj ProfileOptions where
+  icod_ opts = icode (profileOptionsToList opts)
+  value = fmap profileOptionsFromList . value
+
+instance EmbPrj ProfileOption where
+  icod_ = icode . fromEnum
+  value = value >=> \ n -> if lo <= n && n <= hi then pure (toEnum n) else malformed
+    where
+      lo = fromEnum (minBound :: ProfileOption)
+      hi = fromEnum (maxBound :: ProfileOption)
 
 instance EmbPrj UnicodeOrAscii
 

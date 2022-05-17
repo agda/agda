@@ -46,14 +46,6 @@ partitionEithers3 = \case
 
 mapEither3M :: Applicative m => (a -> m (Either3 b c d)) -> [a] -> m ([b], [c], [d])
 mapEither3M f xs = partitionEithers3 <$> traverse f xs
--- mapEither3M f = \case
---     []     -> return ([], [], [])
---     (x:xs) -> liftA2 (flip prepend) (f x) (mapEither3M f xs)
---   where
---   prepend (as, bs, cs) = \case
---     In1 b -> (b:bs, cs, ds)
---     In2 c -> (bs, c:cs, ds)
---     In3 d -> (bs, cs, d:ds)
 
 forEither3M :: Applicative m => [a] -> (a -> m (Either3 b c d)) -> m ([b], [c], [d])
 forEither3M = flip mapEither3M

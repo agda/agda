@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Non-empty lists.
 --
 --   Better name @List1@ for non-empty lists, plus missing functionality.
@@ -49,24 +51,53 @@ initLast = List1.init &&& List1.last
   -- traverses twice, but does not create intermediate pairs
 
 -- | Build a list with one element.
--- Use the module `Adga.Utils.Singleton` (see Issue #5122).
--- singleton :: a -> List1 a
--- singleton = (:| [])
 
+#if !(MIN_VERSION_base(4,15,0))
+singleton :: a -> List1 a
+singleton = (:| [])
+#endif
+
+#if !MIN_VERSION_base(4,16,0)
 -- | Append a list to a non-empty list.
 
-append :: List1 a -> [a] -> List1 a
-append (x :| xs) ys = x :| mappend xs ys
+appendList :: List1 a -> [a] -> List1 a
+appendList (x :| xs) ys = x :| mappend xs ys
 
 -- | Prepend a list to a non-empty list.
 
-prepend :: [a] -> List1 a -> List1 a
-prepend as bs = foldr (<|) bs as
+prependList :: [a] -> List1 a -> List1 a
+prependList as bs = foldr (<|) bs as
+#endif
 
 -- | More precise type for @snoc@.
 
 snoc :: [a] -> a -> List1 a
-snoc as a = prepend as $ a :| []
+snoc as a = prependList as $ a :| []
+
+-- | More precise type for 'Agda.Utils.List.groupBy''.
+--
+-- A variant of 'List.groupBy' which applies the predicate to consecutive
+-- pairs.
+-- O(n).
+groupBy' :: forall a. (a -> a -> Bool) -> [a] -> [List1 a]
+groupBy' _ []           = []
+groupBy' p xxs@(x : xs) = grp x $ List.zipWith (\ x y -> (p x y, y)) xxs xs
+  where
+  grp :: a -> [(Bool,a)] -> [List1 a]
+  grp x ys
+    | let (xs, rest) = List.span fst ys
+    = (x :| List.map snd xs) : case rest of
+      []                 -> []
+      ((_false, z) : zs) -> grp z zs
+
+-- | Breaks a list just /after/ an element satisfying the predicate is
+--   found.
+--
+--   >>> breakAfter even [1,3,5,2,4,7,8]
+--   ([1,3,5,2],[4,7,8])
+
+breakAfter :: (a -> Bool) -> List1 a -> (List1 a, [a])
+breakAfter p (x :| xs) = List.breakAfter1 p x xs
 
 -- | Concatenate one or more non-empty lists.
 

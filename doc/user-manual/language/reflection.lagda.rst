@@ -181,10 +181,28 @@ Arguments can be relevant or irrelevant::
   {-# BUILTIN RELEVANT   relevant   #-}
   {-# BUILTIN IRRELEVANT irrelevant #-}
 
-Visibility and relevance characterise the behaviour of an argument::
+Arguments also have a quantity::
+
+  data Quantity : Set where
+    quantity-0 quantity-ω : Quantity
+
+  {-# BUILTIN QUANTITY   Quantity   #-}
+  {-# BUILTIN QUANTITY-0 quantity-0 #-}
+  {-# BUILTIN QUANTITY-ω quantity-ω #-}
+
+Relevance and quantity are combined into a modality::
+
+  data Modality : Set where
+    modality : (r : Relevance) (q : Quantity) → Modality
+
+  {-# BUILTIN MODALITY             Modality #-}
+  {-# BUILTIN MODALITY-CONSTRUCTOR modality #-}
+
+The visibility and the modality characterise the behaviour of an
+argument::
 
   data ArgInfo : Set where
-    arg-info : (v : Visibility) (r : Relevance) → ArgInfo
+    arg-info : (v : Visibility) (m : Modality) → ArgInfo
 
   data Arg (A : Set) : Set where
     arg : (i : ArgInfo) (x : A) → Arg A
@@ -238,6 +256,9 @@ de Bruijn indices to represent variables.
   data Sort where
     set     : (t : Term) → Sort -- A Set of a given (possibly neutral) level.
     lit     : (n : Nat) → Sort  -- A Set of a given concrete level.
+    prop    : (t : Term) → Sort -- A Prop of a given (possibly neutral) level.
+    propLit : (n : Nat) → Sort  -- A Prop of a given concrete level.
+    inf     : (n : Nat) → Sort  -- Setωi of a given concrete level i.
     unknown : Sort
 
   data Pattern where
@@ -270,6 +291,9 @@ de Bruijn indices to represent variables.
 
   {-# BUILTIN AGDASORTSET         set     #-}
   {-# BUILTIN AGDASORTLIT         lit     #-}
+  {-# BUILTIN AGDASORTPROP        prop    #-}
+  {-# BUILTIN AGDASORTPROPLIT     propLit #-}
+  {-# BUILTIN AGDASORTINF         inf     #-}
   {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
   {-# BUILTIN AGDAPATCON    con     #-}
@@ -327,6 +351,7 @@ implement pretty printing for reflected terms.
   data ErrorPart : Set where
     strErr  : String → ErrorPart
     termErr : Term → ErrorPart
+    pattErr : Pattern → ErrorPart
     nameErr : Name → ErrorPart
 
   {-# BUILTIN AGDAERRORPART       ErrorPart #-}
@@ -393,15 +418,15 @@ following primitive operations::
     -- it is indexable by deBruijn index. Note that the types in the context are
     -- valid in the rest of the context. To use in the current context they need
     -- to be weakened by 1 + their position in the list.
-    getContext : TC (List (Arg Type))
+    getContext : TC Telescope
 
-    -- Extend the current context with a variable of the given type.
-    extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
+    -- Extend the current context with a variable of the given type and its name.
+    extendContext : ∀ {a} {A : Set a} → String → Arg Type → TC A → TC A
 
-    -- Set the current context. Takes a context telescope with the outer-most
-    -- entry first, in contrast to 'getContext'. Each type should be valid in the
-    -- context formed by the preceding elements in the list.
-    inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
+    -- Set the current context. Takes a context telescope entries in
+    -- reverse order, as given by `getContext`. Each type should be valid
+    -- in the context formed by the remaining elements in the list.
+    inContext : ∀ {a} {A : Set a} → Telescope → TC A → TC A
 
     -- Quote a value, returning the corresponding Term.
     quoteTC : ∀ {a} {A : Set a} → A → TC Term
@@ -450,6 +475,9 @@ following primitive operations::
     -- printing from debugPrint "a.b.c.d" 10 msg.
     debugPrint : String → Nat → List ErrorPart → TC ⊤
 
+    -- Return the formatted string of the argument using the internal pretty printer.
+    formatErrorParts : List ErrorPart → TC String
+
     -- Only allow reduction of specific definitions while executing the TC computation
     onlyReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
 
@@ -468,6 +496,10 @@ following primitive operations::
     -- the old TC state if the second component is 'false', or keep the
     -- new TC state if it is 'true'.
     runSpeculative : ∀ {a} {A : Set a} → TC (Σ A λ _ → Bool) → TC A
+
+    -- Get a list of all possible instance candidates for the given meta
+    -- variable (it does not have to be an instance meta).
+    getInstances : Meta → TC (List Term)
 
   {-# BUILTIN AGDATCMUNIFY                      unify                      #-}
   {-# BUILTIN AGDATCMTYPEERROR                  typeError                  #-}
@@ -497,6 +529,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMDONTREDUCEDEFS             dontReduceDefs             #-}
   {-# BUILTIN AGDATCMNOCONSTRAINTS              noConstraints              #-}
   {-# BUILTIN AGDATCMRUNSPECULATIVE             runSpeculative             #-}
+  {-# BUILTIN AGDATCMGETINSTANCES               getInstances               #-}
 
 Metaprogramming
 ---------------
@@ -578,7 +611,9 @@ overhead. For instance, suppose you have a solver::
 ..
   ::
   postulate God : (A : Set) → A
-  magic t = def (quote God) (arg (arg-info visible relevant) t ∷ [])
+  magic t =
+    def (quote God)
+        (arg (arg-info visible (modality relevant quantity-ω)) t ∷ [])
 
 that takes a reflected goal and outputs a proof (when successful). You can then
 define the following macro::
@@ -698,16 +733,19 @@ Example usage:
 
 ::
 
+    arg′ : {A : Set} → Visibility → A → Arg A
+    arg′ v = arg (arg-info v (modality relevant quantity-ω))
+
     -- Defining: id-name {A} x = x
     defId : (id-name : Name) → TC ⊤
     defId id-name = do
       defineFun id-name
         [ clause
-          ( ("A" , arg (arg-info visible relevant) (agda-sort (lit 0)))
-          ∷ ("x" , arg (arg-info visible relevant) (var 0 []))
+          ( ("A" , arg′ visible (agda-sort (lit 0)))
+          ∷ ("x" , arg′ visible (var 0 []))
           ∷ [])
-          ( arg (arg-info hidden relevant) (var 1)
-          ∷ arg (arg-info visible relevant) (var 0)
+          ( arg′ hidden (var 1)
+          ∷ arg′ visible (var 0)
           ∷ [] )
           (var 0 [])
         ]
@@ -718,7 +756,7 @@ Example usage:
     mkId : (id-name : Name) → TC ⊤
     mkId id-name = do
       ty ← quoteTC ({A : Set} (x : A) → A)
-      declareDef (arg (arg-info visible relevant) id-name) ty
+      declareDef (arg′ visible id-name) ty
       defId id-name
 
     unquoteDecl id′ = mkId id′

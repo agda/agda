@@ -1,6 +1,8 @@
 -- 2010-10-14
 
 -- {-# OPTIONS -v term:20 #-}
+{-# OPTIONS --guardedness #-}
+
 module FakeProjectionsDoNotPreserveGuardedness where
 
 import Common.Level

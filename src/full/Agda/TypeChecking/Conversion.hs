@@ -18,10 +18,10 @@ import Data.Function
 import Data.Functor.Compose (Compose(..))
 import Data.Maybe (isJust)
 import Data.Semigroup ((<>))
-import qualified Data.Coerce
+import qualified Data.Coerce -- TODO: Remove?
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
@@ -66,6 +66,9 @@ import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
+import qualified Agda.Utils.ProfileOptions as Profile
+import Agda.Utils.BoolSet (BoolSet)
+import qualified Agda.Utils.BoolSet as BoolSet
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
@@ -172,14 +175,17 @@ compareAs_ cmp a u v = do
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
     , nest 2 $ prettyTCM a
     ]
-  -- Check syntactic equality. This actually saves us quite a bit of work.
-  ((u, v), equal) <- SynEq.checkSyntacticEquality_ u v
+
   -- OLD CODE, traverses the *full* terms u v at each step, even if they
   -- are different somewhere.  Leads to infeasibility in issue 854.
   -- (u, v) <- instantiateFull (u, v)
   -- let equal = u == v
-  if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
-      verboseS "profile.sharing" 20 $ tick "unequal terms"
+
+  -- Check syntactic equality. This actually saves us quite a bit of work.
+  SynEq.checkSyntacticEquality_ u v
+    (\_ _ -> whenProfile Profile.Sharing $ tick "equal terms") $
+    \u v -> do
+      whenProfile Profile.Sharing $ tick "unequal terms"
       reportSDoc "tc.conv.term" 15 $ sep $
         [ "compareTerm (not syntactically equal)"
         , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
@@ -213,8 +219,10 @@ compareAs_ cmp a u v = do
         (Def f es, Def f' es') | f == f' ->
           ifNotM (optFirstOrder <$> pragmaOptions) fallback $ {- else -} unlessSubtyping $ do
           def <- getConstInfo f
-          -- We do not shortcut projection-likes
-          if isJust $ isProjection_ (theDef def) then fallback else do
+          -- We do not shortcut projection-likes,
+          -- Andreas, 2022-03-07, issue #5809:
+          -- but irrelevant projections since they are applied to their parameters.
+          if isJust $ isRelevantProjection_ def then fallback else do
           pol <- getPolarity' cmp f
           compareElims pol [] (defType def) (Def f []) es es' `orelse` fallback
         _               -> fallback
@@ -317,7 +325,7 @@ compareTerm'_ cmp a m n =
     isSize   <- isJust <$> isSizeType a'
     (bs, s)  <- reduceWithBlocker $ getSort a'
     mlvl     <- getBuiltin' builtinLevel
-    cubical  <- optCubical <$> pragmaOptions
+    cubical  <- isJust . optCubical <$> pragmaOptions
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
       [ "a'   =" <+> pretty a'
       , "mlvl =" <+> pretty mlvl
@@ -390,7 +398,7 @@ compareTerm'_ cmp a m n =
     equalFun :: (MonadConversion m) => Sort -> Dom TwinT -> Abs TwinT -> H'LHS Term -> H'RHS Term -> m ()
     equalFun s dom b m n = do
       -- Skip cubical check when cubical flag is disabled
-      cubical <- optCubical <$> pragmaOptions
+      cubical <- isJust . optCubical <$> pragmaOptions
       equalFun_ s dom{domFinite=cubical && domFinite dom} b m n
 
     equalFun_ :: (MonadConversion m) => Sort -> Dom TwinT -> Abs TwinT -> H'LHS Term -> H'RHS Term -> m ()
@@ -421,7 +429,7 @@ compareTerm'_ cmp a m n =
 
     cmpDef :: TwinT -> H'LHS Term -> H'RHS Term -> m ()
     cmpDef a'_ m_@(OnLHS m) n_@(OnRHS n) = do
-     cubical <- optCubical <$> pragmaOptions
+     cubical <- isJust . optCubical <$> pragmaOptions
      if cubical then do
        let a'@(El s ty) = twinAt @'Compat a'_
        mI     <- getBuiltinName'   builtinInterval
@@ -434,12 +442,12 @@ compareTerm'_ cmp a m n =
        case ty of
          Def q es | Just q == mIsOne -> return ()
          Def q es | Just q == mGlue, Just args@(l:_:a:phi:_) <- allApplyElims es -> do
-              ty <- el' (pure $ unArg l) (pure $ unArg a)
+              aty <- el' (pure $ unArg l) (pure $ unArg a)
               unglue <- prim_unglue
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
-              reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
-              compareTermOnFace cmp (unArg phi) ty m n
-              compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+              reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
+              compareTermOnFace cmp (unArg phi) a' m n
+              compareTerm cmp aty (mkUnglue m) (mkUnglue n)
          Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
                   , Sort (Type lvl) <- unArg s
                   , Just unglueU <- mUnglueU, Just subIn <- mSubIn
@@ -470,7 +478,7 @@ compareAtomDir_ = dirToCmp_ compareAtom_
 compareDefElims_ :: MonadConversion m => [Polarity] -> QName -> H'LHS Elims -> H'RHS Elims -> m ()
 compareDefElims_ pol f es es' = do
   def <- getConstInfo f
-  if projectionArgs (theDef def) <= 0 then do
+  if projectionArgs def <= 0 then do
     let a = defType def
     compareElims_ pol [] (asTwin a) (asTwin $ Def f []) es es'
   else do
@@ -564,8 +572,8 @@ computeElimHeadType f es es' = do
   def <- getConstInfo f
   -- To compute the type @a@ of a projection-like @f@,
   -- we have to infer the type of its first argument.
-  if projectionArgs (theDef def) <= 0 then return $ defType def else do
-    -- Find an first argument to @f@.
+  if projectionArgs def <= 0 then return $ defType def else do
+    -- Find a first argument to @f@.
     let arg = case (es, es') of
               (Apply arg : _, _) -> arg
               (_, Apply arg : _) -> arg
@@ -583,6 +591,16 @@ computeElimHeadType f es es' = do
     targ <- abortIfBlocked targ
     fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
 
+
+abortIfMissingClauses ::
+  (Blocked (Het 'LHS Term), Blocked (Het 'RHS Term)) -> Blocker
+abortIfMissingClauses (NotBlocked nb t, NotBlocked nb' t') =
+  case nb <> nb' of
+    MissingClauses -> alwaysUnblock
+    _              -> neverUnblock
+abortIfMissingClauses _ = __IMPOSSIBLE__
+
+
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
@@ -599,12 +617,18 @@ compareAtom_ cmp t m n =
                              , prettyTCM n
                              , prettyTCM t
                              ]
+    let blockIfMissingClauses b@Blocked{} = b
+        -- re #5600: We might add more clauses to the function later,
+        --           so we shouldn't commit to an UnequalTerms error yet,
+        --           even if there are no metas blocking computation.
+        blockIfMissingClauses (NotBlocked MissingClauses t) = Blocked alwaysUnblock t
+        blockIfMissingClauses b@NotBlocked{} = b
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
     (mb',nb') <- do
       mb' <- etaExpandBlocked =<< reduceB m
       nb' <- etaExpandBlocked =<< reduceB n
-      return (mb', nb')
+      return (blockIfMissingClauses mb', blockIfMissingClauses nb')
     let getBlocker (Blocked b _) = b
         getBlocker NotBlocked{}  = neverUnblock
         blocker = unblockOnEither (getBlocker mb') (getBlocker nb')
@@ -688,10 +712,13 @@ compareAtom_ cmp t m n =
       -- one side a meta
       _ | H'LHS (MetaV x es) <- ignoreBlocking mb -> assign dir x es n
       _ | H'RHS (MetaV x es) <- ignoreBlocking nb -> assign rid x es m
-      (Blocked{}, Blocked{}) | not cmpBlocked -> checkDefinitionalEquality
-      (Blocked b _, _) | not cmpBlocked -> useInjectivity_ (fromCmp cmp) b t m n   -- The blocked term goes first
+      (Blocked{}, Blocked{}) | not cmpBlocked  -> checkDefinitionalEquality
+      (Blocked b _, _) | not cmpBlocked -> useInjectivity_ (fromCmp cmp) b t m n   -- The blocked term  goes first
       (_, Blocked b _) | not cmpBlocked -> useInjectivity_ (flipCmp $ fromCmp cmp) b t n m
-      _ -> blockOnError blocker $ do
+      bs -> do
+        let blocker' | cmpBlocked = blocker
+                     | otherwise = unblockOnEither blocker $ abortIfMissingClauses bs
+        blockOnError blocker' $ do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.
         -- -- 'False' means: leave (Def f []) unchanged even for
@@ -859,23 +886,21 @@ compareDom_ :: (MonadConversion m , Free c)
   -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
   -> m ()     -- ^ Continuation if comparison is successful.
   -> m ()
-compareDom_ cmp0
+compareDom_ cmp
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
   b1 b2 errH errR errQ errC cont = do
-  hasSubtyping <- collapseDefault . optSubtyping <$> pragmaOptions
-  let cmp = if hasSubtyping then cmp0 else DirEq
   if | not $ sameHiding dom1 dom2 -> errH
-     | not $ dirToCmp compareRelevance cmp (getRelevance dom1) (getRelevance dom2) -> errR
-     | not $ dirToCmp compareQuantity  cmp (getQuantity  dom1) (getQuantity  dom2) -> errQ
-     | not $ dirToCmp compareCohesion  cmp (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> errR
+     | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> errQ
+     | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> errC
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
-          dependent = (r /= Irrelevant) && dirToCmp (\_ _ b2 -> isBinderUsed b2) cmp b1 b2
-      pid <- newProblem_ $ dirToCmp_ (\dir () -> compareType_ dir) cmp0 () (H'LHS a1) (H'RHS a2)
+          dependent = (r /= Irrelevant) && isBinderUsed b2
+      pid <- newProblem_ $ dirToCmp_ (\dir () -> compareType_ dir) cmp () (H'LHS a1) (H'RHS a2)
       -- Chose the smaller type and domain
-      let (a0,dom0) = selectSmaller cmp0 (a1,dom1) (a2,dom2)
+      let (a0,dom0) = selectSmaller cmp (a1,dom1) (a2,dom2)
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
@@ -899,25 +924,98 @@ compareDom_ cmp0
         -- Only the domain type in context will be blocked.
         -- But see issue #1258.
 
-compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
-compareRelevance CmpEq  = (==)
-compareRelevance CmpLeq = (<=)
+-- | When comparing argument spines (in compareElims) where the first arguments
+--   don't match, we keep going, substituting the anti-unification of the two
+--   terms in the telescope. More precisely:
+--
+--  @@
+--    (u = v : A)[pid]   w = antiUnify pid A u v   us = vs : Δ[w/x]
+--    -------------------------------------------------------------
+--                    u us = v vs : (x : A) Δ
+--  @@
+--
+--   The simplest case of anti-unification is to return a fresh metavariable
+--   (created by blockTermOnProblem), but if there's shared structure between
+--   the two terms we can expose that.
+--
+--   This is really a crutch that lets us get away with things that otherwise
+--   would require heterogenous conversion checking. See for instance issue
+--   #2384.
+antiUnify :: MonadConversion m => ProblemId -> Type -> Term -> Term -> m Term
+antiUnify pid a u v = do
+  SynEq.checkSyntacticEquality u v (\u _ -> return u) $ \u v -> do
+  (u, v) <- reduce (u, v)
+  reportSDoc "tc.conv.antiUnify" 30 $ vcat
+    [ "antiUnify"
+    , "a =" <+> prettyTCM a
+    , "u =" <+> prettyTCM u
+    , "v =" <+> prettyTCM v
+    ]
+  case (u, v) of
+    (Pi ua ub, Pi va vb) -> do
+      wa0 <- antiUnifyType pid (unDom ua) (unDom va)
+      let wa = wa0 <$ ua
+      wb <- addContext wa $ antiUnifyType pid (absBody ub) (absBody vb)
+      return $ Pi wa (mkAbs (absName ub) wb)
+    (Lam i u, Lam _ v) ->
+      reduce (unEl a) >>= \case
+        Pi a b -> Lam i . (mkAbs (absName u)) <$> addContext a (antiUnify pid (absBody b) (absBody u) (absBody v))
+        _      -> fallback
+    (Var i us, Var j vs) | i == j -> maybeGiveUp $ do
+      a <- typeOfBV i
+      antiUnifyElims pid a (var i) us vs
+    -- Andreas, 2017-07-27:
+    -- It seems that nothing guarantees here that the constructors are fully
+    -- applied!?  Thus, @a@ could be a function type and we need the robust
+    -- @getConType@ here.
+    -- (Note that @patternViolation@ swallows exceptions coming from @getConType@
+    -- thus, we would not see clearly if we used @getFullyAppliedConType@ instead.)
+    (Con x ci us, Con y _ vs) | x == y -> maybeGiveUp $ do
+      a <- maybe abort (return . snd) =<< getConType x a
+      antiUnifyElims pid a (Con x ci []) us vs
+    (Def f [], Def g []) | f == g -> return (Def f [])
+    (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
+      a <- computeElimHeadType f us vs
+      antiUnifyElims pid a (Def f []) us vs
+    _ -> fallback
+  where
+    maybeGiveUp = catchPatternErr $ \ _ -> fallback
+    abort = patternViolation neverUnblock -- caught by maybeGiveUp
+    fallback = blockTermOnProblem a u pid
 
-compareQuantity :: Comparison -> Quantity -> Quantity -> Bool
-compareQuantity CmpEq  = sameQuantity
-compareQuantity CmpLeq = moreQuantity
+antiUnifyArgs :: MonadConversion m => ProblemId -> Dom Type -> Arg Term -> Arg Term -> m (Arg Term)
+antiUnifyArgs pid dom u v
+  | not (sameModality (getModality u) (getModality v))
+              = patternViolation neverUnblock
+  | otherwise = applyModalityToContext u $
+    ifM (isIrrelevantOrPropM dom)
+    {-then-} (return u)
+    {-else-} ((<$ u) <$> antiUnify pid (unDom dom) (unArg u) (unArg v))
 
-compareCohesion :: Comparison -> Cohesion -> Cohesion -> Bool
-compareCohesion CmpEq  = sameCohesion
-compareCohesion CmpLeq = moreCohesion
+antiUnifyType :: MonadConversion m => ProblemId -> Type -> Type -> m Type
+antiUnifyType pid (El s a) (El _ b) = workOnTypes $ El s <$> antiUnify pid (sort s) a b
 
-compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
-compareElims_ :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> TwinT' Type -> TwinT' Term -> H'LHS [Elim] -> H'RHS [Elim] -> m ()
--- compareElims pols0 fors0 a v els01 els02 = compareElims_ pols0 fors0 (asTwin a) (asTwin v) (H'LHS els01) (H'RHS els02)
-compareElims pols0 fors0 a v els01 els02 = compareElims_ pols0 fors0 (asTwin a) (asTwin v) (H'LHS els01) (H'RHS els02)
+antiUnifyElims :: MonadConversion m => ProblemId -> Type -> Term -> Elims -> Elims -> m Term
+antiUnifyElims pid a self [] [] = return self
+antiUnifyElims pid a self (Proj o f : es1) (Proj _ g : es2) | f == g = do
+  res <- projectTyped self a o f
+  case res of
+    Just (_, self, a) -> antiUnifyElims pid a self es1 es2
+    Nothing -> patternViolation neverUnblock -- can fail for projection like
+antiUnifyElims pid a self (Apply u : es1) (Apply v : es2) = do
+  reduce (unEl a) >>= \case
+    Pi a b -> do
+      w <- antiUnifyArgs pid a u v
+      antiUnifyElims pid (b `lazyAbsApp` unArg w) (apply self [w]) es1 es2
+    _ -> patternViolation neverUnblock
+antiUnifyElims _ _ _ _ _ = patternViolation neverUnblock -- trigger maybeGiveUp in antiUnify
 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
+compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
+compareElims pols0 fors0 a v els01 els02 = compareElims_ pols0 fors0 (asTwin a) (asTwin v) (H'LHS els01) (H'RHS els02)
+
+compareElims_ :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> TwinT' Type -> TwinT' Term -> H'LHS [Elim] -> H'RHS [Elim] -> m ()
 compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyTwin a_ $ \a_ ->
   -- TODO Víctor 2021-03-03:
   -- Maybe we should postpone if `a_` is blocked (according to typeView)
@@ -1146,9 +1244,10 @@ compareIrrelevant_ t v0 w0 = do
   where
     try :: TwinT -> Het 'LHS Term -> Het 'RHS Term -> m () -> m ()
     try t (twinAt @'LHS -> MetaV x es) w fallback = do
-      mv <- lookupMeta x
-      let rel  = getMetaRelevance mv
-          inst = case mvInstantiation mv of
+      mi <- lookupMetaInstantiation x
+      mm <- lookupMetaModality x
+      let rel  = getRelevance mm
+          inst = case mi of
                    InstV{} -> True
                    _       -> False
       reportSDoc "tc.conv.irr" 20 $ vcat
@@ -1339,10 +1438,11 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
   let postpone = addConstraint (unblockOnAnyMetaIn (s1, s2)) (SortCmp CmpLeq s1 s2)
       no       = typeError $ NotLeqSort s1 s2
       yes      = return ()
-      synEq    = ifNotM (optSyntacticEquality <$> pragmaOptions) postpone $ do
-        ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
-        if | equal     -> yes
-           | otherwise -> postpone
+      synEq    =
+        ifNotM SynEq.syntacticEqualityFuelRemains
+          postpone
+          (SynEq.checkSyntacticEquality s1 s2
+             (\ _ _ -> yes) (\_ _ -> postpone))
   reportSDoc "tc.conv.sort" 30 $
     sep [ "leqSort"
         , nest 2 $ fsep [ prettyTCM s1 <+> "=<"
@@ -1395,15 +1495,16 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (SSet{}  , Inf IsStrict _) -> yes
       (SSet{}  , Inf IsFibrant _) -> no
 
-      -- @SizeUniv@ and @Prop0@ are bottom sorts.
+      -- @LockUniv@, @IntervalUniv@, @SizeUniv@, and @Prop0@ are bottom sorts.
       -- So is @Set0@ if @Prop@ is not enabled.
       (_       , LockUniv) -> equalSort s1 s2
+      (_       , IntervalUniv) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
       (_       , Prop (Max 0 [])) -> equalSort s1 s2
       (_       , Type (Max 0 []))
         | not propEnabled  -> equalSort s1 s2
 
-      -- SizeUniv is unrelated to any @Set l@ or @Prop l@
+      -- @SizeUniv@ and @LockUniv@ are unrelated to any @Set l@ or @Prop l@
       (SizeUniv, Type{}  ) -> no
       (SizeUniv, Prop{}  ) -> no
       (SizeUniv , Inf{}  ) -> no
@@ -1412,6 +1513,13 @@ leqSort s1 s2 = (catchConstraint (SortCmp CmpLeq s1 s2) :: m () -> m ()) $ do
       (LockUniv, Prop{}  ) -> no
       (LockUniv , Inf{}  ) -> no
       (LockUniv, SSet{}  ) -> no
+
+      -- @IntervalUniv@ is below @SSet l@, but not @Set l@ or @Prop l@
+      (IntervalUniv, Type{}) -> no
+      (IntervalUniv, Prop{}) -> no
+      (IntervalUniv , Inf IsStrict _) -> yes
+      (IntervalUniv , Inf IsFibrant _) -> no
+      (IntervalUniv , SSet b) -> leqLevel (ClosedLevel 0) b
 
       -- If the first sort is a small sort that rigidly depends on a
       -- variable and the second sort does not mention this variable,
@@ -1452,7 +1560,12 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
               , prettyTCM b ]
 
       (a, b) <- reduce (a, b)
-      ((a, b), equal) <- SynEq.checkSyntacticEquality a b
+      SynEq.checkSyntacticEquality a b
+        (\_ _ ->
+          reportSDoc "tc.conv.level" 60
+            "checkSyntacticEquality returns True") $ \a b -> do
+      reportSDoc "tc.conv.level" 60
+        "checkSyntacticEquality returns False"
 
       let notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
           postpone = patternViolation (unblockOnAnyMetaIn (a, b))
@@ -1461,11 +1574,8 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
             TypeError{} -> notok
             err         -> throwError err
 
-      reportSDoc "tc.conv.level" 60 $
-        "checkSyntacticEquality returns" <+> prettyTCM equal
-      unless equal $ do
-
       cumulativity <- optCumulativity <$> pragmaOptions
+      areWeComputingOverlap <- viewTC eConflComputingOverlap
       reportSDoc "tc.conv.level" 40 $
         "compareLevelView" <+>
           sep [ prettyList_ $ fmap (pretty . unSingleLevel) $ levelMaxView a
@@ -1528,13 +1638,14 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         -- (where _l' is a new metavariable)
         (as , bs)
           | cumulativity
+          , not areWeComputingOverlap
           , Just (mb@(MetaV x es) , bs') <- singleMetaView $ (map . fmap) ignoreBlocking (List1.toList bs)
           , null bs' || noMetas (Level a , unSingleLevels bs') -> do
-            mv <- lookupMeta x
+            mv <- lookupLocalMeta x
             -- Jesper, 2019-10-13: abort if this is an interaction
             -- meta or a generalizable meta
             abort <- (isJust <$> isInteractionMeta x) `or2M`
-                     ((== YesGeneralize) <$> isGeneralizableMeta x)
+                     ((== YesGeneralizeVar) <$> isGeneralizableMeta x)
             if | abort -> postpone
                | otherwise -> do
                   x' <- case mvJudgement mv of
@@ -1603,10 +1714,12 @@ equalLevel a b = do
         ]
 
   (a, b) <- reduce (a, b)
-  ((a, b), equal) <- SynEq.checkSyntacticEquality a b
-  reportSDoc "tc.conv.level" 60 $
-    "checkSyntacticEquality returns" <+> prettyTCM equal
-  unless equal $ do
+  SynEq.checkSyntacticEquality a b
+    (\_ _ ->
+      reportSDoc "tc.conv.level" 60
+        "checkSyntacticEquality returns True") $ \a b -> do
+
+  reportSDoc "tc.conv.level" 60 "checkSyntacticEquality returns False"
 
   -- Jesper, 2014-02-02 remove terms that certainly do not contribute
   -- to the maximum
@@ -1787,6 +1900,7 @@ equalSort s1 s2 = do
             (Type a     , Type b     ) -> equalLevel a b `catchInequalLevel` no
             (SizeUniv   , SizeUniv   ) -> yes
             (LockUniv   , LockUniv   ) -> yes
+            (IntervalUniv , IntervalUniv) -> yes
             (Prop a     , Prop b     ) -> equalLevel a b `catchInequalLevel` no
             (Inf f m    , Inf f' n   ) ->
               if f == f' && (m == n || typeInTypeEnabled || omegaInOmegaEnabled) then yes else no
@@ -1830,11 +1944,10 @@ equalSort s1 s2 = do
       synEq :: Sort -> Sort -> m ()
       synEq s1 s2 = do
         let postpone = addConstraint (unblockOnAnyMetaIn (s1, s2)) $ SortCmp CmpEq s1 s2
-        doSynEq <- optSyntacticEquality <$> pragmaOptions
-        if | doSynEq -> do
-               ((s1,s2) , equal) <- SynEq.checkSyntacticEquality s1 s2
-               if | equal     -> return ()
-                  | otherwise -> postpone
+        doSynEq <- SynEq.syntacticEqualityFuelRemains
+        if | doSynEq ->
+               SynEq.checkSyntacticEquality s1 s2
+                 (\_ _ -> return ()) (\_ _ -> postpone)
            | otherwise -> postpone
 
       -- Equate a sort @s1@ to @univSort s2@
@@ -2019,7 +2132,7 @@ equalSort s1 s2 = do
 --   xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
 --   return xs
 
-forallFaceMaps :: MonadConversion m => Term -> (Map.Map Int Bool -> Blocker -> Term -> m a) -> (Substitution -> m a) -> m [a]
+forallFaceMaps :: MonadConversion m => Term -> (IntMap Bool -> Blocker -> Term -> m a) -> (Substitution -> m a) -> m [a]
 forallFaceMaps t kb k = do
   reportSDoc "conv.forall" 20 $
       fsep ["forallFaceMaps"
@@ -2032,7 +2145,7 @@ forallFaceMaps t kb k = do
     return (\b -> if b then io else iz)
   forM as $ \ (ms,ts) -> do
    ifBlockeds ts (kb ms) $ \ _ _ -> do
-    let xs = map (second boolToI) $ Map.toAscList ms
+    let xs = map (second boolToI) $ IntMap.toAscList ms
     cxt <- getContextHet
     reportSDoc "conv.forall" 20 $
       fsep ["substContextN"
@@ -2125,7 +2238,7 @@ compareInterval cmp i t u = do
    isBlocked NotBlocked{} = False
 
 
-type Conj = (Map.Map Int (Set.Set Bool),[Term])
+type Conj = (IntMap BoolSet, [Term])
 
 isCanonical :: [Conj] -> Bool
 isCanonical = all (null . snd)
@@ -2144,10 +2257,10 @@ leqInterval r q =
 -- ' {q_j | j} ⊆ {r_i | i}
 leqConj :: MonadConversion m => Conj -> Conj -> m Bool
 leqConj (rs, rst) (qs, qst) = do
-  if toSet qs `Set.isSubsetOf` toSet rs
+  if IntMap.isSubmapOfBy BoolSet.isSubsetOf qs rs
     then do
       interval <-
-        elSSet $ fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
+        El IntervalUniv . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInterval
       -- we don't want to generate new constraints here because
       -- 1. in some situations the same constraint would get generated twice.
       -- 2. unless things are completely accepted we are going to
@@ -2158,8 +2271,6 @@ leqConj (rs, rst) (qs, qst) = do
       listSubset qst rst
     else
       return False
-  where
-    toSet m = Set.fromList [(i, b) | (i, bs) <- Map.toList m, b <- Set.toList bs]
 
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: MonadConversion m => Term -> Type -> Term -> Term -> m ()
@@ -2170,6 +2281,9 @@ compareTermOnFace = compareTermOnFace' compareTerm
 
 compareTermOnFace' :: MonadConversion m => (Comparison -> Type -> Term -> Term -> m ()) -> Comparison -> Term -> Type -> Term -> Term -> m ()
 compareTermOnFace' k cmp phi ty u v = do
+  reportSDoc "tc.conv.face" 40 $
+    text "compareTermOnFace:" <+> pretty phi <+> "|-" <+> pretty u <+> "==" <+> pretty v <+> ":" <+> pretty ty
+
   phi <- reduce phi
   _ <- forallFaceMaps phi postponed
          $ \ alpha -> k cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
@@ -2181,7 +2295,7 @@ compareTermOnFace' k cmp phi ty u v = do
              ineg <- cl $ getPrimitiveTerm "primINeg"
              psi <- open psi
              let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (if b then i else pure ineg <@> i) <@> r)
-                          psi (Map.toList ms) -- TODO Andrea: make a view?
+                          psi (IntMap.toList ms) -- TODO Andrea: make a view?
              phi
     addConstraint blocker (ValueCmpOnFace cmp phi ty u v)
 

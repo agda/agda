@@ -2,6 +2,7 @@ Issue3012.agda:12,1-15
 Incomplete pattern matching for partial. Missing cases:
   snd (partial x)
 when checking the definition of partial
-Issue3012.agda:17,13-17
-partial x .snd != x of type A
-when checking that the expression refl has type partial x .snd ≡ x
+Failed to solve the following constraints:
+  partial x .snd = x : A
+Unsolved metas at the following locations:
+  Issue3012.agda:17,13-17

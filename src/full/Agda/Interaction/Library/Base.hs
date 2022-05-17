@@ -3,9 +3,11 @@
 module Agda.Interaction.Library.Base where
 
 import Control.Arrow ( first , second )
+import Control.DeepSeq
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char ( isDigit )
 import Data.Data ( Data )
@@ -13,6 +15,9 @@ import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text ( Text )
+
+import GHC.Generics (Generic)
+
 import System.Directory
 import System.FilePath
 
@@ -44,7 +49,7 @@ data ExecutablesFile = ExecutablesFile
   , efExists :: Bool
        -- ^ The executables file might not exist,
        --   but we may print its assumed location in error messages.
-  } deriving (Show, Data)
+  } deriving (Show, Data, Generic)
 
 -- | The special name @\".\"@ is used to indicated that the current directory
 --   should count as a project root.
@@ -61,6 +66,7 @@ data ProjectConfig
     , configAgdaLibFiles :: [FilePath]
     }
   | DefaultProjectConfig
+  deriving Generic
 
 -- | Content of a @.agda-lib@ file.
 --
@@ -71,7 +77,7 @@ data AgdaLibFile = AgdaLibFile
   , _libDepends  :: [LibName]   -- ^ Dependencies.
   , _libPragmas  :: [String]    -- ^ Default pragma options for all files in the library.
   }
-  deriving (Show)
+  deriving (Show, Generic)
 
 emptyLibFile :: AgdaLibFile
 emptyLibFile = AgdaLibFile
@@ -111,26 +117,20 @@ data LibPositionInfo = LibPositionInfo
   , lineNumPos :: LineNumber     -- ^ Line number in @libraries@ file.
   , filePos    :: FilePath       -- ^ Library file
   }
-  deriving (Show, Data)
+  deriving (Show, Data, Generic)
 
 data LibWarning = LibWarning (Maybe LibPositionInfo) LibWarning'
-  deriving (Show, Data)
+  deriving (Show, Data, Generic)
 
 -- | Library Warnings.
 data LibWarning'
   = UnknownField String
-  | ExeNotFound ExecutablesFile FilePath
-      -- ^ Raised when a trusted executable can not be found.
-  | ExeNotExecutable ExecutablesFile FilePath
-      -- ^ Raised when a trusted executable does not have the executable permission.
-  deriving (Show, Data)
+  deriving (Show, Data, Generic)
 
 data LibError = LibError (Maybe LibPositionInfo) LibError'
 
 libraryWarningName :: LibWarning -> WarningName
 libraryWarningName (LibWarning c (UnknownField{})) = LibUnknownField_
-libraryWarningName (LibWarning c (ExeNotFound{})) = ExeNotFoundWarning_
-libraryWarningName (LibWarning c (ExeNotExecutable{})) = ExeNotExecutableWarning_
 
 -- | Collected errors while processing library files.
 --
@@ -256,5 +256,14 @@ instance Pretty LibWarning where
 
 instance Pretty LibWarning' where
   pretty (UnknownField s) = text $ "Unknown field '" ++ s ++ "'"
-  pretty (ExeNotFound file exe) = text $ "Executable '" ++ exe ++ "' not found."
-  pretty (ExeNotExecutable file exe) = text $ "Executable '" ++ exe ++ "' not executable."
+
+------------------------------------------------------------------------
+-- NFData instances
+------------------------------------------------------------------------
+
+instance NFData ExecutablesFile
+instance NFData ProjectConfig
+instance NFData AgdaLibFile
+instance NFData LibPositionInfo
+instance NFData LibWarning
+instance NFData LibWarning'

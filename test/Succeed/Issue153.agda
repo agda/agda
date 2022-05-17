@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas --guardedness #-}
 
 -- This file documents a bug caused by one of the fixes for issue 153.
 

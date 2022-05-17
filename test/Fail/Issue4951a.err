@@ -1,0 +1,4 @@
+Issue4951a.agda:21,4-6
+Cannot eliminate fibrant type Unitω
+unless target type is also fibrant
+when checking that the pattern tt has type Unitω

@@ -9,9 +9,9 @@ import Control.Monad.Writer (tell)
 
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as Fold
+import qualified Data.Map.Strict as MapS
 import Data.Maybe
 import qualified Data.Set as Set
-import qualified Data.IntSet as IntSet
 import Data.Set (Set)
 
 import Agda.Interaction.Highlighting.Generate
@@ -200,7 +200,8 @@ checkDecl d = setCurrentRange d $ do
       highlight_ DontHightlightModuleContents d
 
       -- Defaulting of levels (only when --cumulativity)
-      whenM (optCumulativity <$> pragmaOptions) $ defaultLevelsToZero metas
+      whenM (optCumulativity <$> pragmaOptions) $
+        defaultLevelsToZero (openMetas metas)
 
       -- Post-typing checks.
       whenJust finalChecks $ \ theMutualChecks -> do
@@ -214,8 +215,8 @@ checkDecl d = setCurrentRange d $ do
         case d of
             A.Generalize{} -> pure ()
             _ -> do
-              reportSLn "tc.decl" 20 $ "Freezing all metas."
-              void $ freezeMetas' $ \ (MetaId x) -> IntSet.member x metas
+              reportSLn "tc.decl" 20 $ "Freezing all open metas."
+              void $ freezeMetas (openMetas metas)
 
         theMutualChecks
 
@@ -225,7 +226,7 @@ checkDecl d = setCurrentRange d $ do
     checkSig kind i x gtel t = checkTypeSignature' (Just gtel) $
       A.Axiom kind i defaultArgInfo Nothing x t
 
-    -- | Switch maybe to abstract mode, benchmark, and debug print bracket.
+    -- Switch maybe to abstract mode, benchmark, and debug print bracket.
     check :: forall m i a
           . ( MonadTCEnv m, MonadPretty m, MonadDebug m
             , MonadBench m, Bench.BenchPhase m ~ Phase
@@ -238,7 +239,7 @@ checkDecl d = setCurrentRange d $ do
       reportSDoc "tc.decl" 5 $ ("Checked" <+> prettyTCM x) <> "."
       return r
 
-    -- | Switch to AbstractMode if any of the i is AbstractDef.
+    -- Switch to AbstractMode if any of the i is AbstractDef.
     checkMaybeAbstractly :: forall m i a . ( MonadTCEnv m , AnyIsAbstract i )
                          => i -> m a -> m a
     checkMaybeAbstractly = localTC . set lensIsAbstract . anyIsAbstract
@@ -337,7 +338,8 @@ unquoteTop xs e = do
   lzero <- primLevelZero
   let vArg = defaultArg
       hArg = setHiding Hidden . vArg
-  m    <- checkExpr e $ El (mkType 0) $ apply tcm [hArg lzero, vArg unit]
+  m    <- applyQuantityToContext zeroQuantity $
+            checkExpr e $ El (mkType 0) $ apply tcm [hArg lzero, vArg unit]
   res  <- runUnquoteM $ tell xs >> evalTCM m
   case res of
     Left err      -> typeError $ UnquoteFailed err
@@ -415,8 +417,8 @@ highlight_ hlmod d = do
       -- generate highlighting from it.
       -- Simply because all the highlighting info is wrong
       -- in the record constructor type:
-      -- * fields become bound variables,
-      -- * declarations become let-bound variables.
+      -- i) fields become bound variables,
+      -- ii) declarations become let-bound variables.
       -- We do not need that crap.
       dummy = A.Lit empty $ LitString $
         "do not highlight construct(ed/or) type"
@@ -520,15 +522,16 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
 -- | Freeze metas created by given computation if in abstract mode.
 whenAbstractFreezeMetasAfter :: A.DefInfo -> TCM a -> TCM a
 whenAbstractFreezeMetasAfter Info.DefInfo{ defAccess, defAbstract} m = do
-  let pubAbs = defAccess == PublicAccess && defAbstract == AbstractDef
-  if not pubAbs then m else do
+  if defAbstract /= AbstractDef then m else do
     (a, ms) <- metasCreatedBy m
     reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
     wakeupConstraints_   -- solve emptiness and instance constraints
-    xs <- freezeMetas' $ (`IntSet.member` ms) . metaId
+    xs <- freezeMetas (openMetas ms)
     reportSDoc "tc.decl.ax" 20 $ vcat
-      [ "Abstract type signature produced new metas: " <+> sep (map prettyTCM $ IntSet.toList ms)
-      , "We froze the following ones of these:       " <+> sep (map prettyTCM xs)
+      [ "Abstract type signature produced new open metas: " <+>
+        sep (map prettyTCM $ MapS.keys (openMetas ms))
+      , "We froze the following ones of these:            " <+>
+        sep (map prettyTCM $ Set.toList xs)
       ]
     return a
 
@@ -542,7 +545,7 @@ checkGeneralize s i info x e = do
 
     -- Check the signature and collect the created metas.
     (telNames, tGen) <-
-      generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralize) $
+      generalizeType s $ locallyTC eGeneralizeMetas (const YesGeneralizeMeta) $
         workOnTypes $ isType_ e
     let n = length telNames
 
@@ -551,7 +554,8 @@ checkGeneralize s i info x e = do
       , nest 2 $ prettyTCM tGen
       ]
 
-    addConstant x $ (defaultDefn info x tGen GeneralizableVar)
+    lang <- getLanguage
+    addConstant x $ (defaultDefn info x tGen lang GeneralizableVar)
                     { defArgGeneralizable = SomeGeneralizableArgs n }
 
 
@@ -642,13 +646,14 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
 
-  let defn = defaultDefn info x t $
-        case kind of
-          FunName   -> emptyFunction
-          MacroName -> set funMacro True emptyFunction
+  lang <- getLanguage
+  let defn = defaultDefn info x t lang $
+        case kind of   -- #4833: set abstract already here so it can be inherited by with functions
+          FunName   -> emptyFunction{ funAbstr = Info.defAbstract i }
+          MacroName -> set funMacro True emptyFunction{ funAbstr = Info.defAbstract i }
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
-          AxiomName -> Axiom     -- Old comment: NB: used also for data and record type sigs
+          AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
 
   addConstant x =<< do
@@ -710,8 +715,7 @@ checkPrimitive i x (Arg info e) =
             _ -> defaultArgInfo
     unless (info == expectedInfo) $ typeError $ WrongModalityForPrimitive name info expectedInfo
     bindPrimitive s pf
-    addConstant x $
-      defaultDefn info x t $
+    addConstant' x info x t $
         Primitive { primAbstr    = Info.defAbstract i
                   , primName     = s
                   , primClauses  = []
@@ -794,8 +798,9 @@ checkTypeSignature' gtel (A.Axiom funSig i info mp x e) =
   Bench.billTo [Bench.Typing, Bench.TypeSig] $
     let abstr = case Info.defAccess i of
           PrivateAccess{}
-            | Info.defAbstract i == AbstractDef -> inAbstractMode
+            | Info.defAbstract i == AbstractDef -> inConcreteMode
               -- Issue #2321, only go to AbstractMode for abstract definitions
+              -- Issue #418, #3744, in fact don't go to AbstractMode at all
             | otherwise -> inConcreteMode
           PublicAccess  -> inConcreteMode
     in abstr $ checkAxiom' gtel funSig i info mp x e
@@ -850,7 +855,7 @@ checkModuleArity m tel args = check tel args
         (NotHidden, Hidden, _)            -> bad
         (NotHidden, Instance{}, _)        -> bad
 
--- | Check an application of a section (top-level function, includes @'traceCall'@).
+-- | Check an application of a section.
 checkSectionApplication
   :: Info.ModuleInfo
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
@@ -859,9 +864,13 @@ checkSectionApplication
   -> TCM ()
 checkSectionApplication i m1 modapp copyInfo =
   traceCall (CheckSectionApplication (getRange i) m1 modapp) $
+  -- A section application is type-checked in a non-erased context
+  -- (#5410).
+  localTC (over eQuantity $ mapQuantity (`addQuantity` topQuantity)) $
   checkSectionApplication' i m1 modapp copyInfo
 
--- | Check an application of a section.
+-- | Check an application of a section. (Do not invoke this procedure
+-- directly, use 'checkSectionApplication'.)
 checkSectionApplication'
   :: Info.ModuleInfo
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
@@ -903,14 +912,14 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
     reportSDoc "tc.mod.apply" 15 $ vcat
       [ "applying section" <+> prettyTCM m2
       , nest 2 $ "args =" <+> sep (map prettyA args)
-      , nest 2 $ "ptel =" <+> escapeContext __IMPOSSIBLE__ (size ptel) (prettyTCM ptel)
+      , nest 2 $ "ptel =" <+> escapeContext impossible (size ptel) (prettyTCM ptel)
       , nest 2 $ "tel  =" <+> prettyTCM tel
       , nest 2 $ "tel' =" <+> prettyTCM tel'
       , nest 2 $ "tel''=" <+> prettyTCM tel''
-      , nest 2 $ "eta  =" <+> escapeContext __IMPOSSIBLE__ (size ptel) (addContext tel'' $ prettyTCM etaTel)
+      , nest 2 $ "eta  =" <+> escapeContext impossible (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
-    ts <- noConstraints (checkArguments_ DontExpandLast (getRange i) args tel') >>= \case
+    ts <- noConstraints (checkArguments_ CmpEq DontExpandLast (getRange i) args tel') >>= \case
       (ts', etaTel') | (size etaTel == size etaTel')
                      , Just ts <- allApplyElims ts' -> return ts
       _ -> __IMPOSSIBLE__

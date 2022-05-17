@@ -6,7 +6,8 @@ module Agda.TypeChecking.Empty
   , checkEmptyTel
   ) where
 
-import Control.Monad.Except
+import Control.Monad        ( void )
+import Control.Monad.Except ( MonadError(..) )
 
 import Data.Semigroup
 import qualified Data.Set as Set
@@ -24,7 +25,10 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
+import Agda.Utils.List
 import Agda.Utils.Monad
+
+import Agda.Utils.Impossible
 
 data ErrorNonEmpty
   = Fail               -- ^ Generic failure
@@ -87,7 +91,7 @@ checkEmptyType range t = do
           Left UnificationStuck{} -> return $ Left $ DontKnow $ unblockOnAnyMetaIn tel
           Left _                  -> return $ Left Fail
           Right cov -> do
-            let ps = map (namedArg . last . fromSplitPatterns . scPats) $ splitClauses cov
+            let ps = map (namedArg . lastWithDefault __IMPOSSIBLE__ . fromSplitPatterns . scPats) $ splitClauses cov
             if (null ps) then return (Right ()) else
               Left . FailBecause <$> do typeError_ $ ShouldBeEmpty t ps
 

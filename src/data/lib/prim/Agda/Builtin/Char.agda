@@ -1,5 +1,5 @@
 {-# OPTIONS --without-K --safe --no-universe-polymorphism
-            --no-sized-types --no-guardedness --no-subtyping #-}
+            --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Char where
 

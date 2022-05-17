@@ -5,8 +5,10 @@ module Agda.Syntax.Concrete.Pattern where
 
 import Control.Applicative ( liftA2 )
 import Control.Arrow ( first )
+import Control.Monad ( (>=>) )
 import Control.Monad.Identity
-import Control.Monad.Writer
+
+import Data.Monoid ( Any(..), Endo(..), Sum(..) )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
@@ -15,7 +17,7 @@ import Agda.Utils.AffineHole
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
 import Agda.Utils.List
-import Agda.Utils.List1  ( List1, (<|) )
+import Agda.Utils.List1  ( List1, pattern (:|) )
 import Agda.Utils.List2  ( List2 )
 import Agda.Utils.Maybe
 import Agda.Utils.Singleton
@@ -48,7 +50,7 @@ instance HasEllipsis Pattern where
 
 -- | Does the lhs contain an ellipsis?
 instance HasEllipsis LHS where
-  hasEllipsis (LHS p _ _ _) = hasEllipsis p
+  hasEllipsis (LHS p _ _) = hasEllipsis p
   -- clauses that are already expanded don't have an ellipsis
 
 -- | Check for with-pattern @| p@.
@@ -132,6 +134,7 @@ hasCopatterns = \case
   LHSHead{}     -> False
   LHSProj{}     -> True
   LHSWith h _ _ -> hasCopatterns h
+  LHSEllipsis{} -> False
 
 -- * Generic fold
 
@@ -190,6 +193,7 @@ instance CPatternLike Pattern where
       AsP _ _ p       -> foldrCPattern f p
       WithP _ p       -> foldrCPattern f p
       RecP _ ps       -> foldrCPattern f ps
+      EllipsisP _ mp  -> foldrCPattern f mp
       -- Nonrecursive cases:
       IdentP _        -> mempty
       WildP _         -> mempty
@@ -198,7 +202,6 @@ instance CPatternLike Pattern where
       LitP _ _        -> mempty
       QuoteP _        -> mempty
       EqualP _ _      -> mempty
-      EllipsisP _     -> mempty
 
   traverseCPatternA f p0 = f p0 $ case p0 of
       -- Recursive cases:
@@ -211,6 +214,7 @@ instance CPatternLike Pattern where
       AsP       r x p     -> AsP r x       <$> traverseCPatternA f p
       WithP     r p       -> WithP r       <$> traverseCPatternA f p
       RecP      r ps      -> RecP r        <$> traverseCPatternA f ps
+      EllipsisP r mp      -> EllipsisP r   <$> traverseCPatternA f mp
       -- Nonrecursive cases:
       IdentP _        -> pure p0
       WildP _         -> pure p0
@@ -219,7 +223,6 @@ instance CPatternLike Pattern where
       LitP _ _        -> pure p0
       QuoteP _        -> pure p0
       EqualP _ _      -> pure p0
-      EllipsisP _     -> pure p0
 
   traverseCPatternM pre post = pre >=> recurse >=> post
     where
@@ -234,6 +237,7 @@ instance CPatternLike Pattern where
       AsP       r x p     -> AsP r x       <$> traverseCPatternM pre post p
       WithP     r p       -> WithP r       <$> traverseCPatternM pre post p
       RecP      r ps      -> RecP r        <$> traverseCPatternM pre post ps
+      EllipsisP r mp      -> EllipsisP r   <$> traverseCPatternM pre post mp
       -- Nonrecursive cases:
       IdentP _        -> return p0
       WildP _         -> return p0
@@ -242,7 +246,6 @@ instance CPatternLike Pattern where
       LitP _ _        -> return p0
       QuoteP _        -> return p0
       EqualP _ _      -> return p0
-      EllipsisP _     -> return p0
 
 instance (CPatternLike a, CPatternLike b) => CPatternLike (a,b) where
   foldrCPattern f (p, p') =
@@ -319,7 +322,7 @@ patternQNames p = foldCPattern f p `appEndo` []
     InstanceP _ _  -> mempty
     RecP _ _       -> mempty
     EqualP _ _     -> mempty
-    EllipsisP _    -> mempty
+    EllipsisP _ _  -> mempty
 
 -- | Get all the identifiers in a pattern in left-to-right order.
 patternNames :: Pattern -> [Name]
@@ -343,18 +346,20 @@ numberOfWithPatterns = getSum . foldCPattern (Sum . f)
 
 -- | Compute the context in which the ellipsis occurs, if at all.
 --   If there are several occurrences, this is an error.
+--   This only counts ellipsis that haven't already been expanded.
 hasEllipsis' :: CPatternLike p => p -> AffineHole Pattern p
 hasEllipsis' = traverseCPatternA $ \ p mp ->
   case p of
-    EllipsisP{} -> OneHole id p
-    _           -> mp
+    EllipsisP _ Nothing -> OneHole id p
+    _                   -> mp
 
 reintroduceEllipsis :: ExpandedEllipsis -> Pattern -> Pattern
-reintroduceEllipsis NoEllipsis p = p
-reintroduceEllipsis (ExpandedEllipsis r k) p =
-  let core  = EllipsisP r
-      wargs = snd $ splitEllipsis k $ List1.toList $ patternAppView p
-  in foldl AppP core wargs
+reintroduceEllipsis (ExpandedEllipsis r k) p | hasWithPatterns p =
+  let (args, wargs) = splitEllipsis k $ List1.toList $ patternAppView p
+      (hd,args') = fromMaybe __IMPOSSIBLE__ $ uncons args
+      core = foldl AppP (namedArg hd) args
+  in foldl AppP (EllipsisP r $ Just $ core) wargs
+reintroduceEllipsis _ p = p
 
 splitEllipsis :: (IsWithP p) => Int -> [p] -> ([p],[p])
 splitEllipsis k [] = ([] , [])
@@ -374,8 +379,8 @@ splitEllipsis k (p:ps)
 --  Pattern needs to be parsed already (operators resolved).
 patternAppView :: Pattern -> List1 (NamedArg Pattern)
 patternAppView = \case
-    AppP p arg      -> patternAppView p `List1.append` [arg]
-    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) <| ps
+    AppP p arg      -> patternAppView p `List1.appendList` [arg]
+    OpAppP _ x _ ps -> defaultNamedArg (IdentP x) :| ps
     ParenP _ p      -> patternAppView p
     RawAppP _ _     -> __IMPOSSIBLE__
     p               -> singleton $ defaultNamedArg p

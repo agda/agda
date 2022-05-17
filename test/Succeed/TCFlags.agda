@@ -26,7 +26,7 @@ false && _ = false
 postulate
   reflected : ∀ {a} {A : Set a} → Term → A
 
-pattern vArg x = arg (arg-info visible relevant) x
+pattern vArg x = arg (arg-info visible (modality relevant quantity-ω)) x
 
 useReflected : Term → Term → TC ⊤
 useReflected hole goal =

@@ -149,13 +149,7 @@ punctuate d ts
 -- * The PrettyTCM class
 ---------------------------------------------------------------------------
 
-type MonadPretty m =
-  ( MonadReify m
-  , MonadAbsToCon m
-  , IsString (m Doc)
-  , Null (m Doc)
-  , Semigroup (m Doc)
-  )
+type MonadPretty m = MonadAbsToCon m
 
 -- This instance is to satify the constraints of superclass MonadPretty:
 -- | This instance is more specific than a generic instance
@@ -215,9 +209,9 @@ instance PrettyTCM (Arg A.Expr)       where prettyTCM = prettyA <=< reify
 instance PrettyTCM (NamedArg A.Expr)  where prettyTCM = prettyA <=< reify
 instance PrettyTCM (NamedArg Term)    where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Dom Type)         where prettyTCM = prettyA <=< reify
-instance PrettyTCM (Dom (Name, Type)) where prettyTCM = prettyA <=< reify
-instance PrettyTCM (Dom (Name, TwinT)) where prettyTCM = prettyA <=< reify
-instance PrettyTCM (Abs TwinT) where prettyTCM = prettyA <=< reify
+instance PrettyTCM ContextEntry       where prettyTCM = prettyA <=< reify
+instance PrettyTCM ContextEntry_      where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Abs TwinT)        where prettyTCM = prettyA <=< reify
 
 instance PrettyTCM Permutation where prettyTCM = text . show
 instance PrettyTCM Polarity    where prettyTCM = text . show
@@ -252,7 +246,25 @@ instance PrettyTCM a => PrettyTCM (Judgement a) where
 instance PrettyTCM MetaId where
   prettyTCM x = do
     mn <- getMetaNameSuggestion x
-    pretty $ NamedMeta mn x
+    prettyTCM $ NamedMeta mn x
+
+instance PrettyTCM NamedMeta where
+  prettyTCM (NamedMeta s m) = do
+    current <- currentModuleNameHash
+    modName <- Map.lookup (metaModule m) <$> useR stModuleNameHashes
+    case modName of
+      Nothing      -> __IMPOSSIBLE__
+      Just modName -> prefix <> inBetween <> text (show (metaId m))
+        where
+        prefix =
+          if metaModule m == current
+          then empty
+          else pretty modName <> text "."
+
+        inBetween = case s of
+          ""  -> text "_"
+          "_" -> text "_"
+          s   -> text $ "_" ++ s ++ "_"
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = ("[" <+> prettyTCM a <+> "]") <> text (P.prettyShow x)
@@ -281,6 +293,9 @@ instance PrettyTCM A.Expr where
   prettyTCM = prettyA
 
 instance PrettyTCM A.TypedBinding where
+  prettyTCM = prettyA
+
+instance PrettyTCM A.Pattern where
   prettyTCM = prettyA
 
 instance PrettyTCM Relevance where
@@ -339,7 +354,7 @@ instance PrettyTCM a => PrettyTCM (CompareAs' a) where
 instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckExpr cmp e a) =
     sep [ prettyA e <+> ":?", prettyTCM a ]
-  prettyTCM (CheckArgs _ _ es t0 t1 _) =
+  prettyTCM (CheckArgs _ _ _ es t0 t1 _) =
     sep [ parens $ "_ :" <+> prettyTCM t0
         , nest 2 $ prettyList $ map prettyA es
         , nest 2 $ ":?" <+> prettyTCM t1 ]
@@ -456,6 +471,7 @@ instance PrettyTCM NLPSort where
     PInf f n  -> prettyTCM (Inf f n :: Sort)
     PSizeUniv -> prettyTCM (SizeUniv :: Sort)
     PLockUniv -> prettyTCM (LockUniv :: Sort)
+    PIntervalUniv -> prettyTCM (IntervalUniv :: Sort)
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (IApply x y v) = prettyTCM v

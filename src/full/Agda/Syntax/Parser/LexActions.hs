@@ -9,6 +9,7 @@ module Agda.Syntax.Parser.LexActions
     , token
     , withInterval, withInterval', withInterval_
     , withLayout
+    , andThen, skip
     , begin, end, beginWith, endWith
     , begin_, end_
     , lexError
@@ -18,9 +19,11 @@ module Agda.Syntax.Parser.LexActions
     , followedBy, eof, inState
     ) where
 
+import Control.Monad.State (modify)
+
 import Data.Bifunctor
 import Data.Char
-import Data.List
+import Data.Foldable (foldl')
 import Data.Maybe
 
 import Agda.Syntax.Common (pattern Ranged)
@@ -72,7 +75,7 @@ lexToken =
         case alexScanUser (lss, flags) inp (headWithDefault __IMPOSSIBLE__ lss) of
             AlexEOF                     -> returnEOF inp
             AlexSkip inp' len           -> skipTo inp'
-            AlexToken inp' len action   -> postToken <$> action inp inp' len
+            AlexToken inp' len action   -> postToken <$> runLexAction action inp inp' len
             AlexError i                 -> parseError $ concat
               [ "Lexical error"
               , case listToMaybe $ lexInput i of
@@ -106,13 +109,12 @@ postToken t = t
 
 -- | The most general way of parsing a token.
 token :: (String -> Parser tok) -> LexAction tok
-token action inp inp' len =
+token action = LexAction $ \ inp inp' len ->
     do  setLexInput inp'
+        let t = take len $ lexInput inp
         setPrevToken t
         setLastPos $ lexPos inp
         action t
-    where
-        t = take len $ lexInput inp
 
 -- | Parse a token from an 'Interval' and the lexed string.
 withInterval :: ((Interval, String) -> tok) -> LexAction tok
@@ -131,57 +133,83 @@ withInterval_ f = withInterval (f . fst)
 
 -- | Executed for layout keywords. Enters the 'Agda.Syntax.Parser.Lexer.layout'
 --   state and performs the given action.
-withLayout :: LexAction r -> LexAction r
-withLayout a i1 i2 n =
-    do  pushLexState layout
-        a i1 i2 n
+withLayout :: Keyword -> LexAction r -> LexAction r
+withLayout kw a = pushLexState layout `andThen` setLayoutKw `andThen` a
+  where
+  setLayoutKw = modify $ \ st -> st { parseLayKw = kw }
 
+infixr 1 `andThen`
+
+-- | Prepend some parser manipulation to an action.
+andThen :: Parser () -> LexAction r -> LexAction r
+andThen cmd a = LexAction $ \ inp inp' n -> do
+  cmd
+  runLexAction a inp inp' n
+
+-- | Visit the current lexeme again.
+revisit :: LexAction Token
+revisit = LexAction $ \ _ _ _ -> lexToken
+
+-- | Throw away the current lexeme.
+skip :: LexAction Token
+skip = LexAction $ \ _ inp' _ -> skipTo inp'
 
 -- | Enter a new state without consuming any input.
 begin :: LexState -> LexAction Token
-begin code _ _ _ =
-    do  pushLexState code
-        lexToken
+begin code = beginWith code revisit
 
+-- | Exit the current state without consuming any input.
+end :: LexAction Token
+end = endWith revisit
 
 -- | Enter a new state throwing away the current lexeme.
 begin_ :: LexState -> LexAction Token
-begin_ code _ inp' _ =
-    do  pushLexState code
-        skipTo inp'
+begin_ code = beginWith code skip
 
 -- | Exit the current state throwing away the current lexeme.
 end_ :: LexAction Token
-end_ _ inp' _ =
-    do  popLexState
-        skipTo inp'
-
+end_ = endWith skip
 
 -- | Enter a new state and perform the given action.
 beginWith :: LexState -> LexAction a -> LexAction a
-beginWith code a inp inp' n =
-    do  pushLexState code
-        a inp inp' n
+beginWith code a = pushLexState code `andThen` a
 
 -- | Exit the current state and perform the given action.
 endWith :: LexAction a -> LexAction a
-endWith a inp inp' n =
-    do  popLexState
-        a inp inp' n
+endWith a = popLexState `andThen` a
 
-
--- | Exit the current state without consuming any input
-end :: LexAction Token
-end _ _ _ =
-    do  popLexState
-        lexToken
 
 -- | Parse a 'Keyword' token, triggers layout for 'layoutKeywords'.
 keyword :: Keyword -> LexAction Token
-keyword k = layout $ withInterval_ (TokKeyword k)
+keyword k =
+    case k of
+
+        -- Unconditional layout keyword.
+        _ | k `elem` layoutKeywords ->
+            withLayout k cont
+
+        -- Andreas, 2021-05-06, issue #5356:
+        -- @constructor@ is not a layout keyword after all, replaced by @data _ where@.
+        -- -- @constructor@ is not a layout keyword in @record ... where@ blocks,
+        -- -- only in @interleaved mutual@ blocks.
+        -- KwConstructor -> do
+        --     cxt <- getContext
+        --     if inMutualAndNotInWhereBlock cxt
+        --       then withLayout k cont
+        --       else cont
+
+        _ -> cont
     where
-        layout | k `elem` layoutKeywords  = withLayout
-               | otherwise              = id
+    cont = withInterval_ (TokKeyword k)
+
+    -- Andreas, 2021-05-06, issue #5356:
+    -- @constructor@ is not a layout keyword after all, replaced by @data _ where@.
+    -- -- Most recent block decides ...
+    -- inMutualAndNotInWhereBlock = \case
+    --   Layout KwMutual _ _ : _ -> True
+    --   Layout KwWhere  _ _ : _ -> False
+    --   _ : bs                  -> inMutualAndNotInWhereBlock bs
+    --   []                      -> True  -- For better errors on stray @constructor@ decls.
 
 
 -- | Parse a 'Symbol' token.

@@ -51,7 +51,7 @@ instance Arbitrary QωOrigin where
 
 instance CoArbitrary Quantity
 instance Arbitrary Quantity where
-  arbitrary = elements [ Quantity0 mempty, Quantity1 mempty, Quantityω mempty ]
+  arbitrary = elements [ Quantity0 mempty, {-Quantity1 mempty,-} Quantityω mempty ]
   -- Andreas, 2019-07-04, TODO:
   -- The monoid laws hold only modulo origin information.
   -- Thus, we generate here only origin-free quantities.
@@ -71,7 +71,10 @@ instance Arbitrary Cohesion where
   -- left division does not respect laws for Squash on the left.
 
 instance Arbitrary NameId where
-  arbitrary = elements [ NameId x y | x <- [0, 1], y <- [0, 1] ]
+  arbitrary = elements [ NameId x (ModuleNameHash y) | x <- [0, 1], y <- [0, 1] ]
+
+instance CoArbitrary ModuleNameHash where
+  coarbitrary (ModuleNameHash h) = coarbitrary h
 
 instance CoArbitrary NameId
 
@@ -83,7 +86,11 @@ instance CoArbitrary Induction where
   coarbitrary CoInductive = variant 1
 
 instance Arbitrary MetaId where
-  arbitrary = MetaId <$> arbitrary
+  arbitrary = elements
+    [ MetaId x (ModuleNameHash y)
+    | x <- [0, 1]
+    , y <- [0, 1]
+    ]
 
 instance Arbitrary Hiding where
   arbitrary = elements [ Hidden, NotHidden, Instance NoOverlap, Instance YesOverlap ]

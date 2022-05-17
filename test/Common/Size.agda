@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible --sized-types #-}
 ------------------------------------------------------------------------
 -- From the Agda standard library
 --

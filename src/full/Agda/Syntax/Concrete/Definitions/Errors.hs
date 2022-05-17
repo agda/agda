@@ -1,6 +1,10 @@
 module Agda.Syntax.Concrete.Definitions.Errors where
 
+import Control.DeepSeq
+
 import Data.Data
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
@@ -11,6 +15,7 @@ import Agda.Interaction.Options.Warnings
 
 import Agda.Utils.CallStack ( CallStack )
 import Agda.Utils.List1 (List1, pattern (:|))
+import Agda.Utils.List2 (List2, pattern List2)
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
 
@@ -50,7 +55,7 @@ data DeclarationException'
 data DeclarationWarning = DeclarationWarning
   { dwLocation :: CallStack
   , dwWarning  :: DeclarationWarning'
-  } deriving (Show)
+  } deriving (Show, Generic)
 
 -- | Non-fatal errors encountered in the Nicifier.
 data DeclarationWarning'
@@ -65,6 +70,10 @@ data DeclarationWarning'
   | EmptyPostulate Range   -- ^ Empty @postulate@ block.
   | EmptyPrivate Range     -- ^ Empty @private@   block.
   | EmptyPrimitive Range   -- ^ Empty @primitive@ block.
+  | HiddenGeneralize Range
+      -- ^ A 'Hidden' identifier in a @variable@ declaration.
+      --   Hiding has no effect there as generalized variables are always hidden
+      --   (or instance variables).
   | InvalidCatchallPragma Range
       -- ^ A {-\# CATCHALL \#-} pragma
       --   that does not precede a function clause.
@@ -85,6 +94,8 @@ data DeclarationWarning'
   | InvalidTerminationCheckPragma Range
       -- ^ A {-\# TERMINATING \#-} and {-\# NON_TERMINATING \#-} pragma
       --   that does not apply to any function.
+  | MissingDeclarations [(Name, Range)]
+      -- ^ Definitions (e.g. constructors or functions) without a declaration.
   | MissingDefinitions [(Name, Range)]
       -- ^ Declarations (e.g. type signatures) without a definition.
   | NotAllowedInMutual Range String
@@ -98,7 +109,7 @@ data DeclarationWarning'
   --   by @{-\# TERMINATING \#-}@ and @{-\# NON_TERMINATING \#-}@.
   | PragmaCompiled Range
   -- ^ @COMPILE@ pragmas are not allowed in safe mode
-  | ShadowingInTelescope [(Name, [Range])]
+  | ShadowingInTelescope (List1 (Name, List2 Range))
   | UnknownFixityInMixfixDecl [Name]
   | UnknownNamesInFixityDecl [Name]
   | UnknownNamesInPolarityPragmas [Name]
@@ -108,7 +119,7 @@ data DeclarationWarning'
       -- ^ @instance@ block with nothing that can (newly) become an instance.
   | UselessPrivate Range
       -- ^ @private@ block with nothing that can (newly) be made private.
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 declarationWarningName :: DeclarationWarning -> WarningName
 declarationWarningName = declarationWarningName' . dwWarning
@@ -126,6 +137,7 @@ declarationWarningName' = \case
   EmptyPrivate{}                    -> EmptyPrivate_
   EmptyPostulate{}                  -> EmptyPostulate_
   EmptyPrimitive{}                  -> EmptyPrimitive_
+  HiddenGeneralize{}                -> HiddenGeneralize_
   InvalidCatchallPragma{}           -> InvalidCatchallPragma_
   InvalidConstructor{}              -> InvalidConstructor_
   InvalidConstructorBlock{}         -> InvalidConstructorBlock_
@@ -134,6 +146,7 @@ declarationWarningName' = \case
   InvalidRecordDirective{}          -> InvalidRecordDirective_
   InvalidTerminationCheckPragma{}   -> InvalidTerminationCheckPragma_
   InvalidCoverageCheckPragma{}      -> InvalidCoverageCheckPragma_
+  MissingDeclarations{}             -> MissingDeclarations_
   MissingDefinitions{}              -> MissingDefinitions_
   NotAllowedInMutual{}              -> NotAllowedInMutual_
   OpenPublicPrivate{}               -> OpenPublicPrivate_
@@ -166,6 +179,7 @@ unsafeDeclarationWarning' = \case
   EmptyPrivate{}                    -> False
   EmptyPostulate{}                  -> False
   EmptyPrimitive{}                  -> False
+  HiddenGeneralize{}                -> False
   InvalidCatchallPragma{}           -> False
   InvalidConstructor{}              -> False
   InvalidConstructorBlock{}         -> False
@@ -174,6 +188,7 @@ unsafeDeclarationWarning' = \case
   InvalidRecordDirective{}          -> False
   InvalidTerminationCheckPragma{}   -> False
   InvalidCoverageCheckPragma{}      -> False
+  MissingDeclarations{}             -> True  -- not safe
   MissingDefinitions{}              -> True  -- not safe
   NotAllowedInMutual{}              -> False -- really safe?
   OpenPublicPrivate{}               -> False
@@ -218,6 +233,7 @@ instance HasRange DeclarationWarning' where
   getRange (UnknownFixityInMixfixDecl xs)       = getRange xs
   getRange (UnknownNamesInPolarityPragmas xs)   = getRange xs
   getRange (PolarityPragmasButNotPostulates xs) = getRange xs
+  getRange (MissingDeclarations xs)             = getRange xs
   getRange (MissingDefinitions xs)              = getRange xs
   getRange (UselessPrivate r)                   = r
   getRange (NotAllowedInMutual r x)             = r
@@ -233,6 +249,7 @@ instance HasRange DeclarationWarning' where
   getRange (EmptyGeneralize r)                  = r
   getRange (EmptyPrimitive r)                   = r
   getRange (EmptyField r)                       = r
+  getRange (HiddenGeneralize r)                 = r
   getRange (InvalidTerminationCheckPragma r)    = r
   getRange (InvalidCoverageCheckPragma r)       = r
   getRange (InvalidNoPositivityCheckPragma r)   = r
@@ -303,6 +320,9 @@ instance Pretty DeclarationWarning' where
   pretty (UnknownNamesInPolarityPragmas xs) = fsep $
     pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):"
     ++ punctuate comma  (map pretty xs)
+  pretty (MissingDeclarations xs) = fsep $
+   pwords "The following names are defined but not accompanied by a declaration:"
+   ++ punctuate comma (map (pretty . fst) xs)
   pretty (MissingDefinitions xs) = fsep $
    pwords "The following names are declared but not accompanied by a definition:"
    ++ punctuate comma (map (pretty . fst) xs)
@@ -327,6 +347,7 @@ instance Pretty DeclarationWarning' where
   pretty (EmptyGeneralize _) = fsep $ pwords "Empty variable block."
   pretty (EmptyPrimitive _)  = fsep $ pwords "Empty primitive block."
   pretty (EmptyField _)      = fsep $ pwords "Empty field block."
+  pretty (HiddenGeneralize _) = fsep $ pwords "Declaring a variable as hidden has no effect in a variable block. Generalization never introduces visible arguments."
   pretty InvalidRecordDirective{} = fsep $
     pwords "Record directives can only be used inside record definitions and before field declarations."
   pretty (InvalidTerminationCheckPragma _) = fsep $
@@ -353,4 +374,7 @@ instance Pretty DeclarationWarning' where
     pwords "public does not have any effect in a private block."
   pretty (ShadowingInTelescope nrs) = fsep $
     pwords "Shadowing in telescope, repeated variable names:"
-    ++ punctuate comma (map (pretty . fst) nrs)
+    ++ punctuate comma (fmap (pretty . fst) nrs)
+
+instance NFData DeclarationWarning
+instance NFData DeclarationWarning'

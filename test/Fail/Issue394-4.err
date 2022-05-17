@@ -1,0 +1,4 @@
+Issue394-4.agda:5,32-32
+Issue394-4.agda:5,32: Malformed syntax declaration: syntax must not contain adjacent holes (A B)
+<EOF><ERROR>
+...

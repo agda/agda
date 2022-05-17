@@ -351,9 +351,15 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
         abstractOverMetas ms (a,es,rhs1,rhs2)
 
       addContext gamma $ reportSDoc "rewriting.confluence" 10 $ sep
-        [ "Found critical pair: " , nest 2 $ prettyTCM rhs1
+        [ "Found critical pair: "
+        , nest 2 $ prettyTCM (hd es)
+        , " ---> " , nest 2 $ prettyTCM rhs1
         , " =?= " , nest 2 $ prettyTCM rhs2
         , " : " , nest 2 $ prettyTCM a ]
+      reportSDoc "rewriting.confluence" 30 $ do
+        gamma <- instantiateFull gamma
+        sep [ "Context of critical pair: "
+            , nest 2 $ prettyTCM gamma ]
 
       addContext gamma $ case confChk of
 
@@ -492,11 +498,14 @@ getAllRulesFor f = (++) <$> getRewriteRulesFor f <*> getClausesAsRewriteRules f
 makeMetaSubst :: (MonadMetaSolver m) => Telescope -> m Substitution
 makeMetaSubst gamma = parallelS . reverse . map unArg <$> newTelMeta gamma
 
+computingOverlap :: (MonadTCEnv m) => m a -> m a
+computingOverlap = locallyTC eConflComputingOverlap $ const True
+
 -- | Try to run the TCM action, return @Just x@ if it succeeds with
 --   result @x@ or @Nothing@ if it throws a type error. Abort if there
 --   are any constraints.
 tryUnification :: Term -> Term -> TCM a -> TCM (Maybe a)
-tryUnification lhs1 lhs2 f = (Just <$> f)
+tryUnification lhs1 lhs2 f = computingOverlap (Just <$> f)
   `catchError` \case
     err@TypeError{} -> do
       reportSDoc "rewriting.confluence" 20 $ vcat
@@ -826,6 +835,7 @@ instance AllHoles Sort where
     SSet l       -> fmap SSet <$> allHoles_ l
     SizeUniv     -> empty
     LockUniv     -> empty
+    IntervalUniv -> empty
     PiSort{}     -> __IMPOSSIBLE__
     FunSort{}    -> __IMPOSSIBLE__
     UnivSort{}   -> __IMPOSSIBLE__
@@ -902,6 +912,7 @@ instance MetasToVars Sort where
     SSet l     -> SSet     <$> metasToVars l
     SizeUniv   -> pure SizeUniv
     LockUniv   -> pure LockUniv
+    IntervalUniv -> pure IntervalUniv
     PiSort s t u -> PiSort   <$> metasToVars s <*> metasToVars t <*> metasToVars u
     FunSort s t -> FunSort <$> metasToVars s <*> metasToVars t
     UnivSort s -> UnivSort <$> metasToVars s

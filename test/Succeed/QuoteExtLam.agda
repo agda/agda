@@ -43,7 +43,7 @@ pattern expected₄ = funDef
 check₄ : OK
 check₄ = checkDefinition (λ { expected₄ → true; _ → false }) magic₄
 
-expected = extLam (absurdClause (("()" , vArg `⊥) ∷ []) (arg (argInfo visible relevant) (absurd 0) ∷ []) ∷ []) []
+expected = extLam (absurdClause (("()" , vArg `⊥) ∷ []) (vArg (absurd 0) ∷ []) ∷ []) []
 
 macro
 

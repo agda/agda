@@ -13,13 +13,12 @@ import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
   (readFileMaybe, goldenTestIO1, GDiff (..), GShow (..))
-import Test.Tasty.Silver.Filter   ( RegexFilter(RFInclude) )
+import Test.Tasty.Silver.Filter ( RegexFilter( RFInclude ) )
 
 import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO.Temp
-import System.PosixCompat.Files (touchFile)
 
 import Utils
 
@@ -35,9 +34,22 @@ tests = do
 
   return $ testGroup "Succeed" tests'
   where
-  -- Andreas, 2020-10-19, work around issue #4940:
-  -- Put @ExecAgda@ last.
-  reorder = uncurry (++) . List.partition (("ExecAgda" /=) . dropAgdaExtension)
+  reorder = id
+  -- -- Andreas, 2020-10-19, work around issue #4940:
+  -- -- Put @ExecAgda@ last.
+  -- reorder = uncurry (++) . List.partition (not . ("ExecAgda" `List.isInfixOf`))
+
+-- | Tests that get special preparation from the Makefile.
+makefileDependentTests :: [RegexFilter]
+makefileDependentTests =
+  [ disable "Succeed/ExecAgda"
+  , disable "Succeed/Issue4967"
+      -- Andreas, 2022-03-26, issue #5619
+      -- Test #4967 is not actually "Makefile-dependent",
+      -- but it has race conditions in github/workflows/cabal-test
+      -- so we disable it in this test suite.
+  ]
+  where disable = RFInclude
 
 data TestResult
   = TestSuccess
@@ -49,6 +61,9 @@ disabledTests :: [RegexFilter]
 disabledTests =
   [-- disable "Succeed/Issue2054"
   -- ,disable "Succeed/Issue4944"
+    disable "Succeed/Issue1592"
+  , disable "Succeed/Issue5579"
+  , disable "Succeed/SST"
   ] ++
   unimplementedTests
   where disable = RFInclude
@@ -56,9 +71,11 @@ disabledTests =
 unimplementedTests :: [RegexFilter]
 unimplementedTests =
   [ disable "Succeed/CubicalPrims"
+  , disable "Succeed/InjectivityHITs"
   , disable "Succeed/LaterPrims"
   , disable "Succeed/Issue2845"
   , disable "Succeed/Issue3695"
+  , disable "Succeed/Issue5576"
   ]
   where disable = RFInclude
 
@@ -68,7 +85,13 @@ mkSucceedTest
   -> FilePath -- ^ Input file (an Agda file).
   -> TestTree
 mkSucceedTest extraOpts dir agdaFile =
-  goldenTestIO1 testName readGolden (printTestResult <$> doRun) resDiff resShow updGolden
+  goldenTestIO1
+    testName
+    readGolden
+    (printTestResult <$> doRun)
+    (textDiffWithTouch agdaFile)
+    (return . ShowText)
+    updGolden
   where
   testName = asTestName dir agdaFile
   baseName = dropAgdaExtension agdaFile
@@ -88,12 +111,16 @@ mkSucceedTest extraOpts dir agdaFile =
 
   doRun = do
 
-    let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/" , agdaFile
-                   , "--no-libraries"
+    let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/", agdaFile
                    , "-vimpossible:10" -- BEWARE: no spaces allowed here
                    , "-vwarning:1"
-                   ] ++ [ "--double-check" | not (testName `elem` noDoubleCheckTests) ]
-                     ++ extraOpts
+                   , "--double-check"
+                   ] ++
+                   [ if testName == "Issue481"
+                     then "--no-default-libraries"
+                     else "--no-libraries"
+                   ] ++
+                   extraOpts
 
     (res, ret) <- runAgdaWithOptions testName agdaArgs (Just flagFile) (Just varFile)
 
@@ -115,21 +142,6 @@ mkSucceedTest extraOpts dir agdaFile =
           else TestSuccess
       AgdaFailure{} -> return $ TestUnexpectedFail res
 
-  resDiff :: T.Text -> T.Text -> IO GDiff
-  resDiff t1 t2
-    | T.words t1 == T.words t2 = return Equal
-    | otherwise = do
-        -- Andreas, 2020-06-09, issue #4736
-        -- If the output has changed, the test case is "interesting"
-        -- regardless of whether the golden value is updated or not.
-        -- Thus, we touch the agdaFile to have it sorted up in the next
-        -- test run.
-        touchFile agdaFile
-        return $ DiffText Nothing t1 t2
-
-resShow :: T.Text -> IO GShow
-resShow = return . ShowText
-
 printTestResult :: TestResult -> T.Text
 printTestResult = \case
   TestSuccess               -> "AGDA_SUCCESS\n\n"
@@ -137,66 +149,13 @@ printTestResult = \case
   TestUnexpectedFail p      -> "AGDA_UNEXPECTED_FAIL\n\n" <> printProgramResult p
   TestWrongDotOutput t      -> "AGDA_WRONG_DOT_OUTPUT\n\n" <> t
 
--- List of test cases that do not pass the --double-check yet
-noDoubleCheckTests :: [String]
-noDoubleCheckTests =
-  [ "Cumulativity"
-  , "CompileTimeInlining"
-  , "Conat-Sized"
-  , "CopatternTrailingImplicit"
-  , "CubicalPrims"
-  , "DataPolarity"
-  , "Issue1038"
-  , "Issue1099"
-  , "Issue1203"
-  , "Issue1209-4"
-  , "Issue1209-5"
-  , "Issue1209-6"
-  , "Issue1292b"
-  , "Issue1409"
-  , "Issue1470"
-  , "Issue1523a"
-  , "Issue1551"
-  , "Issue1796rewrite"
-  , "Issue1817"
-  , "Issue1914"
-  , "Issue2046"
-  , "Issue2054"
-  , "Issue2257"
-  , "Issue2257b"
-  , "Issue2429-subtyping"
-  , "Issue2484-1"
-  , "Issue2484-2"
-  , "Issue2484-3"
-  , "Issue2484-4"
-  , "Issue2484-5"
-  , "Issue2484-6"
-  , "Issue2484-7"
-  , "Issue2484-8"
-  , "Issue2484-9"
-  , "Issue2484-10"
-  , "Issue2484-11"
-  , "Issue2554-size-mutual"
-  , "Issue2554-size-plus2"
-  , "Issue2558"
-  , "Issue2917"
-  , "Issue298"
-  , "Issue298b"
-  , "Issue3577"
-  , "Issue3601"
-  , "Issue3639"
-  , "Issue4320"
-  , "Issue4404"
-  , "Issue4907"
-  , "Issue709"
-  , "OutStream"
-  , "RewriteExt"
-  , "Rose"
-  , "SizedCoinductiveRecords"
-  , "SizedNatNew"
-  , "SizedQuicksort"
-  , "SizedTypesExtendedLambda"
-  , "SizedTypesMergeSort"
-  , "SizedTypesMutual"
-  , "language-sized-types"
-  ]
+-- WAS: List of test cases that do not pass the --double-check yet
+-- NOTE
+--  Why are a lot of the sized types tests not working with --double-check? The reason can be found
+--  in Agda.TypeChecking.MetaVars.blockTermOnProblem, which does not block a term on unsolved size
+--  constraints (introduced by @andreasabel in 3be79cc7fd). This might be safe to do, but it will
+--  not be accepted by a double check.
+--
+-- Andreas, 2021-04-29, issue #5352
+-- Now, there is an option `--no-double-check` in the respective .flags file.
+-- To get the list, try:  grep no-double-check *.flags

@@ -26,16 +26,17 @@ module Agda.Syntax.Translation.AbstractToConcrete
 
 import Prelude hiding (null)
 
-import Control.Arrow ((&&&), first)
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Arrow        ( (&&&), first )
+import Control.Monad        ( (<=<), forM, forM_, guard, liftM2 )
+import Control.Monad.Except ( runExceptT )
+import Control.Monad.Reader ( MonadReader(..), asks, runReaderT )
+import Control.Monad.State  ( StateT(..), runStateT )
 
 import qualified Control.Monad.Fail as Fail
 
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -44,6 +45,8 @@ import Data.Void
 import Data.List (sortBy)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
+import Data.Semigroup (Semigroup, (<>))
+import Data.String
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -66,6 +69,10 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.MetaVars
+import Agda.TypeChecking.Monad.Pure
+import Agda.TypeChecking.Monad.Signature
+import {-# SOURCE #-} Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.Interaction.Options
 
 import qualified Agda.Utils.AssocList as AssocList
@@ -80,7 +87,7 @@ import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import Agda.Utils.Suffix
 
@@ -128,7 +135,7 @@ makeEnv scope = do
     Env { takenVarNames = Set.fromList vars
         , takenDefNames = defs
         , currentScope = scope
-        , builtins     = Map.fromList builtinList
+        , builtins     = Map.fromListWith __IMPOSSIBLE__ builtinList
         , preserveIIds = False
         , foldPatternSynonyms = foldPatSyns
         }
@@ -185,24 +192,21 @@ resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
 
 -- | Treat illegally ambiguous names as UnknownNames.
 resolveName_ :: C.QName -> [A.Name] -> AbsToCon ResolvedName
-resolveName_ q cands = either (const UnknownName) id <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
+resolveName_ q cands = fromRight (const UnknownName) <$> resolveName allKindsOfNames (Just $ Set.fromList cands) q
 
 -- The Monad --------------------------------------------------------------
 
--- | We need:
---   - Read access to the AbsToCon environment
---   - Read access to the TC environment
---   - Read access to the TC state
---   - Read and write access to the stConcreteNames part of the TC state
---   - Read access to the options
---   - Permission to print debug messages
+-- | The function 'runAbsToCon' can target any monad that satisfies
+-- the constraints of 'MonadAbsToCon'.
 type MonadAbsToCon m =
-  ( MonadTCEnv m
-  , ReadTCState m
+  ( MonadFresh NameId m
+  , MonadInteractionPoints m
   , MonadStConcreteNames m
   , HasOptions m
-  , HasBuiltins m
-  , MonadDebug m
+  , PureTCM m
+  , IsString (m Doc)
+  , Null (m Doc)
+  , Semigroup (m Doc)
   )
 
 newtype AbsToCon a = AbsToCon
@@ -222,7 +226,9 @@ instance Applicative AbsToCon where
   f <*> m = AbsToCon $ unAbsToCon f <*> unAbsToCon m
 
 instance Monad AbsToCon where
-  m >>= f = AbsToCon $ unAbsToCon m >>= unAbsToCon . f
+  -- ASR (2021-02-07). The eta-expansion @\m' -> unAbsToCon m'@ is
+  -- required by GHC >= 9.0.1 (see Issue #4955).
+  m >>= f = AbsToCon $ unAbsToCon m >>= (\m' -> unAbsToCon m'). f
 #if __GLASGOW_HASKELL__ < 808
   fail = Fail.fail
 #endif
@@ -243,7 +249,10 @@ instance ReadTCState AbsToCon where
   locallyTCState l f m = AbsToCon $ locallyTCState l f $ unAbsToCon m
 
 instance MonadStConcreteNames AbsToCon where
-  runStConcreteNames m = AbsToCon $ runStConcreteNames $ StateT $ unAbsToCon . runStateT m
+  -- ASR (2021-02-07). The eta-expansion @\m' -> unAbsToCon m'@ is
+  -- required by GHC >= 9.0.1 (see Issue #4955).
+  runStConcreteNames m =
+    AbsToCon $ runStConcreteNames $ StateT $ (\m' -> unAbsToCon m') . runStateT m
 
 instance HasBuiltins AbsToCon where
   getBuiltinThing x = AbsToCon $ getBuiltinThing x
@@ -253,9 +262,52 @@ instance HasOptions AbsToCon where
   commandLineOptions = AbsToCon commandLineOptions
 
 instance MonadDebug AbsToCon where
-  displayDebugMessage k n s = AbsToCon $ displayDebugMessage k n s
-  formatDebugMessage k n s = AbsToCon $ formatDebugMessage k n s
-  verboseBracket k n s m = AbsToCon $ verboseBracket k n s $ unAbsToCon m
+  formatDebugMessage k n s      = AbsToCon $ formatDebugMessage k n s
+  traceDebugMessage  k n s cont = AbsToCon $ traceDebugMessage  k n s $ unAbsToCon cont  -- can't eta-reduce!
+  verboseBracket     k n s cont = AbsToCon $ verboseBracket     k n s $ unAbsToCon cont  -- because of GHC-9.0
+
+  getVerbosity      = defaultGetVerbosity
+  getProfileOptions = defaultGetProfileOptions
+  isDebugPrinting   = defaultIsDebugPrinting
+  nowDebugPrinting  = defaultNowDebugPrinting
+
+instance HasConstInfo AbsToCon where
+  getConstInfo' a      = AbsToCon (getConstInfo' a)
+  getRewriteRulesFor a = AbsToCon (getRewriteRulesFor a)
+
+instance MonadAddContext AbsToCon where
+  addCtx  a b c = AbsToCon (addCtx  a b (unAbsToCon c))
+  addCtx_ a b c = AbsToCon (addCtx_ a b (unAbsToCon c))
+
+  addLetBinding' a b c d =
+    AbsToCon (addLetBinding' a b c (unAbsToCon d))
+
+  updateContext a b c = AbsToCon (updateContext a b (unAbsToCon c))
+
+  withFreshName a b c =
+    AbsToCon (withFreshName a b (\x -> unAbsToCon (c x)))
+
+instance MonadReduce AbsToCon where
+  liftReduce a = AbsToCon (liftReduce a)
+
+instance PureTCM AbsToCon where
+
+instance MonadFresh NameId AbsToCon where
+  fresh = AbsToCon fresh
+
+instance MonadInteractionPoints AbsToCon where
+  freshInteractionId        = AbsToCon freshInteractionId
+  modifyInteractionPoints a = AbsToCon (modifyInteractionPoints a)
+
+instance IsString (AbsToCon Doc) where
+  fromString a = AbsToCon (fromString a)
+
+instance Null (AbsToCon Doc) where
+  empty = AbsToCon empty
+  null  = __IMPOSSIBLE__
+
+instance Semigroup (AbsToCon Doc) where
+  a <> b = AbsToCon (unAbsToCon a <> unAbsToCon b)
 
 runAbsToCon :: MonadAbsToCon m => AbsToCon c -> m c
 runAbsToCon m = do
@@ -723,9 +775,10 @@ instance ToConcrete A.Expr where
       return $ C.QuestionMark (getRange i) $
                  interactionId ii <$ guard (preserve || isJust (metaNumber i))
 
-    toConcrete (A.Underscore i)     = return $
-      C.Underscore (getRange i) $
-        prettyShow . NamedMeta (metaNameSuggestion i) . MetaId . metaId <$> metaNumber i
+    toConcrete (A.Underscore i) =
+      C.Underscore (getRange i) <$>
+      traverse (render <.> prettyTCM)
+        (NamedMeta (metaNameSuggestion i) <$> metaNumber i)
 
     toConcrete (A.Dot i e) =
       C.Dot (getRange i) <$> toConcrete e
@@ -793,7 +846,7 @@ instance ToConcrete A.Expr where
                   (bs@(A.DomainFull _ : _), e) -> (b:bs, e)
                   _                            -> ([b], e)
           lamView e = ([], e)
-    toConcrete (A.ExtendedLam i di qname cs) =
+    toConcrete (A.ExtendedLam i di erased qname cs) =
         bracket lamBrackets $ do
           decls <- concat <$> toConcrete cs
           let namedPat np = case getHiding np of
@@ -816,13 +869,14 @@ instance ToConcrete A.Expr where
                 return [p] -- __IMPOSSIBLE__
                   -- Andreas, this is actually not impossible,
                   -- my strictification exposed this sleeping bug
-          let decl2clause (C.FunClause (C.LHS p [] [] NoEllipsis) rhs C.NoWhere ca) = do
+          let decl2clause (C.FunClause (C.LHS p [] []) rhs C.NoWhere ca) = do
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 ps <- removeApp p
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
                 return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
-          C.ExtendedLam (getRange i) . List1.fromList <$> mapM decl2clause decls
+          C.ExtendedLam (getRange i) erased . List1.fromList <$>
+            mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 
     toConcrete (A.Pi _ tel1 e0) = do
@@ -831,7 +885,7 @@ instance ToConcrete A.Expr where
          bindToConcrete tel $ \ tel' ->
            C.makePi (List1.catMaybes tel') <$> toConcreteTop e
       where
-        piTel1 tel e         = first (List1.append tel) $ piTel e
+        piTel1 tel e         = first (List1.appendList tel) $ piTel e
         piTel (A.Pi _ tel e) = first List1.toList $ piTel1 tel e
         piTel e              = ([], e)
 
@@ -876,12 +930,6 @@ instance ToConcrete A.Expr where
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
     toConcrete (A.Unquote i) = return $ C.Unquote (getRange i)
-    toConcrete (A.Tactic i e xs) = do
-      e' <- toConcrete e
-      xs' <- toConcrete xs
-      let r      = getRange i
-          rawtac = foldl (C.App r) e' xs'
-      return $ C.Tactic (getRange i) rawtac
 
     -- Andreas, 2012-04-02: TODO!  print DontCare as irrAxiom
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
@@ -964,14 +1012,14 @@ instance ToConcrete A.LetBinding where
         do (t, (e, [], [], [])) <- toConcrete (t, A.RHS e Nothing)
            ret $ addInstanceB (if isInstance info then Just noRange else Nothing) $
                [ C.TypeSig info Nothing (C.boundName x) t
-               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [] NoEllipsis)
+               , C.FunClause (C.LHS (C.IdentP $ C.QName $ C.boundName x) [] [])
                              e C.NoWhere False
                ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] [] NoEllipsis) (C.RHS e) NoWhere False ]
+        ret [ C.FunClause (C.LHS p [] []) (C.RHS e) NoWhere False ]
     bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
@@ -993,15 +1041,15 @@ instance ToConcrete A.LetBinding where
 instance ToConcrete A.WhereDeclarations where
   type ConOfAbs A.WhereDeclarations = WhereClause
 
-  bindToConcrete (A.WhereDecls _ Nothing) ret = ret C.NoWhere
-  bindToConcrete (A.WhereDecls (Just am) (Just (A.Section _ _ _ ds))) ret = do
+  bindToConcrete (A.WhereDecls _ _ Nothing) ret = ret C.NoWhere
+  bindToConcrete (A.WhereDecls (Just am) False (Just (A.Section _ _ _ ds))) ret = do
     ds' <- declsToConcrete ds
     cm  <- unqualify <$> lookupModule am
     -- Andreas, 2016-07-08 I put PublicAccess in the following SomeWhere
     -- Should not really matter for printing...
     let wh' = (if isNoName cm then AnyWhere noRange else SomeWhere noRange cm PublicAccess) $ ds'
     local (openModule' am defaultImportDir id) $ ret wh'
-  bindToConcrete (A.WhereDecls _ (Just d)) ret =
+  bindToConcrete (A.WhereDecls _ _ (Just d)) ret =
     ret . AnyWhere noRange =<< toConcrete d
 
 mergeSigAndDef :: [C.Declaration] -> [C.Declaration]
@@ -1030,7 +1078,7 @@ declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
 declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
 
 instance ToConcrete A.RHS where
-    type ConOfAbs A.RHS = (C.RHS, [C.RewriteEqn], [WithHiding C.Expr], [C.Declaration])
+    type ConOfAbs A.RHS = (C.RHS, [C.RewriteEqn], [C.WithExpr], [C.Declaration])
 
     toConcrete (A.RHS e (Just c)) = return (C.RHS c, [], [], [])
     toConcrete (A.RHS e Nothing) = do
@@ -1038,7 +1086,10 @@ instance ToConcrete A.RHS where
       return (C.RHS e, [], [], [])
     toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [], [])
     toConcrete (A.WithRHS _ es cs) = do
-      es <- toConcrete es
+      es <- do es <- toConcrete es
+               forM es $ \ (Named n e) -> do
+                 n <- traverse toConcrete n
+                 pure $ Named (C.boundName <$> n) e
       cs <- noTakenNames $ concat <$> toConcrete cs
       return (C.AbsurdRHS, [], es, cs)
     toConcrete (A.RewriteRHS xeqs _spats rhs wh) = do
@@ -1048,12 +1099,19 @@ instance ToConcrete A.RHS where
       eqs <- toConcrete xeqs
       return (rhs, eqs, es, wh ++ whs)
 
-instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn p a) where
-  type ConOfAbs (RewriteEqn' qn p a) = (RewriteEqn' () (ConOfAbs p) (ConOfAbs a))
+instance (ToConcrete p, ToConcrete a) => ToConcrete (RewriteEqn' qn A.BindName p a) where
+  type ConOfAbs (RewriteEqn' qn A.BindName p a) = (RewriteEqn' () C.Name (ConOfAbs p) (ConOfAbs a))
 
   toConcrete = \case
     Rewrite es    -> Rewrite <$> mapM (toConcrete . (\ (_, e) -> ((),e))) es
-    Invert qn pes -> Invert () <$> mapM toConcrete pes
+    Invert qn pes -> fmap (Invert ()) $ forM pes $ \ (Named n pe) -> do
+      pe <- toConcrete pe
+      n  <- toConcrete n
+      pure $ Named n pe
+
+instance ToConcrete (Maybe A.BindName) where
+  type ConOfAbs (Maybe A.BindName) = Maybe C.Name
+  toConcrete = traverse (C.boundName <.> toConcrete)
 
 instance ToConcrete (Maybe A.QName) where
   type ConOfAbs (Maybe A.QName) = Maybe C.Name
@@ -1077,10 +1135,10 @@ instance (ToConcrete a, ConOfAbs a ~ C.LHS) => ToConcrete (A.Clause' a) where
 
   toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \case
-          C.LHS p _ _ ell -> do
+          C.LHS p _ _ -> do
             bindToConcrete wh $ \ wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p eqs with ell) rhs' wh' catchall : wcs
+                return $ FunClause (C.LHS p eqs with) rhs' wh' catchall : wcs
 
 instance ToConcrete A.ModuleApplication where
   type ConOfAbs A.ModuleApplication = C.ModuleApplication
@@ -1247,7 +1305,7 @@ instance ToConcrete A.LHS where
 
     bindToConcrete (A.LHS i lhscore) ret = do
       bindToConcreteCtx TopCtx lhscore $ \ lhs ->
-          ret $ C.LHS (reintroduceEllipsis (lhsEllipsis i) lhs) [] [] NoEllipsis
+          ret $ C.LHS (reintroduceEllipsis (lhsEllipsis i) lhs) [] []
 
 instance ToConcrete A.LHSCore where
   type ConOfAbs A.LHSCore = C.Pattern
@@ -1522,7 +1580,9 @@ getHead _                = Nothing
 
 cOpApp :: Range -> C.QName -> A.Name -> List1 (MaybeSection C.Expr) -> C.Expr
 cOpApp r x n es =
-  C.OpApp r x (Set.singleton n) $ fmap (defaultNamedArg . placeholder) eps
+  C.OpApp r x (Set.singleton n) $
+  fmap (defaultNamedArg . placeholder) $
+  List1.toList eps
   where
     x0 = C.unqualify x
     positions | isPrefix  x0 =              (const Middle <$> List1.drop 1 es) `List1.snoc` End
@@ -1582,8 +1642,9 @@ tryToRecoverOpAppP p = do
   return res
   where
     opApp r x n ps = C.OpAppP r x (Set.singleton n) $
-      fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) ps
+      fmap (defaultNamedArg . fromNoSection __IMPOSSIBLE__) $
       -- `view` does not generate any `Nothing`s
+      List1.toList ps
 
     appInfo = defaultAppInfo_
 
@@ -1764,8 +1825,8 @@ instance ToConcrete InteractionId where
 
 instance ToConcrete NamedMeta where
     type ConOfAbs NamedMeta = C.Expr
-    toConcrete i = do
-      return $ C.Underscore noRange (Just $ prettyShow i)
+    toConcrete i =
+      C.Underscore noRange . Just . render <$> prettyTCM i
 
 -- Some instances related to heterogeneous types
 

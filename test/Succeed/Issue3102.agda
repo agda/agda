@@ -1,7 +1,7 @@
 -- Andreas, 2018-06-03, issue #3102
 -- Regression: slow reduce with lots of module parameters and an import.
 
--- {-# OPTIONS -v tc.cc:30 -v tc.cover.top:30 -v profile:7 #-}
+-- {-# OPTIONS -v tc.cc:30 -v tc.cover.top:30 --profile=internal #-}
 
 open import Agda.Builtin.Bool
 

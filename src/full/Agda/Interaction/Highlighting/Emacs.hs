@@ -85,7 +85,7 @@ lispifyHighlightingInfo h remove method modFile =
   info = (case remove of
                 RemoveHighlighting -> A "remove"
                 KeepHighlighting   -> A "nil") :
-             map (showAspects modFile) (ranges h)
+             map (showAspects modFile) (toList h)
 
   direct :: IO (Lisp String)
   direct = return $ L (A "agda2-highlight-add-annotations" :

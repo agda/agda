@@ -1,1 +1,24 @@
-TestOptions {forCompilers = [(MAlonzo, CompilerOptions {extraAgdaArgs = ["--no-main", "--ghc-flag=-i./test/Compiler/simple/"]})], runtimeOptions = [], executeProg = False}
+TestOptions
+  { forCompilers =
+      [ ( MAlonzo Lazy
+        , CompilerOptions
+            { extraAgdaArgs =
+                ["--no-main", "--ghc-flag=-i./test/Compiler/simple/"]
+            }
+        )
+      , ( MAlonzo StrictData
+        , CompilerOptions
+            { extraAgdaArgs =
+                ["--no-main", "--ghc-flag=-i./test/Compiler/simple/"]
+            }
+        )
+      , ( MAlonzo Strict
+        , CompilerOptions
+            { extraAgdaArgs =
+                ["--no-main", "--ghc-flag=-i./test/Compiler/simple/"]
+            }
+        )
+      ]
+  , runtimeOptions = []
+  , executeProg = False
+  }

@@ -1,0 +1,3 @@
+Relevance-subtyping-2.agda:4,7-17
+Found a non-strict lambda where a irrelevant lambda was expected
+when checking that the expression λ .x → g x has type A → B

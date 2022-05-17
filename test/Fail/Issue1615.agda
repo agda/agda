@@ -2,6 +2,8 @@
 
 -- {-# OPTIONS -v tc.term:20 -v tc.meta.assign:10 -v tc.conv.coerce:10 #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 data Nat (i : Size) : Set where

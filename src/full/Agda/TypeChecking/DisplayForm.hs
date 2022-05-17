@@ -2,14 +2,16 @@
 
 -- | Tools for 'DisplayTerm' and 'DisplayForm'.
 
-module Agda.TypeChecking.DisplayForm where
+module Agda.TypeChecking.DisplayForm (displayForm) where
 
 import Control.Monad
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
 
 import Data.Monoid (All(..))
+import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -42,6 +44,17 @@ dtermToTerm dt = case dt of
 displayFormArities :: (HasConstInfo m, ReadTCState m) => QName -> m [Int]
 displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
 
+-- | Lift a local display form to an outer context. The substitution goes from the parent context to
+--   the context of the local display form (see Issue 958). Current only handles pure extensions of
+--   the parent context.
+liftLocalDisplayForm :: Substitution -> DisplayForm -> Maybe DisplayForm
+liftLocalDisplayForm IdS df = Just df
+liftLocalDisplayForm (Wk n IdS) (Display m lhs rhs) =
+  -- We lift a display form by turning matches on free variables into pattern variables, which can
+  -- be done by simply adding to the dfPatternVars field.
+  Just $ Display (n + m) lhs rhs
+liftLocalDisplayForm _ _ = Nothing
+
 type MonadDisplayForm m =
   ( MonadReduce m
   , ReadTCState m
@@ -63,16 +76,16 @@ displayForm q es = do
     return Nothing
   else do
     -- Display debug info about the @Open@s.
-    verboseS "tc.display.top" 100 $ unlessDebugPrinting $ do
+    unlessDebugPrinting $ reportSDoc "tc.display.top" 100 $ do
       cps <- viewTC eCheckpoints
       cxt <- getContextTelescope
-      reportSDoc "tc.display.top" 100 $ return $ vcat
+      return $ vcat
         [ "displayForm for" <+> pretty q
         , nest 2 $ "cxt =" <+> pretty cxt
         , nest 2 $ "cps =" <+> vcat (map pretty (Map.toList cps))
-        , nest 2 $ "dfs =" <+> vcat (map pshow odfs) ]
+        , nest 2 $ "dfs =" <+> vcat (map pretty odfs) ]
     -- Use only the display forms that can be opened in the current context.
-    dfs   <- catMaybes <$> mapM tryGetOpen odfs
+    dfs   <- catMaybes <$> mapM (tryGetOpen liftLocalDisplayForm) odfs
     scope <- getScope
     -- Keep the display forms that match the application @q es@.
     ms <- do
@@ -80,12 +93,12 @@ displayForm q es = do
       return [ m | Just (d, m) <- ms, wellScoped scope d ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, es)
-    unlessDebugPrinting $ reportS "tc.display.top" 100
-      [ "name        : " ++ prettyShow q
-      , "displayForms: " ++ show dfs
-      , "arguments   : " ++ show es
-      , "matches     : " ++ show ms
-      , "result      : " ++ show (listToMaybe ms)
+    unlessDebugPrinting $ reportSDoc "tc.display.top" 100 $ return $ vcat
+      [ "name        :" <+> pretty q
+      , "displayForms:" <+> pretty dfs
+      , "arguments   :" <+> pretty es
+      , "matches     :" <+> pretty ms
+      , "result      :" <+> pretty (listToMaybe ms)
       ]
     -- Return the first display form that matches.
     return $ listToMaybe ms
@@ -107,71 +120,89 @@ displayForm q es = do
 --   i.e., @es / ps = Just us@.
 matchDisplayForm :: MonadDisplayForm m
                  => DisplayForm -> Elims -> MaybeT m (DisplayForm, DisplayTerm)
-matchDisplayForm d@(Display _ ps v) es
+matchDisplayForm d@(Display n ps v) es
   | length ps > length es = mzero
   | otherwise             = do
       let (es0, es1) = splitAt (length ps) es
-      us <- reverse <$> do match ps $ raise 1 es0
+      mm <- match (Window 0 n) ps es0
+      us <- forM [0 .. n - 1] $ \ i -> do
+              -- #5294: Fail if we don't have bindings for all variables. This can
+              --        happen outside parameterised modules when some of the parameters
+              --        are not used in the lhs.
+              Just u <- return $ Map.lookup i mm
+              return u
       return (d, substWithOrigin (parallelS $ map woThing us) us v `applyE` es1)
+
+type MatchResult = Map Int (WithOrigin Term)
+
+unionMatch :: Monad m => MatchResult -> MatchResult -> MaybeT m MatchResult
+unionMatch m1 m2
+  | Set.disjoint (Map.keysSet m1) (Map.keysSet m2) = return $ Map.union m1 m2
+  | otherwise = mzero  -- Non-linear pattern, fail for now.
+
+unionsMatch :: Monad m => [MatchResult] -> MaybeT m MatchResult
+unionsMatch = foldM unionMatch Map.empty
+
+data Window = Window {dbLo, dbHi :: Nat}
+
+inWindow :: Window -> Nat -> Maybe Nat
+inWindow (Window lo hi) n | lo <= n, n < hi = Just (n - lo)
+                          | otherwise       = Nothing
+
+shiftWindow :: Window -> Window
+shiftWindow (Window lo hi) = Window (lo + 1) (hi + 1)
 
 -- | Class @Match@ for matching a term @p@ in the role of a pattern
 --   against a term @v@.
 --
---   The 0th variable in @p@ plays the role
---   of a place holder (pattern variable).  Each occurrence of
---   @var 0@ in @p@ stands for a different pattern variable.
---
---   The result of matching, if successful, is a list of solutions for the
---   pattern variables, in left-to-right order.
---
---   The 0th variable is in scope in the input @v@, but should not
---   actually occur!
---   In the output solution, the @0th@ variable is no longer in scope.
---   (It has been substituted by __IMPOSSIBLE__ which corresponds to
---   a raise by -1).
+--   Free variables inside the window in @p@ are pattern variables and
+--   the result of matching is a map from pattern variables (shifted down to start at 0) to subterms
+--   of @v@.
 class Match a where
-  match :: MonadDisplayForm m => a -> a -> MaybeT m [WithOrigin Term]
+  match :: MonadDisplayForm m => Window -> a -> a -> MaybeT m MatchResult
 
 instance Match a => Match [a] where
-  match xs ys = concat <$> zipWithM match xs ys
+  match n xs ys = unionsMatch =<< zipWithM (match n) xs ys
 
 instance Match a => Match (Arg a) where
-  match p v = map (setOrigin (getOrigin v)) <$> match (unArg p) (unArg v)
+  match n p v = Map.map (setOrigin (getOrigin v)) <$> match n (unArg p) (unArg v)
 
 instance Match a => Match (Elim' a) where
-  match p v =
+  match n p v =
     case (p, v) of
-      (Proj _ f, Proj _ f') | f == f' -> return []
+      (Proj _ f, Proj _ f') | f == f' -> return Map.empty
       _ | Just a  <- isApplyElim p
-        , Just a' <- isApplyElim v    -> match a a'
+        , Just a' <- isApplyElim v    -> match n a a'
       -- we do not care to differentiate between Apply and IApply for
       -- printing.
       _                               -> mzero
 
 instance Match Term where
-  match p v = lift (instantiate v) >>= \ v -> case (p, v) of
-    (Var 0 [], v) -> return [ WithOrigin Inserted $ strengthen __IMPOSSIBLE__ v ]
-    (Var i ps, Var j vs) | i == j  -> match ps vs
-    (Def c ps, Def d vs) | c == d  -> match ps vs
-    (Con c _ ps, Con d _ vs) | c == d -> match ps vs
-    (Lit l, Lit l')      | l == l' -> return []
-    (p, v)               | p == v  -> return []
-    (p, Level l)                   -> match p =<< reallyUnLevelView l
-    (Sort ps, Sort pv)             -> match ps pv
-    (p, Sort (Type v))             -> match p =<< reallyUnLevelView v
+  match w p v = lift (instantiate v) >>= \ v -> case (unSpine p, unSpine v) of
+    (Var i [], v)    | Just j <- inWindow w i -> return $ Map.singleton j (WithOrigin Inserted v)
+    (Var i (_:_), v) | Just{} <- inWindow w i -> mzero  -- Higher-order pattern, fail for now.
+    (Var i ps, Var j vs) | i == j  -> match w ps vs
+    (Def c ps, Def d vs) | c == d  -> match w ps vs
+    (Con c _ ps, Con d _ vs) | c == d -> match w ps vs
+    (Lit l, Lit l')      | l == l' -> return Map.empty
+    (Lam h p, Lam h' v)  | h == h' -> match (shiftWindow w) (unAbs p) (unAbs v)
+    (p, v)               | p == v  -> return Map.empty  -- TODO: this is wrong (this is why we lifted the rhs before)
+    (p, Level l)                   -> match w p =<< reallyUnLevelView l
+    (Sort ps, Sort pv)             -> match w ps pv
+    (p, Sort (Type v))             -> match w p =<< reallyUnLevelView v
     _                              -> mzero
 
 instance Match Sort where
-  match p v = case (p, v) of
-    (Type pl, Type vl) -> match pl vl
-    _ | p == v -> return []
+  match w p v = case (p, v) of
+    (Type pl, Type vl) -> match w pl vl
+    _ | p == v -> return Map.empty
     _          -> mzero
 
 instance Match Level where
-  match p v = do
+  match w p v = do
     p <- reallyUnLevelView p
     v <- reallyUnLevelView v
-    match p v
+    match w p v
 
 -- | Substitute terms with origin into display terms,
 --   replacing variables along with their origins.

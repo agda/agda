@@ -3,10 +3,14 @@
 
 module Agda.Syntax.Internal.Blockers where
 
+import Control.DeepSeq
+
 import Data.Data (Data)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal.Elim
@@ -41,7 +45,7 @@ data NotBlocked' t
   | ReallyNotBlocked
     -- ^ Reduction was not blocked, we reached a whnf
     --   which can be anything but a stuck @'Def'@.
-  deriving (Show, Data)
+  deriving (Show, Data, Generic)
 
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
@@ -61,9 +65,11 @@ instance Monoid (NotBlocked' t) where
   mempty  = ReallyNotBlocked
   mappend = (<>)
 
+instance NFData t => NFData (NotBlocked' t)
+
 data NatExt = NatExt Nat
             | NatInfinity
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 instance Bounded NatExt where
   minBound = NatExt 0
@@ -78,11 +84,13 @@ instance Pretty NatExt where
   pretty (NatExt n)   = pretty n
   pretty  NatInfinity = "∞"
 
+instance NFData NatExt
+
 newtype EffortLevel = EffortLevel NatExt
-  deriving (Data, Show, Eq, Ord, Bounded)
+  deriving (Data, Show, Eq, Ord, Bounded, NFData)
 
 newtype EffortDelta = EffortDelta NatExt
-  deriving (Data, Show, Eq, Ord, Bounded)
+  deriving (Data, Show, Eq, Ord, Bounded, NFData)
 
 tryHarder :: EffortDelta -> EffortLevel -> EffortLevel
 tryHarder _                           e@(EffortLevel NatInfinity) = e
@@ -105,7 +113,9 @@ data Blocker = UnblockOnAll (Set Blocker)
                -- ^ Unblock in exchange for increasing envEffortLevel by the given amount
                --   Note that effort levels 0 and ∞ should not appear in an unblocker,
                --   as they are, respectively, always and never unblocking.
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
+
+instance NFData Blocker
 
 alwaysUnblock :: Blocker
 alwaysUnblock = UnblockOnAll Set.empty
@@ -229,7 +239,7 @@ instance Pretty Blocker where
 data Blocked' t a
   = Blocked    { theBlocker      :: Blocker,       ignoreBlocking :: a }
   | NotBlocked { blockingStatus  :: NotBlocked' t, ignoreBlocking :: a }
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
 
 instance Decoration (Blocked' t) where
   traverseF f (Blocked b x)     = Blocked b <$> f x
@@ -249,6 +259,8 @@ instance Semigroup a => Semigroup (Blocked' t a) where
 instance (Semigroup a, Monoid a) => Monoid (Blocked' t a) where
   mempty = notBlocked mempty
   mappend = (<>)
+
+instance (NFData t, NFData a) => NFData (Blocked' t a)
 
 -- | When trying to reduce @f es@, on match failed on one
 --   elimination @e ∈ es@ that came with info @r :: NotBlocked@.
@@ -348,4 +360,3 @@ unblockProblem _ u@UnblockOnMeta{} = u
 unblockProblem _ u@UnblockOnEffort{} = u
 unblockProblem p (UnblockOnAll us) = unblockOnAll $ Set.map (unblockProblem p) us
 unblockProblem p (UnblockOnAny us) = unblockOnAny $ Set.map (unblockProblem p) us
-

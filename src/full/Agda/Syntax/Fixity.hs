@@ -3,7 +3,11 @@
 -}
 module Agda.Syntax.Fixity where
 
+import Control.DeepSeq
+
 import Data.Data (Data)
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -28,7 +32,9 @@ instance LensFixity (ThingWithFixity a) where
 -- | Do we prefer parens around arguments like @λ x → x@ or not?
 --   See 'lamBrackets'.
 data ParenPreference = PreferParen | PreferParenless
-  deriving (Eq, Ord, Show, Data)
+  deriving (Eq, Ord, Show, Data, Generic)
+
+instance NFData ParenPreference
 
 preferParen :: ParenPreference -> Bool
 preferParen p = PreferParen == p
@@ -43,7 +49,9 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
                 | LeftOperandCtx Fixity | RightOperandCtx Fixity ParenPreference
                 | FunctionCtx | ArgumentCtx ParenPreference | InsideOperandCtx
                 | WithFunCtx | WithArgCtx | DotPatternCtx
-    deriving (Show, Data, Eq)
+    deriving (Show, Data, Eq, Generic)
+
+instance NFData Precedence
 
 instance Pretty Precedence where
   pretty = text . show

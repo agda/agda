@@ -1,0 +1,4 @@
+IUnivData.agda:3,6-13
+The universe IUniv of BadData
+does not admit data or record declarations
+when checking the definition of BadData

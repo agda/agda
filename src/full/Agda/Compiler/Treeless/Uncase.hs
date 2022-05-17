@@ -5,6 +5,8 @@ import Agda.TypeChecking.Substitute
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Compare
 
+import Agda.Utils.List
+
 import Agda.Utils.Impossible
 
 caseToSeq :: Monad m => TTerm -> m TTerm
@@ -41,7 +43,7 @@ uncase t = case t of
         fallback = TCase x t d bs
         (fv, mu)
           | isUnreachable d =
-            case last bs of
+            case lastWithDefault __IMPOSSIBLE__ bs of
               TACon _ a b -> (a, tryStrengthen a b)
               TALit l b   -> (0, Just b)
               TAGuard _ b -> (0, Just b)
@@ -57,7 +59,7 @@ uncase t = case t of
 
     tLet e b =
       case occursIn 0 b of
-        Occurs 0 _ _ -> strengthen __IMPOSSIBLE__ b
+        Occurs 0 _ _ -> strengthen impossible b
         _            -> TLet e b
 
     -- Primitive operations are already strict

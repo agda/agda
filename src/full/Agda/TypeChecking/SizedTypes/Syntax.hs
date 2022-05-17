@@ -11,11 +11,15 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+import Agda.TypeChecking.Monad.Base (TCM)
+import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.SizedTypes.Utils
 
 import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Pretty
+
+import Agda.Utils.Impossible
 
 -- * Syntax
 
@@ -55,6 +59,9 @@ instance Show Flex where
 
 instance Pretty Flex where
   pretty = text . flexId
+
+instance P.PrettyTCM Flex where
+  prettyTCM = return . pretty
 
 -- | Size expressions appearing in constraints.
 data SizeExpr' rigid flex
@@ -115,8 +122,9 @@ type Polarities flex = Map flex Polarity
 emptyPolarities :: Polarities flex
 emptyPolarities = Map.empty
 
+-- Used in size-solver (Andreas, 2021-08-20)
 polaritiesFromAssignments :: Ord flex => [PolarityAssignment flex] -> Polarities flex
-polaritiesFromAssignments = Map.fromList . map (\ (PolarityAssignment p x) -> (x,p))
+polaritiesFromAssignments = Map.fromListWith __IMPOSSIBLE__ . map (\ (PolarityAssignment p x) -> (x,p))
 
 -- | Default polarity is 'Least'.
 getPolarity :: Ord flex => Polarities flex -> flex -> Polarity
@@ -167,14 +175,19 @@ instance Plus (SizeExpr' r f) Offset (SizeExpr' r f) where
       Flex x  n -> Flex x  $ n + m
       Infty     -> Infty
 
+-- | Error messages produced by the constraint simplification monad.
+
+type Error = TCM Doc
+
 -- * Constraint simplification
 
-type CTrans r f = Constraint' r f -> Either String [Constraint' r f]
+type CTrans r f = Constraint' r f -> Either Error [Constraint' r f]
 
 -- | Returns an error message if we have a contradictory constraint.
 simplify1 :: (Pretty f, Pretty r, Eq r) => CTrans r f -> CTrans r f
 simplify1 test c = do
-  let err = Left $ "size constraint " ++ prettyShow c ++ " is inconsistent"
+  let err = Left $ "size constraint" P.<+> P.pretty c P.<+>
+                   "is inconsistent"
   case c of
     -- rhs is Infty
     Constraint a           Le  Infty -> return []

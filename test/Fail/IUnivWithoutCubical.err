@@ -1,0 +1,3 @@
+IUnivWithoutCubical.agda:1,1-39
+Missing option --cubical or --erased-cubical
+when checking the pragma BUILTIN CUBEINTERVALUNIV IUniv

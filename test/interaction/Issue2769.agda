@@ -45,3 +45,6 @@ goal = {!!}  -- WAS: goal displayed as  (s : MSet.S) → MSet.S.Rr.A
 -- EXPECTED:
 -- Should display goal 1 as
 -- ?1 : (s : MSet.S) → M.R.A (MSet.S.r s)
+
+-- AFTER FIXING #4857:
+-- ?1 : (s : MSet.S) → MSet.S.Rr.A s

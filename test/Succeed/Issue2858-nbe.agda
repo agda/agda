@@ -42,19 +42,19 @@ interleaved mutual
   th^Chk : Ren Γ Δ → Chk σ Γ → Chk σ Δ
 
   -- variable rule
-  constructor
+  data _ where
     var : Var σ Γ → Syn σ Γ
   th^Syn ρ (var v) = var (lookup ρ v)
 
   -- change of direction rules
-  constructor
+  data _ where
     emb : Syn σ Γ → Chk σ Γ
     cut : Chk σ Γ → Syn σ Γ
   th^Chk ρ (emb t) = emb (th^Syn ρ t)
   th^Syn ρ (cut c) = cut (th^Chk ρ c)
 
   -- function introduction and elimination
-  constructor
+  data _ where
     app : Syn (σ ↝ τ) Γ → Chk σ Γ → Syn τ Γ
     lam : Chk τ (σ ∷ Γ) → Chk (σ ↝ τ) Γ
   th^Syn ρ (app f t) = app (th^Syn ρ f) (th^Chk ρ t)

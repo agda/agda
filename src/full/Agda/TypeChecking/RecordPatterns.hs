@@ -9,10 +9,13 @@ module Agda.TypeChecking.RecordPatterns
   , recordPatternToProjections
   ) where
 
-import Control.Arrow (first, second)
-import Control.Monad.Fix
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Arrow          ( first, second )
+import Control.Monad          ( forM, unless, when, zipWithM )
+import Control.Monad.Fix      ( mfix )
+import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Monad.Reader   ( MonadReader(..), ReaderT(..), runReaderT )
+import Control.Monad.State    ( MonadState(..), StateT(..), runStateT )
+import Control.Monad.Trans    ( lift )
 
 import qualified Data.List as List
 import Data.Maybe
@@ -148,12 +151,12 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
 
     loop :: CompiledClauses -> m (CompiledClauses)
     loop cc = case cc of
-      Fail      -> return cc
+      Fail{}    -> return cc
       Done{}    -> return cc
       Case i cs -> loops i cs
 
-    loops :: Arg Int              -- ^ split variable
-          -> Case CompiledClauses -- ^ original split tree
+    loops :: Arg Int               -- split variable
+          -> Case CompiledClauses  -- original split tree
           -> m CompiledClauses
     loops i cs@Branches{ projPatterns   = comatch
                        , conBranches    = conMap
@@ -175,8 +178,8 @@ translateCompiledClauses cc = ignoreAbstractMode $ do
               -- inferred eta.
           _ | Just (ch, b) <- eta -> yesEtaCase b ch
           [(c, b)] | not comatch -> -- possible eta-match
-            getConstructorInfo c >>= \ case
-              RecordCon pm YesEta fs -> yesEtaCase b $
+            getConstructorInfo' c >>= \ case
+              Just (RecordCon pm YesEta fs) -> yesEtaCase b $
                 ConHead c (IsRecord pm) Inductive (map argFromDom fs)
               _ -> noEtaCase
           _ -> noEtaCase
@@ -211,7 +214,7 @@ recordExpressionsToCopatterns
   -> m CompiledClauses
 recordExpressionsToCopatterns = \case
     Case i bs -> Case i <$> traverse recordExpressionsToCopatterns bs
-    cc@Fail   -> return cc
+    cc@Fail{} -> return cc
     cc@(Done xs (Con c ConORec es)) -> do  -- don't translate if using the record /constructor/
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       Constructor{ conArity = ar } <- theDef <$> getConstInfo (conName c)
@@ -226,7 +229,7 @@ recordExpressionsToCopatterns = \case
                 -- translate new cases recursively (there might be nested record expressions)
                 traverse recordExpressionsToCopatterns $ Branches
                   { projPatterns   = True
-                  , conBranches    = Map.fromList $
+                  , conBranches    = Map.fromListWith __IMPOSSIBLE__ $
                       zipWith (\ f v -> (unDom f, WithArity 0 $ Done xs v)) fs vs
                   , etaBranch      = Nothing
                   , litBranches    = Map.empty
@@ -514,7 +517,7 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the new RHS's context
       -- to terms in the new telescope's context.
-      lhsSubst' = {-'-} renaming __IMPOSSIBLE__ (reverseP newPerm)
+      lhsSubst' = renaming impossible (reverseP newPerm)
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new telescope's context.
@@ -559,7 +562,7 @@ translateRecordPatterns clause = do
         ]
 
   reportSDoc "tc.lhs.recpat" 10 $
-    escapeContext __IMPOSSIBLE__ (size $ clauseTel clause) $ vcat
+    escapeContext impossible (size $ clauseTel clause) $ vcat
       [ "Translated clause:"
       , nest 2 $ vcat
         [ "delta =" <+> prettyTCM (clauseTel c)

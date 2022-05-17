@@ -56,6 +56,7 @@ run_test=\
          | $(SED) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(SED) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | $(SED) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
+         | $(SED) "s+currentFullPath+\"$(pwd)/$(wildcard $*.agda $*.lagda)\"+g" \
          | $(AGDA_BIN) -v0 -i . -i .. --interaction --ignore-interfaces $(AGDA_OPT) $(RTS_$*) \
            2>&1 | $(filter) ; \
     elif test -f $*.hs; \

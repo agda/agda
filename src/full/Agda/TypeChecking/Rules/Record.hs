@@ -26,15 +26,20 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.Warnings
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause (hasProjectionPatterns)
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Data ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters, fitsIn, forceSort,
-                                      defineCompData, defineTranspOrHCompForFields )
+import Agda.TypeChecking.Rules.Data
+  ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters
+  , checkDataSort, fitsIn, forceSort
+  , defineCompData, defineTranspOrHCompForFields
+  )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
+import Agda.Utils.List (headWithDefault)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -43,6 +48,7 @@ import Agda.Utils.POMonoid
 import Agda.Utils.Pretty (render)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
+import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
 
@@ -191,6 +197,13 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               ]
       reportSDoc "tc.rec" 30 $ "record constructor is " <+> prettyTCM con
 
+      -- Jesper, 2021-05-26: Warn when declaring coinductive record
+      -- but neither --guardedness nor --sized-types is enabled.
+      when (conInduction == CoInductive) $ do
+        guardedness <- collapseDefault . optGuardedness <$> pragmaOptions
+        sizedTypes  <- collapseDefault . optSizedTypes  <$> pragmaOptions
+        unless (guardedness || sizedTypes) $ warning $ NoGuardednessFlag name
+
       -- Add the record definition.
 
       -- Andreas, 2016-06-17, Issue #2018:
@@ -200,9 +213,8 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- we make sure we get the original names!
       let npars = size tel
           telh  = fmap hideAndRelParams tel
-      escapeContext __IMPOSSIBLE__ npars $ do
-        addConstant name $
-          defaultDefn defaultArgInfo name t $
+      escapeContext impossible npars $ do
+        addConstant' name defaultArgInfo name t $
             Record
               { recPars           = npars
               , recClause         = Nothing
@@ -218,12 +230,16 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
                   -- in case the record turns out to be recursive.
               -- Determined by positivity checker:
               , recMutual         = Nothing
+              -- Determined by the termination checker:
+              , recTerminates     = Nothing
               , recComp           = emptyCompKit -- filled in later
               }
 
         -- Add record constructor to signature
-        addConstant conName $
-          defaultDefn defaultArgInfo conName (telh `abstract` contype) $
+        addConstant' conName defaultArgInfo conName
+             -- The parameters are erased in the constructor's type.
+            (fmap (applyQuantity zeroQuantity) telh
+             `abstract` contype) $
             Constructor
               { conPars   = npars
               , conArity  = size fs
@@ -249,6 +265,10 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
 
       -- Check that the fields fit inside the sort
       _ <- fitsIn uc [] contype s
+
+      -- Check that the sort admits record declarations.
+      checkDataSort name s
+
 
       {- Andreas, 2011-04-27 WRONG because field types are checked again
          and then non-stricts should not yet be irrelevant
@@ -306,30 +326,34 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
             ]
           ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
-          [ "field tel =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM ftel)
+          [ "field tel =" <+> escapeContext impossible 1 (prettyTCM ftel)
           ]
         addSection m
 
       -- Andreas, 2016-02-09, Issue 1815 (see also issue 1759).
       -- For checking the record declarations, hide the record parameters
       -- and the parameters of the parent modules.
-      modifyContextInfo hideOrKeepInstance $ addRecordVar $ do
+      modifyContextInfo hideOrKeepInstance $ do
+        -- The parameters are erased in the types of the projections.
+        params <- fmap (applyQuantity zeroQuantity) <$> getContext
 
         -- Check the types of the fields and the other record declarations.
-        withCurrentModule m $ do
+        addRecordVar $ withCurrentModule m $ do
 
           -- Andreas, 2013-09-13, 2016-01-06.
           -- Argument telescope for the projections: all parameters are hidden.
           -- This means parameters of the parent modules and of the current
           -- record type.
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
-          tel' <- getContextTelescope
+          tel' <- do
+            r <- headWithDefault __IMPOSSIBLE__ <$> getContext
+            return $ telFromList' nameToArgName $ reverse $ r : params
           setModuleCheckpoint m
           checkRecordProjections m name hasNamedCon con tel' ftel fields
 
 
       -- we define composition here so that the projections are already in the signature.
-      escapeContext __IMPOSSIBLE__ npars $ do
+      escapeContext impossible npars $ do
         addCompositionForRecord name con tel (map argFromDom fs) ftel rect
 
       -- The confluence checker needs to know what symbols match against
@@ -337,7 +361,6 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       modifySignature $ updateDefinition conName $ \def ->
         def { defMatchable = Set.fromList $ map unDom fs }
 
-      return ()
   where
   -- Andreas, 2020-04-19, issue #4560
   -- If the user declared the record constructor as @pattern@,
@@ -466,36 +489,38 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
                 (g0,_:g1) = splitAt (size gamma - 1 - ix) $ flattenTel gamma
                 (ns0,_:ns1) = splitAt (size gamma - 1 - ix) $ teleNames gamma
 
-              c = Clause { clauseTel       = gamma'
-                         , clauseType      = Just $ argN t
-                         , namedClausePats = pats
-                         , clauseFullRange = noRange
+              c = Clause { clauseFullRange = noRange
                          , clauseLHSRange  = noRange
-                         , clauseCatchall  = False
+                         , clauseTel       = gamma'
+                         , namedClausePats = pats
                          , clauseBody      = Just $ rhs
+                         , clauseType      = Just $ argN t
+                         , clauseCatchall    = False
                          , clauseExact       = Just True
                          , clauseRecursive   = Just False  -- definitely non-recursive!
                          , clauseUnreachable = Just False
-                         , clauseEllipsis  = NoEllipsis
+                         , clauseEllipsis    = NoEllipsis
+                         , clauseWhereModule = Nothing
                          }
            reportSDoc "trans.rec.face" 17 $ text $ show c
            return c
   cs <- forM (zip3 fns clause_types bodies) $ \ (fname, clause_ty, body) -> do
           let
               pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP ProjSystem $ unArg fname]
-              c = Clause { clauseTel       = gamma
-                         , clauseType      = Just $ argN (unDom clause_ty)
-                         , namedClausePats = pats
-                         , clauseFullRange = noRange
+              c = Clause { clauseFullRange = noRange
                          , clauseLHSRange  = noRange
-                         , clauseCatchall  = False
+                         , clauseTel       = gamma
+                         , namedClausePats = pats
                          , clauseBody      = Just body
+                         , clauseType      = Just $ argN (unDom clause_ty)
+                         , clauseCatchall    = False
                          , clauseExact       = Just True
                          , clauseRecursive   = Nothing
                              -- Andreas 2020-02-06 TODO
                              -- Or: Just False;  is it known to be non-recursive?
                          , clauseUnreachable = Just False
-                         , clauseEllipsis  = NoEllipsis
+                         , clauseEllipsis    = NoEllipsis
+                         , clauseWhereModule = Nothing
                          }
           reportSDoc "trans.rec" 17 $ text $ show c
           reportSDoc "trans.rec" 16 $ text "type =" <+> text (show (clauseType c))
@@ -519,7 +544,7 @@ defineTranspOrHCompR cmd name params fsT fns rect = do
 
     [@con@  ]  name of the record constructor
 
-    [@tel@  ]  parameters and record variable r ("self")
+    [@tel@  ]  parameters (erased) and record variable r ("self")
 
     [@ftel@ ]  telescope of fields
 
@@ -551,15 +576,26 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         , nest 2 $ vcat
           [ "top   =" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , "tel   =" <+> (inTopContext . prettyTCM $ tel)
-          , "ftel1 =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM ftel1)
-          , "t     =" <+> escapeContext __IMPOSSIBLE__ 1 (prettyTCM t)
-          , "ftel2 =" <+> escapeContext __IMPOSSIBLE__ 1 (addContext ftel1 $ underAbstraction_ ftel2 prettyTCM)
-          , "vs    =" <+> prettyList_ (map prettyTCM vs)
+          ]
+        ]
+      -- Andreas, 2021-05-11, issue #5378
+      -- The impossible is sometimes possible, so splitting out this part...
+      reportSDoc "tc.rec.proj" 5 $ nest 2 $ vcat
+          [ "ftel1 =" <+> escapeContext impossible 1 (prettyTCM ftel1)
+          , "t     =" <+> escapeContext impossible 1 (addContext ftel1 $ prettyTCM t)
+          , "ftel2 =" <+> escapeContext impossible 1 (addContext ftel1 $ underAbstraction dom ftel2 prettyTCM)
+          ]
+      reportSDoc "tc.rec.proj" 55 $ nest 2 $ vcat
+          [ "ftel1 (raw) =" <+> pretty ftel1
+          , "t     (raw) =" <+> pretty t
+          , "ftel2 (raw) =" <+> pretty ftel2
+          ]
+      reportSDoc "tc.rec.proj" 5 $ nest 2 $ vcat
+          [ "vs    =" <+> prettyList_ (map prettyTCM vs)
           , "abstr =" <+> (text . show) (Info.defAbstract info)
           , "quant =" <+> (text . show) (getQuantity ai)
           , "coh   =" <+> (text . show) (getCohesion ai)
           ]
-        ]
 
       -- Cohesion check:
       -- For a field `@c π : A` we would create a projection `π : .., (@(c^-1) r : R as) -> A`
@@ -573,8 +609,7 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                     __IMPOSSIBLE__
         else genericError $ "Cannot have record fields with modality " ++ show (getCohesion ai)
 
-      -- Andreas, 2010-09-09 The following comments are misleading, TODO: update
-      -- in fact, tel includes the variable of record type as last one
+      -- The telescope tel includes the variable of record type as last one
       -- e.g. for cartesion product it is
       --
       --   tel = {A' : Set} {B' : Set} (r : Prod A' B')
@@ -582,17 +617,18 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
       -- create the projection functions (instantiate the type with the values
       -- of the previous fields)
 
+      -- The type of the projection function should be
+      --  {Δ} -> (r : R Δ) -> t
+      -- where Δ are the parameters of R
+
       {- what are the contexts?
 
-          Γ, tel, ftel₁     ⊢ t
-          Γ, tel, r         ⊢ reverse vs : ftel₁
-          Γ, tel, r, ftel₁  ⊢ t' = raiseFrom (size ftel₁) 1 t
-          Γ, tel, r         ⊢ t'' = applySubst (parallelS vs) t'
+          Δ , ftel₁              ⊢ t
+          Δ , (r : R Δ)          ⊢ parallelS vs : ftel₁
+          Δ , (r : R Δ) , ftel₁  ⊢ t' = raiseFrom (size ftel₁) 1 t
+          Δ , (r : R Δ)          ⊢ t'' = applySubst (parallelS vs) t'
+                                 ⊢ finalt = telePi tel t''
       -}
-
-      -- The type of the projection function should be
-      --  {tel} -> (r : R Δ) -> t
-      -- where Δ = Γ, tel is the current context
       let t'       = raiseFrom (size ftel1) 1 t
           t''      = applySubst (parallelS vs) t'
           finalt   = telePi (replaceEmptyName "r" tel) t''
@@ -647,23 +683,22 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
                                     , conPFallThrough = False
                                     , conPType   = Just $ argFromDom $ fmap snd rt
                                     , conPLazy   = True }
-            conp   = defaultArg $ ConP con cpi $
-                     [ Arg ai' $ unnamed $ varP ("x" :: String)
-                     | Dom{domInfo = ai'} <- telToList ftel
-                     ]
+            conp   = defaultNamedArg $ ConP con cpi $ teleNamedArgs ftel
             body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ptel `abstract` ftel
+            cltype = Just $ Arg ai $ raise (1 + size ftel2) t
             clause = Clause { clauseLHSRange  = getRange info
                             , clauseFullRange = getRange info
                             , clauseTel       = killRange cltel
-                            , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
+                            , namedClausePats = [conp]
                             , clauseBody      = body
-                            , clauseType      = Just $ Arg ai t'
+                            , clauseType      = cltype
                             , clauseCatchall  = False
                             , clauseExact       = Just True
                             , clauseRecursive   = Just False
                             , clauseUnreachable = Just False
-                            , clauseEllipsis  = NoEllipsis
+                            , clauseEllipsis    = NoEllipsis
+                            , clauseWhereModule = Nothing
                             }
 
         let projection = Projection
@@ -677,14 +712,9 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               , projLams     = ProjLams $ map (argFromDom . fmap fst) telList
               }
 
-        reportSDoc "tc.rec.proj" 80 $ sep
-          [ "adding projection"
-          , nest 2 $ prettyTCM projname <+> text (show clause)
-          ]
         reportSDoc "tc.rec.proj" 70 $ sep
           [ "adding projection"
-          , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> "=" <+>
-                       inTopContext (addContext ftel (maybe "_|_" prettyTCM (clauseBody clause)))
+          , nest 2 $ prettyTCM projname <+> pretty clause
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
           [ "adding projection"
@@ -702,9 +732,10 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
               , nest 2 $ text (show cc)
               ]
 
-        escapeContext __IMPOSSIBLE__ (size tel) $ do
+        escapeContext impossible (size tel) $ do
+          lang <- getLanguage
           addConstant projname $
-            (defaultDefn ai projname (killRange finalt)
+            (defaultDefn ai projname (killRange finalt) lang
               emptyFunction
                 { funClauses        = [clause]
                 , funCompiled       = Just cc

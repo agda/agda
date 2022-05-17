@@ -25,27 +25,32 @@ macro
 foo : Definition
 foo = testDef
 
-fooTest : foo ≡ function
-                  (clause
-                   (("z" , arg (arg-info hidden relevant) (def (quote Nat) [])) ∷
-                    ("y" ,
-                     arg (arg-info visible relevant)
-                     (def (quote Fin)
-                      (arg (arg-info visible relevant)
-                       (con (quote Nat.suc)
-                        (arg (arg-info visible relevant) (var 0 []) ∷ []))
-                       ∷ [])))
-                    ∷ [])
-                   (arg (arg-info visible relevant)
-                    (dot
-                     (con (quote Nat.suc)
-                      (arg (arg-info visible relevant) (var 1 []) ∷ [])))
-                    ∷
-                    arg (arg-info visible relevant) (var 0) ∷
-                    arg (arg-info hidden relevant) (var 1) ∷
-                    arg (arg-info visible relevant) (con (quote refl) []) ∷ [])
-                   (def (quote Nat) [])
-                   ∷ [])
+arg-info′ : Visibility → ArgInfo
+arg-info′ v = arg-info v (modality relevant quantity-ω)
+
+fooTest :
+  foo ≡
+  function
+    (clause
+       (("z" , arg (arg-info′ hidden) (def (quote Nat) [])) ∷
+        ("y" ,
+         arg (arg-info′ visible)
+           (def (quote Fin)
+              (arg (arg-info′ visible)
+                 (con (quote Nat.suc)
+                    (arg (arg-info′ visible) (var 0 []) ∷ [])) ∷
+               []))) ∷
+        [])
+       (arg (arg-info′ visible)
+          (dot
+             (con (quote Nat.suc)
+                (arg (arg-info′ visible) (var 1 []) ∷ []))) ∷
+        arg (arg-info′ visible) (var 0) ∷
+        arg (arg-info′ hidden) (var 1) ∷
+        arg (arg-info′ visible) (con (quote refl) []) ∷
+        [])
+       (def (quote Nat) []) ∷
+     [])
 fooTest = refl
 
 defBar : (name : Name) → TC _

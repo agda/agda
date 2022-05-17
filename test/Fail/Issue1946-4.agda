@@ -15,7 +15,19 @@
 --
 module _ where
 
-open import Agda.Builtin.Coinduction renaming (∞ to co)
+-- Binding these builtins here instead of importing them from
+-- Agda.Builtin.Coinduction to avoid the use of --guardedness.
+infix 1000 ♯_
+
+postulate
+  co : ∀ {a} (A : Set a) → Set a
+  ♯_ : ∀ {a} {A : Set a} → A → co A
+  ♭  : ∀ {a} {A : Set a} → co A → A
+
+{-# BUILTIN INFINITY co #-}
+{-# BUILTIN SHARP    ♯_ #-}
+{-# BUILTIN FLAT     ♭  #-}
+
 open import Agda.Builtin.Size
 
 -- initial algebras

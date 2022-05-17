@@ -88,7 +88,7 @@ raiseFrom n k = applySubst (raiseFromS n k)
 subst :: Subst a => Int -> SubstArg a -> a -> a
 subst i u = applySubst $ singletonS i u
 
-strengthen :: Subst a => Empty -> a -> a
+strengthen :: Subst a => Impossible -> a -> a
 strengthen err = applySubst (compactS err [Nothing])
 
 -- | Replace what is now de Bruijn index 0, but go under n binders.
@@ -165,7 +165,7 @@ dropS n (u :# rho)         = dropS (n - 1) rho
 dropS n (Strengthen _ rho) = dropS (n - 1) rho
 dropS n (Lift 0 rho)       = __IMPOSSIBLE__
 dropS n (Lift m rho)       = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
-dropS n (EmptyS err)       = absurd err
+dropS n (EmptyS err)       = throwImpossible err
 
 -- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
 composeS :: EndoSubst a => Substitution' a -> Substitution' a -> Substitution' a
@@ -183,12 +183,12 @@ composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) 
 --   Γ ⊢ σ : Δ
 --   Γ ⊢ δ : Θσ
 splitS :: Int -> Substitution' a -> (Substitution' a, Substitution' a)
-splitS 0 rho                  = (rho, EmptyS __IMPOSSIBLE__)
+splitS 0 rho                  = (rho, EmptyS impossible)
 splitS n (u :# rho)           = second (u :#) $ splitS (n - 1) rho
 splitS n (Strengthen err rho) = second (Strengthen err) $ splitS (n - 1) rho
 splitS n (Lift 0 _)           = __IMPOSSIBLE__
 splitS n (Wk m rho)           = wkS m *** wkS m $ splitS n rho
-splitS n IdS                  = (raiseS n, liftS n $ EmptyS __IMPOSSIBLE__)
+splitS n IdS                  = (raiseS n, liftS n $ EmptyS impossible)
 splitS n (Lift m rho)         = wkS 1 *** liftS 1 $ splitS (n - 1) (liftS (m - 1) rho)
 splitS n (EmptyS err)         = __IMPOSSIBLE__
 
@@ -202,20 +202,27 @@ us ++# rho = foldr consS rho us
 --      ----------------------------- (treating Nothing as having any type)
 --        Γ ⊢ prependS vs ρ : Δ, Θ
 --   @
-prependS :: DeBruijn a => Empty -> [Maybe a] -> Substitution' a -> Substitution' a
+prependS :: DeBruijn a => Impossible -> [Maybe a] -> Substitution' a -> Substitution' a
 prependS err us rho = foldr f rho us
   where
     f Nothing  rho = Strengthen err rho
     f (Just u) rho = consS u rho
 
+-- | @
+--        Γ ⊢ reverse vs : Δ
+--      -----------------------------
+--        Γ ⊢ parallelS vs ρ : Γ, Δ
+--   @
+--
+--   Note the @Γ@ in @Γ, Δ@.
 parallelS :: DeBruijn a => [a] -> Substitution' a
 parallelS us = us ++# idS
 
-compactS :: DeBruijn a => Empty -> [Maybe a] -> Substitution' a
+compactS :: DeBruijn a => Impossible -> [Maybe a] -> Substitution' a
 compactS err us = prependS err us idS
 
 -- | Γ ⊢ (strengthenS ⊥ |Δ|) : Γ,Δ
-strengthenS :: Empty -> Int -> Substitution' a
+strengthenS :: Impossible -> Int -> Substitution' a
 strengthenS err = indexWithDefault __IMPOSSIBLE__ $ iterate (Strengthen err) idS
 
 lookupS :: EndoSubst a => Substitution' a -> Nat -> a
@@ -228,12 +235,12 @@ lookupS rho i = case rho of
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
   Strengthen err rho
-             | i == 0    -> absurd err
+             | i == 0    -> throwImpossible err
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
   Lift n rho | i < n     -> deBruijnVar i
              | otherwise -> raise n $ lookupS rho (i - n)
-  EmptyS err             -> absurd err
+  EmptyS err             -> throwImpossible err
 
 
 -- | lookupS (listS [(x0,t0)..(xn,tn)]) xi = ti, assuming x0 < .. < xn.
@@ -265,7 +272,7 @@ lazyAbsApp (Abs   _ v) u = applySubst (u :# IdS) v  -- Note: do not use consS he
 lazyAbsApp (NoAbs _ v) _ = v
 
 -- | Instantiate an abstraction that doesn't use its argument.
-noabsApp :: Subst a => Empty -> Abs a -> a
+noabsApp :: Subst a => Impossible -> Abs a -> a
 noabsApp err (Abs   _ v) = strengthen err v
 noabsApp _   (NoAbs _ v) = v
 

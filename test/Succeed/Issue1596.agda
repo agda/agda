@@ -1,6 +1,8 @@
 -- Andreas, 2015-06-28
 -- {-# OPTIONS -v tc.polarity:20  #-}
 
+{-# OPTIONS --sized-types #-}
+
 open import Common.Size
 
 -- List should be monotone in both arguments

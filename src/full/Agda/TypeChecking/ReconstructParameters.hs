@@ -24,6 +24,7 @@ import Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Size
 import Agda.Utils.Either
+import Agda.Utils.Function (applyWhen)
 
 import Agda.Utils.Impossible
 
@@ -47,6 +48,7 @@ reconstructParametersInEqView (EqualityType s eq l a u v) =
                       <*> traverse (reconstructParameters $ El s $ unArg a) u
                       <*> traverse (reconstructParameters $ El s $ unArg a) v
 reconstructParametersInEqView (OtherType a) = OtherType <$> reconstructParametersInType a
+reconstructParametersInEqView (IdiomType a) = IdiomType <$> reconstructParametersInType a
 
 reconstructParameters :: Type -> Term -> TCM Term
 reconstructParameters = reconstructParameters' defaultAction
@@ -80,9 +82,14 @@ reconstructParameters' act a v = do
           case (unEl a) of
             Def d es -> do
               Just n <- defParameters <$> getConstInfo d
-              let prePs = applySubst (strengthenS __IMPOSSIBLE__ under) . take n $ es
-              let hiddenPs = map (Apply . hideAndRelParams) $ fromMaybe __IMPOSSIBLE__ $
-                               allApplyElims prePs
+              let prePs = applySubst (strengthenS impossible under) . take n $ es
+              let hiddenPs = map (Apply .
+                                  -- The parameters are erased in the
+                                  -- type of a constructor.
+                                  applyQuantity zeroQuantity .
+                                  hideAndRelParams) $
+                             fromMaybe __IMPOSSIBLE__ $
+                             allApplyElims prePs
               reportSDoc "tc.reconstruct" 50 $ "The hiddenPs are" <+> pretty hiddenPs
               tyCon <- defType <$> getConstInfo (conName hh)
               reportSDoc "tc.reconstruct" 50 $ "Here we start infering spine"
@@ -141,8 +148,13 @@ reconstructParameters' act a v = do
           ~(Just (El _ (Pi _ b))) <- getDefType p ty'
           tyProj <- defType <$> getConstInfo p
           let reconstructWithoutPostFixing = reconstructAction { elimViewAction = elimView NoPostfix }
-          let hiddenPs = map Apply $ mapHide tyProj $ fromMaybe __IMPOSSIBLE__ $
-                               allApplyElims pars
+          let hiddenPs = map (Apply .
+                              -- The parameters are erased in the
+                              -- type of a projection.
+                              applyQuantity zeroQuantity) $
+                         mapHide tyProj $
+                         fromMaybe __IMPOSSIBLE__ $
+                         allApplyElims pars
           reportSDoc "tc.reconstruct" 50 $ "The params are" <+> pretty hiddenPs
           ((_,Def p psAfterAct),_) <- inferSpine' act tyProj (Def p []) (Def p []) hiddenPs
           ((_,projWithPars),_) <- inferSpine' reconstructWithoutPostFixing tyProj (Def p []) (Def p []) psAfterAct
@@ -161,23 +173,18 @@ reconstructParameters' act a v = do
     applyWithoutReversing _            _   = __IMPOSSIBLE__
 
     mapHide (El _ (Pi a b)) (p:tl) =
-      case argInfoHiding (domInfo a) of
-        Hidden -> (hideAndRelParams p):(mapHide (unAbs b) tl)
-        _      -> p:(mapHide (unAbs b) tl)
+      applyWhen (getHiding a == Hidden) hideAndRelParams p : mapHide (unAbs b) tl
     mapHide t l = l
 
 dropParameters :: TermLike a => a -> TCM a
-dropParameters = traverseTermM dropPars
-  where
-    dropPars v =
-      case v of
+dropParameters = traverseTermM $
+    \case
         Con c ci vs -> do
           Constructor{ conData = d } <- theDef <$> getConstInfo (conName c)
           Just n <- defParameters <$> getConstInfo d
           return $ Con c ci $ drop n vs
-        Def f vs -> do
-          isProj <- isProjection f
-          case isProj of
+        v@(Def f vs) -> do
+          isRelevantProjection f >>= \case
             Nothing -> return v
             Just pr -> return $ applyE (projDropPars pr ProjSystem) vs
-        _        -> return v
+        v -> return v

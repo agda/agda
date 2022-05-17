@@ -5,7 +5,7 @@
 -- Dually, fold for Streams should work.  Therefore, the restriction
 -- of coinductive records to recursive records should be lifted.
 
-{-# OPTIONS --copatterns #-}
+{-# OPTIONS --copatterns --sized-types #-}
 
 open import Common.Size
 

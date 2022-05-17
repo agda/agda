@@ -1,5 +1,7 @@
 -- {-# OPTIONS -v tc.size.solve:60 #-}
 
+{-# OPTIONS --sized-types #-}
+
 module Issue300 where
 
 open import Common.Size

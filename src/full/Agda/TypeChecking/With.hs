@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.With where
 
+import Prelude hiding ((!!))
+
 import Control.Monad
 import Control.Monad.Writer (WriterT, runWriterT, tell)
 
@@ -26,6 +28,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive ( getRefl )
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -74,13 +77,13 @@ splitTelForWith
   -- Input:
   :: Telescope                         -- ^ __@Δ@__             context of types and with-arguments.
   -> Type                              -- ^ __@Δ ⊢ t@__         type of rhs.
-  -> [WithHiding (Term, EqualityView)] -- ^ __@Δ ⊢ vs : as@__   with arguments and their types.
+  -> [Arg (Term, EqualityView)]        -- ^ __@Δ ⊢ vs : as@__   with arguments and their types.
   -- Output:
   -> ( Telescope                         -- @Δ₁@             part of context needed for with arguments and their types.
      , Telescope                         -- @Δ₂@             part of context not needed for with arguments and their types.
      , Permutation                       -- @π@              permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
      , Type                              -- @Δ₁Δ₂ ⊢ t'@      type of rhs under @π@
-     , [WithHiding (Term, EqualityView)] -- @Δ₁ ⊢ vs' : as'@ with- and rewrite-arguments and types under @π@.
+     , [Arg (Term, EqualityView)]        -- @Δ₁ ⊢ vs' : as'@ with- and rewrite-arguments and types under @π@.
      )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@vtys'@__) where
 --
 --   [@Δ₁@]        part of context needed for with arguments and their types.
@@ -100,9 +103,9 @@ splitTelForWith delta t vtys = let
     SplitTel delta1 delta2 perm = splitTelescope fv delta
 
     -- Δ₁Δ₂ ⊢ π : Δ
-    pi = renaming __IMPOSSIBLE__ (reverseP perm)
+    pi = renaming impossible (reverseP perm)
     -- Δ₁ ⊢ ρ : Δ₁Δ₂  (We know that as does not depend on Δ₂.)
-    rho = strengthenS __IMPOSSIBLE__ $ size delta2
+    rho = strengthenS impossible $ size delta2
     -- Δ₁ ⊢ ρ ∘ π : Δ
     rhopi = composeS rho pi
 
@@ -120,7 +123,7 @@ splitTelForWith delta t vtys = let
 
 withFunctionType
   :: Telescope                          -- ^ @Δ₁@                        context for types of with types.
-  -> [WithHiding (Term, EqualityView)]  -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
+  -> [Arg (Term, EqualityView)]         -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions and their type.
   -> Telescope                          -- ^ @Δ₁ ⊢ Δ₂@                   context extension to type with-expressions.
   -> Type                               -- ^ @Δ₁,Δ₂ ⊢ b@                 type of rhs.
   -> [(Int,(Term,Term))]                -- ^ @Δ₁,Δ₂ ⊢ [(i,(u0,u1))] : b  boundary.
@@ -151,7 +154,7 @@ withFunctionType delta1 vtys delta2 b bndry = addContext delta1 $ do
   wd2b <- foldrM piAbstract d2b vtys
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
-  let nwithargs = countWithArgs (map (snd . whThing) vtys)
+  let nwithargs = countWithArgs (map (snd . unArg) vtys)
 
   TelV wtel _ <- telViewUpTo nwithargs wd2b
 
@@ -170,14 +173,21 @@ countWithArgs :: [EqualityView] -> Nat
 countWithArgs = sum . map countArgs
   where
     countArgs OtherType{}    = 1
+    countArgs IdiomType{}    = 2
     countArgs EqualityType{} = 2
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
-withArguments :: [WithHiding (Term, EqualityView)] -> [WithHiding Term]
-withArguments vtys = flip concatMap vtys $ traverse $ \case
-  (v, OtherType a) -> [v]
-  (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> [unArg v, prf]
+withArguments :: [Arg (Term, EqualityView)] ->
+                 TCM [Arg Term]
+withArguments vtys = do
+  tss <- forM vtys $ \ (Arg info ts) -> fmap (map (Arg info)) $ case ts of
+    (v, OtherType a) -> pure [v]
+    (prf, eqt@(EqualityType s _eq _pars _t v _v')) -> pure [unArg v, prf]
+    (v, IdiomType t) -> do
+       mkRefl <- getRefl
+       pure [v, mkRefl (defaultArg v)]
+  pure (concat tss)
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
@@ -204,8 +214,10 @@ buildWithFunction cxtNames f aux t delta qs npars withSub perm n1 n cs = mapM bu
             where
             fromWithP (A.WithP _ p) = p
             fromWithP _ = __IMPOSSIBLE__
-      reportSDoc "tc.with" 50 $ "inheritedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a
-                                                               | A.ProblemEq p v a <- inheritedPats ]
+      reportSDoc "tc.with" 50 $ "inheritedPats:" <+> vcat
+        [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a
+        | A.ProblemEq p v a <- inheritedPats
+        ]
       (strippedPats, ps') <- stripWithClausePatterns cxtNames f aux t delta qs npars perm ps
       reportSDoc "tc.with" 50 $ hang "strippedPats:" 2 $
                                   vcat [ prettyA p <+> "==" <+> prettyTCM v <+> (":" <+> prettyTCM t)
@@ -356,14 +368,14 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
     setVarArgInfo x p = setOrigin (getOrigin p) $ setArgInfo (varArgInfo x) p
 
     strip
-      :: Term                         -- ^ Self.
-      -> Type                         -- ^ The type to be eliminated.
-      -> [NamedArg A.Pattern]       -- ^ With-clause patterns.
-      -> [NamedArg DeBruijnPattern] -- ^ Parent-clause patterns with de Bruijn indices relative to Δ.
+      :: Term                         -- Self.
+      -> Type                         -- The type to be eliminated.
+      -> [NamedArg A.Pattern]         -- With-clause patterns.
+      -> [NamedArg DeBruijnPattern]   -- Parent-clause patterns with de Bruijn indices relative to Δ.
       -> WriterT [ProblemEq] TCM [NamedArg A.Pattern]
-            -- ^ With-clause patterns decomposed by parent-clause patterns.
-            --   Also outputs named dot patterns from the parent clause that
-            --   we need to add let-bindings for.
+            -- With-clause patterns decomposed by parent-clause patterns.
+            -- Also outputs named dot patterns from the parent clause that
+            -- we need to add let-bindings for.
 
     -- Case: out of with-clause patterns.
     strip self t [] qs@(_ : _) = do
@@ -446,10 +458,13 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
 
         DefP{}  -> typeError $ GenericError $ "with clauses not supported in the presence of hcomp patterns" -- TODO this should actually be impossible
 
-        DotP o v  -> do
+        DotP i v  -> do
           (a, _) <- mustBePi t
           tell [ProblemEq (namedArg p) v a]
-          (makeImplicitP p :) <$> recurse v
+          case v of
+            Var x [] | PatOVar{} <- patOrigin i
+               -> (p :) <$> recurse (var x)
+            _  -> (makeWildP p :) <$> recurse v
 
         q'@(ConP c ci qs') -> do
          reportSDoc "tc.with.strip" 60 $
@@ -560,28 +575,20 @@ stripWithClausePatterns cxtNames parent f t delta qs npars perm ps = do
         prettyProjOrigin ProjPostfix = "a postfix projection"
         prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
 
-        -- | Make an ImplicitP, keeping arg. info.
-        makeImplicitP :: NamedArg A.Pattern -> NamedArg A.Pattern
-        makeImplicitP = updateNamedArg $ const $ A.WildP patNoRange
+        -- Make a WildP, keeping arg. info.
+        makeWildP :: NamedArg A.Pattern -> NamedArg A.Pattern
+        makeWildP = updateNamedArg $ const $ A.WildP patNoRange
 
         -- case I.ConP / A.ConP
         stripConP
-          :: QName
-             -- ^ Data type name of this constructor pattern.
-          -> [Arg Term]
-             -- ^ Data type arguments of this constructor pattern.
-          -> Abs Type
-             -- ^ Type the remaining patterns eliminate.
-          -> ConHead
-             -- ^ Constructor of this pattern.
-          -> ConInfo
-             -- ^ Constructor info of this pattern (constructor/record).
-          -> [NamedArg DeBruijnPattern]
-             -- ^ Argument patterns (parent clause).
-          -> [NamedArg A.Pattern]
-             -- ^ Argument patterns (with clause).
-          -> WriterT [ProblemEq] TCM [NamedArg A.Pattern]
-             -- ^ Stripped patterns.
+          :: QName       -- Data type name of this constructor pattern.
+          -> [Arg Term]  -- Data type arguments of this constructor pattern.
+          -> Abs Type    -- Type the remaining patterns eliminate.
+          -> ConHead     -- Constructor of this pattern.
+          -> ConInfo     -- Constructor info of this pattern (constructor/record).
+          -> [NamedArg DeBruijnPattern]  -- Argument patterns (parent clause).
+          -> [NamedArg A.Pattern]        -- Argument patterns (with clause).
+          -> WriterT [ProblemEq] TCM [NamedArg A.Pattern]  -- Stripped patterns.
         stripConP d us b c ci qs' ps' = do
 
           -- Get the type and number of parameters of the constructor.
@@ -682,7 +689,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 
   -- Build the lhs of the display form and finish.
   -- @var 0@ is the pattern variable (hole).
-  let display = Display arity (replicate arity $ Apply $ defaultArg $ var 0) dt
+  let display = Display arity [Apply $ defaultArg $ var i | i <- downFrom arity] dt
 
   -- Debug printing.
   let addFullCtx = addContext delta1
@@ -733,15 +740,28 @@ patsToElims = map $ toElim . fmap namedThing
     toTerms = map $ fmap $ toTerm . namedThing
 
     toTerm :: DeBruijnPattern -> DisplayTerm
-    toTerm = \case
+    toTerm p = case patOrigin $ fromMaybe __IMPOSSIBLE__ $ patternInfo p of
+      PatOSystem -> toDisplayPattern p
+      PatOSplit  -> toDisplayPattern p
+      PatOVar{}  -> toVarOrDot p
+      PatODot    -> DDot $ patternToTerm p
+      PatOWild   -> toVarOrDot p
+      PatOCon    -> toDisplayPattern p
+      PatORec    -> toDisplayPattern p
+      PatOLit    -> toDisplayPattern p
+      PatOAbsurd -> toDisplayPattern p -- see test/Succeed/Issue2849.agda
+
+    toDisplayPattern :: DeBruijnPattern -> DisplayTerm
+    toDisplayPattern = \case
       IApplyP _ _ _ x -> DTerm $ var $ dbPatVarIndex x -- TODO, should be an Elim' DisplayTerm ?
-      ProjP _ d   -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP i x -> case patOrigin i of
-        PatODot -> DDot  $ var $ dbPatVarIndex x
-        _       -> DTerm  $ var $ dbPatVarIndex x
-      DotP i t -> case patOrigin i of
-        PatOVar{} | Var i [] <- t -> DTerm t
-        _                         -> DDot   $ t
-      ConP c cpi ps -> DCon c (fromConPatternInfo cpi) $ toTerms ps
-      LitP _ l    -> DTerm  $ Lit l
+      ProjP _ d  -> __IMPOSSIBLE__
+      VarP i x -> DTerm  $ var $ dbPatVarIndex x
+      DotP i t -> DDot   $ t
+      p@(ConP c cpi ps) -> DCon c (fromConPatternInfo cpi) $ toTerms ps
+      LitP i l -> DTerm  $ Lit l
       DefP _ q ps -> DDef q $ map Apply $ toTerms ps
+
+    toVarOrDot :: DeBruijnPattern -> DisplayTerm
+    toVarOrDot p = case patternToTerm p of
+      Var i [] -> DTerm $ var i
+      t        -> DDot t

@@ -6,7 +6,7 @@
 -- The constraint printer did not expect such a situation
 -- and crashed when printing the UnBlock constraint.
 
-{-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas --sized-types #-}
 
 module _ (Z : Set) where
 

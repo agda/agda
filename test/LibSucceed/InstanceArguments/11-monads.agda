@@ -1,4 +1,4 @@
-{-# OPTIONS --universe-polymorphism #-}
+{-# OPTIONS --universe-polymorphism --guardedness #-}
 -- {-# OPTIONS --verbose tc.constr.findInScope:15 #-}
 -- {-# OPTIONS --verbose tc.meta.eta:20 #-}
 -- {-# OPTIONS --verbose tc.conv.term:20 #-}

@@ -12,18 +12,30 @@ module Agda.Syntax.Treeless
     ) where
 
 import Control.Arrow (first, second)
+import Control.DeepSeq
 
 import Data.Data (Data)
 import Data.Word
 
+import GHC.Generics (Generic)
+
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
+import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 
 data Compiled = Compiled
   { cTreeless :: TTerm
-  , cArgUsage :: [Bool] }
-  deriving (Data, Show, Eq, Ord)
+  , cArgUsage :: Maybe [ArgUsage]
+      -- ^ 'Nothing' if treeless usage analysis has not run yet.
+  }
+  deriving (Data, Show, Eq, Ord, Generic)
+
+-- | Usage status of function arguments in treeless code.
+data ArgUsage
+  = ArgUsed
+  | ArgUnused
+  deriving (Data, Show, Eq, Ord, Generic)
 
 -- | The treeless compiler can behave differently depending on the target
 --   language evaluation strategy. For instance, more aggressive erasure for
@@ -60,7 +72,7 @@ data TTerm = TVar Int
            | TCoerce TTerm  -- ^ Used by the GHC backend
            | TError TError
            -- ^ A runtime error, something bad has happened.
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
 
 -- | Compiler-related primitives. This are NOT the same thing as primitives
 -- in Agda's surface or internal syntax!
@@ -88,7 +100,7 @@ data TPrim
   | PIf
   | PSeq
   | PITo64 | P64ToI
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
 
 isPrimEq :: TPrim -> Bool
 isPrimEq p = p `elem` [PEqI, PEqF, PEqS, PEqC, PEqQ, PEq64]
@@ -183,19 +195,21 @@ tIfThenElse :: TTerm -> TTerm -> TTerm -> TTerm
 tIfThenElse c i e = TApp (TPrim PIf) [c, i, e]
 
 data CaseType
-  = CTData QName -- case on datatype
+  = CTData Quantity QName
+    -- Case on datatype. The 'Quantity' is zero for matches on erased
+    -- arguments.
   | CTNat
   | CTInt
   | CTChar
   | CTString
   | CTFloat
   | CTQName
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
 
 data CaseInfo = CaseInfo
   { caseLazy :: Bool
   , caseType :: CaseType }
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
 
 data TAlt
   = TACon    { aCon  :: QName, aArity :: Int, aBody :: TTerm }
@@ -205,7 +219,7 @@ data TAlt
   | TAGuard  { aGuard :: TTerm, aBody :: TTerm }
   -- ^ Binds no variables
   | TALit    { aLit :: Literal,   aBody:: TTerm }
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
 
 data TError
   = TUnreachable
@@ -217,7 +231,7 @@ data TError
   -- ^ Code which could not be obtained because of a hole in the program.
   -- This should throw a runtime error.
   -- The string gives some information about the meta variable that got compiled.
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
 
 
 class Unreachable a where
@@ -234,3 +248,42 @@ instance Unreachable TTerm where
 
 instance KillRange Compiled where
   killRange c = c -- bogus, but not used anyway
+
+
+-- * Utilities for ArgUsage
+---------------------------------------------------------------------------
+
+-- | @filterUsed used args@ drops those @args@ which are labelled
+-- @ArgUnused@ in list @used@.
+--
+-- Specification:
+--
+-- @
+--   filterUsed used args = [ a | (a, ArgUsed) <- zip args $ used ++ repeat ArgUsed ]
+-- @
+--
+-- Examples:
+--
+-- @
+--   filterUsed []                 == id
+--   filterUsed (repeat ArgUsed)   == id
+--   filterUsed (repeat ArgUnused) == const []
+-- @
+filterUsed :: [ArgUsage] -> [a] -> [a]
+filterUsed = curry $ \case
+  ([], args) -> args
+  (_ , [])   -> []
+  (ArgUsed   : used, a : args) -> a : filterUsed used args
+  (ArgUnused : used, a : args) ->     filterUsed used args
+
+-- NFData instances
+---------------------------------------------------------------------------
+
+instance NFData Compiled
+instance NFData ArgUsage
+instance NFData TTerm
+instance NFData TPrim
+instance NFData CaseType
+instance NFData CaseInfo
+instance NFData TAlt
+instance NFData TError

@@ -86,23 +86,20 @@ debug_loc :
 
 ## Tags ###################################################################
 
-hTags=../hTags/dist/build/hTags/hTags
+hs-tags=hs-tags
 
 CABAL_MACROS=$(BUILD_DIR)/build/autogen/cabal_macros.h
 
-hTags_include = $(CABAL_MACROS)
-hTags_flags   = -i $(CABAL_MACROS) --cabal ../../Agda.cabal
-
-$(hTags) : $(wildcard ../hTags/*.hs)
-	$(MAKE) -C ../hTags
+hs-tags_include = $(CABAL_MACROS)
+hs-tags_flags   = -i $(CABAL_MACROS) --cabal ../../Agda.cabal
 
 # create tags for VIM
-tags : $(src_files) $(hTags) $(hTags_include)
-	$(hTags) $(hTags_flags) -c $(src_files)
+tags : $(src_files) have-bin-$(hs-tags) $(hs-tags_include)
+	$(hs-tags) $(hs-tags_flags) -c $(src_files)
 
 # create tags for emacs
-TAGS : $(src_files) $(hTags) $(hTags_include)
-	$(hTags) $(hTags_flags) -e $(src_files)
+TAGS : $(src_files) have-bin-$(hs-tags) $(hs-tags_include)
+	$(hs-tags) $(hs-tags_flags) -e $(src_files)
 
 # Andreas: create tags for everything exept Auto and Compilers
 # ignore = $(patsubst ./%,%,$(shell find ./Agda/Auto ./Agda/Compiler -name '*.hs' -o -name '*.lhs'))
@@ -110,9 +107,21 @@ ignore = $(shell find ./Agda/Auto ./Agda/Compiler/JS ./Agda/Packaging -name '*.h
 hs_boot = $(shell find . -name '*.hs-boot')
 tag_files = $(filter-out $(hs_boot),$(filter-out $(ignore),$(src_files)))
 
-mytags :  $(tag_files) $(hTags) $(hTags_include)
-	$(hTags) $(hTags_flags) -e $(tag_files)
+mytags : $(tag_files) have-bin-$(hs-tags) $(hs-tags_include)
+	$(hs-tags) $(hs-tags_flags) -e $(tag_files)
 
+## Installing binaries for developer services
+
+.PHONY : have-bin-%
+have-bin-% :
+	@($* --help > /dev/null) || $(CABAL) $(CABAL_INSTALL_CMD) $*
+
+.PHONY : debug-cabal
+debug-cabal :
+	@echo "CABAL             = $(CABAL)"
+	@echo "CABAL_INSTALL_CMD = $(CABAL_INSTALL_CMD)"
+
+.PHONY : debug
 debug :
 	@echo "Source files"
 	@echo $(src_files)

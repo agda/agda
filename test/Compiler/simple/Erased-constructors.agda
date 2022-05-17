@@ -1,3 +1,4 @@
+-- Test case for issue #4638.
 -- Partly based on code due to Andrea Vezzosi.
 
 open import Common.Prelude

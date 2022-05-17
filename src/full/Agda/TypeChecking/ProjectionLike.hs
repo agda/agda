@@ -87,7 +87,7 @@ import Agda.Utils.Size
 
 import Agda.Utils.Impossible
 
--- | View for a @Def f (Apply a : es)@ where @isProjection f@.
+-- | View for a @Def f (Apply a : es)@ where @isRelevantProjection f@.
 --   Used for projection-like @f@s.
 data ProjectionView
   = ProjectionView
@@ -117,7 +117,7 @@ projView :: HasConstInfo m => Term -> m ProjectionView
 projView v = do
   let fallback = return $ NoProjection v
   case v of
-    Def f es -> caseMaybeM (isProjection f) fallback $ \ isP -> do
+    Def f es -> caseMaybeM (isRelevantProjection f) fallback $ \ isP -> do
       if projIndex isP <= 0 then fallback else do
         case es of
           []           -> return $ LoneProjectionLike f $ projArgInfo isP
@@ -226,6 +226,8 @@ eligibleForProjectionLike d = eligible . theDef <$> getConstInfo d
 --         Thus, an application of @f@ waiting for a projection
 --         can be stuck even when the principal argument is a constructor.
 --
+--      g. @f@ cannot be an irrelevant definition (Andreas, 2022-03-07, #5809),
+--         as those are not reduced.
 --
 -- For internal reasons:
 --
@@ -247,7 +249,9 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     [ "Checking for projection likeness "
     , prettyTCM x <+> " : " <+> prettyTCM t
     ]
-  case theDef defn of
+  if isIrrelevant defn then
+    reportSDoc "tc.proj.like" 30 $ "  projection-like functions cannot be irrelevant"
+  else case theDef defn of
     Function{funClauses = cls}
       | any (isNothing . clauseBody) cls ->
         reportSLn "tc.proj.like" 30 $ "  projection-like functions cannot have absurd clauses"
@@ -324,7 +328,7 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
       reportSLn "tc.proj.like" 30 $ "  mutual functions can't be projections"
     Function{funMutual = Nothing} ->
       reportSLn "tc.proj.like" 30 $ "  mutuality check has not run yet"
-    Axiom          -> reportSLn "tc.proj.like" 30 $ "  not a function, but Axiom"
+    Axiom{}        -> reportSLn "tc.proj.like" 30 $ "  not a function, but Axiom"
     DataOrRecSig{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but DataOrRecSig"
     GeneralizableVar{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but GeneralizableVar"
     AbstractDefn{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but AbstractDefn"
@@ -334,10 +338,10 @@ makeProjection x = whenM (optProjectionLike <$> pragmaOptions) $ do
     PrimitiveSort{} -> reportSLn "tc.proj.like" 30 $ "  not a function, but PrimitiveSort"
     Record{}       -> reportSLn "tc.proj.like" 30 $ "  not a function, but Record"
   where
-    -- | If the user wrote a record expression as rhs,
-    --   the recordExpressionsToCopatterns translation will turn this into copatterns,
-    --   violating the conditions of projection-likeness.
-    --   Andreas, 2019-07-11, issue #3843.
+    -- If the user wrote a record expression as rhs,
+    -- the recordExpressionsToCopatterns translation will turn this into copatterns,
+    -- violating the conditions of projection-likeness.
+    -- Andreas, 2019-07-11, issue #3843.
     isRecordExpression :: Term -> Bool
     isRecordExpression = \case
       Con _ ConORec _ -> True

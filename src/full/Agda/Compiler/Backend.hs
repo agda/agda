@@ -21,7 +21,9 @@ module Agda.Compiler.Backend
   , activeBackend
   ) where
 
-import Control.Monad.State
+import Control.DeepSeq
+import Control.Monad              ( (<=<) )
+import Control.Monad.Trans        ( lift )
 import Control.Monad.Trans.Maybe
 
 import qualified Data.List as List
@@ -29,6 +31,8 @@ import Data.Maybe
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+
+import GHC.Generics (Generic)
 
 import System.Console.GetOpt
 
@@ -63,7 +67,7 @@ import Agda.Utils.Impossible
 -- Public interface -------------------------------------------------------
 
 data Backend where
-  Backend :: Backend' opts env menv mod def -> Backend
+  Backend :: NFData opts => Backend' opts env menv mod def -> Backend
 
 data Backend' opts env menv mod def = Backend'
   { backendName      :: String
@@ -99,6 +103,7 @@ data Backend' opts env menv mod def = Backend'
       --   The answer should be 'False' if the compilation of the type
       --   is used by a third party, e.g. in a FFI binding.
   }
+  deriving Generic
 
 data Recompile menv mod = Recompile menv | Skip mod
 
@@ -144,10 +149,30 @@ activeBackendMayEraseType q = do
   Backend b <- fromMaybe __IMPOSSIBLE__ <$> activeBackend
   mayEraseType b q
 
+instance NFData Backend where
+  rnf (Backend b) = rnf b
+
+instance NFData opts => NFData (Backend' opts env menv mod def) where
+  rnf (Backend' a b c d e f g h i j k l) =
+    rnf a `seq` rnf b `seq` rnf c `seq` rnf' d `seq` rnf e `seq`
+    rnf f `seq` rnf g `seq` rnf h `seq` rnf i `seq` rnf j `seq`
+    rnf k `seq` rnf l
+    where
+    rnf' []                   = ()
+    rnf' (Option a b c d : e) =
+      rnf a `seq` rnf b `seq` rnf'' c `seq` rnf d `seq` rnf' e
+
+    rnf'' (NoArg a)    = rnf a
+    rnf'' (ReqArg a b) = rnf a `seq` rnf b
+    rnf'' (OptArg a b) = rnf a `seq` rnf b
+
 -- Internals --------------------------------------------------------------
 
 data BackendWithOpts opts where
-  BackendWithOpts :: Backend' opts env menv mod def -> BackendWithOpts opts
+  BackendWithOpts ::
+    NFData opts =>
+    Backend' opts env menv mod def ->
+    BackendWithOpts opts
 
 backendWithOpts :: Backend -> Some BackendWithOpts
 backendWithOpts (Backend backend) = Some (BackendWithOpts backend)

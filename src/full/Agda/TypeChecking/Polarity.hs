@@ -11,10 +11,10 @@ module Agda.TypeChecking.Polarity
   , polFromOcc
   ) where
 
-import Control.Monad.State
+import Control.Monad  ( forM_, zipWithM )
 
 import Data.Maybe
-import Data.Semigroup (Semigroup(..))
+import Data.Semigroup ( Semigroup(..) )
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common

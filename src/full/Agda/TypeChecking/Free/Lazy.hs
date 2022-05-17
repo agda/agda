@@ -60,13 +60,13 @@
 module Agda.TypeChecking.Free.Lazy where
 
 import Control.Applicative hiding (empty)
-import Control.Monad.Reader
-
+import Control.Monad        ( guard )
+import Control.Monad.Reader ( MonadReader(..), asks, ReaderT, Reader, runReader )
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.IntSet (IntSet)
-import qualified Data.IntSet as IntSet
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Semigroup ( Semigroup, (<>) )
 
 
@@ -89,13 +89,20 @@ import qualified Agda.Utils.IntSet.Typed as ISet
 
 -- | A set of meta variables.  Forms a monoid under union.
 
-type MetaSet = ISet MetaId
+newtype MetaSet = MetaSet { theMetaSet :: Set MetaId }
+  deriving (Eq, Show, Null, Semigroup, Monoid)
+
+instance Singleton MetaId MetaSet where
+  singleton = MetaSet . singleton
+
+metaSetToSet :: MetaSet -> Set MetaId
+metaSetToSet = theMetaSet
 
 insertMetaSet :: MetaId -> MetaSet -> MetaSet
-insertMetaSet = ISet.insert
+insertMetaSet m (MetaSet ms) = MetaSet $ Set.insert m ms
 
 foldrMetaSet :: (MetaId -> a -> a) -> a -> MetaSet -> a
-foldrMetaSet = ISet.foldr
+foldrMetaSet f e ms = Set.foldr f e $ theMetaSet ms
 
 ---------------------------------------------------------------------------
 -- * Flexible and rigid occurrences (semigroup)
@@ -548,6 +555,7 @@ instance Free Sort where
       SSet a     -> freeVars' a
       SizeUniv   -> mempty
       LockUniv   -> mempty
+      IntervalUniv -> mempty
       PiSort a s1 s2 -> underFlexRig (Flexible mempty) (freeVars' $ unDom a) `mappend`
                         underFlexRig WeaklyRigid (freeVars' (s1, s2))
       FunSort s1 s2 -> freeVars' s1 `mappend` freeVars' s2
@@ -565,6 +573,7 @@ instance Free t => Free (PlusLevel' t) where
 instance Free t => Free [t]            where
 instance Free t => Free (Maybe t)      where
 instance Free t => Free (WithHiding t) where
+instance Free t => Free (Named nm t)
 
 instance (Free t, Free u) => Free (t, u) where
   freeVars' (t, u) = freeVars' t `mappend` freeVars' u
@@ -595,5 +604,7 @@ instance Free Clause where
   freeVars' cl = underBinder' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
 
 instance Free EqualityView where
-  freeVars' (OtherType t) = freeVars' t
-  freeVars' (EqualityType s _eq l t a b) = freeVars' (s, l, [t, a, b])
+  freeVars' = \case
+    OtherType t -> freeVars' t
+    IdiomType t -> freeVars' t
+    EqualityType s _eq l t a b -> freeVars' (s, l, [t, a, b])

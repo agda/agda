@@ -1,8 +1,5 @@
 Failed to solve the following constraints:
-  Resolve instance argument
-    _8
-      : (n₁ : Nat) ⦃ x = x₁ : NonZero n₁ ⦄ ⦃ y = y₁ : NonZero n₁ ⦄ →
-        NonZero n₁
+  Resolve instance argument _8 : NonZero n
   Candidates
     y : NonZero n
     x : NonZero n

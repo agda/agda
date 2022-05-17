@@ -1,6 +1,6 @@
 -- This test case was reported by Andrea Vezzosi.
 
-{-# OPTIONS --no-guardedness #-}
+{-# OPTIONS --no-guardedness --sized-types #-}
 
 open import Agda.Builtin.Size
 

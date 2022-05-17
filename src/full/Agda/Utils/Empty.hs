@@ -1,6 +1,7 @@
 -- | An empty type with some useful instances.
 module Agda.Utils.Empty where
 
+import Control.DeepSeq
 import Control.Exception (evaluate)
 
 import Data.Data (Data)
@@ -9,7 +10,14 @@ import Agda.Utils.Impossible
 
 
 data Empty
+
 deriving instance Data Empty
+
+-- | Values of type 'Empty' are not forced, because 'Empty' is used as
+-- a constructor argument in 'Agda.Syntax.Internal.Substitution''.
+
+instance NFData Empty where
+  rnf _ = ()
 
 instance Eq Empty where
   _ == _ = True

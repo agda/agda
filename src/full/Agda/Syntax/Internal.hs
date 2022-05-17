@@ -24,6 +24,8 @@ import Data.Set (Set)
 import Data.Traversable
 import Data.Data (Data)
 
+import GHC.Generics (Generic)
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
@@ -150,7 +152,7 @@ type NamedArgs  = [NamedArg Term]
 data DataOrRecord
   = IsData
   | IsRecord PatternOrCopattern
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
@@ -162,7 +164,7 @@ data ConHead = ConHead
   , conFields     :: [Arg QName]   -- ^ The name of the record fields.
       --   'Arg' is stored since the info in the constructor args
       --   might not be accurate because of subtyping (issue #2170).
-  } deriving (Data, Show)
+  } deriving (Data, Show, Generic)
 
 instance Eq ConHead where
   (==) = (==) `on` conName
@@ -220,7 +222,10 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   The @String@ typically describes the location where we create this dummy,
             --   but can contain other information as well.
             --   The second field accumulates eliminations in case we
-            --   apply a dummy term to more of them.
+            --   apply a dummy term to more of them. Dummy terms should never be used in places
+            --   where they can affect type checking, so syntactic checks are free to ignore the
+            --   eliminators, which are only there to ease debugging when a dummy term incorrectly
+            --   leaks into a relevant position.
   deriving (Data, Show)
 
 type ConInfo = ConOrigin
@@ -238,7 +243,7 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Data, Functor, Foldable, Traversable)
+  deriving (Data, Functor, Foldable, Traversable, Generic)
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -287,11 +292,12 @@ instance LensSort a => LensSort (Arg a) where
 --   and so on.
 data Tele a = EmptyTel
             | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
 
 type Telescope = Tele (Dom Type)
 
-data IsFibrant = IsFibrant | IsStrict deriving (Data,Show,Eq,Ord)
+data IsFibrant = IsFibrant | IsStrict
+  deriving (Data, Show, Eq, Ord, Generic)
 
 -- | Sorts.
 --
@@ -302,6 +308,7 @@ data Sort' t
   | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | LockUniv    -- ^ @LockUniv@, a sort for locks.
+  | IntervalUniv -- ^ @IntervalUniv@, a sort inhabited by the cubical interval.
   | PiSort (Dom' t t) (Sort' t) (Abs (Sort' t)) -- ^ Sort of the pi type.
   | FunSort (Sort' t) (Sort' t) -- ^ Sort of a (non-dependent) function type.
   | UnivSort (Sort' t) -- ^ Sort of another sort.
@@ -368,21 +375,21 @@ type NAPs = [NamedArg DeBruijnPattern]
 --  For the purpose of the permutation and the body dot patterns count
 --  as variables. TODO: Change this!
 data Clause = Clause
-    { clauseLHSRange  :: Range
-    , clauseFullRange :: Range
-    , clauseTel       :: Telescope
+    { clauseLHSRange    :: Range
+    , clauseFullRange   :: Range
+    , clauseTel         :: Telescope
       -- ^ @Δ@: The types of the pattern variables in dependency order.
-    , namedClausePats :: NAPs
+    , namedClausePats   :: NAPs
       -- ^ @Δ ⊢ ps@.  The de Bruijn indices refer to @Δ@.
-    , clauseBody      :: Maybe Term
+    , clauseBody        :: Maybe Term
       -- ^ @Just v@ with @Δ ⊢ v@ for a regular clause, or @Nothing@ for an
       --   absurd one.
-    , clauseType      :: Maybe (Arg Type)
+    , clauseType        :: Maybe (Arg Type)
       -- ^ @Δ ⊢ t@.  The type of the rhs under @clauseTel@.
       --   Used, e.g., by @TermCheck@.
       --   Can be 'Irrelevant' if we encountered an irrelevant projection
       --   pattern on the lhs.
-    , clauseCatchall  :: Bool
+    , clauseCatchall    :: Bool
       -- ^ Clause has been labelled as CATCHALL.
     , clauseExact       :: Maybe Bool
       -- ^ Pattern matching of this clause is exact, no catch-all case.
@@ -402,10 +409,12 @@ data Clause = Clause
       --   @Nothing@ means coverage checker has not run yet (clause may be unreachable).
       --   @Just False@ means clause is not unreachable.
       --   @Just True@ means clause is unreachable.
-    , clauseEllipsis  :: ExpandedEllipsis
+    , clauseEllipsis    :: ExpandedEllipsis
       -- ^ Was this clause created by expansion of an ellipsis?
+    , clauseWhereModule :: Maybe ModuleName
+      -- ^ Keeps track of the module name associate with the clause's where clause.
     }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
@@ -425,7 +434,7 @@ nameToPatVarName = nameToArgName
 data PatternInfo = PatternInfo
   { patOrigin :: PatOrigin
   , patAsNames :: [Name]
-  } deriving (Data, Show, Eq)
+  } deriving (Data, Show, Eq, Generic)
 
 defaultPatternInfo :: PatternInfo
 defaultPatternInfo = PatternInfo PatOSystem []
@@ -441,7 +450,7 @@ data PatOrigin
   | PatORec            -- ^ User wrote a record pattern
   | PatOLit            -- ^ User wrote a literal pattern
   | PatOAbsurd         -- ^ User wrote an absurd pattern
-  deriving (Data, Show, Eq)
+  deriving (Data, Show, Eq, Generic)
 
 -- | Patterns are variables, constructors, or wildcards.
 --   @QName@ is used in @ConP@ rather than @Name@ since
@@ -465,7 +474,7 @@ data Pattern' x
     -- ^ Path elimination pattern, like @VarP@ but keeps track of endpoints.
   | DefP PatternInfo QName [NamedArg (Pattern' x)]
     -- ^ Used for HITs, the QName should be the one from primHComp.
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
 
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
@@ -483,7 +492,7 @@ litP = LitP defaultPatternInfo
 data DBPatVar = DBPatVar
   { dbPatVarName  :: PatVarName
   , dbPatVarIndex :: Int
-  } deriving (Data, Show, Eq)
+  } deriving (Data, Show, Eq, Generic)
 
 type DeBruijnPattern = Pattern' DBPatVar
 
@@ -530,7 +539,7 @@ data ConPatternInfo = ConPatternInfo
     --   variables they bind are unused. The GHC backend compiles lazy matches
     --   to lazy patterns in Haskell (TODO: not yet).
   }
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
 
 noConPatternInfo :: ConPatternInfo
 noConPatternInfo = ConPatternInfo defaultPatternInfo False False Nothing False
@@ -542,9 +551,7 @@ toConPatternInfo _ = noConPatternInfo
 
 -- | Build 'ConInfo' from 'ConPatternInfo'.
 fromConPatternInfo :: ConPatternInfo -> ConInfo
-fromConPatternInfo i
-  | conPRecord i = patToConO $ patOrigin $ conPInfo i
-  | otherwise    = ConOCon
+fromConPatternInfo i = patToConO $ patOrigin $ conPInfo i
   where
     patToConO :: PatOrigin -> ConOrigin
     patToConO = \case
@@ -555,7 +562,7 @@ fromConPatternInfo i
       PatOWild   -> ConOSystem
       PatOCon    -> ConOCon
       PatORec    -> ConORec
-      PatOLit    -> __IMPOSSIBLE__
+      PatOLit    -> ConOCon
       PatOAbsurd -> ConOSystem
 
 -- | Extract pattern variables in left-to-right order.
@@ -639,7 +646,7 @@ data Substitution' a
     -- ^ Identity substitution.
     --   @Γ ⊢ IdS : Γ@
 
-  | EmptyS Empty
+  | EmptyS Impossible
     -- ^ Empty substitution, lifts from the empty context. First argument is @__IMPOSSIBLE__@.
     --   Apply this to closed terms you want to use in a non-empty context.
     --   @Γ ⊢ EmptyS : ()@
@@ -652,7 +659,7 @@ data Substitution' a
     --     Γ ⊢ u :# ρ : Δ, A
     --   @
 
-  | Strengthen Empty (Substitution' a)
+  | Strengthen Impossible (Substitution' a)
     -- ^ Strengthening substitution.  First argument is @__IMPOSSIBLE__@.
     --   Apply this to a term which does not contain variable 0
     --   to lower all de Bruijn indices by one.
@@ -684,7 +691,7 @@ data Substitution' a
            , Functor
            , Foldable
            , Traversable
-           , Data
+           , Generic
            )
 
 type Substitution = Substitution' Term
@@ -714,10 +721,12 @@ data EqualityView
     , eqtRhs   :: Arg Term -- ^ NotHidden
     }
   | OtherType Type -- ^ reduced
+  | IdiomType Type -- ^ reduced
 
 isEqualityType :: EqualityView -> Bool
 isEqualityType EqualityType{} = True
 isEqualityType OtherType{}    = False
+isEqualityType IdiomType{}    = False
 
 -- | View type as path type.
 
@@ -1036,7 +1045,7 @@ hasElims v =
     Con{}      -> Nothing
     Lit{}      -> Nothing
     -- Andreas, 2016-04-13, Issue 1932: We convert λ x → x .f  into f
-    Lam _ (Abs _ v)  -> case v of
+    Lam h (Abs _ v) | visible h -> case v of
       Var 0 [Proj _o f] -> Just (Def f, [])
       _ -> Nothing
     Lam{}      -> Nothing
@@ -1058,11 +1067,12 @@ instance Null (Tele a) where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty empty False Nothing Nothing Nothing empty
-  null (Clause _ _ tel pats body _ _ _ _ _ _)
+  empty = Clause empty empty empty empty empty empty False Nothing Nothing Nothing empty empty
+  null (Clause _ _ tel pats body _ _ _ _ _ _ wm)
     =  null tel
     && null pats
     && null body
+    && null wm
 
 
 ---------------------------------------------------------------------------
@@ -1133,6 +1143,7 @@ instance TermSize Sort where
     SSet l    -> 1 + tsize l
     SizeUniv  -> 1
     LockUniv  -> 1
+    IntervalUniv -> 1
     PiSort a s1 s2 -> 1 + tsize a + tsize s1 + tsize s2
     FunSort s1 s2 -> 1 + tsize s1 + tsize s2
     UnivSort s -> 1 + tsize s
@@ -1192,6 +1203,7 @@ instance KillRange Sort where
     Inf f n    -> Inf f n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
+    IntervalUniv -> IntervalUniv
     Type a     -> killRange1 Type a
     Prop a     -> killRange1 Prop a
     SSet a     -> killRange1 SSet a
@@ -1234,8 +1246,8 @@ instance KillRange a => KillRange (Pattern' a) where
       DefP o q ps      -> killRange2 (DefP o) q ps
 
 instance KillRange Clause where
-  killRange (Clause rl rf tel ps body t catchall exact recursive unreachable ell) =
-    killRange10 Clause rl rf tel ps body t catchall exact recursive unreachable ell
+  killRange (Clause rl rf tel ps body t catchall exact recursive unreachable ell wm) =
+    killRange11 Clause rl rf tel ps body t catchall exact recursive unreachable ell wm
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
@@ -1287,6 +1299,10 @@ instance Pretty Term where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
+instance Pretty t => Pretty (Abs t) where
+  pretty (Abs   x t) = "Abs"   <+> (text x <> ".") <+> pretty t
+  pretty (NoAbs x t) = "NoAbs" <+> (text x <> ".") <+> pretty t
+
 instance (Pretty t, Pretty e) => Pretty (Dom' t e) where
   pretty dom = pTac <+> pDom dom (pretty $ unDom dom)
     where
@@ -1299,10 +1315,6 @@ pDom i =
     NotHidden  -> parens
     Hidden     -> braces
     Instance{} -> braces . braces
-
-instance Pretty a => Pretty (Abs a) where
-  pretty b = sep [ (text . absName $ b) <+> "->"
-                 , nest 2 $ pretty (unAbs b) ]
 
 instance Pretty Clause where
   pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =
@@ -1351,6 +1363,7 @@ instance Pretty Sort where
       SSet l -> mparens (p > 9) $ "SSet" <+> prettyPrec 10 l
       SizeUniv -> "SizeUniv"
       LockUniv -> "LockUniv"
+      IntervalUniv -> "IntervalUniv"
       PiSort a s1 s2 -> mparens (p > 9) $
         "piSort" <+> pDom (domInfo a) (text (absName s2) <+> ":" <+> pretty (unDom a))
                       <+> parens (sep [ text ("λ " ++ absName s2 ++ " ->")
@@ -1424,6 +1437,7 @@ instance NFData Sort where
     SSet l   -> rnf l
     SizeUniv -> ()
     LockUniv -> ()
+    IntervalUniv -> ()
     PiSort a b c -> rnf (a, b, unAbs c)
     FunSort a b -> rnf (a, b)
     UnivSort a -> rnf a
@@ -1439,3 +1453,16 @@ instance NFData PlusLevel where
 
 instance NFData e => NFData (Dom e) where
   rnf (Dom a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
+
+instance NFData DataOrRecord
+instance NFData ConHead
+instance NFData a => NFData (Abs a)
+instance NFData a => NFData (Tele a)
+instance NFData IsFibrant
+instance NFData Clause
+instance NFData PatternInfo
+instance NFData PatOrigin
+instance NFData x => NFData (Pattern' x)
+instance NFData DBPatVar
+instance NFData ConPatternInfo
+instance NFData a => NFData (Substitution' a)

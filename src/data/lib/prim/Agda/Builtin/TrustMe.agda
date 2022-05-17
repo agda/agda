@@ -1,4 +1,4 @@
-{-# OPTIONS --no-sized-types --no-guardedness --no-subtyping #-}
+{-# OPTIONS --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.TrustMe where
 

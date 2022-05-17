@@ -34,7 +34,7 @@ instance Arbitrary Name where
       endWithHole   <- arbitrary
       return $
         applyWhen startWithHole (Hole <|) $
-        applyWhen endWithHole   (`List1.append` [Hole]) $
+        applyWhen endWithHole   (`List1.appendList` [Hole]) $
         List1.intersperse Hole $ fmap Id parts
 
 instance CoArbitrary NamePart

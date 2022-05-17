@@ -51,13 +51,19 @@ data TestResult
   = TestSuccess
   | TestUnexpectedFail ProgramResult
 
-mkLibSucceedTest :: FilePath  -- inp file
+mkLibSucceedTest :: FilePath  -- ^ Agda file to test.
                  -> TestTree
-mkLibSucceedTest inp =
-  goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow Nothing
+mkLibSucceedTest agdaFile =
+  goldenTestIO1
+    testName
+    readGolden
+    (printAgdaResult <$> doRun)
+    (textDiffWithTouch agdaFile)
+    (return . ShowText)
+    Nothing
   where
     testName :: String
-    testName = asTestName testDir inp
+    testName = asTestName testDir agdaFile
 
     -- We don't really have a golden file. Just use a dummy update
     -- function. TODO extend tasty-silver to handle this use case
@@ -75,23 +81,12 @@ mkLibSucceedTest inp =
                      , "-i" ++ testDir
                      , "-i" ++ "std-lib/src"
                      , "--no-libraries"
-                     , inp
+                     , agdaFile
                      ] ++ rtsOptions
       (res, ret) <- runAgdaWithOptions testName agdaArgs Nothing Nothing
       pure $ case ret of
         AgdaSuccess{} -> TestSuccess -- TODO: fail if unexpected warnings?
         AgdaFailure{} -> TestUnexpectedFail res
-
-resDiff :: T.Text -> T.Text -> IO GDiff
-resDiff t1 t2 =
-  if t1 == t2
-    then
-      return Equal
-    else
-      return $ DiffText Nothing t1 t2
-
-resShow :: T.Text -> IO GShow
-resShow = return . ShowText
 
 printAgdaResult :: TestResult -> T.Text
 printAgdaResult TestSuccess            = "AGDA_SUCCESS"

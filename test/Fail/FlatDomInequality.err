@@ -1,4 +1,0 @@
-FlatDomInequality.agda:19,5-6
-A → A !=< A → A because one is a non-flat function type and the
-other is a flat function type
-when checking that the expression h has type A → A

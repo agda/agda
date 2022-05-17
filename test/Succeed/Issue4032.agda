@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --rewriting --confluence-check #-}
+{-# OPTIONS --cubical-compatible --rewriting --confluence-check #-}
 
 open import Agda.Primitive using (Level; _⊔_; Setω; lzero; lsuc)
 

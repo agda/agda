@@ -10,7 +10,6 @@ import Prelude hiding (null)
 import Control.Arrow ((***))
 import Control.Monad
 import Control.Monad.Except
-import Control.Monad.Writer hiding ((<>))
 import Control.Monad.State
 
 import Data.Either ( partitionEithers )
@@ -53,7 +52,9 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|), nonEmpty)
+import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List1 as List1
+import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -225,17 +226,16 @@ checkNoShadowing old new = do
     -- Filter out the underscores.
     let newNames = filter (not . isNoName) $ AssocList.keys diff
     -- Associate each name to its occurrences.
-    let nameOccs = Map.toList $ Map.fromListWith (++) $ map pairWithRange newNames
+    let nameOccs1 :: [(C.Name, List1 Range)]
+        nameOccs1 = Map.toList $ Map.fromListWith (<>) $ map pairWithRange newNames
     -- Warn if we have two or more occurrences of the same name.
-    unlessNull (filter (atLeastTwo . snd) nameOccs) $ \ conflicts -> do
-      scopeWarning $ ShadowingInTelescope conflicts
+    let nameOccs2 :: [(C.Name, List2 Range)]
+        nameOccs2 = mapMaybe (traverseF List2.fromList1Maybe) nameOccs1
+    caseList nameOccs2 (return ()) $ \ c conflicts -> do
+      scopeWarning $ ShadowingInTelescope $ c :| conflicts
   where
-    pairWithRange :: C.Name -> (C.Name, [Range])
-    pairWithRange n = (n, [getRange n])
-
-    atLeastTwo :: [a] -> Bool
-    atLeastTwo (_ : _ : _) = True
-    atLeastTwo _ = False
+    pairWithRange :: C.Name -> (C.Name, List1 Range)
+    pairWithRange n = (n, singleton $ getRange n)
 
 getVarsToBind :: ScopeM LocalVars
 getVarsToBind = useScope scopeVarsToBind
@@ -251,6 +251,18 @@ bindVarsToBind = do
   modifyLocalVars (vars++)
   printLocals 10 "bound variables:"
   modifyScope_ $ setVarsToBind []
+
+annotateDecls :: ReadTCState m => m [A.Declaration] -> m A.Declaration
+annotateDecls m = do
+  ds <- m
+  s  <- getScope
+  return $ A.ScopedDecl s ds
+
+annotateExpr :: ReadTCState m => m A.Expr -> m A.Expr
+annotateExpr m = do
+  e <- m
+  s <- getScope
+  return $ A.ScopedExpr s e
 
 ---------------------------------------------------------------------------
 -- * Names
@@ -386,8 +398,8 @@ tryResolveName kinds names x = do
   fromConcreteSuffix = \case
     Nothing              -> Nothing
     Just C.Prime{}       -> Nothing
-    Just (C.Index i)     -> Just $ A.Suffix $ toInteger i
-    Just (C.Subscript i) -> Just $ A.Suffix $ toInteger i
+    Just (C.Index i)     -> Just $ A.Suffix i
+    Just (C.Subscript i) -> Just $ A.Suffix i
 
 -- | Test if a given abstract name can appear with a suffix. Currently
 --   only true for the names of builtin sorts @Set@ and @Prop@.
@@ -668,7 +680,7 @@ copyScope oldc new0 s = (inScopeBecause (Applied oldc) *** memoToScopeInfo) <$> 
                --   return $ A.mnameFromList $ newL ++ suffix
                -- Ulf, 2016-02-22: #1726
                -- We still need to copy modules from 'open public'. Same as in renName.
-               y <- refresh (last $ A.mnameToList x)
+               y <- refresh $ lastWithDefault __IMPOSSIBLE__ $ A.mnameToList x
                return $ A.mnameFromList $ newM ++ [y]
             -- Andreas, Jesper, 2015-07-02: Issue 1597
             -- Don't copy a module over itself, it will just be emptied of its contents.
@@ -821,7 +833,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
     -- before we apply the import directive.
     scope = restrictPrivate scope0
 
-    -- | Return names in the @using@ directive, discarding duplicates.
+    -- Return names in the @using@ directive, discarding duplicates.
     -- Monadic for the sake of throwing warnings.
     discardDuplicatesInUsing :: C.Using -> ScopeM [C.ImportedName]
     discardDuplicatesInUsing = \case
@@ -831,7 +843,7 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
         List1.unlessNull dups $ warning . DuplicateUsing
         return ys
 
-    -- | If both @using@ and @hiding@ directive are present,
+    -- If both @using@ and @hiding@ directive are present,
     -- the hiding directive may only contain modules whose twins are mentioned.
     -- Monadic for the sake of error reporting.
     sanityCheck notMentioned = \case
@@ -860,14 +872,14 @@ applyImportDirectiveM m (ImportDirective rng usn' hdn' ren' public) scope0 = do
              [ r , Renaming (ImportedModule y) (ImportedModule z) Nothing rng ]
           r -> [r]
 
-    -- | Names and modules (abstract) in scope before the import.
+    -- Names and modules (abstract) in scope before the import.
     namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
     modulesInScope = (allNamesInScope scope :: ThingsInScope AbstractModule)
     concreteNamesInScope = (Map.keys namesInScope ++ Map.keys modulesInScope :: [C.Name])
 
-    -- | AST versions of the concrete names passed as an argument.
-    --   We get back a pair consisting of a list of missing exports first,
-    --   and a list of successful imports second.
+    -- AST versions of the concrete names passed as an argument.
+    -- We get back a pair consisting of a list of missing exports first,
+    -- and a list of successful imports second.
     checkExist :: [ImportedName] -> ([ImportedName], [ImportedName' (C.Name, A.QName) (C.Name, A.ModuleName)])
     checkExist xs = partitionEithers $ for xs $ \ name -> case name of
       ImportedName x   -> ImportedName   . (x,) . setRange (getRange x) . anameName <$> resolve name x namesInScope

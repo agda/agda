@@ -12,7 +12,6 @@ import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.IO.TempFile (writeToTempFile)
 
-import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Map as Map
 
@@ -59,7 +58,7 @@ jsonifyHighlightingInfo info remove method modFile =
       [ "remove" .= case remove of
           RemoveHighlighting -> True
           KeepHighlighting -> False
-      , "payload" .= map (showAspects modFile) (ranges info)
+      , "payload" .= map (showAspects modFile) (toList info)
       ]
 
     direct :: IO Value

@@ -8,6 +8,8 @@
 -- in later clauses via Agda's constraint solver, and there confuse
 -- the termination checker.
 
+{-# OPTIONS --guardedness #-}
+
 module Issue906EtAl where
 
 module Issue906 where

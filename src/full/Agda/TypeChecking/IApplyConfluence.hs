@@ -27,6 +27,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 
+import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Maybe
@@ -36,10 +37,12 @@ import Agda.Utils.Functor
 
 
 checkIApplyConfluence_ :: QName -> TCM ()
-checkIApplyConfluence_ f = whenM (optCubical <$> pragmaOptions) $ do
-  -- Andreas, 2019-03-27, iapply confluence should only be checked when --cubical.
-  -- See test/Succeed/CheckIApplyConfluence.agda.
-  -- We cannot reach the following crash point unless --cubical.
+checkIApplyConfluence_ f = whenM (isJust . optCubical <$> pragmaOptions) $ do
+  -- Andreas, 2019-03-27, iapply confluence should only be checked
+  -- when --cubical or --erased-cubical is active. See
+  -- test/Succeed/CheckIApplyConfluence.agda.
+  -- We cannot reach the following crash point unless
+  -- --cubical/--erased-cubical is active.
   __CRASH_WHEN__ "tc.cover.iapply.confluence.crash" 666
   reportSDoc "tc.cover.iapply" 10 $ text "Checking IApply confluence of" <+> pretty f
   inConcreteOrAbstractMode f $ \ d -> do
@@ -87,7 +90,7 @@ checkIApplyConfluence f cl = case cl of
                 caseMaybeM (isInteractionMeta m) (return ()) $ \ ii -> do
                 cs' <- do
                   reportSDoc "tc.iapply.ip" 20 $ "clTel =" <+> prettyTCM clTel
-                  mv <- lookupMeta m
+                  mv <- lookupLocalMeta m
                   enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
                   ty <- getMetaType m
                   mTel <- getContextTelescope
@@ -158,7 +161,7 @@ checkIApplyConfluence f cl = case cl of
                                              ipc@IPClause{ipcBoundary = b}
                                                -> ipc {ipcBoundary = b ++ cs'}
                                              ipc@IPNoClause{} -> ipc}
-                modifyInteractionPoints (Map.adjust f ii)
+                modifyInteractionPoints (BiMap.adjust f ii)
               _ -> return ()
 
 
@@ -195,7 +198,7 @@ unifyElims vs ts k = do
     bindS binds = parallelS (for [0..maximum (-1:map fst binds)] $ (\ i -> fromMaybe (deBruijnVar i) (List.lookup i binds)))
 
     codomain :: Substitution
-             -> [Nat] -- ^ support
+             -> [Nat] -- support
              -> ContextHet -> ContextHet
     codomain s vs cxt = contextHetFromList$ map snd $ filter (\ (i,c) -> i `List.notElem` vs) $ zip [0..] cxt'
      where
@@ -206,8 +209,8 @@ unifyElims vs ts k = do
 -- | Like @unifyElims@ but @Γ@ is from the the meta's @MetaInfo@ and
 -- the context extension @Δ@ is taken from the @Closure@.
 unifyElimsMeta :: MetaId -> Args -> Closure Constraint -> ([(Term,Term)] -> Constraint -> TCM a) -> TCM a
-unifyElimsMeta m es_m cl k = ifM (not . optCubical <$> pragmaOptions) (enterClosure cl $ k []) $ do
-                  mv <- lookupMeta m
+unifyElimsMeta m es_m cl k = ifM (isNothing . optCubical <$> pragmaOptions) (enterClosure cl $ k []) $ do
+                  mv <- lookupLocalMeta m
                   enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
                   ty <- metaType m
                   mTel0 <- getContextTelescope

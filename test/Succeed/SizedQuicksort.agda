@@ -1,5 +1,7 @@
 -- 2014-04-24
 
+{-# OPTIONS --sized-types #-}
+
 module _ where
 
 open import Common.Size

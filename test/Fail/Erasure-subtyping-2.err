@@ -1,0 +1,3 @@
+Erasure-subtyping-2.agda:2,7-21
+Incorrect quantity annotation in lambda
+when checking that the expression λ (@0 x) → g x has type A → B

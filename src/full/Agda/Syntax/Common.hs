@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE CPP #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -51,17 +50,19 @@ type Arity  = Nat
 
 -- | Used to specify whether something should be delayed.
 data Delayed = Delayed | NotDelayed
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
 
 instance KillRange Delayed where
   killRange = id
+
+instance NFData Delayed
 
 ---------------------------------------------------------------------------
 -- * File
 ---------------------------------------------------------------------------
 
 data FileType = AgdaFileType | MdFileType | RstFileType | TexFileType | OrgFileType
-  deriving (Data, Eq, Ord, Show)
+  deriving (Data, Eq, Ord, Show, Generic)
 
 instance Pretty FileType where
   pretty = \case
@@ -70,6 +71,34 @@ instance Pretty FileType where
     RstFileType  -> "ReStructedText"
     TexFileType  -> "LaTeX"
     OrgFileType  -> "org-mode"
+
+instance NFData FileType
+
+---------------------------------------------------------------------------
+-- * Agda variants
+---------------------------------------------------------------------------
+
+-- | Variants of Cubical Agda.
+
+data Cubical = CErased | CFull
+    deriving (Eq, Show, Generic)
+
+instance NFData Cubical
+
+-- | Agda variants.
+--
+-- Only some variants are tracked.
+
+data Language
+  = WithoutK
+  | WithK
+  | Cubical Cubical
+    deriving (Eq, Show, Generic)
+
+instance KillRange Language where
+  killRange = id
+
+instance NFData Language
 
 ---------------------------------------------------------------------------
 -- * Record Directives
@@ -299,6 +328,11 @@ instance LensHiding (WithHiding a) where
   setHiding h (WithHiding _ a) = WithHiding h a
   mapHiding f (WithHiding h a) = WithHiding (f h) a
 
+instance LensHiding a => LensHiding (Named nm a) where
+  getHiding = getHiding . namedThing
+  setHiding = fmap . setHiding
+  mapHiding = fmap . mapHiding
+
 -- | Monoidal composition of 'Hiding' information in some data.
 mergeHiding :: LensHiding a => WithHiding a -> a
 mergeHiding (WithHiding h a) = mapHiding (mappend h) a
@@ -451,8 +485,13 @@ inverseComposeModality (Modality r q c) (Modality r' q' c') =
 
 -- | Left division by a 'Modality'.
 --   Used e.g. to modify context when going into a @m@ argument.
-inverseApplyModality :: LensModality a => Modality -> a -> a
-inverseApplyModality m = mapModality (m `inverseComposeModality`)
+--
+-- Note that this function does not change quantities.
+inverseApplyModalityButNotQuantity :: LensModality a => Modality -> a -> a
+inverseApplyModalityButNotQuantity m =
+  mapModality (m' `inverseComposeModality`)
+  where
+  m' = setQuantity (Quantity1 Q1Inferred) m
 
 -- | 'Modality' forms a pointwise additive monoid.
 addModality :: Modality -> Modality -> Modality
@@ -815,7 +854,7 @@ defaultQuantity = topQuantity
 
 -- | Identity element under composition
 unitQuantity :: Quantity
-unitQuantity = Quantity1 mempty
+unitQuantity = Quantityω mempty
 
 -- | Absorptive element is ω.
 topQuantity :: Quantity
@@ -948,6 +987,71 @@ instance NFData Quantity where
   rnf (Quantity0 o) = rnf o
   rnf (Quantity1 o) = rnf o
   rnf (Quantityω o) = rnf o
+
+-- ** Erased.
+
+-- | A special case of 'Quantity': erased or not.
+
+data Erased
+  = Erased Q0Origin
+  | NotErased QωOrigin
+  deriving (Data, Show, Eq, Generic)
+
+-- | The default value of type 'Erased': not erased.
+
+defaultErased :: Erased
+defaultErased = NotErased QωInferred
+
+-- | 'Erased' can be embedded into 'Quantity'.
+
+asQuantity :: Erased -> Quantity
+asQuantity (Erased    o) = Quantity0 o
+asQuantity (NotErased o) = Quantityω o
+
+-- | 'Quantity' can be projected onto 'Erased'.
+
+erasedFromQuantity :: Quantity -> Maybe Erased
+erasedFromQuantity = \case
+  Quantity1{} -> Nothing
+  Quantity0 o -> Just $ Erased    o
+  Quantityω o -> Just $ NotErased o
+
+-- | Equality ignoring origin.
+
+sameErased :: Erased -> Erased -> Bool
+sameErased = sameQuantity `on` asQuantity
+
+-- | Is the value \"erased\"?
+
+isErased :: Erased -> Bool
+isErased = hasQuantity0 . asQuantity
+
+instance NFData Erased
+
+instance HasRange Erased where
+  getRange = getRange . asQuantity
+
+instance KillRange Erased where
+  killRange = \case
+    Erased o    -> Erased $ killRange o
+    NotErased o -> NotErased $ killRange o
+
+-- | Composition of values of type 'Erased'.
+--
+-- 'Erased' is dominant.
+-- 'NotErased' is neutral.
+--
+-- Right-biased for the origin.
+
+composeErased :: Erased -> Erased -> Erased
+composeErased = curry $ \case
+  (Erased o,    Erased o')    -> Erased (o <> o')
+  (NotErased _, Erased o)     -> Erased o
+  (Erased o,    NotErased _)  -> Erased o
+  (NotErased o, NotErased o') -> NotErased (o <> o')
+
+instance Semigroup (UnderComposition Erased) where
+  (<>) = liftA2 composeErased
 
 ---------------------------------------------------------------------------
 -- * Relevance
@@ -1872,6 +1976,11 @@ sameName = (==) `on` (rangedThing . woThing)
 unnamed :: a -> Named name a
 unnamed = Named Nothing
 
+isUnnamed :: Named name a -> Maybe a
+isUnnamed = \case
+  Named Nothing a -> Just a
+  Named Just{}  a -> Nothing
+
 named :: name -> a -> Named name a
 named = Named . Just
 
@@ -2079,7 +2188,9 @@ data ConOrigin
   | ConOCon     -- ^ User wrote a constructor (pattern).
   | ConORec     -- ^ User wrote a record (pattern).
   | ConOSplit   -- ^ Generated by interactive case splitting.
-  deriving (Data, Show, Eq, Ord, Enum, Bounded)
+  deriving (Data, Show, Eq, Ord, Enum, Bounded, Generic)
+
+instance NFData ConOrigin
 
 instance KillRange ConOrigin where
   killRange = id
@@ -2094,7 +2205,9 @@ data ProjOrigin
   = ProjPrefix    -- ^ User wrote a prefix projection.
   | ProjPostfix   -- ^ User wrote a postfix projection.
   | ProjSystem    -- ^ Projection was generated by the system.
-  deriving (Data, Show, Eq, Ord, Enum, Bounded)
+  deriving (Data, Show, Eq, Ord, Enum, Bounded, Generic)
+
+instance NFData ProjOrigin
 
 instance KillRange ProjOrigin where
   killRange = id
@@ -2136,7 +2249,7 @@ instance KillRange Access where
 
 -- | Abstract or concrete.
 data IsAbstract = AbstractDef | ConcreteDef
-    deriving (Data, Show, Eq, Ord)
+    deriving (Data, Show, Eq, Ord, Generic)
 
 -- | Semigroup computes if any of several is an 'AbstractDef'.
 instance Semigroup IsAbstract where
@@ -2150,6 +2263,8 @@ instance Monoid IsAbstract where
 
 instance KillRange IsAbstract where
   killRange = id
+
+instance NFData IsAbstract
 
 class LensIsAbstract a where
   lensIsAbstract :: Lens' IsAbstract a
@@ -2196,18 +2311,32 @@ instance NFData IsInstance where
 
 -- | Is this a macro definition?
 data IsMacro = MacroDef | NotMacroDef
-  deriving (Data, Show, Eq, Ord)
+  deriving (Data, Show, Eq, Ord, Generic)
 
 instance KillRange IsMacro where killRange = id
 instance HasRange  IsMacro where getRange _ = noRange
+
+instance NFData IsMacro
 
 ---------------------------------------------------------------------------
 -- * NameId
 ---------------------------------------------------------------------------
 
+newtype ModuleNameHash = ModuleNameHash { moduleNameHash :: Word64 }
+  deriving (Eq, Ord, Data, Hashable)
+
+noModuleNameHash :: ModuleNameHash
+noModuleNameHash = ModuleNameHash 0
+
+-- | The record selector is not included in the resulting strings.
+
+instance Show ModuleNameHash where
+  showsPrec p (ModuleNameHash h) = showParen (p > 0) $
+    showString "ModuleNameHash " . shows h
+
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
-data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !Word64
+data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !ModuleNameHash
     deriving (Eq, Ord, Data, Generic, Show)
 
 instance KillRange NameId where
@@ -2225,31 +2354,52 @@ instance Enum NameId where
 instance NFData NameId where
   rnf (NameId _ _) = ()
 
+instance NFData ModuleNameHash where
+  rnf _ = ()
+
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
-  hashWithSalt salt (NameId n m) = hashWithSalt salt (n, m)
+  hashWithSalt salt (NameId n (ModuleNameHash m)) = hashWithSalt salt (n, m)
 
 ---------------------------------------------------------------------------
 -- * Meta variables
 ---------------------------------------------------------------------------
 
--- | A meta variable identifier is just a natural number.
---
-newtype MetaId = MetaId { metaId :: Nat }
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Data, Generic)
+-- | Meta-variable identifiers use the same structure as 'NameId's.
+
+data MetaId = MetaId
+  { metaId     :: {-# UNPACK #-} !Word64
+  , metaModule :: {-# UNPACK #-} !ModuleNameHash
+  }
+  deriving (Eq, Ord, Data, Generic)
 
 instance Pretty MetaId where
-  pretty (MetaId n) = text $ "_" ++ show n
+  pretty (MetaId n m) =
+    text $ "_" ++ show n ++ "@" ++ show (moduleNameHash m)
 
--- | Show non-record version of this newtype.
+instance Enum MetaId where
+  succ MetaId{..} = MetaId { metaId = succ metaId, .. }
+  pred MetaId{..} = MetaId { metaId = pred metaId, .. }
+
+  -- The following functions should not be used.
+  toEnum   = __IMPOSSIBLE__
+  fromEnum = __IMPOSSIBLE__
+
+-- | The record selectors are not included in the resulting strings.
+
 instance Show MetaId where
-  showsPrec p (MetaId n) = showParen (p > 0) $
-    showString "MetaId " . shows n
+  showsPrec p (MetaId n m) = showParen (p > 0) $
+    showString "MetaId " .
+    showsPrec 11 n .
+    showString " " .
+    showsPrec 11 m
 
 instance NFData MetaId where
-  rnf (MetaId x) = rnf x
+  rnf (MetaId x y) = rnf x `seq` rnf y
 
-instance Hashable MetaId
+instance Hashable MetaId where
+  {-# INLINE hashWithSalt #-}
+  hashWithSalt salt (MetaId n m) = hashWithSalt salt (n, m)
 
 newtype Constr a = Constr a
 
@@ -2260,7 +2410,7 @@ newtype Constr a = Constr a
 -- | A "problem" consists of a set of constraints and the same constraint can be part of multiple
 --   problems.
 newtype ProblemId = ProblemId Nat
-  deriving (Data, Eq, Ord, Enum, Real, Integral, Num)
+  deriving (Data, Eq, Ord, Enum, Real, Integral, Num, NFData)
 
 -- This particular Show instance is ok because of the Num instance.
 instance Show   ProblemId where show   (ProblemId n) = show n
@@ -2323,6 +2473,7 @@ newtype InteractionId = InteractionId { interactionId :: Nat }
              , Real
              , Enum
              , Data
+             , NFData
              )
 
 instance Pretty InteractionId where
@@ -2349,6 +2500,10 @@ instance Null FixityLevel where
   null Unrelated = True
   null Related{} = False
   empty = Unrelated
+
+instance NFData FixityLevel where
+  rnf Unrelated   = ()
+  rnf (Related _) = ()
 
 -- | Associativity.
 
@@ -2649,7 +2804,7 @@ instance NFData a => NFData (TerminationCheck a) where
 
 -- | Positivity check? (Default = True).
 data PositivityCheck = YesPositivityCheck | NoPositivityCheck
-  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+  deriving (Eq, Ord, Show, Bounded, Enum, Data, Generic)
 
 instance KillRange PositivityCheck where
   killRange = id
@@ -2664,16 +2819,20 @@ instance Monoid PositivityCheck where
   mempty  = YesPositivityCheck
   mappend = (<>)
 
+instance NFData PositivityCheck
+
 -----------------------------------------------------------------------------
 -- * Universe checking
 -----------------------------------------------------------------------------
 
 -- | Universe check? (Default is yes).
 data UniverseCheck = YesUniverseCheck | NoUniverseCheck
-  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+  deriving (Eq, Ord, Show, Bounded, Enum, Data, Generic)
 
 instance KillRange UniverseCheck where
   killRange = id
+
+instance NFData UniverseCheck
 
 -----------------------------------------------------------------------------
 -- * Universe checking
@@ -2681,7 +2840,7 @@ instance KillRange UniverseCheck where
 
 -- | Coverage check? (Default is yes).
 data CoverageCheck = YesCoverageCheck | NoCoverageCheck
-  deriving (Eq, Ord, Show, Bounded, Enum, Data)
+  deriving (Eq, Ord, Show, Bounded, Enum, Data, Generic)
 
 instance KillRange CoverageCheck where
   killRange = id
@@ -2696,6 +2855,8 @@ instance Monoid CoverageCheck where
   mempty  = YesCoverageCheck
   mappend = (<>)
 
+instance NFData CoverageCheck
+
 -----------------------------------------------------------------------------
 -- * Rewrite Directives on the LHS
 -----------------------------------------------------------------------------
@@ -2703,30 +2864,37 @@ instance Monoid CoverageCheck where
 -- | @RewriteEqn' qn p e@ represents the @rewrite@ and irrefutable @with@
 --   clauses of the LHS.
 --   @qn@ stands for the QName of the auxiliary function generated to implement the feature
---   @p@ is the type of patterns
---   @e@ is the type of expressions
+--   @nm@ is the type of names for pattern variables
+--   @p@  is the type of patterns
+--   @e@  is the type of expressions
 
-data RewriteEqn' qn p e
-  = Rewrite (List1 (qn, e))  -- ^ @rewrite e@
-  | Invert qn (List1 (p, e)) -- ^ @with p <- e@
+data RewriteEqn' qn nm p e
+  = Rewrite (List1 (qn, e))             -- ^ @rewrite e@
+  | Invert qn (List1 (Named nm (p, e))) -- ^ @with p <- e in eq@
   deriving (Data, Eq, Show, Functor, Foldable, Traversable)
 
-instance (NFData qn, NFData p, NFData e) => NFData (RewriteEqn' qn p e) where
+instance (NFData qn, NFData nm, NFData p, NFData e) => NFData (RewriteEqn' qn nm p e) where
   rnf = \case
     Rewrite es    -> rnf es
     Invert qn pes -> rnf (qn, pes)
 
-instance (Pretty p, Pretty e) => Pretty (RewriteEqn' qn p e) where
+instance (Pretty nm, Pretty p, Pretty e) => Pretty (RewriteEqn' qn nm p e) where
   pretty = \case
-    Rewrite es   -> prefixedThings (text "rewrite") $ List1.toList $ pretty . snd <$> es
-    Invert _ pes -> prefixedThings (text "invert") $ List1.toList $ pes <&> \ (p, e) -> pretty p <+> "<-" <+> pretty e
+    Rewrite es   -> prefixedThings (text "rewrite") $ List1.toList (pretty . snd <$> es)
+    Invert _ pes -> prefixedThings (text "invert") $ List1.toList (namedWith <$> pes) where
 
-instance (HasRange qn, HasRange p, HasRange e) => HasRange (RewriteEqn' qn p e) where
+      namedWith (Named nm (p, e)) =
+        let patexp = pretty p <+> "<-" <+> pretty e in
+        case nm of
+          Nothing -> patexp
+          Just nm -> pretty nm <+> ":" <+> patexp
+
+instance (HasRange qn, HasRange nm, HasRange p, HasRange e) => HasRange (RewriteEqn' qn nm p e) where
   getRange = \case
     Rewrite es    -> getRange es
     Invert qn pes -> getRange (qn, pes)
 
-instance (KillRange qn, KillRange e, KillRange p) => KillRange (RewriteEqn' qn p e) where
+instance (KillRange qn, KillRange nm, KillRange e, KillRange p) => KillRange (RewriteEqn' qn nm p e) where
   killRange = \case
     Rewrite es    -> killRange1 Rewrite es
     Invert qn pes -> killRange2 Invert qn pes
@@ -2750,6 +2918,15 @@ instance Null ExpandedEllipsis where
   null  = (== NoEllipsis)
   empty = NoEllipsis
 
+instance Semigroup ExpandedEllipsis where
+  NoEllipsis <> e          = e
+  e          <> NoEllipsis = e
+  (ExpandedEllipsis r1 k1) <> (ExpandedEllipsis r2 k2) = ExpandedEllipsis (r1 <> r2) (k1 + k2)
+
+instance Monoid ExpandedEllipsis where
+  mempty  = NoEllipsis
+  mappend = (<>)
+
 instance KillRange ExpandedEllipsis where
   killRange (ExpandedEllipsis _ k) = ExpandedEllipsis noRange k
   killRange NoEllipsis             = NoEllipsis
@@ -2759,65 +2936,98 @@ instance NFData ExpandedEllipsis where
   rnf NoEllipsis             = ()
 
 -- | Notation as provided by the @syntax@ declaration.
-type Notation = [GenPart]
+type Notation = [NotationPart]
 
 noNotation :: Notation
 noNotation = []
 
--- | Part of a Notation
-data GenPart
-  = BindHole Range (Ranged Int)
-    -- ^ Argument is the position of the hole (with binding) where the binding should occur.
-    --   First range is the rhs range and second is the binder.
-  | NormalHole Range (NamedArg (Ranged Int))
-    -- ^ Argument is where the expression should go.
-  | WildHole (Ranged Int)
-    -- ^ An underscore in binding position.
-  | IdPart RString
+-- | Positions of variables in syntax declarations.
+
+data BoundVariablePosition = BoundVariablePosition
+  { holeNumber :: !Int
+    -- ^ The position (in the left-hand side of the syntax
+    -- declaration) of the hole in which the variable is bound,
+    -- counting from zero (and excluding parts that are not holes).
+    -- For instance, for @syntax Σ A (λ x → B) = B , A , x@ the number
+    -- for @x@ is @1@, corresponding to @B@ (@0@ would correspond to
+    -- @A@).
+  , varNumber :: !Int
+    -- ^ The position in the list of variables for this particular
+    -- variable, counting from zero, and including wildcards. For
+    -- instance, for @syntax F (λ x _ y → A) = y ! A ! x@ the number
+    -- for @x@ is @0@, the number for @_@ is @1@, and the number for
+    -- @y@ is @2@.
+  }
+  deriving (Data, Eq, Ord, Show)
+
+-- | Notation parts.
+
+data NotationPart
+  = IdPart RString
+    -- ^ An identifier part. For instance, for @_+_@ the only
+    -- identifier part is @+@.
+  | HolePart Range (NamedArg (Ranged Int))
+    -- ^ A hole: a place where argument expressions can be written.
+    -- For instance, for @_+_@ the two underscores are holes, and for
+    -- @syntax Σ A (λ x → B) = B , A , x@ the variables @A@ and @B@
+    -- are holes. The number is the position of the hole, counting
+    -- from zero. For instance, the number for @A@ is @0@, and the
+    -- number for @B@ is @1@.
+  | VarPart Range (Ranged BoundVariablePosition)
+    -- ^ A bound variable.
+    --
+    -- The first range is the range of the variable in the right-hand
+    -- side of the syntax declaration, and the second range is the
+    -- range of the variable in the left-hand side.
+  | WildPart (Ranged BoundVariablePosition)
+    -- ^ A wildcard (an underscore in binding position).
   deriving (Data, Show)
 
-instance Eq GenPart where
-  BindHole _ i   == BindHole _ j   = i == j
-  NormalHole _ x == NormalHole _ y = x == y
-  WildHole i     == WildHole j     = i == j
-  IdPart x       == IdPart y       = x == y
-  _              == _              = False
+instance Eq NotationPart where
+  VarPart _ i  == VarPart _ j  = i == j
+  HolePart _ x == HolePart _ y = x == y
+  WildPart i   == WildPart j   = i == j
+  IdPart x     == IdPart y     = x == y
+  _            == _            = False
 
-instance Ord GenPart where
-  BindHole _ i   `compare` BindHole _ j   = i `compare` j
-  NormalHole _ x `compare` NormalHole _ y = x `compare` y
-  WildHole i     `compare` WildHole j     = i `compare` j
-  IdPart x       `compare` IdPart y       = x `compare` y
-  BindHole{}     `compare` _              = LT
-  _              `compare` BindHole{}     = GT
-  NormalHole{}   `compare` _              = LT
-  _              `compare` NormalHole{}   = GT
-  WildHole{}     `compare` _              = LT
-  _              `compare` WildHole{}     = GT
+instance Ord NotationPart where
+  VarPart _ i  `compare` VarPart _ j  = i `compare` j
+  HolePart _ x `compare` HolePart _ y = x `compare` y
+  WildPart i   `compare` WildPart j   = i `compare` j
+  IdPart x     `compare` IdPart y     = x `compare` y
+  VarPart{}    `compare` _            = LT
+  _            `compare` VarPart{}    = GT
+  HolePart{}   `compare` _            = LT
+  _            `compare` HolePart{}   = GT
+  WildPart{}   `compare` _            = LT
+  _            `compare` WildPart{}   = GT
 
-instance HasRange GenPart where
+instance HasRange NotationPart where
   getRange = \case
-    IdPart x       -> getRange x
-    BindHole r _   -> r
-    WildHole i     -> getRange i
-    NormalHole r _ -> r
+    IdPart x     -> getRange x
+    VarPart r _  -> r
+    WildPart i   -> getRange i
+    HolePart r _ -> r
 
-instance SetRange GenPart where
+instance SetRange NotationPart where
   setRange r = \case
-    IdPart x       -> IdPart x
-    BindHole _ i   -> BindHole r i
-    WildHole i     -> WildHole i
-    NormalHole _ i -> NormalHole r i
+    IdPart x     -> IdPart x
+    VarPart _ i  -> VarPart r i
+    WildPart i   -> WildPart i
+    HolePart _ i -> HolePart r i
 
-instance KillRange GenPart where
+instance KillRange NotationPart where
   killRange = \case
-    IdPart x       -> IdPart $ killRange x
-    BindHole _ i   -> BindHole noRange $ killRange i
-    WildHole i     -> WildHole $ killRange i
-    NormalHole _ x -> NormalHole noRange $ killRange x
+    IdPart x     -> IdPart $ killRange x
+    VarPart _ i  -> VarPart noRange $ killRange i
+    WildPart i   -> WildPart $ killRange i
+    HolePart _ x -> HolePart noRange $ killRange x
 
-instance NFData GenPart where
-  rnf (BindHole _ a)   = rnf a
-  rnf (NormalHole _ a) = rnf a
-  rnf (WildHole a)     = rnf a
-  rnf (IdPart a)       = rnf a
+instance NFData BoundVariablePosition where
+  rnf = (`seq` ())
+
+instance NFData NotationPart where
+  rnf (VarPart _ a)  = rnf a
+  rnf (HolePart _ a) = rnf a
+  rnf (WildPart a)   = rnf a
+  rnf (IdPart a)     = rnf a

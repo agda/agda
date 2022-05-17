@@ -52,8 +52,8 @@ other_files = AIM5/Hedberg/SET.agda \
               Termination/StructuralOrder.agda \
               Termination/TerminationTwoConstructors.agda \
               Termination/Tuple.agda \
-              TT.agda \
               Vec.agda
+# Disabled: TT.agda
 
 other_examples = $(patsubst %,%.other,$(other_files))
 

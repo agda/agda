@@ -12,7 +12,7 @@ Variable generalization failed.
     - After constraint solving it looks like x actually depends on b
     - The dependency I error is
       Issue3655b.agda:19,9-10
-      Cannot instantiate the metavariable _21 to solution b
+      Cannot instantiate the metavariable _x.b_21 to solution b
       since it contains the variable genTel
       which is not in scope of the metavariable
 when checking that the expression D x → (P : F b → Set) → P x is a

@@ -40,7 +40,7 @@ Since: 2013-06-15.
 Cloning
 --------
 
-Since Agda's repository uses submodules, you should cloning the
+Since Agda's repository uses submodules, you should be cloning the
 repository by running:
 ```bash
 git clone --recurse-submodules git@github.com:agda/agda.git
@@ -379,6 +379,8 @@ Some Agda Hacking Lore
 * Whenever you change the interface file format you should update
   `Agda.TypeChecking.Serialise.currentInterfaceVersion`.
 
+* Whenever you change `agda.sty`, update the date in `\ProvidesPackage`.
+
 * Use `__IMPOSSIBLE__` instead of calls to error. `__IMPOSSIBLE__`
   generates errors of the following form:
 
@@ -471,6 +473,18 @@ Emacs mode
 
 Faster compilation of Agda
 ==========================
+
+Since: November 2021.
+
+* When you run `make install`, then the option optimise-heavily is by
+  default activated. If you want to override this option (for faster
+  build times, at the cost of possibly making Agda slower), then you
+  can include the following text in `mk/config.mk`, which is ignored
+  by Git:
+  ```
+  CABAL_FLAG_OPTIM_HEAVY =
+  STACK_FLAG_OPTIM_HEAVY =
+  ```
 
 Since: April 2020.
 

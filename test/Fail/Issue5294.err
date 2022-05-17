@@ -1,0 +1,3 @@
+Issue5294.agda:35,15-16
+(F x) !=< A
+when checking that the expression r has type A

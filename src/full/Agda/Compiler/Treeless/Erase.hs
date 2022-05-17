@@ -127,7 +127,7 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
 
     tLet e b
       | freeIn 0 b = TLet e b
-      | otherwise  = strengthen __IMPOSSIBLE__ b
+      | otherwise  = strengthen impossible b
 
     tApp f []                  = f
     tApp TErased _             = TErased
@@ -164,9 +164,16 @@ eraseTerms q eval t = usedArguments q t *> runE (eraseTop q t)
 -- | Doesn't have any type information (other than the name of the data type),
 --   so we can't do better than checking if all constructors are present.
 pruneUnreachable :: Int -> CaseType -> TTerm -> [TAlt] -> E (TTerm, [TAlt])
-pruneUnreachable _ (CTData q) d bs' = do
-  cs <- lift $ getNotErasedConstructors q
-  let bs = flip filter bs' $ \case
+pruneUnreachable _ (CTData quantity q) d bs' = do
+  -- In an erased setting erased constructors are not treated
+  -- specially.
+  cs <- lift $
+        if hasQuantity0 quantity
+        then getConstructors q
+        else getNotErasedConstructors q
+  let bs | hasQuantity0 quantity = bs'
+         | otherwise             =
+           flip filter bs' $ \case
              a@TACon{} -> (aCon a) `elem` cs
              TAGuard{} -> True
              TALit{}   -> True
@@ -236,7 +243,7 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
       (rs, t) <- do
         (tel, t) <- lift $ typeWithoutParams q
         is     <- mapM (getTypeInfo . snd . dget) tel
-        used   <- lift $ (++ repeat True) <$> getCompiledArgUse q
+        used   <- lift $ (++ repeat ArgUsed) . fromMaybe [] <$> getCompiledArgUse q
         forced <- lift $ (++ repeat NotForced) <$> getForcedArgs q
         return (zipWith3 (uncurry . mkR . getModality) tel (zip forced used) is, t)
       h <- if isAbsurdLambdaName q then pure Erasable else getTypeInfo t
@@ -245,10 +252,10 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
       return (rs, h)
 
     -- Treat empty, erasable, or unused arguments as Erasable
-    mkR :: Modality -> IsForced -> Bool -> TypeInfo -> TypeInfo
-    mkR m f b i
+    mkR :: Modality -> IsForced -> ArgUsage -> TypeInfo -> TypeInfo
+    mkR m f u i
       | not (usableModality m) = Erasable
-      | not b                  = Erasable
+      | ArgUnused <- u         = Erasable
       | Forced <- f            = Erasable
       | otherwise              = i
 
@@ -299,6 +306,7 @@ getTypeInfo t0 = do
   typeInfo :: QName -> E TypeInfo
   typeInfo q = ifM (erasureForbidden q) (return NotErasable) $ {-else-} do
     memoRec (typeMap . key q) Erasable $ do  -- assume recursive occurrences are erasable
+      mId    <- lift $ getName' builtinId
       msizes <- lift $ mapM getBuiltinName
                          [builtinSize, builtinSizeLt]
       def    <- lift $ getConstInfo q
@@ -307,6 +315,7 @@ getTypeInfo t0 = do
                   I.Record{ recConHead = c }  -> Just [conName c]
                   _                           -> Nothing
       case mcs of
+        _ | Just q == mId        -> return NotErasable
         _ | Just q `elem` msizes -> return Erasable
         Just [c] -> do
           (ts, _) <- lift $ typeWithoutParams c
@@ -321,6 +330,6 @@ getTypeInfo t0 = do
             I.Function{ funClauses = cs } ->
               sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El __DUMMY_SORT__) . clauseBody) cs
             _ -> return NotErasable
-  -- | The backend also has a say whether a type is eraseable or not.
+  -- The backend also has a say whether a type is eraseable or not.
   erasureForbidden :: QName -> E Bool
   erasureForbidden q = lift $ not <$> activeBackendMayEraseType q

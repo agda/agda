@@ -87,6 +87,9 @@ prettyQuantity :: LensQuantity a => a -> Doc -> Doc
 prettyQuantity a d =
   if render d == "_" then d else pretty (getQuantity a) <+> d
 
+prettyErased :: Erased -> Doc -> Doc
+prettyErased = prettyQuantity . asQuantity
+
 prettyCohesion :: LensCohesion a => a -> Doc -> Doc
 prettyCohesion a d =
   if render d == "_" then d else pretty (getCohesion a) <+> d
@@ -184,7 +187,9 @@ instance Pretty Expr where
                     , nest 2 $ pretty e
                     ]
             AbsurdLam _ h -> lambda <+> absurd h
-            ExtendedLam _ pes -> lambda <+> bracesAndSemicolons (fmap pretty pes)
+            ExtendedLam _ e pes ->
+              lambda <+>
+              prettyErased e (bracesAndSemicolons (fmap pretty pes))
             Fun _ e1 e2 ->
                 sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
                     , pretty e2
@@ -343,11 +348,18 @@ instance Pretty WhereClause where
          ]
 
 instance Pretty LHS where
-  pretty (LHS p eqs es ell) = sep
+  pretty (LHS p eqs es) = sep
     [ pretty p
     , nest 2 $ if null eqs then empty else fsep $ map pretty eqs
-    , nest 2 $ prefixedThings "with" (map pretty es)
-    ]
+    , nest 2 $ prefixedThings "with" (map prettyWithd es)
+    ] where
+
+    prettyWithd :: WithExpr -> Doc
+    prettyWithd (Named nm wh) =
+      let e = pretty wh in
+      case nm of
+        Nothing -> e
+        Just n  -> pretty n <+> ":" <+> e
 
 instance Pretty LHSCore where
   pretty (LHSHead f ps) = sep $ pretty f : map (parens . pretty) ps
@@ -358,6 +370,7 @@ instance Pretty LHSCore where
       sep $ parens doc : map (parens . pretty) ps
     where
     doc = sep $ pretty h : map (("|" <+>) . pretty) wps
+  pretty (LHSEllipsis r p) = "..."
 
 instance Pretty ModuleApplication where
   pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> "=" <+> pretty e
@@ -573,8 +586,8 @@ instance Pretty Pragma where
       hsep $ ["INLINE", pretty i]
     pretty (InlinePragma _ False i) =
       hsep $ ["NOINLINE", pretty i]
-    pretty (ImpossiblePragma _) =
-      hsep $ ["IMPOSSIBLE"]
+    pretty (ImpossiblePragma _ strs) =
+      hsep $ ["IMPOSSIBLE"] ++ map text strs
     pretty (EtaPragma _ x) =
       hsep $ ["ETA", pretty x]
     pretty (TerminationCheckPragma _ tc) =
@@ -610,11 +623,11 @@ instance Pretty Fixity where
     Unrelated  -> empty
     Related{}  -> pretty ass <+> pretty level
 
-instance Pretty GenPart where
-    pretty (IdPart x)   = text $ rangedThing x
-    pretty BindHole{}   = underscore
-    pretty NormalHole{} = underscore
-    pretty WildHole{}   = underscore
+instance Pretty NotationPart where
+    pretty (IdPart x) = text $ rangedThing x
+    pretty HolePart{} = underscore
+    pretty VarPart{}  = underscore
+    pretty WildPart{} = underscore
 
     prettyList = hcat . map pretty
 
@@ -655,12 +668,12 @@ instance Pretty Pattern where
             QuoteP _        -> "quote"
             RecP _ fs       -> sep [ "record", bracesAndSemicolons (map pretty fs) ]
             EqualP _ es     -> sep $ [ parens (sep [pretty e1, "=", pretty e2]) | (e1,e2) <- es ]
-            EllipsisP _     -> "..."
+            EllipsisP _ mp  -> "..."
             WithP _ p       -> "|" <+> pretty p
 
 prettyOpApp :: forall a .
-  Pretty a => QName -> List1 (NamedArg (MaybePlaceholder a)) -> [Doc]
-prettyOpApp q es = merge [] $ prOp ms xs $ List1.toList es
+  Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]
+prettyOpApp q es = merge [] $ prOp ms xs es
   where
     -- ms: the module part of the name.
     ms = List1.init (qnameParts q)

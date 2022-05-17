@@ -4,6 +4,7 @@ open import Agda.Builtin.Reflection renaming (bindTC to _>>=_)
 open import Agda.Builtin.List
 open import Agda.Builtin.Sigma
 open import Agda.Builtin.Equality
+open import Agda.Primitive
 
 infix  0 case_of_
 case_of_ : ∀ {a b}{A : Set a}{B : Set b} → A → (A → B) → B
@@ -59,8 +60,7 @@ macro
     (function (clause tel ps t ∷ [])) ←
       withReconstructed (getDefinition n)
       where _ → quoteTC "ERROR" >>= unify hole
-    let ctx = map snd tel
-    t ← inContext (reverse ctx)
+    t ← inContext (reverse tel)
         (withReconstructed (normalise t))
     let d = function (clause tel ps t ∷ [])
     get-len d >>= unify hole
@@ -71,8 +71,7 @@ macro
     (function (clause tel ps t ∷ [])) ←
       withReconstructed (getDefinition n)
       where _ → quoteTC "ERROR" >>= unify hole
-    let ctx = map snd tel
-    t ← inContext (reverse ctx) (withReconstructed (reduce t))
+    t ← inContext (reverse tel) (withReconstructed (reduce t))
     let d = function (clause tel ps t ∷ [])
     get-len d >>= unify hole
 
@@ -90,8 +89,8 @@ test₄ : (lit (nat 5)) ≡ def-redR test-rvec
 test₄ = refl
 
 
-pictx : Term → List (Arg Type)
-pictx (pi a (abs s x)) = a ∷ pictx x
+pictx : Term → Telescope
+pictx (pi a (abs s x)) = (s , a) ∷ pictx x
 pictx _ = []
 
 macro
@@ -107,9 +106,8 @@ bar : (A : Set) (eq : [] {A = A} ≡ []) (x : Nat) → ⊤
 bar _ _ _ = tt
 
 -- if getContext were to work incorrectly, this function wouldn't typecheck
-test₅ : List (Arg Type)
+test₅ : Telescope
 test₅ = get-ctx bar
-
 
 
 data NotAVec (X : Set) (y : Nat) : Set where
@@ -137,8 +135,8 @@ q : [] {A = Nat} ≡ [] {A = Nat}
 q = refl
 
 macro
-  inf-type : Term → TC ⊤
-  inf-type hole = do
+  inf-type₁ : Term → TC ⊤
+  inf-type₁ hole = do
     (function (clause _ _ b ∷ [])) ← withReconstructed (getDefinition (quote q))
       where _ → quoteTC "ERROR" >>= unify hole
     (def _ (l ∷ L ∷ e₁ ∷ e₂ ∷ [])) ← withReconstructed  (inferType b)
@@ -149,5 +147,35 @@ macro
 
 -- inferType would not reconstruct the arguments within the type
 -- without the call to withReconstructed
-test₇ : inf-type ≡ def (quote Nat) []
+test₇ : inf-type₁ ≡ def (quote Nat) []
 test₇ = refl
+
+-- A test case with a projection instead of a constructor.
+
+r : RVec Nat 0
+r .RVec.sel = λ _ → 2
+
+eq : RVec.sel r ≡ λ _ → 2
+eq = refl
+
+macro
+  inf-type₂ : Term → TC ⊤
+  inf-type₂ hole = do
+    (function (clause _ _ b ∷ [])) ← withReconstructed (getDefinition (quote eq))
+      where _ → quoteTC "ERROR" >>= unify hole
+    (def _ (_ ∷ _ ∷ arg _ lhs ∷ _ ∷ [])) ← withReconstructed  (inferType b)
+      where _ → quoteTC "ERROR" >>= unify hole
+    quoteTC lhs >>= unify hole
+
+arg′ : {A : Set} → Visibility → Quantity → A → Arg A
+arg′ v q = arg (arg-info v (modality relevant q))
+
+test₈ :
+  inf-type₂ ≡
+  def (quote RVec.sel)
+    (arg′ hidden  quantity-0 (def (quote lzero) []) ∷
+     arg′ hidden  quantity-0 (def (quote Nat) []) ∷
+     arg′ hidden  quantity-0 (lit (nat 0)) ∷
+     arg′ visible quantity-ω (def (quote r) []) ∷
+     [])
+test₈ = refl

@@ -10,6 +10,7 @@ import qualified Data.Text as T
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern ( hasDefP )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -19,10 +20,13 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive.Base
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Impossible
 import Agda.Utils.FileName
+import Agda.Utils.Functor
+import Agda.Utils.List
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 
@@ -47,7 +51,6 @@ quotedName = \case
 data QuotingKit = QuotingKit
   { quoteTermWithKit   :: Term       -> ReduceM Term
   , quoteTypeWithKit   :: Type       -> ReduceM Term
-  , quoteClauseWithKit :: Clause     -> ReduceM Term
   , quoteDomWithKit    :: Dom Type   -> ReduceM Term
   , quoteDefnWithKit   :: Definition -> ReduceM Term
   , quoteListWithKit   :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
@@ -61,6 +64,9 @@ quotingKit = do
   visible         <- primVisible
   relevant        <- primRelevant
   irrelevant      <- primIrrelevant
+  quantity0       <- primQuantity0
+  quantityω       <- primQuantityω
+  modality        <- primModalityConstructor
   nil             <- primNil
   cons            <- primCons
   abs             <- primAbsAbs
@@ -92,6 +98,9 @@ quotingKit = do
   absurdP         <- primAgdaPatAbsurd
   set             <- primAgdaSortSet
   setLit          <- primAgdaSortLit
+  prop            <- primAgdaSortProp
+  propLit         <- primAgdaSortPropLit
+  inf             <- primAgdaSortInf
   unsupportedSort <- primAgdaSortUnsupported
   sucLevel        <- primLevelSuc
   lub             <- primLevelMax
@@ -126,11 +135,21 @@ quotingKit = do
       quoteRelevance Irrelevant = pure irrelevant
       quoteRelevance NonStrict  = pure relevant
 
-      -- TODO: quote Quanity
+      quoteQuantity :: Quantity -> ReduceM Term
+      quoteQuantity (Quantity0 _) = pure quantity0
+      quoteQuantity (Quantity1 _) = __IMPOSSIBLE__
+      quoteQuantity (Quantityω _) = pure quantityω
+
       -- TODO: quote Annotation
+      quoteModality :: Modality -> ReduceM Term
+      quoteModality m =
+        modality !@ quoteRelevance (getRelevance m)
+                 @@ quoteQuantity  (getQuantity  m)
+
       quoteArgInfo :: ArgInfo -> ReduceM Term
       quoteArgInfo (ArgInfo h m _ _ _) =
-        arginfo !@ quoteHiding h @@ quoteRelevance (getRelevance m)
+        arginfo !@ quoteHiding h
+                @@ quoteModality m
 
       quoteLit :: Literal -> ReduceM Term
       quoteLit l@LitNat{}    = litNat    !@! Lit l
@@ -143,17 +162,20 @@ quotingKit = do
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
-      quoteSortLevelTerm :: Level -> ReduceM Term
-      quoteSortLevelTerm (ClosedLevel n) = setLit !@! Lit (LitNat n)
-      quoteSortLevelTerm l               = set !@ quoteTerm (unlevelWithKit lkit l)
+      quoteSortLevelTerm :: Term -> Term -> Level -> ReduceM Term
+      quoteSortLevelTerm fromLit fromLevel (ClosedLevel n) = fromLit !@! Lit (LitNat n)
+      quoteSortLevelTerm fromLit fromLevel l               = fromLevel !@ quoteTerm (unlevelWithKit lkit l)
 
       quoteSort :: Sort -> ReduceM Term
-      quoteSort (Type t) = quoteSortLevelTerm t
-      quoteSort Prop{}   = pure unsupportedSort
-      quoteSort Inf{}    = pure unsupportedSort
+      quoteSort (Type t) = quoteSortLevelTerm setLit set t
+      quoteSort (Prop t) = quoteSortLevelTerm propLit prop t
+      quoteSort (Inf f n) = case f of
+        IsFibrant -> inf !@! Lit (LitNat n)
+        IsStrict  -> pure unsupportedSort
       quoteSort SSet{}   = pure unsupportedSort
       quoteSort SizeUniv = pure unsupportedSort
       quoteSort LockUniv = pure unsupportedSort
+      quoteSort IntervalUniv = pure unsupportedSort
       quoteSort PiSort{} = pure unsupportedSort
       quoteSort FunSort{} = pure unsupportedSort
       quoteSort UnivSort{}   = pure unsupportedSort
@@ -181,19 +203,29 @@ quotingKit = do
       quotePat (IApplyP o t u x) = pure unsupported
       quotePat DefP{}            = pure unsupported
 
-      quoteClause :: Clause -> ReduceM Term
-      quoteClause cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} =
+      quoteClause :: Maybe Projection -> Clause -> ReduceM Term
+      quoteClause proj cl@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = body} =
         case body of
-          Nothing -> absurdClause !@ quoteTelescope tel @@ quotePats ps
-          Just b  -> normalClause !@ quoteTelescope tel @@ quotePats ps @@ quoteTerm b
+          Nothing -> absurdClause !@ quoteTelescope tel @@ quotePats ps'
+          Just b  -> normalClause !@ quoteTelescope tel @@ quotePats ps' @@ quoteTerm b
+        where
+          -- #5128: restore dropped parameters if projection-like
+          ps' =
+            case proj of
+              Nothing -> ps
+              Just p  -> pars ++ ps
+                where
+                  n    = projIndex p - 1
+                  pars = map toVar $ take n $ zip (downFrom $ size tel) (telToList tel)
+                  toVar (i, d) = argFromDom d <&> \ (x, _) -> unnamed $ I.varP (DBPatVar x i)
 
       quoteTelescope :: Telescope -> ReduceM Term
       quoteTelescope tel = quoteList quoteTelEntry $ telToList tel
-        where
-          quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
-          quoteTelEntry dom@Dom{ unDom = (x , t) } = do
-            SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
-            Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
+
+      quoteTelEntry :: Dom (ArgName, Type) -> ReduceM Term
+      quoteTelEntry dom@Dom{ unDom = (x , t) } = do
+        SigmaKit{..} <- fromMaybe __IMPOSSIBLE__ <$> getSigmaKit
+        Con sigmaCon ConOSystem [] !@! quoteString x @@ quoteDom quoteType (fmap snd dom)
 
       list :: [ReduceM Term] -> ReduceM Term
       list = foldr (\ a as -> cons !@ a @@ as) (pure nil)
@@ -214,8 +246,14 @@ quotingKit = do
       quoteArgs :: Args -> ReduceM Term
       quoteArgs ts = list (map (quoteArg quoteTerm) ts)
 
+      -- has the clause been generated (in particular by --cubical)?
+      -- TODO: have an explicit clause origin field?
+      generatedClause :: Clause -> Bool
+      generatedClause cl = hasDefP (namedClausePats cl)
+
       quoteTerm :: Term -> ReduceM Term
-      quoteTerm v =
+      quoteTerm v = do
+        v <- instantiate' v
         case unSpine v of
           Var n es   ->
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -231,15 +269,16 @@ quotingKit = do
               qx Function{ funExtLam = Just (ExtLamInfo m False _), funClauses = cs } = do
                     -- An extended lambda should not have any extra parameters!
                     unless (null conOrProjPars) __IMPOSSIBLE__
+                    cs <- return $ filter (not . generatedClause) cs
                     n <- size <$> lookupSection m
                     let (pars, args) = splitAt n ts
-                    extlam !@ list (map (quoteClause . (`apply` pars)) cs)
+                    extlam !@ list (map (quoteClause Nothing . (`apply` pars)) cs)
                            @@ list (map (quoteArg quoteTerm) args)
-              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _) , funCompiled = Just Fail, funClauses = [cl] } = do
+              qx df@Function{ funExtLam = Just (ExtLamInfo _ True _), funCompiled = Just Fail{}, funClauses = [cl] } = do
                     -- See also corresponding code in InternalToAbstract
                     let n = length (namedClausePats cl) - 1
                         pars = take n ts
-                    extlam !@ list [quoteClause $ cl `apply` pars ]
+                    extlam !@ list [quoteClause Nothing $ cl `apply` pars ]
                            @@ list (drop n $ map (quoteArg quoteTerm) ts)
               qx _ = do
                 n <- getDefFreeVars x
@@ -260,7 +299,7 @@ quotingKit = do
           Sort s     -> sort !@ quoteSort s
           MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
+          DontCare u -> quoteTerm u
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
       defParameters :: Definition -> Bool -> [ReduceM Term]
@@ -272,14 +311,18 @@ quotingKit = do
                  Function{ funProjection = Just p } -> projIndex p - 1
                  _                                  -> 0
           TelV tel _ = telView' (defType def)
-          hiding     = map (getHiding &&& getRelevance) $ take np $ telToList tel
-          par (h, r) = arg !@ (arginfo !@ quoteHiding h @@ quoteRelevance r) @@ pure unsupported
+          hiding     = take np $ telToList tel
+          par d      = arg !@ quoteArgInfo (domInfo d)
+                           @@ pure unsupported
 
       quoteDefn :: Definition -> ReduceM Term
       quoteDefn def =
         case theDef def of
-          Function{funClauses = cs} ->
-            agdaDefinitionFunDef !@ quoteList quoteClause cs
+          Function{funClauses = cs, funProjection = proj} ->
+           do
+            -- re #3733: maybe these should be quoted but marked as generated?
+            cs <- return $ filter (not . generatedClause) cs
+            agdaDefinitionFunDef !@ quoteList (quoteClause proj) cs
           Datatype{dataPars = np, dataCons = cs} ->
             agdaDefinitionDataDef !@! quoteNat (fromIntegral np) @@ quoteList (pure . quoteName) cs
           Record{recConHead = c, recFields = fs} ->
@@ -291,13 +334,13 @@ quotingKit = do
           GeneralizableVar{} -> pure agdaDefinitionPostulate  -- TODO: reflect generalizable vars
           AbstractDefn{}-> pure agdaDefinitionPostulate
           Primitive{primClauses = cs} | not $ null cs ->
-            agdaDefinitionFunDef !@ quoteList quoteClause cs
+            agdaDefinitionFunDef !@ quoteList (quoteClause Nothing) cs
           Primitive{}   -> pure agdaDefinitionPrimitive
           PrimitiveSort{} -> pure agdaDefinitionPrimitive
           Constructor{conData = d} ->
             agdaDefinitionDataConstructor !@! quoteName d
 
-  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteList
+  return $ QuotingKit quoteTerm quoteType (quoteDom quoteType) quoteDefn quoteList
 
 quoteString :: String -> Term
 quoteString = Lit . LitString . T.pack

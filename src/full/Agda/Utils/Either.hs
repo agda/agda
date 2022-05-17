@@ -25,8 +25,9 @@ module Agda.Utils.Either
 
 import Data.Bifunctor
 import Data.Either (isLeft, isRight)
+import Data.List   (unfoldr)
 
-import Agda.Utils.List ( listCase )
+import Agda.Utils.List ( spanJust )
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Singleton
@@ -62,11 +63,11 @@ traverseEither f g = either (fmap Left . f) (fmap Right . g)
 
 -- | Analogue of 'Data.Maybe.fromMaybe'.
 fromLeft :: (b -> a) -> Either a b -> a
-fromLeft = either id
+fromLeft = (id `either`)
 
 -- | Analogue of 'Data.Maybe.fromMaybe'.
 fromRight :: (a -> b) -> Either a b -> b
-fromRight f = either f id
+fromRight = (`either` id)
 
 -- | Analogue of 'Agda.Utils.Maybe.fromMaybeM'.
 fromLeftM :: Monad m => (b -> m a) -> m (Either a b) -> m a
@@ -113,18 +114,12 @@ allRight = mapM maybeRight
 
 -- | Groups a list into alternating chunks of 'Left' and 'Right' values
 groupByEither :: forall a b. [Either a b] -> [Either (List1 a) (List1 b)]
-groupByEither = listCase [] (go . init) where
-
-  go :: Either (List1 a) (List1 b) -> [Either a b] -> [Either (List1 a) (List1 b)]
-  go acc         []              = adjust acc : []
-  -- match: next value can be tacked onto the accumulator
-  go (Left  acc) (Left  a : abs) = go (Left  $ a <| acc) abs
-  go (Right acc) (Right b : abs) = go (Right $ b <| acc) abs
-  -- mismatch: switch the accumulator to the other mode
-  go acc         (ab      : abs) = adjust acc : go (init ab) abs
-
-  adjust = bimap List1.reverse List1.reverse
-  init   = bimap singleton singleton
+groupByEither = unfoldr c
+  where
+  c :: [Either a b] -> Maybe (Either (List1 a) (List1 b), [Either a b])
+  c []             = Nothing
+  c (Left  a : xs) = Just $ first (Left  . (a :|)) $ spanJust maybeLeft  xs
+  c (Right b : xs) = Just $ first (Right . (b :|)) $ spanJust maybeRight xs
 
 -- | Convert 'Maybe' to @'Either' e@, given an error @e@ for the 'Nothing' case.
 maybeToEither :: e -> Maybe a -> Either e a
@@ -132,6 +127,4 @@ maybeToEither e = maybe (Left e) Right
 
 -- | Swap tags 'Left' and 'Right'.
 swapEither :: Either a b -> Either b a
-swapEither = \case
-  Left a -> Right a
-  Right b -> Left b
+swapEither = either Right Left

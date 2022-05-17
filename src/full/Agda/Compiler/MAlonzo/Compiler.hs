@@ -2,10 +2,15 @@
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Arrow (second)
-import Control.Monad.Except (throwError)
-import Control.Monad.Reader
-import Control.Monad.Writer hiding ((<>))
+import Control.DeepSeq
+import Control.Monad
+import Control.Monad.Except   ( throwError )
+import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Monad.Reader   ( MonadReader(..), asks, ReaderT, runReaderT, withReaderT)
+import Control.Monad.Trans    ( lift )
+import Control.Monad.Writer   ( MonadWriter(..), WriterT, runWriterT )
 
+import qualified Data.HashSet as HashSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -17,10 +22,14 @@ import qualified Data.Text as Text
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.Semigroup ((<>))
 
+import GHC.Generics (Generic)
+
 import qualified Agda.Utils.Haskell.Syntax as HS
 
 import System.Directory (createDirectoryIfMissing)
+import System.Environment (setEnv)
 import System.FilePath hiding (normalise)
+import System.IO (utf8)
 
 import Agda.Compiler.CallCompiler
 import Agda.Compiler.Common
@@ -30,6 +39,7 @@ import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
 import Agda.Compiler.MAlonzo.HaskellTypes
 import Agda.Compiler.MAlonzo.Pragmas
+import Agda.Compiler.MAlonzo.Strict
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.Erase
@@ -63,6 +73,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow, render)
+import Agda.Utils.Singleton
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 
@@ -75,7 +86,7 @@ import Agda.Utils.Impossible
 ghcBackend :: Backend
 ghcBackend = Backend ghcBackend'
 
-ghcBackend' :: Backend' GHCFlags GHCCompileEnv GHCModuleEnv GHCModule GHCDefinition
+ghcBackend' :: Backend' GHCFlags GHCEnv GHCModuleEnv GHCModule GHCDefinition
 ghcBackend' = Backend'
   { backendName           = "GHC"
   , backendVersion        = Nothing
@@ -98,15 +109,24 @@ data GHCFlags = GHCFlags
   , flagGhcCallGhc :: Bool
   , flagGhcBin     :: Maybe FilePath
     -- ^ Use the compiler at PATH instead of "ghc"
-  , flagGhcFlags   :: [String]
+  , flagGhcFlags      :: [String]
+  , flagGhcStrictData :: Bool
+    -- ^ Make inductive constructors strict?
+  , flagGhcStrict :: Bool
+    -- ^ Make functions strict?
   }
+  deriving Generic
+
+instance NFData GHCFlags
 
 defaultGHCFlags :: GHCFlags
 defaultGHCFlags = GHCFlags
-  { flagGhcCompile = False
-  , flagGhcCallGhc = True
-  , flagGhcBin     = Nothing
-  , flagGhcFlags   = []
+  { flagGhcCompile    = False
+  , flagGhcCallGhc    = True
+  , flagGhcBin        = Nothing
+  , flagGhcFlags      = []
+  , flagGhcStrictData = False
+  , flagGhcStrict     = False
   }
 
 ghcCommandLineFlags :: [OptDescr (Flag GHCFlags)]
@@ -119,11 +139,19 @@ ghcCommandLineFlags =
                     "give the flag GHC-FLAG to GHC"
     , Option []     ["with-compiler"] (ReqArg withCompilerFlag "PATH")
                     "use the compiler available at PATH"
+    , Option []     ["ghc-strict-data"] (NoArg strictData)
+                    "make inductive constructors strict"
+    , Option []     ["ghc-strict"] (NoArg strict)
+                    "make functions strict"
     ]
   where
-    enable      o = pure o{ flagGhcCompile = True }
-    dontCallGHC o = pure o{ flagGhcCallGhc = False }
-    ghcFlag f   o = pure o{ flagGhcFlags   = flagGhcFlags o ++ [f] }
+    enable      o = pure o{ flagGhcCompile    = True }
+    dontCallGHC o = pure o{ flagGhcCallGhc    = False }
+    ghcFlag f   o = pure o{ flagGhcFlags      = flagGhcFlags o ++ [f] }
+    strictData  o = pure o{ flagGhcStrictData = True }
+    strict      o = pure o{ flagGhcStrictData = True
+                          , flagGhcStrict     = True
+                          }
 
 withCompilerFlag :: FilePath -> Flag GHCFlags
 withCompilerFlag fp o = case flagGhcBin o of
@@ -132,15 +160,6 @@ withCompilerFlag fp o = case flagGhcBin o of
 
 --- Context types ---
 
--- | The options derived from @GHCFlags@ and other shared options.
-data GHCOptions = GHCOptions
-  { optGhcCallGhc    :: Bool
-  , optGhcBin        :: FilePath
-    -- ^ Use the compiler at PATH instead of "ghc"
-  , optGhcFlags      :: [String]
-  , optGhcCompileDir :: FilePath
-  }
-
 -- | Monads that can read @GHCOptions@
 class Monad m => ReadGHCOpts m where
   askGhcOpts :: m GHCOptions
@@ -148,29 +167,14 @@ class Monad m => ReadGHCOpts m where
 instance Monad m => ReadGHCOpts (ReaderT GHCOptions m) where
   askGhcOpts = ask
 
-data GHCCompileEnv = GHCCompileEnv
-  { ghcCompileEnvOpts :: GHCOptions
-  }
-
-instance Monad m => ReadGHCOpts (ReaderT GHCCompileEnv m) where
-  askGhcOpts = withReaderT ghcCompileEnvOpts askGhcOpts
-
--- | Module compilation environment, bundling the overall
---   backend session options along with the module's basic
---   readable properties.
-data GHCModuleEnv = GHCModuleEnv
-  { ghcModCompileEnv  :: GHCCompileEnv
-  , ghcModHsModuleEnv :: HsModuleEnv
-  }
+instance Monad m => ReadGHCOpts (ReaderT GHCEnv m) where
+  askGhcOpts = withReaderT ghcEnvOpts askGhcOpts
 
 instance Monad m => ReadGHCOpts (ReaderT GHCModuleEnv m) where
-  askGhcOpts = withReaderT ghcModCompileEnv askGhcOpts
-
-instance Monad m => ReadHsModuleEnv (ReaderT GHCModuleEnv m) where
-  askHsModuleEnv = withReaderT ghcModHsModuleEnv askHsModuleEnv
+  askGhcOpts = withReaderT ghcModEnv askGhcOpts
 
 data GHCModule = GHCModule
-  { ghcModEnv                :: GHCModuleEnv
+  { ghcModModuleEnv :: GHCModuleEnv
   , ghcModMainFuncs :: [MainFunctionDef]
   -- ^ The `main` function definition(s), if both the module is
   --   the @IsMain@ module (root/focused) and a suitable `main`
@@ -178,10 +182,10 @@ data GHCModule = GHCModule
   }
 
 instance Monad m => ReadGHCOpts (ReaderT GHCModule m) where
-  askGhcOpts = withReaderT ghcModEnv askGhcOpts
+  askGhcOpts = withReaderT ghcModModuleEnv askGhcOpts
 
-instance Monad m => ReadHsModuleEnv (ReaderT GHCModule m) where
-  askHsModuleEnv = withReaderT ghcModEnv askHsModuleEnv
+instance Monad m => ReadGHCModuleEnv (ReaderT GHCModule m) where
+  askGHCModuleEnv = withReaderT ghcModModuleEnv askGHCModuleEnv
 
 data GHCDefinition = GHCDefinition
   { ghcDefUsesFloat  :: UsesFloat
@@ -193,18 +197,132 @@ data GHCDefinition = GHCDefinition
 
 --- Top-level compilation ---
 
-ghcPreCompile :: GHCFlags -> TCM GHCCompileEnv
+ghcPreCompile :: GHCFlags -> TCM GHCEnv
 ghcPreCompile flags = do
+  cubical <- optCubical <$> pragmaOptions
+  let notSupported s =
+        typeError $ GenericError $
+          "Compilation of code that uses " ++ s ++ " is not supported."
+  case cubical of
+    Nothing      -> return ()
+    Just CErased -> return ()
+    Just CFull   -> notSupported "--cubical"
+
   outDir <- compileDir
   let ghcOpts = GHCOptions
                 { optGhcCallGhc    = flagGhcCallGhc flags
                 , optGhcBin        = fromMaybe "ghc" (flagGhcBin flags)
                 , optGhcFlags      = flagGhcFlags flags
                 , optGhcCompileDir = outDir
+                , optGhcStrictData = flagGhcStrictData flags
+                , optGhcStrict     = flagGhcStrict flags
                 }
-  return $ GHCCompileEnv ghcOpts
 
-ghcPostCompile :: GHCCompileEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
+  mbool       <- getBuiltinName builtinBool
+  mtrue       <- getBuiltinName builtinTrue
+  mfalse      <- getBuiltinName builtinFalse
+  mlist       <- getBuiltinName builtinList
+  mnil        <- getBuiltinName builtinNil
+  mcons       <- getBuiltinName builtinCons
+  mmaybe      <- getBuiltinName builtinMaybe
+  mnothing    <- getBuiltinName builtinNothing
+  mjust       <- getBuiltinName builtinJust
+  mnat        <- getBuiltinName builtinNat
+  minteger    <- getBuiltinName builtinInteger
+  mword64     <- getBuiltinName builtinWord64
+  minf        <- getBuiltinName builtinInf
+  msharp      <- getBuiltinName builtinSharp
+  mflat       <- getBuiltinName builtinFlat
+  minterval   <- getBuiltinName builtinInterval
+  mizero      <- getBuiltinName builtinIZero
+  mione       <- getBuiltinName builtinIOne
+  misone      <- getBuiltinName builtinIsOne
+  mitisone    <- getBuiltinName builtinItIsOne
+  misone1     <- getBuiltinName builtinIsOne1
+  misone2     <- getBuiltinName builtinIsOne2
+  misoneempty <- getBuiltinName builtinIsOneEmpty
+  mpathp      <- getBuiltinName builtinPathP
+  msub        <- getBuiltinName builtinSub
+  msubin      <- getBuiltinName builtinSubIn
+  mid         <- getBuiltinName builtinId
+  mconid      <- getPrimitiveName' builtinConId
+
+  istcbuiltin <- do
+    builtins <- mapM getBuiltinName
+      [ builtinAgdaTCMReturn
+      , builtinAgdaTCMBind
+      , builtinAgdaTCMUnify
+      , builtinAgdaTCMTypeError
+      , builtinAgdaTCMInferType
+      , builtinAgdaTCMCheckType
+      , builtinAgdaTCMNormalise
+      , builtinAgdaTCMReduce
+      , builtinAgdaTCMCatchError
+      , builtinAgdaTCMQuoteTerm
+      , builtinAgdaTCMUnquoteTerm
+      , builtinAgdaTCMQuoteOmegaTerm
+      , builtinAgdaTCMGetContext
+      , builtinAgdaTCMExtendContext
+      , builtinAgdaTCMInContext
+      , builtinAgdaTCMFreshName
+      , builtinAgdaTCMDeclareDef
+      , builtinAgdaTCMDeclarePostulate
+      , builtinAgdaTCMDefineFun
+      , builtinAgdaTCMGetType
+      , builtinAgdaTCMGetDefinition
+      , builtinAgdaTCMBlockOnMeta
+      , builtinAgdaTCMCommit
+      , builtinAgdaTCMIsMacro
+      , builtinAgdaTCMWithNormalisation
+      , builtinAgdaTCMWithReconsParams
+      , builtinAgdaTCMFormatErrorParts
+      , builtinAgdaTCMDebugPrint
+      , builtinAgdaTCMOnlyReduceDefs
+      , builtinAgdaTCMDontReduceDefs
+      , builtinAgdaTCMNoConstraints
+      , builtinAgdaTCMRunSpeculative
+      , builtinAgdaTCMExec
+      , builtinAgdaTCMGetInstances
+      ]
+    return $
+      flip HashSet.member $
+      HashSet.fromList $
+      catMaybes builtins
+
+  return $ GHCEnv
+    { ghcEnvOpts        = ghcOpts
+    , ghcEnvBool        = mbool
+    , ghcEnvTrue        = mtrue
+    , ghcEnvFalse       = mfalse
+    , ghcEnvMaybe       = mmaybe
+    , ghcEnvNothing     = mnothing
+    , ghcEnvJust        = mjust
+    , ghcEnvList        = mlist
+    , ghcEnvNil         = mnil
+    , ghcEnvCons        = mcons
+    , ghcEnvNat         = mnat
+    , ghcEnvInteger     = minteger
+    , ghcEnvWord64      = mword64
+    , ghcEnvInf         = minf
+    , ghcEnvSharp       = msharp
+    , ghcEnvFlat        = mflat
+    , ghcEnvInterval    = minterval
+    , ghcEnvIZero       = mizero
+    , ghcEnvIOne        = mione
+    , ghcEnvIsOne       = misone
+    , ghcEnvItIsOne     = mitisone
+    , ghcEnvIsOne1      = misone1
+    , ghcEnvIsOne2      = misone2
+    , ghcEnvIsOneEmpty  = misoneempty
+    , ghcEnvPathP       = mpathp
+    , ghcEnvSub         = msub
+    , ghcEnvSubIn       = msubin
+    , ghcEnvId          = mid
+    , ghcEnvConId       = mconid
+    , ghcEnvIsTCBuiltin = istcbuiltin
+    }
+
+ghcPostCompile :: GHCEnv -> IsMain -> Map ModuleName GHCModule -> TCM ()
 ghcPostCompile _cenv _isMain mods = do
   -- FIXME: @curMName@ and @curIF@ are evil TCM state, but there does not appear to be
   --------- another way to retrieve the compilation root ("main" module or interaction focused).
@@ -218,13 +336,20 @@ ghcPostCompile _cenv _isMain mods = do
 --- Module compilation ---
 
 ghcPreModule
-  :: GHCCompileEnv
+  :: GHCEnv
   -> IsMain      -- ^ Are we looking at the main module?
   -> ModuleName
   -> Maybe FilePath    -- ^ Path to the @.agdai@ file.
   -> TCM (Recompile GHCModuleEnv GHCModule)
                  -- ^ Could we confirm the existence of a main function?
-ghcPreModule cenv isMain m mifile = ifM uptodate noComp yesComp
+ghcPreModule cenv isMain m mifile =
+  (do let check = ifM uptodate noComp yesComp
+      cubical <- optCubical <$> pragmaOptions
+      case cubical of
+        -- Code that uses --cubical is not compiled.
+        Just CFull   -> noComp
+        Just CErased -> check
+        Nothing      -> check)
     `runReaderT` GHCModuleEnv cenv (HsModuleEnv m (isMain == IsMain))
   where
     uptodate = case mifile of
@@ -247,7 +372,7 @@ ghcPreModule cenv isMain m mifile = ifM uptodate noComp yesComp
       asks Recompile
 
 ghcPostModule
-  :: GHCCompileEnv
+  :: GHCEnv
   -> GHCModuleEnv
   -> IsMain        -- ^ Are we looking at the main module?
   -> ModuleName
@@ -279,9 +404,10 @@ ghcPostModule _cenv menv _isMain _moduleName ghcDefs = do
 
   return $ GHCModule menv mainDefs
 
-ghcCompileDef :: GHCCompileEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
+ghcCompileDef :: GHCEnv -> GHCModuleEnv -> IsMain -> Definition -> TCM GHCDefinition
 ghcCompileDef _cenv menv _isMain def = do
-  ((usesFloat, decls, mainFuncDef), (HsCompileState imps)) <- definition def `runHsCompileT` ghcModHsModuleEnv menv
+  ((usesFloat, decls, mainFuncDef), (HsCompileState imps)) <-
+    definition def `runHsCompileT` menv
   return $ GHCDefinition usesFloat decls def (checkedMainDef <$> mainFuncDef) imps
 
 -- | We do not erase types that have a 'HsData' pragma.
@@ -359,14 +485,11 @@ definition Defn{defArgInfo = info, defName = q} | not $ usableModality info = do
 definition def@Defn{defName = q, defType = ty, theDef = d} = do
   reportSDoc "compile.ghc.definition" 10 $ vcat
     [ ("Compiling" <+> prettyTCM q) <> ":"
-    , nest 2 $ text (prettyShow d)
+    , nest 2 $ pretty d
     ]
   pragma <- liftTCM $ getHaskellPragma q
-  mbool  <- getBuiltinName builtinBool
-  mlist  <- getBuiltinName builtinList
-  mmaybe <- getBuiltinName builtinMaybe
-  minf   <- getBuiltinName builtinInf
-  mflat  <- getBuiltinName builtinFlat
+  env <- askGHCEnv
+  let is p = Just q == p env
   typeCheckedMainDef <- checkTypeOfMain def
   let mainDecl = maybeToList $ checkedMainDecl <$> typeCheckedMainDef
   let retDecls ds = return (mempty, ds)
@@ -374,7 +497,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
     case d of
 
       _ | Just (HsDefn r hs) <- pragma -> setCurrentRange r $
-          if Just q == mflat
+          if is ghcEnvFlat
           then genericError
                 "\"COMPILE GHC\" pragmas are not allowed for the FLAT builtin."
           else do
@@ -390,59 +513,192 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
             retDecls $ fbWithType hsty (fakeExp hs)
 
       -- Compiling Bool
-      Datatype{} | Just q == mbool -> do
+      Datatype{} | is ghcEnvBool -> do
         _ <- sequence_ [primTrue, primFalse] -- Just to get the proper error for missing TRUE/FALSE
-        let d = unqhname "d" q
+        let d = dname q
         Just true  <- getBuiltinName builtinTrue
         Just false <- getBuiltinName builtinFalse
-        cs <- mapM compiledcondecl [false, true]
+        cs <- mapM (compiledcondecl Nothing) [false, true]
         retDecls $ [ compiledTypeSynonym q "Bool" 0
                    , HS.FunBind [HS.Match d [] (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                    cs
 
       -- Compiling List
-      Datatype{ dataPars = np } | Just q == mlist -> do
+      Datatype{ dataPars = np } | is ghcEnvList -> do
         _ <- sequence_ [primNil, primCons] -- Just to get the proper error for missing NIL/CONS
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin lists; they always compile to Haskell lists."
-        let d = unqhname "d" q
-            t = unqhname "T" q
+        let d = dname q
+            t = unqhname TypeK q
         Just nil  <- getBuiltinName builtinNil
         Just cons <- getBuiltinName builtinCons
-        let vars f n = map (f . ihname "a") [0 .. n - 1]
-        cs <- mapM compiledcondecl [nil, cons]
+        let vars f n = map (f . ihname A) [0 .. n - 1]
+        cs <- mapM (compiledcondecl Nothing) [nil, cons]
         retDecls $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "[]")
                    , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                    cs
 
       -- Compiling Maybe
-      Datatype{ dataPars = np } | Just q == mmaybe -> do
+      Datatype{ dataPars = np } | is ghcEnvMaybe -> do
         _ <- sequence_ [primNothing, primJust] -- Just to get the proper error for missing NOTHING/JUST
         caseMaybe pragma (return ()) $ \ p -> setCurrentRange p $ warning . GenericWarning =<< do
           fsep $ pwords "Ignoring GHC pragma for builtin maybe; they always compile to Haskell lists."
-        let d = unqhname "d" q
-            t = unqhname "T" q
+        let d = dname q
+            t = unqhname TypeK q
         Just nothing <- getBuiltinName builtinNothing
         Just just    <- getBuiltinName builtinJust
-        let vars f n = map (f . ihname "a") [0 .. n - 1]
-        cs <- mapM compiledcondecl [nothing, just]
+        let vars f n = map (f . ihname A) [0 .. n - 1]
+        cs <- mapM (compiledcondecl Nothing) [nothing, just]
         retDecls $ [ HS.TypeDecl t (vars HS.UnkindedVar (np - 1)) (HS.FakeType "Maybe")
                    , HS.FunBind [HS.Match d (vars HS.PVar np) (HS.UnGuardedRhs HS.unit_con) emptyBinds] ] ++
                    cs
 
       -- Compiling Inf
-      _ | Just q == minf -> do
+      _ | is ghcEnvInf -> do
         _ <- primSharp -- To get a proper error for missing SHARP.
         Just sharp <- getBuiltinName builtinSharp
-        sharpC     <- compiledcondecl sharp
-        let d   = unqhname "d" q
+        sharpC     <- (compiledcondecl Nothing) sharp
+        let d   = dname q
             err = "No term-level implementation of the INFINITY builtin."
         retDecls $ [ compiledTypeSynonym q "MAlonzo.RTE.Infinity" 2
-                   , HS.FunBind [HS.Match d [HS.PVar (ihname "a" 0)]
+                   , HS.FunBind [HS.Match d [HS.PVar (ihname A 0)]
                        (HS.UnGuardedRhs (HS.FakeExp ("error " ++ show err)))
                        emptyBinds]
                    , sharpC
                    ]
+
+      -- The interval is compiled as the type of booleans: 0 is
+      -- compiled as False and 1 as True.
+      Axiom{} | is ghcEnvInterval -> do
+        _       <- sequence_ [primIZero, primIOne]
+        Just i0 <- getBuiltinName builtinIZero
+        Just i1 <- getBuiltinName builtinIOne
+        cs      <- mapM (compiledcondecl (Just 0)) [i0, i1]
+        retDecls $
+          [ compiledTypeSynonym q "Bool" 0
+          , HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs HS.unit_con) emptyBinds]
+          ] ++
+          cs
+
+      -- IsOne is compiled as the constant function to the unit type.
+      -- Partial/PartialP are compiled as functions from the unit type
+      -- to the underlying type.
+      Axiom{} | is ghcEnvIsOne -> do
+        retDecls $
+          [ HS.TypeDecl (unqhname TypeK q) [HS.UnkindedVar (ihname A 0)]
+              (HS.FakeType "()")
+          , HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs HS.unit_con) emptyBinds]
+          ]
+
+      -- itIsOne.
+      Axiom{} | is ghcEnvItIsOne -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs HS.unit_con) emptyBinds]
+          ]
+
+      -- IsOne1/IsOne2.
+      Axiom{} | is ghcEnvIsOne1 || is ghcEnvIsOne2 -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ -> ()"))
+                 emptyBinds]
+          ]
+
+      -- isOneEmpty.
+      Axiom{} | is ghcEnvIsOneEmpty -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ x _ -> x ()"))
+                 emptyBinds]
+          ]
+
+      -- PathP is compiled as a function from the interval (booleans)
+      -- to the underlying type.
+      Axiom{} | is ghcEnvPathP -> do
+        _        <- sequence_ [primInterval]
+        Just int <- getBuiltinName builtinInterval
+        int      <- xhqn TypeK int
+        retDecls $
+          [ HS.TypeDecl (unqhname TypeK q)
+              [HS.UnkindedVar (ihname A i) | i <- [0..3]]
+              (HS.TyFun (HS.TyCon int) mazAnyType)
+          , HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
+                 emptyBinds]
+          ]
+
+      -- Sub is compiled as the underlying type.
+      Axiom{} | is ghcEnvSub -> do
+        retDecls $
+          [ HS.TypeDecl (unqhname TypeK q)
+              [HS.UnkindedVar (ihname A i) | i <- [0..3]]
+              (HS.TyVar (ihname A 1))
+          , HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
+                 emptyBinds]
+          ]
+
+      -- subIn.
+      Axiom{} | is ghcEnvSubIn -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ x -> x"))
+                 emptyBinds]
+          ]
+
+      -- Id x y is compiled as a pair of a boolean and whatever
+      -- Path x y is compiled to.
+      Datatype{} | is ghcEnvId -> do
+        _        <- sequence_ [primInterval]
+        Just int <- getBuiltinName builtinInterval
+        int      <- xhqn TypeK int
+        -- re  #3733: implement reflId
+        retDecls $
+          [ HS.TypeDecl (unqhname TypeK q)
+              [] -- [HS.UnkindedVar (ihname A i) | i <- [0..3]]
+              (HS.TyApp (HS.FakeType "(,) Bool")
+                 (HS.TyFun (HS.TyCon int) mazAnyType))
+          , HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs (HS.FakeExp "\\_ _ _ _ -> ()"))
+                 emptyBinds]
+          ]
+
+      -- conid.
+      Primitive{} | is ghcEnvConId -> do
+        strict <- optGhcStrictData <$> askGhcOpts
+        let var = (if strict then HS.PBangPat else id) . HS.PVar
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (dname q)
+                 [ var (ihname A i) | i <- [0..1] ]
+                 (HS.UnGuardedRhs $
+                  HS.App (HS.App (HS.FakeExp "(,)")
+                            (HS.Var (HS.UnQual (ihname A 0))))
+                    (HS.Var (HS.UnQual (ihname A 1))))
+                 emptyBinds]
+          ]
+
+      -- TC builtins are compiled to erased, which is an ∞-ary
+      -- function.
+      Axiom{} | ghcEnvIsTCBuiltin env q -> do
+        retDecls $
+          [ HS.FunBind
+              [HS.Match (dname q) []
+                 (HS.UnGuardedRhs (HS.FakeExp mazErasedName))
+                 emptyBinds]
+          ]
 
       DataOrRecSig{} -> __IMPOSSIBLE__
 
@@ -456,19 +712,16 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       Function{} -> function pragma $ functionViaTreeless q
 
-      Datatype{ dataPathCons = _ : _ } -> do
-        s <- render <$> prettyTCM q
-        typeError $ NotImplemented $
-          "Higher inductive types (" ++ s ++ ")"
-
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl }
-        | Just hsdata@(HsData r ty hsCons) <- pragma -> setCurrentRange r $ do
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
+              , dataPathCons = pcs
+              } | Just hsdata@(HsData r ty hsCons) <- pragma ->
+        setCurrentRange r $ do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
         liftTCM $ computeErasedConstructorArgs q
         cs <- liftTCM $ getNotErasedConstructors q
         ccscov <- constructorCoverageCode q (np + ni) cs ty hsCons
-        cds <- mapM compiledcondecl cs
+        cds <- mapM (compiledcondecl Nothing) cs
         let result = concat $
               [ tvaldecl q Inductive (np + ni) [] (Just __IMPOSSIBLE__)
               , [ compiledTypeSynonym q ty np ]
@@ -476,7 +729,9 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
               , ccscov
               ]
         retDecls result
-      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl } -> do
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
+              , dataPathCons = pcs
+              } -> do
         liftTCM $ computeErasedConstructorArgs q
         cs <- liftTCM $ getNotErasedConstructors q
         cds <- mapM (flip condecl Inductive) cs
@@ -493,7 +748,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
             let cs = [conName con]
             liftTCM $ computeErasedConstructorArgs q
             ccscov <- constructorCoverageCode q np cs ty hsCons
-            cds <- mapM compiledcondecl cs
+            cds <- mapM (compiledcondecl Nothing) cs
             retDecls $
               tvaldecl q inductionKind np [] (Just __IMPOSSIBLE__) ++
               [compiledTypeSynonym q ty np] ++ cds ++ ccscov
@@ -505,12 +760,11 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
   where
   function :: Maybe HaskellPragma -> HsCompileM (UsesFloat, [HS.Decl]) -> HsCompileM (UsesFloat, [HS.Decl])
   function mhe fun = do
-    (imp, defs) <- fun
-    let ccls = mkwhere defs
-    mflat <- getBuiltinName builtinFlat
+    (imp, ccls) <- fun
     case mhe of
-      Just (HsExport r name) -> setCurrentRange r $
-        if Just q == mflat
+      Just (HsExport r name) -> setCurrentRange r $ do
+        env <- askGHCEnv
+        if Just q == ghcEnvFlat env
         then genericError
               "\"COMPILE GHC as\" pragmas are not allowed for the FLAT builtin."
         else do
@@ -524,59 +778,57 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
       _ -> return (imp, ccls)
 
   functionViaTreeless :: QName -> HsCompileM (UsesFloat, [HS.Decl])
-  functionViaTreeless q = caseMaybeM (liftTCM $ toTreeless LazyEvaluation q) (pure mempty) $ \ treeless -> do
+  functionViaTreeless q = do
+    strict <- optGhcStrict <$> askGhcOpts
+    let eval = if strict then EagerEvaluation else LazyEvaluation
+    caseMaybeM (liftTCM $ toTreeless eval q) (pure mempty) $ \ treeless -> do
 
-    used <- getCompiledArgUse q
-    let dostrip = any not used
+      used <- fromMaybe [] <$> getCompiledArgUse q
+      let dostrip = ArgUnused `elem` used
 
-    -- Compute the type approximation
-    def <- getConstInfo q
-    (argTypes0, resType) <- hsTelApproximation $ defType def
-    let pars = case theDef def of
-                 Function{ funProjection = Just Projection{ projIndex = i } } | i > 0 -> i - 1
-                 _ -> 0
-        argTypes  = drop pars argTypes0
-        argTypesS = [ t | (t, True) <- zip argTypes (used ++ repeat True) ]
+      -- Compute the type approximation
+      def <- getConstInfo q
+      (argTypes0, resType) <- hsTelApproximation $ defType def
+      let pars = case theDef def of
+                   Function{ funProjection = Just Projection{ projIndex = i } } | i > 0 -> i - 1
+                   _ -> 0
+          argTypes  = drop pars argTypes0
+          argTypesS = filterUsed used argTypes
 
-    (e, useFloat) <- if dostrip then closedTerm (stripUnusedArguments used treeless)
-                                else closedTerm treeless
-    let (ps, b) = lamView e
-        lamView e =
-          case e of
-            HS.Lambda ps b -> (ps, b)
-            b              -> ([], b)
+      (e, useFloat) <- if dostrip then closedTerm (stripUnusedArguments used treeless)
+                                  else closedTerm treeless
+      let (ps, b) = lamView e
+          lamView e =
+            case e of
+              HS.Lambda ps b -> (ps, b)
+              b              -> ([], b)
 
-        tydecl  f ts t = HS.TypeSig [f] (foldr HS.TyFun t ts)
-        funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs b) emptyBinds]
-        tyfunbind f ts t ps b =
-          let ts' = ts ++ (replicate (length ps - length ts) mazAnyType)
-          in [tydecl f ts' t, funbind f ps b]
+          tydecl  f ts t = HS.TypeSig [f] (foldr HS.TyFun t ts)
+          funbind f ps b = HS.FunBind [HS.Match f ps (HS.UnGuardedRhs b) emptyBinds]
+          tyfunbind f ts t ps b =
+            let ts' = ts ++ (replicate (length ps - length ts) mazAnyType)
+            in [tydecl f ts' t, funbind f ps b]
 
-    -- The definition of the non-stripped function
-    (ps0, _) <- lamView <$> closedTerm_ (foldr ($) T.TErased $ replicate (length used) T.TLam)
-    let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), True) <- zip ps0 used ]
+      -- The definition of the non-stripped function
+      (ps0, _) <- lamView <$> closedTerm_ (foldr ($) T.TErased $ replicate (length used) T.TLam)
+      let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), ArgUsed) <- zip ps0 used ]
+          ps0' = zipWith (\p u -> case u of
+                                    ArgUsed   -> p
+                                    ArgUnused -> HS.PIrrPat p)
+                   ps0 used
 
-    return (useFloat,
-            if dostrip
-              then tyfunbind (dname q) argTypes resType ps0 b0 ++
-                   tyfunbind (duname q) argTypesS resType ps b
-              else tyfunbind (dname q) argTypes resType ps b)
-
-  mkwhere :: [HS.Decl] -> [HS.Decl]
-  mkwhere (HS.FunBind [m0, HS.Match dn ps rhs emptyBinds] : fbs@(_:_)) =
-          [HS.FunBind [m0, HS.Match dn ps rhs bindsAux]]
-    where
-    bindsAux :: Maybe HS.Binds
-    bindsAux = Just $ HS.BDecls fbs
-
-  mkwhere fbs = fbs
+      return (useFloat,
+              if dostrip
+                then tyfunbind (dname q) argTypes resType ps0' b0 ++
+                     tyfunbind (duname q) argTypesS resType ps b
+                else tyfunbind (dname q) argTypes resType ps b)
 
   fbWithType :: HS.Type -> HS.Exp -> [HS.Decl]
   fbWithType ty e =
-    HS.TypeSig [unqhname "d" q] ty : fb e
+    HS.TypeSig [dname q] ty : fb e
 
   fb :: HS.Exp -> [HS.Decl]
-  fb e  = [HS.FunBind [HS.Match (unqhname "d" q) []
+  fb e  = [HS.FunBind [HS.Match (dname q) []
                                 (HS.UnGuardedRhs e) emptyBinds]]
 
   axiomErr :: HS.Exp
@@ -609,7 +861,7 @@ ccContext f e = (\ cxt -> e { _ccContext = cxt }) <$> f (_ccContext e)
 -- | Initial environment for expression generation.
 initCCEnv :: CCEnv
 initCCEnv = CCEnv
-  { _ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
+  { _ccNameSupply = map (ihname V) [0..]  -- DON'T CHANGE THESE NAMES!
   , _ccContext    = []
   }
 
@@ -640,8 +892,8 @@ intros n cont = freshNames n $ \xs ->
 checkConstructorType :: QName -> HaskellCode -> HsCompileM [HS.Decl]
 checkConstructorType q hs = do
   ty <- haskellType q
-  return [ HS.TypeSig [unqhname "check" q] ty
-         , HS.FunBind [HS.Match (unqhname "check" q) []
+  return [ HS.TypeSig [unqhname CheckK q] ty
+         , HS.FunBind [HS.Match (unqhname CheckK q) []
                                 (HS.UnGuardedRhs $ fakeExp hs) emptyBinds]
          ]
 
@@ -656,8 +908,8 @@ checkCover q ty n cs hsCons = do
   cs <- zipWithM makeClause cs hsCons
   let rhs = HS.Case (HS.Var $ HS.UnQual $ HS.Ident "x") cs
 
-  return [ HS.TypeSig [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
-         , HS.FunBind [HS.Match (unqhname "cover" q) [HS.PVar $ HS.Ident "x"]
+  return [ HS.TypeSig [unqhname CoverK q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
+         , HS.FunBind [HS.Match (unqhname CoverK q) [HS.PVar $ HS.Ident "x"]
                                 (HS.UnGuardedRhs rhs) emptyBinds]
          ]
 
@@ -672,10 +924,9 @@ closedTerm v = do
 -- Translate case on bool to if
 mkIf :: T.TTerm -> CC T.TTerm
 mkIf t@(TCase e _ d [TACon c1 0 b1, TACon c2 0 b2]) | T.isUnreachable d = do
-  mTrue  <- liftCC $ getBuiltinName builtinTrue
-  mFalse <- liftCC $ getBuiltinName builtinFalse
-  let isTrue  c = Just c == mTrue
-      isFalse c = Just c == mFalse
+  env <- liftCC askGHCEnv
+  let isTrue  c = Just c == ghcEnvTrue  env
+      isFalse c = Just c == ghcEnvFalse env
   if | isTrue c1, isFalse c2 -> return $ T.tIfThenElse (TCoerce $ TVar e) b1 b2
      | isTrue c2, isFalse c1 -> return $ T.tIfThenElse (TCoerce $ TVar e) b2 b1
      | otherwise             -> return t
@@ -694,23 +945,24 @@ term tm0 = mkIf tm0 >>= \ tm0 -> do
     (T.TPrim T.PIf, [c, x, y]) -> coe <$> do HS.If <$> term c <*> term x <*> term y
 
     (T.TDef f, ts) -> do
-      used <- liftCC $ getCompiledArgUse f
+      used <- liftCC $ fromMaybe [] <$> getCompiledArgUse f
       -- #2248: no unused argument pruning for COMPILE'd functions
       isCompiled <- liftTCM $ isJust <$> getHaskellPragma f
       let given   = length ts
           needed  = length used
           missing = drop given used
-          notUsed = not
-      if not isCompiled && any not used
-        then if any notUsed missing then term (etaExpand (needed - given) tm0) else do
-          f <- liftCC $ HS.Var <$> xhqn "du" f  -- use stripped function
+      if not isCompiled && ArgUnused `elem` used
+        then if ArgUnused `elem` missing then term (etaExpand (needed - given) tm0) else do
+          f <- liftCC $ HS.Var <$> xhqn (FunK NoUnused) f
+                                   -- use stripped function
           -- Andreas, 2019-11-07, issue #4169.
           -- Insert coercion unconditionally as erasure of arguments
           -- that are matched upon might remove the unfolding of codomain types.
           -- (Hard to explain, see test/Compiler/simple/Issue4169.)
-          hsCoerce f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
+          hsCoerce f `apps` filterUsed used ts
         else do
-          f <- liftCC $ HS.Var <$> xhqn "d" f  -- use original (non-stripped) function
+          f <- liftCC $ HS.Var <$> xhqn (FunK PossiblyUnused) f
+                                   -- use original (non-stripped) function
           coe f `apps` ts
 
     (T.TCon c, ts) -> do
@@ -776,12 +1028,13 @@ alt sc a = do
     T.TACon {T.aCon = c} -> do
       intros (T.aArity a) $ \ xs -> do
         erased <- liftCC $ getErasedConArgs c
-        nil  <- liftCC $ getBuiltinName builtinNil
-        cons <- liftCC $ getBuiltinName builtinCons
+        env    <- liftCC askGHCEnv
         hConNm <-
-          if | Just c == nil  -> return $ HS.UnQual $ HS.Ident "[]"
-             | Just c == cons -> return $ HS.UnQual $ HS.Symbol ":"
-             | otherwise      -> liftCC $ conhqn c
+          if | Just c == ghcEnvNil env ->
+               return $ HS.UnQual $ HS.Ident "[]"
+             | Just c == ghcEnvCons env ->
+               return $ HS.UnQual $ HS.Symbol ":"
+             | otherwise -> liftCC $ conhqn c
         mkAlt (HS.PApp hConNm $ [HS.PVar x | (x, False) <- zip xs erased])
     T.TAGuard g b -> do
       g <- term g
@@ -866,7 +1119,7 @@ litqname x =
   where
     apps = foldl HS.App
     rteCon name = HS.Con $ HS.Qual mazRTE $ HS.Ident name
-    NameId n m = nameId $ qnameName x
+    NameId n (ModuleNameHash m) = nameId $ qnameName x
     fx = theFixity $ nameFixity $ qnameName x
 
     litAssoc NonAssoc   = rteCon "NonAssoc"
@@ -883,33 +1136,42 @@ litqnamepat x =
           , HS.PLit (HS.Int $ fromIntegral m)
           , HS.PWildCard, HS.PWildCard ]
   where
-    NameId n m = nameId $ qnameName x
+    NameId n (ModuleNameHash m) = nameId $ qnameName x
 
 condecl :: QName -> Induction -> HsCompileM HS.ConDecl
 condecl q _ind = do
+  opts <- askGhcOpts
   def <- getConstInfo q
   let Constructor{ conPars = np, conErased = erased } = theDef def
   (argTypes0, _) <- hsTelApproximation (defType def)
-  let argTypes   = [ (Just HS.Lazy, t)
-                     -- Currently all constructors are lazy.
+  let strict     = if conInd (theDef def) == Inductive &&
+                      optGhcStrictData opts
+                   then HS.Strict
+                   else HS.Lazy
+      argTypes   = [ (Just strict, t)
                    | (t, False) <- zip (drop np argTypes0)
                                        (fromMaybe [] erased ++ repeat False)
                    ]
-  return $ HS.ConDecl (unqhname "C" q) argTypes
+  return $ HS.ConDecl (unqhname ConK q) argTypes
 
-compiledcondecl :: QName -> HsCompileM HS.Decl
-compiledcondecl q = do
-  ar <- liftTCM $ erasedArity q
-  hsCon <- liftTCM $ fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
-  let patVars = map (HS.PVar . ihname "a") [0 .. ar - 1]
-  return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname "C" q) patVars) (HS.PApp (hsName hsCon) patVars)
+compiledcondecl
+  :: Maybe Nat  -- ^ The constructor's arity (after erasure).
+  -> QName -> HsCompileM HS.Decl
+compiledcondecl mar q = do
+  ar <- case mar of
+    Nothing -> liftTCM $ erasedArity q
+    Just ar -> return ar
+  hsCon <- fromMaybe __IMPOSSIBLE__ <$> getHaskellConstructor q
+  let patVars = map (HS.PVar . ihname A) [0 .. ar - 1]
+  return $ HS.PatSyn (HS.PApp (HS.UnQual $ unqhname ConK q) patVars)
+             (HS.PApp (hsName hsCon) patVars)
 
 compiledTypeSynonym :: QName -> String -> Nat -> HS.Decl
 compiledTypeSynonym q hsT arity =
-  HS.TypeDecl (unqhname "T" q) (map HS.UnkindedVar vs)
+  HS.TypeDecl (unqhname TypeK q) (map HS.UnkindedVar vs)
               (foldl HS.TyApp (HS.FakeType hsT) $ map HS.TyVar vs)
   where
-    vs = [ ihname "a" i | i <- [0 .. arity - 1]]
+    vs = [ ihname A i | i <- [0 .. arity - 1]]
 
 tvaldecl :: QName
          -> Induction
@@ -920,8 +1182,8 @@ tvaldecl q ind npar cds cl =
   maybe [HS.DataDecl kind tn [] cds' []]
         (const []) cl
   where
-  (tn, vn) = (unqhname "T" q, unqhname "d" q)
-  pvs = [ HS.PVar        $ ihname "a" i | i <- [0 .. npar - 1]]
+  (tn, vn) = (unqhname TypeK q, dname q)
+  pvs = [ HS.PVar $ ihname A i | i <- [0 .. npar - 1]]
 
   -- Inductive data types consisting of a single constructor with a
   -- single argument are translated into newtypes.
@@ -934,8 +1196,7 @@ tvaldecl q ind npar cds cl =
 
 infodecl :: QName -> [HS.Decl] -> [HS.Decl]
 infodecl _ [] = []
-infodecl q ds =
-  fakeD (unqhname "name" q) (haskellStringLiteral $ prettyShow q) : ds
+infodecl q ds = HS.Comment (prettyShow q) : ds
 
 --------------------------------------------------
 -- Writing out a haskell module
@@ -954,19 +1215,43 @@ writeModule :: MonadGHCIO m => HS.Module -> m ()
 writeModule (HS.Module m ps imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
   out <- snd <$> outFileAndDir m
+  strict <- optGhcStrict <$> askGhcOpts
+  let languagePragmas =
+        List.map (HS.LanguagePragma . singleton . HS.Ident) $
+          List.sort $
+            [ "QualifiedDo" | strict ] ++
+                -- If --ghc-strict is used, then the language extension
+                -- QualifiedDo is activated. At the time of writing no
+                -- code is generated that depends on this extension
+                -- (except for the pragmas), but --ghc-strict is broken
+                -- with at least some versions of GHC prior to version 9,
+                -- and QualifiedDo was introduced with GHC 9.
+            [ "BangPatterns"
+            , "EmptyDataDecls"
+            , "EmptyCase"
+            , "ExistentialQuantification"
+            , "ScopedTypeVariables"
+            , "NoMonomorphismRestriction"
+            , "RankNTypes"
+            , "PatternSynonyms"
+            , "OverloadedStrings"
+            ]
+  let ghcOptions =
+        List.map HS.OtherPragma
+          [ ""  -- to separate from LANGUAGE pragmas
+          , "{-# OPTIONS_GHC -Wno-overlapping-patterns #-}"
+              -- Andreas, 2022-01-26, issue #5758:
+              -- Place this in generated file rather than
+              -- passing it only when calling GHC from within Agda.
+              -- This will silence the warning for the Agda-generated .hs
+              -- files while it can be on for other .hs files in the same
+              -- project.  (E.g., when using cabal/stack to compile.)
+          ]
   liftIO $ UTF8.writeFile out $ (++ "\n") $ prettyPrint $
-    HS.Module m (p : ps) imp ds
-  where
-  p = HS.LanguagePragma $ List.map HS.Ident $
-        [ "EmptyDataDecls"
-        , "EmptyCase"
-        , "ExistentialQuantification"
-        , "ScopedTypeVariables"
-        , "NoMonomorphismRestriction"
-        , "RankNTypes"
-        , "PatternSynonyms"
-        , "OverloadedStrings"
-        ]
+    -- TODO: It might make sense to skip bang patterns for the unused
+    -- arguments of the "non-stripped" functions.
+    applyWhen strict makeStrict $
+    HS.Module m (concat [languagePragmas, ghcOptions, ps]) imp ds
 
 outFileAndDir :: MonadGHCIO m => HS.ModuleName -> m (FilePath, FilePath)
 outFileAndDir m = do
@@ -980,10 +1265,10 @@ outFileAndDir m = do
   where
   repldot c = List.map $ \ c' -> if c' == '.' then c else c'
 
-curOutFileAndDir :: (MonadGHCIO m, ReadHsModuleEnv m) => m (FilePath, FilePath)
+curOutFileAndDir :: (MonadGHCIO m, ReadGHCModuleEnv m) => m (FilePath, FilePath)
 curOutFileAndDir = outFileAndDir =<< curHsMod
 
-curOutFile :: (MonadGHCIO m, ReadHsModuleEnv m) => m FilePath
+curOutFile :: (MonadGHCIO m, ReadGHCModuleEnv m) => m FilePath
 curOutFile = snd <$> curOutFileAndDir
 
 callGHC :: ReaderT GHCModule TCM ()
@@ -991,9 +1276,7 @@ callGHC = do
   opts    <- askGhcOpts
   hsmod   <- prettyPrint <$> curHsMod
   agdaMod <- curAgdaMod
-  let outputName = case mnameToList agdaMod of
-        [] -> __IMPOSSIBLE__
-        ms -> last ms
+  let outputName = lastWithDefault __IMPOSSIBLE__ $ mnameToList agdaMod
   (mdir, fp) <- curOutFileAndDir
   let ghcopts = optGhcFlags opts
 
@@ -1016,14 +1299,15 @@ callGHC = do
         [ fp
         , "--make"
         , "-fwarn-incomplete-patterns"
-        , "-fno-warn-overlapping-patterns"
         ]
       args     = overridableArgs ++ ghcopts ++ otherArgs
 
   let ghcBin = optGhcBin opts
 
+  -- Make GHC use UTF-8 when writing to stdout and stderr.
+  liftIO $ setEnv "GHC_CHARENC" "UTF-8"
   -- Note: Some versions of GHC use stderr for progress reports. For
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
   let doCall = optGhcCallGhc opts
-  liftTCM $ callCompiler doCall ghcBin args
+  liftTCM $ callCompiler doCall ghcBin args (Just utf8)

@@ -1,0 +1,62 @@
+name: Whitespace
+on:
+  push:
+    branches:
+    - master
+    - ci-*
+    - release*
+  pull_request:
+
+jobs:
+  check:
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]')
+      && !contains(github.event.head_commit.message, '[ci skip]')
+      && !contains(github.event.head_commit.message, '[github skip]')
+      && !contains(github.event.head_commit.message, '[skip github]')
+
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        ghc-ver: ['9.2']
+        cabal-ver: [latest]
+        # stack-ver: [2.5.1]
+        fix-whitespace-ver: [0.0.7]
+
+    steps:
+    - uses: actions/checkout@v2
+      name: Checkout agda sources
+
+    - name: Check encoding of Parser.y
+      run: |
+        make check-encoding
+
+    - name: Create directory for binary
+      run: |
+        mkdir -p $HOME/.local/bin
+
+    - uses: actions/cache@v2
+      name: Cache the binary
+      id: cache
+      with:
+        path: "~/.local/bin"
+        key: fix-whitespace-${{ matrix.fix-whitespace-ver }}
+
+    - uses: haskell/actions/setup@v1
+      if: ${{ !steps.cache.outputs.cache-hit }}
+      with:
+        ghc-version: ${{ matrix.ghc-ver }}
+        cabal-version: ${{ matrix.cabal-ver }}
+        # stack-version: ${{ matrix.stack-ver }}
+        # enable-stack: true
+
+    - name: Install fix-whitespace
+      if: ${{ !steps.cache.outputs.cache-hit }}
+      run: |
+        cabal install --install-method=copy --installdir=$HOME/.local/bin fix-whitespace
+        strip $HOME/.local/bin/fix-whitespace
+
+    - name: Check the whitespace issue
+      run: |
+        $HOME/.local/bin/fix-whitespace --check

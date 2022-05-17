@@ -17,7 +17,7 @@ module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
   ) where
 
-import Control.Arrow (second)
+import Control.Arrow (first, second)
 import Control.Monad (guard)
 import Data.Coerce
 import Data.Function
@@ -229,8 +229,8 @@ instance TermSubst a => Apply (Tele a) where
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
 instance Apply Definition where
-  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk d) args =
-    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk (apply d args)
+  apply (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) args =
+    Defn info x (piApply t args) (apply pol args) (apply occ args) (apply gens args) (drop (length args) gpars) df m c inst copy ma nc inj copat blk lang (apply d args)
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -296,7 +296,7 @@ instance Apply ProjLams where
 
 instance Apply Defn where
   apply d [] = d
-  apply d args = case d of
+  apply d args@(arg1:args1) = case d of
     Axiom{} -> d
     DataOrRecSig n -> DataOrRecSig (n - length args)
     GeneralizableVar{} -> d
@@ -329,23 +329,10 @@ instance Apply Defn where
                 , funExtLam         = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
                 }
               where
-                larg  = last args -- the record value
+                larg  = last1 arg1 args1 -- the record value
                 args' = [larg]
                 isVar0 = case unArg larg of Var 0 [] -> True; _ -> False
-{-
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Just p@Projection{ projIndex = n } }
-        -- case: only applying parameters
-      | size args < n -> d { funProjection = Just $ p `apply` args }
-        -- case: apply also to record value
-      | otherwise     ->
-        d { funClauses        = apply cs args'
-          , funCompiled       = apply cc args'
-          , funInv            = apply inv args'
-          , funProjection     = Just $ p { projIndex = 0 } -- Nothing ?
-          }
-      where args' = [last args]  -- the record value
--}
+
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np - size args
         , dataClause     = apply cl args
@@ -373,7 +360,7 @@ instance Apply Clause where
     -- It is assumed that we only apply a clause to "parameters", i.e.
     -- arguments introduced by lambda lifting. The problem is that these aren't
     -- necessarily the first elements of the clause telescope.
-    apply cls@(Clause rl rf tel ps b t catchall exact recursive unreachable ell) args
+    apply cls@(Clause rl rf tel ps b t catchall exact recursive unreachable ell wm) args
       | length args > length ps = __IMPOSSIBLE__
       | otherwise =
       Clause rl rf
@@ -386,6 +373,7 @@ instance Apply Clause where
              recursive
              unreachable
              ell
+             wm
       where
         -- We have
         --  Γ ⊢ args, for some outer context Γ
@@ -475,7 +463,7 @@ instance Apply Clause where
 
 instance Apply CompiledClauses where
   apply cc args = case cc of
-    Fail     -> Fail
+    Fail hs -> Fail (drop len hs)
     Done hs t
       | length hs >= len ->
          let sub = parallelS $ map var [0..length hs - len - 1] ++ map unArg args
@@ -521,7 +509,7 @@ instance Apply a => Apply (Case a) where
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
-  apply (Inverse inv) args = Inverse $ apply inv args
+  apply (Inverse w inv) args = Inverse w $ apply inv args
 
   applyE t es = apply t $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
 
@@ -623,9 +611,10 @@ instance Abstract Telescope where
   ExtendTel arg xtel `abstract` tel = ExtendTel arg $ xtel <&> (`abstract` tel)
 
 instance Abstract Definition where
-  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk d) =
+  abstract tel (Defn info x t pol occ gens gpars df m c inst copy ma nc inj copat blk lang d) =
     Defn info x (abstract tel t) (abstract tel pol) (abstract tel occ) (abstract tel gens)
-                (replicate (size tel) Nothing ++ gpars) df m c inst copy ma nc inj copat blk (abstract tel d)
+      (replicate (size tel) Nothing ++ gpars)
+      df m c inst copy ma nc inj copat blk lang (abstract tel d)
 
 -- | @tel ⊢ (Γ ⊢ lhs ↦ rhs : t)@ becomes @tel, Γ ⊢ lhs ↦ rhs : t)@
 --   we do not need to change lhs, rhs, and t since they live in Γ.
@@ -680,15 +669,19 @@ instance Abstract Defn where
       -- Andreas, 2015-05-11 if projection was applied to Var 0
       -- then abstract over last element of tel (the others are params).
       if projIndex p > 0 then d' else
-        d' { funClauses  = abstract tel1 cs
+        d' { funClauses  = map (abstractClause tel1) cs
            , funCompiled = abstract tel1 cc
            , funCovering = abstract tel1 cov
            , funInv      = abstract tel1 inv
            , funExtLam   = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
            }
         where
-          d' = d { funProjection = Just $ abstract tel p }
+          d' = d { funProjection = Just $ abstract tel p
+                 , funClauses    = map (abstractClause EmptyTel) cs }
           tel1 = telFromList $ drop (size tel - 1) $ telToList tel
+          -- #5128: clause telescopes should be abstracted over the full telescope, regardless of
+          --        projection shenanigans.
+          abstractClause tel1 c = (abstract tel1 c) { clauseTel = abstract tel $ clauseTel c }
 
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars       = np + size tel
@@ -710,7 +703,7 @@ instance Abstract PrimFun where
         where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause rl rf tel' ps b t catchall exact recursive unreachable ell) =
+  abstract tel (Clause rl rf tel' ps b t catchall exact recursive unreachable ell wm) =
     Clause rl rf (abstract tel tel')
            (namedTelVars m tel ++ ps)
            b
@@ -720,13 +713,16 @@ instance Abstract Clause where
            recursive
            unreachable
            ell
+           wm
       where m = size tel + size tel'
 
 instance Abstract CompiledClauses where
-  abstract tel Fail = Fail
-  abstract tel (Done xs t) = Done (map (argFromDom . fmap fst) (telToList tel) ++ xs) t
-  abstract tel (Case n bs) =
-    Case (n <&> \ i -> i + size tel) (abstract tel bs)
+  abstract tel cc = case cc of
+      Fail xs   -> Fail (hs ++ xs)
+      Done xs t -> Done (hs ++ xs) t
+      Case n bs -> Case (n <&> \ i -> i + size tel) (abstract tel bs)
+    where
+      hs = map (argFromDom . fmap fst) $ telToList tel
 
 instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a
@@ -747,7 +743,7 @@ namedTelVars m (ExtendTel !dom tel) =
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
-  abstract tel (Inverse inv) = Inverse $ abstract tel inv
+  abstract tel (Inverse w inv) = Inverse w $ abstract tel inv
 
 instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
   abstract tel = map (abstract tel)
@@ -774,7 +770,7 @@ abstractArgs args x = abstract tel x
 ---------------------------------------------------------------------------
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming _ π) : Term Γ -> Term Δ@
-renaming :: forall a. DeBruijn a => Empty -> Permutation -> Substitution' a
+renaming :: forall a. DeBruijn a => Impossible -> Permutation -> Substitution' a
 renaming err p = prependS err gamma $ raiseS $ size p
   where
     gamma :: [Maybe a]
@@ -786,7 +782,7 @@ renamingR :: DeBruijn a => Permutation -> Substitution' a
 renamingR p@(Perm n _) = permute (reverseP p) (map deBruijnVar [0..]) ++# raiseS n
 
 -- | The permutation should permute the corresponding context. (right-to-left list)
-renameP :: Subst a => Empty -> Permutation -> a -> a
+renameP :: Subst a => Impossible -> Permutation -> a -> a
 renameP err p = applySubst (renaming err p)
 
 instance EndoSubst a => Subst (Substitution' a) where
@@ -838,6 +834,7 @@ instance (Coercible a Term, Subst a) => Subst (Sort' a) where
     SSet n     -> SSet $ sub n
     SizeUniv   -> SizeUniv
     LockUniv   -> LockUniv
+    IntervalUniv -> IntervalUniv
     PiSort a s1 s2 -> coerce $ piSort (coerce $ sub a) (coerce $ sub s1) (coerce $ sub s2)
     FunSort s1 s2 -> coerce $ funSort (coerce $ sub s1) (coerce $ sub s2)
     UnivSort s -> coerce $ univSort $ coerce $ sub s
@@ -946,6 +943,7 @@ instance Subst NLPSort where
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv
+    PIntervalUniv -> PIntervalUniv
 
 instance Subst RewriteRule where
   type SubstArg RewriteRule = NLPat
@@ -964,7 +962,7 @@ instance Subst a => Subst (Blocked a) where
 instance Subst DisplayForm where
   type SubstArg DisplayForm = Term
   applySubst rho (Display n ps v) =
-    Display n (applySubst (liftS 1 rho) ps)
+    Display n (applySubst (liftS n rho) ps)
               (applySubst (liftS n rho) v)
 
 instance Subst DisplayTerm where
@@ -1004,7 +1002,9 @@ instance Subst Constraint where
     HasPTSRule a s           -> HasPTSRule (rf a) (rf s)
     CheckLockedVars a b c d  -> CheckLockedVars (rf a) (rf b) (rf c) (rf d)
     UnquoteTactic t h g      -> UnquoteTactic (rf t) (rf h) (rf g)
+    CheckDataSort q s        -> CheckDataSort q (rf s)
     CheckMetaInst m          -> CheckMetaInst m
+    CheckType t              -> CheckType (rf t)
     UsableAtModality mod m   -> UsableAtModality mod (rf m)
     where
       rf :: forall a. TermSubst a => a -> a
@@ -1088,6 +1088,8 @@ instance Subst Candidate where
 instance Subst EqualityView where
   type SubstArg EqualityView = Term
   applySubst rho (OtherType t) = OtherType
+    (applySubst rho t)
+  applySubst rho (IdiomType t) = IdiomType
     (applySubst rho t)
   applySubst rho (EqualityType s eq l t a b) = EqualityType
     (applySubst rho s)
@@ -1263,6 +1265,14 @@ mkPi !dom b = el $ Pi a (mkAbs x b)
 
 mkLam :: Arg ArgName -> Term -> Term
 mkLam a v = Lam (argInfo a) (Abs (unArg a) v)
+
+lamView :: Term -> ([Arg ArgName], Term)
+lamView (Lam h (Abs   x b)) = first (Arg h x :) $ lamView b
+lamView (Lam h (NoAbs x b)) = first (Arg h x :) $ lamView (raise 1 b)
+lamView t                   = ([], t)
+
+unlamView :: [Arg ArgName] -> Term -> Term
+unlamView xs b = foldr mkLam b xs
 
 telePi' :: (Abs Type -> Abs Type) -> Telescope -> Type -> Type
 telePi' reAbs = telePi where
@@ -1505,6 +1515,7 @@ univSort' (Inf f n) = Just $ Inf f $ 1 + n
 univSort' (SSet l) = Just $ SSet $ levelSuc l
 univSort' SizeUniv = Just $ Inf IsFibrant 0
 univSort' LockUniv = Just $ Inf IsFibrant 0 -- lock polymorphism is not actually supported
+univSort' IntervalUniv = Just $ SSet $ ClosedLevel 1
 univSort' s        = Nothing
 
 univSort :: Sort -> Sort
@@ -1525,6 +1536,7 @@ isSmallSort Type{}     = Just (True,IsFibrant)
 isSmallSort Prop{}     = Just (True,IsFibrant)
 isSmallSort SizeUniv   = Just (True,IsFibrant)
 isSmallSort LockUniv   = Just (True,IsFibrant)
+isSmallSort IntervalUniv = Just (True,IsStrict)
 isSmallSort (Inf f _)  = Just (False,f)
 isSmallSort SSet{}     = Just (True,IsStrict)
 isSmallSort MetaS{}    = Nothing
@@ -1550,6 +1562,12 @@ funSort' a b = case (a, b) of
   (LockUniv      , b            ) -> Just b
   -- No functions into lock types
   (a             , LockUniv     ) -> Nothing
+  -- @IntervalUniv@ behaves like @SSet@, but functions into @Type@ land in @Type
+  (IntervalUniv  , IntervalUniv ) -> Just $ SSet $ ClosedLevel 0
+  (IntervalUniv  , SSet b       ) -> Just $ SSet $ b
+  (IntervalUniv  , Type b       ) -> Just $ Type $ b
+  (Type a        , IntervalUniv ) -> Just $ SSet $ a
+  (SSet a        , IntervalUniv ) -> Just $ SSet $ a
   (SizeUniv      , b            ) -> Just b
   (a             , SizeUniv     ) | Just (True,_) <- isSmallSort a -> Just SizeUniv
   (Prop a        , Type b       ) -> Just $ Type $ levelLub a b

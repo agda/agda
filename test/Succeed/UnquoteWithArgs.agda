@@ -14,7 +14,7 @@ first : Tactic
 first = give (def (quote const) [])
 
 second : Tactic
-second = give (def (quote const) (arg (argInfo visible relevant) (def (quote id) []) ∷ []))
+second = give (def (quote const) (vArg (def (quote id) []) ∷ []))
 
 number : Nat
 number = unquote first 6 false

@@ -9,7 +9,7 @@ import Agda.Interaction.Options.Lenses
 import Agda.Utils.Monad
 import Agda.Syntax.Parser
 
-import Data.List
+import Data.List (intercalate)
 import qualified Data.Set as Set
 
 import System.FilePath ((</>), takeExtension)

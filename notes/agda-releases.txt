@@ -1,4 +1,4 @@
-Tested with `cabal-install 2.4.0.1`.
+Tested with `ghc-8.10.5` and `cabal-install 3.4.0.0`.
 
 When releasing the following procedure can be followed:
 
@@ -44,7 +44,13 @@ When releasing the following procedure can be followed:
 
 * Update Stackage resolvers, if necessary.
 
-* Update the year in the copyright of the user manual, if necessary.
+* Update the copyright year range in
+
+  - Agda.cabal
+  - /doc/user-manual/conf.py
+  - LICENSE
+
+* Check the date and version in `/src/data/latex/agda.sty`.
 
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
@@ -65,6 +71,10 @@ When releasing the following procedure can be followed:
 
     make up-to-date-std-lib
 
+* Obtain and install the cubical library branch related to the Agda:
+
+    make up-to-date-cubical
+
 * Run the test-suite:
 
     make compile-emacs-mode
@@ -74,12 +84,18 @@ When releasing the following procedure can be followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove -Werror and -fprof-auto from Agda.cabal (this is required by
+1) Remove the Cabal test-suite from Agda.cabal.
+
+2) Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Remove the Cabal test-suite from Agda.cabal.
+3) Removed unnecessary dependencies from stack-XYZ.yaml files:
 
-* Added to the extra-source-files field in Agda.cabal the file (see
+  + Removed QuickCheck dependency
+  + Removed tasty-* dependencies
+  + Removed local package (src/size-solver)
+
+4) Added to the extra-source-files field in Agda.cabal the file (see
   Issues #4216):
 
     doc/user-manual.pdf
@@ -94,17 +110,16 @@ When releasing the following procedure can be followed:
     cabal check
     cabal sdist
 
-* Build documentation for uploading to Hackage. Adapted from
-  https://hackage.haskell.org/upload (2018-07-19):
+* Build documentation for uploading to Hackage.
 
-    cabal haddock --for-hackage
+    cabal haddock --haddock-for-hackage
 
 * Ensure that the package builds properly (with multiple versions of
   GHC if possible) in Linux, macOS and Windows.
 
     BASE=`pwd`
     cd ${TMPDIR:-/tmp}
-    tar xzf $BASE/dist/Agda-$MAJORVERSION.tar.gz
+    tar xzf $BASE/dist-newstyle/sdist/Agda-$MAJORVERSION.tar.gz
     cd Agda-$MAJORVERSION
     cabal install --program-suffix=-$MAJORVERSION
     agda-$MAJOR_VERSION --version
@@ -115,21 +130,13 @@ When releasing the following procedure can be followed:
     cd $BASE
     git tag -a v$MAJORVERSION -m "Agda $MAJORVERSION stable release"
 
-* Upload the tarball and the documentation to Hackage (tested with
-  cabal-install >= 2.0.0.0):
+* Upload the tarball and the documentation to Hackage:
 
     cd $BASE
-    cabal upload --publish dist/Agda-$MAJORVERSION.tar.gz
-    cabal upload --publish -d dist/Agda-$MAJORVERSION-docs.tar.gz
+    cabal upload --publish dist-newstyle/sdist/Agda-$RC_VERSION.tar.gz
+    cabal upload --publish -d dist-newstyle/Agda-$RC_VERSION-docs.tar.gz
 
-* Remove from the extra-source-files field in Agda.cabal the file (see
-  Issues #4216):
-
-    doc/user-manual.pdf
-
-* Restore the Cabal test-suite in Agda.cabal.
-
-* Restore -Werror and -fprof-auto in Agda.cabal.
+* Revert changes made in 1), 2), 3) and 4).
 
 * Push all changes (in the release-$MAJORVERSION branch):
 
@@ -154,11 +161,13 @@ When releasing the following procedure can be followed:
   ** You need Admin permissions on the Agda readthedocs.org project
      (current admins: asr, andreasabel, phile314)
 
-  ** Go to readthedocs.org -> Agda Project -> Admin -> Versions
+  ** Go to readthedocs.org -> Agda Project -> Versions
 
-  ** Mark $MAJORVERSION as active
+     and mark $MAJORVERSION as active
 
-  ** Set the default documentation version to $MAJORVERSION
+  ** Go to readthedocs.org -> Agda Project -> Admin -> Advanced Settings
+
+     and set the default documentation version to $MAJORVERSION
 
   ** If a release candidate was released then remove the associated
      documentation.

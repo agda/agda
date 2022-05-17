@@ -47,37 +47,105 @@ data HsModuleEnv = HsModuleEnv
   --   not necessarily whether the GHC module has a `main` function defined.
   }
 
--- | Monads that can produce an @HsModuleEnv@
-class Monad m => ReadHsModuleEnv m where
+-- | The options derived from
+-- 'Agda.Compiler.MAlonzo.Compiler.GHCFlags' and other shared options.
+
+data GHCOptions = GHCOptions
+  { optGhcCallGhc    :: Bool
+  , optGhcBin        :: FilePath
+    -- ^ Use the compiler at PATH instead of "ghc"
+  , optGhcFlags      :: [String]
+  , optGhcCompileDir :: FilePath
+  , optGhcStrictData :: Bool
+    -- ^ Make inductive constructors strict?
+  , optGhcStrict :: Bool
+    -- ^ Make functions strict?
+  }
+
+-- | A static part of the GHC backend's environment that does not
+-- change from module to module.
+
+data GHCEnv = GHCEnv
+  { ghcEnvOpts :: GHCOptions
+  , ghcEnvBool
+  , ghcEnvTrue
+  , ghcEnvFalse
+  , ghcEnvMaybe
+  , ghcEnvNothing
+  , ghcEnvJust
+  , ghcEnvList
+  , ghcEnvNil
+  , ghcEnvCons
+  , ghcEnvNat
+  , ghcEnvInteger
+  , ghcEnvWord64
+  , ghcEnvInf
+  , ghcEnvSharp
+  , ghcEnvFlat
+  , ghcEnvInterval
+  , ghcEnvIZero
+  , ghcEnvIOne
+  , ghcEnvIsOne
+  , ghcEnvItIsOne
+  , ghcEnvIsOne1
+  , ghcEnvIsOne2
+  , ghcEnvIsOneEmpty
+  , ghcEnvPathP
+  , ghcEnvSub
+  , ghcEnvSubIn
+  , ghcEnvId
+  , ghcEnvConId
+    :: Maybe QName
+    -- Various (possibly) builtin names.
+  , ghcEnvIsTCBuiltin :: QName -> Bool
+    -- ^ Is the given name a @TC@ builtin (except for @TC@ itself)?
+  }
+
+-- | Module compilation environment, bundling the overall
+--   backend session options along with the module's basic
+--   readable properties.
+data GHCModuleEnv = GHCModuleEnv
+  { ghcModEnv         :: GHCEnv
+  , ghcModHsModuleEnv :: HsModuleEnv
+  }
+
+-- | Monads that can produce a 'GHCModuleEnv'.
+class Monad m => ReadGHCModuleEnv m where
+  askGHCModuleEnv :: m GHCModuleEnv
+
+  default askGHCModuleEnv
+    :: (MonadTrans t, Monad n, m ~ (t n), ReadGHCModuleEnv n)
+    => m GHCModuleEnv
+  askGHCModuleEnv = lift askGHCModuleEnv
+
   askHsModuleEnv :: m HsModuleEnv
+  askHsModuleEnv = ghcModHsModuleEnv <$> askGHCModuleEnv
 
-  default askHsModuleEnv
-    :: (MonadTrans t, Monad n, m ~ (t n), ReadHsModuleEnv n)
-    => m HsModuleEnv
-  askHsModuleEnv = lift askHsModuleEnv
+  askGHCEnv :: m GHCEnv
+  askGHCEnv = ghcModEnv <$> askGHCModuleEnv
 
-instance Monad m => ReadHsModuleEnv (ReaderT HsModuleEnv m) where
-  askHsModuleEnv = ask
+instance Monad m => ReadGHCModuleEnv (ReaderT GHCModuleEnv m) where
+  askGHCModuleEnv = ask
 
-instance ReadHsModuleEnv m => ReadHsModuleEnv (ExceptT e m)
-instance ReadHsModuleEnv m => ReadHsModuleEnv (IdentityT m)
-instance ReadHsModuleEnv m => ReadHsModuleEnv (MaybeT m)
-instance ReadHsModuleEnv m => ReadHsModuleEnv (StateT s m)
+instance ReadGHCModuleEnv m => ReadGHCModuleEnv (ExceptT e m)
+instance ReadGHCModuleEnv m => ReadGHCModuleEnv (IdentityT m)
+instance ReadGHCModuleEnv m => ReadGHCModuleEnv (MaybeT m)
+instance ReadGHCModuleEnv m => ReadGHCModuleEnv (StateT s m)
 
 newtype HsCompileState = HsCompileState
   { mazAccumlatedImports :: Set ModuleName
   } deriving (Eq, Semigroup, Monoid)
 
 -- | Transformer adding read-only module info and a writable set of imported modules
-type HsCompileT m = ReaderT HsModuleEnv (StateT HsCompileState m)
+type HsCompileT m = ReaderT GHCModuleEnv (StateT HsCompileState m)
 
 -- | The default compilation monad is the entire TCM (☹️) enriched with our state and module info
 type HsCompileM = HsCompileT TCM
 
-runHsCompileT' :: HsCompileT m a -> HsModuleEnv -> HsCompileState -> m (a, HsCompileState)
+runHsCompileT' :: HsCompileT m a -> GHCModuleEnv -> HsCompileState -> m (a, HsCompileState)
 runHsCompileT' t e s = (flip runStateT s) . (flip runReaderT e) $ t
 
-runHsCompileT :: HsCompileT m a -> HsModuleEnv -> m (a, HsCompileState)
+runHsCompileT :: HsCompileT m a -> GHCModuleEnv -> m (a, HsCompileState)
 runHsCompileT t e = runHsCompileT' t e mempty
 
 --------------------------------------------------
@@ -87,39 +155,85 @@ runHsCompileT t e = runHsCompileT' t e mempty
 -- | Whether the current module is expected to have the `main` function.
 --   This corresponds to the @IsMain@ flag provided to the backend,
 --   not necessarily whether the GHC module actually has a `main` function defined.
-curIsMainModule :: ReadHsModuleEnv m => m Bool
+curIsMainModule :: ReadGHCModuleEnv m => m Bool
 curIsMainModule = mazIsMainModule <$> askHsModuleEnv
 
 -- | This is the same value as @curMName@, but does not rely on the TCM's state.
 --   (@curMName@ and co. should be removed, but the current @Backend@ interface
 --   is not sufficient yet to allow that)
-curAgdaMod :: ReadHsModuleEnv m => m ModuleName
+curAgdaMod :: ReadGHCModuleEnv m => m ModuleName
 curAgdaMod = mazModuleName <$> askHsModuleEnv
 
 -- | Get the Haskell module name of the currently-focused Agda module
-curHsMod :: ReadHsModuleEnv m => m HS.ModuleName
+curHsMod :: ReadGHCModuleEnv m => m HS.ModuleName
 curHsMod = mazMod <$> curAgdaMod
 
--- The following naming scheme seems to be used:
---
--- * Types coming from Agda are named "T\<number\>".
---
--- * Other definitions coming from Agda are named "d\<number\>".
---   Exception: the main function is named "main".
---
--- * Names coming from Haskell must always be used qualified.
---   Exception: names from the Prelude.
+-- | There are two kinds of functions: those definitely without unused
+-- arguments, and those that might have unused arguments.
 
-ihname :: String -> Nat -> HS.Name
-ihname s i = HS.Ident $ s ++ show i
+data FunctionKind = NoUnused | PossiblyUnused
 
-unqhname :: String -> QName -> HS.Name
-{- NOT A GOOD IDEA, see Issue 728
-unqhname s q | ("d", "main") == (s, show(qnameName q)) = HS.Ident "main"
-             | otherwise = ihname s (idnum $ nameId $ qnameName $ q)
--}
-unqhname s q = ihname s (idnum $ nameId $ qnameName $ q)
-   where idnum (NameId x _) = fromIntegral x
+-- | Different kinds of variables: those starting with @a@, those
+-- starting with @v@, and those starting with @x@.
+
+data VariableKind = A | V | X
+
+-- | Different kinds of names.
+
+data NameKind
+  = TypeK
+    -- ^ Types.
+  | ConK
+    -- ^ Constructors.
+  | VarK VariableKind
+    -- ^ Variables.
+  | CoverK
+    -- ^ Used for coverage checking.
+  | CheckK
+    -- ^ Used for constructor type checking.
+  | FunK FunctionKind
+    -- ^ Other functions.
+
+-- | Turns strings into valid Haskell identifiers.
+--
+-- In order to avoid clashes with names of regular Haskell definitions
+-- (those not generated from Agda definitions), make sure that the
+-- Haskell names are always used qualified, with the exception of
+-- names from the prelude.
+
+encodeString :: NameKind -> String -> String
+encodeString k s = prefix ++ concatMap encode s
+  where
+  encode '\'' = "''"
+  encode c
+    | isLower c || isUpper c || c == '_' ||
+      generalCategory c == DecimalNumber =
+      [c]
+    | otherwise =
+      "'" ++ show (fromEnum c) ++ "'"
+
+  prefix = case k of
+    TypeK               -> "T"
+    ConK                -> "C"
+    VarK A              -> "a"
+    VarK V              -> "v"
+    VarK X              -> "x"
+    CoverK              -> "cover"
+    CheckK              -> "check"
+    FunK NoUnused       -> "du"
+    FunK PossiblyUnused -> "d"
+
+ihname :: VariableKind -> Nat -> HS.Name
+ihname k i = HS.Ident $ encodeString (VarK k) (show i)
+
+unqhname :: NameKind -> QName -> HS.Name
+unqhname k q =
+  HS.Ident $ encodeString k $
+    "_" ++ prettyShow (nameCanonical n) ++ "_" ++ idnum (nameId n)
+  where
+  n = qnameName q
+
+  idnum (NameId x _) = show (fromIntegral x)
 
 -- the toplevel module containing the given one
 tlmodOf :: ReadTCState m => ModuleName -> m HS.ModuleName
@@ -138,15 +252,15 @@ xqual q n = do
       modify (HsCompileState . Set.insert m1 . mazAccumlatedImports)
       return (HS.Qual (mazMod m1) n)
 
-xhqn :: String -> QName -> HsCompileM HS.QName
-xhqn s q = xqual q (unqhname s q)
+xhqn :: NameKind -> QName -> HsCompileM HS.QName
+xhqn k q = xqual q (unqhname k q)
 
 hsName :: String -> HS.QName
 hsName s = HS.UnQual (HS.Ident s)
 
 -- always use the original name for a constructor even when it's redefined.
 conhqn :: QName -> HsCompileM HS.QName
-conhqn q = xhqn "C" =<< canonicalName q
+conhqn q = xhqn ConK =<< canonicalName q
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> HsCompileM HS.QName
@@ -155,11 +269,11 @@ bltQual b s = do
   xqual q (HS.Ident s)
 
 dname :: QName -> HS.Name
-dname q = unqhname "d" q
+dname q = unqhname (FunK PossiblyUnused) q
 
 -- | Name for definition stripped of unused arguments
 duname :: QName -> HS.Name
-duname q = unqhname "du" q
+duname q = unqhname (FunK NoUnused) q
 
 hsPrimOp :: String -> HS.QOp
 hsPrimOp s = HS.QVarOp $ HS.UnQual $ HS.Symbol s
@@ -178,7 +292,7 @@ hsTypedDouble n = HS.ExpTypeSig (HS.Lit (HS.Frac $ toRational n)) (HS.TyCon (hsN
 
 hsLet :: HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
 hsLet x e b =
-  HS.Let (HS.BDecls [HS.FunBind [HS.Match x [] (HS.UnGuardedRhs e) emptyBinds]]) b
+  HS.Let (HS.BDecls [HS.LocalBind HS.Lazy x (HS.UnGuardedRhs e)]) b
 
 hsVarUQ :: HS.Name -> HS.Exp
 hsVarUQ = HS.Var . HS.UnQual
@@ -234,13 +348,6 @@ mazCoerce :: HS.Exp
 -- mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident mazCoerceName
 mazCoerce = HS.Var $ HS.UnQual $ HS.Ident mazCoerceName
 
--- Andreas, 2011-11-16: error incomplete match now RTE-call
-mazIncompleteMatch :: HS.Exp
-mazIncompleteMatch = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazIncompleteMatch"
-
-rtmIncompleteMatch :: QName -> HS.Exp
-rtmIncompleteMatch q = mazIncompleteMatch `HS.App` hsVarUQ (unqhname "name" q)
-
 mazUnreachableError :: HS.Exp
 mazUnreachableError = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazUnreachableError"
 
@@ -286,7 +393,7 @@ fakeDS :: String -> String -> HS.Decl
 fakeDS = fakeD . HS.Ident
 
 fakeDQ :: QName -> String -> HS.Decl
-fakeDQ = fakeD . unqhname "d"
+fakeDQ = fakeD . dname
 
 fakeType :: String -> HS.Type
 fakeType = HS.FakeType

@@ -9,6 +9,7 @@ module Agda.Utils.Maybe
     , module Data.Maybe
     ) where
 
+import Control.Applicative
 import Control.Monad.Trans.Maybe
 
 import Data.Maybe
@@ -111,3 +112,8 @@ whenNothingM mm d = maybe d (\_ -> return ()) =<< mm
 --   Only executes monadic effect while @isJust@.
 allJustM :: Monad m => [m (Maybe a)] -> m (Maybe [a])
 allJustM = runMaybeT . mapM MaybeT
+
+-- | Lift a maybe to an Alternative.
+liftMaybe :: Alternative f => Maybe a -> f a
+liftMaybe = maybe empty pure
+

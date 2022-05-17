@@ -1,8 +1,12 @@
 module Agda.Syntax.Concrete.Definitions.Types where
 
+import Control.DeepSeq
+
 import Data.Data
 import Data.Map (Map)
 import Data.Semigroup ( Semigroup(..) )
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (TerminationCheck())
@@ -13,6 +17,8 @@ import Agda.Syntax.Concrete.Pretty
 
 import Agda.Utils.Pretty
 import Agda.Utils.Impossible
+import Agda.Utils.List1 (List1)
+import qualified Agda.Utils.List1 as List1
 
 {--------------------------------------------------------------------------
     Types
@@ -74,7 +80,9 @@ data NiceDeclaration
   | NiceGeneralize Range Access ArgInfo TacticAttribute Name Expr
   | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
-  deriving (Data, Show)
+  deriving (Data, Show, Generic)
+
+instance NFData NiceDeclaration
 
 type TerminationCheck = Common.TerminationCheck Measure
 
@@ -92,7 +100,9 @@ type NiceTypeSignature  = NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
-    deriving (Data, Show)
+    deriving (Data, Show, Generic)
+
+instance NFData Clause
 
 -- | When processing a mutual block we collect the various checks present in the block
 --   before combining them.
@@ -134,13 +144,24 @@ type InterleavedMutual = Map Name InterleavedDecl
 
 data InterleavedDecl
   = InterleavedData
-    { infixDataSig  :: (Int, NiceDeclaration)           -- a data signature
-    , infixDataCons :: Maybe (Int, [[NiceConstructor]]) -- and associated constructors
+    { interleavedDeclNum  :: DeclNum
+        -- ^ Internal number of the data signature.
+    , interleavedDeclSig  :: NiceDeclaration
+        -- ^ The data signature.
+    , interleavedDataCons :: Maybe (DeclNum, List1 [NiceConstructor])
+        -- ^ Constructors associated to the data signature.
     }
   | InterleavedFun
-    { infixFunSig     :: (Int, NiceDeclaration)                  -- a fun signature
-    , infixFunClauses :: Maybe (Int, [([Declaration],[Clause])]) -- and associated fun clauses
+    { interleavedDeclNum  :: DeclNum
+        -- ^ Internal number of the function signature.
+    , interleavedDeclSig  :: NiceDeclaration
+        -- ^ The function signature.
+    , interleavedFunClauses :: Maybe (DeclNum, List1 ([Declaration],[Clause]))
+        -- ^ Function clauses associated to the function signature.
     }
+
+-- | Numbering declarations in an @interleaved mutual@ block.
+type DeclNum = Int
 
 isInterleavedFun :: InterleavedDecl -> Maybe ()
 isInterleavedFun InterleavedFun{} = Just ()
@@ -150,16 +171,16 @@ isInterleavedData :: InterleavedDecl -> Maybe ()
 isInterleavedData InterleavedData{} = Just ()
 isInterleavedData _ = Nothing
 
-interleavedDecl :: Name -> InterleavedDecl -> [(Int, NiceDeclaration)]
+interleavedDecl :: Name -> InterleavedDecl -> [(DeclNum, NiceDeclaration)]
 interleavedDecl k = \case
-  InterleavedData (i, d@(NiceDataSig _ acc abs pc uc _ pars _)) ds ->
+  InterleavedData i d@(NiceDataSig _ acc abs pc uc _ pars _) ds ->
     let fpars = concatMap dropTypeAndModality pars
         ddef  = NiceDataDef noRange UserWritten abs pc uc k fpars
-    in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (concat (reverse dss)))]) ds
-  InterleavedFun (i, d@(FunSig r acc abs inst mac info tc cc n e)) dcs ->
-    let fdef dcss = let (dss, css) = unzip dcss in
-                    FunDef r (concat dss) abs inst tc cc n (concat css)
-    in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (reverse dcss))]) dcs
+    in (i,d) : maybe [] (\ (j, dss) -> [(j, ddef (sconcat (List1.reverse dss)))]) ds
+  InterleavedFun i d@(FunSig r acc abs inst mac info tc cc n e) dcs ->
+    let fdef dcss = let (dss, css) = List1.unzip dcss in
+                    FunDef r (sconcat dss) abs inst tc cc n (sconcat css)
+    in (i,d) : maybe [] (\ (j, dcss) -> [(j, fdef (List1.reverse dcss))]) dcs
   _ -> __IMPOSSIBLE__ -- someone messed up and broke the invariant
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:
@@ -169,6 +190,7 @@ data KindOfBlock
   | InstanceBlock   -- ^ @instance@.  Actually, here all kinds of sub-declarations are allowed a priori.
   | FieldBlock      -- ^ @field@.  Ensured by parser.
   | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
+  | ConstructorBlock  -- ^ @constructor@, in @interleaved mutual@.
   deriving (Data, Eq, Ord, Show)
 
 

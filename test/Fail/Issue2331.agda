@@ -1,6 +1,8 @@
 -- Andreas, 2017-07-26, issue #2331.
 -- Andrea found a counterexample against the "usable decrease" feature:
 
+{-# OPTIONS --sized-types #-}
+
 open import Agda.Builtin.Size
 
 data D (i : Size) : Set where

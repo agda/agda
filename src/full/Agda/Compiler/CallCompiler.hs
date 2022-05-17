@@ -32,10 +32,13 @@ callCompiler
      -- ^ The path to the compiler
   -> [String]
      -- ^ Command-line arguments.
+  -> Maybe TextEncoding
+     -- ^ Use the given text encoding, if any, when reading the output
+     -- from the process (stdout and stderr).
   -> TCM ()
-callCompiler doCall cmd args =
+callCompiler doCall cmd args enc =
   if doCall then do
-    merrors <- callCompiler' cmd args
+    merrors <- callCompiler' cmd args enc
     case merrors of
       Nothing     -> return ()
       Just errors -> typeError (CompilationError errors)
@@ -49,8 +52,11 @@ callCompiler'
      -- ^ The path to the compiler
   -> [String]
      -- ^ Command-line arguments.
+  -> Maybe TextEncoding
+     -- ^ Use the given text encoding, if any, when reading the output
+     -- from the process (stdout and stderr).
   -> TCM (Maybe String)
-callCompiler' cmd args = do
+callCompiler' cmd args enc = do
   reportSLn "compile.cmd" 1 $ "Calling: " ++ unwords (cmd : args)
   (_, out, err, p) <-
     liftIO $ createProcess
@@ -65,6 +71,9 @@ callCompiler' cmd args = do
     Just out -> forkTCM $ do
       -- The handle should be in text mode.
       liftIO $ hSetBinaryMode out False
+      case enc of
+        Nothing  -> return ()
+        Just enc -> liftIO $ hSetEncoding out enc
       progressInfo <- liftIO $ hGetContents out
       mapM_ (reportSLn "compile.output" 1) $ lines progressInfo
 
@@ -73,6 +82,9 @@ callCompiler' cmd args = do
     Just err -> do
       -- The handle should be in text mode.
       hSetBinaryMode err False
+      case enc of
+        Nothing  -> return ()
+        Just enc -> liftIO $ hSetEncoding err enc
       hGetContents err
 
   exitcode <- liftIO $ do

@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --show-implicit #-}
+{-# OPTIONS --cubical-compatible --show-implicit #-}
 -- {-# OPTIONS -v tc.lhs.split.well-formed:100 #-}
 -- Andreas, adapted from Andres Sicard, 2013-05-29
 module WithoutKRestrictive where
@@ -40,7 +40,7 @@ helper : {A : Set}(y : A)(xs : List A) → (length xs) < (length (y ∷ xs))
 helper y []       = s≤s z≤n
 helper y (x ∷ xs) = s≤s (refl≤ _)
 
--- Why the --without-K option rejects the following proof
+-- Why the --cubical-compatible option rejects the following proof
 
 foo : {A : Set}(xs ys : List A) → P xs ys → Q xs ys
 foo xs .(x ∷ xs) (x , refl) = helper x xs

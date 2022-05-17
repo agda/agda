@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Internal.TypeChecking.Generators where
@@ -150,7 +151,7 @@ makeConfiguration ds cs ps vs = TermConf
       n <- tick
       return $ QName { qnameModule = MName []
                      , qnameName   = Name
-                        { nameId          = NameId n 1
+                        { nameId          = NameId n (ModuleNameHash 1)
                         , nameConcrete    = C.simpleName s
                         , nameCanonical   = C.simpleName s
                         , nameBindingSite = noRange
@@ -475,6 +476,7 @@ instance ShrinkC Sort where
     Inf f _    -> []
     SizeUniv   -> []
     LockUniv   -> []
+    IntervalUniv -> []
     PiSort a s1 s2 -> __IMPOSSIBLE__
     FunSort s1 s2 -> __IMPOSSIBLE__
     UnivSort s -> __IMPOSSIBLE__
@@ -515,8 +517,10 @@ instance ShrinkC Term where
     Sort s       -> Sort <$> shrinkC conf s
     MetaV m es   -> map unArg (argsFromElims es) ++
                     (MetaV m <$> shrinkC conf (NoType es))
+#if __GLASGOW_HASKELL__ < 900
     DontCare _   -> __IMPOSSIBLE__
     Dummy{}      -> __IMPOSSIBLE__
+#endif
     where
       validType t
         | not (tcIsType conf) = True

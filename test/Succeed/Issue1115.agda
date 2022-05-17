@@ -1,5 +1,5 @@
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 open import Agda.Builtin.Nat
 open import Agda.Builtin.Equality

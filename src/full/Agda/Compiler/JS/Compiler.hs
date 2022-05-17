@@ -3,16 +3,20 @@
 module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
+
+import Control.DeepSeq
 import Control.Monad.Trans
 
 import Data.Char     ( isSpace )
 import Data.Foldable ( forM_ )
-import Data.List     ( intercalate, partition )
+import Data.List     ( dropWhileEnd, elemIndex, intercalate, partition )
 import Data.Set      ( Set )
 
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.Text as T
+
+import GHC.Generics (Generic)
 
 import System.Directory   ( createDirectoryIfMissing )
 import System.Environment ( setEnv )
@@ -30,18 +34,20 @@ import Agda.Syntax.Abstract.Name
     mnameToList, qnameName, qnameModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Type
-  , arity, nameFixity, unDom )
-import Agda.Syntax.Literal ( Literal(..) )
+  , nameFixity, unDom, telToList )
+import Agda.Syntax.Literal       ( Literal(..) )
+import Agda.Syntax.Treeless      ( ArgUsage(..), filterUsed )
 import qualified Agda.Syntax.Treeless as T
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce ( instantiateFull )
 import Agda.TypeChecking.Substitute as TC ( TelV(..), raise, subst )
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Telescope ( telViewPath )
 
 import Agda.Utils.FileName ( isNewerThan )
 import Agda.Utils.Function ( iterate' )
-import Agda.Utils.List ( headWithDefault )
+import Agda.Utils.List ( downFrom, headWithDefault )
 import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe ( boolToMaybe, catMaybes, caseMaybeM, fromMaybe, whenNothing )
@@ -112,6 +118,9 @@ data JSOptions = JSOptions
   , optJSVerify   :: Bool
       -- ^ Run generated code through interpreter.
   }
+  deriving Generic
+
+instance NFData JSOptions
 
 defaultJSOptions :: JSOptions
 defaultJSOptions = JSOptions
@@ -138,7 +147,17 @@ jsCommandLineFlags =
 --- Top-level compilation ---
 
 jsPreCompile :: JSOptions -> TCM JSOptions
-jsPreCompile opts = return opts
+jsPreCompile opts = do
+  cubical <- optCubical <$> pragmaOptions
+  let notSupported s =
+        typeError $ GenericError $
+          "Compilation of code that uses " ++ s ++ " is not supported."
+  case cubical of
+    Nothing      -> return ()
+    Just CErased -> return ()
+    Just CFull   -> notSupported "--cubical"
+
+  return opts
 
 -- | After all modules have been compiled, copy RTE modules and verify compiled modules.
 
@@ -184,10 +203,21 @@ mergeModules ms
 
 --- Module compilation ---
 
-type JSModuleEnv = Maybe CoinductionKit
+data JSModuleEnv = JSModuleEnv
+  { jsCoinductionKit :: Maybe CoinductionKit
+  , jsCompile        :: Bool
+    -- ^ Should this module be compiled?
+  }
 
 jsPreModule :: JSOptions -> IsMain -> ModuleName -> Maybe FilePath -> TCM (Recompile JSModuleEnv Module)
-jsPreModule _opts _ m mifile = ifM uptodate noComp yesComp
+jsPreModule _opts _ m mifile = do
+  cubical <- optCubical <$> pragmaOptions
+  let compile = case cubical of
+        -- Code that uses --cubical is not compiled.
+        Just CFull   -> False
+        Just CErased -> True
+        Nothing      -> True
+  ifM uptodate noComp (yesComp compile)
   where
     uptodate = case mifile of
       Nothing -> pure False
@@ -201,11 +231,15 @@ jsPreModule _opts _ m mifile = ifM uptodate noComp yesComp
     -- A skipped module acts as a fake main module, to be skipped by --js-verify as well.
     skippedModule = Module (jsMod m) mempty mempty (Just __IMPOSSIBLE__)
 
-    yesComp = do
+    yesComp compile = do
       m   <- prettyShow <$> curMName
       out <- outFile_
       reportSLn "compile.js" 1 $ repl [m, ifileDesc, out] "Compiling <<0>> in <<1>> to <<2>>"
-      Recompile <$> coinductionKit
+      kit <- coinductionKit
+      return $ Recompile $ JSModuleEnv
+        { jsCoinductionKit = kit
+        , jsCompile        = compile
+        }
 
 jsPostModule :: JSOptions -> JSModuleEnv -> IsMain -> ModuleName -> [Maybe Export] -> TCM Module
 jsPostModule opts _ isMain _ defs = do
@@ -360,19 +394,24 @@ defJSDef def =
     dropEquals = dropWhile $ \ c -> isSpace c || c == '='
 
 definition' :: EnvWithOpts -> QName -> Definition -> Type -> JSQName -> TCM (Maybe Export)
-definition' kit q d t ls = do
+definition' kit q d t ls =
+  if not (jsCompile (snd kit)) || not (usableModality d)
+  then return Nothing
+  else do
   checkCompilerPragmas q
   case theDef d of
     -- coinduction
-    Constructor{} | Just q == (nameOfSharp <$> snd kit) -> do
+    Constructor{}
+      | Just q == (nameOfSharp <$> jsCoinductionKit (snd kit)) -> do
       return Nothing
-    Function{} | Just q == (nameOfFlat <$> snd kit) -> do
+    Function{}
+      | Just q == (nameOfFlat <$> jsCoinductionKit (snd kit)) -> do
       ret $ Lambda 1 $ Apply (Lookup (local 0) flatName) []
 
     DataOrRecSig{} -> __IMPOSSIBLE__
 
-    Axiom | Just e <- defJSDef d -> plainJS e
-    Axiom | otherwise -> ret Undefined
+    Axiom{} | Just e <- defJSDef d -> plainJS e
+    Axiom{} | otherwise -> ret Undefined
 
     GeneralizableVar{} -> return Nothing
 
@@ -381,11 +420,12 @@ definition' kit q d t ls = do
 
       reportSDoc "compile.js" 5 $ "compiling fun:" <+> prettyTCM q
       caseMaybeM (toTreeless T.EagerEvaluation q) (pure Nothing) $ \ treeless -> do
-        used <- getCompiledArgUse q
+        used <- fromMaybe [] <$> getCompiledArgUse q
         funBody <- eliminateCaseDefaults =<<
           eliminateLiteralPatterns
           (convertGuards treeless)
         reportSDoc "compile.js" 30 $ " compiled treeless fun:" <+> pretty funBody
+        reportSDoc "compile.js" 40 $ " argument usage:" <+> (text . show) used
 
         let (body, given) = lamView funBody
               where
@@ -394,12 +434,14 @@ definition' kit q d t ls = do
                 lamView t = (t, 0)
 
             -- number of eta expanded args
-            etaN = length $ dropWhile id $ reverse $ drop given used
+            etaN = length $ dropWhileEnd (== ArgUsed) $ drop given used
+
+            unusedN = length $ filter (== ArgUnused) used
 
         funBody' <- compileTerm kit
-                  $ iterate' (given + etaN - length (filter not used)) T.TLam
-                  $ eraseLocalVars (map not used)
-                  $ T.mkTApp (raise etaN body) (T.TVar <$> [etaN-1, etaN-2 .. 0])
+                  $ iterate' (given + etaN - unusedN) T.TLam
+                  $ eraseLocalVars (map (== ArgUnused) used)
+                  $ T.mkTApp (raise etaN body) (T.TVar <$> downFrom etaN)
 
         reportSDoc "compile.js" 30 $ " compiled JS fun:" <+> (text . show) funBody'
         return $
@@ -407,8 +449,12 @@ definition' kit q d t ls = do
           else Just $ Export ls funBody'
 
     Primitive{primName = p}
-      | p `Set.member` cubicalPrimitives ->
-        typeError $ NotImplemented p
+      | p == builtin_glueU ->
+        -- The string prim^glueU is not a valid JS name.
+        plainJS "agdaRTS.prim_glueU"
+      | p == builtin_unglueU ->
+        -- The string prim^unglueU is not a valid JS name.
+        plainJS "agdaRTS.prim_unglueU"
       | p `Set.member` primitives ->
         plainJS $ "agdaRTS." ++ p
       | Just e <- defJSDef d ->
@@ -417,10 +463,6 @@ definition' kit q d t ls = do
         ret Undefined
     PrimitiveSort{} -> return Nothing
 
-    Datatype{ dataPathCons = _ : _ } -> do
-      s <- render <$> prettyTCM q
-      typeError $ NotImplemented $
-        "Higher inductive types (" ++ s ++ ")"
     Datatype{} -> do
         computeErasedConstructorArgs q
         ret emp
@@ -430,7 +472,8 @@ definition' kit q d t ls = do
 
     Constructor{} | Just e <- defJSDef d -> plainJS e
     Constructor{conData = p, conPars = nc} -> do
-      let np = arity t - nc
+      TelV tel _ <- telViewPath t
+      let np = length (telToList tel) - nc
       erased <- getErasedConArgs q
       let nargs = np - length (filter id erased)
           args = [ Local $ LocalId $ nargs - i | i <- [0 .. nargs-1] ]
@@ -440,16 +483,21 @@ definition' kit q d t ls = do
         Record { recFields = flds } -> ret $ curriedLambda nargs $
           if optJSOptimize (fst kit)
             then Lambda 1 $ Apply (Local (LocalId 0)) args
-            else Object $ Map.fromList [ (l, Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args) ]
-        dt ->
-          ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) index) args
+            else Object $ Map.singleton l $ Lambda 1 $ Apply (Lookup (Local (LocalId 0)) l) args
+        dt -> do
+          i <- index
+          ret $ curriedLambda (nargs + 1) $ Apply (Lookup (Local (LocalId 0)) i) args
           where
-            index | Datatype{} <- dt
-                  , optJSOptimize (fst kit)
-                  , cs <- defConstructors dt
-                  = headWithDefault __IMPOSSIBLE__
-                      [MemberIndex i (mkComment l) | (i, x) <- zip [0..] cs, x == q]
-                  | otherwise = l
+            index :: TCM MemberId
+            index
+              | Datatype{} <- dt
+              , optJSOptimize (fst kit) = do
+                  q  <- canonicalName q
+                  cs <- mapM canonicalName $ defConstructors dt
+                  case q `elemIndex` cs of
+                    Just i  -> return $ MemberIndex i (mkComment l)
+                    Nothing -> __IMPOSSIBLE_VERBOSE__ $ unwords [ "Constructor", prettyShow q, "not found in", prettyShow cs ]
+              | otherwise = return l
             mkComment (MemberId s) = Comment s
             mkComment _ = mempty
 
@@ -471,7 +519,8 @@ compileTerm kit t = go t
           Datatype {} -> return (String "*")
           Record {} -> return (String "*")
           _ -> qname q
-      T.TApp (T.TCon q) [x] | Just q == (nameOfSharp <$> snd kit) -> do
+      T.TApp (T.TCon q) [x]
+        | Just q == (nameOfSharp <$> jsCoinductionKit (snd kit)) -> do
         x <- go x
         let evalThunk = unlines
               [ "function() {"
@@ -482,18 +531,22 @@ compileTerm kit t = go t
               , "  return result;"
               , "}"
               ]
-        return $ Object $ Map.fromList
+        return $ Object $ Map.fromListWith __IMPOSSIBLE__
           [(flatName, PlainJS evalThunk)
           ,(MemberId "__flat_helper", Lambda 0 x)]
       T.TApp t' xs | Just f <- getDef t' -> do
-        used <- either getCompiledArgUse (\x -> fmap (map not) $ getErasedConArgs x) f
+        used <- case f of
+          Left  q -> fromMaybe [] <$> getCompiledArgUse q
+          Right c -> map (\ b -> if b then ArgUnused else ArgUsed) <$> getErasedConArgs c
+            -- Andreas, 2021-02-10 NB: could be @map (bool ArgUsed ArgUnused)@
+            -- but I find it unintuitive that 'bool' takes the 'False'-branch first.
         let given = length xs
 
             -- number of eta expanded args
-            etaN = length $ dropWhile id $ reverse $ drop given used
+            etaN = length $ dropWhile (== ArgUsed) $ reverse $ drop given used
 
-            xs' = xs ++ (T.TVar <$> [etaN-1, etaN-2 .. 0])
-            args = [ t | (t, True) <- zip xs' $ used ++ repeat True ]
+            args = filterUsed used $
+                     raise etaN xs ++ (T.TVar <$> downFrom etaN)
 
         curriedLambda etaN <$> (curriedApply <$> go (raise etaN t') <*> mapM go args)
 
@@ -506,11 +559,11 @@ compileTerm kit t = go t
       T.TCon q -> do
         d <- getConstInfo q
         qname q
-      T.TCase sc ct def alts | T.CTData dt <- T.caseType ct -> do
+      T.TCase sc ct def alts | T.CTData _ dt <- T.caseType ct -> do
         dt <- getConstInfo dt
         alts' <- traverse (compileAlt kit) alts
         let cs  = defConstructors $ theDef dt
-            obj = Object $ Map.fromList [(snd x, y) | (x, y) <- alts']
+            obj = Object $ Map.fromListWith __IMPOSSIBLE__ [(snd x, y) | (x, y) <- alts']
             arr = mkArray [headWithDefault (mempty, Null) [(Comment s, y) | ((c', MemberId s), y) <- alts', c' == c] | c <- cs]
         case (theDef dt, defJSDef dt) of
           (_, Just e) -> do
@@ -544,7 +597,8 @@ compileTerm kit t = go t
 
     mkArray xs
         | 2 * length (filter ((==Null) . snd) xs) <= length xs = Array xs
-        | otherwise = Object $ Map.fromList [(MemberIndex i c, x) | (i, (c, x)) <- zip [0..] xs, x /= Null]
+        | otherwise = Object $ Map.fromListWith __IMPOSSIBLE__
+            [ (MemberIndex i c, x) | (i, (c, x)) <- zip [0..] xs, x /= Null ]
 
 compilePrim :: T.TPrim -> Exp
 compilePrim p =
@@ -618,18 +672,18 @@ literal = \case
 
 litqname :: QName -> Exp
 litqname q =
-  Object $ Map.fromList
+  Object $ Map.fromListWith __IMPOSSIBLE__
     [ (mem "id", Integer $ fromIntegral n)
     , (mem "moduleId", Integer $ fromIntegral m)
     , (mem "name", String $ T.pack $ prettyShow q)
     , (mem "fixity", litfixity fx)]
   where
     mem = MemberId
-    NameId n m = nameId $ qnameName q
+    NameId n (ModuleNameHash m) = nameId $ qnameName q
     fx = theFixity $ nameFixity $ qnameName q
 
     litfixity :: Fixity -> Exp
-    litfixity fx = Object $ Map.fromList
+    litfixity fx = Object $ Map.fromListWith __IMPOSSIBLE__
       [ (mem "assoc", litAssoc $ fixityAssoc fx)
       , (mem "prec", litPrec $ fixityLevel fx)]
 
@@ -664,32 +718,12 @@ outFile_ = do
   m <- curMName
   outFile (jsMod m)
 
--- | Cubical primitives that are (currently) not compiled.
---
--- TODO: Primitives that are neither part of this set nor of
--- 'primitives', and for which 'defJSDef' does not return anything,
--- are silently compiled to 'Undefined'. Thus, if a cubical primitive
--- is by accident omitted from 'cubicalPrimitives', then programs that
--- should be rejected are compiled to something which might not work
--- as intended. A better approach might be to list exactly those
--- primitives which should be compiled to 'Undefined'.
-
-cubicalPrimitives :: Set String
-cubicalPrimitives = Set.fromList
-  [ "primIMin"
-  , "primIMax"
-  , "primINeg"
-  , "primPartial"
-  , "primPartialP"
-  , "primPFrom1"
-  , "primPOr"
-  , "primComp"
-  , "primTransp"
-  , "primHComp"
-  , "primSubOut"
-  ]
-
 -- | Primitives implemented in the JS Agda RTS.
+--
+-- TODO: Primitives that are not part of this set, and for which
+-- 'defJSDef' does not return anything, are silently compiled to
+-- 'Undefined'. A better approach might be to list exactly those
+-- primitives which should be compiled to 'Undefined'.
 primitives :: Set String
 primitives = Set.fromList
   [  "primShowInteger"
@@ -803,25 +837,26 @@ primitives = Set.fromList
   -- , "primShowMeta"                -- missing
   -- , "primMetaToNat"               -- missing
   -- , "primMetaToNatInjective"      -- missing
-  -- , "primIMin"                    -- missing
-  -- , "primIMax"                    -- missing
-  -- , "primINeg"                    -- missing
-  -- , "primPOr"                     -- missing
-  -- , "primComp"                    -- missing
-  -- , builtinTrans                  -- missing
-  -- , builtinHComp                  -- missing
-  -- , "primIdJ"                     -- missing
-  -- , "primPartial"                 -- missing
-  -- , "primPartialP"                -- missing
+  , builtinIMin
+  , builtinIMax
+  , builtinINeg
+  , "primPartial"
+  , "primPartialP"
+  , builtinPOr
+  , builtinComp
+  , builtinTrans
+  , builtinHComp
+  , builtinSubOut
+  , builtin_glueU
+  , builtin_unglueU
+  , builtinFaceForall
+  , "primDepIMin"
+  , "primIdFace"
+  , "primIdPath"
+  , "primIdJ"
+  , builtinIdElim
+  , builtinConId
   -- , builtinGlue                   -- missing
   -- , builtin_glue                  -- missing
   -- , builtin_unglue                -- missing
-  -- , builtinFaceForall             -- missing
-  -- , "primDepIMin"                 -- missing
-  -- , "primIdFace"                  -- missing
-  -- , "primIdPath"                  -- missing
-  -- , builtinIdElim                 -- missing
-  -- , builtinSubOut                 -- missing
-  -- , builtin_glueU                 -- missing
-  -- , builtin_unglueU               -- missing
   ]

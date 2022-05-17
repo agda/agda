@@ -6,7 +6,7 @@ interleaved mutual
   data Rec : Set
   ⟦_⟧ : Rec → Set
 
-  constructor `Nat : Rec
+  data Rec where `Nat : Rec
   ⟦ `Nat   ⟧ = Nat
 
   _ : Rec
@@ -15,7 +15,7 @@ interleaved mutual
   _ : Rec → Rec
   _ = λ r → `Σ r (λ _ → `Nat)
 
-  constructor `Σ : (r : Rec) → (⟦ r ⟧ → Rec) → Rec
+  data Rec where `Σ : (r : Rec) → (⟦ r ⟧ → Rec) → Rec
   ⟦ `Σ A B ⟧ = Σ ⟦ A ⟧ λ a → ⟦ B a ⟧
 
 _+1-Nats : Nat → Rec

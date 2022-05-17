@@ -1,6 +1,6 @@
-ShadowModule2.agda:8,21-33
+ShadowModule2.agda:10,21-33
 Duplicate definition of module YesDuplicate. Previous definition of
 module YesDuplicate at
-ShadowModule2.agda:5,28-40
+ShadowModule2.agda:7,28-40
 when scope checking the declaration
   open module YesDuplicate = NotDuplicate

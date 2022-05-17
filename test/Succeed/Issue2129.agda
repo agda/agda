@@ -14,8 +14,9 @@ macro
   give : Wrap Term → Term → TC ⊤
   give [ t ] hole = unify hole t
 
-pattern vArg x = arg (arg-info visible relevant) x
-pattern hArg x = arg (arg-info hidden  relevant) x
+pattern default-modality = modality relevant quantity-ω
+pattern vArg x = arg (arg-info visible default-modality) x
+pattern hArg x = arg (arg-info hidden  default-modality) x
 
 -- Naming the variable "_" doesn't affect the deBruijn indices for lambda and pi
 

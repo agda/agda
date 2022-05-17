@@ -38,7 +38,7 @@ chooseHighlightingMethod
   :: HighlightingInfo
   -> HighlightingMethod
   -> HighlightingMethod
-chooseHighlightingMethod info method = case ranges info of
+chooseHighlightingMethod info method = case toList info of
   _             | method == Direct -> Direct
   ((_, mi) : _) | check mi         -> Direct
   _                                -> Indirect
