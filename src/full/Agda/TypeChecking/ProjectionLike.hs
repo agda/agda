@@ -161,9 +161,9 @@ data ProjEliminator = EvenLone | ButLone | NoPostfix
 --   on (applications of) projection-like functions.
 elimView :: PureTCM m => ProjEliminator -> Term -> m Term
 elimView pe v = do
-  reportSDoc "tc.conv.elim" 30 $ "elimView of " <+> prettyTCM v
+  reportSDoc "tc.conv.elim" 60 $ "elimView of " <+> prettyTCM v
   v <- reduceProjectionLike v
-  reportSDoc "tc.conv.elim" 40 $
+  reportSDoc "tc.conv.elim" 65 $
     "elimView (projections reduced) of " <+> prettyTCM v
   case pe of
     NoPostfix -> return v
