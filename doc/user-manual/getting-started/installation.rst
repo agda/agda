@@ -236,7 +236,7 @@ Prebuilt packages are available for Debian and Ubuntu from Karmic onwards. To in
 
 .. code-block:: bash
 
-  apt-get install agda-mode
+  apt-get install agda agda-mode
 
 This should install Agda and the Emacs mode.
 
