@@ -259,6 +259,7 @@
 \DeclareUnicodeCharacter{2467}{\ensuremath{\text{\ding{179}}}} % Symbol ⑧
 \DeclareUnicodeCharacter{2468}{\ensuremath{\text{\ding{180}}}} % Symbol ⑨
 
+\DeclareUnicodeCharacter{25A1}{\ensuremath{\Box}}           % Symbol □
 \DeclareUnicodeCharacter{25C5}{\ensuremath{\triangleleft}}  % Symbol ◅
 
 \DeclareUnicodeCharacter{2660}{\ensuremath{\spadesuit}} % Symbol ♠
