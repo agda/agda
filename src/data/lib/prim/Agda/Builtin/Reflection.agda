@@ -449,9 +449,9 @@ private
   combineReduceDefs (true  , defs₁) (false , defs₂) = (true  , filter (_∉ defs₂) defs₁)
   combineReduceDefs (false , defs₁) (false , defs₂) = (false , defs₁ ++ defs₂)
 
-{-# WARNING_ON_USAGE onlyReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `onlyReduceDefs`" #-}
-{-# WARNING_ON_USAGE dontReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `dontReduceDefs`" #-}
-
 onlyReduceDefs dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
 onlyReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (true  , defs) exDefs) x)
 dontReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (false , defs) exDefs) x)
+
+{-# WARNING_ON_USAGE onlyReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `onlyReduceDefs`" #-}
+{-# WARNING_ON_USAGE dontReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `dontReduceDefs`" #-}
