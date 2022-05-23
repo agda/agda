@@ -2,9 +2,6 @@
   ::
   module language.postulates where
 
-  open import Agda.Builtin.Bool     using (Bool; true; false)
-  open import Agda.Builtin.Equality using (_≡_; refl)
-
 .. _postulates:
 
 **********
@@ -69,18 +66,3 @@ Postulates are declarations and can appear in positions where arbitrary declarat
     my-theorem A = I-prove-this-later
       where
         postulate I-prove-this-later : _
-
-Postulates are _not_ permitted in ``let``, which limits the trick with local postulates a bit, since ``where`` is not allowed in expressions.  However, there is a workaround, using ``let open`` for a dedicated module::
-
-  module PostulateInLet where
-
-    -- A generic module containing a postulate of desired type.
-    module POSTULATE {a} {A : Set a} where
-      postulate
-        □ : A
-
-    everything-is-true : (b : Bool) → b ≡ true
-    everything-is-true = λ where
-      true  → refl
-      false → let open POSTULATE in □
-              -- `where` is not allowed here
