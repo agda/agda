@@ -3872,13 +3872,13 @@ data ExpandHidden
   | ReallyDontExpandLast -- ^ Makes 'doExpandLast' have no effect. Used to avoid implicit insertion of arguments to metavariables.
   deriving (Eq, Generic)
 
-isDontExpandLast :: ExpandHidden -> Bool
-isDontExpandLast ExpandLast           = False
-isDontExpandLast DontExpandLast       = True
-isDontExpandLast ReallyDontExpandLast = True
-
 isExpandLast :: ExpandHidden -> Bool
-isExpandLast = not . isDontExpandLast
+isExpandLast ExpandLast           = True
+isExpandLast DontExpandLast       = False
+isExpandLast ReallyDontExpandLast = False
+
+isDontExpandLast :: ExpandHidden -> Bool
+isDontExpandLast = not . isExpandLast
 
 toExpandLast :: Bool -> ExpandHidden
 toExpandLast True  = ExpandLast

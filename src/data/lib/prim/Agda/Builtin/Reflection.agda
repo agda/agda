@@ -420,3 +420,38 @@ postulate
 {-# COMPILE JS noConstraints     = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS runSpeculative    = _ => _ => _ =>      undefined #-}
 {-# COMPILE JS getInstances      = _ =>                undefined #-}
+
+private
+  filter : (Name → Bool) → List Name → List Name
+  filter p [] = []
+  filter p (x ∷ xs) with p x
+  ... | true  = x ∷ filter p xs
+  ... | false = filter p xs
+
+  _∈_ : Name → List Name → Bool
+  n ∈ []      = false
+  n ∈ (n' ∷ l) with primQNameEquality n n'
+  ... | true  = true
+  ... | false = n ∈ l
+
+  _∉_ : Name → List Name → Bool
+  n ∉ l with n ∈ l
+  ... | true  = false
+  ... | false = true
+
+  _++_ : List Name → List Name → List Name
+  [] ++ l       = l
+  (x ∷ xs) ++ l = x ∷ (xs ++ l)
+
+  combineReduceDefs : (Σ Bool λ _ → List Name) → (Σ Bool λ _ → List Name) → (Σ Bool λ _ → List Name)
+  combineReduceDefs (true  , defs₁) (true  , defs₂) = (true  , filter (_∈ defs₁) defs₂)
+  combineReduceDefs (false , defs₁) (true  , defs₂) = (true  , filter (_∉ defs₁) defs₂)
+  combineReduceDefs (true  , defs₁) (false , defs₂) = (true  , filter (_∉ defs₂) defs₁)
+  combineReduceDefs (false , defs₁) (false , defs₂) = (false , defs₁ ++ defs₂)
+
+{-# WARNING_ON_USAGE onlyReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `onlyReduceDefs`" #-}
+{-# WARNING_ON_USAGE dontReduceDefs "DEPRECATED: Use `withReduceDefs` instead of `dontReduceDefs`" #-}
+
+onlyReduceDefs dontReduceDefs : ∀ {a} {A : Set a} → List Name → TC A → TC A
+onlyReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (true  , defs) exDefs) x)
+dontReduceDefs defs x = bindTC askReduceDefs (λ exDefs → withReduceDefs (combineReduceDefs (false , defs) exDefs) x)
