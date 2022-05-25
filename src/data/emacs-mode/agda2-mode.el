@@ -256,8 +256,7 @@ constituents.")
     (eri-indent-reverse          [S-tab])
     (agda2-goto-definition-mouse [mouse-2])
     (agda2-goto-definition-keyboard "\M-.")
-    (agda2-go-back                  ,(if (version< emacs-version "25.1") "\M-*" "\M-,"))
-    )
+    (agda2-go-back                  ,(if (version< emacs-version "25.1") "\M-*" "\M-,")))
   "Table of commands, used to build keymaps and menus.
 Each element has the form (CMD &optional KEYS WHERE DESC) where
 CMD is a command; KEYS is its key binding (if any); WHERE is a
@@ -415,7 +414,7 @@ agda2-include-dirs is not bound." :warning))
  (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
  ;; If Agda is not running syntax highlighting does not work properly.
  (unless (eq 'run (agda2-process-status))
-   (agda2-restart))
+   (ignore-errors (agda2-restart)))
  ;; Make sure that Font Lock mode is not used.
  (font-lock-mode 0)
  (agda2-highlight-setup)
@@ -801,8 +800,7 @@ command is sent to Agda (if it is sent)."
   (interactive)
   (agda2-go 'save t 'busy t "Cmd_load"
             (agda2-string-quote (buffer-file-name))
-            (agda2-list-quote agda2-program-args)
-            ))
+            (agda2-list-quote agda2-program-args)))
 
 (defun agda2-compile ()
   "Compile the current module.
@@ -820,8 +818,7 @@ The variable `agda2-backend' determines which backend is used."
     (agda2-go 'save t 'busy t "Cmd_compile"
               backend
               (agda2-string-quote (buffer-file-name))
-              (agda2-list-quote agda2-program-args)
-              )))
+              (agda2-list-quote agda2-program-args))))
 
 (defmacro agda2-maybe-forced (name comment cmd save want)
   "This macro constructs a function NAME which runs CMD.
@@ -894,8 +891,7 @@ of new goals."
 (defun agda2-autoAll ()
   (interactive)
   "Solves all goals by simple proof search."
-  (agda2-go nil nil 'busy t "Cmd_autoAll")
-)
+  (agda2-go nil nil 'busy t "Cmd_autoAll"))
 
 (defun agda2-make-case ()
   "Refine the pattern variables given in the goal.
@@ -913,7 +909,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
     (delete-region p1 (line-end-position))
     (while (setq cl (pop newcls))
       (insert cl)
-      (if newcls (insert "\n" (make-string indent ?  ))))
+      (if newcls (insert "\n" (make-string indent ? ))))
     (goto-char p0))
   (agda2-load))
 
@@ -1350,15 +1346,13 @@ Along with their types."
   "Shows all the top-level names in the given module.
 Along with their types."
   "Cmd_show_module_contents_toplevel"
-  "Module name (empty for top-level module)"
-)
+  "Module name (empty for top-level module)")
 
 (agda2-maybe-normalised-toplevel
   agda2-search-about-toplevel
   "Search About an identifier"
   "Cmd_search_about_toplevel"
-  "Name"
-)
+  "Name")
 
 (defun agda2-module-contents-maybe-toplevel ()
   "Shows all the top-level names in the given module.
@@ -1377,8 +1371,7 @@ Either only one if point is a goal, or all of them."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
                           'agda2-solveOne
-                          'agda2-solveAll))
-)
+                          'agda2-solveAll)))
 
 (defun agda2-auto-maybe-all ()
   "Run auto.
@@ -1386,27 +1379,23 @@ Either only one if point is a goal, or all of them."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
                           'agda2-autoOne
-                          'agda2-autoAll))
-)
+                          'agda2-autoAll)))
 
 (agda2-maybe-normalised-toplevel-asis-noprompt
  agda2-show-goals
  "Show all goals."
- "Cmd_metas"
- )
+ "Cmd_metas")
 
 (agda2-maybe-normalised-toplevel-asis-noprompt
  agda2-solveAll
  "Solves all goals that are already instantiated internally."
- "Cmd_solveAll"
- )
+ "Cmd_solveAll")
 
 (agda2-maybe-normalised
   agda2-solveOne
   "Solves the goal at point if it is already instantiated internally"
   "Cmd_solveOne"
-  nil
-)
+  nil)
 
 (defun agda2-solveAll-action (iss)
   (while iss
@@ -1636,8 +1625,7 @@ text properties."
             (apply 'agda2-go 'save t 'busy nil "Cmd_highlight"
               (format "%d" old-g)
               (agda2-mkRange `(,p ,(- q 2)))
-              (agda2-string-quote new-txt) nil))
-    )))
+              (agda2-string-quote new-txt) nil)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Misc
