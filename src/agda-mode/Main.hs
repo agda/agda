@@ -174,8 +174,10 @@ askEmacs query = do
           -- The flag --user is necessary with --batch so that user-init-file is defined.
           -- The empty user is the default user.
           -- (Option --batch includes --no-init-file, this is reverted by supplying --user.)
-      , "--quick"
-          -- Option --quick includes --no-site-file.
+      -- Andreas, 2022-05-25, issue #5901 reloaded:
+      -- Loading the init file without loading the site fails for some users:
+      -- , "--quick"
+      --     -- Option --quick includes --no-site-file.
       , "--eval"
       , apply [ "with-temp-file", escape file, apply [ "insert", query ] ]
           -- Short cutting the temp file via just [ "princ", query ]
