@@ -1,8 +1,5 @@
 ..
   ::
-
-  {-# OPTIONS --guardedness #-}
-
   module language.copatterns where
 
   data _≡_ {A : Set} : A → A →  Set where
@@ -24,7 +21,9 @@
 Copatterns
 **********
 
-Consider the following record:
+If you are looking for information on how to use copatterns with 
+coinductive records please go to the section on :ref:`coinduction <coinduction>`. 
+Now consider the following record:
 
 ::
 
@@ -122,33 +121,7 @@ The resulting behaviour is the same in both cases:
     test₂ : backward-2 enum-Nat 5 ≡ 3
     test₂ = refl
 
-Copatterns with coinduction
-----------------------------------
 
-Recall the coinductive record of Stream in the section on coinduction:
-
-::
-
-    record Stream (A : Set) : Set where
-      coinductive
-      field
-        hd : A
-        tl : Stream A
-
-Now we can create streams using copatterns, a typical example would be 
-the common function repeat. 
-
-::
-
-    open Stream
-
-    repeat : {A : Set} (a : A) -> Stream A
-    hd (repeat a) = a
-    tl (repeat a) = repeat a
-
-And this way allows us to construct an infinite stream repeating the given value 'a'
-never reducing in of itself. Whilst using normal record syntax would have lead 
-to the termination checker throwing an error.
 
 Copatterns in function definitions
 ----------------------------------

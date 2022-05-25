@@ -107,6 +107,15 @@ Finally, we can prove that ``merge`` is a left inverse for ``split``:
     hd-≡ (merge-split-id _)  = refl
     tl-≈ (merge-split-id xs) = merge-split-id (tl xs)
 
+On top of creating fuctions that work on existing ``Stream``\s we can also use 
+:ref:`copatterns <copatterns>` to instantiate a ``Stream``\. Like the ``repeat``
+function which will repeat the given element ``a`` infinite amount of times.
+
+::
+
+    repeat : {A : Set} (a : A) -> Stream A
+    hd (repeat a) = a
+    tl (repeat a) = repeat a
 
 
 Old Coinduction
