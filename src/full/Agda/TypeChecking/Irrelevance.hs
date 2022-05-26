@@ -399,7 +399,15 @@ instance UsableModality Term where
         text ("has modality " ++ show fmod ++ ", which is a " ++
               (if ok then "" else "NOT ") ++ "more usable modality than " ++ show mod)
       return ok `and2M` usableMod mod vs
-    Con c _ vs -> usableMod mod vs
+    Con c o vs -> do
+      cmod <- modalityOfConst (conName c)
+      let ok = cmod `moreUsableModality` mod
+      reportSDoc "tc.irr" 50 $
+        "The constructor" <+> prettyTCM (Con c o []) <+>
+        text ("has the modality " ++ show cmod ++ ", which is " ++
+              (if ok then "" else "NOT ") ++
+              "more usable than the modality " ++ show mod ++ ".")
+      return ok `and2M` usableMod mod vs
     Lit l    -> return True
     Lam info v  -> usableModAbs info mod v
     -- Even if Pi contains Type, here we check it as a constructor for terms in the universe.
