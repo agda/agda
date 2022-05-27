@@ -21,9 +21,9 @@
 Copatterns
 **********
 
-If you are looking for information on how to use copatterns with 
-coinductive records please go to the section on :ref:`coinduction <coinduction>`. 
-Now consider the following record:
+.. note:: If you are looking for information on how to use copatterns with 
+   coinductive records please go to the section on :ref:`coinduction <coinduction>`. 
+   Now consider the following record:
 
 ::
 
