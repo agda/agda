@@ -811,6 +811,7 @@ library
                     , StandaloneDeriving
                     , TupleSections
                     , TypeFamilies
+                    , TypeOperators
                     , TypeSynonymInstances
 
 executable agda
@@ -998,6 +999,7 @@ test-suite agda-tests
                      , StandaloneDeriving
                      , TupleSections
                      , TypeFamilies
+                     , TypeOperators
                      , TypeSynonymInstances
 
   if flag(optimise-heavily)
