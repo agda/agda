@@ -58,11 +58,15 @@ constructor to the record type ``Stream``.
         fst : A
         snd : B
 
+Now we can use :ref:`copatterns <copatterns>` to create ``Stream``\s, like one that
+repeats a given element ``a`` infinitely many times::
+
+    repeat : {A : Set} (a : A) -> Stream A
+    hd (repeat a) = a
+    tl (repeat a) = repeat a
 
 We can also define pointwise equality (a bisimulation and an equivalence) of a pair of ``Stream``\s as a
-coinductive record:
-
-::
+coinductive record::
 
     record _≈_ {A} (xs : Stream A) (ys : Stream A) : Set where
       coinductive
@@ -106,7 +110,6 @@ Finally, we can prove that ``merge`` is a left inverse for ``split``:
     merge-split-id : ∀ {A} (xs : Stream A) → merge (split xs) ≈ xs
     hd-≡ (merge-split-id _)  = refl
     tl-≈ (merge-split-id xs) = merge-split-id (tl xs)
-
 
 
 Old Coinduction
