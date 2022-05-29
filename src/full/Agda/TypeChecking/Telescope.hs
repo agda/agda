@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 
 module Agda.TypeChecking.Telescope where
 
@@ -5,6 +6,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 
+import Data.Bifunctor (first)
 import Data.Foldable (find)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -377,25 +379,23 @@ telViewUpTo' n p t = do
     Pi a b | p a -> absV a (absName b) <$> do
                       underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
     _            -> return $ TelV EmptyTel t
-  where
-    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 telViewPath :: PureTCM m => Type -> m TelView
 telViewPath = telViewUpToPath (-1)
 
 -- | @telViewUpToPath n t@ takes off $t$
 --   the first @n@ (or arbitrary many if @n < 0@) function domains or Path types.
+--
+-- @telViewUpToPath n t = fst <$> telViewUpToPathBoundary'n t@
 telViewUpToPath :: PureTCM m => Int -> Type -> m TelView
-telViewUpToPath 0 t = return $ TelV EmptyTel t
-telViewUpToPath n t = do
-  vt <- pathViewAsPi $ t
-  case vt of
-    Left (a,b)     -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
-    Right (El _ t) | Pi a b <- t
-                   -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
-    Right t        -> return $ TelV EmptyTel t
+telViewUpToPath n t = if n == 0 then done t else do
+  pathViewAsPi t >>= \case
+    Left  (a, b)          -> recurse a b
+    Right (El _ (Pi a b)) -> recurse a b
+    Right t               -> done t
   where
-    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+    done t      = return $ TelV EmptyTel t
+    recurse a b = absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
 
 -- | [[ (i,(x,y)) ]] = [(i=0) -> x, (i=1) -> y]
 type Boundary = Boundary' (Term,Term)
@@ -405,20 +405,17 @@ type Boundary' a = [(Term,a)]
 -- by the Path types encountered. The boundary terms live in the
 -- telescope given by the @TelView@.
 -- Each point of the boundary has the type of the codomain of the Path type it got taken from, see @fullBoundary@.
-telViewUpToPathBoundary' :: PureTCM m => Int -> Type -> m (TelView,Boundary)
-telViewUpToPathBoundary' 0 t = return $ (TelV EmptyTel t,[])
-telViewUpToPathBoundary' n t = do
-  vt <- pathViewAsPi' $ t
-  case vt of
-    Left ((a,b),xy) -> addEndPoints xy . absV a (absName b) <$> telViewUpToPathBoundary' (n - 1) (absBody b)
-    Right (El _ t) | Pi a b <- t
-                   -> absV a (absName b) <$> telViewUpToPathBoundary' (n - 1) (absBody b)
-    Right t        -> return $ (TelV EmptyTel t,[])
+telViewUpToPathBoundary' :: PureTCM m => Int -> Type -> m (TelView, Boundary)
+telViewUpToPathBoundary' n t = if n == 0 then done t else do
+  pathViewAsPi' t >>= \case
+    Left ((a, b), xy)     -> addEndPoints xy <$> recurse a b
+    Right (El _ (Pi a b)) -> recurse a b
+    Right t               -> done t
   where
-    absV a x (TelV tel t, cs) = (TelV (ExtendTel a (Abs x tel)) t, cs)
-    addEndPoints xy (telv@(TelV tel _),cs) = (telv, (var $ size tel - 1, xyInTel):cs)
-      where
-       xyInTel = raise (size tel) xy
+    done t      = return (TelV EmptyTel t, [])
+    recurse a b = first (absV a (absName b)) <$> telViewUpToPathBoundary' (n - 1) (absBody b)
+    addEndPoints xy (telv@(TelV tel _), cs) =
+      (telv, (var $ size tel - 1, raise (size tel) xy) : cs)
 
 
 fullBoundary :: Telescope -> Boundary -> Boundary
@@ -478,10 +475,12 @@ teleElims tel boundary = recurse (teleArgs tel)
         Just i | Just (t,u) <- matchVar i -> IApply t u p
         _                                 -> Apply a
 
+-- | Reduces 'Type'.
 pathViewAsPi
   :: PureTCM m => Type -> m (Either (Dom Type, Abs Type) Type)
 pathViewAsPi t = either (Left . fst) Right <$> pathViewAsPi' t
 
+-- | Reduces 'Type'.
 pathViewAsPi'
   :: PureTCM m => Type -> m (Either ((Dom Type, Abs Type), (Term,Term)) Type)
 pathViewAsPi' t = do
@@ -493,44 +492,42 @@ pathViewAsPi'whnf
 pathViewAsPi'whnf = do
   view <- pathView'
   minterval  <- getTerm' builtinInterval
-  return $ \ t -> case view t of
-    PathType s l p a x y | Just interval <- minterval ->
+  return $ \case
+    (view -> PathType s l p a x y) | Just interval <- minterval ->
       let name | Lam _ (Abs n _) <- unArg a = n
                | otherwise = "i"
-          i = El intervalSort interval
       in
-        Left $ ((defaultDom $ i, Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]), (unArg x, unArg y))
+        Left ( ( defaultDom $ El intervalSort interval
+               , Abs name $ El (raise 1 s) $ raise 1 (unArg a) `apply` [defaultArg $ var 0]
+               )
+             , (unArg x, unArg y)
+             )
 
-    _    -> Right t
+    t    -> Right t
 
--- | returns Left (a,b) in case the type is @Pi a b@ or @PathP b _ _@
---   assumes the type is in whnf.
+-- | Returns @Left (a,b)@ in case the type is @Pi a b@ or @PathP b _ _@.
+--   Assumes the 'Type' is in whnf.
 piOrPath :: HasBuiltins m => Type -> m (Either (Dom Type, Abs Type) Type)
 piOrPath t = do
-  t <- pathViewAsPi'whnf <*> pure t
-  case t of
-    Left (p,_) -> return $ Left p
-    Right (El _ (Pi a b)) -> return $ Left (a,b)
-    Right t -> return $ Right t
+  (pathViewAsPi'whnf <*> pure t) <&> \case
+    Left (p, _)           -> Left p
+    Right (El _ (Pi a b)) -> Left (a,b)
+    Right _               -> Right t
 
+-- | Assumes 'Type' is in whnf.
 telView'UpToPath :: Int -> Type -> TCM TelView
-telView'UpToPath 0 t = return $ TelV EmptyTel t
-telView'UpToPath n t = do
-  vt <- pathViewAsPi'whnf <*> pure t
-  case vt of
-    Left ((a,b),_)     -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
-    Right (El _ t) | Pi a b <- t
-                   -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
-    Right t        -> return $ TelV EmptyTel t
+telView'UpToPath n t = if n == 0 then done else do
+  piOrPath t >>= \case
+    Left (a, b) -> absV a (absName b) <$> telViewUpToPath (n - 1) (absBody b)
+    Right _     -> done
   where
-    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+    done = return $ TelV EmptyTel t
 
 telView'Path :: Type -> TCM TelView
 telView'Path = telView'UpToPath (-1)
 
-isPath
-  :: PureTCM m => Type -> m (Maybe (Dom Type, Abs Type))
-isPath t = either Just (const Nothing) <$> pathViewAsPi t
+isPath :: PureTCM m => Type -> m (Maybe (Dom Type, Abs Type))
+isPath = either Just (const Nothing) <.> pathViewAsPi
 
 telePatterns :: DeBruijn a => Telescope -> Boundary -> [NamedArg (Pattern' a)]
 telePatterns = telePatterns' teleNamedArgs

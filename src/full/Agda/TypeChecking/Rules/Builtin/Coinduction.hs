@@ -135,11 +135,12 @@ bindBuiltinFlat x =
               ConP sharpCon cpi [ argN $ Named Nothing $ debruijnNamedVar "x" 0 ] ]
           , clauseBody      = Just $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
-          , clauseCatchall  = False
+          , clauseCatchall    = False
           , clauseExact       = Just True
           , clauseRecursive   = Just False
           , clauseUnreachable = Just False
-          , clauseEllipsis  = NoEllipsis
+          , clauseEllipsis    = NoEllipsis
+          , clauseWhereModule = Nothing
           }
         cc = Case (defaultArg 0) $ conCase sharp False $ WithArity 1 $ Done [defaultArg "x"] $ var 0
         projection = Projection

@@ -874,13 +874,18 @@ The action depends on the prefix argument:
 
 
 (defun agda2-intro-constructor-select (old-g choices)
-  "con select" ;; TODO : write description here
+  "Constructor select interface."
   (interactive)
-  (let* ((choicesLabels (mapcar (lambda (x) (propertize (car x) 'display (concat (car x) " : " (car (cdr x)) ) ))  choices))
+  (let* ((choicesLabels
+          (mapcar (lambda (x) (cons (car x) (propertize (concat " : " (car (cdr x))) 'face 'bold)))
+                  choices))
          (z (minibuffer-with-setup-hook 'minibuffer-complete
-               (completing-read "Constructor: " choicesLabels nil t)))
+              (let ((completion-extra-properties
+                     '(:annotation-function
+                        (lambda (candidate) (cdr (assoc candidate choicesLabels))))))
+                (completing-read "Constructor: " choicesLabels nil t))))
          (y (cdr (cdr (assoc z choices )))))
-    (if y (agda2-give-action old-g y))))
+    (if y (agda2-give-action old-g y) (force-mode-line-update))))
 
 
 (defun agda2-refine (pmlambda)

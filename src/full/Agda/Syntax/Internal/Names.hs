@@ -160,7 +160,7 @@ instance NamesIn Defn where
       -> namesAndMetasIn' sg (cl, cc)
 
 instance NamesIn Clause where
-  namesAndMetasIn' sg (Clause _ _ tel ps b t _ _ _ _ _) =
+  namesAndMetasIn' sg (Clause _ _ tel ps b t _ _ _ _ _ _) =
     namesAndMetasIn' sg (tel, ps, b, t)
 
 instance NamesIn CompiledClauses where

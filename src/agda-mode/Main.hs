@@ -122,7 +122,7 @@ setupDotEmacs files = do
 -- | Tries to find the user's .emacs file by querying Emacs.
 
 findDotEmacs :: IO FilePath
-findDotEmacs = askEmacs "(insert (expand-file-name user-init-file))"
+findDotEmacs = askEmacs "(expand-file-name user-init-file)"
 
 -- | Has the Agda mode already been set up?
 
@@ -167,14 +167,24 @@ askEmacs query = do
           (removeFile . fst) $ \(file, h) -> do
     hClose h
     exit <- rawSystemWithDiagnostics "emacs"
-                      [ "--no-desktop", "-nw", "--no-splash"
-                          -- Andreas, 2014-01-11: ^ try a leaner startup of emacs
-                          -- Andreas, 2018-09-08: -nw instead of --no-window-system as some emacses do not support the long version
-                      , "--eval"
-                      , "(with-temp-file " ++ escape file ++ " "
-                                           ++ query ++ ")"
-                      , "--kill"
-                      ]
+      [ "--batch"
+          -- Andreas, 2022-10-15, issue #5901, suggested by Spencer Baugh (catern):
+          -- Use Emacs batch mode so that it can run without a terminal.
+      , "--user", ""
+          -- The flag --user is necessary with --batch so that user-init-file is defined.
+          -- The empty user is the default user.
+          -- (Option --batch includes --no-init-file, this is reverted by supplying --user.)
+      -- Andreas, 2022-05-25, issue #5901 reloaded:
+      -- Loading the init file without loading the site fails for some users:
+      -- , "--quick"
+      --     -- Option --quick includes --no-site-file.
+      , "--eval"
+      , apply [ "with-temp-file", escape file, apply [ "insert", query ] ]
+          -- Short cutting the temp file via just [ "princ", query ]
+          -- does not work if the loading of the user-init-file prints extra stuff.
+          -- Going via the temp file we can let this stuff go to stdout without
+          -- affecting the output we care about.
+      ]
     unless (exit == ExitSuccess) $ do
       informLn "Unable to query Emacs."
       exitFailure
@@ -249,16 +259,16 @@ compileElispFiles = do
   where
   compile dataDir f = do
     exit <- rawSystemWithDiagnostics "emacs" $
-                      [ "--no-init-file", "--no-site-file"
-                      , "--directory", dataDir
-                      , "--batch"
-                      , "--eval"
-                      , "(progn \
-                           \(setq byte-compile-error-on-warn t) \
-                           \(byte-compile-disable-warning 'cl-functions) \
-                           \(batch-byte-compile))"
-                      , f
-                      ]
+      [ "--quick"                -- 'quick' implies 'no-site-file'
+      , "--directory", dataDir
+      , "--batch"                -- 'batch' implies 'no-init-file' but not 'no-site-file'.
+      , "--eval"
+      , "(progn \
+           \(setq byte-compile-error-on-warn t) \
+           \(byte-compile-disable-warning 'cl-functions) \
+           \(batch-byte-compile))"
+      , f
+      ]
     return $ if exit == ExitSuccess then Nothing else Just f
 
 ------------------------------------------------------------------------
@@ -269,3 +279,10 @@ compileElispFiles = do
 
 inform   = hPutStr   stderr
 informLn = hPutStrLn stderr
+
+parens :: String -> String
+parens s = concat [ "(", s, ")" ]
+
+-- LISP application
+apply :: [String] -> String
+apply = parens . unwords

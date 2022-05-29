@@ -7,6 +7,7 @@ module Agda.Interaction.BasicOps where
 import Prelude hiding (null)
 
 import Control.Arrow          ( first )
+import Control.Applicative    ( (<*) )
 import Control.Monad          ( (>=>), forM, guard )
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -1099,9 +1100,9 @@ introTactic pmLambda ii = do
           I.Def d _ -> do
             def <- getConstInfo d
             case theDef def of
-              Datatype{}    -> addContext tel' $ introData t
+              Datatype{ dataCons = dc }  -> addContext tel' $ introData t dc
               Record{ recNamedCon = name }
-                | name      -> addContext tel' $ introData t
+                | name      -> addContext tel' $ introData t []
                 | otherwise -> IntroTactic_Success <$>  (addContext tel' $ introRec d)
               _ -> fallback
           _ -> fallback
@@ -1137,47 +1138,63 @@ introTactic pmLambda ii = do
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
-    introData :: I.Type -> TCM IntroTacticResult
-    introData t = do
+    introData :: I.Type -> [QName] -> TCM IntroTacticResult
+    introData t cNms = do
+      reportSDoc "interaction.intro" 10 $ do "introData" TP.<+> prettyTCM t
       let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
       r <- splitLast CoInductive tel pat
-      case r of
-        Left err -> return IntroTactic_NotFound
-        Right cov -> do
-           mTy <- getMetaType =<< lookupInteractionId ii
-           l <- mapM (makeIntroductionTerm mTy) $ mapMaybe (conName . scPats) $ splitClauses cov
-           return $
-             case l of
-                []                    -> IntroTactic_NotFound
-                [x@IntroOportunity{}] -> IntroTactic_Success (stringToIntroduce x)
-                _                     -> IntroTactic_MultiplePossibleConstructors l
+      cHds <-
+        case r of
+          Left err -> (reportSLn "interaction.introData" 20 $ "obtaining constructors from Datatype definition")
+                      >> return cNms
+
+          Right cov -> do
+             reportSLn "interaction.introData" 20 $ "obtaining constructors via covering"
+             let cls = splitClauses cov
+             reportSLn "interaction.introData" 50 $ "splitClausesNr: " ++ show (length cls)
+             return $ mapMaybe (conName . scPats) $ cls
+      mTy <- getMetaTypeInContext =<< lookupInteractionId ii
+      l <- mapM (makeIntroductionTerm mTy) $ cHds
+      return $
+        case l of
+           []                    -> IntroTactic_NotFound
+           [x@IntroOportunity{}] -> IntroTactic_Success (stringToIntroduce x)
+           _                     -> IntroTactic_MultiplePossibleConstructors l
       where
 
-        conName :: [NamedArg SplitPattern] -> Maybe I.ConHead
+        conName :: [NamedArg SplitPattern] -> Maybe QName
         conName [p] =
               case namedArg p of
-                I.ConP c _ _  -> Just c
+                I.ConP c _ _  -> Just (I.conName c)
                 _ -> Nothing
         conName _   = __IMPOSSIBLE__
 
         showUnambiguousConName v =
-           runAbsToCon (lookupQName AmbiguousNothing $ I.conName v)
+           runAbsToCon (lookupQName AmbiguousNothing $ v)
 
+        makeIntroductionTerm :: I.Type -> QName -> TCM IntroOportunity
         makeIntroductionTerm mTy ch = do
+             tcSt <- getTC
              cn <- (render . pretty) <$> showUnambiguousConName ch
-             reportSLn "interaction.introData.makeIntroductionTerm" 20 $ "constructor: " ++ cn
-
+             reportSLn "interaction.introData.makeIntroductionTerm" 30 $ "constructor: " ++ cn
 
              (tel , renderedConstructorType) <- do
-                  cDefTy <- defType <$> getConstInfo (I.conName ch)
+                  cDefTy <- defType <$> getConstInfo ch
                   ct <- prettyATop =<< reifyUnblocked =<< normalForm Normalised cDefTy
                   return (telToList $ theTel $ telView' cDefTy , render ct)
 
              scope <- getScope
 
+
+             reportSLn "interaction.introData.makeIntroductionTerm" 50 $ "telescope: " ++ (render $ pretty tel)
+
+             mTyPP <- prettyATop =<< reifyUnblocked =<< normalForm Normalised mTy
+             reportSLn "interaction.introData.makeIntroductionTerm" 50 $ "against: " ++ (render $ pretty mTyPP)
+
+
              -- This applies constructor to all of its arguments, including hidden trailing args.
-             -- Depending on the flag, it can skip instance arguments.
+             -- Depending on the `includeInsArgs` flag, it can skip instance arguments.
              -- Resulting Expr is checked against the type of the hole.
              let applyMetasAndCheckAgainstHole includeInsArgs = (includeInsArgs ,) <$> do
                    let toNA :: Dom (ArgName, I.Type) -> TCM (Maybe ((NamedArg A.Expr) , InteractionId))
@@ -1195,22 +1212,41 @@ introTactic pmLambda ii = do
                             return $ Just (namedArgFromDom $ fmap (\_ -> metaVar) d , ii)
                           else return Nothing
                    mArgs <- fmap catMaybes $ traverse toNA tel
-                   let conAppMetas = A.app (A.Con $ unambiguous $ (I.conName ch)) (fst <$> mArgs)
+                   let conAppMetas = A.app (A.Con $ unambiguous ch) (fst <$> mArgs)
                    checkExpr conAppMetas mTy
 
              -- If type checking without metas for instane arguments fails,
              -- another attempt is made - this time with metas everywhere.
-             (wereInstanceArgumentsIncluded , chE@(I.Con _ _ es)) <-
-                  catchError (applyMetasAndCheckAgainstHole False)
-                       (\_ -> applyMetasAndCheckAgainstHole True )
+             (wereInstanceArgumentsIncluded , chE) <-
+                  catchError (applyMetasAndCheckAgainstHole False
+                                 <* reportSLn "interaction.introData.makeIntroductionTerm" 40
+                                              "Instance resolution sucessfull")
+                       (\e -> applyMetasAndCheckAgainstHole True
+                                 <* reportSLn "interaction.introData.makeIntroductionTerm" 40
+                                              "Instance resolution failed, fallback to adding holes for instance arguments")
 
-             -- This inspects elims in inferred term, depending on the path teaken above
-             -- metas for instance arguments may have been introduced either
-             -- during type checking or manually in `applyMetasAndCheckAgainstHole`.
+             reportSLn "interaction.introData.makeIntroductionTerm" 100 $ "chE: " ++ (render $ pretty chE)
+
+
+             let (I.Con _ _ es) = chE
+
+             reportSLn "interaction.introData.makeIntroductionTerm" 100 $ "es: " ++ (show es)
+
+
+             -- This inspects elims in typechecked term,
+             -- depending on the path teaken above metas for instance arguments
+             -- may have been introduced either during type checking or explcitly
+             -- in `applyMetasAndCheckAgainstHole`.
+
+             -- elims are zipped with telescope starting from the end, so DT parameters
+             -- will be discarded
+             let revZip x y = reverse $ zip (reverse x) (reverse y)
+
+
              (t :: [(MetaInstantiation , (Maybe String , Hiding))]) <-
-                forM (zip (argsFromElims es) tel) (\(a , d) -> do
+                forM (revZip (argsFromElims es) tel) (\(a , d) -> do
                     mi <- case (unArg a) of
-                             I.MetaV mId [] -> lookupMetaInstantiation mId
+                             I.MetaV mId _ -> lookupMetaInstantiation mId
                              _ -> __IMPOSSIBLE__
                     return (mi , (((>>= (filterMaybe (not . isGeneratedName))) . (fmap (rangedThing . woThing)) . getNameOf) d ,  getHiding d)))
 
@@ -1243,6 +1279,7 @@ introTactic pmLambda ii = do
                     then concat ["(",introStr,")"]
                     else introStr
 
+             putTC tcSt
              return $ IntroOportunity
                { constructorName   = cn
                , stringToIntroduce = introStrFinal

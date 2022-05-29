@@ -367,21 +367,21 @@ type NAPs = [NamedArg DeBruijnPattern]
 --  For the purpose of the permutation and the body dot patterns count
 --  as variables. TODO: Change this!
 data Clause = Clause
-    { clauseLHSRange  :: Range
-    , clauseFullRange :: Range
-    , clauseTel       :: Telescope
+    { clauseLHSRange    :: Range
+    , clauseFullRange   :: Range
+    , clauseTel         :: Telescope
       -- ^ @Δ@: The types of the pattern variables in dependency order.
-    , namedClausePats :: NAPs
+    , namedClausePats   :: NAPs
       -- ^ @Δ ⊢ ps@.  The de Bruijn indices refer to @Δ@.
-    , clauseBody      :: Maybe Term
+    , clauseBody        :: Maybe Term
       -- ^ @Just v@ with @Δ ⊢ v@ for a regular clause, or @Nothing@ for an
       --   absurd one.
-    , clauseType      :: Maybe (Arg Type)
+    , clauseType        :: Maybe (Arg Type)
       -- ^ @Δ ⊢ t@.  The type of the rhs under @clauseTel@.
       --   Used, e.g., by @TermCheck@.
       --   Can be 'Irrelevant' if we encountered an irrelevant projection
       --   pattern on the lhs.
-    , clauseCatchall  :: Bool
+    , clauseCatchall    :: Bool
       -- ^ Clause has been labelled as CATCHALL.
     , clauseExact       :: Maybe Bool
       -- ^ Pattern matching of this clause is exact, no catch-all case.
@@ -401,8 +401,10 @@ data Clause = Clause
       --   @Nothing@ means coverage checker has not run yet (clause may be unreachable).
       --   @Just False@ means clause is not unreachable.
       --   @Just True@ means clause is unreachable.
-    , clauseEllipsis  :: ExpandedEllipsis
+    , clauseEllipsis    :: ExpandedEllipsis
       -- ^ Was this clause created by expansion of an ellipsis?
+    , clauseWhereModule :: Maybe ModuleName
+      -- ^ Keeps track of the module name associate with the clause's where clause.
     }
   deriving (Data, Show, Generic)
 
@@ -1046,11 +1048,12 @@ instance Null (Tele a) where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty empty False Nothing Nothing Nothing empty
-  null (Clause _ _ tel pats body _ _ _ _ _ _)
+  empty = Clause empty empty empty empty empty empty False Nothing Nothing Nothing empty empty
+  null (Clause _ _ tel pats body _ _ _ _ _ _ wm)
     =  null tel
     && null pats
     && null body
+    && null wm
 
 
 ---------------------------------------------------------------------------
@@ -1224,8 +1227,8 @@ instance KillRange a => KillRange (Pattern' a) where
       DefP o q ps      -> killRange2 (DefP o) q ps
 
 instance KillRange Clause where
-  killRange (Clause rl rf tel ps body t catchall exact recursive unreachable ell) =
-    killRange10 Clause rl rf tel ps body t catchall exact recursive unreachable ell
+  killRange (Clause rl rf tel ps body t catchall exact recursive unreachable ell wm) =
+    killRange11 Clause rl rf tel ps body t catchall exact recursive unreachable ell wm
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange

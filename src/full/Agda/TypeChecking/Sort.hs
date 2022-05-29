@@ -165,7 +165,7 @@ sortOf
   :: forall m. (PureTCM m, MonadBlock m)
   => Term -> m Sort
 sortOf t = do
-  reportSDoc "tc.sort" 40 $ "sortOf" <+> prettyTCM t
+  reportSDoc "tc.sort" 60 $ "sortOf" <+> prettyTCM t
   sortOfT =<< elimView EvenLone t
 
   where
