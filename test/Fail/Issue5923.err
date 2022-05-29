@@ -1,0 +1,3 @@
+Issue5923.agda:16,8-12
+f tt != a of type A
+when checking that the expression refl has type f tt ≡ a
