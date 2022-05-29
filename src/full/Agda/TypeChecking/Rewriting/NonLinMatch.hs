@@ -410,9 +410,9 @@ reallyFree xs v = do
     pickFree NotFree f2 = f2
 
 
-makeSubstitution :: Telescope -> Sub -> Substitution
+makeSubstitution :: Telescope -> Sub -> Maybe Substitution
 makeSubstitution gamma sub =
-  parallelS $ map (fromMaybe __DUMMY_TERM__ . val) [0 .. size gamma-1]
+  parallelS <$> traverse val [0 .. size gamma-1]
     where
       val i = case IntMap.lookup i sub of
                 Just (Irrelevant, v) -> Just $ dontCare v
@@ -437,13 +437,15 @@ nonLinMatch gamma t p v = do
                    [ "matching failed during" <+> text msg
                    , "blocking: " <+> text (show b) ]) $ return (Left b)
   caseEitherM (runNLM $ match Relevant gamma EmptyTel t p v) (no "matching") $ \ s -> do
-    let sub = makeSubstitution gamma $ s^.nlmSub
+    let msub = makeSubstitution gamma $ s^.nlmSub
         eqs = s^.nlmEqs
-    traceSDoc "rewriting.match" 90 (text $ "sub = " ++ show sub) $ do
-    ok <- checkPostponedEquations sub eqs
-    case ok of
-      Nothing -> return $ Right sub
-      Just b  -> no "checking of postponed equations" b
+    traceSDoc "rewriting.match" 90 (text $ "msub = " ++ show msub) $ case msub of
+      Nothing -> no "checking that all variables are bound" notBlocked_
+      Just sub -> do
+        ok <- checkPostponedEquations sub eqs
+        case ok of
+          Nothing -> return $ Right sub
+          Just b  -> no "checking of postponed equations" b
 
 -- | Typed βη-equality, also handles empty record types.
 --   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
