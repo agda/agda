@@ -698,6 +698,8 @@ library
                  -Wwrong-do-bind
   else
     ghc-options: -fprint-potential-instances
+                 -- ASR (2022-05-31). Workaround to Issue #5932.
+                 -Werror
                  -Werror=unrecognised-warning-flags
                  -Werror=deprecated-flags
                  -Werror=deriving-typeable
@@ -1044,6 +1046,8 @@ test-suite agda-tests
                  -Wwrong-do-bind
   else
     ghc-options: -threaded
+                 -- ASR (2022-05-31). Workaround to Issue #5932.
+                 -Werror
                  -Werror=unrecognised-warning-flags
                  -Werror=deprecated-flags
                  -Werror=deriving-typeable
