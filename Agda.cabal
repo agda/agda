@@ -729,7 +729,7 @@ library
 
   -- NOTE: If adding or removing flags, also change `.ghci-8.2`
   if impl(ghc >= 8.2)
-    ghc-options: -Wcpp-undef
+    ghc-options: -Werror=cpp-undef
                  -- ASR TODO (2017-07-23): `make haddock` fails when
                  -- this flag is on.
                  -- -Wmissing-home-modules
