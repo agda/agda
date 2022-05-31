@@ -1155,13 +1155,15 @@ introTactic pmLambda ii = do
              reportSLn "interaction.introData" 50 $ "splitClausesNr: " ++ show (length cls)
              return $ mapMaybe (conName . scPats) $ cls
       mTy <- getMetaTypeInContext =<< lookupInteractionId ii
-      l <- mapM (makeIntroductionTerm mTy) $ cHds
+      l <- mapMaybeM (\x -> catchError (Just <$> makeIntroductionTerm mTy x) (\_ -> return Nothing)) $ cHds
       return $
         case l of
            []                    -> IntroTactic_NotFound
            [x@IntroOportunity{}] -> IntroTactic_Success (stringToIntroduce x)
            _                     -> IntroTactic_MultiplePossibleConstructors l
       where
+
+
 
         conName :: [NamedArg SplitPattern] -> Maybe QName
         conName [p] =
@@ -1243,41 +1245,54 @@ introTactic pmLambda ii = do
              let revZip x y = reverse $ zip (reverse x) (reverse y)
 
 
-             (t :: [(MetaInstantiation , (Maybe String , Hiding))]) <-
+             (t :: [((MetaInstantiation , MetaId) , (Maybe String , Hiding))]) <-
                 forM (revZip (argsFromElims es) tel) (\(a , d) -> do
                     mi <- case (unArg a) of
-                             I.MetaV mId _ -> lookupMetaInstantiation mId
+                             I.MetaV mId _ -> ( , mId) <$> lookupMetaInstantiation mId
                              _ -> __IMPOSSIBLE__
                     return (mi , (((>>= (filterMaybe (not . isGeneratedName))) . (fmap (rangedThing . woThing)) . getNameOf) d ,  getHiding d)))
 
              sia <- showImplicitArguments
 
-             let argFilter :: (MetaInstantiation , (Maybe String , Hiding)) -> Bool
-                 argFilter = uncurry $ \mI -> \case
+             let argFilter :: ((MetaInstantiation , MetaId) , (Maybe String , Hiding)) -> Bool
+                 argFilter = uncurry $ \(mI , _) -> \case
                             (_ , NotHidden)  -> True
                             (_ , _) -> (sia && isOpenMeta mI)
 
-                 renderArg :: (MetaInstantiation , (Maybe String , Hiding)) -> String
-                 renderArg = uncurry
-                        $ \mI -> let o = isOpenMeta mI in \case
-                            (_ , NotHidden)  -> if o then "?" else "_"
-                            (mbNm , Hidden) ->
-                                case mbNm of
-                                  Just fNm -> "{ "++ fNm ++ " = ?}"
-                                  Nothing -> "{?}"
-                            (mbNm , Instance _) ->
-                                case mbNm of
-                                  Just fNm -> "{{ "++ fNm ++ " = ?}}"
-                                  Nothing -> "{{?}}"
+                 renderArg :: ((MetaInstantiation , MetaId) , (Maybe String , Hiding)) -> TCM String
+                 renderArg ((mI , mId) , a@( _ , h)) = do
+                           v <- if (isOpenMeta mI)
+                                   then return "?"
+                                   else if isInstance h
+                                        then prettyShow <$> (abstractToConcrete_  =<< reify =<< (fromJust <$> isInstantiatedMeta' mId))
+                                        else return "_"
+                           return $
+                                case a of
+                                    (_ , NotHidden)  -> v
+                                    (mbNm , Hidden) ->
+                                        case mbNm of
+                                          Just fNm -> "{ "++ fNm ++ " = "++v++"}"
+                                          Nothing -> "{"++v++"}"
+                                    (mbNm , Instance _) ->
+                                        case mbNm of
+                                          Just fNm -> "{{ "++ fNm ++ " = "++v++"}}"
+                                          Nothing -> "{{"++v++"}}"
 
-                 argsToRender = filter argFilter t
-                 introStr = unwords $ (cn :) $ for argsToRender renderArg
+                 argsToRender =
+                  catMaybes $ snd $ List.mapAccumR
+                      (\s a@(mi , (mbN , h)) ->
+                             if argFilter a || s
+                             then ((notVisible h && isNothing mbN) , Just a)
+                             else (False , Nothing)
+                       )
+                       False t
+             introStr <- (unwords . (cn :)) <$> forM argsToRender renderArg
 
 
-                 introStrFinal =
-                    if (appBrackets (_scopePrecedence scope) && not (null argsToRender))
-                    then concat ["(",introStr,")"]
-                    else introStr
+             let introStrFinal =
+                                  if (appBrackets (_scopePrecedence scope) && not (null argsToRender))
+                                  then concat ["(",introStr,")"]
+                                  else introStr
 
              putTC tcSt
              return $ IntroOportunity
