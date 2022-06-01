@@ -34,13 +34,17 @@ jobs:
         cabal-ver: [3.6]
 
     env:
-      ARGS: "--disable-executable-profiling --disable-library-profiling --enable-split-sections"
+      ARGS: "--disable-executable-profiling --disable-library-profiling"
       # Liang-Ting Chen (2021-01-01):
       # Cabal cannot compile statically with text-icu (required by the flag `enable-cluster-counting`),
       # see https://github.com/4e6/text-icu-static-example
-      LINUX_ARGS: "--enable-executable-static"
+      #
+      # ASR (2022-06-01): The flag `--enable-split-sections` generates the warning
+      # "-split-sections is not useful on this platform since it always uses subsections via symbols"
+      # on MacOS (Issue #5940).
+      LINUX_ARGS: "--enable-executable-static  --enable-split-sections"
       MACOS_ARGS: "--flags=enable-cluster-counting"
-      WIN64_ARGS: "--flags=enable-cluster-counting"
+      WIN64_ARGS: "--flags=enable-cluster-counting  --enable-split-sections"
     outputs:
       sha: ${{ steps.vars.outputs.sha }}
     runs-on: ${{ matrix.os }}

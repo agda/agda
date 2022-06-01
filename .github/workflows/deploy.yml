@@ -19,10 +19,10 @@ jobs:
         access_token: ${{ github.token }}
   build:
     env:
-      ARGS: --disable-executable-profiling --disable-library-profiling --enable-split-sections
-      LINUX_ARGS: --enable-executable-static
+      ARGS: --disable-executable-profiling --disable-library-profiling
+      LINUX_ARGS: --enable-executable-static  --enable-split-sections
       MACOS_ARGS: --flags=enable-cluster-counting
-      WIN64_ARGS: --flags=enable-cluster-counting
+      WIN64_ARGS: --flags=enable-cluster-counting  --enable-split-sections
     if: ${{ always() }}
     needs: auto-cancel
     outputs:
