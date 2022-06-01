@@ -12,43 +12,43 @@ jobs:
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout agda sources
+      uses: actions/checkout@v2
+    - name: Check encoding of Parser.y
+      run: |
+        make check-encoding
+    - name: Create directory for binary
+      run: |
+        mkdir -p $HOME/.local/bin
+    - id: cache
+      name: Cache the binary
+      uses: actions/cache@v2
+      with:
+        key: fix-whitespace-${{ matrix.fix-whitespace-ver }}
+        path: ~/.local/bin
+    - if: ${{ !steps.cache.outputs.cache-hit }}
+      uses: haskell/actions/setup@v1
+      with:
+        cabal-version: ${{ matrix.cabal-ver }}
+        ghc-version: ${{ matrix.ghc-ver }}
+    - if: ${{ !steps.cache.outputs.cache-hit }}
+      name: Install fix-whitespace
+      run: |
+        cabal install --install-method=copy --installdir=$HOME/.local/bin fix-whitespace
+        strip $HOME/.local/bin/fix-whitespace
+    - name: Check the whitespace issue
+      run: |
+        $HOME/.local/bin/fix-whitespace --check
     strategy:
       matrix:
-        ghc-ver:
-        - '9.2'
         cabal-ver:
         - latest
         fix-whitespace-ver:
         - 0.0.7
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v2
-      name: Checkout agda sources
-    - run: |
-        make check-encoding
-      name: Check encoding of Parser.y
-    - run: |
-        mkdir -p $HOME/.local/bin
-      name: Create directory for binary
-    - with:
-        path: ~/.local/bin
-        key: fix-whitespace-${{ matrix.fix-whitespace-ver }}
-      uses: actions/cache@v2
-      name: Cache the binary
-      id: cache
-    - if: ${{ !steps.cache.outputs.cache-hit }}
-      with:
-        cabal-version: ${{ matrix.cabal-ver }}
-        ghc-version: ${{ matrix.ghc-ver }}
-      uses: haskell/actions/setup@v1
-    - if: ${{ !steps.cache.outputs.cache-hit }}
-      run: |
-        cabal install --install-method=copy --installdir=$HOME/.local/bin fix-whitespace
-        strip $HOME/.local/bin/fix-whitespace
-      name: Install fix-whitespace
-    - run: |
-        $HOME/.local/bin/fix-whitespace --check
-      name: Check the whitespace issue
+        ghc-ver:
+        - '9.2'
 name: Whitespace
 'on':
   pull_request: null

@@ -15,27 +15,27 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2.3.1
-    - with:
-        version: 3.1.6
+    - name: Set up hlint
       uses: rwe/actions-hlint-setup@v1
-      name: Set up hlint
-    - with:
-        path: '["src/", "test/"]'
+      with:
+        version: 3.1.6
+    - name: Run hlint
       uses: rwe/actions-hlint-run@v2
-      name: Run hlint
+      with:
+        path: '["src/", "test/"]'
 name: Lint
 'on':
   pull_request:
-    types:
-    - opened
-    - reopened
-    - synchronize
     paths:
     - .github/workflows/lint.yaml
     - .hlint.yaml
     - Agda.cabal
     - src/**
     - test/**
+    types:
+    - opened
+    - reopened
+    - synchronize
   push:
     branches:
     - master
