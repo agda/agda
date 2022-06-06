@@ -17,7 +17,7 @@ Implicit Arguments
 ******************
 
 It is possible to omit terms that the type checker can figure out for
-itself, replacing them by ``_``.
+itself, replacing them by an underscore (``_``).
 If the type checker cannot infer the value of an ``_`` it will report
 an error.
 For instance, for the polymorphic identity function
