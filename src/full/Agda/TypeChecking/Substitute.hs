@@ -940,6 +940,7 @@ instance Subst NLPSort where
   applySubst rho = \case
     PType l   -> PType $ applySubst rho l
     PProp l   -> PProp $ applySubst rho l
+    PSSet l   -> PSSet $ applySubst rho l
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv

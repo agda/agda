@@ -1510,6 +1510,7 @@ instance InstantiateFull NLPType where
 instance InstantiateFull NLPSort where
   instantiateFull' (PType x) = PType <$> instantiateFull' x
   instantiateFull' (PProp x) = PProp <$> instantiateFull' x
+  instantiateFull' (PSSet x) = PSSet <$> instantiateFull' x
   instantiateFull' (PInf f n) = return $ PInf f n
   instantiateFull' PSizeUniv = return PSizeUniv
   instantiateFull' PLockUniv = return PLockUniv

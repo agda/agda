@@ -291,6 +291,7 @@ instance NamesIn NLPSort where
   namesAndMetasIn' sg = \case
     PType a       -> namesAndMetasIn' sg a
     PProp a       -> namesAndMetasIn' sg a
+    PSSet a       -> namesAndMetasIn' sg a
     PInf _ _      -> mempty
     PSizeUniv     -> mempty
     PLockUniv     -> mempty

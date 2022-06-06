@@ -1817,6 +1817,7 @@ data NLPType = NLPType
 data NLPSort
   = PType NLPat
   | PProp NLPat
+  | PSSet NLPat
   | PInf IsFibrant Integer
   | PSizeUniv
   | PLockUniv
@@ -4704,6 +4705,7 @@ instance KillRange NLPType where
 instance KillRange NLPSort where
   killRange (PType l) = killRange1 PType l
   killRange (PProp l) = killRange1 PProp l
+  killRange (PSSet l) = killRange1 PSSet l
   killRange s@(PInf f n) = s
   killRange PSizeUniv = PSizeUniv
   killRange PLockUniv = PLockUniv
