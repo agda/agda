@@ -266,6 +266,7 @@ instance EmbPrj NLPSort where
   icod_ PSizeUniv   = icodeN 3 PSizeUniv
   icod_ PLockUniv   = icodeN 4 PLockUniv
   icod_ PIntervalUniv = icodeN 5 PIntervalUniv
+  icod_ (PSSet a)   = icodeN 6 PSSet a
 
   value = vcase valu where
     valu [0, a] = valuN PType a
@@ -274,6 +275,7 @@ instance EmbPrj NLPSort where
     valu [3]    = valuN PSizeUniv
     valu [4]    = valuN PLockUniv
     valu [5]    = valuN PIntervalUniv
+    valu [6, a] = valuN PSSet a
     valu _      = malformed
 
 instance EmbPrj RewriteRule where
