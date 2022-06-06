@@ -47,7 +47,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v2
       with:
-        key: ${{ runner.os }}-stack-00-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -113,7 +113,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v2
       with:
-        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -166,7 +166,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v2
       with:
-        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Install and configure the icu library
@@ -206,7 +206,7 @@ jobs:
       name: Cache dependencies
       uses: actions/cache@v2
       with:
-        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
           }}-${{ hashFiles('stack.yaml.lock') }}
         path: ~/.stack
     - name: Suite of tests for bugs
