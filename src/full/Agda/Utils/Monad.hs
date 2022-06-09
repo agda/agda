@@ -12,6 +12,8 @@ import Control.Monad        ( MonadPlus(..), guard, unless, when )
 import Control.Monad.Except ( MonadError(catchError, throwError) )
 import Control.Monad.State  ( MonadState(get, put) )
 
+import Data.Bifunctor       ( first, second )
+import Data.Bool            ( bool )
 import Data.Traversable as Trav hiding (for, sequence)
 import Data.Foldable as Fold
 import Data.Maybe
@@ -19,7 +21,7 @@ import Data.Monoid
 
 import Agda.Utils.Applicative
 import Agda.Utils.Either
-import Agda.Utils.Null (ifNotNullM)
+import Agda.Utils.Null (empty, ifNotNullM)
 
 import Agda.Utils.Impossible
 
@@ -164,11 +166,9 @@ dropWhileEndM p (x : xs) = ifNotNullM (dropWhileEndM p xs) (return . (x:)) $ {-e
 
 -- | A ``monadic'' version of @'partition' :: (a -> Bool) -> [a] -> ([a],[a])
 partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a], [a])
-partitionM f xs =
-  foldr
-    (\x -> (<*>) ((\b (l, r) -> if b then (x : l, r) else (l, x : r)) <$> f x))
-    (pure ([], []))
-    xs
+partitionM f =
+  foldr (\ x mlr -> bool (first (x:)) (second (x:)) <$> f x <*> mlr)
+        (pure empty)
 
 -- MonadPlus -----------------------------------------------------------------
 
