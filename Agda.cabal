@@ -953,7 +953,7 @@ test-suite agda-tests
                 , tasty-silver >= 3.1.13 && < 3.4
                 , temporary >= 1.2.0.3 && < 1.4
                 , text
-                , unix-compat >= 0.4.3.1 && < 0.6
+                , unix-compat >= 0.4.3.1 && < 0.7
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode
 
