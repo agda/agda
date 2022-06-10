@@ -453,7 +453,12 @@ instance Apply Clause where
                             --        a Proj elim for data constructors, which at least stops conApp
                             --        from crashing. See #4989 for not printing bogus terms at all.
                             case conDataRecord c of
-                              IsData     -> Def f [Apply (Arg ai v)]
+                              IsData     -> defApp f [] [Apply (Arg ai v)]
+                                              -- Andreas, 2022-06-10, issue #5922.
+                                              -- This was @Def f [Apply (Arg ai v)]@, but are we sure
+                                              -- that @v@ isn't a matching @Con@?  The testcase for
+                                              -- #5922 does not require this precaution,
+                                              -- but I sleep better this way...
                               IsRecord{} -> applyE v [Proj ProjSystem f]
                           | Arg ai f <- conFields c ]
 
