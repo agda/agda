@@ -85,7 +85,7 @@ jobs:
     strategy:
       matrix:
         ghc-ver:
-        - 9.2.2
+        - 9.2.3
         os:
         - ubuntu-20.04
         stack-ver:

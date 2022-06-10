@@ -113,16 +113,16 @@ jobs:
         - 8.2.2
         - 8.0.2
         include:
-        - ghc-ver: 9.2.2
+        - ghc-ver: 9.2.3
           os: ubuntu-20.04
           stack-ver: latest
         - ghc-ver: 9.0.2
           os: ubuntu-20.04
           stack-ver: latest
-        - ghc-ver: 9.2.2
+        - ghc-ver: 9.2.3
           os: macos-latest
           stack-ver: latest
-        - ghc-ver: 9.0.1
+        - ghc-ver: 9.2.3
           os: windows-latest
           stack-ver: latest
         os:
