@@ -49,7 +49,6 @@ jobs:
           - os: macos-latest
             ghc-ver: 9.2.3
             cabal-ver: latest
-          # Andreas, 2022-03-10, chocolatey does not have GHC 9.2.2 yet
           - os: windows-latest
             ghc-ver: 9.2.3
             cabal-ver: latest
