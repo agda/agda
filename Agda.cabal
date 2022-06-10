@@ -931,7 +931,7 @@ test-suite agda-tests
                 , tasty-silver >= 3.1.13 && < 3.4
                 , temporary >= 1.2.0.3 && < 1.4
                 , text
-                , unix-compat >= 0.4.3.1 && < 0.6
+                , unix-compat >= 0.4.3.1 && < 0.7
                 , uri-encode
 
   -- Andreas (2021-10-11): tasty-silver < 3.3 does not work interactively under Windows
