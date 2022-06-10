@@ -62,16 +62,17 @@ jobs:
           # (This also means that we test both text-icu-0.7 and -0.8).
         include:
           - os: ubuntu-20.04
-            ghc-ver: 9.2.2
+            ghc-ver: 9.2.3
             stack-ver: latest
           - os: ubuntu-20.04
             ghc-ver: 9.0.2
             stack-ver: latest
           - os: macos-latest
-            ghc-ver: 9.2.2
+            ghc-ver: 9.2.3
             stack-ver: latest
           - os: windows-latest
-            ghc-ver: 9.0.1
+            ghc-ver: 9.2.3
+              # ghc-ver: 9.0.1
               # Andreas, 2022-03-26: stack/windows is still not ready for GHC 9.2.
               # Andreas, 2022-02-07: stack-9.0.1.yaml has text-icu-0.8.0 just for the Windows CI.
               # If you update the ghc-ver here, make sure that text-icu is new enough to work
