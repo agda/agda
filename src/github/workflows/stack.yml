@@ -72,20 +72,7 @@ jobs:
             stack-ver: latest
           - os: windows-latest
             ghc-ver: 9.2.3
-              # ghc-ver: 9.0.1
-              # Andreas, 2022-03-26: stack/windows is still not ready for GHC 9.2.
-              # Andreas, 2022-02-07: stack-9.0.1.yaml has text-icu-0.8.0 just for the Windows CI.
-              # If you update the ghc-ver here, make sure that text-icu is new enough to work
-              # with the latest mingw-w64-x86_64-icu.
             stack-ver: latest
-    # Andreas, 2021-11-19, re #5649
-    # pause stack/Win/9.2 workflow until stack is ready for 9.2
-    #       - os: windows-latest
-    #         # TODO (Andreas, 2021-11-14)
-    #         # Upgrade to 9.2.2 once stack works fine with GHC 9.2 and Cabal 3.6 under Windows
-    #         # Also, unix-compat is a bit behind: https://github.com/jacobstanley/unix-compat/pull/47
-    #         ghc-ver: 9.2.2
-    #         stack-ver: latest
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
     env:
