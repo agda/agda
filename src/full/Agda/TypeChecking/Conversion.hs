@@ -1,15 +1,24 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Agda.TypeChecking.Conversion where
 
 import Control.Arrow (second)
 import Control.Monad
 import Control.Monad.Except
+import Control.Monad.Trans.Maybe
+import Control.Applicative
 -- Control.Monad.Fail import is redundant since GHC 8.8.1
 import Control.Monad.Fail (MonadFail)
 
 import Data.Function
+import Data.Functor.Compose (Compose(..))
+import Data.Maybe (isJust)
 import Data.Semigroup ((<>))
+import qualified Data.Coerce -- TODO: Remove?
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
@@ -29,10 +38,11 @@ import Agda.TypeChecking.Substitute
 import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Conversion.Pure (pureCompareAs)
+import Agda.TypeChecking.Conversion.Pure (pureCompareAs_)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Forcing (isForced, nextIsForced)
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Heterogeneous hiding (length, splitAt)
 import Agda.TypeChecking.Datatypes (getConType, getFullyAppliedConType)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
@@ -46,7 +56,10 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Warnings (MonadWarning)
 import Agda.Interaction.Options
 
+import Agda.Utils.Dependent
 import Agda.Utils.Functor
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad
@@ -145,11 +158,18 @@ convError err = ifM ((==) Irrelevant <$> asksTC getRelevance) (return ()) $ type
 compareTerm :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareTerm cmp a u v = compareAs cmp (AsTermsOf a) u v
 
--- | Type directed equality on terms or types.
+compareTerm_ :: forall m. MonadConversion m => Comparison -> TwinT -> H'LHS Term -> H'RHS Term -> m ()
+compareTerm_ cmp a u v = compareAs_ cmp (AsTermsOf a) u v
+
 compareAs :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
+compareAs cmp a t u = compareAs_ cmp (asTwin a) (asTwin t) (asTwin u)
+
+-- | Type directed equality on terms or types.
+compareAs_ :: forall m. MonadConversion m => Comparison -> CompareAsHet
+          -> Het 'LHS Term -> Het 'RHS Term -> m ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
-compareAs cmp a u v = do
+compareAs_ cmp a u v = do
   reportSDoc "tc.conv.term" 20 $ sep $
     [ "compareTerm"
     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
@@ -162,7 +182,7 @@ compareAs cmp a u v = do
   -- let equal = u == v
 
   -- Check syntactic equality. This actually saves us quite a bit of work.
-  SynEq.checkSyntacticEquality u v
+  SynEq.checkSyntacticEquality_ u v
     (\_ _ -> whenProfile Profile.Sharing $ tick "equal terms") $
     \u v -> do
       whenProfile Profile.Sharing $ tick "unequal terms"
@@ -176,7 +196,7 @@ compareAs cmp a u v = do
       -- Andreas, 2014-04-12: this looks incomplete.
       -- It seems to assume we are never comparing
       -- at function types into Size.
-      let fallback = compareAs' cmp a u v
+      let fallback = compareAs'_ cmp a u v
           unlessSubtyping :: m () -> m ()
           unlessSubtyping cont =
               if cmp == CmpEq then cont else do
@@ -187,7 +207,7 @@ compareAs cmp a u v = do
 
           dir = fromCmp cmp
           rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
-      case (u, v) of
+      case (twinAt @'LHS u, twinAt @'RHS v) of
         (MetaV x us, MetaV y vs)
           | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` fallback
           | otherwise -> fallback
@@ -207,17 +227,24 @@ compareAs cmp a u v = do
           compareElims pol [] (defType def) (Def f []) es es' `orelse` fallback
         _               -> fallback
   where
-    assign :: CompareDirection -> MetaId -> Elims -> Term -> m ()
-    assign dir x es v = do
+    {-# INLINE assign #-}
+    assign :: forall side. (LeftOrRightSide side) =>
+              CompareDirection -> MetaId -> Elims -> Het side Term -> m ()
+    assign = case sing :: SingT side of
+               SLHS -> (\dir x es v -> flipContext$ assign_ (flipHet a) dir x es (flipHet v))
+               SRHS -> assign_ a
+
+    assign_ :: CompareAsHet -> CompareDirection -> MetaId -> Elims -> Het 'RHS Term  -> m ()
+    assign_ a dir x es v = do
       -- Andreas, 2013-10-19 can only solve if no projections
       reportSDoc "tc.conv.term.shortcut" 20 $ sep
         [ "attempting shortcut"
-        , nest 2 $ prettyTCM (MetaV x es) <+> ":=" <+> prettyTCM v
+        , nest 2 $ prettyTCM (Het @'LHS$ MetaV x es) <+> ":=" <+> prettyTCM v
         ]
       whenM (isInstantiatedMeta x) (patternViolation alwaysUnblock) -- Already instantiated, retry right away
-      assignE dir x es v a $ compareAsDir dir a
+      assignE_ dir x es v a $ compareAsDir_ dir a
       reportSDoc "tc.conv.term.shortcut" 50 $
-        "shortcut successful" $$ nest 2 ("result:" <+> (pretty =<< instantiate (MetaV x es)))
+        "shortcut successful" $$ nest 2 ("result:" <+> (pretty =<< instantiate (Het @'LHS$ MetaV x es)))
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
     orelse :: m () -> m () -> m ()
@@ -226,10 +253,19 @@ compareAs cmp a u v = do
 -- | Try to assign meta.  If meta is projected, try to eta-expand
 --   and run conversion check again.
 assignE :: (MonadConversion m)
-        => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
-assignE dir x es v a comp = assignWrapper dir x es v $ do
+         => CompareDirection -> MetaId -> Elims -> Term -> CompareAs -> (Term -> Term -> m ()) -> m ()
+assignE dir x es v a κ = assignE_ dir x es (H'RHS v) (asTwin a) (\u' v' -> κ (twinAt @'LHS u') (twinAt @'RHS v'))
+
+assignE_ :: forall s m. (MonadConversion m, LeftOrRightSide s)
+         => CompareDirection -> MetaId -> Elims -> Het s Term -> CompareAsHet -> (Het 'LHS Term -> Het 'RHS Term -> m ()) -> m ()
+assignE_ = assignE_' @s sing
+
+assignE_' :: forall s m. (MonadConversion m, LeftOrRightSide s)
+         => SingT s -> CompareDirection -> MetaId -> Elims -> Het s Term -> CompareAsHet -> (Het 'LHS Term -> Het 'RHS Term -> m ()) -> m ()
+assignE_' SLHS dir x es v a comp = flipContext $ assignE_' SRHS (flipHet dir) x es (flipHet v) (flipHet a) comp
+assignE_' SRHS dir x es v a comp = assignWrapper_ dir x es v $ do
   case allApplyElims es of
-    Just vs -> assignV dir x vs v a
+    Just vs -> assignV_ dir x vs v a
     Nothing -> do
       reportSDoc "tc.conv.assign" 30 $ sep
         [ "assigning to projected meta "
@@ -244,52 +280,67 @@ assignE dir x es v a comp = assignWrapper dir x es v $ do
             , prettyTCM x <+> text  (":" ++ show dir) <+> prettyTCM u
             ]
           let w = u `applyE` es
-          comp w v
+          comp (Het @'LHS w) v
         Nothing ->  do
           reportSLn "tc.conv.assign" 30 "eta expansion did not instantiate meta"
           patternViolation (unblockOnAnyMetaIn (MetaV x es)) -- nothing happened, give up
+
+compareAsDir_ :: (MonadConversion m, AreSides s₁ s₂)
+                  => CompareDirection -> CompareAsHet -> Het s₁ Term -> Het s₂ Term -> m ()
+compareAsDir_ = dirToCmp_ compareAs'_
+
+valueCmpDir_ :: (MonadConversion m, AreSides s₁ s₂) =>
+                  (Constraint -> m a) ->
+                    CompareDirection -> CompareAsHet -> Het s₁ Term -> Het s₂ Term ->
+                      m a
+valueCmpDir_ κ = dirToCmp_ (\cmp ty u v -> κ (ValueCmp_ cmp ty u v))
+
+compareTypeDir_ :: (MonadConversion m, AreSides s₁ s₂)
+                  => CompareDirection -> Het s₁ Type -> Het s₂ Type -> m ()
+compareTypeDir_ dir = dirToCmp_ (\cmp () -> compareType_ cmp) dir ()
 
 compareAsDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAsDir dir a = dirToCmp (`compareAs'` a) dir
 
 compareAs' :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
-compareAs' cmp tt m n = case tt of
-  AsTermsOf a -> compareTerm' cmp a m n
-  AsSizes     -> compareSizes cmp m n
-  AsTypes     -> compareAtom cmp AsTypes m n
+compareAs' cmp tt u v = compareAs'_ cmp (asTwin tt) (asTwin u) (asTwin v)
+
+compareAs'_ :: forall m. MonadConversion m => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAs'_ cmp tt m n = case tt of
+  AsTermsOf a -> compareTerm'_ cmp a m n
+  AsSizes     -> compareSizes cmp (twinAt @'LHS m) (twinAt @'RHS n)
+  AsTypes     -> compareAtom_ cmp AsTypes m n
 
 compareTerm' :: forall m. MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
-compareTerm' cmp a m n =
-  verboseBracket "tc.conv.term" 20 "compareTerm" $ do
+compareTerm' cmp t u v = compareTerm'_ cmp (asTwin t) (H'LHS u) (H'RHS v)
+
+compareTerm'_ :: forall m. MonadConversion m => Comparison -> TwinT -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareTerm'_ cmp a m n =
+  verboseBracket "tc.conv.term" 20 "compareTerm'" $ simplifyTwin a $ \a -> do
   (ba, a') <- reduceWithBlocker a
-  (catchConstraint (ValueCmp cmp (AsTermsOf a') m n) :: m () -> m ()) $ blockOnError ba $ do
+  (catchConstraint (ValueCmp_ cmp (AsTermsOf a') m n) :: m () -> m ()) $ blockOnError ba $ do
     reportSDoc "tc.conv.term" 30 $ fsep
       [ "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, ":", prettyTCM a' ]
     propIrr  <- isPropEnabled
     isSize   <- isJust <$> isSizeType a'
     (bs, s)  <- reduceWithBlocker $ getSort a'
     mlvl     <- getBuiltin' builtinLevel
+    cubical  <- isJust . optCubical <$> pragmaOptions
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
       [ "a'   =" <+> pretty a'
       , "mlvl =" <+> pretty mlvl
-      , text $ "(Just (unEl a') == mlvl) = " ++ show (Just (unEl a') == mlvl)
+      , text $ "(Just (unEl a') == mlvl) = " ++ show ((unEl <$> a') `isEqualTo` mlvl)
       ]
+    let fallback = compareAtom_ cmp (AsTermsOf a') m n
     blockOnError bs $ case s of
-      Prop{} | propIrr -> compareIrrelevant a' m n
-      _    | isSize   -> compareSizes cmp m n
-      _               -> case unEl a' of
-        a | Just a == mlvl -> do
-          a <- levelView m
-          b <- levelView n
-          equalLevel a b
-        a@Pi{}    -> equalFun s a m n
-        Lam _ _   -> __IMPOSSIBLE__
-        Def r es  -> do
-          isrec <- isEtaRecord r
-          if isrec
-            then do
+      Prop{} | propIrr -> compareIrrelevant_ a' m n
+      _    | isSize   -> compareSizes_ cmp m n
+      _               -> typeView (fmap unEl a') >>= \case
+       TPi dom cod -> equalFun s dom cod m n
+       TLam        -> __IMPOSSIBLE__
+       TDefRecordEta r _ ps -> do
               sig <- getSignature
-              let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+              let -- ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
               -- to change Agda's behavior
               --    isNeutral Blocked{}          = False
@@ -300,62 +351,87 @@ compareTerm' cmp a m n =
                   isNeutral (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                     not <$> usesCopatterns q -- a def by copattern can reduce if projected
                   isNeutral _                   = return True
-                  isMeta b = case ignoreBlocking b of
-                               MetaV{} -> True
-                               _       -> False
+                  isMeta_ :: (IsMeta a) => a -> Bool
+                  isMeta_ = isJust . isMeta
 
               reportSDoc "tc.conv.term" 30 $ prettyTCM a <+> "is eta record type"
-              m <- reduceB m
-              mNeutral <- isNeutral m
-              n <- reduceB n
-              nNeutral <- isNeutral n
+              m <- onSide @'LHS reduceB m
+              mNeutral <- onSide_ @'LHS isNeutral m
+              n <- onSide @'RHS reduceB n
+              nNeutral <- onSide_ @'RHS isNeutral n
               case (m, n) of
-                _ | isMeta m || isMeta n ->
-                    compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+                _ | isMeta_ m || isMeta_ n ->
+                    compareAtom_ cmp (AsTermsOf a') (ignoreBlocking <$> m) (ignoreBlocking <$> n)
 
                 _ | mNeutral && nNeutral -> do
                     -- Andreas 2011-03-23: (fixing issue 396)
                     -- if we are dealing with a singleton record,
                     -- we can succeed immediately
-                    ifM (isSingletonRecordModuloRelevance r ps) (return ()) $
+                    ifM (isSingletonRecordModuloRelevance_ r ps) (return ()) $ do
                       -- do not eta-expand if comparing two neutrals
-                      compareAtom cmp (AsTermsOf a') (ignoreBlocking m) (ignoreBlocking n)
+                      compareAtom_ cmp (AsTermsOf a') (ignoreBlocking <$> m) (ignoreBlocking <$> n)
                 _ -> do
-                  (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
-                  (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
+                  (ctype, m', n') <- etaExpandRecordTwin r ps (ignoreBlocking <$> m) (ignoreBlocking <$> n)
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
-                  compareArgs (repeat $ polFromCmp cmp) [] (telePi_ tel __DUMMY_TYPE__) (Con c ConOSystem []) m' n'
+                  compareArgs_ (repeat $ polFromCmp cmp) [] ctype (asTwin$ Con c ConOSystem []) m' n'
 
-            else (do pathview <- pathView a'
-                     equalPath pathview a' m n)
-        _ -> compareAtom cmp (AsTermsOf a') m n
+
+       TLevel {-_ | a' `isEqualTo` mlvl-} -> do
+          a <- levelView_ m
+          b <- levelView_ n
+          equalLevel_ a b
+       TOther | cubical -> case twinAt @'Compat (unEl <$> a') of
+       --case unEl $ twinAt @'Compat a' of
+         a | Just a == mlvl -> __IMPOSSIBLE__
+         Pi dom cod   -> __IMPOSSIBLE__ -- equalFun s (asTwin dom) (asTwin cod) m n
+         Lam _ _      -> __IMPOSSIBLE__
+         Def r es     -> do
+              pathview <- pathView_ a'
+              equalPath pathview a' m n
+         _ -> fallback
+       TOther -> fallback
   where
+    pathView_ = pathView . twinAt @'Compat
     -- equality at function type (accounts for eta)
-    equalFun :: (MonadConversion m) => Sort -> Term -> Term -> Term -> m ()
-    equalFun s a@(Pi dom b) m n | domFinite dom = do
+    equalFun :: (MonadConversion m) => Sort -> Dom TwinT -> Abs TwinT -> H'LHS Term -> H'RHS Term -> m ()
+    equalFun s dom b m n = do
+      -- Skip cubical check when cubical flag is disabled
+      cubical <- isJust . optCubical <$> pragmaOptions
+      equalFun_ s dom{domFinite=cubical && domFinite dom} b m n
+
+    equalFun_ :: (MonadConversion m) => Sort -> Dom TwinT -> Abs TwinT -> H'LHS Term -> H'RHS Term -> m ()
+    equalFun_ s dom_ b_ m_ n_ | domFinite dom_ = do
        mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
+       let dom = twinAt @'Compat dom_
+       let b   = twinAt @'Compat b_
+       let m   = twinAt @'LHS m_
+       let n   = twinAt @'RHS n_
        case unEl $ unDom dom of
           Def q [Apply phi]
               | Just q == mp -> compareTermOnFace cmp (unArg phi) (El s (Pi (dom {domFinite = False}) b)) m n
-          _                  -> equalFun s (Pi (dom{domFinite = False}) b) m n
-    equalFun _ (Pi dom@Dom{domInfo = info} b) m n | not $ domFinite dom = do
+          _                  -> equalFun s (dom_{domFinite = False}) b_ m_ n_
+    equalFun_ _ dom@Dom{domInfo = info} b m n | not $ domFinite dom = do
         let name = suggests [ Suggestion b , Suggestion m , Suggestion n ]
-        addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
+        addContext (name, dom) $ compareTerm_ cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
-    equalFun _ _ _ _ = __IMPOSSIBLE__
+    equalFun_ _ _ _ _ _ = __IMPOSSIBLE__
 
-    equalPath :: (MonadConversion m) => PathView -> Type -> Term -> Term -> m ()
-    equalPath (PathType s _ l a x y) _ m n = do
+    equalPath :: (MonadConversion m) => PathView -> TwinT -> H'LHS Term -> H'RHS Term -> m ()
+    equalPath (PathType s _ l a x y) _ (OnLHS m) (OnRHS n) = do
         let name = "i" :: String
         interval <- el primInterval
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
         addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ raise 1 (unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
 
-    cmpDef a'@(El s ty) m n = do
+    cmpDef :: TwinT -> H'LHS Term -> H'RHS Term -> m ()
+    cmpDef a'_ m_@(OnLHS m) n_@(OnRHS n) = do
+     cubical <- isJust . optCubical <$> pragmaOptions
+     if cubical then do
+       let a'@(El s ty) = twinAt @'Compat a'_
        mI     <- getBuiltinName'   builtinInterval
        mIsOne <- getBuiltinName'   builtinIsOne
        mGlue  <- getPrimitiveName' builtinGlue
@@ -389,10 +465,105 @@ compareTerm' cmp a m n =
               let mkOut m = apply out $ map (setHiding Hidden) args ++ [argN m]
               compareTerm cmp ty (mkOut m) (mkOut n)
          Def q [] | Just q == mI -> compareInterval cmp a' m n
-         _ -> compareAtom cmp (AsTermsOf a') m n
+         _ -> fallback
+      else fallback
+     where fallback = compareAtom_ cmp (AsTermsOf a'_) m_ n_
 
 compareAtomDir :: MonadConversion m => CompareDirection -> CompareAs -> Term -> Term -> m ()
 compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
+
+compareAtomDir_ :: MonadConversion m => CompareDirection -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAtomDir_ = dirToCmp_ compareAtom_
+
+compareDefElims_ :: MonadConversion m => [Polarity] -> QName -> H'LHS Elims -> H'RHS Elims -> m ()
+compareDefElims_ pol f es es' = do
+  def <- getConstInfo f
+  if projectionArgs def <= 0 then do
+    let a = defType def
+    compareElims_ pol [] (asTwin a) (asTwin $ Def f []) es es'
+  else do
+    case (pol, distributeF es, distributeF es') of
+      (p:pol₀, (distributeF -> Apply (pullHet -> arg₁)) : (pullHet -> es₀),
+               (distributeF -> Apply (pullHet -> arg₂)) : (pullHet -> es'₀)) -> do
+        (f_arg :∈ a₀) <- compareAndInfer_ f p arg₁ arg₂
+        compareElims_ pol [] a₀ f_arg es₀ es'₀
+        -- a <- computeElimHeadType f (twinAt @'LHS es) (twinAt @'RHS es')
+        -- compareElims_ pol [] (asTwin a) (asTwin $ Def f []) es es'
+      _ -> __IMPOSSIBLE__
+
+    -- a <- __UNIMPLEMENTED__ -- computeElimHeadType f (twinAt @'LHS es) (twinAt @'RHS es')
+
+compareAndInfer_ :: forall m. MonadConversion m =>
+                    QName -> Polarity -> H'LHS (Arg Term) -> H'RHS (Arg Term) -> m (TwinT :∋ TwinT' Term)
+compareAndInfer_ f pol arg₁ arg₂ = do
+  (tyL, faTyL) <- inferUnblocked f arg₁
+  (tyR, faTyR) <- inferUnblocked f arg₂
+  (headPid :: ISet ProblemId) <- (<>) <$> headTypePids (unArg $ twinAt @'LHS arg₁)
+                  <*> headTypePids (unArg $ twinAt @'RHS arg₂)
+  case dirFromPol pol of
+    Nothing  -> do
+      -- TODO: Víctor 2021-03-02: Not really sure what to do here,
+      -- but we should not compare the terms, that's clear.
+      -- Does it even make sense that a projection-like function has an irrelevant first argument?
+      let faty = TwinT{necessary=False
+                     ,direction=DirEq
+                     ,twinPid=headPid
+                     ,twinLHS=faTyL
+                     ,twinRHS=faTyR
+                     }
+      return $ TwinT{necessary=True
+                    ,direction=DirEq
+                    ,twinPid=ISet.empty
+                    ,twinLHS=Def f . (:[]) . Apply <$> arg₁
+                    ,twinRHS=Def f . (:[]) . Apply <$> arg₂
+                    }  :∈  faty
+    Just dir -> do
+      (argsPid,()) <- newProblemWithId $ \argsPid ->
+        compareAsDir_ dir
+          (AsTermsOf $ TwinT{necessary=False
+                            ,direction=dir
+                            ,twinPid=headPid <> ISet.singleton argsPid
+                            ,twinLHS=tyL
+                            ,twinRHS=tyR
+                            }) (unArg <$> arg₁) (unArg <$> arg₂)
+
+      let faty =  TwinT{necessary=False
+                       ,direction=dir
+                       ,twinPid=headPid <> ISet.singleton argsPid
+                       ,twinLHS=faTyL
+                       ,twinRHS=faTyR
+                       }
+
+      return $ TwinT{necessary=True
+                    ,direction=dir
+                    ,twinPid=ISet.singleton argsPid
+                    ,twinLHS=Def f . (:[]) . Apply <$> arg₁
+                    ,twinRHS=Def f . (:[]) . Apply <$> arg₂
+                    }  :∈  faty
+  where
+    inferUnblocked :: SideIsSingle s => QName -> Het s (Arg Term) -> m (Het s Type, Het s Type)
+    inferUnblocked f arg = do
+       reportSDoc "tc.conv.infer" 30 $
+         "inferring type of internal arg: " <+> prettyTCM arg
+       targ <- onSide (infer . unArg) arg
+       targ <- abortIfBlocked targ
+       reportSDoc "tc.conv.infer" 30 $
+         "inferred type: " <+> prettyTCM targ
+       tf <- reduce =<< onSide (fmap (fromMaybe __IMPOSSIBLE__) . getDefType f) targ
+       tfa <- onSide (\case
+                  (unEl -> Pi _ b, arg) -> pure$ lazyAbsApp b (unArg arg)
+                  _                     -> __IMPOSSIBLE__) ((,) <$> tf <*> arg)
+       return (targ, tfa)
+
+    -- In the case of a variable, whether the type is equal
+    -- on both sides depends also
+    -- on the type of that variable in the context
+    headTypePids :: Term -> m (ISet ProblemId)
+    headTypePids (Var i _)  = getPids <$> typeOfBV_ i
+    headTypePids (Def f _)  = pure mempty
+    headTypePids (MetaV _ _) = pure mempty
+    headTypePids _ = __IMPOSSIBLE__
+
 
 -- | Compute the head type of an elimination. For projection-like functions
 --   this requires inferring the type of the principal argument.
@@ -421,7 +592,8 @@ computeElimHeadType f es es' = do
     fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
 
 
-abortIfMissingClauses :: (Blocked Term, Blocked Term) -> Blocker
+abortIfMissingClauses ::
+  (Blocked (Het 'LHS Term), Blocked (Het 'RHS Term)) -> Blocker
 abortIfMissingClauses (NotBlocked nb t, NotBlocked nb' t') =
   case nb <> nb' of
     MissingClauses -> alwaysUnblock
@@ -432,10 +604,13 @@ abortIfMissingClauses _ = __IMPOSSIBLE__
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
-compareAtom cmp t m n =
+compareAtom cmp t u v = compareAtom_ cmp (asTwin t) (Het @'LHS u) (Het @'RHS v)
+
+compareAtom_ :: forall m. MonadConversion m => Comparison -> CompareAsHet -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareAtom_ cmp t m n =
   verboseBracket "tc.conv.atom" 20 "compareAtom" $
   -- if a PatternErr is thrown, rebuild constraint!
-  (catchConstraint (ValueCmp cmp t m n) :: m () -> m ()) $ do
+  (catchConstraint (ValueCmp_ cmp t m n) :: m () -> m ()) $ do
     reportSLn "tc.conv.atom.size" 50 $ "compareAtom term size:  " ++ show (termSize m, termSize n)
     reportSDoc "tc.conv.atom" 50 $
       "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
@@ -461,27 +636,29 @@ compareAtom cmp t m n =
 
     -- constructorForm changes literal to constructors
     -- only needed if the other side is not a literal
-    (mb'', nb'') <- case (ignoreBlocking mb', ignoreBlocking nb') of
+    (mb'', nb'') <- case (twinAt @'LHS $ ignoreBlocking mb', twinAt @'RHS $ ignoreBlocking nb') of
       (Lit _, Lit _) -> return (mb', nb')
-      _ -> (,) <$> traverse constructorForm mb'
-               <*> traverse constructorForm nb'
+      _ -> (,) <$> traverse (onSide @'LHS constructorForm) mb'
+               <*> traverse (onSide @'RHS constructorForm) nb'
 
-    mb <- traverse unLevel mb''
-    nb <- traverse unLevel nb''
+    mb <- traverse (onSide @'LHS unLevel) mb''
+    nb <- traverse (onSide @'RHS unLevel) nb''
 
     cmpBlocked <- viewTC eCompareBlocked
 
     let m = ignoreBlocking mb
         n = ignoreBlocking nb
 
-        checkDefinitionalEquality = unlessM (pureCompareAs CmpEq t m n) notEqual
+        checkDefinitionalEquality = unlessM (pureCompareAs_ CmpEq t m n) notEqual
 
-        notEqual = typeError $ UnequalTerms cmp m n t
+        notEqual = typeError $ UnequalTerms_ cmp m n t
 
         dir = fromCmp cmp
         rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
-        assign dir x es v = assignE dir x es v t $ compareAtomDir dir t
+
+        assign :: forall s. LeftOrRightSide s => CompareDirection -> MetaId -> Elims -> Het s Term -> m ()
+        assign dir x es v = assignE_ dir x es v t $ compareAtomDir_ dir t
 
     reportSDoc "tc.conv.atom" 30 $
       "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
@@ -495,8 +672,8 @@ compareAtom cmp t m n =
     case (mb, nb) of
       -- equate two metas x and y.  if y is the younger meta,
       -- try first y := x and then x := y
-      _ | MetaV x xArgs <- ignoreBlocking mb,   -- Can be either Blocked or NotBlocked depending on
-          MetaV y yArgs <- ignoreBlocking nb -> -- envCompareBlocked check above.
+      _ | H'LHS (MetaV x xArgs) <- ignoreBlocking mb,   -- Can be either Blocked or NotBlocked depending on
+          H'RHS (MetaV y yArgs) <- ignoreBlocking nb -> -- envCompareBlocked check above.
         if | x == y, cmpBlocked -> do
               a <- metaType x
               blockOnError (unblockOnMeta x) $
@@ -526,18 +703,18 @@ compareAtom cmp t m n =
                           r1 = assign rid y yArgs m
                           -- Careful: the first attempt might prune the low
                           -- priority meta! (Issue #2978)
-                          l2 = ifM (isInstantiatedMeta x) (compareAsDir dir t m n) l1
-                          r2 = ifM (isInstantiatedMeta y) (compareAsDir rid t n m) r1
+                          l2 = ifM (isInstantiatedMeta x) (compareAsDir_ dir t m n) l1
+                          r2 = ifM (isInstantiatedMeta y) (compareAsDir_ rid t n m) r1
 
               -- Unblock on both unblockers of solve1 and solve2
               catchPatternErr (`addOrUnblocker` solve2) solve1
 
       -- one side a meta
-      _ | MetaV x es <- ignoreBlocking mb -> assign dir x es n
-      _ | MetaV x es <- ignoreBlocking nb -> assign rid x es m
+      _ | H'LHS (MetaV x es) <- ignoreBlocking mb -> assign dir x es n
+      _ | H'RHS (MetaV x es) <- ignoreBlocking nb -> assign rid x es m
       (Blocked{}, Blocked{}) | not cmpBlocked  -> checkDefinitionalEquality
-      (Blocked b _, _) | not cmpBlocked -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term  goes first
-      (_, Blocked b _) | not cmpBlocked -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
+      (Blocked b _, _) | not cmpBlocked -> useInjectivity_ (fromCmp cmp) b t m n   -- The blocked term  goes first
+      (_, Blocked b _) | not cmpBlocked -> useInjectivity_ (flipCmp $ fromCmp cmp) b t n m
       bs -> do
         let blocker' | cmpBlocked = blocker
                      | otherwise = unblockOnEither blocker $ abortIfMissingClauses bs
@@ -551,7 +728,7 @@ compareAtom cmp t m n =
         -- Andreas, 2015-07-01, actually, don't put them into the spine.
         -- Polarity cannot be communicated properly if projection-like
         -- functions are post-fix.
-        case (m, n) of
+        case (unHet @'LHS m, unHet @'RHS n) of
           (Pi{}, Pi{}) -> equalFun m n
 
           (Sort s1, Sort s2) ->
@@ -561,9 +738,9 @@ compareAtom cmp t m n =
 
           (Lit l1, Lit l2) | l1 == l2 -> return ()
           (Var i es, Var i' es') | i == i' -> do
-              a <- typeOfBV i
+              a <- typeOfBV_ i
               -- Variables are invariant in their arguments
-              compareElims [] [] a (var i) es es'
+              compareElims_ [] [] a (asTwin $ var i) (H'LHS es) (H'RHS es')
 
           -- The case of definition application:
           (Def f es, Def f' es') -> do
@@ -572,7 +749,7 @@ compareAtom cmp t m n =
               unlessM (bothAbsurd f f') $ do
 
               -- 2. If the heads are unequal, the only chance is subtyping between SIZE and SIZELT.
-              if f /= f' then trySizeUniv cmp t m n f es f' es' else do
+              if f /= f' then trySizeUniv_ cmp t m n f es f' es' else do
 
               -- 3. If the heads are equal:
               -- 3a. If there are no arguments, we are done.
@@ -580,26 +757,24 @@ compareAtom cmp t m n =
 
               -- 3b. If some cubical magic kicks in, we are done.
               unlessM (compareEtaPrims f es es') $ do
-
               -- 3c. Oh no, we actually have to work and compare the eliminations!
-               a <- computeElimHeadType f es es'
                -- The polarity vector of projection-like functions
                -- does not include the parameters.
                pol <- getPolarity' cmp f
-               compareElims pol [] a (Def f []) es es'
+               compareDefElims_ pol f (H'LHS es) (H'RHS es')
 
           -- Due to eta-expansion, these constructors are fully applied.
           (Con x ci xArgs, Con y _ yArgs)
               | x == y -> do
                   -- Get the type of the constructor instantiated to the datatype parameters.
                   a' <- case t of
-                    AsTermsOf a -> conType x a
+                    AsTermsOf a -> twinDirty <$> conType x `unsafeTraverseTwinT` a
                     AsSizes   -> __IMPOSSIBLE__
                     AsTypes   -> __IMPOSSIBLE__
                   forcedArgs <- getForcedArgs $ conName x
                   -- Constructors are covariant in their arguments
                   -- (see test/succeed/CovariantConstructors).
-                  compareElims (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
+                  compareElims_ (repeat $ polFromCmp cmp) forcedArgs a' (asTwin $ Con x ci []) (H'LHS xArgs) (H'RHS yArgs)
           _ -> notEqual
     where
         -- returns True in case we handled the comparison already.
@@ -682,36 +857,36 @@ compareAtom cmp t m n =
                 -- Thus, instead of crashing, just give up gracefully.
                 patternViolation neverUnblock
           maybe impossible (return . snd) =<< getFullyAppliedConType c t
-        equalFun t1 t2 = case (t1, t2) of
+        equalFun t1 t2 = case (twinAt @'LHS t1, twinAt @'RHS t2) of
           (Pi dom1 b1, Pi dom2 b2) -> do
             verboseBracket "tc.conv.fun" 15 "compare function types" $ do
               reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                 [ "t1 =" <+> prettyTCM t1
                 , "t2 =" <+> prettyTCM t2
                 ]
-              compareDom cmp dom2 dom1 b1 b2 errH errR errQ errC $
+              compareDom_ (flipCmp $ fromCmp cmp) dom1 dom2 b1 b2 errH errR errQ errC $
                 compareType cmp (absBody b1) (absBody b2)
             where
-            errH = typeError $ UnequalHiding t1 t2
-            errR = typeError $ UnequalRelevance cmp t1 t2
-            errQ = typeError $ UnequalQuantity  cmp t1 t2
-            errC = typeError $ UnequalCohesion cmp t1 t2
+            errH = typeError $ UnequalHiding_ t1 t2
+            errR = typeError $ UnequalRelevance_ cmp t1 t2
+            errQ = typeError $ UnequalQuantity_  cmp t1 t2
+            errC = typeError $ UnequalCohesion_ cmp t1 t2
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
-compareDom :: (MonadConversion m , Free c)
-  => Comparison -- ^ @cmp@ The comparison direction
-  -> Dom Type   -- ^ @a1@  The smaller domain.
-  -> Dom Type   -- ^ @a2@  The other domain.
-  -> Abs b      -- ^ @b1@  The smaller codomain.
-  -> Abs c      -- ^ @b2@  The bigger codomain.
+compareDom_ :: (MonadConversion m , Free c)
+  => CompareDirection -- ^ @cmp@ The comparison direction
+  -> Dom Type   -- ^ @a1@  The left domain.
+  -> Dom Type   -- ^ @a2@  The right domain.
+  -> Abs c      -- ^ @b1@  The left codomain.
+  -> Abs c      -- ^ @b2@  The right codomain.
   -> m ()     -- ^ Continuation if mismatch in 'Hiding'.
   -> m ()     -- ^ Continuation if mismatch in 'Relevance'.
   -> m ()     -- ^ Continuation if mismatch in 'Quantity'.
   -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
   -> m ()     -- ^ Continuation if comparison is successful.
   -> m ()
-compareDom cmp0
+compareDom_ cmp
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
   b1 b2 errH errR errQ errC cont = do
@@ -723,14 +898,26 @@ compareDom cmp0
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"
           dependent = (r /= Irrelevant) && isBinderUsed b2
-      pid <- newProblem_ $ compareType cmp0 a1 a2
-      dom <- if dependent
-             then (\ a -> dom1 {unDom = a}) <$> blockTypeOnProblem a1 pid
-             else return dom1
+      pid <- newProblem_ $ dirToCmp_ (\dir () -> compareType_ dir) cmp () (H'LHS a1) (H'RHS a2)
+      -- Chose the smaller type and domain
+      let (a0,dom0) = selectSmaller cmp (a1,dom1) (a2,dom2)
         -- We only need to require a1 == a2 if b2 is dependent
         -- If it's non-dependent it doesn't matter what we add to the context.
       let name = suggests [ Suggestion b1 , Suggestion b2 ]
-      addContext (name, dom) $ cont
+      heterogeneousUnificationEnabled >>= \case
+        True ->
+          addContext (name, dom0{unDom =
+                              TwinT{necessary  = True,
+                                    direction  = cmp,
+                                    twinPid    = ISet.singleton pid,
+                                    twinLHS    = Het @'LHS a1,
+                                    twinRHS    = Het @'RHS a2
+                                   }}) cont
+        False -> do
+          dom0' <- if dependent
+              then (\ a -> dom0 {unDom = a}) <$> blockTypeOnProblem a0 pid
+              else return dom0
+          addContext (name, dom0') cont
       stealConstraints pid
         -- Andreas, 2013-05-15 Now, comparison of codomains is not
         -- blocked any more by getting stuck on domains.
@@ -826,25 +1013,31 @@ antiUnifyElims _ _ _ _ _ = patternViolation neverUnblock -- trigger maybeGiveUp 
 -- | @compareElims pols a v els1 els2@ performs type-directed equality on eliminator spines.
 --   @t@ is the type of the head @v@.
 compareElims :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> [Elim] -> [Elim] -> m ()
-compareElims pols0 fors0 a v els01 els02 =
+compareElims pols0 fors0 a v els01 els02 = compareElims_ pols0 fors0 (asTwin a) (asTwin v) (H'LHS els01) (H'RHS els02)
+
+compareElims_ :: forall m. MonadConversion m => [Polarity] -> [IsForced] -> TwinT' Type -> TwinT' Term -> H'LHS [Elim] -> H'RHS [Elim] -> m ()
+compareElims_ pols0 fors0 a_ v_ els01 els02 = simplifyTwin a_ $ \a_ ->
+  -- TODO Víctor 2021-03-03:
+  -- Maybe we should postpone if `a_` is blocked (according to typeView)
+  -- in order to avoid the __IMPOSSIBLE__ cases
   verboseBracket "tc.conv.elim" 20 "compareElims" $
-  (catchConstraint (ElimCmp pols0 fors0 a v els01 els02) :: m () -> m ()) $ do
-  let v1 = applyE v els01
-      v2 = applyE v els02
-      failure = typeError $ UnequalTerms CmpEq v1 v2 (AsTermsOf a)
+  (catchConstraint (ElimCmp_ pols0 fors0 a_ v_ els01 els02) :: m () -> m ()) $ do
+  let v1 = applyE <$> twinLHS v_ <*> els01
+      v2 = applyE <$> twinRHS v_ <*> els02
+      failure = typeError $ UnequalTerms_ CmpEq v1 v2 (AsTermsOf a_)
         -- Andreas, 2013-03-15 since one of the spines is empty, @a@
         -- is the correct type here.
   unless (null els01) $ do
     reportSDoc "tc.conv.elim" 25 $ "compareElims" $$ do
      nest 2 $ vcat
-      [ "a     =" <+> prettyTCM a
+      [ "a     =" <+> prettyTCM a_
       , "pols0 (truncated to 10) =" <+> hsep (map prettyTCM $ take 10 pols0)
       , "fors0 (truncated to 10) =" <+> hsep (map prettyTCM $ take 10 fors0)
-      , "v     =" <+> prettyTCM v
+      , "v     =" <+> prettyTCM v_
       , "els01 =" <+> prettyTCM els01
       , "els02 =" <+> prettyTCM els02
       ]
-  case (els01, els02) of
+  case (fmap distributeF $ distributeF els01, fmap distributeF $ distributeF els02) of
     ([]         , []         ) -> return ()
     ([]         , Proj{}:_   ) -> failure -- not impossible, see issue 821
     (Proj{}  : _, []         ) -> failure -- could be x.p =?= x for projection p
@@ -852,13 +1045,23 @@ compareElims pols0 fors0 a v els01 els02 =
     (Apply{} : _, []         ) -> failure
     ([]         , IApply{} : _) -> failure
     (IApply{} : _, []         ) -> failure
-    (Apply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- NB: popped up in issue 889
-    (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- but should be impossible (but again in issue 1467)
+    (Apply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ -- <$ solveAwakeConstraints' True -- NB: popped up in issue 889
+    (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__ -- <$ solveAwakeConstraints' True -- but should be impossible (but again in issue 1467)
     (IApply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (Proj{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (IApply{} : _, Apply{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
     (Apply{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
-    (e@(IApply x1 y1 r1) : els1, IApply x2 y2 r2 : els2) -> do
+    (e_@(IApply x1_ y1_ r1_) : els1_, IApply x2_ y2_ r2_ : els2_) -> do
+      let x1 = unHet @'LHS x1_; y1 = unHet @'LHS y1_; r1 = unHet @'LHS r1_
+          x2 = unHet @'RHS x2_; y2 = unHet @'RHS y2_; r2 = unHet @'RHS r2_
+          a  = twinAt @'Compat a_
+          els1 :: [Elim]
+          els1 = twinAt @'LHS els1_
+          els2 :: [Elim]
+          els2 = twinAt @'RHS els2_
+          e  :: Elim
+          e  = twinAt @'LHS e_
+          v  = twinAt @'Compat v_
       reportSDoc "tc.conv.elim" 25 $ "compareElims IApply"
        -- Andrea: copying stuff from the Apply case..
       let (pol, pols) = nextPolarity pols0
@@ -869,8 +1072,7 @@ compareElims pols0 fors0 a v els01 els02 =
       case va of
         PathType s path l bA x y -> do
           b <- primIntervalType
-          compareWithPol pol (flip compareTerm b)
-                              r1 r2
+          compareWithPol pol compareTerm b r1 r2
           -- TODO: compare (x1,x2) and (y1,y2) ?
           let r = r1 -- TODO Andrea:  do blocking
           codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r)
@@ -882,7 +1084,9 @@ compareElims pols0 fors0 a v els01 els02 =
 
         OType t -> patternViolation (unblockOnAnyMetaIn t) -- Can we get here? We know a is not blocked.
 
-    (Apply arg1 : els1, Apply arg2 : els2) ->
+    (Apply arg1 : (pullHet . fmap pullHet -> els1),
+     Apply arg2 : (pullHet . fmap pullHet -> els2)) ->
+      let a = a_; v = v_ in
       (verboseBracket "tc.conv.elim" 20 "compare Apply" :: m () -> m ()) $ do
       reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat
         [ "a    =" <+> prettyTCM a
@@ -901,13 +1105,13 @@ compareElims pols0 fors0 a v els01 els02 =
           (for, fors) = nextIsForced fors0
       a <- abortIfBlocked a
       reportSLn "tc.conv.elim" 40 $ "type is not blocked"
-      case unEl a of
-        (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
+      typeView (unEl <$> a) >>= \case
+        (TPi (Dom{domInfo = info, unDom = b}) codom) -> do
           reportSLn "tc.conv.elim" 40 $ "type is a function type"
           mlvl <- tryMaybe primLevel
           let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
               freeInCoDom _         = False
-              dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
+              dependent = (not $ (unEl <$> b) `isEqualTo` mlvl) && freeInCoDom codom
                 -- Level-polymorphism (x : Level) -> ... does not count as dependency here
                    -- NB: we could drop the free variable test and still be sound.
                    -- It is a trade-off between the administrative effort of
@@ -923,32 +1127,30 @@ compareElims pols0 fors0 a v els01 els02 =
                 reportSLn "tc.conv.elim" 40 $ "argument is forced"
               else if isIrrelevant info then do
                 reportSLn "tc.conv.elim" 40 $ "argument is irrelevant"
-                compareIrrelevant b (unArg arg1) (unArg arg2)
+                compareIrrelevant_ b (unArg arg1) (unArg arg2)
               else do
                 reportSLn "tc.conv.elim" 40 $ "argument has polarity " ++ show pol
-                compareWithPol pol (flip compareTerm b)
+                compareWithPol_ pol compareTerm_ b
                   (unArg arg1) (unArg arg2)
           -- if comparison got stuck and function type is dependent, block arg
           solved <- isProblemSolved pid
           reportSLn "tc.conv.elim" 40 $ "solved = " ++ show solved
-          arg <- if dependent && not solved
-                 then applyModalityToContext info $ do
-                  reportSDoc "tc.conv.elims" 50 $ vcat $
-                    [ "Trying antiUnify:"
-                    , nest 2 $ "b    =" <+> prettyTCM b
-                    , nest 2 $ "arg1 =" <+> prettyTCM arg1
-                    , nest 2 $ "arg2 =" <+> prettyTCM arg2
-                    ]
-                  arg <- (arg1 $>) <$> antiUnify pid b (unArg arg1) (unArg arg2)
-                  reportSDoc "tc.conv.elims" 50 $ hang "Anti-unification:" 2 (prettyTCM arg)
-                  reportSDoc "tc.conv.elims" 70 $ nest 2 $ "raw:" <+> pretty arg
-                  return arg
-                 else return arg1
+          let arg = case dirFromPol pol of
+                     Nothing  -> SingleT (OnBoth $ twinAt @'LHS arg1)
+                     Just dir -> TwinT{necessary   = True
+                                      ,direction   = dir
+                                      ,twinPid     = ISet.singleton pid
+                                      ,twinLHS     = pullHet arg1
+                                      ,twinRHS     = pullHet arg2
+                                      }
+          simplifyTwin ((b :∋ (arg,codom)) :∋ v) $ \((b :∋ (arg,codom)) :∋ v) -> do
+            let a_' = twinDirty $ lazyAbsApp <$> distributeF codom `apT` (unArg <$> arg)
+            let v_' = twinDirty $ apply      <$>             v_    `apT` ((:[]) <$> arg)
           -- continue, possibly with blocked instantiation
-          compareElims pols fors (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
+            compareElims_ pols fors a_' v_' els1 els2
           -- any left over constraints of arg are associated to the comparison
-          reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
-          stealConstraints pid
+            reportSLn "tc.conv.elim" 40 $ "stealing constraints from problem " ++ show pid
+            stealConstraints pid
           {- Stealing solves this issue:
 
              Does not create enough blocked tc-problems,
@@ -956,7 +1158,7 @@ compareElims pols0 fors0 a v els01 els02 =
              (There are remaining problems which do not show up as yellow.)
              Need to find a way to associate pid also to result of compareElims.
           -}
-        a -> do
+        _ -> do
           reportSDoc "impossible" 10 $
             "unexpected type when comparing apply eliminations " <+> prettyTCM a
           reportSDoc "impossible" 50 $ "raw type:" <+> pretty a
@@ -967,18 +1169,19 @@ compareElims pols0 fors0 a v els01 els02 =
           -- __IMPOSSIBLE__
 
     -- case: f == f' are projections
-    (Proj o f : els1, Proj _ f' : els2)
+    (Proj o f : (pullHet . fmap pullHet -> els1), Proj _ f' : (pullHet . fmap pullHet -> els2))
       | f /= f'   -> typeError . GenericDocError =<< prettyTCM f <+> "/=" <+> prettyTCM f'
       | otherwise -> do
+        let a = a_; v = v_
         a   <- abortIfBlocked a
-        res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
+        res <- projectTyped_ v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
-          Just (_, u, t) -> do
+          Just (u, t) -> do
             -- Andreas, 2015-07-01:
             -- The arguments following the principal argument of a projection
             -- are invariant.  (At least as long as we have no explicit polarity
             -- annotations.)
-            compareElims [] [] t u els1 els2
+            compareElims_ [] [] t u els1 els2
           Nothing -> do
             reportSDoc "tc.conv.elims" 30 $ sep
               [ text $ "projection " ++ prettyShow f
@@ -987,19 +1190,47 @@ compareElims pols0 fors0 a v els01 els02 =
               ]
             patternViolation (unblockOnAnyMetaIn a)
 
+projectTyped_
+  :: (TypeViewM m, PureTCM m)
+  => TwinT' Term        -- ^ Head (record value).
+  -> TwinT' Type        -- ^ Its type.
+  -> ProjOrigin
+  -> QName       -- ^ Projection.
+  -> m (Maybe (TwinT' Term, TwinT' Type))
+projectTyped_ v a o f = do
+  -- TODO Víctor (2021-03-03)
+  -- Should we set the necessary bit to False here?
+  (unsafeTraverseTwinT id $ projectTyped <$> v `apT` a `apT` asTwin o `apT` asTwin f) >>= \case
+    SingleT (OnBoth a) -> return $ (\(_,t,ty) -> (asTwin t, asTwin ty)) <$> a
+    tt@TwinT{twinLHS,twinRHS} ->
+      case (twinLHS, twinRHS) of
+        (OnLHS (Just (_,OnLHS -> tL,OnLHS -> tyL)),
+         OnRHS (Just (_,OnRHS -> tR,OnRHS -> tyR))) -> do
+          ty <- mkTwinT tt{twinLHS=tyL
+                          ,twinRHS=tyR
+                          }
+          t <- mkTwinTerm (ty :∋ tt{twinLHS=tL
+                                   ,twinRHS=tR
+                                   })
+          return $ Just (t, ty)
+        (OnLHS Nothing,_) -> return Nothing
+        (_,OnRHS Nothing) -> return Nothing
+
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
 --   However, we can dig for solutions of irrelevant metas in the
 --   terms we compare.
 --   (Certainly not the systematic solution, that'd be proof search...)
 compareIrrelevant :: MonadConversion m => Type -> Term -> Term -> m ()
+compareIrrelevant t v0 w0 = compareIrrelevant_ (asTwin t) (asTwin v0) (asTwin w0)
 {- 2012-04-02 DontCare no longer present
 compareIrrelevant t (DontCare v) w = compareIrrelevant t v w
 compareIrrelevant t v (DontCare w) = compareIrrelevant t v w
 -}
-compareIrrelevant t v0 w0 = do
-  let v = stripDontCare v0
-      w = stripDontCare w0
+compareIrrelevant_ :: forall m. MonadConversion m => TwinT -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareIrrelevant_ t v0 w0 = do
+  let v = fmap stripDontCare v0
+      w = fmap stripDontCare w0
   reportSDoc "tc.conv.irr" 20 $ vcat
     [ "compareIrrelevant"
     , nest 2 $ "v =" <+> prettyTCM v
@@ -1009,9 +1240,10 @@ compareIrrelevant t v0 w0 = do
     [ nest 2 $ "v =" <+> pretty v
     , nest 2 $ "w =" <+> pretty w
     ]
-  try v w $ try w v $ return ()
+  try t v w $ flipContext $ try (flipHet t) (flipHet w) (flipHet v) $ return ()
   where
-    try (MetaV x es) w fallback = do
+    try :: TwinT -> Het 'LHS Term -> Het 'RHS Term -> m () -> m ()
+    try t (twinAt @'LHS -> MetaV x es) w fallback = do
       mi <- lookupMetaInstantiation x
       mm <- lookupMetaModality x
       let rel  = getRelevance mm
@@ -1027,15 +1259,29 @@ compareIrrelevant t v0 w0 = do
         -- Andreas, 2016-08-08, issue #2131:
         -- Mining for solutions for irrelevant metas is not definite.
         -- Thus, in case of error, leave meta unsolved.
-        else assignE DirEq x es w (AsTermsOf t) (compareIrrelevant t) `catchError` \ _ -> fallback
+        else assignE_ DirEq x es w (AsTermsOf t) (compareIrrelevant_ t) `catchError` \ _ -> fallback
         -- the value of irrelevant or unused meta does not matter
-    try v w fallback = fallback
+    try t v w fallback = fallback
 
-compareWithPol :: MonadConversion m => Polarity -> (Comparison -> a -> a -> m ()) -> a -> a -> m ()
-compareWithPol Invariant     cmp x y = cmp CmpEq x y
-compareWithPol Covariant     cmp x y = cmp CmpLeq x y
-compareWithPol Contravariant cmp x y = cmp CmpLeq y x
-compareWithPol Nonvariant    cmp x y = return ()
+compareWithPol :: MonadConversion m => Polarity -> (Comparison -> b -> a -> a -> m ()) -> b -> a -> a -> m ()
+compareWithPol pol cmp b x y = compareWithPol_ pol cmp' (OnBoth b) (OnLHS x) (OnRHS y)
+  where cmp' = (\dir (OnBoth b) x y -> cmp dir b (twinAt @'LHS x) (twinAt @'RHS y))
+
+compareWithPol_ :: forall m a b. (MonadConversion m, FlipHet b, FlippedHet b ~ b) => Polarity ->
+  (Comparison -> b -> H'LHS a -> H'RHS a -> m ()) -> b -> H'LHS a -> H'RHS a -> m ()
+compareWithPol_ pol cmp b x y = case dirFromPol pol of
+  Just dir -> dirToCmp_ cmp dir b x y
+  Nothing  -> return ()
+--compareWithPol_ Invariant     cmp b x y = cmp CmpEq b x y
+--compareWithPol_ Covariant     cmp b x y = cmp CmpLeq b x y
+--compareWithPol_ Contravariant cmp b x y = dirToCmp_ cmp DirGeq b x y
+--compareWithPol_ Nonvariant    cmp b x y = return ()
+
+dirFromPol :: Polarity -> Maybe CompareDirection
+dirFromPol Invariant     = Just DirEq
+dirFromPol Covariant     = Just DirLeq
+dirFromPol Contravariant = Just DirGeq
+dirFromPol Nonvariant    = Nothing
 
 polFromCmp :: Comparison -> Polarity
 polFromCmp CmpLeq = Covariant
@@ -1044,16 +1290,22 @@ polFromCmp CmpEq  = Invariant
 -- | Type-directed equality on argument lists
 --
 compareArgs :: MonadConversion m => [Polarity] -> [IsForced] -> Type -> Term -> Args -> Args -> m ()
-compareArgs pol for a v args1 args2 =
-  compareElims pol for a v (map Apply args1) (map Apply args2)
+compareArgs pol for a v args1 args2 = compareArgs_ pol for (asTwin a) (asTwin v) (H'LHS args1) (H'RHS args2)
+
+compareArgs_ :: MonadConversion m => [Polarity] -> [IsForced] -> TwinT -> TwinT' Term -> H'LHS Args -> H'RHS Args -> m ()
+compareArgs_ pol for a v args1 args2 =
+  compareElims_ pol for a v (fmap (map Apply) args1) (fmap (map Apply) args2)
 
 ---------------------------------------------------------------------------
 -- * Types
 ---------------------------------------------------------------------------
 
--- | Equality on Types
 compareType :: MonadConversion m => Comparison -> Type -> Type -> m ()
-compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
+compareType cmp t u = compareType_ cmp (asTwin t) (asTwin u)
+
+-- | Equality on Types
+compareType_ :: MonadConversion m => Comparison -> Het 'LHS Type -> Het 'RHS Type -> m ()
+compareType_ cmp ty1@(distributeF -> El s1 a1) ty2@(distributeF -> El s2 a2) =
     workOnTypes $
     verboseBracket "tc.conv.type" 20 "compareType" $ do
         reportSDoc "tc.conv.type" 50 $ vcat
@@ -1061,7 +1313,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                                        , prettyTCM ty2 ]
           , hsep [ "   sorts:", prettyTCM s1, " and ", prettyTCM s2 ]
           ]
-        compareAs cmp AsTypes a1 a2
+        compareAs_ cmp AsTypes a1 a2
 
 leqType :: MonadConversion m => Type -> Type -> m ()
 leqType = compareType CmpLeq
@@ -1436,6 +1688,10 @@ leqLevel a b = catchConstraint (LevelCmp CmpLeq a b) $ do
         isMetaLevel :: SingleLevel -> Bool
         isMetaLevel (SinglePlus (Plus _ MetaV{})) = True
         isMetaLevel _                             = False
+
+-- TODO [HET]
+equalLevel_ :: forall m. MonadConversion m => OnLHS Level -> OnRHS Level -> m ()
+equalLevel_ (OnLHS a) (OnRHS b) = equalLevel a b
 
 equalLevel :: forall m. MonadConversion m => Level -> Level -> m ()
 equalLevel a b = do
@@ -1890,7 +2146,7 @@ forallFaceMaps t kb k = do
   forM as $ \ (ms,ts) -> do
    ifBlockeds ts (kb ms) $ \ _ _ -> do
     let xs = map (second boolToI) $ IntMap.toAscList ms
-    cxt <- getContext
+    cxt <- getContextHet
     reportSDoc "conv.forall" 20 $
       fsep ["substContextN"
            , prettyTCM cxt
@@ -1924,7 +2180,7 @@ forallFaceMaps t kb k = do
     addBindings [] m = m
     addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info nm t ty (addBindings bs m)
 
-    substContextN :: MonadConversion m => Context -> [(Int,Term)] -> m (Context , Substitution)
+    substContextN :: MonadConversion m => ContextHet -> [(Int,Term)] -> m (ContextHet , Substitution)
     substContextN c [] = return (c, idS)
     substContextN c ((i,t):xs) = do
       (c', sigma) <- substContext i t c
@@ -1934,10 +2190,10 @@ forallFaceMaps t kb k = do
 
     -- assumes the term can be typed in the shorter telescope
     -- the terms we get from toFaceMaps are closed.
-    substContext :: MonadConversion m => Int -> Term -> Context -> m (Context , Substitution)
-    substContext i t [] = __IMPOSSIBLE__
-    substContext i t (x:xs) | i == 0 = return $ (xs , singletonS 0 t)
-    substContext i t (x:xs) | i > 0 = do
+    substContext :: MonadConversion m => Int -> Term -> ContextHet -> m (ContextHet , Substitution)
+    substContext i t Empty = __IMPOSSIBLE__
+    substContext i t (xs :⊢ _) | i == 0 = return $ (xs , singletonS 0 t)
+    substContext i t (Entry b (xs :∋ x)) | i > 0 = do
                                   reportSDoc "conv.forall" 20 $
                                     fsep ["substContext"
                                         , text (show (i-1))
@@ -1946,8 +2202,8 @@ forallFaceMaps t kb k = do
                                         ]
                                   (c,sigma) <- substContext (i-1) t xs
                                   let e = applySubst sigma x
-                                  return (e:c, liftS 1 sigma)
-    substContext i t (x:xs) = __IMPOSSIBLE__
+                                  return (Entry b (c :∋ e), liftS 1 sigma)
+    substContext i t (_ :⊢ _) = __IMPOSSIBLE__
 
 compareInterval :: MonadConversion m => Comparison -> Type -> Term -> Term -> m ()
 compareInterval cmp i t u = do
@@ -1973,7 +2229,7 @@ compareInterval cmp i t u = do
       y <- leqInterval iu it
       let final = isCanonical it && isCanonical iu
       if x && y then reportSDoc "tc.conv.interval" 15 $ "Ok! }" else
-        if final then typeError $ UnequalTerms cmp t u (AsTermsOf i)
+        if final then typeError $ mkUnequalTerms cmp t u (AsTermsOf i)
                  else do
                    reportSDoc "tc.conv.interval" 15 $ "Giving up! }"
                    patternViolation (unblockOnAnyMetaIn (t, u))
@@ -2059,3 +2315,227 @@ bothAbsurd f f'
          Function{ funClauses = [Clause{ clauseBody = Nothing }] }) -> return True
         _ -> return False
   | otherwise = return False
+
+---------------------------------------------------------------------------
+-- * Commuting heterogeneous types
+---------------------------------------------------------------------------
+
+data TypeView_ =
+--    TLevel
+    TPi (Dom TwinT) (Abs TwinT)
+  | TDefRecordEta QName Defn (TwinT' Args)
+  | TLam
+--  | TDef QName [Elim' (TwinT' Term)]
+  | TLevel
+  | TOther
+
+type MkTwinM m = (MonadTCEnv m, ReadTCState m)
+type TypeViewM m = (HasBuiltins m, HasConstInfo m, MkTwinM m)
+
+typeView :: forall m. TypeViewM m => TwinT' Term -> m (TypeView_)
+typeView ty = foldr (\f m -> runMaybeT (f ty) >>= \case
+                        Just tv -> return tv
+                        Nothing -> m) (return TOther)
+                [goPi
+                ,goLam
+                ,goDefRecordEta
+                ,goLevel
+                ]
+  where
+  fallback = MaybeT (return Nothing)
+
+  goPi :: TwinT' Term -> MaybeT m (TypeView_)
+  goPi (SingleT (OnBoth (Pi dom cod))) = return $ TPi (asTwin dom) (asTwin cod)
+  goPi (TwinT{necessary
+               ,direction
+               ,twinPid
+               ,twinLHS    = H'LHS (Pi (H'LHS -> doml) (H'LHS -> codl))
+               ,twinRHS    = H'RHS (Pi (H'RHS -> domr) (H'RHS -> codr))
+               }) = do
+--       let (domc, codc) = case tyc of
+--             H'Compat (Pi (H'Compat -> domc) (H'Compat -> codc)) ->
+--               (Just domc, Just codc)
+--             _            -> (Nothing, Nothing)
+
+      -- Pi is contravariant on the first type
+      dom_ <- mkTwinDom TwinT{necessary=False
+                             ,direction=(flipCmp direction)
+                             ,twinPid
+                             ,twinLHS=doml
+                             ,twinRHS=domr
+                             }
+
+      cod_ <- mkTwinAbs TwinT{necessary=False
+                             ,direction
+                             ,twinPid
+                             ,twinLHS=codl
+                             ,twinRHS=codr
+                             }
+
+      return $ TPi dom_ cod_
+  goPi _ = fallback
+
+  goLam :: TwinT' Term -> MaybeT m (TypeView_)
+  goLam (SingleT (OnBoth Lam{})) = return TLam
+  goLam TwinT{twinLHS=H'LHS Lam{},twinRHS=H'RHS Lam{}} = return TLam
+  goLam _ = fallback
+
+  goDefRecordEta :: TwinT' Term -> MaybeT m (TypeView_)
+  goDefRecordEta ty@(SingleT (OnBoth (Def r es))) = isEtaRecord r >>= \case
+    True  -> (theDef <$> getConstInfo r) >>= \case
+        defn@Record{} -> return $ TDefRecordEta r defn $ asTwin $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+        _ -> __IMPOSSIBLE__
+    False -> fallback
+  goDefRecordEta  ty@TwinT{necessary,
+                twinPid,
+                direction,
+                twinLHS=H'LHS (Def r  (H'LHS -> esL)),
+                twinRHS=H'RHS (Def r' (H'RHS -> esR))
+                } | r == r' = isEtaRecord r >>= \case
+    True  -> do
+      let asL = fromMaybe __IMPOSSIBLE__ . allApplyElims <$> esL
+          asR = fromMaybe __IMPOSSIBLE__ . allApplyElims <$> esR
+      (theDef <$> getConstInfo r) >>= \case
+        defn@Record{} -> return $ TDefRecordEta r defn TwinT{necessary,
+                                                             direction,
+                                                             twinPid,
+                                                             twinLHS=asL,
+                                                             twinRHS=asR
+                                                             }
+        _ -> __IMPOSSIBLE__
+    False -> fallback
+  goDefRecordEta _ = fallback
+
+  goLevel :: TwinT' Term -> MaybeT m (TypeView_)
+  goLevel ty = do
+    mlvl <- getBuiltin' builtinLevel
+    if ty `isEqualTo` mlvl then
+      return TLevel
+    else fallback
+
+mkTwinT' :: MkTwinM m => TwinT'' Bool a -> m (TwinT' a)
+mkTwinT' (SingleT a) = return $ SingleT a
+mkTwinT' tt@TwinT{necessary,twinPid,direction,twinLHS=tl,twinRHS=tr} = do
+  tp <- keepUnsolvedProblems twinPid
+  return TwinT{necessary,direction,twinPid=tp,twinLHS=tl,twinRHS=tr}
+
+mkTwinTerm :: MkTwinM m =>
+           Type_ :∋ TwinT'' Bool Term ->
+           m (TwinT' Term)
+mkTwinTerm (t :∈ _) = mkTwinT' t
+
+mkTwinT :: MkTwinM m =>
+           TwinT'' Bool Type ->
+           m TwinT
+mkTwinT = mkTwinT'
+
+mkTwinDom :: MkTwinM m => TwinT'' Bool (Dom Type) -> m (Dom TwinT)
+mkTwinDom (SingleT (OnBoth a)) = return $ asTwin <$> a
+mkTwinDom tt@TwinT{direction,twinPid,twinLHS=doml,twinRHS=domr} = do
+  let dom0 = selectSmaller direction (twinAt @'LHS doml) (twinAt @'RHS domr)
+  ty_ <- mkTwinT (unDom <$> tt)
+  return dom0{unDom=ty_}
+
+mkTwinAbs :: MkTwinM m => TwinT'' Bool (Abs Type) -> m (Abs TwinT)
+mkTwinAbs (SingleT (OnBoth a)) = return $ asTwin <$> a
+mkTwinAbs tt@TwinT{twinLHS=absl@(distributeF -> NoAbs _ tyl),
+                   twinRHS=absr@(distributeF -> NoAbs _ tyr)} =
+  NoAbs (suggests [Suggestion absl, Suggestion absr]) <$> mkTwinT tt{twinLHS=tyl
+                                                                    ,twinRHS=tyr
+                                                                    }
+
+mkTwinAbs tt@TwinT{twinLHS=absl,twinRHS=absr} =
+  Abs (suggests [Suggestion absl, Suggestion absr]) <$>
+    mkTwinT tt{twinLHS=absBody <$> absl
+              ,twinRHS=absBody <$> absr
+              }
+
+mkTwinArgNameDom :: MkTwinM m => TwinT' (Dom (ArgName, Type)) -> m (Dom (ArgName, TwinT))
+mkTwinArgNameDom a = do
+  let name :: ArgName
+      name = fst $ unDom $ unHet$ twinLHS a
+  fmap (name,) <$> mkTwinDom (fmap (fmap snd) a)
+
+mkTwinTele :: MkTwinM m => TwinT' Telescope -> m Telescope_
+mkTwinTele (SingleT (OnBoth tel)) = return $ asTwin tel
+mkTwinTele a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
+  let lhs :: [H'LHS (Dom (ArgName, Type))]
+      lhs = distributeF $ telToList <$> twinLHS
+  let rhs :: [H'RHS (Dom (ArgName, Type))]
+      rhs = distributeF $ telToList <$> twinRHS
+  let n  = length lhs
+  let n' = length rhs
+  case n  == n' of
+    False -> __IMPOSSIBLE__
+    True  ->
+      -- TODO: Fix here so that the twinArg gets created in the right context
+      -- (not really necessary as the operation does not depend meaningfully on
+      --  the context)
+      telFromList' id <$>
+        (forM (zip lhs rhs) $ \(dom1, dom2) ->
+           mkTwinArgNameDom a{necessary=(necessary && n == 1),
+                              twinLHS=dom1,
+                              twinRHS=dom2
+                              })
+
+mkTwinTelescope :: MkTwinM m => TwinT' Telescope -> m (TwinT' Telescope)
+mkTwinTelescope = mkTwinT'
+
+-- mkTwinTelescope :: TypeViewM m => TwinT' Telescope
+--                           -> m (TwinT' Telescope)
+-- mkTwinTelescope (SingleT (H'Both tel)) = return $ asTwin tel
+-- mkTwinTelescope a@TwinT{necessary,direction,twinPid,twinLHS,twinRHS} = do
+--   let lhs :: [H'LHS (Dom (ArgName, Type))]
+--       lhs = commute$ telToList <$> twinLHS
+--   let rhs :: [H'RHS (Dom (ArgName, Type))]
+--       rhs = commute$ telToList <$> twinRHS
+--   let n  = length lhs
+--   let n' = length rhs
+--   case n  == n' of
+--     False -> __IMPOSSIBLE__
+--     True  -> do
+--       twinPid' <-
+--       return a{twinPid=twinPid'}
+--
+-- ( <$> tel_)
+-- TODO[het] Might not need to return a twin type with compatibility
+etaExpandRecordTwin :: forall m a. (MkTwinM m,
+                                    MonadAddContext m,
+                                    HasConstInfo m,
+                                    MonadDebug m,
+                                    ReadTCState m)
+                => QName -> TwinT'' a Args -> H'LHS Term -> H'RHS Term -> m (TwinT, H'LHS Args, H'RHS Args)
+etaExpandRecordTwin q (SingleT (OnBoth as)) m n = do
+  (tel,m') <- distributeF <$> onSide @'LHS (etaExpandRecord q as) m
+  (_  ,n') <- distributeF <$> onSide @'RHS (etaExpandRecord q as) n
+  return (asTwin$ telePi_ tel __DUMMY_TYPE__, m', n')
+etaExpandRecordTwin q (TwinT{twinPid,direction,twinLHS,twinRHS}) m n = do
+  m₀ <- onSide @'LHS (uncurry (etaExpandRecord q)) ((,) <$> twinLHS <*> m)
+  n₀ <- onSide @'RHS (uncurry (etaExpandRecord q)) ((,) <$> twinRHS <*> n)
+  let m'  = snd <$> m₀
+  let n'  = snd <$> n₀
+  tp <-  keepUnsolvedProblems twinPid
+  tel <- mkTwinTelescope TwinT{necessary=False
+                              ,direction=flipCmp direction
+                              ,twinPid=tp
+                              ,twinLHS=fst <$> m₀
+                              ,twinRHS=fst <$> n₀
+                              }
+  return (twinDirty$ flip telePi_ __DUMMY_TYPE__ <$> tel, m', n')
+
+isSingletonRecordModuloRelevance_ :: (PureTCM m, MonadBlock m) => QName -> TwinT'' b Args -> m Bool
+isSingletonRecordModuloRelevance_ q (SingleT ps) = onSide_ (isSingletonRecordModuloRelevance q) ps
+isSingletonRecordModuloRelevance_ q (TwinT{direction=DirEq,twinLHS,twinRHS}) =
+  or2M (onSide_ (isSingletonRecordModuloRelevance q) twinLHS)
+       (onSide_ (isSingletonRecordModuloRelevance q) twinRHS)
+isSingletonRecordModuloRelevance_ q (TwinT{direction=DirLeq,twinLHS,twinRHS}) =
+  onSide_ (isSingletonRecordModuloRelevance q) twinRHS
+isSingletonRecordModuloRelevance_ q (TwinT{direction=DirGeq,twinLHS,twinRHS}) =
+  onSide_ (isSingletonRecordModuloRelevance q) twinLHS
+
+-- | Used for comparing against built-in things
+isEqualTo :: TwinT' Term -> Maybe Term -> Bool
+_ `isEqualTo` Nothing = False
+SingleT (OnBoth t) `isEqualTo` Just a = t == a
+TwinT{twinLHS=OnLHS lhs,twinRHS=OnRHS rhs} `isEqualTo` Just a =
+ lhs == a && rhs == a

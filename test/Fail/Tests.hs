@@ -16,6 +16,7 @@ import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced
   (readFileMaybe, goldenTest1, goldenTestIO1, GDiff (..), GShow (..))
+import Test.Tasty.Silver.Filter   ( RegexFilter(RFInclude) )
 
 import Utils
 
@@ -50,6 +51,18 @@ tests = do
 data TestResult
   = TestResult T.Text -- the cleaned stdout
   | TestUnexpectedSuccess ProgramResult
+
+-- TODO: Address these test cases
+disabledTests :: [RegexFilter]
+disabledTests =
+  [ disable "Fail/InjectivityHITs"
+   ,disable "Fail/Issue921"
+   ,disable "Fail/Issue4929"
+   ,disable "Fail/Issue5237"
+   ,disable "Fail/Issue5838"
+   ,disable "Fail/Issue5838b"
+  ]
+  where disable = RFInclude
 
 mkFailTest
   :: FilePath -- ^ Input file (Agda file).

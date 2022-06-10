@@ -1,4 +1,6 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ViewPatterns #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -76,6 +78,8 @@ import Agda.TypeChecking.Warnings
 import Agda.Termination.TermCheck (termMutual)
 
 import Agda.Utils.Functor
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|))
@@ -268,8 +272,8 @@ refine force ii mr e = do
       where
         try :: Int -> Maybe TCErr -> Expr -> TCM Expr
         try 0 err e = throwError . stringTCErr $ case err of
-           Just (TypeError _ _ cl) | UnequalTerms _ I.Pi{} _ _ <- clValue cl ->
-             "Cannot refine functions with 10 or more arguments"
+           Just (TypeError _ _ (clValue -> UnequalTerms_ _ (OnLHS I.Pi{}) _ _)) ->
+                 "Cannot refine functions with 10 or more arguments"
            _ ->
              "Cannot refine"
         try n _ e = give force ii (Just r) e `catchError` \err -> try (n - 1) (Just err) =<< appMeta e
@@ -381,8 +385,11 @@ outputFormId (OutputForm _ _ _ o) = out o
     out = \case
       OfType i _                 -> i
       CmpInType _ _ i _          -> i
+      CmpInTypeHet _ _ (OnLHS i) _ -> i
       CmpElim _ _ (i:_) _        -> i
       CmpElim _ _ [] _           -> __IMPOSSIBLE__
+      CmpElim_ _ _ (OnLHS (i:_)) _ -> i
+      CmpElim_ _ _ (OnLHS []) _    -> __IMPOSSIBLE__
       JustType i                 -> i
       CmpLevels _ i _            -> i
       CmpTypes _ i _             -> i
@@ -404,7 +411,7 @@ outputFormId (OutputForm _ _ _ o) = out o
 instance Reify ProblemConstraint where
   type ReifiesTo ProblemConstraint = Closure (OutputForm Expr Expr)
   reify (PConstr pids unblock cl) = withClosure cl $ \ c ->
-    OutputForm (getRange c) (Set.toList pids) unblock <$> reify c
+    OutputForm (getRange c) (ISet.toList pids) unblock <$> reify c
 
 reifyElimToExpr :: MonadReify m => I.Elim -> m Expr
 reifyElimToExpr = \case
@@ -421,6 +428,11 @@ instance Reify Constraint where
     reify (ValueCmp cmp (AsTermsOf t) u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
     reify (ValueCmp cmp AsSizes u v) = CmpInType cmp <$> (reify =<< sizeType) <*> reify u <*> reify v
     reify (ValueCmp cmp AsTypes u v) = CmpTypes cmp <$> reify u <*> reify v
+    reify (ValueCmp_ cmp (AsTermsOf t) u v) = CmpInTypeHet cmp <$> reify t <*> reify u <*> reify v
+    reify (ValueCmp_ cmp AsSizes u v) = CmpInTypeHet cmp <$> (asTwin <$> (reify =<< sizeType))
+                                                           <*> reify u <*> reify v
+    reify (ValueCmp_ cmp AsTypes u v) = CmpTypes cmp <$> (unHet @'M.LHS <$> reify u)
+                                                       <*> (unHet @'M.RHS <$> reify v)
     reify (ValueCmpOnFace cmp p t u v) = CmpInType cmp <$> (reify =<< ty) <*> reify (lam_o u) <*> reify (lam_o v)
       where
         lam_o = I.Lam (setRelevance Irrelevant defaultArgInfo) . NoAbs "_"
@@ -431,6 +443,9 @@ instance Reify Constraint where
     reify (ElimCmp cmp _ t v es1 es2) =
       CmpElim cmp <$> reify t <*> mapM reifyElimToExpr es1
                               <*> mapM reifyElimToExpr es2
+    reify (ElimCmp_ cmp _ t v es1 es2) =
+      CmpElim_ cmp <$> reify t <*> onSide @'M.LHS (mapM reifyElimToExpr) es1
+                               <*> onSide @'M.RHS (mapM reifyElimToExpr) es2
     reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
     reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
     reify (UnquoteTactic tac _ goal) = do
@@ -518,7 +533,9 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
       JustType e           -> "Type" <+> pretty e
       JustSort e           -> "Sort" <+> pretty e
       CmpInType cmp t e e' -> pcmp cmp e e' .: t
+      CmpInTypeHet cmp t e e' -> pcmp cmp e e' .: t
       CmpElim cmp t e e'   -> pcmp cmp e e' .: t
+      CmpElim_ cmp t e e'  -> pcmp cmp e e' .: t
       CmpTypes  cmp t t'   -> pcmp cmp t t'
       CmpLevels cmp t t'   -> pcmp cmp t t'
       CmpTeles  cmp t t'   -> pcmp cmp t t'
@@ -560,8 +577,13 @@ instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint a b) where
     toConcrete (CmpInType cmp t e e') =
       CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e
                                                <*> toConcreteCtx TopCtx e'
+    toConcrete (CmpInTypeHet cmp t e e') =
+      CmpInTypeHet cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e
+                                               <*> toConcreteCtx TopCtx e'
     toConcrete (CmpElim cmp t e e') =
       CmpElim cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e <*> toConcreteCtx TopCtx e'
+    toConcrete (CmpElim_ cmp t e e') =
+      CmpElim_ cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e <*> toConcreteCtx TopCtx e'
     toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx TopCtx e
                                                   <*> toConcreteCtx TopCtx e'
     toConcrete (CmpLevels cmp e e') = CmpLevels cmp <$> toConcreteCtx TopCtx e
@@ -613,7 +635,7 @@ instance Pretty c => Pretty (IPBoundary' c) where
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
   forM cs $ \ c -> do
-            cl <- reify (PConstr Set.empty alwaysUnblock c)
+            cl <- reify (PConstr ISet.empty alwaysUnblock c)
             enterClosure cl abstractToConcrete_
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
@@ -641,9 +663,11 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
     hasHeadMeta c =
       case c of
         ValueCmp _ _ u v           -> isMeta u `mplus` isMeta v
+        ValueCmp_ _ _ u v          -> isMeta (unHet @'M.LHS u) `mplus` isMeta (unHet @'M.RHS v)
         ValueCmpOnFace cmp p t u v -> isMeta u `mplus` isMeta v
         -- TODO: extend to other comparisons?
         ElimCmp cmp fs t v as bs   -> Nothing
+        ElimCmp_ cmp fs t v as bs  -> Nothing
         LevelCmp cmp u v           -> Nothing
         SortCmp cmp a b            -> Nothing
         UnBlock{}                  -> Nothing
@@ -688,8 +712,8 @@ stripConstraintPids :: Constraints -> Constraints
 stripConstraintPids cs = List.sortBy (compare `on` isBlocked) $ map stripPids cs
   where
     isBlocked = not . null . allBlockingProblems . constraintUnblocker
-    interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs
-    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
+    interestingPids = ISet.unions $ map (allBlockingProblems . constraintUnblocker) cs
+    stripPids (PConstr pids unblock c) = PConstr (ISet.intersection pids interestingPids) unblock c
 
 -- | Converts an 'InteractionId' to a 'MetaId'.
 

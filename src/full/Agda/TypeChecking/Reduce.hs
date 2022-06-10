@@ -1,14 +1,23 @@
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Reduce where
 
 import Control.Monad ( (>=>), void )
+import Control.Monad.Reader
+import Control.Applicative ((<|>))
 
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
+#if __GLASGOW_HASKELL__ >= 804
+import Data.Semigroup (First(..))
+#else
+import Data.Monoid (First(..))
+#endif
 import Data.Foldable
+import Data.Functor.Compose (Compose(..))
 import Data.Traversable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.Set as Set
@@ -19,6 +28,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
+import Agda.Syntax.Internal.Blockers
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
@@ -37,6 +47,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -234,6 +245,7 @@ instance Instantiate Blocker where
   instantiate' b@(UnblockOnMeta x) =
     ifM (isInstantiatedMeta x) (return alwaysUnblock) (return b)
   instantiate' b@UnblockOnProblem{} = return b
+  instantiate' b@UnblockOnEffort{}  = return b
 
 instance Instantiate Sort where
   instantiate' = \case
@@ -256,11 +268,16 @@ instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do
     (t,u,v) <- instantiate' (t,u,v)
     return $ ValueCmp cmp t u v
+  instantiate' (ValueCmp_ cmp t u v) = do
+    (t,u,v) <- instantiate' (t,u,v)
+    return $ ValueCmp_ cmp t u v
   instantiate' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- instantiate' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
   instantiate' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
+  instantiate' (ElimCmp_ cmp fs t v as bs) =
+    ElimCmp_ cmp fs <$> instantiate' t <*> instantiate' v <*> instantiate' as <*> instantiate' bs
   instantiate' (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate' (u,v)
   instantiate' (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate' (a,b)
   instantiate' (UnBlock m)          = return $ UnBlock m
@@ -278,7 +295,10 @@ instance Instantiate Constraint where
   instantiate' (CheckType t)        = CheckType <$> instantiate' t
   instantiate' (UsableAtModality mod t) = UsableAtModality mod <$> instantiate' t
 
-instance Instantiate CompareAs where
+instance (SideIsSingle side, Instantiate a) => Instantiate (Het side a) where
+  instantiate' = onSide @side instantiate'
+
+instance Instantiate a => Instantiate (CompareAs' a) where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
   instantiate' AsSizes       = return AsSizes
   instantiate' AsTypes       = return AsTypes
@@ -309,6 +329,9 @@ instance Instantiate EqualityView where
 class IsMeta a where
   isMeta :: a -> Maybe MetaId
 
+instance IsMeta a => IsMeta (Blocked' t a) where
+  isMeta = isMeta . ignoreBlocking
+
 instance IsMeta Term where
   isMeta (MetaV m _) = Just m
   isMeta _           = Nothing
@@ -336,10 +359,20 @@ instance IsMeta a => IsMeta (PlusLevel' a) where
   isMeta (Plus 0 l)  = isMeta l
   isMeta _           = Nothing
 
-instance IsMeta CompareAs where
+instance IsMeta a => IsMeta (CompareAs' a) where
   isMeta (AsTermsOf a) = isMeta a
   isMeta AsSizes       = Nothing
   isMeta AsTypes       = Nothing
+
+instance IsMeta a => IsMeta (Het side a) where
+  isMeta = isMeta . twinAt @side
+
+instance IsMeta a => IsMeta (TwinT' a) where
+#if __GLASGOW_HASKELL__ >= 804
+  isMeta = fmap getFirst . mconcat . map (fmap First . isMeta) . toList
+#else
+  isMeta = getFirst . mconcat . map (First . isMeta) . toList
+#endif
 
 -- | Case on whether a term is blocked on a meta (or is a meta).
 --   That means it can change its shape when the meta is instantiated.
@@ -367,8 +400,10 @@ class Reduce t where
   reduce'  :: t -> ReduceM t
   reduceB' :: t -> ReduceM (Blocked t)
 
-  reduce'  t = ignoreBlocking <$> reduceB' t
-  reduceB' t = notBlocked <$> reduce' t
+  reduce' t = ignoreBlocking <$> reduceB' t
+
+defaultReduceB'notBlocked :: (Reduce a) => a -> ReduceM (Blocked' t a)
+defaultReduceB'notBlocked t = notBlocked <$> reduce' t
 
 instance Reduce Type where
     reduce'  (El s t) = workOnTypes $ El s <$> reduce' t
@@ -398,10 +433,14 @@ instance Reduce Sort where
         DefS d es  -> return s -- postulated sorts do not reduce
         DummyS{}   -> return s
 
+    reduceB' = defaultReduceB'notBlocked
+
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
   reduce' (Proj o f)= pure $ Proj o f
   reduce' (IApply x y v) = IApply <$> reduce' x <*> reduce' y <*> reduce' v
+
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce Level where
   reduce'  (Max m as) = levelMax m <$> mapM reduce' as
@@ -413,10 +452,12 @@ instance Reduce PlusLevel where
 instance (Subst a, Reduce a) => Reduce (Abs a) where
   reduce' b@(Abs x _) = Abs x <$> underAbstraction_ b reduce'
   reduce' (NoAbs x v) = NoAbs x <$> reduce' v
+  reduceB' = defaultReduceB'notBlocked
 
 -- Lists are never blocked
 instance Reduce t => Reduce [t] where
-    reduce' = traverse reduce'
+  reduce' = traverse reduce'
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce t => Reduce (Arg t) where
     reduce' a = case getRelevance a of
@@ -850,28 +891,37 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v)
                     -- TODO: let matchPatterns also return the reduced forms
                     -- of the original arguments!
                     -- Andreas, 2013-05-19 isn't this done now?
-                    let sigma = buildSubstitution impossible nvars vs
+                    let sigma = buildSubstitution nvars vs
                     return $ YesReduction simpl $ applySubst sigma w `applyE` es1
                 | otherwise     -> rewrite (NotBlocked AbsurdMatch ()) (applyE v) rewr es
 
 instance Reduce a => Reduce (Closure a) where
-    reduce' cl = do
-        x <- enterClosure cl reduce'
-        return $ cl { clValue = x }
+  reduce' cl = do
+      x <- enterClosure cl reduce'
+      return $ cl { clValue = x }
+
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce Telescope where
   reduce' EmptyTel          = return EmptyTel
   reduce' (ExtendTel a tel) = ExtendTel <$> reduce' a <*> reduce' tel
 
+  reduceB' = defaultReduceB'notBlocked
+
 instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do
     (t,u,v) <- reduce' (t,u,v)
     return $ ValueCmp cmp t u v
+  reduce' (ValueCmp_ cmp t u v) = do
+    (t,u,v) <- reduce' (t,u,v)
+    return $ ValueCmp_ cmp t u v
   reduce' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- reduce' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
   reduce' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
+  reduce' (ElimCmp_ cmp fs t v as bs) =
+    ElimCmp_ cmp fs <$> reduce' t <*> reduce' v <*> reduce' as <*> reduce' bs
   reduce' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> reduce' (u,v)
   reduce' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce' (a,b)
   reduce' (UnBlock m)           = return $ UnBlock m
@@ -889,16 +939,28 @@ instance Reduce Constraint where
   reduce' (CheckType t)         = CheckType <$> reduce' t
   reduce' (UsableAtModality mod t) = UsableAtModality mod <$> reduce' t
 
-instance Reduce CompareAs where
+  reduceB' = defaultReduceB'notBlocked
+
+instance (SideIsSingle side, Reduce a) => Reduce (Het side a) where
+  reduce'  = onSide @side reduce'
+  reduceB' = fmap (fmap (Het @side)) . switchSide @side . reduceB' . unHet @side
+
+instance Reduce a => Reduce (CompareAs' a) where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
   reduce' AsSizes       = return AsSizes
   reduce' AsTypes       = return AsTypes
 
+  reduceB' (AsTermsOf a) = fmap AsTermsOf <$> reduceB' a
+  reduceB' AsSizes       = return $ notBlocked AsSizes
+  reduceB' AsTypes       = return $ notBlocked AsTypes
+
 instance Reduce e => Reduce (Map k e) where
   reduce' = traverse reduce'
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce Candidate where
   reduce' (Candidate q u t ov) = Candidate q <$> reduce' u <*> reduce' t <*> pure ov
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce EqualityView where
   reduce' (OtherType t)            = OtherType
@@ -912,6 +974,8 @@ instance Reduce EqualityView where
     <*> reduce' t
     <*> reduce' a
     <*> reduce' b
+
+  reduceB' = defaultReduceB'notBlocked
 
 instance Reduce t => Reduce (IPBoundary' t) where
   reduce' = traverse reduce'
@@ -1034,11 +1098,16 @@ instance Simplify Constraint where
   simplify' (ValueCmp cmp t u v) = do
     (t,u,v) <- simplify' (t,u,v)
     return $ ValueCmp cmp t u v
+  simplify' (ValueCmp_ cmp t u v) = do
+    (t,u,v) <- simplify' (t,u,v)
+    return $ ValueCmp_ cmp t u v
   simplify' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- simplify' ((p,t),u,v)
-    return $ ValueCmp cmp (AsTermsOf t) u v
+    return $ ValueCmpOnFace cmp p t u v
   simplify' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
+  simplify' (ElimCmp_ cmp fs t v as bs) =
+    ElimCmp_ cmp fs <$> simplify' t <*> simplify' v <*> simplify' as <*> simplify' bs
   simplify' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> simplify' (u,v)
   simplify' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> simplify' (a,b)
   simplify' (UnBlock m)           = return $ UnBlock m
@@ -1056,7 +1125,10 @@ instance Simplify Constraint where
   simplify' (CheckType t)         = CheckType <$> simplify' t
   simplify' (UsableAtModality mod t) = UsableAtModality mod <$> simplify' t
 
-instance Simplify CompareAs where
+instance (SideIsSingle side, Simplify a) => Simplify (Het side a) where
+  simplify' = onSide @side simplify'
+
+instance Simplify a => Simplify (CompareAs' a) where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
   simplify' AsSizes       = return AsSizes
   simplify' AsTypes       = return AsTypes
@@ -1216,11 +1288,16 @@ instance Normalise Constraint where
   normalise' (ValueCmp cmp t u v) = do
     (t,u,v) <- normalise' (t,u,v)
     return $ ValueCmp cmp t u v
+  normalise' (ValueCmp_ cmp t u v) = do
+    (t,u,v) <- normalise' (t,u,v)
+    return $ ValueCmp_ cmp t u v
   normalise' (ValueCmpOnFace cmp p t u v) = do
     ((p,t),u,v) <- normalise' ((p,t),u,v)
     return $ ValueCmpOnFace cmp p t u v
   normalise' (ElimCmp cmp fs t v as bs) =
     ElimCmp cmp fs <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
+  normalise' (ElimCmp_ cmp fs t v as bs) =
+    ElimCmp_ cmp fs <$> normalise' t <*> normalise' v <*> normalise' as <*> normalise' bs
   normalise' (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> normalise' (u,v)
   normalise' (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise' (a,b)
   normalise' (UnBlock m)           = return $ UnBlock m
@@ -1238,10 +1315,13 @@ instance Normalise Constraint where
   normalise' (CheckType t)         = CheckType <$> normalise' t
   normalise' (UsableAtModality mod t) = UsableAtModality mod <$> normalise' t
 
-instance Normalise CompareAs where
+instance Normalise a => Normalise (CompareAs' a) where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
   normalise' AsSizes       = return AsSizes
   normalise' AsTypes       = return AsTypes
+
+instance (SideIsSingle side, Normalise a) => Normalise (Het side a) where
+  normalise' = onSide @side normalise'
 
 instance Normalise ConPatternInfo where
   normalise' i = normalise' (conPType i) <&> \ t -> i { conPType = t }
@@ -1451,11 +1531,16 @@ instance InstantiateFull Constraint where
     ValueCmp cmp t u v -> do
       (t,u,v) <- instantiateFull' (t,u,v)
       return $ ValueCmp cmp t u v
+    ValueCmp_ cmp t u v -> do
+      (t,u,v) <- instantiateFull' (t,u,v)
+      return $ ValueCmp_ cmp t u v
     ValueCmpOnFace cmp p t u v -> do
       ((p,t),u,v) <- instantiateFull' ((p,t),u,v)
       return $ ValueCmpOnFace cmp p t u v
     ElimCmp cmp fs t v as bs ->
       ElimCmp cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
+    ElimCmp_ cmp fs t v as bs ->
+      ElimCmp_ cmp fs <$> instantiateFull' t <*> instantiateFull' v <*> instantiateFull' as <*> instantiateFull' bs
     LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull' (u,v)
     SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull' (a,b)
     UnBlock m           -> return $ UnBlock m
@@ -1473,10 +1558,13 @@ instance InstantiateFull Constraint where
     CheckType t         -> CheckType <$> instantiateFull' t
     UsableAtModality mod t -> UsableAtModality mod <$> instantiateFull' t
 
-instance InstantiateFull CompareAs where
+instance InstantiateFull a => InstantiateFull (CompareAs' a) where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
   instantiateFull' AsSizes       = return AsSizes
   instantiateFull' AsTypes       = return AsTypes
+
+instance (SideIsSingle side, InstantiateFull a) => InstantiateFull (Het side a) where
+  instantiateFull' = onSide @side instantiateFull'
 
 instance InstantiateFull Signature where
   instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
@@ -1677,3 +1765,30 @@ instance InstantiateFull EqualityView where
     <*> instantiateFull' t
     <*> instantiateFull' a
     <*> instantiateFull' b
+
+instance Instantiate a => Instantiate (TwinT' a) where
+  -- Víctor 2021-03-05:
+  -- Instantiation can be done using traverse, because
+  -- it does not use the types in the context
+  instantiate' = {- switchSide @'Single . -} unsafeTraverseTwinT instantiate'
+
+instance Reduce () where
+  reduce' () = pure ()
+  reduceB' () = pure (notBlocked ())
+
+instance Reduce a => Reduce (TwinT' a) where
+  reduce' = traverseTwinT reduce'
+  -- Víctor 2021-03-12:
+  -- unsafeTraverseTwinT id pulls the blocker out of the
+  -- TwinT (note that Blocked is an applicative functor
+  -- with conjunction on the blockers)
+  reduceB' = fmap (unsafeTraverseTwinT id) . traverseTwinT reduceB'
+
+instance Simplify a => Simplify (TwinT' a) where
+  simplify' = unsafeTraverseTwinT simplify'
+
+instance Normalise a => Normalise (TwinT' a) where
+  normalise' = unsafeTraverseTwinT normalise'
+
+instance InstantiateFull a => InstantiateFull (TwinT' a) where
+  instantiateFull' = unsafeTraverseTwinT instantiateFull'

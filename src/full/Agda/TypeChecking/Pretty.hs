@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Pretty
     ( module Agda.TypeChecking.Pretty
@@ -7,7 +8,7 @@ module Agda.TypeChecking.Pretty
 
 import Prelude hiding ( null )
 
-import Control.Applicative  (liftA2)
+import Control.Applicative  (liftA2, Const(..))
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader (ReaderT)
@@ -19,6 +20,7 @@ import qualified Data.Set as Set
 import Data.Maybe
 import Data.String
 import Data.Semigroup (Semigroup((<>)))
+import Data.Sequence (Seq)
 import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Position
@@ -54,6 +56,9 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
 import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as VarSet
+import Agda.Utils.Dependent
 
 import Agda.Utils.Impossible
 
@@ -164,6 +169,7 @@ instance PrettyTCM Bool        where prettyTCM = pretty
 instance PrettyTCM C.Name      where prettyTCM = pretty
 instance PrettyTCM C.QName     where prettyTCM = pretty
 instance PrettyTCM Comparison  where prettyTCM = pretty
+instance PrettyTCM CompareDirection  where prettyTCM = pretty
 instance PrettyTCM Literal     where prettyTCM = pretty
 instance PrettyTCM Nat         where prettyTCM = pretty
 instance PrettyTCM ProblemId   where prettyTCM = pretty
@@ -204,10 +210,15 @@ instance PrettyTCM (NamedArg A.Expr)  where prettyTCM = prettyA <=< reify
 instance PrettyTCM (NamedArg Term)    where prettyTCM = prettyA <=< reify
 instance PrettyTCM (Dom Type)         where prettyTCM = prettyA <=< reify
 instance PrettyTCM ContextEntry       where prettyTCM = prettyA <=< reify
+instance PrettyTCM ContextEntry_      where prettyTCM = prettyA <=< reify
+instance PrettyTCM (Abs TwinT)        where prettyTCM = prettyA <=< reify
 
 instance PrettyTCM Permutation where prettyTCM = text . show
 instance PrettyTCM Polarity    where prettyTCM = text . show
 instance PrettyTCM IsForced    where prettyTCM = text . show
+
+instance (Sing s, Reify (Het s Term)) => PrettyTCM (Arg (Het s Term)) where
+  prettyTCM = prettyA <=< reify
 
 prettyR
   :: (R.ToAbstract r, PrettyTCM (R.AbsOfRef r), MonadPretty m, MonadError TCErr m)
@@ -299,13 +310,43 @@ instance PrettyTCM Modality where
     , prettyTCM (getRelevance mod)
     ]
 
+instance (Sing side, PrettyTCM a) => PrettyTCM (Het side a) where
+  prettyTCM a = onSide_ prettyTCM a
+
+instance PrettyTCM () where
+  prettyTCM () = "·"
+
+instance PrettyTCM a => PrettyTCM (TwinT' a) where
+  prettyTCM (SingleT a) = prettyTCM a
+  prettyTCM TwinT{twinPid,direction,necessary,twinLHS=OnLHS a,twinRHS=OnRHS b} =
+    dirToCmp (\cmp a' b' ->
+      prettyTCM a' <+> case cmp of
+                         CmpEq -> "alternatively"
+                         CmpLeq -> "a subtype of"
+                      <+> prettyTCM b'
+                      <+> (if necessary then
+                            "necessarily" <+> "pending"
+                           else "pending") <+> pretty twinPid)
+         direction a b
+
+instance PrettyTCM ContextHet where
+  prettyTCM c = fmap together $ go c (return [])
+    where
+      together [] = "·"
+      together xs = P.fsep xs
+
+      go :: MonadPretty m => ContextHet -> m [P.Doc] -> m [P.Doc]
+      go Empty     m = m
+      go (γΓ :⊢ a) m = go γΓ ((:) <$> prettyTCM a <*> addContext a m)
+
 instance PrettyTCM Blocker where
   prettyTCM (UnblockOnAll us) = "all" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)
   prettyTCM (UnblockOnAny us) = "any" <> parens (fsep $ punctuate "," $ map prettyTCM $ Set.toList us)
   prettyTCM (UnblockOnMeta m) = prettyTCM m
   prettyTCM (UnblockOnProblem p) = "problem" <+> pretty p
+  prettyTCM (UnblockOnEffort e)  = pretty e
 
-instance PrettyTCM CompareAs where
+instance PrettyTCM a => PrettyTCM (CompareAs' a) where
   prettyTCM (AsTermsOf a) = ":" <+> prettyTCMCtx TopCtx a
   prettyTCM AsSizes       = ":" <+> do prettyTCM =<< sizeType
   prettyTCM AsTypes       = empty
@@ -485,3 +526,6 @@ instance PrettyTCM Candidate where
   prettyTCM c = case candidateKind c of
     (GlobalCandidate q) -> prettyTCM q
     LocalCandidate      -> prettyTCM $ candidateTerm c
+
+instance PrettyTCM VarSet where
+  prettyTCM = prettyTCM . map (flip Var []) . VarSet.toList

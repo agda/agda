@@ -1,4 +1,8 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 -- {-# LANGUAGE UndecidableInstances #-}  -- ghc >= 8.2, GeneralizedNewtypeDeriving MonadTransControl BlockT
 
 module Agda.TypeChecking.Monad.Base
@@ -29,11 +33,16 @@ import Control.Monad.Trans.Maybe    ( MaybeT(..) )
 import Control.Parallel             ( pseq )
 
 import Data.Array (Ix)
+import Data.Bifunctor
+import Data.Bifoldable
+import Data.Coerce (Coercible, coerce)
 import Data.Function
+import Data.Foldable (toList)
 import Data.Int
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
+import qualified Data.Kind
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
@@ -43,7 +52,8 @@ import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
-import Data.Data (Data)
+import qualified Data.Sequence as S
+import Data.Data (Data, Typeable)
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -72,10 +82,12 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
 
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Context (MonadAddContext(..), unsafeModifyContext)
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free(freeVars'), underBinder', underBinder)
+import Agda.TypeChecking.Substitute.Class (Apply(..))
 
 -- Args, defined in Agda.Syntax.Treeless and exported from Agda.Compiler.Backend
 -- conflicts with Args, defined in Agda.Syntax.Internal and also imported here.
@@ -96,9 +108,12 @@ import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.BiMap (BiMap, HasTag(..))
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
+import Agda.Utils.Dependent
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.Hash
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
@@ -111,6 +126,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
+import Agda.Utils.Size
 import Agda.Utils.SmallSet (SmallSet)
 import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.Utils.Update
@@ -1091,7 +1107,7 @@ buildClosure x = do
 type Constraints = [ProblemConstraint]
 
 data ProblemConstraint = PConstr
-  { constraintProblems  :: Set ProblemId
+  { constraintProblems  :: ISet ProblemId
   , constraintUnblocker :: Blocker
   , theConstraint       :: Closure Constraint
   }
@@ -1102,8 +1118,10 @@ instance HasRange ProblemConstraint where
 
 data Constraint
   = ValueCmp Comparison CompareAs Term Term
+  | ValueCmp_ Comparison CompareAs_ (Het 'LHS Term) (Het 'RHS Term)
   | ValueCmpOnFace Comparison Term Type Term Term
   | ElimCmp [Polarity] [IsForced] Type Term [Elim] [Elim]
+  | ElimCmp_ [Polarity] [IsForced] TwinT (TwinT' Term) (H'LHS [Elim]) (H'RHS [Elim])
   | SortCmp Comparison Sort Sort
   | LevelCmp Comparison Level Level
 --  | ShortCut MetaId Term Type
@@ -1151,8 +1169,10 @@ instance Free Constraint where
   freeVars' c =
     case c of
       ValueCmp _ t u v      -> freeVars' (t, (u, v))
+      ValueCmp_ _ t u v   -> freeVars' (t, (u, v))
       ValueCmpOnFace _ p t u v -> freeVars' (p, (t, (u, v)))
       ElimCmp _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
+      ElimCmp_ _ _ t u es es'  -> freeVars' ((t, u), (es, es'))
       SortCmp _ s s'        -> freeVars' (s, s')
       LevelCmp _ l l'       -> freeVars' (l, l')
       UnBlock _             -> mempty
@@ -1172,8 +1192,10 @@ instance Free Constraint where
 instance TermLike Constraint where
   foldTerm f = \case
       ValueCmp _ t u v       -> foldTerm f (t, u, v)
+      ValueCmp_ _ t u v      -> foldTerm f (t, u, v)
       ValueCmpOnFace _ p t u v -> foldTerm f (p, t, u, v)
       ElimCmp _ _ t u es es' -> foldTerm f (t, u, es, es')
+      ElimCmp_ _ _ t u es es' -> foldTerm f (t, u, es, es')
       LevelCmp _ l l'        -> foldTerm f (Level l, Level l')  -- Note wrapping as term, to ensure f gets to act on l and l'
       IsEmpty _ t            -> foldTerm f t
       CheckSizeLtSat u       -> foldTerm f u
@@ -1203,7 +1225,7 @@ instance Pretty Comparison where
 
 -- | An extension of 'Comparison' to @>=@.
 data CompareDirection = DirEq | DirLeq | DirGeq
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Generic)
 
 instance Pretty CompareDirection where
   pretty = text . \case
@@ -1230,21 +1252,33 @@ dirToCmp cont DirEq  = cont CmpEq
 dirToCmp cont DirLeq = cont CmpLeq
 dirToCmp cont DirGeq = flip $ cont CmpLeq
 
+selectSmaller :: CompareDirection -> a -> a -> a
+selectSmaller = dirToCmp (\_ a1 _ -> a1)
+
+selectLarger :: CompareDirection -> a -> a -> a
+selectLarger = dirToCmp (\_ _ a2 -> a2)
+
 -- | We can either compare two terms at a given type, or compare two
 --   types without knowing (or caring about) their sorts.
-data CompareAs
-  = AsTermsOf Type -- ^ @Type@ should not be @Size@.
+data CompareAs' a
+  = AsTermsOf a    -- ^ @Type@ should not be @Size@.
                    --   But currently, we do not rely on this invariant.
   | AsSizes        -- ^ Replaces @AsTermsOf Size@.
   | AsTypes
-  deriving (Data, Show, Generic)
+  deriving (Data, Show, Generic, Functor, Foldable, Traversable)
 
-instance Free CompareAs where
+type CompareAs = CompareAs' Type
+
+type CompareAsHet = CompareAs' TwinT
+
+type CompareAs_ = CompareAs' TwinT
+
+instance Free a => Free (CompareAs' a) where
   freeVars' (AsTermsOf a) = freeVars' a
   freeVars' AsSizes       = mempty
   freeVars' AsTypes       = mempty
 
-instance TermLike CompareAs where
+instance TermLike a => TermLike (CompareAs' a) where
   foldTerm f (AsTermsOf a) = foldTerm f a
   foldTerm f AsSizes       = mempty
   foldTerm f AsTypes       = mempty
@@ -1254,7 +1288,23 @@ instance TermLike CompareAs where
     AsSizes     -> return AsSizes
     AsTypes     -> return AsTypes
 
-instance AllMetas CompareAs
+instance AllMetas a => AllMetas (CompareAs' a) where
+  allMetas f (AsTermsOf a) = allMetas f a
+  allMetas _ AsSizes       = mempty
+  allMetas _ AsTypes       = mempty
+
+instance AllMetas () where
+  allMetas _ () = mempty
+
+instance AllMetas a => AllMetas (TwinT' a) where
+  allMetas f (SingleT a) = allMetas f a
+  -- TODO[het]: <victor> 2020-10-12 Remove twinCompat from here, see if it makes a difference
+  allMetas f TwinT{twinLHS,twinRHS} =
+#if __GLASGOW_HASKELL__ >= 804
+    allMetas f twinLHS <> allMetas f twinRHS
+#else
+    allMetas f twinLHS `mappend` allMetas f twinRHS
+#endif
 
 ---------------------------------------------------------------------------
 -- * Open things
@@ -2900,11 +2950,569 @@ ifTopLevelAndHighlightingLevelIs l =
   ifTopLevelAndHighlightingLevelIsOr l False
 
 ---------------------------------------------------------------------------
+-- * Directed tuples
+---------------------------------------------------------------------------
+
+data a :∈ b = a :∈ b
+  deriving (Data, Show, Generic)
+
+type b :∋ a = a :∈ b
+
+instance Bifunctor (:∈) where bimap f g (a :∈ b) = f a :∈ g b
+instance Bifoldable (:∈) where bifoldMap f g (a :∈ b) = bifoldMap f g (a,b)
+
+pattern (:∋) :: forall a b. b -> a -> a :∈ b
+pattern b :∋ a = a :∈ b
+#if __GLASGOW_HASKELL__ >= 804
+{-# COMPLETE (:∋) #-}
+#endif
+
+instance (AsTwin a, AsTwin b) => AsTwin (a :∈ b) where
+  type AsTwin_ (a :∈ b) = AsTwin_ a :∈ AsTwin_ b
+  asTwin (a :∈ b) = asTwin a :∈ asTwin b
+
+instance (Pretty a, Pretty b) => Pretty (a :∈ b) where
+  pretty (a :∈ b) = pretty a <+> "∈" <+> pretty b
+
+---------------------------------------------------------------------------
+-- * Heterogeneous contexts
+---------------------------------------------------------------------------
+
+-- | The context is in right-to-left order; i.e. each variable is bound
+--   by all the preceding variables
+-- newtype ContextHet' a = ContextHet { unContextHet :: [a] }
+--  deriving (Data, Show, Functor, Foldable)
+data ContextHet' a = Empty
+                   | Entry (ISet ProblemId) {-# UNPACK #-} !(a :∈ (ContextHet' a))
+  deriving (Data, Show, Generic)
+
+instance Functor ContextHet' where
+  fmap _ Empty = Empty
+  fmap f (Entry b γ) = Entry b (bimap f (fmap f) γ)
+
+instance Foldable ContextHet' where
+  foldMap f Empty = mempty
+  foldMap f (Entry _ γ) = bifoldMap f (foldMap f) γ
+
+instance Semigroup (ContextHet' a) where
+  Empty <> x     = x
+  x     <> Empty = x
+  (Entry b_a_γΓ (a :∈ γΓ)) <> δΔ =
+    Entry (b_a_γΓ <> getPids δΔ) (a :∈ (γΓ <> δΔ))
+
+instance Monoid (ContextHet' a) where
+  mempty = Empty
+  mappend = (<>)
+
+class HasPids a where
+  getPids  :: a -> ISet ProblemId
+  isSingle :: a -> Bool
+  isSingle = ISet.null . getPids
+
+instance HasPids (ContextHet' a) where
+  getPids Empty = ISet.empty
+  getPids (Entry b _) = b
+
+instance (HasPids b) => HasPids (Name,b) where
+  getPids (_,b) = getPids b
+
+instance HasPids Name where
+  getPids _ = ISet.empty
+
+instance HasPids (TwinT'' a c) where
+  getPids SingleT{} = ISet.empty
+  getPids (TwinT{twinPid}) = twinPid
+
+instance HasPids a => HasPids (Dom a) where
+  getPids = getPids . unDom
+
+type ContextEntry_ = Dom (Name, TwinT)
+type ContextHet = ContextHet' ContextEntry_
+
+type Context_' a = ContextHet' a
+type Context_ = ContextHet
+
+instance Pretty a => Pretty (Context_' a) where
+  pretty = pretty . contextHetToList
+
+infixr 5 :⊣
+pattern (:⊣) :: a -> ContextHet' a -> ContextHet' a
+pattern a :⊣ γΓ <- γΓ :⊢ a
+
+infixl 5 :⊢
+pattern (:⊢) :: ContextHet' a -> a -> ContextHet' a
+pattern γΓ :⊢ a <- Entry _ (a :∈ γΓ)
+
+infixl 5 ⊢:
+(⊢:) :: (HasPids a) => ContextHet' a -> a -> ContextHet' a
+(⊢:) = flip (⊣:)
+
+infixl 5 ⊢!:
+(⊢!:) :: (AsTwin a, AsTwin_ a ~ b) => ContextHet' a -> b -> ContextHet' a
+(⊢!:) = flip (⊣!:)
+
+infixr 5 ⊣!:
+(⊣!:) :: (AsTwin a, AsTwin_ a ~ b) => b -> ContextHet' a -> ContextHet' a
+a ⊣!: γΓ = Entry (getPids γΓ) (asTwin a :∈ γΓ)
+
+infixr 5 ⊣:
+(⊣:) :: (HasPids a) => a -> ContextHet' a -> ContextHet' a
+a ⊣: γΓ = Entry (getPids a <> getPids γΓ) (a :∈ γΓ)
+
+#if __GLASGOW_HASKELL__ >= 804
+{-# COMPLETE Empty, (:⊢) #-}
+{-# COMPLETE Empty, (:⊣) #-}
+#endif
+
+-- (⊣::), (⊢::) :: ContextHet' a -> ContextHet' a -> ContextHet' a
+-- δΔ ⊣:: γΓ = δΔ <> γΓ
+-- γΓ ⊢:: δΔ = δΔ ⊣:: γΓ
+
+infixr 5 ⊣::
+(⊣::) :: HasPids a => [a] -> ContextHet' a -> ContextHet' a
+[]     ⊣:: γΓ = γΓ
+(b:bs) ⊣:: γΓ = Entry (getPids b <> getPids γΓ') (b :∈ γΓ')
+  where γΓ' = bs ⊣:: γΓ
+
+(⊣!::) :: (AsTwin a, AsTwin_ a ~ b) => [b] -> ContextHet' a -> ContextHet' a
+[]     ⊣!:: γΓ = γΓ
+(b:bs) ⊣!:: γΓ = Entry (getPids γΓ) (asTwin b :∈ (bs ⊣!:: γΓ))
+
+
+-- * Manipulating context as a list.
+
+-- | > contextHetAsList (a :⊣ b :⊣ … :⊣ Empty)
+--     (a:b:…:[])
+-- Also: contextHetToList :: ContextHet -> [Dom (Name, TwinT)]
+contextHetToList :: Context_' a -> [a]
+contextHetToList Empty = []
+contextHetToList (a :⊣ γΓ) = a:contextHetToList γΓ
+
+contextHetFromList :: HasPids a => [a] -> Context_' a
+contextHetFromList []     = Empty
+contextHetFromList (a:as) = a ⊣: contextHetFromList as
+
+-- * Switch heterogeneous context to a specific side
+switchSide :: forall s a m. (SideIsSingle s, MonadTCEnv m) => m a -> m a
+switchSide = unsafeModifyContext {- IdS -} (asTwin . twinAt @s)
+
+{-# INLINE switchSide_ #-}
+switchSide_ :: forall s a m. (SideIsSingle s, MonadTCEnv m) =>
+  ((forall b n. MonadTCEnv n => n b -> n b) -> m a) -> m a
+switchSide_ κ = do
+  ctx <- asksTC envContext
+  unsafeModifyContext {- IdS -} (asTwin . twinAt @s) (κ (unsafeModifyContext {- IdS -} (const ctx)))
+
+-- * Heterogeneous telescope
+
+type Telescope_ = Tele (Dom TwinT)
+
+-- | Describes on which side of the context a term resides
+data ContextSide = LHS       -- ^ Left side of the context
+                 | RHS       -- ^ Right side of the context
+                 | Both      -- ^ Resides on both sides of the context
+                 | Compat    -- ^ A (non-existent) side of the context
+                             --   in which both terms that reside on the
+                             --   left and on the right sides can be typed
+                 | Single    -- ^ Resides on a single-sided context
+
+-- Boilerplate in order to lift ContextSide to the type level
+data instance SingT (a :: ContextSide) where
+  SLHS     :: SingT 'LHS
+  SRHS     :: SingT 'RHS
+  SCompat  :: SingT 'Compat
+  SBoth    :: SingT 'Both
+  SSingle  :: SingT 'Single
+
+instance Sing 'LHS    where sing = SLHS
+instance Sing 'RHS    where sing = SRHS
+instance Sing 'Both   where sing = SBoth
+instance Sing 'Compat where sing = SCompat
+instance Sing 'Single where sing = SSingle
+
+type OnLHS    = OnSide 'LHS
+type OnRHS    = OnSide 'RHS
+type OnBoth   = OnSide 'Both
+type InSingle = OnSide 'Single
+
+type H'LHS = OnLHS
+type H'RHS = OnRHS
+
+pattern H'LHS :: a -> H'LHS a
+pattern H'LHS a = Het a
+
+pattern H'RHS :: a -> H'RHS a
+pattern H'RHS a = Het a
+
+-- pattern H'Compat :: a -> H'Compat a
+-- pattern H'Compat a = Het a
+
+pattern OnBoth :: a -> OnBoth a
+pattern OnBoth a = Het a
+
+pattern OnLHS :: a -> OnLHS a
+pattern OnLHS a = Het a
+
+pattern OnRHS :: a -> OnRHS a
+pattern OnRHS a = Het a
+
+pattern InSingle :: a -> InSingle a
+pattern InSingle a = Het a
+
+#if __GLASGOW_HASKELL__ >= 804
+{-# COMPLETE OnLHS #-}
+{-# COMPLETE OnRHS #-}
+{-# COMPLETE OnBoth #-}
+{-# COMPLETE InSingle #-}
+#endif
+
+onSide :: forall s a m b. (MonadTCEnv m, Sing s) => (a -> m b) -> Het s a -> m (Het s b)
+onSide κ = case sing :: SingT s of
+  SLHS    -> switchSide @s . unsafeTraverseHet κ
+  SRHS    -> switchSide @s . unsafeTraverseHet κ
+  SSingle -> switchSide @s . unsafeTraverseHet κ
+  SCompat -> switchSide @s . unsafeTraverseHet κ
+  SBoth   -> traverse κ
+
+onSide_ :: forall s a m b. (MonadTCEnv m, Sing s) => (a -> m b) -> Het s a -> m b
+onSide_ κ = fmap (unHet @s) . onSide κ
+
+-- | Distinguishes which sides of a context corresponds to a single type
+--   That is, all but the one that represents both sides of the context
+type family SideIsSingle_ (s :: ContextSide) :: Bool where
+  SideIsSingle_ 'LHS    = 'True
+  SideIsSingle_ 'RHS    = 'True
+  SideIsSingle_ 'Compat = 'True
+  SideIsSingle_ 'Both   = 'False
+  SideIsSingle_ 'Single = 'True
+type SideIsSingle s = (Sing s, SideIsSingle_ s ~ 'True)
+
+-- | Characterizes the left and right sides of the context
+type family LeftOrRightSide_ (s :: ContextSide) :: Bool where
+  LeftOrRightSide_ 'LHS    = 'True
+  LeftOrRightSide_ 'RHS    = 'True
+  LeftOrRightSide_ 'Compat = 'False
+  LeftOrRightSide_ 'Both   = 'False
+  LeftOrRightSide_ 'Single = 'False
+type LeftOrRightSide s = (SideIsSingle s, LeftOrRightSide_ s ~ 'True)
+
+-- | Distinguishes which pairs of sides represent opposite sides of
+--   the context
+type family AreSides_ (s₁ :: ContextSide) (s₂ :: ContextSide) :: Bool where
+  AreSides_ 'LHS 'RHS = 'True
+  AreSides_ 'RHS 'LHS = 'True
+  AreSides_ _    _    = 'False
+type AreSides s₁ s₂ = (LeftOrRightSide s₁, LeftOrRightSide s₂, AreSides_ s₁ s₂ ~ 'True)
+
+newtype Het (side :: ContextSide) t = Het { unHet :: t }
+  deriving (Foldable, Pretty, NFData)
+type OnSide = Het
+
+deriving instance Traversable (Het 'Both)
+
+deriving instance (Typeable side, Data t) => Data (Het side t)
+deriving instance Show t => Show (Het side t)
+deriving instance Functor (Het side)
+
+deriving instance AllMetas a => AllMetas (Het side a)
+deriving instance Sized a => Sized (Het side a)
+
+instance Decoration (Het s) where
+  traverseF f = fmap coerce . f . coerce
+  distributeF = traverseF id
+
+deriving instance (Free a) => Free (Het side a)
+
+-- | Converse of `distributeF` for `Het`
+#if __GLASGOW_HASKELL__ >= 804
+pullHet :: Coercible (f (Het side a)) (f a) => f (Het side a) -> Het side (f a)
+pullHet = coerce
+#else
+pullHet :: Functor f => f (Het side a) -> Het side (f a)
+pullHet = Het . fmap coerce
+#endif
+
+instance Applicative (Het s) where
+  pure = Het
+  Het f <*> Het a = Het (f a)
+
+instance Monad (Het s) where
+  Het a >>= f = f a
+
+instance TermLike a => TermLike (Het side a) where
+  foldTerm f = foldTerm f . unHet
+  traverseTermM = __UNIMPLEMENTED__
+
+deriving instance Apply a => Apply (Het s a)
+deriving instance Suggest a => Suggest (Het s a)
+
+-- * Converting to and from twin types
+
+class AsTwin b where
+  type AsTwin_ b
+  asTwin :: AsTwin_ b -> b
+
+instance AsTwin b => AsTwin (CompareAs' b) where
+  type AsTwin_ (CompareAs' b) = CompareAs' (AsTwin_ b)
+  {-# INLINE asTwin #-}
+  asTwin = fmap asTwin
+
+instance AsTwin (TwinT'' b a) where
+  type AsTwin_ (TwinT'' b a) = a
+  {-# INLINE asTwin #-}
+  asTwin = SingleT . Het @'Both
+
+instance AsTwin ContextHet where
+  type AsTwin_ ContextHet = Context
+  {-# INLINE asTwin #-}
+  asTwin = contextHetFromList . fmap asTwin
+
+instance AsTwin (Het side a) where
+  type AsTwin_ (Het side a) = a
+  {-# INLINE asTwin #-}
+  asTwin = coerce
+
+instance AsTwin a => AsTwin (Dom a) where
+  type AsTwin_ (Dom a) = Dom (AsTwin_ a)
+  {-# INLINE asTwin #-}
+  asTwin = fmap asTwin
+
+instance AsTwin () where
+  type AsTwin_ () = ()
+  {-# INLINE asTwin #-}
+  asTwin = id
+
+instance AsTwin a => AsTwin (Abs a) where
+  type AsTwin_ (Abs a) = Abs (AsTwin_ a)
+  {-# INLINE asTwin #-}
+  asTwin = fmap asTwin
+
+instance AsTwin a => AsTwin (Tele a) where
+  type AsTwin_ (Tele a) = Tele (AsTwin_ a)
+  {-# INLINE asTwin #-}
+  asTwin = fmap asTwin
+
+instance (AsTwin a, AsTwin b) => AsTwin (a, b) where
+  type AsTwin_ (a, b) = (AsTwin_ a, AsTwin_ b)
+  {-# INLINE asTwin #-}
+  asTwin (a, b) = (asTwin a, asTwin b)
+
+instance AsTwin Name where
+  type AsTwin_ Name = Name
+  {-# INLINE asTwin #-}
+  asTwin = id
+
+class TwinAt (s :: ContextSide) a where
+  type TwinAt_ s a
+  twinAt :: a -> TwinAt_ s a
+
+-- | Allows to mark twin types as solved at the same time as they are
+--   simplified
+newtype MarkAsSolved a = MarkAsSolved a
+
+instance TwinAt 'Single (MarkAsSolved (TwinT' a)) where
+  type TwinAt_ 'Single (MarkAsSolved (TwinT' a)) = a
+  {-# INLINE twinAt #-}
+  twinAt (MarkAsSolved t@SingleT{}) = twinAt @'Single t
+  twinAt (MarkAsSolved t@TwinT{})   = twinAt @'Single t{twinPid=mempty}
+
+instance TwinAt 'Single (MarkAsSolved a) => TwinAt 'Single (MarkAsSolved (Dom a)) where
+  type TwinAt_ 'Single (MarkAsSolved (Dom a)) = Dom (TwinAt_ 'Single (MarkAsSolved a))
+  {-# INLINE twinAt #-}
+  twinAt a = twinAt @'Single (coerce a :: Dom (MarkAsSolved a))
+
+instance TwinAt 'Single (MarkAsSolved a) => TwinAt 'Single (MarkAsSolved (ContextHet' a)) where
+  {-# INLINE twinAt #-}
+  type TwinAt_ 'Single (MarkAsSolved (ContextHet' a)) = [TwinAt_ 'Single (MarkAsSolved a)]
+  twinAt a = twinAt @'Single (coerce a :: ContextHet' (MarkAsSolved a))
+
+instance TwinAt 'Single (MarkAsSolved a) => TwinAt 'Single (MarkAsSolved (Name, a)) where
+  {-# INLINE twinAt #-}
+  type TwinAt_ 'Single (MarkAsSolved (Name, a)) = (Name, TwinAt_ 'Single (MarkAsSolved a))
+  twinAt a = twinAt @'Single (coerce a :: (Name, MarkAsSolved a))
+
+instance SideIsSingle s => TwinAt s (TwinT' a) where
+  type TwinAt_ s (TwinT' a) = a
+  {-# INLINE twinAt #-}
+  twinAt (SingleT a) = twinAt @s a
+  twinAt TwinT{direction,twinPid,twinLHS,twinRHS} = case (sing :: SingT s) of
+    SLHS    -> twinAt @s twinLHS
+    SRHS    -> twinAt @s twinRHS
+    SSingle | ISet.null twinPid ->
+                selectSmaller direction (twinAt @'LHS twinLHS) (twinAt @'RHS twinRHS)
+            | otherwise -> __IMPOSSIBLE__
+    SCompat -> __UNIMPLEMENTED__
+
+instance TwinAt s a => TwinAt s (Name, a) where
+  type TwinAt_ s (Name, a) = (Name, TwinAt_ s a)
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (ArgName, a) where
+  type TwinAt_ s (ArgName, a) = (ArgName, TwinAt_ s a)
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (Dom a) where
+  type TwinAt_ s (Dom a) = Dom (TwinAt_ s a)
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (Abs a) where
+  type TwinAt_ s (Abs a) = Abs (TwinAt_ s a)
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (ContextHet' a) where
+  type TwinAt_ s (ContextHet' a) = [TwinAt_ s a]
+  {-# INLINE twinAt #-}
+  twinAt = map (twinAt @s) . contextHetToList
+
+instance {-# INCOHERENT #-} TwinAt s (Het s a) where
+  type TwinAt_ s (Het s a) = a
+  {-# INLINE twinAt #-}
+  twinAt = coerce
+
+instance {-# INCOHERENT #-} SideIsSingle s => TwinAt s (Het 'Both a) where
+  type TwinAt_ s (Het 'Both a) = a
+  {-# INLINE twinAt #-}
+  twinAt = coerce
+
+instance TwinAt s () where
+  type TwinAt_ s () = ()
+  {-# INLINE twinAt #-}
+  twinAt = id
+
+instance TwinAt s a => TwinAt s (CompareAs' a) where
+  type TwinAt_ s (CompareAs' a) = CompareAs' (TwinAt_ s a)
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (Tele a) where
+  type TwinAt_ s (Tele a) = Tele (TwinAt_ s a)
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (Maybe a) where
+  type TwinAt_ s (Maybe a) = Maybe (TwinAt_ s a)
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s [a] where
+  type TwinAt_ s [a] = [TwinAt_ s a]
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (Elim' a) where
+  type TwinAt_ s (Elim' a) = Elim' (TwinAt_ s a)
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance TwinAt s a => TwinAt s (Arg a) where
+  type TwinAt_ s (Arg a) = Arg (TwinAt_ s a)
+  {-# INLINE twinAt #-}
+  twinAt = fmap (twinAt @s)
+
+instance Sized ContextHet where
+  size Empty = 0
+  size (_ :⊣ γΓ) = 1 + size γΓ
+
+type Type_ = TwinT
+type TwinT = TwinT' Type
+type TwinT' = TwinT'' Bool
+data TwinT'' b a =
+    SingleT { unSingleT :: OnSide 'Both a }
+  | TwinT { twinPid    :: ISet ProblemId   -- ^ Unification problems which are sufficient
+                                           --   for LHS and RHS to be equal
+          , necessary  :: b                -- ^ Whether solving twinPid is necessary,
+                                           --   not only sufficient.
+          , direction  :: CompareDirection -- ^ Whether the putative associated constraint is
+                                           --   ≤, ≡ or ≥
+                                           --   The twin simplifies to the smaller of the
+                                           --   two sides when the associated constraints are solved.
+          , twinLHS    :: OnLHS a       -- ^ Left hand side of the twin
+          , twinRHS    :: OnRHS a       -- ^ Right hand side of the twin
+          }
+  deriving Generic
+
+-- Víctor (2021-02-24): Using these instances is risky, as they
+-- sidestep the safeguards introduced by `OnLHS` and `OnRHS`
+deriving instance Functor (TwinT'' b)
+deriving instance Foldable (TwinT'' b)
+
+-- | This does not switch the context of the monad.
+--   Use `onSide` instead.
+{-# INLINE unsafeTraverseHet #-}
+unsafeTraverseHet :: Applicative m => (a -> m b) -> Het side a -> m (Het side b)
+unsafeTraverseHet f (Het a) = Het <$> f a
+
+-- | This does not switch the context of the monad.
+--   Use an appropriate method instead.
+{-# INLINE unsafeTraverseTwinT #-}
+unsafeTraverseTwinT :: Applicative m => (a -> m c) -> TwinT'' b a -> m (TwinT'' b c)
+unsafeTraverseTwinT f (SingleT a) = SingleT <$> unsafeTraverseHet f a
+unsafeTraverseTwinT f (TwinT{twinLHS,twinRHS,..}) =
+  (\twinLHS twinRHS -> TwinT{..})
+    <$> unsafeTraverseHet f twinLHS
+    <*> unsafeTraverseHet f twinRHS
+
+-- deriving instance Traversable (TwinT'' b)
+
+deriving instance (Data a, Data b) => Data (TwinT'' a b)
+deriving instance (Show a, Show b) => Show (TwinT'' a b)
+
+instance Free () where
+  freeVars' () = mempty
+
+instance Free a => Free (TwinT' a) where
+  freeVars' (SingleT a) = freeVars' a
+  freeVars' (TwinT{twinLHS,twinRHS}) = freeVars' twinLHS <> freeVars' twinRHS
+
+instance TermLike () where
+  traverseTermM _ () = return ()
+  foldTerm _ () = mempty
+
+instance TermLike a => TermLike (TwinT' a) where
+  traverseTermM f = \case
+    SingleT a -> SingleT <$> traverseTermM f a
+    TwinT{twinPid,direction,necessary,twinLHS=a,twinRHS=b} ->
+      (\a' b' -> TwinT{twinPid,direction,necessary,twinLHS=a',twinRHS=b'}) <$>
+        traverseTermM f a <*> traverseTermM f b
+
+-- TODO Víctor (2021-03-04)
+-- Make this generate fewer weird symbols
+instance Pretty a => Pretty (TwinT' a) where
+  pretty (SingleT a) = pretty a
+  pretty (TwinT{twinPid,necessary,twinLHS=a,twinRHS=b}) =
+    pretty a <> "‡"
+             <> (if necessary then "" else "*")
+             <> pretty twinPid
+             <> pretty b
+
+instance GetSort a => GetSort (Het s a) where
+  getSort = getSort . unHet @s
+
+instance GetSort a => GetSort (TwinT' a) where
+  getSort (SingleT a) = getSort a
+  getSort t@TwinT{direction,..} = selectSmaller direction lhs rhs
+    where
+      lhs = getSort twinLHS
+      rhs = getSort twinRHS
+
+-- | Unmark necessary bit after the twin has gone under a none-injective computation
+twinDirty :: TwinT'' Bool a -> TwinT'' Bool a
+twinDirty a@SingleT{} = a
+twinDirty a@TwinT{}   = a{necessary = False}
+
+---------------------------------------------------------------------------
 -- * Type checking environment
 ---------------------------------------------------------------------------
 
+-- envContextCompat :: TCEnv -> Context
+-- envContextCompat = twinAt @'Compat . envContext
+
 data TCEnv =
-    TCEnv { envContext             :: Context
+    TCEnv { envContext             :: ContextHet
           , envLetBindings         :: LetBindings
           , envCurrentModule       :: ModuleName
           , envCurrentPath         :: Maybe AbsolutePath
@@ -2935,7 +3543,7 @@ data TCEnv =
                 -- ^ Are we working on types? Turned on by 'workOnTypes'.
           , envAssignMetas         :: Bool
             -- ^ Are we allowed to assign metas?
-          , envActiveProblems      :: Set ProblemId
+          , envActiveProblems      :: ISet ProblemId
           , envAbstractMode        :: AbstractMode
                 -- ^ When checking the typesignature of a public definition
                 --   or the body of a non-abstract definition this is true.
@@ -3050,11 +3658,12 @@ data TCEnv =
                 -- the counter is decreased in the failure
                 -- continuation of
                 -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
+          , envEffortLevel :: EffortLevel
           }
     deriving (Generic)
 
 initEnv :: TCEnv
-initEnv = TCEnv { envContext             = []
+initEnv = TCEnv { envContext             = Empty
                 , envLetBindings         = Map.empty
                 , envCurrentModule       = noModuleName
                 , envCurrentPath         = Nothing
@@ -3066,7 +3675,7 @@ initEnv = TCEnv { envContext             = []
                 , envMakeCase            = False
                 , envSolvingConstraints  = False
                 , envCheckingWhere       = False
-                , envActiveProblems      = Set.empty
+                , envActiveProblems      = ISet.empty
                 , envWorkingOnTypes      = False
                 , envAssignMetas         = True
                 , envAbstractMode        = ConcreteMode
@@ -3111,6 +3720,7 @@ initEnv = TCEnv { envContext             = []
                 , envConflComputingOverlap  = False
                 , envCurrentlyElaborating   = False
                 , envSyntacticEqualityFuel  = Strict.Nothing
+                , envEffortLevel            = minBound
                 }
 
 class LensTCEnv a where
@@ -3144,7 +3754,7 @@ eUnquoteNormalise = eUnquoteFlags . unquoteNormalise
 -- * e-prefixed lenses
 ------------------------------------------------------------------------
 
-eContext :: Lens' Context TCEnv
+eContext :: Lens' ContextHet TCEnv
 eContext f e = f (envContext e) <&> \ x -> e { envContext = x }
 
 eLetBindings :: Lens' LetBindings TCEnv
@@ -3186,7 +3796,7 @@ eWorkingOnTypes f e = f (envWorkingOnTypes e) <&> \ x -> e { envWorkingOnTypes =
 eAssignMetas :: Lens' Bool TCEnv
 eAssignMetas f e = f (envAssignMetas e) <&> \ x -> e { envAssignMetas = x }
 
-eActiveProblems :: Lens' (Set ProblemId) TCEnv
+eActiveProblems :: Lens' (ISet ProblemId) TCEnv
 eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems = x }
 
 eAbstractMode :: Lens' AbstractMode TCEnv
@@ -3292,6 +3902,9 @@ eConflComputingOverlap f e = f (envConflComputingOverlap e) <&> \ x -> e { envCo
 
 eCurrentlyElaborating :: Lens' Bool TCEnv
 eCurrentlyElaborating f e = f (envCurrentlyElaborating e) <&> \ x -> e { envCurrentlyElaborating = x }
+
+eEffortLevel :: Lens' EffortLevel TCEnv
+eEffortLevel f e = f (envEffortLevel e) <&> \ x -> e { envEffortLevel = x }
 
 ---------------------------------------------------------------------------
 -- ** Context
@@ -3779,7 +4392,7 @@ data TypeError
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
         | UnequalLevel Comparison Level Level
-        | UnequalTerms Comparison Term Term CompareAs
+        | UnequalTerms_ Comparison (H'LHS Term) (H'RHS Term) CompareAs_
         | UnequalTypes Comparison Type Type
 --      | UnequalTelescopes Comparison Telescope Telescope -- UNUSED
         | UnequalRelevance Comparison Term Term
@@ -3911,6 +4524,25 @@ data TypeError
         | InstanceSearchDepthExhausted Term Type Int
         | TriedToCopyConstrainedPrim QName
           deriving (Show, Generic)
+
+mkUnequalTerms :: Comparison -> Term -> Term -> CompareAs -> TypeError
+mkUnequalTerms cmp u v a = UnequalTerms_ cmp (OnLHS u) (OnRHS v) (asTwin a)
+
+pattern UnequalRelevance_ :: Comparison -> H'LHS Term -> H'RHS Term -> TypeError
+pattern UnequalRelevance_ dir u v <- UnequalRelevance dir (Het -> u) (Het -> v)
+  where UnequalRelevance_ dir (Het u) (Het v) = UnequalRelevance dir u v
+
+pattern UnequalQuantity_ :: Comparison -> H'LHS Term -> H'RHS Term -> TypeError
+pattern UnequalQuantity_ dir u v <- UnequalQuantity dir (Het -> u) (Het -> v)
+  where UnequalQuantity_ dir (Het u) (Het v) = UnequalQuantity dir u v
+
+pattern UnequalCohesion_ :: Comparison -> H'LHS Term -> H'RHS Term -> TypeError
+pattern UnequalCohesion_ dir u v <- UnequalCohesion dir (Het -> u) (Het -> v)
+  where UnequalCohesion_ dir (Het u) (Het v) = UnequalCohesion dir u v
+
+pattern UnequalHiding_ :: H'LHS Term -> H'RHS Term -> TypeError
+pattern UnequalHiding_ u v <- UnequalHiding (Het -> u) (Het -> v)
+  where UnequalHiding_ (Het u) (Het v) = UnequalHiding u v
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn
@@ -4323,6 +4955,23 @@ instance MonadBlock m => MonadBlock (MaybeT m) where
 instance MonadBlock m => MonadBlock (ReaderT e m) where
   catchPatternErr h m = ReaderT $ \ e ->
     let run = flip runReaderT e in catchPatternErr (run . h) (run m)
+
+-------------------------------------------------------------------
+-- * Constraint prioritization
+-------------------------------------------------------------------
+
+data Strive = Doable
+            | ExtraEffort EffortDelta
+strive :: (MonadTCEnv m) =>
+          EffortLevel
+          -- ^ Effort required for the following action
+          -> m Strive
+strive e = do
+  e' <- asksTC envEffortLevel
+  if e <= e' then
+    return Doable
+  else
+    return $ ExtraEffort $ effortDeltaFromTo e' e
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
@@ -4837,7 +5486,8 @@ instance NFData ProblemConstraint
 instance NFData Constraint
 instance NFData Signature
 instance NFData Comparison
-instance NFData CompareAs
+instance NFData CompareDirection
+instance NFData a => NFData (CompareAs' a)
 instance NFData a => NFData (Open a)
 instance NFData a => NFData (Judgement a)
 instance NFData DoGeneralize
@@ -4886,6 +5536,9 @@ instance NFData Call
 instance NFData pf => NFData (Builtin pf)
 instance NFData HighlightingLevel
 instance NFData HighlightingMethod
+instance (NFData a, NFData b) => NFData (a :∈ b)
+instance NFData a => NFData (ContextHet' a)
+instance (NFData b, NFData a) => NFData (TwinT'' b a)
 instance NFData TCEnv
 instance NFData UnquoteFlags
 instance NFData AbstractMode

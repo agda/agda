@@ -234,13 +234,13 @@ boundedSizeMetaHook _ _ _ = __IMPOSSIBLE__
 --   like @Size< i =< Size@.
 --
 --   If it does not succeed it reports failure of conversion check.
-trySizeUniv
+trySizeUniv_
   :: MonadConversion m
-  => Comparison -> CompareAs -> Term -> Term
+  => Comparison -> CompareAs_ -> H'LHS Term -> H'RHS Term
   -> QName -> Elims -> QName -> Elims -> m ()
-trySizeUniv cmp t m n x els1 y els2 = do
+trySizeUniv_ cmp t m n x els1 y els2 = do
   let failure :: forall m a. MonadTCError m => m a
-      failure = typeError $ UnequalTerms cmp m n t
+      failure = typeError $ UnequalTerms_ cmp m n t
       forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
   -- Get the SIZE built-ins.
   (size, sizelt) <- flip catchError (const failure) $ do
@@ -298,6 +298,9 @@ sizeMaxView v = do
 ------------------------------------------------------------------------
 -- * Size comparison that might add constraints.
 ------------------------------------------------------------------------
+
+compareSizes_ :: (MonadConversion m) => Comparison -> Het 'LHS Term -> Het 'RHS Term -> m ()
+compareSizes_ cmp u v = compareSizes cmp (twinAt @'LHS u) (twinAt @'RHS v)
 
 -- | Compare two sizes.
 compareSizes :: (MonadConversion m) => Comparison -> Term -> Term -> m ()
@@ -366,7 +369,7 @@ compareSizeViews cmp s1' s2' = do
         u <- unDeepSizeView s1
         v <- unDeepSizeView s2
         cont u v
-      failure = withUnView $ \ u v -> typeError $ UnequalTerms cmp u v AsSizes
+      failure = withUnView $ \ u v -> typeError $ mkUnequalTerms cmp u v AsSizes
       continue cmp = withUnView $ compareAtom cmp AsSizes
   case (cmp, s1, s2) of
     (CmpLeq, _,            DSizeInf)   -> return ()
@@ -397,7 +400,7 @@ giveUp :: (MonadConversion m) => Comparison -> Type -> Term -> Term -> m ()
 giveUp cmp size u v =
   ifM (asksTC envAssignMetas)
     {-then-} (addConstraint unblock $ ValueCmp CmpLeq AsSizes u v)
-    {-else-} (typeError $ UnequalTerms cmp u v AsSizes)
+    {-else-} (typeError $ mkUnequalTerms cmp u v AsSizes)
   where
     unblock = unblockOnAnyMetaIn [u, v]
 

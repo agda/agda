@@ -43,6 +43,7 @@ instance MentionsMeta Blocker where
   mentionsMetas xs (UnblockOnAny bs)  = mentionsMetas xs $ Set.toList bs
   mentionsMetas xs (UnblockOnMeta x)  = HashSet.member x xs
   mentionsMetas xs UnblockOnProblem{} = False
+  mentionsMetas xs UnblockOnEffort{}  = False
 
 instance MentionsMeta Type where
     mentionsMetas xs (El s t) = mentionsMetas xs (s, t)
@@ -104,8 +105,10 @@ instance MentionsMeta ProblemConstraint where
 instance MentionsMeta Constraint where
   mentionsMetas xs = \case
     ValueCmp _ t u v    -> mm (t, u, v)
+    ValueCmp_ _ t u v   -> mm (t, u, v)
     ValueCmpOnFace _ p t u v    -> mm ((p,t), u, v)
     ElimCmp _ _ t v as bs -> mm ((t, v), (as, bs))
+    ElimCmp_ _ _ t v as bs -> mm ((t, v), (as, bs))
     LevelCmp _ u v      -> mm (u, v)
     SortCmp _ a b       -> mm (a, b)
     UnBlock _           -> True   -- this might be a postponed typechecking
@@ -127,11 +130,22 @@ instance MentionsMeta Constraint where
       mm :: forall t. MentionsMeta t => t -> Bool
       mm = mentionsMetas xs
 
-instance MentionsMeta CompareAs where
+instance MentionsMeta a => MentionsMeta (CompareAs' a) where
   mentionsMetas xs = \case
     AsTermsOf a -> mentionsMetas xs a
     AsSizes -> False
     AsTypes -> False
+
+instance MentionsMeta a => MentionsMeta (Het side a) where
+  mentionsMetas xs = mentionsMetas xs . unHet
+
+instance MentionsMeta () where
+  mentionsMetas _ () = False
+
+instance MentionsMeta a => MentionsMeta (TwinT' a) where
+  mentionsMetas xs (SingleT a) = mentionsMetas xs a
+  mentionsMetas xs (TwinT{twinLHS,twinRHS}) =
+    mentionsMetas xs (twinLHS, twinRHS)
 
 -- instance (Ord k, MentionsMeta e) => MentionsMeta (Map k e) where
 --   mentionsMeta = traverse mentionsMeta

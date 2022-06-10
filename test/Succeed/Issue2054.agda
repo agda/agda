@@ -26,7 +26,7 @@ test : ∀ {j} (ft : R j) → Set
 test {j} ft = E {j} ft testw
   where
     postulate
-      testw : ∀ {ft : R _} (w : W ft) → Set
+      testw : ∀ {ft : R _} (w : W {j} ft) → Set
 
 -- Should work
 -- _ should not set to ∞, but to j

@@ -22,6 +22,8 @@
 - ignore: {name: "Redundant case"}
 - ignore: {name: "Redundant guard"}
 - ignore: {name: "Redundant if"}
+- ignore: {name: "Redundant flip"}
+- ignore: {name: "Redundant id"}
 - ignore: {name: "Redundant lambda"}
 - ignore: {name: "Redundant multi-way if"}
 - ignore: {name: "Redundant return"}
@@ -34,6 +36,7 @@
 - ignore: {name: "Use :"}
 - ignore: {name: "Use <$"}
 - ignore: {name: "Use <$>"}
+- ignore: {name: "Use <&>"}
 - ignore: {name: "Use <=<"}
 - ignore: {name: "Use >"}
 - ignore: {name: "Use Just"}
@@ -55,7 +58,12 @@
       - Agda.TypeChecking.Primitive.Cubical.primComp
       - Agda.Syntax.Concrete.Operators.parsePat
 - ignore: {name: "Use fromMaybe"}
+- ignore: {name: "Use fromRight"}
+- ignore: {name: "Use first"}
+- ignore: {name: "Use fmap"}
+- ignore: {name: "Use foldr", within: [Agda.TypeChecking.Monad.Base.contextHetFromList]}
 - ignore: {name: "Use id"}
+- ignore: {name: "Use if"}
 - ignore: {name: "Use infix"}
 - ignore: {name: "Use intercalate"}
 - ignore: {name: "Use lambda-case"}
@@ -107,10 +115,6 @@
   -XTupleSections,
   -XTypeFamilies,
   -XTypeSynonymInstances,
-  # hlint (3.1.6, anyway), seems to assume -XTypeApplications,
-  # which causes a parsing error in some cases.
-  # (At the time of this note, a parse error in Agda.TypeChecking.Generalize)
-  -XNoTypeApplications,
 ]
 
 # Control which extensions/flags/modules/functions can be used

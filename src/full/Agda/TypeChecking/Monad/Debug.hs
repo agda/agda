@@ -124,6 +124,7 @@ catchAndPrintImpossible k n m = catchImpossibleJust catchMe m $ \ imposs -> do
   catchMe :: Impossible -> Maybe Impossible
   catchMe = filterMaybe $ \case
     Impossible{}            -> True
+    Unimplemented{}         -> False
     Unreachable{}           -> False
     ImpMissingDefinitions{} -> False
 

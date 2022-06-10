@@ -177,7 +177,7 @@ unifyElims :: Args
               -- Γ.Δ', [(x = u)] ⊢ id_g = ts[σ] : Γ
            -> TCM a
 unifyElims vs ts k = do
-                      dom <- getContext
+                      dom <- getContextHet
                       let (binds' , eqs' ) = candidate (map unArg vs) (map unArg ts)
                           (binds'', eqss') =
                             unzip $ map (\ (j,t:ts) -> ((j,t),map (,var j) ts)) $ Map.toList $ Map.fromListWith (++) (map (second (:[])) binds')
@@ -198,11 +198,12 @@ unifyElims vs ts k = do
     bindS binds = parallelS (for [0..maximum (-1:map fst binds)] $ (\ i -> fromMaybe (deBruijnVar i) (List.lookup i binds)))
 
     codomain :: Substitution
-             -> [Nat]  -- support
-             -> Context -> Context
-    codomain s vs cxt = map snd $ filter (\ (i,c) -> i `List.notElem` vs) $ zip [0..] cxt'
+             -> [Nat] -- support
+             -> ContextHet -> ContextHet
+    codomain s vs cxt = contextHetFromList$ map snd $ filter (\ (i,c) -> i `List.notElem` vs) $ zip [0..] cxt'
      where
-      cxt' = zipWith (\ n d -> dropS n s `applySubst` d) [1..] cxt
+      cxt0 = contextHetToList cxt
+      cxt' = zipWith (\ n d -> dropS n s `applySubst` d) [1..] cxt0
 
 
 -- | Like @unifyElims@ but @Γ@ is from the the meta's @MetaInfo@ and

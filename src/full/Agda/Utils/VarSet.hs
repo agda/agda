@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 -- | Var field implementation of sets of (small) natural numbers.
 
@@ -13,10 +14,16 @@ module Agda.Utils.VarSet
 
 import Data.IntSet as IntSet
 
+-- TODO Víctor (2021-03-04)
+-- This should be implemented using `Agda.Utils.IntSet.Typed`
 type VarSet = IntSet
 
 subtract :: Int -> VarSet -> VarSet
+#if MIN_VERSION_containers(0,6,3)
+subtract n = IntSet.mapMonotonic (Prelude.subtract n)
+#else
 subtract n = IntSet.map (Prelude.subtract n)
+#endif
 
 {-
 import Data.Bits

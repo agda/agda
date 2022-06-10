@@ -408,3 +408,8 @@ getLanguage = do
     case optCubical opts of
       Just variant -> Cubical variant
       Nothing      -> WithoutK
+
+-- TODO Víctor 2021-03-04
+-- There is not much point in keeping this option around
+heterogeneousUnificationEnabled :: HasOptions m => m Bool
+heterogeneousUnificationEnabled = optHeterogeneousUnification <$> pragmaOptions

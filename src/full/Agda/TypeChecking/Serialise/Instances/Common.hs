@@ -704,11 +704,13 @@ instance EmbPrj Impossible where
   icod_ (Impossible a)              = icodeN 0 Impossible a
   icod_ (Unreachable a)             = icodeN 1 Unreachable a
   icod_ (ImpMissingDefinitions a b) = icodeN 2 ImpMissingDefinitions a b
+  icod_ (Unimplemented a)           = icodeN 3 Unimplemented a
 
   value = vcase valu where
     valu [0, a]    = valuN Impossible  a
     valu [1, a]    = valuN Unreachable a
     valu [2, a, b] = valuN ImpMissingDefinitions a b
+    valu [3, a]    = valuN Unimplemented a
     valu _         = malformed
 
 instance EmbPrj ExpandedEllipsis where

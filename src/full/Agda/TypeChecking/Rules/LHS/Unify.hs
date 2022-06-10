@@ -268,8 +268,6 @@ unifyIndices' tel flex a us vs = do
         reportSDoc "tc.lhs.unify" 20 $ "ps:" <+> pretty ps
         return $ (varTel s, unifySubst output, ps, tauInv)
 
-
-
 type UnifyStrategy = forall m. (PureTCM m, MonadPlus m) => UnifyState -> m UnifyStep
 
 --UNUSED Liang-Ting Chen 2019-07-16
@@ -616,8 +614,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
         (rhsMatch, _) <- Match.matchPatterns ps $ eqRHS s
         case (lhsMatch, rhsMatch) of
           (Match.Yes _ lhs', Match.Yes _ rhs') -> return
-            (reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') lhs',
-             reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') rhs')
+            (reverse $ Match.matchedArgs (size eqTel') lhs',
+             reverse $ Match.matchedArgs (size eqTel') rhs')
           _ -> __IMPOSSIBLE__
 
       return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
@@ -651,8 +649,8 @@ unifyStep s (Injectivity k a d pars ixs c) = do
         (rhsMatch, _) <- Match.matchPatterns ps $ eqRHS s
         case (lhsMatch, rhsMatch) of
           (Match.Yes _ lhs', Match.Yes _ rhs') -> return
-            (reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') lhs',
-             reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') rhs')
+            (reverse $ Match.matchedArgs (size eqTel') lhs',
+             reverse $ Match.matchedArgs (size eqTel') rhs')
           _ -> __IMPOSSIBLE__
 
       return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }

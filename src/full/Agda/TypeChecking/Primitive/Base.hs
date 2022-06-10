@@ -187,8 +187,9 @@ getBuiltinName b = do
       Lam _ b   -> getName $ unAbs b
       _ -> __IMPOSSIBLE__
 
-isBuiltin :: (HasBuiltins m, MonadReduce m) => QName -> String -> m Bool
-isBuiltin q b = (Just q ==) <$> getBuiltinName b
+instance IsBuiltin QName where
+  type IsBuiltinM QName m = (MonadReduce m, HasBuiltins m)
+  isBuiltin q b = (Just q ==) <$> getBuiltinName b
 
 ------------------------------------------------------------------------
 -- * Builtin Sigma

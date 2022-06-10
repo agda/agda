@@ -1,4 +1,14 @@
-Issue1467.agda:25,14-19
-(D → D) × D != D → D of type Set
-when checking that the expression bar H has type
-P (foo (λ A → (A → A) × A))
+Failed to solve the following constraints:
+  _24 D =< D → D (blocked on _24)
+  foo _24 d
+    = fst (foo (λ A → (A → A) × A)) (snd (foo (λ A → (A → A) × A)))
+    : D
+    (blocked on _26)
+  _24 D = D → D : Set (blocked on _24, belongs to problem 46)
+  foo _24 = foo _24 : _24 D alternatively D → D pending [46]
+    (blocked on any(_24, _26, problem 46))
+Unsolved metas at the following locations:
+  Issue1467.agda:24,11-12
+  Issue1467.agda:25,6-11
+  Issue1467.agda:25,14-19
+  Issue1467.agda:25,3-20

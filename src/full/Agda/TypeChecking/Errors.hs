@@ -38,12 +38,14 @@ import Agda.Syntax.Concrete.Pretty (prettyHiding, prettyRelevance)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
-import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract hiding (LHS, RHS)
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
 import Agda.Syntax.Scope.Base
 
+import Agda.TypeChecking.Heterogeneous (isTwinSingle)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
@@ -235,7 +237,7 @@ errorString err = case err of
   UnequalHiding{}                          -> "UnequalHiding"
   UnequalLevel{}                           -> "UnequalLevel"
   UnequalSorts{}                           -> "UnequalSorts"
-  UnequalTerms{}                           -> "UnequalTerms"
+  UnequalTerms_{}                          -> "UnequalTerms"
   UnequalTypes{}                           -> "UnequalTypes"
 --  UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
   WithOnFreeVariable{}                     -> "WithOnFreeVariable"
@@ -555,7 +557,7 @@ instance PrettyTCM TypeError where
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]
 
-    UnequalTerms cmp s t a -> case (s,t) of
+    UnequalTerms_ cmp s t a -> case (unHet @'LHS s, unHet @'RHS t) of
       (Sort s1      , Sort s2      )
         | CmpEq  <- cmp              -> prettyTCM $ UnequalSorts s1 s2
         | CmpLeq <- cmp              -> prettyTCM $ NotLeqSort s1 s2
@@ -564,11 +566,16 @@ instance PrettyTCM TypeError where
       (Sort DefS{}  , t            ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ t
       (s            , Sort DefS{}  ) -> prettyTCM $ ShouldBeASort $ El __IMPOSSIBLE__ s
       (_            , _            ) -> do
-        (d1, d2, d) <- prettyInEqual s t
+        (d1, d2, d) <- prettyUnequal_ s t
         fsep $ concat $
-          [ [return d1, notCmp cmp, return d2]
+          [ [return d1]
           , case a of
-                AsTermsOf t -> pwords "of type" ++ [prettyTCM t]
+                AsTermsOf t | not (isTwinSingle t) -> pwords "of type" ++ [prettyTCM $ twinAt @'LHS t]
+                            | otherwise            -> []
+                _ -> []
+          , [notCmp cmp, return d2]
+          , case a of
+                AsTermsOf t -> pwords "of type" ++ [prettyTCM (twinAt @'RHS t)]
                 AsSizes     -> pwords "of type" ++ [prettyTCM =<< sizeType]
                 AsTypes     -> []
           , [return d]
@@ -1223,15 +1230,15 @@ notCmp cmp = "!" <> prettyTCM cmp
 -- | Print two terms that are supposedly unequal.
 --   If they print to the same identifier, add some explanation
 --   why they are different nevertheless.
-prettyInEqual :: MonadPretty m => Term -> Term -> m (Doc, Doc, Doc)
-prettyInEqual t1 t2 = do
+prettyUnequal_ :: MonadPretty m => H'LHS Term -> H'RHS Term -> m (Doc, Doc, Doc)
+prettyUnequal_ t1 t2 = do
   d1 <- prettyTCM t1
   d2 <- prettyTCM t2
   (d1, d2,) <$> do
      -- if printed differently, no extra explanation needed
     if P.render d1 /= P.render d2 then empty else do
       (v1, v2) <- instantiate (t1, t2)
-      case (v1, v2) of
+      case (twinAt @'LHS v1, twinAt @'RHS v2) of
         (I.Var i1 _, I.Var i2 _)
           | i1 == i2  -> generic -- possible, see issue 1826
           | otherwise -> varVar i1 i2
@@ -1258,7 +1265,7 @@ class PrettyUnequal a where
 
 instance PrettyUnequal Term where
   prettyUnequal t1 ncmp t2 = do
-    (d1, d2, d) <- prettyInEqual t1 t2
+    (d1, d2, d) <- prettyUnequal_ (H'LHS t1) (H'RHS t2)
     fsep $ return d1 : ncmp : return d2 : return d : []
 
 instance PrettyUnequal I.Type where

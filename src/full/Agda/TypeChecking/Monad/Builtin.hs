@@ -17,6 +17,7 @@ import Control.Monad.Writer
 
 import qualified Data.Map as Map
 import Data.Function ( on )
+import qualified Data.Kind as K
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -108,6 +109,26 @@ getBuiltin' x = do
     case builtin of
         Just (Builtin t) -> return $ Just $ killRange t
         _                -> return Nothing
+
+class IsBuiltin a where
+  type IsBuiltinM a (m :: K.Type -> K.Type) :: K.Constraint
+  isBuiltin :: (IsBuiltinM a m) => a -> String -> m Bool
+
+instance IsBuiltin Term where
+  type IsBuiltinM Term m = (HasBuiltins m)
+  isBuiltin t x = do
+    getBuiltinThing x >>= \case
+      Just (Builtin t') -> return$ killRange t == killRange t'
+      _                 -> return False
+
+instance IsBuiltin a => IsBuiltin (Het s a) where
+  type IsBuiltinM (Het s a) m = (IsBuiltinM a m)
+  isBuiltin = isBuiltin . unHet @s
+
+instance IsBuiltin a => IsBuiltin (TwinT' a) where
+  type IsBuiltinM (TwinT' a) m = (IsBuiltinM a m, Monad m)
+  isBuiltin (SingleT a) = isBuiltin a
+  isBuiltin (TwinT{twinLHS,twinRHS}) = \x -> andM [isBuiltin twinLHS x, isBuiltin twinRHS x]
 
 getPrimitive' :: HasBuiltins m => String -> m (Maybe PrimFun)
 getPrimitive' x = (getPrim =<<) <$> getBuiltinThing x

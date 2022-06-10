@@ -65,8 +65,8 @@ import Control.Monad.Reader ( MonadReader(..), asks, ReaderT, Reader, runReader 
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HashSet
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Semigroup ( Semigroup, (<>) )
 
 
@@ -81,23 +81,28 @@ import Agda.Utils.Null
 import Agda.Utils.Semigroup
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 
 ---------------------------------------------------------------------------
 -- * Set of meta variables.
 
 -- | A set of meta variables.  Forms a monoid under union.
 
-newtype MetaSet = MetaSet { theMetaSet :: HashSet MetaId }
+newtype MetaSet = MetaSet { theMetaSet :: Set MetaId }
   deriving (Eq, Show, Null, Semigroup, Monoid)
 
 instance Singleton MetaId MetaSet where
   singleton = MetaSet . singleton
 
+metaSetToSet :: MetaSet -> Set MetaId
+metaSetToSet = theMetaSet
+
 insertMetaSet :: MetaId -> MetaSet -> MetaSet
-insertMetaSet m (MetaSet ms) = MetaSet $ HashSet.insert m ms
+insertMetaSet m (MetaSet ms) = MetaSet $ Set.insert m ms
 
 foldrMetaSet :: (MetaId -> a -> a) -> a -> MetaSet -> a
-foldrMetaSet f e ms = HashSet.foldr f e $ theMetaSet ms
+foldrMetaSet f e ms = Set.foldr f e $ theMetaSet ms
 
 ---------------------------------------------------------------------------
 -- * Flexible and rigid occurrences (semigroup)
@@ -502,6 +507,8 @@ class Free t where
   default freeVars' :: (t ~ f b, Foldable f, Free b) => IsVarSet a c => t -> FreeM a c
   freeVars' = foldMap freeVars'
 
+instance Free Name where
+  freeVars' = const mempty
 
 instance Free Term where
   -- SPECIALIZE instance does not work as well, see

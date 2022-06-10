@@ -288,6 +288,11 @@ library
   if impl(ghc >= 8.4)
     build-depends: ghc-compact == 0.1.*
 
+  -- The module Data.Bifoldable is part of the base package starting
+  -- from GHC 8.1.
+  if impl(ghc < 8.1)
+    build-depends: bifunctors >= 5.4 && < 5.6
+
   -- We don't write upper bounds for Alex nor Happy because the
   -- `build-tools` field can not be modified in Hackage. Agda doesn't
   -- build with Alex 3.2.0 and segfaults with 3.2.2.
@@ -469,6 +474,7 @@ library
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Functions
                     Agda.TypeChecking.Generalize
+                    Agda.TypeChecking.Heterogeneous
                     Agda.TypeChecking.IApplyConfluence
                     Agda.TypeChecking.Implicit
                     Agda.TypeChecking.Injectivity
@@ -482,6 +488,7 @@ library
                     Agda.TypeChecking.MetaVars
                     Agda.TypeChecking.MetaVars.Mention
                     Agda.TypeChecking.MetaVars.Occurs
+                    Agda.TypeChecking.MetaVars.VarSetBlocked
                     Agda.TypeChecking.Monad.Base
                     Agda.TypeChecking.Monad.Benchmark
                     Agda.TypeChecking.Monad.Builtin
@@ -580,6 +587,7 @@ library
                     Agda.Utils.CallStack
                     Agda.Utils.Char
                     Agda.Utils.Cluster
+                    Agda.Utils.Dependent
                     Agda.Utils.Empty
                     Agda.Utils.Environment
                     Agda.Utils.Either
@@ -596,6 +604,7 @@ library
                     Agda.Utils.Impossible
                     Agda.Utils.IndexedList
                     Agda.Utils.IntSet.Infinite
+                    Agda.Utils.IntSet.Typed
                     Agda.Utils.IO
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.Directory
@@ -677,7 +686,6 @@ library
                  -Wduplicate-exports
                  -Wempty-enumerations
                  -Widentities
-                 -Wincomplete-patterns
                  -Winline-rule-shadowing
                  -Wmissing-fields
                  -Wmissing-methods
@@ -709,7 +717,6 @@ library
                  -Werror=duplicate-exports
                  -Werror=empty-enumerations
                  -Werror=identities
-                 -Werror=incomplete-patterns
                  -Werror=inline-rule-shadowing
                  -Werror=missing-fields
                  -Werror=missing-methods
@@ -737,6 +744,10 @@ library
                  -- -Wmissing-home-modules
                  -Werror=simplifiable-class-constraints
                  -Werror=unbanged-strict-patterns
+
+  -- NOTE: If adding or removing flags, also change `.ghci-8.4`
+  if impl(ghc >= 8.4)
+    ghc-options: -Wincomplete-patterns
 
   -- NOTE: If adding or removing flags, also change `.ghci-8.6`
   if impl(ghc >= 8.6)
@@ -785,10 +796,7 @@ library
   -- This should also use the same extensions as the `test-suite` target below.
   default-extensions: BangPatterns
                     , ConstraintKinds
-                    --L-T Chen (2019-07-15):
-                    -- Enabling DataKinds only locally makes the compile time
-                    -- slightly shorter, see PR #3920.
-                    --, DataKinds
+                    , DataKinds
                     , DefaultSignatures
                     , DeriveDataTypeable
                     , DeriveFoldable
@@ -812,6 +820,7 @@ library
                     , ScopedTypeVariables
                     , StandaloneDeriving
                     , TupleSections
+                    , TypeApplications
                     , TypeFamilies
                     , TypeOperators
                     , TypeSynonymInstances
@@ -958,7 +967,6 @@ test-suite agda-tests
                 , temporary >= 1.2.0.3 && < 1.4
                 , text
                 , unix-compat >= 0.4.3.1 && < 0.6
-                , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode
 
   -- Andreas (2021-10-11): tasty-silver < 3.3 does not work interactively under Windows
@@ -1025,7 +1033,6 @@ test-suite agda-tests
                  -Wduplicate-exports
                  -Wempty-enumerations
                  -Widentities
-                 -Wincomplete-patterns
                  -Winline-rule-shadowing
                  -Wmissing-fields
                  -Wmissing-methods

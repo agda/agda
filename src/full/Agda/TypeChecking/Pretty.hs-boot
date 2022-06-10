@@ -68,3 +68,5 @@ instance PrettyTCM Sort
 instance PrettyTCM DisplayTerm
 instance PrettyTCM DBPatVar
 instance PrettyTCM PrettyContext
+instance PrettyTCM a => PrettyTCM (Judgement a)
+instance PrettyTCM MetaId

@@ -23,9 +23,10 @@ module Agda.Syntax.Translation.InternalToAbstract
 
 import Prelude hiding (null)
 
-import Control.Applicative ( liftA2 )
-import Control.Arrow       ( (&&&) )
+import Control.Applicative (liftA2, Const(..))
+import Control.Arrow ((&&&))
 import Control.Monad       ( filterM, forM )
+import Control.Monad.State
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -50,7 +51,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad hiding (LHS, RHS)
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(Fail))
@@ -1471,3 +1472,21 @@ instance (Reify i1, Reify i2, Reify i3) => Reify (i1,i2,i3) where
 instance (Reify i1, Reify i2, Reify i3, Reify i4) => Reify (i1,i2,i3,i4) where
     type ReifiesTo (i1, i2, i3, i4) = (ReifiesTo i1, ReifiesTo i2, ReifiesTo i3, ReifiesTo i4)
     reify (x,y,z,w) = (,,,) <$> reify x <*> reify y <*> reify z <*> reify w
+
+instance {-# OVERLAPPABLE #-} (LeftOrRightSide side, Reify a) => Reify (Het side a) where
+    type ReifiesTo (Het side a) = Het side (ReifiesTo a)
+    reify = onSide reify
+
+instance {-# OVERLAPS #-} (Reify a) => Reify (Het 'Both a) where
+    type ReifiesTo (Het 'Both a) = Het 'Both (ReifiesTo a)
+    reify (OnBoth a) = OnBoth <$> reify a
+
+instance Reify () where
+    type ReifiesTo () = ()
+    reify () = pure ()
+
+instance Reify a => Reify (TwinT' a) where
+    type ReifiesTo (TwinT' a) = TwinT' (ReifiesTo a)
+    -- Víctor (2021-03-12):
+    -- Could we use unsafeTraverseTwinT here?
+    reify = traverseTwinT reify

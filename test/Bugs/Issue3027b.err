@@ -1,6 +1,0 @@
-AGDA_FAILURE
-
-ret > ExitFailure 154
-out > An internal error has occurred. Please report this as a bug.
-out > Location of the error: __IMPOSSIBLE__, called at src/full/Agda/TypeChecking/Reduce/Fast.hs:«line»:«col» in «Agda-package»:Agda.TypeChecking.Reduce.Fast
-out >

@@ -14,6 +14,7 @@ import Control.Monad.Identity
 import Control.DeepSeq
 
 import Data.Function
+import Data.Functor.Compose (Compose(..))
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ( Semigroup, (<>), Sum(..) )
@@ -260,22 +261,29 @@ type Type = Type' Term
 instance Decoration (Type'' t) where
   traverseF f (El s a) = El s <$> f a
 
-class LensSort a where
-  lensSort ::  Lens' Sort a
+class GetSort a where
   getSort  :: a -> Sort
+  default getSort :: LensSort a => a -> Sort
   getSort a = a ^. lensSort
 
+class GetSort a => LensSort a where
+  lensSort ::  Lens' Sort a
+
+instance GetSort Sort where
 instance LensSort Sort where
   lensSort f s = f s <&> \ s' -> s'
 
+instance GetSort (Type' a) where
 instance LensSort (Type' a) where
   lensSort f (El s a) = f s <&> \ s' -> El s' a
 
 -- General instance leads to overlapping instances.
 -- instance (Decoration f, LensSort a) => LensSort (f a) where
+instance LensSort a => GetSort (Dom a) where
 instance LensSort a => LensSort (Dom a) where
   lensSort = traverseF . lensSort
 
+instance LensSort a => GetSort (Arg a) where
 instance LensSort a => LensSort (Arg a) where
   lensSort = traverseF . lensSort
 
@@ -903,17 +911,22 @@ replaceEmptyName :: ArgName -> Tele a -> Tele a
 replaceEmptyName x = mapAbsNames $ \ y -> if null y then x else y
 
 -- | Telescope as list.
-type ListTel' a = [Dom (a, Type)]
+type ListTel'' a t = [Dom (a, t)]
+type ListTel' a = ListTel'' a Type
 type ListTel = ListTel' ArgName
 
-telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
+telFromList' :: (a -> ArgName) -> ListTel'' a t -> Tele (Dom t)
 telFromList' f = List.foldr extTel EmptyTel
   where
     extTel dom@Dom{unDom = (x, a)} = ExtendTel (dom{unDom = a}) . Abs (f x)
 
 -- | Convert a list telescope to a telescope.
 telFromList :: ListTel -> Telescope
-telFromList = telFromList' id
+telFromList = telFromList_
+
+-- | Convert a list telescope to a telescope.
+telFromList_ :: ListTel'' ArgName t -> Tele (Dom t)
+telFromList_ = telFromList' id
 
 -- | Convert a telescope to its list form.
 telToList :: Tele (Dom t) -> [Dom (ArgName,t)]
@@ -981,6 +994,12 @@ instance Suggest Name where
 instance Suggest Term where
   suggestName (Lam _ v) = suggestName v
   suggestName _         = Nothing
+
+instance Suggest a => Suggest (Maybe a) where
+  suggestName = (>>= suggestName)
+
+instance Suggest (f (g a)) => Suggest (Compose f g a) where
+  suggestName (Compose fga) = suggestName fga
 
 -- Wrapping @forall a. (Suggest a) => a@ into a datatype because
 -- GHC doesn't support impredicative polymorphism

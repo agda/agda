@@ -1,5 +1,6 @@
 Failed to solve the following constraints:
-  i = _x.b.1_40 : I (blocked on _x.b.1_40)
-  _x.b.1_40 = i : I (blocked on _x.b.1_40)
+  _x.b.1_40 = i : I (blocked on _x.b.1_40, belongs to problem 56)
+  _x_41 = x : D [ _x.b.1_40 ] alternatively D [ i ] pending [56]
+    (blocked on any(_x.b.1_40, _x_41, problem 56))
 Unsolved metas at the following locations:
   Issue5058.agda:25,9-10

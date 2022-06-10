@@ -146,7 +146,7 @@ applyRelevanceToContext thing =
 --   Precondition: @Relevance /= Relevant@
 applyRelevanceToContextOnly :: (MonadTCEnv tcm) => Relevance -> tcm a -> tcm a
 applyRelevanceToContextOnly rel = localTC
-  $ over eContext     (map $ inverseApplyRelevance rel)
+  $ over eContext     (fmap $ inverseApplyRelevance rel)
   . over eLetBindings (Map.map . fmap . second $ inverseApplyRelevance rel)
 
 -- | Apply relevance @rel@ the the relevance annotation of the (typing/equality)
@@ -191,7 +191,7 @@ applyCohesionToContext thing =
 
 applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
 applyCohesionToContextOnly q = localTC
-  $ over eContext     (map $ inverseApplyCohesion q)
+  $ over eContext     (fmap $ inverseApplyCohesion q)
   . over eLetBindings (Map.map . fmap . second $ inverseApplyCohesion q)
 
 -- | Can we split on arguments of the given cohesion?
@@ -227,7 +227,7 @@ applyModalityToContext thing =
 --   Precondition: @Modality /= Relevant@
 applyModalityToContextOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToContextOnly m = localTC
-  $ over eContext (map $ inverseApplyModalityButNotQuantity m)
+  $ over eContext (fmap $ inverseApplyModalityButNotQuantity m)
   . over eLetBindings
       (Map.map . fmap . second $ inverseApplyModalityButNotQuantity m)
 

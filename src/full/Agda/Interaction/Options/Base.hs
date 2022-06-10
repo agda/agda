@@ -206,6 +206,7 @@ data PragmaOptions = PragmaOptions
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
+  , optHeterogeneousUnification  :: Bool
   , optAllowExec                 :: Bool
   , optSaveMetas                 :: WithDefault 'False
     -- ^ Save meta-variables.
@@ -325,6 +326,7 @@ defaultPragmaOptions = PragmaOptions
   , optConfluenceCheck           = Nothing
   , optFlatSplit                 = True
   , optImportSorts               = True
+  , optHeterogeneousUnification  = True
   , optAllowExec                 = False
   , optSaveMetas                 = Default
   , optShowIdentitySubstitutions = False
@@ -838,6 +840,9 @@ noImportSorts o = return $ o { optImportSorts = False }
 allowExec :: Flag PragmaOptions
 allowExec o = return $ o { optAllowExec = True }
 
+noHeterogeneousConversionFlag :: Flag PragmaOptions
+noHeterogeneousConversionFlag o = return $ o { optHeterogeneousUnification = False }
+
 saveMetas :: Bool -> Flag PragmaOptions
 saveMetas save o = return $ o { optSaveMetas = Value save }
 
@@ -1068,6 +1073,8 @@ pragmaOptions =
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
     , Option []     ["allow-exec"] (NoArg allowExec)
                     "allow system calls to trusted executables with primExec"
+    , Option []     ["no-heterogeneous-conversion"] (NoArg noHeterogeneousConversionFlag)
+                    "check for heterogeneous unification"
     , Option []     ["save-metas"] (NoArg $ saveMetas True)
                     "save meta-variables"
     , Option []     ["no-save-metas"] (NoArg $ saveMetas False)

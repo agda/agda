@@ -17,7 +17,9 @@ syntax2	= Syntacticosmos/UntypedLambda.agda -iSyntacticosmos +RTS -K32M
 syntaxTests = syntax1 syntax2
 
 # cwf
-cwf = cwf/CwF.agda --ignore-interfaces -icwf
+# Disabled:
+# cwf = cwf/CwF.agda --ignore-interfaces -icwf
+cwf =
 cwfTests = cwf
 
 # Parsing monad

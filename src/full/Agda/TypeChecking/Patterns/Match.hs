@@ -45,8 +45,8 @@ instance Null (Match a) where
   null (Yes simpl as) = null simpl && null as
   null _              = False
 
-matchedArgs :: Empty -> Int -> IntMap (Arg a) -> [Arg a]
-matchedArgs err n vs = map (fromMaybe (absurd err)) $ matchedArgs' n vs
+matchedArgs :: HasCallStack => Int -> IntMap (Arg a) -> [Arg a]
+matchedArgs n vs = map (fromMaybe __IMPOSSIBLE__) $ matchedArgs' n vs
 
 matchedArgs' :: Int -> IntMap (Arg a) -> [Maybe (Arg a)]
 matchedArgs' n vs = map get [0 .. n - 1]
@@ -54,12 +54,11 @@ matchedArgs' n vs = map get [0 .. n - 1]
     get k = IntMap.lookup k vs
 
 -- | Builds a proper substitution from an IntMap produced by match(Co)patterns
-buildSubstitution :: (DeBruijn a)
-                  => Impossible -> Int -> IntMap (Arg a) -> Substitution' a
-buildSubstitution err n vs = foldr cons idS $ matchedArgs' n vs
-  where cons Nothing  = Strengthen err
+buildSubstitution :: HasCallStack => (DeBruijn a)
+                  => Int -> IntMap (Arg a) -> Substitution' a
+buildSubstitution n vs = foldr cons idS $ matchedArgs' n vs
+  where cons Nothing  = Strengthen __IMPOSSIBLE__
         cons (Just v) = consS (unArg v)
-
 
 instance Semigroup (Match a) where
     -- @NotBlocked (StuckOn e)@ means blocked by a variable.

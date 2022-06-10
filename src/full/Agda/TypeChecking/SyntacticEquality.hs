@@ -10,6 +10,7 @@
 module Agda.TypeChecking.SyntacticEquality
   ( SynEq
   , checkSyntacticEquality
+  , checkSyntacticEquality_
   , syntacticEqualityFuelRemains
   )
   where
@@ -26,7 +27,8 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
   (ReduceM, MonadReduce(..), TCEnv(..), MonadTCEnv(..), pragmaOptions,
-   isInstantiatedMeta)
+   isInstantiatedMeta, Het(..), ContextSide(..), switchSide,
+   MonadAddContext(..), TwinAt(twinAt))
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 
@@ -62,7 +64,7 @@ import Agda.Utils.Monad (ifM, and2M)
       (Type -> Type -> ReduceM a) ->
       ReduceM a #-}
 checkSyntacticEquality
-  :: (Instantiate a, SynEq a, MonadReduce m)
+  :: (Instantiate a, SynEq a, MonadAddContext m, MonadReduce m)
   => a
   -> a
   -> (a -> a -> m b)  -- ^ Continuation used upon success.
@@ -71,10 +73,44 @@ checkSyntacticEquality
                       --   off.
   -> m b
 checkSyntacticEquality v v' s f =
+  checkSyntacticEquality_ (Het @'LHS v) (Het @'RHS v')
+    (\l r -> s (twinAt @'LHS l) (twinAt @'RHS r))
+    (\l r -> f (twinAt @'LHS l) (twinAt @'RHS r))
+
+{-# SPECIALIZE checkSyntacticEquality_ ::
+      Het 'LHS Term -> Het 'RHS Term ->
+      (Het 'LHS Term -> Het 'RHS Term -> ReduceM a) ->
+      (Het 'LHS Term -> Het 'RHS Term -> ReduceM a) ->
+      ReduceM a #-}
+{-# SPECIALIZE checkSyntacticEquality_ ::
+      Het 'LHS Type -> Het 'RHS Type ->
+      (Het 'LHS Type -> Het 'RHS Type -> ReduceM a) ->
+      (Het 'LHS Type -> Het 'RHS Type -> ReduceM a) ->
+      ReduceM a #-}
+checkSyntacticEquality_
+  :: (Instantiate a, SynEq a, MonadAddContext m, MonadReduce m)
+  => Het 'LHS a
+  -> Het 'RHS a
+  -> (Het 'LHS a -> Het 'RHS a -> m b)  -- ^ Continuation used upon
+                                        --   success.
+  -> (Het 'LHS a -> Het 'RHS a -> m b)  -- ^ Continuation used upon
+                                        --   failure, or if syntactic
+                                        --   equality checking has
+                                        --   been turned off.
+  -> m b
+checkSyntacticEquality_ v v' s f =
   ifM syntacticEqualityFuelRemains
-  {-then-} (do ((v, v'), equal) <-
-                 liftReduce $ synEq v v' `runStateT` True
-               if equal then s v v' else localTC decreaseFuel (f v v'))
+  -- Víctor (2020-02-18)
+  -- We assume that the syntactic equality does not use the context; therefore,
+  -- it is safe to switch the context to a single-sided one
+  {-then-} (do ((v, v'), equal) <- liftReduce $
+                 switchSide @'Compat
+                   (synEq (twinAt @'LHS v) (twinAt @'RHS v')
+                      `runStateT` True)
+               if equal
+                then s (Het @'LHS v) (Het @'RHS v')
+                else localTC decreaseFuel
+                       (f (Het @'LHS v) (Het @'RHS v')))
   {-else-} (uncurry f =<< instantiate (v,v'))
   where
   decreaseFuel env =

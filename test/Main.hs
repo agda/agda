@@ -82,6 +82,9 @@ makefileDependentTests = SUCCEED.makefileDependentTests
 disabledTests :: [RegexFilter]
 disabledTests = concat
   [ COMPILER.disabledTests
+  , SUCCEED.disabledTests
+  , FAIL.disabledTests
   , LIBSUCCEED.disabledTests
   , LATEXHTML.disabledTests
+  , USERMANUAL.disabledTests
   ]

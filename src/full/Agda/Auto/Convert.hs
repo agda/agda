@@ -183,7 +183,7 @@ tomy imi icns typs = do
          modify $ \s -> s {sEqs = first (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol'))) (sEqs s)}
        let tt = MB.jMetaType $ mvJudgement mv
            minfo = getMetaInfo mv
-           localVars = map (snd . I.unDom) . envContext . clEnv $ minfo
+           localVars = map (snd . I.unDom) . MB.twinAt @'MB.Compat . envContext . clEnv $ minfo
        (targettype, localVars) <- lift $ withMetaInfo minfo $ do
         vs <- getContextArgs
         targettype <- tt `piApplyM` permute (takeP (length vs) $ mvPermutation mv) vs

@@ -57,6 +57,28 @@ data TestResult
   | TestUnexpectedFail ProgramResult
   | TestWrongDotOutput T.Text
 
+disabledTests :: [RegexFilter]
+disabledTests =
+  [-- disable "Succeed/Issue2054"
+  -- ,disable "Succeed/Issue4944"
+    disable "Succeed/Issue1592"
+  , disable "Succeed/Issue5579"
+  , disable "Succeed/SST"
+  ] ++
+  unimplementedTests
+  where disable = RFInclude
+
+unimplementedTests :: [RegexFilter]
+unimplementedTests =
+  [ disable "Succeed/CubicalPrims"
+  , disable "Succeed/InjectivityHITs"
+  , disable "Succeed/LaterPrims"
+  , disable "Succeed/Issue2845"
+  , disable "Succeed/Issue3695"
+  , disable "Succeed/Issue5576"
+  ]
+  where disable = RFInclude
+
 mkSucceedTest
   :: AgdaArgs -- ^ Extra options to Agda.
   -> FilePath -- ^ Test directory.

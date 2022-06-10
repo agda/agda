@@ -22,9 +22,13 @@ import Agda.Syntax.Abstract.Pretty (prettyATop)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Name (NameInScope(..), Name)
-import Agda.Syntax.Internal (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..), alwaysUnblock)
-import Agda.Syntax.Position (Range, rangeIntervals, Interval'(..), Position'(..), noRange)
+import Agda.Syntax.Internal
+  (telToList, Dom'(..), Dom, MetaId(..), ProblemId(..), Blocker(..),
+   EffortDelta(..), NatExt(..), alwaysUnblock)
+import Agda.Syntax.Position
+  (Range, rangeIntervals, Interval'(..), Position'(..), noRange)
 import Agda.VersionCommit
+import Agda.TypeChecking.Monad.Base (TwinT''(..), TwinT', ContextSide(..), Het(..), CompareDirection(..))
 
 import Agda.TypeChecking.Errors (getAllWarningsOfTCErr)
 import Agda.TypeChecking.Monad (Comparison(..), inTopContext, TCM, TCErr, TCWarning, NamedMeta(..), withInteractionId)
@@ -33,6 +37,9 @@ import Agda.TypeChecking.Pretty (PrettyTCM(..), prettyTCM)
 -- borrowed from EmacsTop, for temporarily serialising stuff
 import Agda.TypeChecking.Pretty.Warning (filterTCWarnings)
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors(..))
+
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Pretty (Pretty(..))
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Time (CPUTime(..))
@@ -95,8 +102,19 @@ instance ToJSON Range where
 
 instance EncodeTCM ProblemId where
 instance EncodeTCM MetaId    where
+instance EncodeTCM NatExt    where
+
+instance ToJSON NatExt where
+  toJSON (NatExt n)   = toJSON n
+  toJSON  NatInfinity = String "NatInfinity"
+
+instance ToJSON CompareDirection where
+  toJSON DirEq = String "DirEq"
+  toJSON DirLeq = String "DirLeq"
+  toJSON DirGeq = String "DirGeq"
 
 instance ToJSON ProblemId where toJSON (ProblemId i) = toJSON i
+instance ToJSON EffortDelta where toJSON (EffortDelta i) = toJSON i
 
 instance ToJSON ModuleNameHash where
   toJSON (ModuleNameHash h) = toJSON h
@@ -178,10 +196,20 @@ encodeOC f encPrettyTCM = \case
   , "type"           #= encPrettyTCM a
   , "constraintObjs" #= traverse f [i, j]
   ]
+ CmpInTypeHet c a i j -> kind "CmpInType"
+  [ "comparison"     @= encodeShow c
+  , "type"           #= encodeTwinT encPrettyTCM a
+  , "constraintObjs" #= traverse f [unHet @'LHS i, unHet @'RHS j]
+  ]
  CmpElim ps a is js -> kind "CmpElim"
   [ "polarities"     @= map encodeShow ps
   , "type"           #= encPrettyTCM a
   , "constraintObjs" #= traverse (traverse f) [is, js]
+  ]
+ CmpElim_ ps a is js -> kind "CmpElim"
+  [ "polarities"     @= map encodeShow ps
+  , "type"           #= encodeTwinT encPrettyTCM a
+  , "constraintObjs" #= traverse (traverse f) [unHet @'LHS is, unHet @'RHS js]
   ]
  JustType a -> kind "JustType"
   [ "constraintObj"  #= f a
@@ -244,6 +272,18 @@ encodeOC f encPrettyTCM = \case
   , "term"          #= f t
   ]
 
+encodeTwinT :: (b -> TCM Value)
+  -> TwinT' b
+  -> TCM Value
+encodeTwinT f (SingleT a) = kind "Single" [ "type" #= f (unHet @'Both a) ]
+encodeTwinT f (TwinT{necessary,twinPid,twinLHS,twinRHS,direction}) = kind "TwinT" [
+   "necessary"  @= encodePretty necessary
+  ,"direction"  @= toJSON direction
+  ,"pid"        @= ISet.toList twinPid
+  ,"lhs"        #= f (unHet @'LHS    twinLHS)
+  ,"rhs"        #= f (unHet @'RHS    twinRHS)
+  ]
+
 encodeNamedPretty :: PrettyTCM a => (Name, a) -> TCM Value
 encodeNamedPretty (name, a) = obj
   [ "name" @= encodePretty name
@@ -258,7 +298,11 @@ instance EncodeTCM (OutputForm C.Expr C.Expr) where
     , "constraint" #= encodeOC (pure . encodePretty) (pure . encodePretty) oc
     ]
 
+instance EncodeTCM EffortDelta where
+  encodeTCM (EffortDelta x) = encodeTCM x
+
 instance EncodeTCM Blocker where
+  encodeTCM (UnblockOnEffort x)  = kind "UnblockOnEffort" [ "effort" @= x ]
   encodeTCM (UnblockOnMeta x)    = kind "UnblockOnMeta" [ "meta" @= x ]
   encodeTCM (UnblockOnProblem p) = kind "UnblockOnProblem" [ "id" @= p ]
   encodeTCM (UnblockOnAll us)    = kind "UnblockOnAll" [ "blockers" @= Set.toList us ]

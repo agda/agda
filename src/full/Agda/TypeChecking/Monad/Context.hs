@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Monad.Context where
 
@@ -26,6 +27,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Free
+import {-# SOURCE #-} qualified Agda.TypeChecking.Heterogeneous as H
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Substitute
@@ -49,19 +51,19 @@ import Agda.Utils.Impossible
 
 -- | Modify a 'Context' in a computation.  Warning: does not update
 --   the checkpoints. Use @updateContext@ instead.
-{-# SPECIALIZE unsafeModifyContext :: (Context -> Context) -> TCM a -> TCM a #-}
-unsafeModifyContext :: MonadTCEnv tcm => (Context -> Context) -> tcm a -> tcm a
+{-# SPECIALIZE unsafeModifyContext :: (Context_ -> Context_) -> TCM a -> TCM a #-}
+unsafeModifyContext :: MonadTCEnv tcm => (Context_ -> Context_) -> tcm a -> tcm a
 unsafeModifyContext f = localTC $ \e -> e { envContext = f $ envContext e }
 
 -- | Modify the 'Dom' part of context entries.
 modifyContextInfo :: MonadTCEnv tcm => (forall e. Dom e -> Dom e) -> tcm a -> tcm a
-modifyContextInfo f = unsafeModifyContext $ map f
+modifyContextInfo f = unsafeModifyContext $ fmap f
 
 -- | Change to top (=empty) context. Resets the checkpoints.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 inTopContext :: (MonadTCEnv tcm, ReadTCState tcm) => tcm a -> tcm a
 inTopContext cont =
-  unsafeModifyContext (const [])
+  unsafeModifyContext (const Empty)
         $ locallyTC eCurrentCheckpoint (const 0)
         $ locallyTC eCheckpoints (const $ Map.singleton 0 IdS)
         $ locallyTCState stModuleCheckpoints (const Map.empty)
@@ -75,7 +77,7 @@ inTopContext cont =
 unsafeInTopContext :: (MonadTCEnv m, ReadTCState m) => m a -> m a
 unsafeInTopContext cont =
   locallyScope scopeLocals (const []) $
-    unsafeModifyContext (const []) cont
+    unsafeModifyContext (const Empty) cont
 
 -- | Delete the last @n@ bindings from the context.
 --
@@ -83,12 +85,12 @@ unsafeInTopContext cont =
 --   rho (drop n)` instead, for an appropriate substitution `rho`.
 {-# SPECIALIZE unsafeEscapeContext :: Int -> TCM a -> TCM a #-}
 unsafeEscapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
-unsafeEscapeContext n = unsafeModifyContext $ drop n
+unsafeEscapeContext n = unsafeModifyContext $ H.drop n
 
 -- | Delete the last @n@ bindings from the context. Any occurrences of
 -- these variables are replaced with the given @err@.
 escapeContext :: MonadAddContext m => Impossible -> Int -> m a -> m a
-escapeContext err n = updateContext (strengthenS err n) $ drop n
+escapeContext err n = updateContext (strengthenS err n) $ H.drop n
 
 -- * Manipulating checkpoints --
 
@@ -158,13 +160,20 @@ class MonadTCEnv m => MonadAddContext m where
   --   Warning: Does not update module parameter substitution!
   addCtx :: Name -> Dom Type -> m a -> m a
 
+  -- | @addCtx_ x arg cont@ add a variable of twin type to the context.
+  --
+  --   Chooses an unused 'Name'.
+  --
+  --   Warning: Does not update module parameter substitution!
+  addCtx_ :: Name -> Dom TwinT -> m a -> m a
+
   -- | Add a let bound variable to the context
   addLetBinding' :: Name -> Term -> Dom Type -> m a -> m a
 
   -- | Update the context.
   --   Requires a substitution that transports things living in the old context
   --   to the new.
-  updateContext :: Substitution -> (Context -> Context) -> m a -> m a
+  updateContext :: Substitution -> (ContextHet -> ContextHet) -> m a -> m a
 
   withFreshName :: Range -> ArgName -> (Name -> m a) -> m a
 
@@ -173,6 +182,11 @@ class MonadTCEnv m => MonadAddContext m where
     => Name -> Dom Type -> m a -> m a
   addCtx x a = liftThrough $ addCtx x a
 
+  default addCtx_
+    :: (MonadAddContext n, MonadTransControl t, t n ~ m)
+    => Name -> Dom TwinT -> m a -> m a
+  addCtx_ x a = liftThrough $ addCtx_ x a
+
   default addLetBinding'
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
     => Name -> Term -> Dom Type -> m a -> m a
@@ -180,7 +194,7 @@ class MonadTCEnv m => MonadAddContext m where
 
   default updateContext
     :: (MonadAddContext n, MonadTransControl t, t n ~ m)
-    => Substitution -> (Context -> Context) -> m a -> m a
+    => Substitution -> (ContextHet -> ContextHet) -> m a -> m a
   updateContext sub f = liftThrough $ updateContext sub f
 
   default withFreshName
@@ -194,7 +208,12 @@ class MonadTCEnv m => MonadAddContext m where
 -- | Default implementation of addCtx in terms of updateContext
 defaultAddCtx :: MonadAddContext m => Name -> Dom Type -> m a -> m a
 defaultAddCtx x a ret =
-  updateContext (raiseS 1) (((x,) <$> a) :) ret
+  updateContext (raiseS 1) (⊢!: ((x,) <$> a)) ret
+
+-- | Default implementation of addCtx in terms of updateContext
+defaultAddCtx_ :: MonadAddContext m => Name -> Dom TwinT -> m a -> m a
+defaultAddCtx_ x a ret =
+  updateContext (raiseS 1) (⊢: ((x,) <$> a)) ret
 
 withFreshName_ :: (MonadAddContext m) => ArgName -> (Name -> m a) -> m a
 withFreshName_ = withFreshName noRange
@@ -209,6 +228,7 @@ deriving instance MonadAddContext m => MonadAddContext (BlockT m)
 
 instance MonadAddContext m => MonadAddContext (ListT m) where
   addCtx x a             = liftListT $ addCtx x a
+  addCtx_ x a            = liftListT $ addCtx_ x a
   addLetBinding' x u a   = liftListT $ addLetBinding' x u a
   updateContext sub f    = liftListT $ updateContext sub f
   withFreshName r x cont = ListT $ withFreshName r x $ runListT . cont
@@ -250,6 +270,9 @@ instance MonadAddContext TCM where
   addCtx x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddCtx x a ret
 
+  addCtx_ x a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
+    defaultAddCtx_ x a ret
+
   addLetBinding' x u a ret = applyUnless (isNoName x) (withShadowingNameTCM x) $
     defaultAddLetBinding' x u a ret
 
@@ -283,7 +306,19 @@ instance AddContext (Name, Dom Type) where
   addContext = uncurry addCtx
   contextSize _ = 1
 
+instance AddContext (Name, Dom TwinT) where
+  addContext = uncurry addCtx_
+  contextSize _ = 1
+
 instance AddContext (Dom (Name, Type)) where
+  addContext = addContext . distributeF
+  contextSize _ = 1
+
+instance AddContext (Dom (Name, TwinT)) where
+  addContext = addContext . distributeF
+  contextSize _ = 1
+
+instance AddContext (Dom (ArgName, TwinT)) where
   addContext = addContext . distributeF
   contextSize _ = 1
 
@@ -334,6 +369,11 @@ instance AddContext (String, Dom Type) where
     withFreshName noRange s $ \x -> addCtx (setNotInScope x) dom ret
   contextSize _ = 1
 
+instance AddContext (String, Dom TwinT) where
+  addContext (s, dom) ret =
+    withFreshName noRange s $ \x -> addCtx_ (setNotInScope x) dom ret
+  contextSize _ = 1
+
 instance AddContext (Text, Dom Type) where
   addContext (s, dom) ret = addContext (T.unpack s, dom) ret
   contextSize _ = 1
@@ -367,23 +407,29 @@ instance AddContext Telescope where
     loop (ExtendTel t tel) = underAbstraction' id t tel loop
   contextSize = size
 
+instance AddContext Telescope_ where
+  addContext tel ret = loop tel where
+    loop EmptyTel          = ret
+    loop (ExtendTel t tel) = underAbstraction' id t tel loop
+  contextSize = size
+
 -- | Go under an abstraction.  Do not extend context in case of 'NoAbs'.
 {-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
 underAbstraction = underAbstraction' id
 
-underAbstraction' :: (Subst a, MonadAddContext m, AddContext (name, Dom Type)) =>
-                     (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
+underAbstraction' :: (Subst a, MonadAddContext m, AddContext (name, Dom t)) =>
+                     (String -> name) -> Dom t -> Abs a -> (a -> m b) -> m b
 underAbstraction' _ _ (NoAbs _ v) k = k v
 underAbstraction' wrap t a k = underAbstractionAbs' wrap t a k
 
 -- | Go under an abstraction, treating 'NoAbs' as 'Abs'.
-underAbstractionAbs :: (Subst a, MonadAddContext m) => Dom Type -> Abs a -> (a -> m b) -> m b
+underAbstractionAbs :: (Subst a, MonadAddContext m, AddContext (String, Dom t)) => Dom t -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs = underAbstractionAbs' id
 
 underAbstractionAbs'
-  :: (Subst a, MonadAddContext m, AddContext (name, Dom Type))
-  => (String -> name) -> Dom Type -> Abs a -> (a -> m b) -> m b
+  :: (Subst a, MonadAddContext m, AddContext (name, Dom t))
+  => (String -> name) -> Dom t -> Abs a -> (a -> m b) -> m b
 underAbstractionAbs' wrap t a k = addContext (wrap $ realName $ absName a, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
@@ -423,12 +469,22 @@ addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM Context #-}
 getContext :: MonadTCEnv m => m Context
-getContext = asksTC envContext
+getContext = asksTC (twinAt @'Single . envContext)
+
+-- | Get the current context.
+{-# SPECIALIZE getContextHet :: TCM ContextHet #-}
+getContextHet :: MonadTCEnv m => m ContextHet
+getContextHet = getContext_
+
+-- | Get the current context.
+{-# SPECIALIZE getContextHet :: TCM ContextHet #-}
+getContext_ :: MonadTCEnv m => m ContextHet
+getContext_ = asksTC envContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
 getContextSize :: (Applicative m, MonadTCEnv m) => m Nat
-getContextSize = length <$> asksTC envContext
+getContextSize = H.length <$> asksTC envContext
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
@@ -444,7 +500,12 @@ getContextTerms = map var . downFrom <$> getContextSize
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
 getContextTelescope :: (Applicative m, MonadTCEnv m) => m Telescope
-getContextTelescope = telFromList' nameToArgName . reverse <$> getContext
+getContextTelescope = twinAt @'Single <$> getContextTelescope_
+
+-- | Get the current context as a 'Telescope'.
+{-# SPECIALIZE getContextTelescope_ :: TCM Telescope_ #-}
+getContextTelescope_ :: (Applicative m, MonadTCEnv m) => m Telescope_
+getContextTelescope_ = telFromList' nameToArgName . reverse . contextHetToList <$> getContext_
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}
@@ -455,34 +516,51 @@ getContextNames = map (fst . unDom) <$> getContext
 --
 {-# SPECIALIZE lookupBV' :: Nat -> TCM (Maybe ContextEntry) #-}
 lookupBV' :: MonadTCEnv m => Nat -> m (Maybe ContextEntry)
-lookupBV' n = do
-  ctx <- getContext
-  return $ raise (n + 1) <$> ctx !!! n
+lookupBV' = fmap (twinAt @'Single) . lookupBV'_
 
-{-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
-lookupBV :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
-lookupBV n = do
+{-# SPECIALIZE lookupBV'_ :: Nat -> TCM (Maybe ContextEntry_) #-}
+lookupBV'_ :: MonadTCEnv m => Nat -> m (Maybe ContextEntry_)
+lookupBV'_ n = do
+  ctx <- getContext_
+  return $ raise (n + 1) <$> ctx H.!!! n
+
+{-# SPECIALIZE lookupBV :: HasCallStack => Nat -> TCM (Dom (Name, Type)) #-}
+lookupBV :: HasCallStack => (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, Type))
+lookupBV = fmap (twinAt @'Single) . lookupBV_
+
+{-# SPECIALIZE lookupBV_ :: Nat -> TCM (Dom (Name, TwinT)) #-}
+lookupBV_ :: (MonadFail m, MonadTCEnv m) => Nat -> m (Dom (Name, TwinT))
+lookupBV_ n = do
   let failure = do
-        ctx <- getContext
+        ctx <- getContext_
         fail $ "de Bruijn index out of scope: " ++ show n ++
-               " in context " ++ prettyShow (map (fst . unDom) ctx)
-  maybeM failure return $ lookupBV' n
+               " in context " ++ prettyShow (fmap (fst . unDom) ctx)
+  maybeM failure return $ lookupBV'_ n
 
-{-# SPECIALIZE domOfBV :: Nat -> TCM (Dom Type) #-}
-domOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
-domOfBV n = fmap snd <$> lookupBV n
+{-# SPECIALIZE domOfBV :: HasCallStack => Nat -> TCM (Dom Type) #-}
+domOfBV :: HasCallStack => (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom Type)
+domOfBV = fmap (twinAt @'Single) . domOfBV_
 
-{-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
-typeOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
-typeOfBV i = unDom <$> domOfBV i
+{-# SPECIALIZE domOfBV_ :: Nat -> TCM (Dom TwinT) #-}
+domOfBV_ :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Dom TwinT)
+domOfBV_ n = fmap snd <$> lookupBV_ n
+
+{-# SPECIALIZE typeOfBV :: HasCallStack => Nat -> TCM Type #-}
+typeOfBV :: HasCallStack => (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Type
+typeOfBV = fmap (twinAt @'Single) . typeOfBV_
+-- typeOfBV i = unDom <$> domOfBV i
+
+{-# SPECIALIZE typeOfBV_ :: Nat -> TCM TwinT #-}
+typeOfBV_ :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m TwinT
+typeOfBV_ i = unDom <$> domOfBV_ i
 
 {-# SPECIALIZE nameOfBV' :: Nat -> TCM (Maybe Name) #-}
 nameOfBV' :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m (Maybe Name)
-nameOfBV' n = fmap (fst . unDom) <$> lookupBV' n
+nameOfBV' n = fmap (fst . unDom) <$> lookupBV'_ n
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
 nameOfBV :: (Applicative m, MonadFail m, MonadTCEnv m) => Nat -> m Name
-nameOfBV n = fst . unDom <$> lookupBV n
+nameOfBV n = fst . unDom <$> lookupBV_ n
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable
@@ -501,3 +579,20 @@ getVarInfo x =
                     Just vt -> getOpen vt
                     _       -> fail $ "unbound variable " ++ prettyShow (nameConcrete x) ++
                                 " (id: " ++ prettyShow (nameId x) ++ ")"
+
+-- | Traverse a TwinT safely, making sure the operations run in the right context
+{-# INLINE traverseTwinT #-}
+traverseTwinT ::  MonadTCEnv m => (a -> m c) -> TwinT' a -> m (TwinT' c)
+traverseTwinT f (SingleT (OnBoth a)) =
+  getContext_ <&> isSingle >>= \case
+    True   ->  asTwin <$> (switchSide @'Single $ f a)
+    False  ->  traverseTwinT f TwinT{necessary=True
+                                    ,direction=DirEq
+                                    ,twinPid=mempty
+                                    ,twinLHS=H'LHS a
+                                    ,twinRHS=H'RHS a
+                                    }
+traverseTwinT f (TwinT{twinLHS,twinRHS,..}) = do
+  twinLHS <- onSide @'LHS f twinLHS
+  twinRHS <- onSide @'RHS f twinRHS
+  pure TwinT{twinLHS,twinRHS,..}

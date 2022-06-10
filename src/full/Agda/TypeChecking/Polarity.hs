@@ -204,7 +204,7 @@ usagePolarity def = case def of
 --
 --   Precondition: the "phantom" polarity list has the same length as the polarity list.
 dependentPolarity
-  :: (HasOptions m, HasBuiltins m, MonadReduce m, MonadAddContext m, MonadDebug m)
+  :: (IsSizeTypeM m, MonadReduce m, MonadAddContext m, MonadDebug m)
   => Type -> [Polarity] -> [Polarity] -> m [Polarity]
 dependentPolarity t _      []          = return []  -- all remaining are 'Invariant'
 dependentPolarity t []     (_ : _)     = __IMPOSSIBLE__

@@ -24,7 +24,7 @@ postulate
 
   test : -- {i : Size} -- made error vanish
          (t u : A) (as : ListA i) →
-         R (↑ (↑ i)) (cons (↑ i) t (cons i u as)) (cons _ (node t (cons _ u nil)) as)
+         R (↑ (↑ i)) (cons (↑ i) t (cons i u as)) (cons (↑ i) (node t (cons _ u nil)) as)
 
 variable
   t u : A

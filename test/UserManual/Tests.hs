@@ -1,17 +1,27 @@
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE DoAndIfThenElse   #-}
 
-module UserManual.Tests (tests, examplesInUserManual) where
+module UserManual.Tests (tests, examplesInUserManual, disabledTests) where
 
 import Succeed.Tests (mkSucceedTest)
 
 import Test.Tasty
+import Test.Tasty.Silver.Filter   ( RegexFilter(RFInclude) )
 import System.FilePath
 
 import Utils
 
 testDir :: FilePath
 testDir = "doc" </> "user-manual"
+
+disabledTests :: [RegexFilter]
+disabledTests = unimplementedTests
+
+unimplementedTests :: [RegexFilter]
+unimplementedTests =
+  [ disable "UserManual/language-cubical"
+  ]
+  where disable = RFInclude
 
 -- | These files are tested by the LaTeX test suite.
 

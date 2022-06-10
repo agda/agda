@@ -1,15 +1,18 @@
 Failed to solve the following constraints:
-  (ff≡f : (_65 ∘ _65) ≡ _65) →
-  ?1 (ff≡f = ff≡f) (λ x → _65 (_65 x)) ≡ ?1 (ff≡f = ff≡f) _65 →
-  Set is a well-formed type
-    (blocked on _A_58)
-  (x : _49) → _49 = _A_58 : Set (blocked on _A_58)
+  (x : _49) → _49 = _A_58 : Set
+    (blocked on _A_58, belongs to problem 64)
   _49 =< _49 (blocked on any(_49, _X_53))
+  λ x → _63 (_63 x) = _x_61
+    : (x : _49) → _49 alternatively _A_58 pending [64]
+    (blocked on any(_A_58, _x_61, problem 64), belongs to problem 65)
+  _63 = _y_62 : (x : _49) → _49 alternatively _A_58 pending [64, 65]
+    (blocked on any(all(problem 64, problem 65), _A_58, _y_62, _63))
 Unsolved metas at the following locations:
   Issue5805.agda:20,19-30
   Issue5805.agda:28,20-21
   Issue5805.agda:28,23-24
   Issue5805.agda:30,17-21
+  Issue5805.agda:30,17-26
   Issue5805.agda:30,27-31
 Unsolved interaction metas at the following locations:
   Issue5805.agda:19,13-17

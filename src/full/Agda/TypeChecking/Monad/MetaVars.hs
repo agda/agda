@@ -37,8 +37,9 @@ import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Constraints (MonadConstraint)
 import Agda.TypeChecking.Monad.Debug
-  (MonadDebug, reportSLn, __IMPOSSIBLE_VERBOSE__)
+  (MonadDebug, reportSLn, reportSDoc, __IMPOSSIBLE_VERBOSE__)
 import Agda.TypeChecking.Monad.Context
+import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Monad.Signature (HasConstInfo)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Substitute
@@ -103,11 +104,16 @@ class ( MonadConstraint m
   --   during equality checking (@compareAtom@) and leads to
   --   restoration of the original constraints.
   assignV :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> m ()
+  assignV dir mv args t target = assignV_ dir mv args (asTwin t) (asTwin target)
+
+  -- | Same as `assignV`, but checks that both eventual sides of the
+  --   type of the constraint (_ :: CompareAsHet) match
+  assignV_ :: CompareDirection -> MetaId -> Args -> H'RHS Term -> CompareAs_ -> m ()
 
   -- | Directly instantiate the metavariable. Skip pattern check,
   -- occurs check and frozen check. Used for eta expanding frozen
   -- metas.
-  assignTerm' :: MonadMetaSolver m => MetaId -> [Arg ArgName] -> Term -> m ()
+  assignTerm' :: MetaId -> [Arg ArgName] -> Term -> m ()
 
   -- | Eta-expand a local meta-variable, if it is of the specified
   -- kind. Don't do anything if the meta-variable is a blocked term.
@@ -389,8 +395,10 @@ constraintMetas = \case
     -- should not stop us from generalize metas in t, since we could never solve those metas based
     -- on that constraint alone.
       ValueCmp _ _ u v         -> return $ allMetas Set.singleton (u, v)
+      ValueCmp_ _ _ u v        -> return $ allMetas Set.singleton (u, v)
       ValueCmpOnFace _ p _ u v -> return $ allMetas Set.singleton (p, u, v)
       ElimCmp _ _ _ _ es es'   -> return $ allMetas Set.singleton (es, es')
+      ElimCmp_ _ _ _ _ es es'  -> return $ allMetas Set.singleton (es, es')
       LevelCmp _ l l'          -> return $ allMetas Set.singleton (Level l, Level l')
       UnquoteTactic t h g      -> return $ allMetas Set.singleton (t, h, g)
       SortCmp _ s1 s2          -> return $ allMetas Set.singleton (Sort s1, Sort s2)
@@ -645,8 +653,7 @@ newMetaTCM' inst frozen mi p perm j = do
                   , mvFrozen           = frozen
                   , mvTwin             = Nothing
                   }
-  -- printing not available (import cycle)
-  -- reportSDoc "tc.meta.new" 50 $ "new meta" <+> prettyTCM j'
+  reportSDoc "tc.meta.new" 50 $ "new meta" <+> prettyTCM j'
   insertMetaVar x mv
   return x
 

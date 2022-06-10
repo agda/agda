@@ -207,9 +207,11 @@ checkDecl d = setCurrentRange d $ do
       whenJust finalChecks $ \ theMutualChecks -> do
         reportSLn "tc.decl" 20 $ "Attempting to solve constraints before freezing."
         wakeupConstraints_   -- solve emptiness and instance constraints
+        whileM tryOneConstraintHarder wakeupConstraints_
         checkingWhere <- asksTC envCheckingWhere
         solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
         wakeupConstraints_   -- Size solver might have unblocked some constraints
+        whileM tryOneConstraintHarder wakeupConstraints_
         case d of
             A.Generalize{} -> pure ()
             _ -> do

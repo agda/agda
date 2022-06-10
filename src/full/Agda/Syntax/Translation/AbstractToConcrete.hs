@@ -76,6 +76,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.Interaction.Options
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.Dependent
 import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -119,7 +120,7 @@ makeEnv scope = do
         Just v | Just q <- name v,
                  noScopeCheck b || isNameInScope q scope -> return [(b, q)]
         _                                                -> return []
-  ctxVars <- map (fst . I.unDom) <$> asksTC envContext
+  ctxVars <- map (fst . I.unDom) <$> getContext
   letVars <- Map.keys <$> asksTC envLetBindings
   let vars = ctxVars ++ letVars
 
@@ -275,7 +276,8 @@ instance HasConstInfo AbsToCon where
   getRewriteRulesFor a = AbsToCon (getRewriteRulesFor a)
 
 instance MonadAddContext AbsToCon where
-  addCtx a b c = AbsToCon (addCtx a b (unAbsToCon c))
+  addCtx  a b c = AbsToCon (addCtx  a b (unAbsToCon c))
+  addCtx_ a b c = AbsToCon (addCtx_ a b (unAbsToCon c))
 
   addLetBinding' a b c d =
     AbsToCon (addLetBinding' a b c (unAbsToCon d))
@@ -687,6 +689,10 @@ instance ToConcrete a => ToConcrete (Named name a)  where
 
     toConcrete (Named n x) = Named n <$> toConcrete x
     bindToConcrete (Named n x) ret = bindToConcrete x $ ret . Named n
+
+instance (Sing side, ToConcrete a) => ToConcrete (Het side a) where
+  type ConOfAbs (Het side a) = Het side (ConOfAbs a)
+  toConcrete = onSide toConcrete
 
 -- Names ------------------------------------------------------------------
 
@@ -1821,3 +1827,11 @@ instance ToConcrete NamedMeta where
     type ConOfAbs NamedMeta = C.Expr
     toConcrete i =
       C.Underscore noRange . Just . render <$> prettyTCM i
+
+-- Some instances related to heterogeneous types
+
+instance ToConcrete a => ToConcrete (TwinT' a) where
+    type ConOfAbs (TwinT' a) = TwinT' (ConOfAbs a)
+    -- Victor (2021-03-12): TODO
+    -- Could we use unsafeTraverseTwinT here?
+    toConcrete = traverseTwinT toConcrete

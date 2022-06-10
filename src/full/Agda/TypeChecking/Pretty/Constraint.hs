@@ -9,6 +9,8 @@ import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import Data.Function
 
+import GHC.Exts (IsList(toList))
+
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
@@ -23,6 +25,8 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Impossible
@@ -45,10 +49,10 @@ interestingConstraint pc = go $ clValue (theConstraint pc)
 prettyInterestingConstraints :: MonadPretty m => [ProblemConstraint] -> m [Doc]
 prettyInterestingConstraints cs = mapM (prettyConstraint . stripPids) $ List.sortBy (compare `on` isBlocked) cs'
   where
-    isBlocked = not . null . allBlockingProblems . constraintUnblocker
+    isBlocked = not . ISet.null . allBlockingProblems . constraintUnblocker
     cs' = filter interestingConstraint cs
-    interestingPids = Set.unions $ map (allBlockingProblems . constraintUnblocker) cs'
-    stripPids (PConstr pids unblock c) = PConstr (Set.intersection pids interestingPids) unblock c
+    interestingPids = ISet.unions $ map (allBlockingProblems . constraintUnblocker) cs'
+    stripPids (PConstr pids unblock c) = PConstr (ISet.intersection pids interestingPids) unblock c
 
 prettyRangeConstraint ::
   (MonadPretty m, Foldable f, Null (f ProblemId)) =>
@@ -79,16 +83,18 @@ prettyRangeConstraint r pids unblock c =
 
 instance PrettyTCM ProblemConstraint where
   prettyTCM (PConstr pids unblock c) =
-    prettyRangeConstraint noRange pids unblock =<< prettyTCM c
+    prettyRangeConstraint noRange (toList pids) unblock =<< prettyTCM c
 
 instance PrettyTCM Constraint where
     prettyTCM = \case
         ValueCmp cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
+        ValueCmp_ cmp ty s t -> prettyCmp (prettyTCM cmp) s t <?> prettyTCM ty
         ValueCmpOnFace cmp p ty s t ->
             sep [ prettyTCM p <+> "|"
                 , prettyCmp (prettyTCM cmp) s t ]
             <?> (":" <+> prettyTCMCtx TopCtx ty)
         ElimCmp cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t)
+        ElimCmp_ cmps fs t v us vs -> prettyCmp "~~" us vs   <?> (":" <+> prettyTCMCtx TopCtx t <+> "∋" <+> prettyTCMCtx TopCtx v)
         LevelCmp cmp a b         -> prettyCmp (prettyTCM cmp) a b
         SortCmp cmp s1 s2        -> prettyCmp (prettyTCM cmp) s1 s2
         UnBlock m   -> do

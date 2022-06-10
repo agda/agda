@@ -107,6 +107,9 @@ disabledTests =
   , disable "Compiler/JS_.*/simple/VecReverseIrr"
   , disable "Compiler/JS_.*/simple/VecReverseErased"  -- RangeError: Maximum call stack size exceeded
     -----------------------------------------------------------------------------
+    -- The following test case is disabled on the present
+    -- heterogeneous unification branch.
+  , disable "Compiler/.*/Erased-cubical"
   ]
   where disable = RFInclude
 

@@ -17,7 +17,8 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (listToMaybe)
 
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (HighlightingLevel, HighlightingMethod, TCM, Comparison, Polarity, TCErr)
+  (HighlightingLevel, HighlightingMethod, TCM, TCErr, Comparison, Polarity,
+   TwinT', Het, ContextSide(..))
 
 import           Agda.Syntax.Abstract         (QName)
 import           Agda.Syntax.Common           (InteractionId (..), Modality)
@@ -431,7 +432,9 @@ data OutputForm a b = OutputForm Range [ProblemId] Blocker (OutputConstraint a b
 
 data OutputConstraint a b
       = OfType b a | CmpInType Comparison a b b
+                   | CmpInTypeHet Comparison (TwinT' a) (Het 'LHS b) (Het 'RHS b)
                    | CmpElim [Polarity] a [b] [b]
+                   | CmpElim_ [Polarity] (TwinT' a) (Het 'LHS [b]) (Het 'RHS [b])
       | JustType b | CmpTypes Comparison b b
                    | CmpLevels Comparison b b
                    | CmpTeles Comparison b b

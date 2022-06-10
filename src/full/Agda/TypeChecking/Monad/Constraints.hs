@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 
 module Agda.TypeChecking.Monad.Constraints where
 
@@ -14,18 +15,23 @@ import Data.Semigroup ((<>))
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
+import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Debug
 
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 
-solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
-solvingProblem pid = solvingProblems (Set.singleton pid)
+import Agda.Utils.Impossible
 
-solvingProblems :: MonadConstraint m => Set ProblemId -> m a -> m a
-solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show (Set.toList pids)) $ do
-  x <- localTC (\e -> e { envActiveProblems = pids `Set.union` envActiveProblems e }) m
-  Fold.forM_ pids $ \ pid -> do
+solvingProblem :: MonadConstraint m => ProblemId -> m a -> m a
+solvingProblem pid = solvingProblems (ISet.singleton pid)
+
+solvingProblems :: MonadConstraint m => ISet ProblemId -> m a -> m a
+solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show pids) $ do
+  x <- localTC (\e -> e { envActiveProblems = pids `ISet.union` envActiveProblems e }) m
+  Fold.forM_ (ISet.toList pids) $ \ pid -> do
     ifNotM (isProblemSolved pid)
         (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
       $ {- else -} do
@@ -35,11 +41,39 @@ solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on proble
 
 isProblemSolved :: (MonadTCEnv m, ReadTCState m) => ProblemId -> m Bool
 isProblemSolved pid =
-  and2M (not . Set.member pid <$> asksTC envActiveProblems)
-        (not . any (Set.member pid . constraintProblems) <$> getAllConstraints)
+  and2M (not . ISet.member pid <$> asksTC envActiveProblems)
+        (not . any (ISet.member pid . constraintProblems) <$> getAllConstraints)
+
+areAllProblemsSolved :: (MonadTCEnv m, ReadTCState m) => ISet ProblemId -> m Bool
+areAllProblemsSolved pids | ISet.null pids = return True
+                          | otherwise =
+  and2M (      ISet.disjoint pids <$> asksTC envActiveProblems)
+        (all  (ISet.disjoint pids . constraintProblems) <$> getAllConstraints)
+
+keepUnsolvedProblems :: (MonadTCEnv m, ReadTCState m) => ISet ProblemId -> m (ISet ProblemId)
+keepUnsolvedProblems pids | ISet.null pids = return ISet.empty
+                          | otherwise = do
+  active <- asksTC envActiveProblems
+  constraints <- getAllConstraints
+  -- We assume that pids is small, so this should be a small list
+  let f = (pids `ISet.intersection`)
+  return$ f active `ISet.union` ISet.unions [f (constraintProblems c) | c <- constraints]
 
 getConstraintsForProblem :: ReadTCState m => ProblemId -> m Constraints
-getConstraintsForProblem pid = List.filter (Set.member pid . constraintProblems) <$> getAllConstraints
+getConstraintsForProblem pid = List.filter (ISet.member pid . constraintProblems) <$> getAllConstraints
+
+-- | Warning : These constraints need to be solved or put back somehow
+takeAsleepConstraints :: MonadConstraint m => (ProblemConstraint -> Bool) -> m Constraints
+takeAsleepConstraints f = do
+  (takeAsleep, keepAsleep) <- List.partition f <$> useTC stSleepingConstraints
+  modifySleepingConstraints $ const keepAsleep
+  return $ takeAsleep
+
+putBackAwakeConstraints :: MonadConstraint m => Constraints -> m ()
+putBackAwakeConstraints awake = modifyAwakeConstraints (++ awake)
+
+putBackAsleepConstraints :: MonadConstraint m => Constraints -> m ()
+putBackAsleepConstraints asleep = modifySleepingConstraints (++ asleep)
 
 -- | Get the awake constraints
 getAwakeConstraints :: ReadTCState m => m Constraints
@@ -118,13 +152,13 @@ withConstraint f (PConstr pids _ c) = do
 
 buildProblemConstraint
   :: (MonadTCEnv m, ReadTCState m)
-  => Set ProblemId -> Blocker -> Constraint -> m ProblemConstraint
+  => ISet ProblemId -> Blocker -> Constraint -> m ProblemConstraint
 buildProblemConstraint pids unblock c = PConstr pids unblock <$> buildClosure c
 
 buildProblemConstraint_
   :: (MonadTCEnv m, ReadTCState m)
   => Blocker -> Constraint -> m ProblemConstraint
-buildProblemConstraint_ = buildProblemConstraint Set.empty
+buildProblemConstraint_ = buildProblemConstraint ISet.empty
 
 buildConstraint :: Blocker -> Constraint -> TCM ProblemConstraint
 buildConstraint unblock c = do
@@ -152,7 +186,7 @@ class ( MonadTCEnv m
   --   True solve constraints even if already 'isSolvingConstraints'.
   solveSomeAwakeConstraints :: (ProblemConstraint -> Bool) -> Bool -> m ()
 
-  wakeConstraints :: (ProblemConstraint-> WakeUp) -> m ()
+  wakeConstraints :: (ProblemConstraint -> WakeUp) -> m ()
 
   stealConstraints :: ProblemId -> m ()
 
@@ -203,8 +237,10 @@ addConstraintTo bucket unblock c = do
       HasPTSRule{}     -> False
       CheckDataSort{}  -> False
       ValueCmp{}       -> True
+      ValueCmp_{}      -> True
       ValueCmpOnFace{} -> True
       ElimCmp{}        -> True
+      ElimCmp_{}       -> True
       UnBlock{}        -> True
       IsEmpty{}        -> True
       CheckSizeLtSat{} -> True
@@ -235,3 +271,4 @@ mapAwakeConstraints = over stAwakeConstraints
 
 mapSleepingConstraints :: (Constraints -> Constraints) -> TCState -> TCState
 mapSleepingConstraints = over stSleepingConstraints
+

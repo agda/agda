@@ -1,9 +1,10 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.MetaVars where
 
-import Prelude hiding (null)
+import Prelude hiding (null, subtract)
 
 import Control.Monad        ( foldM, forM, forM_, liftM2, void )
 import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
@@ -45,12 +46,20 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Heterogeneous
+  (AttemptConversion(..), blockOnTwin, dirToCmp_, flipContext, flipHet,
+   isTwinSolved)
+import qualified Agda.TypeChecking.Heterogeneous as H
 
 -- import Agda.TypeChecking.CheckInternal
 -- import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (checkInternal)
 import Agda.TypeChecking.MetaVars.Occurs
+import Agda.TypeChecking.MetaVars.VarSetBlocked (VarSetBlocked, freeVarsBlocked, freeVarsInterpolant)
+import qualified Agda.TypeChecking.MetaVars.VarSetBlocked as VarSetBlocked
 
 import Agda.Utils.Function
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -62,7 +71,7 @@ import Agda.Utils.Pretty (Pretty, prettyShow, render)
 import qualified Agda.Utils.ProfileOptions as Profile
 import Agda.Utils.Singleton
 import qualified Agda.Utils.Graph.TopSort as Graph
-import Agda.Utils.VarSet (VarSet)
+import Agda.Utils.VarSet (VarSet, subtract)
 import qualified Agda.Utils.VarSet as VarSet
 import Agda.Utils.WithDefault
 
@@ -70,7 +79,7 @@ import Agda.Utils.Impossible
 
 instance MonadMetaSolver TCM where
   newMeta' = newMetaTCM'
-  assignV dir x args v t = assignWrapper dir x (map Apply args) v $ assign dir x args v t
+  assignV_ dir x args v t = assignWrapper_ dir x (map Apply args) v $ assign_ dir x args v t
   assignTerm' = assignTermTCM'
   etaExpandMeta = etaExpandMetaTCM
   updateMetaVar = updateMetaVarTCM
@@ -406,6 +415,7 @@ newQuestionMark' new ii cmp t = lookupInteractionMeta ii >>= \case
       { mvInfo = MetaInfo{ miClosRange = Closure{ clEnv = TCEnv{ envContext = gamma }}}
       , mvPermutation = p
       } <- fromMaybe __IMPOSSIBLE__ <$> lookupLocalMeta' x
+    gamma <- return $ contextHetToList gamma
     -- Get the current context Δ.
     delta <- getContext
     -- A bit hazardous:
@@ -515,12 +525,21 @@ blockTerm t blocker = do
 blockTermOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> Term -> ProblemId -> m Term
-blockTermOnProblem t v pid = do
+blockTermOnProblem t v pid = blockTermOnProblems t v (ISet.singleton pid)
+
+blockTermOnProblems
+  :: (MonadMetaSolver m, MonadFresh Nat m)
+  => Type -> Term -> ISet ProblemId -> m Term
+blockTermOnProblems t v pids = do
   -- Andreas, 2012-09-27 do not block on unsolved size constraints
-  solved <- isProblemSolved pid
-  ifM (return solved `or2M` isSizeProblem pid)
-      (v <$ reportSLn "tc.meta.blocked" 20 ("Not blocking because " ++ show pid ++ " is " ++
-                                            if solved then "solved" else "a size problem")) $ do
+  -- TODO: Víctor, 2021-02-01
+  -- It may be the case that only some for the problems are blocked, we
+  -- should filter instead
+  solved <- areAllProblemsSolved pids
+  ifM (return solved `or2M` allM (ISet.toList pids) isSizeProblem)
+      (v <$ reportSLn "tc.meta.blocked" 20
+              ("Not blocking because " ++ show pids ++ " are " ++
+               if solved then "solved" else "size problems")) $ do
     i   <- createMetaInfo
     es  <- map Apply <$> getContextArgs
     tel <- getContextTelescope
@@ -531,11 +550,11 @@ blockTermOnProblem t v pid = do
                     (idP $ size tel)
                     (HasType () CmpLeq $ telePi_ tel t)
                     -- we don't instantiate blocked terms
-    inTopContext $ addConstraint (unblockOnProblem pid) (UnBlock x)
+    inTopContext $ addConstraint (unblockOnAllProblems pids) (UnBlock x)
     reportSDoc "tc.meta.blocked" 20 $ vcat
       [ "blocked" <+> prettyTCM x <+> ":=" <+> inTopContext
         (prettyTCM $ abstract tel v)
-      , "     by" <+> (prettyTCM =<< getConstraintsForProblem pid)
+      , "     by" <+> (prettyTCM . mconcat =<< mapM getConstraintsForProblem (ISet.toList pids))
       ]
     inst <- isInstantiatedMeta x
     if inst
@@ -563,7 +582,12 @@ blockTermOnProblem t v pid = do
 blockTypeOnProblem
   :: (MonadMetaSolver m, MonadFresh Nat m)
   => Type -> ProblemId -> m Type
-blockTypeOnProblem (El s a) pid = El s <$> blockTermOnProblem (sort s) a pid
+blockTypeOnProblem t pid = blockTypeOnProblems t (ISet.singleton pid)
+
+blockTypeOnProblems
+  :: (MonadMetaSolver m, MonadFresh Nat m)
+  => Type -> ISet ProblemId -> m Type
+blockTypeOnProblems (El s a) pids = El s <$> blockTermOnProblems (sort s) a pids
 
 -- | @unblockedTester t@ returns a 'Blocker' for @t@.
 --
@@ -750,15 +774,23 @@ etaExpandBlocked (Blocked b t)  = do
 
 assignWrapper :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
               => CompareDirection -> MetaId -> Elims -> Term -> m () -> m ()
-assignWrapper dir x es v doAssign = do
+assignWrapper dir x es v = assignWrapper_ dir x es (Het @'RHS v)
+
+assignWrapper_ :: (MonadMetaSolver m, MonadConstraint m, MonadError TCErr m, MonadDebug m, HasOptions m)
+               => CompareDirection -> MetaId -> Elims -> Het 'RHS Term -> m () -> m ()
+assignWrapper_ dir x es v doAssign = do
   ifNotM (asksTC envAssignMetas) dontAssign $ {- else -} do
     reportSDoc "tc.meta.assign" 10 $ do
-      "term" <+> prettyTCM (MetaV x es) <+> text (":" ++ prettyShow dir) <+> prettyTCM v
+      "term" <+> prettyTCM (Het @'LHS$ MetaV x es) <+>
+        text (":" ++ prettyShow dir) <+> prettyTCM v
     nowSolvingConstraints doAssign `finally` solveAwakeConstraints
 
   where dontAssign = do
+          reportSDoc "tc.meta.assign" 20 $ do
+            "term" <+> prettyTCM (Het @'LHS$ MetaV x es) <+> text (":" ++ show dir) <+> prettyTCM v
           reportSLn "tc.meta.assign" 10 "don't assign metas"
-          patternViolation alwaysUnblock  -- retry again when we are allowed to instantiate metas
+          blocker <- (unblockOnMeta x `unblockOnEither`) <$> (maybe alwaysUnblock id <$> isBlocked v)
+          patternViolation blocker    -- retry again when either the meta or the term can be reduced
 
 -- | Miller pattern unification:
 --
@@ -777,7 +809,10 @@ assignWrapper dir x es v doAssign = do
 --   Andreas Abel and Brigitte Pientka's TLCA 2011 paper.
 
 assign :: CompareDirection -> MetaId -> Args -> Term -> CompareAs -> TCM ()
-assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
+assign dir x args v target = assign_ dir x args (asTwin v) (asTwin target)
+
+assign_ :: CompareDirection -> MetaId -> Args -> H'RHS Term -> CompareAs_ -> TCM ()
+assign_ dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
   mvar <- lookupLocalMeta x  -- information associated with meta x
   let t = jMetaType $ mvJudgement mvar
@@ -804,7 +839,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   reportSDoc "tc.meta.assign" 75 $
     text "MetaVars.assign: assigning meta  " <> pretty x <> text "  with args  " <> pretty args <> text "  to  " <> pretty v
 
-  case (v, mvJudgement mvar) of
+  case (twinAt @'RHS v, mvJudgement mvar) of
       (Sort s, HasType{}) -> hasBiggerSort s
       _                   -> return ()
 
@@ -845,7 +880,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
             abort = patternViolation $ unblockOnAnyMetaIn t -- TODO: make piApplyM' compute unblocker
         t' <- piApplyM' abort t args
         s <- shouldBeSort t'
-        checkSolutionSort cmp s v
+        onSide_ (checkSolutionSort cmp s) v
 
     -- Case 2 (comparing term to type-level meta as terms, with --cumulativity)
     (AsTermsOf{} , HasType _ cmp t)
@@ -855,7 +890,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           TelV tel t'' <- telView t'
           addContext tel $ ifNotSort t'' (return ()) $ \s -> do
             let v' = raise (size tel) v `apply` teleArgs tel
-            checkSolutionSort cmp s v'
+            onSide_ (checkSolutionSort cmp s) v'
 
     (AsTypes{}   , IsSort{}       ) -> return ()
     (AsTermsOf{} , _              ) -> return ()
@@ -900,7 +935,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
     expandProjectedVars args (v, target) $ \ args (v, target) -> do
 
       reportSDoc "tc.meta.assign.proj" 45 $ do
-        cxt <- getContextTelescope
+        cxt <- getContext_
         vcat
           [ "context after projection expansion"
           , nest 2 $ inTopContext $ prettyTCM cxt
@@ -1027,7 +1062,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
         Just ids -> do
           -- Check linearity
           ids <- do
-            res <- runExceptT $ checkLinearity {- (`VarSet.member` fvs) -} ids
+            res <- switchSide @'LHS $ runExceptT $ checkLinearity {- (`VarSet.member` fvs) -} ids
             case res of
               -- case: linear
               Right ids -> return ids
@@ -1056,6 +1091,36 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           let n = length args
           TelV tel' _ <- telViewUpToPath n t
 
+          -- Check that both sides of the context (and the type)
+          -- are heterogeneously equal
+          heterogeneousUnificationEnabled >>= \enabled -> when enabled $ do
+            let fvArgs = freeVarsBlocked args
+            let mV     = instantiateFull v
+            let mFvV   = freeVarsBlocked <$> mV
+            -- TODO: Use the intersection of both sides of the
+            -- twin type here (instead of target)
+            target' <- instantiateFull target
+            let fvTarget  :: VarSetBlocked
+                fvTarget  = freeVarsInterpolant target'
+            reportSDoc "tc.conv.het" 30 $ sep
+              [ "checking heterogeneous context equality prior to meta instantiation"
+              , nest 2 $ "ctx: "  <+> (getContextHet >>= prettyTCM)
+              , nest 2 $ "args: " <+>  prettyTCM args      <+> "(FV: " <+>  prettyTCM fvArgs <+> ")"
+              , nest 2 $ "rhs: "  <+> (prettyTCM =<< mV)   <+> "(FV: " <+> (prettyTCM =<< mFvV) <+> ")"
+              , nest 2 $ ("type"  <>   prettyTCM target)   <+> "(FV: " <+>  prettyTCM fvTarget <+> ")"
+              ]
+
+            let patternViolation_Het u = do reportSDoc "tc.conv.het" 30 $ "blocked on" <+> prettyTCM u
+                                            patternViolation (unblockOnAny (Set.fromList [unblockOnMeta x, u]))
+
+            checkCompareAsHetEqual target' >>= \case
+              AlwaysUnblock -> do
+                fvV <- mFvV
+                checkContextHetEqual (VarSetBlocked.blockedOnBoth fvArgs fvTarget) (VarSetBlocked.blockedOnBoth fvV fvTarget) >>= \case
+                  AlwaysUnblock -> reportSDoc "tc.conv.het" 30 "success"
+                  u             -> patternViolation_Het u
+              u -> patternViolation_Het u
+
           -- Check subtyping constraints on the context variables.
 
           -- Intuition: suppose @_X : (x : A) → B@, then to turn
@@ -1072,7 +1137,8 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           when hasSubtyping $ forM_ ids $ \(i , u) -> do
             -- @u@ is a (projected) variable, so we can infer its type
             a  <- applySubst sigma <$> addContext tel' (infer u)
-            a' <- typeOfBV i
+            -- Víctor (2021-02-22) TODO: Implement subtyping
+            a' <- twinAt @'Compat <$> typeOfBV_ i
             checkSubtypeIsEqual a' a
               `catchError` \case
                 TypeError{} -> patternViolation (unblockOnMeta x) -- If the subtype check hard-fails we need to
@@ -1080,7 +1146,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
 
           -- Solve.
           m <- getContextSize
-          assignMeta' m x t n ids v
+          assignMeta' m x t n ids (twinAt @'RHS v)
   where
     -- Try to remove meta arguments from lhs that mention variables not occurring on rhs.
     attemptPruning
@@ -1088,7 +1154,7 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
       -> Args    -- Meta arguments (lhs)
       -> FVs     -- Variables occuring on the rhs
       -> TCM a
-    attemptPruning x args fvs = do
+    attemptPruning x args fvs = switchSide @'LHS $ do
       -- non-linear lhs: we cannot solve, but prune
       killResult <- prune x args $ (`VarSet.member` fvs)
       let success = killResult `elem` [PrunedSomething,PrunedEverything]
@@ -1098,6 +1164,68 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
                                    else unblockOnAnyMetaIn $ MetaV x $ map Apply args)
                                         -- TODO: could be more precise: only unblock on metas
                                         --       applied to offending variables
+
+-- TODO: Only instantiate-full if actually needed
+-- | Invariant and precondition: keys fvL ⊇ keys fvR
+checkContextHetEqual :: VarSetBlocked ->
+                        VarSetBlocked ->
+                        TCM Blocker
+checkContextHetEqual fvL fvR = do
+  ctx <- getContext_
+  reportSDoc "tc.conv.het" 40 $ do
+    sep [ "checking heterogeneous context equality"
+        , nest 2 $ "ctx: " <+> prettyTCM ctx
+        , nest 2 $ "fvL: " <+> prettyTCM fvL
+        , nest 2 $ "fvR: " <+> prettyTCM fvR
+        ]
+  isTwinSolved ctx >>= \case
+    True  -> return AlwaysUnblock
+    False -> go fvL fvR
+  where
+    go fvL fvR = do
+      reportSDoc "tc.conv.het" 50 $ do
+        sep [ nest 2 $ "fvL: " <+> pretty fvL
+            , nest 2 $ "fvR: " <+> pretty fvR
+            ]
+      -- Check if the variable sets are empty, in which
+      -- case the problem is trivial.
+      if VarSetBlocked.null fvL || VarSetBlocked.null fvR then
+        return AlwaysUnblock
+      else
+        getContextHet >>= \case
+          Empty  -> return AlwaysUnblock
+          _ :⊢ a -> escapeContext __IMPOSSIBLE__ 1 $ do
+             let a' = (snd$ unDom a)
+             case (VarSetBlocked.lookup 0 fvL, VarSetBlocked.lookup 0 fvR) of
+               (Just bl, Just br)  -> checkTwinEqual a' >>= \case
+                   AlwaysUnblock -> do
+                      fvA  <- freeVarsInterpolant <$> instantiateFull a'
+                      let fvAL = VarSetBlocked.map (unblockOnEither bl) fvA
+                      let fvAR = VarSetBlocked.map (unblockOnEither br) fvA
+                      go (VarSetBlocked.blockedOnBoth fvAL
+                             (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvL))
+                         (VarSetBlocked.blockedOnBoth fvAR
+                             (VarSetBlocked.subtract 1$ VarSetBlocked.delete 0$ fvR))
+                   u -> return (unblockOnAny (Set.fromList [u,bl,br]))
+               (Just bl,  Nothing) -> do
+                   fvA <- freeVarsBlocked <$> instantiateFull (twinAt @'LHS a')
+                   go (VarSetBlocked.blockedOnBoth
+                               (VarSetBlocked.map (unblockOnEither bl) fvA)
+                               (VarSetBlocked.subtract 1 (VarSetBlocked.delete 0 fvL)))
+                         (VarSetBlocked.subtract 1 fvR)
+               (Nothing, Nothing) -> go (VarSetBlocked.subtract 1 fvL)
+                                        (VarSetBlocked.subtract 1 fvR)
+               (Nothing, Just{})  -> __IMPOSSIBLE__
+
+{-# INLINE checkTwinEqual #-}
+-- TODO: Check the necessary bit, add new constraint if needed
+checkTwinEqual :: TwinT -> TCM Blocker
+checkTwinEqual = blockOnTwin . AttemptConversion
+
+checkCompareAsHetEqual :: CompareAsHet -> TCM Blocker
+checkCompareAsHetEqual (AsTermsOf a) = checkTwinEqual a
+checkCompareAsHetEqual AsSizes       = return AlwaysUnblock
+checkCompareAsHetEqual AsTypes       = return AlwaysUnblock
 
 {- UNUSED
 -- | When faced with @_X us == D vs@ for an inert D we can solve this by
@@ -1368,8 +1496,8 @@ subtypingForSizeLt
   -> MetaVariable     -- ^ Its associated information @mvar <- lookupLocalMeta x@.
   -> Type             -- ^ Its type @t = jMetaType $ mvJudgement mvar@
   -> Args             -- ^ Its arguments.
-  -> Term             -- ^ Its to-be-assigned value @v@, such that @x args `dir` v@.
-  -> (Term -> TCM ()) -- ^ Continuation taking its possibly assigned value.
+  -> H'RHS Term             -- ^ Its to-be-assigned value @v@, such that @x args `dir` v@.
+  -> (H'RHS Term -> TCM ()) -- ^ Continuation taking its possibly assigned value.
   -> TCM ()
 subtypingForSizeLt DirEq x mvar t args v cont = cont v
 subtypingForSizeLt dir   x mvar t args v cont = do
@@ -1380,7 +1508,7 @@ subtypingForSizeLt dir   x mvar t args v cont = do
     caseMaybe mSizeLt fallback $ \ qSizeLt -> do
       -- Check whether v is a SIZELT
       v <- reduce v
-      case v of
+      case twinAt @'RHS v of
         Def q [Apply (Arg ai u)] | q == qSizeLt -> do
           -- Clone the meta into a new size meta @y@.
           -- To this end, we swap the target of t for Size.
@@ -1396,10 +1524,16 @@ subtypingForSizeLt dir   x mvar t args v cont = do
           -- We continue with the new assignment problem, and install
           -- an exception handler, since we created a meta and a constraint,
           -- so we cannot fall back to the original handler.
-          let xArgs = MetaV x $ map Apply args
-              v'    = Def qSizeLt [Apply $ Arg ai yArgs]
-              c     = dirToCmp (`ValueCmp` (AsTermsOf sizeUniv)) dir xArgs v'
-          catchConstraint c $ cont v'
+          let xArgs = H'LHS $ MetaV x $ map Apply args
+              v'    = H'RHS $ Def qSizeLt [Apply $ Arg ai yArgs]
+          dirToCmp_ (\cmp t l r -> do
+                       let c = ValueCmp_ cmp t (snd <$> l) (snd <$> r)
+                       catchConstraint c $ case (l,r) of
+                         -- Recover the position of v so that cont' runs in the original context
+                         (_, v'@(H'RHS ('v',_))) -> cont (snd <$> v')
+                         (v'@(H'LHS ('v',_)), _) -> flipContext $ cont $ flipHet (snd <$> v')
+                         _                       -> __IMPOSSIBLE__)
+            dir (asTwin$ AsTermsOf sizeUniv) (('x',) <$> xArgs) (('v',) <$> v')
         _ -> fallback
 
 -- | Eta-expand bound variables like @z@ in @X (fst z)@.
@@ -1410,8 +1544,8 @@ expandProjectedVars
      , PrettyTCM b, TermSubst b
      )
   => a  -- ^ Meta variable arguments.
-  -> b  -- ^ Right hand side.
-  -> (a -> b -> TCM c)
+  -> (H'RHS b, CompareAs_)  -- ^ Right hand side.
+  -> (a -> (H'RHS b, CompareAs_) -> TCM c)
   -> TCM c
 expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do
@@ -1432,7 +1566,7 @@ etaExpandProjectedVar :: (PrettyTCM a, TermSubst a) => Int -> a -> TCM c -> (a -
 etaExpandProjectedVar i v fail succeed = do
   reportSDoc "tc.meta.assign.proj" 40 $
     "trying to expand projected variable" <+> prettyTCM (var i)
-  caseMaybeM (etaExpandBoundVar i) fail $ \ (delta, sigma, tau) -> do
+  caseMaybeM (etaExpandBoundVar_ i) fail $ \ (delta, sigma, tau) -> do
     reportSDoc "tc.meta.assign.proj" 25 $
       "eta-expanding var " <+> prettyTCM (var i) <+>
       " in terms " <+> prettyTCM v

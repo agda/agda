@@ -12,7 +12,7 @@ import Agda.Utils.Impossible
 
 data Match a = Yes Simplification (IntMap (Arg a)) | No | DontKnow (Blocked ())
 
-buildSubstitution :: (DeBruijn a) => Impossible -> Int -> IntMap (Arg a) -> Substitution' a
+buildSubstitution :: HasCallStack => (DeBruijn a) => Int -> IntMap (Arg a) -> Substitution' a
 
 type MonadMatch m = PureTCM m
 

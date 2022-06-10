@@ -24,8 +24,10 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base (isNameInScope)
 
+import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
+import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad () --instance only
@@ -492,7 +494,10 @@ nonRecursiveRecord q = whenM etaEnabled $ do
 isRecursiveRecord :: QName -> TCM Bool
 isRecursiveRecord q = recRecursive . theDef . fromMaybe __IMPOSSIBLE__ . lookupDefinition q <$> getSignature
 
-{- | @etaExpandBoundVar i = (Δ, σ, τ)@
+-- etaExpandBoundVar :: Int -> TCM (Maybe (Telescope, Substitution, Substitution))
+-- etaExpandBoundVar i = fmap (\(δΔ, σ, τ) -> (twinAt @'Compat δΔ, σ, τ)) <$> etaExpandBoundVar_ i
+
+{- | @etaExpandBoundVar_ i = (Δ, σ, τ)@
 
 Precondition: The current context is @Γ = Γ₁, x:R pars, Γ₂@ where
   @|Γ₂| = i@ and @R@ is a eta-expandable record type
@@ -500,20 +505,30 @@ Precondition: The current context is @Γ = Γ₁, x:R pars, Γ₂@ where
 
 Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
 -}
-etaExpandBoundVar :: Int -> TCM (Maybe (Telescope, Substitution, Substitution))
-etaExpandBoundVar i = fmap (\ (delta, sigma, tau, _) -> (delta, sigma, tau)) <$> do
-  expandRecordVar i =<< getContextTelescope
+etaExpandBoundVar_ :: Int -> TCM (Maybe (Telescope_, Substitution, Substitution))
+etaExpandBoundVar_ i = fmap (\ (delta, sigma, tau, _) -> (delta, sigma, tau)) <$> do
+  expandRecordVar_ i =<< getContextTelescope_
 
--- | @expandRecordVar i Γ = (Δ, σ, τ, Γ')@
+-- TODO: Investigate if the implementation of expandRecordVar is
+-- correct. (The code used to be commented out, but it was restored
+-- because it was used in
+-- Agda.TypeChecking.Rules.LHS.Unify.LeftInverse.buildEquiv.)
+
+expandRecordVar ::
+  PureTCM m =>
+  Int -> Telescope ->
+  m (Maybe (Telescope, Substitution, Substitution, Telescope))
+expandRecordVar i tel = fmap (\(δΔ, σ, τ, γΓ) -> (twinAt @'Compat δΔ, σ, τ, twinAt @'Compat γΓ)) <$> expandRecordVar_ i (asTwin tel)
+
+-- | @expandRecordVar_ i Γ = (Δ, σ, τ, Γ')@
 --
 --   Precondition: @Γ = Γ₁, x:R pars, Γ₂@ where
 --     @|Γ₂| = i@ and @R@ is a eta-expandable record type
 --     with constructor @c@ and fields @Γ'@.
 --
 --   Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
-
-expandRecordVar :: PureTCM m => Int -> Telescope -> m (Maybe (Telescope, Substitution, Substitution, Telescope))
-expandRecordVar i gamma0 = do
+expandRecordVar_ :: PureTCM m => Int -> Telescope_ -> m (Maybe (Telescope_, Substitution, Substitution, Telescope_))
+expandRecordVar_ i gamma0 = do
   -- Get the context with last variable added last in list.
   let gamma = telToList gamma0
   -- Convert the de Bruijn index i to a de Bruijn level
@@ -526,15 +541,14 @@ expandRecordVar i gamma0 = do
         reportSDoc "tc.meta.assign.proj" 25 $
           "failed to eta-expand variable " <+> pretty x <+>
           " since its type " <+> prettyTCM a <+>
-          " is not a record type"
+          " is not an eta-expandable record type"
         return Nothing
-  caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> case recEtaEquality def of
-    NoEta{} -> return Nothing
-    YesEta  -> Just <$> do
+  reduce a >>= typeView . fmap unEl >>= \case
+    TDefRecordEta r def pars  -> Just <$> do
       -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
       -- TODO: compose argInfo ai with tel.
-      let tel = recTel def `apply` pars
-          m   = size tel
+      tel <- mkTwinTele $ twinDirty $ (recTel def `apply`) <$> pars
+      let m   = size tel
           fs  = map argFromDom $ recFields def
       -- Construct the record pattern @Γ₁, Γ' ⊢ u := c ys@.
           ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
@@ -558,26 +572,27 @@ expandRecordVar i gamma0 = do
           -- Use "f(x)" as variable name for the projection f(x).
           s     = prettyShow x
           tel'  = mapAbsNames (\ f -> stringToArgName $ argNameToString f ++ "(" ++ s ++ ")") tel
-          delta = telFromList $ gamma1 ++ telToList tel' ++
-                    telToList (applySubst tau0 $ telFromList gamma2)
+          delta = telFromList_ $ gamma1 ++ telToList tel' ++
+                    telToList (applySubst tau0 $ telFromList_ gamma2)
                     -- Andreas, 2017-07-29, issue #2644
                     -- We cannot substitute directly into a ListTel like gamma2,
                     -- we have to convert it to a telescope first, otherwise we get garbage.
 
       return (delta, sigma, tau, tel)
+    _ -> failure
 
--- | Precondition: variable list is ordered descendingly.  Can be empty.
-expandRecordVarsRecursively :: [Int] -> Telescope -> TCM (Telescope, Substitution, Substitution)
-expandRecordVarsRecursively [] gamma = return (gamma, idS, idS)
-expandRecordVarsRecursively (i : is) gamma = do
-  caseMaybeM (expandRecordVar i gamma) (expandRecordVarsRecursively is gamma)
-  $ \ (gamma1, sigma1, tau1, tel) -> do
-    -- Γ ⊢ σ₁ : Γ₁  and  Γ₁ ⊢ τ₁ : Γ
-    let n = size tel
-        newis = take n $ downFrom $ i + n
-    (gamma2, sigma2, tau2) <- expandRecordVarsRecursively (newis ++ is) gamma1
-    -- Γ₁ ⊢ σ₂ : Γ₂  and  Γ₂ ⊢ τ₂ : Γ₁
-    return (gamma2, applySubst sigma1 sigma2, applySubst tau2 tau1)
+-- -- | Precondition: variable list is ordered descendingly.  Can be empty.
+-- expandRecordVarsRecursively :: [Int] -> Telescope -> TCM (Telescope_, Substitution, Substitution)
+-- expandRecordVarsRecursively [] gamma = return (gamma, idS, idS)
+-- expandRecordVarsRecursively (i : is) gamma = do
+--   caseMaybeM (expandRecordVar_ i gamma) (expandRecordVarsRecursively is gamma)
+--   $ \ (gamma1, sigma1, tau1, tel) -> do
+--     -- Γ ⊢ σ₁ : Γ₁  and  Γ₁ ⊢ τ₁ : Γ
+--     let n = size tel
+--         newis = take n $ downFrom $ i + n
+--     (gamma2, sigma2, tau2) <- expandRecordVarsRecursively (newis ++ is) gamma1
+--     -- Γ₁ ⊢ σ₂ : Γ₂  and  Γ₂ ⊢ τ₂ : Γ₁
+--     return (gamma2, applySubst sigma1 sigma2, applySubst tau2 tau1)
 
 -- | @curryAt v (Γ (y : R pars) -> B) n =
 --     ( \ v -> λ Γ ys → v Γ (c ys)            {- curry   -}

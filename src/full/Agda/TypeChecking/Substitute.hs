@@ -987,13 +987,19 @@ instance Subst a => Subst (Tele a) where
   applySubst rho  EmptyTel         = EmptyTel
   applySubst rho (ExtendTel t tel) = uncurry ExtendTel $ applySubst rho (t, tel)
 
+instance Subst a => Subst (Het side a) where
+  type SubstArg (Het side a) = SubstArg a
+  applySubst rho = Het . applySubst rho . unHet
+
 instance Subst Constraint where
   type SubstArg Constraint = Term
 
   applySubst rho = \case
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
+    ValueCmp_ cmp a u v      -> ValueCmp_ cmp (rf a) (rf u) (rf v)
     ValueCmpOnFace cmp p t u v -> ValueCmpOnFace cmp (rf p) (rf t) (rf u) (rf v)
     ElimCmp ps fs a v e1 e2  -> ElimCmp ps fs (rf a) (rf v) (rf e1) (rf e2)
+    ElimCmp_ ps fs a v e1 e2  -> ElimCmp_ ps fs (rf a) (rf v) (rf e1) (rf e2)
     SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     IsEmpty r a              -> IsEmpty r (rf a)
@@ -1013,8 +1019,8 @@ instance Subst Constraint where
       rf :: forall a. TermSubst a => a -> a
       rf x = applySubst rho x
 
-instance Subst CompareAs where
-  type SubstArg CompareAs = Term
+instance Subst a => Subst (CompareAs' a) where
+  type SubstArg (CompareAs' a) = SubstArg a
   applySubst rho (AsTermsOf a) = AsTermsOf $ applySubst rho a
   applySubst rho AsSizes       = AsSizes
   applySubst rho AsTypes       = AsTypes
@@ -1052,6 +1058,10 @@ instance Subst a => Subst (Maybe a) where
 
 instance Subst a => Subst [a] where
   type SubstArg [a] = SubstArg a
+
+instance Subst a => Subst (TwinT' a) where
+  type SubstArg (TwinT' a) = SubstArg a
+  applySubst rho = twinDirty . fmap (applySubst rho)
 
 instance (Ord k, Subst a) => Subst (Map k a) where
   type SubstArg (Map k a) = SubstArg a
@@ -1194,6 +1204,7 @@ projDropParsApply (Projection prop d r _ lams) o rel args =
 -- ** Telescope view of a type
 
 type TelView = TelV Type
+type TelView_ = TelV Type_
 data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
   deriving (Show, Functor)
 

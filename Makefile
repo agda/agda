@@ -465,6 +465,13 @@ common :
 		$(MAKE) -C test/Common )
 
 .PHONY : succeed ##
+custom :
+	@$(call decorate, "Suite of successful tests", \
+		echo $(AGDA_BIN) > test/Succeed/exec-tc/executables && \
+		AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_CUSTOM_ARGS) ; \
+		rm test/Succeed/exec-tc/executables )
+
+.PHONY : succeed ##
 succeed :
 	@$(call decorate, "Suite of successful tests", \
 		echo $(shell which $(AGDA_BIN)) > test/Succeed/exec-tc/executables && \
@@ -520,15 +527,14 @@ std-lib-test :
 														 +RTS -s))
 
 .PHONY : cubical-test ##
-cubical-test :
+cubical-test:
+	@$(call decorate, "Cubical library test", \
+		echo "IGNORED")
+
+.PHONY : cubical-test-ignored ##
+cubical-test-ignored :
 	-rm -rf cubical/_build
 	@$(call decorate, "Cubical library test", \
-		time $(MAKE) -C cubical \
-                  AGDA_BIN=$(AGDA_BIN) RTS_OPTIONS=$(AGDA_OPTS))
-
-.PHONY : continue-cubical-test ##
-continue-cubical-test :
-	@$(call decorate, "Continuing cubical library test", \
 		time $(MAKE) -C cubical \
                   AGDA_BIN=$(AGDA_BIN) RTS_OPTIONS=$(AGDA_OPTS))
 

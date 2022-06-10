@@ -3,7 +3,7 @@ module Internal.TypeChecking.Free.Lazy () where
 
 import Agda.TypeChecking.Free.Lazy
 
-import qualified Data.HashSet as HashSet
+import qualified Data.Set as Set
 
 import Internal.Syntax.Common ()
 
@@ -13,7 +13,7 @@ import Test.QuickCheck
 -- QuickCheck instances
 
 instance Arbitrary MetaSet where
-  arbitrary = MetaSet . HashSet.fromList <$> arbitrary
+  arbitrary = MetaSet . Set.fromList <$> arbitrary
 
 -- | For testing, we generate only @Flexible mempty@, since non-empty
 --   'MetaSet's destroy distributivity laws, amongst others.

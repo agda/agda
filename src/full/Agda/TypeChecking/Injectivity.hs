@@ -1,3 +1,5 @@
+{-# LANGUAGE ViewPatterns #-}
+
 {- |
 
 "Injectivity", or more precisely, "constructor headedness", is a
@@ -59,6 +61,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Heterogeneous hiding (length, (!!!))
 import Agda.TypeChecking.Irrelevance (isIrrelevantOrPropM)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -71,8 +74,11 @@ import Agda.TypeChecking.Warnings
 
 import Agda.Interaction.Options
 
+import Agda.Utils.Dependent
 import Agda.Utils.Either
 import Agda.Utils.Functor
+import Agda.Utils.IntSet.Typed (ISet)
+import qualified Agda.Utils.IntSet.Typed as ISet
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -294,78 +300,91 @@ functionInverse = \case
 data InvView = Inv QName [Elim] (InversionMap Clause)
              | NoInv
 
+instance PrettyTCM InvView where
+  prettyTCM Inv{} = "invertible"
+  prettyTCM NoInv = "not invertible"
+
+-- TODO: Switch to proper implementation instead of downgrading
+useInjectivity_ :: forall s₁ s₂ m. (MonadConversion m, AreSides s₁ s₂) =>
+                   CompareDirection -> Blocker -> CompareAsHet -> Het s₁ Term -> Het s₂ Term -> m ()
+useInjectivity_ dir bs a u v = go sing sing u v
+  where
+    go :: SingT s₁ -> SingT s₂ -> Het s₁ Term -> Het s₂ Term -> m ()
+    go SLHS SRHS u v = useInjectivity_' dir bs a u v
+    go SRHS SLHS v u = flipContext $ useInjectivity_' dir bs (flipHet a) (flipHet v) (flipHet u)
+
 -- | Precondition: The first term must be blocked on the given meta and the second must be neutral.
-useInjectivity :: MonadConversion m => CompareDirection -> Blocker -> CompareAs -> Term -> Term -> m ()
-useInjectivity dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
-  inv <- functionInverse blk
+useInjectivity_' :: MonadConversion m => CompareDirection -> Blocker -> CompareAs_ -> Het 'LHS Term -> Het 'RHS Term -> m ()
+useInjectivity_' dir blocker ty blk neu = locallyTC eInjectivityDepth succ $ do
+  inv <- onSide_ @'LHS functionInverse blk
+  reportSDoc "tc.inj.use" 40 $ prettyTCM inv
   -- Injectivity might cause non-termination for unsatisfiable constraints
   -- (#431, #3067). Look at the number of active problems and the injectivity
   -- depth to detect this.
-  nProblems <- Set.size <$> viewTC eActiveProblems
+  nProblems <- ISet.size <$> viewTC eActiveProblems
   injDepth  <- viewTC eInjectivityDepth
   let depth = max nProblems injDepth
   maxDepth  <- maxInversionDepth
   case inv of
     NoInv            -> fallback  -- not invertible
-    Inv f blkArgs hdMap
+    Inv f (H'LHS -> blkArgs) hdMap
       | depth > maxDepth -> warning (InversionDepthReached f) >> fallback
       | otherwise -> do
       reportSDoc "tc.inj.use" 30 $ fsep $
         pwords "useInjectivity on" ++
-        [ prettyTCM blk, prettyTCM cmp, prettyTCM neu, prettyTCM ty]
+        [ prettyTCM blk, prettyTCM dir, prettyTCM neu, prettyTCM ty]
       let canReduceToSelf = Map.member (ConsHead f) hdMap || Map.member UnknownHead hdMap
       case neu of
         -- f us == f vs  <=>  us == vs
         -- Crucially, this relies on `f vs` being neutral and only works
         -- if `f` is not a possible head for `f us`.
-        Def f' neuArgs | f == f', not canReduceToSelf -> do
+        H'RHS (Def f' (H'RHS -> neuArgs)) | f == f', not canReduceToSelf -> do
           fTy <- defType <$> getConstInfo f
           reportSDoc "tc.inj.use" 20 $ vcat
             [ fsep (pwords "comparing application of injective function" ++ [prettyTCM f] ++
                   pwords "at")
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM blkArgs
-            , nest 2 $ fsep $ punctuate comma $ map prettyTCM neuArgs
+            , nest 2 $ fsep $ punctuate comma $ map prettyTCM $ distributeF blkArgs
+            , nest 2 $ fsep $ punctuate comma $ map prettyTCM $ distributeF neuArgs
             , nest 2 $ "and type" <+> prettyTCM fTy
             ]
-          fs  <- getForcedArgs f
-          pol <- getPolarity' cmp f
-          reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful spine comparison of", prettyTCM f]
-          app (compareElims pol fs fTy (Def f [])) blkArgs neuArgs
+          dirToCmp_ (\cmp () args₁ args₂ -> do
+            fs  <- getForcedArgs f
+            pol <- getPolarity' cmp f
+            reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful spine comparison of", prettyTCM f]
+            compareElims_ pol fs (asTwin $ fTy) (asTwin $ Def f []) args₁ args₂) dir () blkArgs neuArgs
 
         -- f us == c vs
         --    Find the clause unique clause `f ps` with head `c` and unify
         --    us == ps  with fresh metas for the pattern variables of ps.
         --    If there's no such clause we can safely throw an error.
-        _ -> headSymbol' neu >>= \ case
+        _ -> distributeF <$> (onSide headSymbol' neu) >>= \ case
           Nothing -> do
             reportSDoc "tc.inj.use" 20 $ fsep $
               pwords "no head symbol found for" ++ [prettyTCM neu] ++ pwords ", so not inverting"
             fallback
-          Just (ConsHead f') | f == f', canReduceToSelf -> do
+          Just (H'RHS (ConsHead f')) | f == f', canReduceToSelf -> do
             reportSDoc "tc.inj.use" 20 $ fsep $
               pwords "head symbol" ++ [prettyTCM f'] ++ pwords "can reduce to self, so not inverting"
             fallback
                                     -- We can't invert in this case, since we can't
                                     -- tell the difference between a solution that makes
                                     -- the blocked term neutral and one that makes progress.
-          Just hd -> invertFunction cmp blk inv hd fallback err success
-            where err = typeError $ app (\ u v -> UnequalTerms cmp u v ty) blk neu
+          Just hd ->
+              let err = dirToCmp_ (\cmp ty u v -> typeError $ UnequalTerms_ cmp u v ty) dir ty blk neu in
+              invertFunction cmp blk inv hd fallback err success
   where
-    fallback     = addConstraint blocker $ app (ValueCmp cmp ty) blk neu
-    success blk' = app (compareAs cmp ty) blk' neu
-
-    cmpApp :: (Comparison, (a -> a -> b) -> a -> a -> b)
-    cmpApp = case dir of
-      DirEq -> (CmpEq, id)
-      DirLeq -> (CmpLeq, id)
-      DirGeq -> (CmpLeq, flip)
-    (cmp, app) = cmpApp
+    fallback     = valueCmpDir_ (addConstraint blocker) dir ty blk neu
+    success blk' = compareAsDir_ dir ty blk' neu
+    cmp = case dir of
+      DirEq  -> CmpEq
+      DirLeq -> CmpLeq
+      DirGeq -> CmpLeq
 
 -- | The second argument should be a blocked application and the third argument
 --   the inverse of the applied function.
 invertFunction
-  :: MonadConversion m
-  => Comparison -> Term -> InvView -> TermHead -> m () -> m () -> (Term -> m ()) -> m ()
+  :: forall s₁ s₂ m. (SideIsSingle s₁, SideIsSingle s₂) => MonadConversion m
+  => Comparison -> Het s₁ Term -> InvView -> Het s₂ TermHead -> m () -> m () -> (Het s₁ Term -> m ()) -> m ()
 invertFunction _ _ NoInv _ fallback _ _ = fallback
 invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
     fTy <- defType <$> getConstInfo f
@@ -374,10 +393,13 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
       , "for" <?> pretty hd
       , nest 2 $ "args =" <+> prettyList (map prettyTCM blkArgs)
       ]                         -- Clauses with unknown heads are also possible candidates
-    case fromMaybe [] $ Map.lookup hd hdMap <> Map.lookup UnknownHead hdMap of
+    case fromMaybe [] $ Map.lookup (twinAt @s₂ hd) hdMap <> Map.lookup UnknownHead hdMap of
       [] -> err
       _:_:_ -> fallback
-      [cl@Clause{ clauseTel  = tel }] -> speculateMetas fallback $ do
+      -- TODO Víctor (2021-03-03)
+      -- This switch-back trick is weird, it should be done using
+      -- a proper closure.
+      [cl@Clause{ clauseTel  = tel }] -> speculateMetas fallback $ switchSide_ @s₁ $ \switchBack -> do
           let ps   = clausePats cl
               perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
           -- These are what dot patterns should be instantiated at
@@ -413,9 +435,9 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
           -- Check that we made progress.
           r <- liftReduce $ unfoldDefinitionStep False (Def f []) f blkArgs
           case r of
-            YesReduction _ blk' -> do
+            YesReduction _ blk' -> switchBack $ do
               reportSDoc "tc.inj.invert.success" 20 $ hsep ["Successful inversion of", prettyTCM f, "at", pretty hd]
-              KeepMetas <$ success blk'
+              KeepMetas <$ success (Het @s₁ blk')
             NoReduction{}       -> do
               reportSDoc "tc.inj.invert" 30 $ vcat
                 [ "aborting inversion;" <+> prettyTCM blk
@@ -423,30 +445,30 @@ invertFunction cmp blk (Inv f blkArgs hdMap) hd fallback err success = do
                 ]
               return RollBackMetas
   where
-    nextMeta :: (MonadState [Term] m, MonadFail m) => m Term
+    nextMeta :: forall m. (MonadState [Term] m, MonadFail m) => m Term
     nextMeta = do
       m : ms <- get
       put ms
       return m
 
-    dotP :: MonadReader Substitution m => Term -> m Term
+    dotP :: forall m. MonadReader Substitution m => Term -> m Term
     dotP v = do
       sub <- ask
       return $ applySubst sub v
 
     metaElim
-      :: (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m, MonadFail m)
+      :: forall m. (MonadState [Term] m, MonadReader Substitution m, HasConstInfo m, MonadFail m)
       => Arg DeBruijnPattern -> m Elim
     metaElim (Arg _ (ProjP o p))  = Proj o <$> getOriginalProjection p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
     metaArgs
-      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      :: forall m. (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
       => [NamedArg DeBruijnPattern] -> m Args
     metaArgs args = mapM (traverse $ metaPat . namedThing) args
 
     metaPat
-      :: (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
+      :: forall m. (MonadState [Term] m, MonadReader Substitution m, MonadFail m)
       => DeBruijnPattern -> m Term
     metaPat (DotP _ v)       = dotP v
     metaPat (VarP _ _)       = nextMeta
@@ -461,7 +483,7 @@ forcePiUsingInjectivity t = reduceB t >>= \ case
     Blocked _ blkTy -> do
       let blk = unEl blkTy
       inv <- functionInverse blk
-      blkTy <$ invertFunction CmpEq blk inv PiHead fallback err success
+      blkTy <$ invertFunction CmpEq (InSingle blk) inv (InSingle PiHead) fallback err success
     NotBlocked _ t -> return t
   where
     fallback  = return ()

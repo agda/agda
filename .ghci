@@ -16,6 +16,8 @@
     then return ":script .ghci-8.8"
     else if ghcVersion >= [8,6]
     then return ":script .ghci-8.6"
+    else if ghcVersion >= [8,4]
+    then return ":script .ghci-8.4"
     else if ghcVersion >= [8,2]
     then return ":script .ghci-8.2"
     else if ghcVersion >= [8,0]
@@ -41,8 +43,8 @@
 :def agda_load_local_ghci \_ -> do
   let localGhci = ".ghci.local"
   exists <- System.Directory.doesFileExist localGhci
-  Prelude.return Prelude.$ if exists
-    then ":script " Prelude.++ localGhci
+  return $ if exists
+    then ":script " ++ localGhci
     else ""
 :}
 :agda_load_local_ghci
