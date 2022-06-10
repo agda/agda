@@ -101,7 +101,7 @@ data CommandLineOptions = Options
   -- ^ Use ~/.agda/defaults
   , optUseLibs               :: Bool
   -- ^ look for .agda-lib files
-  , optTrustedExecutables             :: Map ExeName FilePath
+  , optTrustedExecutables    :: Map ExeName FilePath
   -- ^ Map names of trusted executables to absolute paths
   , optPrintAgdaDir          :: Bool
   , optPrintVersion          :: Bool
