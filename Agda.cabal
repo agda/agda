@@ -766,7 +766,7 @@ library
   if impl(ghc == 9.0.2)
     ghc-options: -Werror=unicode-bidirectional-format-characters
 
-  -- NOTE: If adding or removing flags, also change `.ghci-9.2.2`
+  -- NOTE: If adding or removing flags, also change `.ghci-9.2.3`
   if impl(ghc >= 9.2.2)
     ghc-options: -Werror=redundant-bang-patterns
                  -Werror=unicode-bidirectional-format-characters
@@ -1113,7 +1113,7 @@ test-suite agda-tests
   if impl(ghc == 9.0.2)
     ghc-options: -Werror=unicode-bidirectional-format-characters
 
-  -- NOTE: If adding or removing flags, also change `.ghci-9.2.2`
+  -- NOTE: If adding or removing flags, also change `.ghci-9.2.3`
   if impl(ghc >= 9.2.2)
     ghc-options: -Werror=redundant-bang-patterns
                  -Werror=unicode-bidirectional-format-characters
