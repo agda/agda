@@ -55,23 +55,18 @@ jobs:
         echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
         export GHC_VER=$(ghc --numeric-version)
         echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
-        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --no-terminal"    >> ${GITHUB_ENV}
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> ${GITHUB_ENV}
     - name: Environment (review)
       run: |
         echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
         echo "STACK_VER         = ${STACK_VER}"
         echo "GHC_VER           = ${GHC_VER}"
-    - name: Update and configure stack package index
-      run: |
-        stack update --silent
-        echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
-        stack build ${ARGS} --dry-run
     - id: cache
       name: Cache dependencies
       uses: actions/cache@v2
       with:
         key: |
-          ${{ runner.os }}-stack-20220503-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
+          ${{ runner.os }}-stack-20220503-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
         path: ${{ steps.haskell-setup.outputs.stack-root }}
     - if: ${{ runner.os == 'macOS' }}
       name: Set up pkg-config for the ICU library (macOS)
