@@ -356,4 +356,4 @@ More examples:
 * ``piSort Level (λ l → Set l)`` evaluates to ``Setω``
 * ``piSort (Set l) (λ _ → Set l')`` evaluates to ``Set (l ⊔ l')``
 * ``univSort (Set l)`` evaluates to ``Set (lsuc l)``
-* ``piSort s (λ x -> Setωi)`` evaluates to ``funSort s Setω``
+* ``piSort s (λ x -> Setωi)`` evaluates to ``funSort s Setωi``
