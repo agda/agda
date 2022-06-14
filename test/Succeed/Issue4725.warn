@@ -1,0 +1,25 @@
+Issue4725.agda:42,5-43,58
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        D
+                           datatype:    D
+                           parameters: 
+                           indices:    
+                           constructor: d
+when checking the definition of g
+
+———— All done; warnings encountered ————————————————————————
+
+Issue4725.agda:42,5-43,58
+Could not generate equivalence when splitting on indexed family,
+the function will not compute on transports by a path.
+  Reason: UnsupportedYet Injectivity
+                           position:    0
+                           type:        D
+                           datatype:    D
+                           parameters: 
+                           indices:    
+                           constructor: d
+when checking the definition of g

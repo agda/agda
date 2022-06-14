@@ -599,7 +599,7 @@ targetElem ds = terGetTarget <&> \case
 --   The term is first normalized and stripped of all non-coinductive projections.
 
 termToDBP :: Term -> TerM DeBruijnPattern
-termToDBP t = ifNotM terGetUseDotPatterns (return unusedVar) $ {- else -} do
+termToDBP t =
   termToPattern =<< do liftTCM $ stripAllProjections =<< normalise t
 
 -- | Convert a term (from a dot pattern) to a pattern for the purposes of the termination checker.
@@ -623,18 +623,25 @@ instance TermToPattern a b => TermToPattern (Named c a) (Named c b) where
 instance TermToPattern Term DeBruijnPattern where
   termToPattern t = liftTCM (constructorForm t) >>= \case
     -- Constructors.
-    Con c _ args -> ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
-    Def s [Apply arg] -> do
+    Con c _ args -> ifDotPatsOrRecord c $
+      ConP c noConPatternInfo . map (fmap unnamed) <$> termToPattern (fromMaybe __IMPOSSIBLE__ $ allApplyElims args)
+    Def s [Apply arg] -> ifDotPats $ do
       suc <- terGetSizeSuc
       if Just s == suc then ConP (ConHead s IsData Inductive []) noConPatternInfo . map (fmap unnamed) <$> termToPattern [arg]
-       else return $ dotP t
+       else fallback
     DontCare t  -> termToPattern t -- OR: __IMPOSSIBLE__  -- removed by stripAllProjections
     -- Leaves.
     Var i []    -> varP . (`DBPatVar` i) . prettyShow <$> nameOfBV i
     Lit l       -> return $ litP l
     Dummy s _   -> __IMPOSSIBLE_VERBOSE__ s
-    t           -> return $ dotP t
-
+    t           -> fallback
+    where
+    -- Andreas, 2022-06-14, issues #5953 and #4725
+    -- Recognize variable and record patterns in dot patterns regardless
+    -- of whether dot-pattern termination is on.
+    ifDotPats           = ifNotM terGetUseDotPatterns fallback
+    ifDotPatsOrRecord c = ifM (pure (IsData == conDataRecord c) `and2M` do not <$> terGetUseDotPatterns) fallback
+    fallback            = return $ dotP t
 
 -- | Masks all non-data/record type patterns if --without-K.
 --   See issue #1023.
