@@ -254,6 +254,8 @@ library
                 , template-haskell >= 2.11.0.0 && < 2.19
                 , text >= 1.2.3.0 && < 2.1
                 , time >= 1.6.0.1 && < 1.13
+                , time-compat >= 1.9.2 && < 1.10
+                    -- time-compat adds needed functionality missing in time < 1.9
                 , transformers >= 0.5 && < 0.7
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , uri-encode >= 1.5.0.4 && < 1.6

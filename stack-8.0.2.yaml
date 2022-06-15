@@ -24,6 +24,10 @@ extra-deps:
 - wcwidth-0.0.2
 - text-icu-0.7.1.0
 
+# instead of time-1.9, we add time-compat
+- time-compat-1.9.2.2
+- base-orphans-0.8.1
+
 # Local packages, usually specified by relative directory name
 packages:
 - '.'

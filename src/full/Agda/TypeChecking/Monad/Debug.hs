@@ -7,6 +7,7 @@ module Agda.TypeChecking.Monad.Debug
 import qualified Control.Exception as E
 import qualified Control.DeepSeq as DeepSeq (force)
 
+import Control.Applicative          ( liftA2 )
 import Control.Monad.IO.Class       ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -17,6 +18,9 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Writer
 
 import Data.Maybe
+import Data.Time                    ( getCurrentTime, getCurrentTimeZone, utcToLocalTime )
+import Data.Time.Format.ISO8601.Compat ( iso8601Show )
+  -- This is also exported from Data.Time.Format.ISO8601, but only from time >= 1.9
 
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
@@ -134,8 +138,21 @@ instance MonadDebug TCM where
     -- Force any lazy 'Impossible' exceptions to the surface and handle them.
     s  <- liftIO . catchAndPrintImpossible k n . E.evaluate . DeepSeq.force $ s
     cb <- getsTC $ stInteractionOutputCallback . stPersistentState
-    cb (Resp_RunningInfo n s)
+
+    -- Andreas, 2022-06-15, prefix with time stamp if `-v debug.time:100`:
+    msg <- ifNotM (hasVerbosity "debug.time" 100) {-then-} (return s) {-else-} $ do
+      now <- liftIO $ trailingZeros . iso8601Show <$> liftA2 utcToLocalTime getCurrentTimeZone getCurrentTime
+      return $ concat [ now, ": ", s ]
+
+    cb $ Resp_RunningInfo n msg
     cont
+    where
+    -- Surprisingly, iso8601Show gives us _up to_ 6 fractional digits (microseconds),
+    -- but not exactly 6.  https://github.com/haskell/time/issues/211
+    -- So we need to do the padding ourselves.
+    -- yyyy-mm-ddThh:mm:ss.ssssss
+    -- 12345678901234567890123456
+    trailingZeros = take 26 . (++ repeat '0')
 
   formatDebugMessage k n d = catchAndPrintImpossible k n $ do
     render <$> d `catchError` \ err -> do
