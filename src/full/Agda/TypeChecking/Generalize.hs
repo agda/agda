@@ -147,13 +147,27 @@ withGenRecVar ret = do
   genRecMeta <- newTypeMeta (mkType 0)
   addContext (defaultDom ("genTel" :: String, genRecMeta)) $ ret genRecMeta
 
--- | Compute the generalized telescope from metas created when checking the type/telescope to be
+-- | Compute the generalized telescope from metas created when checking the *thing* (type or telescope) to be
 --   generalized. Called in the context extended with the telescope record variable (whose type is
 --   the first argument). Returns the telescope of generalized variables and a substitution from
 --   this telescope to the current context.
-computeGeneralization ::
-  Type -> Map MetaId name -> LocalMetaStores ->
-  TCM (Telescope, [Maybe name], Substitution)
+computeGeneralization
+  :: Type
+       -- ^ The metavariable to be instantiated with record type containing
+       --   as fields the variables generalized in the *thing*.
+  -> Map MetaId name
+       -- ^ Metas created from an occurrence of a @variable@. (The original free variables.)
+       --   E.g. if you have
+       --   @
+       --     variable  l : Level; A : Set l
+       --     postulate f : A → A
+       --   @
+       --   then @A@ would be in this @Map@, but not @l@.
+  -> LocalMetaStores
+       -- ^ The metas created when type-checking the *thing*.
+  -> TCM (Telescope, [Maybe name], Substitution)
+       -- ^ The telescope together with binder name (left-to-right order),
+       --   and substitution from this telescope to the current context.
 computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints $ do
 
   reportSDoc "tc.generalize" 10 $ "computing generalization for type" <+> prettyTCM genRecMeta
@@ -225,10 +239,10 @@ computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints 
                   (Just IdS, Perm m xs)        -> xs == [0 .. m - 1]
                   (Just (Wk n IdS), Perm m xs) -> xs == [0 .. m - n - 1]
                   _                            -> False
-          unless sameContext $ do
+          unless sameContext $ reportSDoc "tc.generalize" 20 $ do
             ty <- getMetaType x
             let Perm m xs = mvPermutation mv
-            reportSDoc "tc.generalize" 20 $ vcat
+            vcat
               [ text "Don't know how to generalize over"
               , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM ty
               , text "in context"
