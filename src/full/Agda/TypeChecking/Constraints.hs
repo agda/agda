@@ -69,7 +69,7 @@ addConstraintTCM unblock c = do
       -- The added constraint can cause instance constraints to be solved,
       -- but only the constraints which aren’t blocked on an uninstantiated meta.
       unless (isInstanceConstraint c) $
-         wakeConstraints' isWakeableInstanceConstraint
+         wakeConstraints isWakeableInstanceConstraint
     where
       isWakeableInstanceConstraint :: ProblemConstraint -> WakeUp
       isWakeableInstanceConstraint c =
@@ -99,15 +99,18 @@ addConstraintTCM unblock c = do
 
 wakeConstraintsTCM :: (ProblemConstraint-> WakeUp) -> TCM ()
 wakeConstraintsTCM wake = do
-  c <- useR stSleepingConstraints
-  let (wakeup, sleepin) = partitionEithers $ map checkWakeUp c
+  sleeping <- useR stSleepingConstraints
+  skipInstance <- shouldPostponeInstanceSearch
+  let skip c = skipInstance && isInstanceConstraint (clValue $ theConstraint c)
+      wake'  = wakeUpWhen (not . skip) wake
+  let (wakeup, nowakeup) = partitionEithers $ map (checkWakeUp wake') sleeping
   reportSLn "tc.constr.wake" 50 $
     "waking up         " ++ show (List.map (Set.toList . constraintProblems) wakeup) ++ "\n" ++
-    "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) sleepin)
-  modifySleepingConstraints $ const sleepin
+    "  still sleeping: " ++ show (List.map (Set.toList . constraintProblems) nowakeup)
+  modifySleepingConstraints $ const nowakeup
   modifyAwakeConstraints (++ wakeup)
   where
-    checkWakeUp c = case wake c of
+    checkWakeUp wake c = case wake c of
       WakeUp              -> Left c
       DontWakeUp Nothing  -> Right c
       DontWakeUp (Just u) -> Right c{ constraintUnblocker = u }
@@ -194,24 +197,16 @@ whenConstraints action handler =
     stealConstraints pid
     handler
 
--- | Wake constraints matching the given predicate (and aren't instance
---   constraints if 'shouldPostponeInstanceSearch').
-wakeConstraints' :: (ProblemConstraint -> WakeUp) -> TCM ()
-wakeConstraints' p = do
-  skipInstance <- shouldPostponeInstanceSearch
-  let skip c = skipInstance && isInstanceConstraint (clValue $ theConstraint c)
-  wakeConstraints $ wakeUpWhen (not . skip) p
-
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
-  wakeConstraints' (wakeIfBlockedOnMeta x . constraintUnblocker)
+  wakeConstraints (wakeIfBlockedOnMeta x . constraintUnblocker)
   solveAwakeConstraints
 
 -- | Wake up all constraints not blocked on a problem.
 wakeupConstraints_ :: TCM ()
 wakeupConstraints_ = do
-  wakeConstraints' (wakeup . constraintUnblocker)
+  wakeConstraints (wakeup . constraintUnblocker)
   solveAwakeConstraints
   where
     wakeup u | Set.null $ allBlockingProblems u = WakeUp

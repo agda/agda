@@ -58,7 +58,7 @@ import Agda.Utils.Tuple
 -- | Generalize a telescope over a set of generalizable variables.
 generalizeTelescope :: Map QName Name -> (forall a. (Telescope -> TCM a) -> TCM a) -> ([Maybe Name] -> Telescope -> TCM a) -> TCM a
 generalizeTelescope vars typecheckAction ret | Map.null vars = typecheckAction (ret [])
-generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
+generalizeTelescope vars typecheckAction ret = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> postponeInstanceConstraints $ do
   let s = Map.keysSet vars
   ((cxtNames, tel, letbinds), namedMetas, allmetas) <-
     createMetasAndTypeCheck s $ typecheckAction $ \ tel -> do
@@ -113,7 +113,7 @@ generalizeType s typecheckAction = do
 
 -- | Allow returning additional information from the type checking action.
 generalizeType' :: Set QName -> TCM (Type, a) -> TCM ([Maybe QName], Type, a)
-generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> do
+generalizeType' s typecheckAction = billTo [Typing, Generalize] $ withGenRecVar $ \ genRecMeta -> postponeInstanceConstraints $ do
 
   ((t, userdata), namedMetas, allmetas) <- createMetasAndTypeCheck s typecheckAction
   (genTel, genTelNames, sub) <- computeGeneralization genRecMeta namedMetas allmetas
@@ -154,7 +154,7 @@ withGenRecVar ret = do
 computeGeneralization ::
   Type -> Map MetaId name -> LocalMetaStores ->
   TCM (Telescope, [Maybe name], Substitution)
-computeGeneralization genRecMeta nameMap allmetas = postponeInstanceConstraints $ do
+computeGeneralization genRecMeta nameMap allmetas = do
 
   reportSDoc "tc.generalize" 10 $ "computing generalization for type" <+> prettyTCM genRecMeta
 
