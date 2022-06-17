@@ -228,10 +228,7 @@ jobs:
       #    11s (2022-06-17)
 
     - name: "Suite of interaction tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" DONT_RUN_LATEX=Y interaction
-        # Andreas, 2022-06-17: dropping DONT_RUN_LATEX=Y fails test/interaction/QuickLaTeX-Caching.
-        # DONT_RUN_LATEX is checked in test/LaTeXAndHTML/Tests.hs (and only there, says grep).
-        # It is unclear to me how the information is propagated...
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
       # 2m 39s (2022-06-17)
       # This test has erratic outages (#5619), so we place it late in the queue.
 
