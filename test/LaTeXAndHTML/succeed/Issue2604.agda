@@ -3,27 +3,27 @@
 
 module Issue2604 where
 
-test1 : Set₁  -- Symbolic anchor
+test1 : Set₁
 test1 = bla
   where
-  bla = Set   -- Position anchor
+  bla = Set
 
-test2 : Set₁  -- Symbolic anchor
+test2 : Set₁
 test2 = bla
   where
-  bla = Set   -- Position anchor
+  bla = Set
 
-test3 : Set₁  -- Symbolic anchor
+test3 : Set₁
 test3 = bla
   module M where
-  bla = Set  -- Symbolic anchor
+  bla = Set
 
 module NamedModule where
-  test4 : Set₁  -- Symbolic anchor
+  test4 : Set₁
   test4 = M.bla
 
 module _ where
-  test5 : Set₁  -- Position anchor
+  test5 : Set₁
   test5 = M.bla
 
 -- Testing whether # in anchors confuses the browsers.

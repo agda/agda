@@ -1132,16 +1132,19 @@ scopeCheckNiceModule r p name tel checkDs
 
       -- Check whether we are dealing with an anonymous module.
       -- This corresponds to a Coq/LEGO section.
-      (name, p', open) <- do
+      (name, p', open, anon) <- do
         if isNoName name then do
           (i :: NameId) <- fresh
-          return (C.NoName (getRange name) i, PrivateAccess Inserted, True)
-         else return (name, p, False)
+          return ( C.NoName (getRange name) i
+                 , PrivateAccess Inserted, True, True
+                 )
+         else return (name, p, False, False)
 
       -- Check and bind the module, using the supplied check for its contents.
       aname <- toAbstract (NewModuleName name)
+      when anon $ markAnonymous aname
       d <- snd <$> do
-        scopeCheckModule r (C.QName name) aname tel checkDs
+        scopeCheckModule r (C.QName name) aname tel p checkDs
       bindModule p' name aname
 
       -- If the module was anonymous open it public
@@ -1219,10 +1222,11 @@ scopeCheckModule
   -> C.QName                 -- ^ The concrete name of the module.
   -> A.ModuleName            -- ^ The abstract name of the module.
   -> C.Telescope             -- ^ The module telescope.
+  -> Access                  -- ^ Is the module public or private?
   -> ScopeM [A.Declaration]  -- ^ The code for checking the module contents.
   -> ScopeM (ScopeInfo, A.Declaration)
        -- ^ The returned declaration is an 'A.Section'.
-scopeCheckModule r x qm tel checkDs = do
+scopeCheckModule r x qm tel p checkDs = withAccess p $ do
   printScope "module" 20 $ "checking module " ++ prettyShow x
   -- Andreas, 2013-12-10: Telescope does not live in the new module
   -- but its parent, so check it before entering the new module.
@@ -1336,8 +1340,9 @@ instance ToAbstract (TopLevel [C.Declaration]) where
           primitiveImport <- importPrimitives
           -- Scope check the declarations outside
           outsideDecls <- toAbstract (Declarations outsideDecls)
-          (insideScope, insideDecl) <- scopeCheckModule r m am tel $
-             toAbstract (Declarations insideDecls)
+          (insideScope, insideDecl) <-
+            scopeCheckModule r m am tel PublicAccess $
+              toAbstract (Declarations insideDecls)
           -- Andreas, 2020-05-13, issue #1804, #4647
           -- Do not eagerly remove private definitions, only when serializing
           -- let scope = over scopeModules (fmap $ restrictLocalPrivate am) insideScope
@@ -1795,7 +1800,7 @@ instance ToAbstract NiceDeclaration where
             return (p, ax)
           _ -> genericError $ "Missing type signature for data definition " ++ prettyShow x
         ensureNoLetStms pars
-        withLocalVars $ do
+        withAccess p $ withLocalVars $ do
           gvars <- bindGeneralizablesIfInserted o ax
           -- Check for duplicate constructors
           do cs <- mapM conName cons
@@ -1840,7 +1845,7 @@ instance ToAbstract NiceDeclaration where
           return (p, ax)
         _ -> genericError $ "Missing type signature for record definition " ++ prettyShow x
       ensureNoLetStms pars
-      withLocalVars $ do
+      withAccess p $ withLocalVars $ do
         gvars <- bindGeneralizablesIfInserted o ax
         -- Check that the generated module doesn't clash with a previously
         -- defined module
@@ -2506,14 +2511,19 @@ whereToAbstract1 r whname whds inner = do
   checkNoTerminationPragma InWhereBlock whds
 
   -- Create a fresh concrete name if there isn't (a proper) one.
-  (m, acc) <- do
+  (m, acc, anon) <- do
     case whname of
-      Just (m, acc) | not (isNoName m) -> return (m, acc)
-      _ -> fresh <&> \ x -> (C.NoName (getRange whname) x, PrivateAccess Inserted)
+      Just (m, acc) | not (isNoName m) -> return (m, acc, False)
+      _ -> fresh <&> \ x ->
+             ( C.NoName (getRange whname) x
+             , PrivateAccess Inserted, True
+             )
            -- unnamed where's are private
   old <- getCurrentModule
   am  <- toAbstract (NewModuleName m)
-  (scope, d) <- scopeCheckModule r (C.QName m) am [] $ toAbstract $ Declarations $ List1.toList whds
+  when anon $ markAnonymous am
+  (scope, d) <- scopeCheckModule r (C.QName m) am [] acc $
+                  toAbstract $ Declarations $ List1.toList whds
   setScope scope
   x <- inner
   setCurrentModule old

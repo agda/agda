@@ -14,6 +14,7 @@ import Control.Monad.State
 
 import Data.Either ( partitionEithers )
 import Data.Foldable (all, traverse_)
+import qualified Data.HashMap.Strict as HMap
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -263,6 +264,11 @@ annotateExpr m = do
   e <- m
   s <- getScope
   return $ A.ScopedExpr s e
+
+-- | Combine the given 'Access' value with the current 'envAccess'
+-- value in the given computation.
+withAccess :: Access -> ScopeM a -> ScopeM a
+withAccess acc = locallyTC eAccess (acc <>)
 
 ---------------------------------------------------------------------------
 -- * Names
@@ -514,6 +520,8 @@ bindName'' acc kind meta x y = do
         UnknownName         -> success
   let ns = if isNoName x then PrivateNS else localNameSpace acc
   traverse_ (modifyCurrentScope . addNameToScope ns x) y'
+  acc <- (acc <>) <$> asksTC envAccess
+  modifyTCLens' stAccess $ HMap.insert (A.qnameName y) acc
   pure $ either Just (const Nothing) y'
   where
     success = Right $ AbsName y kind Defined meta
@@ -532,15 +540,37 @@ rebindName acc kind x y = do
   modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
   bindName acc kind x y
 
+-- | Mark the last component of the module name as anonymous.
+markAnonymous :: A.ModuleName -> ScopeM ()
+markAnonymous m = case reverse (A.mnameToList m) of
+  []    -> __IMPOSSIBLE__
+  m : _ -> modifyTCLens' stAnonymousNumbers $ \anon ->
+    HMap.insert m (AnonymousNumber $ succ $ HMap.size anon) anon
+
+-- | Store whether the (last component of) the given module name was
+-- declared as private or public.
+storeAccess :: Access -> A.ModuleName -> ScopeM ()
+storeAccess acc m = do
+  -- If both 'Access' values have the form PrivateAccess something,
+  -- then the "innermost" one is chosen.
+  acc <- (acc <>) <$> asksTC envAccess
+  case reverse $ A.mnameToList m of
+    []    -> __IMPOSSIBLE__
+    m : _ -> modifyTCLens' stAccess $ HMap.insert m acc
+
 -- | Bind a module name.
 bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()
-bindModule acc x m = modifyCurrentScope $
-  addModuleToScope (localNameSpace acc) x (AbsModule m Defined)
+bindModule acc x m = do
+  modifyCurrentScope $
+    addModuleToScope (localNameSpace acc) x (AbsModule m Defined)
+  storeAccess acc m
 
 -- | Bind a qualified module name. Adds it to the imports field of the scope.
 bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
-bindQModule acc q m = modifyCurrentScope $ \s ->
-  s { scopeImports = Map.insert q m (scopeImports s) }
+bindQModule acc q m = do
+  modifyCurrentScope $ \s ->
+    s { scopeImports = Map.insert q m (scopeImports s) }
+  storeAccess acc m
 
 ---------------------------------------------------------------------------
 -- * Module manipulation operations

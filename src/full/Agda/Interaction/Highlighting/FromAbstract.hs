@@ -6,17 +6,22 @@
 {-# OPTIONS_GHC -fwarn-unused-binds   #-}
 
 module Agda.Interaction.Highlighting.FromAbstract
-  ( runHighlighter
+  ( Level(..)
+  , runHighlighter
   , NameKinds
   ) where
 
 import Prelude hiding (null)
 
 import Control.Applicative
-import Control.Monad         ( (<=<) )
-import Control.Monad.Reader  ( MonadReader(..), asks, Reader, runReader )
+import Control.Monad         ( (<=<), filterM )
+import Control.Monad.Reader
+  ( MonadReader(..), asks, ReaderT, runReaderT )
+import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
 
-import qualified Data.Map      as Map
+import qualified Data.HashMap.Strict as HMap
+import qualified Data.Map as Map
 import           Data.Maybe
 import           Data.Semigroup       ( Semigroup(..) )          -- for ghc 8.0
 import           Data.Void            ( Void )
@@ -31,54 +36,71 @@ import           Agda.Syntax.Common        as Common
 import           Agda.Syntax.Concrete                ( FieldAssignment'(..) )
 import qualified Agda.Syntax.Concrete.Name as C
 import           Agda.Syntax.Info                    ( ModuleInfo(..) )
+import qualified Agda.Syntax.Internal      as I
 import           Agda.Syntax.Literal
 import qualified Agda.Syntax.Position      as P
 import           Agda.Syntax.Position                ( Range, HasRange, getRange, noRange )
-import           Agda.Syntax.Scope.Base              ( AbstractName(..), ResolvedName(..), exactConName )
+import           Agda.Syntax.Scope.Base
+  ( AbstractName(..), AnonymousNumber(..), IsAnonymous(..)
+  , ResolvedName(..), exactConName
+  )
 
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
+import qualified Agda.TypeChecking.Monad as TCM
 
 import           Agda.Utils.FileName
 import           Agda.Utils.Function
 import           Agda.Utils.Functor
+import           Agda.Utils.Impossible
 import           Agda.Utils.List                     ( initLast1 )
 import           Agda.Utils.List1                    ( List1 )
 import qualified Agda.Utils.List1          as List1
 import           Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict   as Strict
+import           Agda.Utils.Monad
 import           Agda.Utils.Pretty
 import           Agda.Utils.Singleton
+
+-- | Highlighting levels.
+
+data Level
+  = Full
+    -- ^ Full highlighting. Should only be used after typechecking has
+    --   completed successfully.
+  | Partial
+    -- ^ Highlighting without disambiguation of overloaded
+    --   constructors.
 
 -- Entry point:
 -- | Create highlighting info for some piece of syntax.
 runHighlighter ::
   Hilite a =>
-  SourceToModule -> AbsolutePath -> NameKinds -> a ->
-  HighlightingInfoBuilder
-runHighlighter modMap fileName kinds x =
-  runReader (hilite x) $
+  SourceToModule -> NameKinds -> Level -> a ->
+  TCM HighlightingInfoBuilder
+runHighlighter modMap kinds level x =
+  runReaderT (hilite x) $
   HiliteEnv
     { hleNameKinds = kinds
     , hleModMap    = modMap
-    , hleFileName  = fileName
+    , hleLevel     = level
     }
 
 -- | Environment of the highlighter.
 data HiliteEnv = HiliteEnv
   { hleNameKinds :: NameKinds
-      -- ^ Function mapping qualified names to their kind.
+      -- ^ A partial function mapping names to 'NameKind's.
   , hleModMap    :: SourceToModule
       -- ^ Maps source file paths to module names.
-  , hleFileName  :: AbsolutePath
-      -- ^ The file name of the current module. Used for consistency checking.
+  , hleLevel :: Level
+      -- ^ The highlighting level.
   }
 
--- | A function mapping names to the kind of name they stand for.
+-- | A partial function mapping names to 'NameKind's.
 type NameKinds = A.QName -> Maybe NameKind
 
 -- | Highlighting monad.
-type HiliteM = Reader HiliteEnv
+type HiliteM = ReaderT HiliteEnv TCM
 
 -- | Highlighter.
 
@@ -218,7 +240,7 @@ instance Hilite A.Declaration where
       A.Pragma _r pragma                     -> hl pragma
     where
     hl      a = hilite a
-    hlField x = hiliteField (concreteQualifier x) (concreteBase x) (Just $ bindingSite x)
+    hlField x = hiliteAName x True (nameAsp Field)
 
 instance Hilite A.Pragma where
   hilite = \case
@@ -373,7 +395,8 @@ instance Hilite A.BindName where
   hilite (A.BindName x) = hiliteBound x
 
 instance Hilite a => Hilite (FieldAssignment' a) where
-  hilite (FieldAssignment x e) = hiliteField [] x Nothing <> hilite e
+  hilite (FieldAssignment x e) =
+    hiliteCName [] x noRange Nothing (nameAsp Field) <> hilite e
 
 instance (Hilite a, HasRange n) => Hilite (Named n a) where
   hilite (Named mn e)
@@ -515,7 +538,9 @@ hiliteAmbiguousQName mkind (A.AmbQ qs) = do
 
 hiliteBound :: A.Name -> Hiliter
 hiliteBound x =
-  hiliteCName [] (A.nameConcrete x) noRange (Just $ A.nameBindingSite x) $ nameAsp Bound
+  hiliteCName [] (A.nameConcrete x) noRange
+    (Just (A.nameBindingSite x, PrivateAccess UserWritten, Nothing))
+    (nameAsp Bound)
 
 hiliteInductiveConstructor :: A.AmbiguousQName -> Hiliter
 hiliteInductiveConstructor = hiliteAmbiguousQName $ Just $ Constructor Inductive
@@ -526,86 +551,145 @@ hilitePatternSynonym = hiliteInductiveConstructor  -- There are no coinductive p
 hiliteProjection :: A.AmbiguousQName -> Hiliter
 hiliteProjection = hiliteAmbiguousQName (Just Field)
 
-hiliteField :: [C.Name] -> C.Name -> Maybe Range -> Hiliter
-hiliteField xs x bindingR = hiliteCName xs x noRange bindingR $ nameAsp Field
-
 -- For top level modules, we set the binding site to the beginning of the file
 -- so that clicking on an imported module will jump to the beginning of the file
 -- which defines this module.
 hiliteModule :: (Bool, A.ModuleName) -> Hiliter
 hiliteModule (isTopLevelModule, A.MName []) = mempty
-hiliteModule (isTopLevelModule, A.MName (n:ns)) =
+hiliteModule (isTopLevelModule, A.MName (n:ns)) = do
+  access <- accessM m
   hiliteCName
-    (map A.nameConcrete ms)
+    ms
     (A.nameConcrete m)
     noRange
-    mR
+    (mR access)
     (nameAsp Module)
   where
   (ms, m) = initLast1 n ns
-  mR = Just $
-       applyWhen isTopLevelModule P.beginningOfFile $
-       A.nameBindingSite m
+  mR access = Just
+    ( applyWhen isTopLevelModule P.beginningOfFile $
+      A.nameBindingSite m
+    , access
+    , Nothing
+    )
+
+-- | Information about constructors.
+
+data ConstructorInfo
+  = DataConstructor
+    -- ^ The constructor is a data constructor or a pattern synonym.
+  | RecordConstructor A.QName
+    -- ^ The constructor is a record constructor. The name is the
+    -- record type to which the constructor belongs.
+  | Unknown
+    -- ^ None of the choices above are applicable, perhaps because the
+    -- record type of a record constructor could not be obtained.
 
 -- This was Highlighting.Generate.nameToFile:
 -- | Converts names to suitable 'File's.
 hiliteCName
-  :: [C.Name]
+  :: [A.Name]
      -- ^ The name qualifier (may be empty).
   -> C.Name     -- ^ The base name.
   -> Range
      -- ^ The 'Range' of the name in its fixity declaration (if any).
-  -> Maybe Range
-     -- ^ The definition site of the name. The calculated
-     --   meta information is extended with this information, if possible.
+  -> Maybe (Range, Access, Maybe ConstructorInfo)
+     -- ^ The definition site of the name (if any), along with
+     --   information about whether the name was declared as public or
+     --   private, and, if the name is a constructor, some
+     --   'ConstructorInfo'.
   -> (Bool -> Aspects)
      -- ^ Meta information to be associated with the name.
      --   The argument is 'True' iff the name is an operator.
   -> Hiliter
-hiliteCName xs x fr mR asp = do
-  HiliteEnv _ modMap fileName <- ask
+hiliteCName ms x fr mR asp = do
+  fileName <- lift getCurrentPath
   -- We don't care if we get any funny ranges.
-  if all (== Strict.Just fileName) fileNames then pure $
-    frFile modMap <>
-    H.singleton (rToR rs)
-                (aspects { definitionSite = mFilePos modMap })
+  if all (== Strict.Just fileName) fileNames then do
+    defSite <- runMaybeT mFilePos
+    return $
+      frFile defSite <>
+      H.singleton (rToR rs) (aspects { definitionSite = defSite })
    else
-    mempty
+    return mempty
   where
-  aspects       = asp $ C.isOperator x
-  fileNames     = mapMaybe (fmap P.srcFile . P.rStart . getRange) (x : xs)
-  frFile modMap = H.singleton (rToR fr) (aspects { definitionSite = notHere <$> mFilePos modMap })
-  rs            = getRange (x : xs)
+  xs        = map A.nameConcrete ms
+  aspects   = asp $ C.isOperator x
+  fileNames = mapMaybe (fmap P.srcFile . P.rStart . getRange) (x : xs)
+  frFile    = \defSite ->
+                 H.singleton (rToR fr)
+                   (aspects { definitionSite = notHere <$> defSite })
+  rs        = getRange (x : xs)
 
   -- The fixity declaration should not get a symbolic anchor.
   notHere d = d { defSiteHere = False }
 
-  mFilePos
-    :: SourceToModule  -- Maps source file paths to module names.
-    -> Maybe DefinitionSite
-  mFilePos modMap = do
-    r <- mR
-    P.Pn { P.srcFile = Strict.Just f, P.posPos = p } <- P.rStart r
-    mod <- Map.lookup f modMap
+  mFilePos :: MaybeT HiliteM DefinitionSite
+  mFilePos = do
+    (r, access, conInfo) <- MaybeT $ return mR
+    P.Pn { P.srcFile = Strict.Just f, P.posPos = p } <-
+      MaybeT $ return $ P.rStart r
+    modMap <- lift $ asks hleModMap
+    mod <- MaybeT $ return $ Map.lookup f modMap
     -- Andreas, 2017-06-16, Issue #2604: Symbolic anchors.
     -- We drop the file name part from the qualifiers, since
     -- this is contained in the html file name already.
     -- We want to get anchors of the form:
     -- @<a name="TopLevelModule.html#LocalModule.NestedModule.identifier">@
-    let qualifiers = drop (length $ C.moduleNameParts mod) xs
-    -- For bound variables, we do not create symbolic anchors.
-        local = maybe True isLocalAspect $ aspect aspects
+    let qualifiers = drop (length $ C.moduleNameParts mod) ms
+        -- Symbolic anchors are not created for bound variables.
+        local = maybe True isLocalAspect (aspect aspects)
+        -- Symbolic anchors are not created for constructors without
+        -- ConstructorInfo.
+        (con, skipCon) = case conInfo of
+          Nothing                    -> (False, False)
+          Just Unknown               -> (True,  True)
+          Just DataConstructor       -> (True,  False)
+          Just (RecordConstructor _) -> (True,  False)
+    -- Symbolic anchors are not created if one of the "qualifiers"
+    -- is an underscore that does not correspond to an 'Anonymous'
+    -- module.
+    badUnderscore <- lift $ anyM qualifiers $ \n ->
+      and2M (return $ C.isNoName n) (not <$> isAnonymousModuleName n)
+    let -- Finally symbolic anchors are not created for underscores.
+        skip = local || skipCon || badUnderscore || C.isNoName x
+    anchor <-
+      if skip then return Nothing else lift $ do
+        qualifiers <- case access of
+          PrivateAccess _ -> return qualifiers
+          PublicAccess    ->
+            -- Anonymous module names are not included in the anchors
+            -- of public names.
+            filterM (\n -> not <$> isAnonymousModuleName n) qualifiers
+        qualifiers <-
+          concat <$>
+          mapM (\q -> (++ ".") <$> showQualifier q) qualifiers
+        return $ Just $
+          (-- A different name space is used for module names, so
+           -- different symbolic anchors are generated.
+           if isModuleName (aspect aspects)
+           then "{mod}" else "") ++
+          (-- A different name space is used for constructors, which
+           -- can be overloaded.
+           if con then "{con}" else "") ++
+          qualifiers ++
+          (-- For record constructors the prefix ends with the record
+           -- type of the constructor.
+           if con
+           then case conInfo of
+                  Nothing                    -> __IMPOSSIBLE__
+                  Just Unknown               -> __IMPOSSIBLE__
+                  Just DataConstructor       -> ""
+                  Just (RecordConstructor m) ->
+                    prettyShow (A.qnameName m) ++ "."
+           else "") ++
+          prettyShow (C.QName x)
     return $ DefinitionSite
       { defSiteModule = mod
       , defSitePos    = fromIntegral p
         -- Is our current position the definition site?
       , defSiteHere   = r == getRange x
-        -- For bound variables etc. we do not create a symbolic anchor name.
-        -- Also not for names that include anonymous modules,
-        -- otherwise, we do not get unique anchors.
-      , defSiteAnchor = if local || C.isNoName x || any Common.isUnderscore qualifiers
-          then Nothing
-          else Just $ prettyShow $ foldr C.Qual (C.QName x) qualifiers
+      , defSiteAnchor = anchor
       }
 
   -- Is the name a bound variable or similar? If in doubt, yes.
@@ -616,7 +700,7 @@ hiliteCName xs x fr mR asp = do
   isLocal :: NameKind -> Bool
   isLocal = \case
     Bound         -> True
-    Generalizable -> True
+    Generalizable -> False
     Argument      -> True
     Constructor{} -> False
     Datatype      -> False
@@ -627,6 +711,79 @@ hiliteCName xs x fr mR asp = do
     Primitive     -> False
     Record        -> False
     Macro         -> False
+
+  -- Is the thing (known to be) a module name?
+
+  isModuleName :: Maybe Aspect -> Bool
+  isModuleName = \case
+    Just (Name (Just kind) _) -> case kind of
+      Bound         -> False
+      Generalizable -> False
+      Argument      -> False
+      Constructor _ -> False
+      Datatype      -> False
+      Field         -> False
+      Function      -> False
+      Module        -> True
+      Postulate     -> False
+      Primitive     -> False
+      Record        -> False
+      Macro         -> False
+    _ -> __IMPOSSIBLE__
+
+  isAnonymousModuleName :: A.Name -> HiliteM Bool
+  isAnonymousModuleName n = do
+    anon <- isAnonymousM n
+    return $ case anon of
+      Anonymous n  -> True
+      NotAnonymous -> False
+
+  showQualifier :: A.Name -> HiliteM String
+  showQualifier n = do
+    anon <- isAnonymousM n
+    return $ case anon of
+      Anonymous (AnonymousNumber n) -> show n
+      NotAnonymous                  -> prettyShow n
+
+-- | Is some thing known to be a constructor?
+
+isConstructor :: Maybe Aspect -> Bool
+isConstructor = \case
+  Just (Name (Just kind) _) -> case kind of
+    Bound         -> False
+    Generalizable -> False
+    Argument      -> False
+    Constructor _ -> True
+    Datatype      -> False
+    Field         -> False
+    Function      -> False
+    Module        -> False
+    Postulate     -> False
+    Primitive     -> False
+    Record        -> False
+    Macro         -> False
+  _ -> False
+
+-- | Does the name refer to an 'Anonymous' module, and in that case,
+-- what is the module's 'AnonymousNumber'?
+
+isAnonymousM :: A.Name -> HiliteM IsAnonymous
+isAnonymousM n = do
+  anon <- useTC stAnonymousNumbers
+  return $ case HMap.lookup n anon of
+    Nothing -> NotAnonymous
+    Just n  -> Anonymous n
+
+-- | Was the name declared as public or private?
+
+accessM :: A.Name -> HiliteM Access
+accessM n = lift $ do
+  acc <- useTC stAccess
+  return $ case HMap.lookup n acc of
+    Just acc -> acc
+    Nothing  -> PublicAccess
+      -- Names from other modules that the user wrote in the
+      -- current module must be public.
 
 -- This was Highlighting.Generate.nameToFileA:
 -- | A variant of 'hiliteCName' for qualified abstract names.
@@ -640,11 +797,42 @@ hiliteAName
      -- ^ The argument is 'True' iff the name is an operator.
   -> Hiliter
 hiliteAName x include asp = do
-  fileName <- asks hleFileName
-  hiliteCName (concreteQualifier x)
+  fileName <- lift getCurrentPath
+  access   <- accessM (A.qnameName x)
+  let aspects = asp (A.isOperator x)
+      isCon   = isConstructor (aspect aspects)
+  dataOrRecMod <- if not isCon then return Nothing else do
+    level <- asks hleLevel
+    case level of
+      Partial -> return (Just Unknown)
+      Full    -> do
+        info <- lift $ getConstInfo' x
+        case info of
+          -- At the time of writing one can get Left something for
+          -- pattern synonyms. TODO: Can this not happen for record
+          -- constructors? That assumption is made below.
+          Left _ -> do
+            kind <- ($ x) <$> asks hleNameKinds
+            case kind of
+              Just (Constructor _) -> return $ Just DataConstructor
+              _                    ->
+                __IMPOSSIBLE_VERBOSE__ $
+                prettyShow x ++ ": " ++ show kind
+          Right info -> return $ case theDef info of
+            TCM.Constructor
+              { conSrcCon = I.ConHead { I.conDataRecord = dr }
+              , conData   = t
+              } ->
+              case dr of
+                I.IsData     -> Just DataConstructor
+                I.IsRecord _ -> Just (RecordConstructor t)
+            _ -> __IMPOSSIBLE__
+  hiliteCName (qualifier x)
               (concreteBase x)
               (rangeOfFixityDeclaration fileName)
-              (if include then Just $ bindingSite x else Nothing)
+              (if include
+               then Just (bindingSite x, access, dataOrRecMod)
+               else Nothing)
               asp
     <> (notationFile fileName)
   where
@@ -692,8 +880,8 @@ nameAsp = nameAsp' . Just
 concreteBase :: A.QName -> C.Name
 concreteBase = A.nameConcrete . A.qnameName
 
-concreteQualifier :: A.QName -> [C.Name]
-concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
+qualifier :: A.QName -> [A.Name]
+qualifier = A.mnameToList . A.qnameModule
 
 bindingSite :: A.QName -> Range
 bindingSite = A.nameBindingSite . A.qnameName

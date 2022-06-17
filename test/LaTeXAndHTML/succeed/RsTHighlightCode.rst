@@ -19,7 +19,7 @@ Shirou Emiya:
 
 .. raw:: html
    <a id="221" class="Keyword">data</a> <a id="Bool"></a><a id="226" href="RsTHighlightCode.html#226" class="Datatype">Bool</a> <a id="231" class="Symbol">:</a> <a id="233" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="237" class="Keyword">where</a>
-     <a id="Bool.true"></a><a id="248" href="RsTHighlightCode.html#248" class="InductiveConstructor">true</a> <a id="Bool.false"></a><a id="253" href="RsTHighlightCode.html#253" class="InductiveConstructor">false</a> <a id="259" class="Symbol">:</a> <a id="261" href="RsTHighlightCode.html#226" class="Datatype">Bool</a>
+     <a id="{con}Bool.true"></a><a id="248" href="RsTHighlightCode.html#248" class="InductiveConstructor">true</a> <a id="{con}Bool.false"></a><a id="253" href="RsTHighlightCode.html#253" class="InductiveConstructor">false</a> <a id="259" class="Symbol">:</a> <a id="261" href="RsTHighlightCode.html#226" class="Datatype">Bool</a>
 
 Keine:
 
@@ -31,7 +31,7 @@ Keine:
 .. raw:: html
    <a id="388" class="Keyword">record</a> <a id="Colist"></a><a id="395" href="RsTHighlightCode.html#395" class="Record">Colist</a> <a id="402" class="Symbol">(</a><a id="403" href="RsTHighlightCode.html#403" class="Bound">A</a> <a id="405" class="Symbol">:</a> <a id="407" href="Agda.Primitive.html#311" class="Primitive">Set</a><a id="410" class="Symbol">)</a> <a id="412" class="Symbol">:</a> <a id="414" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="418" class="Keyword">where</a>
      <a id="429" class="Keyword">coinductive</a>
-     <a id="446" class="Keyword">constructor</a> <a id="_::_"></a><a id="458" href="RsTHighlightCode.html#458" class="CoinductiveConstructor Operator">_::_</a>
+     <a id="446" class="Keyword">constructor</a> <a id="{con}Colist._::_"></a><a id="458" href="RsTHighlightCode.html#458" class="CoinductiveConstructor Operator">_::_</a>
      <a id="468" class="Keyword">field</a>
        <a id="Colist.cohead"></a><a id="481" href="RsTHighlightCode.html#481" class="Field">cohead</a> <a id="488" class="Symbol">:</a> <a id="490" href="RsTHighlightCode.html#403" class="Bound">A</a>
        <a id="Colist.cotail"></a><a id="499" href="RsTHighlightCode.html#499" class="Field">cotail</a> <a id="506" class="Symbol">:</a> <a id="508" href="RsTHighlightCode.html#395" class="Record">Colist</a> <a id="515" href="RsTHighlightCode.html#403" class="Bound">A</a>
@@ -78,7 +78,7 @@ Marisa:
 
 .. raw:: html
    <a id="1150" class="Keyword">open</a> <a id="1155" class="Keyword">import</a> <a id="1162" href="Agda.Primitive.html" class="Module">Agda.Primitive</a>
-   <a id="1180" class="Keyword">variable</a> <a id="1189" href="RsTHighlightCode.html#1189" class="Generalizable">i</a> <a id="1191" class="Symbol">:</a> <a id="1193" href="Agda.Primitive.html#582" class="Postulate">Level</a>
+   <a id="1180" class="Keyword">variable</a> <a id="i"></a><a id="1189" href="RsTHighlightCode.html#1189" class="Generalizable">i</a> <a id="1191" class="Symbol">:</a> <a id="1193" href="Agda.Primitive.html#582" class="Postulate">Level</a>
 
 Alice:
 

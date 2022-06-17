@@ -75,21 +75,12 @@ import Agda.Utils.List2           ( List2 )
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
-
--- | Highlighting levels.
-
-data Level
-  = Full
-    -- ^ Full highlighting. Should only be used after typechecking has
-    --   completed successfully.
-  | Partial
-    -- ^ Highlighting without disambiguation of overloaded
-    --   constructors.
 
 -- | Highlight a warning.
 --   We do not generate highlighting for unsolved metas and
@@ -147,11 +138,11 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
     -- Note, however, that highlighting for overloaded constructors is
     -- included also in @nameInfo@.
     constructorInfo <- case hlLevel of
-      Full{} -> generateConstructorInfo modMap file kinds decl
+      Full{} -> generateConstructorInfo modMap kinds decl
       _      -> return mempty
 
     -- Main source of scope-checker generated highlighting:
-    let nameInfo = runHighlighter modMap file kinds decl
+    nameInfo <- runHighlighter modMap kinds hlLevel decl
 
     reportSDoc "highlighting.warning" 60 $ TCM.hcat
       [ "current path = "
@@ -324,11 +315,10 @@ instance Collection KName NameKindBuilder
 
 generateConstructorInfo
   :: SourceToModule  -- ^ Maps source file paths to module names.
-  -> AbsolutePath    -- ^ The module to highlight.
   -> NameKinds
   -> A.Declaration
   -> TCM HighlightingInfoBuilder
-generateConstructorInfo modMap file kinds decl = do
+generateConstructorInfo modMap kinds decl = do
 
   -- Get boundaries of current declaration.
   -- @noRange@ should be impossible, but in case of @noRange@
@@ -345,7 +335,7 @@ generateConstructorInfo modMap file kinds decl = do
         constrs = IntMap.elems m2
 
     -- Return suitable syntax highlighting information.
-    return $ foldMap (runHighlighter modMap file kinds) constrs
+    mapM' (runHighlighter modMap kinds Full) constrs
 
 printSyntaxInfo :: Range -> TCM ()
 printSyntaxInfo r = do

@@ -13,16 +13,16 @@
 
 </a><a id="128" class="Markup">\begin{code}</a>
 <a id="141" class="Keyword">data</a> <a id="Bool"></a><a id="146" href="LaTeX-succeed.html#146" class="Datatype">Bool</a> <a id="151" class="Symbol">:</a> <a id="153" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="157" class="Keyword">where</a>
-  <a id="Bool.true"></a><a id="165" href="LaTeX-succeed.html#165" class="InductiveConstructor">true</a>   <a id="172" class="Symbol">:</a> <a id="174" href="LaTeX-succeed.html#146" class="Datatype">Bool</a>
-  <a id="Bool.false"></a><a id="181" href="LaTeX-succeed.html#181" class="InductiveConstructor">false</a>  <a id="188" class="Symbol">:</a> <a id="190" href="LaTeX-succeed.html#146" class="Datatype">Bool</a>
+  <a id="{con}Bool.true"></a><a id="165" href="LaTeX-succeed.html#165" class="InductiveConstructor">true</a>   <a id="172" class="Symbol">:</a> <a id="174" href="LaTeX-succeed.html#146" class="Datatype">Bool</a>
+  <a id="{con}Bool.false"></a><a id="181" href="LaTeX-succeed.html#181" class="InductiveConstructor">false</a>  <a id="188" class="Symbol">:</a> <a id="190" href="LaTeX-succeed.html#146" class="Datatype">Bool</a>
 
 <a id="if_then_else_"></a><a id="196" href="LaTeX-succeed.html#196" class="Function Operator">if_then_else_</a> <a id="210" class="Symbol">:</a> <a id="212" class="Symbol">{</a><a id="213" href="LaTeX-succeed.html#213" class="Bound">A</a> <a id="215" class="Symbol">:</a> <a id="217" href="Agda.Primitive.html#311" class="Primitive">Set</a><a id="220" class="Symbol">}</a> <a id="222" class="Symbol">→</a> <a id="224" href="LaTeX-succeed.html#146" class="Datatype">Bool</a> <a id="229" class="Symbol">→</a> <a id="231" href="LaTeX-succeed.html#213" class="Bound">A</a> <a id="233" class="Symbol">→</a> <a id="235" href="LaTeX-succeed.html#213" class="Bound">A</a> <a id="237" class="Symbol">→</a> <a id="239" href="LaTeX-succeed.html#213" class="Bound">A</a>
 <a id="241" href="LaTeX-succeed.html#196" class="Function Operator">if</a> <a id="244" href="LaTeX-succeed.html#165" class="InductiveConstructor">true</a>   <a id="251" href="LaTeX-succeed.html#196" class="Function Operator">then</a> <a id="256" href="LaTeX-succeed.html#256" class="Bound">t</a> <a id="258" href="LaTeX-succeed.html#196" class="Function Operator">else</a> <a id="263" href="LaTeX-succeed.html#263" class="Bound">f</a> <a id="265" class="Symbol">=</a> <a id="267" href="LaTeX-succeed.html#256" class="Bound">t</a>
 <a id="269" href="LaTeX-succeed.html#196" class="Function Operator">if</a> <a id="272" href="LaTeX-succeed.html#181" class="InductiveConstructor">false</a>  <a id="279" href="LaTeX-succeed.html#196" class="Function Operator">then</a> <a id="284" href="LaTeX-succeed.html#284" class="Bound">t</a> <a id="286" href="LaTeX-succeed.html#196" class="Function Operator">else</a> <a id="291" href="LaTeX-succeed.html#291" class="Bound">f</a> <a id="293" class="Symbol">=</a> <a id="295" href="LaTeX-succeed.html#291" class="Bound">f</a>
 
 <a id="298" class="Keyword">data</a> <a id="ℕ"></a><a id="303" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a> <a id="305" class="Symbol">:</a> <a id="307" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="311" class="Keyword">where</a>
-  <a id="ℕ.zero"></a><a id="319" href="LaTeX-succeed.html#319" class="InductiveConstructor">zero</a>  <a id="325" class="Symbol">:</a> <a id="327" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a>
-  <a id="ℕ.suc"></a><a id="331" href="LaTeX-succeed.html#331" class="InductiveConstructor">suc</a>   <a id="337" class="Symbol">:</a> <a id="339" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a> <a id="341" class="Symbol">→</a> <a id="343" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a>
+  <a id="{con}ℕ.zero"></a><a id="319" href="LaTeX-succeed.html#319" class="InductiveConstructor">zero</a>  <a id="325" class="Symbol">:</a> <a id="327" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a>
+  <a id="{con}ℕ.suc"></a><a id="331" href="LaTeX-succeed.html#331" class="InductiveConstructor">suc</a>   <a id="337" class="Symbol">:</a> <a id="339" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a> <a id="341" class="Symbol">→</a> <a id="343" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a>
 
 <a id="_+_"></a><a id="346" href="LaTeX-succeed.html#346" class="Function Operator">_+_</a> <a id="350" class="Symbol">:</a> <a id="352" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a> <a id="354" class="Symbol">→</a> <a id="356" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a> <a id="358" class="Symbol">→</a> <a id="360" href="LaTeX-succeed.html#303" class="Datatype">ℕ</a>
 <a id="362" href="LaTeX-succeed.html#319" class="InductiveConstructor">zero</a>             <a id="379" href="LaTeX-succeed.html#346" class="Function Operator">+</a> <a id="381" href="LaTeX-succeed.html#381" class="Bound">n</a> <a id="383" class="Symbol">=</a> <a id="385" href="LaTeX-succeed.html#381" class="Bound">n</a>
@@ -53,7 +53,7 @@
 <a id="799" class="Markup">\end{code}</a><a id="809" class="Background">
 
 </a><a id="811" class="Markup">\begin{code}</a>
-<a id="824" class="Keyword">module</a> <a id="M"></a><a id="831" href="LaTeX-succeed.html#831" class="Module">M</a> <a id="833" class="Keyword">where</a>
+<a id="824" class="Keyword">module</a> <a id="{mod}M"></a><a id="831" href="LaTeX-succeed.html#831" class="Module">M</a> <a id="833" class="Keyword">where</a>
   <a id="M.r′"></a><a id="841" href="LaTeX-succeed.html#841" class="Function">r′</a> <a id="844" class="Symbol">:</a> <a id="846" class="Symbol">∀</a> <a id="848" class="Symbol">{</a><a id="849" href="LaTeX-succeed.html#849" class="Bound">A</a> <a id="851" href="LaTeX-succeed.html#851" class="Bound">B</a> <a id="853" class="Symbol">:</a> <a id="855" href="Agda.Primitive.html#311" class="Primitive">Set</a><a id="858" class="Symbol">}</a> <a id="860" class="Symbol">→</a> <a id="862" href="LaTeX-succeed.html#726" class="Record">R′</a> <a id="865" href="LaTeX-succeed.html#849" class="Bound">A</a> <a id="867" href="LaTeX-succeed.html#851" class="Bound">B</a>
   <a id="871" href="LaTeX-succeed.html#841" class="Function">r′</a> <a id="874" class="Symbol">=</a> <a id="876" class="Keyword">record</a>
     <a id="887" class="Symbol">{</a> <a id="889" href="LaTeX-succeed.html#766" class="Field">h</a>  <a id="892" class="Symbol">=</a> <a id="894" href="LaTeX-succeed.html#647" class="Datatype">⊥</a>
@@ -68,7 +68,7 @@
 Andreas, 2018-04-03: The following two modules test the highlighting of projection patterns.
 
 </a><a id="1082" class="Markup">\begin{code}</a>
-<a id="1095" class="Keyword">module</a> <a id="QualifiedProjectionPatterns"></a><a id="1102" href="LaTeX-succeed.html#1102" class="Module">QualifiedProjectionPatterns</a> <a id="1130" class="Keyword">where</a>
+<a id="1095" class="Keyword">module</a> <a id="{mod}QualifiedProjectionPatterns"></a><a id="1102" href="LaTeX-succeed.html#1102" class="Module">QualifiedProjectionPatterns</a> <a id="1130" class="Keyword">where</a>
 
   <a id="QualifiedProjectionPatterns.r"></a><a id="1139" href="LaTeX-succeed.html#1139" class="Function">r</a> <a id="1141" class="Symbol">:</a> <a id="1143" href="LaTeX-succeed.html#669" class="Record">R</a>
   <a id="1147" href="LaTeX-succeed.html#1139" class="Function">r</a> <a id="1149" class="Symbol">.</a><a id="1150" href="LaTeX-succeed.html#696" class="Field">R.f</a> <a id="1154" class="Symbol">=</a> <a id="1156" href="LaTeX-succeed.html#146" class="Datatype">Bool</a>
@@ -81,7 +81,7 @@ Andreas, 2018-04-03: The following two modules test the highlighting of projecti
 <a id="1244" class="Markup">\end{code}</a><a id="1254" class="Background">
 
 </a><a id="1256" class="Markup">\begin{code}</a>
-<a id="1269" class="Keyword">module</a> <a id="UnqualifiedProjectionPatterns"></a><a id="1276" href="LaTeX-succeed.html#1276" class="Module">UnqualifiedProjectionPatterns</a> <a id="1306" class="Keyword">where</a>
+<a id="1269" class="Keyword">module</a> <a id="{mod}UnqualifiedProjectionPatterns"></a><a id="1276" href="LaTeX-succeed.html#1276" class="Module">UnqualifiedProjectionPatterns</a> <a id="1306" class="Keyword">where</a>
   <a id="1314" class="Keyword">open</a> <a id="1319" href="LaTeX-succeed.html#669" class="Module">R</a><a id="1320" class="Symbol">;</a> <a id="1322" class="Keyword">open</a> <a id="1327" href="LaTeX-succeed.html#726" class="Module">R′</a>
 
   <a id="UnqualifiedProjectionPatterns.r₀"></a><a id="1333" href="LaTeX-succeed.html#1333" class="Function">r₀</a> <a id="1336" class="Symbol">:</a> <a id="1338" href="LaTeX-succeed.html#669" class="Record">R</a>

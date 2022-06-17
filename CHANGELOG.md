@@ -185,6 +185,82 @@ Compiler backends
   Note that support for compiling code that uses `--erased-cubical`
   has been added to both backends (see above).
 
+HTML backend
+------------
+
+* "Symbolic identifiers" (HTML identifiers based on the names of Agda
+  identifiers) are now generated differently, and (typically) for more
+  definitions (see [#2735](https://github.com/agda/agda/issues/2735)
+  and [#4653](https://github.com/agda/agda/issues/4653)).
+
+  * Symbolic identifiers are now generated for generalisable
+    variables. Consider the following code:
+    ```agda
+    variable
+      A : Set
+    ```
+    Now one can link to the definition of `A` using a URL ending in
+    `#A`.
+
+  * Symbolic identifiers for module names now start with `{mod}`.
+    Consider the following example:
+    ```agda
+    module _ where
+
+    module M where
+
+    M : Set₁
+    M = Set
+    ```
+    Previously the symbolic identifier was `M` for both the module `M`
+    and the definition `M`, now it is `M` for the definition and
+    `{mod}M` for the module.
+
+  * Symbolic identifiers for constructors and pattern synonyms now
+    start with `{con}`. Here is an example:
+    ```agda
+    record R₁ : Set where
+      constructor c
+
+    record R₂ : Set where
+      constructor c
+    ```
+    Previously the symbolic identifier was `c` for both constructors,
+    now it is `{con}R₁.c` for the first one and `{con}R₂.c` for the
+    second one.
+
+  * Symbolic identifiers are now generated for names in anonymous
+    modules. Consider the following code:
+    ```agda
+    module _ where
+
+    module _ where private
+      postulate
+        A : Set
+
+    _ : Set₁
+    _ = Set
+      where
+      module _ where
+        postulate
+          A : Set
+
+    module _ where
+      postulate
+        A : Set
+    ```
+    Previously no symbolic identifiers were generated for this code,
+    now every occurrence of `A` has a symbolic identifier. The
+    symbolic identifiers for the first two, private definitions of `A`
+    are `1.A` and `2.3.A`, respectively. The number `1` stands for the
+    first anonymous module in the file (this includes unnamed `where`
+    modules and modules declared with `module _`, except for the
+    top-level module), and so on. The symbolic identifier for the
+    public definition of `A` is `A`.
+
+  * If `--only-scope-checking` is used, then one can now get fewer
+    symbolic identifiers than before.
+
 LaTeX backend
 -------------
 

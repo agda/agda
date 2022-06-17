@@ -1,0 +1,71 @@
+<!DOCTYPE HTML>
+<html><head><meta charset="utf-8"><title>Issue4653</title><link rel="stylesheet" href="Agda.css"></head><body><pre class="Agda"><a id="1" class="Keyword">module</a> <a id="8" href="Issue4653.html" class="Module">_</a> <a id="10" class="Keyword">where</a> <a id="16" class="Comment">-- The top-level module does not count.</a>
+
+<a id="57" class="Keyword">module</a> <a id="64" href="Issue4653.html#64" class="Module">_</a> <a id="66" class="Keyword">where</a>
+  <a id="74" class="Keyword">private</a> <a id="82" class="Keyword">postulate</a> <a id="1.A"></a><a id="92" href="Issue4653.html#92" class="Postulate">A</a> <a id="94" class="Symbol">:</a> <a id="96" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="100" class="Comment">-- 1.A</a>
+
+<a id="108" class="Keyword">module</a> <a id="115" href="Issue4653.html#115" class="Module">_</a> <a id="117" class="Keyword">where</a>
+  <a id="125" class="Keyword">private</a> <a id="133" class="Keyword">postulate</a> <a id="2.A"></a><a id="143" href="Issue4653.html#143" class="Postulate">A</a> <a id="145" class="Symbol">:</a> <a id="147" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="151" class="Comment">-- 2.A</a>
+
+<a id="159" class="Keyword">module</a> <a id="{mod}M"></a><a id="166" href="Issue4653.html#166" class="Module">M</a> <a id="168" class="Symbol">(</a><a id="169" href="Issue4653.html#169" class="Bound">_</a> <a id="171" class="Symbol">:</a> <a id="173" href="Agda.Primitive.html#311" class="Primitive">Set₁</a><a id="177" class="Symbol">)</a> <a id="179" class="Keyword">where</a> <a id="185" class="Comment">-- {mod}M</a>
+  <a id="197" class="Keyword">module</a> <a id="204" href="Issue4653.html#204" class="Module">_</a> <a id="206" class="Keyword">where</a>
+    <a id="216" class="Keyword">private</a> <a id="224" class="Keyword">module</a> <a id="{mod}M.3.M₁"></a><a id="231" href="Issue4653.html#231" class="Module">M₁</a> <a id="234" class="Keyword">where</a> <a id="240" class="Comment">-- {mod}M.3.M₁</a>
+    <a id="259" class="Keyword">module</a> <a id="{mod}M.M₂"></a><a id="266" href="Issue4653.html#266" class="Module">M₂</a> <a id="269" class="Keyword">where</a> <a id="275" class="Comment">-- {mod}M.M₂</a>
+      <a id="294" class="Keyword">module</a> <a id="301" href="Issue4653.html#301" class="Module">_</a> <a id="303" class="Keyword">where</a>
+        <a id="317" class="Keyword">private</a> <a id="325" class="Keyword">postulate</a> <a id="M.3.M₂.4.A"></a><a id="335" href="Issue4653.html#335" class="Postulate">A</a> <a id="337" class="Symbol">:</a> <a id="339" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="343" class="Comment">-- M.3.M₂.4.A</a>
+    <a id="361" class="Keyword">private</a> <a id="369" class="Keyword">module</a> <a id="{mod}M.3.M₃"></a><a id="376" href="Issue4653.html#376" class="Module">M₃</a> <a id="379" class="Keyword">where</a> <a id="385" class="Comment">-- {mod}M.3.M₃</a>
+      <a id="406" class="Keyword">module</a> <a id="413" href="Issue4653.html#413" class="Module">_</a> <a id="415" class="Keyword">where</a>
+        <a id="429" class="Keyword">postulate</a> <a id="M.3.M₃.5.A"></a><a id="439" href="Issue4653.html#439" class="Postulate">A</a> <a id="441" class="Symbol">:</a> <a id="443" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="447" class="Comment">-- M.3.M₃.5.A</a>
+  <a id="463" class="Keyword">module</a> <a id="470" href="Issue4653.html#470" class="Module">_</a> <a id="472" class="Keyword">where</a>
+    <a id="482" class="Keyword">module</a> <a id="489" href="Issue4653.html#489" class="Module">_</a> <a id="491" class="Keyword">where</a>
+      <a id="503" class="Keyword">module</a> <a id="{mod}M.M₃"></a><a id="510" href="Issue4653.html#510" class="Module">M₃</a> <a id="513" class="Keyword">where</a> <a id="519" class="Comment">-- {mod}M.M₃</a>
+        <a id="540" class="Keyword">postulate</a> <a id="M.M₃.A"></a><a id="550" href="Issue4653.html#550" class="Postulate">A</a> <a id="552" class="Symbol">:</a> <a id="554" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="558" class="Comment">-- M.M₃.A</a>
+
+<a id="B"></a><a id="569" href="Issue4653.html#569" class="Function">B</a> <a id="571" class="Symbol">:</a> <a id="573" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="577" class="Comment">-- B</a>
+<a id="582" href="Issue4653.html#569" class="Function">B</a> <a id="584" class="Symbol">=</a> <a id="586" href="Issue4653.html#608" class="Postulate">A</a>
+  <a id="590" class="Keyword">where</a>
+  <a id="598" class="Keyword">postulate</a> <a id="8.A"></a><a id="608" href="Issue4653.html#608" class="Postulate">A</a> <a id="610" class="Symbol">:</a> <a id="612" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="616" class="Comment">-- 8.A</a>
+
+<a id="C"></a><a id="624" href="Issue4653.html#624" class="Function">C</a> <a id="626" class="Symbol">:</a> <a id="628" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="632" class="Comment">-- C</a>
+<a id="637" href="Issue4653.html#624" class="Function">C</a> <a id="639" class="Symbol">=</a> <a id="641" href="Issue4653.html#682" class="Postulate">A</a>
+  <a id="645" class="Keyword">module</a> <a id="{mod}C"></a><a id="652" href="Issue4653.html#652" class="Module">C</a> <a id="654" class="Keyword">where</a> <a id="660" class="Comment">-- {mod}C</a>
+  <a id="672" class="Keyword">postulate</a> <a id="C.A"></a><a id="682" href="Issue4653.html#682" class="Postulate">A</a> <a id="684" class="Symbol">:</a> <a id="686" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="690" class="Comment">-- C.A</a>
+
+<a id="698" class="Keyword">private</a> <a id="706" class="Keyword">module</a> <a id="713" href="Issue4653.html#713" class="Module">_</a> <a id="715" class="Keyword">where</a>
+  <a id="723" class="Keyword">postulate</a> <a id="9.A′"></a><a id="733" href="Issue4653.html#733" class="Postulate">A′</a> <a id="736" class="Symbol">:</a> <a id="738" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="742" class="Comment">-- 9.A′</a>
+
+<a id="751" class="Keyword">module</a> <a id="758" href="Issue4653.html#758" class="Module">_</a> <a id="760" class="Keyword">where</a>
+  <a id="768" class="Keyword">variable</a> <a id="A"></a><a id="777" href="Issue4653.html#777" class="Generalizable">A</a> <a id="779" class="Symbol">:</a> <a id="781" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="785" class="Comment">-- A</a>
+
+<a id="791" class="Keyword">module</a> <a id="798" href="Issue4653.html#798" class="Module">_</a> <a id="800" class="Keyword">where</a> <a id="806" class="Keyword">private</a>
+  <a id="816" class="Keyword">record</a> <a id="11.R"></a><a id="823" href="Issue4653.html#823" class="Record">R</a> <a id="825" class="Symbol">:</a> <a id="827" href="Agda.Primitive.html#311" class="Primitive">Set₁</a> <a id="832" class="Keyword">where</a> <a id="838" class="Comment">-- 11.R</a>
+    <a id="850" class="Keyword">constructor</a> <a id="{con}11.R.c"></a><a id="862" href="Issue4653.html#862" class="InductiveConstructor">c</a> <a id="864" class="Comment">-- {con}11.R.c</a>
+    <a id="883" class="Keyword">field</a>
+      <a id="11.R.c"></a><a id="895" href="Issue4653.html#895" class="Field">c</a> <a id="897" class="Symbol">:</a> <a id="899" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="903" class="Comment">-- 11.R.c</a>
+
+<a id="914" class="Keyword">private</a> <a id="922" class="Keyword">module</a> <a id="929" href="Issue4653.html#929" class="Module">_</a> <a id="931" class="Keyword">where</a>
+  <a id="939" class="Keyword">record</a> <a id="12.R"></a><a id="946" href="Issue4653.html#946" class="Record">R</a> <a id="948" class="Symbol">:</a> <a id="950" href="Agda.Primitive.html#311" class="Primitive">Set₁</a> <a id="955" class="Keyword">where</a> <a id="961" class="Comment">-- 12.R</a>
+    <a id="973" class="Keyword">constructor</a> <a id="{con}12.R.c"></a><a id="985" href="Issue4653.html#985" class="InductiveConstructor">c</a> <a id="987" class="Comment">-- {con}12.R.c</a>
+    <a id="1006" class="Keyword">field</a>
+      <a id="12.R.c"></a><a id="1018" href="Issue4653.html#1018" class="Field">c</a> <a id="1020" class="Symbol">:</a> <a id="1022" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1026" class="Comment">-- 12.R.c</a>
+
+    <a id="12.R.D"></a><a id="1041" href="Issue4653.html#1041" class="Function">D</a> <a id="1043" class="Symbol">:</a> <a id="1045" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1049" class="Comment">-- 12.R.D</a>
+    <a id="1063" href="Issue4653.html#1041" class="Function">D</a> <a id="1065" class="Symbol">=</a> <a id="1067" href="Issue4653.html#1018" class="Field">c</a>
+
+  <a id="1072" class="Keyword">record</a> <a id="12.R′"></a><a id="1079" href="Issue4653.html#1079" class="Record">R′</a> <a id="1082" class="Symbol">:</a> <a id="1084" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1088" class="Keyword">where</a> <a id="1094" class="Comment">-- 12.R′</a>
+    <a id="1107" class="Keyword">constructor</a> <a id="{con}12.R′.c"></a><a id="1119" href="Issue4653.html#1119" class="InductiveConstructor">c</a> <a id="1121" class="Comment">-- {con}12.R′.c</a>
+
+<a id="1138" class="Keyword">module</a> <a id="1145" href="Issue4653.html#1145" class="Module">_</a> <a id="1147" class="Keyword">where</a> <a id="1153" class="Keyword">private</a>
+  <a id="1163" class="Keyword">data</a> <a id="13.D"></a><a id="1168" href="Issue4653.html#1168" class="Datatype">D</a> <a id="1170" class="Symbol">:</a> <a id="1172" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1176" class="Keyword">where</a> <a id="1182" class="Comment">-- 13.D</a>
+    <a id="{con}13.D.c"></a><a id="1194" href="Issue4653.html#1194" class="InductiveConstructor">c</a> <a id="1196" class="Symbol">:</a> <a id="1198" href="Issue4653.html#1168" class="Datatype">D</a> <a id="1200" class="Comment">-- {con}13.D.c</a>
+
+<a id="1216" class="Keyword">private</a> <a id="1224" class="Keyword">module</a> <a id="1231" href="Issue4653.html#1231" class="Module">_</a> <a id="1233" class="Keyword">where</a>
+  <a id="1241" class="Keyword">data</a> <a id="14.D"></a><a id="1246" href="Issue4653.html#1246" class="Datatype">D</a> <a id="1248" class="Symbol">:</a> <a id="1250" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1254" class="Keyword">where</a> <a id="1260" class="Comment">-- 14.D</a>
+    <a id="{con}14.D.c"></a><a id="1272" href="Issue4653.html#1272" class="InductiveConstructor">c</a> <a id="1274" class="Symbol">:</a> <a id="1276" href="Issue4653.html#1246" class="Datatype">D</a> <a id="1278" class="Comment">-- {con}14.D.c</a>
+
+<a id="1294" class="Keyword">module</a> <a id="1301" href="Issue4653.html#1301" class="Module">_</a> <a id="1303" class="Keyword">where</a>
+  <a id="1311" class="Keyword">data</a> <a id="D′"></a><a id="1316" href="Issue4653.html#1316" class="Datatype">D′</a> <a id="1319" class="Symbol">:</a> <a id="1321" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1325" class="Keyword">where</a> <a id="1331" class="Comment">-- D′</a>
+    <a id="{con}D′.c"></a><a id="1341" href="Issue4653.html#1341" class="InductiveConstructor">c</a> <a id="1343" class="Symbol">:</a> <a id="1345" href="Issue4653.html#1316" class="Datatype">D′</a> <a id="1348" class="Comment">-- {con}D′.c</a>
+
+<a id="1362" class="Keyword">pattern</a> <a id="{con}c′"></a><a id="1370" href="Issue4653.html#1370" class="InductiveConstructor">c′</a> <a id="1373" class="Symbol">=</a> <a id="1375" class="InductiveConstructor">c</a> <a id="1377" class="Comment">-- {con}c′</a>
+</pre></body></html>

@@ -502,6 +502,27 @@ instance Ord AbstractModule where
 lensAmodName :: Lens' A.ModuleName AbstractModule
 lensAmodName f am = f (amodName am) <&> \ m -> am { amodName = m }
 
+-- | The sequential number in the file (starting from 1) for
+-- 'Anonymous' modules.
+
+newtype AnonymousNumber = AnonymousNumber Nat
+  deriving (Num, Enum, Data, Show, Generic)
+
+instance NFData AnonymousNumber where
+  rnf = (`seq` ())
+
+-- | Is the given module an anonymous module (either a module that is
+-- not the top-level module, declared by code of the form @module _ Γ
+-- where@, or an unnamed where module)?
+
+data IsAnonymous
+  = Anonymous !AnonymousNumber
+  | NotAnonymous
+  deriving (Data, Show, Generic)
+
+instance NFData IsAnonymous where
+  rnf (Anonymous _) = ()
+  rnf NotAnonymous  = ()
 
 data ResolvedName
   = -- | Local variable bound by λ, Π, module telescope, pattern, @let@.

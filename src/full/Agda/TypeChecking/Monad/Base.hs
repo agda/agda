@@ -193,6 +193,13 @@ data PreScopeState = PreScopeState
     -- ^ @{-\# FOREIGN \#-}@ code that should be included in the compiled output.
     -- Does not include code for imported modules.
   , stPreFreshInteractionId :: !InteractionId
+  , stPreAnonymousNumbers :: !(HashMap A.Name AnonymousNumber)
+    -- ^ All 'Anonymous' module names (only the last component) from
+    -- the current module. The names are numbered consecutively,
+    -- starting from 1.
+  , stPreAccess :: !(HashMap A.Name Access)
+    -- ^ Information about whether names in the current module were
+    -- declared as private or public.
   , stPreImportedUserWarnings :: !(Map A.QName Text)
     -- ^ Imported @UserWarning@s, not to be stored in the @Interface@
   , stPreLocalUserWarnings    :: !(Map A.QName Text)
@@ -395,6 +402,8 @@ initPreScopeState = PreScopeState
   , stPreImportedInstanceDefs = Map.empty
   , stPreForeignCode          = Map.empty
   , stPreFreshInteractionId   = 0
+  , stPreAnonymousNumbers     = HMap.empty
+  , stPreAccess               = HMap.empty
   , stPreImportedUserWarnings = Map.empty
   , stPreLocalUserWarnings    = Map.empty
   , stPreWarningOnImport      = empty
@@ -517,6 +526,16 @@ stFreshInteractionId :: Lens' InteractionId TCState
 stFreshInteractionId f s =
   f (stPreFreshInteractionId (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreFreshInteractionId = x}}
+
+stAnonymousNumbers :: Lens' (HashMap A.Name AnonymousNumber) TCState
+stAnonymousNumbers f s =
+  f (stPreAnonymousNumbers (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreAnonymousNumbers = x}}
+
+stAccess :: Lens' (HashMap A.Name Access) TCState
+stAccess f s =
+  f (stPreAccess (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreAccess = x}}
 
 stImportedUserWarnings :: Lens' (Map A.QName Text) TCState
 stImportedUserWarnings f s =
@@ -2906,6 +2925,11 @@ ifTopLevelAndHighlightingLevelIs l =
 data TCEnv =
     TCEnv { envContext             :: Context
           , envLetBindings         :: LetBindings
+          , envAccess              :: !Access
+            -- ^ Is the current (possibly local) module private or
+            -- public (as seen from the top-level module)?
+            --
+            -- This field is only updated by the scope checker.
           , envCurrentModule       :: ModuleName
           , envCurrentPath         :: Maybe AbsolutePath
             -- ^ The path to the file that is currently being
@@ -3056,6 +3080,7 @@ data TCEnv =
 initEnv :: TCEnv
 initEnv = TCEnv { envContext             = []
                 , envLetBindings         = Map.empty
+                , envAccess              = PublicAccess
                 , envCurrentModule       = noModuleName
                 , envCurrentPath         = Nothing
                 , envAnonymousModules    = []
@@ -3149,6 +3174,9 @@ eContext f e = f (envContext e) <&> \ x -> e { envContext = x }
 
 eLetBindings :: Lens' LetBindings TCEnv
 eLetBindings f e = f (envLetBindings e) <&> \ x -> e { envLetBindings = x }
+
+eAccess :: Lens' Access TCEnv
+eAccess f e = f (envAccess e) <&> \ x -> e { envAccess = x }
 
 eCurrentModule :: Lens' ModuleName TCEnv
 eCurrentModule f e = f (envCurrentModule e) <&> \ x -> e { envCurrentModule = x }

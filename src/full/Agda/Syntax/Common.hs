@@ -2231,6 +2231,12 @@ data Access
   | PublicAccess
     deriving (Data, Show, Eq, Ord)
 
+-- | 'PublicAccess' is a unit element. If two applications of
+-- 'PrivateAccess' are combined, then the left-most one is preserved.
+instance Semigroup Access where
+  PublicAccess <> a = a
+  a            <> _ = a
+
 instance Pretty Access where
   pretty = text . \case
     PrivateAccess _ -> "private"
