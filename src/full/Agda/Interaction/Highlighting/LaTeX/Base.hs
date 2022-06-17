@@ -26,6 +26,7 @@ import Data.Foldable (toList)
 import Data.Semigroup (Semigroup(..))
 #endif
 
+import Control.Exception.Base (IOException, try)
 import Control.Monad (forM_, mapM_, unless, when)
 import Control.Monad.Trans.Reader as R ( ReaderT(runReaderT))
 import Control.Monad.RWS.Strict
@@ -68,7 +69,7 @@ import Agda.Syntax.Position (startPos)
 
 import Agda.Interaction.Highlighting.Precise hiding (toList)
 
-import Agda.TypeChecking.Monad (Interface(..))
+import Agda.TypeChecking.Monad (Interface(..)) --, reportSLn)
 
 import Agda.Utils.FileName (AbsolutePath)
 import Agda.Utils.Function (applyWhen)
@@ -719,13 +720,19 @@ getTextWidthEstimator _countClusters =
 prepareCommonAssets :: (MonadLogLaTeX m, MonadIO m) => FilePath -> m ()
 prepareCommonAssets dir = do
   liftIO $ createDirectoryIfMissing True dir
-  (code, _, _) <-
-    liftIO $
-      readProcessWithExitCode
+  result <- liftIO $ try $
+      readProcess
         "kpsewhich"
         ["--path=" ++ dir, defaultStyFile]
         ""
-  when (code /= ExitSuccess) $ do
+  case result of
+   Right _ -> return ()
+   Left (e :: IOException) -> do
+    -- -- we are lacking MonadDebug here, so no debug printing via reportSLn
+    -- reportSLn "compile.latex.sty" 70 $ unlines
+    --   [ unwords [ "Searching for", defaultStyFile, "in", dir, "returns:" ]
+    --   , show e
+    --   ]
     logLaTeX $ LogMessage FileSystem
       (T.pack $ unwords [defaultStyFile, "was not found. Copying a default version of", defaultStyFile, "into", dir])
       []
