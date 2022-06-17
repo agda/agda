@@ -227,11 +227,6 @@ jobs:
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" internal-tests
       #    11s (2022-06-17)
 
-    - name: "Suite of interaction tests"
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
-      # 2m 39s (2022-06-17)
-      # This test has erratic outages (#5619), so we place it late in the queue.
-
     - name: "Benchmark"
       run: |
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
@@ -301,7 +296,7 @@ jobs:
   # Step 2c: testing the cubical library and the LaTeX/HTML backend
   ###########################################################################
 
-  cubical-latex-html:
+  cubical-interaction-latex-html:
     needs: build
 
     runs-on: ${{ needs.build.outputs.os }}
@@ -347,6 +342,11 @@ jobs:
 
     - name: "Testing the Emacs mode"
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
+
+    - name: "Suite of interaction tests"
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
+      # 2m 39s (2022-06-17)
+      # This test has erratic outages (#5619), so we place it late in the queue.
 
     # (Liang-Ting Chen, 2022-01-02): For testing breaking changes where
     # libraries need to be updated, cubical library test is moved to the end of
