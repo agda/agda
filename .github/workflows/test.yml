@@ -214,7 +214,7 @@ jobs:
     - name: Internal test suite
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" internal-tests
     - name: Suite of interaction tests
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" DONT_RUN_LATEX=Y interaction
     - name: Benchmark
       run: |
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
