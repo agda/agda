@@ -2,6 +2,9 @@ resolver: lts-18.28
 compiler: ghc-8.10.7
 compiler-check: match-exact
 
+extra-deps:
+- vector-hashtables-0.1.1.1
+
 # Local packages, usually specified by relative directory name
 packages:
 - '.'

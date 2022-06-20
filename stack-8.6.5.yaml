@@ -9,12 +9,14 @@ extra-deps:
 - data-hash-0.2.0.1
 - equivalence-0.3.4
 - geniplate-mirror-0.7.6
+- primitive-0.7.4.0
 - random-1.2.0
 - regex-base-0.94.0.0
 - regex-tdfa-1.3.1.0
 - splitmix-0.1.0.3
 - uuid-types-1.0.3
 - text-icu-0.7.1.0
+- vector-hashtables-0.1.1.1
 
 # Local packages, usually specified by relative directory name
 packages:

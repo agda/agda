@@ -2,8 +2,6 @@
 -- | Hash tables.
 ------------------------------------------------------------------------
 
-{-# LANGUAGE CPP #-}
-
 module Agda.Utils.HashTable
   ( HashTable
   , empty
@@ -15,7 +13,8 @@ module Agda.Utils.HashTable
 import Prelude hiding (lookup)
 
 import Data.Hashable
-import qualified Data.HashTable.IO as H
+import qualified Data.Vector.Hashtables as H
+import qualified Data.Vector.Mutable as VM
 
 -- | Hash tables.
 
@@ -27,19 +26,18 @@ import qualified Data.HashTable.IO as H
 -- Data.Hashtable are much slower. However, other (also possibly
 -- outdated) testing suggests that Data.HashTable.IO.CuckooHashTable
 -- is quite a bit faster than Data.HashTable.IO.BasicHashTable for
--- 64-bit Windows.
+-- 64-bit Windows. Some more recent, also limited, testing suggests
+-- that the following hash table implementation from
+-- Data.Vector.Hashtables is quite a bit faster than
+-- Data.HashTable.IO.BasicHashTable (see issue #5966).
 
-newtype HashTable k v = HashTable
-#if defined(mingw32_HOST_OS) && defined(x86_64_HOST_ARCH)
-  (H.CuckooHashTable k v)
-#else
-  (H.BasicHashTable k v)
-#endif
+newtype HashTable k v =
+  HashTable (H.Dictionary (H.PrimState IO) VM.MVector k VM.MVector v)
 
 -- | An empty hash table.
 
 empty :: IO (HashTable k v)
-empty = HashTable <$> H.new
+empty = HashTable <$> H.initialize 0
 
 -- | Inserts the key and the corresponding value into the hash table.
 

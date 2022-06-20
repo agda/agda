@@ -4,9 +4,11 @@ compiler-check: match-exact
 
 extra-deps:
 - QuickCheck-2.14.2
+- primitive-0.7.4.0
 - random-1.2.0
 - splitmix-0.1.0.3
 - text-icu-0.7.1.0
+- vector-hashtables-0.1.1.1
 
 # Local packages, usually specified by relative directory name
 packages:
