@@ -4681,9 +4681,19 @@ infix 4 `setTCLens`
 setTCLens :: MonadTCState m => Lens' a TCState -> a -> m ()
 setTCLens l = modifyTC . set l
 
+-- | Overwrite the part of the 'TCState' focused on by the lens
+-- (strictly).
+setTCLens' :: MonadTCState m => Lens' a TCState -> a -> m ()
+setTCLens' l = modifyTC' . set l
+
 -- | Modify the part of the 'TCState' focused on by the lens.
 modifyTCLens :: MonadTCState m => Lens' a TCState -> (a -> a) -> m ()
 modifyTCLens l = modifyTC . over l
+
+-- | Modify the part of the 'TCState' focused on by the lens
+-- (strictly).
+modifyTCLens' :: MonadTCState m => Lens' a TCState -> (a -> a) -> m ()
+modifyTCLens' l = modifyTC' . over l
 
 -- | Modify a part of the state monadically.
 modifyTCLensM :: MonadTCState m => Lens' a TCState -> (a -> m a) -> m ()
