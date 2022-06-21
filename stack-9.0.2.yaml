@@ -2,6 +2,10 @@ resolver: lts-19.10
 compiler: ghc-9.0.2
 compiler-check: match-exact
 
+extra-deps:
+- hashable-1.4.0.2
+- hashtables-1.3
+
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
