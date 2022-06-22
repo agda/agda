@@ -424,11 +424,9 @@ agda2-include-dirs is not bound." :warning))
                    (error-message-string err))))
  (agda2-comments-and-paragraphs-setup)
  (force-mode-line-update)
- ;; Protect global value of default-input-method from set-input-method.
- (make-local-variable 'default-input-method)
  ;; Don't take script into account when determining word boundaries
  (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
- (set-input-method "Agda")
+ (activate-input-method "Agda")
  ;; Highlighting etc. is removed when we switch from the Agda mode.
  ;; Use case: When a file M.lagda with a local variables list
  ;; including "mode: latex" is loaded chances are that the Agda mode
