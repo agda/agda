@@ -598,6 +598,7 @@ library
                     Agda.Utils.Graph.AdjacencyMap.Unidirectional
                     Agda.Utils.Graph.TopSort
                     Agda.Utils.Hash
+                    Agda.Utils.HashTable
                     Agda.Utils.Haskell.Syntax
                     Agda.Utils.Impossible
                     Agda.Utils.IndexedList

@@ -42,7 +42,6 @@ import Data.Word
 import Data.ByteString.Lazy    ( ByteString )
 import Data.ByteString.Builder ( byteString, toLazyByteString )
 import qualified Data.ByteString.Lazy as L
-import qualified Data.HashTable.IO as H
 import qualified Data.Map as Map
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
@@ -69,6 +68,7 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.FileName (canonicalizeAbsolutePath)
 import Agda.Utils.Hash
+import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
 import Agda.Utils.Null
 import qualified Agda.Utils.ProfileOptions as Profile
@@ -197,7 +197,7 @@ decode s = do
      else do
 
       st <- St (ar nL) (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-              <$> liftIO H.new
+              <$> liftIO H.empty
               <*> return mf <*> return incs
       (r, st) <- runStateT (runExceptT (value r)) st
       return (Just $ modFile st, r)

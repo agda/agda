@@ -13,7 +13,6 @@ import Data.Array.IArray
 import Data.Word
 import qualified Data.Foldable as Fold
 import Data.Hashable
-import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
 
 import Data.Map (Map)
@@ -49,6 +48,7 @@ import Agda.Utils.BiMap (BiMap)
 import qualified Agda.Utils.BiMap as BiMap
 import qualified Agda.Utils.Empty as Empty
 import Agda.Utils.FileName
+import qualified Agda.Utils.HashTable as H
 import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
