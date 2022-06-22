@@ -17,6 +17,7 @@ import Prelude hiding ((!!), concatMap)
 
 import Control.DeepSeq
 import Control.Monad
+import Control.Monad.State
 import Control.Monad.Trans ( MonadIO(..), lift )
 import Control.Monad.Trans.Reader ( ReaderT(runReaderT), ask )
 
@@ -26,8 +27,10 @@ import Data.Maybe
 import qualified Data.IntMap as IntMap
 import qualified Data.List   as List
 import Data.List.Split (splitWhen, chunksOf)
-import Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as T
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as Set
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text as T
 
 import GHC.Generics (Generic)
 
@@ -40,6 +43,7 @@ import Text.Blaze.Html5
     ( preEscapedToHtml
     , toHtml
     , stringValue
+    , textValue
     , Html
     , (!)
     , Attribute
@@ -60,8 +64,10 @@ import Agda.Syntax.Common
 import qualified Agda.TypeChecking.Monad as TCM
   ( Interface(..)
   )
+import Agda.TypeChecking.Monad.Debug
 
 import Agda.Utils.Function
+import qualified Agda.Utils.Functor as F
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty
 
@@ -140,7 +146,7 @@ data HtmlInputSourceFile = HtmlInputSourceFile
   { _srcFileModuleName :: C.TopLevelModuleName
   , _srcFileType :: FileType
   -- ^ Source file type
-  , _srcFileText :: Text
+  , _srcFileText :: TL.Text
   -- ^ Source text
   , _srcFileHighlightInfo :: HighlightingInfo
   -- ^ Highlighting info
@@ -151,12 +157,20 @@ data HtmlInputSourceFile = HtmlInputSourceFile
 srcFileOfInterface :: C.TopLevelModuleName -> TCM.Interface -> HtmlInputSourceFile
 srcFileOfInterface m i = HtmlInputSourceFile m (TCM.iFileType i) (TCM.iSource i) (TCM.iHighlighting i)
 
+-- | An HTML generation monad transformer.
+--
+-- The state component is used to keep track of all \"symbolic
+-- anchors\" that have been used. If an attempt is made to reuse a
+-- given symbolic anchor, then an internal error is raised.
+
+type HtmlM m a = StateT (HashSet T.Text) m a
+
 -- | Logging during HTML generation
 
 type HtmlLogMessage = String
 type HtmlLogAction m = HtmlLogMessage -> m ()
 
-class MonadLogHtml m where
+class Monad m => MonadLogHtml m where
   logHtml :: HtmlLogAction m
 
 type LogHtmlT m = ReaderT (HtmlLogAction m) m
@@ -169,22 +183,26 @@ instance Monad m => MonadLogHtml (LogHtmlT m) where
 runLogHtmlWith :: Monad m => HtmlLogAction m -> LogHtmlT m a -> m a
 runLogHtmlWith = flip runReaderT
 
-renderSourceFile :: HtmlOptions -> HtmlInputSourceFile -> Text
+renderSourceFile ::
+  MonadDebug m => HtmlOptions -> HtmlInputSourceFile -> HtmlM m TL.Text
 renderSourceFile opts = renderSourcePage
   where
   cssFile = fromMaybe defaultCSSFile (htmlOptCssFile opts)
   highlightOccur = htmlOptHighlightOccurrences opts
   htmlHighlight = htmlOptHighlight opts
   renderSourcePage (HtmlInputSourceFile moduleName fileType sourceCode hinfo) =
-    page cssFile highlightOccur onlyCode moduleName pageContents
+    page cssFile highlightOccur onlyCode moduleName <$> pageContents
     where
       tokens = tokenStream sourceCode hinfo
       onlyCode = highlightOnlyCode htmlHighlight fileType
       pageContents = code onlyCode fileType tokens
 
-defaultPageGen :: (MonadIO m, MonadLogHtml m) => HtmlOptions -> HtmlInputSourceFile -> m ()
+defaultPageGen ::
+  (MonadDebug m, MonadIO m, MonadLogHtml m) =>
+  HtmlOptions -> HtmlInputSourceFile -> m ()
 defaultPageGen opts srcFile@(HtmlInputSourceFile moduleName ft _ _) = do
   logHtml $ render $ "Generating HTML for"  <+> pretty moduleName <+> ((parens (pretty target)) <> ".")
+  html <- evalStateT html Set.empty
   writeRenderedHtml html target
   where
     ext = highlightedFileExt (htmlOptHighlight opts) ft
@@ -220,7 +238,7 @@ modToFile m ext = Network.URI.Encode.encode $ render (pretty m) <.> ext
 
 writeRenderedHtml
   :: MonadIO m
-  => Text       -- ^ Rendered page
+  => TL.Text    -- ^ Rendered page
   -> FilePath   -- ^ Output path.
   -> m ()
 writeRenderedHtml html target = liftIO $ UTF8.writeTextToFile target html
@@ -238,7 +256,7 @@ page :: FilePath              -- ^ URL to the CSS file.
      -> Bool                  -- ^ Whether to reserve literate
      -> C.TopLevelModuleName  -- ^ Module to be highlighted.
      -> Html
-     -> Text
+     -> TL.Text
 page css
      highlightOccurrences
      htmlHighlight
@@ -276,7 +294,7 @@ type TokenInfo =
 -- | Constructs token stream ready to print.
 
 tokenStream
-     :: Text             -- ^ The contents of the module.
+     :: TL.Text          -- ^ The contents of the module.
      -> HighlightingInfo -- ^ Highlighting information.
      -> [TokenInfo]
 tokenStream contents info =
@@ -285,85 +303,101 @@ tokenStream contents info =
             (pos, map (snd . snd) cs, fromMaybe mempty mi)
           [] -> __IMPOSSIBLE__) $
   List.groupBy ((==) `on` fst) $
-  zipWith (\pos c -> (IntMap.lookup pos infoMap, (pos, c))) [1..] (T.unpack contents)
+  zipWith (\pos c -> (IntMap.lookup pos infoMap, (pos, c))) [1..]
+    (TL.unpack contents)
   where
   infoMap = toMap info
 
 -- | Constructs the HTML displaying the code.
 
-code :: Bool     -- ^ Whether to generate non-code contents as-is
-     -> FileType -- ^ Source file type
-     -> [TokenInfo]
-     -> Html
-code onlyCode fileType = mconcat . if onlyCode
+code
+  :: forall m. MonadDebug m
+  => Bool     -- ^ Whether to generate non-code contents as-is
+  -> FileType -- ^ Source file type
+  -> [TokenInfo]
+  -> HtmlM m Html
+code onlyCode fileType = mconcat F.<.> if onlyCode
   then case fileType of
          -- Explicitly written all cases, so people
          -- get compile error when adding new file types
          -- when they forget to modify the code here
-         RstFileType  -> map mkRst . splitByMarkup
-         MdFileType   -> map mkMd . chunksOf 2 . splitByMarkup
-         AgdaFileType -> map mkHtml
+         RstFileType  -> mapM mkRst . splitByMarkup
+         MdFileType   -> mapM mkMd . chunksOf 2 . splitByMarkup
+         AgdaFileType -> mapM mkHtml
          -- Any points for using this option?
-         TexFileType  -> map mkMd . chunksOf 2 . splitByMarkup
-         OrgFileType  -> map mkOrg . splitByMarkup
-  else map mkHtml
+         TexFileType  -> mapM mkMd . chunksOf 2 . splitByMarkup
+         OrgFileType  -> mapM mkOrg . splitByMarkup
+  else mapM mkHtml
   where
   trd (_, _, a) = a
 
   splitByMarkup :: [TokenInfo] -> [[TokenInfo]]
   splitByMarkup = splitWhen $ (== Just Markup) . aspect . trd
 
-  mkHtml :: TokenInfo -> Html
+  mkHtml :: TokenInfo -> HtmlM m Html
   mkHtml (pos, s, mi) =
     -- Andreas, 2017-06-16, issue #2605:
     -- Do not create anchors for whitespace.
-    applyUnless (mi == mempty) (annotate pos mi) $ toHtml s
+    applyUnless (mi == mempty) (annotate pos mi =<<) (return (toHtml s))
 
   -- Proposed in #3373, implemented in #3384
-  mkRst :: [TokenInfo] -> Html
-  mkRst = mconcat . (toHtml rstDelimiter :) . map go
+  mkRst :: [TokenInfo] -> HtmlM m Html
+  mkRst = (mconcat . (toHtml rstDelimiter :)) F.<.> mapM go
     where
       go token@(_, s, mi) = if aspect mi == Just Background
-        then preEscapedToHtml s
+        then return (preEscapedToHtml s)
         else mkHtml token
 
   -- Proposed in #3137, implemented in #3313
   -- Improvement proposed in #3366, implemented in #3367
-  mkMd :: [[TokenInfo]] -> Html
-  mkMd = mconcat . go
+  mkMd :: [[TokenInfo]] -> HtmlM m Html
+  mkMd = mconcat F.<.> go
     where
       work token@(_, s, mi) = case aspect mi of
-        Just Background -> preEscapedToHtml s
+        Just Background -> return (preEscapedToHtml s)
         Just Markup     -> __IMPOSSIBLE__
         _               -> mkHtml token
-      go [a, b] = [ mconcat $ work <$> a
-                  , Html5.pre ! Attr.class_ "Agda" $ mconcat $ work <$> b
-                  ]
-      go [a]    = work <$> a
+      go [a, b] = sequence
+                    [ mconcat <$> mapM work a
+                    , (Html5.pre ! Attr.class_ "Agda") . mconcat <$>
+                      mapM work b
+                    ]
+      go [a]    = mapM work a
       go _      = __IMPOSSIBLE__
 
-  mkOrg :: [TokenInfo] -> Html
-  mkOrg tokens = mconcat $ if containsCode then formatCode else formatNonCode
+  mkOrg :: [TokenInfo] -> HtmlM m Html
+  mkOrg tokens =
+    mconcat <$> if containsCode then formatCode else formatNonCode
     where
       containsCode = any ((/= Just Background) . aspect . trd) tokens
 
       startDelimiter = preEscapedToHtml orgDelimiterStart
       endDelimiter = preEscapedToHtml orgDelimiterEnd
 
-      formatCode = startDelimiter : foldr (\x -> (go x :)) [endDelimiter] tokens
-      formatNonCode = map go tokens
+      formatCode =
+        ([startDelimiter] ++) . (++ [endDelimiter]) <$> formatNonCode
+      formatNonCode = mapM go tokens
 
       go token@(_, s, mi) = if aspect mi == Just Background
-        then preEscapedToHtml s
+        then return (preEscapedToHtml s)
         else mkHtml token
 
-  -- Put anchors that enable referencing that token.
-  -- We put a fail safe numeric anchor (file position) for internal references
-  -- (issue #2756), as well as a heuristic name anchor for external references
-  -- (issue #2604).
-  annotate :: Int -> Aspects -> Html -> Html
-  annotate pos mi =
-    applyWhen hereAnchor (anchorage nameAttributes mempty <>) . anchorage posAttributes
+  -- Inserts anchors (HTML identifiers) that make it possible to refer
+  -- to the given token. Numeric anchors are always inserted, and
+  -- sometimes also symbolic ones, based on the names of Agda
+  -- identifiers.
+  annotate :: Int -> Aspects -> Html -> HtmlM m Html
+  annotate pos mi h = do
+    h <- return $ anchorage posAttributes h
+    if not hereAnchor then return h else
+      case mDefSiteAnchor of
+        Nothing -> __IMPOSSIBLE__
+        Just a  -> do
+          duplicate <- gets (Set.member a)
+          when duplicate $ __IMPOSSIBLE_VERBOSE__ $
+            "Duplicate symbolic anchor: " ++ T.unpack a
+          modify' (Set.insert a)
+          return (anchorage nameAttributes mempty <> h)
     where
     -- Warp an anchor (<A> tag) with the given attributes around some HTML.
     anchorage :: [Attribute] -> Html -> Html
@@ -379,7 +413,7 @@ code onlyCode fileType = mconcat . if onlyCode
 
     -- Named anchor (not reliable, but useful in the general case for outside refs).
     nameAttributes :: [Attribute]
-    nameAttributes = [ Attr.id $ stringValue $ fromMaybe __IMPOSSIBLE__ $ mDefSiteAnchor ]
+    nameAttributes = [ Attr.id $ textValue $ fromMaybe __IMPOSSIBLE__ $ mDefSiteAnchor ]
 
     classes = concat
       [ concatMap noteClasses (note mi)
@@ -418,8 +452,9 @@ code onlyCode fileType = mconcat . if onlyCode
     here            :: Bool
     here            = maybe False defSiteHere mDefinitionSite
 
-    mDefSiteAnchor  :: Maybe String
-    mDefSiteAnchor  = maybe __IMPOSSIBLE__ defSiteAnchor mDefinitionSite
+    mDefSiteAnchor  :: Maybe T.Text
+    mDefSiteAnchor  =
+      maybe __IMPOSSIBLE__ (T.pack F.<.> defSiteAnchor) mDefinitionSite
 
     link (DefinitionSite m defPos _here _aName) = Attr.href $ stringValue $
       -- If the definition site points to the top of a file,
