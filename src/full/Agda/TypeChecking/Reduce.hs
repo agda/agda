@@ -1660,6 +1660,7 @@ instantiateFullExceptForDefinitions =
 instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull' (Builtin t) = Builtin <$> instantiateFull' t
     instantiateFull' (Prim x)   = Prim <$> instantiateFull' x
+    instantiateFull' b@(BuiltinRewriteRelations xs) = pure b
 
 instance InstantiateFull Candidate where
   instantiateFull' (Candidate q u t ov) =

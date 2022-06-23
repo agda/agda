@@ -263,6 +263,7 @@ instance NamesIn a => NamesIn (Builtin a) where
   namesAndMetasIn' sg = \case
     Builtin t -> namesAndMetasIn' sg t
     Prim x    -> namesAndMetasIn' sg x
+    BuiltinRewriteRelations xs -> namesAndMetasIn' sg xs
 
 -- | Note that the 'primFunImplementation' is skipped.
 instance NamesIn PrimFun where

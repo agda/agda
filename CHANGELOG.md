@@ -138,6 +138,28 @@ Library management
 Pragmas and options
 -------------------
 
+* It is now possible to declare several `BUILTIN REWRITE` relations.
+  Example:
+  ```agda
+  {-# OPTIONS --rewriting #-}
+
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.Equality.Rewrite  -- 1st rewrite relation
+
+  postulate
+    R : (A : Set) → A → A → Set
+    A : Set
+    a b c : A
+    foo : R A a b  -- using 2nd rewrite relation
+    bar : b ≡ c    -- using 1st rewrite relation
+
+  {-# BUILTIN REWRITE R #-}  -- 2nd rewrite relation
+  {-# REWRITE foo bar #-}
+
+  test : a ≡ c
+  test = refl
+  ```
+
 * New verbosity `-v debug.time:100` adds time stamps to debugging output.
 
 * Profiling options are now turned on with a new `--profile` flag instead of

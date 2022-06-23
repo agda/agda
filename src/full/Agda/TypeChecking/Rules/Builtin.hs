@@ -844,7 +844,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           t <- tcmt
           (,t) <$> checkExpr e t
         f v t
-        bindBuiltinName s v
+        if | s == builtinRewrite -> bindBuiltinRewriteRelation =<< getQNameFromTerm v
+           | otherwise           -> bindBuiltinName s v
 
 setConstTranspAxiom :: QName -> TCM ()
 setConstTranspAxiom q =
