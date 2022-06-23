@@ -22,7 +22,7 @@ Marisa:
    <a id="304" class="Keyword">variable</a>
      <a id="i"></a><a id="318" href="RsTHighlightCodeAuto.html#318" class="Generalizable">i</a> <a id="320" class="Symbol">:</a> <a id="322" href="Agda.Builtin.Size.html#187" class="Postulate">Size</a>
 
-   <a id="331" class="Comment">-- Alice:</a>
+   <a id="{doc}ℓ"></a><a id="331" class="Comment">-- Alice:</a>
    <a id="344" class="Comment">--    A trial of guts.</a>
 
      <a id="ℓ"></a><a id="373" href="RsTHighlightCodeAuto.html#373" class="Generalizable">ℓ</a> <a id="375" class="Symbol">:</a> <a id="377" href="Agda.Primitive.html#582" class="Postulate">Level</a>

@@ -485,28 +485,33 @@ instance Arbitrary Aspects where
     other      <- arbitrary
     note       <- string
     defSite    <- arbitrary
+    doc        <- arbitrary
     tokenBased <- arbitrary
     return (Aspects { aspect         = aspect
                     , otherAspects   = other
                     , note           = note
                     , definitionSite = defSite
+                    , documentation  = doc
                     , tokenBased     = tokenBased
                     })
     where string = listOfElements "abcdefABCDEF/\\.\"'@()åäö\n"
 
-  shrink (Aspects a o n d t) =
-    [ Aspects a o n d t | a <- shrink a ] ++
-    [ Aspects a o n d t | o <- shrink o ] ++
-    [ Aspects a o n d t | n <- shrink n ] ++
-    [ Aspects a o n d t | d <- shrink d ] ++
-    [ Aspects a o n d t | t <- shrink t ]
+  shrink (Aspects a o n d c t) =
+    [ Aspects a o n d c t | a <- shrink a ] ++
+    [ Aspects a o n d c t | o <- shrink o ] ++
+    [ Aspects a o n d c t | n <- shrink n ] ++
+    [ Aspects a o n d c t | d <- shrink d ] ++
+    [ Aspects a o n d c t | c <- shrink c ] ++
+    [ Aspects a o n d c t | t <- shrink t ]
 
 instance CoArbitrary Aspects where
-  coarbitrary (Aspects aspect otherAspects note defSite tokenBased) =
+  coarbitrary
+    (Aspects aspect otherAspects note defSite doc tokenBased) =
     coarbitrary aspect .
     coarbitrary otherAspects .
     coarbitrary note .
     coarbitrary defSite .
+    coarbitrary doc .
     coarbitrary tokenBased
 
 instance Arbitrary TokenBased where
@@ -520,21 +525,25 @@ instance CoArbitrary TokenBased where
   coarbitrary NotOnlyTokenBased = variant 1
 
 instance Arbitrary DefinitionSite where
-  arbitrary = liftM4 DefinitionSite arbitrary arbitrary arbitrary $ maybeGen string
+  arbitrary =
+    liftM5 DefinitionSite
+      arbitrary arbitrary (maybeGen string) arbitrary arbitrary
     where string = listOfElements "abcdefABCDEF/\\.'åäö"
 
-  shrink (DefinitionSite a b c d) =
-    [ DefinitionSite a b c d | a <- shrink a ] ++
-    [ DefinitionSite a b c d | b <- shrink b ] ++
-    [ DefinitionSite a b c d | c <- shrink c ] ++
-    [ DefinitionSite a b c d | d <- shrink d ]
+  shrink (DefinitionSite a b c d e) =
+    [ DefinitionSite a b c d e | a <- shrink a ] ++
+    [ DefinitionSite a b c d e | b <- shrink b ] ++
+    [ DefinitionSite a b c d e | c <- shrink c ] ++
+    [ DefinitionSite a b c d e | d <- shrink d ] ++
+    [ DefinitionSite a b c d e | e <- shrink e ]
 
 instance CoArbitrary DefinitionSite where
-  coarbitrary (DefinitionSite a b c d) =
+  coarbitrary (DefinitionSite a b c d e) =
     coarbitrary a .
     coarbitrary b .
     coarbitrary c .
-    coarbitrary d
+    coarbitrary d .
+    coarbitrary e
 
 instance Arbitrary RangePair where
   arbitrary            = RangePair <$> arbitrary

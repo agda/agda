@@ -25,7 +25,7 @@
     <a id="_×_.snd"></a><a id="422" href="Issue1062.html#422" class="Field">snd</a> <a id="426" class="Symbol">:</a> <a id="428" href="Issue1062.html#359" class="Bound">B</a>
 <a id="430" class="Keyword">open</a> <a id="435" href="Issue1062.html#352" class="Module Operator">_×_</a>
 
-<a id="440" class="Comment">-- Sized streams via head/tail.</a>
+<a id="{doc}Stream"></a><a id="440" class="Comment">-- Sized streams via head/tail.</a>
 
 <a id="473" class="Keyword">record</a> <a id="Stream"></a><a id="480" href="Issue1062.html#480" class="Record">Stream</a> <a id="487" class="Symbol">{</a><a id="488" href="Issue1062.html#488" class="Bound">i</a> <a id="490" class="Symbol">:</a> <a id="492" href="Issue1062.html#153" class="Postulate">Size</a><a id="496" class="Symbol">}</a> <a id="498" class="Symbol">(</a><a id="499" href="Issue1062.html#499" class="Bound">A</a> <a id="501" class="Symbol">:</a> <a id="503" href="Agda.Primitive.html#311" class="Primitive">Set</a><a id="506" class="Symbol">)</a> <a id="508" class="Symbol">:</a> <a id="510" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="514" class="Keyword">where</a>
   <a id="522" class="Keyword">coinductive</a><a id="533" class="Symbol">;</a> <a id="535" class="Keyword">constructor</a> <a id="{con}Stream._∷_"></a><a id="547" href="Issue1062.html#547" class="CoinductiveConstructor Operator">_∷_</a>
@@ -38,7 +38,7 @@
 <a id="687" href="Issue1062.html#563" class="Field">head</a>  <a id="693" class="Symbol">(</a><a id="694" href="Issue1062.html#694" class="Bound">a</a> <a id="696" href="Issue1062.html#636" class="Function Operator">∷ˢ</a> <a id="699" href="Issue1062.html#699" class="Bound">as</a><a id="701" class="Symbol">)</a> <a id="703" class="Symbol">=</a> <a id="705" href="Issue1062.html#694" class="Bound">a</a>
 <a id="707" href="Issue1062.html#577" class="Field">tail</a>  <a id="713" class="Symbol">(</a><a id="714" href="Issue1062.html#714" class="Bound">a</a> <a id="716" href="Issue1062.html#636" class="Function Operator">∷ˢ</a> <a id="719" href="Issue1062.html#719" class="Bound">as</a><a id="721" class="Symbol">)</a> <a id="723" class="Symbol">=</a> <a id="725" href="Issue1062.html#719" class="Bound">as</a>
 
-<a id="729" class="Comment">-- Streams and lists.</a>
+<a id="{doc}_++ˢ_"></a><a id="729" class="Comment">-- Streams and lists.</a>
 
 <a id="752" class="Comment">-- Prepending a list to a stream.</a>
 
@@ -46,7 +46,7 @@
 <a id="842" href="Issue1062.html#292" class="InductiveConstructor">[]</a>        <a id="852" href="Issue1062.html#787" class="Function Operator">++ˢ</a> <a id="856" href="Issue1062.html#856" class="Bound">s</a> <a id="858" class="Symbol">=</a> <a id="860" href="Issue1062.html#856" class="Bound">s</a>
 <a id="862" class="Symbol">(</a><a id="863" href="Issue1062.html#863" class="Bound">a</a> <a id="865" href="Issue1062.html#306" class="InductiveConstructor Operator">∷</a> <a id="867" href="Issue1062.html#867" class="Bound">as</a><a id="869" class="Symbol">)</a>  <a id="872" href="Issue1062.html#787" class="Function Operator">++ˢ</a> <a id="876" href="Issue1062.html#876" class="Bound">s</a> <a id="878" class="Symbol">=</a> <a id="880" href="Issue1062.html#863" class="Bound">a</a> <a id="882" href="Issue1062.html#636" class="Function Operator">∷ˢ</a> <a id="885" class="Symbol">(</a><a id="886" href="Issue1062.html#867" class="Bound">as</a> <a id="889" href="Issue1062.html#787" class="Function Operator">++ˢ</a> <a id="893" href="Issue1062.html#876" class="Bound">s</a><a id="894" class="Symbol">)</a>
 
-<a id="897" class="Comment">-- Unfold which produces several outputs at one step</a>
+<a id="{doc}List1"></a><a id="897" class="Comment">-- Unfold which produces several outputs at one step</a>
 
 <a id="951" class="Keyword">record</a> <a id="List1"></a><a id="958" href="Issue1062.html#958" class="Record">List1</a> <a id="964" class="Symbol">(</a><a id="965" href="Issue1062.html#965" class="Bound">A</a> <a id="967" class="Symbol">:</a> <a id="969" href="Agda.Primitive.html#311" class="Primitive">Set</a><a id="972" class="Symbol">)</a> <a id="974" class="Symbol">:</a> <a id="976" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="980" class="Keyword">where</a>
   <a id="988" class="Keyword">constructor</a> <a id="{con}List1._∷_"></a><a id="1000" href="Issue1062.html#1000" class="InductiveConstructor Operator">_∷_</a>

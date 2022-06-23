@@ -156,6 +156,9 @@ data Aspects = Aspects
   , definitionSite :: Maybe DefinitionSite
     -- ^ The definition site of the annotated thing, if applicable and
     --   known.
+  , documentation :: Maybe DefinitionSite
+    -- ^ The definition site of the documentation for the annotated
+    -- thing, if applicable and known.
   , tokenBased :: !TokenBased
     -- ^ Is this entry token-based?
   }
@@ -167,15 +170,20 @@ data DefinitionSite = DefinitionSite
   , defSitePos    :: Int
       -- ^ The file position in that module. File positions are
       -- counted from 1.
-  , defSiteHere   :: Bool
-      -- ^ Has this @DefinitionSite@ been created at the defining site of the name?
   , defSiteAnchor :: Maybe String
       -- ^ A pretty name for the HTML linking.
+  , defSiteId     :: !Bool
+      -- ^ Should the 'defSiteAnchor' be turned into an HTML
+      -- identifier? (This field should only be 'True' when this
+      -- 'DefinitionSite' has been created at the definition site.)
+  , defSiteLink   :: !Bool
+      -- ^ Should a link to the 'defSiteAnchor' be generated?
   }
   deriving (Show, Generic)
 
 instance Eq DefinitionSite where
-  DefinitionSite m p _ _ == DefinitionSite m' p' _ _ = m == m' && p == p'
+  DefinitionSite m p _ _ _ == DefinitionSite m' p' _ _ _ =
+    m == m' && p == p'
 
 -- | Is the highlighting \"token-based\", i.e. based only on
 -- information from the lexer?
@@ -184,8 +192,8 @@ data TokenBased = TokenBased | NotOnlyTokenBased
   deriving (Eq, Show)
 
 instance Eq Aspects where
-  Aspects a o _ d t == Aspects a' o' _ d' t' =
-    (a, o, d, t) == (a', o', d', t')
+  Aspects a o _ d doc t == Aspects a' o' _ d' doc' t' =
+    (a, o, d, doc, t) == (a', o', d', doc', t')
 
 -- | A limited kind of syntax highlighting information: a pair
 -- consisting of 'Ranges' and 'Aspects'.
@@ -438,6 +446,7 @@ mergeAspects m1 m2 = Aspects
         | n1 == n2  -> n1
         | otherwise -> addFinalNewLine n1 ++ "----\n" ++ n2
   , definitionSite = (unionMaybeWith (<>) `on` definitionSite) m1 m2
+  , documentation  = (unionMaybeWith (<>) `on` documentation) m1 m2
   , tokenBased     = tokenBased m1 <> tokenBased m2
   }
 
@@ -450,6 +459,7 @@ instance Monoid Aspects where
     , otherAspects   = Set.empty
     , note           = []
     , definitionSite = Nothing
+    , documentation  = Nothing
     , tokenBased     = mempty
     }
   mappend = (<>)
@@ -471,4 +481,5 @@ instance NFData OtherAspect
 instance NFData DefinitionSite
 
 instance NFData Aspects where
-  rnf (Aspects a b c d _) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (Aspects a b c d e _) =
+    rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e

@@ -37,12 +37,15 @@ showAspects skipEmpty modFile (range, aspects)
     ]
   where
   defSite = case definitionSite aspects of
-    Nothing                                -> Nothing
-    Just (DefinitionSite mdl position _ _) -> Just $ object
-      [ "filepath" .=
-          filePath (Map.findWithDefault __IMPOSSIBLE__ mdl modFile)
-      , "position" .= position
-      ]
+    Nothing                                     -> Nothing
+    Just (DefinitionSite mdl position _ _ link) ->
+      if not link
+      then Nothing
+      else Just $ object
+        [ "filepath" .=
+            filePath (Map.findWithDefault __IMPOSSIBLE__ mdl modFile)
+        , "position" .= position
+        ]
 
   noInfo =
     isNothing (aspect aspects) &&

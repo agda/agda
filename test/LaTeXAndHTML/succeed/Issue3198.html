@@ -1,0 +1,96 @@
+<!DOCTYPE HTML>
+<html><head><meta charset="utf-8"><title>Issue3198</title><link rel="stylesheet" href="Agda.css"></head><body><pre class="Agda"><a id="1" class="Comment">-- If a symbolic identifier is generated for a comment, then the</a>
+<a id="66" class="Comment">-- comment starts with the symbol @.</a>
+
+<a id="104" class="Keyword">module</a> <a id="111" href="Issue3198.html" class="Module">Issue3198</a> <a id="121" class="Keyword">where</a>
+
+<a id="{doc}A"></a><a id="128" class="Comment">-- @ A definition.</a>
+
+<a id="148" class="Keyword">postulate</a>
+  <a id="A"></a><a id="160" href="Issue3198.html#160" class="Postulate">A</a> <a id="162" class="Symbol">:</a> <a id="164" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="{doc}B"></a><a id="169" class="Comment">-- @ A private definition.</a>
+
+<a id="197" class="Keyword">private</a> <a id="205" class="Keyword">postulate</a>
+  <a id="B"></a><a id="217" href="Issue3198.html#217" class="Postulate">B</a> <a id="219" class="Symbol">:</a> <a id="221" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="{doc}C"></a><a id="226" class="Comment">-- @ Another definition.</a>
+
+<a id="252" class="Comment">-- With an extra comment.</a>
+
+<a id="279" class="Keyword">postulate</a>
+  <a id="C"></a><a id="291" href="Issue3198.html#291" class="Postulate">C</a> <a id="293" class="Symbol">:</a> <a id="295" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="{doc}D"></a><a id="300" class="Comment">-- @ A data type.</a>
+
+<a id="319" class="Keyword">data</a> <a id="D"></a><a id="324" href="Issue3198.html#324" class="Datatype">D</a> <a id="326" class="Symbol">:</a> <a id="328" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="333" class="Comment">-- There is no symbolic identifier for this comment, because D is</a>
+<a id="399" class="Comment">-- declared above.</a>
+
+<a id="419" class="Keyword">data</a> <a id="424" href="Issue3198.html#324" class="Datatype">D</a> <a id="426" class="Keyword">where</a>
+
+<a id="433" class="Comment">-- There is also no symbolic identifier for this comment, because…</a>
+
+<a id="501" class="Keyword">private</a> <a id="509" class="Comment">-- …the following comment is preceded by another token on the</a>
+        <a id="579" class="Comment">-- same line (and consecutive comments with the same</a>
+        <a id="640" class="Comment">-- indentation are treated as one comment).</a>
+  <a id="686" class="Keyword">postulate</a> <a id="E"></a><a id="696" href="Issue3198.html#696" class="Postulate">E</a> <a id="698" class="Symbol">:</a> <a id="700" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="705" class="Keyword">private</a> <a id="713" class="Comment">-- However, there is a symbolic identifier for the following</a>
+        <a id="782" class="Comment">-- comment,</a>
+
+  <a id="{doc}F"></a><a id="797" class="Comment">-- @ because that comment uses a different indentation.</a>
+
+  <a id="856" class="Keyword">postulate</a> <a id="F"></a><a id="866" href="Issue3198.html#866" class="Postulate">F</a> <a id="868" class="Symbol">:</a> <a id="870" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="875" class="Keyword">private</a> <a id="883" class="Comment">-- Again there is a symbolic identifier for the following</a>
+        <a id="949" class="Comment">-- comment,</a>
+
+           <a id="{doc}G"></a><a id="973" class="Comment">-- @ because that comment uses a different indentation.</a>
+
+  <a id="1032" class="Keyword">postulate</a> <a id="G"></a><a id="1042" href="Issue3198.html#1042" class="Postulate">G</a> <a id="1044" class="Symbol">:</a> <a id="1046" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="1051" class="Keyword">private</a> <a id="1059" class="Comment">{- A comment. -}</a> <a id="1076" class="Comment">{- Another comment. -}</a>
+
+        <a id="{doc}H"></a><a id="1108" class="Comment">-- @ There is a symbolic identifier for this comment, because</a>
+        <a id="1178" class="Comment">-- the previous comment uses a different indentation.</a>
+
+  <a id="1235" class="Keyword">postulate</a> <a id="H"></a><a id="1245" href="Issue3198.html#1245" class="Postulate">H</a> <a id="1247" class="Symbol">:</a> <a id="1249" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="1254" class="Keyword">private</a> <a id="1262" class="Comment">{- No symbolic identifier here -}</a> <a id="1296" class="Comment">{- or here. -}</a>
+
+  <a id="1314" class="Keyword">postulate</a> <a id="I"></a><a id="1324" href="Issue3198.html#1324" class="Postulate">I</a> <a id="1326" class="Symbol">:</a> <a id="1328" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="{doc}J"></a><a id="1333" class="Comment">{- @ This kind of comment -}</a> <a id="1362" class="Comment">{- can be used. -}</a>
+
+<a id="1382" class="Keyword">postulate</a> <a id="J"></a><a id="1392" href="Issue3198.html#1392" class="Postulate">J</a> <a id="1394" class="Symbol">:</a> <a id="1396" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1400" class="Symbol">→</a> <a id="1402" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="1407" class="Comment">-- Pragmas do not count as comments.</a>
+
+<a id="1445" class="Symbol">{-#</a> <a id="1449" class="Keyword">BUILTIN</a> <a id="1457" class="Keyword">IO</a> <a id="1460" href="Issue3198.html#1392" class="Postulate">J</a> <a id="1462" class="Symbol">#-}</a>
+
+<a id="1467" class="Keyword">postulate</a> <a id="K"></a><a id="1477" href="Issue3198.html#1477" class="Postulate">K</a> <a id="1479" class="Symbol">:</a> <a id="1481" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="1486" class="Comment">-- Fixity declarations are not ignored.</a>
+
+<a id="1527" class="Keyword">infix</a> <a id="1533" class="Number">0</a> <a id="1535" href="Issue3198.html#1549" class="Postulate Operator">!_</a>
+
+<a id="1539" class="Keyword">postulate</a> <a id="!_"></a><a id="1549" href="Issue3198.html#1549" class="Postulate Operator">!_</a> <a id="1552" class="Symbol">:</a> <a id="1554" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1558" class="Symbol">→</a> <a id="1560" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="1565" class="Keyword">postulate</a>
+  <a id="{doc}L"></a><a id="1577" class="Comment">-- @ The modalities @0,</a>
+  <a id="1603" class="Symbol">@</a><a id="1604" class="Symbol">0</a> <a id="L"></a><a id="1606" href="Issue3198.html#1606" class="Postulate">L</a> <a id="1608" class="Symbol">:</a> <a id="1610" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+  <a id="{doc}M"></a><a id="1617" class="Comment">-- @ @ω,</a>
+  <a id="1628" class="Symbol">@</a><a id="1629" class="Symbol">ω</a> <a id="M"></a><a id="1631" href="Issue3198.html#1631" class="Postulate">M</a> <a id="1633" class="Symbol">:</a> <a id="1635" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+  <a id="{doc}N"></a><a id="1642" class="Comment">-- @ @erased,</a>
+  <a id="1658" class="Symbol">@</a><a id="1659" class="Symbol">erased</a> <a id="N"></a><a id="1666" href="Issue3198.html#1666" class="Postulate">N</a> <a id="1668" class="Symbol">:</a> <a id="1670" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+  <a id="{doc}O"></a><a id="1677" class="Comment">-- @ &quot;.&quot;,</a>
+  <a id="1689" class="Symbol">.</a><a id="O"></a><a id="1690" href="Issue3198.html#1690" class="Postulate">O</a> <a id="1692" class="Symbol">:</a> <a id="1694" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+  <a id="{doc}P"></a><a id="1701" class="Comment">-- @ and @(tactic f) can be used.</a>
+  <a id="1737" class="Symbol">@(</a><a id="1739" class="Keyword">tactic</a> f<a id="1747" class="Symbol">)</a> <a id="P"></a><a id="1749" href="Issue3198.html#1749" class="Postulate">P</a> <a id="1751" class="Symbol">:</a> <a id="1753" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+</pre></body></html>

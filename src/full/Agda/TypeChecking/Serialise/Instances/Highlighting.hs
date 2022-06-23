@@ -106,12 +106,13 @@ instance EmbPrj HP.OtherAspect where
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where
-  icod_ (HP.Aspects a b c d e) = icodeN' HP.Aspects a b c d e
+  icod_ (HP.Aspects a b c d e f) = icodeN' HP.Aspects a b c d e f
 
   value = valueN HP.Aspects
 
 instance EmbPrj HP.DefinitionSite where
-  icod_ (HP.DefinitionSite a b c d) = icodeN' HP.DefinitionSite a b c d
+  icod_ (HP.DefinitionSite a b c d e) =
+    icodeN' HP.DefinitionSite a b c d e
 
   value = valueN HP.DefinitionSite
 

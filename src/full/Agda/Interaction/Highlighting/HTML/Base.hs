@@ -389,7 +389,7 @@ code onlyCode fileType = mconcat F.<.> if onlyCode
   annotate :: Int -> Aspects -> Html -> HtmlM m Html
   annotate pos mi h = do
     h <- return $ anchorage posAttributes h
-    if not hereAnchor then return h else
+    if not anchor then return h else
       case mDefSiteAnchor of
         Nothing -> __IMPOSSIBLE__
         Just a  -> do
@@ -407,7 +407,7 @@ code onlyCode fileType = mconcat F.<.> if onlyCode
     posAttributes :: [Attribute]
     posAttributes = concat
       [ [Attr.id $ stringValue $ show pos ]
-      , toList $ link <$> definitionSite mi
+      , toList $ link =<< definitionSite mi
       , Attr.class_ (stringValue $ unwords classes) <$ guard (not $ null classes)
       ]
 
@@ -440,27 +440,25 @@ code onlyCode fileType = mconcat F.<.> if onlyCode
     noteClasses _s = []
 
     -- Should we output a named anchor?
-    -- Only if we are at the definition site now (@here@)
-    -- and such a pretty named anchor exists (see 'defSiteAnchor').
-    hereAnchor      :: Bool
-    hereAnchor      = here && isJust mDefSiteAnchor
+    anchor :: Bool
+    anchor = maybe False defSiteId (definitionSite mi) &&
+               isJust mDefSiteAnchor
 
-    mDefinitionSite :: Maybe DefinitionSite
-    mDefinitionSite = definitionSite mi
+    mDefSiteAnchor :: Maybe T.Text
+    mDefSiteAnchor =
+      maybe __IMPOSSIBLE__ (T.pack F.<.> defSiteAnchor)
+        (definitionSite mi)
 
-    -- Are we at the definition site now?
-    here            :: Bool
-    here            = maybe False defSiteHere mDefinitionSite
-
-    mDefSiteAnchor  :: Maybe T.Text
-    mDefSiteAnchor  =
-      maybe __IMPOSSIBLE__ (T.pack F.<.> defSiteAnchor) mDefinitionSite
-
-    link (DefinitionSite m defPos _here _aName) = Attr.href $ stringValue $
-      -- If the definition site points to the top of a file,
-      -- we drop the anchor part and just link to the file.
-      applyUnless (defPos <= 1)
-        (++ "#" ++
-         Network.URI.Encode.encode (show defPos))
-         -- Network.URI.Encode.encode (fromMaybe (show defPos) aName)) -- Named links disabled
-        (Network.URI.Encode.encode $ modToFile m "html")
+    link d
+      | not (defSiteLink d) = Nothing
+      | otherwise           = Just $ Attr.href $ stringValue $
+        -- If the definition site points to the top of a file, then we
+        -- drop the anchor part and just link to the file.
+        applyUnless (defSitePos d <= 1)
+          (++ "#" ++
+           Network.URI.Encode.encode
+           -- Links currently do not point to symbolic identifiers.
+           -- (fromMaybe (show (defSitePos d)) (defSiteAnchor d))
+             (show (defSitePos d)))
+          (Network.URI.Encode.encode
+             (modToFile (defSiteModule d) "html"))

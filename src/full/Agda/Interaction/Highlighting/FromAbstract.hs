@@ -21,6 +21,7 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
 
 import qualified Data.HashMap.Strict as HMap
+import qualified Data.IntMap.Strict as IntMap
 import qualified Data.Map as Map
 import           Data.Maybe
 import           Data.Semigroup       ( Semigroup(..) )          -- for ghc 8.0
@@ -617,10 +618,16 @@ hiliteCName ms x fr mR asp = do
   fileName <- lift getCurrentPath
   -- We don't care if we get any funny ranges.
   if all (== Strict.Just fileName) fileNames then do
-    defSite <- runMaybeT mFilePos
+    defSite               <- runMaybeT mFilePos
+    (docSite, docBuilder) <- doc defSite
     return $
+      docBuilder <>
       frFile defSite <>
-      H.singleton (rToR rs) (aspects { definitionSite = defSite })
+      H.singleton (rToR rs)
+        (aspects
+           { definitionSite = defSite
+           , documentation  = docSite
+           })
    else
     return mempty
   where
@@ -633,7 +640,7 @@ hiliteCName ms x fr mR asp = do
   rs        = getRange (x : xs)
 
   -- The fixity declaration should not get a symbolic anchor.
-  notHere d = d { defSiteHere = False }
+  notHere d = d { defSiteId = False }
 
   mFilePos :: MaybeT HiliteM DefinitionSite
   mFilePos = do
@@ -698,9 +705,10 @@ hiliteCName ms x fr mR asp = do
     return $ DefinitionSite
       { defSiteModule = mod
       , defSitePos    = fromIntegral p
-        -- Is our current position the definition site?
-      , defSiteHere   = r == getRange x
       , defSiteAnchor = anchor
+      , defSiteId     = r == getRange x
+                        -- Is our current position the definition site?
+      , defSiteLink   = True
       }
 
   -- Is the name a bound variable or similar? If in doubt, yes.
@@ -756,6 +764,47 @@ hiliteCName ms x fr mR asp = do
     return $ case anon of
       Anonymous (AnonymousNumber n) -> show n
       NotAnonymous                  -> prettyShow n
+
+  -- Documentation links.
+  --
+  -- If it is determined that a documentation link should be included,
+  -- then an anchor should also be added for the corresponding piece
+  -- of documentation. That is taken care of by the returned builder.
+  doc
+    :: Maybe DefinitionSite  -- The definition site, if any.
+    -> HiliteM (Maybe DefinitionSite, HighlightingInfoBuilder)
+  doc d = do
+    db <- runMaybeT $ do
+      d      <- MaybeT $ return d
+      anchor <- MaybeT $ return $ defSiteAnchor d
+      r      <- MaybeT $ lift $ IntMap.lookup (defSitePos d) <$>
+                  useTC stDocRanges
+      pos    <- MaybeT $ return $ fromIntegral . P.posPos . P.iStart <$>
+                  P.rangeToInterval r
+      let defSite = DefinitionSite
+            { defSiteModule = defSiteModule d
+            , defSitePos    = pos
+            , defSiteAnchor = Just ("{doc}" ++ anchor)
+            , defSiteId     = False
+            , defSiteLink   = True
+            }
+      return $
+        ( defSite
+        , if defSiteId d
+          then H.singleton
+                 (rToR r)
+                 (mempty
+                    { definitionSite =
+                        Just $ defSite
+                          { defSiteId   = True
+                          , defSiteLink = False
+                          }
+                    })
+          else mempty
+        )
+    return $ case db of
+      Nothing     -> (Nothing, mempty)
+      Just (d, b) -> (Just d, b)
 
 -- | Is some thing known to be a constructor?
 

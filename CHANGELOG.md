@@ -264,6 +264,95 @@ HTML backend
   * If `--only-scope-checking` is used, then one can now get fewer
     symbolic identifiers than before.
 
+* Symbolic identifiers are now generated for comments preceding
+  declarations of identifiers (see
+  [#3198](https://github.com/agda/agda/issues/3198)).
+
+  Such symbolic identifiers are only generated for declarations for
+  which symbolic identifiers are generated. If the symbolic identifier
+  for a declaration is `a`, then the symbolic identifier for the
+  comment is `{doc}a`. The identifier is put on the first of the
+  "valid" comment tokens that are immediately preceding the
+  declaration, without any other tokens in between, except for
+  keywords, symbols and modalities. A comment token that is preceded
+  by anything other than a valid comment token on the same line is not
+  valid, and if the previous token is a comment token that is not
+  valid, then a comment token with the same indentation is also not
+  valid.
+
+  Here are some examples. If a symbolic identifier is generated for a
+  comment, then the comment starts with the symbol `@` (but it is not
+  necessary to use this symbol).
+  ```agda
+  -- @ A definition.
+
+  postulate
+    A : Set
+
+  -- @ A private definition.
+
+  private postulate
+    B : Set
+
+  -- @ Another definition.
+
+  -- With an extra comment.
+
+  postulate
+    C : Set
+
+  -- @ A data type.
+
+  data D : Set
+
+  -- There is no symbolic identifier for this comment, because D is
+  -- declared above.
+
+  data D where
+
+  -- There is also no symbolic identifier for this comment, because…
+
+  private -- …the following comment is preceded by another token on the
+          -- same line (and consecutive comments with the same
+          -- indentation are treated as one comment).
+    postulate E : Set
+
+  private -- However, there is a symbolic identifier for the following
+          -- comment,
+
+    -- @ because that comment uses a different indentation.
+
+    postulate F : Set
+
+  private -- Again there is a symbolic identifier for the following
+          -- comment,
+
+             -- @ because that comment uses a different indentation.
+
+    postulate G : Set
+
+  private {- A comment. -} {- Another comment. -}
+
+          -- @ There is a symbolic identifier for this comment, because
+          -- the previous comment uses a different indentation.
+
+    postulate H : Set
+
+  private {- No symbolic identifier here -} {- or here. -}
+
+    postulate I : Set
+
+  {- @ This kind of comment -} {- can be used. -}
+
+  postulate J : Set → Set
+
+  -- Pragmas do not count as comments.
+
+  {-# BUILTIN IO J #-}
+
+  postulate K : Set
+  ```
+
 LaTeX backend
 -------------
 

@@ -57,9 +57,11 @@ showAspects skipEmpty modFile (r, m)
       maybeToList defSite)
   where
   defSite = case definitionSite m of
-    Nothing                       -> Nothing
-    Just (DefinitionSite m p _ _) ->
-      Just (Cons (A $ quote $ filePath f) (A $ show p))
+    Nothing                            -> Nothing
+    Just (DefinitionSite m p _ _ link) ->
+      if not link
+      then Nothing
+      else Just (Cons (A $ quote $ filePath f) (A $ show p))
       where f = Map.findWithDefault __IMPOSSIBLE__ m modFile
 
   dropNils = List.dropWhileEnd (== A "nil")

@@ -167,6 +167,9 @@ data PreScopeState = PreScopeState
     -- ^ Highlighting info for tokens and Happy parser warnings (but
     -- not for those tokens/warnings for which highlighting exists in
     -- 'stPostSyntaxInfo').
+  , stPreDocRanges          :: !(IntMap Range)
+    -- ^ A map from token positions to the range of the token at the
+    -- beginning of any corresponding documentation, if any.
   , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
     --   Those most not be serialized!
@@ -391,6 +394,7 @@ initialMetaId = MetaId
 initPreScopeState :: PreScopeState
 initPreScopeState = PreScopeState
   { stPreTokens               = mempty
+  , stPreDocRanges            = IntMap.empty
   , stPreImports              = emptySignature
   , stPreImportedModules      = Set.empty
   , stPreModuleToSource       = Map.empty
@@ -470,6 +474,11 @@ stTokens :: Lens' HighlightingInfo TCState
 stTokens f s =
   f (stPreTokens (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreTokens = x}}
+
+stDocRanges :: Lens' (IntMap Range) TCState
+stDocRanges f s =
+  f (stPreDocRanges (stPreScopeState s)) <&>
+  \x -> s {stPreScopeState = (stPreScopeState s) {stPreDocRanges = x}}
 
 stImports :: Lens' Signature TCState
 stImports f s =

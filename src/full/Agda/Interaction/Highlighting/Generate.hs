@@ -31,6 +31,8 @@ import Data.Maybe
 import Data.List ((\\))
 import qualified Data.List as List
 import qualified Data.IntMap as IntMap
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IntMapS
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup (Semigroup(..))
@@ -172,6 +174,8 @@ generateAndPrintSyntaxInfo decl hlLevel updateState = do
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
+--
+-- Information about documentation ranges is also computed and stored.
 
 generateTokenInfo :: AbsolutePath -> TCM HighlightingInfo
 generateTokenInfo file =
@@ -180,6 +184,16 @@ generateTokenInfo file =
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given file.
+--
+-- Information about documentation ranges is also computed and stored.
+-- Only identifier tokens get documentation ranges. The documentation
+-- of an identifier token is taken to be the first of the \"valid\"
+-- comment tokens that are immediately preceding it, without any other
+-- tokens in between, except for keywords and symbols. A comment token
+-- that is preceded by anything other than a valid comment token on
+-- the same line is not valid, and if the previous token is a comment
+-- token that is not valid, then a comment token with the same
+-- indentation is also not valid.
 
 generateTokenInfoFromSource
   :: AbsolutePath
@@ -188,8 +202,84 @@ generateTokenInfoFromSource
      -- ^ The file contents. Note that the file is /not/ read from
      -- disk.
   -> TCM HighlightingInfo
-generateTokenInfoFromSource file input =
-  runPM $ tokenHighlighting . fst <$> Pa.parseFile Pa.tokensParser file input
+generateTokenInfoFromSource file input = do
+  ts <- runPM $ fst <$> Pa.parseFile Pa.tokensParser file input
+  setTCLens' stDocRanges $ docRanges ts Nothing Nothing
+  return (tokenHighlighting ts)
+  where
+  iToI :: P.Interval' a -> Int
+  iToI = fromIntegral . P.posPos . P.iStart
+
+  docRanges
+    :: [T.Token]
+    -> Maybe (Range, Bool)
+       -- The range of the previous token, if any, along with
+       -- information about whether that token was a comment token.
+    -> Maybe Range
+       -- The range of the current documentation candidate, if any.
+    -> IntMap Range
+  docRanges []       _    _   = IntMapS.empty
+  docRanges (t : ts) prev doc = case (t , ts) of
+    (T.TokComment _, _) -> docRanges ts (Just (r, True)) $
+      if reset then Nothing else case doc of
+        Nothing -> Just r
+        Just _  -> doc
+      where
+      r = getRange t
+
+      reset = case (prev, doc) of
+        (Nothing, _)                 -> False
+        (Just (prev, False), _)      -> line r == line prev
+        (Just (prev, True), Just _)  -> False
+        (Just (prev, True), Nothing) ->
+          line r == line prev ||
+          line r > line prev && column r == column prev
+
+    -- Special cases for certain modalities.
+    (T.TokSymbol T.SymAs _,
+     t@(T.TokLiteral (Ranged _ (L.LitNat _))) : ts) ->
+      cont' t ts
+    (T.TokSymbol T.SymAs _, t@T.TokId{} : ts) ->
+      cont' t ts
+    (T.TokKeyword T.KwTactic _, _) ->
+      case findClosingParen t ts of
+        []     -> IntMapS.empty
+        t : ts -> cont' t ts
+
+    (T.TokKeyword{}, _) -> cont
+    (T.TokSymbol{}, _)  -> cont
+
+    (T.TokId{}, _)  -> addDoc
+    (T.TokQId{}, _) -> addDoc
+
+    (T.TokLiteral{}, _) -> contReset
+    (T.TokString{}, _)  -> contReset
+    (T.TokTeX{}, _)     -> contReset
+    (T.TokMarkup{}, _)  -> contReset
+    (T.TokDummy{}, _)   -> contReset
+    (T.TokEOF{}, _)     -> contReset
+    where
+    pos r    = P.iStart <$> P.rangeToInterval r
+    line r   = P.posLine <$> pos r
+    column r = P.posCol  <$> pos r
+
+    cont'' t ts = docRanges ts (Just (getRange t, False))
+    cont' t ts  = cont'' t ts doc
+    cont        = cont' t ts
+    contReset   = cont'' t ts Nothing
+
+    addDoc = case (doc, P.rangeToInterval (getRange t)) of
+      (Just r, Just i) -> IntMapS.insert pos r contReset
+        where pos = fromIntegral $ P.posPos $ P.iStart i
+      _ -> contReset
+
+    findClosingParen = f 1
+      where
+      f 0 t ts                                       = t : ts
+      f n _ (t@(T.TokSymbol T.SymCloseParen _) : ts) = f (pred n) t ts
+      f n _ (t@(T.TokSymbol T.SymOpenParen  _) : ts) = f (succ n) t ts
+      f n _ (t : ts)                                 = f n        t ts
+      f _ _ []                                       = []
 
 -- | Generate and return the syntax highlighting information for the
 -- tokens in the given string, which is assumed to correspond to the
