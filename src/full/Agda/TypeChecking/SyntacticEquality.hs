@@ -82,6 +82,8 @@ checkSyntacticEquality u v s f =
       Strict.Just n  ->
         env { envSyntacticEqualityFuel = Strict.Just (pred n) }
 
+-- | Syntactic equality check for terms without checking remaining fuel.
+
 {-# SPECIALIZE checkSyntacticEquality' ::
       Term -> Term ->
       (Term -> Term -> ReduceM a) ->
@@ -97,9 +99,7 @@ checkSyntacticEquality'
   => a
   -> a
   -> (a -> a -> m b)  -- ^ Continuation used upon success.
-  -> (a -> a -> m b)  -- ^ Continuation used upon failure, or if
-                      --   syntactic equality checking has been turned
-                      --   off.
+  -> (a -> a -> m b)  -- ^ Continuation used upon failure.
   -> m b
 checkSyntacticEquality' u v s f = do
   ((u, v), equal) <- liftReduce $ synEq u v `runStateT` True
