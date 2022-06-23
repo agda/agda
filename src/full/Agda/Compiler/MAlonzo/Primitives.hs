@@ -26,6 +26,8 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Either
 import Agda.Utils.Lens
+import Agda.Utils.List   (hasElem)
+import Agda.Utils.Maybe
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.Haskell.Syntax as HS
 
@@ -156,12 +158,14 @@ xForPrim :: Map String a -> BuiltinThings PrimFun -> [Definition] -> [a]
 xForPrim table builtinThings defs = catMaybes
     [ Map.lookup s table
     | (s, def) <- Map.toList builtinThings
-    , getName def `Set.member` qs
+    , maybe False elemDefs $ getName def
     ]
   where
-  qs = Set.fromList $ map defName defs
-  getName (Builtin t)            = getPrimName t
-  getName (Prim (PrimFun q _ _)) = q
+  elemDefs = hasElem $ map defName defs
+  getName = \case
+    Builtin t                 -> Just $ getPrimName t
+    Prim (PrimFun q _ _)      -> Just q
+    BuiltinRewriteRelations _ -> Nothing
 
 
 -- | Definition bodies for primitive functions

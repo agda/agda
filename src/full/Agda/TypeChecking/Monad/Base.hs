@@ -752,7 +752,13 @@ stInstantiateBlocking f s =
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInstantiateBlocking = x}}
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun
-stBuiltinThings s = (s^.stLocalBuiltins) `Map.union` (s^.stImportedBuiltins)
+stBuiltinThings s = Map.unionWith unionBuiltin (s^.stLocalBuiltins) (s^.stImportedBuiltins)
+
+-- | Union two 'Builtin's.  Only defined for 'BuiltinRewriteRelations'.
+unionBuiltin :: Builtin a -> Builtin a -> Builtin a
+unionBuiltin = curry $ \case
+  (BuiltinRewriteRelations xs, BuiltinRewriteRelations ys) -> BuiltinRewriteRelations $ xs <> ys
+  _ -> __IMPOSSIBLE__
 
 
 -- * Fresh things
@@ -2848,6 +2854,8 @@ type BuiltinThings pf = Map String (Builtin pf)
 data Builtin pf
         = Builtin Term
         | Prim pf
+        | BuiltinRewriteRelations (Set QName)
+            -- ^ @BUILTIN REWRITE@.  We can have several rewrite relations.
     deriving (Show, Functor, Foldable, Traversable, Generic)
 
 ---------------------------------------------------------------------------

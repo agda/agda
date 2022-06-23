@@ -22,13 +22,16 @@ import Agda.TypeChecking.Monad hiding (enterClosure, constructorForm)
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty () --instance only
 
 
 instance HasBuiltins ReduceM where
-  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useR stLocalBuiltins)
-                                   (Map.lookup b <$> useR stImportedBuiltins)
+  getBuiltinThing b =
+    liftM2 (unionMaybeWith unionBuiltin)
+      (Map.lookup b <$> useR stLocalBuiltins)
+      (Map.lookup b <$> useR stImportedBuiltins)
 
 constructorForm :: HasBuiltins m => Term -> m Term
 constructorForm v = do
