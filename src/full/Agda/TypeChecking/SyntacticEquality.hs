@@ -10,6 +10,7 @@
 module Agda.TypeChecking.SyntacticEquality
   ( SynEq
   , checkSyntacticEquality
+  , checkSyntacticEquality'
   , syntacticEqualityFuelRemains
   )
   where
@@ -70,18 +71,39 @@ checkSyntacticEquality
                       --   syntactic equality checking has been turned
                       --   off.
   -> m b
-checkSyntacticEquality v v' s f =
+checkSyntacticEquality u v s f =
   ifM syntacticEqualityFuelRemains
-  {-then-} (do ((v, v'), equal) <-
-                 liftReduce $ synEq v v' `runStateT` True
-               if equal then s v v' else localTC decreaseFuel (f v v'))
-  {-else-} (uncurry f =<< instantiate (v,v'))
+  {-then-} (checkSyntacticEquality' u v s (\u v -> localTC decreaseFuel (f u v)))
+  {-else-} (uncurry f =<< instantiate (u, v))
   where
   decreaseFuel env =
     case envSyntacticEqualityFuel env of
       Strict.Nothing -> env
       Strict.Just n  ->
         env { envSyntacticEqualityFuel = Strict.Just (pred n) }
+
+-- | Syntactic equality check for terms without checking remaining fuel.
+
+{-# SPECIALIZE checkSyntacticEquality' ::
+      Term -> Term ->
+      (Term -> Term -> ReduceM a) ->
+      (Term -> Term -> ReduceM a) ->
+      ReduceM a #-}
+{-# SPECIALIZE checkSyntacticEquality' ::
+      Type -> Type ->
+      (Type -> Type -> ReduceM a) ->
+      (Type -> Type -> ReduceM a) ->
+      ReduceM a #-}
+checkSyntacticEquality'
+  :: (Instantiate a, SynEq a, MonadReduce m)
+  => a
+  -> a
+  -> (a -> a -> m b)  -- ^ Continuation used upon success.
+  -> (a -> a -> m b)  -- ^ Continuation used upon failure.
+  -> m b
+checkSyntacticEquality' u v s f = do
+  ((u, v), equal) <- liftReduce $ synEq u v `runStateT` True
+  if equal then s u v else f u v
 
 -- | Does the syntactic equality check have any remaining fuel?
 
