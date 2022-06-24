@@ -1563,8 +1563,8 @@ equalLevel a b = do
               List1.zipWithM_ ((===) `on` levelTm . unSingleLevel . fmap ignoreBlocking) as bs
 
         -- more cases?
-        _ | noMetas (Level a , Level b) -> notok
-          | otherwise                   -> postpone
+        _ | noMetas (a , b) -> notok
+          | otherwise       -> postpone
 
       where
         a === b = unlessM typeInType $ do
