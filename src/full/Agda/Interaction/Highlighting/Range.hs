@@ -52,12 +52,17 @@ rangeInvariant r = from r <= to r
 newtype Ranges = Ranges [Range]
   deriving (Eq, Show, NFData)
 
+instance Null Ranges where
+  empty            = Ranges []
+  null (Ranges rs) = all null rs
+
 -- | The 'Ranges' invariant.
 
 rangesInvariant :: Ranges -> Bool
 rangesInvariant (Ranges []) = True
 rangesInvariant (Ranges rs) =
-  and (zipWith (<) (map to $ init rs) (map from $ tail rs))
+  and (zipWith (<) (map to $ init rs) (map from $ tail rs)) &&
+  all rangeInvariant rs
 
 ------------------------------------------------------------------------
 -- Queries
