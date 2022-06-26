@@ -6,6 +6,7 @@ module Agda.Interaction.Highlighting.Common
   ) where
 
 import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Range
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad (HighlightingMethod(..))
 import Data.Maybe (maybeToList)
@@ -34,15 +35,17 @@ toAtoms m = map toAtom (Set.toList $ otherAspects m)
                  | otherwise = []
   toAtoms' (Just a) = [toAtom a]
 
--- | Choose which method to use based on HighlightingInfo and HighlightingMethod
+-- | Chooses which method to use.
 chooseHighlightingMethod
-  :: HighlightingInfo
+  :: Either Ranges HighlightingInfo
+     -- ^ @'Left' rs@: Remove highlighting from the ranges @rs@.
   -> HighlightingMethod
   -> HighlightingMethod
-chooseHighlightingMethod info method = case toList info of
-  _             | method == Direct -> Direct
-  ((_, mi) : _) | check mi         -> Direct
-  _                                -> Indirect
-
-  where check mi = otherAspects mi == Set.singleton TypeChecks
-                || mi == mempty
+chooseHighlightingMethod info method = case (info, method) of
+  (_,      Direct)       -> Direct
+  (Left _, _)            -> Direct
+  (Right info, Indirect) -> case toList info of
+    ((_, mi) : _)
+      | otherAspects mi == Set.singleton TypeChecks ||
+        mi == mempty -> Direct
+    _                -> Indirect

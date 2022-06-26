@@ -5,7 +5,7 @@ module Agda.Interaction.Highlighting.JSON (jsonifyHighlightingInfo) where
 
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise hiding (String)
-import Agda.Interaction.Highlighting.Range (Range(..))
+import Agda.Interaction.Highlighting.Range (Range(..), Ranges)
 import Agda.Interaction.JSON
 import Agda.Interaction.Response
 import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
@@ -14,26 +14,40 @@ import Agda.Utils.IO.TempFile (writeToTempFile)
 
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Map as Map
+import Data.Maybe
 
 import Agda.Utils.Impossible
 
 -- | Encode meta information into a JSON Value
 showAspects
-  :: ModuleToSource
+  :: Bool
+     -- ^ Only generate a result when there is some relevant data.
+  -> ModuleToSource
      -- ^ Must contain a mapping for the definition site's module, if any.
-  -> (Range, Aspects) -> Value
-showAspects modFile (range, aspect) = object
-  [ "range" .= [from range, to range]
-  , "atoms" .= toAtoms aspect
-  , "tokenBased" .= tokenBased aspect
-  , "note" .= note aspect
-  , "definitionSite" .= fmap defSite (definitionSite aspect)
-  ]
+  -> (Range, Aspects)
+  -> Maybe Value
+showAspects skipEmpty modFile (range, aspects)
+  | skipEmpty && noInfo = Nothing
+  | otherwise           = Just $ object
+    [ "range" .= [from range, to range]
+    , "atoms" .= toAtoms aspects
+    , "tokenBased" .= tokenBased aspects
+    , "note" .= note aspects
+    , "definitionSite" .= defSite
+    ]
   where
-    defSite (DefinitionSite mdl position _ _) = object
-      [ "filepath" .= filePath (Map.findWithDefault __IMPOSSIBLE__ mdl modFile)
+  defSite = case definitionSite aspects of
+    Nothing                                -> Nothing
+    Just (DefinitionSite mdl position _ _) -> Just $ object
+      [ "filepath" .=
+          filePath (Map.findWithDefault __IMPOSSIBLE__ mdl modFile)
       , "position" .= position
       ]
+
+  noInfo =
+    isNothing (aspect aspects) &&
+    null (otherAspects aspects) &&
+    isNothing defSite
 
 instance EncodeTCM TokenBased where
 instance ToJSON TokenBased where
@@ -42,7 +56,8 @@ instance ToJSON TokenBased where
 
 -- | Turns syntax highlighting information into a JSON value
 jsonifyHighlightingInfo
-  :: HighlightingInfo
+  :: Either Ranges HighlightingInfo
+     -- ^ @'Left' rs@: Remove highlighting from the ranges @rs@.
   -> RemoveTokenBasedHighlighting
   -> HighlightingMethod
   -> ModuleToSource
@@ -58,8 +73,13 @@ jsonifyHighlightingInfo info remove method modFile =
       [ "remove" .= case remove of
           RemoveHighlighting -> True
           KeepHighlighting -> False
-      , "payload" .= map (showAspects modFile) (toList info)
+      , "payload" .=
+          catMaybes (map (showAspects skipEmpty modFile) (toList info'))
       ]
+      where
+      (skipEmpty, info') = case info of
+        Right info -> (True,  info)
+        Left rs    -> (False, singleton rs mempty)
 
     direct :: IO Value
     direct = return $ object

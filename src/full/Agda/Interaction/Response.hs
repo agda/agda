@@ -29,6 +29,7 @@ import Agda.Interaction.Base
   , Rewrite
   )
 import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Range (Ranges)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common   (InteractionId(..), Arg)
 import Agda.Syntax.Concrete (Expr, Name)
@@ -52,10 +53,12 @@ import System.IO
 
 data Response
     = Resp_HighlightingInfo
-        HighlightingInfo
+        (Either Ranges HighlightingInfo)
         RemoveTokenBasedHighlighting
         HighlightingMethod
         ModuleToSource
+        -- ^ If the first argument is @'Left' rs@: Remove highlighting
+        -- from the ranges @rs@.
     | Resp_Status Status
     | Resp_JumpToError FilePath Int32
     | Resp_InteractionPoints [InteractionId]

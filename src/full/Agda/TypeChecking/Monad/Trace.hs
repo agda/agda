@@ -16,7 +16,7 @@ import qualified Agda.Syntax.Position as P
 
 import Agda.Interaction.Response
 import Agda.Interaction.Highlighting.Precise
-import Agda.Interaction.Highlighting.Range (rToR, minus)
+import Agda.Interaction.Highlighting.Range (rToR, minus, Ranges)
 
 import Agda.TypeChecking.Monad.Base
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
@@ -107,6 +107,13 @@ class (MonadTCEnv m, ReadTCState m) => MonadTrace m where
     :: (MonadTrans t, MonadTrace n, t n ~ m)
     => RemoveTokenBasedHighlighting -> HighlightingInfo -> m ()
   printHighlightingInfo r i = lift $ printHighlightingInfo r i
+
+  -- | Remove highlighting information for the given ranges.
+  removeHighlightingInfo :: Ranges -> m ()
+
+  default removeHighlightingInfo
+    :: (MonadTrans t, MonadTrace n, t n ~ m) => Ranges -> m ()
+  removeHighlightingInfo rs = lift $ removeHighlightingInfo rs
 
 instance MonadTrace m => MonadTrace (IdentityT m) where
   traceClosureCall c f = IdentityT $ traceClosureCall c $ runIdentityT f
@@ -215,8 +222,13 @@ instance MonadTrace TCM where
       ]
     unless (null info) $ do
       appInteractionOutputCallback $
-          Resp_HighlightingInfo info remove method modToSrc
+          Resp_HighlightingInfo (Right info) remove method modToSrc
 
+  removeHighlightingInfo rs = unless (null rs) $ do
+    modToSrc <- useTC stModuleToSource
+    method   <- viewTC eHighlightingMethod
+    appInteractionOutputCallback $
+      Resp_HighlightingInfo (Left rs) KeepHighlighting method modToSrc
 
 getCurrentRange :: MonadTCEnv m => m Range
 getCurrentRange = asksTC envRange
@@ -249,16 +261,17 @@ highlightAsTypeChecked rPre r m
   | r /= noRange && delta == rPre' = wrap r'    highlight clear
   | otherwise                      = wrap delta clear     highlight
   where
-  rPre'     = rToR (P.continuousPerLine rPre)
-  r'        = rToR (P.continuousPerLine r)
-  delta     = rPre' `minus` r'
-  clear     = mempty
-  highlight = parserBased { otherAspects = Set.singleton TypeChecks }
+  rPre'        = rToR (P.continuousPerLine rPre)
+  r'           = rToR (P.continuousPerLine r)
+  delta        = rPre' `minus` r'
+  clear rs     = removeHighlightingInfo rs
+  highlight rs = printHighlightingInfo KeepHighlighting
+                   (singleton rs
+                      (parserBased
+                         { otherAspects = Set.singleton TypeChecks }))
 
-  wrap rs x y = do
-    p rs x
+  wrap rs before after = do
+    before rs
     v <- m
-    p rs y
+    after rs
     return v
-    where
-    p rs x = printHighlightingInfo KeepHighlighting (singleton rs x)

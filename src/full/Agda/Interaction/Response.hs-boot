@@ -2,6 +2,7 @@ module Agda.Interaction.Response where
 
 import Data.Int (Int32)
 
+import Agda.Interaction.Highlighting.Range (Ranges)
 import Agda.Syntax.Common   (InteractionId)
 import Agda.Syntax.Concrete (Expr)
 
@@ -13,7 +14,7 @@ import Agda.Interaction.Highlighting.Precise
 
 data Response
     = Resp_HighlightingInfo
-        HighlightingInfo
+        (Either Ranges HighlightingInfo)
         RemoveTokenBasedHighlighting
         HighlightingMethod
         ModuleToSource

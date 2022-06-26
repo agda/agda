@@ -10,7 +10,7 @@ import Prelude hiding (null)
 
 import Agda.Interaction.Highlighting.Common
 import Agda.Interaction.Highlighting.Precise
-import Agda.Interaction.Highlighting.Range (Range(..))
+import Agda.Interaction.Highlighting.Range (Range(..), Ranges)
 import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Response
 import Agda.TypeChecking.Monad (HighlightingMethod(..), ModuleToSource)
@@ -33,10 +33,18 @@ import Agda.Utils.Impossible
 -- by Emacs.
 
 showAspects
-  :: ModuleToSource
+  :: Bool
+     -- ^ Only generate a result when there is some relevant data.
+     -- (Note that the Emacs commands
+     -- @agda2-highlight-add-annotations@ and
+     -- @agda2-highlight-load-and-delete-action@ may remove
+     -- highlighting information for ranges without \"annotations\".)
+  -> ModuleToSource
      -- ^ Must contain a mapping for the definition site's module, if any.
-  -> (Range, Aspects) -> Lisp String
-showAspects modFile (r, m) = L $
+  -> (Range, Aspects) -> Maybe (Lisp String)
+showAspects skipEmpty modFile (r, m)
+  | skipEmpty && noInfo = Nothing
+  | otherwise           = Just $ L $
     (map (A . show) [from r, to r])
       ++
     [L $ map A $ toAtoms m]
@@ -46,13 +54,20 @@ showAspects modFile (r, m) = L $
         ++
       [A $ ifNull (note m) "nil" quote]
         ++
-      maybeToList (defSite <$> definitionSite m))
+      maybeToList defSite)
   where
-  defSite (DefinitionSite m p _ _) =
-    Cons (A $ quote $ filePath f) (A $ show p)
-    where f = Map.findWithDefault __IMPOSSIBLE__ m modFile
+  defSite = case definitionSite m of
+    Nothing                       -> Nothing
+    Just (DefinitionSite m p _ _) ->
+      Just (Cons (A $ quote $ filePath f) (A $ show p))
+      where f = Map.findWithDefault __IMPOSSIBLE__ m modFile
 
   dropNils = List.dropWhileEnd (== A "nil")
+
+  noInfo =
+    isNothing (aspect m) &&
+    null (otherAspects m) &&
+    isNothing defSite
 
 -- | Formats the 'TokenBased' tag for the Emacs backend. No quotes are
 -- added.
@@ -70,7 +85,8 @@ lispifyTokenBased NotOnlyTokenBased = A "nil"
 -- good idea to use a more compact format.
 
 lispifyHighlightingInfo
-  :: HighlightingInfo
+  :: Either Ranges HighlightingInfo
+     -- ^ @'Left' rs@: Remove highlighting from the ranges @rs@.
   -> RemoveTokenBasedHighlighting
   -> HighlightingMethod
   -> ModuleToSource
@@ -85,7 +101,11 @@ lispifyHighlightingInfo h remove method modFile =
   info = (case remove of
                 RemoveHighlighting -> A "remove"
                 KeepHighlighting   -> A "nil") :
-             map (showAspects modFile) (toList h)
+         catMaybes (map (showAspects skipEmpty modFile) (toList h'))
+    where
+    (skipEmpty, h') = case h of
+      Right h -> (True,  h)
+      Left rs -> (False, singleton rs mempty)
 
   direct :: IO (Lisp String)
   direct = return $ L (A "agda2-highlight-add-annotations" :
