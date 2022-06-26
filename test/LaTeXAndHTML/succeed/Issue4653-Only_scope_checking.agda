@@ -77,3 +77,17 @@ data D″ : Set where -- D″
 
 record R″ : Set where -- R″
   constructor c‴ -- N/A
+
+-- There are symbolic identifiers for module names declared using
+-- "import M args as N", but not if "args" is empty.
+
+import Issue4653.M Set as N -- {mod}N
+import Agda.Primitive  as N
+
+-- There are no symbolic identifiers for let declarations.
+
+_ : let module O = M; A = Set₁ in A
+_ = Set
+
+_ : Set₁
+_ = let module O = M Set; A = Set in Set

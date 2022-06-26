@@ -78,4 +78,18 @@
 
 <a id="1576" class="Keyword">record</a> <a id="R″"></a><a id="1583" href="Issue4653-Only_scope_checking.html#1583" class="Record">R″</a> <a id="1586" class="Symbol">:</a> <a id="1588" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1592" class="Keyword">where</a> <a id="1598" class="Comment">-- R″</a>
   <a id="1606" class="Keyword">constructor</a> <a id="1618" href="Issue4653-Only_scope_checking.html#1618" class="InductiveConstructor">c‴</a> <a id="1621" class="Comment">-- N/A</a>
+
+<a id="1629" class="Comment">-- There are symbolic identifiers for module names declared using</a>
+<a id="1695" class="Comment">-- &quot;import M args as N&quot;, but not if &quot;args&quot; is empty.</a>
+
+<a id="1749" class="Keyword">import</a> <a id="1756" href="Issue4653.M.html" class="Module">Issue4653.M</a> <a id="1768" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1772" class="Symbol">as</a> <a id="{mod}N"></a><a id="1775" href="Issue4653-Only_scope_checking.html#1775" class="Module">N</a> <a id="1777" class="Comment">-- {mod}N</a>
+<a id="1787" class="Keyword">import</a> <a id="1794" href="Agda.Primitive.html" class="Module">Agda.Primitive</a>  <a id="1810" class="Symbol">as</a> <a id="1813" class="Module">N</a>
+
+<a id="1816" class="Comment">-- There are no symbolic identifiers for let declarations.</a>
+
+<a id="1876" href="Issue4653-Only_scope_checking.html#1876" class="Function">_</a> <a id="1878" class="Symbol">:</a> <a id="1880" class="Keyword">let</a> <a id="1884" class="Keyword">module</a> <a id="1891" href="Issue4653-Only_scope_checking.html#1891" class="Module">O</a> <a id="1893" class="Symbol">=</a> <a id="1895" href="Issue4653-Only_scope_checking.html#166" class="Module">M</a><a id="1896" class="Symbol">;</a> <a id="1898" href="Issue4653-Only_scope_checking.html#1898" class="Bound">A</a> <a id="1900" class="Symbol">=</a> <a id="1902" href="Agda.Primitive.html#311" class="Primitive">Set₁</a> <a id="1907" class="Keyword">in</a> <a id="1910" href="Issue4653-Only_scope_checking.html#1898" class="Bound">A</a>
+<a id="1912" class="Symbol">_</a> <a id="1914" class="Symbol">=</a> <a id="1916" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="1921" href="Issue4653-Only_scope_checking.html#1921" class="Function">_</a> <a id="1923" class="Symbol">:</a> <a id="1925" href="Agda.Primitive.html#311" class="Primitive">Set₁</a>
+<a id="1930" class="Symbol">_</a> <a id="1932" class="Symbol">=</a> <a id="1934" class="Keyword">let</a> <a id="1938" class="Keyword">module</a> <a id="1945" href="Issue4653-Only_scope_checking.html#1945" class="Module">O</a> <a id="1947" class="Symbol">=</a> <a id="1949" href="Issue4653-Only_scope_checking.html#166" class="Module">M</a> <a id="1951" href="Agda.Primitive.html#311" class="Primitive">Set</a><a id="1954" class="Symbol">;</a> <a id="1956" href="Issue4653-Only_scope_checking.html#1956" class="Bound">A</a> <a id="1958" class="Symbol">=</a> <a id="1960" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1964" class="Keyword">in</a> <a id="1967" href="Agda.Primitive.html#311" class="Primitive">Set</a>
 </pre></body></html>

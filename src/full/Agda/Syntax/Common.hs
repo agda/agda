@@ -2608,6 +2608,18 @@ class LensFixity' a where
 
 instance LensFixity' Fixity' where
   lensFixity' = id
+
+------------------------------------------------------------------------
+-- * Bound names
+------------------------------------------------------------------------
+
+-- | Is the name bound?
+
+data IsBound = Bound | NotBound
+  deriving (Eq, Show, Data, Generic)
+
+instance NFData IsBound
+
 ---------------------------------------------------------------------------
 -- * Import directive
 ---------------------------------------------------------------------------

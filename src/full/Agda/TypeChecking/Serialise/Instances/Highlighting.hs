@@ -20,7 +20,7 @@ instance EmbPrj HP.NameKind where
   icod_ HP.Datatype        = icodeN 2 ()
   icod_ HP.Field           = icodeN 3 ()
   icod_ HP.Function        = icodeN 4 ()
-  icod_ HP.Module          = icodeN 5 ()
+  icod_ (HP.Module a)      = icodeN 5 HP.Module a
   icod_ HP.Postulate       = icodeN 6 ()
   icod_ HP.Primitive       = icodeN 7 ()
   icod_ HP.Record          = icodeN 8 ()
@@ -34,7 +34,7 @@ instance EmbPrj HP.NameKind where
     valu [2]     = valuN HP.Datatype
     valu [3]     = valuN HP.Field
     valu [4]     = valuN HP.Function
-    valu [5]     = valuN HP.Module
+    valu [5, a]  = valuN HP.Module a
     valu [6]     = valuN HP.Postulate
     valu [7]     = valuN HP.Primitive
     valu [8]     = valuN HP.Record

@@ -61,7 +61,7 @@ import qualified Data.List    as List
 import Paths_Agda
 
 import Agda.Syntax.Abstract (toTopLevelModuleName)
-import Agda.Syntax.Common
+import Agda.Syntax.Common hiding (Bound)
 import Agda.Syntax.Concrete (TopLevelModuleName, moduleNameParts)
 import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
 import qualified Agda.Syntax.Parser.Literate as L
@@ -558,7 +558,7 @@ processCode toks' = do
           Datatype                  -> sk
           Field                     -> sk
           Function                  -> sk
-          Module                    -> sk
+          Module _                  -> "Module"
           Postulate                 -> sk
           Primitive                 -> sk
           Record                    -> sk

@@ -424,26 +424,27 @@ instance Hilite ModuleInfo where
     -- <> hilite impDir                     -- Should be covered by A.ImportDirective
     where
     hiliteAsName :: C.Name -> Hiliter
-    hiliteAsName n = hiliteCName [] n noRange Nothing $ nameAsp Module
+    hiliteAsName n =
+      hiliteCName [] n noRange Nothing $ nameAsp (Module Common.Bound)
 
 instance (Hilite m, Hilite n, Hilite (RenamingTo m), Hilite (RenamingTo n))
        => Hilite (ImportDirective' m n) where
-  hilite (ImportDirective _r using hiding renaming _ropen) =
-    hilite using <> hilite hiding <> hilite renaming
+  hilite (ImportDirective _r using hiding renamings publicRange) =
+    hilite using <> hilite hiding <> foldMap hiliteRenaming renamings
+    where
+    public = maybe False (const True) publicRange
+
+    hiliteRenaming (Renaming from to _fixity rangeKwTo) =
+         hilite from
+      <> singleAspect Symbol rangeKwTo
+           -- Currently, the "to" is already highlited by rAsTo above.
+           -- TODO: remove the "to" ranges from rAsTo.
+      <> hilite (RenamingTo to public)
 
 instance (Hilite m, Hilite n) => Hilite (Using' m n) where
   hilite = \case
     UseEverything -> mempty
     Using using   -> hilite using
-
-instance (Hilite m, Hilite n, Hilite (RenamingTo m), Hilite (RenamingTo n))
-       => Hilite (Renaming' m n) where
-  hilite (Renaming from to _fixity rangeKwTo)
-    =  hilite from
-    <> singleAspect Symbol rangeKwTo
-         -- Currently, the "to" is already highlited by rAsTo above.
-         -- TODO: remove the "to" ranges from rAsTo.
-    <> hilite (RenamingTo to)
 
 instance (Hilite m, Hilite n) => Hilite (ImportedName' m n) where
   hilite = \case
@@ -473,40 +474,72 @@ instance Hilite A.AmbiguousQName where
   hilite = hiliteAmbiguousQName Nothing
 
 instance Hilite A.ModuleName where
-  hilite m@(A.MName xs) = do
+  -- For top level modules, we set the binding site to the beginning of the file
+  -- so that clicking on an imported module will jump to the beginning of the file
+  -- which defines this module.
+  hilite    (A.MName [])       = mempty
+  hilite m'@(A.MName (n : ns)) = do
     modMap <- asks hleModMap
-    hiliteModule (isTopLevelModule modMap, m)
+    access <- accessM m
+    bound  <- lift $
+              -- Module names from other modules are not bound.
+              fromMaybe NotBound . HMap.lookup m' <$>
+              useTC stBoundModuleNames
+    hiliteCName
+      ms
+      (A.nameConcrete m)
+      noRange
+      (mR modMap access)
+      (nameAsp $ Module bound)
     where
-    isTopLevelModule modMap =
-      case mapMaybe
-          ((Strict.toLazy . P.srcFile) <=< (P.rStart . A.nameBindingSite)) xs of
-        f : _ ->
-          Map.lookup f modMap
-            == Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
-        [] -> False
+    (ms, m) = initLast1 n ns
+
+    mR modMap access = Just
+      ( applyWhen isTopLevelModule P.beginningOfFile $
+        A.nameBindingSite m
+      , access
+      , Nothing
+      )
+      where
+      isTopLevelModule =
+        case mapMaybe
+               ((Strict.toLazy . P.srcFile) <=<
+                (P.rStart . A.nameBindingSite))
+               (n : ns) of
+          []    -> False
+          f : _ ->
+            Map.lookup f modMap ==
+            Just (C.toTopLevelModuleName $ A.mnameToConcrete m')
 
   -- Andreas, 2020-09-29, issue #4952.
 -- The target of a @renaming@ clause needs to be highlighted in a special way.
-newtype RenamingTo a = RenamingTo a
+data RenamingTo a = RenamingTo
+  { _renamingTo :: !a
+    -- ^ The target.
+  , _renamingToPublic :: !Bool
+    -- ^ Is the @renaming@ clause part of an @open@ @public@
+    -- statement?
+  }
 
 instance Hilite (RenamingTo A.QName) where
   -- Andreas, 2020-09-29, issue #4952.
   -- Do not include the bindingSite, because the HTML backed turns it into garbage.
-  hilite (RenamingTo q) = do
+  hilite (RenamingTo q _) = do
     kind <- asks hleNameKinds <&> ($ q)
     hiliteAName q False $ nameAsp' kind
 
 instance Hilite (RenamingTo A.ModuleName) where
   -- Andreas, 2020-09-29, issue #4952.
   -- Do not include the bindingSite, because the HTML backed turns it into garbage.
-  hilite (RenamingTo (A.MName ns)) = flip foldMap ns $ \ n ->
-    hiliteCName [] (A.nameConcrete n) noRange Nothing $ nameAsp Module
+  hilite (RenamingTo (A.MName ns) public) = flip foldMap ns $ \ n ->
+    hiliteCName [] (A.nameConcrete n) noRange Nothing $
+      nameAsp $ Module $ if public then NotBound else Common.Bound
 
 instance (Hilite (RenamingTo m), Hilite (RenamingTo n))
        => Hilite (RenamingTo (ImportedName' m n)) where
-  hilite (RenamingTo x) = case x of
-    ImportedModule m -> hilite (RenamingTo m)
-    ImportedName   n -> hilite (RenamingTo n)
+  hilite (RenamingTo x public) = case x of
+    ImportedModule m -> hilite (RenamingTo m public)
+    ImportedName   n -> hilite (RenamingTo n public)
 
 hiliteQName
   :: Maybe NameKind   -- ^ Is 'NameKind' already known from the context?
@@ -540,7 +573,7 @@ hiliteBound :: A.Name -> Hiliter
 hiliteBound x =
   hiliteCName [] (A.nameConcrete x) noRange
     (Just (A.nameBindingSite x, PrivateAccess UserWritten, Nothing))
-    (nameAsp Bound)
+    (nameAsp H.Bound)
 
 hiliteInductiveConstructor :: A.AmbiguousQName -> Hiliter
 hiliteInductiveConstructor = hiliteAmbiguousQName $ Just $ Constructor Inductive
@@ -550,28 +583,6 @@ hilitePatternSynonym = hiliteInductiveConstructor  -- There are no coinductive p
 
 hiliteProjection :: A.AmbiguousQName -> Hiliter
 hiliteProjection = hiliteAmbiguousQName (Just Field)
-
--- For top level modules, we set the binding site to the beginning of the file
--- so that clicking on an imported module will jump to the beginning of the file
--- which defines this module.
-hiliteModule :: (Bool, A.ModuleName) -> Hiliter
-hiliteModule (isTopLevelModule, A.MName []) = mempty
-hiliteModule (isTopLevelModule, A.MName (n:ns)) = do
-  access <- accessM m
-  hiliteCName
-    ms
-    (A.nameConcrete m)
-    noRange
-    (mR access)
-    (nameAsp Module)
-  where
-  (ms, m) = initLast1 n ns
-  mR access = Just
-    ( applyWhen isTopLevelModule P.beginningOfFile $
-      A.nameBindingSite m
-    , access
-    , Nothing
-    )
 
 -- | Information about constructors.
 
@@ -699,32 +710,33 @@ hiliteCName ms x fr mR asp = do
     _ -> True
   isLocal :: NameKind -> Bool
   isLocal = \case
-    Bound         -> True
-    Generalizable -> False
-    Argument      -> True
-    Constructor{} -> False
-    Datatype      -> False
-    Field         -> False
-    Function      -> False
-    Module        -> False
-    Postulate     -> False
-    Primitive     -> False
-    Record        -> False
-    Macro         -> False
+    H.Bound             -> True
+    Generalizable       -> False
+    Argument            -> True
+    Constructor{}       -> False
+    Datatype            -> False
+    Field               -> False
+    Function            -> False
+    Module Common.Bound -> True
+    Module NotBound     -> False
+    Postulate           -> False
+    Primitive           -> False
+    Record              -> False
+    Macro               -> False
 
   -- Is the thing (known to be) a module name?
 
   isModuleName :: Maybe Aspect -> Bool
   isModuleName = \case
     Just (Name (Just kind) _) -> case kind of
-      Bound         -> False
+      H.Bound       -> False
       Generalizable -> False
       Argument      -> False
       Constructor _ -> False
       Datatype      -> False
       Field         -> False
       Function      -> False
-      Module        -> True
+      Module _      -> True
       Postulate     -> False
       Primitive     -> False
       Record        -> False
@@ -750,14 +762,14 @@ hiliteCName ms x fr mR asp = do
 isConstructor :: Maybe Aspect -> Bool
 isConstructor = \case
   Just (Name (Just kind) _) -> case kind of
-    Bound         -> False
+    H.Bound       -> False
     Generalizable -> False
     Argument      -> False
     Constructor _ -> True
     Datatype      -> False
     Field         -> False
     Function      -> False
-    Module        -> False
+    Module _      -> False
     Postulate     -> False
     Primitive     -> False
     Record        -> False
@@ -855,7 +867,7 @@ hiliteAName x include asp = do
     where
     notation = theNotation $ A.nameFixity $ A.qnameName x
 
-    boundAspect = nameAsp Bound False
+    boundAspect = nameAsp H.Bound False
 
     genPartFile (VarPart r i)  = several [rToR r, rToR $ getRange i] boundAspect
     genPartFile (HolePart r i) = several [rToR r, rToR $ getRange i] boundAspect

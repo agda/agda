@@ -101,7 +101,7 @@ data NameKind
   | Datatype
   | Field                         -- ^ Record field.
   | Function
-  | Module                        -- ^ Module name.
+  | Module !Common.IsBound        -- ^ Module name.
   | Postulate
   | Primitive                     -- ^ Primitive.
   | Record                        -- ^ Record type.

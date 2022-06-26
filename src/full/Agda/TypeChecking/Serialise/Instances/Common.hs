@@ -386,6 +386,15 @@ instance EmbPrj Fixity' where
 
   value = valueN (\ f n -> Fixity' f n noRange)
 
+instance EmbPrj IsBound where
+  icod_ Bound    = icodeN 0 ()
+  icod_ NotBound = icodeN' NotBound
+
+  value = vcase valu where
+    valu [0] = valuN Bound
+    valu []  = valuN NotBound
+    valu _   = malformed
+
 instance EmbPrj BoundVariablePosition where
   icod_ (BoundVariablePosition a b) = icodeN' BoundVariablePosition a b
 

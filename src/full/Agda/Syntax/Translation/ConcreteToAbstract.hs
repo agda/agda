@@ -322,7 +322,10 @@ checkModuleMacro apply kind r p x modapp open dir = do
     reportSDoc "scope.decl" 90 $ "after mod app: trying to print m0 ..."
     reportSDoc "scope.decl" 90 $ "after mod app: m0 =" <+> prettyA m0
 
-    bindModule p x m0
+    let bound = case kind of
+          TopOpenModule -> NotBound
+          LetOpenModule -> Bound
+    bindModule p bound x m0
     reportSDoc "scope.decl" 90 $ "after bindMod: m0 =" <+> prettyA m0
 
     printScope "mod.inst.copy.after" 20 "after copying"
@@ -1145,7 +1148,7 @@ scopeCheckNiceModule r p name tel checkDs
       when anon $ markAnonymous aname
       d <- snd <$> do
         scopeCheckModule r (C.QName name) aname tel p checkDs
-      bindModule p' name aname
+      bindModule p' NotBound name aname
 
       -- If the module was anonymous open it public
       -- unless it's private, in which case we just open it (#2099)
@@ -1815,7 +1818,7 @@ instance ToAbstract NiceDeclaration where
           checkForModuleClash x -- disallow shadowing previously defined modules
           let m = qnameToMName x'
           createModule (Just IsDataModule) m
-          bindModule p x m  -- make it a proper module
+          bindModule p NotBound x m  -- make it a proper module
           cons <- toAbstract (map (DataConstrDecl m a p) cons)
           printScope "data" 20 $ "Checked data " ++ prettyShow x
           f <- getConcreteFixity x
@@ -1877,7 +1880,7 @@ instance ToAbstract NiceDeclaration where
              let bad = filter (`elem` dups) fs
              setCurrentRange bad $
                typeError $ DuplicateFields dups
-        bindModule p x m
+        bindModule p NotBound x m
         let kind = maybe ConName (conKindOfName . rangedThing) ind
         -- Andreas, 2019-11-11, issue #4189, no longer add record constructor to record module.
         cm' <- forM cm $ \ (c, _) -> bindRecordConstructorName c kind a p
@@ -1962,12 +1965,13 @@ instance ToAbstract NiceDeclaration where
       (name, theAsSymbol, theAsName) <- case as of
 
          Just a | let y = asName a, not (isNoName y) -> do
-           bindModule (PrivateAccess Inserted) y m
+           bindModule (PrivateAccess Inserted) NotBound y m
            return (C.QName y, asRange a, Just y)
 
          _ -> do
            -- Don't bind if @import ... as _@ with "no name"
-           whenNothing as $ bindQModule (PrivateAccess Inserted) x m
+           whenNothing as $
+             bindQModule (PrivateAccess Inserted) NotBound x m
            return (x, noRange, Nothing)
 
       -- Open if specified, otherwise apply import directives
@@ -2527,7 +2531,7 @@ whereToAbstract1 r whname whds inner = do
   setScope scope
   x <- inner
   setCurrentModule old
-  bindModule acc m am
+  bindModule acc NotBound m am
   -- Issue 848: if the module was anonymous (module _ where) open it public
   let anonymousSomeWhere = maybe False (isNoName . fst) whname
   when anonymousSomeWhere $

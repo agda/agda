@@ -68,4 +68,18 @@
     <a id="{con}D′.c"></a><a id="1341" href="Issue4653.html#1341" class="InductiveConstructor">c</a> <a id="1343" class="Symbol">:</a> <a id="1345" href="Issue4653.html#1316" class="Datatype">D′</a> <a id="1348" class="Comment">-- {con}D′.c</a>
 
 <a id="1362" class="Keyword">pattern</a> <a id="{con}c′"></a><a id="1370" href="Issue4653.html#1370" class="InductiveConstructor">c′</a> <a id="1373" class="Symbol">=</a> <a id="1375" class="InductiveConstructor">c</a> <a id="1377" class="Comment">-- {con}c′</a>
+
+<a id="1389" class="Comment">-- There are symbolic identifiers for module names declared using</a>
+<a id="1455" class="Comment">-- &quot;import M args as N&quot;, but not if &quot;args&quot; is empty.</a>
+
+<a id="1509" class="Keyword">import</a> <a id="1516" href="Issue4653.M.html" class="Module">Issue4653.M</a> <a id="1528" href="Agda.Primitive.html#311" class="Primitive">Set</a> as <a id="{mod}N"></a><a id="1535" href="Issue4653.html#1535" class="Module">N</a> <a id="1537" class="Comment">-- {mod}N</a>
+<a id="1547" class="Keyword">import</a> <a id="1554" href="Agda.Primitive.html" class="Module">Agda.Primitive</a>  <a id="1570" class="Symbol">as</a> <a id="1573" class="Module">N</a>
+
+<a id="1576" class="Comment">-- There are no symbolic identifiers for let declarations.</a>
+
+<a id="1636" href="Issue4653.html#1636" class="Function">_</a> <a id="1638" class="Symbol">:</a> <a id="1640" class="Keyword">let</a> <a id="1644" class="Keyword">module</a> <a id="1651" href="Issue4653.html#1651" class="Module">O</a> <a id="1653" class="Symbol">=</a> <a id="1655" href="Issue4653.html#166" class="Module">M</a><a id="1656" class="Symbol">;</a> <a id="1658" href="Issue4653.html#1658" class="Bound">A</a> <a id="1660" class="Symbol">=</a> <a id="1662" href="Agda.Primitive.html#311" class="Primitive">Set₁</a> <a id="1667" class="Keyword">in</a> <a id="1670" href="Issue4653.html#1658" class="Bound">A</a>
+<a id="1672" class="Symbol">_</a> <a id="1674" class="Symbol">=</a> <a id="1676" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+
+<a id="1681" href="Issue4653.html#1681" class="Function">_</a> <a id="1683" class="Symbol">:</a> <a id="1685" href="Agda.Primitive.html#311" class="Primitive">Set₁</a>
+<a id="1690" class="Symbol">_</a> <a id="1692" class="Symbol">=</a> <a id="1694" class="Keyword">let</a> <a id="1698" class="Keyword">module</a> <a id="1705" href="Issue4653.html#1705" class="Module">O</a> <a id="1707" class="Symbol">=</a> <a id="1709" href="Issue4653.html#166" class="Module">M</a> <a id="1711" href="Agda.Primitive.html#311" class="Primitive">Set</a><a id="1714" class="Symbol">;</a> <a id="1716" href="Issue4653.html#1716" class="Bound">A</a> <a id="1718" class="Symbol">=</a> <a id="1720" href="Agda.Primitive.html#311" class="Primitive">Set</a> <a id="1724" class="Keyword">in</a> <a id="1727" href="Agda.Primitive.html#311" class="Primitive">Set</a>
 </pre></body></html>

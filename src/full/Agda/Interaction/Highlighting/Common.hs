@@ -24,6 +24,7 @@ toAtoms m = map toAtom (Set.toList $ otherAspects m)
 
   kindToAtom (Constructor Inductive)   = "inductiveconstructor"
   kindToAtom (Constructor CoInductive) = "coinductiveconstructor"
+  kindToAtom (Module _)                = "module"
   kindToAtom k                         = toAtom k
 
   toAtoms' Nothing               = []

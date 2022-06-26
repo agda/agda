@@ -75,7 +75,7 @@ data QNamed a = QNamed
 -- The 'SetRange' instance for module names sets all individual ranges
 -- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
-  deriving (Eq, Ord, Data)
+  deriving (Eq, Ord, Hashable, Data)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --

@@ -444,12 +444,13 @@ instance CoArbitrary Aspect where
   coarbitrary Hole          = variant 10
 
 instance Arbitrary NameKind where
-  arbitrary = oneof $ [fmap Constructor arbitrary] ++
+  arbitrary = oneof $ [ fmap Constructor arbitrary
+                      , fmap Module      arbitrary
+                      ] ++
                       map return [ Bound
                                  , Datatype
                                  , Field
                                  , Function
-                                 , Module
                                  , Postulate
                                  , Primitive
                                  , Record
@@ -464,7 +465,7 @@ instance CoArbitrary NameKind where
   coarbitrary Datatype          = variant 2
   coarbitrary Field             = variant 3
   coarbitrary Function          = variant 4
-  coarbitrary Module            = variant 5
+  coarbitrary (Module b)        = variant 5 . coarbitrary b
   coarbitrary Postulate         = variant 6
   coarbitrary Primitive         = variant 7
   coarbitrary Record            = variant 8

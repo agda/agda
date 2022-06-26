@@ -92,6 +92,13 @@ instance Arbitrary MetaId where
     , y <- [0, 1]
     ]
 
+instance Arbitrary IsBound where
+  arbitrary = elements [Bound, NotBound]
+
+instance CoArbitrary IsBound where
+  coarbitrary Bound    = variant 0
+  coarbitrary NotBound = variant 1
+
 instance Arbitrary Hiding where
   arbitrary = elements [ Hidden, NotHidden, Instance NoOverlap, Instance YesOverlap ]
 

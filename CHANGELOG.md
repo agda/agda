@@ -258,6 +258,9 @@ HTML backend
     top-level module), and so on. The symbolic identifier for the
     public definition of `A` is `A`.
 
+  * Symbolic identifiers are no longer generated for let-bound module
+    names.
+
   * If `--only-scope-checking` is used, then one can now get fewer
     symbolic identifiers than before.
 

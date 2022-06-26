@@ -548,9 +548,10 @@ markAnonymous m = case reverse (A.mnameToList m) of
     HMap.insert m (AnonymousNumber $ succ $ HMap.size anon) anon
 
 -- | Store whether the (last component of) the given module name was
--- declared as private or public.
-storeAccess :: Access -> A.ModuleName -> ScopeM ()
-storeAccess acc m = do
+-- declared as private or public, and whether the module name is bound
+-- or not.
+storeAccessBound :: Access -> IsBound -> A.ModuleName -> ScopeM ()
+storeAccessBound acc bound m = do
   -- If both 'Access' values have the form PrivateAccess something,
   -- then the "innermost" one is chosen.
   acc <- (acc <>) <$> asksTC envAccess
@@ -558,19 +559,26 @@ storeAccess acc m = do
     []    -> __IMPOSSIBLE__
     m : _ -> modifyTCLens' stAccess $ HMap.insert m acc
 
+  bound' <- HMap.lookup m <$> useTC stBoundModuleNames
+  case bound' of
+    Nothing ->
+      modifyTCLens' stBoundModuleNames $ HMap.insert m bound
+    Just bound' ->
+      when (bound' /= bound) $ __IMPOSSIBLE_VERBOSE__ (prettyShow m)
+
 -- | Bind a module name.
-bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()
-bindModule acc x m = do
+bindModule :: Access -> IsBound -> C.Name -> A.ModuleName -> ScopeM ()
+bindModule acc bound x m = do
   modifyCurrentScope $
     addModuleToScope (localNameSpace acc) x (AbsModule m Defined)
-  storeAccess acc m
+  storeAccessBound acc bound m
 
 -- | Bind a qualified module name. Adds it to the imports field of the scope.
-bindQModule :: Access -> C.QName -> A.ModuleName -> ScopeM ()
-bindQModule acc q m = do
+bindQModule :: Access -> IsBound -> C.QName -> A.ModuleName -> ScopeM ()
+bindQModule acc bound q m = do
   modifyCurrentScope $ \s ->
     s { scopeImports = Map.insert q m (scopeImports s) }
-  storeAccess acc m
+  storeAccessBound acc bound m
 
 ---------------------------------------------------------------------------
 -- * Module manipulation operations

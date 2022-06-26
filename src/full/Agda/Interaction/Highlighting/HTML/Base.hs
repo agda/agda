@@ -393,6 +393,7 @@ code onlyCode fileType = mconcat . if onlyCode
 
       showKind (Constructor Inductive)   = "InductiveConstructor"
       showKind (Constructor CoInductive) = "CoinductiveConstructor"
+      showKind (Module _)                = "Module"
       showKind k                         = show k
 
       opClass = ["Operator" | op]
