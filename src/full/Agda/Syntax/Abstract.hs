@@ -189,7 +189,7 @@ data Declaration
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
-  | UnquoteData [DefInfo] [QName] UniverseCheck [DefInfo] [QName] Expr
+  | UnquoteData [DefInfo] QName UniverseCheck [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Data, Show, Generic)
 

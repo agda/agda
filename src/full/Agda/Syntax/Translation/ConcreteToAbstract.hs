@@ -2042,10 +2042,7 @@ instance ToAbstract NiceDeclaration where
       zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
-    NiceUnquoteData r p a pc uc xs cs e -> do
-      x <- maybe (typeError $ GenericError $ "Cannot unquote multiple data names at once")
-                 (return . List1.head)
-                 (List1.nonEmpty xs)
+    NiceUnquoteData r p a pc uc x cs e -> do
       fx <- getConcreteFixity x
       x' <- freshAbstractQName fx x
       bindName p QuotableName x x'
@@ -2068,7 +2065,7 @@ instance ToAbstract NiceDeclaration where
       return
         [ A.Mutual
           mi [A.UnquoteData
-            [ mkDefInfo x fx p a r ] [x'] uc
+            [ mkDefInfo x fx p a r ] x' uc
             [ mkDefInfo c fc p a r | (fc, c) <- zip fcs cs] cs' e ]
         ]
 

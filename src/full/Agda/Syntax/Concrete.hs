@@ -482,7 +482,8 @@ data Declaration
       -- ^ @unquoteDecl xs = e@
   | UnquoteDef  Range [Name] Expr
       -- ^ @unquoteDef xs = e@
-  | UnquoteData Range [Name] [Name] Expr
+  | UnquoteData Range Name [Name] Expr
+      -- ^ @unquoteDecl data d constructor xs = e@
   | Pragma      Pragma
   deriving (Data, Eq)
 

@@ -242,7 +242,7 @@ declaredNames = \case
   Module{}              -> mempty
   UnquoteDecl _ xs _    -> declaresNames xs
   UnquoteDef{}          -> mempty
-  UnquoteData _ xs cs _ -> declaresNames (xs ++ cs)
+  UnquoteData _ x cs _  -> declaresNames (x:cs)
   -- BUILTIN pragmas which do not require an accompanying definition declare
   -- the (unqualified) name they mention.
   Pragma (BuiltinPragma _ b (QName x))
