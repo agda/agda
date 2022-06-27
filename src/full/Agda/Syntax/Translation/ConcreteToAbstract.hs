@@ -2053,11 +2053,12 @@ instance ToAbstract NiceDeclaration where
       createModule (Just IsDataModule) m
       bindModule p x m  -- make it a proper module
 
-      cs' <- withCurrentModule m $ mapM (bindUnquoteConstructorName m p) cs
+      cs' <- mapM (bindUnquoteConstructorName m p) cs
 
       e <- withCurrentModule m $ toAbstract e
 
       rebindName p DataName x x'
+      zipWithM_ (rebindName p ConName) cs cs'
       withCurrentModule m $ zipWithM_ (rebindName p ConName) cs cs'
 
       fcs <- mapM getConcreteFixity cs
