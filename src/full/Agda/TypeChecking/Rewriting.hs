@@ -48,6 +48,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 
+import Data.Foldable (toList)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
@@ -160,6 +161,19 @@ addRewriteRules qs = do
     reportSDoc "rewriting" 10 $
       "done checking confluence of rules" <+> prettyList_ (map (prettyTCM . rewName) rews)
 
+-- Auxiliary function for checkRewriteRule.
+-- | Get domain of rewrite relation.
+rewriteRelationDom :: QName -> TCM (ListTel, Dom Type)
+rewriteRelationDom rel = do
+  -- We know that the type of rel is that of a relation.
+  relV <- relView =<< do defType <$> getConstInfo rel
+  let RelView _tel delta a _a' _core = fromMaybe __IMPOSSIBLE__ relV
+  reportSDoc "rewriting" 30 $ do
+    "rewrite relation at type " <+> do
+      inTopContext $ prettyTCM (telFromList delta) <+> " |- " <+> do
+        addContext delta $ prettyTCM a
+  return (delta, a)
+
 -- | Check the validity of @q : Γ → rel us lhs rhs@ as rewrite rule
 --   @
 --       Γ ⊢ lhs ↦ rhs : B
@@ -173,7 +187,11 @@ checkRewriteRule q = do
   requireOptionRewriting
   let failNoBuiltin = typeError $ GenericError $
         "Cannot add rewrite rule without prior BUILTIN REWRITE"
-  rel <- fromMaybeM failNoBuiltin $ getBuiltinName builtinRewrite
+  rels <- fromMaybeM failNoBuiltin getBuiltinRewriteRelations
+  reportSDoc "rewriting.relations" 40 $ vcat
+    [ "Rewrite relations:"
+    , prettyList $ map prettyTCM $ toList rels
+    ]
   def <- instantiateDef =<< getConstInfo q
   -- Issue 1651: Check that we are not adding a rewrite rule
   -- for a type signature whose body has not been type-checked yet.
@@ -183,13 +201,6 @@ checkRewriteRule q = do
       , prettyTCM q
       , " cannot be added before the function definition"
       ]
-  -- We know that the type of rel is that of a relation.
-  relV <- relView =<< do defType <$> getConstInfo rel
-  let RelView _tel delta a _a' _core = fromMaybe __IMPOSSIBLE__ relV
-  reportSDoc "rewriting" 30 $ do
-    "rewrite relation at type " <+> do
-      inTopContext $ prettyTCM (telFromList delta) <+> " |- " <+> do
-        addContext delta $ prettyTCM a
   -- Get rewrite rule (type of q).
   TelV gamma1 core <- telView $ defType def
   reportSDoc "rewriting" 30 $ vcat
@@ -215,7 +226,8 @@ checkRewriteRule q = do
 
   -- Check that type of q targets rel.
   case unEl core of
-    Def rel' es@(_:_:_) | rel == rel' -> do
+    Def rel es@(_:_:_) | rel `elem` rels -> do
+      (delta, a) <- rewriteRelationDom rel
       -- Because of the type of rel (Γ → sort), all es are applications.
       let vs = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       -- The last two arguments are lhs and rhs.

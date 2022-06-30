@@ -15,8 +15,9 @@ import Control.Monad.Trans.Identity (IdentityT)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer
 
-import qualified Data.Map as Map
 import Data.Function ( on )
+import qualified Data.Map as Map
+import Data.Set (Set)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -27,9 +28,11 @@ import Agda.TypeChecking.Monad.Base
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Functor
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
+import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -54,8 +57,10 @@ instance (HasBuiltins m, Monoid w) => HasBuiltins (WriterT w m)
 deriving instance HasBuiltins m => HasBuiltins (BlockT m)
 
 instance MonadIO m => HasBuiltins (TCMT m) where
-  getBuiltinThing b = liftM2 mplus (Map.lookup b <$> useTC stLocalBuiltins)
-                      (Map.lookup b <$> useTC stImportedBuiltins)
+  getBuiltinThing b =
+    liftM2 (unionMaybeWith unionBuiltin)
+      (Map.lookup b <$> useTC stLocalBuiltins)
+      (Map.lookup b <$> useTC stImportedBuiltins)
 
 -- If Agda is changed so that the type of a literal can belong to an
 -- inductive family (with at least one index), then the implementation
@@ -87,6 +92,7 @@ bindBuiltinName b x = do
   case builtin of
     Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
     Just (Prim _)    -> typeError $ NoSuchBuiltinName b
+    Just BuiltinRewriteRelations{} -> __IMPOSSIBLE__
     Nothing          -> stLocalBuiltins `modifyTCLens` Map.insert b (Builtin x)
 
 bindPrimitive :: String -> PrimFun -> TCM ()
@@ -95,7 +101,23 @@ bindPrimitive b pf = do
   case builtin of
     Just (Builtin _) -> typeError $ NoSuchPrimitiveFunction b
     Just (Prim x)    -> typeError $ (DuplicatePrimitiveBinding b `on` primFunName) x pf
+    Just BuiltinRewriteRelations{} -> __IMPOSSIBLE__
     Nothing          -> stLocalBuiltins `modifyTCLens` Map.insert b (Prim pf)
+
+-- | Add one (more) relation symbol to the rewrite relations.
+bindBuiltinRewriteRelation :: QName -> TCM ()
+bindBuiltinRewriteRelation x =
+  stLocalBuiltins `modifyTCLens`
+    Map.insertWith unionBuiltin builtinRewrite (BuiltinRewriteRelations $ singleton x)
+
+-- | Get the currently registered rewrite relation symbols.
+getBuiltinRewriteRelations :: HasBuiltins m => m (Maybe (Set QName))
+getBuiltinRewriteRelations = fmap rels <$> getBuiltinThing builtinRewrite
+  where
+  rels = \case
+    BuiltinRewriteRelations xs -> xs
+    Prim{}    -> __IMPOSSIBLE__
+    Builtin{} -> __IMPOSSIBLE__
 
 getBuiltin :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
            => String -> m Term
@@ -106,6 +128,7 @@ getBuiltin' :: HasBuiltins m => String -> m (Maybe Term)
 getBuiltin' x = do
     builtin <- getBuiltinThing x
     case builtin of
+        Just BuiltinRewriteRelations{} -> __IMPOSSIBLE__
         Just (Builtin t) -> return $ Just $ killRange t
         _                -> return Nothing
 
@@ -113,6 +136,7 @@ getPrimitive' :: HasBuiltins m => String -> m (Maybe PrimFun)
 getPrimitive' x = (getPrim =<<) <$> getBuiltinThing x
   where
     getPrim (Prim pf) = return pf
+    getPrim BuiltinRewriteRelations{} = __IMPOSSIBLE__
     getPrim _         = Nothing
 
 getPrimitive :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
@@ -184,7 +208,6 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primSizeUniv, primSize, primSizeLt, primSizeSuc, primSizeInf, primSizeMax,
     primInf, primSharp, primFlat,
     primEquality, primRefl,
-    primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
     primLockUniv,
     primSet, primProp, primSetOmega, primStrictSet, primSSetOmega,
@@ -302,7 +325,6 @@ primSharp                             = getBuiltin builtinSharp
 primFlat                              = getBuiltin builtinFlat
 primEquality                          = getBuiltin builtinEquality
 primRefl                              = getBuiltin builtinRefl
-primRewrite                           = getBuiltin builtinRewrite
 primLevel                             = getBuiltin builtinLevel
 primLevelZero                         = getBuiltin builtinLevelZero
 primLevelSuc                          = getBuiltin builtinLevelSuc

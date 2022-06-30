@@ -551,10 +551,12 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
 instance EmbPrj a => EmbPrj (Builtin a) where
   icod_ (Prim    a) = icodeN' Prim a
   icod_ (Builtin a) = icodeN 1 Builtin a
+  icod_ (BuiltinRewriteRelations a) = icodeN 2 BuiltinRewriteRelations a
 
   value = vcase valu where
     valu [a]    = valuN Prim    a
     valu [1, a] = valuN Builtin a
+    valu [2, a] = valuN BuiltinRewriteRelations a
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (Substitution' a) where
