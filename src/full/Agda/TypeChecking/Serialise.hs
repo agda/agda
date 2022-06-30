@@ -38,6 +38,7 @@ import Control.Monad.Reader
 import Control.Monad.State.Strict
 
 import Data.Array.IArray
+import Data.Array.IO
 import Data.Word
 import Data.ByteString.Lazy    ( ByteString )
 import Data.ByteString.Builder ( byteString, toLazyByteString )
@@ -197,7 +198,7 @@ decode s = do
      else do
 
       st <- St (ar nL) (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-              <$> liftIO H.empty
+              <$> liftIO (newArray (0, List.genericLength nL - 1) mempty)
               <*> return mf <*> return incs
       (r, st) <- runStateT (runExceptT (value r)) st
       return (Just $ modFile st, r)
