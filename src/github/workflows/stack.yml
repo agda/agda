@@ -166,11 +166,13 @@ jobs:
     # To work around keyring problems, we update msys2-keyring before installing ICU.
     # Andreas, 2022-05-15, pr #5909: the keyring problem was solved upstream by
     # updating Stack-MSYS to 2022-05-03.
+    #
+    # Liang-Ting, 2022-06-30: Always update msys2-keyring in case it is broken upstream again.
     - name: Install the icu library (Windows)
       if: ${{ runner.os == 'Windows' }}
       run: |
-        stack exec ${ARGS} -- pacman --noconfirm -Syuu
-        # stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
+        # stack exec ${ARGS} -- pacman --noconfirm -Syuu
+        stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
         stack exec ${ARGS} -- pacman --noconfirm -S ${ICU}
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
 
