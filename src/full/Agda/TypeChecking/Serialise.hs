@@ -40,6 +40,7 @@ import Control.Monad.State.Strict
 import Data.Array.IArray
 import Data.Array.IO
 import Data.Word
+import Data.Int (Int32)
 import Data.ByteString.Lazy    ( ByteString )
 import Data.ByteString.Builder ( byteString, toLazyByteString )
 import qualified Data.ByteString.Lazy as L
@@ -176,6 +177,24 @@ encode a = do
 --   where
 --   l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
 
+newtype ListLike a = ListLike { unListLike :: Array Int32 a }
+
+instance B.Binary a => B.Binary (ListLike a) where
+  put = __IMPOSSIBLE__ -- Will never deserialise this
+  get = do
+    n <- B.get :: B.Get Int
+    xs <- getMany [] n
+    return $! ListLike (listArray (0, fromIntegral n - 1) xs)
+
+    where
+      getMany :: B.Binary a => [a] -> Int -> B.Get [a]
+      getMany xs 0 = return $! reverse xs
+      getMany xs i = do
+        x <- B.get
+        -- we must seq x to avoid stack overflows due to laziness in (>>=)
+        x `seq` getMany (x:xs) (i-1)
+
+
 -- | Decodes an uncompressed bytestring (without extra hashes or magic
 -- numbers). The result depends on the include path.
 --
@@ -197,8 +216,9 @@ decode s = do
      then noResult "Garbage at end."
      else do
 
-      st <- St (ar nL) (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-              <$> liftIO (newArray (0, List.genericLength nL - 1) mempty)
+      let nL' = ar nL
+      st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
+              <$> liftIO (newArray (bounds nL') mempty)
               <*> return mf <*> return incs
       (r, st) <- runStateT (runExceptT (value r)) st
       return (Just $ modFile st, r)
@@ -226,7 +246,7 @@ decode s = do
       return Nothing
 
   where
-  ar l = listArray (0, List.genericLength l - 1) l
+  ar = unListLike
 
   noResult s = return (Nothing, Left $ GenericError s)
 
