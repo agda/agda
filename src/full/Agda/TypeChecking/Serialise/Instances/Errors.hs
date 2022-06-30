@@ -311,199 +311,199 @@ instance EmbPrj WarningMode where
     _ -> malformed
 
 instance EmbPrj WarningName where
-  icod_ = \case
-    OverlappingTokensWarning_                    -> icodeN  0 OverlappingTokensWarning_
-    UnsupportedAttribute_                        -> icodeN  1 UnsupportedAttribute_
-    MultipleAttributes_                          -> icodeN  2 MultipleAttributes_
-    LibUnknownField_                             -> icodeN  3 LibUnknownField_
-    EmptyAbstract_                               -> icodeN  4 EmptyAbstract_
-    EmptyConstructor_                            -> icodeN  5 EmptyConstructor_
-    EmptyField_                                  -> icodeN  6 EmptyField_
-    EmptyGeneralize_                             -> icodeN  7 EmptyGeneralize_
-    EmptyInstance_                               -> icodeN  8 EmptyInstance_
-    EmptyMacro_                                  -> icodeN  9 EmptyMacro_
-    EmptyMutual_                                 -> icodeN 10 EmptyMutual_
-    EmptyPostulate_                              -> icodeN 11 EmptyPostulate_
-    EmptyPrimitive_                              -> icodeN 12 EmptyPrimitive_
-    EmptyPrivate_                                -> icodeN 13 EmptyPrivate_
-    EmptyRewritePragma_                          -> icodeN 14 EmptyRewritePragma_
-    EmptyWhere_                                  -> icodeN 15 EmptyWhere_
-    HiddenGeneralize_                            -> icodeN 16 HiddenGeneralize_
-    InvalidCatchallPragma_                       -> icodeN 17 InvalidCatchallPragma_
-    InvalidConstructor_                          -> icodeN 18 InvalidConstructor_
-    InvalidConstructorBlock_                     -> icodeN 19 InvalidConstructorBlock_
-    InvalidCoverageCheckPragma_                  -> icodeN 20 InvalidCoverageCheckPragma_
-    InvalidNoPositivityCheckPragma_              -> icodeN 21 InvalidNoPositivityCheckPragma_
-    InvalidNoUniverseCheckPragma_                -> icodeN 22 InvalidNoUniverseCheckPragma_
-    InvalidRecordDirective_                      -> icodeN 23 InvalidRecordDirective_
-    InvalidTerminationCheckPragma_               -> icodeN 24 InvalidTerminationCheckPragma_
-    MissingDeclarations_                         -> icodeN 25 MissingDeclarations_
-    MissingDefinitions_                          -> icodeN 26 MissingDefinitions_
-    NotAllowedInMutual_                          -> icodeN 27 NotAllowedInMutual_
-    OpenPublicAbstract_                          -> icodeN 28 OpenPublicAbstract_
-    OpenPublicPrivate_                           -> icodeN 29 OpenPublicPrivate_
-    PolarityPragmasButNotPostulates_             -> icodeN 30 PolarityPragmasButNotPostulates_
-    PragmaCompiled_                              -> icodeN 31 PragmaCompiled_
-    PragmaNoTerminationCheck_                    -> icodeN 32 PragmaNoTerminationCheck_
-    ShadowingInTelescope_                        -> icodeN 33 ShadowingInTelescope_
-    UnknownFixityInMixfixDecl_                   -> icodeN 34 UnknownFixityInMixfixDecl_
-    UnknownNamesInFixityDecl_                    -> icodeN 35 UnknownNamesInFixityDecl_
-    UnknownNamesInPolarityPragmas_               -> icodeN 36 UnknownNamesInPolarityPragmas_
-    UselessAbstract_                             -> icodeN 37 UselessAbstract_
-    UselessInstance_                             -> icodeN 38 UselessInstance_
-    UselessPrivate_                              -> icodeN 39 UselessPrivate_
-    AbsurdPatternRequiresNoRHS_                  -> icodeN 40 AbsurdPatternRequiresNoRHS_
-    AsPatternShadowsConstructorOrPatternSynonym_ -> icodeN 41 AsPatternShadowsConstructorOrPatternSynonym_
-    CantGeneralizeOverSorts_                     -> icodeN 42 CantGeneralizeOverSorts_
-    ClashesViaRenaming_                          -> icodeN 43 ClashesViaRenaming_
-    CoverageIssue_                               -> icodeN 44 CoverageIssue_
-    CoverageNoExactSplit_                        -> icodeN 45 CoverageNoExactSplit_
-    DeprecationWarning_                          -> icodeN 46 DeprecationWarning_
-    DuplicateUsing_                              -> icodeN 47 DuplicateUsing_
-    FixityInRenamingModule_                      -> icodeN 48 FixityInRenamingModule_
-    GenericNonFatalError_                        -> icodeN 49 GenericNonFatalError_
-    GenericUseless_                              -> icodeN 50 GenericUseless_
-    GenericWarning_                              -> icodeN 51 GenericWarning_
-    IllformedAsClause_                           -> icodeN 52 IllformedAsClause_
-    InstanceArgWithExplicitArg_                  -> icodeN 53 InstanceArgWithExplicitArg_
-    InstanceWithExplicitArg_                     -> icodeN 54 InstanceWithExplicitArg_
-    InstanceNoOutputTypeName_                    -> icodeN 55 InstanceNoOutputTypeName_
-    InversionDepthReached_                       -> icodeN 56 InversionDepthReached_
-    ModuleDoesntExport_                          -> icodeN 57 ModuleDoesntExport_
-    NoGuardednessFlag_                           -> icodeN 58 NoGuardednessFlag_
-    NotInScope_                                  -> icodeN 59 NotInScope_
-    NotStrictlyPositive_                         -> icodeN 60 NotStrictlyPositive_
-    NoEquivWhenSplitting_                        -> icodeN 61 NoEquivWhenSplitting_
-    OldBuiltin_                                  -> icodeN 62 OldBuiltin_
-    PragmaCompileErased_                         -> icodeN 63 PragmaCompileErased_
-    RewriteMaybeNonConfluent_                    -> icodeN 64 RewriteMaybeNonConfluent_
-    RewriteNonConfluent_                         -> icodeN 65 RewriteNonConfluent_
-    RewriteAmbiguousRules_                       -> icodeN 66 RewriteAmbiguousRules_
-    RewriteMissingRule_                          -> icodeN 67 RewriteMissingRule_
-    SafeFlagEta_                                 -> icodeN 68 SafeFlagEta_
-    SafeFlagInjective_                           -> icodeN 69 SafeFlagInjective_
-    SafeFlagNoCoverageCheck_                     -> icodeN 70 SafeFlagNoCoverageCheck_
-    SafeFlagNonTerminating_                      -> icodeN 71 SafeFlagNonTerminating_
-    SafeFlagNoPositivityCheck_                   -> icodeN 72 SafeFlagNoPositivityCheck_
-    SafeFlagNoUniverseCheck_                     -> icodeN 73 SafeFlagNoUniverseCheck_
-    SafeFlagPolarity_                            -> icodeN 74 SafeFlagPolarity_
-    SafeFlagPostulate_                           -> icodeN 75 SafeFlagPostulate_
-    SafeFlagPragma_                              -> icodeN 76 SafeFlagPragma_
-    SafeFlagTerminating_                         -> icodeN 77 SafeFlagTerminating_
-    SafeFlagWithoutKFlagPrimEraseEquality_       -> icodeN 78 SafeFlagWithoutKFlagPrimEraseEquality_
-    TerminationIssue_                            -> icodeN 79 TerminationIssue_
-    UnreachableClauses_                          -> icodeN 80 UnreachableClauses_
-    UnsolvedConstraints_                         -> icodeN 81 UnsolvedConstraints_
-    UnsolvedInteractionMetas_                    -> icodeN 82 UnsolvedInteractionMetas_
-    UnsolvedMetaVariables_                       -> icodeN 83 UnsolvedMetaVariables_
-    UselessHiding_                               -> icodeN 84 UselessHiding_
-    UselessInline_                               -> icodeN 85 UselessInline_
-    UselessPatternDeclarationForRecord_          -> icodeN 86 UselessPatternDeclarationForRecord_
-    UselessPublic_                               -> icodeN 87 UselessPublic_
-    UserWarning_                                 -> icodeN 88 UserWarning_
-    WithoutKFlagPrimEraseEquality_               -> icodeN 89 WithoutKFlagPrimEraseEquality_
-    WrongInstanceDeclaration_                    -> icodeN 90 WrongInstanceDeclaration_
-    CoInfectiveImport_                           -> icodeN 91 CoInfectiveImport_
-    InfectiveImport_                             -> icodeN 92 InfectiveImport_
-    DuplicateFieldsWarning_                      -> icodeN 93 DuplicateFieldsWarning_
-    TooManyFieldsWarning_                        -> icodeN 94 TooManyFieldsWarning_
+  icod_ = return . \case
+    OverlappingTokensWarning_                    -> 0
+    UnsupportedAttribute_                        -> 1
+    MultipleAttributes_                          -> 2
+    LibUnknownField_                             -> 3
+    EmptyAbstract_                               -> 4
+    EmptyConstructor_                            -> 5
+    EmptyField_                                  -> 6
+    EmptyGeneralize_                             -> 7
+    EmptyInstance_                               -> 8
+    EmptyMacro_                                  -> 9
+    EmptyMutual_                                 -> 10
+    EmptyPostulate_                              -> 11
+    EmptyPrimitive_                              -> 12
+    EmptyPrivate_                                -> 13
+    EmptyRewritePragma_                          -> 14
+    EmptyWhere_                                  -> 15
+    HiddenGeneralize_                            -> 16
+    InvalidCatchallPragma_                       -> 17
+    InvalidConstructor_                          -> 18
+    InvalidConstructorBlock_                     -> 19
+    InvalidCoverageCheckPragma_                  -> 20
+    InvalidNoPositivityCheckPragma_              -> 21
+    InvalidNoUniverseCheckPragma_                -> 22
+    InvalidRecordDirective_                      -> 23
+    InvalidTerminationCheckPragma_               -> 24
+    MissingDeclarations_                         -> 25
+    MissingDefinitions_                          -> 26
+    NotAllowedInMutual_                          -> 27
+    OpenPublicAbstract_                          -> 28
+    OpenPublicPrivate_                           -> 29
+    PolarityPragmasButNotPostulates_             -> 30
+    PragmaCompiled_                              -> 31
+    PragmaNoTerminationCheck_                    -> 32
+    ShadowingInTelescope_                        -> 33
+    UnknownFixityInMixfixDecl_                   -> 34
+    UnknownNamesInFixityDecl_                    -> 35
+    UnknownNamesInPolarityPragmas_               -> 36
+    UselessAbstract_                             -> 37
+    UselessInstance_                             -> 38
+    UselessPrivate_                              -> 39
+    AbsurdPatternRequiresNoRHS_                  -> 40
+    AsPatternShadowsConstructorOrPatternSynonym_ -> 41
+    CantGeneralizeOverSorts_                     -> 42
+    ClashesViaRenaming_                          -> 43
+    CoverageIssue_                               -> 44
+    CoverageNoExactSplit_                        -> 45
+    DeprecationWarning_                          -> 46
+    DuplicateUsing_                              -> 47
+    FixityInRenamingModule_                      -> 48
+    GenericNonFatalError_                        -> 49
+    GenericUseless_                              -> 50
+    GenericWarning_                              -> 51
+    IllformedAsClause_                           -> 52
+    InstanceArgWithExplicitArg_                  -> 53
+    InstanceWithExplicitArg_                     -> 54
+    InstanceNoOutputTypeName_                    -> 55
+    InversionDepthReached_                       -> 56
+    ModuleDoesntExport_                          -> 57
+    NoGuardednessFlag_                           -> 58
+    NotInScope_                                  -> 59
+    NotStrictlyPositive_                         -> 60
+    NoEquivWhenSplitting_                        -> 61
+    OldBuiltin_                                  -> 62
+    PragmaCompileErased_                         -> 63
+    RewriteMaybeNonConfluent_                    -> 64
+    RewriteNonConfluent_                         -> 65
+    RewriteAmbiguousRules_                       -> 66
+    RewriteMissingRule_                          -> 67
+    SafeFlagEta_                                 -> 68
+    SafeFlagInjective_                           -> 69
+    SafeFlagNoCoverageCheck_                     -> 70
+    SafeFlagNonTerminating_                      -> 71
+    SafeFlagNoPositivityCheck_                   -> 72
+    SafeFlagNoUniverseCheck_                     -> 73
+    SafeFlagPolarity_                            -> 74
+    SafeFlagPostulate_                           -> 75
+    SafeFlagPragma_                              -> 76
+    SafeFlagTerminating_                         -> 77
+    SafeFlagWithoutKFlagPrimEraseEquality_       -> 78
+    TerminationIssue_                            -> 79
+    UnreachableClauses_                          -> 80
+    UnsolvedConstraints_                         -> 81
+    UnsolvedInteractionMetas_                    -> 82
+    UnsolvedMetaVariables_                       -> 83
+    UselessHiding_                               -> 84
+    UselessInline_                               -> 85
+    UselessPatternDeclarationForRecord_          -> 86
+    UselessPublic_                               -> 87
+    UserWarning_                                 -> 88
+    WithoutKFlagPrimEraseEquality_               -> 89
+    WrongInstanceDeclaration_                    -> 90
+    CoInfectiveImport_                           -> 91
+    InfectiveImport_                             -> 92
+    DuplicateFieldsWarning_                      -> 93
+    TooManyFieldsWarning_                        -> 94
 
-  value = vcase $ \case
-    [0]  -> valuN OverlappingTokensWarning_
-    [1]  -> valuN UnsupportedAttribute_
-    [2]  -> valuN MultipleAttributes_
-    [3]  -> valuN LibUnknownField_
-    [4]  -> valuN EmptyAbstract_
-    [5]  -> valuN EmptyConstructor_
-    [6]  -> valuN EmptyField_
-    [7]  -> valuN EmptyGeneralize_
-    [8]  -> valuN EmptyInstance_
-    [9]  -> valuN EmptyMacro_
-    [10] -> valuN EmptyMutual_
-    [11] -> valuN EmptyPostulate_
-    [12] -> valuN EmptyPrimitive_
-    [13] -> valuN EmptyPrivate_
-    [14] -> valuN EmptyRewritePragma_
-    [15] -> valuN EmptyWhere_
-    [16] -> valuN HiddenGeneralize_
-    [17] -> valuN InvalidCatchallPragma_
-    [18] -> valuN InvalidConstructor_
-    [19] -> valuN InvalidConstructorBlock_
-    [20] -> valuN InvalidCoverageCheckPragma_
-    [21] -> valuN InvalidNoPositivityCheckPragma_
-    [22] -> valuN InvalidNoUniverseCheckPragma_
-    [23] -> valuN InvalidRecordDirective_
-    [24] -> valuN InvalidTerminationCheckPragma_
-    [25] -> valuN MissingDeclarations_
-    [26] -> valuN MissingDefinitions_
-    [27] -> valuN NotAllowedInMutual_
-    [28] -> valuN OpenPublicAbstract_
-    [29] -> valuN OpenPublicPrivate_
-    [30] -> valuN PolarityPragmasButNotPostulates_
-    [31] -> valuN PragmaCompiled_
-    [32] -> valuN PragmaNoTerminationCheck_
-    [33] -> valuN ShadowingInTelescope_
-    [34] -> valuN UnknownFixityInMixfixDecl_
-    [35] -> valuN UnknownNamesInFixityDecl_
-    [36] -> valuN UnknownNamesInPolarityPragmas_
-    [37] -> valuN UselessAbstract_
-    [38] -> valuN UselessInstance_
-    [39] -> valuN UselessPrivate_
-    [40] -> valuN AbsurdPatternRequiresNoRHS_
-    [41] -> valuN AsPatternShadowsConstructorOrPatternSynonym_
-    [42] -> valuN CantGeneralizeOverSorts_
-    [43] -> valuN ClashesViaRenaming_
-    [44] -> valuN CoverageIssue_
-    [45] -> valuN CoverageNoExactSplit_
-    [46] -> valuN DeprecationWarning_
-    [47] -> valuN DuplicateUsing_
-    [48] -> valuN FixityInRenamingModule_
-    [49] -> valuN GenericNonFatalError_
-    [50] -> valuN GenericUseless_
-    [51] -> valuN GenericWarning_
-    [52] -> valuN IllformedAsClause_
-    [53] -> valuN InstanceArgWithExplicitArg_
-    [54] -> valuN InstanceWithExplicitArg_
-    [55] -> valuN InstanceNoOutputTypeName_
-    [56] -> valuN InversionDepthReached_
-    [57] -> valuN ModuleDoesntExport_
-    [58] -> valuN NoGuardednessFlag_
-    [59] -> valuN NotInScope_
-    [60] -> valuN NotStrictlyPositive_
-    [61] -> valuN NoEquivWhenSplitting_
-    [62] -> valuN OldBuiltin_
-    [63] -> valuN PragmaCompileErased_
-    [64] -> valuN RewriteMaybeNonConfluent_
-    [65] -> valuN RewriteNonConfluent_
-    [66] -> valuN RewriteAmbiguousRules_
-    [67] -> valuN RewriteMissingRule_
-    [68] -> valuN SafeFlagEta_
-    [69] -> valuN SafeFlagInjective_
-    [70] -> valuN SafeFlagNoCoverageCheck_
-    [71] -> valuN SafeFlagNonTerminating_
-    [72] -> valuN SafeFlagNoPositivityCheck_
-    [73] -> valuN SafeFlagNoUniverseCheck_
-    [74] -> valuN SafeFlagPolarity_
-    [75] -> valuN SafeFlagPostulate_
-    [76] -> valuN SafeFlagPragma_
-    [77] -> valuN SafeFlagTerminating_
-    [78] -> valuN SafeFlagWithoutKFlagPrimEraseEquality_
-    [79] -> valuN TerminationIssue_
-    [80] -> valuN UnreachableClauses_
-    [81] -> valuN UnsolvedConstraints_
-    [82] -> valuN UnsolvedInteractionMetas_
-    [83] -> valuN UnsolvedMetaVariables_
-    [84] -> valuN UselessHiding_
-    [85] -> valuN UselessInline_
-    [86] -> valuN UselessPatternDeclarationForRecord_
-    [87] -> valuN UselessPublic_
-    [88] -> valuN UserWarning_
-    [89] -> valuN WithoutKFlagPrimEraseEquality_
-    [90] -> valuN WrongInstanceDeclaration_
-    [91] -> valuN CoInfectiveImport_
-    [92] -> valuN InfectiveImport_
-    [93] -> valuN DuplicateFieldsWarning_
-    [94] -> valuN TooManyFieldsWarning_
+  value = \case
+    0  -> return OverlappingTokensWarning_
+    1  -> return UnsupportedAttribute_
+    2  -> return MultipleAttributes_
+    3  -> return LibUnknownField_
+    4  -> return EmptyAbstract_
+    5  -> return EmptyConstructor_
+    6  -> return EmptyField_
+    7  -> return EmptyGeneralize_
+    8  -> return EmptyInstance_
+    9  -> return EmptyMacro_
+    10 -> return EmptyMutual_
+    11 -> return EmptyPostulate_
+    12 -> return EmptyPrimitive_
+    13 -> return EmptyPrivate_
+    14 -> return EmptyRewritePragma_
+    15 -> return EmptyWhere_
+    16 -> return HiddenGeneralize_
+    17 -> return InvalidCatchallPragma_
+    18 -> return InvalidConstructor_
+    19 -> return InvalidConstructorBlock_
+    20 -> return InvalidCoverageCheckPragma_
+    21 -> return InvalidNoPositivityCheckPragma_
+    22 -> return InvalidNoUniverseCheckPragma_
+    23 -> return InvalidRecordDirective_
+    24 -> return InvalidTerminationCheckPragma_
+    25 -> return MissingDeclarations_
+    26 -> return MissingDefinitions_
+    27 -> return NotAllowedInMutual_
+    28 -> return OpenPublicAbstract_
+    29 -> return OpenPublicPrivate_
+    30 -> return PolarityPragmasButNotPostulates_
+    31 -> return PragmaCompiled_
+    32 -> return PragmaNoTerminationCheck_
+    33 -> return ShadowingInTelescope_
+    34 -> return UnknownFixityInMixfixDecl_
+    35 -> return UnknownNamesInFixityDecl_
+    36 -> return UnknownNamesInPolarityPragmas_
+    37 -> return UselessAbstract_
+    38 -> return UselessInstance_
+    39 -> return UselessPrivate_
+    40 -> return AbsurdPatternRequiresNoRHS_
+    41 -> return AsPatternShadowsConstructorOrPatternSynonym_
+    42 -> return CantGeneralizeOverSorts_
+    43 -> return ClashesViaRenaming_
+    44 -> return CoverageIssue_
+    45 -> return CoverageNoExactSplit_
+    46 -> return DeprecationWarning_
+    47 -> return DuplicateUsing_
+    48 -> return FixityInRenamingModule_
+    49 -> return GenericNonFatalError_
+    50 -> return GenericUseless_
+    51 -> return GenericWarning_
+    52 -> return IllformedAsClause_
+    53 -> return InstanceArgWithExplicitArg_
+    54 -> return InstanceWithExplicitArg_
+    55 -> return InstanceNoOutputTypeName_
+    56 -> return InversionDepthReached_
+    57 -> return ModuleDoesntExport_
+    58 -> return NoGuardednessFlag_
+    59 -> return NotInScope_
+    60 -> return NotStrictlyPositive_
+    61 -> return NoEquivWhenSplitting_
+    62 -> return OldBuiltin_
+    63 -> return PragmaCompileErased_
+    64 -> return RewriteMaybeNonConfluent_
+    65 -> return RewriteNonConfluent_
+    66 -> return RewriteAmbiguousRules_
+    67 -> return RewriteMissingRule_
+    68 -> return SafeFlagEta_
+    69 -> return SafeFlagInjective_
+    70 -> return SafeFlagNoCoverageCheck_
+    71 -> return SafeFlagNonTerminating_
+    72 -> return SafeFlagNoPositivityCheck_
+    73 -> return SafeFlagNoUniverseCheck_
+    74 -> return SafeFlagPolarity_
+    75 -> return SafeFlagPostulate_
+    76 -> return SafeFlagPragma_
+    77 -> return SafeFlagTerminating_
+    78 -> return SafeFlagWithoutKFlagPrimEraseEquality_
+    79 -> return TerminationIssue_
+    80 -> return UnreachableClauses_
+    81 -> return UnsolvedConstraints_
+    82 -> return UnsolvedInteractionMetas_
+    83 -> return UnsolvedMetaVariables_
+    84 -> return UselessHiding_
+    85 -> return UselessInline_
+    86 -> return UselessPatternDeclarationForRecord_
+    87 -> return UselessPublic_
+    88 -> return UserWarning_
+    89 -> return WithoutKFlagPrimEraseEquality_
+    90 -> return WrongInstanceDeclaration_
+    91 -> return CoInfectiveImport_
+    92 -> return InfectiveImport_
+    93 -> return DuplicateFieldsWarning_
+    94 -> return TooManyFieldsWarning_
     _ -> malformed
 
 
