@@ -36,6 +36,7 @@ import Control.Monad.Except
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
 import Control.Monad.State.Strict
+import Control.Monad.ST.Trans
 
 import Data.Array.IArray
 import Data.Array.IO
@@ -181,19 +182,18 @@ newtype ListLike a = ListLike { unListLike :: Array Int32 a }
 
 instance B.Binary a => B.Binary (ListLike a) where
   put = __IMPOSSIBLE__ -- Will never deserialise this
-  get = do
-    n <- B.get :: B.Get Int
-    xs <- getMany [] n
-    return $! ListLike (listArray (0, fromIntegral n - 1) xs)
+  get = fmap ListLike $ runSTArray $ do
+    n <- lift (B.get :: B.Get Int)
+    arr <- newArray_ (0, fromIntegral n - 1) :: STT s B.Get (STArray s Int32 a)
 
-    where
-      getMany :: B.Binary a => [a] -> Int -> B.Get [a]
-      getMany xs 0 = return $! reverse xs
-      getMany xs i = do
-        x <- B.get
-        -- we must seq x to avoid stack overflows due to laziness in (>>=)
-        x `seq` getMany (x:xs) (i-1)
+    let
+      getMany i = if i == n then return () else do
+        x <- lift B.get
+        unsafeWriteSTArray arr i x
+        getMany (i + 1)
+    () <- getMany 0
 
+    return arr
 
 -- | Decodes an uncompressed bytestring (without extra hashes or magic
 -- numbers). The result depends on the include path.
