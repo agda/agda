@@ -181,7 +181,7 @@ encode a = do
 newtype ListLike a = ListLike { unListLike :: Array Int32 a }
 
 instance B.Binary a => B.Binary (ListLike a) where
-  put = __IMPOSSIBLE__ -- Will never deserialise this
+  put = __IMPOSSIBLE__ -- Will never serialise this
   get = fmap ListLike $ runSTArray $ do
     n <- lift (B.get :: B.Get Int)
     arr <- newArray_ (0, fromIntegral n - 1) :: STT s B.Get (STArray s Int32 a)
