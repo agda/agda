@@ -41,6 +41,24 @@ Language
       f : A
   ```
 
+* Added an option `--erase-record-parameters` that additionally marks
+  parameters to definitions in a record module as erased
+  ([#5770](https://github.com/agda/agda/issues/5770)). For example:
+
+  ```agda
+  {-# OPTIONS --erase-record-parameters #-}
+
+  postulate A : Set
+  postulate a : A
+
+  record R (x : A) : Set where
+    y : A
+    y = a
+
+  f : (@0 x : A) → R x → A
+  f x r = R.y {x} r
+  ```
+
 * The options `--subtyping` and `--no-subtyping` have been removed
   (see [#5427](https://github.com/agda/agda/issues/5427)).
 
