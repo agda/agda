@@ -30,6 +30,7 @@ import Control.Monad ( guard, when )
 import Text.Read ( readMaybe )
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.HashMap.Strict as HMap
 import Data.List ( stripPrefix, intercalate )
 
 import GHC.Generics (Generic)
@@ -275,9 +276,9 @@ instance NFData WarningName
 -- | The flag corresponding to a warning is precisely the name of the constructor
 -- minus the trailing underscore.
 
--- sorry
 string2WarningName :: String -> Maybe WarningName
-string2WarningName = readMaybe . (++ "_")
+string2WarningName = (`HMap.lookup` warnings) where
+  warnings = HMap.fromList $ map (\x -> (warningName2String x, x)) [minBound..maxBound]
 
 warningName2String :: WarningName -> String
 warningName2String = initWithDefault __IMPOSSIBLE__ . show
