@@ -186,6 +186,8 @@ instance B.Binary a => B.Binary (ListLike a) where
     n <- lift (B.get :: B.Get Int)
     arr <- newArray_ (0, fromIntegral n - 1) :: STT s B.Get (STArray s Int32 a)
 
+    -- We'd like to use 'for_ [0..n-1]' here, but unfortunately GHC doesn't unfold
+    -- the list construction and so performs worse than the hand-written version.
     let
       getMany i = if i == n then return () else do
         x <- lift B.get
