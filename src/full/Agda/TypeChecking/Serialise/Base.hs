@@ -16,6 +16,8 @@ import Control.Monad.State.Strict (StateT, gets)
 import Data.Proxy
 
 import Data.Array.IArray
+import Data.Array.IO
+import qualified Data.HashMap.Strict as Hm
 import qualified Data.ByteString.Lazy as L
 import Data.Hashable
 import Data.Int (Int32)
@@ -142,7 +144,7 @@ emptyDict collectStats = Dict
 data U = forall a . Typeable a => U !a
 
 -- | Univeral memo structure, to introduce sharing during decoding
-type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
+type Memo = IOArray Int32 (Hm.HashMap TypeRep U) -- node index -> (type rep -> value)
 
 -- | State of the decoder.
 data St = St
@@ -368,14 +370,14 @@ vcase valu = \ix -> do
     let aTyp = typeRep (Proxy :: Proxy a)
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
-    maybeU <- liftIO $ H.lookup memo (ix, aTyp)
-    case maybeU of
+    slot <- liftIO $ readArray memo ix
+    case Hm.lookup aTyp slot of
       -- yes, we have seen it before, use the version from memo
       Just (U u) -> maybe malformed return (cast u)
       -- no, it's new, so generate it via valu and insert it into memo
       Nothing    -> do
           v <- valu . (! ix) =<< gets nodeE
-          liftIO $ H.insert memo (ix, aTyp) (U v)
+          liftIO $ writeArray memo ix (Hm.insert aTyp (U v) slot)
           return v
 
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@

@@ -36,9 +36,12 @@ import Control.Monad.Except
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
 import Control.Monad.State.Strict
+import Control.Monad.ST.Trans
 
 import Data.Array.IArray
+import Data.Array.IO
 import Data.Word
+import Data.Int (Int32)
 import Data.ByteString.Lazy    ( ByteString )
 import Data.ByteString.Builder ( byteString, toLazyByteString )
 import qualified Data.ByteString.Lazy as L
@@ -175,6 +178,25 @@ encode a = do
 --   where
 --   l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
 
+newtype ListLike a = ListLike { unListLike :: Array Int32 a }
+
+instance B.Binary a => B.Binary (ListLike a) where
+  put = __IMPOSSIBLE__ -- Will never serialise this
+  get = fmap ListLike $ runSTArray $ do
+    n <- lift (B.get :: B.Get Int)
+    arr <- newArray_ (0, fromIntegral n - 1) :: STT s B.Get (STArray s Int32 a)
+
+    -- We'd like to use 'for_ [0..n-1]' here, but unfortunately GHC doesn't unfold
+    -- the list construction and so performs worse than the hand-written version.
+    let
+      getMany i = if i == n then return () else do
+        x <- lift B.get
+        unsafeWriteSTArray arr i x
+        getMany (i + 1)
+    () <- getMany 0
+
+    return arr
+
 -- | Decodes an uncompressed bytestring (without extra hashes or magic
 -- numbers). The result depends on the include path.
 --
@@ -196,8 +218,9 @@ decode s = do
      then noResult "Garbage at end."
      else do
 
-      st <- St (ar nL) (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-              <$> liftIO H.empty
+      let nL' = ar nL
+      st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
+              <$> liftIO (newArray (bounds nL') mempty)
               <*> return mf <*> return incs
       (r, st) <- runStateT (runExceptT (value r)) st
       return (Just $ modFile st, r)
@@ -225,7 +248,7 @@ decode s = do
       return Nothing
 
   where
-  ar l = listArray (0, List.genericLength l - 1) l
+  ar = unListLike
 
   noResult s = return (Nothing, Left $ GenericError s)
 
