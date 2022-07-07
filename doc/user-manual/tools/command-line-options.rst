@@ -557,7 +557,7 @@ Other features
 
      Automatically marks parameters to definitions in a record module
      as erased.
-     
+
 .. _warnings:
 
 Warnings
