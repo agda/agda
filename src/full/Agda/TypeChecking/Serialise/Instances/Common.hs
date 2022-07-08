@@ -266,9 +266,31 @@ instance (EmbPrj k, EmbPrj v, EmbPrj (BiMap.Tag v)) =>
   icod_ m = icode (BiMap.toDistinctAscendingLists m)
   value m = BiMap.fromDistinctAscendingLists <$> value m
 
+
+-- | Encode a list of key-value pairs as a flat list.
+mapPairsIcode :: (EmbPrj k, EmbPrj v) => [(k, v)] -> S Int32
+mapPairsIcode xs = icodeNode =<< convert [] xs where
+  -- As we need to call `convert' in the tail position, the resulting list is
+  -- written (and read) in reverse order, with the highest pair first in the
+  -- resulting list.
+  convert ys [] = return ys
+  convert ys ((start, entry):xs) = do
+    start <- icode start
+    entry <- icode entry
+    convert (start:entry:ys) xs
+
+mapPairsValue :: (EmbPrj k, EmbPrj v) => [Int32] -> R [(k, v)]
+mapPairsValue = convert [] where
+  convert ys [] = return ys
+  convert ys (start:entry:xs) = do
+    start <- value start
+    entry <- value entry
+    convert ((start, entry):ys) xs
+  convert _ _ = malformed
+
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
-  icod_ m = icode (Map.toAscList m)
-  value m = Map.fromDistinctAscList <$> value m
+  icod_ m = mapPairsIcode (Map.toAscList m)
+  value = vcase (fmap Map.fromDistinctAscList . mapPairsValue)
 
 instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.toAscList s)
@@ -459,8 +481,8 @@ instance EmbPrj NameId where
   value = valueN NameId
 
 instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
-  icod_ m = icode (HMap.toList m)
-  value m = HMap.fromList `fmap` value m
+  icod_ m = mapPairsIcode (HMap.toList m)
+  value = vcase (fmap HMap.fromList . mapPairsValue)
 
 instance EmbPrj a => EmbPrj (WithHiding a) where
   icod_ (WithHiding a b) = icodeN' WithHiding a b

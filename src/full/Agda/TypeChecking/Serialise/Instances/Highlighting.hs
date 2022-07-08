@@ -2,6 +2,9 @@
 
 module Agda.TypeChecking.Serialise.Instances.Highlighting where
 
+import qualified Data.Map.Strict as Map
+import Data.Strict.Tuple (Pair(..))
+
 import qualified Agda.Interaction.Highlighting.Range   as HR
 import qualified Agda.Interaction.Highlighting.Precise as HP
 import qualified Agda.Utils.RangeMap                   as RM
@@ -115,15 +118,26 @@ instance EmbPrj HP.DefinitionSite where
 
   value = valueN HP.DefinitionSite
 
-instance EmbPrj a => EmbPrj (RM.PairInt a) where
-  icod_ (RM.PairInt a) = icodeN' RM.PairInt a
-
-  value = valueN RM.PairInt
-
 instance EmbPrj a => EmbPrj (RM.RangeMap a) where
-  icod_ (RM.RangeMap f) = icodeN' RM.RangeMap f
+  -- Write the RangeMap as flat list rather than a list of (Int, (Int, x)). Much
+  -- like Map, we need to call `convert' in the tail position and so the output
+  -- list is written (and read) in reverse order.
+  icod_ (RM.RangeMap f) = icodeNode =<< convert [] (Map.toAscList f) where
+    convert ys [] = return ys
+    convert ys ((start, RM.PairInt (end :!: entry)):xs) = do
+      start <- icode start
+      end <- icode end
+      entry <- icode entry
+      convert (start:end:entry:ys) xs
 
-  value = valueN RM.RangeMap
+  value = vcase (fmap (RM.RangeMap . Map.fromDistinctAscList) . convert []) where
+    convert ys [] = return ys
+    convert ys (start:end:entry:xs) = do
+      start <- value start
+      end <- value end
+      entry <- value entry
+      convert ((start, RM.PairInt (end :!: entry)):ys) xs
+    convert _ _ = malformed
 
 instance EmbPrj HP.TokenBased where
   icod_ HP.TokenBased        = icodeN 0 ()
