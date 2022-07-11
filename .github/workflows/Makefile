@@ -4,11 +4,12 @@
 srcpath=../../src/github/workflows
 sources=$(wildcard $(srcpath)/*.yml $(srcpath)/*.yaml)
 targets=$(sort $(notdir $(sources)))
+json2yaml-version=0.11.8.0
 
 # Header is not header.yml but header.txt so that is not included in $(sources).
 header=$(srcpath)/header.txt
 
-all : $(targets)
+all : json2yaml-version $(targets)
 
 # Normalize YAML files by going via JSON.
 # This expands anchors which are not understood by github workflows.
@@ -16,6 +17,14 @@ all : $(targets)
 % : $(srcpath)/% $(header) Makefile
 	@cp $(header) $@
 	yaml2json $< | json2yaml - >> $@
+
+# Check that correct version of json2yaml is used.
+#
+# Print required and actual version and check (-C) whether these two lines
+# are sorted as version numbers (-V).
+# From: https://stackoverflow.com/questions/4023830/how-to-compare-two-strings-in-dot-separated-version-format-in-bash
+json2yaml-version:
+	@(printf "$(json2yaml-version)\n%s" `json2yaml --numeric-version` | sort -V -C) || (echo "ERROR: At least version $(json2yaml-version) of json2yaml is required.  Please install, e.g. via 'make req-cabal' or 'make req-stack'." && false)
 
 ## Installing the requirements `yaml2json` and `json2yaml`
 
