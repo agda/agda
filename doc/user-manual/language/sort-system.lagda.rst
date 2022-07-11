@@ -194,7 +194,7 @@ instead of ``Setω₀``, ``Setω₁``, ``Setω₂``.
 
 Now it is allowed, for instance, to declare a datatype in ``Setω``.
 This means that ``Setω`` before the implementation of this hierarchy,
-``Setω`` used to be a term, and there was no bigger sort that it in
+``Setω`` used to be a term, and there was no bigger sort than it in
 Agda.  Now a type can be assigned to it, in this case, ``Setω₁``.
 
 However, unlike the standard hierarchy of universes ``Setᵢ``, this
