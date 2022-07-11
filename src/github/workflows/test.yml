@@ -6,46 +6,41 @@ on:
     - master
     - ci-*
     - release*
-    paths-ignore: &ignore_path_list
-    - '.github/*'
-    - '.github/workflows/cabal.yml'
-    - '.github/workflows/cabal-test.yml'
-    - '.github/workflows/haddock.yml'
-    - '.github/workflows/lint.yml'
-    - '.github/workflows/deploy.yml'
-    - '.github/workflows/stack.yml'
-    - '.github/workflows/user_manual.yml'
-    - '.github/workflows/whitespace.yml'
-    - 'src/agda-bisect/**'
-    - 'src/fix-whitespace/**'
-    - 'src/github/workflows/cabal.yml'
-    - 'src/github/workflows/cabal-test.yml'
-    - 'src/github/workflows/haddock.yml'
-    - 'src/github/workflows/lint.yml'
-    - 'src/github/workflows/deploy.yml'
-    - 'src/github/workflows/stack.yml'
-    - 'src/github/workflows/user_manual.yml'
-    - 'src/github/workflows/whitespace.yml'
-    - 'src/hs-tags/**'
-    - 'src/release-tools/**'
-    - '.travis'
-    - 'macros/**'
-    - 'notes/**'
-    - '.mailmap'
-    - '.ghci*'
-    - '.gitignore'
-    - '.hlint.yaml'
-    - '.travis.yml'
-    - 'CHANGELOG.md'
-    - 'HACKING.md'
-    - 'LICENSE'
-    - 'README.md'
-    - 'fix-whitespace.yaml'
-    - 'hie.yaml'
-    - 'stack-*.yaml'
-    - 'touchup.sh'
+
+    paths: &path_list
+    # Prefix with ! to ignore.  Later matches override earlier matches.
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-including-and-excluding-paths
+    # Include everything at first (more robust wrt. additions to the repo).
+    - '**'
+    # Ignore github administrative information except for self (test.yaml).
+    - '!.github/**'
+    - '.github/workflows/test.yml'
+    - '!src/github/**'
+    - 'src/github/workflows/test.yml'
+    # Ignore other components not contributing to this test.
+    - '!src/agda-bisect/**'
+    - '!src/fix-whitespace/**'
+    - '!src/hs-tags/**'
+    - '!src/release-tools/**'
+    - '!.travis'
+    - '!macros/**'
+    - '!notes/**'
+    - '!.mailmap'
+    - '!.ghci*'
+    - '!.gitignore'
+    - '!.hlint.yaml'
+    - '!.travis.yml'
+    - '!CHANGELOG.md'
+    - '!HACKING.md'
+    - '!LICENSE'
+    - '!README.md'
+    - '!fix-whitespace.yaml'
+    - '!hie.yaml'
+    - '!stack-*.yaml'
+    - '!touchup.sh'
+
   pull_request:
-    paths-ignore: *ignore_path_list
+    paths: *path_list
 
   workflow_dispatch:
 
