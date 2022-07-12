@@ -23,12 +23,17 @@ instance AllMetas Term
 instance AllMetas Type
 instance TermLike a => AllMetas (Elim' a)
 instance TermLike a => AllMetas (Tele a)
-instance TermLike a => AllMetas (Dom a)
+
+instance (AllMetas a, AllMetas b) => AllMetas (Dom' a b) where
+  allMetas f (Dom _ _ _ t e) = allMetas f t <> allMetas f e
 
 -- These types need to be packed up as a Term to get the metas.
 instance AllMetas Sort      where allMetas f   = allMetas f . Sort
 instance AllMetas Level     where allMetas f   = allMetas f . Level
 instance AllMetas PlusLevel where allMetas f l = allMetas f (Max 0 [l])
+
+instance {-# OVERLAPPING #-} AllMetas String where
+  allMetas f _ = mempty
 
 -- Generic instances
 instance (AllMetas a, AllMetas b) => AllMetas (a, b) where
