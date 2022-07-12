@@ -79,12 +79,16 @@ instance NamesIn a => NamesIn (Map k a)
 
 -- Decorations
 instance NamesIn a => NamesIn (Arg a)
-instance NamesIn a => NamesIn (Dom a)
 instance NamesIn a => NamesIn (Named n a)
 instance NamesIn a => NamesIn (Abs a)
 instance NamesIn a => NamesIn (WithArity a)
 instance NamesIn a => NamesIn (Open a)
 instance NamesIn a => NamesIn (C.FieldAssignment' a)
+
+instance (NamesIn a, NamesIn b) => NamesIn (Dom' a b) where
+  namesAndMetasIn' sg (Dom _ _ _ t e) =
+    mappend (namesAndMetasIn' sg t) (namesAndMetasIn' sg e)
+
 
 -- Specific collections
 instance NamesIn a => NamesIn (Tele a)
