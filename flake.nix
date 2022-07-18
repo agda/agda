@@ -2,8 +2,12 @@
   description = "Agda is a dependently typed programming language / interactive theorem prover.";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
+  inputs.flake-compat = {
+    url = "github:edolstra/flake-compat";
+    flake = false;
+  };
 
-  outputs = { self, nixpkgs, flake-utils }: (flake-utils.lib.eachDefaultSystem (system: let
+  outputs = { self, nixpkgs, flake-utils, flake-compat }: (flake-utils.lib.eachDefaultSystem (system: let
     pkgs = import nixpkgs { inherit system; overlays = [ self.overlay ]; };
   in {
     packages = {
@@ -43,9 +47,8 @@
       postfix = if self ? revCount then "${toString self.revCount}_${shortRev}" else "Dirty";
     in {
       # TODO use separate evaluation system?
-      Agda = callCabal2nixWithOptions "Agda" ./. "--flag enable-cluster-counting --flag optimise-heavily" ({
+      Agda = callCabal2nixWithOptions "Agda" ./. "--flag optimise-heavily" ({
         mkDerivation = args: final.mkDerivation (args // {
-          version = "${args.version}-pre${postfix}";
 
           postInstall = "$out/bin/agda-mode compile";
 

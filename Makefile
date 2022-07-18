@@ -43,7 +43,7 @@ STACK_OPT_FAST    = --fast
 CABAL_FLAG_ICU    = -fenable-cluster-counting
 STACK_FLAG_ICU    = --flag Agda:enable-cluster-counting
 
-CABAL_FLAG_OPTIM_HEAVY ?= -foptimise-heavily
+CABAL_FLAG_OPTIM_HEAVY ?= --ghc-options=-O2
 STACK_FLAG_OPTIM_HEAVY ?= --flag Agda:optimise-heavily
 
 CABAL_INSTALL_HELPER = $(CABAL) $(CABAL_INSTALL_CMD) $(CABAL_OPT_NO_DOCS)
@@ -108,10 +108,10 @@ STACK_INSTALL_OPTS =
 
 # Only enable cluster-counting by default for non-Windows, due to agda/agda#5012
 # The msys* and mingw* strings derived from: https://stackoverflow.com/a/18434831/141513
-ifeq ($(filter msys% mingw%,$(shell echo "$${OSTYPE:-unknown}")),)
-  CABAL_INSTALL_OPTS += $(CABAL_FLAG_ICU)
-  STACK_INSTALL_OPTS += $(STACK_FLAG_ICU)
-endif
+# ifeq ($(filter msys% mingw%,$(shell echo "$${OSTYPE:-unknown}")),)
+#   CABAL_INSTALL_OPTS += $(CABAL_FLAG_ICU)
+#   STACK_INSTALL_OPTS += $(STACK_FLAG_ICU)
+# endif
 
 CABAL_INSTALL_OPTS += --ghc-options=$(GHC_OPTS) $(CABAL_OPTS)
 STACK_INSTALL_OPTS += --ghc-options $(GHC_OPTS) $(STACK_OPTS)
