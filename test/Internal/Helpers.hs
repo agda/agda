@@ -217,7 +217,7 @@ listOfElements xs = listOf $ elements xs
 
 -- | Generates an officially non-empty list, while 'listOf1' does it inofficially.
 list1Of :: Gen a -> Gen (List1 a)
-list1Of = List1.fromList <.> listOf1
+list1Of = List1.fromList undefined <.> listOf1
 
 -- | If the given list is non-empty, then an element from the list is
 -- generated, and otherwise an arbitrary element is generated.

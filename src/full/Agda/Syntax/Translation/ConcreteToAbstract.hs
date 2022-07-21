@@ -833,7 +833,7 @@ scopeCheckExtendedLam r erased cs = do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
         A.ExtendedLam (ExprRange r) di erased qname' $
-        List1.fromList cs
+        List1.fromList __IMPOSSIBLE__ cs
     _ -> __IMPOSSIBLE__
 
 -- | Raise an error if argument is a C.Dot with Hiding info.

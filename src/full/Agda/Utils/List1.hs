@@ -36,13 +36,22 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Semigroup as Semigroup
 
 import qualified Data.List.NonEmpty (NonEmpty)
-import Data.List.NonEmpty as List1 hiding (NonEmpty)
+import Data.List.NonEmpty as List1 hiding (NonEmpty, fromList)
 
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Null (Null(..))
 import qualified Agda.Utils.List as List
 
 type List1 = Data.List.NonEmpty.NonEmpty
+
+-- | Safe version of 'Data.List.NonEmpty.fromList'.
+
+fromList
+  :: List1 a  -- ^ Default value if convertee is empty.
+  -> [a]      -- ^ List to convert, supposedly non-empty.
+  -> List1 a  -- ^ Converted list.
+fromList err   [] = err
+fromList _ (x:xs) = x :| xs
 
 -- | Return the last element and the rest.
 

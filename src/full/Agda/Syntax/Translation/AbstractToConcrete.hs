@@ -867,7 +867,7 @@ instance ToConcrete A.Expr where
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
                 return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
-          C.ExtendedLam (getRange i) erased . List1.fromList <$>
+          C.ExtendedLam (getRange i) erased . List1.fromList __IMPOSSIBLE__ <$>
             mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 

@@ -820,7 +820,7 @@ reifyTerm expandAnonDefs0 v0 = do
             Quantityω o -> NotErased o
             Quantity1 o -> __IMPOSSIBLE__
       elims (A.ExtendedLam exprNoRange dInfo erased x $
-             List1.fromList cls)
+             List1.fromList __IMPOSSIBLE__ cls)
         =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@

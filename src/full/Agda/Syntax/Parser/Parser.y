@@ -851,7 +851,7 @@ LamBindings
   : LamBinds '->' {%
       case absurdBinding $1 of
         Just{}  -> parseError "Absurd lambda cannot have a body."
-        Nothing -> return $ List1.fromList $ lamBindings $1
+        Nothing -> return $ List1.fromList __IMPOSSIBLE__ $ lamBindings $1
       }
 
 AbsurdLamBindings :: { Either ([LamBinding], Hiding) (List1 Expr) }

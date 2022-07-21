@@ -69,7 +69,7 @@ import Agda.Utils.Functor ( (<&>) )
 import Agda.Utils.IO ( catchIO )
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.List
-import Agda.Utils.List1 ( List1 )
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -146,7 +146,7 @@ getPrimitiveLibDir = do
 --   by default.
 --
 defaultLibraryFiles :: List1 FilePath
-defaultLibraryFiles = List1.fromList ["libraries-" ++ version, "libraries"]
+defaultLibraryFiles = ("libraries-" ++ version) :| "libraries" : []
 
 -- | The @defaultsFile@ contains a list of library names relevant for each Agda project.
 --
@@ -162,7 +162,7 @@ defaultsFile = "defaults"
 --   by default.
 --
 defaultExecutableFiles :: List1 FilePath
-defaultExecutableFiles = List1.fromList ["executables-" ++ version, "executables"]
+defaultExecutableFiles = ("executables-" ++ version) :| "executables" : []
 
 ------------------------------------------------------------------------
 -- * Get the libraries for the current project
