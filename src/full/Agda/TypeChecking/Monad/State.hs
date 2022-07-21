@@ -12,7 +12,6 @@ import Data.Maybe
 
 import qualified Data.Map as Map
 
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HMap
@@ -39,6 +38,7 @@ import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Hash
 import Agda.Utils.Lens
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Monad (bracket_)
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
@@ -418,7 +418,7 @@ lookupPatternSyn (AmbQ xs) = do
   defs <- traverse lookupSinglePatternSyn xs
   case mergePatternSynDefs defs of
     Just def   -> return def
-    Nothing    -> typeError $ CannotResolveAmbiguousPatternSynonym (NonEmpty.zip xs defs)
+    Nothing    -> typeError $ CannotResolveAmbiguousPatternSynonym $ List1.zip xs defs
 
 lookupSinglePatternSyn :: QName -> TCM PatternSynDefn
 lookupSinglePatternSyn x = do

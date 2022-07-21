@@ -1,7 +1,6 @@
 
 module Agda.TypeChecking.Rules.Display (checkDisplayPragma) where
 
-import qualified Data.List.NonEmpty as NonEmpty
 import Control.Monad.State
 import Data.Maybe
 

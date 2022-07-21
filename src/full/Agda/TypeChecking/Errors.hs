@@ -27,7 +27,6 @@ import qualified Data.CaseInsensitive as CaseInsens
 import Data.Foldable (foldl)
 import Data.Function
 import Data.List (sortBy, dropWhileEnd, intercalate)
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
@@ -937,7 +936,7 @@ instance PrettyTCM TypeError where
       , fsep $ pwords "(hint: overloaded pattern synonyms must be equal up to variable and constructor names)"
       ]
       where
-        (x, _) = NonEmpty.head defs
+        (x, _) = List1.head defs
         prDef (x, (xs, p)) = prettyA (A.PatternSynDef x (map (fmap BindName) xs) p) <?> ("at" <+> pretty r)
           where r = nameBindingSite $ qnameName x
 

@@ -15,7 +15,6 @@ import Control.Monad
 import Control.Monad.Except
 
 import Data.List (find, sortBy)
-import Data.List.NonEmpty (NonEmpty(..))
 import Data.Function (on)
 
 import qualified Agda.Syntax.Abstract as A
@@ -47,6 +46,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.List1 (pattern (:|))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null

@@ -6,13 +6,13 @@ import Prelude hiding ((!!))  -- don't use partial functions
 
 import Control.Applicative ( Alternative((<|>), empty) )
 import Data.Semigroup
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List as List
 
 import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
 
 import Agda.Utils.List
+import Agda.Utils.List1 (pattern (:|))
 
 import Agda.Utils.Impossible
 

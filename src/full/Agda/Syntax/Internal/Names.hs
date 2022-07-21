@@ -4,7 +4,6 @@ module Agda.Syntax.Internal.Names where
 
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
-import Data.List.NonEmpty (NonEmpty(..))
 import Data.Map (Map)
 import Data.Set (Set)
 
@@ -18,6 +17,7 @@ import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
+import Agda.Utils.List1 (List1)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Singleton
 import Agda.Utils.Impossible
@@ -73,7 +73,7 @@ class NamesIn a where
 instance NamesIn a => NamesIn (Maybe a)
 instance NamesIn a => NamesIn (Strict.Maybe a)
 instance NamesIn a => NamesIn [a]
-instance NamesIn a => NamesIn (NonEmpty a)
+instance NamesIn a => NamesIn (List1 a)
 instance NamesIn a => NamesIn (Set a)
 instance NamesIn a => NamesIn (Map k a)
 

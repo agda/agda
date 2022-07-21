@@ -8,8 +8,6 @@ module Agda.TypeChecking.Monad.SizedTypes where
 import Control.Monad.Except
 
 import qualified Data.Foldable as Fold
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
@@ -22,6 +20,8 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.List
+import Agda.Utils.List1 (List1, pattern (:|))
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -164,7 +164,7 @@ sizeSuc_ suc v = Def suc [Apply $ defaultArg v]
 
 -- | Transform list of terms into a term build from binary maximum.
 sizeMax :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
-        => NonEmpty Term -> m Term
+        => List1 Term -> m Term
 sizeMax vs = case vs of
   v :| [] -> return v
   vs  -> do
@@ -295,7 +295,7 @@ unDeepSizeView = \case
 -- * View on sizes where maximum is pulled to the top
 ------------------------------------------------------------------------
 
-type SizeMaxView = NonEmpty DeepSizeView
+type SizeMaxView = List1 DeepSizeView
 type SizeMaxView' = [DeepSizeView]
 
 maxViewMax :: SizeMaxView -> SizeMaxView -> SizeMaxView
@@ -310,7 +310,7 @@ maxViewCons :: DeepSizeView -> SizeMaxView -> SizeMaxView
 maxViewCons _ (DSizeInf :| _) = singleton DSizeInf
 maxViewCons DSizeInf _        = singleton DSizeInf
 maxViewCons v ws = case sizeViewComparableWithMax v ws of
-  NotComparable  -> NonEmpty.cons v ws
+  NotComparable  -> List1.cons v ws
   YesAbove _ ws' -> v :| ws'
   YesBelow{}     -> ws
 

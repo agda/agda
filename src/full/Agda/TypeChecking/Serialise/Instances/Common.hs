@@ -20,8 +20,6 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
-import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -49,6 +47,8 @@ import qualified Agda.Utils.BiMap as BiMap
 import qualified Agda.Utils.Empty as Empty
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashTable as H
+import Agda.Utils.List1 (List1)
+import qualified Agda.Utils.List1 as List1
 import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
@@ -253,9 +253,9 @@ instance {-# OVERLAPPABLE #-} EmbPrj a => EmbPrj [a] where
 --                            valu [x, xs] = valu2 (:) x xs
 --                            valu _       = malformed
 
-instance EmbPrj a => EmbPrj (NonEmpty a) where
-  icod_ = icod_ . NonEmpty.toList
-  value = maybe malformed return . nonEmpty <=< value
+instance EmbPrj a => EmbPrj (List1 a) where
+  icod_ = icod_ . List1.toList
+  value = maybe malformed return . List1.nonEmpty <=< value
 
 instance EmbPrj a => EmbPrj (List2 a) where
   icod_ = icod_ . List2.toList

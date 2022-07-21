@@ -9,7 +9,6 @@ import Control.Monad.Writer ( MonadWriter(..), WriterT(..), runWriterT )
 
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -31,6 +30,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Constraints
 
 import Agda.Utils.Functor
 import Agda.Utils.List as List
+import Agda.Utils.List1 (pattern (:|))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
