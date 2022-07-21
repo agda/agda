@@ -7,6 +7,7 @@ import qualified Interactive.Tests as INTERACTIVE
 import qualified Internal.Tests as INTERNAL
 import qualified LaTeXAndHTML.Tests as LATEXHTML
 import qualified LibSucceed.Tests as LIBSUCCEED
+import qualified CubicalSucceed.Tests as CUBICALSUCCEED
 import qualified UserManual.Tests as USERMANUAL
 import qualified Bugs.Tests as BUGS
 
@@ -55,6 +56,7 @@ tests = do
       {- 6 -} pu INTERNAL.tests    :
       {- 7 -} sg COMPILER.tests    :
       {- 8 -} sg LIBSUCCEED.tests  :
+      {- 9 -} sg CUBICALSUCCEED.tests  :
       []
   where
   sg = id

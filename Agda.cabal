@@ -864,6 +864,7 @@ test-suite agda-tests
   main-is:          Main.hs
   other-modules:      Bugs.Tests
                     , Compiler.Tests
+                    , CubicalSucceed.Tests
                     , Fail.Tests
                     , Interactive.Tests
                     , Internal.Compiler.MAlonzo.Encode

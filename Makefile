@@ -537,6 +537,12 @@ continue-std-lib-test :
 	@(cd std-lib && \
           time $(AGDA_BIN) $(PROFILEOPTS) --no-default-libraries -i. -isrc README.agda +RTS -s)
 
+.PHONY : cubical-succeed ##
+cubical-succeed :
+	@$(call decorate, "Successful tests using the cubical library", \
+	  find test/CubicalSucceed -type f -name '*.agdai' -delete ; \
+	  AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/CubicalSucceed)
+
 .PHONY : std-lib-succeed ##
 std-lib-succeed :
 	@$(call decorate, "Successful tests using the standard library", \
