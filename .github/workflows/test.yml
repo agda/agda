@@ -90,7 +90,39 @@ jobs:
         - ubuntu-20.04
         stack-ver:
         - latest
-  cubical-interaction-latex-html:
+  cubical:
+    needs: build
+    runs-on: ${{ needs.build.outputs.os }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - uses: haskell/actions/setup@v1
+      with:
+        enable-stack: true
+        ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        stack-version: ${{ needs.build.outputs.stack-ver }}
+    - uses: actions/download-artifact@v2
+      with:
+        name: agda-${{ runner.os }}-${{ github.sha }}
+    - name: Unpack artifacts
+      run: |
+        tar --use-compress-program zstd -xvf dist.tzst
+        tar --use-compress-program zstd -xvf stack-work.tzst
+    - id: cache
+      name: Cache dependencies
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+          }}-${{ hashFiles('stack.yaml.lock') }}
+        path: ~/.stack
+    - name: Install and configure the icu library
+      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+    - name: Cubical library test
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
+    - name: Successful tests using the cubical library
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-succeed
+  interaction-latex-html:
     needs: build
     runs-on: ${{ needs.build.outputs.os }}
     steps:
@@ -129,8 +161,6 @@ jobs:
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
     - name: Suite of interaction tests
       run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
-    - name: Cubical library test
-      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
   stdlib-test:
     needs: build
     runs-on: ${{ needs.build.outputs.os }}
