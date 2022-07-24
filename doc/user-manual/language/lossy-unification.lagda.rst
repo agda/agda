@@ -77,4 +77,4 @@ the heuristic will repeatedly attempt to unify lists of arguments ``es₀
 References
 ----------
 
-Slow typechecking of single one-line definition, `issue (#1625) <https://arxiv.org/abs/1611.02108>`_.
+Slow typechecking of single one-line definition, `issue (#1625) <https://github.com/agda/agda/issues/1625>`_.
