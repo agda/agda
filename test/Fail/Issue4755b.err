@@ -1,0 +1,3 @@
+Issue4755b.agda:17,1-20
+rew  is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side:  A. Perhaps you can use a postulate instead of a constructor as the head symbol?
+when checking the pragma REWRITE rew

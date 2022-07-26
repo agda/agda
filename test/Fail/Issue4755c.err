@@ -1,0 +1,3 @@
+Issue4755c.agda:19,1-19
+Λη  is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side:  B , A. Perhaps you can use a postulate instead of a constructor as the head symbol?
+when checking the pragma REWRITE Λη
