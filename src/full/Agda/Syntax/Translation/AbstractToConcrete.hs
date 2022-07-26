@@ -96,7 +96,7 @@ data Env = Env { takenVarNames :: Set A.Name
                   -- ^ Abstract names currently in scope. Unlike the
                   --   ScopeInfo, this includes names for hidden
                   --   arguments inserted by the system.
-               , takenDefNames :: Set C.Name
+               , takenDefNames :: Set C.NameParts
                   -- ^ Concrete names of all definitions in scope
                , currentScope :: ScopeInfo
                , builtins     :: Map String A.QName
@@ -137,14 +137,20 @@ makeEnv scope = do
         , foldPatternSynonyms = foldPatSyns
         }
   where
+    defs = Set.map nameParts . Map.keysSet $
+        Map.filterWithKey usefulDef $
+        nsNames $ everythingInScope scope
+
     -- Jesper, 2018-12-10: It's fine to shadow generalizable names as
     -- they will never show up directly in printed terms.
     notGeneralizeName AbsName{ anameKind = k }  =
       not (k == GeneralizeName || k == DisallowedGeneralizeName)
 
-    defs = Map.keysSet $
-           Map.filter (all notGeneralizeName) $
-           nsNames $ everythingInScope scope
+    usefulDef C.NoName{} _ = False
+    usefulDef C.Name{} names = all notGeneralizeName names
+
+    nameParts (C.NoName {}) = __IMPOSSIBLE__
+    nameParts (C.Name { nameNameParts }) = nameNameParts
 
 currentPrecedence :: AbsToCon PrecedenceStack
 currentPrecedence = asks $ (^. scopePrecedence) . currentScope
@@ -439,13 +445,21 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
     return $ nameConcrete x
   -- Otherwise we pick a name that does not shadow other names
   _ -> do
+    takenDefs <- asks takenDefNames
     taken   <- takenNames
     toAvoid <- shadowingNames x
     glyphMode <- optUseUnicode <$> pragmaOptions
     let freshNameMode = case glyphMode of
           UnicodeOk -> A.UnicodeSubscript
           AsciiOnly -> A.AsciiCounter
-    let shouldAvoid = (`Set.member` (taken `Set.union` toAvoid)) . C.nameToRawName
+
+        shouldAvoid C.NoName {} = False
+        shouldAvoid name@C.Name { nameNameParts } =
+          let raw = C.nameToRawName name in
+          nameNameParts `Set.member` takenDefs ||
+          raw `Set.member` taken ||
+          raw `Set.member` toAvoid
+
         y = firstNonTakenName freshNameMode shouldAvoid $ nameConcrete x
     reportSLn "toConcrete.bindName" 80 $ render $ vcat
       [ "picking concrete name for:" <+> text (C.nameToRawName $ nameConcrete x)
@@ -458,11 +472,10 @@ chooseName x = lookupNameInScope (nameConcrete x) >>= \case
   where
     takenNames :: AbsToCon (Set RawName)
     takenNames = do
-      xs <- asks takenDefNames
       ys0 <- asks takenVarNames
       reportSLn "toConcrete.bindName" 90 $ render $ "abstract names of local vars: " <+> prettyList_ (map (C.nameToRawName . nameConcrete) $ Set.toList ys0)
       ys <- Set.fromList . concat <$> mapM hasConcreteNames (Set.toList ys0)
-      return $ Set.map C.nameToRawName $ xs `Set.union` ys
+      return $ Set.map C.nameToRawName ys
 
 
 -- | Add a abstract name to the scope and produce an available concrete version of it.
