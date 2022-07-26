@@ -14,14 +14,7 @@ postulate
   any : {A : Set} → A
   one : {A : Set} → D A
   rew : ∀ A → c any (box A) ≡ one
-
--- Jesper, 2020-06-17: Ideally Agda should reject the above rewrite
--- rule, since it causes reduction to be unstable under eta-conversion
-works : c any (box ⊤) ≡ c tt (box ⊤)
-works = refl
-
--- However, currently it is accepted, breaking subject reduction:
 {-# REWRITE rew #-}
 
-fails : c any (box ⊤) ≡ c tt (box ⊤)
-fails = refl
+test : c tt (box ⊤) ≡ one
+test = refl

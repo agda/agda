@@ -220,6 +220,12 @@ checkRewriteRule q = do
   let failureFreeVars :: IntSet -> TCM a
       failureFreeVars xs = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
+  let failureNonLinearPars :: IntSet -> TCM a
+      failureNonLinearPars xs = typeError . GenericDocError =<< do
+        (prettyTCM q
+          <+> " is not a legal rewrite rule, since the following parameters are bound more than once on the left hand side: "
+          <+> hsep (List.intersperse "," $ map (prettyTCM . var) $ IntSet.toList xs))
+          <> ". Perhaps you can use a postulate instead of a constructor as the head symbol?"
   let failureIllegalRule :: TCM a -- TODO:: Defined but not used
       failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule" ]
@@ -306,6 +312,10 @@ checkRewriteRule q = do
           "variables used by the rewrite rule: " <+> text (show usedVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
         unlessNull (usedVars IntSet.\\ (boundVars `IntSet.union` IntSet.fromList pars)) failureFreeVars
+
+        reportSDoc "rewriting" 70 $
+          "variables bound in (erased) parameter position: " <+> text (show pars)
+        unlessNull (boundVars `IntSet.intersection` IntSet.fromList pars) failureNonLinearPars
 
         let rew = RewriteRule q gamma f ps rhs (unDom b) False
 
