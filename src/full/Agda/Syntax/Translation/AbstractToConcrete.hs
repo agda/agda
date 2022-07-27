@@ -43,8 +43,6 @@ import Data.Map (Map)
 import qualified Data.Foldable as Fold
 import Data.Void
 import Data.List (sortBy)
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Semigroup (Semigroup, (<>))
 import Data.String
 
@@ -186,7 +184,7 @@ isBuiltinFun = asks $ is . builtins
   where is m q b = Just q == Map.lookup b m
 
 -- | Resolve a concrete name. If illegally ambiguous fail with the ambiguous names.
-resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either (NonEmpty A.QName) ResolvedName)
+resolveName :: KindsOfNames -> Maybe (Set A.Name) -> C.QName -> AbsToCon (Either (List1 A.QName) ResolvedName)
 resolveName kinds candidates q = runExceptT $ tryResolveName kinds candidates q
 
 -- | Treat illegally ambiguous names as UnknownNames.
@@ -722,9 +720,9 @@ instance ToConcrete ResolvedName where
   toConcrete = \case
     VarName x _          -> C.QName <$> toConcrete x
     DefinedName _ x s    -> addSuffixConcrete s $ toConcrete x
-    FieldName xs         -> toConcrete (NonEmpty.head xs)
-    ConstructorName _ xs -> toConcrete (NonEmpty.head xs)
-    PatternSynResName xs -> toConcrete (NonEmpty.head xs)
+    FieldName xs         -> toConcrete (List1.head xs)
+    ConstructorName _ xs -> toConcrete (List1.head xs)
+    PatternSynResName xs -> toConcrete (List1.head xs)
     UnknownName          -> __IMPOSSIBLE__
 
 addSuffixConcrete :: HasOptions m => A.Suffix -> m C.QName -> m C.QName
@@ -869,7 +867,7 @@ instance ToConcrete A.Expr where
                 reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda patterns ps = " ++ prettyShow ps
                 return $ LamClause ps rhs ca
               decl2clause _ = __IMPOSSIBLE__
-          C.ExtendedLam (getRange i) erased . List1.fromList <$>
+          C.ExtendedLam (getRange i) erased . List1.fromList __IMPOSSIBLE__ <$>
             mapM decl2clause decls
             -- TODO List1: can we demonstrate non-emptiness?
 

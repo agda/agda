@@ -79,7 +79,7 @@ applyTermE err' m es = coerce $
         case es of
           Apply a : es0      -> lazyAbsApp (coerce b :: Abs t) (coerce $ unArg a) `app` es0
           IApply _ _ a : es0 -> lazyAbsApp (coerce b :: Abs t) (coerce a)         `app` es0
-          _             -> err __IMPOSSIBLE__
+          _                  -> err __IMPOSSIBLE__
       MetaV x es' -> MetaV x (es' ++ es)
       Lit{}       -> err __IMPOSSIBLE__
       Level{}     -> err __IMPOSSIBLE__
@@ -89,8 +89,8 @@ applyTermE err' m es = coerce $
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
    where
-     app :: Coercible t x => x -> Elims -> Term
-     app t es = coerce $ (coerce t :: t) `applyE` es
+     app :: Coercible t a => a -> Elims -> Term
+     app u es = coerce $ (coerce u :: t) `applyE` es
      err e = err' e (coerce m) es
 
 instance Apply Term where
@@ -99,12 +99,14 @@ instance Apply Term where
 instance Apply BraveTerm where
   applyE = applyTermE (\ _ t es ->  Dummy "applyE" (Apply (defaultArg t) : es))
 
--- | If $v$ is a record value, @canProject f v@
+-- | If @v@ is a record or constructed value, @canProject f v@
 --   returns its field @f@.
 canProject :: QName -> Term -> Maybe (Arg Term)
 canProject f v =
   case v of
-    (Con (ConHead _ IsRecord{} _ fs) _ vs) -> do
+    -- Andreas, 2022-06-10, issue #5922: also unfold data projections
+    -- (not just record projections).
+    (Con (ConHead _ _ _ fs) _ vs) -> do
       (fld, i) <- findWithIndex ((f==) . unArg) fs
       -- Jesper, 2019-10-17: dont unfold irrelevant projections
       guard $ not $ isIrrelevant fld
@@ -115,10 +117,10 @@ canProject f v =
 
 -- | Eliminate a constructed term.
 conApp :: forall t. (Coercible t Term, Apply t) => (Empty -> Term -> Elims -> Term) -> ConHead -> ConInfo -> Elims -> Elims -> Term
-conApp fk ch                  ci args []             = Con ch ci args
-conApp fk ch                  ci args (a@Apply{} : es) = conApp @t fk ch ci (args ++ [a]) es
-conApp fk ch                  ci args (a@IApply{} : es) = conApp @t fk ch ci (args ++ [a]) es
-conApp fk ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
+conApp fallback ch                    ci args []                  = Con ch ci args
+conApp fallback ch                    ci args    (a@Apply{} : es) = conApp @t fallback ch ci (args ++ [a]) es
+conApp fallback ch                    ci args   (a@IApply{} : es) = conApp @t fallback ch ci (args ++ [a]) es
+conApp fallback ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
   let failure :: forall a. a -> a
       failure err = flip trace err $ concat
         [ "conApp: constructor ", prettyShow c
@@ -127,7 +129,7 @@ conApp fk ch@(ConHead c _ _ fs) ci args ees@(Proj o f : es) =
         , " projected by ", prettyShow f
         ]
       isApply e = fromMaybe (failure __IMPOSSIBLE__) $ isApplyElim e
-      stuck err = fk err (Con ch ci args) [Proj o f]
+      stuck err = fallback err (Con ch ci args) [Proj o f]
       -- Recurse using the instance for 't', see @applyTermE@
       app :: Term -> Elims -> Term
       app v es = coerce $ applyE (coerce v :: t) es
@@ -444,13 +446,19 @@ instance Apply Clause where
             IApplyP _ _ _ (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
         newTel _ tel _ _ = __IMPOSSIBLE__
 
+        projections :: ConHead -> Term -> [Term]
         projections c v = [ relToDontCare ai $
                             -- #4528: We might have bogus terms here when printing a clause that
                             --        cannot be taken. To mitigate the problem we use a Def instead
                             --        a Proj elim for data constructors, which at least stops conApp
                             --        from crashing. See #4989 for not printing bogus terms at all.
                             case conDataRecord c of
-                              IsData     -> Def f [Apply (Arg ai v)]
+                              IsData     -> defApp f [] [Apply (Arg ai v)]
+                                              -- Andreas, 2022-06-10, issue #5922.
+                                              -- This was @Def f [Apply (Arg ai v)]@, but are we sure
+                                              -- that @v@ isn't a matching @Con@?  The testcase for
+                                              -- #5922 does not require this precaution,
+                                              -- but I sleep better this way...
                               IsRecord{} -> applyE v [Proj ProjSystem f]
                           | Arg ai f <- conFields c ]
 
@@ -940,6 +948,7 @@ instance Subst NLPSort where
   applySubst rho = \case
     PType l   -> PType $ applySubst rho l
     PProp l   -> PProp $ applySubst rho l
+    PSSet l   -> PSSet $ applySubst rho l
     PInf f n  -> PInf f n
     PSizeUniv -> PSizeUniv
     PLockUniv -> PLockUniv

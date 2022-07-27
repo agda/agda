@@ -12,61 +12,61 @@ jobs:
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    strategy:
-      matrix:
-        ghc-ver:
-        - '9.2'
-        cabal-ver:
-        - latest
-        os:
-        - ubuntu-latest
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
-    - with:
+    - id: setup-haskell
+      uses: haskell/actions/setup@v1
+      with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
-      uses: haskell/actions/setup@v1
-      id: setup-haskell
-    - run: |
+    - name: Environment settings based on the Haskell setup
+      run: |
         export GHC_VER=$(ghc --numeric-version)
         export CABAL_VER=$(cabal --numeric-version)
         echo "GHC_VER    = ${GHC_VER}"
         echo "CABLAL_VER = ${CABAL_VER}"
         echo "GHC_VER=${GHC_VER}"         >> ${GITHUB_ENV}
         echo "CABAL_VER=${CABAL_VER}"     >> ${GITHUB_ENV}
-      name: Environment settings based on the Haskell setup
-    - run: |
+    - name: Resolve dependencies
+      run: |
         cabal update
         cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
-      name: Resolve dependencies
-    - with:
-        path: |
-          ${{ steps.setup-haskell.outputs.cabal-store }}
+    - id: cache
+      name: Cache dependencies
+      uses: actions/cache@v2
+      with:
         key: ${{ runner.os }}-cabal-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{ hashFiles('**/plan.json')
           }}
-      uses: actions/cache@v2
-      name: Cache dependencies
-      id: cache
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
     - if: ${{ !steps.cache.outputs.cache-hit }}
+      name: Install dependencies
       run: |
         cabal build --dependencies-only --force-reinstalls
-      name: Install dependencies
-    - run: |
+    - name: Build Haddock
+      run: |
         cabal haddock --haddock-html-location='https://hackage.haskell.org/package/$pkg-$version/docs' --haddock-hyperlink-source --haddock-quickjump
-      name: Build Haddock
-    - run: |
+    - name: Prepare to upload built htmls
+      run: |
         find dist-newstyle -path '*/doc/html/Agda' -type d -exec cp -R {} html \;
         ls -R html
-      name: Prepare to upload built htmls
     - if: github.ref == 'refs/heads/master'
+      name: Deploy haddock
+      uses: peaceiris/actions-gh-pages@v3
       with:
         destination_dir: docs
         force_orphan: true
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: html
-      uses: peaceiris/actions-gh-pages@v3
-      name: Deploy haddock
+    strategy:
+      matrix:
+        cabal-ver:
+        - latest
+        ghc-ver:
+        - '9.2'
+        os:
+        - ubuntu-latest
 name: Haddock
 'on':
   pull_request:

@@ -9,87 +9,6 @@ defaults:
   run:
     shell: bash
 jobs:
-  cabal:
-    env:
-      FLAGS: -f enable-cluster-counting
-    strategy:
-      matrix:
-        include:
-        - ghc-ver: 9.2.2
-          cabal-ver: latest
-          os: macos-latest
-        - ghc-ver: 9.2.1
-          cabal-ver: latest
-          os: windows-latest
-        ghc-ver:
-        - 9.2.2
-        - 9.0.2
-        - 8.10.7
-        - 8.8.4
-        - 8.6.5
-        - 8.4.4
-        - 8.2.2
-        - 8.0.2
-        cabal-ver:
-        - latest
-        os:
-        - ubuntu-20.04
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
-    needs: auto-cancel
-    steps:
-    - with:
-        submodules: recursive
-      uses: actions/checkout@v2
-    - with:
-        cabal-version: ${{ matrix.cabal-ver }}
-        ghc-version: ${{ matrix.ghc-ver }}
-      uses: haskell/actions/setup@v1
-      id: setup-haskell
-    - run: |
-        export GHC_VER=$(ghc --numeric-version)
-        export CABAL_VER=$(cabal --numeric-version)
-        echo "GHC_VER   = ${GHC_VER}"
-        echo "CABAL_VER = ${CABAL_VER}"
-        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
-        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
-      name: Environment settings based on the Haskell setup
-    - if: ${{ runner.os == 'Windows' }}
-      shell: pwsh
-      run: |
-        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-      name: Setup MSYS path (Windows)
-    - if: ${{ runner.os == 'Windows' }}
-      run: |
-        pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
-      name: Install the ICU library (Windows)
-    - if: ${{ runner.os == 'macOS' }}
-      run: |
-        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
-      name: Set up pkg-config for the ICU library (macOS)
-    - run: |
-        cabal update
-        cabal configure ${FLAGS} -O0
-      name: Configure the build plan
-    - with:
-        path: |
-          ${{ steps.setup-haskell.outputs.cabal-store }}
-        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
-          hashFiles('**/plan.json') }}
-      uses: actions/cache@v2
-      name: Cache dependencies
-      id: cache
-    - if: ${{ !steps.cache.outputs.cache-hit }}
-      run: |
-        cabal build --only-dependencies
-      name: Install dependencies
-    - run: |
-        cabal build
-      name: Build Agda
-    - run: |
-        cabal configure -O0
-        cabal build
-      name: Build Agda without enable-cluster-counting
   auto-cancel:
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -98,9 +17,90 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - with:
+    - uses: styfle/cancel-workflow-action@0.6.0
+      with:
         access_token: ${{ github.token }}
-      uses: styfle/cancel-workflow-action@0.6.0
+  cabal:
+    env:
+      FLAGS: -f enable-cluster-counting
+    needs: auto-cancel
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - id: setup-haskell
+      uses: haskell/actions/setup@v1
+      with:
+        cabal-version: ${{ matrix.cabal-ver }}
+        ghc-version: ${{ matrix.ghc-ver }}
+    - name: Environment settings based on the Haskell setup
+      run: |
+        export GHC_VER=$(ghc --numeric-version)
+        export CABAL_VER=$(cabal --numeric-version)
+        echo "GHC_VER   = ${GHC_VER}"
+        echo "CABAL_VER = ${CABAL_VER}"
+        echo "GHC_VER=${GHC_VER}"       >> ${GITHUB_ENV}
+        echo "CABAL_VER=${CABAL_VER}"   >> ${GITHUB_ENV}
+    - if: ${{ runner.os == 'Windows' }}
+      name: Setup MSYS path (Windows)
+      run: |
+        echo "C:\msys64\mingw64\bin;C:\msys64\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+      shell: pwsh
+    - if: ${{ runner.os == 'Windows' }}
+      name: Install the ICU library (Windows)
+      run: |
+        pacman --noconfirm -Sy msys2-keyring mingw-w64-x86_64-pkg-config mingw-w64-x86_64-icu
+    - if: ${{ runner.os == 'macOS' }}
+      name: Set up pkg-config for the ICU library (macOS)
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
+    - name: Configure the build plan
+      run: |
+        cabal update
+        cabal configure ${FLAGS} -O0
+    - id: cache
+      name: Cache dependencies
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
+          hashFiles('**/plan.json') }}
+        path: |
+          ${{ steps.setup-haskell.outputs.cabal-store }}
+    - if: ${{ !steps.cache.outputs.cache-hit }}
+      name: Install dependencies
+      run: |
+        cabal build --only-dependencies
+    - name: Build Agda
+      run: |
+        cabal build
+    - name: Build Agda without enable-cluster-counting
+      run: |
+        cabal configure -O0
+        cabal build
+    strategy:
+      fail-fast: false
+      matrix:
+        cabal-ver:
+        - latest
+        ghc-ver:
+        - 9.2.3
+        - 9.0.2
+        - 8.10.7
+        - 8.8.4
+        - 8.6.5
+        - 8.4.4
+        - 8.2.2
+        - 8.0.2
+        include:
+        - cabal-ver: latest
+          ghc-ver: 9.2.3
+          os: macos-latest
+        - cabal-ver: latest
+          ghc-ver: 9.2.3
+          os: windows-latest
+        os:
+        - ubuntu-20.04
 name: Build (cabal)
 'on':
   pull_request:

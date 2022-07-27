@@ -1,12 +1,12 @@
 module Termination.Sized.DeBruijnBase where
 
 open import Data.Maybe
-open import Data.Maybe.Categorical
+open import Data.Maybe.Effectful
 open import Function -- composition, identity
 open import Relation.Binary.PropositionalEquality hiding ( subst )
 open ≡-Reasoning
 
-open import Category.Functor
+open import Effect.Functor
 
 fmap : {A B : Set} -> (A -> B) -> Maybe A -> Maybe B
 fmap = RawFunctor._<$>_ functor

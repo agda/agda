@@ -12,42 +12,42 @@ jobs:
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    strategy:
-      matrix:
-        python-version:
-        - 3.7
     runs-on: ubuntu-20.04
     steps:
-    - with:
+    - uses: actions/checkout@v2
+      with:
         submodules: recursive
-      uses: actions/checkout@v2
-    - with:
-        python-version: ${{ matrix.python-version }}
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
-      name: Set up Python ${{ matrix.python-version }}
-    - run: |
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
         pip install -r doc/user-manual/requirements.txt
-      name: Install dependencies
-    - run: |
+    - name: Install Tex Live and LaTeX packages
+      run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         curl -Lo /tmp/texlive.tar.gz https://github.com/jimhester/ubuntu-bin/releases/download/latest/texlive.tar.gz
         tar xzf /tmp/texlive.tar.gz -C ~
         tlmgr option repository http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2017/tlnet-final
         tlmgr update --self
         tlmgr install anyfontsize bbm capt-of cmap dvipng fncychap keystroke latexmk needspace tex-gyre
-      name: Install Tex Live and LaTeX packages
-    - run: |
+    - name: Build User Manual in HTML
+      run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-html
-      name: Build User Manual in HTML
-    - run: |
+    - name: Build User Manual in PDF
+      run: |
         export PATH=$HOME/texlive/bin/x86_64-linux:$PATH
         make user-manual-pdf
-      name: Build User Manual in PDF
-    - with:
-        path: doc/user-manual.pdf
+    - uses: actions/upload-artifact@v2
+      with:
         name: user-manual-pdf
-      uses: actions/upload-artifact@v2
+        path: doc/user-manual.pdf
+    strategy:
+      matrix:
+        python-version:
+        - 3.7
 name: User Manual
 'on':
   pull_request:

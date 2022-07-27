@@ -62,7 +62,7 @@ postulate ≤lem₃ : {a b c : ℕ} → (c ℕ.+ (a ℕ.* 2) ℕ.< (2 ℕ.* b)) 
 ...                      | yes y = y
 ...                      | no n with (a ℕ.* b) | inspect (λ x → a ℕ.* x) b
 ...                             | ℕ.suc ns | _ = ⊥-elim (n (ℕ.s≤s (ℕ.z≤n {ns})))
-...                             | 0 | [ eq ] with ℕ.i*j≡0⇒i≡0∨j≡0 a {b} eq
+...                             | 0 | [ eq ] with ℕ.m*n≡0⇒m≡0∨n≡0 a {b} eq
 ...                                          | inj₁ a≡0 = ⊥-elim (¬0<b∧0≡b 0<a (sym a≡0))
 ...                                          | inj₂ b≡0 = ⊥-elim (¬0<b∧0≡b 0<b (sym b≡0))
 
@@ -92,14 +92,14 @@ BitVecToNatLemma {ℕ.suc n} (true ∷ r) = ret₃ where
      ret₃ = subst (λ u → (ℕ.suc (2 ℕ.* (BitVecToNat r))) ℕ.< (2 ℕ.* u)) s ret₂
 
 BitVecToFin : {n : ℕ} → Vec Bool n → Fin (2 ^ n)
-BitVecToFin s = F.fromℕ≤ (BitVecToNatLemma s)
+BitVecToFin s = F.fromℕ< (BitVecToNatLemma s)
 
 FinToBitVec : {n : ℕ} → (m : Fin (2 ^ n)) → ∃ λ (s : Vec Bool n) → (BitVecToFin s ≡ m)
 FinToBitVec {0} F.zero = ( [] , refl )
 FinToBitVec {0} (F.suc ())
 FinToBitVec {ℕ.suc n} k = ( ret₁ , lem₇ ) where
 
-  open CommutativeSemiring ℕ.commutativeSemiring using (*-comm)
+  open CommutativeSemiring ℕ.+-*-commutativeSemiring using (*-comm)
 
   kn = F.toℕ k
 
@@ -111,7 +111,7 @@ FinToBitVec {ℕ.suc n} k = ( ret₁ , lem₇ ) where
   p2^nl = proj₂ p2^n'
 
   kn<2^n : kn ℕ.< 2 ^ (ℕ.suc n)
-  kn<2^n = subst (λ d → kn ℕ.< d) p2^nl (subst (λ d → kn ℕ.< ℕ.suc (ℕ.pred d)) (sym p2^nl) (ℕ.s≤s (F.prop-toℕ-≤ k)))
+  kn<2^n = subst (λ d → kn ℕ.< d) p2^nl (subst (λ d → kn ℕ.< ℕ.suc (ℕ.pred d)) (sym p2^nl) (ℕ.s≤s (F.toℕ≤pred[n] k)))
 
   dm = kn divMod 2
 
@@ -133,20 +133,20 @@ FinToBitVec {ℕ.suc n} k = ( ret₁ , lem₇ ) where
   lem₁ = ≤lem₃ {a = quot} {b = 2 ^ n} {c = rem} lem₀
 
   fQuot : Fin (2 ^ n)
-  fQuot = F.fromℕ≤ lem₁
+  fQuot = F.fromℕ< lem₁
 
   -- the recursive call
   prevRet : ∃ λ (s : Vec Bool n) → (BitVecToFin s ≡ fQuot)
-  prevRet = FinToBitVec (F.fromℕ≤ lem₁)
+  prevRet = FinToBitVec (F.fromℕ< lem₁)
 
   prevRetEq : (BitVecToFin (proj₁ prevRet) ≡ fQuot)
   prevRetEq = proj₂ prevRet
 
   lem₉ : {n : ℕ} → (r : Vec Bool n) → F.toℕ (BitVecToFin r) ≡ (BitVecToNat r)
-  lem₉ r = trans (cong F.toℕ refl) (F.toℕ-fromℕ≤ (BitVecToNatLemma r))
+  lem₉ r = trans (cong F.toℕ refl) (F.toℕ-fromℕ< (BitVecToNatLemma r))
 
   prevRetEqℕ : quot ≡ BitVecToNat (proj₁ prevRet)
-  prevRetEqℕ = trans (trans (sym (F.toℕ-fromℕ≤ lem₁)) (cong F.toℕ (sym prevRetEq))) (lem₉ (proj₁ prevRet))
+  prevRetEqℕ = trans (trans (sym (F.toℕ-fromℕ< lem₁)) (cong F.toℕ (sym prevRetEq))) (lem₉ (proj₁ prevRet))
 
   ret₁ = (Fin2toBool (DivMod.remainder dm)) ∷ (proj₁ prevRet)
 
@@ -170,11 +170,11 @@ FinToBitVec {ℕ.suc n} k = ( ret₁ , lem₇ ) where
     ∎
   -- lem₆ = trans lem₄ lem₅
 
-  lem₈ : kn ≡ F.toℕ (F.fromℕ≤ kn<2^n)
-  lem₈ = sym (cong F.toℕ (F.fromℕ≤-toℕ k kn<2^n))
+  lem₈ : kn ≡ F.toℕ (F.fromℕ< kn<2^n)
+  lem₈ = sym (cong F.toℕ (F.fromℕ<-toℕ k kn<2^n))
 
   lem₇ : (BitVecToFin ret₁) ≡ k
-  lem₇ = trans (F.toℕ-injective (trans (lem₉ ret₁) (trans lem₆ lem₈))) (F.fromℕ≤-toℕ k kn<2^n)
+  lem₇ = trans (F.toℕ-injective (trans (lem₉ ret₁) (trans lem₆ lem₈))) (F.fromℕ<-toℕ k kn<2^n)
 
 record ByteStream : Set where
   constructor bs

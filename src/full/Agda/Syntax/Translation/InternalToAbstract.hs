@@ -795,7 +795,7 @@ reifyTerm expandAnonDefs0 v0 = do
       :: MonadReify m
       => QName -> ArgInfo -> Int -> Maybe System -> [I.Clause]
       -> I.Elims -> m Expr
-    reifyExtLam x i npars msys cls es = do
+    reifyExtLam x ai npars msys cls es = do
       reportSLn "reify.def" 10 $ "reifying extended lambda " ++ prettyShow x
       reportSLn "reify.def" 50 $ render $ nest 2 $ vcat
         [ "npars =" <+> pretty npars
@@ -815,13 +815,14 @@ reifyTerm expandAnonDefs0 v0 = do
       let cx     = nameConcrete $ qnameName x
           dInfo  = mkDefInfo cx noFixity' PublicAccess ConcreteDef
                      (getRange x)
-          erased = case getQuantity i of
+          erased = case getQuantity ai of
             Quantity0 o -> Erased o
             Quantityω o -> NotErased o
             Quantity1 o -> __IMPOSSIBLE__
-      elims (A.ExtendedLam exprNoRange dInfo erased x $
-             List1.fromList cls)
-        =<< reify rest
+          lam = case cls of
+            []       -> A.AbsurdLam exprNoRange NotHidden
+            (cl:cls) -> A.ExtendedLam exprNoRange dInfo erased x (cl :| cls)
+      elims lam =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]

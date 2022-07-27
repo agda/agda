@@ -2,9 +2,9 @@
 
 module InstanceArguments.09-higherOrderClasses where
 
-open import Category.Applicative
-open import Category.Monad
-open import Category.Monad.Indexed
+open import Effect.Applicative
+open import Effect.Monad
+open import Effect.Monad.Indexed
 open import Function
 
 lift : ∀ {a b c} {A : Set a} {C : Set c} {B : A → Set b} →

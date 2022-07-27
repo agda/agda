@@ -1,8 +1,0 @@
-AGDA_FAILURE
-
-ret > ExitFailure 42
-out > Issue4755b.agda:27,9-13
-out > one != c tt (box ⊤) of type D ⊤
-out > when checking that the expression refl has type
-out > c any (box ⊤) ≡ c tt (box ⊤)
-out >

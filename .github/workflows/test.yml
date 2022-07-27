@@ -6,197 +6,63 @@
 ##                                                  ##
 ######################################################
 env:
-  BUILD_DIR: dist
   AGDA_TESTS_OPTIONS: -j${PARALLEL_TESTS} --hide-successes
-  TASTY_ANSI_TRICKS: 'false'
   APT_GET_OPTS: -yqq --no-install-suggests --no-install-recommends
+  BUILD_DIR: dist
   PARALLEL_TESTS: 2
+  TASTY_ANSI_TRICKS: 'false'
 jobs:
-  stdlib-test:
-    runs-on: ${{ needs.build.outputs.os }}
-    needs: build
-    steps:
-    - with:
-        submodules: recursive
-      uses: actions/checkout@v2
-    - with:
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-        enable-stack: true
-      uses: haskell/actions/setup@v1
-    - with:
-        name: agda-${{ runner.os }}-${{ github.sha }}
-      uses: actions/download-artifact@v2
-    - run: |
-        tar --use-compress-program zstd -xvf dist.tzst
-        tar --use-compress-program zstd -xvf stack-work.tzst
-      name: Unpack artifacts
-    - with:
-        path: ~/.stack
-        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
-      uses: actions/cache@v2
-      name: Cache dependencies
-      id: cache
-    - run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
-      name: Install and configure the icu library
-    - run: |
-        # ASR (2021-01-17). `cabal update` is required due to #5138.
-        # We should also use `stack` in this test.
-        cabal update
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-test
-      name: Standard library test
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-compiler-test
-      name: Standard library compiler tests
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-succeed
-      name: Successful tests using the standard library
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-interaction
-      name: Interaction tests using the standard library
-  cubical-benchmark-misc:
-    runs-on: ${{ needs.build.outputs.os }}
-    needs: build
-    steps:
-    - with:
-        submodules: recursive
-      uses: actions/checkout@v2
-    - with:
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-        enable-stack: true
-      uses: haskell/actions/setup@v1
-    - with:
-        name: agda-${{ runner.os }}-${{ github.sha }}
-      uses: actions/download-artifact@v2
-    - run: |
-        tar --use-compress-program zstd -xvf dist.tzst
-        tar --use-compress-program zstd -xvf stack-work.tzst
-      name: Unpack artifacts
-    - with:
-        path: ~/.stack
-        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
-      uses: actions/cache@v2
-      name: Cache dependencies
-      id: cache
-    - run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
-      name: Install and configure the icu library
-    - run: |
-        sudo apt-get update
-        sudo apt-get install texlive-binaries ${APT_GET_OPTS}
-        sudo apt-get install emacs-nox ${APT_GET_OPTS}
-      name: Install Tex Live and Emacs
-    - run: |
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
-        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
-      name: Benchmark
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" internal-tests
-      name: Internal test suite
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" DONT_RUN_LATEX=Y interaction
-      name: Suite of interaction tests
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" DONT_RUN_LATEX=Y latex-html-test
-      name: Suite of tests for the LaTeX and HTML backends
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" examples
-      name: Suite of examples
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" api-test
-      name: Successful tests using Agda as a Haskell library
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-test
-      name: User manual (test)
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
-      name: Testing the Emacs mode
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
-      name: Cubical library test
-  test:
-    runs-on: ${{ needs.build.outputs.os }}
-    needs: build
-    steps:
-    - with:
-        submodules: recursive
-      uses: actions/checkout@v2
-    - with:
-        ghc-version: ${{ needs.build.outputs.ghc-ver }}
-        stack-version: ${{ needs.build.outputs.stack-ver }}
-        enable-stack: true
-      uses: haskell/actions/setup@v1
-    - with:
-        name: agda-${{ runner.os }}-${{ github.sha }}
-      uses: actions/download-artifact@v2
-    - run: |
-        tar --use-compress-program zstd -xvf dist.tzst
-        tar --use-compress-program zstd -xvf stack-work.tzst
-      name: Unpack artifacts
-    - with:
-        path: ~/.stack
-        key: ${{ runner.os }}-stack-00-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
-      uses: actions/cache@v2
-      name: Cache dependencies
-      id: cache
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
-      name: Suite of tests for bugs
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" common
-      name: 'Suite of successful tests: mini-library Common'
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" succeed
-      name: Suite of successful tests
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" fail
-      name: Suite of failing tests
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" compiler-test
-      name: Compiler tests
-    - run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interactive
-      name: Suite of interactive tests
   build:
     if: |
       !contains(github.event.head_commit.message, '[skip ci]')
       && !contains(github.event.head_commit.message, '[ci skip]')
       && !contains(github.event.head_commit.message, '[github skip]')
       && !contains(github.event.head_commit.message, '[skip github]')
-    strategy:
-      matrix:
-        stack-ver:
-        - latest
-        ghc-ver:
-        - 9.2.2
-        os:
-        - ubuntu-20.04
+    outputs:
+      ghc-ver: ${{ matrix.ghc-ver }}
+      os: ${{ matrix.os }}
+      stack-ver: ${{ matrix.stack-ver }}
     runs-on: ${{ matrix.os }}
     steps:
-    - with:
+    - uses: styfle/cancel-workflow-action@0.6.0
+      with:
         access_token: ${{ github.token }}
-      uses: styfle/cancel-workflow-action@0.6.0
-    - with:
+    - uses: actions/checkout@v2
+      with:
         submodules: recursive
-      uses: actions/checkout@v2
-    - with:
+    - uses: haskell/actions/setup@v1
+      with:
+        enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: ${{ matrix.stack-ver }}
-        enable-stack: true
-      uses: haskell/actions/setup@v1
-    - run: |
+    - name: Update and configure stack
+      run: |
         stack update --silent
         echo "system-ghc: true" >> ~/.stack/config.yaml
-      name: Update and configure stack
-    - run: |
+    - name: Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml
+      run: |
         cp stack-${{ matrix.ghc-ver }}.yaml stack.yaml
         make STACK_INSTALL_OPTS='--dry-run' install-deps
-      name: Copy stack-${{ matrix.ghc-ver}}.yaml to stack.yaml
-    - with:
-        path: ~/.stack
-        key: ${{ runner.os }}-stack-00-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
-          }}-${{ hashFiles('stack.yaml.lock') }}
-      uses: actions/cache@v2
+    - id: cache
       name: Cache dependencies
-      id: cache
-    - run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
-      name: Install and configure the icu library
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-stack-01-${{ matrix.stack-ver }}-${{ hashFiles('stack.yaml')
+          }}-${{ hashFiles('stack.yaml.lock') }}
+        path: ~/.stack
+    - name: Install and configure the icu library
+      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
     - if: ${{ !steps.cache.outputs.cache-hit }}
-      run: make STACK_OPTS=--silent install-deps
       name: Install dependencies for Agda and its test suites
-    - run: make BUILD_DIR="${BUILD_DIR}" install-bin
-      name: Build Agda
-    - run: |
+      run: make STACK_OPTS=--silent install-deps
+    - name: Build Agda
+      run: make BUILD_DIR="${BUILD_DIR}" install-bin
+    - name: Run tests for the size solver
+      run: |
         export PATH=${HOME}/.local/bin:${PATH}
         make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" size-solver-test
-      name: Run tests for the size solver
-    - run: |
+    - name: Pack artifacts
+      run: |
         strip ${BUILD_DIR}/build/agda-tests/agda-tests \
           ${BUILD_DIR}/build/agda/agda \
           ${BUILD_DIR}/build/agda-mode/agda-mode
@@ -207,102 +73,242 @@ jobs:
           ${BUILD_DIR}/build/agda-mode/agda-mode
 
         tar --use-compress-program zstd -cvf stack-work.tzst .stack-work stack.yaml stack.yaml.lock
-      name: Pack artifacts
-    - with:
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        if-no-files-found: error
+        name: agda-${{ runner.os }}-${{ github.sha }}
         path: |
           dist.tzst
           stack-work.tzst
-        name: agda-${{ runner.os }}-${{ github.sha }}
-        if-no-files-found: error
         retention-days: 1
-      uses: actions/upload-artifact@v2
-      name: Upload artifacts
-    outputs:
-      stack-ver: ${{ matrix.stack-ver }}
-      ghc-ver: ${{ matrix.ghc-ver }}
-      os: ${{ matrix.os }}
+    strategy:
+      matrix:
+        ghc-ver:
+        - 9.2.3
+        os:
+        - ubuntu-20.04
+        stack-ver:
+        - latest
+  cubical:
+    needs: build
+    runs-on: ${{ needs.build.outputs.os }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - uses: haskell/actions/setup@v1
+      with:
+        enable-stack: true
+        ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        stack-version: ${{ needs.build.outputs.stack-ver }}
+    - uses: actions/download-artifact@v2
+      with:
+        name: agda-${{ runner.os }}-${{ github.sha }}
+    - name: Unpack artifacts
+      run: |
+        tar --use-compress-program zstd -xvf dist.tzst
+        tar --use-compress-program zstd -xvf stack-work.tzst
+    - id: cache
+      name: Cache dependencies
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+          }}-${{ hashFiles('stack.yaml.lock') }}
+        path: ~/.stack
+    - name: Install and configure the icu library
+      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+    - name: Cubical library test
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-test
+    - name: Successful tests using the cubical library
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" cubical-succeed
+  interaction-latex-html:
+    needs: build
+    runs-on: ${{ needs.build.outputs.os }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - uses: haskell/actions/setup@v1
+      with:
+        enable-stack: true
+        ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        stack-version: ${{ needs.build.outputs.stack-ver }}
+    - uses: actions/download-artifact@v2
+      with:
+        name: agda-${{ runner.os }}-${{ github.sha }}
+    - name: Unpack artifacts
+      run: |
+        tar --use-compress-program zstd -xvf dist.tzst
+        tar --use-compress-program zstd -xvf stack-work.tzst
+    - id: cache
+      name: Cache dependencies
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+          }}-${{ hashFiles('stack.yaml.lock') }}
+        path: ~/.stack
+    - name: Install and configure the icu library
+      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+    - name: Install Tex Live and Emacs
+      run: |
+        sudo apt-get update
+        sudo apt-get install texlive-binaries ${APT_GET_OPTS}
+        sudo apt-get install emacs-nox ${APT_GET_OPTS}
+    - name: Suite of tests for the LaTeX and HTML backends
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" DONT_RUN_LATEX=Y latex-html-test
+    - name: Testing the Emacs mode
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" testing-emacs-mode
+    - name: Suite of interaction tests
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interaction
+  stdlib-test:
+    needs: build
+    runs-on: ${{ needs.build.outputs.os }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - uses: haskell/actions/setup@v1
+      with:
+        enable-stack: true
+        ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        stack-version: ${{ needs.build.outputs.stack-ver }}
+    - uses: actions/download-artifact@v2
+      with:
+        name: agda-${{ runner.os }}-${{ github.sha }}
+    - name: Unpack artifacts
+      run: |
+        tar --use-compress-program zstd -xvf dist.tzst
+        tar --use-compress-program zstd -xvf stack-work.tzst
+    - id: cache
+      name: Cache dependencies
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+          }}-${{ hashFiles('stack.yaml.lock') }}
+        path: ~/.stack
+    - name: Install and configure the icu library
+      run: sudo apt-get install libicu-dev ${APT_GET_OPTS}
+    - name: Standard library test
+      run: |
+        # ASR (2021-01-17). `cabal update` is required due to #5138.
+        # We should also use `stack` in this test.
+        cabal update
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-test
+    - name: Standard library compiler tests
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-compiler-test
+    - name: Successful tests using the standard library
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-succeed
+    - name: Interaction tests using the standard library
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" std-lib-interaction
+  test:
+    needs: build
+    runs-on: ${{ needs.build.outputs.os }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - uses: haskell/actions/setup@v1
+      with:
+        enable-stack: true
+        ghc-version: ${{ needs.build.outputs.ghc-ver }}
+        stack-version: ${{ needs.build.outputs.stack-ver }}
+    - uses: actions/download-artifact@v2
+      with:
+        name: agda-${{ runner.os }}-${{ github.sha }}
+    - name: Unpack artifacts
+      run: |
+        tar --use-compress-program zstd -xvf dist.tzst
+        tar --use-compress-program zstd -xvf stack-work.tzst
+    - id: cache
+      name: Cache dependencies
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-stack-01-${{ needs.build.outputs.stack-ver }}-${{ hashFiles('stack.yaml')
+          }}-${{ hashFiles('stack.yaml.lock') }}
+        path: ~/.stack
+    - name: Suite of tests for bugs
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" bugs
+    - name: 'Suite of successful tests: mini-library Common'
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" common
+    - name: Suite of successful tests
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" succeed
+    - name: Suite of failing tests
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" fail
+    - name: User manual (test)
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" user-manual-test
+    - name: Suite of examples
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" examples
+    - name: Suite of interactive tests
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" interactive
+    - name: Successful tests using Agda as a Haskell library
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" api-test
+    - name: Internal test suite
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" internal-tests
+    - name: Benchmark
+      run: |
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-without-logs
+        make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" benchmark-summary
+    - name: Compiler tests
+      run: make BUILD_DIR="${GITHUB_WORKSPACE}/${BUILD_DIR}" compiler-test
 name: Build, Test, and Benchmark
 'on':
-  workflow_dispatch: null
   pull_request:
-    paths-ignore:
-    - .github/*
-    - .github/workflows/cabal.yml
-    - .github/workflows/cabal-test.yml
-    - .github/workflows/haddock.yml
-    - .github/workflows/lint.yml
-    - .github/workflows/deploy.yml
-    - .github/workflows/stack.yml
-    - .github/workflows/user_manual.yml
-    - .github/workflows/whitespace.yml
-    - src/agda-bisect/**
-    - src/fix-whitespace/**
-    - src/github/workflows/cabal.yml
-    - src/github/workflows/cabal-test.yml
-    - src/github/workflows/haddock.yml
-    - src/github/workflows/lint.yml
-    - src/github/workflows/deploy.yml
-    - src/github/workflows/stack.yml
-    - src/github/workflows/user_manual.yml
-    - src/github/workflows/whitespace.yml
-    - src/hs-tags/**
-    - src/release-tools/**
-    - .travis
-    - macros/**
-    - notes/**
-    - .mailmap
-    - .ghci*
-    - .gitignore
-    - .hlint.yaml
-    - .travis.yml
-    - CHANGELOG.md
-    - HACKING.md
-    - LICENSE
-    - README.md
-    - fix-whitespace.yaml
-    - hie.yaml
-    - stack-*.yaml
-    - touchup.sh
+    paths:
+    - '**'
+    - '!.github/**'
+    - .github/workflows/test.yml
+    - '!src/github/**'
+    - src/github/workflows/test.yml
+    - '!src/agda-bisect/**'
+    - '!src/fix-whitespace/**'
+    - '!src/hs-tags/**'
+    - '!src/release-tools/**'
+    - '!.travis'
+    - '!macros/**'
+    - '!notes/**'
+    - '!.mailmap'
+    - '!.ghci*'
+    - '!.gitignore'
+    - '!.hlint.yaml'
+    - '!.travis.yml'
+    - '!CHANGELOG.md'
+    - '!HACKING.md'
+    - '!LICENSE'
+    - '!README.md'
+    - '!fix-whitespace.yaml'
+    - '!hie.yaml'
+    - '!stack-*.yaml'
+    - '!touchup.sh'
   push:
     branches:
     - master
     - ci-*
     - release*
-    paths-ignore:
-    - .github/*
-    - .github/workflows/cabal.yml
-    - .github/workflows/cabal-test.yml
-    - .github/workflows/haddock.yml
-    - .github/workflows/lint.yml
-    - .github/workflows/deploy.yml
-    - .github/workflows/stack.yml
-    - .github/workflows/user_manual.yml
-    - .github/workflows/whitespace.yml
-    - src/agda-bisect/**
-    - src/fix-whitespace/**
-    - src/github/workflows/cabal.yml
-    - src/github/workflows/cabal-test.yml
-    - src/github/workflows/haddock.yml
-    - src/github/workflows/lint.yml
-    - src/github/workflows/deploy.yml
-    - src/github/workflows/stack.yml
-    - src/github/workflows/user_manual.yml
-    - src/github/workflows/whitespace.yml
-    - src/hs-tags/**
-    - src/release-tools/**
-    - .travis
-    - macros/**
-    - notes/**
-    - .mailmap
-    - .ghci*
-    - .gitignore
-    - .hlint.yaml
-    - .travis.yml
-    - CHANGELOG.md
-    - HACKING.md
-    - LICENSE
-    - README.md
-    - fix-whitespace.yaml
-    - hie.yaml
-    - stack-*.yaml
-    - touchup.sh
+    paths:
+    - '**'
+    - '!.github/**'
+    - .github/workflows/test.yml
+    - '!src/github/**'
+    - src/github/workflows/test.yml
+    - '!src/agda-bisect/**'
+    - '!src/fix-whitespace/**'
+    - '!src/hs-tags/**'
+    - '!src/release-tools/**'
+    - '!.travis'
+    - '!macros/**'
+    - '!notes/**'
+    - '!.mailmap'
+    - '!.ghci*'
+    - '!.gitignore'
+    - '!.hlint.yaml'
+    - '!.travis.yml'
+    - '!CHANGELOG.md'
+    - '!HACKING.md'
+    - '!LICENSE'
+    - '!README.md'
+    - '!fix-whitespace.yaml'
+    - '!hie.yaml'
+    - '!stack-*.yaml'
+    - '!touchup.sh'
+  workflow_dispatch: null

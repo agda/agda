@@ -176,15 +176,17 @@ lookupPrimitiveFunctionQ q = do
   return (s, PrimImpl t $ pf { primFunName = q })
 
 getBuiltinName :: (HasBuiltins m, MonadReduce m) => String -> m (Maybe QName)
-getBuiltinName b = do
-  caseMaybeM (getBuiltin' b) (return Nothing) (Just <.> getName)
-  where
-  getName v = do
+getBuiltinName b = traverse getQNameFromTerm =<< getBuiltin' b
+
+-- | Convert a name in 'Term' form back to 'QName'.
+--
+getQNameFromTerm :: MonadReduce m => Term -> m QName
+getQNameFromTerm v = do
     v <- reduce v
-    case unSpine $ v of
+    case unSpine v of
       Def x _   -> return x
       Con x _ _ -> return $ conName x
-      Lam _ b   -> getName $ unAbs b
+      Lam _ b   -> getQNameFromTerm $ unAbs b
       _ -> __IMPOSSIBLE__
 
 isBuiltin :: (HasBuiltins m, MonadReduce m) => QName -> String -> m Bool

@@ -36,14 +36,14 @@ import qualified Control.Exception as E
 import Control.Monad.Fail (MonadFail)
 #endif
 
-import Data.Either (lefts)
-import qualified Data.Map as Map
+import Data.Either
 import qualified Data.List as List
-import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.Maybe
 import Data.Map (Map)
+import qualified Data.Map as Map
 import qualified Data.HashMap.Strict as HMap
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 
@@ -199,10 +199,12 @@ mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
     let sig     = iSignature i
         builtin = Map.toAscList $ iBuiltin i
-        prim    = [ x | (_,Prim x) <- builtin ]
-        bi      = Map.fromDistinctAscList [ (x, Builtin t) | (x, Builtin t) <- builtin ]
-                    -- Andreas, 2021-08-19: this seeming identity filters out the @Prim@s
-                    -- and converts the type.
+        primOrBi = \case
+          (_, Prim x)                     -> Left x
+          (x, Builtin t)                  -> Right (x, Builtin t)
+          (x, BuiltinRewriteRelations xs) -> Right (x, BuiltinRewriteRelations xs)
+        (prim, bi') = partitionEithers $ map primOrBi builtin
+        bi      = Map.fromDistinctAscList bi'
         warns   = iWarnings i
     bs <- getsTC stBuiltinThings
     reportSLn "import.iface.merge" 10 "Merging interface"
@@ -212,6 +214,7 @@ mergeInterface i = do
     let check b (Builtin x) (Builtin y)
               | x == y    = return ()
               | otherwise = typeError $ DuplicateBuiltinBinding b x y
+        check _ (BuiltinRewriteRelations xs) (BuiltinRewriteRelations ys) = return ()
         check _ _ _ = __IMPOSSIBLE__
     sequence_ $ Map.intersectionWithKey check bs bi
     addImportedThings

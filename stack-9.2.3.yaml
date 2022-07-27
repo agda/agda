@@ -1,0 +1,10 @@
+resolver: nightly-2022-06-10
+compiler: ghc-9.2.3
+compiler-check: match-exact
+
+extra-deps:
+- vector-hashtables-0.1.1.1
+
+packages:
+- '.'
+- 'src/size-solver'

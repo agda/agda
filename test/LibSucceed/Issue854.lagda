@@ -9,7 +9,7 @@
 
 module Issue854 where
 
-open import Function
+open import Function hiding (force)
 open import Data.Unit
 open import Data.Product
 open import Data.List
@@ -17,7 +17,7 @@ open import Data.List.Relation.Unary.Any
 open import Data.List.Relation.Binary.Pointwise hiding (refl)
 open import Data.Container.FreeMonad using (rawMonad)
 open import Relation.Binary.PropositionalEquality
-open import Category.Monad
+open import Effect.Monad
 
 open import Data.List.Relation.Binary.Subset.Propositional
 open import Issue854.Types

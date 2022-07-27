@@ -24,7 +24,7 @@ open import Data.Container.Combinator using () renaming (_⊎_ to _⊎^C_)
 open import Data.Container.FreeMonad
     renaming (_⋆_ to _⋆^C_; _⋆C_ to _⋆^CC_)
 open import Data.W
-open import Category.Monad
+open import Effect.Monad
 
 open import Issue854.Types using (Sig)
 open import Issue854.TypesSemantics using (⌊_⌋^Sig)

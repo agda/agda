@@ -26,6 +26,7 @@ import Data.Foldable (toList)
 import Data.Semigroup (Semigroup(..))
 #endif
 
+import Control.Exception.Base (IOException, try)
 import Control.Monad (forM_, mapM_, unless, when)
 import Control.Monad.Trans.Reader as R ( ReaderT(runReaderT))
 import Control.Monad.RWS.Strict
@@ -68,13 +69,14 @@ import Agda.Syntax.Position (startPos)
 
 import Agda.Interaction.Highlighting.Precise hiding (toList)
 
-import Agda.TypeChecking.Monad (Interface(..))
+import Agda.TypeChecking.Monad (Interface(..)) --, reportSLn)
 
 import Agda.Utils.FileName (AbsolutePath)
 import Agda.Utils.Function (applyWhen)
 import Agda.Utils.Functor  ((<&>))
 import Agda.Utils.List     (last1, updateHead, updateLast)
 import Agda.Utils.Maybe    (whenJust)
+import Agda.Utils.Monad
 import qualified Agda.Utils.List1 as List1
 
 import Agda.Utils.Impossible
@@ -718,21 +720,37 @@ getTextWidthEstimator _countClusters =
 -- | Create the common base output directory and check for/install the style file.
 prepareCommonAssets :: (MonadLogLaTeX m, MonadIO m) => FilePath -> m ()
 prepareCommonAssets dir = do
-  liftIO $ createDirectoryIfMissing True dir
-  (code, _, _) <-
-    liftIO $
-      readProcessWithExitCode
+  -- Make sure @dir@ will exist.
+  dirExisted <- liftIO $ doesDirectoryExist dir
+  unless dirExisted $
+    -- Create directory @dir@ and parent directories.
+    liftIO $ createDirectoryIfMissing True dir
+
+  -- Check whether TeX will find @agda.sty@.
+  texFindsSty <- liftIO $ try $
+      readProcess
         "kpsewhich"
-        ["--path=" ++ dir, defaultStyFile]
+        (applyWhen dirExisted (("--path=" ++ dir) :) [defaultStyFile])
         ""
-  when (code /= ExitSuccess) $ do
-    logLaTeX $ LogMessage FileSystem
-      (T.pack $ unwords [defaultStyFile, "was not found. Copying a default version of", defaultStyFile, "into", dir])
-      []
-    liftIO $ do
-      styFile <- getDataFileName $
-        latexDataDir </> defaultStyFile
-      copyFile styFile (dir </> defaultStyFile)
+  case texFindsSty of
+    Right _ -> return ()
+    Left (e :: IOException) -> do
+     -- -- we are lacking MonadDebug here, so no debug printing via reportSLn
+     -- reportSLn "compile.latex.sty" 70 $ unlines
+     --   [ unwords [ "Searching for", defaultStyFile, "in", dir, "returns:" ]
+     --   , show e
+     --   ]
+     let agdaSty = dir </> defaultStyFile
+     unlessM (pure dirExisted `and2M` liftIO (doesFileExist agdaSty)) $ do
+       -- It is safe now to create the default style file in @dir@ without overwriting
+       -- a possibly user-edited copy there.
+       logLaTeX $ LogMessage FileSystem
+         (T.pack $ unwords [defaultStyFile, "was not found. Copying a default version of", defaultStyFile, "into", dir])
+         []
+       liftIO $ do
+         styFile <- getDataFileName $
+           latexDataDir </> defaultStyFile
+         copyFile styFile agdaSty
 
 -- | Generates a LaTeX file for the given interface.
 generateLaTeXIO :: (MonadLogLaTeX m, MonadIO m) => LaTeXOptions -> Interface -> m ()

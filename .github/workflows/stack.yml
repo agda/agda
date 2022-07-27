@@ -14,58 +14,32 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - with:
+    - uses: styfle/cancel-workflow-action@0.6.0
+      with:
         access_token: ${{ github.token }}
-      uses: styfle/cancel-workflow-action@0.6.0
   stack:
-    env:
-      ICU: mingw-w64-x86_64-icu
-      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
-        Agda:debug
-      EXTRA_ARGS: --fast
     defaults:
       run:
         shell: bash
-    strategy:
-      matrix:
-        include:
-        - stack-ver: latest
-          ghc-ver: 9.2.2
-          os: ubuntu-20.04
-        - stack-ver: latest
-          ghc-ver: 9.0.2
-          os: ubuntu-20.04
-        - stack-ver: latest
-          ghc-ver: 9.2.2
-          os: macos-latest
-        - stack-ver: latest
-          ghc-ver: 9.0.1
-          os: windows-latest
-        stack-ver:
-        - latest
-        ghc-ver:
-        - 8.10.7
-        - 8.8.4
-        - 8.6.5
-        - 8.4.4
-        - 8.2.2
-        - 8.0.2
-        os:
-        - ubuntu-18.04
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
+    env:
+      EXTRA_ARGS: --fast
+      ICU: mingw-w64-x86_64-icu
+      NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
+        Agda:debug
     needs: auto-cancel
+    runs-on: ${{ matrix.os }}
     steps:
-    - with:
+    - uses: actions/checkout@v2
+      with:
         submodules: recursive
-      uses: actions/checkout@v2
-    - with:
+    - id: haskell-setup
+      uses: haskell/actions/setup@v1
+      with:
+        enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
         stack-version: ${{ matrix.stack-ver }}
-        enable-stack: true
-      uses: haskell/actions/setup@v1
-      id: haskell-setup
-    - run: |
+    - name: Environment settings based on the Haskell setup
+      run: |
         echo "runner.os         = ${{ runner.os                               }}"
         echo "OSTYPE            = ${{ env.OSTYPE                              }}"
         echo "ghc-path          = ${{ steps.haskell-setup.outputs.ghc-path    }}"
@@ -81,54 +55,75 @@ jobs:
         echo "STACK_VER=$(stack --numeric-version)"                     >> ${GITHUB_ENV}
         export GHC_VER=$(ghc --numeric-version)
         echo "GHC_VER=${GHC_VER}"                                       >> ${GITHUB_ENV}
-        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --no-terminal"    >> ${GITHUB_ENV}
-      name: Environment settings based on the Haskell setup
-    - run: |
+        echo "ARGS=--stack-yaml=stack-${GHC_VER}.yaml --system-ghc --no-terminal"    >> ${GITHUB_ENV}
+    - name: Environment (review)
+      run: |
         echo "STACK_ROOT (fix)  = ${STACK_ROOT}"
         echo "STACK_VER         = ${STACK_VER}"
         echo "GHC_VER           = ${GHC_VER}"
-      name: Environment (review)
-    - run: |
-        stack update --silent
-        echo "system-ghc: true" >> ${STACK_ROOT}/config.yaml
-        stack build ${ARGS} --dry-run
-      name: Update and configure stack package index
-    - with:
-        path: ${{ steps.haskell-setup.outputs.stack-root }}
-        key: |
-          ${{ runner.os }}-stack-20220503-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml.lock', env.GHC_VER)) }}
-      uses: actions/cache@v2
+    - id: cache
       name: Cache dependencies
-      id: cache
+      uses: actions/cache@v2
+      with:
+        key: |
+          ${{ runner.os }}-stack-20220503-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}
+        path: ${{ steps.haskell-setup.outputs.stack-root }}
     - if: ${{ runner.os == 'macOS' }}
-      shell: bash
+      name: Set up pkg-config for the ICU library (macOS)
       run: |
         echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
-      name: Set up pkg-config for the ICU library (macOS)
+      shell: bash
     - if: ${{ runner.os == 'Linux' }}
+      name: Install the icu library (Ubuntu)
       run: |
         sudo apt-get update -qq
         sudo apt-get install libicu-dev -qq
-      name: Install the icu library (Ubuntu)
     - if: ${{ runner.os == 'Windows' }}
+      name: Install the icu library (Windows)
       run: |
-        stack exec ${ARGS} -- pacman --noconfirm -Syuu
-        # stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
+        # stack exec ${ARGS} -- pacman --noconfirm -Syuu
+        stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
         stack exec ${ARGS} -- pacman --noconfirm -S ${ICU}
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
-      name: Install the icu library (Windows)
     - if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
+      name: Install the numa library (Ubuntu, GHC 8.4.4)
       run: |
         sudo apt-get install libnuma-dev -qq
-      name: Install the numa library (Ubuntu, GHC 8.4.4)
     - if: ${{ !steps.cache.outputs.cache-hit }}
-      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
       name: Install dependencies for Agda and `agda-tests` (i.e. the test suite).
-    - run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
-      name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS} --test --only-dependencies
+    - name: Build Agda with the default flags in Agda.cabal. Also build `agda-tests`
         (i.e. the test suite).
-    - run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
-      name: Build Agda with the non-default flags Agda.cabal.
+      run: stack build ${ARGS} ${EXTRA_ARGS} --test --no-run-tests
+    - name: Build Agda with the non-default flags Agda.cabal.
+      run: stack build ${ARGS} ${EXTRA_ARGS} ${NON_DEFAULT_FLAGS}
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc-ver:
+        - 8.10.7
+        - 8.8.4
+        - 8.6.5
+        - 8.4.4
+        - 8.2.2
+        - 8.0.2
+        include:
+        - ghc-ver: 9.2.3
+          os: ubuntu-20.04
+          stack-ver: latest
+        - ghc-ver: 9.0.2
+          os: ubuntu-20.04
+          stack-ver: latest
+        - ghc-ver: 9.2.3
+          os: macos-latest
+          stack-ver: latest
+        - ghc-ver: 9.2.3
+          os: windows-latest
+          stack-ver: latest
+        os:
+        - ubuntu-18.04
+        stack-ver:
+        - latest
 name: Build (stack)
 'on':
   pull_request:

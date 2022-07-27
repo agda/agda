@@ -29,8 +29,6 @@ import Data.Set (Set)
 import Data.Map (Map)
 import Data.Functor (void)
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe
@@ -608,8 +606,8 @@ instance ToAbstract ResolveQName where
     q -> return q
 
 data APatName = VarPatName A.Name
-              | ConPatName (NonEmpty AbstractName)
-              | PatternSynPatName (NonEmpty AbstractName)
+              | ConPatName (List1 AbstractName)
+              | PatternSynPatName (List1 AbstractName)
 
 instance ToAbstract PatName where
   type AbsOfCon PatName = APatName
@@ -667,9 +665,9 @@ instance ToQName a => ToAbstract (OldName a) where
       DefinedName _ d NoSuffix -> return $ anameName d
       DefinedName _ d Suffix{} -> notInScopeError (toQName x)
       -- We can get the cases below for DISPLAY pragmas
-      ConstructorName _ ds -> return $ anameName (NonEmpty.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
-      FieldName ds         -> return $ anameName (NonEmpty.head ds)
-      PatternSynResName ds -> return $ anameName (NonEmpty.head ds)
+      ConstructorName _ ds -> return $ anameName (List1.head ds)   -- We'll throw out this one, so it doesn't matter which one we pick
+      FieldName ds         -> return $ anameName (List1.head ds)
+      PatternSynResName ds -> return $ anameName (List1.head ds)
       VarName x _          -> genericError $ "Not a defined name: " ++ prettyShow x
       UnknownName          -> notInScopeError (toQName x)
 
@@ -835,7 +833,7 @@ scopeCheckExtendedLam r erased cs = do
       setScope si  -- This turns into an A.ScopedExpr si $ A.ExtendedLam...
       return $
         A.ExtendedLam (ExprRange r) di erased qname' $
-        List1.fromList cs
+        List1.fromList __IMPOSSIBLE__ cs
     _ -> __IMPOSSIBLE__
 
 -- | Raise an error if argument is a C.Dot with Hiding info.

@@ -485,7 +485,7 @@ instance Unquote R.Term where
           , (c `isCon` primAgdaTermMeta,    R.Meta    <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermLam,     R.Lam     <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermPi,      mkPi      <$> unquoteN x <*> unquoteN y)
-          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> (List1.fromList <$> unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> (List1.fromList __IMPOSSIBLE__ <$> unquoteN x) <*> unquoteN y)
           ]
           __IMPOSSIBLE__
         where

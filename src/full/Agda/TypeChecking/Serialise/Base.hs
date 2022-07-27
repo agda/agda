@@ -16,9 +16,10 @@ import Control.Monad.State.Strict (StateT, gets)
 import Data.Proxy
 
 import Data.Array.IArray
+import Data.Array.IO
+import qualified Data.HashMap.Strict as Hm
 import qualified Data.ByteString.Lazy as L
 import Data.Hashable
-import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
 import Data.Maybe
 import qualified Data.Binary as B
@@ -32,6 +33,8 @@ import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
 import Agda.TypeChecking.Monad.Base (TypeError(GenericError), ModuleToSource)
 
 import Agda.Utils.FileName
+import Agda.Utils.HashTable (HashTable)
+import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
 import Agda.Utils.Lens
 import Agda.Utils.Monad
@@ -41,19 +44,6 @@ import Agda.Utils.TypeLevel
 -- | Constructor tag (maybe omitted) and argument indices.
 
 type Node = [Int32]
-
--- | The type of hashtables used in this module.
---
--- A very limited amount of testing indicates that 'H.CuckooHashTable'
--- is somewhat slower than 'H.BasicHashTable', and that
--- 'H.LinearHashTable' and the hashtables from "Data.Hashtable" are
--- much slower.
-
-#if defined(mingw32_HOST_OS) && defined(x86_64_HOST_ARCH)
-type HashTable k v = H.CuckooHashTable k v
-#else
-type HashTable k v = H.BasicHashTable k v
-#endif
 
 -- | Structure providing fresh identifiers for hash map
 --   and counting hash map hits (i.e. when no fresh identifier required).
@@ -128,15 +118,15 @@ emptyDict
      -- ^ Collect statistics for @icode@ calls?
   -> IO Dict
 emptyDict collectStats = Dict
-  <$> H.new
-  <*> H.new
-  <*> H.new
-  <*> H.new
-  <*> H.new
-  <*> H.new
-  <*> H.new
-  <*> H.new
-  <*> H.new
+  <$> H.empty
+  <*> H.empty
+  <*> H.empty
+  <*> H.empty
+  <*> H.empty
+  <*> H.empty
+  <*> H.empty
+  <*> H.empty
+  <*> H.empty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -146,15 +136,15 @@ emptyDict collectStats = Dict
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
-  <*> H.new
+  <*> H.empty
   <*> pure collectStats
-  <*> H.new
+  <*> H.empty
 
 -- | Universal type, wraps everything.
 data U = forall a . Typeable a => U !a
 
 -- | Univeral memo structure, to introduce sharing during decoding
-type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
+type Memo = IOArray Int32 (Hm.HashMap TypeRep U) -- node index -> (type rep -> value)
 
 -- | State of the decoder.
 data St = St
@@ -380,14 +370,14 @@ vcase valu = \ix -> do
     let aTyp = typeRep (Proxy :: Proxy a)
     -- to introduce sharing, see if we have seen a thing
     -- represented by ix before
-    maybeU <- liftIO $ H.lookup memo (ix, aTyp)
-    case maybeU of
+    slot <- liftIO $ readArray memo ix
+    case Hm.lookup aTyp slot of
       -- yes, we have seen it before, use the version from memo
       Just (U u) -> maybe malformed return (cast u)
       -- no, it's new, so generate it via valu and insert it into memo
       Nothing    -> do
           v <- valu . (! ix) =<< gets nodeE
-          liftIO $ H.insert memo (ix, aTyp) (U v)
+          liftIO $ writeArray memo ix (Hm.insert aTyp (U v) slot)
           return v
 
 -- | @icodeArgs proxy (a1, ..., an)@ maps @icode@ over @a1@, ..., @an@

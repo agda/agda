@@ -3,7 +3,6 @@ module Agda.TypeChecking.Level where
 
 import Data.Maybe
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
 import Data.Traversable (Traversable)
 
 import Agda.Syntax.Common
@@ -14,6 +13,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 
+import Agda.Utils.List1 ( List1, pattern (:|) )
 import Agda.Utils.Maybe ( caseMaybeM, allJustM )
 import Agda.Utils.Monad ( tryMaybe )
 import Agda.Utils.Singleton
@@ -223,7 +223,7 @@ unSingleLevels ls = levelMax n as
     n = maximum $ 0 : [m | SingleClosed m <- ls]
     as = [a | SinglePlus a <- ls]
 
-levelMaxView :: Level' t -> NonEmpty (SingleLevel' t)
+levelMaxView :: Level' t -> List1 (SingleLevel' t)
 levelMaxView (Max n [])     = singleton $ SingleClosed n
 levelMaxView (Max 0 (a:as)) = SinglePlus a :| map SinglePlus as
 levelMaxView (Max n as)     = SingleClosed n :| map SinglePlus as

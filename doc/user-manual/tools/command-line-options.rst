@@ -551,6 +551,13 @@ Other features
      This option can affect performance. The default is to not save
      the meta-variables.
 
+.. option:: --erase-record-parameters
+
+     ..versionadded:: 2.6.3
+
+     Automatically marks parameters to definitions in a record module
+     as erased.
+
 .. _warnings:
 
 Warnings

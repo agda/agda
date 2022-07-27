@@ -1,11 +1,12 @@
 -- Source: https://raw.githubusercontent.com/gallais/potpourri/master/agda/poc/dimensions/dimensions.agda
 -- Author: Original by gallais, modified for test suite by P. Hausmann
+-- (Later edited by others.)
 
 {-# OPTIONS --guardedness #-}
 
 module dimensions where
 
-open import Data.Nat     as ℕ using (ℕ)
+open import Data.Nat     as ℕ using (ℕ; NonZero)
 open import Data.Nat.LCM
 open import Data.Nat.DivMod hiding (_/_)
 open import Data.Integer as ℤ using (ℤ ; +_)
@@ -52,8 +53,8 @@ sec   = record { kilogram = + 0
                ; meter    = + 0
                ; second   = + 1 }
 
-≠0-mult : ∀ (m n : ℕ) (hm : False (m ℕ.≟ 0)) (hn : False (n ℕ.≟ 0)) →
-        False (m ℕ.* n ℕ.≟ 0)
+≠0-mult :
+  (m n : ℕ) (hm : NonZero m) (hn : NonZero n) → NonZero (m ℕ.* n)
 ≠0-mult ℕ.zero    n         () hn
 ≠0-mult m         0         hm ()
 ≠0-mult (ℕ.suc m) (ℕ.suc n) hm hn = _
@@ -69,12 +70,12 @@ module Unit where
   infix 1 _,_#_
 
   data unit : Set where
-    _,_#_ : (n : ℕ) (hn : False (n ℕ.≟ 0)) (d : dimension) → unit
+    _,_#_ : (n : ℕ) (hn : NonZero n) (d : dimension) → unit
 
   coeff : (u : unit) → ℕ
   coeff (k , _ # _) = k
 
-  coeff≠0 : (u : unit) → False (coeff u ℕ.≟ 0)
+  coeff≠0 : (u : unit) → NonZero (coeff u)
   coeff≠0 (k , hk # _) = hk
 
   _*_ : (u v : unit) → unit
@@ -82,9 +83,10 @@ module Unit where
     ( k ℕ.* l ) , (≠0-mult k l hk hl) # (d Dimension.* e)
 
   _/_ : (u v : unit)
-        {≠0 : False (((coeff u) div (coeff v)) {coeff≠0 v} ℕ.≟ 0)} →
+        ⦃ ≠0 : NonZero (((coeff u) div (coeff v)) ⦃ coeff≠0 v ⦄) ⦄ →
         unit
-  _/_ (k , hk # d) (l , hl # e) {≠0} = (k div l) {hl} , ≠0 # (d Dimension./ e)
+  _/_ (k , hk # d) (l , hl # e) ⦃ ≠0 ⦄ =
+    (k div l) ⦃ hl ⦄ , ≠0 # (d Dimension./ e)
 
 open Unit using (unit ; _,_#_ ; coeff ; coeff≠0)
 
@@ -108,7 +110,7 @@ module Values where
   _+_ : ∀ {k hk l hl m hm} {d : dimension} (v₁ : [ k , hk # d ])
         (v₂ : [ l , hl # d ]) → [ m , hm # d ]
   _+_ {k} {hk} {l} {hl} {m} {hm} ⟨ v₁ ∶ ._ ⟩ ⟨ v₂ ∶ ._ ⟩ =
-      ⟨ ((k ℕ.* v₁ ℕ.+ l ℕ.* v₂) div m) {hm} ∶ _ ⟩
+      ⟨ ((k ℕ.* v₁ ℕ.+ l ℕ.* v₂) div m) ⦃ hm ⦄ ∶ _ ⟩
 
   _:+_ : ∀ {k hk l hl} {d : dimension} (v₁ : [ k , hk # d ])
          (v₂ : [ l , hl # d ]) → [ 1 , _ # d ]
@@ -118,7 +120,7 @@ module Values where
         (vd : [ k , hk #  d ]) (ve : [ l , hl # e ]) →
         [ m , hm # (d Dimension.* e) ]
   _*_ {k} {hk} {l} {hl} {m} {hm} ⟨ vd ∶ ._ ⟩ ⟨ ve ∶ ._ ⟩ =
-      ⟨ ((k ℕ.* vd ℕ.* l ℕ.* ve) div m) {hm} ∶ _ ⟩
+      ⟨ ((k ℕ.* vd ℕ.* l ℕ.* ve) div m) ⦃ hm ⦄ ∶ _ ⟩
 
   _:*_ : ∀ {k hk l hl} {d e : dimension}
          (vd : [ k , hk #  d ]) (ve : [ l , hl # e ]) →
@@ -127,12 +129,13 @@ module Values where
 
   _/_ :  ∀ {k hk l hl m hm} {d e : dimension}
         (vd : [ k , hk #  d ]) (ve : [ l , hl # e ])
-        {≠0 : False (val ve ℕ.≟ 0)} → [ m , hm # (d Dimension./ e) ]
+        {≠0 : NonZero (val ve)} → [ m , hm # (d Dimension./ e) ]
   _/_ {k} {hk} {l} {hl} {m} {hm} ⟨ vd ∶ ._ ⟩ ⟨ ve ∶ ._ ⟩ {≠0} =
-      ⟨ ((k ℕ.* vd) div (l ℕ.* ve ℕ.* m)) {≠0-mult _ _ (≠0-mult _ _ hl ≠0) hm} ∶ _ ⟩
+      ⟨ ((k ℕ.* vd) div (l ℕ.* ve ℕ.* m))
+          ⦃ ≠0-mult _ _ (≠0-mult _ _ hl ≠0) hm ⦄ ∶ _ ⟩
 
   ↑ : ∀ {k hk l hl d} → [ k , hk # d ] → [ l , hl # d ]
-  ↑ {k} {hk} {l} {hl} ⟨ v ∶ ._ ⟩ = ⟨ ((k ℕ.* v) div l) {hl} ∶ _ ⟩
+  ↑ {k} {hk} {l} {hl} ⟨ v ∶ ._ ⟩ = ⟨ ((k ℕ.* v) div l) ⦃ hl ⦄ ∶ _ ⟩
 
 open Values
 
@@ -143,12 +146,12 @@ open Values
 
 infix 5 _**_
 
-_**_ : (k : ℕ) {hk : False $ k ℕ.≟ 0} (d : dimension) → unit
+_**_ : (k : ℕ) {hk : NonZero k} (d : dimension) → unit
 _**_ k {hk} d = k , hk # d
 
-centi : (u : unit) {≠0 : False (coeff u div 100 ℕ.≟ 0)} → unit
+centi : (u : unit) {≠0 : NonZero (coeff u div 100)} → unit
 centi (k , hk # d) {≠0} = _ , ≠0 # d
-deci : (u : unit) {≠0 : False (coeff u div 10 ℕ.≟ 0)} → unit
+deci : (u : unit) {≠0 : NonZero (coeff u div 10)} → unit
 deci  (k , hk # d) {≠0} = _ , ≠0 # d
 deca hecto kilo : unit → unit
 deca  (k , hk # d) = 10   ℕ.* k , ≠0-mult 10   k _ hk # d

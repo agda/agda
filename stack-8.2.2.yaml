@@ -8,6 +8,7 @@ extra-deps:
 - binary-0.8.3.0
 - cpphs-1.20.9
 - containers-0.5.11.0
+- primitive-0.7.4.0
 - random-1.2.0
 - regex-base-0.94.0.0
 - regex-tdfa-1.3.1.0
@@ -16,8 +17,14 @@ extra-deps:
 - tasty-silver-3.1.13
 - text-1.2.3.1
 - uuid-types-1.0.3
+- vector-0.12.3.1
+- vector-hashtables-0.1.1.1
 - wcwidth-0.0.2
 - text-icu-0.7.1.0
+
+# instead of time-1.9, we add time-compat
+- time-compat-1.9.2.2
+- base-orphans-0.8.1
 
 # Local packages, usually specified by relative directory name
 packages:

@@ -1,6 +1,9 @@
-resolver: lts-19.2
+resolver: lts-19.10
 compiler: ghc-9.0.2
 compiler-check: match-exact
+
+extra-deps:
+- vector-hashtables-0.1.1.1
 
 # Local packages, usually specified by relative directory name
 packages:

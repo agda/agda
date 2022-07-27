@@ -92,8 +92,8 @@ instance PatternFrom () Sort NLPSort where
     case s of
       Type l   -> PType <$> patternFrom r k () l
       Prop l   -> PProp <$> patternFrom r k () l
+      SSet l   -> PSSet <$> patternFrom r k () l
       Inf f n  -> return $ PInf f n
-      SSet l   -> __IMPOSSIBLE__
       SizeUniv -> return PSizeUniv
       LockUniv -> return PLockUniv
       IntervalUniv -> return PIntervalUniv
@@ -232,6 +232,7 @@ instance NLPatToTerm NLPType Type where
 instance NLPatToTerm NLPSort Sort where
   nlPatToTerm (PType l) = Type <$> nlPatToTerm l
   nlPatToTerm (PProp l) = Prop <$> nlPatToTerm l
+  nlPatToTerm (PSSet l) = SSet <$> nlPatToTerm l
   nlPatToTerm (PInf f n) = return $ Inf f n
   nlPatToTerm PSizeUniv = return SizeUniv
   nlPatToTerm PLockUniv = return LockUniv
@@ -254,6 +255,7 @@ instance NLPatVars NLPSort where
   nlPatVarsUnder k = \case
     PType l   -> nlPatVarsUnder k l
     PProp l   -> nlPatVarsUnder k l
+    PSSet l   -> nlPatVarsUnder k l
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
@@ -311,6 +313,7 @@ instance GetMatchables NLPSort where
   getMatchables = \case
     PType l   -> getMatchables l
     PProp l   -> getMatchables l
+    PSSet l   -> getMatchables l
     PInf f n  -> empty
     PSizeUniv -> empty
     PLockUniv -> empty
@@ -345,6 +348,7 @@ instance Free NLPSort where
   freeVars' = \case
     PType l   -> freeVars' l
     PProp l   -> freeVars' l
+    PSSet l   -> freeVars' l
     PInf f n  -> mempty
     PSizeUniv -> mempty
     PLockUniv -> mempty

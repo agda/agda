@@ -21,7 +21,7 @@ open import Data.Container hiding (_∈_) renaming (μ to μ^C; ⟦_⟧ to ⟦_�
 open import Data.Container.Combinator using () renaming (_×_ to _×^C_)
 open import Data.Container.FreeMonad as FM
     hiding (_⋆_) renaming (_⋆C_ to _⋆^CC_)
-open import Category.Monad
+open import Effect.Monad
 open import Relation.Binary.PropositionalEquality
 
 open import Data.List.Membership.Propositional

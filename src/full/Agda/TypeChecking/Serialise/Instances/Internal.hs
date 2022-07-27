@@ -266,6 +266,7 @@ instance EmbPrj NLPSort where
   icod_ PSizeUniv   = icodeN 3 PSizeUniv
   icod_ PLockUniv   = icodeN 4 PLockUniv
   icod_ PIntervalUniv = icodeN 5 PIntervalUniv
+  icod_ (PSSet a)   = icodeN 6 PSSet a
 
   value = vcase valu where
     valu [0, a] = valuN PType a
@@ -274,6 +275,7 @@ instance EmbPrj NLPSort where
     valu [3]    = valuN PSizeUniv
     valu [4]    = valuN PLockUniv
     valu [5]    = valuN PIntervalUniv
+    valu [6, a] = valuN PSSet a
     valu _      = malformed
 
 instance EmbPrj RewriteRule where
@@ -549,10 +551,12 @@ instance EmbPrj a => EmbPrj (I.Pattern' a) where
 instance EmbPrj a => EmbPrj (Builtin a) where
   icod_ (Prim    a) = icodeN' Prim a
   icod_ (Builtin a) = icodeN 1 Builtin a
+  icod_ (BuiltinRewriteRelations a) = icodeN 2 BuiltinRewriteRelations a
 
   value = vcase valu where
     valu [a]    = valuN Prim    a
     valu [1, a] = valuN Builtin a
+    valu [2, a] = valuN BuiltinRewriteRelations a
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (Substitution' a) where

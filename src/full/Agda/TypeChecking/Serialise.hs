@@ -36,13 +36,15 @@ import Control.Monad.Except
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
 import Control.Monad.State.Strict
+import Control.Monad.ST.Trans
 
 import Data.Array.IArray
+import Data.Array.IO
 import Data.Word
+import Data.Int (Int32)
 import Data.ByteString.Lazy    ( ByteString )
 import Data.ByteString.Builder ( byteString, toLazyByteString )
 import qualified Data.ByteString.Lazy as L
-import qualified Data.HashTable.IO as H
 import qualified Data.Map as Map
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
@@ -69,6 +71,7 @@ import Agda.TypeChecking.Monad
 
 import Agda.Utils.FileName (canonicalizeAbsolutePath)
 import Agda.Utils.Hash
+import qualified Agda.Utils.HashTable as H
 import Agda.Utils.IORef
 import Agda.Utils.Null
 import qualified Agda.Utils.ProfileOptions as Profile
@@ -80,7 +83,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20220325 * 10 + 0
+currentInterfaceVersion = 20220708 * 10 + 0
 
 -- | The result of 'encode' and 'encodeInterface'.
 
@@ -175,6 +178,25 @@ encode a = do
 --   where
 --   l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
 
+newtype ListLike a = ListLike { unListLike :: Array Int32 a }
+
+instance B.Binary a => B.Binary (ListLike a) where
+  put = __IMPOSSIBLE__ -- Will never serialise this
+  get = fmap ListLike $ runSTArray $ do
+    n <- lift (B.get :: B.Get Int)
+    arr <- newArray_ (0, fromIntegral n - 1) :: STT s B.Get (STArray s Int32 a)
+
+    -- We'd like to use 'for_ [0..n-1]' here, but unfortunately GHC doesn't unfold
+    -- the list construction and so performs worse than the hand-written version.
+    let
+      getMany i = if i == n then return () else do
+        x <- lift B.get
+        unsafeWriteSTArray arr i x
+        getMany (i + 1)
+    () <- getMany 0
+
+    return arr
+
 -- | Decodes an uncompressed bytestring (without extra hashes or magic
 -- numbers). The result depends on the include path.
 --
@@ -196,8 +218,9 @@ decode s = do
      then noResult "Garbage at end."
      else do
 
-      st <- St (ar nL) (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
-              <$> liftIO H.new
+      let nL' = ar nL
+      st <- St nL' (ar ltL) (ar stL) (ar bL) (ar iL) (ar dL)
+              <$> liftIO (newArray (bounds nL') mempty)
               <*> return mf <*> return incs
       (r, st) <- runStateT (runExceptT (value r)) st
       return (Just $ modFile st, r)
@@ -225,7 +248,7 @@ decode s = do
       return Nothing
 
   where
-  ar l = listArray (0, List.genericLength l - 1) l
+  ar = unListLike
 
   noResult s = return (Nothing, Left $ GenericError s)
 

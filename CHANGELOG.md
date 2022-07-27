@@ -4,7 +4,7 @@ Release notes for Agda version 2.6.3
 Installation and infrastructure
 -------------------------------
 
-Agda supports GHC versions 8.0.2 to 9.2.2.
+Agda supports GHC versions 8.0.2 to 9.2.3.
 
 Language
 --------
@@ -41,6 +41,24 @@ Language
       f : A
   ```
 
+* Added an option `--erase-record-parameters` that additionally marks
+  parameters to definitions in a record module as erased
+  ([#5770](https://github.com/agda/agda/issues/5770)). For example:
+
+  ```agda
+  {-# OPTIONS --erase-record-parameters #-}
+
+  postulate A : Set
+  postulate a : A
+
+  record R (x : A) : Set where
+    y : A
+    y = a
+
+  f : (@0 x : A) → R x → A
+  f x r = R.y {x} r
+  ```
+
 * The options `--subtyping` and `--no-subtyping` have been removed
   (see [#5427](https://github.com/agda/agda/issues/5427)).
 
@@ -48,6 +66,15 @@ Language
   than `SSet`. For `J : ISet` and `A : J → Set l`, we have
   `(j : J) → A : Set l`, that is, the type of functions from a type in `ISet`
   to a fibrant type is fibrant.
+
+* The option `--experimental-irrelevance` is now perhaps incompatible
+  with Cubical Agda and perhaps also postulated univalence (see
+  [#5611](https://github.com/agda/agda/issues/5611) and
+  [#5861](https://github.com/agda/agda/pull/5861)).
+
+  This is not meant to imply that the option was not already
+  incompatible with those things. Note that
+  `--experimental-irrelevance` cannot be used together with `--safe`.
 
 * A new reflection primitive `getInstances : Meta → TC (List Term)`
   was added to `Agda.Builtin.Reflection`. This operation returns the
@@ -128,6 +155,30 @@ Library management
 
 Pragmas and options
 -------------------
+
+* It is now possible to declare several `BUILTIN REWRITE` relations.
+  Example:
+  ```agda
+  {-# OPTIONS --rewriting #-}
+
+  open import Agda.Builtin.Equality
+  open import Agda.Builtin.Equality.Rewrite  -- 1st rewrite relation
+
+  postulate
+    R : (A : Set) → A → A → Set
+    A : Set
+    a b c : A
+    foo : R A a b  -- using 2nd rewrite relation
+    bar : b ≡ c    -- using 1st rewrite relation
+
+  {-# BUILTIN REWRITE R #-}  -- 2nd rewrite relation
+  {-# REWRITE foo bar #-}
+
+  test : a ≡ c
+  test = refl
+  ```
+
+* New verbosity `-v debug.time:100` adds time stamps to debugging output.
 
 * Profiling options are now turned on with a new `--profile` flag instead of
   abusing the debug verbosity option. (See [#5781](https://github.com/agda/agda/issues/5731).)
