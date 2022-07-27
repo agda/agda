@@ -1673,9 +1673,8 @@ The non-ASCII characters are actually rendered as
 problems if they are followed by digits.  ASCII characters (code
 points < 128) are converted to singleton strings."
   (if (< c 128)
-      (list c)
-    ;; FIXME: Why return a list rather than a string?  --Stef
-    (append (format "\\x%x\\&" (encode-char c 'ucs)) nil)))
+      (string c)
+    (format "\\x%x\\&" (encode-char c 'ucs))))
 
 (defun agda2-string-quote (s)
   "Format S as a Haskell string literal.
