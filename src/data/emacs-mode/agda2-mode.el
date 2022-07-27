@@ -192,7 +192,7 @@ to this variable to take effect."
                       ;; (Emacs<23), or a char range (Emacs>=23).
                       (unless (memq (car val)
                                     (eval-when-compile
-                                      (mapcar 'car
+                                      (mapcar #'car
                                               (list (string-to-syntax "(")
                                                     (string-to-syntax ")")
                                                     (string-to-syntax " ")))))
@@ -269,7 +269,7 @@ menus.")
   (let ((map (make-sparse-keymap "Agda mode")))
     (define-key map [menu-bar Agda]
       (cons "Agda" (make-sparse-keymap "Agda")))
-    (define-key map [down-mouse-3]  'agda2-popup-menu-3)
+    (define-key map [down-mouse-3]  #'agda2-popup-menu-3)
     (dolist (d (reverse agda2-command-table))
       (cl-destructuring-bind (f &optional keys kinds desc) d
         (if keys (define-key map keys f))
@@ -411,7 +411,7 @@ agda2-include-dirs is not bound." :warning))
        (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
  ;; Deactivate highlighting if the buffer is edited before
  ;; typechecking is complete.
- (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
+ (add-hook 'first-change-hook #'agda2-abort-highlighting nil 'local)
  ;; If Agda is not running syntax highlighting does not work properly.
  (unless (eq 'run (agda2-process-status))
    (ignore-errors (agda2-restart)))
@@ -434,7 +434,7 @@ agda2-include-dirs is not bound." :warning))
  ;; including "mode: latex" is loaded chances are that the Agda mode
  ;; is activated before the LaTeX mode, and the LaTeX mode does not
  ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
+ (add-hook 'change-major-mode-hook #'agda2-quit nil 'local))
 
 (defun agda2-restart ()
   "Tries to start or restart the Agda process."
@@ -465,7 +465,7 @@ agda2-include-dirs is not bound." :warning))
            (output
             (with-output-to-string
               (setq status
-                    (apply 'call-process agda2-program-name
+                    (apply #'call-process agda2-program-name
                            nil standard-output nil all-program-args)))))
       (unless (equal status 0)
         (error "Failed to start the Agda process:\n%s" output)))
@@ -475,12 +475,12 @@ agda2-include-dirs is not bound." :warning))
 
       (let ((process-connection-type nil)) ; Pipes are faster than PTYs.
         (setq agda2-process
-              (apply 'start-process "Agda2" agda2-bufname
+              (apply #'start-process "Agda2" agda2-bufname
                      agda2-program-name all-program-args)))
 
       (set-process-coding-system agda2-process 'utf-8 'utf-8)
       (set-process-query-on-exit-flag agda2-process nil)
-      (set-process-filter agda2-process 'agda2-output-filter)
+      (set-process-filter agda2-process #'agda2-output-filter)
       (setq agda2-in-progress nil
             agda2-file-buffer (current-buffer))
 
@@ -517,7 +517,7 @@ process."
     (agda2-restart)
     (unless (agda2-running-p)
       (agda2-raise-error)))
-  (let ((command (apply 'concat (agda2-intersperse " " args))))
+  (let ((command (apply #'concat (agda2-intersperse " " args))))
     (with-current-buffer agda2-process-buffer
       (goto-char (point-max))
       (insert command)
@@ -580,7 +580,7 @@ is non-nil and the Agda process is `busy'."
 
   (when (equal save 'save) (save-buffer))
 
-  (apply 'agda2-send-command
+  (apply #'agda2-send-command
          'restart
          "IOTCM"
          (agda2-string-quote (buffer-file-name))
@@ -697,7 +697,7 @@ reloaded from `agda2-highlighting-file', unless
                   (push cmd non-last-commands)))))
 
           ;; Run non-last commands.
-          (mapc 'agda2-exec-response (nreverse non-last-commands)))
+          (mapc #'agda2-exec-response (nreverse non-last-commands)))
 
         ;; Check if the prompt has been reached. This function assumes
         ;; that the prompt does not include any newline characters.
@@ -776,7 +776,7 @@ command is sent to Agda (if it is sent)."
                   (or ask (string-match "\\`\\s *\\'" txt)))
              (setq txt (read-string (concat want ": ") nil nil txt t)))
             (t (setq input-from-goal t)))
-      (apply 'agda2-go save input-from-goal 'busy t cmd
+      (apply #'agda2-go save input-from-goal 'busy t cmd
              (format "%d" g)
              (if input-from-goal (agda2-goal-Range o) (agda2-mkRange nil))
              (agda2-string-quote txt) args))))
@@ -1092,8 +1092,8 @@ is inserted, and point is placed before this text."
 (defun agda2-quit ()
   "Quit and clean up after agda2."
   (interactive)
-  (remove-hook 'first-change-hook 'agda2-abort-highlighting 'local)
-  (remove-hook 'after-save-hook 'agda2-highlight-tokens 'local)
+  (remove-hook 'first-change-hook #'agda2-abort-highlighting 'local)
+  (remove-hook 'after-save-hook #'agda2-highlight-tokens 'local)
   (agda2-remove-annotations)
   (agda2-term))
 
@@ -1109,7 +1109,7 @@ commands have completed."
         ;; its buffer is killed.
         (when (and agda2-process
                    (process-status agda2-process))
-          (set-process-sentinel agda2-process 'agda2-kill-process-buffer))
+          (set-process-sentinel agda2-process #'agda2-kill-process-buffer))
         ;; Kill the process buffer if the Agda process has already
         ;; been killed.
         (agda2-kill-process-buffer)
@@ -1274,8 +1274,8 @@ Either uses the scope of the current goal or, if point is not in a goal, the
 top-level scope."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
-                          'agda2-infer-type
-                        'agda2-infer-type-toplevel)))
+                          #'agda2-infer-type
+                        #'agda2-infer-type-toplevel)))
 
 (defun agda2-why-in-scope ()
   "Explain why something is in scope in a goal."
@@ -1293,8 +1293,8 @@ top-level scope."
   "Explains why a given name is in scope."
   (interactive)
   (call-interactively (if (agda2-goal-at (point))
-                          'agda2-why-in-scope
-                          'agda2-why-in-scope-toplevel)))
+                          #'agda2-why-in-scope
+                          #'agda2-why-in-scope-toplevel)))
 
 (agda2-maybe-normalised
  agda2-elaborate-give
@@ -1400,7 +1400,7 @@ Either only one if point is a goal, or all of them."
 (defun agda2-solveAll-action (iss)
   (while iss
     (let* ((g (pop iss)) (txt (pop iss))
-           (cmd (cons 'agda2-solve-action (cons g (cons txt nil)))))
+           (cmd (cons #'agda2-solve-action (cons g (cons txt nil)))))
       (if (null agda2-last-responses)
           (push (cons 1 cmd) agda2-last-responses)
         (nconc agda2-last-responses (cons (cons 3 cmd) nil))))))
@@ -1463,8 +1463,8 @@ With the prefix argument `(4)' \"abstract\" is ignored during the
 computation."
   (interactive)
   (if (agda2-goal-at (point))
-      (call-interactively 'agda2-compute-normalised)
-    (call-interactively 'agda2-compute-normalised-toplevel)))
+      (call-interactively #'agda2-compute-normalised)
+    (call-interactively #'agda2-compute-normalised-toplevel)))
 
 (defun agda2-display-program-version ()
   "Display version of Agda"
