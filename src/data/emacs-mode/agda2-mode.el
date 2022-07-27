@@ -1697,12 +1697,12 @@ characters to the \\xNNNN notation used in Haskell strings."
     (while (and os (not(setq g (overlay-get (setq o (pop os)) 'agda2-gn)))))
     (if g (list o g))))
 
-(defun agda2-goal-overlay (g)
-  "Returns the overlay of goal number G, if any."
-  (car
-   (remove nil
-           (mapcar (lambda (o) (if (equal (overlay-get o 'agda2-gn) g) o))
-                   (overlays-in (point-min) (point-max))))))
+(defun agda2-goal-overlay (goal)
+  "Return the overlay of goal number GOAL, if any."
+  (catch 'found
+    (dolist (ov (overlays-in (point-min) (point-max)))
+      (when (equal (overlay-get ov 'agda2-gn) goal)
+        (throw 'found ov)))))
 
 (defun agda2-range-of-goal (g)
   "The range of goal G."
