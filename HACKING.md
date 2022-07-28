@@ -508,7 +508,7 @@ Since: July 2019.
   `M-x agda2-set-program-version RET quicker RET`.
 
 * Running the testsuite requires some tinkering.  E.g., the interactive testsuite
-  can be run via `make -C test/interaction AGDA-BIN=agda-quicker`.
+  can be run via `make -C test/interaction AGDA_BIN=agda-quicker`.
 
 
 Cabal stuff
