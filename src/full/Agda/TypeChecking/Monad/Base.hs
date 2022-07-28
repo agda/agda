@@ -1616,12 +1616,15 @@ instance LensIsAbstract MetaInfo where
 --   The meta variable is created by the type checker and then hooked up to the
 --   interaction point.
 data InteractionPoint = InteractionPoint
-  { ipRange :: Range        -- ^ The position of the interaction point.
-  , ipMeta  :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
-  , ipSolved:: Bool         -- ^ Has this interaction point already been solved?
-  , ipClause:: IPClause
+  { ipRange  :: Range        -- ^ The position of the interaction point.
+  , ipMeta   :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
+  , ipSolved :: Bool         -- ^ Has this interaction point already been solved?
+  , ipClause :: IPClause
       -- ^ The clause of the interaction point (if any).
       --   Used for case splitting.
+  , ipBoundary :: [Closure IPBoundary]
+    -- ^ The boundary constraints that have been imposed on this
+    -- interaction point turing constraint solving.
   }
   deriving Generic
 
@@ -1644,12 +1647,17 @@ type InteractionPoints = BiMap InteractionId InteractionPoint
 data Overapplied = Overapplied | NotOverapplied
   deriving (Eq, Show, Data, Generic)
 
--- | Datatype representing a single boundary condition:
---   x_0 = u_0, ... ,x_n = u_n ⊢ t = ?n es
-data IPBoundary' t = IPBoundary
-  { ipbEquations :: [(t,t)] -- ^ [x_0 = u_0, ... ,x_n = u_n]
-  , ipbValue     :: t          -- ^ @t@
-  , ipbMetaApp   :: t          -- ^ @?n es@
+-- | Data type representing a single boundary constraint imposed on an
+-- interaction point. Each boundary constraint is identified by the face
+-- it corresponds to (the list of assignments 'ipbEquations').
+--
+--   x_0 = u_0, ..., x_n = u_n ⊢ t = ?n es
+data IPBoundary' tm = IPBoundary
+  { ipbEquations :: IntMap (ArgName, Bool)
+    -- ^ List of assignments identifying which face this constrains. As
+    -- usual 'True' = i1, 'False' = i0.
+  , ipbValue     :: tm            -- ^ @t@
+  , ipbMetaApp   :: tm            -- ^ @?n es@
   , ipbOverapplied :: Overapplied -- ^ Is @?n@ overapplied in @?n es@ ?
   }
   deriving (Show, Data, Functor, Foldable, Traversable, Generic)
@@ -1664,14 +1672,13 @@ data IPClause = IPClause
   , ipcWithSub  :: Maybe Substitution -- ^ Module parameter substitution
   , ipcClause   :: A.SpineClause      -- ^ The original AST clause.
   , ipcClosure  :: Closure ()         -- ^ Environment for rechecking the clause.
-  , ipcBoundary :: [Closure IPBoundary] -- ^ The boundary imposed by the LHS.
   }
   | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
   deriving (Generic)
 
 instance Eq IPClause where
   IPNoClause           == IPNoClause             = True
-  IPClause x i _ _ _ _ _ == IPClause x' i' _ _ _ _ _ = x == x' && i == i'
+  IPClause x i _ _ _ _ == IPClause x' i' _ _ _ _ = x == x' && i == i'
   _                    == _                      = False
 
 ---------------------------------------------------------------------------

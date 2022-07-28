@@ -10,11 +10,13 @@ import Control.Monad.Except ( MonadError(..), ExceptT, runExceptT )
 import Control.Monad.Trans  ( lift )
 
 import Data.Function
+import qualified Agda.Utils.BiMap as BiMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
+import qualified Data.IntMap as IntMap
 import qualified Data.Traversable as Trav
 
 import Agda.Interaction.Options
@@ -866,6 +868,16 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
   -- We don't instantiate frozen mvars
   when (mvFrozen mvar == Frozen) $ do
     reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
+    -- NB. If this problem would be a boundary constraint, then even if
+    -- the metavariable is frozen, we want to record it as part of the
+    -- interaction point's boundary --- because even if the meta is
+    -- frozen (or maybe /especially/ if the meta is frozen), this will
+    -- be an unsolved constraint "of boundary constraint shape".
+    res <- runExceptT $ inverseSubst args
+    case res of
+      Left (FaceConstraint ix) -> tryAddingBoundaryConstraint x args ix v
+      _ -> pure ()
+
     patternViolation neverUnblock
 
   -- We never get blocked terms here anymore. TODO: we actually do. why?
@@ -1021,6 +1033,10 @@ assign dir x args v target = addOrUnblocker (unblockOnMeta x) $ do
           -- we have a projected variable which could not be eta-expanded away:
           -- same as neutral
           Left ProjVar{}   -> Just <$> attemptPruning x args fvs
+          -- one of the arguments in the spine was the interval. attempt
+          -- to recover by adding as a face constraint.
+          Left (FaceConstraint ix) ->
+            Nothing <$ tryAddingBoundaryConstraint x args ix v
 
       case mids of  -- vv Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
         Nothing  -> patternViolation (unblockOnAnyMetaIn v)  -- TODO: more precise
@@ -1567,6 +1583,10 @@ data InvertExcept
   = CantInvert                -- ^ Cannot recover.
   | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
   | ProjVar ProjectedVar      -- ^ Try to eta-expand var to remove projs.
+  | FaceConstraint Int
+  -- ^ One of the arguments was one of the interval's endpoints (either
+  -- i0 or i1). The 'Int'eger indicates at which index we found the
+  -- first endpoint argument.
 
 -- | Check that arguments @args@ to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf and eta-reduced.
@@ -1580,7 +1600,7 @@ data InvertExcept
 --   has to be checked separately.
 --
 inverseSubst :: Args -> ExceptT InvertExcept TCM SubstCand
-inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
+inverseSubst args = map (mapFst unArg) <$> loop (zip3 args terms [0..])
   where
     loop  = foldM isVarOrIrrelevant []
     terms = map var (downFrom (size args))
@@ -1591,11 +1611,19 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
       throwError CantInvert
     neutralArg = throwError NeutralArg
 
-    isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
-    isVarOrIrrelevant vars (Arg info v, t) = do
+    isVarOrIrrelevant :: Res -> (Arg Term, Term, Int) -> ExceptT InvertExcept TCM Res
+    isVarOrIrrelevant vars (Arg info v, t, index) = do
       let irr | isIrrelevant info = True
               | DontCare{} <- v   = True
               | otherwise         = False
+
+      view <- intervalView'
+      let
+        isface tm = case view tm of
+          IOne -> True
+          IZero -> True
+          _ -> False
+
       case stripDontCare v of
         -- i := x
         Var i [] -> return $ (Arg info i, t) `cons` vars
@@ -1606,10 +1634,12 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         -- Andreas, 2013-09-17 but only if constructor is fully applied
-        Con c ci es -> do
+        term@(Con c ci es) -> do
           let fallback
                | isIrrelevant info = return vars
-               | otherwise                              = failure
+              -- This is one of the endpoints of the interval, so we're looking at a face constraint
+               | isface term = throwError (FaceConstraint index)
+               | otherwise   = failure
           irrProj <- optIrrelevantProjections <$> pragmaOptions
           lift (isRecordConstructor $ conName c) >>= \case
             Just (_, r@Record{ recFields = fs })
@@ -1617,7 +1647,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
               , length fs == length es
               , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
               , irrProj || all isRelevant fs -> do
-                let aux (Arg _ v) Dom{domInfo = info', unDom = f} = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
+                let aux (Arg _ v) Dom{domInfo = info', unDom = f} i = (Arg ai v,,i) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
                        { argInfoHiding   = min (getHiding info) (getHiding info')
                        , argInfoModality = Modality
@@ -1630,7 +1660,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
                        , argInfoAnnotation    = argInfoAnnotation info'
                        }
                     vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                res <- loop $ zipWith aux vs fs
+                res <- loop $ zipWith3 aux vs fs [index..]
                 return $ res `append` vars
               | otherwise -> fallback
             _ -> fallback
@@ -1732,3 +1762,112 @@ dependencySortMetas metas = do
       case j of
         IsSort{}                 -> return Nothing
         HasType{ jMetaType = t } -> Just <$> instantiateFull t
+
+-- | Attempt to record the given unification problem as a boundary
+-- constraint for the metavariable. If the metavariable does not
+-- correspond to an interaction point, does nothing.
+--
+-- Face constraints are unsolvable unification problems of the form
+--
+-- @
+--   ?0 (a = a) ... (z = z) (i = i1) ... (k = i0) = rhs
+-- @
+--
+-- where:
+--
+--    * The segment given by @(a = a) ... (z = z)@ is in the pattern
+--    fragment (see 'inverseSubst')
+--
+--    * The segment given by @(i = i1) ... (k = i0)@ consists solely of
+--    interval endpoints.
+--
+--    * ?0 is an interaction meta.
+tryAddingBoundaryConstraint
+  :: MetaId -- ^ The metavariable identifier
+  -> Args   -- ^ Spine of arguments
+  -> Int    -- ^ Index of the first interval endpoint in the spine
+  -> Term   -- ^ Right-hand-side
+  -> TCM ()
+tryAddingBoundaryConstraint meta args firstFace rhs =
+  -- This function uses a local ExceptT () to support aborting the
+  -- computation.
+  void $ runExceptT $ do
+  let (scopeArgs, faces) = splitAt firstFace args
+
+  -- First things first: try to find the interaction point that this
+  -- meta corresponds to. If there is none, abort the computation.
+  ipId <- maybe (throwError ()) pure =<< isInteractionMeta meta
+  ip <- lift (lookupInteractionPoint ipId)
+  -- We also need to find the metavariable itself (we'll need its
+  -- closure for finding the names of face variables).
+  mv <- lookupLocalMeta meta
+
+  view <- intervalView'
+
+  -- Precondition 1: Splitting the spine into two parts at the index of
+  -- the first face, we must have that the "initial segment" is in the
+  -- pattern fragment.
+  lift (runExceptT (inverseSubst scopeArgs)) >>= \case
+    Left _ -> do
+      reportSDoc "tc.ip.boundary" 10 $ vcat
+        [ "initial segment of telescope was not in pattern fragment"
+        , "  tele:" <+> prettyTCM scopeArgs
+        ]
+      throwError ()
+    Right _ -> pure ()
+
+  -- Find out the names of arguments to the metavariable. We use these
+  -- names to pretty-print the boundary of the IPBoundary constraint
+  -- later.
+  meta_tel <- enterClosure mv $ \_ -> getContextTelescope
+  let
+    p = mvPermutation mv
+    applyPerm p vs = permute (takeP (size vs) p) vs
+    names = p `applyPerm` teleNames meta_tel
+
+  reportSDoc "tc.ip.boundary" 10 $ vcat
+    [ "splitting unification problem into boundary:"
+    , nest 2 (prettyTCM (MetaV meta (map Apply args)) <+> text "=?" <+> prettyTCM rhs)
+    , "meta args:" <+> prettyTCM scopeArgs
+    , "meta face:"  <+> prettyTCM faces
+    , "telescope names after permuting:" <+> pretty names
+    ]
+
+  let
+    existingConstraints = ipBoundary ip
+
+    -- Convert the rest of the spine to a "face", i.e. an IntMap
+    -- assigning variable indices to interval arguments. We also need to
+    -- store the name of the variables, as the meta prefers them, here.
+    makeFace map (Arg _ x, i) = do
+      case view x of
+        IOne  -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (names Prelude.!! i, True ) map
+        IZero -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (names Prelude.!! i, False) map
+        _     -> throwError ()
+
+  -- Compute our face.
+  ourFace <- foldM makeFace mempty (zip faces [firstFace..])
+  reportSDoc "tc.ip.boundary" 10 $ "our face:" <+> pretty ourFace
+
+  -- Rather than attempting any clever deduplication or coherence
+  -- checking (e.g. if we have (j = i0) ⊢ zero and (j = i0) ⊢ suc x, we
+  -- could error out), we skip adding *this* constraint if the
+  -- interaction point already has constraints for this face.
+  when (any ((== ourFace) .  ipbEquations . clValue) existingConstraints) $ do
+    reportSDoc "tc.ip.boundary" 10 $ "interaction point already has constraint for our face, ignoring"
+    throwError ()
+
+  -- Close over the IPBoundary so we can pretty-print the rhs term
+  -- later. TODO: This scoping works from my very quick testing, but is
+  -- it correct?
+  boundary <- buildClosure IPBoundary
+    { ipbEquations   = ourFace
+    , ipbValue       = rhs
+    , ipbMetaApp     = MetaV meta (map Apply args)
+    , ipbOverapplied = NotOverapplied -- TODO
+    }
+  let ip' = ip { ipBoundary = boundary:existingConstraints }
+
+  -- Actually record the face constraint.
+  lift $ modifyInteractionPoints $ BiMap.update (\ip -> Just ip') ipId
+  reportSDoc "tc.ip.boundary" 10 $ "added boundary constraint for face" <+> pretty ourFace

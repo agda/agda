@@ -252,7 +252,7 @@ makeCase hole rng s = withInteractionId hole $ locallyTC eMakeCase (const True) 
   -- Get function clause which contains the interaction point.
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
   (f, clauseNo, clTy, clWithSub, absCl@A.Clause{ clauseRHS = rhs }, clClos) <- case ipCl of
-    IPClause f i t sub cl clo _ -> return (f, i, t, sub, cl, clo)
+    IPClause f i t sub cl clo -> return (f, i, t, sub, cl, clo)
     IPNoClause                -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
   (casectxt, (prevClauses0, _clause, follClauses0)) <- getClauseZipperForIP f clauseNo
