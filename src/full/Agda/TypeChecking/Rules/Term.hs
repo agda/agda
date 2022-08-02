@@ -17,6 +17,7 @@ import qualified Data.Set as Set
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
 
+import Agda.Syntax.Translation.InternalToAbstract (Reify(reify))
 import Agda.Syntax.Abstract (Binder)
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
@@ -423,19 +424,28 @@ checkPath b@(A.TBind _r _tac (xp :| []) typ) body ty = do
   Nothing -> do
     let x    = updateNamedArg (A.unBind . A.binderName) xp
         info = getArgInfo x
+        xname = A.unBind (A.binderName (namedArg xp))
     PathType s path level typ lhs rhs <- pathView ty
     interval <- primIntervalType
     v <- addContext ([x], interval) $
            checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
     iZero <- primIZero
     iOne  <- primIOne
+    iNeg  <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' builtinINeg
     let lhs' = subst 0 iZero v
         rhs' = subst 0 iOne  v
     let t = Lam info $ Abs (namedArgName x) v
     let btyp i = El s (unArg typ `apply` [argN i])
-    locallyTC eRange (const noRange) $ blockTerm ty $ traceCall (SetRange $ getRange body) $ do
-      equalTerm (btyp iZero) lhs' (unArg lhs)
-      equalTerm (btyp iOne) rhs' (unArg rhs)
+    let r = getRange body
+    locallyTC eRange (const noRange) $ blockTerm ty $ traceCall (SetRange r) $ do
+      -- Make sure to inform the user that we are checking terms are
+      -- equal under specific cofibrations: x and ~ x for the right- and
+      -- left-hand-sides respectively.
+      let notx = Def iNeg [Apply (argN (Var 0 []))]
+      traceCall (CheckBoundary r [xname] notx v (raise 1 (unArg lhs))) $
+        equalTerm (btyp iZero) lhs' (unArg lhs)
+      traceCall (CheckBoundary r [xname] (Var 0 []) v (raise 1 (unArg rhs))) $
+        equalTerm (btyp iOne) rhs' (unArg rhs)
       return t
 checkPath b body ty = __IMPOSSIBLE__
 

@@ -1652,10 +1652,17 @@ data Overapplied = Overapplied | NotOverapplied
 -- it corresponds to (the list of assignments 'ipbEquations').
 --
 --   x_0 = u_0, ..., x_n = u_n ⊢ t = ?n es
+--
+-- The original unification problem can be faithfully reconstructed by
+-- comparing 'ipbMetaApp' and 'ipbValue'; The rest of the fields
+-- (especially 'ipbEquations' with its wonky looking type) are used
+-- /only/ for display purposes.
 data IPBoundary' tm = IPBoundary
-  { ipbEquations :: IntMap (ArgName, Bool)
+  { ipbEquations :: IntMap (ArgName, Either Name Bool)
     -- ^ List of assignments identifying which face this constrains. As
-    -- usual 'True' = i1, 'False' = i0.
+    -- usual 'Right' 'True' = i1, 'Right' 'False' = i0. The 'Left' case
+    -- is reserved for "diagonals", i.e., substituting a variable for
+    -- another variable.
   , ipbValue     :: tm            -- ^ @t@
   , ipbMetaApp   :: tm            -- ^ @?n es@
   , ipbOverapplied :: Overapplied -- ^ Is @?n@ overapplied in @?n es@ ?
@@ -2730,6 +2737,19 @@ data Call
   | CheckConstructorFitsIn QName Type Sort
   | CheckFunDefCall Range QName [A.Clause] Bool
     -- ^ Highlight (interactively) if and only if the boolean is 'True'.
+  | CheckBoundary Range
+      [Name]
+    -- ^ List of free interval variables to be added in front of the
+    -- context. The 'Term's in this 'Call' must be in the scope given by
+    -- 'addContext' of these arguments.
+      Term
+    -- ^ An expression of interval type whose 'forAllFaceMaps' would
+    -- eventually visit the same substitution.  E.g.: If substituting
+    -- i~>i0, then the first arg would be (primINeg i).
+      Term
+      -- ^ The expected value under this cofibration
+      Term
+      -- ^ The actual value.
   | CheckPragma Range A.Pragma
   | CheckPrimitive Range QName A.Expr
   | CheckIsEmpty Range Type
@@ -2768,6 +2788,7 @@ instance Pretty Call where
     pretty CheckConstructorFitsIn{}  = "CheckConstructorFitsIn"
     pretty CheckFunDefCall{}         = "CheckFunDefCall"
     pretty CheckPragma{}             = "CheckPragma"
+    pretty CheckBoundary{}           = "CheckBoundary"
     pretty CheckPrimitive{}          = "CheckPrimitive"
     pretty CheckWithFunctionType{}   = "CheckWithFunctionType"
     pretty CheckNamedWhere{}         = "CheckNamedWhere"
@@ -2794,6 +2815,7 @@ instance HasRange Call where
     getRange (CheckProjection r _ _)         = r
     getRange (IsTypeCall cmp e s)            = getRange e
     getRange (IsType_ e)                     = getRange e
+    getRange (CheckBoundary r _ _ _ a)       = r
     getRange (InferVar x)                    = getRange x
     getRange (InferDef f)                    = getRange f
     getRange (CheckArguments r _ _ _)        = r

@@ -3,7 +3,10 @@ module Agda.TypeChecking.Pretty.Call where
 
 import Prelude hiding ( null )
 
+import Control.Monad.Except
+
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Internal (defaultDom)
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
@@ -13,12 +16,14 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete
 
-import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Primitive.Cubical (primIntervalType)
 import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Debug
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Function
+import Agda.Utils.Either
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 
@@ -124,6 +129,18 @@ instance PrettyTCM Call where
       pwords "in the declaration of" ++ [prettyTCM d]
 
     CheckConstructor{} -> __IMPOSSIBLE__
+
+    CheckBoundary _ fiv cofib expected actual -> do
+      interval <- fromRight __IMPOSSIBLE__ <$> runExceptT primIntervalType
+      addContext (fiv, defaultDom interval) $ vcat $
+        [ "when checking that, under the cofibration"
+        , nest 2 $ prettyTCM cofib
+        , "the terms"
+        , nest 2 $ prettyTCM expected
+        , "and"
+        , nest 2 $ prettyTCM actual
+        , "are equal."
+        ]
 
     CheckConstructorFitsIn c t s -> fsep $
       pwords "when checking that the type" ++ [prettyTCM t] ++

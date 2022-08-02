@@ -63,6 +63,7 @@ interestingCall = \case
     CheckConstructor{}        -> True
     CheckConstructorFitsIn{}  -> True
     CheckFunDefCall{}         -> True
+    CheckBoundary{}           -> True
     CheckPragma{}             -> True
     CheckPrimitive{}          -> True
     CheckIsEmpty{}            -> True
@@ -185,6 +186,7 @@ instance MonadTrace TCM where
       CheckRecDef{}             -> True
       CheckConstructor{}        -> True
       CheckConstructorFitsIn{}  -> False
+      CheckBoundary{}           -> False
       CheckFunDefCall _ _ _ h   -> h
       CheckPragma{}             -> True
       CheckPrimitive{}          -> True

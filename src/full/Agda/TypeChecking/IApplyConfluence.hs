@@ -59,7 +59,9 @@ checkIApplyConfluence_ f = whenM (isJust . optCubical <$> pragmaOptions) $ do
     _ -> return ()
 
 -- | @addClause f (Clause {namedClausePats = ps})@ checks that @f ps@
--- reduces in a way that agrees with @IApply@ reductions.
+-- reduces in a way that agrees with @IApply@ reductions. Equivalently,
+-- this guarantees that the clauses have the "right faces" when
+-- considered as terms of Path type.
 checkIApplyConfluence :: QName -> Clause -> TCM ()
 checkIApplyConfluence f cl = case cl of
       Clause {clauseBody = Nothing} -> return ()
@@ -83,7 +85,12 @@ checkIApplyConfluence f cl = case cl of
             reportSDoc "tc.iapply" 40 $ text "clause:" <+> pretty ps <+> "->" <+> pretty body
             reportSDoc "tc.iapply" 20 $ "body =" <+> prettyTCM body
 
-            addContext clTel $ equalTermOnFace phi trhs lhs body
+            addContext clTel $
+            -- add context for the user. TODO: The names here seem to be
+            -- drawn from the types' telescope so they *suck*; can we
+            -- draw them from the patterns instead?
+              traceCall (CheckBoundary (getRange f) [] phi lhs body) $
+                equalTermOnFace phi trhs lhs body
 
 
 -- | current context is of the form Γ.Δ

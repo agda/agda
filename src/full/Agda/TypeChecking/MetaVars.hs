@@ -1804,6 +1804,11 @@ tryAddingBoundaryConstraint meta args firstFace rhs =
 
   view <- intervalView'
 
+  reportSDoc "tc.ip.boundary" 10 $ vcat
+    [ "splitting unification problem into boundary:"
+    , nest 2 (prettyTCM (MetaV meta (map Apply args)) <+> text "=?" <+> prettyTCM rhs)
+    ]
+
   -- Precondition 1: Splitting the spine into two parts at the index of
   -- the first face, we must have that the "initial segment" is in the
   -- pattern fragment.
@@ -1825,11 +1830,11 @@ tryAddingBoundaryConstraint meta args firstFace rhs =
     applyPerm p vs = permute (takeP (size vs) p) vs
     names = p `applyPerm` teleNames meta_tel
 
-  reportSDoc "tc.ip.boundary" 10 $ vcat
-    [ "splitting unification problem into boundary:"
-    , nest 2 (prettyTCM (MetaV meta (map Apply args)) <+> text "=?" <+> prettyTCM rhs)
-    , "meta args:" <+> prettyTCM scopeArgs
-    , "meta face:"  <+> prettyTCM faces
+  ctx <- getContextTelescope
+  reportSDoc "tc.ip.boundary" 20 $ vcat
+    [ "meta args:" <+> prettyTCM scopeArgs
+    , "meta face:" <+> prettyTCM faces
+    , "unif. ctx:" <+> prettyTCM ctx
     , "telescope names after permuting:" <+> pretty names
     ]
 
@@ -1839,11 +1844,16 @@ tryAddingBoundaryConstraint meta args firstFace rhs =
     -- Convert the rest of the spine to a "face", i.e. an IntMap
     -- assigning variable indices to interval arguments. We also need to
     -- store the name of the variables, as the meta prefers them, here.
-    makeFace map (Arg _ x, i) = do
+    makeFace map (Arg _ (Var j []), i) = do
+      nm <- nameOfBV j
+      pure $ IntMap.insert (fromInteger (fromIntegral i))
+        (names Prelude.!! i, Left nm)
+        map
+    makeFace map (Arg _ x, i) =
       case view x of
-        IOne  -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (names Prelude.!! i, True ) map
-        IZero -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (names Prelude.!! i, False) map
-        _     -> throwError ()
+        IOne -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (names Prelude.!! i, Right True) map
+        IZero -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (names Prelude.!! i, Right False) map
+        _ -> throwError ()
 
   -- Compute our face.
   ourFace <- foldM makeFace mempty (zip faces [firstFace..])

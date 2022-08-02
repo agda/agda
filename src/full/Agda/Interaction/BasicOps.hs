@@ -606,13 +606,13 @@ instance Pretty c => Pretty (IPBoundary' c) where
   pretty (IPBoundary eqs val meta over) = do
     let
       xs = flip map (IntMap.toList eqs) $ \(_, (l, r)) -> parens $
-        if r
-          then pretty l <+> "= i1"
-          else pretty l <+> "= i0"
-      rhs = case over of
-              Overapplied    -> "=" <+> pretty meta
-              NotOverapplied -> mempty
-    prettyList_ xs <+> "⊢" <+> pretty val <+> rhs
+        pretty l <+> "=" <+> pretty (case r of { Left x -> pretty x; Right True -> "i1"; Right False -> "i0" })
+
+      lhs = case over of
+        Overapplied    -> pretty meta <+> "="
+        NotOverapplied -> mempty
+
+    prettyList_ xs <+> "⊢" <+> (lhs <> pretty val)
 
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
