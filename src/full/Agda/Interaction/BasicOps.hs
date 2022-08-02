@@ -612,7 +612,7 @@ instance Pretty c => Pretty (IPBoundary' c) where
         Overapplied    -> pretty meta <+> "="
         NotOverapplied -> mempty
 
-    prettyList_ xs <+> "⊢" <+> (lhs <> pretty val)
+    prettyList_ xs <+> "⊢" <+> (lhs P.<> pretty val)
 
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
