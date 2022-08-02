@@ -1792,7 +1792,6 @@ tryAddingBoundaryConstraint meta args firstFace rhs =
   -- This function uses a local ExceptT () to support aborting the
   -- computation.
   void $ runExceptT $ do
-  let (scopeArgs, faces) = splitAt firstFace args
 
   -- First things first: try to find the interaction point that this
   -- meta corresponds to. If there is none, abort the computation.
@@ -1803,6 +1802,13 @@ tryAddingBoundaryConstraint meta args firstFace rhs =
   mv <- lookupLocalMeta meta
 
   view <- intervalView'
+  -- Find out the names of arguments to the metavariable. We use these
+  -- names to pretty-print the boundary of the IPBoundary constraint
+  -- later.
+  meta_tel <- enterClosure mv $ \_ -> getContextTelescope
+  let
+    (scopeArgs, faces) = splitAt firstFace (take (length meta_tel) args)
+  unless (length faces > 0) $ throwError ()
 
   reportSDoc "tc.ip.boundary" 10 $ vcat
     [ "splitting unification problem into boundary:"
@@ -1821,18 +1827,18 @@ tryAddingBoundaryConstraint meta args firstFace rhs =
       throwError ()
     Right _ -> pure ()
 
-  -- Find out the names of arguments to the metavariable. We use these
-  -- names to pretty-print the boundary of the IPBoundary constraint
-  -- later.
-  meta_tel <- enterClosure mv $ \_ -> getContextTelescope
   let
     p = mvPermutation mv
     applyPerm p vs = permute (takeP (size vs) p) vs
     names = p `applyPerm` teleNames meta_tel
+    metaDeps = length names
+    nameOf i
+      | i < metaDeps = pure $ names Prelude.!! i
+      | otherwise = prettyShow <$> nameOfBV i
 
   ctx <- getContextTelescope
   reportSDoc "tc.ip.boundary" 20 $ vcat
-    [ "meta args:" <+> prettyTCM scopeArgs
+    [ "meta args:" <+> prettyTCM args
     , "meta face:" <+> prettyTCM faces
     , "unif. ctx:" <+> prettyTCM ctx
     , "telescope names after permuting:" <+> pretty names
@@ -1846,13 +1852,17 @@ tryAddingBoundaryConstraint meta args firstFace rhs =
     -- store the name of the variables, as the meta prefers them, here.
     makeFace map (Arg _ (Var j []), i) = do
       nm <- nameOfBV j
+      iname <- nameOf i
       pure $ IntMap.insert (fromInteger (fromIntegral i))
-        (names Prelude.!! i, Left nm)
+        (iname, Left nm)
         map
-    makeFace map (Arg _ x, i) =
+    makeFace map (Arg _ x, i) = do
+      reportSDoc "tc.ip.boundary" 20 $ "variable index:" <+> pretty i
+      iname <- nameOf i
+      reportSDoc "tc.ip.boundary" 20 $ "variable name:" <+> pretty iname
       case view x of
-        IOne -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (names Prelude.!! i, Right True) map
-        IZero -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (names Prelude.!! i, Right False) map
+        IOne -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (iname, Right True) map
+        IZero -> pure $ IntMap.insert (fromInteger (fromIntegral i)) (iname, Right False) map
         _ -> throwError ()
 
   -- Compute our face.
@@ -1874,7 +1884,7 @@ tryAddingBoundaryConstraint meta args firstFace rhs =
     { ipbEquations   = ourFace
     , ipbValue       = rhs
     , ipbMetaApp     = MetaV meta (map Apply args)
-    , ipbOverapplied = NotOverapplied -- TODO
+    , ipbOverapplied = if length meta_tel < length args then Overapplied else NotOverapplied -- TODO
     }
   let ip' = ip { ipBoundary = boundary:existingConstraints }
 
