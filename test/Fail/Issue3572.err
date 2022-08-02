@@ -6,4 +6,10 @@ Problematic calls:
     (at Issue3572.agda:20,12-14)
 Issue3572.agda:17,1-3
 id (sq i0) != left of type Interval
-when checking the definition of id
+when checking that, under the cofibration
+  primIMax (primINeg i) i
+the terms
+  id (sq i)
+and
+  sq i
+are equal.

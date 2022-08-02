@@ -1,3 +1,14 @@
 Issue5838.agda:211,1-4
 false != true of type Bool
-when checking the definition of bad
+when checking that, under the cofibration
+  primIMax (~ i) i
+the terms
+  bad i
+and
+  transp
+  (λ i₁ →
+     DoubleCover
+     (transp (twisted-square i₁) (primIMin i (primIMax i₁ (~ i₁)))
+      base))
+  i0 false
+are equal.

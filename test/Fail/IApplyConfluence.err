@@ -1,3 +1,10 @@
 IApplyConfluence.agda:15,1-9
 true != false of type Bool
-when checking the definition of decideEq
+when checking that, under the cofibration
+  Agda.Primitive.Cubical.primIMax (Agda.Primitive.Cubical.primINeg i)
+  i
+the terms
+  decideEq base (loop i)
+and
+  false
+are equal.
