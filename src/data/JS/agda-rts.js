@@ -353,7 +353,6 @@ exports.primDepIMin =
 exports.primConId = _ => _ => _ => _ => i => p => { return { "i" : i, "p" : p } };
 exports.primIdFace = _ => _ => _ => _ => x => x["i"];
 exports.primIdPath = _ => _ => _ => _ => x => x["p"];
-exports.primIdJ = _ => _ => _ => _ => _ => x => _ => _ => x;
 exports.primIdElim =
     _ => _ => _ => _ => _ => f => x => y => f(y["i"])(x)(y["p"]);
 

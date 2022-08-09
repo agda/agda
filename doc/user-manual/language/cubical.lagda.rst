@@ -14,9 +14,7 @@
              ; itIsOne to 1=1 )
   open import Agda.Builtin.Cubical.Path
   open import Agda.Builtin.Cubical.Sub
-    renaming ( primSubOut to outS
-             ; inc        to inS
-             )
+    renaming ( primSubOut to outS )
   open import Agda.Builtin.Cubical.Glue public
     using ( isEquiv
           ; equiv-proof
@@ -1010,11 +1008,6 @@ The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
     primDepIMin : _
     primIdFace : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → I
     primIdPath : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → x ≡ y
-
-  primitive
-    primIdJ : ∀ {ℓ ℓ'} {A : Set ℓ} {x : A} (P : ∀ y → Id x y → Set ℓ') →
-                P x (conid i1 (λ i → x)) → ∀ {y} (p : Id x y) → P y p
-
 
   primitive
     primIdElim : ∀ {a c} {A : Set a} {x : A}

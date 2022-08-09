@@ -171,56 +171,6 @@ imin x y = do
   y' <- y
   intervalUnview (IMin (argN x') (argN y'))
 
--- ∀ {a}{c}{A : Set a}{x : A}(C : ∀ y → Id x y → Set c) → C x (conid i1 (\ i → x)) → ∀ {y} (p : Id x y) → C y p
-primIdJ :: TCM PrimitiveImpl
-primIdJ = do
-  requireCubical CErased ""
-  t <- runNamesT [] $
-       hPi' "a" (el $ cl primLevel) $ \ a ->
-       hPi' "c" (el $ cl primLevel) $ \ c ->
-       hPi' "A" (sort . tmSort <$> a) $ \ bA ->
-       hPi' "x" (el' a bA) $ \ x ->
-       nPi' "C" (nPi' "y" (el' a bA) $ \ y ->
-                 el' a (cl primId <#> a <#> bA <@> x <@> y) --> (sort . tmSort <$> c)) $ \ bC ->
-       el' c (bC <@> x <@>
-            (cl primConId <#> a <#> bA <#> x <#> x <@> cl primIOne
-                       <@> lam "i" (\ _ -> x))) -->
-       hPi' "y" (el' a bA) (\ y ->
-        nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
-        el' c $ bC <@> y <@> p)
-  conidn <- getName' builtinConId
-  conid  <- primConId
-  -- TODO make a kit
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 8 $ \ ts -> do
-    unview <- intervalUnview'
-    let imax x y = do x' <- x; unview . IMax (argN x') . argN <$> y;
-        imin x y = do x' <- x; unview . IMin (argN x') . argN <$> y;
-        ineg x = unview . INeg . argN <$> x
-    mcomp <- getTerm' "primComp"
-    case ts of
-     [la,lc,a,x,c,d,y,eq] -> do
-       seq    <- reduceB' eq
-       cview <- conidView'
-       case cview (unArg x) $ unArg $ ignoreBlocking $ seq of
-         Just (phi,p)
-           | Just comp <- mcomp -> do
-          redReturn $ runNames [] $ do
-             [lc,c,d,la,a,x,y,phi,p] <- mapM (open . unArg) [lc,c,d,la,a,x,y,phi,p]
-             let w i = do
-                   [x,y,p,i] <- sequence [x,y,p,i]
-                   pure $ p `applyE` [IApply x y i]
-             pure comp <#> lam "i" (\ _ -> lc)
-                       <@> lam "i" (\ i ->
-                              c <@> (w i)
-                                <@> (pure conid <#> la <#> a <#> x <#> (w i)
-                                                <@> (phi `imax` ineg i)
-                                                <@> lam "j" (\ j -> w $ imin i j)))
-                       <#> phi
-                       <@> lam "i" (\ _ -> nolam <$> d) -- TODO block
-                       <@> d
-         _ -> return $ NoReduction $ map notReduced [la,lc,a,x,c,d,y] ++ [reduced seq]
-     _ -> __IMPOSSIBLE__
-
 primIdElim' :: TCM PrimitiveImpl
 primIdElim' = do
   requireCubical CErased ""
@@ -412,7 +362,7 @@ primIdPath' = do
         mConId <- getName' builtinConId
         cview <- conidView'
         case cview (unArg x) $ unArg (ignoreBlocking st) of
-          Just (_,w)-> redReturn (unArg w)
+          Just (phi, w) -> redReturn (unArg w)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
 
@@ -536,6 +486,7 @@ unglueTranspGlue psi u0 (IsFam (la, lb, bA, phi, bT, e)) = do
       tForall  <- getTermLocal builtinFaceForall
       tEFun  <- getTermLocal builtinEquivFun
       tEProof <- getTermLocal builtinEquivProof
+      toutS   <- getTermLocal builtinSubOut
       tglue   <- getTermLocal builtin_glue
       tunglue <- getTermLocal builtin_unglue
       io      <- getTermLocal builtinIOne
@@ -633,14 +584,21 @@ unglueTranspGlue psi u0 (IsFam (la, lb, bA, phi, bT, e)) = do
           -- "ghcomp" is implemented in the proof of tEProof
           -- (see src/data/lib/prim/Agda/Builtin/Cubical/Glue.agda)
           t1'alpha o = -- o : [ φ 1 ]
-             pure tEProof <#> (lb <@> pure io)
-                          <#> (la <@> pure io)
-                          <@> (bT <@> pure io <..> o)
-                          <@> (bA <@> pure io)
-                          <@> (e <@> pure io <..> o)
-                          <@> a1
-                          <@> (imax psi forallphi)
-                          <@> pe o
+             pure toutS
+              <#> (max (la <@> pure io) (lb <@> pure io))
+              <#> fiber (lb <@> pure io) (la <@> pure io)
+                        (bT <@> (pure io) <..> o) (bA <@> pure io)
+                        (w (pure io) o) a1
+              <#> imax psi forallphi
+              <#> pe o
+              <@> (pure tEProof <#> (lb <@> pure io)
+                                <#> (la <@> pure io)
+                                <@> (bT <@> pure io <..> o)
+                                <@> (bA <@> pure io)
+                                <@> (e <@> pure io <..> o)
+                                <@> a1
+                                <@> (imax psi forallphi)
+                                <@> pe o)
 
           -- TODO: optimize?
           t1' o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaFst kit)])
@@ -730,6 +688,7 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       tForall  <- getTermLocal builtinFaceForall
       tEFun  <- getTermLocal builtinEquivFun
       tEProof <- getTermLocal builtinEquivProof
+      toutS   <- getTermLocal builtinSubOut
       tglue   <- getTermLocal builtin_glue
       tunglue <- getTermLocal builtin_unglue
       io      <- getTermLocal builtinIOne
@@ -828,14 +787,21 @@ compGlue DoTransp psi Nothing u0 (IsFam (la, lb, bA, phi, bT, e)) tpos = do
           -- "ghcomp" is implemented in the proof of tEProof
           -- (see src/data/lib/prim/Agda/Builtin/Cubical/Glue.agda)
           t1'alpha o = -- o : [ φ 1 ]
-             pure tEProof <#> (lb <@> pure io)
-                          <#> (la <@> pure io)
-                          <@> (bT <@> pure io <..> o)
-                          <@> (bA <@> pure io)
-                          <@> (e <@> pure io <..> o)
-                          <@> a1
-                          <@> (imax psi forallphi)
-                          <@> pe o
+             pure toutS
+              <#> (max (la <@> pure io) (lb <@> pure io))
+              <#> fiber (lb <@> pure io) (la <@> pure io)
+                        (bT <@> (pure io) <..> o) (bA <@> pure io)
+                        (w (pure io) o) a1
+              <#> imax psi forallphi
+              <#> pe o
+              <@> (pure tEProof <#> (lb <@> pure io)
+                                <#> (la <@> pure io)
+                                <@> (bT <@> pure io <..> o)
+                                <@> (bA <@> pure io)
+                                <@> (e <@> pure io <..> o)
+                                <@> a1
+                                <@> (imax psi forallphi)
+                                <@> pe o)
 
           -- TODO: optimize?
           t1' o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaFst kit)])

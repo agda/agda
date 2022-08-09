@@ -853,7 +853,6 @@ primitives = Set.fromList
   , "primDepIMin"
   , "primIdFace"
   , "primIdPath"
-  , "primIdJ"
   , builtinIdElim
   , builtinConId
   -- , builtinGlue                   -- missing

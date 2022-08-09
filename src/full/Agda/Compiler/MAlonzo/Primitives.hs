@@ -317,7 +317,6 @@ primBody s = maybe unimplemented (fromRight (hsVarUQ . HS.Ident) <$>) $
   , "primDepIMin"     |-> return "\\i f -> if i then f () else False"
   , "primIdFace"      |-> return "\\_ _ _ _ -> fst"
   , "primIdPath"      |-> return "\\_ _ _ _ -> snd"
-  , "primIdJ"         |-> return "\\_ _ _ _ _ x _ _ -> x"
   , builtinIdElim     |-> return
                             "\\_ _ _ _ _ f x y -> f (fst y) x (snd y)"
   ]
