@@ -378,7 +378,7 @@ compareTerm' cmp a m n =
               -- reduce.
               phi' <- decomposeInterval' (unArg phi)
               -- However if φ is *not* decomposable (e.g. because it is
-              -- a function application φ i, see Issue #5959), then we
+              -- a function application φ i, see Issue #5955), then we
               -- do not recur, otherwise we'd just end up right back
               -- here.
               unless (IntMap.null (foldMap fst phi')) $
