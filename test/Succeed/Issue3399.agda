@@ -3,15 +3,15 @@ module _ where
 open import Agda.Primitive.Cubical renaming (primINeg to ~_; primIMax to _∨_; primIMin to _∧_)
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub
-open import Agda.Builtin.Cubical.Sub using () renaming (Sub to _[_↦_]; primSubOut to ouc)
+open import Agda.Builtin.Cubical.Sub using () renaming (Sub to _[_↦_]; primSubOut to outS)
 open import Agda.Primitive renaming (_⊔_ to ℓ-max)
 open import Agda.Builtin.Sigma
 
 transpFill : ∀ {ℓ} {A' : Set ℓ} (φ : I)
                (A : (i : I) → Set ℓ [ φ ↦ (\ _ → A') ]) →
-               (u0 : ouc (A i0)) →
-               PathP (λ i → ouc (A i)) u0 (primTransp (λ i → ouc (A i)) φ u0)
-transpFill φ A u0 i = primTransp (\ j → ouc (A (i ∧ j))) (~ i ∨ φ) u0
+               (u0 : outS (A i0)) →
+               PathP (λ i → outS (A i)) u0 (primTransp (λ i → outS (A i)) φ u0)
+transpFill φ A u0 i = primTransp (\ j → outS (A (i ∧ j))) (~ i ∨ φ) u0
 
 forward : (la : Level) (A : ∀ i → Set la) (r : I) → A r → A i1
 forward la A r x = primTransp (\ i → A (i ∨ r)) r x
@@ -19,8 +19,8 @@ forward la A r x = primTransp (\ i → A (i ∨ r)) r x
 -- gcomp^i A [ phi -> u ] u0 = hcomp^i A(1/i) [ phi -> forward A i u, ~ phi -> forward A 0 u ] (forward A 0 u0)
 
 gcomp : ∀ {l} (A : I → Set l) (φ : I) (u : ∀ i → Partial φ (A i)) (u0 : A i0 [ φ ↦ u i0 ]) -> A i1
-gcomp A φ u u0 = primHComp {A = A i1} (\ i → \ { (φ = i1) →  forward _ A i (u i itIsOne); (φ = i0) →  forward _ A i0 (ouc u0) })
-                                         (forward _ A i0 (ouc u0))
+gcomp A φ u u0 = primHComp {A = A i1} (\ i → \ { (φ = i1) →  forward _ A i (u i itIsOne); (φ = i0) →  forward _ A i0 (outS u0) })
+                                         (forward _ A i0 (outS u0))
 
 -- private
 --   internalFiber : ∀ {ℓ ℓ'} {A : Set ℓ} {B : Set ℓ'} (f : A → B) (y : B) → Set (ℓ-max ℓ ℓ')
@@ -93,11 +93,11 @@ module TestTransp {ℓ ℓ'} (A : Set ℓ) {φ : I} (Te : Partial φ (Σ (Set �
   a0 = unglue {φ = φ} u0
   a1 = gcomp (\ _ → A)
          φ
-         (\ { i (φ = i1) → equivFun (Te itIsOne .snd) (transpFill {A' = Te itIsOne .fst} ψ (\ i → inc (Te itIsOne .fst)) u0 i) })
-         (inc a0)
+         (\ { i (φ = i1) → equivFun (Te itIsOne .snd) (transpFill {A' = Te itIsOne .fst} ψ (\ i → inS (Te itIsOne .fst)) u0 i) })
+         (inS a0)
 
   pair : PartialP φ λ o → Helpers.fiber (Te o .snd .fst) a1
-  pair o = equivProof (Te o .fst) A (Te o .snd) a1 φ \ { (φ = i1) → _ , Helpers.refl }
+  pair o = outS (equivProof (Te o .fst) A (Te o .snd) a1 φ \ { (φ = i1) → _ , Helpers.refl })
 
   result : Glue A Te
   result = glue {φ = φ} (λ o → pair o .fst) (primHComp (\ { j (φ = i1) → pair itIsOne .snd j}) a1)
