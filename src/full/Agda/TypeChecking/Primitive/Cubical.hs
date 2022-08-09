@@ -362,7 +362,7 @@ primIdPath' = do
         mConId <- getName' builtinConId
         cview <- conidView'
         case cview (unArg x) $ unArg (ignoreBlocking st) of
-          Just (phi, w) -> redReturn (unArg w)
+          Just (_, w) -> redReturn (unArg w)
           _ -> return $ NoReduction $ map notReduced [l,bA,x,y] ++ [reduced st]
       _ -> __IMPOSSIBLE__
 
