@@ -22,5 +22,5 @@ testTr : {A' : ptType} (ψ : I) (A : I → ptType [ ψ ↦ (\ _ → A') ])
          (u : ∀ i → Partial φ (Susp' (outS (A i0))))
          (u0 : Susp' (outS (A i0)) [ φ ↦ u i0 ])
          → transp (\ i -> Susp' (outS (A i))) ψ (hcomp u (outS u0))
-         ≡ hcomp (λ j .o → transp (λ i → Susp' (outS (A i))) ψ (u j o)) (transp (λ i → Susp' (outS (A i))) ψ (ouc u0))
+         ≡ hcomp (λ j .o → transp (λ i → Susp' (outS (A i))) ψ (u j o)) (transp (λ i → Susp' (outS (A i))) ψ (outS u0))
 testTr ψ A u u0 = refl

@@ -3,7 +3,7 @@ module _ where
 open import Agda.Primitive.Cubical renaming (primINeg to ~_; primIMax to _∨_; primIMin to _∧_)
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Sub
-open import Agda.Builtin.Cubical.Sub using () renaming (Sub to _[_↦_])
+open import Agda.Builtin.Cubical.Sub using () renaming (Sub to _[_↦_]; primSubOut to outS)
 open import Agda.Primitive renaming (_⊔_ to ℓ-max)
 open import Agda.Builtin.Sigma
 
@@ -97,7 +97,7 @@ module TestTransp {ℓ ℓ'} (A : Set ℓ) {φ : I} (Te : Partial φ (Σ (Set �
          (inS a0)
 
   pair : PartialP φ λ o → Helpers.fiber (Te o .snd .fst) a1
-  pair o = equivProof (Te o .fst) A (Te o .snd) a1 φ \ { (φ = i1) → _ , Helpers.refl }
+  pair o = outS (equivProof (Te o .fst) A (Te o .snd) a1 φ \ { (φ = i1) → _ , Helpers.refl })
 
   result : Glue A Te
   result = glue {φ = φ} (λ o → pair o .fst) (primHComp (\ { j (φ = i1) → pair itIsOne .snd j}) a1)
