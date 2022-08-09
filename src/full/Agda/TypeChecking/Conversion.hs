@@ -370,7 +370,23 @@ compareTerm' cmp a m n =
               unglue <- prim_unglue
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
               reportSDoc "conv.glue" 20 $ prettyTCM (aty,mkUnglue m,mkUnglue n)
-              compareTermOnFace cmp (unArg phi) a' m n
+
+              -- When φ is an interval expression which can be
+              -- decomposed into substitutions σ, then we also compare
+              -- the terms m[σ] = n[σ] at the type (Glue a φ _)[σ]. This
+              -- is because, under decomposing φ, the Glue type might
+              -- reduce.
+              phi' <- decomposeInterval' (unArg phi)
+              -- However if φ is *not* decomposable (e.g. because it is
+              -- a function application φ i, see Issue #5959), then we
+              -- do not recur, otherwise we'd just end up right back
+              -- here.
+              unless (IntMap.null (foldMap fst phi')) $
+                compareTermOnFace cmp (unArg phi) a' m n
+
+              -- And in the general case, we compare the glued things by
+              -- "eta": m and n are the same if they unglue to the same
+              -- thing.
               compareTerm cmp aty (mkUnglue m) (mkUnglue n)
          Def q es | Just q == mHComp, Just (sl:s:args@[phi,u,u0]) <- allApplyElims es
                   , Sort (Type lvl) <- unArg s
