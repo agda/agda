@@ -146,6 +146,7 @@ jsCommandLineFlags =
     , Option [] ["js-verify"] (NoArg enableVerify) "except for main module, run generated JS modules through `node` (needs to be in PATH)"
     , Option [] ["js-cjs"] (NoArg setCJS) "use CommonJS module style (default)"
     , Option [] ["js-amd"] (NoArg setAMD) "use AMD module style for JS"
+    , Option [] ["js-esm"] (NoArg setESM) "use ESM module style"
     ]
   where
     enable       o = pure o{ optJSCompile  = True }
@@ -154,6 +155,7 @@ jsCommandLineFlags =
     enableVerify o = pure o{ optJSVerify   = True }
     setCJS       o = pure o{ optJSModuleStyle = JSCJS }
     setAMD       o = pure o{ optJSModuleStyle = JSAMD }
+    setESM       o = pure o{ optJSModuleStyle = JSESM }
 
 --- Top-level compilation ---
 
@@ -186,11 +188,11 @@ jsPostCompile opts _ ms = do
         fname = case optJSModuleStyle opts of
           JSCJS -> src
           JSAMD -> "agda-rts.amd.js"
+          JSESM -> "agda-rts.cjs"
         srcPath = dataDir </> "JS" </> src
         compPath = compDir </> fname
 
     case optJSModuleStyle opts of
-      JSCJS -> copyIfChanged srcPath compPath
       JSAMD -> do
         rts <- readFile srcPath
         writeFileIfChanged compPath $ unlines
@@ -202,6 +204,15 @@ jsPostCompile opts _ ms = do
           , "return exports;"
           , "});"
           ]
+      _ -> copyIfChanged srcPath compPath
+
+  -- Create package.json for esm target
+
+  liftIO $
+    when (optJSModuleStyle opts == JSESM) $
+      writeFileIfChanged
+        (compDir </> "package.json")
+        "{ \"private\": true, \"type\": \"module\" }"
 
   -- Verify generated JS modules (except for main).
 
@@ -220,7 +231,11 @@ jsPostCompile opts _ ms = do
       -- Atm, modules whose compilation was skipped are also skipped during verification
       -- (they appear here as main modules).
       whenNothing callMain $ do
-        let cmd = unwords [ "node", "-", "<", jsFile ]
+        let cmd = unwords $
+              if optJSModuleStyle opts == JSESM then
+                [ "node", jsFile ]
+              else
+                [ "node", "-", "<", jsFile ]
         reportSLn "compile.js.verify" 20 $ unwords [ "calling:", cmd ]
         liftIO $ callCommand cmd
 

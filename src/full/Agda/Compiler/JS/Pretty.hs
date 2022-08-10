@@ -3,23 +3,38 @@ module Agda.Compiler.JS.Pretty where
 import GHC.Generics (Generic)
 
 import Data.Char ( isAsciiLower, isAsciiUpper, isDigit )
+import qualified Data.Char as Char
 import Data.List ( intercalate )
-import Data.String ( IsString (fromString) )
+import Data.String ( IsString (fromString), unlines )
 import Data.Semigroup ( Semigroup, (<>) )
 import Data.Set ( Set, toList, singleton, insert, member )
 import qualified Data.Set as Set
-import Data.Map ( Map, toAscList, empty, null )
+import Data.Map ( Map, toAscList, empty, null, fromList, foldlWithKey, unionWith, fromListWith, mapWithKey )
+import qualified Data.Map as Map
 import qualified Data.Text as T
+import Data.Function ( (&) )
+import Data.Foldable ( foldr )
+import qualified Data.Strict.Maybe as StrictMaybe
+import qualified Agda.Utils.Maybe.Strict as StrictMaybe
 
 import Agda.Syntax.Common ( Nat )
 
 import Agda.Utils.Function ( applyWhen )
 import Agda.Utils.Hash
 import Agda.Utils.List ( indexWithDefault )
+import qualified Agda.Utils.List as List
+import qualified Data.List as List hiding (uncons)
 import Agda.Utils.List1 ( List1, pattern (:|), (<|) )
 import qualified Agda.Utils.List1 as List1
+import Agda.Utils.Null ( Null )
+import qualified Agda.Utils.Null as Null
+import Agda.Utils.Trie ( Trie(..) )
+import qualified Agda.Utils.Trie as Trie
+import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.AssocList (AssocList)
+import qualified Agda.Utils.Maybe as Maybe
 
-import Agda.Utils.Impossible
+import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 
 import Agda.Compiler.JS.Syntax hiding (exports)
 
@@ -37,8 +52,8 @@ import Agda.Compiler.JS.Syntax hiding (exports)
 --  standard pretty printers.
 --- This library code is only used in this module, and it is specialized to pretty
 --- print JavaScript code for the Agda backend, so I think its best place is in this module.
-data JSModuleStyle = JSCJS | JSAMD
-  deriving Generic
+data JSModuleStyle = JSCJS | JSAMD | JSESM
+  deriving (Eq, Generic)
 
 data Doc
     = Doc String
@@ -197,10 +212,13 @@ unescape '\x2028' = "\\u2028"
 unescape '\x2029' = "\\u2029"
 unescape c        = [c]
 
-unescapes :: String -> Doc
-unescapes s = text $ concatMap unescape s
+unescapesString :: String -> String
+unescapesString s = concatMap unescape s
 
--- pretty (n,b) i e pretty-prints e, under n levels of de Bruijn binding
+unescapes :: String -> Doc
+unescapes s = text $ unescapesString s
+
+-- pretty (n,b,m) e pretty-prints e, under n levels of de Bruijn binding
 --   if b is true then the output is minified
 
 class Pretty a where
@@ -251,6 +269,8 @@ instance Pretty Comment where
 -- Pretty print expressions
 
 instance Pretty Exp where
+  pretty (_, _, JSESM) (Self) = __IMPOSSIBLE__
+  pretty n@(_, _, JSESM) (Lookup Self l) = prettyTopLevelMemberId False n l
   pretty n (Self)            = "exports"
   pretty n (Local x)         = pretty n x
   pretty n (Global m)        = pretty n m
@@ -279,11 +299,80 @@ block n e = mparens (doNest e) $ pretty n e
     doNest Object{} = True
     doNest _ = False
 
-modname :: GlobalId -> Doc
-modname (GlobalId ms) = text $ "\"" ++ intercalate "." ms ++ "\""
+modname :: JSModuleStyle -> GlobalId -> Doc
+modname style (GlobalId ms) = text $ wrapModName style $ intercalate "." ms
+  where
+  wrapModName :: JSModuleStyle -> String -> String
+  wrapModName JSESM s = "\"./" <> s <> ".js\""
+  wrapModName _ s = "\"" <> s <> "\""
+
+prettyTopLevelMemberId :: Bool -> (Nat, Bool, JSModuleStyle) -> MemberId -> Doc
+prettyTopLevelMemberId incl n m = comment <+> variable
+  where
+  comment = if incl
+    then pretty n $ fst $ mapMemberId m
+    else Empty
+  variable = text $ snd $ mapMemberId m
+
+  mapMemberId :: MemberId -> (Comment, String)
+  mapMemberId (MemberId m)
+    | isValidJSIdent m = (Comment "", m)
+    | otherwise = ( Comment $ unescapesString m
+                  , "h_" ++ show (hashString m))
+  mapMemberId (MemberIndex i c) = (c, "d_" ++ show i)
 
 exports :: (Nat, Bool, JSModuleStyle) -> Set JSQName -> [Export] -> Doc
 exports n lss [] = Empty
+
+exports n@(i, min, JSESM) lss es0 = groupAndFormatTopLvlExpr es0
+  where
+  groupAndFormatTopLvlExpr :: [Export] -> Doc
+  groupAndFormatTopLvlExpr es =
+    es
+    & List.foldl
+      (\xs (Export name defn) ->
+          let
+            topLevel = List1.head name
+            rest = List1.tail name
+          in
+            if List.elem topLevel (AssocList.keys xs)
+            then AssocList.updateAt topLevel (Trie.insertWith (++) rest [defn]) xs
+            else AssocList.insert topLevel (Trie.singleton rest [defn]) xs
+      )
+      Null.empty
+    & List.reverse
+    & fmap (\(id, t) ->
+        "export const " <> (prettyTopLevelMemberId True n id) <+> "=" <+> (pretty n $ formatNestedObjectTree t) <> ";"
+      )
+    & vsep
+
+  formatNestedObjectTree :: Trie MemberId [Exp] -> Exp
+  formatNestedObjectTree (Trie (StrictMaybe.Just local@(_ : _ : _)) nested) =
+    if List.elem (Object mempty) local
+    then formatNestedObjectTree $ Trie (StrictMaybe.Just $ List.filter (not . emptyObject) local) nested
+    else PlainJS $ "undefined /* More than one expression:\n" <> (unlines $ fmap show local) <> "\n*/"
+  formatNestedObjectTree (Trie local nested)
+    | Null.null nested =
+      local
+      & StrictMaybe.maybe Nothing Just
+      >>= Maybe.listToMaybe
+      & Maybe.fromMaybe Undefined
+  formatNestedObjectTree (Trie local nested) =
+    nested
+    & fmap formatNestedObjectTree
+    & Object
+    & (
+      local
+      & StrictMaybe.maybe Nothing Just
+      >>= List.uncons
+      >>= (\(e, _) -> Maybe.filterMaybe (not . emptyObject) e)
+      & maybe id (\e o -> Apply (PlainJS "Object.assign") [e, o])
+    )
+
+  emptyObject :: Exp -> Bool
+  emptyObject (Object m) = Null.null m
+  emptyObject _ = False
+
 exports n lss es0@(Export ls e : es)
   -- If the parent of @ls@ is already defined (or no parent exists), @ls@ can be defined
   | maybe True (`member` lss) parent =
@@ -310,13 +399,13 @@ instance Pretty Module where
     $+$ ""
     where
       imports = vcat [
-        "var " <> indent (pretty opt e) <+> "=" <+> "require(" <> modname e <> ");"
+        "var " <> indent (pretty opt e) <+> "=" <+> "require(" <> modname JSCJS e <> ");"
         | e <- toList (globals es <> Set.fromList is)
         ]
       les = toList (globals es <> Set.fromList is)
   pretty opt@(n, min, JSAMD) (Module m is es callMain) = vsep
     [ "define(['agda-rts'"
-      <+> hcat [ ", " <+> modname e | e <- les ]
+      <+> hcat [ ", " <+> modname JSAMD e | e <- les ]
       <+> "],"
     , "function(agdaRTS"
       <+> hcat [ ", " <+> pretty opt e | e <- les ]
@@ -329,6 +418,16 @@ instance Pretty Module where
     $+$ "" -- Final newline
     where
       les = toList (globals es <> Set.fromList is)
+  pretty opt@(n, min, JSESM) (Module m is es callMain) = vsep
+    [ "import * as agdaRTS from \"./agda-rts.cjs\";"
+    , vcat [
+        "import * as " <> (pretty opt e) <> " from" <+> modname JSESM e <> ";"
+        | e <- toList (globals es <> Set.fromList is)
+      ]
+    , exports opt Set.empty es
+    , pretty opt callMain
+    ]
+    $+$ ""
 
 
 variableName :: String -> String
@@ -339,11 +438,28 @@ variableName s = if isValidJSIdent s then "z_" ++ s else "h_" ++ show (hashStrin
 -- is conservative and may not admit all valid JS identifiers.
 
 isValidJSIdent :: String -> Bool
-isValidJSIdent []     = False
-isValidJSIdent (c:cs) = validFirst c && all validOther cs
+isValidJSIdent []       = False
+isValidJSIdent s@(c:cs) = not (isReservedJSKeyword s) && validFirst c && all validOther cs
   where
   validFirst :: Char -> Bool
   validFirst c = isAsciiUpper c || isAsciiLower c || c == '_' || c == '$'
 
   validOther :: Char -> Bool
   validOther c = validFirst c || isDigit c
+
+-- | From https://gist.github.com/mathiasbynens/6334847
+isReservedJSKeyword :: String -> Bool
+isReservedJSKeyword s = List.elem s reserved
+  where
+  reserved = [
+    -- https://mathiasbynens.be/notes/reserved-keywords#ecmascript-6
+    "do", "if", "in", "for", "let", "new", "try", "var", "case", "else",
+    "enum", "eval", "null", "this", "true", "void", "with", "await", "break",
+    "catch", "class", "const", "false", "super", "throw", "while", "yield",
+    "delete", "export", "import", "public", "return", "static", "switch",
+    "typeof", "default", "extends", "finally", "package", "private",
+    "continue", "debugger", "function", "arguments", "interface", "protected",
+    "implements", "instanceof",
+    -- These aren’t strictly reserved words, but they kind of behave as if they were.
+    "NaN", "Infinity", "undefined"
+    ]
