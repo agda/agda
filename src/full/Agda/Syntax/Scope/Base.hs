@@ -733,7 +733,7 @@ findNameInScope :: InScope a => C.Name -> Scope -> [(a, Access)]
 findNameInScope n s =
   [ (name, nameSpaceAccess nsId)
   | (nsId, ns) <- scopeNameSpaces s
-  , name <- fromMaybe [] . Map.lookup n $ inNameSpace ns ]
+  , name <- Map.findWithDefault [] n $ inNameSpace ns ]
 
 -- | Returns the scope's non-private names.
 exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
