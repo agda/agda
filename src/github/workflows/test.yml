@@ -63,7 +63,7 @@ jobs:
         # Andreas, 2022-03-26:
         # ghc-ver should be given as x.y.z (as opposed to x.y only)
         # because it is used verbatim when referring to stack-x.y.z.yaml.
-        ghc-ver: ['9.2.3']
+        ghc-ver: ['9.2.4']
         stack-ver: [latest]
         os: [ubuntu-20.04]
 
