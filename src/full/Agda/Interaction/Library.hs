@@ -187,21 +187,25 @@ findProjectConfig'
   :: FilePath                          -- ^ Candidate (init: the directory Agda was called in)
   -> LibErrorIO ProjectConfig          -- ^ Actual root and @.agda-lib@ files for this project
 findProjectConfig' root = do
-  getCachedProjectConfig root >>= \case
-    Just conf -> return conf
-    Nothing   -> do
-      libFiles <- liftIO $ filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
-      case libFiles of
-        []     -> liftIO (upPath root) >>= \case
-          Just up -> do
-            conf <- findProjectConfig' up
+  root <- liftIO (canonicalizePath root)
+  if root == "/nix/store"
+  then return DefaultProjectConfig
+  else do
+    getCachedProjectConfig root >>= \case
+      Just conf -> return conf
+      Nothing   -> do
+        libFiles <- liftIO $ filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
+        case libFiles of
+          []     -> liftIO (upPath root) >>= \case
+            Just up -> do
+              conf <- findProjectConfig' up
+              storeCachedProjectConfig root conf
+              return conf
+            Nothing -> return DefaultProjectConfig
+          files -> do
+            let conf = ProjectConfig root files
             storeCachedProjectConfig root conf
             return conf
-          Nothing -> return DefaultProjectConfig
-        files -> do
-          let conf = ProjectConfig root files
-          storeCachedProjectConfig root conf
-          return conf
 
   where
     -- Note that "going up" one directory is OS dependent
