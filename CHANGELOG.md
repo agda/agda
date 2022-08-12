@@ -4,7 +4,7 @@ Release notes for Agda version 2.6.3
 Installation and infrastructure
 -------------------------------
 
-Agda supports GHC versions 8.0.2 to 9.2.3.
+Agda supports GHC versions 8.0.2 to 9.2.4.
 
 Language
 --------

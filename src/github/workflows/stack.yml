@@ -62,16 +62,16 @@ jobs:
           # (This also means that we test both text-icu-0.7 and -0.8).
         include:
           - os: ubuntu-20.04
-            ghc-ver: 9.2.3
+            ghc-ver: 9.2.4
             stack-ver: latest
           - os: ubuntu-20.04
             ghc-ver: 9.0.2
             stack-ver: latest
           - os: macos-latest
-            ghc-ver: 9.2.3
+            ghc-ver: 9.2.4
             stack-ver: latest
           - os: windows-latest
-            ghc-ver: 9.2.3
+            ghc-ver: 9.2.4
             stack-ver: latest
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}

@@ -43,14 +43,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04]
-        ghc-ver: [9.2.3, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
+        ghc-ver: [9.2.4, 9.0.2, 8.10.7, 8.8.4, 8.6.5, 8.4.4, 8.2.2, 8.0.2]
         cabal-ver: [latest]
         include:
           - os: macos-latest
-            ghc-ver: 9.2.3
+            ghc-ver: 9.2.4
             cabal-ver: latest
           - os: windows-latest
-            ghc-ver: 9.2.3
+            ghc-ver: 9.2.4
             cabal-ver: latest
     env:
       FLAGS: "-f enable-cluster-counting"
