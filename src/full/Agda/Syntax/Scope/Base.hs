@@ -725,6 +725,16 @@ allNamesInScope' s =
   mergeNamesMany [ map (, nameSpaceAccess nsId) <$> inNameSpace ns
                  | (nsId, ns) <- scopeNameSpaces s ]
 
+-- | Look up a single name in the current scope.
+--
+-- This is equivalent to @Map.lookup n . allNamesInScope'@, but more efficient
+-- when only a single name needs to be looked up.
+findNameInScope :: InScope a => C.Name -> Scope -> [(a, Access)]
+findNameInScope n s =
+  [ (name, nameSpaceAccess nsId)
+  | (nsId, ns) <- scopeNameSpaces s
+  , name <- Map.findWithDefault [] n $ inNameSpace ns ]
+
 -- | Returns the scope's non-private names.
 exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
 exportedNamesInScope = namesInScope [PublicNS, ImportedNS]
@@ -1120,16 +1130,16 @@ scopeLookup' q scope =
     -- Find a concrete, possibly qualified name in scope @s@.
     findName :: forall a. InScope a => C.QName -> Scope -> [(a, Access)]
     findName q0 s = case q0 of
-      C.QName x  -> lookupName x s
+      C.QName x  -> findNameInScope x s
       C.Qual x q -> do
         let -- Get the modules named @x@ in scope @s@.
             mods :: [A.ModuleName]
-            mods = amodName . fst <$> lookupName x s
+            mods = amodName . fst <$> findNameInScope x s
             -- Get the definitions named @x@ in scope @s@ and interpret them as modules.
             -- Andreas, 2013-05-01: Issue 836 debates this feature:
             -- Qualified constructors are qualified by their datatype rather than a module
             defs :: [A.ModuleName] -- NB:: Defined but not used
-            defs = qnameToMName . anameName . fst <$> lookupName x s
+            defs = qnameToMName . anameName . fst <$> findNameInScope x s
         -- Andreas, 2013-05-01:  Issue 836 complains about the feature
         -- that constructors can also be qualified by their datatype
         -- and projections by their record type.  This feature is off
@@ -1145,9 +1155,6 @@ scopeLookup' q scope =
         -- trace ("ss' = " ++ show ss') $ do
         s' <- maybeToList ss'
         findName q s'
-      where
-        lookupName :: forall a. InScope a => C.Name -> Scope -> [(a, Access)]
-        lookupName x s = fromMaybe [] $ Map.lookup x $ allNamesInScope' s
 
     -- 2. Finding a name in the top imports.
 
