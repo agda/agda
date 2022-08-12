@@ -1360,7 +1360,7 @@ instance Reify Sort where
     reifyWhen = reifyWhenE
     reify s = do
       s <- instantiateFull s
-      SortKit{..} <- sortKit
+      SortKit{..} <- infallibleSortKit
       case s of
         I.Type (I.ClosedLevel 0) -> return $ A.Def' nameOfSet A.NoSuffix
         I.Type (I.ClosedLevel n) -> return $ A.Def' nameOfSet (A.Suffix n)
