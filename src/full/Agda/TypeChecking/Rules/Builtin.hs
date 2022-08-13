@@ -13,6 +13,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 import Control.Monad.Except
+import Control.Monad.Trans.Maybe
 
 import Data.List (find, sortBy)
 import Data.Function (on)
@@ -844,7 +845,9 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           t <- tcmt
           (,t) <$> checkExpr e t
         f v t
-        if | s == builtinRewrite -> bindBuiltinRewriteRelation =<< getQNameFromTerm v
+        if | s == builtinRewrite -> runMaybeT (getQNameFromTerm v) >>= \case
+              Nothing -> genericError "Invalid rewrite relation"
+              Just q  -> bindBuiltinRewriteRelation q
            | otherwise           -> bindBuiltinName s v
 
 setConstTranspAxiom :: QName -> TCM ()
