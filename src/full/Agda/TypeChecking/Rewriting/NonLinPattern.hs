@@ -6,6 +6,8 @@
 
 module Agda.TypeChecking.Rewriting.NonLinPattern where
 
+import Prelude hiding ( null )
+
 import Control.Monad        ( (>=>), forM )
 import Control.Monad.Reader ( asks )
 
@@ -15,6 +17,7 @@ import qualified Data.IntSet as IntSet
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
+import Agda.Syntax.Internal.MetaVars ( AllMetas, unblockOnAllMetasIn )
 
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
@@ -57,14 +60,14 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
   patternFrom r k (t,hd) = \case
     [] -> return []
     (Apply u : es) -> do
-      ~(Pi a b) <- unEl <$> reduce t
+      ~(Pi a b) <- unEl <$> abortIfBlocked t
       p   <- patternFrom r k a u
-      t'  <- t `piApplyM` u
+      t'  <- piApplyM' (blockOnMetasIn t >> __IMPOSSIBLE__) t u
       let hd' = hd `apply` [ u ]
       ps  <- patternFrom r k (t',hd') es
       return $ Apply p : ps
     (IApply x y i : es) -> do
-      ~(PathType s q l b u v) <- pathView =<< reduce t
+      ~(PathType s q l b u v) <- pathView =<< abortIfBlocked t
       let t' = El s $ unArg b `apply` [ defaultArg i ]
       let hd' = hd `applyE` [IApply x y i]
       interval <- primIntervalType
@@ -72,7 +75,7 @@ instance PatternFrom (Type, Term) Elims [Elim' NLPat] where
       ps  <- patternFrom r k (t',hd') es
       return $ IApply (PTerm x) (PTerm y) p : ps
     (Proj o f : es) -> do
-      ~(Just (El _ (Pi a b))) <- getDefType f =<< reduce t
+      ~(Just (El _ (Pi a b))) <- getDefType f =<< abortIfBlocked t
       let t' = b `absApp` hd
       hd' <- applyDef o f (argFromDom a $> hd)
       ps  <- patternFrom r k (t',hd') es
@@ -88,7 +91,7 @@ instance PatternFrom () Type NLPType where
 
 instance PatternFrom () Sort NLPSort where
   patternFrom r k _ s = do
-    s <- reduce s
+    s <- abortIfBlocked s
     case s of
       Type l   -> PType <$> patternFrom r k () l
       Prop l   -> PProp <$> patternFrom r k () l
@@ -117,11 +120,11 @@ instance PatternFrom () Level NLPat where
 
 instance PatternFrom Type Term NLPat where
   patternFrom r0 k t v = do
-    t <- reduce t
+    t <- abortIfBlocked t
     etaRecord <- isEtaRecordType t
-    prop <- fromRight __IMPOSSIBLE__ <.> runBlocked $ isPropM t
+    prop <- isPropM t
     let r = if prop then Irrelevant else r0
-    v <- unLevel =<< reduce v
+    v <- unLevel =<< abortIfBlocked v
     reportSDoc "rewriting.build" 60 $ sep
       [ "building a pattern from term v = " <+> prettyTCM v
       , " of type " <+> prettyTCM t
@@ -144,10 +147,11 @@ instance PatternFrom Type Term NLPat where
        -- The arguments of `var i` should be distinct bound variables
        -- in order to build a Miller pattern
        | Just vs <- allApplyElims es -> do
-           TelV tel _ <- telViewPath =<< typeOfBV i
-           unless (size tel >= size vs) __IMPOSSIBLE__
+           TelV tel rest <- telViewPath =<< typeOfBV i
+           unless (size tel >= size vs) $ blockOnMetasIn rest >> __IMPOSSIBLE__
            let ts = applySubst (parallelS $ reverse $ map unArg vs) $ map unDom $ flattenTel tel
            mbvs <- forM (zip ts vs) $ \(t , v) -> do
+             blockOnMetasIn (v,t)
              isEtaVar (unArg v) t >>= \case
                Just j | j < k -> return $ Just $ v $> j
                _              -> return Nothing
@@ -188,7 +192,7 @@ instance PatternFrom Type Term NLPat where
       (_ , Sort s)     -> PSort <$> patternFrom r k () s
       (_ , Level l)    -> __IMPOSSIBLE__
       (_ , DontCare{}) -> __IMPOSSIBLE__
-      (_ , MetaV{})    -> __IMPOSSIBLE__
+      (_ , MetaV m _)  -> __IMPOSSIBLE__
       (_ , Dummy s _)  -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Convert from a non-linear pattern to a term.
@@ -353,3 +357,10 @@ instance Free NLPSort where
     PSizeUniv -> mempty
     PLockUniv -> mempty
     PIntervalUniv -> mempty
+
+-- Throws a pattern violation if the given term contains any
+-- metavariables.
+blockOnMetasIn :: (MonadBlock m, AllMetas t) => t -> m ()
+blockOnMetasIn t = case unblockOnAllMetasIn t of
+  UnblockOnAll ms | null ms -> return ()
+  b -> patternViolation b

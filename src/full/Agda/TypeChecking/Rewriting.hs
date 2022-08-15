@@ -211,9 +211,9 @@ checkRewriteRule q = do
   let failureWrongTarget :: TCM a
       failureWrongTarget = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " does not target rewrite relation" ]
-  let failureMetas :: TCM a
-      failureMetas       = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , " is not a legal rewrite rule, since it contains unsolved meta variables" ]
+  let failureMetas :: Blocker -> TCM a
+      failureMetas b     = typeError . GenericDocError =<< hsep
+        [ prettyTCM q , " is not a legal rewrite rule, since it contains the unsolved meta variable(s)" , prettyTCM b ]
   let failureNotDefOrCon :: TCM a
       failureNotDefOrCon = typeError . GenericDocError =<< hsep
         [ prettyTCM q , " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
@@ -248,10 +248,6 @@ checkRewriteRule q = do
       gamma1 <- instantiateFull gamma1
       let gamma = gamma0 `abstract` gamma1
 
-      unless (noMetas (telToList gamma1)) $ do
-        reportSDoc "rewriting" 30 $ "metas in gamma1: " <+> text (show $ allMetasList $ telToList gamma1)
-        failureMetas
-
       -- 2017-06-18, Jesper: Unfold inlined definitions on the LHS.
       -- This is necessary to replace copies created by imports by their
       -- original definition.
@@ -276,13 +272,9 @@ checkRewriteRule q = do
 
         checkNoLhsReduction f hd es
 
-        unless (noMetas (es, rhs, b)) $ do
-          reportSDoc "rewriting" 30 $ "metas in lhs: " <+> text (show $ allMetasList es)
-          reportSDoc "rewriting" 30 $ "metas in rhs: " <+> text (show $ allMetasList rhs)
-          reportSDoc "rewriting" 30 $ "metas in b  : " <+> text (show $ allMetasList b)
-          failureMetas
+        ps <- catchPatternErr failureMetas $
+          patternFrom Relevant 0 (t , Def f []) es
 
-        ps <- patternFrom Relevant 0 (t , Def f []) es
         reportSDoc "rewriting" 30 $
           "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
