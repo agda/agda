@@ -1253,6 +1253,11 @@ data Annotation = Annotation
   { annLock :: Lock
     -- ^ Fitch-style dependent right adjoints.
     --   See Modal Dependent Type Theory and Dependent Right Adjoints, arXiv:1804.05236.
+  , annFinite :: !Bool
+    -- ^ When this annotation appears in the Arg of a pi-type, its
+    -- elements should be compared for definitional equality by
+    -- tabulating the domain. Only supported when the domain is
+    -- @IsOne φ@.
   } deriving (Eq, Ord, Show, Generic)
 
 instance HasRange Annotation where
@@ -1262,10 +1267,10 @@ instance KillRange Annotation where
   killRange = id
 
 defaultAnnotation :: Annotation
-defaultAnnotation = Annotation defaultLock
+defaultAnnotation = Annotation defaultLock False
 
 instance NFData Annotation where
-  rnf (Annotation l) = rnf l
+  rnf (Annotation l f) = rnf l `seq` rnf f
 
 class LensAnnotation a where
 
@@ -1325,7 +1330,7 @@ instance LensLock Lock where
 
 instance LensLock ArgInfo where
   getLock = annLock . argInfoAnnotation
-  setLock l info = info { argInfoAnnotation = Annotation l }
+  setLock l info = info { argInfoAnnotation = (argInfoAnnotation info){ annLock = l } }
 
 instance LensLock (Arg t) where
   getLock = getLock . getArgInfo

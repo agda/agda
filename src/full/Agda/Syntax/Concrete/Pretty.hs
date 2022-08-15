@@ -94,6 +94,11 @@ prettyCohesion :: LensCohesion a => a -> Doc -> Doc
 prettyCohesion a d =
   if render d == "_" then d else pretty (getCohesion a) <+> d
 
+prettyFiniteness :: LensAnnotation a => a -> Doc -> Doc
+prettyFiniteness a d
+  | annFinite (getAnnotation a) = "@finite" <+> d
+  | otherwise = d
+
 prettyTactic :: BoundName -> Doc -> Doc
 prettyTactic = prettyTactic' . bnameTactic
 
@@ -191,7 +196,7 @@ instance Pretty Expr where
               lambda <+>
               prettyErased e (bracesAndSemicolons (fmap pretty pes))
             Fun _ e1 e2 ->
-                sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
+                sep [ prettyFiniteness e1 (prettyCohesion e1 (prettyQuantity e1 (pretty e1))) <+> arrow
                     , pretty e2
                     ]
             Pi tel e ->
@@ -300,6 +305,7 @@ instance Pretty TypedBinding where
     pretty (TBind _ xs e) = fsep
       [ prettyRelevance y
         $ prettyHiding y parens
+        $ prettyFiniteness y
         $ prettyCohesion y
         $ prettyQuantity y
         $ prettyTactic (binderName $ namedArg y) $

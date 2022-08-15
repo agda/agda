@@ -687,7 +687,7 @@ etaExpandMetaTCM kinds m = whenM ((not <$> isFrozen m) `and2M` asksTC envAssignM
         -- they go unsolved: conversion will compare them at the
         -- different cases for the domain, so it will not find the
         -- solution for the whole meta.
-        if any domFinite (flattenTel tel) then dontExpand else do
+        if any (annFinite . getAnnotation) (flattenTel tel) then dontExpand else do
 
         -- Issue #3774: continue with the right context for b
         addContext tel $ do

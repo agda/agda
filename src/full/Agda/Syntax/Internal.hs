@@ -65,14 +65,13 @@ import Agda.Utils.Impossible
 --   'Arg' is used for actual arguments ('Var', 'Con', 'Def' etc.)
 --   and in 'Abstract' syntax and other situations.
 --
---   [ cubical ] When @domFinite = True@ for the domain of a 'Pi'
---   type, the elements should be compared by tabulating the domain type.
---   Only supported in case the domain type is primIsOne, to obtain
---   the correct equality for partial elements.
+--   [ cubical ] When @annFinite (argInfoAnnotation domInfo) = True@ for
+--   the domain of a 'Pi' type, the elements should be compared by
+--   tabulating the domain type.  Only supported in case the domain type
+--   is primIsOne, to obtain the correct equality for partial elements.
 --
 data Dom' t e = Dom
   { domInfo   :: ArgInfo
-  , domFinite :: !Bool
   , domName   :: Maybe NamedName  -- ^ e.g. @x@ in @{x = y : A} -> B@.
   , domTactic :: Maybe t        -- ^ "@tactic e".
   , unDom     :: e
@@ -81,18 +80,18 @@ data Dom' t e = Dom
 type Dom = Dom' Term
 
 instance Decoration (Dom' t) where
-  traverseF f (Dom ai b x t a) = Dom ai b x t <$> f a
+  traverseF f (Dom ai x t a) = Dom ai x t <$> f a
 
 instance HasRange a => HasRange (Dom' t a) where
   getRange = getRange . unDom
 
 instance (KillRange t, KillRange a) => KillRange (Dom' t a) where
-  killRange (Dom info b x t a) = killRange5 Dom info b x t a
+  killRange (Dom info x t a) = killRange4 Dom info x t a
 
 -- | Ignores 'Origin' and 'FreeVariables' and tactic.
 instance Eq a => Eq (Dom' t a) where
-  Dom (ArgInfo h1 m1 _ _ a1) b1 s1 _ x1 == Dom (ArgInfo h2 m2 _ _ a2) b2 s2 _ x2 =
-    (h1, m1, a1, b1, s1, x1) == (h2, m2, a2, b2, s2, x2)
+  Dom (ArgInfo h1 m1 _ _ a1) s1 _ x1 == Dom (ArgInfo h2 m2 _ _ a2) s2 _ x2 =
+    (h1, m1, a1, s1, x1) == (h2, m2, a2, s2, x2)
 
 instance LensNamed (Dom' t e) where
   type NameOf (Dom' t e) = NamedName
@@ -129,10 +128,10 @@ namedArgFromDom Dom{domInfo = i, domName = s, unDom = a} = Arg i $ Named s a
 -- often for class AddContext.
 
 domFromArg :: Arg a -> Dom a
-domFromArg (Arg i a) = Dom i False Nothing Nothing a
+domFromArg (Arg i a) = Dom i Nothing Nothing a
 
 domFromNamedArg :: NamedArg a -> Dom a
-domFromNamedArg (Arg i a) = Dom i False (nameOf a) Nothing (namedThing a)
+domFromNamedArg (Arg i a) = Dom i (nameOf a) Nothing (namedThing a)
 
 defaultDom :: a -> Dom a
 defaultDom = defaultArgDom defaultArgInfo
@@ -1457,7 +1456,7 @@ instance NFData PlusLevel where
   rnf (Plus n l) = rnf (n, l)
 
 instance NFData e => NFData (Dom e) where
-  rnf (Dom a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
+  rnf (Dom a c d e) = rnf a `seq` rnf c `seq` rnf d `seq` rnf e
 
 instance NFData DataOrRecord
 instance NFData ConHead

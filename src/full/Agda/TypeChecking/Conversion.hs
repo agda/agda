@@ -344,17 +344,20 @@ compareTerm' cmp a m n =
   where
     -- equality at function type (accounts for eta)
     equalFun :: (MonadConversion m) => Sort -> Term -> Term -> Term -> m ()
-    equalFun s a@(Pi dom b) m n | domFinite dom = do
+    equalFun s a@(Pi dom b) m n | annFinite (getAnnotation dom) = do
        mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
+       let asFn = El s (Pi (mapAnnotation (\a -> a { annFinite = False }) dom) b)
        case unEl $ unDom dom of
           Def q [Apply phi]
-              | Just q == mp -> compareTermOnFace cmp (unArg phi) (El s (Pi (dom {domFinite = False}) b)) m n
-          _                  -> equalFun s (Pi (dom{domFinite = False}) b) m n
-    equalFun _ (Pi dom@Dom{domInfo = info} b) m n | not $ domFinite dom = do
+              | Just q == mp -> compareTermOnFace cmp (unArg phi) asFn m n
+          _                  -> equalFun s (unEl asFn) m n
+
+    equalFun _ (Pi dom@Dom{domInfo = info} b) m n = do
         let name = suggests [ Suggestion b , Suggestion m , Suggestion n ]
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
+
     equalFun _ _ _ _ = __IMPOSSIBLE__
 
     equalPath :: (MonadConversion m) => PathView -> Type -> Term -> Term -> m ()
@@ -717,13 +720,14 @@ compareAtom cmp t m n =
                 [ "t1 =" <+> prettyTCM t1
                 , "t2 =" <+> prettyTCM t2
                 ]
-              compareDom cmp dom2 dom1 b1 b2 errH errR errQ errC $
+              compareDom cmp dom2 dom1 b1 b2 errH errR errQ errC errF $
                 compareType cmp (absBody b1) (absBody b2)
             where
             errH = typeError $ UnequalHiding t1 t2
             errR = typeError $ UnequalRelevance cmp t1 t2
             errQ = typeError $ UnequalQuantity  cmp t1 t2
             errC = typeError $ UnequalCohesion cmp t1 t2
+            errF = typeError $ UnequalFiniteness cmp t1 t2
           _ -> __IMPOSSIBLE__
 
 -- | Check whether @a1 `cmp` a2@ and continue in context extended by @a1@.
@@ -737,16 +741,18 @@ compareDom :: (MonadConversion m , Free c)
   -> m ()     -- ^ Continuation if mismatch in 'Relevance'.
   -> m ()     -- ^ Continuation if mismatch in 'Quantity'.
   -> m ()     -- ^ Continuation if mismatch in 'Cohesion'.
+  -> m ()     -- ^ Continuation if mismatch in 'annFinite'.
   -> m ()     -- ^ Continuation if comparison is successful.
   -> m ()
 compareDom cmp0
   dom1@(Dom{domInfo = i1, unDom = a1})
   dom2@(Dom{domInfo = i2, unDom = a2})
-  b1 b2 errH errR errQ errC cont = do
+  b1 b2 errH errR errQ errC errF cont = do
   if | not $ sameHiding dom1 dom2 -> errH
      | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> errR
      | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> errQ
      | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | not $ annFinite (getAnnotation dom1) == annFinite (getAnnotation dom2) -> errF
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"

@@ -613,10 +613,10 @@ instance EmbPrj Relevance where
   value _ = malformed
 
 instance EmbPrj Annotation where
-  icod_ (Annotation l) = icodeN' Annotation l
+  icod_ (Annotation l f) = icodeN' Annotation l f
 
   value = vcase $ \case
-    [l] -> valuN Annotation l
+    [l, f] -> valuN Annotation l f
     _ -> malformed
 
 instance EmbPrj Lock where

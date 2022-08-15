@@ -86,7 +86,7 @@ instance NamesIn a => NamesIn (Open a)
 instance NamesIn a => NamesIn (C.FieldAssignment' a)
 
 instance (NamesIn a, NamesIn b) => NamesIn (Dom' a b) where
-  namesAndMetasIn' sg (Dom _ _ _ t e) =
+  namesAndMetasIn' sg (Dom _ _ t e) =
     mappend (namesAndMetasIn' sg t) (namesAndMetasIn' sg e)
 
 

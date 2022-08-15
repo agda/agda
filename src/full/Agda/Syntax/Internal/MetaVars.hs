@@ -25,7 +25,7 @@ instance TermLike a => AllMetas (Elim' a)
 instance TermLike a => AllMetas (Tele a)
 
 instance (AllMetas a, AllMetas b) => AllMetas (Dom' a b) where
-  allMetas f (Dom _ _ _ t e) = allMetas f t <> allMetas f e
+  allMetas f (Dom _ _ t e) = allMetas f t <> allMetas f e
 
 -- These types need to be packed up as a Term to get the metas.
 instance AllMetas Sort      where allMetas f   = allMetas f . Sort

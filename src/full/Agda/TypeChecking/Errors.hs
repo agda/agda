@@ -232,6 +232,7 @@ errorString err = case err of
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalQuantity{}                        -> "UnequalQuantity"
   UnequalCohesion{}                        -> "UnequalCohesion"
+  UnequalFiniteness{}                      -> "UnequalFiniteness"
   UnequalHiding{}                          -> "UnequalHiding"
   UnequalLevel{}                           -> "UnequalLevel"
   UnequalSorts{}                           -> "UnequalSorts"
@@ -595,6 +596,11 @@ instance PrettyTCM TypeError where
     UnequalCohesion cmp a b -> fsep $
       [prettyTCM a, notCmp cmp, prettyTCM b] ++
       pwords "because one is a non-flat function type and the other is a flat function type"
+      -- FUTURE Cohesion: update message if/when introducing sharp.
+
+    UnequalFiniteness cmp a b -> fsep $
+      [prettyTCM a, notCmp cmp, prettyTCM b] ++
+      pwords "because one is a type of partial elements and the other is a function type"
       -- FUTURE Cohesion: update message if/when introducing sharp.
 
     UnequalHiding a b -> fsep $
