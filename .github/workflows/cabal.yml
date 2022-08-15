@@ -84,6 +84,7 @@ jobs:
         cabal-ver:
         - latest
         ghc-ver:
+        - 9.4.1
         - 9.2.4
         - 9.0.2
         - 8.10.7
@@ -94,7 +95,7 @@ jobs:
         - 8.0.2
         include:
         - cabal-ver: latest
-          ghc-ver: 9.2.4
+          ghc-ver: 9.4.1
           os: macos-latest
         - cabal-ver: latest
           ghc-ver: 9.2.4
