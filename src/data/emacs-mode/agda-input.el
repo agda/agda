@@ -535,9 +535,9 @@ order for the change to take effect."
   ("b7"   . ("𝟟"))
   ("b8"   . ("𝟠"))
   ("b9"   . ("𝟡"))
-  
+
   ;; Mathematical bold letters.
-  
+
   ("BA"   . ("𝐀"))
   ("BB"   . ("𝐁"))
   ("BC"   . ("𝐂"))
