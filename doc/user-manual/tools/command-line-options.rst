@@ -542,6 +542,19 @@ Other features
      Disable the implicit statement `open import Agda.Primitive using
      (Set; Prop)` at the start of each top-level Agda module.
 
+.. option:: --no-load-primitives
+
+     .. versionadded:: 2.6.3
+
+     Do not load the primitive modules (`Agda.Primitive`,
+     `Agda.Primitive.Cubical`) when type-checking this program. This is
+     useful if you want to declare Agda's very magical primitives in a
+     Literate Agda file of your choice.
+
+     If you are using this option, it is your responsibility to ensure
+     that all of the `BUILTIN` things defined in those modules are
+     loaded. Agda will not work otherwise.
+
 .. option:: --save-metas, --no-save-metas
 
      .. versionadded:: 2.6.3

@@ -395,29 +395,33 @@ typeCheckMain
 typeCheckMain mode src = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
-  reportSLn "import.main" 10 "Importing the primitive modules."
-  libdirPrim <- liftIO getPrimitiveLibDir
-  reportSLn "import.main" 20 $ "Library primitive dir = " ++ show libdirPrim
-  -- Turn off import-chasing messages.
-  -- We have to modify the persistent verbosity setting, since
-  -- getInterface resets the current verbosity settings to the persistent ones.
-  bracket_ (getsTC Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
-    Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
-
-    -- We don't want to generate highlighting information for Agda.Primitive.
-    withHighlightingLevel None $
-      forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
-        primSource <- parseSource (SourceFile $ mkAbsolute f)
-        checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
-        void $ getNonMainInterface (srcModuleName primSource) (Just primSource)
-
-  reportSLn "import.main" 10 $ "Done importing the primitive modules."
-
-  -- Now do the type checking via getInterface.
-  checkModuleName' (srcModuleName src) (srcOrigin src)
 
   -- For the main interface, we also remember the pragmas from the file
   setOptionsFromSourcePragmas src
+  loadPrims <- optLoadPrimitives <$> pragmaOptions
+
+  when loadPrims $ do
+    reportSLn "import.main" 10 "Importing the primitive modules."
+    libdirPrim <- liftIO getPrimitiveLibDir
+    reportSLn "import.main" 20 $ "Library primitive dir = " ++ show libdirPrim
+    -- Turn off import-chasing messages.
+    -- We have to modify the persistent verbosity setting, since
+    -- getInterface resets the current verbosity settings to the persistent ones.
+
+    bracket_ (getsTC Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+      Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
+
+      -- We don't want to generate highlighting information for Agda.Primitive.
+      withHighlightingLevel None $
+        forM_ (Set.map (libdirPrim </>) Lens.primitiveModules) $ \f -> do
+          primSource <- parseSource (SourceFile $ mkAbsolute f)
+          checkModuleName' (srcModuleName primSource) (srcOrigin primSource)
+          void $ getNonMainInterface (srcModuleName primSource) (Just primSource)
+
+    reportSLn "import.main" 10 $ "Done importing the primitive modules."
+
+  -- Now do the type checking via getInterface.
+  checkModuleName' (srcModuleName src) (srcOrigin src)
 
   mi <- getInterface (srcModuleName src) (MainInterface mode) (Just src)
 
