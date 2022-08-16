@@ -86,7 +86,10 @@ jobs:
       #
       # # The following is used by Windows only
       # ICU_FILE: "mingw-w64-x86_64-icu-68.2-3-any.pkg.tar.zst"
-      ICU: "mingw-w64-x86_64-icu"
+      # Amélia Liao (2022-08-16):
+      # Use a known-good version of ICU from the msys2 repository since
+      # GHC does not work with ICU ≠ 69
+      ICU_URL: "https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst"
 
     # Need bash on Windows for piping and evaluation.
     defaults:
@@ -168,12 +171,13 @@ jobs:
     # updating Stack-MSYS to 2022-05-03.
     #
     # Liang-Ting, 2022-06-30: Always update msys2-keyring in case it is broken upstream again.
+    # Amélia, 2022-08-16: Download a good version of ICU
     - name: Install the icu library (Windows)
       if: ${{ runner.os == 'Windows' }}
       run: |
         # stack exec ${ARGS} -- pacman --noconfirm -Syuu
         stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
-        stack exec ${ARGS} -- pacman --noconfirm -S ${ICU}
+        stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
 
     - name: Install the numa library (Ubuntu, GHC 8.4.4)
