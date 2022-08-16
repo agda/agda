@@ -519,7 +519,13 @@ registerInteractionPoint preciseRange r maybeId = do
   ii <- case maybeId of
     Just i  -> return $ InteractionId i
     Nothing -> freshInteractionId
-  let ip = InteractionPoint { ipRange = r, ipMeta = Nothing, ipSolved = False, ipClause = IPNoClause }
+  let ip = InteractionPoint
+              { ipRange = r
+              , ipMeta = Nothing
+              , ipSolved = False
+              , ipClause = IPNoClause
+              , ipBoundary = mempty
+              }
   case BiMap.insertLookupWithKey (\ key new old -> old) ii ip m of
     -- If the interaction point is already present, we keep the old ip.
     -- However, it needs to be at the same range as the new one.
@@ -541,7 +547,7 @@ findInteractionPoint_ r m = do
   listToMaybe $ mapMaybe sameRange $ BiMap.toList m
   where
     sameRange :: (InteractionId, InteractionPoint) -> Maybe InteractionId
-    sameRange (ii, InteractionPoint r' _ False _) | r == r' = Just ii
+    sameRange (ii, InteractionPoint r' _ False _ _) | r == r' = Just ii
     sameRange _ = Nothing
 
 -- | Hook up a local meta-variable to an interaction point.
@@ -551,7 +557,7 @@ connectInteractionPoint
 connectInteractionPoint ii mi = do
   ipCl <- asksTC envClause
   m <- useR stInteractionPoints
-  let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipSolved = False, ipClause = ipCl }
+  let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipSolved = False, ipClause = ipCl, ipBoundary = mempty }
   -- The interaction point needs to be present already, we just set the meta.
   case BiMap.insertLookupWithKey (\ key new old -> new { ipRange = ipRange old }) ii ip m of
     (Nothing, _) -> __IMPOSSIBLE__

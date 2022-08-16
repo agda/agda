@@ -15,6 +15,7 @@ import Control.Monad.Identity
 
 import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
+import qualified Data.IntMap as IntMap
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Maybe
@@ -604,11 +605,14 @@ instance ToConcrete a => ToConcrete (IPBoundary' a) where
 instance Pretty c => Pretty (IPBoundary' c) where
   pretty (IPBoundary eqs val meta over) = do
     let
-      xs = map (\ (l,r) -> pretty l <+> "=" <+> pretty r) eqs
-      rhs = case over of
-              Overapplied    -> "=" <+> pretty meta
-              NotOverapplied -> mempty
-    prettyList_ xs <+> "⊢" <+> pretty val <+> rhs
+      xs = flip map (IntMap.toList eqs) $ \(_, (l, r)) -> parens $
+        pretty l <+> "=" <+> pretty (case r of { Left x -> pretty x; Right True -> "i1"; Right False -> "i0" })
+
+      lhs = case over of
+        Overapplied    -> pretty meta <+> "="
+        NotOverapplied -> mempty
+
+    prettyList_ xs <+> "⊢" <+> (lhs P.<> pretty val)
 
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
@@ -720,12 +724,9 @@ getConstraints' g f = liftTCM $ do
 
 getIPBoundary :: Rewrite -> InteractionId -> TCM [IPBoundary' C.Expr]
 getIPBoundary norm ii = do
-      ip <- lookupInteractionPoint ii
-      case ipClause ip of
-        IPClause { ipcBoundary = cs } -> do
-          forM cs $ \ cl -> enterClosure cl $ \ b ->
-            abstractToConcrete_ =<< reifyUnblocked =<< normalForm norm b
-        IPNoClause -> return []
+  ip <- lookupInteractionPoint ii
+  forM (ipBoundary ip) $ \bclosure -> enterClosure bclosure $ \b ->
+    abstractToConcrete_ =<< reifyUnblocked =<< normalForm norm b
 
 -- | Goals and Warnings
 

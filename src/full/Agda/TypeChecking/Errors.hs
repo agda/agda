@@ -51,7 +51,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.SizedTypes ( sizeType )
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Pretty.Call
+import {-# SOURCE #-} Agda.TypeChecking.Pretty.Call
 import Agda.TypeChecking.Pretty.Warning
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope ( ifPiType )
