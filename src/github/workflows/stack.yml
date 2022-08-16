@@ -90,7 +90,6 @@ jobs:
       # Use a known-good version of ICU from the msys2 repository since
       # GHC does not work with ICU ≠ 69
       ICU_URL: "https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst"
-      ICU_FILE: "mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst"
 
     # Need bash on Windows for piping and evaluation.
     defaults:
@@ -178,8 +177,7 @@ jobs:
       run: |
         # stack exec ${ARGS} -- pacman --noconfirm -Syuu
         stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
-        stack exec ${ARGS} -- curl -LO ${ICU_URL}
-        stack exec ${ARGS} -- pacman --noconfirm -U ${ICU_PATH}
+        stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
 
     - name: Install the numa library (Ubuntu, GHC 8.4.4)

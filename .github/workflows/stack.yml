@@ -23,7 +23,6 @@ jobs:
         shell: bash
     env:
       EXTRA_ARGS: --fast
-      ICU_FILE: mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst
       ICU_URL: https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-icu-69.1-1-any.pkg.tar.zst
       NON_DEFAULT_FLAGS: --flag Agda:enable-cluster-counting --flag Agda:cpphs --flag
         Agda:debug
@@ -84,8 +83,7 @@ jobs:
       run: |
         # stack exec ${ARGS} -- pacman --noconfirm -Syuu
         stack exec ${ARGS} -- pacman --noconfirm -Sy msys2-keyring
-        stack exec ${ARGS} -- curl -LO ${ICU_URL}
-        stack exec ${ARGS} -- pacman --noconfirm -U ${ICU_PATH}
+        stack exec ${ARGS} -- bash -c "curl -LO ${ICU_URL} && pacman --noconfirm -U *.pkg.tar.zst"
         stack exec ${ARGS} -- pacman --noconfirm -S mingw-w64-x86_64-pkg-config
     - if: ${{ runner.os == 'Linux' && env.GHC_VER == '8.4.4' }}
       name: Install the numa library (Ubuntu, GHC 8.4.4)
