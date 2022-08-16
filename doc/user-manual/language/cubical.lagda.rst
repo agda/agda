@@ -896,7 +896,7 @@ files. However, for regular users and beginners the ``agda/cubical``
 library should be sufficient and this section can safely be ignored.
 
 **Warning**: Many of the built-ins whose definitions can be written in
-Agda are nonetheless used internally the implementation of cubical Agda,
+Agda are nonetheless used internally in the implementation of cubical Agda,
 and using different implementations can easily lead to unsoundness. Even
 though they are definable in user code, this is not a supported
 use-case.
