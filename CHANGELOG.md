@@ -113,6 +113,27 @@ Language
 * A new constructor `pattErr : Pattern → ErrorPart` of `ErrorPart` for reflection
   is added.
 
+* The type expected by the builtin `EQUIVPROOF` has been changed to
+  properly encode the condition that `EQUVIFUN` is an equivalence.
+  ([#5661](https://github.com/agda/agda/issues/5661),
+  [#6032](https://github.com/agda/agda/pull/6032))
+
+* The primitive `primIdJ` has been removed
+  ([#6032](https://github.com/agda/agda/pull/6032)).
+
+* The builtin `SUBIN` is now exported from `Agda.Builtin.Cubical.Sub` as
+  **`inS`** rather than `inc`.
+
+* A new built-in constructor `REFLID` was added to the cubical identity
+  types. This is definitionally equal to the reflexivity identification
+  built with `conid`, with the difference being that matching on
+  `REFLID` is allowed.
+
+  ```agda
+  symId : ∀ {a} {A : Set a} {x y : A} → Id x y → Id y x
+  symId reflId = reflId
+  ```
+
 Syntax
 ------
 
