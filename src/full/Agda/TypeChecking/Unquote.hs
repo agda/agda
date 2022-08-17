@@ -415,6 +415,19 @@ instance Unquote a => Unquote (R.Abs a) where
     where hint x | not (null x) = x
                  | otherwise    = "_"
 
+instance Unquote Blocker where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case t of
+      Con c _ es | Just [x] <- allApplyElims es ->
+        choice
+          [ (c `isCon` primAgdaBlockerAny, UnblockOnAny . Set.fromList <$> unquoteN x)
+          , (c `isCon` primAgdaBlockerAll, UnblockOnAll . Set.fromList <$> unquoteN x)
+          , (c `isCon` primAgdaBlockerMeta, UnblockOnMeta <$> unquoteN x)]
+          __IMPOSSIBLE__
+      Con c _ _ -> __IMPOSSIBLE__
+      _ -> throwError $ NonCanonical "blocker" t
+
 instance Unquote MetaId where
   unquote t = do
     t <- reduceQuotedTerm t
@@ -600,7 +613,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMTypeError,          tcFun1 tcTypeError   u)
              , (f `isDef` primAgdaTCMQuoteTerm,          tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm,        tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
-             , (f `isDef` primAgdaTCMBlockOnMeta,        uqFun1 tcBlockOnMeta u)
+             , (f `isDef` primAgdaTCMBlock,              uqFun1 tcBlock u)
              , (f `isDef` primAgdaTCMDebugPrint,         tcFun3 tcDebugPrint l a u)
              , (f `isDef` primAgdaTCMNoConstraints,      tcNoConstraints (unElim u))
              , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
@@ -705,10 +718,11 @@ evalTCM v = do
       equalTerm a u v
       primUnitUnit
 
-    tcBlockOnMeta :: MetaId -> UnquoteM Term
-    tcBlockOnMeta x = do
+    tcBlock :: Blocker -> UnquoteM Term
+    tcBlock x = do
       s <- gets snd
-      throwError (BlockedOnMeta s $ unblockOnMeta x)
+      liftTCM $ reportSDoc "tc.unquote.block" 10 $ pretty (show x)
+      throwError (BlockedOnMeta s x)
 
     tcCommit :: UnquoteM Term
     tcCommit = do

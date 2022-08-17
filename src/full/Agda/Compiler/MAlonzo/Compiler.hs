@@ -274,7 +274,7 @@ ghcPreCompile flags = do
       , builtinAgdaTCMDefineFun
       , builtinAgdaTCMGetType
       , builtinAgdaTCMGetDefinition
-      , builtinAgdaTCMBlockOnMeta
+      , builtinAgdaTCMBlock
       , builtinAgdaTCMCommit
       , builtinAgdaTCMIsMacro
       , builtinAgdaTCMWithNormalisation
@@ -293,6 +293,10 @@ ghcPreCompile flags = do
       , builtinAgdaTCMGetInstances
       , builtinAgdaTCMPragmaForeign
       , builtinAgdaTCMPragmaCompile
+      , builtinAgdaBlocker
+      , builtinAgdaBlockerAll
+      , builtinAgdaBlockerAny
+      , builtinAgdaBlockerMeta
       ]
     return $
       flip HashSet.member $

@@ -218,7 +218,7 @@ data BuiltinId
   | BuiltinAgdaTCMDefineFun
   | BuiltinAgdaTCMGetType
   | BuiltinAgdaTCMGetDefinition
-  | BuiltinAgdaTCMBlockOnMeta
+  | BuiltinAgdaTCMBlock
   | BuiltinAgdaTCMCommit
   | BuiltinAgdaTCMQuoteTerm
   | BuiltinAgdaTCMUnquoteTerm
@@ -240,6 +240,10 @@ data BuiltinId
   | BuiltinAgdaTCMGetInstances
   | BuiltinAgdaTCMPragmaForeign
   | BuiltinAgdaTCMPragmaCompile
+  | BuiltinAgdaBlocker
+  | BuiltinAgdaBlockerAny
+  | BuiltinAgdaBlockerAll
+  | BuiltinAgdaBlockerMeta
   deriving (Show, Eq, Ord, Bounded, Enum, Generic)
 
 instance NFData BuiltinId
@@ -433,7 +437,7 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaTCMDefineFun                  -> "AGDATCMDEFINEFUN"
     BuiltinAgdaTCMGetType                    -> "AGDATCMGETTYPE"
     BuiltinAgdaTCMGetDefinition              -> "AGDATCMGETDEFINITION"
-    BuiltinAgdaTCMBlockOnMeta                -> "AGDATCMBLOCKONMETA"
+    BuiltinAgdaTCMBlock                      -> "AGDATCMBLOCK"
     BuiltinAgdaTCMCommit                     -> "AGDATCMCOMMIT"
     BuiltinAgdaTCMQuoteTerm                  -> "AGDATCMQUOTETERM"
     BuiltinAgdaTCMUnquoteTerm                -> "AGDATCMUNQUOTETERM"
@@ -455,7 +459,10 @@ instance IsBuiltin BuiltinId where
     BuiltinAgdaTCMGetInstances               -> "AGDATCMGETINSTANCES"
     BuiltinAgdaTCMPragmaForeign              -> "AGDATCMPRAGMAFOREIGN"
     BuiltinAgdaTCMPragmaCompile              -> "AGDATCMPRAGMACOMPILE"
-
+    BuiltinAgdaBlocker                       -> "AGDABLOCKER"
+    BuiltinAgdaBlockerAny                    -> "AGDABLOCKERANY"
+    BuiltinAgdaBlockerAll                    -> "AGDABLOCKERALL"
+    BuiltinAgdaBlockerMeta                   -> "AGDABLOCKERMETA"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
@@ -563,7 +570,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDeclarePostulate, builtinAgdaTCMDeclareData, builtinAgdaTCMDefineData, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm, builtinAgdaTCMQuoteOmegaTerm,
-  builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro,
+  builtinAgdaTCMCommit, builtinAgdaTCMIsMacro, builtinAgdaTCMBlock,
+  builtinAgdaBlocker, builtinAgdaBlockerAll, builtinAgdaBlockerAny, builtinAgdaBlockerMeta,
   builtinAgdaTCMFormatErrorParts, builtinAgdaTCMDebugPrint,
   builtinAgdaTCMWithNormalisation, builtinAgdaTCMWithReconstructed,
   builtinAgdaTCMWithExpandLast, builtinAgdaTCMWithReduceDefs,
@@ -752,7 +760,7 @@ builtinAgdaTCMDefineData                 = BuiltinAgdaTCMDefineData
 builtinAgdaTCMDefineFun                  = BuiltinAgdaTCMDefineFun
 builtinAgdaTCMGetType                    = BuiltinAgdaTCMGetType
 builtinAgdaTCMGetDefinition              = BuiltinAgdaTCMGetDefinition
-builtinAgdaTCMBlockOnMeta                = BuiltinAgdaTCMBlockOnMeta
+builtinAgdaTCMBlock                      = BuiltinAgdaTCMBlock
 builtinAgdaTCMCommit                     = BuiltinAgdaTCMCommit
 builtinAgdaTCMQuoteTerm                  = BuiltinAgdaTCMQuoteTerm
 builtinAgdaTCMUnquoteTerm                = BuiltinAgdaTCMUnquoteTerm
@@ -774,6 +782,10 @@ builtinAgdaTCMExec                       = BuiltinAgdaTCMExec
 builtinAgdaTCMGetInstances               = BuiltinAgdaTCMGetInstances
 builtinAgdaTCMPragmaForeign              = BuiltinAgdaTCMPragmaForeign
 builtinAgdaTCMPragmaCompile              = BuiltinAgdaTCMPragmaCompile
+builtinAgdaBlocker                       = BuiltinAgdaBlocker
+builtinAgdaBlockerAny                    = BuiltinAgdaBlockerAny
+builtinAgdaBlockerAll                    = BuiltinAgdaBlockerAll
+builtinAgdaBlockerMeta                   = BuiltinAgdaBlockerMeta
 
 -- | Lookup a builtin by the string used in the @BUILTIN@ pragma.
 builtinById :: String -> Maybe BuiltinId
