@@ -20,8 +20,7 @@ open import Agda.Primitive.Cubical public
 open import Agda.Builtin.Cubical.Path
 open import Agda.Builtin.Cubical.Glue; open Helpers public
 open import Agda.Builtin.Cubical.Sub public
-  renaming ( inc to inS
-           ; primSubOut to outS
+  renaming ( primSubOut to outS
            )
 
 ---------------------------------------------------------------------------

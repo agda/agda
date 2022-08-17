@@ -14,14 +14,18 @@
              ; itIsOne to 1=1 )
   open import Agda.Builtin.Cubical.Path
   open import Agda.Builtin.Cubical.Sub
-    renaming ( primSubOut to outS
-             ; inc        to inS
-             )
+    renaming ( primSubOut to outS )
   open import Agda.Builtin.Cubical.Glue public
     using ( isEquiv
           ; equiv-proof
           ; _≃_
           ; primGlue )
+  open import Agda.Builtin.Cubical.Id public
+    using ( Id
+          ; conid
+          ; primIdElim
+          ; reflId
+          )
 
   open import Agda.Builtin.Sigma public
   open import Agda.Builtin.Bool public
@@ -733,7 +737,7 @@ exports all of the primitives for this type, including the notation
 ``_≡_`` and a ``J`` eliminator that computes definitionally on
 ``refl``.
 
-The cubical identity type and the path type are equivalent, so all of
+The cubical identity types and path types are equivalent, so all of
 the results for one can be transported to the other one (using
 univalence). Using this we have implemented an `interface to HoTT/UF <https://github.com/agda/cubical/blob/5de11df25b79ee49d5c084fbbe6dfc66e4147a2e/Cubical/Experiments/HoTT-UF.agda>`_
 which provides the user with the key primitives of Homotopy Type
@@ -747,7 +751,7 @@ which computes properly.
 
   open import Cubical.Core.Id public
      using ( _≡_            -- The identity type.
-           ; refl            -- Unfortunately, pattern matching on refl is not available.
+           ; refl           -- Its constructor.
            ; J              -- Until it is, you have to use the induction principle J.
 
            ; transport      -- As in the HoTT Book.
@@ -791,21 +795,51 @@ follows:
 
   open import Cubical.Core.HoTT-UF
 
-However, even though this interface exists it is still recommended
-that one uses the cubical identity types unless one really need ``J``
-to compute on ``refl``. The reason for this is that the syntax for
-path types does not work for the identity types, making many proofs
-more involved as the only way to reason about them is using ``J``.
-Furthermore, the path types satisfy many useful definitional
-equalities that the identity types don't.
+However, even though this interface exists, we recommend that users of
+cubical mode use the path types rather than the cubical identity types.
+Primarily, this is because many operations for path types are
+implemented directly, rather than by induction (e.g. ``ap``, ``funExt``,
+``happly``, ``sym``, etc), and thus enjoy better computational
+behaviour. In addition to using ``J`` directly, it is possible to match
+on the reflexivity constructor, as if ``Id`` were an inductive type:
+
+::
+
+  symId : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → Id y x
+  symId reflId = reflId
+
+Cubical identity types are *not* inductively defined, and we may observe
+this using the primitives ``conid`` and ``primIdElim``. These primitives
+expose underlying representation: terms of the cubical identity type can
+be thought of pairs consisting of a path `p` and a cofibration `φ`, such
+that, under the cofibration `φ`, the path `p` is the reflexivty path.
+These primitives are very low-level, and their use is not recommended.
+
+::
+
+  apId : ∀ {ℓ ℓ′} {A : Set ℓ} {B : Set ℓ′} (f : A → B)
+       → {x y : A} → Id x y → Id (f x) (f y)
+  apId f {x = x} = primIdElim (λ y _ → Id (f x) (f y))
+    λ φ y w → conid φ λ i → f (outS w i)
+
+Even though it is possible to define the reflexivity path using
+``conid``, the name ``reflId`` is special, in that it is treated as a
+"matchable" constructor, whereas ``conid`` is not. Depending on your
+syntax highlighting scheme, this can be observed using agda-mode: they
+are different colours. However, for computation, they are treated as the
+same:
+
+::
+  _ : ∀ {ℓ} {A : Set ℓ} {x : A} → reflId ≡ conid i1 (λ _ → x)
+  _ = refl
 
 .. _erased-cubical:
 
-Cubical Agda with erased glue
+Cubical Agda with erased Glue
 -----------------------------
 
 The option :option:`--erased-cubical` enables a variant of Cubical
-Agda in which glue (and the other builtins defined in
+Agda in which Glue (and the other builtins defined in
 ``Agda.Builtin.Cubical.Glue``) must only be used in
 :ref:`erased<runtime-irrelevance>` settings.
 
@@ -860,6 +894,12 @@ primitives available that are not really exported by ``agda/cubical``,
 so the goal of this section is to list the contents of these
 files. However, for regular users and beginners the ``agda/cubical``
 library should be sufficient and this section can safely be ignored.
+
+**Warning**: Many of the built-ins whose definitions can be written in
+Agda are nonetheless used internally in the implementation of cubical Agda,
+and using different implementations can easily lead to unsoundness. Even
+though they are definable in user code, this is not a supported
+use-case.
 
 The key file with primitives is ``Agda.Primitive.Cubical``. It exports
 the following ``BUILTIN``, primitives and postulates:
@@ -959,7 +999,7 @@ The Glue types are exported by ``Agda.Builtin.Cubical.Glue``:
   equivFun e = fst e
 
   equivProof : ∀ {la lt} (T : Set la) (A : Set lt) → (w : T ≃ A) → (a : A)
-             → ∀ ψ → (Partial ψ (fiber (w .fst) a)) → fiber (w .fst) a
+             → ∀ ψ (f : Partial ψ (fiber (w .fst) a)) → fiber (w .fst) a [ ψ ↦ f ]
   equivProof A B w a ψ fb = contr' {A = fiber (w .fst) a} (w .snd .equiv-proof a) ψ fb
     where
       contr' : ∀ {ℓ} {A : Set ℓ} → isContr A → (φ : I) → (u : Partial φ A) → A
@@ -1005,16 +1045,12 @@ The ``Agda.Builtin.Cubical.Id`` exports the cubical identity types:
 
   {-# BUILTIN ID           Id       #-}
   {-# BUILTIN CONID        conid    #-}
+  {-# BUILTIN REFLID       reflId   #-}
 
   primitive
     primDepIMin : _
     primIdFace : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → I
     primIdPath : ∀ {ℓ} {A : Set ℓ} {x y : A} → Id x y → x ≡ y
-
-  primitive
-    primIdJ : ∀ {ℓ ℓ'} {A : Set ℓ} {x : A} (P : ∀ y → Id x y → Set ℓ') →
-                P x (conid i1 (λ i → x)) → ∀ {y} (p : Id x y) → P y p
-
 
   primitive
     primIdElim : ∀ {a c} {A : Set a} {x : A}

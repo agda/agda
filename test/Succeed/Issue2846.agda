@@ -14,9 +14,9 @@ _ : ∀ {ℓ} {A : Set ℓ} {x : A} → reflId' {x = x} ≡ reflId
 _ = reflPath
 
 Id-comp-Id : ∀ {ℓ ℓ'} {A : Set ℓ} {x : A} (P : ∀ y → Id x y → Set ℓ')
-           → (b : P x reflId) → Id (primIdJ P b reflId) b
+           → (b : P x reflId) → Id (IdJ P b reflId) b
 Id-comp-Id P b = reflId
 
 Id-comp-Path : ∀ {ℓ ℓ'} {A : Set ℓ} {x : A} (P : ∀ y → Id x y → Set ℓ')
-             → (b : P x reflId) → (primIdJ P b reflId) ≡ b
+             → (b : P x reflId) → (IdJ P b reflId) ≡ b
 Id-comp-Path P b = λ i → b
