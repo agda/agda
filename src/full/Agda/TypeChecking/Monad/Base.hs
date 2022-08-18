@@ -1815,10 +1815,38 @@ data NLPat
   deriving (Data, Show, Generic)
 type PElims = [Elim' NLPat]
 
+instance TermLike NLPat where
+  traverseTermM f = \case
+    p@PVar{}       -> return p
+    PDef d ps      -> PDef d <$> traverseTermM f ps
+    PLam i p       -> PLam i <$> traverseTermM f p
+    PPi a b        -> PPi <$> traverseTermM f a <*> traverseTermM f b
+    PSort s        -> PSort <$> traverseTermM f s
+    PBoundVar i ps -> PBoundVar i <$> traverseTermM f ps
+    PTerm t        -> PTerm <$> f t
+
+  foldTerm f t = case t of
+    PVar{}         -> mempty
+    PDef d ps      -> foldTerm f ps
+    PLam i p       -> foldTerm f p
+    PPi a b        -> foldTerm f (a, b)
+    PSort s        -> foldTerm f s
+    PBoundVar i ps -> foldTerm f ps
+    PTerm t        -> foldTerm f t
+
+instance AllMetas NLPat
+
 data NLPType = NLPType
   { nlpTypeSort :: NLPSort
   , nlpTypeUnEl :: NLPat
   } deriving (Data, Show, Generic)
+
+instance TermLike NLPType where
+  traverseTermM f (NLPType s t) = NLPType <$> traverseTermM f s <*> traverseTermM f t
+
+  foldTerm f (NLPType s t) = foldTerm f (s, t)
+
+instance AllMetas NLPType
 
 data NLPSort
   = PType NLPat
@@ -1829,6 +1857,27 @@ data NLPSort
   | PLockUniv
   | PIntervalUniv
   deriving (Data, Show, Generic)
+
+instance TermLike NLPSort where
+  traverseTermM f = \case
+    PType p           -> PType <$> traverseTermM f p
+    PProp p           -> PProp <$> traverseTermM f p
+    PSSet p           -> PSSet <$> traverseTermM f p
+    s@PInf{}          -> return s
+    s@PSizeUniv{}     -> return s
+    s@PLockUniv{}     -> return s
+    s@PIntervalUniv{} -> return s
+
+  foldTerm f t = case t of
+    PType p           -> foldTerm f p
+    PProp p           -> foldTerm f p
+    PSSet p           -> foldTerm f p
+    s@PInf{}          -> mempty
+    s@PSizeUniv{}     -> mempty
+    s@PLockUniv{}     -> mempty
+    s@PIntervalUniv{} -> mempty
+
+instance AllMetas NLPSort
 
 type RewriteRules = [RewriteRule]
 
