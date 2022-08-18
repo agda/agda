@@ -286,7 +286,9 @@ compareTerm' cmp a m n =
           b <- levelView n
           equalLevel a b
         a@Pi{}    -> equalFun s a m n
-        Lam _ _   -> reportSDoc "tc.conv.term.sort" 10 (pretty s) >> __IMPOSSIBLE__
+        Lam _ _   -> reportSDoc "tc.conv.term.sort" 10 (fsep
+          [ "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, ":", prettyTCM a'
+          , "at sort", prettyTCM s]) >> __IMPOSSIBLE__
         Def r es  -> do
           isrec <- isEtaRecord r
           if isrec

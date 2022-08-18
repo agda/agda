@@ -73,7 +73,7 @@ mkGComp s = do
     pure tHComp <#> (la <@> pure io)
                 <#> (bA <@> pure io)
                 <#> imax phi (ineg phi)
-                <@> lam "i" (\ i -> combineSys (la <@> i) (ilam "o" (\a -> bA <@> i))
+                <@> lam "i" (\ i -> combineSys (la <@> i) (bA <@> i)
                                       [ (phi,      ilam "o" $ \o -> forward la bA i (u <@> i <..> o))
                                       , (ineg phi, ilam "o" $ \o -> forward la bA (pure iz) u0)
                                       ])
@@ -117,7 +117,7 @@ doGlueKanOp (HCompOp psi u u0) (IsNot (la, lb, bA, phi, bT, e)) tpos = do
       unglue g = pure tunglue <#> la <#> lb <#> bA <#> phi <#> bT <#> e <@> g
 
       a1 = pure tHComp <#> la <#> bA <#> (imax psi phi)
-        <@> lam "i" (\i -> combineSys la (ilam "_" (\ _ -> bA))
+        <@> lam "i" (\i -> combineSys la bA
             [ (psi, ilam "o" (\o -> unglue (u <@> i <..> o)))
             , (phi, ilam "o" (\o -> pure tEFun <#> lb <#> la <#> (bT <..> o) <#> bA <@> (e <..> o) <@> tf i o))
             ])
@@ -195,7 +195,7 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       -- a1 = gcomp (ψ ∨ (∀ i. φ)) (λ { i (φ = i1) → unglue_u0 i ; i ((∀ i. φ) = i1) → equivFun ... })
       --        (unglue_u0 i0)
       a1 = gcomp la bA (imax psi forallphi)
-        (lam "i" $ \ i -> combineSys (la <@> i) (ilam "o" (\_ -> bA <@> i))
+        (lam "i" $ \ i -> combineSys (la <@> i) (bA <@> i)
           [ (phi,       ilam "o" $ \_ -> unglue_u0 i)
           , (forallphi, ilam "o" $ \o -> w i o <@> (tf i o))
           ])
@@ -222,8 +222,7 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       -- here (to implement "ghcomp") as it is taken care off by
       -- tEProof in t1'alpha below
       pe o = -- o : IsOne φ
-        combineSys (max (la <@> pure io) (lb <@> pure io))
-          (ilam "o" (const (fiberT o)))
+        combineSys (max (la <@> pure io) (lb <@> pure io)) (fiberT o)
           [ (psi       , ilam "o" $ \_ -> sigCon u0     (lam "_" $ \_ -> a1))
           , (forallphi , ilam "o" $ \o -> sigCon (t1 o) (lam "_" $ \_ -> a1))
           ]
@@ -250,7 +249,7 @@ doGlueKanOp (TranspOp psi u0) (IsFam (la, lb, bA, phi, bT, e)) tpos = do
       alpha o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaSnd kit)])
       a1' = pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io)
         <#> imax (phi <@> pure io) psi
-        <@> lam "j" (\j -> combineSys (la <@> pure io) (ilam "o" (\_ -> bA <@> pure io))
+        <@> lam "j" (\j -> combineSys (la <@> pure io) (bA <@> pure io)
           [ (phi <@> pure io, ilam "o" $ \o -> alpha o <@@> (w (pure io) o <@> t1' o, a1, j))
           , (psi,             ilam "o" $ \o -> a1)
           ])

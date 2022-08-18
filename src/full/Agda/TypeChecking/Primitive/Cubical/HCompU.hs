@@ -78,7 +78,7 @@ doHCompUKanOp (HCompOp psi u u0) (IsNot (la, phi, bT, bA)) tpos = do
       unglue g = pure tunglue <#> la <#> phi <#> bT <#> bAS <@> g
 
       a1 = pure tHComp <#> la <#> bA <#> (imax psi phi)
-        <@> lam "i" (\i -> combineSys la (ilam "_" (\ _ -> bA))
+        <@> lam "i" (\i -> combineSys la bA
             [ (psi, ilam "o" (\o -> unglue (u <@> i <..> o)))
             , (phi, ilam "o" (\ o -> transp la (\i -> bT <@> (ineg i) <..> o) (tf i o)))
             ])
@@ -158,7 +158,7 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
 
       -- a1 with gcomp
       a1 = gcomp la bA (imax psi forallphi)
-        (lam "i" $ \ i -> combineSys (la <@> i) (ilam "o" (\_ -> bA <@> i))
+        (lam "i" $ \ i -> combineSys (la <@> i) (bA <@> i)
           [ (phi,       ilam "o" $ \_ -> unglue_u0 i)
           , (forallphi, ilam "o" (\o -> transp (la <@> i) (\j -> bT <@> i <@> ineg j <..> o) (tf i o)))
           ])
@@ -167,8 +167,7 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
       w i o = lam "x" $ transp (la <@> i) (\j -> bT <@> i <@> ineg j <..> o)
 
       pt o = -- o : [ φ 1 ]
-        combineSys (la <@> pure io)
-          (ilam "o" (const (bT <@> pure io <@> pure io <..> o)))
+        combineSys (la <@> pure io) (bT <@> pure io <@> pure io <..> o)
           [ (psi       , ilam "o" $ \_ -> u0)
           , (forallphi , ilam "o" $ \o -> t1 o)
           ]
@@ -188,7 +187,7 @@ doHCompUKanOp (TranspOp psi u0) (IsFam (la, phi, bT, bA)) tpos = do
       alpha o = t1'alpha o <&> (`applyE` [Proj ProjSystem (sigmaSnd kit)])
       a1' = pure tHComp <#> (la <@> pure io) <#> (bA <@> pure io)
         <#> imax (phi <@> pure io) psi
-        <@> lam "j" (\j -> combineSys (la <@> pure io) (ilam "o" (\_ -> bA <@> pure io))
+        <@> lam "j" (\j -> combineSys (la <@> pure io) (bA <@> pure io)
           [ (phi <@> pure io, ilam "o" $ \o -> alpha o <@@> (w (pure io) o <@> t1' o, a1, j))
           , (psi,             ilam "o" $ \o -> a1)
           ])

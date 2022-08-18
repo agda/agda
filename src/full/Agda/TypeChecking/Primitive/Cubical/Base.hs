@@ -365,7 +365,7 @@ hfill
 hfill la bA phi u u0 i = do
   tHComp <- getTerm "hfill" builtinHComp
   pure tHComp <#> la <#> bA <#> (imax phi (ineg i))
-    <@> lam "j" (\ j -> combineSys la (ilam "o" (const bA))
+    <@> lam "j" (\ j -> combineSys la bA
         [ (phi,    ilam "o" (\o -> u <@> (imin i j) <..> o))
         , (ineg i, ilam "o" (\_ -> u0))
         ])

@@ -334,7 +334,7 @@ doPathPKanOp (HCompOp phi u u0) (IsNot l) (IsNot (bA,x,y)) = do
     -- in the Path type.
     lam "j" $ \ j ->
       pure tHComp <#> l <#> (bA <@> j) <#> (phi `imax` (ineg j `imax` j))
-        <@> lam "i'" (\i -> combineSys l (lam "_" (const (bA <@> i)))
+        <@> lam "i'" (\i -> combineSys l (bA <@> i)
           [ (phi,    ilam "o" (\ o -> u <@> i <..> o <@@> (x, y, j)))
           , (j,      ilam "o" (const y))
           , (ineg j, ilam "o" (const x)) ])
@@ -361,7 +361,7 @@ doPathPKanOp (TranspOp phi u0) (IsFam l) (IsFam (bA,x,y)) = do
 
     lam "j" $ \ j ->
       comp l (lam "i" $ \ i -> bA <@> i <@> j) (phi `imax` (ineg j `imax` j))
-        (lam "i'" $ \i -> combineSys l (lam "_" (const (bA <@> i <@> j)))
+        (lam "i'" $ \i -> combineSys l (bA <@> i <@> j)
           [ (phi, ilam "o" (\o -> u0 <@@> (x <@> pure iz, y <@> pure iz, j)))
           -- Note that here we have lines of endpoints which we must
           -- apply to fix the endpoints:

@@ -134,9 +134,11 @@ module HCompPathP {ℓ} {A : I → Set ℓ} (u : A i0) (v : A i1) (φ : I)
   test-hcompPathP : hcompPathP ≡ primHComp p (outS p0)
   test-hcompPathP = refl
 
-module TranspPathP {ℓ} {A : I → I → Set ℓ} (u : ∀ i → A i i0)(v : ∀ i → A i i1)
-                  (let C = λ (i : I) → PathP (A i) (u i) (v i))
-                  (p0 : C i0) where
+module TranspPathP
+  {ℓ : I → Level} {A : (i : I) → I → Set (ℓ i)}
+  (u : ∀ i → A i i0)(v : ∀ i → A i i1)
+  (let C = λ (i : I) → PathP (A i) (u i) (v i))
+  (p0 : C i0) where
  φ = i0
  transpPathP : C i1
  transpPathP j = primComp (λ i → A i j)
