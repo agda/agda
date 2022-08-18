@@ -30,7 +30,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Primitive.Cubical
+import Agda.TypeChecking.Primitive.Cubical.Base
 
 import Agda.Utils.Either
 import Agda.Utils.Functor

@@ -4,7 +4,7 @@ module Agda.Compiler.Common where
 
 import Prelude hiding ((!!))
 
-import Data.List as List hiding ((!!))
+import Data.List (sortBy, isPrefixOf)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -100,7 +100,7 @@ sortDefs defs =
   -- The list is sorted to ensure that the order of the generated
   -- definitions does not depend on things like the number of bits
   -- in an Int (see Issue 1900).
-  List.sortBy (compare `on` fst) $
+  sortBy (compare `on` fst) $
   HMap.toList defs
 
 compileDir :: HasOptions m => m FilePath
@@ -169,11 +169,11 @@ inCompilerEnv checkResult cont = do
 topLevelModuleName :: ReadTCState m => ModuleName -> m ModuleName
 topLevelModuleName m = do
   -- get the names of the visited modules
-  visited <- List.map (iModuleName . miInterface) . Map.elems <$>
+  visited <- map (iModuleName . miInterface) . Map.elems <$>
     getVisitedModules
   -- find the module with the longest matching prefix to m
   let ms = sortBy (compare `on` (length . mnameToList)) $
-       List.filter (\ m' -> mnameToList m' `isPrefixOf` mnameToList m) visited
+        filter (\ m' -> mnameToList m' `isPrefixOf` mnameToList m) visited
   case ms of
     (m' : _) -> return m'
     -- if we did not get anything, it may be because m is a section

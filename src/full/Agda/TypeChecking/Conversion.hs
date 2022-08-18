@@ -269,6 +269,9 @@ compareTerm' cmp a m n =
     isSize   <- isJust <$> isSizeType a'
     (bs, s)  <- reduceWithBlocker $ getSort a'
     mlvl     <- getBuiltin' builtinLevel
+    reportSDoc "tc.conv.term" 40 $ fsep
+      [ "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, ":", prettyTCM a'
+      , "at sort", prettyTCM s]
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
       [ "a'   =" <+> pretty a'
       , "mlvl =" <+> pretty mlvl
@@ -283,7 +286,12 @@ compareTerm' cmp a m n =
           b <- levelView n
           equalLevel a b
         a@Pi{}    -> equalFun s a m n
-        Lam _ _   -> __IMPOSSIBLE__
+        Lam _ _   -> do
+          reportSDoc "tc.conv.term.sort" 10 $ fsep
+            [ "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, ":", prettyTCM a'
+            , "at sort", prettyTCM s
+            ]
+          __IMPOSSIBLE__
         Def r es  -> do
           isrec <- isEtaRecord r
           if isrec

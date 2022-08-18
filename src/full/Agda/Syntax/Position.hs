@@ -68,7 +68,7 @@ import Control.Monad.Writer (runWriter, tell)
 import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Int
-import Data.List hiding (null)
+import Data.List (foldl', sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)

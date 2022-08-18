@@ -512,6 +512,10 @@ library
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.Primitive.Base
                     Agda.TypeChecking.Primitive.Cubical
+                    Agda.TypeChecking.Primitive.Cubical.Id
+                    Agda.TypeChecking.Primitive.Cubical.Glue
+                    Agda.TypeChecking.Primitive.Cubical.Base
+                    Agda.TypeChecking.Primitive.Cubical.HCompU
                     Agda.TypeChecking.ProjectionLike
                     Agda.TypeChecking.Quote
                     Agda.TypeChecking.ReconstructParameters
