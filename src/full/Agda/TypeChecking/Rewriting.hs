@@ -153,6 +153,9 @@ addRewriteRules qs = do
   -- Run confluence check for the new rules
   -- (should be done after adding all rules, see #3795)
   whenJustM (optConfluenceCheck <$> pragmaOptions) $ \confChk -> do
+    -- Warn if --cubical is enabled
+    whenJustM (optCubical <$> pragmaOptions) $ \_ -> genericWarning
+      "Confluence checking for --cubical is not yet supported, confluence checking might be incomplete"
     -- Global confluence checker requires rules to be sorted
     -- according to the generality of their lhs
     when (confChk == GlobalConfluenceCheck) $

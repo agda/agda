@@ -271,6 +271,11 @@ checkConfluenceOfRules confChk rews = inTopContext $ inAbstractMode $ do
             es0        = applySubst (liftS k sub1) $ ohElims hole0
             qs2        = rewPats rew2
 
+        -- TODO: support IApply in forceEtaExpansion
+        let isIApply IApply{} = True
+            isIApply _        = False
+        unless (any isIApply $ drop (size es0) qs2) $ do
+
         -- If the second rewrite rule has more eliminations than the
         -- subpattern of the first rule, the only chance of overlap is
         -- by eta-expanding the subpattern of the first rule.
@@ -612,7 +617,7 @@ instance ParallelReduce a => ParallelReduce [a] where
 instance ParallelReduce a => ParallelReduce (Elim' a) where
   parReduce (Apply u)  = Apply <$> parReduce u
   parReduce e@Proj{}   = pure e
-  parReduce IApply{}   = __IMPOSSIBLE__ -- not yet supported
+  parReduce e@IApply{} = pure e -- TODO
 
 instance (Free a, Subst a, ParallelReduce a) => ParallelReduce (Abs a) where
   parReduce = mapAbstraction __DUMMY_DOM__ parReduce
@@ -796,7 +801,7 @@ instance AllHoles Elims where
         let a' = c `absApp` hd []
         hd' <- applyE <$> applyDef o f (argFromDom b $> hd [])
         fmap (e:) <$> allHoles (a' , hd') es
-      IApply x y u -> __IMPOSSIBLE__ -- Not yet implemented
+      IApply x y u -> empty -- TODO: support --confluence-check + --cubical
 
 instance AllHoles Type where
   type PType Type = ()
