@@ -34,7 +34,7 @@ import Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Rules.Data
   ( getGeneralizedParameters, bindGeneralizedParameters, bindParameters
   , checkDataSort, fitsIn, forceSort
-  , defineCompData, defineTranspOrHCompForFields
+  , defineCompData, defineKanOperationForFields
   )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
@@ -428,8 +428,8 @@ defineCompKitR name params fsT fns rect = do
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM fsT
   reportSDoc "tc.rec.cxt" 30 $ pretty rect
   if not $ all isJust required then return $ emptyCompKit else do
-    transp <- whenDefined [builtinTrans]              (defineTranspOrHCompR DoTransp name params fsT fns rect)
-    hcomp  <- whenDefined [builtinTrans,builtinHComp] (defineTranspOrHCompR DoHComp name params fsT fns rect)
+    transp <- whenDefined [builtinTrans]              (defineKanOperationR DoTransp name params fsT fns rect)
+    hcomp  <- whenDefined [builtinTrans,builtinHComp] (defineKanOperationR DoHComp name params fsT fns rect)
     return $ CompKit
       { nameOfTransp = transp
       , nameOfHComp  = hcomp
@@ -440,17 +440,17 @@ defineCompKitR name params fsT fns rect = do
       if all isJust xs then m else return Nothing
 
 
-defineTranspOrHCompR ::
-  TranspOrHComp
+defineKanOperationR
+  :: Command
   -> QName       -- ^ some name, e.g. record name
   -> Telescope   -- ^ param types Δ
   -> Telescope   -- ^ fields' types Δ ⊢ Φ
   -> [Arg QName] -- ^ fields' names
   -> Type        -- ^ record type Δ ⊢ T
   -> TCM (Maybe QName)
-defineTranspOrHCompR cmd name params fsT fns rect = do
+defineKanOperationR cmd name params fsT fns rect = do
   let project = (\ t fn -> t `applyE` [Proj ProjSystem fn])
-  stuff <- fmap fst <$> defineTranspOrHCompForFields cmd Nothing project name params fsT fns rect
+  stuff <- fmap fst <$> defineKanOperationForFields cmd Nothing project name params fsT fns rect
 
   caseMaybe stuff (return Nothing) $ \ (theName, gamma, rtype, clause_types, bodies) -> do
   -- phi = 1 clause
