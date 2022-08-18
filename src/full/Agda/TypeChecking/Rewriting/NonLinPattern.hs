@@ -130,7 +130,7 @@ instance PatternFrom Type Term NLPat where
       , " of type " <+> prettyTCM t
       ]
     pview <- pathViewAsPi'whnf
-    let done = return $ PTerm v
+    let done = blockOnMetasIn v >> return (PTerm v)
     case (unEl t , stripDontCare v) of
       (Pi a b , _) -> do
         let body = raise 1 v `apply` [ Arg (domInfo a) $ var 0 ]
