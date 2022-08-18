@@ -98,6 +98,14 @@ import Agda.Utils.Size
 checkConfluenceOfClauses :: ConfluenceCheck -> QName -> TCM ()
 checkConfluenceOfClauses confChk f = do
   rews <- getClausesAsRewriteRules f
+  let noMetasInPats rew
+        | noMetas (rewPats rew) = return True
+        | otherwise             = do
+            genericWarning =<< do
+              text "Confluence checking incomplete because the definition of" <+>
+                prettyTCM f <+> text "contains unsolved metavariables."
+            return False
+  rews <- filterM noMetasInPats rews
   let matchables = map getMatchables rews
   reportSDoc "rewriting.confluence" 30 $
     "Function" <+> prettyTCM f <+> "has matchable symbols" <+> prettyList_ (map prettyTCM matchables)

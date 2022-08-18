@@ -1,0 +1,17 @@
+Issue5848.agda:6,1-12
+Confluence checking incomplete because the definition of l1 contains unsolved metavariables.
+when checking the definition of l1
+Failed to solve the following constraints:
+  ?2 = ?3 (i = Agda.Primitive.Cubical.i1)
+    : ?0 Agda.Primitive.Cubical.i1
+    (blocked on any(_4, _5))
+  ?1 = ?3 (i = Agda.Primitive.Cubical.i0)
+    : ?0 Agda.Primitive.Cubical.i0
+    (blocked on any(_3, _5))
+Unsolved metas at the following locations:
+  Issue5848.agda:5,6-11
+Unsolved interaction metas at the following locations:
+  Issue5848.agda:5,12-16
+  Issue5848.agda:5,17-21
+  Issue5848.agda:5,22-26
+  Issue5848.agda:6,8-12
