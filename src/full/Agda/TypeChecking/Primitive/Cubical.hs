@@ -280,7 +280,7 @@ doPiKanOp cmd t ab = do
         -- hcomp u u0 x = hcomp (λ i o → u i o x) (u0 x). Short and sweet :)
         (HCompOp _ u _, IsNot (a , b)) -> do
           bT <- (raise 1 b `absApp`) <$> u1
-          u <- open (unArg u)
+          u <- open (raise 1 (unArg u))
           pure tHComp
             <#> (Level <$> toLevel bT)
             <#> pure (unEl bT)
