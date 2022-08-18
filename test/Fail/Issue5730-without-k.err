@@ -1,0 +1,12 @@
+Issue5730-without-k.agda:13,1-4
+Cannot generate inferred clause for seq. Case to handle:
+  seq
+    (ι _ _
+       (Agda.Primitive.Cubical.primHComp {.Agda.Primitive.lzero}
+          {.(_ _ ≡ _)}
+          {φ = φ}
+          u
+          a))
+    x
+Cannot compose with type family: RecO (λ i → f (e i)) D (ι j).
+when checking the definition of seq

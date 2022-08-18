@@ -2253,7 +2253,9 @@ hcomp ty sys u0 = do
   tHComp <- primHComp
   let max i j = cl primIMax <@> i <@> j
   ty <- ty
-  Just (LEl l ty) <- toLType ty
+  (l, ty) <- toLType ty >>= \case
+    Just (LEl l ty) -> return (l, ty)
+    Nothing -> return (__DUMMY_LEVEL__, unEl ty) -- TODO: support Setω properly
   l <- open $ Level l
   ty <- open $ ty
   face <- (foldr max (pure iz) $ map fst $ sys)
@@ -2273,8 +2275,9 @@ transpSys ty sys phi u = do
   tComp <- fromMaybe __IMPOSSIBLE__ <$> getTerm' builtinComp
   l_ty <- bind "i" $ \ i -> do
       ty <- absApp <$> ty <*> i
-      Just (LEl l ty) <- toLType ty
-      return (l,ty)
+      toLType ty >>= \case
+        Just (LEl l ty) -> return (l,ty)
+        Nothing -> return (__DUMMY_LEVEL__, unEl ty) -- TODO: properly support Setω
   l <- open $ Lam defaultArgInfo . fmap (Level . fst) $ l_ty
   ty <- open $ Lam defaultArgInfo . fmap snd $ l_ty
 
