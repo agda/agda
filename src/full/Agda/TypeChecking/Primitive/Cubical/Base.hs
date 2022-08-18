@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 -- | Implementations of the basic primitives of Cubical Agda: The
 -- interval and its operations.
 module Agda.TypeChecking.Primitive.Cubical.Base

@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 -- | Implementation of the primitives relating to Cubical identity types.
 module Agda.TypeChecking.Primitive.Cubical.Id
   ( -- * General elimination form

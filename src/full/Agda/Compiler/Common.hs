@@ -4,7 +4,7 @@ module Agda.Compiler.Common where
 
 import Prelude hiding ((!!))
 
-import Data.List as List (sortBy, isPrefixOf)
+import Data.List (sortBy, isPrefixOf)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -100,7 +100,7 @@ sortDefs defs =
   -- The list is sorted to ensure that the order of the generated
   -- definitions does not depend on things like the number of bits
   -- in an Int (see Issue 1900).
-  List.sortBy (compare `on` fst) $
+  sortBy (compare `on` fst) $
   HMap.toList defs
 
 compileDir :: HasOptions m => m FilePath
