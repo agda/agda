@@ -1,0 +1,6 @@
+Issue6042.agda:26,1-46,68
+Termination checking failed for the following functions:
+  Id
+Problematic calls:
+  Id (𝛌 (λ _ → Set)) (snd (snd aₓ)) (B ∙ fst aₓ) (B ∙ fst (snd aₓ))
+    (at Issue6042.agda:33,7-9)
