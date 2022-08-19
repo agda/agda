@@ -672,7 +672,15 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                     Primitive{}               -> False
                     PrimitiveSort{}           -> False
                   isRigid _           = return False
+                  cubicalSubtypingMayApply = do
+                    s1 <- instantiate (getSort tgt)
+                    s2 <- instantiate (getSort t1)
+                    pure $ case (s1, s2) of
+                      (SSet _, Type _) -> True
+                      (Type _, SSet _) -> True
+                      _ -> False
               rigid <- isRigid tgt
+              cubical <- cubicalSubtypingMayApply
               -- Andreas, 2019-03-28, issue #3248:
               -- If the target type is SIZELT, we need coerce, leqType is insufficient.
               -- For example, we have i : Size <= (Size< ↑ i), but not Size <= (Size< ↑ i).
@@ -683,6 +691,7 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
                  | not rigid -> return chk    -- with a rigid target
                  | not vis   -> return chk    -- and only visible arguments
                  | isSizeLt  -> return chk    -- Issue #3248, not Size<
+                 | cubical   -> return chk    -- and not a case where cubical subtyping may apply
                  | otherwise -> do
                   let tgt1 = applySubst (strengthenS impossible $ size tel) tgt
                   reportSDoc "tc.term.args.target" 30 $ vcat

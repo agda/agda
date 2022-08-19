@@ -1144,7 +1144,15 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
       sub <- getBuiltinName' builtinSub
       s1 <- instantiate (getSort t1)
       s2 <- instantiate (getSort t2)
-      work sub s1 s2
+      reportSDoc "tc.conv.coerce.sort" 30 $
+        "coercing" <+> vcat
+          [ "instantiated s1 =" <+> pretty s1
+          , "instantiated s2 =" <+> pretty s2
+          ]
+      case (s1, s2) of
+        (SSet _, Type _) -> uncurry (work sub s1 s2) =<< (,) <$> reduce t1 <*> reduce t2
+        (Type _, SSet _) -> uncurry (work sub s1 s2) =<< (,) <$> reduce t1 <*> reduce t2
+        _ -> work sub s1 s2 t1 t2
 
     -- Implements coercive subtyping for cubical extension types. Idea:
     -- If one side of the coercion is a Sub, and we're coercing from a
@@ -1153,7 +1161,7 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
     -- between types of the same fibrancy, we don't do anything, as that
     -- causes any code using explicit inS/outS to have an unsolved φ
     -- argument.
-    work sub s1 s2 = case (cmp, t1, t2) of
+    work sub s1 s2 t1 t2 = case (cmp, t1, t2) of
       -- Case 1: We have a : Sub {l} A φ p and we want a term of t2.
       -- we can proceed by coercing
       --
@@ -1184,6 +1192,14 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
         , Just args@(Arg _ l:Arg _ a:Arg _ phi:Arg _ p:_) <- allApplyElims es
         , Type _ <- s1
         -> do
+        reportSDoc "tc.conv.coerce.ext" 30 $
+          "coercing" <+> vcat
+            [ "term            v  =" <+> prettyTCM v
+            , "from type       t1 =" <+> prettyTCM t1
+            , "to extension of  a =" <+> prettyTCM a
+            , "which must match p =" <+> prettyTCM p
+            , "defined on cofib φ =" <+> prettyTCM phi
+            ]
         inS <- primSubIn
         v <- coerce CmpLeq v t1 =<< el' (pure l) (pure a)
         runNamesT [] $ do
