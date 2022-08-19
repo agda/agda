@@ -134,9 +134,7 @@ checkApplication cmp hd args e t =
       checkConstructorApplication cmp e t con args
 
     -- Subcase: ambiguous constructor
-    A.Con (AmbQ cs0) -> disambiguateConstructor cs0 t >>= \ case
-      Left unblock -> postponeTypeCheckingProblem (CheckExpr cmp e t) unblock
-      Right c      -> checkConstructorApplication cmp e t c args
+    A.Con (AmbQ cs0) -> disambiguateConAppWithExtent cmp e t cs0 args
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
@@ -966,6 +964,67 @@ disambiguateConstructor cs0 t = do
              []  -> badCon $ t' $> Def d []
              c:cs-> typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d $
                       fmap conName $ c :| cs
+
+-- | Disambiguate a constructor application that occurs under a cubical
+-- @Sub@ type, verify the necessary compatibility, and insert the
+-- implicit @inS@.
+disambiguateConAppWithExtent
+  :: Comparison        -- ^ Should types be equal or does ≤ suffice?
+  -> A.Expr            -- ^ Expression we're type checking, as-is.
+  -> Type              -- ^ What's the expected type here?
+  -> List1 QName       -- ^ Constructor candidates
+  -> [NamedArg A.Expr] -- ^ Eliminations
+  -> TCM Term
+disambiguateConAppWithExtent cmp e t cs0 args = do
+  hascubes <- optCubical <$> pragmaOptions
+  sort <- instantiate (getSort t)
+
+  -- Rules here: If we have --cubical /and/ the sort of the expected
+  -- type is in SSet, then we'll reduce the type to determine whether or
+  -- not it's an extension. If we're not in cubical mode *or* the type
+  -- we expect isn't in SSet, then there's no chance that it can be a
+  -- Sub-type.
+  (ty, k) <- case (hascubes, sort) of
+    (Nothing, _) -> pure (t, pure)
+    (Just _, SSet _) -> do
+      -- Ok! Let's reduce t and check whether or not it's a subtype or
+      -- not.
+      mSub <- getBuiltinName' builtinSub
+      inS <- primSubIn
+      t' <- reduce t
+      case t' of
+        -- It's a subtype!
+        El _ (Def q es)
+          | Just q == mSub
+          , Just args@(Arg _ l:Arg _ a:Arg _ phi:Arg _ p:_) <- allApplyElims es -> do
+          -- This is the type at which we'll disambiguate the
+          -- constructor application:
+          underlyingTy <- el' (pure l) (pure a)
+
+          -- And this is a continuation that checks that the
+          -- disambiguated constructor application agrees with p on φ
+          -- and wraps the resulting term in @inS@ if so.
+          let
+            wrap :: Term -> TCM Term
+            wrap tm = runNamesT [] $ do
+              [l, a, phi', tm] <- traverse open [l, a, phi, tm]
+              ty <- pPi' "o" phi' $ \_ -> el' l a
+              lambdav <- ilam "o" (const tm)
+              lift $ equalTerm ty lambdav p
+              pure (inS `apply` (fmap hide (init args))) <@> tm
+
+          pure (underlyingTy, wrap)
+        _ -> pure (t, pure)
+    _ -> pure (t, pure)
+
+  disamb <- disambiguateConstructor cs0 ty
+  case disamb of
+    Left unblock -> postponeTypeCheckingProblem (CheckExpr cmp e t) unblock
+    Right c      ->
+      -- We disambiguate the constructor at the "inner" type (may either
+      -- be the t we started with, or A if --cubical and t = Sub A φ p),
+      -- then call the wrapper continuation.
+      k =<< checkConstructorApplication cmp e ty c args
 
 ---------------------------------------------------------------------------
 -- * Projections
