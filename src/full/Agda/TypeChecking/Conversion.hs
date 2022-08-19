@@ -1090,22 +1090,27 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
 leqType :: MonadConversion m => Type -> Type -> m ()
 leqType = compareType CmpLeq
 
--- | @coerce v a b@ coerces @v : a@ to type @b@, returning a @v' : b@
---   with maybe extra hidden applications or hidden abstractions.
+-- | @coerce v a b@ coerces @v : a@ to type @b@, returning a @w(v) : b@,
+-- where @w@ can be thought of as a cheap wrapper for turning values of
+-- @a@ into values of @b@. Coerce handles:
 --
---   In principle, this function can host coercive subtyping, but
---   currently it only tries to fix problems with hidden function types.
+-- * Insertion of implicit binders and implicit arguments to manage
+--   implicit Π types
+-- * Insertion of inS and outS to coerce values of cubical subtypes
+--   across sorts
+-- * Size subtyping.
 --
+-- Note that it is possible for @coerce v a b@ to succeed and produce a
+-- well-typed term @w(v) : b@ without @a ≤ b@ holding as types.
 coerce :: (MonadConversion m, MonadTCM m) => Comparison -> Term -> Type -> Type -> m Term
 coerce cmp v t1 t2 = blockTerm t2 $ do
   verboseS "tc.conv.coerce" 10 $ do
-    (a1,a2) <- reify (t1,t2)
     let dbglvl = 30
     reportSDoc "tc.conv.coerce" dbglvl $
       "coerce" <+> vcat
         [ "term      v  =" <+> prettyTCM v
-        , "from type t1 =" <+> prettyTCM a1
-        , "to type   t2 =" <+> prettyTCM a2
+        , "from type t1 =" <+> prettyTCM t1 <+> parens ("of sort " <+> prettyTCM (getSort t1))
+        , "to type   t2 =" <+> prettyTCM t2 <+> parens ("of sort " <+> prettyTCM (getSort t2))
         , "comparison   =" <+> prettyTCM cmp
         ]
     reportSDoc "tc.conv.coerce" 70 $
@@ -1120,6 +1125,7 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
   TelV tel1 b1 <- telViewUpTo' (-1) notVisible t1
   TelV tel2 b2 <- telViewUpTo' (-1) notVisible t2
   let n = size tel1 - size tel2
+
   -- the crude solution would be
   --   v' = λ {tel2} → v {tel1}
   -- however, that may introduce unneccessary many function types
@@ -1131,7 +1137,64 @@ coerce cmp v t1 t2 = blockTerm t2 $ do
       let v' = v `apply` args
       v' <$ coerceSize (compareType cmp) v' t1' t2
   where
-    fallback = v <$ coerceSize (compareType cmp) v t1 t2
+    -- Instantiate both of the sorts so we know whether to apply one of
+    -- the cubical Sub-typing rules. We also need the name of builtinSub
+    -- in a non-monadic context to tell whether any of t1, t2 is a Sub.
+    fallback = do
+      sub <- getBuiltinName' builtinSub
+      s1 <- instantiate (getSort t1)
+      s2 <- instantiate (getSort t2)
+      work sub s1 s2
+
+    -- Implements coercive subtyping for cubical extension types. Idea:
+    -- If one side of the coercion is a Sub, and we're coercing from a
+    -- fibrant sort to a non-fibrant sort, then we can make progress by
+    -- inserting outS and inS as appropriate. But if we're coercing
+    -- between types of the same fibrancy, we don't do anything, as that
+    -- causes any code using explicit inS/outS to have an unsolved φ
+    -- argument.
+    work sub s1 s2 = case (cmp, t1, t2) of
+      -- Case 1: We have a : Sub {l} A φ p and we want a term of t2.
+      -- we can proceed by coercing
+      --
+      --   outS {l} {A} {φ} {p} a : A
+      --
+      -- into B.
+      (CmpLeq, El _ (Def q es), _)
+        | Just q == sub
+        , Just args@(Arg _ l:Arg _ a:_) <- allApplyElims es
+        , Type _ <- s2
+        -> do
+        outS <- primSubOut
+        ty <- el' (pure l) (pure a)
+        let v' = outS `apply` (fmap hide args ++ [argN v])
+        coerce CmpLeq v' ty t2
+
+      -- Case 2: We want to make a : A into a term of Sub B φ P. The
+      -- first thing we do is coerce a : A into w(a) : B --- the
+      -- comparison has to take place in the target type. Then we
+      -- compare
+      --    φ ⊢ w(a) = P 1=1 : B
+      -- or really
+      --    (λ _ → w(a) = P : Partial φ B
+      -- if this succeeds, then we can take inS(w(a)) : Sub B φ P as the
+      -- result of the coercion.
+      (CmpLeq, _, El _ (Def q es))
+        | Just q == sub
+        , Just args@(Arg _ l:Arg _ a:Arg _ phi:Arg _ p:_) <- allApplyElims es
+        , Type _ <- s1
+        -> do
+        inS <- primSubIn
+        v <- coerce CmpLeq v t1 =<< el' (pure l) (pure a)
+        runNamesT [] $ do
+          [l, a, phi', v] <- traverse open [l, a, phi, v]
+          ty <- pPi' "o" phi' $ \_ -> el' l a
+          lambdav <- ilam "o" (const v)
+          lift $ equalTerm ty lambdav p
+          pure (inS `apply` (fmap hide (init args))) <@> v
+
+      -- Otherwise fall back to the size coercions
+      _ -> v <$ coerceSize (compareType cmp) v t1 t2
 
 -- | Account for situations like @k : (Size< j) <= (Size< k + 1)@
 --

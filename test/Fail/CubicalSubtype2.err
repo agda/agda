@@ -1,0 +1,3 @@
+CubicalSubtype2.agda:10,7-8
+s != P _ of type A
+when checking that the expression s has type A [ φ ↦ P ]

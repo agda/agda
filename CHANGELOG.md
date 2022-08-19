@@ -134,6 +134,9 @@ Language
   symId reflId = reflId
   ```
 
+* Agda will automatically insert `inS`/`outS` when a value of type `Sub
+  A φ p` is used where one of type `A` is expected, and vice-versa.
+
 Syntax
 ------
 

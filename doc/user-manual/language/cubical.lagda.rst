@@ -432,7 +432,15 @@ one has ``outS a = u 1=1``.
 With all of this cubical infrastructure we can now describe the
 ``hcomp`` operations.
 
+In situations where a cubical subtype is used instead of a fibrant type,
+or vice-versa, Agda will insert `inS` and `outS` implicitly. As a silly
+example,
 
+::
+
+  module _ {φ} {A : Set} {P : Partial φ A} (s : A [ φ ↦ P ]) where
+    _ : A
+    _ = s
 
 Homogeneous composition
 -----------------------
