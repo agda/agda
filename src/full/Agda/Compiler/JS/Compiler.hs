@@ -2,7 +2,7 @@
 
 module Agda.Compiler.JS.Compiler where
 
-import Prelude hiding ( null, writeFile )
+import Prelude hiding ( null, readFile, writeFile )
 
 import Control.DeepSeq
 import Control.Monad.Trans
@@ -57,7 +57,7 @@ import Agda.Utils.Null  ( null )
 import Agda.Utils.Pretty (prettyShow, render)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
-import Agda.Utils.IO.UTF8 ( writeFile )
+import Agda.Utils.IO.UTF8 ( readFile, writeFile, writeFileIfChanged )
 import Agda.Utils.Singleton ( singleton )
 import Agda.Utils.Size (size)
 
@@ -181,12 +181,27 @@ jsPostCompile opts _ ms = do
   compDir  <- compileDir
   liftIO $ do
     dataDir <- getDataDir
-    let fname = case optJSModuleStyle opts of
-          JSCJS -> "agda-rts.js"
+
+    let src = "agda-rts.js"
+        fname = case optJSModuleStyle opts of
+          JSCJS -> src
           JSAMD -> "agda-rts.amd.js"
-        srcPath = dataDir </> "JS" </> fname
+        srcPath = dataDir </> "JS" </> src
         compPath = compDir </> fname
-    copyIfChanged srcPath compPath
+
+    case optJSModuleStyle opts of
+      JSCJS -> copyIfChanged srcPath compPath
+      JSAMD -> do
+        rts <- readFile srcPath
+        writeFileIfChanged compPath $ unlines
+          [ "define([], function() {"
+          , "var exports = {};"
+          , ""
+          , rts
+          , ""
+          , "return exports;"
+          , "});"
+          ]
 
   -- Verify generated JS modules (except for main).
 

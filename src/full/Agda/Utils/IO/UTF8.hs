@@ -3,20 +3,26 @@
 module Agda.Utils.IO.UTF8
   ( ReadException
   , readTextFile
-  , Agda.Utils.IO.UTF8.readFile
-  , Agda.Utils.IO.UTF8.writeFile
+  , readFile
+  , writeFile
+  , writeFileIfChanged
   , writeTextToFile
   ) where
 
+import Prelude hiding ( readFile, writeFile )
+
 import Control.Exception
+import Control.Monad ( unless )
 import Data.Maybe (fromMaybe)
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as T
 import qualified Data.Text.Lazy.IO as T
+import qualified Data.ByteString.Char8 as C8 (pack)
 import qualified Data.ByteString.Lazy as BS
 import qualified System.IO as IO
 import qualified System.IO.Error as E
+import System.Directory ( doesFileExist )
 
 -- | Converts many character sequences which may be interpreted as
 -- line or paragraph separators into '\n'.
@@ -88,6 +94,14 @@ writeFile :: FilePath -> String -> IO ()
 writeFile file s = IO.withFile file IO.WriteMode $ \h -> do
   IO.hSetEncoding h IO.utf8
   IO.hPutStr h s
+
+writeFileIfChanged :: FilePath -> String -> IO ()
+writeFileIfChanged file s = do
+  exist <- doesFileExist file
+  if not exist then writeFile file s else do
+    let new = BS.fromStrict $ C8.pack s
+    old <- BS.readFile file
+    unless (old == new) $ writeFile file s
 
 -- | Writes a UTF8-encoded text file. The native convention for line
 -- endings is used.
