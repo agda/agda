@@ -438,9 +438,8 @@ example,
 
 ::
 
-  module _ {φ} {A : Set} {P : Partial φ A} (s : A [ φ ↦ P ]) where
-    _ : A
-    _ = s
+  example : ∀ {φ} {A : Set} {P : Partial φ A} (s : A [ φ ↦ P ]) → A
+  example s = s
 
 Homogeneous composition
 -----------------------
