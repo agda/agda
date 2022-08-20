@@ -24,6 +24,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Builtin
 import Agda.Syntax.Internal as I
+import Agda.Interaction.Options.Base (PragmaOptions(..))
 import Agda.TypeChecking.Monad.Base
 -- import Agda.TypeChecking.Functions  -- LEADS TO IMPORT CYCLE
 import Agda.TypeChecking.Substitute
@@ -484,13 +485,23 @@ data SortKit = SortKit
   , nameOfSetOmega :: IsFibrant -> QName
   }
 
-sortKit :: HasBuiltins m => m SortKit
+-- | Compute a 'SortKit' in an environment that supports failures. When
+-- 'optLoadPrimitives' is set to 'False', 'sortKit' is a fallible
+-- operation, so for the uses of 'sortKit' in fallible contexts (e.g.
+-- 'TCM'), we report a type error rather than exploding.
+sortKit :: (HasBuiltins m, MonadTCError m, HasOptions m) => m SortKit
 sortKit = do
-  Def set      _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
-  Def prop     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
-  Def setomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
-  Def sset     _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
-  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
+  loadPrim <- optLoadPrimitives <$> pragmaOptions
+  let
+    -- When '--no-load-primitives', recover by throwing a TC error.
+    recover s
+      | not loadPrim = typeError (GenericDocError ("Agda will not function without a binding for BUILTIN " <> s))
+      | otherwise = __IMPOSSIBLE__
+  Def set      _  <- maybe (recover "TYPE") pure           =<< getBuiltin' builtinSet
+  Def prop     _  <- maybe (recover "PROP") pure           =<< getBuiltin' builtinProp
+  Def setomega _  <- maybe (recover "SETOMEGA") pure       =<< getBuiltin' builtinSetOmega
+  Def sset     _  <- maybe (recover "STRICTSET") pure      =<< getBuiltin' builtinStrictSet
+  Def ssetomega _ <- maybe (recover "STRICTSETOMEGA") pure =<< getBuiltin' builtinSSetOmega
   return $ SortKit
     { nameOfSet      = set
     , nameOfProp     = prop
@@ -500,6 +511,25 @@ sortKit = do
         IsStrict  -> ssetomega
     }
 
+-- | Compute a 'SortKit' in contexts that do not support failure (e.g.
+-- 'Reify'). This should only be used when we are sure that the
+-- primitive sorts have been bound, i.e. because it is "after" type
+-- checking.
+infallibleSortKit :: HasBuiltins m => m SortKit
+infallibleSortKit = do
+  Def set      _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSet
+  Def prop     _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinProp
+  Def setomega _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSetOmega
+  Def sset     _  <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinStrictSet
+  Def ssetomega _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinSSetOmega
+  return $ SortKit
+    { nameOfSet      = set
+    , nameOfProp     = prop
+    , nameOfSSet     = sset
+    , nameOfSetOmega = \case
+        IsFibrant -> setomega
+        IsStrict  -> ssetomega
+    }
 
 ------------------------------------------------------------------------
 -- * Path equality

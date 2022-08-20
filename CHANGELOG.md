@@ -134,6 +134,13 @@ Language
   symId reflId = reflId
   ```
 
+* The new option `--no-load-primitives` complements `--no-import-sorts`
+  by foregoing loading of the primitive modules altogether. This option
+  leaves Agda in a very fragile state, as the built-in sorts are used
+  extensively throughout the implementation. It is intended to be used
+  with Literate Agda projects which want to bind `BUILTIN TYPE` (and
+  other primitives) in their own literate files.
+
 Syntax
 ------
 
