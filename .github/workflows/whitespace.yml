@@ -46,7 +46,7 @@ jobs:
         cabal-ver:
         - latest
         fix-whitespace-ver:
-        - 0.0.7
+        - 0.0.10
         ghc-ver:
         - '9.2'
 name: Whitespace
