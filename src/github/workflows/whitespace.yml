@@ -22,7 +22,7 @@ jobs:
         ghc-ver: ['9.2']
         cabal-ver: [latest]
         # stack-ver: [2.5.1]
-        fix-whitespace-ver: [0.0.7]
+        fix-whitespace-ver: [0.0.10]
 
     steps:
     - uses: actions/checkout@v2
