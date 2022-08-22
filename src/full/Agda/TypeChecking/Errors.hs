@@ -17,6 +17,7 @@ module Agda.TypeChecking.Errors
   , dropTopLevelModule
   , topLevelModuleDropper
   , stringTCErr
+  , Verbalize(verbalize)
   ) where
 
 import Prelude hiding ( null, foldl )
@@ -1411,6 +1412,13 @@ instance Verbalize Cohesion where
       Flat       -> "flat"
       Continuous -> "continuous"
       Squash     -> "squashed"
+
+instance Verbalize Modality where
+  verbalize mod | mod == defaultModality = "default"
+  verbalize (Modality rel qnt coh) = intercalate "," $
+    [ verbalize rel | rel /= defaultRelevance ] ++
+    [ verbalize qnt | qnt /= defaultQuantity ] ++
+    [ verbalize coh | coh /= defaultCohesion ]
 
 -- | Indefinite article.
 data Indefinite a = Indefinite a

@@ -1732,9 +1732,9 @@ fitsIn uc forceds t s = do
   -- noConstraints $ s' `leqSort` s
 
   withoutK <- withoutKOption
-  when withoutK $ whenM (isFibrant s) $ do
+  when withoutK $ do
     q <- viewTC eQuantity
-    usableAtModality (setQuantity q defaultModality) (unEl t)
+    usableAtModality' (isFibrant s) (setQuantity q defaultModality) (unEl t)
 
   fitsIn' withoutK forceds t s
   where

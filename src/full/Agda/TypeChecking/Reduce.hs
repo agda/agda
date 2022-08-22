@@ -276,7 +276,7 @@ instance Instantiate Constraint where
   instantiate' (CheckDataSort q s)  = CheckDataSort q <$> instantiate' s
   instantiate' c@CheckMetaInst{}    = return c
   instantiate' (CheckType t)        = CheckType <$> instantiate' t
-  instantiate' (UsableAtModality mod t) = UsableAtModality mod <$> instantiate' t
+  instantiate' (UsableAtModality c mod t) = UsableAtModality c mod <$> instantiate' t
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
@@ -887,7 +887,7 @@ instance Reduce Constraint where
   reduce' (CheckDataSort q s)   = CheckDataSort q <$> reduce' s
   reduce' c@CheckMetaInst{}     = return c
   reduce' (CheckType t)         = CheckType <$> reduce' t
-  reduce' (UsableAtModality mod t) = UsableAtModality mod <$> reduce' t
+  reduce' (UsableAtModality c mod t) = UsableAtModality c mod <$> reduce' t
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
@@ -1054,7 +1054,7 @@ instance Simplify Constraint where
   simplify' (CheckDataSort q s)   = CheckDataSort q <$> simplify' s
   simplify' c@CheckMetaInst{}     = return c
   simplify' (CheckType t)         = CheckType <$> simplify' t
-  simplify' (UsableAtModality mod t) = UsableAtModality mod <$> simplify' t
+  simplify' (UsableAtModality c mod t) = UsableAtModality c mod <$> simplify' t
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
@@ -1236,7 +1236,7 @@ instance Normalise Constraint where
   normalise' (CheckDataSort q s)   = CheckDataSort q <$> normalise' s
   normalise' c@CheckMetaInst{}     = return c
   normalise' (CheckType t)         = CheckType <$> normalise' t
-  normalise' (UsableAtModality mod t) = UsableAtModality mod <$> normalise' t
+  normalise' (UsableAtModality c mod t) = UsableAtModality c mod <$> normalise' t
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
@@ -1471,7 +1471,7 @@ instance InstantiateFull Constraint where
     CheckDataSort q s   -> CheckDataSort q <$> instantiateFull' s
     c@CheckMetaInst{}   -> return c
     CheckType t         -> CheckType <$> instantiateFull' t
-    UsableAtModality mod t -> UsableAtModality mod <$> instantiateFull' t
+    UsableAtModality c mod t -> UsableAtModality c mod <$> instantiateFull' t
 
 instance InstantiateFull CompareAs where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a
