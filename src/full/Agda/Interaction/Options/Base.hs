@@ -207,6 +207,9 @@ data PragmaOptions = PragmaOptions
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
+  , optLoadPrimitives            :: Bool
+    -- ^ Should we load the primitive modules at all? This is a stronger
+    -- form of 'optImportSorts'.
   , optAllowExec                 :: Bool
   , optSaveMetas                 :: WithDefault 'False
     -- ^ Save meta-variables.
@@ -330,6 +333,7 @@ defaultPragmaOptions = PragmaOptions
   , optAllowExec                 = False
   , optSaveMetas                 = Default
   , optShowIdentitySubstitutions = False
+  , optLoadPrimitives            = True
   }
 
 type OptM = Except String
@@ -555,6 +559,12 @@ ignoreAllInterfacesFlag o = return $ o { optIgnoreAllInterfaces = True }
 
 localInterfacesFlag :: Flag CommandLineOptions
 localInterfacesFlag o = return $ o { optLocalInterfaces = True }
+
+noLoadPrimitivesFlag :: Flag PragmaOptions
+noLoadPrimitivesFlag o = return $ o
+  { optLoadPrimitives = False
+  , optImportSorts = False
+  }
 
 allowUnsolvedFlag :: Flag PragmaOptions
 allowUnsolvedFlag o = do
@@ -1079,6 +1089,8 @@ pragmaOptions =
                     "use call-by-name evaluation instead of call-by-need"
     , Option []     ["no-import-sorts"] (NoArg noImportSorts)
                     "disable the implicit import of Agda.Primitive using (Set; Prop) at the start of each top-level module"
+    , Option []     ["no-load-primitives"] (NoArg noLoadPrimitivesFlag)
+                    "disable loading of primitive modules at all (implies --no-import-sorts)"
     , Option []     ["allow-exec"] (NoArg allowExec)
                     "allow system calls to trusted executables with primExec"
     , Option []     ["save-metas"] (NoArg $ saveMetas True)

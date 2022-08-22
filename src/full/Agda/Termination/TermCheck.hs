@@ -568,22 +568,27 @@ setMasks t cont = do
   (ds, d) <- liftTCM $ do
     TelV tel core <- telViewPath t
     -- Check argument types
-    ds <- forM (telToList tel) $ \ t -> do
-      TelV _ t <- telViewPath $ snd $ unDom t
-      d <- (isNothing <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
-      when d $
-        reportSDoc "term.mask" 20 $ do
-          "argument type "
-            <+> prettyTCM t
-            <+> " is not data or record type, ignoring structural descent for --without-K"
-      return d
+    ds <- checkArgumentTypes tel
     -- Check result types
-    d  <- isNothing <.> isDataOrRecord . unEl $ core
+    d  <- addContext tel $ isNothing <.> isDataOrRecord . unEl $ core
     when d $
       reportSLn "term.mask" 20 $ "result type is not data or record type, ignoring guardedness for --without-K"
     return (ds, d)
   terSetMaskArgs (ds ++ repeat True) $ terSetMaskResult d $ cont
 
+  where
+    checkArgumentTypes :: Telescope -> TCM [Bool]
+    checkArgumentTypes EmptyTel = return []
+    checkArgumentTypes (ExtendTel dom atel) = do
+      TelV tel2 t <- telViewPath $ unDom dom
+      d <- addContext tel2 $
+        (isNothing <$> isDataOrRecord (unEl t)) `or2M` (isJust <$> isSizeType t)
+      when d $
+        reportSDoc "term.mask" 20 $ do
+          "argument type "
+            <+> prettyTCM t
+            <+> " is not data or record type, ignoring structural descent for --without-K"
+      underAbstraction dom atel $ \tel -> (d:) <$> checkArgumentTypes tel
 
 -- | Is the current target type among the given ones?
 
