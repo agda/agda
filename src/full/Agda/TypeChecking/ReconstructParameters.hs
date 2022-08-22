@@ -153,8 +153,7 @@ reconstruct a v = do
         Def r pars -> do
           rt <- defType <$> getConstInfo r
           reportSDoc "tc.reconstruct" 50 $ "Here we start infering spine"
-          let reconstructWithoutPostFixing = reconstructAction { elimViewAction = elimView NoPostfix }
-          ((_,Def _ postPs),_) <- inferSpine' reconstructWithoutPostFixing rt (Def r []) (Def r []) pars
+          ((_,Def _ postPs),_) <- inferSpine' reconstructAction rt (Def r []) (Def r []) pars
           reportSDoc "tc.reconstruct" 50 $ "The spine has been inferred:" <+> pretty postPs
           let hiddenPs = map (Apply .
                               -- The parameters are erased in the
