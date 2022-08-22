@@ -480,14 +480,19 @@ instance UsableModality a => UsableModality (Arg a) where
 instance UsableModality a => UsableModality (Dom a) where
   usableMod mod Dom{unDom = u} = usableMod mod u
 
+usableAtModality' :: MonadConstraint TCM => TCM Bool -> Modality -> Term -> TCM ()
+usableAtModality' c mod t = catchConstraint (UsableAtModality c mod t) $ do
+  whenM c $ do
+    res <- runExceptT $ usableMod mod t
+    case res of
+      Right b -> do
+        unless b $
+          typeError . GenericDocError =<< (prettyTCM t <+> "is not usable at the required modality" <+> prettyTCM mod)
+      Left blocker -> patternViolation blocker
+
+
 usableAtModality :: MonadConstraint TCM => Modality -> Term -> TCM ()
-usableAtModality mod t = catchConstraint (UsableAtModality mod t) $ do
-  res <- runExceptT $ usableMod mod t
-  case res of
-    Right b -> do
-      unless b $
-        typeError . GenericDocError =<< (prettyTCM t <+> "is not usable at the required modality" <+> prettyTCM mod)
-    Left blocker -> patternViolation blocker
+usableAtModality = usableAtModality' $ pure True
 
 
 -- * Propositions

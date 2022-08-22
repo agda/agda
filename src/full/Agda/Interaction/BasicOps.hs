@@ -48,7 +48,7 @@ import Agda.Syntax.Parser
 import Agda.TheTypeChecker
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Errors ( getAllWarnings, stringTCErr )
+import Agda.TypeChecking.Errors ( getAllWarnings, stringTCErr, Verbalize(..) )
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Mention
@@ -485,7 +485,7 @@ instance Reify Constraint where
       t <- jMetaType . mvJudgement <$> lookupLocalMeta m
       OfType <$> reify (MetaV m []) <*> reify t
     reify (CheckType t) = JustType <$> reify t
-    reify (UsableAtModality mod t) = UsableAtMod mod <$> reify t
+    reify (UsableAtModality _ mod t) = UsableAtMod mod <$> reify t
 
 instance (Pretty a, Pretty b) => PrettyTCM (OutputForm a b) where
   prettyTCM (OutputForm r pids unblock c) =
@@ -540,7 +540,7 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint a b) where
              -- , nest 2 "stuck because" <?> pretty err ] -- We don't have Pretty for TCErr
       DataSort q s         -> "Sort" <+> pretty s <+> "allows data/record definitions"
       CheckLock t lk       -> "Check lock" <+> pretty lk <+> "allows" <+> pretty t
-      UsableAtMod mod t    -> "Is usable at" <+> pretty mod <+> pretty t
+      UsableAtMod mod t    -> "Is usable at" <+> text (verbalize mod) <+> "modality:" <+> pretty t
     where
       bin a op b = sep [a, nest 2 $ op <+> b]
       pcmp cmp a b = bin (pretty a) (pretty cmp) (pretty b)
@@ -658,7 +658,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         CheckMetaInst{}            -> Nothing
         CheckType t                -> isMeta (unEl t)
         CheckLockedVars t _ _ _    -> isMeta t
-        UsableAtModality _ t       -> isMeta t
+        UsableAtModality _ _ t     -> isMeta t
 
     isMeta (MetaV m' es_m)
       | m == m' = Just es_m
