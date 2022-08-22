@@ -74,29 +74,30 @@ reconstructParameters' act a v = do
         Con h ci vs -> do
           hh <- fromRight __IMPOSSIBLE__ <$> getConHead (conName h)
           TelV tel a <- telView a
-          let under = size tel  -- under-applied when under > 0
           reportSDoc "tc.reconstruct" 50 $
             sep [ "reconstructing"
                 , nest 2 $ sep [ prettyTCM v <+> ":"
                                , nest 2 $ prettyTCM a ] ]
           case (unEl a) of
-            Def d es -> do
-              Just n <- defParameters <$> getConstInfo d
-              let prePs = applySubst (strengthenS impossible under) . take n $ es
+            Def d es -> addContext tel $ do
+              di <- getConstInfo d
+              let n = fromMaybe __IMPOSSIBLE__ $ defParameters di
+                  dt = defType di
+                  prePs = take n $ es
+              reportSDoc "tc.reconstruct" 50 $ "Here we start infering spine"
+              ((_,Def _ psAfterAct),_) <- inferSpine' act dt (Def d []) (Def d []) prePs
+              ((_,Def _ postPs),_) <- inferSpine' reconstructAction dt (Def d []) (Def d []) psAfterAct
+              reportSDoc "tc.reconstruct" 50 $ "The spine has been inferred:" <+> pretty postPs
               let hiddenPs = map (Apply .
                                   -- The parameters are erased in the
                                   -- type of a constructor.
                                   applyQuantity zeroQuantity .
-                                  hideAndRelParams) $
-                             fromMaybe __IMPOSSIBLE__ $
-                             allApplyElims prePs
+                                  hideAndRelParams .
+                                  isApplyElim' __IMPOSSIBLE__) postPs
               reportSDoc "tc.reconstruct" 50 $ "The hiddenPs are" <+> pretty hiddenPs
-              tyCon <- defType <$> getConstInfo (conName hh)
-              reportSDoc "tc.reconstruct" 50 $ "Here we start infering spine"
-              ((_,Con hh ci psAfterAct),_) <- inferSpine' act tyCon (Con hh ci []) (Con hh ci []) hiddenPs
-              ((_,conWithPars),_) <- inferSpine' reconstructAction tyCon (Con hh ci []) (Con hh ci []) psAfterAct
-              reportSDoc "tc.reconstruct" 50 $ "The spine has been inferred:" <+> pretty conWithPars
-              return $ applyWithoutReversing conWithPars vs
+              -- If the constructor is underapplied, we need to escape from the telescope.
+              let conWithPars = Con hh ci $ applySubst (strengthenS __IMPOSSIBLE__ $ size tel) $ hiddenPs
+              return $ conWithPars `applyE` vs
             _ -> __IMPOSSIBLE__
         _  -> do
           vv <- elimView EvenLone v
@@ -145,36 +146,25 @@ reconstructParameters' act a v = do
       ty' <- reduce ty
       case unEl ty' of
         Def r pars -> do
-          ~(Just (El _ (Pi _ b))) <- getDefType p ty'
-          tyProj <- defType <$> getConstInfo p
+          rt <- defType <$> getConstInfo r
+          reportSDoc "tc.reconstruct" 50 $ "Here we start infering spine"
           let reconstructWithoutPostFixing = reconstructAction { elimViewAction = elimView NoPostfix }
+          ((_,Def _ psAfterAct),_) <- inferSpine' act rt (Def r []) (Def r []) pars
+          ((_,Def _ postPs),_) <- inferSpine' reconstructWithoutPostFixing rt (Def r []) (Def r []) psAfterAct
+          reportSDoc "tc.reconstruct" 50 $ "The spine has been inferred:" <+> pretty postPs
           let hiddenPs = map (Apply .
                               -- The parameters are erased in the
                               -- type of a projection.
-                              applyQuantity zeroQuantity) $
-                         mapHide tyProj $
-                         fromMaybe __IMPOSSIBLE__ $
-                         allApplyElims pars
-          reportSDoc "tc.reconstruct" 50 $ "The params are" <+> pretty hiddenPs
-          ((_,Def p psAfterAct),_) <- inferSpine' act tyProj (Def p []) (Def p []) hiddenPs
-          ((_,projWithPars),_) <- inferSpine' reconstructWithoutPostFixing tyProj (Def p []) (Def p []) psAfterAct
-          reportSDoc "tc.reconstruct" 50 $ "Spine infered" <+> pretty projWithPars
-          let fTe' x = applyWithoutReversing projWithPars ((Apply $ defaultArg $ fTe []):x)
+                              applyQuantity zeroQuantity .
+                              hideAndRelParams .
+                              isApplyElim' __IMPOSSIBLE__) postPs
+          reportSDoc "tc.reconstruct" 50 $ "The hiddenPs are" <+> pretty hiddenPs
+          let projWithPars = Def p hiddenPs
+          ~(Just (El _ (Pi _ b))) <- getDefType p ty'
+          let fTe' x = projWithPars `applyE` ((Apply $ defaultArg $ fTe []):x)
           loop' (absApp b (fTy [])) fTe' (fTy . (Proj o p:)) es
         _ -> __IMPOSSIBLE__
     loop' ty _   _   (IApply {}:vs) = __IMPOSSIBLE__
-
-    applyWithoutReversing :: Term -> Elims -> Term
-    applyWithoutReversing (Var i es)   ess = Var i (es++ess)
-    applyWithoutReversing (Def n es)   ess = Def n (es++ess)
-    applyWithoutReversing (Con h i es) ess = Con h i (es++ess)
-    applyWithoutReversing (MetaV i es) ess = MetaV i (es++ess)
-    applyWithoutReversing (Dummy s es) ess = Dummy s (es++ess)
-    applyWithoutReversing _            _   = __IMPOSSIBLE__
-
-    mapHide (El _ (Pi a b)) (p:tl) =
-      applyWhen (getHiding a == Hidden) hideAndRelParams p : mapHide (unAbs b) tl
-    mapHide t l = l
 
 dropParameters :: TermLike a => a -> TCM a
 dropParameters = traverseTermM $
