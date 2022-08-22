@@ -111,13 +111,14 @@ For example, the effect of
 
   open A using (xs) renaming (ys to zs)
 
-is to introduce the names ``xs`` and ``zs`` where ``xs`` refers to the same definition as ``A.xs`` and ``zs`` refers to ``A.ys``. We do not permit ``xs``, ``ys`` and ``zs`` to overlap. The other forms of opening are defined in terms of this one.
+is to introduce the names ``xs`` and ``zs`` where ``xs`` refers to the same definition as ``A.xs`` and ``zs`` refers to ``A.ys``. We do not permit ``xs``, ``ys`` and ``zs`` to overlap.
 
 Explicitly hiding ``x`` in a ``hiding`` clause and also using ``x`` in a ``using`` clause or renaming ``x to y`` in a ``renaming`` clause is an error.
 A ``renaming`` clause can be combined with either a ``using`` or a ``hiding`` clause.
 A ``using`` and a ``hiding`` clause can be combined, but the ``using`` clause takes precedence, hiding everything not mentioned, so except for a special situation with modules, there is nothing that the ``hiding`` clause can additionally hide.
 
 For submodules of the module being opened, we need to distinguish three situations:
+
 * If ``M`` is only a module (and not an object), then use ``module M`` to refer to it, and ``module M to N`` to rename it. Mentioning just ``M`` will be ignored with a warning. For instance,
 
   .. code-block:: agda
