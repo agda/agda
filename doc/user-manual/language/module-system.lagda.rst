@@ -99,7 +99,7 @@ In effect using private definitions means that, from the user’s perspective, w
 
 Name modifiers
 --------------
-An alternative to making definitions private is to exert finer control over what names are introduced when opening a module. This is done by qualifying an ``open`` (or ``open import``) statement with one or more of the modifiers ``using``, ``hiding``, or ``renaming``.
+An alternative to making definitions private is to exert finer control over what names are introduced when opening a module. This is done by qualifying an ``open`` (or ``open import`` or ``module X (args : Args) = ...``) statement with one or more of the modifiers ``using``, ``hiding``, or ``renaming``.
 
 * ``using`` is followed by a list of identifiers, separated by semicolons, and has the effect of introducing *only* those identifiers and the ones named in the ``renaming`` clause,
 * ``hiding`` is equally followed by a list of identifiers, separated by semicolons, and has the effect of introducing *all* identifiers but the ones named in the ``hiding`` clause,
