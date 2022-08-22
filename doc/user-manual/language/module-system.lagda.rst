@@ -124,7 +124,7 @@ For submodules of the module being opened, we need to distinguish three situatio
   .. code-block:: agda
 
     open A using (module M)
-    
+
 * If ``M`` is only an object (and not a module), then use ``M`` to refer to it, and ``M to N`` to renaming. Mentioning ``module M`` will be ignored with a warning.
 * If ``M`` is both an object and a module (which happens automatically if ``M`` was introduced with a ``data`` or ``record`` definition), then ``M`` affects *both* the object *and* the module, *unless* ``module M`` is mentioned separately. In order to introduce only the module, you can write ``using (module B)``. In order to introduce only the object, you can write ``using (B) hiding (module B)``. In order to introduce all but the module, you can write ``hiding (module B)``. It does not seem possible to introduce all but the object: if you write ``hiding (B) using (module B)``, then the ``using`` clause takes precedence and only ``module B`` is introduced.
 
