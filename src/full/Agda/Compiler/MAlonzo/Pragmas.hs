@@ -28,7 +28,7 @@ type HaskellType = String
 data HaskellPragma
   = HsDefn Range HaskellCode
       --  ^ @COMPILE GHC x = <code>@
-  | HsType Range HaskellType
+  | HsType Range (Maybe Int) HaskellType
       --  ^ @COMPILE GHC X = type <type>@
   | HsData Range HaskellType [HaskellCode]
       -- ^ @COMPILE GHC X = data D (c₁ | ... | cₙ)
@@ -38,14 +38,14 @@ data HaskellPragma
 
 instance HasRange HaskellPragma where
   getRange (HsDefn   r _)   = r
-  getRange (HsType   r _)   = r
+  getRange (HsType   r _ _) = r
   getRange (HsData   r _ _) = r
   getRange (HsExport r _)   = r
 
 instance Pretty HaskellPragma where
   pretty = \case
     HsDefn   _r hsCode        -> equals <+> text hsCode
-    HsType   _r hsType        -> equals <+> text hsType
+    HsType   _r ar hsType     -> equals <+> (text "type" <> parensNonEmpty (pretty ar)) <+> text hsType
     HsData   _r hsType hsCons -> hsep $
       [ equals, "data", text hsType
       , parens $ hsep $ map text $ List.intersperse "|" hsCons
@@ -91,7 +91,9 @@ parsePragma (CompilerPragma r s) =
       guard $ not $ any (`List.isPrefixOf` s) ["type", "data"]
 
     exportP = HsExport r <$ wordsP ["as"]        <* whitespace <*> hsIdent <* skipSpaces
-    typeP   = HsType   r <$ wordsP ["=", "type"] <* whitespace <*> hsCode
+    typeP   = HsType   r <$ wordsP ["=", "type"] <*>
+                            option Nothing (Just . read <$> between (char '(') (char ')') (munch1 isDigit)) <*
+                            whitespace <*> hsCode
     dataP   = HsData   r <$ wordsP ["=", "data"] <* whitespace <*> hsIdent <*>
                                                     paren (sepBy (skipSpaces *> hsIdent) barP) <* skipSpaces
     defnP   = HsDefn   r <$ wordsP ["="]         <* whitespace <*  notTypeOrData <*> hsCode

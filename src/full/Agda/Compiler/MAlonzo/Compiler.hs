@@ -704,7 +704,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       Axiom{} -> do
         ar <- liftTCM $ typeArity ty
-        retDecls $ [ compiledTypeSynonym q ty ar | Just (HsType r ty) <- [pragma] ] ++
+        retDecls $ [ compiledTypeSynonym q ty (fromMaybe ar args) | Just (HsType r args ty) <- [pragma] ] ++
                    fb axiomErr
       Primitive{ primName = s } -> (mempty,) . fb <$> (liftTCM . primBody) s
 
