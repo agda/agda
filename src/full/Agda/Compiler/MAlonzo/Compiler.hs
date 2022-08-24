@@ -1168,8 +1168,10 @@ compiledcondecl mar q = do
 
 compiledTypeSynonym :: QName -> String -> Nat -> HS.Decl
 compiledTypeSynonym q hsT arity =
-  HS.TypeDecl (unqhname TypeK q) []
-              (HS.FakeType hsT)
+  HS.TypeDecl (unqhname TypeK q) (map HS.UnkindedVar vs)
+              (foldl HS.TyApp (HS.FakeType hsT) $ map HS.TyVar vs)
+  where
+    vs = [ ihname A i | i <- [0 .. arity - 1]]
 
 tvaldecl :: QName
          -> Induction
