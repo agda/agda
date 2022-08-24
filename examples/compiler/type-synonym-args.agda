@@ -51,7 +51,7 @@ postulate
 {-# FOREIGN GHC type HsSynonym a = a  #-}
 
 -- Equivalent
-{-# COMPILE GHC X = type(1) HsSynonym #-} 
+{-# COMPILE GHC X = type(1) HsSynonym #-}
 -- {-# COMPILE GHC X = type HsSynonym #-}
 
 -- Error (HsSynonym not applied to enough arguments)
