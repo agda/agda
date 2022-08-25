@@ -30,24 +30,24 @@ data HaskellPragma
       --  ^ @COMPILE GHC x = <code>@
   | HsType Range (Maybe Int) HaskellType
       --  ^ @COMPILE GHC X = type <type>@
-  | HsData Range HaskellType [HaskellCode]
+  | HsData Range (Maybe Int) HaskellType [HaskellCode]
       -- ^ @COMPILE GHC X = data D (c₁ | ... | cₙ)
   | HsExport Range HaskellCode
       -- ^ @COMPILE GHC x as f@
   deriving (Show, Eq)
 
 instance HasRange HaskellPragma where
-  getRange (HsDefn   r _)   = r
-  getRange (HsType   r _ _) = r
-  getRange (HsData   r _ _) = r
-  getRange (HsExport r _)   = r
+  getRange (HsDefn   r _)     = r
+  getRange (HsType   r _ _)   = r
+  getRange (HsData   r _ _ _) = r
+  getRange (HsExport r _)     = r
 
 instance Pretty HaskellPragma where
   pretty = \case
     HsDefn   _r hsCode        -> equals <+> text hsCode
     HsType   _r ar hsType     -> equals <+> (text "type" <> parensNonEmpty (pretty ar)) <+> text hsType
-    HsData   _r hsType hsCons -> hsep $
-      [ equals, "data", text hsType
+    HsData   _r ar hsType hsCons -> hsep $
+      [ equals, "data" <> parensNonEmpty (pretty ar), text hsType
       , parens $ hsep $ map text $ List.intersperse "|" hsCons
       ]
     HsExport _r hsCode        -> "as" <+> text hsCode
@@ -90,11 +90,11 @@ parsePragma (CompilerPragma r s) =
       s <- look
       guard $ not $ any (`List.isPrefixOf` s) ["type", "data"]
 
+    typeArity = option Nothing (Just . read <$> between (char '(') (char ')') (munch1 isDigit))
+
     exportP = HsExport r <$ wordsP ["as"]        <* whitespace <*> hsIdent <* skipSpaces
-    typeP   = HsType   r <$ wordsP ["=", "type"] <*>
-                            option Nothing (Just . read <$> between (char '(') (char ')') (munch1 isDigit)) <*
-                            whitespace <*> hsCode
-    dataP   = HsData   r <$ wordsP ["=", "data"] <* whitespace <*> hsIdent <*>
+    typeP   = HsType   r <$ wordsP ["=", "type"] <*> typeArity <* whitespace <*> hsCode
+    dataP   = HsData   r <$ wordsP ["=", "data"] <*> typeArity <* whitespace <*> hsIdent <*>
                                                     paren (sepBy (skipSpaces *> hsIdent) barP) <* skipSpaces
     defnP   = HsDefn   r <$ wordsP ["="]         <* whitespace <*  notTypeOrData <*> hsCode
 
@@ -170,7 +170,7 @@ getHaskellConstructor c = do
     Constructor{conData = d} -> do
       mp <- liftTCM $ getHaskellPragma d
       case mp of
-        Just (HsData _ _ hsCons) -> do
+        Just (HsData _ _ _ hsCons) -> do
           cons <- defConstructors . theDef <$> getConstInfo d
           return $ Just $ fromMaybe __IMPOSSIBLE__ $ lookup c $ zip cons hsCons
         _ -> return Nothing

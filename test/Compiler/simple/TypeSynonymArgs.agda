@@ -25,3 +25,11 @@ postulate
 
 -- Error (HsSynonym not applied to enough arguments)
 -- {-# COMPILE GHC X = type(0) HsSynonym #-}
+
+--------
+
+data Y (a : Set) : Set where
+  yy : Y a
+
+{-# FOREIGN GHC data Y a = Y #-}
+{-# COMPILE GHC Y = data(0) Y (Y) #-}

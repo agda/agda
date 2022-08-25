@@ -714,7 +714,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl
               , dataPathCons = pcs
-              } | Just hsdata@(HsData r ty hsCons) <- pragma ->
+              } | Just hsdata@(HsData r args ty hsCons) <- pragma ->
         setCurrentRange r $ do
         reportSDoc "compile.ghc.definition" 40 $ hsep $
           [ "Compiling data type with COMPILE pragma ...", pretty hsdata ]
@@ -724,7 +724,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
         cds <- mapM (compiledcondecl Nothing) cs
         let result = concat $
               [ tvaldecl q Inductive (np + ni) [] (Just __IMPOSSIBLE__)
-              , [ compiledTypeSynonym q ty np ]
+              , [ compiledTypeSynonym q ty (fromMaybe np args) ]
               , cds
               , ccscov
               ]
@@ -744,14 +744,14 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
             -- inductive.
             inductionKind = fromMaybe Inductive ind
         in case pragma of
-          Just (HsData r ty hsCons) -> setCurrentRange r $ do
+          Just (HsData r args ty hsCons) -> setCurrentRange r $ do
             let cs = [conName con]
             liftTCM $ computeErasedConstructorArgs q
             ccscov <- constructorCoverageCode q np cs ty hsCons
             cds <- mapM (compiledcondecl Nothing) cs
             retDecls $
               tvaldecl q inductionKind np [] (Just __IMPOSSIBLE__) ++
-              [compiledTypeSynonym q ty np] ++ cds ++ ccscov
+              [compiledTypeSynonym q ty (fromMaybe np args)] ++ cds ++ ccscov
           _ -> do
             liftTCM $ computeErasedConstructorArgs q
             cd <- condecl (conName con) inductionKind
