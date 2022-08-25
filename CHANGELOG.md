@@ -63,8 +63,8 @@ Language
   (see [#5427](https://github.com/agda/agda/issues/5427)).
 
 * The cubical interval `I` now belongs to its own sort, `IUniv`, rather
-  than `SSet`. For `J : ISet` and `A : J → Set l`, we have
-  `(j : J) → A : Set l`, that is, the type of functions from a type in `ISet`
+  than `SSet`. For `J : IUniv` and `A : J → Set l`, we have
+  `(j : J) → A j : Set l`, that is, the type of functions from a type in `IUniv`
   to a fibrant type is fibrant.
 
 * The option `--experimental-irrelevance` is now perhaps incompatible
