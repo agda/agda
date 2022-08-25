@@ -482,6 +482,8 @@ data Declaration
       -- ^ @unquoteDecl xs = e@
   | UnquoteDef  Range [Name] Expr
       -- ^ @unquoteDef xs = e@
+  | UnquoteData Range Name [Name] Expr
+      -- ^ @unquoteDecl data d constructor xs = e@
   | Pragma      Pragma
   deriving (Data, Eq)
 
@@ -905,6 +907,7 @@ instance HasRange Declaration where
   getRange (PatternSyn r _ _ _)    = r
   getRange (UnquoteDecl r _ _)     = r
   getRange (UnquoteDef r _ _)      = r
+  getRange (UnquoteData r _ _ _)   = r
   getRange (Pragma p)              = getRange p
 
 instance HasRange LHS where
@@ -1052,6 +1055,7 @@ instance KillRange Declaration where
   killRange (Module _ q t d)        = killRange3 (Module noRange) q t d
   killRange (UnquoteDecl _ x t)     = killRange2 (UnquoteDecl noRange) x t
   killRange (UnquoteDef _ x t)      = killRange2 (UnquoteDef noRange) x t
+  killRange (UnquoteData _ xs cs t) = killRange3 (UnquoteData noRange) xs cs t
   killRange (Pragma p)              = killRange1 Pragma p
 
 instance KillRange Expr where
@@ -1267,6 +1271,7 @@ instance NFData Declaration where
   rnf (Module _ a b c)        = rnf a `seq` rnf b `seq` rnf c
   rnf (UnquoteDecl _ a b)     = rnf a `seq` rnf b
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
+  rnf (UnquoteData _ a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (Pragma a)              = rnf a
 
 instance NFData OpenShortHand

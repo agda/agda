@@ -223,6 +223,7 @@ recordConstructorType decls =
         C.NiceGeneralize{}    -> failure
         C.NiceUnquoteDecl{}   -> failure
         C.NiceUnquoteDef{}    -> failure
+        C.NiceUnquoteData{}   -> failure
 
 checkModuleApplication
   :: C.ModuleApplication
@@ -1717,7 +1718,9 @@ instance ToAbstract NiceDeclaration where
 
   -- Definitions (possibly mutual)
     NiceMutual r tc cc pc ds -> do
+      reportSLn "scope.mutual" 20 ("starting checking mutual definitions: " ++ prettyShow ds)
       ds' <- toAbstract ds
+      reportSLn "scope.mutual" 20 ("finishing checking mutual definitions")
       -- We only termination check blocks that do not have a measure.
       return [ A.Mutual (MutualInfo tc cc pc r) ds' ]
 
@@ -2037,6 +2040,34 @@ instance ToAbstract NiceDeclaration where
       zipWithM_ (rebindName p OtherDefName) xs ys
       return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
+    NiceUnquoteData r p a pc uc x cs e -> do
+      fx <- getConcreteFixity x
+      x' <- freshAbstractQName fx x
+      bindName p QuotableName x x'
+
+      -- Create the module for the qualified constructors
+      checkForModuleClash x
+      let m = qnameToMName x'
+      createModule (Just IsDataModule) m
+      bindModule p x m  -- make it a proper module
+
+      cs' <- mapM (bindUnquoteConstructorName m p) cs
+
+      e <- withCurrentModule m $ toAbstract e
+
+      rebindName p DataName x x'
+      zipWithM_ (rebindName p ConName) cs cs'
+      withCurrentModule m $ zipWithM_ (rebindName p ConName) cs cs'
+
+      fcs <- mapM getConcreteFixity cs
+      let mi = MutualInfo TerminationCheck YesCoverageCheck pc r
+      return
+        [ A.Mutual
+          mi [A.UnquoteData
+            [ mkDefInfo x fx p a r ] x' uc
+            [ mkDefInfo c fc p a r | (fc, c) <- zip fcs cs] cs' e ]
+        ]
+
     NicePatternSyn r a n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ prettyShow n
       (as, p) <- withLocalVars $ do
@@ -2234,6 +2265,25 @@ bindRecordConstructorName x kind a p = do
     p' = case a of
            AbstractDef -> PrivateAccess Inserted
            _           -> p
+
+bindUnquoteConstructorName :: ModuleName -> Access -> C.Name -> TCM A.QName
+bindUnquoteConstructorName m p c = do
+
+  r <- resolveName (C.QName c)
+  fc <- getConcreteFixity c
+  c' <- withCurrentModule m $ freshAbstractQName fc c
+  let aname qn = AbsName qn QuotableName Defined NoMetadata
+      addName = modifyCurrentScope $ addNameToScope (localNameSpace p) c $ aname c'
+      success = addName >> (withCurrentModule m $ addName)
+  case r of
+    _ | isNoName c       -> success
+    UnknownName          -> success
+    ConstructorName i ds -> if all (isJust . isConName . anameKind) ds
+      then success
+      else typeError $ ClashingDefinition (C.QName c) (anameName $ List1.head ds) Nothing
+    _ -> typeError $ GenericError $
+       "The name " ++ prettyShow c ++ " already has non-constructor definitions"
+  return c'
 
 instance ToAbstract DataConstrDecl where
   type AbsOfCon DataConstrDecl = A.Declaration

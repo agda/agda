@@ -1307,6 +1307,8 @@ Primitive : 'primitive' ArgTypeSignaturesOrEmpty  {
 UnquoteDecl :: { Declaration }
 UnquoteDecl
   : 'unquoteDecl' '=' Expr { UnquoteDecl (fuseRange $1 $3) [] $3 }
+  | 'unquoteDecl' 'data' Id '=' Expr { UnquoteData (getRange($1, $2, $5)) $3 [] $5 }
+  | 'unquoteDecl' 'data' Id 'constructor' SpaceIds '=' Expr { UnquoteData (getRange($1, $2, $4, $7)) $3 (List1.toList $5) $7 }
   | 'unquoteDecl' SpaceIds '=' Expr { UnquoteDecl (fuseRange $1 $4) (List1.toList $2) $4 }
   | 'unquoteDef'  SpaceIds '=' Expr { UnquoteDef (fuseRange $1 $4) (List1.toList $2) $4 }
 

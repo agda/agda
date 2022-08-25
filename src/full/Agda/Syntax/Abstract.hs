@@ -189,6 +189,7 @@ data Declaration
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
+  | UnquoteData [DefInfo] QName UniverseCheck [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Data, Show, Generic)
 
@@ -666,6 +667,7 @@ instance HasRange Declaration where
     getRange (PatternSynDef x _ _   ) = getRange x
     getRange (UnquoteDecl _ i _ _)    = getRange i
     getRange (UnquoteDef i _ _)       = getRange i
+    getRange (UnquoteData i _ _ j _ _) = getRange (i, j)
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)           = getRange x
@@ -799,6 +801,7 @@ instance KillRange Declaration where
   killRange (PatternSynDef x xs p     ) = killRange3 PatternSynDef x xs p
   killRange (UnquoteDecl mi i x e     ) = killRange4 UnquoteDecl mi i x e
   killRange (UnquoteDef i x e         ) = killRange3 UnquoteDef i x e
+  killRange (UnquoteData i xs uc j cs e) = killRange6 UnquoteData i xs uc j cs e
 
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c

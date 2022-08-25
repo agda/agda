@@ -51,7 +51,7 @@ import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.List1 (List1, pattern (:|), nonEmpty)
+import Agda.Utils.List1 (List1, pattern (:|), nonEmpty, toList)
 import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
@@ -529,7 +529,13 @@ bindName'' acc kind meta x y = do
 --   later on.
 rebindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 rebindName acc kind x y = do
-  modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
+  if kind == ConName
+    then modifyCurrentScope $
+           mapScopeNS (localNameSpace acc)
+                      (Map.update (toList <.> nonEmpty . (filter ((==) ConName . anameKind))) x)
+                      id
+                      id
+    else modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
   bindName acc kind x y
 
 -- | Bind a module name.
