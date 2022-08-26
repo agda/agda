@@ -1314,6 +1314,12 @@ top-level scope."
  nil)
 
 (agda2-maybe-normalised
+  agda2-goal-type-as-sub
+  "Shows the type of the goal at point as a quantified cubical subtype"
+  "Cmd_goal_type_as_sub"
+  nil)
+
+(agda2-maybe-normalised
  agda2-goal-and-context-and-inferred
  "Shows the context, the goal and the given expression's inferred type"
  "Cmd_goal_type_context_infer"

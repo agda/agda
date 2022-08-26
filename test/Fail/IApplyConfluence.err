@@ -1,3 +1,10 @@
+<<<<<<< HEAD
 IApplyConfluence.agda:18,1-20
 true != false of type Bool
 when checking the definition of decideEq
+=======
+IApplyConfluence.agda:18,1-35
+false != true of type Bool
+when checking the boundary condition
+(i = i1) ⊢ decideEq base (loop i) = false
+>>>>>>> 95594a582 ([ cubical ] wip: boundary-sensitive elaboration)

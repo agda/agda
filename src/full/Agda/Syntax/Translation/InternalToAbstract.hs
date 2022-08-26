@@ -52,6 +52,7 @@ import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
+import {-# SOURCE #-} qualified Agda.TypeChecking.Monad.Boundary as TCB
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.CompiledClause (CompiledClauses'(Fail))
 import Agda.TypeChecking.DisplayForm
@@ -1477,3 +1478,11 @@ instance (Reify i1, Reify i2, Reify i3) => Reify (i1,i2,i3) where
 instance (Reify i1, Reify i2, Reify i3, Reify i4) => Reify (i1,i2,i3,i4) where
     type ReifiesTo (i1, i2, i3, i4) = (ReifiesTo i1, ReifiesTo i2, ReifiesTo i3, ReifiesTo i4)
     reify (x,y,z,w) = (,,,) <$> reify x <*> reify y <*> reify z <*> reify w
+
+instance Reify t => Reify (TCB.Boundary' t) where
+  type ReifiesTo (TCB.Boundary' t) = TCB.Boundary' (ReifiesTo t)
+  reify (TCB.Boundary ts) = TCB.Boundary <$> reify ts
+
+instance Reify t => Reify (TCB.BoundaryConstraint' t) where
+  type ReifiesTo (TCB.BoundaryConstraint' t) = TCB.BoundaryConstraint' (ReifiesTo t)
+  reify = traverse reify

@@ -85,6 +85,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Monad.Boundary
 
 ---------------------------------------------------------------------------
 -- * Types
@@ -426,17 +427,21 @@ checkPath b@(A.TBind _r _tac (xp :| []) typ) body ty = do
     PathType s path level typ lhs rhs <- pathView ty
     interval <- primIntervalType
     v <- addContext ([x], interval) $
-           checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
-    iZero <- primIZero
-    iOne  <- primIOne
-    let lhs' = subst 0 iZero v
-        rhs' = subst 0 iOne  v
-    let t = Lam info $ Abs (namedArgName x) v
-    let btyp i = El s (unArg typ `apply` [argN i])
-    locallyTC eRange (const noRange) $ blockTerm ty $ setCurrentRange body $ do
-      equalTerm (btyp iZero) lhs' (unArg lhs)
-      equalTerm (btyp iOne) rhs' (unArg rhs)
-      return t
+      -- Path abstractions have nontrivial interactions with the
+      -- environment boundary. For starters, they're an introduction
+      -- form, so we have to IApply along the boundary before checking.
+      let
+        ty = (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
+        (rhs', lhs') = (raise 1 (unArg rhs, unArg lhs))
+      in
+        eliminateAlongBoundary [IApply lhs' rhs' (var 0)] $
+        withTermOrNot (var 0) (rhs', lhs') $ checkExpr body ty
+      -- But they also have their own boundary condition, of course from
+      -- the endpooints of the type. n.b.: when (i = i1) we're on the
+      -- RIGHT of the path, so there, the right-hand-side comes first.
+      -- Embarrassing that I need to note this, but it was a funny
+      -- error.
+    pure $ Lam info $ Abs (namedArgName x) v
 checkPath b body ty = __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------
@@ -537,7 +542,11 @@ checkLambda' cmp b xps typ body target = do
       (target0 , w) <- postponeOnBlockedPattern $
          addContext (xs, argsT) $ addTypedPatterns xps $ do
            t1 <- workOnTypes newTypeMeta_
-           v  <- checkExpr' cmp body t1
+           v  <-
+            -- boundary sensitivity: (λ x → t) : (A → B) [ φ → p ]
+            -- reduces to t x : B [ φ → p x ].
+            eliminateAlongBoundary [Apply (var n <$ a) | (n, a) <- zip [numbinds, numbinds-1..0] (List1.toList xps)] $
+            checkExpr' cmp body t1
            return (telePi tel t1 , teleLam tel v)
 
       -- Do not coerce hidden lambdas
@@ -572,7 +581,11 @@ checkLambda' cmp b xps typ body target = do
         (pid, argT) <- newProblem $ isTypeEqualTo typ a
         -- Andreas, Issue 630: take name from function type if lambda name is "_"
         v <- lambdaAddContext (namedArg x) y (defaultArgDom info argT) $
-               addTypedPatterns xps $ checkExpr' cmp body btyp
+              addTypedPatterns xps $
+              -- boundary sensitivity: (λ x → t) : (A → B) [ φ → p ]
+              -- reduces to t x : B [ φ → p x ].
+              eliminateAlongBoundary [Apply (var 0 <$ x)] $
+              checkExpr' cmp body btyp
         blockTermOnProblem target (Lam info $ Abs (namedArgName x) v) pid
 
     useTargetType _ _ = __IMPOSSIBLE__
@@ -1194,12 +1207,12 @@ checkExpr' cmp e t =
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
         e0@(A.App i q (Arg ai e))
-          | A.Quote _ <- unScope q, visible ai -> do
+          | A.Quote _ <- unScope q, visible ai -> discardAndCheck t $ do
           x <- quotedName $ namedThing e
           ty <- qNameType
           coerce cmp (quoteName x) ty t
 
-          | A.QuoteTerm _ <- unScope q -> do
+          | A.QuoteTerm _ <- unScope q -> discardAndCheck t $ do
              (et, _) <- inferExpr (namedThing e)
              doQuoteTerm cmp et t
 
@@ -1219,30 +1232,35 @@ checkExpr' cmp e t =
               checkExpr' cmp (A.Lam i (domainFree (getArgInfo x) $ A.unBind <$> namedArg x) e0) t
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
-        A.Lit _ lit  -> checkLiteral lit t
-        A.Let i ds e -> checkLetBindings ds $ checkExpr' cmp e t
-        e@A.Pi{} -> do
+        A.Lit _ lit  -> discardAndCheck t $ checkLiteral lit t
+        A.Let i ds e -> do
+          boundary <- asksTC envBoundary
+          discardBoundary $ \_ ->
+            checkLetBindings ds $
+              localTC (\e -> e { envBoundary = boundary }) $
+              checkExpr' cmp e t
+        e@A.Pi{} -> discardAndCheck t $ do
             t' <- isType_ e
             let s = getSort t'
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        A.Generalized s e -> do
+        A.Generalized s e -> discardAndCheck t $ do
             (_, t') <- generalizeType s $ isType_ e
             --noFunctionsIntoSize t' t'
             let s = getSort t'
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        e@A.Fun{} -> do
+        e@A.Fun{} -> discardAndCheck t $ do
             t' <- isType_ e
             let s = getSort t'
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        A.Rec _ fs  -> checkRecordExpression cmp fs e t
-
-        A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
+        -- TODO: Invert record literals
+        A.Rec _ fs  -> discardAndCheck t $ checkRecordExpression cmp fs e t
+        A.RecUpdate ei recexpr fs -> discardAndCheck t $ checkRecordUpdate cmp ei recexpr fs e t
 
         A.DontCare e -> -- resurrect vars
           ifM ((Irrelevant ==) <$> asksTC getRelevance)
@@ -1252,7 +1270,10 @@ checkExpr' cmp e t =
         A.Dot{} -> genericError "Invalid dotted expression"
 
         -- Application
-        _   | Application hd args <- appView e -> checkApplication cmp hd args e t
+        _   | Application hd args <- appView e ->
+          discardAndCheck t $ checkApplication cmp hd args e t
+          -- TODO: We can do better than discarding here, by pushing
+          -- into constructors for record types
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         -- We could not check the term because the type of some pattern is blocked.
@@ -1264,6 +1285,11 @@ checkExpr' cmp e t =
         postponeTypeCheckingProblem (CheckExpr cmp e t) x
 
   where
+  discardAndCheck t k = discardBoundary $ \check -> do
+    tm <- k
+    blockTerm t $ do
+      check CmpLeq t tm
+      pure tm
   -- Call checkExpr with an hidden lambda inserted if appropriate,
   -- else fallback.
   tryInsertHiddenLambda
@@ -1581,6 +1607,7 @@ isModuleFreeVar i = do
 --   arguments.  Otherwise, leave the type polymorphic.
 inferExprForWith :: Arg A.Expr -> TCM (Term, Type)
 inferExprForWith (Arg info e) = verboseBracket "tc.with.infer" 20 "inferExprForWith" $
+  discardBoundary $ \_ ->
   applyRelevanceToContext (getRelevance info) $ do
     reportSDoc "tc.with.infer" 20 $ "inferExprforWith " <+> prettyTCM e
     reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnscope e)

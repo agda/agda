@@ -53,6 +53,7 @@ interestingCall = \case
     InferExpr{}               -> True
     CheckExprCall{}           -> True
     CheckDotPattern{}         -> True
+    CheckTermBoundary{}       -> True
     IsTypeCall{}              -> True
     IsType_{}                 -> True
     CheckArguments{}          -> True
@@ -61,7 +62,6 @@ interestingCall = \case
     CheckDataDef{}            -> True
     CheckRecDef{}             -> True
     CheckConstructor{}        -> True
-    CheckIApplyConfluence{}   -> True
     CheckConstructorFitsIn{}  -> True
     CheckFunDefCall{}         -> True
     CheckPragma{}             -> True
@@ -185,13 +185,13 @@ instance MonadTrace TCM where
       CheckDataDef{}            -> True
       CheckRecDef{}             -> True
       CheckConstructor{}        -> True
+      CheckTermBoundary{}       -> False
       CheckConstructorFitsIn{}  -> False
       CheckFunDefCall _ _ _ h   -> h
       CheckPragma{}             -> True
       CheckPrimitive{}          -> True
       CheckIsEmpty{}            -> True
       CheckConfluence{}         -> False
-      CheckIApplyConfluence{}   -> False
       CheckWithFunctionType{}   -> True
       CheckSectionApplication{} -> True
       CheckNamedWhere{}         -> False

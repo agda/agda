@@ -41,6 +41,7 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 import Agda.Utils.Functor
 import Control.Monad.Reader
+import Agda.TypeChecking.Monad.Boundary
 
 
 checkIApplyConfluence_ :: QName -> TCM ()
@@ -66,151 +67,57 @@ checkIApplyConfluence_ f = whenM (isJust . optCubical <$> pragmaOptions) $ do
         forM_ cls $ checkIApplyConfluence f
     _ -> return ()
 
--- | @addClause f (Clause {namedClausePats = ps})@ checks that @f ps@
--- reduces in a way that agrees with @IApply@ reductions.
+-- | 'checkIApplyConfluence' checks that the given clause reduces in a
+-- way that is confluent with IApply reductions. The way this works is
+-- as follows: Since IApply reductions happen under the function, it
+-- suffices to check that the clause LHS (turned into an expression) is
+-- equal to the clause RHS at every interval substitution.
 checkIApplyConfluence :: QName -> Clause -> TCM ()
 checkIApplyConfluence f cl = case cl of
-      Clause {clauseBody = Nothing} -> return ()
-      Clause {clauseType = Nothing} -> __IMPOSSIBLE__
-      cl@Clause { clauseTel = clTel
-                , namedClausePats = ps
-                , clauseType = Just t
-                , clauseBody = Just body
-                } -> setCurrentRange (clauseLHSRange cl) $ do
-          let
-            trhs = unArg t
-          oldCall <- asksTC envCall
-          reportSDoc "tc.cover.iapply" 40 $ "tel =" <+> prettyTCM clTel
-          reportSDoc "tc.cover.iapply" 40 $ "ps =" <+> pretty ps
-          ps <- normaliseProjP ps
-          forM_ (iApplyVars ps) $ \ i -> do
-            unview <- intervalUnview'
-            let phi = unview $ IMax (argN $ unview (INeg $ argN $ var i)) $ argN $ var i
-            let es = patternsToElims ps
-            let lhs = Def f es
+  Clause {clauseBody = Nothing} -> return ()
+  Clause {clauseType = Nothing} -> __IMPOSSIBLE__
+  cl@Clause { clauseTel = clTel
+            , namedClausePats = ps
+            , clauseType = Just t
+            , clauseBody = Just body
+            , clauseFullRange = range
+            } -> setCurrentRange range $ do
+    -- For reporting, use the range associated with the clause (rather
+    -- than with the function's name). That way, if there's any yellow,
+    -- it might get hidden by the clause (e.g. if the RHS is an
+    -- interaction point).
 
-            reportSDoc "tc.iapply" 40 $ text "clause:" <+> pretty ps <+> "->" <+> pretty body
-            reportSDoc "tc.iapply" 20 $ "body =" <+> prettyTCM body
+  let trhs = unArg t
+      check b = b { boundaryCheck = True }
+  reportSDoc "tc.cover.iapply" 40 $ "tel =" <+> prettyTCM clTel
+  reportSDoc "tc.cover.iapply" 40 $ "ps =" <+> pretty ps
 
-            let
-              k :: Substitution -> Comparison -> Type -> Term -> Term -> TCM ()
-              k phi cmp ty u v = do
-                u_e <- simplify u
-                ty_e <- simplify ty
-                let
-                  -- Make note of the context (literally): we're
-                  -- checking that this specific clause in f is
-                  -- confluent with IApply reductions. That way if we
-                  -- can tell the user what the endpoints are.
-                  why = CheckIApplyConfluence
-                    (getRange cl) f
-                    (applySubst phi lhs)
-                    u_e v ty
+  addContext clTel $ do
+    ps <- normaliseProjP ps
+    withLHSBoundary f ps trhs $ do
+      -- 'withLHSBoundary' adds the boundary *as hints*, so we have to
+      -- make them checkable here. Additionally, we normalise the
+      -- boundary (only to compute display forms. Normalising too far
+      -- causes a failure in checking an hcomp clause in
+      -- Cubical.Homotopy.Hopf)
+      b' <- normaliseBoundary' True =<< fmap (Boundary . map check . boundaryFaces) (asksTC envBoundary)
+      localTC (\e -> e { envBoundary = b' }) $
+        -- Using 'discardBoundary' for checking the equalities means
+        -- that we get the proper boundary condition error messages.
+        discardBoundary $ \check -> check CmpEq trhs body
 
-                  -- But if the conversion checking failed really early, we drop the extra
-                  -- information. In that case, it's just noise.
-                  maybeDropCall e@(TypeError x y err)
-                    | UnequalTerms _ u' v' _ <- clValue err = do
-                      u <- prettyTCM u_e
-                      v <- prettyTCM =<< simplify v
-                      enterClosure err $ \e' -> do
-                        u' <- prettyTCM =<< simplify u'
-                        v' <- prettyTCM =<< simplify v'
-                        -- Specifically, we compare how the things are pretty-printed, to avoid
-                        -- double-printing, rather than a more refined heuristic, since the
-                        -- “failure case” here is *at worst* accidentally reminding the user of how
-                        -- IApplyConfluence works.
-                        if (u == u' && v == v')
-                          then localTC (\e -> e { envCall = oldCall }) $ typeError e'
-                          else throwError e
-                  maybeDropCall x = throwError x
-
-                -- Note: Any postponed constraint with this call *will* have the extra
-                -- information. This is a feature: if the constraint is woken up later,
-                -- then it's probably a good idea to remind the user of what's going on,
-                -- instead of presenting a mysterious error.
-                traceCall why (compareTerm cmp ty u v `catchError` maybeDropCall)
-
-            addContext clTel $ compareTermOnFace' k CmpEq phi trhs lhs body
-
-            case body of
-              MetaV m es_m' | Just es_m <- allApplyElims es_m' ->
-                caseMaybeM (isInteractionMeta m) (return ()) $ \ ii -> do
-                cs' <- do
-                  reportSDoc "tc.iapply.ip" 20 $ "clTel =" <+> prettyTCM clTel
-                  mv <- lookupLocalMeta m
-                  enterClosure (getMetaInfo mv) $ \ _ -> do -- mTel ⊢
-                  ty <- getMetaType m
-                  mTel <- getContextTelescope
-                  reportSDoc "tc.iapply.ip" 20 $ "size mTel =" <+> pretty (size mTel)
-                  reportSDoc "tc.iapply.ip" 20 $ "size es_m =" <+> pretty (size es_m)
-
-                  unless (size mTel == size es_m) $ reportSDoc "tc.iapply.ip" 20 $ "funny number of elims" <+> text (show (size mTel, size es_m))
-                  unless (size mTel <= size es_m) $ __IMPOSSIBLE__
-                  let over = if size mTel == size es_m then NotOverapplied else Overapplied
-
-                  -- extend telescope to handle extra elims
-                  TelV mTel1 _ <- telViewUpToPath (size es_m) ty
-                  reportSDoc "tc.iapply.ip" 20 $ "mTel1 =" <+> prettyTCM mTel1
-
-                  addContext (mTel1 `apply` teleArgs mTel) $ do
-                  mTel <- getContextTelescope
-
-                  addContext clTel $ do -- mTel.clTel ⊢
-                    () <- reportSDoc "tc.iapply.ip" 40 $ "mTel.clTel =" <+> (prettyTCM =<< getContextTelescope)
-                    forallFaceMaps phi __IMPOSSIBLE__ $ \_ alpha -> do
-                    -- mTel.clTel' ⊢
-                    -- mTel.clTel  ⊢ alpha : mTel.clTel'
-                    reportSDoc "tc.iapply.ip" 40 $ "mTel.clTel' =" <+> (prettyTCM =<< getContextTelescope)
-
-                    -- TelV tel _ <- telViewUpTo (size es) ty
-                    reportSDoc "tc.iapply.ip" 40 $ "i0S =" <+> pretty alpha
-                    reportSDoc "tc.iapply.ip" 20 $ fsep ["es :", pretty es]
-                    reportSDoc "tc.iapply.ip" 20 $ fsep ["es_alpha :", pretty (alpha `applySubst` es) ]
-
-                    -- reducing path applications on endpoints in lhs
-                    let
-                       loop t@(Def _ es) = loop' t es
-                       loop t@(Var _ es) = loop' t es
-                       loop t@(Con _ _ es) = loop' t es
-                       loop t@(MetaV _ es) = loop' t es
-                       loop t = return t
-                       loop' t es = ignoreBlocking <$> (reduceIApply' (pure . notBlocked) (pure . notBlocked $ t) es)
-                    lhs <- liftReduce $ traverseTermM loop (Def f (alpha `applySubst` es))
-
-                    let
-                        idG = raise (size clTel) $ (teleElims mTel [])
-
-                    reportSDoc "tc.iapply.ip" 20 $ fsep ["lhs :", pretty lhs]
-                    reportSDoc "tc.iapply.ip" 40 $ "cxt1 =" <+> (prettyTCM =<< getContextTelescope)
-                    reportSDoc "tc.iapply.ip" 40 $ prettyTCM $ alpha `applySubst` ValueCmpOnFace CmpEq phi trhs lhs (MetaV m idG)
-
-                    unifyElims (teleArgs mTel) (alpha `applySubst` es_m) $ \ sigma eqs -> do
-                    -- mTel.clTel'' ⊢
-                    -- mTel ⊢ clTel' ≃ clTel''.[eqs]
-                    -- mTel.clTel'' ⊢ sigma : mTel.clTel'
-                    reportSDoc "tc.iapply.ip" 40 $ "cxt2 =" <+> (prettyTCM =<< getContextTelescope)
-                    reportSDoc "tc.iapply.ip" 40 $ "sigma =" <+> pretty sigma
-                    reportSDoc "tc.iapply.ip" 20 $ "eqs =" <+> pretty eqs
-
-                    buildClosure $ IPBoundary
-                       { ipbEquations = eqs
-                       , ipbValue     = sigma `applySubst` lhs
-                       , ipbMetaApp   = alpha `applySubst` MetaV m es_m'
-                       , ipbOverapplied = over
-                       }
-
-                    -- WAS:
-                    -- fmap (over,) $ buildClosure $ (eqs
-                    --                , sigma `applySubst`
-                    --                    (ValueCmp CmpEq (AsTermsOf (alpha `applySubst` trhs)) lhs (alpha `applySubst` MetaV m es_m)))
-
-                let f ip = ip { ipClause = case ipClause ip of
-                                             ipc@IPClause{ipcBoundary = b}
-                                               -> ipc {ipcBoundary = b ++ cs'}
-                                             ipc@IPNoClause{} -> ipc}
-                modifyInteractionPoints (BiMap.adjust f ii)
-              _ -> return ()
+-- | If there are any 'IApply' co/patterns in the list of patterns,
+-- invert it into a boundary, and add that to the environment as a list
+-- of hints.
+withLHSBoundary :: QName -> [NamedArg DeBruijnPattern] -> Type -> TCM a -> TCM a
+withLHSBoundary f pat rhst k | not (null (iApplyVars pat)) = do
+  ineg <- primINeg
+  let
+    es = patternsToElims pat
+    want = Def f es
+    boundary = [ [(var k, want), (ineg `apply` [argN (var k)], want)] | k <- iApplyVars pat ]
+  withBoundaryHint (concat boundary) k
+withLHSBoundary _ _ _ k = k
 
 -- | current context is of the form Γ.Δ
 unifyElims :: Args

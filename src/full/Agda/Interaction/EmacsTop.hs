@@ -5,6 +5,7 @@ module Agda.Interaction.EmacsTop
     , showInfoError
     , explainWhyInScope
     , prettyTypeOfMeta
+    , prettySubTypeOfMeta
     ) where
 
 import Control.Monad
@@ -42,6 +43,7 @@ import Agda.Utils.Pretty
 import Agda.Utils.String
 import Agda.Utils.Time (CPUTime)
 import Agda.VersionCommit
+import Agda.TypeChecking.Monad.Boundary
 
 ----------------------------------
 
@@ -213,7 +215,16 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
     Goal_NormalForm cmode expr -> do
       doc <- showComputed cmode expr
       format (render doc) "*Normal Form*"   -- show?
-    Goal_GoalType norm aux ctx bndry constraints -> do
+    Goal_ExtensionType norm -> do
+      doc <- inTopContext $ prettySubTypeOfMeta norm ii
+      return [ L [ A "agda2-info-action-and-copy"
+                 , A $ quote "*Goal boundary as subtype*"
+                 , A $ quote (render doc ++ "\n")
+                 , A "nil"
+                 ]
+             ]
+
+    Goal_GoalType norm aux ctx boundary constraints -> do
       ctxDoc <- prettyResponseContext ii True ctx
       goalDoc <- prettyTypeOfMeta norm ii
       auxDoc <- case aux of
@@ -225,9 +236,9 @@ lispifyGoalSpecificDisplayInfo ii kind = localTCState $ withInteractionId ii $
               doc <- TCP.prettyTCM term
               return $ "Elaborates to:" <+> doc
       let boundaryDoc
-            | null bndry = []
+            | null (boundaryFaces boundary) = []
             | otherwise  = [ text $ delimiter "Boundary"
-                           , vcat $ map pretty bndry
+                           , vcat $ map pretty (boundaryFaces boundary)
                            ]
       let constraintsDoc
             | null constraints = []
@@ -373,7 +384,14 @@ prettyTypeOfMeta norm ii = do
   form <- B.typeOfMeta norm ii
   case form of
     OfType _ e -> prettyATop e
-    _            -> prettyATop form
+    _          -> prettyATop form
+
+prettySubTypeOfMeta :: Rewrite -> InteractionId -> TCM Doc
+prettySubTypeOfMeta norm ii = do
+  form <- B.subTypeOfMeta norm ii
+  case form of
+    OfType _ e -> prettyATop e
+    _          -> prettyATop form
 
 -- | Prefix prettified CPUTime with "Time:"
 prettyTimed :: CPUTime -> Doc

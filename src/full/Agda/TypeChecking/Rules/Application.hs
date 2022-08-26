@@ -72,6 +72,7 @@ import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Monad.Boundary
 
 -----------------------------------------------------------------------------
 -- * Applications
@@ -247,7 +248,7 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
     A.Def' x s | x == nameOfSSet     -> inferSSet e x s args
     A.Def' x s | x == nameOfSetOmega IsFibrant -> inferSetOmega e x IsFibrant s args
     A.Def' x s | x == nameOfSetOmega IsStrict  -> inferSetOmega e x IsStrict s args
-    _ -> do
+    _ -> discardBoundary $ \check -> do
       (f, t0) <- inferHead hd
       let r = getRange hd
       res <- runExceptT $ checkArgumentsE CmpEq exh (getRange hd) args t0 Nothing
@@ -256,6 +257,7 @@ inferApplication exh hd args e = postponeInstanceConstraints $ do
         Left problem -> do
           t <- workOnTypes $ newTypeMeta_
           v <- postponeArgs problem CmpEq exh r args t $ \ st -> unfoldInlined =<< checkHeadConstraints f st
+          check CmpLeq t v
           return (v, t)
 
 -----------------------------------------------------------------------------

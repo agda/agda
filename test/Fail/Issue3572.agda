@@ -15,6 +15,6 @@ data Interval : Set where
 --
 -- Hence conversion checking shouldn't reduce applications of `id`.
 id : Interval → Interval
-id (sq i) = sq i
 id left = id (sq i0)
 id right = id (sq i1)
+id (sq i) = id (sq i)

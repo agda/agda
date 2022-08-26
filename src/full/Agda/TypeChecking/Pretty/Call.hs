@@ -13,6 +13,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete
 
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Boundary
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Closure
@@ -195,19 +196,12 @@ instance PrettyTCM Call where
       where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 
+    CheckTermBoundary _ con ty tm -> vcat $
+      [ "when checking the boundary condition"
+      , prettyTCM con <+> "=" <+> prettyTCM tm
+      ]
+
     ModuleContents -> fsep $ pwords "when retrieving the contents of a module"
-
-    CheckIApplyConfluence _ qn fn l r t -> do
-      vcat
-        [ fsep (pwords "when checking that a clause of" ++ [prettyTCM qn] ++ pwords "has the correct boundary.")
-        , ""
-        , "Specifically, the terms"
-        , nest 2 (prettyTCM l)
-        , "and"
-        , nest 2 (prettyTCM r)
-        , fsep (pwords "must be equal, since" ++ [prettyTCM fn] ++ pwords "could reduce to either.")
-        ]
-
     where
     hPretty :: MonadPretty m => Arg (Named_ Expr) -> m Doc
     hPretty a = do

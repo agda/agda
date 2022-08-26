@@ -58,6 +58,7 @@ import GHC.Generics (Generic)
 
 import Agda.Benchmarking (Benchmark, Phase)
 
+import Agda.Syntax.TopLevelModuleName ( TopLevelModuleName )
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
@@ -90,6 +91,7 @@ import {-# SOURCE #-} Agda.Compiler.Backend hiding (Args)
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Warnings
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Boundary
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback)
 import Agda.Interaction.Highlighting.Precise
@@ -1647,25 +1649,6 @@ instance HasTag InteractionPoint where
 --   'ipSolved' to @True@.  (Issue #2368)
 type InteractionPoints = BiMap InteractionId InteractionPoint
 
--- | Flag to indicate whether the meta is overapplied in the
---   constraint.  A meta is overapplied if it has more arguments than
---   the size of the telescope in its creation environment
---   (as stored in MetaInfo).
-data Overapplied = Overapplied | NotOverapplied
-  deriving (Eq, Show, Generic)
-
--- | Datatype representing a single boundary condition:
---   x_0 = u_0, ... ,x_n = u_n ⊢ t = ?n es
-data IPBoundary' t = IPBoundary
-  { ipbEquations :: [(t,t)] -- ^ [x_0 = u_0, ... ,x_n = u_n]
-  , ipbValue     :: t          -- ^ @t@
-  , ipbMetaApp   :: t          -- ^ @?n es@
-  , ipbOverapplied :: Overapplied -- ^ Is @?n@ overapplied in @?n es@ ?
-  }
-  deriving (Show, Functor, Foldable, Traversable, Generic)
-
-type IPBoundary = IPBoundary' Term
-
 -- | Which clause is an interaction point located in?
 data IPClause = IPClause
   { ipcQName    :: QName              -- ^ The name of the function.
@@ -1674,14 +1657,13 @@ data IPClause = IPClause
   , ipcWithSub  :: Maybe Substitution -- ^ Module parameter substitution
   , ipcClause   :: A.SpineClause      -- ^ The original AST clause.
   , ipcClosure  :: Closure ()         -- ^ Environment for rechecking the clause.
-  , ipcBoundary :: [Closure IPBoundary] -- ^ The boundary imposed by the LHS.
   }
   | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
   deriving (Generic)
 
 instance Eq IPClause where
   IPNoClause           == IPNoClause             = True
-  IPClause x i _ _ _ _ _ == IPClause x' i' _ _ _ _ _ = x == x' && i == i'
+  IPClause x i _ _ _ _ == IPClause x' i' _ _ _ _ = x == x' && i == i'
   _                    == _                      = False
 
 ---------------------------------------------------------------------------
@@ -3171,19 +3153,10 @@ data Call
   | CheckWithFunctionType Type
   | CheckSectionApplication Range ModuleName A.ModuleApplication
   | CheckNamedWhere ModuleName
-  -- | Checking a clause for confluence with endpoint reductions. Always
-  -- @φ ⊢ f vs = rhs@ for now, but we store the simplifications of
-    -- @f vs[φ]@ and @rhs[φ]@.
-  | CheckIApplyConfluence
-      Range  -- ^ Clause range
-      QName  -- ^ Function name
-      Term   -- ^ (As-is) Function applied to the patterns in this clause
-      Term   -- ^ (Simplified) Function applied to the patterns in this clause
-      Term   -- ^ (Simplified) clause RHS
-      Type   -- ^ (Simplified) clause type
   | ScopeCheckExpr C.Expr
   | ScopeCheckDeclaration NiceDeclaration
   | ScopeCheckLHS C.QName C.Pattern
+  | CheckTermBoundary Range BoundaryConstraint Type Term
   | NoHighlighting
   | ModuleContents  -- ^ Interaction command: show module contents.
   | SetRange Range  -- ^ used by 'setCurrentRange'
@@ -3225,45 +3198,45 @@ instance Pretty Call where
     pretty CheckConfluence{}         = "CheckConfluence"
     pretty NoHighlighting{}          = "NoHighlighting"
     pretty ModuleContents{}          = "ModuleContents"
-    pretty CheckIApplyConfluence{}   = "ModuleContents"
+    pretty CheckTermBoundary{}       = "CheckTermBoundary"
 
 instance HasRange Call where
-    getRange (CheckClause _ c)                   = getRange c
-    getRange (CheckLHS lhs)                      = getRange lhs
-    getRange (CheckPattern p _ _)                = getRange p
-    getRange (CheckPatternLinearityType x)       = getRange x
-    getRange (CheckPatternLinearityValue x)      = getRange x
-    getRange (InferExpr e)                       = getRange e
-    getRange (CheckExprCall _ e _)               = getRange e
-    getRange (CheckLetBinding b)                 = getRange b
-    getRange (CheckProjection r _ _)             = r
-    getRange (IsTypeCall cmp e s)                = getRange e
-    getRange (IsType_ e)                         = getRange e
-    getRange (InferVar x)                        = getRange x
-    getRange (InferDef f)                        = getRange f
-    getRange (CheckArguments r _ _ _)            = r
-    getRange (CheckMetaSolution r _ _ _)         = r
-    getRange (CheckTargetType r _ _)             = r
-    getRange (CheckDataDef i _ _ _)              = getRange i
-    getRange (CheckRecDef i _ _ _)               = getRange i
-    getRange (CheckConstructor _ _ _ c)          = getRange c
-    getRange (CheckConstructorFitsIn c _ _)      = getRange c
-    getRange (CheckFunDefCall i _ _ _)           = getRange i
-    getRange (CheckPragma r _)                   = r
-    getRange (CheckPrimitive i _ _)              = getRange i
-    getRange CheckWithFunctionType{}             = noRange
-    getRange (CheckNamedWhere m)                 = getRange m
-    getRange (ScopeCheckExpr e)                  = getRange e
-    getRange (ScopeCheckDeclaration d)           = getRange d
-    getRange (ScopeCheckLHS _ p)                 = getRange p
-    getRange (CheckDotPattern e _)               = getRange e
-    getRange (SetRange r)                        = r
-    getRange (CheckSectionApplication r _ _)     = r
-    getRange (CheckIsEmpty r _)                  = r
-    getRange (CheckConfluence rule1 rule2)       = max (getRange rule1) (getRange rule2)
-    getRange NoHighlighting                      = noRange
-    getRange ModuleContents                      = noRange
-    getRange (CheckIApplyConfluence e _ _ _ _ _) = getRange e
+    getRange (CheckClause _ c)               = getRange c
+    getRange (CheckLHS lhs)                  = getRange lhs
+    getRange (CheckPattern p _ _)            = getRange p
+    getRange (CheckPatternLinearityType x)   = getRange x
+    getRange (CheckPatternLinearityValue x)  = getRange x
+    getRange (InferExpr e)                   = getRange e
+    getRange (CheckExprCall _ e _)           = getRange e
+    getRange (CheckLetBinding b)             = getRange b
+    getRange (CheckProjection r _ _)         = r
+    getRange (IsTypeCall cmp e s)            = getRange e
+    getRange (IsType_ e)                     = getRange e
+    getRange (InferVar x)                    = getRange x
+    getRange (InferDef f)                    = getRange f
+    getRange (CheckArguments r _ _ _)        = r
+    getRange (CheckMetaSolution r _ _ _)     = r
+    getRange (CheckTargetType r _ _)         = r
+    getRange (CheckDataDef i _ _ _)          = getRange i
+    getRange (CheckRecDef i _ _ _)           = getRange i
+    getRange (CheckConstructor _ _ _ c)      = getRange c
+    getRange (CheckConstructorFitsIn c _ _)  = getRange c
+    getRange (CheckFunDefCall i _ _ _)       = getRange i
+    getRange (CheckPragma r _)               = r
+    getRange (CheckPrimitive i _ _)          = getRange i
+    getRange CheckWithFunctionType{}         = noRange
+    getRange (CheckNamedWhere m)             = getRange m
+    getRange (ScopeCheckExpr e)              = getRange e
+    getRange (ScopeCheckDeclaration d)       = getRange d
+    getRange (ScopeCheckLHS _ p)             = getRange p
+    getRange (CheckDotPattern e _)           = getRange e
+    getRange (SetRange r)                    = r
+    getRange (CheckSectionApplication r _ _) = r
+    getRange (CheckIsEmpty r _)              = r
+    getRange (CheckConfluence rule1 rule2)   = max (getRange rule1) (getRange rule2)
+    getRange (CheckTermBoundary r _ _ _)     = r
+    getRange NoHighlighting                  = noRange
+    getRange ModuleContents                  = noRange
 
 ---------------------------------------------------------------------------
 -- ** Instance table
@@ -3511,6 +3484,7 @@ data TCEnv =
                 -- the counter is decreased in the failure
                 -- continuation of
                 -- 'Agda.TypeChecking.SyntacticEquality.checkSyntacticEquality'.
+          , envBoundary :: Boundary
           }
     deriving (Generic)
 
@@ -3572,6 +3546,7 @@ initEnv = TCEnv { envContext             = []
                 , envConflComputingOverlap  = False
                 , envCurrentlyElaborating   = False
                 , envSyntacticEqualityFuel  = Strict.Nothing
+                , envBoundary               = Boundary []
                 }
 
 class LensTCEnv a where
@@ -5345,8 +5320,6 @@ instance NFData RunMetaOccursCheck
 instance NFData MetaInfo
 instance NFData InteractionPoint
 instance NFData InteractionPoints
-instance NFData Overapplied
-instance NFData t => NFData (IPBoundary' t)
 instance NFData IPClause
 instance NFData DisplayForm
 instance NFData DisplayTerm

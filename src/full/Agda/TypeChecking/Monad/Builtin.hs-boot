@@ -9,7 +9,7 @@ import Control.Monad.Trans          ( MonadTrans, lift )
 
 import qualified Control.Monad.Fail as Fail
 
-import Agda.TypeChecking.Monad.Base (TCMT, Builtin, PrimFun)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (TCMT, Builtin, PrimFun)
 
 class ( Functor m
       , Applicative m

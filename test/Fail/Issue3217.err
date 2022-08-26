@@ -1,3 +1,4 @@
 Issue3217.agda:15,12-16
-true != false of type Bool
-when checking that the expression λ i → true has type true ≡ false
+true !=< false of type Bool
+when checking the boundary condition
+i ⊢ false = true

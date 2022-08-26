@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Issue5838b.agda:219,1-7
 false != true of type Bool
 when checking that a clause of bad' has the correct boundary.
@@ -11,3 +12,14 @@ and
      (transp (twisted-square' i) (primIMin i1 (primIMax i (~ i))) base))
   i0 false
 must be equal, since bad' i1 could reduce to either.
+=======
+Issue5838b.agda:219,1-103
+true != false of type Bool
+when checking the boundary condition
+(i = i1) ⊢ bad' i = transp
+                    (λ i₁ →
+                       DoubleCover
+                       (transp (twisted-square' i₁) (primIMin i (primIMax i₁ (~ i₁)))
+                        base))
+                    i0 false
+>>>>>>> 95594a582 ([ cubical ] wip: boundary-sensitive elaboration)

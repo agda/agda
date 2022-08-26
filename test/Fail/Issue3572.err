@@ -3,7 +3,11 @@ Termination checking failed for the following functions:
   id
 Problematic calls:
   id (sq i1)
+<<<<<<< HEAD
     (at Issue3572.agda:20,12-14)
 Issue3572.agda:18,1-10
 id (sq i0) != left of type Interval
 when checking the definition of id
+=======
+    (at Issue3572.agda:19,12-14)
+>>>>>>> 95594a582 ([ cubical ] wip: boundary-sensitive elaboration)

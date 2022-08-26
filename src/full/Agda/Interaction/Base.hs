@@ -270,6 +270,10 @@ data Interaction' range
 
   | Cmd_goal_type       Rewrite InteractionId range String
 
+  -- | Reifies the goal's context, type and boundary as a Pi-type ending
+  -- in @Sub@.
+  | Cmd_goal_type_as_sub Rewrite InteractionId range String
+
   -- | Grabs the current goal's type and checks the expression in the hole
   -- against it. Returns the elaborated term.
   | Cmd_elaborate_give

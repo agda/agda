@@ -36,7 +36,8 @@ import Agda.Syntax.Concrete.Name  (Name, QName, NameInScope)
 import Agda.Syntax.Scope.Base     (AbstractModule, AbstractName, LocalVar, WhyInScopeData)
 import qualified Agda.Syntax.Internal as I
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
-  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning, IPBoundary')
+  (TCM, TCErr, TCWarning, HighlightingMethod, ModuleToSource, NamedMeta, TCWarning)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Boundary
 import Agda.TypeChecking.Warnings (WarningsAndNonFatalErrors)
 import Agda.Utils.Impossible
 import Agda.Utils.Time
@@ -118,9 +119,10 @@ data DisplayInfo
 data GoalDisplayInfo
     = Goal_HelperFunction (OutputConstraint' A.Expr A.Expr)
     | Goal_NormalForm ComputeMode A.Expr
-    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] [IPBoundary' Expr] [OutputForm Expr Expr]
+    | Goal_GoalType Rewrite GoalTypeAux [ResponseContextEntry] (Boundary' Expr) [OutputForm Expr Expr]
     | Goal_CurrentGoal Rewrite
     | Goal_InferredType A.Expr
+    | Goal_ExtensionType Rewrite
 
 -- | Goals & Warnings
 type Goals = ( [OutputConstraint A.Expr InteractionId] -- visible metas (goals)

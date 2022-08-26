@@ -15,6 +15,7 @@ import Agda.Syntax.Internal.Elim
 
 import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Functor
+import Agda.Syntax.Abstract.Name (QName(..))
 
 ---------------------------------------------------------------------------
 -- * Blocked Terms

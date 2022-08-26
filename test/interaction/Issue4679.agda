@@ -4,7 +4,7 @@
 {-# OPTIONS --safe --cubical #-}
 
 -- {-# OPTIONS -v tc.def.fun:10 #-}
--- {-# OPTIONS -v tc.cover.iapply:10 #-}
+-- {-# OPTIONS -v tc.cover.iapply:40 #-}
 
 open import Agda.Primitive.Cubical renaming (primTransp to transp)
 open import Agda.Builtin.Cubical.Path using (_≡_)

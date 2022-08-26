@@ -1,3 +1,10 @@
+<<<<<<< HEAD
 PathWithBoundary.agda:20,1-12
 suc (q + m) != m of type Nat
 when checking the definition of PathWithBoundary.with-18
+=======
+PathWithBoundary.agda:20,1-16
+m != suc (w + m) of type Nat
+when checking the boundary condition
+(i = i0) ⊢ false n i | suc w = m
+>>>>>>> 95594a582 ([ cubical ] wip: boundary-sensitive elaboration)

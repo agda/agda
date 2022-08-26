@@ -6,10 +6,10 @@ import Control.Monad.State ( StateT )
 import Control.Monad.Trans.Identity ( IdentityT )
 import Control.Monad.Writer ( WriterT )
 
-import Agda.TypeChecking.Monad.Base
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Monad.Debug
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature
 
 class

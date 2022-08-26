@@ -10,17 +10,19 @@ import Data.Semigroup (Semigroup)
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad.Base
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Builtin
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Context (MonadAddContext)
-import Agda.TypeChecking.Monad.Debug (MonadDebug)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Debug (MonadDebug)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.MetaVars (MonadInteractionPoints)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Pure (PureTCM)
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Signature (HasConstInfo)
 
-import Agda.Utils.Null (Null)
-import Agda.Utils.Pretty (Doc)
+import Agda.Interaction.Options.HasOptions
+
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Pretty (Doc)
+import Agda.Utils.Null (Null)
 
 
 text                  :: Applicative m => String -> m Doc

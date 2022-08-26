@@ -1973,13 +1973,13 @@ equalSort s1 s2 = do
 --   xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
 --   return xs
 
-forallFaceMaps
-  :: MonadConversion m
-  => Term
-  -> (IntMap Bool -> Blocker -> Term -> m a)
-  -> (IntMap Bool -> Substitution -> m a)
-  -> m [a]
-forallFaceMaps t kb k = do
+forallFaceMaps :: MonadConversion m => Term -> (IntMap Bool -> Blocker -> Term -> m a) -> (Substitution -> m a) -> m [a]
+forallFaceMaps phi blocked cont = forallFaceMaps' phi blocked (const cont)
+
+forallFaceMaps'
+  :: MonadConversion m => Term -> (IntMap Bool -> Blocker -> Term -> m a)
+  -> (IntMap Bool -> Substitution -> m a) -> m [a]
+forallFaceMaps' t kb k = do
   reportSDoc "conv.forall" 20 $
       fsep ["forallFaceMaps"
            , prettyTCM t
@@ -2006,10 +2006,10 @@ forallFaceMaps t kb k = do
         tel <- getContextTelescope
         m <- currentModule
         sub <- getModuleParameterSub m
-        reportSDoc "conv.forall" 30 $ vcat
-          [ text (replicate 10 '-')
+        reportSDoc "conv.forall" 10 $ vcat
+          [ prettyTCM $ replicate 10 '-'
           , prettyTCM (envCurrentModule $ clEnv cl)
-          -- , prettyTCM (envLetBindings $ clEnv cl)
+          , pretty (envLetBindings $ clEnv cl)
           , prettyTCM tel -- (toTelescope $ envContext $ clEnv cl)
           , prettyTCM sigma
           , prettyTCM m
@@ -2136,7 +2136,7 @@ compareTermOnFace' k cmp phi ty u v = do
   whenProfile Profile.Conversion $ tick "compare at face type"
 
   phi <- reduce phi
-  _ <- forallFaceMaps phi postponed $ \ faces alpha ->
+  _ <- forallFaceMaps' phi postponed $ \ faces alpha ->
       k alpha cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
   return ()
  where

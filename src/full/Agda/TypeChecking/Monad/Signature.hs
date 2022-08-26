@@ -75,6 +75,7 @@ import Agda.Utils.Size
 import Agda.Utils.Update
 
 import Agda.Utils.Impossible
+import Agda.TypeChecking.Monad.Constraints
 
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()

@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import qualified Data.Map.Strict as MapS
 import qualified Data.Set as Set
 import qualified Data.List as List
+import qualified Data.IntMap as IntMap
 import Data.Maybe
 import Data.Monoid
 import Data.Function (on)
@@ -51,6 +52,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors ( getAllWarnings, stringTCErr, Verbalize(..) )
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
+import qualified Agda.TypeChecking.Monad.Boundary as B
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Mention
 import Agda.TypeChecking.Reduce
@@ -63,6 +65,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty ( PrettyTCM, prettyTCM )
 import Agda.TypeChecking.Pretty.Constraint (prettyRangeConstraint)
+import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 import Agda.TypeChecking.IApplyConfluence
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Names
@@ -70,6 +73,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
+import qualified Agda.Utils.SmallSet as SmallSet
 import Agda.TypeChecking.Warnings
   ( runPM, warning, WhichWarnings(..), classifyWarnings, isMetaTCWarning
   , WarningsAndNonFatalErrors, emptyWarningsAndNonFatalErrors )
@@ -83,6 +87,7 @@ import Agda.Utils.List1 (List1, pattern (:|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
+import Agda.Utils.Impossible
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty as P
@@ -90,9 +95,6 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.String
 
-import Agda.Utils.Impossible
-import qualified Agda.Utils.SmallSet as SmallSet
-import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 
 -- | Parses an expression.
 
@@ -600,24 +602,6 @@ instance (ToConcrete a, ToConcrete b) => ToConcrete (OutputConstraint' a b) wher
   type ConOfAbs (OutputConstraint' a b) = OutputConstraint' (ConOfAbs a) (ConOfAbs b)
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
-instance Reify a => Reify (IPBoundary' a) where
-  type ReifiesTo (IPBoundary' a) = IPBoundary' (ReifiesTo a)
-  reify = traverse reify
-
-instance ToConcrete a => ToConcrete (IPBoundary' a) where
-  type ConOfAbs (IPBoundary' a) = IPBoundary' (ConOfAbs a)
-
-  toConcrete = traverse (toConcreteCtx TopCtx)
-
-instance Pretty c => Pretty (IPBoundary' c) where
-  pretty (IPBoundary eqs val meta over) = do
-    let
-      xs = map (\ (l,r) -> pretty l <+> "=" <+> pretty r) eqs
-      rhs = case over of
-              Overapplied    -> "=" <+> pretty meta
-              NotOverapplied -> mempty
-    prettyList_ xs <+> "⊢" <+> pretty val <+> rhs
-
 prettyConstraints :: [Closure Constraint] -> TCM [OutputForm C.Expr C.Expr]
 prettyConstraints cs = do
   forM cs $ \ c -> do
@@ -633,6 +617,26 @@ namedMetaOf (JustType i) = i
 namedMetaOf (JustSort i) = i
 namedMetaOf (Assign i _) = i
 namedMetaOf _ = __IMPOSSIBLE__
+
+-- | Turn the 'envBoundary' associated with a metavariable (given by the
+-- 'MetaId') into one suitable for display.
+getBoundaryForMeta :: MetaId -> TCM (B.Boundary' C.Expr)
+getBoundaryForMeta mid = do
+  cubical <- isJust . optCubical <$> pragmaOptions
+  if not cubical
+    then pure (B.Boundary [])
+    else do
+      m <- lookupLocalMeta mid
+      unview <- intervalUnview'
+      let boundary = envBoundary $ clEnv $ miClosRange (mvInfo m)
+
+      -- First things first: we need to be in the same context as the
+      -- boundary, otherwise there's no way we're going to be able to print
+      -- things with their correct names. That's just a given.
+      enterClosure (mvInfo m) $ \_ ->
+        abstractToConcrete_ =<< reify =<<
+          B.normaliseBoundary boundary
+
 
 getConstraintsMentioning :: Rewrite -> MetaId -> TCM [OutputForm C.Expr C.Expr]
 getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMeta m)
@@ -724,16 +728,6 @@ getConstraints' g f = liftTCM $ do
         mi <- interactionIdToMetaId ii
         let m = QuestionMark emptyMetaInfo{ metaNumber = Just mi } ii
         abstractToConcrete_ $ OutputForm noRange [] alwaysUnblock $ Assign m e
-
-
-getIPBoundary :: Rewrite -> InteractionId -> TCM [IPBoundary' C.Expr]
-getIPBoundary norm ii = do
-      ip <- lookupInteractionPoint ii
-      case ipClause ip of
-        IPClause { ipcBoundary = cs } -> do
-          forM cs $ \ cl -> enterClosure cl $ \ b ->
-            abstractToConcrete_ =<< reifyUnblocked =<< normalForm norm b
-        IPNoClause -> return []
 
 -- | Goals and Warnings
 
@@ -855,6 +849,63 @@ typeOfMeta' norm (ii, mi) = fmap (\_ -> ii) <$> typeOfMetaMI norm mi
 typesOfVisibleMetas :: Rewrite -> TCM [OutputConstraint Expr InteractionId]
 typesOfVisibleMetas norm =
   liftTCM $ mapM (typeOfMeta' norm) =<< getInteractionIdsAndMetas
+
+-- | Reify the goal and context of a metavariable as a 'Sub' type.
+subTypeOfMeta :: Rewrite -> InteractionId -> TCM (OutputConstraint Expr InteractionId)
+subTypeOfMeta norm ii =
+  do
+    cubical <- isJust . optCubical <$> pragmaOptions
+    if not cubical
+      then pure $ JustSort ii
+      else do
+        mi <- lookupInteractionId ii
+        mv <- lookupLocalMeta mi
+        current <- currentModule
+        sysName <- qualify current <$> freshName_ (".boundarySys" :: String)
+        iv <- intervalView'
+        sub <- fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSub
+
+        withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
+          HasType i cmp t -> do
+
+            vs <- getContextArgs
+            t <- normalForm norm =<< t `piApplyM` permute (takeP (size vs) $ mvPermutation mv) vs
+            sort <- instantiate (getSort t)
+            boundary <- asksTC envBoundary
+
+            return <- case sort of
+              Type _ -> do
+                -- IF all the boundary constraints have display data
+                -- (guaranteed if they all have well-formed interval
+                -- expressions as the formulae, but just to be safe, in
+                -- case e.g. a function application ends up there)
+                B.Boundary faces <- B.normaliseBoundary boundary
+                case traverse (toFace iv) faces of
+                  Just xs -> do
+                    -- Then we can reify the boundary as a 'System', a
+                    -- list of clauses which is perfect for slapping
+                    -- into an extended lambda. The problem is that we
+                    -- have to fake the expression, which is
+                    -- complicated.
+                    inside <- reify t
+                    (s:sys) <- reify (QNamed sysName (System EmptyTel xs))
+
+                    let res =
+                          A.App (defaultAppInfo noRange)
+                            ((A.App (defaultAppInfo noRange)
+                                (A.App (defaultAppInfo noRange) (A.Def sub) (defaultNamedArg inside))
+                                (defaultNamedArg (A.Underscore emptyMetaInfo))))
+                            (defaultNamedArg (A.ExtendedLam exprNoRange __IMPOSSIBLE__ defaultErased sysName (s :| sys)))
+                      -- this is ((Sub A) φ) (λ { system })
+
+                    pure res
+                  Nothing -> reify . fromMaybe __IMPOSSIBLE__ =<< B.reifyBoundary t boundary
+              _ -> reify t
+
+            pure $ OfType ii $ return
+          IsSort i t -> pure $ JustSort ii
+  where
+    toFace iv (B.BoundaryConstraint _ b face _) = (,b) <$> face
 
 typesOfHiddenMetas :: Rewrite -> TCM [OutputConstraint Expr NamedMeta]
 typesOfHiddenMetas norm = liftTCM $ do
@@ -1059,11 +1110,14 @@ typeInCurrent norm e =
 
 
 typeInMeta :: InteractionId -> Rewrite -> Expr -> TCM Expr
-typeInMeta ii norm e =
-   do   m <- lookupInteractionId ii
-        mi <- getMetaInfo <$> lookupLocalMeta m
-        withMetaInfo mi $
-            typeInCurrent norm e
+typeInMeta ii norm e = do
+  m <- lookupInteractionId ii
+  mi <- getMetaInfo <$> lookupLocalMeta m
+  -- Discard the boundary before type-checking the expression, or
+  -- expressions that don't match the boundary won't have an inferred
+  -- type
+  withMetaInfo mi $ B.discardBoundary $ \_ ->
+    typeInCurrent norm e
 
 -- | The intro tactic.
 --

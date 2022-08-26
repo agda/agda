@@ -5,8 +5,8 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Identity ( IdentityT )
 
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 import Agda.Syntax.Common (InteractionId)
-import Agda.TypeChecking.Monad.Base
 
 class (MonadTCEnv m, ReadTCState m) => MonadInteractionPoints m where
   freshInteractionId :: m InteractionId

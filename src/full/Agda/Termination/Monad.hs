@@ -36,12 +36,14 @@ import Agda.Termination.CutOff
 import Agda.Termination.Order (Order,le,unknown)
 import Agda.Termination.RecCheck (MutualNames, anyDefs)
 
+import Agda.TypeChecking.Monad.Constraints (MonadConstraint)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Constraints ()
 
 import Agda.Utils.Benchmark as B
 import Agda.Utils.Function
@@ -197,6 +199,8 @@ newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
            , ReadTCState
            , MonadReduce
            , MonadAddContext
+           , MonadConstraint
+           , MonadBlock
            , PureTCM
            )
 

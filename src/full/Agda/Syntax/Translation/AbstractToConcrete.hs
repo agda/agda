@@ -70,6 +70,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Pure
 import Agda.TypeChecking.Monad.Signature
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Boundary
 import {-# SOURCE #-} Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.Interaction.Options
 
@@ -962,6 +963,9 @@ instance ToConcrete a => ToConcrete (FieldAssignment' a) where
     bindToConcrete (FieldAssignment name a) ret =
       bindToConcrete a $ ret . FieldAssignment name
 
+instance ToConcrete a => ToConcrete (Boundary' a) where
+  type ConOfAbs (Boundary' a) = Boundary' (ConOfAbs a)
+  toConcrete = traverse toConcrete
 
 -- Binder instances -------------------------------------------------------
 

@@ -37,6 +37,7 @@ import Agda.TypeChecking.Monad as TCM
   hiding (initState, setCommandLineOptions)
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.TypeChecking.Pretty as TCP
+import Agda.TypeChecking.Monad.Boundary
 import Agda.TypeChecking.Rules.Term (checkExpr, isType_)
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Warnings (runPM)
@@ -90,6 +91,7 @@ import Agda.Utils.Time
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
+import Agda.Syntax.Translation.InternalToAbstract
 
 ------------------------------------------------------------------------
 -- The CommandM monad
@@ -490,6 +492,7 @@ updateInteractionPointsAfter Cmd_autoOne{}                       = True
 updateInteractionPointsAfter Cmd_autoAll{}                       = True
 updateInteractionPointsAfter Cmd_context{}                       = False
 updateInteractionPointsAfter Cmd_helper_function{}               = False
+updateInteractionPointsAfter Cmd_goal_type_as_sub{}              = False
 updateInteractionPointsAfter Cmd_infer{}                         = False
 updateInteractionPointsAfter Cmd_goal_type{}                     = False
 updateInteractionPointsAfter Cmd_elaborate_give{}                = True
@@ -760,6 +763,9 @@ interpret (Cmd_infer norm ii rng s) = do
 
 interpret (Cmd_goal_type norm ii _ _) =
   display_info $ Info_GoalSpecific ii (Goal_CurrentGoal norm)
+
+interpret (Cmd_goal_type_as_sub norm ii _ _) =
+  display_info $ Info_GoalSpecific ii (Goal_ExtensionType norm)
 
 interpret (Cmd_elaborate_give norm ii rng s) =
   give_gen WithoutForce ii rng s $ ElaborateGive norm
@@ -1091,7 +1097,7 @@ cmd_goal_type_context_and :: GoalTypeAux -> Rewrite -> InteractionId -> Range ->
 cmd_goal_type_context_and aux norm ii _ _ = do
   ctx <- lift $ B.getResponseContext norm ii
   constr <- lift $ lookupInteractionId ii >>= B.getConstraintsMentioning norm
-  boundary <- lift $ B.getIPBoundary norm ii
+  boundary <- lift $ lookupInteractionId ii >>= B.getBoundaryForMeta
   display_info $ Info_GoalSpecific ii (Goal_GoalType norm aux ctx boundary constr)
 
 -- | Shows all the top-level names in the given module, along with

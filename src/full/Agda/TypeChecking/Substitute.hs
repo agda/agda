@@ -39,6 +39,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Boundary
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options (typeInType)
 import Agda.TypeChecking.Free as Free
@@ -1075,6 +1076,9 @@ instance (Subst a, Subst b, SubstArg a ~ SubstArg b) => Subst (Dom' a b) where
 
 instance Subst a => Subst (Maybe a) where
   type SubstArg (Maybe a) = SubstArg a
+
+instance Subst t => Subst (Boundary' t) where
+  type SubstArg (Boundary' t) = SubstArg t
 
 instance Subst a => Subst [a] where
   type SubstArg [a] = SubstArg a

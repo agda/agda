@@ -9,7 +9,7 @@ import Control.Monad.Trans.Identity ( IdentityT )
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
-import Agda.TypeChecking.Monad.Base
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 
 checkpointSubstitution :: MonadTCEnv tcm => CheckpointId -> tcm Substitution
 
