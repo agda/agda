@@ -10,7 +10,7 @@ import qualified Data.Text as T
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern ( hasDefP )
+import Agda.Syntax.Internal.Pattern ( hasDefP, dbPatPerm )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -200,7 +200,8 @@ quotingKit = do
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
       quotePat (LitP _ l)        = litP !@ quoteLit l
       quotePat (ProjP _ x)       = projP !@ quoteQName x
-      quotePat (IApplyP o t u x) = pure unsupported
+      -- #4763: quote IApply co/patterns as though they were variables
+      quotePat (IApplyP _ _ _ x) = varP !@! quoteNat (toInteger $ dbPatVarIndex x)
       quotePat DefP{}            = pure unsupported
 
       quoteClause :: Maybe Projection -> Clause -> ReduceM Term
