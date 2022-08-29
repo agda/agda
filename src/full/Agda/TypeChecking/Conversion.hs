@@ -11,9 +11,11 @@ import Control.Monad.Fail (MonadFail)
 import Data.Function
 import Data.Semigroup ((<>))
 import Data.IntMap (IntMap)
+
+import qualified Data.List   as List
 import qualified Data.IntMap as IntMap
-import qualified Data.List as List
 import qualified Data.IntSet as IntSet
+import qualified Data.Set    as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -445,14 +447,6 @@ computeElimHeadType f es es' = do
     fromMaybeM __IMPOSSIBLE__ $ getDefType f targ
 
 
-abortIfMissingClauses :: (Blocked Term, Blocked Term) -> Blocker
-abortIfMissingClauses (NotBlocked nb t, NotBlocked nb' t') =
-  case nb <> nb' of
-    MissingClauses _ -> alwaysUnblock
-    _                -> neverUnblock
-abortIfMissingClauses _ = __IMPOSSIBLE__
-
-
 -- | Syntax directed equality on atomic values
 --
 compareAtom :: forall m. MonadConversion m => Comparison -> CompareAs -> Term -> Term -> m ()
@@ -466,12 +460,15 @@ compareAtom cmp t m n =
                              , prettyTCM n
                              , prettyTCM t
                              ]
-    let blockIfMissingClauses b@Blocked{} = b
-        -- re #5600: We might add more clauses to the function later,
+    -- Are we currently defining mutual functions? Which?
+    currentMutuals <- maybe (pure Set.empty) (mutualNames <.> lookupMutualBlock) =<< asksTC envMutualBlock
+
+    let -- re #5600: We might add more clauses to the function later,
         --           so we shouldn't commit to an UnequalTerms error yet,
         --           even if there are no metas blocking computation.
-        blockIfMissingClauses (NotBlocked MissingClauses{} t) = Blocked alwaysUnblock t
-        blockIfMissingClauses b@NotBlocked{} = b
+        blockIfMissingClauses (NotBlocked (MissingClauses f) t)
+          | f `Set.member` currentMutuals = Blocked alwaysUnblock t
+        blockIfMissingClauses b = b
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
     (mb',nb') <- do
@@ -563,8 +560,15 @@ compareAtom cmp t m n =
       (Blocked b _, _) | not cmpBlocked -> useInjectivity (fromCmp cmp) b t m n   -- The blocked term  goes first
       (_, Blocked b _) | not cmpBlocked -> useInjectivity (flipCmp $ fromCmp cmp) b t n m
       bs -> do
-        let blocker' | cmpBlocked = blocker
-                     | otherwise = unblockOnEither blocker $ abortIfMissingClauses bs
+        let blocker'
+              | cmpBlocked = blocker
+              | otherwise = unblockOnEither blocker $
+                  case bs of
+                    (NotBlocked nb1 _, NotBlocked nb2 _)  -- this is the only case if not cmpBlocked
+                      | MissingClauses f <- nb1 <> nb2
+                      , f `Set.member` currentMutuals
+                      -> alwaysUnblock
+                    _ -> neverUnblock
         blockOnError blocker' $ do
         -- -- Andreas, 2013-10-20 put projection-like function
         -- -- into the spine, to make compareElims work.

@@ -3,7 +3,6 @@ Incomplete pattern matching for _==_. Missing cases:
   zero == suc x
   suc x == zero
 when checking the definition of _==_
-Failed to solve the following constraints:
-  True =< zero == suc zero
-Unsolved metas at the following locations:
-  IncompletePatternMatching.agda:18,7-9
+IncompletePatternMatching.agda:18,7-9
+True !=< zero == suc zero
+when checking that the expression tt has type zero == suc zero
