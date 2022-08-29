@@ -834,7 +834,7 @@ instance AnyRigid Term where
         -- If the definition is incomplete, arguments might disappear
         -- by reductions that come with more clauses, thus, these
         -- arguments are not rigid.
-        NotBlocked MissingClauses _ -> return False
+        NotBlocked (MissingClauses _) _ -> return False
         -- _        -> mempty -- breaks: ImproveInertRHS, Issue442, PruneRecord, PruningNonMillerPattern
         _        -> anyRigid f es
       Con _ _ ts -> anyRigid f ts

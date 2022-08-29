@@ -219,14 +219,14 @@ instance EmbPrj NotBlocked where
   icod_ (StuckOn a)      = icodeN 0 StuckOn a
   icod_ Underapplied     = icodeN 1 Underapplied
   icod_ AbsurdMatch      = icodeN 2 AbsurdMatch
-  icod_ MissingClauses   = icodeN 3 MissingClauses
+  icod_ (MissingClauses a) = icodeN 3 MissingClauses a
 
   value = vcase valu where
     valu []     = valuN ReallyNotBlocked
     valu [0, a] = valuN StuckOn a
     valu [1]    = valuN Underapplied
     valu [2]    = valuN AbsurdMatch
-    valu [3]    = valuN MissingClauses
+    valu [3, a] = valuN MissingClauses a
     valu _      = malformed
 
 instance EmbPrj Blocked_ where

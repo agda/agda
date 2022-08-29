@@ -3037,7 +3037,7 @@ data TCEnv =
                 -- these will become unsolved metas.
           , envAppDef :: Maybe QName
                 -- ^ We are reducing an application of this function.
-                -- (For debugging of incomplete matches only.)
+                -- (For tracking of incomplete matches.)
           , envSimplification :: Simplification
                 -- ^ Did we encounter a simplification (proper match)
                 --   during the current reduction process?
