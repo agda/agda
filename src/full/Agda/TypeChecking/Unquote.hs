@@ -582,13 +582,13 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
              , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
-             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (unElim v))
+             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
              ]
              failEval
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
              , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
-             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
+             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
              , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
              , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
@@ -740,13 +740,20 @@ evalTCM v = do
       v <- checkExpr e a
       if r then do
         v <- process v
-        v <- locallyReduceAllDefs $ reconstructParameters' defaultAction a v
+        v <- locallyReduceAllDefs $ reconstructParameters a v
         locallyReconstructed (quoteTerm v)
       else
         quoteTerm =<< process v
 
-    tcQuoteTerm :: Term -> UnquoteM Term
-    tcQuoteTerm v = liftTCM $ quoteTerm =<< process v
+    tcQuoteTerm :: Type -> Term -> UnquoteM Term
+    tcQuoteTerm a v = liftTCM $ do
+      r <- isReconstructed
+      if r then do
+        v <- process v
+        v <- locallyReduceAllDefs $ reconstructParameters a v
+        locallyReconstructed (quoteTerm v)
+      else
+        quoteTerm =<< process v
 
     tcUnquoteTerm :: Type -> R.Term -> TCM Term
     tcUnquoteTerm a v = do
