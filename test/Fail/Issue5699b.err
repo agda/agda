@@ -1,0 +1,18 @@
+Issue5699b.agda:19,8-9
+lam visible
+(abs "x"
+ (lam visible
+  (abs "r"
+   (def (quote f)
+    (arg (arg-info visible (modality relevant quantity-ω))
+     (def (quote D)
+      (arg (arg-info visible (modality relevant quantity-ω))
+       (def (quote Nat) [])
+       ∷
+       arg (arg-info visible (modality relevant quantity-ω)) (lit (nat 0))
+       ∷ []))
+     ∷
+     arg (arg-info visible (modality relevant quantity-ω)) (var 1 []) ∷
+     arg (arg-info visible (modality relevant quantity-ω)) (var 0 []) ∷
+     [])))))
+when checking that the expression unquote m has type _27
