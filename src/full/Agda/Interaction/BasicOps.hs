@@ -658,7 +658,7 @@ getConstraintsMentioning norm m = getConstrs instantiateBlockingFull (mentionsMe
         CheckMetaInst{}            -> Nothing
         CheckType t                -> isMeta (unEl t)
         CheckLockedVars t _ _ _    -> isMeta t
-        UsableAtModality _ _ t     -> isMeta t
+        UsableAtModality ms _ t    -> caseMaybe ms (isMeta t) $ \ s -> isMetaS s `mplus` isMeta t
 
     isMeta (MetaV m' es_m)
       | m == m' = Just es_m

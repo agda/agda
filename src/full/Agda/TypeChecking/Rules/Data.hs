@@ -1734,7 +1734,7 @@ fitsIn uc forceds t s = do
   withoutK <- withoutKOption
   when withoutK $ do
     q <- viewTC eQuantity
-    usableAtModality' (isFibrant s) (setQuantity q defaultModality) (unEl t)
+    usableAtModality' (Just s) (setQuantity q defaultModality) (unEl t)
 
   fitsIn' withoutK forceds t s
   where
