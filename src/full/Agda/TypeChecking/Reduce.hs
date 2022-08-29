@@ -1,6 +1,29 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 
-module Agda.TypeChecking.Reduce where
+module Agda.TypeChecking.Reduce
+ -- Meta instantiation
+ ( Instantiate, instantiate', instantiate, instantiateWhen
+ -- Recursive meta instantiation
+ , InstantiateFull, instantiateFull', instantiateFull
+ , instantiateFullExceptForDefinitions
+ -- Check for meta (no reduction)
+ , IsMeta, isMeta
+ -- Reduction and blocking
+ , Reduce, reduce', reduceB', reduce, reduceB, reduceWithBlocker, reduceIApply'
+ , reduceDefCopy, reduceDefCopyTCM
+ , reduceHead
+ , slowReduceTerm
+ , unfoldCorecursion, unfoldCorecursionE
+ , unfoldDefinitionE, unfoldDefinitionStep
+ , unfoldInlined
+ , appDef', appDefE'
+ , abortIfBlocked, ifBlocked, isBlocked
+ -- Simplification
+ , Simplify, simplify, simplifyBlocked'
+ -- Normalization
+ , Normalise, normalise', normalise
+ , slowNormaliseArgs
+ ) where
 
 import Control.Monad ( (>=>), void )
 
@@ -92,10 +115,11 @@ withReduced a cont = ifBlocked a (\b a' -> addOrUnblocker b $ cont a') (\_ a' ->
 normalise :: (Normalise a, MonadReduce m) => a -> m a
 normalise = liftReduce . normalise'
 
--- | Normalise the given term but also preserve blocking tags
---   TODO: implement a more efficient version of this.
-normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
-normaliseB = normalise >=> reduceB
+-- UNUSED
+-- -- | Normalise the given term but also preserve blocking tags
+-- --   TODO: implement a more efficient version of this.
+-- normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
+-- normaliseB = normalise >=> reduceB
 
 simplify :: (Simplify a, MonadReduce m) => a -> m a
 simplify = liftReduce . simplify'
