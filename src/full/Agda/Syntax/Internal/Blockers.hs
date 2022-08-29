@@ -11,6 +11,7 @@ import Data.Semigroup
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal.Elim
 
 import Agda.Utils.Pretty hiding ((<>))
@@ -30,8 +31,8 @@ data NotBlocked' t
     -- ^ Not enough arguments were supplied to complete the matching.
   | AbsurdMatch
     -- ^ We matched an absurd clause, results in a neutral 'Def'.
-  | MissingClauses
-    -- ^ We ran out of clauses, all considered clauses
+  | MissingClauses QName
+    -- ^ We ran out of clauses for 'QName', all considered clauses
     --   produced an actual mismatch.
     --   This can happen when try to reduce a function application
     --   but we are still missing some function clauses.
@@ -47,8 +48,8 @@ data NotBlocked' t
 instance Semigroup (NotBlocked' t) where
   ReallyNotBlocked <> b = b
   -- MissingClauses is dominant (absorptive)
-  b@MissingClauses <> _ = b
-  _ <> b@MissingClauses = b
+  b@MissingClauses{} <> _ = b
+  _ <> b@MissingClauses{} = b
   -- StuckOn is second strongest
   b@StuckOn{}      <> _ = b
   _ <> b@StuckOn{}      = b
@@ -198,10 +199,9 @@ instance (NFData t, NFData a) => NFData (Blocked' t a)
 --   (Missing ordinary pattern would mean the @e@ is of function type,
 --   but we cannot match against something of function type.)
 stuckOn :: Elim' t -> NotBlocked' t -> NotBlocked' t
-stuckOn e r =
-  case r of
-    MissingClauses   -> r
-    StuckOn{}        -> r
+stuckOn e = \case
+    r@MissingClauses{} -> r
+    r@StuckOn{}        -> r
     Underapplied     -> r'
     AbsurdMatch      -> r'
     ReallyNotBlocked -> r'

@@ -825,7 +825,7 @@ appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map (fmap Apply) a
 appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
   localTC (\ e -> e { envAppDef = Just f }) $
-  maybe (appDefE' v0 cls rewr args)
+  maybe (appDefE'' v0 cls rewr args)
         (\cc -> appDefE v0 cc rewr args) mcc
 
 
@@ -843,11 +843,17 @@ appDefE v cc rewr es = do
     NoReduction es'      -> rewrite (void es') (applyE v) rewr (ignoreBlocking es')
 
 -- | Apply a defined function to it's arguments, using the original clauses.
-appDef' :: Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
-appDef' v cls rewr args = appDefE' v cls rewr $ map (fmap Apply) args
+appDef' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef' f v cls rewr args = appDefE' f v cls rewr $ map (fmap Apply) args
 
-appDefE' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
-appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
+appDefE' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE' f v cls rewr es =
+  localTC (\ e -> e { envAppDef = Just f }) $
+  appDefE'' v cls rewr es
+
+-- | Expects @'envAppDef' = Just f@ in 'TCEnv' to be able to report @'MissingClauses' f@.
+appDefE'' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
   goCls cls $ map ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
@@ -859,7 +865,9 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v)
         -- the remaining clauses (see Issue 907).
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
-        [] -> rewrite (NotBlocked MissingClauses ()) (applyE v) rewr es
+        [] -> do
+          f <- fromMaybe __IMPOSSIBLE__ <$> asksTC envAppDef
+          rewrite (NotBlocked (MissingClauses f) ()) (applyE v) rewr es
         cl : cls -> do
           let pats = namedClausePats cl
               body = clauseBody cl

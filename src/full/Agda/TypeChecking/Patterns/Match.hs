@@ -272,7 +272,7 @@ matchPattern p u = case (p, u) of
         t@(Def q [l,a,x,y,phi,p]) | Just q == mconid
                 -> Just t
         -- TODO this covers the transpIx functions, but it's a hack.
-        t@(Def q _) | NotBlocked{blockingStatus = MissingClauses} <- r -> Just t
+        t@(Def q _) | NotBlocked{blockingStatus = MissingClauses _} <- r -> Just t
         _       -> Nothing
 
   -- DefP hcomp and ConP matching.

@@ -637,8 +637,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
-        FunName   -> NotBlocked MissingClauses   ()
-        MacroName -> NotBlocked MissingClauses   ()
+        FunName   -> NotBlocked (MissingClauses x) ()
+        MacroName -> NotBlocked (MissingClauses x) ()
         _         -> NotBlocked ReallyNotBlocked ()
 
   -- Not safe. See Issue 330

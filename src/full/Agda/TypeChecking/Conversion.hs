@@ -448,8 +448,8 @@ computeElimHeadType f es es' = do
 abortIfMissingClauses :: (Blocked Term, Blocked Term) -> Blocker
 abortIfMissingClauses (NotBlocked nb t, NotBlocked nb' t') =
   case nb <> nb' of
-    MissingClauses -> alwaysUnblock
-    _              -> neverUnblock
+    MissingClauses _ -> alwaysUnblock
+    _                -> neverUnblock
 abortIfMissingClauses _ = __IMPOSSIBLE__
 
 
@@ -470,7 +470,7 @@ compareAtom cmp t m n =
         -- re #5600: We might add more clauses to the function later,
         --           so we shouldn't commit to an UnequalTerms error yet,
         --           even if there are no metas blocking computation.
-        blockIfMissingClauses (NotBlocked MissingClauses t) = Blocked alwaysUnblock t
+        blockIfMissingClauses (NotBlocked MissingClauses{} t) = Blocked alwaysUnblock t
         blockIfMissingClauses b@NotBlocked{} = b
     -- Andreas: what happens if I cut out the eta expansion here?
     -- Answer: Triggers issue 245, does not resolve 348
