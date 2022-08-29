@@ -480,9 +480,9 @@ instance UsableModality a => UsableModality (Arg a) where
 instance UsableModality a => UsableModality (Dom a) where
   usableMod mod Dom{unDom = u} = usableMod mod u
 
-usableAtModality' :: MonadConstraint TCM => TCM Bool -> Modality -> Term -> TCM ()
-usableAtModality' c mod t = catchConstraint (UsableAtModality c mod t) $ do
-  whenM c $ do
+usableAtModality' :: MonadConstraint TCM => Maybe Sort -> Modality -> Term -> TCM ()
+usableAtModality' ms mod t = catchConstraint (UsableAtModality ms mod t) $ do
+  whenM (maybe (pure True) isFibrant ms) $ do
     res <- runExceptT $ usableMod mod t
     case res of
       Right b -> do
@@ -492,7 +492,7 @@ usableAtModality' c mod t = catchConstraint (UsableAtModality c mod t) $ do
 
 
 usableAtModality :: MonadConstraint TCM => Modality -> Term -> TCM ()
-usableAtModality = usableAtModality' $ pure True
+usableAtModality = usableAtModality' Nothing
 
 
 -- * Propositions

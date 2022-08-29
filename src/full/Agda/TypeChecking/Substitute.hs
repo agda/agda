@@ -1008,7 +1008,7 @@ instance Subst Constraint where
     CheckDataSort q s        -> CheckDataSort q (rf s)
     CheckMetaInst m          -> CheckMetaInst m
     CheckType t              -> CheckType (rf t)
-    UsableAtModality c mod m   -> UsableAtModality c mod (rf m)
+    UsableAtModality ms mod m -> UsableAtModality (rf ms) mod (rf m)
     where
       rf :: forall a. TermSubst a => a -> a
       rf x = applySubst rho x

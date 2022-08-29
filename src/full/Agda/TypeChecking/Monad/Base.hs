@@ -1137,7 +1137,9 @@ data Constraint
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
-  | UsableAtModality (TCM Bool) Modality Term   -- ^ is the term usable at the given modality? (Only runs this check if the given computation returns @True@)
+  | UsableAtModality (Maybe Sort) Modality Term
+    -- ^ Is the term usable at the given modality?
+    -- This check should run if the @Sort@ is @Nothing@ or @isFibrant@.
   deriving (Show, Generic)
 
 instance HasRange Constraint where
@@ -1173,7 +1175,7 @@ instance Free Constraint where
       CheckDataSort _ s     -> freeVars' s
       CheckMetaInst m       -> mempty
       CheckType t           -> freeVars' t
-      UsableAtModality c mod t -> freeVars' t
+      UsableAtModality ms mod t -> freeVars' (ms, t)
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1194,15 +1196,9 @@ instance TermLike Constraint where
       CheckDataSort _ s      -> foldTerm f s
       CheckMetaInst m        -> mempty
       CheckType t            -> foldTerm f t
-      UsableAtModality c m t -> foldTerm f t
+      UsableAtModality ms m t   -> foldTerm f (Sort <$> ms, t)
 
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
-
-instance NFData (TCM a) where
-  rnf _ = ()
-
-instance Show (TCM a) where
-  show _ = ""
 
 instance AllMetas Constraint
 
