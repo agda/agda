@@ -299,7 +299,7 @@ order for the change to take effect."
   (".-"        . ("∸"))
   (":"         . ,(agda-input-to-string-list "∶⦂ː꞉˸፥፦：﹕︓"))
   (","         . ,(agda-input-to-string-list "ʻ،⸲⸴⹁⹉、︐︑﹐﹑，､"))
-  (";"         . ,(agda-input-to-string-list "؛⁏፤꛶；︔﹔⍮⸵;"))
+  (";"         . ,(agda-input-to-string-list "⨟؛⁏፤꛶；︔﹔⍮⸵;"))
   ("::"        . ("∷"))
   ("::-"       . ("∺"))
   ("-:"        . ("∹"))
