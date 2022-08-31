@@ -1290,8 +1290,9 @@ checkExpr' cmp e t =
           -- still hint the user about the boundary of each field
           withBoundaryAsHints $ \recover -> do
             tm <- checkApplication cmp hd args e t
-            recover CmpLeq t tm
-            pure tm
+            blockTerm t $ do
+              recover CmpLeq t tm
+              pure tm
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         -- We could not check the term because the type of some pattern is blocked.

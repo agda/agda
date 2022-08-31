@@ -251,7 +251,8 @@ withTermOrNot what (yeswhat, notwhat) k = do
   case cubical of
     Just _ -> do
       neg <- primINeg
-      withBoundary [(what, yeswhat), (neg `apply` [argN what], notwhat)] k
+      -- put ~φ before φ in case φ is a variable
+      withBoundary [(neg `apply` [argN what], notwhat), (what, yeswhat)] k
     Nothing -> k
 
 -- | Apply a list of eliminations to the boundary constraints. When
