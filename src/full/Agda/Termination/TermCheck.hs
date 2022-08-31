@@ -1419,14 +1419,17 @@ compareConArgs :: Args -> [NamedArg DeBruijnPattern] -> TerM Order
 compareConArgs ts ps = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
-  -- we may assume |ps| >= |ts|, otherwise c ps would be of functional type
-  -- which is impossible
-  case (length ts, length ps) of
-    (0,0) -> return Order.le        -- c <= c
-    (0,1) -> return Order.unknown   -- c not<= c x
-    (1,0) -> __IMPOSSIBLE__
-    (1,1) -> compareTerm' (unArg (head ts)) (notMasked $ namedArg $ head ps)
-    (_,_) -> foldl (Order..*.) Order.le <$>
+  case compare (length ts) (length ps) of
+
+    -- We may assume |ps| >= |ts|, otherwise c ps would be of functional type
+    -- which is impossible.
+    GT -> __IMPOSSIBLE__
+
+    -- Andreas, 2022-08-31, issue #6059: doing anything smarter than
+    -- @unknown@ here can lead to non-termination.
+    LT -> return Order.unknown
+
+    EQ -> foldl (Order..*.) Order.le <$>
                zipWithM compareTerm' (map unArg ts) (map (notMasked . namedArg) ps)
        -- corresponds to taking the size, not the height
        -- allows examples like (x, y) < (Succ x, y)
