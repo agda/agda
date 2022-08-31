@@ -304,6 +304,7 @@ order for the change to take effect."
   ("::-"       . ("∺"))
   ("-:"        . ("∹"))
   ("+ "        . ("⊹"))
+  ("sqrt"      . ("√"))
   ("surd3"     . ("∛"))
   ("surd4"     . ("∜"))
   ("increment" . ("∆"))
