@@ -1265,7 +1265,9 @@ checkExpr' cmp e t =
                 v = unEl t'
             coerce cmp v (sort s) t
 
-        -- TODO: Invert record literals
+        -- boundary sensitivity: rather than discarding the boundary and
+        -- comparing the record against it, we keep the boundary as long
+        -- as possible to maybe propagate it into the fields
         A.Rec _ fs  -> checkRecordExpression cmp fs e t
         A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
 
@@ -1278,12 +1280,18 @@ checkExpr' cmp e t =
 
         -- Application
         _   | Application hd args <- appView e ->
+          -- boundary sensitivity: rather than discarding the boundary
+          -- entirely, we turn it into a hint. that means that:
+          -- 1. the overall expression must still match the boundary (we
+          -- can't rely on checking non-hint boundaries on arbitrary
+          -- function applications since they'll just get lost)
+          --
+          -- 2. if the head *happens* to be a record constructor, we can
+          -- still hint the user about the boundary of each field
           withBoundaryAsHints $ \recover -> do
             tm <- checkApplication cmp hd args e t
             recover CmpLeq t tm
             pure tm
-          -- TODO: We can do better than discarding here, by pushing
-          -- into constructors for record types
 
       `catchIlltypedPatternBlockedOnMeta` \ (err, x) -> do
         -- We could not check the term because the type of some pattern is blocked.
