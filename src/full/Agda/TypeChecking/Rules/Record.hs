@@ -143,11 +143,6 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
       -- record type (name applied to parameters)
       rect <- El s . Def name . map Apply <$> getContextArgs
 
-      -- Put in @rect@ as correct target of constructor type.
-      -- Andreas, 2011-05-10 use telePi_ instead of telePi to preserve
-      -- even names of non-dependent fields in constructor type (Issue 322).
-      let contype = telePi_ ftel (raise (size ftel) rect)
-        -- NB: contype does not contain the parameter telescope
 
       -- Obtain name of constructor (if present).
       (hasNamedCon, conName) <- case con of
@@ -172,8 +167,20 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
           getName _                    = []
 
           setTactic dom f = f { domTactic = domTactic dom }
+          setElim dom f = dom { domElim = Just (unDom f) }
 
           fs = zipWith setTactic (telToList ftel) $ concatMap getName fields
+          ftel' = telFromList $ zipWith setElim (telToList ftel) $ concatMap getName fields
+
+          -- Put in @rect@ as correct target of constructor type.
+          -- Andreas, 2011-05-10 use telePi_ instead of telePi to preserve
+          -- even names of non-dependent fields in constructor type (Issue 322).
+          --
+          -- Amy, 2022-08-31: Tag the field telescope with their
+          -- corresponding eliminations so we can invert boundaries of
+          -- record constructors later on.
+          contype = telePi_ ftel' (raise (size ftel') rect)
+          -- NB: contype does not contain the parameter telescope
 
           -- indCo is what the user wrote: inductive/coinductive/Nothing.
           -- We drop the Range.
@@ -230,7 +237,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
               , recConHead        = con
               , recNamedCon       = hasNamedCon
               , recFields         = fs
-              , recTel            = telh `abstract` ftel
+              , recTel            = telh `abstract` ftel'
               , recAbstr          = Info.defAbstract i
               , recEtaEquality'   = haveEta
               , recPatternMatching= patCopat

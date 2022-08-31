@@ -807,10 +807,9 @@ checkArgumentsE'
 
             _ -> return s
 
-        -- sFun <- lift $ forcePi (getHiding info)
-        --                  (maybe "_" rangedThing $ nameOf e) sFun
+        -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
         case unEl sFun of
-          Pi (Dom{domInfo = info', domName = dname, unDom = a}) b
+          Pi (Dom{domInfo = info', domName = dname, domElim = elim, unDom = a}) b
             | let name = bareNameWithDefault "_" dname,
               sameHiding info info'
               && (visible info || maybe True (name ==) mx) -> do
@@ -829,7 +828,18 @@ checkArgumentsE'
                  -- if not $ isBinderUsed b
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
                   let e' = e { nameOf = (nameOf e) <|> dname }
-                  checkNamedArg (Arg info' e') a
+
+                  -- Amy, 2022-08-31: Boundary sensitivity: If we're
+                  -- checking a record constructor (i.e. domElim is
+                  -- set), then we should eliminate along the boundary
+                  -- with the specified field when checking this
+                  -- argument...
+                  case elim of
+                    Just elim' -> eliminateAlongBoundary [Proj ProjSystem elim'] $ checkNamedArg (Arg info' e') a
+
+                    -- But otherwise we *can't* keep the boundary, since
+                    -- this is the arguments to Just Some Function!
+                    Nothing -> discardBoundary $ \_ -> checkNamedArg (Arg info' e') a
 
                 let c | IsLock == getLock info' =
                         Just $ Abs "t" $

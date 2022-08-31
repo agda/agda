@@ -234,8 +234,8 @@ instance SynEq a => SynEq (Arg a) where
 
 -- Ignore the tactic.
 instance SynEq a => SynEq (Dom a) where
-  synEq d@(Dom ai x f t a) d'@(Dom ai' x' f' _ a')
-    | x == x'   = Dom <$$> synEq ai ai' <**> pure2 x <**> synEq f f' <**> pure2 t <**> synEq a a'
+  synEq d@(Dom ai b x n t a) d'@(Dom ai' b' x' _ _ a')
+    | x == x'   = Dom <$$> synEq ai ai' <**> pure2 b <**> synEq x x' <**> pure2 n <**> pure2 t <**> synEq a a'
     | otherwise = inequal (d, d')
 
 instance SynEq ArgInfo where

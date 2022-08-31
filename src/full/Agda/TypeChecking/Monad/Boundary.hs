@@ -1,6 +1,6 @@
 -- | Functions for working with 'Boundary'-sensitive elaboration
 module Agda.TypeChecking.Monad.Boundary
-  ( discardBoundary
+  ( withBoundaryAsHints, discardBoundary
   , withBoundary
   , withBoundaryHint
   , withTermOrNot
@@ -167,9 +167,10 @@ reifyBoundary ty boundary = do
       Just <$> (pure m <#> lev <@> ty <@> pure phi <@> pure sys)
     _ -> pure Nothing
 
--- | Run the continuation in a context with 'Boundary' constraints, but
--- keep track of how to verify that a given term matches the boundary.
-discardBoundary
+-- | Run the continuation in a context where all the boundary
+-- constraints are treated as hints only, but keep track of how to
+-- verify that a given term matches the boundary.
+withBoundaryAsHints
   :: (MonadConversion m, MonadTCEnv m, MonadDebug m, MonadTrace m)
   => ((Comparison -> Type -> Term -> m ()) -> m a)
   -- ^ The argument given to this function is a term comparison function
@@ -177,7 +178,7 @@ discardBoundary
   -- verifying a particular boundary formula. This results in better
   -- error messages than using e.g. 'compareTermOnFace' directly.
   -> m a
-discardBoundary k = do
+withBoundaryAsHints k = do
   boundary <- boundaryFaces <$> asksTC envBoundary
   unless (null boundary) $
     reportSDoc "tc.boundary" 30 $ "Discarding boundary" <+> vcat (prettyTCM <$> boundary)
@@ -192,10 +193,22 @@ discardBoundary k = do
         r <- asksTC envRange
         traceCall (CheckTermBoundary r con ty term) $ compareTermOnFace cmp phi ty term rhs
 
-  localTC (\e -> e { envBoundary = Boundary [] }) $ k $
+  localTC (\e -> e { envBoundary = Boundary ((\x -> x { boundaryCheck = False}) <$> boundary) }) $ k $
     if null boundary
       then (\_ _ _ -> pure ())
       else cont
+
+-- | Run the continuation in a context without boundary constraints, but
+-- keep track of how to verify that a given term matches the boundary.
+discardBoundary
+  :: (MonadConversion m, MonadTCEnv m, MonadDebug m, MonadTrace m)
+  => ((Comparison -> Type -> Term -> m ()) -> m a)
+  -- ^ The argument given to this function is a term comparison function
+  -- (e.g. 'compareTerm'), but it will additionally trace that we are
+  -- verifying a particular boundary formula. This results in better
+  -- error messages than using e.g. 'compareTermOnFace' directly.
+  -> m a
+discardBoundary k = withBoundaryAsHints $ localTC (\e -> e {envBoundary = Boundary []}) . k
 
 -- | Add the given constraints to the 'Boundary' in the current context.
 -- The new constraints are not automatically checked for consistency

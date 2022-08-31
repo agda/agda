@@ -333,10 +333,10 @@ instance EqualSy ArgInfo where
 
 -- | Ignore the tactic.
 instance EqualSy a => EqualSy (Dom a) where
-  equalSy d@(Dom ai x f _tac a) d'@(Dom ai' x' f' _tac' a') = and
-    [ x == x'
-    , f == f'
-    , equalSy ai ai'
+  equalSy d@(Dom ai _nm fin el _tac a) d'@(Dom ai' _nm' fin' el' _tac' a') = and
+    [ ai == ai'
+    , fin == fin'
+    , el == el'
     , equalSy a a'
     ]
 

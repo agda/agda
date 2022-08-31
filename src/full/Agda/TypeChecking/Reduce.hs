@@ -269,7 +269,7 @@ instance Instantiate Sort where
     s -> return s
 
 instance (Instantiate t, Instantiate e) => Instantiate (Dom' t e) where
-    instantiate' (Dom i n b tac x) = Dom i n b <$> instantiate' tac <*> instantiate' x
+    instantiate' (Dom i fin n e tac x) = Dom i fin n e <$> instantiate' tac <*> instantiate' x
 
 instance Instantiate a => Instantiate (Closure a) where
     instantiate' cl = do
@@ -1464,7 +1464,8 @@ instance (Subst a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
 instance (InstantiateFull t, InstantiateFull e) => InstantiateFull (Dom' t e) where
-    instantiateFull' (Dom i n b tac x) = Dom i n b <$> instantiateFull' tac <*> instantiateFull' x
+    instantiateFull' (Dom i fin n e tac x) =
+      Dom i fin n e <$> instantiateFull' tac <*> instantiateFull' x
 
 -- Andreas, 2021-09-13, issue #5544, need to traverse @checkpoints@ map
 instance InstantiateFull t => InstantiateFull (Open t) where

@@ -1100,7 +1100,7 @@ checkRecordUpdate cmp ei recexpr fs eupd t = do
   ifBlocked t (\ _ _ -> tryInfer) $ {-else-} \ _ t' -> do
     caseMaybeM (isRecordType t') should $ \ (r, _pars, defn) -> do
       -- Bind the record value (before update) to a fresh @name@.
-      v <- checkExpr' cmp recexpr t'
+      v <- discardBoundary $ \_ -> checkExpr' cmp recexpr t'
       name <- freshNoName $ getRange recexpr
       addLetBinding defaultArgInfo name v t' $ do
 
@@ -1233,12 +1233,19 @@ checkExpr' cmp e t =
           | otherwise -> typeError $ NotImplemented "named arguments in lambdas"
 
         A.Lit _ lit  -> discardAndCheck t $ checkLiteral lit t
+
+        -- For let-expressions we could do the usual discardAndCheck but
+        -- that would mean boundaries are not pushed into let
+        -- expressions. Here we discard the boundary while checking the
+        -- bindings (since they're essentially unrelated) and restore it
+        -- when checking the body.
         A.Let i ds e -> do
           boundary <- asksTC envBoundary
           discardBoundary $ \_ ->
             checkLetBindings ds $
               localTC (\e -> e { envBoundary = boundary }) $
               checkExpr' cmp e t
+
         e@A.Pi{} -> discardAndCheck t $ do
             t' <- isType_ e
             let s = getSort t'
@@ -1259,8 +1266,8 @@ checkExpr' cmp e t =
             coerce cmp v (sort s) t
 
         -- TODO: Invert record literals
-        A.Rec _ fs  -> discardAndCheck t $ checkRecordExpression cmp fs e t
-        A.RecUpdate ei recexpr fs -> discardAndCheck t $ checkRecordUpdate cmp ei recexpr fs e t
+        A.Rec _ fs  -> checkRecordExpression cmp fs e t
+        A.RecUpdate ei recexpr fs -> checkRecordUpdate cmp ei recexpr fs e t
 
         A.DontCare e -> -- resurrect vars
           ifM ((Irrelevant ==) <$> asksTC getRelevance)
@@ -1271,7 +1278,10 @@ checkExpr' cmp e t =
 
         -- Application
         _   | Application hd args <- appView e ->
-          discardAndCheck t $ checkApplication cmp hd args e t
+          withBoundaryAsHints $ \recover -> do
+            tm <- checkApplication cmp hd args e t
+            recover CmpLeq t tm
+            pure tm
           -- TODO: We can do better than discarding here, by pushing
           -- into constructors for record types
 
