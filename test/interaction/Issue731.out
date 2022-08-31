@@ -5,4 +5,4 @@
 (agda2-info-action "*All Goals, Errors*" "Sort _2 [ at Issue731.agda:5,15-16 ] _3 : _2 [ at Issue731.agda:5,15-16 ] ———— Errors ———————————————————————————————————————————————— Failed to solve the following constraints: Set₁ = _2 (blocked on _2) _3 =< Set (blocked on _3) " nil)
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "")
-(agda2-info-action "*Constraints*" "Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) _3 =< Set (blocked on _3, belongs to problem 5) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) _5 := foo (blocked on problem 5)" nil)
+(agda2-info-action "*Constraints*" "Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) _3 =< Set (blocked on _3, belongs to problem 3) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) Set₁ = _2 (blocked on _2) _5 := foo (blocked on problem 3)" nil)
