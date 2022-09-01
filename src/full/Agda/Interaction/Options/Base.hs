@@ -1031,7 +1031,7 @@ pragmaOptions =
                     "enable cubical features (some only in erased settings), implies --cubical-compatible"
     , Option []     ["guarded"] (NoArg guardedFlag)
                     "enable @lock/@tick attributes"
-    , Option []     ["experimental-lossy-unification"] (NoArg firstOrderFlag)
+    , Option []     ["lossy-unification"] (NoArg firstOrderFlag)
                     "enable heuristically unifying `f es = f es'` by unifying `es = es'`, even when it could lose solutions."
     , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
                     "make postfix projection notation the default"
