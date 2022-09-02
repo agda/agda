@@ -1805,6 +1805,7 @@ equalSort s1 s2 = do
           ]
         propEnabled <- isPropEnabled
         sizedTypesEnabled <- sizedTypesOption
+        cubicalEnabled <- isJust . optCubical <$> pragmaOptions
         case s0 of
           -- If @Setωᵢ == funSort s1 s2@, then either @s1@ or @s2@ must
           -- be @Setωᵢ@.
@@ -1815,15 +1816,16 @@ equalSort s1 s2 = do
                   -- TODO 2ltt: handle IsStrict cases.
                   | otherwise                   -> synEq s0 (FunSort s1 s2)
           -- If @Set l == funSort s1 s2@, then @s2@ must be of the
-          -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@, or
-          -- @SizeUniv@.
+          -- form @Set l2@. @s1@ can be one of @Set l1@, @Prop l1@,
+          -- @SizeUniv@, or @IUniv@.
           Type l -> do
             l2 <- forceType s2
             -- We must have @l2 =< l@, this might help us to solve
             -- more constraints (in particular when @l == 0@).
             leqLevel l2 l
             -- Jesper, 2019-12-27: SizeUniv is disabled at the moment.
-            if | {- sizedTypesEnabled || -} propEnabled -> case funSort' s1 (Type l2) of
+            if | {- sizedTypesEnabled || -} propEnabled || cubicalEnabled ->
+                case funSort' s1 (Type l2) of
                    -- If the work we did makes the @funSort@ compute,
                    -- continue working.
                    Just s  -> equalSort (Type l) s
