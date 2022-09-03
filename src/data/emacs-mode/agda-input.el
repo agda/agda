@@ -310,7 +310,7 @@ order for the change to take effect."
   ("increment" . ("∆"))
   ("inf"       . ("∞"))
   ("&"         . ("⅋"))
-  ("z;"        . ("⨟"))
+  ("z;"        . ("⨟⨾"))
   ("z:"        . ("⦂"))
 
   ;; Circled operators.
