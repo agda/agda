@@ -352,7 +352,17 @@ checkRewriteRule q = do
     checkAxFunOrCon :: QName -> Definition -> TCM ()
     checkAxFunOrCon f def = case theDef def of
       Axiom{}        -> return ()
-      Function{}     -> return ()
+      def@Function{} -> whenJust (funProjection def) $ \proj ->
+        case projProper proj of
+          Just{} -> typeError . GenericDocError =<< hsep
+            [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+            , prettyTCM f , "is a projection."
+            ]
+          Nothing -> typeError . GenericDocError =<< hsep
+            [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
+            , prettyTCM f , "is a projection-like function."
+            , "You can turn off the projection-like optimization with the flag --no-projection-like"
+            ]
       Constructor{}  -> return ()
       AbstractDefn{} -> return ()
       Primitive{}    -> return () -- TODO: is this fine?
