@@ -714,7 +714,7 @@ insertTrailingArgs force sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma
   let fallback = return (empty, sc)
   caseMaybe target fallback $ \ a -> do
     if isJust (domTactic a) && not force then fallback else do
-    (TelV tel b) <- telViewUpTo (-1) $ unDom a
+    (TelV tel b) <- addContext sctel $ telViewUpTo (-1) $ unDom a
     reportSDoc "tc.cover.target" 15 $ sep
       [ "target type telescope: " <+> do
           addContext sctel $ prettyTCM tel

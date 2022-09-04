@@ -413,7 +413,8 @@ telViewUpToPathBoundary' n t = if n == 0 then done t else do
     Right t               -> done t
   where
     done t      = return (TelV EmptyTel t, [])
-    recurse a b = first (absV a (absName b)) <$> telViewUpToPathBoundary' (n - 1) (absBody b)
+    recurse a b = first (absV a (absName b)) <$> do
+      underAbstractionAbs a b $ \b -> telViewUpToPathBoundary' (n - 1) b
     addEndPoints xy (telv@(TelV tel _), cs) =
       (telv, (var $ size tel - 1, raise (size tel) xy) : cs)
 

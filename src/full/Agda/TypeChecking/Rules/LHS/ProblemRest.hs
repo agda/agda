@@ -106,8 +106,8 @@ initLHSState delta eqs ps a ret = do
 updateProblemRest
   :: forall m a. (PureTCM m, MonadError TCErr m, MonadTrace m, MonadFresh NameId m)
   => LHSState a -> m (LHSState a)
-updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = do
-  ps <- addContext tel0 $ insertImplicitPatternsT ExpandLast ps $ unArg a
+updateProblemRest st@(LHSState tel0 qs0 p@(Problem oldEqs ps ret) a psplit) = addContext tel0 $ do
+  ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
   reportSDoc "tc.lhs.imp" 20 $
     "insertImplicitPatternsT returned" <+> fsep (map prettyA ps)
   -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
