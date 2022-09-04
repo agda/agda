@@ -779,11 +779,13 @@ checkLeftHandSide call f ps a withSub' strippedPats =
                  , "asb     = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
                  , "absurds = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM absurds)
                  , "qs      = " <+> addContext delta (prettyList $ map pretty qs)
+                 , "b       = " <+> addContext delta (prettyTCM b)
                  ]
                ]
         reportSDoc "tc.lhs.top" 30 $
           nest 2 $ vcat
                  [ "vars   = " <+> pretty vars
+                 , "b      = " <+> pretty b
                  ]
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "withSub  = " <+> pretty withSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "weakSub  = " <+> pretty weakSub
@@ -868,8 +870,9 @@ checkLHS mf = updateModality checkLHS_ where
         -- the modalities in the clause telescope also need updating.
 
  checkLHS_ st@(LHSState tel ip problem target psplit) = do
-  reportSDoc "lhs" 10 $ "tel is" <+> prettyTCM tel
-  reportSDoc "lhs" 10 $ "ip is" <+> pretty ip
+  reportSDoc "tc.lhs" 40 $ "tel is" <+> prettyTCM tel
+  reportSDoc "tc.lhs" 40 $ "ip is" <+> pretty ip
+  reportSDoc "tc.lhs" 40 $ "target is" <+> addContext tel (prettyTCM target)
   if isSolvedProblem problem then
     liftTCM $ (problem ^. problemCont) st
   else do
