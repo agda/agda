@@ -1205,7 +1205,8 @@ checkWithFunction cxtNames (WithFunction f aux t delta delta1 delta2 vtys b qs n
 
   -- Check the with function
   let info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess abstr (getRange cs)
-  checkFunDefS withFunType defaultArgInfo NotDelayed Nothing (Just f) info aux (Just withSub) cs
+  ai <- defArgInfo <$> getConstInfo f
+  checkFunDefS withFunType ai NotDelayed Nothing (Just f) info aux (Just withSub) cs
   return $ Just $ call_in_parent
 
 -- | Type check a where clause.
