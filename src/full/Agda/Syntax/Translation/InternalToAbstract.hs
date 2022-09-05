@@ -1448,7 +1448,7 @@ instance Reify I.Telescope where
         name = domName arg
     tac <- traverse reify $ domTactic arg
     let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
-    return $ TBind r (TypedBindingInfo tac False) xs e : bs
+    return $ TBind r (TypedBindingInfo tac (domIsFinite arg)) xs e : bs
 
 instance Reify i => Reify (Dom i) where
     type ReifiesTo (Dom i) = Arg (ReifiesTo i)
