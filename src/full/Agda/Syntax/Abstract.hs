@@ -276,10 +276,17 @@ data LamBinding
 mkDomainFree :: NamedArg Binder -> LamBinding
 mkDomainFree = DomainFree Nothing
 
+-- | Extra information that is attached to a typed binding, that plays a
+-- role during type checking but strictly speaking is not part of the
+-- @name : type@" relation which a makes up a binding.
 data TypedBindingInfo
   = TypedBindingInfo
     { tbTacticAttr :: TacticAttr
+      -- ^ Does this binding have a tactic annotation?
     , tbFinite     :: Bool
+      -- ^ Does this binding correspond to a Partial binder, rather than
+      -- to a Pi binder? Must be present here to be reflected into
+      -- abstract syntax later (and to be printed to the user later).
     }
   deriving (Show, Eq, Generic)
 
