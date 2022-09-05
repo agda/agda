@@ -292,6 +292,11 @@ instance ExprLike DataDefParams where
   foldExpr     f (DataDefParams s tel) = foldExpr f tel
   traverseExpr f (DataDefParams s tel) = DataDefParams s <$> traverseExpr f tel
 
+instance ExprLike TypedBindingInfo where
+  recurseExpr f (TypedBindingInfo s t)  = TypedBindingInfo <$> recurseExpr f s <*> pure t
+  foldExpr f (TypedBindingInfo s t)     = foldExpr f s
+  traverseExpr f (TypedBindingInfo s t) = TypedBindingInfo <$> traverseExpr f s <*> pure t
+
 instance ExprLike TypedBinding where
   recurseExpr f e =
     case e of

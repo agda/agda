@@ -17,7 +17,7 @@ import qualified Data.Set as Set
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (disambiguateRecordFields)
 
-import Agda.Syntax.Abstract (Binder)
+import Agda.Syntax.Abstract (Binder, TypedBindingInfo (tbTacticAttr))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
@@ -357,7 +357,7 @@ checkPiDomain = checkDomain PiNotLam
 checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     let xs = fmap (updateNamedArg $ A.unBind . A.binderName) xps
-    tac <- traverse (checkTacticAttribute lamOrPi) tac
+    tac <- traverse (checkTacticAttribute lamOrPi) (tbTacticAttr tac)
     whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type

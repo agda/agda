@@ -21,7 +21,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 instance EmbPrj a => EmbPrj (Dom a) where
-  icod_ (Dom a c d e) = icodeN' Dom a c d e
+  icod_ (Dom a c d e f) = icodeN' Dom a c d e f
 
   value = valueN Dom
 

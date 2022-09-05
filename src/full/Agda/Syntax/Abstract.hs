@@ -276,6 +276,19 @@ data LamBinding
 mkDomainFree :: NamedArg Binder -> LamBinding
 mkDomainFree = DomainFree Nothing
 
+data TypedBindingInfo
+  = TypedBindingInfo
+    { tbTacticAttr :: TacticAttr
+    , tbFinite     :: Bool
+    }
+  deriving (Show, Eq, Generic)
+
+defaultTbInfo :: TypedBindingInfo
+defaultTbInfo = TypedBindingInfo
+  { tbTacticAttr = Nothing
+  , tbFinite = False
+  }
+
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
 --   telescopes.  It might be tempting to simplify this to only bind a single
 --   name at a time, and translate, say, @(x y : A)@ to @(x : A)(y : A)@
@@ -291,14 +304,14 @@ mkDomainFree = DomainFree Nothing
 --   that the metas of the copy are aliases of the metas of the original.
 
 data TypedBinding
-  = TBind Range TacticAttr (List1 (NamedArg Binder)) Type
+  = TBind Range TypedBindingInfo (List1 (NamedArg Binder)) Type
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range (List1 LetBinding)
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
   deriving (Show, Eq, Generic)
 
 mkTBind :: Range -> List1 (NamedArg Binder) -> Type -> TypedBinding
-mkTBind r = TBind r Nothing
+mkTBind r = TBind r defaultTbInfo
 
 mkTLet :: Range -> [LetBinding] -> Maybe TypedBinding
 mkTLet _ []     = Nothing
@@ -744,6 +757,9 @@ instance KillRange GeneralizeTelescope where
 instance KillRange DataDefParams where
   killRange (DataDefParams s tel) = DataDefParams s (killRange tel)
 
+instance KillRange TypedBindingInfo where
+  killRange (TypedBindingInfo a b) = killRange2 TypedBindingInfo a b
+
 instance KillRange TypedBinding where
   killRange (TBind r t xs e) = killRange4 TBind r t xs e
   killRange (TLet r lbs)     = killRange2 TLet r lbs
@@ -867,6 +883,7 @@ instance NFData LetBinding
 instance NFData a => NFData (Binder' a)
 instance NFData LamBinding
 instance NFData TypedBinding
+instance NFData TypedBindingInfo
 instance NFData GeneralizeTelescope
 instance NFData DataDefParams
 instance NFData ProblemEq

@@ -357,6 +357,9 @@ instance Hilite A.LetBinding where
     where
     hl x = hilite x
 
+instance Hilite A.TypedBindingInfo where
+  hilite (A.TypedBindingInfo x _) = hilite x
+
 instance Hilite A.TypedBinding where
   hilite = \case
     A.TBind _r tac binds e -> hilite tac <> hilite binds <> hilite e

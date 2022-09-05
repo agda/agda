@@ -528,11 +528,15 @@ reifyTerm expandAnonDefs0 v0 = do
     I.Level l      -> reify l
     I.Pi a b       -> case b of
         NoAbs _ b'
-          | visible a   -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
+          | visible a, not (domIsFinite a) -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
             -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
             -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
             -- and (b) the name of the binder might matter.
             -- See issue 951 (a) and 952 (b).
+            --
+            -- Amy, 2022-09-05: Can't be finite either, since otherwise
+            -- we say ".(IsOne φ) → A ≠ .(IsOne φ) → A" with no
+            -- indication of which is finite and which isn't
           | otherwise   -> mkPi b =<< reify a
         b               -> mkPi b =<< do
           ifM (domainFree a (absBody b))
@@ -543,7 +547,9 @@ reifyTerm expandAnonDefs0 v0 = do
           tac <- traverse reify $ domTactic a
           (x, b) <- reify b
           let xs = singleton $ Arg info $ Named (domName a) $ mkBinder_ x
-          return $ A.Pi noExprInfo (singleton $ TBind noRange tac xs a') b
+          return $ A.Pi noExprInfo
+            (singleton $ TBind noRange (TypedBindingInfo tac (domIsFinite a)) xs a')
+            b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -1442,7 +1448,7 @@ instance Reify I.Telescope where
         name = domName arg
     tac <- traverse reify $ domTactic arg
     let xs = singleton $ Arg info $ Named name $ A.mkBinder_ x
-    return $ TBind r tac xs e : bs
+    return $ TBind r (TypedBindingInfo tac False) xs e : bs
 
 instance Reify i => Reify (Dom i) where
     type ReifiesTo (Dom i) = Arg (ReifiesTo i)

@@ -250,9 +250,10 @@ dropTypeAndModality (DomainFull TLet{}) = []
 dropTypeAndModality (DomainFree x) = [DomainFree $ setModality defaultModality x]
 
 data BoundName = BName
-  { boundName   :: Name
-  , bnameFixity :: Fixity'
-  , bnameTactic :: TacticAttribute -- From @tactic attribute
+  { boundName       :: Name
+  , bnameFixity     :: Fixity'
+  , bnameTactic     :: TacticAttribute -- From @tactic attribute
+  , bnameIsFinite   :: Bool
   }
   deriving Eq
 
@@ -262,7 +263,7 @@ mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x noFixity'
 
 mkBoundName :: Name -> Fixity' -> BoundName
-mkBoundName x f = BName x f Nothing
+mkBoundName x f = BName x f Nothing False
 
 -- | A typed binding.
 
@@ -1020,7 +1021,7 @@ instance KillRange Binder where
   killRange (Binder a b) = killRange2 Binder a b
 
 instance KillRange BoundName where
-  killRange (BName n f t) = killRange3 BName n f t
+  killRange (BName n f t b) = killRange4 BName n f t b
 
 instance KillRange RecordDirective where
   killRange (Induction a)          = killRange1 Induction a
@@ -1353,7 +1354,7 @@ instance NFData Binder where
   rnf (Binder a b) = rnf a `seq` rnf b
 
 instance NFData BoundName where
-  rnf (BName a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (BName a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 instance NFData a => NFData (RHS' a) where
   rnf AbsurdRHS = ()

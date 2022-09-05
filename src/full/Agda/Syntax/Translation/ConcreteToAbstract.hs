@@ -1090,13 +1090,16 @@ instance ToAbstract C.TypedBinding where
   toAbstract (C.TBind r xs t) = do
     t' <- toAbstractCtx TopCtx t
     tac <- traverse toAbstract $
-             case List1.mapMaybe (bnameTactic . C.binderName . namedArg) xs of
-               []      -> Nothing
-               tac : _ -> Just tac
-               -- Invariant: all tactics are the same
-               -- (distributed in the parser, TODO: don't)
+      -- Invariant: all tactics are the same
+      -- (distributed in the parser, TODO: don't)
+      case List1.mapMaybe (bnameTactic . C.binderName . namedArg) xs of
+        []      -> Nothing
+        tac : _ -> Just tac
+
+    let fin = all (bnameIsFinite . C.binderName . namedArg) xs
     xs' <- toAbstract $ fmap (updateNamedArg (fmap $ NewName LambdaBound)) xs
-    return $ Just $ A.TBind r tac xs' t'
+
+    return $ Just $ A.TBind r (TypedBindingInfo tac fin) xs' t'
   toAbstract (C.TLet r ds) = A.mkTLet r <$> toAbstract (LetDefs ds)
 
 -- | Scope check a module (top level function).

@@ -78,7 +78,7 @@ pPi' n phi b = toFinitePi <$> nPi' n (elSSet $ cl isOne <@> phi) b
 -- function.
 toFinitePi :: Type -> Type
 toFinitePi (El s (Pi d b)) = El s $ Pi
-  (setRelevance Irrelevant $ mapAnnotation (\a -> a { annFinite = True }) d)
+  (setRelevance Irrelevant $ d { domIsFinite = True })
   b
 toFinitePi _ = __IMPOSSIBLE__
 

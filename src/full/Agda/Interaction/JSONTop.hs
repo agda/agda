@@ -300,7 +300,7 @@ instance EncodeTCM DisplayInfo where
       encodeDomType dom = obj
         [ "dom"       #= encodePrettyTCM (unDom dom)
         , "name"      @= fmap encodePretty (bareNameOf dom)
-        , "finite"    @= toJSON (annFinite . argInfoAnnotation $ domInfo dom)
+        , "finite"    @= toJSON (domIsFinite dom)
         , "cohesion"  @= encodeShow (modCohesion . argInfoModality $ domInfo dom)
         , "relevance" @= encodeShow (modRelevance . argInfoModality $ domInfo dom)
         , "hiding"    @= case argInfoHiding $ domInfo dom of

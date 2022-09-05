@@ -69,6 +69,7 @@ import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Interaction.Options.Lenses as Lens
 
 import Agda.Utils.Impossible
+import Agda.Syntax.Abstract (TypedBindingInfo(tbTacticAttr))
 
 agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
@@ -994,7 +995,7 @@ evalTCM v = do
             conNames = map fst cs
             toAxiom c e = A.Axiom ConName i defaultArgInfo Nothing c e
             as = zipWith toAxiom conNames es'
-            lams = map (\case {A.TBind _ tac (b :| []) _ -> A.DomainFree tac b
+            lams = map (\case {A.TBind _ tac (b :| []) _ -> A.DomainFree (tbTacticAttr tac) b
                               ;_ -> __IMPOSSIBLE__ }) tel
         reportSDoc "tc.unquote.def" 10 $ vcat $
           [ "checking datatype: " <+> prettyTCM x <+> " with constructors:"

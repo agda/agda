@@ -344,9 +344,9 @@ compareTerm' cmp a m n =
   where
     -- equality at function type (accounts for eta)
     equalFun :: (MonadConversion m) => Sort -> Term -> Term -> Term -> m ()
-    equalFun s a@(Pi dom b) m n | annFinite (getAnnotation dom) = do
+    equalFun s a@(Pi dom b) m n | domIsFinite dom = do
        mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
-       let asFn = El s (Pi (mapAnnotation (\a -> a { annFinite = False }) dom) b)
+       let asFn = El s (Pi (dom { domIsFinite = False }) b)
        case unEl $ unDom dom of
           Def q [Apply phi]
               | Just q == mp -> compareTermOnFace cmp (unArg phi) asFn m n
@@ -752,7 +752,7 @@ compareDom cmp0
      | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> errR
      | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> errQ
      | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> errC
-     | not $ annFinite (getAnnotation dom1) == annFinite (getAnnotation dom2) -> errF
+     | not $ domIsFinite dom1 == domIsFinite dom2 -> errF
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
               -- take "most irrelevant"

@@ -1044,9 +1044,9 @@ checkLHS mf = updateModality checkLHS_ where
                  -> ExceptT TCErr tcm (LHSState a)
     splitPartial delta1 dom adelta2 ts = do
 
-      unless (annFinite (getAnnotation dom)) $ liftTCM $ addContext delta1 $
+      unless (domIsFinite dom) $ liftTCM $ addContext delta1 $
         softTypeError . GenericDocError =<<
-        vcat [ "Splitting on partial elements is only allowed at the type Partial, but our domain is" , nest 2 $ prettyTCM $ unDom dom ]
+        vcat [ "Splitting on partial elements is only allowed at the type Partial, but the domain here is" , nest 2 $ prettyTCM $ unDom dom ]
 
       tInterval <- liftTCM $ primIntervalType
 

@@ -140,9 +140,14 @@ instance ToAbstract r => ToAbstract [Arg r] where
 -- instance ToAbstract r A.Expr => ToAbstract (Dom r, Name) (A.TypedBinding) where
 instance (ToAbstract r, AbsOfRef r ~ A.Expr) => ToAbstract (Dom r, Name) where
   type AbsOfRef (Dom r, Name) = A.TypedBinding
-  toAbstract (Dom{domInfo = i,unDom = x, domTactic = tac}, name) = do
+  toAbstract (Dom{domInfo = i, domIsFinite = isfin, unDom = x, domTactic = tac}, name) = do
     dom <- toAbstract x
-    return $ A.mkTBind noRange (singleton $ unnamedArg i $ A.mkBinder_ name) dom
+    -- TODO(Amy): Anyone know why this discards the tactic? It was like
+    -- that when I got here!
+    return $ A.TBind noRange
+      (A.TypedBindingInfo Nothing isfin)
+      (singleton $ unnamedArg i $ A.mkBinder_ name)
+      dom
 
 instance ToAbstract (A.Expr, Elim) where
   type AbsOfRef (A.Expr, Elim) = A.Expr
