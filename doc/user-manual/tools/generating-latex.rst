@@ -86,9 +86,9 @@ Known pitfalls and issues
     In recent versions of LuaLaTeX, you can avoid using
     ``\newunicodechar`` at all by instead setting up
     a chain of fallback fonts, e.g.
-    
+
     .. code-block:: latex
-    
+
         \usepackage{luaotfload}
         \directlua{luaotfload.add_fallback
           ("mycustomfallback",
