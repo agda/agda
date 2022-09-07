@@ -56,7 +56,7 @@ and2M :: Monad m => m Bool -> m Bool -> m Bool
 and2M ma mb = ifM ma mb (return False)
 
 andM :: (Foldable f, Monad m) => f (m Bool) -> m Bool
-andM = Fold.foldl and2M (return True)
+andM = Fold.foldl' and2M (return True)
 
 allM :: (Functor f, Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
 allM xs f = andM $ fmap f xs
@@ -66,7 +66,7 @@ or2M :: Monad m => m Bool -> m Bool -> m Bool
 or2M ma = ifM ma (return True)
 
 orM :: (Foldable f, Monad m) => f (m Bool) -> m Bool
-orM = Fold.foldl or2M (return False)
+orM = Fold.foldl' or2M (return False)
 
 anyM :: (Functor f, Foldable f, Monad m) => f a -> (a -> m Bool) -> m Bool
 anyM xs f = orM $ fmap f xs
