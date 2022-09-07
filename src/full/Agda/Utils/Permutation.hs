@@ -6,14 +6,13 @@ import Prelude hiding (drop, null)
 import Control.DeepSeq
 import Control.Monad (filterM)
 
+import Data.Array.Unboxed
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.IntMap.Strict as IntMapS
-import qualified Data.IntSet as IntSet
 import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Maybe
-import Data.Array
 
 import Data.Data (Data)
 
@@ -114,10 +113,11 @@ takeP n (Perm m xs) = Perm n $ filter (< n) xs
 
 -- | Pick the elements that are not picked by the permutation.
 droppedP :: Permutation -> Permutation
-droppedP (Perm n xs) =
-  Perm n $ filter (not . (`IntSet.member` xs')) [0..n-1]
+droppedP (Perm n xs) = Perm n $ filter (notInXs !) [0 .. n - 1]
   where
-  xs' = IntSet.fromList xs
+  notInXs :: UArray Int Bool
+  notInXs =
+    accumArray (flip const) True (0, n - 1) (zip xs (repeat False))
 
 -- | @liftP k@ takes a @Perm {m} n@ to a @Perm {m+k} (n+k)@.
 --   Analogous to 'Agda.TypeChecking.Substitution.liftS',
@@ -146,7 +146,11 @@ composeP p1 (Perm n xs) = Perm n $ permute p1 xs
 --   @composeP p (invertP err p) == p@
 invertP :: Int -> Permutation -> Permutation
 invertP err p@(Perm n xs) = Perm (size xs) $ elems tmpArray
-  where tmpArray = accumArray (const id) err (0, n-1) $ zip xs [0..]
+  where
+  -- This array cannot be unboxed, because it should be possible to
+  -- instantiate err with __IMPOSSIBLE__.
+  tmpArray :: Array Int Int
+  tmpArray = accumArray (const id) err (0, n-1) $ zip xs [0..]
 
 -- | Turn a possible non-surjective permutation into a surjective permutation.
 compactP :: Permutation -> Permutation
