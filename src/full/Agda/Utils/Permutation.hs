@@ -10,6 +10,7 @@ import Data.Array.Unboxed
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.IntMap.Strict as IntMapS
+import qualified Data.IntSet as IntSet
 import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Maybe
@@ -156,8 +157,8 @@ invertP err p@(Perm n xs) = Perm (size xs) $ elems tmpArray
 compactP :: Permutation -> Permutation
 compactP p@(Perm _ xs) = Perm (length xs) $ map adjust xs
   where
-  missing      = permPicks $ droppedP p
-  holesBelow k = length $ filter (< k) missing
+  missing      = IntSet.fromList $ permPicks $ droppedP p
+  holesBelow k = IntSet.size $ fst $ IntSet.split k missing
   adjust k     = k - holesBelow k
 
 -- | @permute (reverseP p) xs ==
