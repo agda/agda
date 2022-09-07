@@ -63,6 +63,9 @@ module Agda.TypeChecking.Forcing
     isForced,
     nextIsForced ) where
 
+import qualified Data.DList as DL
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.Monoid -- for (<>) in GHC 8.0.2
 
 import Agda.Interaction.Options
@@ -105,6 +108,9 @@ computeForcingAnnotations c t =
         n = size tel
         xs :: [(Modality, Nat)]
         xs = forcedVariables vs
+        xs' :: IntMap [Modality]
+        xs' = IntMap.map DL.toList $ IntMap.fromListWith (<>) $
+              map (\(m, i) -> (i, DL.singleton m)) xs
         -- #2819: We can only mark an argument as forced if it appears in the
         -- type with a relevance below (i.e. more relevant) than the one of the
         -- constructor argument. Otherwise we can't actually get the value from
@@ -114,8 +120,9 @@ computeForcingAnnotations c t =
         isForced m i =
                (hasQuantity0 m || noUserQuantity m)
             && (getRelevance m /= Irrelevant)
-            && any (\(m', j) -> i == j
-            && m' `moreUsableModality` m) xs
+            && case IntMap.lookup i xs' of
+                 Nothing -> False
+                 Just ms -> any (`moreUsableModality` m) ms
         forcedArgs =
           [ if isForced m i then Forced else NotForced
           | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
