@@ -92,7 +92,7 @@ Known pitfalls and issues
         \usepackage{luaotfload}
         \directlua{luaotfload.add_fallback
           ("mycustomfallback",
-            { "SymbolamonospacifiedforSourceCodePro:style=Regular"
+            { "SymbolamonospacifiedforSourceCodePro:style=Regular;"
             , "NotoSansMono:style=Regular;"
             , "NotoSansMath:style=Regular;"
             }
