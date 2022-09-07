@@ -6,8 +6,11 @@ import Prelude hiding (null, (!!))  -- do not use partial functions like !!
 import Control.Monad
 import Control.Arrow (first,second)
 
-import qualified Data.List as List
-import qualified Data.Map as Map
+import Data.DList (DList)
+import Data.Foldable (toList)
+import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -31,6 +34,7 @@ import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Maybe
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 import Agda.Utils.Functor
@@ -177,33 +181,48 @@ unifyElims :: Args
               -- Γ.Δ', [(x = u)] ⊢ id_g = ts[σ] : Γ
            -> TCM a
 unifyElims vs ts k = do
-                      dom <- getContext
-                      let (binds' , eqs' ) = candidate (map unArg vs) (map unArg ts)
-                          (binds'', eqss') =
-                            unzip $ map (\ (j,t:ts) -> ((j,t),map (,var j) ts)) $ Map.toList $ Map.fromListWith (++) (map (second (:[])) binds')
-                          cod   = codomain s (map fst binds) dom
-                          binds = map (second (raise (size cod - size vs))) binds''
-                          eqs   = map (first  (raise $ size dom - size vs)) $ eqs' ++ concat eqss'
-                          s     = bindS binds
-                      updateContext s (codomain s (map fst binds)) $ do
-                      k s (s `applySubst` eqs)
+  dom <- getContext
+  let (binds' , eqs' ) = candidate (map unArg vs) (map unArg ts)
+      (binds'', eqss') =
+        unzip $
+        map (\(j, tts) -> case toList tts of
+                t : ts -> ((j, t), map (, var j) ts)
+                []     -> __IMPOSSIBLE__) $
+        IntMap.toList $ IntMap.fromListWith (<>) binds'
+      cod'  = codomain s (IntSet.fromList $ map fst binds'')
+      cod   = cod' dom
+      svs   = size vs
+      binds = IntMap.fromList $
+              map (second (raise (size cod - svs))) binds''
+      eqs   = map (first  (raise (size dom - svs))) $
+              eqs' ++ concat eqss'
+      s     = bindS binds
+  updateContext s cod' $ k s (s `applySubst` eqs)
   where
-    candidate :: [Term] -> [Term] -> ([(Nat,Term)],[(Term,Term)])
-    candidate (i:is) (Var j []:ts) = first ((j,i):) (candidate is ts)
-    candidate (i:is) (t:ts)        = second ((i,t):) (candidate is ts)
-    candidate [] [] = ([],[])
-    candidate _ _ = __IMPOSSIBLE__
+  candidate :: [Term] -> [Term] -> ([(Nat, DList Term)], [(Term, Term)])
+  candidate is ts = case (is, ts) of
+    (i : is, Var j [] : ts) -> first ((j, singleton i) :) $
+                               candidate is ts
+    (i : is, t : ts)        -> second ((i, t) :) $
+                               candidate is ts
+    ([],     [])            -> ([], [])
+    _                       -> __IMPOSSIBLE__
 
+  bindS binds = parallelS $
+    case IntMap.lookupMax binds of
+      Nothing       -> []
+      Just (max, _) -> for [0 .. max] $ \i ->
+        fromMaybe (deBruijnVar i) (IntMap.lookup i binds)
 
-    bindS binds = parallelS (for [0..maximum (-1:map fst binds)] $ (\ i -> fromMaybe (deBruijnVar i) (List.lookup i binds)))
-
-    codomain :: Substitution
-             -> [Nat]  -- support
-             -> Context -> Context
-    codomain s vs cxt = map snd $ filter (\ (i,c) -> i `List.notElem` vs) $ zip [0..] cxt'
-     where
-      cxt' = zipWith (\ n d -> dropS n s `applySubst` d) [1..] cxt
-
+  codomain
+    :: Substitution
+    -> IntSet  -- Support.
+    -> Context -> Context
+  codomain s vs =
+    mapMaybe (\(i, c) -> if i `IntSet.member` vs
+                         then Nothing
+                         else Just c) .
+    zipWith (\i c -> (i, dropS (i + 1) s `applySubst` c)) [0..]
 
 -- | Like @unifyElims@ but @Γ@ is from the the meta's @MetaInfo@ and
 -- the context extension @Δ@ is taken from the @Closure@.
