@@ -1429,7 +1429,7 @@ compareConArgs ts ps = do
     -- @unknown@ here can lead to non-termination.
     LT -> return Order.unknown
 
-    EQ -> foldl (Order..*.) Order.le <$>
+    EQ -> List.foldl' (Order..*.) Order.le <$>
                zipWithM compareTerm' (map unArg ts) (map (notMasked . namedArg) ps)
        -- corresponds to taking the size, not the height
        -- allows examples like (x, y) < (Succ x, y)
