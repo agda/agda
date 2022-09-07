@@ -269,7 +269,7 @@ termMutual' = do
 
     Left calls -> do
       mapM_ (`setTerminates` False) allNames
-      return $ singleton $ terminationError names $ callInfos calls
+      return $ singleton $ terminationError names calls
 
     Right{} -> do
       liftTCM $ reportSLn "term.warn.yes" 2 $
@@ -279,11 +279,12 @@ termMutual' = do
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
-terminationError :: Set QName -> [CallInfo] -> TerminationError
-terminationError names calls = TerminationError names' calls
+terminationError :: Set QName -> CallPath -> TerminationError
+terminationError names calls = TerminationError names' calls'
   where
+  calls'    = callInfos calls
+  mentioned = map callInfoTarget calls'
   names'    = filter (hasElem mentioned) $ toList names
-  mentioned = map callInfoTarget calls
 
 billToTerGraph :: a -> TerM a
 billToTerGraph a = liftTCM $ billPureTo [Benchmark.Termination, Benchmark.Graph] a
@@ -926,10 +927,11 @@ function g es0 = do
          let src  = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex f names
              tgt  = gInd
              cm   = makeCM ncols nrows matrix'
-             info = CallPath [CallInfo
+             info = CallPath $ singleton $
+                    CallInfo
                       { callInfoTarget = g
                       , callInfoCall   = doc
-                      }]
+                      }
          verboseS "term.kept.call" 5 $ do
            pats <- terGetPatterns
            reportSDoc "term.kept.call" 5 $ vcat

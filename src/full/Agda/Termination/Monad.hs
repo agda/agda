@@ -18,6 +18,8 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Except
 import Control.Monad.Reader
 
+import Data.DList (DList)
+import qualified Data.DList as DL
 import Data.Semigroup ( Semigroup(..) )
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -576,7 +578,11 @@ instance PrettyTCM a => PrettyTCM (Masked a) where
 
 -- * Call pathes
 
--- | The call information is stored as free monoid
+-- | Call paths.
+
+-- An old comment:
+--
+--   The call information is stored as free monoid
 --   over 'CallInfo'.  As long as we never look at it,
 --   only accumulate it, it does not matter whether we use
 --   'Set', (nub) list, or 'Tree'.
@@ -585,16 +591,24 @@ instance PrettyTCM a => PrettyTCM (Masked a) where
 --   Since we define no order on 'CallInfo' (expensive),
 --   we cannot use a 'Set' or nub list.
 --   Performance-wise, I could not see a difference between Set and list.
+--
+-- If the binary tree is balanced "incorrectly", then forcing it could
+-- be expensive, so a switch was made to difference lists.
 
-newtype CallPath = CallPath { callInfos :: [CallInfo] }
+newtype CallPath = CallPath (DList CallInfo)
   deriving (Show, Semigroup, Monoid)
+
+-- | The calls making up the call path.
+
+callInfos :: CallPath -> [CallInfo]
+callInfos (CallPath cs) = DL.toList cs
 
 -- | Only show intermediate nodes.  (Drop last 'CallInfo').
 instance Pretty CallPath where
-  pretty (CallPath cis0) = if null cis then empty else
+  pretty cis0 = if null cis then empty else
     P.hsep (map (\ ci -> arrow P.<+> P.pretty ci) cis) P.<+> arrow
     where
-      cis   = init cis0
+      cis   = init (callInfos cis0)
       arrow = "-->"
 
 -- * Size depth estimation
