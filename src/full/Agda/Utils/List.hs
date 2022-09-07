@@ -439,14 +439,11 @@ data StrSufSt a
 --   Returns the index where the overlap starts and the length of the overlap.
 --   The length of the overlap plus the index is the length of the first string.
 --   Note that in the worst case, the empty overlap @(length xs,0)@ is returned.
-findOverlap :: forall a. Eq a => [a] -> [a] -> (Int, Int)
-findOverlap xs ys =
-  headWithDefault __IMPOSSIBLE__ $ mapMaybe maybePrefix $ zip [0..] (List.tails xs)
+findOverlap :: Eq a => [a] -> [a] -> (Int, Int)
+findOverlap xs ys = go 0 (reverse xs) ys
   where
-  maybePrefix :: (Int, [a]) -> Maybe (Int, Int)
-  maybePrefix (k, xs')
-    | xs' `List.isPrefixOf` ys = Just (k, length xs')
-    | otherwise                = Nothing
+  go !i (x : xs) (y : ys) | x == y = go (i + 1) xs ys
+  go  i xs       _                 = (length xs, i)
 
 ---------------------------------------------------------------------------
 -- * Groups and chunks
