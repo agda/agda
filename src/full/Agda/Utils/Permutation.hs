@@ -146,12 +146,11 @@ invertP err p@(Perm n xs) = Perm (size xs) $ elems tmpArray
 
 -- | Turn a possible non-surjective permutation into a surjective permutation.
 compactP :: Permutation -> Permutation
-compactP (Perm n xs) = Perm m $ map adjust xs
+compactP p@(Perm _ xs) = Perm (length xs) $ map adjust xs
   where
-    m            = List.genericLength xs
-    missing      = [0..n - 1] List.\\ xs
-    holesBelow k = List.genericLength $ filter (< k) missing
-    adjust k = k - holesBelow k
+  missing      = permPicks $ droppedP p
+  holesBelow k = length $ filter (< k) missing
+  adjust k     = k - holesBelow k
 
 -- | @permute (reverseP p) xs ==
 --    reverse $ permute p $ reverse xs@
