@@ -1722,12 +1722,17 @@ dependencySortMetas :: [MetaId] -> TCM (Maybe [MetaId])
 dependencySortMetas metas = do
   metaGraph <- concat <$> do
     forM metas $ \ m -> do
-      deps <- allMetas (\ m' -> if m' `elem` metas then singleton m' else mempty) <$> getType m
+      deps <- allMetas (\m' -> if m' `Set.member` metas'
+                               then singleton m'
+                               else mempty) <$>
+                getType m
       return [ (m, m') | m' <- Set.toList deps ]
 
-  return $ Graph.topSort metas metaGraph
+  return $ Graph.topSort metas' metaGraph
 
   where
+    metas' = Set.fromList metas
+
     -- Sort metas don't have types, but we still want to sort them.
     getType m = do
       j <- lookupMetaJudgement m
