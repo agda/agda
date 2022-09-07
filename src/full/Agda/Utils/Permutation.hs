@@ -9,6 +9,7 @@ import Control.Monad (filterM)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.IntMap.Strict as IntMapS
+import qualified Data.IntSet as IntSet
 import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Maybe
@@ -113,7 +114,10 @@ takeP n (Perm m xs) = Perm n $ filter (< n) xs
 
 -- | Pick the elements that are not picked by the permutation.
 droppedP :: Permutation -> Permutation
-droppedP (Perm n xs) = Perm n $ [0..n-1] List.\\ xs
+droppedP (Perm n xs) =
+  Perm n $ filter (not . (`IntSet.member` xs')) [0..n-1]
+  where
+  xs' = IntSet.fromList xs
 
 -- | @liftP k@ takes a @Perm {m} n@ to a @Perm {m+k} (n+k)@.
 --   Analogous to 'Agda.TypeChecking.Substitution.liftS',
