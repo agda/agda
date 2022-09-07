@@ -19,6 +19,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 
 import Data.Semigroup ( Semigroup(..) )
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Agda.Interaction.Options (optTerminationDepth)
@@ -31,7 +32,7 @@ import Agda.Syntax.Position (noRange)
 
 import Agda.Termination.CutOff
 import Agda.Termination.Order (Order,le,unknown)
-import Agda.Termination.RecCheck (anyDefs)
+import Agda.Termination.RecCheck (MutualNames, anyDefs)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
@@ -55,13 +56,6 @@ import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 import Agda.Utils.Impossible
-
--- | The mutual block we are checking.
---
---   The functions are numbered according to their order of appearance
---   in this list.
-
-type MutualNames = [QName]
 
 -- | The target of the function we are checking.
 
@@ -101,7 +95,7 @@ data TerEnv = TerEnv
     -- ^ The names of the functions in the mutual block we are checking.
     --   This includes the internally generated functions
     --   (with, extendedlambda, coinduction).
-  , terUserNames :: [QName]
+  , terUserNames :: Set QName
     -- ^ The list of name actually appearing in the file (abstract syntax).
     --   Excludes the internally generated functions.
   , terHaveInlinedWith :: Bool
@@ -286,7 +280,7 @@ terGetCutOff = terAsks terCutOff
 terGetMutual :: TerM MutualNames
 terGetMutual = terAsks terMutual
 
-terGetUserNames :: TerM [QName]
+terGetUserNames :: TerM (Set QName)
 terGetUserNames = terAsks terUserNames
 
 terGetTarget :: TerM Target

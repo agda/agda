@@ -24,6 +24,7 @@ import Control.Monad        ( (<=<), filterM, forM, forM_, zipWithM )
 import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Monoid hiding ((<>))
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
@@ -157,8 +158,9 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
   -- during type-checking.
   mid <- fromMaybe __IMPOSSIBLE__ <$> asksTC envMutualBlock
   mutualBlock <- lookupMutualBlock mid
-  let allNames = filter (not . isAbsurdLambdaName) $ Set.elems $ mutualNames mutualBlock
-      names    = if null names0 then allNames else names0
+  let allNames = Set.filter (not . isAbsurdLambdaName) $
+                 mutualNames mutualBlock
+      names    = if null names0 then allNames else Set.fromList names0
       i        = mutualInfo mutualBlock
 
   -- We set the range to avoid panics when printing error messages.
@@ -200,7 +202,7 @@ termMutual names0 = ifNotM (optTerminationCheck <$> pragmaOptions) (return mempt
      forM sccs $ \ allNames -> do
 
      -- Set the mutual names in the termination environment.
-     let namesSCC = filter (allNames `hasElem`) names
+     let namesSCC = Set.filter (`Set.member` allNames) names
      let setNames e = e
            { terMutual    = allNames
            , terUserNames = namesSCC
@@ -277,10 +279,10 @@ termMutual' = do
 
 -- | Smart constructor for 'TerminationError'.
 --   Removes 'termErrFunctions' that are not mentioned in 'termErrCalls'.
-terminationError :: [QName] -> [CallInfo] -> TerminationError
+terminationError :: Set QName -> [CallInfo] -> TerminationError
 terminationError names calls = TerminationError names' calls
   where
-  names'    = filter (hasElem mentioned) names
+  names'    = filter (hasElem mentioned) $ toList names
   mentioned = map callInfoTarget calls
 
 billToTerGraph :: a -> TerM a
@@ -353,7 +355,7 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
   -- in the list of @allNames@ of the mutual block.
 
   allNames <- terGetMutual
-  let index = fromMaybe __IMPOSSIBLE__ $ List.elemIndex name allNames
+  let index = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex name allNames
 
   -- Retrieve the target type of the function to check.
   -- #4256: Don't use typeOfConst (which instantiates type with module params), since termination
@@ -376,7 +378,10 @@ termFunction name = inConcreteOrAbstractMode name $ \ def -> do
           if null todo then return $ Left calls else do
             -- Extract calls originating from indices in @todo@.
             new <- forM' todo $ \ i ->
-              termDef $ fromMaybe __IMPOSSIBLE__ $ allNames !!! i
+              termDef $
+              if i < 0 || i >= Set.size allNames
+              then __IMPOSSIBLE__
+              else Set.elemAt i allNames
             -- Mark those functions as processed and add the calls to the result.
             let done'  = done `mappend` todo
                 calls' = new  `mappend` calls
@@ -826,7 +831,7 @@ function g es0 = do
           ]
 
     -- insert this call into the call list
-    case List.elemIndex g names of
+    case Set.lookupIndex g names of
 
        -- call leads outside the mutual block and can be ignored
        Nothing   -> return calls
@@ -918,7 +923,7 @@ function g es0 = do
            -- Andreas, 2017-01-05, issue #2376
            -- Remove arguments inserted by etaExpandClause.
 
-         let src  = fromMaybe __IMPOSSIBLE__ $ List.elemIndex f names
+         let src  = fromMaybe __IMPOSSIBLE__ $ Set.lookupIndex f names
              tgt  = gInd
              cm   = makeCM ncols nrows matrix'
              info = CallPath [CallInfo
