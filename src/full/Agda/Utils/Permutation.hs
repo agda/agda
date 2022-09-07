@@ -20,7 +20,6 @@ import Data.Data (Data)
 import GHC.Generics (Generic)
 
 import Agda.Utils.Functor
-import Agda.Utils.List ((!!!))
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -65,11 +64,44 @@ instance NFData Permutation
 --
 --   Agda typing:
 --   @permute (Perm {m} n is) : Vec A m -> Vec A n@
+--
+-- Precondition for @'permute' ('Perm' _ is) xs@: Every index in @is@
+-- must be non-negative and, if @xs@ is finite, then every index must
+-- also be smaller than the length of @xs@.
+--
+-- The implementation is supposed to be extensionally equal to the
+-- following one (if different exceptions are identified), but in some
+-- cases more efficient:
+-- @
+--   permute ('Perm' _ is) xs = 'map' (xs 'Agda.Utils.List.!!') is
+-- @
 permute :: Permutation -> [a] -> [a]
-permute p xs = map (fromMaybe __IMPOSSIBLE__) (safePermute p xs)
+permute (Perm _ is) xs = go mempty 0 xs is
+  where
+  -- Computes the list of permuted elements.
+  go :: IntMap a  -- A map from positions to elements that have
+                  -- already been seen.
+     -> Int       -- The number of elements that have been seen (the
+                  -- size of the map).
+     -> [a]       -- Elements that have not yet been seen.
+     -> [Int]     -- Indices to process.
+     -> [a]
+  go seen !n xs []       = []
+  go seen  n xs (i : is)
+    | i < n     = fromMaybe __IMPOSSIBLE__
+                    (IntMap.lookup i seen) :
+                  go seen n xs is
+    | otherwise = scan seen n xs (i - n) is
 
-safePermute :: Permutation -> [a] -> [Maybe a]
-safePermute (Perm _ is) xs = map (xs !!!) is
+  -- Finds the element at the given position and continues.
+  scan :: IntMap a -> Int -> [a] -> Int -> [Int] -> [a]
+  scan seen !n (x : xs) !i is
+    | i == 0 = x : (go $! seen') n' xs is
+    | i > 0  = (scan $! seen') n' xs (i - 1) is
+    where
+    seen' = IntMap.insert n x seen
+    n'    = n + 1
+  scan seen n xs !_ is = __IMPOSSIBLE__ : go seen n xs is
 
 -- |  Invert a Permutation on a partial finite int map.
 -- @inversePermute perm f = f'@
