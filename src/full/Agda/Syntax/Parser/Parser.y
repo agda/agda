@@ -34,6 +34,8 @@ import Control.Monad
 
 import Data.Bifunctor (first, second)
 import Data.Char
+import Data.DList (DList)
+import qualified Data.DList as DL
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ((<>), sconcat)
@@ -572,11 +574,12 @@ Strings :: { [(Interval, String)] }
 Strings : {- empty -}    { [] }
         | string Strings { $1 : $2 }
 
-ForeignCode :: { [(Interval, String)] }
+ForeignCode :: { DList (Interval, String) }
 ForeignCode
-  : {- empty -} { [] }
-  | string ForeignCode { $1 : $2 }
-  | '{-#' ForeignCode '#-}' ForeignCode { [($1, "{-#")] ++ $2 ++ [($3, "#-}")] ++ $4 }
+  : {- empty -} { mempty }
+  | string ForeignCode { $1 `DL.cons` $2 }
+  | '{-#' ForeignCode '#-}' ForeignCode
+    { (($1, "{-#") `DL.cons` $2) <> (($3, "#-}") `DL.cons` $4) }
 
 PragmaName :: { Name }
 PragmaName : string {% mkName $1 }
@@ -1316,7 +1319,7 @@ UnquoteDecl
 Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
   case $2 of
-    Name _ _ (_ :| []) -> case mkNotation $3 (reverse $5) of
+    Name _ _ (_ :| []) -> case mkNotation (DL.toList $3) (reverse $5) of
       Left err -> parseError $ "Malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
     _ -> parseError "Syntax declarations are allowed only for simple names (without holes)"
@@ -1345,9 +1348,9 @@ SimpleIdsOrWildcards
   : SimpleIdOrWildcard                      { List1.singleton $1 }
   | SimpleIdsOrWildcards SimpleIdOrWildcard { $2 <| $1 }
 
-HoleNames :: { [NamedArg HoleName] }
-HoleNames :                    { [] }
-          | HoleNames HoleName {$1 ++ [$2]}
+HoleNames :: { DList (NamedArg HoleName) }
+HoleNames :                    { mempty }
+          | HoleNames HoleName { $1 `DL.snoc` $2 }
 
 HoleName :: { NamedArg HoleName }
 HoleName
@@ -1547,7 +1550,9 @@ RewritePragma
 
 ForeignPragma :: { Pragma }
 ForeignPragma
-  : '{-#' 'FOREIGN' string ForeignCode '#-}' { ForeignPragma (getRange ($1, $2, fst $3, $5)) (mkRString $3) (recoverLayout $4) }
+  : '{-#' 'FOREIGN' string ForeignCode '#-}'
+    { ForeignPragma (getRange ($1, $2, fst $3, $5))
+        (mkRString $3) (recoverLayout (DL.toList $4)) }
 
 CompilePragma :: { Pragma }
 CompilePragma
