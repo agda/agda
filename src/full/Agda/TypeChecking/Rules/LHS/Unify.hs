@@ -889,14 +889,14 @@ solutionStep retry s
 solutionStep _ _ _ = __IMPOSSIBLE__
 
 unify
-  :: (PureTCM m, MonadWriter UnifyLog m, MonadError TCErr m)
+  :: (PureTCM m, MonadWriter UnifyLog' m, MonadError TCErr m)
   => UnifyState -> UnifyStrategy -> m (UnificationResult' UnifyState)
 unify s strategy = if isUnifyStateSolved s
                    then return $ Unifies s
                    else tryUnifyStepsAndContinue (strategy s)
   where
     tryUnifyStepsAndContinue
-      :: (PureTCM m, MonadWriter UnifyLog m, MonadError TCErr m)
+      :: (PureTCM m, MonadWriter UnifyLog' m, MonadError TCErr m)
       => ListT m UnifyStep -> m (UnificationResult' UnifyState)
     tryUnifyStepsAndContinue steps = do
       x <- foldListT tryUnifyStep failure steps
@@ -906,7 +906,7 @@ unify s strategy = if isUnifyStateSolved s
         UnifyBlocked b -> return $ UnifyBlocked b
         UnifyStuck err -> return $ UnifyStuck err
 
-    tryUnifyStep :: (PureTCM m, MonadWriter UnifyLog m, MonadError TCErr m)
+    tryUnifyStep :: (PureTCM m, MonadWriter UnifyLog' m, MonadError TCErr m)
                  => UnifyStep
                  -> m (UnificationResult' UnifyState)
                  -> m (UnificationResult' UnifyState)

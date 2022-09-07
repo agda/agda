@@ -7,7 +7,9 @@ import Control.Monad.State
 import Control.Monad.Writer (WriterT(..), MonadWriter(..))
 import Control.Monad.Except
 
+import Data.Foldable (toList)
 import Data.Semigroup hiding (Arg)
+import Data.DList (DList)
 import qualified Data.List as List
 import qualified Data.IntSet as IntSet
 import qualified Data.IntMap as IntMap
@@ -443,6 +445,10 @@ data UnifyLogEntry
 
 type UnifyLog = [(UnifyLogEntry,UnifyState)]
 
+-- | This variant of 'UnifyLog' is used to ensure that 'tell' is not
+-- expensive.
+type UnifyLog' = DList (UnifyLogEntry, UnifyState)
+
 -- Given varΓ ⊢ eqΓ, varΓ ⊢ us, vs : eqΓ
 data UnifyOutput = UnifyOutput
   { unifySubst :: PatternSubstitution -- varΓ' ⊢ σ : varΓ
@@ -462,7 +468,7 @@ instance Monoid UnifyOutput where
   mempty  = UnifyOutput IdS IdS -- []
   mappend = (<>)
 
-type UnifyLogT m a = WriterT UnifyLog m a
+type UnifyLogT m a = WriterT UnifyLog' m a
 
 type UnifyStepT m a = WriterT UnifyOutput m a
 
@@ -472,8 +478,9 @@ tellUnifySubst sub = tell $ UnifyOutput sub IdS
 tellUnifyProof :: MonadWriter UnifyOutput m => PatternSubstitution -> m ()
 tellUnifyProof sub = tell $ UnifyOutput IdS sub
 
-writeUnifyLog :: MonadWriter UnifyLog m => (UnifyLogEntry,UnifyState) -> m ()
-writeUnifyLog x = tell $ [x] -- UnifyOutput IdS IdS [x]
+writeUnifyLog ::
+  MonadWriter UnifyLog' m => (UnifyLogEntry, UnifyState) -> m ()
+writeUnifyLog x = tell (singleton x) -- UnifyOutput IdS IdS [x]
 
-runUnifyLogT :: UnifyLogT m a -> m (a,UnifyLog)
-runUnifyLogT = runWriterT
+runUnifyLogT :: Functor m => UnifyLogT m a -> m (a, UnifyLog)
+runUnifyLogT m = mapSnd toList <$> runWriterT m
