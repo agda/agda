@@ -8,6 +8,7 @@ import Control.Monad (filterM)
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.Strict as IntMapS
 import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Maybe
@@ -97,7 +98,10 @@ instance InversePermute [Maybe a] [Maybe a] where
     where tabulate m = for [0..n-1] $ \ i -> IntMap.lookup i m
 
 instance InversePermute (Int -> a) [Maybe a] where
-  inversePermute (Perm n xs) f = for [0..n-1] $ \ x -> f <$> List.elemIndex x xs
+  inversePermute (Perm n xs) f =
+    for [0..n-1] $ \i -> f <$> IntMap.lookup i m
+    where
+    m = IntMapS.fromListWith (flip const) $ zip xs [0..]
 
 -- | Identity permutation.
 idP :: Int -> Permutation
