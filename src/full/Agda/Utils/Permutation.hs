@@ -67,10 +67,7 @@ permute :: Permutation -> [a] -> [a]
 permute p xs = map (fromMaybe __IMPOSSIBLE__) (safePermute p xs)
 
 safePermute :: Permutation -> [a] -> [Maybe a]
-safePermute (Perm _ is) xs = map (xs !!!!) is
-  where
-    xs !!!! n | n < 0     = Nothing
-              | otherwise = xs !!! n
+safePermute (Perm _ is) xs = map (xs !!!) is
 
 -- |  Invert a Permutation on a partial finite int map.
 -- @inversePermute perm f = f'@

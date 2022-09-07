@@ -152,12 +152,16 @@ initWithDefault _  (a:as) = init1 a as
 -- * Lookup and indexing
 ---------------------------------------------------------------------------
 
--- | Lookup function (partially safe).
+-- | Lookup function (safe).
 --   O(min n index).
 (!!!) :: [a] -> Int -> Maybe a
-[]       !!! _         = Nothing
-(x : _)  !!! 0         = Just x
-(_ : xs) !!! n         = xs !!! (n - 1)
+xs !!! (!i)
+  | i < 0     = Nothing
+  | otherwise = index xs i
+  where
+  index []       !i = Nothing
+  index (x : xs) 0  = Just x
+  index (x : xs) i  = index xs (i - 1)
 
 -- | A variant of 'Prelude.!!' that might provide more informative
 -- error messages if the index is out of bounds.
