@@ -63,14 +63,21 @@ reorderTel_ tel = fromMaybe __IMPOSSIBLE__ (reorderTel tel)
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
 unflattenTel :: [ArgName] -> [Dom Type] -> Telescope
-unflattenTel []   []            = EmptyTel
-unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
-  where
-    tel' = unflattenTel xs tel
+unflattenTel xs tel = unflattenTel' (size tel) xs tel
+
+-- | A variant of 'unflattenTel' which takes the size of the last
+-- argument as an argument.
+unflattenTel' :: Int -> [ArgName] -> [Dom Type] -> Telescope
+unflattenTel' !n xs tel = case (xs, tel) of
+  ([],     [])      -> EmptyTel
+  (x : xs, a : tel) -> ExtendTel a' (Abs x tel')
+    where
+    tel' = unflattenTel' (n - 1) xs tel
     a'   = applySubst rho a
-    rho  = parallelS (replicate (size tel + 1) (withCallerCallStack impossibleTerm))
-unflattenTel [] (_ : _) = __IMPOSSIBLE__
-unflattenTel (_ : _) [] = __IMPOSSIBLE__
+    rho  = parallelS $
+           replicate n (withCallerCallStack impossibleTerm)
+  ([],    _ : _) -> __IMPOSSIBLE__
+  (_ : _, [])    -> __IMPOSSIBLE__
 
 -- | Rename the variables in the telescope to the given names
 --   Precondition: @size xs == size tel@.
