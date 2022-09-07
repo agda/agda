@@ -13,7 +13,8 @@ when yes, where).
 
 module Agda.TypeChecking.Coverage.Match
   ( Match(..), match, matchClause
-  , SplitPattern, SplitPatVar(..), fromSplitPatterns, toSplitPatterns
+  , SplitPattern, SplitPatVar(..)
+  , fromSplitPattern, fromSplitPatterns, toSplitPatterns
   , toSplitPSubst, applySplitPSubst
   , isTrivialPattern
   , BlockingVar(..), BlockingVars, BlockedOnResult(..)
@@ -147,8 +148,11 @@ instance DeBruijn SplitPatVar where
 toSplitPatterns :: [NamedArg DeBruijnPattern] -> [NamedArg SplitPattern]
 toSplitPatterns = (fmap . fmap . fmap . fmap) toSplitVar
 
+fromSplitPattern :: NamedArg SplitPattern -> NamedArg DeBruijnPattern
+fromSplitPattern = (fmap . fmap . fmap) fromSplitVar
+
 fromSplitPatterns :: [NamedArg SplitPattern] -> [NamedArg DeBruijnPattern]
-fromSplitPatterns = (fmap . fmap . fmap . fmap) fromSplitVar
+fromSplitPatterns = fmap fromSplitPattern
 
 type SplitPSubstitution = Substitution' SplitPattern
 
