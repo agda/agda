@@ -8,6 +8,7 @@ import Control.Arrow (first)
 import Control.Monad.Identity
 
 import Data.Foldable (foldMap)
+import qualified Data.DList as DL
 import Data.Semigroup ((<>))
 import Data.Void
 
@@ -37,18 +38,20 @@ appView :: Expr -> AppView
 appView = fmap snd . appView'
 
 appView' :: Expr -> AppView' (AppInfo, Expr)
-appView' e =
-  case e of
+appView' e = f (DL.toList es)
+  where
+  (f, es) = appView'' e
+
+  appView'' e = case e of
     App i e1 e2
       | Dot _ e2' <- unScope $ namedArg e2
       , Just f <- maybeProjTurnPostfix e2'
       , getHiding e2 == NotHidden -- Jesper, 2018-12-13: postfix projections shouldn't be hidden
-                   -> Application f [defaultNamedArg (i, e1)]
-    App i e1 arg
-      | Application hd es <- appView' e1
-                   -> Application hd $ es ++ [(fmap . fmap) (i,) arg]
-    ScopedExpr _ e -> appView' e
-    _              -> Application e []
+      -> (Application f, singleton (defaultNamedArg (i, e1)))
+    App i e1 arg | (f, es) <- appView'' e1 ->
+      (f, es `DL.snoc` (fmap . fmap) (i,) arg)
+    ScopedExpr _ e -> appView'' e
+    _              -> (Application e, mempty)
 
 maybeProjTurnPostfix :: Expr -> Maybe Expr
 maybeProjTurnPostfix e =
