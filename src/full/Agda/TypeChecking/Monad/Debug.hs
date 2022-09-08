@@ -340,17 +340,6 @@ verboseS k n action = whenM (hasVerbosity k n) $ nowDebugPrinting action
 applyWhenVerboseS :: MonadDebug m => VerboseKey -> VerboseLevel -> (m a -> m a) -> m a -> m a
 applyWhenVerboseS k n f a = ifM (hasVerbosity k n) (f a) a
 
--- | Verbosity lens.
-verbosity :: VerboseKey -> Lens' VerboseLevel TCState
-verbosity k = stPragmaOptions . verbOpt . Trie.valueAt (parseVerboseKey k) . defaultTo 0
-  where
-    verbOpt :: Lens' Verbosity PragmaOptions
-    verbOpt f opts = f (optVerbose opts) <&> \ v -> opts { optVerbose = v }
-    -- Andreas, 2019-08-20: this lens should go into Interaction.Option.Lenses!
-
-    defaultTo :: Eq a => a -> Lens' a (Maybe a)
-    defaultTo x f m = filterMaybe (== x) <$> f (fromMaybe x m)
-
 -- | Check whether a certain profile option is activated.
 {-# SPECIALIZE hasProfileOption :: ProfileOption -> TCM Bool #-}
 hasProfileOption :: MonadDebug m => ProfileOption -> m Bool
