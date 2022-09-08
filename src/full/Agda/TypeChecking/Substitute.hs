@@ -23,6 +23,7 @@ import Data.Coerce
 import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
+import qualified Data.Map.Strict as MapS
 import Data.Maybe
 import Data.HashMap.Strict (HashMap)
 
@@ -1659,11 +1660,9 @@ levelMax n0 as0 = Max n as
   where
     -- step 1: flatten nested @Level@ expressions in @PlusLevel@s
     Max n1 as1 = expandLevel $ Max n0 as0
-    -- step 2: remove subsumed @PlusLevel@s
-    as2       = removeSubsumed as1
-    -- step 3: sort remaining @PlusLevel@s
-    as        = List.sort as2
-    -- step 4: set constant to 0 if it is subsumed by one of the @PlusLevel@s
+    -- step 2: remove subsumed @PlusLevel@s and sort what remains
+    as        = removeSubsumed as1
+    -- step 3: set constant to 0 if it is subsumed by one of the @PlusLevel@s
     greatestB = Prelude.maximum $ 0 : [ n | Plus n _ <- as ]
     n | n1 > greatestB = n1
       | otherwise      = 0
@@ -1681,12 +1680,11 @@ levelMax n0 as0 = Max n as
     expandTm (Level l)       = expandLevel l
     expandTm l               = atomicLevel l
 
-    removeSubsumed [] = []
-    removeSubsumed (Plus n a : bs)
-      | not $ null ns = removeSubsumed bs
-      | otherwise     = Plus n a : removeSubsumed [ b | b@(Plus _ a') <- bs, a /= a' ]
-      where
-        ns = [ m | Plus m a' <- bs, a == a', m > n ]
+    removeSubsumed =
+      map (\(a, n) -> Plus n a) .
+      MapS.toAscList .
+      MapS.fromListWith max .
+      map (\(Plus n a) -> (a, n))
 
 -- | Given two levels @a@ and @b@, compute @a ⊔ b@ and return its
 --   canonical form.
