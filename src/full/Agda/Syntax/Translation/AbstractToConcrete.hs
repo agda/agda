@@ -408,7 +408,9 @@ pickConcreteName x y = modifyConcreteNames $ flip Map.alter x $ \case
 -- | For the given abstract name, return the names that could shadow it.
 shadowingNames :: (ReadTCState m, MonadStConcreteNames m)
                => A.Name -> m (Set RawName)
-shadowingNames x = Set.fromList . Map.findWithDefault [] x <$> useR stShadowingNames
+shadowingNames x =
+  Set.fromList . Fold.toList . Map.findWithDefault mempty x <$>
+    useR stShadowingNames
 
 toConcreteName :: A.Name -> AbsToCon C.Name
 toConcreteName x | y <- nameConcrete x , isNoName y = return y

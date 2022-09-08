@@ -29,6 +29,7 @@ import Control.Monad.Trans.Maybe    ( MaybeT(..) )
 import Control.Parallel             ( pseq )
 
 import Data.Array (Ix)
+import Data.DList (DList)
 import Data.Function
 import Data.Int
 import Data.IntMap (IntMap)
@@ -258,12 +259,12 @@ data PostScopeState = PostScopeState
   , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
-  , stPostUsedNames           :: !(Map RawName [RawName])
+  , stPostUsedNames           :: !(Map RawName (DList RawName))
     -- ^ Map keeping track for each name root (= name w/o numeric
     -- suffixes) what names with the same root have been used during a
     -- TC computation. This information is used to build the
     -- @ShadowingNames@ map.
-  , stPostShadowingNames      :: !(Map Name [RawName])
+  , stPostShadowingNames      :: !(Map Name (DList RawName))
     -- ^ Map keeping track for each (abstract) name the list of all
     -- (raw) names that it could maybe be shadowed by.
   , stPostStatistics          :: !Statistics
@@ -675,12 +676,12 @@ stConcreteNames f s =
   f (stPostConcreteNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}
 
-stUsedNames :: Lens' (Map RawName [RawName]) TCState
+stUsedNames :: Lens' (Map RawName (DList RawName)) TCState
 stUsedNames f s =
   f (stPostUsedNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostUsedNames = x}}
 
-stShadowingNames :: Lens' (Map Name [RawName]) TCState
+stShadowingNames :: Lens' (Map Name (DList RawName)) TCState
 stShadowingNames f s =
   f (stPostShadowingNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostShadowingNames = x}}
