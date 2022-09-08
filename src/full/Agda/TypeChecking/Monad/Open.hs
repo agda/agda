@@ -60,11 +60,9 @@ tryGetOpen extract open = do
       if m == cur then return o
                   else return $ OpenThing (-1) (Map.filterWithKey (\ k _ -> k == 0) env) m x
 
-    findParent m1 m2
-      | Set.null keys = empty
-      | otherwise     = return $ Set.findMax keys
-      where
-        keys = Set.intersection (Map.keysSet m1) (Map.keysSet m2)
+    findParent m1 m2 = case Map.lookupMax (Map.intersection m1 m2) of
+      Nothing       -> empty
+      Just (max, _) -> return max
 
 -- | An 'Open' is closed if it has checkpoint 0.
 isClosed :: Open a -> Bool

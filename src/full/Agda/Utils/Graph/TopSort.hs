@@ -31,7 +31,8 @@ topSort nodes edges = go [] (Set.toList nodes)
     g      = G.transitiveClosure $
                G.fromNodeSet nodes `G.union`
                G.fromEdges [G.Edge a b w | (a, b) <- edges]
-    deps a = Map.keysSet $ G.graph g Map.! a
+    -- Only the keys of these maps are used.
+    deps a = G.graph g Map.! a
 
     -- acc: Already sorted nodes in reverse order paired with accumulated set of nodes that must
     -- come before it
@@ -41,10 +42,9 @@ topSort nodes edges = go [] (Set.toList nodes)
     insert a [] = Just [(a, deps a)]
     insert a bs0@((b, before_b) : bs)
       | before && after = Nothing
-      | before          = ((b, Set.union before_a before_b) :) <$> insert a bs  -- a must come before b
-      | otherwise       = Just $ (a, Set.union before_a before_b) : bs0
+      | before          = ((b, Map.union before_a before_b) :) <$> insert a bs  -- a must come before b
+      | otherwise       = Just $ (a, Map.union before_a before_b) : bs0
       where
         before_a = deps a
-        before = Set.member a before_b
-        after  = Set.member b before_a
-
+        before = Map.member a before_b
+        after  = Map.member b before_a

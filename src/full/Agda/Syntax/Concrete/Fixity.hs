@@ -91,10 +91,12 @@ instance MonadFixityError m => Semigroup (MonadicFixPol m) where
     return (f, p)
     where
     mergePolarities p1 p2
-      | Set.null i = return (Map.union p1 p2)
-      | otherwise  = throwMultiplePolarityPragmas (Set.toList i)
+      | Map.null i = return (Map.union p1 p2)
+      | otherwise  = throwMultiplePolarityPragmas $
+                     map fst $ Map.toList i
       where
-      i = Set.intersection (Map.keysSet p1) (Map.keysSet p2)
+      -- Only the keys are used.
+      i = Map.intersection p1 p2
 
 instance MonadFixityError m => Monoid (MonadicFixPol m) where
   mempty  = MonadicFixPol $ return (Map.empty, Map.empty)
