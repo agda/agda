@@ -33,6 +33,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.ProfileOptions
@@ -299,19 +300,35 @@ parseVerboseKey = wordsBy (`elem` (".:" :: String))
 --   Precondition: The level must be non-negative.
 {-# SPECIALIZE hasVerbosity :: VerboseKey -> VerboseLevel -> TCM Bool #-}
 hasVerbosity :: MonadDebug m => VerboseKey -> VerboseLevel -> m Bool
-hasVerbosity k n | n < 0     = __IMPOSSIBLE__
-                 | otherwise = do
-    t <- getVerbosity
-    let ks = parseVerboseKey k
-        m  = lastWithDefault 0 $ Trie.lookupPath ks t
-    return (n <= m)
+hasVerbosity k n = do
+  t <- getVerbosity
+  return $ case t of
+    Strict.Nothing -> n <= 1
+    Strict.Just t
+      -- This code is not executed if no debug flags have been given.
+      | t == Trie.singleton [] 0 ->
+        -- A special case for "-v0".
+        n <= 0
+      | otherwise ->
+        let ks = parseVerboseKey k
+            m  = lastWithDefault 0 $ Trie.lookupPath ks t
+        in n <= m
 
 -- | Check whether a certain verbosity level is activated (exact match).
 
 {-# SPECIALIZE hasExactVerbosity :: VerboseKey -> VerboseLevel -> TCM Bool #-}
 hasExactVerbosity :: MonadDebug m => VerboseKey -> VerboseLevel -> m Bool
-hasExactVerbosity k n =
-  (Just n ==) . Trie.lookup (parseVerboseKey k) <$> getVerbosity
+hasExactVerbosity k n = do
+  t <- getVerbosity
+  return $ case t of
+    Strict.Nothing -> n == 1
+    Strict.Just t
+      -- This code is not executed if no debug flags have been given.
+      | t == Trie.singleton [] 0 ->
+        -- A special case for "-v0".
+        n == 0
+      | otherwise ->
+        Just n == Trie.lookup (parseVerboseKey k) t
 
 -- | Run a computation if a certain verbosity level is activated (exact match).
 

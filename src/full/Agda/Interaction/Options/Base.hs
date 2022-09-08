@@ -16,7 +16,6 @@ module Agda.Interaction.Options.Base
     , stripRTS
     , defaultOptions
     , defaultInteractionOptions
-    , defaultVerbosity
     , defaultCutOff
     , defaultPragmaOptions
     , standardOptions_
@@ -82,7 +81,11 @@ import Agda.Version
 
 type VerboseKey   = String
 type VerboseLevel = Int
-type Verbosity    = Trie VerboseKey VerboseLevel
+-- | 'Strict.Nothing' is used if no verbosity options have been given,
+-- thus making it possible to handle the default case relatively
+-- quickly. Note that 'Strict.Nothing' corresponds to a trie with
+-- verbosity level 1 for the empty path.
+type Verbosity = Strict.Maybe (Trie VerboseKey VerboseLevel)
 
 -- Don't forget to update
 --   doc/user-manual/tools/command-line-options.rst
@@ -134,7 +137,7 @@ data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
   , optShowIrrelevant            :: Bool
   , optUseUnicode                :: UnicodeOrAscii
-  , optVerbose                   :: Verbosity
+  , optVerbose                   :: !Verbosity
   , optProfiling                 :: ProfileOptions
   , optProp                      :: Bool
   , optTwoLevel                  :: WithDefault 'False
@@ -240,9 +243,6 @@ type OptionsPragma = [String]
 mapFlag :: (String -> String) -> OptDescr a -> OptDescr a
 mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
-defaultVerbosity :: Verbosity
-defaultVerbosity = Trie.singleton [] 1
-
 defaultInteractionOptions :: PragmaOptions
 defaultInteractionOptions = defaultPragmaOptions
 
@@ -279,7 +279,7 @@ defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optShowIrrelevant            = False
   , optUseUnicode                = UnicodeOk
-  , optVerbose                   = defaultVerbosity
+  , optVerbose                   = Strict.Nothing
   , optProfiling                 = noProfileOptions
   , optProp                      = False
   , optTwoLevel                  = Default
@@ -810,7 +810,13 @@ noLibsFlag o = return $ o { optUseLibs = False }
 verboseFlag :: String -> Flag PragmaOptions
 verboseFlag s o =
     do  (k,n) <- parseVerbose s
-        return $ o { optVerbose = Trie.insert k n $ optVerbose o }
+        return $
+          o { optVerbose =
+                Strict.Just $ Trie.insert k n $
+                case optVerbose o of
+                  Strict.Nothing -> Trie.singleton [] 1
+                  Strict.Just v  -> v
+            }
   where
     parseVerbose :: String -> OptM ([VerboseKey], VerboseLevel)
     parseVerbose s = case wordsBy (`elem` (":." :: String)) s of
