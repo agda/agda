@@ -1656,7 +1656,7 @@ piSort a s1 s2 = case piSort' a s1 s2 of
 
 -- ^ Computes @n0 ⊔ a₁ ⊔ a₂ ⊔ ... ⊔ aₙ@ and return its canonical form.
 levelMax :: Integer -> [PlusLevel] -> Level
-levelMax n0 as0 = Max n as
+levelMax !n0 as0 = Max n as
   where
     -- step 1: flatten nested @Level@ expressions in @PlusLevel@s
     Max n1 as1 = expandLevel $ Max n0 as0

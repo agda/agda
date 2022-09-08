@@ -296,7 +296,7 @@ data IsFibrant = IsFibrant | IsStrict
 data Sort' t
   = Type (Level' t)  -- ^ @Set ℓ@.
   | Prop (Level' t)  -- ^ @Prop ℓ@.
-  | Inf IsFibrant Integer      -- ^ @Setωᵢ@.
+  | Inf IsFibrant !Integer      -- ^ @Setωᵢ@.
   | SSet (Level' t)  -- ^ @SSet ℓ@.
   | SizeUniv    -- ^ @SizeUniv@, a sort inhabited by type @Size@.
   | LockUniv    -- ^ @LockUniv@, a sort for locks.
@@ -317,12 +317,12 @@ type Sort = Sort' Term
 
 -- | A level is a maximum expression of a closed level and 0..n
 --   'PlusLevel' expressions each of which is an atom plus a number.
-data Level' t = Max Integer [PlusLevel' t]
+data Level' t = Max !Integer [PlusLevel' t]
   deriving (Show, Data, Functor, Foldable, Traversable)
 
 type Level = Level' Term
 
-data PlusLevel' t = Plus Integer t
+data PlusLevel' t = Plus !Integer t
   deriving (Show, Data, Functor, Foldable, Traversable)
 
 type PlusLevel = PlusLevel' Term
@@ -483,7 +483,7 @@ litP = LitP defaultPatternInfo
 -- | Type used when numbering pattern variables.
 data DBPatVar = DBPatVar
   { dbPatVarName  :: PatVarName
-  , dbPatVarIndex :: Int
+  , dbPatVarIndex :: !Int
   } deriving (Data, Show, Eq, Generic)
 
 type DeBruijnPattern = Pattern' DBPatVar
