@@ -28,7 +28,6 @@ import Data.Maybe
 import Data.HashMap.Strict (HashMap)
 
 import Debug.Trace (trace)
-import Language.Haskell.TH.Syntax (thenCmp) -- lexicographic combination of Ordering
 
 import Agda.Interaction.Options
 
@@ -1440,7 +1439,8 @@ instance Eq a => Eq (Pattern' a) where
   _               == _                 = False
 
 instance Ord Term where
-  Var a b    `compare` Var x y    = compare x a `thenCmp` compare b y -- sort de Bruijn indices down (#2765)
+  Var a b    `compare` Var x y    = compare (x, b) (a, y)
+                                    -- sort de Bruijn indices down (#2765)
   Var{}      `compare` _          = LT
   _          `compare` Var{}      = GT
   Def a b    `compare` Def x y    = compare (a, b) (x, y)

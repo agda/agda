@@ -247,7 +247,6 @@ library
                 , stm >= 2.4.4 && < 2.6
                 , STMonadTrans >= 0.4.3 && < 0.5
                 , strict >= 0.3.2 && < 0.5
-                , template-haskell >= 2.11.0.0 && < 2.20
                 , text >= 1.2.3.0 && < 2.1
                 , time >= 1.6.0.1 && < 1.13
                 , time-compat >= 1.9.2 && < 1.10
