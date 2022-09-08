@@ -127,7 +127,7 @@ checkpoint sub k = do
   -- created under refined parent parameters, but as long as those modules
   -- aren't named we shouldn't look at the checkpoint. The right thing to do
   -- would be to not store these modules in the checkpoint map, but todo..
-  stModuleCheckpoints `setTCLens` Map.union oldMods (old <$ Map.difference newMods oldMods)
+  stModuleCheckpoints `setTCLens` Map.union oldMods (old <$ newMods)
   unlessDebugPrinting $ reportSLn "tc.cxt.checkpoint" 105 "}"
   return x
 
