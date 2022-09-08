@@ -163,9 +163,12 @@ dropS n IdS                = raiseS n
 dropS n (Wk m rho)         = wkS m (dropS n rho)
 dropS n (u :# rho)         = dropS (n - 1) rho
 dropS n (Strengthen _ rho) = dropS (n - 1) rho
-dropS n (Lift 0 rho)       = __IMPOSSIBLE__
-dropS n (Lift m rho)       = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
 dropS n (EmptyS err)       = throwImpossible err
+dropS n (Lift m rho)
+  -- dropS n (Lift m rho) =
+  --   wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
+  | n > m     = wkS m $ dropS (n - m) rho
+  | otherwise = wkS n $ liftS (m - n) rho
 
 -- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
 composeS :: EndoSubst a => Substitution' a -> Substitution' a -> Substitution' a
