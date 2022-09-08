@@ -383,9 +383,12 @@ telViewUpTo' 0 p t = return $ TelV EmptyTel t
 telViewUpTo' n p t = do
   t <- reduce t
   case unEl t of
-    Pi a b | p a -> absV a (absName b) <$> do
-                      underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
-    _            -> return $ TelV EmptyTel t
+    Pi a b | p a ->
+          -- Force the name to avoid retaining the rest of b.
+      let !bn = absName b in
+      absV a bn <$> do
+        underAbstractionAbs a b $ \b -> telViewUpTo' (n - 1) p b
+    _ -> return $ TelV EmptyTel t
 
 telViewPath :: PureTCM m => Type -> m TelView
 telViewPath = telViewUpToPath (-1)
