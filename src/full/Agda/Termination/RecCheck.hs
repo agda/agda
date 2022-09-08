@@ -13,12 +13,14 @@
 
 
 module Agda.Termination.RecCheck
-    ( recursive
+    ( MutualNames
+    , recursive
     , anyDefs
     )
  where
 
 import Control.Monad (forM, forM_)
+import Data.Foldable
 import Data.Graph
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -38,6 +40,13 @@ import Agda.Utils.Pretty  (prettyShow)
 
 import Agda.Utils.Impossible
 
+-- | The mutual block we are checking.
+--
+--   The functions are numbered according to their order of appearance
+--   in this set.
+
+type MutualNames = Set QName
+
 -- | We compute for each clause the set of potentially recursive names.
 type NamesPerClause = IntMap (Set QName)
 
@@ -47,16 +56,21 @@ type NamesPerClause = IntMap (Set QName)
 --
 --   As a side effect, update the 'clauseRecursive' field in the
 --   clauses belonging to the given functions.
-recursive :: [QName] -> TCM [[QName]]
+recursive :: Set QName -> TCM [MutualNames]
 recursive names = do
+  let names' = toList names
   -- For each function, get names per clause and total.
-  (perClauses, nss) <- unzip <$> mapM (recDef (names `hasElem`)) names
+  (perClauses, nss) <- unzip <$> mapM (recDef (`Set.member` names)) names'
   -- Create graph suitable for stronglyConnComp.
   -- Nodes are identical to node keys.
-  let graph  = zipWith (\ x ns -> (x, x, Set.toList ns)) names nss
+  let graph  = zipWith (\ x ns -> (x, x, Set.toList ns)) names' nss
   let sccs   = stronglyConnComp graph
-  let nonRec = mapMaybe (\case{ AcyclicSCC x -> Just x ; _ -> Nothing}) sccs
-  let recs   = mapMaybe (\case{ CyclicSCC xs -> Just xs; _ -> Nothing}) sccs
+  let nonRec = mapMaybe (\case AcyclicSCC x -> Just x
+                               _            -> Nothing)
+                 sccs
+  let recs   = mapMaybe (\case CyclicSCC xs -> Just (Set.fromList xs)
+                               _            -> Nothing)
+                 sccs
 
   reportSLn "rec.graph" 60 $ show graph
 
@@ -66,7 +80,7 @@ recursive names = do
   -- Mark individual clauses of recursive functions:
   --------------------------------------------------
   -- Map names to clause numbers to sets of mentioned names.
-  let clMap = Map.fromListWith __IMPOSSIBLE__ $ zip names perClauses
+  let clMap = Map.fromListWith __IMPOSSIBLE__ $ zip names' perClauses
   -- Walk through SCCs.
   forM_ recs $ \ scc -> do
     -- Does a set of names have an overlap with the current scc?

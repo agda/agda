@@ -1,6 +1,6 @@
 TerminationWithInsufficientDepth.agda:20,3-27,20
 Termination checking failed for the following functions:
-  Depth2.f, Depth2.g
+  Depth2.g, Depth2.f
 Problematic calls:
   g n zero
     (at TerminationWithInsufficientDepth.agda:25,21-22)

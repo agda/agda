@@ -1,6 +1,6 @@
 Issue921.agda:49,1-117,17
 Termination checking failed for the following functions:
-  _○_, pullback-var, pullback
+  pullback, _○_, pullback-var
 Problematic calls:
   pullback x m
     (at Issue921.agda:96,81-89)

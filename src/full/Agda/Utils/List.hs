@@ -152,12 +152,16 @@ initWithDefault _  (a:as) = init1 a as
 -- * Lookup and indexing
 ---------------------------------------------------------------------------
 
--- | Lookup function (partially safe).
+-- | Lookup function (safe).
 --   O(min n index).
 (!!!) :: [a] -> Int -> Maybe a
-[]       !!! _         = Nothing
-(x : _)  !!! 0         = Just x
-(_ : xs) !!! n         = xs !!! (n - 1)
+xs !!! (!i)
+  | i < 0     = Nothing
+  | otherwise = index xs i
+  where
+  index []       !i = Nothing
+  index (x : xs) 0  = Just x
+  index (x : xs) i  = index xs (i - 1)
 
 -- | A variant of 'Prelude.!!' that might provide more informative
 -- error messages if the index is out of bounds.
@@ -439,14 +443,11 @@ data StrSufSt a
 --   Returns the index where the overlap starts and the length of the overlap.
 --   The length of the overlap plus the index is the length of the first string.
 --   Note that in the worst case, the empty overlap @(length xs,0)@ is returned.
-findOverlap :: forall a. Eq a => [a] -> [a] -> (Int, Int)
-findOverlap xs ys =
-  headWithDefault __IMPOSSIBLE__ $ mapMaybe maybePrefix $ zip [0..] (List.tails xs)
+findOverlap :: Eq a => [a] -> [a] -> (Int, Int)
+findOverlap xs ys = go 0 (reverse xs) ys
   where
-  maybePrefix :: (Int, [a]) -> Maybe (Int, Int)
-  maybePrefix (k, xs')
-    | xs' `List.isPrefixOf` ys = Just (k, length xs')
-    | otherwise                = Nothing
+  go !i (x : xs) (y : ys) | x == y = go (i + 1) xs ys
+  go  i xs       _                 = (length xs, i)
 
 ---------------------------------------------------------------------------
 -- * Groups and chunks

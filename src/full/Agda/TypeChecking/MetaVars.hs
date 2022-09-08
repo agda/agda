@@ -1582,86 +1582,88 @@ data InvertExcept
 inverseSubst :: Args -> ExceptT InvertExcept TCM SubstCand
 inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
   where
-    loop  = foldM isVarOrIrrelevant []
-    terms = map var (downFrom (size args))
-    failure = do
-      lift $ reportSDoc "tc.meta.assign" 15 $ vcat
-        [ "not all arguments are variables: " <+> prettyTCM args
-        , "  aborting assignment" ]
-      throwError CantInvert
-    neutralArg = throwError NeutralArg
+  loop  = foldM isVarOrIrrelevant []
+  terms = map var (downFrom (size args))
+  failure = do
+    lift $ reportSDoc "tc.meta.assign" 15 $ vcat
+      [ "not all arguments are variables: " <+> prettyTCM args
+      , "  aborting assignment" ]
+    throwError CantInvert
+  neutralArg = throwError NeutralArg
 
-    isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
-    isVarOrIrrelevant vars (Arg info v, t) = do
-      let irr | isIrrelevant info = True
-              | DontCare{} <- v   = True
-              | otherwise         = False
-      case stripDontCare v of
-        -- i := x
-        Var i [] -> return $ (Arg info i, t) `cons` vars
+  isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
+  isVarOrIrrelevant vars (Arg info v, t) = do
+    let irr | isIrrelevant info = True
+            | DontCare{} <- v   = True
+            | otherwise         = False
+    case stripDontCare v of
+      -- i := x
+      Var i [] -> return $ (Arg info i, t) `cons` vars
 
-        -- π i := x  try to eta-expand projection π away!
-        Var i es | Just qs <- mapM isProjElim es ->
-          throwError $ ProjVar $ ProjectedVar i qs
+      -- π i := x  try to eta-expand projection π away!
+      Var i es | Just qs <- mapM isProjElim es ->
+        throwError $ ProjVar $ ProjectedVar i qs
 
-        -- (i, j) := x  becomes  [i := fst x, j := snd x]
-        -- Andreas, 2013-09-17 but only if constructor is fully applied
-        Con c ci es -> do
-          let fallback
-               | isIrrelevant info = return vars
-               | otherwise                              = failure
-          irrProj <- optIrrelevantProjections <$> pragmaOptions
-          lift (isRecordConstructor $ conName c) >>= \case
-            Just (_, r@Record{ recFields = fs })
-              | YesEta <- recEtaEquality r  -- Andreas, 2019-11-10, issue #4185: only for eta-records
-              , length fs == length es
-              , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
-              , irrProj || all isRelevant fs -> do
-                let aux (Arg _ v) Dom{domInfo = info', unDom = f} = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
-                     ai = ArgInfo
-                       { argInfoHiding   = min (getHiding info) (getHiding info')
-                       , argInfoModality = Modality
-                         { modRelevance  = max (getRelevance info) (getRelevance info')
-                         , modQuantity   = max (getQuantity  info) (getQuantity  info')
-                         , modCohesion   = max (getCohesion  info) (getCohesion  info')
-                         }
-                       , argInfoOrigin   = min (getOrigin info) (getOrigin info')
-                       , argInfoFreeVariables = unknownFreeVariables
-                       , argInfoAnnotation    = argInfoAnnotation info'
-                       }
-                    vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                res <- loop $ zipWith aux vs fs
-                return $ res `append` vars
-              | otherwise -> fallback
-            _ -> fallback
+      -- (i, j) := x  becomes  [i := fst x, j := snd x]
+      -- Andreas, 2013-09-17 but only if constructor is fully applied
+      Con c ci es -> do
+        let fallback
+             | isIrrelevant info = return vars
+             | otherwise                              = failure
+        irrProj <- optIrrelevantProjections <$> pragmaOptions
+        lift (isRecordConstructor $ conName c) >>= \case
+          Just (_, r@Record{ recFields = fs })
+            | YesEta <- recEtaEquality r  -- Andreas, 2019-11-10, issue #4185: only for eta-records
+            , length fs == length es
+            , hasQuantity0 info || all usableQuantity fs     -- Andreas, 2019-11-12/17, issue #4168b
+            , irrProj || all isRelevant fs -> do
+              let aux (Arg _ v) Dom{domInfo = info', unDom = f} =
+                    (Arg ai v,) $ t `applyE` [Proj ProjSystem f]
+                    where
+                    ai = ArgInfo
+                      { argInfoHiding   = min (getHiding info) (getHiding info')
+                      , argInfoModality = Modality
+                        { modRelevance  = max (getRelevance info) (getRelevance info')
+                        , modQuantity   = max (getQuantity  info) (getQuantity  info')
+                        , modCohesion   = max (getCohesion  info) (getCohesion  info')
+                        }
+                      , argInfoOrigin   = min (getOrigin info) (getOrigin info')
+                      , argInfoFreeVariables = unknownFreeVariables
+                      , argInfoAnnotation    = argInfoAnnotation info'
+                      }
+                  vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+              res <- loop $ zipWith aux vs fs
+              return $ res `append` vars
+            | otherwise -> fallback
+          _ -> fallback
 
-        -- An irrelevant argument which is not an irrefutable pattern is dropped
-        _ | irr -> return vars
+      -- An irrelevant argument which is not an irrefutable pattern is dropped
+      _ | irr -> return vars
 
-        -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
-        -- from those that can only put somewhere as a whole ==> neutralArg
-        Var{}      -> neutralArg
-        Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
-        Lam{}      -> failure
-        Lit{}      -> failure
-        MetaV{}    -> failure
-        Pi{}       -> neutralArg
-        Sort{}     -> neutralArg
-        Level{}    -> neutralArg
-        DontCare{} -> __IMPOSSIBLE__ -- Ruled out by stripDontCare
-        Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+      -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
+      -- from those that can only put somewhere as a whole ==> neutralArg
+      Var{}      -> neutralArg
+      Def{}      -> neutralArg  -- Note that this Def{} is in normal form and might be prunable.
+      Lam{}      -> failure
+      Lit{}      -> failure
+      MetaV{}    -> failure
+      Pi{}       -> neutralArg
+      Sort{}     -> neutralArg
+      Level{}    -> neutralArg
+      DontCare{} -> __IMPOSSIBLE__ -- Ruled out by stripDontCare
+      Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
-    -- managing an assoc list where duplicate indizes cannot be irrelevant vars
-    append :: Res -> Res -> Res
-    append res vars = foldr cons vars res
+  -- managing an assoc list where duplicate indizes cannot be irrelevant vars
+  append :: Res -> Res -> Res
+  append res vars = foldr cons vars res
 
-    -- adding an irrelevant entry only if not present
-    cons :: (Arg Nat, Term) -> Res -> Res
-    cons a@(Arg ai i, t) vars
-      | isIrrelevant ai = applyUnless (any ((i==) . unArg . fst) vars) (a :) vars
-      | otherwise       = a :  -- adding a relevant entry
-          -- filter out duplicate irrelevants
-          filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
+  -- adding an irrelevant entry only if not present
+  cons :: (Arg Nat, Term) -> Res -> Res
+  cons a@(Arg ai i, t) vars
+    | isIrrelevant ai = applyUnless (any ((i==) . unArg . fst) vars) (a :) vars
+    | otherwise       = a :  -- adding a relevant entry
+        -- filter out duplicate irrelevants
+        filter (not . (\ a@(Arg info j, t) -> isIrrelevant info && i == j)) vars
 
 
 -- | Turn open metas into postulates.
@@ -1720,12 +1722,17 @@ dependencySortMetas :: [MetaId] -> TCM (Maybe [MetaId])
 dependencySortMetas metas = do
   metaGraph <- concat <$> do
     forM metas $ \ m -> do
-      deps <- allMetas (\ m' -> if m' `elem` metas then singleton m' else mempty) <$> getType m
+      deps <- allMetas (\m' -> if m' `Set.member` metas'
+                               then singleton m'
+                               else mempty) <$>
+                getType m
       return [ (m, m') | m' <- Set.toList deps ]
 
-  return $ Graph.topSort metas metaGraph
+  return $ Graph.topSort metas' metaGraph
 
   where
+    metas' = Set.fromList metas
+
     -- Sort metas don't have types, but we still want to sort them.
     getType m = do
       j <- lookupMetaJudgement m

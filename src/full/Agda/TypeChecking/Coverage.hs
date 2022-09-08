@@ -75,6 +75,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
@@ -399,9 +400,13 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseWhereModule = clauseWhereModule cl
                     }
       where
-        (vs,qs) = unzip mps
-        mps' = zip vs $ map namedArg $ fromSplitPatterns $ map defaultNamedArg qs
-        s = parallelS (for [0..maximum (-1:vs)] $ (\ i -> fromMaybe (deBruijnVar i) (List.lookup i mps')))
+      mps' =
+        Map.fromList $
+        map (mapSnd (namedArg . fromSplitPattern . defaultNamedArg)) mps
+      s = parallelS (for (case Map.lookupMax mps' of
+                            Nothing     -> []
+                            Just (i, _) -> [0..i]) $ \ i ->
+                     fromMaybe (deBruijnVar i) (Map.lookup i mps'))
 
     updateRelevance :: TCM a -> TCM a
     updateRelevance cont =

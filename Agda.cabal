@@ -221,6 +221,7 @@ library
                 , data-hash >= 0.2.0.0 && < 0.3
                 , deepseq >= 1.4.2.0 && < 1.5
                 , directory >= 1.2.6.2 && < 1.4
+                , dlist >= 0.8 && < 1.1
                 , edit-distance >= 0.2.1.2 && < 0.3
                 , equivalence >= 0.3.2 && < 0.5
                 -- exceptions-0.8 instead of 0.10 because of stack

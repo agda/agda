@@ -787,7 +787,27 @@ renaming err p = prependS err gamma $ raiseS $ size p
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
 renamingR :: DeBruijn a => Permutation -> Substitution' a
-renamingR p@(Perm n _) = permute (reverseP p) (map deBruijnVar [0..]) ++# raiseS n
+renamingR p@(Perm n is) = xs ++# raiseS n
+  where
+  xs = map (\i -> deBruijnVar (n - 1 - i)) (reverse is)
+
+  -- The list xs used to be defined in the following way:
+  --
+  --   permute (reverseP p) (map deBruijnVar [0..])
+  --
+  -- We have that
+  --
+  --     permute (reverseP p) (map deBruijnVar [0..])
+  --   = permute (Perm n $ map ((n - 1) -) $ reverse is)
+  --       (map deBruijnVar [0..])
+  --   = map (map deBruijnVar [0..] !!)
+  --       (map ((n - 1) -) $ reverse is)
+  --   = map deBruijnVar (map ((n - 1) -) $ reverse is)
+  --   = map (\i -> deBruijnVar (n - 1 - i)) (reverse is).
+  --
+  -- The latter code is linear in the length of is (if deBruijnVar
+  -- takes constant time), while the time complexity of the former
+  -- code depends on the value of the largest index in is.
 
 -- | The permutation should permute the corresponding context. (right-to-left list)
 renameP :: Subst a => Impossible -> Permutation -> a -> a

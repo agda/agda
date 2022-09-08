@@ -3,6 +3,7 @@ module Agda.Utils.Graph.TopSort
     ( topSort
     ) where
 
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as G
@@ -21,13 +22,15 @@ mergeBy f (x:xs) (y:ys)
 --   Note: should be stable to preserve order of generalizable variables. Algorithm due to Richard
 --   Eisenberg, and works by walking over the list left-to-right and moving each node the minimum
 --   distance left to guarantee topological ordering.
-topSort :: Ord n => [n] -> [(n, n)] -> Maybe [n]
-topSort nodes edges = go [] nodes
+topSort :: Ord n => Set n -> [(n, n)] -> Maybe [n]
+topSort nodes edges = go [] (Set.toList nodes)
   where
     -- #4253: The input edges do not necessarily include transitive dependencies, so take transitive
     --        closure before sorting.
     w      = Just () -- () is not a good edge label since it counts as a "zero" edge and will be ignored
-    g      = G.transitiveClosure $ G.fromNodes nodes `G.union` G.fromEdges [G.Edge a b w | (a, b) <- edges]
+    g      = G.transitiveClosure $
+               G.fromNodeSet nodes `G.union`
+               G.fromEdges [G.Edge a b w | (a, b) <- edges]
     deps a = Map.keysSet $ G.graph g Map.! a
 
     -- acc: Already sorted nodes in reverse order paired with accumulated set of nodes that must
