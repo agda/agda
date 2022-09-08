@@ -89,7 +89,7 @@ subst :: Subst a => Int -> SubstArg a -> a -> a
 subst i u = applySubst $ singletonS i u
 
 strengthen :: Subst a => Impossible -> a -> a
-strengthen err = applySubst (compactS err [Nothing])
+strengthen err = applySubst (strengthenS err 1)
 
 -- | Replace what is now de Bruijn index 0, but go under n binders.
 --   @substUnder n u == subst n (raise n u)@.
@@ -217,9 +217,6 @@ prependS err us rho = foldr f rho us
 --   Note the @Γ@ in @Γ, Δ@.
 parallelS :: DeBruijn a => [a] -> Substitution' a
 parallelS us = us ++# idS
-
-compactS :: DeBruijn a => Impossible -> [Maybe a] -> Substitution' a
-compactS err us = prependS err us idS
 
 -- | Γ ⊢ (strengthenS ⊥ |Δ|) : Γ,Δ
 strengthenS :: Impossible -> Int -> Substitution' a
