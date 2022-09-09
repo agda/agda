@@ -351,7 +351,7 @@ Testing and documentation
   The test-suite uses the same directory structure as the Agda library.
 
   Internal tests for a module `Agda.Foo.Bar` should reside in module
-  `InternalTests.Foo.Bar`.  Same for `Arbitrary` and `CoArbitrary` instances.
+  `Internal.Foo.Bar`.  Same for `Arbitrary` and `CoArbitrary` instances.
 
   One can load internal test-suite modules in GHCi. Here is one
   example of what can be done:
