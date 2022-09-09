@@ -1,9 +1,0 @@
--- This file should mirror the flags for GHC 8.10.* enabled in
--- `Agda.cabal`. It should be loaded automatically by the `.ghci` file
--- in this directory.
-
-:script .ghci-8.8
-:set -Wderiving-defaults
-:set -Wredundant-record-wildcards
-:set -Wno-unused-packages
-:set -Wunused-record-wildcards
