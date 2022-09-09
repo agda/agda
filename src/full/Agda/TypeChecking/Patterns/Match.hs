@@ -57,7 +57,7 @@ matchedArgs' n vs = map get [0 .. n - 1]
 buildSubstitution :: (DeBruijn a)
                   => Impossible -> Int -> IntMap (Arg a) -> Substitution' a
 buildSubstitution err n vs = foldr cons idS $ matchedArgs' n vs
-  where cons Nothing  = Strengthen err
+  where cons Nothing  = strengthenS' err 1
         cons (Just v) = consS (unArg v)
 
 

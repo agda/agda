@@ -1432,13 +1432,13 @@ instance InstantiateFull PlusLevel where
 instance InstantiateFull Substitution where
   instantiateFull' sigma =
     case sigma of
-      IdS                  -> return IdS
-      EmptyS err           -> return $ EmptyS err
-      Wk   n sigma         -> Wk   n         <$> instantiateFull' sigma
-      Lift n sigma         -> Lift n         <$> instantiateFull' sigma
-      Strengthen bot sigma -> Strengthen bot <$> instantiateFull' sigma
-      t :# sigma           -> consS <$> instantiateFull' t
-                                    <*> instantiateFull' sigma
+      IdS                    -> return IdS
+      EmptyS err             -> return $ EmptyS err
+      Wk   n sigma           -> Wk   n           <$> instantiateFull' sigma
+      Lift n sigma           -> Lift n           <$> instantiateFull' sigma
+      Strengthen bot n sigma -> Strengthen bot n <$> instantiateFull' sigma
+      t :# sigma             -> consS <$> instantiateFull' t
+                                      <*> instantiateFull' sigma
 
 instance InstantiateFull ConPatternInfo where
     instantiateFull' i = instantiateFull' (conPType i) <&> \ t -> i { conPType = t }

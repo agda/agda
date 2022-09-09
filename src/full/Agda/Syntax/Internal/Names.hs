@@ -245,12 +245,12 @@ instance NamesIn a => NamesIn (Elim' a) where
 
 instance NamesIn a => NamesIn (Substitution' a) where
   namesAndMetasIn' sg = \case
-    IdS            -> mempty
-    EmptyS _       -> mempty
-    t :# s         -> namesAndMetasIn' sg (t, s)
-    Strengthen _ s -> namesAndMetasIn' sg s
-    Wk _ s         -> namesAndMetasIn' sg s
-    Lift _ s       -> namesAndMetasIn' sg s
+    IdS              -> mempty
+    EmptyS _         -> mempty
+    t :# s           -> namesAndMetasIn' sg (t, s)
+    Strengthen _ _ s -> namesAndMetasIn' sg s
+    Wk _ s           -> namesAndMetasIn' sg s
+    Lift _ s         -> namesAndMetasIn' sg s
 
 instance NamesIn DisplayForm where
   namesAndMetasIn' sg (Display _ ps v) = namesAndMetasIn' sg (ps, v)

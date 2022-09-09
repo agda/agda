@@ -40,9 +40,9 @@ sanityCheckSubst gamma rho delta = go gamma rho delta
           unless (size delta > 0) $ err $ "consS: empty target"
           sanityCheckVars gamma v
           sanityCheckSubst gamma rho (dropLast delta)
-        Strengthen _ rho -> do
-          unless (size delta > 0) $ err $ "strS: empty target"
-          sanityCheckSubst gamma rho (dropLast delta)
+        Strengthen _ n rho -> do
+          unless (size delta >= n) $ err $ "strS: empty target"
+          sanityCheckSubst gamma rho (dropLastN n delta)
         Wk n rho -> do
           unless (size gamma >= n) $ err $ "wkS:" <+> sep [ "|" <> pretty gamma <> "|"
                                                                , text $ "< " ++ show n ]

@@ -651,14 +651,16 @@ data Substitution' a
     --     Γ ⊢ u :# ρ : Δ, A
     --   @
 
-  | Strengthen Impossible (Substitution' a)
+  | Strengthen Impossible !Int (Substitution' a)
     -- ^ Strengthening substitution.  First argument is @__IMPOSSIBLE__@.
-    --   Apply this to a term which does not contain variable 0
-    --   to lower all de Bruijn indices by one.
-    --   @
-    --             Γ ⊢ ρ : Δ
+    --   In @'Strengthen err n ρ@ the number @n@ must be non-negative.
+    --   This substitution should only be applied to values @t@ for
+    --   which none of the variables @0@ up to @n - 1@ are free in
+    --   @t[ρ]@, and in that case @n@ is subtracted from all free de
+    --   Bruijn indices in @t[ρ]@.
+    --        Γ ⊢ ρ : Δ    |Θ| = n
     --     ---------------------------
-    --     Γ ⊢ Strengthen ρ : Δ, A
+    --     Γ ⊢ Strengthen n ρ : Δ, Θ
     --   @
 
   | Wk !Int (Substitution' a)
@@ -1139,12 +1141,12 @@ instance TermSize PlusLevel where
   tsize (Plus _ a)      = tsize a
 
 instance TermSize a => TermSize (Substitution' a) where
-  tsize IdS                = 1
-  tsize (EmptyS _)         = 1
-  tsize (Wk _ rho)         = 1 + tsize rho
-  tsize (t :# rho)         = 1 + tsize t + tsize rho
-  tsize (Strengthen _ rho) = 1 + tsize rho
-  tsize (Lift _ rho)       = 1 + tsize rho
+  tsize IdS                  = 1
+  tsize (EmptyS _)           = 1
+  tsize (Wk _ rho)           = 1 + tsize rho
+  tsize (t :# rho)           = 1 + tsize t + tsize rho
+  tsize (Strengthen _ _ rho) = 1 + tsize rho
+  tsize (Lift _ rho)         = 1 + tsize rho
 
 ---------------------------------------------------------------------------
 -- * KillRange instances.
@@ -1196,12 +1198,12 @@ instance KillRange Sort where
     s@DummyS{} -> s
 
 instance KillRange Substitution where
-  killRange IdS                  = IdS
-  killRange (EmptyS err)         = EmptyS err
-  killRange (Wk n rho)           = killRange1 (Wk n) rho
-  killRange (t :# rho)           = killRange2 (:#) t rho
-  killRange (Strengthen err rho) = killRange1 (Strengthen err) rho
-  killRange (Lift n rho)         = killRange1 (Lift n) rho
+  killRange IdS                    = IdS
+  killRange (EmptyS err)           = EmptyS err
+  killRange (Wk n rho)             = killRange1 (Wk n) rho
+  killRange (t :# rho)             = killRange2 (:#) t rho
+  killRange (Strengthen err n rho) = killRange1 (Strengthen err n) rho
+  killRange (Lift n rho)           = killRange1 (Lift n) rho
 
 instance KillRange PatOrigin where
   killRange = id
@@ -1247,12 +1249,16 @@ instance Pretty a => Pretty (Substitution' a) where
   prettyPrec = pr
     where
     pr p rho = case rho of
-      IdS              -> "idS"
-      EmptyS err       -> "emptyS"
-      t :# rho         -> mparens (p > 2) $ sep [ pr 2 rho <> ",", prettyPrec 3 t ]
-      Strengthen _ rho -> mparens (p > 9) $ "strS" <+> pr 10 rho
-      Wk n rho         -> mparens (p > 9) $ text ("wkS " ++ show n) <+> pr 10 rho
-      Lift n rho       -> mparens (p > 9) $ text ("liftS " ++ show n) <+> pr 10 rho
+      IdS                -> "idS"
+      EmptyS err         -> "emptyS"
+      t :# rho           -> mparens (p > 2) $
+                            sep [ pr 2 rho <> ",", prettyPrec 3 t ]
+      Strengthen _ n rho -> mparens (p > 9) $
+                            text ("strS " ++ show n) <+> pr 10 rho
+      Wk n rho           -> mparens (p > 9) $
+                            text ("wkS " ++ show n) <+> pr 10 rho
+      Lift n rho         -> mparens (p > 9) $
+                            text ("liftS " ++ show n) <+> pr 10 rho
 
 instance Pretty Term where
   prettyPrec p v =
