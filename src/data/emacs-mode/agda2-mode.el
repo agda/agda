@@ -108,10 +108,6 @@ argument, and does not need to be listed here."
   :type 'string
   :group 'agda2)
 
-(defcustom agda2-toplevel-module "Agda.Interaction.GhciTop"
-  "The name of the Agda toplevel module."
-  :type 'string :group 'agda2)
-
 (defcustom agda2-information-window-max-height
   0.35
   "The maximum height of the information window.
