@@ -334,6 +334,20 @@ Testing and documentation
   Internal tests for a module `Agda.Foo.Bar` should reside in module
   `InternalTests.Foo.Bar`.  Same for `Arbitrary` and `CoArbitrary` instances.
 
+  One can load internal test-suite modules in GHCi. Here is one
+  example of what can be done:
+  ```shell
+  cabal repl tests -O0 --repl-no-load
+  […]
+  ghci> :l Internal.TypeChecking.Substitute
+  […]
+  ghci> quickCheck prop_wkS
+  +++ OK, passed 100 tests.
+  ghci> Test.Tasty.defaultMain tests
+  […]
+  *** Exception: ExitSuccess
+  ```
+
 Testing with Travis CI and GitHub Actions
 =========================================
 Since Dec 2019.
