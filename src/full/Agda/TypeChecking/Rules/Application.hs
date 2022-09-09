@@ -656,7 +656,9 @@ checkArgumentsE' chk cmp exh r args0@(arg@(Arg info e) : args) t0 mt1 =
             (NotCheckedTarget, Just t1) | all visible args0 -> do
               let n = length args0
               TelV tel tgt <- telViewUpTo n t0'
-              let dep = any (< n) $ IntSet.toList $ freeVars tgt
+              let -- Is any free variable in tgt less than n?
+                  dep = not $ IntSet.null $ fst $
+                        IntSet.split n $ freeVars tgt
                   vis = all visible (telToList tel)
                   isRigid t | PathType{} <- viewPath t = return False -- Path is not rigid!
                   isRigid (El _ (Pi dom _)) = return $ visible dom

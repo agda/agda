@@ -58,6 +58,7 @@ import Data.Either
 import Data.Foldable (forM_)
 import qualified Data.Foldable as Fold
 import Data.Function
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Monoid
 import qualified Data.Map as Map
@@ -303,7 +304,10 @@ castConstraintToCurrentContext' cl = do
   where
     raiseMaybe n c = do
       -- Fine if we have to weaken or strengthening is safe.
-      guard $ n >= 0 || List.all (>= -n) (VarSet.toList $ allFreeVars c)
+      guard $
+        n >= 0 ||
+        -- Are all free variables at least -n?
+        IntSet.null (fst $ IntSet.split (-n) $ allFreeVars c)
       return $ raise n c
 
 
