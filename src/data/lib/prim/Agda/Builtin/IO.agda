@@ -6,5 +6,5 @@ postulate IO : ∀ {a} → Set a → Set a
 {-# POLARITY IO ++ ++ #-}
 {-# BUILTIN IO IO #-}
 
-{-# FOREIGN GHC type AgdaIO a b = IO b #-}
-{-# COMPILE GHC IO = type AgdaIO #-}
+{-# FOREIGN GHC type AgdaIO a = IO #-}
+{-# COMPILE GHC IO = type(1) AgdaIO #-}
