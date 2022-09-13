@@ -358,6 +358,9 @@ instance PrettyTCM Telescope where
       tel <- reify tel
       runAbsToCon $ bindToConcrete tel return
 
+instance PrettyTCM Telescope' where
+  prettyTCM = prettyTCM . mkTel
+
 newtype PrettyContext = PrettyContext Context
 
 instance PrettyTCM PrettyContext where

@@ -676,7 +676,6 @@ library
                  -Wduplicate-exports
                  -Wempty-enumerations
                  -Widentities
-                 -Wincomplete-patterns
                  -Winline-rule-shadowing
                  -Wmissing-fields
                  -Wmissing-methods
@@ -708,7 +707,6 @@ library
                  -Werror=duplicate-exports
                  -Werror=empty-enumerations
                  -Werror=identities
-                 -Werror=incomplete-patterns
                  -Werror=inline-rule-shadowing
                  -Werror=missing-fields
                  -Werror=missing-methods
@@ -748,6 +746,12 @@ library
 
   if impl(ghc >= 8.10)
     ghc-options: -Werror=deriving-defaults
+                 -- GHC 8.8.4 produced the following error message
+                 -- (for (==) in Agda.TypeChecking.Substitute),
+                 -- whereas GHC 8.10.7 did not:
+                 -- "Pattern match checker exceeded (2000000)
+                 -- iterations in an equation for ‘==’."
+                 -Werror=incomplete-patterns
                  -Werror=redundant-record-wildcards
                  -Werror=unused-packages
                  -Werror=unused-record-wildcards
@@ -800,6 +804,7 @@ library
                     , TypeFamilies
                     , TypeOperators
                     , TypeSynonymInstances
+                    , ViewPatterns
 
 executable agda
   hs-source-dirs: src/main
@@ -1009,7 +1014,6 @@ test-suite agda-tests
                  -Wduplicate-exports
                  -Wempty-enumerations
                  -Widentities
-                 -Wincomplete-patterns
                  -Winline-rule-shadowing
                  -Wmissing-fields
                  -Wmissing-methods
@@ -1041,7 +1045,6 @@ test-suite agda-tests
                  -Werror=duplicate-exports
                  -Werror=empty-enumerations
                  -Werror=identities
-                 -Werror=incomplete-patterns
                  -Werror=inline-rule-shadowing
                  -Werror=missing-fields
                  -Werror=missing-methods
@@ -1087,6 +1090,7 @@ test-suite agda-tests
 
   if impl(ghc >= 8.10)
     ghc-options: -Werror=deriving-defaults
+                 -Werror=incomplete-patterns
                  -Werror=redundant-record-wildcards
                  -Werror=unused-packages
                  -Werror=unused-record-wildcards

@@ -15,6 +15,7 @@ import Control.Monad              ( forM, forM_, guard, liftM2 )
 import Control.Monad.Except
 import Control.Monad.Trans
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.State.Strict
 import Control.Monad.Reader
 
 import Data.Bifunctor
@@ -22,6 +23,7 @@ import Data.Maybe
 import Data.Void
 import qualified Data.Foldable as Fold
 import qualified Data.IntSet   as IntSet
+import qualified Data.Sequence as Seq
 
 import Agda.Interaction.Highlighting.Generate
   ( storeDisambiguatedConstructor, storeDisambiguatedProjection )
@@ -561,11 +563,13 @@ checkArgumentsE :: Comparison -> ExpandHidden -> Range -> [NamedArg A.Expr] -> T
                    ExceptT (ArgsCheckState [NamedArg A.Expr]) TCM (ArgsCheckState CheckedTarget)
 checkArgumentsE sComp sExpand sRange sArgs sFun sApp = do
   sPathView <- pathView'
+  sIsPath   <- isPath'
   checkArgumentsE'
     S{ sChecked       = NotCheckedTarget
      , sArgs          = zip sArgs $
                         List.suffixesSatisfying visible sArgs
      , sArgsLen       = length sArgs
+     , sFunPis        = 0
      , sSizeLtChecked = False
      , sSkipCheck     = DontSkip
      , ..
@@ -589,6 +593,8 @@ data CheckArgumentsE'State = S
     -- ^ The length of 'sArgs'.
   , sFun :: Type
     -- ^ The function's type.
+  , sFunPis :: !Nat
+    -- ^ How many visible Π's is 'sFun' known to start with?
   , sApp :: Maybe Type
     -- ^ The type of the application.
   , sSizeLtChecked :: !Bool
@@ -597,7 +603,14 @@ data CheckArgumentsE'State = S
     -- ^ Should the target type check be skipped?
   , sPathView :: Type -> PathView
     -- ^ The function returned by 'pathView''.
+  , sIsPath :: Term -> Bool
+    -- ^ The function returned by 'isPath''.
   }
+
+-- | Decreases the 'sFunPis' field, but not below zero.
+
+decreaseFunPis :: CheckArgumentsE'State -> CheckArgumentsE'State
+decreaseFunPis s = s{ sFunPis = (sFunPis s - 1) `max` 0 }
 
 -- | Should the target type check in 'checkArgumentsE'' be skipped?
 
@@ -721,48 +734,45 @@ checkArgumentsE'
                 EQ -> (True,  DontSkip)
                 GT -> (True,  SkipNext (n - 1))
 
-        s <- return s
-          { sRange     = fuseRange sRange e
-          , sArgs      = args
-          , sArgsLen   = sArgsLen - 1
-          , sFun       = sFun
-          , sSkipCheck = next
-          }
+        s <- return s{ sFun = sFun, sSkipCheck = next }
 
         -- Check the target type if we can get away with it.
-        s <- lift $
+        s@S{ sFun } <- lift $
           case (sChecked, skip, sApp) of
             (NotCheckedTarget, False, Just sApp) | sArgsVisible -> do
               -- How many visible Π's (up to at most sArgsLen) does
               -- sFun start with?
-              TelV tel tgt <- telViewUpTo' sArgsLen visible sFun
-              let visiblePis = size tel
+              tel <- termToTel sArgsLen visible sFunPis (unEl sFun)
+              let visiblePis = size (telTele tel)
+              s <- return s{ sFun    = El (getSort sFun) (mkTel tel)
+                           , sFunPis = visiblePis
+                           }
 
-                  -- The free variables less than visiblePis in tgt.
-                  freeInTgt =
-                    fst $ IntSet.split visiblePis $ freeVars tgt
-
-              rigid <- isRigid s tgt
+              rigid <- isRigid s (telTerm tel)
               -- The target must be rigid.
               case rigid of
                 IsNotRigid reason ->
-                      -- Skip the next visiblePis - 1 - k checks.
-                  let skip k   = s{ sSkipCheck =
-                                    SkipNext $ visiblePis - 1 - k
-                                  }
-                      dontSkip = s
+                      -- Skip the next visiblePis - 1 checks.
+                  let skip = s{ sSkipCheck = SkipNext $ visiblePis - 1 }
                   in return $ case reason of
-                    Permanent   -> skip 0
-                    Unspecified -> dontSkip
+                    Permanent   -> skip
+                    Unspecified -> s
                     AVar x      ->
-                      if x `IntSet.member` freeInTgt
-                      then skip x
-                      else skip 0
+                      if x >= telAbs tel then skip else
+                      s{ sSkipCheck = SkipNext $ entriesUpTo x tel }
+                      -- The following code, which might lead to less
+                      -- skipping (depending on the location of any
+                      -- NoAbs constructors in the telescope), also
+                      -- works. Limited testing suggests that the
+                      -- performance is similar.
+                      -- s{ sSkipCheck = SkipNext $ telAbs tel - 1 - x }
                 IsRigid -> do
 
-                      -- Is any free variable in tgt less than
-                      -- visiblePis?
-                  let dep = not (IntSet.null freeInTgt)
+                      -- Does telTerm tel depend on anything in the
+                      -- telescope?
+                  let dep = not $ IntSet.null $ fst $
+                            IntSet.split (telAbs tel) $
+                            freeVars (telTerm tel)
                   -- The target must be non-dependent.
                   if dep then return s else do
 
@@ -787,9 +797,10 @@ checkArgumentsE'
                              )
                   if isSizeLt then return s else do
 
-                  let tgt1 = applySubst
-                               (strengthenS impossible visiblePis)
-                               tgt
+                  let tgt1 = El (getSort sFun) $
+                             applySubst
+                               (strengthenS impossible (telAbs tel))
+                               (telTerm tel)
                   reportSDoc "tc.term.args.target" 30 $ vcat
                     [ "Checking target types first"
                     , nest 2 $ "inferred =" <+> prettyTCM tgt1
@@ -840,7 +851,12 @@ checkArgumentsE'
                   maybe (text "nothing") prettyTCM (absBody <$> c)
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (getRange e) (Apply $ Arg info' u) c $
-                  checkArgumentsE' s{ sFun = absApp b u }
+                  checkArgumentsE' $ decreaseFunPis
+                    s{ sRange   = fuseRange sRange e
+                     , sArgs    = args
+                     , sArgsLen = sArgsLen - 1
+                     , sFun     = absApp b u
+                     }
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
                   [ text $ "info      = " ++ show info
@@ -855,8 +871,11 @@ checkArgumentsE'
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< primIntervalType
                 addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) Nothing $
-                  checkArgumentsE'
+                  checkArgumentsE' $ decreaseFunPis
                     s{ sChecked = NotCheckedTarget
+                     , sRange   = fuseRange sRange e
+                     , sArgs    = args
+                     , sArgsLen = sArgsLen - 1
                      , sFun     = El sort $ unArg bA `apply` [argN u]
                      }
           _ -> shouldBePi
@@ -895,11 +914,11 @@ data IsPermanent
 
 -- | Is the type \"rigid\"?
 
-isRigid :: CheckArgumentsE'State -> Type -> TCM IsRigid
-isRigid s t | PathType{} <- sPathView s t =
-  -- Path is not rigid.
-  return $ IsNotRigid Permanent
-isRigid _ (El _ t) = case t of
+isRigid :: CheckArgumentsE'State -> Term -> TCM IsRigid
+isRigid s t = case t of
+  _ | sIsPath s t ->
+    -- Path is not rigid.
+    return $ IsNotRigid Permanent
   Var x _    -> return $ IsNotRigid (AVar x)
   Lam{}      -> return $ IsNotRigid Permanent
   Lit{}      -> return $ IsNotRigid Permanent
@@ -926,6 +945,23 @@ isRigid _ (El _ t) = case t of
     GeneralizableVar{}        -> __IMPOSSIBLE__
     Primitive{}               -> IsNotRigid Unspecified
     PrimitiveSort{}           -> IsNotRigid Unspecified
+
+-- | Counts the number of entries in the telescope, from the left, up
+-- to but not including the entry corresponding to the given variable.
+-- The variable should be given in the context of the telescope (just
+-- like the telescope's 'telTerm').
+--
+-- Precondition: The variable must point to an entry in the telescope.
+entriesUpTo :: Nat -> Telescope' -> Nat
+entriesUpTo x tel = go 0 (telAbs tel - 1 - x) (telTele tel)
+  where
+  go !acc !i = \case
+    Seq.Empty            -> __IMPOSSIBLE__
+    ((_, s) Seq.:<| tel) -> case s of
+      NoAbs{} -> go (acc + 1) i tel
+      Abs{}
+        | i == 0    -> acc
+        | otherwise -> go (acc + 1) (i - 1) tel
 
 -- | Check that a list of arguments fits a telescope.
 --   Inserts hidden arguments as necessary.

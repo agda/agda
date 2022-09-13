@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternSynonyms            #-}
 
 module Agda.Syntax.Internal
@@ -17,6 +18,8 @@ import Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import Data.Semigroup ( Semigroup, (<>), Sum(..) )
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 
@@ -197,7 +200,23 @@ instance LensConName ConHead where
 --   Assume there is a type declaration and a definition for
 --     every constant, even if the definition is an empty
 --     list of clauses.
+
+#if MIN_VERSION_base(4,14,0)
+-- The COMPLETE pragma does not seem to be supported by GHC 8.0.
+-- Furthermore we have turned off the pattern completeness checker for
+-- GHC 8.8 and below, and the presence of this pragma led to an error
+-- message for (==) in Agda.TypeChecking.Substitute (when GHC 8.8.4
+-- was used):
 --
+--   Pattern match checker exceeded (2000000) iterations in
+--   an equation for ‘==’. (Use -fmax-pmcheck-iterations=n
+--   to set the maximum number of iterations to n)
+
+-- Update the following list if a constructor is added to Term.
+{-# COMPLETE
+    Var, Lam, Lit, Def, Con, Pi, Sort, Level, MetaV, DontCare, Dummy
+  #-}
+#endif
 data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Lam ArgInfo (Abs Term)        -- ^ Terms are beta normal. Relevance is ignored
           | Lit Literal
@@ -206,7 +225,11 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           -- ^ @c es@ or @record { fs = es }@
           --   @es@ allows only Apply and IApply eliminations,
           --   and IApply only for data constructors.
-          | Pi (Dom Type) (Abs Type)      -- ^ dependent or non-dependent function space
+          | Tel !Telescope'
+            -- ^ Used for dependent or non-dependent function spaces.
+            --
+            -- Invariant: The telescope is non-empty. (Use 'mkTel' to
+            -- enforce this invariant.)
           | Sort Sort
           | Level Level
           | MetaV {-# UNPACK #-} !MetaId Elims
@@ -242,6 +265,11 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
   deriving (Functor, Foldable, Traversable, Generic)
+
+-- | The number of 'Abs' constructors (zero or one).
+noAbs :: Abs a -> Nat
+noAbs NoAbs{} = 0
+noAbs Abs{}   = 1
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -286,6 +314,82 @@ data Tele a = EmptyTel
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
 type Telescope = Tele (Dom Type)
+
+-- | A variant of 'Tele' which allows 'NoAbs' and supports some
+-- operations more efficiently.
+type Tele' a = Seq (a, Abs Sort)
+
+-- | Telescopes (with support for 'NoAbs').
+data Telescope' = Telescope
+  { telTele :: Tele' (Dom Type)
+    -- ^ The telescope.
+  , telAbs :: !Nat
+    -- ^ The number of 'Abs' constructors in the telescope.
+  , telTerm :: Term
+    -- ^ The term. The term is in the telescope's context, where
+    -- 'NoAbs' constructors do not count.
+  }
+  deriving Show
+
+instance Sized Telescope' where
+  size = size . telTele
+
+-- | An empty telescope.
+emptyTel :: Term -> Telescope'
+emptyTel t = Telescope
+  { telTele = mempty
+  , telAbs  = 0
+  , telTerm = t
+  }
+
+-- | Prepends an element to a telescope.
+consTel :: (Dom Type, Abs Sort) -> Telescope' -> Telescope'
+consTel as@(_, s) tel =
+  tel{ telTele = as Seq.<| telTele tel
+     , telAbs  = noAbs s + telAbs tel
+     }
+
+-- | Prepends a telescope with the given number of 'Abs' constructors
+-- to a telescope.
+prependTel :: Tele' (Dom Type) -> Nat -> Telescope' -> Telescope'
+prependTel tel1 n tel2 =
+  tel2{ telTele = tel1 Seq.>< telTele tel2
+      , telAbs  = n + telAbs tel2
+      }
+
+-- | A smart constructor for 'Tel'.
+mkTel :: Telescope' -> Term
+mkTel tel
+  | size tel == 0 = telTerm tel
+  | otherwise     = Tel tel
+
+-- | A helper function used to implement 'Pi'.
+piView :: Term -> Maybe (Dom Type, Abs Type)
+piView (Tel (Telescope tel n t)) = case Seq.viewl tel of
+  Seq.EmptyL        -> __IMPOSSIBLE__
+  (a, s) Seq.:< tel -> Just
+    ( a
+    , if null tel
+      then flip El t <$> s
+      else case s of
+        Abs   x st -> Abs   x (El st (Tel (Telescope tel (n - 1) t)))
+        NoAbs x st -> NoAbs x (El st (Tel (Telescope tel n       t)))
+    )
+piView _ = Nothing
+
+-- | A bidirectional pattern synonym: The 'Tel' constructor can be
+-- seen as a sequence of 'Pi' constructors.
+pattern Pi :: Dom Type -> Abs Type -> Term
+pattern Pi a b <- (piView -> Just (a, b))
+  where
+  Pi a (Abs x (El s (Tel (Telescope tel n t)))) =
+    Tel (Telescope ((a, Abs x s) Seq.<| tel) (1 + n) t)
+  Pi a (NoAbs x (El s (Tel (Telescope tel n t)))) =
+    Tel (Telescope ((a, NoAbs x s) Seq.<| tel) n t)
+  Pi a (Abs x (El s t)) =
+    Tel (Telescope (Seq.singleton (a, Abs x s)) 1 t)
+  Pi a (NoAbs x (El s t)) =
+    Tel (Telescope (Seq.singleton (a, NoAbs x s)) 0 t)
 
 data IsFibrant = IsFibrant | IsStrict
   deriving (Show, Eq, Ord, Generic)

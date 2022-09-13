@@ -1,6 +1,7 @@
 
 module Agda.TypeChecking.Monad.Context where
 
+import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as T
 
@@ -397,6 +398,23 @@ underAbstractionAbs' wrap t a k = addContext (wrap $ realName $ absName a, t) $ 
 {-# SPECIALIZE underAbstraction_ :: Subst a => Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction_ :: (Subst a, MonadAddContext m) => Abs a -> (a -> m b) -> m b
 underAbstraction_ = underAbstraction __DUMMY_DOM__
+
+-- | Runs the given computation under the abstractions in the given
+-- telescope. Note that 'NoAbs' constructors are ignored. The
+-- computation is applied to the telescope's 'telTerm'.
+{-# SPECIALISE
+    underAbstractions :: Telescope' -> (Term -> TCM a) -> TCM a
+  #-}
+underAbstractions ::
+  MonadAddContext m =>
+  Telescope' -> (Term -> m a) -> m a
+underAbstractions tel m = helper (telTele tel)
+  where
+  helper Seq.Empty            = m $ telTerm tel
+  helper ((a, s) Seq.:<| tel) =
+    case s of
+      NoAbs{} -> helper tel
+      Abs{}   -> underAbstractionAbs a s $ \_ -> helper tel
 
 -- | Map a monadic function on the thing under the abstraction, adding
 --   the abstracted variable to the context.

@@ -5,6 +5,7 @@ module Agda.TypeChecking.Telescope where
 import Prelude hiding (null)
 
 import Control.Monad
+import Control.Monad.Trans.State.Strict
 
 import Data.Bifunctor (first)
 import Data.Foldable (find)
@@ -13,6 +14,7 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
+import qualified Data.Sequence as Seq
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -365,6 +367,114 @@ expandTelescopeVar gamma k delta c = (tel', rho)
     gamma2'     = applyPatSubst rho0 $ telFromList ts2
 
     tel'        = gamma1 `abstract` (delta `abstract` gamma2')
+
+-- | Converts a term to a telescope.
+termToTel
+  :: (MonadReduce m, MonadAddContext m)
+  => Nat
+     -- ^ The returned telescope will not be longer than this number.
+     --
+     -- Precondition: The number must be non-negative.
+  -> (Dom Type -> Bool)
+     -- ^ A predicate that should be satisfied for each entry of the
+     -- returned telescope.
+  -> Nat
+     -- ^ A \"prefix\" of the term of this length is already known to
+     -- satisfy the previous predicate.
+  -> Term
+     -- ^ The term that should be converted.
+  -> m Telescope'
+termToTel m p known t = termToTel' m p' known t
+  where
+  p' :: Nat -> Telescope' -> State Nat (Either Term Telescope')
+  p' mx Telescope{ .. } = do
+    known <- get
+    let r = skip known mx telAbs telTele
+    case r of
+      Right tel -> put ((known - size tel) `max` 0)
+      _         -> return ()
+    return r
+    where
+    skip !known !max !n tel
+      | canBeSkipped <= 0 = go max n tel
+      | otherwise         =
+        Right $ prependTel tel1 n1 $ either emptyTel id $
+        go (max - canBeSkipped) n2 tel2
+      where
+      canBeSkipped = minimum [known, max, size tel]
+      (tel1, tel2) = Seq.splitAt canBeSkipped tel
+      -- The computation of the following pair is linear in the
+      -- smaller of size tel1 and size tel2. However, consider the
+      -- following scenario:
+      -- 1) The function termToTel is applied to t, with the result
+      --    Right tel'. One or more instances of this computation
+      --    might be slow.
+      -- 2) The function termToTel is then applied to mkTel tel', with
+      --    the known length set to size tel' and the maximum length
+      --    set to at least size tel'. In this case the first
+      --    size tel' elements will be skipped quickly (because tel
+      --    will be tel' and tel2 will be empty).
+      (n1, n2)
+        | size tel1 >= size tel2 =
+          let n2 = sum $ fmap (noAbs . snd) tel2
+          in (n - n2, n2)
+        | otherwise =
+          let n1 = sum $ fmap (noAbs . snd) tel1
+          in (n1, n - n1)
+
+    go !max !n tel@(as@(a, s) Seq.:<| tel')
+      | max > 0 && p a =
+      Right $ consTel as $ either emptyTel id $
+      go (max - 1) (n - noAbs s) tel'
+    go _ n tel = Left $ mkTel $ Telescope
+      { telTele = tel
+      , telAbs  = n
+      , telTerm = telTerm
+      }
+
+-- | Converts a term to a telescope.
+termToTel'
+  :: (MonadReduce m, MonadAddContext m)
+  => Nat
+     -- ^ The conversion stops if the telescope becomes at least this
+     -- long. Note that the returned telescope is not guaranteed to
+     -- have this maximum length.
+     --
+     -- Precondition: The number must be non-negative.
+  -> (Nat -> Telescope' -> State s (Either Term Telescope'))
+     -- ^ A computation that determines what should be done with
+     -- encountered 'Tel' constructors (in particular, their arguments
+     -- of type 'Telescope''). If 'Left' something is returned, then
+     -- the conversion stops, and if 'Right' something is returned,
+     -- then the conversion is allowed to continue.
+     --
+     -- The first argument is the remaining length. This argument can
+     -- be assumed to be positive.
+  -> s
+     -- ^ Initial state of the previous argument.
+  -> Term
+     -- ^ The term that should be converted.
+  -> m Telescope'
+termToTel' m p s t = do
+  t <- reduce t
+  case t of
+    Tel tel -> case runState (p m tel) s of
+      (Left t,    _) -> return (emptyTel t)
+      (Right tel, s) ->
+        if m <= n
+        then return tel
+        else prependTel (telTele tel) (telAbs tel) <$>
+             -- This use of underAbstractions is at least linear in
+             -- the length of tel. This can lead to (at least)
+             -- quadratic performance for
+             -- Agda.TypeChecking.Rules.Application.checkArgumentsE',
+             -- which in some cases calls termToTel repeatedly for
+             -- similar telescopes (a telescope, the telescope with
+             -- the first binder removed, and so on).
+             underAbstractions tel (termToTel' (m - n) p s)
+        where
+        n = size tel
+    t -> return (emptyTel t)
 
 -- | Gather leading Πs of a type in a telescope.
 telView :: (MonadReduce m, MonadAddContext m) => Type -> m TelView

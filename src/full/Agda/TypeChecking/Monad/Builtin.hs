@@ -629,6 +629,18 @@ pathView' = do
       | Just path' == mpathp, Just path <- mpathp -> PathType s path level typ lhs rhs
     _ -> OType t0
 
+-- | Returns a function which checks whether a given term (which
+-- should be reduced) is an instance of the (dependent or
+-- non-dependent) path type.
+isPath' :: HasBuiltins m => m (Term -> Bool)
+isPath' = do
+ mpath  <- getBuiltinName' builtinPath
+ mpathp <- getBuiltinName' builtinPathP
+ return $ \case
+   Def path' [Apply _, Apply _, Apply _, Apply _] ->
+     Just path' `elem` [mpath, mpathp] && isJust mpathp
+   _ -> False
+
 -- | Non dependent Path
 idViewAsPath :: HasBuiltins m => Type -> m PathView
 idViewAsPath t0@(El s t) = do
