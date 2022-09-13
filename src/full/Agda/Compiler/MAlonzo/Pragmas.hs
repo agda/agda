@@ -79,7 +79,7 @@ parsePragma (CompilerPragma r s) =
     isOp c    = not $ isSpace c || elem c ("()" :: String)
     hsIdent = fst <$> gather (choice
                 [ string "()"
-                , many1 (satisfy isIdent)
+                , many1 (satisfy isIdent) <* optional (char '#')
                 , between (char '(') (char ')') (many1 (satisfy isOp))
                 ])
     hsCode  = many1 get -- very liberal
