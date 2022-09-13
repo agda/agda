@@ -571,8 +571,9 @@ These come with a constructor and eliminator:
 
 .. code-block:: agda
 
-  glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I} {Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A)}
-       → PartialP φ T → A → Glue A Te
+  glue : ∀ {ℓ ℓ'} {A : Set ℓ} {φ : I}
+           {T : Partial φ (Set ℓ')} → {e : PartialP φ (λ o → T o ≃ A)}
+       → PartialP φ T → A → Glue A (λ o → (T o) , (e o))
 
   unglue : ∀ {ℓ ℓ'} {A : Set ℓ} (φ : I) {Te : Partial φ (Σ[ T ∈ Set ℓ' ] T ≃ A)}
          → Glue A Te → A
