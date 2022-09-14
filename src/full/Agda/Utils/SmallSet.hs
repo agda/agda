@@ -25,7 +25,7 @@ module Agda.Utils.SmallSet
   , insert
   , intersection
   , isSubsetOf
-  , mapMemberShip
+  , mapMembership
   , member
   , notMember
   , null
@@ -33,7 +33,7 @@ module Agda.Utils.SmallSet
   , toList, toAscList
   , total
   , union
-  , zipMemberShipWith
+  , zipMembershipWith
   ) where
 
 import Prelude hiding (null)
@@ -102,28 +102,28 @@ delete a = update [(a,False)]
 
 -- | Time O(n).
 complement :: SmallSetElement a => SmallSet a -> SmallSet a
-complement = mapMemberShip not
+complement = mapMembership not
 
 -- | Time O(n).
 difference, (\\) :: SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
-difference = zipMemberShipWith $ \ b c -> b && not c
+difference = zipMembershipWith $ \ b c -> b && not c
 (\\)       = difference
 
 -- | Time O(n).
 intersection ::  SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
-intersection = zipMemberShipWith (&&)
+intersection = zipMembershipWith (&&)
 
 -- | Time O(n).
 union ::  SmallSetElement a => SmallSet a -> SmallSet a -> SmallSet a
-union = zipMemberShipWith (||)
+union = zipMembershipWith (||)
 
 -- | Time O(n).
-mapMemberShip :: SmallSetElement a => (Bool -> Bool) -> SmallSet a -> SmallSet a
-mapMemberShip f = SmallSet . Array.amap f . theSmallSet
+mapMembership :: SmallSetElement a => (Bool -> Bool) -> SmallSet a -> SmallSet a
+mapMembership f = SmallSet . Array.amap f . theSmallSet
 
 -- | Time O(n).
-zipMemberShipWith :: SmallSetElement a => (Bool -> Bool -> Bool) -> SmallSet a -> SmallSet a -> SmallSet a
-zipMemberShipWith f s t = fromBoolList $ toBoolListZipWith f s t
+zipMembershipWith :: SmallSetElement a => (Bool -> Bool -> Bool) -> SmallSet a -> SmallSet a -> SmallSet a
+zipMembershipWith f s t = fromBoolList $ toBoolListZipWith f s t
 
 -- * Conversion
 
