@@ -1,9 +1,3 @@
--- Liang-Ting Chen (2019-07-04):
--- Consider using Data.Maybe.Strict instead
--- Andreas Abel (2019-07-05)@GitHub:
--- The dependencies of strict-base-types are too heavy,
--- especially since it depends on lens which we consciously ruled out.
-
 -- | A strict version of the 'Maybe' type.
 --
 --   Import qualified, as in
