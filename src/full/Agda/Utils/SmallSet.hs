@@ -44,6 +44,13 @@ import Data.Array.IArray (Ix, Array)
 import qualified Data.Array.IArray as Array
 
 -- Note: we might want to use unboxed arrays, but they have no Data instance
+--
+-- Update: There is currently no need for a Data instance. An attempt
+-- was made to replace Array with Data.Array.Unboxed.UArray. Limited
+-- testing suggested that this does not make much of a difference in
+-- practice (at least not when it comes to type-checking the standard
+-- library up to and including Data.Nat, with Agda compiled without
+-- -foptimise-heavily).
 
 -- | Let @n@ be the size of type @a@.
 type SmallSetElement a = (Bounded a, Ix a)
