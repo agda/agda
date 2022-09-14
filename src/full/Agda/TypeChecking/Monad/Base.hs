@@ -44,7 +44,6 @@ import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
-import Data.Data (Data)
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -815,7 +814,7 @@ instance HasFresh ProblemId where
   freshLens = stFreshProblemId
 
 newtype CheckpointId = CheckpointId Int
-  deriving (Data, Eq, Ord, Enum, Real, Integral, Num, NFData)
+  deriving (Eq, Ord, Enum, Real, Integral, Num, NFData)
 
 instance Show CheckpointId where
   show (CheckpointId n) = show n
@@ -1204,7 +1203,7 @@ instance TermLike Constraint where
 instance AllMetas Constraint
 
 data Comparison = CmpEq | CmpLeq
-  deriving (Eq, Data, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 instance Pretty Comparison where
   pretty CmpEq  = "="
@@ -1246,7 +1245,7 @@ data CompareAs
                    --   But currently, we do not rely on this invariant.
   | AsSizes        -- ^ Replaces @AsTermsOf Size@.
   | AsTypes
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 instance Free CompareAs where
   freeVars' (AsTermsOf a) = freeVars' a
@@ -1319,7 +1318,7 @@ data DoGeneralize
                       --   we're currently checking the type of a generalizable variable
                       --   (this should get the default modality).
   | NoGeneralize      -- ^ Don't generalize.
-  deriving (Eq, Ord, Show, Data, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 -- | The value of a generalizable variable. This is created to be a
 --   generalizable meta before checking the type to be generalized.
@@ -1327,7 +1326,7 @@ data GeneralizedValue = GeneralizedValue
   { genvalCheckpoint :: CheckpointId
   , genvalTerm       :: Term
   , genvalType       :: Type
-  } deriving (Show, Data, Generic)
+  } deriving (Show, Generic)
 
 ---------------------------------------------------------------------------
 -- ** Meta variables
@@ -1645,7 +1644,7 @@ type InteractionPoints = BiMap InteractionId InteractionPoint
 --   the size of the telescope in its creation environment
 --   (as stored in MetaInfo).
 data Overapplied = Overapplied | NotOverapplied
-  deriving (Eq, Show, Data, Generic)
+  deriving (Eq, Show, Generic)
 
 -- | Datatype representing a single boundary condition:
 --   x_0 = u_0, ... ,x_n = u_n ⊢ t = ?n es
@@ -1655,7 +1654,7 @@ data IPBoundary' t = IPBoundary
   , ipbMetaApp   :: t          -- ^ @?n es@
   , ipbOverapplied :: Overapplied -- ^ Is @?n@ overapplied in @?n es@ ?
   }
-  deriving (Show, Data, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 type IPBoundary = IPBoundary' Term
 
@@ -1709,7 +1708,7 @@ type RewriteRuleMap = HashMap QName RewriteRules
 type DisplayForms = HashMap QName [LocalDisplayForm]
 
 newtype Section = Section { _secTelescope :: Telescope }
-  deriving (Data, Show, NFData)
+  deriving (Show, NFData)
 
 instance Pretty Section where
   pretty = pretty . _secTelescope
@@ -1739,7 +1738,7 @@ data DisplayForm = Display
   , dfRHS :: DisplayTerm
     -- ^ Right hand side.
   }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 type LocalDisplayForm = Open DisplayForm
 
@@ -1761,7 +1760,7 @@ data DisplayTerm
     -- ^ @.v@.
   | DTerm Term
     -- ^ @v@.
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 instance Free DisplayForm where
   freeVars' (Display n ps t) = underBinder (freeVars' ps) `mappend` underBinder' n (freeVars' t)
@@ -1815,7 +1814,7 @@ data NLPat
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
     -- ^ Matches the term modulo β (ideally βη).
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 type PElims = [Elim' NLPat]
 
 instance TermLike NLPat where
@@ -1842,7 +1841,7 @@ instance AllMetas NLPat
 data NLPType = NLPType
   { nlpTypeSort :: NLPSort
   , nlpTypeUnEl :: NLPat
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 instance TermLike NLPType where
   traverseTermM f (NLPType s t) = NLPType <$> traverseTermM f s <*> traverseTermM f t
@@ -1859,7 +1858,7 @@ data NLPSort
   | PSizeUniv
   | PLockUniv
   | PIntervalUniv
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 instance TermLike NLPSort where
   traverseTermM f = \case
@@ -1895,7 +1894,7 @@ data RewriteRule = RewriteRule
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
   , rewFromClause :: Bool    -- ^ Was this rewrite rule created from a clause in the definition of the function?
   }
-    deriving (Data, Show, Generic)
+    deriving (Show, Generic)
 
 data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
@@ -1993,7 +1992,7 @@ data NumGeneralizableArgs
   | SomeGeneralizableArgs !Int
     -- ^ When lambda-lifting new args are generalizable if
     --   'SomeGeneralizableArgs', also when the number is zero.
-  deriving (Data, Show)
+  deriving Show
 
 theDefLens :: Lens' Defn Definition
 theDefLens f d = f (theDef d) <&> \ df -> d { theDef = df }
@@ -2029,7 +2028,7 @@ data Polarity
   | Contravariant  -- ^ antitone
   | Invariant      -- ^ no information (mixed variance)
   | Nonvariant     -- ^ constant
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 instance Pretty Polarity where
   pretty = text . \case
@@ -2042,11 +2041,11 @@ instance Pretty Polarity where
 data IsForced
   = Forced
   | NotForced
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 -- | The backends are responsible for parsing their own pragmas.
 data CompilerPragma = CompilerPragma Range String
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 instance HasRange CompilerPragma where
   getRange (CompilerPragma r _) = r
@@ -2075,7 +2074,7 @@ data System = System
     -- ^ the telescope Δ, binding vars for the clauses, Γ ⊢ Δ
   , systemClauses :: [(Face,Term)]
     -- ^ a system [φ₁ u₁, ... , φₙ uₙ] where Γ, Δ ⊢ φᵢ and Γ, Δ, φᵢ ⊢ uᵢ
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 -- | Additional information for extended lambdas.
 data ExtLamInfo = ExtLamInfo
@@ -2088,7 +2087,7 @@ data ExtLamInfo = ExtLamInfo
   , extLamAbsurd :: Bool
     -- ^ Was this definition created from an absurd lambda @λ ()@?
   , extLamSys :: !(Strict.Maybe System)
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 modifySystem :: (System -> System) -> ExtLamInfo -> ExtLamInfo
 modifySystem f e = let !e' = e { extLamSys = f <$> extLamSys e } in e'
@@ -2120,11 +2119,11 @@ data Projection = Projection
     --   (Invariant: the number of abstractions equals 'projIndex'.)
     --   In case of a projection-like function, just the function symbol
     --   is returned as 'Def':  @t = \ pars -> f@.
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 -- | Abstractions to build projection function (dropping parameters).
 newtype ProjLams = ProjLams { getProjLams :: [Arg ArgName] }
-  deriving (Data, Show, Null, Generic)
+  deriving (Show, Null, Generic)
 
 -- | Building the projection function (which drops the parameters).
 projDropPars :: Projection -> ProjOrigin -> Term
@@ -2149,7 +2148,7 @@ projArgInfo (Projection _ _ _ _ lams) =
 data EtaEquality
   = Specified { theEtaEquality :: !HasEta }  -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
   | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 instance PatternMatchingAllowed EtaEquality where
   patternMatchingAllowed = patternMatchingAllowed . theEtaEquality
@@ -2166,13 +2165,13 @@ data FunctionFlag
   = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
   | FunInline  -- ^ Should calls to this function be inlined by the compiler?
   | FunMacro   -- ^ Is this function a macro?
-  deriving (Data, Eq, Ord, Enum, Show, Generic)
+  deriving (Eq, Ord, Enum, Show, Generic)
 
 data CompKit = CompKit
   { nameOfHComp :: Maybe QName
   , nameOfTransp :: Maybe QName
   }
-  deriving (Data, Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 emptyCompKit :: CompKit
 emptyCompKit = CompKit Nothing Nothing
@@ -2327,7 +2326,7 @@ data Defn = Axiom -- ^ Postulate
             { primName :: String
             , primSort :: Sort
             }
-    deriving (Data, Show, Generic)
+    deriving (Show, Generic)
 
 instance Pretty Definition where
   pretty Defn{..} =
@@ -2508,7 +2507,7 @@ newtype Fields = Fields [(C.Name, Type)]
 --   (unfolding of definitions) does not count as simplifying?
 
 data Simplification = YesSimplification | NoSimplification
-  deriving (Data, Eq, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 instance Null Simplification where
   empty = NoSimplification
@@ -2576,7 +2575,7 @@ data AllowedReduction
                              --   by confluence checker)
   | UnconfirmedReductions    -- ^ Functions whose termination has not (yet) been confirmed.
   | NonTerminatingReductions -- ^ Functions that have failed termination checking.
-  deriving (Show, Eq, Ord, Enum, Bounded, Ix, Data, Generic)
+  deriving (Show, Eq, Ord, Enum, Bounded, Ix, Generic)
 
 type AllowedReductions = SmallSet AllowedReduction
 
@@ -2590,7 +2589,7 @@ reallyAllReductions = SmallSet.total
 data ReduceDefs
   = OnlyReduceDefs (Set QName)
   | DontReduceDefs (Set QName)
-  deriving (Data, Generic)
+  deriving Generic
 
 reduceAllDefs :: ReduceDefs
 reduceAllDefs = DontReduceDefs empty
@@ -2712,19 +2711,20 @@ defForced d = case theDef d of
 type FunctionInverse = FunctionInverse' Clause
 type InversionMap c = Map TermHead [c]
 
-data WhenInjective = AlwaysInjective | UnlessCubical deriving (Data,Show,Generic)
+data WhenInjective = AlwaysInjective | UnlessCubical
+  deriving (Show, Generic)
 
 data FunctionInverse' c
   = NotInjective
   | Inverse WhenInjective (InversionMap c)
-  deriving (Data, Show, Functor, Generic)
+  deriving (Show, Functor, Generic)
 
 data TermHead = SortHead
               | PiHead
               | ConsHead QName
               | VarHead Nat
               | UnknownHead
-  deriving (Data, Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 instance Pretty TermHead where
   pretty = \ case
@@ -2739,7 +2739,7 @@ instance Pretty TermHead where
 ---------------------------------------------------------------------------
 
 newtype MutualId = MutId Int32
-  deriving (Data, Eq, Ord, Show, Num, Enum, NFData)
+  deriving (Eq, Ord, Show, Num, Enum, NFData)
 
 ---------------------------------------------------------------------------
 -- ** Statistics
@@ -2788,7 +2788,7 @@ data Call
   | NoHighlighting
   | ModuleContents  -- ^ Interaction command: show module contents.
   | SetRange Range  -- ^ used by 'setCurrentRange'
-  deriving (Data, Generic)
+  deriving Generic
 
 instance Pretty Call where
     pretty CheckClause{}             = "CheckClause"
@@ -2923,7 +2923,7 @@ data HighlightingLevel
     -- ^ This includes both non-interactive highlighting and
     -- interactive highlighting of the expression that is currently
     -- being type-checked.
-    deriving (Eq, Ord, Show, Read, Data, Generic)
+    deriving (Eq, Ord, Show, Read, Generic)
 
 -- | How should highlighting be sent to the user interface?
 
@@ -2932,7 +2932,7 @@ data HighlightingMethod
     -- ^ Via stdout.
   | Indirect
     -- ^ Both via files and via stdout.
-    deriving (Eq, Show, Read, Data, Generic)
+    deriving (Eq, Show, Read, Generic)
 
 -- | @ifTopLevelAndHighlightingLevelIs l b m@ runs @m@ when we're
 -- type-checking the top-level module (or before we've started doing
@@ -3189,7 +3189,7 @@ instance LensQuantity  TCEnv where
 
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
-  deriving (Data, Generic)
+  deriving Generic
 
 defaultUnquoteFlags :: UnquoteFlags
 defaultUnquoteFlags = UnquoteFlags
@@ -3375,7 +3375,7 @@ data AbstractMode
   = AbstractMode        -- ^ Abstract things in the current module can be accessed.
   | ConcreteMode        -- ^ No abstract things can be accessed.
   | IgnoreAbstractMode  -- ^ All abstract things can be accessed.
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 aDefToMode :: IsAbstract -> AbstractMode
 aDefToMode AbstractDef = AbstractMode
@@ -3394,7 +3394,7 @@ data ExpandHidden
   = ExpandLast      -- ^ Add implicit arguments in the end until type is no longer hidden 'Pi'.
   | DontExpandLast  -- ^ Do not append implicit arguments.
   | ReallyDontExpandLast -- ^ Makes 'doExpandLast' have no effect. Used to avoid implicit insertion of arguments to metavariables.
-  deriving (Eq, Data, Generic)
+  deriving (Eq, Generic)
 
 isDontExpandLast :: ExpandHidden -> Bool
 isDontExpandLast ExpandLast           = False
@@ -3404,7 +3404,7 @@ isDontExpandLast ReallyDontExpandLast = True
 data CandidateKind
   = LocalCandidate
   | GlobalCandidate QName
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
@@ -3414,7 +3414,7 @@ data Candidate  = Candidate { candidateKind :: CandidateKind
                             , candidateType :: Type
                             , candidateOverlappable :: Bool
                             }
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 instance Free Candidate where
   freeVars' (Candidate _ t u _) = freeVars' (t, u)
@@ -3577,7 +3577,7 @@ data RecordFieldWarning
   | TooManyFieldsWarning QName [C.Name] [(C.Name, Range)]
       -- ^ Record type, fields not supplied by user, non-fields but supplied.
       --   The redundant fields come with a range of associated dead code.
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 recordFieldWarningToError :: RecordFieldWarning -> TypeError
 recordFieldWarningToError = \case

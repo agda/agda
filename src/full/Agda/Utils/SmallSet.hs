@@ -42,14 +42,13 @@ import Control.DeepSeq
 
 import Data.Array.IArray (Ix, Array)
 import qualified Data.Array.IArray as Array
-import Data.Data (Data)
 
 -- Note: we might want to use unboxed arrays, but they have no Data instance
 
 -- | Let @n@ be the size of type @a@.
 type SmallSetElement a = (Bounded a, Ix a)
 newtype SmallSet a = SmallSet { theSmallSet :: Array a Bool }
-  deriving (Eq, Ord, Show, Data, NFData)
+  deriving (Eq, Ord, Show, NFData)
 
 -- * Query
 

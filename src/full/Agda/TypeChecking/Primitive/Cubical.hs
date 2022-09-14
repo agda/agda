@@ -17,7 +17,6 @@ import Control.Monad.Except
 import Control.Monad.Trans ( lift )
 import Control.Exception
 
-import Data.Typeable
 import Data.String
 
 import Data.Bifunctor ( second )

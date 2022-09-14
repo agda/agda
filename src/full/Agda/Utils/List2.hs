@@ -15,7 +15,6 @@ module Agda.Utils.List2
 import Control.DeepSeq
 import Control.Monad                   ( (<=<) )
 
-import Data.Data                       ( Data )
 import qualified Data.List as List
 
 import GHC.Exts                        ( IsList(..) )
@@ -28,7 +27,7 @@ import Agda.Utils.Impossible
 
 -- | Lists of length ≥2.
 data List2 a = List2 a a [a]
-  deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | Safe. O(1).
 head :: List2 a -> a

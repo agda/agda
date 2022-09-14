@@ -21,7 +21,6 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 
 import Data.Traversable
-import Data.Data (Data)
 
 import GHC.Generics (Generic)
 
@@ -76,7 +75,7 @@ data Dom' t e = Dom
   , domName   :: Maybe NamedName  -- ^ e.g. @x@ in @{x = y : A} -> B@.
   , domTactic :: Maybe t        -- ^ "@tactic e".
   , unDom     :: e
-  } deriving (Data, Show, Functor, Foldable, Traversable)
+  } deriving (Show, Functor, Foldable, Traversable)
 
 type Dom = Dom' Term
 
@@ -151,7 +150,7 @@ type NamedArgs  = [NamedArg Term]
 data DataOrRecord
   = IsData
   | IsRecord PatternOrCopattern
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 -- | Store the names of the record fields in the constructor.
 --   This allows reduction of projection redexes outside of TCM.
@@ -163,7 +162,7 @@ data ConHead = ConHead
   , conFields     :: [Arg QName]   -- ^ The name of the record fields.
       --   'Arg' is stored since the info in the constructor args
       --   might not be accurate because of subtyping (issue #2170).
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 instance Eq ConHead where
   (==) = (==) `on` conName
@@ -225,7 +224,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   where they can affect type checking, so syntactic checks are free to ignore the
             --   eliminators, which are only there to ease debugging when a dummy term incorrectly
             --   leaks into a relevant position.
-  deriving (Data, Show)
+  deriving Show
 
 type ConInfo = ConOrigin
 
@@ -242,7 +241,7 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Data, Functor, Foldable, Traversable, Generic)
+  deriving (Functor, Foldable, Traversable, Generic)
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -251,7 +250,7 @@ instance Decoration Abs where
 -- | Types are terms with a sort annotation.
 --
 data Type'' t a = El { _getSort :: Sort' t, unEl :: a }
-  deriving (Data, Show, Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
 
 type Type' a = Type'' Term a
 
@@ -284,12 +283,12 @@ instance LensSort a => LensSort (Arg a) where
 --   and so on.
 data Tele a = EmptyTel
             | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
-  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 type Telescope = Tele (Dom Type)
 
 data IsFibrant = IsFibrant | IsStrict
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 -- | Sorts.
 --
@@ -311,19 +310,19 @@ data Sort' t
     --   Replaces the abuse of @Prop@ for a dummy sort.
     --   The @String@ typically describes the location where we create this dummy,
     --   but can contain other information as well.
-  deriving (Data, Show)
+  deriving Show
 
 type Sort = Sort' Term
 
 -- | A level is a maximum expression of a closed level and 0..n
 --   'PlusLevel' expressions each of which is an atom plus a number.
 data Level' t = Max !Integer [PlusLevel' t]
-  deriving (Show, Data, Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
 
 type Level = Level' Term
 
 data PlusLevel' t = Plus !Integer t
-  deriving (Show, Data, Functor, Foldable, Traversable)
+  deriving (Show, Functor, Foldable, Traversable)
 
 type PlusLevel = PlusLevel' Term
 type LevelAtom = Term
@@ -334,7 +333,7 @@ type LevelAtom = Term
 
 -- | Newtypes for terms that produce a dummy, rather than crash, when
 --   applied to incompatible eliminations.
-newtype BraveTerm = BraveTerm { unBrave :: Term } deriving (Data, Show)
+newtype BraveTerm = BraveTerm { unBrave :: Term } deriving Show
 
 ---------------------------------------------------------------------------
 -- * Blocked Terms
@@ -406,7 +405,7 @@ data Clause = Clause
     , clauseWhereModule :: Maybe ModuleName
       -- ^ Keeps track of the module name associate with the clause's where clause.
     }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
@@ -426,7 +425,7 @@ nameToPatVarName = nameToArgName
 data PatternInfo = PatternInfo
   { patOrigin :: PatOrigin
   , patAsNames :: [Name]
-  } deriving (Data, Show, Eq, Generic)
+  } deriving (Show, Eq, Generic)
 
 defaultPatternInfo :: PatternInfo
 defaultPatternInfo = PatternInfo PatOSystem []
@@ -442,7 +441,7 @@ data PatOrigin
   | PatORec            -- ^ User wrote a record pattern
   | PatOLit            -- ^ User wrote a literal pattern
   | PatOAbsurd         -- ^ User wrote an absurd pattern
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 -- | Patterns are variables, constructors, or wildcards.
 --   @QName@ is used in @ConP@ rather than @Name@ since
@@ -466,7 +465,7 @@ data Pattern' x
     -- ^ Path elimination pattern, like @VarP@ but keeps track of endpoints.
   | DefP PatternInfo QName [NamedArg (Pattern' x)]
     -- ^ Used for HITs, the QName should be the one from primHComp.
-  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
@@ -484,7 +483,7 @@ litP = LitP defaultPatternInfo
 data DBPatVar = DBPatVar
   { dbPatVarName  :: PatVarName
   , dbPatVarIndex :: !Int
-  } deriving (Data, Show, Eq, Generic)
+  } deriving (Show, Eq, Generic)
 
 type DeBruijnPattern = Pattern' DBPatVar
 
@@ -531,7 +530,7 @@ data ConPatternInfo = ConPatternInfo
     --   variables they bind are unused. The GHC backend compiles lazy matches
     --   to lazy patterns in Haskell (TODO: not yet).
   }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 noConPatternInfo :: ConPatternInfo
 noConPatternInfo = ConPatternInfo defaultPatternInfo False False Nothing False

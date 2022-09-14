@@ -5,7 +5,7 @@
 -- especially since it depends on lens which we consciously ruled out.
 
 {-# LANGUAGE CPP #-}
-
+{-# LANGUAGE DeriveDataTypeable #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 

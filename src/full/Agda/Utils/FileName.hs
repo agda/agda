@@ -22,7 +22,6 @@ import Control.Exception   ( bracket )
 import System.Win32        ( findFirstFile, findClose, getFindDataFileName )
 #endif
 
-import Data.Data           ( Data )
 import Data.Function
 import Data.Hashable       ( Hashable )
 import Data.Text           ( Text )
@@ -39,7 +38,7 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { textPath :: Text }
-  deriving (Show, Eq, Ord, Data, Hashable, NFData)
+  deriving (Show, Eq, Ord, Hashable, NFData)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath

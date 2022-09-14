@@ -3,7 +3,6 @@ module Agda.Syntax.Internal.Blockers where
 
 import Control.DeepSeq
 
-import Data.Data (Data)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup
@@ -40,7 +39,7 @@ data NotBlocked' t
   | ReallyNotBlocked
     -- ^ Reduction was not blocked, we reached a whnf
     --   which can be anything but a stuck @'Def'@.
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
@@ -68,7 +67,7 @@ data Blocker = UnblockOnAll (Set Blocker)
              | UnblockOnAny (Set Blocker)
              | UnblockOnMeta MetaId     -- ^ Unblock if meta is instantiated
              | UnblockOnProblem ProblemId
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance NFData Blocker
 
@@ -151,7 +150,7 @@ instance Pretty Blocker where
 data Blocked' t a
   = Blocked    { theBlocker      :: Blocker,       ignoreBlocking :: a }
   | NotBlocked { blockingStatus  :: NotBlocked' t, ignoreBlocking :: a }
-  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 instance Decoration (Blocked' t) where
   traverseF f (Blocked b x)     = Blocked b <$> f x

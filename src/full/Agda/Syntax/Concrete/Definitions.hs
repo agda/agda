@@ -60,7 +60,6 @@ import Control.Monad.State   ( MonadState(..), gets, StateT, runStateT )
 import Control.Monad.Trans   ( lift )
 
 import Data.Bifunctor
-import Data.Data (Data)
 import Data.Either (isLeft, isRight)
 import Data.Function (on)
 import qualified Data.Map as Map

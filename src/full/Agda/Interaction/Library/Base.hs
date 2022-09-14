@@ -10,7 +10,6 @@ import Control.Monad.Writer
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char ( isDigit )
-import Data.Data ( Data )
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -49,7 +48,7 @@ data ExecutablesFile = ExecutablesFile
   , efExists :: Bool
        -- ^ The executables file might not exist,
        --   but we may print its assumed location in error messages.
-  } deriving (Show, Data, Generic)
+  } deriving (Show, Generic)
 
 -- | The special name @\".\"@ is used to indicated that the current directory
 --   should count as a project root.
@@ -117,15 +116,15 @@ data LibPositionInfo = LibPositionInfo
   , lineNumPos :: LineNumber     -- ^ Line number in @libraries@ file.
   , filePos    :: FilePath       -- ^ Library file
   }
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 data LibWarning = LibWarning (Maybe LibPositionInfo) LibWarning'
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 -- | Library Warnings.
 data LibWarning'
   = UnknownField String
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 data LibError = LibError (Maybe LibPositionInfo) LibError'
 

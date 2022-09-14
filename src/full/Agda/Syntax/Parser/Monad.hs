@@ -37,7 +37,6 @@ import Control.Monad.Except
 import Control.Monad.State
 
 import Data.Int
-import Data.Data  ( Data )
 import Data.Maybe ( listToMaybe )
 
 import Agda.Interaction.Options.Warnings
@@ -172,7 +171,7 @@ data ParseWarning
     -- ^ Unsupported attribute.
   | MultipleAttributes Range !(Maybe String)
     -- ^ Multiple attributes.
-  deriving (Data, Show)
+  deriving Show
 
 instance NFData ParseWarning where
   rnf (OverlappingTokensWarning _) = ()

@@ -15,8 +15,6 @@ import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Maybe
 
-import Data.Data (Data)
-
 import GHC.Generics (Generic)
 
 import Agda.Utils.Functor
@@ -38,7 +36,7 @@ import Agda.Utils.Impossible
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
 --   @m@ is the 'size' of the permutation.
 data Permutation = Perm { permRange :: Int, permPicks :: [Int] }
-  deriving (Eq, Data, Generic)
+  deriving (Eq, Generic)
 
 instance Show Permutation where
   show (Perm n xs) = showx [0..n - 1] ++ " -> " ++ showx xs
@@ -266,7 +264,7 @@ data Drop a = Drop
   { dropN    :: Int  -- ^ Non-negative number of things to drop.
   , dropFrom :: a    -- ^ Where to drop from.
   }
-  deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | Things that support delayed dropping.
 class DoDrop a where

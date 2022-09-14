@@ -776,7 +776,6 @@ library
                     -- slightly shorter, see PR #3920.
                     --, DataKinds
                     , DefaultSignatures
-                    , DeriveDataTypeable
                     , DeriveFoldable
                     , DeriveFunctor
                     , DeriveGeneric

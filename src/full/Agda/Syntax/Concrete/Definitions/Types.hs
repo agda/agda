@@ -2,7 +2,6 @@ module Agda.Syntax.Concrete.Definitions.Types where
 
 import Control.DeepSeq
 
-import Data.Data
 import Data.Map (Map)
 import Data.Semigroup ( Semigroup(..) )
 
@@ -81,7 +80,7 @@ data NiceDeclaration
   | NiceUnquoteDecl Range Access IsAbstract IsInstance TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteDef Range Access IsAbstract TerminationCheck CoverageCheck [Name] Expr
   | NiceUnquoteData Range Access IsAbstract PositivityCheck UniverseCheck Name [Name] Expr
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 instance NFData NiceDeclaration
 
@@ -101,7 +100,7 @@ type NiceTypeSignature  = NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
-    deriving (Data, Show, Generic)
+    deriving (Show, Generic)
 
 instance NFData Clause
 
@@ -192,7 +191,7 @@ data KindOfBlock
   | FieldBlock      -- ^ @field@.  Ensured by parser.
   | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
   | ConstructorBlock  -- ^ @constructor@, in @interleaved mutual@.
-  deriving (Data, Eq, Ord, Show)
+  deriving (Eq, Ord, Show)
 
 
 instance HasRange NiceDeclaration where
@@ -289,7 +288,7 @@ data DataRecOrFun
     -- ^ Name of a record type
   | FunName TerminationCheck CoverageCheck
     -- ^ Name of a function.
-  deriving (Data, Show)
+  deriving Show
 
 -- Ignore pragmas when checking equality
 instance Eq DataRecOrFun where

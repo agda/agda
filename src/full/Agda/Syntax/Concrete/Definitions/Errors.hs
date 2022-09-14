@@ -2,8 +2,6 @@ module Agda.Syntax.Concrete.Definitions.Errors where
 
 import Control.DeepSeq
 
-import Data.Data
-
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
@@ -47,7 +45,7 @@ data DeclarationException'
       --   Range is of mutual block.
   | UnquoteDefRequiresSignature (List1 Name)
   | BadMacroDef NiceDeclaration
-    deriving (Data, Show)
+    deriving Show
 
 ------------------------------------------------------------------------
 -- Warnings
@@ -119,7 +117,7 @@ data DeclarationWarning'
       -- ^ @instance@ block with nothing that can (newly) become an instance.
   | UselessPrivate Range
       -- ^ @private@ block with nothing that can (newly) be made private.
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 declarationWarningName :: DeclarationWarning -> WarningName
 declarationWarningName = declarationWarningName' . dwWarning

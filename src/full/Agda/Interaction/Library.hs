@@ -46,7 +46,6 @@ import Control.Monad.Writer
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char
-import Data.Data ( Data )
 import Data.Either
 import Data.Function
 import Data.Map ( Map )
