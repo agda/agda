@@ -14,6 +14,7 @@ import Prelude hiding (null)
 import Control.Monad.Identity
 import Control.DeepSeq
 
+import qualified Data.Foldable as F
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -266,11 +267,6 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
            | NoAbs { absName :: ArgName, unAbs :: a }
   deriving (Functor, Foldable, Traversable, Generic)
 
--- | The number of 'Abs' constructors (zero or one).
-noAbs :: Abs a -> Nat
-noAbs NoAbs{} = 0
-noAbs Abs{}   = 1
-
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
   traverseF f (NoAbs x a) = NoAbs x <$> f a
@@ -323,8 +319,6 @@ type Tele' a = Seq (a, Abs Sort)
 data Telescope' = Telescope
   { telTele :: Tele' (Dom Type)
     -- ^ The telescope.
-  , telAbs :: !Nat
-    -- ^ The number of 'Abs' constructors in the telescope.
   , telTerm :: Term
     -- ^ The term. The term is in the telescope's context, where
     -- 'NoAbs' constructors do not count.
@@ -338,24 +332,26 @@ instance Sized Telescope' where
 emptyTel :: Term -> Telescope'
 emptyTel t = Telescope
   { telTele = mempty
-  , telAbs  = 0
   , telTerm = t
   }
 
 -- | Prepends an element to a telescope.
 consTel :: (Dom Type, Abs Sort) -> Telescope' -> Telescope'
 consTel as@(_, s) tel =
-  tel{ telTele = as Seq.<| telTele tel
-     , telAbs  = noAbs s + telAbs tel
-     }
+  tel{ telTele = as Seq.<| telTele tel }
 
 -- | Prepends a telescope with the given number of 'Abs' constructors
 -- to a telescope.
-prependTel :: Tele' (Dom Type) -> Nat -> Telescope' -> Telescope'
-prependTel tel1 n tel2 =
-  tel2{ telTele = tel1 Seq.>< telTele tel2
-      , telAbs  = n + telAbs tel2
-      }
+prependTel :: Tele' (Dom Type) -> Telescope' -> Telescope'
+prependTel tel1 tel2 =
+  tel2{ telTele = tel1 Seq.>< telTele tel2 }
+
+-- | The number of 'Abs' constructors in the telescope.
+noAbs :: Tele' a -> Nat
+noAbs = F.foldl' (\n (_, s) -> n + isAbs s) 0
+  where
+  isAbs Abs{}   = 1
+  isAbs NoAbs{} = 0
 
 -- | A smart constructor for 'Tel'.
 mkTel :: Telescope' -> Term
@@ -365,15 +361,13 @@ mkTel tel
 
 -- | A helper function used to implement 'Pi'.
 piView :: Term -> Maybe (Dom Type, Abs Type)
-piView (Tel (Telescope tel n t)) = case Seq.viewl tel of
+piView (Tel (Telescope tel t)) = case Seq.viewl tel of
   Seq.EmptyL        -> __IMPOSSIBLE__
   (a, s) Seq.:< tel -> Just
     ( a
     , if null tel
       then flip El t <$> s
-      else case s of
-        Abs   x st -> Abs   x (El st (Tel (Telescope tel (n - 1) t)))
-        NoAbs x st -> NoAbs x (El st (Tel (Telescope tel n       t)))
+      else flip El (Tel (Telescope tel t)) <$> s
     )
 piView _ = Nothing
 
@@ -382,14 +376,14 @@ piView _ = Nothing
 pattern Pi :: Dom Type -> Abs Type -> Term
 pattern Pi a b <- (piView -> Just (a, b))
   where
-  Pi a (Abs x (El s (Tel (Telescope tel n t)))) =
-    Tel (Telescope ((a, Abs x s) Seq.<| tel) (1 + n) t)
-  Pi a (NoAbs x (El s (Tel (Telescope tel n t)))) =
-    Tel (Telescope ((a, NoAbs x s) Seq.<| tel) n t)
+  Pi a (Abs x (El s (Tel (Telescope tel t)))) =
+    Tel (Telescope ((a, Abs x s) Seq.<| tel) t)
+  Pi a (NoAbs x (El s (Tel (Telescope tel t)))) =
+    Tel (Telescope ((a, NoAbs x s) Seq.<| tel) t)
   Pi a (Abs x (El s t)) =
-    Tel (Telescope (Seq.singleton (a, Abs x s)) 1 t)
+    Tel (Telescope (Seq.singleton (a, Abs x s)) t)
   Pi a (NoAbs x (El s t)) =
-    Tel (Telescope (Seq.singleton (a, NoAbs x s)) 0 t)
+    Tel (Telescope (Seq.singleton (a, NoAbs x s)) t)
 
 data IsFibrant = IsFibrant | IsStrict
   deriving (Show, Eq, Ord, Generic)

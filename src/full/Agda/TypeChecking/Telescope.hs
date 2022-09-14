@@ -389,46 +389,26 @@ termToTel m p known t = termToTel' m p' known t
   p' :: Nat -> Telescope' -> State Nat (Either Term Telescope')
   p' mx Telescope{ .. } = do
     known <- get
-    let r = skip known mx telAbs telTele
+    let r = skip known mx telTele
     case r of
       Right tel -> put ((known - size tel) `max` 0)
       _         -> return ()
     return r
     where
-    skip !known !max !n tel
-      | canBeSkipped <= 0 = go max n tel
+    skip !known !max tel
+      | canBeSkipped <= 0 = go max tel
       | otherwise         =
-        Right $ prependTel tel1 n1 $ either emptyTel id $
-        go (max - canBeSkipped) n2 tel2
+        Right $ prependTel tel1 $ either emptyTel id $
+        go (max - canBeSkipped) tel2
       where
       canBeSkipped = minimum [known, max, size tel]
       (tel1, tel2) = Seq.splitAt canBeSkipped tel
-      -- The computation of the following pair is linear in the
-      -- smaller of size tel1 and size tel2. However, consider the
-      -- following scenario:
-      -- 1) The function termToTel is applied to t, with the result
-      --    Right tel'. One or more instances of this computation
-      --    might be slow.
-      -- 2) The function termToTel is then applied to mkTel tel', with
-      --    the known length set to size tel' and the maximum length
-      --    set to at least size tel'. In this case the first
-      --    size tel' elements will be skipped quickly (because tel
-      --    will be tel' and tel2 will be empty).
-      (n1, n2)
-        | size tel1 >= size tel2 =
-          let n2 = sum $ fmap (noAbs . snd) tel2
-          in (n - n2, n2)
-        | otherwise =
-          let n1 = sum $ fmap (noAbs . snd) tel1
-          in (n1, n - n1)
 
-    go !max !n tel@(as@(a, s) Seq.:<| tel')
+    go !max tel@(as@(a, s) Seq.:<| tel')
       | max > 0 && p a =
-      Right $ consTel as $ either emptyTel id $
-      go (max - 1) (n - noAbs s) tel'
-    go _ n tel = Left $ mkTel $ Telescope
+      Right $ consTel as $ either emptyTel id $ go (max - 1) tel'
+    go _ tel = Left $ mkTel $ Telescope
       { telTele = tel
-      , telAbs  = n
       , telTerm = telTerm
       }
 
@@ -463,7 +443,7 @@ termToTel' m p s t = do
       (Right tel, s) ->
         if m <= n
         then return tel
-        else prependTel (telTele tel) (telAbs tel) <$>
+        else prependTel (telTele tel) <$>
              -- This use of underAbstractions is at least linear in
              -- the length of tel. This can lead to (at least)
              -- quadratic performance for

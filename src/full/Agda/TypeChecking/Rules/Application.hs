@@ -570,6 +570,7 @@ checkArgumentsE sComp sExpand sRange sArgs sFun sApp = do
                         List.suffixesSatisfying visible sArgs
      , sArgsLen       = length sArgs
      , sFunPis        = 0
+     , sFunAbs        = 0
      , sSizeLtChecked = False
      , sSkipCheck     = DontSkip
      , ..
@@ -595,6 +596,8 @@ data CheckArgumentsE'State = S
     -- ^ The function's type.
   , sFunPis :: !Nat
     -- ^ How many visible Π's is 'sFun' known to start with?
+  , sFunAbs :: !Nat
+    -- ^ How many of those Π's correspond to 'Abs' constructors?
   , sApp :: Maybe Type
     -- ^ The type of the application.
   , sSizeLtChecked :: !Bool
@@ -607,10 +610,20 @@ data CheckArgumentsE'State = S
     -- ^ The function returned by 'isPath''.
   }
 
--- | Decreases the 'sFunPis' field, but not below zero.
+-- | Decreases the 'sFunPis' field, but not below zero. If necessary
+-- the 'sFunAbs' field is also decreased (but not below zero).
 
-decreaseFunPis :: CheckArgumentsE'State -> CheckArgumentsE'State
-decreaseFunPis s = s{ sFunPis = (sFunPis s - 1) `max` 0 }
+decreaseFunPis
+  :: Abs a  -- ^ The binder that was removed.
+  -> CheckArgumentsE'State -> CheckArgumentsE'State
+decreaseFunPis abs s =
+  s{ sFunPis = dec (sFunPis s)
+   , sFunAbs = case abs of
+       Abs{}   -> dec (sFunAbs s)
+       NoAbs{} -> sFunAbs s
+   }
+  where
+  dec n = (n - 1) `max` 0
 
 -- | Should the target type check in 'checkArgumentsE'' be skipped?
 
@@ -744,8 +757,11 @@ checkArgumentsE'
               -- sFun start with?
               tel <- termToTel sArgsLen visible sFunPis (unEl sFun)
               let visiblePis = size (telTele tel)
+                  telAbs     = sFunAbs + noAbs tel2
+                    where (_, tel2) = Seq.splitAt sFunPis (telTele tel)
               s <- return s{ sFun    = El (getSort sFun) (mkTel tel)
                            , sFunPis = visiblePis
+                           , sFunAbs = telAbs
                            }
 
               rigid <- isRigid s (telTerm tel)
@@ -758,21 +774,22 @@ checkArgumentsE'
                     Permanent   -> skip
                     Unspecified -> s
                     AVar x      ->
-                      if x >= telAbs tel then skip else
-                      s{ sSkipCheck = SkipNext $ entriesUpTo x tel }
+                      if x >= telAbs then skip else
+                      s{ sSkipCheck =
+                         SkipNext $ entriesUpTo x tel telAbs
+                       }
                       -- The following code, which might lead to less
                       -- skipping (depending on the location of any
                       -- NoAbs constructors in the telescope), also
                       -- works. Limited testing suggests that the
                       -- performance is similar.
-                      -- s{ sSkipCheck = SkipNext $ telAbs tel - 1 - x }
+                      -- s{ sSkipCheck = SkipNext $ telAbs - 1 - x }
                 IsRigid -> do
 
                       -- Does telTerm tel depend on anything in the
                       -- telescope?
                   let dep = not $ IntSet.null $ fst $
-                            IntSet.split (telAbs tel) $
-                            freeVars (telTerm tel)
+                            IntSet.split telAbs $ freeVars (telTerm tel)
                   -- The target must be non-dependent.
                   if dep then return s else do
 
@@ -798,8 +815,7 @@ checkArgumentsE'
                   if isSizeLt then return s else do
 
                   let tgt1 = El (getSort sFun) $
-                             applySubst
-                               (strengthenS impossible (telAbs tel))
+                             applySubst (strengthenS impossible telAbs)
                                (telTerm tel)
                   reportSDoc "tc.term.args.target" 30 $ vcat
                     [ "Checking target types first"
@@ -851,7 +867,7 @@ checkArgumentsE'
                   maybe (text "nothing") prettyTCM (absBody <$> c)
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (getRange e) (Apply $ Arg info' u) c $
-                  checkArgumentsE' $ decreaseFunPis
+                  checkArgumentsE' $ decreaseFunPis b
                     s{ sRange   = fuseRange sRange e
                      , sArgs    = args
                      , sArgsLen = sArgsLen - 1
@@ -871,7 +887,7 @@ checkArgumentsE'
                 lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
                 u <- lift $ checkExpr (namedThing e) =<< primIntervalType
                 addCheckedArgs us (getRange e) (IApply (unArg x) (unArg y) u) Nothing $
-                  checkArgumentsE' $ decreaseFunPis
+                  checkArgumentsE'
                     s{ sChecked = NotCheckedTarget
                      , sRange   = fuseRange sRange e
                      , sArgs    = args
@@ -952,8 +968,12 @@ isRigid s t = case t of
 -- like the telescope's 'telTerm').
 --
 -- Precondition: The variable must point to an entry in the telescope.
-entriesUpTo :: Nat -> Telescope' -> Nat
-entriesUpTo x tel = go 0 (telAbs tel - 1 - x) (telTele tel)
+entriesUpTo
+  :: Nat  -- ^ The variable.
+  -> Telescope'
+  -> Nat  -- ^ The number of 'Abs' constructors in the telescope.
+  -> Nat
+entriesUpTo !x tel !telAbs = go 0 (telAbs - 1 - x) (telTele tel)
   where
   go !acc !i = \case
     Seq.Empty            -> __IMPOSSIBLE__
