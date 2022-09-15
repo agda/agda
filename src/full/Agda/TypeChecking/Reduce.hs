@@ -406,7 +406,7 @@ instance Reduce Sort where
           (s1' , s2') <- reduce' (s1 , s2)
           maybe (return $ PiSort a s1' s2') reduce' $ piSort' a s1' s2'
         FunSort s1 s2 -> do
-          (s1' , s2') <- reduce (s1 , s2)
+          (s1' , s2') <- reduce' (s1 , s2)
           maybe (return $ FunSort s1' s2') reduce' $ funSort' s1' s2'
         UnivSort s' -> do
           s' <- reduce' s'
