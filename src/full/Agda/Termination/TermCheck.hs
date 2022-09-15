@@ -1045,17 +1045,6 @@ instance ExtractCalls Term where
       -- Neutral term. Destroys guardedness.
       Var i es -> terUnguarded $ extract es
 
-      -- Dependent function space.
-      Pi a (Abs x b) ->
-        CallGraph.union <$>
-        extract a <*> do
-          a <- maskSizeLt a  -- OR: just do not add a to the context!
-          addContext (x, a) $ terRaise $ extract b
-
-      -- Non-dependent function space.
-      Pi a (NoAbs _ b) ->
-        CallGraph.union <$> extract a <*> extract b
-
       -- Literal.
       Lit l -> return empty
 
@@ -1076,6 +1065,17 @@ instance ExtractCalls Term where
 
       -- Dummy.
       Dummy{} -> return empty
+
+      -- Dependent function space.
+      Pi a (Abs x b) ->
+        CallGraph.union <$>
+        extract a <*> do
+          a <- maskSizeLt a  -- OR: just do not add a to the context!
+          addContext (x, a) $ terRaise $ extract b
+
+      -- Non-dependent function space.
+      Pi a (NoAbs _ b) ->
+        CallGraph.union <$> extract a <*> extract b
 
 -- | Extract recursive calls from level expressions.
 

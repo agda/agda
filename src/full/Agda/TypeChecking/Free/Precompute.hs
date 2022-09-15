@@ -62,12 +62,12 @@ instance PrecomputeFreeVars Term where
       Lit{}      -> pure t
       Def f es   -> Def f      <$> precomputeFreeVars es
       Con c i es -> Con c i    <$> precomputeFreeVars es
-      Pi a b     -> uncurry Pi <$> precomputeFreeVars (a, b)
       Sort s     -> Sort       <$> precomputeFreeVars s
       Level l    -> Level      <$> precomputeFreeVars l
       MetaV x es -> MetaV x    <$> precomputeFreeVars es
       DontCare t -> DontCare   <$> precomputeFreeVars t
       Dummy{}    -> pure t
+      Pi a b     -> uncurry Pi <$> precomputeFreeVars (a, b)
 
 -- The other instances are boilerplate.
 

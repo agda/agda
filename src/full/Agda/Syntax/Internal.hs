@@ -373,6 +373,46 @@ piView _ = Nothing
 
 -- | A bidirectional pattern synonym: The 'Tel' constructor can be
 -- seen as a sequence of 'Pi' constructors.
+
+-- GHC might generate slightly better code if Pi clauses are placed
+-- after other clauses. For instance, consider the following code:
+--
+--   f Pi{}  = a
+--   f Def{} = b
+--   f Var{} = c
+--   f _     = d
+--
+-- Here GHC might generate something akin to the following code:
+--
+--   f x = case piView x of
+--     Just y -> case y of
+--       (_, _) -> a
+--     Nothing -> case x of
+--       Def{} -> b
+--       Var{} -> c
+--       _     -> d
+--
+-- Note that piView is applied to arguments that start with Def or
+-- Var. Now consider the following, alternative definition:
+--
+--   f Def{} = b
+--   f Var{} = c
+--   f Pi{}  = a
+--   f _     = d
+--
+-- For this code GHC might generate something like the following:
+--
+--   f x = case x of
+--     Def{} -> b
+--     Var{} -> c
+--     x     -> case piView x of
+--       Just y  -> case y of
+--         (_, _) -> a
+--       Nothing -> d
+--
+-- However, an experiment suggests that, for the Agda code base, the
+-- difference in performance is typically very small.
+
 pattern Pi :: Dom Type -> Abs Type -> Term
 pattern Pi a b <- (piView -> Just (a, b))
   where
@@ -1129,11 +1169,11 @@ hasElims v =
       Var 0 [Proj _o f] -> Just (Def f, [])
       _ -> Nothing
     Lam{}      -> Nothing
-    Pi{}       -> Nothing
     Sort{}     -> Nothing
     Level{}    -> Nothing
     DontCare{} -> Nothing
     Dummy{}    -> Nothing
+    Pi{}       -> Nothing
 
 ---------------------------------------------------------------------------
 -- * Null instances.
@@ -1210,10 +1250,10 @@ instance TermSize Term where
     Level l     -> tsize l
     Lam _ f     -> 1 + tsize f
     Lit _       -> 1
-    Pi a b      -> 1 + tsize a + tsize b
     Sort s      -> tsize s
     DontCare mv -> tsize mv
     Dummy{}     -> 1
+    Pi a b      -> 1 + tsize a + tsize b
 
 instance TermSize Sort where
   tsize = \case
@@ -1264,10 +1304,10 @@ instance KillRange Term where
     Lam i f     -> killRange2 Lam i f
     Lit l       -> killRange1 Lit l
     Level l     -> killRange1 Level l
-    Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
     v@Dummy{}   -> v
+    Pi a b      -> killRange2 Pi a b
 
 instance KillRange Level where
   killRange (Max n as) = killRange1 (Max n) as
@@ -1368,17 +1408,17 @@ instance Pretty Term where
       Lit l                -> pretty l
       Def q els            -> pretty q `pApp` els
       Con c ci vs          -> pretty (conName c) `pApp` vs
-      Pi a (NoAbs _ b)     -> mparens (p > 0) $
-        sep [ prettyPrec 1 (unDom a) <+> "->"
-            , nest 2 $ pretty b ]
-      Pi a b               -> mparens (p > 0) $
-        sep [ pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a)) <+> "->"
-            , nest 2 $ pretty (unAbs b) ]
       Sort s      -> prettyPrec p s
       Level l     -> prettyPrec p l
       MetaV x els -> pretty x `pApp` els
       DontCare v  -> prettyPrec p v
       Dummy s es  -> parens (text s) `pApp` es
+      Pi a (NoAbs _ b) -> mparens (p > 0) $
+        sep [ prettyPrec 1 (unDom a) <+> "->"
+            , nest 2 $ pretty b ]
+      Pi a b -> mparens (p > 0) $
+        sep [ pDom (domInfo a) (text (absName b) <+> ":" <+> pretty (unDom a)) <+> "->"
+            , nest 2 $ pretty (unAbs b) ]
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
@@ -1503,12 +1543,12 @@ instance NFData Term where
     Lit l      -> rnf l
     Def _ es   -> rnf es
     Con _ _ vs -> rnf vs
-    Pi a b     -> rnf (unDom a, unAbs b)
     Sort s     -> rnf s
     Level l    -> rnf l
     MetaV _ es -> rnf es
     DontCare v -> rnf v
     Dummy _ es -> rnf es
+    Pi a b     -> rnf (unDom a, unAbs b)
 
 instance NFData Type where
   rnf (El s v) = rnf (s, v)

@@ -186,13 +186,13 @@ instance AbsTerm Term where
       Lam h b     -> Lam h $ absT b
       Def c vs    -> Def c $ absT vs
       Con c ci vs -> Con c ci $ absT vs
-      Pi a b      -> uncurry Pi $ absT (a, b)
       Lit l       -> Lit l
       Level l     -> Level $ absT l
       Sort s      -> Sort $ absT s
       MetaV m vs  -> MetaV m $ absT vs
       DontCare mv -> DontCare $ absT mv
       Dummy s es   -> Dummy s $ absT es
+      Pi a b      -> uncurry Pi $ absT (a, b)
       where
         absT :: AbsTerm b => b -> b
         absT x = absTerm u x
@@ -274,9 +274,9 @@ instance EqualSy Term where
     (Lam   ai b, Lam   ai' b') -> equalSy ai ai' && equalSy b b'
     (Level l   , Level l'    ) -> equalSy l l'
     (Sort  s   , Sort  s'    ) -> equalSy s s'
-    (Pi    a b , Pi    a' b' ) -> equalSy a a' && equalSy b b'
     (DontCare _, DontCare _  ) -> True
        -- Irrelevant things are syntactically equal.
+    (Pi    a b , Pi    a' b' ) -> equalSy a a' && equalSy b b'
     (Dummy{}   , _           ) -> __IMPOSSIBLE__
     (_         , Dummy{}     ) -> __IMPOSSIBLE__
     _ -> False

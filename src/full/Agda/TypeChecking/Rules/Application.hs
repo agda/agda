@@ -661,11 +661,14 @@ checkArgumentsE' S{ sArgs = [], .. } =
       , acData        = sChecked
       }
   where
-  expand (Just (Pi dom _)) Hidden     = not (hidden dom)
-  expand _                 Hidden     = True
-  expand (Just (Pi dom _)) Instance{} = not (isInstance dom)
-  expand _                 Instance{} = True
-  expand _                 NotHidden  = False
+  expand (Just (Pi dom _)) v = case v of
+    Hidden     -> not (hidden dom)
+    Instance{} -> not (isInstance dom)
+    NotHidden  -> False
+  expand _ v = case v of
+    Hidden     -> True
+    Instance{} -> True
+    NotHidden  -> False
 
 -- Case: argument given.
 checkArgumentsE'
@@ -939,8 +942,6 @@ isRigid s t = case t of
   Lam{}      -> return $ IsNotRigid Permanent
   Lit{}      -> return $ IsNotRigid Permanent
   Con{}      -> return $ IsNotRigid Permanent
-  Pi dom _   -> return $
-                if visible dom then IsRigid else IsNotRigid Permanent
   Sort{}     -> return $ IsNotRigid Permanent
   Level{}    -> return $ IsNotRigid Permanent
   MetaV{}    -> return $ IsNotRigid Unspecified
@@ -961,6 +962,8 @@ isRigid s t = case t of
     GeneralizableVar{}        -> __IMPOSSIBLE__
     Primitive{}               -> IsNotRigid Unspecified
     PrimitiveSort{}           -> IsNotRigid Unspecified
+  Pi dom _ ->
+    return $ if visible dom then IsRigid else IsNotRigid Permanent
 
 -- | Counts the number of entries in the telescope, from the left, up
 -- to but not including the entry corresponding to the given variable.

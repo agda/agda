@@ -301,7 +301,6 @@ instance UsableRelevance Term where
     Con c _ vs -> usableRel rel vs
     Lit l    -> return True
     Lam _ v  -> usableRel rel v
-    Pi a b   -> usableRel rel (a,b)
     Sort s   -> usableRel rel s
     Level l  -> return True
     MetaV m vs -> do
@@ -309,6 +308,7 @@ instance UsableRelevance Term where
       return (mrel `moreRelevant` rel) `and2M` usableRel rel vs
     DontCare v -> usableRel rel v -- TODO: allow irrelevant things to be used in DontCare position?
     Dummy{}  -> return True
+    Pi a b   -> usableRel rel (a,b)
 
 instance UsableRelevance a => UsableRelevance (Type' a) where
   usableRel rel (El _ t) = usableRel rel t
@@ -410,11 +410,6 @@ instance UsableModality Term where
       return ok `and2M` usableMod mod vs
     Lit l    -> return True
     Lam info v  -> usableModAbs info mod v
-    -- Even if Pi contains Type, here we check it as a constructor for terms in the universe.
-    Pi a b   -> usableMod domMod (unEl $ unDom a) `and2M` usableModAbs (getArgInfo a) mod (unEl <$> b)
-      where
-        domMod = mapQuantity (composeQuantity $ getQuantity a) $
-                 mapCohesion (composeCohesion $ getCohesion a) mod
     -- Andrea 15/10/2020 not updating these cases yet, but they are quite suspicious,
     -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s
@@ -431,6 +426,11 @@ instance UsableModality Term where
         caseMaybe (isMeta u) (usableMod mod u) $ \ m -> throwError (UnblockOnMeta m)
     DontCare v -> usableMod mod v
     Dummy{}  -> return True
+    -- Even if Pi contains Type, here we check it as a constructor for terms in the universe.
+    Pi a b   -> usableMod domMod (unEl $ unDom a) `and2M` usableModAbs (getArgInfo a) mod (unEl <$> b)
+      where
+        domMod = mapQuantity (composeQuantity $ getQuantity a) $
+                 mapCohesion (composeCohesion $ getCohesion a) mod
 
 usableModAbs :: (Subst a, MonadAddContext m, UsableModality a,
                        ReadTCState m, HasConstInfo m, MonadReduce m, MonadError Blocker m) =>

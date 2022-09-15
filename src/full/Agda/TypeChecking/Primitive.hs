@@ -605,7 +605,6 @@ genPrimForce b ret = do
                 Lit{}      -> return True
                 Con{}      -> return True
                 Lam{}      -> return True
-                Pi{}       -> return True
                 Sort{}     -> return True  -- sorts and levels are considered whnf
                 Level{}    -> return True
                 DontCare{} -> return True
@@ -616,6 +615,7 @@ genPrimForce b ret = do
                     Record{}   -> True
                     _          -> False
                 Var{}      -> return False
+                Pi{}       -> return True
                 MetaV{}    -> __IMPOSSIBLE__
                 Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
         ifM (isWHNF u)

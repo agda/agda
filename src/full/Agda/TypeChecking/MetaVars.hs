@@ -1165,13 +1165,13 @@ attemptInertRHSImprovement m args v = do
             Primitive{}   -> notInert
             Constructor{} -> __IMPOSSIBLE__
 
-        Pi{}       -> notInert -- this is actually inert but improving doesn't buy us anything for Pi
         Lam{}      -> notInert
         Sort{}     -> notInert
         Lit{}      -> notInert
         Level{}    -> notInert
         MetaV{}    -> notInert
         DontCare{} -> notInert
+        Pi{}       -> notInert -- this is actually inert but improving doesn't buy us anything for Pi
 
     ensureNeutral :: Term -> Term -> TCM ()
     ensureNeutral rhs v = do
@@ -1190,13 +1190,13 @@ attemptInertRHSImprovement m args v = do
           case v of
             Var x _    -> checkRHS (Var x [])
             Def f _    -> checkRHS (Def f [])
-            Pi{}       -> return ()
             Sort{}     -> return ()
             Level{}    -> return ()
             Lit{}      -> notNeutral v
             DontCare{} -> notNeutral v
             Con{}      -> notNeutral v
             Lam{}      -> notNeutral v
+            Pi{}       -> return ()
             MetaV{}    -> __IMPOSSIBLE__
 -- END UNUSED -}
 
@@ -1344,6 +1344,9 @@ checkSubtypeIsEqual a b = do
                              -- metas being created in a dummy context
         a -> patternViolation (unblockOnAnyMetaIn a) -- TODO: can this happen?
       Pi b1 b2 -> abortIfBlocked (unEl a) >>= \case
+        Dummy{} -> return () -- TODO: this shouldn't happen but
+                             -- currently does because of generalized
+                             -- metas being created in a dummy context
         Pi a1 a2
           | getRelevance a1 /= getRelevance b1 -> patternViolation neverUnblock -- Can we recover from this?
           | getQuantity  a1 /= getQuantity  b1 -> patternViolation neverUnblock
@@ -1351,9 +1354,6 @@ checkSubtypeIsEqual a b = do
           | otherwise -> do
               checkSubtypeIsEqual (unDom b1) (unDom a1)
               underAbstractionAbs a1 a2 $ \a2' -> checkSubtypeIsEqual a2' (absBody b2)
-        Dummy{} -> return () -- TODO: this shouldn't happen but
-                             -- currently does because of generalized
-                             -- metas being created in a dummy context
         a -> patternViolation (unblockOnAnyMetaIn a)
       -- TODO: check subtyping for Size< types
       _ -> return ()
@@ -1647,9 +1647,9 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
       Lam{}      -> failure
       Lit{}      -> failure
       MetaV{}    -> failure
-      Pi{}       -> neutralArg
       Sort{}     -> neutralArg
       Level{}    -> neutralArg
+      Pi{}       -> neutralArg
       DontCare{} -> __IMPOSSIBLE__ -- Ruled out by stripDontCare
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 

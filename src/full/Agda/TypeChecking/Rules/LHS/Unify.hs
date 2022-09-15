@@ -449,12 +449,12 @@ etaExpandEquationStrategy k s = do
       Var _ _    -> return False
       Lam _ _    -> __IMPOSSIBLE__
       Lit _      -> __IMPOSSIBLE__
-      Pi _ _     -> __IMPOSSIBLE__
       Sort _     -> __IMPOSSIBLE__
       Level _    -> __IMPOSSIBLE__
       MetaV _ _  -> return False
       DontCare _ -> return False
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
+      Pi _ _     -> __IMPOSSIBLE__
 
     tel = varTel s `abstract` telFromList (take k $ telToList $ eqTel s)
 
@@ -977,11 +977,11 @@ patternBindingForcedVars forced v = do
         -- Non-pattern positions
         Var _ (_:_) -> return $ dotP v
         Lam{}       -> return $ dotP v
-        Pi{}        -> return $ dotP v
         Def{}       -> return $ dotP v
         MetaV{}     -> return $ dotP v
         Sort{}      -> return $ dotP v
         Level{}     -> return $ dotP v
         DontCare{}  -> return $ dotP v
         Dummy{}     -> return $ dotP v
+        Pi{}        -> return $ dotP v
         Lit{}       -> __IMPOSSIBLE__

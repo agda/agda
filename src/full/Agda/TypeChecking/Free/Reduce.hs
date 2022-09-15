@@ -123,12 +123,12 @@ instance ForceNotFree Term where
     MetaV x es -> local (insertMetaSet x) $
                   MetaV x  <$> forceNotFree' es
     Lam h b    -> Lam h    <$> forceNotFree' b
-    Pi a b     -> Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
     Sort s     -> Sort     <$> forceNotFree' s
     Level l    -> Level    <$> forceNotFree' l
     DontCare t -> DontCare <$> forceNotFreeR t  -- Reduction stops at DontCare so reduceIf
     t@Lit{}    -> return t
     t@Dummy{}  -> return t
+    Pi a b     -> Pi       <$> forceNotFree' a <*> forceNotFree' b  -- Dom and Abs do reduceIf so not needed here
 
 instance ForceNotFree Level where
   forceNotFree' (Max m as) = Max m <$> forceNotFree' as

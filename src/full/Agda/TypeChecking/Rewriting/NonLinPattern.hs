@@ -184,12 +184,12 @@ instance PatternFrom Type Term NLPat where
       (_ , Con c ci vs) ->
         caseMaybeM (getFullyAppliedConType c t) __IMPOSSIBLE__ $ \ (_ , ct) -> do
         PDef (conName c) <$> patternFrom r k (ct , Con c ci []) vs
+      (_ , Sort s) -> PSort <$> patternFrom r k () s
       (_ , Pi a b) | isIrrelevant r -> done
       (_ , Pi a b) -> do
         pa <- patternFrom r k () a
         pb <- addContext a (patternFrom r (k+1) () $ absBody b)
         return $ PPi pa (Abs (absName b) pb)
-      (_ , Sort s)     -> PSort <$> patternFrom r k () s
       (_ , Level l)    -> __IMPOSSIBLE__
       (_ , DontCare{}) -> __IMPOSSIBLE__
       (_ , MetaV m _)  -> __IMPOSSIBLE__

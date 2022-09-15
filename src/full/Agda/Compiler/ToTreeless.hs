@@ -516,11 +516,11 @@ substTerm term = normaliseStatic term >>= \ term ->
         let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
-    I.Pi _ _ -> return C.TUnit
     I.Sort _  -> return C.TSort
     I.MetaV x _ -> return $ C.TError $ C.TMeta $ prettyShow x
     I.DontCare _ -> return C.TErased
     I.Dummy{} -> __IMPOSSIBLE__
+    I.Pi _ _ -> return C.TUnit
 
 -- Andreas, 2019-07-10, issue #3792
 -- | Eta-contract erased lambdas.

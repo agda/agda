@@ -118,7 +118,6 @@ headSymbol v = do -- ignoreAbstractMode $ do
                  ifM (isPathCons q) (return Nothing) $
                      {- else -}     return $ Just $ ConsHead q
     Sort _  -> return (Just SortHead)
-    Pi _ _  -> return (Just PiHead)
     Var i [] -> return (Just $ VarHead i) -- Only naked variables. Otherwise substituting a neutral term is not guaranteed to stay neutral.
     Lit _   -> return Nothing -- TODO: LitHead (for literals with no constructorForm)
     Lam{}   -> return Nothing
@@ -126,6 +125,7 @@ headSymbol v = do -- ignoreAbstractMode $ do
     Level{} -> return Nothing
     MetaV{} -> return Nothing
     DontCare{} -> return Nothing
+    Pi _ _  -> return (Just PiHead)
     Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Do a full whnf and treat neutral terms as rigid. Used on the arguments to
@@ -142,11 +142,11 @@ headSymbol' v = do
       Con c _ _  -> return $ Just $ ConsHead $ conName c
       Var i _    -> return $ Just (VarHead i)
       Sort _     -> return $ Just SortHead
-      Pi _ _     -> return $ Just PiHead
       Lit _      -> return Nothing
       Lam{}      -> return Nothing
       Level{}    -> return Nothing
       DontCare{} -> return Nothing
+      Pi _ _     -> return $ Just PiHead
       MetaV{}    -> __IMPOSSIBLE__
       Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 

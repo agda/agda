@@ -452,7 +452,6 @@ instance ComputeOccurrences Term where
 
     Con _ _ args -> occurrences args
     MetaV _ args -> OccursAs MetaArg <$> occurrences args
-    Pi a b       -> (OccursAs LeftOfArrow <$> occurrences a) <> occurrences b
     Lam _ b      -> occurrences b
     Level l      -> occurrences l
     Lit{}        -> mempty
@@ -461,6 +460,7 @@ instance ComputeOccurrences Term where
     -- occurs check, so we need to look under DontCare (see #4371)
     DontCare v   -> occurrences v
     Dummy{}      -> mempty
+    Pi a b       -> (OccursAs LeftOfArrow <$> occurrences a) <> occurrences b
 
 instance ComputeOccurrences Level where
   occurrences (Max _ as) = occurrences as

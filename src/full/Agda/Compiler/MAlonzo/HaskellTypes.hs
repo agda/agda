@@ -180,13 +180,6 @@ haskellType' t = runToHs (unEl t) (fromType t)
         Def d es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           hsApp <$> getHsType d <*> fromArgs args
-        Pi a b ->
-          if isBinderUsed b  -- Andreas, 2012-04-03.  Q: could we rely on Abs/NoAbs instead of again checking freeness of variable?
-          then do
-            hsA <- fromType (unDom a)
-            liftE1' (underAbstraction a b) $ \ b ->
-              hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType b)
-          else hsFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
         Con c ci es -> do
           let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           hsApp <$> getHsType (conName c) <*> fromArgs args
@@ -196,6 +189,13 @@ haskellType' t = runToHs (unEl t) (fromType t)
         Sort{}     -> return hsUnit
         MetaV{}    -> throwError (BadMeta v)
         DontCare{} -> throwError (BadDontCare v)
+        Pi a b     ->
+          if isBinderUsed b  -- Andreas, 2012-04-03.  Q: could we rely on Abs/NoAbs instead of again checking freeness of variable?
+          then do
+            hsA <- fromType (unDom a)
+            liftE1' (underAbstraction a b) $ \ b ->
+              hsForall <$> getHsVar 0 <*> (hsFun hsA <$> fromType b)
+          else hsFun <$> fromType (unDom a) <*> fromType (noabsApp __IMPOSSIBLE__ b)
         Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 haskellType :: QName -> HsCompileM HS.Type
@@ -255,8 +255,6 @@ hsTypeApproximation poly fv t = do
         t <- unSpine <$> reduce t
         case t of
           Var i _ | poly == PolyApprox -> return $ tyVar n i
-          Pi a b -> hsFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
-            where k = case b of Abs{} -> 1; NoAbs{} -> 0
           Def q els
             | q `is` ghcEnvList
             , Apply t <- last1 (Proj ProjSystem __IMPOSSIBLE__) els ->
@@ -276,6 +274,8 @@ hsTypeApproximation poly fv t = do
                   (HS.TyCon <$> xhqn TypeK q)
                   (return mazAnyType)
           Sort{} -> return $ HS.FakeType "()"
+          Pi a b -> hsFun <$> go n (unEl $ unDom a) <*> go (n + k) (unEl $ unAbs b)
+            where k = case b of Abs{} -> 1; NoAbs{} -> 0
           _ -> return mazAnyType
   go fv (unEl t)
 

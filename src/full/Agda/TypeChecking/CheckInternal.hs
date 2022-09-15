@@ -78,13 +78,6 @@ checkType' t = do
     ]
   v <- elimView EvenLone $ unEl t -- bring projection-like funs in post-fix form
   case v of
-    Pi a b -> do
-      s1 <- checkType' $ unDom a
-      s2 <- (b $>) <$> do
-        let goInside = case b of Abs{}   -> addContext (absName b, a)
-                                 NoAbs{} -> id
-        goInside $ checkType' $ unAbs b
-      inferPiSort a s2
     Sort s -> do
       _ <- checkSort defaultAction s
       inferUnivSort s
@@ -102,6 +95,13 @@ checkType' t = do
     v@Lit{}    -> typeError $ InvalidType v
     v@Level{}  -> typeError $ InvalidType v
     DontCare v -> checkType' $ t $> v
+    Pi a b     -> do
+      s1 <- checkType' $ unDom a
+      s2 <- (b $>) <$> do
+        let goInside = case b of Abs{}   -> addContext (absName b, a)
+                                 NoAbs{} -> id
+        goInside $ checkType' $ unAbs b
+      inferPiSort a s2
     Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
 checkTypeSpine :: (MonadCheckInternal m) => Type -> Term -> Elims -> m Sort
@@ -204,6 +204,19 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
       let name = suggests [ Suggestion vb , Suggestion b ]
       addContext (name, a) $ do
         Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) cmp (absBody b)
+    Sort s     -> do
+      reportSDoc "tc.check.internal" 30 $ "checking sort" <+> prettyTCM s
+      s <- checkSort action s
+      s' <- inferUnivSort s
+      s'' <- shouldBeSort t
+      compareSort cmp s' s''
+      return $ Sort s
+    Level l    -> do
+      l <- checkLevel action l
+      lt <- levelType
+      compareType cmp lt t
+      return $ Level l
+    DontCare v -> DontCare <$> checkInternal' action v cmp t
     Pi a b     -> do
       s <- shouldBeSort t
       when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
@@ -219,19 +232,6 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
       s' <- sortOf v'
       compareSort cmp s' s
       return v'
-    Sort s     -> do
-      reportSDoc "tc.check.internal" 30 $ "checking sort" <+> prettyTCM s
-      s <- checkSort action s
-      s' <- inferUnivSort s
-      s'' <- shouldBeSort t
-      compareSort cmp s' s''
-      return $ Sort s
-    Level l    -> do
-      l <- checkLevel action l
-      lt <- levelType
-      compareType cmp lt t
-      return $ Level l
-    DontCare v -> DontCare <$> checkInternal' action v cmp t
     Dummy s _ -> __IMPOSSIBLE_VERBOSE__ s
 
 -- | Make sure a constructor is fully applied

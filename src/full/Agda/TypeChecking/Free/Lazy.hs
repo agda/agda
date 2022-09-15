@@ -521,16 +521,16 @@ instance Free Term where
       -- or a definition by pattern matching (weakly rigid)
       -- thus, we approximate, losing that x = List x is unsolvable
     Con c _ ts   -> underConstructor c ts $ freeVars' ts
-    -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
-    -- Even as we do not permit infinite type expressions,
-    -- we cannot prove their absence (as Set is not inductive).
-    -- Also, this is incompatible with univalence (HoTT).
-    Pi a b       -> freeVars' (a,b)
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
     MetaV m ts   -> underFlexRig (Flexible $ singleton m) $ freeVars' ts
     DontCare mt  -> underModality (Modality Irrelevant unitQuantity unitCohesion) $ freeVars' mt
     Dummy{}      -> mempty
+    -- Pi is not guarding, since we cannot prove that A ≡ B → A is impossible.
+    -- Even as we do not permit infinite type expressions,
+    -- we cannot prove their absence (as Set is not inductive).
+    -- Also, this is incompatible with univalence (HoTT).
+    Pi a b       -> freeVars' (a,b)
 
 instance Free t => Free (Type' t) where
   freeVars' (El s t) =

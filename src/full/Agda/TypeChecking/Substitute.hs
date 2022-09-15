@@ -83,11 +83,11 @@ applyTermE err' m es = coerce $
       MetaV x es' -> MetaV x (es' ++ es)
       Lit{}       -> err __IMPOSSIBLE__
       Level{}     -> err __IMPOSSIBLE__
-      Pi _ _      -> err __IMPOSSIBLE__
       Sort s      -> Sort $ s `applyE` es
       Dummy s es' -> Dummy s (es' ++ es)
       DontCare mv -> dontCare $ mv `app` es  -- Andreas, 2011-10-02
         -- need to go under DontCare, since "with" might resurrect irrelevant term
+      Pi _ _      -> err __IMPOSSIBLE__
    where
      app :: Coercible t a => a -> Elims -> Term
      app u es = coerce $ (coerce u :: t) `applyE` es
@@ -829,10 +829,10 @@ applySubstTerm rho t    = coerce $ case coerce t of
     MetaV x es  -> MetaV x $ subE es
     Lit l       -> Lit l
     Level l     -> levelTm $ sub @(Level' t) l
-    Pi a b      -> uncurry Pi $ subPi (a,b)
     Sort s      -> Sort $ sub @(Sort' t) s
     DontCare mv -> dontCare $ sub @t mv
     Dummy s es  -> Dummy s $ subE es
+    Pi a b      -> uncurry Pi $ subPi (a,b)
  where
    sub :: forall a b. (Coercible b a, SubstWith t a) => b -> b
    sub t = coerce $ applySubst rho (coerce t :: a)
@@ -1420,12 +1420,12 @@ instance Eq Term where
   Lit l      == Lit l'       = l == l'
   Def x vs   == Def x' vs'   = x == x' && vs == vs'
   Con x _ vs == Con x' _ vs' = x == x' && vs == vs'
-  Pi a b     == Pi a' b'     = a == a' && b == b'
   Sort s     == Sort s'      = s == s'
   Level l    == Level l'     = l == l'
   MetaV m vs == MetaV m' vs' = m == m' && vs == vs'
   DontCare _ == DontCare _   = True
   Dummy{}    == Dummy{}      = True
+  Pi a b     == Pi a' b'     = a == a' && b == b'
   _          == _            = False
 
 instance Eq a => Eq (Pattern' a) where

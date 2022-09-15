@@ -389,12 +389,6 @@ instance Conversion TOM I.Term (MExp O) where
         cc  <- lift $ liftIO $ readIORef c
         let Just (npar,_) = fst $ cdorigin cc
         return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
-      I.Pi (I.Dom{domInfo = info, unDom = x}) b -> do
-        let y    = I.absBody b
-            name = I.absName b
-        x' <- convert x
-        y' <- convert y
-        return $ NotM $ Pi Nothing (getHiding info) (Free.freeIn 0 y) x' (Abs (Id name) y')
       I.Sort (I.Type (I.ClosedLevel l)) -> return $ NotM $ Sort $ Set $ fromIntegral l
       I.Sort _ -> return $ NotM $ Sort UnknownSort
       I.Dummy{}-> return $ NotM $ Sort UnknownSort
@@ -411,6 +405,12 @@ instance Conversion TOM I.Term (MExp O) where
             return $ Meta m
           _ -> convert t
       I.DontCare _ -> return $ NotM dontCare
+      I.Pi (I.Dom{domInfo = info, unDom = x}) b -> do
+        let y    = I.absBody b
+            name = I.absName b
+        x' <- convert x
+        y' <- convert y
+        return $ NotM $ Pi Nothing (getHiding info) (Free.freeIn 0 y) x' (Abs (Id name) y')
 
 instance Conversion TOM a b => Conversion TOM (Cm.Arg a) (Hiding, b) where
   convert (Cm.Arg info a) = (getHiding info,) <$> convert a
@@ -435,11 +435,11 @@ fmExp m (I.Lit _) = False
 fmExp m (I.Level (I.Max _ as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m $ I.argsFromElims as
 fmExp m (I.Con _ ci as) = fmExps m $ I.argsFromElims as
-fmExp m (I.Pi x y)  = fmType m (I.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
 fmExp _ I.Dummy{} = False
+fmExp m (I.Pi x y) = fmType m (I.unDom x) || fmType m (I.unAbs y)
 
 fmExps :: I.MetaId -> I.Args -> Bool
 fmExps m as = any (fmExp m . Cm.unArg) as
@@ -774,8 +774,8 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fes nl (n + 1) c as1 as2
       (I.Con n1 _ as1, I.Con n2 _ as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
-      (I.Pi (I.Dom{domInfo = info1, unDom = it1})  ot1, I.Pi (I.Dom{domInfo = info2, unDom = it2})  ot2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
+      (I.Pi (I.Dom{domInfo = info1, unDom = it1})  ot1, I.Pi (I.Dom{domInfo = info2, unDom = it2})  ot2) | Cm.argInfoHiding info1 == Cm.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n

@@ -22,12 +22,12 @@ instance MentionsMeta Term where
     Lit{}        -> False
     Def _ args   -> mm args
     Con _ _ args -> mm args
-    Pi a b       -> mm (a, b)
     Sort s       -> mm s
     Level l      -> mm l
     Dummy{}      -> False
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints
     MetaV y args -> HashSet.member y xs || mm args   -- TODO: we really only have to look one level deep at meta args
+    Pi a b       -> mm (a, b)
     where
       mm :: forall t. MentionsMeta t => t -> Bool
       mm = mentionsMetas xs

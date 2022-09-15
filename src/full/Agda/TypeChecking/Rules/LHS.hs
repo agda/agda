@@ -385,7 +385,6 @@ noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El
           Primitive   {} -> return ()
           PrimitiveSort{} -> return ()
       Var   {} -> return ()
-      Pi    {} -> return ()
       Sort  {} -> return ()
       MetaV {} -> return ()
       -- TODO: If the type is a meta-variable, should the test be
@@ -393,6 +392,7 @@ noShadowingOfConstructors problem@(ProblemEq p _ (Dom{domInfo = info, unDom = El
       -- the completed module is type checked, so it is safe to skip
       -- the test here. However, users may be annoyed if they get an
       -- error in code which has already passed the type checker.
+      Pi    {} -> return ()
       Lam   {} -> __IMPOSSIBLE__
       Lit   {} -> __IMPOSSIBLE__
       Level {} -> __IMPOSSIBLE__
@@ -1550,8 +1550,8 @@ isDataOrRecordType a0 = ifBlocked a0 blocked $ \case
     MetaV{}    -> __IMPOSSIBLE__  -- That is handled in @blocked@.
 
     -- pi or sort: fail hard
-    Pi{}       -> hardTypeError =<< notData
     Sort{}     -> hardTypeError =<< notData
+    Pi{}       -> hardTypeError =<< notData
 
     Lam{}      -> __IMPOSSIBLE__
     Lit{}      -> __IMPOSSIBLE__

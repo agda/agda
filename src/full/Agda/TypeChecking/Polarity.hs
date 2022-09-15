@@ -419,8 +419,8 @@ instance HasPolarity Term where
                        let ps = map (composePol p) pols ++ repeat Invariant
                        in  mconcat $ zipWith (polarity' i) ps ts
     Con _ _ ts    -> polarity' i p ts   -- Constructors can be seen as monotone in all args.
-    Pi a b        -> polarity' i (neg p) a <> polarity' i p b
     Sort s        -> mempty -- polarity' i p s -- mempty
     MetaV _ ts    -> polarity' i Invariant ts
     DontCare t    -> polarity' i p t -- mempty
     Dummy{}       -> mempty
+    Pi a b        -> polarity' i (neg p) a <> polarity' i p b

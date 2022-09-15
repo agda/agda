@@ -214,12 +214,12 @@ instance NamesIn Term where
     Lit l        -> namesAndMetasIn' sg l
     Def f args   -> namesAndMetasIn' sg (f, args)
     Con c _ args -> namesAndMetasIn' sg (c, args)
-    Pi a b       -> namesAndMetasIn' sg (a, b)
     Sort s       -> namesAndMetasIn' sg s
     Level l      -> namesAndMetasIn' sg l
     MetaV x args -> namesAndMetasIn' sg (x, args)
     DontCare v   -> namesAndMetasIn' sg v
     Dummy _ args -> namesAndMetasIn' sg args
+    Pi a b       -> namesAndMetasIn' sg (a, b)
 
 instance NamesIn Level where
   namesAndMetasIn' sg (Max _ ls) = namesAndMetasIn' sg ls

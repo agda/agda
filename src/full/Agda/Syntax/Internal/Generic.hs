@@ -90,26 +90,26 @@ instance TermLike Term where
     Def c xs    -> f =<< Def c <$> traverseTermM f xs
     Con c ci xs -> f =<< Con c ci <$> traverseTermM f xs
     Lam h b     -> f =<< Lam h <$> traverseTermM f b
-    Pi a b      -> f =<< uncurry Pi <$> traverseTermM f (a, b)
     MetaV m xs  -> f =<< MetaV m <$> traverseTermM f xs
     Level l     -> f =<< Level <$> traverseTermM f l
     t@Lit{}     -> f t
     Sort s      -> f =<< Sort <$> traverseTermM f s
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
     Dummy s xs  -> f =<< Dummy s <$> traverseTermM f xs
+    Pi a b      -> f =<< uncurry Pi <$> traverseTermM f (a, b)
 
   foldTerm f t = f t `mappend` case t of
     Var i xs    -> foldTerm f xs
     Def c xs    -> foldTerm f xs
     Con c ci xs -> foldTerm f xs
     Lam h b     -> foldTerm f b
-    Pi a b      -> foldTerm f (a, b)
     MetaV m xs  -> foldTerm f xs
     Level l     -> foldTerm f l
     Lit _       -> mempty
     Sort s      -> foldTerm f s
     DontCare mv -> foldTerm f mv
     Dummy _ xs  -> foldTerm f xs
+    Pi a b      -> foldTerm f (a, b)
 
 instance TermLike Level where
   traverseTermM f (Max n as) = Max n <$> traverseTermM f as

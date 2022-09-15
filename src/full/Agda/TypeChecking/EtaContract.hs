@@ -39,10 +39,10 @@ binAppView t = case t of
   Lit _      -> noApp
   Level _    -> noApp   -- could be an application, but let's not eta contract levels
   Lam _ _    -> noApp
-  Pi _ _     -> noApp
   Sort _     -> noApp
   MetaV _ _  -> noApp
   DontCare _ -> noApp
+  Pi _ _     -> noApp
   Dummy{}    -> __IMPOSSIBLE__
   where
     noApp = NoApp t

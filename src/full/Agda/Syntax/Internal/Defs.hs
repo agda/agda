@@ -60,12 +60,12 @@ instance GetDefs Term where
     Lit l      -> return ()
     Var i vs   -> getDefs vs
     Lam _ v    -> getDefs v
-    Pi a b     -> getDefs a >> getDefs b
     Sort s     -> getDefs s
     Level l    -> getDefs l
     MetaV x vs -> getDefs x >> getDefs vs
     DontCare v -> getDefs v
     Dummy{}    -> return ()
+    Pi a b     -> getDefs a >> getDefs b
 
 instance GetDefs MetaId where
   getDefs x = doMeta x

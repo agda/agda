@@ -590,18 +590,18 @@ instance ParallelReduce Term where
     (Def f es) -> (topLevelReductions (Def f) es) <|> (Def f <$> parReduce es)
     (Con c ci es) -> (topLevelReductions (Con c ci) es) <|> (Con c ci <$> parReduce es)
 
-    -- Congruence cases
-    Lam i u  -> Lam i <$> parReduce u
-    Var x es -> Var x <$> parReduce es
-    Pi a b   -> Pi    <$> parReduce a <*> parReduce b
-    Sort s   -> Sort  <$> parReduce s
-
     -- Base cases
     u@Lit{}      -> return u
     u@Level{}    -> return u -- TODO: is this fine?
     u@DontCare{} -> return u
     u@Dummy{}    -> return u -- not __IMPOSSIBLE__ because of presence of Dummy
                              -- parameters for rewrite rules on constructors.
+
+    -- Congruence cases
+    Lam i u  -> Lam i <$> parReduce u
+    Var x es -> Var x <$> parReduce es
+    Sort s   -> Sort  <$> parReduce s
+    Pi a b   -> Pi    <$> parReduce a <*> parReduce b
 
     -- Impossible cases
     MetaV{}    -> __IMPOSSIBLE__
@@ -830,14 +830,14 @@ instance AllHoles Term where
           getFullyAppliedConType c =<< reduce a
         pure (idHole a v)
          <|> (fmap (Con c ci) <$> allHoles (ca , Con c ci) es)
-      Pi a b         ->
-        (fmap (\a -> Pi a b) <$> allHoles_ a) <|>
-        (fmap (\b -> Pi a b) <$> allHoles a b)
       Sort s         -> fmap Sort <$> allHoles_ s
       Level l        -> fmap Level <$> allHoles_ l
       MetaV{}        -> __IMPOSSIBLE__
       DontCare{}     -> empty
       Dummy{}        -> empty
+      Pi a b         ->
+        (fmap (\a -> Pi a b) <$> allHoles_ a) <|>
+        (fmap (\b -> Pi a b) <$> allHoles a b)
 
 instance AllHoles Sort where
   type PType Sort = ()
@@ -905,7 +905,6 @@ instance MetasToVars Term where
     Lit l      -> pure (Lit l)
     Def f es   -> Def f    <$> metasToVars es
     Con c i es -> Con c i  <$> metasToVars es
-    Pi a b     -> Pi       <$> metasToVars a <*> metasToVars b
     Sort s     -> Sort     <$> metasToVars s
     Level l    -> Level    <$> metasToVars l
     MetaV x es -> asks ($ x) >>= \case
@@ -913,6 +912,7 @@ instance MetasToVars Term where
       Nothing  -> MetaV x  <$> metasToVars es
     DontCare u -> DontCare <$> metasToVars u
     Dummy s es -> Dummy s  <$> metasToVars es
+    Pi a b     -> Pi       <$> metasToVars a <*> metasToVars b
 
 instance MetasToVars Type where
   metasToVars (El s t) = El <$> metasToVars s <*> metasToVars t

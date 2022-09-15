@@ -293,14 +293,14 @@ quotingKit = do
             let args = list $ drop n $ defParameters cDef r ++ map (quoteArg quoteTerm) ts
             con !@! quoteConName x @@ args
           Con x ci es -> pure unsupported
-          Pi t u     -> pi !@  quoteDom quoteType t
-                            @@ quoteAbs quoteType u
           Level l    -> quoteTerm (unlevelWithKit lkit l)
           Lit l      -> lit !@ quoteLit l
           Sort s     -> sort !@ quoteSort s
           MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare u -> quoteTerm u
+          Pi t u     -> pi !@  quoteDom quoteType t
+                            @@ quoteAbs quoteType u
           Dummy s _  -> __IMPOSSIBLE_VERBOSE__ s
 
       defParameters :: Definition -> Bool -> [ReduceM Term]

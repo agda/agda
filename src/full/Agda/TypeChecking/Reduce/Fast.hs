@@ -948,13 +948,6 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
             getArg (IApply _ _ v) = v
             getArg Proj{}         = __IMPOSSIBLE__
 
-        -- Case: values. Literals and function types are already in weak-head normal form.
-        -- We throw away the environment for literals mostly to make debug printing less verbose.
-        -- And we know the spine is empty since literals cannot be applied or projected.
-        Lit{} -> runAM (evalTrueValue t emptyEnv [] ctrl)
-        Pi{}  -> runAM done
-        DontCare{} -> runAM done
-
         -- Case: non-empty spine. If the focused term has a non-empty spine, we shift the
         -- eliminations onto the spine.
         Def f   es -> shiftElims (Def f   []) emptyEnv env es
@@ -983,6 +976,13 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
         Level{}    -> fallbackAM s
         Sort{}     -> fallbackAM s
         Dummy{}    -> fallbackAM s
+
+        -- Case: values. Literals and function types are already in weak-head normal form.
+        -- We throw away the environment for literals mostly to make debug printing less verbose.
+        -- And we know the spine is empty since literals cannot be applied or projected.
+        Lit{}      -> runAM (evalTrueValue t emptyEnv [] ctrl)
+        DontCare{} -> runAM done
+        Pi{}       -> runAM done
 
       where done = Eval (mkValue (notBlocked ()) cl) ctrl
             shiftElims t env0 env es = do
@@ -1082,7 +1082,6 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           Lit{}      -> True
           Con{}      -> True
           Lam{}      -> True
-          Pi{}       -> True
           Sort{}     -> True
           Level{}    -> True
           DontCare{} -> True
@@ -1092,6 +1091,7 @@ reduceTm rEnv bEnv !constInfo normalisation ReductionFlags{..} =
           Def q _  -- Type constructors (data/record) are considered canonical for 'primForce'.
             | CTyCon <- cdefDef (constInfo q) -> True
             | otherwise                       -> False
+          Pi{}       -> True
 
     -- Case: EraseK. We evaluate both arguments to values, then do a simple check for the easy
     -- cases and otherwise fall back to slow reduce.

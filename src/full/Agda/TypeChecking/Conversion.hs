@@ -287,7 +287,6 @@ compareTerm' cmp a m n =
           a <- levelView m
           b <- levelView n
           equalLevel a b
-        a@Pi{}    -> equalFun s a m n
         Lam _ _   -> do
           reportSDoc "tc.conv.term.sort" 10 $ fsep
             [ "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, ":", prettyTCM a'
@@ -340,7 +339,8 @@ compareTerm' cmp a m n =
 
             else (do pathview <- pathView a'
                      equalPath pathview a' m n)
-        _ -> compareAtom cmp (AsTermsOf a') m n
+        a@Pi{} -> equalFun s a m n
+        _      -> compareAtom cmp (AsTermsOf a') m n
   where
     -- equality at function type (accounts for eta)
     equalFun :: (MonadConversion m) => Sort -> Term -> Term -> Term -> m ()
@@ -580,8 +580,6 @@ compareAtom cmp t m n =
         -- Polarity cannot be communicated properly if projection-like
         -- functions are post-fix.
         case (m, n) of
-          (Pi{}, Pi{}) -> equalFun m n
-
           (Sort s1, Sort s2) ->
             ifM (optCumulativity <$> pragmaOptions)
               (compareSort cmp s1 s2)
@@ -628,6 +626,9 @@ compareAtom cmp t m n =
                   -- Constructors are covariant in their arguments
                   -- (see test/succeed/CovariantConstructors).
                   compareElims (repeat $ polFromCmp cmp) forcedArgs a' (Con x ci []) xArgs yArgs
+
+          (Pi{}, Pi{}) -> equalFun m n
+
           _ -> notEqual
     where
         -- returns True in case we handled the comparison already.
@@ -793,11 +794,6 @@ antiUnify pid a u v = do
     , "v =" <+> prettyTCM v
     ]
   case (u, v) of
-    (Pi ua ub, Pi va vb) -> do
-      wa0 <- antiUnifyType pid (unDom ua) (unDom va)
-      let wa = wa0 <$ ua
-      wb <- addContext wa $ antiUnifyType pid (absBody ub) (absBody vb)
-      return $ Pi wa (mkAbs (absName ub) wb)
     (Lam i u, Lam _ v) ->
       reduce (unEl a) >>= \case
         Pi a b -> Lam i . (mkAbs (absName u)) <$> addContext a (antiUnify pid (absBody b) (absBody u) (absBody v))
@@ -818,6 +814,11 @@ antiUnify pid a u v = do
     (Def f us, Def g vs) | f == g, length us == length vs -> maybeGiveUp $ do
       a <- computeElimHeadType f us vs
       antiUnifyElims pid a (Def f []) us vs
+    (Pi ua ub, Pi va vb) -> do
+      wa0 <- antiUnifyType pid (unDom ua) (unDom va)
+      let wa = wa0 <$ ua
+      wb <- addContext wa $ antiUnifyType pid (absBody ub) (absBody vb)
+      return $ Pi wa (mkAbs (absName ub) wb)
     _ -> fallback
   where
     maybeGiveUp = catchPatternErr $ \ _ -> fallback

@@ -497,8 +497,8 @@ instance Occurs Term where
           Con c ci vs -> do
             definitionCheck (conName c)
             Con c ci <$> conArgs vs (occurs vs)  -- if strongly rigid, remain so, except with unreduced IApply arguments.
-          Pi a b      -> uncurry Pi <$> occurs (a,b)
           Sort s      -> Sort <$> do underRelevance NonStrict $ occurs s
+          Pi a b      -> uncurry Pi <$> occurs (a,b)
           MetaV m' es -> do
             m' <- metaCheck m'
 
@@ -548,10 +548,10 @@ instance Occurs Term where
       DontCare v -> metaOccurs m v
       Def d vs   -> metaOccurs m d >> metaOccurs m vs
       Con c _ vs -> metaOccurs m vs
-      Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s              -- vv m is already an unblocker
       MetaV m' vs | m == m'   -> patternViolation' neverUnblock 50 $ "Found occurrence of " ++ prettyShow m
                   | otherwise -> addOrUnblocker (unblockOnMeta m') $ metaOccurs m vs
+      Pi a b     -> metaOccurs m (a,b)
 
 instance Occurs QName where
   occurs d = __IMPOSSIBLE__
@@ -746,9 +746,9 @@ hasBadRigid xs t = do
       lift $ es `rigidVarsNotContainedIn` xs
     -- Andreas, 2012-05-03: There is room for further improvement.
     -- We could also consider a defined f which is not blocked by a meta.
-    Pi a b       -> lift $ (a,b) `rigidVarsNotContainedIn` xs
     Level v      -> lift $ v `rigidVarsNotContainedIn` xs
     Sort s       -> lift $ s `rigidVarsNotContainedIn` xs
+    Pi a b       -> lift $ (a,b) `rigidVarsNotContainedIn` xs
     -- Since constructors can be eliminated by pattern-matching,
     -- offending variables under a constructor could be removed by
     -- the right instantiation of the meta variable.
@@ -838,12 +838,12 @@ instance AnyRigid Term where
         -- _        -> mempty -- breaks: ImproveInertRHS, Issue442, PruneRecord, PruningNonMillerPattern
         _        -> anyRigid f es
       Con _ _ ts -> anyRigid f ts
-      Pi a b     -> anyRigid f (a,b)
       Sort s     -> anyRigid f s
       Level l    -> anyRigid f l
       MetaV{}    -> return False
       DontCare{} -> return False
       Dummy{}    -> return False
+      Pi a b     -> anyRigid f (a,b)
 
 instance AnyRigid Type where
   anyRigid f (El s t) = anyRigid f (s,t)

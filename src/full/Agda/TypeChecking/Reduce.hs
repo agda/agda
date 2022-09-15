@@ -546,12 +546,12 @@ slowReduceTerm v = do
       Level l  -> ifM (SmallSet.member LevelReductions <$> asksTC envAllowedReductions)
                     {- then -} (fmap levelTm <$> reduceB' l)
                     {- else -} done
-      Pi _ _   -> done
       Lit _    -> done
       Var _ es  -> iapp es
       Lam _ _  -> done
       DontCare _ -> done
       Dummy{}    -> done
+      Pi _ _   -> done
     where
       -- NOTE: reduceNat can traverse the entire term.
       reduceNat v@(Con c ci []) = do
@@ -1010,12 +1010,12 @@ instance Simplify Term where
       Con c ci vs-> iapp vs $ Con c ci <$> simplify' vs
       Sort s     -> Sort     <$> simplify' s
       Level l    -> levelTm  <$> simplify' l
-      Pi a b     -> Pi       <$> simplify' a <*> simplify' b
       Lit l      -> return v
       Var i vs   -> iapp vs $ Var i    <$> simplify' vs
       Lam h v    -> Lam h    <$> simplify' v
       DontCare v -> dontCare <$> simplify' v
       Dummy{}    -> return v
+      Pi a b     -> Pi       <$> simplify' a <*> simplify' b
 
 simplifyBlocked' :: Simplify t => Blocked t -> ReduceM t
 simplifyBlocked' (Blocked _ t) = return t
@@ -1208,9 +1208,9 @@ slowNormaliseArgs = \case
   Level l     -> levelTm    <$> normalise' l
   Lam h b     -> Lam h      <$> normalise' b
   Sort s      -> Sort       <$> normalise' s
-  Pi a b      -> uncurry Pi <$> normalise' (a, b)
   v@DontCare{}-> return v
   v@Dummy{}   -> return v
+  Pi a b      -> uncurry Pi <$> normalise' (a, b)
 
 -- Note: not the default instance for Elim' since we do something special for Arg.
 instance Normalise t => Normalise (Elim' t) where
@@ -1419,9 +1419,9 @@ instance InstantiateFull Term where
           Level l     -> levelTm <$> instantiateFull' l
           Lam h b     -> Lam h <$> instantiateFull' b
           Sort s      -> Sort <$> instantiateFull' s
-          Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
           DontCare v  -> dontCare <$> instantiateFull' v
           v@Dummy{}   -> return v
+          Pi a b      -> uncurry Pi <$> instantiateFull' (a,b)
 
 instance InstantiateFull Level where
   instantiateFull' (Max m as) = levelMax m <$> instantiateFull' as

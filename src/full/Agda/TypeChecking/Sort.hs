@@ -171,11 +171,6 @@ sortOf t = do
   where
     sortOfT :: Term -> m Sort
     sortOfT = \case
-      Pi adom b -> do
-        let a = unEl $ unDom adom
-        sa <- sortOf a
-        sb <- mapAbstraction adom (sortOf . unEl) b
-        return $ piSort (unEl <$> adom) sa sb
       Sort s     -> return $ univSort s
       Var i es   -> do
         a <- typeOfBV i
@@ -186,6 +181,11 @@ sortOf t = do
       MetaV x es -> do
         a <- metaType x
         sortOfE a (MetaV x) es
+      Pi adom b -> do
+        let a = unEl $ unDom adom
+        sa <- sortOf a
+        sb <- mapAbstraction adom (sortOf . unEl) b
+        return $ piSort (unEl <$> adom) sa sb
       Lam{}      -> __IMPOSSIBLE__
       Con{}      -> __IMPOSSIBLE__
       Lit{}      -> __IMPOSSIBLE__

@@ -160,7 +160,6 @@ instance SynEq Term where
       (Lam   h b , Lam   h' b' )           -> Lam <$$> synEq h h' <**> synEq b b'
       (Level l   , Level l'    )           -> levelTm <$$> synEq l l'
       (Sort  s   , Sort  s'    )           -> Sort    <$$> synEq s s'
-      (Pi    a b , Pi    a' b' )           -> Pi      <$$> synEq a a' <**> synEq' b b'
       (DontCare u, DontCare u' )           -> DontCare <$$> synEq u u'
          -- Irrelevant things are not syntactically equal. ALT:
          -- pure (u, u')
@@ -168,6 +167,7 @@ instance SynEq Term where
          -- syntactically equal causes implicit arguments to go
          -- unsolved, so it is better to go under the DontCare.
       (Dummy{}   , Dummy{}     )           -> pure (v, v')
+      (Pi    a b , Pi    a' b' )           -> Pi      <$$> synEq a a' <**> synEq' b b'
       _                                    -> inequal (v, v')
 
 instance SynEq Level where

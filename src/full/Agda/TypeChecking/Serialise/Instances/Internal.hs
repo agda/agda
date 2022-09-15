@@ -101,12 +101,12 @@ instance EmbPrj I.Term where
   icod_ (Lit      a  ) = icodeN 2 Lit a
   icod_ (Def      a b) = icodeN 3 Def a b
   icod_ (Con    a b c) = icodeN 4 Con a b c
-  icod_ (Pi       a b) = icodeN 5 Pi a b
   icod_ (MetaV    a b) = icodeN 6 MetaV a b
   icod_ (Sort     a  ) = icodeN 7 Sort a
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
   icod_ (Dummy    a b) = icodeN 10 Dummy a b
+  icod_ (Pi       a b) = icodeN 5 Pi a b
 
   value = vcase valu where
     valu [a]       = valuN var   a
