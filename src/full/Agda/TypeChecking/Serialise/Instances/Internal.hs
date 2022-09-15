@@ -44,6 +44,11 @@ instance EmbPrj a => EmbPrj (Tele a) where
     valu [a, b] = valuN ExtendTel a b
     valu _      = malformed
 
+instance EmbPrj Telescope' where
+  icod_ (Telescope a b) = icodeN' Telescope a b
+
+  value = valueN Telescope
+
 instance EmbPrj Permutation where
   icod_ (Perm a b) = icodeN' Perm a b
 
@@ -101,12 +106,12 @@ instance EmbPrj I.Term where
   icod_ (Lit      a  ) = icodeN 2 Lit a
   icod_ (Def      a b) = icodeN 3 Def a b
   icod_ (Con    a b c) = icodeN 4 Con a b c
+  icod_ (Tel      a  ) = icodeN 5 Tel a
   icod_ (MetaV    a b) = icodeN 6 MetaV a b
   icod_ (Sort     a  ) = icodeN 7 Sort a
   icod_ (DontCare a  ) = icodeN 8 DontCare a
   icod_ (Level    a  ) = icodeN 9 Level a
   icod_ (Dummy    a b) = icodeN 10 Dummy a b
-  icod_ (Pi       a b) = icodeN 5 Pi a b
 
   value = vcase valu where
     valu [a]       = valuN var   a
@@ -115,7 +120,7 @@ instance EmbPrj I.Term where
     valu [2, a]    = valuN Lit   a
     valu [3, a, b] = valuN Def   a b
     valu [4, a, b, c] = valuN Con a b c
-    valu [5, a, b] = valuN Pi    a b
+    valu [5, a]    = valuN Tel   a
     valu [6, a, b] = valuN MetaV a b
     valu [7, a]    = valuN Sort  a
     valu [8, a]    = valuN DontCare a
