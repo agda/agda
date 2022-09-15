@@ -360,6 +360,7 @@ mkTel tel
   | otherwise     = Tel tel
 
 -- | A helper function used to implement 'Pi'.
+{-# INLINE piView #-}
 piView :: Term -> Maybe (Dom Type, Abs Type)
 piView (Tel (Telescope tel t)) = case Seq.viewl tel of
   Seq.EmptyL        -> __IMPOSSIBLE__
