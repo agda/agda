@@ -229,8 +229,9 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
           | Tel !Telescope'
             -- ^ Used for dependent or non-dependent function spaces.
             --
-            -- Invariant: The telescope is non-empty. (Use 'mkTel' to
-            -- enforce this invariant.)
+            -- Invariant: The telescope is non-empty and the 'telTerm'
+            -- is not another telescope. (Use 'mkTel' to enforce this
+            -- invariant.)
           | Sort Sort
           | Level Level
           | MetaV {-# UNPACK #-} !MetaId Elims
@@ -357,7 +358,10 @@ noAbs = F.foldl' (\n (_, s) -> n + isAbs s) 0
 mkTel :: Telescope' -> Term
 mkTel tel
   | size tel == 0 = telTerm tel
-  | otherwise     = Tel tel
+  | otherwise     =
+    case telTerm tel of
+      Tel tel' -> Tel (prependTel (telTele tel) tel')
+      _        -> Tel tel
 
 -- | A helper function used to implement 'Pi'.
 {-# INLINE piView #-}
