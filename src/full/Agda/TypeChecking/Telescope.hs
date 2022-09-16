@@ -384,10 +384,10 @@ termToTel
   -> Term
      -- ^ The term that should be converted.
   -> m Telescope'
-termToTel m p known t = termToTel' m p' known t
+termToTel !m p !known t = termToTel' m p' known t
   where
   p' :: Nat -> Telescope' -> State Nat (Either Term Telescope')
-  p' mx Telescope{ .. } = do
+  p' !mx Telescope{ .. } = do
     known <- get
     let r = skip known mx telTele
     case r of
@@ -435,7 +435,7 @@ termToTel'
   -> Term
      -- ^ The term that should be converted.
   -> m Telescope'
-termToTel' m p s t = do
+termToTel' !m p !s t = do
   t <- reduce t
   case t of
     Tel tel -> case runState (p m tel) s of
