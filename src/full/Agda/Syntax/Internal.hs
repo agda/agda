@@ -317,16 +317,19 @@ type Telescope = Tele (Dom Type)
 type Tele' a = Seq (a, Abs Sort)
 
 -- | Telescopes (with support for 'NoAbs').
-data Telescope' = Telescope
-  { telTele :: Tele' (Dom Type)
+data Telescope'' a = Telescope
+  { telTele :: Tele' a
     -- ^ The telescope.
   , telTerm :: Term
     -- ^ The term. The term is in the telescope's context, where
     -- 'NoAbs' constructors do not count.
   }
-  deriving Show
+  deriving (Show, Functor, Foldable, Traversable)
 
-instance Sized Telescope' where
+-- | Telescopes (with support for 'NoAbs').
+type Telescope' = Telescope'' (Dom Type)
+
+instance Sized (Telescope'' a) where
   size = size . telTele
 
 -- | An empty telescope.
@@ -337,13 +340,13 @@ emptyTel t = Telescope
   }
 
 -- | Prepends an element to a telescope.
-consTel :: (Dom Type, Abs Sort) -> Telescope' -> Telescope'
+consTel :: (a, Abs Sort) -> Telescope'' a -> Telescope'' a
 consTel as@(_, s) tel =
   tel{ telTele = as Seq.<| telTele tel }
 
 -- | Prepends a telescope with the given number of 'Abs' constructors
 -- to a telescope.
-prependTel :: Tele' (Dom Type) -> Telescope' -> Telescope'
+prependTel :: Tele' a -> Telescope'' a -> Telescope'' a
 prependTel tel1 tel2 =
   tel2{ telTele = tel1 Seq.>< telTele tel2 }
 
