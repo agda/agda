@@ -113,6 +113,8 @@ data CommandLineOptions = Options
       -- ^ Agda REPL (-I).
   , optGHCiInteraction       :: Bool
   , optJSONInteraction       :: Bool
+  , optExitOnError           :: !Bool
+    -- ^ Exit if an interactive command fails.
   , optOptimSmashing         :: Bool
   , optCompileDir            :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
@@ -263,6 +265,7 @@ defaultOptions = Options
   , optInteractive           = False
   , optGHCiInteraction       = False
   , optJSONInteraction       = False
+  , optExitOnError           = False
   , optOptimSmashing         = True
   , optCompileDir            = Nothing
   , optGenerateVimFile       = False
@@ -600,6 +603,9 @@ ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
 jsonInteractionFlag :: Flag CommandLineOptions
 jsonInteractionFlag o = return $ o { optJSONInteraction = True }
 
+interactionExitFlag :: Flag CommandLineOptions
+interactionExitFlag o = return $ o { optExitOnError = True }
+
 vimFlag :: Flag CommandLineOptions
 vimFlag o = return $ o { optGenerateVimFile = True }
 
@@ -892,6 +898,9 @@ standardOptions =
                     "for use with the Emacs mode"
     , Option []     ["interaction-json"] (NoArg jsonInteractionFlag)
                     "for use with other editors such as Atom"
+    , Option []     ["interaction-exit-on-error"]
+                    (NoArg interactionExitFlag)
+                    "exit if a type error is encountered"
 
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")

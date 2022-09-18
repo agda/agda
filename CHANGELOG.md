@@ -216,6 +216,14 @@ Pragmas and options
 
   The old name is retained for backwards compatibility.
 
+* If `--interaction-exit-on-error` is used, then Agda exits with a
+  non-zero exit code if `--interaction` or `--interaction-json` are
+  used and a type error is encountered. The option also makes Agda
+  exit with exit code 113 if Agda fails to parse a command.
+
+  This option might for instance be used if Agda is controlled from a
+  script.
+
 Performance
 -----------
 

@@ -55,6 +55,7 @@ import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
 import Agda.Syntax.Scope.Base
 
 import Agda.Interaction.Base
+import Agda.Interaction.ExitCode
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses as Lenses
@@ -264,7 +265,8 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
 
         showImpl <- lift $ optShowImplicit <$> useTC stPragmaOptions
         showIrr <- lift $ optShowIrrelevant <$> useTC stPragmaOptions
-        unless noError $ mapM_ putResponse $
+        unless noError $ do
+          mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error $ Info_GenericError e ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info KeepHighlighting
@@ -273,6 +275,8 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
                                    , sShowImplicitArguments = showImpl
                                    , sShowIrrelevantArguments = showIrr
                                    } ]
+          whenM (optExitOnError <$> commandLineOptions) $
+            liftIO $ exitAgdaWith TCMError
 
 -- | Run an 'IOTCM' value, catch the exceptions, emit output
 --
