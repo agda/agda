@@ -41,6 +41,13 @@ isApplyElim (IApply _ _ r) = Just (defaultArg r)
 isApplyElim' :: Empty -> Elim' a -> Arg a
 isApplyElim' e = fromMaybe (absurd e) . isApplyElim
 
+-- | Only 'Apply' variant.
+isProperApplyElim :: Elim' a -> Bool
+isProperApplyElim = \case
+  Apply _  -> True
+  IApply{} -> False
+  Proj{}   -> False
+
 -- | Drop 'Apply' constructors. (Safe)
 allApplyElims :: [Elim' a] -> Maybe [Arg a]
 allApplyElims = mapM isApplyElim
@@ -79,4 +86,3 @@ instance NFData a => NFData (Elim' a) where
   rnf (Apply x) = rnf x
   rnf Proj{}    = ()
   rnf (IApply x y r) = rnf x `seq` rnf y `seq` rnf r
-
