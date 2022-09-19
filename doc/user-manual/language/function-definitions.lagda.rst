@@ -77,6 +77,10 @@ Dot patterns
 A dot pattern (also called *inaccessible pattern*) can be used when
 the only type-correct value of the argument is determined by the
 patterns given for the other arguments.
+A dot pattern is not matched against to determine the result of a
+function call, but it serves as a constraint on the result of matching
+in other arguments.  Essentially, it is checked documentation that a
+certain argument in a certain clause must have a certain form.
 The syntax for a dot pattern is ``.t``.
 
 As an example, consider the datatype ``Square`` defined as follows
@@ -100,9 +104,12 @@ In general, when matching on an argument of type ``D i₁ … iₙ`` with a cons
 ``c : (x₁ : A₁) → … → (xₘ : Aₘ) → D j₁ … jₙ``, Agda will attempt to unify
 ``i₁ … iₙ`` with ``j₁ … jₙ``. When the unification algorithm instantiates a
 variable ``x`` with value ``t``, the corresponding argument of the function
-can be replaced by a dot pattern ``.t``. Using a dot pattern is optional, but
-can help readability. The following are also legal definitions of
-``root``:
+can be replaced by a dot pattern ``.t``.
+
+Using a dot pattern can help readability, but is not necessary; a dot
+pattern can always be replaced by an underscore or a fresh pattern
+variable without changing the function definition.  The following are
+also legal definitions of ``root``:
 
 Since Agda 2.4.2.4::
 
@@ -121,6 +128,31 @@ function and is thus equivalent to
 
   root₃ : (n : Nat) → Square n → Nat
   root₃ _ (sq m) = let n = m * m in m
+
+A dot pattern need not be a valid ordinary pattern at all (as in the
+case of ``m * m`` above).  If it happens to be a valid ordinary
+pattern, then sometimes the dot can be removed without changing the
+function definition.
+
+Other times, removing the dot yields a valid definition but with
+different definitional behavior.  For instance, in the following
+definition:
+
+::
+
+  data Fin : Nat → Set where
+    zero : {n : Nat} → Fin (suc n)
+    suc : {n : Nat} → Fin n → Fin (suc n)
+
+  foo : (n : Nat) (k : Fin n) → Nat
+  foo .(suc zero) (zero {zero})     = zero
+  foo .(suc (suc n)) (zero {suc n}) = zero
+  foo .(suc _) (suc k)              = zero
+
+removing the dots in ``foo`` changes the case tree so that it splits
+on the first argument first.  This results in the third equation not
+holding definitionally (and thus the definition being rejected under
+the option ``--exact-split``; see :ref:`catchall-pragma`).
 
 .. _absurd-patterns:
 
