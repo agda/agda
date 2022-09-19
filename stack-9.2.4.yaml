@@ -1,6 +1,9 @@
-resolver: nightly-2022-08-04
+resolver: nightly-2022-09-19
 compiler: ghc-9.2.4
 compiler-check: match-exact
+
+extra-deps:
+- text-icu-0.8.0.2
 
 packages:
 - '.'
