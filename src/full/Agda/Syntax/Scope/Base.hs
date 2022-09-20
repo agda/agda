@@ -1094,7 +1094,9 @@ concreteNamesInScope scope =
 
     build :: (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Set C.QName
     build getNames s = Set.unions $
-        Set.fromList (map C.QName $ Map.keys (getNames s :: ThingsInScope AbstractName)) :
+        Set.fromAscList
+          (map C.QName $
+           Map.keys (getNames s :: ThingsInScope AbstractName)) :
           [ Set.mapMonotonic (\ y -> C.Qual x y) $
               build exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
