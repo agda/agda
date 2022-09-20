@@ -49,7 +49,7 @@ flattenScope ms scope =
                , let -- get the suffixes of c in ms
                      ms' = mapMaybe (List.stripPrefix $ List1.toList $ qnameParts c) ms
                , not $ null ms' ]
-    qual c = Map.mapKeys (q c)
+    qual c = Map.mapKeysMonotonic (q c)
       where
         q (QName x)  = Qual x
         q (Qual m x) = Qual m . q x
