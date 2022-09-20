@@ -28,12 +28,14 @@ import Agda.Utils.Maybe
 import Agda.Utils.Pretty
 
 -- | Flattened scopes.
-type FlatScope = Map QName [AbstractName]
+newtype FlatScope = Flat (Map QName [AbstractName])
+  deriving Pretty
 
 -- | Compute a flattened scope. Only include unqualified names or names
 -- qualified by modules in the first argument.
 flattenScope :: [[Name]] -> ScopeInfo -> FlatScope
 flattenScope ms scope =
+  Flat $
   Map.unionWith (++)
     (build ms allNamesInScope root)
     imported
@@ -69,7 +71,7 @@ flattenScope ms scope =
 -- Note that overloaded names (constructors) can have several
 -- fixities/notations. Then we 'mergeNotations'. (See issue 1194.)
 getDefinedNames :: KindsOfNames -> FlatScope -> [[NewNotation]]
-getDefinedNames kinds names =
+getDefinedNames kinds (Flat names) =
   [ mergeNotations $ map (namesToNotation x . A.qnameName . anameName) ds
   | (x, ds) <- Map.toList names
   , any ((`elemKindsOfNames` kinds) . anameKind) ds
