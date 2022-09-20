@@ -93,7 +93,7 @@ jobs:
     - env:
         DLL: /c/msys64/mingw64/bin/libicu*.dll
         ICU_DIR: /usr/local/opt/icu4c/lib
-        ICU_VER: '70'
+        ICU_VER: '71'
       name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       run: |
         mkdir -p ${{ steps.vars.outputs.nightly }}/bin
