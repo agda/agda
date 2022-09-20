@@ -419,6 +419,7 @@ library
                     Agda.Syntax.Position
                     Agda.Syntax.Reflected
                     Agda.Syntax.Scope.Base
+                    Agda.Syntax.Scope.Flat
                     Agda.Syntax.Scope.Monad
                     Agda.Syntax.Translation.AbstractToConcrete
                     Agda.Syntax.Translation.ConcreteToAbstract

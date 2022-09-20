@@ -1039,41 +1039,6 @@ everythingInScopeQualified scope =
         imports = map lookP $ Map.elems $ scopeImports s
         submods = map (lookP . amodName) $ concat $ Map.elems $ Map.filterWithKey inscope $ allNamesInScope s
 
--- | Compute a flattened scope. Only include unqualified names or names
--- qualified by modules in the first argument.
-flattenScope :: [[C.Name]] -> ScopeInfo -> Map C.QName [AbstractName]
-flattenScope ms scope =
-  Map.unionWith (++)
-    (build ms allNamesInScope root)
-    imported
-  where
-    current = moduleScope $ scope ^. scopeCurrent
-    root    = mergeScopes $ current : map moduleScope (scopeParents current)
-
-    imported = Map.unionsWith (++)
-               [ qual c (build ms' exportedNamesInScope $ moduleScope a)
-               | (c, a) <- Map.toList $ scopeImports root
-               , let -- get the suffixes of c in ms
-                     ms' = mapMaybe (List.stripPrefix $ List1.toList $ C.qnameParts c) ms
-               , not $ null ms' ]
-    qual c = Map.mapKeys (q c)
-      where
-        q (C.QName x)  = C.Qual x
-        q (C.Qual m x) = C.Qual m . q x
-
-    build :: [[C.Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map C.QName [AbstractName]
-    build ms getNames s = Map.unionsWith (++) $
-        Map.mapKeysMonotonic C.QName (getNames s) :
-          [ Map.mapKeysMonotonic (\ y -> C.Qual x y) $
-              build ms' exportedNamesInScope $ moduleScope m
-          | (x, mods) <- Map.toList (getNames s)
-          , let ms' = [ tl | hd:tl <- ms, hd == x ]
-          , not $ null ms'
-          , AbsModule m _ <- mods ]
-
-    moduleScope :: A.ModuleName -> Scope
-    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scope ^. scopeModules
-
 -- | Get all concrete names in scope. Includes bound variables.
 concreteNamesInScope :: ScopeInfo -> Set C.QName
 concreteNamesInScope scope =
