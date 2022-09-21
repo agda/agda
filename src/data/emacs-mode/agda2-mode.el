@@ -350,6 +350,8 @@ Note that this variable is not buffer-local.")
 ;;;; agda2-mode
 
 ;;;###autoload
+(add-to-list 'completion-ignored-extensions ".agdai")
+;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.l?agda\\'" . agda2-mode))
 ;;;###autoload
 (modify-coding-system-alist 'file "\\.l?agda\\'" 'utf-8)
