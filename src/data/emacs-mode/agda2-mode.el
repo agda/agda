@@ -1025,8 +1025,9 @@ For NAME, TEXT and APPEND see `agda2-info-action'."
   (kill-new text)
   (agda2-info-action name text append))
 
-(defun agda2-show-constraints()
-  "Show constraints." (interactive)
+(defun agda2-show-constraints ()
+  "Show constraints."
+  (interactive)
   (agda2-go nil t 'busy t "Cmd_constraints"))
 
 (defun agda2-remove-annotations ()
@@ -1626,6 +1627,7 @@ text properties."
     (error "No process")))
 
 (defun agda2-intersperse (sep xs)
+  "Insert SEP between every element of XS."
   (let (ys)
     (while xs
       (push (pop xs) ys)
@@ -1684,10 +1686,10 @@ characters to the \\xNNNN notation used in Haskell strings."
   "Convert a list of STRINGS into a string representing it in Haskell syntax."
   (concat "[" (mapconcat 'agda2-string-quote strings ", ") "]"))
 
-(defun agda2-goal-at(pos)
+(defun agda2-goal-at (pos)
   "Return (goal overlay, goal number) at POS, or nil."
   (let ((os (and pos (overlays-at pos))) o g)
-    (while (and os (not(setq g (overlay-get (setq o (pop os)) 'agda2-gn)))))
+    (while (and os (not (setq g (overlay-get (setq o (pop os)) 'agda2-gn)))))
     (if g (list o g))))
 
 (defun agda2-goal-overlay (goal)
