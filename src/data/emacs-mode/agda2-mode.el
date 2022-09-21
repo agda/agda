@@ -61,19 +61,6 @@ properties to add to the result."
     (defalias 'prog-mode 'fundamental-mode)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Utilities
-
-(defmacro agda2-let (varbind funcbind &rest body)
-  "Expands to (let* VARBIND (cl-labels FUNCBIND BODY...)).
-Or possibly (let* VARBIND (labels FUNCBIND BODY...))."
-  (declare (debug ((&rest [&or symbolp (symbolp form)])
-                   (&rest (cl-defun))
-                   body))
-           (indent 2))
-  ;; Use cl-labels if available to avoid obsolescence warnings.
-  `(let* ,varbind (,(if (fboundp 'cl-labels) 'cl-labels 'labels) ,funcbind ,@body)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
 
 (defgroup agda2 nil
@@ -1090,10 +1077,9 @@ CHANGE is a function like `next-single-property-change' or
 symbol that indicates what to look for.  ADJUST is the number of
 characters that the search will be off by.  WRAPPED is a boundary
 up until which the search will look."
-  (agda2-let ()
-      ((go (p) (while (and (setq p (funcall change p 'category))
-                           (not (eq (get-text-property p 'category) delim))))
-           (if p (goto-char (+ adjust p)))))
+  (cl-flet ((go (p) (while (and (setq p (funcall change p 'category))
+                                (not (eq (get-text-property p 'category) delim))))
+              (if p (goto-char (+ adjust p)))))
     (or (go (point)) (go wrapped) (message "No goals in the buffer"))))
 
 (defun agda2-quit ()
@@ -1528,67 +1514,68 @@ be run /after/ syntax highlighting information has been loaded,
 because the two highlighting mechanisms interact in unfortunate
 ways."
   (agda2-forget-all-goals)
-  (agda2-let
-      ((literate (agda2-literate-p))
-       stk
-       top
-       ;; Don't run modification hooks: we don't want this function to
-       ;; trigger agda2-abort-highlighting.
-       (inhibit-modification-hooks t))
-      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|^%.*\\\\begin{code}\\|\\\\begin{code}\\|\\\\end{code}\\|```\\|\\#\\+begin_src agda2\\|\\#\\+end_src agda2" nil t))
-       ;; is-proper checks whether string s (e.g. "?" or "--") is proper
-       ;; i.e., is not part of an identifier.
-       ;; comment-starter is true if s starts a comment (e.g. "--")
-       (is-proper (s comment-starter)
-          (save-excursion
-            (save-match-data
-              (backward-char (length s))
-              (unless (bolp) (backward-char 1))  ;; bolp = pointer at beginning of line
-              ;; Andreas, 2014-05-17 Issue 1132
-              ;; A questionmark can also follow immediately after a .
-              ;; for instance to be a place holder for a dot pattern.
-              (looking-at (concat "\\([.{}();]\\|^\\|\\s \\)"  ;; \\s = whitespace
-                                  (regexp-quote s)
-                                  (unless comment-starter
-                                    "\\([{}();]\\|$\\|\\s \\)"))))))
-       (make(p)  (agda2-make-goal p (point) (pop goals)))
-       (inside-comment() (and stk (null     (car stk))))
-       (inside-goal()    (and stk (integerp (car stk))))
-       (outside-code()   (and stk (eq (car stk) 'outside)))
-       (inside-code()    (not (outside-code)))
-       ;; inside a multi-line comment ignore everything but the multi-line comment markers
-       (safe-delims()
-          (if (inside-comment)
-               (re-search-forward "{-\\|-}" nil t)
-            (delims))))
-    (save-excursion
-      ;; In literate mode we should start out in the "outside of code"
-      ;; state.
-      (if literate (push 'outside stk))
-      (goto-char (point-min))
-      (while (and goals (safe-delims))
-        (agda2--case (match-string 0)
-          ("\\begin{code}"     (when (outside-code)               (pop stk)))
-          ("\\end{code}"       (when (not stk)                    (push 'outside stk)))
-          ("#+begin_src agda2" (when (outside-code)               (pop stk)))
-          ("#+end_src agda2"   (when (not stk)                    (push 'outside stk)))
-          ("```"               (if   (outside-code)               (pop stk)
-                               (when (not stk)                    (push 'outside stk))))
-          ("--"                (when (and (not stk)
-                                          (is-proper "--" t))     (end-of-line)))
-          ("{-"                (when (and (inside-code)
-                                          (not (inside-goal)))    (push nil           stk)))
-          ("-}"                (when (inside-comment)             (pop stk)))
-          ("{!"                (when (and (inside-code)
-                                          (not (inside-comment))) (push (- (point) 2) stk)))
-          ("!}"                (when (inside-goal)
-                                 (setq top (pop stk))
-                                 (unless stk (make top))))
-          ("?"                 (progn
-                                 (when (and (not stk) (is-proper "?" nil))
-                                   (delete-char -1)
-                                   (insert "{!!}")
-                                   (make (- (point) 4))))))))))
+  (let ((literate (agda2-literate-p))
+        ;; Don't run modification hooks: we don't want this function to
+        ;; trigger agda2-abort-highlighting.
+        (inhibit-modification-hooks t)
+        stk top)
+    (cl-labels ((delims ()
+                  (re-search-forward
+                   "[?]\\|[{][-!]\\|[-!][}]\\|--\\|^%.*\\\\begin{code}\\|\\\\begin{code}\\|\\\\end{code}\\|```\\|\\#\\+begin_src agda2\\|\\#\\+end_src agda2"
+                   nil t))
+                ;; is-proper checks whether string s (e.g. "?" or "--") is proper
+                ;; i.e., is not part of an identifier.
+                ;; comment-starter is true if s starts a comment (e.g. "--")
+                (is-proper (s comment-starter)
+                  (save-excursion
+                    (save-match-data
+                      (backward-char (length s))
+                      (unless (bolp) (backward-char 1))  ;; bolp = pointer at beginning of line
+                      ;; Andreas, 2014-05-17 Issue 1132
+                      ;; A questionmark can also follow immediately after a .
+                      ;; for instance to be a place holder for a dot pattern.
+                      (looking-at (concat "\\([.{}();]\\|^\\|\\s \\)"  ;; \\s = whitespace
+                                          (regexp-quote s)
+                                          (unless comment-starter
+                                            "\\([{}();]\\|$\\|\\s \\)"))))))
+                (make (p)          (agda2-make-goal p (point) (pop goals)))
+                (inside-comment () (and stk (null     (car stk))))
+                (inside-goal ()    (and stk (integerp (car stk))))
+                (outside-code ()   (and stk (eq (car stk) 'outside)))
+                (inside-code ()    (not (outside-code)))
+                ;; inside a multi-line comment ignore everything but the multi-line comment markers
+                (safe-delims ()
+                  (if (inside-comment)
+                      (re-search-forward "{-\\|-}" nil t)
+                    (delims))))
+      (save-excursion
+        ;; In literate mode we should start out in the "outside of code"
+        ;; state.
+        (if literate (push 'outside stk))
+        (goto-char (point-min))
+        (while (and goals (safe-delims))
+          (agda2--case (match-string 0)
+            ("\\begin{code}"     (when (outside-code)               (pop stk)))
+            ("\\end{code}"       (when (not stk)                    (push 'outside stk)))
+            ("#+begin_src agda2" (when (outside-code)               (pop stk)))
+            ("#+end_src agda2"   (when (not stk)                    (push 'outside stk)))
+            ("```"               (if   (outside-code)               (pop stk)
+                                   (when (not stk)                    (push 'outside stk))))
+            ("--"                (when (and (not stk)
+                                            (is-proper "--" t))     (end-of-line)))
+            ("{-"                (when (and (inside-code)
+                                            (not (inside-goal)))    (push nil           stk)))
+            ("-}"                (when (inside-comment)             (pop stk)))
+            ("{!"                (when (and (inside-code)
+                                            (not (inside-comment))) (push (- (point) 2) stk)))
+            ("!}"                (when (inside-goal)
+                                   (setq top (pop stk))
+                                   (unless stk (make top))))
+            ("?"                 (progn
+                                   (when (and (not stk) (is-proper "?" nil))
+                                     (delete-char -1)
+                                     (insert "{!!}")
+                                     (make (- (point) 4)))))))))))
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
