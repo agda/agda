@@ -1482,16 +1482,6 @@ Only if the buffer is unmodified, and only if there is anything to load."
   "Is the current buffer a literate Agda buffer?"
   (not (equal (file-name-extension (buffer-file-name)) "agda")))
 
-(defmacro agda2--case (exp &rest branches) ;FIXME: Use `pcase' instead!
-  "Conditionally execute one of the BRANCHES based on EXP."
-  (declare (debug t) (indent 1))
-  (let ((s (make-symbol "v")))
-    `(let ((,s ,exp))
-       (cond
-         ,@(mapcar (lambda (branch)
-                     `((equal ,s ,(car branch)) ,@(cdr branch)))
-                   branches)))))
-
 (defun agda2-goals-action (goals)
   "Annotates the goals in the current buffer with text properties.
 GOALS is a list of the buffer's goal numbers, in the order in
@@ -1540,7 +1530,7 @@ ways."
         (if literate (push 'outside stk))
         (goto-char (point-min))
         (while (and goals (safe-delims))
-          (agda2--case (match-string 0)
+          (pcase (match-string 0)
             ("\\begin{code}"     (when (outside-code)               (pop stk)))
             ("\\end{code}"       (when (not stk)                    (push 'outside stk)))
             ("#+begin_src agda2" (when (outside-code)               (pop stk)))
