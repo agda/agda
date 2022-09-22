@@ -514,8 +514,7 @@ not executed and an error is raised.  The same applies if DO-ABORT
 is non-nil and the Agda process is `busy'."
 
   ; Check that how-busy is well-formed.
-  (cl-assert (or (equal how-busy 'busy)
-              (equal how-busy 'not-so-busy)))
+  (cl-assert (memq how-busy '(busy not-so-busy)))
 
   (when (and agda2-in-progress
              (not (equal agda2-file-buffer
@@ -1973,8 +1972,7 @@ An attempt is made to preserve the default value of
 
        (default-hook (default-value 'agda2-mode-hook))
 
-       (version-suffix (if (or (equal version "")
-                               (equal version nil))
+       (version-suffix (if (member version '("" nil))
                            ""
                          (concat "-" version)))
 
