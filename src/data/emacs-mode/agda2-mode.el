@@ -274,9 +274,8 @@ Valid values: nil (not busy), `busy' (busy),
 terminate fairly quickly).")
 
 ;; Some buffer locals
-(defvar agda2-buffer-external-status ""
+(defvar-local agda2-buffer-external-status ""
   "External status of an `agda2-mode' buffer (dictated by the Haskell side).")
-(make-variable-buffer-local 'agda2-buffer-external-status)
 
 (defvar agda2-output-prompt "Agda2> "
   "The Agda2 buffer's prompt.")
@@ -312,15 +311,13 @@ terminate fairly quickly).")
 ;; process, `agda2-go', `agda2-restart', `agda2-abort-highlighting',
 ;; and `agda2-abort-done'.
 
-(defvar agda2-output-chunk-incomplete (agda2-queue-empty)
+(defvar-local agda2-output-chunk-incomplete (agda2-queue-empty)
   "Buffer for incomplete lines.
 \(See `agda2-output-filter'.)")
-(make-variable-buffer-local 'agda2-output-chunk-incomplete)
 
-(defvar agda2-last-responses nil
+(defvar-local agda2-last-responses nil
   "Response commands which should be run after other commands.
 The command which arrived last is stored first in the list.")
-(make-variable-buffer-local 'agda2-last-responses)
 
 (defvar agda2-file-buffer nil
   "The Agda buffer.
