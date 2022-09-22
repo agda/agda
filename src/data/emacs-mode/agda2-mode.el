@@ -1966,11 +1966,10 @@ An attempt is made to preserve the default value of
 
   (let*
       ((agda-buffers
-        (cl-mapcan (lambda (buf)
-                  (with-current-buffer buf
-                    (when (equal major-mode 'agda2-mode)
-                      (list buf))))
-                (buffer-list)))
+        (cl-remove-if-not
+         (lambda (buf)
+           (eq (buffer-local-value 'major-mode buf) 'agda2-mode))
+         (buffer-list)))
 
        (default-hook (default-value 'agda2-mode-hook))
 
