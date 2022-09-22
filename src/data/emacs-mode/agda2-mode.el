@@ -433,7 +433,7 @@ agda2-include-dirs is not bound." :warning))
               (setq status
                     (apply #'call-process agda2-program-name
                            nil standard-output nil all-program-args)))))
-      (unless (equal status 0)
+      (unless (zerop status)
         (error "Failed to start the Agda process:\n%s" output)))
 
     ;; Start the Agda process.
@@ -517,13 +517,12 @@ is non-nil and the Agda process is `busy'."
   (cl-assert (memq how-busy '(busy not-so-busy)))
 
   (when (and agda2-in-progress
-             (not (equal agda2-file-buffer
-                         (current-buffer))))
+             (not (eq agda2-file-buffer (current-buffer))))
     (error "Agda is busy with something in the buffer %s"
            agda2-file-buffer))
 
   (when (and do-abort
-             (equal agda2-in-progress 'busy))
+             (eq agda2-in-progress 'busy))
     (error "Agda is busy with something
 \(you have the option to abort or restart Agda)"))
 
@@ -538,12 +537,12 @@ is non-nil and the Agda process is `busy'."
     (setq agda2-output-chunk-incomplete (agda2-queue-empty)))
 
   (setq agda2-in-progress
-        (if (or (equal how-busy 'busy)
-                (equal agda2-in-progress 'busy))
+        (if (or (eq how-busy 'busy)
+                (eq agda2-in-progress 'busy))
             'busy
           'not-so-busy))
 
-  (when (equal save 'save) (save-buffer))
+  (when (eq save 'save) (save-buffer))
 
   (apply #'agda2-send-command
          'restart
@@ -608,7 +607,7 @@ reloaded from `agda2-highlighting-file', unless
   (when (buffer-live-p agda2-file-buffer)
   (setq agda2-in-agda2-file-buffer
         (and agda2-file-buffer
-             (equal (current-buffer) agda2-file-buffer)))
+             (eq (current-buffer) agda2-file-buffer)))
   (let (;; The input lines in the current chunk.
         (lines (split-string chunk "\n"))
 
@@ -656,7 +655,7 @@ reloaded from `agda2-highlighting-file', unless
                     (insert line)
                     (insert "\n"))))
               (when cmd
-                (if (equal 'last (car-safe (car cmd)))
+                (if (eq 'last (car-safe (car cmd)))
                     (push (cons (cdr (car cmd)) (cdr cmd))
                           agda2-last-responses)
                   (push cmd non-last-commands)))))
@@ -806,7 +805,7 @@ The action depends on the prefix argument:
   typed once or twice right before the command is invoked), then
   force is applied.")
      (interactive "P")
-     (let ((,eval (cond ((equal prefix nil) "WithoutForce")
+     (let ((,eval (cond ((null prefix) "WithoutForce")
                         ("WithForce"))))
        (agda2-goal-cmd (concat ,cmd " " ,eval)
                        ,save ,want)))))
@@ -891,10 +890,10 @@ Assumes that <clause> = {!<variables>!} is on one line."
          cl)
     (goto-char p0)
     (re-search-backward "{!")
-    (while (and (not (equal (preceding-char) ?\;)) (>= bracketCount 0) (> (point) p1))
+    (while (and (not (eq (preceding-char) ?\;)) (>= bracketCount 0) (> (point) p1))
       (backward-char)
-      (if (equal (preceding-char) ?}) (cl-incf bracketCount))
-      (if (equal (preceding-char) ?{) (cl-decf bracketCount)))
+      (if (eq (preceding-char) ?}) (cl-incf bracketCount))
+      (if (eq (preceding-char) ?{) (cl-decf bracketCount)))
     (let* ((is-lambda-where (= (point) p1))
            (p (point)))
       (delete-region (point) pmax)
@@ -981,7 +980,7 @@ is inserted, and point is placed before this text."
       (force-mode-line-update))
     ;; If the current window displays the information buffer, then the
     ;; window configuration is left untouched.
-    (unless (equal (window-buffer) buf)
+    (unless (eq (window-buffer) buf)
       (let ((agda-window
               (and agda2-file-buffer
                    (car-safe
@@ -1022,7 +1021,7 @@ is inserted, and point is placed before this text."
     ;; windows.
     (dolist (window (get-buffer-window-list buf 'no-minibuffer t))
       (unless (and append
-                   (equal window (selected-window)))
+                   (eq window (selected-window)))
         (with-selected-window window
           (if append
               (goto-char (point-max))
@@ -1417,7 +1416,7 @@ is printed.
 With any other prefix the head normal form is computed."
   (interactive "P")
   (let ((cmd (concat "Cmd_compute"
-                      (cond ((equal arg nil) " DefaultCompute")
+                      (cond ((null arg) " DefaultCompute")
                             ((equal arg '(4)) " IgnoreAbstract")
                             ((equal arg '(16)) " UseShowInstance")
                             (" HeadCompute")))))
@@ -1436,7 +1435,7 @@ With the prefix argument ARG `(4)' \"abstract\" is ignored during the
 computation."
   (interactive "MExpression: \nP")
   (let ((cmd (concat "Cmd_compute_toplevel"
-                     (cond ((equal arg nil) " DefaultCompute")
+                     (cond ((null arg) " DefaultCompute")
                             ((equal arg '(4)) " IgnoreAbstract")
                             ((equal arg '(16)) " UseShowInstance")
                             (" HeadCompute")) " ")))
@@ -1601,14 +1600,14 @@ text properties."
     (save-excursion
       (cond ((stringp new-txt)
              (agda2-replace-goal old-g new-txt))
-            ((equal new-txt 'paren)
+            ((eq new-txt 'paren)
              (goto-char (- q 2)) (insert ")")
              (goto-char (+ p 2)) (insert "(")))
       (cl-multiple-value-bind (p q) (agda2-range-of-goal old-g)
         (delete-region (- q 2) q)
         (delete-region p (+ p 2)))
         ;; Update highlighting
-        (if (and (not (equal new-txt 'paren)) (not (equal new-txt 'no-paren)))
+        (if (and (not (eq new-txt 'paren)) (not (eq new-txt 'no-paren)))
             (apply 'agda2-go 'save t 'busy nil "Cmd_highlight"
               (format "%d" old-g)
               (agda2-mkRange `(,p ,(- q 2)))
@@ -1823,7 +1822,7 @@ Unless the user option `agda2-highlight-level' is `none' or the
 Agda process is busy (or `not-so-busy') with something.  This
 command might save the buffer."
   (unless (or agda2-in-progress
-              (equal agda2-highlight-level 'none))
+              (eq agda2-highlight-level 'none))
     (agda2-go 'save t 'not-so-busy t
               "Cmd_tokenHighlighting"
               (agda2-string-quote (buffer-file-name))
@@ -1896,8 +1895,8 @@ of implicit arguments if the argument is a positive number,
 otherwise turn it off."
   (interactive "P")
   (cond
-   ((eq arg nil)
-      (agda2-go nil t 'not-so-busy t "ToggleImplicitArgs"))
+   ((null arg)
+    (agda2-go nil t 'not-so-busy t "ToggleImplicitArgs"))
    ((and (numberp arg) (> arg 0))
       (agda2-go nil t 'not-so-busy t "ShowImplicitArgs" "True"))
    (t (agda2-go nil t 'not-so-busy t "ShowImplicitArgs" "False"))))
@@ -1912,8 +1911,8 @@ display of irrelevant arguments if the argument is a positive
 number, otherwise turn it off."
   (interactive "P")
   (cond
-   ((eq arg nil)
-      (agda2-go nil t 'not-so-busy t "ToggleIrrelevantArgs"))
+   ((null arg)
+    (agda2-go nil t 'not-so-busy t "ToggleIrrelevantArgs"))
    ((and (numberp arg) (> arg 0))
       (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "True"))
    (t (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "False"))))
@@ -1984,9 +1983,9 @@ An attempt is made to preserve the default value of
         (condition-case nil
             (with-temp-buffer
               (unless
-                  (equal 0 (call-process agda-mode-prog
-                                         nil (current-buffer) nil
-                                         "locate"))
+                  (zerop (call-process agda-mode-prog
+                                       nil (current-buffer) nil
+                                       "locate"))
                 (error "%s" (concat "Error when running "
                                     agda-mode-prog)))
               (buffer-string))
