@@ -393,7 +393,7 @@ agda2-include-dirs is not bound." :warning))
  ;; Protect global value of default-input-method from set-input-method.
  (make-local-variable 'default-input-method)
  ;; Don't take script into account when determining word boundaries
- (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
+ (setq-local word-combining-categories (cons '(nil . nil) word-combining-categories))
  (activate-input-method "Agda")
  ;; Highlighting etc. is removed when we switch from the Agda mode.
  ;; Use case: When a file M.lagda with a local variables list
@@ -928,23 +928,23 @@ The buffer is returned.")
     (with-current-buffer ,buffer
       (compilation-mode "AgdaInfo")
       ;; Support for jumping to positions mentioned in the text.
-      (set (make-local-variable 'compilation-error-regexp-alist)
-           '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
-              1 (2 . 5) (3 . 6))))
+      (setq-local compilation-error-regexp-alist
+                  '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
+                     1 (2 . 5) (3 . 6))))
       ;; Do not skip errors that start in the same position as the
       ;; current one.
-      (set (make-local-variable 'compilation-skip-to-next-location) nil)
+      (setq-local compilation-skip-to-next-location nil)
       ;; No support for recompilation. The key binding is removed, and
       ;; attempts to run `recompile' will (hopefully) result in an
       ;; error.
       (let ((map (copy-keymap (current-local-map))))
         (define-key map (kbd "g") 'undefined)
         (use-local-map map))
-      (set (make-local-variable 'compile-command)
-           'agda2-does-not-support-compilation-via-the-compilation-mode)
+      (setq-local compile-command
+                  'agda2-does-not-support-compilation-via-the-compilation-mode)
 
       (set-syntax-table agda2-mode-syntax-table)
-      (set (make-local-variable 'word-combining-categories) (cons '(nil . nil) word-combining-categories))
+      (setq-local word-combining-categories (cons '(nil . nil) word-combining-categories))
       (set-input-method "Agda")))
 
   ,buffer))
@@ -1780,15 +1780,15 @@ a file is loaded."
 
   ;; Empty lines (all white space according to Emacs) delimit
   ;; paragraphs.
-  (set (make-local-variable 'paragraph-start) "\\s-*$")
-  (set (make-local-variable 'paragraph-separate) paragraph-start)
+  (setq-local paragraph-start "\\s-*$")
+  (setq-local paragraph-separate paragraph-start)
 
   ;; Support for adding/removing comments.
-  (set (make-local-variable 'comment-start) "-- ")
+  (setq-local comment-start "-- ")
 
   ;; Use the syntax table to locate comments (and possibly other
   ;; things). Syntax table setup for comments is done elsewhere.
-  (set (make-local-variable 'comment-use-syntax) t)
+  (setq-local comment-use-syntax t)
 
   ;; Update token-based highlighting after the buffer has been saved.
   (add-hook 'after-save-hook 'agda2-highlight-tokens nil 'local)
