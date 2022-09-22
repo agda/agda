@@ -28,10 +28,10 @@ that is currently being type-checked."
 
 (defun agda2-highlight-level nil
   "Formats the highlighting level in a Haskelly way."
-  (cond ((equal agda2-highlight-level 'none)            "None")
-        ((equal agda2-highlight-level 'non-interactive) "NonInteractive")
-        ((equal agda2-highlight-level 'interactive)     "Interactive")
-        (t                                              "None")))
+  (cond ((eq agda2-highlight-level 'none)            "None")
+        ((eq agda2-highlight-level 'non-interactive) "NonInteractive")
+        ((eq agda2-highlight-level 'interactive)     "Interactive")
+        (t                                           "None")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions for setting faces
