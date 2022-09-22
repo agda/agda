@@ -1938,20 +1938,15 @@ EV is the event object associated with a click."
 
 (defun agda2-get-agda-program-versions ()
   "Attempt to detect available Agda versions."
-  (delete-dups
-   (mapcar (lambda (path)
-             ;; strip 'agda-mode' prefix
-             (replace-regexp-in-string "^agda-mode-?" ""
-                                       (file-name-nondirectory path)))
-           (cl-remove-if-not 'file-executable-p
-             ;; concatenate result
-             (cl-reduce 'append
-                     ;; for each directory in exec-path, get list of
-                     ;; files whose name starts with 'agda-mode'
-                     (mapcar (lambda (path)
-                               (when (file-accessible-directory-p path)
-                                 (directory-files path 't "^agda-mode")))
-                             exec-path))))))
+  (let (versions)
+    (dolist (dir (exec-path))
+      (when (file-accessible-directory-p dir)
+        (dolist (file (directory-files dir t))
+          (let ((base (file-name-nondirectory file)))
+            (when (and (file-regular-p file) (file-executable-p file)
+                       (string-match "\\`agda-mode-\\(.+\\)" base))
+              (push (match-string 1 base) versions))))))
+    (delete-dups versions)))
 
 ;; Note that other versions of Agda may use different protocols, so
 ;; this function unloads the Emacs mode.
