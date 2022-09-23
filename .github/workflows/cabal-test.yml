@@ -74,6 +74,7 @@ jobs:
         os:
         - ubuntu-latest
         - macos-latest
+    timeout-minutes: 150
 name: cabal-test
 'on':
   pull_request:

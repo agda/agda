@@ -102,6 +102,7 @@ jobs:
           os: windows-latest
         os:
         - ubuntu-20.04
+    timeout-minutes: 60
 name: Build (cabal)
 'on':
   pull_request:
