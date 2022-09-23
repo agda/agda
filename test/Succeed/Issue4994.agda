@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --no-projection-like #-}
 module _ where
 
 open import Agda.Builtin.Equality
