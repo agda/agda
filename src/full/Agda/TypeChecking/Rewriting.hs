@@ -356,7 +356,7 @@ checkRewriteRule q = do
         case projProper proj of
           Just{} -> typeError . GenericDocError =<< hsep
             [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
-            , prettyTCM f , "is a projection."
+            , prettyTCM f , "is a projection"
             ]
           Nothing -> typeError . GenericDocError =<< hsep
             [ prettyTCM q , " is not a legal rewrite rule, since the head symbol"
