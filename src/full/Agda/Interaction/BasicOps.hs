@@ -1308,10 +1308,12 @@ getModuleContents norm mm = do
       names :: ThingsInScope AbstractName
       names = exportedNamesInScope modScope
       xns = [ (x,n) | (x, ns) <- Map.toList names, n <- ns ]
-  types <- forM xns $ \(x, n) -> do
-    d <- getConstInfo $ anameName n
-    t <- normalForm norm =<< (defType <$> instantiateDef d)
-    return (x, t)
+  types <- forMaybeM xns $ \(x, n) -> do
+    getConstInfo' (anameName n) >>= \case
+      Right d -> do
+        t <- normalForm norm =<< (defType <$> instantiateDef d)
+        return $ Just (x, t)
+      Left{} -> return Nothing
   return (Map.keys modules, EmptyTel, types)
 
 
