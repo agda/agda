@@ -38,6 +38,8 @@ jobs:
   cabal:
     needs: auto-cancel
 
+    timeout-minutes: 60
+
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

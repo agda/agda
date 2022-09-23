@@ -124,6 +124,7 @@ jobs:
         - ubuntu-18.04
         stack-ver:
         - latest
+    timeout-minutes: 60
 name: Build (stack)
 'on':
   pull_request:
