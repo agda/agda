@@ -1,4 +1,4 @@
-;;; agda2-mode.el --- Major mode for Agda
+;;; agda2-mode.el --- Major mode for Agda       -*- lexical-binding: t; -*-
 
 ;; Version: 2.6.3
 ;; Package-Requires: ((emacs "25.1") (annotation "1.0") (eri "1.0"))
@@ -181,80 +181,117 @@ standard syntax table if that table treats them as matching
 parentheses or whitespace.  Otherwise they are treated as word
 constituents.")
 
-(defconst agda2-command-table
-  `(
-    (agda2-load                              "\C-c\C-l"           (global)       "Load")
-    (agda2-load                              "\C-c\C-x\C-l")
-    (agda2-compile                           "\C-c\C-x\C-c"       (global)       "Compile")
-    (agda2-quit                              "\C-c\C-x\C-q"       (global)       "Quit")
-    (agda2-restart                           "\C-c\C-x\C-r"       (global)       "Kill and restart Agda")
-    (agda2-abort                             "\C-c\C-x\C-a"       (global)       "Abort a command")
-    (agda2-remove-annotations                "\C-c\C-x\C-d"       (global)       "Remove goals and highlighting (\"deactivate\")")
-    (agda2-display-implicit-arguments        "\C-c\C-x\C-h"       (global)       "Toggle display of hidden arguments")
-    (agda2-display-irrelevant-arguments      "\C-c\C-x\C-i"       (global)       "Toggle display of irrelevant arguments")
-    (agda2-show-constraints                  ,(kbd "C-c C-=")     (global)       "Show constraints")
-    (agda2-solve-maybe-all                   ,(kbd "C-c C-s")     (local global) "Solve constraints")
-    (agda2-show-goals                        ,(kbd "C-c C-?")     (global)       "Show goals")
-    (agda2-next-goal                         "\C-c\C-f"           (global)       "Next goal") ; Forward.
-    (agda2-previous-goal                     "\C-c\C-b"           (global)       "Previous goal") ; Back.
-    (agda2-give                              ,(kbd "C-c C-SPC")   (local)        "Give")
-    (agda2-elaborate-give                    ,(kbd "C-c C-m")     (local)        "Elaborate and Give")
-    (agda2-refine                            "\C-c\C-r"           (local)        "Refine")
-    (agda2-auto-maybe-all                    "\C-c\C-a"           (local global) "Auto")
-    (agda2-make-case                         "\C-c\C-c"           (local)        "Case")
-    (agda2-goal-type                         "\C-c\C-t"           (local)        "Goal type")
-    (agda2-show-context                      "\C-c\C-e"           (local)        "Context (environment)")
-    (agda2-helper-function-type              "\C-c\C-h"           (local)        "Helper function type")
-    (agda2-infer-type-maybe-toplevel         "\C-c\C-d"           (local global) "Infer (deduce) type")
-    (agda2-why-in-scope-maybe-toplevel       "\C-c\C-w"           (local global) "Explain why a particular name is in scope")
-    (agda2-goal-and-context                  ,(kbd "C-c C-,")     (local)        "Goal type and context")
-    (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")     (local)        "Goal type, context and inferred type")
-    (agda2-goal-and-context-and-checked      ,(kbd "C-c C-;")     (local)        "Goal type, context and checked type")
-    (agda2-search-about-toplevel             ,(kbd "C-c C-z")     (local global) "Search About")
-    (agda2-module-contents-maybe-toplevel    ,(kbd "C-c C-o")     (local global) "Module contents")
-    (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"           (local global) "Evaluate term to normal form")
-    (describe-char                           nil                  (global)       "Information about the character at point")
-    (agda2-comment-dwim-rest-of-buffer       ,(kbd "C-c C-x M-;") (global)       "Comment/uncomment the rest of the buffer")
-    (agda2-display-program-version           nil                  (global)       "Version")
-    (agda2-set-program-version               "\C-c\C-x\C-s"       (global)       "Switch to another version of Agda")
-    (eri-indent                  ,(kbd "TAB"))
-    (eri-indent-reverse          [S-iso-lefttab])
-    (eri-indent-reverse          [S-lefttab])
-    (eri-indent-reverse          [S-tab])
-    (agda2-goto-definition-mouse [mouse-2])
-    (agda2-goto-definition-keyboard "\M-.")
-    (agda2-go-back                  "\M-,"))
-  "Table of commands, used to build keymaps and menus.
-Each element has the form (CMD &optional KEYS WHERE DESC) where
-CMD is a command; KEYS is its key binding (if any); WHERE is a
-list which should contain \\='local if the command should exist in
-the goal menu and \\='global if the command should exist in the main
-menu; and DESC is the description of the command used in the
-menus.")
-
 (defvar agda2-mode-map
-  (let ((map (make-sparse-keymap "Agda mode")))
-    (define-key map [menu-bar Agda]
-      (cons "Agda" (make-sparse-keymap "Agda")))
-    (define-key map [down-mouse-3]  #'agda2-popup-menu-3)
-    (dolist (d (reverse agda2-command-table))
-      (cl-destructuring-bind (f &optional keys kinds desc) d
-        (if keys (define-key map keys f))
-        (if (member 'global kinds)
-            (define-key map
-              (vector 'menu-bar 'Agda (intern desc)) (cons desc f)))))
-    map)
-  "Keymap for `agda2-mode'.")
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "C-c C-s") #'agda2-solve-maybe-all)
+    (define-key m (kbd "C-c C-a") #'agda2-auto-maybe-all)
+    (define-key m (kbd "C-c C-d") #'agda2-infer-type-maybe-toplevel)
+    (define-key m (kbd "C-c C-w") #'agda2-why-in-scope-maybe-toplevel)
+    (define-key m (kbd "C-c C-z") #'agda2-search-about-toplevel)
+    (define-key m (kbd "C-c C-o") #'agda2-module-contents-maybe-toplevel)
+    (define-key m (kbd "C-c C-n") #'agda2-compute-normalised-maybe-toplevel)
+    (define-key m (kbd "TAB")             #'eri-indent)
+    (define-key m (kbd "S-<iso-lefttab>") #'eri-indent-reverse)
+    (define-key m (kbd "S-<lefttab>")     #'eri-indent-reverse)
+    (define-key m (kbd "S-<tab>")         #'eri-indent-reverse)
+    (define-key m (kbd "<mouse-2>")       #'xref-find-definitions-at-mouse)
+    (define-key m (kbd "C-c C-l")         #'agda2-load)
+    (define-key m (kbd "C-c C-x C-c")     #'agda2-compile)
+    (define-key m (kbd "C-c C-x C-q")     #'agda2-quit)
+    (define-key m (kbd "C-c C-x C-r")     #'agda2-restart)
+    (define-key m (kbd "C-c C-x C-a")     #'agda2-abort)
+    (define-key m (kbd "C-c C-x C-d")     #'agda2-remove-annotations)
+    (define-key m (kbd "C-c C-x C-h")     #'agda2-display-implicit-arguments)
+    (define-key m (kbd "C-c C-x C-i")     #'agda2-display-irrelevant-arguments)
+    (define-key m (kbd "C-c C-=")         #'agda2-show-constraints)
+    (define-key m (kbd "C-c C-?")         #'agda2-show-goals)
+    (define-key m (kbd "C-c C-f")         #'agda2-next-goal) ; Forward.
+    (define-key m (kbd "C-c C-b")         #'agda2-previous-goal) ; Back.
+    (define-key m (kbd "C-c C-x M-;")     #'agda2-comment-dwim-rest-of-buffer)
+    (define-key m (kbd "C-c C-x C-s")     #'agda2-set-program-version)
+    (define-key m (kbd "<down-mouse-3>") #'agda2-popup-menu-3)
+    (define-key m (kbd "C-c C-SPC")       #'agda2-give)
+    (define-key m (kbd "C-c SPC")         #'agda2-give)
+    (define-key m (kbd "C-c C-m")         #'agda2-elaborate-give)
+    (define-key m (kbd "C-c C-r")         #'agda2-refine)
+    (define-key m (kbd "C-c C-c")         #'agda2-make-case)
+    (define-key m (kbd "C-c C-t")         #'agda2-goal-type)
+    (define-key m (kbd "C-c C-e")         #'agda2-show-context)
+    (define-key m (kbd "C-c C-h")         #'agda2-helper-function-type)
+    (define-key m (kbd "C-c C-,")         #'agda2-goal-and-context)
+    (define-key m (kbd "C-c C-.")         #'agda2-goal-and-context-and-inferred)
+    (define-key m (kbd "C-c C-;")         #'agda2-goal-and-context-and-checked)
+    m)
+  "Bindings for `agda2-mode'.")
 
-(defvar agda2-goal-map
-  (let ((map (make-sparse-keymap "Agda goal")))
-    (dolist (d (reverse agda2-command-table))
-      (cl-destructuring-bind (f &optional _keys kinds desc) d
-        (if (member 'local kinds)
-            (define-key map
-              (vector (intern desc)) (cons desc f)))))
-    map)
-  "Keymap for agda2 goal menu.")
+(defvar agda2-repeat-map
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "C-f")   #'agda2-next-goal)
+    (define-key m (kbd "C-b")   #'agda2-previous-goal)
+    (define-key m (kbd "C-SPC") #'agda2-give)
+    (define-key m (kbd "C-r")   #'agda2-refine)
+    (define-key m (kbd "C-c")   #'agda2-make-case)
+    (define-key m (kbd "C-,")   #'agda2-goal-and-context)
+    (define-key m (kbd "C-.")   #'agda2-goal-and-context-and-inferred)
+    (define-key m (kbd "C-;")   #'agda2-goal-and-context-and-checked)
+    m)
+  "Agda bindings to repeat in conjunction with `repeat-mode'.")
+
+(dolist (command '(agda2-next-goal
+                   agda2-previous-goal
+                   agda2-give
+                   agda2-refine
+                   agda2-make-case
+                   agda2-goal-and-context
+                   agda2-goal-and-context-and-inferred
+                   agda2-goal-and-context-and-checked))
+  (put command 'repeat-map 'agda2-movement-repeat-map))
+
+(defvar agda2-common-menu-items
+  '(["Solve constraints" agda2-solve-maybe-all]
+    ["Auto" agda2-auto-maybe-all]
+    ["Infer (deduce) type" agda2-infer-type-maybe-toplevel]
+    ["Explain why a particular name is in scope" agda2-why-in-scope-maybe-toplevel]
+    ["Search About" agda2-search-about-toplevel]
+    ["Module contents" agda2-module-contents-maybe-toplevel]
+    ["Evaluate term to normal form" agda2-compute-normalised-maybe-toplevel])
+  "Menu items between `agda2-mode-menu' and `agda2-goal-menu'.")
+
+(easy-menu-define agda2-mode-menu agda2-mode-map
+  "Menu for Agda mode."
+  `(Agda
+    ,@agda2-common-menu-items
+    ["Load" agda2-load]
+    ["Compile" agda2-compile]
+    ["Quit" agda2-quit]
+    ["Kill and restart Agda" agda2-restart]
+    ["Abort a command" agda2-abort]
+    ["Remove goals and highlighting (\"deactivate\")" agda2-remove-annotations]
+    ["Toggle display of hidden arguments" agda2-display-implicit-arguments]
+    ["Toggle display of irrelevant arguments" agda2-display-irrelevant-arguments]
+    ["Show constraints" agda2-show-constraints]
+    ["Show goals" agda2-show-goals]
+    ["Next goal" agda2-next-goal] ; Forward.
+    ["Previous goal" agda2-previous-goal] ; Back.
+    ["Information about the character at point" describe-char]
+    ["Comment/uncomment the rest of the buffer" agda2-comment-dwim-rest-of-buffer]
+    ["Version" agda2-display-program-version]
+    ["Switch to another version of Agda" agda2-set-program-version]))
+
+(easy-menu-define agda2-goal-menu agda2-mode-map
+  "Menu for Agda mode."
+  `(Agda
+    ,@agda2-common-menu-items
+    ["Give" agda2-give]
+    ["Elaborate and Give" agda2-elaborate-give]
+    ["Refine" agda2-refine]
+    ["Case" agda2-make-case]
+    ["Goal type" agda2-goal-type]
+    ["Context (environment)" agda2-show-context]
+    ["Helper function type" agda2-helper-function-type]
+    ["Goal type and context" agda2-goal-and-context]
+    ["Goal type, context and inferred type" agda2-goal-and-context-and-inferred]
+    ["Goal type, context and checked type" agda2-goal-and-context-and-checked]))
 
 (defvar agda2-info-buffer nil
   "Agda information buffer.")
@@ -1927,9 +1964,9 @@ EV is the event object associated with a click."
   (let (choice)
     (save-excursion
       (and (agda2-goal-at (goto-char (posn-point (event-end ev))))
-           (setq choice (x-popup-menu ev agda2-goal-map))
+           (setq choice (x-popup-menu ev agda2-goal-menu))
            (call-interactively
-            (lookup-key agda2-goal-map (apply 'vector choice)))))))
+            (lookup-key agda2-goal-menu (apply 'vector choice)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Switching to a different version of Agda
