@@ -39,7 +39,6 @@ Note that the same version of the Agda executable must be used.")
 (require 'agda2)
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
-(require 'agda2-queue)
 
 ;; Load filladapt, if it is installed.
 (require 'filladapt nil :noerror)
@@ -348,7 +347,7 @@ terminate fairly quickly).")
 ;; process, `agda2-go', `agda2-restart', `agda2-abort-highlighting',
 ;; and `agda2-abort-done'.
 
-(defvar-local agda2-output-chunk-incomplete (agda2-queue-empty)
+(defvar agda2-output-chunk-incomplete (get-buffer-create " *Agda2 Incomplete Output*")
   "Buffer for incomplete lines.
 \(See `agda2-output-filter'.)")
 
@@ -570,9 +569,6 @@ is non-nil and the Agda process is `busy'."
             (and agda2-in-progress
                  agda2-highlight-in-progress)))
 
-  (unless agda2-in-progress
-    (setq agda2-output-chunk-incomplete (agda2-queue-empty)))
-
   (setq agda2-in-progress
         (if (or (eq how-busy 'busy)
                 (eq agda2-in-progress 'busy))
@@ -634,7 +630,6 @@ The non-last commands are run in the order in which they appear.
 When the prompt has been reached highlighting annotations are
 reloaded from `agda2-highlighting-file', unless
 `agda2-highlighting-in-progress' is nil."
-
   ;; Beware: the buffer may have been killed in the mean time.  E.g. when
   ;; viewing an attachment containing Agda code in Gnus, Gnus will
   ;; create a temp buffer, set it in agda2-mode, call font-lock-ensure on it
@@ -642,75 +637,78 @@ reloaded from `agda2-highlighting-file', unless
   ;; extract the fontified text and kill the temp buffer; so when Agda
   ;; finally answers, the temp buffer is long gone.
   (when (buffer-live-p agda2-file-buffer)
-  (setq agda2-in-agda2-file-buffer
-        (and agda2-file-buffer
-             (eq (current-buffer) agda2-file-buffer)))
-  (let (;; The input lines in the current chunk.
-        (lines (split-string chunk "\n"))
+    (setq agda2-in-agda2-file-buffer
+          (and agda2-file-buffer
+               (eq (current-buffer) agda2-file-buffer)))
+    (let (;; The input lines in the current chunk.
+          (lines (split-string chunk "\n"))
 
-        ;; Non-last commands found in the current chunk (reversed).
-        (non-last-commands ())
+          ;; Non-last commands found in the current chunk (reversed).
+          (non-last-commands ())
 
-        ;; Last incomplete line, if any.
-        (output-chunk-incomplete ""))
-    (with-current-buffer agda2-file-buffer
-      (when (consp lines)
-        (agda2-queue-enqueue agda2-output-chunk-incomplete (pop lines))
+          ;; Last incomplete line, if any.
+          (output-chunk-incomplete ""))
+      (with-current-buffer agda2-file-buffer
         (when (consp lines)
-          ;; The previous uncomplete chunk is now complete.
-          (push (agda2-queue-to-string agda2-output-chunk-incomplete)
-                lines)
+          (with-current-buffer agda2-output-chunk-incomplete
+            (goto-char (point-max))
+            (insert (pop lines)))
+          (when (consp lines)
+            ;; The previous uncomplete chunk is now complete.
+            (push (with-current-buffer agda2-output-chunk-incomplete
+                    (prog1 (buffer-string)
+                      (erase-buffer)
+                      ;; Stash away the last incomplete line, if any. (Note that
+                      ;; (split-string "...\n" "\n") evaluates to (... "").)
+                      (setq output-chunk-incomplete (car (last lines)))
+                      (insert output-chunk-incomplete)))
+                  lines))))
 
-          ;; Stash away the last incomplete line, if any. (Note that
-          ;; (split-string "...\n" "\n") evaluates to (... "").)
-          (setq output-chunk-incomplete (car (last lines))
-                agda2-output-chunk-incomplete
-                (agda2-queue-from-string output-chunk-incomplete))
+      ;; Handle every complete line.
+      (dolist (line (butlast lines))
+        (let* (;; The command. Lines which cannot be parsed as a single
+               ;; list, without any junk, are ignored.
+               (cmd (condition-case nil
+                        (let ((result (read-from-string line)))
+                          (if (and (listp (car result))
+                                   (= (cdr result) (length line)))
+                              (car result)))
+                      (error nil)))
+               (is-highlighting-command
+                (and cmd
+                     (symbolp (car cmd))
+                     (let ((case-fold-search nil))
+                       (string-match "^agda2-highlight-"
+                                     (symbol-name (car cmd)))))))
 
-          ;; Handle every complete line.
-          (dolist (line (butlast lines))
-            (let* (;; The command. Lines which cannot be parsed as a single
-                   ;; list, without any junk, are ignored.
-                   (cmd (condition-case nil
-                            (let ((result (read-from-string line)))
-                              (if (and (listp (car result))
-                                       (= (cdr result) (length line)))
-                                  (car result)))
-                          (error nil)))
-                   (is-highlighting-command
-                    (and cmd
-                         (symbolp (car cmd))
-                         (let ((case-fold-search nil))
-                           (string-match "^agda2-highlight-"
-                                         (symbol-name (car cmd)))))))
+          ;; Do not echo highlighting commands.
+          (unless is-highlighting-command
+            (with-current-buffer agda2-process-buffer
+              (save-excursion
+                (goto-char (point-max))
+                (insert line)
+                (insert "\n"))))
+          (when cmd
+            (if (eq 'last (car-safe (car cmd)))
+                (push (cons (cdr (car cmd)) (cdr cmd))
+                      agda2-last-responses)
+              (push cmd non-last-commands)))))
 
-              ;; Do not echo highlighting commands.
-              (unless is-highlighting-command
-                (with-current-buffer agda2-process-buffer
-                  (save-excursion
-                    (goto-char (point-max))
-                    (insert line)
-                    (insert "\n"))))
-              (when cmd
-                (if (eq 'last (car-safe (car cmd)))
-                    (push (cons (cdr (car cmd)) (cdr cmd))
-                          agda2-last-responses)
-                  (push cmd non-last-commands)))))
+      ;; Run non-last commands.
+      (mapc #'agda2-exec-response (nreverse non-last-commands))
 
-          ;; Run non-last commands.
-          (mapc #'agda2-exec-response (nreverse non-last-commands)))
+      ;; Check if the prompt has been reached. This function assumes
+    ;; that the prompt does not include any newline characters.
+    (when (with-current-buffer agda2-output-chunk-incomplete
+            (search-backward-regexp (concat "\\`" agda2-output-prompt) nil t))
+      (with-current-buffer agda2-process-buffer
+        (insert output-chunk-incomplete))
+      (with-current-buffer agda2-output-chunk-incomplete
+        (erase-buffer))
+      (setq agda2-in-progress nil
+            agda2-last-responses (nreverse agda2-last-responses))
 
-        ;; Check if the prompt has been reached. This function assumes
-        ;; that the prompt does not include any newline characters.
-        (when (agda2-queue-is-prefix-of agda2-output-prompt
-                                        agda2-output-chunk-incomplete)
-          (with-current-buffer agda2-process-buffer
-            (insert output-chunk-incomplete))
-          (setq agda2-output-chunk-incomplete (agda2-queue-empty)
-                agda2-in-progress nil
-                agda2-last-responses (nreverse agda2-last-responses))
-
-          (agda2-run-last-commands)))))))
+      (agda2-run-last-commands)))))
 
 (defun agda2-run-last-commands nil
   "Execute the last commands in the right order.
@@ -2054,7 +2052,6 @@ An attempt is made to preserve the default value of
     (unload-feature 'agda-input      'force)
     (unload-feature 'agda2-highlight 'force)
     (unload-feature 'agda2-abbrevs   'force)
-    (unload-feature 'agda2-queue     'force)
 
     ;; Load the new version of Agda.
     (load-file agda-mode-path)
