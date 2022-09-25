@@ -101,6 +101,7 @@ lhsPatternView (p0 : ps) =
 
 -- | Add applicative patterns (non-projection / non-with patterns) to the right.
 lhsCoreApp :: LHSCore -> [NamedArg Pattern] -> LHSCore
+lhsCoreApp (LHSEllipsis r core) ps = LHSEllipsis r $ lhsCoreApp core ps
 lhsCoreApp core ps = core { lhsPats = lhsPats core ++ ps }
 
 -- | Add with-patterns to the right.

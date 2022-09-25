@@ -1014,7 +1014,7 @@ openModule kind mam cm dir = do
             defClash (_, qs) = not $ all (isJust . isConName) ks || all (==FldName) ks
               where ks = map anameKind qs
         -- We report the first clashing exported identifier.
-        unlessNull (filter (\ x -> defClash x) defClashes) $
+        unlessNull (filter defClash defClashes) $
           \ ((x, q:_) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
 
         unlessNull modClashes $ \ ((_, ms) : _) -> do
