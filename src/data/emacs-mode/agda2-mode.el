@@ -180,7 +180,7 @@ constituents.")
 (defvar agda2-mode-map
   (let ((m (make-sparse-keymap)))
     (define-key m (kbd "C-c C-s") #'agda2-solve-maybe-all)
-    (define-key m (kbd "C-c C-a") #'agda2-auto-maybe-all)
+    (define-key m (kbd "C-c C-a") #'agda2-mimer-maybe-all)
     (define-key m (kbd "C-c C-d") #'agda2-infer-type-maybe-toplevel)
     (define-key m (kbd "C-c C-w") #'agda2-why-in-scope-maybe-toplevel)
     (define-key m (kbd "C-c C-z") #'agda2-search-about-toplevel)
@@ -220,51 +220,74 @@ constituents.")
     m)
   "Bindings for `agda2-mode'.")
 
+(defvar agda2-repeat-map
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "C-f")   #'agda2-next-goal)
+    (define-key m (kbd "C-b")   #'agda2-previous-goal)
+    (define-key m (kbd "C-SPC") #'agda2-give)
+    (define-key m (kbd "C-r")   #'agda2-refine)
+    (define-key m (kbd "C-c")   #'agda2-make-case)
+    (define-key m (kbd "C-,")   #'agda2-goal-and-context)
+    (define-key m (kbd "C-.")   #'agda2-goal-and-context-and-inferred)
+    (define-key m (kbd "C-;")   #'agda2-goal-and-context-and-checked)
+    m)
+  "Agda bindings to repeat in conjunction with `repeat-mode'.")
+
+(dolist (command '(agda2-next-goal
+                   agda2-previous-goal
+                   agda2-give
+                   agda2-refine
+                   agda2-make-case
+                   agda2-goal-and-context
+                   agda2-goal-and-context-and-inferred
+                   agda2-goal-and-context-and-checked))
+  (put command 'repeat-map 'agda2-repeat-map))
+
 (defvar agda2-common-menu-items
-  '(["Solve constraints" agda2-solve-maybe-all]
-    ["Auto" agda2-auto-maybe-all]
-    ["Infer (deduce) type" agda2-infer-type-maybe-toplevel]
-    ["Explain why a particular name is in scope" agda2-why-in-scope-maybe-toplevel]
-    ["Search About" agda2-search-about-toplevel]
-    ["Module contents" agda2-module-contents-maybe-toplevel]
-    ["Evaluate term to normal form" agda2-compute-normalised-maybe-toplevel])
+  `(["Solve constraints" ,#'agda2-solve-maybe-all]
+    ["Auto" ,#'agda2-mimer-maybe-all]
+    ["Infer (deduce) type" ,#'agda2-infer-type-maybe-toplevel]
+    ["Explain why a particular name is in scope" ,#'agda2-why-in-scope-maybe-toplevel]
+    ["Search About" ,#'agda2-search-about-toplevel]
+    ["Module contents" ,#'agda2-module-contents-maybe-toplevel]
+    ["Evaluate term to normal form" ,#'agda2-compute-normalised-maybe-toplevel])
   "Menu items between `agda2-mode-menu' and `agda2-goal-menu'.")
 
 (easy-menu-define agda2-mode-menu agda2-mode-map
   "Menu for Agda mode."
   `(Agda
     ,@agda2-common-menu-items
-    ["Load" agda2-load]
-    ["Compile" agda2-compile]
-    ["Quit" agda2-quit]
-    ["Kill and restart Agda" agda2-restart]
-    ["Abort a command" agda2-abort]
-    ["Remove goals and highlighting (\"deactivate\")" agda2-remove-annotations]
-    ["Toggle display of hidden arguments" agda2-display-implicit-arguments]
-    ["Toggle display of irrelevant arguments" agda2-display-irrelevant-arguments]
-    ["Show constraints" agda2-show-constraints]
-    ["Show goals" agda2-show-goals]
-    ["Next goal" agda2-next-goal] ; Forward.
-    ["Previous goal" agda2-previous-goal] ; Back.
-    ["Information about the character at point" describe-char]
-    ["Comment/uncomment the rest of the buffer" agda2-comment-dwim-rest-of-buffer]
-    ["Version" agda2-display-program-version]
-    ["Switch to another version of Agda" agda2-set-program-version]))
+    ["Load" ,#'agda2-load]
+    ["Compile" ,#'agda2-compile]
+    ["Quit" ,#'agda2-quit]
+    ["Kill and restart Agda" ,#'agda2-restart]
+    ["Abort a command" ,#'agda2-abort]
+    ["Remove goals and highlighting (\"deactivate\")" ,#'agda2-remove-annotations]
+    ["Toggle display of hidden arguments" ,#'agda2-display-implicit-arguments]
+    ["Toggle display of irrelevant arguments" ,#'agda2-display-irrelevant-arguments]
+    ["Show constraints" ,#'agda2-show-constraints]
+    ["Show goals" ,#'agda2-show-goals]
+    ["Next goal" ,#'agda2-next-goal] ; Forward.
+    ["Previous goal" ,#'agda2-previous-goal] ; Back.
+    ["Information about the character at point" ,#'describe-char]
+    ["Comment/uncomment the rest of the buffer" ,#'agda2-comment-dwim-rest-of-buffer]
+    ["Version" ,#'agda2-display-program-version]
+    ["Switch to another version of Agda" ,#'agda2-set-program-version]))
 
 (easy-menu-define agda2-goal-menu agda2-mode-map
   "Menu for Agda mode."
   `(Agda
     ,@agda2-common-menu-items
-    ["Give" agda2-give]
-    ["Elaborate and Give" agda2-elaborate-give]
-    ["Refine" agda2-refine]
-    ["Case" agda2-make-case]
-    ["Goal type" agda2-goal-type]
-    ["Context (environment)" agda2-show-context]
-    ["Helper function type" agda2-helper-function-type]
-    ["Goal type and context" agda2-goal-and-context]
-    ["Goal type, context and inferred type" agda2-goal-and-context-and-inferred]
-    ["Goal type, context and checked type" agda2-goal-and-context-and-checked]))
+    ["Give" ,#'agda2-give]
+    ["Elaborate and Give" ,#'agda2-elaborate-give]
+    ["Refine" ,#'agda2-refine]
+    ["Case" ,#'agda2-make-case]
+    ["Goal type" ,#'agda2-goal-type]
+    ["Context (environment)" ,#'agda2-show-context]
+    ["Helper function type" ,#'agda2-helper-function-type]
+    ["Goal type and context" ,#'agda2-goal-and-context]
+    ["Goal type, context and inferred type" ,#'agda2-goal-and-context-and-inferred]
+    ["Goal type, context and checked type" ,#'agda2-goal-and-context-and-checked]))
 
 (defvar agda2-info-buffer nil
   "Agda information buffer.")
