@@ -220,6 +220,29 @@ constituents.")
     m)
   "Bindings for `agda2-mode'.")
 
+(defvar agda2-repeat-map
+  (let ((m (make-sparse-keymap)))
+    (define-key m (kbd "C-f")   #'agda2-next-goal)
+    (define-key m (kbd "C-b")   #'agda2-previous-goal)
+    (define-key m (kbd "C-SPC") #'agda2-give)
+    (define-key m (kbd "C-r")   #'agda2-refine)
+    (define-key m (kbd "C-c")   #'agda2-make-case)
+    (define-key m (kbd "C-,")   #'agda2-goal-and-context)
+    (define-key m (kbd "C-.")   #'agda2-goal-and-context-and-inferred)
+    (define-key m (kbd "C-;")   #'agda2-goal-and-context-and-checked)
+    m)
+  "Agda bindings to repeat in conjunction with `repeat-mode'.")
+
+(dolist (command '(agda2-next-goal
+                   agda2-previous-goal
+                   agda2-give
+                   agda2-refine
+                   agda2-make-case
+                   agda2-goal-and-context
+                   agda2-goal-and-context-and-inferred
+                   agda2-goal-and-context-and-checked))
+  (put command 'repeat-map 'agda2-movement-repeat-map))
+
 (defvar agda2-common-menu-items
   '(["Solve constraints" agda2-solve-maybe-all]
     ["Auto" agda2-auto-maybe-all]
