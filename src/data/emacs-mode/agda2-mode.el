@@ -43,7 +43,6 @@ Note that the same version of the Agda executable must be used.")
 ;; Load filladapt, if it is installed.
 (require 'filladapt nil :noerror)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User options
 
 (defgroup agda2 nil
@@ -146,7 +145,6 @@ to this variable to take effect."
 (if (and (equal agda2-fontset-name "fontset-agda2") window-system)
     (create-fontset-from-fontset-spec agda2-fontset-spec-of-fontset-agda2 t t))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Global and buffer-local vars, initialization
 
 (defvar agda2-mode-syntax-table
@@ -340,8 +338,7 @@ Note that this variable is not buffer-local.")
   "Was `agda2-file-buffer' active when `agda2-output-filter' started?
 Note that this variable is not buffer-local.")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; agda2-mode
+;;;; `agda2-mode' Definition
 
 ;;;###autoload
 (add-to-list 'completion-ignored-extensions ".agdai")
@@ -469,7 +466,6 @@ agda2-include-dirs is not bound." :warning))
 
       (agda2-remove-annotations))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Communicating with Agda
 
 (defun agda2-raise-error ()
@@ -766,7 +762,6 @@ command is sent to Agda (if it is sent)."
   (let ((inhibit-read-only t))
     (eval response)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User commands and response processing
 
 (defun agda2-load ()
@@ -1473,9 +1468,6 @@ computation."
   (interactive)
   (agda2-go nil nil 'busy t "Cmd_show_version"))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;
-
 (defun agda2-highlight-reload ()
   "Load precomputed syntax highlighting info for the current buffer.
 Only if the buffer is unmodified, and only if there is anything to load."
@@ -1623,8 +1615,7 @@ text properties."
               (agda2-mkRange `(,p ,(- q 2)))
               (agda2-string-quote new-txt) nil)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Misc
+;;;; Miscellaneous
 
 (defun agda2-process-status ()
   "Status of `agda2-process-buffer', or \"no process\"."
@@ -1780,8 +1771,7 @@ a file is loaded."
       (goto-char (point-max))
       (insert msg))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Comments and paragraphs
+;;;; Comments and paragraphs
 
 (defun agda2-comments-and-paragraphs-setup nil
   "Set up comment and paragraph handling for the Agda mode."
@@ -1838,8 +1828,7 @@ command might save the buffer."
               (agda2-string-quote (buffer-file-name))
               "Keep")))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Go to definition site
+;;;; Go to definition site
 
 (defun agda2-goto-definition-keyboard (&optional other-window)
   "Go to the definition site of the name under point (if any).
@@ -1895,8 +1884,7 @@ configuration and the selected window are not changed."
                 (with-current-buffer buffer
                   (goto-char (cdr filepos)))))))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Implicit arguments
+;;;; Implicit arguments
 
 (defun agda2-display-implicit-arguments (&optional arg)
   "Toggle display of implicit arguments.
@@ -1911,8 +1899,7 @@ otherwise turn it off."
       (agda2-go nil t 'not-so-busy t "ShowImplicitArgs" "True"))
    (t (agda2-go nil t 'not-so-busy t "ShowImplicitArgs" "False"))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Irrelevant arguments
+;;;; Irrelevant arguments
 
 (defun agda2-display-irrelevant-arguments (&optional arg)
   "Toggle display of irrelevant arguments.
@@ -1927,8 +1914,7 @@ number, otherwise turn it off."
       (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "True"))
    (t (agda2-go nil t 'not-so-busy t "ShowIrrelevantArgs" "False"))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;
+;;;; The pop-up menu
 
 (defun agda2-popup-menu-3 (ev)
   "If in a goal, popup the goal menu and call chosen command.
@@ -1941,8 +1927,7 @@ EV is the event object associated with a click."
            (call-interactively
             (lookup-key agda2-goal-menu (apply 'vector choice)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Switching to a different version of Agda
+;;;; Switching to a different version of Agda
 
 (defun agda2-get-agda-program-versions ()
   "Attempt to detect available Agda versions."
