@@ -1957,7 +1957,7 @@ EV is the event object associated with a click."
 (defun agda2-get-agda-program-versions ()
   "Attempt to detect available Agda versions."
   (let (versions)
-    (dolist (dir (exec-path))
+    (dolist (dir (if (fboundp 'exec-path) (exec-path) exec-path))
       (when (file-accessible-directory-p dir)
         (dolist (file (directory-files dir t))
           (let ((base (file-name-nondirectory file)))
