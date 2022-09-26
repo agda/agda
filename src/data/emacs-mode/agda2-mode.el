@@ -1074,8 +1074,8 @@ For NAME, TEXT and APPEND see `agda2-info-action'."
   (dolist (o (overlays-in (point-min) (point-max)))
     (delete-overlay o))
   (let ((inhibit-read-only t))
-    (annotation-preserve-mod-p-and-undo
-     (set-text-properties (point-min) (point-max) '()))
+    (with-silent-modifications
+      (set-text-properties (point-min) (point-max) '()))
     (force-mode-line-update)))
 
 (defun agda2-next-goal ()     "Go to the next goal, if any."     (interactive)
@@ -1578,17 +1578,17 @@ ways."
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
-  (annotation-preserve-mod-p-and-undo
-   (let ((atp (lambda (x ps) (add-text-properties x (1+ x) ps))))
-     (funcall atp p       '(category agda2-delim1))
-     (funcall atp (1+ p)  '(category agda2-delim2))
-     (funcall atp (- q 2) '(category agda2-delim3))
-     (funcall atp (1- q)  '(category agda2-delim4)))
-   (let ((o (make-overlay p q nil t nil)))
-     (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
-     (overlay-put o 'agda2-gn           n)
-     (overlay-put o 'face               'highlight)
-     (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
+  (with-silent-modifications
+    (let ((atp (lambda (x ps) (add-text-properties x (1+ x) ps))))
+      (funcall atp p       '(category agda2-delim1))
+      (funcall atp (1+ p)  '(category agda2-delim2))
+      (funcall atp (- q 2) '(category agda2-delim3))
+      (funcall atp (1- q)  '(category agda2-delim4)))
+    (let ((o (make-overlay p q nil t nil)))
+      (overlay-put o 'modification-hooks '(agda2-protect-goal-markers))
+      (overlay-put o 'agda2-gn           n)
+      (overlay-put o 'face               'highlight)
+      (overlay-put o 'after-string       (propertize (format "%s" n) 'face 'highlight)))))
 
 (defun agda2-protect-goal-markers (ol action beg end &optional _length)
   "Ensure that the goal overlay OL cannot be tampered with.
@@ -1746,10 +1746,10 @@ characters to the \\xNNNN notation used in Haskell strings."
   "Remove all goal annotations.
 \(Including some text properties which might be used by other
 \(minor) modes.)"
-  (annotation-preserve-mod-p-and-undo
-   (remove-text-properties (point-min) (point-max)
-                           '(category nil agda2-delim2 nil agda2-delim3 nil
-                             display nil rear-nonsticky nil)))
+  (with-silent-modifications
+    (remove-text-properties (point-min) (point-max)
+                            '(category nil agda2-delim2 nil agda2-delim3 nil
+                                       display nil rear-nonsticky nil)))
   (let ((p (point-min)))
     (while (< (setq p (next-single-char-property-change p 'agda2-gn))
               (point-max))
