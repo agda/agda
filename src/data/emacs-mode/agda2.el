@@ -11,6 +11,6 @@
 (autoload 'agda2-mode "agda2-mode"
   "Major mode for editing Agda files (version ≥ 2)." t)
 (add-to-list 'auto-mode-alist '("\\.l?agda\\'" . agda2-mode))
-(modify-coding-system-alist 'file "\\.l?agda\\'" 'utf-8)
+(add-to-list 'file-coding-system-alist '("\\.l?agda\\'" utf-8 . utf-8))
 
 (provide 'agda2)
