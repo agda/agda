@@ -14,6 +14,7 @@
 
 (require 'annotation)
 (require 'font-lock)
+(require 'agda2)
 
 (defgroup agda2-highlight nil
   "Syntax highlighting for Agda."
@@ -554,7 +555,11 @@ removed. Otherwise all token-based syntax highlighting is removed."
 
 (defun agda2-highlight-add-annotations (remove &rest cmds)
   "Like `agda2-highlight-apply'.
-But only if `agda2-highlight-in-progress' is non-nil."
+  (if agda2-highlight-in-progress
+      (apply 'agda2-highlight-apply remove cmds)))
+But only if `agda2-highlight-in-progress' is non-nil.  See
+`agda2-highlight-apply' for details on REMOVE and CMDS."
+  (declare (agda2-command boolean &repeat list))
   (if agda2-highlight-in-progress
       (apply 'agda2-highlight-apply remove cmds)))
 
@@ -573,6 +578,7 @@ Old syntax highlighting information is not removed."
   "Like `agda2-highlight-load', but deletes FILE when done.
 And highlighting is only updated if `agda2-highlight-in-progress'
 is non-nil."
+  (declare (agda2-command string))
   (unwind-protect
       (if agda2-highlight-in-progress
           (agda2-highlight-load file))
@@ -583,6 +589,7 @@ is non-nil."
 
 If TOKEN-BASED is non-nil, then only token-based highlighting is
 removed."
+  (declare (agda2-command boolean))
   (interactive)
   (let ((inhibit-read-only t))
        ; Ignore read-only status, otherwise this function may fail.
