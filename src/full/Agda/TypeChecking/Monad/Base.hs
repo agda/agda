@@ -2182,151 +2182,394 @@ defaultAxiom = Axiom False
 constTranspAxiom :: Defn
 constTranspAxiom = Axiom True
 
-data Defn = Axiom -- ^ Postulate
-            { axiomConstTransp :: Bool
-              -- ^ Can transp for this postulate be constant?
-              --   Set to @True@ for bultins like String.
-            }
-          | DataOrRecSig
-            { datarecPars :: Int }
-            -- ^ Data or record type signature that doesn't yet have a definition
-          | GeneralizableVar -- ^ Generalizable variable (introduced in `generalize` block)
-          | AbstractDefn Defn
-            -- ^ Returned by 'getConstInfo' if definition is abstract.
-          | Function
-            { funClauses        :: [Clause]
-            , funCompiled       :: Maybe CompiledClauses
-              -- ^ 'Nothing' while function is still type-checked.
-              --   @Just cc@ after type and coverage checking and
-              --   translation to case trees.
-            , funSplitTree      :: Maybe SplitTree
-              -- ^ The split tree constructed by the coverage
-              --   checker. Needed to re-compile the clauses after
-              --   forcing translation.
-            , funTreeless       :: Maybe Compiled
-              -- ^ Intermediate representation for compiler backends.
-            , funCovering       :: [Clause]
-              -- ^ Covering clauses computed by coverage checking.
-              --   Erased by (IApply) confluence checking(?)
-            , funInv            :: FunctionInverse
-            , funMutual         :: Maybe [QName]
-              -- ^ Mutually recursive functions, @data@s and @record@s.
-              --   Does include this function.
-              --   Empty list if not recursive.
-              --   @Nothing@ if not yet computed (by positivity checker).
-            , funAbstr          :: IsAbstract
-            , funDelayed        :: Delayed
-              -- ^ Are the clauses of this definition delayed?
-            , funProjection     :: Maybe Projection
-              -- ^ Is it a record projection?
-              --   If yes, then return the name of the record type and index of
-              --   the record argument.  Start counting with 1, because 0 means that
-              --   it is already applied to the record. (Can happen in module
-              --   instantiation.) This information is used in the termination
-              --   checker.
-            , funFlags          :: Set FunctionFlag
-            , funTerminates     :: Maybe Bool
-              -- ^ Has this function been termination checked?  Did it pass?
-            , funExtLam         :: Maybe ExtLamInfo
-              -- ^ Is this function generated from an extended lambda?
-              --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments
-            , funWith           :: Maybe QName
-              -- ^ Is this a generated with-function? If yes, then what's the
-              --   name of the parent function.
-            }
-          | Datatype
-            { dataPars           :: Nat            -- ^ Number of parameters.
-            , dataIxs            :: Nat            -- ^ Number of indices.
-            , dataClause         :: (Maybe Clause) -- ^ This might be in an instantiated module.
-            , dataCons           :: [QName]
-              -- ^ Constructor names , ordered according to the order of their definition.
-            , dataSort           :: Sort
-            , dataMutual         :: Maybe [QName]
-              -- ^ Mutually recursive functions, @data@s and @record@s.
-              --   Does include this data type.
-              --   Empty if not recursive.
-              --   @Nothing@ if not yet computed (by positivity checker).
-            , dataAbstr          :: IsAbstract
-            , dataPathCons       :: [QName]        -- ^ Path constructor names (subset of dataCons)
-            , dataTranspIx       :: Maybe QName    -- ^ if indexed datatype, name of the "index transport" function.
-            , dataTransp         :: Maybe QName
-              -- ^ transport function, should be available for all datatypes in supported sorts.
-            }
-          | Record
-            { recPars           :: Nat
-              -- ^ Number of parameters.
-            , recClause         :: Maybe Clause
-              -- ^ Was this record type created by a module application?
-              --   If yes, the clause is its definition (linking back to the original record type).
-            , recConHead        :: ConHead
-              -- ^ Constructor name and fields.
-            , recNamedCon       :: Bool
-              -- ^ Does this record have a @constructor@?
-            , recFields         :: [Dom QName]
-              -- ^ The record field names.
-            , recTel            :: Telescope
-              -- ^ The record field telescope. (Includes record parameters.)
-              --   Note: @TelV recTel _ == telView' recConType@.
-              --   Thus, @recTel@ is redundant.
-            , recMutual         :: Maybe [QName]
-              -- ^ Mutually recursive functions, @data@s and @record@s.
-              --   Does include this record.
-              --   Empty if not recursive.
-              --   @Nothing@ if not yet computed (by positivity checker).
-            , recEtaEquality'    :: EtaEquality
-              -- ^ Eta-expand at this record type?
-              --   @False@ for unguarded recursive records and coinductive records
-              --   unless the user specifies otherwise.
-            , recPatternMatching :: PatternOrCopattern
-              -- ^ In case eta-equality is off, do we allow pattern matching on the
-              --   constructor or construction by copattern matching?
-              --   Having both loses subject reduction, see issue #4560.
-              --   After positivity checking, this field is obsolete, part of 'EtaEquality'.
-            , recInduction      :: Maybe Induction
-              -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
-              --   'Nothing' means that the user did not specify it, which is an error
-              --   for recursive records.
-            , recTerminates     :: Maybe Bool
-              -- ^ 'Just True' means that unfolding of the recursive record terminates,
-              --   'Just False' means that we have no evidence for termination,
-              --   and 'Nothing' means we have not run the termination checker yet.
-            , recAbstr          :: IsAbstract
-            , recComp           :: CompKit
-            }
-          | Constructor
-            { conPars   :: Int         -- ^ Number of parameters.
-            , conArity  :: Int         -- ^ Number of arguments (excluding parameters).
-            , conSrcCon :: ConHead     -- ^ Name of (original) constructor and fields. (This might be in a module instance.)
-            , conData   :: QName       -- ^ Name of datatype or record type.
-            , conAbstr  :: IsAbstract
-            , conInd    :: Induction   -- ^ Inductive or coinductive?
-            , conComp   :: CompKit     -- ^ Cubical composition.
-            , conProj   :: Maybe [QName] -- ^ Projections. 'Nothing' if not yet computed.
-            , conForced :: [IsForced]
-              -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
-              --   Either this list is empty (if the forcing analysis isn't run), or its length is @conArity@.
-            , conErased :: Maybe [Bool]
-              -- ^ Which arguments are erased at runtime (computed during compilation to treeless)?
-              --   'True' means erased, 'False' means retained.
-              --   'Nothing' if no erasure analysis has been performed yet.
-              --   The length of the list is @conArity@.
-            }
-          | Primitive  -- ^ Primitive or builtin functions.
-            { primAbstr :: IsAbstract
-            , primName  :: String
-            , primClauses :: [Clause]
-              -- ^ 'null' for primitive functions, @not null@ for builtin functions.
-            , primInv      :: FunctionInverse
-              -- ^ Builtin functions can have inverses. For instance, natural number addition.
-            , primCompiled :: Maybe CompiledClauses
-              -- ^ 'Nothing' for primitive functions,
-              --   @'Just' something@ for builtin functions.
-            }
-          | PrimitiveSort
-            { primName :: String
-            , primSort :: Sort
-            }
+data Defn
+  = AxiomDefn AxiomData
+      -- ^ Postulate.
+  | DataOrRecSigDefn DataOrRecSigData
+      -- ^ Data or record type signature that doesn't yet have a definition.
+  | GeneralizableVar
+      -- ^ Generalizable variable (introduced in `generalize` block).
+  | AbstractDefn Defn
+      -- ^ Returned by 'getConstInfo' if definition is abstract.
+  | FunctionDefn FunctionData
+  | DatatypeDefn DatatypeData
+  | RecordDefn RecordData
+  | ConstructorDefn ConstructorData
+  | PrimitiveDefn PrimitiveData
+      -- ^ Primitive or builtin functions.
+  | PrimitiveSortDefn PrimitiveSortData
     deriving (Show, Generic)
+
+{-# COMPLETE
+  Axiom, DataOrRecSig, GeneralizableVar, AbstractDefn,
+  Function, Datatype, Record, Constructor, Primitive, PrimitiveSort #-}
+
+data AxiomData = AxiomData
+  { _axiomConstTransp :: Bool
+    -- ^ Can transp for this postulate be constant?
+    --   Set to @True@ for bultins like String.
+  } deriving (Show, Generic)
+
+pattern Axiom :: Bool -> Defn
+pattern Axiom{ axiomConstTransp } = AxiomDefn (AxiomData axiomConstTransp)
+
+data DataOrRecSigData = DataOrRecSigData
+  { _datarecPars :: Int
+  } deriving (Show, Generic)
+
+pattern DataOrRecSig :: Int -> Defn
+pattern DataOrRecSig{ datarecPars } = DataOrRecSigDefn (DataOrRecSigData datarecPars)
+
+data FunctionData = FunctionData
+  { _funClauses        :: [Clause]
+  , _funCompiled       :: Maybe CompiledClauses
+      -- ^ 'Nothing' while function is still type-checked.
+      --   @Just cc@ after type and coverage checking and
+      --   translation to case trees.
+  , _funSplitTree      :: Maybe SplitTree
+      -- ^ The split tree constructed by the coverage
+      --   checker. Needed to re-compile the clauses after
+      --   forcing translation.
+  , _funTreeless       :: Maybe Compiled
+      -- ^ Intermediate representation for compiler backends.
+  , _funCovering       :: [Clause]
+      -- ^ Covering clauses computed by coverage checking.
+      --   Erased by (IApply) confluence checking(?)
+  , _funInv            :: FunctionInverse
+  , _funMutual         :: Maybe [QName]
+      -- ^ Mutually recursive functions, @data@s and @record@s.
+      --   Does include this function.
+      --   Empty list if not recursive.
+      --   @Nothing@ if not yet computed (by positivity checker).
+  , _funAbstr          :: IsAbstract
+  , _funDelayed        :: Delayed
+      -- ^ Are the clauses of this definition delayed?
+  , _funProjection     :: Maybe Projection
+      -- ^ Is it a record projection?
+      --   If yes, then return the name of the record type and index of
+      --   the record argument.  Start counting with 1, because 0 means that
+      --   it is already applied to the record. (Can happen in module
+      --   instantiation.) This information is used in the termination
+      --   checker.
+  , _funFlags          :: Set FunctionFlag
+  , _funTerminates     :: Maybe Bool
+      -- ^ Has this function been termination checked?  Did it pass?
+  , _funExtLam         :: Maybe ExtLamInfo
+      -- ^ Is this function generated from an extended lambda?
+      --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments.
+  , _funWith           :: Maybe QName
+      -- ^ Is this a generated with-function?
+      --   If yes, then what's the name of the parent function?
+  } deriving (Show, Generic)
+
+pattern Function
+  :: [Clause]
+  -> Maybe CompiledClauses
+  -> Maybe SplitTree
+  -> Maybe Compiled
+  -> [Clause]
+  -> FunctionInverse
+  -> Maybe [QName]
+  -> IsAbstract
+  -> Delayed
+  -> Maybe Projection
+  -> Set FunctionFlag
+  -> Maybe Bool
+  -> Maybe ExtLamInfo
+  -> Maybe QName
+  -> Defn
+pattern Function
+  { funClauses
+  , funCompiled
+  , funSplitTree
+  , funTreeless
+  , funCovering
+  , funInv
+  , funMutual
+  , funAbstr
+  , funDelayed
+  , funProjection
+  , funFlags
+  , funTerminates
+  , funExtLam
+  , funWith
+  } = FunctionDefn (FunctionData
+    funClauses
+    funCompiled
+    funSplitTree
+    funTreeless
+    funCovering
+    funInv
+    funMutual
+    funAbstr
+    funDelayed
+    funProjection
+    funFlags
+    funTerminates
+    funExtLam
+    funWith
+  )
+
+data DatatypeData = DatatypeData
+  { _dataPars           :: Nat
+      -- ^ Number of parameters.
+  , _dataIxs            :: Nat
+      -- ^ Number of indices.
+  , _dataClause         :: Maybe Clause
+      -- ^ This might be in an instantiated module.
+  , _dataCons           :: [QName]
+      -- ^ Constructor names, ordered according to the order of their definition.
+  , _dataSort           :: Sort
+  , _dataMutual         :: Maybe [QName]
+      -- ^ Mutually recursive functions, @data@s and @record@s.
+      --   Does include this data type.
+      --   Empty if not recursive.
+      --   @Nothing@ if not yet computed (by positivity checker).
+  , _dataAbstr          :: IsAbstract
+  , _dataPathCons       :: [QName]
+      -- ^ Path constructor names (subset of @dataCons@).
+  , _dataTranspIx       :: Maybe QName
+      -- ^ If indexed datatype, name of the "index transport" function.
+  , _dataTransp         :: Maybe QName
+      -- ^ Transport function, should be available for all datatypes in supported sorts.
+  } deriving (Show, Generic)
+
+pattern Datatype
+  :: Nat
+  -> Nat
+  -> (Maybe Clause)
+  -> [QName]
+  -> Sort
+  -> Maybe [QName]
+  -> IsAbstract
+  -> [QName]
+  -> Maybe QName
+  -> Maybe QName
+  -> Defn
+
+pattern Datatype
+  { dataPars
+  , dataIxs
+  , dataClause
+  , dataCons
+  , dataSort
+  , dataMutual
+  , dataAbstr
+  , dataPathCons
+  , dataTranspIx
+  , dataTransp
+  } = DatatypeDefn (DatatypeData
+    dataPars
+    dataIxs
+    dataClause
+    dataCons
+    dataSort
+    dataMutual
+    dataAbstr
+    dataPathCons
+    dataTranspIx
+    dataTransp
+  )
+
+data RecordData = RecordData
+  { _recPars           :: Nat
+      -- ^ Number of parameters.
+  , _recClause         :: Maybe Clause
+      -- ^ Was this record type created by a module application?
+      --   If yes, the clause is its definition (linking back to the original record type).
+  , _recConHead        :: ConHead
+      -- ^ Constructor name and fields.
+  , _recNamedCon       :: Bool
+      -- ^ Does this record have a @constructor@?
+  , _recFields         :: [Dom QName]
+      -- ^ The record field names.
+  , _recTel            :: Telescope
+      -- ^ The record field telescope. (Includes record parameters.)
+      --   Note: @TelV recTel _ == telView' recConType@.
+      --   Thus, @recTel@ is redundant.
+  , _recMutual         :: Maybe [QName]
+      -- ^ Mutually recursive functions, @data@s and @record@s.
+      --   Does include this record.
+      --   Empty if not recursive.
+      --   @Nothing@ if not yet computed (by positivity checker).
+  , _recEtaEquality'    :: EtaEquality
+      -- ^ Eta-expand at this record type?
+      --   @False@ for unguarded recursive records and coinductive records
+      --   unless the user specifies otherwise.
+  , _recPatternMatching :: PatternOrCopattern
+      -- ^ In case eta-equality is off, do we allow pattern matching on the
+      --   constructor or construction by copattern matching?
+      --   Having both loses subject reduction, see issue #4560.
+      --   After positivity checking, this field is obsolete, part of 'EtaEquality'.
+  , _recInduction      :: Maybe Induction
+      -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
+      --   'Nothing' means that the user did not specify it, which is an error
+      --   for recursive records.
+  , _recTerminates     :: Maybe Bool
+      -- ^ 'Just True' means that unfolding of the recursive record terminates,
+      --   'Just False' means that we have no evidence for termination,
+      --   and 'Nothing' means we have not run the termination checker yet.
+  , _recAbstr          :: IsAbstract
+  , _recComp           :: CompKit
+  } deriving (Show, Generic)
+
+pattern Record
+  :: Nat
+  -> Maybe Clause
+  -> ConHead
+  -> Bool
+  -> [Dom QName]
+  -> Telescope
+  -> Maybe [QName]
+  -> EtaEquality
+  -> PatternOrCopattern
+  -> Maybe Induction
+  -> Maybe Bool
+  -> IsAbstract
+  -> CompKit
+  -> Defn
+
+pattern Record
+  { recPars
+  , recClause
+  , recConHead
+  , recNamedCon
+  , recFields
+  , recTel
+  , recMutual
+  , recEtaEquality'
+  , recPatternMatching
+  , recInduction
+  , recTerminates
+  , recAbstr
+  , recComp
+  } = RecordDefn (RecordData
+    recPars
+    recClause
+    recConHead
+    recNamedCon
+    recFields
+    recTel
+    recMutual
+    recEtaEquality'
+    recPatternMatching
+    recInduction
+    recTerminates
+    recAbstr
+    recComp
+  )
+
+data ConstructorData = ConstructorData
+  { _conPars   :: Int
+      -- ^ Number of parameters.
+  , _conArity  :: Int
+      -- ^ Number of arguments (excluding parameters).
+  , _conSrcCon :: ConHead
+      -- ^ Name of (original) constructor and fields. (This might be in a module instance.)
+  , _conData   :: QName
+      -- ^ Name of datatype or record type.
+  , _conAbstr  :: IsAbstract
+  , _conInd    :: Induction
+      -- ^ Inductive or coinductive?
+  , _conComp   :: CompKit
+      -- ^ Cubical composition.
+  , _conProj   :: Maybe [QName]
+      -- ^ Projections. 'Nothing' if not yet computed.
+  , _conForced :: [IsForced]
+      -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
+      --   Either this list is empty (if the forcing analysis isn't run), or its length is @conArity@.
+  , _conErased :: Maybe [Bool]
+      -- ^ Which arguments are erased at runtime (computed during compilation to treeless)?
+      --   'True' means erased, 'False' means retained.
+      --   'Nothing' if no erasure analysis has been performed yet.
+      --   The length of the list is @conArity@.
+  } deriving (Show, Generic)
+
+pattern Constructor
+  :: Int
+  -> Int
+  -> ConHead
+  -> QName
+  -> IsAbstract
+  -> Induction
+  -> CompKit
+  -> Maybe [QName]
+  -> [IsForced]
+  -> Maybe [Bool]
+  -> Defn
+pattern Constructor
+  { conPars
+  , conArity
+  , conSrcCon
+  , conData
+  , conAbstr
+  , conInd
+  , conComp
+  , conProj
+  , conForced
+  , conErased
+  } = ConstructorDefn (ConstructorData
+    conPars
+    conArity
+    conSrcCon
+    conData
+    conAbstr
+    conInd
+    conComp
+    conProj
+    conForced
+    conErased
+  )
+
+data PrimitiveData = PrimitiveData
+  { _primAbstr    :: IsAbstract
+  , _primName     :: String
+  , _primClauses  :: [Clause]
+      -- ^ 'null' for primitive functions, @not null@ for builtin functions.
+  , _primInv      :: FunctionInverse
+      -- ^ Builtin functions can have inverses. For instance, natural number addition.
+  , _primCompiled :: Maybe CompiledClauses
+      -- ^ 'Nothing' for primitive functions,
+      --   @'Just' something@ for builtin functions.
+  } deriving (Show, Generic)
+
+pattern Primitive
+  :: IsAbstract
+  -> String
+  -> [Clause]
+  -> FunctionInverse
+  -> Maybe CompiledClauses
+  -> Defn
+pattern Primitive
+  { primAbstr
+  , primName
+  , primClauses
+  , primInv
+  , primCompiled
+  } = PrimitiveDefn (PrimitiveData
+    primAbstr
+    primName
+    primClauses
+    primInv
+    primCompiled
+  )
+
+data PrimitiveSortData = PrimitiveSortData
+  { _primSortName :: String
+  , _primSortSort :: Sort
+  } deriving (Show, Generic)
+
+pattern PrimitiveSort
+  :: String
+  -> Sort
+  -> Defn
+pattern PrimitiveSort
+  { primSortName
+  , primSortSort
+  } = PrimitiveSortDefn (PrimitiveSortData
+    primSortName
+    primSortSort
+  )
 
 instance Pretty Definition where
   pretty Defn{..} =
@@ -2404,8 +2647,8 @@ instance Pretty Defn where
       , "primCompiled =" <?> pshow primCompiled ] <?> "}"
   pretty PrimitiveSort{..} =
     "PrimitiveSort {" <?> vcat
-      [ "primName =" <?> pshow primName
-      , "primSort =" <?> pshow primSort
+      [ "primSortName =" <?> pshow primSortName
+      , "primSortSort =" <?> pshow primSortSort
       ] <?> "}"
 
 instance Pretty Projection where
@@ -4934,6 +5177,14 @@ instance NFData ExtLamInfo
 instance NFData EtaEquality
 instance NFData FunctionFlag
 instance NFData CompKit
+instance NFData AxiomData
+instance NFData DataOrRecSigData
+instance NFData FunctionData
+instance NFData DatatypeData
+instance NFData RecordData
+instance NFData ConstructorData
+instance NFData PrimitiveData
+instance NFData PrimitiveSortData
 instance NFData Defn
 instance NFData Simplification
 instance NFData AllowedReduction
