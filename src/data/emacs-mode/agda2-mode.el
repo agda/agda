@@ -587,14 +587,6 @@ May be more efficient than restarting Agda."
                       "Indirect"
                       "Cmd_abort"))
 
-(defun agda2-abort-done ()
-  "Reset certain variables.
-Intended to be used by the backend if an abort command was
-successful."
-  (agda2-info-action "*Aborted*" "Aborted." t)
-  (setq agda2-highlight-in-progress nil
-        agda2-last-responses        nil))
-
 (defun agda2-output-filter (_proc chunk)
   "Evaluate the Agda partial output CHUNK.
 This filter function assumes that every line contains either some
@@ -770,16 +762,43 @@ command is sent to Agda (if it is sent)."
              (if input-from-goal (agda2-goal-Range o) (agda2-mkRange nil))
              (agda2-string-quote txt) args))))
 
-;; Note that the following function is a security risk, since it
-;; evaluates code without first inspecting it. The code (supposedly)
-;; comes from the Agda backend, but there could be bugs in the backend
-;; which can be exploited by an attacker which manages to trick
-;; someone into type-checking compromised Agda code.
-
 (defun agda2-exec-response (response)
-  "Execute RESPONSE with `inhibit-read-only' enabled."
-  (let ((inhibit-read-only t))
-    (eval response)))
+  "Execute RESPONSE if recognised by `agda2-handler-alist'."
+  (cl-assert (symbolp (car-safe response)))
+  ;; We check the symbol property `agda2-safe-function' for the
+  ;; function being called, instead of just calling `eval'.  This is
+  ;; done to avoid the possible security risks of evaluating foreign
+  ;; code.  The arguments are likewise not evaluated, just unquoted
+  ;; and checked if they satisfy the expected types.
+  (save-buffer)
+  (let* ((inhibit-read-only t)
+         (func (car response))
+         (safe-p (plist-member (symbol-plist func) 'agda2-safe-function))
+         (safe-data (get func 'agda2-safe-function))
+         args)
+    (unless safe-p
+      (error "The function `%S' is not a valid Agda command" func))
+    ;; Check each argument
+    (dolist (arg (cdr response))
+      (when (null safe-data)
+        (error "More arguments than expected"))
+      (when (eq (car-safe arg) 'quote) ;unquote arguments
+        (setq arg(cadr arg)))
+      (let ((type (pop safe-data)))
+        (unless (cl-typep arg type)
+          (error "The function `%S' was invoked with %S which is not a %S"
+                 func arg type)))
+      (push arg args))
+    (apply func (nreverse args))))
+
+(defun agda2-abort-done ()
+  "Reset certain variables.
+Intended to be used by the backend if an abort command was
+successful."
+  (declare (agda2-cmd))
+  (agda2-info-action "*Aborted*" "Aborted." t)
+  (setq agda2-highlight-in-progress nil
+        agda2-last-responses        nil))
 
 ;;;; User commands and response processing
 
@@ -848,11 +867,14 @@ The action depends on the prefix argument:
 (defun agda2-give-action (old-g paren)
   "Update the goal OLD-G with the expression in it.
 See `agda2-update' for details on PAREN."
+  (declare (agda2-cmd integer (or (eql paren)
+                                  (eql no-paren)
+                                  null)))
   (let
-     ;; Don't run modification hooks: we don't want this to
+      ;; Don't run modification hooks: we don't want this to
       ;; trigger agda2-abort-highlighting.
       ((inhibit-modification-hooks t))
-  (agda2-update old-g paren)))
+    (agda2-update old-g paren)))
 
 (defun agda2-refine (pmlambda)
   "Refine the goal at point.
@@ -891,6 +913,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
 
 (defun agda2-make-case-action (newcls)
   "Replace the line at point with new clauses NEWCLS and reload."
+  (declare (agda2-cmd list))
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
          (p1 (goto-char (+ (current-indentation) (line-beginning-position))))
@@ -905,6 +928,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
 
 (defun agda2-make-case-action-extendlam (newcls)
   "Replace definition of extended lambda with new clauses NEWCLS and reload."
+  (declare (agda2-cmd list))
   (agda2-forget-all-goals);; we reload later anyway.
   (let* ((p0 (point))
          (pmax (re-search-forward "!}"))
@@ -932,6 +956,7 @@ Assumes that <clause> = {!<variables>!} is on one line."
   "Display the string STATUS in the current buffer's mode line.
 \(precondition: the current buffer has to use the Agda mode as the
 major mode)."
+  (declare (agda2-cmd string))
   (setq agda2-buffer-external-status status)
   (force-mode-line-update))
 
@@ -982,6 +1007,7 @@ buffer, and point placed after this text.
 
 If APPEND is nil, then any previous text is removed before TEXT
 is inserted, and point is placed before this text."
+  (declare (agda2-cmd string string boolean))
   (interactive)
   (let ((buf (agda2-info-buffer)))
     (with-current-buffer buf
@@ -1054,6 +1080,7 @@ is inserted, and point is placed before this text."
 (defun agda2-info-action-and-copy (name text &optional append)
   "Add TEXT to kill ring before invoking `agda2-info-action'.
 For NAME, TEXT and APPEND see `agda2-info-action'."
+  (declare (agda2-cmd string string t))
   (kill-new text)
   (agda2-info-action name text append))
 
@@ -1413,6 +1440,7 @@ Either only one if point is a goal, or all of them."
   "Call `agda2-solve-action' on every pair of the the plist ISS.
 The key of the plist is a goal, and the value is a string that
 ought to be inserted."
+  (declare (agda2-cmd list))
   (while iss
     (let* ((g (pop iss)) (txt (pop iss))
            (cmd (cons #'agda2-solve-action (cons g (cons txt nil)))))
@@ -1506,6 +1534,7 @@ which they appear in the buffer.  Note that this function should
 be run /after/ syntax highlighting information has been loaded,
 because the two highlighting mechanisms interact in unfortunate
 ways."
+  (declare (agda2-cmd list))
   (agda2-forget-all-goals)
   (let ((literate (agda2-literate-p))
         ;; Don't run modification hooks: we don't want this function to
@@ -1785,6 +1814,7 @@ To do: dealing with semicolon separated decls."
   "Append the string MSG to the `agda2-debug-buffer-name' buffer.
 Note that this buffer's contents is not erased automatically when
 a file is loaded."
+  (declare (agda2-cmd string))
   (with-current-buffer (get-buffer-create agda2-debug-buffer-name)
     (save-excursion
       (goto-char (point-max))
@@ -1885,6 +1915,7 @@ FILE (assuming that the FILE is readable).  Otherwise point is
 moved to the given position in the buffer visiting the file, if
 any, and in every window displaying the buffer, but the window
 configuration and the selected window are not changed."
+  (declare (agda2-cmd cons))
   (when (and agda2-highlight-in-progress
              (consp filepos)
              (stringp (car filepos))
