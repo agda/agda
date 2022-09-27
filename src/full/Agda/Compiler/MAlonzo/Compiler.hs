@@ -710,7 +710,7 @@ definition def@Defn{defName = q, defType = ty, theDef = d} = do
                    fb axiomErr
       Primitive{ primName = s } -> (mempty,) . fb <$> (liftTCM . primBody) s
 
-      PrimitiveSort{ primName = s } -> retDecls []
+      PrimitiveSort{} -> retDecls []
 
       Function{} -> function pragma $ functionViaTreeless q
 

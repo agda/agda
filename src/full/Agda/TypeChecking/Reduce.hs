@@ -647,7 +647,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         then reducePrimitive x v0 f es pf dontUnfold
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
-    PrimitiveSort{ primSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
+    PrimitiveSort{ primSortSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
 
     _  -> do
       if or
