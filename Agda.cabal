@@ -677,7 +677,9 @@ library
                  -Wduplicate-exports
                  -Wempty-enumerations
                  -Widentities
-                 -Wincomplete-patterns
+                 -- #6137: GHC 8.0 has no COMPLETE pragma, so we have to turn off the completeness checker
+                 -- -Wincomplete-patterns
+                 -- -Wincomplete-record-updates
                  -Winline-rule-shadowing
                  -Wmissing-fields
                  -Wmissing-methods
@@ -686,7 +688,8 @@ library
                  -Wnoncanonical-monad-instances
                  -Wnoncanonical-monoid-instances
                  -Woverflowed-literals
-                 -Woverlapping-patterns
+                 -- #6137: GHC 8.0 has no COMPLETE pragma, so we have to turn off the completeness checker
+                 -- -Woverlapping-patterns
                  -Wsemigroup
                  -Wtabs
                  -Wtyped-holes
@@ -709,7 +712,6 @@ library
                  -Werror=duplicate-exports
                  -Werror=empty-enumerations
                  -Werror=identities
-                 -Werror=incomplete-patterns
                  -Werror=inline-rule-shadowing
                  -Werror=missing-fields
                  -Werror=missing-methods
@@ -755,6 +757,9 @@ library
 
   if impl(ghc >= 9.0)
     ghc-options: -Werror=invalid-haddock
+                 -- #6137: coverage checker works only sufficiently well from GHC 9.0
+                 -Werror=incomplete-patterns
+                 -Werror=incomplete-record-updates
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.
@@ -1010,7 +1015,9 @@ test-suite agda-tests
                  -Wduplicate-exports
                  -Wempty-enumerations
                  -Widentities
-                 -Wincomplete-patterns
+                 -- #6137: GHC 8.0 has no COMPLETE pragma, so we have to turn off the completeness checker
+                 -- -Wincomplete-patterns
+                 -- -Wincomplete-record-updates
                  -Winline-rule-shadowing
                  -Wmissing-fields
                  -Wmissing-methods
@@ -1019,7 +1026,8 @@ test-suite agda-tests
                  -Wnoncanonical-monad-instances
                  -Wnoncanonical-monoid-instances
                  -Woverflowed-literals
-                 -Woverlapping-patterns
+                 -- #6137: GHC 8.0 has no COMPLETE pragma, so we have to turn off the completeness checker
+                 -- -Woverlapping-patterns
                  -Wsemigroup
                  -Wtabs
                  -Wtyped-holes
@@ -1042,7 +1050,6 @@ test-suite agda-tests
                  -Werror=duplicate-exports
                  -Werror=empty-enumerations
                  -Werror=identities
-                 -Werror=incomplete-patterns
                  -Werror=inline-rule-shadowing
                  -Werror=missing-fields
                  -Werror=missing-methods
@@ -1095,6 +1102,9 @@ test-suite agda-tests
   if impl(ghc >= 9.0)
     ghc-options: -Werror=compat-unqualified-imports
                  -Werror=invalid-haddock
+                 -- #6137: coverage checker works only sufficiently well from GHC 9.0
+                 -Werror=incomplete-patterns
+                 -Werror=incomplete-record-updates
 
   -- ASR (2022-04-27). This warning was added in GHC 9.0.2, removed
   -- from 9.2.1 and added back in 9.2.2.

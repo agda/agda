@@ -2200,9 +2200,12 @@ data Defn
   | PrimitiveSortDefn PrimitiveSortData
     deriving (Show, Generic)
 
+-- The COMPLETE pragma is new in GHC 8.2
+#if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE
   Axiom, DataOrRecSig, GeneralizableVar, AbstractDefn,
   Function, Datatype, Record, Constructor, Primitive, PrimitiveSort #-}
+#endif
 
 data AxiomData = AxiomData
   { _axiomConstTransp :: Bool
