@@ -46,6 +46,7 @@ import Agda.Utils.Benchmark
 import qualified Agda.Utils.BiMap as BiMap
 import Agda.Utils.Functor
 import Agda.Utils.Impossible
+import Agda.Utils.Lens
 import Agda.Utils.List (downFrom, hasElem)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -885,7 +886,6 @@ fillInGenRecordDetails name con fields recTy fieldTel = do
   reportSDoc "tc.generalize" 40 $ text "Final genRecCon type:" <+> inTopContext (prettyTCM conType)
   setType (conName con) conType
   -- Record telescope: Includes both parameters and fields.
-  modifyGlobalDefinition name $ \ r ->
-    r { theDef = (theDef r) { recTel = fullTel } }
+  modifyGlobalDefinition name $ set (lensTheDef . lensRecord . lensRecTel) fullTel
   where
     setType q ty = modifyGlobalDefinition q $ \ d -> d { defType = ty }

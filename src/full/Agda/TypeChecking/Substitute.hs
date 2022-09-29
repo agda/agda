@@ -676,16 +676,19 @@ instance Abstract Defn where
             , funProjection = Just p } ->
       -- Andreas, 2015-05-11 if projection was applied to Var 0
       -- then abstract over last element of tel (the others are params).
-      if projIndex p > 0 then d' else
-        d' { funClauses  = map (abstractClause tel1) cs
-           , funCompiled = abstract tel1 cc
-           , funCovering = abstract tel1 cov
-           , funInv      = abstract tel1 inv
-           , funExtLam   = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
-           }
+      if projIndex p > 0 then
+        d { funProjection = Just $ abstract tel p
+          , funClauses    = map (abstractClause EmptyTel) cs
+          }
+      else
+        d { funProjection = Just $ abstract tel p
+          , funClauses    = map (abstractClause tel1) cs
+          , funCompiled   = abstract tel1 cc
+          , funCovering   = abstract tel1 cov
+          , funInv        = abstract tel1 inv
+          , funExtLam     = modifySystem (\ _ -> __IMPOSSIBLE__) <$> extLam
+          }
         where
-          d' = d { funProjection = Just $ abstract tel p
-                 , funClauses    = map (abstractClause EmptyTel) cs }
           tel1 = telFromList $ drop (size tel - 1) $ telToList tel
           -- #5128: clause telescopes should be abstracted over the full telescope, regardless of
           --        projection shenanigans.
