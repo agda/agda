@@ -141,21 +141,21 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let npars = size tel
 
             -- Change the datatype from an axiom to a datatype with no constructors.
-            let dataDef = Datatype
-                  { dataPars       = npars
-                  , dataIxs        = nofIxs
-                  , dataClause     = Nothing
-                  , dataCons       = []     -- Constructors are added later
-                  , dataSort       = s
-                  , dataAbstr      = Info.defAbstract i
-                  , dataMutual     = Nothing
-                  , dataPathCons   = []     -- Path constructors are added later
-                  , dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
-                  , dataTransp     = Nothing -- Added later
+            let dataDef = DatatypeData
+                  { _dataPars       = npars
+                  , _dataIxs        = nofIxs
+                  , _dataClause     = Nothing
+                  , _dataCons       = []     -- Constructors are added later
+                  , _dataSort       = s
+                  , _dataAbstr      = Info.defAbstract i
+                  , _dataMutual     = Nothing
+                  , _dataPathCons   = []     -- Path constructors are added later
+                  , _dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
+                  , _dataTransp     = Nothing -- Added later
                   }
 
             escapeContext impossible npars $ do
-              addConstant' name defaultArgInfo name t dataDef
+              addConstant' name defaultArgInfo name t $ DatatypeDefn dataDef
                 -- polarity and argOcc.s determined by the positivity checker
 
             -- Check the types of the constructors
@@ -180,7 +180,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                 checkIndexSorts s' ixTel
 
             -- Return the data definition
-            return dataDef{ dataPathCons = catMaybes pathCons
+            return dataDef{ _dataPathCons = catMaybes pathCons
                           }
 
         let cons   = map A.axiomName cs  -- get constructor names
@@ -190,16 +190,16 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             (do mtranspix <- inTopContext $ defineTranspIx name
                 transpFun <- inTopContext $
                                defineTranspFun name mtranspix cons
-                                 (dataPathCons dataDef)
+                                 (_dataPathCons dataDef)
                 return (mtranspix, transpFun))
             (return (Nothing, Nothing))
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
-        addConstant' name defaultArgInfo name t $
-            dataDef{ dataCons = cons
-                   , dataTranspIx = mtranspix
-                   , dataTransp   = transpFun
+        addConstant' name defaultArgInfo name t $ DatatypeDefn
+            dataDef{ _dataCons = cons
+                   , _dataTranspIx = mtranspix
+                   , _dataTransp   = transpFun
                    }
 
 -- | Make sure that the target universe admits data type definitions.
