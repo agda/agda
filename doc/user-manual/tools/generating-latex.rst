@@ -83,6 +83,22 @@ Known pitfalls and issues
       \usepackage{newunicodechar}
       \newunicodechar{λ}{\ensuremath{\mathnormal\lambda}}
 
+    In recent versions of LuaLaTeX, you can avoid using
+    ``\newunicodechar`` at all by instead setting up
+    a chain of fallback fonts, e.g.
+
+    .. code-block:: latex
+
+        \usepackage{luaotfload}
+        \directlua{luaotfload.add_fallback
+          ("mycustomfallback",
+            { "SymbolamonospacifiedforSourceCodePro:style=Regular;"
+            , "NotoSansMono:style=Regular;"
+            , "NotoSansMath:style=Regular;"
+            }
+          )}
+        \defaultfontfeatures{RawFeature={fallback=mycustomfallback}}
+
 * If ``<`` and ``>`` are typeset like ``¡`` and ``¿``, then the
   problem might be that you are using pdfLaTeX and have not selected a
   suitable font encoding.
