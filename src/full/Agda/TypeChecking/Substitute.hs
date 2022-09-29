@@ -1109,11 +1109,14 @@ instance Subst Candidate where
 
 instance Subst EqualityView where
   type SubstArg EqualityView = Term
-  applySubst rho (OtherType t) = OtherType
-    (applySubst rho t)
-  applySubst rho (IdiomType t) = IdiomType
-    (applySubst rho t)
-  applySubst rho (EqualityType s eq l t a b) = EqualityType
+  applySubst rho = \case
+    OtherType t          -> OtherType $ applySubst rho t
+    IdiomType t          -> IdiomType $ applySubst rho t
+    EqualityViewType eqt -> EqualityViewType $ applySubst rho eqt
+
+instance Subst EqualityTypeData where
+  type SubstArg EqualityTypeData = Term
+  applySubst rho (EqualityTypeData s eq l t a b) = EqualityTypeData
     (applySubst rho s)
     eq
     (map (applySubst rho) l)

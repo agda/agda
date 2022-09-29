@@ -705,16 +705,31 @@ instance Null (Substitution' a) where
 -- | View type as equality type.
 
 data EqualityView
-  = EqualityType
-    { eqtSort  :: Sort     -- ^ Sort of this type.
-    , eqtName  :: QName    -- ^ Builtin EQUALITY.
-    , eqtParams :: [Arg Term] -- ^ Hidden.  Empty or @Level@.
-    , eqtType  :: Arg Term -- ^ Hidden
-    , eqtLhs   :: Arg Term -- ^ NotHidden
-    , eqtRhs   :: Arg Term -- ^ NotHidden
-    }
+  = EqualityViewType EqualityTypeData
   | OtherType Type -- ^ reduced
   | IdiomType Type -- ^ reduced
+
+data EqualityTypeData = EqualityTypeData
+    { _eqtSort   :: Sort        -- ^ Sort of this type.
+    , _eqtName   :: QName       -- ^ Builtin EQUALITY.
+    , _eqtParams :: Args        -- ^ Hidden.  Empty or @Level@.
+    , _eqtType   :: Arg Term    -- ^ Hidden.
+    , _eqtLhs    :: Arg Term    -- ^ NotHidden.
+    , _eqtRhs    :: Arg Term    -- ^ NotHidden.
+    }
+
+pattern EqualityType
+  :: Sort
+  -> QName
+  -> Args
+  -> Arg Term
+  -> Arg Term
+  -> Arg Term
+  -> EqualityView
+pattern EqualityType{ eqtSort, eqtName, eqtParams, eqtType, eqtLhs, eqtRhs } =
+  EqualityViewType (EqualityTypeData eqtSort eqtName eqtParams eqtType eqtLhs eqtRhs)
+
+{-# COMPLETE EqualityType, OtherType, IdiomType #-}
 
 isEqualityType :: EqualityView -> Bool
 isEqualityType EqualityType{} = True
