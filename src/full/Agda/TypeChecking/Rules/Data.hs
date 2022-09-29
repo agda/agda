@@ -1365,7 +1365,7 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   lang <- getLanguage
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (emptyFunction { funTerminates = Just True }))
+       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True }))
       { defNoCompilation = True }
   -- ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (u0 : R (δ i0))
   -- Γ ⊢     rtype = R (δ i1)
@@ -1523,7 +1523,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
   lang <- getLanguage
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (emptyFunction { funTerminates = Just True }))
+       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True }))
       { defNoCompilation = True }
   --   ⊢ Γ = gamma = (δ : Δ) (φ : I) (_ : (i : I) -> Partial φ (R δ)) (_ : R δ)
   -- Γ ⊢     rtype = R δ

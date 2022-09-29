@@ -184,28 +184,27 @@ checkAlias t ai delayed i name e mc =
         _          -> id
 
   -- Add the definition
-  addConstant' name ai name t
-                   $ set funMacro (Info.defMacro i == MacroDef) $
-                     emptyFunction
-                      { funClauses = [ Clause  -- trivial clause @name = v@
-                          { clauseLHSRange  = getRange i
-                          , clauseFullRange = getRange i
-                          , clauseTel       = EmptyTel
-                          , namedClausePats = []
-                          , clauseBody      = Just $ bodyMod v
-                          , clauseType      = Just $ Arg ai t
-                          , clauseCatchall    = False
-                          , clauseExact       = Just True
-                          , clauseRecursive   = Nothing   -- we don't know yet
-                          , clauseUnreachable = Just False
-                          , clauseEllipsis    = NoEllipsis
-                          , clauseWhereModule = Nothing
-                          } ]
-                      , funCompiled = Just $ Done [] $ bodyMod v
-                      , funSplitTree = Just $ SplittingDone 0
-                      , funDelayed  = delayed
-                      , funAbstr    = Info.defAbstract i
-                      }
+  addConstant' name ai name t $ set funMacro (Info.defMacro i == MacroDef) $
+      FunctionDefn emptyFunctionData
+          { _funClauses   = [ Clause  -- trivial clause @name = v@
+              { clauseLHSRange    = getRange i
+              , clauseFullRange   = getRange i
+              , clauseTel         = EmptyTel
+              , namedClausePats   = []
+              , clauseBody        = Just $ bodyMod v
+              , clauseType        = Just $ Arg ai t
+              , clauseCatchall    = False
+              , clauseExact       = Just True
+              , clauseRecursive   = Nothing   -- we don't know yet
+              , clauseUnreachable = Just False
+              , clauseEllipsis    = NoEllipsis
+              , clauseWhereModule = Nothing
+              } ]
+          , _funCompiled  = Just $ Done [] $ bodyMod v
+          , _funSplitTree = Just $ SplittingDone 0
+          , _funDelayed   = delayed
+          , _funAbstr     = Info.defAbstract i
+          }
 
   -- Andreas, 2017-01-01, issue #2372:
   -- Add the definition to the instance table, if needed, to update its type.
@@ -420,16 +419,16 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
           -- funTerminates field directly.
           defn <- autoInline $
              set funMacro (ismacro || Info.defMacro i == MacroDef) $
-             emptyFunction
-             { funClauses        = cs
-             , funCompiled       = Just cc
-             , funSplitTree      = mst
-             , funDelayed        = delayed
-             , funInv            = inv
-             , funAbstr          = Info.defAbstract i
-             , funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
-             , funWith           = with
-             , funCovering       = covering
+             FunctionDefn emptyFunctionData
+             { _funClauses        = cs
+             , _funCompiled       = Just cc
+             , _funSplitTree      = mst
+             , _funDelayed        = delayed
+             , _funInv            = inv
+             , _funAbstr          = Info.defAbstract i
+             , _funExtLam         = (\ e -> e { extLamSys = sys }) <$> extlam
+             , _funWith           = with
+             , _funCovering       = covering
              }
           lang <- getLanguage
           useTerPragma $

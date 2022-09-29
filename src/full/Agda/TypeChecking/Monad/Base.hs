@@ -2679,23 +2679,26 @@ recEtaEquality :: Defn -> HasEta
 recEtaEquality = theEtaEquality . recEtaEquality'
 
 -- | A template for creating 'Function' definitions, with sensible defaults.
-emptyFunction :: Defn
-emptyFunction = Function
-  { funClauses     = []
-  , funCompiled    = Nothing
-  , funSplitTree   = Nothing
-  , funTreeless    = Nothing
-  , funInv         = NotInjective
-  , funMutual      = Nothing
-  , funAbstr       = ConcreteDef
-  , funDelayed     = NotDelayed
-  , funProjection  = Nothing
-  , funFlags       = Set.empty
-  , funTerminates  = Nothing
-  , funExtLam      = Nothing
-  , funWith        = Nothing
-  , funCovering    = []
+emptyFunctionData :: FunctionData
+emptyFunctionData = FunctionData
+  { _funClauses     = []
+  , _funCompiled    = Nothing
+  , _funSplitTree   = Nothing
+  , _funTreeless    = Nothing
+  , _funInv         = NotInjective
+  , _funMutual      = Nothing
+  , _funAbstr       = ConcreteDef
+  , _funDelayed     = NotDelayed
+  , _funProjection  = Nothing
+  , _funFlags       = Set.empty
+  , _funTerminates  = Nothing
+  , _funExtLam      = Nothing
+  , _funWith        = Nothing
+  , _funCovering    = []
   }
+
+emptyFunction :: Defn
+emptyFunction = FunctionDefn emptyFunctionData
 
 funFlag :: FunctionFlag -> Lens' Bool Defn
 funFlag flag f def@Function{ funFlags = flags } =

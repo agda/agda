@@ -539,15 +539,15 @@ applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = 
                         set funMacro  (oldDef ^. funMacro) $
                         set funStatic (oldDef ^. funStatic) $
                         set funInline True $
-                        emptyFunction
-                        { funClauses        = [cl]
-                        , funCompiled       = Just cc
-                        , funSplitTree      = mst
-                        , funMutual         = mutual
-                        , funProjection     = proj
-                        , funTerminates     = Just True
-                        , funExtLam         = extlam
-                        , funWith           = with
+                        FunctionDefn emptyFunctionData
+                        { _funClauses        = [cl]
+                        , _funCompiled       = Just cc
+                        , _funSplitTree      = mst
+                        , _funMutual         = mutual
+                        , _funProjection     = proj
+                        , _funTerminates     = Just True
+                        , _funExtLam         = extlam
+                        , _funWith           = with
                         }
                   reportSDoc "tc.mod.apply" 80 $ ("new def for" <+> pretty x) <?> pretty newDef
                   return newDef

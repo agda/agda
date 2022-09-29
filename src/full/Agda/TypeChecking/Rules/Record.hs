@@ -740,14 +740,14 @@ checkRecordProjections m r hasNamedCon con tel ftel fs = do
         escapeContext impossible (size tel) $ do
           lang <- getLanguage
           addConstant projname $
-            (defaultDefn ai projname (killRange finalt) lang
-              emptyFunction
-                { funClauses        = [clause]
-                , funCompiled       = Just cc
-                , funSplitTree      = mst
-                , funProjection     = Just projection
-                , funMutual         = Just []  -- Projections are not mutually recursive with anything
-                , funTerminates     = Just True
+            (defaultDefn ai projname (killRange finalt) lang $ FunctionDefn
+              emptyFunctionData
+                { _funClauses        = [clause]
+                , _funCompiled       = Just cc
+                , _funSplitTree      = mst
+                , _funProjection     = Just projection
+                , _funMutual         = Just []  -- Projections are not mutually recursive with anything
+                , _funTerminates     = Just True
                 })
               { defArgOccurrences = [StrictPos]
               , defCopatternLHS   = hasProjectionPatterns cc
