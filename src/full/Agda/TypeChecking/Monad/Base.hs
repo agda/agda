@@ -2571,6 +2571,31 @@ pattern PrimitiveSort
     primSortSort
   )
 
+-- TODO: lenses for all Defn variants
+
+lensFunction :: Lens' FunctionData Defn
+lensFunction f = \case
+  FunctionDefn d -> FunctionDefn <$> f d
+  _ -> __IMPOSSIBLE__
+
+lensConstructor :: Lens' ConstructorData Defn
+lensConstructor f = \case
+  ConstructorDefn d -> ConstructorDefn <$> f d
+  _ -> __IMPOSSIBLE__
+
+lensRecord :: Lens' RecordData Defn
+lensRecord f = \case
+  RecordDefn d -> RecordDefn <$> f d
+  _ -> __IMPOSSIBLE__
+
+-- Lenses for Record
+
+lensRecTel :: Lens' Telescope RecordData
+lensRecTel f r =
+  f (_recTel r) <&> \ tel -> r { _recTel = tel }
+
+-- Pretty printing definitions
+
 instance Pretty Definition where
   pretty Defn{..} =
     "Defn {" <?> vcat
