@@ -671,23 +671,23 @@ defineProjections dataName con params names fsT t = do
     noMutualBlock $ do
       let cs = [ clause ]
       (mst, _, cc) <- compileClauses Nothing cs
-      let fun = emptyFunction
-                { funClauses    = cs
-                , funCompiled   = Just cc
-                , funSplitTree  = mst
-                , funProjection = Just $ Projection
+      let fun = emptyFunctionData
+                { _funClauses    = cs
+                , _funCompiled   = Just cc
+                , _funSplitTree  = mst
+                , _funProjection = Just $ Projection
                     { projProper   = Nothing
                     , projOrig     = projName
                     , projFromType = Arg (getArgInfo ty) dataName
                     , projIndex    = np + 1
                     , projLams     = ProjLams $ map (argFromDom . fmap fst) $ telToList projTel
                     }
-                , funMutual     = Just []
-                , funTerminates = Just True
+                , _funMutual     = Just []
+                , _funTerminates = Just True
                 }
       lang <- getLanguage
       inTopContext $ addConstant projName $
-        (defaultDefn defaultArgInfo projName (unDom projType) lang fun)
+        (defaultDefn defaultArgInfo projName (unDom projType) lang $ FunctionDefn fun)
           { defNoCompilation  = True
           , defArgOccurrences = [StrictPos]
           }
@@ -786,13 +786,13 @@ defineTranspIx d = do
         let cs = [ clause ]
 --        we do not compile clauses as that leads to throwing missing clauses errors.
 --        (mst, _, cc) <- compileClauses Nothing cs
-        let fun = emptyFunction
-                  { funClauses    = cs
-               --   , funCompiled   = Just cc
-               --   , funSplitTree  = mst
-                  , funProjection = Nothing
-                  , funMutual     = Just []
-                  , funTerminates = Just True
+        let fun = emptyFunctionData
+                  { _funClauses    = cs
+               --   , _funCompiled   = Just cc
+               --   , _funSplitTree  = mst
+                  , _funProjection = Nothing
+                  , _funMutual     = Just []
+                  , _funTerminates = Just True
                   }
         inTopContext $ do
          reportSDoc "tc.transpx.type" 15 $ vcat
@@ -801,7 +801,7 @@ defineTranspIx d = do
            ]
 
          addConstant trIx $
-          (defaultDefn defaultArgInfo trIx theType (Cubical CErased) fun)
+          (defaultDefn defaultArgInfo trIx theType (Cubical CErased) $ FunctionDefn fun)
             { defNoCompilation  = True
             }
 
@@ -896,16 +896,16 @@ defineTranspFun d mtrX cons pathCons = do
         ecs <- tryTranspError $ (clause:) <$> defineConClause trD (not $ null pathCons) mtrX npars nixs ixs telI sigma dTs cons
         caseEitherM (pure ecs) (\ cl -> debugNoTransp cl >> return Nothing) $ \ cs -> do
         (mst, _, cc) <- compileClauses Nothing cs
-        let fun = emptyFunction
-                  { funClauses    = cs
-                  , funCompiled   = Just cc
-                  , funSplitTree  = mst
-                  , funProjection = Nothing
-                  , funMutual     = Just []
-                  , funTerminates = Just True
+        let fun = emptyFunctionData
+                  { _funClauses    = cs
+                  , _funCompiled   = Just cc
+                  , _funSplitTree  = mst
+                  , _funProjection = Nothing
+                  , _funMutual     = Just []
+                  , _funTerminates = Just True
                   }
         inTopContext $ addConstant trD $
-          (defaultDefn defaultArgInfo trD theType (Cubical CErased) fun)
+          (defaultDefn defaultArgInfo trD theType (Cubical CErased) $ FunctionDefn fun)
             { defNoCompilation  = True
             }
         reportSDoc "tc.data.transp" 20 $ sep
