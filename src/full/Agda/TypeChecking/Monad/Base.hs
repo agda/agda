@@ -2591,11 +2591,38 @@ instance Pretty Definition where
       , "theDef            =" <?> pretty theDef ] <+> "}"
 
 instance Pretty Defn where
-  pretty Axiom{} = "Axiom"
-  pretty (DataOrRecSig n)   = "DataOrRecSig" <+> pretty n
-  pretty GeneralizableVar{} = "GeneralizableVar"
-  pretty (AbstractDefn def) = "AbstractDefn" <?> parens (pretty def)
-  pretty Function{..} =
+  pretty = \case
+    AxiomDefn _         -> "Axiom"
+    DataOrRecSigDefn d  -> pretty d
+    GeneralizableVar    -> "GeneralizableVar"
+    AbstractDefn def    -> "AbstractDefn" <?> parens (pretty def)
+    FunctionDefn d      -> pretty d
+    DatatypeDefn d      -> pretty d
+    RecordDefn d        -> pretty d
+    ConstructorDefn d   -> pretty d
+    PrimitiveDefn d     -> pretty d
+    PrimitiveSortDefn d -> pretty d
+
+instance Pretty DataOrRecSigData where
+  pretty (DataOrRecSigData n) = "DataOrRecSig" <+> pretty n
+
+instance Pretty FunctionData where
+  pretty (FunctionData
+      funClauses
+      funCompiled
+      funSplitTree
+      funTreeless
+      _funCovering
+      funInv
+      funMutual
+      funAbstr
+      funDelayed
+      funProjection
+      funFlags
+      funTerminates
+      _funExtLam
+      funWith
+    ) =
     "Function {" <?> vcat
       [ "funClauses      =" <?> vcat (map pretty funClauses)
       , "funCompiled     =" <?> pretty funCompiled
@@ -2608,8 +2635,22 @@ instance Pretty Defn where
       , "funProjection   =" <?> pretty funProjection
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
-      , "funWith         =" <?> pretty funWith ] <?> "}"
-  pretty Datatype{..} =
+      , "funWith         =" <?> pretty funWith
+      ] <?> "}"
+
+instance Pretty DatatypeData where
+  pretty (DatatypeData
+      dataPars
+      dataIxs
+      dataClause
+      dataCons
+      dataSort
+      dataMutual
+      _dataAbstr
+      _dataPathCons
+      _dataTranspIx
+      _dataTransp
+    ) =
     "Datatype {" <?> vcat
       [ "dataPars       =" <?> pshow dataPars
       , "dataIxs        =" <?> pshow dataIxs
@@ -2617,8 +2658,25 @@ instance Pretty Defn where
       , "dataCons       =" <?> pshow dataCons
       , "dataSort       =" <?> pretty dataSort
       , "dataMutual     =" <?> pshow dataMutual
-      , "dataAbstr      =" <?> pshow dataAbstr ] <?> "}"
-  pretty Record{..} =
+      , "dataAbstr      =" <?> pshow dataAbstr
+      ] <?> "}"
+
+instance Pretty RecordData where
+  pretty (RecordData
+      recPars
+      recClause
+      recConHead
+      recNamedCon
+      recFields
+      recTel
+      recMutual
+      recEtaEquality'
+      _recPatternMatching
+      recInduction
+      _recTerminates
+      recAbstr
+      _recComp
+    ) =
     "Record {" <?> vcat
       [ "recPars         =" <?> pshow recPars
       , "recClause       =" <?> pretty recClause
@@ -2629,8 +2687,22 @@ instance Pretty Defn where
       , "recMutual       =" <?> pshow recMutual
       , "recEtaEquality' =" <?> pshow recEtaEquality'
       , "recInduction    =" <?> pshow recInduction
-      , "recAbstr        =" <?> pshow recAbstr ] <?> "}"
-  pretty Constructor{..} =
+      , "recAbstr        =" <?> pshow recAbstr
+      ] <?> "}"
+
+instance Pretty ConstructorData where
+  pretty (ConstructorData
+      conPars
+      conArity
+      conSrcCon
+      conData
+      conAbstr
+      conInd
+      _conComp
+      _conProj
+      _conForced
+      conErased
+    ) =
     "Constructor {" <?> vcat
       [ "conPars   =" <?> pshow conPars
       , "conArity  =" <?> pshow conArity
@@ -2638,14 +2710,26 @@ instance Pretty Defn where
       , "conData   =" <?> pretty conData
       , "conAbstr  =" <?> pshow conAbstr
       , "conInd    =" <?> pshow conInd
-      , "conErased =" <?> pshow conErased ] <?> "}"
-  pretty Primitive{..} =
+      , "conErased =" <?> pshow conErased
+      ] <?> "}"
+
+instance Pretty PrimitiveData where
+  pretty (PrimitiveData
+      primAbstr
+      primName
+      primClauses
+      _primInv
+      primCompiled
+      ) =
     "Primitive {" <?> vcat
       [ "primAbstr    =" <?> pshow primAbstr
       , "primName     =" <?> pshow primName
       , "primClauses  =" <?> pshow primClauses
-      , "primCompiled =" <?> pshow primCompiled ] <?> "}"
-  pretty PrimitiveSort{..} =
+      , "primCompiled =" <?> pshow primCompiled
+      ] <?> "}"
+
+instance Pretty PrimitiveSortData where
+  pretty (PrimitiveSortData primSortName primSortSort) =
     "PrimitiveSort {" <?> vcat
       [ "primSortName =" <?> pshow primSortName
       , "primSortSort =" <?> pshow primSortSort
