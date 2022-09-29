@@ -1994,8 +1994,8 @@ data NumGeneralizableArgs
     --   'SomeGeneralizableArgs', also when the number is zero.
   deriving Show
 
-theDefLens :: Lens' Defn Definition
-theDefLens f d = f (theDef d) <&> \ df -> d { theDef = df }
+lensTheDef :: Lens' Defn Definition
+lensTheDef f d = f (theDef d) <&> \ df -> d { theDef = df }
 
 -- | Create a definition with sensible defaults.
 defaultDefn ::

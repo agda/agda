@@ -22,6 +22,8 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Term
 
+import Agda.Utils.Lens
+
 -- | The type of @∞@.
 
 typeOfInf :: TCM Type
@@ -164,10 +166,10 @@ bindBuiltinFlat x =
                 }
 
     -- register flat as record field for constructor sharp
-    modifySignature $ updateDefinition sharp $ updateTheDef $ \ def ->
-      def { conSrcCon = sharpCon }
-    modifySignature $ updateDefinition inf $ updateTheDef $ \ def ->
-      def { recConHead = sharpCon, recFields = [defaultDom flat] }
+    modifySignature $ updateDefinition sharp $ updateTheDef $ over lensConstructor $ \ def ->
+      def { _conSrcCon = sharpCon }
+    modifySignature $ updateDefinition inf $ updateTheDef $ over lensRecord $ \ def ->
+      def { _recConHead = sharpCon, _recFields = [defaultDom flat] }
     return $ Def flat []
 
 -- The coinductive primitives.

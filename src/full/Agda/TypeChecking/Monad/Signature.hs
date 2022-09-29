@@ -181,7 +181,7 @@ getUniqueCompilerPragma backend q = do
                        vcat [ "-" <+> pretty (getRange p) | p <- ps ]
 
 setFunctionFlag :: FunctionFlag -> Bool -> QName -> TCM ()
-setFunctionFlag flag val q = modifyGlobalDefinition q $ set (theDefLens . funFlag flag) val
+setFunctionFlag flag val q = modifyGlobalDefinition q $ set (lensTheDef . funFlag flag) val
 
 markStatic :: QName -> TCM ()
 markStatic = setFunctionFlag FunStatic True
