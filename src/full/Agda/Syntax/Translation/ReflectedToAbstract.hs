@@ -207,10 +207,18 @@ mkMetaInfo = do
   return $ emptyMetaInfo { metaScope = scope }
 
 mkDef :: HasConstInfo m => QName -> m A.Expr
-mkDef f =
-  ifM (isMacro . theDef <$> getConstInfo f)
-      (return $ A.Macro f)
-      (return $ A.Def f)
+mkDef f = getConstInfo f <&> theDef <&> \case
+
+  Constructor{}
+    -> A.Con $ unambiguous f
+
+  Function{ funProjection = Just Projection{ projProper = Just{} } }
+    -> A.Proj ProjSystem $ unambiguous f
+
+  d@Function{} | isMacro d
+    -> A.Macro f
+
+  _ -> A.Def f
 
 mkApp :: A.Expr -> A.Expr -> A.Expr
 mkApp e1 e2 = A.App (setOrigin Reflected defaultAppInfo_) e1 $ defaultNamedArg e2
