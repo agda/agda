@@ -647,12 +647,13 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
   lang <- getLanguage
   let defn = defaultDefn info x t lang $
         case kind of   -- #4833: set abstract already here so it can be inherited by with functions
-          FunName   -> emptyFunction{ funAbstr = Info.defAbstract i }
-          MacroName -> set funMacro True emptyFunction{ funAbstr = Info.defAbstract i }
+          FunName   -> fun
+          MacroName -> set funMacro True fun
           DataName  -> DataOrRecSig npars
           RecName   -> DataOrRecSig npars
           AxiomName -> defaultAxiom     -- Old comment: NB: used also for data and record type sigs
           _         -> __IMPOSSIBLE__
+        where fun = FunctionDefn $ emptyFunctionData{ _funAbstr = Info.defAbstract i }
 
   addConstant x =<< do
     useTerPragma $ defn
