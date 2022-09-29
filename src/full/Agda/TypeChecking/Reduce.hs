@@ -1677,10 +1677,10 @@ instance InstantiateFull Interface where
 
 instantiateFullExceptForDefinitions' :: Interface -> ReduceM Interface
 instantiateFullExceptForDefinitions'
-  (Interface h s ft ms mod scope inside sig metas display userwarn
+  (Interface h s ft ms mod tlmod scope inside sig metas display userwarn
      importwarn b foreignCode highlighting libPragmas filePragmas
      usedOpts patsyns warnings partialdefs) =
-  Interface h s ft ms mod scope inside
+  Interface h s ft ms mod tlmod scope inside
     <$> ((\s r -> Sig { _sigSections     = s
                       , _sigDefinitions  = sig ^. sigDefinitions
                       , _sigRewriteRules = r

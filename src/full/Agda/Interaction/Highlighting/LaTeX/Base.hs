@@ -757,7 +757,8 @@ generateLaTeXIO :: (MonadLogLaTeX m, MonadIO m) => LaTeXOptions -> Interface -> 
 generateLaTeXIO opts i = do
   let textWidthEstimator = getTextWidthEstimator (latexOptCountClusters opts)
   let baseDir = latexOptOutDir opts
-  let outPath = baseDir </> (latexOutRelativeFilePath $ toTopLevelModuleName $ iModuleName i)
+  let outPath = baseDir </>
+                latexOutRelativeFilePath (iTopLevelModuleName i)
   latex <- E.encodeUtf8 <$> toLaTeX
               (emptyEnv textWidthEstimator)
               (latexOptSourceFileName opts)

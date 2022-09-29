@@ -1227,6 +1227,7 @@ buildInterface src topLevel = do
           , iFileType        = fileType
           , iImportedModules = mhs
           , iModuleName      = mname
+          , iTopLevelModuleName = srcModuleName src
           , iScope           = empty -- publicModules scope
           , iInsideScope     = topLevelScope topLevel
           , iSignature       = sig

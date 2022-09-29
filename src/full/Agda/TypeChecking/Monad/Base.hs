@@ -978,6 +978,8 @@ data Interface = Interface
     -- ^ Imported modules and their hashes.
   , iModuleName      :: ModuleName
     -- ^ Module name of this interface.
+  , iTopLevelModuleName :: C.TopLevelModuleName
+    -- ^ The module's top-level module name.
   , iScope           :: Map ModuleName Scope
     -- ^ Scope defined by this module.
     --
@@ -1016,10 +1018,10 @@ data Interface = Interface
 
 instance Pretty Interface where
   pretty (Interface
-            sourceH source fileT importedM moduleN scope insideS signature
-            metas display userwarn importwarn builtin foreignCode
-            highlighting libPragmaO filePragmaO oUsed patternS warnings
-            partialdefs) =
+            sourceH source fileT importedM moduleN topModN scope insideS
+            signature metas display userwarn importwarn builtin
+            foreignCode highlighting libPragmaO filePragmaO oUsed
+            patternS warnings partialdefs) =
 
     hang "Interface" 2 $ vcat
       [ "source hash:"         <+> (pretty . show) sourceH
@@ -1027,6 +1029,7 @@ instance Pretty Interface where
       , "file type:"           <+> (pretty . show) fileT
       , "imported modules:"    <+> (pretty . show) importedM
       , "module name:"         <+> pretty moduleN
+      , "top-level module name:" <+> pretty topModN
       , "scope:"               <+> (pretty . show) scope
       , "inside scope:"        <+> (pretty . show) insideS
       , "signature:"           <+> (pretty . show) signature

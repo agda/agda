@@ -51,7 +51,7 @@ getImportPath = asksTC envImportPath
 visitModule :: ModuleInfo -> TCM ()
 visitModule mi =
   modifyTCLens stVisitedModules $
-    Map.insert (toTopLevelModuleName $ iModuleName $ miInterface mi) mi
+    Map.insert (iTopLevelModuleName $ miInterface mi) mi
 
 setVisitedModules :: VisitedModules -> TCM ()
 setVisitedModules ms = setTCLens stVisitedModules ms
@@ -88,7 +88,7 @@ storeDecodedModule :: ModuleInfo -> TCM ()
 storeDecodedModule mi = modifyTC $ \s ->
   s { stPersistentState =
         (stPersistentState s) { stDecodedModules =
-          Map.insert (toTopLevelModuleName $ iModuleName $ miInterface mi) mi $
+          Map.insert (iTopLevelModuleName $ miInterface mi) mi $
             stDecodedModules (stPersistentState s)
         }
   }
