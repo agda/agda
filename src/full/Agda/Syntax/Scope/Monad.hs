@@ -1010,8 +1010,12 @@ openModule kind mam cm dir = do
             modClashes = filter (\ (_c, as) -> length as >= 2) $ Map.toList $ nsModules exported
 
             -- No ambiguity if concrete identifier is only mapped to
-            -- constructor names or only to projection names.
-            defClash (_, qs) = not $ all (isJust . isConName) ks || all (==FldName) ks
+            -- constructor names or only to projection names or only to pattern synonyms.
+            defClash (_, qs) = not $ or
+              [ all (isJust . isConName) ks
+              , all (== FldName)         ks
+              , all (== PatternSynName)  ks
+              ]
               where ks = map anameKind qs
         -- We report the first clashing exported identifier.
         unlessNull (filter defClash defClashes) $
