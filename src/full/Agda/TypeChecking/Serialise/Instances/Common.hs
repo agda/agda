@@ -503,7 +503,15 @@ instance EmbPrj a => EmbPrj (HasEta' a) where
     valu [a] = valuN NoEta a
     valu _   = malformed
 
-instance EmbPrj PatternOrCopattern
+instance EmbPrj PatternOrCopattern where
+  icod_ = \case
+    PatternMatching a b -> icodeN' PatternMatching a b
+    CopatternMatching   -> icodeN' CopatternMatching
+
+  value = vcase $ \case
+    [a, b] -> valuN PatternMatching a b
+    []     -> valuN CopatternMatching
+    _      -> malformed
 
 instance EmbPrj Induction where
   icod_ Inductive   = icodeN' Inductive

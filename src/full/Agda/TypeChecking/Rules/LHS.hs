@@ -1453,7 +1453,7 @@ checkLHS mf = updateModality checkLHS_ where
 
 -- | Ensures that we are not performing pattern matching on coinductive constructors.
 
-checkMatchingAllowed :: (MonadTCError m)
+checkMatchingAllowed :: (HasConstInfo m, MonadTCError m, MonadTCState m)
   => QName         -- ^ The name of the data or record type the constructor belongs to.
   -> DataOrRecord  -- ^ Information about data or (co)inductive (no-)eta-equality record.
   -> m ()
@@ -1462,7 +1462,7 @@ checkMatchingAllowed d = \case
     | Just CoInductive <- ind -> typeError $
         GenericError "Pattern matching on coinductive types is not allowed"
     | not $ patternMatchingAllowed eta -> typeError $ SplitOnNonEtaRecord d
-    | otherwise -> return ()
+    | otherwise -> registerRecordMatching d
   IsData -> return ()
 
 -- | When working with a monad @m@ implementing @MonadTCM@ and @MonadError TCErr@,

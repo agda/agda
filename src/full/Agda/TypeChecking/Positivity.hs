@@ -170,7 +170,7 @@ checkStrictlyPositive mi qset = do
             -- otherwise, if the record is recursive, mark it as well
             Just o | o <= GuardPos -> do
               reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
-              recursiveRecord q
+              updateEtaForRecord q
               checkInduction q
             -- If the record is not recursive, switch on eta
             -- unless it is coinductive or a no-eta-equality record.
@@ -178,7 +178,7 @@ checkStrictlyPositive mi qset = do
               reportSDoc "tc.pos.record" 10 $
                 "record type " <+> prettyTCM q <+>
                 "is not recursive"
-              nonRecursiveRecord q
+              updateEtaForRecord q
             _ -> return ()
 
     checkInduction :: QName -> TCM ()

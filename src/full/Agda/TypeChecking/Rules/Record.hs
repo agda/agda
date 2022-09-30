@@ -371,7 +371,7 @@ checkRecDef i name uc (RecordDirectives ind eta0 pat con) (A.DataDefParams gpars
   -- If the user declared the record constructor as @pattern@,
   -- then switch on pattern matching for no-eta-equality.
   -- Default is no pattern matching, but definition by copatterns instead.
-  patCopat = maybe CopatternMatching (const PatternMatching) pat
+  patCopat = maybe CopatternMatching (`PatternMatching` False) pat
   eta      = (patCopat <$) <$> eta0
 
 

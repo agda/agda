@@ -153,28 +153,37 @@ type HasEta0 = HasEta' ()
 
 -- | For a record without eta, which type of matching do we allow?
 data PatternOrCopattern
-  = PatternMatching
+  = PatternMatching Range !Bool
       -- ^ Can match on the record constructor.
+      --   'Range' of @pattern@ keyword.
+      --   Initially 'False'; 'True' if pattern has already been used on a lhs.
   | CopatternMatching
       -- ^ Can copattern match using the projections. (Default.)
-  deriving (Show, Eq, Ord, Enum, Bounded)
+  deriving (Show, Eq)
 
 instance NFData PatternOrCopattern where
-  rnf PatternMatching   = ()
-  rnf CopatternMatching = ()
+  rnf = \case
+    PatternMatching _ _ -> ()
+    CopatternMatching -> ()
 
 instance HasRange PatternOrCopattern where
-  getRange _ = noRange
+  getRange = \case
+    PatternMatching r _ -> r
+    CopatternMatching -> noRange
 
 instance KillRange PatternOrCopattern where
-  killRange = id
+  killRange = \case
+    PatternMatching r b -> PatternMatching noRange b
+    CopatternMatching -> CopatternMatching
 
 -- | Can we pattern match on the record constructor?
 class PatternMatchingAllowed a where
   patternMatchingAllowed :: a -> Bool
 
 instance PatternMatchingAllowed PatternOrCopattern where
-  patternMatchingAllowed = (== PatternMatching)
+  patternMatchingAllowed = \case
+    PatternMatching{} -> True
+    CopatternMatching -> False
 
 instance PatternMatchingAllowed HasEta where
   patternMatchingAllowed = \case

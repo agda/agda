@@ -459,6 +459,16 @@ is on.  If you want the converse, you can add the record directive
   pred : HereditaryList → List HereditaryList
   pred record{ sublists = ts } = ts
 
+If ``pattern`` is given for record types that have η, Agda will alert
+the user of a redundant ``pattern`` directive.  However, there is an
+exception:  While checking a mutual block, Agda might first turn off η
+for a record that has not explicitly been labelled with
+``eta-equality``, and only at the end of the mutual block infer that η
+is safe for this record and switch it on.  To allow pattern matching
+on such record constructor in the mutual block, you may supply the
+``pattern`` directive.  However, it is rather recommended to turn on
+``eta-equality`` manually in such cases.
+
 .. _instance-fields:
 
 Instance fields
