@@ -1,3 +1,4 @@
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.Auto.Typecheck where
 
@@ -12,6 +13,7 @@ import Agda.Auto.SearchControl
 
 import Agda.Utils.Impossible
 import Agda.Utils.List
+import Agda.Utils.Maybe
 
 -- ---------------------------------
 
@@ -19,20 +21,23 @@ import Agda.Utils.List
 tcExp :: Bool -> Ctx o -> CExp o -> MExp o -> EE (MyPB o)
 tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
   mbpcase prioTypeUnknown Nothing (hnn_checkstep ityp) $ \(hntyp, iotastepdone) ->
-  mmpcase (True, prioTypecheck isdep, Just (RIMainInfo (length ctx) hntyp iotastepdone)) trm $ \trm -> case trm of
+  mmpcase (True, prioTypecheck isdep, Just (RIMainInfo (length ctx) hntyp iotastepdone)) trm $ \case
    App _ okh elr args -> case rawValue hntyp of
     HNPi{} | isdep -> mpret $ Error "tcExp, dep terms should be eta-long"
     _ -> do
-     (ityp, sc) <- case elr of
-              Var v -> -- assuming within scope
-               return (weak (v + 1) (snd $ ctx !! v), id)
+     res <- case elr of
+              Var v ->
+                case ctx !!! v of
+                  Nothing     -> return Nothing
+                  Just (_, a) -> return $ Just (weak (v+1) a, id)
               Const c -> do
                cdef <- readIORef c
-               return (closify (cdtype cdef), \x -> mpret $ And (Just [Term args]) (noiotastep_term c args) x)
+               return $ Just (closify (cdtype cdef), mpret . And (Just [Term args]) (noiotastep_term c args))
+     caseMaybe res (mpret $ Error "tcExp, variable not in scope") $ \ (ityp, sc) -> do
 
      ndfv <- case elr of
               Var{} -> return 0
-              Const c -> readIORef c >>= \cd -> return (cddeffreevars cd)
+              Const c -> cddeffreevars <$> readIORef c
 
 
      isconstructor <- case elr of
