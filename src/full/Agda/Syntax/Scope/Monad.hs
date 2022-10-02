@@ -51,7 +51,7 @@ import Agda.Utils.CallStack ( CallStack, HasCallStack, withCallerCallStack )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.List1 (List1, pattern (:|), nonEmpty)
+import Agda.Utils.List1 (List1, pattern (:|), nonEmpty, toList)
 import Agda.Utils.List2 (List2(List2))
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
@@ -529,7 +529,13 @@ bindName'' acc kind meta x y = do
 --   later on.
 rebindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 rebindName acc kind x y = do
-  modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
+  if kind == ConName
+    then modifyCurrentScope $
+           mapScopeNS (localNameSpace acc)
+                      (Map.update (toList <.> nonEmpty . (filter ((==) ConName . anameKind))) x)
+                      id
+                      id
+    else modifyCurrentScope $ removeNameFromScope (localNameSpace acc) x
   bindName acc kind x y
 
 -- | Bind a module name.
@@ -1004,11 +1010,15 @@ openModule kind mam cm dir = do
             modClashes = filter (\ (_c, as) -> length as >= 2) $ Map.toList $ nsModules exported
 
             -- No ambiguity if concrete identifier is only mapped to
-            -- constructor names or only to projection names.
-            defClash (_, qs) = not $ all (isJust . isConName) ks || all (==FldName) ks
+            -- constructor names or only to projection names or only to pattern synonyms.
+            defClash (_, qs) = not $ or
+              [ all (isJust . isConName) ks
+              , all (== FldName)         ks
+              , all (== PatternSynName)  ks
+              ]
               where ks = map anameKind qs
         -- We report the first clashing exported identifier.
-        unlessNull (filter (\ x -> defClash x) defClashes) $
+        unlessNull (filter defClash defClashes) $
           \ ((x, q:_) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q) Nothing
 
         unlessNull modClashes $ \ ((_, ms) : _) -> do

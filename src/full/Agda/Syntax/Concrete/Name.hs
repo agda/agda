@@ -11,7 +11,6 @@ import Data.ByteString.Char8 (ByteString)
 import Data.Function
 import qualified Data.Foldable as Fold
 import qualified Data.List as List
-import Data.Data (Data)
 
 import GHC.Generics (Generic)
 
@@ -51,7 +50,6 @@ data Name
     { nameRange     :: Range
     , nameId        :: NameId
     }
-  deriving Data
 
 type NameParts = List1 NamePart
 
@@ -74,7 +72,7 @@ instance Underscore Name where
 data NamePart
   = Hole       -- ^ @_@ part.
   | Id RawName  -- ^ Identifier part.
-  deriving (Data, Generic)
+  deriving Generic
 
 -- | Define equality on @Name@ to ignore range so same names in different
 --   locations are equal.
@@ -117,7 +115,7 @@ instance Ord NamePart where
 data QName
   = Qual  Name QName -- ^ @A.rest@.
   | QName Name       -- ^ @x@.
-  deriving (Data, Eq, Ord)
+  deriving (Eq, Ord)
 
 instance Underscore QName where
   underscore = QName underscore
@@ -132,7 +130,7 @@ data TopLevelModuleName = TopLevelModuleName
   { moduleNameRange :: Range
   , moduleNameParts :: List1 String
   }
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 instance Eq    TopLevelModuleName where (==)    = (==)    `on` moduleNameParts
 instance Ord   TopLevelModuleName where compare = compare `on` moduleNameParts
@@ -225,7 +223,7 @@ isNonfix  x = not (isHole (List1.head xs)) && not (isHole (List1.last xs)) where
 ------------------------------------------------------------------------
 
 data NameInScope = InScope | NotInScope
-  deriving (Eq, Show, Data)
+  deriving (Eq, Show)
 
 class LensInScope a where
   lensInScope :: Lens' NameInScope a

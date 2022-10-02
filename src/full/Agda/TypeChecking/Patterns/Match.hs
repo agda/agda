@@ -57,7 +57,7 @@ matchedArgs' n vs = map get [0 .. n - 1]
 buildSubstitution :: (DeBruijn a)
                   => Impossible -> Int -> IntMap (Arg a) -> Substitution' a
 buildSubstitution err n vs = foldr cons idS $ matchedArgs' n vs
-  where cons Nothing  = Strengthen err
+  where cons Nothing  = strengthenS' err 1
         cons (Just v) = consS (unArg v)
 
 
@@ -272,7 +272,7 @@ matchPattern p u = case (p, u) of
         t@(Def q [l,a,x,y,phi,p]) | Just q == mconid
                 -> Just t
         -- TODO this covers the transpIx functions, but it's a hack.
-        t@(Def q _) | NotBlocked{blockingStatus = MissingClauses} <- r -> Just t
+        t@(Def q _) | NotBlocked{blockingStatus = MissingClauses _} <- r -> Just t
         _       -> Nothing
 
   -- DefP hcomp and ConP matching.

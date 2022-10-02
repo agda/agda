@@ -46,7 +46,6 @@ import Control.Monad.Writer
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 import Data.Char
-import Data.Data ( Data )
 import Data.Either
 import Data.Function
 import Data.Map ( Map )
@@ -58,6 +57,7 @@ import qualified Data.Text as T
 import System.Directory
 import System.FilePath
 import System.Environment
+import Text.Printf
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
@@ -387,15 +387,27 @@ parseExecutablesFile
   :: ExecutablesFile
   -> [(LineNumber, FilePath)]
   -> LibErrorIO (Map ExeName FilePath)
-parseExecutablesFile ef files =
-  fmap (Map.fromList . catMaybes) . forM files $ \(ln, fp) -> do
-
+parseExecutablesFile ef files = do
+  executables <- forM files $ \(ln, fp) -> do
     -- Compute canonical executable name and absolute filepath.
     let strExeName  = takeFileName fp
     let strExeName' = fromMaybe strExeName $ stripExtension exeExtension strExeName
     let txtExeName  = T.pack strExeName'
     exePath <- liftIO $ makeAbsolute fp
-    return $ Just (txtExeName, exePath)
+    return (txtExeName, exePath)
+  let exeMap = Map.fromList executables
+      -- Issue #5525: check for duplicate entries in executables file
+      duplicates = [ (exe, paths)
+                   | exe <- Map.keys exeMap
+                   , let paths = [ path | (exe', path) <- executables
+                                        , exe' == exe ]
+                   , length paths > 1 ]
+  when (not $ null duplicates) $
+    raiseErrors' [ OtherError $ unlines
+                              $ (printf "Duplicate entries for executable '%s' in %s:" exe (efPath ef))
+                              : [ "  - " ++ path | path <- paths ]
+                 | (exe, paths) <- duplicates ]
+  return $ Map.fromList executables
 
 ------------------------------------------------------------------------
 -- * Resolving library names to include pathes

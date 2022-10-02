@@ -81,9 +81,10 @@ piAbstract (Arg info (v, IdiomType a)) b = do
   pure $ mkPi (setHiding (getHiding info) $ defaultDom ("w", a))
        $ mkPi (setHiding NotHidden        $ defaultDom ("eq", eq))
        $ b
-piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
+piAbstract (Arg info (prf, EqualityViewType eqt@(EqualityTypeData _ _ _ (Arg _ a) v _))) b = do
   s <- sortOf a
-  let prfTy = equalityUnview eqt
+  let prfTy :: Type
+      prfTy = equalityUnview eqt
       vTy   = El s a
   b <- abstractType prfTy prf b
   b <- addContext ("w" :: String, defaultDom prfTy) $
@@ -92,8 +93,10 @@ piAbstract (Arg info (prf, eqt@(EqualityType _ _ _ (Arg _ a) v _))) b = do
   where
     funType str a = mkPi $ setArgInfo info $ defaultDom (str, a)
     -- Abstract the lhs (@a@) of the equality only.
+    eqt1 :: EqualityTypeData
     eqt1  = raise 1 eqt
-    eqTy' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
+    eqTy' :: Type
+    eqTy' = equalityUnview $ eqt1{ _eqtLhs = _eqtLhs eqt1 $> var 0 }
 
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.

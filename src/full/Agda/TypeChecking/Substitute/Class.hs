@@ -89,7 +89,7 @@ subst :: Subst a => Int -> SubstArg a -> a -> a
 subst i u = applySubst $ singletonS i u
 
 strengthen :: Subst a => Impossible -> a -> a
-strengthen err = applySubst (compactS err [Nothing])
+strengthen err = applySubst (strengthenS err 1)
 
 -- | Replace what is now de Bruijn index 0, but go under n binders.
 --   @substUnder n u == subst n (raise n u)@.
@@ -162,10 +162,15 @@ dropS 0 rho                = rho
 dropS n IdS                = raiseS n
 dropS n (Wk m rho)         = wkS m (dropS n rho)
 dropS n (u :# rho)         = dropS (n - 1) rho
-dropS n (Strengthen _ rho) = dropS (n - 1) rho
-dropS n (Lift 0 rho)       = __IMPOSSIBLE__
-dropS n (Lift m rho)       = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
 dropS n (EmptyS err)       = throwImpossible err
+dropS n (Lift m rho)
+  -- dropS n (Lift m rho) =
+  --   wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
+  | n > m     = wkS m $ dropS (n - m) rho
+  | otherwise = wkS n $ liftS (m - n) rho
+dropS n (Strengthen err m rho)
+  | n < m     = Strengthen err (m - n) rho
+  | otherwise = dropS (n - m) rho
 
 -- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
 composeS :: EndoSubst a => Substitution' a -> Substitution' a -> Substitution' a
@@ -174,7 +179,7 @@ composeS IdS sgm = sgm
 composeS rho (EmptyS err) = EmptyS err
 composeS rho (Wk n sgm) = composeS (dropS n rho) sgm
 composeS rho (u :# sgm) = applySubst rho u :# composeS rho sgm
-composeS rho (Strengthen err sgm) = Strengthen err (composeS rho sgm)
+composeS rho (Strengthen err n sgm) = Strengthen err n (composeS rho sgm)
 composeS rho (Lift 0 sgm) = __IMPOSSIBLE__
 composeS (u :# rho) (Lift n sgm) = u :# composeS rho (liftS (n - 1) sgm)
 composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) sgm))
@@ -183,14 +188,23 @@ composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) 
 --   Γ ⊢ σ : Δ
 --   Γ ⊢ δ : Θσ
 splitS :: Int -> Substitution' a -> (Substitution' a, Substitution' a)
-splitS 0 rho                  = (rho, EmptyS impossible)
-splitS n (u :# rho)           = second (u :#) $ splitS (n - 1) rho
-splitS n (Strengthen err rho) = second (Strengthen err) $ splitS (n - 1) rho
-splitS n (Lift 0 _)           = __IMPOSSIBLE__
-splitS n (Wk m rho)           = wkS m *** wkS m $ splitS n rho
-splitS n IdS                  = (raiseS n, liftS n $ EmptyS impossible)
-splitS n (Lift m rho)         = wkS 1 *** liftS 1 $ splitS (n - 1) (liftS (m - 1) rho)
-splitS n (EmptyS err)         = __IMPOSSIBLE__
+splitS 0 rho                    = (rho, EmptyS impossible)
+splitS n (u :# rho)             = second (u :#) $ splitS (n - 1) rho
+splitS n (Lift 0 _)             = __IMPOSSIBLE__
+splitS n (Wk m rho)             = wkS m *** wkS m $ splitS n rho
+splitS n IdS                    = ( raiseS n
+                                  , liftS n $ EmptyS impossible
+                                  )
+splitS n (Lift m rho)           = wkS 1 *** liftS 1 $
+                                  splitS (n - 1) (liftS (m - 1) rho)
+splitS n (EmptyS err)           = __IMPOSSIBLE__
+splitS n (Strengthen err m rho)
+  -- splitS n (Strengthen err 1 rho) =
+  --   second (Strengthen err) $ splitS (n - 1) rho
+  | n > m     = second (Strengthen err m) $
+                splitS (n - m) rho
+  | otherwise = second (Strengthen err n) $
+                splitS 0 (Strengthen err (m - n) rho)
 
 infixr 4 ++#
 
@@ -203,10 +217,17 @@ us ++# rho = foldr consS rho us
 --        Γ ⊢ prependS vs ρ : Δ, Θ
 --   @
 prependS :: DeBruijn a => Impossible -> [Maybe a] -> Substitution' a -> Substitution' a
-prependS err us rho = foldr f rho us
+prependS err us rho = go 0 us
   where
-    f Nothing  rho = Strengthen err rho
-    f (Just u) rho = consS u rho
+  -- The function strengthenS' is not used here, to avoid replacing
+  -- the "error message" of a potential outermost Strengthen
+  -- constructor in rho.
+  str 0 = id
+  str n = Strengthen err n
+
+  go !n (Just u  : us) = str n (consS u (go 0 us))
+  go  n (Nothing : us) = go (1 + n) us
+  go  n []             = str n rho
 
 -- | @
 --        Γ ⊢ reverse vs : Δ
@@ -218,12 +239,24 @@ prependS err us rho = foldr f rho us
 parallelS :: DeBruijn a => [a] -> Substitution' a
 parallelS us = us ++# idS
 
-compactS :: DeBruijn a => Impossible -> [Maybe a] -> Substitution' a
-compactS err us = prependS err us idS
-
 -- | Γ ⊢ (strengthenS ⊥ |Δ|) : Γ,Δ
 strengthenS :: Impossible -> Int -> Substitution' a
-strengthenS err = indexWithDefault __IMPOSSIBLE__ $ iterate (Strengthen err) idS
+strengthenS err n = case compare n 0 of
+  LT -> __IMPOSSIBLE__
+  EQ -> idS
+  GT -> Strengthen err n idS
+
+-- | A \"smart\" variant of 'Strengthen'. If 'strengthenS' is applied
+-- to a substitution with an outermost 'Strengthen' constructor, then
+-- the \"error message\" of that constructor is discarded in favour of
+-- the 'Impossible' argument of this function.
+strengthenS' :: Impossible -> Int -> Substitution' a -> Substitution' a
+strengthenS' err m rho = case compare m 0 of
+  LT -> __IMPOSSIBLE__
+  EQ -> rho
+  GT -> case rho of
+    Strengthen _ n rho -> Strengthen err (m + n) rho
+    _                  -> Strengthen err m       rho
 
 lookupS :: EndoSubst a => Substitution' a -> Nat -> a
 lookupS rho i = case rho of
@@ -234,10 +267,10 @@ lookupS rho i = case rho of
   u :# rho   | i == 0    -> u
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
-  Strengthen err rho
-             | i == 0    -> throwImpossible err
+  Strengthen err n rho
              | i < 0     -> __IMPOSSIBLE__
-             | otherwise -> lookupS rho (i - 1)
+             | i < n     -> throwImpossible err
+             | otherwise -> lookupS rho (i - n)
   Lift n rho | i < n     -> deBruijnVar i
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS err             -> throwImpossible err

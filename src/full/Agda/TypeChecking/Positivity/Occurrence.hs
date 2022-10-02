@@ -11,8 +11,6 @@ module Agda.TypeChecking.Positivity.Occurrence
 import Control.DeepSeq
 import Control.Monad
 
-import Data.Data (Data)
-
 import Data.Foldable (toList)
 
 import Data.Map.Strict (Map)
@@ -46,7 +44,7 @@ data OccursWhere
     -- includes the main information, and if the first sequence is
     -- non-empty, then it includes information about the context of
     -- the second sequence.
-  deriving (Show, Eq, Ord, Data, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance NFData OccursWhere
 
@@ -63,7 +61,7 @@ data Where
   | Matched          -- ^ matched against in a clause of a defined function
   | IsIndex          -- ^ is an index of an inductive family
   | InDefOf QName    -- ^ in the definition of a constant
-  deriving (Show, Eq, Ord, Data, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance NFData Where
 
@@ -78,7 +76,7 @@ data Occurrence
   | StrictPos -- ^ Strictly positive occurrence.
   | GuardPos  -- ^ Guarded strictly positive occurrence (i.e., under ∞).  For checking recursive records.
   | Unused    --  ^ No occurrence.
-  deriving (Data, Show, Eq, Ord, Enum, Bounded)
+  deriving (Show, Eq, Ord, Enum, Bounded)
 
 -- Pretty instances.
 

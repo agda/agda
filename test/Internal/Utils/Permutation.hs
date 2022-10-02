@@ -8,7 +8,9 @@
 
 module Internal.Utils.Permutation ( tests ) where
 
-import Agda.Utils.List ( downFrom )
+import Prelude hiding ((!!))
+
+import Agda.Utils.List ( downFrom, (!!), (!!!) )
 import Agda.Utils.Permutation
 
 import Data.Functor
@@ -50,12 +52,25 @@ withStream :: ([a] -> b)  -- ^ Stream function.
            -> b
 withStream k as a = k $ as ++ repeat a
 
+-- | A reference implementation of 'permute'.
+slowPermute :: Permutation -> [a] -> [a]
+slowPermute (Perm _ is) xs = map (xs !!) is
+
+-- | A variant of 'slowPermute' that does not crash for indices that
+-- are out of range.
+safePermute :: Permutation -> [a] -> [Maybe a]
+safePermute (Perm _ is) xs = map (xs !!!) is
+
 -- | Apply a permutation to a list which might be too short.
 --   Silently discard picks that go beyond the list's boundaries.
 permutePartial :: Permutation -> [a] -> [a]
 permutePartial perm xs =
   catMaybes $ permute perm $ map Just xs ++ repeat Nothing
   -- Note: we have to add @Nothing@s to make @permute@ total.
+
+prop_permute_slowPermute :: Permutation -> [A] -> A -> Bool
+prop_permute_slowPermute p = withStream $ \xs ->
+  permute p xs == slowPermute p xs
 
 -- | @perm([0..n-1]) == perm@
 prop_permute_id_r :: Permutation -> Bool

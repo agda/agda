@@ -75,6 +75,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 import Agda.Utils.WithDefault
 
 import Agda.Utils.Impossible
@@ -399,9 +400,13 @@ cover f cs sc@(SClause tel ps _ _ target) = updateRelevance $ do
                     , clauseWhereModule = clauseWhereModule cl
                     }
       where
-        (vs,qs) = unzip mps
-        mps' = zip vs $ map namedArg $ fromSplitPatterns $ map defaultNamedArg qs
-        s = parallelS (for [0..maximum (-1:vs)] $ (\ i -> fromMaybe (deBruijnVar i) (List.lookup i mps')))
+      mps' =
+        Map.fromList $
+        map (mapSnd (namedArg . fromSplitPattern . defaultNamedArg)) mps
+      s = parallelS (for (case Map.lookupMax mps' of
+                            Nothing     -> []
+                            Just (i, _) -> [0..i]) $ \ i ->
+                     fromMaybe (deBruijnVar i) (Map.lookup i mps'))
 
     updateRelevance :: TCM a -> TCM a
     updateRelevance cont =
@@ -714,7 +719,7 @@ insertTrailingArgs force sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma
   let fallback = return (empty, sc)
   caseMaybe target fallback $ \ a -> do
     if isJust (domTactic a) && not force then fallback else do
-    (TelV tel b) <- telViewUpTo (-1) $ unDom a
+    (TelV tel b) <- addContext sctel $ telViewUpTo (-1) $ unDom a
     reportSDoc "tc.cover.target" 15 $ sep
       [ "target type telescope: " <+> do
           addContext sctel $ prettyTCM tel
@@ -877,7 +882,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
 
   -- Lookup the type of the constructor at the given parameters
   (gamma0, cixs, boundary) <- do
-    (TelV gamma0 (El _ d), boundary) <- liftTCM $ telViewPathBoundaryP (ctype `piApply` pars)
+    (TelV gamma0 (El _ d), boundary) <- liftTCM $ addContext delta1 $
+      telViewPathBoundaryP (ctype `piApply` pars)
     let Def _ es = d
         Just cixs = allApplyElims es
     return (gamma0, cixs, boundary)
@@ -907,7 +913,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps cps c = do
   -- Andrea 2019-07-17 propagate the Cohesion to the equation telescope
   -- TODO: should we propagate the modality in general?
   -- See also LHS checking.
-  dtype <- do
+  dtype <- addContext delta1 $ do
          let updCoh = composeCohesion (getCohesion info)
          TelV dtel dt <- telView dtype
          return $ abstract (mapCohesion updCoh <$> dtel) dt
@@ -1289,7 +1295,7 @@ split' checkEmpty ind allowPartialCover inserttrailing
                 ]
               throwError (GenericSplitError "precomputed set of constructors does not cover all cases")
 
-      liftTCM $ checkSortOfSplitVar dr (unDom t) delta2 target
+      liftTCM $ inContextOfT $ checkSortOfSplitVar dr (unDom t) delta2 target
       return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where

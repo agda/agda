@@ -2,7 +2,7 @@
 module Agda.TypeChecking.Unquote where
 
 import Control.Arrow          ( first, second, (&&&) )
-import Control.Monad          ( (<=<) )
+import Control.Monad          ( (<=<), liftM2 )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader   ( ReaderT(..), runReaderT )
@@ -28,10 +28,13 @@ import Agda.Syntax.Common hiding ( Nat )
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views
+import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Translation.ReflectedToAbstract
+import Agda.Syntax.Scope.Base (KindOfName(ConName, DataName))
 
 import Agda.Interaction.Library ( ExeName )
 import Agda.Interaction.Options ( optTrustedExecutables, optAllowExec )
@@ -54,6 +57,8 @@ import Agda.TypeChecking.InstanceArguments ( getInstanceCandidates )
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl
+import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Either
 import Agda.Utils.Lens
@@ -575,20 +580,22 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDeclarePostulate, uqFun2 tcDeclarePostulate u v)
+             , (f `isDef` primAgdaTCMDefineData, uqFun2 tcDefineData u v)
              , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v)
-             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (unElim v))
+             , (f `isDef` primAgdaTCMQuoteOmegaTerm, tcQuoteTerm (sort $ Inf IsFibrant 0) (unElim v))
              ]
              failEval
     I.Def f [l, a, u] ->
-      choice [ (f `isDef` primAgdaTCMReturn,             return (unElim u))
-             , (f `isDef` primAgdaTCMTypeError,          tcFun1 tcTypeError   u)
-             , (f `isDef` primAgdaTCMQuoteTerm,          tcQuoteTerm (unElim u))
-             , (f `isDef` primAgdaTCMUnquoteTerm,        tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
-             , (f `isDef` primAgdaTCMBlockOnMeta,        uqFun1 tcBlockOnMeta u)
-             , (f `isDef` primAgdaTCMDebugPrint,         tcFun3 tcDebugPrint l a u)
-             , (f `isDef` primAgdaTCMNoConstraints,      tcNoConstraints (unElim u))
-             , (f `isDef` primAgdaTCMWithReconsParams,   tcWithReconsParams (unElim u))
-             , (f `isDef` primAgdaTCMRunSpeculative,     tcRunSpeculative (unElim u))
+      choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
+             , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
+             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (mkT (unElim l) (unElim a)) (unElim u))
+             , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
+             , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u)
+             , (f `isDef` primAgdaTCMDebugPrint,  tcFun3 tcDebugPrint l a u)
+             , (f `isDef` primAgdaTCMNoConstraints, tcNoConstraints (unElim u))
+             , (f `isDef` primAgdaTCMWithReconsParams, tcWithReconsParams (unElim u))
+             , (f `isDef` primAgdaTCMDeclareData, uqFun3 tcDeclareData l a u)
+             , (f `isDef` primAgdaTCMRunSpeculative, tcRunSpeculative (unElim u))
              , (f `isDef` primAgdaTCMExec, tcFun3 tcExec l a u)
              ]
              failEval
@@ -733,13 +740,20 @@ evalTCM v = do
       v <- checkExpr e a
       if r then do
         v <- process v
-        v <- locallyReduceAllDefs $ reconstructParameters' defaultAction a v
+        v <- locallyReduceAllDefs $ reconstructParameters a v
         locallyReconstructed (quoteTerm v)
       else
         quoteTerm =<< process v
 
-    tcQuoteTerm :: Term -> UnquoteM Term
-    tcQuoteTerm v = liftTCM $ quoteTerm =<< process v
+    tcQuoteTerm :: Type -> Term -> UnquoteM Term
+    tcQuoteTerm a v = liftTCM $ do
+      r <- isReconstructed
+      if r then do
+        v <- process v
+        v <- locallyReduceAllDefs $ reconstructParameters a v
+        locallyReconstructed (quoteTerm v)
+      else
+        quoteTerm =<< process v
 
     tcUnquoteTerm :: Type -> R.Term -> TCM Term
     tcUnquoteTerm a v = do
@@ -930,6 +944,86 @@ evalTCM v = do
         when (isInstance i) $ addTypedInstance x a
         primUnitUnit
 
+    -- A datatype is expected to be declared with a function type.
+    -- The second argument indicates how many preceding types are parameters.
+    tcDeclareData :: QName -> Integer -> R.Type -> UnquoteM Term
+    tcDeclareData x npars t = inOriginalContext $ do
+      setDirty
+      tell [x]
+      liftTCM $ do
+        reportSDoc "tc.unquote.decl" 10 $ sep
+          [ "declare Data" <+> prettyTCM x <+> ":"
+          , nest 2 $ prettyR t
+          ]
+        alreadyDefined <- isRight <$> getConstInfo' x
+        when alreadyDefined $ genericError $ "Multiple declarations of " ++ prettyShow x
+        e <- toAbstract_ t
+        -- The type to be checked with @checkSig@ is without parameters.
+        let (tel, e') = splitPars (fromInteger npars) e
+        ac <- asksTC (^. lensIsAbstract)
+        let defIn = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
+        checkSig DataName defIn x (A.GeneralizeTel Map.empty tel) e'
+        primUnitUnit
+
+    tcDefineData :: QName -> [(QName, R.Type)] -> UnquoteM Term
+    tcDefineData x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
+      caseEitherM (getConstInfo' x)
+        (const $ genericError $ "Missing declaration for " ++ prettyShow x) $ \def -> do
+        npars <- case theDef def of
+                   DataOrRecSig n -> return n
+                   _              -> genericError $ prettyShow x ++
+                     " is not declared as a datatype or record, or it already has a definition."
+
+        -- For some reasons, reifying parameters and adding them to the context via
+        -- `addContext` before `toAbstract_` is different from substituting the type after
+        -- `toAbstract_, so some dummy parameters are added and removed later.
+        es <- mapM (toAbstract_ . addDummy npars . snd) cs
+        reportSDoc "tc.unquote.def" 10 $ vcat $
+          [ "declaring constructors of" <+> prettyTCM x <+> ":" ] ++ map prettyA es
+
+        -- Translate parameters from internal definitions back to abstract syntax.
+        t   <- instantiateFull . defType =<< instantiateDef def
+        tel <- reify =<< theTel <$> telViewUpTo npars t
+
+        es' <- case mapM (uncurry (substNames' tel) . splitPars npars) es of
+                 Nothing -> genericError $ "Number of parameters doesn't match!"
+                 Just es -> return es
+
+        ac <- asksTC (^. lensIsAbstract)
+        let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ac noRange
+            conNames = map fst cs
+            toAxiom c e = A.Axiom ConName i defaultArgInfo Nothing c e
+            as = zipWith toAxiom conNames es'
+            lams = map (\case {A.TBind _ tac (b :| []) _ -> A.DomainFree tac b
+                              ;_ -> __IMPOSSIBLE__ }) tel
+        reportSDoc "tc.unquote.def" 10 $ vcat $
+          [ "checking datatype: " <+> prettyTCM x <+> " with constructors:"
+          , nest 2 (vcat (map prettyTCM conNames))
+          ]
+        checkDataDef i x YesUniverseCheck (A.DataDefParams Set.empty lams) as
+        primUnitUnit
+      where
+        addDummy :: Int -> R.Type -> R.Type
+        addDummy 0 t = t
+        addDummy n t = R.Pi (defaultDom (R.Sort $ R.LitS 0)) (R.Abs "dummy" $ addDummy (n - 1) t)
+
+        substNames' :: [A.TypedBinding] -> [A.TypedBinding] -> A.Expr -> Maybe A.Expr
+        substNames' (a : as) (b : bs) e = do
+          let (A.TBind _ _ (na :| _) expra) = a
+              (A.TBind _ _ (nb :| _) exprb) = b
+              getName n = A.unBind . A.binderName $ namedArg n
+          e' <- substNames' as bs e
+          return $ mapExpr (substName (getName na) (getName nb)) e'
+          where
+            -- Substitute @Var x@ for @Var y@ in an @Expr@.
+            substName :: Name -> Name -> (A.Expr -> A.Expr)
+            substName x y e@(A.Var n)
+                    | y == n    = A.Var x
+                    | otherwise = e
+            substName _ _ e = e
+        substNames' [] [] e = return e
+        substNames' _ _ _ = Nothing
+
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term
     tcDefineFun x cs = inOriginalContext $ (setDirty >>) $ liftTCM $ do
       whenM (isLeft <$> getConstInfo' x) $
@@ -961,7 +1055,10 @@ evalTCM v = do
       Right cands -> liftTCM $
         buildList <*> mapM (quoteTerm . candidateTerm) cands
 
-
+    splitPars :: Int -> A.Expr -> ([A.TypedBinding], A.Expr)
+    splitPars 0 e = ([] , e)
+    splitPars npars (A.Pi _ (n :| _) e) = first (n :) (splitPars (npars - 1) e)
+    splitPars npars e = __IMPOSSIBLE__
 ------------------------------------------------------------------------
 -- * Trusted executables
 ------------------------------------------------------------------------

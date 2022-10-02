@@ -28,6 +28,18 @@ General options
      For use with other editors such as Atom (no need to invoke
      yourself).
 
+.. option:: --interaction-exit-on-error
+
+     .. versionadded:: 2.6.3
+
+     Makes Agda exit with a non-zero exit code if `--interaction` or
+     `--interaction-json` are used and a type error is encountered. The
+     option also makes Agda exit with exit code 113 if Agda fails to
+     parse a command.
+
+     This option might for instance be used if Agda is controlled from
+     a script.
+
 .. option:: --interactive, -I
 
      Start in interactive mode (no longer supported).

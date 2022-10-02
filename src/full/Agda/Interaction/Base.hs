@@ -143,6 +143,11 @@ data Interaction' range
     -- show those instead.
   | Cmd_metas Rewrite
 
+    -- | A command that fails if there are any unsolved
+    -- meta-variables. By default no output is generated if the
+    -- command is successful.
+  | Cmd_no_metas
+
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
   | Cmd_show_module_contents_toplevel

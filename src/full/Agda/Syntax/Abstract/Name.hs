@@ -11,7 +11,6 @@ import Prelude hiding (length)
 
 import Control.DeepSeq
 
-import Data.Data (Data)
 import Data.Foldable (length)
 import Data.Function
 import Data.Hashable (Hashable(..))
@@ -46,7 +45,7 @@ data Name = Name
   , nameIsRecordName :: Bool
       -- ^ Is this the name of the invisible record variable `self`?
       --   Should not be printed or displayed in the context, see issue #3584.
-  } deriving Data
+  }
 
 -- | Useful for debugging scoping problems
 uglyShowName :: Name -> String
@@ -61,7 +60,6 @@ uglyShowName x = show (nameId x, nameConcrete x)
 data QName = QName { qnameModule :: ModuleName
                    , qnameName   :: Name
                    }
-    deriving Data
 
 -- | Something preceeded by a qualified name.
 data QNamed a = QNamed
@@ -75,14 +73,14 @@ data QNamed a = QNamed
 -- The 'SetRange' instance for module names sets all individual ranges
 -- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
-  deriving (Eq, Ord, Data)
+  deriving (Eq, Ord)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: List1 QName }
-  deriving (Eq, Ord, Data, NFData)
+  deriving (Eq, Ord, NFData)
 
 -- | A singleton "ambiguous" name.
 unambiguous :: QName -> AmbiguousQName
@@ -105,7 +103,7 @@ getUnambiguous _                = Nothing
 data Suffix
   = NoSuffix
   | Suffix !Integer
-  deriving (Data, Show, Eq, Ord)
+  deriving (Show, Eq, Ord)
 
 instance NFData Suffix where
   rnf NoSuffix   = ()

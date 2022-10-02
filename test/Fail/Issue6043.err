@@ -1,0 +1,5 @@
+Issue6043.agda:21,8-9
+Cannot eliminate type Set with wildcard pattern _ (did you supply
+too many arguments?)
+when checking the clause left hand side
+test _ _

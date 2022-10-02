@@ -1,0 +1,8 @@
+Issue6059.agda:58,1-68,16
+Termination checking failed for the following functions:
+  f, g
+Problematic calls:
+  g (_,_ n)
+    (at Issue6059.agda:61,45-46)
+  f (h 2)
+    (at Issue6059.agda:68,9-10)

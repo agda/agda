@@ -219,14 +219,14 @@ instance EmbPrj NotBlocked where
   icod_ (StuckOn a)      = icodeN 0 StuckOn a
   icod_ Underapplied     = icodeN 1 Underapplied
   icod_ AbsurdMatch      = icodeN 2 AbsurdMatch
-  icod_ MissingClauses   = icodeN 3 MissingClauses
+  icod_ (MissingClauses a) = icodeN 3 MissingClauses a
 
   value = vcase valu where
     valu []     = valuN ReallyNotBlocked
     valu [0, a] = valuN StuckOn a
     valu [1]    = valuN Underapplied
     valu [2]    = valuN AbsurdMatch
-    valu [3]    = valuN MissingClauses
+    valu [3, a] = valuN MissingClauses a
     valu _      = malformed
 
 instance EmbPrj Blocked_ where
@@ -560,21 +560,21 @@ instance EmbPrj a => EmbPrj (Builtin a) where
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (Substitution' a) where
-  icod_ IdS              = icodeN' IdS
-  icod_ (EmptyS a)       = icodeN 1 EmptyS a
-  icod_ (a :# b)         = icodeN 2 (:#) a b
-  icod_ (Strengthen a b) = icodeN 3 Strengthen a b
-  icod_ (Wk a b)         = icodeN 4 Wk a b
-  icod_ (Lift a b)       = icodeN 5 Lift a b
+  icod_ IdS                = icodeN' IdS
+  icod_ (EmptyS a)         = icodeN' EmptyS a
+  icod_ (a :# b)           = icodeN' (:#) a b
+  icod_ (Strengthen a b c) = icodeN 0 Strengthen a b c
+  icod_ (Wk a b)           = icodeN 1 Wk a b
+  icod_ (Lift a b)         = icodeN 2 Lift a b
 
   value = vcase valu where
-    valu []        = valuN IdS
-    valu [1, a]    = valuN EmptyS a
-    valu [2, a, b] = valuN (:#) a b
-    valu [3, a, b]    = valuN Strengthen a b
-    valu [4, a, b] = valuN Wk a b
-    valu [5, a, b] = valuN Lift a b
-    valu _         = malformed
+    valu []           = valuN IdS
+    valu [a]          = valuN EmptyS a
+    valu [a, b]       = valuN (:#) a b
+    valu [0, a, b, c] = valuN Strengthen a b c
+    valu [1, a, b]    = valuN Wk a b
+    valu [2, a, b]    = valuN Lift a b
+    valu _            = malformed
 
 instance EmbPrj Instantiation where
   icod_ (Instantiation a b) = icodeN' Instantiation a b

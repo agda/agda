@@ -303,7 +303,7 @@ instance GetMatchables NLPat where
   getMatchables p =
     case p of
       PVar _ _       -> empty
-      PDef f _       -> singleton f
+      PDef f es      -> singleton f ++ getMatchables es
       PLam _ x       -> getMatchables x
       PPi a b        -> getMatchables (a,b)
       PSort s        -> getMatchables s

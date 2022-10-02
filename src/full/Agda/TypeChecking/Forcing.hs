@@ -63,6 +63,11 @@ module Agda.TypeChecking.Forcing
     isForced,
     nextIsForced ) where
 
+import Data.Bifunctor
+import Data.DList (DList)
+import qualified Data.DList as DL
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.Monoid -- for (<>) in GHC 8.0.2
 
 import Agda.Interaction.Options
@@ -104,7 +109,10 @@ computeForcingAnnotations c t =
           _        -> __IMPOSSIBLE__
         n = size tel
         xs :: [(Modality, Nat)]
-        xs = forcedVariables vs
+        xs = DL.toList $ forcedVariables vs
+        xs' :: IntMap [Modality]
+        xs' = IntMap.map DL.toList $ IntMap.fromListWith (<>) $
+              map (\(m, i) -> (i, DL.singleton m)) xs
         -- #2819: We can only mark an argument as forced if it appears in the
         -- type with a relevance below (i.e. more relevant) than the one of the
         -- constructor argument. Otherwise we can't actually get the value from
@@ -114,8 +122,9 @@ computeForcingAnnotations c t =
         isForced m i =
                (hasQuantity0 m || noUserQuantity m)
             && (getRelevance m /= Irrelevant)
-            && any (\(m', j) -> i == j
-            && m' `moreUsableModality` m) xs
+            && case IntMap.lookup i xs' of
+                 Nothing -> False
+                 Just ms -> any (`moreUsableModality` m) ms
         forcedArgs =
           [ if isForced m i then Forced else NotForced
           | (i, m) <- zip (downFrom n) $ map getModality (telToList tel)
@@ -129,9 +138,11 @@ computeForcingAnnotations c t =
 
 -- | Compute the pattern variables of a term or term-like thing.
 class ForcedVariables a where
-  forcedVariables :: a -> [(Modality, Nat)]
+  forcedVariables :: a -> DList (Modality, Nat)
 
-  default forcedVariables :: (ForcedVariables b, Foldable t, a ~ t b) => a -> [(Modality, Nat)]
+  default forcedVariables ::
+    (ForcedVariables b, Foldable t, a ~ t b) =>
+    a -> DList (Modality, Nat)
   forcedVariables = foldMap forcedVariables
 
 instance ForcedVariables a => ForcedVariables [a] where
@@ -139,19 +150,20 @@ instance ForcedVariables a => ForcedVariables [a] where
 -- Note that the 'a' does not include the 'Arg' in 'Apply'.
 instance ForcedVariables a => ForcedVariables (Elim' a) where
   forcedVariables (Apply x) = forcedVariables x
-  forcedVariables IApply{}  = []  -- No forced variables in path applications
-  forcedVariables Proj{}    = []
+  forcedVariables IApply{}  = mempty  -- No forced variables in path applications
+  forcedVariables Proj{}    = mempty
 
 instance ForcedVariables a => ForcedVariables (Arg a) where
-  forcedVariables x = [ (composeModality m m', i) | (m', i) <- forcedVariables (unArg x) ]
+  forcedVariables x =
+    fmap (first (composeModality m)) (forcedVariables (unArg x))
     where m = getModality x
 
 -- | Assumes that the term is in normal form.
 instance ForcedVariables Term where
   forcedVariables = \case
-    Var i [] -> [(unitModality, i)]
+    Var i []   -> DL.singleton (unitModality, i)
     Con _ _ vs -> forcedVariables vs
-    _ -> []
+    _          -> mempty
 
 isForced :: IsForced -> Bool
 isForced Forced    = True

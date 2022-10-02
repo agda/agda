@@ -280,12 +280,20 @@ type-check-no-deps :
 #           | $(SED) -e '/.*dist.*build.*: No such file or directory/d' \
 #                    -e '/.*Warning: the following files would be used as linker inputs, but linking is not being done:.*/d'
 
+# The default is to not include cost centres for libraries, but to
+# include cost centres for Agda using -fprof-late. (The use of
+# -fprof-late might lead to more informative profiles than if
+# -fprof-auto had been used.)
+PROFILING_DETAIL=\
+  --profiling-detail=none\
+  --ghc-options=-fprof-late
 
 .PHONY : install-prof-bin ## Install Agda with profiling enabled
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 install-prof-bin : install-deps ensure-hash-is-correct
-	$(CABAL_INSTALL) -j1 --enable-library-profiling --enable-profiling \
+	$(CABAL_INSTALL) -j1 \
+          --enable-profiling $(PROFILING_DETAIL) \
           --program-suffix=-prof $(CABAL_INSTALL_OPTS)
 
 .PHONY : install-debug ## Install Agda with debug enabled

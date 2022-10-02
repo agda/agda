@@ -13,7 +13,8 @@ when yes, where).
 
 module Agda.TypeChecking.Coverage.Match
   ( Match(..), match, matchClause
-  , SplitPattern, SplitPatVar(..), fromSplitPatterns, toSplitPatterns
+  , SplitPattern, SplitPatVar(..)
+  , fromSplitPattern, fromSplitPatterns, toSplitPatterns
   , toSplitPSubst, applySplitPSubst
   , isTrivialPattern
   , BlockingVar(..), BlockingVars, BlockedOnResult(..)
@@ -25,6 +26,8 @@ import Control.Monad.State
 
 import Prelude hiding ( null )
 
+import Data.DList (DList)
+import Data.Foldable (toList)
 import qualified Data.List as List
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Semigroup ( Semigroup, (<>))
@@ -43,6 +46,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Null
 import Agda.Utils.Pretty ( Pretty(..), text, (<+>), cat , prettyList_ )
 import Agda.Utils.Monad
+import Agda.Utils.Singleton
 
 import Agda.Utils.Impossible
 
@@ -110,7 +114,7 @@ match cs ps = foldr choice (return No) $ zipWith matchIt [0..] cs
             => Nat  -- Clause number.
             -> Clause
             -> m (Match (Nat, SplitInstantiation))
-    matchIt i c = fmap (i,) <$> matchClause ps c
+    matchIt i c = fmap (\s -> (i, toList s)) <$> matchClause ps c
 
 -- | For each variable in the patterns of a split clause, we remember the
 --   de Bruijn-index and the literals excluded by previous matches.
@@ -147,8 +151,11 @@ instance DeBruijn SplitPatVar where
 toSplitPatterns :: [NamedArg DeBruijnPattern] -> [NamedArg SplitPattern]
 toSplitPatterns = (fmap . fmap . fmap . fmap) toSplitVar
 
+fromSplitPattern :: NamedArg SplitPattern -> NamedArg DeBruijnPattern
+fromSplitPattern = (fmap . fmap . fmap) fromSplitVar
+
 fromSplitPatterns :: [NamedArg SplitPattern] -> [NamedArg DeBruijnPattern]
-fromSplitPatterns = (fmap . fmap . fmap . fmap) fromSplitVar
+fromSplitPatterns = fmap fromSplitPattern
 
 type SplitPSubstitution = Substitution' SplitPattern
 
@@ -219,7 +226,7 @@ isTrivialPattern = \case
 
 -- | If matching succeeds, we return the instantiation of the clause pattern vector
 --   to obtain the split clause pattern vector.
-type MatchResult = Match SplitInstantiation
+type MatchResult = Match (DList (Nat, SplitPattern))
 
 instance Pretty BlockingVar where
   pretty (BlockingVar i cs ls o l) = cat
@@ -342,7 +349,7 @@ matchPats
   -> m MatchResult
      -- ^ Result.
      --   If 'Yes' the instantiation @rs@ such that @ps[rs] == qs@.
-matchPats [] [] = yes []
+matchPats [] [] = yes mempty
 matchPats (p:ps) (q:qs) =
   matchPat (namedArg p) (namedArg q) `combine` matchPats ps qs
 
@@ -352,8 +359,8 @@ matchPats (p:ps) (q:qs) =
 -- Thus, if the split clause has copatterns left,
 -- the current (shorter) clause is not considered covering.
 matchPats [] qs@(_:_) = case mapMaybe isProjP qs of
-  [] -> yes [] -- no proj. patterns left
-  _  -> no     -- proj. patterns left
+  [] -> yes mempty -- no proj. patterns left
+  _  -> no         -- proj. patterns left
 
 -- Patterns left in candidate clause:
 -- If the current clause has additional copatterns in
@@ -408,9 +415,10 @@ matchPat
      --   to produce the split clause pattern, @p[rs] = q@.
 matchPat p q = case p of
 
-  VarP _ x   -> yes [(fromMaybe __IMPOSSIBLE__ (deBruijnView x),q)]
+  VarP _ x ->
+    yes $ singleton (fromMaybe __IMPOSSIBLE__ (deBruijnView x), q)
 
-  DotP{}   -> yes []
+  DotP{} -> yes mempty
   -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
   -- Not checking for trivial patterns should be safe here, as dot patterns are
   -- guaranteed to match if the rest of the pattern does, so some extra splitting
@@ -421,16 +429,17 @@ matchPat p q = case p of
                 then no
                 else blockedOnLiteral (splitPatVarIndex x) l
     _ -> isLitP q >>= \case
-      Just l' -> if l == l' then yes [] else no
+      Just l' -> if l == l' then yes mempty else no
       Nothing -> no
 
   ProjP _ d -> case q of
     ProjP _ d' -> do
       d <- getOriginalProjection d
-      if d == d' then yes [] else no
+      if d == d' then yes mempty else no
     _          -> __IMPOSSIBLE__
 
-  IApplyP _ _ _ x -> yes [(fromMaybe __IMPOSSIBLE__ (deBruijnView x),q)]
+  IApplyP _ _ _ x ->
+    yes $ singleton (fromMaybe __IMPOSSIBLE__ (deBruijnView x), q)
 
                            --    Issue #4179: If the inferred pattern is a literal
                            -- v  we need to turn it into a constructor pattern.

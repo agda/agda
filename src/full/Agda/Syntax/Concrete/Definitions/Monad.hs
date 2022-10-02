@@ -113,9 +113,9 @@ loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 addLoneSig :: Range -> Name -> DataRecOrFun -> Nice Name
 addLoneSig r x k = do
   -- Andreas, 2020-05-19, issue #4157, make '_' unique.
-  x' <- if not $ isNoName x then return x else do
-    i <- nextNameId
-    return x{ nameId = i }
+  x' <- case x of
+    Name{}     -> pure x
+    NoName r _ -> NoName r <$> nextNameId
   loneSigs %== \ s -> do
     let (mr, s') = Map.insertLookupWithKey (\ _k new _old -> new) x (LoneSig r x' k) s
     case mr of

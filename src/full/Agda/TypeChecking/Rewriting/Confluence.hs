@@ -638,11 +638,11 @@ abstractOverMetas ms x = do
     ns <- forM ms' getMetaNameSuggestion
 
     -- Construct telescope (still containing the metas)
-    let gamma = unflattenTel ns $ map defaultDom as
+    let n     = size ms'
+        gamma = unflattenTel' n ns $ map defaultDom as
 
     -- Replace metas by variables
-    let n           = size ms'
-        metaIndex x = (n-1-) <$> elemIndex x ms'
+    let metaIndex x = (n-1-) <$> elemIndex x ms'
     runReaderT (metasToVars (gamma, x)) metaIndex
 
 -- ^ A @OneHole p@ is a @p@ with a subpattern @f ps@ singled out.

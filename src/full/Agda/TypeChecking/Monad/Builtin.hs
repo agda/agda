@@ -238,7 +238,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMReduce,
     primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
-    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDefineFun,
+    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDeclarePostulate, primAgdaTCMDeclareData, primAgdaTCMDefineData, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm, primAgdaTCMQuoteOmegaTerm,
     primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro,
@@ -432,6 +432,8 @@ primAgdaTCMInContext                  = getBuiltin builtinAgdaTCMInContext
 primAgdaTCMFreshName                  = getBuiltin builtinAgdaTCMFreshName
 primAgdaTCMDeclareDef                 = getBuiltin builtinAgdaTCMDeclareDef
 primAgdaTCMDeclarePostulate           = getBuiltin builtinAgdaTCMDeclarePostulate
+primAgdaTCMDeclareData                = getBuiltin builtinAgdaTCMDeclareData
+primAgdaTCMDefineData                 = getBuiltin builtinAgdaTCMDefineData
 primAgdaTCMDefineFun                  = getBuiltin builtinAgdaTCMDefineFun
 primAgdaTCMGetType                    = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition              = getBuiltin builtinAgdaTCMGetDefinition
@@ -716,11 +718,18 @@ equalityView t0@(El s t) = do
 --
 --   Postcondition: type is reduced.
 
-equalityUnview :: EqualityView -> Type
-equalityUnview (OtherType t) = t
-equalityUnview (IdiomType t) = t
-equalityUnview (EqualityType s equality l t lhs rhs) =
-  El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
+class EqualityUnview a where
+  equalityUnview :: a -> Type
+
+instance EqualityUnview EqualityView where
+  equalityUnview = \case
+    OtherType t -> t
+    IdiomType t -> t
+    EqualityViewType eqt -> equalityUnview eqt
+
+instance EqualityUnview EqualityTypeData where
+  equalityUnview (EqualityTypeData s equality l t lhs rhs) =
+    El s $ Def equality $ map Apply (l ++ [t, lhs, rhs])
 
 -- | Primitives with typechecking constrants.
 constrainedPrims :: [String]

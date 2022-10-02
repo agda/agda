@@ -171,9 +171,9 @@ jobs:
     - name: Move artefacts to ${{ steps.vars.outputs.nightly }}
       # TODO: Move this part to Makefile
       env:
-        # Andreas, 2022-03-11, the ICU version has been updated upstream
-        # (WAS: '69').
-        ICU_VER: '70'
+        # Andreas, 2022-03-11, the ICU version has been updated upstream from 69 to 70
+        # Andreas, 2022-09-20, the ICU version has been updated upstream from 70 to 71
+        ICU_VER: '71'
         ICU_DIR: '/usr/local/opt/icu4c/lib'
         DLL:     "/c/msys64/mingw64/bin/libicu*.dll"
           ## was /c/icu4c/icu*.dll

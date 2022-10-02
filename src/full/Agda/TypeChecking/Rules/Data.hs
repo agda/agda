@@ -141,21 +141,21 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             let npars = size tel
 
             -- Change the datatype from an axiom to a datatype with no constructors.
-            let dataDef = Datatype
-                  { dataPars       = npars
-                  , dataIxs        = nofIxs
-                  , dataClause     = Nothing
-                  , dataCons       = []     -- Constructors are added later
-                  , dataSort       = s
-                  , dataAbstr      = Info.defAbstract i
-                  , dataMutual     = Nothing
-                  , dataPathCons   = []     -- Path constructors are added later
-                  , dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
-                  , dataTransp     = Nothing -- Added later
+            let dataDef = DatatypeData
+                  { _dataPars       = npars
+                  , _dataIxs        = nofIxs
+                  , _dataClause     = Nothing
+                  , _dataCons       = []     -- Constructors are added later
+                  , _dataSort       = s
+                  , _dataAbstr      = Info.defAbstract i
+                  , _dataMutual     = Nothing
+                  , _dataPathCons   = []     -- Path constructors are added later
+                  , _dataTranspIx   = Nothing -- Generated later if nofIxs > 0.
+                  , _dataTransp     = Nothing -- Added later
                   }
 
             escapeContext impossible npars $ do
-              addConstant' name defaultArgInfo name t dataDef
+              addConstant' name defaultArgInfo name t $ DatatypeDefn dataDef
                 -- polarity and argOcc.s determined by the positivity checker
 
             -- Check the types of the constructors
@@ -180,7 +180,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                 checkIndexSorts s' ixTel
 
             -- Return the data definition
-            return dataDef{ dataPathCons = catMaybes pathCons
+            return dataDef{ _dataPathCons = catMaybes pathCons
                           }
 
         let cons   = map A.axiomName cs  -- get constructor names
@@ -190,16 +190,16 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
             (do mtranspix <- inTopContext $ defineTranspIx name
                 transpFun <- inTopContext $
                                defineTranspFun name mtranspix cons
-                                 (dataPathCons dataDef)
+                                 (_dataPathCons dataDef)
                 return (mtranspix, transpFun))
             (return (Nothing, Nothing))
 
         -- Add the datatype to the signature with its constructors.
         -- It was previously added without them.
-        addConstant' name defaultArgInfo name t $
-            dataDef{ dataCons = cons
-                   , dataTranspIx = mtranspix
-                   , dataTransp   = transpFun
+        addConstant' name defaultArgInfo name t $ DatatypeDefn
+            dataDef{ _dataCons = cons
+                   , _dataTranspIx = mtranspix
+                   , _dataTransp   = transpFun
                    }
 
 -- | Make sure that the target universe admits data type definitions.
@@ -671,23 +671,23 @@ defineProjections dataName con params names fsT t = do
     noMutualBlock $ do
       let cs = [ clause ]
       (mst, _, cc) <- compileClauses Nothing cs
-      let fun = emptyFunction
-                { funClauses    = cs
-                , funCompiled   = Just cc
-                , funSplitTree  = mst
-                , funProjection = Just $ Projection
+      let fun = emptyFunctionData
+                { _funClauses    = cs
+                , _funCompiled   = Just cc
+                , _funSplitTree  = mst
+                , _funProjection = Just $ Projection
                     { projProper   = Nothing
                     , projOrig     = projName
                     , projFromType = Arg (getArgInfo ty) dataName
                     , projIndex    = np + 1
                     , projLams     = ProjLams $ map (argFromDom . fmap fst) $ telToList projTel
                     }
-                , funMutual     = Just []
-                , funTerminates = Just True
+                , _funMutual     = Just []
+                , _funTerminates = Just True
                 }
       lang <- getLanguage
       inTopContext $ addConstant projName $
-        (defaultDefn defaultArgInfo projName (unDom projType) lang fun)
+        (defaultDefn defaultArgInfo projName (unDom projType) lang $ FunctionDefn fun)
           { defNoCompilation  = True
           , defArgOccurrences = [StrictPos]
           }
@@ -786,13 +786,13 @@ defineTranspIx d = do
         let cs = [ clause ]
 --        we do not compile clauses as that leads to throwing missing clauses errors.
 --        (mst, _, cc) <- compileClauses Nothing cs
-        let fun = emptyFunction
-                  { funClauses    = cs
-               --   , funCompiled   = Just cc
-               --   , funSplitTree  = mst
-                  , funProjection = Nothing
-                  , funMutual     = Just []
-                  , funTerminates = Just True
+        let fun = emptyFunctionData
+                  { _funClauses    = cs
+               --   , _funCompiled   = Just cc
+               --   , _funSplitTree  = mst
+                  , _funProjection = Nothing
+                  , _funMutual     = Just []
+                  , _funTerminates = Just True
                   }
         inTopContext $ do
          reportSDoc "tc.transpx.type" 15 $ vcat
@@ -801,7 +801,7 @@ defineTranspIx d = do
            ]
 
          addConstant trIx $
-          (defaultDefn defaultArgInfo trIx theType (Cubical CErased) fun)
+          (defaultDefn defaultArgInfo trIx theType (Cubical CErased) $ FunctionDefn fun)
             { defNoCompilation  = True
             }
 
@@ -896,16 +896,16 @@ defineTranspFun d mtrX cons pathCons = do
         ecs <- tryTranspError $ (clause:) <$> defineConClause trD (not $ null pathCons) mtrX npars nixs ixs telI sigma dTs cons
         caseEitherM (pure ecs) (\ cl -> debugNoTransp cl >> return Nothing) $ \ cs -> do
         (mst, _, cc) <- compileClauses Nothing cs
-        let fun = emptyFunction
-                  { funClauses    = cs
-                  , funCompiled   = Just cc
-                  , funSplitTree  = mst
-                  , funProjection = Nothing
-                  , funMutual     = Just []
-                  , funTerminates = Just True
+        let fun = emptyFunctionData
+                  { _funClauses    = cs
+                  , _funCompiled   = Just cc
+                  , _funSplitTree  = mst
+                  , _funProjection = Nothing
+                  , _funMutual     = Just []
+                  , _funTerminates = Just True
                   }
         inTopContext $ addConstant trD $
-          (defaultDefn defaultArgInfo trD theType (Cubical CErased) fun)
+          (defaultDefn defaultArgInfo trD theType (Cubical CErased) $ FunctionDefn fun)
             { defNoCompilation  = True
             }
         reportSDoc "tc.data.transp" 20 $ sep
@@ -1365,7 +1365,7 @@ defineTranspForFields pathCons applyProj name params fsT fns rect = do
   lang <- getLanguage
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (emptyFunction { funTerminates = Just True }))
+       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True }))
       { defNoCompilation = True }
   -- ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (u0 : R (δ i0))
   -- Γ ⊢     rtype = R (δ i1)
@@ -1523,7 +1523,7 @@ defineHCompForFields applyProj name params fsT fns rect = do
   lang <- getLanguage
   noMutualBlock $ addConstant theName $
     (defaultDefn defaultArgInfo theName theType lang
-       (emptyFunction { funTerminates = Just True }))
+       (FunctionDefn $ emptyFunctionData { _funTerminates = Just True }))
       { defNoCompilation = True }
   --   ⊢ Γ = gamma = (δ : Δ) (φ : I) (_ : (i : I) -> Partial φ (R δ)) (_ : R δ)
   -- Γ ⊢     rtype = R δ
@@ -1732,9 +1732,9 @@ fitsIn uc forceds t s = do
   -- noConstraints $ s' `leqSort` s
 
   withoutK <- withoutKOption
-  when withoutK $ whenM (isFibrant s) $ do
+  when withoutK $ do
     q <- viewTC eQuantity
-    usableAtModality (setQuantity q defaultModality) (unEl t)
+    usableAtModality' (Just s) (setQuantity q defaultModality) (unEl t)
 
   fitsIn' withoutK forceds t s
   where

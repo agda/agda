@@ -70,7 +70,7 @@ import Prelude hiding (null)
 
 import Control.DeepSeq
 
-import Data.Data        ( Data )
+import qualified Data.DList as DL
 import Data.Functor.Identity
 import Data.Set         ( Set  )
 import Data.Text        ( Text )
@@ -103,14 +103,14 @@ data OpApp e
     -- ^ An abstraction inside a special syntax declaration
     --   (see Issue 358 why we introduce this).
   | Ordinary e
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  deriving (Functor, Foldable, Traversable, Eq)
 
 fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
 fromOrdinary d _            = d
 
 data FieldAssignment' a = FieldAssignment { _nameFieldA :: Name, _exprFieldA :: a }
-  deriving (Data, Functor, Foldable, Traversable, Show, Eq)
+  deriving (Functor, Foldable, Traversable, Show, Eq)
 
 type FieldAssignment = FieldAssignment' Expr
 
@@ -119,7 +119,7 @@ data ModuleAssignment  = ModuleAssignment
                            , _exprModA      :: [Expr]
                            , _importDirModA :: ImportDirective
                            }
-  deriving (Data, Eq)
+  deriving Eq
 
 type RecordAssignment  = Either FieldAssignment ModuleAssignment
 type RecordAssignments = [RecordAssignment]
@@ -179,7 +179,7 @@ data Expr
   | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   | Ellipsis Range                             -- ^ @...@, used internally to parse patterns.
   | Generalized Expr
-  deriving (Data, Eq)
+  deriving Eq
 
 type OpAppArgs = OpAppArgs' Expr
 type OpAppArgs' e = [NamedArg (MaybePlaceholder (OpApp e))]
@@ -210,19 +210,19 @@ data Pattern
                                            --   Second arg is @Nothing@ before expansion, and
                                            --   @Just p@ after expanding ellipsis to @p@.
   | WithP Range Pattern                    -- ^ @| p@, for with-patterns.
-  deriving (Data, Eq)
+  deriving Eq
 
 data DoStmt
   = DoBind Range Pattern Expr [LamClause]   -- ^ @p ← e where cs@
   | DoThen Expr
   | DoLet Range (List1 Declaration)
-  deriving (Data, Eq)
+  deriving Eq
 
 -- | A Binder @x\@p@, the pattern is optional
 data Binder' a = Binder
   { binderPattern :: Maybe Pattern
   , binderName    :: a
-  } deriving (Data, Eq, Functor, Foldable, Traversable)
+  } deriving (Eq, Functor, Foldable, Traversable)
 
 type Binder = Binder' BoundName
 
@@ -240,7 +240,7 @@ data LamBinding' a
     -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@ or @x\@p@ or @(p)@
   | DomainFull a
     -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  deriving (Functor, Foldable, Traversable, Eq)
 
 -- | Drop type annotations and lets from bindings.
 dropTypeAndModality :: LamBinding -> [LamBinding]
@@ -254,7 +254,7 @@ data BoundName = BName
   , bnameFixity :: Fixity'
   , bnameTactic :: TacticAttribute -- From @tactic attribute
   }
-  deriving (Data, Eq)
+  deriving Eq
 
 type TacticAttribute = Maybe Expr
 
@@ -273,7 +273,7 @@ data TypedBinding' e
     -- ^ Binding @(x1\@p1 ... xn\@pn : A)@.
   | TLet  Range (List1 Declaration)
     -- ^ Let binding @(let Ds)@ or @(open M args)@.
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  deriving (Functor, Foldable, Traversable, Eq)
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
@@ -327,7 +327,7 @@ data LHS = LHS  -- ^ Original pattern (including with-patterns), rewrite equatio
   , lhsWithExpr        :: [WithExpr]
     -- ^ @with e1 in eq | {e2} | ...@ (many)
   }
-  deriving (Data, Eq)
+  deriving Eq
 
 type RewriteEqn = RewriteEqn' () Name Pattern Expr
 type WithExpr   = Named Name (Arg Expr)
@@ -351,13 +351,13 @@ data LHSCore
              { lhsEllipsisRange :: Range
              , lhsEllipsisPat   :: LHSCore           -- ^ Pattern that was expanded from an ellipsis @...@.
              }
-  deriving (Data, Eq)
+  deriving Eq
 
 type RHS = RHS' Expr
 data RHS' e
   = AbsurdRHS -- ^ No right hand side because of absurd match.
   | RHS e
-  deriving (Data, Functor, Foldable, Traversable, Eq)
+  deriving (Functor, Foldable, Traversable, Eq)
 
 -- | @where@ block following a clause.
 type WhereClause = WhereClause' [Declaration]
@@ -375,14 +375,14 @@ data WhereClause' decls
       --   The 'Access' flag applies to the 'Name' (not the module contents!)
       --   and is propagated from the parent function.
       --   List of declarations can be empty.
-  deriving (Data, Eq, Functor, Foldable, Traversable)
+  deriving (Eq, Functor, Foldable, Traversable)
 
 data LamClause = LamClause
   { lamLHS      :: [Pattern]   -- ^ Possibly empty sequence.
   , lamRHS      :: RHS
   , lamCatchAll :: Bool
   }
-  deriving (Data, Eq)
+  deriving Eq
 
 -- | An expression followed by a where clause.
 --   Currently only used to give better a better error message in interaction.
@@ -406,7 +406,7 @@ data AsName' a = AsName
   , asRange :: Range
     -- ^ The range of the \"as\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Data, Show, Functor, Foldable, Traversable, Eq)
+  deriving (Show, Functor, Foldable, Traversable, Eq)
 
 -- | From the parser, we get an expression for the @as@-'Name', which
 --   we have to parse into a 'Name'.
@@ -434,7 +434,7 @@ data RecordDirective
        -- ^ Range of @[no-]eta-equality@ keyword.
    | PatternOrCopattern Range
        -- ^ If declaration @pattern@ is present, give its range.
-   deriving (Data,Eq,Show)
+   deriving (Eq, Show)
 
 type RecordDirectives = RecordDirectives' (Name, IsInstance)
 
@@ -482,8 +482,10 @@ data Declaration
       -- ^ @unquoteDecl xs = e@
   | UnquoteDef  Range [Name] Expr
       -- ^ @unquoteDef xs = e@
+  | UnquoteData Range Name [Name] Expr
+      -- ^ @unquoteDecl data d constructor xs = e@
   | Pragma      Pragma
-  deriving (Data, Eq)
+  deriving Eq
 
 -- | Extract a record directive
 isRecordDirective :: Declaration -> Maybe RecordDirective
@@ -496,10 +498,10 @@ data ModuleApplication
     -- ^ @tel. M args@
   | RecordModuleInstance Range QName
     -- ^ @M {{...}}@
-  deriving (Data, Eq)
+  deriving Eq
 
 data OpenShortHand = DoOpen | DontOpen
-  deriving (Data, Eq, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 -- Pragmas ----------------------------------------------------------------
 
@@ -541,7 +543,7 @@ data Pragma
   | PolarityPragma            Range Name [Occurrence]
   | NoUniverseCheckPragma     Range
     -- ^ Applies to the following data/record type.
-  deriving (Data, Eq)
+  deriving Eq
 
 ---------------------------------------------------------------------------
 
@@ -612,13 +614,17 @@ rawAppP (p :| []) = p
 data AppView = AppView Expr [NamedArg Expr]
 
 appView :: Expr -> AppView
-appView = \case
-    App r e1 e2      -> vApp (appView e1) e2
-    RawApp _ (List2 e1 e2 es)
-                     -> AppView e1 $ map arg (e2:es)
-    e                -> AppView e []
+appView e = f (DL.toList ess)
   where
-    vApp (AppView e es) arg = AppView e (es ++ [arg])
+    (f, ess) = appView' e
+
+    appView' = \case
+      App r e1 e2      -> vApp (appView' e1) e2
+      RawApp _ (List2 e1 e2 es)
+                       -> (AppView e1, DL.fromList (map arg (e2 : es)))
+      e                -> (AppView e, mempty)
+
+    vApp (f, es) arg = (f, es `DL.snoc` arg)
 
     arg (HiddenArg   _ e) = hide         $ defaultArg e
     arg (InstanceArg _ e) = makeInstance $ defaultArg e
@@ -905,6 +911,7 @@ instance HasRange Declaration where
   getRange (PatternSyn r _ _ _)    = r
   getRange (UnquoteDecl r _ _)     = r
   getRange (UnquoteDef r _ _)      = r
+  getRange (UnquoteData r _ _ _)   = r
   getRange (Pragma p)              = getRange p
 
 instance HasRange LHS where
@@ -1052,6 +1059,7 @@ instance KillRange Declaration where
   killRange (Module _ q t d)        = killRange3 (Module noRange) q t d
   killRange (UnquoteDecl _ x t)     = killRange2 (UnquoteDecl noRange) x t
   killRange (UnquoteDef _ x t)      = killRange2 (UnquoteDef noRange) x t
+  killRange (UnquoteData _ xs cs t) = killRange3 (UnquoteData noRange) xs cs t
   killRange (Pragma p)              = killRange1 Pragma p
 
 instance KillRange Expr where
@@ -1267,6 +1275,7 @@ instance NFData Declaration where
   rnf (Module _ a b c)        = rnf a `seq` rnf b `seq` rnf c
   rnf (UnquoteDecl _ a b)     = rnf a `seq` rnf b
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
+  rnf (UnquoteData _ a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (Pragma a)              = rnf a
 
 instance NFData OpenShortHand

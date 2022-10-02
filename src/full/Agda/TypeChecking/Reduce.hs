@@ -1,6 +1,29 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 
-module Agda.TypeChecking.Reduce where
+module Agda.TypeChecking.Reduce
+ -- Meta instantiation
+ ( Instantiate, instantiate', instantiate, instantiateWhen
+ -- Recursive meta instantiation
+ , InstantiateFull, instantiateFull', instantiateFull
+ , instantiateFullExceptForDefinitions
+ -- Check for meta (no reduction)
+ , IsMeta, isMeta
+ -- Reduction and blocking
+ , Reduce, reduce', reduceB', reduce, reduceB, reduceWithBlocker, reduceIApply'
+ , reduceDefCopy, reduceDefCopyTCM
+ , reduceHead
+ , slowReduceTerm
+ , unfoldCorecursion, unfoldCorecursionE
+ , unfoldDefinitionE, unfoldDefinitionStep
+ , unfoldInlined
+ , appDef', appDefE'
+ , abortIfBlocked, ifBlocked, isBlocked
+ -- Simplification
+ , Simplify, simplify, simplifyBlocked'
+ -- Normalization
+ , Normalise, normalise', normalise
+ , slowNormaliseArgs
+ ) where
 
 import Control.Monad ( (>=>), void )
 
@@ -92,10 +115,11 @@ withReduced a cont = ifBlocked a (\b a' -> addOrUnblocker b $ cont a') (\_ a' ->
 normalise :: (Normalise a, MonadReduce m) => a -> m a
 normalise = liftReduce . normalise'
 
--- | Normalise the given term but also preserve blocking tags
---   TODO: implement a more efficient version of this.
-normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
-normaliseB = normalise >=> reduceB
+-- UNUSED
+-- -- | Normalise the given term but also preserve blocking tags
+-- --   TODO: implement a more efficient version of this.
+-- normaliseB :: (MonadReduce m, Reduce t, Normalise t) => t -> m (Blocked t)
+-- normaliseB = normalise >=> reduceB
 
 simplify :: (Simplify a, MonadReduce m) => a -> m a
 simplify = liftReduce . simplify'
@@ -276,7 +300,7 @@ instance Instantiate Constraint where
   instantiate' (CheckDataSort q s)  = CheckDataSort q <$> instantiate' s
   instantiate' c@CheckMetaInst{}    = return c
   instantiate' (CheckType t)        = CheckType <$> instantiate' t
-  instantiate' (UsableAtModality mod t) = UsableAtModality mod <$> instantiate' t
+  instantiate' (UsableAtModality ms mod t) = flip UsableAtModality mod <$> instantiate' ms <*> instantiate' t
 
 instance Instantiate CompareAs where
   instantiate' (AsTermsOf a) = AsTermsOf <$> instantiate' a
@@ -416,6 +440,10 @@ instance (Subst a, Reduce a) => Reduce (Abs a) where
 
 -- Lists are never blocked
 instance Reduce t => Reduce [t] where
+    reduce' = traverse reduce'
+
+-- Maybes are never blocked
+instance Reduce t => Reduce (Maybe t) where
     reduce' = traverse reduce'
 
 instance Reduce t => Reduce (Arg t) where
@@ -619,7 +647,7 @@ unfoldDefinitionStep unfoldDelayed v0 f es =
         then reducePrimitive x v0 f es pf dontUnfold
                              cls (defCompiled info) rewr
         else noReduction $ notBlocked v
-    PrimitiveSort{ primSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
+    PrimitiveSort{ primSortSort = s } -> yesReduction NoSimplification $ Sort s `applyE` es
 
     _  -> do
       if or
@@ -797,7 +825,7 @@ appDef_ f v0 cls mcc rewr args = appDefE_ f v0 cls mcc rewr $ map (fmap Apply) a
 appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
 appDefE_ f v0 cls mcc rewr args =
   localTC (\ e -> e { envAppDef = Just f }) $
-  maybe (appDefE' v0 cls rewr args)
+  maybe (appDefE'' v0 cls rewr args)
         (\cc -> appDefE v0 cc rewr args) mcc
 
 
@@ -815,11 +843,17 @@ appDefE v cc rewr es = do
     NoReduction es'      -> rewrite (void es') (applyE v) rewr (ignoreBlocking es')
 
 -- | Apply a defined function to it's arguments, using the original clauses.
-appDef' :: Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
-appDef' v cls rewr args = appDefE' v cls rewr $ map (fmap Apply) args
+appDef' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedArgs -> ReduceM (Reduced (Blocked Term) Term)
+appDef' f v cls rewr args = appDefE' f v cls rewr $ map (fmap Apply) args
 
-appDefE' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
-appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
+appDefE' :: QName -> Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE' f v cls rewr es =
+  localTC (\ e -> e { envAppDef = Just f }) $
+  appDefE'' v cls rewr es
+
+-- | Expects @'envAppDef' = Just f@ in 'TCEnv' to be able to report @'MissingClauses' f@.
+appDefE'' :: Term -> [Clause] -> RewriteRules -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+appDefE'' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v) $ do
   goCls cls $ map ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
@@ -831,7 +865,9 @@ appDefE' v cls rewr es = traceSDoc "tc.reduce" 90 ("appDefE' v = " <+> pretty v)
         -- the remaining clauses (see Issue 907).
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
-        [] -> rewrite (NotBlocked MissingClauses ()) (applyE v) rewr es
+        [] -> do
+          f <- fromMaybe __IMPOSSIBLE__ <$> asksTC envAppDef
+          rewrite (NotBlocked (MissingClauses f) ()) (applyE v) rewr es
         cl : cls -> do
           let pats = namedClausePats cl
               body = clauseBody cl
@@ -887,7 +923,7 @@ instance Reduce Constraint where
   reduce' (CheckDataSort q s)   = CheckDataSort q <$> reduce' s
   reduce' c@CheckMetaInst{}     = return c
   reduce' (CheckType t)         = CheckType <$> reduce' t
-  reduce' (UsableAtModality mod t) = UsableAtModality mod <$> reduce' t
+  reduce' (UsableAtModality ms mod t) = flip UsableAtModality mod <$> reduce' ms <*> reduce' t
 
 instance Reduce CompareAs where
   reduce' (AsTermsOf a) = AsTermsOf <$> reduce' a
@@ -1054,7 +1090,7 @@ instance Simplify Constraint where
   simplify' (CheckDataSort q s)   = CheckDataSort q <$> simplify' s
   simplify' c@CheckMetaInst{}     = return c
   simplify' (CheckType t)         = CheckType <$> simplify' t
-  simplify' (UsableAtModality mod t) = UsableAtModality mod <$> simplify' t
+  simplify' (UsableAtModality ms mod t) = flip UsableAtModality mod <$> simplify' ms <*> simplify' t
 
 instance Simplify CompareAs where
   simplify' (AsTermsOf a) = AsTermsOf <$> simplify' a
@@ -1236,7 +1272,7 @@ instance Normalise Constraint where
   normalise' (CheckDataSort q s)   = CheckDataSort q <$> normalise' s
   normalise' c@CheckMetaInst{}     = return c
   normalise' (CheckType t)         = CheckType <$> normalise' t
-  normalise' (UsableAtModality mod t) = UsableAtModality mod <$> normalise' t
+  normalise' (UsableAtModality ms mod t) = flip UsableAtModality mod <$> normalise' ms <*> normalise' t
 
 instance Normalise CompareAs where
   normalise' (AsTermsOf a) = AsTermsOf <$> normalise' a
@@ -1396,13 +1432,13 @@ instance InstantiateFull PlusLevel where
 instance InstantiateFull Substitution where
   instantiateFull' sigma =
     case sigma of
-      IdS                  -> return IdS
-      EmptyS err           -> return $ EmptyS err
-      Wk   n sigma         -> Wk   n         <$> instantiateFull' sigma
-      Lift n sigma         -> Lift n         <$> instantiateFull' sigma
-      Strengthen bot sigma -> Strengthen bot <$> instantiateFull' sigma
-      t :# sigma           -> consS <$> instantiateFull' t
-                                    <*> instantiateFull' sigma
+      IdS                    -> return IdS
+      EmptyS err             -> return $ EmptyS err
+      Wk   n sigma           -> Wk   n           <$> instantiateFull' sigma
+      Lift n sigma           -> Lift n           <$> instantiateFull' sigma
+      Strengthen bot n sigma -> Strengthen bot n <$> instantiateFull' sigma
+      t :# sigma             -> consS <$> instantiateFull' t
+                                      <*> instantiateFull' sigma
 
 instance InstantiateFull ConPatternInfo where
     instantiateFull' i = instantiateFull' (conPType i) <&> \ t -> i { conPType = t }
@@ -1471,7 +1507,7 @@ instance InstantiateFull Constraint where
     CheckDataSort q s   -> CheckDataSort q <$> instantiateFull' s
     c@CheckMetaInst{}   -> return c
     CheckType t         -> CheckType <$> instantiateFull' t
-    UsableAtModality mod t -> UsableAtModality mod <$> instantiateFull' t
+    UsableAtModality ms mod t -> flip UsableAtModality mod <$> instantiateFull' ms <*> instantiateFull' t
 
 instance InstantiateFull CompareAs where
   instantiateFull' (AsTermsOf a) = AsTermsOf <$> instantiateFull' a

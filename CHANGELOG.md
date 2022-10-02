@@ -63,8 +63,8 @@ Language
   (see [#5427](https://github.com/agda/agda/issues/5427)).
 
 * The cubical interval `I` now belongs to its own sort, `IUniv`, rather
-  than `SSet`. For `J : ISet` and `A : J → Set l`, we have
-  `(j : J) → A : Set l`, that is, the type of functions from a type in `ISet`
+  than `SSet`. For `J : IUniv` and `A : J → Set l`, we have
+  `(j : J) → A j : Set l`, that is, the type of functions from a type in `IUniv`
   to a fibrant type is fibrant.
 
 * The option `--experimental-irrelevance` is now perhaps incompatible
@@ -215,6 +215,14 @@ Pragmas and options
   [#5843](https://github.com/agda/agda/issues/5843).)
 
   The old name is retained for backwards compatibility.
+
+* If `--interaction-exit-on-error` is used, then Agda exits with a
+  non-zero exit code if `--interaction` or `--interaction-json` are
+  used and a type error is encountered. The option also makes Agda
+  exit with exit code 113 if Agda fails to parse a command.
+
+  This option might for instance be used if Agda is controlled from a
+  script.
 
 Performance
 -----------

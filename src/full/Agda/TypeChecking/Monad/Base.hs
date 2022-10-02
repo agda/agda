@@ -29,6 +29,7 @@ import Control.Monad.Trans.Maybe    ( MaybeT(..) )
 import Control.Parallel             ( pseq )
 
 import Data.Array (Ix)
+import Data.DList (DList)
 import Data.Function
 import Data.Int
 import Data.IntMap (IntMap)
@@ -43,7 +44,6 @@ import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
-import Data.Data (Data)
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -258,12 +258,12 @@ data PostScopeState = PostScopeState
   , stPostConcreteNames       :: !ConcreteNames
     -- ^ Map keeping track of concrete names assigned to each abstract name
     --   (can be more than one name in case the first one is shadowed)
-  , stPostUsedNames           :: !(Map RawName [RawName])
+  , stPostUsedNames           :: !(Map RawName (DList RawName))
     -- ^ Map keeping track for each name root (= name w/o numeric
     -- suffixes) what names with the same root have been used during a
     -- TC computation. This information is used to build the
     -- @ShadowingNames@ map.
-  , stPostShadowingNames      :: !(Map Name [RawName])
+  , stPostShadowingNames      :: !(Map Name (DList RawName))
     -- ^ Map keeping track for each (abstract) name the list of all
     -- (raw) names that it could maybe be shadowed by.
   , stPostStatistics          :: !Statistics
@@ -675,12 +675,12 @@ stConcreteNames f s =
   f (stPostConcreteNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostConcreteNames = x}}
 
-stUsedNames :: Lens' (Map RawName [RawName]) TCState
+stUsedNames :: Lens' (Map RawName (DList RawName)) TCState
 stUsedNames f s =
   f (stPostUsedNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostUsedNames = x}}
 
-stShadowingNames :: Lens' (Map Name [RawName]) TCState
+stShadowingNames :: Lens' (Map Name (DList RawName)) TCState
 stShadowingNames f s =
   f (stPostShadowingNames (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostShadowingNames = x}}
@@ -814,7 +814,7 @@ instance HasFresh ProblemId where
   freshLens = stFreshProblemId
 
 newtype CheckpointId = CheckpointId Int
-  deriving (Data, Eq, Ord, Enum, Real, Integral, Num, NFData)
+  deriving (Eq, Ord, Enum, Real, Integral, Num, NFData)
 
 instance Show CheckpointId where
   show (CheckpointId n) = show n
@@ -1137,7 +1137,9 @@ data Constraint
     -- ^ Last argument is the error causing us to postpone.
   | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   | CheckLockedVars Term Type (Arg Term) Type     -- ^ @CheckLockedVars t ty lk lk_ty@ with @t : ty@, @lk : lk_ty@ and @t lk@ well-typed.
-  | UsableAtModality Modality Term   -- ^ is the term usable at the given modality?
+  | UsableAtModality (Maybe Sort) Modality Term
+    -- ^ Is the term usable at the given modality?
+    -- This check should run if the @Sort@ is @Nothing@ or @isFibrant@.
   deriving (Show, Generic)
 
 instance HasRange Constraint where
@@ -1173,7 +1175,7 @@ instance Free Constraint where
       CheckDataSort _ s     -> freeVars' s
       CheckMetaInst m       -> mempty
       CheckType t           -> freeVars' t
-      UsableAtModality mod t -> freeVars' t
+      UsableAtModality ms mod t -> freeVars' (ms, t)
 
 instance TermLike Constraint where
   foldTerm f = \case
@@ -1194,14 +1196,14 @@ instance TermLike Constraint where
       CheckDataSort _ s      -> foldTerm f s
       CheckMetaInst m        -> mempty
       CheckType t            -> foldTerm f t
-      UsableAtModality m t   -> foldTerm f t
+      UsableAtModality ms m t   -> foldTerm f (Sort <$> ms, t)
 
   traverseTermM f c = __IMPOSSIBLE__ -- Not yet implemented
 
 instance AllMetas Constraint
 
 data Comparison = CmpEq | CmpLeq
-  deriving (Eq, Data, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 instance Pretty Comparison where
   pretty CmpEq  = "="
@@ -1243,7 +1245,7 @@ data CompareAs
                    --   But currently, we do not rely on this invariant.
   | AsSizes        -- ^ Replaces @AsTermsOf Size@.
   | AsTypes
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 instance Free CompareAs where
   freeVars' (AsTermsOf a) = freeVars' a
@@ -1316,7 +1318,7 @@ data DoGeneralize
                       --   we're currently checking the type of a generalizable variable
                       --   (this should get the default modality).
   | NoGeneralize      -- ^ Don't generalize.
-  deriving (Eq, Ord, Show, Data, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 -- | The value of a generalizable variable. This is created to be a
 --   generalizable meta before checking the type to be generalized.
@@ -1324,7 +1326,7 @@ data GeneralizedValue = GeneralizedValue
   { genvalCheckpoint :: CheckpointId
   , genvalTerm       :: Term
   , genvalType       :: Type
-  } deriving (Show, Data, Generic)
+  } deriving (Show, Generic)
 
 ---------------------------------------------------------------------------
 -- ** Meta variables
@@ -1642,7 +1644,7 @@ type InteractionPoints = BiMap InteractionId InteractionPoint
 --   the size of the telescope in its creation environment
 --   (as stored in MetaInfo).
 data Overapplied = Overapplied | NotOverapplied
-  deriving (Eq, Show, Data, Generic)
+  deriving (Eq, Show, Generic)
 
 -- | Datatype representing a single boundary condition:
 --   x_0 = u_0, ... ,x_n = u_n ⊢ t = ?n es
@@ -1652,7 +1654,7 @@ data IPBoundary' t = IPBoundary
   , ipbMetaApp   :: t          -- ^ @?n es@
   , ipbOverapplied :: Overapplied -- ^ Is @?n@ overapplied in @?n es@ ?
   }
-  deriving (Show, Data, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 type IPBoundary = IPBoundary' Term
 
@@ -1706,7 +1708,7 @@ type RewriteRuleMap = HashMap QName RewriteRules
 type DisplayForms = HashMap QName [LocalDisplayForm]
 
 newtype Section = Section { _secTelescope :: Telescope }
-  deriving (Data, Show, NFData)
+  deriving (Show, NFData)
 
 instance Pretty Section where
   pretty = pretty . _secTelescope
@@ -1736,7 +1738,7 @@ data DisplayForm = Display
   , dfRHS :: DisplayTerm
     -- ^ Right hand side.
   }
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 type LocalDisplayForm = Open DisplayForm
 
@@ -1758,7 +1760,7 @@ data DisplayTerm
     -- ^ @.v@.
   | DTerm Term
     -- ^ @v@.
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 instance Free DisplayForm where
   freeVars' (Display n ps t) = underBinder (freeVars' ps) `mappend` underBinder' n (freeVars' t)
@@ -1812,7 +1814,7 @@ data NLPat
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
     -- ^ Matches the term modulo β (ideally βη).
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 type PElims = [Elim' NLPat]
 
 instance TermLike NLPat where
@@ -1839,7 +1841,7 @@ instance AllMetas NLPat
 data NLPType = NLPType
   { nlpTypeSort :: NLPSort
   , nlpTypeUnEl :: NLPat
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 instance TermLike NLPType where
   traverseTermM f (NLPType s t) = NLPType <$> traverseTermM f s <*> traverseTermM f t
@@ -1856,7 +1858,7 @@ data NLPSort
   | PSizeUniv
   | PLockUniv
   | PIntervalUniv
-  deriving (Data, Show, Generic)
+  deriving (Show, Generic)
 
 instance TermLike NLPSort where
   traverseTermM f = \case
@@ -1892,7 +1894,7 @@ data RewriteRule = RewriteRule
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
   , rewFromClause :: Bool    -- ^ Was this rewrite rule created from a clause in the definition of the function?
   }
-    deriving (Data, Show, Generic)
+    deriving (Show, Generic)
 
 data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
@@ -1990,10 +1992,10 @@ data NumGeneralizableArgs
   | SomeGeneralizableArgs !Int
     -- ^ When lambda-lifting new args are generalizable if
     --   'SomeGeneralizableArgs', also when the number is zero.
-  deriving (Data, Show)
+  deriving Show
 
-theDefLens :: Lens' Defn Definition
-theDefLens f d = f (theDef d) <&> \ df -> d { theDef = df }
+lensTheDef :: Lens' Defn Definition
+lensTheDef f d = f (theDef d) <&> \ df -> d { theDef = df }
 
 -- | Create a definition with sensible defaults.
 defaultDefn ::
@@ -2026,7 +2028,7 @@ data Polarity
   | Contravariant  -- ^ antitone
   | Invariant      -- ^ no information (mixed variance)
   | Nonvariant     -- ^ constant
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 instance Pretty Polarity where
   pretty = text . \case
@@ -2039,11 +2041,11 @@ instance Pretty Polarity where
 data IsForced
   = Forced
   | NotForced
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 -- | The backends are responsible for parsing their own pragmas.
 data CompilerPragma = CompilerPragma Range String
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 instance HasRange CompilerPragma where
   getRange (CompilerPragma r _) = r
@@ -2072,7 +2074,7 @@ data System = System
     -- ^ the telescope Δ, binding vars for the clauses, Γ ⊢ Δ
   , systemClauses :: [(Face,Term)]
     -- ^ a system [φ₁ u₁, ... , φₙ uₙ] where Γ, Δ ⊢ φᵢ and Γ, Δ, φᵢ ⊢ uᵢ
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 -- | Additional information for extended lambdas.
 data ExtLamInfo = ExtLamInfo
@@ -2085,7 +2087,7 @@ data ExtLamInfo = ExtLamInfo
   , extLamAbsurd :: Bool
     -- ^ Was this definition created from an absurd lambda @λ ()@?
   , extLamSys :: !(Strict.Maybe System)
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 modifySystem :: (System -> System) -> ExtLamInfo -> ExtLamInfo
 modifySystem f e = let !e' = e { extLamSys = f <$> extLamSys e } in e'
@@ -2117,11 +2119,11 @@ data Projection = Projection
     --   (Invariant: the number of abstractions equals 'projIndex'.)
     --   In case of a projection-like function, just the function symbol
     --   is returned as 'Def':  @t = \ pars -> f@.
-  } deriving (Data, Show, Generic)
+  } deriving (Show, Generic)
 
 -- | Abstractions to build projection function (dropping parameters).
 newtype ProjLams = ProjLams { getProjLams :: [Arg ArgName] }
-  deriving (Data, Show, Null, Generic)
+  deriving (Show, Null, Generic)
 
 -- | Building the projection function (which drops the parameters).
 projDropPars :: Projection -> ProjOrigin -> Term
@@ -2146,7 +2148,7 @@ projArgInfo (Projection _ _ _ _ lams) =
 data EtaEquality
   = Specified { theEtaEquality :: !HasEta }  -- ^ User specifed 'eta-equality' or 'no-eta-equality'.
   | Inferred  { theEtaEquality :: !HasEta }  -- ^ Positivity checker inferred whether eta is safe.
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 instance PatternMatchingAllowed EtaEquality where
   patternMatchingAllowed = patternMatchingAllowed . theEtaEquality
@@ -2163,13 +2165,13 @@ data FunctionFlag
   = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
   | FunInline  -- ^ Should calls to this function be inlined by the compiler?
   | FunMacro   -- ^ Is this function a macro?
-  deriving (Data, Eq, Ord, Enum, Show, Generic)
+  deriving (Eq, Ord, Enum, Show, Generic)
 
 data CompKit = CompKit
   { nameOfHComp :: Maybe QName
   , nameOfTransp :: Maybe QName
   }
-  deriving (Data, Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 emptyCompKit :: CompKit
 emptyCompKit = CompKit Nothing Nothing
@@ -2180,151 +2182,422 @@ defaultAxiom = Axiom False
 constTranspAxiom :: Defn
 constTranspAxiom = Axiom True
 
-data Defn = Axiom -- ^ Postulate
-            { axiomConstTransp :: Bool
-              -- ^ Can transp for this postulate be constant?
-              --   Set to @True@ for bultins like String.
-            }
-          | DataOrRecSig
-            { datarecPars :: Int }
-            -- ^ Data or record type signature that doesn't yet have a definition
-          | GeneralizableVar -- ^ Generalizable variable (introduced in `generalize` block)
-          | AbstractDefn Defn
-            -- ^ Returned by 'getConstInfo' if definition is abstract.
-          | Function
-            { funClauses        :: [Clause]
-            , funCompiled       :: Maybe CompiledClauses
-              -- ^ 'Nothing' while function is still type-checked.
-              --   @Just cc@ after type and coverage checking and
-              --   translation to case trees.
-            , funSplitTree      :: Maybe SplitTree
-              -- ^ The split tree constructed by the coverage
-              --   checker. Needed to re-compile the clauses after
-              --   forcing translation.
-            , funTreeless       :: Maybe Compiled
-              -- ^ Intermediate representation for compiler backends.
-            , funCovering       :: [Clause]
-              -- ^ Covering clauses computed by coverage checking.
-              --   Erased by (IApply) confluence checking(?)
-            , funInv            :: FunctionInverse
-            , funMutual         :: Maybe [QName]
-              -- ^ Mutually recursive functions, @data@s and @record@s.
-              --   Does include this function.
-              --   Empty list if not recursive.
-              --   @Nothing@ if not yet computed (by positivity checker).
-            , funAbstr          :: IsAbstract
-            , funDelayed        :: Delayed
-              -- ^ Are the clauses of this definition delayed?
-            , funProjection     :: Maybe Projection
-              -- ^ Is it a record projection?
-              --   If yes, then return the name of the record type and index of
-              --   the record argument.  Start counting with 1, because 0 means that
-              --   it is already applied to the record. (Can happen in module
-              --   instantiation.) This information is used in the termination
-              --   checker.
-            , funFlags          :: Set FunctionFlag
-            , funTerminates     :: Maybe Bool
-              -- ^ Has this function been termination checked?  Did it pass?
-            , funExtLam         :: Maybe ExtLamInfo
-              -- ^ Is this function generated from an extended lambda?
-              --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments
-            , funWith           :: Maybe QName
-              -- ^ Is this a generated with-function? If yes, then what's the
-              --   name of the parent function.
-            }
-          | Datatype
-            { dataPars           :: Nat            -- ^ Number of parameters.
-            , dataIxs            :: Nat            -- ^ Number of indices.
-            , dataClause         :: (Maybe Clause) -- ^ This might be in an instantiated module.
-            , dataCons           :: [QName]
-              -- ^ Constructor names , ordered according to the order of their definition.
-            , dataSort           :: Sort
-            , dataMutual         :: Maybe [QName]
-              -- ^ Mutually recursive functions, @data@s and @record@s.
-              --   Does include this data type.
-              --   Empty if not recursive.
-              --   @Nothing@ if not yet computed (by positivity checker).
-            , dataAbstr          :: IsAbstract
-            , dataPathCons       :: [QName]        -- ^ Path constructor names (subset of dataCons)
-            , dataTranspIx       :: Maybe QName    -- ^ if indexed datatype, name of the "index transport" function.
-            , dataTransp         :: Maybe QName
-              -- ^ transport function, should be available for all datatypes in supported sorts.
-            }
-          | Record
-            { recPars           :: Nat
-              -- ^ Number of parameters.
-            , recClause         :: Maybe Clause
-              -- ^ Was this record type created by a module application?
-              --   If yes, the clause is its definition (linking back to the original record type).
-            , recConHead        :: ConHead
-              -- ^ Constructor name and fields.
-            , recNamedCon       :: Bool
-              -- ^ Does this record have a @constructor@?
-            , recFields         :: [Dom QName]
-              -- ^ The record field names.
-            , recTel            :: Telescope
-              -- ^ The record field telescope. (Includes record parameters.)
-              --   Note: @TelV recTel _ == telView' recConType@.
-              --   Thus, @recTel@ is redundant.
-            , recMutual         :: Maybe [QName]
-              -- ^ Mutually recursive functions, @data@s and @record@s.
-              --   Does include this record.
-              --   Empty if not recursive.
-              --   @Nothing@ if not yet computed (by positivity checker).
-            , recEtaEquality'    :: EtaEquality
-              -- ^ Eta-expand at this record type?
-              --   @False@ for unguarded recursive records and coinductive records
-              --   unless the user specifies otherwise.
-            , recPatternMatching :: PatternOrCopattern
-              -- ^ In case eta-equality is off, do we allow pattern matching on the
-              --   constructor or construction by copattern matching?
-              --   Having both loses subject reduction, see issue #4560.
-              --   After positivity checking, this field is obsolete, part of 'EtaEquality'.
-            , recInduction      :: Maybe Induction
-              -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
-              --   'Nothing' means that the user did not specify it, which is an error
-              --   for recursive records.
-            , recTerminates     :: Maybe Bool
-              -- ^ 'Just True' means that unfolding of the recursive record terminates,
-              --   'Just False' means that we have no evidence for termination,
-              --   and 'Nothing' means we have not run the termination checker yet.
-            , recAbstr          :: IsAbstract
-            , recComp           :: CompKit
-            }
-          | Constructor
-            { conPars   :: Int         -- ^ Number of parameters.
-            , conArity  :: Int         -- ^ Number of arguments (excluding parameters).
-            , conSrcCon :: ConHead     -- ^ Name of (original) constructor and fields. (This might be in a module instance.)
-            , conData   :: QName       -- ^ Name of datatype or record type.
-            , conAbstr  :: IsAbstract
-            , conInd    :: Induction   -- ^ Inductive or coinductive?
-            , conComp   :: CompKit     -- ^ Cubical composition.
-            , conProj   :: Maybe [QName] -- ^ Projections. 'Nothing' if not yet computed.
-            , conForced :: [IsForced]
-              -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
-              --   Either this list is empty (if the forcing analysis isn't run), or its length is @conArity@.
-            , conErased :: Maybe [Bool]
-              -- ^ Which arguments are erased at runtime (computed during compilation to treeless)?
-              --   'True' means erased, 'False' means retained.
-              --   'Nothing' if no erasure analysis has been performed yet.
-              --   The length of the list is @conArity@.
-            }
-          | Primitive  -- ^ Primitive or builtin functions.
-            { primAbstr :: IsAbstract
-            , primName  :: String
-            , primClauses :: [Clause]
-              -- ^ 'null' for primitive functions, @not null@ for builtin functions.
-            , primInv      :: FunctionInverse
-              -- ^ Builtin functions can have inverses. For instance, natural number addition.
-            , primCompiled :: Maybe CompiledClauses
-              -- ^ 'Nothing' for primitive functions,
-              --   @'Just' something@ for builtin functions.
-            }
-          | PrimitiveSort
-            { primName :: String
-            , primSort :: Sort
-            }
-    deriving (Data, Show, Generic)
+data Defn
+  = AxiomDefn AxiomData
+      -- ^ Postulate.
+  | DataOrRecSigDefn DataOrRecSigData
+      -- ^ Data or record type signature that doesn't yet have a definition.
+  | GeneralizableVar
+      -- ^ Generalizable variable (introduced in `generalize` block).
+  | AbstractDefn Defn
+      -- ^ Returned by 'getConstInfo' if definition is abstract.
+  | FunctionDefn FunctionData
+  | DatatypeDefn DatatypeData
+  | RecordDefn RecordData
+  | ConstructorDefn ConstructorData
+  | PrimitiveDefn PrimitiveData
+      -- ^ Primitive or builtin functions.
+  | PrimitiveSortDefn PrimitiveSortData
+    deriving (Show, Generic)
+
+-- The COMPLETE pragma is new in GHC 8.2
+#if __GLASGOW_HASKELL__ >= 802
+{-# COMPLETE
+  Axiom, DataOrRecSig, GeneralizableVar, AbstractDefn,
+  Function, Datatype, Record, Constructor, Primitive, PrimitiveSort #-}
+#endif
+
+data AxiomData = AxiomData
+  { _axiomConstTransp :: Bool
+    -- ^ Can transp for this postulate be constant?
+    --   Set to @True@ for bultins like String.
+  } deriving (Show, Generic)
+
+pattern Axiom :: Bool -> Defn
+pattern Axiom{ axiomConstTransp } = AxiomDefn (AxiomData axiomConstTransp)
+
+data DataOrRecSigData = DataOrRecSigData
+  { _datarecPars :: Int
+  } deriving (Show, Generic)
+
+pattern DataOrRecSig :: Int -> Defn
+pattern DataOrRecSig{ datarecPars } = DataOrRecSigDefn (DataOrRecSigData datarecPars)
+
+data FunctionData = FunctionData
+  { _funClauses        :: [Clause]
+  , _funCompiled       :: Maybe CompiledClauses
+      -- ^ 'Nothing' while function is still type-checked.
+      --   @Just cc@ after type and coverage checking and
+      --   translation to case trees.
+  , _funSplitTree      :: Maybe SplitTree
+      -- ^ The split tree constructed by the coverage
+      --   checker. Needed to re-compile the clauses after
+      --   forcing translation.
+  , _funTreeless       :: Maybe Compiled
+      -- ^ Intermediate representation for compiler backends.
+  , _funCovering       :: [Clause]
+      -- ^ Covering clauses computed by coverage checking.
+      --   Erased by (IApply) confluence checking(?)
+  , _funInv            :: FunctionInverse
+  , _funMutual         :: Maybe [QName]
+      -- ^ Mutually recursive functions, @data@s and @record@s.
+      --   Does include this function.
+      --   Empty list if not recursive.
+      --   @Nothing@ if not yet computed (by positivity checker).
+  , _funAbstr          :: IsAbstract
+  , _funDelayed        :: Delayed
+      -- ^ Are the clauses of this definition delayed?
+  , _funProjection     :: Maybe Projection
+      -- ^ Is it a record projection?
+      --   If yes, then return the name of the record type and index of
+      --   the record argument.  Start counting with 1, because 0 means that
+      --   it is already applied to the record. (Can happen in module
+      --   instantiation.) This information is used in the termination
+      --   checker.
+  , _funFlags          :: Set FunctionFlag
+  , _funTerminates     :: Maybe Bool
+      -- ^ Has this function been termination checked?  Did it pass?
+  , _funExtLam         :: Maybe ExtLamInfo
+      -- ^ Is this function generated from an extended lambda?
+      --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments.
+  , _funWith           :: Maybe QName
+      -- ^ Is this a generated with-function?
+      --   If yes, then what's the name of the parent function?
+  } deriving (Show, Generic)
+
+pattern Function
+  :: [Clause]
+  -> Maybe CompiledClauses
+  -> Maybe SplitTree
+  -> Maybe Compiled
+  -> [Clause]
+  -> FunctionInverse
+  -> Maybe [QName]
+  -> IsAbstract
+  -> Delayed
+  -> Maybe Projection
+  -> Set FunctionFlag
+  -> Maybe Bool
+  -> Maybe ExtLamInfo
+  -> Maybe QName
+  -> Defn
+pattern Function
+  { funClauses
+  , funCompiled
+  , funSplitTree
+  , funTreeless
+  , funCovering
+  , funInv
+  , funMutual
+  , funAbstr
+  , funDelayed
+  , funProjection
+  , funFlags
+  , funTerminates
+  , funExtLam
+  , funWith
+  } = FunctionDefn (FunctionData
+    funClauses
+    funCompiled
+    funSplitTree
+    funTreeless
+    funCovering
+    funInv
+    funMutual
+    funAbstr
+    funDelayed
+    funProjection
+    funFlags
+    funTerminates
+    funExtLam
+    funWith
+  )
+
+data DatatypeData = DatatypeData
+  { _dataPars           :: Nat
+      -- ^ Number of parameters.
+  , _dataIxs            :: Nat
+      -- ^ Number of indices.
+  , _dataClause         :: Maybe Clause
+      -- ^ This might be in an instantiated module.
+  , _dataCons           :: [QName]
+      -- ^ Constructor names, ordered according to the order of their definition.
+  , _dataSort           :: Sort
+  , _dataMutual         :: Maybe [QName]
+      -- ^ Mutually recursive functions, @data@s and @record@s.
+      --   Does include this data type.
+      --   Empty if not recursive.
+      --   @Nothing@ if not yet computed (by positivity checker).
+  , _dataAbstr          :: IsAbstract
+  , _dataPathCons       :: [QName]
+      -- ^ Path constructor names (subset of @dataCons@).
+  , _dataTranspIx       :: Maybe QName
+      -- ^ If indexed datatype, name of the "index transport" function.
+  , _dataTransp         :: Maybe QName
+      -- ^ Transport function, should be available for all datatypes in supported sorts.
+  } deriving (Show, Generic)
+
+pattern Datatype
+  :: Nat
+  -> Nat
+  -> (Maybe Clause)
+  -> [QName]
+  -> Sort
+  -> Maybe [QName]
+  -> IsAbstract
+  -> [QName]
+  -> Maybe QName
+  -> Maybe QName
+  -> Defn
+
+pattern Datatype
+  { dataPars
+  , dataIxs
+  , dataClause
+  , dataCons
+  , dataSort
+  , dataMutual
+  , dataAbstr
+  , dataPathCons
+  , dataTranspIx
+  , dataTransp
+  } = DatatypeDefn (DatatypeData
+    dataPars
+    dataIxs
+    dataClause
+    dataCons
+    dataSort
+    dataMutual
+    dataAbstr
+    dataPathCons
+    dataTranspIx
+    dataTransp
+  )
+
+data RecordData = RecordData
+  { _recPars           :: Nat
+      -- ^ Number of parameters.
+  , _recClause         :: Maybe Clause
+      -- ^ Was this record type created by a module application?
+      --   If yes, the clause is its definition (linking back to the original record type).
+  , _recConHead        :: ConHead
+      -- ^ Constructor name and fields.
+  , _recNamedCon       :: Bool
+      -- ^ Does this record have a @constructor@?
+  , _recFields         :: [Dom QName]
+      -- ^ The record field names.
+  , _recTel            :: Telescope
+      -- ^ The record field telescope. (Includes record parameters.)
+      --   Note: @TelV recTel _ == telView' recConType@.
+      --   Thus, @recTel@ is redundant.
+  , _recMutual         :: Maybe [QName]
+      -- ^ Mutually recursive functions, @data@s and @record@s.
+      --   Does include this record.
+      --   Empty if not recursive.
+      --   @Nothing@ if not yet computed (by positivity checker).
+  , _recEtaEquality'    :: EtaEquality
+      -- ^ Eta-expand at this record type?
+      --   @False@ for unguarded recursive records and coinductive records
+      --   unless the user specifies otherwise.
+  , _recPatternMatching :: PatternOrCopattern
+      -- ^ In case eta-equality is off, do we allow pattern matching on the
+      --   constructor or construction by copattern matching?
+      --   Having both loses subject reduction, see issue #4560.
+      --   After positivity checking, this field is obsolete, part of 'EtaEquality'.
+  , _recInduction      :: Maybe Induction
+      -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
+      --   'Nothing' means that the user did not specify it, which is an error
+      --   for recursive records.
+  , _recTerminates     :: Maybe Bool
+      -- ^ 'Just True' means that unfolding of the recursive record terminates,
+      --   'Just False' means that we have no evidence for termination,
+      --   and 'Nothing' means we have not run the termination checker yet.
+  , _recAbstr          :: IsAbstract
+  , _recComp           :: CompKit
+  } deriving (Show, Generic)
+
+pattern Record
+  :: Nat
+  -> Maybe Clause
+  -> ConHead
+  -> Bool
+  -> [Dom QName]
+  -> Telescope
+  -> Maybe [QName]
+  -> EtaEquality
+  -> PatternOrCopattern
+  -> Maybe Induction
+  -> Maybe Bool
+  -> IsAbstract
+  -> CompKit
+  -> Defn
+
+pattern Record
+  { recPars
+  , recClause
+  , recConHead
+  , recNamedCon
+  , recFields
+  , recTel
+  , recMutual
+  , recEtaEquality'
+  , recPatternMatching
+  , recInduction
+  , recTerminates
+  , recAbstr
+  , recComp
+  } = RecordDefn (RecordData
+    recPars
+    recClause
+    recConHead
+    recNamedCon
+    recFields
+    recTel
+    recMutual
+    recEtaEquality'
+    recPatternMatching
+    recInduction
+    recTerminates
+    recAbstr
+    recComp
+  )
+
+data ConstructorData = ConstructorData
+  { _conPars   :: Int
+      -- ^ Number of parameters.
+  , _conArity  :: Int
+      -- ^ Number of arguments (excluding parameters).
+  , _conSrcCon :: ConHead
+      -- ^ Name of (original) constructor and fields. (This might be in a module instance.)
+  , _conData   :: QName
+      -- ^ Name of datatype or record type.
+  , _conAbstr  :: IsAbstract
+  , _conInd    :: Induction
+      -- ^ Inductive or coinductive?
+  , _conComp   :: CompKit
+      -- ^ Cubical composition.
+  , _conProj   :: Maybe [QName]
+      -- ^ Projections. 'Nothing' if not yet computed.
+  , _conForced :: [IsForced]
+      -- ^ Which arguments are forced (i.e. determined by the type of the constructor)?
+      --   Either this list is empty (if the forcing analysis isn't run), or its length is @conArity@.
+  , _conErased :: Maybe [Bool]
+      -- ^ Which arguments are erased at runtime (computed during compilation to treeless)?
+      --   'True' means erased, 'False' means retained.
+      --   'Nothing' if no erasure analysis has been performed yet.
+      --   The length of the list is @conArity@.
+  } deriving (Show, Generic)
+
+pattern Constructor
+  :: Int
+  -> Int
+  -> ConHead
+  -> QName
+  -> IsAbstract
+  -> Induction
+  -> CompKit
+  -> Maybe [QName]
+  -> [IsForced]
+  -> Maybe [Bool]
+  -> Defn
+pattern Constructor
+  { conPars
+  , conArity
+  , conSrcCon
+  , conData
+  , conAbstr
+  , conInd
+  , conComp
+  , conProj
+  , conForced
+  , conErased
+  } = ConstructorDefn (ConstructorData
+    conPars
+    conArity
+    conSrcCon
+    conData
+    conAbstr
+    conInd
+    conComp
+    conProj
+    conForced
+    conErased
+  )
+
+data PrimitiveData = PrimitiveData
+  { _primAbstr    :: IsAbstract
+  , _primName     :: String
+  , _primClauses  :: [Clause]
+      -- ^ 'null' for primitive functions, @not null@ for builtin functions.
+  , _primInv      :: FunctionInverse
+      -- ^ Builtin functions can have inverses. For instance, natural number addition.
+  , _primCompiled :: Maybe CompiledClauses
+      -- ^ 'Nothing' for primitive functions,
+      --   @'Just' something@ for builtin functions.
+  } deriving (Show, Generic)
+
+pattern Primitive
+  :: IsAbstract
+  -> String
+  -> [Clause]
+  -> FunctionInverse
+  -> Maybe CompiledClauses
+  -> Defn
+pattern Primitive
+  { primAbstr
+  , primName
+  , primClauses
+  , primInv
+  , primCompiled
+  } = PrimitiveDefn (PrimitiveData
+    primAbstr
+    primName
+    primClauses
+    primInv
+    primCompiled
+  )
+
+data PrimitiveSortData = PrimitiveSortData
+  { _primSortName :: String
+  , _primSortSort :: Sort
+  } deriving (Show, Generic)
+
+pattern PrimitiveSort
+  :: String
+  -> Sort
+  -> Defn
+pattern PrimitiveSort
+  { primSortName
+  , primSortSort
+  } = PrimitiveSortDefn (PrimitiveSortData
+    primSortName
+    primSortSort
+  )
+
+-- TODO: lenses for all Defn variants
+
+lensFunction :: Lens' FunctionData Defn
+lensFunction f = \case
+  FunctionDefn d -> FunctionDefn <$> f d
+  _ -> __IMPOSSIBLE__
+
+lensConstructor :: Lens' ConstructorData Defn
+lensConstructor f = \case
+  ConstructorDefn d -> ConstructorDefn <$> f d
+  _ -> __IMPOSSIBLE__
+
+lensRecord :: Lens' RecordData Defn
+lensRecord f = \case
+  RecordDefn d -> RecordDefn <$> f d
+  _ -> __IMPOSSIBLE__
+
+-- Lenses for Record
+
+lensRecTel :: Lens' Telescope RecordData
+lensRecTel f r =
+  f (_recTel r) <&> \ tel -> r { _recTel = tel }
+
+-- Pretty printing definitions
 
 instance Pretty Definition where
   pretty Defn{..} =
@@ -2346,11 +2619,38 @@ instance Pretty Definition where
       , "theDef            =" <?> pretty theDef ] <+> "}"
 
 instance Pretty Defn where
-  pretty Axiom{} = "Axiom"
-  pretty (DataOrRecSig n)   = "DataOrRecSig" <+> pretty n
-  pretty GeneralizableVar{} = "GeneralizableVar"
-  pretty (AbstractDefn def) = "AbstractDefn" <?> parens (pretty def)
-  pretty Function{..} =
+  pretty = \case
+    AxiomDefn _         -> "Axiom"
+    DataOrRecSigDefn d  -> pretty d
+    GeneralizableVar    -> "GeneralizableVar"
+    AbstractDefn def    -> "AbstractDefn" <?> parens (pretty def)
+    FunctionDefn d      -> pretty d
+    DatatypeDefn d      -> pretty d
+    RecordDefn d        -> pretty d
+    ConstructorDefn d   -> pretty d
+    PrimitiveDefn d     -> pretty d
+    PrimitiveSortDefn d -> pretty d
+
+instance Pretty DataOrRecSigData where
+  pretty (DataOrRecSigData n) = "DataOrRecSig" <+> pretty n
+
+instance Pretty FunctionData where
+  pretty (FunctionData
+      funClauses
+      funCompiled
+      funSplitTree
+      funTreeless
+      _funCovering
+      funInv
+      funMutual
+      funAbstr
+      funDelayed
+      funProjection
+      funFlags
+      funTerminates
+      _funExtLam
+      funWith
+    ) =
     "Function {" <?> vcat
       [ "funClauses      =" <?> vcat (map pretty funClauses)
       , "funCompiled     =" <?> pretty funCompiled
@@ -2363,8 +2663,22 @@ instance Pretty Defn where
       , "funProjection   =" <?> pretty funProjection
       , "funFlags        =" <?> pshow funFlags
       , "funTerminates   =" <?> pshow funTerminates
-      , "funWith         =" <?> pretty funWith ] <?> "}"
-  pretty Datatype{..} =
+      , "funWith         =" <?> pretty funWith
+      ] <?> "}"
+
+instance Pretty DatatypeData where
+  pretty (DatatypeData
+      dataPars
+      dataIxs
+      dataClause
+      dataCons
+      dataSort
+      dataMutual
+      _dataAbstr
+      _dataPathCons
+      _dataTranspIx
+      _dataTransp
+    ) =
     "Datatype {" <?> vcat
       [ "dataPars       =" <?> pshow dataPars
       , "dataIxs        =" <?> pshow dataIxs
@@ -2372,8 +2686,25 @@ instance Pretty Defn where
       , "dataCons       =" <?> pshow dataCons
       , "dataSort       =" <?> pretty dataSort
       , "dataMutual     =" <?> pshow dataMutual
-      , "dataAbstr      =" <?> pshow dataAbstr ] <?> "}"
-  pretty Record{..} =
+      , "dataAbstr      =" <?> pshow dataAbstr
+      ] <?> "}"
+
+instance Pretty RecordData where
+  pretty (RecordData
+      recPars
+      recClause
+      recConHead
+      recNamedCon
+      recFields
+      recTel
+      recMutual
+      recEtaEquality'
+      _recPatternMatching
+      recInduction
+      _recTerminates
+      recAbstr
+      _recComp
+    ) =
     "Record {" <?> vcat
       [ "recPars         =" <?> pshow recPars
       , "recClause       =" <?> pretty recClause
@@ -2384,8 +2715,22 @@ instance Pretty Defn where
       , "recMutual       =" <?> pshow recMutual
       , "recEtaEquality' =" <?> pshow recEtaEquality'
       , "recInduction    =" <?> pshow recInduction
-      , "recAbstr        =" <?> pshow recAbstr ] <?> "}"
-  pretty Constructor{..} =
+      , "recAbstr        =" <?> pshow recAbstr
+      ] <?> "}"
+
+instance Pretty ConstructorData where
+  pretty (ConstructorData
+      conPars
+      conArity
+      conSrcCon
+      conData
+      conAbstr
+      conInd
+      _conComp
+      _conProj
+      _conForced
+      conErased
+    ) =
     "Constructor {" <?> vcat
       [ "conPars   =" <?> pshow conPars
       , "conArity  =" <?> pshow conArity
@@ -2393,17 +2738,29 @@ instance Pretty Defn where
       , "conData   =" <?> pretty conData
       , "conAbstr  =" <?> pshow conAbstr
       , "conInd    =" <?> pshow conInd
-      , "conErased =" <?> pshow conErased ] <?> "}"
-  pretty Primitive{..} =
+      , "conErased =" <?> pshow conErased
+      ] <?> "}"
+
+instance Pretty PrimitiveData where
+  pretty (PrimitiveData
+      primAbstr
+      primName
+      primClauses
+      _primInv
+      primCompiled
+      ) =
     "Primitive {" <?> vcat
       [ "primAbstr    =" <?> pshow primAbstr
       , "primName     =" <?> pshow primName
       , "primClauses  =" <?> pshow primClauses
-      , "primCompiled =" <?> pshow primCompiled ] <?> "}"
-  pretty PrimitiveSort{..} =
+      , "primCompiled =" <?> pshow primCompiled
+      ] <?> "}"
+
+instance Pretty PrimitiveSortData where
+  pretty (PrimitiveSortData primSortName primSortSort) =
     "PrimitiveSort {" <?> vcat
-      [ "primName =" <?> pshow primName
-      , "primSort =" <?> pshow primSort
+      [ "primSortName =" <?> pshow primSortName
+      , "primSortSort =" <?> pshow primSortSort
       ] <?> "}"
 
 instance Pretty Projection where
@@ -2434,23 +2791,26 @@ recEtaEquality :: Defn -> HasEta
 recEtaEquality = theEtaEquality . recEtaEquality'
 
 -- | A template for creating 'Function' definitions, with sensible defaults.
-emptyFunction :: Defn
-emptyFunction = Function
-  { funClauses     = []
-  , funCompiled    = Nothing
-  , funSplitTree   = Nothing
-  , funTreeless    = Nothing
-  , funInv         = NotInjective
-  , funMutual      = Nothing
-  , funAbstr       = ConcreteDef
-  , funDelayed     = NotDelayed
-  , funProjection  = Nothing
-  , funFlags       = Set.empty
-  , funTerminates  = Nothing
-  , funExtLam      = Nothing
-  , funWith        = Nothing
-  , funCovering    = []
+emptyFunctionData :: FunctionData
+emptyFunctionData = FunctionData
+  { _funClauses     = []
+  , _funCompiled    = Nothing
+  , _funSplitTree   = Nothing
+  , _funTreeless    = Nothing
+  , _funInv         = NotInjective
+  , _funMutual      = Nothing
+  , _funAbstr       = ConcreteDef
+  , _funDelayed     = NotDelayed
+  , _funProjection  = Nothing
+  , _funFlags       = Set.empty
+  , _funTerminates  = Nothing
+  , _funExtLam      = Nothing
+  , _funWith        = Nothing
+  , _funCovering    = []
   }
+
+emptyFunction :: Defn
+emptyFunction = FunctionDefn emptyFunctionData
 
 funFlag :: FunctionFlag -> Lens' Bool Defn
 funFlag flag f def@Function{ funFlags = flags } =
@@ -2505,7 +2865,7 @@ newtype Fields = Fields [(C.Name, Type)]
 --   (unfolding of definitions) does not count as simplifying?
 
 data Simplification = YesSimplification | NoSimplification
-  deriving (Data, Eq, Show, Generic)
+  deriving (Eq, Show, Generic)
 
 instance Null Simplification where
   empty = NoSimplification
@@ -2573,7 +2933,7 @@ data AllowedReduction
                              --   by confluence checker)
   | UnconfirmedReductions    -- ^ Functions whose termination has not (yet) been confirmed.
   | NonTerminatingReductions -- ^ Functions that have failed termination checking.
-  deriving (Show, Eq, Ord, Enum, Bounded, Ix, Data, Generic)
+  deriving (Show, Eq, Ord, Enum, Bounded, Ix, Generic)
 
 type AllowedReductions = SmallSet AllowedReduction
 
@@ -2587,7 +2947,7 @@ reallyAllReductions = SmallSet.total
 data ReduceDefs
   = OnlyReduceDefs (Set QName)
   | DontReduceDefs (Set QName)
-  deriving (Data, Generic)
+  deriving Generic
 
 reduceAllDefs :: ReduceDefs
 reduceAllDefs = DontReduceDefs empty
@@ -2709,19 +3069,20 @@ defForced d = case theDef d of
 type FunctionInverse = FunctionInverse' Clause
 type InversionMap c = Map TermHead [c]
 
-data WhenInjective = AlwaysInjective | UnlessCubical deriving (Data,Show,Generic)
+data WhenInjective = AlwaysInjective | UnlessCubical
+  deriving (Show, Generic)
 
 data FunctionInverse' c
   = NotInjective
   | Inverse WhenInjective (InversionMap c)
-  deriving (Data, Show, Functor, Generic)
+  deriving (Show, Functor, Generic)
 
 data TermHead = SortHead
               | PiHead
               | ConsHead QName
               | VarHead Nat
               | UnknownHead
-  deriving (Data, Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic)
 
 instance Pretty TermHead where
   pretty = \ case
@@ -2736,7 +3097,7 @@ instance Pretty TermHead where
 ---------------------------------------------------------------------------
 
 newtype MutualId = MutId Int32
-  deriving (Data, Eq, Ord, Show, Num, Enum, NFData)
+  deriving (Eq, Ord, Show, Num, Enum, NFData)
 
 ---------------------------------------------------------------------------
 -- ** Statistics
@@ -2785,7 +3146,7 @@ data Call
   | NoHighlighting
   | ModuleContents  -- ^ Interaction command: show module contents.
   | SetRange Range  -- ^ used by 'setCurrentRange'
-  deriving (Data, Generic)
+  deriving Generic
 
 instance Pretty Call where
     pretty CheckClause{}             = "CheckClause"
@@ -2920,7 +3281,7 @@ data HighlightingLevel
     -- ^ This includes both non-interactive highlighting and
     -- interactive highlighting of the expression that is currently
     -- being type-checked.
-    deriving (Eq, Ord, Show, Read, Data, Generic)
+    deriving (Eq, Ord, Show, Read, Generic)
 
 -- | How should highlighting be sent to the user interface?
 
@@ -2929,7 +3290,7 @@ data HighlightingMethod
     -- ^ Via stdout.
   | Indirect
     -- ^ Both via files and via stdout.
-    deriving (Eq, Show, Read, Data, Generic)
+    deriving (Eq, Show, Read, Generic)
 
 -- | @ifTopLevelAndHighlightingLevelIs l b m@ runs @m@ when we're
 -- type-checking the top-level module (or before we've started doing
@@ -3035,7 +3396,7 @@ data TCEnv =
                 -- these will become unsolved metas.
           , envAppDef :: Maybe QName
                 -- ^ We are reducing an application of this function.
-                -- (For debugging of incomplete matches only.)
+                -- (For tracking of incomplete matches.)
           , envSimplification :: Simplification
                 -- ^ Did we encounter a simplification (proper match)
                 --   during the current reduction process?
@@ -3186,7 +3547,7 @@ instance LensQuantity  TCEnv where
 
 data UnquoteFlags = UnquoteFlags
   { _unquoteNormalise :: Bool }
-  deriving (Data, Generic)
+  deriving Generic
 
 defaultUnquoteFlags :: UnquoteFlags
 defaultUnquoteFlags = UnquoteFlags
@@ -3372,7 +3733,7 @@ data AbstractMode
   = AbstractMode        -- ^ Abstract things in the current module can be accessed.
   | ConcreteMode        -- ^ No abstract things can be accessed.
   | IgnoreAbstractMode  -- ^ All abstract things can be accessed.
-  deriving (Data, Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 aDefToMode :: IsAbstract -> AbstractMode
 aDefToMode AbstractDef = AbstractMode
@@ -3391,7 +3752,7 @@ data ExpandHidden
   = ExpandLast      -- ^ Add implicit arguments in the end until type is no longer hidden 'Pi'.
   | DontExpandLast  -- ^ Do not append implicit arguments.
   | ReallyDontExpandLast -- ^ Makes 'doExpandLast' have no effect. Used to avoid implicit insertion of arguments to metavariables.
-  deriving (Eq, Data, Generic)
+  deriving (Eq, Generic)
 
 isDontExpandLast :: ExpandHidden -> Bool
 isDontExpandLast ExpandLast           = False
@@ -3401,7 +3762,7 @@ isDontExpandLast ReallyDontExpandLast = True
 data CandidateKind
   = LocalCandidate
   | GlobalCandidate QName
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 -- | A candidate solution for an instance meta is a term with its type.
 --   It may be the case that the candidate is not fully applied yet or
@@ -3411,7 +3772,7 @@ data Candidate  = Candidate { candidateKind :: CandidateKind
                             , candidateType :: Type
                             , candidateOverlappable :: Bool
                             }
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 instance Free Candidate where
   freeVars' (Candidate _ t u _) = freeVars' (t, u)
@@ -3574,7 +3935,7 @@ data RecordFieldWarning
   | TooManyFieldsWarning QName [C.Name] [(C.Name, Range)]
       -- ^ Record type, fields not supplied by user, non-fields but supplied.
       --   The redundant fields come with a range of associated dead code.
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 recordFieldWarningToError :: RecordFieldWarning -> TypeError
 recordFieldWarningToError = \case
@@ -4931,6 +5292,14 @@ instance NFData ExtLamInfo
 instance NFData EtaEquality
 instance NFData FunctionFlag
 instance NFData CompKit
+instance NFData AxiomData
+instance NFData DataOrRecSigData
+instance NFData FunctionData
+instance NFData DatatypeData
+instance NFData RecordData
+instance NFData ConstructorData
+instance NFData PrimitiveData
+instance NFData PrimitiveSortData
 instance NFData Defn
 instance NFData Simplification
 instance NFData AllowedReduction

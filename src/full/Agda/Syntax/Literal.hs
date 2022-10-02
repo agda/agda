@@ -5,7 +5,6 @@ import Control.DeepSeq
 import Data.Char
 import Data.Word
 
-import Data.Data (Data)
 import Data.Text (Text)
 import qualified Data.Text as T
 
@@ -25,7 +24,7 @@ data Literal
   | LitChar   !Char
   | LitQName  !QName
   | LitMeta   AbsolutePath MetaId
-  deriving (Data, Show)
+  deriving Show
 
 instance Pretty Literal where
     pretty (LitNat n)     = pretty n

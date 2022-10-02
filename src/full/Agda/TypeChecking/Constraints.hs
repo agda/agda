@@ -301,7 +301,7 @@ solveConstraint_ (HasPTSRule a b)       = hasPTSRule a b
 solveConstraint_ (CheckDataSort q s)    = checkDataSort q s
 solveConstraint_ (CheckMetaInst m)      = checkMetaInst m
 solveConstraint_ (CheckType t)          = checkType t
-solveConstraint_ (UsableAtModality mod t) = usableAtModality mod t
+solveConstraint_ (UsableAtModality ms mod t) = usableAtModality' ms mod t
 
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem = \case

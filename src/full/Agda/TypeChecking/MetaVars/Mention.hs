@@ -122,7 +122,7 @@ instance MentionsMeta Constraint where
     CheckMetaInst m     -> True   -- TODO
     CheckType t         -> mm t
     CheckLockedVars a b c d -> mm ((a, b), (c, d))
-    UsableAtModality mod t -> mm t
+    UsableAtModality ms mod t -> mm (ms, t)
     where
       mm :: forall t. MentionsMeta t => t -> Bool
       mm = mentionsMetas xs

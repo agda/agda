@@ -6,19 +6,18 @@ import Prelude hiding (drop, null)
 import Control.DeepSeq
 import Control.Monad (filterM)
 
+import Data.Array.Unboxed
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.Strict as IntMapS
+import qualified Data.IntSet as IntSet
 import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Maybe
-import Data.Array
-
-import Data.Data (Data)
 
 import GHC.Generics (Generic)
 
 import Agda.Utils.Functor
-import Agda.Utils.List ((!!!))
 import Agda.Utils.Null
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -37,7 +36,7 @@ import Agda.Utils.Impossible
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
 --   @m@ is the 'size' of the permutation.
 data Permutation = Perm { permRange :: Int, permPicks :: [Int] }
-  deriving (Eq, Data, Generic)
+  deriving (Eq, Generic)
 
 instance Show Permutation where
   show (Perm n xs) = showx [0..n - 1] ++ " -> " ++ showx xs
@@ -63,14 +62,44 @@ instance NFData Permutation
 --
 --   Agda typing:
 --   @permute (Perm {m} n is) : Vec A m -> Vec A n@
+--
+-- Precondition for @'permute' ('Perm' _ is) xs@: Every index in @is@
+-- must be non-negative and, if @xs@ is finite, then every index must
+-- also be smaller than the length of @xs@.
+--
+-- The implementation is supposed to be extensionally equal to the
+-- following one (if different exceptions are identified), but in some
+-- cases more efficient:
+-- @
+--   permute ('Perm' _ is) xs = 'map' (xs 'Agda.Utils.List.!!') is
+-- @
 permute :: Permutation -> [a] -> [a]
-permute p xs = map (fromMaybe __IMPOSSIBLE__) (safePermute p xs)
-
-safePermute :: Permutation -> [a] -> [Maybe a]
-safePermute (Perm _ is) xs = map (xs !!!!) is
+permute (Perm _ is) xs = go mempty 0 xs is
   where
-    xs !!!! n | n < 0     = Nothing
-              | otherwise = xs !!! n
+  -- Computes the list of permuted elements.
+  go :: IntMap a  -- A map from positions to elements that have
+                  -- already been seen.
+     -> Int       -- The number of elements that have been seen (the
+                  -- size of the map).
+     -> [a]       -- Elements that have not yet been seen.
+     -> [Int]     -- Indices to process.
+     -> [a]
+  go seen !n xs []       = []
+  go seen  n xs (i : is)
+    | i < n     = fromMaybe __IMPOSSIBLE__
+                    (IntMap.lookup i seen) :
+                  go seen n xs is
+    | otherwise = scan seen n xs (i - n) is
+
+  -- Finds the element at the given position and continues.
+  scan :: IntMap a -> Int -> [a] -> Int -> [Int] -> [a]
+  scan seen !n (x : xs) !i is
+    | i == 0 = x : (go $! seen') n' xs is
+    | i > 0  = (scan $! seen') n' xs (i - 1) is
+    where
+    seen' = IntMap.insert n x seen
+    n'    = n + 1
+  scan seen n xs !_ is = __IMPOSSIBLE__ : go seen n xs is
 
 -- |  Invert a Permutation on a partial finite int map.
 -- @inversePermute perm f = f'@
@@ -100,7 +129,10 @@ instance InversePermute [Maybe a] [Maybe a] where
     where tabulate m = for [0..n-1] $ \ i -> IntMap.lookup i m
 
 instance InversePermute (Int -> a) [Maybe a] where
-  inversePermute (Perm n xs) f = for [0..n-1] $ \ x -> f <$> List.elemIndex x xs
+  inversePermute (Perm n xs) f =
+    for [0..n-1] $ \i -> f <$> IntMap.lookup i m
+    where
+    m = IntMapS.fromListWith (flip const) $ zip xs [0..]
 
 -- | Identity permutation.
 idP :: Int -> Permutation
@@ -112,7 +144,11 @@ takeP n (Perm m xs) = Perm n $ filter (< n) xs
 
 -- | Pick the elements that are not picked by the permutation.
 droppedP :: Permutation -> Permutation
-droppedP (Perm n xs) = Perm n $ [0..n-1] List.\\ xs
+droppedP (Perm n xs) = Perm n $ filter (notInXs !) [0 .. n - 1]
+  where
+  notInXs :: UArray Int Bool
+  notInXs =
+    accumArray (flip const) True (0, n - 1) (zip xs (repeat False))
 
 -- | @liftP k@ takes a @Perm {m} n@ to a @Perm {m+k} (n+k)@.
 --   Analogous to 'Agda.TypeChecking.Substitution.liftS',
@@ -141,16 +177,19 @@ composeP p1 (Perm n xs) = Perm n $ permute p1 xs
 --   @composeP p (invertP err p) == p@
 invertP :: Int -> Permutation -> Permutation
 invertP err p@(Perm n xs) = Perm (size xs) $ elems tmpArray
-  where tmpArray = accumArray (const id) err (0, n-1) $ zip xs [0..]
+  where
+  -- This array cannot be unboxed, because it should be possible to
+  -- instantiate err with __IMPOSSIBLE__.
+  tmpArray :: Array Int Int
+  tmpArray = accumArray (const id) err (0, n-1) $ zip xs [0..]
 
 -- | Turn a possible non-surjective permutation into a surjective permutation.
 compactP :: Permutation -> Permutation
-compactP (Perm n xs) = Perm m $ map adjust xs
+compactP p@(Perm _ xs) = Perm (length xs) $ map adjust xs
   where
-    m            = List.genericLength xs
-    missing      = [0..n - 1] List.\\ xs
-    holesBelow k = List.genericLength $ filter (< k) missing
-    adjust k = k - holesBelow k
+  missing      = IntSet.fromList $ permPicks $ droppedP p
+  holesBelow k = IntSet.size $ fst $ IntSet.split k missing
+  adjust k     = k - holesBelow k
 
 -- | @permute (reverseP p) xs ==
 --    reverse $ permute p $ reverse xs@
@@ -225,7 +264,7 @@ data Drop a = Drop
   { dropN    :: Int  -- ^ Non-negative number of things to drop.
   , dropFrom :: a    -- ^ Where to drop from.
   }
-  deriving (Eq, Ord, Show, Data, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | Things that support delayed dropping.
 class DoDrop a where

@@ -4,7 +4,15 @@ compiler-check: match-exact
 
 extra-deps:
 - QuickCheck-2.14.2
+- aeson-1.5.6.0
+- assoc-1.0.2
+- base-orphans-0.8.7
+- bifunctors-5.5.13
+- comonad-5.0.8
 - cpphs-1.20.9
+- data-fix-0.3.2
+- generic-deriving-1.14.2
+- indexed-traversable-0.1.2
 - primitive-0.7.4.0
 - random-1.2.0
 - regex-base-0.94.0.0
@@ -12,12 +20,16 @@ extra-deps:
 - splitmix-0.1.0.3
 - tasty-silver-3.1.13
 - uuid-types-1.0.3
+- strict-0.4.0.1
+- tagged-0.8.6.1
 - text-icu-0.7.1.0
+- th-abstraction-0.4.5.0
+- these-1.1.1.1
+- unordered-containers-0.2.19.1
 - vector-hashtables-0.1.1.1
 
 # instead of time-1.9, we add time-compat
-- time-compat-1.9.2.2
-- base-orphans-0.8.1
+- time-compat-1.9.5
 
 # Local packages, usually specified by relative directory name
 packages:

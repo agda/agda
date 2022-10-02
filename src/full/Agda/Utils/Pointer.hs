@@ -13,20 +13,10 @@ import Data.IORef
 
 import System.IO.Unsafe
 
-import Data.Data (Data (..))
-import Data.Typeable (Typeable)
-
 import Agda.Utils.Impossible
 
 data Ptr a = Ptr { ptrTag :: !Integer
                  , ptrRef :: !(IORef a) }
-  deriving Data
-
--- cheating because you shouldn't be digging this far anyway
-instance Typeable a => Data (IORef a) where
-  gunfold _ _ _ = __IMPOSSIBLE__
-  toConstr      = __IMPOSSIBLE__
-  dataTypeOf    = __IMPOSSIBLE__
 
 {-# NOINLINE freshVar #-}
 freshVar :: MVar Integer

@@ -8,6 +8,7 @@ import Control.Arrow (first)
 import Control.Monad.Identity
 
 import Data.Foldable (foldMap)
+import qualified Data.DList as DL
 import Data.Semigroup ((<>))
 import Data.Void
 
@@ -37,18 +38,20 @@ appView :: Expr -> AppView
 appView = fmap snd . appView'
 
 appView' :: Expr -> AppView' (AppInfo, Expr)
-appView' e =
-  case e of
+appView' e = f (DL.toList es)
+  where
+  (f, es) = appView'' e
+
+  appView'' e = case e of
     App i e1 e2
       | Dot _ e2' <- unScope $ namedArg e2
       , Just f <- maybeProjTurnPostfix e2'
       , getHiding e2 == NotHidden -- Jesper, 2018-12-13: postfix projections shouldn't be hidden
-                   -> Application f [defaultNamedArg (i, e1)]
-    App i e1 arg
-      | Application hd es <- appView' e1
-                   -> Application hd $ es ++ [(fmap . fmap) (i,) arg]
-    ScopedExpr _ e -> appView' e
-    _              -> Application e []
+      -> (Application f, singleton (defaultNamedArg (i, e1)))
+    App i e1 arg | (f, es) <- appView'' e1 ->
+      (f, es `DL.snoc` (fmap . fmap) (i,) arg)
+    ScopedExpr _ e -> appView'' e
+    _              -> (Application e, mempty)
 
 maybeProjTurnPostfix :: Expr -> Maybe Expr
 maybeProjTurnPostfix e =
@@ -428,6 +431,7 @@ instance ExprLike Declaration where
       PatternSynDef f xs p      -> PatternSynDef f xs <$> rec p
       UnquoteDecl i is xs e     -> UnquoteDecl i is xs <$> rec e
       UnquoteDef i xs e         -> UnquoteDef i xs <$> rec e
+      UnquoteData i xs uc j cs e -> UnquoteData i xs uc j cs <$> rec e
       ScopedDecl s ds           -> ScopedDecl s <$> rec ds
     where
       rec :: RecurseExprRecFn m
@@ -490,6 +494,7 @@ instance DeclaredNames Declaration where
       PatternSynDef q _ _          -> singleton (WithKind PatternSynName q)
       UnquoteDecl _ _ qs _         -> fromList $ map (WithKind OtherDefName) qs  -- could be Fun or Axiom
       UnquoteDef _ qs _            -> fromList $ map (WithKind FunName) qs       -- cannot be Axiom
+      UnquoteData _ d _ _ cs _     -> singleton (WithKind DataName d) <> (fromList $ map (WithKind ConName) cs) -- singleton _ <> map (WithKind ConName) cs
       FunDef _ q _ cls             -> singleton (WithKind FunName q) <> declaredNames cls
       ScopedDecl _ decls           -> declaredNames decls
       Section _ _ _ decls          -> declaredNames decls

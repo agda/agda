@@ -746,8 +746,8 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
             (\ d -> (defaultDefn (setModality mod info') aux t' lang d)
                     { defPolarity       = [Nonvariant]
                     , defArgOccurrences = [Unused] })
-            $ emptyFunction
-              { funClauses        =
+            $ FunctionDefn emptyFunctionData
+              { _funClauses        =
                   [ Clause
                     { clauseLHSRange  = getRange e
                     , clauseFullRange = getRange e
@@ -763,11 +763,11 @@ checkAbsurdLambda cmp i h e t = localTC (set eQuantity topQuantity) $ do
                     , clauseWhereModule = Nothing
                     }
                   ]
-              , funCompiled       = Just $ Fail [Arg info' "()"]
-              , funSplitTree      = Just $ SplittingDone 0
-              , funMutual         = Just []
-              , funTerminates     = Just True
-              , funExtLam         = Just $ ExtLamInfo top True empty
+              , _funCompiled       = Just $ Fail [Arg info' "()"]
+              , _funSplitTree      = Just $ SplittingDone 0
+              , _funMutual         = Just []
+              , _funTerminates     = Just True
+              , _funExtLam         = Just $ ExtLamInfo top True empty
               }
           -- Andreas 2012-01-30: since aux is lifted to toplevel
           -- it needs to be applied to the current telescope (issue 557)

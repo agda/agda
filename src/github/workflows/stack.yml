@@ -33,9 +33,10 @@ jobs:
     - uses: styfle/cancel-workflow-action@0.6.0
       with:
         access_token: ${{ github.token }}
-
   stack:
     needs: auto-cancel
+
+    timeout-minutes: 60
 
     runs-on: ${{ matrix.os }}
     strategy:

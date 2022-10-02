@@ -409,7 +409,9 @@ typeCheckMain mode src = do
     -- getInterface resets the current verbosity settings to the persistent ones.
 
     bracket_ (getsTC Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
-      Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
+      Lens.modifyPersistentVerbosity
+        (Strict.Just . Trie.insert [] 0 . Strict.fromMaybe Trie.empty)
+        -- set root verbosity to 0
 
       -- We don't want to generate highlighting information for Agda.Primitive.
       withHighlightingLevel None $

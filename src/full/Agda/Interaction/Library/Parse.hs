@@ -33,7 +33,6 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Writer
 import Data.Char
-import Data.Data
 import qualified Data.List as List
 import System.FilePath
 

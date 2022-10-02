@@ -183,7 +183,7 @@ genSub delta = frequency $
     genCons delta t = do
       (gamma, rho) <- genSub delta
       case t of
-        X -> pure (gamma, Strengthen (error "str") rho)
+        X -> pure (gamma, strengthenS' (error "str") 1 rho)
         _ -> do
           v <- genTm gamma t
           pure (gamma, v :# rho)

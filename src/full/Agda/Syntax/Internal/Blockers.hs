@@ -3,7 +3,6 @@ module Agda.Syntax.Internal.Blockers where
 
 import Control.DeepSeq
 
-import Data.Data (Data)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Semigroup
@@ -11,6 +10,7 @@ import Data.Semigroup
 import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal.Elim
 
 import Agda.Utils.Pretty hiding ((<>))
@@ -30,8 +30,8 @@ data NotBlocked' t
     -- ^ Not enough arguments were supplied to complete the matching.
   | AbsurdMatch
     -- ^ We matched an absurd clause, results in a neutral 'Def'.
-  | MissingClauses
-    -- ^ We ran out of clauses, all considered clauses
+  | MissingClauses QName
+    -- ^ We ran out of clauses for 'QName', all considered clauses
     --   produced an actual mismatch.
     --   This can happen when try to reduce a function application
     --   but we are still missing some function clauses.
@@ -39,7 +39,7 @@ data NotBlocked' t
   | ReallyNotBlocked
     -- ^ Reduction was not blocked, we reached a whnf
     --   which can be anything but a stuck @'Def'@.
-  deriving (Show, Data, Generic)
+  deriving (Show, Generic)
 
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
@@ -47,8 +47,8 @@ data NotBlocked' t
 instance Semigroup (NotBlocked' t) where
   ReallyNotBlocked <> b = b
   -- MissingClauses is dominant (absorptive)
-  b@MissingClauses <> _ = b
-  _ <> b@MissingClauses = b
+  b@MissingClauses{} <> _ = b
+  _ <> b@MissingClauses{} = b
   -- StuckOn is second strongest
   b@StuckOn{}      <> _ = b
   _ <> b@StuckOn{}      = b
@@ -67,7 +67,7 @@ data Blocker = UnblockOnAll (Set Blocker)
              | UnblockOnAny (Set Blocker)
              | UnblockOnMeta MetaId     -- ^ Unblock if meta is instantiated
              | UnblockOnProblem ProblemId
-  deriving (Data, Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 instance NFData Blocker
 
@@ -150,7 +150,7 @@ instance Pretty Blocker where
 data Blocked' t a
   = Blocked    { theBlocker      :: Blocker,       ignoreBlocking :: a }
   | NotBlocked { blockingStatus  :: NotBlocked' t, ignoreBlocking :: a }
-  deriving (Data, Show, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 instance Decoration (Blocked' t) where
   traverseF f (Blocked b x)     = Blocked b <$> f x
@@ -198,10 +198,9 @@ instance (NFData t, NFData a) => NFData (Blocked' t a)
 --   (Missing ordinary pattern would mean the @e@ is of function type,
 --   but we cannot match against something of function type.)
 stuckOn :: Elim' t -> NotBlocked' t -> NotBlocked' t
-stuckOn e r =
-  case r of
-    MissingClauses   -> r
-    StuckOn{}        -> r
+stuckOn e = \case
+    r@MissingClauses{} -> r
+    r@StuckOn{}        -> r
     Underapplied     -> r'
     AbsurdMatch      -> r'
     ReallyNotBlocked -> r'

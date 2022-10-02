@@ -218,16 +218,16 @@ postCompileDot
 postCompileDot cenv _main modulesByName =
   renderDotToFile moduleGraph (dotCompileEnvDestination cenv)
   where
-  modulesToInclude :: Set ModuleName
+  -- Only the keys of this map are used.
   modulesToInclude =
-    Map.keysSet $ Map.filter dotModuleInclude modulesByName
+    Map.filter dotModuleInclude modulesByName
 
   moduleGraph :: Graph (WithUniqueInt L.Text) ()
   moduleGraph =
     Graph.renameNodesMonotonic (fmap (L.pack . prettyShow)) $
     Graph.transitiveReduction $
     Graph.filterNodesKeepingEdges
-      (\n -> Graph.otherValue n `Set.member` modulesToInclude) $
+      (\n -> Graph.otherValue n `Map.member` modulesToInclude) $
     -- The following use of transitive reduction should not affect the
     -- semantics. It tends to make the graph smaller, so it might
     -- improve the overall performance of the code, but I did not

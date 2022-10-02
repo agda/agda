@@ -73,7 +73,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Data (Data)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Semigroup (Semigroup(..))
@@ -115,7 +114,7 @@ data Position' a = Pn
   , posCol  :: !Int32
     -- ^ Column number, counting from 1.
   }
-  deriving (Show, Data, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Functor, Foldable, Traversable, Generic)
 
 positionInvariant :: Position' a -> Bool
 positionInvariant p =
@@ -145,7 +144,7 @@ instance NFData PositionWithoutFile where
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
-  deriving (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
+  deriving (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Interval            = Interval' SrcFile
 type IntervalWithoutFile = Interval' ()
@@ -196,7 +195,7 @@ data Range' a
   = NoRange
   | Range !a (Seq IntervalWithoutFile)
   deriving
-    (Show, Data, Eq, Ord, Functor, Foldable, Traversable, Generic)
+    (Show, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Range = Range' SrcFile
 

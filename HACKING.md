@@ -280,6 +280,25 @@ Testing and documentation
   buffer. Note that the `-vprofile:7` option is *not* supposed to be
   given in an OPTIONS pragma, use `agda2-program-args`.
 
+* If you use GHC 9.2 or later and compile using the GHC options
+  `-finfo-table-map` and `-fdistinct-constructor-tables`, then [you
+  can
+  obtain](https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/)
+  heap profiles that tie heap closures to source code locations, even
+  if the program is not compiled using `-prof`. However, use of these
+  flags can make the Agda binary much larger, so they are not
+  activated by default.
+
+  A recipe (first install `eventlog2html` using, for instance, `cabal
+  install eventlog2html`):
+  ```sh
+  make CABAL_OPTS=--ghc-options="-finfo-table-map -fdistinct-constructor-tables" install
+  agda … +RTS -l-au -hi -i0.5
+  eventlog2html agda.eventlog
+  ```
+  View the resulting file `agda.eventlog.html` and check the tab
+  called "Detailed".
+
 * To avoid problems with the whitespace test failing we suggest add the
   following lines to `.git/hooks/pre-commit`:
   ```sh
@@ -332,7 +351,21 @@ Testing and documentation
   The test-suite uses the same directory structure as the Agda library.
 
   Internal tests for a module `Agda.Foo.Bar` should reside in module
-  `InternalTests.Foo.Bar`.  Same for `Arbitrary` and `CoArbitrary` instances.
+  `Internal.Foo.Bar`.  Same for `Arbitrary` and `CoArbitrary` instances.
+
+  One can load internal test-suite modules in GHCi. Here is one
+  example of what can be done:
+  ```shell
+  cabal repl tests -O0 --repl-no-load
+  […]
+  ghci> :l Internal.TypeChecking.Substitute
+  […]
+  ghci> quickCheck prop_wkS
+  +++ OK, passed 100 tests.
+  ghci> Test.Tasty.defaultMain tests
+  […]
+  *** Exception: ExitSuccess
+  ```
 
 Testing with Travis CI and GitHub Actions
 =========================================
