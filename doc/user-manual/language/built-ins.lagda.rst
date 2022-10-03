@@ -459,9 +459,9 @@ operations do not lose precision.
 Floating point numbers can be converted to their raw representation using the primitive::
 
   primitive
-    primFloatToWord64          : Float → Word64
+    primFloatToWord64          : Float → Maybe Word64
 
-which normalises all ``NaN`` to a canonical ``NaN`` with an injectivity proof::
+which returns ``nothing`` for ``NaN`` and satisfies::
 
     primFloatToWord64Injective : ∀ a b → primFloatToWord64 a ≡ primFloatToWord64 b → a ≡ b
 

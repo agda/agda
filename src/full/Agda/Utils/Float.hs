@@ -221,8 +221,10 @@ normaliseNaN x
   | isNaN x   = nan
   | otherwise = x
 
-doubleToWord64 :: Double -> Word64
-doubleToWord64 = castDoubleToWord64 . normaliseNaN
+doubleToWord64 :: Double -> Maybe Word64
+doubleToWord64 x
+  | isNaN x   = Nothing
+  | otherwise = Just (castDoubleToWord64 x)
 
 -- |Denotational equality for floating point numbers, checks bitwise equality.
 --
