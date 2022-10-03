@@ -54,6 +54,10 @@ data ⊥ : Set where
 _≢_ : {A : Set} (P Q : A) → Set
 P ≢ Q = P ≡ Q → ⊥
 
+fmap : {A B : Set} → (A → B) → Maybe A → Maybe B
+fmap f nothing  = nothing
+fmap f (just x) = just (f x)
+
 NaN : Float
 NaN = 0.0 ÷ 0.0
 
@@ -194,14 +198,14 @@ _ : show -Infinity ≡ "-Infinity" ; _ = refl
 _ : show  1.0      ≡  "1.0"      ; _ = refl
 _ : show  1.5      ≡  "1.5"      ; _ = refl
 
-_ : toℕ (toWord 1.0)       ≡ 4607182418800017408  ; _ = refl
-_ : toℕ (toWord 1.5)       ≡ 4609434218613702656  ; _ = refl
-_ : toℕ (toWord 0.0)       ≡ 0                    ; _ = refl
-_ : toℕ (toWord -0.0)      ≡ 9223372036854775808  ; _ = refl
-_ : toℕ (toWord NaN)       ≡ 18444492273895866368 ; _ = refl
-_ : toℕ (toWord -NaN)      ≡ 18444492273895866368 ; _ = refl
-_ : toℕ (toWord Infinity)  ≡ 9218868437227405312  ; _ = refl
-_ : toℕ (toWord -Infinity) ≡ 18442240474082181120 ; _ = refl
+_ : fmap toℕ (toWord 1.0)       ≡ just 4607182418800017408  ; _ = refl
+_ : fmap toℕ (toWord 1.5)       ≡ just 4609434218613702656  ; _ = refl
+_ : fmap toℕ (toWord 0.0)       ≡ just 0                    ; _ = refl
+_ : fmap toℕ (toWord -0.0)      ≡ just 9223372036854775808  ; _ = refl
+_ : fmap toℕ (toWord NaN)       ≡ nothing                   ; _ = refl
+_ : fmap toℕ (toWord -NaN)      ≡ nothing                   ; _ = refl
+_ : fmap toℕ (toWord Infinity)  ≡ just 9218868437227405312  ; _ = refl
+_ : fmap toℕ (toWord -Infinity) ≡ just 18442240474082181120 ; _ = refl
 
 _ : round 1.0       ≡ just (pos 1) ; _ = refl
 _ : round 1.5       ≡ just (pos 2) ; _ = refl

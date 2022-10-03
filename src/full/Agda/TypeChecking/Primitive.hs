@@ -503,9 +503,9 @@ primWord64ToNatInjective =  do
 primFloatToWord64Injective :: TCM PrimitiveImpl
 primFloatToWord64Injective = do
   float  <- primType (undefined :: Double)
-  word   <- primType (undefined :: Word64)
+  mword  <- primType (undefined :: Maybe Word64)
   toWord <- primFunName <$> getPrimitive "primFloatToWord64"
-  mkPrimInjective float word toWord
+  mkPrimInjective float mword toWord
 
 primQNameToWord64sInjective :: TCM PrimitiveImpl
 primQNameToWord64sInjective = do

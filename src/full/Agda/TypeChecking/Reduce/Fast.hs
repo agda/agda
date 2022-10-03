@@ -184,7 +184,7 @@ compactDef bEnv def rewr = do
           "primFloatIsDenormalized"    -> mkPrim 1 $ floatPred isDenormalized
           "primFloatIsNegativeZero"    -> mkPrim 1 $ floatPred isNegativeZero
           "primFloatIsSafeInteger"     -> mkPrim 1 $ floatPred isSafeInteger
-          "primFloatToWord64"          -> mkPrim 1 $ \ [LitFloat a] -> word (doubleToWord64 a)
+          -- "primFloatToWord64"          -- returns a maybe
           -- "primFloatToWord64Injective" -- identities are not literals
           "primNatToFloat"             -> mkPrim 1 $ \ [LitNat a] -> float (fromIntegral a)
           -- "primIntToFloat"             -- integers are not literals

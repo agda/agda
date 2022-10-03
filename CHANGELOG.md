@@ -224,6 +224,18 @@ Pragmas and options
   This option might for instance be used if Agda is controlled from a
   script.
 
+Builtins
+--------
+
+* Change `primFloatToWord64` to return `Maybe Word64`.
+  (See [#6093](https://github.com/agda/agda/issues/6093).)
+
+  The new type is
+  ```agda
+    primFloatToWord64 : Float → Maybe Word64
+  ```
+  and it returns `nothing` for `NaN`.
+
 Performance
 -----------
 
