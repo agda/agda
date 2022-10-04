@@ -503,6 +503,8 @@ Other features
      implementation-dependent, but successful uses of the shortcut do
      not affect the amount of fuel.
 
+     Note that this option is experimental and subject to change.
+
 .. option:: --safe
 
      Disable postulates, unsafe :ref:`OPTIONS<options-pragma>` pragmas

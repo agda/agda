@@ -252,6 +252,8 @@ Performance
   The idea for this option comes from András Kovács'
   [smalltt](https://github.com/AndrasKovacs/smalltt/blob/989b020309686e04374f1ab7844f468386d2eb2f/README.md#approximate-conversion-checking).
 
+  Note that this option is experimental and subject to change.
+
 Compiler backends
 -----------------
 
