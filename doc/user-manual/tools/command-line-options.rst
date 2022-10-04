@@ -496,7 +496,7 @@ Other features
      must be a natural number).
 
      If ``N`` is omitted, then the syntactic equality shortcut is
-     enabled without any restrictions.
+     enabled without any restrictions. (This is the default.)
 
      If ``N`` is given, then the syntactic equality shortcut is given
      ``N`` units of fuel. The exact meaning of this is
