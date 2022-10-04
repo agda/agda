@@ -193,14 +193,6 @@ jsPostCompile opts _ ms = do
         reportSLn "compile.js.verify" 20 $ unwords [ "calling:", cmd ]
         liftIO $ callCommand cmd
 
-
-mergeModules :: Map.Map ModuleName Module -> [(GlobalId, Export)]
-mergeModules ms
-    = [ (jsMod n, e)
-      | (n, Module _ _ es _) <- Map.toList ms
-      , e <- es
-      ]
-
 --- Module compilation ---
 
 data JSModuleEnv = JSModuleEnv
