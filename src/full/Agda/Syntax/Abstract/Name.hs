@@ -223,16 +223,6 @@ mnameToConcrete (MName (x:xs)) = foldr C.Qual (C.QName $ List1.last cs) $ List1.
   where
     cs = fmap nameConcrete (x :| xs)
 
--- | Computes the 'TopLevelModuleName' corresponding to the given
--- module name, which is assumed to represent a top-level module name.
---
--- Precondition: The module name must be well-formed.
-
-toTopLevelModuleName :: ModuleName -> C.TopLevelModuleName
-toTopLevelModuleName (MName []) = __IMPOSSIBLE__
-toTopLevelModuleName (MName ms) = List1.ifNull ms __IMPOSSIBLE__ {-else-} $ \ ms1 ->
-  C.TopLevelModuleName (getRange ms1) $ fmap (C.nameToRawName . nameConcrete) ms1
-
 qualifyM :: ModuleName -> ModuleName -> ModuleName
 qualifyM m1 m2 = mnameFromList $ mnameToList m1 ++ mnameToList m2
 

@@ -25,7 +25,7 @@ import Agda.Interaction.Options
 import Agda.Compiler.Backend (Backend(..), Backend'(..), Recompile(..))
 import Agda.Compiler.Common (IsMain(..), curIF)
 
-import Agda.Syntax.Abstract (ModuleName, toTopLevelModuleName)
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 
 import Agda.TypeChecking.Monad
   ( MonadDebug
@@ -52,7 +52,7 @@ data HtmlCompileEnv = HtmlCompileEnv
 
 data HtmlModuleEnv = HtmlModuleEnv
   { htmlModEnvCompileEnv :: HtmlCompileEnv
-  , htmlModEnvName       :: ModuleName
+  , htmlModEnvName       :: TopLevelModuleName
   }
 
 data HtmlModule = HtmlModule
@@ -164,7 +164,7 @@ preModuleHtml
   :: Applicative m
   => HtmlCompileEnv
   -> IsMain
-  -> ModuleName
+  -> TopLevelModuleName
   -> Maybe FilePath
   -> m (Recompile HtmlModuleEnv HtmlModule)
 preModuleHtml cenv _isMain modName _ifacePath = pure $ Recompile (HtmlModuleEnv cenv modName)
@@ -183,12 +183,12 @@ postModuleHtml
   => HtmlCompileEnv
   -> HtmlModuleEnv
   -> IsMain
-  -> ModuleName
+  -> TopLevelModuleName
   -> [HtmlDef]
   -> m HtmlModule
 postModuleHtml _env menv _isMain _modName _defs = do
   let generatePage = defaultPageGen . htmlCompileEnvOpts . htmlModEnvCompileEnv $ menv
-  htmlSrc <- srcFileOfInterface (toTopLevelModuleName . htmlModEnvName $ menv) <$> curIF
+  htmlSrc <- srcFileOfInterface (htmlModEnvName menv) <$> curIF
   runLogHtmlWithMonadDebug $ generatePage htmlSrc
   return HtmlModule
 
@@ -196,6 +196,6 @@ postCompileHtml
   :: Applicative m
   => HtmlCompileEnv
   -> IsMain
-  -> Map ModuleName HtmlModule
+  -> Map TopLevelModuleName HtmlModule
   -> m ()
 postCompileHtml _cenv _isMain _modulesByName = pure ()

@@ -4,7 +4,7 @@
 module Agda.TypeChecking.Serialise.Instances () where
 
 import Agda.Syntax.Position
-import Agda.Syntax.Abstract.Name
+import Agda.Syntax.TopLevelModuleName
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances.Common (SerialisedRange(..))
@@ -12,12 +12,15 @@ import Agda.TypeChecking.Serialise.Instances.Highlighting ()
 import Agda.TypeChecking.Serialise.Instances.Errors ()
 import Agda.Utils.Hash
 
-type RangedImportedModules = [(SerialisedRange, ModuleName, Hash)]
+type RangedImportedModules =
+  [(SerialisedRange, TopLevelModuleName, Hash)]
 
-fromImportedModules :: [(ModuleName, Hash)] -> RangedImportedModules
+fromImportedModules ::
+  [(TopLevelModuleName, Hash)] -> RangedImportedModules
 fromImportedModules ms = [(SerialisedRange $ getRange x, x, hash) | (x, hash) <- ms]
 
-toImportedModules :: RangedImportedModules -> [(ModuleName, Hash)]
+toImportedModules ::
+  RangedImportedModules -> [(TopLevelModuleName, Hash)]
 toImportedModules ms = [(setRange (underlyingRange r) x, hash) | (r, x, hash) <- ms]
 
 instance EmbPrj Interface where

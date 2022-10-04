@@ -10,24 +10,19 @@ import Control.DeepSeq
 import Data.ByteString.Char8 (ByteString)
 import Data.Function
 import qualified Data.Foldable as Fold
-import qualified Data.List as List
 
 import GHC.Generics (Generic)
-
-import System.FilePath
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Glyph
 import Agda.Syntax.Position
 
-import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.List  ((!!), last1)
 import Agda.Utils.List1 (List1, pattern (:|), (<|))
 import qualified Agda.Utils.List1 as List1
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
-import Agda.Utils.Size
 import Agda.Utils.Suffix
 
 import Agda.Utils.Impossible
@@ -121,22 +116,6 @@ instance Underscore QName where
   underscore = QName underscore
   isUnderscore (QName x) = isUnderscore x
   isUnderscore Qual{}    = False
-
--- | Top-level module names.  Used in connection with the file system.
---
---   Invariant: The list must not be empty.
-
-data TopLevelModuleName = TopLevelModuleName
-  { moduleNameRange :: Range
-  , moduleNameParts :: TopLevelModuleNameParts
-  }
-  deriving (Show, Generic)
-
-type TopLevelModuleNameParts = List1 String
-
-instance Eq    TopLevelModuleName where (==)    = (==)    `on` moduleNameParts
-instance Ord   TopLevelModuleName where compare = compare `on` moduleNameParts
-instance Sized TopLevelModuleName where size    = size     .   moduleNameParts
 
 ------------------------------------------------------------------------
 -- * Constructing simple 'Name's.
@@ -379,46 +358,6 @@ isUnqualified Qual{}    = Nothing
 isUnqualified (QName n) = Just n
 
 ------------------------------------------------------------------------
--- * Operations on 'TopLevelModuleName'
-------------------------------------------------------------------------
-
-lensTopLevelModuleNameParts :: Lens' TopLevelModuleNameParts TopLevelModuleName
-lensTopLevelModuleNameParts f m = f (moduleNameParts m) <&> \ xs -> m{ moduleNameParts = xs }
-
--- | Construct a 'QName'. Each 'Name' part has the whole range of the 'TopLevelModuleName'.
-
-fromTopLevelModuleName :: TopLevelModuleName -> QName
-fromTopLevelModuleName (TopLevelModuleName r xs) =
-  List1.foldr Qual QName $ fmap (Name r NotInScope . stringNameParts) xs
-
--- | Turns a qualified name into a 'TopLevelModuleName'. The qualified
--- name is assumed to represent a top-level module name.
-
-toTopLevelModuleName :: QName -> TopLevelModuleName
-toTopLevelModuleName q = TopLevelModuleName (getRange q) $
-  fmap nameToRawName $ qnameParts q
-
--- | Turns a top-level module name into a file name with the given
--- suffix.
-
-moduleNameToFileName :: TopLevelModuleName -> String -> FilePath
-moduleNameToFileName (TopLevelModuleName _ ms) ext =
-  joinPath (List1.init ms) </> List1.last ms <.> ext
-
--- | Finds the current project's \"root\" directory, given a project
--- file and the corresponding top-level module name.
---
--- Example: If the module \"A.B.C\" is located in the file
--- \"/foo/A/B/C.agda\", then the root is \"/foo/\".
---
--- Precondition: The module name must be well-formed.
-
-projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
-projectRoot file (TopLevelModuleName _ m) =
-  mkAbsolute $
-    iterate takeDirectory (filePath file) !! length m
-
-------------------------------------------------------------------------
 -- * No name stuff
 ------------------------------------------------------------------------
 
@@ -453,10 +392,6 @@ instance IsNoName QName where
   isNoName (QName x) = isNoName x
   isNoName Qual{}    = False        -- M.A._ does not qualify as empty name
 
--- | The underscore @"_"@ is considered an unnamed top-level module.
-instance IsNoName TopLevelModuleName where
-  isNoName (TopLevelModuleName _ xs) = xs == ("_" :| [])
-
 instance IsNoName a => IsNoName (Ranged a) where
 instance IsNoName a => IsNoName (WithOrigin a) where
 
@@ -486,9 +421,6 @@ instance Pretty QName where
     | otherwise      = pretty m <> "." <> pretty x
   pretty (QName x)  = pretty x
 
-instance Pretty TopLevelModuleName where
-  pretty (TopLevelModuleName _ ms) = text $ List.intercalate "." $ List1.toList ms
-
 ------------------------------------------------------------------------
 -- * Range instances
 ------------------------------------------------------------------------
@@ -501,9 +433,6 @@ instance HasRange QName where
     getRange (QName  x) = getRange x
     getRange (Qual n x) = fuseRange n x
 
-instance HasRange TopLevelModuleName where
-  getRange = moduleNameRange
-
 instance SetRange Name where
   setRange r (Name _ nis ps) = Name r nis ps
   setRange r (NoName _ i)  = NoName r i
@@ -512,9 +441,6 @@ instance SetRange QName where
   setRange r (QName x)  = QName (setRange r x)
   setRange r (Qual n x) = Qual (setRange r n) (setRange r x)
 
-instance SetRange TopLevelModuleName where
-  setRange r (TopLevelModuleName _ x) = TopLevelModuleName r x
-
 instance KillRange QName where
   killRange (QName x) = QName $ killRange x
   killRange (Qual n x) = killRange n `Qual` killRange x
@@ -522,9 +448,6 @@ instance KillRange QName where
 instance KillRange Name where
   killRange (Name r nis ps)  = Name (killRange r) nis ps
   killRange (NoName r i)     = NoName (killRange r) i
-
-instance KillRange TopLevelModuleName where
-  killRange (TopLevelModuleName _ x) = TopLevelModuleName noRange x
 
 ------------------------------------------------------------------------
 -- * NFData instances
@@ -547,5 +470,3 @@ instance NFData NamePart where
 instance NFData QName where
   rnf (Qual a b) = rnf a `seq` rnf b
   rnf (QName a)  = rnf a
-
-instance NFData TopLevelModuleName

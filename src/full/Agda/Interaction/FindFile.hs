@@ -33,6 +33,7 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
 import Agda.Syntax.Parser.Literate (literateExtsShortList)
 import Agda.Syntax.Position
+import Agda.Syntax.TopLevelModuleName
 
 import Agda.Interaction.Options ( optLocalInterfaces )
 
@@ -41,6 +42,7 @@ import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
   (getIncludeDirs, libToTCM)
+import Agda.TypeChecking.Monad.State (topLevelModuleName)
 import Agda.TypeChecking.Warnings (runPM)
 
 import Agda.Version ( version )
@@ -248,8 +250,10 @@ moduleName
   -> Module
      -- ^ The parsed module.
   -> TCM TopLevelModuleName
-moduleName file parsedModule = billTo [Bench.ModuleName] $
-  case moduleNameParts name of
+moduleName file parsedModule = billTo [Bench.ModuleName] $ do
+  let defaultName = rootNameModule file
+      raw         = rawTopLevelModuleNameForModule parsedModule
+  topLevelModuleName =<< case rawModuleNameParts raw of
     "_" :| [] -> do
       m <- runPM (parse moduleNameParser defaultName)
              `catchError` \_ ->
@@ -262,11 +266,11 @@ moduleName file parsedModule = billTo [Bench.ModuleName] $
             "The file name " ++ prettyShow file ++ " is invalid because " ++
             defaultName ++ " is not an unqualified module name."
         QName {} ->
-          return $ TopLevelModuleName (getRange m) $ singleton defaultName
-    _ -> return name
-  where
-  name        = topLevelModuleName parsedModule
-  defaultName = rootNameModule file
+          return $ RawTopLevelModuleName
+            { rawModuleNameRange = getRange m
+            , rawModuleNameParts = singleton defaultName
+            }
+    _ -> return raw
 
 parseFileExtsShortList :: [String]
 parseFileExtsShortList = ".agda" : literateExtsShortList

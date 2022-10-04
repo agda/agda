@@ -61,7 +61,6 @@ module Agda.Syntax.Concrete
   , Module(..)
   , ThingWithFixity(..)
   , HoleContent, HoleContent'(..)
-  , topLevelModuleName
   , spanAllowedBeforeModule
   )
   where
@@ -553,19 +552,6 @@ data Module = Mod
   { modPragmas :: [Pragma]
   , modDecls   :: [Declaration]
   }
-
--- | Computes the top-level module name.
---
--- Precondition: The 'Module' has to be well-formed.
--- This means that there are only allowed declarations before the
--- first module declaration, typically import declarations.
--- See 'spanAllowedBeforeModule'.
-
-topLevelModuleName :: Module -> TopLevelModuleName
-topLevelModuleName (Mod _ []) = __IMPOSSIBLE__
-topLevelModuleName (Mod _ ds) = case spanAllowedBeforeModule ds of
-  (_, Module _ n _ _ : _) -> toTopLevelModuleName n
-  _ -> __IMPOSSIBLE__
 
 -- | Splits off allowed (= import) declarations before the first
 --   non-allowed declaration.

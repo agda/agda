@@ -35,8 +35,7 @@ import Agda.Interaction.Options
   , OptDescr(..)
   )
 
-import Agda.Syntax.Abstract.Name (ModuleName, toTopLevelModuleName)
-import Agda.Syntax.Concrete.Name (TopLevelModuleName, projectRoot)
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName, projectRoot)
 
 import Agda.TypeChecking.Monad
   ( HasOptions(commandLineOptions)
@@ -147,11 +146,11 @@ preModuleLaTeX
   :: (HasOptions m, ReadTCState m)
   => LaTeXCompileEnv
   -> IsMain
-  -> ModuleName
+  -> TopLevelModuleName
   -> Maybe FilePath
   -> m (Recompile LaTeXModuleEnv LaTeXModule)
 preModuleLaTeX (LaTeXCompileEnv flags) isMain moduleName _ifacePath = case isMain of
-  IsMain  -> Recompile . LaTeXModuleEnv <$> resolveLaTeXOptions flags (toTopLevelModuleName moduleName)
+  IsMain  -> Recompile . LaTeXModuleEnv <$> resolveLaTeXOptions flags moduleName
   NotMain -> return $ Skip LaTeXModule
 
 compileDefLaTeX
@@ -168,7 +167,7 @@ postModuleLaTeX
   => LaTeXCompileEnv
   -> LaTeXModuleEnv
   -> IsMain
-  -> ModuleName
+  -> TopLevelModuleName
   -> [LaTeXDef]
   -> m LaTeXModule
 postModuleLaTeX _cenv (LaTeXModuleEnv latexOpts) _main _moduleName _defs = do
@@ -186,6 +185,6 @@ postCompileLaTeX
   :: Applicative m
   => LaTeXCompileEnv
   -> IsMain
-  -> Map ModuleName LaTeXModule
+  -> Map TopLevelModuleName LaTeXModule
   -> m ()
 postCompileLaTeX _cenv _main _modulesByName = pure ()

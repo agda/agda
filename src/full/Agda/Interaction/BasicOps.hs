@@ -1165,8 +1165,8 @@ introTactic pmLambda ii = do
 atTopLevel :: TCM a -> TCM a
 atTopLevel m = inConcreteMode $ do
   let err = typeError $ GenericError "The file has not been loaded yet."
-  caseMaybeM (useTC stCurrentModule) err $ \ current -> do
-    caseMaybeM (getVisitedModule $ toTopLevelModuleName current) __IMPOSSIBLE__ $ \ mi -> do
+  caseMaybeM (useTC stCurrentModule) err $ \(current, topCurrent) -> do
+    caseMaybeM (getVisitedModule topCurrent) __IMPOSSIBLE__ $ \ mi -> do
       let scope = iInsideScope $ miInterface mi
       tel <- lookupSection current
       -- Get the names of the local variables from @scope@

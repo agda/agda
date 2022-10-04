@@ -60,12 +60,12 @@ import qualified Data.List    as List
 
 import Paths_Agda
 
-import Agda.Syntax.Abstract (toTopLevelModuleName)
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete (TopLevelModuleName, moduleNameParts)
 import Agda.Syntax.Parser.Literate (literateTeX, LayerRole, atomizeLayers)
 import qualified Agda.Syntax.Parser.Literate as L
 import Agda.Syntax.Position (startPos)
+import Agda.Syntax.TopLevelModuleName
+  (TopLevelModuleName, moduleNameParts)
 
 import Agda.Interaction.Highlighting.Precise hiding (toList)
 

@@ -35,6 +35,7 @@ import           Agda.Syntax.Literal
 import qualified Agda.Syntax.Position      as P
 import           Agda.Syntax.Position                ( Range, HasRange, getRange, noRange )
 import           Agda.Syntax.Scope.Base              ( AbstractName(..), ResolvedName(..), exactConName )
+import           Agda.Syntax.TopLevelModuleName
 
 import Agda.TypeChecking.Monad
   hiding (ModuleInfo, MetaInfo, Primitive, Constructor, Record, Function, Datatype)
@@ -49,6 +50,7 @@ import           Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict   as Strict
 import           Agda.Utils.Pretty
 import           Agda.Utils.Singleton
+import           Agda.Utils.Size
 
 -- Entry point:
 -- | Create highlighting info for some piece of syntax.
@@ -461,8 +463,8 @@ instance Hilite A.ModuleName where
       case mapMaybe
           ((Strict.toLazy . P.srcFile) <=< (P.rStart . A.nameBindingSite)) xs of
         f : _ ->
-          Map.lookup f modMap
-            == Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
+          (rawTopLevelModuleName <$> Map.lookup f modMap) ==
+          Just (rawTopLevelModuleNameForModuleName m)
         [] -> False
 
   -- Andreas, 2020-09-29, issue #4952.
@@ -595,7 +597,7 @@ hiliteCName xs x fr mR asp = do
     -- this is contained in the html file name already.
     -- We want to get anchors of the form:
     -- @<a name="TopLevelModule.html#LocalModule.NestedModule.identifier">@
-    let qualifiers = drop (length $ C.moduleNameParts mod) xs
+    let qualifiers = drop (size mod) xs
     -- For bound variables, we do not create symbolic anchors.
         local = maybe True isLocalAspect $ aspect aspects
     return $ DefinitionSite

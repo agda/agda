@@ -43,6 +43,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HMap
+import Data.HashSet (HashSet)
 import Data.Semigroup ( Semigroup, (<>)) --, Any(..) )
 import Data.String
 import Data.Text (Text)
@@ -55,7 +56,6 @@ import GHC.Generics (Generic)
 
 import Agda.Benchmarking (Benchmark, Phase)
 
-import Agda.Syntax.Concrete (TopLevelModuleName)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Definitions
@@ -66,6 +66,8 @@ import Agda.Syntax.Internal.MetaVars
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Parser (ParseWarning)
 import Agda.Syntax.Parser.Monad (parseWarningName)
+import Agda.Syntax.TopLevelModuleName
+  (RawTopLevelModuleName, TopLevelModuleName)
 import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
@@ -170,7 +172,8 @@ data PreScopeState = PreScopeState
   , stPreImports            :: !Signature  -- XX populated by scope checker
     -- ^ Imported declared identifiers.
     --   Those most not be serialized!
-  , stPreImportedModules    :: !(Set ModuleName)  -- imports logic
+  , stPreImportedModules    :: !(HashSet TopLevelModuleName)
+    -- ^ The top-level modules imported by the current module.
   , stPreModuleToSource     :: !ModuleToSource   -- imports
   , stPreVisitedModules     :: !VisitedModules   -- imports
   , stPreScope              :: !ScopeInfo
@@ -206,9 +209,6 @@ data PreScopeState = PreScopeState
     --   files (or @Nothing@ if there are none).
   , stPreAgdaLibFiles   :: !(Map FilePath AgdaLibFile)
     -- ^ Contents of .agda-lib files that have already been parsed.
-  , stPreModuleNameHashes :: !(Map ModuleNameHash C.QName)
-    -- ^ Module name hashes that have been used so far. Used to detect
-    -- hash collisions.
   , stPreImportedMetaStore :: !RemoteMetaStore
     -- ^ Used for meta-variables from other modules.
   }
@@ -251,7 +251,8 @@ data PostScopeState = PostScopeState
     --   context of the module parameters.
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
-  , stPostCurrentModule       :: !(Strict.Maybe ModuleName)
+  , stPostCurrentModule       ::
+      !(Maybe (ModuleName, TopLevelModuleName))
     -- ^ The current module is available after it has been type
     -- checked.
   , stPostInstanceDefs        :: !TempInstanceTable
@@ -304,6 +305,10 @@ instance Null MutualBlock where
 -- or the state is reset.
 data PersistentTCState = PersistentTCSt
   { stDecodedModules    :: !DecodedModules
+  , stPersistentTopLevelModuleNames ::
+      !(BiMap RawTopLevelModuleName ModuleNameHash)
+    -- ^ Module name hashes for top-level module names (and vice
+    -- versa).
   , stPersistentOptions :: CommandLineOptions
   , stInteractionOutputCallback  :: InteractionOutputCallback
     -- ^ Callback function to call when there is a response
@@ -360,6 +365,7 @@ data TypeCheckAction
 initPersistentState :: PersistentTCState
 initPersistentState = PersistentTCSt
   { stPersistentOptions         = defaultOptions
+  , stPersistentTopLevelModuleNames = empty
   , stDecodedModules            = Map.empty
   , stInteractionOutputCallback = defaultInteractionOutputCallback
   , stBenchmark                 = empty
@@ -382,7 +388,7 @@ initPreScopeState :: PreScopeState
 initPreScopeState = PreScopeState
   { stPreTokens               = mempty
   , stPreImports              = emptySignature
-  , stPreImportedModules      = Set.empty
+  , stPreImportedModules      = empty
   , stPreModuleToSource       = Map.empty
   , stPreVisitedModules       = Map.empty
   , stPreScope                = emptyScopeInfo
@@ -401,9 +407,6 @@ initPreScopeState = PreScopeState
   , stPreImportedPartialDefs  = Set.empty
   , stPreProjectConfigs       = Map.empty
   , stPreAgdaLibFiles         = Map.empty
-  , stPreModuleNameHashes     = Map.singleton noModuleNameHash (C.QName C.noName_)
-    -- We should get a hash collision if the hash of any actual module
-    -- name is noModuleNameHash.
   , stPreImportedMetaStore    = HMap.empty
   }
 
@@ -463,7 +466,8 @@ stImports f s =
   f (stPreImports (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImports = x}}
 
-stImportedModules :: Lens' (Set ModuleName) TCState
+stImportedModules ::
+  Lens' (HashSet TopLevelModuleName) TCState
 stImportedModules f s =
   f (stPreImportedModules (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedModules = x}}
@@ -575,10 +579,12 @@ stAgdaLibFiles f s =
   f (stPreAgdaLibFiles (stPreScopeState s)) <&>
   \ x -> s {stPreScopeState = (stPreScopeState s) {stPreAgdaLibFiles = x}}
 
-stModuleNameHashes :: Lens' (Map ModuleNameHash C.QName) TCState
-stModuleNameHashes f s =
-  f (stPreModuleNameHashes (stPreScopeState s)) <&>
-  \ x -> s {stPreScopeState = (stPreScopeState s) {stPreModuleNameHashes = x}}
+stTopLevelModuleNames ::
+  Lens' (BiMap RawTopLevelModuleName ModuleNameHash) TCState
+stTopLevelModuleNames f s =
+  f (stPersistentTopLevelModuleNames (stPersistentState s)) <&>
+  \ x -> s {stPersistentState =
+              (stPersistentState s) {stPersistentTopLevelModuleNames = x}}
 
 stImportedMetaStore :: Lens' RemoteMetaStore TCState
 stImportedMetaStore f s =
@@ -655,10 +661,17 @@ stImportedDisplayForms f s =
   f (stPreImportedDisplayForms (stPreScopeState s)) <&>
   \x -> s {stPreScopeState = (stPreScopeState s) {stPreImportedDisplayForms = x}}
 
-stCurrentModule :: Lens' (Maybe ModuleName) TCState
+-- | Note that the lens is \"strict\".
+
+stCurrentModule ::
+  Lens' (Maybe (ModuleName, TopLevelModuleName)) TCState
 stCurrentModule f s =
-  f (Strict.toLazy $ stPostCurrentModule (stPostScopeState s)) <&>
-  \x -> s {stPostScopeState = (stPostScopeState s) {stPostCurrentModule = Strict.toStrict x}}
+  f (stPostCurrentModule (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState =
+             (stPostScopeState s)
+               {stPostCurrentModule = case x of
+                  Nothing         -> Nothing
+                  Just (!m, !top) -> Just (m, top)}}
 
 stImportedInstanceDefs :: Lens' InstanceTable TCState
 stImportedInstanceDefs f s =
@@ -955,12 +968,8 @@ data ModuleInfo = ModuleInfo
   }
   deriving Generic
 
--- Note that the use of 'C.TopLevelModuleName' here is a potential
--- performance problem, because these names do not contain unique
--- identifiers.
-
-type VisitedModules = Map C.TopLevelModuleName ModuleInfo
-type DecodedModules = Map C.TopLevelModuleName ModuleInfo
+type VisitedModules = Map TopLevelModuleName ModuleInfo
+type DecodedModules = Map TopLevelModuleName ModuleInfo
 
 data ForeignCode = ForeignCode Range String
   deriving (Show, Generic)
@@ -974,11 +983,11 @@ data Interface = Interface
     -- re-read the (possibly out of date) source code.
   , iFileType        :: FileType
     -- ^ Source file type, determined from the file extension
-  , iImportedModules :: [(ModuleName, Hash)]
+  , iImportedModules :: [(TopLevelModuleName, Hash)]
     -- ^ Imported modules and their hashes.
   , iModuleName      :: ModuleName
     -- ^ Module name of this interface.
-  , iTopLevelModuleName :: C.TopLevelModuleName
+  , iTopLevelModuleName :: TopLevelModuleName
     -- ^ The module's top-level module name.
   , iScope           :: Map ModuleName Scope
     -- ^ Scope defined by this module.
@@ -3333,7 +3342,7 @@ data TCEnv =
             -- type-checked.  'Nothing' if we do not have a file
             -- (like in interactive mode see @CommandLine@).
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
-          , envImportPath          :: [C.TopLevelModuleName]
+          , envImportPath          :: [TopLevelModuleName]
             -- ^ The module stack with the entry being the top-level module as
             --   Agda chases modules. It will be empty if there is no main
             --   module, will have a single entry for the top level module, or
@@ -3580,7 +3589,7 @@ eCurrentPath f e = f (envCurrentPath e) <&> \ x -> e { envCurrentPath = x }
 eAnonymousModules :: Lens' [(ModuleName, Nat)] TCEnv
 eAnonymousModules f e = f (envAnonymousModules e) <&> \ x -> e { envAnonymousModules = x }
 
-eImportPath :: Lens' [C.TopLevelModuleName] TCEnv
+eImportPath :: Lens' [TopLevelModuleName] TCEnv
 eImportPath f e = f (envImportPath e) <&> \ x -> e { envImportPath = x }
 
 eMutualBlock :: Lens' (Maybe MutualId) TCEnv
@@ -4261,15 +4270,15 @@ data TypeError
           --   There are not 'UnsolvedMetas' since unification solved them.
           --   This is an error, since interaction points are never filled
           --   without user interaction.
-        | CyclicModuleDependency [C.TopLevelModuleName]
-        | FileNotFound C.TopLevelModuleName [AbsolutePath]
-        | OverlappingProjects AbsolutePath C.TopLevelModuleName C.TopLevelModuleName
-        | AmbiguousTopLevelModuleName C.TopLevelModuleName [AbsolutePath]
-        | ModuleNameUnexpected C.TopLevelModuleName C.TopLevelModuleName
+        | CyclicModuleDependency [TopLevelModuleName]
+        | FileNotFound TopLevelModuleName [AbsolutePath]
+        | OverlappingProjects AbsolutePath TopLevelModuleName TopLevelModuleName
+        | AmbiguousTopLevelModuleName TopLevelModuleName [AbsolutePath]
+        | ModuleNameUnexpected TopLevelModuleName TopLevelModuleName
           -- ^ Found module name, expected module name.
-        | ModuleNameDoesntMatchFileName C.TopLevelModuleName [AbsolutePath]
+        | ModuleNameDoesntMatchFileName TopLevelModuleName [AbsolutePath]
         | ClashingFileNamesFor ModuleName [AbsolutePath]
-        | ModuleDefinedInOtherFile C.TopLevelModuleName AbsolutePath AbsolutePath
+        | ModuleDefinedInOtherFile TopLevelModuleName AbsolutePath AbsolutePath
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.
     -- Scope errors
@@ -5259,6 +5268,7 @@ instance NFData PostScopeState
 instance NFData TCState
 instance NFData DisambiguatedName
 instance NFData MutualBlock
+instance NFData (BiMap RawTopLevelModuleName ModuleNameHash)
 instance NFData PersistentTCState
 instance NFData LoadedFileCache
 instance NFData TypeCheckAction

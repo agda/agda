@@ -38,6 +38,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position as P
 import Agda.Syntax.Literal
+import Agda.Syntax.TopLevelModuleName
 import Agda.Interaction.FindFile
 
 import Agda.TypeChecking.Serialise.Base
@@ -240,7 +241,7 @@ instance Typeable b => EmbPrj (WithDefault b) where
     _ -> malformed
 
 instance EmbPrj TopLevelModuleName where
-  icod_ (TopLevelModuleName a b) = icodeN' TopLevelModuleName a b
+  icod_ (TopLevelModuleName a b c) = icodeN' TopLevelModuleName a b c
 
   value = valueN TopLevelModuleName
 

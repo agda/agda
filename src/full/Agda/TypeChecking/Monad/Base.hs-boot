@@ -7,7 +7,7 @@ import Data.IORef (IORef)
 import Data.Map (Map)
 
 import Agda.Syntax.Common (Nat)
-import Agda.Syntax.Concrete.Name (TopLevelModuleName)
+import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
 
 data Warning
