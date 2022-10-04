@@ -82,6 +82,16 @@ instance Null (BiMap k v) where
   empty = BiMap Map.empty Map.empty
   null  = null . biMapThere
 
+-- | Is the value a source key? O(log n).
+
+source :: Ord k => k -> BiMap k v -> Bool
+source k = Map.member k . biMapThere
+
+-- | Is the value a target key? O(log n).
+
+target :: Ord (Tag v) => Tag v -> BiMap k v -> Bool
+target k = Map.member k . biMapBack
+
 -- | Lookup. O(log n).
 
 lookup :: Ord k => k -> BiMap k v -> Maybe v
