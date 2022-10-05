@@ -299,6 +299,34 @@ Testing and documentation
   Here `VERSION` is Agda's version number. View the resulting file
   `agda-VERSION.eventlog.html` and check the tab called "Detailed".
 
+* [One
+  way](https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html)
+  to obtain time profiles is to compile with profiling enabled, using
+  the GHC option
+  [`-fprof-late`](https://downloads.haskell.org/ghc/9.4.2/docs/users_guide/profiling.html#ghc-flag--fprof-late)
+  (which is available starting from GHC 9.4.1), and to run Agda with
+  the run-time options `+RTS -p -l-au`. One should then obtain a
+  `.eventlog` file which can be converted to a `.eventlog.json` file
+  using
+  [hs-speedscope](https://hackage.haskell.org/package/hs-speedscope).
+  That file can then be loaded into
+  [speedscope.app](https://www.speedscope.app/).
+
+  The following steps might work (first install `hs-speedscope` using,
+  for instance, something like `cabal install hs-speedscope`):
+  ```sh
+  cabal build \
+    --disable-documentation \
+    -foptimise-heavily -fenable-cluster-counting \
+    --enable-profiling --program-suffix=-prof \
+    --profiling-detail=none --ghc-options=-fprof-late \
+    --ghc-options="+RTS -A128M -M4G -RTS"
+  Agda_datadir=src/data/ dist-newstyle/build/*/ghc-*/Agda-*/build/agda/agda … +RTS -p -l-au
+  hs-speedscope agda.eventlog
+  ```
+  Load the resulting file `agda.eventlog.json` into
+  [speedscope.app](https://www.speedscope.app/).
+
 * To avoid problems with the whitespace test failing we suggest add the
   following lines to `.git/hooks/pre-commit`:
   ```sh
