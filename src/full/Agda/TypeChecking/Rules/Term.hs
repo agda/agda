@@ -1240,8 +1240,6 @@ checkExpr' cmp e t =
             (dontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr' cmp e t)
             (internalError "DontCare may only appear in irrelevant contexts")
 
-        A.ETel _   -> __IMPOSSIBLE__
-
         A.Dot{} -> genericError "Invalid dotted expression"
 
         -- Application
@@ -1322,7 +1320,6 @@ checkExpr' cmp e t =
       A.Rec{}        -> True
       A.RecUpdate{}  -> True
       A.ScopedExpr{} -> __IMPOSSIBLE__
-      A.ETel{}       -> __IMPOSSIBLE__
       _ -> False
 
 ---------------------------------------------------------------------------

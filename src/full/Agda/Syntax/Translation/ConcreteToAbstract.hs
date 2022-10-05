@@ -1012,7 +1012,6 @@ instance ToAbstract C.Expr where
       C.Absurd _ -> notAnExpression e
 
   -- Impossible things
-      C.ETel _  -> __IMPOSSIBLE__
       C.Equal{} -> genericError "Parse error: unexpected '='"
       C.Ellipsis _ -> genericError "Parse error: unexpected '...'"
       C.DoubleDot _ _ -> genericError "Parse error: unexpected '..'"

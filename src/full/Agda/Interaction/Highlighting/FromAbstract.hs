@@ -256,7 +256,6 @@ instance Hilite A.Expr where
       A.Generalized _qs e           -> hl e
       A.Fun _r a b                  -> hl a <> hl b
       A.Let _r bs e                 -> hl bs <> hl e
-      A.ETel _tel                   -> mempty  -- Printing only construct
       A.Rec _r ass                  -> hl ass
       A.RecUpdate _r e ass          -> hl e <> hl ass
       A.ScopedExpr _ e              -> hl e

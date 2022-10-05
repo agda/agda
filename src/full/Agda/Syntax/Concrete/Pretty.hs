@@ -216,8 +216,6 @@ instance Pretty Expr where
             Rec _ xs  -> sep ["record", bracesAndSemicolons (map pretty xs)]
             RecUpdate _ e xs ->
               sep ["record" <+> pretty e, bracesAndSemicolons (map pretty xs)]
-            ETel []  -> "()"
-            ETel tel -> fsep $ map pretty tel
             Quote _ -> "quote"
             QuoteTerm _ -> "quoteTerm"
             Unquote _  -> "unquote"
