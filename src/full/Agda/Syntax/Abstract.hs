@@ -106,7 +106,6 @@ data Expr
   | Fun  ExprInfo (Arg Type) Type      -- ^ Non-dependent function space.
   | Let  ExprInfo (List1 LetBinding) Expr
                                        -- ^ @let bs in e@.
-  | ETel Telescope                     -- ^ Only used when printing telescopes.
   | Rec  ExprInfo RecordAssigns        -- ^ Record construction.
   | RecUpdate ExprInfo Expr Assigns    -- ^ Record update.
   | ScopedExpr ScopeInfo Expr          -- ^ Scope annotation.
@@ -554,7 +553,6 @@ instance Eq Expr where
   Generalized a1 b1          == Generalized a2 b2          = (a1, b1) == (a2, b2)
   Fun a1 b1 c1               == Fun a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
   Let a1 b1 c1               == Let a2 b2 c2               = (a1, b1, c1) == (a2, b2, c2)
-  ETel a1                    == ETel a2                    = a1 == a2
   Rec a1 b1                  == Rec a2 b2                  = (a1, b1) == (a2, b2)
   RecUpdate a1 b1 c1         == RecUpdate a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
   Quote a1                   == Quote a2                   = a1 == a2
@@ -637,7 +635,6 @@ instance HasRange Expr where
     getRange (Let i _ _)             = getRange i
     getRange (Rec i _)               = getRange i
     getRange (RecUpdate i _ _)       = getRange i
-    getRange (ETel tel)              = getRange tel
     getRange (ScopedExpr _ e)        = getRange e
     getRange (Quote i)               = getRange i
     getRange (QuoteTerm i)           = getRange i
@@ -768,7 +765,6 @@ instance KillRange Expr where
   killRange (Let i ds e)             = killRange3 Let i ds e
   killRange (Rec i fs)               = killRange2 Rec i fs
   killRange (RecUpdate i e fs)       = killRange3 RecUpdate i e fs
-  killRange (ETel tel)               = killRange1 ETel tel
   killRange (ScopedExpr s e)         = killRange1 (ScopedExpr s) e
   killRange (Quote i)                = killRange1 Quote i
   killRange (QuoteTerm i)            = killRange1 QuoteTerm i
@@ -1049,7 +1045,6 @@ instance SubstExpr Expr where
     Generalized{}   -> __IMPOSSIBLE__
     Fun{}           -> __IMPOSSIBLE__
     Let{}           -> __IMPOSSIBLE__
-    ETel{}          -> __IMPOSSIBLE__
     RecUpdate{}     -> __IMPOSSIBLE__
     Quote{}         -> __IMPOSSIBLE__
     QuoteTerm{}     -> __IMPOSSIBLE__

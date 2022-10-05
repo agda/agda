@@ -160,7 +160,6 @@ instance ExprLike Expr where
       Generalized  s e           -> Generalized s <$> recurse e
       Fun ei arg e               -> Fun ei <$> recurse arg <*> recurse e
       Let ei bs e                -> Let ei <$> recurse bs <*> recurse e
-      ETel tel                   -> ETel <$> recurse tel
       Rec ei bs                  -> Rec ei <$> recurse bs
       RecUpdate ei e bs          -> RecUpdate ei <$> recurse e <*> recurse bs
       ScopedExpr sc e            -> ScopedExpr sc <$> recurse e
@@ -193,7 +192,6 @@ instance ExprLike Expr where
       Generalized _ e        -> m `mappend` fold e
       Fun _ e e'             -> m `mappend` fold e `mappend` fold e'
       Let _ bs e             -> m `mappend` fold bs `mappend` fold e
-      ETel tel               -> m `mappend` fold tel
       Rec _ as               -> m `mappend` fold as
       RecUpdate _ e as       -> m `mappend` fold e `mappend` fold as
       ScopedExpr _ e         -> m `mappend` fold e
@@ -229,7 +227,6 @@ instance ExprLike Expr where
       Generalized s e            -> f =<< Generalized s <$> trav e
       Fun ei arg e               -> f =<< Fun ei <$> trav arg <*> trav e
       Let ei bs e                -> f =<< Let ei <$> trav bs <*> trav e
-      ETel tel                   -> f =<< ETel <$> trav tel
       Rec ei bs                  -> f =<< Rec ei <$> trav bs
       RecUpdate ei e bs          -> f =<< RecUpdate ei <$> trav e <*> trav bs
       ScopedExpr sc e            -> f =<< ScopedExpr sc <$> trav e
@@ -580,7 +577,6 @@ instance DeclaredNames RHS where
 --     Set{}                 -> mempty
 --     Prop{}                -> mempty
 --     Let _ lbs e           -> declaredNames lbs <> declaredNames e
---     ETel{}                -> __IMPOSSIBLE__
 --     Rec _ fields          -> declaredNames fields
 --     RecUpdate _ e fs      -> declaredNames e <> declaredNames fs
 --     ScopedExpr _ e        -> declaredNames e
