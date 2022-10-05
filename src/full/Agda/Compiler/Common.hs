@@ -51,13 +51,19 @@ instance Monoid IsMain where
 
 doCompile :: Monoid r => (IsMain -> Interface -> TCM r) -> IsMain -> Interface -> TCM r
 doCompile f isMain i = do
-  -- The Agda.Primitive module is implicitly assumed to be always imported,
-  -- even though it not necesseraly occurs in iImportedModules.
-  -- TODO: there should be a better way to get hold of Agda.Primitive?
-  [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName)
-    . map miInterface . Map.elems
-      <$> getVisitedModules
-  flip evalStateT Set.empty $ mappend <$> doCompile' f NotMain agdaPrimInter <*> doCompile' f isMain i
+  -- The Agda.Primitive module is only loaded if the
+  -- --no-load-primitives flag was not given, i.e. if optLoadPrimitives
+  -- is True. If --no-load-primitives was given, then we won't find an
+  -- interface for Agda.Primitive.
+  loadPrims <- optLoadPrimitives <$> pragmaOptions
+  if loadPrims
+    then do
+    [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName)
+      . map miInterface . Map.elems
+        <$> getVisitedModules
+    flip evalStateT Set.empty $ mappend <$> doCompile' f NotMain agdaPrimInter <*> doCompile' f isMain i
+    else do
+    flip evalStateT Set.empty $ doCompile' f isMain i
 
 -- This helper function is called for both `Agda.Primitive` and the module in question.
 -- It's also called for each imported module, recursively. (Avoiding duplicates).
