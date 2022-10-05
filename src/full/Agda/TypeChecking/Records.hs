@@ -37,7 +37,8 @@ import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLik
 
 import Agda.Utils.Either
 import Agda.Utils.Function (applyWhen)
-import Agda.Utils.Functor (for, ($>))
+import Agda.Utils.Functor (for, ($>), (<&>))
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -461,30 +462,31 @@ unguardedRecord q pat = modifySignature $ updateDefinition q $ updateTheDef $ \c
   r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) $ NoEta pat }
   _ -> __IMPOSSIBLE__
 
+-- | Turn on eta for non-recursive and inductive guarded recursive records,
+--   unless user declared otherwise.
+--   Projections do not preserve guardedness.
+updateEtaForRecord :: QName -> TCM ()
+updateEtaForRecord q = whenM etaEnabled $ do
+
+  -- Do we need to switch on eta for record q?
+  switchEta <- getConstInfo q <&> theDef <&> \case
+    Record{ recInduction = ind, recEtaEquality' = eta }
+      | Inferred NoEta{} <- eta, ind /= Just CoInductive -> True
+      | otherwise -> False
+    _ -> __IMPOSSIBLE__
+
+  when switchEta $ do
+    modifySignature $ updateDefinition q $ over (lensTheDef . lensRecord) $ \ d ->
+      d{ _recEtaEquality' = Inferred YesEta }
+
 -- | Turn on eta for inductive guarded recursive records.
 --   Projections do not preserve guardedness.
 recursiveRecord :: QName -> TCM ()
-recursiveRecord q = do
-  ok <- etaEnabled
-  modifySignature $ updateDefinition q $ updateTheDef $ \case
-    r@Record{ recInduction = ind, recEtaEquality' = eta } ->
-      r { recEtaEquality' = eta' }
-      where
-      eta' | ok, Inferred NoEta{} <- eta, ind /= Just CoInductive = Inferred YesEta
-           | otherwise = eta
-    _ -> __IMPOSSIBLE__
+recursiveRecord = updateEtaForRecord
 
 -- | Turn on eta for non-recursive record, unless user declared otherwise.
 nonRecursiveRecord :: QName -> TCM ()
-nonRecursiveRecord q = whenM etaEnabled $ do
-  -- Do nothing if eta is disabled by option.
-  modifySignature $ updateDefinition q $ updateTheDef $ \case
-    r@Record{ recInduction = ind, recEtaEquality' = Inferred (NoEta _) }
-      | ind /= Just CoInductive ->
-      r { recEtaEquality' = Inferred YesEta }
-    r@Record{} -> r
-    _          -> __IMPOSSIBLE__
-
+nonRecursiveRecord = updateEtaForRecord
 
 -- | Check whether record type is marked as recursive.
 --

@@ -143,6 +143,7 @@ prettyWarning = \case
 
     UselessPatternDeclarationForRecord s -> fwords $ unwords
       [ "`pattern' attribute ignored for", s, "record" ]
+      -- the @s@ is a qualifier like "eta" or "coinductive"
 
     UselessPublic -> fwords $ "Keyword `public' is ignored here"
 
