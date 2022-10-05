@@ -459,6 +459,12 @@ is on.  If you want the converse, you can add the record directive
   pred : HereditaryList → List HereditaryList
   pred record{ sublists = ts } = ts
 
+If both ``eta-equality`` and ``pattern`` are given for a record types,
+Agda will alert the user of a redundant ``pattern`` directive.
+However, if η is inferred but not declared explicitly, Agda will just
+ignore a redundant ``pattern`` directive; this is because the default
+can be changed globally by option :option:`--no-eta-equality`.
+
 .. _instance-fields:
 
 Instance fields
