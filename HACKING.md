@@ -289,15 +289,15 @@ Testing and documentation
   flags can make the Agda binary much larger, so they are not
   activated by default.
 
-  A recipe (first install `eventlog2html` using, for instance, `cabal
-  install eventlog2html`):
+  The following steps might work (first install `eventlog2html` using,
+  for instance, something like `cabal install eventlog2html`):
   ```sh
   make CABAL_OPTS=--ghc-options="-finfo-table-map -fdistinct-constructor-tables" install
-  agda … +RTS -l-au -hi -i0.5
-  eventlog2html agda.eventlog
+  agda-VERSION … +RTS -l-au -hi -i0.5
+  eventlog2html agda-VERSION.eventlog
   ```
-  View the resulting file `agda.eventlog.html` and check the tab
-  called "Detailed".
+  Here `VERSION` is Agda's version number. View the resulting file
+  `agda-VERSION.eventlog.html` and check the tab called "Detailed".
 
 * To avoid problems with the whitespace test failing we suggest add the
   following lines to `.git/hooks/pre-commit`:
