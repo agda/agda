@@ -31,9 +31,13 @@ data LevelKit = LevelKit
   , zeroName :: QName
   }
 
--- | Get the 'primLevel' as a 'Type'.
-levelType :: (HasBuiltins m) => m Type
-levelType = El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+-- | Get the 'primLevel' as a 'Type'.  Aborts if the BUILTIN LEVEL is undefined.
+levelType :: (HasBuiltins m, MonadTCError m) => m Type
+levelType = El (mkType 0) <$> getBuiltin builtinLevel
+
+-- | Get the 'primLevel' as a 'Type'.  Unsafe, crashes if the BUILTIN LEVEL is undefined.
+levelType' :: (HasBuiltins m) => m Type
+levelType' = El (mkType 0) . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
 
 isLevelType :: PureTCM m => Type -> m Bool
 isLevelType a = reduce (unEl a) >>= \case

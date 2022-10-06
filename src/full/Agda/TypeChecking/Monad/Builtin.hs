@@ -120,7 +120,7 @@ getBuiltinRewriteRelations = fmap rels <$> getBuiltinThing builtinRewrite
     Prim{}    -> __IMPOSSIBLE__
     Builtin{} -> __IMPOSSIBLE__
 
-getBuiltin :: (HasBuiltins m, MonadError TCErr m, MonadTCEnv m, ReadTCState m)
+getBuiltin :: (HasBuiltins m, MonadTCError m)
            => String -> m Term
 getBuiltin x =
   fromMaybeM (typeError $ NoBindingForBuiltin x) $ getBuiltin' x
