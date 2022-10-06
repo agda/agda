@@ -22,6 +22,7 @@ module Agda.TypeChecking.Errors
 
 import Prelude hiding ( null, foldl )
 
+import qualified Control.Exception as E
 import Control.Monad.Except
 
 import qualified Data.CaseInsensitive as CaseInsens
@@ -107,7 +108,7 @@ tcErrString :: TCErr -> String
 tcErrString err = prettyShow (getRange err) ++ " " ++ case err of
   TypeError _ _ cl  -> errorString $ clValue cl
   Exception r s     -> prettyShow r ++ " " ++ show s
-  IOException _ r e -> prettyShow r ++ " " ++ show e
+  IOException _ r e -> prettyShow r ++ " " ++ E.displayException e
   PatternErr{}      -> "PatternErr"
 
 stringTCErr :: String -> TCErr

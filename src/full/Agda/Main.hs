@@ -5,6 +5,7 @@ module Agda.Main where
 
 import Prelude hiding (null)
 
+import qualified Control.Exception as E
 import Control.Monad          ( void )
 import Control.Monad.Except   ( MonadError(..), ExceptT(..), runExceptT )
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -297,7 +298,7 @@ runTCMPrettyErrors tcm = do
             liftIO $ helpForLocaleError err
             return (Just TCMError)
       ) `catchImpossible` \e -> do
-          liftIO $ putStr $ show e
+          liftIO $ putStr $ E.displayException e
           return (Just ImpossibleError)
     )
   case r of

@@ -4359,7 +4359,8 @@ data TCErr
 instance Show TCErr where
   show (TypeError _ _ e)   = prettyShow (envRange $ clEnv e) ++ ": " ++ show (clValue e)
   show (Exception r d)     = prettyShow r ++ ": " ++ render d
-  show (IOException _ r e) = prettyShow r ++ ": " ++ show e
+  show (IOException _ r e) = prettyShow r ++ ": " ++
+                             E.displayException e
   show PatternErr{}        = "Pattern violation (you shouldn't see this)"
 
 instance HasRange TCErr where

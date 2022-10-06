@@ -39,6 +39,7 @@ module Agda.Interaction.Library
   ) where
 
 import Control.Arrow          ( first , second )
+import qualified Control.Exception as E
 import Control.Monad          ( filterM, forM )
 import Control.Monad.Except
 import Control.Monad.State
@@ -263,7 +264,11 @@ readDefaultsFile = do
       ls <- liftIO $ map snd . stripCommentLines <$> UTF8.readFile file
       return $ concatMap splitCommas ls
   `catchIO` \ e -> do
-    raiseErrors' [ OtherError $ unlines ["Failed to read defaults file.", show e] ]
+    raiseErrors' [ OtherError $ unlines
+                     [ "Failed to read defaults file."
+                     , E.displayException e
+                     ]
+                 ]
     return []
 
 ------------------------------------------------------------------------
@@ -308,7 +313,11 @@ getInstalledLibraries overrideLibFile = mkLibM [] $ do
           files <- liftIO $ sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
           parseLibFiles (Just file) $ nubOn snd files
   `catchIO` \ e -> do
-    raiseErrors' [ OtherError $ unlines ["Failed to read installed libraries.", show e] ]
+    raiseErrors' [ OtherError $ unlines
+                     [ "Failed to read installed libraries."
+                     , E.displayException e
+                     ]
+                 ]
     return []
 
 -- | Parse the given library files.
@@ -378,7 +387,11 @@ getTrustedExecutables = mkLibM [] $ do
       tmp   <- parseExecutablesFile file $ nubOn snd files
       return tmp
   `catchIO` \ e -> do
-    raiseErrors' [ OtherError $ unlines ["Failed to read trusted executables.", show e] ]
+    raiseErrors' [ OtherError $ unlines
+                     [ "Failed to read trusted executables."
+                     , E.displayException e
+                     ]
+                 ]
     return Map.empty
 
 -- | Parse the @executables@ file.

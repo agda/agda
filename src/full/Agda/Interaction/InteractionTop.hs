@@ -235,7 +235,7 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
       let handle e =
             Right <$>
               toIO (handleErr (Just Direct) $
-                        Exception noRange $ text $ show e)
+                        Exception noRange $ text $ E.displayException e)
 
           asyncHandler e@AsyncCancelled = return (Left e)
 

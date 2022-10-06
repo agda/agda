@@ -29,6 +29,7 @@ module Agda.Interaction.Library.Parse
   , runP
   ) where
 
+import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Writer
@@ -112,7 +113,7 @@ parseLibFile file =
   (fmap setPath . parseLib <$> UTF8.readFile file) `catchIO` \e ->
     return $ throwError $ unlines
       [ "Failed to read library file " ++ file ++ "."
-      , "Reason: " ++ show e
+      , "Reason: " ++ E.displayException e
       ]
   where
     setPath      lib = unrelativise (takeDirectory file) (set libFile file lib)
