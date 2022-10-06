@@ -71,9 +71,13 @@ jobs:
           - os: macos-latest
             ghc-ver: 9.2.4
             stack-ver: latest
-          - os: windows-latest
-            ghc-ver: 9.2.4
-            stack-ver: latest
+          # Andreas, 2022-10-06, issue #6128
+          # The action stalls. Last message is "installing agda-mode in ...".
+          # Happens also on windows-2019.  I have no clue what causes this.
+          # Temporarily disable the windows build, maybe stack 2.9.1 will fix this.
+          # - os: windows-latest
+          #   ghc-ver: 9.2.4
+          #   stack-ver: latest
     # # Try "allowed-failure" for Windows with GHC 9.2
     # continue-on-error: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.ghc-ver,'9.2') }}
     env:
