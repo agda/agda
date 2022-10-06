@@ -73,6 +73,18 @@ lamView (Lam i b e) = cons b $ lamView e
 lamView (ScopedExpr _ e) = lamView e
 lamView e = LamView [] e
 
+-- | Collect @A.Pi@s.
+data PiView = PiView [(ExprInfo, Telescope1)] Type
+
+piView :: Expr -> PiView
+piView = \case
+   Pi i tel b -> cons $ piView b
+     where cons (PiView tels t) = PiView ((i,tel) : tels) t
+   e -> PiView [] e
+
+unPiView :: PiView -> Expr
+unPiView (PiView tels t) = foldr (uncurry Pi) t tels
+
 -- | Gather top-level 'AsP'atterns and 'AnnP'atterns to expose underlying pattern.
 asView :: A.Pattern -> ([Name], [A.Expr], A.Pattern)
 asView (A.AsP _ x p)  = (\(asb, ann, p) -> (unBind x : asb, ann, p)) $ asView p

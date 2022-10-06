@@ -172,7 +172,11 @@ recordConstructorType decls =
     buildType :: [C.NiceDeclaration] -> ScopeM A.Expr
       -- TODO: Telescope instead of Expr in abstract RecDef
     buildType ds = do
-      dummy <- A.Def . fromMaybe __IMPOSSIBLE__ <$> getBuiltinName' builtinSet
+      -- The constructor target type is computed in the type checker.
+      -- For now, we put a dummy expression there.
+      -- Andreas, 2022-10-06, issue #6165:
+      -- The dummy was builtinSet, but this might not be defined yet.
+      let dummy = A.Lit empty $ LitString "TYPE"
       tel   <- catMaybes <$> mapM makeBinding ds
       return $ A.mkPi (ExprRange (getRange ds)) tel dummy
 
