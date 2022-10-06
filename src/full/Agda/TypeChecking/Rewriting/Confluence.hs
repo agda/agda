@@ -872,7 +872,7 @@ instance AllHoles [PlusLevel] where
 instance AllHoles PlusLevel where
   type PType PlusLevel = ()
   allHoles _ (Plus n l) = do
-    la <- levelType
+    la <- levelType'
     fmap (Plus n) <$> allHoles la l
 
 
