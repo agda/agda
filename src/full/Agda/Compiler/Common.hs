@@ -31,6 +31,7 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.List1          ( pattern (:|) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad          ( ifNotM )
 import Agda.Utils.Pretty
@@ -59,10 +60,12 @@ doCompile f isMain i = do
   -- is True. If --no-load-primitives was given, then we won't find an
   -- interface for Agda.Primitive.
   compilePrim cont = ifNotM (lift $ optLoadPrimitives <$> pragmaOptions) cont $ {-else-} do
-    [agdaPrimInterface] <- lift $
-      filter (("Agda.Primitive" ==) . prettyShow . iModuleName) . map miInterface . Map.elems
-      <$> getVisitedModules
+    agdaPrimInterface <- lift $
+      maybe __IMPOSSIBLE__ miInterface . Map.lookup agdaPrim <$> getVisitedModules
     mappend <$> doCompile' f NotMain agdaPrimInterface <*> cont
+    where
+    agdaPrim = C.TopLevelModuleName mempty $ "Agda" :| "Primitive" : []
+      -- N.B. The Range in TopLevelModuleName is ignored for Ord, so we can set it to mempty.
 
 -- This helper function is called for both `Agda.Primitive` and the module in question.
 -- It's also called for each imported module, recursively. (Avoiding duplicates).
