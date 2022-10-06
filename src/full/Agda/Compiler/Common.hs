@@ -24,7 +24,7 @@ import Agda.Syntax.Internal as I
 
 import Agda.Interaction.FindFile ( srcFilePath )
 import Agda.Interaction.Options
-import Agda.Interaction.Imports ( CheckResult, crInterface, crSource, Source(..) )
+import Agda.Interaction.Imports  ( CheckResult, crInterface, crSource, Source(..) )
 
 import Agda.TypeChecking.Monad
 
@@ -32,6 +32,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad          ( ifNotM )
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -51,19 +52,17 @@ instance Monoid IsMain where
 
 doCompile :: Monoid r => (IsMain -> Interface -> TCM r) -> IsMain -> Interface -> TCM r
 doCompile f isMain i = do
+  flip evalStateT Set.empty $ compilePrim $ doCompile' f isMain i
+  where
   -- The Agda.Primitive module is only loaded if the
   -- --no-load-primitives flag was not given, i.e. if optLoadPrimitives
   -- is True. If --no-load-primitives was given, then we won't find an
   -- interface for Agda.Primitive.
-  loadPrims <- optLoadPrimitives <$> pragmaOptions
-  if loadPrims
-    then do
-    [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName)
-      . map miInterface . Map.elems
-        <$> getVisitedModules
-    flip evalStateT Set.empty $ mappend <$> doCompile' f NotMain agdaPrimInter <*> doCompile' f isMain i
-    else do
-    flip evalStateT Set.empty $ doCompile' f isMain i
+  compilePrim cont = ifNotM (lift $ optLoadPrimitives <$> pragmaOptions) cont $ {-else-} do
+    [agdaPrimInterface] <- lift $
+      filter (("Agda.Primitive" ==) . prettyShow . iModuleName) . map miInterface . Map.elems
+      <$> getVisitedModules
+    mappend <$> doCompile' f NotMain agdaPrimInterface <*> cont
 
 -- This helper function is called for both `Agda.Primitive` and the module in question.
 -- It's also called for each imported module, recursively. (Avoiding duplicates).
