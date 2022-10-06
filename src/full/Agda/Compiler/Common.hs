@@ -55,14 +55,11 @@ doCompile :: Monoid r => (IsMain -> Interface -> TCM r) -> IsMain -> Interface -
 doCompile f isMain i = do
   flip evalStateT Set.empty $ compilePrim $ doCompile' f isMain i
   where
-  -- The Agda.Primitive module is only loaded if the
-  -- --no-load-primitives flag was not given, i.e. if optLoadPrimitives
-  -- is True. If --no-load-primitives was given, then we won't find an
-  -- interface for Agda.Primitive.
-  compilePrim cont = ifNotM (lift $ optLoadPrimitives <$> pragmaOptions) cont $ {-else-} do
-    agdaPrimInterface <- lift $
-      maybe __IMPOSSIBLE__ miInterface . Map.lookup agdaPrim <$> getVisitedModules
-    mappend <$> doCompile' f NotMain agdaPrimInterface <*> cont
+  -- The Agda.Primitive module is only loaded if the --no-load-primitives flag was not given,
+  -- thus, only try to compile it if we have visited it.
+  compilePrim cont = (lift $ Map.lookup agdaPrim <$> getVisitedModules) >>= \case
+    Nothing   -> cont
+    Just prim -> mappend <$> doCompile' f NotMain (miInterface prim) <*> cont
     where
     agdaPrim = C.TopLevelModuleName mempty $ "Agda" :| "Primitive" : []
       -- N.B. The Range in TopLevelModuleName is ignored for Ord, so we can set it to mempty.
