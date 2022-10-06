@@ -117,9 +117,6 @@ jobs:
         - ghc-ver: 9.2.4
           os: macos-latest
           stack-ver: latest
-        - ghc-ver: 9.2.4
-          os: windows-latest
-          stack-ver: latest
         os:
         - ubuntu-18.04
         stack-ver:
