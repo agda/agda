@@ -14,6 +14,7 @@ import qualified Data.List as List
 import Data.Maybe
 
 import System.Environment
+import System.Exit
 import System.Console.GetOpt
 import qualified System.IO as IO
 
@@ -300,7 +301,14 @@ runTCMPrettyErrors tcm = do
       ) `catchImpossible` \e -> do
           liftIO $ putStr $ E.displayException e
           return (Just ImpossibleError)
-    )
+    ) `E.catches`
+        -- Catch all exceptions except for those of type ExitCode
+        -- (which are thrown by exitWith).
+        [ E.Handler $ \(e :: ExitCode)        -> E.throw e
+        , E.Handler $ \(e :: E.SomeException) -> do
+            liftIO $ putStr $ E.displayException e
+            return $ Right (Just UnknownError)
+        ]
   case r of
     Right Nothing       -> exitSuccess
     Right (Just reason) -> exitAgdaWith reason
