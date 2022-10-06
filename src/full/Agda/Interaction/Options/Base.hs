@@ -159,7 +159,8 @@ data PragmaOptions = PragmaOptions
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
-  , optWithoutK                  :: WithDefault 'False
+  , optWithoutK                  :: WithDefault 'False -- ^ Disable the K rule and its friends?
+  , optGenCubical                :: WithDefault 'False -- ^ Generate Cubical Agda support code?
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
@@ -302,6 +303,7 @@ defaultPragmaOptions = PragmaOptions
   , optInjectiveTypeConstructors = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = Default
+  , optGenCubical                = Default
   , optCopatterns                = True
   , optPatternMatching           = True
   , optExactSplit                = False
@@ -474,7 +476,7 @@ coinfectiveOptions :: [(PragmaOptions -> Bool, String)]
 coinfectiveOptions =
   [ (optSafe, "--safe")
   , (collapseDefault . optWithoutK, "--without-K")
-  , (collapseDefault . optWithoutK, "--cubical-compatible")
+  , (collapseDefault . optGenCubical, "--cubical-compatible")
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (not . optCumulativity, "--no-cumulativity")
   ]
@@ -713,6 +715,12 @@ withKFlag o = return $ o { optWithoutK = Value False }
 
 withoutKFlag :: Flag PragmaOptions
 withoutKFlag o = return $ o { optWithoutK = Value True }
+
+cubicalCompatFlag :: Flag PragmaOptions
+cubicalCompatFlag o = return $ o
+  { optGenCubical = Value True
+  , optWithoutK   = setDefault True (optWithoutK o)
+  }
 
 copatternsFlag :: Flag PragmaOptions
 copatternsFlag o = return $ o { optCopatterns = True }
@@ -1008,10 +1016,10 @@ pragmaOptions =
                     "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
     , Option []     ["with-K"] (NoArg withKFlag)
                     "enable the K rule in pattern matching (default)"
-    , Option []     ["cubical-compatible"] (NoArg withoutKFlag)
-                    "turn on checks to make code compatible with --cubical (e.g. disabling the K rule)"
+    , Option []     ["cubical-compatible"] (NoArg cubicalCompatFlag)
+                    "turn on generation of support code for Cubical Agda (implies --without-K)"
     , Option []     ["without-K"] (NoArg withoutKFlag)
-                    "alias for --cubical-compatible (legacy)"
+                    "turn on checks to make code compatible with univalent type theory (e.g. disabling the K rule)"
     , Option []     ["copatterns"] (NoArg copatternsFlag)
                     "enable definitions by copattern matching (default)"
     , Option []     ["no-copatterns"] (NoArg noCopatternsFlag)
