@@ -74,6 +74,10 @@ jobs:
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
+    - if: ${{ runner.os == 'macOS' }}
+      name: Set up pkg-config for the ICU library (macOS)
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
     - if: ${{ runner.os == 'Windows' }}
       name: Setup MSYS path (Windows)
       run: |
@@ -87,7 +91,7 @@ jobs:
       run: |
         cabal configure ${{ steps.vars.outputs.args }}
     - name: Build dependencies
-      run: cabal build exe:agda exe:agda-mode --only-dependencies -v0
+      run: cabal build exe:agda exe:agda-mode --only-dependencies
     - name: Build Agda
       run: cabal build exe:agda exe:agda-mode
     - env:

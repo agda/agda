@@ -108,6 +108,10 @@ jobs:
     #     ghcup config set url-source '{"OwnSource": "https://raw.githubusercontent.com/haskell/ghcup-metadata/ubuntu20.04/ghcup-0.0.7.yaml"}'
     #     ghcup install ghc --force --set 9.2.2
 
+    - name: Set up pkg-config for the ICU library (macOS)
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
 
     # from: https://github.com/haskell/text-icu/blob/c73d7fe6f29e178d3ea40160e904ab39236e3c9d/.github/workflows/cabal-mac-win.yml#L29-L32
     - name: Setup MSYS path (Windows)
@@ -150,7 +154,7 @@ jobs:
     - name: Build dependencies
       # Caching is disabled...
       # if: ${{ !steps.cache.outputs.cache-hit }}
-      run: cabal build exe:agda exe:agda-mode --only-dependencies -v0
+      run: cabal build exe:agda exe:agda-mode --only-dependencies
 
     - name: Build Agda
       run: cabal build exe:agda exe:agda-mode
