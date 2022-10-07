@@ -464,7 +464,7 @@ agda2-include-dirs is not bound." :warning))
         (error "Failed to start the Agda process:\n%s" output)))
 
     ;; Start the Agda process.
-    (let ((agda2-bufname "*agda2*"))
+    (let ((agda2-bufname " *agda2*"))
 
       (let ((process-connection-type nil)) ; Pipes are faster than PTYs.
         (setq agda2-process
