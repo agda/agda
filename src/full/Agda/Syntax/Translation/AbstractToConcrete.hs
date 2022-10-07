@@ -946,7 +946,7 @@ makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TBind _ tac (x :| []) t)) =
   case unScope t of
     A.Underscore A.MetaInfo{metaNumber = Nothing} ->
-      A.DomainFree tac x
+      A.DomainFree (tbTacticAttr tac) x
     _ -> b
 makeDomainFree b = b
 
@@ -1000,10 +1000,10 @@ instance ToConcrete A.TypedBinding where
     type ConOfAbs A.TypedBinding = Maybe C.TypedBinding
 
     bindToConcrete (A.TBind r t xs e) ret = do
-        t <- traverse toConcrete t
+        tac <- traverse toConcrete (tbTacticAttr t)
         bindToConcrete (fmap forceNameIfHidden xs) $ \ xs -> do
           e <- toConcreteTop e
-          let setTac x = x { bnameTactic = t }
+          let setTac x = x { bnameTactic = tac , C.bnameIsFinite = tbFinite t }
           ret $ Just $ C.TBind r (fmap (updateNamedArg (fmap setTac)) xs) e
     bindToConcrete (A.TLet r lbs) ret =
         bindToConcrete lbs $ \ ds -> do

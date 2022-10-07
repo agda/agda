@@ -97,6 +97,11 @@ prettyCohesion a d =
 prettyTactic :: BoundName -> Doc -> Doc
 prettyTactic = prettyTactic' . bnameTactic
 
+prettyFiniteness :: BoundName -> Doc -> Doc
+prettyFiniteness name
+  | bnameIsFinite name = ("@finite" <+>)
+  | otherwise = id
+
 prettyTactic' :: TacticAttribute -> Doc -> Doc
 prettyTactic' Nothing  d = d
 prettyTactic' (Just t) d = "@" <> (parens ("tactic" <+> pretty t) <+> d)
@@ -298,6 +303,7 @@ instance Pretty TypedBinding where
     pretty (TBind _ xs e) = fsep
       [ prettyRelevance y
         $ prettyHiding y parens
+        $ prettyFiniteness (binderName $ namedArg y)
         $ prettyCohesion y
         $ prettyQuantity y
         $ prettyTactic (binderName $ namedArg y) $

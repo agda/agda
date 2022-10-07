@@ -1325,7 +1325,7 @@ instance LensLock Lock where
 
 instance LensLock ArgInfo where
   getLock = annLock . argInfoAnnotation
-  setLock l info = info { argInfoAnnotation = Annotation l }
+  setLock l info = info { argInfoAnnotation = (argInfoAnnotation info){ annLock = l } }
 
 instance LensLock (Arg t) where
   getLock = getLock . getArgInfo

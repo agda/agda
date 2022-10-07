@@ -101,14 +101,12 @@ primPartial' = do
         nPi' "A" (sort . tmSort <$> a) $ \ bA ->
         (sort . tmSSort <$> a))
   isOne <- primIsOne
-  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 3 $ \ ts -> do
-    case ts of
-      [l,phi,a] -> do
-          (El s (Pi d b)) <- runNamesT [] $ do
-                             [l,a,phi] <- mapM (open . unArg) [l,a,phi]
-                             elSSet (pure isOne <@> phi) --> el' l a
-          redReturn $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
-      _ -> __IMPOSSIBLE__
+  v <- runNamesT [] $
+        lam "a" $ \ l ->
+        lam "φ" $ \ phi ->
+        lam "A" $ \ a ->
+        unEl <$> pPi' "p" phi (\_ -> el' l a)
+  return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
 
 primPartialP' :: TCM PrimitiveImpl
 primPartialP' = do
@@ -118,14 +116,11 @@ primPartialP' = do
         nPi' "φ" primIntervalType $ \ phi ->
         nPi' "A" (pPi' "o" phi $ \ _ -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
         (sort . tmSSort <$> a))
-  let toFinitePi :: Type -> Term
-      toFinitePi (El _ (Pi d b)) = Pi (setRelevance Irrelevant $ d { domFinite = True }) b
-      toFinitePi _               = __IMPOSSIBLE__
   v <- runNamesT [] $
         lam "a" $ \ l ->
         lam "φ" $ \ phi ->
         lam "A" $ \ a ->
-        toFinitePi <$> nPi' "p" (elSSet $ cl primIsOne <@> phi) (\ p -> el' l (a <@> p))
+        unEl <$> pPi' "p" phi (\ p -> el' l (a <@> p))
   return $ PrimImpl t $ primFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
 
 primSubOut' :: TCM PrimitiveImpl
