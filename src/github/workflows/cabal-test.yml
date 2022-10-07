@@ -30,7 +30,7 @@ jobs:
     runs-on: Ubuntu-latest # Required, but it can be anything here.
 
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.10.1
       with:
         access_token: ${{ github.token }}
 
@@ -55,11 +55,15 @@ jobs:
         cabal-ver: [latest]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
+        # Andreas, 2022-10-07.
+        # @v2 pulls in cabal 3.8.1.0 which has atm a problem with the pkgconfig-depends
+        # of text-icu-0.8.0 on macos-latest.  However, as we do not supply the flag
+        # -fenable-cluster-counting here, we do not depend on text-icu and are fine.
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
@@ -80,7 +84,7 @@ jobs:
         cabal update
         cabal configure -O1 --enable-tests
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:

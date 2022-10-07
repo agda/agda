@@ -14,7 +14,7 @@ jobs:
       == 'success' }}
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.10.1
       with:
         access_token: ${{ github.token }}
   build:
@@ -30,7 +30,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Check out the master branch
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - id: vars
       name: Set up platform-dependent variables
       run: |
@@ -70,7 +70,7 @@ jobs:
         echo content-type=${{ steps.vars.outputs.content-type }}
         echo args=${{ steps.vars.outputs.args }}
     - id: setup-haskell
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
@@ -140,7 +140,7 @@ jobs:
     - name: Pack artefacts
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         if-no-files-found: error
         name: ${{ steps.vars.outputs.filename }}
@@ -163,14 +163,14 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/download-artifact@v2
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
       with:
         path: artifacts
     - env:
         GITHUB_TOKEN: ${{ github.token }}
       name: Delete the nightly tag if any
-      uses: dev-drprasad/delete-tag-and-release@v0.1.2
+      uses: dev-drprasad/delete-tag-and-release@v0.2.0
       with:
         delete_release: true
         tag_name: nightly

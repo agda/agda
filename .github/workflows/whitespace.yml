@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: Checkout agda sources
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Check encoding of Parser.y
       run: |
         make check-encoding
@@ -24,12 +24,12 @@ jobs:
         mkdir -p $HOME/.local/bin
     - id: cache
       name: Cache the binary
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         key: fix-whitespace-${{ matrix.fix-whitespace-ver }}
         path: ~/.local/bin
     - if: ${{ !steps.cache.outputs.cache-hit }}
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}

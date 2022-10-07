@@ -32,9 +32,9 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
@@ -55,7 +55,7 @@ jobs:
         cabal update
         cabal configure -fenable-cluster-counting --enable-tests --disable-library-profiling
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache dependencies
       id: cache
       with:
