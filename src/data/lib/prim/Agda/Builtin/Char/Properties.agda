@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness #-}
 
 module Agda.Builtin.Char.Properties where
 

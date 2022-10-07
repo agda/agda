@@ -1,4 +1,3 @@
 Issue6001.agda:13,1-23
-Cubical Agda: cannot generate hcomp clauses at type
-?0
+Cubical Agda: cannot generate hcomp clauses at type ?0
 when checking the definition of bug

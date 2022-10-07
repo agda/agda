@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 open import Agda.Primitive        using (Setω)
 open import Agda.Builtin.Equality using (_≡_; refl)

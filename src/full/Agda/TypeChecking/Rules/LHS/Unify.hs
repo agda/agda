@@ -262,9 +262,12 @@ unifyIndices' tel flex a us vs = do
         tauInv <- do
           strict     <- asksTC envSplitOnStrict
           if strict then return (Left SplitOnStrict) else do
-          withoutK   <- withoutKOption
-          if withoutK then buildLeftInverse initialState log
-                      else return (Left WithKEnabled)
+          cubicalCompatible <- cubicalCompatibleOption
+          if cubicalCompatible
+            then buildLeftInverse initialState log
+            else withoutKOption >>= \case
+              True  -> return $ Left NoCubical
+              False -> return $ Left WithKEnabled
         reportSDoc "tc.lhs.unify" 20 $ "ps:" <+> pretty ps
         return $ (varTel s, unifySubst output, ps, tauInv)
 

@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --safe --no-sized-types --no-guardedness --erase-record-parameters #-}
+{-# OPTIONS --cubical-compatible --safe --no-sized-types --no-guardedness --erase-record-parameters #-}
 
 module Agda.Builtin.FromNeg where
 
