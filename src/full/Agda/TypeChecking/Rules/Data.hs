@@ -186,7 +186,7 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
         let cons   = map A.axiomName cs  -- get constructor names
 
         (mtranspix, transpFun) <-
-          ifM (collapseDefault . optWithoutK <$> pragmaOptions)
+          ifM (collapseDefault . optCubicalCompatible <$> pragmaOptions)
             (do mtranspix <- inTopContext $ defineTranspIx name
                 transpFun <- inTopContext $
                                defineTranspFun name mtranspix cons

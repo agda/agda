@@ -1,12 +1,11 @@
 Issue2790.agda:7,1-21
 Could not generate equivalence when splitting on indexed family,
 the function will not compute on transports by a path.
-  Reason: WithKEnabled
-when checking the definition of uip
-Issue2790.agda:7,1-21
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: WithKEnabled
+  Reason: Illegal Deletion
+                    position:    0
+                    type:        @1
+                    lhs:         @0
+                    rhs:         @0
 when checking the definition of uip
 
 ———— All done; warnings encountered ————————————————————————
@@ -14,11 +13,9 @@ when checking the definition of uip
 Issue2790.agda:7,1-21
 Could not generate equivalence when splitting on indexed family,
 the function will not compute on transports by a path.
-  Reason: WithKEnabled
-when checking the definition of uip
-
-Issue2790.agda:7,1-21
-Could not generate equivalence when splitting on indexed family,
-the function will not compute on transports by a path.
-  Reason: WithKEnabled
+  Reason: Illegal Deletion
+                    position:    0
+                    type:        @1
+                    lhs:         @0
+                    rhs:         @0
 when checking the definition of uip

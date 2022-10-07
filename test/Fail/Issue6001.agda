@@ -4,7 +4,7 @@
 -- Cubical extra-clauses cannot be generated unless
 -- target is known to be fibrant.
 
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --cubical-compatible #-}
 
 data Foo {A : Set} : A → Set where
   con : (x : A) → Foo x
