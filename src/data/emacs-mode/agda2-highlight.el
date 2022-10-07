@@ -59,7 +59,7 @@ If the face does not exist, then it is created first."
                       :inherit        'unspecified
                       :box            'unspecified
                       :font           'unspecified)
-  (eval `(set-face-attribute face nil ,@attrs)))
+  (apply #'set-face-attribute face nil attrs))
 
 (defun agda2-highlight-set-faces (variable group)
   "Set all Agda faces according to the value of GROUP.
