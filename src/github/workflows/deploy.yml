@@ -16,7 +16,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.10.1
       with:
         access_token: ${{ github.token }}
   build:
@@ -32,6 +32,11 @@ jobs:
         os: [windows-2022, macos-latest, ubuntu-18.04]
         ghc-ver: ['9.2']
         cabal-ver: [3.6]
+          # Andreas, 2022-10-07.
+          # Switching to cabal 3.8.1.0 will likely cause problems on macOS
+          # as long as the issue with pkg-config exists, see:
+          # - https://github.com/haskell/cabal/pull/8496
+          # - https://github.com/actions/runner-images/issues/6364
 
     env:
       ARGS: "--disable-executable-profiling --disable-library-profiling"
@@ -51,7 +56,7 @@ jobs:
     steps:
 
     - name: Check out the master branch
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Set up platform-dependent variables
       id: vars
@@ -93,7 +98,7 @@ jobs:
         echo content-type=${{ steps.vars.outputs.content-type }}
         echo args=${{ steps.vars.outputs.args }}
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: ${{ matrix.ghc-ver }}
@@ -142,7 +147,7 @@ jobs:
         cabal configure ${{ steps.vars.outputs.args }}
 
       # Caching is disabled...
-        #    - uses: actions/cache@v2
+        #    - uses: actions/cache@v3
         #      name: Cache dependencies
         #      id: cache
         #      with:
@@ -230,7 +235,7 @@ jobs:
       run: |
         ${{ steps.vars.outputs.compress-cmd }}
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         path: ${{ steps.vars.outputs.filename }}
         name: ${{ steps.vars.outputs.filename }}
@@ -242,12 +247,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/download-artifact@v2
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
       with:
         path: artifacts
     - name: Delete the nightly tag if any
-      uses: dev-drprasad/delete-tag-and-release@v0.1.2
+      uses: dev-drprasad/delete-tag-and-release@v0.2.0
       with:
         delete_release: true
         tag_name: 'nightly'

@@ -25,7 +25,7 @@ jobs:
         fix-whitespace-ver: [0.0.10]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       name: Checkout agda sources
 
     - name: Check encoding of Parser.y
@@ -36,14 +36,14 @@ jobs:
       run: |
         mkdir -p $HOME/.local/bin
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       name: Cache the binary
       id: cache
       with:
         path: "~/.local/bin"
         key: fix-whitespace-${{ matrix.fix-whitespace-ver }}
 
-    - uses: haskell/actions/setup@v1
+    - uses: haskell/actions/setup@v2
       if: ${{ !steps.cache.outputs.cache-hit }}
       with:
         ghc-version: ${{ matrix.ghc-ver }}

@@ -14,7 +14,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.10.1
       with:
         access_token: ${{ github.token }}
   stack:
@@ -29,11 +29,11 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
     - id: haskell-setup
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       with:
         enable-stack: true
         ghc-version: ${{ matrix.ghc-ver }}
@@ -63,7 +63,7 @@ jobs:
         echo "GHC_VER           = ${GHC_VER}"
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         key: |
           ${{ runner.os }}-stack-20220503-${{ env.STACK_VER }}-${{ env.GHC_VER }}-${{ hashFiles(format('stack-{0}.yaml', env.GHC_VER)) }}

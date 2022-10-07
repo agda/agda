@@ -17,7 +17,7 @@ jobs:
       && !contains(github.event.head_commit.message, '[skip github]')
     runs-on: Ubuntu-latest
     steps:
-    - uses: styfle/cancel-workflow-action@0.6.0
+    - uses: styfle/cancel-workflow-action@0.10.1
       with:
         access_token: ${{ github.token }}
   cabal:
@@ -26,11 +26,11 @@ jobs:
     needs: auto-cancel
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
     - id: setup-haskell
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       with:
         cabal-version: ${{ matrix.cabal-ver }}
         ghc-version: ${{ matrix.ghc-ver }}
@@ -54,14 +54,21 @@ jobs:
     - if: ${{ runner.os == 'macOS' }}
       name: Set up pkg-config for the ICU library (macOS)
       run: |
-        echo "PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig" >> ${GITHUB_ENV}
+        export PKG_CONFIG_PATH=/usr/local/opt/icu4c/lib/pkgconfig
+        echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> ${GITHUB_ENV}
+        # print some information to debug pkg-config
+        echo "$ export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"
+        echo "$ ls -l ${PKG_CONFIG_PATH}"
+        ls -l ${PKG_CONFIG_PATH}
+        echo "$ pkg-config --modversion icu-i18n"
+        pkg-config --modversion icu-i18n
     - name: Configure the build plan
       run: |
         cabal update
         cabal configure ${FLAGS} -O0
     - id: cache
       name: Cache dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         key: ${{ runner.os }}-cabal-01-${{ env.GHC_VER }}-${{ env.CABAL_VER }}-${{
           hashFiles('**/plan.json') }}
@@ -84,7 +91,7 @@ jobs:
         cabal-ver:
         - latest
         ghc-ver:
-        - 9.4.1
+        - 9.4.2
         - 9.2.4
         - 9.0.2
         - 8.10.7
@@ -94,11 +101,11 @@ jobs:
         - 8.2.2
         - 8.0.2
         include:
-        - cabal-ver: latest
-          ghc-ver: 9.4.1
+        - cabal-ver: 3.6.2.0
+          ghc-ver: 9.4.2
           os: macos-latest
         - cabal-ver: latest
-          ghc-ver: 9.2.4
+          ghc-ver: 9.4.2
           os: windows-latest
         os:
         - ubuntu-20.04
