@@ -795,7 +795,7 @@ computeHCompSplit  :: Telescope   -- ^ Telescope before split point.
   -- -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe (SplitTag,SplitClause))   -- ^ New split clause if successful.
 computeHCompSplit delta1 n delta2 d pars ixs hix tel ps cps = do
-  withK   <- not . collapseDefault . optWithoutK <$> pragmaOptions
+  withK   <- not . collapseDefault . optCubicalCompatible <$> pragmaOptions
   if withK then return Nothing else do
     -- Get the type of the datatype
   -- Δ1 ⊢ dtype

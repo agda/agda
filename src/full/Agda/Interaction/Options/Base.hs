@@ -167,6 +167,7 @@ data PragmaOptions = PragmaOptions
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
   , optWithoutK                  :: WithDefault 'False
+  , optCubicalCompatible         :: WithDefault 'False
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
@@ -312,6 +313,7 @@ defaultPragmaOptions = PragmaOptions
   , optInjectiveTypeConstructors = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = Default
+  , optCubicalCompatible         = Default
   , optCopatterns                = True
   , optPatternMatching           = True
   , optExactSplit                = False
@@ -396,9 +398,7 @@ unsafePragmaOptions clo opts =
   [ "--irrelevant-projections"                   | optIrrelevantProjections opts     ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
-  [ "--cubical and --with-K"                     | optCubical opts == Just CFull
-                                                 , not (collapseDefault $ optWithoutK opts) ] ++
-  [ "--erased-cubical and --with-K"              | optCubical opts == Just CErased
+  [ "--cubical-compatible and --with-K"          | collapseDefault (optCubicalCompatible opts)
                                                  , not (collapseDefault $ optWithoutK opts) ] ++
   [ "--cumulativity"                             | optCumulativity opts              ] ++
   [ "--allow-exec"                               | optAllowExec opts                 ] ++
@@ -428,7 +428,7 @@ restartOptions =
   , (B . optIrrelevantProjections, "--irrelevant-projections")
   , (B . optExperimentalIrrelevance, "--experimental-irrelevance")
   , (B . collapseDefault . optWithoutK, "--without-K")
-  , (B . collapseDefault . optWithoutK, "--cubical-compatible")
+  , (B . collapseDefault . optCubicalCompatible, "--cubical-compatible")
   , (B . optExactSplit, "--exact-split")
   , (B . not . optEta, "--no-eta-equality")
   , (B . optRewriting, "--rewriting")
@@ -485,7 +485,7 @@ coinfectiveOptions :: [(PragmaOptions -> Bool, String)]
 coinfectiveOptions =
   [ (optSafe, "--safe")
   , (collapseDefault . optWithoutK, "--without-K")
-  , (collapseDefault . optWithoutK, "--cubical-compatible")
+  , (collapseDefault . optCubicalCompatible, "--cubical-compatible")
   , (not . optUniversePolymorphism, "--no-universe-polymorphism")
   , (not . optCumulativity, "--no-cumulativity")
   ]
@@ -754,13 +754,19 @@ rewritingFlag o = return $ o { optRewriting = True }
 firstOrderFlag :: Flag PragmaOptions
 firstOrderFlag o = return $ o { optFirstOrder = True }
 
+cubicalCompatibleFlag :: Flag PragmaOptions
+cubicalCompatibleFlag o =
+  return $ o { optCubicalCompatible = Value True
+             , optWithoutK = setDefault True $ optWithoutK o
+             }
+
 cubicalFlag
   :: Cubical  -- ^ Which variant of Cubical Agda?
   -> Flag PragmaOptions
-cubicalFlag variant o = do
-  let withoutK = optWithoutK o
+cubicalFlag variant o =
   return $ o { optCubical  = Just variant
-             , optWithoutK = setDefault True withoutK
+             , optCubicalCompatible = setDefault True $ optCubicalCompatible o
+             , optWithoutK = setDefault True $ optWithoutK o
              , optTwoLevel = setDefault True $ optTwoLevel o
              }
 
@@ -1024,10 +1030,10 @@ pragmaOptions =
                     "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
     , Option []     ["with-K"] (NoArg withKFlag)
                     "enable the K rule in pattern matching (default)"
-    , Option []     ["cubical-compatible"] (NoArg withoutKFlag)
-                    "turn on checks to make code compatible with --cubical (e.g. disabling the K rule)"
+    , Option []     ["cubical-compatible"] (NoArg cubicalCompatibleFlag)
+                    "turn on generation of auxiliary code required for --cubical, implies --without-K"
     , Option []     ["without-K"] (NoArg withoutKFlag)
-                    "alias for --cubical-compatible (legacy)"
+                    "turn on checks to make code compatible with HoTT (e.g. disabling the K rule)"
     , Option []     ["copatterns"] (NoArg copatternsFlag)
                     "enable definitions by copattern matching (default)"
     , Option []     ["no-copatterns"] (NoArg noCopatternsFlag)

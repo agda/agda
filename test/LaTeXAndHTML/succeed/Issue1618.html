@@ -7,14 +7,14 @@
 The let should be properly aligned in the following code:
 
 </a><a id="173" class="Markup">\begin{code}</a>
-<a id="id"></a><a id="186" href="Issue1618.html#186" class="Function">id</a> <a id="189" class="Symbol">:</a> <a id="191" class="Symbol">(</a><a id="192" href="Issue1618.html#192" class="Bound">A</a> <a id="194" class="Symbol">:</a> <a id="196" href="Agda.Primitive.html#311" class="Primitive">Set</a><a id="199" class="Symbol">)</a> <a id="201" class="Symbol">→</a> <a id="203" href="Issue1618.html#192" class="Bound">A</a> <a id="205" class="Symbol">→</a> <a id="207" href="Issue1618.html#192" class="Bound">A</a>
+<a id="id"></a><a id="186" href="Issue1618.html#186" class="Function">id</a> <a id="189" class="Symbol">:</a> <a id="191" class="Symbol">(</a><a id="192" href="Issue1618.html#192" class="Bound">A</a> <a id="194" class="Symbol">:</a> <a id="196" href="Agda.Primitive.html#320" class="Primitive">Set</a><a id="199" class="Symbol">)</a> <a id="201" class="Symbol">→</a> <a id="203" href="Issue1618.html#192" class="Bound">A</a> <a id="205" class="Symbol">→</a> <a id="207" href="Issue1618.html#192" class="Bound">A</a>
 <a id="209" href="Issue1618.html#186" class="Function">id</a> <a id="212" href="Issue1618.html#212" class="Bound">A</a> <a id="214" class="Symbol">=</a>
   <a id="218" class="Keyword">let</a>
     <a id="226" href="Issue1618.html#226" class="Bound">id&#39;</a> <a id="230" class="Symbol">:</a> <a id="232" href="Issue1618.html#277" class="Function">B</a> <a id="234" class="Symbol">→</a> <a id="236" href="Issue1618.html#277" class="Function">B</a>
     <a id="242" href="Issue1618.html#226" class="Bound">id&#39;</a> <a id="246" class="Symbol">=</a> <a id="248" class="Symbol">λ</a> <a id="250" href="Issue1618.html#250" class="Bound">a</a> <a id="252" class="Symbol">→</a> <a id="254" href="Issue1618.html#250" class="Bound">a</a>
   <a id="258" class="Keyword">in</a> <a id="261" href="Issue1618.html#226" class="Bound">id&#39;</a>
   <a id="267" class="Keyword">where</a>
-    <a id="277" href="Issue1618.html#277" class="Function">B</a> <a id="279" class="Symbol">:</a> <a id="281" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+    <a id="277" href="Issue1618.html#277" class="Function">B</a> <a id="279" class="Symbol">:</a> <a id="281" href="Agda.Primitive.html#320" class="Primitive">Set</a>
     <a id="289" href="Issue1618.html#277" class="Function">B</a> <a id="291" class="Symbol">=</a> <a id="293" href="Issue1618.html#212" class="Bound">A</a>
 <a id="295" class="Markup">\end{code}</a><a id="305" class="Background">
 
@@ -22,12 +22,12 @@ This should also work if the new block is following after the
 keyword, as opposed to on a new line.
 
 </a><a id="408" class="Markup">\begin{code}</a>
-<a id="di"></a><a id="421" href="Issue1618.html#421" class="Function">di</a> <a id="424" class="Symbol">:</a> <a id="426" class="Symbol">(</a><a id="427" href="Issue1618.html#427" class="Bound">A</a> <a id="429" class="Symbol">:</a> <a id="431" href="Agda.Primitive.html#311" class="Primitive">Set</a><a id="434" class="Symbol">)</a> <a id="436" class="Symbol">→</a> <a id="438" href="Issue1618.html#427" class="Bound">A</a> <a id="440" class="Symbol">→</a> <a id="442" href="Issue1618.html#427" class="Bound">A</a>
+<a id="di"></a><a id="421" href="Issue1618.html#421" class="Function">di</a> <a id="424" class="Symbol">:</a> <a id="426" class="Symbol">(</a><a id="427" href="Issue1618.html#427" class="Bound">A</a> <a id="429" class="Symbol">:</a> <a id="431" href="Agda.Primitive.html#320" class="Primitive">Set</a><a id="434" class="Symbol">)</a> <a id="436" class="Symbol">→</a> <a id="438" href="Issue1618.html#427" class="Bound">A</a> <a id="440" class="Symbol">→</a> <a id="442" href="Issue1618.html#427" class="Bound">A</a>
 <a id="444" href="Issue1618.html#421" class="Function">di</a> <a id="447" href="Issue1618.html#447" class="Bound">A</a> <a id="449" class="Symbol">=</a>
   <a id="453" class="Keyword">let</a>  <a id="458" href="Issue1618.html#458" class="Bound">id&#39;</a> <a id="462" class="Symbol">:</a> <a id="464" href="Issue1618.html#509" class="Function">B</a> <a id="466" class="Symbol">→</a> <a id="468" href="Issue1618.html#509" class="Function">B</a>
        <a id="477" href="Issue1618.html#458" class="Bound">id&#39;</a> <a id="481" class="Symbol">=</a> <a id="483" class="Symbol">λ</a> <a id="485" href="Issue1618.html#485" class="Bound">a</a> <a id="487" class="Symbol">→</a> <a id="489" href="Issue1618.html#485" class="Bound">a</a>
   <a id="493" class="Keyword">in</a> <a id="496" href="Issue1618.html#458" class="Bound">id&#39;</a>
-  <a id="502" class="Keyword">where</a>  <a id="509" href="Issue1618.html#509" class="Function">B</a> <a id="511" class="Symbol">:</a> <a id="513" href="Agda.Primitive.html#311" class="Primitive">Set</a>
+  <a id="502" class="Keyword">where</a>  <a id="509" href="Issue1618.html#509" class="Function">B</a> <a id="511" class="Symbol">:</a> <a id="513" href="Agda.Primitive.html#320" class="Primitive">Set</a>
          <a id="526" href="Issue1618.html#509" class="Function">B</a> <a id="528" class="Symbol">=</a> <a id="530" href="Issue1618.html#447" class="Bound">A</a>
 <a id="532" class="Markup">\end{code}</a><a id="542" class="Background">
 \end{document}

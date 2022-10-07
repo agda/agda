@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --safe --universe-polymorphism --no-sized-types
+{-# OPTIONS --cubical-compatible --safe --universe-polymorphism --no-sized-types
             --guardedness #-}
 
 module Agda.Builtin.Coinduction where
