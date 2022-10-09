@@ -179,7 +179,7 @@ nameStringParts n = [ s | Id s <- List1.toList $ nameParts n ]
 stringNameParts :: String -> NameParts
 stringNameParts ""  = singleton $ Id "_"  -- NoName
 stringNameParts "_" = singleton $ Id "_"  -- NoName
-stringNameParts s = List1.fromList __IMPOSSIBLE__ $ loop s
+stringNameParts s = List1.fromListSafe __IMPOSSIBLE__ $ loop s
   where
   loop ""                              = []
   loop ('_':s)                         = Hole : loop s
