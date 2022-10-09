@@ -235,9 +235,6 @@ order for the change to take effect."
   ("squb="  . ("⊑"))  ("squp="  . ("⊒"))
   ("squb=n" . ("⋢"))  ("squp=n" . ("⋣"))
 
-  ("<"    . ,(agda-input-to-string-list "<≪⋘≺⊂⋐⊏⊰⊲⋖＜"))
-  (">"    . ,(agda-input-to-string-list ">≫⋙≻⊃⋑⊐⊱⊳⋗＞"))
-
   ;; Set membership etc.
 
   ("member" . ,(agda-input-to-string-list "∈∉∊∋∌∍⋲⋳⋴⋵⋶⋷⋸⋹⋺⋻⋼⋽⋾⋿"))
@@ -737,8 +734,8 @@ order for the change to take effect."
 
   ("[[" . ("⟦"))
   ("]]" . ("⟧"))
-  ("<"  . ("⟨"))
-  (">"  . ("⟩"))
+  ("<"  . ,(agda-input-to-string-list "⟨<≪⋘≺⊂⋐⊏⊰⊲⋖＜"))
+  (">"  . ,(agda-input-to-string-list "⟩>≫⋙≻⊃⋑⊐⊱⊳⋗＞"))
   ("<<" . ("⟪"))
   (">>" . ("⟫"))
   ("{{" . ("⦃"))
