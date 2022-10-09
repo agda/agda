@@ -316,7 +316,7 @@ order for the change to take effect."
   ("increment" . ("∆"))
   ("inf"       . ("∞"))
   ("&"         . ("⅋"))
-  ("z;"        . ("⨟⨾"))
+  ("z;"        . ,(agda-input-to-string-list "⨟⨾"))
   ("z:"        . ("⦂"))
 
   ;; Circled operators.
