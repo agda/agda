@@ -4274,7 +4274,7 @@ data TypeError
         | AbstractConstructorNotInScope A.QName
         | NotInScope [C.QName]
         | NoSuchModule C.QName
-        | AmbiguousName C.QName (List1 A.QName)
+        | AmbiguousName C.QName AmbiguousNameReason
         | AmbiguousModule C.QName (List1 A.ModuleName)
         | ClashingDefinition C.QName A.QName (Maybe NiceDeclaration)
         | ClashingModule A.ModuleName A.ModuleName

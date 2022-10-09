@@ -52,7 +52,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.List1 (List1, pattern (:|), nonEmpty, toList)
-import Agda.Utils.List2 (List2(List2))
+import Agda.Utils.List2 (List2(List2), toList)
 import qualified Agda.Utils.List1 as List1
 import qualified Agda.Utils.List2 as List2
 import Agda.Utils.Maybe
@@ -328,15 +328,15 @@ resolveName = resolveName' allKindsOfNames Nothing
 resolveName' ::
   KindsOfNames -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
 resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
-  Left ys  -> do
+  Left reason  -> do
     reportS "scope.resolve" 60 $ unlines $
       "resolveName': ambiguous name" :
-      map (show . qnameName) (toList ys)
-    setCurrentRange x $ typeError $ AmbiguousName x ys
+      map (show . qnameName) (toList $ ambiguousNamesInReason reason)
+    setCurrentRange x $ typeError $ AmbiguousName x reason
   Right x' -> return x'
 
 tryResolveName
-  :: forall m. (ReadTCState m, HasBuiltins m, MonadError (List1 A.QName) m)
+  :: forall m. (ReadTCState m, HasBuiltins m, MonadError AmbiguousNameReason m)
   => KindsOfNames       -- ^ Restrict search to these kinds of names.
   -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
   -> C.QName            -- ^ Name to be resolved
@@ -345,13 +345,14 @@ tryResolveName kinds names x = do
   scope <- getScope
   let vars     = AssocList.mapKeysMonotonic C.QName $ scope ^. scopeLocals
   case lookup x vars of
+
     -- Case: we have a local variable x, but is (perhaps) shadowed by some imports ys.
-    Just (LocalVar y b ys) ->
+    Just var@(LocalVar y b ys) ->
       -- We may ignore the imports filtered out by the @names@ filter.
-      ifNull (filterNames id ys)
-        {-then-} (return $ VarName y{ nameConcrete = unqualify x } b)
-        {-else-} $ \ ys' ->
-          throwError $ A.qualify_ y :| map anameName ys'
+      case nonEmpty $ filterNames id ys of
+        Nothing  -> return $ VarName y{ nameConcrete = unqualify x } b
+        Just ys' -> throwError $ AmbiguousLocalVar var ys'
+
     -- Case: we do not have a local variable x.
     Nothing -> do
       -- Consider only names that are in the given set of names and
@@ -376,15 +377,19 @@ tryResolveName kinds names x = do
         Just ds  | all ((PatternSynName ==) . anameKind . fst) ds , isNothing suffixedNames ->
           return $ PatternSynResName $ fmap (upd . fst) ds
 
-        Just ((d, a) :| []) | isNothing suffixedNames ->
-          return $ DefinedName a (upd d) A.NoSuffix
-
-        Just ds -> throwError $ fmap (anameName . fst) $ caseMaybe suffixedNames id ((<>) . snd) ds
+        Just ((d, a) :| ds) -> case (suffixedNames, ds) of
+          (Nothing, []) ->
+            return $ DefinedName a (upd d) A.NoSuffix
+          (Nothing, (d',_) : ds') ->
+            throwError $ AmbiguousDeclName $ List2 d d' $ map fst ds'
+          (Just (_, ss), _) ->
+            throwError $ AmbiguousDeclName $ List2.append (d :| map fst ds) (fmap fst ss)
 
         Nothing -> case suffixedNames of
           Nothing -> return UnknownName
           Just (suffix , (d, a) :| []) -> return $ DefinedName a (upd d) suffix
-          Just (suffix , sds) -> throwError $ fmap (anameName . fst) sds
+          Just (suffix , (d1,_) :| (d2,_) : sds) ->
+            throwError $ AmbiguousDeclName $ List2 d1 d2 $ map fst sds
 
   where
   -- @names@ intended semantics: a filter on names.
