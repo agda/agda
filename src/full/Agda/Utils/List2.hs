@@ -29,6 +29,39 @@ import Agda.Utils.Impossible
 data List2 a = List2 a a [a]
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
+-- | 'fromList' is unsafe.
+instance IsList (List2 a) where
+  type Item (List2 a) = a
+
+  -- Unsafe! O(1).
+  fromList :: [a] -> List2 a
+  fromList (a : b : cs) = List2 a b cs
+  fromList _            = __IMPOSSIBLE__
+
+  toList :: List2 a -> [a]
+  toList (List2 a b cs) = a : b : cs
+
+-- * Construction
+
+-- | O(1).
+cons :: a -> List1 a -> List2 a
+cons x (y :| ys) = List2 x y ys
+
+-- | O(length first list).
+append :: List1 a -> List1 a -> List2 a
+append (x :| xs) ys = cons x $ List1.prependList xs ys
+
+-- | O(length first list).
+appendList :: List2 a -> [a] -> List2 a
+appendList (List2 x y ys) zs = List2 x y $ mappend ys zs
+
+-- | Unsafe!
+fromList1 :: List1 a -> List2 a
+fromList1 (a :| b : cs) = List2 a b cs
+fromList1 _             = __IMPOSSIBLE__
+
+-- * Destruction
+
 -- | Safe. O(1).
 head :: List2 a -> a
 head (List2 a _ _) = a
@@ -51,25 +84,11 @@ fromList1Maybe = \case
   (a :| b : cs) -> Just (List2 a b cs)
   _ -> Nothing
 
-instance IsList (List2 a) where
-  type Item (List2 a) = a
-
-  -- Unsafe! O(1).
-  fromList :: [a] -> List2 a
-  fromList (a : b : cs) = List2 a b cs
-  fromList _            = __IMPOSSIBLE__
-
-  toList :: List2 a -> [a]
-  toList (List2 a b cs) = a : b : cs
-
 -- | Safe. O(1).
 toList1 :: List2 a -> List1 a
 toList1 (List2 a b cs) = a :| b : cs
 
--- | Unsafe!
-fromList1 :: List1 a -> List2 a
-fromList1 (a :| b : cs) = List2 a b cs
-fromList1 _             = __IMPOSSIBLE__
+-- * Partition
 
 break :: (a -> Bool) -> List2 a -> ([a],[a])
 break p = List.break p . toList
