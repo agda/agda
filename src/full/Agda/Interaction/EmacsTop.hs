@@ -181,8 +181,8 @@ lispifyDisplayInfo info = case info of
       let doc = "Definitions about" <+>
                 text (List.intercalate ", " $ words names) $$ nest 2 (align 10 hitDocs)
       format (render doc) "*Search About*"
-    Info_WhyInScope s cwd v xs ms -> do
-      doc <- explainWhyInScope s cwd v xs ms
+    Info_WhyInScope y cwd v xs ms -> do
+      doc <- explainWhyInScope y cwd v xs ms
       format (render doc) "*Scope Info*"
     Info_Context ii ctx -> do
       doc <- localTCState (prettyResponseContext ii False ctx)
@@ -318,15 +318,21 @@ showInfoError (Info_HighlightingParseError ii) =
 showInfoError (Info_HighlightingScopeCheckError ii) =
   return $ "Highlighting failed to scope check expression in " ++ show ii
 
-explainWhyInScope :: FilePath
-                  -> String
-                  -> (Maybe LocalVar)
-                  -> [AbstractName]
-                  -> [AbstractModule]
-                  -> TCM Doc
-explainWhyInScope s _ Nothing [] [] = TCP.text (s ++ " is not in scope.")
-explainWhyInScope s _ v xs ms = TCP.vcat
-  [ TCP.text (s ++ " is in scope as")
+explainWhyInScope ::
+     C.QName
+       -- ^ The name @x@ this explanation is about.
+  -> FilePath
+       -- ^ The directory in which the current module resides.
+  -> Maybe LocalVar
+       -- ^ The local variable that @x@ could denote, if any.
+  -> [AbstractName]
+       -- ^ The defined names that @x@ could denote.
+  -> [AbstractModule]
+       -- ^ The modules that @x@ could denote.
+  -> TCM Doc
+explainWhyInScope y _ Nothing [] [] = TCP.text (prettyShow  y ++ " is not in scope.")
+explainWhyInScope y _ v xs ms = TCP.vcat
+  [ TCP.text (prettyShow y ++ " is in scope as")
   , TCP.nest 2 $ TCP.vcat [variable v xs, modules ms]
   ]
   where
