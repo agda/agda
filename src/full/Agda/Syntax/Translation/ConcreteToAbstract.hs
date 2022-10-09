@@ -185,7 +185,7 @@ recordConstructorType decls =
       let failure = typeError $ NotValidBeforeField d
           r       = getRange d
           mkLet d = Just . A.TLet r <$> toAbstract (LetDef d)
-      traceCall (SetRange r) $ case d of
+      setCurrentRange r $ case d of
 
         C.NiceField r pr ab inst tac x a -> do
           fx  <- getConcreteFixity x
@@ -1283,7 +1283,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
 
         -- If there are declarations after the top-level module
         -- we have to report a parse error here.
-        (_, C.Module{} : d : _) -> traceCall (SetRange $ getRange d) $
+        (_, C.Module{} : d : _) -> setCurrentRange d $
           genericError $ "No declarations allowed after top-level module."
 
         -- Otherwise, proceed.
@@ -1314,7 +1314,7 @@ instance ToAbstract (TopLevel [C.Declaration]) where
                          void $ toAbstract (Declarations outsideDecls)
                          void $ toAbstract (Declarations ds0)
                          -- Fail with a crude error otherwise
-                         traceCall (SetRange $ getRange ds0) $ genericError
+                         setCurrentRange ds0 $ genericError
                            "Illegal declaration(s) before top-level module"
 
                     -- Otherwise, reconstruct the top-level module name
@@ -1932,7 +1932,7 @@ instance ToAbstract NiceDeclaration where
       dir <- notPublicWithoutOpen open dir
 
       -- Andreas, 2018-11-03, issue #3364, parse expression in as-clause as Name.
-      let illformedAs s = traceCall (SetRange $ getRange as) $ do
+      let illformedAs s = setCurrentRange as $ do
             -- If @as@ is followed by something that is not a simple name,
             -- throw a warning and discard the as-clause.
             Nothing <$ warning (IllformedAsClause s)

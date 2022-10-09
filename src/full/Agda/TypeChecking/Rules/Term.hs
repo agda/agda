@@ -433,7 +433,7 @@ checkPath b@(A.TBind _r _tac (xp :| []) typ) body ty = do
         rhs' = subst 0 iOne  v
     let t = Lam info $ Abs (namedArgName x) v
     let btyp i = El s (unArg typ `apply` [argN i])
-    locallyTC eRange (const noRange) $ blockTerm ty $ traceCall (SetRange $ getRange body) $ do
+    locallyTC eRange (const noRange) $ blockTerm ty $ setCurrentRange body $ do
       equalTerm (btyp iZero) lhs' (unArg lhs)
       equalTerm (btyp iOne) rhs' (unArg rhs)
       return t
@@ -1462,7 +1462,7 @@ checkKnownArguments
   -> TCM (Args, Type)   -- ^ Remaining inferred arguments, remaining type.
 checkKnownArguments []           vs t = return (vs, t)
 checkKnownArguments (arg : args) vs t = do
-  (vs', t') <- traceCall (SetRange $ getRange arg) $ checkKnownArgument arg vs t
+  (vs', t') <- setCurrentRange arg $ checkKnownArgument arg vs t
   checkKnownArguments args vs' t'
 
 -- | Check an argument whose value we already know.

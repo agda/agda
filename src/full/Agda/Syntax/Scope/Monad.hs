@@ -328,11 +328,15 @@ resolveName = resolveName' allKindsOfNames Nothing
 resolveName' ::
   KindsOfNames -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
 resolveName' kinds names x = runExceptT (tryResolveName kinds names x) >>= \case
-  Left ys  -> traceCall (SetRange $ getRange x) $ typeError $ AmbiguousName x ys
+  Left ys  -> do
+    reportS "scope.resolve" 60 $ unlines $
+      "resolveName': ambiguous name" :
+      map (show . qnameName) (toList ys)
+    setCurrentRange x $ typeError $ AmbiguousName x ys
   Right x' -> return x'
 
 tryResolveName
-  :: (ReadTCState m, HasBuiltins m, MonadError (List1 A.QName) m)
+  :: forall m. (ReadTCState m, HasBuiltins m, MonadError (List1 A.QName) m)
   => KindsOfNames       -- ^ Restrict search to these kinds of names.
   -> Maybe (Set A.Name) -- ^ Unless 'Nothing', restrict search to match any of these names.
   -> C.QName            -- ^ Name to be resolved
