@@ -756,8 +756,8 @@ order for the change to take effect."
   ("(|" . ("⦇"))  ;; Idiom brackets
   ("|)" . ("⦈"))
 
-  ("((" . ("⦅｟"))  ;; Banana brackets
-  ("))" . ("⦆｠"))
+  ("((" . ,(agda-input-to-string-list "⦅｟"))  ;; Banana brackets
+  ("))" . ,(agda-input-to-string-list "⦆｠"))
 
   ;; Primes.
 
